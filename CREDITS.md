@@ -88,10 +88,6 @@ includes:
   down in a corner, and slides out of them and flips over once the strip stops;
 - the shop in kyber shards, a Mythical offer one day in four, and holocrons bought with
   credits (17/10/2026, Sol's decisions), prepared for when the SJK hub turns them on;
-- kyber crystals (21/10/2026, Sol's idea): one for every achievement, from Uncommon to
-  Mythical, always a saber shader (the ones not held first), a guaranteed Legendary or
-  better every tenth crystal; the old kyber prism became the crystal and the Mythical
-  holocron a faceted gold engram whose plates breathe round a glowing core;
 - blade cards craft their saber shader for less (21/10/2026, Sol's idea): a Normal copy
   at the shop's price, a Holo or Solar one at half, the card kept, and a button under a
   held blade card on the Cards tab that leads to its shader (to the Forge's Craft while

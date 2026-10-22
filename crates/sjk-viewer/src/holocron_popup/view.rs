@@ -289,30 +289,6 @@ fn below(view: &View<'_>, noted: usize) -> f32 {
     }
 }
 
-/// The team's note the pop-up quotes: a gift's; a kyber crystal's note names the
-/// achievement that earned it, said in its own line instead.
-fn team_note<'a>(view: &View<'a>) -> &'a str {
-    if view.entry.earned {
-        ""
-    } else {
-        &view.entry.note
-    }
-}
-
-/// How rare a holocron is ("1.5% of holocrons are this rare"), or what a kyber crystal
-/// gives (it is never dropped).
-struct Odds(&'static crate::holocrons::Tier);
-
-impl std::fmt::Display for Odds {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if self.0.is_kyber() {
-            formatter.write_str(crate::kyber::ABOUT)
-        } else {
-            write!(formatter, "{} of holocrons are this rare", self.0.odds())
-        }
-    }
-}
-
 /// The words: what it is and where from, the name, when it was found and the odds, the
 /// team's note on a gift, then the button and its key.
 fn words(
@@ -325,20 +301,13 @@ fn words(
     let s = frame.s;
     let tier = view.entry.tier;
     let hue = color::alpha(tier.colour, 1.0);
-    // A kyber crystal: "Earned: First Blood", or from an achievement the hub did not name.
-    let earned = &crate::kyber::Earned::of(&view.entry.note);
-    let kicker = if tier.is_kyber() {
-        "New kyber crystal"
-    } else {
-        "New holocron"
-    };
     group(ui, moment, Words::Kicker, |ui, rise| {
         match view.place {
             Some((at, of)) => line(
                 ui,
                 frame,
                 TextFamily::Display,
-                format_args!("{kicker} \u{b7} {at} of {of}"),
+                format_args!("New holocron \u{b7} {at} of {of}"),
                 KICKER_Y + rise,
                 KICKER_SIZE,
                 hue,
@@ -348,19 +317,17 @@ fn words(
                 ui,
                 frame,
                 TextFamily::Display,
-                format_args!("{kicker}"),
+                format_args!("New holocron"),
                 KICKER_Y + rise,
                 KICKER_SIZE,
                 hue,
                 FontWeight::Semibold,
             ),
         }
-        let from: &dyn std::fmt::Display = if view.entry.gift {
-            &"A gift from the SJK team"
-        } else if view.entry.earned {
-            earned
+        let from = if view.entry.gift {
+            "A gift from the SJK team"
         } else {
-            &"Dropped while you played"
+            "Dropped while you played"
         };
         line(
             ui,
@@ -404,7 +371,7 @@ fn words(
             ui,
             frame,
             TextFamily::Body,
-            format_args!("{}", Odds(tier)),
+            format_args!("{} of holocrons are this rare", tier.odds()),
             y,
             ODDS_SIZE,
             color::MUTED,
@@ -412,7 +379,7 @@ fn words(
         );
     });
     let (note, noted) =
-        award::wrap::<NOTE_LINES>(team_note(view), |part| fits(measure, part, NOTE_SIZE, s));
+        award::wrap::<NOTE_LINES>(&view.entry.note, |part| fits(measure, part, NOTE_SIZE, s));
     if noted > 0 {
         let top =
             NAME_Y + DETAILS_GAP + if view.when.is_empty() { 0.0 } else { LINE } + LINE + NOTE_GAP;
@@ -471,7 +438,7 @@ fn words(
 #[cfg(test)]
 pub(super) fn button_top(measure: Measure<'_>, view: &View<'_>, s: f32) -> f32 {
     let (_, noted) =
-        award::wrap::<NOTE_LINES>(team_note(view), |part| fits(measure, part, NOTE_SIZE, s));
+        award::wrap::<NOTE_LINES>(&view.entry.note, |part| fits(measure, part, NOTE_SIZE, s));
     below(view, noted) + BUTTON_GAP
 }
 
@@ -501,16 +468,12 @@ mod tests {
         (ENTRANCE + 2.0, Some(EXIT * 0.5)),
     ];
 
-    /// The tier at slot `tier` ([`crate::holocrons::slot`]: past the holocrons, a kyber
-    /// crystal earned from an achievement).
     fn entry(tier: usize, gift: bool, note: &str) -> Entry {
-        let tier = crate::holocrons::slot(tier);
         Entry {
             id: 9,
-            tier,
+            tier: &TIERS[tier],
             dropped: 1_791_641_100,
-            gift: gift && !tier.is_kyber(),
-            earned: tier.is_kyber(),
+            gift,
             note: note.to_owned(),
         }
     }
@@ -528,12 +491,10 @@ mod tests {
         let notes = [String::new(), running.to_owned(), long];
         FONTS.with(|fonts| {
             for measure in [fonts.families(), fonts.inter()] {
-                for tier in 0..crate::holocrons::SLOTS {
+                for tier in 0..TIERS.len() {
                     for note in &notes {
                         for others in [0, 3] {
-                            let texture =
-                                crate::holocrons::icons::texture(tier.min(TIERS.len() - 1));
-                            for icon in [None, Some(texture)] {
+                            for icon in [None, Some(crate::holocrons::icons::texture(tier))] {
                                 for viewport in VIEWPORTS {
                                     for (at, leaving) in MOMENTS {
                                         let mut entries = vec![entry(tier, !note.is_empty(), note)];

@@ -3,9 +3,8 @@
 //! the chosen tier's name, a padlock when none is held and how many are, under it. On the
 //! right, over a dark panel: how many holocrons the player holds (or why that is not
 //! known), the four tiers (picture, name in the tier's colour, the count held or a dash,
-//! the odds of a drop), the kyber crystals (a row of four tiles under their heading and
-//! the pity line, [`crate::kyber`]), what the chosen tier is and holds, how long to the
-//! next holocron and how many dropped today, and the newest eight. The player's kyber shards and credits
+//! the odds of a drop), what the chosen tier is and holds, how long to the next holocron
+//! and how many dropped today, and the newest ten. The player's kyber shards and credits
 //! stand at the panel's top right, Loot table beside what the chosen tier holds, and Open,
 //! Open all and Shop under the holocron's caption. While the opening's ceremony, the loot
 //! table shows, only it is drawn ([`super::opening`], [`super::loot`]).
@@ -30,24 +29,16 @@ const PANEL_FADE: f32 = 940.0;
 const HEAD_Y: f32 = 166.0;
 const LINE_Y: f32 = 216.0;
 const ROWS_TOP: f32 = 262.0;
-const ROW_HEIGHT: f32 = 52.0;
-const ROW_GAP: f32 = 6.0;
-/// The kyber crystals: their heading's line (the pity line at its right), and their row
-/// of four tiles, each [`CRYSTAL_WIDTH`] wide.
-const KYBER_Y: f32 = 512.0;
-const CRYSTALS_TOP: f32 = 532.0;
-const CRYSTAL_HEIGHT: f32 = 52.0;
-const CRYSTAL_GAP: f32 = 8.0;
-const CRYSTAL_WIDTH: f32 =
-    (RIGHT_WIDTH - CRYSTAL_GAP * (crate::kyber::COUNT as f32 - 1.0)) / crate::kyber::COUNT as f32;
+const ROW_HEIGHT: f32 = 60.0;
+const ROW_GAP: f32 = 8.0;
 /// The chosen tier's description, what it holds, and the rule under.
-const ABOUT_Y: f32 = 596.0;
-const RULE_Y: f32 = 690.0;
+const ABOUT_Y: f32 = 542.0;
+const RULE_Y: f32 = 632.0;
 /// The progress line, its bar, and the recent list's heading and first row.
-const NEXT_Y: f32 = 698.0;
-const BAR_Y: f32 = 738.0;
-const RECENT_Y: f32 = 766.0;
-const RECENT_TOP: f32 = 790.0;
+const NEXT_Y: f32 = 642.0;
+const BAR_Y: f32 = 682.0;
+const RECENT_Y: f32 = 712.0;
+const RECENT_TOP: f32 = 736.0;
 const RECENT_HEIGHT: f32 = 38.0;
 const RECENT_COLUMNS: usize = 2;
 const RECENT_WIDTH: f32 = RIGHT_WIDTH / RECENT_COLUMNS as f32;
@@ -170,9 +161,8 @@ fn padlock(canvas: &mut MenuCanvas, frame: &Frame, x: f32, y: f32, size: f32, co
     });
 }
 
-/// The picture of the tier at slot `index` ([`holocrons::slot`]) over the square of side
-/// `2 * half` frame pixels centred on (`x`, `y`), at `alpha`: its icon, or its gem where
-/// the icon did not load (a kyber crystal's until its pictures come).
+/// Tier `index`'s picture over the square of side `2 * half` frame pixels centred on
+/// (`x`, `y`), at `alpha`: its icon, or its gem where the icon did not load.
 pub(super) fn picture(
     canvas: &mut MenuCanvas,
     frame: &Frame,
@@ -194,7 +184,7 @@ pub(super) fn picture(
             canvas.draw_list_mut(),
             [cx, cy],
             half * frame.s,
-            holocrons::slot(index).colour,
+            holocrons::TIERS[index].colour,
             alpha,
             gem::ROWS,
         );
@@ -324,7 +314,6 @@ impl Panel {
         );
         self.header(&frame);
         self.tiers(&frame);
-        self.crystals(&frame);
         self.about(&frame);
         if self.data.state == State::Known {
             self.progress(&frame);
@@ -347,7 +336,7 @@ impl Panel {
         let Some(index) = token
             .checked_sub(ROW_BASE)
             .map(usize::from)
-            .filter(|index| *index < SLOTS)
+            .filter(|index| *index < COUNT)
         else {
             return;
         };
@@ -465,14 +454,14 @@ impl Panel {
                 index,
                 RIGHT_X + 52.0,
                 y + ROW_HEIGHT * 0.5,
-                20.0,
+                22.0,
                 if held { 1.0 } else { 0.5 },
             );
             text(
                 &mut self.ui,
                 TextFamily::Display,
                 format_args!("{}", tier.name),
-                frame.rect(RIGHT_X + 90.0, y + 2.0, 440.0, 32.0),
+                frame.rect(RIGHT_X + 90.0, y + 5.0, 440.0, 32.0),
                 27.0 * s,
                 tier.colour_alpha(if held { 1.0 } else { 0.62 }),
                 FontWeight::Semibold,
@@ -482,7 +471,7 @@ impl Panel {
                 &mut self.ui,
                 TextFamily::Body,
                 format_args!("{} of drops", tier.odds()),
-                frame.rect(RIGHT_X + 90.0, y + 30.0, 440.0, 20.0),
+                frame.rect(RIGHT_X + 90.0, y + 35.0, 440.0, 20.0),
                 15.0 * s,
                 color::MUTED,
                 FontWeight::Regular,
@@ -495,7 +484,7 @@ impl Panel {
                         &mut self.ui,
                         TextFamily::Display,
                         format_args!("{count}"),
-                        frame.rect(right - 130.0 + 60.0, y + 1.0, 70.0, 36.0),
+                        frame.rect(right - 130.0 + 60.0, y + 4.0, 70.0, 36.0),
                         32.0 * s,
                         if held { color::TEXT } else { color::QUIET },
                         FontWeight::Semibold,
@@ -505,7 +494,7 @@ impl Panel {
                         &mut self.ui,
                         TextFamily::Body,
                         format_args!("held"),
-                        frame.rect(right - 130.0, y + 33.0, 130.0, 18.0),
+                        frame.rect(right - 130.0, y + 38.0, 130.0, 18.0),
                         14.0 * s,
                         color::QUIET,
                         FontWeight::Regular,
@@ -526,122 +515,13 @@ impl Panel {
                     &mut self.ui,
                     TextFamily::Display,
                     format_args!("\u{2014}"),
-                    frame.rect(right - 130.0, y + 8.0, 130.0, 36.0),
+                    frame.rect(right - 130.0, y + 12.0, 130.0, 36.0),
                     32.0 * s,
                     color::QUIET,
                     FontWeight::Semibold,
                     TextAlign::End,
                 ),
             }
-        }
-    }
-
-    /// The kyber crystals ([`crate::kyber`]): their heading with the pity line at its right,
-    /// then a tile per tier (picture, the tier in its colour, how many are held or a dash),
-    /// chosen and hovered as the holocrons' rows are, dimmed when none is held.
-    fn crystals(&mut self, frame: &Frame) {
-        let s = frame.s;
-        kit::heading(
-            &mut self.ui,
-            frame,
-            RIGHT_X,
-            KYBER_Y,
-            RIGHT_WIDTH - 440.0,
-            "Kyber crystals",
-        );
-        text(
-            &mut self.ui,
-            TextFamily::Body,
-            format_args!("{}", crate::kyber::pity_line(self.data.pity)),
-            frame.rect(RIGHT_X + RIGHT_WIDTH - 430.0, KYBER_Y - 13.0, 430.0, 26.0),
-            15.0 * s,
-            color::GOLD,
-            FontWeight::Regular,
-            TextAlign::End,
-        );
-        for (index, tier) in crate::kyber::TIERS.iter().enumerate() {
-            let x = RIGHT_X + index as f32 * (CRYSTAL_WIDTH + CRYSTAL_GAP);
-            let y = CRYSTALS_TOP;
-            let token = ROW_BASE + tier.slot as u16;
-            let chosen = tier.slot == self.selected;
-            let hovered = self.ui.token_hovered(token);
-            let count = self.data.count(tier.slot);
-            let held = count.is_some_and(|count| count > 0);
-            let rect = frame.rect(x, y, CRYSTAL_WIDTH, CRYSTAL_HEIGHT);
-            let list = self.ui.draw_list_mut();
-            let _ = list.push(DrawCommand::RoundedRect {
-                rect,
-                radius: 12.0 * s,
-                color: if chosen {
-                    tier.colour_alpha(0.16)
-                } else {
-                    color::alpha(color::SPACE, 0.55)
-                },
-            });
-            let _ = list.push(DrawCommand::Border {
-                rect,
-                radius: 12.0 * s,
-                width: if chosen { 2.0 * s } else { 1.2 * s },
-                color: if chosen {
-                    Color::new(1.0, 1.0, 1.0, 0.7)
-                } else if hovered {
-                    tier.colour_alpha(0.55)
-                } else {
-                    color::alpha(color::HOLO, 0.16)
-                },
-            });
-            crate::rarity_fx::draw(
-                self.ui.draw_list_mut(),
-                crate::rarity_fx::Item {
-                    owned: held,
-                    ..crate::rarity_fx::Item::holocron(tier, crate::rarity_fx::Size::Full)
-                },
-                rect,
-                12.0 * s,
-                s,
-                crate::menu::art::motion::seconds() as f32,
-            );
-            self.ui.hit_region(token, rect);
-            picture(
-                &mut self.ui,
-                frame,
-                tier.slot,
-                x + 28.0,
-                y + CRYSTAL_HEIGHT * 0.5,
-                16.0,
-                if held { 1.0 } else { 0.5 },
-            );
-            text(
-                &mut self.ui,
-                TextFamily::Display,
-                format_args!("{}", tier.label),
-                frame.rect(x + 52.0, y + 3.0, CRYSTAL_WIDTH - 100.0, 28.0),
-                22.0 * s,
-                tier.colour_alpha(if held { 1.0 } else { 0.62 }),
-                FontWeight::Semibold,
-                TextAlign::Start,
-            );
-            text(
-                &mut self.ui,
-                TextFamily::Body,
-                format_args!("crystal"),
-                frame.rect(x + 52.0, y + 29.0, CRYSTAL_WIDTH - 100.0, 18.0),
-                13.0 * s,
-                color::QUIET,
-                FontWeight::Regular,
-                TextAlign::Start,
-            );
-            let words = count.map_or_else(|| "\u{2014}".to_owned(), |count| count.to_string());
-            text(
-                &mut self.ui,
-                TextFamily::Display,
-                format_args!("{words}"),
-                frame.rect(x + CRYSTAL_WIDTH - 64.0, y + 8.0, 50.0, 34.0),
-                28.0 * s,
-                if held { color::TEXT } else { color::QUIET },
-                FontWeight::Semibold,
-                TextAlign::End,
-            );
         }
     }
 
@@ -666,14 +546,7 @@ impl Panel {
         text(
             &mut self.ui,
             TextFamily::Body,
-            format_args!(
-                "{}",
-                if tier.is_kyber() {
-                    crate::kyber::inside(tier.index)
-                } else {
-                    crate::cards::inside(self.selected)
-                }
-            ),
+            format_args!("{}", crate::cards::inside(self.selected)),
             frame.rect(RIGHT_X, ABOUT_Y + 52.0, RIGHT_WIDTH - LOOT_WIDTH, 24.0),
             15.0 * s,
             color::GOLD,
@@ -950,7 +823,7 @@ impl Panel {
             return;
         }
         let one = self.open_one().is_some();
-        let all = self.data.openable(self.selected);
+        let all = self.data.openable();
         // The shop opens with opening.
         let shop = self.data.can_open;
         let total = OPEN_WIDTH
@@ -1021,7 +894,7 @@ impl Panel {
         if self.open_one().is_some() {
             add(&["Enter"], "open");
         }
-        if self.data.openable(self.selected) > 1 {
+        if self.data.openable() > 1 {
             add(&["A"], "open all");
         }
         add(&["L"], "loot table");
@@ -1054,10 +927,7 @@ impl Panel {
 /// of this tier, and how many the player holds.
 pub(super) fn tier_card(index: usize, data: &Data) -> crate::menu::sjk::hover::Card {
     use crate::menu::sjk::hover::{Card, Line};
-    let tier = holocrons::slot(index);
-    if tier.is_kyber() {
-        return crystal_card(tier, data);
-    }
+    let tier = &crate::holocrons::TIERS[index.min(COUNT - 1)];
     let minutes = data.every.map_or(30, |every| (every / 60).max(1));
     let cap = data.today.map_or(8, |(_, cap)| cap);
     let mut lines = vec![
@@ -1071,29 +941,6 @@ pub(super) fn tier_card(index: usize, data: &Data) -> crate::menu::sjk::hover::C
         )),
     ];
     match data.count(tier.index) {
-        Some(0) => lines.push(Line::status("None held yet")),
-        Some(count) => lines.push(Line::held(format!("You hold {count}"))),
-        None => {}
-    }
-    Card {
-        title: tier.name.to_owned(),
-        colour: tier.colour,
-        lines,
-    }
-}
-
-/// What the hover card of a kyber crystal's tile says: where crystals come from, what one
-/// gives, the pity, and how many the player holds.
-fn crystal_card(tier: &'static Tier, data: &Data) -> crate::menu::sjk::hover::Card {
-    use crate::menu::sjk::hover::{Card, Line};
-    let mut lines = vec![
-        Line::how(crate::kyber::ABOUT),
-        Line::status(
-            "Each achievement brings one, once: its reward shows on the Achievements tab.",
-        ),
-        Line::status(crate::kyber::pity_line(data.pity)),
-    ];
-    match data.count(tier.slot) {
         Some(0) => lines.push(Line::status("None held yet")),
         Some(count) => lines.push(Line::held(format!("You hold {count}"))),
         None => {}
@@ -1196,7 +1043,7 @@ mod tests {
         ];
         for data in states {
             for hub in [true, false] {
-                for tier in 0..SLOTS {
+                for tier in 0..COUNT {
                     let mut panel = Panel::new();
                     panel.open(true);
                     panel.set_hub(hub);
@@ -1218,11 +1065,11 @@ mod tests {
                         let shift = if hub { crate::profile_hub::SHIFT } else { 0.0 };
                         let keys = frame.point(0.0, KEYS_Y)[1];
                         let panel_left = frame.point(RIGHT_X, 0.0)[0];
-                        for index in 0..SLOTS {
+                        for index in 0..COUNT {
                             let rect = panel
                                 .ui
                                 .rect_for(ROW_BASE + index as u16)
-                                .expect("a tier's row or a crystal's tile");
+                                .expect("a tier's row");
                             assert!(rect.x >= panel_left - 0.5 && rect.right() <= viewport[0]);
                             assert!(rect.bottom() < keys, "{viewport:?}");
                         }
