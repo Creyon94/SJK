@@ -2346,7 +2346,10 @@ at that point and returning the blade's own: `sig_glow(g, b, r, px)` the glow's 
   the same: Sith Holocron, Quantum and Carbonite 7 to 19 percent less, the others within a tenth.
   Reactor still cost 13 to 17 percent more: its lightning was worked out while weighted to
   nothing (cold and still, over half its cycle), and the arcs' outer bound used the arcs' asked
-  reach, not the reach the blade's room caps them at (`min(reach, 0.6*uReach)`); both are fixed.
+  reach, not the reach the blade's room caps them at (`min(reach, 0.6*uReach)`). With both
+  fixed, timed again the same way: Reactor costs 3 percent less to 1 percent more than `main`,
+  Sith Holocron, Quantum and Carbonite 7 to 19 percent less; the stock blade's own time is 3 to 4
+  percent more in every run (the tip's second skin lookup and the softer hiding).
 - **The big effects (round 9).** `lab.glsl` holds shared pieces every mythical draws its
   own way (flat since round 10): `fxRays` (beams shooting out of the blade and fading),
   `fxArcs` (Storm-like lightning leaving the blade, arcing out on any side and coming
