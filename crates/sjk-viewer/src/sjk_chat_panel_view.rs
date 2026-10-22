@@ -43,9 +43,9 @@ const FIELD_Y: f32 = 900.0;
 const FIELD_WIDTH: f32 = 936.0;
 const GIF_X: f32 = LIST_X + FIELD_WIDTH + 16.0;
 const SEND_X: f32 = LIST_X + 1_060.0;
-/// Send only in SJK, under GIF and Send, left of Retry.
-const ONLY_WIDTH: f32 = 200.0;
-const ONLY_X: f32 = SEND_X - 12.0 - ONLY_WIDTH;
+/// Send only in SJK, under Send and as big; Retry then goes left of it.
+const ONLY_Y: f32 = FIELD_Y + 52.0;
+const RETRY_BESIDE_X: f32 = SEND_X - 132.0;
 /// The keys' line.
 const KEYS_Y: f32 = 1_010.0;
 /// The who-is-online window: its left, top and width (its height follows what it
@@ -1008,13 +1008,13 @@ impl Panel {
         );
         self.order.push(SEND_TOKEN);
         // Where a mod says SJK chat in this server's All chat: Send only in SJK, under
-        // GIF and Send, for every player; its hover card says to keep it rare.
+        // Send and as big, for every player; its hover card says to keep it rare.
         self.only_for_staff = inputs.said_in_all.is_some() && inputs.staff;
         if let Some(words) = inputs.said_in_all {
             kit::button(
                 &mut self.ui,
                 frame,
-                [ONLY_X, FIELD_Y + 52.0, ONLY_WIDTH, 34.0],
+                [SEND_X, ONLY_Y, 120.0, 42.0],
                 words.only,
                 false,
                 can_send,
@@ -1051,7 +1051,16 @@ impl Panel {
             kit::button(
                 &mut self.ui,
                 frame,
-                [SEND_X, FIELD_Y + 52.0, 120.0, 34.0],
+                [
+                    if inputs.said_in_all.is_some() {
+                        RETRY_BESIDE_X
+                    } else {
+                        SEND_X
+                    },
+                    FIELD_Y + 52.0,
+                    120.0,
+                    34.0,
+                ],
                 "Retry",
                 false,
                 true,
