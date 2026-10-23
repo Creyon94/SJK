@@ -25,8 +25,7 @@ and 3 ms steps turn every command evenly). Not verified: in a game.
 ## Encrypted whispers
 
 22/10/2026, `personal/e2e-whispers`, based on `main` `0279b8f3`, with the hub's side on
-Sol-Vulpes/SJK-hub branch `e2e-whispers` (merged and deployed 22/10/2026, hub `main`
-`fb3f9cf`). Whispers between two SJK players
+Sol-Vulpes/SJK-hub branch `e2e-whispers` (not deployed). Whispers between two SJK players
 go through the hub sealed to the recipient's identity key (X25519 from the Ed25519 key,
 HKDF-SHA256, ChaCha20-Poly1305, signed inside by the sender), on by default
 (`cl_e2eWhispers`); a card asks before sending one the hub refused unencrypted; their own
@@ -42,6 +41,26 @@ key, replay window, key pins, the relay's sending and reading of whispers), `car
 `whispers_reach_the_listening_key_only` among them); the world shot
 `encrypted_whisper_shots` (chat lines and the card), looked at. Not verified: between two
 running clients through a deployed hub, the sound by ear.
+
+## Kyber crystals (client)
+
+21/10/2026, `personal/kyber-crystals`, based on `main` `775c4e8b` (Sol's decisions; the
+hub side is built in parallel from the same spec, not deployed). A kyber crystal, one per
+achievement, always opens to a saber shader ([holocrons.md](holocrons.md#kyber-crystals)):
+`kyber.rs` (tiers `kyber_uncommon` to `kyber_mythical`, the built-in odds, pity and
+achievement rewards, pinned by tests), the wire's `kyber` object and `reward`, the
+Holocrons tab's crystal tiles, pity line, hover card and crystal loot table, the opening's
+shader-only strip, the arrival "Earned from an achievement", the chat's crystal grand find,
+the reward on the Achievements tab, its hover card and the unlock card, and `debug_holocron`
+/ `debug_open` with crystal tiers. The holocrons' recent list shows eight now. Verified on
+Windows 11: `cargo fmt`, `cargo clippy -p sjk-viewer -p sjk-identity --all-targets` (no new
+warnings in the touched files), `cargo test -p sjk-viewer -p sjk-identity` (2756 and 166
+passed), and the world shots `holocrons_tab::duel6_sjk_kyber_crystals`,
+`collection::duel6_sjk_kyber_achievements` and `duel6_sjk_holocrons_windows`, looked at.
+Not verified: against a hub that sends crystals, in a running client. The 3D crystal is the
+Mythical holocron's model and gold light until the crystal models land (branch
+`personal/engram-holocron`); the hilt-and-ignite reveal and giving or removing crystals on
+the Staff page are not built.
 
 ## SJK chat on JoF servers: what stays in SJK only
 

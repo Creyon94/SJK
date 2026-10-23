@@ -206,6 +206,20 @@ change: A sky with all six outer-box pictures missing (ct on nightmare) crashed 
 test: r_cubeMapping 1, vid_restart, then join a server on nightmare: no crash.
 test: The sky still looks as before (log: sky textures/skies/ct missing outer-box face ...).
 
+[kyber-crystals]
+area: Menus & settings
+title: Kyber crystals from achievements
+change: Each achievement brings a kyber crystal once (Uncommon to Mythical); it opens to a shader.
+change: Holocrons tab: a Kyber crystals row with the pity line; L on a crystal shows their odds.
+change: Achievements tab, hover card and unlock card say the crystal each achievement brings.
+test: Collection > Holocrons: four crystal tiles under the holocrons, the pity line at the right.
+test: Choose a crystal (5 to 8, arrows): caption, what it gives, hover card; L for its table.
+test: debug_open kyber_rare x3: the strip shows shaders only, then each shader's entrance.
+test: debug_holocron kyber: four arrivals, Earned from an achievement, no chat line.
+test: Collection > Achievements: Reward: <tier> Kyber Crystal up close and on hover.
+note: The hub side is built in parallel; until it is deployed no crystal is held for real.
+note: The 3D crystal is today's Mythical holocron model until the crystal models land.
+
 [card-perks]
 area: Menus & settings
 title: Perk marks on cards
