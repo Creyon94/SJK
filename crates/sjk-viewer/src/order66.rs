@@ -722,7 +722,7 @@ impl GpuState {
     /// Put one more limb mesh in the pool this frame for the first of the holders
     /// `ready` (bits) whose model has fewer than a player's pieces there, so the blast
     /// needs no upload; nothing without dismemberment (confetti, no pieces).
-    fn order66_ready(&mut self, ready: u64) {
+    pub(crate) fn order66_ready(&mut self, ready: u64) {
         if ready == 0 || self.order66_confetti() {
             return;
         }
@@ -745,18 +745,15 @@ impl GpuState {
             == 0
     }
 
-    /// The holders of the toy who died in the order's window blow up.
-    fn order66_deaths(&mut self) {
-        let Some(session) = self
+    /// The players the latest snapshot shows (bits by slot) and those of them dead, at
+    /// its server time: the entities, and the player the view shows (the own, or the one
+    /// followed), who is in the player state instead.
+    pub(crate) fn order66_seen_dead(&self) -> Option<(u64, u64, i32)> {
+        let session = self
             .live_session
             .as_ref()
-            .filter(|session| !session.is_local())
-        else {
-            return;
-        };
+            .filter(|session| !session.is_local())?;
         let snapshot = session.latest_snapshot();
-        let own = usize::try_from(session.game_state().client_num).ok();
-        let now = snapshot.server_time;
         let (mut seen, mut dead) = (0_u64, 0_u64);
         for entity in &snapshot.entities {
             let slot = usize::from(entity.number());
@@ -767,8 +764,6 @@ impl GpuState {
                 }
             }
         }
-        // The player the view shows (the own, or the one followed) is in the player
-        // state, not among the entities.
         let player = &snapshot.player;
         let viewed = usize::from(player.client_num());
         if viewed < SLOTS && !(player.is_spectator() && player.movement_flags() & PMF_FOLLOW == 0) {
@@ -777,6 +772,18 @@ impl GpuState {
                 dead |= 1 << viewed;
             }
         }
+        Some((seen, dead, snapshot.server_time))
+    }
+
+    /// The holders of the toy who died in the order's window blow up.
+    fn order66_deaths(&mut self) {
+        let Some((seen, dead, now)) = self.order66_seen_dead() else {
+            return;
+        };
+        let own = self
+            .live_session
+            .as_ref()
+            .and_then(|session| usize::try_from(session.game_state().client_num).ok());
         let looks = &self.looks;
         let on = self.order66.on;
         let holds = |slot: usize| {
@@ -787,9 +794,22 @@ impl GpuState {
             }
         };
         let blown = self.order66.deaths(seen, dead, now, holds);
+        self.order66_blow_up(blown);
+    }
+
+    /// Blow the players in `blown` (bits by slot) up as an order does, where the latest
+    /// snapshot has them: the explosion, and the pieces or the confetti.
+    pub(crate) fn order66_blow_up(&mut self, blown: u64) {
         if blown == 0 {
             return;
         }
+        let Some(session) = self.live_session.as_ref() else {
+            return;
+        };
+        let snapshot = session.latest_snapshot();
+        let now = snapshot.server_time;
+        let player = &snapshot.player;
+        let viewed = usize::from(player.client_num());
         let presentation = i64::from(now);
         // Who blew up, where they stand and their actor's place.
         let mut victims = Vec::with_capacity(blown.count_ones() as usize);

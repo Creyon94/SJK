@@ -318,6 +318,8 @@ impl Group {
                 crate::map_edits::CVAR,
                 crate::remap_blocked_maps::SERVER_CVAR,
                 "cg_remaps",
+                crate::hax::TRAP_CVAR,
+                crate::hax::AWAY_CVAR,
                 crate::camera::STYLE_CVAR,
                 "cg_drawGun",
                 "cg_fovViewmodel",
@@ -531,6 +533,7 @@ impl Group {
                 ("cg_saberTrail", "Effects"),
                 #[cfg(feature = "mod-japlus")]
                 (sjk_mod_japlus::anti_kiss::CVAR, "JA+ protection"),
+                (crate::hax::TRAP_CVAR, "Toys"),
                 (crate::camera::STYLE_CVAR, "Camera and prediction"),
                 (crate::brush_view::CVAR, "Map tools"),
             ],
@@ -564,6 +567,7 @@ impl Group {
                 ("cg_saberTrail", "Effects"),
                 #[cfg(feature = "mod-japlus")]
                 (sjk_mod_japlus::anti_kiss::CVAR, "JA+ protection"),
+                (crate::hax::TRAP_CVAR, "Toys"),
                 (crate::camera::STYLE_CVAR, "Camera and prediction"),
             ],
             Self::Advanced(Advanced::Interface) => &[

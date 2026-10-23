@@ -4094,6 +4094,18 @@ the archived `cl_toyHax`, as Order 66 in `cl_toyOrder66`).
   [toy event](hub-chat.md#toy-events) the hacked player sends (`hacked_<until>`, the game
   server time the steering ends; `freed` when they break free sooner), which may come a
   second or two late. Nothing is drawn round a player blocked here.
+- **The trap:** with **Hax trap** on (Settings > Game options > Toys, `cl_haxTrap`, off
+  by default), a hack that completes on the player springs a trap instead of handing
+  over control (Sol's idea, 23/10/2026): both read "IT'S A TRAP!" with Order 66's beep
+  each second, and two seconds later both clients send `kill` and both players blow up
+  as in [Order 66](#order-66) (the explosion, then the pieces, or confetti with
+  `cg_dismember 0`). The trapped player's client tells everyone else through a feed toy
+  event (`trap_<moment>`, to the hacker), so every SJK client of the server blows the
+  two up too; one that hears it late still blows up the two if they died in the window.
+  The trap is not shown anywhere, unless **Hax trap while away** (`cl_haxAway`) is on
+  too: then the player may be hacked while away (idle, alt-tabbed or tagged), which
+  their look must tell hackers' clients (`toys: ["hax_away"]`), so a player hackable
+  while away is known to be trapped. Typing in the chat still keeps a player safe.
 - **Breaking free:** `toy_hax` off frees the hacked player at once; so do dying, a duel,
   and the hacker going quiet for 1.5 seconds (after 0.4 seconds without news the player
   stands still). The hacker's toy off, death or duel ends it for both.

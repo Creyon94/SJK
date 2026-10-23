@@ -780,6 +780,16 @@ pub(super) const GAME: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Hax trap",
+        cvar: crate::hax::TRAP_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Hax trap while away",
+        cvar: crate::hax::AWAY_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Normal blades in duels",
         cvar: crate::duel_blades::CVAR,
         kind: ValueKind::Bool,
