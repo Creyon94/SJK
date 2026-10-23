@@ -1,3 +1,16 @@
+## Old menu catalogues kept PK3 files open
+
+23/10/2026, `dev/pr-stack` (Sol's report after a long session and reconnect): the
+client failed to mount `base` with `Too many open files`. A mounted VFS keeps each PK3
+open, and the Profile menu moves between worlds; its model-icon worker, cosmetics
+catalogue and Force-template catalogue could retain an older world's VFS after a new
+one was attached. With 297 PK3s in the reported installation, retained generations
+used hundreds of file descriptors each. Attaching a world now invalidates every
+VFS-bound Profile cache immediately while preserving the player's menu draft. Unit
+tests pin release of the old VFS by the worker and both catalogues. Verified on Linux
+with the locked workspace format, build, test and Clippy checks. Not yet verified: a
+multi-map live session with the reported installation.
+
 ## Heimdall's time nudge kicks after a hitch
 
 23/10/2026, `personal/heimdall-nudge`, based on `main` `8e4cce32`, Slash's report
