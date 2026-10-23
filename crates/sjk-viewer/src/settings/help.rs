@@ -394,7 +394,7 @@ const HELP: &[(&str, &str)] = &[
     ),
     (
         crate::away_emote::ALT_TAB_CVAR,
-        "On: alt-tabbing out or minimising the game counts as away, for the away emote and quiet emotes.",
+        "On: alt-tabbing out or minimising counts as away and starts the away emote. Your emote goes quiet either way.",
     ),
     (
         crate::away_emote::IDLE_CVAR,
@@ -403,6 +403,10 @@ const HELP: &[(&str, &str)] = &[
     (
         crate::emotes::ATTACK_STOP_CVAR,
         "On: attacking or alt attacking ends your emote, for everyone, so your real swing shows. Off: you keep dancing.",
+    ),
+    (
+        crate::emotes::TYPING_KEEP_CVAR,
+        "On: while a player types (chat, console or menu open), their emote stays, even if pushed; moving after ends it.",
     ),
     (
         crate::unlock_toast::SOUND_CVAR,
