@@ -42,6 +42,18 @@ const PROFILE_EVERY: Duration = Duration::from_secs(600);
 const PROFILE_SOON: Duration = Duration::from_secs(30);
 /// How often the progress toward the next holocron is read while registered.
 const HOLOCRONS_EVERY: Duration = Duration::from_secs(300);
+/// How often the player's trades are read while one runs (the feed tells of changes at
+/// once; this keeps the list true without it).
+const TRADES_LIVE: Duration = Duration::from_secs(15);
+/// How often they are read otherwise, for whether the hub lets players trade.
+const TRADES_EVERY: Duration = Duration::from_secs(600);
+
+/// This PC's clock, unix seconds, standing in for the hub's when it does not say.
+fn unix_now() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |since| since.as_secs() as i64)
+}
 /// Shortest time between two readings of it brought forward (a drop of the player's
 /// own key, or the viewer asking), and the profile's early reading for a drop.
 const HOLOCRONS_SOON: Duration = Duration::from_secs(30);
@@ -230,6 +242,62 @@ pub struct Snapshot {
     /// What became of the last shatter, craft or purchase ([`Service::shatter`],
     /// [`Service::craft`], [`Service::buy`]).
     pub trade: Option<TradeOutcome>,
+    /// The player's trades with other players, as the hub last listed them
+    /// ([`Service::trade_with`], 22/10/2026); `None` before the first read.
+    pub trades: Option<TradesState>,
+}
+
+/// The player's trades with other players, as last read (`crate::trades`).
+#[derive(Clone, Debug, PartialEq)]
+pub struct TradesState {
+    /// Counts reads, so a reader can tell a new list from the last one.
+    pub serial: u64,
+    /// The hub's list, its rules and what the player traded today.
+    pub list: crate::trades::TradesAnswer,
+    /// When this client read it, and the hub's clock then (with it the trades'
+    /// `expires` and `confirm_from` read on this client's clock).
+    pub read_at: Instant,
+    /// The hub's clock when it answered, unix seconds; 0 from a hub that does not say.
+    pub hub_time: i64,
+    /// Why the last step or read failed, in the player's words, and the serial of the
+    /// step it belongs to; empty when it worked.
+    pub problem: String,
+    /// Counts steps taken, so a reader can tell a new problem from the last one.
+    pub steps: u64,
+}
+
+impl TradesState {
+    /// Whether players may trade on this hub (for this player: `staff` lets staff).
+    pub fn open(&self, staff: bool) -> bool {
+        match self.list.trading.as_str() {
+            "everyone" => true,
+            "staff" => staff,
+            _ => false,
+        }
+    }
+
+    /// The trade that runs now (asked or open), if any: a player is in at most one.
+    pub fn live(&self) -> Option<&crate::trades::PlayerTrade> {
+        self.list.trades.iter().find(|trade| trade.is_live())
+    }
+
+    /// The hub's clock at `now`, unix seconds, as read.
+    pub fn hub_now(&self, now: Instant) -> i64 {
+        self.hub_time + now.saturating_duration_since(self.read_at).as_secs() as i64
+    }
+
+    /// Seconds until hub time `at`, at `now`; 0 once it passed.
+    pub fn seconds_until(&self, at: i64, now: Instant) -> u64 {
+        (at - self.hub_now(now)).max(0) as u64
+    }
+
+    /// [`Self::seconds_until`] to the fraction, for a bar that runs down smoothly. The
+    /// hub's clock is read in whole seconds, so it is taken as half way into its second.
+    pub fn seconds_until_exact(&self, at: i64, now: Instant) -> f32 {
+        let elapsed = now.saturating_duration_since(self.read_at).as_secs_f64();
+        let hub_now = self.hub_time as f64 + 0.5 + elapsed;
+        (at as f64 - hub_now).max(0.0) as f32
+    }
 }
 
 /// The shop as last read.
@@ -415,6 +483,7 @@ impl Snapshot {
             kyber: None,
             shop: None,
             trade: None,
+            trades: None,
         }
     }
 
@@ -530,6 +599,12 @@ enum Command {
     Buy(String),
     /// Buy a holocron of this tier with credits.
     BuyHolocron(String),
+    /// Read the player's trades again (the feed told of a change, or the viewer asks).
+    ReadTrades,
+    /// Ask the player with this hub id to trade.
+    TradeAsk(String),
+    /// Take a step in this trade.
+    TradeStep(i64, crate::trades::TradeStep),
     Stop,
 }
 
@@ -634,6 +709,9 @@ struct Worker {
     /// be read early.
     due_holocrons: Instant,
     holocrons_soon_after: Instant,
+    /// When the player's trades are next read: soon after registering, every
+    /// [`TRADES_LIVE`] while one runs, else every [`TRADES_EVERY`].
+    due_trades: Instant,
     /// When the requests for the player's logs are next looked for.
     due_log_requests: Instant,
     /// Log requests the player answered, kept out of what the hub lists until it
@@ -857,6 +935,7 @@ impl Worker {
             active: false,
             due_holocrons: now,
             holocrons_soon_after: now,
+            due_trades: now,
             due_log_requests: now,
             logs_answered: Vec::new(),
         }
@@ -1233,6 +1312,9 @@ impl Worker {
             Command::ReadShop => self.read_shop(now),
             Command::Buy(id) => self.trade(Trade::Buy, &id),
             Command::BuyHolocron(tier) => self.trade(Trade::Holocron, &tier),
+            Command::ReadTrades => self.due_trades = now,
+            Command::TradeAsk(to) => self.trade_with(None, Some(&to), now),
+            Command::TradeStep(id, step) => self.trade_with(Some((id, step)), None, now),
             Command::Stop => self.release(),
         }
         self.publish_feed();
@@ -1826,6 +1908,7 @@ impl Worker {
                     self.due_profile = now + PROFILE_EVERY;
                     self.due_assets = now;
                     self.due_holocrons = now;
+                    self.due_trades = now;
                     self.due_log_requests = now;
                     self.update(|snapshot| {
                         snapshot.set_me(profile);
@@ -1841,6 +1924,7 @@ impl Worker {
         }
         self.run_due(now);
         self.keep_holocrons(now);
+        self.keep_trades(now);
         self.keep_log_requests(now);
         self.keep_assets(now);
         self.keep_map_edits(now);
@@ -1877,7 +1961,109 @@ impl Worker {
             wait = wait.min(self.due_crashes.saturating_duration_since(now));
         }
         wait.min(self.due_holocrons.saturating_duration_since(now))
+            .min(self.due_trades.saturating_duration_since(now))
             .min(self.due_log_requests.saturating_duration_since(now))
+    }
+
+    /// Read the player's trades if it is due.
+    fn keep_trades(&mut self, now: Instant) {
+        if now >= self.due_trades {
+            self.read_trades(now);
+        }
+    }
+
+    /// Read the player's trades into [`Snapshot::trades`]; the next read is due
+    /// [`TRADES_LIVE`] later while one runs, else [`TRADES_EVERY`]. A hub before trades
+    /// (or one that cannot be reached) is asked again much later: its list stays as it
+    /// was.
+    fn read_trades(&mut self, now: Instant) {
+        let outcome = match (self.hub.as_mut(), self.registered) {
+            (Some(hub), true) => hub.trades(&self.identity),
+            _ => {
+                self.due_trades = now + TRADES_EVERY;
+                return;
+            }
+        };
+        match outcome {
+            Ok(list) => {
+                let live = list.trades.iter().any(|trade| trade.is_live());
+                // A trade just started: the window lists the player's holocrons and
+                // duplicates from their profile, so it is read again now.
+                let was_live = self.with_snapshot_trades_live();
+                if live && !was_live {
+                    self.due_profile = now;
+                }
+                self.due_trades = now + if live { TRADES_LIVE } else { TRADES_EVERY };
+                let hub_time = list.now.unwrap_or_else(unix_now);
+                self.update(|snapshot| {
+                    let last = snapshot.trades.take();
+                    let serial = last.as_ref().map_or(1, |last| last.serial + 1);
+                    snapshot.trades = Some(TradesState {
+                        serial,
+                        list,
+                        read_at: now,
+                        hub_time,
+                        problem: last
+                            .as_ref()
+                            .map(|last| last.problem.clone())
+                            .unwrap_or_default(),
+                        steps: last.as_ref().map_or(0, |last| last.steps),
+                    });
+                });
+            }
+            Err(HubError::Network(_)) => self.due_trades = now + RETRY_MAX,
+            Err(_) => self.due_trades = now + TRADES_EVERY,
+        }
+    }
+
+    /// Whether the snapshot's last list of trades had one running.
+    fn with_snapshot_trades_live(&self) -> bool {
+        lock(&self.snapshot)
+            .trades
+            .as_ref()
+            .is_some_and(|state| state.live().is_some())
+    }
+
+    /// Ask the player `to` to trade, or take `step` in a trade; the list is read again
+    /// after either, and a refusal goes in [`TradesState::problem`]. A finished swap's
+    /// profile becomes [`Snapshot::me`].
+    fn trade_with(
+        &mut self,
+        step: Option<(i64, crate::trades::TradeStep)>,
+        to: Option<&str>,
+        now: Instant,
+    ) {
+        let outcome = match (self.hub.as_mut(), self.registered) {
+            (Some(hub), true) => match (&step, to) {
+                (Some((id, step)), _) => hub.trade_step(&self.identity, *id, step),
+                (None, Some(to)) => hub.trade_ask(&self.identity, to),
+                (None, None) => return,
+            },
+            _ => Err(not_connected()),
+        };
+        let problem = match outcome {
+            Ok(answer) => {
+                if let Some(profile) = answer.profile {
+                    self.update(|snapshot| snapshot.set_me(profile));
+                    self.holocrons_soon(now);
+                }
+                String::new()
+            }
+            Err(error) => crate::trades::refusal(&error),
+        };
+        self.update(|snapshot| {
+            let state = snapshot.trades.get_or_insert_with(|| TradesState {
+                serial: 0,
+                list: crate::trades::TradesAnswer::default(),
+                read_at: now,
+                hub_time: unix_now(),
+                problem: String::new(),
+                steps: 0,
+            });
+            state.steps += 1;
+            state.problem = problem;
+        });
+        self.read_trades(now);
     }
 
     /// Read the progress toward the next holocron if it is due. Cosmetic, like the asset
@@ -2395,6 +2581,7 @@ impl Service {
         let ping_outcome = Arc::clone(&worker.ping_outcome);
         let feed = Arc::clone(&worker.feed);
         let own_drops = commands.clone();
+        let own_trades = commands.clone();
         let emotes = Arc::new(Mutex::new(VecDeque::new()));
         let looks = Arc::new(Mutex::new(VecDeque::new()));
         let feed_stop = Arc::new(std::sync::atomic::AtomicBool::new(false));
@@ -2412,7 +2599,10 @@ impl Service {
                     let _ = own_drops.send(Command::OwnDrop);
                 }),
                 Instant::now(),
-            );
+            )
+            .on_trade(Box::new(move || {
+                let _ = own_trades.send(Command::ReadTrades);
+            }));
             pings = feed.pings();
             toys = feed.toys();
             let stop = Arc::clone(&feed_stop);
@@ -2618,6 +2808,23 @@ impl Service {
     /// [`Snapshot::trade`], and the profile after it.
     pub fn buy(&self, id: &str) {
         let _ = self.commands.send(Command::Buy(id.to_owned()));
+    }
+
+    /// Read the player's trades with other players again ([`Snapshot::trades`]).
+    pub fn read_trades(&self) {
+        let _ = self.commands.send(Command::ReadTrades);
+    }
+
+    /// Ask the player whose hub id is `key_id` to trade: the trade, or why not, arrives
+    /// in [`Snapshot::trades`].
+    pub fn trade_ask(&self, key_id: &str) {
+        let _ = self.commands.send(Command::TradeAsk(key_id.to_owned()));
+    }
+
+    /// Take `step` in trade `id`: the trade after it, or why not, arrives in
+    /// [`Snapshot::trades`], and once the swap is done the profile after it.
+    pub fn trade_step(&self, id: i64, step: crate::trades::TradeStep) {
+        let _ = self.commands.send(Command::TradeStep(id, step));
     }
 
     /// The player is on a game server (call again if `slot` or `name` changes).
@@ -2989,6 +3196,8 @@ mod tests {
         log_asks: Arc<Mutex<Option<Vec<LogRequest>>>>,
         /// How many times the log requests were looked for.
         log_ask_reads: Arc<Mutex<usize>>,
+        /// How many times the player's trades were read (kept out of `log`).
+        trade_reads: Arc<Mutex<usize>>,
     }
 
     impl Fake {
@@ -3201,6 +3410,63 @@ mod tests {
         ) -> Result<crate::wire::CraftAnswer, HubError> {
             self.record(format!("craft {id}"))?;
             Err(refused(409, "not_enough_shards"))
+        }
+        fn trades(&mut self, _: &Identity) -> Result<crate::trades::TradesAnswer, HubError> {
+            *self.trade_reads.lock().unwrap() += 1;
+            if self.fail.load(Ordering::SeqCst) {
+                return Err(HubError::Network("down".to_owned()));
+            }
+            // One trade with Nib once it was asked for, open once accepted.
+            let log = self.log();
+            let trades = if log.iter().any(|line| line == "ask nib") {
+                let accepted = log.iter().any(|line| line == "step 3 accept");
+                vec![crate::trades::PlayerTrade {
+                    id: 3,
+                    state: if accepted { "open" } else { "asked" }.to_owned(),
+                    asker: true,
+                    expires: Some(1_791_000_030),
+                    ..crate::trades::PlayerTrade::default()
+                }]
+            } else {
+                Vec::new()
+            };
+            Ok(crate::trades::TradesAnswer {
+                trading: "everyone".to_owned(),
+                trades,
+                now: Some(1_791_000_000),
+                ..crate::trades::TradesAnswer::default()
+            })
+        }
+        fn trade_ask(
+            &mut self,
+            _: &Identity,
+            to: &str,
+        ) -> Result<crate::trades::TradeAnswer, HubError> {
+            self.record(format!("ask {to}"))?;
+            if to != "nib" {
+                return Err(refused(409, "they_are_busy"));
+            }
+            Ok(crate::trades::TradeAnswer {
+                trade: crate::trades::PlayerTrade::default(),
+                profile: None,
+            })
+        }
+        fn trade_step(
+            &mut self,
+            _: &Identity,
+            id: i64,
+            step: &crate::trades::TradeStep,
+        ) -> Result<crate::trades::TradeAnswer, HubError> {
+            self.record(format!("step {id} {}", step.call().0))?;
+            let profile = matches!(step, crate::trades::TradeStep::Confirm { .. }).then(|| {
+                let mut profile = profile("Sol");
+                profile.shards = 77;
+                profile
+            });
+            Ok(crate::trades::TradeAnswer {
+                trade: crate::trades::PlayerTrade::default(),
+                profile,
+            })
         }
         fn shop(&mut self, _: &Identity) -> Result<crate::wire::ShopDay, HubError> {
             self.record("shop".to_owned())?;
@@ -3544,6 +3810,9 @@ mod tests {
                         source: "staff".to_owned(),
                         note: note.clone(),
                         opened: None,
+                        traded: None,
+                        traded_from_key: None,
+                        traded_from: None,
                     }],
                     ..profile("Target")
                 }],
@@ -3997,6 +4266,68 @@ mod tests {
     /// keeps the shards and the profile, a refusal is said in the player's words, a
     /// purchase marks the offer bought and held and moves the shop's credits, and an offer
     /// gone from the shop reads the shop again.
+    #[test]
+    fn trades_with_players_are_read_asked_and_stepped() {
+        let fake = Fake::default();
+        let t0 = Instant::now();
+        let (mut worker, snapshot) = worker(&fake, t0);
+        worker.handle(Command::Configure(on("https://hub")), t0);
+        worker.tick(t0);
+        // Read once registered: the hub lets everyone trade, and nothing runs.
+        let read = lock(&snapshot).trades.clone().unwrap();
+        assert!(read.open(false) && read.live().is_none());
+        assert_eq!(read.hub_now(t0 + Duration::from_secs(4)), 1_791_000_004);
+        let reads = |fake: &Fake| *fake.trade_reads.lock().unwrap();
+        assert_eq!(reads(&fake), 1);
+        // A refusal reaches the player in their words, and the list is read again.
+        worker.handle(Command::TradeAsk("fox".to_owned()), t0);
+        let busy = lock(&snapshot).trades.clone().unwrap();
+        assert_eq!(busy.problem, "That player is in a trade already.");
+        assert_eq!((busy.steps, reads(&fake)), (1, 2));
+        let own = format!("lookup {}", Identity::from_seed([1; 32]).key_id());
+        let lookups = |fake: &Fake| fake.log().iter().filter(|line| **line == own).count();
+        let before = lookups(&fake);
+        worker.handle(Command::TradeAsk("nib".to_owned()), t0);
+        // A trade started: the own profile (the holocrons to offer) is read at once.
+        worker.tick(t0);
+        assert_eq!(lookups(&fake), before + 1);
+        let asked = lock(&snapshot).trades.clone().unwrap();
+        assert!(asked.problem.is_empty());
+        assert_eq!(
+            asked.live().map(|trade| trade.state.as_str()),
+            Some("asked")
+        );
+        assert_eq!(
+            asked.seconds_until(1_791_000_030, t0 + Duration::from_secs(10)),
+            20
+        );
+        // While one runs it is read every few seconds; the feed's word reads it at once.
+        worker.tick(t0 + TRADES_LIVE);
+        assert_eq!(reads(&fake), 4);
+        worker.handle(Command::ReadTrades, t0 + TRADES_LIVE);
+        worker.tick(t0 + TRADES_LIVE);
+        assert_eq!(reads(&fake), 5);
+        worker.handle(
+            Command::TradeStep(3, crate::trades::TradeStep::Accept),
+            t0 + TRADES_LIVE,
+        );
+        assert!(
+            lock(&snapshot)
+                .trades
+                .clone()
+                .unwrap()
+                .live()
+                .unwrap()
+                .is_open()
+        );
+        // The swap's profile becomes the player's.
+        worker.handle(
+            Command::TradeStep(3, crate::trades::TradeStep::Confirm { rev: 2 }),
+            t0 + TRADES_LIVE,
+        );
+        assert_eq!(lock(&snapshot).me.as_ref().map(|me| me.shards), Some(77));
+    }
+
     #[test]
     fn trades_wait_for_the_registration_and_the_shop_follows_them() {
         let fake = Fake::default();

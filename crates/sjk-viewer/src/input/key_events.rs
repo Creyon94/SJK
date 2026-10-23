@@ -107,6 +107,12 @@ impl GpuState {
             self.mod_notice_choice(choice);
             return;
         }
+        // And the trade window.
+        if !console_open && self.trades.window.is_open() {
+            let choice = self.trades.window.handle_key(&event);
+            self.trade_window_choice(choice);
+            return;
+        }
         // And the low-FPS card.
         if !console_open && self.fps_card.is_open() {
             let choice = self.fps_card.handle_key(&event);

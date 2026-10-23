@@ -179,6 +179,7 @@ did: #104 No purple tag arrows on community models
 did: #105 Duellists drawn as JoF EJK draws them, with paired duel badges on nameplates
 did: #188 The Blade Lab signature blades: 128 saber shaders in five tiers, with their sounds
 did: #192 Normal blades in duels, each in its owner's colour (cg_duelStockBlades)
+did: Trading between players: duplicates (and later holocrons) swapped or given as gifts, from a game or the main menu
 did: Blade Lab rounds 15 to 22: every blade effect in 3D, richer mythicals, faster loading
 did: The Saber ideas page: the concepts of the Tidal, Circuit, Aurora, Echo, Nebula, Cinder, Venom, Sakura and Firefly blades and the twelve after them (Saber smith: Creyon)
 did: The Blade Lab page: the Neon, Peppermint, Soap Bubble, Lava Lamp, Reactor and Bleeding Kyber blades

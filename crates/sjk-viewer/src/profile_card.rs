@@ -575,6 +575,7 @@ mod tests {
             kyber: None,
             shop: None,
             trade: None,
+            trades: None,
             public_key: String::new(),
         }
     }

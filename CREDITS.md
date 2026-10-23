@@ -348,6 +348,12 @@ pull requests merged into SJK, most of them bringing SJK in line with EternalJK
   his review rounds 15 to 22 after it (every effect in 3D, richer mythicals, faster
   loading);
 - #192 normal blades in duels (`cg_duelStockBlades`), each in its owner's colour;
+- trading between players (23/10/2026, its hub side in SJK-hub-shared): duplicate saber
+  shaders, and later unopened holocrons, swapped or given as a gift through the SJK hub,
+  from Trade on a player's card, the SJK chat page, the Players page or `trade`, in a
+  game or from the main menu; the request card, the trade window with what each side is
+  worth, Ready and Confirm, the daily limits with their reset clock, the 7-day countdown
+  on a traded holocron and the window's size setting;
 - #102 a formatting fix that unblocked every pull request's checks.
 - the Saber ideas page, whose concepts became the Tidal, Circuit, Aurora, Echo, Nebula,
   Cinder, Venom, Sakura and Firefly blades, and the twelve that followed (Slate, Amber,

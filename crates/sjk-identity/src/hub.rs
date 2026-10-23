@@ -461,6 +461,37 @@ pub trait Hub: Send {
             "this hub client does not buy holocrons".to_owned(),
         ))
     }
+
+    /// The player's trades, what they traded today and the rules (`GET /v1/trades`,
+    /// 22/10/2026).
+    fn trades(&mut self, _identity: &Identity) -> Result<crate::trades::TradesAnswer, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not trade".to_owned(),
+        ))
+    }
+
+    /// Ask the player whose hub id is `to` to trade (`POST /v1/trades`, 22/10/2026).
+    fn trade_ask(
+        &mut self,
+        _identity: &Identity,
+        _to: &str,
+    ) -> Result<crate::trades::TradeAnswer, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not trade".to_owned(),
+        ))
+    }
+
+    /// Take step `step` in trade `id` (`POST /v1/trades/<id>/<action>`, 22/10/2026).
+    fn trade_step(
+        &mut self,
+        _identity: &Identity,
+        _id: i64,
+        _step: &crate::trades::TradeStep,
+    ) -> Result<crate::trades::TradeAnswer, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not trade".to_owned(),
+        ))
+    }
     /// Withdraw the identity's claim on `server`.
     fn release(&mut self, identity: &Identity, server: &str) -> Result<(), HubError>;
     /// The live claims on `server`.
@@ -1403,6 +1434,34 @@ impl Hub for HttpHub {
             "/v1/holocrons/buy",
             Some(json!({ "tier": tier })),
         )?)
+    }
+
+    fn trades(&mut self, identity: &Identity) -> Result<crate::trades::TradesAnswer, HubError> {
+        parse(self.send(Some(identity), "GET", "/v1/trades", None)?)
+    }
+
+    fn trade_ask(
+        &mut self,
+        identity: &Identity,
+        to: &str,
+    ) -> Result<crate::trades::TradeAnswer, HubError> {
+        parse(self.send(
+            Some(identity),
+            "POST",
+            "/v1/trades",
+            Some(json!({ "to": to })),
+        )?)
+    }
+
+    fn trade_step(
+        &mut self,
+        identity: &Identity,
+        id: i64,
+        step: &crate::trades::TradeStep,
+    ) -> Result<crate::trades::TradeAnswer, HubError> {
+        let (action, body) = step.call();
+        let path = format!("/v1/trades/{id}/{action}");
+        parse(self.send(Some(identity), "POST", &path, Some(body))?)
     }
 
     fn release(&mut self, identity: &Identity, server: &str) -> Result<(), HubError> {

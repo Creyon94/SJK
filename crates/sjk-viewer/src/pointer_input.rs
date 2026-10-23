@@ -340,6 +340,15 @@ impl GpuState {
             self.mod_notice_choice(choice);
             return true;
         }
+        if self.trades.window.is_open() {
+            let choice = self.trades.window.handle_pointer(event);
+            self.trade_window_choice(choice);
+            return true;
+        }
+        // The trade toast, over the game menu or the chat, when the pointer is free.
+        if self.trade_toast_pointer(event) {
+            return true;
+        }
         if self.fps_card.is_open() {
             let choice = self.fps_card.handle_pointer(event);
             self.fps_card_choice(choice);
@@ -397,6 +406,15 @@ impl GpuState {
                 {
                     if kind == UiEventKind::Activate {
                         self.open_profile_hub_from_game(Some(crate::profile_hub::Tab::Profile));
+                    }
+                    return true;
+                }
+                // Trade on the Players page's player card.
+                if row == usize::from(crate::ingame_menu::sjk_view::TRADE_TOKEN)
+                    && self.in_game_menu.is_sjk()
+                {
+                    if kind == UiEventKind::Activate {
+                        self.trade_with_menu_player();
                     }
                     return true;
                 }

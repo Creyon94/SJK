@@ -97,6 +97,9 @@ pub(super) fn classic_label<'a>(cvar: &str, label: &'a str) -> (&'a str, Timing)
 /// a code: each `(cvar, value, name)`. A value not listed is shown as it is
 /// written ([`super::classic_view::choice_label`]).
 const CHOICE_NAMES: &[(&str, &str, &str)] = &[
+    (crate::player_trades::SIZE_CVAR, "0", "Small"),
+    (crate::player_trades::SIZE_CVAR, "1", "Normal"),
+    (crate::player_trades::SIZE_CVAR, "2", "Large"),
     (crate::holocron_popup::NOTIFICATIONS_CVAR, "0", "Off"),
     (
         crate::holocron_popup::NOTIFICATIONS_CVAR,
@@ -879,6 +882,10 @@ const HELP: &[(&str, &str)] = &[
     (
         crate::sjk_chat_frame::SOUND_CVAR,
         "A sound for each new SJK chat message, yours included, in menus and games. Chat sounds off (cg_chatSounds 0) silences it too.",
+    ),
+    (
+        crate::player_trades::SIZE_CVAR,
+        "How big the trade window is in the middle of the screen. Small leaves the most of the match in view.",
     ),
     (
         crate::holocron_popup::NOTIFICATIONS_CVAR,

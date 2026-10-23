@@ -366,6 +366,7 @@ impl Group {
                 crate::text::charset::CVAR,
                 crate::quick_wheel::pages::FILE,
                 crate::quick_wheel::SOUNDS_CVAR,
+                crate::player_trades::SIZE_CVAR,
             ],
             Self::Hud => &[
                 "cg_drawHud",
@@ -506,6 +507,7 @@ impl Group {
             Self::Simple(Simple::General) => &[
                 crate::menu::style::CVAR,
                 crate::text::style::SCALE_CVAR,
+                crate::player_trades::SIZE_CVAR,
                 super::catalog::IMPORT_ROW,
                 "jof.downloads",
                 "cl_autoUpdate",

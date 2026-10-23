@@ -1,3 +1,25 @@
+## Trades between players (client)
+
+22-23/10/2026, `feat/trading`, based on `main` `7bc8bc89`, with the hub's side on the hub's
+branch `feat/trading` (off by default, not deployed). Two SJK players swap unopened
+holocrons found by play and duplicate saber shaders, or give them as a gift:
+`sjk-identity` reads and steps trades (`GET`/`POST /v1/trades`, the feed's `trades`
+events), the viewer shows a request toast at the top centre over play and the trade
+window over the game menu (Esc opens it while a trade runs), with Trade on the chat's
+player card, the SJK chat page, the Players page and the `trade` command
+([sjk-ui.md](sjk-ui.md#trading)), from a game or the main menu. Limits and worths come from
+the hub (Sol, 23/10/2026: duplicates first, holocrons once the hub says so; unlimited
+trades; one holocron of each tier and 10 duplicates each way in a trading day of 24 hours
+from one's first completed trade, with a Daily reset clock; cards never trade; a 7-day resale
+lock; Uncommon 4, Rare 8, Legendary 18, Mythical 51 shards on average). Verified:
+`cargo fmt`, `cargo build`, `cargo test` (the identity worker's trade steps, the wire, the
+window's choices, gifts, the own items, limits and countdowns, the card's Trade button,
+the Players page's Trade row), the window's layouts as pictures; the hub's `cargo test`
+and `cargo clippy`; on Windows 11 between two clients on one PC through a local hub with
+`--trading everyone --trading-one-connection` (requests, offers, gifts, swaps, limits).
+Not verified: between two PCs, the countdowns over a whole week. Not built: a quick wheel
+entry, a staff undo of a trade, the hub panel's trades page.
+
 ## Vehicle gunfire and effect sound volume
 
 22/10/2026, `personal/hub-reports-1022-d`, based on `main` `01cd678e` (Kushina's report,

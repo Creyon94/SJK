@@ -226,6 +226,8 @@ pub(crate) struct FeedWorker {
     own_drop: OwnDrop,
     /// The newest own drop told of, so a replay of the feed's last minute is not news.
     own_drop_told: u64,
+    /// Called when one of the player's trades changed ([`FeedWorker::on_trade`]).
+    own_trade: OwnDrop,
     /// The game server read for, as last told.
     server: Option<String>,
     /// Whether the chat shows, as last told.
@@ -254,6 +256,7 @@ impl FeedWorker {
             local_key_id: identity.key_id(),
             own_drop,
             own_drop_told: 0,
+            own_trade: Box::new(|| {}),
             identity,
             make_hub,
             shared,
@@ -271,6 +274,12 @@ impl FeedWorker {
             backoff: RETRY_MIN,
             epoch: 0,
         }
+    }
+
+    /// Call `told` whenever the feed tells of a change to one of the player's trades.
+    pub(crate) fn on_trade(mut self, told: OwnDrop) -> Self {
+        self.own_trade = told;
+        self
     }
 
     /// The queue the pings received go to ([`take_pings`]).
@@ -381,6 +390,11 @@ impl FeedWorker {
     /// only while the chat shows, its looks marked with the reading they belong to.
     fn apply(&mut self, mut feed: Feed, polled: &FeedShared) {
         self.tell_own_drops(&feed.drops);
+        // Only the trade's two players are told; a replay after `after` 0 reads the list
+        // once more, which is harmless.
+        if !feed.trades.is_empty() {
+            (self.own_trade)();
+        }
         if self.chat {
             self.apply_chat(&mut feed);
         }

@@ -139,6 +139,8 @@ pub(crate) struct State {
     info: Vec<String>,
     read_at: Option<Instant>,
     scores_at: Option<Instant>,
+    /// Whether the SJK hub lets this player trade now (`crate::player_trades`).
+    trading: bool,
     /// A report was handed to the identity service; its outcome is awaited.
     pub(crate) waiting: bool,
     /// The serial of the last outcome shown.
@@ -248,6 +250,38 @@ impl State {
         self.write_info();
     }
 
+    /// Whether the SJK hub lets this player trade now: the Report page offers Trade.
+    pub(crate) fn set_trading(&mut self, open: bool) {
+        self.trading = open;
+    }
+
+    /// Why the chosen player cannot be asked to trade now, if they cannot.
+    pub(crate) fn trade_blocked(&self) -> Option<&'static str> {
+        self.trade_blocked_for(self.target()?)
+    }
+
+    /// Why `player` cannot be asked to trade now, if they cannot.
+    pub(crate) fn trade_blocked_for(&self, player: &Player) -> Option<&'static str> {
+        if player.you {
+            Some("This is you")
+        } else if player.bot {
+            Some("Bots do not trade")
+        } else if player.hub.is_none() {
+            Some("Only SJK players the hub knows can trade")
+        } else if !self.trading {
+            Some("Trading is not open on the SJK hub")
+        } else if self.gate == Gate::Local {
+            Some("Trades happen on online servers")
+        } else {
+            None
+        }
+    }
+
+    /// The Report page's Trade row, after the reasons.
+    pub(crate) const fn trade_row() -> usize {
+        Category::ALL.len()
+    }
+
     /// Whether the local player may report, and why not.
     pub(crate) fn gate(&self) -> Gate {
         self.gate
@@ -297,7 +331,7 @@ impl State {
     pub(crate) fn row_count(&self, page: Page) -> usize {
         match page {
             Page::Players => self.shown().len() + usize::from(self.more()) + 1,
-            Page::ReportPlayer => Category::ALL.len() + 1,
+            Page::ReportPlayer => Category::ALL.len() + 2,
             _ => 0,
         }
     }
@@ -338,13 +372,14 @@ impl State {
         Category::ALL.get(row).copied()
     }
 
-    /// The first row the Report page may take: the first reason, or Back when the
-    /// reasons are closed.
+    /// The first row the Report page may take: the first reason, else Trade, else Back.
     pub(crate) fn first_report_row(&self) -> usize {
-        if self.blocked().is_some() {
-            Category::ALL.len()
-        } else {
+        if self.blocked().is_none() {
             0
+        } else if self.trade_blocked().is_none() {
+            Self::trade_row()
+        } else {
+            Self::trade_row() + 1
         }
     }
 
@@ -386,7 +421,14 @@ impl State {
                     hints[row].push_str(category.hint());
                     enabled[row] = blocked.is_none();
                 }
-                let back = Category::ALL.len();
+                let trade = Self::trade_row();
+                rows[trade].push_str("Trade");
+                hints[trade].push_str(
+                    self.trade_blocked()
+                        .unwrap_or("Swap holocrons and duplicate shaders with them"),
+                );
+                enabled[trade] = self.trade_blocked().is_none();
+                let back = trade + 1;
                 rows[back].push_str("Back");
                 hints[back].push_str(blocked.unwrap_or("Back to the players"));
                 back + 1
@@ -639,14 +681,26 @@ mod tests {
         let mut state = State::for_shot(5, false, Gate::NotVerified);
         assert!(state.choose(0));
         let (labels, hints, enabled, count) = rows(&state, Page::ReportPlayer);
-        assert_eq!(count, Category::ALL.len() + 1);
+        assert_eq!(count, Category::ALL.len() + 2);
         assert_eq!(labels[0], "Cheating");
         assert!(enabled[..Category::ALL.len()].iter().all(|on| !on));
+        // Trade follows the reasons, closed while the hub does not let players trade.
+        assert_eq!(labels[State::trade_row()], "Trade");
+        assert!(!enabled[State::trade_row()]);
         assert_eq!(
-            hints[Category::ALL.len()],
+            hints[State::trade_row()],
+            "Trading is not open on the SJK hub"
+        );
+        assert_eq!(
+            hints[Category::ALL.len() + 1],
             "Only verified SJK players can report players"
         );
-        assert_eq!(state.first_report_row(), Category::ALL.len());
+        assert_eq!(state.first_report_row(), Category::ALL.len() + 1);
+        // Open, an unverified player may still trade: Trade is the first row it takes.
+        state.set_trading(true);
+        let (_, hints, enabled, _) = rows(&state, Page::ReportPlayer);
+        assert!(enabled[State::trade_row()], "{hints:?}");
+        assert_eq!(state.first_report_row(), State::trade_row());
         assert_eq!(
             state.info(Page::Players),
             ["Reports  /  Only verified SJK players can report players"]

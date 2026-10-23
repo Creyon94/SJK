@@ -162,6 +162,15 @@ impl ViewerConsole {
                 self.set_cvars([(crate::chat_gifs::search::KEY_CVAR, key.as_str())]);
             }
             PanelAction::Ban(key_id) => crate::chat_ban::press(&key_id),
+            PanelAction::Trade(key_id) => {
+                if crate::player_trades::ask_by_key(&key_id) {
+                    // The window shows over the game once this page is closed.
+                    self.close_sjk_chat_panel();
+                    self.set_open(false);
+                } else {
+                    self.push_log("^3Trade: the SJK identity is off (cl_identity 1)");
+                }
+            }
             PanelAction::Staff(request) => {
                 let serial = crate::player_identity::staff_state().map_or(0, |state| state.serial);
                 if crate::player_identity::staff(request) {

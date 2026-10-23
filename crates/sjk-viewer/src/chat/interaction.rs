@@ -224,6 +224,7 @@ impl ChatOverlay {
             card::CARD_MUTE => self.toggle_card_mute(),
             card::CARD_BAN => self.press_card_ban(),
             card::CARD_SAFETY => self.press_card_safety(),
+            card::CARD_TRADE => self.press_card_trade(),
             _ => {}
         }
     }

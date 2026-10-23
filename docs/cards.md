@@ -10,8 +10,10 @@ shards, and holocrons bought with credits (Sol's decisions of 17/10/2026). [Holo
 `PROTOCOL.md` ("Holocrons", "Opening", "Shards and the shop") in Sol-Vulpes/SJK-hub.
 
 Collecting cards grants nothing: no power, setting or right, as with medals
-([identity.md](identity.md#medals)). There is no trading and never any real money
-in the system. Hats and capes stay free for everyone and are never sold or dropped
+([identity.md](identity.md#medals)). Cards never trade (Sol, 23/10/2026: collections
+will bring rewards); players may swap duplicate shaders, and later unopened holocrons, with
+each other ([sjk-ui.md](sjk-ui.md#trading)), and there is never any real money in the
+system. Hats and capes stay free for everyone and are never sold or dropped
 ([client.md](client.md#hats-and-capes)).
 
 ## Decisions
@@ -29,7 +31,7 @@ in the system. Hats and capes stay free for everyone and are never sold or dropp
 | Duplicates | Cards keep a count ("x3"). A droppable shader held twice or more can be shattered into kyber shards, one copy at a time, never the last (Sol, 17/10/2026; it replaced selling duplicates for credits). |
 | Kyber shards | A second currency (Sol, 17/10/2026): from shattering duplicates, a holocron's pile of shards and a card's pack; spent to craft the droppable shader the player chooses and in the shop's four daily offers ([Shards and the shop](#shards-and-the-shop)). |
 | Drop rates | Start stingy; buffing later is easy on the hub and nerfing is not. |
-| Money, trading | None. Free, non-commercial, no trading. |
+| Money, trading | No money: free and non-commercial. Cards never trade; duplicate shaders, and later unopened holocrons, trade between players for each other only ([Trading](sjk-ui.md#trading)). |
 
 ## Opening
 

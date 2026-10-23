@@ -57,6 +57,7 @@ impl GpuState {
         self.update_order66(&toy_events);
         self.update_hax(&toy_events);
         self.update_e2e_whispers();
+        self.update_player_trades();
         if !due {
             return;
         }

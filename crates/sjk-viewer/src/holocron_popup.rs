@@ -635,6 +635,9 @@ mod tests {
     fn wire(id: u64, tier: &str) -> Holocron {
         Holocron {
             opened: None,
+            traded: None,
+            traded_from_key: None,
+            traded_from: None,
             id,
             tier: tier.to_owned(),
             dropped: 1_791_641_100,
@@ -651,6 +654,7 @@ mod tests {
             gift: false,
             earned: false,
             note: String::new(),
+            traded: None,
         }
     }
 

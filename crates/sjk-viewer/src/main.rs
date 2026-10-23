@@ -187,6 +187,7 @@ mod order66;
 mod particle_atlas;
 mod particle_draw;
 mod peek;
+mod player_trades;
 mod portal;
 mod prediction_preview;
 mod scene_views;
@@ -198,6 +199,7 @@ mod siege_sabers;
 mod surface_tables;
 mod team_sabers;
 mod toy_saved;
+mod trade_window;
 mod trip_mine_lasers;
 mod video_memory;
 mod viewer_app;
@@ -408,6 +410,8 @@ struct GpuState {
     emote_picker: emote_picker::State,
     /// End-to-end encrypted whispers and their card ([`e2e_whispers`]).
     e2e_whispers: e2e_whispers::State,
+    /// Trades between players: the trade window and its toast ([`player_trades`]).
+    trades: player_trades::State,
     /// The alpha notice, until the player accepts it ([`alpha_notice_card`]).
     alpha_card: alpha_notice_card::Card,
     /// The SJK team's request for the player's logs ([`log_request_card`]).
@@ -1394,6 +1398,7 @@ impl GpuState {
             emote_help: emote_help::State::default(),
             emote_picker: emote_picker::State::default(),
             e2e_whispers: e2e_whispers::State::default(),
+            trades: player_trades::State::default(),
             alpha_card: alpha_notice_card::Card::default(),
             log_request_card: log_request_card::Card::default(),
             mod_notice: mod_notice_card::State::default(),
@@ -2070,7 +2075,7 @@ impl GpuState {
                 || self.medal_popup.pending()
                 || self.holocron_popup.pending(),
         );
-        // A mod's notice on its servers, last.
+        // A mod's notice on its servers.
         let mod_notice_shown = self.prepare_mod_notice_card(
             covered
                 || medal_shown
@@ -2085,6 +2090,22 @@ impl GpuState {
                 || self.medal_popup.pending()
                 || self.holocron_popup.pending(),
         );
+        // The trade window, last: it waits under every other card.
+        let trade_shown = self.prepare_trade_window(
+            covered
+                || medal_shown
+                || holocron_shown
+                || reload_shown
+                || fps_shown
+                || logs_shown
+                || news_shown
+                || emote_help_shown
+                || emote_picker_shown
+                || whisper_shown
+                || mod_notice_shown
+                || self.medal_popup.pending()
+                || self.holocron_popup.pending(),
+        );
         let medal_popup = alpha_shown
             || mod_notice_shown
             || medal_shown
@@ -2095,7 +2116,8 @@ impl GpuState {
             || news_shown
             || emote_help_shown
             || emote_picker_shown
-            || whisper_shown;
+            || whisper_shown
+            || trade_shown;
         // Nor under the SJK UI's report card, as under its other cards.
         let report_card = self.text_dialog.is_open() && self.text_dialog.is_sjk();
         self.text_vertices.clear();
@@ -2319,7 +2341,11 @@ impl GpuState {
             self.append_e2e_whisper_card(viewport);
         } else if mod_notice_shown {
             self.append_mod_notice_card(viewport);
+        } else if trade_shown {
+            self.append_trade_window(viewport);
         }
+        // A trade running while its window is closed: the toast at the top, over play.
+        let trade_toast = self.append_trade_toast(viewport, console_covers_frame || medal_popup);
         // An achievement unlocked, or a medal or holocron in a match: its card over play or
         // the menus, never input-taking.
         let unlock_toast = self.append_unlock_toast(viewport, console_covers_frame || medal_popup);
@@ -2375,6 +2401,8 @@ impl GpuState {
             emote_picker_shown.then(|| self.emote_picker.card.draw_list()),
             whisper_shown.then(|| self.e2e_whispers.card.draw_list()),
             mod_notice_shown.then(|| self.mod_notice.card.draw_list()),
+            trade_shown.then(|| self.trades.window.draw_list()),
+            trade_toast.then(|| self.trades.toast.draw_list()),
             alpha_shown.then(|| self.alpha_card.draw_list()),
             unlock_toast.then(|| self.unlock_toast.draw_list()),
         ];

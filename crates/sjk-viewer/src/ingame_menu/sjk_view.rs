@@ -26,7 +26,7 @@ use crate::game_font::GameFonts;
 use crate::menu::emblem::{self, EmblemLayer};
 use crate::menu::sjk::chat_dock::{self, ChatDock, Dock};
 use crate::menu::sjk::{
-    Frame, TextTarget, color, fade, fade_across, key_hint, key_hint_width, text,
+    Frame, TextTarget, color, fade, fade_across, key_hint, key_hint_width, kit, text,
 };
 use crate::menu_widgets::{MenuCanvas, TextFamily};
 use crate::text::{TextVertex, UiFont};
@@ -359,6 +359,8 @@ const MEDAL_PITCH: f32 = 44.0;
 const KEYS_Y: f32 = 1004.0;
 /// Pointer token of the player's profile card, bottom left (`profile_card`).
 pub(crate) const CARD_TOKEN: u16 = 900;
+/// Pointer token of Trade on the Players page's player card (`crate::player_trades`).
+pub(crate) const TRADE_TOKEN: u16 = 901;
 /// The docked SJK chat on the main page: in the match card's column, under its controls
 /// (Sol's layout, 11/10/2026: the card moved up and the chat squeezed in under it, so
 /// the middle of the screen shows the match), its last line near the frame's foot, right
@@ -550,7 +552,7 @@ pub(super) fn build(
                 (None, Page::Players) => "Enter: report this player",
                 (None, _) => "Choose why, then say what happened",
             };
-            player_card(
+            let under = player_card(
                 canvas,
                 &frame,
                 player,
@@ -558,6 +560,10 @@ pub(super) fn build(
                 status,
                 blocked.is_none(),
             );
+            // Trade, for another SJK player: gold when it can go, else why not.
+            if !player.you && !player.bot && player.hub.is_some() {
+                trade_button(canvas, &frame, under, roster.trade_blocked_for(player));
+            }
         }
         None if card.known => {
             let main = view.page == Page::Main;
@@ -1162,7 +1168,7 @@ fn player_card(
     team_game: bool,
     status: &str,
     open: bool,
-) {
+) -> f32 {
     let s = frame.s;
     let rule = |canvas: &mut MenuCanvas, y: f32| {
         fade_across(
@@ -1392,6 +1398,37 @@ fn player_card(
             TextAlign::Start,
         );
     }
+    y + 44.0
+}
+
+/// Trade on the player card, under its status line: the gold button when the player can
+/// be asked (`blocked` none), else the button dimmed and why beside it.
+fn trade_button(canvas: &mut MenuCanvas, frame: &Frame, y: f32, blocked: Option<&str>) {
+    kit::button(
+        canvas,
+        frame,
+        [CARD_X, y, 220.0, 50.0],
+        "Trade",
+        true,
+        blocked.is_none(),
+        false,
+        TRADE_TOKEN,
+    );
+    let words = blocked.unwrap_or("Swap holocrons and duplicate shaders");
+    text(
+        canvas,
+        TextFamily::Body,
+        format_args!("{words}"),
+        frame.rect(CARD_X + 236.0, y + 13.0, CARD_WIDTH - 236.0, 24.0),
+        16.0 * frame.s,
+        if blocked.is_none() {
+            color::MUTED
+        } else {
+            color::QUIET
+        },
+        FontWeight::Regular,
+        TextAlign::Start,
+    );
 }
 
 /// What the player is in the match.
@@ -2650,5 +2687,70 @@ mod tests {
         assert_eq!(motion.towards(0.5, 10.0), 0.5);
         let next = motion.towards(-0.2, 10.05);
         assert!(next < 0.5 && next > -0.2);
+    }
+
+    /// Trade sits on the Players page's player card, under its status line, for another
+    /// SJK player: lit while the hub lets players trade, dimmed with why otherwise, and
+    /// never for the player themselves.
+    #[test]
+    fn the_players_card_offers_trade_to_another_sjk_player() {
+        let card = Card::for_shot(false, false);
+        let labels = vec!["Player".to_owned(); 9];
+        let hints = vec!["A line".to_owned(); 9];
+        let enabled = vec![true; 9];
+        let draw = |roster: &players::State, row: usize| {
+            let mut canvas = MenuCanvas::new();
+            let mut extras = Extras::NONE;
+            build(
+                &mut canvas,
+                &view(Page::Players, row, false, 0),
+                &Rows {
+                    labels: &labels,
+                    hints: &hints,
+                    enabled: &enabled,
+                    marks: &[],
+                    title: None,
+                },
+                &Sides {
+                    card: &card,
+                    players: roster,
+                },
+                &mut extras,
+                &mut Motion::default(),
+                [1920.0, 1080.0],
+            );
+            canvas
+        };
+        let mut roster = players::State::for_shot(8, false, players::Gate::Open);
+        let row = |roster: &players::State, slot: u8| {
+            roster.shown().iter().position(|p| p.slot == slot).unwrap()
+        };
+        let other = row(&roster, 0);
+        let canvas = draw(&roster, other);
+        let texts: Vec<String> = canvas.text_runs().map(str::to_owned).collect();
+        assert!(canvas.rect_for(TRADE_TOKEN).is_some(), "{texts:?}");
+        assert!(
+            texts
+                .iter()
+                .any(|t| t == "Trading is not open on the SJK hub"),
+            "{texts:?}"
+        );
+        roster.set_trading(true);
+        let canvas = draw(&roster, other);
+        let button = canvas.rect_for(TRADE_TOKEN).expect("Trade");
+        assert!(
+            button.bottom() < 1004.0 - 24.0,
+            "above the keys: {button:?}"
+        );
+        let texts: Vec<String> = canvas.text_runs().map(str::to_owned).collect();
+        assert!(
+            texts
+                .iter()
+                .any(|t| t == "Swap holocrons and duplicate shaders"),
+            "{texts:?}"
+        );
+        // Not for the player themselves.
+        let canvas = draw(&roster, row(&roster, 2));
+        assert!(canvas.rect_for(TRADE_TOKEN).is_none());
     }
 }

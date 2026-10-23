@@ -90,6 +90,9 @@ pub(crate) struct Recent {
     pub(crate) note: String,
     /// It was opened.
     pub(crate) opened: bool,
+    /// How it came in a trade ([`holocrons::Entry::trade_line`]), colour codes kept;
+    /// `None` when it did not.
+    pub(crate) trade: Option<String>,
 }
 
 /// What the page shows of the identity and the hub, read by [`Data::read`].
@@ -189,6 +192,15 @@ impl Data {
         }
         let crystals = std::array::from_fn(|index| crystal_sealed[index].len() as u32);
         // The recent list is the holocrons found: crystals are counted on their own.
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |since| since.as_secs() as i64);
+        let lock = snapshot
+            .trades
+            .as_ref()
+            .map(|state| state.list.rules.resale_lock)
+            .filter(|lock| *lock > 0)
+            .unwrap_or(7 * 86_400);
         let recent = known
             .into_iter()
             .filter(|(entry, _)| !entry.tier.is_kyber())
@@ -197,6 +209,7 @@ impl Data {
                 tier: entry.tier.index,
                 when: holocrons::when_text(entry.dropped),
                 gift: entry.gift,
+                trade: entry.trade_line(now, lock),
                 note: entry.note,
                 opened,
             })
@@ -934,6 +947,7 @@ mod tests {
             kyber: None,
             shop: None,
             trade: None,
+            trades: None,
             public_key: String::new(),
         }
     }
@@ -973,6 +987,9 @@ mod tests {
     fn holocron(id: u64, tier: &str, source: &str, note: &str) -> sjk_identity::Holocron {
         sjk_identity::Holocron {
             opened: None,
+            traded: None,
+            traded_from_key: None,
+            traded_from: None,
             id,
             tier: tier.to_owned(),
             dropped: 1_791_641_100,

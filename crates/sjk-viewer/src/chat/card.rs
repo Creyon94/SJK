@@ -15,6 +15,7 @@ pub(super) const CARD: u16 = 120;
 pub(super) const CARD_MUTE: u16 = 121;
 pub(super) const CARD_BAN: u16 = 122;
 pub(super) const CARD_SAFETY: u16 = 123;
+pub(super) const CARD_TRADE: u16 = 124;
 /// How long the card stays once the pointer is off the name and the card.
 pub(super) const GRACE_MS: u64 = 400;
 
@@ -81,7 +82,7 @@ impl ChatOverlay {
                     }
                 }
             }
-            None if [CARD, CARD_MUTE, CARD_BAN, CARD_SAFETY]
+            None if [CARD, CARD_MUTE, CARD_BAN, CARD_SAFETY, CARD_TRADE]
                 .into_iter()
                 .any(|token| self.ui.token_hovered(token)) =>
             {
@@ -142,6 +143,9 @@ impl ChatOverlay {
                     place,
                     note: None,
                     safety: false,
+                    // On this server: it can be asked to trade.
+                    trade: matches!(place, Place::Slot(_) | Place::SlotByName(_))
+                        && crate::player_trades::trading_open(),
                 }
             }
             Who::Player(target) => {
@@ -171,6 +175,7 @@ impl ChatOverlay {
                         Place::SlotByName(slot)
                     },
                     safety: mark.is_some() && self.takes_encrypted(target.slot()),
+                    trade: mark.is_some() && crate::player_trades::trading_open(),
                     avatar: mark.as_ref().map(|mark| mark.avatar.clone()),
                     medals: mark.map(|mark| mark.medals).unwrap_or_default(),
                     note: None,
@@ -208,6 +213,7 @@ impl ChatOverlay {
                 mute: CARD_MUTE,
                 ban: CARD_BAN,
                 safety: CARD_SAFETY,
+                trade: CARD_TRADE,
             },
         );
     }
@@ -244,6 +250,19 @@ impl ChatOverlay {
         }) = &self.card
         {
             self.safety_request = Some(target.slot());
+            self.card = None;
+        }
+    }
+
+    /// Trade on the card: ask the frame to ask them (the slot they are in).
+    pub(super) fn press_card_trade(&mut self) {
+        let slot = match self.card.as_ref().map(|card| (card.who, card.person.place)) {
+            Some((Who::Player(target), _)) => Some(target.slot()),
+            Some((_, Place::Slot(slot) | Place::SlotByName(slot))) => Some(u16::from(slot)),
+            _ => None,
+        };
+        if let Some(slot) = slot {
+            self.trade_request = Some(slot);
             self.card = None;
         }
     }

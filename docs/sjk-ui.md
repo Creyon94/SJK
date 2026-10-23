@@ -2078,6 +2078,81 @@ player has left is dropped. The same look in every menu style, on the 16:9 frame
   Remove the check is outlined, by click only. The chat's player card offers it with a
   full-width Safety code button in the whispers' pink, under Block.
 
+## Trading
+
+[trade_window.rs](../crates/sjk-viewer/src/trade_window.rs) and
+[player_trades.rs](../crates/sjk-viewer/src/player_trades.rs) (prepared 22/10/2026, off
+until the hub turns trading on): two SJK players swap unopened holocrons and duplicate
+saber shaders through the SJK hub, which checks both sides twice and holds every limit
+(the hub's PROTOCOL.md, "Trades between players"). Every number the window shows comes
+from the hub: its rules, today's counts and what each item is worth. The same look in
+every menu style, on the 16:9 frame:
+
+- **Starting:** a gold Trade button on the game menu's Players page, on the player card
+  of the player chosen in the table (dimmed with why when it cannot be: trading closed,
+  an offline server), Trade on a player's card in the game's chat and the SJK chat page (beside
+  Block, the two even halves; Ban 24 h then takes a row of its own; only while the hub
+  lets the player trade), Trade on the game menu's Players page after the report reasons (with
+  why not when it cannot be: yourself, a bot, a player the hub does not know, trading
+  closed), or `trade <player>`.
+- **The toast:** while a trade runs and the window is closed, a card 660 wide at the top
+  centre (y 64) over play, which takes no input: the other player's picture (or initial)
+  in a gold ring, their name in its colours, "Nib wants to trade" (Rajdhani 24) with the request's seconds in gold, a muted
+  line, a thin gold bar running down smoothly (to the fraction of a second, not in steps),
+  and the key: Esc answer (or Esc open), 40 above the card's foot, clear of the bar. It also tells
+  for six seconds how a trade ended, or why a request was refused.
+- **Reaching it in game:** the pointer is free only in the menus, so the window shows
+  over the game menu: Esc in play opens it while a trade runs; Esc in it shows the game
+  menu under it (the trade goes on, the toast at the top says so) and Esc there goes back
+  to play. Whenever the pointer is free (the game menu, or the chat's composer, open) the
+  toast is a button: Open trade (gold) and a click anywhere on it bring the window back.
+  Asking from a card or the command opens it at once. The other cards come first.
+- **From the main menu:** no game is needed: the toast and the window show over the main
+  menu too (the pointer is free there, so the toast is always a button), and Close keeps
+  the window closed until the toast's Open trade.
+- **The SJK chat page:** its sender card offers Trade too (by the player's SJK key); the
+  page closes and the window opens over the game or the main menu.
+- **Request:** the kit's card, 800 wide from x 560, y 300, over a light shade (the match
+  shows round it): the SJK logo, "Trade request" in gold, "Nib wants to trade"
+  (Rajdhani 36, their name in its colours) with the seconds left, what a trade is, the bar, Decline (outlined) and Accept (gold, Enter).
+  The asker's reads "Waiting for Nib" with Cancel request.
+- **Open trade:** a card 1160 by 780 (its design size; the player's Trade window size
+  setting, `cl_tradeWindowSize`, draws it at 80, 90 (the default) or 100 percent about the
+  frame's middle). Its head: the SJK logo on its own (64 wide), "Trading with" in gold, and
+  the other player's picture (or initial) and name as they wear it, colours and all; when
+  it closes without a change on the right. Two columns, You give and Nib gives (their name
+  in its colours), each with what it is worth on average in kyber shards, six tile slots
+  (78 square: the holocron's picture and tier, or the blade in its tier's colour and its
+  name, ringed in that colour) and its state (Choosing..., Ready, Confirmed), a gold swap
+  badge between them. Under a hairline, "Your holocrons and duplicates" ("Your duplicates"
+  while the hub trades no holocrons yet, `rules.holocrons` false: duplicates come first, and
+  the toast then says "Duplicate shaders."): up to 18 tiles,
+  those that may go in first, most worth first (a click puts one in; a click on an offered
+  one takes it out). A holocron received in a trade within the week is shown dimmed with a
+  gold timer pill in place of its name, counting down ("6d 23h", "5h 12m"), and a gold
+  warning card under the items says "Holocrons received in a trade can be traded again
+  after 7 days."; one the day's limits hold back is dimmed too, a gold line saying why.
+  Neither answers a click; the gold line names the tiers given ("You have given today's
+  Rare and Mythical holocrons: one of each a day. More tomorrow."). Beside them, Daily
+  limits: Holocrons (no row while holocrons do not trade) and Duplicates, each Received and
+  Given as done / most (ember once reached); one of each tier a day each way (the hub's
+  `holocron_tier_day`) shows only in that gold line. The
+  limits run for a trading day of 24 hours from the player's first completed trade (the
+  same for every time zone), so under them, while one runs, "Daily reset in" with a gold
+  clock ticking down ("14:07:33", the hub's `resets_at`); then every count resets. Then
+  the hub's refusal in ember, "Nib is giving this as a gift: nothing is asked in return."
+  in green, or an uneven warning in gold, and Cancel trade, Not ready and the gold button:
+  Ready, then Confirm in 3, 2, 1 and Confirm trade once both are ready. Keys bottom right:
+  Enter main button, Esc close.
+- **A gift:** one side may give nothing. Ready on a gift the player gives asks once more:
+  a gold-ringed card in the items' place, "Give it as a gift?", what they give, that
+  nothing comes back and that it cannot be undone, with Go back and Yes, give it (gold).
+  A change of the offers drops the question.
+- **Recent holocrons:** on the Profile screen's Holocrons tab, a holocron received in a
+  trade says so under its name: "Received from Nib in a trade", and while its week runs
+  "- tradable again in 6d 23h".
+- **Ended:** "Traded with Nib" (or ended) and how, with Close, while the window was open.
+
 ## What's new card
 
 [whats_new_card.rs](../crates/sjk-viewer/src/whats_new_card.rs): the pop-up a player

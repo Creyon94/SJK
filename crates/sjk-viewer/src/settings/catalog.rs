@@ -1065,6 +1065,11 @@ pub(super) const GAME: &[Setting] = &[
         cvar: crate::quick_wheel::SOUNDS_CVAR,
         kind: ValueKind::Bool,
     },
+    Setting {
+        label: "Trade window size",
+        cvar: crate::player_trades::SIZE_CVAR,
+        kind: ValueKind::Choice(&["0", "1", "2"]),
+    },
     // The client mods (`docs/mods.md`): on, each loading on its servers only.
     Setting {
         label: "JA+ tools",

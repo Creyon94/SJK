@@ -1241,6 +1241,9 @@ mod tests {
     fn wire_holocron(id: u64, tier: &str) -> sjk_identity::Holocron {
         sjk_identity::Holocron {
             opened: None,
+            traded: None,
+            traded_from_key: None,
+            traded_from: None,
             id,
             tier: tier.to_owned(),
             dropped: 1_791_641_100,

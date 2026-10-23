@@ -30,6 +30,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
+- Trading (ready for the SJK hub to turn on): swap duplicate saber shaders with another SJK player, or give them as a gift, from a game or the main menu; holocrons follow once the SJK hub opens them. Trade from their card in the chat, the SJK chat page, the Players page or `trade`; a request shows at the top of the screen and the trade window opens in the middle, where both of you choose, see what each side is worth, press Ready and then Confirm. Trade as often as you like: one holocron of each tier and 10 duplicates each way in a day that starts with your first trade, with a Daily reset clock in the window. A holocron received in a trade can be traded again after a week (its tile counts down). Settings > Trade window size makes the window smaller or larger _(Creyon)_
 - Kyber crystals: every achievement now brings one, once, from Uncommon to Mythical (shown on the Achievements tab, its hover card and its unlock card). Opening one always gives a saber shader, the ones you do not have yet first, and every tenth crystal in a row without a Legendary or Mythical shader gives one: the Holocrons tab shows your crystals, how soon that is, and their loot table _(Sol)_
 
 ## 2026.1023.2 (Alpha) | 23/10/2026

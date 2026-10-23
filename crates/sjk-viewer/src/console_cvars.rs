@@ -543,6 +543,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "Play the secret-area sound with the unlock cards",
         ),
         CvarDefinition::new(
+            crate::player_trades::SIZE_CVAR,
+            "1",
+            archive,
+            "Size of the trade window: 0 small, 1 normal (default), 2 large",
+        ),
+        CvarDefinition::new(
             crate::holocron_popup::NOTIFICATIONS_CVAR,
             crate::holocron_popup::NOTIFICATIONS_DEFAULT,
             archive,

@@ -1270,6 +1270,7 @@ Found the fog bug, ask me about it!"
             kyber: None,
             shop: None,
             trade: None,
+            trades: None,
             public_key: String::new(),
         };
         let standings = crate::achievements::ALL
@@ -1456,6 +1457,9 @@ like this one.",
                     source: "staff".to_owned(),
                     note: String::new(),
                     opened: None,
+                    traded: None,
+                    traded_from_key: None,
+                    traded_from: None,
                 },
                 sjk_identity::Holocron {
                     id: 39,
@@ -1464,6 +1468,9 @@ like this one.",
                     source: "play".to_owned(),
                     note: String::new(),
                     opened: None,
+                    traded: None,
+                    traded_from_key: None,
+                    traded_from: None,
                 },
             ],
             ..profile("44f3d0b36c9b2510", "^1Sol^7Vulpes")

@@ -442,6 +442,7 @@ impl Panel {
                     avatar: None,
                     note: None,
                     safety: false,
+                    trade: offers_trade(&message.key_id),
                 };
                 hovered = Some((CardSource::Message(message.id), person, name));
             }
@@ -878,6 +879,7 @@ impl Panel {
                 avatar: version,
                 note: Some(note),
                 safety: false,
+                trade: offers_trade(&row.key_id),
             };
             (CardSource::Person(row.key_id.clone()), person, square)
         })
@@ -1411,20 +1413,42 @@ impl Panel {
     fn follow_card(&mut self, hovered: Option<Shows>) {
         match hovered {
             Some((source, person, anchor)) => match &mut self.card {
-                Some(card) if card.source == source => card.anchor = anchor,
+                Some(card) if card.source == source => {
+                    card.anchor = anchor;
+                    card.left = None;
+                }
                 _ => {
                     self.card = Some(Hovered {
                         source,
                         person,
                         anchor,
                         placed: false,
+                        left: None,
                     });
                 }
             },
-            None if [CARD_TOKEN, CARD_MUTE_TOKEN, CARD_BAN_TOKEN]
-                .into_iter()
-                .any(|token| self.ui.token_hovered(token)) => {}
-            None => self.card = None,
+            None if [
+                CARD_TOKEN,
+                CARD_MUTE_TOKEN,
+                CARD_BAN_TOKEN,
+                CARD_TRADE_TOKEN,
+            ]
+            .into_iter()
+            .any(|token| self.ui.token_hovered(token)) =>
+            {
+                if let Some(card) = &mut self.card {
+                    card.left = None;
+                }
+            }
+            // Off both: it waits a moment for the pointer on its way to the card.
+            None => {
+                if let Some(card) = &mut self.card {
+                    let left = *card.left.get_or_insert_with(std::time::Instant::now);
+                    if left.elapsed() >= CARD_GRACE {
+                        self.card = None;
+                    }
+                }
+            }
         }
     }
 
@@ -1482,6 +1506,7 @@ impl Panel {
                 ban: CARD_BAN_TOKEN,
                 // The safety code is only offered in the game's chat.
                 safety: CARD_TOKEN,
+                trade: CARD_TRADE_TOKEN,
             },
         );
     }
@@ -1530,6 +1555,13 @@ impl Panel {
             x = key_hint(&mut self.ui, caps, action, x, y, s) + gap;
         }
     }
+}
+
+/// Whether the card of the player with `key_id` offers Trade: another player's, while
+/// the SJK hub lets this player trade.
+fn offers_trade(key_id: &str) -> bool {
+    crate::player_trades::trading_open()
+        && crate::player_identity::own_key_id().as_deref() != Some(key_id)
 }
 
 #[cfg(test)]
@@ -2148,7 +2180,17 @@ mod tests {
             DrawCommand::Arc { color, center, .. }
                 if *color == color::GOLD_BRIGHT && (center[0] - centre(shown[0])[0]).abs() < 0.01
         )));
-        // Between two faces: no card.
+        point_at(
+            &mut panel,
+            &inputs,
+            &fonts.font,
+            [shown[0].right() + 5.0, centre(shown[0])[1]],
+        );
+        // Between two faces: the card waits a moment for the pointer, then goes.
+        assert!(panel.card.is_some(), "kept on the way");
+        if let Some(card) = panel.card.as_mut() {
+            card.left = card.left.map(|at| at - super::CARD_GRACE);
+        }
         point_at(
             &mut panel,
             &inputs,
