@@ -28,10 +28,15 @@ tests check this file):
 - ASCII only, as the menu font draws bytes.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
-## Unreleased
+## 2026.1023.2 (Alpha) | 23/10/2026
+
+A small release for the Hax: it can now be a trap that blows the hacker up with you.
+
+> Hax trap: Set a trap, and whoever hacks you blows up with you, Order 66 style.
+> Away bait: With the trap set, players can hack you while you are away.
+> Safe while typing: Nobody can hack you while your chat is open, trap or not.
 
 - The Hax can be a trap: with Hax trap on (Settings > Game options > Toys), a player who hacks you springs it, and two seconds later you both blow up as in Order 66. With Hax trap while away on too, players may hack you while you are away, and blow up with you _(Sol)_
-- Kyber crystals: every achievement now brings one, once, from Uncommon to Mythical (shown on the Achievements tab, its hover card and its unlock card). Opening one always gives a saber shader, the ones you do not have yet first, and every tenth crystal in a row without a Legendary or Mythical shader gives one: the Holocrons tab shows your crystals, how soon that is, and their loot table _(Sol)_
 
 ## 2026.1023.1 (Alpha) | 23/10/2026
 
