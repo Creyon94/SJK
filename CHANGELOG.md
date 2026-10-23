@@ -30,6 +30,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
+- After the game hitches (a second without frames), your moves no longer reach the server late: the client set its clock by the snapshots that waited through the hitch and sent its moves up to a second behind, which JoF's servers took for a `cl_timeNudge` and kicked for _(Sol, after Slash's report)_
 - A thrown saber now keeps its blade skin's swing parts: afterimages, falling blossoms and the effects that answer a swing follow the spinning blade in flight _(Sol, after Kushina's report)_
 - The `saber` command (`saber dual_1`, `saber single_1 single_2`, from the console or a custom quick wheel choice) now changes your sabers for good: Profile > Saber shows them and the next map keeps them, instead of going back to the menu's pick _(Sol, after Kushina's report)_
 - Collection > Cards: the card shown up close no longer covers the Forge tab, which takes every click again _(Sol, after Kushina's report)_
