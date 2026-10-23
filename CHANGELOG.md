@@ -28,7 +28,15 @@ tests check this file):
 - ASCII only, as the menu font draws bytes.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
-## Unreleased
+## 2026.1023.3 (Alpha) | 23/10/2026
+
+A small release of fixes from your reports: fewer kicks after a freeze, vehicles, the DEMP2 and the Profile page.
+
+> No more late moves: After the game freezes for a moment, your moves no longer reach the server a second late, which got some players kicked on JoF.
+> DEMP2: The charged shot's flash no longer paints the sky in colours; it whitens the view only when it goes off close in front of you.
+> Vehicles: Tauntaun riders swing again and again, and the AT-ST's camera no longer jumps.
+> Sabers: The saber command keeps your choice in Profile and on the next map, and a thrown saber keeps its afterimages.
+> Profile and chat: The About you box has a real cursor, and cg_chatBoxLines goes up to 24 lines.
 
 - After the game hitches (a second without frames), your moves no longer reach the server late: the client set its clock by the snapshots that waited through the hitch and sent its moves up to a second behind, which JoF's servers took for a `cl_timeNudge` and kicked for _(Sol, after Slash's report)_
 - A thrown saber now keeps its blade skin's swing parts: afterimages, falling blossoms and the effects that answer a swing follow the spinning blade in flight _(Sol, after Kushina's report)_
@@ -39,7 +47,6 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - The DEMP2's charged shot no longer whitens the whole screen: its flash fades with distance and direction as in the original game, so only a shock close in front of you flashes, and that flash whitens the view as there rather than a coloured square in the distance _(Sol, after Slash's report)_
 - The AT-ST's camera no longer jumps when the walker starts, stops or changes pace: its seat follows the walker's animations blended, as the original game shows them _(Sol, after Kushina's report)_
 - Riding a tauntaun with a lightsaber, holding attack swings again and again, as in the original game; it showed one swing and then only the swing sounds _(Sol, after Slash's report)_
-- Kyber crystals: every achievement now brings one, once, from Uncommon to Mythical (shown on the Achievements tab, its hover card and its unlock card). Opening one always gives a saber shader, the ones you do not have yet first, and every tenth crystal in a row without a Legendary or Mythical shader gives one: the Holocrons tab shows your crystals, how soon that is, and their loot table _(Sol)_
 
 ## 2026.1023.2 (Alpha) | 23/10/2026
 
