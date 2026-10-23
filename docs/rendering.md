@@ -1464,11 +1464,24 @@ rather than the default 0.1, which draws them almost straight. `elasticity` and
 A `Flash` primitive's colour is scaled as `CFlash::Init` scales it when it starts:
 by its distance from the rendered view, quadratically to nothing at 900 units, and to
 nothing beyond 60 degrees off the view axis past 100 units (brighter within them). It is
-drawn where the effect went off rather than on the viewer as stock does, which matches
-for a flash in front of the view; one within 100 units behind it stays unseen. Unscaled,
-`demp2/altdetonate`'s 2048-unit `gfx/effects/whiteFlash` lit the whole screen wherever a
-DEMP2 shock went off (Slash, hub report #125;
-[effect_flash.rs](../crates/sjk-viewer/src/effect_flash.rs)). The growing
+then drawn as `CFlash::Draw` draws it, on the viewer rather than where it went off: stock
+places an `RT_SPRITE` 12 units along the view axis with radius `12 * tan(fov_x / 2)`
+(its size curve ignored), and `gfx/effects/whiteFlash` adds `$whiteimage` with
+`depthFunc disable`, so it covers the view's width (and more than its height) over
+everything. SJK draws it as a clip-space quad of those extents (`entity.wgsl` kind 6,
+the clash flare's path) in the shader's blend slot. Unscaled, `demp2/altdetonate`'s
+2048-unit flash lit the whole screen wherever a DEMP2 shock went off; drawn as a
+billboard at the shock, it was hidden by nearer walls and tinted the sky behind it up to
+a hard edge (Slash, hub report #125;
+[effect_flash.rs](../crates/sjk-viewer/src/effect_flash.rs)). A flash within 100 units
+behind the viewer now shows, as in stock. `localizedFlash` (a 2D picture at the effect's
+screen position) is not modelled; no retail effect uses it.
+
+A primitive's colour start and end are picked once when it spawns (`GetRGB_Colors`). An
+rgb `random` flag then scales the whole colour by one random number each frame
+(`CParticle::UpdateRGB`, `CLight::UpdateRGB`): SJK drew one per channel, which turned the
+DEMP2's white flash magenta, yellow and purple frame to frame (and tinted the other
+retail effects with the flag: lava, `env/powerbolt`, `mrancor/breath`, ship burners). The growing
 `gfx/effects/demp2shell` sphere `FX_DEMP2_AltDetonate` adds with that effect is not drawn.
 
 Effect particles share one pool of 4,096 slots, plus 256 kept for per-frame

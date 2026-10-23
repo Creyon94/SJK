@@ -14,6 +14,9 @@ pub(crate) struct Inputs<'a> {
     pub(crate) global_seconds: f32,
     pub(crate) camera: Vec3,
     pub(crate) field_of_view: f32,
+    /// The view's width over its height, which sizes a screen flash
+    /// ([`crate::effect_flash::screen_half_extents`]).
+    pub(crate) aspect: f32,
     pub(crate) bsp: &'a Bsp,
     pub(crate) trace_scratch: &'a mut TraceScratch,
 
@@ -91,7 +94,9 @@ pub(crate) fn prepare(timing: &mut frame_pacing::budget::Timer, inputs: Inputs<'
     'particles: for particle in inputs.particles.iter_mut() {
         if !matches!(
             particle.shape,
-            PrimitiveShape::Billboard | PrimitiveShape::FrameBillboard
+            PrimitiveShape::Billboard
+                | PrimitiveShape::FrameBillboard
+                | PrimitiveShape::ScreenFlash
         ) {
             continue;
         }
@@ -122,7 +127,10 @@ pub(crate) fn prepare(timing: &mut frame_pacing::budget::Timer, inputs: Inputs<'
                 break 'particles;
             }
             let uv_transform = billboard_uv_transform(particle.shape, layer.uv_transform);
-            let kind = if particle.normal.is_some() {
+            let screen_flash = matches!(particle.shape, PrimitiveShape::ScreenFlash);
+            let kind = if screen_flash {
+                6 // Clip-space quad over the view, in front of everything.
+            } else if particle.normal.is_some() {
                 5
             } else if particle.streak.is_some() {
                 4
@@ -132,8 +140,14 @@ pub(crate) fn prepare(timing: &mut frame_pacing::budget::Timer, inputs: Inputs<'
                 3
             };
             let tint = layer.tint(color.map(|channel| channel * color_fade));
+            let (position, size, direction) = if screen_flash {
+                let [width, height] = crate::effect_flash::screen_half_extents(inputs.aspect);
+                ([0.0; 3], 1.0, [width, height, 0.0])
+            } else {
+                (motion.origin.to_array(), size, direction)
+            };
             let instance = EntityInstance {
-                position: motion.origin.to_array(),
+                position,
                 kind: if layer.glow { kind | GLOW_MARK } else { kind },
                 size,
                 alpha: vertex_alpha * layer.alpha,

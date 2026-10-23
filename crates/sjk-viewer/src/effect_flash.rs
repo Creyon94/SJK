@@ -6,12 +6,23 @@
 //! `gfx/effects/whiteFlash`): drawn at full colour wherever a DEMP2 shock went off, it
 //! lit the whole screen from across the map (Slash, hub report #125).
 //!
-//! The flash is drawn as the effect's billboard where it went off, its colour scaled as
-//! stock scales it. Stock draws it on the viewer instead (12 units in front, as wide as
-//! the view), which a world billboard matches for a flash in front of the viewer; a flash
-//! within 100 units behind the viewer, which stock still shows, stays out of sight here.
+//! `CFlash::Draw` then draws it on the viewer, not where it went off: an `RT_SPRITE`
+//! `FLASH_DISTANCE_FROM_VIEWER` (12) units along the view axis, of radius
+//! `12 * tan(fov_x / 2)`, which spans the view's width and, on a screen wider than tall,
+//! more than its height. Its size curve is ignored. `whiteFlash` is `$whiteimage`, added
+//! (`blendFunc GL_ONE GL_ONE`) with `depthFunc disable` and `sort nearest`, so nothing
+//! hides it. SJK draws that sprite as the clip-space quad [`screen_half_extents`] gives
+//! (`entity.wgsl` kind 6), with the primitive's colour and alpha curves as stock's
+//! `UpdateRGB`/`UpdateAlpha` give them. Drawn as a 2048-unit billboard at the shock, the
+//! flash was hidden by everything nearer than it and tinted all behind it, the sky
+//! included, up to a hard edge. `localizedFlash` (`FX_LOCALIZED_FLASH`, a 2D picture at
+//! the effect's screen position) is not modelled: no retail effect uses it.
 
 use glam::Vec3;
+
+/// `CFlash::Draw`'s `FLASH_DISTANCE_FROM_VIEWER`: how far in front of the eye the
+/// flash's sprite stands.
+const FLASH_DISTANCE_FROM_VIEWER: f32 = 12.0;
 
 /// `CFlash::Init`'s `maxRange`.
 const MAX_RANGE: f32 = 900.0;
@@ -37,6 +48,20 @@ pub(crate) fn visibility(viewer: Option<(Vec3, Vec3)>, origin: Vec3) -> f32 {
         scale += 1.1;
     }
     scale * (1.0 - (distance * distance) / (MAX_RANGE * MAX_RANGE))
+}
+
+/// Half the width and height, in normalized device coordinates, of `CFlash::Draw`'s
+/// sprite for a view of `aspect` (width over height): a square of radius
+/// `12 * tan(fov_x / 2)` 12 units ahead, so exactly the view's width and `aspect` times
+/// its height (`tan(fov_x / 2) / tan(fov_y / 2)`).
+pub(crate) fn screen_half_extents(aspect: f32) -> [f32; 2] {
+    let tan_half_y = 1.0_f32;
+    let tan_half_x = aspect * tan_half_y;
+    let radius = FLASH_DISTANCE_FROM_VIEWER * tan_half_x;
+    [
+        radius / (FLASH_DISTANCE_FROM_VIEWER * tan_half_x),
+        radius / (FLASH_DISTANCE_FROM_VIEWER * tan_half_y),
+    ]
 }
 
 #[cfg(test)]
@@ -65,5 +90,13 @@ mod tests {
         assert!((near - 1.1 * (1.0 - 2_500.0 / 810_000.0)).abs() < 1e-5);
         // No viewer, no flash.
         assert_eq!(visibility(None, EYE), 0.0);
+    }
+
+    #[test]
+    fn the_flash_spans_the_view_width_and_overfills_its_height() {
+        assert_eq!(screen_half_extents(1.0), [1.0, 1.0]);
+        let [width, height] = screen_half_extents(16.0 / 9.0);
+        assert!((width - 1.0).abs() < 1e-6);
+        assert!((height - 16.0 / 9.0).abs() < 1e-6);
     }
 }
