@@ -101,6 +101,9 @@ includes:
   at the shop's price, a Holo or Solar one at half, the card kept, and a button under a
   held blade card on the Cards tab that leads to its shader (to the Forge's Craft while
   the player lacks it);
+- saber sounds of your choice (23/10/2026, after Nib's idea): the Saber tab's Sounds row
+  picks the sounds apart from the saber shader (follow it, stock, or an owned shader's),
+  with a preview, sent with the look so every SJK player hears them;
 - perk marks on cards (21/10/2026, Sol's request): a badge on the tile for each perk
   (a lightsaber, the Solar sun, a smith's hammer), the marks up close and before each
   perk's line on the hover card;
@@ -583,6 +586,9 @@ palette with pink as its main colour, light purple and white mist, afterimages m
 falling blossoms like the Spectral's, and a branch with a flower where the blade starts
 (and one day a wooden hilt). Sol built it as the Varykino Blossom, a Mythical saber shader
 (blade 166, 21/10/2026), with all of it but the hilt, which waits for custom hilts.
+
+Nib, a player, asked to choose the saber sounds apart from the saber shader (18/10/2026,
+and hub report #109): Sol built it as the Saber tab's Sounds row (23/10/2026).
 
 ## Tools
 

@@ -24,6 +24,16 @@
 
 # ---- Console & chat ----
 
+[saber-sound-pick]
+area: Audio
+title: Saber sounds chosen apart from the shader (Nib's idea, hub #109)
+change: Profile > Saber > Sounds: Follow shader, Stock, or an owned shader's sounds.
+change: cg_saberSounds; sent in the look (saber_sounds) once the hub takes the field.
+test: Profile > Saber: Sounds row under Blade. Step it, Preview plays ignition + hum.
+test: Wear the Storm, pick Void sounds: ignite and swing in game, the Void is heard.
+test: Pick Stock: a skinned blade sounds stock. Follow shader: back to the blade's sounds.
+note: Other players hear it only after the hub change (old hub: they hear the blade's).
+
 [saber-throw-parts]
 area: Rendering & effects
 title: Thrown saber keeps its skin's afterimages and swing parts (Kushina #127)

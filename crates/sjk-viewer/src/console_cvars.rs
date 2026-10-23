@@ -829,6 +829,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "The blade skin your sabers wear, by unlock id (saber_sun: the Sun blade), shown once your SJK profile holds it; empty for the stock blade",
         ),
         CvarDefinition::new(
+            crate::saber_sound_choice::CVAR,
+            "",
+            archive,
+            "The saber sounds you hear and other SJK players hear for your sabers: empty follows your saber shader, stock the stock sounds, or a shader you own by unlock id (saber_sun: the Sun blade's)",
+        ),
+        CvarDefinition::new(
             crate::saber_skin_options::CVAR,
             "",
             archive,

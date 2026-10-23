@@ -176,6 +176,26 @@ impl GameAudio {
         }
     }
 
+    /// Play `paths` once each, together, at full stereo on the interface's own source
+    /// (a channel each, so one does not cut another): the Saber tab's preview of a sound
+    /// set ([`crate::saber_sound_choice`]). A path not in `vfs` is left out.
+    pub(crate) fn play_preview(&mut self, vfs: &VirtualFileSystem, paths: &[&str]) {
+        for (channel, path) in paths.iter().enumerate() {
+            if let Some(handle) = self.register_vfs_async(vfs, path) {
+                self.output.send(AudioCommand::Play(
+                    handle,
+                    PlayRequest {
+                        origin: None,
+                        source: SourceId(u32::MAX - 2),
+                        channel: ChannelId(channel as u32),
+                        volume: 0.9,
+                        attenuation: sjk_audio::Attenuation::None,
+                    },
+                ));
+            }
+        }
+    }
+
     /// Which output this is: a new number at every start (`snd_restart` makes a new
     /// output with an empty sample cache), so sounds registered once per output
     /// (emotes, toys) know to register again.
