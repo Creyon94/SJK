@@ -69,6 +69,20 @@ test: Wear the Storm, pick Void sounds: ignite and swing in game, the Void is he
 test: Pick Stock: a skinned blade sounds stock. Follow shader: back to the blade's sounds.
 note: Other players hear it only after the hub change (old hub: they hear the blade's).
 
+[chat-sounds]
+area: Audio
+title: Chat sounds by kind: public, team, private messages, SJK chat (Turin, Nib)
+change: Settings > Sound > Chat sounds: a switch, a sound and a Play button for each kind.
+change: cg_chatBeep 0 no longer mutes tells; cg_privateChatBeep switches them (and encrypted).
+change: cl_privateChatFlash (default 1): a private message flashes the taskbar when away.
+test: Public chat off, Private messages on: public chat silent, a /tell to you still plays.
+test: Pick each sound in a list: it plays as you pick it; Play plays the chosen one.
+test: Private message sound SJK whisper: a tell and an encrypted whisper both play it.
+test: cg_chatSounds 2 with Default sounds: team chat and tells play EJK's switch beeps.
+test: cg_chatSounds 0: no chat sound of any kind; Play still plays (you are choosing).
+test: Alt-tab, get a tell (or encrypted whisper): taskbar flashes; off: no flash.
+note: Unit tests and a Settings world shot only; not heard or flashed in a game window.
+
 [saber-throw-parts]
 area: Rendering & effects
 title: Thrown saber keeps its skin's afterimages and swing parts (Kushina #127)

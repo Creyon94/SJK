@@ -465,6 +465,14 @@ impl ChatOverlay {
         self.push_line(line, server_private);
     }
 
+    /// Whether the newest line is a server's private message from a player not muted
+    /// here: what flashes the taskbar (`chat_sounds.rs`).
+    pub(crate) fn newest_is_open_private(&self) -> bool {
+        self.lines
+            .back()
+            .is_some_and(|line| line.server_private && !line.muted)
+    }
+
     fn push_line(&mut self, line: ChatLine, private: bool) {
         if self.lines.len() == HISTORY_LIMIT {
             self.lines.pop_front();

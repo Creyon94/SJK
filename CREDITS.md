@@ -280,6 +280,10 @@ includes:
 - Discord status (`cl_discordPresence`): the player's Discord profile showing the menu
   screen, or the server, map, mode, team and players, through the Discord app's
   local pipe;
+- chat sounds by kind (23/10/2026, after Turin's and Nib's ideas): public chat, team chat,
+  private messages and the SJK chat each with a switch, a sound picked from the game's
+  and SJK's, and a Play button, and a taskbar flash for a private message while the
+  window is away;
 - SJK Alpha (19/10/2026), the first collection of cards: the Mythical rarity, the
   Credits and Meme kinds, and card 1, "Bishop", honouring the author of JKR (art by
   Sol, AI-assisted: a rusted helmet portrait).

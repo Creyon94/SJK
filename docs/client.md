@@ -2387,6 +2387,50 @@ A whisper to another SJK player goes through the SJK hub end-to-end encrypted wh
 pink, marked ENCRYPTED, with its own sound, and a card asks before sending one the hub
 could not take through the game server. See [hub-chat.md](hub-chat.md#encrypted-whispers).
 
+### Chat sounds
+
+Each kind of chat message has its own sound switch and sound (Sol, after Turin's and
+Nib's ideas, 23/10/2026; [chat_sounds.rs](../crates/sjk-viewer/src/chat_sounds.rs)),
+in Settings > Sound > Chat sounds (Advanced), every row in the settings search:
+
+| Kind | Switch (default on) | Sound (default `default`) | Default sound |
+| --- | --- | --- | --- |
+| Public chat (`chat`, `lchat`) | `cg_chatBeep` | `cl_chatSoundPublic` | JKA's `sound/player/talk` |
+| Team chat (`tchat`, `ltchat`) | `cg_teamChatBeep` | `cl_chatSoundTeam` | talk; EJK's `button_11` under `cg_chatSounds 2` |
+| Private messages | `cg_privateChatBeep` | `cl_chatSoundPrivate` | talk for a tell (EJK's `button_15` under `cg_chatSounds 2`), the SJK whisper sound for an encrypted whisper |
+| SJK chat | `cl_sjkChatSound` | `cl_chatSoundSjk` | SJK's variant of talk ([hub-chat.md](hub-chat.md#a-sound-for-a-new-message)) |
+
+- **The master switch** is EternalJK's `cg_chatSounds` (Chat sounds: Off, On, Distinct
+  (EJK)): 0 silences every kind; 2 makes team chat and tells play JoF EternalJK's own
+  sounds (`cg_main.c` registers `button_11` and, without JoF's `commlink_off`,
+  `button_15`; `cg_servercmds.c` plays them) while their sound is Default.
+- **Private messages** are a server's tells and SJK's encrypted whispers. A tell arrives
+  as public chat (`chat`, or `lchat` to a teammate with a location) whose text starts
+  with the stock private marker `[` (`G_Say`'s `SAY_TELL`); a player cannot type
+  that byte, so a line made to look like a tell stays public. JA+, JoF and the other
+  servers SJK knows send tells that way, so one test serves them all
+  (`chat::private_chat_command`, which `cg_pmOnlyChat` uses too); the sound adapter
+  gives a tell its own beep event (`PrivateChatBeep`). Before, `cg_chatBeep 0` muted
+  tells with public chat; now `cg_chatBeep 0` with `cg_privateChatBeep 1` keeps only
+  the private messages heard (Turin's case).
+- **The sounds:** Default, JKA chat (`talk`), SJK chat and SJK whisper (SJK's two
+  variants of talk), EJK team beep (`button_11`), EJK private beep (`button_15`), Blip
+  (`interface/update`), Select (`interface/sub_select`), Button (`interface/button1`),
+  Tick (`interface/menuroam`): the retail game's short sounds of `assets0.pk3`, read from
+  the player's game data (SJK ships none). Choosing one in Settings plays it; each kind
+  has a Play row, and `chatsoundpreview <public|team|private|sjk>` plays the same, its
+  chosen sound even while its switch is off. An unknown value is the default.
+- **How they play:** a game server's beep as the game's does (beside the listener on
+  `CHAN_LOCAL_SOUND`, a muted player's never), the chosen sound in place of the
+  adapter's; the SJK chat's and an encrypted whisper's through the interface cues.
+- **Taskbar flash:** `cl_privateChatFlash` (archived, default 1; Private message flash)
+  flashes the game's taskbar button when a private message arrives while the window is
+  unfocused or minimised (winit's `request_user_attention`, Informational: Windows
+  flashes it until the window comes back; a no-op where the system has none): a tell
+  from a player not muted here, never the server's echo of the player's own, or an
+  encrypted whisper. Name mentions in public chat already flash with EternalJK's
+  `con_notifywords`.
+
 ### Chat player actions
 
 U defaults to crosshair-target private chat (`messagemode3`): aim at a player,

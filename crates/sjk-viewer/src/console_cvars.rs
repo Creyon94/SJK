@@ -85,6 +85,7 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
     crate::text::style::register(cvars)?;
     crate::text::charset::register(cvars)?;
     crate::menu_hud::register(cvars)?;
+    crate::chat_sounds::register(cvars)?;
     let archive = CvarFlags::ARCHIVE;
     let definitions = [
         CvarDefinition::new(
