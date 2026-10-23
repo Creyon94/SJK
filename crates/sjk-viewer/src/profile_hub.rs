@@ -191,6 +191,10 @@ pub(crate) const TOKEN: u16 = 2_000;
 /// player screen's own tabs stood.
 const ROW_X: f32 = 96.0;
 const ROW_Y: f32 = 146.0;
+/// The bottom of the area each tab answers the pointer in (frame pixels): a page keeps
+/// its own pointer areas under it, or they take the tabs' clicks, a ragged row's
+/// included, which a large text style stretches to the frame's right.
+pub(crate) const ROW_BOTTOM: f32 = ROW_Y + 42.0;
 /// The room between two tabs' names.
 const GAP: f32 = 48.0;
 /// The narrowest clear separation when large text needs more of the row.
@@ -296,7 +300,12 @@ fn places(labels: &[&str], counts: &[String], index: usize, widen: f32) -> (f32,
 /// The area that answers the pointer for tab `index` of `labels`, frame pixels.
 fn hit_area(labels: &[&str], counts: &[String], index: usize, widen: f32) -> [f32; 4] {
     let (x, width, count) = places(labels, counts, index, widen);
-    [x - 8.0, ROW_Y - 4.0, width + count + 16.0, 46.0]
+    [
+        x - 8.0,
+        ROW_Y - 4.0,
+        width + count + 16.0,
+        ROW_BOTTOM - (ROW_Y - 4.0),
+    ]
 }
 
 /// A row of tabs under a screen's title: `labels` from the left edge of the form, the

@@ -1,3 +1,24 @@
+## The `saber` command and the Cards tab's card up close
+
+23/10/2026, `personal/hub-reports-1023-a`, based on `main` `7bc8bc89`, two of Kushina's
+reports. #126: sabers chosen from the quick wheel (a custom choice running JoF's `saber
+<saber1> [<saber2>]`) were forgotten on the next map and Profile > Saber kept showing the
+menu's pick: SJK did not know the command and sent it to the server, which swapped the
+saber in play while `saber1`/`saber2` stayed on the menu's choice, and the next map's
+userinfo brought that back. `saber` is now the client's own, as JoF EJK's `CG_Saber_f`:
+it writes the two cvars, the one place the menu (SJK UI and classic) and the userinfo
+read, and JA+ and jaPRO-lineage servers get the `saber` command from that change
+([client.md](client.md)). #124: on the Collection's Cards tab the card up close started
+at y 150, inside the row of tabs (142 to 188); a large text style (`ui_textScale`,
+`ui_letterSpacing`) stretches the row to the right until the Forge tab lies under the
+card, whose pointer area, registered after the tabs, took most of its clicks. The card now starts under the
+row (y 196, 437 wide instead of 470, its bottom unchanged; [cards.md](cards.md)).
+Verified on Windows 11: unit tests (the command's cvars, the menu reopened on them, the
+userinfo; the card's pointer area under the whole row at 1080p, 4K and 4:3, failing
+with the old place). Not verified: in a game; that the quick wheel's custom choice
+Kushina used was the `saber` command and that Kushina plays with a large text style
+(both inferred from the reports); the server's swap.
+
 ## Vehicle gunfire and effect sound volume
 
 22/10/2026, `personal/hub-reports-1022-d`, based on `main` `01cd678e` (Kushina's report,

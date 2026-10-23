@@ -48,6 +48,7 @@ mod kyber;
 mod loot_odds;
 
 mod saber_colour_command;
+mod saber_hilt_command;
 mod shader_image;
 mod shared_textures;
 
