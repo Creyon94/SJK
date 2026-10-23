@@ -1863,7 +1863,8 @@ menus ([identity.md](identity.md#bug-reports)).
   guidance (for a note, the surface it is about).
 - **Field:** six lines of the text (Exo 2 19) wrapped by the font's width in the
   player's text style (`ui_textScale`, `ui_letterSpacing`; the wrap, the caret
-  and the clicks measure as the renderer draws, `text_dialog_field.rs`); the
+  and the clicks measure as the renderer draws, `text_dialog_field.rs`, which the
+  Profile page's bio shares, its line breaks starting new lines); the
   lines scroll to keep the caret in view; a gold caret bar at the insertion
   point while it has the keyboard, lit steadily while typing; "Type here" while
   empty (held clear of the caret); outlined white while focused.

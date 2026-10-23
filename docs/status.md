@@ -1,3 +1,25 @@
+## Chat box lines and the bio's caret
+
+23/10/2026, `personal/hub-reports-1023-b`, based on `main` `7bc8bc89`.
+
+- Creyon's report #129 (2026.1022.3, a JoF server): `cg_chatBoxLines` above 8 showed no
+  more messages. The feed's cap (`MAX_VISIBLE`) was 8; JoF EternalJK's
+  `CG_ChatBox_DrawStrings` takes up to `MAX_CHATBOX_ITEMS`, 24. The cap is now 24
+  ([client.md](client.md)); the history kept (64) was already larger. There is one feed,
+  drawn the same in every menu style and HUD.
+- Kushina's report (Discord, 22/10): the Profile page's About you box could only be
+  written at its end, not clicked or walked with the keys. The bio now uses the report
+  dialog's wrapped field ([text_dialog_field.rs](../crates/sjk-viewer/src/text_dialog_field.rs),
+  whose keys are shared as `caret_key` and whose lines now break at a line break) and the
+  console's `LineEdit` ([identity.md](identity.md)). The page is drawn in the SJK UI's
+  look in every menu style, so this covers both. The Identity page's one-line About you
+  field still writes at its end, like every `text_entry` field.
+
+Verified on Windows 11: unit tests (the cvar's range and the feed showing 12 and 5 of 20
+messages; the bio's keys, Ctrl+A, Shift+Enter and repeats; a click on a wrapped line at
+1080p and 4K with a larger text style; line breaks in the field layout). Not verified: in
+a game.
+
 ## Vehicle gunfire and effect sound volume
 
 22/10/2026, `personal/hub-reports-1022-d`, based on `main` `01cd678e` (Kushina's report,

@@ -29,7 +29,7 @@ pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
         (
             "cg_chatBoxLines",
             5,
-            "Visible conversation entries, bounded to eight",
+            "Chat messages shown together, 1 to 24 as in EternalJK",
         ),
         (
             "cg_chatBoxShowHistory",

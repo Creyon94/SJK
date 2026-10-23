@@ -24,6 +24,22 @@
 
 # ---- Console & chat ----
 
+[chat-box-lines-24]
+area: Console & chat
+title: cg_chatBoxLines shows up to 24 chat messages (Creyon #129)
+change: The feed stopped at 8 messages whatever cg_chatBoxLines said; EternalJK's top is 24.
+test: cg_chatBoxLines 15, then 15+ chat lines (a local server, two clients): 15 show.
+test: cg_chatBoxLines 3: only the last 3; cg_chatBoxLines 100 acts as 24.
+
+[bio-caret]
+area: Menus & settings
+title: Profile bio: click a line, arrows move the caret (Kushina's report)
+change: About you has a caret: click, Left/Right (Ctrl: word), Up/Down, Home/End.
+change: Typing, Ctrl+V, Backspace and Delete work at it; Ctrl+A selects all.
+test: profile, click in the middle of a bio line: the caret is there, type: text goes in.
+test: Up/Down walk the lines, Shift+Enter breaks a line at the caret, Enter still saves.
+test: Ctrl+A then type: the bio is replaced; hold Backspace: it repeats.
+
 [hax-trap]
 area: Gameplay
 title: Hax trap: hacking a trapped player blows you both up
