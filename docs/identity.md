@@ -831,14 +831,8 @@ clients show the stand-in.
 
 ## Achievements
 
-An achievement is a milestone of the player's own play. Since 21/10/2026 each brings a
-kyber crystal once, when it unlocks ([holocrons.md](holocrons.md#kyber-crystals)): Uncommon
-for most, Rare for the harder ones, Legendary for Duel Master and Veteran, Mythical for
-Legend of the Arena. The Collection's Achievements tab says it under the achievement up
-close ("Reward: Rare Kyber Crystal" after the crystal's gem, in its colour), its hover card
-ends with it, and the unlock card says it at the right of "ACHIEVEMENT UNLOCKED" in place
-of the category. The hub's `reward` on each achievement wins over the client's own table
-(`kyber::REWARDS`) once it sends one. The catalogue, in [achievements.rs](../crates/sjk-viewer/src/achievements.rs)
+An achievement is a milestone of the player's own play. It grants nothing (saber
+shaders for harder achievements are an idea for later, not built). The catalogue, in [achievements.rs](../crates/sjk-viewer/src/achievements.rs)
 and in the hub (same ids):
 
 | Achievement | Id | Goal | Counted by |
