@@ -54,6 +54,15 @@ spawns nothing far away or behind and three quarters of its colour at 450 units 
 the workspace checks. Not verified: in a game; a flash close behind the viewer, which stock
 shows on the screen, stays out of sight; the DEMP2 shell sphere (`FX_DEMP2_AltDetonate`) is
 still not drawn.
+Follow-up 23/10/2026, `personal/demp2-flash-screen` (Slash's video: a magenta, yellow,
+then purple square tinting the sky behind the shock): the flash is now drawn on the
+viewer as `CFlash::Draw` draws it, a quad over the whole view in front of everything,
+and an rgb `random` flag dims the whole colour by one number a frame rather than each
+channel by its own, as `CParticle::UpdateRGB` does; a flash close behind the viewer now
+shows, as in stock. Verified on Windows 11: unit tests
+(the flash's shape and screen extents; the DEMP2 flash colour keeps its hue over 60
+frames), the workspace checks. Not verified: in a game; whether the first-person weapon
+draws over the flash (stock draws the flash over it).
 
 ## AT-ST pilot's camera jumps
 

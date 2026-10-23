@@ -195,10 +195,32 @@ const FLASH: &str = "Flash
 }
 ";
 
+/// `demp2/altdetonate`'s flash colour as authored: white to a slight cyan, dimmed at
+/// random every frame.
+const RANDOM_FLASH: &str = "Flash
+{
+	spawnFlags	rgbComponentInterpolation
+	life	120
+	rgb
+	{
+		start	0.7843 1 1 1 1 1
+		end	0 0 0
+		parm	50
+		flags	random linear nonlinear
+	}
+	size { start 2048 }
+	shaders [ gfx/effects/whiteFlash ]
+}
+";
+
 /// Play the test flash at the origin, seen from `eye` looking along +X.
 fn play_flash(eye: Option<Vec3>) -> Vec<Particle> {
+    play_flash_effect(FLASH, eye)
+}
+
+fn play_flash_effect(source: &str, eye: Option<Vec3>) -> Vec<Particle> {
     let mut vfs = VirtualFileSystem::new();
-    vfs.mount_memory("test", [("effects/test/flash.efx", FLASH)])
+    vfs.mount_memory("test", [("effects/test/flash.efx", source)])
         .expect("mount the test effect");
     let mut auxiliary = crate::effect_aux::Runtime::default();
     if let Some(eye) = eye {
@@ -236,4 +258,38 @@ fn a_flash_lights_only_a_viewer_near_and_facing_it() {
     for channel in rgb {
         assert!((channel - 0.75).abs() < 1e-4, "{rgb:?}");
     }
+}
+
+#[test]
+fn a_flash_covers_the_view_instead_of_standing_where_it_went_off() {
+    // `CFlash::Draw` puts the sprite 12 units in front of the eye: drawn at the shock,
+    // it was hidden by nearer walls and tinted the sky behind it (Slash #125).
+    let near = play_flash(Some(Vec3::new(-450.0, 0.0, 0.0)));
+    assert!(matches!(
+        near[0].shape,
+        crate::particle_types::PrimitiveShape::ScreenFlash
+    ));
+}
+
+#[test]
+fn a_random_flash_colour_dims_as_one_and_never_changes_hue() {
+    // `CParticle::UpdateRGB` draws one `flrand` a frame for the whole colour. Drawn per
+    // channel, the white DEMP2 flash went magenta, yellow and purple frame to frame.
+    let flash = play_flash_effect(RANDOM_FLASH, Some(Vec3::new(-50.0, 0.0, 0.0)));
+    assert_eq!(flash.len(), 1);
+    let mut ratio = None;
+    let mut dimmed = false;
+    for frame in 0..60 {
+        let (_, _, [red, green, blue]) = flash[0].sample_envelopes(frame as f32 * 0.002);
+        assert_eq!(green, blue, "frame {frame}");
+        if green > 1e-3 {
+            let red_over_green = red / green;
+            assert!((0.78..=1.0001).contains(&red_over_green), "frame {frame}");
+            let first = *ratio.get_or_insert(red_over_green);
+            assert!((red_over_green - first).abs() < 1e-4, "frame {frame}");
+        }
+        let (_, _, [_, start_green, _]) = flash[0].sample_envelopes(0.0);
+        dimmed |= (green - start_green).abs() > 1e-3;
+    }
+    assert!(dimmed, "the random flag still dims the flash");
 }

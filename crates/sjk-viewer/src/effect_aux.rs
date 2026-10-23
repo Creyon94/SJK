@@ -293,13 +293,10 @@ impl Runtime {
                 radius: light
                     .size
                     .sample(elapsed, lifetime, light.seed.wrapping_add(31)),
-                color: std::array::from_fn(|axis| {
-                    light.rgb[axis].sample(
-                        elapsed,
-                        lifetime,
-                        light.seed.wrapping_add(40 + axis as u32),
-                    )
-                }),
+                // `CLight::UpdateRGB`: one `FX_RGB_RAND` draw for the whole colour.
+                color: light
+                    .rgb
+                    .map(|channel| channel.sample(elapsed, lifetime, light.seed.wrapping_add(40))),
             });
         }
     }

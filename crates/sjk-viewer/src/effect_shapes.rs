@@ -56,6 +56,8 @@ pub(crate) fn from_component(
                 depth_hack: component.flags.depth_hack,
             }
         }
+        // `CFlash::Draw`: a flash covers the view rather than standing where it went off.
+        ComponentKind::Flash => crate::particle_types::PrimitiveShape::ScreenFlash,
         _ => crate::particle_types::PrimitiveShape::Billboard,
     }
 }

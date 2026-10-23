@@ -1929,6 +1929,7 @@ change: Effect Flash primitives scaled as stock CFlash::Init: none past 900 u or
 test: DEMP2 alt fire (charge) at a wall far away: no white screen, the shock still shows.
 test: Fire it at a wall a few metres in front: a short flash, as in JoF EJK.
 test: Another player's shock across the map: no flash.
+test: A close shock flashes the whole view white (no magenta/yellow/purple, no edge, sky untinted).
 
 [varykino-blossom]
 area: Rendering & effects

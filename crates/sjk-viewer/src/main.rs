@@ -2813,6 +2813,8 @@ impl GpuState {
                 global_seconds: global_particle_seconds,
                 camera: self.camera_position,
                 field_of_view: self.field_of_view,
+                // A perspective projection's y scale over its x scale is the aspect.
+                aspect: projection.y_axis.y / projection.x_axis.x,
                 bsp: &self.bsp,
                 trace_scratch: &mut self.trace_scratch,
 
