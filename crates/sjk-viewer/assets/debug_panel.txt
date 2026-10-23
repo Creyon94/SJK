@@ -24,6 +24,14 @@
 
 # ---- Console & chat ----
 
+[staff-owner-actions]
+area: Menus & settings
+title: Staff page: giving, taking back and merging are the owner's
+change: Non-creator staff see medal/unlock/holocron/credit/clear/merge/unlink dimmed.
+change: Tab skips them, a press does nothing; the hub refuses them too (creator_only).
+test: As Sol: every Staff page button works as before.
+test: As other staff: those buttons dimmed, the tab says it is to read; mute still works.
+
 [emote-typing-keep]
 area: Gameplay
 title: Emotes: typing keeps your emote until you move after
