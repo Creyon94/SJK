@@ -1,3 +1,19 @@
+## AT-ST pilot's camera jumps
+
+23/10/2026, `personal/hub-reports-1023-c`, based on `main` `7bc8bc89` (Kushina's report,
+21/10: the camera inside the AT-ST jumps when it moves with the direction keys and when
+W is let go). The pilot's camera follows the walker's animated `*driver` bolt. SJK read
+it from the skeleton command replay poses at the newest snapshot's time, which starts a
+new animation (walk, run, stand) ahead of presentation: until presentation reached that
+time the bolt showed the new animation's first frame unblended, then jumped back to the
+old pose and blended. The seat now has its own skeleton posed as the cgame poses the
+vehicle: a new animation starts, blended over 100 ms, once presentation reaches the
+snapshot that brought it ([client.md](client.md#third-person-camera)). Verified on
+Windows 11: a unit test of when the seat takes a snapshot's animation (8, 7, 4 and 3 ms
+frames), the workspace checks; the reasoning is from the code (`bone_override.rs` blends
+only from its start time on). Not verified: in a game; her 2 fps video does not show the
+frame-level jump, so other contributors (prediction misses on the walker) are not ruled out.
+
 ## Tauntaun rider's repeated swings
 
 23/10/2026, `personal/hub-reports-1023-c`, based on `main` `7bc8bc89` (Slash's report #123,

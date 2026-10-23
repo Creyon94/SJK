@@ -2505,6 +2505,14 @@ test: Fire at a wall on your left: the impact plays mostly in the left ear.
 
 # ---- Gameplay ----
 
+[atst-camera]
+area: Gameplay
+title: AT-ST camera no longer jumps on walk/run/stand changes (Kushina)
+change: The pilot's seat bolt uses a skeleton posed as cgame does, new animations blended.
+test: siege_hoth or npc spawn vehicle atst_vehicle, board, walk with W then let go: no jump.
+test: Tap W, hold W to run, turn with A/D: the camera moves smoothly.
+note: If it still jumps, record it at a high frame rate; prediction misses may remain.
+
 [tauntaun-swing]
 area: Gameplay
 title: Tauntaun rider swings again and again (Slash #123)
