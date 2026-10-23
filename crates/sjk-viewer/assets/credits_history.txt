@@ -9,6 +9,10 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 24/10/2026 | - | Ragdoll toy: go limp and fall, sandbox style, the same fall on every SJK client
+- b010c18 |  | Ragdoll toy: go limp and fall, sandbox style, the same fall on every SJK client
++ 24/10/2026 | - | Credits for 23/10's features; history links merges named "Merge pull request #N (...)"
+- 5bb5e46 |  | Credits for 23/10's features; history links merges named "Merge pull request #N (...)"
 + 24/10/2026 | - | Chat sounds by kind + private message taskbar flash, Turin's and Nib's ideas
 - 23ce007 |  | Chat sounds by kind and a taskbar flash for private messages (Turin, Nib)
 + 23/10/2026 | - | Staff page: only the creator gives, takes back, clears or merges

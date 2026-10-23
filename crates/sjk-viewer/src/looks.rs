@@ -199,6 +199,9 @@ pub(crate) struct Looks {
     worn: [Worn; SLOTS],
     /// The local player's slot on the server, if in a game.
     own_slot: Option<u8>,
+    /// The slots whose hub look's claimed name the game shows there (bits): the SJK
+    /// players on the server, as far as the hub has said.
+    matched: u64,
     /// The local player's own look, gated.
     own: Worn,
     /// The roster's revision last taken, so it is read again only when it changes.
@@ -227,6 +230,7 @@ impl Default for Looks {
             claimed: std::array::from_fn(|_| None),
             worn: [Worn::default(); SLOTS],
             own_slot: None,
+            matched: 0,
             own: Worn::default(),
             roster_revision: None,
             server: None,
@@ -369,6 +373,12 @@ impl Looks {
         }
     }
 
+    /// The SJK players on the server (bits by slot): those whose hub look's claimed name
+    /// the game shows, the local player's own slot included.
+    pub(crate) fn sjk_slots(&self) -> u64 {
+        self.matched | self.own_slot.map_or(0, |slot| 1 << slot)
+    }
+
     /// The local player's slot on the server, if in a game.
     pub(crate) fn own_slot(&self) -> Option<u8> {
         self.own_slot
@@ -398,18 +408,18 @@ impl Looks {
     /// a slot. Only slots with a hub look ask for it.
     pub(crate) fn rebuild(&mut self, shown: impl Fn(u8) -> Option<String>) {
         let before = self.worn;
+        self.matched = 0;
         for (slot, (worn, claimed)) in self.worn.iter_mut().zip(&self.claimed).enumerate() {
-            *worn = claimed
-                .as_ref()
-                .filter(|claimed| {
-                    u8::try_from(slot)
-                        .ok()
-                        .and_then(&shown)
-                        .is_some_and(|shown| {
-                            sjk_identity::names_match(&claimed.claimed_name, &shown)
-                        })
-                })
-                .map_or_else(Worn::default, |claimed| claimed.worn);
+            let matched = claimed.as_ref().filter(|claimed| {
+                u8::try_from(slot)
+                    .ok()
+                    .and_then(&shown)
+                    .is_some_and(|shown| sjk_identity::names_match(&claimed.claimed_name, &shown))
+            });
+            if matched.is_some() {
+                self.matched |= 1 << slot;
+            }
+            *worn = matched.map_or_else(Worn::default, |claimed| claimed.worn);
         }
         let (slot, own) = (self.own_slot, self.own);
         self.set_own(slot, own);

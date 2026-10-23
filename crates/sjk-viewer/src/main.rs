@@ -192,6 +192,7 @@ mod particle_draw;
 mod peek;
 mod portal;
 mod prediction_preview;
+mod ragdoll;
 mod scene_views;
 mod scope;
 mod sender_card;
@@ -488,6 +489,8 @@ struct GpuState {
     order66: order66::Order66,
     /// The Hax toy (`toy_hax`): a hack under way, the player steered or steering.
     hax: hax::Hax,
+    /// The Ragdoll toy (`toy_ragdoll`): the player's own fall and the falls of others.
+    ragdoll: ragdoll::Ragdoll,
     /// Order 66's and the Hax's switches as last saved (`toy_saved`).
     toys_saved: [toy_saved::Saved; 2],
     /// The Holocrons tab's 3D holocron ([`holocrons::stage`]).
@@ -1448,6 +1451,7 @@ impl GpuState {
             cardboard_box: Default::default(),
             order66: Default::default(),
             hax: Default::default(),
+            ragdoll: Default::default(),
             toys_saved: Default::default(),
             holocron_stage: Default::default(),
             #[cfg(test)]
@@ -1706,6 +1710,8 @@ impl GpuState {
             demo_playback::Session::current_server_time,
         );
         prediction_preview::tick(self, game_audio, Instant::now(), presentation_time as i32);
+        // The Ragdoll's bodies at this frame's time, for the camera and the actors.
+        self.step_ragdolls(presentation_time);
         timing.mark(Phase::Config);
         self.refresh_config_strings(game_audio);
         timing.mark(Phase::View);
@@ -1758,6 +1764,7 @@ impl GpuState {
             .then(|| {
                 peek::camera(self, presentation_time)
                     .or_else(|| hax::camera(self, presentation_time))
+                    .or_else(|| ragdoll::camera(self, presentation_time))
             })
             .flatten();
         let fall = self.update_fall_camera(presentation_time as i32);

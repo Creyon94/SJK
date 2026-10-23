@@ -60,6 +60,8 @@ includes:
   executes the order and blows apart into flying pieces, or confetti;
 - the Hax, a meme toy: hold Use on another player who has it on to hack them
   with the siege hack bar, then steer them for a few seconds;
+- the Ragdoll, a meme toy: the body goes limp and falls where physics takes it,
+  every SJK player seeing the same fall from one relayed start (23/10/2026);
 - end-to-end encrypted whispers: whispers between SJK players sealed to the
   recipient's key and carried by the SJK hub, which cannot read them
   (22/10/2026);
