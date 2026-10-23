@@ -34,6 +34,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 - Emotes: a player typing (chat, console or a menu open: their talk balloon) keeps their emote until they move or attack after closing it, even if pushed meanwhile; Settings > Sound > Emotes: Typing keeps emote (`cg_emoteTypingKeep`, on) _(Sol, after Rollembones' idea)_
 - Alt-tabbing out or minimising the game always silences your emote's music, for everyone and for you, even with Away when alt-tabbed (`cg_awayAltTab`) off, which now only decides whether the away emote starts; coming back plays it again from where it is _(Sol)_
+- Chat names: with the chat open, click a player's name to pin their card, then Whisper them (encrypted when they use SJK too) or Block them _(Sol, after Bishop's and Sanjisan's ideas)_
 - Kyber crystals: every achievement now brings one, once, from Uncommon to Mythical (shown on the Achievements tab, its hover card and its unlock card). Opening one always gives a saber shader, the ones you do not have yet first, and every tenth crystal in a row without a Legendary or Mythical shader gives one: the Holocrons tab shows your crystals, how soon that is, and their loot table _(Sol)_
 
 ## 2026.1023.3 (Alpha) | 23/10/2026

@@ -865,7 +865,9 @@ and plays changes. The code still says "mute" (`chat_mutes.rs`, `muted_players.r
   verified tick; whether the hub knows
   them (and staff); their hub name when it differs from the one shown; their key; their
   medals' medallions; where they are on the server being played ("On this server, slot
-  5", or "slot 5, matched by name"); and Block or Unblock. The Players page's card could
+  5", or "slot 5, matched by name"); and Block or Unblock. In the game's chat a click on
+  the name pins the card and, for a player on the server, adds Whisper above Block
+  ([client.md](client.md)). The Players page's card could
   not be reused: it is that page's right column, with score and ping. The page's
   chosen message keeps its Block on this PC, which uses the same list. The console's
   `block <player>` blocks a player of the server being played (`target` for the one
