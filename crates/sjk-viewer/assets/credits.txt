@@ -118,6 +118,8 @@ did: Stop or mute other players' emotes on your screen (sjkemote stop all, sjkem
 did: The emote help card (help_emotes): the emote commands and the quick wheel
 did: The emote picker (emotes): every emote with its picture, search, click to play
 did: Away emote: an emote you pick plays while you are away, and emotes go quiet then
+did: Typing keeps your emote until you move, and alt-tabbing always silences its music
+did: Click a name in the chat: their card stays open, to Whisper or Block them
 did: Crash reports to the SJK team, and world notes: tell the team what is wrong on a map
 did: Log requests: the SJK team asks a player for their logs, and reads crash reports in game
 did: Crash reports name what ran out of video memory; sent logs keep the crash's message
@@ -315,6 +317,18 @@ did: Made Solfox, Sol's fox player model, which every SJK player gets through th
 [Kushina]
 role: Ideas for SJK
 did: The Varykino Blossom blade: a blossom-pink blade, lavender mist, a flowering branch and blossoms shed as it swings
+
+[Turin]
+role: Ideas for SJK
+did: Chat sounds by kind: private messages heard with public chat off
+
+[Rollembones]
+role: Ideas for SJK
+did: Emotes kept while typing in the chat
+
+[Sanjisan]
+role: Ideas for SJK
+did: Click a name in the chat to whisper them
 
 [Nib]
 role: Ideas for SJK

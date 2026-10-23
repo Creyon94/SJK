@@ -284,6 +284,11 @@ includes:
   private messages and the SJK chat each with a switch, a sound picked from the game's
   and SJK's, and a Play button, and a taskbar flash for a private message while the
   window is away;
+- emotes while typing (23/10/2026, after Rollembones' idea): a player typing keeps their
+  emote until they move or attack (`cg_emoteTypingKeep`), and alt-tabbing out always
+  silences your emote's music;
+- chat name actions (23/10/2026, after Bishop's and Sanjisan's ideas): a click on a
+  player's name in the chat pins their card, to Whisper or Block them;
 - SJK Alpha (19/10/2026), the first collection of cards: the Mythical rarity, the
   Credits and Meme kinds, and card 1, "Bishop", honouring the author of JKR (art by
   Sol, AI-assisted: a rusted helmet portrait).
@@ -590,6 +595,15 @@ palette with pink as its main colour, light purple and white mist, afterimages m
 falling blossoms like the Spectral's, and a branch with a flower where the blade starts
 (and one day a wooden hilt). Sol built it as the Varykino Blossom, a Mythical saber shader
 (blade 166, 21/10/2026), with all of it but the hilt, which waits for custom hilts.
+
+Turin, a player, asked for private messages to be heard with the public chat sounds off:
+Sol built chat sounds by kind, each with its own sound (23/10/2026).
+
+Rollembones, a player, asked for emotes to stay on while typing: Sol built it as
+Typing keeps emote in Settings > Sound > Emotes (23/10/2026).
+
+Sanjisan, a player, asked to whisper a player by clicking their name in the chat: Sol
+built it as the pinned chat card's Whisper button (23/10/2026).
 
 Nib, a player, asked to choose the saber sounds apart from the saber shader (18/10/2026,
 and hub report #109): Sol built it as the Saber tab's Sounds row (23/10/2026).

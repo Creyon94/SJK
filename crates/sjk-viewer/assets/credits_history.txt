@@ -2033,7 +2033,7 @@
 - 0d215f1 |  | Initial JKR source
 
 = Creyon
-+ 22/10/2026 | - | Add a setting for stock blades in duels
++ 22/10/2026 | SJK #192 | Add cg_duelStockBlades: normal blades in duels
 - 4e0daf9 |  | Add a setting for stock blades in duels
 + 21/10/2026 | SJK #188 | Add Creyon's Blade Lab signature blades
 - dee6594 |  | Add Creyon's Blade Lab signature blades
