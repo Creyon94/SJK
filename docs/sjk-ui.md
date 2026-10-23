@@ -815,8 +815,11 @@ that mode for the visit and leaves the player's choice as it was.
     gathers the renderer's four tabs (image, lighting, shadows, weather) under
     their names; Display is Video's other rows under Screen, Frame rate and
     View; Sound holds every sound, the game's under Game, then the unlock
-    sound, the SJK chat sound and the quick wheel's sounds under
-    Notifications; Gameplay is Game options without the packs and mods, with
+    sound, the world ping's and the quick wheel's sounds under
+    Notifications, and Chat sounds last (since 23/10/2026: the master switch, then
+    for public chat, team chat, private messages and the SJK chat a switch, a sound
+    list and a Play button, then the private message flash;
+    [client.md](client.md#chat-sounds)); Gameplay is Game options without the packs and mods, with
     JoF EJK's camera framing and damping rows under Camera and prediction;
     Interface the menus and the console (the quick wheel's rows are its
     category's and Sound's); HUD its classic rows without the chat box, the FPS
@@ -850,7 +853,8 @@ that mode for the visit and leaves the player's choice as it was.
     Off after it); a slider (a gold-filled track and its number, which a click
     or a typed digit opens for typing); segments for a choice of up to three; a
     field with a caret for a longer list, the display mode, the resolution and
-    the HUD (the last two open their pickers); a field for text.
+    the HUD (the last two open their pickers); a field for text; a Play button (a chat
+    sound's preview: Enter or a click plays it).
   - A choice whose values are numbers or codes shows names on its segments, list,
     field and detail (`settings::help::CHOICE_NAMES`): Shader remaps Never, Not
     players, Always; Dynamic glow Off, On, Sabers; Light shafts Off to High;

@@ -256,11 +256,11 @@ feed: the hub took them, so the sound says the message went out.
 - **How it plays:** as the game's chat beep does, beside the listener at full volume
   under `s_volume`, through the interface cues' mailbox (`ui_cues::Cue::SjkChat`) on a
   channel of its own, so it never cuts a menu sound or the game's beep.
-- **Switches:** `cl_sjkChatSound` (archived, default 1; Settings > Chat > SJK chat
-  sound, under SJK chat, so in every settings screen and settings search). The master
-  chat sound switch `cg_chatSounds` gates it too: 0 silences every chat sound, the
-  game's `cg_chatBeep` and `cg_teamChatBeep` already, and SJK chat is chat. With
-  `cl_sjkChat 0` no message arrives, so nothing plays.
+- **Switches:** `cl_sjkChatSound` (archived, default 1; Settings > Sound > Chat sounds,
+  SJK chat messages, since 23/10/2026 with the other chat kinds), and `cl_chatSoundSjk`
+  picks another sound in its place ([client.md](client.md#chat-sounds)). The master
+  chat sound switch `cg_chatSounds` gates it too: 0 silences every chat sound, and SJK
+  chat is chat. With `cl_sjkChat 0` no message arrives, so nothing plays.
 
 ## In the menus
 
@@ -394,7 +394,7 @@ Only GIPHY: Tenor's API shut down on 30/06/2026.
   for a GIF (`chat_gifs::for_message`); the chat box shows "Messages hidden on this
   client" and never asks for a muted line's GIF.
 - **Switch**: `cl_sjkChatGifs` (archived, default 1; Settings > Chat > SJK chat GIFs,
-  under SJK chat sound, so in every settings screen and settings search). 0 keeps links
+  under SJK chat, so in every settings screen and settings search). 0 keeps links
   as text and fetches nothing. With `cl_sjkChat 0` no message shows, so nothing is
   fetched either. Video clips have their own opt-in, `cl_sjkChatVideo` (default 0,
   under it: [Trusted media sources](#trusted-media-sources)).
@@ -1154,7 +1154,8 @@ recipient's next read. When the hub took it, the feed shows "To <name>" with the
 recipient's marks as the SJK chat shows a sender's (SJK's emblem, the verified tick or
 trust mark, their name emoji), ENCRYPTED and the text in pink, the console `To <name>
 (encrypted): <text>`, and the encrypted whisper's sound plays (Sol, 22/10/2026: on the
-sender's side too, under `cg_chatSounds`). When it did not
+sender's side too, under the private messages' sound settings, `cg_privateChatBeep` and
+`cl_chatSoundPrivate`, [client.md](client.md#chat-sounds)). When it did not
 (or no answer came within 10 seconds), the [Encrypted whisper
 card](sjk-ui.md#encrypted-whisper) opens over the game menu and asks; Send unencrypted
 sends the same `tell` to the game server. A whisper to a verified player whose key
@@ -1165,7 +1166,8 @@ its own thread; the viewer takes them once a frame (`Service::take_whispers`) an
 one only when the game shows, in the sender's slot, the name the claim was made under,
 not from the player's own slot and never from a player blocked here. It goes to the
 feed in pink with the sender's name and ENCRYPTED, to the console as `<name>
-(encrypted): <text>`, plays the encrypted whisper's sound (under `cg_chatSounds`) and
+(encrypted): <text>`, plays the encrypted whisper's sound (under the private messages'
+sound settings), flashes the taskbar while the window is away (`cl_privateChatFlash`) and
 becomes the whisper `reply` answers. One that does not open is thrown away with a
 console line saying why.
 

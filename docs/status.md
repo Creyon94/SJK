@@ -1,3 +1,26 @@
+## Chat sounds by kind and the private message flash
+
+23/10/2026, `personal/chat-sounds`, based on `main` `62a5ac44`, Sol's request after
+Turin's and Nib's ideas: public chat, team chat, private messages (a server's tells and
+encrypted whispers) and the SJK chat each have a switch, a sound picked from ten
+(Default, the game's talk, SJK's chat and whisper variants, EJK's two switch beeps and
+four short retail interface sounds) and a Play button, in Settings > Sound > Chat sounds
+([client.md](client.md#chat-sounds), [chat_sounds.rs](../crates/sjk-viewer/src/chat_sounds.rs)).
+A tell used to share `cg_chatBeep` with public chat, so muting public chat muted
+private messages too; the sound adapter now gives a tell its own beep
+(`PrivateChatBeep`, from the stock `[` marker every known server family uses),
+switched by the new `cg_privateChatBeep`. `cg_chatSounds` 0 still silences everything
+and 2 still gives team chat and tells EJK's sounds while their sound is Default. New
+archived cvars: `cg_privateChatBeep`, `cl_chatSoundPublic`, `cl_chatSoundTeam`,
+`cl_chatSoundPrivate`, `cl_chatSoundSjk`, `cl_privateChatFlash` (default on, a "="
+line in the changelog): a tell or an encrypted whisper flashes the taskbar while the
+window is away. Verified on Windows 11: unit tests (the adapter's beep per message kind
+at `cg_chatSounds` 1 and 2, fake tells staying public; the routing of every kind and
+sound, Turin's public-off/private-on case, the master switch, unknown values; previews;
+the flash only while away and on), and a world shot of the Settings group at 1080p and
+4K. Not verified: heard in a game or on a JA+/JoF server, the preview's sound in the
+menu, the taskbar flash on a real window (winit's Informational attention).
+
 ## Heimdall's time nudge kicks after a hitch
 
 23/10/2026, `personal/heimdall-nudge`, based on `main` `8e4cce32`, Slash's report

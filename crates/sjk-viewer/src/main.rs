@@ -33,6 +33,7 @@ mod chat;
 mod chat_ban;
 mod chat_gifs;
 mod chat_mutes;
+mod chat_sounds;
 mod cinematic_roq;
 mod client_guid;
 mod client_state;

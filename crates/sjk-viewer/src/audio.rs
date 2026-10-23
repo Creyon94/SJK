@@ -99,7 +99,8 @@ pub(crate) struct GameAudio {
     music_start_time: i32,
     /// The last observed snapshot's server time, for a `CS_MUSIC` change.
     last_server_time: Option<i32>,
-    chat_beeps: [bool; 2],
+    /// The chat sound settings (`chat_sounds.rs`), read once a frame.
+    pub(crate) chat_sounds: crate::chat_sounds::Options,
     pm_only_chat: bool,
     deferred_starts: u64,
     maximum_deferred_start_ms: f64,
@@ -145,7 +146,13 @@ impl GameAudio {
         self.voice_throttle.observe_time(snapshot.server_time);
         for decision in adapter.decisions() {
             if let Some(handle) = decision.handle
-                && controls::allows_event(decision.event, self.footsteps, self.chat_beeps)
+                && let Some(handle) = controls::event_handle(
+                    decision.event,
+                    handle,
+                    self.footsteps,
+                    &self.chat_sounds,
+                    &self.handles,
+                )
                 && self
                     .voice_policy
                     .allows(*decision, snapshot.player.client_num())
@@ -229,7 +236,7 @@ impl GameAudio {
             music_sync_pending: false,
             music_start_time: 0,
             last_server_time: None,
-            chat_beeps: [true; 2],
+            chat_sounds: crate::chat_sounds::Options::default(),
             pm_only_chat: false,
             deferred_starts: 0,
             maximum_deferred_start_ms: 0.0,
@@ -345,7 +352,13 @@ impl GameAudio {
             let footsteps = self.footsteps;
             for decision in adapter.decisions() {
                 if let Some(handle) = self.transitions.handle(decision, snapshot.server_time)
-                    && controls::allows_event(decision.event, footsteps, self.chat_beeps)
+                    && let Some(handle) = controls::event_handle(
+                        decision.event,
+                        handle,
+                        footsteps,
+                        &self.chat_sounds,
+                        &self.handles,
+                    )
                     && self
                         .voice_policy
                         .allows(*decision, snapshot.player.client_num())
@@ -410,7 +423,13 @@ impl GameAudio {
             }
             for decision in adapter.decisions() {
                 if let Some(handle) = self.transitions.handle(decision, snapshot.server_time)
-                    && controls::allows_event(decision.event, self.footsteps, self.chat_beeps)
+                    && let Some(handle) = controls::event_handle(
+                        decision.event,
+                        handle,
+                        self.footsteps,
+                        &self.chat_sounds,
+                        &self.handles,
+                    )
                     && self
                         .voice_policy
                         .allows(*decision, snapshot.player.client_num())
@@ -461,7 +480,13 @@ impl GameAudio {
         self.holster_sync.observe(snapshot);
         for decision in adapter.decisions() {
             if let Some(handle) = decision.handle
-                && controls::allows_event(decision.event, self.footsteps, self.chat_beeps)
+                && let Some(handle) = controls::event_handle(
+                    decision.event,
+                    handle,
+                    self.footsteps,
+                    &self.chat_sounds,
+                    &self.handles,
+                )
                 && !self.holster_sync.intercept(
                     handle,
                     decision.request,
