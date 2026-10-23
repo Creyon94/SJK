@@ -5374,6 +5374,12 @@ size, about 0.59 of EternalJK's chat and 0.44 of its centre prints). The HUD's v
   (it was 22 px) and the same advance, 58.5 px at 1 (it was 30); SJK Menu keeps
   `ergoec`'s layout. See [chat/view.rs](../crates/sjk-viewer/src/chat/view.rs).
 
+`cg_chatBoxLines` (default 5, archived) is how many messages the chat feed shows
+together, 1 to 24: EternalJK draws at most `MAX_CHATBOX_ITEMS` (24) items, counting
+messages rather than wrapped rows, and so does SJK. Until 23/10/2026 SJK stopped at 8,
+so a larger value showed no more (Creyon's report #129). The feed also stops at the top
+of the screen. See [chat.rs](../crates/sjk-viewer/src/chat.rs) `MAX_VISIBLE`.
+
 `cg_chatBoxFontSize` (default 0.85, archived; SJK Advanced > Chat > **Chat text size**,
 0.15 to 2 in steps of 0.05) scales the chat's text, row spacing, the gap between
 messages, the composer and inline GIFs. 1 is EternalJK's size; the default, a 26 px

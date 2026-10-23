@@ -37,7 +37,10 @@ use std::collections::VecDeque;
 use std::time::Instant;
 
 const HISTORY_LIMIT: usize = 64;
-const MAX_VISIBLE: usize = 8;
+/// Most messages the feed shows together, `cg_chatBoxLines`' top: EternalJK's
+/// `MAX_CHATBOX_ITEMS` (24). It was 8 before 23/10/2026, so a larger value did nothing
+/// (Creyon's report #129).
+const MAX_VISIBLE: usize = 24;
 const HOLD_MS: u64 = 9_000;
 const FADE_MS: u64 = 2_000;
 const ENTER_MS: u32 = 220;

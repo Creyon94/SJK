@@ -10,7 +10,8 @@ use crate::menu::sjk::{
     Frame, TextTarget, color, key_hint, key_hint_width, kit, text, top_bar, wrap,
 };
 use crate::menu_widgets::TextFamily;
-use crate::text::UiFont;
+use crate::text::{TextStyle, UiFont};
+use crate::text_dialog::field::Face;
 use sjk_ui::{Color, DrawCommand, FontWeight, TextAlign};
 
 /// The columns of the Profile tab (frame pixels).
@@ -182,16 +183,23 @@ impl Panel {
         viewport: [f32; 2],
     ) {
         // The fonts outlive the target's vertex lists: measure with them, then append.
-        let body = match &target {
-            TextTarget::Families(fonts, _) => fonts.body.1,
-            TextTarget::Inter(_, font) => *font,
+        // The bio is drawn in the player's menu text style, which its caret measures with.
+        let (body, style) = match &target {
+            TextTarget::Families(fonts, style) => (fonts.body.1, *style),
+            TextTarget::Inter(_, font) => (*font, font.style()),
         };
-        self.build(inputs, body, viewport);
+        self.build(inputs, body, style, viewport);
         target.append(&self.ui, viewport);
     }
 
-    /// Lay the page out, measuring the bio's lines in `body`.
-    pub(super) fn build(&mut self, inputs: &Inputs<'_>, body: &UiFont, viewport: [f32; 2]) {
+    /// Lay the page out, measuring the bio's lines in `body` drawn in `style`.
+    pub(super) fn build(
+        &mut self,
+        inputs: &Inputs<'_>,
+        body: &UiFont,
+        style: TextStyle,
+        viewport: [f32; 2],
+    ) {
         self.sync(inputs);
         let frame = Frame::new(viewport);
         self.ui.begin_transparent(viewport);
@@ -211,7 +219,7 @@ impl Panel {
         let who = who(inputs);
         self.left_column(&page, inputs, &who);
         match self.middle {
-            Middle::Bio => self.bio_column(&page, body),
+            Middle::Bio => self.bio_column(&page, body, style),
             Middle::Picture => self.picture_column(&page, &who),
             Middle::Emoji => self.emoji_column(&page, &who),
         }
@@ -432,8 +440,78 @@ impl Panel {
         }
     }
 
-    /// The bio's box, its counts, buttons and the rules, measured in `body`.
-    fn bio_column(&mut self, frame: &Frame, body: &UiFont) {
+    /// The bio's lines in its box, scrolled to keep the caret in view, with the selection
+    /// lit and the caret (`caret`: lit this frame) between two glyphs. It lays the bio
+    /// out for the keys and clicks of the next frame ([`FieldLayout`]).
+    fn bio_text(&mut self, frame: &Frame, body: &UiFont, style: TextStyle, caret: bool) {
+        let s = frame.s;
+        let room = MIDDLE_WIDTH - BIO_PAD * 2.0;
+        let most = ((BIO_HEIGHT - BIO_PAD * 2.0) / BIO_LINE) as usize;
+        let row = |line: usize| {
+            frame.rect(
+                MIDDLE_X + BIO_PAD,
+                BIO_TOP + BIO_PAD + line as f32 * BIO_LINE,
+                room,
+                BIO_LINE,
+            )
+        };
+        let face = Face::new(body, style, BIO_SIZE * s, 0.0);
+        self.bio_layout.lay_out(&self.bio, &face, room * s);
+        let at = self.bio_edit.cursor(&self.bio);
+        let (caret_line, caret_x) = self.bio_layout.locate(&self.bio, at);
+        let top = row(0);
+        self.bio_layout
+            .show(caret_line, most, [top.x, top.y], row(1).y - top.y);
+        let (first, shown) = self.bio_layout.visible();
+        let ink = if self.writable {
+            color::TEXT
+        } else {
+            color::MUTED
+        };
+        let selection = self.bio_edit.selection(&self.bio);
+        for (index, range) in shown.iter().enumerate() {
+            let rect = row(index);
+            if let Some(selected) = &selection {
+                let start = selected.start.max(range.start);
+                let end = selected.end.min(range.end);
+                if start < end {
+                    let x0 = self.bio_layout.locate(&self.bio, start).1;
+                    let x1 = self.bio_layout.locate(&self.bio, end).1;
+                    let _ = self.ui.draw_list_mut().push(DrawCommand::SolidRect {
+                        rect: sjk_ui::Rect::new(rect.x + x0, rect.y, x1 - x0, rect.height),
+                        color: color::alpha(color::HOLO, 0.35),
+                    });
+                }
+            }
+            text(
+                &mut self.ui,
+                TextFamily::Body,
+                format_args!("{}", &self.bio[range.clone()]),
+                rect,
+                BIO_SIZE * s,
+                ink,
+                FontWeight::Regular,
+                TextAlign::Start,
+            );
+        }
+        if caret && caret_line >= first && caret_line < first + shown.len() {
+            let line = row(caret_line - first);
+            let height = (BIO_SIZE * 1.3 * style.scale).min(BIO_LINE - 2.0) * s;
+            let _ = self.ui.draw_list_mut().push(DrawCommand::SolidRect {
+                rect: sjk_ui::Rect::new(
+                    line.x + caret_x - 1.0 * s,
+                    line.y + (line.height - height) * 0.5,
+                    2.0 * s,
+                    height,
+                ),
+                color: color::TEXT,
+            });
+        }
+    }
+
+    /// The bio's box, its counts, buttons and the rules, measured in `body` drawn in
+    /// `style`.
+    fn bio_column(&mut self, frame: &Frame, body: &UiFont, style: TextStyle) {
         let s = frame.s;
         kit::heading(
             &mut self.ui,
@@ -463,66 +541,30 @@ impl Panel {
         self.ui.hit_region(BIO_TOKEN, rect);
         let caret = focused && (self.epoch.elapsed().as_millis() / 500).is_multiple_of(2);
         let room = MIDDLE_WIDTH - BIO_PAD * 2.0;
-        let shown = if self.bio.is_empty() && !focused {
-            None
+        if !self.bio.is_empty() || focused {
+            self.bio_text(frame, body, style, caret);
         } else {
-            Some(self.bio.clone())
-        };
-        let rows = BIO_HEIGHT - BIO_PAD * 2.0;
-        let most = (rows / BIO_LINE) as usize;
-        match shown {
-            None => {
-                let prompt = if self.writable {
-                    "Say something about yourself: your clan, your style, where you play."
-                } else {
-                    "Your bio is kept on the SJK hub: switch the identity on to write one."
-                };
-                for (index, part) in wrap(prompt, 60).enumerate() {
-                    text(
-                        &mut self.ui,
-                        TextFamily::Body,
-                        format_args!("{part}"),
-                        frame.rect(
-                            MIDDLE_X + BIO_PAD,
-                            BIO_TOP + BIO_PAD + index as f32 * BIO_LINE,
-                            room,
-                            BIO_LINE,
-                        ),
-                        BIO_SIZE * s,
-                        color::QUIET,
-                        FontWeight::Regular,
-                        TextAlign::Start,
-                    );
-                }
-            }
-            Some(bio_text) => {
-                let lines = bio_lines(&bio_text, body, room);
-                // The end being written stays in view.
-                let skip = lines.len().saturating_sub(most);
-                let last = lines.len().saturating_sub(1);
-                for (index, line) in lines.iter().enumerate().skip(skip) {
-                    let row = (index - skip) as f32;
-                    let mark = if caret && index == last { "|" } else { "" };
-                    text(
-                        &mut self.ui,
-                        TextFamily::Body,
-                        format_args!("{line}{mark}"),
-                        frame.rect(
-                            MIDDLE_X + BIO_PAD,
-                            BIO_TOP + BIO_PAD + row * BIO_LINE,
-                            room,
-                            BIO_LINE,
-                        ),
-                        BIO_SIZE * s,
-                        if self.writable {
-                            color::TEXT
-                        } else {
-                            color::MUTED
-                        },
-                        FontWeight::Regular,
-                        TextAlign::Start,
-                    );
-                }
+            let prompt = if self.writable {
+                "Say something about yourself: your clan, your style, where you play."
+            } else {
+                "Your bio is kept on the SJK hub: switch the identity on to write one."
+            };
+            for (index, part) in wrap(prompt, 60).enumerate() {
+                text(
+                    &mut self.ui,
+                    TextFamily::Body,
+                    format_args!("{part}"),
+                    frame.rect(
+                        MIDDLE_X + BIO_PAD,
+                        BIO_TOP + BIO_PAD + index as f32 * BIO_LINE,
+                        room,
+                        BIO_LINE,
+                    ),
+                    BIO_SIZE * s,
+                    color::QUIET,
+                    FontWeight::Regular,
+                    TextAlign::Start,
+                );
             }
         }
         let below = BIO_TOP + BIO_HEIGHT + 18.0;
@@ -1249,20 +1291,6 @@ fn bar(
     }
 }
 
-/// The bio's lines as the box draws them: each of its lines broken at spaces to fit
-/// `room` pixels in `body` at the box's size; an empty line stays a line.
-fn bio_lines(bio_text: &str, body: &UiFont, room: f32) -> Vec<String> {
-    let mut lines = Vec::new();
-    for line in bio_text.split('\n') {
-        if line.is_empty() {
-            lines.push(String::new());
-            continue;
-        }
-        lines.extend(crate::text_dialog::wrap_to(line, body, BIO_SIZE, 0.0, room));
-    }
-    lines
-}
-
 #[cfg(test)]
 mod tests {
     use super::super::tests::snapshot;
@@ -1406,7 +1434,7 @@ mod tests {
                                     standings: &standings,
                                     record: &record,
                                 };
-                                panel.build(&inputs, body, viewport);
+                                panel.build(&inputs, body, body.style(), viewport);
                                 assert!(
                                     !panel.ui.overflowed(),
                                     "{focus:?} {mode:?} {enabled} at {viewport:?}"
@@ -1484,7 +1512,7 @@ mod tests {
                         standings: &standings,
                         record: &record,
                     };
-                    panel.build(&inputs, &families.body.font, viewport);
+                    panel.build(&inputs, &families.body.font, TextStyle::NEUTRAL, viewport);
                     assert!(!panel.ui.overflowed(), "{state} {viewport:?}");
                     let keys = frame.point(0.0, KEYS_Y)[1];
                     for token in [
@@ -1535,21 +1563,85 @@ mod tests {
         }
     }
 
-    /// The bio's lines fit the box's width and a long bio shows its end.
+    /// The bio's lines fit the box's width, in any text style; a click on a line puts the
+    /// caret where it lands and Up takes it a line up (Kushina's report, 22/10/2026: the
+    /// lines could not be clicked).
     #[test]
-    fn the_bio_wraps_inside_its_box() {
+    fn the_bio_wraps_inside_its_box_and_a_click_places_the_caret() {
         let fonts = fonts();
         let body = &fonts.body.font;
-        let room = MIDDLE_WIDTH - BIO_PAD * 2.0;
-        let lines = bio_lines(&full_profile().bio, body, room);
-        assert!(lines.len() > 4);
-        assert_eq!(lines.iter().filter(|line| line.is_empty()).count(), 1);
-        let scale = BIO_SIZE / body.height;
-        for line in &lines {
-            assert!(
-                crate::text::visible_text_width(body, line, scale) <= room,
-                "{line}"
+        let record = record();
+        let standings = standings();
+        let online = snapshot(Some(full_profile()), None);
+        let inputs = Inputs {
+            enabled: true,
+            snapshot: Some(&online),
+            standings: &standings,
+            record: &record,
+        };
+        for (viewport, scale) in [([1920.0, 1080.0], 1.0), ([3840.0, 2160.0], 1.3)] {
+            let style = TextStyle {
+                scale,
+                tracking: 0.0,
+            };
+            let frame = Frame::new(viewport);
+            let mut panel = Panel::new();
+            panel.open_as(true, Mode::Pages);
+            panel.build(&inputs, body, style, viewport);
+            let bio = panel.bio.clone();
+            panel.bio_layout.show(0, 100, [0.0, 0.0], 1.0);
+            let (_, lines) = panel.bio_layout.visible();
+            assert!(lines.len() > 4);
+            assert_eq!(lines.iter().filter(|line| line.is_empty()).count(), 1);
+            let size = BIO_SIZE * frame.s * scale;
+            let room = (MIDDLE_WIDTH - BIO_PAD * 2.0) * frame.s;
+            for line in lines {
+                let width =
+                    crate::text::visible_text_width(body, &bio[line.clone()], size / body.height);
+                assert!(width <= room, "{:?}", &bio[line.clone()]);
+            }
+            // A click on the second row shown, some way in.
+            panel.build(&inputs, body, style, viewport);
+            let (first, shown) = panel.bio_layout.visible();
+            let second = shown[1].clone();
+            let inside = second.start + bio[second.clone()].char_indices().nth(4).unwrap().0;
+            let row = frame.rect(
+                MIDDLE_X + BIO_PAD,
+                BIO_TOP + BIO_PAD + BIO_LINE,
+                0.0,
+                BIO_LINE,
             );
+            let x = crate::text::visible_text_width(
+                body,
+                &bio[second.start..inside],
+                size / body.height,
+            );
+            let point = sjk_ui::Vec2::new(row.x + x + 0.5, row.y + row.height * 0.5);
+            let button = sjk_ui::PointerButton::Primary;
+            panel.handle_pointer(InputEvent::PointerMove(point), None);
+            panel.handle_pointer(
+                InputEvent::PointerPress {
+                    position: point,
+                    button,
+                },
+                None,
+            );
+            panel.handle_pointer(
+                InputEvent::PointerRelease {
+                    position: point,
+                    button,
+                },
+                None,
+            );
+            assert_eq!(panel.focus, Focus::Bio);
+            let at = panel.bio_edit.cursor(&panel.bio);
+            assert_eq!(panel.bio_layout.locate(&bio, at).0, first + 1);
+            assert_eq!(at, inside, "{viewport:?}");
+            // Up: the line above, at about the same place.
+            panel.build(&inputs, body, style, viewport);
+            assert!(panel.bio_key(KeyCode::ArrowUp, None, false, false, false));
+            let up = panel.bio_edit.cursor(&panel.bio);
+            assert_eq!(panel.bio_layout.locate(&bio, up).0, first);
         }
     }
 }
