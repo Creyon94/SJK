@@ -707,6 +707,18 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "The Order 66 toy is on (toy_order66 switches it; it stays on until turned off)",
         ),
         CvarDefinition::new(
+            crate::hax::TRAP_CVAR,
+            false,
+            archive,
+            "Hax trap: a player who hacks you springs it, and you both blow up as in Order 66",
+        ),
+        CvarDefinition::new(
+            crate::hax::AWAY_CVAR,
+            false,
+            archive,
+            "With the Hax trap on, players may hack you while you are away (it shows on your look)",
+        ),
+        CvarDefinition::new(
             crate::toy_saved::HAX_CVAR,
             false,
             archive,

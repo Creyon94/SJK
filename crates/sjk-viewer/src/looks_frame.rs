@@ -51,6 +51,8 @@ impl GpuState {
         let own_slot =
             session.and_then(|session| u8::try_from(session.game_state().client_num).ok());
         let lit = self.illuminate.lit();
+        // The Hax's trap holds while away: hackers' clients may then hack the player away.
+        let away_hackable = self.hax.on() && crate::hax::away_hackable(self.console.as_ref());
         let text = |name: &str| {
             self.console
                 .as_ref()
@@ -91,7 +93,8 @@ impl GpuState {
             sent = Some(
                 held.with_toy(crate::cardboard_box::TOY, self.cardboard_box.on())
                     .with_toy(crate::order66::TOY, self.order66.on())
-                    .with_toy(crate::hax::TOY, self.hax.on()),
+                    .with_toy(crate::hax::TOY, self.hax.on())
+                    .with_toy(crate::hax::AWAY_TOY, away_hackable),
             );
             (own.saber_skin, own.options_off)
         } else {
@@ -105,7 +108,8 @@ impl GpuState {
         }
         .with_toy(crate::cardboard_box::TOY, self.cardboard_box.on())
         .with_toy(crate::order66::TOY, self.order66.on())
-        .with_toy(crate::hax::TOY, self.hax.on());
+        .with_toy(crate::hax::TOY, self.hax.on())
+        .with_toy(crate::hax::AWAY_TOY, away_hackable);
         if let Some(sent) = sent {
             player_identity::set_look(&sent.to_look(&options));
             self.looks.set_own_options(options);

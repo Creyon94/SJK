@@ -634,6 +634,14 @@ const HELP: &[(&str, &str)] = &[
         "Draw the Blade Lab skins (Serpent, Comic and the rest) as Creyon's Blade Lab drew them; off uses their skin files.",
     ),
     (
+        crate::hax::TRAP_CVAR,
+        "The Hax toy: a player who hacks you springs a trap; after two seconds you both blow up, as in Order 66.",
+    ),
+    (
+        crate::hax::AWAY_CVAR,
+        "With the Hax trap on: players may hack you while you are away, and blow up with you. Others can see it is set.",
+    ),
+    (
         crate::duel_blades::CVAR,
         "In a duel you play or follow, and on Duel servers, every blade is a normal one in its own colour.",
     ),

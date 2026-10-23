@@ -24,6 +24,17 @@
 
 # ---- Console & chat ----
 
+[hax-trap]
+area: Gameplay
+title: Hax trap: hacking a trapped player blows you both up
+change: Settings > Game options > Toys: Hax trap (cl_haxTrap), Hax trap while away (cl_haxAway).
+change: A hack on a trapped player: "IT'S A TRAP!" 2 s, then both die in an Order 66 blast.
+change: Others see it through a feed toy event; away hacking needs both switches.
+test: B sets Hax trap on; A hacks B: both read IT'S A TRAP! with beeps, then both blow up.
+test: A third SJK client sees both explode (pieces, or confetti with cg_dismember 0).
+test: B adds Hax trap while away and alt-tabs: A can hack B (refused without it).
+test: B types in chat: still no hacking, trap or not.
+
 [vehicle-gunfire]
 area: Audio
 title: Vehicle guns: firing sound and muzzle flash (Kushina's report)
