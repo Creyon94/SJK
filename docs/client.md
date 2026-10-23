@@ -233,7 +233,8 @@ Settings and SJK in place of retail's Controls and Setup:
     `color1`/`color2` 6 (`SABER_RGB`) and the tint in `cp_sbRGB1`/`cp_sbRGB2`
     (`r | g << 8 | b << 16`), as JoF EJK's `UI_UpdateSaberColor` writes them.
     A swatch brings a stock colour back.
-    A changed saber (hilt pick here or `set saber1 ...` in the console) is
+    A changed saber (hilt pick here, `set saber1 ...` or JoF EJK's `saber`
+    command in the console or a quick-wheel custom choice) is
     applied at once on JA+ and jaPRO-lineage servers: after the userinfo flush
     the client sends `saber <saber1>` for a single saber or `saber <saber1>
     <saber2>` for a pair, as JoF EJK's `CG_Saber_f` does, at most once a
@@ -929,6 +930,14 @@ JoF's
 `saberColor <r> <g> <b>` (or `<blade> <r> <g> <b>`, or six values for the two blades)
 makes the blades custom RGB, colour 6 with `cp_sbRGB1`/`cp_sbRGB2`, keeping the pieces
 too ([saber_colour_command.rs](../crates/sjk-viewer/src/saber_colour_command.rs)).
+JoF's `saber <saber1>` (one saber or a staff, `saber2` becomes `none`) and
+`saber <saber1> <saber2>` (two sabers) are the client's own too (`CG_Saber_f`): they
+write `saber1`/`saber2`, which Profile > Saber shows and every userinfo sends, and
+JA+ and jaPRO-lineage servers get their `saber` command from that change, as from the
+menu; with no name it prints the sabers held
+([saber_hilt_command.rs](../crates/sjk-viewer/src/saber_hilt_command.rs)). Sent to the
+server as is, it swapped the saber in play but left the cvars on the menu's pick, which
+the next map brought back (Kushina's report #126).
 The classic profile's Cosmetics window does the same, and the SJK UI's
 Character page has Hat and Cape rows (None, then each installed piece; Enter or a
 click opens a picker of named chips, [sjk-ui.md](sjk-ui.md#character)). The menu stage

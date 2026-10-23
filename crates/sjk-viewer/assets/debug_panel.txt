@@ -31,6 +31,22 @@ change: The flying blade records afterimages, blossoms and swing motion like the
 test: Wear Spectral (or a signature with afterimages), throw the saber: afterimages trail it.
 test: Varykino Blossom thrown: petals fall along its flight. Catch: no stray afterimage.
 
+[saber-command]
+area: Console & chat
+title: The saber command keeps your sabers (Kushina #126)
+change: saber <saber1> [<saber2>] is a client command (JoF): it sets saber1/saber2.
+change: Profile > Saber shows the choice and the next map keeps it.
+test: Pick Single in Profile > Saber, then run /saber dual_1 (or a wheel custom choice).
+test: Open Profile > Saber: Staff shown. Change map: you spawn with the staff.
+test: /saber single_1 single_2: Dual. On a JoF server the saber swaps at once.
+
+[cards-forge-tab]
+area: Menus & settings
+title: Cards tab's big card no longer covers the Forge tab (Kushina #124)
+change: The card up close starts under the row of tabs (a little smaller).
+test: Settings: largest text size and letter spacing (ui_textScale 1.4, ui_letterSpacing 0.15).
+test: Collection > Cards: click the Forge tab anywhere on its name: it opens.
+
 [hax-trap]
 area: Gameplay
 title: Hax trap: hacking a trapped player blows you both up
