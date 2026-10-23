@@ -86,6 +86,7 @@ pub(crate) fn submit(
             else {
                 continue;
             };
+            state.fly(false);
             let length = state
                 .extension
                 .update(active, hilt_blade.length, presentation_time);

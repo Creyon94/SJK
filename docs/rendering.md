@@ -1864,7 +1864,12 @@ the CPU (`SkinColor::light_color`, `trail_color`).
   ([saber_ghosts.rs](../crates/sjk-viewer/src/saber_ghosts.rs)): each blade's state keeps
   up to four poses, one every `spacing` ms; a skin with `ghosts` submits the last ones
   as extra glow-only instances, dimmer each, skipping poses the blade has not moved
-  from. No allocation.
+  from. No allocation. A thrown saber leaves them too (23/10/2026, Kushina's hub report
+  127: the throw left no afterimages): its flying blade keeps its poses in the world, a
+  signature's (`GhostSpec::wearer`) as well, so they trail along its spin and flight
+  (`thrown_saber.rs` `flight_wake`). The poses and the blossoms' last tip are forgotten when
+  the blade goes from the hand to flight or back (`BladeState::fly`): kept in the wearer's
+  frame in one and in the world in the other, they would stand far off.
 - **Trail and light.** The skin's file gives its trail colour, its light colour (with
   the stock gain) and the light's flicker (an amount and up to two waves, phased per
   hilt).
@@ -1998,7 +2003,9 @@ interfaces) each is drawn by the lab's own shader, ported to `saber.wgsl` (`lab_
   blade's words) again every second of a chain without a pause; for the others a chain
   counts from its first swing, a clash is one whose flare latched within 12 units of the blade
   (`impact_spawn.rs` `note_clash`), and a blade seen growing out of its hilt is lit.
-  Thrown and menu blades are still.
+  A thrown blade carries on the same state (`thrown_saber.rs` `flight_motion`, 23/10/2026,
+  hub report 127): its spin is its swing, measured in the world, and as no attack is known
+  in flight the tip must turn for a swing to begin. Menu blades are still.
 - **Changed from the lab** after Creyon's tests: each blade has light at its emitter
   (`design_color`, as a stock blade's hilt sprite) so no gap shows above the hilt; the
   hourglass's glass closes in a dome over the tip and its sand runs in 24 seconds, not 8;
@@ -2437,8 +2444,9 @@ when it is swung, which its own quad could not hold: they are particles in the w
   over their last third. They count against the particle pool like any effect.
   Their three shaders are in `effect_assets::CODE_SHADERS`: the frame's effect materials load
   only the shaders listed there or named by an effect file, and without them the petals drew
-  the stand-in sprite (yellow dots, Sol's first test, 21/10/2026). The thrown
-  saber sheds none.
+  the stand-in sprite (yellow dots, Sol's first test, 21/10/2026). A thrown
+  saber sheds them along its spin and flight, its tip measured in the world (23/10/2026,
+  hub report 127).
 
 ## Saber trails
 

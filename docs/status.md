@@ -11,6 +11,20 @@ muzzle's weapon or turret, the volley queue, the muzzle's world place), the form
 check and Clippy. Not verified: heard or seen in a game, on any vehicle; the louder
 effect sounds elsewhere (impacts, explosions) are not compared with stock by ear.
 
+## Thrown saber parts
+
+23/10/2026, `personal/saber-throw-parts`, based on `main` `7bc8bc89` (Kushina's hub report
+#127, 2026.1022.3: a thrown saber drew none of the parts a swing drives, no afterimages).
+The flying blade was drawn with its skin's glow and parts (`skin_extras`) and its trail, but
+not with the afterimages, the blossoms or the motion (swing, swing began, clash, stir) the
+held blade records. It now records them in the hand's blade state, in the world
+([rendering.md](rendering.md#saber-blade-skins)); going from the hand to
+flight or back forgets the afterimages and blossoms kept in the other frame. Verified on
+Windows 11: unit tests (afterimages trail the spinning, flying blade in the world; no pose
+crosses between hand and flight; the spin reads as a swing). Not verified: seen in a
+game; how the swing-driven signature parts look on a fast spin (Clone Wars words, bursts)
+has not been judged.
+
 ## View yaw wrapped
 
 22/10/2026, `personal/hub-reports-1022-d` (Yernow's report #121: with `cl_yawspeed

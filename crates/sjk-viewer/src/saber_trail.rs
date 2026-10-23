@@ -128,9 +128,23 @@ pub(crate) struct BladeState {
     pub(crate) motion: crate::saber_motion::BladeMotion,
     /// Where its tip was, for a skin shedding blossoms (`saber_petals.rs`).
     pub(crate) petals: crate::saber_petals::PetalEmitter,
+    /// Whether it was last drawn thrown ([`Self::fly`]).
+    flying: bool,
 }
 
 impl BladeState {
+    /// Note whether the blade is drawn thrown (`flying`) or in the hand. Its afterimages
+    /// and blossoms are kept in its wearer's frame in the hand and in the world in flight
+    /// (`thrown_saber.rs`), so going from one to the other forgets them: a pose kept in one
+    /// frame drawn in the other would stand far off, and the tip's jump would shed a burst.
+    pub(crate) fn fly(&mut self, flying: bool) {
+        if self.flying != flying {
+            self.ghosts = Default::default();
+            self.petals = Default::default();
+            self.flying = flying;
+        }
+    }
+
     /// Stow a staff blade immediately; its next ignition still grows from zero.
     pub(crate) fn stow(&mut self, time: i64) {
         *self = Self::default();
