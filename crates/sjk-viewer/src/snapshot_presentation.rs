@@ -403,9 +403,10 @@ impl GpuState {
                 self.net_timing.adjustment(event);
             }
         }
+        // The command clock adjusts once the frame has read every queued
+        // snapshot (`ServerClock::adjust`, `live_session`).
         if !session.is_local() {
-            self.server_clock
-                .observe_snapshot(snapshot.server_time, Instant::now());
+            self.server_clock.receive_snapshot(snapshot.server_time);
         }
         if let Some(view) = intermission {
             self.local_prediction.stop(0.0);
@@ -468,6 +469,7 @@ impl GpuState {
             return;
         };
         self.present_live_snapshot(&snapshot, false, game_audio, Instant::now());
+        self.server_clock.adjust(Instant::now());
     }
 }
 

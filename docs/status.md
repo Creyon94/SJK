@@ -1,3 +1,32 @@
+## Heimdall's time nudge kicks after a hitch
+
+23/10/2026, `personal/heimdall-nudge`, based on `main` `8e4cce32`, Slash's report
+(Discord #bugs, 2026.1023.2 on JoF's servers): kicked five times in a morning by
+Heimdall, JoF's anti-cheat, with "Set /cl_timeNudge 0 in your console!" while his
+`cl_timeNudge` was 0; his video shows 59 FPS with hitches up to 1346 ms. SJK never sends
+a time nudge (`cg_displayNetSettings` is always `125 0 125`, and `cl_timeNudge` moves
+only what is drawn), so the server must judge it from the commands' stamps. The command
+clock ([server_clock.rs](../crates/sjk-client/src/server_clock.rs)) adjusted its delta on
+every snapshot as it was read, with the time it was read: after a hitch the snapshots
+that had waited in the socket were as old as the hitch, the first one reset the clock
+by it, and the frame's next ones (8 a frame) kept it there, so the commands reached the
+server about 1.2 s behind its time, then 100 to 300 ms behind until the clock caught up
+(a 150 ms hitch already left them 100 ms behind). Stock reads every queued packet and
+adjusts once, on the newest (`CL_ReadPackets`, `CL_SetCGameTime`), as JoF EternalJK
+does. The clock now notes each snapshot (`receive_snapshot`) and adjusts once a frame
+on the newest (`adjust`), only when the frame read the queue dry
+([live_session.rs](../crates/sjk-viewer/src/live_session.rs); the installed world's
+first snapshot adjusts at once, as before) ([networking.md](networking.md)). The code
+dates from the first releases: nothing in 2026.1023.1 or .2 touched it, so today's
+kicks most likely come from today's hitches (or from Heimdall starting to check);
+whether one of today's changes made Slash's frames hitch more is not known.
+Verified on Windows 11: unit tests (59 FPS, 40 snapshots a second, 150/400/1346 ms
+hitches at 8/7/4/3 ms steps: commands at most about 56 ms behind against 100 to 1236 ms
+with the old per-snapshot adjustment, which a test keeps). Not verified: in a game, on a
+JoF server, or that Heimdall judges from the stamps (it is closed source); the
+presentation clock ([presentation_clock.rs](../crates/sjk-viewer/src/presentation_clock.rs))
+still adjusts on each snapshot read, which only affects what is drawn after a hitch.
+
 ## The `saber` command and the Cards tab's card up close
 
 23/10/2026, `personal/hub-reports-1023-a`, based on `main` `7bc8bc89`, two of Kushina's
