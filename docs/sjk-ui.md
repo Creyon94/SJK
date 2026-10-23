@@ -676,7 +676,13 @@ overlay routes their text to the UI's families (`console_sjk_pages.rs`).
   verified tick alone, "SJK player" (gold, with "SJK staff")
   or "Not known to the SJK hub", the hub name when it differs, the key, where they are
   on the server being played, their medals' medallions, Block or Unblock (gold edged) and
-  what that does. It sits right of the name, or left of it at the screen's edge.
+  what that does. It sits right of the name, or left of it at the screen's edge. In the
+  game's chat a click on the name pins it (23/10/2026, after Bishop's and Sanjisan's
+  ideas): it stays until the name is clicked again, a click lands off it, Escape or the
+  composer closes; for a player on the server other than the player themselves it then
+  heads its buttons with Whisper, the whole row in holo blue, above Block
+  ([client.md](client.md), [chat/card.rs](../crates/sjk-viewer/src/chat/card.rs)). World
+  shot: `chat::card::shots::chat_name_actions_shot` (1080p and 4K).
 - **Test list** ([debug_panel_view.rs](../crates/sjk-viewer/src/debug_panel_view.rs),
   10/10/2026, Sol asked for every trace of the old hero look to go): the `debug_panel`
   command's personal test list ([sjk.md](sjk.md#debug-panel)), drawn in this look in

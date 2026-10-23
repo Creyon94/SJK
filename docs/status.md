@@ -1,3 +1,24 @@
+## Chat name actions
+
+23/10/2026, `personal/chat-name-actions`, based on `main` `62a5ac44`, asked by Bishop
+(02/10) and Sanjisan (20/10), Sol's go 23/10: click a player's name in the game's chat for
+actions. Built on the sender card rather than a new menu (the old name dropdown was
+removed on 18/10/2026): with the composer open, a click on a name pins the card, which
+then offers Whisper (above Block) for a player on the server other than yourself; Whisper
+turns the composer to a whisper to them, sent encrypted when they take it, else as
+`tell` ([client.md](client.md#chat-player-actions), [sjk-ui.md](sjk-ui.md)). Escape, a
+click off the card or on the name again lets it go. Block is the existing one. Left out:
+Add friend (SJK and the hub have no friends list; the local friend star went on
+18/10/2026) and View profile (the card is the profile; the `inspect` player card needs the
+player in sight). JoF EJK has no clickable chat names to follow. The card's Safety code
+button, whose press was taken for the card's, now answers clicks.
+Verified on Windows 11: unit tests (a click pins the card and keeps it past the hover
+grace, Whisper turns the composer and sends `tell 3`, Escape and clicks elsewhere unpin,
+no Whisper to ourselves, to a player who left or renamed or to an SJK sender not on the
+server, a shared name leaves unattributed lines unclickable, Safety code's click) and the
+off-screen world shot `chat::card::shots::chat_name_actions_shot` (1080p and 4K). Not
+verified: in a game, on a server, or an encrypted whisper opened this way.
+
 ## Heimdall's time nudge kicks after a hitch
 
 23/10/2026, `personal/heimdall-nudge`, based on `main` `8e4cce32`, Slash's report

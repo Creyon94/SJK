@@ -30,6 +30,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
+- Chat names: with the chat open, click a player's name to pin their card, then Whisper them (encrypted when they use SJK too) or Block them _(Sol, after Bishop's and Sanjisan's ideas)_
 - Kyber crystals: every achievement now brings one, once, from Uncommon to Mythical (shown on the Achievements tab, its hover card and its unlock card). Opening one always gives a saber shader, the ones you do not have yet first, and every tenth crystal in a row without a Legendary or Mythical shader gives one: the Holocrons tab shows your crystals, how soon that is, and their loot table _(Sol)_
 
 ## 2026.1023.3 (Alpha) | 23/10/2026

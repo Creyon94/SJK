@@ -2476,10 +2476,29 @@ the visible username glyph bounds. There is no standing player-options hint or s
 notice. Opening the composer exposes history even when passive chat is hidden with
 `cg_chatbox 0`.
 
-Clicking a name does nothing since 18/10/2026 (Sol's decision): the dropdown it opened
-(whisper, a per-map ignore, a local friend star kept in `chat-friends.txt`, copy name)
-was removed, the sender card and `block` having replaced it. Whisper with the `tell`
-command or `reply`; an existing `chat-friends.txt` is no longer read.
+Clicking a name pins its sender card (23/10/2026, Bishop's and Sanjisan's requests, Sol's
+go; [chat/card.rs](../crates/sjk-viewer/src/chat/card.rs)): the card stays whatever the
+pointer does, until the name is clicked again, a click lands off the card and off every
+name, Escape is pressed (the first Escape closes the card, the next the composer) or the
+composer closes. For a player on the server other than yourself it heads its buttons with
+**Whisper**, above Block: the composer turns to a whisper to them, the draft kept, sent as
+any whisper from the composer (encrypted through the SJK hub when they take encrypted
+whispers, else the server's `tell <slot>`). Whisper names the roster observation the
+line was matched to: a player who left, renamed or whose slot another took has no
+Whisper, and a press made before the roster changed says "Player left or changed
+identity". An SJK chat line's sender is whispered in the slot their key (or name) is
+matched to here ("On this server, slot N"); one not on the server has none. Lines are
+matched to players as before: the server's sender slot, else the one connected player
+whose name, as the game shows it, starts the line; two players wearing one name leave
+such a line unclickable. The card's Safety code button also answers clicks now (before,
+the press was taken for the card's and the click was lost).
+
+There is no Add friend: SJK has no friends list (the hub keeps none, and the local friend
+star of the old name dropdown, `chat-friends.txt`, went with it on 18/10/2026, Sol's
+decision), and there is no View profile either: the card is the profile view (picture,
+hub name, key, medals, where they are), while the player card (`inspect`) needs the
+player in sight. The old dropdown (whisper, a per-map ignore, the friend star, copy
+name) stays gone; an existing `chat-friends.txt` is not read.
 
 The draft shares the console's UTF-8 caret and selection rules: arrows/Home/End,
 Ctrl+arrows and Ctrl+Backspace/Delete, Shift-selection, Ctrl+A/C/X/V,

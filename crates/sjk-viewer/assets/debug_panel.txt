@@ -24,6 +24,16 @@
 
 # ---- Console & chat ----
 
+[chat-name-actions]
+area: Console & chat
+title: Click a chat name: pinned card with Whisper and Block (Bishop, Sanjisan)
+change: With the chat open, a click on a name pins the sender card; Whisper heads its buttons.
+change: Whisper turns the composer to that player (encrypted when they take it, else tell).
+test: Open chat, click a player's name: the card stays when the pointer leaves it.
+test: Whisper: the composer says To <name>; send: they get it (pink ENCRYPTED if SJK).
+test: Escape closes the card first, then the chat; a click elsewhere closes the card.
+test: Your own name and a player who left show no Whisper.
+
 [saber-throw-parts]
 area: Rendering & effects
 title: Thrown saber keeps its skin's afterimages and swing parts (Kushina #127)
