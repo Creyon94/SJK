@@ -1360,6 +1360,7 @@ fn identity_page(shots: &Snapshot, art: ArtSet) {
         log_requests: Vec::new(),
         log_answer: None,
         economy: None,
+        kyber: None,
         shop: None,
         trade: None,
         public_key: String::new(),
@@ -1578,6 +1579,7 @@ fn player_card_profile(shots: &mut Snapshot) {
         progress: 1,
         goal: 1,
         unlocked,
+        reward: None,
     };
     let profile = sjk_identity::Profile {
         credits: 0,
@@ -2663,6 +2665,7 @@ fn medals_snapshot() {
         log_requests: Vec::new(),
         log_answer: None,
         economy: None,
+        kyber: None,
         shop: None,
         trade: None,
         public_key: String::new(),
