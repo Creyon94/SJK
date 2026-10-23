@@ -12,7 +12,13 @@
 //! poses the model as the server does ([`sjk_game_jka::vehicle_skeleton`]) — the root on
 //! the vehicle's legs animation, installed when a snapshot shows it change, read at the
 //! snapshot's time for replay. Presentation resamples that bolt at cgame time,
-//! as `AttachRidersGeneric` does, so the camera does not hold a network-rate pose.
+//! as `AttachRidersGeneric` does, so the camera does not hold a network-rate pose. It reads
+//! it from a second skeleton posed as the cgame poses the vehicle (`CG_SetLerpFrameAnimation`):
+//! a new animation starts, blended, once presentation reaches the snapshot that brought it.
+//! Read from the replay skeleton, whose animation starts at the newest snapshot's time
+//! (ahead of presentation), the seat jumped to the new animation's first frame and back
+//! at every walk, run and stand change — the AT-ST pilot's camera jumped when it started
+//! or stopped (Kushina, 21/10/2026).
 //!
 //! Presentation reads this same predicted vehicle root for its model and rider seat
 //! (`cg_ents.c`, `CG_AddPacketEntities` and `CG_CalcEntityLerpPositions`).
@@ -53,6 +59,11 @@ pub(crate) struct Rides {
     files: VirtualFileSystem,
     models: Vec<(Vec<u8>, Option<Arc<VehicleModels>>)>,
     skeleton: Option<(u16, Arc<VehicleModels>, VehicleSkeleton)>,
+    /// The ridden vehicle's skeleton as presentation poses it, and the vehicle animation
+    /// the newest snapshot gives it: its number, legs animation and flip, and the
+    /// snapshot's time.
+    seat: Option<(u16, Arc<VehicleModels>, VehicleSkeleton)>,
+    seat_legs: Option<(u16, u16, bool, i32)>,
 }
 
 impl Rides {
@@ -65,13 +76,31 @@ impl Rides {
         if pilot.vehicle_entity_num != ride.number() {
             return;
         }
-        let Some((number, models, skeleton)) = self.skeleton.as_mut() else {
+        let Some((number, models, _)) = self.skeleton.as_ref() else {
             return;
         };
         if *number != ride.number() {
             return;
         }
-        if let Ok(Some(offset)) = skeleton.offset(models, models.bolt("*driver"), time) {
+        let fresh = !self
+            .seat
+            .as_ref()
+            .is_some_and(|(known, held, _)| known == number && Arc::ptr_eq(held, models));
+        if fresh {
+            self.seat = Some((*number, Arc::clone(models), VehicleSkeleton::new(models)));
+        }
+        let number = *number;
+        let Some((_, models, seat)) = self.seat.as_mut() else {
+            return;
+        };
+        if let Some((known, legs, flip, at)) = self.seat_legs
+            && known == number
+            && seat_takes(fresh, at, time)
+        {
+            // A model without the animation keeps its pose, as `G2API_SetBoneAnim` does.
+            let _ = seat.present_animation(models, legs, flip, time);
+        }
+        if let Ok(Some(offset)) = seat.offset(models, models.bolt("*driver"), time) {
             pilot.origin = sjk_game_jka::vehicle_riders::driver_origin(
                 ride.state().origin,
                 ride.state().view_angles[1],
@@ -101,6 +130,8 @@ impl Rides {
             files: vfs.clone(),
             models: Vec::new(),
             skeleton: None,
+            seat: None,
+            seat_legs: None,
         }
     }
 
@@ -204,6 +235,7 @@ impl Rides {
                     entity.raw_field(ES_LEGS_FLIP).unwrap_or(0) != 0,
                 )
             });
+        self.seat_legs = Some((number, legs.0, legs.1, snapshot.server_time));
         let offset = self.driver_offset(model.as_deref(), number, legs, snapshot.server_time);
         if let Some(ride) = self.committed.as_mut() {
             ride.set_driver_offset(offset);
@@ -303,6 +335,15 @@ impl Rides {
     }
 }
 
+/// Whether the presented seat takes the vehicle animation of the snapshot timed `snapshot`
+/// at cgame `time`: once presentation reaches that snapshot, as the cgame's
+/// `CG_TransitionSnapshot` makes it the entity's `currentState`, or at once for a seat
+/// with nothing on it yet. Started ahead of `time`, the animation's blend has not begun
+/// (`G2` blends from its start time on) and its first frame shows unblended.
+fn seat_takes(fresh: bool, snapshot: i32, time: i32) -> bool {
+    fresh || time >= snapshot
+}
+
 /// CG_PredictPlayerState measures the vehicle while piloting, the player on
 /// foot, and neither for a passenger. An animated driver bolt is not a miss.
 pub(super) fn error_state<'a>(
@@ -347,5 +388,30 @@ impl VehicleRegistry for Unregistered {
     fn print(&mut self, _: &str) {
         // A definition the client cannot read leaves the ride unpredicted, as the snapshots
         // show it.
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::seat_takes;
+
+    #[test]
+    fn the_seat_starts_a_vehicle_animation_when_presentation_reaches_its_snapshot() {
+        // Kushina 21/10/2026: the AT-ST's run-to-stand arrived in a snapshot 50 ms ahead
+        // of presentation; started then, the seat (and camera) jumped twice.
+        for step in [8, 7, 4, 3] {
+            let snapshot = 10_000;
+            let mut time = snapshot - 50;
+            while time < snapshot {
+                assert!(
+                    !seat_takes(false, snapshot, time),
+                    "{time} ms, {step} ms frames"
+                );
+                time += step;
+            }
+            assert!(seat_takes(false, snapshot, time));
+        }
+        // A seat just made takes the animation it is given at once.
+        assert!(seat_takes(true, 10_000, 9_950));
     }
 }

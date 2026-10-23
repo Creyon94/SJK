@@ -35,6 +35,9 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Collection > Cards: the card shown up close no longer covers the Forge tab, which takes every click again _(Sol, after Kushina's report)_
 - `cg_chatBoxLines` shows more chat messages again: up to 24 at once, as in JoF EternalJK (it stopped at 8) _(Sol, after Creyon's report)_
 - The Profile page's About you box has a real caret: click a line to put it there, move it with the arrows (Ctrl for a word), Up, Down, Home and End, and type, paste or delete anywhere in your bio. Ctrl+A selects it all _(Sol, after Kushina's report)_
+- The DEMP2's charged shot no longer whitens the whole screen: its flash fades with distance and direction as in the original game, so only a shock close in front of you flashes _(Sol, after Slash's report)_
+- The AT-ST's camera no longer jumps when the walker starts, stops or changes pace: its seat follows the walker's animations blended, as the original game shows them _(Sol, after Kushina's report)_
+- Riding a tauntaun with a lightsaber, holding attack swings again and again, as in the original game; it showed one swing and then only the swing sounds _(Sol, after Slash's report)_
 - Kyber crystals: every achievement now brings one, once, from Uncommon to Mythical (shown on the Achievements tab, its hover card and its unlock card). Opening one always gives a saber shader, the ones you do not have yet first, and every tenth crystal in a row without a Legendary or Mythical shader gives one: the Holocrons tab shows your crystals, how soon that is, and their loot table _(Sol)_
 
 ## 2026.1023.2 (Alpha) | 23/10/2026

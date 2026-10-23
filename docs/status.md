@@ -41,6 +41,51 @@ messages; the bio's keys, Ctrl+A, Shift+Enter and repeats; a click on a wrapped 
 1080p and 4K with a larger text style; line breaks in the field layout). Not verified: in
 a game.
 
+## DEMP2 flash scaled by distance
+
+23/10/2026, `personal/hub-reports-1023-c`, based on `main` `7bc8bc89` (Slash's report #125,
+siege_hoth, local server: firing the DEMP2 lit the whole screen). The alt fire's shock
+plays `demp2/altdetonate`, whose `Flash` primitive is a 2048-unit `gfx/effects/whiteFlash`.
+SJK drew it at full colour as an ordinary billboard wherever the shock went off; stock's
+`CFlash::Init` scales its colour by distance (nothing past 900 units) and direction
+(nothing beyond 60 degrees off the view past 100 units). The flash now gets that scale
+([rendering.md](rendering.md)). Verified on Windows 11: unit tests (the scale; the effect
+spawns nothing far away or behind and three quarters of its colour at 450 units ahead),
+the workspace checks. Not verified: in a game; a flash close behind the viewer, which stock
+shows on the screen, stays out of sight; the DEMP2 shell sphere (`FX_DEMP2_AltDetonate`) is
+still not drawn.
+
+## AT-ST pilot's camera jumps
+
+23/10/2026, `personal/hub-reports-1023-c`, based on `main` `7bc8bc89` (Kushina's report,
+21/10: the camera inside the AT-ST jumps when it moves with the direction keys and when
+W is let go). The pilot's camera follows the walker's animated `*driver` bolt. SJK read
+it from the skeleton command replay poses at the newest snapshot's time, which starts a
+new animation (walk, run, stand) ahead of presentation: until presentation reached that
+time the bolt showed the new animation's first frame unblended, then jumped back to the
+old pose and blended. The seat now has its own skeleton posed as the cgame poses the
+vehicle: a new animation starts, blended over 100 ms, once presentation reaches the
+snapshot that brought it ([client.md](client.md#third-person-camera)). Verified on
+Windows 11: a unit test of when the seat takes a snapshot's animation (8, 7, 4 and 3 ms
+frames), the workspace checks; the reasoning is from the code (`bone_override.rs` blends
+only from its start time on). Not verified: in a game; her 2 fps video does not show the
+frame-level jump, so other contributors (prediction misses on the walker) are not ruled out.
+
+## Tauntaun rider's repeated swings
+
+23/10/2026, `personal/hub-reports-1023-c`, based on `main` `7bc8bc89` (Slash's report #123,
+build 2026.1022.3, JoF server, T1_Rail: on a tauntaun, holding attack played one swing and
+then only swing sounds). `PM_VehicleWeaponAnimate` restarts `BOTH_VT_ATR_S` on both tracks
+every time the torso timer runs out (`SETANIM_FLAG_RESTART`, flipping `torsoFlip` and
+`legsFlip`, and `EV_SABER_ATTACK` each time); SJK's prediction already did so. The
+presentation then started the restarted torso on the legs' frame, which had reached the
+end of the same clip, so the swing stayed on its last frame. Stock's
+`CG_SetLerpFrameAnimation` starts a torso restarting its own clip from the first frame;
+SJK now does too ([client.md](client.md#eternaljk-animation-fixes)). Verified on Windows 11:
+a prediction probe (the torso and legs flip and `EV_SABER_ATTACK` repeat every 1000 ms with
+one-second clips), a unit test of the frame rule at 8, 7, 4 and 3 ms steps, the workspace
+checks. Not verified: seen in a game, on a tauntaun or on a swoop.
+
 ## Vehicle gunfire and effect sound volume
 
 22/10/2026, `personal/hub-reports-1022-d`, based on `main` `01cd678e` (Kushina's report,

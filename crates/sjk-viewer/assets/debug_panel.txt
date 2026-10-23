@@ -1922,6 +1922,14 @@ note: Alt+Tab while holding Tab leaves the board and the hidden HUD up until Tab
 
 # ---- Rendering & effects ----
 
+[demp2-flash]
+area: Rendering & effects
+title: DEMP2 shock flash fades with distance (Slash #125)
+change: Effect Flash primitives scaled as stock CFlash::Init: none past 900 u or off-view.
+test: DEMP2 alt fire (charge) at a wall far away: no white screen, the shock still shows.
+test: Fire it at a wall a few metres in front: a short flash, as in JoF EJK.
+test: Another player's shock across the map: no flash.
+
 [varykino-blossom]
 area: Rendering & effects
 title: Varykino Blossom, a Mythical blade that sheds blossoms
@@ -2543,6 +2551,22 @@ test: Turn round with a sound running: it moves to the other ear.
 test: Fire at a wall on your left: the impact plays mostly in the left ear.
 
 # ---- Gameplay ----
+
+[atst-camera]
+area: Gameplay
+title: AT-ST camera no longer jumps on walk/run/stand changes (Kushina)
+change: The pilot's seat bolt uses a skeleton posed as cgame does, new animations blended.
+test: siege_hoth or npc spawn vehicle atst_vehicle, board, walk with W then let go: no jump.
+test: Tap W, hold W to run, turn with A/D: the camera moves smoothly.
+note: If it still jumps, record it at a high frame rate; prediction misses may remain.
+
+[tauntaun-swing]
+area: Gameplay
+title: Tauntaun rider swings again and again (Slash #123)
+change: A torso restarting its own clip starts from frame 0, not on the legs' finished frame.
+test: Local devmap, npc spawn vehicle tauntaun, board with a saber, hold attack: swing after swing.
+test: Hold attack with A or D held: the swing goes to that side, repeated.
+test: Watch another player do it: same repeated swings.
 
 [allow-download]
 area: Gameplay

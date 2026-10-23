@@ -184,3 +184,56 @@ fn the_spawn_beams_play_straight_up_whatever_the_player_faces() {
         }
     }
 }
+
+/// `demp2/altdetonate`'s screen flash.
+const FLASH: &str = "Flash
+{
+	life	120
+	rgb { start 1 1 1 }
+	size { start 2048 }
+	shaders [ gfx/effects/whiteFlash ]
+}
+";
+
+/// Play the test flash at the origin, seen from `eye` looking along +X.
+fn play_flash(eye: Option<Vec3>) -> Vec<Particle> {
+    let mut vfs = VirtualFileSystem::new();
+    vfs.mount_memory("test", [("effects/test/flash.efx", FLASH)])
+        .expect("mount the test effect");
+    let mut auxiliary = crate::effect_aux::Runtime::default();
+    if let Some(eye) = eye {
+        auxiliary.set_viewer(eye, Vec3::X * 3.0);
+    }
+    let mut particles = Vec::new();
+    spawn_effect(
+        &mut particles,
+        &mut auxiliary,
+        &mut EffectLibrary::default(),
+        &vfs,
+        "test/flash",
+        Vec3::ZERO,
+        Instant::now(),
+        64,
+        0,
+        &mut None,
+        Quat::IDENTITY,
+    );
+    particles
+}
+
+#[test]
+fn a_flash_lights_only_a_viewer_near_and_facing_it() {
+    // Slash #125: a DEMP2 shock across the map whitened the screen.
+    assert!(play_flash(Some(Vec3::new(-2_000.0, 0.0, 0.0))).is_empty());
+    assert!(
+        play_flash(Some(Vec3::new(300.0, 0.0, 0.0))).is_empty(),
+        "behind"
+    );
+    assert!(play_flash(None).is_empty());
+    let near = play_flash(Some(Vec3::new(-450.0, 0.0, 0.0)));
+    assert_eq!(near.len(), 1);
+    let (_, _, rgb) = near[0].sample_envelopes(0.0);
+    for channel in rgb {
+        assert!((channel - 0.75).abs() < 1e-4, "{rgb:?}");
+    }
+}

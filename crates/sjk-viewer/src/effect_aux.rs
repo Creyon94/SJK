@@ -68,6 +68,9 @@ pub(crate) struct Runtime {
     lights: Vec<ActiveLight>,
     pending_shakes: Vec<ShakeRequest>,
     active_shake: Option<ActiveShake>,
+    /// The rendered view's eye and unit forward axis, which `Flash` primitives are scaled
+    /// against as they spawn ([`crate::effect_flash`]); `None` until a view is drawn.
+    viewer: Option<(Vec3, Vec3)>,
     last_camera_offset: CameraOffset,
     dropped_primitives: usize,
     pub(crate) emitters: crate::effect_emitter::Runtime,
@@ -91,6 +94,7 @@ impl Default for Runtime {
             lights: Vec::with_capacity(MAX_EFFECT_PRIMITIVES),
             pending_shakes: Vec::with_capacity(MAX_PENDING_SHAKES),
             active_shake: None,
+            viewer: None,
             last_camera_offset: CameraOffset::default(),
             dropped_primitives: 0,
             emitters: crate::effect_emitter::Runtime::default(),
@@ -190,6 +194,16 @@ impl Runtime {
             ),
             seed,
         });
+    }
+
+    /// Set the rendered view (`theFxHelper.refdef`'s `vieworg` and `viewaxis[0]`).
+    pub(crate) fn set_viewer(&mut self, eye: Vec3, forward: Vec3) {
+        self.viewer = Some((eye, forward.normalize_or_zero()));
+    }
+
+    /// The rendered view [`Self::set_viewer`] gave.
+    pub(crate) fn viewer(&self) -> Option<(Vec3, Vec3)> {
+        self.viewer
     }
 
     /// Pending shake requests, for [`Self::drop_shakes_since`].

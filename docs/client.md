@@ -1026,6 +1026,15 @@ such as JoF's, fire it that way, arm hanging between shots) shows as `BOTH_ATTAC
 with the arm raised; the concussion rifle's `BOTH_ATTACK2` shows as `BOTH_ATTACK3`.
 NPCs are left as the server sends them.
 
+A track starting the clip the other track already plays picks up its frame, as
+`CG_SetLerpFrameAnimation` does against the legs' or the lumbar's Ghoul2 frame, except a
+torso restarting the clip it already plays (a `torsoFlip`): stock clears `beginFrame`
+there (`ci->torsoAnim == newAnimation`) and the swing starts over. Without that exception a
+tauntaun rider holding attack, whose `BOTH_VT_ATR_S` restarts on both tracks each second
+(`PM_VehicleWeaponAnimate`), picked up the legs' finished frame and showed one swing for
+many swing sounds (Slash, hub report #123). See
+[animation_selection.rs](../crates/sjk-client/src/animation_selection.rs).
+
 ## Tavion and Desann idle poses
 
 Tavion and Desann saber styles use their distinct JoF EJK standing poses by
@@ -1159,7 +1168,14 @@ Its rider seat uses that same root with the current animated driver bolt. This
 avoids the camera advancing ahead while the mount and rider trail behind on
 snapshot interpolation. Remote vehicles, passengers without local vehicle
 prediction, and demo playback retain their snapshot presentation. The camera's
-animated seat is evaluated every rendered frame. Prediction-error smoothing uses
+animated seat is evaluated every rendered frame, on its own skeleton posed as the cgame
+poses the vehicle (`CG_SetLerpFrameAnimation`): a new vehicle animation starts, blended
+over 100 ms, once presentation reaches the snapshot that brought it. Command replay keeps
+the server's pose at the newest snapshot's time; read from that skeleton, which starts a
+new animation ahead of presentation, the seat showed its first frame unblended and then
+jumped back, and an AT-ST pilot's camera jumped at every walk, run and stand change
+(Kushina, 21/10/2026; [prediction_ride.rs](../crates/sjk-viewer/src/prediction_ride.rs)).
+Prediction-error smoothing uses
 the vehicle root while piloting, avoiding false corrections from rider animation.
 The movement collision adapter excludes the piloted vehicle's own snapshot body
 and its owned objects, matching the stock skip/ownership rules; dismounted and

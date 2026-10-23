@@ -1461,6 +1461,16 @@ SJK applies it as stock, so Drain's `bounce 0.8 2` bolts get that jaggedness
 rather than the default 0.1, which draws them almost straight. `elasticity` and
 `chaos` are not retail keys and are ignored.
 
+A `Flash` primitive's colour is scaled as `CFlash::Init` scales it when it starts:
+by its distance from the rendered view, quadratically to nothing at 900 units, and to
+nothing beyond 60 degrees off the view axis past 100 units (brighter within them). It is
+drawn where the effect went off rather than on the viewer as stock does, which matches
+for a flash in front of the view; one within 100 units behind it stays unseen. Unscaled,
+`demp2/altdetonate`'s 2048-unit `gfx/effects/whiteFlash` lit the whole screen wherever a
+DEMP2 shock went off (Slash, hub report #125;
+[effect_flash.rs](../crates/sjk-viewer/src/effect_flash.rs)). The growing
+`gfx/effects/demp2shell` sphere `FX_DEMP2_AltDetonate` adds with that effect is not drawn.
+
 Effect particles share one pool of 4,096 slots, plus 256 kept for per-frame
 billboards (talk balloons, pickup icons, hook ropes)
 ([particle_types.rs](../crates/sjk-viewer/src/particle_types.rs)). Stock caps its
