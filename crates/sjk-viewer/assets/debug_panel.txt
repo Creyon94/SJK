@@ -2505,6 +2505,14 @@ test: Fire at a wall on your left: the impact plays mostly in the left ear.
 
 # ---- Gameplay ----
 
+[tauntaun-swing]
+area: Gameplay
+title: Tauntaun rider swings again and again (Slash #123)
+change: A torso restarting its own clip starts from frame 0, not on the legs' finished frame.
+test: Local devmap, npc spawn vehicle tauntaun, board with a saber, hold attack: swing after swing.
+test: Hold attack with A or D held: the swing goes to that side, repeated.
+test: Watch another player do it: same repeated swings.
+
 [allow-download]
 area: Gameplay
 title: Downloads: spaced names, skip a refused pak, add-only content

@@ -1,3 +1,18 @@
+## Tauntaun rider's repeated swings
+
+23/10/2026, `personal/hub-reports-1023-c`, based on `main` `7bc8bc89` (Slash's report #123,
+build 2026.1022.3, JoF server, T1_Rail: on a tauntaun, holding attack played one swing and
+then only swing sounds). `PM_VehicleWeaponAnimate` restarts `BOTH_VT_ATR_S` on both tracks
+every time the torso timer runs out (`SETANIM_FLAG_RESTART`, flipping `torsoFlip` and
+`legsFlip`, and `EV_SABER_ATTACK` each time); SJK's prediction already did so. The
+presentation then started the restarted torso on the legs' frame, which had reached the
+end of the same clip, so the swing stayed on its last frame. Stock's
+`CG_SetLerpFrameAnimation` starts a torso restarting its own clip from the first frame;
+SJK now does too ([client.md](client.md#eternaljk-animation-fixes)). Verified on Windows 11:
+a prediction probe (the torso and legs flip and `EV_SABER_ATTACK` repeat every 1000 ms with
+one-second clips), a unit test of the frame rule at 8, 7, 4 and 3 ms steps, the workspace
+checks. Not verified: seen in a game, on a tauntaun or on a swoop.
+
 ## Vehicle gunfire and effect sound volume
 
 22/10/2026, `personal/hub-reports-1022-d`, based on `main` `01cd678e` (Kushina's report,

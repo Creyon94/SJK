@@ -1017,6 +1017,15 @@ such as JoF's, fire it that way, arm hanging between shots) shows as `BOTH_ATTAC
 with the arm raised; the concussion rifle's `BOTH_ATTACK2` shows as `BOTH_ATTACK3`.
 NPCs are left as the server sends them.
 
+A track starting the clip the other track already plays picks up its frame, as
+`CG_SetLerpFrameAnimation` does against the legs' or the lumbar's Ghoul2 frame, except a
+torso restarting the clip it already plays (a `torsoFlip`): stock clears `beginFrame`
+there (`ci->torsoAnim == newAnimation`) and the swing starts over. Without that exception a
+tauntaun rider holding attack, whose `BOTH_VT_ATR_S` restarts on both tracks each second
+(`PM_VehicleWeaponAnimate`), picked up the legs' finished frame and showed one swing for
+many swing sounds (Slash, hub report #123). See
+[animation_selection.rs](../crates/sjk-client/src/animation_selection.rs).
+
 ## Tavion and Desann idle poses
 
 Tavion and Desann saber styles use their distinct JoF EJK standing poses by
