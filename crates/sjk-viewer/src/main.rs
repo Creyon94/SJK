@@ -271,6 +271,7 @@ mod saber_rgb;
 mod saber_skin_command;
 mod saber_skin_options;
 mod saber_skins;
+mod saber_sound_choice;
 mod saber_submission;
 mod saber_trail;
 mod saber_trail_gpu;

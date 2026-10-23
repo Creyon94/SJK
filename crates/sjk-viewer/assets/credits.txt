@@ -315,6 +315,10 @@ did: Made Solfox, Sol's fox player model, which every SJK player gets through th
 role: Ideas for SJK
 did: The Varykino Blossom blade: a blossom-pink blade, lavender mist, a flowering branch and blossoms shed as it swings
 
+[Nib]
+role: Ideas for SJK
+did: Saber sounds of your choice, apart from your saber shader
+
 == Made with
 
 [Claude]

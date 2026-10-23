@@ -4245,7 +4245,10 @@ tab (also the Profile page's See the collection), where owned skins are equipped
 unequipped and any is previewed on the player's own saber
 ([sjk-ui.md](sjk-ui.md#collection)).
 
-A skin brings its own sounds, heard for each player wearing it, over the stock ones,
+A player may choose other saber sounds than their skin's (`cg_saberSounds`, Profile >
+Saber > Sounds: follow the shader, the stock sounds, or any owned shader's; every SJK
+player hears the choice, [unlockables.md](unlockables.md#saber-sounds)); what follows
+holds for the set they are heard with. A skin brings its own sounds, heard for each player wearing it, over the stock ones,
 which keep playing (the skin's sound goes on a channel of its own, so that it does not
 cut the stock one), or, with `s_saberSkinSounds 2` (Settings > Sound > Blade skin
 sounds: Only skin; 1, With normal, is the default), in their place, or, with

@@ -41,6 +41,24 @@ server, a shared name leaves unattributed lines unclickable, Safety code's click
 off-screen world shot `chat::card::shots::chat_name_actions_shot` (1080p and 4K). Not
 verified: in a game, on a server, or an encrypted whisper opened this way.
 
+## Saber sounds apart from the shader
+
+23/10/2026, `personal/saber-sound-pick`, based on `main` `62a5ac44` (Nib's idea of
+18/10/2026 and hub report #109, approved by Sol on 23/10/2026): implemented
+`cg_saberSounds` and the Profile screen's Saber tab Sounds row (follow the shader, the
+stock sounds, or an owned shader's sounds, with Preview), sent with the look as
+`saber_sounds` and heard for every SJK player whose look carries it
+([unlockables.md](unlockables.md#saber-sounds)). A look without it follows the blade, as
+before. The deployed hub refuses the new field (`bad_body`): the client then sends the
+look without it, so others hear the blade's sounds until the hub takes the field (the
+change is described in unlockables.md). For room, Dual's hilt lists show three hilts each.
+Verified on Windows 11: unit tests (the resolution of a wearer's set from blade, choice,
+ownership and older looks; the per-slot table and swings; the Sounds row and its
+Preview at Single and Dual within the canvas; the look's body and feed field; the
+service's fallback for a hub that refuses the field or a set the key lacks), the world
+shot `duel6_sjk_saber_page`, the workspace checks. Not verified: heard in a game, the
+preview by ear, another player's choice through a hub.
+
 ## Heimdall's time nudge kicks after a hitch
 
 23/10/2026, `personal/heimdall-nudge`, based on `main` `8e4cce32`, Slash's report

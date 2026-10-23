@@ -334,7 +334,7 @@ on the 16:9 frame, dark behind the form on the left and clear over the model.
   under a sub-heading (Hilt, or Staff), in two columns, six lines on show,
   scrolled by the wheel or its bar, the chosen one gold with a dot and kept in
   view (in the middle when the list first shows); for Dual two lists side by
-  side, Right hand and Left hand, four lines each. The hilts come in the game's
+  side, Right hand and Left hand, three lines each (four until 23/10/2026). The hilts come in the game's
   load order, as JoF EJK lists them (`legacy_saber_load_order`), the retail game's
   first under a "Jedi Academy" line with their count and the community's after them
   under "Community" (`HiltLines`; the rule in [AGENTS.md](../AGENTS.md)). The hilt search
@@ -354,12 +354,17 @@ on the 16:9 frame, dark behind the form on the left and clear over the model.
   the one worn ringed gold, and under the row's name the name of the one under
   the pointer or worn; six show at a time (10/10/2026), scrolled so the worn one
   stands third where it can, with a gold chevron at a side that has more; with no skin owned, or the identity off, only the stock
-  blade and a line saying why. Then the blade's colour as seven chips (the six
+  blade and a line saying why. Under it the Sounds row (23/10/2026, after Nib's idea): a
+  Preview button, then a ‹ › control with the saber sounds chosen apart from the blade,
+  "Follow shader (<the blade worn>)", "Stock sounds" or an owned shader's name
+  (`cg_saberSounds`, [unlockables.md](unlockables.md#saber-sounds)); Preview, or Enter on
+  the row (the keys line then says "Enter preview"), plays the choice's ignition and hum.
+  Then the blade's colour as seven chips (the six
   stock colours and the custom one, ringed gold when chosen), its red, green
   and blue sliders (a digit types the number), and the second blade's for Dual.
   The camera cuts to the saber shot, where the model throws the saber to float
   and turn before it. World shot: `world_shot::saber_skins::duel6_sjk_saber_page`
-  (the search typed, a search finding nothing with no skin owned, Dual; at 1080p,
+  (the search typed, a search finding nothing with no skin owned, the Sounds row, Dual; at 1080p,
   with `ui_textScale` 1.2, and at 4K with it).
 - **Force:** the **Force templates** panel at the right offers separate
   **Jedi Academy** and **Community** selectors, retail first. Left/Right or
@@ -527,7 +532,7 @@ on the 16:9 frame, dark behind the form on the left and clear over the model.
 
 The keys are the player screen's shared ones: Up and Down choose a row (on the Saber and
 Force pages in the order they show them: the hilt search, both hilt lists, the
-Blade row and the blades' colours,
+Blade row, the Sounds row and the blades' colours,
 the Force groups' powers in their order, the other side's skipped), Left and
 Right change it (a hilt list's choice moves one hilt, the Blade row's one
 blade; the wheel over the Blade row and its ‹ › arrows browse it six blades at a time
@@ -540,7 +545,7 @@ it, a slider follows, a style button, a hilt, a blade, a level, the search
 field types), a click elsewhere on a
 row (a Force power's holocron or name too) only chooses it, a click on a tile
 picks that model. The SJK view's own targets (levels, the Blade row's
-blades, style buttons, hilts and the lists' wheel areas, tokens from 1000) go to
+blades, the Sounds row's Preview, style buttons, hilts and the lists' wheel areas, tokens from 1000) go to
 `PlayerMenu::sjk_pointer` before the screen's shared pointer handling.
 
 It is the player screen's shared state and controller with a view of its own:
