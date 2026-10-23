@@ -24,6 +24,13 @@
 
 # ---- Console & chat ----
 
+[saber-throw-parts]
+area: Rendering & effects
+title: Thrown saber keeps its skin's afterimages and swing parts (Kushina #127)
+change: The flying blade records afterimages, blossoms and swing motion like the held one.
+test: Wear Spectral (or a signature with afterimages), throw the saber: afterimages trail it.
+test: Varykino Blossom thrown: petals fall along its flight. Catch: no stray afterimage.
+
 [hax-trap]
 area: Gameplay
 title: Hax trap: hacking a trapped player blows you both up
