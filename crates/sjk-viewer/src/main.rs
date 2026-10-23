@@ -84,6 +84,7 @@ mod effect_debug;
 mod effect_electricity;
 mod effect_emitter;
 mod effect_envelope;
+mod effect_flash;
 mod effect_geometry;
 mod effect_geometry_gpu;
 mod vehicle_assets;
@@ -1807,6 +1808,8 @@ impl GpuState {
             _ => (view_position, view_target),
         };
         cut_trace::tick(self, branch, (view_position, view_target), visual_now);
+        self.effect_aux
+            .set_viewer(view_position, view_target - view_position);
         // `CG_DoCameraShake` measures from the rendered view (`cg.refdef.vieworg`),
         // so an effect's short-range shake reaches a first-person eye but not the
         // third-person camera behind the player.

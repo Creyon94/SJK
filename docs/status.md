@@ -1,3 +1,17 @@
+## DEMP2 flash scaled by distance
+
+23/10/2026, `personal/hub-reports-1023-c`, based on `main` `7bc8bc89` (Slash's report #125,
+siege_hoth, local server: firing the DEMP2 lit the whole screen). The alt fire's shock
+plays `demp2/altdetonate`, whose `Flash` primitive is a 2048-unit `gfx/effects/whiteFlash`.
+SJK drew it at full colour as an ordinary billboard wherever the shock went off; stock's
+`CFlash::Init` scales its colour by distance (nothing past 900 units) and direction
+(nothing beyond 60 degrees off the view past 100 units). The flash now gets that scale
+([rendering.md](rendering.md)). Verified on Windows 11: unit tests (the scale; the effect
+spawns nothing far away or behind and three quarters of its colour at 450 units ahead),
+the workspace checks. Not verified: in a game; a flash close behind the viewer, which stock
+shows on the screen, stays out of sight; the DEMP2 shell sphere (`FX_DEMP2_AltDetonate`) is
+still not drawn.
+
 ## AT-ST pilot's camera jumps
 
 23/10/2026, `personal/hub-reports-1023-c`, based on `main` `7bc8bc89` (Kushina's report,

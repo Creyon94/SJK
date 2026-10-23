@@ -426,6 +426,17 @@ pub(crate) fn spawn_effect(
                 ],
                 particle_seed,
             );
+            // `CFlash::Init`: the flash's colour scaled by where it is from the viewer.
+            let rgb = if component.kind == ComponentKind::Flash {
+                let visibility =
+                    crate::effect_flash::visibility(auxiliary.viewer(), particle_origin);
+                if visibility <= 0.0 {
+                    continue;
+                }
+                rgb.map(|channel| channel.scaled(visibility))
+            } else {
+                rgb
+            };
             let rotates = matches!(
                 component.kind,
                 ComponentKind::Particle | ComponentKind::OrientedParticle
