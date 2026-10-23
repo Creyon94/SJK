@@ -24,6 +24,18 @@
 
 # ---- Console & chat ----
 
+[ragdoll-toy]
+area: Gameplay
+title: Ragdoll toy: go limp and fall, sandbox style
+change: toy_ragdoll (bind, quick wheel Toys, Collection > Toys) toggles a limp body.
+change: Flatline + game body-fall sounds; camera behind the body; others see the same fall.
+change: Your real body walks to the ragdoll; getting hurt, a duel or the flag gets you up.
+test: Bind a key to toy_ragdoll, press it standing: you crumple, flatline, mouse turns camera.
+test: Run and jump, press it: the body tumbles on; off a ledge it falls down.
+test: Press again: you stand where the body lay, your view as before.
+test: A second SJK client sees the same fall in the same place; a JKA client sees you walk.
+test: Get hit while limp: "Ouch! You got up". In a duel: "No ragdoll in a duel".
+
 [staff-owner-actions]
 area: Menus & settings
 title: Staff page: giving, taking back and merging are the owner's

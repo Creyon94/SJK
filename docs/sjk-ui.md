@@ -1583,16 +1583,17 @@ for the run.
   a click or the number keys 1 to 6 switch one (`cg_saberSkinOptions`), the model's
   blade following at once and, worn, every SJK player's view of it
   ([unlockables.md](unlockables.md#options)).
-- **Toys:** "4 toys", things to use in a match. Illuminate's holocron, the
-  cardboard box (since 16/10/2026), Order 66 (since 17/10/2026) and the Hax (since
-  21/10/2026), each its icon in its niche, "Everyone's"; the chosen one ringed gold on a full glow, the others dimmed; a
+- **Toys:** "5 toys", things to use in a match. Illuminate's holocron, the
+  cardboard box (since 16/10/2026), Order 66 (since 17/10/2026), the Hax (since
+  21/10/2026) and the Ragdoll (since 23/10/2026), each its icon in its niche (200 units,
+  220 apart, so five stand left of the stage's text), "Everyone's"; the chosen one ringed gold on a full glow, the others dimmed; a
   dotted line for the toys to come. The arrows and Tab choose; a click on a niche chooses it, a click on the
   chosen one runs it. With Illuminate chosen the holocron floats lit by the model on
   the stage (`illuminate::submit_stage_holocron`); the box has no 3D stand-in on the
-  stage, nor have Order 66 and the Hax. Beside the model the chosen toy's name, what it
-  is, how to use it and its switch, "Holocron lit", "In the box", "In the order" or
-  "Hacker": on while the toy is on, and Enter or a click runs it (the `toy_illuminate`,
-  `toy_box`, `toy_order66` or `toy_hax` toggle, set to the state wanted; the viewer owns the state, the console
+  stage, nor have Order 66, the Hax and the Ragdoll. Beside the model the chosen toy's
+  name, what it is, how to use it and its switch, "Holocron lit", "In the box", "In the
+  order", "Hacker" or "Limp": on while the toy is on, and Enter or a click runs it (the
+  `toy_illuminate`, `toy_box`, `toy_order66`, `toy_hax` or `toy_ragdoll` toggle, set to the state wanted; the viewer owns the state, the console
   mirrors it each frame). The keys line says "Enter: light" or "Enter: put out",
   "Enter: hide" or "Enter: come out", "Enter: turn on" or "Enter: turn off". Hovering
   Order 66's niche shows how to turn it on and that `order66` executes it; the Hax's,

@@ -4158,8 +4158,9 @@ the archived `cl_toyHax`, as Order 66 in `cl_toyOrder66`).
   [toy relay](hub-chat.md#toy-relay), not the toy events, which wait for the feed's next
   poll: the hacker's client sends a frame (keys, buttons, view) when they change and
   every 50 ms at least, at most one per 30 ms; a frame still waiting to be sent is
-  replaced by the next. Each holder of the toy keeps a long poll open for the events
-  meant for them. The hack's start and end, the seize and the answers travel the same
+  replaced by the next. Every SJK client on a game server keeps a long poll open for
+  the events meant for it (since 23/10/2026, for the [Ragdoll](#ragdoll); before, only
+  holders of the toy). The hack's start and end, the seize and the answers travel the same
   way. The steering lags by the hacker's way to the hub, the hub's to the hacked
   player and their ping, and the hacker sees the result after their own ping too. Without
   the hub (`cl_identity 0`), or with a hub from before the relay, nothing is hacked.
@@ -4171,6 +4172,68 @@ The icon (a terminal with a green ">_") and the rain's glyphs are drawn by
 Noto Sans JP;
 the sounds and the hack bar's icon are the retail game's. See
 [hax.rs](../crates/sjk-viewer/src/hax.rs).
+
+## Ragdoll
+
+The Ragdoll is a meme toy, SJK's own and free for every player (Sol's idea,
+23/10/2026): the player's body goes limp and falls where physics takes it, as in the
+sandbox games, though the player is not dead. `toy_ragdoll` is a toggle: once to go
+limp, again to get up, from a bind (Settings > Key bindings > Interaction > Toy:
+Ragdoll, unbound until a key is picked), from the quick wheel's [Toys page](#toys-page)
+or from the Collection's Toys tab ([SJK UI](sjk-ui.md#collection)). Nothing is saved:
+every fall ends with the map or the server.
+
+- **The body:** a limp humanoid of 15 points (pelvis, chest, head, shoulders, elbows,
+  hands, hips, knees, feet) held by sticks, the trunk braced as one block, knees bending
+  forward and elbows back (Verlet integration, [body.rs](../crates/sjk-viewer/src/ragdoll/body.rs)).
+  It starts standing where the player stood, turned their way, with their speed, and
+  pushed off balance (back, to a side, the knees buckling), so a running or jumping
+  player tumbles on. It falls at `g_gravity`'s 800, slides and bounces a little on the
+  world's brushes (the map's own, not movers), and sleeps once it has lain still for a
+  second (or after 40 seconds whatever it does).
+- **The model:** the player's own model is drawn posed by it
+  ([skin.rs](../crates/sjk-viewer/src/ragdoll/skin.rs)): the `_humanoid` skeleton is cut
+  into eleven rigid parts (pelvis, chest, head, upper arms, forearms, thighs, shins),
+  each turned as the points it spans, each hung from its parent at the model's own
+  joint, so a model of any proportions stays in one piece. The saber, the hat and cape
+  and the other bolts follow the posed bones. A model without the stock skeleton is
+  drawn as animated.
+- **The camera:** behind the body's pelvis, turned by the mouse (as the Hax's hacker's).
+  Getting up gives the view back as it was.
+- **The real body:** the game server knows nothing of it, so the player's player stays
+  there: while limp, the client walks it to where the ragdoll lies (its own user
+  commands, running far off, walking near, stopping within 12 units), so that the
+  player gets up there. A limp player sends no button and cannot attack. Players on
+  stock clients see a player walking about.
+- **Getting up:** `toy_ragdoll` again; or at once when the player is hurt ("Ouch! You
+  got up"), dies, spectates, is in a duel or carries a flag. Nobody goes limp in a duel
+  ("No ragdoll in a duel"), with the flag, while spectating or dead, or in a [Hax](#hax)
+  hack.
+- **Everyone sees the same fall:** no pose is ever sent. The faller's client relays
+  one start event to each SJK player on the server through the hub's
+  [toy relay](hub-chat.md#toy-relay), one every 35 ms: `fall_<moment>_<x>_<y>_<z>_<vx>_<vy>_<vz>_<yaw>`,
+  the game server time it began, the origin, speed (whole units) and yaw (degrees).
+  Every client runs the same simulation from it, in fixed 16 ms steps of the game
+  server's clock (the turn from a table of whole degrees, plain arithmetic, so every
+  client gets the same numbers), and a client that hears it late runs the steps it
+  missed at once: the body is where the faller sees it. A player who comes onto the
+  server during a fall (as the hub's looks tell) is told too. Getting up relays
+  `up_<moment>`; a client that missed it lets the ragdoll go when the faller dies,
+  respawns, leaves, or their real body stays more than 320 units from it for 3
+  seconds. On a game server, every SJK client keeps its relay poll open for this. A
+  sender counts only when the game shows the name they claimed, and never one blocked
+  here. Without the hub (`cl_identity 0`) nobody else sees the fall.
+- **The sounds:** going limp plays a flatline (`sound/sjk/ragdoll/flatline.wav`, two
+  monitor beeps then the long tone, SJK's own, made by
+  [ragdoll_assets.py](../scripts/ragdoll_assets.py)), to the player and at the body for
+  the others; a PK3 that has the same path replaces it. Each point that hits the world
+  hard enough knocks, at most every 140 ms per body: the game's own body falls
+  (`sound/player/bodyfall_human1.mp3` to `3`), its slams for the hardest
+  (`sound/effects/body_slam1.mp3`, `2`).
+
+The icon (a limp figure slumped against a wall) is drawn by the same script. World shots:
+`world_shot::ragdoll_shots::ragdoll_on_a_demo` (with `SJK_TEST_DEMO`). See
+[ragdoll.rs](../crates/sjk-viewer/src/ragdoll.rs).
 
 ## Holstered saber hilts
 
@@ -4377,9 +4440,10 @@ Illuminate holocron's picture. Its gold dot marks a lit holocron (the client's o
 state; no cvar holds it). Since 16/10/2026 the default page also has the
 [Cardboard box](#cardboard-box) (`toy_box`, marked while the player is in it), and
 since 17/10/2026 [Order 66](#order-66) (`toy_order66`, marked while it is on, then
-Execute Order 66, `order66`), and since 21/10/2026 the [Hax](#hax) (`toy_hax`, marked
-while it is on); a wheel saved before keeps its Toys page as it was, and gains them from
-Add a choice, Toys.
+Execute Order 66, `order66`), since 21/10/2026 the [Hax](#hax) (`toy_hax`, marked
+while it is on), and since 23/10/2026 the [Ragdoll](#ragdoll) (`toy_ragdoll`, marked
+while the player is limp); a wheel saved before keeps its Toys page as it was, and gains
+them from Add a choice, Toys.
 
 ### GIF wheel
 

@@ -2048,6 +2048,27 @@ on top of `trust`): an older hub refuses the change and sends no emoji. Checked 
 tests (the rule, the service, the Profile page's panel) and world shots (Profile page,
 chat box, scoreboard). Not tried in the game or against a running hub.
 
+## Ragdoll toy
+
+23/10/2026, `personal/ragdoll-toy` (Sol's idea): a meme toy
+([client.md](client.md#ragdoll)), no hub change. `toy_ragdoll` (bind, quick wheel Toys
+page, Collection's Toys tab) makes the player's body go limp: a 15-point Verlet body
+falls against the map's brushes and the player's own model is posed from it (eleven
+rigid parts of the `_humanoid` skeleton), the camera behind it, while the client walks
+the real body to it. Other SJK players run the same deterministic simulation from one
+start event relayed to each of them (`fall_..`, the toy relay), so no pose is sent; every
+SJK client now keeps the relay poll open on a game server. Checked by unit tests (the
+events within the relay's rule, the body falling asleep lying down, the same start
+falling the same way whatever the frame steps, a body thrown at a wall staying out of
+it, the model posed in one piece and the stance close to its own, a skeleton without
+the stock bones left animated, the walk to the ragdoll's commands and their
+`delta_angles`, the actor's placing, the wheel's Toys page, the Collection's five
+toys) and a world shot on Sol's demo (`ragdoll_on_a_demo`: limp, thrown at a wall,
+close-ups), which found and fixed a body climbing a wall it was caught in. Not tried
+in a game, with two clients or on a server; that two clients' floating point gives the
+very same fall is reasoned (same arithmetic, a degree table for the turn), not measured
+across machines.
+
 ## Hax toy
 
 21/10/2026, `personal/hax` (Sol's idea) with hub branch `hax`: a meme toy

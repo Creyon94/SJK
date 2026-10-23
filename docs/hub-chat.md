@@ -1103,7 +1103,8 @@ the hub's toy events once a frame and hands them to every toy (`identity_frame.r
 The toy relay (since 21/10/2026, Sol-Vulpes/SJK-hub, `PROTOCOL.md`, "Toy relay")
 carries toy events that must reach one player at once, many times a
 second, which the feed's toy events (one a second, read by a poll every few seconds)
-cannot: the [Hax](client.md#hax)'s hacker steering the hacked player. Two threads of
+cannot: the [Hax](client.md#hax)'s hacker steering the hacked player, and the
+[Ragdoll](client.md#ragdoll)'s falls, told to every SJK player on the server. Two threads of
 the identity service of their own ([relay.rs](../crates/sjk-identity/src/relay.rs),
 `sjk-hub-relay-send` and `sjk-hub-relay-read`), each with its own HTTP client, read the
 hub and the game server as the feed does:
@@ -1114,12 +1115,13 @@ hub and the game server as the feed does:
   replacing (a control frame) gives way to the next one of the same toy and target
   while it waits, so a slow way to the hub sends the newest frame, not a backlog. The hub
   takes 40 a second per key.
-- **Reading:** while the viewer listens (`Service::set_relay_listen`: the Hax's toy is
-  on), the reading thread keeps `GET /v1/relay?server=..&after=..&wait=20` open: the hub
+- **Reading:** while the viewer listens (`Service::set_relay_listen`: on a game server,
+  since 23/10/2026; before, while the Hax's toy was on), the reading thread keeps `GET /v1/relay?server=..&after=..&wait=20` open: the hub
   answers as soon as an event for the reader's own claimed slot comes. The first read
   (`after=0`) only learns the last id; another server or hub starts afresh, a failure
   waits 0.5 seconds, doubled up to 2 (under the 3 seconds the hub keeps an event). The events go to a queue the viewer takes once a
-  frame (`Service::take_relay_events`), with the server they were read for.
+  frame (`Service::take_relay_events`, once for every toy, `identity_frame.rs`), with
+  the server they were read for.
 
 The hub keeps an event 3 seconds, in memory, and gives it only to its target. As with
 toy events, a reader applies one only when the game shows, in the sender's slot, the
