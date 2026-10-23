@@ -1,3 +1,25 @@
+## Emotes kept while typing, and silenced when alt-tabbed
+
+23/10/2026, `personal/emote-options`, based on `main` `62a5ac44`, Sol's decisions.
+Typing (Rollembones' idea, 19/10/2026: "stay in the emote until you actually move"): no
+client rule ended an emote on typing, and typing cannot move a player (the server
+clears the movement of a command carrying `BUTTON_TALK`), so an emote ended while typing
+only by what happened meanwhile: being pushed, knocked back or carried 24 units, or (with
+`cg_emoteAttackStop`) an attack. Settings > Sound > Emotes: Typing keeps emote
+(`cg_emoteTypingKeep`, on, with a `=` changelog line so players choose) now holds the
+emote of every player whose talk balloon is up (`EF_TALK` in the snapshot; the own
+player's open chat, console or menu directly) and, once it closes, takes where they stand
+as the place they may not leave, so their next move or attack ends it
+([hub-chat.md](hub-chat.md#emotes-in-the-client)). Each client applies it to what it sees,
+so nothing goes through the hub. Alt-tab (Sol: "always"): an alt-tabbed or minimised
+player's emote already went quiet for everyone through the hub's `quiet`/`loud` posts, but
+only with `cg_awayAltTab` on; now it always does, and the setting only decides whether the
+away emote starts. The window's focus reaches other clients only through those posts.
+Verified on Windows 11: unit tests (`emotes`: typing holds, release re-anchors, attack held,
+setting off, talk balloons to slots; `away_emote`: alt-tab quiets with `cg_awayAltTab`
+off). Not verified in a game or with a second SJK client; the cause Rollembones saw is not
+reproduced, only covered.
+
 ## Heimdall's time nudge kicks after a hitch
 
 23/10/2026, `personal/heimdall-nudge`, based on `main` `8e4cce32`, Slash's report

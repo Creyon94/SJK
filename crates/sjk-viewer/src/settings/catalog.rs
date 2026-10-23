@@ -274,6 +274,11 @@ pub(super) const AUDIO: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Typing keeps emote",
+        cvar: crate::emotes::TYPING_KEEP_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Away emote",
         cvar: crate::away_emote::SJK_CVAR,
         kind: ValueKind::Live(crate::away_emote::sjk_choices),

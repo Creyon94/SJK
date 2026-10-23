@@ -987,7 +987,18 @@ and plays changes. The code still says "mute" (`chat_mutes.rs`, `muted_players.r
   the server performs the attack whatever the emote shows, so it stops here and the
   client sends the hub a `stop`, as `sjkemote stop` does, which ends it for the others.
   Off, the dance goes on through the attacks (the meme way; on 19/10/2026 this was
-  briefly always on). A rig model plays an emote's `clip`
+  briefly always on). With Settings > Sound > Emotes: Typing keeps emote
+  (`cg_emoteTypingKeep`, on; since 23/10/2026, Rollembones' idea), a player typing keeps
+  their emote: while their chat, console or a menu is open (their talk balloon,
+  `EF_TALK`, which their client's `BUTTON_TALK` sets on the server, so every SJK client
+  sees it without the hub; for the own player, the open field itself), moving does not
+  end it (being pushed, knocked back or carried) and neither does an attack; once they
+  close it, where they stand then is the place they may not leave, so the next move of
+  24 units or attack ends it (`ActiveEmotes::hold`, `emotes::typing_slots`). Typing
+  never moved a player (the server clears the movement of a command with
+  `BUTTON_TALK`, `PmoveSingle`), so what it changes is what happens to them meanwhile.
+  The rule is the reader's: a client with it off ends a typist's emote as before. An
+  alt-tabbed player sends `BUTTON_TALK` too, so they keep theirs the same way. A rig model plays an emote's `clip`
   (`emotes::playing`), and so does a stock model when the emote names its `rig`
   ([Emotes on stock models](rig-models.md#emotes-on-stock-models)); the `sound` plays
   on the player (`emotes::Cue`, channel 13,
@@ -1005,6 +1016,11 @@ and plays changes. The code still says "mute" (`chat_mutes.rs`, `muted_players.r
   20/10/2026, hub report #107), unless they are away already. Going away, an emote the player plays goes quiet for everyone: the client
   posts `quiet` and each client stops its music (`ActiveEmotes::set_quiet`) while it
   keeps time, so `loud`, posted on the way back, plays it again from where it would be.
+  Alt-tabbing out or minimising always does this to an emote playing, whatever
+  `cg_awayAltTab` says (Sol's rule, 23/10/2026, `away_emote::alt_tab_quiets`): the
+  setting only decides whether alt-tabbing with no emote playing starts the away emote
+  below (and counts as away for toys). The window's focus reaches the others only this
+  way, through `quiet` and `loud` on the emotes' hub path; nothing else shares it.
   With no emote playing, the pick starts: on a JA+ server (its `gamename`, JoF
   included) the JA+ emote of `cg_awayEmoteJaplus` (JA+ away emote: the sit, kneel,
   hips, wait, surrender and Neo ones, which hold the player until they crouch), sent to

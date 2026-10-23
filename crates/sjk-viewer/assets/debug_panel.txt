@@ -24,6 +24,23 @@
 
 # ---- Console & chat ----
 
+[emote-typing-keep]
+area: Gameplay
+title: Emotes: typing keeps your emote until you move after
+change: Settings > Sound > Emotes: Typing keeps emote (cg_emoteTypingKeep, default 1).
+change: A player with chat, console or a menu open keeps the emote even if pushed.
+test: Dance, open the chat, get pushed (force push, a mover): still dancing.
+test: Close the chat without moving: still dancing. Walk a step: it ends.
+test: A second SJK client sees the same; with cg_emoteTypingKeep 0 a push ends it.
+
+[emote-alttab-quiet]
+area: Audio
+title: Alt-tab always silences your emote's music
+change: Alt-tabbed or minimised, your emote goes quiet for everyone, even with cg_awayAltTab 0.
+change: cg_awayAltTab now only decides whether the away emote starts.
+test: cg_awayAltTab 0, dance with music, alt-tab: a second SJK client hears it stop.
+test: Come back: the music plays again from where it is. No emote + alt-tab: nothing starts.
+
 [saber-throw-parts]
 area: Rendering & effects
 title: Thrown saber keeps its skin's afterimages and swing parts (Kushina #127)

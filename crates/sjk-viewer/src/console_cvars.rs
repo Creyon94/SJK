@@ -513,6 +513,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "An attack or alt attack ends your own emote (SJK)",
         ),
         CvarDefinition::new(
+            crate::emotes::TYPING_KEEP_CVAR,
+            crate::emotes::DEFAULT_TYPING_KEEP,
+            archive,
+            "A player typing keeps their emote until they move or attack after (SJK)",
+        ),
+        CvarDefinition::new(
             crate::away_emote::SJK_CVAR,
             crate::away_emote::NONE,
             archive,
