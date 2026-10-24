@@ -1068,9 +1068,11 @@ On JA+ (including JoF servers using that profile), looking around while holding
 jump aims the kick-off; this is an intentional server feature.
 
 **Lock wall-grab camera** is in SJK Settings > Advanced > Gameplay and classic
-Setup > Game options. `cg_wallGrabLock 1` opts into locking on JA+ too. A locked
-camera uses the shared 128-unit upright-wall check against world and mover collision to face the wall
-with the rebound side's offset, including frames with only a snapshot seed.
+Setup > Game options. `cg_wallGrabLock 1` opts into locking on JA+ too. With it
+on, the camera uses the shared 128-unit upright-wall check against world and mover
+collision to face the wall with the rebound side's offset, including frames with
+only a snapshot seed. With it off nothing is re-aimed: a stock grab's view is the
+one its movement slice or snapshot already turned to the wall.
 Look input is consumed during a lock so it cannot build up or spill out after
 release; movement and jump buttons still reach the command. Turning the option
 off restores the profile's policy. Stock remains locked with either value.

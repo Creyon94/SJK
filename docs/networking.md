@@ -277,8 +277,9 @@ Equipping and fuel state still arrive from the server.
 ### Local wall-grab facing
 
 A local grabbed player presents OpenJK's wall-normal yaw and rebound-side offset
-only when the profile locks the view or `cg_wallGrabLock` is enabled. JA+ with
-the default option stays free: there is no yaw override or extra wall trace.
+only when `cg_wallGrabLock` is enabled. With the default option there is no yaw
+override or extra wall trace: JA+ stays free, and a stock grab presents the yaw
+its movement slice or snapshot seed already holds.
 [`wall_hold_yaw`](../crates/sjk-game-jka/src/pmove_wall_moves.rs)'s upright-wall
 check uses world and mover collision, even when no command advances beyond the
 snapshot. [wall_grab_view.rs](../crates/sjk-viewer/src/wall_grab_view.rs) modifies

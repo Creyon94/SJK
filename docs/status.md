@@ -3,10 +3,10 @@
 22/10/2026, Lumaya's PR #195 (`fix/wall-grab-camera-lock`, #196 folded in), based on
 `main` `f510270f` (Windows x64, Rust 1.99): stock snapshot seeds retain the wall
 view lock through fully acknowledged commands; JA+'s profile keeps free look and
-mouse-aimed kick-offs by default. Archived `cg_wallGrabLock` (default 0, in SJK and classic Settings)
-opts into a local lock on profiles with free look. Input suppression uses only
-`wall_view_locked`; the wall-normal display alignment follows the same profile
-and option. The shared movement rules and model pose are unchanged. The public
+mouse-aimed kick-offs by default. Archived `cg_wallGrabLock` (default 0, in SJK
+and classic Settings) opts into a local lock on profiles with free look. Input
+suppression uses only `wall_view_locked`; the wall-normal display alignment runs
+only with the option on (review fix, 24/10/2026: it re-aimed stock grabs too). The shared movement rules and model pose are unchanged. The public
 `PMF_STUCK_TO_WALL` constant is shared across the simulation and viewer.
 See [wall grab facing](client.md#wall-grab-facing).
 

@@ -2,12 +2,14 @@
 //!
 //! OpenJK `codemp/game/bg_pmove.c:1662-1671` uses the wall normal plus the
 //! rebound-side offset. JA+ deliberately allows free look and mouse-aimed kick-offs;
-//! only `cg_wallGrabLock` opts that profile into the local camera hold.
+//! only `cg_wallGrabLock` opts that profile into the local camera hold. With the
+//! option off nothing here runs: a stock grab already faces the wall in its movement
+//! slice and its snapshot seed.
 
 use sjk_client::pmove::{MovementCollision, MovementState, PMF_STUCK_TO_WALL, wall_hold_yaw};
 use sjk_game_jka::pmove_debug_melee::DebugMelee;
 
-/// Align the local display copy when its profile or the player owns a wall lock.
+/// Align the local display copy when the player opts into the wall lock.
 /// Replay angles, deltas and velocity remain owned by the predictor.
 pub(super) fn align(
     view: &mut MovementState,
@@ -15,7 +17,7 @@ pub(super) fn align(
     rules: DebugMelee,
     force_lock: bool,
 ) {
-    if view.movement_flags & PMF_STUCK_TO_WALL == 0 {
+    if !force_lock || view.movement_flags & PMF_STUCK_TO_WALL == 0 {
         return;
     }
     view.wall_view_locked = !rules.free_wall_look || force_lock;
@@ -112,13 +114,14 @@ mod tests {
                     };
                     let mut view = raw.clone();
                     align(&mut view, &Wall(Some([-1.0, 0.0, 0.0])), rules, force_lock);
-                    let locked = !rules.free_wall_look || force_lock;
-                    assert_eq!(view.wall_view_locked, locked);
-                    assert_eq!(view.view_angles[1], if locked { 360.0 } else { 30.0 });
+                    // Option off: the display copy stays the predictor's own.
+                    assert_eq!(view.wall_view_locked, force_lock);
+                    assert_eq!(view.view_angles[1], if force_lock { 360.0 } else { 30.0 });
                     assert_eq!(raw.view_angles, [12.0, 30.0, 5.0]);
-                    // Turning the option off during a hold immediately restores free look.
+                    // Option off leaves the next display copy to the profile again.
+                    let mut view = raw.clone();
                     align(&mut view, &Wall(Some([-1.0, 0.0, 0.0])), rules, false);
-                    assert_eq!(view.wall_view_locked, !rules.free_wall_look);
+                    assert_eq!(view, raw);
                     let (mut pitch, mut yaw) = (0.2, 0.7);
                     let mut authority = crate::input::view_authority::Authority::default();
                     authority.observe_prediction(&raw, &mut pitch, &mut yaw);
@@ -159,7 +162,7 @@ mod tests {
                             ..Default::default()
                         };
                         let mut view = raw.clone();
-                        align(&mut view, &Wall(Some(normal)), DebugMelee::default(), false);
+                        align(&mut view, &Wall(Some(normal)), DebugMelee::default(), true);
                         let difference =
                             |yaw: f32| (yaw - expected + 180.0).rem_euclid(360.0) - 180.0;
                         assert!(difference(view.view_angles[1]).abs() < 0.001);
@@ -231,7 +234,7 @@ mod tests {
                     ..Default::default()
                 };
                 let mut view = raw.clone();
-                align(&mut view, &collision, DebugMelee::default(), false);
+                align(&mut view, &collision, DebugMelee::default(), true);
                 if view.wall_view_locked {
                     sample = Some(raw);
                     break 'spawns;
@@ -240,7 +243,7 @@ mod tests {
         }
         let raw = sample.expect("a reachable upright duel6 wall");
         for _ in 0..1000 {
-            align(&mut raw.clone(), &collision, DebugMelee::default(), false);
+            align(&mut raw.clone(), &collision, DebugMelee::default(), true);
         }
         let started = Instant::now();
         for _ in 0..10_000 {
@@ -249,7 +252,7 @@ mod tests {
                 black_box(&mut view),
                 black_box(&collision),
                 DebugMelee::default(),
-                false,
+                true,
             );
             black_box(view.view_angles);
         }
@@ -272,7 +275,7 @@ mod tests {
                 view_angles: [12.0, 30.0, 0.0],
                 ..Default::default()
             };
-            align(&mut view, &wall, DebugMelee::default(), false);
+            align(&mut view, &wall, DebugMelee::default(), true);
             assert_eq!(view.view_angles, [12.0, 30.0, 0.0]);
             assert_eq!(view.wall_view_locked, flags != 0);
         }
