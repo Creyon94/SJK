@@ -372,7 +372,7 @@ pull requests merged into SJK, most of them bringing SJK in line with EternalJK
   its next seven the Sketch, Hourglass, Fiber Optic, Serpent, Monarch, Phoenix and Quantum
   blades, and its last three the Comic, Quicksilver and Obsidian Edge blades.
 
-Lumaya ([lumayaa](https://github.com/lumayaa)), contributor, has 51 pull requests
+Lumaya ([lumayaa](https://github.com/lumayaa)), contributor, has 52 pull requests
 merged into SJK
 ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3Alumayaa)):
 
@@ -479,6 +479,9 @@ merged into SJK
   opt-in MP4 through Windows Media Foundation (`cl_sjkChatVideo`, off) instead of OpenH264.
 - #166 Shift plus the console key opens to `con_height` and Shift+Escape a quarter screen;
   made an option at the merge (`con_shiftHeight`, off, EternalJK's heights by default).
+- #195 (with #196) the wall-grab camera no longer comes loose on stock servers when a snapshot
+  catches up, JA+'s free look kept; `cg_wallGrabLock` (off) locks it there too and faces the
+  wall. At the merge the facing runs only with the option on.
 
 Lukas ([LukasMoudry](https://github.com/LukasMoudry)), contributor, has 17 pull requests
 merged into SJK

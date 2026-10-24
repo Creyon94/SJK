@@ -358,6 +358,7 @@ impl Group {
                 "cg_thirdPersonHorzOffset",
                 "cg_thirdPersonCameraDamp",
                 "cg_thirdPersonTargetDamp",
+                "cg_wallGrabLock",
                 "cg_errorDecay",
                 "mod_japlus",
                 "mod_japro",
@@ -904,6 +905,7 @@ mod tests {
             "cg_thirdPersonHorzOffset",
             "cg_thirdPersonCameraDamp",
             "cg_thirdPersonTargetDamp",
+            "cg_wallGrabLock",
             "cg_errorDecay",
         ];
         for group in [Group::GameOptions, Group::Advanced(Advanced::Gameplay)] {

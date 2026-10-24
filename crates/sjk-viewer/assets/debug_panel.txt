@@ -2634,6 +2634,16 @@ test: Fire at a wall on your left: the impact plays mostly in the left ear.
 
 # ---- Gameplay ----
 
+[wall-grab-lock]
+area: Gameplay
+title: Wall grabs: stock camera holds, cg_wallGrabLock option (Lumaya, PR #195)
+change: Stock: the wall-grab camera no longer comes loose when a snapshot catches up.
+change: JA+ keeps free look on a wall; cg_wallGrabLock 1 locks it and faces the wall.
+test: Stock server, g_debugMelee 2: hang on a wall, mouse: the view stays held.
+test: JA+/JoF, option off: hang, look left, let go: you kick off where you aimed.
+test: Settings > Advanced > Gameplay: Lock wall-grab camera on: JA+ hang faces the wall.
+note: Untested live: grabs on moving walls.
+
 [atst-camera]
 area: Gameplay
 title: AT-ST camera no longer jumps on walk/run/stand changes (Kushina)

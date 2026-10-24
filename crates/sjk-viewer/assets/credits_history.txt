@@ -9,6 +9,10 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 24/10/2026 | - | Saber sounds docs: the hub takes saber_sounds since 24/10
+- dcbf796 |  | Saber sounds docs: the hub takes saber_sounds since 24/10
++ 24/10/2026 | - | Credits history: #200 safety codes
+- 72c885d |  | Credits history: #200 safety codes
 + 24/10/2026 | - | Ragdoll toy: go limp and fall, sandbox style, the same fall on every SJK client
 - b010c18 |  | Ragdoll toy: go limp and fall, sandbox style, the same fall on every SJK client
 + 24/10/2026 | - | Credits for 23/10's features; history links merges named "Merge pull request #N (...)"
@@ -2248,6 +2252,12 @@
 - ddfe116 |  | Fix Linux clipboard integration
 
 = Lumaya
++ 24/10/2026 | SJK #195 | Respect wall-grab free look and add an opt-in camera lock
+- f71bf25 |  | Hold the camera throughout wall grabs
+- c03b6a5 |  | Fold wall-normal camera alignment into the wall-grab fix
+- fa4ac03 |  | Preserve profile free look and make wall-grab locking optional
+- a6c6f8d | Sol | Wall grab: re-aim the camera at the wall only with cg_wallGrabLock on
+- ea38f1a | Sol | Changelog line for the wall-grab camera fix and option (Lumaya)
 + 19/10/2026 | SJK #166 | Swap Shift console height shortcuts
 - 6746cfc |  | Swap Shift console height shortcuts
 + 18/10/2026 | SJK #165 | Add trusted chat media sources and silent MP4 playback

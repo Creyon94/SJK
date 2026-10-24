@@ -16,6 +16,37 @@ pinned value checked against an independent Python SHA-512 reading of the format
 key's half the same in every code), `cargo test -p sjk-identity`, the card's tests in
 `sjk-viewer`. Not verified: the card drawn (its world shot needs the game's maps), in a
 game.
+
+## Wall-grab camera policy
+
+22/10/2026, Lumaya's PR #195 (`fix/wall-grab-camera-lock`, #196 folded in), based on
+`main` `f510270f` (Windows x64, Rust 1.99): stock snapshot seeds retain the wall
+view lock through fully acknowledged commands; JA+'s profile keeps free look and
+mouse-aimed kick-offs by default. Archived `cg_wallGrabLock` (default 0, in SJK
+and classic Settings) opts into a local lock on profiles with free look. Input
+suppression uses only `wall_view_locked`; the wall-normal display alignment runs
+only with the option on (review fix, 24/10/2026: it re-aimed stock grabs too). The shared movement rules and model pose are unchanged. The public
+`PMF_STUCK_TO_WALL` constant is shared across the simulation and viewer.
+See [wall grab facing](client.md#wall-grab-facing).
+
+Focused tests cover the stock/JA+ policy with the option off and on, command
+pitch/yaw, movement/jump, snapshot reseeding, filtered input, release, and
+straight/slanted wall facing on all four rebound sides at 8/7/4/3 ms.
+`cargo fmt --all --check`, `cargo build --locked --workspace`,
+`cargo test --locked --workspace` and
+`cargo clippy --locked --workspace --all-targets` passed with existing warnings
+and ignored asset/GPU/integration cases (dev/test debug information and
+incremental compilation disabled). The SJK Settings row, default-off switch and
+help text rendered in the ignored `wall_grab_camera_settings_shot` test on an
+NVIDIA RTX 5070 Ti over retail `mp/duel6`; the screenshot was inspected.
+An optimized Windows MSVC build with static CRT passed isolated loopback-server
+startup/EOF shutdown and synthetic adjacent-assets client startup. These checks
+use temporary profiles and do not exercise real servers.
+
+Live JA+/JoF kick-off behavior, mover grabs and full wall-acrobatics parity
+remain unverified. The Settings shot is not a live grabbed-player capture, and
+no separate model-placement defect has been reproduced.
+
 ## Emotes kept while typing, and silenced when alt-tabbed
 
 23/10/2026, `personal/emote-options`, based on `main` `62a5ac44`, Sol's decisions.
@@ -4369,6 +4400,10 @@ field changes. Workspace fmt, locked build, locked tests and all-targets
 clippy passed (existing warnings; the viewer tests have 75 existing ignored
 cases). In-game reproduction of the reported turning, remote-server
 behavior and full wall-acrobatics parity remain unverified.
+
+The stock snapshot wall-grab seed and the local input/view ownership that followed
+are recorded under [wall-grab camera policy](#wall-grab-camera-policy). JA+ free look
+is intentional and preserved by default; locking there is a player option.
 
 ## Live console height
 

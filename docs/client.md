@@ -1054,22 +1054,34 @@ Live appearance with installed animations remains unverified; see
 
 A player grabbing a wall to jump off it (Force jump 3, pushing into a wall in the
 air: `BOTH_FORCEWALLREBOUND_*`, then `BOTH_FORCEWALLHOLD_*` while the hold lasts)
-is drawn facing the wall the way the animation needs, whatever their view does
-([wall_hold_pose.rs](../crates/sjk-viewer/src/wall_hold_pose.rs)). `CG_G2PlayerAngles`
-turns the body with the view yaw. A stock server turns that yaw to the wall during
-the hold (`PM_AdjustAngleForWallJump`), so the camera locks too, but a JA+ server
-leaves the view free there ([networking](networking.md#server-dialect-movement-rules)),
-and looking around turned the body off the wall, as if it floated. While the
-legs play a rebound the model's yaw is the stock server's facing instead
-(`vectoyaw(wall normal) + yawAdjust`, from the same 128-unit check along the
-view, [`wall_hold_yaw`](../crates/sjk-game-jka/src/pmove_wall_moves.rs)); a frame
-whose check misses keeps the rebound's last facing, and the kick off returns the
-body to the view. It applies to the local player (from the predicted state) and to
-other players alike. Only the model changes: the camera stays free on JA+ and
-locked on a stock server, as each server computes it, and the kick off still goes
-straight back from the side the view picks (`checkDir`), so on JA+ it follows
-where the player looks, not the wall. The check sees the world's brushes only: a
-wall on a mover keeps the body on the view.
+is drawn facing the wall as its animation needs
+([wall_hold_pose.rs](../crates/sjk-viewer/src/wall_hold_pose.rs)). The model takes
+`vectoyaw(wall normal) + yawAdjust` from OpenJK's `PM_AdjustAngleForWallJump`:
+forward grabs face the wall; side and backward grabs keep their animation's side
+offset. A missed model-facing check keeps the rebound's last facing, and leaving
+the rebound returns the model to the view. This applies to local and remote models;
+the model check uses world brushes.
+
+The camera follows the server profile by default (`cg_wallGrabLock 0`): stock
+locks the view during the grab, while JA+ leaves mouse and keyboard look free.
+On JA+ (including JoF servers using that profile), looking around while holding
+jump aims the kick-off; this is an intentional server feature.
+
+**Lock wall-grab camera** is in SJK Settings > Advanced > Gameplay and classic
+Setup > Game options. `cg_wallGrabLock 1` opts into locking on JA+ too. With it
+on, the camera uses the shared 128-unit upright-wall check against world and mover
+collision to face the wall with the rebound side's offset, including frames with
+only a snapshot seed. With it off nothing is re-aimed: a stock grab's view is the
+one its movement slice or snapshot already turned to the wall.
+Look input is consumed during a lock so it cannot build up or spill out after
+release; movement and jump buttons still reach the command. Turning the option
+off restores the profile's policy. Stock remains locked with either value.
+
+The optional lock changes the local view used to build subsequent commands, so
+JA+ players who enable it give up free mouse aiming during the hold. It does not
+change the server's movement rules, replay state, delta angles or velocity.
+Missing the wall keeps the current held view; releasing the grab ends the
+optional hold. Model facing remains independent of the camera option.
 
 ## Dismemberment and disintegration
 

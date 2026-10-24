@@ -307,6 +307,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             archive,
             "Hide pickups only while you are in a private duel",
         ),
+        CvarDefinition::new(
+            "cg_wallGrabLock",
+            false,
+            archive,
+            "Lock wall-grab look even when the server allows free look; off follows the server profile",
+        ),
         // EternalJK's: write prediction misses to the log (`cg_predict.c:1534`).
         CvarDefinition::new(
             "cg_showMiss",

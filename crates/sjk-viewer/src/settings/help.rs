@@ -71,6 +71,7 @@ const SHORT_LABELS: &[(&str, &str)] = &[
     ("cg_thirdPersonHorzOffset", "Camera side"),
     ("cg_thirdPersonCameraDamp", "Camera damping"),
     ("cg_thirdPersonTargetDamp", "Target damping"),
+    ("cg_wallGrabLock", "Lock wall-grab camera"),
     ("cg_errorDecay", "Error smoothing"),
     (crate::ghost_replay::SHOWCASE_CVAR, "Showcase tools"),
     (crate::frame_target::aa::exposure::MIN_EV, "Max darken, EV"),
@@ -769,6 +770,10 @@ const HELP: &[(&str, &str)] = &[
     (
         "cg_thirdPersonTargetDamp",
         "How loosely the third-person camera turns where you aim: lower is smoother, 1 is instant.",
+    ),
+    (
+        "cg_wallGrabLock",
+        "Off: stock locks; JA+ lets you look and aim the kick-off. On locks JA+ too, preventing aim during the hold.",
     ),
     (
         "cg_errorDecay",
