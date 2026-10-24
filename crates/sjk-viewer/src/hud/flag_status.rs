@@ -17,7 +17,7 @@
 //!
 //! With the team scores on, the scores stand in two team boxes under the clock, in
 //! the SJK UI's team colours, each with its flag and where the flag is ("At base",
-//! the carrier, "Back in 18 s"); in capture games the boxes then replace the left
+//! the carrier, "18 s" before a dropped one goes home); in capture games the boxes then replace the left
 //! icons. `cg_teamScoresBoxes 0` brings back the classic "RED 3" and "BLUE 5" plates
 //! beside the left icons; `cg_drawTeamScores 0` leaves the left icons alone.
 use super::icons::assets;
@@ -61,8 +61,21 @@ const TEAM_BLUE: u8 = 2;
 const FLAG_POWERUPS: [usize; 3] = [4, 5, 6];
 /// `CS_PLAYERS`: one client-info config string per client from here.
 const CS_PLAYERS: usize = 1_131;
-/// `entityType_t::ET_PLAYER`.
+/// `entityType_t::ET_PLAYER` and `ET_EVENTS`.
 const ET_PLAYER: u8 = 1;
+const ET_EVENTS: u8 = 18;
+/// `EV_EVENT_BITS`: the sequence bits over an entity's `event`.
+const EV_EVENT_BITS: u16 = 0x300;
+/// `EV_CTFMESSAGE` and `CTFMESSAGE_PLAYER_GOT_FLAG` (`bg_public.h`, `ctfMessages_t`).
+const EV_CTFMESSAGE: u16 = 99;
+const CTFMESSAGE_PLAYER_GOT_FLAG: u32 = 4;
+/// `entityState_t::trickedentindex2`'s field: a CTF message's team.
+const ES_TRICKED2: usize = 74;
+/// `MAX_CLIENTS`.
+const MAX_CLIENTS: usize = 32;
+/// How long a CTF message naming who took a flag stays good for, in server time:
+/// the config string saying the flag is taken may come a little before or after it.
+const TAKER_MS: i64 = 3_000;
 
 /// Where a team's flag is (`flagStatus_t`, the states the server sends).
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -162,6 +175,8 @@ pub(crate) struct State {
     labels: [String; 2],
     /// The red and blue flags' carriers by name ([`Carrier`]).
     carriers: [Carrier; 2],
+    /// Who the last CTF message said took each flag, and when ([`ctf_takers`]).
+    takers: [Option<(u16, i64)>; 2],
     /// The snapshot's server time at the last update.
     now: i64,
     /// When each flag was seen dropping; `None` while it is not dropped, or when it was
@@ -235,6 +250,37 @@ impl Carrier {
 pub(crate) struct ScoreRows<'a> {
     pub(crate) rows: &'a [ScoreEntry],
     pub(crate) revision: u32,
+}
+
+/// The players a snapshot's CTF messages say just took a flag, by side (red, blue):
+/// `PrintCTFMessage(player, flag team, CTFMESSAGE_PLAYER_GOT_FLAG)` from
+/// `Team_TouchEnemyFlag` (OpenJK `codemp/game/g_team.c`) raises a broadcast
+/// `EV_CTFMESSAGE` with the player in `trickedentindex` and the flag's team in
+/// `trickedentindex2`, so every client learns who took a flag, in sight or not.
+fn ctf_takers(snapshot: &sjk_protocol::Snapshot) -> [Option<u16>; 2] {
+    let mut takers = [None; 2];
+    for state in &snapshot.entities {
+        let event = if state.entity_type() >= ET_EVENTS {
+            u16::from(state.entity_type() - ET_EVENTS)
+        } else {
+            state.event() & !EV_EVENT_BITS
+        };
+        if event != EV_CTFMESSAGE
+            || u32::from(state.event_parameter()) != CTFMESSAGE_PLAYER_GOT_FLAG
+        {
+            continue;
+        }
+        let player = state.tracked_entity_num();
+        let side = match state.integer_field(ES_TRICKED2) {
+            Some(1) => 0,
+            Some(2) => 1,
+            _ => continue,
+        };
+        if usize::from(player) < MAX_CLIENTS {
+            takers[side] = Some(player);
+        }
+    }
+    takers
 }
 
 /// The client carrying flag powerup `power`, from the viewed player's state, a player
@@ -395,7 +441,7 @@ impl State {
                     Flag::Dropped => {
                         match left {
                             Some(left) => {
-                                let _ = write!(status, "Back in {} s", (left + 999) / 1_000);
+                                let _ = write!(status, "{} s", (left + 999) / 1_000);
                             }
                             None => status.push_str("Dropped"),
                         }
@@ -427,6 +473,14 @@ impl State {
         scores: ScoreRows,
         colors: bool,
     ) {
+        let now = i64::from(snapshot.server_time);
+        for (taker, seen) in self.takers.iter_mut().zip(ctf_takers(snapshot)) {
+            if let Some(player) = seen {
+                *taker = Some((player, now));
+            } else if taker.is_some_and(|(_, at)| now - at > TAKER_MS) {
+                *taker = None;
+            }
+        }
         for (side, carrier) in self.carriers.iter_mut().enumerate() {
             if !(self.ctf && self.flags[side] == Flag::Taken) {
                 carrier.taken_at = None;
@@ -435,7 +489,9 @@ impl State {
             }
             let power = FLAG_POWERUPS[side];
             let since_take = *carrier.taken_at.get_or_insert(scores.revision) != scores.revision;
+            let taker = self.takers[side].map(|(player, _)| player);
             let client = find_carrier(power, snapshot, team)
+                .or(taker)
                 .or_else(|| {
                     let bit = 1_u32 << power;
                     since_take.then_some(scores.rows).and_then(|rows| {
@@ -484,6 +540,17 @@ impl State {
         } else {
             row.caption
         }
+    }
+
+    /// Whether the team boxes show the flags this frame, so the other flag pictures
+    /// (the left icons, the carried flag's powerup pictures) stay out.
+    pub(super) fn flags_in_boxes(&self, visibility: HudVisibility) -> bool {
+        self.boxes
+            && self.show_flags
+            && self.ctf
+            && self.scores_shown()
+            && visibility.hud
+            && visibility.status
     }
 
     /// Append the icons, their captions and the team score plates.
@@ -602,8 +669,11 @@ impl State {
     /// under the boxes.
     fn emit_boxes(&self, list: &mut DrawList, w: f32, h: f32, icons: &icons::Icons) {
         let s = crate::ui_scale::height_scale(h);
-        let (box_w, box_h, gap, pad, top) = (196.0 * s, 58.0 * s, 8.0 * s, 14.0 * s, 76.0 * s);
-        let (icon, score_w, rule) = (30.0 * s, 56.0 * s, 2.0 * s);
+        let (box_w, box_h, gap, pad, top) = (156.0 * s, 42.0 * s, 6.0 * s, 9.0 * s, 76.0 * s);
+        let (icon, score_w, rule) = (22.0 * s, 40.0 * s, 2.0 * s);
+        // HUD text sets its line box from the rectangle's top: give each run a line
+        // about its size, centred on the box.
+        let line = |size: f32| (top + (box_h - size * 1.25) * 0.5, size * 1.25);
         let flags = self.show_flags && self.ctf;
         let own = self.enemy_side().map(|enemy| 1 - enemy);
         for (side, team) in [color::RED_TEAM, color::BLUE_TEAM].into_iter().enumerate() {
@@ -633,14 +703,14 @@ impl State {
                 } else {
                     x + pad
                 },
-                top,
+                line(30.0 * s).0,
                 score_w,
-                box_h,
+                line(30.0 * s).1,
             );
             let _ = list.push(DrawCommand::Text {
                 rect: inner,
                 text: TextId(TEXT_SCORES + side as u32),
-                size: 40.0 * s,
+                size: 30.0 * s,
                 color: color::TEXT,
                 align: if red {
                     TextAlign::End
@@ -685,7 +755,7 @@ impl State {
                 let _ = list.push(DrawCommand::Arc {
                     center: [icon_x + icon * 0.5, icon_y + icon * 0.5],
                     radius: icon * 0.5 + 3.0 * s,
-                    width: 2.5 * s,
+                    width: 2.0 * s,
                     start: -std::f32::consts::FRAC_PI_2,
                     sweep: std::f32::consts::TAU * left as f32 / FLAG_RETURN_MS as f32,
                     color: color::GOLD,
@@ -693,15 +763,16 @@ impl State {
                 });
             }
             let words_x = if red {
-                icon_x + icon + 10.0 * s
+                icon_x + icon + 7.0 * s
             } else {
                 x + pad + score_w
             };
-            let words_w = box_w - 2.0 * pad - icon - 10.0 * s - score_w;
+            let words_w = box_w - 2.0 * pad - icon - 7.0 * s - score_w;
+            let (words_y, words_h) = line(14.0 * s);
             let _ = list.push(DrawCommand::Text {
-                rect: Rect::new(words_x, top, words_w, box_h),
+                rect: Rect::new(words_x, words_y, words_w, words_h),
                 text: TextId(TEXT_STATUS + side as u32),
-                size: 16.0 * s,
+                size: 14.0 * s,
                 color: match self.tones[side] {
                     Tone::Quiet => color::MUTED,
                     Tone::Plain => color::TEXT,
@@ -718,16 +789,21 @@ impl State {
             });
         }
         if flags && !self.hint.is_empty() {
-            let (hint_w, hint_h) = (200.0 * s, 26.0 * s);
-            let rect = Rect::new(w * 0.5 - hint_w * 0.5, top + box_h + gap, hint_w, hint_h);
+            let (hint_w, hint_h, size) = (150.0 * s, 20.0 * s, 13.0 * s);
+            let (hint_x, hint_y) = (w * 0.5 - hint_w * 0.5, top + box_h + gap);
             let _ = list.push(DrawCommand::SolidRect {
-                rect,
+                rect: Rect::new(hint_x, hint_y, hint_w, hint_h),
                 color: color::alpha(color::SPACE, 0.78),
             });
             let _ = list.push(DrawCommand::Text {
-                rect,
+                rect: Rect::new(
+                    hint_x,
+                    hint_y + (hint_h - size * 1.25) * 0.5,
+                    hint_w,
+                    size * 1.25,
+                ),
                 text: TextId(TEXT_HINT),
-                size: 15.0 * s,
+                size,
                 color: if self.flags[own.unwrap_or(0)] == Flag::AtBase {
                     color::GOLD_BRIGHT
                 } else {
@@ -889,6 +965,40 @@ mod tests {
     }
 
     #[test]
+    fn a_ctf_message_names_who_took_a_flag_out_of_sight() {
+        let mut game = GameState::empty_local(0);
+        game.replace_config_string(CS_PLAYERS + 7, b"\\n\\Torren\\t\\1".to_vec())
+            .unwrap();
+        let mut event = sjk_protocol::EntityState::zero(40, &sjk_protocol::LEGACY_ENTITY_FIELDS);
+        event.set_raw_field(8, u32::from(ET_EVENTS) + u32::from(EV_CTFMESSAGE));
+        event.set_raw_field(42, CTFMESSAGE_PLAYER_GOT_FLAG);
+        event.set_raw_field(58, 7);
+        event.set_raw_field(ES_TRICKED2 as usize, 2);
+        let mut snapshot = sjk_protocol::Snapshot {
+            message_sequence: 1,
+            reliable_acknowledge: 0,
+            server_commands: vec![],
+            server_time: 1_000,
+            delta_from: None,
+            flags: 0,
+            area_mask: vec![],
+            player: sjk_protocol::PlayerState::zero(),
+            vehicle_player: None,
+            entities: vec![event],
+            consumed_bits: 0,
+        };
+        assert_eq!(ctf_takers(&snapshot), [None, Some(7)]);
+        // The message comes a moment before the status says taken: still good.
+        let mut state = ctf_state(TEAM_BLUE, [Flag::AtBase; 2]);
+        state.update_carriers(&snapshot, &game, &[], ScoreRows::default(), false);
+        snapshot.entities.clear();
+        snapshot.server_time = 1_200;
+        state.flags[1] = Flag::Taken;
+        state.update_carriers(&snapshot, &game, &[], ScoreRows::default(), false);
+        assert_eq!(state.text(347), "Torren");
+    }
+
+    #[test]
     fn the_own_flag_alone_keeps_its_caption() {
         let state = State {
             team: TEAM_BLUE,
@@ -946,10 +1056,10 @@ mod tests {
         state.flags = [Flag::AtBase, Flag::Dropped];
         state.track_drops([Flag::AtBase; 2], 2_000);
         state.format_statuses();
-        assert_eq!(state.text(347), "Back in 30 s");
+        assert_eq!(state.text(347), "30 s");
         state.track_drops(state.flags, 14_500);
         state.format_statuses();
-        assert_eq!(state.text(347), "Back in 18 s");
+        assert_eq!(state.text(347), "18 s");
         assert_eq!(state.return_left(1), Some(17_500));
         // Past the stock return time (a mod that waits longer): just dropped.
         state.track_drops(state.flags, 32_000);

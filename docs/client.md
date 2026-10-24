@@ -2918,17 +2918,20 @@ the original cgame reads:
   (`cg_drawScore 2`), which they replace.
 - In Capture the Flag and Capture the Ysalamiri, with `cg_drawFlagStatus` too, each box
   holds its team's flag at the outer edge and says where it is: "At base", its carrier
-  (the same names as the left captions, "Taken" while unknown), "You" in gold for the flag
-  you carry, or for a dropped flag "Back in 18 s", with a gold arc round the flag running
-  down. A dropped flag goes home by itself 30 s after it fell (`LaunchItem` in OpenJK
+  (named at once from the broadcast `EV_CTFMESSAGE` that `Team_TouchEnemyFlag` raises
+  with the taker's number, `CTFMESSAGE_PLAYER_GOT_FLAG`, even out of sight; then as the left
+  captions, "Taken" while unknown), "You" in gold for the flag
+  you carry, or for a dropped flag the seconds before it goes home ("18 s"), with a gold arc
+  round the flag running down. A dropped flag goes home by itself 30 s after it fell (`LaunchItem` in OpenJK
   `codemp/game/g_items.c`, kept by JoF EJK and jaPRO; jaPRO's Tribes weapons wait 45 s,
   which the client cannot tell): the count starts when the client sees the flag fall, so a
   flag already lying when you join, or one still there after 30 s, just says "Dropped".
   An away flag shows its taken picture (`mpi_*flag_x`), or its own picture faint in a pack
   without one. While you carry a flag, a line under the boxes says "Take it home", in gold,
   or "Your flag is away" while your own flag is not at base (no capture until it is). The
-  boxes then replace the left icons, which return with `cg_teamScoresBoxes 0` or
-  `cg_drawTeamScores 0`.
+  boxes then replace the left icons and the carried flag's powerup pictures (bottom left
+  and in the upper-right column), which return with `cg_teamScoresBoxes 0` or
+  `cg_drawTeamScores 0`. The boxes are compact: 156 by 42 pixels of a 1080-line screen.
 
 The scoreboards (classic and SJK UI) draw a flag icon before a carrier's name. A
 `scores` reply is only as fresh as the last scoreboard press, so each frame the rows'
