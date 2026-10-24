@@ -1109,10 +1109,10 @@ fn claim_page(
         let icon = 34.0;
         match item {
             Item::Holocrons(tier, _) => {
-                if crate::holocrons::icons::is_loaded(tier.slot) {
+                if crate::holocrons::icons::is_loaded(tier.index) {
                     let _ = ui.draw_list_mut().push(DrawCommand::TexturedQuad {
                         rect: frame.rect(TEXT_X, middle - icon * 0.5, icon, icon),
-                        texture: crate::holocrons::icons::texture(tier.slot),
+                        texture: crate::holocrons::icons::texture(tier.index),
                         color: Color::new(1.0, 1.0, 1.0, 1.0),
                     });
                 } else {
