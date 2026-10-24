@@ -2041,6 +2041,19 @@
 - 0d215f1 |  | Initial JKR source
 
 = Creyon
++ 24/10/2026 | SJK #191 | Fix blade tip pixels and hard edges on signature blades
+- b3f7f38 |  | Fix blade tip pixels and hard edges on signature blades
+- f43f320 |  | Add round 23 status entry and complete its rendering notes
+- 0f480ab |  | Time a near blade across and along the view in the cost test
+- 9964eeb |  | Keep the pulses' peaks and hide what passes behind the tip
+- 5975432 |  | Fade Obsidian Edge round its tip and give the haze room to bend
+- dab1823 |  | Trim round 23's flare, arc and smoke costs back
+- c6c5568 |  | Draw each arc bolt only near its own middle
+- 0ffb4da |  | Skip Reactor's unseen lightning and bound the arcs by their real reach
+- e82e90e |  | Write down Reactor's timing after its fix
+- 3da079d |  | Bring the round 23 status entry up to date
+- 98fc144 | Sol | Leave room for the bent picture only on frames that draw a haze or a lens
+- 491aac8 | Sol | Take the core's coordinates with and without the tip from one skin lookup
 + 22/10/2026 | SJK #192 | Add cg_duelStockBlades: normal blades in duels
 - 4e0daf9 |  | Add a setting for stock blades in duels
 + 21/10/2026 | SJK #188 | Add Creyon's Blade Lab signature blades

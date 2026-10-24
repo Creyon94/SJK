@@ -47,6 +47,47 @@ Live JA+/JoF kick-off behavior, mover grabs and full wall-acrobatics parity
 remain unverified. The Settings shot is not a live grabbed-player capture, and
 no separate model-placement defect has been reproduced.
 
+## Blade tip pixels and hard edges (round 23)
+
+21/10/2026, `fix/blade-tip-and-hard-edges` (Creyon, SJK pull request), based on `main` at
+fc3d0aa9 (Release 2026.1021.1): players saw a rim of bright pixels round the tip of the
+signature blades (in a game, the Collection and the holocron cards) and straight, hard edges
+round their effects. The core is sampled with the shaft's derivatives in the rounded tip (the
+narrowing picked the core image's smallest mip), a signature's core fades out before its quad's
+sides, round 22's hiding behind the blade is soft and ends before the tip (it cut a box round
+the tip of a blade pointed at the camera), the early-outs that cut glow at a line are widened,
+three pulses fall off smoothly and seven blocky designs keep their look with smoothed edges
+([rendering.md](rendering.md#blade-lab-signature-shaders), round 23). Sol's Sun gets the shared
+fixes (Creyon's choice). Checked on Linux x86_64 (lavapipe): offscreen renders of all 127 of
+Creyon's signatures from six views, still and mid-swing, with an edge finder and a cut-off
+comparison; the workspace format check, build, tests and clippy. Creyon tried it in his game on
+Windows 11: the tips were right, but Obsidian Edge still drew a box round its tip in front of a
+wall. Sol's review of 22/10/2026 is answered on the same branch, merged with `main`: pulses back
+to their old peaks, the hiding behind the blade narrowing to the tip's point, Obsidian Edge's
+bloom fading round the tip, the effects' rectangle wide enough for the haze's bent picture
+(`effect_bounds`, on frames that draw a haze or a lens), a source test of the tip fix and two
+more scenes in the GPU cost test (`SJK_COST_SCENE` `close` and `along`)
+([rendering.md](rendering.md#blade-lab-signature-shaders), round 23). Timed on Creyon's RTX
+5070 against `main` (in turns): the first version cost the 12 heaviest signatures 12 to 19
+percent more, mostly the arc blades; with each arc bolt drawn only
+near its middle, they cost 2 to 3 percent more, and after Reactor's unseen lightning was
+skipped, Reactor is level with `main` (-3 to +1 percent); the stock blade's own time is 3 to 4
+percent more in every run. Merged with `main` at 0279b8f3 (Release 2026.1022.2). Checked on Linux
+x86_64: the workspace format check, build, tests (3620 passed) and clippy, every signature
+module validates and renders (lavapipe), Obsidian Edge from down its length
+(`SJK_SIGNATURE_ORBIT=tip`). Creyon tried it again in his game on Windows 11: Obsidian Edge's
+tip in front of a wall (third person and free camera) and the arc blades. Not verified:
+stripes on Code Cylinder and Flimsiplast still alias seen right along the blade (a fix needs a
+pixel size along the blade, a new lab uniform), and a few single sparks pop at early-out bounds
+(Scarif Tide, Holo-Recording, Blood Moon). Sol's second review (24/10/2026,
+`personal/pr-191-blade-tips`, merged with `main` at ff190c15): the rectangle's extra room is
+added only on frames that draw a haze or a lens, and the core's coordinates with and without the
+tip come from one skin lookup per pixel (`core_line`), not one each. Checked on Windows 11: the
+format check, `sjk-viewer` clippy (no warnings in the touched lines) and tests (2865 passed),
+and the GPU render tests of the signatures and lab designs
+(`every_signature_draws_its_blade_and_nothing_at_the_edge`, `blades_seen_as_players_see_them`).
+Not timed again, not tried in a game.
+
 ## Emotes kept while typing, and silenced when alt-tabbed
 
 23/10/2026, `personal/emote-options`, based on `main` `62a5ac44`, Sol's decisions.
