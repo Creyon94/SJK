@@ -60,11 +60,6 @@ Rust. It does not run the optimized build, check the declared minimum Rust
 version or perform any of the evidence checks below, so a passing run does not
 replace them.
 
-[The test build](../.github/workflows/test-build.yml) packages Windows x64 (the
-optimized client and dedicated server, as the GameData packages workflow does) on
-every push to a `claude/` branch, or any branch on demand, so a change can be tried
-before it is merged: the package is the run's artifact, kept for 14 days.
-
 ### Command reference
 
 The client writes every console command and cvar it knows into one Markdown page,
