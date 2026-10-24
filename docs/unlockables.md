@@ -1320,6 +1320,12 @@ the rack and the grid scroll as before and the lead line says "n of 23 shaders s
 while anything is filtered. Row numbers are of the list shown, so the choice goes back
 to the top when the filter changes.
 
+**Kyber crystals** (21/10/2026, [holocrons.md](holocrons.md#kyber-crystals)): a crystal,
+earned once per achievement, always opens to a droppable saber shader of a tier rolled by
+the crystal's own odds (every tier with a small Mythical chance), the ones the person does
+not hold first, with a pity that makes the tenth crystal in a row without a Legendary or
+Mythical shader one of them. Its opening's strip shows only shaders.
+
 ## Shattering, crafting and the shop
 
 Live since 21/10/2026 ([cards.md](cards.md#shards-and-the-shop) has the numbers and the
