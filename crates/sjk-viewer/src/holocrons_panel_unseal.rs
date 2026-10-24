@@ -130,7 +130,7 @@ impl Panel {
     pub(super) fn draw_waiting(&mut self, frame: &Frame, viewport: [f32; 2], tier: usize) {
         let s = frame.s;
         vignette(&mut self.ui, frame, viewport, 0.97);
-        let colour = holocrons::TIERS[tier].colour;
+        let colour = holocrons::slot(tier).colour;
         halo(&mut self.ui, frame, colour, 0.2);
         text(
             &mut self.ui,
@@ -165,7 +165,7 @@ impl Panel {
             self.played.cracked = true;
             ui_cues::post(Cue::HolocronOpen);
         }
-        let tier = &holocrons::TIERS[tier];
+        let tier = holocrons::slot(tier);
         let charge = (elapsed / UNSEAL).clamp(0.0, 1.0);
         vignette(&mut self.ui, frame, viewport, 0.97);
         halo(
