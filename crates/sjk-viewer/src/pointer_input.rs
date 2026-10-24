@@ -330,6 +330,16 @@ impl GpuState {
             self.emote_picker_choice(choice);
             return true;
         }
+        if self.e2e_whispers.card.is_open() {
+            let choice = self.e2e_whispers.card.handle_pointer(event);
+            self.e2e_whisper_card_choice(choice);
+            return true;
+        }
+        if self.mod_notice.card.is_open() {
+            let choice = self.mod_notice.card.handle_pointer(event);
+            self.mod_notice_choice(choice);
+            return true;
+        }
         if self.fps_card.is_open() {
             let choice = self.fps_card.handle_pointer(event);
             self.fps_card_choice(choice);

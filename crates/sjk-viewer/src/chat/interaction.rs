@@ -64,6 +64,8 @@ impl ChatOverlay {
             input.dead.other_key(text);
         }
         match key {
+            // A pinned sender card goes first, the composer with the next Escape.
+            KeyCode::Escape if self.unpin_card() => {}
             KeyCode::Escape => {
                 self.input = None;
                 self.scroll = 0;
@@ -163,14 +165,33 @@ impl ChatOverlay {
             // Match the canvas's reverse paint order: the card covers the
             // composer, which covers the feed. Otherwise release activates a
             // different widget than the one recorded here and is discarded.
-            self.pressed_action = [card::CARD_BAN, card::CARD_MUTE, card::CARD]
-                .into_iter()
-                .chain([LATEST, SJK, TEAM, GLOBAL])
-                .find(|token| {
-                    self.ui
-                        .rect_for(*token)
-                        .is_some_and(|rect| rect.contains(position))
-                });
+            self.pressed_action = [
+                card::CARD_WHISPER,
+                card::CARD_SAFETY,
+                card::CARD_BAN,
+                card::CARD_MUTE,
+                card::CARD,
+            ]
+            .into_iter()
+            .chain([LATEST, SJK, TEAM, GLOBAL])
+            .chain(0..MAX_VISIBLE as u16)
+            .find(|token| {
+                self.ui
+                    .rect_for(*token)
+                    .is_some_and(|rect| rect.contains(position))
+            });
+            // A sender's name: whose it is, so a release on another never pins theirs.
+            self.pressed_who = self
+                .pressed_action
+                .and_then(|token| self.visible_people.get(usize::from(token)).copied())
+                .flatten();
+            // A press off a pinned card and off every name lets the card go.
+            if !self
+                .pressed_action
+                .is_some_and(|token| usize::from(token) < MAX_VISIBLE || token >= card::CARD)
+            {
+                self.unpin_card();
+            }
         }
         if let InputEvent::PointerWheel { delta, .. } = event {
             if delta.y != 0.0 {
@@ -223,6 +244,12 @@ impl ChatOverlay {
             }
             card::CARD_MUTE => self.toggle_card_mute(),
             card::CARD_BAN => self.press_card_ban(),
+            card::CARD_SAFETY => self.press_card_safety(),
+            card::CARD_WHISPER => self.press_card_whisper(),
+            token if usize::from(token) < MAX_VISIBLE => {
+                let pressed = self.pressed_who.take();
+                self.click_name(usize::from(token), pressed);
+            }
             _ => {}
         }
     }
@@ -244,22 +271,32 @@ impl crate::GpuState {
             ChatInputResult::Submit(command) => {
                 self.send_chat_command(&command, None);
             }
-            ChatInputResult::Sjk(text) => self.send_sjk_chat(text),
+            ChatInputResult::Sjk(text) => {
+                // Staff's Shift+Enter keeps it out of the server's All chat.
+                let only = self.chat.modifiers.shift_key()
+                    && self.chat.said_in_all.is_some()
+                    && crate::player_identity::is_staff();
+                self.send_sjk_chat(text, only);
+            }
             ChatInputResult::None => {}
         }
         self.sync_cursor_policy();
     }
 
-    /// Hand a message to the SJK chat, never to the game server; say why when it
-    /// cannot go.
-    pub(crate) fn send_sjk_chat(&mut self, text: String) {
+    /// Hand a message to the SJK chat (`only`: never said in the server's All chat, even
+    /// where a mod says SJK chat there); say why when it cannot go.
+    pub(crate) fn send_sjk_chat(&mut self, text: String, only: bool) {
         let off = self
             .console
             .as_ref()
             .is_some_and(|console| console.bool_cvar("cl_sjkChat") == Some(false));
         let why = if off {
             Some("^3SJK chat is off (cl_sjkChat 1 turns it on)")
-        } else if !crate::player_identity::chat(text) {
+        } else if !if only {
+            crate::player_identity::chat_sjk_only(text)
+        } else {
+            crate::player_identity::chat(text)
+        } {
             Some("^3SJK chat needs the SJK identity (cl_identity 1)")
         } else {
             None
@@ -286,12 +323,23 @@ impl crate::GpuState {
             || command.clone(),
             |console| console.color_chat_command(&command, console_colors),
         );
+        // A whisper to a player who takes encrypted ones goes through the SJK hub
+        // instead (`e2e_whispers.rs`).
+        if self.route_encrypted_whisper(&command) {
+            return;
+        }
         let recipient = whisper_destination(&command).map(|slot| {
             self.chat
                 .player_name(slot)
                 .map(str::to_owned)
                 .unwrap_or_else(|| format!("client {slot}"))
         });
+        self.send_chat_to_server(&command, recipient);
+    }
+
+    /// Send an expanded and coloured chat `command` to the game server; `recipient` is
+    /// a whisper's, for the console's note of it.
+    pub(crate) fn send_chat_to_server(&mut self, command: &str, recipient: Option<String>) {
         let sent = if let Some(session) = self.communication_session_mut() {
             if let Err(error) = session.send_reliable_command_from(
                 command.as_bytes(),
@@ -309,7 +357,7 @@ impl crate::GpuState {
             && let Some(name) = recipient
             && let Some(console) = &mut self.console
         {
-            console.note_sent_whisper(&command, name);
+            console.note_sent_whisper(command, name);
         }
     }
 }

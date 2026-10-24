@@ -101,6 +101,7 @@ pub(crate) fn submit(
             else {
                 continue;
             };
+            state.fly(false);
             let length = state
                 .extension
                 .update(active, hilt_blade.length, presentation_time);
@@ -133,6 +134,20 @@ pub(crate) fn submit(
                 }));
             }
             if length < 0.5 {
+                // Out: no history kept from where it went out, for when it lights again
+                // (hub report 116: switching sabers, a swing drew a trail slice, and a
+                // skin its afterimages, from the old place to the new).
+                state.trail.hold(
+                    saber::world_blade(
+                        grip,
+                        weapon_rotation,
+                        hilt_blade.socket,
+                        0.0,
+                        hilt_blade.radius,
+                    ),
+                    presentation_time,
+                );
+                state.ghosts = Default::default();
                 continue;
             }
             let blade = saber::world_blade(

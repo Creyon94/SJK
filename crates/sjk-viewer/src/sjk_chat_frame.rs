@@ -10,6 +10,7 @@ use super::*;
 impl GpuState {
     /// Follow the SJK chat in the chat feed while `cl_sjkChat` is on.
     pub(crate) fn update_sjk_chat(&mut self) {
+        self.send_server_copies(Instant::now());
         let Some(console) = self.console.as_ref() else {
             return;
         };
@@ -37,10 +38,16 @@ impl GpuState {
         let muted = player_mutes::muted_keys();
         let is_muted = |key: &str| muted.iter().any(|m| m == key);
         let now = Instant::now();
+        let own_key = player_identity::own_key_id();
         let chat = &mut self.chat;
         let update = player_identity::with_chat(|state| {
             let after = chat.sync_sjk_in_feed(state, is_muted, now, feed);
             chat.sjk_outcome(state.outcome.as_ref(), now);
+            let joined = state
+                .messages
+                .iter()
+                .filter(|message| after.is_some_and(|after| message.id > after));
+            chat.follow_server_copies(joined, own_key.as_deref(), state.outcome.as_ref(), now);
             let news = after
                 .is_some_and(|after| chat::sjk::worth_a_sound(&state.messages, after, is_muted));
             let console_lines = if in_console {
@@ -64,12 +71,73 @@ impl GpuState {
             audio::ui_cues::post(audio::ui_cues::Cue::SjkChat);
         }
     }
+
+    /// Whether JoF tools say SJK chat in this server's All chat: loaded (a JoF server,
+    /// `mod_jof` on) and in a match on a game server (`docs/mods.md`, "SJK chat on JoF
+    /// servers"). Nowhere else, and never in a build without `mod-jof`.
+    pub(crate) fn sjk_chat_said_in_all(&self) -> bool {
+        #[cfg(feature = "mod-jof")]
+        {
+            self.live_session
+                .as_ref()
+                .is_some_and(|session| !session.is_local())
+                && self.console.as_ref().is_some_and(|console| {
+                    console.mods.loaded(sjk_mod_jof::ID)
+                        && console.bool_cvar("mod_jof").unwrap_or(false)
+                })
+        }
+        #[cfg(not(feature = "mod-jof"))]
+        {
+            false
+        }
+    }
+
+    /// While JoF tools say SJK chat in this server's All chat, what the player said on
+    /// the SJK chat goes there too once the hub took it (`chat/server_copy.rs`); anywhere
+    /// else it goes nowhere else, and nothing waits.
+    fn send_server_copies(&mut self, now: Instant) {
+        let said = chat::server_copy::take_said();
+        if !self.sjk_chat_said_in_all() {
+            self.chat.set_said_in_all(None);
+            self.chat.stop_server_copies();
+            return;
+        }
+        #[cfg(feature = "mod-jof")]
+        {
+            use sjk_mod_jof::sjk_chat;
+            self.chat
+                .set_said_in_all(Some(chat::server_copy::SaidInAll {
+                    note: sjk_chat::COMPOSER_NOTE,
+                    only: sjk_chat::ONLY_SJK,
+                    only_title: sjk_chat::ONLY_SJK_TITLE,
+                    only_why: &sjk_chat::ONLY_SJK_WHY,
+                }));
+            let server = self
+                .live_session
+                .as_ref()
+                .map(|session| session.server_id());
+            for (text, id) in self.chat.due_server_copies(said, server, now) {
+                for command in sjk_mod_jof::sjk_chat::copy_commands(&text, id) {
+                    if let Some(session) = self.live_session.as_mut()
+                        && let Err(error) = session.send_reliable_command_from(
+                            command.as_bytes(),
+                            sjk_client::ReliableCommandOrigin::Chat,
+                        )
+                    {
+                        eprintln!("failed to say an SJK chat message on the server: {error}");
+                    }
+                }
+            }
+        }
+        #[cfg(not(feature = "mod-jof"))]
+        let _ = (said, now);
+    }
 }
 
 /// Whether the SJK chat's sound plays: `cl_sjkChatSound`, under the master chat sound
-/// switch `cg_chatSounds` (`cgame_options.rs`), which silences every chat sound.
+/// switch `cg_chatSounds`, which silences every chat sound (`chat_sounds.rs`).
 fn sound_on(console: &console::ViewerConsole) -> bool {
-    console.bool_cvar(SOUND_CVAR) != Some(false) && cgame_options::chat_sounds(Some(console))
+    crate::chat_sounds::enabled(Some(console), crate::chat_sounds::Kind::Sjk)
 }
 
 /// `cl_sjkChatSound`: whether a new SJK chat message plays a sound.

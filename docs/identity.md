@@ -535,18 +535,22 @@ the drawing. `cg_clanEmblems` (archived, default 1, Settings > HUD > Scoreboard 
 0 turns every emblem off.
 
 The clans are the entries of `jof_tag::KNOWN`, each with its tag, its emblem, its tint,
-the share of the emblem's square its ink spans and how a tag stuck to a name counts,
+the share of the emblem's square its ink spans and its rule (how its tag is read),
 with the reason and who asked; supporting a clan means adding an entry and its emblem
-(an icon atlas cell each, room for four; three are used). Longer tags come first, so `JoFA` is read
-before `JoF`.
+(an icon atlas cell each, room for four; all four are used, so a fifth clan needs
+`CLAN_ICON_CELLS` raised). Longer tags come first, so `JoFA` is read before `JoF`.
 
-| Clan | Tag | Emblem | Stuck to a name |
+| Clan | Tag | Emblem | Rule |
 | --- | --- | --- | --- |
-| JoF Academy (Sol's request, 11/10/2026) | `JoFA` | `jofa-emblem.png`, the academy's HD logo in its own colours | with the tag's capitals and a capitalised word after it (`JoFAKen`) |
-| JAWA (Sol's request, 19/10/2026) | `JAWA` | `jawa-emblem.png`, the clan's forum icon (a Jawa's hood) in its own colours | with the tag's capitals and a capitalised word after it (`JAWAKen`; not `Jawad`) |
-| JoF, Jedi of Freedom | `JoF` | `jof-emblem.png`, J o F, tinted in the teal of the clan's logo (`#02B99D`; crimson until 11/10/2026) | in any case, unless a second f follows (`JoFSanjiJ`, `jofsanji`; not `Joffrey`) |
+| JAWA (Sol's request, 19/10/2026) | `(JAWA)` | `jawa-emblem.png`, the clan's forum icon (a Jawa's hood) in its own colours | exact, at the start (Sol, 22/10/2026; letters before): `(JAWA)Ken`, not `JAWAKen`, `[Jawa] Ken` or `Ken(JAWA)` |
+| {{S}} (Sol's request, 22/10/2026) | `{{S}}` | `s-emblem.png`, the clan's red Sith emblem in its own colours | exact, at the start: `{{S}}Ken`, not `{{s}}Ken`, `{S}Ken` or `Ken{{S}}` |
+| JoF Academy (Sol's request, 11/10/2026) | `JoFA` | `jofa-emblem.png`, the academy's HD logo in its own colours | letters; stuck to a name with the tag's capitals and a capitalised word after it (`JoFAKen`) |
+| JoF, Jedi of Freedom | `JoF` | `jof-emblem.png`, the clan's green J o F logo in its own colours (Sol, 22/10/2026; a teal `#02B99D` J o F before, crimson until 11/10/2026) | letters; stuck to a name in any case, unless a second f follows (`JoFSanjiJ`, `jofsanji`; not `Joffrey`) |
 
-The rule, for every clan: the tag's letters in any case, with no letter right before the
+The exact rule: the name, colour codes dropped, starts with the tag exactly as written,
+case and signs included (`^3(JAWA)^7Ken` counts).
+
+The letters rule: the tag's letters in any case, with no letter right before the
 first (the name starts there or a separator comes first: a space, a bracket, a dot, a
 digit...). Colour codes are dropped first. `{JoF}Name`, `jof.Name`, `[JOF] Name`,
 `Name-JoF`, `^1J^7oF`, `JoFA}Ken`, `^5JoFA^7<3Toad` and `[jofa] Ken` count; `MrJoF` does
@@ -560,10 +564,9 @@ Where it shows: the game chat's lines with a sender (JA+ lines too, since 16/10/
 dock and chat page, the scoreboard (classic and SJK, list rows and duel cards), the player
 card (`inspect`) and the SJK UI Players page's card. Not on nameplates.
 
-The emblems are 128-pixel squares in `assets/branding` ([README](../assets/branding/README.md)):
-JoF's rendered from the clan's SVG path by `scripts/jof_emblem.py`, the academy's shrunk
-from its HD logo (1295 by 1214) by `scripts/clan_emblem.py` (cropped to its ink, centred
-and scaled with Lanczos on premultiplied alpha).
+The emblems are 128-pixel squares in `assets/branding` ([README](../assets/branding/README.md)),
+each shrunk (or enlarged) from the clan's logo by `scripts/clan_emblem.py` (cropped to its
+ink, centred and scaled with Lanczos on premultiplied alpha).
 
 ## Unlocks and looks
 
@@ -670,7 +673,14 @@ on the hub, in the SJK UI's look in every menu style:
   played) and the last four achievements unlocked;
 - the bio, written in a box of up to 6 lines (Enter saves, Shift+Enter starts a new
   line, Revert puts back the hub's copy), with its counts, the hub's answer and the
-  rules in a line under it;
+  rules in a line under it. The box has a caret, the report dialog's
+  ([text_dialog_field.rs](../crates/sjk-viewer/src/text_dialog_field.rs), since
+  23/10/2026 after Kushina's report; before, only the end could be written): a click
+  places it, Left and Right (a word with Ctrl), Up and Down, Home and End (the
+  text's ends with Ctrl) move it, typing, pasting, Backspace and Delete (a word with
+  Ctrl) work at it, Ctrl+A selects all (typing replaces it) and Ctrl+C copies the
+  selection or the whole bio. Its lines wrap and the caret measures in the player's
+  menu text style;
 - their medals (picture, name, date given; on its own only) and how many
   achievements are unlocked, with See the board, and how many saber shaders are owned,
   with See the collection: both open the [Collection](sjk-ui.md#collection), where the
@@ -940,6 +950,14 @@ call): on the Staff page's Overview, beside Verify, their own **Make staff** or
 **Remove staff** button acts on a second press (`StaffRequest::SetStaff`, hub `POST
 /v1/staff/staff`, logged and undoable by the owner). It never shows on the creator's
 own player, and admin panel access stays the operator's.
+
+Since 23/10/2026 (Sol's call) what gives, takes back, clears or merges is the creator's
+alone too: medals, unlockables, holocrons, credits and shards, clearing achievements,
+taking a picture down, unlinking and merging keys. The hub refuses those requests from
+other staff (an error `creator_only`); on their Staff page those buttons show dimmed,
+Tab skips them and a press does nothing (`owner_only` in `staff_panel.rs`), and the
+status line says the tab is to read. Other staff keep search, verify, chat moderation,
+picture blocks, log requests and the Logs, Crashes and Chat bans tabs.
 
 The JKR creator (since 22/10/2026) is the creator of JKR, the client SJK is built on
 (Bishop): a flag only the hub operator sets (`sjk-hub jkr-creator KEY_ID`), carried by

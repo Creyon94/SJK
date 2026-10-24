@@ -203,6 +203,7 @@ mod tests {
                 medals: Vec::new(),
                 avatar: String::new(),
                 look: None,
+                whisper_key: None,
             }],
             profiles: HashMap::new(),
             model_checks: HashMap::new(),
@@ -227,6 +228,7 @@ mod tests {
             kyber: None,
             shop: None,
             trade: None,
+            public_key: String::new(),
         }
     }
 

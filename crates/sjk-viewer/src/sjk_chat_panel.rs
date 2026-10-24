@@ -48,6 +48,8 @@ const RETRY_TOKEN: u16 = 1_308;
 /// The chosen message's Ban 24 h, and staff's Lift chat ban.
 const BAN_TOKEN: u16 = 1_309;
 const LIFT_TOKEN: u16 = 1_363;
+/// Send only in SJK, under Send while a mod says SJK chat in this server's All chat.
+const ONLY_TOKEN: u16 = 1_364;
 /// Messages on show, one token each.
 const MESSAGE_BASE: u16 = 1_310;
 const MESSAGES_SHOWN: usize = 40;
@@ -77,6 +79,8 @@ pub(crate) enum PanelAction {
     Close,
     /// Send this message to the SJK chat.
     Send(String),
+    /// Send it to the SJK chat only, never said in the server's All chat.
+    SendSjkOnly(String),
     /// Mute or unmute, on this PC, the player with this key, last seen with this name.
     Mute {
         key_id: String,
@@ -111,6 +115,9 @@ pub(crate) struct Inputs<'a> {
     pub(crate) staff_state: Option<StaffShown<'a>>,
     /// `cl_giphyKey`, the player's own GIPHY key for the picker's search (empty: none).
     pub(crate) giphy_key: &'a str,
+    /// While a mod says SJK chat in this server's All chat, its words
+    /// (`chat/server_copy.rs`): the page offers Send only in SJK.
+    pub(crate) said_in_all: Option<crate::chat::server_copy::SaidInAll>,
 }
 
 /// The part of `sjk_identity::StaffState` the page shows.
@@ -155,6 +162,8 @@ pub(crate) struct Panel {
     owns_console: bool,
     ui: MenuCanvas,
     draft: String,
+    /// The caret in `draft` ([`crate::sjk_chat_field::caret_key`]).
+    pub(crate) caret: crate::console::line_edit::LineEdit,
     /// The last message handed to the hub, which Retry sends again.
     last_sent: String,
     /// The control the keyboard is on, by its token.
@@ -184,6 +193,10 @@ pub(crate) struct Panel {
     gifs: gif_picker::Picker,
     /// `cl_giphyKey` as the last frame had it, for the key card's Change GIPHY key.
     giphy_key: String,
+    /// Send only in SJK's hover card.
+    hover: crate::menu::sjk::hover::Hover,
+    /// The last frame offered Send only in SJK to a staff key: Shift+Enter takes it.
+    only_for_staff: bool,
     /// The chat to show in place of the live one, for a world shot.
     #[cfg(test)]
     pub(crate) preview: Option<ChatState>,
@@ -208,6 +221,15 @@ enum CardSource {
     Person(String),
 }
 
+impl Panel {
+    /// Type `draft` and show Send only in SJK's hover card in full, for a world shot.
+    #[cfg(test)]
+    pub(crate) fn only_sjk_for_shot(&mut self, draft: &str) {
+        self.draft = draft.to_owned();
+        self.hover.pin(Some(ONLY_TOKEN));
+    }
+}
+
 impl Default for Panel {
     fn default() -> Self {
         Self::new()
@@ -221,6 +243,7 @@ impl Panel {
             owns_console: false,
             ui: MenuCanvas::with_capacities(260, 160, 1_600),
             draft: String::new(),
+            caret: crate::console::line_edit::LineEdit::default(),
             last_sent: String::new(),
             focus: FIELD_TOKEN,
             order: Vec::with_capacity(64),
@@ -235,6 +258,8 @@ impl Panel {
             epoch: Instant::now(),
             gifs: gif_picker::Picker::new(),
             giphy_key: String::new(),
+            hover: Default::default(),
+            only_for_staff: false,
             #[cfg(test)]
             preview: None,
         }
@@ -452,6 +477,7 @@ impl Panel {
             match gif_picker::with_gif(&self.draft, &id) {
                 Some(draft) => {
                     self.draft = draft;
+                    self.caret.to_end(&self.draft);
                     self.gifs.close();
                     self.focus = FIELD_TOKEN;
                 }
@@ -691,15 +717,20 @@ impl Panel {
         let chosen = self.shown.chosen.clone();
         match token {
             FIELD_TOKEN => PanelAction::None,
-            SEND_TOKEN => {
+            SEND_TOKEN | ONLY_TOKEN => {
                 let text = self.draft.trim().to_owned();
-                if text.is_empty() {
+                // Send only in SJK is laid out only while it is offered.
+                if text.is_empty() || (token == ONLY_TOKEN && !self.order.contains(&ONLY_TOKEN)) {
                     return PanelAction::None;
                 }
                 self.draft.clear();
                 self.focus = FIELD_TOKEN;
                 self.last_sent.clone_from(&text);
-                PanelAction::Send(text)
+                if token == ONLY_TOKEN {
+                    PanelAction::SendSjkOnly(text)
+                } else {
+                    PanelAction::Send(text)
+                }
             }
             RETRY_TOKEN => {
                 // Only laid out while a refusal and the text are there.
@@ -810,6 +841,7 @@ impl Panel {
         if event.repeat && !field.contains(&self.focus) {
             return PanelAction::None;
         }
+        self.hover.keyed();
         self.edit(key, event.text.as_deref(), shift, control)
     }
 
@@ -856,18 +888,34 @@ impl Panel {
             KeyCode::ArrowDown if !typing => self.step(true),
             KeyCode::ArrowUp => self.step(false),
             KeyCode::Enter | KeyCode::NumpadEnter if typing => {
-                // The keyboard stays in the field, sent or not.
-                let action = self.activate(SEND_TOKEN);
+                // The keyboard stays in the field, sent or not. Staff's Shift+Enter
+                // sends only in SJK where a mod says SJK chat in All chat.
+                let action = self.activate(if shift && self.only_for_staff {
+                    ONLY_TOKEN
+                } else {
+                    SEND_TOKEN
+                });
                 self.focus = FIELD_TOKEN;
                 return action;
             }
             KeyCode::Enter | KeyCode::NumpadEnter => return self.activate(self.focus),
             KeyCode::Space if !typing => return self.activate(self.focus),
-            KeyCode::Backspace if typing => {
-                self.draft.pop();
-            }
+            _ if typing
+                && crate::sjk_chat_field::caret_key(
+                    &mut self.draft,
+                    &mut self.caret,
+                    key,
+                    control,
+                ) => {}
             _ if typing => {
-                crate::sjk_chat_field::key_into(&mut self.draft, key, text, shift, control);
+                crate::sjk_chat_field::key_at(
+                    &mut self.draft,
+                    &mut self.caret,
+                    key,
+                    text,
+                    shift,
+                    control,
+                );
             }
             _ => {}
         }
@@ -894,6 +942,7 @@ impl Panel {
         }
         if let InputEvent::PointerMove(at) = event {
             self.pointer = Some(at);
+            self.hover.moved();
         }
         let Some(event) = self.ui.pointer(event) else {
             return PanelAction::None;
@@ -925,6 +974,7 @@ mod tests {
             creator: false,
             trust: None,
             emoji: String::new(),
+            client: String::new(),
             text: text.to_owned(),
             holocron: None,
         }
@@ -955,6 +1005,7 @@ mod tests {
             now: 1_791_400_000,
             staff_state: None,
             giphy_key: "",
+            said_in_all: None,
         }
     }
 
@@ -1002,6 +1053,61 @@ mod tests {
         // Down from the newest goes back to the field.
         press(&mut panel, KeyCode::ArrowDown, None);
         assert_eq!(panel.focus, FIELD_TOKEN);
+    }
+
+    #[test]
+    fn send_only_in_sjk_is_offered_only_where_sjk_chat_is_said_in_all_chat() {
+        const WORDS: crate::chat::server_copy::SaidInAll = crate::chat::server_copy::SaidInAll {
+            note: "note",
+            only: "Send only in SJK",
+            only_title: "Only in SJK chat",
+            only_why: &["why"],
+        };
+        let chat = chat(1);
+        let type_in = |panel: &mut Panel| {
+            for c in "hi".chars() {
+                press(panel, KeyCode::KeyA, Some(&c.to_string()));
+            }
+        };
+        // Not offered: the button is not there and Shift+Enter is a plain Send.
+        let mut panel = Panel::new();
+        panel.open(true);
+        drawn(&mut panel, &inputs(&chat, &[], true));
+        type_in(&mut panel);
+        assert_eq!(panel.activate(ONLY_TOKEN), PanelAction::None);
+        // The next frame puts the keyboard back in the field.
+        drawn(&mut panel, &inputs(&chat, &[], true));
+        assert_eq!(
+            panel.edit(KeyCode::Enter, Some("\r"), true, false),
+            PanelAction::Send("hi".into())
+        );
+        // Offered to everyone: the button sends only in SJK.
+        let offered = Inputs {
+            said_in_all: Some(WORDS),
+            ..inputs(&chat, &[], false)
+        };
+        drawn(&mut panel, &offered);
+        type_in(&mut panel);
+        assert_eq!(
+            panel.activate(ONLY_TOKEN),
+            PanelAction::SendSjkOnly("hi".into())
+        );
+        // Shift+Enter is staff's only.
+        type_in(&mut panel);
+        assert_eq!(
+            panel.edit(KeyCode::Enter, Some("\r"), true, false),
+            PanelAction::Send("hi".into())
+        );
+        let staff = Inputs {
+            said_in_all: Some(WORDS),
+            ..inputs(&chat, &[], true)
+        };
+        drawn(&mut panel, &staff);
+        type_in(&mut panel);
+        assert_eq!(
+            panel.edit(KeyCode::Enter, Some("\r"), true, false),
+            PanelAction::SendSjkOnly("hi".into())
+        );
     }
 
     #[test]

@@ -466,6 +466,35 @@ mod tests {
         (shown, reopened.rgb(false), userinfo.saber_rgb[0])
     }
 
+    /// Kushina's report #126: sabers chosen with the `saber` command (a quick-wheel
+    /// custom choice) are what Profile > Saber shows, not the menu's last pick.
+    #[test]
+    fn the_saber_command_is_what_the_menu_shows() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut console = ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
+        let mut menu = SaberMenu::new();
+        menu.open(&console);
+        menu.set_style(SaberStyle::Single, None);
+        menu.apply(&mut console);
+        let words = |line: &str| {
+            line.split_whitespace()
+                .map(str::to_owned)
+                .collect::<Vec<_>>()
+        };
+        crate::saber_hilt_command::run(&mut console, &words("single_2 single_3"), |_| true)
+            .unwrap();
+        let mut reopened = SaberMenu::new();
+        reopened.open(&console);
+        assert_eq!(reopened.style(), SaberStyle::Dual);
+        assert_eq!(reopened.hilt(false), "single_2");
+        assert_eq!(reopened.hilt(true), "single_3");
+        crate::saber_hilt_command::run(&mut console, &words("single_4"), |_| true).unwrap();
+        reopened.open(&console);
+        assert_eq!(reopened.style(), SaberStyle::Single);
+        assert_eq!(reopened.hilt(false), "single_4");
+        assert_eq!(reopened.hilt(true), "none");
+    }
+
     #[test]
     fn a_nudged_channel_keeps_the_other_two_and_reaches_the_server() {
         for start in 0..=5u8 {

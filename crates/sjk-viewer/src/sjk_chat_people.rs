@@ -239,6 +239,7 @@ mod tests {
             creator: false,
             trust: None,
             emoji: String::new(),
+            client: String::new(),
             text: "hi".to_owned(),
             holocron: None,
         }

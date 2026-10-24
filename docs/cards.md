@@ -271,6 +271,17 @@ once). The look, keys and states are in [sjk-ui.md](sjk-ui.md#collection); the r
 and refusals in the hub's `PROTOCOL.md` ("Shards and the shop"). Checked by unit tests and
 world shots (`world_shot::forge_shots`); not tried in a game.
 
+Fixed 22/10/2026, #117 (Nib: the Forge flickered on the last lines of Craft): Craft's grid
+on its Legendary and Mythical lines, its fifteen swatches drawn rather than live pictures
+(the menu pictures on, or before a live picture is ready), took up to about 2,100 draw
+commands on some frames of their animation, past the Collection canvas's 2,048, so the
+last commands of those frames were dropped and the page flickered. The canvas now holds
+4,096 (`collection_panel::DRAW_COMMANDS`) and a frame's UI shapes 32,768 vertices, twice
+before (the page alone reached about 11,600 of the 16,384). The world shot
+`duel6_sjk_forge_drawn_swatches_fit` steps through those lines and their animation and
+fails with 2,048. Not tried in a game; whether Nib's game had the menu pictures on is
+not known.
+
 ### Open points for Sol
 
 Answered by Sol on 17/10/2026: one generic currency; the piles, shatter and craft tables
@@ -660,7 +671,10 @@ not know is kept but named nowhere; `Face::blade` in
     They combine; a kind leaves out the sealed and unknown tiles. "N of M cards" at the
     row's right counts the cards shown of the packs'; "No card matches these filters."
     when none does. A filter's change goes back to the first tile.
-  - **Up close** on the right (470 frame pixels wide, so a face's lore reads at 1080p):
+  - **Up close** on the right (437 frame pixels wide, so a face's lore reads at 1080p),
+    its top under the row of tabs: standing in the row, it took the Forge tab's clicks
+    when a large text style stretched the row under it (Kushina's report #124,
+    23/10/2026):
     the tile chosen, its name (in its rarity's colour, gold for Solar), the copies held
     ("3 copies: 1 Solar, 2 Normal · Alpha Edition") or "Not found yet", the rarity, kind,
     set ("Legendary · Meme · SJK Alpha"; a sealed tile: that a card

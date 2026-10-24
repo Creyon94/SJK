@@ -698,6 +698,7 @@ fn following_another_player_draws_their_look_not_the_own_skin() {
         toys: Vec::new(),
         saber2: None,
         saber2_off: Vec::new(),
+        saber_sounds: String::new(),
     };
     looks.apply_event(5, "Fox", &stock);
     let slots = ViewSlots::of(&game_state, &followed);
@@ -969,11 +970,11 @@ fn each_saber_wears_its_own_skin() {
     let worn = sample_color();
     let other = SkinColor { index: 5, ..worn };
     let mut skins = SaberSkins::default();
-    skins.follow_looks_both(1, 1, |client| match client {
-        2 => (Some(worn), Second::Own(Some(other))),
-        3 => (Some(worn), Second::Own(None)),
-        4 => (Some(worn), Second::Same),
-        _ => (None, Second::Same),
+    skins.follow_looks_each(1, 1, |client| match client {
+        2 => (Some(worn), Second::Own(Some(other)), None),
+        3 => (Some(worn), Second::Own(None), None),
+        4 => (Some(worn), Second::Same, None),
+        _ => (None, Second::Same, None),
     });
     let indices = |skins: &SaberSkins, entity| {
         skins
@@ -985,7 +986,7 @@ fn each_saber_wears_its_own_skin() {
     assert_eq!(indices(&skins, 5), [Some(worn.index), Some(worn.index)]);
     assert_eq!(indices(&skins, 6), [None, None]);
     // The local player's own slot takes its own second saber.
-    skins.set_local_both(Some(2), None, Second::Own(Some(other)));
+    skins.set_local_each(Some(2), None, Second::Own(Some(other)), None);
     assert_eq!(indices(&skins, 3), [None, Some(5)]);
 }
 
@@ -1082,11 +1083,11 @@ fn a_duel_draws_the_second_saber_stock_too() {
     let worn = sample_color();
     let other = SkinColor { index: 5, ..worn };
     let mut skins = SaberSkins::default();
-    skins.follow_looks_both(1, 1, |client| {
+    skins.follow_looks_each(1, 1, |client| {
         if client == 2 {
-            (Some(worn), Second::Own(Some(other)))
+            (Some(worn), Second::Own(Some(other)), None)
         } else {
-            (None, Second::Same)
+            (None, Second::Same, None)
         }
     });
     skins.set_plain(true);
@@ -1105,4 +1106,42 @@ fn a_click_on_a_staff_goes_to_the_half_it_lands_on() {
     assert_eq!(staff_half_at([460.0, 320.0]), Some(true));
     set_staff_halves(None);
     assert_eq!(staff_half_at([460.0, 320.0]), None);
+}
+
+/// The sound set each slot is heard with is taken apart from its blade (Nib's idea,
+/// 23/10/2026): another shader's, the stock sounds, or the blade's; the local player's
+/// own goes in its slot, the animation swings read the same table, and a duel's stock
+/// blades are heard stock.
+#[test]
+fn sounds_are_taken_apart_from_the_blade_for_others_and_the_local_player() {
+    let worn = sample_color();
+    let mut skins = SaberSkins::default();
+    skins.follow_looks_each(1, 1, |client| match client {
+        // A blade heard with another skin's set (number 3).
+        2 => (Some(worn), Second::Same, Some(3)),
+        // A blade heard with the stock sounds.
+        4 => (Some(worn), Second::Same, None),
+        // The stock blade heard with a skin's set.
+        6 => (None, Second::Same, Some(worn.index)),
+        _ => (None, Second::Same, None),
+    });
+    let sets = skins.sound_sets();
+    assert_eq!(
+        (sets[2], sets[4], sets[6]),
+        (Some(3), None, Some(worn.index))
+    );
+    assert_eq!(
+        skins.get(5).map(|skin| skin.index),
+        Some(worn.index),
+        "blade kept"
+    );
+    assert_eq!(skins.sound_of(3), Some(3), "the swings' set, by entity");
+    assert_eq!(skins.sound_of(5), None);
+    // The local player in slot 4, heard with set 1 on the stock blade.
+    skins.set_local_each(Some(4), None, Second::Same, Some(1));
+    assert_eq!(skins.sound_sets()[4], Some(1));
+    assert_eq!(skins.get(5), None);
+    skins.set_plain(true);
+    assert_eq!(skins.sound_sets(), [None; MAX_CLIENTS]);
+    assert_eq!(skins.sound_of(3), None);
 }

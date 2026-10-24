@@ -44,6 +44,7 @@ impl PlayerMenu {
         self.search.clear();
         self.saber.set_search("");
         self.blade_choice.read(console);
+        self.sound_choice.read(console, &self.blade_choice);
         self.page = ProfilePage::Character;
         self.selected = 0;
         self.creator.reset();
@@ -388,6 +389,7 @@ impl PlayerMenu {
                 match row {
                     SaberRow::Search => return,
                     SaberRow::Skin => return self.blade_choice.step(console, direction),
+                    SaberRow::Sounds => return self.sound_choice.step(console, direction),
                     _ => {}
                 }
                 let catalog = catalog_of(&self.loader);
@@ -442,6 +444,10 @@ impl PlayerMenu {
                 self.name_editing = true;
             }
             _ if search_row => self.begin_search(),
+            // Enter on the Sounds row plays them.
+            (ProfilePage::Saber, row) if self.saber_rows().get(row) == Some(&SaberRow::Sounds) => {
+                self.preview_sounds();
+            }
             (ProfilePage::Character, row) if self.is_sjk() => {
                 if self.character_rows().get(row) == Some(&CharacterRow::Apply) {
                     self.apply_look(console);

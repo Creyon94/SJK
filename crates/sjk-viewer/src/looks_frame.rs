@@ -51,6 +51,8 @@ impl GpuState {
         let own_slot =
             session.and_then(|session| u8::try_from(session.game_state().client_num).ok());
         let lit = self.illuminate.lit();
+        // The Hax's trap holds while away: hackers' clients may then hack the player away.
+        let away_hackable = self.hax.on() && crate::hax::away_hackable(self.console.as_ref());
         let text = |name: &str| {
             self.console
                 .as_ref()
@@ -66,43 +68,42 @@ impl GpuState {
         // The look the hub relays is what the player holds; `debug_collectibles` changes
         // only the blade drawn here (the hub refuses a skin the player lacks).
         let mut sent = None;
-        let (saber_skin, options_off, second, options_off2) = if due {
+        let (saber_skin, options_off, second, options_off2, sounds) = if due {
             let setting = text(crate::unlockables::SABER_SKIN_CVAR);
             let second_setting = text(crate::looks::SECOND_CVAR);
+            let sounds = text(crate::saber_sound_choice::CVAR);
             #[cfg(test)]
             let shot = self.looks.shot_owns_unlocks;
             #[cfg(not(test))]
             let shot = false;
-            let owns = |id: &str| shot || player_identity::owns_unlock(id);
-            let held = Worn::own(&setting, &options, owns, lit).with_second(
-                &second_setting,
-                &options,
-                owns,
-            );
+            let owned = |id: &str| shot || player_identity::owns_unlock(id);
+            let held = Worn::own(&setting, &options, owned, lit)
+                .with_second(&second_setting, &options, owned)
+                .with_sounds(&sounds, owned);
             let debug = self
                 .console
                 .as_ref()
                 .is_some_and(crate::debug_collectibles::wanted)
                 && player_identity::is_staff();
             let own = if debug {
-                Worn::own(&setting, &options, |_| true, lit).with_second(
-                    &second_setting,
-                    &options,
-                    |_| true,
-                )
+                Worn::own(&setting, &options, |_| true, lit)
+                    .with_second(&second_setting, &options, |_| true)
+                    .with_sounds(&sounds, |_| true)
             } else {
                 held
             };
             sent = Some(
                 held.with_toy(crate::cardboard_box::TOY, self.cardboard_box.on())
                     .with_toy(crate::order66::TOY, self.order66.on())
-                    .with_toy(crate::hax::TOY, self.hax.on()),
+                    .with_toy(crate::hax::TOY, self.hax.on())
+                    .with_toy(crate::hax::AWAY_TOY, away_hackable),
             );
             (
                 own.saber_skin,
                 own.options_off,
                 own.second,
                 own.options_off2,
+                own.sounds,
             )
         } else {
             let own = self.looks.own();
@@ -111,6 +112,7 @@ impl GpuState {
                 own.options_off,
                 own.second,
                 own.options_off2,
+                own.sounds,
             )
         };
         let own = Worn {
@@ -120,10 +122,12 @@ impl GpuState {
             toys: 0,
             second,
             options_off2,
+            sounds,
         }
         .with_toy(crate::cardboard_box::TOY, self.cardboard_box.on())
         .with_toy(crate::order66::TOY, self.order66.on())
-        .with_toy(crate::hax::TOY, self.hax.on());
+        .with_toy(crate::hax::TOY, self.hax.on())
+        .with_toy(crate::hax::AWAY_TOY, away_hackable);
         if let Some(sent) = sent {
             player_identity::set_look(&sent.to_look(&options));
             self.looks.set_own_options(options);

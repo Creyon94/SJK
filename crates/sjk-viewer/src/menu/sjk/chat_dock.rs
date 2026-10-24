@@ -175,6 +175,8 @@ const CARD_GRACE: std::time::Duration = std::time::Duration::from_millis(600);
 pub(crate) struct Dock {
     /// What is typed in the field, while typing.
     pub(super) draft: Option<String>,
+    /// The caret in `draft` ([`crate::sjk_chat_field::caret_key`]).
+    caret: crate::console::line_edit::LineEdit,
     /// What Enter sent from the field, until the page takes it.
     sent: Option<String>,
     /// The sender card on show.
@@ -255,9 +257,10 @@ impl Dock {
     }
 
     /// A key while typing in the field, with Shift and Ctrl held or not: text goes into
-    /// it (Ctrl+V and Shift+Insert paste, [`crate::sjk_chat_field`]), Backspace takes a
-    /// character back, Enter sends, Escape stops; every other key is swallowed, so no
-    /// menu key or game binding acts.
+    /// it at the caret (Ctrl+V and Shift+Insert paste, [`crate::sjk_chat_field`]), the
+    /// arrows, Home and End move the caret, Backspace and Delete take a character back,
+    /// Enter sends, Escape stops; every other key is swallowed, so no menu key or game
+    /// binding acts.
     pub(crate) fn typing_key(
         &mut self,
         key: KeyCode,
@@ -282,10 +285,8 @@ impl Dock {
                     return Some(DockAction::Send);
                 }
             }
-            KeyCode::Backspace => {
-                draft.pop();
-            }
-            _ => crate::sjk_chat_field::key_into(draft, key, text, shift, control),
+            _ if crate::sjk_chat_field::caret_key(draft, &mut self.caret, key, control) => {}
+            _ => crate::sjk_chat_field::key_at(draft, &mut self.caret, key, text, shift, control),
         }
         None
     }
@@ -345,6 +346,7 @@ impl Dock {
     #[cfg(test)]
     pub(crate) fn type_for_shot(&mut self, text: &str) {
         self.draft = Some(text.to_owned());
+        self.caret.to_end(text);
     }
 }
 
@@ -719,29 +721,45 @@ pub(crate) fn draw(
     }
     let inside = frame.rect(x, field_top + 5.0, width - 4.0, 24.0);
     match dock.draft.as_deref() {
-        // The end of a long draft shows, as in a field that scrolls.
+        // The end of a long draft shows, as in a field that scrolls, or the part from the
+        // caret on when it is further back. The caret is `_` at the end, `|` inside.
         Some(draft) => {
             let lay = Lay {
                 measure: view.measure,
                 size: TEXT_SIZE * s,
                 width: inside.width,
             };
+            let caret = dock.caret.cursor(draft);
             let room = inside.width - lay.width("_", TextFace::Regular);
+            let width =
+                |at: usize, c: char| lay.width(&draft[at..at + c.len_utf8()], TextFace::Regular);
             let mut used = 0.0;
             let mut start = draft.len();
             for (at, c) in draft.char_indices().rev() {
-                used += lay.width(&draft[at..at + c.len_utf8()], TextFace::Regular);
+                used += width(at, c);
                 if used > room {
                     break;
                 }
                 start = at;
             }
+            let mut end = draft.len();
+            if caret < start {
+                (start, end, used) = (caret, caret, 0.0);
+                for (at, c) in draft[caret..].char_indices() {
+                    used += width(caret + at, c);
+                    if used > room {
+                        break;
+                    }
+                    end = caret + at + c.len_utf8();
+                }
+            }
+            let mark = if caret == draft.len() { "_" } else { "|" };
             body(
                 canvas,
                 inside,
                 color::TEXT,
                 TextAlign::Start,
-                format_args!("{}_", &draft[start..]),
+                format_args!("{}{mark}{}", &draft[start..caret], &draft[caret..end]),
             );
         }
         None if lit => body(
@@ -1069,7 +1087,7 @@ pub(crate) fn sender_card(
     let Some(card) = dock.sender_card.as_ref() else {
         return;
     };
-    let size = crate::sender_card::size(&card.person, frame.s);
+    let size = crate::sender_card::size(&card.person, false, frame.s);
     let gap = 12.0 * frame.s;
     // Left of the field, which reaches a little past the dock's text.
     let [left, floor] = frame.point(place.x - FIELD_OVERHANG, place.card_floor);
@@ -1090,6 +1108,9 @@ pub(crate) fn sender_card(
             card: tokens.card,
             mute: tokens.mute,
             ban: tokens.ban,
+            // The safety code and Whisper are only offered in the game's chat.
+            safety: tokens.card,
+            whisper: None,
         },
     );
 }
@@ -1110,6 +1131,7 @@ fn person(line: &DockLine<'_>) -> crate::sender_card::Person {
         place: crate::sender_card::Place::Unknown,
         avatar: None,
         note: None,
+        safety: false,
     }
 }
 

@@ -63,6 +63,9 @@ pub(crate) use view::{MODEL_AREA, SABER_AREA, row_labels};
 
 /// The things' tokens: the medals, the achievements, the shaders' rows, the shader's
 /// Equip or Unequip, the toy and its switch.
+/// Draw commands the page holds a frame: twice the most a world shot found (`world_shot_forge.rs`,
+/// `duel6_sjk_forge_drawn_swatches_fit`).
+pub(crate) const DRAW_COMMANDS: usize = 4_096;
 const MEDAL_BASE: u16 = 1_200;
 const ACHIEVEMENT_BASE: u16 = 1_240;
 /// The shaders' rows have a range of their own, 7000 to 7299, for a catalogue of up
@@ -83,6 +86,8 @@ const BOX_TOKEN: u16 = 1_314;
 const ORDER_TOKEN: u16 = 1_315;
 /// The Hax's niche on Toys.
 const HAX_TOKEN: u16 = 1_318;
+/// The Ragdoll's niche on Toys.
+const RAGDOLL_TOKEN: u16 = 1_309;
 /// The Shaders tab's lone saber, where the pointer takes hold of it to turn it.
 const SABER_TOKEN: u16 = 1_316;
 /// The shader card's way to the Forge: Craft in the Forge (one not held) or Break down
@@ -94,13 +99,14 @@ const SHARE_TOKEN: u16 = 1_319;
 const TARGET_FIRST_TOKEN: u16 = 1_307;
 const TARGET_SECOND_TOKEN: u16 = 1_308;
 /// The "Both" box beside the switch: Equip and Unequip dress both sabers (both halves).
-const BOTH_TOKEN: u16 = 1_309;
+const BOTH_TOKEN: u16 = 1_306;
 /// How far (frame pixels) a press on the lone saber may move and still be a click.
 const CLICK_SLOP: f32 = 6.0;
-/// The toys the Toys tab shows: Illuminate, the cardboard box, Order 66, then the Hax.
-const TOY_COUNT: usize = 4;
+/// The toys the Toys tab shows: Illuminate, the cardboard box, Order 66, the Hax, then
+/// the Ragdoll.
+const TOY_COUNT: usize = 5;
 /// Each toy's niche, in the order of [`Panel::toy`].
-const TOY_TOKENS: [u16; TOY_COUNT] = [TOY_TOKEN, BOX_TOKEN, ORDER_TOKEN, HAX_TOKEN];
+const TOY_TOKENS: [u16; TOY_COUNT] = [TOY_TOKEN, BOX_TOKEN, ORDER_TOKEN, HAX_TOKEN, RAGDOLL_TOKEN];
 /// The Shaders tab's view switches: the rack (a list) and the grid of cards.
 const LIST_VIEW_TOKEN: u16 = 1_312;
 const GRID_VIEW_TOKEN: u16 = 1_313;
@@ -227,6 +233,8 @@ pub(crate) enum PanelAction {
     Order66(bool),
     /// Turn the Hax on (`true`) or off: the same as `toy_hax`, set rather than toggled.
     Hax(bool),
+    /// Go limp (`true`) or get up: the same as `toy_ragdoll`, set rather than toggled.
+    Ragdoll(bool),
     /// Show a tab another page draws: the Holocrons page.
     Hub(Tab),
     /// Switch blade skin `skin`'s option `option` on or off (`cg_saberSkinOptions`).
@@ -316,6 +324,8 @@ pub(crate) struct Inputs<'a> {
     pub(crate) order66: bool,
     /// The Hax toy is on now (kept as [`Self::illuminate`] is).
     pub(crate) hax: bool,
+    /// The player is limp now (the Ragdoll, kept as [`Self::illuminate`] is).
+    pub(crate) ragdoll: bool,
     /// The `name` cvar, for the nameplate.
     pub(crate) name: &'a str,
     /// The stock blade's colour (`color1`), for its swatch.
@@ -364,7 +374,8 @@ pub(crate) struct Panel {
     medal: usize,
     achievement: usize,
     shader: usize,
-    /// The toy chosen on Toys: 0 Illuminate, 1 the cardboard box, 2 Order 66, 3 the Hax.
+    /// The toy chosen on Toys: 0 Illuminate, 1 the cardboard box, 2 Order 66, 3 the Hax,
+    /// 4 the Ragdoll.
     toy: usize,
     /// The player was in the cardboard box, as the last frame's inputs said.
     box_on: bool,
@@ -372,6 +383,8 @@ pub(crate) struct Panel {
     order66_on: bool,
     /// The Hax was on, as the last frame's inputs said.
     hax_on: bool,
+    /// The player was limp, as the last frame's inputs said.
+    ragdoll_on: bool,
     /// See and share nameplates was on, as the last frame's inputs said.
     share_on: bool,
     /// The tile chosen on Cards (in the list the filter shows), how many tiles the last
@@ -493,7 +506,11 @@ impl Panel {
             hub: false,
             back: ReturnTarget::MainMenu,
             tab: Tab::Medals,
-            ui: MenuCanvas::with_capacities(160, 220, 2_048),
+            // #117 (Nib): the Forge's Craft grid on its Legendary and Mythical lines, its
+            // fifteen swatches drawn (the menu pictures on, or before their live pictures are
+            // ready), took up to about 2 100 commands; 2 048 dropped the last ones on some
+            // frames, which flickered.
+            ui: MenuCanvas::with_capacities(160, 220, DRAW_COMMANDS),
             medal: 0,
             // The first frame chooses the one nearest to unlocking.
             achievement: usize::MAX,
@@ -502,6 +519,7 @@ impl Panel {
             box_on: false,
             order66_on: false,
             hax_on: false,
+            ragdoll_on: false,
             share_on: false,
             card: 0,
             cards_shown: 0,
@@ -700,6 +718,7 @@ impl Panel {
             Tab::Toys if self.toy == 1 => PanelAction::CardboardBox(!self.box_on),
             Tab::Toys if self.toy == 2 => PanelAction::Order66(!self.order66_on),
             Tab::Toys if self.toy == 3 => PanelAction::Hax(!self.hax_on),
+            Tab::Toys if self.toy == 4 => PanelAction::Ragdoll(!self.ragdoll_on),
             Tab::Toys => PanelAction::Illuminate(!illuminate),
             Tab::Nameplates => PanelAction::SeeAndShare(!self.share_on),
             Tab::Cards => {
@@ -1347,7 +1366,7 @@ impl Panel {
             BOTH_TOKEN => self.toggle_both(),
             FORGE_LINK_TOKEN => self.open_forge_link(),
             // A toy's niche chooses it; the chosen one's niche runs it, as its switch does.
-            TOY_TOKEN | BOX_TOKEN | ORDER_TOKEN | HAX_TOKEN => {
+            TOY_TOKEN | BOX_TOKEN | ORDER_TOKEN | HAX_TOKEN | RAGDOLL_TOKEN => {
                 let toy = TOY_TOKENS
                     .iter()
                     .position(|&niche| niche == token)
@@ -1567,6 +1586,7 @@ mod tests {
             cardboard_box: false,
             order66: false,
             hax: false,
+            ragdoll: false,
             name: "^1Sol^7Vulpes",
             stock: sjk_ui::Color::new(0.16, 0.48, 1.0, 1.0),
             grid: false,

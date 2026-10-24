@@ -1066,12 +1066,34 @@ pub(crate) fn staff_state() -> Option<sjk_identity::StaffState> {
 }
 
 /// Send an SJK chat message; false when the service has not started. What became of
-/// it arrives in the chat's `outcome`.
+/// it arrives in the chat's `outcome`. In a match, the game server's chat gets it too
+/// (`chat/server_copy.rs`).
 pub(crate) fn chat(text: String) -> bool {
+    send_chat(text, true)
+}
+
+/// [`chat`], but never said in the game server's chat: the SJK chat page's Send only in
+/// SJK, and staff's Shift+Enter. [`chat`] keeps a message with a GIF out of it too (`docs/mods.md`, "SJK chat on JoF servers").
+pub(crate) fn chat_sjk_only(text: String) -> bool {
+    send_chat(text, false)
+}
+
+/// Whether an SJK chat message may be said in the game server's chat too where a mod
+/// says SJK chat there: not one with a GIF, whose link would only spam the server's
+/// other players (Sol, 22/10/2026).
+fn may_go_to_server(text: &str) -> bool {
+    crate::chat_gifs::link::find(text).is_none()
+}
+
+fn send_chat(text: String, server_too: bool) -> bool {
     let runtime = lock();
     let Some(service) = runtime.service.as_ref() else {
         return false;
     };
+    if server_too && may_go_to_server(&text) {
+        let outcome = service.with_chat(|chat| chat.outcome.as_ref().map_or(0, |o| o.serial));
+        crate::chat::server_copy::note_said(&text, outcome);
+    }
     service.chat(text);
     true
 }
@@ -1178,6 +1200,41 @@ pub(crate) fn set_relay_listen(listen: bool) {
     if let Some(service) = lock().service.as_ref() {
         service.set_relay_listen(listen);
     }
+}
+
+/// Whether the player takes encrypted whispers (`e2e_whispers.rs`).
+pub(crate) fn set_whisper_listen(listen: bool) {
+    if let Some(service) = lock().service.as_ref() {
+        service.set_whisper_listen(listen);
+    }
+}
+
+/// Seal and send an encrypted whisper; false when the service has not started.
+pub(crate) fn send_whisper(whisper: sjk_identity::whisper::Outgoing) -> bool {
+    let runtime = lock();
+    let Some(service) = runtime.service.as_ref() else {
+        return false;
+    };
+    service.send_whisper(whisper);
+    true
+}
+
+/// What became of the encrypted whispers sent since the last call.
+pub(crate) fn take_whispers_sent() -> Vec<sjk_identity::whisper::Sent> {
+    lock()
+        .service
+        .as_ref()
+        .map(|service| service.take_whispers_sent())
+        .unwrap_or_default()
+}
+
+/// The encrypted whispers read for `server` since the last call.
+pub(crate) fn take_whispers(server: Option<SocketAddr>) -> Vec<sjk_identity::whisper::Received> {
+    lock()
+        .service
+        .as_ref()
+        .map(|service| service.take_whispers(server))
+        .unwrap_or_default()
 }
 
 /// The relayed toy events read for `server` since the last call.
@@ -1351,6 +1408,17 @@ mod tests {
     use super::*;
 
     #[test]
+    fn a_message_with_a_gif_is_never_said_on_the_server() {
+        assert!(may_go_to_server("gg wp"));
+        assert!(!may_go_to_server(
+            "hello https://giphy.com/gifs/hello-wave-ShotGifWide01"
+        ));
+        assert!(!may_go_to_server(
+            "https://i.giphy.com/ShotGifSquare02.gif nice"
+        ));
+    }
+
+    #[test]
     fn only_the_players_own_key_id_stays_off_screen() {
         let own = Some("0123456789abcdef");
         assert_eq!(others_key_id("0123456789abcdef", own), None);
@@ -1405,6 +1473,7 @@ mod tests {
             toys: Vec::new(),
             saber2: None,
             saber2_off: Vec::new(),
+            saber_sounds: String::new(),
         };
         let mut sent = None;
         assert!(newly(&mut sent, &lit));

@@ -7,19 +7,21 @@ mod editor;
 pub(crate) mod emoji;
 mod feed_gif;
 
+pub(crate) mod client_icons;
 mod interaction;
 mod layout;
 pub(crate) mod marks;
 pub(crate) mod options;
 pub(crate) mod pm_only;
 pub(crate) mod reply;
+pub(crate) mod server_copy;
 pub(crate) mod sjk;
 mod substitutions;
 pub(crate) mod text_sizes;
 
 mod view;
 
-pub(crate) use view::star;
+pub(crate) use view::{encrypted_pink, star};
 
 pub(crate) mod combat;
 
@@ -35,7 +37,10 @@ use std::collections::VecDeque;
 use std::time::Instant;
 
 const HISTORY_LIMIT: usize = 64;
-const MAX_VISIBLE: usize = 8;
+/// Most messages the feed shows together, `cg_chatBoxLines`' top: EternalJK's
+/// `MAX_CHATBOX_ITEMS` (24). It was 8 before 23/10/2026, so a larger value did nothing
+/// (Creyon's report #129).
+const MAX_VISIBLE: usize = 24;
 const HOLD_MS: u64 = 9_000;
 const FADE_MS: u64 = 2_000;
 const ENTER_MS: u32 = 220;
@@ -65,6 +70,16 @@ struct ChatLine {
     hub: Option<HubLine>,
     /// The GIF an SJK chat line links to, shown under it (`chat/feed_gif.rs`).
     gif: Option<Box<feed_gif::LineGif>>,
+    /// An end-to-end encrypted whisper through the SJK hub (`e2e_whispers.rs`): in its
+    /// own pink, labelled ENCRYPTED. One the player sent has no sender and is named
+    /// "To <recipient>".
+    encrypted: bool,
+    /// An encrypted whisper with a player checked with the safety code: labelled
+    /// VERIFIED.
+    verified: bool,
+    /// The slot the player's own encrypted whisper went to: its line wears the
+    /// recipient's marks (emblem, verified tick or trust mark, name emoji).
+    recipient: Option<u16>,
 }
 
 /// An SJK chat line's id at the hub and its sender.
@@ -78,6 +93,12 @@ struct HubLine {
     trust: Option<sjk_identity::Trust>,
     /// The sender's name emoji when they sent it, shown at the right of their name.
     emoji: String,
+    /// Sent from another client with its own icon (`chat/client_icons.rs`), which takes
+    /// the emblem's place.
+    client: Option<&'static client_icons::ClientIcon>,
+    /// Said in the game server's All chat too (`chat/server_copy.rs`): labelled ALL/SJK
+    /// instead of SJK.
+    in_all: bool,
     key_id: String,
     /// The line is a holocron drop of this tier (`holocrons/line.rs`): in the tier's
     /// colour, a gem before it instead of the verified tick.
@@ -103,6 +124,8 @@ pub(crate) struct ChatOverlay {
     ui: MenuCanvas,
     /// The feed's name or card target a press began on, until its release.
     pressed_action: Option<u16>,
+    /// Whose name that press began on, when it began on a name (`chat/card.rs`).
+    pressed_who: Option<card::Who>,
     /// Whose name each feed token is, for the profile card (`chat/card.rs`).
     visible_people: [Option<card::Who>; MAX_VISIBLE],
     /// The profile card on show while the composer is open.
@@ -131,6 +154,11 @@ pub(crate) struct ChatOverlay {
     sjk_mark: Option<(u64, u64, u64)>,
     /// When the SJK chat's sound last played (`chat/sjk.rs`, [`sjk::SOUND_GAP`]).
     sjk_sound_at: Option<Instant>,
+    /// SJK chat said on the game server too (`chat/server_copy.rs`).
+    server_copies: server_copy::ServerCopies,
+    /// While a mod says SJK chat in this server's All chat (`sjk_chat_frame.rs`), the
+    /// red note above the field when the SJK channel is picked.
+    said_in_all: Option<server_copy::SaidInAll>,
     /// Whether SJK messages join the in-game general chat feed (`cl_sjkChatFeed`).
     sjk_feed_visible: bool,
     /// Whether the lines with a GIF read "GIF" and show it (`cl_sjkChatGifs`), or keep
@@ -145,6 +173,12 @@ pub(crate) struct ChatOverlay {
     /// The channel (and whisper recipient) the composer last sent on, which the chat
     /// key opens on while `cg_chatRememberChannel` is on.
     last_channel: (Channel, Option<ChatTarget>),
+    /// The client slots (bits) whose player takes encrypted whispers now
+    /// (`e2e_whispers.rs`): a whisper to them goes encrypted, which the composer says,
+    /// and their card offers the safety code.
+    encrypted_slots: u64,
+    /// Safety code asked from a card, for this slot, until the frame takes it.
+    safety_request: Option<u16>,
     /// The feed draws during a world shot, which has no session.
     #[cfg(test)]
     pub(crate) for_shot: bool,
@@ -203,6 +237,7 @@ impl ChatOverlay {
             notice: "",
             ui: MenuCanvas::with_text_capacity(512),
             pressed_action: None,
+            pressed_who: None,
             visible_people: [None; MAX_VISIBLE],
             card: None,
             mute_request: None,
@@ -219,15 +254,34 @@ impl ChatOverlay {
             sjk_outcome: 0,
             sjk_mark: None,
             sjk_sound_at: None,
+            server_copies: server_copy::ServerCopies::default(),
+            said_in_all: None,
             sjk_feed_visible: true,
             gifs_shown: true,
             gif_sources_revision: 0,
             own_slot: None,
             last_whisperer: None,
             last_channel: (Channel::Global, None),
+            encrypted_slots: 0,
+            safety_request: None,
             #[cfg(test)]
             for_shot: false,
         }
+    }
+
+    /// The client slots (bits) whose player takes encrypted whispers now.
+    pub(crate) fn set_encrypted_slots(&mut self, slots: u64) {
+        self.encrypted_slots = slots;
+    }
+
+    /// Whether the player in `slot` takes encrypted whispers now.
+    fn takes_encrypted(&self, slot: u16) -> bool {
+        slot < 64 && self.encrypted_slots & (1 << slot) != 0
+    }
+
+    /// The slot whose safety code a card asked for, once.
+    pub(crate) fn take_safety_request(&mut self) -> Option<u16> {
+        self.safety_request.take()
     }
 
     /// An overlay showing the installed world's emoji pictures.
@@ -264,7 +318,8 @@ impl ChatOverlay {
         self.muted_slots = slots;
         for index in 0..self.lines.len() {
             let line = &self.lines[index];
-            if line.hub.is_some() {
+            // The player's own encrypted whispers are nobody else's lines.
+            if line.hub.is_some() || (line.encrypted && line.sender.is_none()) {
                 continue;
             }
             let muted = match line.sender {
@@ -403,15 +458,84 @@ impl ChatOverlay {
             y: None,
             hub: None,
             gif: None,
+            encrypted: false,
+            verified: false,
+            recipient: None,
         };
+        self.push_line(line, server_private);
+    }
+
+    /// Whether the newest line is a server's private message from a player not muted
+    /// here: what flashes the taskbar (`chat_sounds.rs`).
+    pub(crate) fn newest_is_open_private(&self) -> bool {
+        self.lines
+            .back()
+            .is_some_and(|line| line.server_private && !line.muted)
+    }
+
+    fn push_line(&mut self, line: ChatLine, private: bool) {
         if self.lines.len() == HISTORY_LIMIT {
             self.lines.pop_front();
         }
         self.lines.push_back(line);
-        if self.is_typing() && self.scroll > 0 && (!self.options.pm_only || server_private) {
+        if self.is_typing() && self.scroll > 0 && (!self.options.pm_only || private) {
             self.scroll = (self.scroll + 1).min(self.lines.len().saturating_sub(1));
             self.unread = (self.unread + 1).min(HISTORY_LIMIT);
         }
+    }
+
+    /// Show an end-to-end encrypted whisper (`e2e_whispers.rs`): from the player in
+    /// `from` to us, or ours to the player named `to` in `slot` (`from` `None`);
+    /// `verified` when they were checked with the safety code. Its sender becomes the
+    /// one `reply` answers. False when the slot holds nobody.
+    pub(crate) fn receive_encrypted(
+        &mut self,
+        from: Option<u16>,
+        (slot, to): (u16, &str),
+        text: &str,
+        verified: bool,
+        now: Instant,
+    ) -> bool {
+        let recipient = from.is_none().then_some(slot);
+        let (name, sender, muted) = match from {
+            Some(slot) => {
+                let Some(target) = self.roster.target(Some(slot)) else {
+                    return false;
+                };
+                let name = self.roster.display_name(target).unwrap_or("").to_owned();
+                if let Some(count) = self.spoken.get_mut(usize::from(slot)) {
+                    *count = count.wrapping_add(1);
+                }
+                self.note_whisper(true, Some(target));
+                (name, Some(target), self.slot_muted(target))
+            }
+            None => (format!("To {to}"), None, false),
+        };
+        let body = options::clean_body(text, self.options.clean);
+        let (body, emojis) = if self.options.emojis {
+            self.emojis.markup(&body)
+        } else {
+            (body, Vec::new())
+        };
+        let line = ChatLine {
+            name,
+            body,
+            sender,
+            channel: Channel::Whisper,
+            server_private: true,
+            received_ms: self.millis(now),
+            muted,
+            emojis,
+            wrap: layout::Wrapped::default(),
+            y: None,
+            hub: None,
+            gif: None,
+            encrypted: true,
+            verified,
+            recipient,
+        };
+        self.push_line(line, true);
+        true
     }
 
     pub(crate) fn open(&mut self, team: bool) {
@@ -438,6 +562,19 @@ impl ChatOverlay {
 
     pub(crate) fn is_typing(&self) -> bool {
         self.input.is_some()
+    }
+
+    /// What SJK knows of each slot's player, as the frame sets it (world shots).
+    #[cfg(test)]
+    pub(crate) fn set_slot_marks(&mut self, marks: Vec<marks::SlotMark>) {
+        self.slot_marks = marks;
+    }
+
+    /// Close the composer, its draft dropped, as Escape does.
+    pub(crate) fn close_composer(&mut self) {
+        self.input = None;
+        self.scroll = 0;
+        self.unread = 0;
     }
 
     /// Toggle a whisper composer only for a currently occupied roster slot.

@@ -225,6 +225,18 @@ character's root also follows the camera yaw. The hold clears on the next
 slice that does not hold the view. JA+'s free-look rebound does not set it.
 This is local presentation state, with no protocol field or movement change.
 
+### View yaw kept within a turn
+
+The camera yaw that mouse and `+left`/`+right` (`cl_yawspeed`) turns accumulate is
+brought back into one turn, -180 to 180 degrees, every frame and on every
+`delta_angles` change (`view_authority::wrap_yaw`). Unbounded, a very fast spin
+(`cl_yawspeed 100000` for half a minute, Yernow's report #121) grew it until the
+`f32` held it in steps of a degree, so the view shook on every mouse move, and past
+about 11.8 million degrees the command's `ANGLE2SHORT` saturated, so the character
+stopped turning while the camera spun on. Only the 16-bit short reaches the server,
+so wrapping by whole turns changes nothing that is sent; `angle_to_short` also goes
+through `i64` now, wrapping rather than saturating if a huge angle ever reaches it.
+
 ### Equipped jetpack prediction
 
 `PM_JETPACK` (movement type 1), used by the equipped jetpack on stock-derived
@@ -392,6 +404,27 @@ timeline (a map load), commands are stamped 0 and still made every 8 ms of real
 time, so packets keep acknowledging the server. Every command is predicted when
 it is made; between commands the frame presents a preview through its own input
 ([prediction_preview.rs](../crates/sjk-viewer/src/prediction_preview.rs)).
+
+The server time commands are stamped with comes from
+[server_clock.rs](../crates/sjk-client/src/server_clock.rs), stock's
+`cl.serverTimeDelta` (`CL_FirstSnapshot`, `CL_AdjustTimeDelta`, `CL_SetCGameTime`):
+realtime plus a delta that resets past a 500 ms error, halves past 100 ms and otherwise
+drifts 1 or 2 ms a snapshot. `cl_timeNudge` moves only what is drawn
+([presentation_clock.rs](../crates/sjk-viewer/src/presentation_clock.rs)), never the
+stamps, as stock subtracts it from `cl.serverTime` only for the cgame's view. The delta
+is adjusted once a frame, on the newest snapshot, and only once the frame has read
+every queued snapshot (a frame reads at most 8, `SNAPSHOTS_PER_FRAME` in
+[live_session.rs](../crates/sjk-viewer/src/live_session.rs)): stock reads the whole
+socket and then adjusts on `cl.snap`. Until 23/10/2026 the client adjusted on each
+snapshot as it was read, so after a hitch the snapshots that had waited in the socket,
+as old as the hitch, put the clock back by it: after a 1.3 s hitch commands reached the
+server about 1.2 s behind its time, then hundreds of milliseconds behind for a while.
+Servers that estimate a player's time nudge from how far commands trail their time read
+that as a large `cl_timeNudge`; JoF's anti-cheat (Heimdall) kicked Slash for it with
+"Set /cl_timeNudge 0 in your console!". Tests in `server_clock.rs` play 59 FPS against
+40 snapshots a second through 150, 400 and 1346 ms hitches at 8, 7, 4 and 3 ms steps.
+The userinfo's `cg_displayNetSettings` (JA+ and jaPRO read the time nudge from it)
+always says `125 0 125` ([compat_profile.rs](../crates/sjk-client/src/compat_profile.rs)).
 
 `rate` defaults to 90000 bytes a second (11/10/2026, Sol's choice): stock's 25000
 leaves about 600 bytes a snapshot at a server's 40 a second, less than a busy

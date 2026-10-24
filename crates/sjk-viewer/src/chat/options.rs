@@ -150,6 +150,53 @@ mod remember_tests {
     }
 }
 
+/// Creyon's report #129: `cg_chatBoxLines` above 8 did not show more messages.
+#[cfg(test)]
+mod lines_tests {
+    use super::*;
+
+    fn shown(console: &ViewerConsole, sent: usize) -> usize {
+        let mut chat = ChatOverlay::new();
+        chat.configure(Some(console));
+        let now = Instant::now();
+        for n in 0..sent {
+            chat.receive_classified(
+                sjk_client::ServerEventKind::Chat,
+                format!("Fox: line{n:02}"),
+                None,
+                false,
+                now,
+            );
+        }
+        chat.build(true, &crate::text::test_font(), [1920.0, 1080.0], 1_000);
+        (0..sent)
+            .filter(|n| {
+                let wanted = format!("line{n:02}");
+                chat.ui.text_runs().any(|text| text.contains(&wanted))
+            })
+            .count()
+    }
+
+    #[test]
+    fn chat_box_lines_reach_eternaljks_twenty_four() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut console = ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
+        assert_eq!(
+            Options::read(Some(&console)).lines,
+            5,
+            "EternalJK's default"
+        );
+        for (value, lines) in [("0", 1), ("3", 3), ("12", 12), ("24", 24), ("100", 24)] {
+            assert!(console.set_cvar("cg_chatBoxLines", value));
+            assert_eq!(Options::read(Some(&console)).lines, lines, "{value}");
+        }
+        assert!(console.set_cvar("cg_chatBoxLines", "12"));
+        assert_eq!(shown(&console, 20), 12);
+        assert!(console.set_cvar("cg_chatBoxLines", "5"));
+        assert_eq!(shown(&console, 20), 5);
+    }
+}
+
 /// Clean message colour markup on arrival, leaving the separately rendered name intact.
 pub(super) fn clean_body(body: &str, mode: i64) -> String {
     if mode == 1 {

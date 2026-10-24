@@ -293,13 +293,21 @@ fn animation_revision(animation: u16, flip: bool) -> u64 {
     u64::from(animation) | (u64::from(flip) << 16)
 }
 
-/// Mirror `CG_SetLerpFrameAnimation`'s synchronized lower/upper start rule.
+/// Mirror `CG_SetLerpFrameAnimation`'s synchronized lower/upper start rule
+/// (`codemp/cgame/cg_players.c`): a track starting the clip the other one already
+/// plays picks up the other's frame. A torso restarting the clip it already plays (a
+/// `torsoFlip`) starts from its first frame instead (`ci->torsoAnim == newAnimation`
+/// clears `beginFrame`): a tauntaun rider's repeated `BOTH_VT_ATR_S`, whose legs play the
+/// same finished swing, otherwise stayed frozen on its last frame.
 fn synchronized_phase(
     previous: Option<AnimationState>,
     clip: usize,
     upper: bool,
     time_millis: i64,
 ) -> Option<i64> {
+    if upper && previous.is_some_and(|animation| animation.upper.clip == clip) {
+        return None;
+    }
     let other = previous.map(|animation| {
         if upper {
             animation.lower
@@ -522,6 +530,56 @@ fn trace_selection(
         selection.upper.clip,
         crate::legacy_animation_name(selection.upper.clip).unwrap_or("<unknown>"),
     );
+}
+
+#[cfg(test)]
+mod synchronized_phase_tests {
+    use super::*;
+    use sjk_runtime::AnimationTrackState;
+
+    fn playing(clip: usize, started_at_millis: i64) -> AnimationTrackState {
+        AnimationTrackState {
+            clip,
+            revision: clip as u64,
+            started_at_millis,
+            phase_millis: 0,
+            speed_milli: 1_000,
+            forced_frame: None,
+            transition: None,
+        }
+    }
+
+    #[test]
+    fn a_restarted_torso_swing_starts_from_its_first_frame() {
+        // Slash #123: a tauntaun rider holding attack restarts `BOTH_VT_ATR_S` (1087) on
+        // both tracks every second (`PM_VehicleWeaponAnimate`, `SETANIM_FLAG_RESTART`).
+        // The torso picked up the finished legs' frame and showed one swing only.
+        let previous = AnimationState {
+            lower: playing(1_087, 0),
+            upper: playing(1_087, 0),
+        };
+        for step in [8, 7, 4, 3] {
+            let restart = 1_000 + step;
+            assert_eq!(
+                synchronized_phase(Some(previous), 1_087, true, restart),
+                None
+            );
+            // The legs still pick up the torso's frame (`lower_lumbar`), as codemp's do.
+            assert_eq!(
+                synchronized_phase(Some(previous), 1_087, false, restart),
+                Some(restart)
+            );
+        }
+        // A torso entering the clip the legs already play still joins their frame.
+        let entering = AnimationState {
+            lower: playing(1_087, 0),
+            upper: playing(1_083, 0),
+        };
+        assert_eq!(
+            synchronized_phase(Some(entering), 1_087, true, 400),
+            Some(400)
+        );
+    }
 }
 
 #[cfg(test)]

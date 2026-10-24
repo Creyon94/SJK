@@ -75,6 +75,7 @@ fn duel6_sjk_chat_gifs_page() {
                 creator: false,
                 trust: None,
                 emoji: String::new(),
+                client: String::new(),
                 text: (*text).to_owned(),
                 holocron: None,
             },
@@ -230,6 +231,7 @@ fn duel6_sjk_chat_gifs_feed() {
                     creator: false,
                     trust: None,
                     emoji: String::new(),
+                    client: String::new(),
                     text: text.to_owned(),
                     holocron: None,
                 };
@@ -309,6 +311,7 @@ fn duel6_sjk_chat_gif_picker() {
             creator: false,
             trust: None,
             emoji: String::new(),
+            client: String::new(),
             text: format!("look https://giphy.com/gifs/ShotPick{:02}X", n),
             holocron: None,
         })

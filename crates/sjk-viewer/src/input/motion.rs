@@ -262,7 +262,7 @@ impl GpuState {
         let now = console.input_millis();
         self.gameplay_input.motion.zoom_sensitivity = self.scope.sensitivity;
         let delta = self.gameplay_input.sample_motion(now, self.mouse_look);
-        self.camera_yaw += delta[0];
+        self.camera_yaw = crate::input::view_authority::wrap_yaw(self.camera_yaw + delta[0]);
         self.camera_pitch = (self.camera_pitch + delta[1]).clamp(
             -crate::input::view_authority::PITCH_LIMIT,
             crate::input::view_authority::PITCH_LIMIT,

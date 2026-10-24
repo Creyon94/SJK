@@ -1,8 +1,13 @@
-//! The `saber` console command (`docs/client.md`, "Useful console commands"): the hilts the
-//! player holds, as JoF EJK players type them. `saber kyle kyle` holds two sabers (`saber1`
-//! and `saber2`), `saber dual_4` one (a staff's hilt makes it a staff; `saber2` goes to
-//! `none`), and `saber` alone says what is held. The Profile's Saber tab and the
-//! Collection's stage follow the cvars, so the preview shows the new sabers at once.
+//! JoF EJK's `saber` console command (`CG_Saber_f`, `cg_consolecmds.c:1051-1085`;
+//! `docs/client.md`, "Useful console commands"): the hilts the player holds, as JoF EJK
+//! players type them. `saber kyle kyle` holds two sabers (`saber1` and `saber2`),
+//! `saber dual_4` one (a staff's hilt makes it a staff; `saber2` goes to `none`), and
+//! `saber` alone says what is held. It writes the `saber1`/`saber2` cvars, the one place
+//! the menu reads and the userinfo sends, so a choice made from the console or a
+//! quick-wheel custom command shows in Profile > Saber and the Collection's stage, and
+//! stays on the next map. Sent to the server as is, the command swapped the saber on JA+
+//! servers but left the cvars on the menu's choice, which the next map's userinfo brought
+//! back (Kushina's report #126).
 //!
 //! Both names are checked against the installed `.sab` sabers before either cvar is set,
 //! so a misspelt second hilt changes nothing (review of 22/10/2026). On JA+ (JoF's
@@ -14,10 +19,14 @@
 
 use crate::console::ViewerConsole;
 
-/// Console command name.
+/// Completion and help entry.
+pub(crate) const COMMANDS: &[(&str, &str)] = &[(
+    COMMAND,
+    "Hold one saber, a staff or two sabers: saber <hilt> [<second hilt>] (saber kyle kyle, saber dual_4)",
+)];
+
+/// Lowercase name the client's command dispatch matches.
 pub(crate) const COMMAND: &str = "saber";
-/// Help text for completion and `cmdlist`.
-pub(crate) const HELP: &str = "Hold one saber, a staff or two sabers: saber <hilt> [<second hilt>] (saber kyle kyle, saber dual_4)";
 
 const USAGE: &str = "saber <hilt> [<second hilt> | none]";
 
@@ -135,6 +144,10 @@ mod tests {
         run(&mut console, &words("dual_4")).unwrap();
         assert_eq!(console.text_value("saber1"), Some("dual_4"));
         assert_eq!(console.text_value("saber2"), Some("none"));
+        // The userinfo sends what the cvars hold.
+        let userinfo = console.userinfo().unwrap();
+        assert_eq!(userinfo.saber1, "dual_4");
+        assert_eq!(userinfo.saber2, "none");
         run(&mut console, &words("single_1 NONE")).unwrap();
         assert_eq!(console.text_value("saber2"), Some("none"));
         assert!(run(&mut console, &[]).unwrap()[0].contains("You hold single_1."));

@@ -66,6 +66,9 @@ pub(super) enum ValueKind {
     ImportPage,
     /// Open the installed PK3 pack browser.
     AssetBrowser,
+    /// A chat kind's preview (not a cvar; its name is the console command that plays
+    /// the same, `chat_sounds.rs`): Enter or a click plays the kind's chosen sound.
+    SoundPreview,
     /// Open the JoF content card (`jof.downloads`, `crate::jof_content`).
     #[cfg_attr(not(feature = "mod-jof"), allow(dead_code))]
     JofContent,
@@ -274,6 +277,11 @@ pub(super) const AUDIO: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Typing keeps emote",
+        cvar: crate::emotes::TYPING_KEEP_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Away emote",
         cvar: crate::away_emote::SJK_CVAR,
         kind: ValueKind::Live(crate::away_emote::sjk_choices),
@@ -300,6 +308,76 @@ pub(super) const AUDIO: &[Setting] = &[
     Setting {
         label: "Unlock sound",
         cvar: crate::unlock_toast::SOUND_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Chat sounds",
+        cvar: crate::chat_sounds::MASTER_CVAR,
+        kind: ValueKind::Choice(&["0", "1", "2"]),
+    },
+    Setting {
+        label: "Public chat",
+        cvar: crate::chat_sounds::Kind::Public.switch_cvar(),
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Public chat sound",
+        cvar: crate::chat_sounds::Kind::Public.sound_cvar(),
+        kind: ValueKind::Choice(&crate::chat_sounds::SOUND_IDS),
+    },
+    Setting {
+        label: "Preview public chat",
+        cvar: crate::chat_sounds::Kind::Public.preview_row(),
+        kind: ValueKind::SoundPreview,
+    },
+    Setting {
+        label: "Team chat",
+        cvar: crate::chat_sounds::Kind::Team.switch_cvar(),
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Team chat sound",
+        cvar: crate::chat_sounds::Kind::Team.sound_cvar(),
+        kind: ValueKind::Choice(&crate::chat_sounds::SOUND_IDS),
+    },
+    Setting {
+        label: "Preview team chat",
+        cvar: crate::chat_sounds::Kind::Team.preview_row(),
+        kind: ValueKind::SoundPreview,
+    },
+    Setting {
+        label: "Private messages",
+        cvar: crate::chat_sounds::Kind::Private.switch_cvar(),
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Private message sound",
+        cvar: crate::chat_sounds::Kind::Private.sound_cvar(),
+        kind: ValueKind::Choice(&crate::chat_sounds::SOUND_IDS),
+    },
+    Setting {
+        label: "Preview private message",
+        cvar: crate::chat_sounds::Kind::Private.preview_row(),
+        kind: ValueKind::SoundPreview,
+    },
+    Setting {
+        label: "SJK chat messages",
+        cvar: crate::chat_sounds::Kind::Sjk.switch_cvar(),
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "SJK chat sound",
+        cvar: crate::chat_sounds::Kind::Sjk.sound_cvar(),
+        kind: ValueKind::Choice(&crate::chat_sounds::SOUND_IDS),
+    },
+    Setting {
+        label: "Preview SJK chat",
+        cvar: crate::chat_sounds::Kind::Sjk.preview_row(),
+        kind: ValueKind::SoundPreview,
+    },
+    Setting {
+        label: "Private message flash",
+        cvar: crate::chat_sounds::FLASH_CVAR,
         kind: ValueKind::Bool,
     },
 ];
@@ -780,6 +858,16 @@ pub(super) const GAME: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Hax trap",
+        cvar: crate::hax::TRAP_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Hax trap while away",
+        cvar: crate::hax::AWAY_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Normal blades in duels",
         cvar: crate::duel_blades::CVAR,
         kind: ValueKind::Bool,
@@ -1154,11 +1242,6 @@ pub(super) const NETWORK: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
-        label: "SJK chat sound",
-        cvar: crate::sjk_chat_frame::SOUND_CVAR,
-        kind: ValueKind::Bool,
-    },
-    Setting {
         label: "Holocron notifications",
         cvar: crate::holocron_popup::NOTIFICATIONS_CVAR,
         kind: ValueKind::Choice(&["0", "1", "2"]),
@@ -1174,9 +1257,19 @@ pub(super) const NETWORK: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Other clients' icons",
+        cvar: crate::chat::client_icons::CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "GIPHY key",
         cvar: crate::chat_gifs::search::KEY_CVAR,
         kind: ValueKind::Text,
+    },
+    Setting {
+        label: "Encrypted whispers",
+        cvar: crate::e2e_whispers::CVAR,
+        kind: ValueKind::Bool,
     },
     Setting {
         label: "Send crash reports",
