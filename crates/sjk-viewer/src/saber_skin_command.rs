@@ -214,7 +214,7 @@ pub(crate) fn run(
                             if holdings.unlock(skin.id).is_some() {
                                 ""
                             } else {
-                                " once your SJK profile holds it (until then, the first's)"
+                                " once your SJK profile holds it (until then, the stock blade)"
                             }
                         ),
                     ),
