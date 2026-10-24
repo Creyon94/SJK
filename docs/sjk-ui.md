@@ -2106,10 +2106,16 @@ every menu style, on the 16:9 frame:
   menu under it (the trade goes on, the toast at the top says so) and Esc there goes back
   to play. Whenever the pointer is free (the game menu, or the chat's composer, open) the
   toast is a button: Open trade (gold) and a click anywhere on it bring the window back.
-  Asking from a card or the command opens it at once. The other cards come first.
+  Asking from a card or the command opens it at once. A request from another player
+  never opens it by itself, in game or in the main menu: only the toast shows until its
+  Open trade, or Esc in play (Sol's review, 24/10/2026: it took every key over the menus,
+  and Enter accepted). The other cards come first.
 - **From the main menu:** no game is needed: the toast and the window show over the main
   menu too (the pointer is free there, so the toast is always a button), and Close keeps
   the window closed until the toast's Open trade.
+- **Blocked players** (Sol's decision, 24/10/2026): a request from a player blocked on
+  this PC is declined without a word (no toast, no window), and no card offers Trade
+  with them (the Players page says "You blocked this player").
 - **The SJK chat page:** its sender card offers Trade too (by the player's SJK key); the
   page closes and the window opens over the game or the main menu.
 - **Request:** the kit's card, 800 wide from x 560, y 300, over a light shade (the match
@@ -2128,12 +2134,14 @@ every menu style, on the 16:9 frame:
   while the hub trades no holocrons yet, `rules.holocrons` false: duplicates come first, and
   the toast then says "Duplicate shaders."): up to 18 tiles,
   those that may go in first, most worth first (a click puts one in; a click on an offered
-  one takes it out). A holocron received in a trade within the week is shown dimmed with a
-  gold timer pill in place of its name, counting down ("6d 23h", "5h 12m"), and a gold
-  warning card under the items says "Holocrons received in a trade can be traded again
-  after 7 days."; one the day's limits hold back is dimmed too, a gold line saying why.
-  Neither answers a click; the gold line names the tiers given ("You have given today's
-  Rare and Mythical holocrons: one of each a day. More tomorrow."). Beside them, Daily
+  one takes it out). A holocron received in a trade within the hub's resale lock is shown
+  dimmed with a gold timer pill in place of its name, counting down ("6d 23h", "5h 12m"),
+  and a gold warning card under the items says "Holocrons received in a trade wait before
+  they can be traded again: each shows how long."; one the day's limits hold back is
+  dimmed too, a gold line saying why. Neither answers a click; the gold line names the
+  tiers given ("You have given today's Rare and Mythical holocrons. More tomorrow."). No
+  text names one of the hub's numbers (a limit, the lock, the idle time, the trust rule):
+  the hub tunes them without a client update (Sol's review). Beside them, Daily
   limits: Holocrons (no row while holocrons do not trade) and Duplicates, each Received and
   Given as done / most (ember once reached); one of each tier a day each way (the hub's
   `holocron_tier_day`) shows only in that gold line. The
@@ -2149,9 +2157,15 @@ every menu style, on the 16:9 frame:
   nothing comes back and that it cannot be undone, with Go back and Yes, give it (gold).
   A change of the offers drops the question.
 - **Recent holocrons:** on the Profile screen's Holocrons tab, a holocron received in a
-  trade says so under its name: "Received from Nib in a trade", and while its week runs
-  "- tradable again in 6d 23h".
+  trade says so under its name: "Received from Nib in a trade", and while the hub's lock
+  runs "- tradable again in 6d 23h" (no countdown before the hub said how long).
 - **Ended:** "Traded with Nib" (or ended) and how, with Close, while the window was open.
+- **Cost:** the views are built only when what they show changes (a new list or step from
+  the hub, the own profile, the players known) and the window's parts (the player's items,
+  the limits) only while the window can show, under one short identity lock; between, only
+  their clocks run on, and the window keeps its copy. With trading off for the player, the
+  client stops reading the trade list until it registers again or the feed tells of a
+  trade (Sol's review, 24/10/2026).
 
 ## What's new card
 

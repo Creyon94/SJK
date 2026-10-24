@@ -187,7 +187,7 @@ impl PlayerTrade {
             "expired" if self.updated == self.created => {
                 "The trade request ran out of time.".to_owned()
             }
-            "expired" => "The trade closed: nothing changed for 5 minutes.".to_owned(),
+            "expired" => "The trade closed: nothing changed for too long.".to_owned(),
             "refused" => format!("The hub stopped the trade: {}", reason_words(&self.reason)),
             _ => String::new(),
         }
@@ -303,6 +303,17 @@ pub struct TradesAnswer {
     pub now: Option<i64>,
 }
 
+impl TradesAnswer {
+    /// Whether players may trade on this hub (for this player: `staff` lets staff).
+    pub fn open(&self, staff: bool) -> bool {
+        match self.trading.as_str() {
+            "everyone" => true,
+            "staff" => staff,
+            _ => false,
+        }
+    }
+}
+
 /// The hub's answer to a step of a trade.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
 pub struct TradeAnswer {
@@ -371,26 +382,26 @@ pub fn reason_words(reason: &str) -> &'static str {
     match reason {
         "not_tradable" => "an item changed hands or was opened first.",
         "holocrons_received_day" | "their_holocrons_received_day" => {
-            "one of you reached the day's 4 holocrons received."
+            "one of you reached the day's limit of holocrons received."
         }
         "holocrons_given_day" | "their_holocrons_given_day" => {
-            "one of you reached the day's 4 holocrons given."
+            "one of you reached the day's limit of holocrons given."
         }
         "mythical_received_day" | "their_mythical_received_day" => {
-            "one of you received a Mythical holocron today already."
+            "one of you reached the day's limit of Mythical holocrons received."
         }
         "mythical_given_day" | "their_mythical_given_day" => {
-            "one of you gave a Mythical holocron today already."
+            "one of you reached the day's limit of Mythical holocrons given."
         }
         "duplicates_received_day" | "their_duplicates_received_day" => {
-            "one of you reached the day's 10 duplicates received."
+            "one of you reached the day's limit of duplicates received."
         }
         "duplicates_given_day" | "their_duplicates_given_day" => {
-            "one of you reached the day's 10 duplicates given."
+            "one of you reached the day's limit of duplicates given."
         }
         "holocrons_off" => "holocrons cannot be traded yet: duplicates only for now.",
         reason if tier_limit(reason).is_some() => {
-            "one of you traded a holocron of that tier today already: one of each a day."
+            "one of you reached the day's limit for holocrons of that tier."
         }
         "merged" => "an account was merged.",
         _ => "a check failed.",
@@ -401,12 +412,20 @@ pub fn reason_words(reason: &str) -> &'static str {
 /// ("You have given ...") or the other player's ("They have received ...").
 pub fn limit_words(code: &str) -> Option<&'static str> {
     Some(match code {
-        "holocrons_given_day" => "Daily limit: you have given 4 holocrons today.",
-        "mythical_given_day" => "Daily limit: you have given a Mythical holocron today.",
-        "duplicates_given_day" => "Daily limit: you have given 10 duplicates today.",
-        "holocrons_received_day" => "Daily limit: you have received 4 holocrons today.",
-        "mythical_received_day" => "Daily limit: you have received a Mythical holocron today.",
-        "duplicates_received_day" => "Daily limit: you have received 10 duplicates today.",
+        "holocrons_given_day" => "Daily limit: you have given all the holocrons you may today.",
+        "mythical_given_day" => {
+            "Daily limit: you have given all the Mythical holocrons you may today."
+        }
+        "duplicates_given_day" => "Daily limit: you have given all the duplicates you may today.",
+        "holocrons_received_day" => {
+            "Daily limit: you have received all the holocrons you may today."
+        }
+        "mythical_received_day" => {
+            "Daily limit: you have received all the Mythical holocrons you may today."
+        }
+        "duplicates_received_day" => {
+            "Daily limit: you have received all the duplicates you may today."
+        }
         "their_holocrons_received_day" => {
             "Their daily limit: they cannot receive more holocrons today."
         }
@@ -449,18 +468,34 @@ fn tier_limit(code: &str) -> Option<(&'static str, bool, bool)> {
 /// The words for a one-of-each-tier limit ([`tier_limit`]).
 fn tier_words((tier, received, theirs): (&str, bool, bool)) -> &'static str {
     match (tier, received, theirs) {
-        ("uncommon", false, false) => "Daily limit: you have given an Uncommon holocron today.",
-        ("uncommon", true, false) => "Daily limit: you have received an Uncommon holocron today.",
-        ("uncommon", false, true) => "Their daily limit: they gave an Uncommon holocron today.",
-        ("uncommon", true, true) => "Their daily limit: they received an Uncommon holocron today.",
-        ("rare", false, false) => "Daily limit: you have given a Rare holocron today.",
-        ("rare", true, false) => "Daily limit: you have received a Rare holocron today.",
-        ("rare", false, true) => "Their daily limit: they gave a Rare holocron today.",
-        ("rare", true, true) => "Their daily limit: they received a Rare holocron today.",
-        (_, false, false) => "Daily limit: you have given a Legendary holocron today.",
-        (_, true, false) => "Daily limit: you have received a Legendary holocron today.",
-        (_, false, true) => "Their daily limit: they gave a Legendary holocron today.",
-        (_, true, true) => "Their daily limit: they received a Legendary holocron today.",
+        ("uncommon", false, false) => {
+            "Daily limit: you have given all the Uncommon holocrons you may today."
+        }
+        ("uncommon", true, false) => {
+            "Daily limit: you have received all the Uncommon holocrons you may today."
+        }
+        ("uncommon", false, true) => {
+            "Their daily limit: they cannot give more Uncommon holocrons today."
+        }
+        ("uncommon", true, true) => {
+            "Their daily limit: they cannot receive more Uncommon holocrons today."
+        }
+        ("rare", false, false) => {
+            "Daily limit: you have given all the Rare holocrons you may today."
+        }
+        ("rare", true, false) => {
+            "Daily limit: you have received all the Rare holocrons you may today."
+        }
+        ("rare", false, true) => "Their daily limit: they cannot give more Rare holocrons today.",
+        ("rare", true, true) => "Their daily limit: they cannot receive more Rare holocrons today.",
+        (_, false, false) => {
+            "Daily limit: you have given all the Legendary holocrons you may today."
+        }
+        (_, true, false) => {
+            "Daily limit: you have received all the Legendary holocrons you may today."
+        }
+        (_, false, true) => "Their daily limit: they cannot give more Legendary holocrons today.",
+        (_, true, true) => "Their daily limit: they cannot receive more Legendary holocrons today.",
     }
 }
 
@@ -471,7 +506,7 @@ pub fn refusal(error: &HubError) -> String {
             "trading_off" => "Trading is not open on the SJK hub yet.",
             "trading_staff_only" => "Trading is being tested by the SJK team: soon.",
             "not_trusted" => {
-                "You can trade once you are trusted: 30 days and 10 hours of play, or verified."
+                "You can trade once the hub trusts you (the trust mark on your Profile) or you are verified."
             }
             "they_cannot_trade" => "That player cannot trade yet.",
             "trade_self" => "That is you.",
@@ -585,7 +620,7 @@ mod tests {
         );
         assert_eq!(
             refusal(&rejected("holocrons_given_day")),
-            "Daily limit: you have given 4 holocrons today."
+            "Daily limit: you have given all the holocrons you may today."
         );
         assert_eq!(
             refusal(&rejected("their_holocrons_received_day")),
@@ -593,11 +628,11 @@ mod tests {
         );
         assert_eq!(
             refusal(&rejected("rare_given_day")),
-            "Daily limit: you have given a Rare holocron today."
+            "Daily limit: you have given all the Rare holocrons you may today."
         );
         assert_eq!(
             refusal(&rejected("their_uncommon_received_day")),
-            "Their daily limit: they received an Uncommon holocron today."
+            "Their daily limit: they cannot receive more Uncommon holocrons today."
         );
         assert_eq!(
             refusal(&rejected("holocrons_off")),
@@ -611,7 +646,63 @@ mod tests {
         };
         assert_eq!(
             ended.ending(),
-            "The hub stopped the trade: one of you received a Mythical holocron today already."
+            "The hub stopped the trade: one of you reached the day's limit of Mythical holocrons received."
         );
+    }
+
+    /// The hub owns the numbers (limits, waits, trust): no refusal or ending names one,
+    /// so the hub can change them without a client update (Sol's review, 24/10/2026).
+    #[test]
+    fn no_words_name_a_number_the_hub_owns() {
+        let mut codes: Vec<String> = [
+            "trading_off",
+            "trading_staff_only",
+            "not_trusted",
+            "not_tradable",
+            "holocrons_off",
+            "merged",
+            "trade_busy",
+            "they_are_busy",
+            "something_new",
+        ]
+        .map(str::to_owned)
+        .to_vec();
+        for kind in [
+            "holocrons",
+            "mythical",
+            "duplicates",
+            "uncommon",
+            "rare",
+            "legendary",
+        ] {
+            for side in ["received", "given"] {
+                codes.push(format!("{kind}_{side}_day"));
+                codes.push(format!("their_{kind}_{side}_day"));
+            }
+        }
+        for code in &codes {
+            let rejected = HubError::Rejected {
+                status: 409,
+                code: code.clone(),
+                message: "hub words".to_owned(),
+            };
+            for words in [refusal(&rejected), reason_words(code).to_owned()] {
+                assert!(
+                    !words.chars().any(|c| c.is_ascii_digit()),
+                    "{code}: {words}"
+                );
+            }
+        }
+        for state in ["done", "declined", "cancelled", "expired", "refused"] {
+            let ended = PlayerTrade {
+                state: state.to_owned(),
+                updated: 5,
+                ..PlayerTrade::default()
+            };
+            assert!(
+                !ended.ending().chars().any(|c| c.is_ascii_digit()),
+                "{state}"
+            );
+        }
     }
 }

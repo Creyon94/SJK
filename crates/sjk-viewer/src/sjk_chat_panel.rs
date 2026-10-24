@@ -1377,7 +1377,7 @@ mod tests {
     fn trade_on_the_card_is_reached_and_clicked() {
         use sjk_ui::{InputEvent, PointerButton, Rect, Vec2};
         let centre = |rect: Rect| Vec2::new(rect.x + rect.width * 0.5, rect.y + rect.height * 0.5);
-        crate::player_trades::TRADING_FOR_TEST.store(true, std::sync::atomic::Ordering::Relaxed);
+        crate::player_trades::TRADING_FOR_TEST.set(true);
         let chat = chat(3);
         let mut panel = Panel::new();
         panel.open(true);
@@ -1415,7 +1415,7 @@ mod tests {
             position: at,
             button,
         });
-        crate::player_trades::TRADING_FOR_TEST.store(false, std::sync::atomic::Ordering::Relaxed);
+        crate::player_trades::TRADING_FOR_TEST.set(false);
         assert_eq!(action, PanelAction::Trade(format!("{:016x}", 2)));
     }
 

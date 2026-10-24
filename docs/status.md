@@ -20,6 +20,23 @@ and `cargo clippy`; on Windows 11 between two clients on one PC through a local 
 Not verified: between two PCs, the countdowns over a whole week. Not built: a quick wheel
 entry, a staff undo of a trade, the hub panel's trades page.
 
+Sol's review of 24/10/2026 (PR #197), answered on the same branch: a request from another
+player shows only the toast (no window over the menus, no Enter to accept) until Open
+trade or Esc; a blocked player's request is declined without a word and no card offers
+Trade with them; the views are built only when the list, a step, the own profile
+(`Snapshot::me_revision`, new) or the known players change, the window's parts only while
+it can show, under one lock, and the window keeps its copy (no clone per frame); no text
+names a hub number (limits, the resale lock, the idle time, the trust rule; a test pins
+it); the size setting is read only while the window shows; the trade list is no longer
+read every ten minutes while trading is off for the player; the test flag is per thread;
+the Trade hints say holocrons only while they trade. Verified on Linux x86_64: the
+workspace format check, build, tests and clippy; new tests of the clocks, the toast's
+view, the block list, the blocked Players-page row, the numberless words and the reads
+stopping. Screenshots for the PR (`trade_shots`: toast, request, the window in its three
+sizes, both ready, the gift question; `duel6_ingame_players` `players-trade`;
+`duel6_sjk_chat_page` `card-trade`) come from Creyon's Windows run; not verified here
+(no game data on the Linux machine).
+
 ## Vehicle gunfire and effect sound volume
 
 22/10/2026, `personal/hub-reports-1022-d`, based on `main` `01cd678e` (Kushina's report,

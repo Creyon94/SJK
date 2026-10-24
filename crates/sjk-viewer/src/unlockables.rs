@@ -2992,6 +2992,7 @@ mod tests {
             profiles: std::collections::HashMap::new(),
             model_checks: std::collections::HashMap::new(),
             profiles_revision: 0,
+            me_revision: 0,
             notice: None,
             revision: 0,
             report: None,

@@ -260,15 +260,15 @@ impl Entry {
     }
 
     /// How it came in a trade, for the list: "Received from Nib in a trade", and while
-    /// the hub's resale lock (`lock` seconds) holds at `now`, how long until it may
-    /// trade again. `None` when it did not come in a trade.
-    pub(crate) fn trade_line(&self, now: i64, lock: i64) -> Option<String> {
+    /// the hub's resale lock (`lock` seconds, `None` before the hub said) holds at `now`,
+    /// how long until it may trade again. `None` when it did not come in a trade.
+    pub(crate) fn trade_line(&self, now: i64, lock: Option<i64>) -> Option<String> {
         let (at, from) = self.traded.as_ref()?;
         let from = from
             .as_deref()
             .map(|name| format!("{}^7", name))
             .unwrap_or_else(|| "another player".to_owned());
-        let left = at + lock - now;
+        let left = lock.map_or(0, |lock| at + lock - now);
         Some(if left > 0 {
             let wait = crate::trade_window::countdown(left);
             format!("Received from {from} in a trade - tradable again in {wait}")

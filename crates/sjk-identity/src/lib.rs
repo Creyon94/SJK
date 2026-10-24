@@ -46,7 +46,7 @@ pub use report::{
 };
 pub use service::{
     HolocronProgress, HubFactory, Location, ModelCheck, OpenOutcome, ReportOutcome, RevealOutcome,
-    Service, Settings, ShopState, Snapshot, Status, Trade, TradeOutcome,
+    Service, Settings, ShopState, Snapshot, Status, Trade, TradeOutcome, TradesClock,
 };
 pub use staff::{ChatBanRow, OpenedText, StaffAnswer, StaffQuery, StaffRequest, StaffState};
 pub use trades::{

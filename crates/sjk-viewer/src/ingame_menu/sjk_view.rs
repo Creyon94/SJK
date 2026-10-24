@@ -562,7 +562,13 @@ pub(super) fn build(
             );
             // Trade, for another SJK player: gold when it can go, else why not.
             if !player.you && !player.bot && player.hub.is_some() {
-                trade_button(canvas, &frame, under, roster.trade_blocked_for(player));
+                trade_button(
+                    canvas,
+                    &frame,
+                    under,
+                    roster.trade_blocked_for(player),
+                    roster.trade_hint(),
+                );
             }
         }
         None if card.known => {
@@ -1402,8 +1408,8 @@ fn player_card(
 }
 
 /// Trade on the player card, under its status line: the gold button when the player can
-/// be asked (`blocked` none), else the button dimmed and why beside it.
-fn trade_button(canvas: &mut MenuCanvas, frame: &Frame, y: f32, blocked: Option<&str>) {
+/// be asked (`blocked` none) with what it does (`hint`), else the button dimmed and why.
+fn trade_button(canvas: &mut MenuCanvas, frame: &Frame, y: f32, blocked: Option<&str>, hint: &str) {
     kit::button(
         canvas,
         frame,
@@ -1414,7 +1420,7 @@ fn trade_button(canvas: &mut MenuCanvas, frame: &Frame, y: f32, blocked: Option<
         false,
         TRADE_TOKEN,
     );
-    let words = blocked.unwrap_or("Swap holocrons and duplicate shaders");
+    let words = blocked.unwrap_or(hint);
     text(
         canvas,
         TextFamily::Body,
@@ -2735,7 +2741,7 @@ mod tests {
                 .any(|t| t == "Trading is not open on the SJK hub"),
             "{texts:?}"
         );
-        roster.set_trading(true);
+        roster.set_trading(true, true);
         let canvas = draw(&roster, other);
         let button = canvas.rect_for(TRADE_TOKEN).expect("Trade");
         assert!(
@@ -2746,7 +2752,7 @@ mod tests {
         assert!(
             texts
                 .iter()
-                .any(|t| t == "Swap holocrons and duplicate shaders"),
+                .any(|t| t == "Swap holocrons and duplicate shaders with them"),
             "{texts:?}"
         );
         // Not for the player themselves.

@@ -47,6 +47,10 @@ const HOLOCRONS_EVERY: Duration = Duration::from_secs(300);
 const TRADES_LIVE: Duration = Duration::from_secs(15);
 /// How often they are read otherwise, for whether the hub lets players trade.
 const TRADES_EVERY: Duration = Duration::from_secs(600);
+/// When the hub says trading is off for this player (Sol's review, 24/10/2026): no
+/// more reads in this session; registering again (a restart, another hub, a lost
+/// connection) or the feed's `trades` event reads the list again.
+const TRADES_OFF: Duration = Duration::from_secs(86_400);
 
 /// This PC's clock, unix seconds, standing in for the hub's when it does not say.
 fn unix_now() -> i64 {
@@ -175,6 +179,9 @@ pub struct Snapshot {
     /// [`Snapshot::model_checks`], so a reader that derived something from one (the
     /// player card) knows when to read again.
     pub profiles_revision: u64,
+    /// Counts changes to [`Snapshot::me`], so a reader that derived something from the
+    /// own profile (the trade window's items) knows when to derive again.
+    pub me_revision: u64,
     /// The outcome of the last profile change or lookup, for the page to show.
     pub notice: Option<String>,
     /// Counts changes to [`Snapshot::players`], so a reader that caches what it
@@ -269,11 +276,7 @@ pub struct TradesState {
 impl TradesState {
     /// Whether players may trade on this hub (for this player: `staff` lets staff).
     pub fn open(&self, staff: bool) -> bool {
-        match self.list.trading.as_str() {
-            "everyone" => true,
-            "staff" => staff,
-            _ => false,
-        }
+        self.list.open(staff)
     }
 
     /// The trade that runs now (asked or open), if any: a player is in at most one.
@@ -281,6 +284,42 @@ impl TradesState {
         self.list.trades.iter().find(|trade| trade.is_live())
     }
 
+    /// The hub's clock as read with this list, to keep apart from it.
+    pub fn clock(&self) -> TradesClock {
+        TradesClock {
+            hub_time: self.hub_time,
+            read_at: self.read_at,
+        }
+    }
+
+    /// The hub's clock at `now`, unix seconds, as read.
+    pub fn hub_now(&self, now: Instant) -> i64 {
+        self.clock().hub_now(now)
+    }
+
+    /// Seconds until hub time `at`, at `now`; 0 once it passed.
+    pub fn seconds_until(&self, at: i64, now: Instant) -> u64 {
+        self.clock().seconds_until(at, now)
+    }
+
+    /// [`Self::seconds_until`] to the fraction, for a bar that runs down smoothly.
+    pub fn seconds_until_exact(&self, at: i64, now: Instant) -> f32 {
+        self.clock().seconds_until_exact(at, now)
+    }
+}
+
+/// The hub's clock as a list of trades was read: the hub's unix seconds then, and this
+/// PC's instant. It turns the trades' hub times into time left on this PC's clock, so a
+/// reader can keep it without the list.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct TradesClock {
+    /// The hub's clock when it answered, unix seconds.
+    pub hub_time: i64,
+    /// When this client read it.
+    pub read_at: Instant,
+}
+
+impl TradesClock {
     /// The hub's clock at `now`, unix seconds, as read.
     pub fn hub_now(&self, now: Instant) -> i64 {
         self.hub_time + now.saturating_duration_since(self.read_at).as_secs() as i64
@@ -459,6 +498,7 @@ impl Snapshot {
             profiles: HashMap::new(),
             model_checks: HashMap::new(),
             profiles_revision: 0,
+            me_revision: 0,
             notice: None,
             revision: 0,
             report: None,
@@ -494,12 +534,14 @@ impl Snapshot {
             self.key_id.clone_from(&profile.key_id);
         }
         self.me = Some(profile);
+        self.me_revision += 1;
     }
 
     /// Forget the own profile (the identity off, another hub, a key unlinked): the
     /// player is this PC's key again until the hub answers.
     fn clear_me(&mut self) {
         self.me = None;
+        self.me_revision += 1;
         if self.key_id != self.local_key_id {
             self.key_id.clone_from(&self.local_key_id);
         }
@@ -1993,7 +2035,13 @@ impl Worker {
                 if live && !was_live {
                     self.due_profile = now;
                 }
-                self.due_trades = now + if live { TRADES_LIVE } else { TRADES_EVERY };
+                let staff = lock(&self.snapshot).me.as_ref().is_some_and(|me| me.staff);
+                self.due_trades = now
+                    + match (live, list.open(staff)) {
+                        (true, _) => TRADES_LIVE,
+                        (false, true) => TRADES_EVERY,
+                        (false, false) => TRADES_OFF,
+                    };
                 let hub_time = list.now.unwrap_or_else(unix_now);
                 self.update(|snapshot| {
                     let last = snapshot.trades.take();
@@ -2505,6 +2553,7 @@ impl Worker {
 fn set_achievements(snapshot: &mut Snapshot, achievements: Vec<Achievement>) {
     if let Some(me) = snapshot.me.as_mut() {
         me.achievements = achievements;
+        snapshot.me_revision += 1;
     }
 }
 
@@ -3198,6 +3247,8 @@ mod tests {
         log_ask_reads: Arc<Mutex<usize>>,
         /// How many times the player's trades were read (kept out of `log`).
         trade_reads: Arc<Mutex<usize>>,
+        /// The hub says trading is off.
+        trading_off: Arc<AtomicBool>,
     }
 
     impl Fake {
@@ -3431,7 +3482,12 @@ mod tests {
                 Vec::new()
             };
             Ok(crate::trades::TradesAnswer {
-                trading: "everyone".to_owned(),
+                trading: if self.trading_off.load(Ordering::SeqCst) {
+                    "off"
+                } else {
+                    "everyone"
+                }
+                .to_owned(),
                 trades,
                 now: Some(1_791_000_000),
                 ..crate::trades::TradesAnswer::default()
@@ -4326,6 +4382,30 @@ mod tests {
             t0 + TRADES_LIVE,
         );
         assert_eq!(lock(&snapshot).me.as_ref().map(|me| me.shards), Some(77));
+    }
+
+    /// Trading off on the hub: the list is not read again every ten minutes (Sol's
+    /// review, 24/10/2026); registering again reads it.
+    #[test]
+    fn trading_off_stops_the_reads() {
+        let fake = Fake::default();
+        fake.trading_off.store(true, Ordering::SeqCst);
+        let t0 = Instant::now();
+        let (mut worker, snapshot) = worker(&fake, t0);
+        worker.handle(Command::Configure(on("https://hub")), t0);
+        worker.tick(t0);
+        let reads = |fake: &Fake| *fake.trade_reads.lock().unwrap();
+        assert_eq!(reads(&fake), 1);
+        assert!(!lock(&snapshot).trades.clone().unwrap().open(true));
+        for minutes in [10, 20, 60, 600] {
+            let at = t0 + Duration::from_secs(minutes * 60);
+            worker.tick(at);
+        }
+        assert_eq!(reads(&fake), 1, "not read again while off");
+        // The feed's trades event still reads it.
+        worker.handle(Command::ReadTrades, t0 + Duration::from_secs(36_000));
+        worker.tick(t0 + Duration::from_secs(36_000));
+        assert_eq!(reads(&fake), 2);
     }
 
     #[test]

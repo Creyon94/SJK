@@ -143,8 +143,9 @@ impl ChatOverlay {
                     place,
                     note: None,
                     safety: false,
-                    // On this server: it can be asked to trade.
+                    // On this server and not blocked here: it can be asked to trade.
                     trade: matches!(place, Place::Slot(_) | Place::SlotByName(_))
+                        && !crate::player_trades::blocked(&hub.key_id, &line.name)
                         && crate::player_trades::trading_open(),
                 }
             }
@@ -175,7 +176,10 @@ impl ChatOverlay {
                         Place::SlotByName(slot)
                     },
                     safety: mark.is_some() && self.takes_encrypted(target.slot()),
-                    trade: mark.is_some() && crate::player_trades::trading_open(),
+                    trade: mark
+                        .as_ref()
+                        .is_some_and(|mark| !crate::player_trades::blocked(&mark.key_id, name))
+                        && crate::player_trades::trading_open(),
                     avatar: mark.as_ref().map(|mark| mark.avatar.clone()),
                     medals: mark.map(|mark| mark.medals).unwrap_or_default(),
                     note: None,

@@ -199,8 +199,8 @@ impl Data {
             .trades
             .as_ref()
             .map(|state| state.list.rules.resale_lock)
-            .filter(|lock| *lock > 0)
-            .unwrap_or(7 * 86_400);
+            // The hub's lock; none said yet, no countdown (the hub owns the number).
+            .filter(|lock| *lock > 0);
         let recent = known
             .into_iter()
             .filter(|(entry, _)| !entry.tier.is_kyber())
@@ -927,6 +927,7 @@ mod tests {
             profiles: std::collections::HashMap::new(),
             model_checks: std::collections::HashMap::new(),
             profiles_revision: 0,
+            me_revision: 0,
             notice: None,
             revision: 0,
             report: None,

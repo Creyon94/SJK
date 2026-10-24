@@ -442,7 +442,7 @@ impl Panel {
                     avatar: None,
                     note: None,
                     safety: false,
-                    trade: offers_trade(&message.key_id),
+                    trade: offers_trade(&message.key_id, &laid.name),
                 };
                 hovered = Some((CardSource::Message(message.id), person, name));
             }
@@ -879,7 +879,7 @@ impl Panel {
                 avatar: version,
                 note: Some(note),
                 safety: false,
-                trade: offers_trade(&row.key_id),
+                trade: offers_trade(&row.key_id, &row.name),
             };
             (CardSource::Person(row.key_id.clone()), person, square)
         })
@@ -1557,10 +1557,12 @@ impl Panel {
     }
 }
 
-/// Whether the card of the player with `key_id` offers Trade: another player's, while
-/// the SJK hub lets this player trade.
-fn offers_trade(key_id: &str) -> bool {
+/// Whether the card of the player with `key_id` (wearing `name`) offers Trade: another
+/// player's, not blocked here (Sol's decision 1), while the SJK hub lets this player
+/// trade.
+fn offers_trade(key_id: &str, name: &str) -> bool {
     crate::player_trades::trading_open()
+        && !crate::player_trades::blocked(key_id, name)
         && crate::player_identity::own_key_id().as_deref() != Some(key_id)
 }
 

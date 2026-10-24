@@ -141,6 +141,8 @@ pub(crate) struct State {
     scores_at: Option<Instant>,
     /// Whether the SJK hub lets this player trade now (`crate::player_trades`).
     trading: bool,
+    /// Whether holocrons trade yet (duplicates come first): the Trade hint says so.
+    trade_holocrons: bool,
     /// A report was handed to the identity service; its outcome is awaited.
     pub(crate) waiting: bool,
     /// The serial of the last outcome shown.
@@ -250,9 +252,20 @@ impl State {
         self.write_info();
     }
 
-    /// Whether the SJK hub lets this player trade now: the Report page offers Trade.
-    pub(crate) fn set_trading(&mut self, open: bool) {
+    /// Whether the SJK hub lets this player trade now (the Report page offers Trade), and
+    /// whether holocrons trade yet.
+    pub(crate) fn set_trading(&mut self, open: bool, holocrons: bool) {
         self.trading = open;
+        self.trade_holocrons = holocrons;
+    }
+
+    /// What Trade does, as its hint says: holocrons only once the hub trades them.
+    pub(crate) fn trade_hint(&self) -> &'static str {
+        if self.trade_holocrons {
+            "Swap holocrons and duplicate shaders with them"
+        } else {
+            "Swap duplicate shaders with them"
+        }
     }
 
     /// Why the chosen player cannot be asked to trade now, if they cannot.
@@ -268,6 +281,13 @@ impl State {
             Some("Bots do not trade")
         } else if player.hub.is_none() {
             Some("Only SJK players the hub knows can trade")
+        } else if player
+            .hub
+            .as_ref()
+            .is_some_and(|hub| crate::player_trades::blocked(&hub.key_id, &player.name))
+        {
+            // Sol's decision 1: no Trade for a player blocked here.
+            Some("You blocked this player")
         } else if !self.trading {
             Some("Trading is not open on the SJK hub")
         } else if self.gate == Gate::Local {
@@ -423,10 +443,7 @@ impl State {
                 }
                 let trade = Self::trade_row();
                 rows[trade].push_str("Trade");
-                hints[trade].push_str(
-                    self.trade_blocked()
-                        .unwrap_or("Swap holocrons and duplicate shaders with them"),
-                );
+                hints[trade].push_str(self.trade_blocked().unwrap_or(self.trade_hint()));
                 enabled[trade] = self.trade_blocked().is_none();
                 let back = trade + 1;
                 rows[back].push_str("Back");
@@ -697,7 +714,7 @@ mod tests {
         );
         assert_eq!(state.first_report_row(), Category::ALL.len() + 1);
         // Open, an unverified player may still trade: Trade is the first row it takes.
-        state.set_trading(true);
+        state.set_trading(true, true);
         let (_, hints, enabled, _) = rows(&state, Page::ReportPlayer);
         assert!(enabled[State::trade_row()], "{hints:?}");
         assert_eq!(state.first_report_row(), State::trade_row());
@@ -716,6 +733,36 @@ mod tests {
         assert!(!enabled[0], "no player chosen yet: the reasons stay closed");
         assert_eq!(State::category(0), Some(Category::Cheating));
         assert_eq!(State::category(Category::ALL.len()), None);
+    }
+
+    /// Sol's decision 1: a player blocked here is not offered to trade, and the hint says
+    /// holocrons only once the hub trades them.
+    #[test]
+    fn a_blocked_player_is_not_offered_to_trade() {
+        let mut state = State::for_shot(5, false, Gate::Open);
+        state.set_trading(true, false);
+        let mut player = state
+            .players
+            .iter()
+            .find(|player| !player.you && !player.bot && player.hub.is_some())
+            .expect("an SJK player")
+            .clone();
+        // A key no other test blocks: the block list is the process's own.
+        let key = "b10c4ed0b10c4ed1";
+        if let Some(hub) = player.hub.as_mut() {
+            hub.key_id = key.to_owned();
+        }
+        assert_eq!(state.trade_blocked_for(&player), None);
+        assert_eq!(state.trade_hint(), "Swap duplicate shaders with them");
+        crate::player_mutes::set_muted(Some(key), &player.name, true);
+        let blocked = state.trade_blocked_for(&player);
+        crate::player_mutes::set_muted(Some(key), &player.name, false);
+        assert_eq!(blocked, Some("You blocked this player"));
+        state.set_trading(true, true);
+        assert_eq!(
+            state.trade_hint(),
+            "Swap holocrons and duplicate shaders with them"
+        );
     }
 
     #[test]

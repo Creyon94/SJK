@@ -44,9 +44,47 @@ pub(crate) struct State {
     /// The window opened the game menu (from a command or a card): closing it closes the
     /// menu.
     opened_menu: bool,
+    /// The views as last built, and what from: rebuilt only when that changes (Sol's
+    /// review, 24/10/2026), their clocks run on between.
+    built: Option<Built>,
+    /// Counts builds, so the window's copy is replaced only by a new one.
+    builds: u64,
+    /// The trade and build the window holds a copy of.
+    window_copy: Option<(i64, u64)>,
+    /// A request from a blocked player, declined without a word (Sol's decision 1).
+    quiet: Option<i64>,
     /// A world shot's trade, shown in the window (true) or the toast, with no hub.
     #[cfg(test)]
     pub(crate) shot: Option<(View, bool)>,
+}
+
+/// What the views were built from: the trades' read and step counts, the own profile's
+/// and the known players' revisions, whether the window's parts (the player's items,
+/// the limits) were built, and the minute (the tiles' resale countdowns) while they are.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct Source {
+    serial: u64,
+    steps: u64,
+    me: u64,
+    players: u64,
+    full: bool,
+    minute: i64,
+}
+
+/// The views built from one [`Source`], kept between builds.
+struct Built {
+    source: Source,
+    /// The running trade's view.
+    live: Option<View>,
+    /// The ended trade the player saw run, while it is still listed.
+    ended: Option<View>,
+    /// The hub's clock, for the views' time left.
+    clock: sjk_identity::TradesClock,
+    /// When the trading day resets (hub time).
+    resets_at: Option<i64>,
+    /// The service's step count and its last refusal.
+    steps: u64,
+    problem: String,
 }
 
 /// The player's own items that may go in a trade, from their profile: unopened
@@ -225,63 +263,94 @@ pub(crate) fn ask_by_key(key_id: &str) -> bool {
     asked
 }
 
-/// Tests: the hub lets this player trade ([`trading_open`]).
 #[cfg(test)]
-pub(crate) static TRADING_FOR_TEST: std::sync::atomic::AtomicBool =
-    std::sync::atomic::AtomicBool::new(false);
+thread_local! {
+    /// Tests: the hub lets this player trade ([`trading_open`]). Per test thread, so a
+    /// test that turns it on never shows Trade on another test's card.
+    pub(crate) static TRADING_FOR_TEST: std::cell::Cell<bool> = const {
+        std::cell::Cell::new(false)
+    };
+}
 
 /// A page outside the game asked to open the trade window ([`ask_by_key`]).
 static OPEN_REQUEST: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
-/// The window's view of `trade` from `state` and the player's profile, at `now`.
-fn view_of(
+/// The window's view of `trade`, its clocks aside ([`refresh`]): the player's items
+/// (`me`, given only while the window may show), the limits and the room read from
+/// `state` at the hub's `hub_now`. Runs under the identity lock, only when what it
+/// reads changed.
+fn build(
     trade: &sjk_identity::PlayerTrade,
     state: &sjk_identity::service::TradesState,
     me: Option<&sjk_identity::Profile>,
     players: &[sjk_identity::Presence],
-    now: Instant,
+    hub_now: i64,
 ) -> View {
     let mine: Vec<Item> = trade.mine.items.iter().map(Item::from_wire).collect();
-    let mine_items = mine.clone();
     let theirs = trade.theirs.items.iter().map(Item::from_wire).collect();
-    let own = me.map_or_else(Vec::new, |me| {
-        own_items(me, &state.list, &mine, state.hub_now(now))
-    });
-    let both_ready = trade.mine.ready && trade.theirs.ready;
+    let full = me.is_some();
+    let own = me.map_or_else(Vec::new, |me| own_items(me, &state.list, &mine, hub_now));
+    let shown = partner_shown(&trade.with, players);
     View {
-        partner: crate::medals::plain_note(&partner_shown(&trade.with, players)),
-        partner_shown: partner_shown(&trade.with, players),
+        partner: crate::medals::plain_note(&shown),
+        partner_shown: shown,
         partner_key: trade.with.key_id.clone(),
         partner_avatar: partner_avatar(&trade.with, players),
+        room: room(&state.list, &mine),
         mine,
         theirs,
         own,
         items_max: state.list.rules.items_max.max(1),
-        seconds_left: trade.expires.map_or(0, |at| state.seconds_until(at, now)),
-        left_exact: trade
-            .expires
-            .map_or(0.0, |at| state.seconds_until_exact(at, now)),
+        seconds_left: 0,
+        left_exact: 0.0,
         ask_secs: u64::try_from(state.list.rules.ask_secs).unwrap_or(30),
-        confirm_in: trade
-            .confirm_from
-            .filter(|_| both_ready)
-            .map(|at| state.seconds_until(at, now)),
-        limits: limits(&state.list),
+        confirm_in: None,
+        limits: if full {
+            limits(&state.list)
+        } else {
+            Vec::new()
+        },
         holocrons: state.list.rules.holocrons,
-        resets_in: state
-            .list
-            .today
-            .resets_at
-            .map(|at| state.seconds_until(at, now)),
-        room: room(&state.list, &mine_items),
+        resets_in: None,
         confirming_gift: false,
         problem: String::new(),
         trade: trade.clone(),
     }
 }
 
+/// A view's clocks at `now`: the trade's time left, the confirmation's wait and the
+/// trading day's reset, from the hub's `clock`.
+fn refresh(
+    view: &mut View,
+    clock: &sjk_identity::TradesClock,
+    resets_at: Option<i64>,
+    now: Instant,
+) {
+    let trade = &view.trade;
+    view.seconds_left = trade.expires.map_or(0, |at| clock.seconds_until(at, now));
+    view.left_exact = trade
+        .expires
+        .map_or(0.0, |at| clock.seconds_until_exact(at, now));
+    view.confirm_in = trade
+        .confirm_from
+        .filter(|_| trade.mine.ready && trade.theirs.ready)
+        .map(|at| clock.seconds_until(at, now));
+    view.resets_in = resets_at.map(|at| clock.seconds_until(at, now));
+}
+
+/// Whether the player blocked the player with `key_id` (wearing `name`) on this PC: their
+/// requests are declined without a word, and no card offers to trade with them (Sol's
+/// decision 1, 24/10/2026).
+pub(crate) fn blocked(key_id: &str, name: &str) -> bool {
+    crate::player_mutes::is_muted(Some(key_id), name)
+}
+
 impl crate::GpuState {
     /// Once a frame: read the player's trades, choose what the window and the toast show.
+    ///
+    /// The views are built only when what they come from changes (a new list or step, the
+    /// own profile, the players known, the window becoming possible), under one short
+    /// identity lock; between builds only their clocks run on (Sol's review, 24/10/2026).
     pub(crate) fn update_player_trades(&mut self) {
         let now = Instant::now();
         #[cfg(test)]
@@ -304,57 +373,74 @@ impl crate::GpuState {
         {
             console.push_log(format!("^3Trade: {why}."));
         }
-        let read = player_identity::with_snapshot(|snapshot| {
-            let state = snapshot.trades.as_ref()?;
-            let live = state
-                .live()
-                .map(|trade| view_of(trade, state, snapshot.me.as_ref(), &snapshot.players, now));
-            let ended = state
-                .list
-                .trades
-                .iter()
-                .find(|trade| !trade.is_live() && Some(trade.id) == self.trades.live_seen)
-                .or_else(|| {
-                    let (id, _) = self.trades.ended?;
-                    state.list.trades.iter().find(|trade| trade.id == id)
-                })
-                .map(|trade| view_of(trade, state, snapshot.me.as_ref(), &snapshot.players, now));
-            Some((live, ended, state.steps, state.problem.clone()))
-        })
-        .flatten();
-        let trades = &mut self.trades;
-        let Some((live, ended, steps, problem)) = read else {
+        if !self.read_player_trades(now) {
+            let trades = &mut self.trades;
+            trades.built = None;
+            trades.window_copy = None;
             trades.window.set_view(None);
             trades.said = None;
             return;
+        }
+        let trades = &mut self.trades;
+        let Some(built) = trades.built.as_mut() else {
+            return;
         };
+        for view in built.live.iter_mut().chain(built.ended.iter_mut()) {
+            refresh(view, &built.clock, built.resets_at, now);
+        }
+        // A request from a blocked player is declined without a word (Sol's decision 1).
+        if let Some(view) = built.live.as_ref()
+            && view.trade.is_asked()
+            && !view.trade.asker
+            && blocked(&view.partner_key, &view.partner)
+            && trades.quiet != Some(view.trade.id)
+        {
+            trades.quiet = Some(view.trade.id);
+            let id = view.trade.id;
+            player_identity::with_service(|service| {
+                service.trade_step(id, sjk_identity::TradeStep::Decline);
+            });
+        }
+        let quiet = trades.quiet;
+        let built = trades.built.as_ref().expect("built above");
+        let live = built
+            .live
+            .as_ref()
+            .filter(|view| Some(view.trade.id) != quiet);
+        let ended = built
+            .ended
+            .as_ref()
+            .filter(|view| Some(view.trade.id) != quiet);
         // A new refusal is shown for a moment.
-        if !problem.is_empty()
+        if !built.problem.is_empty()
             && trades
                 .problem
                 .as_ref()
-                .is_none_or(|(seen, _, _)| *seen != steps)
+                .is_none_or(|(seen, _, _)| *seen != built.steps)
         {
             if let Some(console) = self.console.as_mut() {
-                console.push_log(format!("^3Trade: {problem}"));
+                console.push_log(format!("^3Trade: {}", built.problem));
             }
-            trades.problem = Some((steps, problem, now));
+            trades.problem = Some((built.steps, built.problem.clone(), now));
         }
         let fresh_problem = trades
             .problem
             .as_ref()
             .filter(|(_, _, at)| now.duration_since(*at) < TOLD_FOR)
-            .map(|(_, words, _)| words.clone());
-        match &live {
+            .map(|(_, words, _)| words.as_str())
+            .unwrap_or_default();
+        match live {
             Some(view) => {
                 if trades.live_seen != Some(view.trade.id) {
-                    // A new trade: its window shows again, at Esc.
-                    trades.hidden = None;
+                    // A new trade. One the player started opens its window; a request from
+                    // another player shows only the toast until Open trade or Esc (Sol's
+                    // review: it took over the menus and Enter accepted it).
+                    trades.hidden = (!view.trade.asker).then_some(view.trade.id);
                 }
                 trades.live_seen = Some(view.trade.id);
             }
             None => {
-                if let (Some(seen), Some(view)) = (trades.live_seen, &ended)
+                if let (Some(seen), Some(view)) = (trades.live_seen, ended)
                     && view.trade.id == seen
                 {
                     trades.ended = Some((seen, now));
@@ -364,7 +450,8 @@ impl crate::GpuState {
         }
         let ended_recent = trades
             .ended
-            .filter(|(_, at)| now.duration_since(*at) < TOLD_FOR);
+            .filter(|(_, at)| now.duration_since(*at) < TOLD_FOR)
+            .map(|(id, _)| id);
         let window_view = match (live, ended) {
             (Some(view), _) => Some(view),
             // An ended trade stays in the window while it is open, until Close.
@@ -374,29 +461,43 @@ impl crate::GpuState {
                 Some(view)
             }
             _ => None,
+        };
+        // The window keeps its copy and runs its clocks; a new build replaces it.
+        match window_view {
+            Some(view) if trades.window_copy == Some((view.trade.id, trades.builds)) => {
+                trades.window.update_view(|shown| {
+                    shown.seconds_left = view.seconds_left;
+                    shown.left_exact = view.left_exact;
+                    shown.confirm_in = view.confirm_in;
+                    shown.resets_in = view.resets_in;
+                    if shown.problem != fresh_problem {
+                        fresh_problem.clone_into(&mut shown.problem);
+                    }
+                });
+            }
+            Some(view) => {
+                let mut copy = view.clone();
+                fresh_problem.clone_into(&mut copy.problem);
+                trades.window_copy = Some((view.trade.id, trades.builds));
+                trades.window.set_view(Some(copy));
+            }
+            None => {
+                trades.window_copy = None;
+                trades.window.set_view(None);
+            }
         }
-        .map(|mut view| {
-            view.problem = fresh_problem.clone().unwrap_or_default();
-            view
-        });
-        trades.said = match &window_view {
+        trades.said = match window_view {
             Some(view) if view.trade.is_live() => Some(Said::of(view)),
             _ => None,
         }
         .or_else(|| {
-            let (id, _) = ended_recent?;
-            let view = player_identity::with_snapshot(|snapshot| {
-                let state = snapshot.trades.as_ref()?;
-                let trade = state.list.trades.iter().find(|trade| trade.id == id)?;
-                Some(view_of(trade, state, None, &snapshot.players, now))
-            })
-            .flatten()?;
-            Some(Said::of(&view))
+            let view = ended.filter(|view| Some(view.trade.id) == ended_recent)?;
+            Some(Said::of(view))
         })
         .or_else(|| {
-            fresh_problem.map(|line| Said {
+            (!fresh_problem.is_empty()).then(|| Said {
                 headline: "Trade".to_owned(),
-                line,
+                line: fresh_problem.to_owned(),
                 clock: None,
                 share: None,
                 key: ("", ""),
@@ -405,15 +506,75 @@ impl crate::GpuState {
                 clickable: false,
             })
         });
-        trades.window.set_view(window_view);
-        let size = self
-            .console
-            .as_ref()
-            .and_then(|console| console.integer_cvar(SIZE_CVAR))
-            .unwrap_or(1);
-        self.trades
-            .window
-            .set_size(crate::trade_window::Size::from_value(size));
+    }
+
+    /// Read the player's trades from the identity service, under one lock, and build their
+    /// views if what they come from changed since the last build. False when there are
+    /// none to read (no identity, or no list yet).
+    fn read_player_trades(&mut self, now: Instant) -> bool {
+        let full = self.trade_window_may_show();
+        let trades = &self.trades;
+        let seen = [trades.live_seen, trades.ended.map(|(id, _)| id)];
+        let last = trades.built.as_ref().map(|built| built.source);
+        let read = player_identity::with_snapshot(|snapshot| {
+            let state = snapshot.trades.as_ref()?;
+            let hub_now = state.hub_now(now);
+            let source = Source {
+                serial: state.serial,
+                steps: state.steps,
+                me: snapshot.me_revision,
+                players: snapshot.revision,
+                full,
+                minute: if full { hub_now.div_euclid(60) } else { 0 },
+            };
+            if last == Some(source) {
+                return Some(None);
+            }
+            let me = snapshot.me.as_ref().filter(|_| full);
+            let live = state
+                .live()
+                .map(|trade| build(trade, state, me, &snapshot.players, hub_now));
+            let ended = seen
+                .iter()
+                .flatten()
+                .find_map(|id| {
+                    state
+                        .list
+                        .trades
+                        .iter()
+                        .find(|trade| !trade.is_live() && trade.id == *id)
+                })
+                .map(|trade| build(trade, state, None, &snapshot.players, hub_now));
+            Some(Some(Built {
+                source,
+                live,
+                ended,
+                clock: state.clock(),
+                resets_at: state.list.today.resets_at,
+                steps: state.steps,
+                problem: state.problem.clone(),
+            }))
+        })
+        .flatten();
+        match read {
+            None => false,
+            Some(None) => true,
+            Some(Some(built)) => {
+                self.trades.built = Some(built);
+                self.trades.builds += 1;
+                true
+            }
+        }
+    }
+
+    /// Whether the trade window could show now (the game menu in a game, or the main
+    /// menu): only then are its parts (the player's items, the limits) built.
+    fn trade_window_may_show(&self) -> bool {
+        #[cfg(test)]
+        if self.trades.shot.is_some() {
+            return true;
+        }
+        (self.game_menu && self.live_session.is_some()) || self.main_menu_up()
     }
 
     /// Whether the window shows this frame: a trade to show, the player in the game menu
@@ -439,6 +600,16 @@ impl crate::GpuState {
             && self.world_load_task.is_none()
             && !self.pending_map_reload;
         self.trades.window.set_open(open);
+        if open {
+            let size = self
+                .console
+                .as_ref()
+                .and_then(|console| console.integer_cvar(SIZE_CVAR))
+                .unwrap_or(1);
+            self.trades
+                .window
+                .set_size(crate::trade_window::Size::from_value(size));
+        }
         open
     }
 
@@ -656,11 +827,23 @@ impl crate::GpuState {
     }
 }
 
+/// Whether the SJK hub trades holocrons yet (duplicates come first): what Trade's hints
+/// say it swaps.
+pub(crate) fn trading_holocrons() -> bool {
+    player_identity::with_snapshot(|snapshot| {
+        snapshot
+            .trades
+            .as_ref()
+            .is_some_and(|state| state.list.rules.holocrons)
+    })
+    .unwrap_or(false)
+}
+
 /// Whether players may trade on the SJK hub now (for this player), so a card offers
 /// Trade only when it can work.
 pub(crate) fn trading_open() -> bool {
     #[cfg(test)]
-    if TRADING_FOR_TEST.load(std::sync::atomic::Ordering::Relaxed) {
+    if TRADING_FOR_TEST.get() {
         return true;
     }
     player_identity::with_snapshot(|snapshot| {
@@ -677,9 +860,11 @@ pub(crate) fn trading_open() -> bool {
 mod tests {
     use super::*;
 
-    /// The trade window (a request, an open trade with both sides, both ready) and the
-    /// toast over play, over duel6 at 1080p: `JKA_GAME_DATA=<GameData> cargo test -p
-    /// sjk-viewer trade_shots -- --ignored --nocapture`.
+    /// The trade window (a request, an open trade with both sides in each of the three
+    /// sizes, both ready, a gift's question) and the toast over play, over duel6 at
+    /// 1080p: `JKA_GAME_DATA=<GameData> cargo test -p sjk-viewer trade_shots --
+    /// --ignored --nocapture`. The Trade buttons are in `duel6_ingame_players`
+    /// (`players-trade`) and `duel6_sjk_chat_page` (`card-trade`).
     #[test]
     #[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
     fn trade_shots() {
@@ -705,18 +890,99 @@ mod tests {
             ready.trade.theirs.ready = true;
             ready.confirm_in = Some(0);
             ready.trade.uneven = true;
-            for (view, window, name) in [
-                (asked.clone(), false, "trade-toast"),
-                (asked, true, "trade-request"),
-                (open, true, "trade-window"),
-                (ready, true, "trade-both-ready"),
+            let mut gift = open.clone();
+            gift.theirs.clear();
+            gift.trade.theirs.items.clear();
+            gift.trade.theirs.value = 0;
+            for (view, window, size, name) in [
+                (asked.clone(), false, "1", "trade-toast"),
+                (asked, true, "1", "trade-request"),
+                (open.clone(), true, "0", "trade-window-small"),
+                (open.clone(), true, "1", "trade-window"),
+                (open, true, "2", "trade-window-large"),
+                (ready, true, "1", "trade-both-ready"),
+                (gift.clone(), true, "1", "trade-gift-question"),
             ] {
+                if let Some(console) = gpu.console.as_mut() {
+                    console.set_cvar(SIZE_CVAR, size);
+                }
+                if name == "trade-gift-question" {
+                    gpu.trades
+                        .window
+                        .ask_gift_for_shot(gift.trade.id, gift.trade.rev);
+                }
                 gpu.trades.shot = Some((view, window));
                 gpu.update_player_trades();
                 let path = crate::world_shot::shoot(&mut gpu, 6, name);
                 println!("{}", path.display());
             }
         });
+    }
+
+    /// A view's clocks run from the hub's clock as read, without the list.
+    #[test]
+    fn a_view_keeps_its_clocks_between_builds() {
+        let read_at = Instant::now();
+        let clock = sjk_identity::TradesClock {
+            hub_time: 1_000,
+            read_at,
+        };
+        let mut view = crate::trade_window::tests::open_view();
+        view.trade.expires = Some(1_100);
+        view.trade.confirm_from = Some(1_010);
+        view.trade.mine.ready = true;
+        view.trade.theirs.ready = true;
+        refresh(
+            &mut view,
+            &clock,
+            Some(4_600),
+            read_at + Duration::from_secs(5),
+        );
+        assert_eq!(view.seconds_left, 95);
+        assert_eq!(view.confirm_in, Some(5));
+        assert_eq!(view.resets_in, Some(3_595));
+        assert!((view.left_exact - 94.5).abs() < 0.01);
+        // Not both ready: no confirmation clock.
+        view.trade.theirs.ready = false;
+        refresh(&mut view, &clock, None, read_at);
+        assert_eq!((view.confirm_in, view.resets_in), (None, None));
+    }
+
+    /// Sol's decision 1: a blocked player's requests are declined without a word.
+    #[test]
+    fn blocked_follows_the_block_list() {
+        // A key no other test blocks: the block list is the process's own.
+        let key = "b10c4ed0b10c4ed2";
+        assert!(!blocked(key, "Nib"));
+        crate::player_mutes::set_muted(Some(key), "Nib", true);
+        let was = blocked(key, "^1Nib");
+        crate::player_mutes::set_muted(Some(key), "Nib", false);
+        assert!(was);
+    }
+
+    /// The window's parts (the player's items, the limits) are built only for a window
+    /// that may show; the toast's view does without (Sol's review, 24/10/2026).
+    #[test]
+    fn the_toasts_view_skips_the_windows_parts() {
+        let state = sjk_identity::service::TradesState {
+            serial: 1,
+            list: list(),
+            read_at: Instant::now(),
+            hub_time: 604_905,
+            problem: String::new(),
+            steps: 0,
+        };
+        let trade = crate::trade_window::tests::open_view().trade;
+        let toast = build(&trade, &state, None, &[], 604_905);
+        assert!(toast.own.is_empty() && toast.limits.is_empty());
+        let me = profile();
+        let window = build(&trade, &state, Some(&me), &[], 604_905);
+        assert!(!window.own.is_empty() && !window.limits.is_empty());
+        // The name is read once and kept both ways.
+        assert_eq!(
+            window.partner,
+            crate::medals::plain_note(&window.partner_shown)
+        );
     }
 
     fn profile() -> sjk_identity::Profile {

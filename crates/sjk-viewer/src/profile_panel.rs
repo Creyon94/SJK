@@ -1109,6 +1109,7 @@ pub(crate) mod tests {
             profiles: HashMap::new(),
             model_checks: HashMap::new(),
             profiles_revision: 0,
+            me_revision: 0,
             notice: notice.map(str::to_owned),
             revision: 0,
             report: None,

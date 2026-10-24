@@ -1250,6 +1250,7 @@ Found the fog bug, ask me about it!"
             profiles: std::collections::HashMap::new(),
             model_checks: std::collections::HashMap::new(),
             profiles_revision: 0,
+            me_revision: 0,
             notice: None,
             revision: 0,
             report: None,
@@ -3228,8 +3229,10 @@ like this one.",
                     gpu.in_game_menu
                         .sjk_for_shot(Card::for_shot(true, false), ctf);
                 }
-                let pages: [(&str, Gate, Page, usize); 4] = [
+                let pages: [(&str, Gate, Page, usize); 5] = [
                     ("players", Gate::Open, Page::Players, 3),
+                    // Trading open on the hub: Trade on the player's card.
+                    ("players-trade", Gate::Open, Page::Players, 3),
                     ("players-unverified", Gate::NotVerified, Page::Players, 0),
                     ("report", Gate::Open, Page::ReportPlayer, 1),
                     (
@@ -3241,6 +3244,7 @@ like this one.",
                 ];
                 for (name, gate, page, row) in pages {
                     let mut roster = State::for_shot(12, true, gate);
+                    roster.set_trading(name.ends_with("-trade"), true);
                     roster.choose(3);
                     gpu.in_game_menu.players = roster;
                     gpu.game_menu_page = page;
@@ -3599,6 +3603,18 @@ like this one.",
                 }
                 let name = format!("duel6-sjk-chat-online-card-{suffix}");
                 println!("{}", shoot(&mut gpu, 6, &name).display());
+                // The same card while the hub lets players trade: Trade beside Block.
+                crate::player_trades::TRADING_FOR_TEST.set(true);
+                if let Some(console) = gpu.console.as_mut() {
+                    console.sjk_chat_hover_person(None);
+                }
+                let _ = frame(&mut gpu, 2);
+                if let Some(console) = gpu.console.as_mut() {
+                    console.sjk_chat_hover_person(Some(0));
+                }
+                let name = format!("duel6-sjk-chat-online-card-trade-{suffix}");
+                println!("{}", shoot(&mut gpu, 6, &name).display());
+                crate::player_trades::TRADING_FOR_TEST.set(false);
                 // Lumaya's, the first recent face: when she was seen.
                 if let Some(console) = gpu.console.as_mut() {
                     console.sjk_chat_hover_person(Some(7));

@@ -208,6 +208,7 @@ mod tests {
             profiles: HashMap::new(),
             model_checks: HashMap::new(),
             profiles_revision: 0,
+            me_revision: 0,
             notice: None,
             revision: 0,
             report: None,

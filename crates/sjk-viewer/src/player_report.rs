@@ -66,9 +66,10 @@ impl crate::GpuState {
         };
         let game = session.game_state();
         let you = u8::try_from(game.client_num).ok();
-        self.in_game_menu
-            .players
-            .set_trading(crate::player_trades::trading_open());
+        self.in_game_menu.players.set_trading(
+            crate::player_trades::trading_open(),
+            crate::player_trades::trading_holocrons(),
+        );
         self.in_game_menu.players.refresh(
             game,
             session.scores(),

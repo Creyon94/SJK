@@ -179,7 +179,7 @@ pub(crate) struct Limit {
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub(crate) struct Room {
     pub(crate) holocrons: i64,
-    /// Holocrons of each tier, by its slot (Uncommon 0 to Mythical 3): one of each a day.
+    /// Holocrons of each tier, by its slot (Uncommon 0 to Mythical 3), as the hub limits them.
     pub(crate) tiers: [i64; 4],
     pub(crate) duplicates: i64,
 }
@@ -230,26 +230,27 @@ impl Room {
         let names: Vec<&str> = tiers.iter().map(|(_, name)| *name).collect();
         let tiers = match names.as_slice() {
             [] => String::new(),
-            [one] => format!("today's {one} holocron"),
+            [one] => format!("today's {one} holocrons"),
             [rest @ .., last] => format!("today's {} and {last} holocrons", rest.join(", ")),
         };
         let limit = match (holocron, shader) {
             (true, _) if self.holocrons <= 0 && shader => {
                 "You have given today's holocrons and duplicates.".to_owned()
             }
-            (true, false) if self.holocrons <= 0 => "You have given 4 holocrons today.".to_owned(),
-            (true, true) => format!("You have given {tiers} and 10 duplicates."),
-            (true, false) => format!("You have given {tiers}: one of each a day."),
-            (false, true) => "You have given 10 duplicates today.".to_owned(),
+            (true, false) if self.holocrons <= 0 => "Today's holocrons are given.".to_owned(),
+            (true, true) => format!("You have given {tiers} and today's duplicates."),
+            (true, false) => format!("You have given {tiers}."),
+            (false, true) => "Today's duplicates are given.".to_owned(),
             (false, false) => return None,
         };
         Some(format!("{limit} More tomorrow."))
     }
 }
 
-/// The warning over the player's items while any waits its week after a trade; each
-/// such tile shows its own countdown.
-const LOCK_WARNING: &str = "Holocrons received in a trade can be traded again after 7 days.";
+/// The warning over the player's items while any waits after a trade; each such tile
+/// shows its own countdown. How long is the hub's (`resale_lock`), so it is not named.
+const LOCK_WARNING: &str =
+    "Holocrons received in a trade wait before they can be traded again: each shows how long.";
 
 impl View {
     /// The player gives and gets nothing back.
@@ -365,6 +366,20 @@ impl Window {
         }
     }
 
+    /// Change the view shown in place (its clocks, its refusal), keeping what the window
+    /// set on it; nothing without one.
+    pub(crate) fn update_view(&mut self, change: impl FnOnce(&mut View)) {
+        if let Some(view) = self.view.as_mut() {
+            change(view);
+        }
+    }
+
+    /// A world shot's gift question: the window asks once more for the view it gets.
+    #[cfg(test)]
+    pub(crate) fn ask_gift_for_shot(&mut self, trade: i64, rev: i64) {
+        self.gift_asked = Some((trade, rev));
+    }
+
     pub(crate) fn has_view(&self) -> bool {
         self.view.is_some()
     }
@@ -476,11 +491,11 @@ impl Window {
 
     /// Draw the window over the whole frame.
     pub(crate) fn append(&mut self, target: TextTarget<'_>, viewport: [f32; 2]) {
-        let Some(view) = self.view.clone() else {
+        let Self { ui, view, size, .. } = self;
+        let Some(view) = view.as_ref() else {
             return;
         };
-        let frame = self.size.frame(&Frame::new(viewport));
-        let ui = &mut self.ui;
+        let frame = size.frame(&Frame::new(viewport));
         ui.begin_transparent(viewport);
         // A light shade only: the match still shows round the window.
         let _ = ui.draw_list_mut().push(DrawCommand::SolidRect {
@@ -488,9 +503,9 @@ impl Window {
             color: color::alpha(color::SPACE, 0.38),
         });
         if view.trade.is_open() {
-            draw_open(ui, &frame, &view);
+            draw_open(ui, &frame, view);
         } else {
-            draw_small(ui, &frame, &view);
+            draw_small(ui, &frame, view);
         }
         ui.finish(OTHER_TOKEN);
         target.append(&self.ui, viewport);
@@ -2299,7 +2314,7 @@ pub(crate) mod tests {
         assert!(
             texts
                 .iter()
-                .any(|t| t == "You have given 4 holocrons today. More tomorrow."),
+                .any(|t| t == "Today's holocrons are given. More tomorrow."),
             "{texts:?}"
         );
         // The Uncommon holocron waits; the Haze duplicate goes in.
