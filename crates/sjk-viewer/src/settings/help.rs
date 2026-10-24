@@ -527,6 +527,10 @@ const HELP: &[(&str, &str)] = &[
         "Team games: the red and blue scores at the top centre of the HUD, in every HUD style.",
     ),
     (
+        "cg_teamScoresBoxes",
+        "Team scores in two SJK team boxes; in capture the flag each also shows its flag and where it is (at base, who carries it, a dropped flag's seconds before it goes home). Off brings back the classic RED and BLUE plates and the flag icons at the left.",
+    ),
+    (
         "cg_drawFlagStatus",
         "Capture the flag: the flag icons at the left (taken or dropped, yours and theirs) and a note while you carry a flag.",
     ),

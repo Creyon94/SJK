@@ -18,7 +18,8 @@
 //! With the team scores on, the scores stand in two team boxes under the clock, in
 //! the SJK UI's team colours, each with its flag and where the flag is ("At base",
 //! the carrier, "Back in 18 s"); in capture games the boxes then replace the left
-//! icons, which come back with `cg_drawTeamScores 0`.
+//! icons. `cg_teamScoresBoxes 0` brings back the classic "RED 3" and "BLUE 5" plates
+//! beside the left icons; `cg_drawTeamScores 0` leaves the left icons alone.
 use super::icons::assets;
 use super::*;
 use crate::menu::sjk::color;
@@ -154,6 +155,9 @@ pub(crate) struct State {
     carried: bool,
     show_flags: bool,
     show_scores: bool,
+    /// The scores stand in SJK team boxes (`cg_teamScoresBoxes`), else on the classic
+    /// plates beside the left flag icons.
+    boxes: bool,
     scores: Option<[i32; 2]>,
     labels: [String; 2],
     /// The red and blue flags' carriers by name ([`Carrier`]).
@@ -279,6 +283,7 @@ impl State {
         let previous = self.flags;
         self.show_flags = family::integer(console, "cg_drawFlagStatus", 1) != 0;
         self.show_scores = family::integer(console, "cg_drawTeamScores", 1) != 0;
+        self.boxes = family::integer(console, "cg_teamScoresBoxes", 1) != 0;
         let gametype = game
             .config_string(0)
             .and_then(|s| sjk_client::LegacyClientInfo::new(s).integer("g_gametype"))
@@ -314,8 +319,16 @@ impl State {
             self.scores = Some(staged.scores);
         }
         self.track_drops(previous, i64::from(snapshot.server_time));
-        for (label, score) in self.labels.iter_mut().zip(self.scores.unwrap_or([0; 2])) {
+        // A box shows the bare score, a classic plate its team's name before it.
+        for (label, (name, score)) in self.labels.iter_mut().zip(
+            ["RED ", "BLUE "]
+                .into_iter()
+                .zip(self.scores.unwrap_or([0; 2])),
+        ) {
             label.clear();
+            if !self.boxes {
+                label.push_str(name);
+            }
             if score == SCORE_NOT_PRESENT {
                 label.push('-');
             } else {
@@ -362,6 +375,7 @@ impl State {
         let enemy = self.enemy_side();
         for side in 0..2 {
             let own = self.carried && enemy == Some(side);
+            let left = self.return_left(side);
             let status = &mut self.statuses[side];
             status.clear();
             self.tones[side] = if own {
@@ -379,7 +393,7 @@ impl State {
                         Tone::Plain
                     }
                     Flag::Dropped => {
-                        match self.return_left(side) {
+                        match left {
                             Some(left) => {
                                 let _ = write!(status, "Back in {} s", (left + 999) / 1_000);
                             }
@@ -483,9 +497,12 @@ impl State {
         let [w, h] = viewport;
         // Under the status gate, as JoF's team scores in `CG_DrawHUD`: an open classic
         // board keeps the HUD but not these boxes over its header.
-        let boxes = self.scores_shown() && visibility.hud && visibility.status;
+        let scores = self.scores_shown() && visibility.hud && visibility.status;
+        let boxes = scores && self.boxes;
         if boxes {
             self.emit_boxes(list, w, h, icons);
+        } else if scores {
+            self.emit_plates(list, w, h);
         }
         if self.show_flags && self.ctf && visibility.status && !boxes {
             // CG_DrawFlagStatus: 32-unit icons at the left edge of the 640x480 screen,
@@ -544,6 +561,38 @@ impl State {
         }
     }
 
+    /// The classic team score plates under the clock: "RED 3" and "BLUE 5".
+    fn emit_plates(&self, list: &mut DrawList, w: f32, h: f32) {
+        let s = crate::ui_scale::height_scale(h);
+        let (plate_w, plate_h, gap) = (130.0 * s, 30.0 * s, 8.0 * s);
+        let top = 76.0 * s;
+        for (index, tint) in [
+            Color::new(0.75, 0.12, 0.12, 0.55),
+            Color::new(0.14, 0.3, 0.85, 0.55),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let x = if index == 0 {
+                w * 0.5 - gap * 0.5 - plate_w
+            } else {
+                w * 0.5 + gap * 0.5
+            };
+            let rect = Rect::new(x, top, plate_w, plate_h);
+            let _ = list.push(DrawCommand::SolidRect { rect, color: tint });
+            let _ = list.push(DrawCommand::Text {
+                rect,
+                text: TextId(TEXT_SCORES + index as u32),
+                size: 20.0 * s,
+                color: Color::new(1.0, 1.0, 1.0, 1.0),
+                align: TextAlign::Center,
+                overflow: TextOverflow::Clip,
+                weight: FontWeight::Semibold,
+                letter_spacing: 0.0,
+            });
+        }
+    }
+
     /// The two team boxes under the clock, red left and blue right, in a `w` by `h`
     /// viewport: the UI's navy under the team's colour, a rule of it along the bottom,
     /// a gold rule along the top of the local player's team; the score at the inner
@@ -579,7 +628,11 @@ impl State {
                 });
             }
             let inner = Rect::new(
-                if red { x + box_w - pad - score_w } else { x + pad },
+                if red {
+                    x + box_w - pad - score_w
+                } else {
+                    x + pad
+                },
                 top,
                 score_w,
                 box_h,
@@ -589,7 +642,11 @@ impl State {
                 text: TextId(TEXT_SCORES + side as u32),
                 size: 40.0 * s,
                 color: color::TEXT,
-                align: if red { TextAlign::End } else { TextAlign::Start },
+                align: if red {
+                    TextAlign::End
+                } else {
+                    TextAlign::Start
+                },
                 overflow: TextOverflow::Clip,
                 weight: FontWeight::Semibold,
                 letter_spacing: 0.0,
@@ -610,7 +667,11 @@ impl State {
             };
             // A pack without the taken pictures shows the flag faint while it is away.
             let picture = icons.cell(slot).map(|texture| (texture, 1.0)).or_else(|| {
-                let home = if red { assets::RED_FLAG } else { assets::BLUE_FLAG };
+                let home = if red {
+                    assets::RED_FLAG
+                } else {
+                    assets::BLUE_FLAG
+                };
                 icons.cell(home).map(|texture| (texture, 0.45))
             });
             if let Some((texture, alpha)) = picture {
@@ -631,7 +692,11 @@ impl State {
                     knockout: None,
                 });
             }
-            let words_x = if red { icon_x + icon + 10.0 * s } else { x + pad + score_w };
+            let words_x = if red {
+                icon_x + icon + 10.0 * s
+            } else {
+                x + pad + score_w
+            };
             let words_w = box_w - 2.0 * pad - icon - 10.0 * s - score_w;
             let _ = list.push(DrawCommand::Text {
                 rect: Rect::new(words_x, top, words_w, box_h),
@@ -642,7 +707,11 @@ impl State {
                     Tone::Plain => color::TEXT,
                     Tone::Own => color::GOLD_BRIGHT,
                 },
-                align: if red { TextAlign::Start } else { TextAlign::End },
+                align: if red {
+                    TextAlign::Start
+                } else {
+                    TextAlign::End
+                },
                 overflow: TextOverflow::Ellipsis,
                 weight: FontWeight::Semibold,
                 letter_spacing: 0.0,
@@ -907,6 +976,7 @@ mod tests {
         let mut state = ctf_state(TEAM_RED, [Flag::AtBase; 2]);
         state.show_flags = true;
         state.show_scores = true;
+        state.boxes = true;
         state.scores = Some([3, 5]);
         state.track_drops([Flag::AtBase; 2], 0);
         state.flags = [Flag::Dropped, Flag::Taken];
@@ -925,8 +995,25 @@ mod tests {
             })
             .collect();
         assert_eq!(texts, [344, TEXT_STATUS, 345, 347]);
-        assert!(list.commands().iter().any(|command| matches!(command, DrawCommand::Arc { .. })));
-        // Team scores off: the classic left icons and their captions instead.
+        assert!(
+            list.commands()
+                .iter()
+                .any(|command| matches!(command, DrawCommand::Arc { .. }))
+        );
+        // The classic look: the plates and the left icons with their captions.
+        state.boxes = false;
+        let mut list = DrawList::new(64);
+        state.emit(&mut list, [1920.0, 1080.0], &icons, visibility);
+        let texts: Vec<u32> = list
+            .commands()
+            .iter()
+            .filter_map(|command| match command {
+                DrawCommand::Text { text, .. } => Some(text.0),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(texts, [344, 345, TEXT_FIRST, 343]);
+        // Team scores off: only the left icons.
         state.show_scores = false;
         let mut list = DrawList::new(64);
         state.emit(&mut list, [1920.0, 1080.0], &icons, visibility);

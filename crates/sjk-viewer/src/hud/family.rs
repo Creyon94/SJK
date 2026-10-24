@@ -22,6 +22,11 @@ pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
             1,
             "Team games: the red and blue scores at the top centre",
         ),
+        (
+            "cg_teamScoresBoxes",
+            1,
+            "Team scores as SJK team boxes with each flag's state; 0 the classic plates and flag icons",
+        ),
         ("cg_drawSnapshot", 0, "Snapshot time and message number"),
         ("cg_drawUpperRight", 1, "Show upper-right match information"),
         ("cg_drawVote", 1, "Show vote information"),

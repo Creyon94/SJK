@@ -2912,7 +2912,9 @@ the original cgame reads:
   HUD style (the design canvas of 24/10/2026): the UI's navy under the team's muted colour
   (`menu::sjk::color::RED_TEAM` and `BLUE_TEAM`, the SJK scoreboard's), a rule of that
   colour along the bottom and a gold one along the top of your team's box, the score at the
-  inner edge. With them on, the layouts' score line drops its trailing team scores
+  inner edge. `cg_teamScoresBoxes 0` (Settings > HUD, "SJK team score boxes") brings back
+  the classic look: "RED 3" and "BLUE 5" plates under the clock and the flag icons at the
+  left. With the scores on, the layouts' score line drops its trailing team scores
   (`cg_drawScore 2`), which they replace.
 - In Capture the Flag and Capture the Ysalamiri, with `cg_drawFlagStatus` too, each box
   holds its team's flag at the outer edge and says where it is: "At base", its carrier
@@ -2925,7 +2927,8 @@ the original cgame reads:
   An away flag shows its taken picture (`mpi_*flag_x`), or its own picture faint in a pack
   without one. While you carry a flag, a line under the boxes says "Take it home", in gold,
   or "Your flag is away" while your own flag is not at base (no capture until it is). The
-  boxes then replace the left icons, which return with `cg_drawTeamScores 0`.
+  boxes then replace the left icons, which return with `cg_teamScoresBoxes 0` or
+  `cg_drawTeamScores 0`.
 
 The scoreboards (classic and SJK UI) draw a flag icon before a carrier's name. A
 `scores` reply is only as fresh as the last scoreboard press, so each frame the rows'
