@@ -528,11 +528,11 @@ const HELP: &[(&str, &str)] = &[
     ),
     (
         "cg_teamScoresScale",
-        "Size of the SJK team score boxes, scores, names and flags with them: 1 is the default, up to 2 twice as large.",
+        "Size of the SJK team score boxes: 1 is the default, 2 twice as large.",
     ),
     (
         "cg_teamScoresBoxes",
-        "Team scores in two SJK team boxes; in capture the flag each also shows its flag and where it is (at base, who carries it, a dropped flag's seconds before it goes home). Off brings back the classic RED and BLUE plates and the flag icons at the left.",
+        "Team scores in SJK boxes, in CTF with each flag's carrier or return time. Off: the classic plates and flag icons.",
     ),
     (
         "cg_drawFlagStatus",
