@@ -68,6 +68,8 @@ includes:
   peeking only players who switched it on (24/10/2026, after Slash's #199);
 - a macOS build for Apple Silicon Macs, drawn through Metal and built by GitHub with
   every release, unsigned and experimental (24/10/2026);
+- announcements from the SJK team in SJK chat, and contributor reward rounds: who was
+  rewarded and why, and a window to Claim one's own (25/10/2026);
 - end-to-end encrypted whispers: whispers between SJK players sealed to the
   recipient's key and carried by the SJK hub, which cannot read them
   (22/10/2026);

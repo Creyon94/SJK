@@ -1,3 +1,19 @@
+## Announcements and contributor reward rounds
+
+25/10/2026, `personal/announcements`, based on `main` `ca5643de`: the client side of the
+SJK team's announcements and contributor reward rounds, built against the shared spec with
+the hub's `announcements` branch ([hub-chat.md](hub-chat.md#announcements-and-reward-rounds),
+[sjk-ui.md](sjk-ui.md#announcements-and-reward-rounds)). Wire types and requests in
+`sjk-identity` (`news.rs`; the feed's `announcements` and `rounds`; `Snapshot`
+announcements, rewards, claim and announce outcomes); SJK team lines in the game's chat,
+the dock and the chat page; `announcements_seen.txt`; the announcement card, round list,
+claim window and the creator's composer; `announcement`, `rewards`, `announce`,
+`debug_announce`, `debug_reward`. Verified: `cargo test --locked -p sjk-identity -p
+sjk-viewer` (new unit tests for the wire, the rules, the bodies, the feed, the service
+against a fake hub, the seen file, the words and the windows' keys), Clippy clean for the
+new code. Not verified: against the real hub, the windows and lines drawn, anything in a
+game.
+
 ## macOS build
 
 24/10/2026, `personal/macos-build`, based on `main` `cbf6e41d`. GitHub builds an
