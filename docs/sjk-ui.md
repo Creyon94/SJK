@@ -2106,9 +2106,11 @@ saber shaders through the SJK hub, which checks both sides twice and holds every
 from the hub: its rules, today's counts and what each item is worth. The same look in
 every menu style, on the 16:9 frame:
 
-- **Starting:** a gold Trade button on the game menu's Players page, on the player card
-  of the player chosen in the table (dimmed with why when it cannot be: trading closed,
-  an offline server), Trade on a player's card in the game's chat and the SJK chat page (beside
+- **Starting:** a gold Trade button (140 wide) on the game menu's Players page, on the
+  player card of the player chosen in the table, with what it does beside it on one line
+  ("Swap holocrons and duplicate shaders", or "Swap duplicate shaders" while holocrons do
+  not trade; a test measures every such line in the UI's fonts), dimmed with why when it
+  cannot be (trading closed, an offline server), Trade on a player's card in the game's chat and the SJK chat page (beside
   Block, the two even halves; Ban 24 h then takes a row of its own; only while the hub
   lets the player trade), Trade on the game menu's Players page after the report reasons (with
   why not when it cannot be: yourself, a bot, a player the hub does not know, trading

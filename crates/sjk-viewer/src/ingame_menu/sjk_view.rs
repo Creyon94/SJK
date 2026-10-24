@@ -1407,13 +1407,20 @@ fn player_card(
     y + 44.0
 }
 
+/// The Trade button's width, and its words beside it on one line: the hint, or why not
+/// (Creyon, 24/10/2026: at 220 the hint was cut off).
+const TRADE_BUTTON_W: f32 = 140.0;
+const TRADE_WORDS_X: f32 = CARD_X + TRADE_BUTTON_W + 14.0;
+const TRADE_WORDS_W: f32 = CARD_X + CARD_WIDTH - TRADE_WORDS_X;
+const TRADE_WORDS_SIZE: f32 = 16.0;
+
 /// Trade on the player card, under its status line: the gold button when the player can
 /// be asked (`blocked` none) with what it does (`hint`), else the button dimmed and why.
 fn trade_button(canvas: &mut MenuCanvas, frame: &Frame, y: f32, blocked: Option<&str>, hint: &str) {
     kit::button(
         canvas,
         frame,
-        [CARD_X, y, 220.0, 50.0],
+        [CARD_X, y, TRADE_BUTTON_W, 50.0],
         "Trade",
         true,
         blocked.is_none(),
@@ -1425,8 +1432,8 @@ fn trade_button(canvas: &mut MenuCanvas, frame: &Frame, y: f32, blocked: Option<
         canvas,
         TextFamily::Body,
         format_args!("{words}"),
-        frame.rect(CARD_X + 236.0, y + 13.0, CARD_WIDTH - 236.0, 24.0),
-        16.0 * frame.s,
+        frame.rect(TRADE_WORDS_X, y + 13.0, TRADE_WORDS_W, 24.0),
+        TRADE_WORDS_SIZE * frame.s,
         if blocked.is_none() {
             color::MUTED
         } else {
@@ -2752,11 +2759,39 @@ mod tests {
         assert!(
             texts
                 .iter()
-                .any(|t| t == "Swap holocrons and duplicate shaders with them"),
+                .any(|t| t == "Swap holocrons and duplicate shaders"),
             "{texts:?}"
         );
         // Not for the player themselves.
         let canvas = draw(&roster, row(&roster, 2));
         assert!(canvas.rect_for(TRADE_TOKEN).is_none());
+    }
+
+    /// Every line beside Trade fits on one line in the card, in the SJK UI's fonts
+    /// (Inter, and Exo 2 for the other text style), with room for the text scale of 1.2:
+    /// measured from the fonts' own advances at the line height the text is set at, as
+    /// `crate::text::display_width` does.
+    #[test]
+    fn the_trade_buttons_words_fit_on_one_line() {
+        use fontdue::{Font, FontSettings};
+        let faces: [&[u8]; 2] = [
+            include_bytes!("../../assets/fonts/Inter-Regular.ttf"),
+            include_bytes!("../../assets/fonts/Exo2-Regular.ttf"),
+        ];
+        for bytes in faces {
+            let font = Font::from_bytes(bytes, FontSettings::default()).unwrap();
+            let line = font.horizontal_line_metrics(100.0).unwrap().new_line_size;
+            for words in players::State::TRADE_LINES {
+                let advances: f32 = words
+                    .chars()
+                    .map(|c| font.metrics(c, 100.0).advance_width)
+                    .sum();
+                let width = advances / line * TRADE_WORDS_SIZE * 1.2;
+                assert!(
+                    width <= TRADE_WORDS_W,
+                    "{words}: {width:.0} of {TRADE_WORDS_W:.0}"
+                );
+            }
+        }
     }
 }

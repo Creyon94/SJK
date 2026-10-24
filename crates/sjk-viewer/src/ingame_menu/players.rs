@@ -259,14 +259,28 @@ impl State {
         self.trade_holocrons = holocrons;
     }
 
-    /// What Trade does, as its hint says: holocrons only once the hub trades them.
+    /// What Trade does, as its hint says: holocrons only once the hub trades them. Short
+    /// enough for one line beside the card's Trade button (`sjk_view::trade_button`).
     pub(crate) fn trade_hint(&self) -> &'static str {
         if self.trade_holocrons {
-            "Swap holocrons and duplicate shaders with them"
+            "Swap holocrons and duplicate shaders"
         } else {
-            "Swap duplicate shaders with them"
+            "Swap duplicate shaders"
         }
     }
+
+    /// Every line the Trade button's words can show: the hints and why not.
+    #[cfg(test)]
+    pub(crate) const TRADE_LINES: [&'static str; 8] = [
+        "Swap holocrons and duplicate shaders",
+        "Swap duplicate shaders",
+        "This is you",
+        "Bots do not trade",
+        "The hub does not know this player",
+        "You blocked this player",
+        "Trading is not open on the SJK hub",
+        "Trades happen on online servers",
+    ];
 
     /// Why the chosen player cannot be asked to trade now, if they cannot.
     pub(crate) fn trade_blocked(&self) -> Option<&'static str> {
@@ -280,7 +294,7 @@ impl State {
         } else if player.bot {
             Some("Bots do not trade")
         } else if player.hub.is_none() {
-            Some("Only SJK players the hub knows can trade")
+            Some("The hub does not know this player")
         } else if player
             .hub
             .as_ref()
@@ -753,16 +767,13 @@ mod tests {
             hub.key_id = key.to_owned();
         }
         assert_eq!(state.trade_blocked_for(&player), None);
-        assert_eq!(state.trade_hint(), "Swap duplicate shaders with them");
+        assert_eq!(state.trade_hint(), "Swap duplicate shaders");
         crate::player_mutes::set_muted(Some(key), &player.name, true);
         let blocked = state.trade_blocked_for(&player);
         crate::player_mutes::set_muted(Some(key), &player.name, false);
         assert_eq!(blocked, Some("You blocked this player"));
         state.set_trading(true, true);
-        assert_eq!(
-            state.trade_hint(),
-            "Swap holocrons and duplicate shaders with them"
-        );
+        assert_eq!(state.trade_hint(), "Swap holocrons and duplicate shaders");
     }
 
     #[test]
