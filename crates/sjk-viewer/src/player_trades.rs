@@ -919,6 +919,24 @@ mod tests {
         });
     }
 
+    /// The size setting reads as a number, so Small and Large take effect (its default
+    /// was the string "1", which `integer_cvar` never read: the window stayed Normal).
+    #[test]
+    fn the_window_size_setting_is_read() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut console =
+            crate::console::ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
+        assert_eq!(console.integer_cvar(SIZE_CVAR), Some(1));
+        for (value, size) in [
+            ("0", crate::trade_window::Size::Small),
+            ("2", crate::trade_window::Size::Large),
+        ] {
+            console.set_cvar(SIZE_CVAR, value);
+            let read = console.integer_cvar(SIZE_CVAR).unwrap();
+            assert_eq!(crate::trade_window::Size::from_value(read), size);
+        }
+    }
+
     /// A view's clocks run from the hub's clock as read, without the list.
     #[test]
     fn a_view_keeps_its_clocks_between_builds() {
