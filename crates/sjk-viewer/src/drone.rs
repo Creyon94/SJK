@@ -96,9 +96,18 @@ impl Flight {
     /// Whether a player told of `self` must hear of `now`.
     fn differs(self, now: Self) -> bool {
         match (self, now) {
-            (Self::Fly { at, yaw }, Self::Fly { at: to, yaw: turned }) => {
+            (
+                Self::Fly { at, yaw },
+                Self::Fly {
+                    at: to,
+                    yaw: turned,
+                },
+            ) => {
                 at.iter().zip(to).any(|(a, b)| (a - b).abs() >= MOVED)
-                    || (yaw - turned).rem_euclid(360).min((turned - yaw).rem_euclid(360)) >= TURNED
+                    || (yaw - turned)
+                        .rem_euclid(360)
+                        .min((turned - yaw).rem_euclid(360))
+                        >= TURNED
             }
             (old, new) => old != new,
         }
@@ -389,9 +398,7 @@ impl GpuState {
             let name = self
                 .live_session
                 .as_ref()
-                .and_then(|session| {
-                    crate::player_identity::shown_name(session.game_state(), slot)
-                })
+                .and_then(|session| crate::player_identity::shown_name(session.game_state(), slot))
                 .unwrap_or_else(|| "Someone".to_owned());
             self.chat.receive(
                 sjk_client::ServerEventKind::CenterPrint,
@@ -495,7 +502,9 @@ impl GpuState {
         let dt = self
             .drone
             .last
-            .map_or(0.0, |last| now.saturating_duration_since(last).as_secs_f32())
+            .map_or(0.0, |last| {
+                now.saturating_duration_since(last).as_secs_f32()
+            })
             .min(0.1);
         self.drone.last = Some(now);
         self.drone.placed = [None; SLOTS];
@@ -598,8 +607,7 @@ impl GpuState {
         let names: Vec<(usize, String)> = (0..SLOTS)
             .filter(|&slot| self.drone.placed[slot].is_some())
             .map(|slot| {
-                let name =
-                    crate::player_identity::shown_name(game_state, slot).unwrap_or_default();
+                let name = crate::player_identity::shown_name(game_state, slot).unwrap_or_default();
                 let name = sjk_game_jka::client_view::strip_colours(name.as_bytes());
                 (slot, String::from_utf8_lossy(&name).into_owned())
             })
@@ -666,7 +674,10 @@ impl GpuState {
 
     /// The game the drones fly in: the server's (a world shot's demo too).
     fn drone_game(&self) -> Option<&sjk_protocol::GameState> {
-        let live = self.live_session.as_ref().map(|session| session.game_state());
+        let live = self
+            .live_session
+            .as_ref()
+            .map(|session| session.game_state());
         #[cfg(test)]
         let live = live.or_else(|| {
             self.demo_session
@@ -720,7 +731,14 @@ mod tests {
             assert!(text.len() <= 64, "{text}");
             assert_eq!(Event::parse(&text), Some(event), "{text}");
         }
-        for wrong in ["fly_1_2", "fly_1_2_3_4_5", "fly_a_2_3_4", "peek_64", "peek_", "lands"] {
+        for wrong in [
+            "fly_1_2",
+            "fly_1_2_3_4_5",
+            "fly_a_2_3_4",
+            "peek_64",
+            "peek_",
+            "lands",
+        ] {
             assert_eq!(Event::parse(wrong), None, "{wrong}");
         }
         // A yaw out of range comes back in it.

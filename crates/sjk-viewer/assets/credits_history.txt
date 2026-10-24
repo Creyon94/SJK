@@ -9,6 +9,13 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 24/10/2026 | - | macOS build: Metal backend and an Apple Silicon package from GitHub
+- b1c1c8a |  | macOS build: Metal backend and an Apple Silicon package from GitHub
+- 0d0102e |  | package_client.py: accept the macos-arm64 platform
+- 7879742 |  | macOS tests: turn on naga's SPIR-V and HLSL writers
+- 4907430 |  | package_client.py: license texts for the macOS bindings
+- 9e98105 |  | macOS package: ship the client as sjk-client
+- 8811a1b |  | status: macOS build verified on GitHub runners
 + 24/10/2026 | - | Drone toy: freecam and peek fly a remote others see; peek needs consent
 - cdf1588 |  | Drone toy: freecam and peek fly a remote others see; peek needs consent
 + 24/10/2026 | - | Reapply kyber crystals on main after release 2026.1024.1
