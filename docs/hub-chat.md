@@ -55,7 +55,7 @@ The hub's side is described in Sol-Vulpes/SJK-hub (`PROTOCOL.md`, "Chat", "Emote
 
 Old clients ignore all of it, so it stays `/v1/`.
 
-- A message in the feed carries `client` (hub since 21/10/2026): `sjk` when it was
+- A message in the feed carries `client` (hub since 25/10/2026): `sjk` when it was
   sent with SJK's User-Agent, `ejk` with JoF EternalJK's (`EJK/...`), left out for
   any other (`ChatMessage::client`, empty then). It picks the line's emblem ([How a
   line looks](#how-a-line-looks)).
