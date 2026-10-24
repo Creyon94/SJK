@@ -42,7 +42,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - A private message flashes the game's taskbar button while you are away from the window (`cl_privateChatFlash`) _(Sol, after Turin's and Nib's ideas)_
 - Kyber crystals: every achievement now brings one, once, from Uncommon to Mythical (shown on the Achievements tab, its hover card and its unlock card). Opening one always gives a saber shader, the ones you do not have yet first, and every tenth crystal in a row without a Legendary or Mythical shader gives one: the Holocrons tab shows your crystals, how soon that is, and their loot table _(Sol)_
 - Two sabers can wear two blade skins, and a staff one on each half: in the Collection pick a saber (or half) above the preview, choose a shader and press Equip (tick Both sabers to dress both at once), or type `saberskin second <id>`; other SJK players see both once the hub has the change _(Creyon, the staff's halves at Sol's request)_
-- `saber kyle kyle` holds two sabers, `saber dual_4` a staff, `saber kyle` one, and the Collection's preview follows at once _(Creyon)_
+- The `saber` command checks both saber names before changing either, so a misspelt one changes nothing, and the Collection's preview follows it at once _(Creyon)_
 
 ## 2026.1023.3 (Alpha) | 23/10/2026
 
