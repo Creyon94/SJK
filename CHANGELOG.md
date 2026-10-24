@@ -30,12 +30,83 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
+= cg_emoteTypingKeep: New: a player typing in the chat or the console keeps their emote, even when pushed, until they move or attack after closing it.
+= cl_privateChatFlash: A private message flashes the game's taskbar button while you are away from the window. On by default; switch it off if you would rather not be called back.
 = cg_wallGrabLock: Optionally lock your camera to a grabbed wall. Off keeps JA+ free look and mouse-aimed kick-offs.
+
+- New toy, the Ragdoll: `toy_ragdoll` (a bind, the quick wheel's Toys page or Collection > Toys) makes your body go limp and fall where physics takes it, sandbox style, with a flatline and body knocks; the camera follows the body, and every SJK player on the server sees the same fall. Press it again, or get hurt, to get up where you lie _(Sol)_
+- Emotes: a player typing (chat, console or a menu open: their talk balloon) keeps their emote until they move or attack after closing it, even if pushed meanwhile; Settings > Sound > Emotes: Typing keeps emote (`cg_emoteTypingKeep`, on) _(Sol, after Rollembones' idea)_
+- Alt-tabbing out or minimising the game always silences your emote's music, for everyone and for you, even with Away when alt-tabbed (`cg_awayAltTab`) off, which now only decides whether the away emote starts; coming back plays it again from where it is _(Sol)_
+- Chat names: with the chat open, click a player's name to pin their card, then Whisper them (encrypted when they use SJK too) or Block them _(Sol, after Bishop's and Sanjisan's ideas)_
+- Saber sounds of your choice: Profile > Saber > Sounds picks them apart from your saber shader. Follow the shader (as before), the stock sounds, or the sounds of any shader you own, with a Preview button; other SJK players hear your choice too (`cg_saberSounds`) _(Sol, after Nib's idea)_
+- Chat sounds by kind: public chat, team chat, private messages (a server's tells and encrypted whispers) and the SJK chat each have a switch and a sound to pick, with a Play button to hear it, in Settings > Sound > Chat sounds. Public chat off no longer silences private messages, and `cg_chatSounds` 2 gives team chat and private messages EJK's own sounds _(Sol, after Turin's and Nib's ideas)_
+- A private message flashes the game's taskbar button while you are away from the window (`cl_privateChatFlash`) _(Sol, after Turin's and Nib's ideas)_
+- Kyber crystals: every achievement now brings one, once, from Uncommon to Mythical (shown on the Achievements tab, its hover card and its unlock card). Opening one always gives a saber shader, the ones you do not have yet first, and every tenth crystal in a row without a Legendary or Mythical shader gives one: the Holocrons tab shows your crystals, how soon that is, and their loot table _(Sol)_
+
+## 2026.1023.3 (Alpha) | 23/10/2026
+
+A small release of fixes from your reports: fewer kicks after a freeze, vehicles, the DEMP2 and the Profile page.
+
+> No more late moves: After the game freezes for a moment, your moves no longer reach the server a second late, which got some players kicked on JoF.
+> DEMP2: The charged shot's flash no longer paints the sky in colours; it whitens the view only when it goes off close in front of you.
+> Vehicles: Tauntaun riders swing again and again, and the AT-ST's camera no longer jumps.
+> Sabers: The saber command keeps your choice in Profile and on the next map, and a thrown saber keeps its afterimages.
+> Profile and chat: The About you box has a real cursor, and cg_chatBoxLines goes up to 24 lines.
+
+- After the game hitches (a second without frames), your moves no longer reach the server late: the client set its clock by the snapshots that waited through the hitch and sent its moves up to a second behind, which JoF's servers took for a `cl_timeNudge` and kicked for _(Sol, after Slash's report)_
+- A thrown saber now keeps its blade skin's swing parts: afterimages, falling blossoms and the effects that answer a swing follow the spinning blade in flight _(Sol, after Kushina's report)_
+- The `saber` command (`saber dual_1`, `saber single_1 single_2`, from the console or a custom quick wheel choice) now changes your sabers for good: Profile > Saber shows them and the next map keeps them, instead of going back to the menu's pick _(Sol, after Kushina's report)_
+- Collection > Cards: the card shown up close no longer covers the Forge tab, which takes every click again _(Sol, after Kushina's report)_
+- `cg_chatBoxLines` shows more chat messages again: up to 24 at once, as in JoF EternalJK (it stopped at 8) _(Sol, after Creyon's report)_
+- The Profile page's About you box has a real caret: click a line to put it there, move it with the arrows (Ctrl for a word), Up, Down, Home and End, and type, paste or delete anywhere in your bio. Ctrl+A selects it all _(Sol, after Kushina's report)_
+- The DEMP2's charged shot no longer whitens the whole screen: its flash fades with distance and direction as in the original game, so only a shock close in front of you flashes, and that flash whitens the view as there rather than a coloured square in the distance _(Sol, after Slash's report)_
+- The AT-ST's camera no longer jumps when the walker starts, stops or changes pace: its seat follows the walker's animations blended, as the original game shows them _(Sol, after Kushina's report)_
+- Riding a tauntaun with a lightsaber, holding attack swings again and again, as in the original game; it showed one swing and then only the swing sounds _(Sol, after Slash's report)_
+- Kyber crystals: every achievement now brings one, once, from Uncommon to Mythical (shown on the Achievements tab, its hover card and its unlock card). Opening one always gives a saber shader, the ones you do not have yet first, and every tenth crystal in a row without a Legendary or Mythical shader gives one: the Holocrons tab shows your crystals, how soon that is, and their loot table _(Sol)_
+
+## 2026.1023.2 (Alpha) | 23/10/2026
+
+A small release for the Hax: it can now be a trap that blows the hacker up with you.
+
+> Hax trap: Set a trap, and whoever hacks you blows up with you, Order 66 style.
+> Away bait: With the trap set, players can hack you while you are away.
+> Safe while typing: Nobody can hack you while your chat is open, trap or not.
+
+- The Hax can be a trap: with Hax trap on (Settings > Game options > Toys), a player who hacks you springs it, and two seconds later you both blow up as in Order 66. With Hax trap while away on too, players may hack you while you are away, and blow up with you _(Sol)_
+
+## 2026.1023.1 (Alpha) | 23/10/2026
+
+SJK chat on JoF servers reaches All chat, whispers say when they are not private, and fixes from your reports.
+
+> JoF servers: SJK chat you say there in a match also goes to All chat, as JoF asked, labelled ALL/SJK.
+> Whispers: An unencrypted whisper warns that the server logs it; encrypted ones you send play their sound.
+> Vehicles: Fighters, speeders and walkers play each gun's firing sound and muzzle flash, as in the original game.
+> Fixes: Map changes use less video memory, MP4 clips no longer freeze the game, and fast turns keep the camera.
+
+- Vehicle guns sound and flash when fired, as in the original game: fighters, speeders and walkers play each gun's own firing sound and muzzle flash at the muzzle that fired, where before only the shots' flight and impacts were heard. Sounds from effects (impacts, explosions and the like) now play at the original game's full volume instead of seven tenths _(Sol, after Kushina's report)_
+- Turning very fast for a long time (a huge `cl_yawspeed`) no longer breaks the camera: the view stays behind your character and no longer shakes with every mouse move afterwards _(Sol, after Yernow's report)_
+- A whisper that is not encrypted says so: while you write one, a red note under the field reads "Not private: the server logs this whisper and its owner can read it". The red note on JoF servers' SJK chat now has its words centred _(Sol)_
+- Playing a chat MP4 clip can no longer freeze the game when a decoding thread ends: Windows Media Foundation is now started once and never shut down from a thread's exit, which deadlocked _(Sol)_
+- Clan emblems: names starting with {{S}} get the clan's red Sith emblem, the JoF emblem is now the clan's green logo, and the JAWA emblem only shows for names starting with (JAWA) _(Sol)_
+- The Hax no longer hacks a player who is typing in the chat or away (still for minutes, alt-tabbed, or with an away tag in their name), and its digital rain is softer _(Sol)_
+- Encrypted whispers you send play their sound once the SJK hub takes them, and their line shows the recipient's SJK marks (emblem, verified tick, name emoji) as incoming ones do _(Sol)_
+- Changing map or server on a server unloads the old map before loading the next one, instead of holding both on the graphics card for a moment: about 0.7 GB less at the worst moment, for players whose card ran out of video memory there (a map change takes about 2 s longer) _(Sol)_
+- On JoF servers, what you say on SJK chat during a match is also said in the server's All chat, starting with SJK in gold, so players on other clients read it too: JoF asked for it so that SJK chat does not split their players away from All chat. A card says so the first time you play on one, and a red note above the chat field reminds you while you type on the SJK channel. Elsewhere, and in the menus, SJK chat stays as it was. Messages with a GIF stay in SJK chat only, and the SJK chat page has a Send only in SJK button for the times it is justified _(Milamber and Sol, at JoF's request)_
+- In the game's chat, SJK chat lines are now labelled SJK, or ALL/SJK when they were said in All chat too, and show once. Messages sent from JoF EternalJK start with its icon instead of SJK's emblem (Settings, "Other clients' icons") _(Milamber and Sol)_
+
+## 2026.1022.3 (Alpha) | 22/10/2026
+
+Encrypted whispers between SJK players arrive in a test phase, with the Hax's digital rain and fixes from your reports.
+
+> Encrypted whispers: In test: whispers between SJK players go encrypted through the SJK hub. Tell us how they work for you on Discord or with Report a bug.
+> Hax: A hacked player glows in green digital rain, and the Hax works after teleports, respawns and map changes.
+> SJK chat: Its field has a caret: move with the arrows, Home and End, and edit anywhere in your message.
+> Fixes: Third-person camera cvars, the spectator whisper key, saber trails when switching, and the Forge's Craft list.
 
 = cl_e2eWhispers: New: whispers between SJK players go end-to-end encrypted through the SJK hub, so only the two of you can read them.
 
 - A hacked player is now wreathed in a green digital rain of falling numbers and symbols while the Hax steers them, so everyone can see who is hacked _(Sol)_
-- End-to-end encrypted whispers: a whisper to another SJK player goes through the SJK hub sealed to their key, so only the two of you can read it, not the game server or the hub. It shows in its own pink, marked ENCRYPTED, with its own sound, and the composer says "(encrypted)" before you send. If the hub cannot take it, a card asks before sending it unencrypted through the game server. Optionally, compare a safety code with the other player outside the game (Safety code on their player card in the chat, or `whisper_verify`): verified players' whispers say VERIFIED, and SJK warns you if their key changes. Settings > Network > Encrypted whispers (`cl_e2eWhispers`) _(Sol)_
+- End-to-end encrypted whispers: a whisper to another SJK player goes through the SJK hub sealed to their key, so only the two of you can read it, not the game server or the hub. It shows in its own pink, marked ENCRYPTED, with its own sound, and the composer says "(encrypted)" before you send. If the hub cannot take it, a card asks before sending it unencrypted through the game server. Optionally, compare a safety code with the other player outside the game (Safety code on their player card in the chat, or `whisper_verify`): verified players' whispers say VERIFIED, and SJK warns you if their key changes. Settings > Network > Encrypted whispers (`cl_e2eWhispers`). This is a test phase: feedback is very welcome on Discord or with Report a bug _(Sol)_
 - The SJK chat's field (its page and the main page's and game menu's chat) has a caret you move with the arrows (Ctrl for a word), Home and End: type, paste or delete anywhere in the message, not only at its end _(Sol, after Rollembones' report)_
 - `cg_thirdPersonRange` and the other third-person camera cvars work again after Camera control has set the camera: a value typed in the console or bound to a key takes effect at once, as in EternalJK _(Sol, after Rollembones' report)_
 - While following a player as a spectator, the whisper key (U, `messagemode3`) whispers to the player you follow, as in JoF EternalJK _(Sol, after Kushina's report)_
@@ -43,7 +114,6 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - The Forge no longer flickers on the last lines of Craft: with their saber shaders drawn, its Legendary and Mythical lines asked more of the page than it held, and it dropped part of some frames _(Sol, after Nib's report)_
 - Holonet Feed lists its Data flecks once in the Collection: its own flecks and the motes round it, both named Data flecks, were two switches; one now turns both, and Power Coupling's Sparks likewise _(Sol, after Rollembones's report)_
 - The Hax works after a teleport or a respawn: a player who had teleported, or respawned, an odd number of times could not be hacked. A map change no longer leaves a long "Hax again" wait or a player who cannot be hacked, and a hack started just after joining is no longer lost _(Sol, after Sol's report)_
-- Kyber crystals: every achievement now brings one, once, from Uncommon to Mythical (shown on the Achievements tab, its hover card and its unlock card). Opening one always gives a saber shader, the ones you do not have yet first, and every tenth crystal in a row without a Legendary or Mythical shader gives one: the Holocrons tab shows your crystals, how soon that is, and their loot table _(Sol)_
 
 ## 2026.1022.2 (Alpha) | 22/10/2026
 

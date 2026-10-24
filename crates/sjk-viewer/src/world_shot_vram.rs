@@ -125,6 +125,70 @@ fn map_changes_vram() {
     });
 }
 
+/// A server map change with and without the old map unloaded first
+/// (`session_transition.rs`, [`GpuState::empty_world_input`]): the peak with ffa3 and
+/// siege_desert alive at once, against an empty world and siege_desert. Run like
+/// `map_changes_vram`.
+#[test]
+#[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+fn map_change_unloaded_vram() {
+    on_big_stack(|| {
+        let size = [1920, 1080];
+        let Some((mut gpu, _profile)) = open("maps/mp/ffa3.bsp", size, None, &[]) else {
+            return;
+        };
+        let _ = frame(&mut gpu, 4);
+        let (alone, labels) = live(&gpu.device);
+        let mut labels: Vec<_> = labels.into_iter().collect();
+        labels.sort_by_key(|(_, bytes)| std::cmp::Reverse(*bytes));
+        for (label, bytes) in labels.iter().take(30) {
+            eprintln!("    ffa3 {:>8.1} MiB  {label}", *bytes as f64 / MIB);
+        }
+        let next = |gpu: &GpuState| {
+            let (mut input, _next) = world_input("maps/mp/siege_desert.bsp", None, &[]);
+            input.console = None;
+            pollster::block_on(GpuState::new_with_context(
+                Arc::clone(&gpu.context),
+                size,
+                input,
+                None,
+            ))
+            .expect("the next map is built")
+        };
+        let built = next(&gpu);
+        let (both, _) = live(&gpu.device);
+        drop(built);
+        let empty = pollster::block_on(GpuState::new_with_context(
+            Arc::clone(&gpu.context),
+            size,
+            gpu.empty_world_input().expect("an empty world"),
+            None,
+        ))
+        .expect("the empty world is built");
+        let mut empty = gpu.adopt_world(empty);
+        attach_target(&mut empty, size);
+        gpu = empty;
+        let _ = frame(&mut gpu, 4);
+        let (unloaded, labels) = live(&gpu.device);
+        let mut labels: Vec<_> = labels.into_iter().collect();
+        labels.sort_by_key(|(_, bytes)| std::cmp::Reverse(*bytes));
+        for (label, bytes) in labels.iter().take(30) {
+            eprintln!("    empty {:>8.1} MiB  {label}", *bytes as f64 / MIB);
+        }
+        let built = next(&gpu);
+        let (peak, _) = live(&gpu.device);
+        drop(built);
+        eprintln!(
+            "vram: ffa3 {:.0} MiB; ffa3 + siege_desert {:.0} MiB; empty world {:.0} MiB; empty + siege_desert {:.0} MiB",
+            alone as f64 / MIB,
+            both as f64 / MIB,
+            unloaded as f64 / MIB,
+            peak as f64 / MIB
+        );
+        assert!(peak < both, "unloading first lowers the peak");
+    });
+}
+
 /// The main menu on pictures, as a 3 GB card starts it (Vin's, 21/10/2026: out of
 /// memory in the menu 18 s in): labels allocated more than three times, then the
 /// biggest labels. Measured 21/10/2026 at 1920x1080, r_picmip 2: 1082 MiB, 801 MiB once

@@ -19,11 +19,21 @@
 //!
 //! Only the hacked player's client decides: it takes a seize only from a player the game
 //! shows under the name they claimed, not blocked here, who has the toy out, while its own
-//! toy is on and its player plays (not in a duel, not carrying a flag, not hacked in the
-//! last [`IMMUNE_MS`]). Turning the toy off frees the player at once. Controls are
+//! toy is on and its player plays (not in a duel, not carrying a flag, not away, not
+//! hacked in the last [`IMMUNE_MS`]). A hack does not begin on a player who is typing in
+//! the chat (their talk balloon, `EF_TALK`) or away as the scoreboard marks them. Turning the toy off frees the player at once. Controls are
 //! limited to [`CONTROL_BUTTONS`] and the movement keys: no Force power, weapon change,
 //! chat or command goes through. The hacker's own player stands still meanwhile, open to
 //! attack. Players on stock clients see a player who stands still and one who moves.
+//!
+//! A trap (Sol's idea, 23/10/2026): a player with [`TRAP_CVAR`] on answers a seize with
+//! `trap_<moment>` instead. Nobody is steered: both players read "IT'S A TRAP!" over
+//! Order 66's beeps, and at the moment, two seconds on, both clients send `kill` and
+//! both players blow up as Order 66's do (`order66::order66_blow_up`). The hacked player
+//! tells everyone else through a feed toy event (`trap_<moment>`, to the hacker), so
+//! their clients blow the two up too; the two seconds give it time to arrive. With
+//! [`AWAY_CVAR`] on as well, the trap holds while the player is away: their look shows
+//! [`AWAY_TOY`], so hackers' clients let a hack begin on them though they are away.
 //!
 //! A hacked player is wreathed in a green digital rain ([`GLYPHS`]) while steered: on
 //! their own screen and the hacker's at once, and on every other SJK client of the server
@@ -94,6 +104,8 @@ const SLOTS: usize = crate::looks::SLOTS;
 const PMF_FOLLOW: u16 = 4096;
 const ET_PLAYER: u8 = 1;
 const EF_DEAD: u32 = 1 << 1;
+/// `EF_TALK`: the player's chat is open (the talk balloon).
+const EF_TALK: u32 = sjk_game_jka::pmove_talk::EF_TALK;
 /// `EF_NODRAW` (`bg_public.h`); `1 << 3` is `EF_TELEPORT_BIT`, which the server flips at
 /// every teleport and respawn, so a player with it set is drawn as any other.
 const EF_NODRAW: u32 = 1 << 8;
@@ -115,6 +127,16 @@ const GLYPHS_EVERY: Duration = Duration::from_millis(70);
 /// The feed toy events that tell every SJK player of the server who is hacked: this,
 /// then the game server time it lasts until; and the end, when it comes sooner.
 const HACKED_PREFIX: &str = "hacked_";
+/// The trap: this, then the game server time both players blow up at.
+const TRAP_PREFIX: &str = "trap_";
+/// From the trap sprung to the blast.
+pub(crate) const TRAP_MS: i32 = 2_000;
+/// Archived cvar: a hack on the player springs the trap instead (off by default).
+pub(crate) const TRAP_CVAR: &str = "cl_haxTrap";
+/// Archived cvar: with the trap on, the player may be hacked while away.
+pub(crate) const AWAY_CVAR: &str = "cl_haxAway";
+/// The look's toy that says the player may be hacked while away (the trap is set).
+pub(crate) const AWAY_TOY: &str = "hax_away";
 const FREED: &str = "freed";
 
 /// The bundled files at their game paths (the pictures made by `scripts/hax_assets.py`,
@@ -195,6 +217,8 @@ pub(crate) enum Refusal {
     Flag,
     /// Hacked a moment ago ([`IMMUNE_MS`]).
     Immune,
+    /// Away from the keyboard.
+    Afk,
 }
 
 impl Refusal {
@@ -205,6 +229,7 @@ impl Refusal {
             Self::Duel => "duel",
             Self::Flag => "flag",
             Self::Immune => "immune",
+            Self::Afk => "afk",
         }
     }
 
@@ -214,6 +239,7 @@ impl Refusal {
             "duel" => Self::Duel,
             "flag" => Self::Flag,
             "immune" => Self::Immune,
+            "afk" => Self::Afk,
             _ => Self::Busy,
         }
     }
@@ -226,6 +252,7 @@ impl Refusal {
             Self::Duel => "is in a duel",
             Self::Flag => "carries the flag",
             Self::Immune => "was hacked a moment ago",
+            Self::Afk => "is away",
         }
     }
 }
@@ -239,6 +266,7 @@ pub(crate) enum Event {
     Frame(Frame),
     Taken(i32),
     Refused(Refusal),
+    Trap(i32),
 }
 
 impl Event {
@@ -255,6 +283,9 @@ impl Event {
         if let Some(why) = event.strip_prefix("refused_") {
             return Some(Self::Refused(Refusal::from_word(why)));
         }
+        if let Some(moment) = event.strip_prefix(TRAP_PREFIX) {
+            return moment.parse().ok().map(Self::Trap);
+        }
         match event {
             "stop" => Some(Self::Stop),
             "seize" => Some(Self::Seize),
@@ -270,6 +301,7 @@ impl Event {
             Self::Frame(frame) => frame.event(),
             Self::Taken(until) => format!("taken_{until}"),
             Self::Refused(why) => format!("refused_{}", why.word()),
+            Self::Trap(moment) => format!("{TRAP_PREFIX}{moment}"),
         }
     }
 }
@@ -311,6 +343,23 @@ enum Role {
         since: Instant,
         weapon: Option<u8>,
     },
+    /// In a trap with `other` (the hacker, or the player who set it): both blow up at
+    /// `at`; `shown` is the countdown's second last shown.
+    Trapped {
+        other: u8,
+        at: i32,
+        shown: i32,
+    },
+}
+
+/// Two players a trap blows up at a moment (bits by slot), and those already blown up.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct TrapBlast {
+    slots: u64,
+    at: i32,
+    blasted: u64,
+    /// Heard this frame: a player of it already dead blows up too (the news came late).
+    fresh: bool,
 }
 
 /// The toy's state.
@@ -330,6 +379,10 @@ pub(crate) struct Hax {
     hacked: [i32; SLOTS],
     /// When the rain was last emitted.
     glyphs_at: Option<Instant>,
+    /// The traps sprung on this server, to blow their two players up.
+    traps: Vec<TrapBlast>,
+    /// The slots seen dead in the last snapshot, for the traps.
+    dead: u64,
     /// The last frame sent, and when.
     sent: Option<(Frame, Instant)>,
     seq: u32,
@@ -351,6 +404,8 @@ impl Default for Hax {
             seen: None,
             hacked: [i32::MIN; SLOTS],
             glyphs_at: None,
+            traps: Vec::with_capacity(4),
+            dead: 0,
             sent: None,
             seq: 0,
             cues: Vec::with_capacity(4),
@@ -533,6 +588,11 @@ impl Hax {
         }
     }
 
+    /// Whether the player is in a hack, as hacker or hacked (the Ragdoll waits).
+    pub(crate) fn busy(&self) -> bool {
+        !matches!(self.role, Role::Idle)
+    }
+
     /// The slot the player steers, while steering.
     fn steering(&self) -> Option<u8> {
         match self.role {
@@ -549,7 +609,51 @@ impl Hax {
         self.immune_until = i32::MIN;
         self.seen = None;
         self.hacked = [i32::MIN; SLOTS];
+        self.traps.clear();
         self.sent = None;
+    }
+
+    /// Blow `slots` up at `at`, `fresh` when the news may come after their deaths.
+    fn trap(&mut self, slots: u64, at: i32, fresh: bool) {
+        if self
+            .traps
+            .iter()
+            .any(|trap| trap.slots == slots && trap.at == at)
+        {
+            return;
+        }
+        if self.traps.len() >= 8 {
+            self.traps.remove(0);
+        }
+        self.traps.push(TrapBlast {
+            slots,
+            at,
+            blasted: 0,
+            fresh,
+        });
+    }
+
+    /// The trapped players newly dead at `now` in their trap's window blow up, each
+    /// once: `seen` and `dead` are the snapshot's players and dead ones (bits). Their
+    /// bits.
+    fn trap_deaths(&mut self, seen: u64, dead: u64, now: i32) -> u64 {
+        let newly = dead & !self.dead & seen;
+        self.dead = (self.dead & !seen) | (dead & seen);
+        let early = crate::order66::BLAST_EARLY_MS;
+        let window = crate::order66::BLAST_WINDOW_MS;
+        let mut blown = 0;
+        for trap in &mut self.traps {
+            if now >= trap.at - early && now <= trap.at + window {
+                let candidates = if trap.fresh { dead & seen } else { newly };
+                let hit = candidates & trap.slots & !trap.blasted;
+                trap.blasted |= hit;
+                blown |= hit;
+            }
+            trap.fresh = false;
+        }
+        self.traps
+            .retain(|trap| now <= trap.at + window && now >= trap.at - 10 * TRAP_MS);
+        blown
     }
 
     /// Note the game server time `now`; when its clock went back (a new map on the same
@@ -562,6 +666,7 @@ impl Hax {
             self.ready_at = i32::MIN;
             self.immune_until = i32::MIN;
             self.hacked = [i32::MIN; SLOTS];
+            self.traps.clear();
         }
         back
     }
@@ -581,6 +686,21 @@ fn mark(hacked: &mut [i32; SLOTS], slot: u8, until: Option<i32>) {
     if let Some(mark) = hacked.get_mut(usize::from(slot)) {
         *mark = until.unwrap_or(i32::MIN);
     }
+}
+
+/// The trap's moment a feed toy event of the toy names, if it is a trap.
+fn trap_event(event: &str) -> Option<i32> {
+    event.strip_prefix(TRAP_PREFIX)?.parse().ok()
+}
+
+/// Whether the player's trap is set (`cl_haxTrap`).
+fn trap_set(console: Option<&crate::console::ViewerConsole>) -> bool {
+    console.and_then(|console| console.bool_cvar(TRAP_CVAR)) == Some(true)
+}
+
+/// Whether the player may be hacked while away: the trap set and `cl_haxAway` on.
+pub(crate) fn away_hackable(console: Option<&crate::console::ViewerConsole>) -> bool {
+    trap_set(console) && console.and_then(|console| console.bool_cvar(AWAY_CVAR)) == Some(true)
 }
 
 /// Whether a player entity with `e_flags` is drawn and alive, so it may be hacked.
@@ -621,13 +741,16 @@ impl GpuState {
 
     /// The frame's toy logic: the relay's events, the hack under way, the steering's end,
     /// the hack bar and the hacking sound.
-    pub(crate) fn update_hax(&mut self, toy_events: &[sjk_identity::ToyEvent]) {
+    pub(crate) fn update_hax(
+        &mut self,
+        toy_events: &[sjk_identity::ToyEvent],
+        events: &[sjk_identity::ToyEvent],
+    ) {
         let Some(session) = self
             .live_session
             .as_ref()
             .filter(|session| !session.is_local())
         else {
-            crate::player_identity::set_relay_listen(false);
             self.end_hax_role();
             self.hax.leave();
             self.hud.set_toy_hack(None);
@@ -639,8 +762,6 @@ impl GpuState {
             self.hax.leave();
             self.hax.server = Some(server);
         }
-        crate::player_identity::set_relay_listen(self.hax.on);
-        let events = crate::player_identity::take_relay_events(Some(server));
         let Some(session) = self.live_session.as_ref() else {
             return;
         };
@@ -700,6 +821,15 @@ impl GpuState {
             {
                 continue;
             }
+            if let Some(at) = trap_event(&event.event)
+                && at > now - crate::order66::BLAST_WINDOW_MS
+                && at <= now + TRAP_MS + 1_000
+                && usize::from(event.target) < SLOTS
+            {
+                self.hax
+                    .trap((1 << event.slot) | (1 << event.target), at, true);
+                continue;
+            }
             match hacked_event(&event.event) {
                 Some(Some(until)) if until > now && until <= now + CONTROL_MS + 1_000 => {
                     mark(&mut self.hax.hacked, event.slot, Some(until));
@@ -710,6 +840,7 @@ impl GpuState {
         }
         self.hax_hack(now, spared, own);
         self.hax_progress(now, spared);
+        self.hax_trap_blasts();
         let bar = match self.hax.role {
             Role::Hacking { done_at, .. } | Role::Targeted { done_at, .. } => {
                 Some((done_at - now) as f32 / HACK_MS as f32)
@@ -731,7 +862,10 @@ impl GpuState {
         match (event, self.hax.role) {
             // A hack begins on the player.
             (Event::Hack(done_at), Role::Idle)
-                if self.hax.on && holds && now >= self.hax.immune_until =>
+                if self.hax.on
+                    && holds
+                    && now >= self.hax.immune_until
+                    && (!self.hax_own_away() || away_hackable(self.console.as_ref())) =>
             {
                 self.hax.role = Role::Targeted {
                     hacker: slot,
@@ -750,6 +884,8 @@ impl GpuState {
                     Some(Refusal::Busy)
                 } else if now < self.hax.immune_until {
                     Some(Refusal::Immune)
+                } else if self.hax_own_away() && !away_hackable(self.console.as_ref()) {
+                    Some(Refusal::Afk)
                 } else {
                     spared.map(|spared| match spared {
                         crate::order66::Spared::Away | crate::order66::Spared::Dead => {
@@ -764,6 +900,20 @@ impl GpuState {
                     if matches!(role, Role::Targeted { hacker, .. } if hacker == slot) {
                         self.hax.role = Role::Idle;
                     }
+                    return;
+                }
+                if trap_set(self.console.as_ref())
+                    && let Some(own) = self.hax_own()
+                {
+                    let at = now + TRAP_MS;
+                    relay(Event::Trap(at), slot);
+                    crate::player_identity::toy_event(TOY, &format!("{TRAP_PREFIX}{at}"), slot);
+                    self.hax.trap((1 << own) | (1 << slot), at, false);
+                    self.hax.role = Role::Trapped {
+                        other: slot,
+                        at,
+                        shown: i32::MAX,
+                    };
                     return;
                 }
                 let until = now + CONTROL_MS;
@@ -812,6 +962,16 @@ impl GpuState {
                 self.hax.cues.push(SEIZE_SOUND);
                 let name = self.hax_name(slot);
                 self.hax_centre(format!("^2HACKED^7\nYou steer {name}"));
+            }
+            (Event::Trap(at), Role::Seizing { target, .. }) if target == slot => {
+                if let Some(own) = self.hax_own() {
+                    self.hax.trap((1 << own) | (1 << target), at, false);
+                }
+                self.hax.role = Role::Trapped {
+                    other: target,
+                    at,
+                    shown: i32::MAX,
+                };
             }
             (Event::Refused(why), Role::Seizing { target, .. }) if target == slot => {
                 self.hax.role = Role::Idle;
@@ -867,6 +1027,16 @@ impl GpuState {
                 else {
                     return;
                 };
+                let typing = snapshot.entities.iter().any(|entity| {
+                    u8::try_from(entity.number()) == Ok(target) && entity.e_flags() & EF_TALK != 0
+                });
+                let name = self.hax_name(target);
+                let away_ok = self.looks.toy(usize::from(target), AWAY_TOY);
+                if typing || (!away_ok && self.scoreboard.seen_away(target, &name)) {
+                    let why = if typing { "is typing" } else { "is away" };
+                    self.hax_centre(format!("{name}^7 {why}: no hacking them now"));
+                    return;
+                }
                 if now < self.hax.ready_at {
                     let wait = (self.hax.ready_at - now + 999) / 1000;
                     self.hax_centre(format!("Hax again in {wait} s"));
@@ -907,6 +1077,36 @@ impl GpuState {
     /// that led nowhere, a hacked player whose hacker went quiet; and the player's own
     /// toy turned off or their player no longer playing.
     fn hax_progress(&mut self, now: i32, spared: Option<crate::order66::Spared>) {
+        if let Role::Trapped { other, at, shown } = self.hax.role {
+            if now >= at {
+                // Both send `kill` now; a player already dead, or away from the match,
+                // has nothing to say.
+                self.hax.role = Role::Idle;
+                self.hax.ready_at = now + COOLDOWN_MS;
+                self.hax.immune_until = now + IMMUNE_MS;
+                if !matches!(
+                    spared,
+                    Some(crate::order66::Spared::Away | crate::order66::Spared::Dead)
+                ) && let Some(session) = self.live_session.as_mut()
+                    && let Err(error) = session.send_reliable_command(b"kill")
+                {
+                    crate::log::progress(format_args!("hax: kill not sent: {error}"));
+                }
+                return;
+            }
+            let seconds = (at - now + 999) / 1000;
+            if seconds != shown {
+                self.hax.role = Role::Trapped {
+                    other,
+                    at,
+                    shown: seconds,
+                };
+                self.hax.cues.push(crate::order66::TICK_SOUND);
+                let name = self.hax_name(other);
+                self.hax_centre(format!("^1IT'S A TRAP!\n^7{name}^7 and you\n^3{seconds}"));
+            }
+            return;
+        }
         match self.hax.role {
             Role::Seizing { target, since } if since.elapsed() >= ANSWER_WAIT => {
                 self.hax.role = Role::Idle;
@@ -993,6 +1193,34 @@ impl GpuState {
         }
         self.hax.role = Role::Idle;
         self.hax.sent = None;
+    }
+
+    /// Whether the player is away from the keyboard, as their own client knows it: idle or
+    /// alt-tabbed (`away_emote`), or wearing an away tag in their name (`afk`).
+    fn hax_own_away(&self) -> bool {
+        crate::away_emote::own_away()
+            || self.hax_own().is_some_and(|own| {
+                let name = self.hax_name(own);
+                self.scoreboard.seen_away(own, &name)
+            })
+    }
+
+    /// The traps' players: their limb meshes made ready while the trap counts down, and
+    /// those who die in its window blown up.
+    fn hax_trap_blasts(&mut self) {
+        let Some((seen, dead, now)) = self.order66_seen_dead() else {
+            return;
+        };
+        let ready = self
+            .hax
+            .traps
+            .iter()
+            .filter(|trap| now < trap.at)
+            .fold(0, |ready, trap| ready | trap.slots)
+            & seen;
+        self.order66_ready(ready);
+        let blown = self.hax.trap_deaths(seen, dead, now);
+        self.order66_blow_up(blown);
     }
 
     /// The player's own slot, in a game.
@@ -1101,7 +1329,15 @@ impl GpuState {
         if self.hax.sounds_registered != Some(audio.generation())
             && let Some(vfs) = self.vfs.as_deref()
         {
-            audio.register_effect_paths(vfs, [HACK_SOUND, SEIZE_SOUND, RELEASE_SOUND]);
+            audio.register_effect_paths(
+                vfs,
+                [
+                    HACK_SOUND,
+                    SEIZE_SOUND,
+                    RELEASE_SOUND,
+                    crate::order66::TICK_SOUND,
+                ],
+            );
             self.hax.sounds_registered = Some(audio.generation());
         }
         let own = self
@@ -1224,6 +1460,8 @@ mod tests {
             Event::Taken(-5),
             Event::Refused(Refusal::Duel),
             Event::Refused(Refusal::Immune),
+            Event::Refused(Refusal::Afk),
+            Event::Trap(1_234_567),
         ];
         for event in events {
             let text = event.text();
@@ -1399,6 +1637,42 @@ mod tests {
                 "{name}"
             );
         }
+    }
+
+    #[test]
+    fn a_trap_blows_its_two_players_up_once_in_its_window() {
+        let mut hax = Hax::default();
+        let (a, b, c) = (1_u64 << 3, 1_u64 << 5, 1_u64 << 7);
+        let seen = a | b | c;
+        hax.trap(a | b, 10_000, false);
+        hax.trap(a | b, 10_000, false);
+        assert_eq!(hax.traps.len(), 1, "heard twice, kept once");
+        // Before the window, a death does not count.
+        assert_eq!(hax.trap_deaths(seen, a, 9_000), 0);
+        assert_eq!(hax.trap_deaths(seen, 0, 9_500), 0);
+        // In it, each of the two once; a third player never.
+        assert_eq!(hax.trap_deaths(seen, a | c, 10_000), a);
+        assert_eq!(hax.trap_deaths(seen, a | b | c, 10_100), b);
+        assert_eq!(hax.trap_deaths(seen, 0, 10_200), 0);
+        assert_eq!(hax.trap_deaths(seen, a | b, 10_300), 0, "once each");
+        // Past the window, forgotten.
+        assert_eq!(hax.trap_deaths(seen, 0, 12_100), 0);
+        assert!(hax.traps.is_empty());
+    }
+
+    #[test]
+    fn a_trap_heard_late_blows_up_the_already_dead() {
+        let mut hax = Hax::default();
+        let (a, b) = (1_u64 << 3, 1_u64 << 5);
+        assert_eq!(
+            hax.trap_deaths(a | b, a | b, 10_200),
+            0,
+            "dead before the news"
+        );
+        hax.trap(a | b, 10_000, true);
+        assert_eq!(hax.trap_deaths(a | b, a | b, 10_400), a | b);
+        assert_eq!(trap_event("trap_10000"), Some(10_000));
+        assert_eq!(trap_event("hacked_10000"), None);
     }
 
     #[test]

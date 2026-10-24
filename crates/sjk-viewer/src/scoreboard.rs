@@ -589,6 +589,12 @@ impl Scoreboard {
         self.afk.observe(snapshot, game, scores, spoken);
     }
 
+    /// Whether `client`, shown as `name`, is away as the scoreboard marks it: seen still
+    /// for 3 minutes, or wearing an away tag in their name (`afk`).
+    pub(crate) fn seen_away(&self, client: u8, name: &str) -> bool {
+        self.afk.away(client).is_some() || afk::tagged(name)
+    }
+
     /// The resolved model icon of `client`'s slot.
     pub(crate) fn head_icon(&self, client: u8) -> Option<sjk_ui::TextureId> {
         self.icons.texture(client)

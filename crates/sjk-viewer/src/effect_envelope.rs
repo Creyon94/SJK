@@ -41,6 +41,16 @@ impl Envelope {
         }
     }
 
+    /// The envelope with its start and end scaled by `factor` (`VectorScale` of a
+    /// primitive's `mRGBStart` and `mRGBEnd`).
+    pub(crate) fn scaled(self, factor: f32) -> Self {
+        Self {
+            start: self.start * factor,
+            end: self.end * factor,
+            ..self
+        }
+    }
+
     pub(crate) fn from_values(start: f32, end: f32, parameter: f32, flags: CurveFlags) -> Self {
         Self {
             start,

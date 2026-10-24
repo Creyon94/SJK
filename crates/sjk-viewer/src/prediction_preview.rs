@@ -55,6 +55,11 @@ pub(crate) fn tick(
         .command_delta()
         .unwrap_or(snapshot.player.delta_angles());
     gpu.hax.shape_preview(&mut command, delta);
+    let origin = gpu
+        .local_prediction
+        .committed_state()
+        .map_or_else(|| snapshot.player.origin(), |state| state.origin);
+    gpu.ragdoll.shape_preview(&mut command, delta, origin);
     gpu.local_prediction
         .preview_command(command, &gpu.bsp, &mut gpu.trace_scratch);
     let presented_snapshot = session.snapshot_at_or_before(presentation_time);

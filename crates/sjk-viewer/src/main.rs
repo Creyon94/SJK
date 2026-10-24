@@ -33,6 +33,7 @@ mod chat;
 mod chat_ban;
 mod chat_gifs;
 mod chat_mutes;
+mod chat_sounds;
 mod cinematic_roq;
 mod client_guid;
 mod client_state;
@@ -48,6 +49,7 @@ mod kyber;
 mod loot_odds;
 
 mod saber_colour_command;
+mod saber_hilt_command;
 mod shader_image;
 mod shared_textures;
 
@@ -84,9 +86,11 @@ mod effect_debug;
 mod effect_electricity;
 mod effect_emitter;
 mod effect_envelope;
+mod effect_flash;
 mod effect_geometry;
 mod effect_geometry_gpu;
 mod vehicle_assets;
+mod vehicle_fire;
 mod vehicle_pose;
 
 mod effect_library;
@@ -168,6 +172,7 @@ mod menu_widgets;
 mod menu_world;
 mod mimic;
 mod missile_trails;
+mod mod_notice_card;
 mod model_materials;
 mod mods;
 mod movement_collision;
@@ -187,6 +192,7 @@ mod particle_draw;
 mod peek;
 mod portal;
 mod prediction_preview;
+mod ragdoll;
 mod scene_views;
 mod scope;
 mod sender_card;
@@ -267,6 +273,7 @@ mod saber_rgb;
 mod saber_skin_command;
 mod saber_skin_options;
 mod saber_skins;
+mod saber_sound_choice;
 mod saber_submission;
 mod saber_trail;
 mod saber_trail_gpu;
@@ -410,6 +417,8 @@ struct GpuState {
     alpha_card: alpha_notice_card::Card,
     /// The SJK team's request for the player's logs ([`log_request_card`]).
     log_request_card: log_request_card::Card,
+    /// A client mod's notice, shown once on its servers ([`mod_notice_card`]).
+    mod_notice: mod_notice_card::State,
     /// What the update brought ([`whats_new_card`]).
     whats_new_card: whats_new_card::Card,
     window: Option<Arc<Window>>,
@@ -480,6 +489,8 @@ struct GpuState {
     order66: order66::Order66,
     /// The Hax toy (`toy_hax`): a hack under way, the player steered or steering.
     hax: hax::Hax,
+    /// The Ragdoll toy (`toy_ragdoll`): the player's own fall and the falls of others.
+    ragdoll: ragdoll::Ragdoll,
     /// Order 66's and the Hax's switches as last saved (`toy_saved`).
     toys_saved: [toy_saved::Saved; 2],
     /// The Holocrons tab's 3D holocron ([`holocrons::stage`]).
@@ -498,6 +509,8 @@ struct GpuState {
     dynamic_lights: dynamic_lights::PointLightList,
     effect_aux: effect_aux::Runtime,
     muzzle_effects: sjk_client::LegacyMuzzleEffects,
+    /// Vehicle volleys waiting for their vehicle to be posed (`vehicle_fire.rs`).
+    vehicle_fires: vehicle_fire::Pending,
     force_overlays: sjk_client::LegacyForceOverlayTracker,
     /// The jetpack model and its jet bolts.
     jetpack: jetpack::Catalog,
@@ -697,6 +710,9 @@ struct GpuState {
     pending_map_reload: bool,
     world_load_task: Option<session_transition::WorldLoadTask>,
     world_install_task: Option<session_transition::WorldInstallTask>,
+    /// An empty world standing in for a server's map while its next map builds
+    /// (`session_transition`): the old map is off the graphics card first.
+    map_unloaded: bool,
     world_load_state: session_transition::LoadStateMachine,
     world_load_started: Option<Instant>,
     world_load_map: String,
@@ -1387,6 +1403,7 @@ impl GpuState {
             e2e_whispers: e2e_whispers::State::default(),
             alpha_card: alpha_notice_card::Card::default(),
             log_request_card: log_request_card::Card::default(),
+            mod_notice: mod_notice_card::State::default(),
             whats_new_card: whats_new_card::Card::default(),
 
             screenshots: screenshot_setup.manager,
@@ -1434,6 +1451,7 @@ impl GpuState {
             cardboard_box: Default::default(),
             order66: Default::default(),
             hax: Default::default(),
+            ragdoll: Default::default(),
             toys_saved: Default::default(),
             holocron_stage: Default::default(),
             #[cfg(test)]
@@ -1447,6 +1465,7 @@ impl GpuState {
             dynamic_lights: dynamic_lights::PointLightList::default(),
             effect_aux: effect_aux::Runtime::default(),
             muzzle_effects: sjk_client::LegacyMuzzleEffects::new(),
+            vehicle_fires: Default::default(),
             force_overlays: sjk_client::LegacyForceOverlayTracker::default(),
             jetpack,
             jetpack_sounds: Default::default(),
@@ -1597,6 +1616,7 @@ impl GpuState {
             pending_map_reload: false,
             world_load_task: None,
             world_install_task: None,
+            map_unloaded: false,
             world_load_state: session_transition::LoadStateMachine::new(),
             world_load_started: None,
             world_load_map: String::with_capacity(64),
@@ -1690,6 +1710,8 @@ impl GpuState {
             demo_playback::Session::current_server_time,
         );
         prediction_preview::tick(self, game_audio, Instant::now(), presentation_time as i32);
+        // The Ragdoll's bodies at this frame's time, for the camera and the actors.
+        self.step_ragdolls(presentation_time);
         timing.mark(Phase::Config);
         self.refresh_config_strings(game_audio);
         timing.mark(Phase::View);
@@ -1742,6 +1764,7 @@ impl GpuState {
             .then(|| {
                 peek::camera(self, presentation_time)
                     .or_else(|| hax::camera(self, presentation_time))
+                    .or_else(|| ragdoll::camera(self, presentation_time))
             })
             .flatten();
         let fall = self.update_fall_camera(presentation_time as i32);
@@ -1795,6 +1818,8 @@ impl GpuState {
             _ => (view_position, view_target),
         };
         cut_trace::tick(self, branch, (view_position, view_target), visual_now);
+        self.effect_aux
+            .set_viewer(view_position, view_target - view_position);
         // `CG_DoCameraShake` measures from the rendered view (`cg.refdef.vieworg`),
         // so an effect's short-range shake reaches a first-person eye but not the
         // third-person camera behind the player.
@@ -2058,7 +2083,23 @@ impl GpuState {
                 || self.medal_popup.pending()
                 || self.holocron_popup.pending(),
         );
+        // A mod's notice on its servers, last.
+        let mod_notice_shown = self.prepare_mod_notice_card(
+            covered
+                || medal_shown
+                || holocron_shown
+                || reload_shown
+                || fps_shown
+                || logs_shown
+                || news_shown
+                || emote_help_shown
+                || emote_picker_shown
+                || whisper_shown
+                || self.medal_popup.pending()
+                || self.holocron_popup.pending(),
+        );
         let medal_popup = alpha_shown
+            || mod_notice_shown
             || medal_shown
             || holocron_shown
             || reload_shown
@@ -2289,6 +2330,8 @@ impl GpuState {
             self.append_emote_picker(viewport);
         } else if whisper_shown {
             self.append_e2e_whisper_card(viewport);
+        } else if mod_notice_shown {
+            self.append_mod_notice_card(viewport);
         }
         // An achievement unlocked, or a medal or holocron in a match: its card over play or
         // the menus, never input-taking.
@@ -2344,6 +2387,7 @@ impl GpuState {
             emote_help_shown.then(|| self.emote_help.card.draw_list()),
             emote_picker_shown.then(|| self.emote_picker.card.draw_list()),
             whisper_shown.then(|| self.e2e_whispers.card.draw_list()),
+            mod_notice_shown.then(|| self.mod_notice.card.draw_list()),
             alpha_shown.then(|| self.alpha_card.draw_list()),
             unlock_toast.then(|| self.unlock_toast.draw_list()),
         ];
@@ -2778,6 +2822,8 @@ impl GpuState {
                 global_seconds: global_particle_seconds,
                 camera: self.camera_position,
                 field_of_view: self.field_of_view,
+                // A perspective projection's y scale over its x scale is the aspect.
+                aspect: projection.y_axis.y / projection.x_axis.x,
                 bsp: &self.bsp,
                 trace_scratch: &mut self.trace_scratch,
 

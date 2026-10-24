@@ -73,6 +73,9 @@ struct Sinks<'a> {
     lights: &'a mut dynamic_lights::PointLightList,
     presentation_time: i64,
     muzzle_effects: &'a sjk_client::LegacyMuzzleEffects,
+    /// Vehicle volleys to play at their muzzles, and the guns' `muzzleFX`.
+    vehicle_fires: &'a mut crate::vehicle_fire::Pending,
+    missile_effects: &'a sjk_client::LegacyMissileEffects,
     particles: &'a mut Vec<Particle>,
     effect_aux: &'a mut effect_aux::Runtime,
     effects: &'a mut EffectLibrary,
@@ -292,6 +295,8 @@ pub(crate) fn submit(
         lights: &mut gpu.dynamic_lights,
         presentation_time,
         muzzle_effects: &gpu.muzzle_effects,
+        vehicle_fires: &mut gpu.vehicle_fires,
+        missile_effects: &gpu.missile_effects,
         particles: &mut gpu.particles,
         effect_aux: &mut gpu.effect_aux,
         effects: &mut gpu.effects,
@@ -419,10 +424,28 @@ pub(crate) fn submit(
             sinks.object_groups[mesh].push(instance);
         }
     }
+    // Volleys of vehicles not drawn this frame play where their events were.
+    while let Some(fire) = sinks.vehicle_fires.take_any(visual_now) {
+        crate::vehicle_fire::play(&mut sinks.vehicle_fire(), &fire, |_| None, visual_now);
+    }
     if let Some(audio) = sinks.game_audio.as_mut() {
         audio.end_holsters();
     }
     overlay_count
+}
+
+impl Sinks<'_> {
+    /// What [`crate::vehicle_fire::play`] needs.
+    fn vehicle_fire(&mut self) -> crate::vehicle_fire::Sinks<'_> {
+        crate::vehicle_fire::Sinks {
+            particles: self.particles,
+            auxiliary: self.effect_aux,
+            effects: self.effects,
+            vfs: self.vfs,
+            audio: self.game_audio,
+            missiles: self.missile_effects,
+        }
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -483,6 +506,30 @@ fn submit_actor(
         .map(|snapshot| &snapshot.player);
     if let Some((percent, npc_class)) = model_scale::source(state, local_player) {
         model_scale::apply(transform, percent, npc_class);
+    }
+    // A limp player (the Ragdoll toy) is drawn where the ragdoll lies, posed in its
+    // model space (`actor_pose_steps`).
+    if entity.kind != EntityKind::Corpse
+        && mesh.is_some_and(|index| sinks.actor_meshes[index].ragdoll.posed)
+        && let Some(points) = crate::ragdoll::shown_entity(entity.id)
+    {
+        crate::ragdoll::place(transform, &points);
+    }
+    // `EV_VEH_FIRE`: this vehicle's volleys, at its muzzles as posed now.
+    if let Some(index) = mesh
+        && sinks.actor_meshes[index].preview.vehicle.is_some()
+        && let Ok(number) = u16::try_from(entity.id.get().saturating_sub(1))
+    {
+        let muzzles = sinks.actor_meshes[index].vehicle_muzzles;
+        let placed = *transform;
+        while let Some(fire) = sinks.vehicle_fires.take(number) {
+            crate::vehicle_fire::play(
+                &mut sinks.vehicle_fire(),
+                &fire,
+                |muzzle| muzzles[muzzle].map(|at| crate::vehicle_fire::world_socket(at, &placed)),
+                visual_now,
+            );
+        }
     }
     // `EF_DISINTEGRATION`: `CG_Disintegration` draws the body and nothing else
     // (`cg_players.c`, `cg_ents.c`).

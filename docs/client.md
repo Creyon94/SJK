@@ -233,7 +233,8 @@ Settings and SJK in place of retail's Controls and Setup:
     `color1`/`color2` 6 (`SABER_RGB`) and the tint in `cp_sbRGB1`/`cp_sbRGB2`
     (`r | g << 8 | b << 16`), as JoF EJK's `UI_UpdateSaberColor` writes them.
     A swatch brings a stock colour back.
-    A changed saber (hilt pick here or `set saber1 ...` in the console) is
+    A changed saber (hilt pick here, `set saber1 ...` or JoF EJK's `saber`
+    command in the console or a quick-wheel custom choice) is
     applied at once on JA+ and jaPRO-lineage servers: after the userinfo flush
     the client sends `saber <saber1>` for a single saber or `saber <saber1>
     <saber2>` for a pair, as JoF EJK's `CG_Saber_f` does, at most once a
@@ -929,6 +930,14 @@ JoF's
 `saberColor <r> <g> <b>` (or `<blade> <r> <g> <b>`, or six values for the two blades)
 makes the blades custom RGB, colour 6 with `cp_sbRGB1`/`cp_sbRGB2`, keeping the pieces
 too ([saber_colour_command.rs](../crates/sjk-viewer/src/saber_colour_command.rs)).
+JoF's `saber <saber1>` (one saber or a staff, `saber2` becomes `none`) and
+`saber <saber1> <saber2>` (two sabers) are the client's own too (`CG_Saber_f`): they
+write `saber1`/`saber2`, which Profile > Saber shows and every userinfo sends, and
+JA+ and jaPRO-lineage servers get their `saber` command from that change, as from the
+menu; with no name it prints the sabers held
+([saber_hilt_command.rs](../crates/sjk-viewer/src/saber_hilt_command.rs)). Sent to the
+server as is, it swapped the saber in play but left the cvars on the menu's pick, which
+the next map brought back (Kushina's report #126).
 The classic profile's Cosmetics window does the same, and the SJK UI's
 Character page has Hat and Cape rows (None, then each installed piece; Enter or a
 click opens a picker of named chips, [sjk-ui.md](sjk-ui.md#character)). The menu stage
@@ -1016,6 +1025,15 @@ ordinary ones; the old Bryar's `BOTH_STAND1` (servers without `g_fixWeaponAttack
 such as JoF's, fire it that way, arm hanging between shots) shows as `BOTH_ATTACK2`
 with the arm raised; the concussion rifle's `BOTH_ATTACK2` shows as `BOTH_ATTACK3`.
 NPCs are left as the server sends them.
+
+A track starting the clip the other track already plays picks up its frame, as
+`CG_SetLerpFrameAnimation` does against the legs' or the lumbar's Ghoul2 frame, except a
+torso restarting the clip it already plays (a `torsoFlip`): stock clears `beginFrame`
+there (`ci->torsoAnim == newAnimation`) and the swing starts over. Without that exception a
+tauntaun rider holding attack, whose `BOTH_VT_ATR_S` restarts on both tracks each second
+(`PM_VehicleWeaponAnimate`), picked up the legs' finished frame and showed one swing for
+many swing sounds (Slash, hub report #123). See
+[animation_selection.rs](../crates/sjk-client/src/animation_selection.rs).
 
 ## Tavion and Desann idle poses
 
@@ -1160,7 +1178,14 @@ Its rider seat uses that same root with the current animated driver bolt. This
 avoids the camera advancing ahead while the mount and rider trail behind on
 snapshot interpolation. Remote vehicles, passengers without local vehicle
 prediction, and demo playback retain their snapshot presentation. The camera's
-animated seat is evaluated every rendered frame. Prediction-error smoothing uses
+animated seat is evaluated every rendered frame, on its own skeleton posed as the cgame
+poses the vehicle (`CG_SetLerpFrameAnimation`): a new vehicle animation starts, blended
+over 100 ms, once presentation reaches the snapshot that brought it. Command replay keeps
+the server's pose at the newest snapshot's time; read from that skeleton, which starts a
+new animation ahead of presentation, the seat showed its first frame unblended and then
+jumped back, and an AT-ST pilot's camera jumped at every walk, run and stand change
+(Kushina, 21/10/2026; [prediction_ride.rs](../crates/sjk-viewer/src/prediction_ride.rs)).
+Prediction-error smoothing uses
 the vehicle root while piloting, avoiding false corrections from rider animation.
 The movement collision adapter excludes the piloted vehicle's own snapshot body
 and its owned objects, matching the stock skip/ownership rules; dismounted and
@@ -1682,13 +1707,26 @@ breakables raise `EV_BMODEL_SOUND` (73); both play the soundset's sound for the 
 answered only 73, taking it for the door event, so doors with a soundset were silent on
 every server (Creyon's report: some maps' doors).
 
+## Vehicle gunfire
+
 A vehicle's own `EV_FIRE_WEAPON` and `EV_ALT_FIRE` (an `ET_NPC` of `CLASS_VEHICLE`)
 play nothing, as in `CG_EntityEvent` (`cg_event.c:2751-2760`, `:2779-2784`): they used
 to play the flash sound of whichever ordinary gun the vehicle's `weapon` field named.
 A rider's own events are unchanged. Stock gives a vehicle's guns their sound through
 the `muzzleFX` effect that `EV_VEH_FIRE` plays bolted to the vehicle
-(`CG_VehMuzzleFireFX`); SJK does not play that effect yet, so vehicle fire is silent
-until it does.
+(`CG_VehMuzzleFireFX`), and SJK plays it since 22/10/2026
+([vehicle_fire.rs](../crates/sjk-viewer/src/vehicle_fire.rs)): the event (on the
+volley's last projectile, or a temp entity) names the vehicle in `owner` and the
+muzzles that fired in `trickedentindex`; each fired muzzle plays the `.vwp` `muzzleFX`
+of its weapon (`weapMuzzleN`, else the turret whose `turretNMuzzleM` names it) at its
+`*muzzleN` (else `*flashN`) bolt as the vehicle is posed that frame, facing along the
+bolt. A vehicle not drawn that frame plays it where the event entity is. Stock bolts
+the effect so it follows the muzzle; here it starts there. The effect's `Sound`
+primitive is the gun's firing sound, played like every effect sound at full volume
+(`S_StartSound` with `SOUND_MAXVOL`; it was seven tenths before, so every effect's
+sound is now as loud as stock). Kushina's report (21/10/2026): vehicle fire was quiet,
+the projectile's flight loop and impacts being all that was heard. JoF EJK skips
+these flashes while the viewer is in a private duel; stock does not, nor does SJK.
 
 ## Electrified players' crackle
 
@@ -2359,6 +2397,50 @@ A whisper to another SJK player goes through the SJK hub end-to-end encrypted wh
 pink, marked ENCRYPTED, with its own sound, and a card asks before sending one the hub
 could not take through the game server. See [hub-chat.md](hub-chat.md#encrypted-whispers).
 
+### Chat sounds
+
+Each kind of chat message has its own sound switch and sound (Sol, after Turin's and
+Nib's ideas, 23/10/2026; [chat_sounds.rs](../crates/sjk-viewer/src/chat_sounds.rs)),
+in Settings > Sound > Chat sounds (Advanced), every row in the settings search:
+
+| Kind | Switch (default on) | Sound (default `default`) | Default sound |
+| --- | --- | --- | --- |
+| Public chat (`chat`, `lchat`) | `cg_chatBeep` | `cl_chatSoundPublic` | JKA's `sound/player/talk` |
+| Team chat (`tchat`, `ltchat`) | `cg_teamChatBeep` | `cl_chatSoundTeam` | talk; EJK's `button_11` under `cg_chatSounds 2` |
+| Private messages | `cg_privateChatBeep` | `cl_chatSoundPrivate` | talk for a tell (EJK's `button_15` under `cg_chatSounds 2`), the SJK whisper sound for an encrypted whisper |
+| SJK chat | `cl_sjkChatSound` | `cl_chatSoundSjk` | SJK's variant of talk ([hub-chat.md](hub-chat.md#a-sound-for-a-new-message)) |
+
+- **The master switch** is EternalJK's `cg_chatSounds` (Chat sounds: Off, On, Distinct
+  (EJK)): 0 silences every kind; 2 makes team chat and tells play JoF EternalJK's own
+  sounds (`cg_main.c` registers `button_11` and, without JoF's `commlink_off`,
+  `button_15`; `cg_servercmds.c` plays them) while their sound is Default.
+- **Private messages** are a server's tells and SJK's encrypted whispers. A tell arrives
+  as public chat (`chat`, or `lchat` to a teammate with a location) whose text starts
+  with the stock private marker `[` (`G_Say`'s `SAY_TELL`); a player cannot type
+  that byte, so a line made to look like a tell stays public. JA+, JoF and the other
+  servers SJK knows send tells that way, so one test serves them all
+  (`chat::private_chat_command`, which `cg_pmOnlyChat` uses too); the sound adapter
+  gives a tell its own beep event (`PrivateChatBeep`). Before, `cg_chatBeep 0` muted
+  tells with public chat; now `cg_chatBeep 0` with `cg_privateChatBeep 1` keeps only
+  the private messages heard (Turin's case).
+- **The sounds:** Default, JKA chat (`talk`), SJK chat and SJK whisper (SJK's two
+  variants of talk), EJK team beep (`button_11`), EJK private beep (`button_15`), Blip
+  (`interface/update`), Select (`interface/sub_select`), Button (`interface/button1`),
+  Tick (`interface/menuroam`): the retail game's short sounds of `assets0.pk3`, read from
+  the player's game data (SJK ships none). Choosing one in Settings plays it; each kind
+  has a Play row, and `chatsoundpreview <public|team|private|sjk>` plays the same, its
+  chosen sound even while its switch is off. An unknown value is the default.
+- **How they play:** a game server's beep as the game's does (beside the listener on
+  `CHAN_LOCAL_SOUND`, a muted player's never), the chosen sound in place of the
+  adapter's; the SJK chat's and an encrypted whisper's through the interface cues.
+- **Taskbar flash:** `cl_privateChatFlash` (archived, default 1; Private message flash)
+  flashes the game's taskbar button when a private message arrives while the window is
+  unfocused or minimised (winit's `request_user_attention`, Informational: Windows
+  flashes it until the window comes back; a no-op where the system has none): a tell
+  from a player not muted here, never the server's echo of the player's own, or an
+  encrypted whisper. Name mentions in public chat already flash with EternalJK's
+  `con_notifywords`.
+
 ### Chat player actions
 
 U defaults to crosshair-target private chat (`messagemode3`): aim at a player,
@@ -2448,10 +2530,29 @@ the visible username glyph bounds. There is no standing player-options hint or s
 notice. Opening the composer exposes history even when passive chat is hidden with
 `cg_chatbox 0`.
 
-Clicking a name does nothing since 18/10/2026 (Sol's decision): the dropdown it opened
-(whisper, a per-map ignore, a local friend star kept in `chat-friends.txt`, copy name)
-was removed, the sender card and `block` having replaced it. Whisper with the `tell`
-command or `reply`; an existing `chat-friends.txt` is no longer read.
+Clicking a name pins its sender card (23/10/2026, Bishop's and Sanjisan's requests, Sol's
+go; [chat/card.rs](../crates/sjk-viewer/src/chat/card.rs)): the card stays whatever the
+pointer does, until the name is clicked again, a click lands off the card and off every
+name, Escape is pressed (the first Escape closes the card, the next the composer) or the
+composer closes. For a player on the server other than yourself it heads its buttons with
+**Whisper**, above Block: the composer turns to a whisper to them, the draft kept, sent as
+any whisper from the composer (encrypted through the SJK hub when they take encrypted
+whispers, else the server's `tell <slot>`). Whisper names the roster observation the
+line was matched to: a player who left, renamed or whose slot another took has no
+Whisper, and a press made before the roster changed says "Player left or changed
+identity". An SJK chat line's sender is whispered in the slot their key (or name) is
+matched to here ("On this server, slot N"); one not on the server has none. Lines are
+matched to players as before: the server's sender slot, else the one connected player
+whose name, as the game shows it, starts the line; two players wearing one name leave
+such a line unclickable. The card's Safety code button also answers clicks now (before,
+the press was taken for the card's and the click was lost).
+
+There is no Add friend: SJK has no friends list (the hub keeps none, and the local friend
+star of the old name dropdown, `chat-friends.txt`, went with it on 18/10/2026, Sol's
+decision), and there is no View profile either: the card is the profile view (picture,
+hub name, key, medals, where they are), while the player card (`inspect`) needs the
+player in sight. The old dropdown (whisper, a per-map ignore, the friend star, copy
+name) stays gone; an existing `chat-friends.txt` is not read.
 
 The draft shares the console's UTF-8 caret and selection rules: arrows/Home/End,
 Ctrl+arrows and Ctrl+Backspace/Delete, Shift-selection, Ctrl+A/C/X/V,
@@ -4053,6 +4154,12 @@ the archived `cl_toyHax`, as Order 66 in `cl_toyOrder66`).
   (`toys: ["hax"]`, [unlockables.md](unlockables.md); `looks::TOYS`), so the hacker's
   client knows who may be hacked. Players on stock clients, and SJK players with the toy
   off, are never touched.
+- **Not on a player typing or away:** a hack does not begin on a player whose chat is
+  open (their talk balloon) or whom the scoreboard marks away (still for 3 minutes, or an
+  away tag in their name): "<name> is typing: no hacking them now". A hacked player's own
+  client also refuses the seize while they are away, idle or alt-tabbed as the away emote
+  counts it ("Hack failed: <name> is away"). Opening the chat once the hack is under way
+  does not stop it; turning the toy off does.
 - **The hack:** hold `+use` facing a holder of the toy within reach (the cardboard
   box's, 96 units, in front). The siege hack bar fills under the crosshair with the
   stock hacker icon (`gfx/mp/c_icon_tech`, [hack_bar.rs](../crates/sjk-viewer/src/hud/hack_bar.rs))
@@ -4065,7 +4172,9 @@ the archived `cl_toyHax`, as Order 66 in `cl_toyOrder66`).
   the seize only from a player the game shows under the name they claimed, not blocked
   here, whose look has the toy, while its own toy is on and its player plays (not
   spectating or dead, not in a duel, not carrying a flag) and was not hacked in the last
-  15 seconds; else the hacker reads why ("Hack failed: <name> is in a duel"). Taken, for
+  15 seconds, and is not away (idle or alt-tabbed as the [away emote](#away-emote)
+  counts it, or an away tag in their name); else the hacker reads why ("Hack failed:
+  <name> is in a duel", "is away"). Taken, for
   5 seconds the hacker's movement keys, jump and crouch, walk, attack and alt attack and
   view become the hacked player's: their client sends them as its own user commands,
   keeping the weapon they held, with no Force power, weapon change, saber style change,
@@ -4083,6 +4192,18 @@ the archived `cl_toyHax`, as Order 66 in `cl_toyOrder66`).
   [toy event](hub-chat.md#toy-events) the hacked player sends (`hacked_<until>`, the game
   server time the steering ends; `freed` when they break free sooner), which may come a
   second or two late. Nothing is drawn round a player blocked here.
+- **The trap:** with **Hax trap** on (Settings > Game options > Toys, `cl_haxTrap`, off
+  by default), a hack that completes on the player springs a trap instead of handing
+  over control (Sol's idea, 23/10/2026): both read "IT'S A TRAP!" with Order 66's beep
+  each second, and two seconds later both clients send `kill` and both players blow up
+  as in [Order 66](#order-66) (the explosion, then the pieces, or confetti with
+  `cg_dismember 0`). The trapped player's client tells everyone else through a feed toy
+  event (`trap_<moment>`, to the hacker), so every SJK client of the server blows the
+  two up too; one that hears it late still blows up the two if they died in the window.
+  The trap is not shown anywhere, unless **Hax trap while away** (`cl_haxAway`) is on
+  too: then the player may be hacked while away (idle, alt-tabbed or tagged), which
+  their look must tell hackers' clients (`toys: ["hax_away"]`), so a player hackable
+  while away is known to be trapped. Typing in the chat still keeps a player safe.
 - **Breaking free:** `toy_hax` off frees the hacked player at once; so do dying, a duel,
   and the hacker going quiet for 1.5 seconds (after 0.4 seconds without news the player
   stands still). The hacker's toy off, death or duel ends it for both.
@@ -4091,8 +4212,9 @@ the archived `cl_toyHax`, as Order 66 in `cl_toyOrder66`).
   [toy relay](hub-chat.md#toy-relay), not the toy events, which wait for the feed's next
   poll: the hacker's client sends a frame (keys, buttons, view) when they change and
   every 50 ms at least, at most one per 30 ms; a frame still waiting to be sent is
-  replaced by the next. Each holder of the toy keeps a long poll open for the events
-  meant for them. The hack's start and end, the seize and the answers travel the same
+  replaced by the next. Every SJK client on a game server keeps a long poll open for
+  the events meant for it (since 23/10/2026, for the [Ragdoll](#ragdoll); before, only
+  holders of the toy). The hack's start and end, the seize and the answers travel the same
   way. The steering lags by the hacker's way to the hub, the hub's to the hacked
   player and their ping, and the hacker sees the result after their own ping too. Without
   the hub (`cl_identity 0`), or with a hub from before the relay, nothing is hacked.
@@ -4104,6 +4226,68 @@ The icon (a terminal with a green ">_") and the rain's glyphs are drawn by
 Noto Sans JP;
 the sounds and the hack bar's icon are the retail game's. See
 [hax.rs](../crates/sjk-viewer/src/hax.rs).
+
+## Ragdoll
+
+The Ragdoll is a meme toy, SJK's own and free for every player (Sol's idea,
+23/10/2026): the player's body goes limp and falls where physics takes it, as in the
+sandbox games, though the player is not dead. `toy_ragdoll` is a toggle: once to go
+limp, again to get up, from a bind (Settings > Key bindings > Interaction > Toy:
+Ragdoll, unbound until a key is picked), from the quick wheel's [Toys page](#toys-page)
+or from the Collection's Toys tab ([SJK UI](sjk-ui.md#collection)). Nothing is saved:
+every fall ends with the map or the server.
+
+- **The body:** a limp humanoid of 15 points (pelvis, chest, head, shoulders, elbows,
+  hands, hips, knees, feet) held by sticks, the trunk braced as one block, knees bending
+  forward and elbows back (Verlet integration, [body.rs](../crates/sjk-viewer/src/ragdoll/body.rs)).
+  It starts standing where the player stood, turned their way, with their speed, and
+  pushed off balance (back, to a side, the knees buckling), so a running or jumping
+  player tumbles on. It falls at `g_gravity`'s 800, slides and bounces a little on the
+  world's brushes (the map's own, not movers), and sleeps once it has lain still for a
+  second (or after 40 seconds whatever it does).
+- **The model:** the player's own model is drawn posed by it
+  ([skin.rs](../crates/sjk-viewer/src/ragdoll/skin.rs)): the `_humanoid` skeleton is cut
+  into eleven rigid parts (pelvis, chest, head, upper arms, forearms, thighs, shins),
+  each turned as the points it spans, each hung from its parent at the model's own
+  joint, so a model of any proportions stays in one piece. The saber, the hat and cape
+  and the other bolts follow the posed bones. A model without the stock skeleton is
+  drawn as animated.
+- **The camera:** behind the body's pelvis, turned by the mouse (as the Hax's hacker's).
+  Getting up gives the view back as it was.
+- **The real body:** the game server knows nothing of it, so the player's player stays
+  there: while limp, the client walks it to where the ragdoll lies (its own user
+  commands, running far off, walking near, stopping within 12 units), so that the
+  player gets up there. A limp player sends no button and cannot attack. Players on
+  stock clients see a player walking about.
+- **Getting up:** `toy_ragdoll` again; or at once when the player is hurt ("Ouch! You
+  got up"), dies, spectates, is in a duel or carries a flag. Nobody goes limp in a duel
+  ("No ragdoll in a duel"), with the flag, while spectating or dead, or in a [Hax](#hax)
+  hack.
+- **Everyone sees the same fall:** no pose is ever sent. The faller's client relays
+  one start event to each SJK player on the server through the hub's
+  [toy relay](hub-chat.md#toy-relay), one every 35 ms: `fall_<moment>_<x>_<y>_<z>_<vx>_<vy>_<vz>_<yaw>`,
+  the game server time it began, the origin, speed (whole units) and yaw (degrees).
+  Every client runs the same simulation from it, in fixed 16 ms steps of the game
+  server's clock (the turn from a table of whole degrees, plain arithmetic, so every
+  client gets the same numbers), and a client that hears it late runs the steps it
+  missed at once: the body is where the faller sees it. A player who comes onto the
+  server during a fall (as the hub's looks tell) is told too. Getting up relays
+  `up_<moment>`; a client that missed it lets the ragdoll go when the faller dies,
+  respawns, leaves, or their real body stays more than 320 units from it for 3
+  seconds. On a game server, every SJK client keeps its relay poll open for this. A
+  sender counts only when the game shows the name they claimed, and never one blocked
+  here. Without the hub (`cl_identity 0`) nobody else sees the fall.
+- **The sounds:** going limp plays a flatline (`sound/sjk/ragdoll/flatline.wav`, two
+  monitor beeps then the long tone, SJK's own, made by
+  [ragdoll_assets.py](../scripts/ragdoll_assets.py)), to the player and at the body for
+  the others; a PK3 that has the same path replaces it. Each point that hits the world
+  hard enough knocks, at most every 140 ms per body: the game's own body falls
+  (`sound/player/bodyfall_human1.mp3` to `3`), its slams for the hardest
+  (`sound/effects/body_slam1.mp3`, `2`).
+
+The icon (a limp figure slumped against a wall) is drawn by the same script. World shots:
+`world_shot::ragdoll_shots::ragdoll_on_a_demo` (with `SJK_TEST_DEMO`). See
+[ragdoll.rs](../crates/sjk-viewer/src/ragdoll.rs).
 
 ## Holstered saber hilts
 
@@ -4178,7 +4362,10 @@ tab (also the Profile page's See the collection), where owned skins are equipped
 unequipped and any is previewed on the player's own saber
 ([sjk-ui.md](sjk-ui.md#collection)).
 
-A skin brings its own sounds, heard for each player wearing it, over the stock ones,
+A player may choose other saber sounds than their skin's (`cg_saberSounds`, Profile >
+Saber > Sounds: follow the shader, the stock sounds, or any owned shader's; every SJK
+player hears the choice, [unlockables.md](unlockables.md#saber-sounds)); what follows
+holds for the set they are heard with. A skin brings its own sounds, heard for each player wearing it, over the stock ones,
 which keep playing (the skin's sound goes on a channel of its own, so that it does not
 cut the stock one), or, with `s_saberSkinSounds 2` (Settings > Sound > Blade skin
 sounds: Only skin; 1, With normal, is the default), in their place, or, with
@@ -4307,9 +4494,10 @@ Illuminate holocron's picture. Its gold dot marks a lit holocron (the client's o
 state; no cvar holds it). Since 16/10/2026 the default page also has the
 [Cardboard box](#cardboard-box) (`toy_box`, marked while the player is in it), and
 since 17/10/2026 [Order 66](#order-66) (`toy_order66`, marked while it is on, then
-Execute Order 66, `order66`), and since 21/10/2026 the [Hax](#hax) (`toy_hax`, marked
-while it is on); a wheel saved before keeps its Toys page as it was, and gains them from
-Add a choice, Toys.
+Execute Order 66, `order66`), since 21/10/2026 the [Hax](#hax) (`toy_hax`, marked
+while it is on), and since 23/10/2026 the [Ragdoll](#ragdoll) (`toy_ragdoll`, marked
+while the player is limp); a wheel saved before keeps its Toys page as it was, and gains
+them from Add a choice, Toys.
 
 ### GIF wheel
 
@@ -5341,6 +5529,12 @@ size, about 0.59 of EternalJK's chat and 0.44 of its centre prints). The HUD's v
   `20 * cg_centerSize + 6` virtual pixels a row. SJK draws a 49.5 px line box at 1080p
   (it was 22 px) and the same advance, 58.5 px at 1 (it was 30); SJK Menu keeps
   `ergoec`'s layout. See [chat/view.rs](../crates/sjk-viewer/src/chat/view.rs).
+
+`cg_chatBoxLines` (default 5, archived) is how many messages the chat feed shows
+together, 1 to 24: EternalJK draws at most `MAX_CHATBOX_ITEMS` (24) items, counting
+messages rather than wrapped rows, and so does SJK. Until 23/10/2026 SJK stopped at 8,
+so a larger value showed no more (Creyon's report #129). The feed also stops at the top
+of the screen. See [chat.rs](../crates/sjk-viewer/src/chat.rs) `MAX_VISIBLE`.
 
 `cg_chatBoxFontSize` (default 0.85, archived; SJK Advanced > Chat > **Chat text size**,
 0.15 to 2 in steps of 0.05) scales the chat's text, row spacing, the gap between

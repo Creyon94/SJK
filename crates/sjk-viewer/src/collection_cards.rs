@@ -35,9 +35,12 @@ const FILTER_Y: f32 = 294.0;
 const FILTER_HEIGHT: f32 = 28.0;
 /// The grid's right edge, where the filter's count ends and the scroll bar stands.
 const GRID_RIGHT: f32 = LEFT_X + (COLUMNS - 1) as f32 * STEP_X + CARD_WIDTH;
-/// The card up close: wide enough that a face's lore reads at 1080p.
-const BIG_WIDTH: f32 = 470.0;
-const BIG_TOP: f32 = 150.0;
+/// The card up close: wide enough that a face's lore reads at 1080p, its top under the
+/// row of tabs ([`crate::profile_hub::ROW_BOTTOM`]). It stood in the row, which a large
+/// text style stretches under it, and took the Forge tab's clicks (Kushina's report
+/// #124); its bottom stays where it was.
+const BIG_WIDTH: f32 = 437.0;
+const BIG_TOP: f32 = 196.0;
 /// Reveal, under the grid, and its height; what it brought reads beside it.
 const REVEAL_Y: f32 = 958.0;
 const REVEAL_HEIGHT: f32 = 40.0;
@@ -1161,6 +1164,29 @@ mod tests {
                 last: 1_791_641_100,
             })
             .collect()
+    }
+
+    /// Kushina's report #124: the card up close stands under the row of tabs, so the
+    /// Forge tab beside Cards takes its clicks. The row reaches the card only with a
+    /// large text style (`ui_textScale`, which stretches it towards the frame's right),
+    /// so the card's area must start under the whole row's, in each window shape.
+    #[test]
+    fn the_card_up_close_leaves_the_tabs_their_clicks() {
+        let fonts = crate::text::load_modern(1.0, None).expect("Inter");
+        let shown = inputs(Holdings::Known(&[]), "");
+        let mut panel = Panel::new();
+        panel.open(Tab::Cards, true, true, ReturnTarget::MainMenu);
+        panel.preview_cards = Some((every_kind(), 123_456, 98_765));
+        for viewport in [[1920.0, 1080.0], [3840.0, 2160.0], [1440.0, 1080.0]] {
+            panel.build(&shown, &fonts.font, viewport);
+            let card = panel.ui.rect_for(CARD_CLOSE_UP_TOKEN).expect("the card");
+            let frame = Frame::new(viewport);
+            let row = frame.rect(0.0, 0.0, 1_920.0, crate::profile_hub::ROW_BOTTOM);
+            assert!(!card.overlaps(row), "{viewport:?}: {card:?} under {row:?}");
+            let forge = crate::profile_hub::TOKEN + Tab::Forge.index() as u16;
+            let forge = panel.ui.rect_for(forge).expect("the Forge tab");
+            assert!(forge.bottom() <= row.bottom() + 0.01, "{viewport:?}");
+        }
     }
 
     /// Every state fits the canvas: no identity, waiting, none, one kind, many sealed

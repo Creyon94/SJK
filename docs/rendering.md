@@ -671,6 +671,22 @@ Memory in use after each change is unchanged, and the worst reserved peak went f
 same run with sharing off in 791 of 2,073,600 pixels; two runs with sharing off differ
 in 477 (animation timing).
 
+On a server, the old map now leaves the card before the next one is built
+([session_transition.rs](../crates/sjk-viewer/src/session_transition.rs), `unload_task`):
+when a map change, a switch to another server or a graphics reload starts loading a
+map, an empty world (the empty map of the menu pictures) is built on the worker while
+the next map's file is read, takes the shell over and drops the old world; the next
+map is built beside it. The loading screen covers the world either way. A world
+without a map still holds about 1.4 GB at 1920x1080 (screen targets, shadow maps,
+the shared textures above), so it saves the old map's own part only, and it costs a
+second build: about 3 s in release, 1.4 s of it hidden behind the file read, about
+2.2 s more per map change. Demos keep the old way. `map_change_unloaded_vram`
+(`world_shot_vram.rs`) measures it, 22/10/2026 at 1920x1080:
+
+| ffa3 alone | ffa3 + siege_desert | Empty world | Empty world + siege_desert |
+| --- | --- | --- | --- |
+| 2208 MiB | 3719 MiB | 1436 MiB | 3045 MiB |
+
 ## Eye adaptation
 
 SJK adapts the exposure to what the camera sees, as eyes do: in a dark area the
@@ -1445,6 +1461,29 @@ SJK applies it as stock, so Drain's `bounce 0.8 2` bolts get that jaggedness
 rather than the default 0.1, which draws them almost straight. `elasticity` and
 `chaos` are not retail keys and are ignored.
 
+A `Flash` primitive's colour is scaled as `CFlash::Init` scales it when it starts:
+by its distance from the rendered view, quadratically to nothing at 900 units, and to
+nothing beyond 60 degrees off the view axis past 100 units (brighter within them). It is
+then drawn as `CFlash::Draw` draws it, on the viewer rather than where it went off: stock
+places an `RT_SPRITE` 12 units along the view axis with radius `12 * tan(fov_x / 2)`
+(its size curve ignored), and `gfx/effects/whiteFlash` adds `$whiteimage` with
+`depthFunc disable`, so it covers the view's width (and more than its height) over
+everything. SJK draws it as a clip-space quad of those extents (`entity.wgsl` kind 6,
+the clash flare's path) in the shader's blend slot. Unscaled, `demp2/altdetonate`'s
+2048-unit flash lit the whole screen wherever a DEMP2 shock went off; drawn as a
+billboard at the shock, it was hidden by nearer walls and tinted the sky behind it up to
+a hard edge (Slash, hub report #125;
+[effect_flash.rs](../crates/sjk-viewer/src/effect_flash.rs)). A flash within 100 units
+behind the viewer now shows, as in stock. `localizedFlash` (a 2D picture at the effect's
+screen position) is not modelled; no retail effect uses it.
+
+A primitive's colour start and end are picked once when it spawns (`GetRGB_Colors`). An
+rgb `random` flag then scales the whole colour by one random number each frame
+(`CParticle::UpdateRGB`, `CLight::UpdateRGB`): SJK drew one per channel, which turned the
+DEMP2's white flash magenta, yellow and purple frame to frame (and tinted the other
+retail effects with the flag: lava, `env/powerbolt`, `mrancor/breath`, ship burners). The growing
+`gfx/effects/demp2shell` sphere `FX_DEMP2_AltDetonate` adds with that effect is not drawn.
+
 Effect particles share one pool of 4,096 slots, plus 256 kept for per-frame
 billboards (talk balloons, pickup icons, hook ropes)
 ([particle_types.rs](../crates/sjk-viewer/src/particle_types.rs)). Stock caps its
@@ -1848,7 +1887,12 @@ the CPU (`SkinColor::light_color`, `trail_color`).
   ([saber_ghosts.rs](../crates/sjk-viewer/src/saber_ghosts.rs)): each blade's state keeps
   up to four poses, one every `spacing` ms; a skin with `ghosts` submits the last ones
   as extra glow-only instances, dimmer each, skipping poses the blade has not moved
-  from. No allocation.
+  from. No allocation. A thrown saber leaves them too (23/10/2026, Kushina's hub report
+  127: the throw left no afterimages): its flying blade keeps its poses in the world, a
+  signature's (`GhostSpec::wearer`) as well, so they trail along its spin and flight
+  (`thrown_saber.rs` `flight_wake`). The poses and the blossoms' last tip are forgotten when
+  the blade goes from the hand to flight or back (`BladeState::fly`): kept in the wearer's
+  frame in one and in the world in the other, they would stand far off.
 - **Trail and light.** The skin's file gives its trail colour, its light colour (with
   the stock gain) and the light's flicker (an amount and up to two waves, phased per
   hilt).
@@ -1982,7 +2026,9 @@ interfaces) each is drawn by the lab's own shader, ported to `saber.wgsl` (`lab_
   blade's words) again every second of a chain without a pause; for the others a chain
   counts from its first swing, a clash is one whose flare latched within 12 units of the blade
   (`impact_spawn.rs` `note_clash`), and a blade seen growing out of its hilt is lit.
-  Thrown and menu blades are still.
+  A thrown blade carries on the same state (`thrown_saber.rs` `flight_motion`, 23/10/2026,
+  hub report 127): its spin is its swing, measured in the world, and as no attack is known
+  in flight the tip must turn for a swing to begin. Menu blades are still.
 - **Changed from the lab** after Creyon's tests: each blade has light at its emitter
   (`design_color`, as a stock blade's hilt sprite) so no gap shows above the hilt; the
   hourglass's glass closes in a dome over the tip and its sand runs in 24 seconds, not 8;
@@ -2421,8 +2467,9 @@ when it is swung, which its own quad could not hold: they are particles in the w
   over their last third. They count against the particle pool like any effect.
   Their three shaders are in `effect_assets::CODE_SHADERS`: the frame's effect materials load
   only the shaders listed there or named by an effect file, and without them the petals drew
-  the stand-in sprite (yellow dots, Sol's first test, 21/10/2026). The thrown
-  saber sheds none.
+  the stand-in sprite (yellow dots, Sol's first test, 21/10/2026). A thrown
+  saber sheds them along its spin and flight, its tip measured in the world (23/10/2026,
+  hub report 127).
 
 ## Saber trails
 

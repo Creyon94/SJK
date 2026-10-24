@@ -309,25 +309,38 @@ fn line_marks<'a>(
     if let Some(hub) = &line.hub {
         let marks = sjk_line::Marks {
             sjk: true,
+            icon: hub.client,
             mark: crate::ui_renderer::mark_texture(hub.verified, hub.trust),
             tier: hub.tier,
+            // Which chats it was said in; a holocron drop is the hub's news, unlabelled.
+            label: match hub.tier {
+                Some(_) => "",
+                None if hub.in_all => "ALL/SJK",
+                None => "SJK",
+            },
             emoji: &hub.emoji,
-            ..sjk_line::Marks::default()
         };
         return Some((&line.name, marks));
     }
     if line.name.is_empty() {
         return None;
     }
-    // The player's own encrypted whisper: "To <recipient>", no sender.
+    // The player's own encrypted whisper: "To <recipient>", no sender, with the
+    // recipient's marks as the SJK chat shows a sender's.
     if line.encrypted && line.sender.is_none() {
+        let mark = line
+            .recipient
+            .and_then(|slot| slots.get(usize::from(slot)))
+            .filter(|mark| mark.sjk);
         let marks = sjk_line::Marks {
             sjk: true,
+            mark: mark.and_then(|mark| crate::ui_renderer::mark_texture(mark.verified, mark.trust)),
             label: if line.verified {
                 "VERIFIED"
             } else {
                 "ENCRYPTED"
             },
+            emoji: mark.map_or("", |mark| mark.emoji.as_str()),
             ..sjk_line::Marks::default()
         };
         return Some((&line.name, marks));
@@ -338,6 +351,7 @@ fn line_marks<'a>(
         .filter(|mark| mark.sjk);
     let marks = sjk_line::Marks {
         sjk: mark.is_some(),
+        icon: None,
         mark: mark.and_then(|mark| crate::ui_renderer::mark_texture(mark.verified, mark.trust)),
         tier: None,
         label: match line.channel {
@@ -732,5 +746,55 @@ mod tests {
             center_rows(&longer).collect::<Vec<_>>(),
             ["é".repeat(50), "é".to_owned()]
         );
+    }
+
+    #[test]
+    fn a_whisper_that_is_not_encrypted_says_so_under_the_field() {
+        use super::composer::PLAIN_WHISPER_NOTE;
+        let mut chat = ChatOverlay::new();
+        let mut game = sjk_protocol::GameState::empty_local(0);
+        for slot in [3_usize, 4] {
+            game.replace_config_string(1_131 + slot, format!("n\\P{slot}\\t\\0").into_bytes())
+                .expect("a player");
+        }
+        chat.update_roster(&game);
+        chat.set_encrypted_slots(1 << 4);
+        let shown = |chat: &mut ChatOverlay| {
+            chat.build(true, &crate::text::test_font(), [1920.0, 1080.0], 1_000);
+            chat.ui.text_runs().any(|text| text == PLAIN_WHISPER_NOTE)
+        };
+        assert!(chat.whisper_to(Some(3)));
+        assert!(shown(&mut chat), "to a player without encrypted whispers");
+        chat.close_composer();
+        assert!(chat.whisper_to(Some(4)));
+        assert!(!shown(&mut chat), "encrypted");
+        chat.close_composer();
+        chat.open(false);
+        assert!(!shown(&mut chat), "not a whisper");
+    }
+
+    #[test]
+    fn our_encrypted_whisper_wears_the_recipients_marks() {
+        use crate::chat::marks::SlotMark;
+        let mut chat = ChatOverlay::new();
+        let now = std::time::Instant::now();
+        assert!(chat.receive_encrypted(None, (4, "Creyon"), "hi", false, now));
+        let mut slots = vec![SlotMark::default(); crate::chat_mutes::SLOTS];
+        let line = chat.lines.back().expect("the line");
+        let (name, marks) = super::line_marks(line, &slots).expect("marks");
+        assert_eq!((name, marks.label), ("To Creyon", "ENCRYPTED"));
+        assert!(
+            marks.mark.is_none() && marks.emoji.is_empty(),
+            "not known yet"
+        );
+        slots[4] = SlotMark {
+            sjk: true,
+            verified: true,
+            emoji: "x".to_owned(),
+            ..Default::default()
+        };
+        let (_, marks) = super::line_marks(line, &slots).expect("marks");
+        assert!(marks.sjk && marks.mark.is_some());
+        assert_eq!(marks.emoji, "x");
     }
 }

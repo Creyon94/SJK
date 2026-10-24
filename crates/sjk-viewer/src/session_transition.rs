@@ -102,6 +102,8 @@ pub(crate) struct WorldInstallTask {
     result: Option<Result<Box<GpuState>, String>>,
     pub(crate) map_path: String,
     pub(crate) started: Instant,
+    /// It builds the empty world that stands in while the next map builds.
+    unload: bool,
 }
 
 pub(crate) enum WorldInstallPoll {
@@ -202,6 +204,7 @@ impl WorldInstallTask {
             result: None,
             map_path,
             started,
+            unload: false,
         }
     }
 
@@ -313,6 +316,7 @@ impl GpuState {
                 selection,
             ));
             self.pending_map_reload = false;
+            self.world_install_task = self.unload_task();
         }
         if !self.resident.snapshot_ready() {
             return Ok(None);
@@ -321,13 +325,21 @@ impl GpuState {
             return match task.poll() {
                 WorldInstallPoll::Pending => Ok(None),
                 WorldInstallPoll::Failed(error) => Err(error.into()),
-                WorldInstallPoll::Ready(world) => {
-                    self.world_load_state.installed();
-                    crate::log::progress(format_args!(
-                        "session transition: installed {} in {:.1} ms",
-                        task.map_path,
-                        task.started.elapsed().as_secs_f64() * 1_000.0
-                    ));
+                WorldInstallPoll::Ready(mut world) => {
+                    if task.unload {
+                        world.map_unloaded = true;
+                        crate::log::progress(format_args!(
+                            "session transition: old map unloaded in {:.1} ms",
+                            task.started.elapsed().as_secs_f64() * 1_000.0
+                        ));
+                    } else {
+                        self.world_load_state.installed();
+                        crate::log::progress(format_args!(
+                            "session transition: installed {} in {:.1} ms",
+                            task.map_path,
+                            task.started.elapsed().as_secs_f64() * 1_000.0
+                        ));
+                    }
                     self.world_install_task = None;
                     Ok(Some(world))
                 }
@@ -413,6 +425,59 @@ impl GpuState {
         Ok(None)
     }
 
+    /// Build an empty world to take the shell over from this server world before the
+    /// next map is built, as the next map's file is read meanwhile. Building the next
+    /// map beside this one held both maps on the graphics card at once, which ran
+    /// cards short of memory on a map change or a switch to another server; the
+    /// loading screen covers the world either way.
+    fn unload_task(&self) -> Option<WorldInstallTask> {
+        if self.map_unloaded || self.resident.session.is_none() || self.demo_session.is_some() {
+            return None;
+        }
+        let mut task = WorldInstallTask::start(
+            Arc::clone(self.graphics_context()),
+            [self.size.width, self.size.height],
+            self.empty_world_input()?,
+            "empty world".to_owned(),
+        );
+        task.unload = true;
+        Some(task)
+    }
+
+    /// The input of the empty world [`Self::unload_task`] builds.
+    pub(crate) fn empty_world_input(&self) -> Option<GpuWorldInput> {
+        let bsp = crate::menu_pictures::empty_world();
+        let scene = sjk_scene::StaticWorld::build(
+            &bsp,
+            sjk_scene::MeshBuildOptions::default().with_sky_surfaces(),
+        )
+        .ok()?;
+        let bounds = bsp.render().models()[0].clone();
+        Some(GpuWorldInput {
+            scene,
+            bsp,
+
+            vfs: Arc::clone(self.vfs.as_ref()?),
+            shaders: (*self.shaders).clone(),
+            world_minimums: bounds.minimums,
+            world_maximums: bounds.maximums,
+            camera_origin: self.camera_position.to_array(),
+            camera_yaw: self.camera_yaw,
+            player_preview: None,
+            build_game_state: None,
+            build_snapshot: None,
+            live_session: None,
+            demo_session: None,
+            console: None,
+            client_menu: None,
+            game_data: self.game_data.clone(),
+            connect_timeline: None,
+            game_fonts: crate::game_font::enabled(self.console.as_ref()),
+
+            completed_map_changes: self.completed_map_changes,
+        })
+    }
+
     /// Move everything that belongs to the player's session with the client
     /// — sessions, console, menu, pointer state — from this world into `to`.
     /// `to` is built on this world's context, or on a newer one after a graphics
@@ -465,6 +530,7 @@ impl GpuState {
         to.graphics_reload.card = std::mem::take(&mut self.graphics_reload.card);
         to.log_request_card = std::mem::take(&mut self.log_request_card);
         to.e2e_whispers = std::mem::take(&mut self.e2e_whispers);
+        to.mod_notice = std::mem::take(&mut self.mod_notice);
         to.whats_new_card = std::mem::take(&mut self.whats_new_card);
         to.load_event_gap = self.load_event_gap.clone();
         to.hitches = std::mem::take(&mut self.hitches);
@@ -516,6 +582,14 @@ impl GpuState {
         loaded.world_load_map.clear();
         loaded.world_load_map.push_str(&self.world_load_map);
         loaded.resident.map.clone_from(&loaded.world_load_map);
+        if loaded.map_unloaded {
+            // The next map's file goes on loading for the empty world to build it.
+            loaded.world_load_task = self.world_load_task.take();
+            loaded.pending_map_reload &= loaded.world_load_task.is_none();
+            loaded.resident.after_sequence = self.resident.after_sequence;
+            // The map transition is reported when the next map is in, not now.
+            loaded.transition_report_pending = false;
+        }
         loaded
     }
 

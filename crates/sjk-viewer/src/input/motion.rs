@@ -288,7 +288,7 @@ impl GpuState {
         let delta = self
             .gameplay_input
             .sample_view_motion(now, self.mouse_look, view);
-        self.camera_yaw += delta[0];
+        self.camera_yaw = crate::input::view_authority::wrap_yaw(self.camera_yaw + delta[0]);
         self.camera_pitch = (self.camera_pitch + delta[1]).clamp(
             -crate::input::view_authority::PITCH_LIMIT,
             crate::input::view_authority::PITCH_LIMIT,

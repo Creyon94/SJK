@@ -39,6 +39,9 @@ impl GpuState {
             chat_gifs::favourites::load(console.config_directory());
             chat_gifs::sources::load(console.config_directory());
             crate::jof_tag::set_shown(console.bool_cvar(crate::jof_tag::CVAR) != Some(false));
+            crate::chat::client_icons::set_shown(
+                console.bool_cvar(crate::chat::client_icons::CVAR) != Some(false),
+            );
         }
         chat_gifs::service(&mut self.ui_shapes, &self.device, &self.queue);
         let due = player_identity::due();
@@ -50,9 +53,21 @@ impl GpuState {
             .filter(|session| !session.is_local())
             .map(|session| player_identity::take_toy_events(Some(session.server())))
             .unwrap_or_default();
+        // The relay's, the same: on a game server the relay is read all the while, for
+        // the falls of the Ragdoll anyone may show.
+        let server = self
+            .live_session
+            .as_ref()
+            .filter(|session| !session.is_local())
+            .map(ClientSession::server);
+        player_identity::set_relay_listen(server.is_some());
+        let relay_events = server
+            .map(|server| player_identity::take_relay_events(Some(server)))
+            .unwrap_or_default();
         self.update_cardboard_box(Instant::now(), &toy_events);
         self.update_order66(&toy_events);
-        self.update_hax(&toy_events);
+        self.update_hax(&toy_events, &relay_events);
+        self.update_ragdoll(&relay_events);
         self.update_e2e_whispers();
         if !due {
             return;

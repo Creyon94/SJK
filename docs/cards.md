@@ -671,7 +671,10 @@ not know is kept but named nowhere; `Face::blade` in
     They combine; a kind leaves out the sealed and unknown tiles. "N of M cards" at the
     row's right counts the cards shown of the packs'; "No card matches these filters."
     when none does. A filter's change goes back to the first tile.
-  - **Up close** on the right (470 frame pixels wide, so a face's lore reads at 1080p):
+  - **Up close** on the right (437 frame pixels wide, so a face's lore reads at 1080p),
+    its top under the row of tabs: standing in the row, it took the Forge tab's clicks
+    when a large text style stretched the row under it (Kushina's report #124,
+    23/10/2026):
     the tile chosen, its name (in its rarity's colour, gold for Solar), the copies held
     ("3 copies: 1 Solar, 2 Normal · Alpha Edition") or "Not found yet", the rarity, kind,
     set ("Legendary · Meme · SJK Alpha"; a sealed tile: that a card

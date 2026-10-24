@@ -20,6 +20,12 @@
 //! and their buttons; Enter saves the bio from the field (Shift+Enter starts a new
 //! line); Escape goes back.
 //!
+//! The bio has a caret ([`crate::text_dialog::field`], as the report dialog's text):
+//! a click places it, Left and Right (a word with Ctrl), Up and Down, Home and End (the
+//! text's ends with Ctrl) move it, typing, pasting and Backspace or Delete work at it,
+//! and Ctrl+A selects all of it (Kushina's report, 22/10/2026: only the end could be
+//! written).
+//!
 //! The name emoji (`sjk_identity::name_emoji`, Sol's request 16/10/2026) is picked
 //! here too: the Name emoji button under who the player is opens the emoji panel in the
 //! bio's place, a grid of [`EMOJI_CHOICES`]. A click (or Enter on the grid, moved with
@@ -29,8 +35,10 @@
 
 use crate::achievements::Standing;
 use crate::avatars::picture::{PictureError, Prepared};
+use crate::console::line_edit::LineEdit;
 use crate::menu_widgets::{BACK_TOKEN, MenuCanvas};
 use crate::profile_hub::Tab as HubTab;
+use crate::text_dialog::field::{self, FieldLayout};
 use sjk_identity::bio;
 use sjk_identity::{Snapshot, Status};
 use sjk_ui::{InputEvent, UiEventKind};
@@ -188,6 +196,10 @@ pub(crate) struct Panel {
     focus: Focus,
     /// The bio being written.
     bio: String,
+    /// The caret (and selection) in `bio`.
+    bio_edit: LineEdit,
+    /// How the last frame wrapped `bio`, for the keys that move by lines and the pointer.
+    bio_layout: FieldLayout,
     /// Something was typed since the hub's copy was taken.
     edited: bool,
     /// The hub's copy the draft was last taken from.
@@ -259,28 +271,55 @@ fn pick_picture() -> Option<PathBuf> {
     )
 }
 
-/// Add `text` to the bio `field` as far as the rules allow: characters a bio cannot
+/// What of `text` the bio `field` can take as the rules allow: characters a bio cannot
 /// hold are left out, tabs become spaces, a line break only while lines are left, and
-/// nothing past [`bio::BIO_MAX`] characters. Whether the field changed.
-fn type_into(field: &mut String, text: &str) -> bool {
-    let mut changed = false;
+/// nothing past [`bio::BIO_MAX`] characters.
+fn kept(field: &str, text: &str) -> String {
+    let mut count = field.chars().count();
+    let mut lines = field.split('\n').count();
     let text = text.replace("\r\n", "\n").replace('\r', "\n");
+    let mut kept = String::new();
     for c in text.chars() {
-        if field.chars().count() >= bio::BIO_MAX {
+        if count >= bio::BIO_MAX {
             break;
         }
         let c = if c == '\t' { ' ' } else { c };
         let fits = match c {
-            '\n' => field.split('\n').count() < bio::LINES_MAX,
+            '\n' => lines < bio::LINES_MAX,
             '^' => true,
             c => bio::allowed(c),
         };
         if fits {
-            field.push(c);
-            changed = true;
+            lines += usize::from(c == '\n');
+            count += 1;
+            kept.push(c);
         }
     }
-    changed
+    kept
+}
+
+/// Put `text` in the bio `field` at `edit`'s caret, over its selection, as far as the
+/// rules allow ([`kept`]); the caret goes after it. Whether the field changed.
+fn type_at(field: &mut String, edit: &mut LineEdit, text: &str) -> bool {
+    let mut changed = false;
+    if let Some(range) = edit.selection(field) {
+        field.replace_range(range.clone(), "");
+        edit.place(field, range.start, false);
+        changed = true;
+    }
+    let kept = kept(field, text);
+    let at = edit.cursor(field);
+    field.insert_str(at, &kept);
+    edit.place(field, at + kept.len(), false);
+    changed || !kept.is_empty()
+}
+
+/// [`type_at`] the end of `field`.
+#[cfg(test)]
+fn type_into(field: &mut String, text: &str) -> bool {
+    let mut edit = LineEdit::default();
+    edit.to_end(field);
+    type_at(field, &mut edit, text)
 }
 
 impl Panel {
@@ -292,6 +331,8 @@ impl Panel {
             mode: Mode::Pages,
             focus: Focus::Picture,
             bio: String::new(),
+            bio_edit: LineEdit::default(),
+            bio_layout: FieldLayout::default(),
             edited: false,
             taken: None,
             saving: None,
@@ -717,6 +758,7 @@ impl Panel {
         if self.taken.as_ref() != Some(&hub) {
             if !self.edited {
                 self.bio.clone_from(&hub);
+                self.bio_replaced();
             }
             self.taken = Some(hub.clone());
         }
@@ -761,8 +803,75 @@ impl Panel {
         if let Some(hub) = &self.taken {
             self.bio.clone_from(hub);
         }
+        self.bio_replaced();
         self.edited = false;
         self.message.clear();
+    }
+
+    /// The bio was replaced as a whole: the caret goes to its end.
+    fn bio_replaced(&mut self) {
+        self.bio_edit.to_end(&self.bio);
+        self.bio_layout.touch();
+    }
+
+    /// A key on the bio while it has the keyboard: the caret keys ([`field::caret_key`]),
+    /// Ctrl+A, Ctrl+C (the selection, else all of it), Ctrl+V, Shift+Enter (a new line)
+    /// and typing. A held key repeats, but for Ctrl+A, C and V. Whether it was one.
+    fn bio_key(
+        &mut self,
+        key: KeyCode,
+        text: Option<&str>,
+        repeat: bool,
+        shift: bool,
+        control: bool,
+    ) -> bool {
+        if crate::text_entry::is_select_all(key, text, control) {
+            if !repeat {
+                self.bio_edit.select_all(&self.bio);
+            }
+            return true;
+        }
+        if crate::text_entry::is_copy(key, text, control) {
+            let copied = self
+                .bio_edit
+                .selection(&self.bio)
+                .map_or(self.bio.as_str(), |range| &self.bio[range]);
+            if !repeat && !copied.is_empty() {
+                let _ = crate::console::clipboard::copy(copied);
+            }
+            return true;
+        }
+        let changed = if let Some(changed) = field::caret_key(
+            &mut self.bio,
+            &mut self.bio_edit,
+            &mut self.bio_layout,
+            key,
+            control,
+        ) {
+            changed
+        } else if matches!(key, KeyCode::Enter | KeyCode::NumpadEnter) {
+            if !shift {
+                return false;
+            }
+            type_at(&mut self.bio, &mut self.bio_edit, "\n")
+        } else if crate::sjk_chat_field::is_paste(key, text, shift, control) {
+            !repeat
+                && crate::console::clipboard::paste()
+                    .is_some_and(|pasted| type_at(&mut self.bio, &mut self.bio_edit, &pasted))
+        } else if let Some(text) =
+            text.filter(|text| !control && text.chars().any(|c| !c.is_control()))
+        {
+            type_at(&mut self.bio, &mut self.bio_edit, text)
+        } else {
+            return false;
+        };
+        if changed {
+            self.edited = true;
+            self.bio_layout.touch();
+        }
+        // The caret stays lit while it moves.
+        self.epoch = Instant::now();
+        true
     }
 
     /// The controls Tab visits on this tab, in order.
@@ -872,17 +981,7 @@ impl Panel {
             return PanelAction::None;
         };
         let typing = self.focus == Focus::Bio && self.writable;
-        if typing
-            && !event.repeat
-            && crate::text_entry::before_edit(
-                &mut self.bio,
-                key,
-                event.text.as_deref(),
-                shift,
-                control,
-            )
-        {
-            self.edited = true;
+        if typing && self.bio_key(key, event.text.as_deref(), event.repeat, shift, control) {
             return PanelAction::None;
         }
         let grid = self.focus == Focus::EmojiGrid && self.middle == Middle::Emoji;
@@ -895,37 +994,8 @@ impl Panel {
             KeyCode::ArrowDown if grid => self.move_emoji_cursor(0, 1),
             KeyCode::ArrowDown if !typing => self.step(true),
             KeyCode::ArrowUp if !typing => self.step(false),
-            KeyCode::Enter | KeyCode::NumpadEnter if typing && shift => {
-                if type_into(&mut self.bio, "\n") {
-                    self.edited = true;
-                }
-            }
             KeyCode::Enter | KeyCode::NumpadEnter => return self.activate(notice),
             KeyCode::Space if !typing => return self.activate(notice),
-            KeyCode::Backspace if typing => {
-                if self.bio.pop().is_some() {
-                    self.edited = true;
-                }
-            }
-            _ if typing && !event.repeat => {
-                if crate::text_entry::is_copy(key, event.text.as_deref(), control) {
-                    let _ = crate::console::clipboard::copy(&self.bio);
-                    return PanelAction::None;
-                }
-                let pasted;
-                let text = match event.text.as_deref() {
-                    // Ctrl+V (Windows hands the letter without Ctrl) or Shift+Insert.
-                    text if crate::sjk_chat_field::is_paste(key, text, shift, control) => {
-                        pasted = crate::console::clipboard::paste().unwrap_or_default();
-                        pasted.as_str()
-                    }
-                    Some(text) => text,
-                    None => return PanelAction::None,
-                };
-                if type_into(&mut self.bio, text) {
-                    self.edited = true;
-                }
-            }
             // An emoji typed or pasted on the emoji panel (the system's emoji panel,
             // Win+.) is picked as one from the grid is.
             _ if self.middle == Middle::Emoji && !event.repeat => {
@@ -961,6 +1031,14 @@ impl Panel {
             Some(BACK_TOKEN) => PanelAction::Close,
             Some(BIO_TOKEN) if self.writable => {
                 self.focus = Focus::Bio;
+                // The caret goes where the click landed.
+                if let Some(at) = event
+                    .position
+                    .and_then(|at| self.bio_layout.at_point(&self.bio, [at.x, at.y]))
+                {
+                    self.bio_edit.place(&self.bio, at, false);
+                }
+                self.epoch = Instant::now();
                 PanelAction::None
             }
             Some(SAVE_TOKEN) if self.writable => {
@@ -1037,6 +1115,7 @@ impl Panel {
         self.focus = Focus::Bio;
         self.bio.clear();
         type_into(&mut self.bio, text);
+        self.bio_replaced();
         self.edited = true;
     }
 
@@ -1164,6 +1243,70 @@ pub(crate) mod tests {
         let mut long = String::new();
         type_into(&mut long, &"ab".repeat(400));
         assert_eq!(long.chars().count(), bio::BIO_MAX);
+    }
+
+    /// Kushina's report (22/10/2026): the bio could only be written at its end. The
+    /// caret now moves with the keys, typing and deleting work at it, Ctrl+A selects
+    /// all and typing replaces it; plain Enter is left to save.
+    #[test]
+    fn the_bio_is_edited_at_its_caret() {
+        let shot = snapshot(Some(me("hello there")), None);
+        let mut panel = opened(&shot);
+        panel.focus = Focus::Bio;
+        let key = |panel: &mut Panel, key, text: Option<&str>, shift, control| {
+            panel.bio_key(key, text, false, shift, control)
+        };
+        assert_eq!(
+            panel.bio_edit.cursor(&panel.bio),
+            panel.bio.len(),
+            "at the end"
+        );
+        assert!(key(&mut panel, KeyCode::ArrowLeft, None, false, true));
+        assert!(key(&mut panel, KeyCode::KeyX, Some("big "), false, false));
+        assert_eq!(panel.bio, "hello big there");
+        assert!(panel.edited);
+        assert!(key(&mut panel, KeyCode::Home, None, false, false));
+        assert!(key(&mut panel, KeyCode::Delete, None, false, false));
+        assert_eq!(panel.bio, "ello big there");
+        assert!(key(&mut panel, KeyCode::Enter, Some("\r"), true, false));
+        assert_eq!(
+            panel.bio, "\nello big there",
+            "Shift+Enter: a new line at the caret"
+        );
+        assert!(key(
+            &mut panel,
+            KeyCode::Backspace,
+            Some("\u{8}"),
+            false,
+            false
+        ));
+        assert!(key(&mut panel, KeyCode::ArrowRight, None, false, false));
+        assert!(key(&mut panel, KeyCode::KeyH, Some("H"), false, false));
+        assert_eq!(panel.bio, "eHllo big there");
+        // A held key repeats.
+        assert!(panel.bio_key(KeyCode::Backspace, None, true, false, false));
+        assert_eq!(panel.bio, "ello big there");
+        assert!(!key(&mut panel, KeyCode::Enter, Some("\r"), false, false));
+        assert!(!key(&mut panel, KeyCode::Tab, Some("\t"), false, false));
+        assert!(key(&mut panel, KeyCode::KeyA, Some("a"), false, true));
+        assert!(key(&mut panel, KeyCode::KeyN, Some("new"), false, false));
+        assert_eq!(panel.bio, "new");
+        assert!(key(&mut panel, KeyCode::KeyA, Some("\u{1}"), false, true));
+        assert!(key(&mut panel, KeyCode::Backspace, None, false, false));
+        assert_eq!(panel.bio, "", "Ctrl+A then Backspace clears it");
+        // The hub's copy put back puts the caret at its end.
+        panel.revert();
+        assert_eq!(panel.bio_edit.cursor(&panel.bio), panel.bio.len());
+    }
+
+    #[test]
+    fn typing_at_the_caret_keeps_to_what_a_bio_may_hold() {
+        let mut field = "1\n2\n3\n4\n5\n6".to_owned();
+        let mut edit = LineEdit::default();
+        edit.place(&field, 1, false);
+        assert!(type_at(&mut field, &mut edit, "a\nb\u{221E}"));
+        assert_eq!(field, "1ab\n2\n3\n4\n5\n6", "no seventh line, no symbol");
+        assert_eq!(edit.cursor(&field), 3);
     }
 
     #[test]

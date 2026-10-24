@@ -6,7 +6,9 @@
 //! The clans are the entries of [`KNOWN`], read by generic code: supporting a clan means
 //! adding an entry and its emblem, not code. [`CVAR`] 0 turns every emblem off.
 //!
-//! The rule, for every clan: the tag's letters in any case, with no letter right before
+//! Each clan reads its tag by one of two [`Rule`]s. [`Rule::Exact`]: the name, colour
+//! codes dropped, starts with the tag exactly as written (`(JAWA)Ken`, `{{S}}Ken`).
+//! [`Rule::Letters`]: the tag's letters in any case, with no letter right before
 //! the first (the name starts there or a separator comes first: a space, a bracket, a
 //! dot, a digit...). Colour codes are dropped first, so `^1J^7oF` counts and `MrJoF`
 //! does not. Each letter may be written with a look-alike ([`looks_like`]: `jøf`, `J0F`,
@@ -18,6 +20,17 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 /// 0 hides every clan emblem.
 pub(crate) const CVAR: &str = "cg_clanEmblems";
+
+/// How a clan's tag is read in a name.
+#[derive(Debug, Eq, PartialEq)]
+pub(crate) enum Rule {
+    /// The tag exactly as written, case and signs included, at the very start of the
+    /// name once its colour codes are dropped.
+    Exact,
+    /// The tag's letters anywhere, in any case and with look-alikes, a tag stuck to the
+    /// name counting as [`Stuck`] says.
+    Letters(Stuck),
+}
 
 /// When a tag stuck to the name (a letter right after it) still counts.
 #[derive(Debug, Eq, PartialEq)]
@@ -35,11 +48,11 @@ pub(crate) enum Stuck {
 pub(crate) struct ClanTag {
     /// The clan's name.
     pub(crate) name: &'static str,
-    /// The tag as the clan writes it: its letters are read in any case and its capitals
-    /// are the ones [`Stuck::Capitals`] asks for.
+    /// The tag as the clan writes it: under [`Rule::Letters`] its letters are read in
+    /// any case and its capitals are the ones [`Stuck::Capitals`] asks for.
     tag: &'static str,
-    /// How a tag stuck to the name counts.
-    stuck: Stuck,
+    /// How the tag is read.
+    rule: Rule,
     /// The emblem, a 128-pixel square PNG uploaded into the clan's atlas cell at start.
     pub(crate) emblem: &'static [u8],
     /// The emblem's tint (white: its own colours).
@@ -50,39 +63,48 @@ pub(crate) struct ClanTag {
 
 /// The clans known, longest tag first, so `JoFA` is read before `JoF`.
 pub(crate) const KNOWN: &[ClanTag] = &[
+    // JAWA (Sol's request, 19/10/2026): the clan's forum icon, a Jawa's hood, shrunk by
+    // `scripts/clan_emblem.py` (from 60 pixels, so a little soft). Only `(JAWA)` at the
+    // start of the name counts (Sol, 22/10/2026), so `Jawad` or `Ken JAWA` do not.
+    ClanTag {
+        name: "JAWA",
+        tag: "(JAWA)",
+        rule: Rule::Exact,
+        emblem: include_bytes!("../../../assets/branding/jawa-emblem.png"),
+        tint: Color::new(1.0, 1.0, 1.0, 1.0),
+        ink_width: 0.80,
+    },
+    // {{S}} (Sol's request, 22/10/2026): the clan's logo, a red Sith emblem, shrunk by
+    // `scripts/clan_emblem.py`. Only `{{S}}` exactly as written at the start of the name.
+    ClanTag {
+        name: "{{S}}",
+        tag: "{{S}}",
+        rule: Rule::Exact,
+        emblem: include_bytes!("../../../assets/branding/s-emblem.png"),
+        tint: Color::new(1.0, 1.0, 1.0, 1.0),
+        ink_width: 0.84,
+    },
     // JoF Academy (Sol's request, 11/10/2026): the academy's HD logo, shrunk by
     // `scripts/clan_emblem.py`. Players write `JoFA}Ken`, `^5JoFA^7<3Toad`, `JoFAKen`.
     ClanTag {
         name: "JoFA",
         tag: "JoFA",
-        stuck: Stuck::Capitals,
+        rule: Rule::Letters(Stuck::Capitals),
         emblem: include_bytes!("../../../assets/branding/jofa-emblem.png"),
         tint: Color::new(1.0, 1.0, 1.0, 1.0),
         ink_width: 0.79,
     },
-    // JAWA (Sol's request, 19/10/2026): the clan's forum icon, a Jawa's hood, shrunk by
-    // `scripts/clan_emblem.py` (from 60 pixels, so a little soft). Players write
-    // `(JAWA)Name`. Stuck to a name only with capitals (`JAWAKen`), so names such as
-    // Jawad do not count.
-    ClanTag {
-        name: "JAWA",
-        tag: "JAWA",
-        stuck: Stuck::Capitals,
-        emblem: include_bytes!("../../../assets/branding/jawa-emblem.png"),
-        tint: Color::new(1.0, 1.0, 1.0, 1.0),
-        ink_width: 0.80,
-    },
-    // JoF, Jedi of Freedom: the clan's J, o, F, white on transparent, rendered from its
-    // SVG path by `scripts/jof_emblem.py`, in the teal of the clan's logo (`#02B99D`,
-    // Creyon's request, 11/10/2026; it was crimson). Players write `{JoF}Name`,
-    // `jøf'p Evi`, `JoFSanjiJ` and `jofsanji` (Creyon, 11/10/2026).
+    // JoF, Jedi of Freedom: the clan's green J, o, F logo (80 by 93) in its own colours,
+    // shrunk by `scripts/clan_emblem.py` (Sol's request, 22/10/2026; a teal J o F
+    // rendered from its SVG path until then). Players write `{JoF}Name`, `jøf'p Evi`,
+    // `JoFSanjiJ` and `jofsanji` (Creyon, 11/10/2026).
     ClanTag {
         name: "JoF",
         tag: "JoF",
-        stuck: Stuck::AnyCase { not_before: &['f'] },
+        rule: Rule::Letters(Stuck::AnyCase { not_before: &['f'] }),
         emblem: include_bytes!("../../../assets/branding/jof-emblem.png"),
-        tint: Color::new(0.008, 0.725, 0.616, 1.0),
-        ink_width: 0.65,
+        tint: Color::new(1.0, 1.0, 1.0, 1.0),
+        ink_width: 0.74,
     },
 ];
 
@@ -99,9 +121,21 @@ impl ClanTag {
         crate::ui_renderer::clan_texture(index)
     }
 
-    /// Whether the tag stands at `at` in `chars`: its letters (or their look-alikes)
-    /// with no letter before, and nothing stuck to it or stuck as [`Stuck`] allows.
+    /// Whether the tag stands at `at` in `chars`: as written at the start for
+    /// [`Rule::Exact`]; else its letters (or their look-alikes) with no letter before,
+    /// and nothing stuck to it or stuck as [`Stuck`] allows.
     fn at(&self, chars: &[char], at: usize) -> bool {
+        let stuck = match &self.rule {
+            Rule::Exact => {
+                return at == 0
+                    && chars
+                        .iter()
+                        .copied()
+                        .take(self.tag.chars().count())
+                        .eq(self.tag.chars());
+            }
+            Rule::Letters(stuck) => stuck,
+        };
         if at > 0 && chars[at - 1].is_alphabetic() {
             return false;
         }
@@ -118,7 +152,7 @@ impl ClanTag {
         let Some(&next) = chars.get(after).filter(|next| next.is_alphabetic()) else {
             return true;
         };
-        match self.stuck {
+        match stuck {
             Stuck::AnyCase { not_before } => {
                 !not_before.contains(&looks_like(next).unwrap_or(next))
             }
@@ -242,7 +276,7 @@ mod tests {
                 clan.name
             );
             assert!(
-                clan.tag.chars().all(|c| looks_like(c).is_some()),
+                clan.rule == Rule::Exact || clan.tag.chars().all(|c| looks_like(c).is_some()),
                 "{}",
                 clan.name
             );
@@ -316,20 +350,44 @@ mod tests {
     }
 
     #[test]
-    fn the_jawas_tag_is_jawa() {
+    fn the_jawas_tag_is_jawa_in_brackets_first() {
+        for name in ["(JAWA)Ken", "^3(JAWA)^7Ken", "^3(^7JAWA^3)", "(JAWA) Ken"] {
+            assert_eq!(named(name), Some("JAWA"), "{name}");
+        }
         for name in [
-            "(JAWA)Ken",
-            "^3(JAWA)^7Ken",
             "jawa|Ken",
             "[Jawa] Ken",
             "JAWAKen",
             "Ken JAWA",
+            "Ken(JAWA)",
+            " (JAWA)Ken",
+            "(jawa)Ken",
+            "(Jawa)Ken",
+            "(JAWA",
+            "Jawad",
+            "Java",
         ] {
-            assert_eq!(named(name), Some("JAWA"), "{name}");
-        }
-        for name in ["Jawad", "JAWAD", "jawaken", "MrJAWA", "Java"] {
             assert_eq!(named(name), None, "{name}");
         }
+    }
+
+    #[test]
+    fn the_s_tag_is_exact_and_first() {
+        for name in ["{{S}}Ken", "^1{{S}}^7Ken", "{{S}} Ken", "{{S}}"] {
+            assert_eq!(named(name), Some("{{S}}"), "{name}");
+        }
+        for name in [
+            "{{s}}Ken",
+            "{S}Ken",
+            "{{ S }}Ken",
+            "Ken{{S}}",
+            "[{{S}}]Ken",
+            "{{S",
+        ] {
+            assert_eq!(named(name), None, "{name}");
+        }
+        // A JoF tag later in the name still loses to the clan at its start.
+        assert_eq!(named("{{S}}JoF"), Some("{{S}}"));
     }
 
     #[test]

@@ -138,6 +138,13 @@ impl ViewerConsole {
         match action {
             PanelAction::None => {}
             PanelAction::Close => self.close_sjk_chat_panel(),
+            PanelAction::SendSjkOnly(text) => {
+                if self.bool_cvar("cl_sjkChat") == Some(false) {
+                    self.push_log("^3sjkchat: SJK chat is off (cl_sjkChat 1 turns it on)");
+                } else if !crate::player_identity::chat_sjk_only(text) {
+                    self.push_log("^3sjkchat: the SJK identity is off (cl_identity 1)");
+                }
+            }
             PanelAction::Send(text) => {
                 if self.bool_cvar("cl_sjkChat") == Some(false) {
                     self.push_log("^3sjkchat: SJK chat is off (cl_sjkChat 1 turns it on)");
@@ -232,6 +239,7 @@ impl ViewerConsole {
             now,
             staff_state: staff_shown,
             giphy_key: &giphy_key,
+            said_in_all: crate::chat::server_copy::said_in_all(),
         };
         self.sjk_chat_panel.append_sjk(&inputs, target, viewport);
     }
@@ -245,6 +253,12 @@ impl ViewerConsole {
         if let Some(id) = chosen {
             self.sjk_chat_panel.choose_for_shot(id);
         }
+    }
+
+    /// Type `draft` on the page and show Send only in SJK's hover card, for a world shot.
+    #[cfg(test)]
+    pub(crate) fn sjk_chat_only_for_shot(&mut self, draft: &str) {
+        self.sjk_chat_panel.only_sjk_for_shot(draft);
     }
 
     /// Open the page on `chat` with the GIF picker on tab `tab`, `typed` searched, for a

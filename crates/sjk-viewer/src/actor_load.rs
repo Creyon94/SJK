@@ -126,6 +126,7 @@ pub(crate) fn build_actor_mesh(
         current_frames: (frame, frame),
         weapon_attachments,
         driver_seat: None,
+        vehicle_muzzles: Default::default(),
         saber_names,
         render_yaw_degrees: None,
         wall_hold: Default::default(),
@@ -139,6 +140,7 @@ pub(crate) fn build_actor_mesh(
         disintegration: None,
         surfaces,
         limb: None,
+        ragdoll: Default::default(),
     })
 }
 

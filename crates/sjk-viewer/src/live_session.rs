@@ -6,13 +6,19 @@ use std::time::{Duration, Instant};
 #[path = "emplaced_view.rs"]
 mod emplaced_view;
 
-/// Consume queued snapshots in order, stopping on timeout/failure or after eight.
-pub(crate) fn drain_snapshots(mut receive_and_present: impl FnMut() -> bool) {
-    for _ in 0..8 {
+/// Most snapshots one frame reads; the rest wait for the next frames.
+pub(crate) const SNAPSHOTS_PER_FRAME: usize = 8;
+
+/// Consume queued snapshots in order, stopping on timeout/failure or after
+/// [`SNAPSHOTS_PER_FRAME`]. True when it stopped before that (the queue ran dry
+/// or a snapshot ended the loop), false when packets may still be waiting.
+pub(crate) fn drain_snapshots(mut receive_and_present: impl FnMut() -> bool) -> bool {
+    for _ in 0..SNAPSHOTS_PER_FRAME {
         if !receive_and_present() {
-            break;
+            return true;
         }
     }
+    false
 }
 
 impl GpuState {
@@ -42,7 +48,7 @@ impl GpuState {
     ) {
         use crate::frame_pacing::budget::Phase;
         timing.mark(Phase::Snapshot);
-        drain_snapshots(|| {
+        let caught_up = drain_snapshots(|| {
             let Some(session) = &mut self.live_session else {
                 return false;
             };
@@ -117,6 +123,16 @@ impl GpuState {
             self.present_live_snapshot(&snapshot, true, game_audio, visual_now);
             true
         });
+        // Stock adjusts the command clock once a frame, on the newest snapshot,
+        // after reading every queued packet (`CL_SetCGameTime`). After a hitch the
+        // queue holds a second of snapshots that this frame's eight do not empty:
+        // their times are as old as the hitch, and adjusting on them put the
+        // commands a second behind the server, read as a huge `cl_timeNudge`
+        // (JoF's Heimdall kicks for it). The clock keeps its delta until the queue
+        // is read ([`sjk_client::ServerClock::adjust`]).
+        if caught_up {
+            self.server_clock.adjust(Instant::now());
+        }
         timing.mark(Phase::Commands);
         self.ghost_frame();
         let talking = self.talk_button();
@@ -215,6 +231,7 @@ impl GpuState {
             eprintln!("failed to request intermission scoreboard: {error}");
         }
         let snapshot = session.latest_snapshot();
+        let snapshot_origin = snapshot.player.origin();
         let delta_angles = self
             .gameplay_input
             .view_authority
@@ -285,10 +302,16 @@ impl GpuState {
                 .local_prediction
                 .committed_state()
                 .map(crate::ghost_replay::Pose::of);
-            // The Hax toy steers, or stands still while steering another (`hax`).
+            // The Hax toy steers, or stands still while steering another (`hax`); a
+            // limp player's real body walks to their ragdoll (`ragdoll`).
+            let origin = self
+                .local_prediction
+                .committed_state()
+                .map_or(snapshot_origin, |state| state.origin);
             let replay = self
                 .hax
                 .drive(&command, delta_angles, (self.camera_pitch, self.camera_yaw))
+                .or_else(|| self.ragdoll.drive(&command, delta_angles, origin))
                 .or_else(|| pose.and_then(|pose| self.ghost.drive(&command, &pose)));
             // Or the mimic copies another player (`mimic`).
             let replay = replay.or_else(|| {

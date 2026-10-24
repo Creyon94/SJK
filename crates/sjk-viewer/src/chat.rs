@@ -7,12 +7,14 @@ mod editor;
 pub(crate) mod emoji;
 mod feed_gif;
 
+pub(crate) mod client_icons;
 mod interaction;
 mod layout;
 pub(crate) mod marks;
 pub(crate) mod options;
 pub(crate) mod pm_only;
 pub(crate) mod reply;
+pub(crate) mod server_copy;
 pub(crate) mod sjk;
 mod substitutions;
 pub(crate) mod text_sizes;
@@ -35,7 +37,10 @@ use std::collections::VecDeque;
 use std::time::Instant;
 
 const HISTORY_LIMIT: usize = 64;
-const MAX_VISIBLE: usize = 8;
+/// Most messages the feed shows together, `cg_chatBoxLines`' top: EternalJK's
+/// `MAX_CHATBOX_ITEMS` (24). It was 8 before 23/10/2026, so a larger value did nothing
+/// (Creyon's report #129).
+const MAX_VISIBLE: usize = 24;
 const HOLD_MS: u64 = 9_000;
 const FADE_MS: u64 = 2_000;
 const ENTER_MS: u32 = 220;
@@ -72,6 +77,9 @@ struct ChatLine {
     /// An encrypted whisper with a player checked with the safety code: labelled
     /// VERIFIED.
     verified: bool,
+    /// The slot the player's own encrypted whisper went to: its line wears the
+    /// recipient's marks (emblem, verified tick or trust mark, name emoji).
+    recipient: Option<u16>,
 }
 
 /// An SJK chat line's id at the hub and its sender.
@@ -85,6 +93,12 @@ struct HubLine {
     trust: Option<sjk_identity::Trust>,
     /// The sender's name emoji when they sent it, shown at the right of their name.
     emoji: String,
+    /// Sent from another client with its own icon (`chat/client_icons.rs`), which takes
+    /// the emblem's place.
+    client: Option<&'static client_icons::ClientIcon>,
+    /// Said in the game server's All chat too (`chat/server_copy.rs`): labelled ALL/SJK
+    /// instead of SJK.
+    in_all: bool,
     key_id: String,
     /// The line is a holocron drop of this tier (`holocrons/line.rs`): in the tier's
     /// colour, a gem before it instead of the verified tick.
@@ -110,6 +124,8 @@ pub(crate) struct ChatOverlay {
     ui: MenuCanvas,
     /// The feed's name or card target a press began on, until its release.
     pressed_action: Option<u16>,
+    /// Whose name that press began on, when it began on a name (`chat/card.rs`).
+    pressed_who: Option<card::Who>,
     /// Whose name each feed token is, for the profile card (`chat/card.rs`).
     visible_people: [Option<card::Who>; MAX_VISIBLE],
     /// The profile card on show while the composer is open.
@@ -138,6 +154,11 @@ pub(crate) struct ChatOverlay {
     sjk_mark: Option<(u64, u64, u64)>,
     /// When the SJK chat's sound last played (`chat/sjk.rs`, [`sjk::SOUND_GAP`]).
     sjk_sound_at: Option<Instant>,
+    /// SJK chat said on the game server too (`chat/server_copy.rs`).
+    server_copies: server_copy::ServerCopies,
+    /// While a mod says SJK chat in this server's All chat (`sjk_chat_frame.rs`), the
+    /// red note above the field when the SJK channel is picked.
+    said_in_all: Option<server_copy::SaidInAll>,
     /// Whether SJK messages join the in-game general chat feed (`cl_sjkChatFeed`).
     sjk_feed_visible: bool,
     /// Whether the lines with a GIF read "GIF" and show it (`cl_sjkChatGifs`), or keep
@@ -216,6 +237,7 @@ impl ChatOverlay {
             notice: "",
             ui: MenuCanvas::with_text_capacity(512),
             pressed_action: None,
+            pressed_who: None,
             visible_people: [None; MAX_VISIBLE],
             card: None,
             mute_request: None,
@@ -232,6 +254,8 @@ impl ChatOverlay {
             sjk_outcome: 0,
             sjk_mark: None,
             sjk_sound_at: None,
+            server_copies: server_copy::ServerCopies::default(),
+            said_in_all: None,
             sjk_feed_visible: true,
             gifs_shown: true,
             gif_sources_revision: 0,
@@ -436,8 +460,17 @@ impl ChatOverlay {
             gif: None,
             encrypted: false,
             verified: false,
+            recipient: None,
         };
         self.push_line(line, server_private);
+    }
+
+    /// Whether the newest line is a server's private message from a player not muted
+    /// here: what flashes the taskbar (`chat_sounds.rs`).
+    pub(crate) fn newest_is_open_private(&self) -> bool {
+        self.lines
+            .back()
+            .is_some_and(|line| line.server_private && !line.muted)
     }
 
     fn push_line(&mut self, line: ChatLine, private: bool) {
@@ -452,18 +485,19 @@ impl ChatOverlay {
     }
 
     /// Show an end-to-end encrypted whisper (`e2e_whispers.rs`): from the player in
-    /// `slot` to us, or ours to the player named `to` (`slot` `None`); `verified` when
-    /// they were checked with the safety code. Its sender becomes the one `reply`
-    /// answers. False when the slot holds nobody.
+    /// `from` to us, or ours to the player named `to` in `slot` (`from` `None`);
+    /// `verified` when they were checked with the safety code. Its sender becomes the
+    /// one `reply` answers. False when the slot holds nobody.
     pub(crate) fn receive_encrypted(
         &mut self,
-        slot: Option<u16>,
-        to: &str,
+        from: Option<u16>,
+        (slot, to): (u16, &str),
         text: &str,
         verified: bool,
         now: Instant,
     ) -> bool {
-        let (name, sender, muted) = match slot {
+        let recipient = from.is_none().then_some(slot);
+        let (name, sender, muted) = match from {
             Some(slot) => {
                 let Some(target) = self.roster.target(Some(slot)) else {
                     return false;
@@ -498,6 +532,7 @@ impl ChatOverlay {
             gif: None,
             encrypted: true,
             verified,
+            recipient,
         };
         self.push_line(line, true);
         true
@@ -527,6 +562,12 @@ impl ChatOverlay {
 
     pub(crate) fn is_typing(&self) -> bool {
         self.input.is_some()
+    }
+
+    /// What SJK knows of each slot's player, as the frame sets it (world shots).
+    #[cfg(test)]
+    pub(crate) fn set_slot_marks(&mut self, marks: Vec<marks::SlotMark>) {
+        self.slot_marks = marks;
     }
 
     /// Close the composer, its draft dropped, as Escape does.

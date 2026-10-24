@@ -45,6 +45,8 @@ const ANSWER_WAIT: Duration = Duration::from_secs(10);
 struct Pending {
     serial: u64,
     server: SocketAddr,
+    /// The recipient's slot.
+    slot: u16,
     /// The recipient's name as the game showed it.
     name: String,
     text: String,
@@ -218,6 +220,7 @@ impl GpuState {
         self.e2e_whispers.pending.push(Pending {
             serial,
             server,
+            slot,
             name: shown,
             text: shown_text(&text),
             command: command.to_owned(),
@@ -409,11 +412,18 @@ impl GpuState {
                 Ok(()) => {
                     self.chat.receive_encrypted(
                         None,
-                        &pending.name,
+                        (pending.slot, &pending.name),
                         &pending.text,
                         pending.verified,
                         now,
                     );
+                    // Sent: its sound, as the SJK chat plays one for the player's own.
+                    if crate::chat_sounds::enabled(
+                        self.console.as_ref(),
+                        crate::chat_sounds::Kind::Private,
+                    ) {
+                        crate::audio::ui_cues::post(crate::audio::ui_cues::Cue::EncryptedWhisper);
+                    }
                     if let Some(console) = self.console.as_mut() {
                         let line = format!("^6To {}^6 (encrypted): {}", pending.name, pending.text);
                         console.push_chat_line(line.clone(), &line, None);
@@ -463,7 +473,7 @@ impl GpuState {
             return;
         };
         let directory = console.config_directory().to_owned();
-        let sound = crate::cgame_options::chat_sounds(Some(console));
+        let sound = crate::chat_sounds::enabled(Some(console), crate::chat_sounds::Kind::Private);
         let text = match whisper.text {
             Ok(text) => shown_text(&text),
             Err(failure) => {
@@ -489,7 +499,7 @@ impl GpuState {
             .checked(&directory, &whisper.key_id, &whisper.from);
         if !self.chat.receive_encrypted(
             Some(slot),
-            "",
+            (slot, ""),
             &text,
             checked == Checked::Yes,
             Instant::now(),
@@ -507,6 +517,7 @@ impl GpuState {
             }
             let line = format!("^6{shown}^6 (encrypted): {text}");
             console.push_chat_line(line.clone(), &line, None);
+            console.note_private_message();
         }
         if sound {
             crate::audio::ui_cues::post(crate::audio::ui_cues::Cue::EncryptedWhisper);
@@ -692,6 +703,20 @@ mod tests {
                     .unwrap();
             }
             gpu.chat.update_roster(&game);
+            // The hub knows Creyon (verified, an emoji) and Fox (new).
+            let mut marks = vec![crate::chat::marks::SlotMark::default(); crate::chat_mutes::SLOTS];
+            marks[4] = crate::chat::marks::SlotMark {
+                sjk: true,
+                verified: true,
+                emoji: "🦊".to_owned(),
+                ..Default::default()
+            };
+            marks[6] = crate::chat::marks::SlotMark {
+                sjk: true,
+                trust: Some(sjk_identity::Trust::New),
+                ..Default::default()
+            };
+            gpu.chat.set_slot_marks(marks);
             let now = Instant::now();
             gpu.chat.receive(
                 sjk_client::ServerEventKind::Chat,
@@ -707,19 +732,24 @@ mod tests {
             );
             gpu.chat.receive_encrypted(
                 Some(4),
-                "",
+                (4, ""),
                 "meet me at the bridge, bring the hilt",
                 true,
                 now,
             );
             gpu.chat.receive_encrypted(
                 None,
-                "^5Creyon",
+                (4, "^5Creyon"),
                 "on my way, only you can read this",
                 false,
                 now,
             );
             let path = crate::world_shot::shoot(&mut gpu, 10, "encrypted-whispers-chat");
+            println!("{}", path.display());
+            // A whisper to Fox, who does not take encrypted ones: the red note.
+            gpu.chat.set_encrypted_slots(1 << 4);
+            assert!(gpu.chat.whisper_to(Some(6)));
+            let path = crate::world_shot::shoot(&mut gpu, 10, "encrypted-whispers-plain-note");
             println!("{}", path.display());
         });
     }

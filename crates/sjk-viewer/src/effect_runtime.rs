@@ -30,6 +30,7 @@ pub(crate) fn spawn_snapshot_particles(
     particles: &mut Vec<Particle>,
     auxiliary: &mut crate::effect_aux::Runtime,
     previous_events: &mut HashMap<u16, u16>,
+    vehicle_fires: &mut crate::vehicle_fire::Pending,
     snapshot: &Snapshot,
     game_state: &GameState,
     vfs: &VirtualFileSystem,
@@ -60,6 +61,26 @@ pub(crate) fn spawn_snapshot_particles(
             continue;
         }
         previous_events.insert(entity.number(), latch);
+        if raw_event == crate::vehicle_fire::EV_VEH_FIRE {
+            // Played where the vehicle's muzzles are once it is posed (`vehicle_fire.rs`).
+            let origin = if entity.entity_type() >= 18 {
+                // A plain `G_TempEntity` sets only the trajectory base (see below).
+                Some(entity.event_origin())
+                    .filter(|origin| *origin != [0.0; 3])
+                    .unwrap_or(entity.trajectory_base())
+            } else {
+                sjk_client::legacy_evaluate_trajectory(
+                    entity.trajectory_base(),
+                    entity.trajectory_delta(),
+                    entity.trajectory_type(),
+                    entity.trajectory_time(),
+                    entity.trajectory_duration(),
+                    snapshot.server_time,
+                )
+            };
+            vehicle_fires.observe(entity, origin, &snapshot.entities, now);
+            continue;
+        }
         let Some(effect_name) = combat_effects::for_event(raw_event, entity, game_state) else {
             continue;
         };
@@ -170,6 +191,9 @@ pub(crate) fn spawn_map_effect_requests(
     }
 }
 
+/// The volume an effect's `Sound` primitive plays at: stock's full volume.
+pub(crate) const EFFECT_SOUND_VOLUME: f32 = 1.0;
+
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn spawn_effect(
     particles: &mut Vec<Particle>,
@@ -199,11 +223,14 @@ pub(crate) fn spawn_effect(
             if !component.sounds.is_empty() {
                 let index =
                     mix_seed(seed, component_index as u32, 0) as usize % component.sounds.len();
+                // `CFxScheduler`'s `Sound` primitive (`FxScheduler.cpp:1647-1658`) calls
+                // `S_StartSound` with no volume (`FxSystem.h:80-84`): full `SOUND_MAXVOL`,
+                // as every positioned event sound here plays (1.0), not seven tenths.
                 if let Some(audio) = audio.as_mut() {
                     audio.play(
                         vfs,
                         &component.sounds[index],
-                        0.7,
+                        EFFECT_SOUND_VOLUME,
                         origin.to_array(),
                         sjk_audio::SourceId(seed | (1 << 31)),
                     );
@@ -399,6 +426,17 @@ pub(crate) fn spawn_effect(
                 ],
                 particle_seed,
             );
+            // `CFlash::Init`: the flash's colour scaled by where it is from the viewer.
+            let rgb = if component.kind == ComponentKind::Flash {
+                let visibility =
+                    crate::effect_flash::visibility(auxiliary.viewer(), particle_origin);
+                if visibility <= 0.0 {
+                    continue;
+                }
+                rgb.map(|channel| channel.scaled(visibility))
+            } else {
+                rgb
+            };
             let rotates = matches!(
                 component.kind,
                 ComponentKind::Particle | ComponentKind::OrientedParticle
