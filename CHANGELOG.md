@@ -28,7 +28,15 @@ tests check this file):
 - ASCII only, as the menu font draws bytes.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
-## Unreleased
+## 2026.1024.1 (Alpha) | 24/10/2026
+
+A small release: a ragdoll toy, chat and saber sound choices, and fixes from Creyon, Lumaya and Lukas.
+
+> Ragdoll: `toy_ragdoll` makes you go limp and fall, and every SJK player sees the same fall.
+> Chat: Click a name in the open chat to whisper or block that player; each kind of chat has its own sound.
+> Saber sounds: Pick your saber's sounds apart from its shader, in Profile > Saber.
+> Fixes: Signature blades lose the bright rim at their tip, and long sessions no longer run out of open files.
+> Safety codes: The encrypted whispers' safety code is now 60 digits the hub cannot fake.
 
 = cg_emoteTypingKeep: New: a player typing in the chat or the console keeps their emote, even when pushed, until they move or attack after closing it.
 = cl_privateChatFlash: A private message flashes the game's taskbar button while you are away from the window. On by default; switch it off if you would rather not be called back.
