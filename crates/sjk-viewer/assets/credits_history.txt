@@ -9,6 +9,10 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 25/10/2026 | - | Ragdoll: movers carry the body, every part heard on what it hits
+- b205670 |  | Ragdoll: movers carry and push the body, every part heard on what it hits
++ 25/10/2026 | - | JA+ settings under japlus.*, old names kept as aliases
+- 256fb04 |  | JA+ names: every JA+-only setting under japlus.*
 + 24/10/2026 | - | macOS build: Metal backend and an Apple Silicon package from GitHub
 - b1c1c8a |  | macOS build: Metal backend and an Apple Silicon package from GitHub
 - 0d0102e |  | package_client.py: accept the macos-arm64 platform

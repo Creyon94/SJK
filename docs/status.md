@@ -2207,6 +2207,22 @@ Collection's six toys fitting) and `cargo check`/clippy. Not tried in a game, wi
 clients or on a server: the glide's smoothness at a few events a second and the
 seeker ball's size (2.2 times stock) are guesses to tune.
 
+## Ragdoll physics
+
+25/10/2026, `personal/ragdoll-physics` (Sol's asks): the [Ragdoll](client.md#ragdoll)'s
+body now meets the map's brush movers, each placed by its trajectory at the step's
+moment from the first snapshot at or after it (`ragdoll/scene.rs`, reusing prediction's
+`Collider` and mover trace): lifts carry the points lying on them, a mover moving into
+a point pushes it, a sleeping body wakes when one stirs it. Every body part is heard on
+its own: flesh (body falls, slams, melee punches and kicks, a thud for the head) plus
+the footstep of the surface's material, louder the harder, and scrapes when dragged
+(`ragdoll/sounds.rs`). Checked by unit tests (a body asleep on a lift carried 200 units
+up and asleep again on top, the same whatever the frame steps; a point on a turning
+mover turning with it; every joint's part and every material's sound). Not tried in a
+game. Two clients agree on a mover only if both have it in their snapshots (out of a
+client's view it is not there for that client's simulation), and a fall heard late
+fast-forwards with the movers as they are now.
+
 ## Ragdoll toy
 
 23/10/2026, `personal/ragdoll-toy` (Sol's idea): a meme toy
