@@ -441,9 +441,9 @@ A look is what a player wears that others draw:
 
 Since 23/10/2026 the client may send `"saber_sounds":".."`, the saber sounds its
 wearer chose apart from the blade ([Saber sounds](#saber-sounds)): absent or `""` to follow
-the blade, `"stock"`, or a blade-skin unlock id. The deployed hub does not take it yet
-(the change it needs is in that section); until it does, it refuses the field with
-`bad_body` and the client sends the look again without it.
+the blade, `"stock"`, or a blade-skin unlock id. The hub takes it since 24/10/2026; a
+hub from before refuses the field with `bad_body`, and the client then sends the look
+again without it.
 
 Since 11/10/2026 a look may also carry `"saber_off":["glint","haze"]`, the blade skin's
 options its wearer switched off ([Options](#options)): optional in a request (at most 8
@@ -1237,17 +1237,17 @@ heard with apart from the shader they wear, and every SJK player hears that choi
   the chosen set as to the blade's; a duel's stock blades (`cg_duelStockBlades`) and a
   player muted here are heard stock; a set whose pack is not loaded plays the stock
   sounds.
-- Hub: the deployed hub (`POST /v1/look` takes exactly its fields) refuses
-  `saber_sounds` with 400 `bad_body`. The client then sends the look again at once
-  without it and leaves it out until the hub changes (`look_sounds_unsupported` in the
-  identity service), so the blade, its parts and the toys still reach everyone, who hear
-  the blade's sounds. The hub change needed: take an optional `saber_sounds` string in
-  `POST /v1/look` (`""`, `"stock"` or a blade-skin id of the Unlocks table, else 400
-  `bad_look`; an id the key does not hold is 403 `sounds_not_unlocked`, which the client
-  answers by sending the look without it until the profile's unlocks change), keep it
-  with the look, give it back in presence and look events only when not empty (so older
-  clients see the same JSON), and clear it from the live look, with an event, when the
-  skin it names is taken back from the key. Older clients never send it.
+- Hub (deployed 24/10/2026): a hub from before refuses `saber_sounds` with 400
+  `bad_body`; the client then sends the look again at once without it and leaves it out
+  (`look_sounds_unsupported` in the identity service), so the blade, its parts and the
+  toys still reach everyone, who hear the blade's sounds. The hub takes an optional
+  `saber_sounds` string in `POST /v1/look` (`""`, `"stock"` or a blade-skin id of the
+  Unlocks table, else 400 `bad_look`; an id the key does not hold is 403
+  `sounds_not_unlocked`, which the client answers by sending the look without it until
+  the profile's unlocks change), keeps it with the look, gives it back in presence and
+  look events only when not empty (so older clients see the same JSON), and clears it
+  from the live look, with an event, when the skin it names is taken back from the key.
+  Older clients never send it.
 
 Verified by unit tests: the resolution (follow, stock, another shader on a skinned or
 the stock blade, an unknown id and a look without the field following the blade, a
@@ -1258,7 +1258,7 @@ Single and Dual within the canvas), the look's body, the feed's field, and the s
 dropping the field for a hub that refuses it or a set the key lacks while still sending
 the blade. World shot `duel6_sjk_saber_page` (the Sounds row with the Void's sounds under
 the Storm blade). Not verified: heard in a game, the preview by ear, another player's
-choice through a hub (the hub's side is not built).
+choice through a hub (the hub's side is tested in the hub's own suite).
 
 ## Medal shaders
 
