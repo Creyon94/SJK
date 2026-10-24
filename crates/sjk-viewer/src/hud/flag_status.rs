@@ -396,11 +396,12 @@ impl State {
     /// a capture game has no known count.
     fn track_drops(&mut self, previous: [Flag; 2], now: i64) {
         self.now = now;
-        for side in 0..2 {
-            self.dropped_at[side] = match self.flags[side] {
+        for ((dropped_at, flag), before) in self.dropped_at.iter_mut().zip(self.flags).zip(previous)
+        {
+            *dropped_at = match flag {
                 Flag::Dropped if !self.ctf => None,
-                Flag::Dropped if self.seen && previous[side] != Flag::Dropped => Some(now),
-                Flag::Dropped => self.dropped_at[side],
+                Flag::Dropped if self.seen && before != Flag::Dropped => Some(now),
+                Flag::Dropped => *dropped_at,
                 _ => None,
             };
         }
@@ -981,7 +982,7 @@ mod tests {
         event.set_raw_field(8, u32::from(ET_EVENTS) + u32::from(EV_CTFMESSAGE));
         event.set_raw_field(42, CTFMESSAGE_PLAYER_GOT_FLAG);
         event.set_raw_field(58, 7);
-        event.set_raw_field(ES_TRICKED2 as usize, 2);
+        event.set_raw_field(ES_TRICKED2, 2);
         let mut snapshot = sjk_protocol::Snapshot {
             message_sequence: 1,
             reliable_acknowledge: 0,
