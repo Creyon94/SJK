@@ -9,6 +9,13 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 24/10/2026 | - | Drone toy: freecam and peek fly a remote others see; peek needs consent
+- cdf1588 |  | Drone toy: freecam and peek fly a remote others see; peek needs consent
++ 24/10/2026 | - | Reapply kyber crystals on main after release 2026.1024.1
+- e343aef |  | Reapply kyber crystals on main after release 2026.1024.1
++ 24/10/2026 | - | Release 2026.1024.1
+- 55b4829 |  | Revert "Reapply kyber crystals on main after release 2026.1023.3"
+- 37323f5 |  | Release 2026.1024.1 (Alpha)
 + 24/10/2026 | - | Saber sounds docs: the hub takes saber_sounds since 24/10
 - dcbf796 |  | Saber sounds docs: the hub takes saber_sounds since 24/10
 + 24/10/2026 | - | Credits history: #200 safety codes

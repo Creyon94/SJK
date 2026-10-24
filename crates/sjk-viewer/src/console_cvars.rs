@@ -738,6 +738,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "The Hax toy is on (toy_hax switches it; it stays on until turned off)",
         ),
         CvarDefinition::new(
+            crate::toy_saved::DRONE_CVAR,
+            false,
+            archive,
+            "The Drone toy is on: other players may peek at you, their drone following you (toy_drone switches it)",
+        ),
+        CvarDefinition::new(
             crate::duel_blades::CVAR,
             false,
             archive,

@@ -290,6 +290,8 @@ mod order66_shots;
 mod petals;
 #[path = "world_shot_ragdoll.rs"]
 mod ragdoll_shots;
+#[path = "world_shot_drone.rs"]
+mod drone_shots;
 
 #[path = "world_shot_blade_cards.rs"]
 mod blade_cards;

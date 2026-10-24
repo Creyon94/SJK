@@ -27,6 +27,7 @@ mod camera_uniform;
 mod capture;
 mod card_outline;
 mod cardboard_box;
+mod drone;
 mod cards;
 mod cgame_options;
 mod chat;
@@ -489,10 +490,12 @@ struct GpuState {
     order66: order66::Order66,
     /// The Hax toy (`toy_hax`): a hack under way, the player steered or steering.
     hax: hax::Hax,
+    /// The Drone toy (`toy_drone`): its consent switch and the other players' drones.
+    drone: drone::Drone,
     /// The Ragdoll toy (`toy_ragdoll`): the player's own fall and the falls of others.
     ragdoll: ragdoll::Ragdoll,
-    /// Order 66's and the Hax's switches as last saved (`toy_saved`).
-    toys_saved: [toy_saved::Saved; 2],
+    /// Order 66's, the Hax's and the Drone's switches as last saved (`toy_saved`).
+    toys_saved: [toy_saved::Saved; 3],
     /// The Holocrons tab's 3D holocron ([`holocrons::stage`]).
     holocron_stage: holocrons::stage::Stage,
     /// The time its turn and bob are drawn at, instead of the clock's, for a world shot.
@@ -1451,6 +1454,7 @@ impl GpuState {
             cardboard_box: Default::default(),
             order66: Default::default(),
             hax: Default::default(),
+            drone: Default::default(),
             ragdoll: Default::default(),
             toys_saved: Default::default(),
             holocron_stage: Default::default(),
@@ -2134,6 +2138,10 @@ impl GpuState {
             viewport,
             information_visible && intermission_view.is_none() && !scoreboard_held,
         );
+        self.append_drone_names(
+            viewport,
+            information_visible && intermission_view.is_none() && !scoreboard_held,
+        );
         self.append_entity_view(
             viewport,
             information_visible && intermission_view.is_none() && !scoreboard_held,
@@ -2352,6 +2360,7 @@ impl GpuState {
             self.world_notes.highlight(),
             self.entity_view.active().then(|| self.entity_view.list()),
             Some(&self.world_pings.list),
+            Some(&self.drone.list),
             information_visible.then(|| &self.hud.team_logo.list),
             information_visible.then(|| &self.hud.nameplate.list),
             information_visible.then(|| &self.hud.identification.list),
@@ -2461,6 +2470,7 @@ impl GpuState {
         self.submit_illuminate(presentation_time, visual_now);
         self.submit_cardboard_boxes(presentation_time, visual_now);
         self.submit_order66(presentation_time, visual_now);
+        self.submit_drones(presentation_time, visual_now);
         self.submit_holocron_stage(visual_now);
         self.sync_saber_skins(game_audio, presentation_time);
         let debug_missiles = effect_debug::sync(self.console.as_ref());

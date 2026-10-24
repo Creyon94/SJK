@@ -2366,6 +2366,9 @@ overlays still use the local player aim. Monitoring only received entities
 respects server PVS, but may show surroundings outside your line of sight.
 `/peek` alone uses the crosshair player; `/peek off` or a duration of 0 cancels.
 Local flight (`fakenoclip` or `freecam`) ends a peek; stop flight before peeking.
+Since 24/10/2026 Peek is the [Drone](#drone)'s: on a server it watches only a player
+whose Drone switch is on (in a local game, anyone), stops when they turn it off, and
+other SJK players see the drone behind the watched player.
 The local body stays at its player position and the view gun is suppressed.
 The camera cancels when the timer ends, the target slot/name changes, or the
 map changes. Missing snapshot data pauses the view; it resumes if data returns
@@ -4290,6 +4293,46 @@ every fall ends with the map or the server.
 The icon (a limp figure slumped against a wall) is drawn by the same script. World shots:
 `world_shot::ragdoll_shots::ragdoll_on_a_demo` (with `SJK_TEST_DEMO`). See
 [ragdoll.rs](../crates/sjk-viewer/src/ragdoll.rs).
+
+## Drone
+
+The Drone (Sol's idea, 24/10/2026, grown from Slash's Peek work in #199) makes the free
+camera and Peek a toy: a little training remote, Jedi Academy's own seeker ball
+(`models/items/remote.md3`, drawn 2.2 times its size), that every other SJK player on
+the server sees fly, the pilot's name over it (white, shadowed, within 2,400 units and
+not behind a wall), coming out with the game's remote hiss.
+
+- `freecam` (the detached free camera, [status.md](status.md#detached-free-camera)) flies the drone: it is where
+  the camera is, turned the way it looks.
+- `peek` ([timed player peek](#timed-player-peek)) sends it to a player: it hovers
+  where the peeking camera stands, behind them and above (`peek::behind`).
+
+Both commands, their binds and their quick wheel choice are unchanged; they fly the
+drone whatever the switch. The switch, `toy_drone` (a bind, the quick wheel's Toys page,
+Collection > Toys, "Peek me"), is the consent to be peeked: on a server `peek` refuses a
+player whose look does not show the toy ("has not let drones follow them"), and a peek
+under way ends as soon as the watched player turns it off ("Name sent your drone away":
+their client relays `away` to the pilot at once, and again at each repeat of a drone
+watching them while it is off; failing that, the pilot's client ends it when their look
+shows it off, "Your drone was sent away").
+The watched player, switch on, reads who watches as each drone comes ("Name's drone is
+watching you"). It stays as last switched, across maps, servers and restarts
+(`cl_toyDrone`, archived). In a local game no look is shared, so anyone may be peeked
+and nobody sees a drone.
+
+No game server knows of it. The pilot's client tells every other SJK player where the
+drone is through the toy relay (`PROTOCOL.md`, "Toy relay";
+[hub-chat.md](hub-chat.md#toy-relay)): `fly_<x>_<y>_<z>_<yaw>` (whole units, degrees)
+while the camera flies, `peek_<slot>` while it watches a player, `land` when it is put
+away. One event goes every 50 ms, to the players in turn: a player hears the drone's
+place again once it moved 2 units or turned 3 degrees, or every second while it holds
+still; so with two players each hears of it twenty times a second at most, with ten
+twice. A drone not heard of for 3 seconds goes. Each client glides the drones it shows to
+the latest place (and, for a peek, finds the place behind the watched player itself from
+what it shows of them), so they move smoothly between events. The pilot's own drone is
+not drawn on their screen (it is their camera). Players on stock clients see nothing.
+The icon (a training remote hovering) is drawn by `scripts/drone_assets.py`. See
+[drone.rs](../crates/sjk-viewer/src/drone.rs).
 
 ## Holstered saber hilts
 

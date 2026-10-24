@@ -30,6 +30,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
+- New toy, the Drone: `freecam` and `peek` now fly a little training remote that other SJK players see, your name over it; peek sends it to hover behind the player you watch. Peeking needs consent now: a player can be peeked only with their Drone switched on (`toy_drone`, the quick wheel's Toys page or Collection > Toys, "Peek me"), they read who is watching, and switching it off sends the drone away. Your binds for both commands stay as they are _(Sol, after Slash's Peek work in #199)_
 - Kyber crystals: every achievement now brings one, once, from Uncommon to Mythical (shown on the Achievements tab, its hover card and its unlock card). Opening one always gives a saber shader, the ones you do not have yet first, and every tenth crystal in a row without a Legendary or Mythical shader gives one: the Holocrons tab shows your crystals, how soon that is, and their loot table _(Sol)_
 
 ## 2026.1024.1 (Alpha) | 24/10/2026
