@@ -87,6 +87,11 @@ sjk-mediafoundation = { workspace = true, features = ["test-encoder"] }
 # xclip or wl-clipboard installed, and without them pasting did nothing on Linux.
 arboard = { version = "3.6.1", default-features = false, features = ["wayland-data-control"] }
 
+[target.'cfg(target_os = "macos")'.dev-dependencies]
+# Shader tests translate to SPIR-V and HLSL through `wgpu::naga`; the Vulkan and DX12
+# backends turn those writers on elsewhere, Metal does not.
+naga = { version = "30.0.1", features = ["spv-out", "hlsl-out"] }
+
 [build-dependencies]
 # Windows icon and version resource; the build script uses it only for Windows targets.
 winresource = { version = "0.1.31", default-features = false }

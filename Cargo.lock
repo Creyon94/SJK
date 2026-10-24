@@ -3222,6 +3222,7 @@ dependencies = [
  "image",
  "md-5",
  "md4",
+ "naga",
  "pollster 1.0.1",
  "rfd",
  "ringbuf",
