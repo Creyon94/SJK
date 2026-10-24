@@ -197,7 +197,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", type=Path, required=True)
     parser.add_argument("--target", required=True)
-    parser.add_argument("--platform", choices=("linux-x64", "windows-x64"), required=True)
+    parser.add_argument("--platform", choices=("linux-x64", "macos-arm64", "windows-x64"), required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--smoke-check", action="store_true")
     # Release builds name their files after the product and version and point the
