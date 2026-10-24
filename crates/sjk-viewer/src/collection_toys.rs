@@ -1,9 +1,10 @@
 //! The Collection's Toys tab: things to use in a match, everyone's. SJK's Illuminate
 //! holocron (`docs/client.md`, Illuminate), the cardboard box (`docs/client.md`,
 //! Cardboard box), Order 66 (`docs/client.md`, Order 66), the Hax (`docs/client.md`,
-//! Hax) and the Ragdoll (`docs/client.md`, Ragdoll) stand on plinths on the left; the
-//! chosen one is described beside the model with the switch that runs it
-//! (`toy_illuminate`, `toy_box`, `toy_order66`, `toy_hax`, `toy_ragdoll`). The holocron
+//! Hax), the Ragdoll (`docs/client.md`, Ragdoll) and the Drone (`docs/client.md`, Drone)
+//! stand on plinths on the left; the chosen one is described beside the model with the
+//! switch that runs it (`toy_illuminate`, `toy_box`, `toy_order66`, `toy_hax`,
+//! `toy_ragdoll`, `toy_drone`). The holocron
 //! floats lit by the model while it is chosen.
 
 use super::view::{LEFT_X, STAGE_TEXT_WIDTH, STAGE_TEXT_X, glow, left_lines};
@@ -13,9 +14,9 @@ use crate::menu_widgets::TextFamily;
 use sjk_ui::{Color, DrawCommand, FontWeight, TextAlign, TextureId};
 
 /// The first toy's niche: its corner and size; the next stands [`NICHE_STEP`] to the
-/// right.
-const NICHE: [f32; 3] = [LEFT_X, 300.0, 200.0];
-const NICHE_STEP: f32 = 220.0;
+/// right. Six fit before the words beside the model.
+const NICHE: [f32; 3] = [LEFT_X, 300.0, 172.0];
+const NICHE_STEP: f32 = 186.0;
 
 /// One toy as the tab shows it.
 struct Toy {
@@ -79,6 +80,15 @@ const TOYS: [Toy; TOY_COUNT] = [
         switch: "Limp",
         token: RAGDOLL_TOKEN,
     },
+    Toy {
+        icon: "drone",
+        name: "Drone",
+        title: "Drone",
+        what: "Your free camera and Peek fly a training remote that other SJK players see, your name over it. With this on, players may peek at you: their drone hovers behind you.",
+        how: "freecam and peek fly it (keep your binds); bind toy_drone to switch, or use the quick wheel.",
+        switch: "Peek me",
+        token: DRONE_TOKEN,
+    },
 ];
 
 /// A toy's picture: the quick wheel's, uploaded into the atlas at start.
@@ -121,7 +131,7 @@ impl Panel {
     pub(super) fn toys(&mut self, frame: &Frame, inputs: &Inputs<'_>) {
         self.lead(
             frame,
-            "5 toys",
+            "6 toys",
             "Things to use in a match, from the quick wheel or a key.",
         );
         let chosen = self.toy.min(TOY_COUNT - 1);
@@ -139,6 +149,7 @@ impl Panel {
             2 => inputs.order66,
             3 => inputs.hax,
             4 => inputs.ragdoll,
+            5 => inputs.drone,
             _ => inputs.illuminate,
         };
         self.toy_beside_model(frame, &TOYS[chosen], on);
@@ -322,6 +333,7 @@ mod tests {
                         ORDER_TOKEN,
                         HAX_TOKEN,
                         RAGDOLL_TOKEN,
+                        DRONE_TOKEN,
                         TOY_SWITCH_TOKEN,
                     ] {
                         let area = panel.ui.rect_for(token).expect("a target");

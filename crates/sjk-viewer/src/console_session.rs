@@ -630,6 +630,8 @@ impl ViewerConsole {
             pending_hax: None,
             ragdoll_on: false,
             pending_ragdoll: None,
+            drone_on: false,
+            pending_drone: None,
             pending_settings_search: None,
             sjk_chat_panel: super::sjk_chat_panel::Panel::new(),
             config_import: super::config_import_panel::Panel::new(),

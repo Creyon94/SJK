@@ -113,6 +113,8 @@ pub(crate) const ACTIONS: &[BindableAction] = &[
     action(Interaction, "Toy: Hax", crate::hax::COMMAND, ""),
     // The Ragdoll: go limp, press again to get up.
     action(Interaction, "Toy: Ragdoll", crate::ragdoll::COMMAND, ""),
+    // The Drone: the switch that lets players peek (freecam and peek fly the drone).
+    action(Interaction, "Toy: Drone", crate::drone::COMMAND, ""),
     action(Interaction, "Item: Bacta", "use_bacta", ""),
     action(Interaction, "Item: Seeker drone", "use_seeker", ""),
     action(Interaction, "Item: Sentry gun", "use_sentry", ""),

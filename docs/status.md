@@ -2174,6 +2174,24 @@ on top of `trust`): an older hub refuses the change and sends no emoji. Checked 
 tests (the rule, the service, the Profile page's panel) and world shots (Profile page,
 chat box, scoreboard). Not tried in the game or against a running hub.
 
+## Drone toy
+
+24/10/2026, `personal/drone-toy` (Sol's idea, from Slash's closed #199): `freecam` and
+`peek` fly a training remote (the game's `models/items/remote.md3`) that other SJK
+players see, the pilot's name over it ([client.md](client.md#drone)); no hub change (the
+toy relay and the look's `toys` take any toy id). The commands and their binds are
+unchanged. Peek now needs consent: on a server only a player whose look shows the
+`drone` toy (`toy_drone`, saved in `cl_toyDrone`) may be watched; they read who
+watches, and turning it off relays `away` to the pilot, whose view comes back. The
+pilot's client relays `fly_..`, `peek_<slot>` or `land` to the other SJK players in
+turn, one event every 50 ms, a repeat every second; receivers glide the drone between
+them. The Collection's Toys tab has six niches (narrowed to fit), the quick wheel's
+Toys page a Drone choice. Checked by unit tests (events within the relay's rule and
+read back, when a drone is told again, the icon mounting, the wheel's Toys page, the
+Collection's six toys fitting) and `cargo check`/clippy. Not tried in a game, with two
+clients or on a server: the glide's smoothness at a few events a second and the
+seeker ball's size (2.2 times stock) are guesses to tune.
+
 ## Ragdoll toy
 
 23/10/2026, `personal/ragdoll-toy` (Sol's idea): a meme toy

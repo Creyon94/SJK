@@ -34,6 +34,18 @@ test: The rows fit inside the card; Mark verified turns them gold.
 test: A player verified before this version still shows VERIFIED.
 note: A client older than this shows 12 digits, which never match the new code.
 
+[drone-toy]
+area: Gameplay
+title: Drone toy: freecam and peek fly a remote others see
+change: freecam/peek unchanged (binds too) but fly the seeker ball, name over it, for SJK players.
+change: Peek needs consent: the target's Drone switch (toy_drone, wheel Toys, Collection > Toys).
+change: Target reads who watches; switching off sends the drone away (relayed "away").
+test: Two SJK clients on a server. A: freecam and fly: B sees the remote glide, A's name over it.
+test: A: peek B with B's Drone off: "has not let drones follow them". B turns it on: peek works.
+test: While A peeks, B reads "A's drone is watching you" and sees the remote behind them.
+test: B turns toy_drone off: A's view returns, "B sent your drone away"; the remote fades.
+test: Collection > Toys shows six niches, Drone's switch "Peek me" stays on after a restart.
+
 [ragdoll-toy]
 area: Gameplay
 title: Ragdoll toy: go limp and fall, sandbox style

@@ -62,6 +62,8 @@ includes:
   with the siege hack bar, then steer them for a few seconds;
 - the Ragdoll, a meme toy: the body goes limp and falls where physics takes it,
   every SJK player seeing the same fall from one relayed start (23/10/2026);
+- the Drone toy: the free camera and Peek fly a training remote other SJK players see,
+  peeking only players who switched it on (24/10/2026, after Slash's #199);
 - end-to-end encrypted whispers: whispers between SJK players sealed to the
   recipient's key and carried by the SJK hub, which cannot read them
   (22/10/2026);
@@ -578,6 +580,9 @@ into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author
 - #189 a smaller chat sender card that waits for the pointer, sized by `cg_chatCardScale`.
 - #200 encrypted whispers' safety code made from each key's own fingerprint (60 digits, as
   Signal's safety numbers), after Slash found that the hub could make the 12-digit code match.
+
+His Peek work in #199 (closed 24/10/2026, not merged) shaped the Drone toy: a player is
+asked before being peeked, told who watches, and can end it.
 
 Milamber ([Milamber0](https://github.com/Milamber0)), contributor, has 3 pull requests merged
 into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AMilamber0)):
