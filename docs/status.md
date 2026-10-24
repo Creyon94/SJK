@@ -1,3 +1,16 @@
+## Player model and body stutters
+
+24/10/2026, `claude/sweet-pasteur-hitches`, based on `main` `f52f7758` (Slash's log on
+a built-in Radeon: 39 hitches in 20 minutes on a JoF server, `config-refresh` 30 to
+425 ms 11 to 19 ms after `client N now wears`, `pose+skin+upload` 35 to 310 ms at
+kills). Players' models go up one texture a frame, repeated models reuse their
+appended materials, and each model's body copy is built on the loading worker and
+pooled in a frame of its own ([rendering.md](rendering.md#geometry-and-pipelines-added-during-a-match)).
+An install over 4 ms logs its parts. Checked by the viewer build on Linux without a GPU;
+tests and Clippy not run. Not verified: any frame in game, the hitches gone, the look of
+a body drawn with the model's materials, that every `pose+skin+upload` hitch was a body
+copy (some had no load or kill near them).
+
 ## macOS build
 
 24/10/2026, `personal/macos-build`, based on `main` `cbf6e41d`. GitHub builds an

@@ -30,6 +30,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
+- Fewer stutters when players join, change model or die: a new player's model goes up a texture a frame, models shown again reuse what they had, and a model's body for deaths is ready before the first kill _(Slash)_
 - Ragdoll: lifts, doors and trains now carry and push your limp body, and every part of it is heard on its own as it lands, the flesh and what it hits (stone, metal, wood, grass, snow...), with scrapes when it slides _(Sol)_
 - JA+ settings now all start with `japlus.`: anti-kiss is `japlus.antiAmKiss` and sits in Settings > Mods next to the JA+ tools switch, and the JA+ away emote is `japlus.awayEmote`. Your saved values and configs using the old names keep working. `japlus.color` is gone: `amcolor` does the same on every server _(Sol)_
 - Experimental Mac build: releases now include a ZIP for Macs with Apple Silicon (M1 or later), drawn through Metal. It is not signed by Apple, so macOS blocks it until you allow it once (its README says how), and it has not been played on a Mac yet: reports welcome _(Sol)_
@@ -807,7 +808,6 @@ and graphics settings that apply without a restart. Also a Collection of everyth
 holocrons earned by playing (collected and shown, not opened yet), saber shader tiers, nine new
 blades and GIFs in the SJK chat.
 
-- Fewer stutters when players join or change model: their model now loads in the background and the player keeps their old model (or a stand-in) for that moment; the game also stops copying all of the map's geometry for each new model and prepares glow effects ahead of time _(Sol)_
 - The body shield-hit flash is quieter by default: one pass instead of four (`cg_shieldBrightness` 1, the stock look); a profile still on the old default 4 moves to 1 once, other values stay _(Lumaya)_
 - The red damage indicator near the crosshair is off by default; Settings > HUD > Damage hitmarker (`cg_hitMarker` 1) brings it back at once. Camera kick and hit sounds are unchanged _(Lumaya)_
 - Asset browser: Settings > Game > Asset browser (or the assetbrowser command) lists the installed PK3 packs and turns each on or off for the next start without moving files; the retail base packs stay on, and built-in content, hub unlocks, loose files and packs a server sends are not affected _(Lumaya)_

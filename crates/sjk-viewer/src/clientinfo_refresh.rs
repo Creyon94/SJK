@@ -26,6 +26,9 @@ mod forcing;
 #[path = "player_loads.rs"]
 pub(crate) mod player_loads;
 
+/// A model install on the render thread this long (seconds) is logged with its parts.
+const INSTALL_REPORT: f64 = 0.004;
+
 /// Per-world appearance loading caches used by dirty clientinfo notifications.
 pub(crate) struct ClientInfoWatch {
     pub(crate) body_commands: Vec<sjk_client::BaseServerCommandEvent>,
@@ -44,6 +47,10 @@ pub(crate) struct ClientInfoWatch {
     loads: player_loads::Loads,
     /// The NPC model being read on a worker (`npc_loads.rs`).
     pub(crate) npc_loads: crate::npc_refresh::npc_loads::Load,
+    /// Each actor material list appended in this world and where it starts: a model
+    /// installed again (Kyle standing in for every model this PC lacks, a player who
+    /// rejoins) draws with those rather than compiling them again.
+    appended: Vec<(Vec<ViewerMaterial>, usize)>,
 }
 
 impl ClientInfoWatch {
@@ -61,6 +68,7 @@ impl ClientInfoWatch {
             failed: BTreeSet::new(),
             loads: player_loads::Loads::default(),
             npc_loads: Default::default(),
+            appended: Vec::new(),
         }
     }
 }
@@ -363,18 +371,63 @@ impl GpuState {
     /// mesh must not be drawn before they are installed, or its first draw compiles them.
     pub(crate) fn upload_built_actor_deferred(
         &mut self,
-        mut mesh: ActorMesh,
+        mesh: ActorMesh,
         scene: FlattenedScene,
         appearance: &Appearance,
     ) -> Result<(ActorMesh, PipelineJobs), Box<dyn Error>> {
-        let vfs = self.vfs.clone().ok_or("no VFS")?;
-        let (material_base, jobs) = self.world_materials.append_entity_materials_deferred(
-            &self.device,
-            &self.queue,
-            &vfs,
-            &self.shaders,
-            &scene.materials,
-        )?;
+        self.upload_built_actor_with_base(mesh, scene, appearance)
+            .map(|(mesh, jobs, _)| (mesh, jobs))
+    }
+
+    /// [`Self::upload_built_actor_deferred`], with where its materials start: a copy of
+    /// the same model ([`Self::place_actor_geometry`]) draws with them.
+    pub(crate) fn upload_built_actor_with_base(
+        &mut self,
+        mesh: ActorMesh,
+        scene: FlattenedScene,
+        appearance: &Appearance,
+    ) -> Result<(ActorMesh, PipelineJobs, usize), Box<dyn Error>> {
+        let started = Instant::now();
+        let appended = self
+            .clientinfo_watch
+            .appended
+            .iter()
+            .find(|(materials, _)| *materials == scene.materials)
+            .map(|&(_, base)| base);
+        let (material_base, jobs) = match appended {
+            Some(base) => (base, PipelineJobs::none()),
+            None => {
+                let vfs = self.vfs.clone().ok_or("no VFS")?;
+                let (base, jobs) = self.world_materials.append_entity_materials_deferred(
+                    &self.device,
+                    &self.queue,
+                    &vfs,
+                    &self.shaders,
+                    &scene.materials,
+                )?;
+                self.clientinfo_watch
+                    .appended
+                    .push((scene.materials.clone(), base));
+                (base, jobs)
+            }
+        };
+        let materials = started.elapsed();
+        let mesh = self.place_actor_geometry(mesh, scene, material_base, appearance, materials)?;
+        Ok((mesh, jobs, material_base))
+    }
+
+    /// Write `mesh`'s geometry into the shared buffers and its GPU skin, drawing with the
+    /// materials from `material_base` on. A model install that takes long says where
+    /// its time went (`materials` spent before), for the hitch lines it causes.
+    pub(crate) fn place_actor_geometry(
+        &mut self,
+        mut mesh: ActorMesh,
+        scene: FlattenedScene,
+        material_base: usize,
+        appearance: &Appearance,
+        materials: std::time::Duration,
+    ) -> Result<ActorMesh, Box<dyn Error>> {
+        let started = Instant::now();
         let placement =
             self.geometry
                 .append(&self.device, &self.queue, &scene.vertices, &scene.indices)?;
@@ -385,6 +438,7 @@ impl GpuState {
             placement,
             material_base,
         );
+        let geometry = started.elapsed();
         // Palette-skin the new mesh like the actors known at world load; on a topology
         // mismatch this one mesh keeps the CPU path.
         match self
@@ -398,7 +452,22 @@ impl GpuState {
                 appearance.model
             )),
         }
-        Ok((mesh, jobs))
+        let skin = started.elapsed() - geometry;
+        let total = materials + started.elapsed();
+        if total.as_secs_f64() >= INSTALL_REPORT {
+            log::progress(format_args!(
+                "model install {}/{}: {:.1} ms (materials {:.1}, geometry {:.1} for {} \
+                 vertices, skin {:.1})",
+                appearance.model,
+                appearance.variant,
+                total.as_secs_f64() * 1e3,
+                materials.as_secs_f64() * 1e3,
+                geometry.as_secs_f64() * 1e3,
+                scene.vertices.len(),
+                skin.as_secs_f64() * 1e3
+            ));
+        }
+        Ok(mesh)
     }
 
     /// Make sure the hilt catalog can answer for `name`, loading the `.sab`

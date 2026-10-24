@@ -34,6 +34,14 @@ pub(crate) struct Compiled {
 }
 
 impl Jobs {
+    /// Nothing to compile: materials already appended, whose pipelines were listed then.
+    pub(crate) fn none() -> Self {
+        Self {
+            generation: 0,
+            jobs: Vec::new(),
+        }
+    }
+
     pub(super) fn push(
         &mut self,
         slot: Slot,
