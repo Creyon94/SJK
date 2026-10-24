@@ -337,33 +337,7 @@ impl Panel {
             },
             FontWeight::Regular,
             TextAlign::End,
-        ); // The kyber crystal it brings (21/10/2026), its gem before it in its colour.
-        if let Some(tier) = crate::kyber::reward(kind.id) {
-            let words = crate::kyber::reward_line(tier);
-            let size = 20.0;
-            let wide =
-                crate::text::display_width(words, size) * crate::text::style::current().scale;
-            let left = middle - (wide + 26.0) * 0.5;
-            let [gx, gy] = frame.point(left + 9.0, y + 56.0);
-            crate::holocrons::gem::draw(
-                self.ui.draw_list_mut(),
-                [gx, gy],
-                9.0 * s,
-                tier.colour,
-                if done { 1.0 } else { 0.8 },
-                crate::holocrons::gem::ROWS,
-            );
-            text(
-                &mut self.ui,
-                TextFamily::Display,
-                format_args!("{words}"),
-                frame.rect(left + 26.0, y + 43.0, wide + 20.0, 26.0),
-                size * s,
-                tier.colour_alpha(if done { 1.0 } else { 0.85 }),
-                FontWeight::Semibold,
-                TextAlign::Start,
-            );
-        }
+        );
     }
 
     /// The locked achievements nearest to unlocking, under the one up close.
@@ -480,7 +454,6 @@ mod tests {
             progress: 1,
             goal: 1,
             unlocked: 1_791_336_225,
-            reward: None,
         }];
         let standings = crate::achievements::standings(&held);
         let chosen = first_choice(&standings);
