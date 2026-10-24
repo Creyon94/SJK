@@ -1024,7 +1024,7 @@ and plays changes. The code still says "mute" (`chat_mutes.rs`, `muted_players.r
   below (and counts as away for toys). The window's focus reaches the others only this
   way, through `quiet` and `loud` on the emotes' hub path; nothing else shares it.
   With no emote playing, the pick starts: on a JA+ server (its `gamename`, JoF
-  included) the JA+ emote of `cg_awayEmoteJaplus` (JA+ away emote: the sit, kneel,
+  included) the JA+ emote of `japlus.awayEmote` (JA+ away emote: the sit, kneel,
   hips, wait, surrender and Neo ones, which hold the player until they crouch), sent to
   the server; on the way back, while it still holds the player (`PM_FREEZE`), the
   commands crouch until it lets go, for a second at most (`away_emote::shape_command`;
