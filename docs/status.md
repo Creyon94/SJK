@@ -5,9 +5,12 @@ experimental `macos-arm64` ZIP (Apple Silicon, macOS 11+) in CI, the packages wo
 and every release: wgpu's Metal backend, `open` for links and files, Steam's macOS
 library searched for game data, the auto-updater's platform
 ([packages.md](packages.md#macos)). Unsigned: the README tells players how to get past
-Gatekeeper. Verified: Windows build and Clippy; a cross-check from Windows stops at C
-build scripts, so the macOS compile, tests and smoke check are the GitHub runner's.
-Not verified: anything on a real Mac (window, Metal rendering of every shader, audio,
+Gatekeeper. The client ships as `sjk-client` on macOS: a case-insensitive Mac disk
+took `sjk` for the `SJK/` folder and the client fell back to per-user storage. Verified
+on GitHub (Sol-Vulpes/SJK): CI run 40133298707 green on macOS, Ubuntu and Windows
+(build, workspace tests, Clippy); packages run 40134295053 green on all three, the
+macOS smoke check included (loopback server, client finds synthetic assets and saves
+`GameData/SJK/config.cfg`). Not verified: anything on a real Mac (window, Metal rendering of every shader, audio,
 input), the Mac edition's game-data layout. No Intel Mac build.
 
 ## Safety codes that a hub cannot match
