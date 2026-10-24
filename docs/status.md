@@ -16,10 +16,11 @@ Windows 11: the tips were right, but Obsidian Edge still drew a box round its ti
 wall. Sol's review of 22/10/2026 is answered on the same branch, merged with `main`: pulses back
 to their old peaks, the hiding behind the blade narrowing to the tip's point, Obsidian Edge's
 bloom fading round the tip, the effects' rectangle wide enough for the haze's bent picture
-(`effect_bounds::BENT_REACH`), a source test of the tip fix and two more scenes in the GPU cost
-test (`SJK_COST_SCENE` `close` and `along`) ([rendering.md](rendering.md#blade-lab-signature-shaders),
-round 23). Timed on Creyon's RTX 5070 against `main` (in turns): the first version cost the 12
-heaviest signatures 12 to 19 percent more, mostly the arc blades; with each arc bolt drawn only
+(`effect_bounds`, on frames that draw a haze or a lens), a source test of the tip fix and two
+more scenes in the GPU cost test (`SJK_COST_SCENE` `close` and `along`)
+([rendering.md](rendering.md#blade-lab-signature-shaders), round 23). Timed on Creyon's RTX
+5070 against `main` (in turns): the first version cost the 12 heaviest signatures 12 to 19
+percent more, mostly the arc blades; with each arc bolt drawn only
 near its middle, they cost 2 to 3 percent more, and after Reactor's unseen lightning was
 skipped, Reactor is level with `main` (-3 to +1 percent); the stock blade's own time is 3 to 4
 percent more in every run. Merged with `main` at 0279b8f3 (Release 2026.1022.2). Checked on Linux

@@ -2380,8 +2380,9 @@ at that point and returning the blade's own: `sig_glow(g, b, r, px)` the glow's 
   it fades round the tip and into the hilt now), and its heat haze showed a stale strip cut at
   straight edges, as the haze (and a black hole's lens) bends the effect layer's `original` image
   up to 2 (6) percent of the screen outside the effects' rectangle, where that image keeps an
-  older frame: the rectangle (`effect_bounds`) now has that much more room on every side
-  (`BENT_REACH`). Hypermatter's pulses come out of the hilt softly too.
+  older frame: the rectangle (`effect_bounds`) now has that much more room on every side on a
+  frame that draws a haze or a lens (`HAZE_REACH`, `LENS_REACH`, `Bounds::bend`); other frames
+  keep the tight rectangle. Hypermatter's pulses come out of the hilt softly too.
   The timing (Creyon's RTX 5070, Windows 11, `signature_gpu_cost_against_stock` with the 12
   heaviest signatures, 33 blades a frame, `main` and this branch timed in turns, twice each, the
   lower kept): the first version cost the 12 together 12 to 19 percent more than `main`, most of
