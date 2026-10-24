@@ -446,9 +446,9 @@ fn a_skinned_blade_ends_round_not_square() {
         "let into = clamp((along - (length - cap)) / max(cap, 0.0001), 0.0, 1.0);",
         "return select(sqrt(max(1.0 - into * into, 0.0001)), 1.0, into <= 0.0);",
         "/ skin_tip_taper(along, input.length, skin.core_fringe.w * input.radius);",
-        "return core_coordinates_at(input, core_stretch(input));",
-        "var across = input.blade.x / (2.0 * input.radius) * stretch;",
-        "let footprint = pixel / (2.0 * input.radius) * core_stretch(input);",
+        "return core_coordinates_at(input, line, line.stretch);",
+        "let across = input.blade.x / (2.0 * input.radius) * stretch - line.moved;",
+        "let footprint = pixel / (2.0 * input.radius) * line.stretch;",
         "let beyond = max(input.blade.y - input.shaft, 0.0);",
         "shaded.blade = vec2(x / widen, min(input.blade.y, input.shaft) + beyond / widen);",
         "let radial = select(abs(x), length(vec2(x, beyond)), beyond > 0.0);",
@@ -473,20 +473,26 @@ fn a_skinned_blades_tip_is_filtered_as_its_shaft_is() {
     }
     let shader = include_str!("saber.wgsl");
     for line in [
-        "let filter_uv = core_coordinates_at(input, core_breath(input));",
+        // One skin lookup (`core_line`) gives both coordinates, not one lookup each.
+        "let line = core_line(input);",
+        "let core_uv = core_coordinates_at(input, line, line.stretch);",
+        "let filter_uv = core_coordinates_at(input, line, line.breath);",
         "let core_dx = dpdx(filter_uv);",
         "let core_dy = dpdy(filter_uv);",
-        "return core_breath(input)\n        / skin_tip_taper(along, input.length, skin.core_fringe.w * input.radius);",
+        "let stretch = breath\n        / skin_tip_taper(along, input.length, skin.core_fringe.w * input.radius);",
         // A signature's core fades out before its quad's sides.
         "core *= 1.0 - smoothstep(0.36, 0.5, abs(uv.x - 0.5));",
     ] {
         assert!(shader.contains(line), "saber.wgsl lost {line:?}");
     }
-    for gone in ["dpdx(core_uv)", "dpdy(core_uv)"] {
-        assert!(
-            !shader.contains(gone),
-            "saber.wgsl samples with {gone:?} again"
-        );
+    // No second skin lookup per pixel for the filter alone (it ran on every skinned blade).
+    for gone in [
+        "dpdx(core_uv)",
+        "dpdy(core_uv)",
+        "fn core_breath(",
+        "fn core_stretch(",
+    ] {
+        assert!(!shader.contains(gone), "saber.wgsl has {gone:?} again");
     }
 }
 

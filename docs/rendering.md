@@ -2372,9 +2372,11 @@ at that point and returning the blade's own: `sig_glow(g, b, r, px)` the glow's 
   fronts' fall-off had dimmed them to 45 and 63 percent. The hiding behind the blade no longer
   ends 1.4 units before the tip (Exegol Rift's tip flare and Quasar's jet showed through it): its
   width narrows with the rounded tip (a quarter circle over the last 1.4 units) to the point, so
-  nothing behind the tip shows and no dark round end is drawn past it. The tip fix costs a second
-  run of `skin_at`, `skin_wave`, `skin_glitch` and `skin_jitter` per pixel (`core_breath` for
-  `filter_uv`) on every skinned blade, not only the signatures; it is in the timing below. In
+  nothing behind the tip shows and no dark round end is drawn past it. The tip fix needs the
+  core's coordinates without the tip's narrowing as well (`filter_uv`), on every skinned blade,
+  not only the signatures. Both come from one skin lookup per pixel (`core_line`, which also
+  gives the glitch's colour split): the first version ran `skin_at`, `skin_wave`, `skin_glitch`
+  and `skin_jitter` a second time for them, which the timing below counts. In
   Creyon's game (third person and free camera, in front of a wall) Obsidian Edge still drew a box
   round its tip: its edges' orange bloom stopped at once level with the tip (`inside` was a step;
   it fades round the tip and into the hilt now), and its heat haze showed a stale strip cut at
@@ -2398,7 +2400,8 @@ at that point and returning the blade's own: `sig_glow(g, b, r, px)` the glow's 
   reach, not the reach the blade's room caps them at (`min(reach, 0.6*uReach)`). With both
   fixed, timed again the same way: Reactor costs 3 percent less to 1 percent more than `main`,
   Sith Holocron, Quantum and Carbonite 7 to 19 percent less; the stock blade's own time is 3 to 4
-  percent more in every run (the tip's second skin lookup and the softer hiding).
+  percent more in every run (the tip's second skin lookup and the softer hiding). The second
+  lookup was removed after this timing (`core_line`, Sol's review of 24/10/2026); not timed again.
 - **The big effects (round 9).** `lab.glsl` holds shared pieces every mythical draws its
   own way (flat since round 10): `fxRays` (beams shooting out of the blade and fading),
   `fxArcs` (Storm-like lightning leaving the blade, arcing out on any side and coming

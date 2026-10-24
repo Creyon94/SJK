@@ -30,7 +30,14 @@ module validates and renders (lavapipe), Obsidian Edge from down its length
 tip in front of a wall (third person and free camera) and the arc blades. Not verified:
 stripes on Code Cylinder and Flimsiplast still alias seen right along the blade (a fix needs a
 pixel size along the blade, a new lab uniform), and a few single sparks pop at early-out bounds
-(Scarif Tide, Holo-Recording, Blood Moon).
+(Scarif Tide, Holo-Recording, Blood Moon). Sol's second review (24/10/2026,
+`personal/pr-191-blade-tips`, merged with `main` at ff190c15): the rectangle's extra room is
+added only on frames that draw a haze or a lens, and the core's coordinates with and without the
+tip come from one skin lookup per pixel (`core_line`), not one each. Checked on Windows 11: the
+format check, `sjk-viewer` clippy (no warnings in the touched lines) and tests (2865 passed),
+and the GPU render tests of the signatures and lab designs
+(`every_signature_draws_its_blade_and_nothing_at_the_edge`, `blades_seen_as_players_see_them`).
+Not timed again, not tried in a game.
 
 ## Emotes kept while typing, and silenced when alt-tabbed
 

@@ -2085,52 +2085,43 @@ fn skin_core(input: VertexOutput, texel: vec4<f32>, uv: vec2<f32>, footprint: f3
 // its rounded tip and moves with a glitch or the hologram's jitter (in core half-widths,
 // the glow's radius about three of them).
 fn core_coordinates(input: VertexOutput) -> vec2<f32> {
-    return core_coordinates_at(input, core_stretch(input));
+    let line = core_line(input);
+    return core_coordinates_at(input, line, line.stretch);
 }
 
-// The core line's texture coordinates stretched across by `stretch`.
-fn core_coordinates_at(input: VertexOutput, stretch: f32) -> vec2<f32> {
-    var across = input.blade.x / (2.0 * input.radius) * stretch;
-    if input.kind >= KIND_SKIN {
-        let along = mix(-1.0, input.length, input.blade.y);
-        let skin = skin_at(input);
-        let moved = skin_glitch(skin, along, input.animation.x, input.animation.y).x
-            + skin_jitter(skin, input.animation.x, input.animation.y);
-        across -= 1.5 * moved;
-    }
+// The core line's texture coordinates stretched across by `stretch` and moved as `line` says.
+fn core_coordinates_at(input: VertexOutput, line: CoreLine, stretch: f32) -> vec2<f32> {
+    let across = input.blade.x / (2.0 * input.radius) * stretch - line.moved;
     return vec2(0.5 + across, 1.0 - input.blade.y);
 }
 
-// How much a skin's core line is stretched across here: its breathing, and its rounded tip,
-// where the width left goes to nothing (1 for a stock line).
-fn core_stretch(input: VertexOutput) -> f32 {
+// What a skin does to its core line at this fragment, worked out once (one skin lookup):
+// `fragment_main` takes both stretches, the glitch's move and its colour split from it.
+struct CoreLine {
+    // The breathing across, without the rounded tip's narrowing (1 for a stock line).
+    breath: f32,
+    // The breathing with the rounded tip, where the width left goes to nothing.
+    stretch: f32,
+    // How far a glitch or the hologram's jitter moves the line across (texture units).
+    moved: f32,
+    // The colour split a glitch gives the core (texture units across).
+    split: f32,
+}
+
+fn core_line(input: VertexOutput) -> CoreLine {
     if input.kind < KIND_SKIN {
-        return 1.0;
+        return CoreLine(1.0, 1.0, 0.0, 0.0);
     }
     let along = mix(-1.0, input.length, input.blade.y);
     let skin = skin_at(input);
-    return core_breath(input)
+    let time = input.animation.x;
+    let seed = input.animation.y;
+    let breath = 1.0 + skin_wave(skin.core_breathe, time, along, seed);
+    let stretch = breath
         / skin_tip_taper(along, input.length, skin.core_fringe.w * input.radius);
-}
-
-// A skin's core breathing across (1 for a stock line), without the rounded tip's narrowing.
-fn core_breath(input: VertexOutput) -> f32 {
-    if input.kind < KIND_SKIN {
-        return 1.0;
-    }
-    let along = mix(-1.0, input.length, input.blade.y);
-    let skin = skin_at(input);
-    return 1.0 + skin_wave(skin.core_breathe, input.animation.x, along, input.animation.y);
-}
-
-// The colour split a glitch gives the core at this fragment, in texture units across.
-fn core_split(input: VertexOutput) -> f32 {
-    if input.kind < KIND_SKIN {
-        return 0.0;
-    }
-    let skin = skin_at(input);
-    let along = mix(-1.0, input.length, input.blade.y);
-    return 1.5 * skin_glitch(skin, along, input.animation.x, input.animation.y).y;
+    let glitch = skin_glitch(skin, along, time, seed);
+    let moved = 1.5 * (glitch.x + skin_jitter(skin, time, seed));
+    return CoreLine(breath, stretch, moved, 1.5 * glitch.y);
 }
 
 // Glint n's size: every other one of an orbit is smaller, a companion to the first.
@@ -2214,8 +2205,10 @@ fn fragment_main(input: VertexOutput) -> @location(0) vec4<f32> {
     // and those derivatives picked the texture's smallest mip, a flat bright average of the
     // whole line, which drew a bright rim of pixels round the tip's end (players' reports
     // after the 2026.1021.1 release, every signature blade).
-    let core_uv = core_coordinates(input);
-    let filter_uv = core_coordinates_at(input, core_breath(input));
+    // One skin lookup for both: the filter's coordinates are the line's without the tip.
+    let line = core_line(input);
+    let core_uv = core_coordinates_at(input, line, line.stretch);
+    let filter_uv = core_coordinates_at(input, line, line.breath);
     let core_dx = dpdx(filter_uv);
     let core_dy = dpdy(filter_uv);
     let pixel = fwidth(input.blade.x);
@@ -2235,9 +2228,9 @@ fn fragment_main(input: VertexOutput) -> @location(0) vec4<f32> {
     // the stretch runs to a hundred within one pixel, and the rounded tip's cut then left
     // half the line's width lit there, a bar across the tip.
     if design != 0u { discard; }
-    let footprint = pixel / (2.0 * input.radius) * core_stretch(input);
+    let footprint = pixel / (2.0 * input.radius) * line.stretch;
     var texel = textureSampleGrad(core_texture, core_sampler, core_uv, core_dx, core_dy);
-    let split = core_split(input);
+    let split = line.split;
     if split > 0.0 {
         // A glitch parts the core's colours: red one way, blue the other.
         let offset = vec2(split, 0.0);
