@@ -3607,14 +3607,12 @@ like this one.",
                 }
                 let name = format!("duel6-sjk-chat-online-card-{suffix}");
                 println!("{}", shoot(&mut gpu, 6, &name).display());
-                // The same card while the hub lets players trade: Trade beside Block.
+                // A card while the hub lets players trade: Trade beside Block. Another
+                // player's (the second face), so the card is built anew; going back to
+                // Creyon's kept the card already built without Trade.
                 crate::player_trades::TRADING_FOR_TEST.set(true);
                 if let Some(console) = gpu.console.as_mut() {
-                    console.sjk_chat_hover_person(None);
-                }
-                let _ = frame(&mut gpu, 2);
-                if let Some(console) = gpu.console.as_mut() {
-                    console.sjk_chat_hover_person(Some(0));
+                    console.sjk_chat_hover_person(Some(1));
                 }
                 let name = format!("duel6-sjk-chat-online-card-trade-{suffix}");
                 println!("{}", shoot(&mut gpu, 6, &name).display());
