@@ -2931,7 +2931,9 @@ the original cgame reads:
   or "Your flag is away" while your own flag is not at base (no capture until it is). The
   boxes then replace the left icons and the carried flag's powerup pictures (bottom left
   and in the upper-right column), which return with `cg_teamScoresBoxes 0` or
-  `cg_drawTeamScores 0`. The boxes are compact: 156 by 42 pixels of a 1080-line screen.
+  `cg_drawTeamScores 0`. The boxes are compact: 168 by 42 pixels of a 1080-line screen, the score 36;
+  `cg_teamScoresScale` (Settings > HUD, "Team score box size", 0.5 to 2, default 1)
+  makes them smaller or larger, under the clock as before.
 
 The scoreboards (classic and SJK UI) draw a flag icon before a carrier's name. A
 `scores` reply is only as fresh as the last scoreboard press, so each frame the rows'

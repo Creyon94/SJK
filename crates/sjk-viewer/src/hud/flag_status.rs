@@ -171,6 +171,9 @@ pub(crate) struct State {
     /// The scores stand in SJK team boxes (`cg_teamScoresBoxes`), else on the classic
     /// plates beside the left flag icons.
     boxes: bool,
+    /// The boxes' size over the HUD's (`cg_teamScoresScale`, 0.5 to 2; 0 before the
+    /// first update reads as 1).
+    box_scale: f32,
     scores: Option<[i32; 2]>,
     labels: [String; 2],
     /// The red and blue flags' carriers by name ([`Carrier`]).
@@ -330,6 +333,10 @@ impl State {
         self.show_flags = family::integer(console, "cg_drawFlagStatus", 1) != 0;
         self.show_scores = family::integer(console, "cg_drawTeamScores", 1) != 0;
         self.boxes = family::integer(console, "cg_teamScoresBoxes", 1) != 0;
+        self.box_scale = console
+            .and_then(|console| console.float_cvar("cg_teamScoresScale"))
+            .map_or(1.0, |scale| scale as f32)
+            .clamp(0.5, 2.0);
         let gametype = game
             .config_string(0)
             .and_then(|s| sjk_client::LegacyClientInfo::new(s).integer("g_gametype"))
@@ -668,9 +675,16 @@ impl State {
     /// where it is between them; then, while the local player carries a flag, one line
     /// under the boxes.
     fn emit_boxes(&self, list: &mut DrawList, w: f32, h: f32, icons: &icons::Icons) {
-        let s = crate::ui_scale::height_scale(h);
-        let (box_w, box_h, gap, pad, top) = (156.0 * s, 42.0 * s, 6.0 * s, 9.0 * s, 76.0 * s);
-        let (icon, score_w, rule) = (22.0 * s, 40.0 * s, 2.0 * s);
+        // The boxes stand where the plates did, under the clock, at any size.
+        let top = 76.0 * crate::ui_scale::height_scale(h);
+        let scale = if self.box_scale > 0.0 {
+            self.box_scale
+        } else {
+            1.0
+        };
+        let s = crate::ui_scale::height_scale(h) * scale;
+        let (box_w, box_h, gap, pad) = (168.0 * s, 42.0 * s, 6.0 * s, 9.0 * s);
+        let (icon, score_w, rule) = (22.0 * s, 48.0 * s, 2.0 * s);
         // HUD text sets its line box from the rectangle's top: give each run a line
         // about its size, centred on the box.
         let line = |size: f32| (top + (box_h - size * 1.25) * 0.5, size * 1.25);
@@ -703,14 +717,14 @@ impl State {
                 } else {
                     x + pad
                 },
-                line(30.0 * s).0,
+                line(36.0 * s).0,
                 score_w,
-                line(30.0 * s).1,
+                line(36.0 * s).1,
             );
             let _ = list.push(DrawCommand::Text {
                 rect: inner,
                 text: TextId(TEXT_SCORES + side as u32),
-                size: 30.0 * s,
+                size: 36.0 * s,
                 color: color::TEXT,
                 align: if red {
                     TextAlign::End

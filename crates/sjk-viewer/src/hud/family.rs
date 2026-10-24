@@ -53,6 +53,11 @@ pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
         ("cg_gunX", 0.0, "View weapon forward offset"),
         ("cg_gunY", 0.0, "View weapon left offset"),
         ("cg_gunZ", 0.0, "View weapon upward offset"),
+        (
+            "cg_teamScoresScale",
+            1.0,
+            "Size of the SJK team score boxes, 0.5 to 2",
+        ),
     ] {
         cvars.register(CvarDefinition::new(name, value, CvarFlags::ARCHIVE, help))?;
     }

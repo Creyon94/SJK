@@ -527,6 +527,10 @@ const HELP: &[(&str, &str)] = &[
         "Team games: the red and blue scores at the top centre of the HUD, in every HUD style.",
     ),
     (
+        "cg_teamScoresScale",
+        "Size of the SJK team score boxes, scores, names and flags with them: 1 is the default, up to 2 twice as large.",
+    ),
+    (
         "cg_teamScoresBoxes",
         "Team scores in two SJK team boxes; in capture the flag each also shows its flag and where it is (at base, who carries it, a dropped flag's seconds before it goes home). Off brings back the classic RED and BLUE plates and the flag icons at the left.",
     ),
