@@ -61,7 +61,7 @@ jobs:
           unsigned build for Macs with Apple Silicon (its README says how to allow it).
 
           **Install:** extract the whole ZIP for your platform into Jedi Academy's
-          \`GameData\` folder, beside \`base\`, then launch \`sjk\`. Your settings
+          \`GameData\` folder, beside \`base\`, then launch \`sjk\` (\`sjk-client\` on a Mac). Your settings
           live in \`GameData/SJK/\` and are kept when you update. A legally owned copy
           of Jedi Academy is required; no game assets are included.
 

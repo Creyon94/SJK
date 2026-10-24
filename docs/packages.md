@@ -8,7 +8,7 @@ Keep the dedicated server beside it for Create game and local devmap. Updating
 the executables does not replace the `SJK/` user files.
 
 Each installation ZIP contains exactly four files: `sjk`, `sjk-server` (both with
-`.exe` on Windows), `README-SJK.txt` and `LICENSES-SJK.txt`; the suffix keeps them
+`.exe` on Windows; the client is `sjk-client` on macOS, [below](#macos)), `README-SJK.txt` and `LICENSES-SJK.txt`; the suffix keeps them
 from replacing another program's `README.txt` or `LICENSES.txt` in the same
 GameData folder. The licence file consolidates the complete project, font and
 dependency notices with their source labels and attribution inventory; no
@@ -60,8 +60,10 @@ reference environment for the distributed Linux ZIP.
 
 The `macos-arm64` package is built on GitHub's `macos-latest` runner for
 `aarch64-apple-darwin` with `MACOSX_DEPLOYMENT_TARGET=11.0`, and passes the same smoke
-check there. It holds the same two bare programs as Linux, no `.app` bundle: run from
-Finder they open in Terminal. The client draws through wgpu's Metal backend (the
+check there. It holds two bare programs, no `.app` bundle (run from Finder they open in
+Terminal): `sjk-server` and the client as `sjk-client`. macOS disks ignore case by
+default, so a program named `sjk` would take the name of the `SJK/` client folder beside
+it and the client would fall back to per-user storage; the smoke check caught this. The client draws through wgpu's Metal backend (the
 `metal` feature of `sjk-viewer`). Intel Macs have no build.
 
 The programs are only ad-hoc signed by the linker, not with an Apple Developer ID nor

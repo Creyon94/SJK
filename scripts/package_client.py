@@ -227,12 +227,17 @@ def main():
     suffix = ".exe" if args.platform == "windows-x64" else ""
     binaries = [source / "target" / args.target / "release" / (name + suffix)
                 for name in (args.client_bin, args.server_bin)]
+    # macOS disks ignore case by default: a program named `sjk` beside the `SJK`
+    # client folder takes its name, and the client falls back to per-user storage.
+    client = args.client_bin
+    if args.platform == "macos-arm64" and client.lower() == args.profile_dir.lower():
+        client += "-client"
     with zipfile.ZipFile(package, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
-        for binary in binaries:
-            add_file(archive, binary, binary.name, executable=True)
+        for binary, packaged in zip(binaries, (client, args.server_bin)):
+            add_file(archive, binary, packaged + suffix, executable=True)
         archive.writestr(text_name("README", args.name),
                          instructions(args.platform, revision, args.name, args.repository, args.version,
-                                      args.profile_dir, args.client_bin, args.server_bin))
+                                      args.profile_dir, client, args.server_bin))
         fonts = source / "crates/sjk-viewer/assets/fonts"
         # The copyright notice leads the file.
         notices = [(f"{args.name}/NOTICE", (source / "NOTICE").read_bytes()),
@@ -253,7 +258,7 @@ def main():
         "binaries": {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in binaries},
     }, indent=2) + "\n", encoding="utf-8")
     if args.smoke_check:
-        smoke_check(package, args.platform, source, args.profile_dir, args.client_bin, args.server_bin,
+        smoke_check(package, args.platform, source, args.profile_dir, client, args.server_bin,
                     args.name)
     source_zip = output / f"{stem}-source.zip"
     subprocess.run(["git", "-c", "core.autocrlf=false", "archive", "--format=zip", f"--prefix={stem}/",
