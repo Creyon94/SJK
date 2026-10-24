@@ -32,12 +32,12 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 News from the SJK team and contributor rewards in SJK chat, the Drone toy, ragdolls that ride lifts, and a first Mac build.
 
-> Announcements: News from the SJK team now shows in SJK chat; click a line to read it in full.
-> Contributor rewards: Reward rounds say who was thanked and why, and a window lets you Claim your own.
-> Drone: `freecam` and `peek` fly a remote other SJK players see; peeking needs the player's Drone on.
-> Ragdoll: Lifts, doors and trains carry your limp body, and every part of it is heard as it lands.
-> JA+ settings: JA+-only settings now start with `japlus.`; your old names and values keep working.
-> Mac: An experimental build for Apple Silicon Macs now comes with each release.
+> Announcements: News from the SJK team now shows in SJK chat.
+> Contributor rewards: Rounds say who was thanked and why; Claim your own.
+> Drone: `freecam` and `peek` fly a remote other players see.
+> Ragdoll: Lifts, doors and trains carry your limp body.
+> JA+ settings: They now start with `japlus.`; old names still work.
+> Mac: An experimental Apple Silicon build comes with each release.
 
 - Ragdoll: lifts, doors and trains now carry and push your limp body, and every part of it is heard on its own as it lands, the flesh and what it hits (stone, metal, wood, grass, snow...), with scrapes when it slides _(Sol)_
 - Announcements from the SJK team now show in SJK chat: the title and first line, and a click on the line (or `announcement` in a match) reads it in full; a release's announcement offers the update or what's new. Contributor reward rounds show who was rewarded and why (`rewards`), and when one is for you a window lets you Claim it: its holocrons then arrive as gifts _(Sol)_
