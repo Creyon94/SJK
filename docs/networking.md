@@ -222,8 +222,24 @@ camera then presents that slice's held pitch and yaw, including frames that
 reuse prediction at the same command time. Applying only changes in
 `delta_angles` left fresh mouse movement visible on those frames; the local
 character's root also follows the camera yaw. The hold clears on the next
-slice that does not hold the view. JA+'s free-look rebound does not set it.
-This is local presentation state, with no protocol field or movement change.
+slice that does not hold the view. JA+'s server-angle rule does not set it.
+This is local presentation state, with no protocol field change.
+
+A snapshot with `PMF_STUCK_TO_WALL` also seeds the stock grab's view hold. When
+the snapshot acknowledges every queued command, the camera can render that seed
+without another movement slice; it must still use the snapshot's held pitch and
+yaw, as OpenJK renders `predictedPlayerState.viewangles`. Clearing the wall flag
+in the next snapshot releases this hold.
+
+Local mouse and keyboard look obey `wall_view_locked`, not the wall flag alone.
+The stock snapshot seed sets it only when stuck and the profile's
+`DebugMelee::free_wall_look` is false. JA+ keeps its documented free look by
+default, so command angles and kick-off aim follow the player's mouse.
+`cg_wallGrabLock` (archived, default 0) can force the local presentation lock on
+for a grabbed wall. [motion.rs](../crates/sjk-viewer/src/input/motion.rs) consumes
+look samples only while that lock is set, preserving movement/jump buttons and
+clearing filtered mouse history. Fake noclip and detached free camera keep
+normal input. The option never changes the shared simulation's profile.
 
 ### View yaw kept within a turn
 
@@ -257,6 +273,21 @@ height/thrust boundaries. This is not verification against a running JA+ server;
 its unpublished settings, the stock spinning-saber random horizontal impulses,
 and jaPRO's separate new/race jetpack path remain outside this implementation.
 Equipping and fuel state still arrive from the server.
+
+### Local wall-grab facing
+
+A local grabbed player presents OpenJK's wall-normal yaw and rebound-side offset
+only when `cg_wallGrabLock` is enabled. With the default option there is no yaw
+override or extra wall trace: JA+ stays free, and a stock grab presents the yaw
+its movement slice or snapshot seed already holds.
+[`wall_hold_yaw`](../crates/sjk-game-jka/src/pmove_wall_moves.rs)'s upright-wall
+check uses world and mover collision, even when no command advances beyond the
+snapshot. [wall_grab_view.rs](../crates/sjk-viewer/src/wall_grab_view.rs) modifies
+the display copy, leaving raw replay angles, deltas and velocity untouched.
+Because the camera supplies subsequent commands, opting into the hold on JA+
+also opts out of freely aiming the kick-off. A missed check retains the held
+view; clearing `PMF_STUCK_TO_WALL` releases the optional hold. See
+[wall grab facing](client.md#wall-grab-facing).
 
 ### Standing on uneven ground
 
@@ -404,6 +435,27 @@ timeline (a map load), commands are stamped 0 and still made every 8 ms of real
 time, so packets keep acknowledging the server. Every command is predicted when
 it is made; between commands the frame presents a preview through its own input
 ([prediction_preview.rs](../crates/sjk-viewer/src/prediction_preview.rs)).
+
+The server time commands are stamped with comes from
+[server_clock.rs](../crates/sjk-client/src/server_clock.rs), stock's
+`cl.serverTimeDelta` (`CL_FirstSnapshot`, `CL_AdjustTimeDelta`, `CL_SetCGameTime`):
+realtime plus a delta that resets past a 500 ms error, halves past 100 ms and otherwise
+drifts 1 or 2 ms a snapshot. `cl_timeNudge` moves only what is drawn
+([presentation_clock.rs](../crates/sjk-viewer/src/presentation_clock.rs)), never the
+stamps, as stock subtracts it from `cl.serverTime` only for the cgame's view. The delta
+is adjusted once a frame, on the newest snapshot, and only once the frame has read
+every queued snapshot (a frame reads at most 8, `SNAPSHOTS_PER_FRAME` in
+[live_session.rs](../crates/sjk-viewer/src/live_session.rs)): stock reads the whole
+socket and then adjusts on `cl.snap`. Until 23/10/2026 the client adjusted on each
+snapshot as it was read, so after a hitch the snapshots that had waited in the socket,
+as old as the hitch, put the clock back by it: after a 1.3 s hitch commands reached the
+server about 1.2 s behind its time, then hundreds of milliseconds behind for a while.
+Servers that estimate a player's time nudge from how far commands trail their time read
+that as a large `cl_timeNudge`; JoF's anti-cheat (Heimdall) kicked Slash for it with
+"Set /cl_timeNudge 0 in your console!". Tests in `server_clock.rs` play 59 FPS against
+40 snapshots a second through 150, 400 and 1346 ms hitches at 8, 7, 4 and 3 ms steps.
+The userinfo's `cg_displayNetSettings` (JA+ and jaPRO read the time nudge from it)
+always says `125 0 125` ([compat_profile.rs](../crates/sjk-client/src/compat_profile.rs)).
 
 `rate` defaults to 90000 bytes a second (11/10/2026, Sol's choice): stock's 25000
 leaves about 600 bytes a snapshot at a server's 40 a second, less than a busy

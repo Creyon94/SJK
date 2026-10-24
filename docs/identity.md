@@ -673,7 +673,14 @@ on the hub, in the SJK UI's look in every menu style:
   played) and the last four achievements unlocked;
 - the bio, written in a box of up to 6 lines (Enter saves, Shift+Enter starts a new
   line, Revert puts back the hub's copy), with its counts, the hub's answer and the
-  rules in a line under it;
+  rules in a line under it. The box has a caret, the report dialog's
+  ([text_dialog_field.rs](../crates/sjk-viewer/src/text_dialog_field.rs), since
+  23/10/2026 after Kushina's report; before, only the end could be written): a click
+  places it, Left and Right (a word with Ctrl), Up and Down, Home and End (the
+  text's ends with Ctrl) move it, typing, pasting, Backspace and Delete (a word with
+  Ctrl) work at it, Ctrl+A selects all (typing replaces it) and Ctrl+C copies the
+  selection or the whole bio. Its lines wrap and the caret measures in the player's
+  menu text style;
 - their medals (picture, name, date given; on its own only) and how many
   achievements are unlocked, with See the board, and how many saber shaders are owned,
   with See the collection: both open the [Collection](sjk-ui.md#collection), where the
@@ -943,6 +950,14 @@ call): on the Staff page's Overview, beside Verify, their own **Make staff** or
 **Remove staff** button acts on a second press (`StaffRequest::SetStaff`, hub `POST
 /v1/staff/staff`, logged and undoable by the owner). It never shows on the creator's
 own player, and admin panel access stays the operator's.
+
+Since 23/10/2026 (Sol's call) what gives, takes back, clears or merges is the creator's
+alone too: medals, unlockables, holocrons, credits and shards, clearing achievements,
+taking a picture down, unlinking and merging keys. The hub refuses those requests from
+other staff (an error `creator_only`); on their Staff page those buttons show dimmed,
+Tab skips them and a press does nothing (`owner_only` in `staff_panel.rs`), and the
+status line says the tab is to read. Other staff keep search, verify, chat moderation,
+picture blocks, log requests and the Logs, Crashes and Chat bans tabs.
 
 The JKR creator (since 22/10/2026) is the creator of JKR, the client SJK is built on
 (Bishop): a flag only the hub operator sets (`sjk-hub jkr-creator KEY_ID`), carried by

@@ -1461,6 +1461,29 @@ SJK applies it as stock, so Drain's `bounce 0.8 2` bolts get that jaggedness
 rather than the default 0.1, which draws them almost straight. `elasticity` and
 `chaos` are not retail keys and are ignored.
 
+A `Flash` primitive's colour is scaled as `CFlash::Init` scales it when it starts:
+by its distance from the rendered view, quadratically to nothing at 900 units, and to
+nothing beyond 60 degrees off the view axis past 100 units (brighter within them). It is
+then drawn as `CFlash::Draw` draws it, on the viewer rather than where it went off: stock
+places an `RT_SPRITE` 12 units along the view axis with radius `12 * tan(fov_x / 2)`
+(its size curve ignored), and `gfx/effects/whiteFlash` adds `$whiteimage` with
+`depthFunc disable`, so it covers the view's width (and more than its height) over
+everything. SJK draws it as a clip-space quad of those extents (`entity.wgsl` kind 6,
+the clash flare's path) in the shader's blend slot. Unscaled, `demp2/altdetonate`'s
+2048-unit flash lit the whole screen wherever a DEMP2 shock went off; drawn as a
+billboard at the shock, it was hidden by nearer walls and tinted the sky behind it up to
+a hard edge (Slash, hub report #125;
+[effect_flash.rs](../crates/sjk-viewer/src/effect_flash.rs)). A flash within 100 units
+behind the viewer now shows, as in stock. `localizedFlash` (a 2D picture at the effect's
+screen position) is not modelled; no retail effect uses it.
+
+A primitive's colour start and end are picked once when it spawns (`GetRGB_Colors`). An
+rgb `random` flag then scales the whole colour by one random number each frame
+(`CParticle::UpdateRGB`, `CLight::UpdateRGB`): SJK drew one per channel, which turned the
+DEMP2's white flash magenta, yellow and purple frame to frame (and tinted the other
+retail effects with the flag: lava, `env/powerbolt`, `mrancor/breath`, ship burners). The growing
+`gfx/effects/demp2shell` sphere `FX_DEMP2_AltDetonate` adds with that effect is not drawn.
+
 Effect particles share one pool of 4,096 slots, plus 256 kept for per-frame
 billboards (talk balloons, pickup icons, hook ropes)
 ([particle_types.rs](../crates/sjk-viewer/src/particle_types.rs)). Stock caps its
@@ -1864,7 +1887,12 @@ the CPU (`SkinColor::light_color`, `trail_color`).
   ([saber_ghosts.rs](../crates/sjk-viewer/src/saber_ghosts.rs)): each blade's state keeps
   up to four poses, one every `spacing` ms; a skin with `ghosts` submits the last ones
   as extra glow-only instances, dimmer each, skipping poses the blade has not moved
-  from. No allocation.
+  from. No allocation. A thrown saber leaves them too (23/10/2026, Kushina's hub report
+  127: the throw left no afterimages): its flying blade keeps its poses in the world, a
+  signature's (`GhostSpec::wearer`) as well, so they trail along its spin and flight
+  (`thrown_saber.rs` `flight_wake`). The poses and the blossoms' last tip are forgotten when
+  the blade goes from the hand to flight or back (`BladeState::fly`): kept in the wearer's
+  frame in one and in the world in the other, they would stand far off.
 - **Trail and light.** The skin's file gives its trail colour, its light colour (with
   the stock gain) and the light's flicker (an amount and up to two waves, phased per
   hilt).
@@ -1998,7 +2026,9 @@ interfaces) each is drawn by the lab's own shader, ported to `saber.wgsl` (`lab_
   blade's words) again every second of a chain without a pause; for the others a chain
   counts from its first swing, a clash is one whose flare latched within 12 units of the blade
   (`impact_spawn.rs` `note_clash`), and a blade seen growing out of its hilt is lit.
-  Thrown and menu blades are still.
+  A thrown blade carries on the same state (`thrown_saber.rs` `flight_motion`, 23/10/2026,
+  hub report 127): its spin is its swing, measured in the world, and as no attack is known
+  in flight the tip must turn for a swing to begin. Menu blades are still.
 - **Changed from the lab** after Creyon's tests: each blade has light at its emitter
   (`design_color`, as a stock blade's hilt sprite) so no gap shows above the hilt; the
   hourglass's glass closes in a dome over the tip and its sand runs in 24 seconds, not 8;
@@ -2313,6 +2343,65 @@ at that point and returning the blade's own: `sig_glow(g, b, r, px)` the glow's 
   what lies on the blade itself is never hidden, and bounds and the blade's own axis use the raw
   distances (`rayPtRaw`, `raySegRaw`). Liquid Beskar's rings no longer show through the blade, and
   the Clone Wars halftone no longer reaches below the hilt.
+- **Round 23 (players' reports after the 2026.1021.1 release: pixels at the tip, hard lines).**
+  A skin's core is sampled with the derivatives of its coordinates before the rounded tip narrows
+  them (`core_coordinates_at` with `core_breath`; the shaft's, where the two are the same): in the
+  tip the narrowing runs to a hundred times within a pixel and picked the core image's smallest
+  mip, which drew a bright rim of pixels round the end of every signature's core, in the game, the
+  Collection and the holocron cards. A signature's core fades out before its quad's sides
+  (`skin_core`): the core image's fringe is still a tenth as bright at its border, which drew a
+  straight edge along both sides of the line up close and a faint box past the narrowed tip. Round
+  22's hiding behind the blade is soft: `behindBlade` (and `ray_behind_blade`) fades in as the view
+  turns from along the blade instead of switching off at once, and ends before the tip where the
+  blade narrows; a hidden piece's distance goes through `hideD` (`hide_d`), which narrows and dims
+  it over the blade's soft edge, instead of adding a thousand times the hidden share, which cut it
+  at a hard edge and drew a box round the tip whenever a blade pointed at the camera; the
+  signatures' own ring code and `bladeSeen` do the same. `fxFlare` is skipped only where its widest
+  halo has faded (it ended at a hard ring), and Hypermatter's and the Uneti Tree's pulses fall off
+  over their fronts instead of ending at a line across the blade, as does the Starfighter
+  Canopy's. The other early-outs that cut glow at a line wait until it has faded: `fxFlakes`
+  (a dome seen along Yavin Vines), `fxCoils`, `fxRays`, `fxArcs` and `fxFall` in the lab, and
+  Balance's, Holo-Recording's and Orto Plutonia's own; `fxSmoke` takes a step at most about a
+  third of the cloud's width, up to 12 (a long path along the blade was sampled six units
+  apart). The blocky designs keep their look with edges smoothed over about a pixel (`aaStep`,
+  `cellMix` and `aaSquare` in `lab.glsl`): Code Cylinder, Canto Bight, Flimsiplast, Death Star
+  Plans, Cargo Stack, Holonet Feed and Targeting Display. Code Cylinder's and Flimsiplast's
+  stripes still alias seen right along the blade.
+  Sol's review (22/10/2026): the softened pulses are scaled back to their old peak (Hypermatter's
+  and the Starfighter Canopy's by 2.22, the Uneti Tree's second pulse 0.96 for 0.6), as their
+  fronts' fall-off had dimmed them to 45 and 63 percent. The hiding behind the blade no longer
+  ends 1.4 units before the tip (Exegol Rift's tip flare and Quasar's jet showed through it): its
+  width narrows with the rounded tip (a quarter circle over the last 1.4 units) to the point, so
+  nothing behind the tip shows and no dark round end is drawn past it. The tip fix needs the
+  core's coordinates without the tip's narrowing as well (`filter_uv`), on every skinned blade,
+  not only the signatures. Both come from one skin lookup per pixel (`core_line`, which also
+  gives the glitch's colour split): the first version ran `skin_at`, `skin_wave`, `skin_glitch`
+  and `skin_jitter` a second time for them, which the timing below counts. In
+  Creyon's game (third person and free camera, in front of a wall) Obsidian Edge still drew a box
+  round its tip: its edges' orange bloom stopped at once level with the tip (`inside` was a step;
+  it fades round the tip and into the hilt now), and its heat haze showed a stale strip cut at
+  straight edges, as the haze (and a black hole's lens) bends the effect layer's `original` image
+  up to 2 (6) percent of the screen outside the effects' rectangle, where that image keeps an
+  older frame: the rectangle (`effect_bounds`) now has that much more room on every side on a
+  frame that draws a haze or a lens (`HAZE_REACH`, `LENS_REACH`, `Bounds::bend`); other frames
+  keep the tight rectangle. Hypermatter's pulses come out of the hilt softly too.
+  The timing (Creyon's RTX 5070, Windows 11, `signature_gpu_cost_against_stock` with the 12
+  heaviest signatures, 33 blades a frame, `main` and this branch timed in turns, twice each, the
+  lower kept): the first version cost the 12 together 12 to 19 percent more than `main`, most of
+  it in the four arc blades (Sith Holocron, Quantum, Carbonite, Reactor, a fifth to a third more),
+  as `fxArcs` drew every bolt wherever its arc's glow could reach. Each of an arc's three bolts is
+  now drawn only near its own middle, its glow made to end 1.7 past it (`arcGlow`); `fxFlare` is
+  cut at 12 sizes (18 cost too much) and `fxSmoke` at 12 steps (16 cost the smoke blades a sixth
+  more seen along them). After that the 12 cost 2.0 (game), 1.8 (close) and 2.8 (along) percent
+  more than `main`, with the stock blade's own time (the stand-in) 3 to 4 percent more, so about
+  the same: Sith Holocron, Quantum and Carbonite 7 to 19 percent less, the others within a tenth.
+  Reactor still cost 13 to 17 percent more: its lightning was worked out while weighted to
+  nothing (cold and still, over half its cycle), and the arcs' outer bound used the arcs' asked
+  reach, not the reach the blade's room caps them at (`min(reach, 0.6*uReach)`). With both
+  fixed, timed again the same way: Reactor costs 3 percent less to 1 percent more than `main`,
+  Sith Holocron, Quantum and Carbonite 7 to 19 percent less; the stock blade's own time is 3 to 4
+  percent more in every run (the tip's second skin lookup and the softer hiding). The second
+  lookup was removed after this timing (`core_line`, Sol's review of 24/10/2026); not timed again.
 - **The big effects (round 9).** `lab.glsl` holds shared pieces every mythical draws its
   own way (flat since round 10): `fxRays` (beams shooting out of the blade and fading),
   `fxArcs` (Storm-like lightning leaving the blade, arcing out on any side and coming
@@ -2437,8 +2526,9 @@ when it is swung, which its own quad could not hold: they are particles in the w
   over their last third. They count against the particle pool like any effect.
   Their three shaders are in `effect_assets::CODE_SHADERS`: the frame's effect materials load
   only the shaders listed there or named by an effect file, and without them the petals drew
-  the stand-in sprite (yellow dots, Sol's first test, 21/10/2026). The thrown
-  saber sheds none.
+  the stand-in sprite (yellow dots, Sol's first test, 21/10/2026). A thrown
+  saber sheds them along its spin and flight, its tip measured in the world (23/10/2026,
+  hub report 127).
 
 ## Saber trails
 

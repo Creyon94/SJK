@@ -74,6 +74,10 @@ pub(super) const COMMANDS: &[(&str, &str)] = &[
     ),
     (crate::am_color::COMMAND, crate::am_color::HELP),
     (
+        crate::chat_sounds::PREVIEW_COMMAND,
+        "Play the sound chosen for a kind of chat message: chatsoundpreview <public|team|private|sjk>",
+    ),
+    (
         "reply",
         "Whisper to the last player who whispered to you: reply <message>, or bare to open the chat on it",
     ),
@@ -287,6 +291,7 @@ fn all_commands() -> impl Iterator<Item = &'static (&'static str, &'static str)>
         .iter()
         .chain(crate::cosmetics::command::COMMANDS)
         .chain(crate::saber_colour_command::COMMANDS)
+        .chain(crate::saber_hilt_command::COMMANDS)
         .chain(crate::map_edits::editor::COMMANDS)
         .chain(jof_commands())
 }
@@ -953,6 +958,7 @@ impl crate::GpuState {
                 let console = self.console.as_mut().ok_or("Console unavailable")?;
                 return crate::am_color::run(console, args);
             }
+            crate::chat_sounds::PREVIEW_COMMAND => return crate::chat_sounds::command(args),
             "pmonly" => {
                 return crate::chat::pm_only::command(
                     self.console.as_mut().ok_or("Console unavailable")?,
@@ -1210,6 +1216,7 @@ impl crate::GpuState {
             "peek" => return self.peek_command(args),
             "cosmetics" => return self.cosmetics_command(args),
             crate::saber_colour_command::COMMAND => return self.saber_colour_command(args),
+            crate::saber_hilt_command::COMMAND => return self.saber_hilt_command(args),
             "vid_restart" | "snd_restart" | "in_restart" | "modelist" => {
                 return self.restart_command(&name, audio);
             }

@@ -33,6 +33,7 @@ mod chat;
 mod chat_ban;
 mod chat_gifs;
 mod chat_mutes;
+mod chat_sounds;
 mod cinematic_roq;
 mod client_guid;
 mod client_state;
@@ -48,6 +49,7 @@ mod kyber;
 mod loot_odds;
 
 mod saber_colour_command;
+mod saber_hilt_command;
 mod shader_image;
 mod shared_textures;
 
@@ -84,6 +86,7 @@ mod effect_debug;
 mod effect_electricity;
 mod effect_emitter;
 mod effect_envelope;
+mod effect_flash;
 mod effect_geometry;
 mod effect_geometry_gpu;
 mod vehicle_assets;
@@ -190,6 +193,7 @@ mod peek;
 mod player_trades;
 mod portal;
 mod prediction_preview;
+mod ragdoll;
 mod scene_views;
 mod scope;
 mod sender_card;
@@ -271,6 +275,7 @@ mod saber_rgb;
 mod saber_skin_command;
 mod saber_skin_options;
 mod saber_skins;
+mod saber_sound_choice;
 mod saber_submission;
 mod saber_trail;
 mod saber_trail_gpu;
@@ -488,6 +493,8 @@ struct GpuState {
     order66: order66::Order66,
     /// The Hax toy (`toy_hax`): a hack under way, the player steered or steering.
     hax: hax::Hax,
+    /// The Ragdoll toy (`toy_ragdoll`): the player's own fall and the falls of others.
+    ragdoll: ragdoll::Ragdoll,
     /// Order 66's and the Hax's switches as last saved (`toy_saved`).
     toys_saved: [toy_saved::Saved; 2],
     /// The Holocrons tab's 3D holocron ([`holocrons::stage`]).
@@ -1449,6 +1456,7 @@ impl GpuState {
             cardboard_box: Default::default(),
             order66: Default::default(),
             hax: Default::default(),
+            ragdoll: Default::default(),
             toys_saved: Default::default(),
             holocron_stage: Default::default(),
             #[cfg(test)]
@@ -1707,6 +1715,8 @@ impl GpuState {
             demo_playback::Session::current_server_time,
         );
         prediction_preview::tick(self, game_audio, Instant::now(), presentation_time as i32);
+        // The Ragdoll's bodies at this frame's time, for the camera and the actors.
+        self.step_ragdolls(presentation_time);
         timing.mark(Phase::Config);
         self.refresh_config_strings(game_audio);
         timing.mark(Phase::View);
@@ -1759,6 +1769,7 @@ impl GpuState {
             .then(|| {
                 peek::camera(self, presentation_time)
                     .or_else(|| hax::camera(self, presentation_time))
+                    .or_else(|| ragdoll::camera(self, presentation_time))
             })
             .flatten();
         let fall = self.update_fall_camera(presentation_time as i32);
@@ -1812,6 +1823,8 @@ impl GpuState {
             _ => (view_position, view_target),
         };
         cut_trace::tick(self, branch, (view_position, view_target), visual_now);
+        self.effect_aux
+            .set_viewer(view_position, view_target - view_position);
         // `CG_DoCameraShake` measures from the rendered view (`cg.refdef.vieworg`),
         // so an effect's short-range shake reaches a first-person eye but not the
         // third-person camera behind the player.
@@ -2837,6 +2850,8 @@ impl GpuState {
                 global_seconds: global_particle_seconds,
                 camera: self.camera_position,
                 field_of_view: self.field_of_view,
+                // A perspective projection's y scale over its x scale is the aspect.
+                aspect: projection.y_axis.y / projection.x_axis.x,
                 bsp: &self.bsp,
                 trace_scratch: &mut self.trace_scratch,
 

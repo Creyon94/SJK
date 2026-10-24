@@ -44,6 +44,9 @@ pub(crate) enum PrimitiveShape {
     Billboard,
     /// A retained-world sprite replaced each frame rather than simulated over its lifetime.
     FrameBillboard,
+    /// An effect `Flash` primitive, drawn over the whole view (`CFlash::Draw`,
+    /// [`crate::effect_flash`]) rather than where it went off.
+    ScreenFlash,
     Cylinder {
         axis: Vec3,
         size2: crate::effect_envelope::Envelope,
@@ -71,12 +74,11 @@ impl Particle {
                 .sample(elapsed_millis, lifetime_millis, self.seed.wrapping_add(31)),
             self.alpha
                 .sample(elapsed_millis, lifetime_millis, self.seed.wrapping_add(32)),
-            std::array::from_fn(|axis| {
-                self.rgb[axis].sample(
-                    elapsed_millis,
-                    lifetime_millis,
-                    self.seed.wrapping_add(33 + axis as u32),
-                )
+            // One seed for the three channels: `CParticle::UpdateRGB`'s `FX_RGB_RAND` draws
+            // a single `flrand` a frame and scales the whole colour by it, so a white
+            // flash dims and brightens but never turns magenta or yellow.
+            self.rgb.map(|channel| {
+                channel.sample(elapsed_millis, lifetime_millis, self.seed.wrapping_add(33))
             }),
         )
     }

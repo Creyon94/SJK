@@ -37,7 +37,10 @@ use std::collections::VecDeque;
 use std::time::Instant;
 
 const HISTORY_LIMIT: usize = 64;
-const MAX_VISIBLE: usize = 8;
+/// Most messages the feed shows together, `cg_chatBoxLines`' top: EternalJK's
+/// `MAX_CHATBOX_ITEMS` (24). It was 8 before 23/10/2026, so a larger value did nothing
+/// (Creyon's report #129).
+const MAX_VISIBLE: usize = 24;
 const HOLD_MS: u64 = 9_000;
 const FADE_MS: u64 = 2_000;
 const ENTER_MS: u32 = 220;
@@ -121,6 +124,8 @@ pub(crate) struct ChatOverlay {
     ui: MenuCanvas,
     /// The feed's name or card target a press began on, until its release.
     pressed_action: Option<u16>,
+    /// Whose name that press began on, when it began on a name (`chat/card.rs`).
+    pressed_who: Option<card::Who>,
     /// Whose name each feed token is, for the profile card (`chat/card.rs`).
     visible_people: [Option<card::Who>; MAX_VISIBLE],
     /// The profile card on show while the composer is open.
@@ -234,6 +239,7 @@ impl ChatOverlay {
             notice: "",
             ui: MenuCanvas::with_text_capacity(512),
             pressed_action: None,
+            pressed_who: None,
             visible_people: [None; MAX_VISIBLE],
             card: None,
             mute_request: None,
@@ -465,6 +471,14 @@ impl ChatOverlay {
             recipient: None,
         };
         self.push_line(line, server_private);
+    }
+
+    /// Whether the newest line is a server's private message from a player not muted
+    /// here: what flashes the taskbar (`chat_sounds.rs`).
+    pub(crate) fn newest_is_open_private(&self) -> bool {
+        self.lines
+            .back()
+            .is_some_and(|line| line.server_private && !line.muted)
     }
 
     fn push_line(&mut self, line: ChatLine, private: bool) {
