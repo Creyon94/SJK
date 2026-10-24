@@ -12,12 +12,9 @@
 //! debug_holocron rare            one Rare Holocron
 //! debug_holocron mythical x3     three Mythical Holocrons, one after another
 //! debug_holocron all             one of every tier
-//! debug_holocron kyber_rare      one Rare Kyber Crystal, earned from an achievement
-//! debug_holocron kyber           one kyber crystal of every tier
 //! ```
 
 use super::{Entry, TIERS, Tier};
-use crate::kyber;
 
 /// The console command.
 pub(crate) const COMMAND: &str = "debug_holocron";
@@ -26,8 +23,6 @@ pub(crate) const HELP: &str =
     "Rehearse receiving holocrons, nothing sent: debug_holocron <tier|all> [x<count>]";
 /// The word that names every tier.
 const ALL: &str = "all";
-/// The word that names every kyber crystal tier.
-const KYBER: &str = "kyber";
 /// The most one command rehearses.
 pub(crate) const MOST: u32 = 20;
 /// The number a rehearsed holocron starts at: far above any the hub has dropped, so a
@@ -48,14 +43,7 @@ pub(crate) fn listing() -> Vec<String> {
             tier.odds()
         ));
     }
-    for tier in &kyber::TIERS {
-        lines.push(format!(
-            "  {:<16} {} (earned from an achievement)",
-            tier.id, tier.name
-        ));
-    }
-    lines.push(format!("  {ALL:<12} one of every holocron tier"));
-    lines.push(format!("  {KYBER:<12} one kyber crystal of every tier"));
+    lines.push(format!("  {ALL:<12} one of every tier"));
     lines
 }
 
@@ -68,19 +56,10 @@ pub(crate) fn parse(args: &[String], now: i64, first: u64) -> Result<Vec<Entry>,
     let tier = tier.to_ascii_lowercase();
     let tiers: Vec<&'static Tier> = if tier == ALL {
         TIERS.iter().collect()
-    } else if tier == KYBER {
-        kyber::TIERS.iter().collect()
     } else {
-        let found = super::any(&tier).ok_or_else(|| {
-            let ids: Vec<&str> = TIERS
-                .iter()
-                .chain(&kyber::TIERS)
-                .map(|tier| tier.id)
-                .collect();
-            format!(
-                "Unknown tier '{tier}': {}, {ALL} or {KYBER}",
-                ids.join(", ")
-            )
+        let found = Tier::from_id(&tier).ok_or_else(|| {
+            let ids: Vec<&str> = TIERS.iter().map(|tier| tier.id).collect();
+            format!("Unknown tier '{tier}': {} or {ALL}", ids.join(", "))
         })?;
         vec![found]
     };
@@ -89,8 +68,8 @@ pub(crate) fn parse(args: &[String], now: i64, first: u64) -> Result<Vec<Entry>,
         [word] => count_word(word)?,
         _ => return Err(format!("usage: {COMMAND} <tier|all> [x<count>]")),
     };
-    if count > 1 && (tier == ALL || tier == KYBER) {
-        return Err(format!("{tier} gives one of every tier: no count"));
+    if count > 1 && tier == ALL {
+        return Err(format!("{ALL} gives one of every tier: no count"));
     }
     Ok((0..count)
         .flat_map(|_| tiers.iter().copied())
@@ -100,8 +79,6 @@ pub(crate) fn parse(args: &[String], now: i64, first: u64) -> Result<Vec<Entry>,
             tier,
             dropped: now,
             gift: false,
-            // A crystal is earned from an achievement.
-            earned: tier.is_kyber(),
             note: String::new(),
         })
         .collect())
@@ -174,33 +151,6 @@ mod tests {
             [10, 11, 12, 13]
         );
         assert!(parse(&words("all x2"), NOW, 10).is_err());
-    }
-
-    /// A kyber crystal rehearses its arrival too, earned from an achievement; `kyber` is one
-    /// of each.
-    #[test]
-    fn kyber_crystals_rehearse_their_arrival() {
-        let one = parse(&words("kyber_rare x2"), NOW, 1).unwrap();
-        assert_eq!(tiers_of(&one), ["kyber_rare"; 2]);
-        assert!(one.iter().all(|entry| entry.earned && !entry.gift));
-        assert_eq!(one[0].when(), "Earned 10/10/2026 14:05");
-        let all = parse(&words("KYBER"), NOW, 1).unwrap();
-        assert_eq!(
-            tiers_of(&all),
-            [
-                "kyber_uncommon",
-                "kyber_rare",
-                "kyber_legendary",
-                "kyber_mythical"
-            ]
-        );
-        assert!(parse(&words("kyber x2"), NOW, 1).is_err());
-        assert!(listing().iter().any(|line| line.contains("kyber_mythical")));
-        assert!(
-            parse(&words("gold"), NOW, 1)
-                .unwrap_err()
-                .contains("kyber_rare")
-        );
     }
 
     #[test]

@@ -4,9 +4,7 @@
 //! `Sol found a Legendary Holocron!`; the player's own read `You found an Uncommon
 //! Holocron.` (with a `!` for the two grand tiers). The identity service relays a drop
 //! as a chat message with no text and [`sjk_identity::ChatMessage::holocron`] set; this
-//! words it from the tier the client knows, and leaves out a tier it does not. A kyber
-//! crystal's grand find (its tier `kyber_rare` and so on, [`crate::kyber`]) reads the same
-//! with the crystal's name: `Sol opened a Rare Kyber Crystal: Phoenix blade!`.
+//! words it from the tier the client knows, and leaves out a tier it does not.
 
 use super::Tier;
 use sjk_identity::ChatMessage;
@@ -29,7 +27,7 @@ const PRIZE_NAME_MAX: usize = 40;
 /// The words of `message` if it is a drop (or a grand find) of a tier the client knows.
 pub(crate) fn words(message: &ChatMessage) -> Option<Words> {
     let mark = message.holocron.as_ref()?;
-    let tier = super::any(&mark.tier)?;
+    let tier = Tier::from_id(&mark.tier)?;
     let end = if tier.is_announced() { '!' } else { '.' };
     let rest = match &mark.find {
         Some(find) => format!("opened {} {}: {}!", tier.article(), tier.name, prize(find)),
@@ -159,18 +157,6 @@ mod tests {
         );
         let long = "x".repeat(90);
         assert!(said(&find("Fox", "rare", false, shader(&long))).len() < 90);
-        // A kyber crystal's grand find says Kyber Crystal, in the crystal's colour.
-        let crystal =
-            super::words(&find("^2Sol", "kyber_rare", false, shader("Phoenix blade"))).unwrap();
-        assert_eq!(
-            crystal.text,
-            "Sol opened a Rare Kyber Crystal: Phoenix blade!"
-        );
-        assert_eq!(crystal.tier.colour, crate::holocrons::TIERS[1].colour);
-        assert_eq!(
-            said(&find("Fox", "kyber_uncommon", true, shader("Tidal blade"))),
-            "You opened an Uncommon Kyber Crystal: Tidal blade!"
-        );
         // A tier the client does not know is left out, as a drop's.
         assert!(unknown(&find("Fox", "from_the_future", false, shader("A"))));
     }

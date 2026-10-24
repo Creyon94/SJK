@@ -358,45 +358,6 @@ pub struct HolocronState {
     /// The kyber shards' and the shop's tables (17/10/2026); `None` from hubs before.
     #[serde(default)]
     pub economy: Option<EconomyTables>,
-    /// The kyber crystals' odds and the person's pity counter (21/10/2026; the hub's
-    /// `PROTOCOL.md`, "Kyber crystals"); `None` from hubs before.
-    #[serde(default)]
-    pub kyber: Option<KyberTables>,
-}
-
-/// The kyber crystals' tables as the hub sends them with the progress (`PROTOCOL.md`,
-/// "Kyber crystals", 21/10/2026). A crystal is a holocron row of tier `kyber_uncommon` to
-/// `kyber_mythical`, earned from achievements; opening one always gives a saber shader.
-#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
-pub struct KyberTables {
-    /// Each crystal tier's odds, the commonest first.
-    #[serde(default)]
-    pub tiers: Vec<KyberTier>,
-    /// The person's pity counter; `None` when the hub keeps none.
-    #[serde(default)]
-    pub pity: Option<KyberPity>,
-}
-
-/// One crystal tier's odds.
-#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
-pub struct KyberTier {
-    /// The tier's wire id (`kyber_rare`).
-    pub tier: String,
-    /// The shader's tier per mille, common to mythical (summing to 1000).
-    #[serde(default)]
-    pub shader_tier: Vec<u32>,
-}
-
-/// The person's pity counter: the `every`-th crystal in a row without a Legendary or
-/// better shader gives one.
-#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq)]
-pub struct KyberPity {
-    /// How many crystals in a row make a Legendary or better sure.
-    #[serde(default)]
-    pub every: u32,
-    /// Crystals opened since the last that gave Legendary or better (0 to `every - 1`).
-    #[serde(default)]
-    pub since: u32,
 }
 
 /// The economy's tables as the hub sends them with the progress (`PROTOCOL.md`, "Shards
@@ -853,10 +814,6 @@ pub struct Achievement {
     /// When the count first reached the goal, unix seconds; 0 while it has not.
     #[serde(default)]
     pub unlocked: i64,
-    /// The kyber crystal tier it brings once (`kyber_rare`; 21/10/2026); `None` from hubs
-    /// before, whose players read the client's own table.
-    #[serde(default)]
-    pub reward: Option<String>,
 }
 
 /// The hub's answer to `POST /v1/staff/search`.
@@ -1616,7 +1573,6 @@ mod tests {
                 min_client: None,
                 loot: Vec::new(),
                 economy: None,
-                kyber: None,
             }
         );
         let odds: HolocronState = serde_json::from_str(
@@ -1695,33 +1651,6 @@ mod tests {
         )
         .unwrap();
         assert_eq!(gated.min_client.as_deref(), Some("2026.1022.1"));
-        // Kyber crystals (21/10/2026): their odds and the person's pity, beside `loot`.
-        let kyber: HolocronState = serde_json::from_str(
-            r#"{"progress_secs":0,"every_secs":1800,"server_time":1,
-                "kyber":{"tiers":[{"tier":"kyber_uncommon","shader_tier":[450,400,120,25,5]},
-                {"tier":"kyber_rare","shader_tier":[200,400,300,85,15]}],
-                "pity":{"every":10,"since":3}}}"#,
-        )
-        .unwrap();
-        let tables = kyber.kyber.unwrap();
-        assert_eq!(tables.tiers[1].tier, "kyber_rare");
-        assert_eq!(tables.tiers[0].shader_tier, [450, 400, 120, 25, 5]);
-        assert_eq!(
-            tables.pity,
-            Some(KyberPity {
-                every: 10,
-                since: 3
-            })
-        );
-        assert!(kyber.loot.is_empty(), "the holocrons' loot is untouched");
-        let achievement: Achievement = serde_json::from_str(
-            r#"{"id":"kills_100","progress":100,"goal":100,"unlocked":5,"reward":"kyber_rare"}"#,
-        )
-        .unwrap();
-        assert_eq!(achievement.reward.as_deref(), Some("kyber_rare"));
-        let older: Achievement =
-            serde_json::from_str(r#"{"id":"kills_100","progress":3,"goal":100}"#).unwrap();
-        assert_eq!(older.reward, None, "hubs before crystals say no reward");
         let feed: Feed = serde_json::from_str(
             r#"{"next":21,"drops":[{"id":20,"at":1791000001,"key_id":"aa","name":"^2Sol",
                 "tier":"legendary","verified":true},

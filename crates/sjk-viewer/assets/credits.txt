@@ -54,8 +54,6 @@ did: Kyber shards and the shop: shatter duplicates, craft shaders, four offers a
 did: The card pack: a holocron's card comes with its credits and a few kyber shards
 did: A card on the holocron strip shows as its credits, the card tucked in a corner
 did: The shop in kyber shards, and holocrons bought with credits
-did: Kyber crystals: a reward for every achievement, always a saber shader
-did: The Mythical holocron's engram: gold plates breathing round a glowing core
 did: Blade cards craft their saber shader for less, and lead to it from the Cards tab
 did: Perk marks on cards: a badge for each thing a card brings
 did: The Forge: shop, crafting and breaking any saber shader down, in one tab
