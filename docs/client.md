@@ -2911,8 +2911,7 @@ the original cgame reads:
   and `CS_SCORES2` (`-` while the server has not sent one), in the SJK UI's look in every
   HUD style (the design canvas of 24/10/2026): the UI's navy under the team's muted colour
   (`menu::sjk::color::RED_TEAM` and `BLUE_TEAM`, the SJK scoreboard's), a rule of that
-  colour along the bottom and a gold one along the top of your team's box, the score at the
-  inner edge. `cg_teamScoresBoxes 0` (Settings > HUD, "SJK team score boxes") brings back
+  colour along the bottom, the score at the inner edge. `cg_teamScoresBoxes 0` (Settings > HUD, "SJK team score boxes") brings back
   the classic look: "RED 3" and "BLUE 5" plates under the clock and the flag icons at the
   left. With the scores on, the layouts' score line drops its trailing team scores
   (`cg_drawScore 2`), which they replace.

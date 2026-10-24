@@ -668,8 +668,8 @@ impl State {
     }
 
     /// The two team boxes under the clock, red left and blue right, in a `w` by `h`
-    /// viewport: the UI's navy under the team's colour, a rule of it along the bottom,
-    /// a gold rule along the top of the local player's team; the score at the inner
+    /// viewport: the UI's navy under the team's colour, a rule of it along the bottom;
+    /// the score at the inner
     /// edge and, in capture games with `cg_drawFlagStatus`, the flag at the outer edge
     /// (its taken picture while away, a gold arc round it counting down a drop) and
     /// where it is between them; then, while the local player carries a flag, one line
@@ -705,12 +705,6 @@ impl State {
                 rect: Rect::new(x, top + box_h - rule, box_w, rule),
                 color: team,
             });
-            if own == Some(side) {
-                let _ = list.push(DrawCommand::SolidRect {
-                    rect: Rect::new(x, top, box_w, rule),
-                    color: color::GOLD,
-                });
-            }
             let inner = Rect::new(
                 if red {
                     x + box_w - pad - score_w
