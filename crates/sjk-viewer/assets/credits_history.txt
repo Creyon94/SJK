@@ -2385,6 +2385,8 @@
 - fed9acd |  | Hide duel opponents' bars and send nothing while duelling
 
 = Slash
++ 24/10/2026 | SJK #200 | Encrypted whispers: per-key safety code fingerprints (v2)
+- bf04bc1 |  | Encrypted whispers: per-key safety code fingerprints (v2)
 + 20/10/2026 | SJK #186 | Make the update notice clickable to start the download
 - 367fb72 |  | Make the update notice clickable to start the download
 + 20/10/2026 | SJK #184 | Draw the HUD picker as an SJK card, added different pics
