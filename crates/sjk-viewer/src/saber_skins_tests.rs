@@ -727,6 +727,7 @@ fn following_another_player_draws_their_look_not_the_own_skin() {
         illuminate: true,
         saber_off: Vec::new(),
         toys: Vec::new(),
+        saber_sounds: String::new(),
     };
     looks.apply_event(5, "Fox", &stock);
     let slots = ViewSlots::of(&game_state, &followed);
@@ -1034,4 +1035,42 @@ fn a_duel_draws_every_blade_stock() {
     assert_eq!(skins.sound_sets()[2], None);
     skins.set_plain(false);
     assert_eq!(skins.get(3).map(|skin| skin.index), Some(worn.index));
+}
+
+/// The sound set each slot is heard with is taken apart from its blade (Nib's idea,
+/// 23/10/2026): another shader's, the stock sounds, or the blade's; the local player's
+/// own goes in its slot, the animation swings read the same table, and a duel's stock
+/// blades are heard stock.
+#[test]
+fn sounds_are_taken_apart_from_the_blade_for_others_and_the_local_player() {
+    let worn = sample_color();
+    let mut skins = SaberSkins::default();
+    skins.follow_looks_and_sounds(1, 1, |client| match client {
+        // A blade heard with another skin's set (number 3).
+        2 => (Some(worn), Some(3)),
+        // A blade heard with the stock sounds.
+        4 => (Some(worn), None),
+        // The stock blade heard with a skin's set.
+        6 => (None, Some(worn.index)),
+        _ => (None, None),
+    });
+    let sets = skins.sound_sets();
+    assert_eq!(
+        (sets[2], sets[4], sets[6]),
+        (Some(3), None, Some(worn.index))
+    );
+    assert_eq!(
+        skins.get(5).map(|skin| skin.index),
+        Some(worn.index),
+        "blade kept"
+    );
+    assert_eq!(skins.sound_of(3), Some(3), "the swings' set, by entity");
+    assert_eq!(skins.sound_of(5), None);
+    // The local player in slot 4, heard with set 1 on the stock blade.
+    skins.set_local_with_sound(Some(4), None, Some(1));
+    assert_eq!(skins.sound_sets()[4], Some(1));
+    assert_eq!(skins.get(5), None);
+    skins.set_plain(true);
+    assert_eq!(skins.sound_sets(), [None; MAX_CLIENTS]);
+    assert_eq!(skins.sound_of(3), None);
 }

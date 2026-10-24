@@ -729,6 +729,11 @@ pub struct Look {
     /// 16/10/2026; absent, and empty, from older hubs and from players with none out).
     #[serde(default)]
     pub toys: Vec<String>,
+    /// The saber sounds the player chose apart from their blade (since 23/10/2026):
+    /// empty to follow the blade skin (absent from older hubs and clients), `stock` for
+    /// the retail sounds, or a blade-skin unlock id whose sounds they hear.
+    #[serde(default)]
+    pub saber_sounds: String,
 }
 
 /// A look worn on a game server, as the feed relays it when it changes: the slot and
@@ -757,6 +762,9 @@ pub struct LookEvent {
     /// The toys the wearer has out; empty when absent.
     #[serde(default)]
     pub toys: Vec<String>,
+    /// The saber sounds the wearer chose; empty (follow the blade) when absent.
+    #[serde(default)]
+    pub saber_sounds: String,
 }
 
 impl LookEvent {
@@ -767,6 +775,7 @@ impl LookEvent {
             illuminate: self.illuminate,
             saber_off: self.saber_off.clone(),
             toys: self.toys.clone(),
+            saber_sounds: self.saber_sounds.clone(),
         }
     }
 }
@@ -801,8 +810,33 @@ pub struct ToyEvent {
 pub struct RelayBatch {
     /// The events, oldest first.
     pub events: Vec<ToyEvent>,
+    /// The encrypted whispers sealed to the reading key, oldest first, when asked for
+    /// (`PROTOCOL.md`, "Whispers").
+    #[serde(default)]
+    pub whispers: Vec<SealedWhisper>,
     /// The id the next read starts after.
     pub next: u64,
+}
+
+/// An encrypted whisper as the hub hands it to its reader (`PROTOCOL.md`, "Whispers"):
+/// open it with [`crate::whisper::open`].
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+pub struct SealedWhisper {
+    /// Its id in the relay's sequence.
+    pub id: u64,
+    /// When the hub took it, unix seconds.
+    pub at: i64,
+    /// The sender's slot and the name they claimed it under.
+    pub slot: u8,
+    /// The name the sender's claim was made under.
+    pub claimed_name: String,
+    /// The sender's key id (their person's).
+    pub key_id: String,
+    /// The key that sealed it (unpadded base64url).
+    pub from: String,
+    /// The sealed whisper.
+    #[serde(rename = "box")]
+    pub boxed: String,
 }
 
 /// A milestone of the player's own play (`PROTOCOL.md`, "Achievements"): how far its
@@ -905,6 +939,10 @@ pub struct Presence {
     /// from hubs older than looks).
     #[serde(default)]
     pub look: Option<Look>,
+    /// The key the claimant takes encrypted whispers with (unpadded base64url), while
+    /// they do (`PROTOCOL.md`, "Whispers"); absent otherwise, and from older hubs.
+    #[serde(default)]
+    pub whisper_key: Option<String>,
 }
 
 /// One SJK chat message (`PROTOCOL.md`, "Chat"), as the feed carries it. Show its
@@ -934,6 +972,10 @@ pub struct ChatMessage {
     /// The sender's name emoji when they sent it, empty for none.
     #[serde(default)]
     pub emoji: String,
+    /// The client it was sent from, as the hub read it from the sender's User-Agent:
+    /// `sjk`, `ejk` (JoF EternalJK), empty for another or from hubs before it.
+    #[serde(default)]
+    pub client: String,
     /// What they said.
     pub text: String,
     /// Set when this "message" is a holocron drop the feed relayed (never read from
@@ -1428,6 +1470,7 @@ mod tests {
                 illuminate: true,
                 saber_off: Vec::new(),
                 toys: Vec::new(),
+                saber_sounds: String::new(),
             })
         );
         let options: Presence = serde_json::from_str(
@@ -1460,6 +1503,7 @@ mod tests {
                 illuminate: true,
                 saber_off: Vec::new(),
                 toys: Vec::new(),
+                saber_sounds: String::new(),
             }
         );
         let options: Feed = serde_json::from_str(
@@ -1468,6 +1512,13 @@ mod tests {
         )
         .unwrap();
         assert_eq!(options.looks[0].look().saber_off, ["wisps"]);
+        // The sounds chosen apart from the blade (23/10/2026); absent above: follow it.
+        let sounds: Feed = serde_json::from_str(
+            r#"{"next":17,"looks":[{"id":17,"at":9,"slot":3,"claimed_name":"^2Sol",
+                "key_id":"aa","saber":"saber_sun","illuminate":false,"saber_sounds":"stock"}]}"#,
+        )
+        .unwrap();
+        assert_eq!(sounds.looks[0].look().saber_sounds, "stock");
         let quiet: Feed = serde_json::from_str(r#"{"next":3,"emotes":[]}"#).unwrap();
         assert!(quiet.looks.is_empty(), "an older hub sends no looks");
     }

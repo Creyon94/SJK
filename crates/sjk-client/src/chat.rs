@@ -325,6 +325,70 @@ pub fn chat_unescape(text: &str) -> std::borrow::Cow<'_, str> {
     std::borrow::Cow::Owned(output)
 }
 
+/// The end of the game server's copy of an SJK chat message (`docs/hub-chat.md`,
+/// "Said on the game server too", after JoF EternalJK): the hub's id for the message
+/// in colour codes, which no client draws: `^9`, then `^` and the number of digits,
+/// then `^` and each digit, so id 12 ends a line with `^9^2^1^2`. `None` for an id of
+/// more than nine digits, whose copy goes without it.
+pub fn sjk_copy_marker(id: u64) -> Option<String> {
+    let digits = id.to_string();
+    if digits.len() > 9 {
+        return None;
+    }
+    let mut marker = format!("^9^{}", digits.len());
+    for digit in digits.chars() {
+        marker.push('^');
+        marker.push(digit);
+    }
+    Some(marker)
+}
+
+/// The hub's id a chat line's text ends with ([`sjk_copy_marker`]): `Some` for the
+/// server's copy of an SJK chat message, `None` for any other line.
+pub fn sjk_copy_id(text: &str) -> Option<u64> {
+    copy_id(text.trim_end().as_bytes())
+}
+
+fn copy_id(text: &[u8]) -> Option<u64> {
+    (1..=9u8).find_map(|digits| {
+        let start = text.len().checked_sub(4 + 2 * usize::from(digits))?;
+        let end = &text[start..];
+        if end[..3] != *b"^9^" || end[3] != b'0' + digits {
+            return None;
+        }
+        end[4..].chunks(2).try_fold(0u64, |id, pair| {
+            (pair[0] == b'^' && pair[1].is_ascii_digit())
+                .then(|| id * 10 + u64::from(pair[1] - b'0'))
+        })
+    })
+}
+
+/// Whether a server `chat` command carries the server's copy of an SJK chat message
+/// ([`sjk_copy_id`]): its beep is left to the SJK chat's own sound.
+pub(crate) fn sjk_copy_command(command: &[u8]) -> bool {
+    let mut parts = command.splitn(2, u8::is_ascii_whitespace);
+    if parts.next() != Some(b"chat".as_slice()) {
+        return false;
+    }
+    let Some(rest) = parts.next() else {
+        return false;
+    };
+    let Some(text) = rest.trim_ascii_start().strip_prefix(b"\"") else {
+        return false;
+    };
+    let end = text
+        .iter()
+        .position(|&byte| byte == b'"')
+        .unwrap_or(text.len());
+    copy_id(&text[..end]).is_some()
+}
+
+/// What starts the game server's copy of an SJK chat message (and each of its pieces), so
+/// the server's players on any client read it as an SJK line: SJK in gold, then All
+/// chat's green again. JoF tools say such copies on JoF servers (`sjk-mod-jof`,
+/// `sjk_chat.rs`); the core only reads them.
+pub const SJK_COPY_TAG: &str = "^3SJK^2 ";
+
 /// Interpret the already-tokenized stock chat command (`G_SayTo`).
 pub(crate) fn server_chat_event(arguments: &[Vec<u8>]) -> Option<ServerEvent> {
     let command = arguments.first()?.as_slice();
@@ -619,5 +683,46 @@ mod private_marker_tests {
                     .is_private
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod sjk_copy_tests {
+    use super::*;
+
+    #[test]
+    fn an_id_ends_the_line_in_colour_codes_and_reads_back() {
+        assert_eq!(sjk_copy_marker(12).as_deref(), Some("^9^2^1^2"));
+        assert_eq!(sjk_copy_marker(7).as_deref(), Some("^9^1^7"));
+        assert_eq!(sjk_copy_marker(1_000_000_000), None);
+        for id in [1, 9, 10, 99, 12_345, 999_999_999] {
+            let line = format!("Sol^7: ^2hello{}", sjk_copy_marker(id).unwrap());
+            assert_eq!(sjk_copy_id(&line), Some(id), "{line}");
+        }
+        assert_eq!(sjk_copy_id("Sol^7: ^2hello^9^2^1^2\n"), Some(12));
+    }
+
+    #[test]
+    fn a_line_without_the_end_is_no_copy() {
+        for line in [
+            "Sol^7: ^2hello",
+            "Sol^7: ^2hello ^9",
+            "Sol^7: ^2hello^9^3^1^2",
+            "Sol^7: ^2hello^8^2^1^2",
+            "Sol^7: ^2hello^9^2^1x",
+            "^2^1^2",
+            "",
+        ] {
+            assert_eq!(sjk_copy_id(line), None, "{line}");
+        }
+    }
+
+    #[test]
+    fn only_a_chat_command_with_the_end_is_a_copy() {
+        assert!(sjk_copy_command(b"chat \"Sol^7: ^2hello^9^2^1^2\" 3"));
+        assert!(sjk_copy_command(b"chat \"Sol^7: ^2hello^9^1^5\""));
+        assert!(!sjk_copy_command(b"chat \"Sol^7: ^2hello\" 3"));
+        assert!(!sjk_copy_command(b"tchat \"Sol^7: ^2hello^9^2^1^2\" 3"));
+        assert!(!sjk_copy_command(b"print \"hello^9^2^1^2\""));
     }
 }

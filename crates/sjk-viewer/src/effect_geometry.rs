@@ -130,7 +130,9 @@ impl Mesh {
         let has_geometry = particles.iter().any(|particle| {
             !matches!(
                 particle.shape,
-                PrimitiveShape::Billboard | PrimitiveShape::FrameBillboard
+                PrimitiveShape::Billboard
+                    | PrimitiveShape::FrameBillboard
+                    | PrimitiveShape::ScreenFlash
             )
         });
         if !has_geometry && !decals.has_polys() {
@@ -149,7 +151,9 @@ impl Mesh {
         slots.extend(particles.iter().map(|particle| {
             if matches!(
                 particle.shape,
-                PrimitiveShape::Billboard | PrimitiveShape::FrameBillboard
+                PrimitiveShape::Billboard
+                    | PrimitiveShape::FrameBillboard
+                    | PrimitiveShape::ScreenFlash
             ) {
                 return 0u8;
             }
@@ -241,7 +245,9 @@ impl Mesh {
 
         if matches!(
             particle.shape,
-            PrimitiveShape::Billboard | PrimitiveShape::FrameBillboard
+            PrimitiveShape::Billboard
+                | PrimitiveShape::FrameBillboard
+                | PrimitiveShape::ScreenFlash
         ) {
             return;
         }
@@ -340,7 +346,9 @@ impl Mesh {
                         *depth_hack,
                     );
                 }
-                PrimitiveShape::Billboard | PrimitiveShape::FrameBillboard => {}
+                PrimitiveShape::Billboard
+                | PrimitiveShape::FrameBillboard
+                | PrimitiveShape::ScreenFlash => {}
             }
         }
     }

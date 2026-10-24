@@ -181,7 +181,10 @@ pub(crate) fn take_toy_events(
     take_for_server(queue, server)
 }
 
-fn take_for_server<T>(queue: &Mutex<VecDeque<ForServer<T>>>, server: Option<SocketAddr>) -> Vec<T> {
+pub(crate) fn take_for_server<T>(
+    queue: &Mutex<VecDeque<ForServer<T>>>,
+    server: Option<SocketAddr>,
+) -> Vec<T> {
     let mut queue = lock(queue);
     if server.is_none() {
         queue.clear();
@@ -492,6 +495,7 @@ fn drop_message(drop: DropEvent, own: &str) -> ChatMessage {
         creator: false,
         trust: None,
         emoji: String::new(),
+        client: String::new(),
         text: String::new(),
     }
 }
@@ -519,6 +523,7 @@ fn find_message(find: FindEvent, own: &str) -> ChatMessage {
         creator: false,
         trust: None,
         emoji: String::new(),
+        client: String::new(),
         text: String::new(),
     }
 }
@@ -629,6 +634,7 @@ mod tests {
             creator: false,
             trust: None,
             emoji: String::new(),
+            client: String::new(),
             text: text.to_owned(),
             holocron: None,
         }
@@ -1084,6 +1090,7 @@ mod tests {
             illuminate,
             saber_off: Vec::new(),
             toys: Vec::new(),
+            saber_sounds: String::new(),
         }
     }
 

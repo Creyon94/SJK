@@ -18,6 +18,17 @@
 //! stamps for. Until then it stamps 0, exactly as stock does: `CL_ClearState`
 //! zeroes `cl.serverTime` with every gamestate and `CL_SetCGameTime` only
 //! runs once the client is `CA_ACTIVE`, so the whole map load is stamped 0.
+//!
+//! The delta is adjusted once a frame, on the newest snapshot, after every
+//! queued packet has been read (`CL_ReadPackets` drains the socket, then
+//! `CL_SetCGameTime` calls `CL_AdjustTimeDelta` on `cl.snap` when
+//! `cl.newSnapshots`): [`ServerClock::receive_snapshot`] notes each snapshot
+//! read and [`ServerClock::adjust`] runs once the frame has read them all. A
+//! snapshot that waited in the socket through a hitch is old by the time it is
+//! read; adjusting on it as if it had just arrived would put the clock back by
+//! the hitch, and the commands stamped from it would reach the server a second
+//! or more behind its time, which servers read as a huge `cl_timeNudge`
+//! (JoF's Heimdall kicked a player whose game hitched, Slash, 23/10/2026).
 //! That matters because a server that has not yet seen the client
 //! acknowledge the new `serverId` deliberately reports inflated snapshot
 //! times (`sv.time + oldServerTime`, `sv_snapshot.cpp:190-198`) and drops to
@@ -54,6 +65,9 @@ pub struct ServerClock {
     /// still loading the new map, snapshots must not anchor the clock: they
     /// can still carry the server's inflated transition times.
     active: bool,
+    /// The newest snapshot read since the last [`Self::adjust`]
+    /// (`cl.newSnapshots` with `cl.snap.serverTime`).
+    pending: Option<i64>,
 }
 
 impl ServerClock {
@@ -68,6 +82,7 @@ impl ServerClock {
             extrapolated: false,
             anchored: true,
             active: true,
+            pending: None,
         }
     }
 
@@ -103,6 +118,7 @@ impl ServerClock {
         self.anchored = false;
         self.active = false;
         self.extrapolated = false;
+        self.pending = None;
     }
 
     /// The new timeline's world is live (stock `CA_ACTIVE`): let the next
@@ -120,14 +136,34 @@ impl ServerClock {
         i64::try_from(now.saturating_duration_since(self.epoch).as_millis()).unwrap_or(i64::MAX)
     }
 
-    /// Drift the estimate toward a newly received snapshot
-    /// (`CL_AdjustTimeDelta`).
+    /// Read a snapshot and adjust on it at once: [`Self::receive_snapshot`]
+    /// then [`Self::adjust`], for a frame that read one snapshot and no more.
     pub fn observe_snapshot(&mut self, snapshot_server_time: i32, now: Instant) {
-        let server_time = i64::from(snapshot_server_time);
+        self.receive_snapshot(snapshot_server_time);
+        self.adjust(now);
+    }
+
+    /// A snapshot was read (stock `cl.snap`, `cl.newSnapshots`). The delta waits
+    /// for [`Self::adjust`], once the frame has read every queued packet.
+    pub fn receive_snapshot(&mut self, snapshot_server_time: i32) {
         if !self.active {
             return;
         }
+        let server_time = i64::from(snapshot_server_time);
         self.latest_snapshot = server_time;
+        self.pending = Some(server_time);
+    }
+
+    /// Drift the estimate toward the newest snapshot read since the last call
+    /// (`CL_AdjustTimeDelta`). Call it once a frame, and only when no packet is
+    /// left queued: the newest snapshot then is the one that just arrived.
+    pub fn adjust(&mut self, now: Instant) {
+        if !self.active {
+            return;
+        }
+        let Some(server_time) = self.pending.take() else {
+            return;
+        };
         if !self.anchored {
             // `CL_FirstSnapshot`: sit exactly on this frame.
             self.anchored = true;
@@ -192,5 +228,115 @@ impl ServerClock {
     /// Newest observed snapshot time, for diagnostics.
     pub fn latest_snapshot(&self) -> i32 {
         i32::try_from(self.latest_snapshot).unwrap_or(i32::MAX)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::command_rate::CommandSchedule;
+    use std::time::Duration;
+
+    const START: i64 = 10_000;
+    const SNAPSHOT_MILLIS: i64 = 25;
+    const FRAME_MILLIS: i64 = 17;
+    const READ_PER_FRAME: usize = 8;
+
+    /// Play a 59 FPS client on a 40 snapshots a second server with no latency, a
+    /// hitch of `hitch` ms at 2 s, and return the largest lag behind the
+    /// server's time of any command stamped after it. `per_snapshot` adjusts on
+    /// every snapshot read, as the client did until 23/10/2026; otherwise once a
+    /// frame after the queue is read, as stock does.
+    fn worst_lag_after_hitch(step: i32, hitch: i64, per_snapshot: bool) -> i64 {
+        let base = Instant::now();
+        let at = |ms: i64| base + Duration::from_millis(ms as u64);
+        let mut clock = ServerClock::new(START as i32, at(0));
+        let mut schedule = CommandSchedule::default();
+        let mut next_snapshot = SNAPSHOT_MILLIS;
+        let mut worst = 0;
+        let mut real = 0;
+        let mut hitched = None;
+        while real < 6_000 {
+            real += if hitched.is_none() && real >= 2_000 {
+                hitched = Some(real);
+                hitch
+            } else {
+                FRAME_MILLIS
+            };
+            let now = at(real);
+            let mut read = 0;
+            while next_snapshot <= real && read < READ_PER_FRAME {
+                let time = (START + next_snapshot) as i32;
+                if per_snapshot {
+                    clock.observe_snapshot(time, now);
+                } else {
+                    clock.receive_snapshot(time);
+                }
+                next_snapshot += SNAPSHOT_MILLIS;
+                read += 1;
+            }
+            if !per_snapshot && next_snapshot > real {
+                clock.adjust(now);
+            }
+            let stamp = clock.server_time(now);
+            for &command in schedule.due(stamp, true, now, step).as_slice() {
+                if hitched.is_some() {
+                    worst = worst.max(START + real - i64::from(command));
+                }
+            }
+        }
+        worst
+    }
+
+    #[test]
+    fn a_hitch_keeps_commands_on_the_servers_time() {
+        for step in [8, 7, 4, 3] {
+            for hitch in [150, 400, 1_346] {
+                let lag = worst_lag_after_hitch(step, hitch, false);
+                // The oldest of a frame's catch-up commands (32 ms back), the
+                // grid and the snapshot interval the clock trails by.
+                assert!(
+                    lag <= i64::from(crate::command_rate::CATCH_UP_MILLIS) + SNAPSHOT_MILLIS + 8,
+                    "step {step} ms, hitch {hitch} ms: commands {lag} ms behind"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn adjusting_on_every_queued_snapshot_put_commands_a_second_behind() {
+        for step in [8, 7, 4, 3] {
+            let lag = worst_lag_after_hitch(step, 1_346, true);
+            assert!(lag > 1_000, "step {step} ms: {lag} ms");
+        }
+    }
+
+    #[test]
+    fn adjust_waits_for_the_frame_and_takes_the_newest_snapshot() {
+        let base = Instant::now();
+        let at = |ms: u64| base + Duration::from_millis(ms);
+        let mut clock = ServerClock::new(10_000, at(0));
+        // Snapshots that waited 1 s in the socket, then the one sent now.
+        for time in [10_025, 10_050, 10_075, 11_000] {
+            clock.receive_snapshot(time);
+        }
+        assert_eq!(clock.server_time(at(1_000)), 11_000);
+        clock.adjust(at(1_000));
+        assert!((clock.server_time(at(1_000)) - 11_000).abs() <= 2);
+        // Nothing new read: no second adjustment.
+        clock.adjust(at(1_000));
+        assert!((clock.server_time(at(1_000)) - 11_000).abs() <= 2);
+    }
+
+    #[test]
+    fn a_restart_drops_the_snapshot_waiting_to_adjust() {
+        let base = Instant::now();
+        let mut clock = ServerClock::new(10_000, base);
+        clock.receive_snapshot(10_025);
+        clock.restart();
+        clock.activate();
+        clock.adjust(base);
+        assert!(!clock.anchored());
+        assert_eq!(clock.server_time(base), 0);
     }
 }

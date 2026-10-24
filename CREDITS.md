@@ -60,12 +60,19 @@ includes:
   executes the order and blows apart into flying pieces, or confetti;
 - the Hax, a meme toy: hold Use on another player who has it on to hack them
   with the siege hack bar, then steer them for a few seconds;
+- the Ragdoll, a meme toy: the body goes limp and falls where physics takes it,
+  every SJK player seeing the same fall from one relayed start (23/10/2026);
+- end-to-end encrypted whispers: whispers between SJK players sealed to the
+  recipient's key and carried by the SJK hub, which cannot read them
+  (22/10/2026);
 - medals, the recognition the SJK team gives players, on the scoreboard, the
   player card and the Identity page, with medal pictures generated and chosen by
   Sol;
 - the JoF clan tag: the clan's emblem beside the names that carry its tag, in
   the chats, on the scoreboard and on player cards; the JAWA clan's tag with its
-  forum icon, a Jawa's hood (19/10/2026);
+  forum icon, a Jawa's hood (19/10/2026, read only as `(JAWA)` at the start of
+  the name since 22/10/2026); the {{S}} clan's tag with its red Sith emblem and
+  JoF's green logo (22/10/2026);
 - holocron drops, loot boxes earned by playing: four tiers, drops announced in
   the SJK chat and a Holocrons tab on the Profile screen with a 3D holocron;
 - opening holocrons: sealed cards (Normal, Holo and Solar finishes, the Alpha
@@ -96,6 +103,9 @@ includes:
   at the shop's price, a Holo or Solar one at half, the card kept, and a button under a
   held blade card on the Cards tab that leads to its shader (to the Forge's Craft while
   the player lacks it);
+- saber sounds of your choice (23/10/2026, after Nib's idea): the Saber tab's Sounds row
+  picks the sounds apart from the saber shader (follow it, stock, or an owned shader's),
+  with a preview, sent with the look so every SJK player hears them;
 - perk marks on cards (21/10/2026, Sol's request): a badge on the tile for each perk
   (a lightsaber, the Solar sun, a smith's hammer), the marks up close and before each
   perk's line on the hover card;
@@ -272,6 +282,15 @@ includes:
 - Discord status (`cl_discordPresence`): the player's Discord profile showing the menu
   screen, or the server, map, mode, team and players, through the Discord app's
   local pipe;
+- chat sounds by kind (23/10/2026, after Turin's and Nib's ideas): public chat, team chat,
+  private messages and the SJK chat each with a switch, a sound picked from the game's
+  and SJK's, and a Play button, and a taskbar flash for a private message while the
+  window is away;
+- emotes while typing (23/10/2026, after Rollembones' idea): a player typing keeps their
+  emote until they move or attack (`cg_emoteTypingKeep`), and alt-tabbing out always
+  silences your emote's music;
+- chat name actions (23/10/2026, after Bishop's and Sanjisan's ideas): a click on a
+  player's name in the chat pins their card, to Whisper or Block them;
 - SJK Alpha (19/10/2026), the first collection of cards: the Mythical rarity, the
   Credits and Meme kinds, and card 1, "Bishop", honouring the author of JKR (art by
   Sol, AI-assisted: a rusted helmet portrait).
@@ -550,7 +569,7 @@ into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author
   to 40 degrees down, and keeps its aim after the gunner leaves.
 - #189 a smaller chat sender card that waits for the pointer, sized by `cg_chatCardScale`.
 
-Milamber ([Milamber0](https://github.com/Milamber0)), contributor, has 2 pull requests merged
+Milamber ([Milamber0](https://github.com/Milamber0)), contributor, has 3 pull requests merged
 into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AMilamber0)):
 
 - #156 See & share nameplates (`cg_nameplate`) replaces Share my bars: seeing nameplates shares
@@ -559,6 +578,9 @@ into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author
   what's-new card can ask players to choose a changed setting again.
 - #163 a shader remap to content the player lacks is looked up and logged once a map, ending
   ~400 ms hitches at skin changes on JoF's night ffa3.
+- #194 JoF EternalJK takes part in SJK chat: its messages start with its icon, and on JoF
+  servers SJK chat is said in All chat too (moved into JoF tools at JoF's request, with a
+  one-time notice), each line shown once and labelled ALL/SJK.
 
 ## Art
 
@@ -575,6 +597,18 @@ palette with pink as its main colour, light purple and white mist, afterimages m
 falling blossoms like the Spectral's, and a branch with a flower where the blade starts
 (and one day a wooden hilt). Sol built it as the Varykino Blossom, a Mythical saber shader
 (blade 166, 21/10/2026), with all of it but the hilt, which waits for custom hilts.
+
+Turin, a player, asked for private messages to be heard with the public chat sounds off:
+Sol built chat sounds by kind, each with its own sound (23/10/2026).
+
+Rollembones, a player, asked for emotes to stay on while typing: Sol built it as
+Typing keeps emote in Settings > Sound > Emotes (23/10/2026).
+
+Sanjisan, a player, asked to whisper a player by clicking their name in the chat: Sol
+built it as the pinned chat card's Whisper button (23/10/2026).
+
+Nib, a player, asked to choose the saber sounds apart from the saber shader (18/10/2026,
+and hub report #109): Sol built it as the Saber tab's Sounds row (23/10/2026).
 
 ## Tools
 

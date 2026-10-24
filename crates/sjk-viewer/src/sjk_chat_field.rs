@@ -1,7 +1,10 @@
 //! Typing and pasting into an SJK chat field: the SJK chat page's
 //! (`sjk_chat_panel.rs`) and the docks' (`menu/sjk/chat_dock.rs`, on the main
-//! page and the in-game menu). The caret is at the end of the draft, so typing and
-//! pasting add there and Backspace takes the last character back.
+//! page and the in-game menu). The caret moves as in the console
+//! ([`crate::console::line_edit`]): Left and Right by a character, with Ctrl by a word,
+//! Home and End to the ends; typing and pasting go in at it, Backspace and Delete take
+//! the character before or after it (Rollembones' report, 22/10/2026: the arrows did
+//! not move it). The GIF picker's search ([`key_into`]) keeps its caret at the end.
 //!
 //! Ctrl+V (and Shift+Insert, as in the console and the game's chat) pastes the
 //! clipboard's text as the hub would take it ([`sjk_identity::chat`]): line breaks and
@@ -11,6 +14,7 @@
 //! a colour code. A GIPHY link is pasted as its shortest address
 //! ([`crate::chat_gifs::link::shortened`]), so a share link with its query fits.
 
+use crate::console::line_edit::{LineEdit, Motion};
 use sjk_identity::chat::TEXT_MAX;
 use winit::keyboard::KeyCode;
 
@@ -49,6 +53,95 @@ pub(crate) fn key_into(
     }
 }
 
+/// A key that moves `edit`'s caret in `draft` or deletes at it: Left and Right (by a word
+/// with Ctrl), Home, End, Backspace and Delete (a word with Ctrl). Whether it was one.
+pub(crate) fn caret_key(
+    draft: &mut String,
+    edit: &mut LineEdit,
+    key: KeyCode,
+    control: bool,
+) -> bool {
+    let (left, right) = if control {
+        (Motion::WordLeft, Motion::WordRight)
+    } else {
+        (Motion::Left, Motion::Right)
+    };
+    match key {
+        KeyCode::ArrowLeft => edit.motion(draft, left, false),
+        KeyCode::ArrowRight => edit.motion(draft, right, false),
+        KeyCode::Home => edit.motion(draft, Motion::Home, false),
+        KeyCode::End => edit.motion(draft, Motion::End, false),
+        KeyCode::Backspace => edit.delete(draft, left),
+        KeyCode::Delete => edit.delete(draft, right),
+        _ => return false,
+    }
+    true
+}
+
+/// [`key_into`] at `edit`'s caret: a paste or typed text goes in there, up to [`MAX`]
+/// characters for the whole draft, and the caret follows it.
+pub(crate) fn key_at(
+    draft: &mut String,
+    edit: &mut LineEdit,
+    key: KeyCode,
+    text: Option<&str>,
+    shift: bool,
+    control: bool,
+) {
+    if is_paste(key, text, shift, control) {
+        if let Some(clipboard) = crate::console::clipboard::paste() {
+            paste_at(draft, edit, &clipboard);
+        }
+    } else if let Some(text) = text {
+        edit.insert_counted(draft, text, MAX, |_| 1);
+    }
+}
+
+/// Pasted `text` put in `draft` at `edit`'s caret, as [`paste_into`] takes it, the caret
+/// after it.
+pub(crate) fn paste_at(draft: &mut String, edit: &mut LineEdit, text: &str) {
+    let tail = draft.split_off(edit.cursor(draft));
+    paste_limited(draft, text, MAX.saturating_sub(tail.chars().count()));
+    edit.place(draft, draft.len(), false);
+    draft.push_str(&tail);
+}
+
+/// `draft` as a field shows it, `mark` at the byte `caret`, cut to about `room`
+/// characters around the caret: the end of a long draft, or the part from the caret on
+/// when the caret is further back, with "..." where text is left out.
+pub(crate) fn with_caret(draft: &str, caret: usize, mark: &str, room: usize) -> String {
+    let mut caret = caret.min(draft.len());
+    while !draft.is_char_boundary(caret) {
+        caret -= 1;
+    }
+    let caret = draft[..caret].chars().count();
+    let count = draft.chars().count();
+    let (start, end) = if count <= room {
+        (0, count)
+    } else if caret + room.saturating_sub(3) >= count {
+        (count - room.saturating_sub(3), count)
+    } else {
+        (caret, caret + room.saturating_sub(6))
+    };
+    let mut shown = String::with_capacity(draft.len() + mark.len() + 6);
+    if start > 0 {
+        shown.push_str("...");
+    }
+    for (index, c) in draft.chars().enumerate().take(end).skip(start) {
+        if index == caret {
+            shown.push_str(mark);
+        }
+        shown.push(c);
+    }
+    if caret >= end {
+        shown.push_str(mark);
+    }
+    if end < count {
+        shown.push_str("...");
+    }
+    shown
+}
+
 /// Typed `text` added to `draft`, control characters left out, up to [`MAX`] characters.
 pub(crate) fn type_into(draft: &mut String, text: &str) {
     let room = MAX.saturating_sub(draft.chars().count());
@@ -57,6 +150,11 @@ pub(crate) fn type_into(draft: &mut String, text: &str) {
 
 /// Pasted `text` added to `draft` as the chat takes it (see the module's rules).
 pub(crate) fn paste_into(draft: &mut String, text: &str) {
+    paste_limited(draft, text, MAX);
+}
+
+/// [`paste_into`], up to `max` characters for `draft`.
+fn paste_limited(draft: &mut String, text: &str, max: usize) {
     // Spaces first, so a link split from its neighbours by a line break is found.
     let spaced: String = text
         .chars()
@@ -82,7 +180,7 @@ pub(crate) fn paste_into(draft: &mut String, text: &str) {
             _ => continue,
         };
         let width = 1 + usize::from(second.is_some());
-        if count + width > MAX {
+        if count + width > max {
             break;
         }
         draft.push(first);
@@ -185,6 +283,102 @@ mod tests {
         assert_eq!(pasted(&two_left, "^1x"), format!("{two_left}^1"));
         // Characters count, not bytes.
         assert_eq!(pasted("", &"é".repeat(MAX + 50)).chars().count(), MAX);
+    }
+
+    #[test]
+    fn the_caret_moves_and_edits_inside_the_draft() {
+        let mut draft = String::new();
+        let mut edit = LineEdit::default();
+        key_at(
+            &mut draft,
+            &mut edit,
+            KeyCode::KeyH,
+            Some("helo"),
+            false,
+            false,
+        );
+        assert!(caret_key(&mut draft, &mut edit, KeyCode::ArrowLeft, false));
+        key_at(
+            &mut draft,
+            &mut edit,
+            KeyCode::KeyL,
+            Some("l"),
+            false,
+            false,
+        );
+        assert_eq!(draft, "hello");
+        assert_eq!(edit.cursor(&draft), 4);
+        assert!(caret_key(&mut draft, &mut edit, KeyCode::Home, false));
+        key_at(
+            &mut draft,
+            &mut edit,
+            KeyCode::KeyO,
+            Some("oh "),
+            false,
+            false,
+        );
+        assert_eq!(draft, "oh hello");
+        assert!(caret_key(&mut draft, &mut edit, KeyCode::Backspace, false));
+        assert!(caret_key(&mut draft, &mut edit, KeyCode::Delete, false));
+        assert_eq!(draft, "ohello");
+        assert!(caret_key(&mut draft, &mut edit, KeyCode::End, false));
+        assert_eq!(edit.cursor(&draft), draft.len());
+        // Ctrl jumps a word.
+        let mut draft = "one two three".to_owned();
+        let mut edit = LineEdit::default();
+        edit.to_end(&draft);
+        assert!(caret_key(&mut draft, &mut edit, KeyCode::ArrowLeft, true));
+        assert_eq!(edit.cursor(&draft), 8);
+        assert!(caret_key(&mut draft, &mut edit, KeyCode::ArrowLeft, true));
+        assert_eq!(edit.cursor(&draft), 4);
+        assert!(caret_key(&mut draft, &mut edit, KeyCode::ArrowRight, true));
+        assert_eq!(edit.cursor(&draft), 8);
+        assert!(!caret_key(&mut draft, &mut edit, KeyCode::KeyA, false));
+        // A caret left past a cleared draft starts again at its start.
+        draft.clear();
+        key_at(
+            &mut draft,
+            &mut edit,
+            KeyCode::KeyA,
+            Some("a"),
+            false,
+            false,
+        );
+        assert_eq!(draft, "a");
+    }
+
+    #[test]
+    fn typing_and_pasting_at_the_caret_keep_the_limit() {
+        let mut draft = "a".repeat(MAX - 2);
+        let mut edit = LineEdit::default();
+        key_at(
+            &mut draft,
+            &mut edit,
+            KeyCode::KeyB,
+            Some("bcd"),
+            false,
+            false,
+        );
+        assert_eq!(draft, format!("bc{}", "a".repeat(MAX - 2)));
+        let mut draft = format!("x{}", "a".repeat(MAX - 4));
+        let mut edit = LineEdit::default();
+        edit.place(&draft, 1, false);
+        paste_at(&mut draft, &mut edit, " ^1red");
+        assert_eq!(draft, format!("x ^1{}", "a".repeat(MAX - 4)));
+        assert_eq!(edit.cursor(&draft), 4);
+    }
+
+    #[test]
+    fn the_field_shows_its_caret_where_it_is() {
+        assert_eq!(with_caret("hello", 2, "|", 96), "he|llo");
+        assert_eq!(with_caret("hello", 5, "|", 96), "hello|");
+        assert_eq!(with_caret("f\u{ea}te", 3, "|", 96), "f\u{ea}|te");
+        let long = "abcdefghij";
+        // The end shows while the caret is in it, else the part from the caret on.
+        assert_eq!(with_caret(long, 10, "|", 8), "...fghij|");
+        assert_eq!(with_caret(long, 6, "|", 8), "...f|ghij");
+        assert_eq!(with_caret(long, 2, "|", 8), "...|cd...");
+        assert_eq!(with_caret(long, 0, "|", 8), "|ab...");
     }
 
     #[test]

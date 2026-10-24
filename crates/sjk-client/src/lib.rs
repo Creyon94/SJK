@@ -161,8 +161,9 @@ pub use character_catalog::{
     legacy_character_catalog, legacy_character_catalog_with_policy,
 };
 pub use chat::{
-    CHAT_INPUT_BYTES, ChatDestination, ChatRoster, ChatTarget, chat_body, chat_command,
-    chat_display_text, chat_input_fits, chat_name_key, chat_plain_text, chat_unescape,
+    CHAT_INPUT_BYTES, ChatDestination, ChatRoster, ChatTarget, SJK_COPY_TAG, chat_body,
+    chat_command, chat_display_text, chat_input_fits, chat_name_key, chat_plain_text,
+    chat_unescape, sjk_copy_id, sjk_copy_marker,
 };
 pub use client_commands::{CompatConsoleCommand, console_commands as compat_console_commands};
 pub use compat_profile::{CompatProfile, PLUGIN_DISABLE_DEFAULT, PLUGIN_IDENTITY_KEY};

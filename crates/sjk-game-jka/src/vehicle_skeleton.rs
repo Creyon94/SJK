@@ -112,6 +112,9 @@ pub struct VehicleSkeleton {
 /// `NPC_SetBoneAngles`' blend time.
 pub const NPC_BONE_BLEND: i32 = 100;
 
+/// `CG_SetLerpFrameAnimation`'s `blendTime` for an animation that neither flips nor dies.
+pub const CGAME_BLEND: u16 = 100;
+
 impl VehicleSkeleton {
     /// A vehicle's skeleton as its spawn leaves it: nothing installed.
     pub fn new(models: &VehicleModels) -> Self {
@@ -134,15 +137,41 @@ impl VehicleSkeleton {
         speed_scale: f32,
         level_time: i32,
     ) -> Result<(), ModelError> {
+        self.install(models, legs, flip, speed_scale, level_time, None)
+    }
+
+    /// `CG_SetLerpFrameAnimation` on a vehicle's `model_root` (`cg_players.c`): the legs'
+    /// animation as the client draws it, started at the cgame `time` it is first presented
+    /// and blended over `cg_animBlend`'s [`CGAME_BLEND`], where it changed (or started again).
+    pub fn present_animation(
+        &mut self,
+        models: &VehicleModels,
+        legs: u16,
+        flip: bool,
+        time: i32,
+    ) -> Result<(), ModelError> {
+        self.install(models, legs, flip, 1.0, time, Some(CGAME_BLEND))
+    }
+
+    fn install(
+        &mut self,
+        models: &VehicleModels,
+        legs: u16,
+        flip: bool,
+        speed_scale: f32,
+        time: i32,
+        blend_millis: Option<u16>,
+    ) -> Result<(), ModelError> {
         let sequence = models.sequence(legs);
         if sequence.is_empty() || self.installed == (legs, flip) {
             return Ok(());
         }
-        self.pose.set_bone_animation(
-            &models.gla,
-            models.root,
-            command(sequence, legs, speed_scale, i64::from(level_time)),
-        )?;
+        let mut command = command(sequence, legs, speed_scale, i64::from(time));
+        if let Some(blend_millis) = blend_millis {
+            command.blend_millis = blend_millis;
+        }
+        self.pose
+            .set_bone_animation(&models.gla, models.root, command)?;
         self.installed = (legs, flip);
         self.changed = true;
         Ok(())

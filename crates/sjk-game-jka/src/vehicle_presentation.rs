@@ -12,6 +12,9 @@ pub struct WeaponPresentation {
     pub model: Option<String>,
     /// Optional flight loop.
     pub loop_sound: Option<String>,
+    /// `muzzleFX`: the flash `EV_VEH_FIRE` plays bolted to the muzzle that fired
+    /// (`CG_VehMuzzleFireFX`). Its `Sound` primitive is the weapon's firing sound.
+    pub muzzle_effect: Option<String>,
 }
 
 pub(crate) fn parse(text: &[u8], name: &[u8]) -> WeaponPresentation {
@@ -32,6 +35,8 @@ pub(crate) fn parse(text: &[u8], name: &[u8]) -> WeaponPresentation {
             Some(&mut result.model)
         } else if key.eq_ignore_ascii_case(b"loopSound") {
             Some(&mut result.loop_sound)
+        } else if key.eq_ignore_ascii_case(b"muzzleFX") {
+            Some(&mut result.muzzle_effect)
         } else {
             None
         };
@@ -44,4 +49,26 @@ pub(crate) fn parse(text: &[u8], name: &[u8]) -> WeaponPresentation {
         }
     }
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_weapon_names_its_muzzle_flash() {
+        let text = b"WeaponA
+{
+	muzzleFX	ships/reb_blastermuzzleflash
+	shotFX	ships/reb_blastershot
+}
+";
+        let weapon = parse(text, b"WeaponA");
+        assert_eq!(
+            weapon.muzzle_effect.as_deref(),
+            Some("ships/reb_blastermuzzleflash")
+        );
+        assert_eq!(weapon.shot_effect.as_deref(), Some("ships/reb_blastershot"));
+        assert_eq!(parse(text, b"WeaponB"), WeaponPresentation::default());
+    }
 }

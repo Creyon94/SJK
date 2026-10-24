@@ -8,6 +8,10 @@
 //! The variant is the talk sound a little higher and quicker, cut short, faded and
 //! given a short echo, so it is recognisably the game's chat sound and still tells an
 //! SJK message from a game server's.
+//!
+//! An end-to-end encrypted whisper (`e2e_whispers.rs`) has a variant of its own,
+//! [`whisper_variant`] under [`WHISPER_KEY`]: the talk sound a little lower and slower,
+//! shorter, with one soft echo, so a private message sounds apart from both.
 
 use super::GameAudio;
 use sjk_audio::{ChannelId, SourceId};
@@ -19,6 +23,8 @@ pub(crate) const TALK: &str = "sound/player/talk.wav";
 
 /// The made sound's name among the handles; no file has it (no game path starts `*`).
 pub(crate) const HANDLE_KEY: &str = "*sjk/chat";
+/// The encrypted whisper's made sound's name among the handles.
+pub(crate) const WHISPER_KEY: &str = "*sjk/whisper";
 
 /// How much faster (and so higher) the talk sound plays.
 const PITCH: f64 = 1.122;
@@ -38,17 +44,66 @@ const WET: f32 = 0.6;
 /// The last gain, bringing the variant to the talk sound's own loudness.
 const LEVEL: f32 = 1.5494;
 
+/// How a variant is made from the talk sound: [`variant`]'s steps, each with its own
+/// numbers.
+struct Recipe {
+    pitch: f64,
+    keep: f64,
+    fade_start: f64,
+    fade_length: f64,
+    dry: f32,
+    taps: &'static [(f64, f32)],
+    wet: f32,
+    level: f32,
+}
+
+/// The SJK chat's sound.
+const CHAT: Recipe = Recipe {
+    pitch: PITCH,
+    keep: KEEP,
+    fade_start: FADE_START,
+    fade_length: FADE_LENGTH,
+    dry: DRY,
+    taps: &TAPS,
+    wet: WET,
+    level: LEVEL,
+};
+
+/// An encrypted whisper's: about a semitone lower and slower, half a second, and one
+/// echo after 110 ms, so it reads as two soft notes. Its dry and echo gains add up to
+/// the chat sound's, so it is as loud, a little under it.
+const WHISPER: Recipe = Recipe {
+    pitch: 0.944,
+    keep: 0.50,
+    fade_start: 0.34,
+    fade_length: 0.16,
+    dry: 0.8,
+    taps: &[(0.110, 0.45)],
+    wet: 0.6,
+    level: 1.40,
+};
+
 /// Make the SJK chat sound from the talk sound's mono `talk` samples at `rate` Hz: play
 /// them [`PITCH`] times faster (pitch and speed rise together, [`quicken`]), keep the
 /// first [`KEEP`] seconds and fade their last [`FADE_LENGTH`] out ([`fade`]), add the two
 /// echo [`TAPS`] ([`echo`]) and bring it to the original's level, clamped to `[-1, 1]`.
 /// At 44.1 kHz a long enough talk sound gives 0.74 seconds.
 pub(crate) fn variant(talk: &[f32], rate: u32) -> Vec<f32> {
-    let mut sound = quicken(talk, seconds(KEEP, rate));
-    fade(&mut sound, rate);
-    let mut sound = echo(&sound, rate);
+    make(&CHAT, talk, rate)
+}
+
+/// Make the encrypted whisper's sound from the talk sound, as [`variant`] does with
+/// the [`WHISPER`] recipe.
+pub(crate) fn whisper_variant(talk: &[f32], rate: u32) -> Vec<f32> {
+    make(&WHISPER, talk, rate)
+}
+
+fn make(recipe: &Recipe, talk: &[f32], rate: u32) -> Vec<f32> {
+    let mut sound = quicken_by(talk, seconds(recipe.keep, rate), recipe.pitch);
+    fade_by(&mut sound, rate, recipe.fade_start, recipe.fade_length);
+    let mut sound = echo_by(&sound, rate, recipe);
     for sample in &mut sound {
-        *sample = (*sample * LEVEL).clamp(-1.0, 1.0);
+        *sample = (*sample * recipe.level).clamp(-1.0, 1.0);
     }
     sound
 }
@@ -60,17 +115,29 @@ fn seconds(time: f64, rate: u32) -> usize {
 
 /// `talk` played [`PITCH`] times faster: sample n is the talk sound at n * PITCH, so
 /// the sound is that much shorter and higher; at most `keep` samples of it.
+#[cfg(test)]
 fn quicken(talk: &[f32], keep: usize) -> Vec<f32> {
-    let length = ((talk.len() as f64) / PITCH).ceil() as usize;
+    quicken_by(talk, keep, PITCH)
+}
+
+/// `talk` played `pitch` times as fast (slower and lower under 1).
+fn quicken_by(talk: &[f32], keep: usize, pitch: f64) -> Vec<f32> {
+    let length = ((talk.len() as f64) / pitch).ceil() as usize;
     (0..length.min(keep))
-        .map(|n| read_at(talk, n as f64 * PITCH))
+        .map(|n| read_at(talk, n as f64 * pitch, pitch))
         .collect()
 }
 
 /// Fade `sound` out linearly from [`FADE_START`] to silence [`FADE_LENGTH`] later.
+#[cfg(test)]
 fn fade(sound: &mut [f32], rate: u32) {
-    let start = seconds(FADE_START, rate);
-    let length = seconds(FADE_LENGTH, rate).max(1) as f32;
+    fade_by(sound, rate, FADE_START, FADE_LENGTH);
+}
+
+/// Fade `sound` out linearly from `start` seconds to silence `length` seconds later.
+fn fade_by(sound: &mut [f32], rate: u32, start: f64, length: f64) {
+    let start = seconds(start, rate);
+    let length = seconds(length, rate).max(1) as f32;
     for (n, sample) in sound.iter_mut().enumerate().skip(start) {
         *sample *= (1.0 - (n - start) as f32 / length).max(0.0);
     }
@@ -78,19 +145,29 @@ fn fade(sound: &mut [f32], rate: u32) {
 
 /// `sound` at [`DRY`] plus its copies [`TAPS`] later, all scaled by [`WET`]; the copies
 /// read `sound` itself, never the echo, and the result is longer by the longest delay.
+#[cfg(test)]
 fn echo(sound: &[f32], rate: u32) -> Vec<f32> {
-    let taps = TAPS.map(|(delay, gain)| (seconds(delay, rate), gain));
+    echo_by(sound, rate, &CHAT)
+}
+
+/// `sound` with `recipe`'s echo.
+fn echo_by(sound: &[f32], rate: u32, recipe: &Recipe) -> Vec<f32> {
+    let taps: Vec<(usize, f32)> = recipe
+        .taps
+        .iter()
+        .map(|(delay, gain)| (seconds(*delay, rate), *gain))
+        .collect();
     let longest = taps.iter().map(|(delay, _)| *delay).max().unwrap_or(0);
     let at = |n: usize| sound.get(n).copied().unwrap_or(0.0);
     (0..sound.len() + longest)
         .map(|n| {
-            let mut sum = DRY * at(n);
-            for (delay, gain) in taps {
+            let mut sum = recipe.dry * at(n);
+            for &(delay, gain) in &taps {
                 if let Some(earlier) = n.checked_sub(delay) {
                     sum += gain * at(earlier);
                 }
             }
-            sum * WET
+            sum * recipe.wet
         })
         .collect()
 }
@@ -104,12 +181,12 @@ const CUTOFF: f64 = 0.97;
 /// The kernel's Kaiser window shape.
 const KAISER_BETA: f64 = 9.0;
 
-/// `talk` read at the fractional sample `at`, band-limited for reading it [`PITCH`] times
-/// faster: a windowed sinc (Kaiser) with its cut-off at [`CUTOFF`] of the quickened
-/// sound's Nyquist frequency. A straight line between two samples would dull the
-/// sound's highs.
-fn read_at(talk: &[f32], at: f64) -> f32 {
-    let cutoff = CUTOFF / PITCH;
+/// `talk` read at the fractional sample `at`, band-limited for reading it `pitch` times
+/// as fast: a windowed sinc (Kaiser) with its cut-off at [`CUTOFF`] of the quickened
+/// sound's Nyquist frequency (of the talk sound's, read slower). A straight line
+/// between two samples would dull the sound's highs.
+fn read_at(talk: &[f32], at: f64, pitch: f64) -> f32 {
+    let cutoff = CUTOFF / pitch.max(1.0);
     let reach = KERNEL_ZEROS / cutoff;
     let first = (at - reach).ceil().max(0.0) as usize;
     let last = ((at + reach).floor().max(0.0) as usize).min(talk.len().saturating_sub(1));
@@ -169,12 +246,47 @@ impl GameAudio {
         self.output
             .decode_variant(handle, &asset.bytes, extension, variant);
         self.handles.insert(HANDLE_KEY.to_owned(), handle);
+        let whisper = sjk_audio::SoundHandle(self.next_handle);
+        self.next_handle = self.next_handle.wrapping_add(1);
+        self.output
+            .decode_variant(whisper, &asset.bytes, extension, whisper_variant);
+        self.handles.insert(WHISPER_KEY.to_owned(), whisper);
     }
 
     /// Play the SJK chat sound as the game's chat beep plays: beside the listener, at
-    /// full volume under `s_volume`, on its own interface channel (`channel`).
+    /// full volume under `s_volume`, on its own interface channel (`channel`). The
+    /// sound chosen for SJK chat messages plays instead of the made one, and none while
+    /// they are switched off (`chat_sounds.rs`).
     pub(super) fn play_sjk_chat(&mut self, source: SourceId, channel: ChannelId) {
-        self.play_local(HANDLE_KEY, 1.0, source, channel);
+        self.play_chat_kind(crate::chat_sounds::Kind::Sjk, HANDLE_KEY, source, channel);
+    }
+
+    /// Play the encrypted whisper's sound, as [`GameAudio::play_sjk_chat`]: a private
+    /// message, so the private messages' switch and sound decide.
+    pub(super) fn play_encrypted_whisper(&mut self, source: SourceId, channel: ChannelId) {
+        self.play_chat_kind(
+            crate::chat_sounds::Kind::Private,
+            crate::chat_sounds::Kind::whisper_default(),
+            source,
+            channel,
+        );
+    }
+
+    /// Play a `kind` message's sound, `default` when its choice is the default.
+    fn play_chat_kind(
+        &mut self,
+        kind: crate::chat_sounds::Kind,
+        default: &str,
+        source: SourceId,
+        channel: ChannelId,
+    ) {
+        use crate::chat_sounds::Route;
+        let key = match self.chat_sounds.route(kind) {
+            Route::Muted => return,
+            Route::Default => default,
+            Route::Sound(key) => key,
+        };
+        self.play_local(key, 1.0, source, channel);
     }
 }
 
@@ -284,5 +396,27 @@ mod tests {
         let loud = variant(&vec![1.0; 44_100], RATE);
         assert!(loud.iter().all(|sample| (-1.0..=1.0).contains(sample)));
         assert!(loud.contains(&1.0));
+    }
+
+    #[test]
+    fn the_whisper_sound_is_lower_shorter_and_echoes_once() {
+        // 0.50 s kept and one echo 110 ms after it.
+        let made = whisper_variant(&sine(300.0, 1.5, 0.3), RATE);
+        assert_eq!(made.len(), 22_050 + 4_851);
+        // 400 Hz read slower is about 377.6 Hz.
+        let slow = quicken_by(&sine(400.0, 1.0, 0.5), usize::MAX, WHISPER.pitch);
+        let first = rising(&slow, 1_000);
+        let tenth = (0..10).fold(first, |at, _| rising(&slow, at as usize + 2));
+        let period = (tenth - first) / 10.0;
+        assert!(
+            (period - 44_100.0 / (400.0 * WHISPER.pitch)).abs() < 0.01,
+            "{period}"
+        );
+        let mut impulse = vec![0.0; 1_000];
+        impulse[0] = 1.0;
+        let echoed = echo_by(&impulse, RATE, &WHISPER);
+        assert_eq!(echoed[4_851], 0.45 * 0.6, "110 ms");
+        let loud = whisper_variant(&vec![1.0; 44_100], RATE);
+        assert!(loud.iter().all(|sample| (-1.0..=1.0).contains(sample)));
     }
 }

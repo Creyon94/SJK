@@ -14,6 +14,8 @@ pub mod destruction;
 pub mod dialogue;
 /// JoF server firing-confirmation contracts and repeat policy.
 pub mod feedback;
+/// SJK chat said in All chat on JoF servers, and the notice that tells the player.
+pub mod sjk_chat;
 /// Player opt-in to the JoF EJK server extension, separate from client identity.
 pub const EJK_OPT_IN: &str = "jof.ejkOptIn";
 /// Local confirmation sound preference, kept while the mod is unloaded.
@@ -38,6 +40,11 @@ const SETTINGS: &[Setting] = &[
         name: ABILITY_SOUNDS,
         default: sjk_mod::SettingValue::Bool(true),
         help: "Play installed Stasis/Repulse confirmation sounds from a JoF server",
+    },
+    Setting {
+        name: sjk_chat::NOTICE,
+        default: sjk_mod::SettingValue::Bool(true),
+        help: "Show the card saying SJK chat is said in All chat on the next JoF server",
     },
 ];
 const USERINFO: &[UserinfoField] = &[UserinfoField {

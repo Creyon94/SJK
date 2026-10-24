@@ -85,6 +85,7 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
     crate::text::style::register(cvars)?;
     crate::text::charset::register(cvars)?;
     crate::menu_hud::register(cvars)?;
+    crate::chat_sounds::register(cvars)?;
     let archive = CvarFlags::ARCHIVE;
     let definitions = [
         CvarDefinition::new(
@@ -513,6 +514,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "An attack or alt attack ends your own emote (SJK)",
         ),
         CvarDefinition::new(
+            crate::emotes::TYPING_KEEP_CVAR,
+            crate::emotes::DEFAULT_TYPING_KEEP,
+            archive,
+            "A player typing keeps their emote until they move or attack after (SJK)",
+        ),
+        CvarDefinition::new(
             crate::away_emote::SJK_CVAR,
             crate::away_emote::NONE,
             archive,
@@ -707,6 +714,18 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "The Order 66 toy is on (toy_order66 switches it; it stays on until turned off)",
         ),
         CvarDefinition::new(
+            crate::hax::TRAP_CVAR,
+            false,
+            archive,
+            "Hax trap: a player who hacks you springs it, and you both blow up as in Order 66",
+        ),
+        CvarDefinition::new(
+            crate::hax::AWAY_CVAR,
+            false,
+            archive,
+            "With the Hax trap on, players may hack you while you are away (it shows on your look)",
+        ),
+        CvarDefinition::new(
             crate::toy_saved::HAX_CVAR,
             false,
             archive,
@@ -815,6 +834,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "",
             archive,
             "The blade skin your sabers wear, by unlock id (saber_sun: the Sun blade), shown once your SJK profile holds it; empty for the stock blade",
+        ),
+        CvarDefinition::new(
+            crate::saber_sound_choice::CVAR,
+            "",
+            archive,
+            "The saber sounds you hear and other SJK players hear for your sabers: empty follows your saber shader, stock the stock sounds, or a shader you own by unlock id (saber_sun: the Sun blade's)",
         ),
         CvarDefinition::new(
             crate::saber_skin_options::CVAR,
@@ -973,6 +998,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "Play a sound when an SJK chat message arrives, yours included (cg_chatSounds 0 silences it too)",
         ),
         CvarDefinition::new(
+            crate::chat::client_icons::CVAR,
+            true,
+            archive,
+            "Start an SJK chat message sent from another known client (JoF EternalJK) with its icon instead of SJK's emblem",
+        ),
+        CvarDefinition::new(
             crate::chat_gifs::CVAR,
             true,
             archive,
@@ -983,6 +1014,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             false,
             archive,
             "Play silent MP4 clips from trusted SJK chat sources with Windows' built-in decoder (off by default: Windows code, not SJK's Rust, reads these internet files)",
+        ),
+        CvarDefinition::new(
+            crate::e2e_whispers::CVAR,
+            true,
+            archive,
+            "Whisper other SJK players end-to-end encrypted through the SJK hub: only the two of you can read it (0 sends every whisper through the game server)",
         ),
         CvarDefinition::new(
             crate::chat_gifs::search::KEY_CVAR,
@@ -1163,7 +1200,7 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             crate::jof_tag::CVAR,
             true,
             archive,
-            "Show a known clan's emblem left of names carrying its tag (JoF, JoFA, JAWA)",
+            "Show a known clan's emblem left of names carrying its tag (JoF, JoFA, JAWA, {{S}})",
         ),
         CvarDefinition::new(
             "cg_drawScoreboardIcons",

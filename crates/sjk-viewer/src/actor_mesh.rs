@@ -19,6 +19,9 @@ pub(crate) struct ActorMesh {
     pub(crate) holsters: crate::holstered_sabers::pose::Worn,
     /// A vehicle's driver bolt in this frame's pose, model space.
     pub(crate) driver_seat: Option<[f32; 3]>,
+    /// A vehicle's muzzles in this frame's pose, model space (`vehicle_fire.rs`).
+    pub(crate) vehicle_muzzles:
+        [Option<crate::vehicle_fire::Muzzle>; sjk_game_jka::vehicle_fields::VEHICLE_MUZZLES],
     pub(crate) saber_names: [Option<String>; 2],
     pub(crate) angle_controller: sjk_client::LegacyPlayerAngleController,
     pub(crate) render_yaw_degrees: Option<f32>,
@@ -42,4 +45,6 @@ pub(crate) struct ActorMesh {
     pub(crate) surfaces: crate::dismember::Surfaces,
     /// Set on a cut-off limb's mesh (`CG_General`'s client-limb case).
     pub(crate) limb: Option<crate::dismember::Limb>,
+    /// The Ragdoll toy's pose of this actor, while its player is limp.
+    pub(crate) ragdoll: crate::ragdoll::Scratch,
 }

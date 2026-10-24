@@ -174,7 +174,18 @@ pub(super) fn apply(
             .is_some_and(|play| stock.pose(driver, play, &mut mesh.preview.stock_pose)),
         _ => false,
     };
-    let matrices: &[[[f32; 4]; 3]] = if emote {
+    // A limp player (the Ragdoll toy) is drawn, bolts and all, as the ragdoll lies.
+    let ragdoll = mesh
+        .entity_id
+        .filter(|_| mesh.limb.is_none() && !mesh.corpse_pool)
+        .and_then(crate::ragdoll::shown_entity)
+        .is_some_and(|points| {
+            crate::ragdoll::pose(&mut mesh.ragdoll, &mesh.preview.animation, &points)
+        });
+    mesh.ragdoll.posed = ragdoll;
+    let matrices: &[[[f32; 4]; 3]] = if ragdoll {
+        &mesh.ragdoll.matrices
+    } else if emote {
         &mesh.preview.stock_pose.matrices
     } else {
         driver
@@ -206,6 +217,7 @@ pub(super) fn apply(
         mesh.force_bones.update_head(&mesh.preview, matrices);
         mesh.weapon_attachments = crate::saber::attachments_from_matrices(&mesh.preview, matrices);
         mesh.driver_seat = crate::vehicle_pose::driver_seat(&mesh.preview, matrices);
+        crate::vehicle_fire::muzzles(&mesh.preview, matrices, &mut mesh.vehicle_muzzles);
         mesh.cosmetics.update_bolts(&mesh.preview, matrices);
         mesh.jetpack.update(&mesh.preview, matrices);
         mesh.holsters.update(&mesh.preview, matrices);
@@ -227,6 +239,7 @@ pub(super) fn apply(
     mesh.force_bones.update_head(&mesh.preview, matrices);
     mesh.weapon_attachments = crate::saber::attachments_from_matrices(&mesh.preview, matrices);
     mesh.driver_seat = crate::vehicle_pose::driver_seat(&mesh.preview, matrices);
+    crate::vehicle_fire::muzzles(&mesh.preview, matrices, &mut mesh.vehicle_muzzles);
     mesh.cosmetics.update_bolts(&mesh.preview, matrices);
     mesh.jetpack.update(&mesh.preview, matrices);
     mesh.holsters.update(&mesh.preview, matrices);

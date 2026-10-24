@@ -24,6 +24,258 @@
 
 # ---- Console & chat ----
 
+[ragdoll-toy]
+area: Gameplay
+title: Ragdoll toy: go limp and fall, sandbox style
+change: toy_ragdoll (bind, quick wheel Toys, Collection > Toys) toggles a limp body.
+change: Flatline + game body-fall sounds; camera behind the body; others see the same fall.
+change: Your real body walks to the ragdoll; getting hurt, a duel or the flag gets you up.
+test: Bind a key to toy_ragdoll, press it standing: you crumple, flatline, mouse turns camera.
+test: Run and jump, press it: the body tumbles on; off a ledge it falls down.
+test: Press again: you stand where the body lay, your view as before.
+test: A second SJK client sees the same fall in the same place; a JKA client sees you walk.
+test: Get hit while limp: "Ouch! You got up". In a duel: "No ragdoll in a duel".
+
+[staff-owner-actions]
+area: Menus & settings
+title: Staff page: giving, taking back and merging are the owner's
+change: Non-creator staff see medal/unlock/holocron/credit/clear/merge/unlink dimmed.
+change: Tab skips them, a press does nothing; the hub refuses them too (creator_only).
+test: As Sol: every Staff page button works as before.
+test: As other staff: those buttons dimmed, the tab says it is to read; mute still works.
+
+[emote-typing-keep]
+area: Gameplay
+title: Emotes: typing keeps your emote until you move after
+change: Settings > Sound > Emotes: Typing keeps emote (cg_emoteTypingKeep, default 1).
+change: A player with chat, console or a menu open keeps the emote even if pushed.
+test: Dance, open the chat, get pushed (force push, a mover): still dancing.
+test: Close the chat without moving: still dancing. Walk a step: it ends.
+test: A second SJK client sees the same; with cg_emoteTypingKeep 0 a push ends it.
+
+[emote-alttab-quiet]
+area: Audio
+title: Alt-tab always silences your emote's music
+change: Alt-tabbed or minimised, your emote goes quiet for everyone, even with cg_awayAltTab 0.
+change: cg_awayAltTab now only decides whether the away emote starts.
+test: cg_awayAltTab 0, dance with music, alt-tab: a second SJK client hears it stop.
+test: Come back: the music plays again from where it is. No emote + alt-tab: nothing starts.
+
+[chat-name-actions]
+area: Console & chat
+title: Click a chat name: pinned card with Whisper and Block (Bishop, Sanjisan)
+change: With the chat open, a click on a name pins the sender card; Whisper heads its buttons.
+change: Whisper turns the composer to that player (encrypted when they take it, else tell).
+test: Open chat, click a player's name: the card stays when the pointer leaves it.
+test: Whisper: the composer says To <name>; send: they get it (pink ENCRYPTED if SJK).
+test: Escape closes the card first, then the chat; a click elsewhere closes the card.
+test: Your own name and a player who left show no Whisper.
+
+[saber-sound-pick]
+area: Audio
+title: Saber sounds chosen apart from the shader (Nib's idea, hub #109)
+change: Profile > Saber > Sounds: Follow shader, Stock, or an owned shader's sounds.
+change: cg_saberSounds; sent in the look (saber_sounds) once the hub takes the field.
+test: Profile > Saber: Sounds row under Blade. Step it, Preview plays ignition + hum.
+test: Wear the Storm, pick Void sounds: ignite and swing in game, the Void is heard.
+test: Pick Stock: a skinned blade sounds stock. Follow shader: back to the blade's sounds.
+note: Other players hear it only after the hub change (old hub: they hear the blade's).
+
+[chat-sounds]
+area: Audio
+title: Chat sounds by kind: public, team, private messages, SJK chat (Turin, Nib)
+change: Settings > Sound > Chat sounds: a switch, a sound and a Play button for each kind.
+change: cg_chatBeep 0 no longer mutes tells; cg_privateChatBeep switches them (and encrypted).
+change: cl_privateChatFlash (default 1): a private message flashes the taskbar when away.
+test: Public chat off, Private messages on: public chat silent, a /tell to you still plays.
+test: Pick each sound in a list: it plays as you pick it; Play plays the chosen one.
+test: Private message sound SJK whisper: a tell and an encrypted whisper both play it.
+test: cg_chatSounds 2 with Default sounds: team chat and tells play EJK's switch beeps.
+test: cg_chatSounds 0: no chat sound of any kind; Play still plays (you are choosing).
+test: Alt-tab, get a tell (or encrypted whisper): taskbar flashes; off: no flash.
+note: Unit tests and a Settings world shot only; not heard or flashed in a game window.
+
+[saber-throw-parts]
+area: Rendering & effects
+title: Thrown saber keeps its skin's afterimages and swing parts (Kushina #127)
+change: The flying blade records afterimages, blossoms and swing motion like the held one.
+test: Wear Spectral (or a signature with afterimages), throw the saber: afterimages trail it.
+test: Varykino Blossom thrown: petals fall along its flight. Catch: no stray afterimage.
+
+[saber-command]
+area: Console & chat
+title: The saber command keeps your sabers (Kushina #126)
+change: saber <saber1> [<saber2>] is a client command (JoF): it sets saber1/saber2.
+change: Profile > Saber shows the choice and the next map keeps it.
+test: Pick Single in Profile > Saber, then run /saber dual_1 (or a wheel custom choice).
+test: Open Profile > Saber: Staff shown. Change map: you spawn with the staff.
+test: /saber single_1 single_2: Dual. On a JoF server the saber swaps at once.
+
+[cards-forge-tab]
+area: Menus & settings
+title: Cards tab's big card no longer covers the Forge tab (Kushina #124)
+change: The card up close starts under the row of tabs (a little smaller).
+test: Settings: largest text size and letter spacing (ui_textScale 1.4, ui_letterSpacing 0.15).
+test: Collection > Cards: click the Forge tab anywhere on its name: it opens.
+
+[chat-box-lines-24]
+area: Console & chat
+title: cg_chatBoxLines shows up to 24 chat messages (Creyon #129)
+change: The feed stopped at 8 messages whatever cg_chatBoxLines said; EternalJK's top is 24.
+test: cg_chatBoxLines 15, then 15+ chat lines (a local server, two clients): 15 show.
+test: cg_chatBoxLines 3: only the last 3; cg_chatBoxLines 100 acts as 24.
+
+[bio-caret]
+area: Menus & settings
+title: Profile bio: click a line, arrows move the caret (Kushina's report)
+change: About you has a caret: click, Left/Right (Ctrl: word), Up/Down, Home/End.
+change: Typing, Ctrl+V, Backspace and Delete work at it; Ctrl+A selects all.
+test: profile, click in the middle of a bio line: the caret is there, type: text goes in.
+test: Up/Down walk the lines, Shift+Enter breaks a line at the caret, Enter still saves.
+test: Ctrl+A then type: the bio is replaced; hold Backspace: it repeats.
+
+[hax-trap]
+area: Gameplay
+title: Hax trap: hacking a trapped player blows you both up
+change: Settings > Game options > Toys: Hax trap (cl_haxTrap), Hax trap while away (cl_haxAway).
+change: A hack on a trapped player: "IT'S A TRAP!" 2 s, then both die in an Order 66 blast.
+change: Others see it through a feed toy event; away hacking needs both switches.
+test: B sets Hax trap on; A hacks B: both read IT'S A TRAP! with beeps, then both blow up.
+test: A third SJK client sees both explode (pieces, or confetti with cg_dismember 0).
+test: B adds Hax trap while away and alt-tabs: A can hack B (refused without it).
+test: B types in chat: still no hacking, trap or not.
+
+[vehicle-gunfire]
+area: Audio
+title: Vehicle guns: firing sound and muzzle flash (Kushina's report)
+change: EV_VEH_FIRE plays each fired muzzle's .vwp muzzleFX: its flash and the gun's sound.
+change: Every effect sound plays at full volume (was 0.7), as stock S_StartSound does.
+test: Local devmap, npc spawn vehicle x-wing, board it, fire: loud shots, wing flashes.
+test: Same with swoop_mp and atst_vehicle: flash at each muzzle, sound on every shot.
+test: Watch another player fire from a vehicle: flashes at its guns, sound from there.
+note: Impacts and explosions are louder too; compare with JoF EJK by ear.
+
+[yaw-wrap]
+area: Input
+title: Very fast turning no longer breaks the camera (Yernow #121)
+change: The camera yaw is kept within one turn; unbounded, it lost precision and froze.
+test: cl_yawspeed 100000, hold +left (bind a key) for a minute: camera stays behind you.
+test: Then turn with the mouse: no shaking, character turns with the camera.
+
+[clan-s-emblem]
+area: Console & chat
+title: {{S}} clan emblem, green JoF logo, JAWA only as (JAWA) first
+change: A name starting with {{S}} exactly gets the red Sith emblem; JoF's emblem is its green logo.
+change: JAWA's hood now needs (JAWA) at the very start of the name.
+test: Rename to {{S}}Test, say something: the red emblem sits left of your name in chat.
+test: Rename to {JoF}Test: the green J o F logo, not the teal one.
+test: Rename to (JAWA)Test: the hood. Then JAWA|Test and Test(JAWA): no emblem.
+test: Rename to {{s}}Test and Test{{S}}: no emblem. Check scoreboard and inspect (X) too.
+note: Both logos are small sources (80x93, 178x93): check they are not too soft at 4K.
+
+[hax-afk]
+area: Gameplay
+title: Hax: not on a player typing or away; softer rain
+change: No hack starts on a player whose chat is open or who is marked away on the scoreboard.
+change: The hacked player's client refuses while idle/alt-tabbed ("Hack failed: X is away").
+test: B opens the chat, A holds Use on B: "B is typing: no hacking them now".
+test: B alt-tabs (or /afk), A hacks B: refused, "is away" (or "is typing" at once).
+test: The green rain round a hacked player is fainter and sparser than before.
+
+[jof-sjk-chat]
+area: Console & chat
+title: SJK chat said in All chat on JoF servers (JoF tools), ALL/SJK and SJK labels
+change: On a JoF server in a match, an SJK chat line the hub took is also said in All chat.
+change: One-time card on the first JoF match (jof.sjkChatNotice); red note on the SJK channel.
+change: Copies show once, labelled ALL/SJK; SJK-only lines read SJK. JoF EJK icon via a table.
+test: Join a JoF server with SJK chat on: the card shows once over the game menu; Got it.
+test: Rejoin: no card. Open chat, pick SJK: the red note shows above the field.
+test: Say something on SJK: a non-SJK client sees "SJK text"; you see it once, ALL/SJK.
+test: Same on a non-JoF server or in the menus: nothing in All chat, line labelled SJK.
+test: On JoF, send a GIF (or sjkgif 1): it stays in SJK chat, labelled SJK.
+test: SJK chat page on JoF: Send only in SJK (hover card explains); line stays SJK only.
+test: As staff, Shift+Enter in the composer or page: SJK only, nothing in All chat.
+note: Milamber's PR #194, moved into JoF tools at JoF's request.
+
+[hax-rain]
+area: Rendering & effects
+title: Hax: green digital rain round a hacked player
+change: Glyphs (0, 1, katakana) fall on a ring round the steered player, following them.
+change: Others learn it through a feed toy event (hacked_<until>, freed), maybe 1-2 s late.
+test: A hacks B: both see the green rain round B while A steers, and it moves with B.
+test: A third SJK client on the server sees it too, ending when B is free.
+test: B turns toy_hax off mid-hack: the rain stops (for the third client, within a few s).
+
+[e2e-whispers]
+area: Console & chat
+title: End-to-end encrypted whispers between SJK players (cl_e2eWhispers)
+change: A whisper to an SJK player goes sealed through the hub: pink, ENCRYPTED, its own sound.
+change: If the hub cannot take it, a card asks before sending it through the game server.
+test: Needs the hub deployed (branch e2e-whispers) and two SJK clients on one local server.
+test: Open the whisper composer on the other: it says "To <name> (encrypted)" in pink.
+test: Send: "To <name>" with their tick and emoji, ENCRYPTED, and the sound on both sides.
+test: reply on their side answers encrypted; tell <name> from the console too.
+test: Stop the hub, whisper: the card asks; Esc sends nothing, Enter sends it through the server.
+test: cl_e2eWhispers 0: whispers go through the server as before, a red "Not private" note under.
+test: whisper_verify <name> on both PCs: same 12 digits. Mark verified: lines say VERIFIED.
+test: Then a new identity on the other PC: your whisper asks first, theirs warns in red.
+
+[sjk-chat-caret]
+area: Console & chat
+title: SJK chat field: the arrows move the caret (Rollembones' report)
+change: The SJK chat page's and the docks' fields have a caret: Left/Right (Ctrl: a word),
+change: Home, End; typing, Ctrl+V, Backspace and Delete work at it, not only at the end.
+test: sjkchat, type "helo", Left once, type "l": "hello"; Home, type "oh ": "oh hello".
+test: Ctrl+Left jumps a word; Delete takes the letter after the caret; Enter sends it all.
+test: Main page dock: same keys; the caret is "|" inside the text and "_" at its end.
+
+[camera-cvars-after-control]
+area: Rendering & effects
+title: cg_thirdPersonRange works after Camera control (Rollembones' report)
+change: A pose set in Camera control overrode the third-person cvars until its Reset.
+change: Now a changed cvar (console, bind, Settings) replaces its part of the pose at once.
+test: Third person, F8, set Distance 200, Hide panel; console: cg_thirdPersonRange 60.
+test: The camera comes in to 60 at once; Angle and Height stay as Camera control set them.
+
+[whisper-followed]
+area: Console & chat
+title: Whisper key while spectating goes to the followed player (Kushina's report)
+change: messagemode3 (U) while following a player whispers to them, as JoF EJK does.
+test: Local server, two clients: B spectates and follows A, presses U with no crosshair.
+test: The composer opens on a whisper to A; Enter: A gets the tell.
+
+[saber-switch-trail]
+area: Rendering & effects
+title: No trail streak when a blade lights again (hub report 116)
+change: A blade that is out keeps its trail edge at the hilt and forgets its afterimages,
+change: so the first swing after it lights again no longer streaks from where it went out.
+test: Staff with a signature shader (Holonet Feed), saber trail on: run, switch stance
+test: and swing at once: no streak or blade copy back where the second blade went out.
+test: Same with dual sabers, and a single saber turned off and on while running.
+
+[forge-craft-flicker]
+area: Menus & settings
+title: Forge Craft no longer flickers on its last lines (#117)
+change: The Collection page holds 4096 draw commands (was 2048), the UI 32768 vertices.
+test: ui_menuPictures 1, Collection > Forge > Craft, grid (V): scroll to the Legendary lines.
+test: Stay a few seconds on each line to the end: no flicker, detail and key hints stay.
+test: Same in the list view and with ui_menuPictures 0.
+
+[holonet-flecks-once]
+area: Menus & settings
+title: Holonet Feed lists Data flecks once (#115)
+change: A part and a section of one name are one switch (Power Coupling's Sparks too).
+test: Collection > Shaders > Holonet Feed: Data flecks shows once among its parts.
+test: Switch Data flecks off: the flecks beside the blade and the motes round it both go.
+
+[hax-fixes]
+area: Gameplay
+title: Hax: hackable after a teleport or respawn, and after a map change
+change: A player who teleported or respawned an odd number of times could not be hacked.
+change: A map change forgets the cooldown and immunity; relay reads retry within 2 s.
+test: B uses a teleporter (or dies and respawns), then A holds Use on B: the hack starts.
+test: Hack B, change map, hack B again at once: no long "Hax again" wait, B not immune.
+
 [toys-persist]
 area: Gameplay
 title: Order 66 and the Hax stay on until turned off
@@ -515,7 +767,7 @@ note: The deployed hub has no people list yet: expect Recently in chat for now.
 [clan-jawa]
 area: Console & chat
 title: JAWA clan emblem: a Jawa's hood beside names tagged JAWA
-change: (JAWA)Name, jawa|Name, [Jawa] Name and JAWAKen get the hood icon left of the name.
+change: (JAWA)Name gets the hood icon left of the name (only that form since 22/10).
 test: Rename to (JAWA)Test, say something: the brown hood sits left of your name in chat.
 test: Open the scoreboard (classic and SJK) and inspect yourself (X): the hood is there too.
 test: Rename to Jawad: no emblem.
@@ -1741,6 +1993,15 @@ note: Alt+Tab while holding Tab leaves the board and the hidden HUD up until Tab
 
 # ---- Rendering & effects ----
 
+[demp2-flash]
+area: Rendering & effects
+title: DEMP2 shock flash fades with distance (Slash #125)
+change: Effect Flash primitives scaled as stock CFlash::Init: none past 900 u or off-view.
+test: DEMP2 alt fire (charge) at a wall far away: no white screen, the shock still shows.
+test: Fire it at a wall a few metres in front: a short flash, as in JoF EJK.
+test: Another player's shock across the map: no flash.
+test: A close shock flashes the whole view white (no magenta/yellow/purple, no edge, sky untinted).
+
 [varykino-blossom]
 area: Rendering & effects
 title: Varykino Blossom, a Mythical blade that sheds blossoms
@@ -2362,6 +2623,22 @@ test: Turn round with a sound running: it moves to the other ear.
 test: Fire at a wall on your left: the impact plays mostly in the left ear.
 
 # ---- Gameplay ----
+
+[atst-camera]
+area: Gameplay
+title: AT-ST camera no longer jumps on walk/run/stand changes (Kushina)
+change: The pilot's seat bolt uses a skeleton posed as cgame does, new animations blended.
+test: siege_hoth or npc spawn vehicle atst_vehicle, board, walk with W then let go: no jump.
+test: Tap W, hold W to run, turn with A/D: the camera moves smoothly.
+note: If it still jumps, record it at a high frame rate; prediction misses may remain.
+
+[tauntaun-swing]
+area: Gameplay
+title: Tauntaun rider swings again and again (Slash #123)
+change: A torso restarting its own clip starts from frame 0, not on the legs' finished frame.
+test: Local devmap, npc spawn vehicle tauntaun, board with a saber, hold attack: swing after swing.
+test: Hold attack with A or D held: the swing goes to that side, repeated.
+test: Watch another player do it: same repeated swings.
 
 [allow-download]
 area: Gameplay
@@ -6110,6 +6387,15 @@ change: The log says R_FindImageFile could not find '<image>' in shader '<name>'
 test: Load maps and models with community skins: no magenta checkers anywhere.
 test: logs/last-client.log: R_FindImageFile lines name the shaders that were dropped.
 note: Nib's Nautolan purple arrows were model tags, fixed 15/10 (Creyon).
+
+[unload-before-load]
+area: Rendering & effects
+title: Old map unloaded before the next one loads
+change: Map change, server switch, vid_restart: an empty world drops the old map first.
+change: Peak VRAM ffa3 to siege_desert at 1080p: 3719 -> 3045 MiB; about 2 s slower.
+test: On a server, connect to another server: loading screen, then the new map, no glitch.
+test: Map change on the same server and vid_restart: map loads, chat and score still work.
+test: logs/last-client.log: 'old map unloaded in' before 'installed maps/...'.
 
 [wheel-moveup]
 area: Input

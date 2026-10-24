@@ -28,6 +28,7 @@ pub(crate) struct Sinks<'a> {
     pub(crate) damage_feedback: &'a mut damage_feedback::Feedback,
     pub(crate) first_person_view: &'a mut first_person_view::Tracker,
     pub(crate) previous_particle_events: &'a mut HashMap<u16, u16>,
+    pub(crate) vehicle_fires: &'a mut vehicle_fire::Pending,
     pub(crate) muzzle_effects: &'a mut sjk_client::LegacyMuzzleEffects,
     pub(crate) force_overlays: &'a mut sjk_client::LegacyForceOverlayTracker,
     /// The nameplates' Force, health and shield estimates.
@@ -80,6 +81,7 @@ pub(crate) fn observe(
         sinks.particles,
         sinks.auxiliary,
         sinks.previous_particle_events,
+        sinks.vehicle_fires,
         snapshot,
         game_state,
         sinks.vfs,
@@ -247,6 +249,7 @@ impl GpuState {
                     damage_feedback: &mut self.damage_feedback,
                     first_person_view: &mut self.first_person_view,
                     previous_particle_events: &mut self.previous_particle_events,
+                    vehicle_fires: &mut self.vehicle_fires,
                     muzzle_effects: &mut self.muzzle_effects,
                     force_overlays: &mut self.force_overlays,
                     nameplate: &mut self.hud.nameplate,
@@ -347,6 +350,7 @@ impl GpuState {
                     damage_feedback: &mut self.damage_feedback,
                     first_person_view: &mut self.first_person_view,
                     previous_particle_events: &mut self.previous_particle_events,
+                    vehicle_fires: &mut self.vehicle_fires,
                     muzzle_effects: &mut self.muzzle_effects,
                     force_overlays: &mut self.force_overlays,
                     nameplate: &mut self.hud.nameplate,
@@ -399,9 +403,10 @@ impl GpuState {
                 self.net_timing.adjustment(event);
             }
         }
+        // The command clock adjusts once the frame has read every queued
+        // snapshot (`ServerClock::adjust`, `live_session`).
         if !session.is_local() {
-            self.server_clock
-                .observe_snapshot(snapshot.server_time, Instant::now());
+            self.server_clock.receive_snapshot(snapshot.server_time);
         }
         if let Some(view) = intermission {
             self.local_prediction.stop(0.0);
@@ -464,6 +469,7 @@ impl GpuState {
             return;
         };
         self.present_live_snapshot(&snapshot, false, game_audio, Instant::now());
+        self.server_clock.adjust(Instant::now());
     }
 }
 

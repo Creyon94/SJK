@@ -31,6 +31,274 @@ stripes on Code Cylinder and Flimsiplast still alias seen right along the blade 
 pixel size along the blade, a new lab uniform), and a few single sparks pop at early-out bounds
 (Scarif Tide, Holo-Recording, Blood Moon).
 
+## Emotes kept while typing, and silenced when alt-tabbed
+
+23/10/2026, `personal/emote-options`, based on `main` `62a5ac44`, Sol's decisions.
+Typing (Rollembones' idea, 19/10/2026: "stay in the emote until you actually move"): no
+client rule ended an emote on typing, and typing cannot move a player (the server
+clears the movement of a command carrying `BUTTON_TALK`), so an emote ended while typing
+only by what happened meanwhile: being pushed, knocked back or carried 24 units, or (with
+`cg_emoteAttackStop`) an attack. Settings > Sound > Emotes: Typing keeps emote
+(`cg_emoteTypingKeep`, on, with a `=` changelog line so players choose) now holds the
+emote of every player whose talk balloon is up (`EF_TALK` in the snapshot; the own
+player's open chat, console or menu directly) and, once it closes, takes where they stand
+as the place they may not leave, so their next move or attack ends it
+([hub-chat.md](hub-chat.md#emotes-in-the-client)). Each client applies it to what it sees,
+so nothing goes through the hub. Alt-tab (Sol: "always"): an alt-tabbed or minimised
+player's emote already went quiet for everyone through the hub's `quiet`/`loud` posts, but
+only with `cg_awayAltTab` on; now it always does, and the setting only decides whether the
+away emote starts. The window's focus reaches other clients only through those posts.
+Verified on Windows 11: unit tests (`emotes`: typing holds, release re-anchors, attack held,
+setting off, talk balloons to slots; `away_emote`: alt-tab quiets with `cg_awayAltTab`
+off). Not verified in a game or with a second SJK client; the cause Rollembones saw is not
+reproduced, only covered.
+
+## Chat name actions
+
+23/10/2026, `personal/chat-name-actions`, based on `main` `62a5ac44`, asked by Bishop
+(02/10) and Sanjisan (20/10), Sol's go 23/10: click a player's name in the game's chat for
+actions. Built on the sender card rather than a new menu (the old name dropdown was
+removed on 18/10/2026): with the composer open, a click on a name pins the card, which
+then offers Whisper (above Block) for a player on the server other than yourself; Whisper
+turns the composer to a whisper to them, sent encrypted when they take it, else as
+`tell` ([client.md](client.md#chat-player-actions), [sjk-ui.md](sjk-ui.md)). Escape, a
+click off the card or on the name again lets it go. Block is the existing one. Left out:
+Add friend (SJK and the hub have no friends list; the local friend star went on
+18/10/2026) and View profile (the card is the profile; the `inspect` player card needs the
+player in sight). JoF EJK has no clickable chat names to follow. The card's Safety code
+button, whose press was taken for the card's, now answers clicks.
+Verified on Windows 11: unit tests (a click pins the card and keeps it past the hover
+grace, Whisper turns the composer and sends `tell 3`, Escape and clicks elsewhere unpin,
+no Whisper to ourselves, to a player who left or renamed or to an SJK sender not on the
+server, a shared name leaves unattributed lines unclickable, Safety code's click) and the
+off-screen world shot `chat::card::shots::chat_name_actions_shot` (1080p and 4K). Not
+verified: in a game, on a server, or an encrypted whisper opened this way.
+
+## Saber sounds apart from the shader
+
+23/10/2026, `personal/saber-sound-pick`, based on `main` `62a5ac44` (Nib's idea of
+18/10/2026 and hub report #109, approved by Sol on 23/10/2026): implemented
+`cg_saberSounds` and the Profile screen's Saber tab Sounds row (follow the shader, the
+stock sounds, or an owned shader's sounds, with Preview), sent with the look as
+`saber_sounds` and heard for every SJK player whose look carries it
+([unlockables.md](unlockables.md#saber-sounds)). A look without it follows the blade, as
+before. The deployed hub refuses the new field (`bad_body`): the client then sends the
+look without it, so others hear the blade's sounds until the hub takes the field (the
+change is described in unlockables.md). For room, Dual's hilt lists show three hilts each.
+Verified on Windows 11: unit tests (the resolution of a wearer's set from blade, choice,
+ownership and older looks; the per-slot table and swings; the Sounds row and its
+Preview at Single and Dual within the canvas; the look's body and feed field; the
+service's fallback for a hub that refuses the field or a set the key lacks), the world
+shot `duel6_sjk_saber_page`, the workspace checks. Not verified: heard in a game, the
+preview by ear, another player's choice through a hub.
+
+## Chat sounds by kind and the private message flash
+
+23/10/2026, `personal/chat-sounds`, based on `main` `62a5ac44`, Sol's request after
+Turin's and Nib's ideas: public chat, team chat, private messages (a server's tells and
+encrypted whispers) and the SJK chat each have a switch, a sound picked from ten
+(Default, the game's talk, SJK's chat and whisper variants, EJK's two switch beeps and
+four short retail interface sounds) and a Play button, in Settings > Sound > Chat sounds
+([client.md](client.md#chat-sounds), [chat_sounds.rs](../crates/sjk-viewer/src/chat_sounds.rs)).
+A tell used to share `cg_chatBeep` with public chat, so muting public chat muted
+private messages too; the sound adapter now gives a tell its own beep
+(`PrivateChatBeep`, from the stock `[` marker every known server family uses),
+switched by the new `cg_privateChatBeep`. `cg_chatSounds` 0 still silences everything
+and 2 still gives team chat and tells EJK's sounds while their sound is Default. New
+archived cvars: `cg_privateChatBeep`, `cl_chatSoundPublic`, `cl_chatSoundTeam`,
+`cl_chatSoundPrivate`, `cl_chatSoundSjk`, `cl_privateChatFlash` (default on, a "="
+line in the changelog): a tell or an encrypted whisper flashes the taskbar while the
+window is away. Verified on Windows 11: unit tests (the adapter's beep per message kind
+at `cg_chatSounds` 1 and 2, fake tells staying public; the routing of every kind and
+sound, Turin's public-off/private-on case, the master switch, unknown values; previews;
+the flash only while away and on), and a world shot of the Settings group at 1080p and
+4K. Not verified: heard in a game or on a JA+/JoF server, the preview's sound in the
+menu, the taskbar flash on a real window (winit's Informational attention).
+
+## Heimdall's time nudge kicks after a hitch
+
+23/10/2026, `personal/heimdall-nudge`, based on `main` `8e4cce32`, Slash's report
+(Discord #bugs, 2026.1023.2 on JoF's servers): kicked five times in a morning by
+Heimdall, JoF's anti-cheat, with "Set /cl_timeNudge 0 in your console!" while his
+`cl_timeNudge` was 0; his video shows 59 FPS with hitches up to 1346 ms. SJK never sends
+a time nudge (`cg_displayNetSettings` is always `125 0 125`, and `cl_timeNudge` moves
+only what is drawn), so the server must judge it from the commands' stamps. The command
+clock ([server_clock.rs](../crates/sjk-client/src/server_clock.rs)) adjusted its delta on
+every snapshot as it was read, with the time it was read: after a hitch the snapshots
+that had waited in the socket were as old as the hitch, the first one reset the clock
+by it, and the frame's next ones (8 a frame) kept it there, so the commands reached the
+server about 1.2 s behind its time, then 100 to 300 ms behind until the clock caught up
+(a 150 ms hitch already left them 100 ms behind). Stock reads every queued packet and
+adjusts once, on the newest (`CL_ReadPackets`, `CL_SetCGameTime`), as JoF EternalJK
+does. The clock now notes each snapshot (`receive_snapshot`) and adjusts once a frame
+on the newest (`adjust`), only when the frame read the queue dry
+([live_session.rs](../crates/sjk-viewer/src/live_session.rs); the installed world's
+first snapshot adjusts at once, as before) ([networking.md](networking.md)). The code
+dates from the first releases: nothing in 2026.1023.1 or .2 touched it, so today's
+kicks most likely come from today's hitches (or from Heimdall starting to check);
+whether one of today's changes made Slash's frames hitch more is not known.
+Verified on Windows 11: unit tests (59 FPS, 40 snapshots a second, 150/400/1346 ms
+hitches at 8/7/4/3 ms steps: commands at most about 56 ms behind against 100 to 1236 ms
+with the old per-snapshot adjustment, which a test keeps). Not verified: in a game, on a
+JoF server, or that Heimdall judges from the stamps (it is closed source); the
+presentation clock ([presentation_clock.rs](../crates/sjk-viewer/src/presentation_clock.rs))
+still adjusts on each snapshot read, which only affects what is drawn after a hitch.
+
+## The `saber` command and the Cards tab's card up close
+
+23/10/2026, `personal/hub-reports-1023-a`, based on `main` `7bc8bc89`, two of Kushina's
+reports. #126: sabers chosen from the quick wheel (a custom choice running JoF's `saber
+<saber1> [<saber2>]`) were forgotten on the next map and Profile > Saber kept showing the
+menu's pick: SJK did not know the command and sent it to the server, which swapped the
+saber in play while `saber1`/`saber2` stayed on the menu's choice, and the next map's
+userinfo brought that back. `saber` is now the client's own, as JoF EJK's `CG_Saber_f`:
+it writes the two cvars, the one place the menu (SJK UI and classic) and the userinfo
+read, and JA+ and jaPRO-lineage servers get the `saber` command from that change
+([client.md](client.md)). #124: on the Collection's Cards tab the card up close started
+at y 150, inside the row of tabs (142 to 188); a large text style (`ui_textScale`,
+`ui_letterSpacing`) stretches the row to the right until the Forge tab lies under the
+card, whose pointer area, registered after the tabs, took most of its clicks. The card now starts under the
+row (y 196, 437 wide instead of 470, its bottom unchanged; [cards.md](cards.md)).
+Verified on Windows 11: unit tests (the command's cvars, the menu reopened on them, the
+userinfo; the card's pointer area under the whole row at 1080p, 4K and 4:3, failing
+with the old place). Not verified: in a game; that the quick wheel's custom choice
+Kushina used was the `saber` command and that Kushina plays with a large text style
+(both inferred from the reports); the server's swap.
+
+## Chat box lines and the bio's caret
+
+23/10/2026, `personal/hub-reports-1023-b`, based on `main` `7bc8bc89`.
+
+- Creyon's report #129 (2026.1022.3, a JoF server): `cg_chatBoxLines` above 8 showed no
+  more messages. The feed's cap (`MAX_VISIBLE`) was 8; JoF EternalJK's
+  `CG_ChatBox_DrawStrings` takes up to `MAX_CHATBOX_ITEMS`, 24. The cap is now 24
+  ([client.md](client.md)); the history kept (64) was already larger. There is one feed,
+  drawn the same in every menu style and HUD.
+- Kushina's report (Discord, 22/10): the Profile page's About you box could only be
+  written at its end, not clicked or walked with the keys. The bio now uses the report
+  dialog's wrapped field ([text_dialog_field.rs](../crates/sjk-viewer/src/text_dialog_field.rs),
+  whose keys are shared as `caret_key` and whose lines now break at a line break) and the
+  console's `LineEdit` ([identity.md](identity.md)). The page is drawn in the SJK UI's
+  look in every menu style, so this covers both. The Identity page's one-line About you
+  field still writes at its end, like every `text_entry` field.
+
+Verified on Windows 11: unit tests (the cvar's range and the feed showing 12 and 5 of 20
+messages; the bio's keys, Ctrl+A, Shift+Enter and repeats; a click on a wrapped line at
+1080p and 4K with a larger text style; line breaks in the field layout). Not verified: in
+a game.
+
+## DEMP2 flash scaled by distance
+
+23/10/2026, `personal/hub-reports-1023-c`, based on `main` `7bc8bc89` (Slash's report #125,
+siege_hoth, local server: firing the DEMP2 lit the whole screen). The alt fire's shock
+plays `demp2/altdetonate`, whose `Flash` primitive is a 2048-unit `gfx/effects/whiteFlash`.
+SJK drew it at full colour as an ordinary billboard wherever the shock went off; stock's
+`CFlash::Init` scales its colour by distance (nothing past 900 units) and direction
+(nothing beyond 60 degrees off the view past 100 units). The flash now gets that scale
+([rendering.md](rendering.md)). Verified on Windows 11: unit tests (the scale; the effect
+spawns nothing far away or behind and three quarters of its colour at 450 units ahead),
+the workspace checks. Not verified: in a game; a flash close behind the viewer, which stock
+shows on the screen, stays out of sight; the DEMP2 shell sphere (`FX_DEMP2_AltDetonate`) is
+still not drawn.
+Follow-up 23/10/2026, `personal/demp2-flash-screen` (Slash's video: a magenta, yellow,
+then purple square tinting the sky behind the shock): the flash is now drawn on the
+viewer as `CFlash::Draw` draws it, a quad over the whole view in front of everything,
+and an rgb `random` flag dims the whole colour by one number a frame rather than each
+channel by its own, as `CParticle::UpdateRGB` does; a flash close behind the viewer now
+shows, as in stock. Verified on Windows 11: unit tests
+(the flash's shape and screen extents; the DEMP2 flash colour keeps its hue over 60
+frames), the workspace checks. Not verified: in a game; whether the first-person weapon
+draws over the flash (stock draws the flash over it).
+
+## AT-ST pilot's camera jumps
+
+23/10/2026, `personal/hub-reports-1023-c`, based on `main` `7bc8bc89` (Kushina's report,
+21/10: the camera inside the AT-ST jumps when it moves with the direction keys and when
+W is let go). The pilot's camera follows the walker's animated `*driver` bolt. SJK read
+it from the skeleton command replay poses at the newest snapshot's time, which starts a
+new animation (walk, run, stand) ahead of presentation: until presentation reached that
+time the bolt showed the new animation's first frame unblended, then jumped back to the
+old pose and blended. The seat now has its own skeleton posed as the cgame poses the
+vehicle: a new animation starts, blended over 100 ms, once presentation reaches the
+snapshot that brought it ([client.md](client.md#third-person-camera)). Verified on
+Windows 11: a unit test of when the seat takes a snapshot's animation (8, 7, 4 and 3 ms
+frames), the workspace checks; the reasoning is from the code (`bone_override.rs` blends
+only from its start time on). Not verified: in a game; her 2 fps video does not show the
+frame-level jump, so other contributors (prediction misses on the walker) are not ruled out.
+
+## Tauntaun rider's repeated swings
+
+23/10/2026, `personal/hub-reports-1023-c`, based on `main` `7bc8bc89` (Slash's report #123,
+build 2026.1022.3, JoF server, T1_Rail: on a tauntaun, holding attack played one swing and
+then only swing sounds). `PM_VehicleWeaponAnimate` restarts `BOTH_VT_ATR_S` on both tracks
+every time the torso timer runs out (`SETANIM_FLAG_RESTART`, flipping `torsoFlip` and
+`legsFlip`, and `EV_SABER_ATTACK` each time); SJK's prediction already did so. The
+presentation then started the restarted torso on the legs' frame, which had reached the
+end of the same clip, so the swing stayed on its last frame. Stock's
+`CG_SetLerpFrameAnimation` starts a torso restarting its own clip from the first frame;
+SJK now does too ([client.md](client.md#eternaljk-animation-fixes)). Verified on Windows 11:
+a prediction probe (the torso and legs flip and `EV_SABER_ATTACK` repeat every 1000 ms with
+one-second clips), a unit test of the frame rule at 8, 7, 4 and 3 ms steps, the workspace
+checks. Not verified: seen in a game, on a tauntaun or on a swoop.
+
+## Vehicle gunfire and effect sound volume
+
+22/10/2026, `personal/hub-reports-1022-d`, based on `main` `01cd678e` (Kushina's report,
+21/10: vehicle weapons were quiet when fired). `EV_VEH_FIRE` was not handled, so a
+vehicle's guns had no firing sound or flash: in stock both come from the `.vwp`
+`muzzleFX` effect `CG_VehMuzzleFireFX` plays at each muzzle that fired. SJK now plays
+it at the muzzle bolts of the posed vehicle ([client.md](client.md#vehicle-gunfire) has the
+rule), and every effect's `Sound` primitive plays at full volume as `S_StartSound` does,
+instead of seven tenths. Verified on Windows 11: unit tests (the `muzzleFX` key, each
+muzzle's weapon or turret, the volley queue, the muzzle's world place), the formatting
+check and Clippy. Not verified: heard or seen in a game, on any vehicle; the louder
+effect sounds elsewhere (impacts, explosions) are not compared with stock by ear.
+
+## Thrown saber parts
+
+23/10/2026, `personal/saber-throw-parts`, based on `main` `7bc8bc89` (Kushina's hub report
+#127, 2026.1022.3: a thrown saber drew none of the parts a swing drives, no afterimages).
+The flying blade was drawn with its skin's glow and parts (`skin_extras`) and its trail, but
+not with the afterimages, the blossoms or the motion (swing, swing began, clash, stir) the
+held blade records. It now records them in the hand's blade state, in the world
+([rendering.md](rendering.md#saber-blade-skins)); going from the hand to
+flight or back forgets the afterimages and blossoms kept in the other frame. Verified on
+Windows 11: unit tests (afterimages trail the spinning, flying blade in the world; no pose
+crosses between hand and flight; the spin reads as a swing). Not verified: seen in a
+game; how the swing-driven signature parts look on a fast spin (Clone Wars words, bursts)
+has not been judged.
+
+## View yaw wrapped
+
+22/10/2026, `personal/hub-reports-1022-d` (Yernow's report #121: with `cl_yawspeed
+100000` turning for half a minute, the camera left the character and shook on every mouse
+move until a restart). The accumulated camera yaw grew without bound: an `f32` of hundreds
+of thousands of radians moves in steps of a degree, and past about 11.8 million degrees the
+command's `ANGLE2SHORT` saturated, freezing the player's turn while the camera spun on. The
+yaw is now kept within one turn ([networking.md](networking.md#view-yaw-kept-within-a-turn));
+nothing sent changes. Verified on Windows 11: unit tests (18 million degrees at 8, 7, 4
+and 3 ms steps turn every command evenly). Not verified: in a game.
+
+## Encrypted whispers
+
+22/10/2026, `personal/e2e-whispers`, based on `main` `0279b8f3`, with the hub's side on
+Sol-Vulpes/SJK-hub branch `e2e-whispers` (not deployed). Whispers between two SJK players
+go through the hub sealed to the recipient's identity key (X25519 from the Ed25519 key,
+HKDF-SHA256, ChaCha20-Poly1305, signed inside by the sender), on by default
+(`cl_e2eWhispers`); a card asks before sending one the hub refused unencrypted; their own
+pink, ENCRYPTED label and sound; keys remembered per player (`whisper-keys.txt`);
+optional safety codes to compare outside the game (player card, `whisper_verify`),
+verified players' whispers labelled VERIFIED and guarded when their key changes
+([hub-chat.md](hub-chat.md#encrypted-whispers)). The hub's relay ids now start at 2, so a
+fresh reader is never told `next` 0 (which made it miss the first event after a restart).
+Verified on Windows 11: `cargo fmt`, `cargo build`, `cargo test --workspace` (sjk-viewer
+2773, sjk-identity 175 passed: seal/open, forgery, tampering, moving to another server or
+key, replay window, key pins, the relay's sending and reading of whispers), `cargo clippy`
+(no new warnings in the touched lines); the hub's `cargo test` (331 + 149 API tests,
+`whispers_reach_the_listening_key_only` among them); the world shot
+`encrypted_whisper_shots` (chat lines and the card), looked at. Not verified: between two
+running clients through a deployed hub, the sound by ear.
+
 ## Kyber crystals (client)
 
 21/10/2026, `personal/kyber-crystals`, based on `main` `775c4e8b` (Sol's decisions; the
@@ -50,6 +318,63 @@ Not verified: against a hub that sends crystals, in a running client. The 3D cry
 Mythical holocron's model and gold light until the crystal models land (branch
 `personal/engram-holocron`); the hilt-and-ignite reveal and giving or removing crystals on
 the Staff page are not built.
+
+## SJK chat on JoF servers: what stays in SJK only
+
+22/10/2026, `personal/sjk-only-send`, based on `main` `d0df616d` (Sol's requests). On
+JoF servers a message with a GIF is never said in All chat; the SJK chat page has Send
+only in SJK for every player, with a hover card asking to keep it justified; a staff key
+holding Shift while sending keeps the message in SJK chat
+([mods.md](mods.md#sjk-chat-on-jof-servers)). Verified on Windows 11: `cargo fmt`,
+`cargo build`, `cargo test --workspace` (new: the GIF rule, the page's button offered
+only while copies apply and staff's Shift+Enter), `cargo clippy` (no warnings in the
+changed lines), and the world shot `duel6_jof_sjk_chat_page_only` (the button and its
+hover card), looked at. Not verified: in a running client on a JoF server.
+
+## SJK chat on JoF servers: said in All chat too
+
+22/10/2026, `personal/jof-sjk-chat`, based on `main` `735b2555` with Milamber's #194
+merged in (Sol's decision after talking it over with Milamber: JoF asked for it). The
+server copy of SJK chat moved into JoF tools: it is said only on JoF servers with
+`mod_jof` on ([mods.md](mods.md#sjk-chat-on-jof-servers)), only for messages the hub took
+(a refused or unanswered one is no longer said plainly), and a one-time card
+(`jof.sjkChatNotice`, the core's [mod_notice_card.rs](../crates/sjk-viewer/src/mod_notice_card.rs))
+and a red note on the composer's SJK channel say so. A copy is hidden only when it holds
+its message's words and, where the hub knows the copy's slot, comes from its sender
+(`SlotMark::key_id`). SJK chat lines in the game's chat are labelled SJK, or ALL/SJK when
+said in All chat too. JoF EJK's icon comes from a table with a setting
+([chat/client_icons.rs](../crates/sjk-viewer/src/chat/client_icons.rs),
+`cl_sjkChatClientIcons`). Verified on Windows 11: `cargo fmt --all --check`, `cargo build
+--locked --workspace` (and `-p sjk-viewer --no-default-features`), `cargo test --locked
+--workspace` (new: sender and words checks, ALL/SJK marking, refused and unanswered lines
+never said, the mod's pieces, the notice card's keys and setting, the client table),
+`cargo clippy` (no warnings in the changed lines), and the world shots
+`duel6_jof_sjk_chat_notice` and `duel6_jof_sjk_chat_feed` (the card; ALL/SJK, SJK and JoF
+EJK lines; the red note), looked at. Not verified: on a JoF server in a running client
+(the card's timing after the map loads, the copies going out, the round trip hiding
+them), a linked key's own copy (the feed names its person's key, so it waits 10 s and is
+not said).
+
+## JoF EJK in SJK chat: its icon, and lines said on the server too
+
+21/10/2026, `feat/jof-ejk-chat`, based on `main` `775c4e8b` (Milamber: JoF EJK takes part
+in SJK chat with the same keys). A feed message's `client` (the hub's
+`PROTOCOL.md`, "Chat") picks the emblem before an SJK chat line: SJK's, or JoF EJK's
+icon for `ejk` ([hub-chat.md](hub-chat.md#how-a-line-looks)). During a match, what the
+player says on SJK chat goes to the game server's chat too once the hub took it: `say`
+lines starting with `^3SJK^2 ` and ending with the message's id in colour codes, and
+`consume_messages` holds such a line up to 2.5 s and drops it when that message joins the
+feed, so SJK chat players on the server see it once
+([hub-chat.md](hub-chat.md#said-on-the-game-server-too)). On Windows 11 the formatting
+check, the workspace build, the locked workspace tests (3606 passed, 193 ignored) and
+Clippy (no warnings on the new lines) pass. End to end with a local hub, the branch's and
+its unchanged `main`, and JoF EJK clients on a local server: a JoF player's line showed
+once in SJK, with JoF EJK's icon, and as tagged server chat on a JoF client with SJK chat
+off; an SJK player's line, sent by hand from a bind, showed once on a JoF client with SJK
+chat on and as server chat on one with it off. Not verified: the tag on SJK's own copies
+in game (unit tests only; the hand-sent lines predate it), a linked key's own message (its
+copy waits the 10 s and goes without the end), server mods that strip colour codes from
+chat, Linux.
 
 ## Small graphics cards found at start
 
@@ -1778,6 +2103,27 @@ and its people, sender cards, the profile card and the SJK scoreboard
 on top of `trust`): an older hub refuses the change and sends no emoji. Checked by unit
 tests (the rule, the service, the Profile page's panel) and world shots (Profile page,
 chat box, scoreboard). Not tried in the game or against a running hub.
+
+## Ragdoll toy
+
+23/10/2026, `personal/ragdoll-toy` (Sol's idea): a meme toy
+([client.md](client.md#ragdoll)), no hub change. `toy_ragdoll` (bind, quick wheel Toys
+page, Collection's Toys tab) makes the player's body go limp: a 15-point Verlet body
+falls against the map's brushes and the player's own model is posed from it (eleven
+rigid parts of the `_humanoid` skeleton), the camera behind it, while the client walks
+the real body to it. Other SJK players run the same deterministic simulation from one
+start event relayed to each of them (`fall_..`, the toy relay), so no pose is sent; every
+SJK client now keeps the relay poll open on a game server. Checked by unit tests (the
+events within the relay's rule, the body falling asleep lying down, the same start
+falling the same way whatever the frame steps, a body thrown at a wall staying out of
+it, the model posed in one piece and the stance close to its own, a skeleton without
+the stock bones left animated, the walk to the ragdoll's commands and their
+`delta_angles`, the actor's placing, the wheel's Toys page, the Collection's five
+toys) and a world shot on Sol's demo (`ragdoll_on_a_demo`: limp, thrown at a wall,
+close-ups), which found and fixed a body climbing a wall it was caught in. Not tried
+in a game, with two clients or on a server; that two clients' floating point gives the
+very same fall is reasoned (same arithmetic, a degree table for the turn), not measured
+across machines.
 
 ## Hax toy
 
@@ -4566,6 +4912,7 @@ ordinary weapon's flash sound; stock plays nothing for them (`cg_event.c:2751-27
 `EV_VEH_FIRE` (`CG_VehMuzzleFireFX`), which carries the vehicle weapons' sound in
 retail, is not played, so vehicle fire is silent. The retail `.vwp` data was not
 available to confirm what each effect holds. Unit-tested only, not heard in a game.
+Closed 22/10/2026 (see "Vehicle gunfire and effect sound volume").
 
 ## Vehicle HUD
 
