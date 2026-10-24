@@ -1044,7 +1044,6 @@ mod tests {
                 progress: 1,
                 goal: 1,
                 unlocked: 5,
-                reward: None,
             }],
             ..profile("aaaaaaaaaaaaaaaa", "^1Sol")
         }
