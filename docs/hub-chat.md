@@ -1178,9 +1178,18 @@ player.
 
 **Safety codes (optional, Sol's decision 22/10/2026).** The first whisper to someone
 still trusts the key the hub gave. A player who wants proof compares a safety code
-with the other outside the game (voice, Discord, in person): twelve digits from both
-keys (`whisper::safety_code`, SHA-256 of the two keys in order, 60 bits), the same on
-both screens, and different if the hub handed out a key of its own. The chat's player
+with the other outside the game (voice, Discord, in person): 60 digits in twelve
+groups of five (`whisper::safety_code`, format v2 since 24/10/2026), the same on both
+screens, and different if the hub handed out a key of its own. The code is two halves,
+the lower key's fingerprint then the higher's, each 30 digits (about 100 bits) of 5200
+rounds of SHA-512 over that key alone, as Signal's safety numbers are made. Each half
+belongs to one key, so a hub that wants both screens to match with keys of its own must
+make a key whose fingerprint equals a real key's, all 30 digits. The first format (v1,
+22/10/2026: twelve digits, SHA-256 of both keys together, about 40 bits) did not hold:
+the hub chooses both of the keys it hands out, so it needed only two codes that meet,
+about a million keys a side, which a laptop found in 22 seconds (24/10/2026). A player
+on an older SJK shows the old twelve digits, which never match the new code; the keys
+already marked verified stay verified (the file keeps the key, not the code). The chat's player
 card (resting the pointer on a name with the composer open) has a Safety code button
 for a player who takes encrypted whispers, and `whisper_verify <player>` opens the same
 [card](sjk-ui.md#encrypted-whisper). Mark verified keeps their key in

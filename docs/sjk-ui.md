@@ -2072,7 +2072,8 @@ player has left is dropped. The same look in every menu style, on the 16:9 frame
   right-aligned along the foot; focus starts on Don't send. Keys bottom right: Enter
   send unencrypted, Esc don't send; Space does nothing.
 - **Safety code:** "Encrypted whispers", then "Safety code with <name>" (or "<name>'s
-  key changed"), the code in Rajdhani 48 (gold once verified), and the words: compare it
+  key changed"), the code's twelve groups of five digits in three rows of four (Rajdhani
+  40, rows 46 apart; gold once verified), and the words: compare it
   outside the game, then mark them verified; once verified, that SJK warns if their key
   changes; for a changed key, that whispers to them wait for a new check. Buttons Close
   and Mark verified (gold, Enter); once verified, Close is gold (Enter and Esc) and

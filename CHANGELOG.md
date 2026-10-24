@@ -30,6 +30,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
+- Encrypted whispers: the safety code is now 60 digits in twelve groups of five, one half for each player's key, so the SJK hub can no longer make two keys of its own show matching codes on both screens (the 12-digit code allowed that in seconds). Players compare the new code only with players on this version or later; players already marked verified stay verified _(Slash)_
 - Kyber crystals: every achievement now brings one, once, from Uncommon to Mythical (shown on the Achievements tab, its hover card and its unlock card). Opening one always gives a saber shader, the ones you do not have yet first, and every tenth crystal in a row without a Legendary or Mythical shader gives one: the Holocrons tab shows your crystals, how soon that is, and their loot table _(Sol)_
 
 ## 2026.1023.3 (Alpha) | 23/10/2026
