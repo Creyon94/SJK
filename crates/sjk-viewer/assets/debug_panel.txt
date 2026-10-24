@@ -989,6 +989,14 @@ note: A roll on landing while crouched (PM_CrashLand) is not prevented, in EJK e
 
 # ---- Menus & settings ----
 
+[profile-vfs-release]
+area: Menus & settings
+title: No 'Too many open files' after many maps (Lukas, PR #198)
+change: Profile's model icons, cosmetics and Force templates drop the old map's game files.
+test: Play a long session: change maps 10+ times, reconnect: the map loads, no mount error.
+test: After a map change, Profile: model icons, cosmetics, Force templates still listed.
+note: Only part 1 merged; the PK3 close-between-reads part is held (asked Lukas why).
+
 [open-all-confirm]
 area: Menus & settings
 title: Open all asks first when more than one holocron would open

@@ -486,7 +486,7 @@ merged into SJK
   catches up, JA+'s free look kept; `cg_wallGrabLock` (off) locks it there too and faces the
   wall. At the merge the facing runs only with the option on.
 
-Lukas ([LukasMoudry](https://github.com/LukasMoudry)), contributor, has 17 pull requests
+Lukas ([LukasMoudry](https://github.com/LukasMoudry)), contributor, has 18 pull requests
 merged into SJK
 ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3ALukasMoudry)):
 
@@ -524,6 +524,8 @@ merged into SJK
 - #179 `cl_holocronNotifications`: the card a holocron found in play gives is off, shown after
   a private duel or always, duels included; the holocron still waits for the game menu. At the
   merge a card that comes during a duel waits for the duel's end instead of being dropped.
+- #198 "Too many open files" after a long session: the Profile menu's model icons, cosmetics and
+  Force templates let go of the previous map's game files (its PK3 reopening part held back).
 
 Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 26 pull requests merged
 into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AJoFSlash)):

@@ -2223,6 +2223,8 @@
 - 0874042 |  | Decode print and cp text as legacy bytes
 
 = Lukas
++ 24/10/2026 | SJK #198 | Release stale profile VFS generations
+- 69c6da4 |  | Release stale profile VFS generations
 + 21/10/2026 | SJK #179 | Add holocron notification modes
 - d7ae6dc |  | Add holocron notification modes
 + 20/10/2026 | SJK #190 | Add JA+ anti-kiss protection
