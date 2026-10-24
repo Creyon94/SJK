@@ -13,6 +13,7 @@ impl GpuState {
         for command in commands.drain(..) {
             match command {
                 BaseServerCommandEvent::CopyBody(body) => {
+                    self.reset_body_fade(body.entity_num);
                     if let Err(error) = self.copy_body_actor(body, presentation_time) {
                         crate::log::progress(format_args!("body copy failed: {error}"));
                     }
@@ -69,6 +70,7 @@ impl GpuState {
             let client_num = body.client_num;
             mesh.body_identity = Some(body);
             mesh.disintegration = None;
+            mesh.body_fade = None;
             let animation = mesh.preview.animation.clone();
             let config = mesh.preview.config.clone();
             let copied = self.body_queue_animator(client_num, &animation, &config, time)?;
@@ -225,6 +227,7 @@ mod eligibility_tests {
             },
             sabers: [Some("single_1".to_owned()), None],
             weapon: 0,
+            light_side: true,
         };
         let red_kyle = Appearance {
             model: "models/players/kyle".into(),

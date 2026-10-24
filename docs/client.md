@@ -1110,9 +1110,24 @@ Both follow EternalJK's cgame (`cg_ents.c`, `cg_players.c`) and rd-vanilla's ren
   model burns in its untinted colours, as rd-vanilla's `killGen` does. A corpse slashed
   until it gives way (`body_die`) burns from its own origin, the middle of the body,
   and is removed a second later (`BodyRid`): it looks cut in half and loses its tint
-  for that second in EternalJK too (Nib's hub report 122, 22/10/2026). The slow fade of
-  a corpse the server clears on its own (`EV_BODYFADE`, `cg_ents.c` `bodyFadeTime`) is
-  not drawn yet: the body stays as it is until it is removed.
+  for that second in EternalJK too (Nib's hub report 122, 22/10/2026).
+- **Body fade** (`EV_BODYFADE`): 30 s after a body fell the server sends the event
+  (`BodySink`) and unlinks the body 18 s later. As in OpenJK's and EternalJK's
+  `CG_General` (`cg_ents.c`, `bodyFadeTime`), the body then thins out (forced alpha
+  from 254 down by 0.08 a millisecond, gone after 2.54 s) while the body drawn again
+  with its side's shader brightens over it (`RF_RGB_TINT` rising to 200): the light
+  side's is `gfx/misc/personalshield`, the dark side's `gfx/effects/sabers/red_glow`.
+  At 2.513 s that glow burns away from the body's origin (`RF_DISINTEGRATE2`), with the
+  Force Sight sound for the light side and lightning for the dark. For the first 3.4 s
+  the light side hums (`saberhum1`, for 2.2 s, at most once per 100 ms as EternalJK
+  plays it) and the dark side's body is drawn red with a random one of the two electric
+  shaders, crackling now and then. The side is `ircg`'s fourth operand (no `ircg`: the
+  dark side, as cgame's zeroed `teamPowerType`). The event also turns off the body's
+  `head_eyes_mouth` surface. The client keeps each body's start
+  ([body_fade.rs](../crates/sjk-client/src/body_fade.rs)) and draws the layers in place
+  of the body ([body_fade.rs](../crates/sjk-viewer/src/body_fade.rs)); held weapons and
+  hilts drawn apart from the body stop drawing when the fade starts. SJK's own server
+  sent the event as 125 (`EV_PUSHED1`) before 24/10/2026; it sends 100 now.
 
 Model cap surfaces (`*_cap_*`) are carried in every actor mesh, hidden until a cut.
 

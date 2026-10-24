@@ -542,6 +542,32 @@ fn submit_actor(
         );
         return 0;
     }
+    // `EV_BODYFADE`: `CG_General` draws a fading body's layers and nothing else
+    // (`cg_ents.c`, [`crate::body_fade`]).
+    if entity.kind == EntityKind::Corpse
+        && (draw_actor || sinks.portal_view)
+        && let Some(index) = mesh
+        && let Some(fade) = meshes[index].body_fade.as_ref()
+    {
+        let rotation = weapon_view::actor_world_rotation(transform.rotation);
+        let mut body =
+            ActorInstance::new(transform.translation, rotation.to_array(), transform.scale)
+                .with_entity_color(entity.color());
+        body.view_flags = sinks.entity_view_flags | u32::from(!draw_actor);
+        let mut frame = crate::body_fade::Frame {
+            overrides: sinks.overrides,
+            materials: sinks.material_overrides,
+            audio: sinks.game_audio.as_mut(),
+            vfs: sinks.vfs,
+            now: presentation_time,
+        };
+        if crate::body_fade::submit(&mut frame, index, fade, entity, body) {
+            meshes[index]
+                .retained_pose
+                .mark_drawn(entity.id, presentation_time);
+            return 0;
+        }
+    }
     // A monster's victim is drawn in its hand or jaw (`cg_players.c:9220-9244`).
     let local = Some(entity.id.get()) == local_entity_id;
     let trick = trick_fade(sinks, snapshot, state, local, presentation_time);

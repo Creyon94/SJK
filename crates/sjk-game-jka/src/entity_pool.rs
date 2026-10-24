@@ -28,8 +28,9 @@ const BODIES: usize = 8;
 /// `BODY_SINK_TIME`: a body fades this long after it fell, and is unlinked 18 s later.
 const BODY_SINK_MS: i32 = 30_000;
 const BODY_FADE_THINK_MS: i32 = 18_000;
-/// `EV_BODYFADE`, with `G_AddEvent`'s stepped sequence bits.
-const EV_BODYFADE: u32 = 125;
+/// `EV_BODYFADE` (`bg_public.h`: 100, after `EV_CTFMESSAGE`), with `G_AddEvent`'s stepped
+/// sequence bits (125, sent before, is `EV_PUSHED1`: no client faded the body).
+const EV_BODYFADE: u32 = 100;
 const ES_EVENT: usize = 28;
 /// `s.eFlags`, `s.eventParm`, `s.eType`.
 const ES_EFLAGS: usize = 19;
@@ -635,5 +636,28 @@ impl Slot {
             ground_residue: None,
             tracker_residue: None,
         }
+    }
+}
+
+#[cfg(test)]
+mod body_fade_tests {
+    use super::*;
+    use sjk_protocol::LEGACY_ENTITY_FIELDS;
+
+    /// `BodySink` sends `EV_BODYFADE`, 100 in `bg_public.h` (after `EV_CTFMESSAGE`, 99,
+    /// which `ctf.rs` sends), 30 s after the body fell.
+    #[test]
+    fn a_body_sends_ev_bodyfade_after_thirty_seconds() {
+        let mut pool = EntityPool::new(0);
+        let id = pool.spawn_body(EntityState::zero(0, &LEGACY_ENTITY_FIELDS), 1_000);
+        pool.run_frame(30_999);
+        assert_eq!(
+            pool.state(id).unwrap().raw_field(ES_EVENT).unwrap() & 0xff,
+            0
+        );
+        pool.run_frame(31_000);
+        let event = pool.state(id).unwrap().raw_field(ES_EVENT).unwrap();
+        assert_eq!(event & !EVENT_BITS, 100);
+        assert_ne!(event & EVENT_BITS, 0);
     }
 }
