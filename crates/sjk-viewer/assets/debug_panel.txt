@@ -24,6 +24,16 @@
 
 # ---- Console & chat ----
 
+[safety-code-v2]
+area: Console & chat
+title: Safety code v2: 60 digits, one half per key (Slash, PR #200)
+change: whisper_verify shows 12 groups of five digits in 3 rows: your key's half and theirs.
+change: The hub can no longer make two keys of its own show matching codes on both screens.
+test: Two SJK clients, whisper_verify <name> on both: the same 60 digits, 3 rows of 4 groups.
+test: The rows fit inside the card; Mark verified turns them gold.
+test: A player verified before this version still shows VERIFIED.
+note: A client older than this shows 12 digits, which never match the new code.
+
 [ragdoll-toy]
 area: Gameplay
 title: Ragdoll toy: go limp and fall, sandbox style
@@ -217,7 +227,7 @@ test: Send: "To <name>" with their tick and emoji, ENCRYPTED, and the sound on b
 test: reply on their side answers encrypted; tell <name> from the console too.
 test: Stop the hub, whisper: the card asks; Esc sends nothing, Enter sends it through the server.
 test: cl_e2eWhispers 0: whispers go through the server as before, a red "Not private" note under.
-test: whisper_verify <name> on both PCs: same 12 digits. Mark verified: lines say VERIFIED.
+test: whisper_verify <name> on both PCs: same 60 digits. Mark verified: lines say VERIFIED.
 test: Then a new identity on the other PC: your whisper asks first, theirs warns in red.
 
 [sjk-chat-caret]

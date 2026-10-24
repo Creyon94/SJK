@@ -1,3 +1,21 @@
+## Safety codes that a hub cannot match
+
+24/10/2026, `claude/kind-newton-h1d1ah`, based on `main` `62a5ac44`, after Slash's
+security review. The encrypted whispers' safety code (v1: twelve digits of SHA-256 of
+both keys, about 40 bits) let a dishonest hub show matching codes: it chooses the key it
+gives each player, so it needed only two codes that meet (a birthday search, about 2^20
+keys a side), not one chosen code. A test harness found six such pairs in 22 seconds on
+four cores (2.5 million Ed25519 keys a side). The code (v2) is now each key's own
+fingerprint, 30 digits of 5200 rounds of SHA-512 over that key alone, the lower key's
+then the higher's: 60 digits in twelve groups of five, drawn in three rows on the card
+([hub-chat.md](hub-chat.md#encrypted-whispers), [sjk-ui.md](sjk-ui.md#encrypted-whisper)).
+Matching a code now takes a key whose 30-digit fingerprint equals a real one's.
+`whisper-verified.txt` keeps keys, so verified players stay verified; an older client
+shows the old code, which never matches. Verified: unit tests (both screens' code, the
+pinned value checked against an independent Python SHA-512 reading of the format, a
+key's half the same in every code), `cargo test -p sjk-identity`, the card's tests in
+`sjk-viewer`. Not verified: the card drawn (its world shot needs the game's maps), in a
+game.
 ## Emotes kept while typing, and silenced when alt-tabbed
 
 23/10/2026, `personal/emote-options`, based on `main` `62a5ac44`, Sol's decisions.

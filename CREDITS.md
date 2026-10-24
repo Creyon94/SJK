@@ -519,7 +519,7 @@ merged into SJK
   a private duel or always, duels included; the holocron still waits for the game menu. At the
   merge a card that comes during a duel waits for the duel's end instead of being dropped.
 
-Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 24 pull requests merged
+Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 26 pull requests merged
 into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AJoFSlash)):
 
 - #114 Tab completes the cfg file argument of `exec`, `execq`, `writeconfig` and `write`
@@ -568,6 +568,8 @@ into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author
 - #187 an emplaced gun turns to where its gunner looks, stand and handles with it, barrels held
   to 40 degrees down, and keeps its aim after the gunner leaves.
 - #189 a smaller chat sender card that waits for the pointer, sized by `cg_chatCardScale`.
+- #200 encrypted whispers' safety code made from each key's own fingerprint (60 digits, as
+  Signal's safety numbers), after Slash found that the hub could make the 12-digit code match.
 
 Milamber ([Milamber0](https://github.com/Milamber0)), contributor, has 3 pull requests merged
 into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AMilamber0)):
