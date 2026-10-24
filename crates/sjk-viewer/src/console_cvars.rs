@@ -1303,12 +1303,28 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
         cvars.register(definition)?;
     }
     cvars.register_alias("r_vsync", "r_swapInterval")?;
+    cvars.register_alias(
+        crate::away_emote::JAPLUS_OLD_CVAR,
+        crate::away_emote::JAPLUS_CVAR,
+    )?;
     crate::cgame_options::register(cvars)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_old_away_emote_name_sets_the_japlus_one() {
+        let mut cvars = CvarRegistry::new();
+        register_daily_cvars(&mut cvars).unwrap();
+        cvars
+            .set_text(crate::away_emote::JAPLUS_OLD_CVAR, "amsit")
+            .unwrap();
+        let current = cvars.get(crate::away_emote::JAPLUS_CVAR).unwrap();
+        assert_eq!(current.value.as_text(), "amsit");
+        assert_eq!(current.name, crate::away_emote::JAPLUS_CVAR);
+    }
 
     #[test]
     fn an_integer_setting_follows_an_on_off_cvar() {

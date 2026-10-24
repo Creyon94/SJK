@@ -24,6 +24,17 @@
 
 # ---- Console & chat ----
 
+[japlus-names]
+area: Console & chat
+title: JA+ settings renamed to japlus.* (old names still work)
+change: cg_antiAmKiss is japlus.antiAmKiss, cg_awayEmoteJaplus is japlus.awayEmote.
+change: Anti-kiss moved to Settings > Mods, under the JA+ tools switch. japlus.color is gone.
+test: Type japlus. then Tab: antiAmKiss and awayEmote show with the japlus commands.
+test: Type cg_antiAmKiss 1, then japlus.antiAmKiss: it says 1. Restart: it is still 1.
+test: Settings > Mods (SJK) and Game options (classic): Push away kiss attempts under JA+ tools.
+test: Settings > Gameplay: the JA+ away emote row still works and keeps its saved pick.
+test: amcolor 255 0 0 still tints you; japlus.color answers Unknown command.
+
 [safety-code-v2]
 area: Console & chat
 title: Safety code v2: 60 digits, one half per key (Slash, PR #200)

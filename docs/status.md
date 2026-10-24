@@ -3717,6 +3717,16 @@ number, coloured team letter and name (` (bot)` after bots) from the player conf
 then `Listed N clients`, in EternalJK's format ([client.md](client.md)). Verified: unit tests
 for the lines and an empty server, and the workspace checks; in game on Windows 11 by Creyon.
 
+## JA+ names (`japlus.*`)
+
+24/10/2026, `personal/japlus-home` (Windows 11): the JA+-only settings outside the
+`japlus.` prefix took it, their old names kept as aliases: `cg_antiAmKiss` became
+`japlus.antiAmKiss` and `cg_awayEmoteJaplus` `japlus.awayEmote`. `japlus.color`, a
+duplicate of the core `amcolor`, was removed. Anti-kiss moved to Settings > Mods next
+to the JA+ tools switch. [mods.md](mods.md#ja-in-sjk) maps where every JA+ part
+lives. Verified: unit tests (old names set the new ones; every mod name carries its
+prefix) and the workspace checks. Not checked in game.
+
 ## amcolor kept across reconnects
 
 Branch `fix/amcolors-saved` (11/10/2026, based on `9dbbdf19`, Linux): Creyon reported that a

@@ -106,6 +106,8 @@ const CHAT_ROWS: &[&str] = &[
 const MODS_ROWS: &[&str] = &[
     "assetbrowser",
     "mod_japlus",
+    #[cfg(feature = "mod-japlus")]
+    sjk_mod_japlus::anti_kiss::CVAR,
     "mod_japro",
     #[cfg(feature = "mod-japro")]
     sjk_mod_japro::movement_styles::PREDICT_ANYWAY_CVAR,
@@ -340,8 +342,6 @@ impl Group {
                 crate::duel_visibility::HIDE_OTHERS_CVAR,
                 crate::duel_visibility::CORPSES_CVAR,
                 crate::duel_visibility::PICKUPS_CVAR,
-                #[cfg(feature = "mod-japlus")]
-                sjk_mod_japlus::anti_kiss::CVAR,
                 crate::map_edits::CVAR,
                 crate::remap_blocked_maps::SERVER_CVAR,
                 "cg_remaps",
@@ -361,6 +361,8 @@ impl Group {
                 "cg_wallGrabLock",
                 "cg_errorDecay",
                 "mod_japlus",
+                #[cfg(feature = "mod-japlus")]
+                sjk_mod_japlus::anti_kiss::CVAR,
                 "mod_japro",
                 #[cfg(feature = "mod-japro")]
                 sjk_mod_japro::movement_styles::PREDICT_ANYWAY_CVAR,
@@ -559,8 +561,6 @@ impl Group {
                 ("assetbrowser", "Asset packs"),
                 ("cg_simpleItems", "Items and models"),
                 ("cg_saberTrail", "Effects"),
-                #[cfg(feature = "mod-japlus")]
-                (sjk_mod_japlus::anti_kiss::CVAR, "JA+ protection"),
                 (crate::hax::TRAP_CVAR, "Toys"),
                 (crate::camera::STYLE_CVAR, "Camera and prediction"),
                 (crate::brush_view::CVAR, "Map tools"),
@@ -594,8 +594,6 @@ impl Group {
             Self::Advanced(Advanced::Gameplay) => &[
                 ("cg_simpleItems", "Items and models"),
                 ("cg_saberTrail", "Effects"),
-                #[cfg(feature = "mod-japlus")]
-                (sjk_mod_japlus::anti_kiss::CVAR, "JA+ protection"),
                 (crate::hax::TRAP_CVAR, "Toys"),
                 (crate::camera::STYLE_CVAR, "Camera and prediction"),
             ],
