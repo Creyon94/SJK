@@ -49,6 +49,9 @@ CANONICAL_TEXTS = {
     "Apache-2.0/MIT": "Apache-2.0",
     "MIT/Apache-2.0": "Apache-2.0",
     "MPL-2.0": "MPL-2.0",
+    # The macOS bindings (objc2, block2, dispatch...) ship no license file.
+    "MIT": "MIT",
+    "Zlib OR Apache-2.0 OR MIT": "Apache-2.0",
     "BSL-1.0": "BSL-1.0",
 }
 
