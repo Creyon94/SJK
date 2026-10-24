@@ -64,6 +64,8 @@ includes:
   every SJK player seeing the same fall from one relayed start (23/10/2026);
 - the Drone toy: the free camera and Peek fly a training remote other SJK players see,
   peeking only players who switched it on (24/10/2026, after Slash's #199);
+- a macOS build for Apple Silicon Macs, drawn through Metal and built by GitHub with
+  every release, unsigned and experimental (24/10/2026);
 - end-to-end encrypted whispers: whispers between SJK players sealed to the
   recipient's key and carried by the SJK hub, which cannot read them
   (22/10/2026);

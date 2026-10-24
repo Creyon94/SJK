@@ -1,3 +1,15 @@
+## macOS build
+
+24/10/2026, `personal/macos-build`, based on `main` `cbf6e41d`. GitHub builds an
+experimental `macos-arm64` ZIP (Apple Silicon, macOS 11+) in CI, the packages workflow
+and every release: wgpu's Metal backend, `open` for links and files, Steam's macOS
+library searched for game data, the auto-updater's platform
+([packages.md](packages.md#macos)). Unsigned: the README tells players how to get past
+Gatekeeper. Verified: Windows build and Clippy; a cross-check from Windows stops at C
+build scripts, so the macOS compile, tests and smoke check are the GitHub runner's.
+Not verified: anything on a real Mac (window, Metal rendering of every shader, audio,
+input), the Mac edition's game-data layout. No Intel Mac build.
+
 ## Safety codes that a hub cannot match
 
 24/10/2026, `claude/kind-newton-h1d1ah`, based on `main` `62a5ac44`, after Slash's

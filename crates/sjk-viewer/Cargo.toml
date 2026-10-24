@@ -55,7 +55,7 @@ serde.workspace = true
 serde_json.workspace = true
 tempfile = "3.27.0"
 zip.workspace = true
-wgpu = { version = "30.0.1", default-features = false, features = ["dx12", "gles", "std", "vulkan", "wgsl"] }
+wgpu = { version = "30.0.1", default-features = false, features = ["dx12", "gles", "metal", "std", "vulkan", "wgsl"] }
 winit = { version = "0.30.13", default-features = false, features = ["rwh_06", "wayland", "wayland-dlopen", "x11"] }
 ureq = { version = "3", default-features = false, features = ["rustls", "gzip"] }
 sha2 = "0.11.0"

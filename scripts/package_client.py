@@ -103,10 +103,23 @@ def license_text(entries, name="SJK"):
 def instructions(platform, revision, name="SJK", repository=DEFAULT_REPOSITORY, version=None,
                  profile="SJK", client="sjk", server="sjk-server"):
     suffix = ".exe" if platform == "windows-x64" else ""
-    requirements = ("Windows 10/11 x64 and a working graphics driver. The MSVC runtime is statically linked."
-                    if suffix else
-                    "Linux x64 with glibc 2.35+, ALSA, Wayland/X11 libraries and a Vulkan or OpenGL driver.\n"
-                    f"If your archive extractor drops permissions: chmod +x {client} {server}")
+    requirements = {
+        "windows-x64": "Windows 10/11 x64 and a working graphics driver. The MSVC runtime is statically linked.",
+        "linux-x64": "Linux x64 with glibc 2.35+, ALSA, Wayland/X11 libraries and a Vulkan or OpenGL driver.\n"
+                     f"If your archive extractor drops permissions: chmod +x {client} {server}",
+        # Not signed with an Apple Developer ID: Gatekeeper blocks the programs until
+        # the player allows them once.
+        "macos-arm64": "macOS 11+ on Apple Silicon (M1 or later); the game draws through Metal.\n"
+                       "The programs are not signed by Apple, so macOS blocks them at first. In Terminal,\n"
+                       "in the folder you extracted them to, run once:\n"
+                       f"  xattr -d com.apple.quarantine {client} {server}\n"
+                       f"  chmod +x {client} {server}\n"
+                       "(or open System Settings > Privacy & Security and choose Open Anyway).\n"
+                       "SJK also looks inside the Mac edition's app bundle in Steam's library. If it is\n"
+                       "not found, extract into a GameData folder holding base/ copied from a Windows\n"
+                       "installation (assets0.pk3 through assets3.pk3).\n"
+                       "macOS builds are experimental: they have not been played on a Mac yet.",
+    }[platform]
     label = f"{name} {version}" if version else f"{name} playtest build"
     return f"""{label} - {platform}
 Source revision: {revision}

@@ -53,6 +53,9 @@ fn drone_on_a_demo() {
         // Then peeks at the player instead: the drone behind them.
         gpu.shot_drone(pilot, None, 0, u8::try_from(target).unwrap_or(0));
         shots.push(frame(&mut gpu, 30));
-        println!("player {target}: {}", sheet(&shots, 2, 800, "drone").display());
+        println!(
+            "player {target}: {}",
+            sheet(&shots, 2, 800, "drone").display()
+        );
     });
 }
