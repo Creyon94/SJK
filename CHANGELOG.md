@@ -30,6 +30,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
+- Ragdoll: lifts, doors and trains now carry and push your limp body, and every part of it is heard on its own as it lands, the flesh and what it hits (stone, metal, wood, grass, snow...), with scrapes when it slides _(Sol)_
 - JA+ settings now all start with `japlus.`: anti-kiss is `japlus.antiAmKiss` and sits in Settings > Mods next to the JA+ tools switch, and the JA+ away emote is `japlus.awayEmote`. Your saved values and configs using the old names keep working. `japlus.color` is gone: `amcolor` does the same on every server _(Sol)_
 - Experimental Mac build: releases now include a ZIP for Macs with Apple Silicon (M1 or later), drawn through Metal. It is not signed by Apple, so macOS blocks it until you allow it once (its README says how), and it has not been played on a Mac yet: reports welcome _(Sol)_
 - New toy, the Drone: `freecam` and `peek` now fly a little training remote that other SJK players see, your name over it; peek sends it to hover behind the player you watch. Peeking needs consent now: a player can be peeked only with their Drone switched on (`toy_drone`, the quick wheel's Toys page or Collection > Toys, "Peek me"), they read who is watching, and switching it off sends the drone away. Your binds for both commands stay as they are _(Sol, after Slash's Peek work in #199)_
