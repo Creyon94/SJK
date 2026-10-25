@@ -1,10 +1,30 @@
 // Sol JK site enhancements. The page works without this script: the download
-// button points at the latest release page and the changelog links to GitHub.
+// button points at the latest release page, What's new links to the changelog,
+// Install lists every platform and the credits link each contributor's pull requests.
 "use strict";
 
 const REPO = "Sol-Vulpes/SJK";
-const RELEASES_API = `https://api.github.com/repos/${REPO}/releases?per_page=6`;
+const RELEASES_API = `https://api.github.com/repos/${REPO}/releases?per_page=8`;
 const RELEASES_PAGE = `https://github.com/${REPO}/releases`;
+// The changelog the client shows in game: What's new and the home page's recap read
+// its releases, their introductions and "> Heading: sentence" lines (CHANGELOG.md).
+const CHANGELOG_RAW = `https://raw.githubusercontent.com/${REPO}/main/CHANGELOG.md`;
+const CHANGELOG_PAGE = `https://github.com/${REPO}/blob/main/CHANGELOG.md`;
+/** How many releases What's new lists. */
+const RELEASES_SHOWN = 5;
+// Merged pull requests per contributor (the credits' `data-author` logins), counted
+// by GitHub's search, which allows 10 searches a minute without a token: the counts
+// are kept an hour in the visitor's browser.
+const SEARCH_API = "https://api.github.com/search/issues";
+const COUNTS_KEY = "sjk-site-pr-counts";
+const COUNTS_TTL_MS = 60 * 60 * 1000;
+
+/** Release ZIPs by platform, as the release workflow names them. */
+const PLATFORMS = {
+  "windows-x64": { system: "Windows", label: "Windows 10/11 x64" },
+  "linux-x64": { system: "Linux", label: "Linux x64" },
+  "macos-arm64": { system: "Mac", label: "Mac with Apple Silicon (experimental)" },
+};
 
 // Donations (docs/sjk.md, "Donations"). The card reads the live goal from the SJK hub
 // (`hub`, which Ko-fi's webhook keeps up to date); the other values are what it shows
@@ -46,61 +66,6 @@ function inline(escaped) {
   return text.replace(/\u0000(\d+)\u0000/g, (_, i) => codes[Number(i)]);
 }
 
-/** The `<img>` tags of a raw HTML line, rebuilt from their https src, alt and width. */
-function htmlImages(raw) {
-  const images = [];
-  for (const [tag] of raw.matchAll(/<img\b[^>]*>/gi)) {
-    const attr = (name) => (tag.match(new RegExp(`\\s${name}\\s*=\\s*"([^"]*)"`, "i")) || [])[1];
-    const src = attr("src");
-    if (!src || !/^https:\/\//i.test(src)) continue;
-    const width = /^\d+$/.test(attr("width") || "") ? ` width="${attr("width")}"` : "";
-    images.push(`<img src="${escapeHtml(src)}" alt="${escapeHtml(attr("alt") || "")}"${width}>`);
-  }
-  return images;
-}
-
-/** A small markdown subset for release notes: headings, lists, paragraphs.
- * A line of raw HTML keeps only its images; any other markup is dropped. */
-function renderMarkdown(source) {
-  const out = [];
-  let list = false;
-  let paragraph = [];
-  const flush = () => {
-    if (paragraph.length) out.push(`<p>${inline(paragraph.join(" "))}</p>`);
-    paragraph = [];
-  };
-  const closeList = () => {
-    if (list) out.push("</ul>");
-    list = false;
-  };
-  for (const raw of String(source || "").replace(/\r\n?/g, "\n").split("\n")) {
-    if (raw.trim().startsWith("<")) {
-      flush(); closeList();
-      const images = htmlImages(raw);
-      if (images.length) out.push(`<p class="release-image">${images.join(" ")}</p>`);
-      continue;
-    }
-    const line = escapeHtml(raw.trimEnd());
-    const heading = line.match(/^#{1,6}\s+(.*)$/);
-    const item = line.match(/^\s*[-*]\s+(.*)$/);
-    if (heading) {
-      flush(); closeList();
-      out.push(`<h4>${inline(heading[1])}</h4>`);
-    } else if (item) {
-      flush();
-      if (!list) { out.push("<ul>"); list = true; }
-      out.push(`<li>${inline(item[1])}</li>`);
-    } else if (!line.trim()) {
-      flush(); closeList();
-    } else {
-      closeList();
-      paragraph.push(line.trim());
-    }
-  }
-  flush(); closeList();
-  return out.join("\n");
-}
-
 /** The newest published, non-prerelease release, or the newest of any kind. */
 function latestRelease(releases) {
   const published = releases.filter((r) => !r.draft);
@@ -116,41 +81,273 @@ function versionOf(release) {
   return (release.tag_name || "").replace(/^sjk-v/, "") || release.name || "";
 }
 
-function guessPlatform() {
-  const agent = `${navigator.userAgent} ${navigator.platform || ""}`;
-  return /Linux|X11/i.test(agent) && !/Android/i.test(agent) ? "linux-x64" : "windows-x64";
+/** The release page of a changelog `version`. */
+function tagUrl(version) {
+  return `https://github.com/${REPO}/releases/tag/sjk-v${encodeURIComponent(version)}`;
 }
 
-function enhanceDownload(release) {
+/** The visitor's platform from the browser's description of itself; Windows when it
+ * names none SJK builds for (phones and tablets included). */
+function guessPlatform(
+  agent = `${navigator.userAgent} ${navigator.platform || ""}`,
+  touchPoints = navigator.maxTouchPoints || 0,
+) {
+  if (/Android|iPhone|iPad/i.test(agent)) return "windows-x64";
+  // An iPad asking for the desktop site says Macintosh too, but has a touch screen.
+  if (/Macintosh|Mac OS X|MacIntel/i.test(agent)) return touchPoints > 1 ? "windows-x64" : "macos-arm64";
+  if (/Linux|X11/i.test(agent)) return "linux-x64";
+  return "windows-x64";
+}
+
+/** The download button for `platform`, the other platforms' ZIPs under it. */
+function enhanceDownload(release, platform) {
   const button = document.getElementById("download");
-  const files = document.getElementById("release-files");
   if (!button || !release) return;
   const version = versionOf(release);
-  const platform = guessPlatform();
   const asset = assetFor(release, platform);
-  const system = platform === "linux-x64" ? "Linux" : "Windows";
-  // The button keeps its one word; the line under it names the build.
   button.href = asset ? asset.browser_download_url : release.html_url;
+  const label = document.getElementById("download-label");
+  if (label) label.textContent = asset ? `Download for ${PLATFORMS[platform].system}` : "Download";
   const line = document.getElementById("download-line");
-  if (line) line.textContent = asset ? `Sol JK ${version} for ${system} x64` : `Sol JK ${version}`;
-  const name = document.getElementById("release-name");
-  if (name) name.innerHTML = `<a href="${escapeHtml(release.html_url)}">${escapeHtml(release.name || version)}</a>`;
-  const note = document.getElementById("release-note");
-  if (note && release.published_at) {
-    note.textContent = `Released ${euDate(release.published_at)} · needs your own copy of Jedi Academy`;
-  }
-  const corner = document.getElementById("version");
-  if (corner) corner.textContent = `Sol JK ${version}`;
-  if (files) {
-    const labels = { "windows-x64": "Windows x64", "linux-x64": "Linux x64", "macos-arm64": "macOS Apple Silicon (experimental)" };
-    const links = Object.keys(labels)
+  if (line) line.textContent = asset ? `Sol JK ${version} · ${PLATFORMS[platform].label}` : `Sol JK ${version}`;
+  const others = document.getElementById("download-others");
+  if (others) {
+    const links = Object.keys(PLATFORMS)
+      .filter((p) => !asset || p !== platform)
       .map((p) => [p, assetFor(release, p)])
       .filter(([, a]) => a)
-      .map(([p, a]) => `<a href="${escapeHtml(a.browser_download_url)}">${labels[p]}</a>`);
-    links.push(`<a href="${escapeHtml(release.html_url)}">all files &amp; checksums</a>`);
-    files.innerHTML = links.join(" · ");
-    files.hidden = false;
+      .map(([p, a]) => `<a href="${escapeHtml(a.browser_download_url)}">${PLATFORMS[p].label}</a>`);
+    links.push(`<a href="${escapeHtml(release.html_url)}">all files and checksums</a>`);
+    others.innerHTML = links.join(" · ");
   }
+}
+
+/** The changelog's releases, newest first, without Unreleased: each with its
+ * heading, version, stage ("Alpha"), date (dd/mm/yyyy), introduction, recap lines
+ * ({heading, text}) and number of changes. */
+function parseChangelog(source) {
+  const releases = [];
+  let current = null;
+  let comment = false;
+  for (const raw of String(source || "").replace(/\r\n?/g, "\n").split("\n")) {
+    const line = raw.trim();
+    if (comment) {
+      if (line.includes("-->")) comment = false;
+      continue;
+    }
+    if (line.startsWith("<!--")) {
+      comment = !line.includes("-->");
+      continue;
+    }
+    const heading = line.match(/^##\s+(.+)$/);
+    if (heading) {
+      const [title, date = ""] = heading[1].split("|").map((part) => part.trim());
+      const version = title.replace(/\s*\([^)]*\)\s*$/, "");
+      current = /^unreleased$/i.test(version) ? null : {
+        heading: heading[1],
+        version,
+        stage: (title.match(/\(([^)]+)\)\s*$/) || [])[1] || "",
+        date,
+        intro: [],
+        recap: [],
+        changes: 0,
+      };
+      if (current) releases.push(current);
+      continue;
+    }
+    if (!current) continue;
+    const recap = line.match(/^>\s*([^:]+):\s*(.+)$/);
+    if (recap) current.recap.push({ heading: recap[1].trim(), text: recap[2].trim() });
+    else if (/^- /.test(line)) current.changes += 1;
+    else if (line && !line.startsWith("=") && !current.changes && !current.recap.length) current.intro.push(line);
+  }
+  return releases.map((r) => ({ ...r, intro: r.intro.join(" ") }));
+}
+
+/** GitHub's anchor for a changelog heading: lower case, punctuation dropped, each
+ * space a hyphen. */
+function changelogAnchor(heading) {
+  return String(heading).toLowerCase().replace(/[^\p{L}\p{N}\s_-]/gu, "").replace(/\s/g, "-");
+}
+
+/** A dd/mm/yyyy date as yyyy-mm-dd, or "" when it is not one. */
+function isoDate(date) {
+  const parts = String(date).match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  return parts ? `${parts[3]}-${parts[2]}-${parts[1]}` : "";
+}
+
+/** A recap line, its heading in gold or holo blue by the stylesheet. */
+function recapItem(line) {
+  return `<li><strong>${escapeHtml(line.heading)}</strong> <span>${inline(escapeHtml(line.text))}</span></li>`;
+}
+
+/** One release of What's new. */
+function releaseItem(entry) {
+  const when = entry.date
+    ? `<time${isoDate(entry.date) ? ` datetime="${isoDate(entry.date)}"` : ""}>${escapeHtml(entry.date)}</time>`
+    : "";
+  const intro = entry.intro ? `<p class="log-intro">${inline(escapeHtml(entry.intro))}</p>` : "";
+  const recap = entry.recap.length ? `<ul class="log-recap">${entry.recap.map(recapItem).join("")}</ul>` : "";
+  const more = entry.changes
+    ? `<p class="log-more"><a href="${CHANGELOG_PAGE}#${changelogAnchor(entry.heading)}">${
+      entry.changes === 1 ? "The change in full" : `All ${entry.changes} changes`}</a></p>`
+    : "";
+  return `<li>
+      <div class="log-head"><h3><a href="${tagUrl(entry.version)}">${escapeHtml(entry.version)}</a></h3>${when}</div>
+      ${intro}${recap}${more}
+    </li>`;
+}
+
+/** What's new from the changelog's `entries`, only those GitHub has published when
+ * `releases` is known (a release's notes are written before its tag). */
+function renderChangelog(entries, releases) {
+  const target = document.getElementById("releases");
+  if (!target) return;
+  const tags = releases && releases.length
+    ? new Set(releases.filter((r) => !r.draft).map((r) => r.tag_name))
+    : null;
+  const shown = entries.filter((e) => !tags || tags.has(`sjk-v${e.version}`)).slice(0, RELEASES_SHOWN);
+  if (!shown.length) return;
+  target.innerHTML = `<ol class="log">${shown.map(releaseItem).join("")}</ol>
+    <p class="log-all"><a href="${RELEASES_PAGE}">All releases</a> · <a href="${CHANGELOG_PAGE}">The full changelog</a></p>`;
+}
+
+/** The home page's latest release: its changelog `entry`'s recap, else GitHub's
+ * `release` name and date. */
+function showLatest(entry, release) {
+  const name = document.getElementById("release-name");
+  const date = document.getElementById("release-date");
+  const recap = document.getElementById("release-recap");
+  if (entry) {
+    const title = entry.stage ? `${entry.version} (${entry.stage})` : entry.version;
+    if (name) name.innerHTML = `<a href="${tagUrl(entry.version)}">${escapeHtml(title)}</a>`;
+    if (date) date.textContent = entry.date;
+    if (recap && entry.recap.length) recap.innerHTML = entry.recap.slice(0, 6).map(recapItem).join("");
+    else if (recap && entry.intro) recap.innerHTML = `<li><span>${inline(escapeHtml(entry.intro))}</span></li>`;
+  } else if (release) {
+    if (name) name.innerHTML = `<a href="${escapeHtml(release.html_url)}">${escapeHtml(release.name || versionOf(release))}</a>`;
+    if (date && release.published_at) date.textContent = euDate(release.published_at);
+  }
+}
+
+/** `url`'s answer as text, given up after `seconds`. */
+async function fetchText(url, options = {}, seconds = 8) {
+  const abort = typeof AbortController === "function" ? new AbortController() : null;
+  const timer = abort ? setTimeout(() => abort.abort(), seconds * 1000) : null;
+  try {
+    const response = await fetch(url, abort ? { ...options, signal: abort.signal } : options);
+    if (!response.ok) throw new Error(`${url}: ${response.status}`);
+    return await response.text();
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+async function fetchJson(url) {
+  return JSON.parse(await fetchText(url, { headers: { Accept: "application/vnd.github+json" } }));
+}
+
+/** The latest release's download, the home page's recap and What's new. */
+async function loadReleases(platform) {
+  const [releases, changelog] = await Promise.all([
+    fetchJson(RELEASES_API).then((r) => (Array.isArray(r) ? r : null)).catch((error) => {
+      console.info("Release information unavailable:", error);
+      return null;
+    }),
+    fetchText(CHANGELOG_RAW).catch((error) => {
+      console.info("Changelog unavailable:", error);
+      return null;
+    }),
+  ]);
+  // Without either, the static links stay: they always work.
+  const latest = releases ? latestRelease(releases) : null;
+  if (latest) enhanceDownload(latest, platform);
+  const entries = changelog ? parseChangelog(changelog) : [];
+  renderChangelog(entries, releases);
+  const entry = latest
+    ? entries.find((e) => `sjk-v${e.version}` === latest.tag_name)
+    : entries[0];
+  showLatest(entry || null, latest);
+}
+
+/** Merged pull requests per GitHub login among search results' `items`. */
+function countByAuthor(items) {
+  const counts = {};
+  for (const item of items || []) {
+    const login = item && item.user && item.user.login;
+    if (login) counts[login] = (counts[login] || 0) + 1;
+  }
+  return counts;
+}
+
+function cachedCounts(authors) {
+  try {
+    const kept = JSON.parse(localStorage.getItem(COUNTS_KEY) || "null");
+    if (!kept || Date.now() - kept.at > COUNTS_TTL_MS) return null;
+    return authors.every((a) => typeof kept.counts[a] === "number") ? kept.counts : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The merged pull requests of each of `authors` in SJK: one search for all of them,
+ * a page of 100 at a time. */
+async function contributorCounts(authors) {
+  const cached = cachedCounts(authors);
+  if (cached) return cached;
+  const query = [`repo:${REPO}`, "is:pr", "is:merged", ...authors.map((a) => `author:${a}`)].join(" ");
+  const items = [];
+  for (let page = 1; page <= 10; page += 1) {
+    const answer = await fetchJson(`${SEARCH_API}?q=${encodeURIComponent(query)}&per_page=100&page=${page}`);
+    const found = Array.isArray(answer.items) ? answer.items : [];
+    items.push(...found);
+    if (!found.length || items.length >= Number(answer.total_count)) break;
+  }
+  const counts = countByAuthor(items);
+  for (const author of authors) counts[author] = counts[author] || 0;
+  try {
+    localStorage.setItem(COUNTS_KEY, JSON.stringify({ at: Date.now(), counts }));
+  } catch {
+    // No storage: the next visit asks GitHub again.
+  }
+  return counts;
+}
+
+/** Each contributor card's count of merged pull requests. */
+async function loadContributors() {
+  const cards = [...document.querySelectorAll("[data-author]")];
+  if (!cards.length) return;
+  let counts;
+  try {
+    counts = await contributorCounts(cards.map((card) => card.dataset.author));
+  } catch (error) {
+    // The cards keep "Pull requests" and their links.
+    console.info("Pull request counts unavailable:", error);
+    return;
+  }
+  for (const card of cards) {
+    const count = counts[card.dataset.author];
+    const line = card.querySelector(".count");
+    if (line && count) line.textContent = count === 1 ? "1 merged pull request" : `${count} merged pull requests`;
+  }
+}
+
+/** Install shows one platform at a time, the visitor's first, chosen by its buttons. */
+function setUpPlatforms(initial) {
+  const root = document.querySelector("[data-platforms]");
+  if (!root) return;
+  const pick = root.querySelector(".platform-pick");
+  const buttons = [...root.querySelectorAll("[data-platform]")];
+  const sections = [...root.querySelectorAll(".platform[data-for]")];
+  if (!pick || !buttons.length || !sections.length) return;
+  const show = (platform) => {
+    buttons.forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.platform === platform)));
+    sections.forEach((s) => s.classList.toggle("shown", s.dataset.for === platform));
+  };
+  buttons.forEach((b) => b.addEventListener("click", () => show(b.dataset.platform)));
+  root.classList.add("picked");
+  pick.hidden = false;
+  show(sections.some((s) => s.dataset.for === initial) ? initial : sections[0].dataset.for);
 }
 
 /** A whole number of euros as SJK's site writes them: "1 200 €". */
@@ -246,40 +443,6 @@ function euDate(iso) {
   return `${two(date.getDate())}/${two(date.getMonth() + 1)}/${date.getFullYear()}`;
 }
 
-function renderReleases(releases) {
-  const target = document.getElementById("releases");
-  if (!target) return;
-  const shown = releases.filter((r) => !r.draft).slice(0, 5);
-  if (!shown.length) {
-    target.innerHTML = `<p class="muted">No release yet — the first one is on its way.
-      Meanwhile you can build SJK from source (see Install), or follow
-      <a href="${RELEASES_PAGE}">the releases page</a>.</p>`;
-    return;
-  }
-  target.innerHTML = shown.map((r) => {
-    const when = r.published_at ? `<time datetime="${escapeHtml(r.published_at)}">${euDate(r.published_at)}</time>` : "";
-    const title = escapeHtml(r.name || r.tag_name);
-    return `<article class="release">
-      <header><h3><a href="${escapeHtml(r.html_url)}">${title}</a></h3>${when}</header>
-      <div class="release-body">${renderMarkdown(r.body)}</div>
-    </article>`;
-  }).join("\n") + `<p class="muted"><a href="${RELEASES_PAGE}">All releases</a></p>`;
-}
-
-async function loadReleases() {
-  try {
-    const response = await fetch(RELEASES_API, { headers: { Accept: "application/vnd.github+json" } });
-    if (!response.ok) throw new Error(`GitHub API ${response.status}`);
-    const releases = await response.json();
-    if (!Array.isArray(releases)) throw new Error("unexpected response");
-    renderReleases(releases);
-    enhanceDownload(latestRelease(releases));
-  } catch (error) {
-    // Keep the static links; they always work.
-    console.info("Release information unavailable:", error);
-  }
-}
-
 async function loadGallery() {
   const section = document.getElementById("screenshots");
   const gallery = document.getElementById("gallery");
@@ -361,15 +524,18 @@ function setUpBackdrop() {
   }, 15000);
 }
 
-/** The top line stays away while the home page fills the screen, and marks
- * the section being read. */
+/** The top line is clear over the home page and solid below it, and marks the
+ * section being read. */
 function setUpNav() {
   const nav = document.querySelector(".nav");
   const home = document.querySelector(".home");
-  if (!nav || !home || !("IntersectionObserver" in window)) return;
+  if (!nav || !home || !("IntersectionObserver" in window)) {
+    if (nav) nav.classList.remove("over-home");
+    return;
+  }
   new IntersectionObserver(([entry]) => {
-    nav.classList.toggle("away", entry.intersectionRatio > 0.3);
-  }, { threshold: [0, 0.3, 1] }).observe(home);
+    nav.classList.toggle("over-home", entry.isIntersecting);
+  }, { rootMargin: "-72px 0px 0px 0px" }).observe(home);
   const links = new Map([...nav.querySelectorAll("ul a")].map((a) => [a.getAttribute("href").slice(1), a]));
   const spy = new IntersectionObserver((entries) => {
     for (const entry of entries) {
@@ -424,18 +590,22 @@ function setUpSettings() {
 if (typeof document !== "undefined") {
   document.documentElement.classList.add("js");
   document.addEventListener("DOMContentLoaded", () => {
+    const platform = guessPlatform();
     setUpBackdrop();
     setUpNav();
     setUpSettings();
+    setUpPlatforms(platform);
     setUpDonation();
-    loadReleases();
+    loadReleases(platform);
     loadGallery();
+    loadContributors();
   });
 }
 
 if (typeof module !== "undefined") {
   module.exports = {
-    escapeHtml, inline, renderMarkdown, latestRelease, assetFor, versionOf, euDate,
-    euros, donationState, donationFromHub, DONATION,
+    escapeHtml, inline, latestRelease, assetFor, versionOf, euDate, guessPlatform,
+    parseChangelog, changelogAnchor, isoDate, countByAuthor, euros, donationState,
+    donationFromHub, DONATION, PLATFORMS,
   };
 }
