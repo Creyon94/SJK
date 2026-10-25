@@ -32,8 +32,17 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
-- Mod settings typed in the console (`jof.e2eWhispers 1`, `jof.dialogue 0`...) are set again: the console took them for unknown mod commands, so only Settings could change them _(Sol)_
 - Kyber crystals: every achievement now brings one, once, from Uncommon to Mythical (shown on the Achievements tab, its hover card and its unlock card). Opening one always gives a saber shader, the ones you do not have yet first, and every tenth crystal in a row without a Legendary or Mythical shader gives one: the Holocrons tab shows your crystals, how soon that is, and their loot table _(Sol)_
+
+## 2026.1025.4 (Alpha) | 25/10/2026
+
+A small hotfix on top of 2026.1025.3.
+
+> Hotfix: A small general fix on top of 2026.1025.3.
+> Nothing to relearn: Everything else works as in 2026.1025.3.
+> Updating: The in-game update is all it takes.
+
+- A small general fix _(Sol)_
 
 ## 2026.1025.3 (Alpha) | 25/10/2026
 
