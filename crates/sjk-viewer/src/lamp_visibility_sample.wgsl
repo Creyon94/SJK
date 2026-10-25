@@ -1,4 +1,11 @@
-@group(3) @binding(19) var lamp_visibility_map: texture_2d<f32>;
+@group(3) @binding(19) var lamp_visibility_map: texture_2d<u32>;
+// The biased ray parameter of atlas texel `pixel` of a lamp whose codes take `step`
+// (`lamp_visibility_pack`), two to a stored texel; a miss is the 1e20 it was traced as.
+fn lamp_visibility_depth(pixel: vec2<i32>, step: f32) -> f32 {
+    let pair = textureLoad(lamp_visibility_map,vec2(pixel.x>>1u,pixel.y),0).x;
+    let code = select(pair&0xffffu,pair>>16u,(pixel.x&1)!=0);
+    return select(f32(code)*step,1e20,code==LAMP_VISIBILITY_MISS);
+}
 // A compact, smooth filter of binary visibility, never an average of blocker depths.
 // Its footprint is fixed in the lamp's map, so walking toward a shadow cannot
 // change its shape or switch its softness. Endpoint value and slope are zero.
@@ -7,7 +14,7 @@ fn lamp_visibility_weight(distance: f32) -> f32 {
     return t*t;
 }
 // Octahedral edges join mirrored tiles of the same sphere, not neighboring lamps.
-// Atlas resolutions are powers of two, including the one-texel fallback.
+// Atlas resolutions are powers of two, down to two (`lamp_visibility.rs`).
 fn lamp_visibility_pixel(pixel: vec2<i32>, resolution: i32) -> vec2<i32> {
     let local = pixel & vec2(resolution-1);
     let reflected = ((pixel.x^pixel.y)&resolution)!=0;
@@ -25,10 +32,10 @@ fn lamp_world_visibility(lamp: u32, world: vec3<f32>, normal: vec3<f32>) -> f32 
 }
 // Movers between the lamp and the receiver (`mover_occlusion.rs`): the lamp's door tile,
 // after the lamps' own tiles in the atlas.
-// The tile's top border row holds the pixel rectangle its movers cover (packed
-// x + 256 y; `mover_occlusion.wgsl`): a filter footprint wholly outside it reads only
-// unblocked texels, so it is skipped. Footprints within two texels of the tile's edge
-// reach mirrored texels and always filter.
+// The tile's first stored texel (two border texels the filter never reads) holds the pixel
+// rectangle its movers cover (a byte per bound; `mover_occlusion.wgsl`): a filter
+// footprint wholly outside it reads only unblocked texels, so it is skipped. Footprints
+// within two texels of the tile's edge reach mirrored texels and always filter.
 fn lamp_door_visibility(lamp: u32, world: vec3<f32>, normal: vec3<f32>) -> f32 {
     let door = lamp_data[lamp*5u+3u].w;
     let resolution = lamp_grid.offsets.z;
@@ -36,17 +43,16 @@ fn lamp_door_visibility(lamp: u32, world: vec3<f32>, normal: vec3<f32>) -> f32 {
     let slot = lamp_grid.counts.w+door-1u;
     let pitch = resolution+2u;
     let tile = vec2<i32>(vec2(slot%lamp_grid.offsets.w,slot/lamp_grid.offsets.w)*pitch);
-    let low = textureLoad(lamp_visibility_map,tile,0).x;
-    if low < 0.0 || low >= 65536.0 { return 1.0; }
-    let high = textureLoad(lamp_visibility_map,tile+vec2(1,0),0).x;
+    let rect = textureLoad(lamp_visibility_map,vec2(tile.x>>1u,tile.y),0).x;
+    if rect == LAMP_DOOR_UNCOVERED { return 1.0; }
     let source = bitcast<vec4<f32>>(lamp_data[lamp*5u]).xyz;
     let emitter_normal = bitcast<vec4<f32>>(lamp_data[lamp*5u+1u]).xyz;
     let delta = world-(source+emitter_normal*0.5);
     if dot(delta,delta)<1e-6 { return 1.0; }
     let at = (lamp_octa_coordinates(normalize(delta))*0.5+0.5)*f32(resolution)-0.5;
     let center = floor(at+0.5);
-    let lower = vec2(low%256.0,floor(low/256.0));
-    let upper = vec2(high%256.0,floor(high/256.0));
+    let lower = vec2(f32(rect&255u),f32((rect>>8u)&255u));
+    let upper = vec2(f32((rect>>16u)&255u),f32(rect>>24u));
     let inside = all(center>=vec2(2.0)) && all(center<=vec2(f32(resolution)-3.0));
     if inside && (any(center+2.0<lower) || any(center-2.0>upper)) { return 1.0; }
     return lamp_tile_visibility(slot,lamp,world,normal);
@@ -55,7 +61,9 @@ fn lamp_door_visibility(lamp: u32, world: vec3<f32>, normal: vec3<f32>) -> f32 {
 fn lamp_tile_visibility(slot: u32, lamp: u32, world: vec3<f32>, normal: vec3<f32>) -> f32 {
     let resolution = lamp_grid.offsets.z;
     if resolution == 0u { return 1.0; }
-    let source = bitcast<vec4<f32>>(lamp_data[lamp*5u]).xyz;
+    let source_radius = bitcast<vec4<f32>>(lamp_data[lamp*5u]);
+    let source = source_radius.xyz;
+    let step = lamp_visibility_step(source_radius.w);
     let emitter_normal = bitcast<vec4<f32>>(lamp_data[lamp*5u+1u]).xyz;
     let delta = world-(source+emitter_normal*0.5);
     if dot(delta,delta)<1e-6 { return 1.0; }
@@ -81,7 +89,7 @@ fn lamp_tile_visibility(slot: u32, lamp: u32, world: vec3<f32>, normal: vec3<f32
         let denominator = dot(ray,oriented_normal);
         // Rays outside the receiving hemisphere have no intersection to compare.
         if denominator<1e-4 { continue; }
-        let depth = textureLoad(lamp_visibility_map,vec2<i32>(tile)+pixel+1,0).x;
+        let depth = lamp_visibility_depth(vec2<i32>(tile)+pixel+1,step);
         // The cache includes the half-unit radial bias and the octahedral
         // ray-length conversion. No division or square root is needed per tap.
         visible += weight*select(0.0,1.0,depth*denominator>=plane_distance);

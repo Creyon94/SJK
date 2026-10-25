@@ -39,6 +39,25 @@ card's keys and words); the card rendered off screen over duel6's main menu in t
 and classic styles (`small_card_notice_card`). Not verified: on a real small card or an
 integrated GPU, the reload card after Back to SJK in a running game.
 
+## Less video memory on Experimental
+
+25/10/2026, `personal/experimental-vram`, based on `main` `7389dc91`: players on 4 to 8 GB
+NVIDIA cards ran out of video memory at map loads on the Experimental preset. Its lamp
+visibility atlas now keeps 16 bits a texel (fixed steps per lamp, two to an `R32Uint`
+texel) instead of a float, its lamp lists 16-bit indices on maps of up to 65,536 lamps,
+and the lamp light cache's budget follows the card (32 MiB per GiB, the old 512 MiB from
+16 GB up and off Windows) ([rendering.md](rendering.md#experimentals-lamp-memory)).
+Verified on Windows 11, RTX 5080, Vulkan: `low_end_vram_audit` at r_picmip 2 and
+1920x1080, Experimental, mp/ffa5 1314 -> 1212 MiB (925 as for an 8, 6 or 4 GB card),
+mp/siege_desert 1086 -> 1023 (1019 at 8 GB, 851 at 6 and 4 GB), the other presets
+unchanged; the audit frames, `lamp_light` (ffa5, ffa1) and `movers_shadow_lamps`
+(siege_hoth, door tiles) against two runs of `main`: within the noise on a 16 GB card,
+and with the smaller cache within its tolerance except one siege_hoth wall the 1024²
+cache had lit wrongly, now lit directly; unit tests of the list packing, the budget and
+the atlas shape, and the changed programs validate. Not verified: a real 4 to 8 GB card,
+DX12 and Metal (the formats used are core WebGPU), the light pass's cost on a mid-range
+card with the coarser cache (+0.07 ms in one of three ffa5 views on the RTX 5080).
+
 ## Decoded images no longer pile up
 
 25/10/2026, `personal/decoded-image-sweep`, based on `main` `296fca5f`: the decoded image

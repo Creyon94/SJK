@@ -2086,6 +2086,14 @@ test: Settings > Display > Render scale 50, reload graphics: world softer, HUD a
 test: Back to 100 and reload: the image is exactly as before.
 test: Resize the window or alt-enter at 50: the world still fills the screen correctly.
 
+[experimental-vram]
+area: Rendering & effects
+title: Experimental preset: less video memory (lamp lists, lamp shadows, cache by card size)
+change: Lamp shadow distances packed two per texel; lamp lists 16-bit on maps under 65,536 lamps.
+change: The lamp light cache's budget follows the card: 32 MiB per GB, 64 to 512 MiB.
+test: Experimental preset on ffa5 and siege_hoth: lamps, door shadows and walls light as before.
+test: Change maps a few times on Experimental: no missing light or black walls.
+
 [font-atlas-r8]
 area: Rendering & effects
 title: Font atlases in one channel: 120 MiB less video memory, text unchanged

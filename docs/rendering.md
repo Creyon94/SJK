@@ -720,6 +720,8 @@ process's RAM in Task Manager.
   is made, so the first frame already draws with them. Vanilla and SJK (recommended)
   differ by only about 45 MiB of video memory; this is for frame time (ambient
   occlusion, HDR and glow at full resolution) and the skins' GPU work.
+  The size also sets the lamp light cache's budget
+  ([below](#experimentals-lamp-memory)).
 - With menu pictures on, the menus' saber shader swatches show their drawings
   (`collection_swatch.rs`) instead of the live blade pictures (`blade_pictures.rs`, a
   832x1664 target of three textures, about 17 MB, and each signature blade's
@@ -894,6 +896,81 @@ ffa3 lost its floor mirror and sky portal targets and both atlases, siege_desert
 portal target and the atlases, the menu the atlases; the main view's `SJK depth` is the
 only depth target left. The audit's camera sees no polished floor, so at Experimental
 (`r_floorReflections 1`) the mirror target is only made once one comes into view.
+
+### Experimental's lamp memory
+
+Players on 4 to 8 GB cards ran out of video memory at map loads on Experimental, where
+Vulkan fails outright. Its real-time lighting held three large map-lifetime resources,
+cut on 25/10/2026:
+
+- The fixture visibility atlas (`SJK all-fixture static visibility`,
+  [lamp_visibility.rs](../crates/sjk-viewer/src/lamp_visibility.rs)) keeps each texel in
+  16 bits, two texels to an `R32Uint` texel, instead of an `R32Float` each: 64 MiB at
+  most instead of 128, at the same resolution. A texel is not a visibility fraction but
+  the ray parameter of the first blocker in its direction, which each filter tap
+  compares with the receiver's plane, so it needs precision in world units. The 16 bits
+  are steps of 1/65534 of the longest hit the lamp can have (its tracing limit along a
+  diagonal), 0.03 units for a lamp of 1000, rounded to the nearest step but never more
+  than a quarter unit nearer than traced: the half-unit bias that keeps a receiver from
+  shadowing itself loses at most half (`lamp_visibility_common.wgsl`). A miss has its own
+  code. `R16Float` would be the plain choice, but WebGPU does not guarantee it as a
+  storage format (wgpu would need `TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES` on every
+  device), and half floats were tried: their step grows with the distance (half a unit
+  from 512 units), and rounding up by it let measurably more light through on lit walls
+  (mp/siege_hoth's mover shots 0.18/255 brighter on average, up to 7/255); rounding up
+  by the fixed step still left 0.03/255, rounding to the nearest step is as close as two
+  runs of one build. A door tile keeps its movers' covered rectangle in its first
+  stored texel (two border texels), a byte per bound. The lowest atlas resolution is now
+  2 (tiles stay an even number of texels across); 1 was only reached past two million
+  lamps.
+- The lamp lists (`SJK lamps`, [lamp_lights.rs](../crates/sjk-viewer/src/lamp_lights.rs))
+  hold two 16-bit lamp indices to a word when a map has at most 65,536 lamps (every
+  retail map), otherwise one 32-bit index as before (`lamp_list_lamp` in
+  `lamp_lights.wgsl`). Refining crowded cells had made mp/ffa5's lists 34.6 million
+  entries for 10,023 lamps, 132 of the buffer's 150 MiB. The lists and their order are
+  the same, so every lamp sum is too.
+- The lamp light cache's budget follows the card (`lamp_cache::budget`, from
+  `video_memory::dedicated`): 32 MiB per GiB of the card's own memory, at least 64 MiB,
+  and the old fixed 512 MiB from 16 GiB up or when the size is unknown (off Windows).
+  It counts the light layers; with material maps the direction layers add half as much
+  again. A cache over its budget halves its resolution: mp/ffa5's 45 layers go from
+  1024² (360 MiB, 540 with directions) to 512² (90, 135) on a card of 8 GB or less
+  (a 256 MiB budget, 192 at 6 GB, 128 at 4 GB), mp/siege_desert's 26 from 208 to 52 MiB
+  at 6 GB or less. A coarser cache keeps its accuracy, as before on large maps: the steep
+  pass sends texels whose light bends too sharply for interpolation to direct
+  evaluation, and so does a surface mapped more than 16 units a cache texel. It costs
+  speed instead: on an RTX 5080 at 1280×720 the light pass of the three ffa5 lamp views
+  (`world_shot::lamp_light`) took 0.223, 0.170 and 0.425 ms at 1024² and 0.222, 0.170 and
+  0.499 ms at 512². Tests take `SJK_VIDEO_MEMORY_MIB` for the card's size.
+
+`low_end_vram_audit` at 1920×1080 and r_picmip 2, Experimental, MiB in use (`main`
+7389dc91, then this change as built for cards of each size; Sol's is 16 GB):
+
+| Map | Before | 16 GB | 8 GB | 6 and 4 GB |
+| --- | --- | --- | --- | --- |
+| mp/ffa5 | 1314 | 1212 | 925 | 925 |
+| mp/siege_desert | 1086 | 1023 | 1019 | 851 |
+
+Per label: ffa5's atlas 58.9 → 29.5 MiB and lamps 149.9 → 83.8, siege_desert's atlas
+128.7 → 64.3 and lamps 10.9 → 8.0, and the caches as above. The totals move by a few
+MiB between runs of one build (wgpu's indirect-draw validation buffers, 1 MiB each); no
+other label changed, nor did the Vanilla and SJK presets or the menu on pictures.
+Images, compared with two runs of `main` (world shots are not time-deterministic): the
+audit frames, `world_shot::lamp_light` on ffa5 and ffa1 and `movers_shadow_lamps` on
+mp/siege_hoth (door tiles) differ from `main` as much as `main` from itself on a 16 GB
+card (the worst sheet: at most 4/255, 0.017/255 brighter on average, against 3/255 and
+0.006 between two `main` runs). With the smaller cache, most views stay within the
+cache's tolerance; one wall in siege_hoth's sheet 59 changes by up to 56/255, because at
+512² it is lit directly: there the 1024² cache had been off by up to 53/255 (30,355
+pixels over 8/255 against `SJK_LAMP_CACHE=0`, 3,036 at 512²).
+
+Looked at and left: the two froxel volumes (23.6 MiB each, RGBA16F, alpha unused; the
+RGB-only `Rg11b10Ufloat` is not a storage format WebGPU guarantees and has a 6-bit
+mantissa for the integrated sums), the GI probe depth moments (23 to 26 MiB, the mean
+and mean square of each direction's distance in two floats; half floats overflow past
+256 units squared and lose the variance to cancellation) and the six 16 MiB sun shadow
+targets (2048² `Depth32Float`; 16 bits over the far cascade's map-wide fit would show
+acne).
 
 ## Eye adaptation
 
@@ -1167,7 +1244,9 @@ otherwise come from a trace of the static world only, done once when the map loa
   traced on the GPU against the movers near that lamp at their current pose; a
   receiver's lamp visibility is the world tile's times the door tile's. The trace also
   records the pixel rectangle the movers cover, in two border texels the filter never
-  reads; a receiver whose filter footprint lies outside it skips the door tile.
+  reads (the tile's first stored texel, a byte per bound, since the atlas went to 16 bits
+  a texel: [Experimental's lamp memory](#experimentals-lamp-memory)); a receiver whose
+  filter footprint lies outside it skips the door tile.
 - **Poses.** Movers in the snapshot block light where they are drawn; one hidden or
   broken (not drawn) blocks nothing. A mover no snapshot has shown yet stands at its
   baseline's spawn pose; one with neither blocks nothing. A mover missing from a
@@ -1208,7 +1287,10 @@ floor is 3.6 times coarser: lit directly it took 4.2 ms of a 7.5 ms frame at 4K 
 RTX 5080 (Sol's in-game run with every real-time term off still measured a 5.7 ms
 light pass), cached the frame is 3.6 ms, and the spawn view differs by at most 8/255
 (0.45 % of pixels by more than 4). `mp/ffa5`, `mp/ffa3` and `JKLevel1` were unchanged
-(3.1, 3.2 and 2.5 ms) and the cache kept its 519 MiB on `JoFTemple`.
+(3.1, 3.2 and 2.5 ms) and the cache kept its 519 MiB on `JoFTemple`. The cache's budget
+follows the card's video memory since 25/10/2026: on a card under 16 GB a large map's
+cache can be a resolution coarser, with more surfaces lit directly
+([Experimental's lamp memory](#experimentals-lamp-memory)).
 
 The ignored world shot `world_shot::movers::movers_shadow_lamps` renders the movers with
 the most door lamps closed, open and with every mover hidden, from beside a lamp, and
