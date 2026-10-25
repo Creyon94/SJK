@@ -13,30 +13,6 @@
 - 8a9e108 |  | Card pictures: decoder guard, own memory labels, found card asked early (after Slash's #206)
 + 25/10/2026 | - | Format: announcement world shot and the body fade shot's module
 - 206f17a |  | Format: announcement world shot and the body fade shot's module
-+ 25/10/2026 | - | CTF HUD: team scores in SJK team boxes with each flag's state (work in progress)
-- 2f50b04 |  | CTF HUD: team scores in SJK team boxes with each flag's state (work in progress)
-+ 25/10/2026 | - | CTF HUD: cg_teamScoresBoxes brings back the classic plates; Windows test build workflow
-- 5ac4fc1 |  | CTF HUD: cg_teamScoresBoxes brings back the classic plates; Windows test build workflow
-+ 25/10/2026 | - | CTF HUD: compact boxes, carrier named at once, no duplicate flag pictures
-- 72498b8 |  | CTF HUD: compact boxes, carrier named at once, no duplicate flag pictures
-+ 25/10/2026 | - | CTF HUD: larger score, cg_teamScoresScale sizes the team boxes
-- 139d881 |  | CTF HUD: larger score, cg_teamScoresScale sizes the team boxes
-+ 25/10/2026 | - | CTF HUD: no gold rule over your team's box
-- 48be58d |  | CTF HUD: no gold rule over your team's box
-+ 25/10/2026 | - | Drop the test build workflow: GameData packages builds any branch on demand
-- 19dcd92 |  | Drop the test build workflow: GameData packages builds any branch on demand
-+ 25/10/2026 | - | Settings help: the team score rows fit two lines
-- 02c988a |  | Settings help: the team score rows fit two lines
-+ 25/10/2026 | - | CTF HUD: clippy (iterate the drop timers, no same-type cast)
-- 51b7e4b |  | CTF HUD: clippy (iterate the drop timers, no same-type cast)
-+ 25/10/2026 | - | Changelog: keep the CTF team boxes entry after the rebase
-- daff47b |  | Changelog: keep the CTF team boxes entry after the rebase
-+ 25/10/2026 | - | Stage player model installs and pool body copies ahead of deaths
-- a77107c |  | Stage player model installs and pool body copies ahead of deaths
-+ 25/10/2026 | - | Drop the all-at-once prepared texture upload, unused since players upload one a frame
-- 4468c35 |  | Drop the all-at-once prepared texture upload, unused since players upload one a frame
-+ 25/10/2026 | - | Restore main's earlier changelog line the merge had dropped; separate the status entry
-- 68b9fc2 |  | Restore main's earlier changelog line the merge had dropped; separate the status entry
 + 25/10/2026 | - | Announcement commands close the console, the window frees the cursor
 - 7028074 |  | Announcements: commands close the console, the window frees the cursor
 + 25/10/2026 | - | Ragdoll knocks and scrapes heard in release builds
@@ -2155,9 +2131,8 @@
 
 = Creyon
 + 25/10/2026 | SJK #202 | Fade bodies away on EV_BODYFADE as EternalJK does
-- 8839c5d | Sol | Body fade: every reused slot fades, crackle once per 100 ms, body gone 4 s after
-+ 25/10/2026 | - | Fade bodies away on EV_BODYFADE as EternalJK does
 - c6297c3 |  | Fade bodies away on EV_BODYFADE as EternalJK does
+- 8839c5d | Sol | Body fade: every reused slot fades, crackle once per 100 ms, body gone 4 s after
 + 24/10/2026 | SJK #191 | Fix blade tip pixels and hard edges on signature blades
 - b3f7f38 |  | Fix blade tip pixels and hard edges on signature blades
 - f43f320 |  | Add round 23 status entry and complete its rendering notes
@@ -2528,10 +2503,22 @@
 
 = Slash
 + 25/10/2026 | SJK #205 | Stage player model installs and pool body copies ahead of deaths
+- a77107c |  | Stage player model installs and pool body copies ahead of deaths
+- 4468c35 |  | Drop the all-at-once prepared texture upload, unused since players upload one a frame
+- 68b9fc2 |  | Restore main's earlier changelog line the merge had dropped; separate the status entry
 - fc0bb20 | Sol | Model installs: wait for a reused model's pipelines; pool only bodies the player will leave
 - 462c1e2 | Sol | PR #205: credits and debug panel entry
 - 4203548 | Sol | PR #205 status: the checks run at the merge, against main
 + 25/10/2026 | SJK #201 | CTF HUD: team scores in SJK team boxes with each flag's state
+- 2f50b04 |  | CTF HUD: team scores in SJK team boxes with each flag's state (work in progress)
+- 5ac4fc1 |  | CTF HUD: cg_teamScoresBoxes brings back the classic plates; Windows test build workflow
+- 72498b8 |  | CTF HUD: compact boxes, carrier named at once, no duplicate flag pictures
+- 139d881 |  | CTF HUD: larger score, cg_teamScoresScale sizes the team boxes
+- 48be58d |  | CTF HUD: no gold rule over your team's box
+- 19dcd92 |  | Drop the test build workflow: GameData packages builds any branch on demand
+- 02c988a |  | Settings help: the team score rows fit two lines
+- 51b7e4b |  | CTF HUD: clippy (iterate the drop timers, no same-type cast)
+- daff47b |  | Changelog: keep the CTF team boxes entry after the rebase
 - 81ea659 | Sol | CTF team boxes: long scores fit, followed carriers named, drops forgotten per game
 + 24/10/2026 | SJK #200 | Encrypted whispers: per-key safety code fingerprints (v2)
 - bf04bc1 |  | Encrypted whispers: per-key safety code fingerprints (v2)

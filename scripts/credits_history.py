@@ -118,6 +118,8 @@ PR_PATTERNS = [
     (re.compile(r"^Merge \S+(?: round \d+)? \(PR #(?P<n>\d+)"), "JKR"),
     (re.compile(r"^Merge PR #(?P<n>\d+) \((?P<title>.*)\) into "), None),
     (re.compile(r"^Merge .*\(SJK #(?P<n>\d+)\) into "), "SJK"),
+    # A review branch taking in the pull request: "Merge PR #N (Author: title)".
+    (re.compile(r"^Merge PR #(?P<n>\d+) \([^:()]+: .*\)$"), "SJK"),
     # Rounds pushed to a pull request's branch after it was merged belong to it.
     (re.compile(r"^Merge .*\(pushed after #(?P<n>\d+) was merged\)$"), "SJK"),
 ]
