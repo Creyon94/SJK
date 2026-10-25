@@ -2059,6 +2059,15 @@ note: Alt+Tab while holding Tab leaves the board and the hidden HUD up until Tab
 
 # ---- Rendering & effects ----
 
+[lazy-scene-targets]
+area: Rendering & effects
+title: Mirror, sky portal and portal views, CJK and emoji atlases made only when drawn
+change: Floor mirror, sky portal and map portal targets are made the first frame they draw.
+change: The wide glyph (CJK) and emoji atlases are made with the first such character.
+test: r_floorReflections 1 on ffa3: the floor mirror draws; 0 then 1 again: it comes back.
+test: duel6 (sky portal): the sky scenery draws as before; resize the window: still right.
+test: Type Russian/Japanese and an emoji in chat: they show from the first character.
+
 [blade-tip-edges]
 area: Rendering & effects
 title: Signature blades: no bright tip rim, no hard edges (Creyon, PR #191)

@@ -287,6 +287,8 @@ includes:
 - small graphics cards found at start: the card's video memory read from DXGI, a card
   of 4 GB or less starting on lower texture detail and menu pictures, and saber shader
   swatches drawn instead of rendered live while the menu pictures are on;
+- floor mirror, sky portal and map portal views, and the CJK and emoji glyph atlases,
+  made only when first drawn (25/10/2026): 20 to 70 MiB less video memory at 1080p;
 - Discord status (`cl_discordPresence`): the player's Discord profile showing the menu
   screen, or the server, map, mode, team and players, through the Discord app's
   local pipe;
