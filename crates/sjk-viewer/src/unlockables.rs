@@ -2352,8 +2352,7 @@ pub(crate) static ALL: [Unlockable; 168] = [
         description: "A thousand paper cranes, the old gift of thanks: a silk-white blade with a red thread wound round it, origami cranes in coloured paper circling it and a golden crane at its tip. Swing it and cranes take flight.",
         how_to_get: PERSONAL_THANKS,
     },
-    // 25/10/2026: Sol's Hearth, a Unique blade that grows with how long it has been held
-    // (`blade_growth.rs`).
+    // 25/10/2026: Sol's Hearth, the second Unique blade.
     Unlockable {
         id: "saber_hearth",
         number: 168,
@@ -2364,7 +2363,7 @@ pub(crate) static ALL: [Unlockable; 168] = [
         droppable: false,
         edition: crate::editions::ALPHA,
         smith: SOL,
-        description: "A home fire: a warm amber blade of glowing coals with embers rising off it, that grows the longer you hold it. Flames come at a month, a heat shimmer at three, a blaze at six, and at a year hearthstones ring its emitter and ash drifts off its swings.",
+        description: "A home fire: a warm amber blade of glowing coals with embers rising off it and flames licking up its edges, the air shimmering over it. A ring of hearthstones stands round its emitter, and ash drifts off its swings.",
         how_to_get: PERSONAL_THANKS,
     },
 ];
@@ -3070,7 +3069,6 @@ mod tests {
         let unlock = Unlock {
             id: "saber_sun".into(),
             granted: 1_791_336_225,
-            since: 0,
             note: "Thanks".into(),
             count: 1,
             medal: None,
@@ -3170,7 +3168,6 @@ mod tests {
         let grant = |id: &str| sjk_identity::Unlock {
             id: id.into(),
             granted: 1_793_000_000,
-            since: 0,
             note: String::new(),
             count: 1,
             medal: None,

@@ -4,8 +4,7 @@
 //! presence roster when it changes and from the feed's look events as they come. The
 //! local player's own look comes from its own settings (`cg_saberSkin`, gated by the
 //! unlocks of its hub profile, and its Illuminate), never from the hub. Blade skins are
-//! named by their ids in the catalogue ([`crate::unlockables`]). A growing blade's parts
-//! not grown yet are off in the own look ([`crate::blade_growth`]).
+//! named by their ids in the catalogue ([`crate::unlockables`]).
 //!
 //! A hub look counts only while the game shows, in its slot, the name the claim was
 //! made under (the badges' and emotes' rule, [`sjk_identity::names_match`]). The
@@ -221,9 +220,6 @@ pub(crate) struct Looks {
     /// `cg_saberSkinOptions` as last read (twice a second), for the skins the
     /// Collection shows on the model.
     own_options: String,
-    /// The parts of the player's growing blades not grown yet, as words of the same
-    /// form ([`crate::blade_growth::locked_words`]), worked out with them.
-    own_locked: String,
     /// World shots own every unlock, having no hub.
     #[cfg(test)]
     pub(crate) shot_owns_unlocks: bool,
@@ -243,7 +239,6 @@ impl Default for Looks {
             revision: 0,
             muted: 0,
             own_options: String::new(),
-            own_locked: String::new(),
             #[cfg(test)]
             shot_owns_unlocks: false,
         }
@@ -309,31 +304,18 @@ impl Looks {
         self.own
     }
 
-    /// Keep `cg_saberSkinOptions` as read and the growing blades' parts not grown yet
-    /// (`locked`, [`crate::blade_growth::locked_words`]); a change counts as one to what
-    /// is worn, so the skins are taken again.
-    pub(crate) fn set_own_options(&mut self, options: String, locked: String) {
-        if options != self.own_options || locked != self.own_locked {
+    /// Keep `cg_saberSkinOptions` as read; a change counts as one to what is worn, so
+    /// the skins are taken again.
+    pub(crate) fn set_own_options(&mut self, options: String) {
+        if options != self.own_options {
             self.own_options = options;
-            self.own_locked = locked;
             self.revision += 1;
         }
     }
 
-    /// The options off on blade skin `skin` for the local player, worn or only shown (the
-    /// Collection's swatches and preview on the model): those they switched off and, on a
-    /// growing blade, those not grown yet.
+    /// The options the local player switched off on blade skin `skin`, worn or only
+    /// shown (the Collection's preview on the model).
     pub(crate) fn own_options_off(&self, skin: &str) -> crate::saber_skin_options::OptionsOff {
-        self.own_grown_options_off(skin)
-            | crate::saber_skin_options::off_bits(&self.own_locked, skin)
-    }
-
-    /// The options the local player switched off on blade skin `skin`, every part grown:
-    /// the Collection's preview of a growing blade fully grown, drawn there alone.
-    pub(crate) fn own_grown_options_off(
-        &self,
-        skin: &str,
-    ) -> crate::saber_skin_options::OptionsOff {
         crate::saber_skin_options::off_bits(&self.own_options, skin)
     }
 
@@ -767,33 +749,5 @@ mod tests {
         assert_eq!(looks.options_off(3), own.options_off);
         looks.set_muted(1 << 3);
         assert_eq!(looks.options_off(3), 0);
-    }
-
-    /// A growing blade's parts not grown yet (`blade_growth.rs`) are off on top of the
-    /// wearer's own choice: in the look sent, so every other player draws the same stage,
-    /// and on the blades drawn here, but not in the Collection's preview fully grown.
-    #[test]
-    fn a_growing_blade_s_parts_not_grown_are_off_in_the_own_look() {
-        use crate::saber_skin_options::bits;
-        let options = "saber_sun.sparks";
-        let locked = "saber_sun.haze";
-        let gated = crate::blade_growth::gated(options, locked);
-        let own = Worn::own("saber_sun", &gated, |_| true, false);
-        assert_eq!(own.options_off, bits(["haze", "sparks"]));
-        let sent = own.to_look(&gated);
-        assert_eq!(sent.saber_off, ["haze", "sparks"]);
-        assert_eq!(Worn::of(&sent), own, "others draw the same stage");
-        let mut looks = Looks::default();
-        let before = looks.revision();
-        looks.set_own_options(options.to_owned(), locked.to_owned());
-        assert!(looks.revision() > before, "the skins are taken again");
-        assert_eq!(looks.own_options_off("saber_sun"), bits(["haze", "sparks"]));
-        assert_eq!(looks.own_grown_options_off("saber_sun"), bits(["sparks"]));
-        assert_eq!(looks.own_options_off("saber_void"), 0);
-        // Grown the next day: the lock goes, and that is a change too.
-        let locked = looks.revision();
-        looks.set_own_options(options.to_owned(), String::new());
-        assert!(looks.revision() > locked);
-        assert_eq!(looks.own_options_off("saber_sun"), bits(["sparks"]));
     }
 }

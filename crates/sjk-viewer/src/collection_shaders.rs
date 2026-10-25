@@ -421,8 +421,6 @@ impl Panel {
             }
             self.rack_scroll_bar(frame, first, rows.len());
         }
-        // Its parts offer "See it grown" again only if they still may.
-        self.growable = None;
         if let Some(row) = rows.get(self.shader).copied() {
             self.shader_card(frame, row, inputs, seconds);
         }
@@ -1482,11 +1480,7 @@ impl Panel {
     /// The chosen shader's parts its wearer may switch off, under its words from `y`:
     /// a tick each in two columns (three past four), named as its file names them,
     /// ticked while on; a click or its number key switches it, on the model at once and,
-    /// worn, for every SJK player. On a growing blade the player holds
-    /// ([`crate::blade_growth`]), a part not grown yet has a padlock for its tick and says
-    /// when it grows, and switches neither way; the line over them says how long the
-    /// blade has been held and, with a stage to show it on and parts still to grow,
-    /// offers "See it grown" (G), the stage alone drawing it fully grown.
+    /// worn, for every SJK player.
     fn shader_parts(
         &mut self,
         frame: &Frame,
@@ -1517,99 +1511,19 @@ impl Panel {
             FontWeight::Semibold,
             TextAlign::Start,
         );
-        let stage =
-            crate::blade_growth::Stage::of(skin, &inputs.holdings, crate::blade_growth::now());
-        if let Some(stage) = stage {
-            let mut right = x + width;
-            if !stage.grown() && self.backstage != Backstage::None {
-                let label = if self.grown == Some(skin) {
-                    "See your stage"
-                } else {
-                    "See it grown"
-                };
-                let button = crate::text::display_width(label, 20.0) * self.widen + 36.0;
-                right -= button;
-                kit::button(
-                    &mut self.ui,
-                    frame,
-                    [right, y - 5.0, button, 30.0],
-                    label,
-                    false,
-                    true,
-                    false,
-                    GROWN_TOKEN,
-                );
-                right -= 14.0;
-                self.growable = Some(skin);
-            }
-            text(
-                &mut self.ui,
-                TextFamily::Body,
-                format_args!("{}", stage.held_words()),
-                frame.rect(x, y + 1.0, (right - x).max(0.0), 22.0),
-                15.0 * s,
-                color::MUTED,
-                FontWeight::Semibold,
-                TextAlign::End,
-            );
-        }
-        let shown: Vec<(&'static str, String, bool, Option<u32>, String)> = options
+        let shown: Vec<(&'static str, String, bool, String)> = options
             .iter()
             .map(|option| {
                 let on = crate::saber_skin_options::is_on(inputs.options, skin, &option.id);
-                let left = stage.and_then(|stage| stage.days_left(&option.id));
-                (skin, option.id.clone(), on, left, option.name.clone())
+                (skin, option.id.clone(), on, option.name.clone())
             })
             .collect();
-        for (index, (_, _, on, left, name)) in shown.iter().enumerate() {
+        for (index, (_, _, on, name)) in shown.iter().enumerate() {
             let token = OPTION_BASE + index as u16;
-            let left_x = x + (index % columns) as f32 * column;
+            let left = x + (index % columns) as f32 * column;
             let middle = y + 28.0 + (index / columns) as f32 * step + step * 0.5;
-            let room = column - kit::TICK_BOX - 18.0;
-            let Some(days) = left else {
-                let hovered = self.ui.token_hovered(token);
-                let after = kit::tick(&mut self.ui, frame, left_x, middle, *on, hovered);
-                text(
-                    &mut self.ui,
-                    TextFamily::Body,
-                    format_args!("{name}"),
-                    frame.rect(after + 10.0, middle - 11.0, room, 22.0),
-                    16.0 * s,
-                    if *on { color::TEXT } else { color::MUTED },
-                    FontWeight::Semibold,
-                    TextAlign::Start,
-                );
-                self.ui.hit_region(
-                    token,
-                    frame.rect(left_x - 4.0, middle - step * 0.5, column - 8.0, step),
-                );
-                continue;
-            };
-            // Not grown yet: a padlock in an empty box, its name quiet and when it grows at
-            // the column's end; no click takes it.
-            let after = kit::tick(&mut self.ui, frame, left_x, middle, false, false);
-            text(
-                &mut self.ui,
-                TextFamily::Body,
-                format_args!("{}", symbols::LOCK),
-                frame.rect(left_x, middle - 10.0, kit::TICK_BOX, 20.0),
-                14.0 * s,
-                color::QUIET,
-                FontWeight::Semibold,
-                TextAlign::Center,
-            );
-            let grows = crate::blade_growth::grows_in(*days);
-            let grows_width = crate::text::display_width(&grows, 14.0) * self.widen;
-            text(
-                &mut self.ui,
-                TextFamily::Body,
-                format_args!("{grows}"),
-                frame.rect(after + 10.0, middle - 10.0, room, 20.0),
-                14.0 * s,
-                color::HOLO,
-                FontWeight::Semibold,
-                TextAlign::End,
-            );
+            let hovered = self.ui.token_hovered(token);
+            let after = kit::tick(&mut self.ui, frame, left, middle, *on, hovered);
             text(
                 &mut self.ui,
                 TextFamily::Body,
@@ -1617,18 +1531,22 @@ impl Panel {
                 frame.rect(
                     after + 10.0,
                     middle - 11.0,
-                    (room - grows_width - 8.0).max(0.0),
+                    column - kit::TICK_BOX - 18.0,
                     22.0,
                 ),
                 16.0 * s,
-                color::QUIET,
+                if *on { color::TEXT } else { color::MUTED },
                 FontWeight::Semibold,
                 TextAlign::Start,
+            );
+            self.ui.hit_region(
+                token,
+                frame.rect(left - 4.0, middle - step * 0.5, column - 8.0, step),
             );
         }
         self.shader_options = shown
             .into_iter()
-            .map(|(skin, option, on, left, _)| (skin, option, on, left.is_some()))
+            .map(|(skin, option, on, _)| (skin, option, on))
             .collect();
     }
 }
@@ -1663,7 +1581,6 @@ mod tests {
         let grant = |medal: Option<&str>| sjk_identity::Unlock {
             id: "saber_glitch".to_owned(),
             granted: 0,
-            since: 0,
             note: String::new(),
             count: 1,
             medal: medal.map(str::to_owned),
@@ -1835,7 +1752,6 @@ mod tests {
         let held = [sjk_identity::Unlock {
             id: "saber_thousand_cranes".into(),
             granted: 1_793_000_000,
-            since: 0,
             note: String::new(),
             count: 1,
             medal: None,
@@ -1873,7 +1789,6 @@ mod tests {
         let sun = [sjk_identity::Unlock {
             id: "saber_sun".into(),
             granted: 1_791_336_225,
-            since: 0,
             note: "a long note from the team ".repeat(8),
             count: 1,
             medal: None,

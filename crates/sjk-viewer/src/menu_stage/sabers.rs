@@ -10,7 +10,6 @@ use super::lone;
 use super::showcase::{self, Line, View};
 use super::throw::{Pose, Throw};
 use super::*;
-use crate::console::collection_panel::PreviewSkin;
 use crate::menu_backdrop::Focus;
 use crate::player_menu::StageSabers;
 use crate::saber::{self, Attachment, HAND_BOLT, LEFT_HAND_BOLT};
@@ -267,20 +266,16 @@ impl GpuState {
     pub(crate) fn begin_saber_instances(&mut self) {
         self.saber_instances.clear();
         // The stage model is the local player: its blades wear the player's skin, or
-        // the one the Collection's Shaders tab shows (at the player's stage of a growing
-        // blade, or fully grown when it asks).
-        let shown = |id, off| {
-            self.blade_skins
-                .color_with(id, off)
+        // the one the Collection's Shaders tab shows.
+        let skin = match self.menu_stage.skin_override {
+            Some(crate::console::collection_panel::PreviewSkin::Stock) => None,
+            Some(crate::console::collection_panel::PreviewSkin::Skin(id)) => self
+                .blade_skins
+                .color_with(id, self.looks.own_options_off(id))
                 .map(|skin| crate::saber_skins::SkinColor {
                     persona: self.saber_skins.local_persona(),
                     ..skin
-                })
-        };
-        let skin = match self.menu_stage.skin_override {
-            Some(PreviewSkin::Stock) => None,
-            Some(PreviewSkin::Skin(id)) => shown(id, self.looks.own_options_off(id)),
-            Some(PreviewSkin::Grown(id)) => shown(id, self.looks.own_grown_options_off(id)),
+                }),
             _ => self.saber_skins.local(),
         };
         let frame_view = self.frame_view;

@@ -685,7 +685,6 @@ mod tests {
             unlocks: vec![sjk_identity::Unlock {
                 id: "saber_sun".to_owned(),
                 granted: 1,
-                since: 0,
                 note: String::new(),
                 count: 1,
                 medal: None,
