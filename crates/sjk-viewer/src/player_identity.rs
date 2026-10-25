@@ -477,7 +477,7 @@ pub(crate) fn snapshot() -> Option<Snapshot> {
 /// [`snapshot`] as the screens of what the player holds show it: with every collectible
 /// held while `debug_collectibles` (`wanted`) is on for a staff key
 /// (`debug_collectibles.rs`).
-pub(crate) fn collection_snapshot(wanted: bool) -> Option<Snapshot> {
+pub(crate) fn collection_snapshot(wanted: crate::debug_collectibles::Wanted) -> Option<Snapshot> {
     snapshot().map(|snapshot| crate::debug_collectibles::dressed(wanted, snapshot))
 }
 
@@ -1297,6 +1297,32 @@ pub(crate) fn with_roster<R>(read: impl FnOnce(&[sjk_identity::Presence]) -> R) 
         .service
         .as_ref()
         .map(|service| service.with_snapshot(|snapshot| read(&snapshot.players)))
+}
+
+/// Read the grant of unlock `id` the player's own hub profile lists, by the gate of
+/// [`owns_unlock`]: `None` with the identity off, no hub, before the hub answered or
+/// without it.
+pub(crate) fn with_own_unlock<R>(
+    id: &str,
+    read: impl FnOnce(&sjk_identity::Unlock) -> R,
+) -> Option<R> {
+    lock().service.as_ref().and_then(|service| {
+        service.with_snapshot(|snapshot| {
+            if matches!(
+                snapshot.status,
+                sjk_identity::Status::Disabled | sjk_identity::Status::NoHub
+            ) {
+                return None;
+            }
+            snapshot
+                .me
+                .as_ref()?
+                .unlocks
+                .iter()
+                .find(|unlock| unlock.id == id)
+                .map(read)
+        })
+    })
 }
 
 /// Whether the player's own hub profile lists unlock `id`: false with the identity

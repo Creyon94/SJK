@@ -117,9 +117,13 @@ const LIST_VIEW_TOKEN: u16 = 1_312;
 const GRID_VIEW_TOKEN: u16 = 1_313;
 /// The chosen shader's options (its parts the wearer may switch off), one each.
 const OPTION_BASE: u16 = 1_320;
+/// The Parts line's "See it grown" (or "See your stage"): a growing blade held shows fully
+/// grown on the stage, or at the player's stage again (25/10/2026).
+const GROWN_TOKEN: u16 = 1_330;
 /// The Cards tab's Reveal button.
 const REVEAL_TOKEN: u16 = 1_350;
-const _: () = assert!(OPTION_BASE as usize + OPTION_TOKENS <= REVEAL_TOKEN as usize);
+const _: () = assert!(OPTION_BASE as usize + OPTION_TOKENS <= GROWN_TOKEN as usize);
+const _: () = assert!(GROWN_TOKEN < REVEAL_TOKEN);
 /// The Cards tab's tiles (19/10/2026, the binder): one token each in the list the filter
 /// shows, up to [`CARD_TILES_MAX`]; then its filter's chips (All, Owned and Missing,
 /// then the rarity, the kind and the finish, each cycling).
@@ -298,8 +302,12 @@ pub(crate) enum PreviewSkin {
     Worn,
     /// The stock blade.
     Stock,
-    /// This blade skin, owned or not: only drawn here, never sent.
+    /// This blade skin, owned or not: only drawn here, never sent. A growing blade the
+    /// player holds shows at their stage ([`crate::blade_growth`]).
     Skin(&'static str),
+    /// This growing blade fully grown, every part the player has not switched off on
+    /// (the Shaders tab's "See it grown"): only drawn here, never worn or sent.
+    Grown(&'static str),
 }
 
 /// What the page wants the stage to show.
@@ -433,9 +441,15 @@ pub(crate) struct Panel {
     unique_chip: bool,
     /// The search field takes the typing.
     search_focus: bool,
-    /// The chosen shader's options the last frame showed (its skin, the option's id and
-    /// whether it is on), for clicks and the number keys.
-    shader_options: Vec<(&'static str, String, bool)>,
+    /// The chosen shader's options the last frame showed (its skin, the option's id,
+    /// whether it is on and whether it has not grown yet), for clicks and the number keys.
+    shader_options: Vec<(&'static str, String, bool, bool)>,
+    /// The chosen shader when it is a growing blade the player holds, not fully grown,
+    /// with a stage to show it on, as the last frame drew it: "See it grown" offered.
+    growable: Option<&'static str>,
+    /// The growing blade the stage shows fully grown (G or "See it grown"), until asked
+    /// back or another is chosen.
+    grown: Option<&'static str>,
     /// Where the model stands this frame.
     backstage: Backstage,
     /// The thing the pointer rests on, for its hover card.
@@ -531,6 +545,8 @@ impl Panel {
             unique_chip: false,
             search_focus: false,
             shader_options: Vec::new(),
+            growable: None,
+            grown: None,
             backstage: Backstage::None,
             hover: Default::default(),
             pointer: None,
@@ -574,8 +590,9 @@ impl Panel {
     /// on each tab stay as they were.
     pub(crate) fn open(&mut self, tab: Tab, owns_console: bool, hub: bool, back: ReturnTarget) {
         if !self.open {
-            // Shaders opens on what the player wears.
+            // Shaders opens on what the player wears, a growing blade at the player's stage.
             self.shader = usize::MAX;
+            self.grown = None;
         }
         self.open = true;
         self.owns_console = owns_console;
@@ -653,9 +670,13 @@ impl Panel {
             Tab::Shaders => Some(StageWish {
                 skin: match self.shader {
                     0 => PreviewSkin::Stock,
-                    row => self
-                        .skin_at(row)
-                        .map_or(PreviewSkin::Worn, |skin| PreviewSkin::Skin(skin.id)),
+                    row => self.skin_at(row).map_or(PreviewSkin::Worn, |skin| {
+                        if self.grown == Some(skin.id) && self.growable == Some(skin.id) {
+                            PreviewSkin::Grown(skin.id)
+                        } else {
+                            PreviewSkin::Skin(skin.id)
+                        }
+                    }),
                 },
                 saber: Some(self.spin.turn()),
                 holocron: false,
@@ -1015,6 +1036,7 @@ impl Panel {
         match key {
             KeyCode::Escape => return PanelAction::Close,
             KeyCode::KeyV if self.tab == Tab::Shaders => return self.set_grid(!self.grid),
+            KeyCode::KeyG if self.tab == Tab::Shaders => self.toggle_grown(),
             KeyCode::KeyR if self.tab == Tab::Cards => return self.reveal(),
             KeyCode::Tab => self.step(if shift { -1 } else { 1 }, true),
             KeyCode::ArrowLeft if !vertical => self.step(-1, false),
@@ -1053,17 +1075,30 @@ impl Panel {
     }
 
     /// Switch the chosen shader's option `index` (as the last frame showed them) the
-    /// other way.
+    /// other way; a part not grown yet stays as it is.
     fn switch_option(&self, index: usize) -> PanelAction {
         self.shader_options
             .get(index)
-            .map_or(PanelAction::None, |(skin, option, on)| {
+            .filter(|(_, _, _, locked)| !locked)
+            .map_or(PanelAction::None, |(skin, option, on, _)| {
                 PanelAction::SkinOption {
                     skin,
                     option: option.clone(),
                     on: !on,
                 }
             })
+    }
+
+    /// Show the chosen growing blade fully grown on the stage, or at the player's stage
+    /// again: only while the last frame offered it ([`Self::growable`]).
+    fn toggle_grown(&mut self) {
+        if let Some(skin) = self.growable {
+            self.grown = if self.grown == Some(skin) {
+                None
+            } else {
+                Some(skin)
+            };
+        }
     }
 
     /// A pointer event; `illuminate` is whether the holocron is lit.
@@ -1283,6 +1318,10 @@ impl Panel {
             LIST_VIEW_TOKEN => self.set_grid(false),
             GRID_VIEW_TOKEN => self.set_grid(true),
             WEAR_TOKEN | TOY_SWITCH_TOKEN | SHARE_TOKEN => self.activate(illuminate),
+            GROWN_TOKEN => {
+                self.toggle_grown();
+                PanelAction::None
+            }
             FORGE_LINK_TOKEN => self.open_forge_link(),
             // A toy's niche chooses it; the chosen one's niche runs it, as its switch does.
             TOY_TOKEN | BOX_TOKEN | ORDER_TOKEN | HAX_TOKEN | RAGDOLL_TOKEN | DRONE_TOKEN => {
@@ -1468,6 +1507,7 @@ mod tests {
         Unlock {
             id: "saber_sun".into(),
             granted: 1_791_336_225,
+            since: 0,
             note: "Thanks for testing the blade".into(),
             count: 1,
             medal: None,
@@ -1655,24 +1695,28 @@ mod tests {
     /// first (the rarest), counted, and its chip lists it. Taken back, its chip goes too.
     #[test]
     fn a_unique_shader_shows_only_to_its_holders() {
-        let total = unlockables::blade_skins().count();
+        // The shaders every player sees: all but the Unique ones.
+        let total = unlockables::blade_skins()
+            .filter(|skin| !skin.hidden_unless_held())
+            .count();
         let only_sun = [sun()];
         let lacking = inputs(Holdings::Known(&only_sun), "");
         let mut panel = drawn(Tab::Shaders, &lacking);
         let runs =
             |panel: &Panel| -> Vec<String> { panel.ui.text_runs().map(str::to_owned).collect() };
         assert!(!ids(&panel).contains(&"saber_thousand_cranes"));
-        assert_eq!(panel.shader_count, total, "the stock blade and the others");
-        let seen = runs(&panel);
-        assert!(
-            seen.contains(&format!("1 of {} owned", total - 1)),
-            "{seen:?}"
+        assert_eq!(
+            panel.shader_count,
+            1 + total,
+            "the stock blade and the others"
         );
-        assert!(seen.contains(&format!("1/{}", total - 1)), "{seen:?}");
+        let seen = runs(&panel);
+        assert!(seen.contains(&format!("1 of {total} owned")), "{seen:?}");
+        assert!(seen.contains(&format!("1/{total}")), "{seen:?}");
         assert!(seen.iter().all(|run| !run.contains("Unique")), "{seen:?}");
         assert!(panel.ui.rect_for(FILTER_TIER_BASE + 6).is_none(), "no chip");
         let counts = view::counts(&lacking);
-        assert_eq!((counts[2].held, counts[2].total), (Some(1), total - 1));
+        assert_eq!((counts[2].held, counts[2].total), (Some(1), total));
         for query in ["thousand", "Cranes", "unique", "167", "#167"] {
             panel.shader_filter.query = query.to_owned();
             redraw(&mut panel, &lacking);
@@ -1694,12 +1738,15 @@ mod tests {
         let holding = inputs(Holdings::Known(&both), "");
         let mut panel = drawn(Tab::Shaders, &holding);
         assert_eq!(ids(&panel)[0], "saber_thousand_cranes", "the rarest first");
-        assert_eq!(panel.shader_count, 1 + total);
+        assert_eq!(panel.shader_count, 2 + total, "and the one held");
         let seen = runs(&panel);
-        assert!(seen.contains(&format!("2 of {total} owned")), "{seen:?}");
-        assert!(seen.contains(&format!("2/{total}")), "{seen:?}");
+        assert!(
+            seen.contains(&format!("2 of {} owned", total + 1)),
+            "{seen:?}"
+        );
+        assert!(seen.contains(&format!("2/{}", total + 1)), "{seen:?}");
         let counts = view::counts(&holding);
-        assert_eq!((counts[2].held, counts[2].total), (Some(2), total));
+        assert_eq!((counts[2].held, counts[2].total), (Some(2), total + 1));
         assert!(
             panel.ui.rect_for(FILTER_TIER_BASE + 6).is_some(),
             "its chip"
@@ -1717,6 +1764,100 @@ mod tests {
         assert_eq!(panel.shader_filter.tier, None);
         assert!(!ids(&panel).contains(&"saber_thousand_cranes"));
         assert!(panel.ui.rect_for(FILTER_TIER_BASE + 6).is_none());
+    }
+
+    /// A growing blade held (25/10/2026, Sol's Hearth; the Sun made to grow here): its parts
+    /// not grown yet are locked with when they grow and switch neither way, the line over
+    /// them says how long it has been held, and G (or "See it grown") shows it fully grown
+    /// on the stage alone, only while there is a stage and parts to grow.
+    #[test]
+    fn a_growing_blade_s_parts_not_grown_are_locked_and_previewed_grown() {
+        let _growing = crate::blade_growth::tests::fake("saber_sun", r#"{"glint":30,"haze":91}"#);
+        let held = [crate::blade_growth::tests::held_for("saber_sun", 7)];
+        let inputs = inputs(Holdings::Known(&held), "saber_sun");
+        let mut panel = Panel::new();
+        panel.skins =
+            std::sync::Arc::new(crate::saber_skins::LoadedSkins::load(Default::default(), 1));
+        panel.open(Tab::Shaders, true, true, ReturnTarget::MainMenu);
+        panel.set_backstage(Backstage::World { head: None });
+        redraw(&mut panel, &inputs);
+        assert_eq!(panel.shader, row_of("saber_sun"));
+        let seen: Vec<String> = panel.ui.text_runs().map(str::to_owned).collect();
+        for words in [
+            "Held 7 days",
+            "Grows in 23 days",
+            "Grows in 3 months",
+            "See it grown",
+        ] {
+            assert!(seen.iter().any(|run| run == words), "{words}: {seen:?}");
+        }
+        let locked: Vec<&str> = panel
+            .shader_options
+            .iter()
+            .filter(|(_, _, _, locked)| *locked)
+            .map(|(_, option, _, _)| option.as_str())
+            .collect();
+        assert_eq!(locked, ["glint", "haze"]);
+        // The glint (the fourth part) does not switch; the sparks (the third) do.
+        assert_eq!(panel.switch_option(3), PanelAction::None);
+        assert_eq!(
+            panel.key(KeyCode::Digit3, false, true),
+            PanelAction::SkinOption {
+                skin: "saber_sun",
+                option: "sparks".to_owned(),
+                on: false,
+            }
+        );
+        assert!(
+            panel.ui.rect_for(OPTION_BASE + 3).is_none(),
+            "no click on it"
+        );
+        // The stage shows the player's stage, and fully grown on G until asked back.
+        let wish = |panel: &Panel| panel.stage_wish().map(|wish| wish.skin);
+        assert_eq!(wish(&panel), Some(PreviewSkin::Skin("saber_sun")));
+        let _ = panel.key(KeyCode::KeyG, false, true);
+        assert_eq!(wish(&panel), Some(PreviewSkin::Grown("saber_sun")));
+        redraw(&mut panel, &inputs);
+        assert!(panel.ui.text_runs().any(|run| run == "See your stage"));
+        let rect = panel.ui.rect_for(GROWN_TOKEN).expect("its button");
+        let at = sjk_ui::Vec2::new(rect.x + rect.width * 0.5, rect.y + rect.height * 0.5);
+        for event in [
+            InputEvent::PointerMove(at),
+            InputEvent::PointerPress {
+                position: at,
+                button: sjk_ui::PointerButton::Primary,
+            },
+            InputEvent::PointerRelease {
+                position: at,
+                button: sjk_ui::PointerButton::Primary,
+            },
+        ] {
+            assert_eq!(panel.handle_pointer(event, true), PanelAction::None);
+        }
+        assert_eq!(
+            wish(&panel),
+            Some(PreviewSkin::Skin("saber_sun")),
+            "asked back"
+        );
+        // Without a stage (the classic menus) the swatch shows its stage: nothing to offer.
+        panel.set_backstage(Backstage::None);
+        redraw(&mut panel, &inputs);
+        let _ = panel.key(KeyCode::KeyG, false, true);
+        assert_eq!(wish(&panel), Some(PreviewSkin::Skin("saber_sun")));
+        assert!(panel.ui.rect_for(GROWN_TOKEN).is_none());
+        // Fully grown: nothing locked, nothing to preview, and it says so.
+        let grown = [crate::blade_growth::tests::held_for("saber_sun", 91)];
+        let inputs = super::tests::inputs(Holdings::Known(&grown), "saber_sun");
+        panel.set_backstage(Backstage::World { head: None });
+        redraw(&mut panel, &inputs);
+        assert!(panel.shader_options.iter().all(|(_, _, _, locked)| !locked));
+        assert!(panel.ui.rect_for(GROWN_TOKEN).is_none());
+        assert!(
+            panel
+                .ui
+                .text_runs()
+                .any(|run| run == "Held 91 days, fully grown")
+        );
     }
 
     /// R on Cards (or Reveal) asks the hub only when the last frame offered something to

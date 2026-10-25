@@ -242,6 +242,7 @@ came in.
 | 165 | `saber_alderaan_velvet` | Alderaan Velvet blade | Common | Creyon | yes |
 | 166 | `saber_varykino_blossom` | Varykino Blossom blade | Mythical | Sol | yes |
 | 167 | `saber_thousand_cranes` | Thousand Cranes blade | Unique | Sol | no |
+| 168 | `saber_hearth` | Hearth blade | Unique | Sol | no |
 
 A client ignores an id it does not know. Both catalogues' tests pin this exact list
 (ids, names, order), so a change to one fails until the other follows.
@@ -428,6 +429,12 @@ the hub's, described in its `scripts/blade_skin_sounds.py` and `saber_skin_sound
   flies toward or away from it. Its own sounds, `sound/sjk/sol/thousand_cranes/` (soft and
   airy: a warm hum, paper-wing swings), are in the hub's skins pack. Kintsugi was the first idea, but the Healed Kyber (106) already is
   Creyon's Kintsugi; nothing in the catalogue had cranes.
+- **Hearth** (25/10/2026, blade 168, Sol's, the second [Unique](#unique-shaders) blade): a
+  home fire, a warm amber blade of glowing coals with embers rising off it, that grows the
+  longer its holder has held it ([Growing blades](#growing-blades)): flames at a month, a
+  heat shimmer at three, a blaze at six, and at a year hearthstones ringing its emitter and
+  ash drifting off its swings. Its signature shader is built apart (Sol's branch); the
+  catalogue lists it and the growth waits for its `@grows` line.
 
 ## Hub protocol (additions to version 1)
 
@@ -439,6 +446,9 @@ Old clients ignore all of it, so it stays `/v1/`. The hub's `PROTOCOL.md` gains 
 - Profile gains `"unlocks":[{"id":"saber_sun","granted":<unix s>,"note":".."}]`, in
   the catalogue's order; `note` is 0 to 200 characters of plain text from the team,
   often empty. Absent from older hubs.
+- Since 25/10/2026 an unlock may carry `"since":<unix s>`, when a growing blade's growth
+  counts from ([Growing blades](#growing-blades)), set by the team to give a blade already
+  grown; absent or 0 (hubs before), it counts from `granted`.
 - A key holds each unlock at most once. Only the operator (`unlock <key_id> <id>
   [note]` and `relock <key_id> <id>` commands, and the operator API beside medals)
   and staff can grant or take one back:
@@ -540,6 +550,14 @@ Built.
   and the Staff page read the real profile, so no pop-up fires and staff actions see
   the real grants. Holocrons and credits are not dressed (`debug_open` rehearses an
   opening). Checked by unit tests and the world shot `duel6_sjk_collection_debug`.
+  Since 25/10/2026 every [growing blade](#growing-blades) shows fully grown in it, the one
+  really held too (its grant's date kept), in the Collection, `saberskin` and the own blade
+  drawn; the look sent keeps the real stage.
+- `debug_growthDays` (not archived, default -1; 25/10/2026,
+  [debug_collectibles.rs](../crates/sjk-viewer/src/debug_collectibles.rs)): for the SJK
+  team, the days held every growing blade shows while `debug_collectibles` is on, to see
+  each stage (`debug_growthDays 0` the first day, `30` a month on); -1 fully grown. Like
+  the mode, on this PC only and never in the look sent.
 
 Verified by unit tests (the listing, the answers, the cvar set even when locked, the
 gate); not yet used against the deployed hub.
@@ -1075,6 +1093,9 @@ off, and every other SJK player then draws the blade the same way.
   ([rendering.md](rendering.md#saber-blade-skins)), and the CPU leaves out the parts it
   makes itself: afterimages, the echo, the glint, the light's beat and hue turning, and
   the quad's room for wisps and haze.
+- Grown: on a growing blade (25/10/2026, [Growing blades](#growing-blades)) a part not
+  grown yet is off in the look sent and in the blade drawn whatever the setting says, and
+  the Collection and `saberskin` do not switch it.
 
 Verified by unit tests (the cvar's words, the look carrying the worn skin's choice and
 reading it back, a muted slot showing none, the option mask and room, the CPU's parts
@@ -1309,7 +1330,9 @@ Built 25/10/2026 (Sol's decision), branch `personal/unique-tier`: a tier above M
 **Unique** (rose, `#FF6B9A`; `Rarity::Unique` in
 [unlockables.rs](../crates/sjk-viewer/src/unlockables.rs)), for the personal thank-you
 gifts Sol gives by hand to people who helped SJK. The first is the **Thousand Cranes**
-blade (167). The hub names the tier `unique` (its side is built apart).
+blade (167), the second the **Hearth** (168), which grows with how long it has been held
+([Growing blades](#growing-blades)). The hub names the tier `unique` (its side is built
+apart).
 
 - **Given by hand only:** granted at the hub like any grant by hand (the Staff page, the
   operator's command), with the note Sol writes. Never found, dropped, sold, traded or
@@ -1342,6 +1365,60 @@ neither listed, counted, searched nor chipped on the Shaders tab, held one liste
 counted and chipped, and its chip gone once taken back; the Saber tab, `saberskin` and
 the economy. Not tried in the game; the hub's side is not part of this change.
 
+## Growing blades
+
+Built 25/10/2026 (Sol's Hearth, blade 168), branch `personal/hearth-growth`: a blade whose
+parts come one after another the longer its holder has held it, each stage one of its
+switchable parts ([Options](#options)). Any signature shader can grow; nothing in the code
+names Hearth ([blade_growth.rs](../crates/sjk-viewer/src/blade_growth.rs)).
+
+- **Its line:** a signature says how it grows in its header,
+  `// @grows {"<option id>": <days>, ...}`: the whole days held before that option is
+  available; the options it does not name are there from the start. The ids are its
+  options' (`Signature::options`: its own `@part` names, then its file's sections, then
+  "Swing and clash bursts", each name made an id in lower case with `_`). Hearth's will be
+  `// @grows {"hearth_flames":30,"heat_shimmer":91,"blaze":182,"hearthstones":365}`: its
+  flames at a month, its heat shimmer at three, its blaze at six, its hearthstones at a
+  year, its embers and bursts from the first day. A test checks that every `@grows` line
+  parses and names only ids its signature has, and gives each at least a day.
+- **Days held:** from the unlock's `since` when the hub sets one, else from `granted`
+  (`Unlock::since` in [wire.rs](../crates/sjk-identity/src/wire.rs)), in whole days.
+- **In the look:** for the local player a part not grown yet is off on top of those they
+  switched off (`blade_growth::locked_words` and `gated`): in their own blade drawn (the
+  hand, first person, the Character page, the Collection's swatches and stage) and in the
+  look sent (`saber_off`, [Options](#options)), so every other SJK player draws the same
+  stage, with nothing new on the wire. Their own choice for the part (`cg_saberSkinOptions`)
+  is kept for when it grows. The looks work it out again twice a second from the clock and
+  the own profile ([looks_frame.rs](../crates/sjk-viewer/src/looks_frame.rs)), so a stage
+  reached while playing goes out with the next look, as does a `since` the hub moved once
+  the profile is read again (every ten minutes): no look sent before keeps a part locked.
+- **In the Collection** ([Shaders tab](#shaders-tab)): under a growing blade the player
+  holds, a part not grown yet has a padlock in its tick's place, its name quiet and when it
+  grows at its column's end ("Grows in 23 days"; past 60 days in months of 30 days, "Grows
+  in 4 months"), and neither a click nor its number key switches it. The Parts line says
+  "Held 12 days" (", fully grown" once it is) and, while parts are still to grow and the
+  page has a stage, offers "See it grown" (or G): the stage alone shows the blade fully
+  grown (`PreviewSkin::Grown`, every part on that the player has not switched off) until
+  "See your stage" (G again) or another shader is chosen; it is never worn or sent.
+  Otherwise the swatches and the stage draw the player's stage. The classic menus' page,
+  with no stage, shows the swatch at the player's stage and offers no preview. The hover
+  card adds "Held 12 days". A growing blade the player does not hold is shown fully grown.
+- **In the console:** `saberskin <id> parts` adds "held 12 days" to its first line and
+  "grows in 23 days" in place of a part's on or off; `saberskin <id> <part> on|off` refuses
+  such a part, saying when it grows.
+- **Staff:** `debug_collectibles` shows every growing blade fully grown, and
+  `debug_growthDays` held the days it gives, to see each stage
+  ([Settings and commands](#settings-and-commands)).
+
+Verified by unit tests: the line read and checked (on a header as Hearth's will be, over
+the Malachor Forge's file, which has embers and a heat haze), the stages on their days, the
+days held from `since` or the grant, the words, the parts not grown off in the own look sent
+and read back and in the options drawn but not in the preview fully grown, the Collection's
+locked parts, held days, G and its button (on the Sun made to grow in the test), the hover
+card, the console's listing and refusal, and the debug mode fully grown or at the days
+asked. Not verified: in the game, Hearth's own shader and its stages drawn (on Sol's branch),
+and the hub's `since`.
+
 ## Holocron shader drops
 
 Built 14/10/2026 (hub branch `loot-kinds`, merged into the hub's `main`, not deployed).
@@ -1370,9 +1447,9 @@ Every Blade Lab blade drops too since 20/10/2026 (Sol: no loot is handed out by 
 instead of found). The same day Sol's card, SJK Alpha 000, began to bring the Sun blade
 for as long as the player holds a copy ([cards.md](cards.md#faces-and-the-first-set),
 `grants`, `unlockables::CARD_BLADES`): for a few hours it was the only way, then Sol made
-it a second way besides holocrons. So 163 of the 167 shaders drop (the Varykino Blossom, 166, since 21/10/2026), all but Glitch, Hologram
-and Runic (their medals) and the Thousand Cranes (Unique, given by hand, 25/10/2026); the
-test pins `droppable` exactly when no medal brings it and it is not Unique.
+it a second way besides holocrons. So 163 of the 168 shaders drop (the Varykino Blossom, 166, since 21/10/2026), all but Glitch, Hologram
+and Runic (their medals) and the Thousand Cranes and the Hearth (Unique, given by hand,
+25/10/2026); the test pins `droppable` exactly when no medal brings it and it is not Unique.
 
 Duplicates show in the Collection's Shaders tab (14/10/2026): the rack's state line, the
 grid card's state and the big card's pill read "Yours x2" (or "Worn x2"), the card's
