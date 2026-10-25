@@ -11,7 +11,7 @@
 //! `xclip` and `wl-clipboard` are not installed on every desktop and Ctrl+V did nothing
 //! without them (hub report 58, 17/10/2026). The tools below remain the fallback.
 use std::io::Write;
-use std::process::{Child, Command, Stdio};
+use std::process::{Child, Stdio};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
@@ -222,7 +222,7 @@ fn display_allows_with(tool: &str, wayland: bool, x11: bool) -> bool {
 
 /// Run one copy tool; whether it took the text (or, past `deadline`, may still).
 fn run_copy(tool: &CopyTool, text: &str, deadline: Instant) -> bool {
-    let mut command = Command::new(tool.argv[0]);
+    let mut command = crate::platform::hidden_command(tool.argv[0]);
     command
         .args(&tool.argv[1..])
         .stdout(Stdio::null())
@@ -316,7 +316,7 @@ pub(crate) fn paste() -> Option<String> {
         .iter()
         .filter(|tool| display_allows(tool.argv[0]))
         .find_map(|tool| {
-            let output = Command::new(tool.argv[0])
+            let output = crate::platform::hidden_command(tool.argv[0])
                 .args(&tool.argv[1..])
                 .stdin(Stdio::null())
                 .stderr(Stdio::null())
