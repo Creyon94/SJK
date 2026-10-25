@@ -9,6 +9,14 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 25/10/2026 | - | Announcement commands close the console, the window frees the cursor
+- 7028074 |  | Announcements: commands close the console, the window frees the cursor
++ 25/10/2026 | - | Ragdoll knocks and scrapes heard in release builds
+- a965bd3 |  | Ragdoll: hear the knocks and scrapes (gap since "never" wrapped round)
++ 25/10/2026 | - | The site's new layout, changelog recap, Mac download, live credits
+- 30efd22 |  | Site refresh: release recap from the changelog, Mac download, live credits
++ 25/10/2026 | - | Credits history after release 2026.1025.2
+- eb8cb38 |  | Credits history after release 2026.1025.2
 + 25/10/2026 | - | Reapply kyber crystals on main after release 2026.1025.2
 - f748baf |  | Reapply kyber crystals on main after release 2026.1025.2
 + 25/10/2026 | - | Release 2026.1025.2
@@ -2118,6 +2126,10 @@
 - 0d215f1 |  | Initial JKR source
 
 = Creyon
++ 25/10/2026 | SJK #202 | Fade bodies away on EV_BODYFADE as EternalJK does
+- 8839c5d | Sol | Body fade: every reused slot fades, crackle once per 100 ms, body gone 4 s after
++ 25/10/2026 | - | Fade bodies away on EV_BODYFADE as EternalJK does
+- c6297c3 |  | Fade bodies away on EV_BODYFADE as EternalJK does
 + 24/10/2026 | SJK #191 | Fix blade tip pixels and hard edges on signature blades
 - b3f7f38 |  | Fix blade tip pixels and hard edges on signature blades
 - f43f320 |  | Add round 23 status entry and complete its rendering notes

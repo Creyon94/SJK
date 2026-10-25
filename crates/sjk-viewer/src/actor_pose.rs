@@ -198,6 +198,7 @@ impl GpuState {
                 mesh.entity_id = Some(corpse.id);
             }
         }
+        self.track_body_fades();
     }
 }
 

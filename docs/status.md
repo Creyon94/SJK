@@ -1,3 +1,29 @@
+## Body fade (EV_BODYFADE)
+
+24/10/2026, `fix/body-fade` (Creyon), based on `main` `47e38896`: a body the server
+clears on its own (`BodySink`) vanished at once in SJK; JoF players' EternalJK fades it.
+The client now keeps `EV_BODYFADE` per body and draws `CG_General`'s three layers
+([client.md](client.md#dismemberment-and-disintegration), body fade). SJK's server
+sent the event as 125 (`EV_PUSHED1`); it sends 100 (`bg_public.h`). Reference: OpenJK
+`codemp/cgame/cg_ents.c` and `cg_event.c`, EternalJK's same blocks (the 100 ms hum
+limit). Verified: unit tests of the fade's timing (body alpha, glow, burn start, extras,
+end), the tracker (one start per event, `ET_BODY` only, reset on a new body) and the
+server's event; the workspace format check, build, tests and clippy on Linux x86_64.
+Not verified: the drawing in a game (no GPU shot of a fading body), and Creyon's check
+against JoF EJK on Windows is pending. Held weapons and hilts drawn apart from the body
+vanish when the fade starts (cgame fades them with the body's Ghoul2 instance); the burn
+measures from the body's origin in world units, so a scaled model burns at the scale's
+pace, not the model's.
+
+Merged 25/10/2026 as `personal/pr-202-body-fade` with review fixes: the tracker keeps
+an empty event as `previousEvent` (a reused body slot that never left the snapshot
+fades again; test 356, 0, 356), clears itself when the server clock goes back, the
+dark side's crackle is rolled once per 100 ms as EternalJK (it rolled every 8 ms,
+about 12 a second), the mouth surface comes back when the fade ends, and SJK's
+server unlinks the body 4 s after the fade (`BodyRid`) instead of 18 s. Still open:
+held hilts vanish at the fade's start, and rig models' see-through parts show as
+squares under the glow (shared override path, also force shells).
+
 ## Site refresh
 
 25/10/2026, `personal/site-refresh`, based on `main` `0ff3c3e1`: the site's new layout,

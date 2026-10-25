@@ -18,6 +18,9 @@ pub(crate) struct Overrides {
     pub(crate) dark_disabled: usize,
     /// `cgs.media.disruptorShader`, `CG_Disintegration`'s burning pass.
     pub(crate) disruptor_burn: usize,
+    /// `cgs.media.redSaberGlowShader`, the glow of a dark-side body fading
+    /// (`crate::body_fade`); the light side's is `gfx/misc/personalshield`.
+    pub(crate) body_fade_dark: usize,
     force: [usize; 16],
     /// The player card outline's mask ([`crate::card_outline`]).
     pub(crate) card_outline: usize,
@@ -50,6 +53,7 @@ pub(crate) fn append_overrides(materials: &mut Vec<ViewerMaterial>) -> Overrides
         light_disabled: ensure(materials, "gfx/misc/mp_light_enlight_disable"),
         dark_disabled: ensure(materials, "gfx/misc/mp_dark_enlight_disable"),
         disruptor_burn: ensure(materials, crate::disintegration::BURN_SHADER),
+        body_fade_dark: ensure(materials, sjk_client::body_fade_assets::DARK_SHADER),
         force: [0; 16],
         card_outline: ensure(materials, crate::card_outline::Group::Card.shader()),
         friend_outline: ensure(materials, crate::card_outline::Group::Friend.shader()),

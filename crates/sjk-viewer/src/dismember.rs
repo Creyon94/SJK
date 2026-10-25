@@ -155,6 +155,24 @@ impl Surfaces {
         self.flags.len() == other.flags.len() && self.draw_surfaces == other.draw_surfaces
     }
 
+    /// `G2API_SetSurfaceOnOff(name, G2SURFACEFLAG_OFF)`: the surface named `name` (any
+    /// case) stops rendering, its children not; nothing when the model has none.
+    pub(crate) fn turn_off(&mut self, hierarchy: &[GlmSurfaceHierarchy], name: &str) {
+        if let Some(surface) = find(hierarchy, name) {
+            self.set(surface, OFF);
+            self.refresh(hierarchy);
+        }
+    }
+
+    /// The surface named `name` back to the model's own flags (undoing [`Self::turn_off`]).
+    pub(crate) fn restore(&mut self, hierarchy: &[GlmSurfaceHierarchy], name: &str) {
+        if let Some(surface) = find(hierarchy, name) {
+            let flags = self.default_flags.get(surface).copied().unwrap_or(0);
+            self.set(surface, flags);
+            self.refresh(hierarchy);
+        }
+    }
+
     /// `G2_SetSurfaceOnOff`: only the off and no-descendants bits change.
     fn set(&mut self, surface: usize, flags: u32) {
         if let Some(current) = self.flags.get_mut(surface) {

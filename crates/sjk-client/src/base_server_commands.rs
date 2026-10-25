@@ -88,6 +88,9 @@ pub struct BodyIdentity {
     pub sabers: [Option<String>; 2],
     /// Weapon supplied by CopyToBodyQue.
     pub weapon: i32,
+    /// The player's force side (`ircg`'s fourth operand, `teamPowerType`): how the
+    /// body fades (`body_fade`).
+    pub light_side: bool,
 }
 
 impl BodyIdentity {
@@ -103,6 +106,7 @@ impl BodyIdentity {
             appearance: crate::legacy_client_appearance(game, u16::from(restore.client_num))?,
             sabers: crate::legacy_client_saber_names(game, u16::from(restore.client_num)),
             weapon: copy.weapon,
+            light_side: copy.light_side,
         })
     }
 }
