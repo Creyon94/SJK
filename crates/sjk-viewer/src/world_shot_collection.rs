@@ -68,9 +68,15 @@ fn duel6_sjk_collection() {
             (crate::settings::quick::HIDE_CVAR, "1"),
             (crate::unlockables::SABER_SKIN_CVAR, "saber_sun"),
             ("name", "^1Sol^7Vulpes"),
+            // Never the machine's own Discord.
+            (crate::discord_presence::CVAR, "0"),
         ];
-        for size in [[1920, 1080], [1440, 1080]] {
-            let suffix = if size[0] == 1920 { "" } else { "-4x3" };
+        for size in [[1920, 1080], [1440, 1080], [2560, 1080]] {
+            let suffix = match size[0] {
+                1920 => "",
+                1440 => "-4x3",
+                _ => "-21x9",
+            };
             let Some((mut gpu, _profile)) = open(
                 "maps/mp/duel6.bsp",
                 size,
@@ -105,17 +111,15 @@ fn duel6_sjk_collection() {
                 assert!(!overflowed(&gpu), "{tab:?}{suffix}");
             }
             if size[0] != 1920 {
-                // The grid of cards in the 4:3 window.
+                // The list (`ui_shaderList 1`) in the narrower or wider window.
                 gpu.profile_hub_show_for_shot(Tab::Shaders);
                 if let Some(console) = gpu.console.as_mut() {
                     let _ =
                         console.set_cvar(crate::console::collection_panel::SHADER_VIEW_CVAR, "1");
                 }
-                println!(
-                    "{}",
-                    shoot(&mut gpu, 30, "duel6-collection-shaders-grid-4x3").display()
-                );
-                assert!(!overflowed(&gpu), "the grid, 4:3");
+                let name = format!("duel6-collection-shaders-list{suffix}");
+                println!("{}", shoot(&mut gpu, 30, &name).display());
+                assert!(!overflowed(&gpu), "the list{suffix}");
                 if let Some(console) = gpu.console.as_mut() {
                     let _ =
                         console.set_cvar(crate::console::collection_panel::SHADER_VIEW_CVAR, "0");
@@ -145,7 +149,7 @@ fn duel6_sjk_collection() {
                 "{}",
                 shoot(&mut gpu, 30, "duel6-collection-shaders-preview").display()
             );
-            // The grid of cards (`ui_shaderView 1`), a few more owned, a Mythical chosen.
+            // The list (`ui_shaderList 1`), a few more owned, a Mythical chosen.
             if let Some(console) = gpu.console.as_mut() {
                 let owned = [
                     "saber_sun",
@@ -165,9 +169,9 @@ fn duel6_sjk_collection() {
             }
             println!(
                 "{}",
-                shoot(&mut gpu, 30, "duel6-collection-shaders-grid").display()
+                shoot(&mut gpu, 30, "duel6-collection-shaders-list").display()
             );
-            assert!(!overflowed(&gpu), "the grid");
+            assert!(!overflowed(&gpu), "the list");
             // The Spectral owned and chosen: its six parts in three columns, its smoky
             // edge switched off (`cg_saberSkinOptions`), on the model too.
             let spectral = 1 + crate::unlockables::Holdings::Known(&[])
@@ -246,6 +250,26 @@ fn duel6_sjk_collection() {
             if let Some(console) = gpu.console.as_mut() {
                 let _ = console.set_cvar(crate::saber_skin_options::CVAR, "");
                 console.preview_collection(Some(vec![sun()]), 0.8);
+            }
+            // The largest menu text (`ui_textScale 1.4`): the wall, the list and the toys
+            // still fit, rows and tiles grown, words wrapped.
+            for (tab, view, name) in [
+                (Tab::Shaders, "0", "duel6-collection-text14-wall"),
+                (Tab::Shaders, "1", "duel6-collection-text14-list"),
+                (Tab::Toys, "0", "duel6-collection-text14-toys"),
+            ] {
+                gpu.profile_hub_show_for_shot(tab);
+                if let Some(console) = gpu.console.as_mut() {
+                    let _ = console.set_cvar("ui_textScale", "1.4");
+                    let _ =
+                        console.set_cvar(crate::console::collection_panel::SHADER_VIEW_CVAR, view);
+                }
+                println!("{}", shoot(&mut gpu, 30, name).display());
+                assert!(!overflowed(&gpu), "{name}");
+            }
+            if let Some(console) = gpu.console.as_mut() {
+                let _ = console.set_cvar("ui_textScale", "1");
+                let _ = console.set_cvar(crate::console::collection_panel::SHADER_VIEW_CVAR, "0");
             }
             // Ctrl+Tab goes on to Holocrons (the Holocrons page, under the same row), on
             // to the Forge and to Cards, on the same screen.
@@ -364,7 +388,7 @@ fn duel6_sjk_rarity_effects() {
         }
         gpu.profile_hub_show_for_shot(Tab::Shaders);
         if let Some(console) = gpu.console.as_mut() {
-            let _ = console.set_cvar(crate::console::collection_panel::SHADER_VIEW_CVAR, "1");
+            let _ = console.set_cvar(crate::console::collection_panel::SHADER_VIEW_CVAR, "0");
             // Void, a Mythical, chosen: its white outline beside the worn Sun's gold.
             console.collection_shader_for_shot(2);
         }
@@ -379,7 +403,7 @@ fn duel6_sjk_rarity_effects() {
             assert!(!overflowed(&gpu), "the grid at {seconds}");
         }
         if let Some(console) = gpu.console.as_mut() {
-            let _ = console.set_cvar(crate::console::collection_panel::SHADER_VIEW_CVAR, "0");
+            let _ = console.set_cvar(crate::console::collection_panel::SHADER_VIEW_CVAR, "1");
             console.collection_shader_for_shot(1);
         }
         for (step, seconds) in [0.4_f32, 2.2].into_iter().enumerate() {
@@ -700,8 +724,8 @@ fn duel6_blade_pictures_cost() {
             console.open_profile_hub_page(Tab::Shaders, ReturnTarget::MainMenu);
         }
         let views = [
-            ("grid", Tab::Shaders, "1"),
-            ("list", Tab::Shaders, "0"),
+            ("wall", Tab::Shaders, "0"),
+            ("list", Tab::Shaders, "1"),
             ("medals", Tab::Medals, "0"),
         ];
         let show = |gpu: &mut GpuState, tab: Tab, view: &str| {

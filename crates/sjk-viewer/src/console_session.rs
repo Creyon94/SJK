@@ -1075,6 +1075,9 @@ fn retire_modern_ui(cvars: &mut CvarRegistry) {
         "con_datetime",
         // Darkened the backdrop of the old form screens, removed on 10/10/2026.
         "ui_menuContrast",
+        // The Shaders tab's rack or grid (0 the rack), replaced on 25/10/2026 by
+        // `ui_shaderList`, whose 0 is the new wall of tiles, so every player starts on it.
+        "ui_shaderView",
     ] {
         let _ = cvars.unset(retired);
     }

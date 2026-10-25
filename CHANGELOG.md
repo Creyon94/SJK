@@ -32,6 +32,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
+- Collection: the Shaders tab is a wall of tiles under a heading to each tier, with a strip of the tiers saying how many of each you hold; V shows a list you sort by name, tier or what you hold (S). Locked shaders show their own colours, dimmed, and a shader's card grows to hold all its words. The Toys tab is a row to each toy with its own switch and the key bound to it: bind one from its card (K). A dark band keeps the tabs readable over any map, and the model keeps its place in a 4:3 window _(Sol)_
 - Mac: fullscreen is always the borderless kind, as the exclusive kind could crash the game when chosen and kept Cmd+Tab from working _(Sol, after Glen's report)_
 - Kyber crystals: every achievement now brings one, once, from Uncommon to Mythical (shown on the Achievements tab, its hover card and its unlock card). Opening one always gives a saber shader, the ones you do not have yet first, and every tenth crystal in a row without a Legendary or Mythical shader gives one: the Holocrons tab shows your crystals, how soon that is, and their loot table _(Sol)_
 

@@ -1882,6 +1882,18 @@ impl GpuState {
         let fov = self.scope_fov(presentation_time as i32, game_audio);
         // A menu picture's camera sees what the picture shows, whatever cg_fov is.
         let fov = self.menu_pictures.field_of_view().unwrap_or(fov);
+        // Behind the Collection's stage the page's frame sees the same view at every
+        // window shape, so the model keeps its column beside the words.
+        let fov = if branch == "backdrop"
+            && self
+                .client_menu
+                .as_ref()
+                .is_some_and(menu::ClientMenu::collection_stage)
+        {
+            menu_stage::frame_fit_fov(fov, aspect)
+        } else {
+            fov
+        };
         let projection = perspective(fov.to_radians(), aspect, 2.0, self.far_plane);
         // rd-vanilla `tr_shade.cpp:367` derives tess.shaderTime from the
         // frame/refdef time; materials apply their own remap time offsets.

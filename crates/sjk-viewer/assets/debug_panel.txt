@@ -1069,6 +1069,20 @@ note: A roll on landing while crouched (PM_CrashLand) is not prevented, in EJK e
 
 # ---- Menus & settings ----
 
+[collection-revamp]
+area: Menus & settings
+title: Collection revamp: Shaders wall by tier and sortable list, Toys rows with keys
+change: Shaders: tiles 6 a line under tier headings (V: a list sorted by S), tier strip, Chroma.
+change: Locked shaders show their own colours dimmed; the card grows up, words never cut.
+change: Toys: rows with key and own switch (K binds); dark band behind tabs; model fits 4:3.
+test: Collection > Shaders: the wall by tier; arrows, Up/Down by lines; wheel scrolls a line.
+test: V: the list; S and clicks on Shader, Tier, Yours sort it; the chosen one stays chosen.
+test: Click a tier in the strip (or T), Owned (O) and Chroma (C); the search still filters.
+test: Choose a long one (Varykino Blossom): its whole description shows, nothing ends in "...".
+test: Toys: a row's switch turns that toy on; K then a key binds it; Backspace clears it.
+test: Window 4:3 (and ui_textScale 1.4): tabs readable, model clear of the words and keys.
+note: ui_shaderView is gone: everyone starts on the wall (ui_shaderList 1 for the list).
+
 [small-card-profile]
 area: Menus & settings
 title: Small graphics cards start once on lighter graphics, with a Keep / Back card

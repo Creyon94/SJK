@@ -216,7 +216,7 @@ fn duel6_sjk_forge_shots() {
             if let Some(console) = gpu.console.as_mut() {
                 let _ = console.set_cvar(
                     crate::console::collection_panel::SHADER_VIEW_CVAR,
-                    if grid { "1" } else { "0" },
+                    if grid { "0" } else { "1" },
                 );
             }
         };
@@ -511,7 +511,7 @@ fn duel6_sjk_forge_windows() {
                 return;
             };
             if let Some(console) = gpu.console.as_mut() {
-                let _ = console.set_cvar(crate::console::collection_panel::SHADER_VIEW_CVAR, "1");
+                let _ = console.set_cvar(crate::console::collection_panel::SHADER_VIEW_CVAR, "0");
             }
             for (section, part, chosen) in [
                 (Section::Shop, "shop", 0),
@@ -557,7 +557,7 @@ fn duel6_sjk_forge_drawn_swatches_fit() {
             return;
         };
         if let Some(console) = gpu.console.as_mut() {
-            let _ = console.set_cvar(crate::console::collection_panel::SHADER_VIEW_CVAR, "1");
+            let _ = console.set_cvar(crate::console::collection_panel::SHADER_VIEW_CVAR, "0");
             let _ = console.set_cvar(crate::menu_pictures::CVAR, "1");
         }
         for chosen in (60..=160).step_by(10) {

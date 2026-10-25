@@ -6,7 +6,7 @@
 //! - **Shop:** the player's four offers of the day as large cards with their live blades,
 //!   price and state, the countdown to midnight in Paris, and the holocrons credits buy.
 //! - **Craft:** every saber shader of the trade the player does not hold, as a grid or a
-//!   list (V, `ui_shaderView` as on Shaders), with the tier chips, an Affordable chip and a
+//!   list (V, `ui_shaderList` as on Shaders), with the tier chips, an Affordable chip and a
 //!   search; the one chosen big on the right with its blade, its parts, its cost against
 //!   the player's kyber shards, and Craft.
 //! - **Break down:** the player's own copies of shaders of the trade, the duplicates first

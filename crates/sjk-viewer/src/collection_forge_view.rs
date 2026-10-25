@@ -2,7 +2,7 @@
 //! balances under the row of tabs, then the section on show. The Shop lays the day's four
 //! offers out as large cards over the whole width with the holocrons credits buy under
 //! them; Craft and Break down list their shaders on the left (a grid of cards or a list,
-//! as `ui_shaderView` says) and show the one chosen big on the right. A card over the
+//! as `ui_shaderList` says) and show the one chosen big on the right. A card over the
 //! page asks before the last copy or every duplicate goes.
 
 use super::forge::*;
