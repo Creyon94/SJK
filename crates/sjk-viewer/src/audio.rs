@@ -27,6 +27,8 @@ use std::time::Instant;
 
 #[path = "audio_assets.rs"]
 mod assets;
+#[path = "audio_boombox.rs"]
+mod boombox;
 #[path = "audio_commands.rs"]
 mod commands;
 #[path = "audio_controls.rs"]

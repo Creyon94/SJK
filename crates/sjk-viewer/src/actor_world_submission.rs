@@ -36,6 +36,9 @@ mod holster_submission;
 #[path = "player_sphere_submission.rs"]
 mod player_spheres;
 
+/// `EF_DEAD`.
+const EF_DEAD_FLAG: u32 = 1 << 1;
+
 struct Sinks<'a> {
     grip_victim: bool,
     force_fx: force_powers::policy::Policy,
@@ -52,6 +55,8 @@ struct Sinks<'a> {
     view_origin: Vec3,
     jetpack: crate::jetpack::Catalog,
     jetpack_sounds: &'a mut crate::jetpack::Sounds,
+    /// The boombox's model and who carries one (bits by slot, [`crate::boombox`]).
+    boombox: (Option<usize>, u64),
     world: &'a sjk_runtime::World,
     actor_meshes: &'a [ActorMesh],
     object_meshes: &'a [StaticModelMesh],
@@ -264,6 +269,12 @@ pub(crate) fn submit(
         view_origin: gpu.view_origin,
         jetpack: gpu.jetpack,
         jetpack_sounds: &mut gpu.jetpack_sounds,
+        boombox: (
+            gpu.object_meshes
+                .iter()
+                .position(|mesh| mesh.appearance.model == crate::boombox::MODEL),
+            gpu.boombox.carriers(),
+        ),
         world: active_world,
         actor_meshes: &gpu.actor_meshes,
         object_meshes: &gpu.object_meshes,
@@ -802,6 +813,22 @@ fn submit_actor(
             presentation_time as i32,
             visual_now,
         );
+    }
+    // The boombox on a carrier's shoulder, as their jetpack: none on the dead.
+    if entity.kind == EntityKind::Actor
+        && let (Some(mesh), (Some(boombox), carriers)) = (mesh, sinks.boombox)
+        && number < 64
+        && carriers & 1 << number != 0
+        && e_flags & EF_DEAD_FLAG == 0
+        && !trick.hidden
+    {
+        let actor = &sinks.actor_meshes[mesh];
+        if let Some(mut instance) = actor.animator.requested.and_then(|_| {
+            crate::boombox::instance(&actor.preview, actor.animator.matrices(), *transform)
+        }) {
+            instance.view_flags = sinks.entity_view_flags | u32::from(!draw_actor);
+            sinks.object_groups[boombox].push(instance);
+        }
     }
     // Everything after stock's mind-trick cut-off is skipped for a hidden trickster:
     // the body, its afterimages and its shells (`cg_players.c:11351-11356`).

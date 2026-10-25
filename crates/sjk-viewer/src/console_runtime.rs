@@ -32,6 +32,8 @@ impl GpuState {
         if let Some(on) = console.take_drone_request() {
             self.drone.set_on(on);
         }
+        // The boombox checks who may carry it, so it is switched once the console is let go.
+        let boombox_request = console.take_boombox_request();
         let mut actions = [None; MAX_ACTIONS_PER_FRAME];
         console.advance_command_frame();
         console.pump_console_socket();
@@ -64,6 +66,11 @@ impl GpuState {
         for action in actions[..action_count].iter().copied().flatten() {
             self.apply_input_action(Some(action));
         }
+        if let Some(on) = boombox_request
+            && on != self.boombox.on()
+        {
+            self.toggle_boombox();
+        }
         // `toy_illuminate` may have flipped it: tell the Toys tab. Order 66, the Hax and the
         // Drone stay as last switched, across maps, servers and restarts (`toy_saved`).
         if let Some(console) = self.console.as_mut() {
@@ -80,6 +87,7 @@ impl GpuState {
             console.set_hax_on(self.hax.on());
             console.set_ragdoll_on(self.ragdoll.on());
             console.set_drone_on(self.drone.on());
+            console.set_boombox_on(self.boombox.on());
         }
         let connection = self
             .console

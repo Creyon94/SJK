@@ -1,11 +1,12 @@
 //! The Collection's Toys tab: things to use in a match, everyone's. SJK's Illuminate
 //! holocron (`docs/client.md`, Illuminate), the cardboard box (`docs/client.md`,
 //! Cardboard box), Order 66 (`docs/client.md`, Order 66), the Hax (`docs/client.md`,
-//! Hax), the Ragdoll (`docs/client.md`, Ragdoll) and the Drone (`docs/client.md`, Drone),
-//! a row to each on the left (Sol's pick of 25/10/2026, the Collection revamp's canvas):
-//! its picture, its name and a line of what it does, the key bound to it and its own
-//! switch, which runs it in place (`toy_illuminate`, `toy_box`, `toy_order66`, `toy_hax`,
-//! `toy_ragdoll`, `toy_drone`). The chosen one is described on a dark card beside the
+//! Hax), the Ragdoll (`docs/client.md`, Ragdoll), the Drone (`docs/client.md`, Drone) and
+//! the Boombox (`docs/client.md`, Boombox), a row to each on the left (Sol's pick of
+//! 25/10/2026, the Collection revamp's canvas): its picture, its name and a line of what
+//! it does, the key bound to it and its own switch, which runs it in place
+//! (`toy_illuminate`, `toy_box`, `toy_order66`, `toy_hax`, `toy_ragdoll`, `toy_drone`,
+//! `toy_boombox`). The chosen one is described on a dark card beside the
 //! model, where its key is bound without the console (a click or K, then the key). The
 //! holocron floats lit by the model while it is chosen.
 
@@ -40,7 +41,7 @@ const NOTE_CHARS: f32 = 52.0;
 
 /// Every command a toy is run by, in the order the page is told their keys
 /// ([`Inputs::toy_keys`]): each toy's switch, and Order 66's order after its own.
-pub(crate) const COMMANDS: [&str; 7] = [
+pub(crate) const COMMANDS: [&str; 8] = [
     "toy_illuminate",
     "toy_box",
     "toy_order66",
@@ -48,6 +49,7 @@ pub(crate) const COMMANDS: [&str; 7] = [
     "toy_hax",
     "toy_ragdoll",
     "toy_drone",
+    "toy_boombox",
 ];
 
 /// One toy as the tab shows it.
@@ -138,6 +140,17 @@ const TOYS: [Toy; TOY_COUNT] = [
         switch: "Peek me",
         token: DRONE_TOKEN,
     },
+    Toy {
+        icon: "boombox",
+        name: "Boombox",
+        tag: "Play your tracks to the players close by.",
+        title: "Boombox",
+        what: "Carry an 80s stereo on your shoulder, playing your tracks to the SJK players standing close by. Tracks are sound/boombox/<name>.mp3 files in your pk3s; others hear one when they have it too. For verified players.",
+        more: Some("boombox in the console lists your tracks; boombox next skips one."),
+        commands: &[("toy_boombox", "Your key")],
+        switch: "Play",
+        token: BOOMBOX_TOKEN,
+    },
 ];
 
 /// The command toy `toy`'s key `slot` runs (0 its switch's, 1 Order 66's order).
@@ -205,6 +218,7 @@ fn states(inputs: &Inputs<'_>) -> [bool; TOY_COUNT] {
         inputs.hax,
         inputs.ragdoll,
         inputs.drone,
+        inputs.boombox,
     ]
 }
 
@@ -217,7 +231,7 @@ impl Panel {
             0 => "Switch them here or in a match; other SJK players on your server see what you turn on.".to_owned(),
             lit => format!("{lit} on now. Switch them here or in a match; other SJK players on your server see what you turn on."),
         };
-        self.lead(frame, "6 toys", &line);
+        self.lead(frame, "7 toys", &line);
         self.toy_heads(frame);
         let chosen = self.toy.min(TOY_COUNT - 1);
         for (index, toy) in TOYS.iter().enumerate() {

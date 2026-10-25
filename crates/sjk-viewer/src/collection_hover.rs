@@ -111,7 +111,24 @@ impl Panel {
                 colour: color::GOLD_BRIGHT,
                 lines: vec![
                     Line::how(
-                        "Every SJK player has it: freecam and peek fly it. Turn it on here,                          from the quick wheel's Toys page or with a key bound to toy_drone,                          to let others peek at you.",
+                        "Every SJK player has it: freecam and peek fly it. Turn it on here, \
+                         from the quick wheel's Toys page or with a key bound to toy_drone, \
+                         to let others peek at you.",
+                    ),
+                    Line::status(crate::editions::name(crate::editions::ALPHA)),
+                    Line::held("Yours"),
+                ],
+            });
+        }
+        if token == BOOMBOX_TOKEN {
+            return Some(Card {
+                title: "Boombox".to_owned(),
+                colour: color::GOLD_BRIGHT,
+                lines: vec![
+                    Line::how(
+                        "Every verified SJK player has it. Carry it here, from the quick \
+                         wheel's Toys page or with a key bound to toy_boombox; the music is \
+                         yours, sound/boombox/<name>.mp3 in a pk3.",
                     ),
                     Line::status(crate::editions::name(crate::editions::ALPHA)),
                     Line::held("Yours"),

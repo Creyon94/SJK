@@ -101,6 +101,8 @@ pub(crate) enum InputAction {
     Ragdoll,
     /// `toy_drone`: let drones follow the player, or not ([`crate::drone`]).
     Drone,
+    /// `toy_boombox`: carry the stereo and play music, or not ([`crate::boombox`]).
+    Boombox,
     /// `cameracontrol`: open Camera control, as F8 does
     /// ([`crate::ingame_menu::Page::Shot`]).
     CameraControl,
@@ -304,6 +306,7 @@ impl GameplayInput {
                     | crate::hax::COMMAND
                     | crate::ragdoll::COMMAND
                     | crate::drone::COMMAND
+                    | crate::boombox::COMMAND
                     | "cameracontrol"
             )
     }
@@ -473,6 +476,7 @@ impl GameplayInput {
             crate::hax::COMMAND => Some(InputAction::Hax),
             crate::ragdoll::COMMAND => Some(InputAction::Ragdoll),
             crate::drone::COMMAND => Some(InputAction::Drone),
+            crate::boombox::COMMAND => Some(InputAction::Boombox),
             "cameracontrol" => Some(InputAction::CameraControl),
             "vote" => match words.next().map(str::to_ascii_lowercase).as_deref() {
                 Some("yes" | "y" | "1") => Some(InputAction::Vote(true)),
@@ -601,6 +605,7 @@ impl super::GpuState {
             Some(InputAction::Hax) => self.toggle_hax(),
             Some(InputAction::Ragdoll) => self.toggle_ragdoll(),
             Some(InputAction::Drone) => self.toggle_drone(),
+            Some(InputAction::Boombox) => self.toggle_boombox(),
             Some(InputAction::FlipKick) => {
                 let restricted = self.live_session.as_ref().is_some_and(|session| {
                     session

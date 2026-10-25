@@ -42,6 +42,9 @@ const ICONS: &[(&str, &str)] = &[
     (crate::ragdoll::COMMAND, crate::ragdoll::ICON),
     // SJK's Drone, which the client bundles (`crate::drone`).
     (crate::drone::COMMAND, crate::drone::ICON),
+    // SJK's Boombox, which the client bundles (`crate::boombox`).
+    (crate::boombox::COMMAND, crate::boombox::ICON),
+    ("boombox next", crate::boombox::ICON),
     // WEAPONS
     ("weapon 1", "gfx/hud/w_icon_lightsaber.tga"),
     ("weapmelee", "gfx/hud/w_icon_melee.tga"),

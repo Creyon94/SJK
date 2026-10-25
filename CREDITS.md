@@ -67,6 +67,9 @@ includes:
 - the Drone toy: the free camera and Peek fly a training remote other SJK players see,
   peeking only players who switched it on (24/10/2026, after Slash's #199);
 - toy sound settings: a toy volume and a switch per toy to silence it (25/10/2026);
+- the Boombox toy for verified players: an 80s stereo on the shoulder playing the
+  player's own tracks, from their pk3s, to the SJK players close by who have them too
+  (25/10/2026);
 - a macOS build for Apple Silicon Macs, drawn through Metal and built by GitHub with
   every release, unsigned and experimental (24/10/2026);
 - announcements from the SJK team in SJK chat, and contributor reward rounds: who was

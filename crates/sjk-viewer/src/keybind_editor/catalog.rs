@@ -115,6 +115,9 @@ pub(crate) const ACTIONS: &[BindableAction] = &[
     action(Interaction, "Toy: Ragdoll", crate::ragdoll::COMMAND, ""),
     // The Drone: the switch that lets players peek (freecam and peek fly the drone).
     action(Interaction, "Toy: Drone", crate::drone::COMMAND, ""),
+    // The Boombox: the stereo on the shoulder, and its next track.
+    action(Interaction, "Toy: Boombox", crate::boombox::COMMAND, ""),
+    action(Interaction, "Boombox: next track", "boombox next", ""),
     action(Interaction, "Item: Bacta", "use_bacta", ""),
     action(Interaction, "Item: Seeker drone", "use_seeker", ""),
     action(Interaction, "Item: Sentry gun", "use_sentry", ""),

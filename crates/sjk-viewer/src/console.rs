@@ -249,6 +249,10 @@ pub(crate) struct ViewerConsole {
     drone_on: bool,
     /// The Toys tab asked to turn the Drone on (`true`) or off, not yet taken.
     pending_drone: Option<bool>,
+    /// The Boombox is carried, mirrored as [`Self::order66_on`] is.
+    boombox_on: bool,
+    /// The Toys tab asked to carry the Boombox (`true`) or put it away, not yet taken.
+    pending_boombox: Option<bool>,
     /// A chip naming a setting was clicked (`console_changelog.rs`): the cvar to search
     /// Settings for, not yet taken.
     pending_settings_search: Option<String>,

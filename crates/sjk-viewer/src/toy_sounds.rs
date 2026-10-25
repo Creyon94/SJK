@@ -19,15 +19,17 @@ pub(crate) enum Toy {
     Hax,
     Ragdoll,
     Drone,
+    Boombox,
 }
 
 impl Toy {
-    pub(crate) const ALL: [Self; 5] = [
+    pub(crate) const ALL: [Self; 6] = [
         Self::Box,
         Self::Order66,
         Self::Hax,
         Self::Ragdoll,
         Self::Drone,
+        Self::Boombox,
     ];
 
     /// The switch that lets this toy be heard (on by default).
@@ -38,6 +40,7 @@ impl Toy {
             Self::Hax => "s_toyHaxSound",
             Self::Ragdoll => "s_toyRagdollSound",
             Self::Drone => "s_toyDroneSound",
+            Self::Boombox => "s_toyBoomboxSound",
         }
     }
 }

@@ -4472,13 +4472,63 @@ not drawn on their screen (it is their camera). Players on stock clients see not
 The icon (a training remote hovering) is drawn by `scripts/drone_assets.py`. See
 [drone.rs](../crates/sjk-viewer/src/drone.rs).
 
+## Boombox
+
+The Boombox (Sol's idea, 25/10/2026) is a toy for verified SJK players: a big 80s stereo
+on the shoulder, playing music from the player's own files to the SJK players standing
+close by. It works like emotes: the music is in pk3s, and SJK passes only its name.
+
+- **Tracks** are `sound/boombox/<id>.mp3` (or `.wav`) in any pk3 or the game folder;
+  `<id>` is 1 to 24 of `a` to `z`, `0` to `9` and `_`, and shows with spaces for its `_`.
+  SJK ships none.
+- **`toy_boombox`** (a bind, the quick wheel's Toys page, Collection > Toys, "Play") puts
+  the stereo on the shoulder and plays the chosen track (the first at first), or puts it
+  away. `boombox` in the console lists the tracks; `boombox <id>`, `next`, `prev`, `play`
+  and `stop` choose and play them (Settings > Key bindings > Interaction has "Boombox:
+  next track"). When a track ends the next one plays, the first after the last. It is off
+  at every start and on every new server.
+- **Verified players only** (Sol's rule, 25/10/2026): on a server only a player whose key
+  the SJK hub verified may turn it on ("The boombox is for verified SJK players"), and every
+  SJK client ignores the boombox, music and stereo, of a player the hub does not show as
+  verified. In a local game anyone may carry it.
+- **Heard close by:** Settings > Game options > Toys, "Boombox range"
+  (`cg_toyBoomboxRange`, 128 to 1000 units, default 400; a player is about 64 tall) sets
+  how far the player's own carries. It plays at full volume within a third of that and
+  fades to nothing at the edge; a listener further away (64 units more once it plays)
+  does not play it at all. The carrier hears their own in both ears. Settings > Sound >
+  Toys, "Boombox music" (`s_toyBoomboxSound`), silences every boombox on this PC, and a
+  player blocked here is never heard.
+- **Others hear it** only when they have the same file: the same id and size. A listener
+  without it reads once in the console which track it is
+  (`Name's boombox plays <id>, which you do not have`).
+
+No game server knows of it, and the hub never carries sound. The stereo is a toy in the
+player's look (`toys: ["boombox"]`), so every SJK player on the server draws it over the
+carrier's right shoulder (on the `*back` bolt, upright, facing where the body faces; not
+on the dead; one's own in first person only in mirrors). What plays travels through the
+[toy relay](hub-chat.md#toy-relay): `play_<moment>_<bytes>_<range>_<id>` names the track,
+its file's size, the game server's time it began at and how far it carries; `stop` ends
+it. The carrier's client tells each SJK player within the range and 128 units more, one
+event every 50 ms, again whenever one comes back within reach and every 15 seconds; a
+track not told again for 40 seconds stops. A listener starts the track as far in as the
+server's time says, so everyone hears the same part of it whenever they arrive: the file
+is read and decoded when first needed (not before), the start waits for the decoder and
+then skips the time it waited (`AudioCommand::PlayTrack`), and a track nothing plays any
+more is freed. The music plays on the protected emote channel (a full voice table drops
+every other sound first) but on a source of its own per player, so an emote never cuts
+it. The stereo's model, picture, shader and icon are bundled, made by
+[boombox_assets.py](../scripts/boombox_assets.py) from shapes (nothing taken from another
+game), and mounted below all game data, so a PK3 with the same paths replaces them. See
+[boombox.rs](../crates/sjk-viewer/src/boombox.rs).
+
 ## Toy sounds
 
 Settings > Sound > Toys (Sol's request, 25/10/2026) sets how the toys sound on this PC:
 "Toy volume" (`s_toyVolume`, 0 to 2, default 1, times the effects volume) scales every
 toy's sounds, and a switch per toy silences that toy's sounds alone, the player's own
 and everyone else's (`s_toyBoxSound`, `s_toyOrder66Sound`, `s_toyHaxSound`,
-`s_toyRagdollSound`, `s_toyDroneSound`, all on by default, archived). The toy still
+`s_toyRagdollSound`, `s_toyDroneSound`, `s_toyBoomboxSound`, all on by default,
+archived). The toy still
 runs and is still seen; nothing is sent to anyone. The Illuminate holocron makes no
 sound. Every toy sound goes through `GameAudio::play_toy`, and the box music and the
 Hax loop through `send_toy_loop`, which read the settings each frame, so a change is

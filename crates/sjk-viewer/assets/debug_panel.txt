@@ -68,6 +68,22 @@ test: Two SJK clients. A: freecam near B: B sees a small remote, the size of a s
 test: A: peek B: B sees no remote, "A is spectating you with the Drone" near the top.
 test: A stops peeking: B's line goes. Third player C still sees A's remote behind B.
 
+[boombox-toy]
+area: Gameplay
+title: Boombox toy: an 80s stereo playing your tracks to players close by
+change: toy_boombox: a stereo on the right shoulder, playing sound/boombox/<id>.mp3 from pk3s.
+change: Verified players only; others hear it within cg_toyBoomboxRange if they have the file.
+change: boombox lists tracks; boombox next/prev/play/stop. Next track plays when one ends.
+test: Put two mp3s in a pk3 as sound/boombox/<id>.mp3; boombox lists them in the console.
+test: toy_boombox (or wheel Toys, Collection > Toys "Play"): stereo on shoulder, track title.
+test: Third person and a mirror: the stereo sits on the right shoulder, not inside the head.
+test: Two SJK clients, both verified, same pk3: B hears A's track from the same moment.
+test: B walks away: fades out, silent past the range; walks back: it plays from where it is.
+test: B without the pk3 reads once in the console which track A plays.
+test: An unverified player: toy_boombox says it is for verified players; nothing plays.
+test: boombox next skips; the last track's end starts the first; s_toyBoomboxSound 0 silences.
+note: The stereo's place on the shoulder was set from world shots; check it on custom models.
+
 [drone-toy]
 area: Gameplay
 title: Drone toy: freecam and peek fly a remote others see
