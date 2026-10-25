@@ -146,6 +146,7 @@ did: Menu pictures and lighter map changes: less video memory, fewer out-of-memo
 did: Texture detail (r_picmip) for small graphics cards, and no crash when one runs out
 did: Texture detail shrinks the saber glows too: 280 MB less on small cards
 did: Small graphics cards found at start: smaller textures and menu pictures from the first map
+did: Font atlases in one channel: 120 MiB less video memory
 did: Discord status: your Discord profile shows the server, map and mode you play
 did: Chat sounds by kind, each with its own sound, and a taskbar flash for private messages
 link: https://github.com/Sol-Vulpes/SJK
