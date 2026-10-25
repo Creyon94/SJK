@@ -272,6 +272,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "block_compression"
+version = "0.10.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1fa36716e629480f3c38e3c5f85323c8f4f56c08f73fa7e91ed8a6dc0d75d571"
+dependencies = [
+ "bytemuck",
+]
+
+[[package]]
 name = "bumpalo"
 version = "3.20.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3223,6 +3232,7 @@ dependencies = [
  "arboard",
  "arc-swap",
  "assert_no_alloc",
+ "block_compression",
  "bytemuck",
  "clipboard-win",
  "fontdue",

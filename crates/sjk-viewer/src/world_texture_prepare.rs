@@ -10,6 +10,15 @@ use super::filtering::mips;
 const BATCH_BYTES: u64 = 64 << 20;
 const MAX_WORKERS: usize = 4;
 
+/// Each texture key a world build prepares, with its images.
+#[cfg(test)]
+pub(crate) type Captured = Vec<(String, Vec<Arc<RgbaImage>>)>;
+
+/// The textures world builds prepare, kept while `Some` for the compression measurements
+/// (`world_shot_texture_compression.rs`).
+#[cfg(test)]
+pub(crate) static CAPTURED: std::sync::Mutex<Option<Captured>> = std::sync::Mutex::new(None);
+
 struct Job<'a> {
     key: &'a str,
     images: &'a [Arc<RgbaImage>],
@@ -41,7 +50,8 @@ impl<'a> Job<'a> {
 }
 
 /// Prepare each unique texture once before stage assembly, with unchanged mip pixels.
-/// Workers only resize pixels; GPU creation and forge mutation stay on the installer.
+/// Workers only resize pixels (and encode them, with `r_textureCompression`); GPU
+/// creation and forge mutation stay on the installer.
 pub(super) fn upload(
     device: &wgpu::Device,
     queue: &crate::frame_queue::FrameQueue,
@@ -76,10 +86,18 @@ pub(super) fn upload(
             }
         }
     }
+    #[cfg(test)]
+    if let Some(captured) = CAPTURED.lock().expect("capture lock").as_mut() {
+        captured.extend(
+            jobs.iter()
+                .map(|job| (job.key.to_owned(), job.images.to_vec())),
+        );
+    }
     let workers = std::thread::available_parallelism()
         .map_or(1, usize::from)
         .saturating_sub(1)
         .clamp(1, MAX_WORKERS);
+    let mut compressed = 0_usize;
     let mut remaining = jobs.as_slice();
     while !remaining.is_empty() {
         let mut bytes = 0_u64;
@@ -102,15 +120,18 @@ pub(super) fn upload(
                     while let Some(job) =
                         batch.get(next.fetch_add(1, std::sync::atomic::Ordering::Relaxed))
                     {
-                        let chains = mips::cache::prepare(job.images, job.width, job.height);
-                        if sender.send((job, chains)).is_err() {
+                        let levels = mips::cache::prepare_levels(
+                            job.images, job.width, job.height, job.picmip,
+                        );
+                        if sender.send((job, levels)).is_err() {
                             break;
                         }
                     }
                 });
             }
             drop(sender);
-            for (job, chains) in receiver {
+            for (job, levels) in receiver {
+                compressed += usize::from(matches!(levels, mips::Levels::Blocks(_)));
                 let texture = mips::upload_shared(
                     device,
                     queue,
@@ -118,7 +139,7 @@ pub(super) fn upload(
                     job.width,
                     job.height,
                     job.picmip,
-                    || chains,
+                    || levels,
                 )?;
                 forge.texture_cache.insert(job.key.to_owned(), texture);
             }
@@ -127,8 +148,13 @@ pub(super) fn upload(
         remaining = tail;
     }
     crate::log::progress(format_args!(
-        "texture preparation: {} arrays, {workers} workers, {:.1} ms",
+        "texture preparation: {} arrays{}, {workers} workers, {:.1} ms",
         jobs.len(),
+        if mips::compress::active() {
+            format!(" ({compressed} block-compressed)")
+        } else {
+            String::new()
+        },
         started.elapsed().as_secs_f64() * 1_000.0
     ));
     Ok(())

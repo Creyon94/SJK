@@ -8,7 +8,8 @@
 //! whole on the processor; only the upload skips levels. Textures uploaded without
 //! mips (sky boxes, the non-mipmapped filtering) and material maps take the same
 //! size ([`skipped`]). A change applies to the textures uploaded after it, so from the
-//! next map.
+//! next map. With `r_textureCompression` the kept levels go up block-compressed
+//! ([`compress`], [`Levels`]).
 use image::{RgbaImage, imageops};
 use std::{
     error::Error,
@@ -20,6 +21,8 @@ use std::{
 
 #[path = "texture_mip_cache.rs"]
 pub(crate) mod cache;
+#[path = "texture_compression.rs"]
+pub(crate) mod compress;
 
 /// The texture detail setting: the levels left off.
 pub(crate) const PICMIP_CVAR: &str = "r_picmip";
@@ -128,6 +131,15 @@ pub(crate) fn extent(images: &[Arc<RgbaImage>]) -> (u32, u32) {
     )
 }
 
+/// One texture's prepared levels, one array layer per image.
+#[derive(Clone)]
+pub(crate) enum Levels {
+    /// Whole RGBA8 [`chain`]s; the upload leaves off the levels `r_picmip` skips.
+    Rgba(Arc<Vec<Vec<RgbaImage>>>),
+    /// Block-compressed levels, those `r_picmip` skips already gone.
+    Blocks(Arc<compress::Blocks>),
+}
+
 /// What the worlds of one context share a map texture as ([`crate::shared_textures`]):
 /// the view, and the images it was made from, held so their addresses (the key) cannot
 /// name other pixels while it lives.
@@ -137,7 +149,8 @@ const SHARED: &str = "map texture";
 /// The key of the `width` x `height` array `images` become, `skip` levels off. Decoded
 /// map images are one `Arc` per mounted file and content for the process
 /// ([`crate::decoded_image_cache`]), so two maps using the same file give one key; a
-/// world built after `r_picmip` changed (or a `nopicmip` stage) gets its own size.
+/// world built after `r_picmip` changed (or a `nopicmip` stage) gets its own size, and
+/// one built after `r_textureCompression` changed its own format.
 fn shared_key(images: &[Arc<RgbaImage>], width: u32, height: u32, skip: u32) -> u64 {
     let mut parts = vec![
         width.to_le_bytes().to_vec(),
@@ -149,6 +162,9 @@ fn shared_key(images: &[Arc<RgbaImage>], width: u32, height: u32, skip: u32) -> 
             .iter()
             .map(|image| (Arc::as_ptr(image) as usize as u64).to_le_bytes().to_vec()),
     );
+    if compress::applies(width >> skip, height >> skip) {
+        parts.push(b"bc".to_vec());
+    }
     crate::shared_textures::key(&parts.iter().map(Vec::as_slice).collect::<Vec<_>>())
 }
 
@@ -160,7 +176,7 @@ pub(crate) fn find_shared(images: &[Arc<RgbaImage>], picmip: u32) -> Option<wgpu
     crate::shared_textures::find::<Shared>(SHARED, key).map(|(view, _)| view)
 }
 
-/// [`upload_chains`] of `images`, or another world's copy of the same array.
+/// [`upload_levels`] of `images`, or another world's copy of the same array.
 pub(crate) fn upload_shared(
     device: &wgpu::Device,
     queue: &crate::frame_queue::FrameQueue,
@@ -168,20 +184,22 @@ pub(crate) fn upload_shared(
     width: u32,
     height: u32,
     picmip: u32,
-    chains: impl FnOnce() -> Arc<Vec<Vec<RgbaImage>>>,
+    levels: impl FnOnce() -> Levels,
 ) -> Result<wgpu::TextureView, Box<dyn Error>> {
     let key = shared_key(images, width, height, skipped(width, height, picmip));
     if let Some((view, _)) = crate::shared_textures::find::<Shared>(SHARED, key) {
         return Ok(view);
     }
-    let view = upload_chains(device, queue, width, height, &chains(), picmip)?;
+    let view = upload_levels(device, queue, width, height, &levels(), picmip)?;
     let shared: Shared = (view.clone(), images.into());
     crate::shared_textures::share(SHARED, key, || shared);
     Ok(view)
 }
 
 /// Upload mipmapped stage frames once, less the levels `picmip` leaves off; no
-/// frame-path image generation or readback.
+/// frame-path image generation or readback. Outside a world's build (a model's material
+/// on the render thread that no worker prepared) the texture stays RGBA8: blocks are
+/// encoded only off the render thread.
 pub(crate) fn upload(
     device: &wgpu::Device,
     queue: &crate::frame_queue::FrameQueue,
@@ -190,8 +208,28 @@ pub(crate) fn upload(
 ) -> Result<wgpu::TextureView, Box<dyn Error>> {
     let (width, height) = extent(images);
     upload_shared(device, queue, images, width, height, picmip, || {
-        cache::prepare(images, width, height)
+        if crate::shared_textures::in_build() {
+            cache::prepare_levels(images, width, height, picmip)
+        } else {
+            Levels::Rgba(cache::prepare(images, width, height))
+        }
     })
+}
+
+/// Upload prepared `levels` of a `width` x `height` array: RGBA8 chains less the levels
+/// `picmip` leaves off ([`upload_chains`]), or blocks as they are ([`compress::upload`]).
+pub(crate) fn upload_levels(
+    device: &wgpu::Device,
+    queue: &crate::frame_queue::FrameQueue,
+    width: u32,
+    height: u32,
+    levels: &Levels,
+    picmip: u32,
+) -> Result<wgpu::TextureView, Box<dyn Error>> {
+    match levels {
+        Levels::Rgba(chains) => upload_chains(device, queue, width, height, chains, picmip),
+        Levels::Blocks(blocks) => compress::upload(device, queue, blocks),
+    }
 }
 
 /// Upload one [`chain`] per layer of a `width` x `height` array, less the levels

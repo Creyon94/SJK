@@ -299,6 +299,9 @@ includes:
 - lighter menus (25/10/2026): shader pictures not pointed at redrawn at most 30 times a
   second and 6 a frame, and setting lookups and the low-FPS check without allocations
   every frame;
+- texture compression (`r_textureCompression`, off by default, 25/10/2026): map and model
+  textures block-compressed at load, BC1 when opaque and BC3 with alpha, a quarter to an
+  eighth of their video memory;
 - decoded textures freed once nothing uses them (25/10/2026): the cache kept every
   texture of every map seen in a session, up to about 0.8 GB more after a few maps;
 - card pictures decoded and uploaded only when a screen draws them (25/10/2026), at

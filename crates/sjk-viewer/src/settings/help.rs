@@ -1123,6 +1123,10 @@ const HELP: &[(&str, &str)] = &[
         "Each step halves large textures: a quarter of their video memory. For graphics cards of 4 GB or less.",
     ),
     (
+        crate::world_materials::filtering::mips::compress::CVAR,
+        "Keeps map and model textures compressed: a quarter or less of their video memory, a little blockier. Experimental.",
+    ),
+    (
         "r_softParticles",
         "Smoke and dust fade where they meet walls instead of cutting into them.",
     ),

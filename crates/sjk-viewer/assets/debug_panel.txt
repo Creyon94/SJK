@@ -2103,6 +2103,15 @@ change: The lamp light cache's budget follows the card: 32 MiB per GB, 64 to 512
 test: Experimental preset on ffa5 and siege_hoth: lamps, door shadows and walls light as before.
 test: Change maps a few times on Experimental: no missing light or black walls.
 
+[texture-compression]
+area: Rendering & effects
+title: Texture compression (r_textureCompression, off): map and model textures 4 to 8x smaller
+change: On: opaque textures BC1, translucent BC3, encoded at load; skies, UI and material maps not.
+change: ffa3 at full detail: map textures 928 -> 118 MiB; the load takes 2 to 3.5 s longer.
+test: Settings > Texture compression on, change map: textures look the same (no blocky gradients).
+test: Translucent things (glass, grates, foliage) keep their see-through parts.
+test: Off again and change map: everything exactly as before.
+
 [font-atlas-r8]
 area: Rendering & effects
 title: Font atlases in one channel: 120 MiB less video memory, text unchanged

@@ -372,6 +372,8 @@ mod map_change;
 
 #[path = "world_shot_menu_pictures.rs"]
 mod menu_pictures_shots;
+#[path = "world_shot_texture_compression.rs"]
+mod texture_compression_shots;
 #[path = "world_shot_vram.rs"]
 mod vram;
 
