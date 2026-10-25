@@ -593,6 +593,7 @@ impl Group {
             Self::Advanced(Advanced::Sound) => &[
                 ("s_volume", "Game"),
                 (crate::emotes::VOLUME_CVAR, "Emotes"),
+                (crate::toy_sounds::VOLUME_CVAR, "Toys"),
                 (crate::unlock_toast::SOUND_CVAR, "Notifications"),
                 (crate::chat_sounds::MASTER_CVAR, "Chat sounds"),
             ],

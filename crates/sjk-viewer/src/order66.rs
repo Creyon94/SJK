@@ -1049,9 +1049,11 @@ impl GpuState {
             self.order66.sounds_registered = Some(audio.generation());
         }
         for cue in self.order66.cues.drain(..) {
-            audio.play_local(
+            audio.play_toy(
+                crate::toy_sounds::Toy::Order66,
                 cue.path,
                 1.0,
+                None,
                 sjk_audio::SourceId(cue.source),
                 crate::audio::TOY_CHANNEL,
             );

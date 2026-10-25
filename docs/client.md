@@ -4471,6 +4471,18 @@ not drawn on their screen (it is their camera). Players on stock clients see not
 The icon (a training remote hovering) is drawn by `scripts/drone_assets.py`. See
 [drone.rs](../crates/sjk-viewer/src/drone.rs).
 
+## Toy sounds
+
+Settings > Sound > Toys (Sol's request, 25/10/2026) sets how the toys sound on this PC:
+"Toy volume" (`s_toyVolume`, 0 to 2, default 1, times the effects volume) scales every
+toy's sounds, and a switch per toy silences that toy's sounds alone, the player's own
+and everyone else's (`s_toyBoxSound`, `s_toyOrder66Sound`, `s_toyHaxSound`,
+`s_toyRagdollSound`, `s_toyDroneSound`, all on by default, archived). The toy still
+runs and is still seen; nothing is sent to anyone. The Illuminate holocron makes no
+sound. Every toy sound goes through `GameAudio::play_toy`, and the box music and the
+Hax loop through `send_toy_loop`, which read the settings each frame, so a change is
+heard at once, loops included. See [toy_sounds.rs](../crates/sjk-viewer/src/toy_sounds.rs).
+
 ## Holstered saber hilts
 
 Settings > Game offers **Holstered saber hilts**, **Holster server support**,

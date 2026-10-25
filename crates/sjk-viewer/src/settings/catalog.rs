@@ -317,6 +317,40 @@ pub(super) const AUDIO: &[Setting] = &[
         },
     },
     Setting {
+        label: "Toy volume",
+        cvar: crate::toy_sounds::VOLUME_CVAR,
+        kind: ValueKind::Float {
+            min: 0.0,
+            max: crate::toy_sounds::MAX_VOLUME,
+            step: 0.1,
+        },
+    },
+    Setting {
+        label: "Cardboard box sounds",
+        cvar: crate::toy_sounds::Toy::Box.cvar(),
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Order 66 sounds",
+        cvar: crate::toy_sounds::Toy::Order66.cvar(),
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Hax sounds",
+        cvar: crate::toy_sounds::Toy::Hax.cvar(),
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Ragdoll sounds",
+        cvar: crate::toy_sounds::Toy::Ragdoll.cvar(),
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Drone sounds",
+        cvar: crate::toy_sounds::Toy::Drone.cvar(),
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Unlock sound",
         cvar: crate::unlock_toast::SOUND_CVAR,
         kind: ValueKind::Bool,

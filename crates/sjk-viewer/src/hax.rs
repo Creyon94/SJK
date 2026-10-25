@@ -1345,9 +1345,11 @@ impl GpuState {
             .as_ref()
             .map_or(0, |session| session.game_state().client_num.max(0) as u32);
         for path in self.hax.cues.drain(..) {
-            audio.play_local(
+            audio.play_toy(
+                crate::toy_sounds::Toy::Hax,
                 path,
                 1.0,
+                None,
                 sjk_audio::SourceId(own),
                 crate::audio::TOY_CHANNEL,
             );

@@ -816,13 +816,14 @@ impl GpuState {
             self.cardboard_box.sounds_registered = Some(audio.generation());
         }
         for cue in self.cardboard_box.take_cues() {
-            let source = sjk_audio::SourceId(u32::from(cue.slot));
-            match cue.origin {
-                Some(origin) => {
-                    audio.play_on_channel(cue.path, 1.0, origin, source, crate::audio::TOY_CHANNEL)
-                }
-                None => audio.play_local(cue.path, 1.0, source, crate::audio::TOY_CHANNEL),
-            }
+            audio.play_toy(
+                crate::toy_sounds::Toy::Box,
+                cue.path,
+                1.0,
+                cue.origin,
+                sjk_audio::SourceId(u32::from(cue.slot)),
+                crate::audio::TOY_CHANNEL,
+            );
         }
     }
 }

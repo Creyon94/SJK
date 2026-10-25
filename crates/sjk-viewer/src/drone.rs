@@ -583,10 +583,11 @@ impl GpuState {
             self.drone.sounds_registered = Some(audio.generation());
         }
         for (slot, point) in self.drone.launches.drain(..) {
-            audio.play_on_channel(
+            audio.play_toy(
+                crate::toy_sounds::Toy::Drone,
                 LAUNCH_SOUND,
                 0.8,
-                point.to_array(),
+                Some(point.to_array()),
                 sjk_audio::SourceId(u32::from(slot)),
                 sjk_audio::ChannelId(0),
             );

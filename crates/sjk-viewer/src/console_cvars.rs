@@ -514,6 +514,42 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "Loudness of emote sounds, times the effects volume (SJK)",
         ),
         CvarDefinition::new(
+            crate::toy_sounds::VOLUME_CVAR,
+            crate::toy_sounds::DEFAULT_VOLUME,
+            archive,
+            "Loudness of the toys' sounds, times the effects volume (SJK)",
+        ),
+        CvarDefinition::new(
+            crate::toy_sounds::Toy::Box.cvar(),
+            true,
+            archive,
+            "Play cardboard box sounds (SJK)",
+        ),
+        CvarDefinition::new(
+            crate::toy_sounds::Toy::Order66.cvar(),
+            true,
+            archive,
+            "Play Order 66 sounds (SJK)",
+        ),
+        CvarDefinition::new(
+            crate::toy_sounds::Toy::Hax.cvar(),
+            true,
+            archive,
+            "Play Hax sounds (SJK)",
+        ),
+        CvarDefinition::new(
+            crate::toy_sounds::Toy::Ragdoll.cvar(),
+            true,
+            archive,
+            "Play Ragdoll sounds (SJK)",
+        ),
+        CvarDefinition::new(
+            crate::toy_sounds::Toy::Drone.cvar(),
+            true,
+            archive,
+            "Play Drone sounds (SJK)",
+        ),
+        CvarDefinition::new(
             crate::emotes::ATTACK_STOP_CVAR,
             crate::emotes::DEFAULT_ATTACK_STOP,
             archive,
