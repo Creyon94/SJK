@@ -10,6 +10,7 @@ An install over 4 ms logs its parts. Checked by the viewer build on Linux withou
 tests and Clippy not run. Not verified: any frame in game, the hitches gone, the look of
 a body drawn with the model's materials, that every `pose+skin+upload` hitch was a body
 copy (some had no load or kill near them).
+
 ## Announcements and contributor reward rounds
 
 25/10/2026, `personal/announcements`, based on `main` `ca5643de`: the client side of the
