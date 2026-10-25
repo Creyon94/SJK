@@ -539,11 +539,26 @@ server names later still compile on the render thread.
 
 The same worker also builds the model's texture mip chains (`warm_entity_materials`
 with `mipmapped`), and the render thread uploads them under their material keys
-(`Runtime::upload_prepared_textures`) before appending the materials, as the map
+(`Runtime::upload_prepared_texture`, one a frame) before appending the materials, as the map
 loader does (`world_texture_prepare.rs`). Built on the render thread, a chain cost
 6.5 ms for a 1024x1024 texture and 25 ms for a 2048x2048 one (release build): 56 and
 182 ms hitches for two player models in Sol's log, with their pipelines already off
 the thread.
+
+Players' models now go up as models a server names do: one prepared texture a frame,
+then the materials and geometry ([player_loads.rs](../crates/sjk-viewer/src/player_loads.rs)).
+All of a model's textures in one frame were the `config-refresh` hitches of Slash's
+24/10/2026 log on a built-in Radeon: 255 to 425 ms for `zzzpiza/original`, 150 to 166 ms
+for `solfox` and `azuki`, each 11 to 19 ms after `client N now wears`. A material list
+appended once in a world is reused by every later install of the same list
+(`ClientInfoWatch::appended`): Kyle standing in for each model this PC lacks still cost
+32 to 55 ms a time with its textures cached. The worker also builds the model's body
+copy, which a later frame of its own puts in the body pool drawing with the model's
+materials (as one hilt mesh serves every player): a player's first death with a model
+built that copy on the render thread (`corpse_actors.rs`), the 35 to 310 ms
+`pose+skin+upload` hitches of the same log at kills. An install over 4 ms logs
+`model install <model>: X ms (materials, geometry for N vertices, skin)`. Not measured
+since.
 
 ## Graphics reload
 

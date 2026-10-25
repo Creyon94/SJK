@@ -677,7 +677,7 @@ pub(super) fn compile_profile() -> [u64; 2] {
 ///
 /// With `mipmapped`, the textures' mip chains are built too (and block-compressed, with
 /// `r_textureCompression`) and returned, for
-/// [`Runtime::upload_prepared_textures`]: resizing a model's textures down to one texel
+/// [`Runtime::upload_prepared_texture`]: resizing a model's textures down to one texel
 /// on the render thread cost 50 to 180 ms for some player models.
 pub(crate) fn warm_entity_materials(
     vfs: &VirtualFileSystem,
@@ -745,21 +745,9 @@ pub(crate) struct PreparedTexture {
 }
 
 impl Runtime {
-    /// Upload textures a worker prepared, under their material keys, so the materials
-    /// appended next find them uploaded and only copy them to the GPU.
-    pub(crate) fn upload_prepared_textures(
-        &mut self,
-        device: &wgpu::Device,
-        queue: &crate::frame_queue::FrameQueue,
-        textures: Vec<PreparedTexture>,
-    ) {
-        for texture in textures {
-            self.upload_prepared_texture(device, queue, texture);
-        }
-    }
-
-    /// [`Self::upload_prepared_textures`] for one texture: an HD pack's texture with
-    /// its mips is near 90 MB to copy, so a model's textures go up one a frame.
+    /// Upload one texture a worker prepared, under its material key, so the materials
+    /// appended next find it uploaded and only copy it to the GPU: an HD pack's texture
+    /// with its mips is near 90 MB to copy, so a model's textures go up one a frame.
     pub(crate) fn upload_prepared_texture(
         &mut self,
         device: &wgpu::Device,

@@ -4,7 +4,12 @@
 //! parsed, its textures decoded, then uploaded, which players felt as a stutter. Now a
 //! worker reads and parses the model, builds its mesh and decodes its textures
 //! ([`crate::world_materials::warm_entity_materials`]); the render thread only uploads
-//! it, one model a frame. Meanwhile the slot keeps the model it had, or shows the
+//! it: one texture a frame, as models a server names and NPCs do, then its materials and
+//! geometry. All its textures in one frame cost 255 to 425 ms for an HD player model on
+//! Slash's built-in GPU (`zzzpiza/original`, 24/10/2026). The worker also builds the
+//! model's body copy, which a later frame puts in the body pool sharing the model's
+//! materials: a player's first death with a model built it on the render thread, the
+//! 35 to 310 ms hitches of the same log at kills (`corpse_actors.rs`). Meanwhile the slot keeps the model it had, or shows the
 //! stand-in actor until the first one is in (`actor_world_submission.rs`). A model whose
 //! materials need pipelines the map had not compiled waits for another worker to compile
 //! them (`world_pipeline_jobs.rs`) before it is put on its player: compiled on the render
@@ -26,6 +31,17 @@ pub(crate) struct Loaded {
     pub(crate) failed: Option<String>,
     /// Its textures' mip chains, built here.
     pub(crate) textures: Vec<crate::world_materials::PreparedTexture>,
+    /// The same model again, for the body pool.
+    pub(crate) body: Option<(ActorMesh, FlattenedScene)>,
+}
+
+/// A model's body copy waiting for a frame of its own, with where the model's
+/// materials start.
+struct Body {
+    appearance: Appearance,
+    mesh: ActorMesh,
+    scene: FlattenedScene,
+    material_base: usize,
 }
 
 type Prepared = Result<Loaded, String>;
@@ -55,11 +71,20 @@ struct Compiling {
     receiver: Receiver<Compiled>,
 }
 
+/// A finished model going up one texture a frame, before its materials and geometry.
+struct Uploading {
+    client: u16,
+    appearance: Appearance,
+    loaded: Loaded,
+}
+
 /// The loads of one world.
 #[derive(Default)]
 pub(crate) struct Loads {
     running: Vec<Task>,
     waiting: Vec<Request>,
+    uploading: Option<Uploading>,
+    body: Option<Body>,
     compiling: Vec<Compiling>,
 }
 
@@ -82,6 +107,9 @@ impl Loads {
                 .waiting
                 .iter()
                 .any(|request| request.client == client && request.appearance == *appearance)
+            || self.uploading.as_ref().is_some_and(|uploading| {
+                uploading.client == client && uploading.appearance == *appearance
+            })
             || self.compiling.iter().any(|compiling| {
                 compiling.client == client
                     && compiling.appearance == *appearance
@@ -94,6 +122,14 @@ impl Loads {
     pub(crate) fn cancel(&mut self, client: u16) {
         self.running.retain(|task| task.client != client);
         self.waiting.retain(|request| request.client != client);
+        // Its textures already up stay in the material cache for the next load.
+        if self
+            .uploading
+            .as_ref()
+            .is_some_and(|uploading| uploading.client == client)
+        {
+            self.uploading = None;
+        }
         for compiling in &mut self.compiling {
             if compiling.client == client {
                 compiling.mesh = None;
@@ -206,6 +242,18 @@ fn prepare(request: Request, sources: Sources) -> Prepared {
             Err(error) => (load(&kyle)?, Some(error)),
         }
     };
+    let mut body_scene = FlattenedScene::default();
+    // As the world load pairs each player with one (`actor_load.rs`).
+    let body = build_actor_mesh(
+        &mut body_scene,
+        preview.clone(),
+        None,
+        true,
+        request.appearance.clone(),
+        request.saber_names.clone(),
+    )
+    .ok()
+    .map(|mesh| (mesh, body_scene));
     let mut scene = FlattenedScene::default();
     let mesh = build_actor_mesh(
         &mut scene,
@@ -229,6 +277,7 @@ fn prepare(request: Request, sources: Sources) -> Prepared {
         cache,
         failed,
         textures,
+        body,
     })
 }
 
@@ -245,11 +294,17 @@ impl GpuState {
     }
 
     /// Once a frame: start waiting loads, put a model whose pipelines are ready on its
-    /// player, and upload one finished model.
+    /// player, and take the model being uploaded one step: one texture, or its materials
+    /// and geometry once they are all up. Only then is the next finished model taken.
     pub(crate) fn poll_player_loads(&mut self) {
         let mut loads = std::mem::take(&mut self.clientinfo_watch.loads);
         loads.start(|| self.player_load_sources());
-        let finished = loads.take_finished();
+        let uploading = loads.uploading.take();
+        let finished = if uploading.is_none() && loads.body.is_none() {
+            loads.take_finished()
+        } else {
+            None
+        };
         let compiled = loads.take_compiled();
         self.clientinfo_watch.loads = loads;
         if let Some((compiling, pipelines)) = compiled {
@@ -260,10 +315,26 @@ impl GpuState {
                 self.place_client_mesh(compiling.client, mesh, &compiling.appearance);
             }
         }
+        if uploading.is_none()
+            && let Some(body) = self.clientinfo_watch.loads.body.take()
+        {
+            self.install_body_copy(body);
+            return;
+        }
+        if let Some(mut uploading) = uploading {
+            if let Some(texture) = uploading.loaded.textures.pop() {
+                self.world_materials
+                    .upload_prepared_texture(&self.device, &self.queue, texture);
+                self.clientinfo_watch.loads.uploading = Some(uploading);
+            } else {
+                self.install_player_model(uploading.client, uploading.appearance, uploading.loaded);
+            }
+            return;
+        }
         let Some((client, appearance, prepared)) = finished else {
             return;
         };
-        let loaded = match prepared {
+        let mut loaded = match prepared {
             Ok(loaded) => loaded,
             Err(error) => {
                 log::progress(format_args!(
@@ -274,7 +345,9 @@ impl GpuState {
                 return;
             }
         };
-        self.clientinfo_watch.gla_cache.absorb(loaded.cache);
+        self.clientinfo_watch
+            .gla_cache
+            .absorb(std::mem::take(&mut loaded.cache));
         if let Some(error) = &loaded.failed {
             log::progress(format_args!(
                 "could not load {}/{}: {error}; using Kyle",
@@ -282,10 +355,18 @@ impl GpuState {
             ));
             self.clientinfo_watch.failed.insert(appearance.clone());
         }
-        self.world_materials
-            .upload_prepared_textures(&self.device, &self.queue, loaded.textures);
-        let (mesh, jobs) =
-            match self.upload_built_actor_deferred(loaded.mesh, loaded.scene, &appearance) {
+        self.clientinfo_watch.loads.uploading = Some(Uploading {
+            client,
+            appearance,
+            loaded,
+        });
+    }
+
+    /// Put a model whose textures are all up on its player: its materials and geometry
+    /// now, its new pipelines on a worker first.
+    fn install_player_model(&mut self, client: u16, appearance: Appearance, loaded: Loaded) {
+        let (mesh, jobs, material_base) =
+            match self.upload_built_actor_with_base(loaded.mesh, loaded.scene, &appearance) {
                 Ok(uploaded) => uploaded,
                 Err(error) => {
                     log::progress(format_args!(
@@ -294,6 +375,19 @@ impl GpuState {
                     return;
                 }
             };
+        // One body copy per model in the pool is enough: deaths reuse it.
+        let pooled = self
+            .actor_meshes
+            .iter()
+            .any(|mesh| mesh.corpse_pool && mesh.appearance == appearance);
+        if let Some((body, scene)) = loaded.body.filter(|_| !pooled) {
+            self.clientinfo_watch.loads.body = Some(Body {
+                appearance: appearance.clone(),
+                mesh: body,
+                scene,
+                material_base,
+            });
+        }
         if jobs.is_empty() {
             self.place_client_mesh(client, mesh, &appearance);
             return;
@@ -321,6 +415,38 @@ impl GpuState {
             mesh: Some(mesh),
             receiver,
         });
+    }
+}
+
+impl GpuState {
+    /// Put a model's body copy in the body pool, drawing with the model's materials, so
+    /// a death takes it rather than building one ([`Self::apply_body_commands`]).
+    fn install_body_copy(&mut self, body: Body) {
+        if self
+            .actor_meshes
+            .iter()
+            .any(|mesh| mesh.corpse_pool && mesh.appearance == body.appearance)
+        {
+            return;
+        }
+        match self.place_actor_geometry(
+            body.mesh,
+            body.scene,
+            body.material_base,
+            &body.appearance,
+            std::time::Duration::ZERO,
+        ) {
+            Ok(mut mesh) => {
+                mesh.corpse_pool = true;
+                mesh.entity_id = None;
+                self.actor_meshes.push(mesh);
+                self.actor_groups.push(Vec::with_capacity(4));
+            }
+            Err(error) => log::progress(format_args!(
+                "body copy of {}/{} not prepared: {error}",
+                body.appearance.model, body.appearance.variant
+            )),
+        }
     }
 }
 
