@@ -6733,3 +6733,14 @@ test: Settings > Sound > Toys: Toy volume slider and five switches, each with he
 test: toy_box: drag the slider while the music plays, it follows live; 0 silences it.
 test: Box sounds off: no music or cues, the box still shows; on again: music back.
 test: Ragdoll / Hax / Order 66 / Drone switches each silence only their toy.
+
+[trading]
+area: Menus & settings
+title: Trading between players, staff only for now (Creyon, PR #197)
+change: Trade on a player card, the SJK chat page, Players page or trade <name>.
+change: Request toast, trade window: offers, Ready, Confirm; gifts; daily limits.
+test: Two staff clients: ask, accept, add duplicates, Ready, Confirm: items swap.
+test: A request in play stays a toast; it never opens over the main menu.
+test: Blocked player: no Trade on their card, their requests vanish quietly.
+test: Ask the same player again after a decline: the hub asks you to wait.
+note: Hub runs with SJK_HUB_TRADING=staff; holocrons stay out (no --trade-holocrons).

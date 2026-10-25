@@ -190,6 +190,8 @@ pub(crate) struct ChatOverlay {
     reportable_slots: u64,
     /// Report asked from a card, for this slot, until the frame takes it.
     report_request: Option<u16>,
+    /// The slot whose card asked to trade, for the frame (`crate::player_trades`).
+    trade_request: Option<u16>,
     /// The feed draws during a world shot, which has no session.
     #[cfg(test)]
     pub(crate) for_shot: bool,
@@ -278,6 +280,7 @@ impl ChatOverlay {
             safety_request: None,
             reportable_slots: 0,
             report_request: None,
+            trade_request: None,
             #[cfg(test)]
             for_shot: false,
         }
@@ -311,6 +314,11 @@ impl ChatOverlay {
     /// The slot whose player a card asked to report, once.
     pub(crate) fn take_report_request(&mut self) -> Option<u16> {
         self.report_request.take()
+    }
+
+    /// The slot a card asked to trade with, once.
+    pub(crate) fn take_trade_request(&mut self) -> Option<u16> {
+        self.trade_request.take()
     }
 
     /// An overlay showing the installed world's emoji pictures.

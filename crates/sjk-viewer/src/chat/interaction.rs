@@ -166,6 +166,7 @@ impl ChatOverlay {
             // composer, which covers the feed. Otherwise release activates a
             // different widget than the one recorded here and is discarded.
             self.pressed_action = [
+                card::CARD_TRADE,
                 card::CARD_WHISPER,
                 card::CARD_REPORT,
                 card::CARD_SAFETY,
@@ -248,6 +249,7 @@ impl ChatOverlay {
             card::CARD_SAFETY => self.press_card_safety(),
             card::CARD_REPORT => self.press_card_report(),
             card::CARD_WHISPER => self.press_card_whisper(),
+            card::CARD_TRADE => self.press_card_trade(),
             token if usize::from(token) < MAX_VISIBLE => {
                 let pressed = self.pressed_who.take();
                 self.click_name(usize::from(token), pressed);

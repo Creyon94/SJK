@@ -169,7 +169,7 @@ link: https://sol-vulpes.github.io/SJK/
 
 [Creyon]
 github: Creyon94
-role: Contributor and tester: 57 merged pull requests, EternalJK parity
+role: Contributor and tester: 58 merged pull requests, EternalJK parity
 medal: early_contributor
 did: #2 #7 Duel challenges from names with symbols, centre prints kept whole
 did: #3 The third-person camera damped per frame as EternalJK (cg_cameraFPS)
@@ -204,6 +204,7 @@ did: #192 Normal blades in duels, each in its owner's colour (cg_duelStockBlades
 did: #191 Signature blades without the bright rim at the tip or hard edges round their effects
 did: #202 Bodies fade away as in EternalJK, with their Force side's glow and sounds
 did: #208 Formatting that unblocked CI
+did: #197 Trading between players: duplicates (and later holocrons) swapped or given as gifts, from a game or the main menu
 did: Blade Lab rounds 15 to 22: every blade effect in 3D, richer mythicals, faster loading
 did: The Saber ideas page: the concepts of the Tidal, Circuit, Aurora, Echo, Nebula, Cinder, Venom, Sakura and Firefly blades and the twelve after them (Saber smith: Creyon)
 did: The Blade Lab page: the Neon, Peppermint, Soap Bubble, Lava Lamp, Reactor and Bleeding Kyber blades

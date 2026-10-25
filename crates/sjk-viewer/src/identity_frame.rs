@@ -70,6 +70,7 @@ impl GpuState {
         self.update_ragdoll(&relay_events);
         self.update_drone(&relay_events);
         self.update_e2e_whispers();
+        self.update_player_trades();
         if !due {
             return;
         }

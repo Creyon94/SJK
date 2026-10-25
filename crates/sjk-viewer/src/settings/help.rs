@@ -101,6 +101,9 @@ const CHOICE_NAMES: &[(&str, &str, &str)] = &[
     (crate::chat_sounds::MASTER_CVAR, "0", "Off"),
     (crate::chat_sounds::MASTER_CVAR, "1", "On"),
     (crate::chat_sounds::MASTER_CVAR, "2", "Distinct (EJK)"),
+    (crate::player_trades::SIZE_CVAR, "0", "Small"),
+    (crate::player_trades::SIZE_CVAR, "1", "Normal"),
+    (crate::player_trades::SIZE_CVAR, "2", "Large"),
     (crate::holocron_popup::NOTIFICATIONS_CVAR, "0", "Off"),
     (
         crate::holocron_popup::NOTIFICATIONS_CVAR,
@@ -984,6 +987,10 @@ const HELP: &[(&str, &str)] = &[
     (
         crate::chat_sounds::FLASH_CVAR,
         "Flashes the game's taskbar button when a private message arrives while you are away from the window.",
+    ),
+    (
+        crate::player_trades::SIZE_CVAR,
+        "How big the trade window is in the middle of the screen. Small leaves the most of the match in view.",
     ),
     (
         crate::holocron_popup::NOTIFICATIONS_CVAR,

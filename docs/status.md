@@ -377,6 +377,68 @@ macOS smoke check included (loopback server, client finds synthetic assets and s
 `GameData/SJK/config.cfg`). Not verified: anything on a real Mac (window, Metal rendering of every shader, audio,
 input), the Mac edition's game-data layout. No Intel Mac build.
 
+## Trades between players (client)
+
+22-23/10/2026, `feat/trading`, based on `main` `7bc8bc89`, with the hub's side on the hub's
+branch `feat/trading` (off by default, not deployed). Two SJK players swap unopened
+holocrons found by play and duplicate saber shaders, or give them as a gift:
+`sjk-identity` reads and steps trades (`GET`/`POST /v1/trades`, the feed's `trades`
+events), the viewer shows a request toast at the top centre over play and the trade
+window over the game menu (Esc opens it while a trade runs), with Trade on the chat's
+player card, the SJK chat page, the Players page and the `trade` command
+([sjk-ui.md](sjk-ui.md#trading)), from a game or the main menu. Limits and worths come from
+the hub (Sol, 23/10/2026: duplicates first, holocrons once the hub says so; unlimited
+trades; one holocron of each tier and 10 duplicates each way in a trading day of 24 hours
+from one's first completed trade, with a Daily reset clock; cards never trade; a 7-day resale
+lock; Uncommon 4, Rare 8, Legendary 18, Mythical 51 shards on average). Verified:
+`cargo fmt`, `cargo build`, `cargo test` (the identity worker's trade steps, the wire, the
+window's choices, gifts, the own items, limits and countdowns, the card's Trade button,
+the Players page's Trade row), the window's layouts as pictures; the hub's `cargo test`
+and `cargo clippy`; on Windows 11 between two clients on one PC through a local hub with
+`--trading everyone --trading-one-connection` (requests, offers, gifts, swaps, limits).
+Not verified: between two PCs, the countdowns over a whole week. Not built: a quick wheel
+entry, a staff undo of a trade, the hub panel's trades page.
+
+Sol's review of 24/10/2026 (PR #197), answered on the same branch: a request from another
+player shows only the toast (no window over the menus, no Enter to accept) until Open
+trade or Esc; a blocked player's request is declined without a word and no card offers
+Trade with them; the views are built only when the list, a step, the own profile
+(`Snapshot::me_revision`, new) or the known players change, the window's parts only while
+it can show, under one lock, and the window keeps its copy (no clone per frame); no text
+names a hub number (limits, the resale lock, the idle time, the trust rule; a test pins
+it); the size setting is read only while the window shows; the trade list is no longer
+read every ten minutes while trading is off for the player; the test flag is per thread;
+the Trade hints say holocrons only while they trade. Verified on Linux x86_64: the
+workspace format check, build, tests and clippy; new tests of the clocks, the toast's
+view, the block list, the blocked Players-page row, the numberless words and the reads
+stopping. Screenshots for the PR (`trade_shots`: toast, request, the window in its three
+sizes, both ready, the gift question; `duel6_ingame_players` `players-trade`;
+`duel6_sjk_chat_page` `card-trade`) come from Creyon's Windows run; not verified here
+(no game data on the Linux machine).
+
+Sol's re-review of 25/10/2026 (`a781f9a0`), answered on the same branch after merging
+`main` (`bbe66051`): Trade on the in-game chat card takes its click (its token was missing
+from the press list); CREDITS.md and credits.txt name #197; the changelog line and
+CREDITS.md no longer state the hub's limits or the resale lock's length; with trading off
+the list is read every 30 minutes instead of after a day, so trading switched on at the
+hub reaches running clients; a request that came during play no longer opens by itself
+over the main menu (only the game menu opening from play reopens a closed window); and
+`trade <player>` refuses a blocked player, as a request by key (the SJK chat page) now
+does too. Verified on Linux x86_64: the workspace format
+check (with `main` at `bb58da4b` merged; its three unformatted files, `launch.rs`,
+`platform.rs` and `update.rs`, are formatted in their own pull request, #208), build,
+tests and clippy; new tests of the card's Trade click, the slower reads seeing trading
+switched on, and Esc in play. Not verified here: in a game (no game data on the Linux
+machine). The hub's three points (SJK-hub-shared #4) are answered on its branch: a
+waiting request no longer holds the player asked (the requests a trade closes are told
+to both of their players at once), a request that ended without a trade (declined,
+unanswered or withdrawn) makes the asker wait before asking that player again and
+requests are capped per person
+(`asked_recently`, `asking_too_often`, worded here without numbers), one connection is
+checked again at the accept and every confirmation, and deleting a player keeps their
+trades (the running ones end `removed`); the client words those answers and the
+`busy` and `removed` endings.
+
 ## Safety codes that a hub cannot match
 
 24/10/2026, `claude/kind-newton-h1d1ah`, based on `main` `62a5ac44`, after Slash's

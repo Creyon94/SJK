@@ -343,7 +343,7 @@ includes:
 Creyon and Lumaya wear the SJK team's Early Contributor medal, shown on their
 cards of the in-game credits page.
 
-Creyon ([Creyon94](https://github.com/Creyon94)), contributor and tester, has 57
+Creyon ([Creyon94](https://github.com/Creyon94)), contributor and tester, has 58
 pull requests merged into SJK, most of them bringing SJK in line with EternalJK
 ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3ACreyon94)):
 
@@ -412,6 +412,12 @@ pull requests merged into SJK, most of them bringing SJK in line with EternalJK
   event under its right number; at the merge every reused body slot fades again, the dark
   side crackles once per 100 ms and the server clears the body 4 s after the fade;
 - #208 formatting fixed in three files so CI's Formatting check passed again;
+- #197 trading between players (its hub side in SJK-hub-shared #4): duplicate saber
+  shaders, and later unopened holocrons, swapped or given as a gift through the SJK hub,
+  from Trade on a player's card, the SJK chat page, the Players page or `trade`, in a
+  game or from the main menu; the request card, the trade window with what each side is
+  worth, Ready and Confirm, the daily limits with their reset clock, the resale countdown
+  on a traded holocron and the window's size setting;
 - #102 a formatting fix that unblocked every pull request's checks.
 - the Saber ideas page, whose concepts became the Tidal, Circuit, Aurora, Echo, Nebula,
   Cinder, Venom, Sakura and Firefly blades, and the twelve that followed (Slate, Amber,

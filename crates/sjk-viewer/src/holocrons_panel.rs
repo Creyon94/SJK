@@ -90,6 +90,9 @@ pub(crate) struct Recent {
     pub(crate) note: String,
     /// It was opened.
     pub(crate) opened: bool,
+    /// How it came in a trade ([`holocrons::Entry::trade_line`]), colour codes kept;
+    /// `None` when it did not.
+    pub(crate) trade: Option<String>,
 }
 
 /// What the page shows of the identity and the hub, read by [`Data::read`].
@@ -189,6 +192,15 @@ impl Data {
         }
         let crystals = std::array::from_fn(|index| crystal_sealed[index].len() as u32);
         // The recent list is the holocrons found: crystals are counted on their own.
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |since| since.as_secs() as i64);
+        let lock = snapshot
+            .trades
+            .as_ref()
+            .map(|state| state.list.rules.resale_lock)
+            // The hub's lock; none said yet, no countdown (the hub owns the number).
+            .filter(|lock| *lock > 0);
         let recent = known
             .into_iter()
             .filter(|(entry, _)| !entry.tier.is_kyber())
@@ -197,6 +209,7 @@ impl Data {
                 tier: entry.tier.index,
                 when: holocrons::when_text(entry.dropped),
                 gift: entry.gift,
+                trade: entry.trade_line(now, lock),
                 note: entry.note,
                 opened,
             })
@@ -914,6 +927,7 @@ mod tests {
             profiles: std::collections::HashMap::new(),
             model_checks: std::collections::HashMap::new(),
             profiles_revision: 0,
+            me_revision: 0,
             notice: None,
             revision: 0,
             report: None,
@@ -934,6 +948,7 @@ mod tests {
             kyber: None,
             shop: None,
             trade: None,
+            trades: None,
             announcements: Vec::new(),
             announcements_revision: 0,
             rewards: None,
@@ -979,6 +994,9 @@ mod tests {
     fn holocron(id: u64, tier: &str, source: &str, note: &str) -> sjk_identity::Holocron {
         sjk_identity::Holocron {
             opened: None,
+            traded: None,
+            traded_from_key: None,
+            traded_from: None,
             id,
             tier: tier.to_owned(),
             dropped: 1_791_641_100,

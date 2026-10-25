@@ -27,6 +27,7 @@ pub mod relay;
 pub mod report;
 pub mod service;
 pub mod staff;
+pub mod trades;
 pub mod usage;
 pub mod vitals;
 pub mod whisper;
@@ -52,8 +53,13 @@ pub use report::{
 pub use service::{
     ClaimOutcome, HolocronProgress, HubFactory, Location, ModelCheck, OpenOutcome, ReportOutcome,
     RevealOutcome, Service, Settings, ShopState, Snapshot, Status, Trade, TradeOutcome,
+    TradesClock,
 };
 pub use staff::{ChatBanRow, OpenedText, StaffAnswer, StaffQuery, StaffRequest, StaffState};
+pub use trades::{
+    PlayerTrade, TradeAnswer, TradeEvent, TradeItem, TradePartner, TradeRules, TradeSide,
+    TradeStep, TradeToday, TradesAnswer,
+};
 pub use vitals::{Sharing, VitalsTable};
 pub use wire::{
     Achievement, Bought, BuyAnswer, CardStack, ChatMessage, CraftAnswer, Crafted, DropEvent,

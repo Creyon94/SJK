@@ -24,6 +24,7 @@ pub(super) fn holdings() -> Data {
         gift: note.is_some(),
         note: note.unwrap_or_default().to_owned(),
         opened: false,
+        trade: None,
     };
     Data {
         counts: Some([12, 3, 0, 1]),

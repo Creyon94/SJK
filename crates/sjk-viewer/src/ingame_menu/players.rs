@@ -139,6 +139,10 @@ pub(crate) struct State {
     info: Vec<String>,
     read_at: Option<Instant>,
     scores_at: Option<Instant>,
+    /// Whether the SJK hub lets this player trade now (`crate::player_trades`).
+    trading: bool,
+    /// Whether holocrons trade yet (duplicates come first): the Trade hint says so.
+    trade_holocrons: bool,
     /// A report was handed to the identity service; its outcome is awaited.
     pub(crate) waiting: bool,
     /// The serial of the last outcome shown.
@@ -251,6 +255,70 @@ impl State {
         self.write_info();
     }
 
+    /// Whether the SJK hub lets this player trade now (the Report page offers Trade), and
+    /// whether holocrons trade yet.
+    pub(crate) fn set_trading(&mut self, open: bool, holocrons: bool) {
+        self.trading = open;
+        self.trade_holocrons = holocrons;
+    }
+
+    /// What Trade does, as its hint says: holocrons only once the hub trades them. Short
+    /// enough for one line beside the card's Trade button (`sjk_view::trade_button`).
+    pub(crate) fn trade_hint(&self) -> &'static str {
+        if self.trade_holocrons {
+            "Swap holocrons and duplicate shaders"
+        } else {
+            "Swap duplicate shaders"
+        }
+    }
+
+    /// Every line the Trade button's words can show: the hints and why not.
+    #[cfg(test)]
+    pub(crate) const TRADE_LINES: [&'static str; 8] = [
+        "Swap holocrons and duplicate shaders",
+        "Swap duplicate shaders",
+        "This is you",
+        "Bots do not trade",
+        "The hub does not know this player",
+        "You blocked this player",
+        "Trading is not open on the SJK hub",
+        "Trades happen on online servers",
+    ];
+
+    /// Why the chosen player cannot be asked to trade now, if they cannot.
+    pub(crate) fn trade_blocked(&self) -> Option<&'static str> {
+        self.trade_blocked_for(self.target()?)
+    }
+
+    /// Why `player` cannot be asked to trade now, if they cannot.
+    pub(crate) fn trade_blocked_for(&self, player: &Player) -> Option<&'static str> {
+        if player.you {
+            Some("This is you")
+        } else if player.bot {
+            Some("Bots do not trade")
+        } else if player.hub.is_none() {
+            Some("The hub does not know this player")
+        } else if player
+            .hub
+            .as_ref()
+            .is_some_and(|hub| crate::player_trades::blocked(&hub.key_id, &player.name))
+        {
+            // Sol's decision 1: no Trade for a player blocked here.
+            Some("You blocked this player")
+        } else if !self.trading {
+            Some("Trading is not open on the SJK hub")
+        } else if self.gate == Gate::Local {
+            Some("Trades happen on online servers")
+        } else {
+            None
+        }
+    }
+
+    /// The Report page's Trade row, after the reasons.
+    pub(crate) const fn trade_row() -> usize {
+        Category::ALL.len()
+    }
+
     /// Whether the local player may report, and why not.
     pub(crate) fn gate(&self) -> Gate {
         self.gate
@@ -326,7 +394,7 @@ impl State {
     pub(crate) fn row_count(&self, page: Page) -> usize {
         match page {
             Page::Players => self.shown().len() + usize::from(self.more()) + 1,
-            Page::ReportPlayer => Category::ALL.len() + 1,
+            Page::ReportPlayer => Category::ALL.len() + 2,
             _ => 0,
         }
     }
@@ -367,13 +435,14 @@ impl State {
         Category::ALL.get(row).copied()
     }
 
-    /// The first row the Report page may take: the first reason, or Back when the
-    /// reasons are closed.
+    /// The first row the Report page may take: the first reason, else Trade, else Back.
     pub(crate) fn first_report_row(&self) -> usize {
-        if self.blocked().is_some() {
-            Category::ALL.len()
-        } else {
+        if self.blocked().is_none() {
             0
+        } else if self.trade_blocked().is_none() {
+            Self::trade_row()
+        } else {
+            Self::trade_row() + 1
         }
     }
 
@@ -415,7 +484,11 @@ impl State {
                     hints[row].push_str(category.hint());
                     enabled[row] = blocked.is_none();
                 }
-                let back = Category::ALL.len();
+                let trade = Self::trade_row();
+                rows[trade].push_str("Trade");
+                hints[trade].push_str(self.trade_blocked().unwrap_or(self.trade_hint()));
+                enabled[trade] = self.trade_blocked().is_none();
+                let back = trade + 1;
                 rows[back].push_str("Back");
                 hints[back].push_str(blocked.unwrap_or("Back to the players"));
                 back + 1
@@ -672,14 +745,26 @@ mod tests {
         let mut state = State::for_shot(5, false, Gate::NotVerified);
         assert!(state.choose(0));
         let (labels, hints, enabled, count) = rows(&state, Page::ReportPlayer);
-        assert_eq!(count, Category::ALL.len() + 1);
+        assert_eq!(count, Category::ALL.len() + 2);
         assert_eq!(labels[0], "Cheating");
         assert!(enabled[..Category::ALL.len()].iter().all(|on| !on));
+        // Trade follows the reasons, closed while the hub does not let players trade.
+        assert_eq!(labels[State::trade_row()], "Trade");
+        assert!(!enabled[State::trade_row()]);
         assert_eq!(
-            hints[Category::ALL.len()],
+            hints[State::trade_row()],
+            "Trading is not open on the SJK hub"
+        );
+        assert_eq!(
+            hints[Category::ALL.len() + 1],
             "Only verified SJK players can report players"
         );
-        assert_eq!(state.first_report_row(), Category::ALL.len());
+        assert_eq!(state.first_report_row(), Category::ALL.len() + 1);
+        // Open, an unverified player may still trade: Trade is the first row it takes.
+        state.set_trading(true, true);
+        let (_, hints, enabled, _) = rows(&state, Page::ReportPlayer);
+        assert!(enabled[State::trade_row()], "{hints:?}");
+        assert_eq!(state.first_report_row(), State::trade_row());
         assert_eq!(
             state.info(Page::Players),
             ["Reports  /  Only verified SJK players can report players"]
@@ -695,6 +780,33 @@ mod tests {
         assert!(!enabled[0], "no player chosen yet: the reasons stay closed");
         assert_eq!(State::category(0), Some(Category::Cheating));
         assert_eq!(State::category(Category::ALL.len()), None);
+    }
+
+    /// Sol's decision 1: a player blocked here is not offered to trade, and the hint says
+    /// holocrons only once the hub trades them.
+    #[test]
+    fn a_blocked_player_is_not_offered_to_trade() {
+        let mut state = State::for_shot(5, false, Gate::Open);
+        state.set_trading(true, false);
+        let mut player = state
+            .players
+            .iter()
+            .find(|player| !player.you && !player.bot && player.hub.is_some())
+            .expect("an SJK player")
+            .clone();
+        // A key no other test blocks: the block list is the process's own.
+        let key = "b10c4ed0b10c4ed1";
+        if let Some(hub) = player.hub.as_mut() {
+            hub.key_id = key.to_owned();
+        }
+        assert_eq!(state.trade_blocked_for(&player), None);
+        assert_eq!(state.trade_hint(), "Swap duplicate shaders");
+        crate::player_mutes::set_muted(Some(key), &player.name, true);
+        let blocked = state.trade_blocked_for(&player);
+        crate::player_mutes::set_muted(Some(key), &player.name, false);
+        assert_eq!(blocked, Some("You blocked this player"));
+        state.set_trading(true, true);
+        assert_eq!(state.trade_hint(), "Swap holocrons and duplicate shaders");
     }
 
     #[test]

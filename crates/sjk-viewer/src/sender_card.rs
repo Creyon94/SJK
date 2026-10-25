@@ -65,6 +65,9 @@ pub(crate) struct Person {
     /// Their last encrypted whisper to the player can be reported: the card offers
     /// Report (`player_report.rs`).
     pub(crate) report: bool,
+    /// They can be asked to trade from here (`crate::player_trades`): the card offers
+    /// Trade.
+    pub(crate) trade: bool,
 }
 
 impl Person {
@@ -120,6 +123,8 @@ pub(crate) struct Tokens {
     /// Whisper, at the head of the card's buttons: only where the card can open a
     /// whisper to them (the game's chat, for a player on the server), else `None`.
     pub(crate) whisper: Option<u16>,
+    /// Trade, when [`Person::trade`].
+    pub(crate) trade: u16,
 }
 
 /// The card's width in 1080p pixels: compact, so it sits beside the chat without
@@ -161,6 +166,10 @@ pub(crate) fn size(person: &Person, whisper: bool, u: f32) -> [f32; 2] {
     }
     height += 6.0 + BUTTON + QUIET_GAP + QUIET_ROW + PAD;
     if person.safety || person.report {
+        height += BUTTON + 6.0;
+    }
+    if person.trade && ban_offered(person).is_some() {
+        // Trade takes Ban's place beside Block: Ban gets a row of its own.
         height += BUTTON + 6.0;
     }
     if person.key_id.is_none() {
@@ -379,8 +388,11 @@ pub(crate) fn draw(
         card_button(canvas, whisper_button, u, token, "Whisper", color::HOLO);
         y += (BUTTON + 6.0) * u;
     }
+    // The first row: Block on the left, and on the right Trade (when they can be asked)
+    // or Ban 24 h: two even halves.
     let half = (inner - 8.0 * u) * 0.5;
     let button = Rect::new(x, y, half, BUTTON * u);
+    let right = Rect::new(x + inner - half, y, half, BUTTON * u);
     card_button(
         canvas,
         button,
@@ -389,7 +401,9 @@ pub(crate) fn draw(
         if muted { "Unblock" } else { "Block" },
         color::GOLD,
     );
-    let ban_button = Rect::new(x + inner - half, y, half, BUTTON * u);
+    if person.trade {
+        card_button(canvas, right, u, tokens.trade, "Trade", color::GOLD);
+    }
     let quiet = |muted: bool| {
         if muted {
             "Blocked here: no chat, Kyle, no sounds"
@@ -400,10 +414,27 @@ pub(crate) fn draw(
     let under = y + (BUTTON + QUIET_GAP) * u;
     let small = 10.5 * u;
     // Ban 24 h for a sender the hub does not vouch for, when it vouches for the
-    // player; what it came to (or the armed button's warning) takes the quiet line.
-    let ban_key = person.key_id.as_deref().filter(|key| {
-        crate::chat_ban::offered(Some(key), person.verified, person.staff, person.trust)
-    });
+    // player: beside Block, or on a row of its own under the quiet lines when Trade
+    // takes that place. What it came to (or the armed button's warning) takes the quiet
+    // line.
+    let ban_key = ban_offered(person);
+    let mut below = under
+        + (QUIET_ROW
+            + if person.key_id.is_none() {
+                QUIET_ROW
+            } else {
+                0.0
+            })
+            * u;
+    let ban_button = if person.trade {
+        let row = Rect::new(x, below, inner, BUTTON * u);
+        if ban_key.is_some() {
+            below += (BUTTON + 6.0) * u;
+        }
+        row
+    } else {
+        right
+    };
     match ban_key {
         Some(key) => crate::chat_ban::with_shown(key, |shown| {
             card_button(
@@ -444,21 +475,13 @@ pub(crate) fn draw(
         );
     }
     // Safety code and Report share the last row, each the whole of it when alone.
-    let last_row = under
-        + (QUIET_ROW
-            + if person.key_id.is_none() {
-                QUIET_ROW
-            } else {
-                0.0
-            })
-            * u;
     let (safety_width, report_x) = if person.safety && person.report {
         (half, x + inner - half)
     } else {
         (inner, x)
     };
-    let safety_button = Rect::new(x, last_row, safety_width, BUTTON * u);
-    let report_button = Rect::new(report_x, last_row, safety_width, BUTTON * u);
+    let safety_button = Rect::new(x, below, safety_width, BUTTON * u);
+    let report_button = Rect::new(report_x, below, safety_width, BUTTON * u);
     if person.report {
         card_button(
             canvas,
@@ -484,6 +507,9 @@ pub(crate) fn draw(
         canvas.hit_region(token, whisper_button);
     }
     canvas.hit_region(tokens.mute, button);
+    if person.trade {
+        canvas.hit_region(tokens.trade, right);
+    }
     if ban_key.is_some() {
         canvas.hit_region(tokens.ban, ban_button);
     }
@@ -494,6 +520,13 @@ pub(crate) fn draw(
         canvas.hit_region(tokens.report, report_button);
     }
     card
+}
+
+/// The key Ban 24 h is offered on, when it is ([`crate::chat_ban::offered`]).
+fn ban_offered(person: &Person) -> Option<&str> {
+    person.key_id.as_deref().filter(|key| {
+        crate::chat_ban::offered(Some(key), person.verified, person.staff, person.trust)
+    })
 }
 
 /// One of the card's buttons, outlined in `edge`, its fill lit under the pointer.
@@ -551,6 +584,7 @@ mod tests {
         safety: 10,
         report: 11,
         whisper: None,
+        trade: 12,
     };
 
     #[test]
@@ -593,6 +627,34 @@ mod tests {
     }
 
     #[test]
+    fn a_player_who_can_trade_is_offered_trade_beside_block() {
+        let (canvas, ..) = drawn(&sol(), false);
+        assert_eq!(canvas.rect_for(TOKENS.trade), None);
+        for safety in [false, true] {
+            let trader = Person {
+                trade: true,
+                safety,
+                ..sol()
+            };
+            let (canvas, rect, texts, _) = drawn(&trader, false);
+            assert!(texts.contains(&"Trade".to_owned()), "{texts:?}");
+            let trade = canvas.rect_for(TOKENS.trade).expect("Trade");
+            let block = canvas.rect_for(TOKENS.mute).expect("Block");
+            // Beside Block, as wide, the gap between them centred in the card.
+            assert_eq!(
+                (trade.y, trade.width, trade.height),
+                (block.y, block.width, block.height)
+            );
+            let gap = trade.x - block.right();
+            assert!(gap > 0.0 && (block.x - rect.x - (rect.right() - trade.right())).abs() < 0.5);
+            assert!(trade.bottom() <= rect.bottom());
+            if let Some(code) = canvas.rect_for(TOKENS.safety) {
+                assert!(code.y >= trade.bottom() && code.bottom() <= rect.bottom());
+            }
+        }
+    }
+
+    #[test]
     fn the_status_line_names_staff_and_the_creator() {
         let staff = Person {
             staff: true,
@@ -624,6 +686,7 @@ mod tests {
             note: None,
             safety: false,
             report: false,
+            trade: false,
         }
     }
 
