@@ -197,18 +197,18 @@ fn room(list: &sjk_identity::TradesAnswer, offered: &[Item]) -> crate::trade_win
     for tier in crate::holocrons::TIERS {
         let offered = offered
             .iter()
-            .filter(|item| item.holocron_slot == Some(tier.slot))
+            .filter(|item| item.holocron_slot == Some(tier.index))
             .count() as i64;
         let done = today.tiers_given.get(tier.id).copied().unwrap_or(0);
         let mut most = left(rules.holocron_tier_day, done, offered);
-        if tier.slot == 3 {
+        if tier.index == 3 {
             most = most.min(left(
                 rules.mythical_given_day,
                 today.mythical_given,
                 offered,
             ));
         }
-        if let Some(slot) = tiers.get_mut(tier.slot) {
+        if let Some(slot) = tiers.get_mut(tier.index) {
             *slot = most;
         }
     }
