@@ -564,7 +564,15 @@ mod music_memory_tests {
         audio.start_music(&vfs, &spec("music/a.wav"));
         let (a, _) = audio.map_music.unwrap();
         mix_until(&audio, &mut source, 176_400, 0);
-        assert!(audio.output.stats.music_starts.load(Ordering::Relaxed) > 0);
+        // The start follows the registration, possibly a mix block later.
+        let deadline = Instant::now() + Duration::from_secs(10);
+        while audio.output.stats.music_starts.load(Ordering::Relaxed) == 0 {
+            assert!(Instant::now() < deadline, "the music never started");
+            for _ in 0..256 {
+                source.next();
+            }
+            std::thread::yield_now();
+        }
 
         // The next map's track: the old one is freed, by the decode worker.
         audio.start_music(&vfs, &spec("music/b"));
