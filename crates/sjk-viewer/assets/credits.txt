@@ -150,6 +150,7 @@ did: Card pictures loaded only when a screen shows them: 1.8 GB less video memor
 did: Render scale: the world drawn smaller for weak GPUs, menus sharp
 did: Small graphics cards start once on lighter graphics, Keep or go back
 did: Experimental preset uses less video memory: lamp data packed, cache sized to the card
+did: Lighter menus: shader pictures redrawn less often, no per-frame allocations
 did: Decoded textures of maps you left are freed
 did: Stock blades and a menu frame cap for weak PCs
 did: Texture detail shrinks skies and material maps too; nopicmip honoured

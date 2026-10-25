@@ -353,18 +353,14 @@ impl CvarRegistry {
         Ok(())
     }
 
-    /// Look up a cvar case-insensitively.
+    /// Look up a cvar case-insensitively, allocating nothing for any name up to 64
+    /// bytes: frames read camel-case names (`cg_drawScores`) many times.
     pub fn get(&self, name: &str) -> Option<&Cvar> {
-        // Runtime consumers use normalized names; do not allocate on every frame read.
-        if !name.bytes().any(|byte| byte.is_ascii_uppercase()) {
-            return self
-                .entries
-                .get(self.canonical_key(name))
-                .map(|entry| &entry.cvar);
-        }
-        self.entries
-            .get(self.canonical_key(&name.to_ascii_lowercase()))
-            .map(|entry| &entry.cvar)
+        lowercase(name, |key| {
+            self.entries
+                .get(self.canonical_key(key))
+                .map(|entry| &entry.cvar)
+        })
     }
 
     /// Whether `name` holds a secret: a [`CvarFlags::SECRET`] cvar, or a name
@@ -478,6 +474,27 @@ fn set_entry(entry: &mut CvarEntry, value: CvarValue, restoring: bool) -> Result
         callback(&change);
     }
     Ok(true)
+}
+
+/// The longest name [`lowercase`] lowers on the stack; registered names are far shorter.
+const STACK_NAME: usize = 64;
+
+/// Run `with` on `name` in lower case: `name` itself when it has no capital, else a copy
+/// lowered in a stack buffer, or in a new string past [`STACK_NAME`] bytes.
+fn lowercase<R>(name: &str, with: impl FnOnce(&str) -> R) -> R {
+    if !name.bytes().any(|byte| byte.is_ascii_uppercase()) {
+        return with(name);
+    }
+    let mut buffer = [0_u8; STACK_NAME];
+    if let Some(lowered) = buffer.get_mut(..name.len()) {
+        lowered.copy_from_slice(name.as_bytes());
+        lowered.make_ascii_lowercase();
+        // Lowering ASCII letters keeps UTF-8 valid; the check costs a pass over the name.
+        if let Ok(lowered) = std::str::from_utf8(lowered) {
+            return with(lowered);
+        }
+    }
+    with(&name.to_ascii_lowercase())
 }
 
 fn normalize_name(name: &str) -> Result<String, CvarError> {
@@ -618,5 +635,123 @@ mod secret_tests {
         );
         cvars.set_text("rconPassword", "hunter2").unwrap();
         assert_eq!(cvars.get("rconPassword").unwrap().shown_value(), "********");
+    }
+}
+
+#[cfg(test)]
+mod lookup_tests {
+    use super::*;
+
+    /// A registry holding camel-case cvars, an alias to one and a name past the stack
+    /// buffer's length.
+    fn registry() -> CvarRegistry {
+        let mut cvars = CvarRegistry::new();
+        for name in [
+            "cg_drawScores",
+            "r_DynamicGlow",
+            "cg_hudScale",
+            "name",
+            LONG,
+        ] {
+            cvars
+                .register(CvarDefinition::new(name, 1_i64, CvarFlags::NONE, "test"))
+                .unwrap();
+        }
+        cvars
+            .register_alias("cg_OldScores", "CG_DRAWSCORES")
+            .unwrap();
+        cvars
+    }
+
+    const LONG: &str = "sjk_aVeryLongCvarNameThatIsLongerThanSixtyFourBytesForTheFallbackPath";
+
+    #[test]
+    fn any_spelling_finds_its_cvar_and_aliases_their_target() {
+        let cvars = registry();
+        assert!(LONG.len() > 64);
+        for (asked, found) in [
+            ("cg_drawScores", "cg_drawScores"),
+            ("cg_drawscores", "cg_drawScores"),
+            ("CG_DRAWSCORES", "cg_drawScores"),
+            ("cG_DrAwScOrEs", "cg_drawScores"),
+            ("r_dynamicglow", "r_DynamicGlow"),
+            ("R_DynamicGlow", "r_DynamicGlow"),
+            ("cg_oldscores", "cg_drawScores"),
+            ("cg_OldScores", "cg_drawScores"),
+            ("CG_OLDSCORES", "cg_drawScores"),
+            ("NAME", "name"),
+            (LONG, LONG),
+            (&LONG.to_ascii_uppercase(), LONG),
+            (&LONG.to_ascii_lowercase(), LONG),
+        ] {
+            assert_eq!(
+                cvars.get(asked).map(|cvar| cvar.name.as_str()),
+                Some(found),
+                "{asked}"
+            );
+        }
+        for unknown in ["", "cg_drawScore", "CG_DRAWSCORESX", "cg_dräwScores", "Ä"] {
+            assert!(cvars.get(unknown).is_none(), "{unknown}");
+        }
+    }
+
+    /// The cvar reads a frame makes (`cg_draw2D`, `cg_hudScale`...) take no allocation,
+    /// whatever their case; only a name past the stack buffer is lowered into a string.
+    #[cfg(debug_assertions)]
+    #[test]
+    fn reads_allocate_nothing_whatever_the_case() {
+        let cvars = registry();
+        let before = assert_no_alloc::violation_count();
+        let found = assert_no_alloc::assert_no_alloc(|| {
+            [
+                "cg_drawScores",
+                "CG_HUDSCALE",
+                "r_DynamicGlow",
+                "cg_OldScores",
+                "name",
+                "cg_missing",
+            ]
+            .into_iter()
+            .filter(|name| cvars.get(name).is_some())
+            .count()
+        });
+        assert_eq!(found, 5);
+        assert_eq!(assert_no_alloc::violation_count(), before);
+    }
+
+    /// What a camel-case read costs: `cargo test --release -p sjk-shell lookup_cost --
+    /// --ignored --nocapture`, in a registry of 1500 cvars, as the client's.
+    #[test]
+    #[ignore = "a timing, printed"]
+    fn lookup_cost() {
+        let mut cvars = registry();
+        for n in 0..1_500 {
+            cvars
+                .register(CvarDefinition::new(
+                    format!("cg_someSetting{n}"),
+                    0_i64,
+                    CvarFlags::NONE,
+                    "test",
+                ))
+                .unwrap();
+        }
+        let names = [
+            "cg_drawScores",
+            "cg_hudScale",
+            "r_DynamicGlow",
+            "cg_someSetting700",
+        ];
+        let rounds = 1_000_000;
+        let start = std::time::Instant::now();
+        let mut found = 0;
+        for round in 0..rounds {
+            found += usize::from(cvars.get(std::hint::black_box(names[round % 4])).is_some());
+        }
+        let elapsed = start.elapsed();
+        assert_eq!(found, rounds);
+        println!(
+            "camel-case cvar read: {:.1} ns",
+            elapsed.as_nanos() as f64 / rounds as f64
+        );
     }
 }

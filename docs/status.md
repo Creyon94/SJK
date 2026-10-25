@@ -58,6 +58,42 @@ the atlas shape, and the changed programs validate. Not verified: a real 4 to 8 
 DX12 and Metal (the formats used are core WebGPU), the light pass's cost on a mid-range
 card with the coarser cache (+0.07 ms in one of three ffa5 views on the RTX 5080).
 
+## Less work in every menu frame
+
+25/10/2026, `personal/menu-frame-cost`, based on `main` `7389dc91`, for weak PCs. The
+Collection's live blade pictures drew every shown shader (fifteen on the Shaders grid,
+each a signature blade program) every frame: now a frame draws a new picture, the
+hovered or chosen ones (`blade_pictures::focus`, Shaders tab, Forge, Saber tab, a
+holocron's shader) and, with more than two in use, the others 30 times a second, six a
+frame at most, longest waiting first; a cell drawn alone is cleared in its rectangle and
+the kept ones shielded by depth ([unlockables.md](unlockables.md#shaders-tab)). Visible
+change: those other pictures' animation steps at up to 30 a second (about 26 on the grid
+at 60 FPS, fewer on slower frames), the UI over them still every frame.
+`CvarRegistry::get` lowers a camel-case name (`cg_drawScores`, `cg_hudScale`, read many
+times a frame) in a stack buffer instead of a new string, aliases and case unchanged. The
+low-FPS help read the graphics preset (25 cvars, each written out as text) every frame
+on GPUs with timestamps; it now reads it only while its check could run and again only
+after an archived cvar changed, comparing typed values
+([client.md](client.md#low-fps-help)). Verified on Windows 11 (RTX 5080 and the CPU's
+integrated Radeon, Vulkan): `CvarRegistry::get` 55 to 38 ns a camel-case read and 2
+allocator calls to none (`lookup_cost`, `reads_allocate_nothing_whatever_the_case`, which
+counts 8 calls on `main`); Vanilla's reading 184 allocator calls at the SJK preset to none
+(`reading_vanilla_allocates_nothing`); unit tests of the lookup's spellings and aliases,
+the typed comparison against the old text one for every preset value, the help's
+decision (unchanged for all 16 cases) and cache, the picture plan (30 a second spread
+over the frames, the focused cell every frame, the cap taking turns, no allocation) and
+each cell's rectangle; `duel6_blade_pictures_cost` (Shaders grid every shader owned,
+1920x1080): RTX 5080 2.16 / 2.97 / 3.41 ms a frame on `main` against 1.69 / 2.11 / 2.18
+in alternating runs, the integrated Radeon 251 against 196 ms (each picture about 7 to
+10 ms there); the grid, list and Blade Lab shots (`duel6_blade_pictures_cost`,
+`duel6_lab_swatches`, `duel6_sjk_rarity_effects`) looked at beside `main`'s: the same
+pictures, at other moments of their animation, no seam or kept glow. `cargo fmt`, build,
+workspace tests and Clippy. Not verified: in a game with a mouse hovering, on a GTX
+1050/1060 class card, the allocator calls of a whole frame (counted per function only).
+Left as they are: the Shaders tab still formats its pills and each row's state every
+frame, the Forge each offer's price, and `CvarRegistry::entry_mut` lowers every name it
+sets into a new string.
+
 ## Decoded images no longer pile up
 
 25/10/2026, `personal/decoded-image-sweep`, based on `main` `296fca5f`: the decoded image

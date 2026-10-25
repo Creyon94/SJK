@@ -646,6 +646,13 @@ impl ViewerConsole {
         self.shell.cvars.get(name).map(|cvar| &cvar.value)
     }
 
+    /// A stamp of the archived cvars' values ([`CvarRegistry::archive_revision`]): it
+    /// changes whenever one of them does, so a reading of archived cvars can be kept
+    /// until it changes.
+    pub(crate) fn archive_revision(&self) -> u64 {
+        self.shell.cvars.archive_revision()
+    }
+
     /// The value a cvar starts with in a fresh profile.
     pub(crate) fn cvar_default(&self, name: &str) -> Option<&CvarValue> {
         self.shell.cvars.get(name).map(|cvar| &cvar.default)

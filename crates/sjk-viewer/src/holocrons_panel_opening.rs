@@ -1486,6 +1486,9 @@ impl Panel {
         });
         // The blade the hub's pack brought, even for a shader this client does not list.
         let look = self.skins.get(&found.id);
+        if let Some(look) = look {
+            crate::blade_pictures::focus(look.id);
+        }
         let _ = crate::console::collection_panel::swatch::small_swatch(
             self.ui.draw_list_mut(),
             frame,

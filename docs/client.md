@@ -1959,7 +1959,11 @@ a whole. The low-FPS help
   ([gpu_phases.rs](../crates/sjk-viewer/src/gpu_phases.rs), timestamps when the GPU
   has them), give the median frame and the part of it spent in the `light-...`
   sections. The check is done once per map (each new world), not under Vanilla,
-  and gives up 30 s after the map came in.
+  and gives up 30 s after the map came in. Whether the graphics are Vanilla is read
+  only while the check could still run, and again only once an archived cvar has
+  changed (every preset value is one, `ViewerConsole::archive_revision`): reading
+  the preset's 25 values every frame took 184 allocator calls a frame at the SJK
+  preset (25/10/2026).
 - It offers Vanilla graphics when the frame misses the player's FPS target and the
   lighting is at least 40% of it. The target is the FPS cap (`com_maxfps`, or the
   monitor's rate for auto), kept between 60 and 144: an uncapped player is offered
