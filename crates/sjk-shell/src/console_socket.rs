@@ -256,11 +256,12 @@ mod tests {
         let port = socket.open(0).unwrap();
         let mut app = connect(port);
         app.write_all(b"secret\r\nsay hi\nsay\xf8 two\n").unwrap();
-        let poll = run(&mut socket, b"secret", b"line one\n", |poll| {
-            poll.commands.len() == 2
-        });
+        let poll = run(&mut socket, b"secret", b"", |poll| poll.commands.len() == 2);
         assert_eq!(poll.commands, [b"say hi".to_vec(), b"say\xf8 two".to_vec()]);
         assert!(socket.has_reader());
+        // Output goes only to authenticated programs: hand it over once the
+        // password has arrived (on macOS it can miss the first poll).
+        socket.poll(b"secret", b"line one\n");
         let got = run_read(&mut socket, &mut app, b"secret");
         assert!(got.starts_with(AUTHENTICATED_REPLY), "{got:?}");
         assert!(got.ends_with(b"line one\n"), "{got:?}");
