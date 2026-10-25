@@ -9,6 +9,49 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 25/10/2026 | - | Credits history can leave topics out
+- 03cf654 |  | Credits history: topics it leaves out (QUIET)
++ 25/10/2026 | - | opt-in BC1/BC3 texture compression, r_textureCompression
+- d42a168 |  | Texture compression: opt-in BC1/BC3 map and model textures (r_textureCompression)
+- 4bdcb7d |  | Texture compression: debug panel entry and credits
++ 25/10/2026 | - | Lighter menus: blade pictures throttled, no per-frame setting allocations
+- efdcea6 |  | Cut per-frame menu work: blade pictures, cvar reads, FPS help
+- 446690e |  | Lighter menus: debug panel entry and credits
++ 25/10/2026 | - | Experimental preset: lamp data packed, lamp cache sized to the card
+- 6d177f0 |  | Experimental: less video memory for lamp visibility, lists and cache
+- 94a82a1 |  | Experimental lamp memory: debug panel entry and credits
++ 25/10/2026 | - | Small graphics cards start once on lighter graphics, Keep / Back card
+- 5d72419 |  | Small graphics cards start once on lighter graphics, with a Keep / Back card
++ 25/10/2026 | - | r_renderScale: the world drawn below native for weak GPUs
+- c511350 |  | Render scale: draw the world below the window's resolution for weak GPUs
+- 146d7ab |  | Render scale: debug panel entry and credits
++ 25/10/2026 | - | Decoded textures of maps you left are freed
+- 8d8d9df |  | Decoded image cache: sweep out images nothing else holds
++ 25/10/2026 | - | Mirror, portal and glyph atlas targets made only when drawn
+- ea7b532 |  | Make secondary view targets and text atlases when first drawn
+- d1d561e |  | Lazy scene targets: debug panel entry and credits
++ 25/10/2026 | - | Font atlases in one channel: 120 MiB less video memory
+- 8c9174d |  | Store the font atlases as single-channel R8 textures
+- b281c84 |  | Font atlases in one channel: debug panel entry and credits
++ 25/10/2026 | - | Music memory test race fixed
+- 4689027 |  | Music memory test: wait for the music to start, a mix block after its registration
++ 25/10/2026 | - | Sounds at 16 bits, old map music freed
+- 7a9c4e3 |  | Audio memory: 16-bit sound bank, release a map's music when it changes
+- cc17b46 |  | Sound memory: debug panel entry and credits
++ 25/10/2026 | - | Texture detail shrinks skies, material maps and unmipped textures; nopicmip honoured
+- 514a1f3 |  | Texture detail for skies, material maps and linear filtering
+- a64475a |  | Texture detail everywhere: debug panel entry and credits
++ 25/10/2026 | - | Stock blades and a menu frame cap for weak PCs
+- 1b4b75a |  | Add stock blades and a menu FPS cap for weak PCs
+- 85b0ae8 |  | Stock blades and menu cap: debug panel entry and credits
++ 25/10/2026 | - | Card pictures only when drawn: 1.8 GB less video memory
+- dd6a1c6 |  | Card pictures decoded and uploaded only when a screen draws them
++ 25/10/2026 | - | GitHub Sponsors button
+- 01d2335 |  | GitHub Sponsors button for the repository
++ 25/10/2026 | - | VRAM measurements per preset and with the SJK packs
+- 7ee65e7 |  | VRAM audit: per-preset world shots, DXGI usage, card faces measured
++ 25/10/2026 | - | Credits history after release 2026.1025.1
+- bf80476 |  | Credits history after release 2026.1025.1
 + 25/10/2026 | - | Reapply kyber crystals on main after release 2026.1025.1
 - d45aae0 |  | Reapply kyber crystals on main after release 2026.1025.1
 + 25/10/2026 | - | Release 2026.1025.1
