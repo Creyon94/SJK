@@ -1037,6 +1037,15 @@ note: A roll on landing while crouched (PM_CrashLand) is not prevented, in EJK e
 
 # ---- Menus & settings ----
 
+[small-card-profile]
+area: Menus & settings
+title: Small graphics cards start once on lighter graphics, with a Keep / Back card
+change: Under 3.5 GB (or integrated): Vanilla style, stock blades for others, 60 FPS menu cap.
+change: Only from the untouched SJK preset and settings still off; once per card (r_smallCardPreset).
+test: r_smallCardPreset 0 and a small card (or ask Sol's tester): the card shows on the main menu.
+test: Back to SJK graphics: preset, stock blades and menu cap back; the reload card offers to apply.
+test: Keep (Enter): Vanilla style stays; the card does not come back at the next start.
+
 [card-faces-lazy]
 area: Menus & settings
 title: Card pictures load only when shown (1.8 GB less video memory; 3 GB cards crashed)

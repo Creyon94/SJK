@@ -296,6 +296,7 @@ mod sjk_chat_frame;
 mod sjk_chat_look;
 mod sjk_packs;
 mod sky_stage;
+mod small_card_notice;
 mod snapshot_presentation;
 mod static_models;
 mod stock_blades;
@@ -422,6 +423,7 @@ struct GpuState {
     log_request_card: log_request_card::Card,
     /// A client mod's notice, shown once on its servers ([`mod_notice_card`]).
     mod_notice: mod_notice_card::State,
+    small_card_notice: small_card_notice::Card,
     /// What the update brought ([`whats_new_card`]).
     whats_new_card: whats_new_card::Card,
     /// The SJK team's announcements and contributor rewards ([`official`]).
@@ -1413,6 +1415,7 @@ impl GpuState {
             alpha_card: alpha_notice_card::Card::default(),
             log_request_card: log_request_card::Card::default(),
             mod_notice: mod_notice_card::State::default(),
+            small_card_notice: small_card_notice::Card::default(),
             whats_new_card: whats_new_card::Card::default(),
             official: official::Official::default(),
 
@@ -2019,13 +2022,23 @@ impl GpuState {
         let medal_shown = self.prepare_medal_popup(covered);
         let holocron_shown = self.prepare_holocron_popup(covered || medal_shown);
         // The graphics reload card waits for the others.
-        let reload_shown = self.prepare_reload_card(
+        let reload_card_shown = self.prepare_reload_card(
             covered
                 || medal_shown
                 || holocron_shown
                 || self.medal_popup.pending()
                 || self.holocron_popup.pending(),
         );
+        // Then the small-card notice, once a start; the cards after wait for both.
+        let small_card_shown = self.prepare_small_card_notice(
+            covered
+                || medal_shown
+                || holocron_shown
+                || reload_card_shown
+                || self.medal_popup.pending()
+                || self.holocron_popup.pending(),
+        );
+        let reload_shown = reload_card_shown || small_card_shown;
         // The low-FPS card too.
         self.update_fps_help();
         let fps_shown = self.prepare_fps_card(
@@ -2352,8 +2365,10 @@ impl GpuState {
             self.append_medal_popup(viewport);
         } else if holocron_shown {
             self.append_holocron_popup(viewport);
-        } else if reload_shown {
+        } else if reload_card_shown {
             self.append_reload_card(viewport);
+        } else if small_card_shown {
+            self.append_small_card_notice(viewport);
         } else if fps_shown {
             self.append_fps_card(viewport);
         } else if logs_shown {
@@ -2419,7 +2434,8 @@ impl GpuState {
                 .then(|| self.text_dialog.draw_list()),
             medal_shown.then(|| self.medal_popup.draw_list()),
             holocron_shown.then(|| self.holocron_popup.draw_list()),
-            reload_shown.then(|| self.graphics_reload.card.draw_list()),
+            reload_card_shown.then(|| self.graphics_reload.card.draw_list()),
+            small_card_shown.then(|| self.small_card_notice.draw_list()),
             fps_shown.then(|| self.fps_card.draw_list()),
             logs_shown.then(|| self.log_request_card.draw_list()),
             official_shown.then(|| self.official.window.draw_list()),

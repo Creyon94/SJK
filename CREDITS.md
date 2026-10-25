@@ -290,6 +290,9 @@ includes:
 - render scale below native (`r_renderScale`, 25/10/2026): the world drawn at 50 to 100 %
   of the window and stretched up with a light sharpen, menus and text at full size, for
   weak GPUs;
+- lighter graphics for small cards (25/10/2026): under 3.5 GB, once a card, Vanilla style,
+  stock blades for other players and a 60 FPS menu cap, with a card to keep them or go
+  back to SJK graphics;
 - decoded textures freed once nothing uses them (25/10/2026): the cache kept every
   texture of every map seen in a session, up to about 0.8 GB more after a few maps;
 - card pictures decoded and uploaded only when a screen draws them (25/10/2026), at

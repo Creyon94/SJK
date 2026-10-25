@@ -1995,6 +1995,30 @@ not drawn and take no input. The same look in every menu style, on the 16:9 fram
   without its buttons: "Reloading the graphics..." and that it takes a few seconds.
   On a server the loading screen shows instead.
 
+## Small graphics cards
+
+[small_card_notice.rs](../crates/sjk-viewer/src/small_card_notice.rs): the pop-up that
+tells a player on a card under 3.5 GiB (integrated GPUs included) what SJK lightened at
+start (Sol's choice, 25/10/2026, after the low-end audit): Vanilla style instead of the
+untouched SJK (recommended) preset, other players' blades stock (`cg_stockBlades 1`) and
+a 60 FPS menu cap (`com_maxfpsMenu 60`), each only from its default and once a card
+(`r_smallCardPreset` keeps the MiB it was considered for;
+[rendering.md](rendering.md#gpu-memory)). It shows once a start on the main page, after
+the medal, holocron and reload cards and before the low-FPS card; the menus under it are
+not drawn and take no input. The same look in every menu style, on the 16:9 frame:
+
+- **Card:** the kit's card over its scrim, 800 wide from x 560, y 340, as tall as its
+  words.
+- **Words:** "Graphics" in gold (Rajdhani 22), "Lighter graphics for your card"
+  (Rajdhani 36), then up to five lines of Exo 2 18 (muted): the card's video memory,
+  what changed (and "with smaller textures" when the texture detail is lowered), and
+  that each can be changed in Settings.
+- **Buttons:** Back to SJK graphics (outlined, 270) and Keep (gold, 150),
+  right-aligned along the foot; keys bottom right: Enter keep, Backspace back to SJK
+  graphics (Escape and Space keep too). Back to SJK graphics puts the preset back with
+  the player's kept values (as the renderer command does) and turns the stock blades and
+  the menu cap off where SJK set them; the reload card then offers to apply the preset.
+
 ## Low FPS help
 
 [fps_help_card.rs](../crates/sjk-viewer/src/fps_help_card.rs): the pop-up of the

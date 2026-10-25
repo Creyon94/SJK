@@ -22,6 +22,23 @@ fmt, build, workspace tests and Clippy. Not verified: in a game or on a weak GPU
 gained there is not measured), the fixed sharpness (0.5) by eye in motion, a live window
 resize and screenshots in a game (off-screen only), macOS.
 
+## Lighter graphics for small cards
+
+25/10/2026, `personal/small-card-profile`, based on `main` `7389dc91`, Sol's choice after
+the low-end audit: a card under 3.5 GiB (integrated GPUs included) used to get only
+texture detail 2 and menu pictures and stayed on SJK (recommended), whose full-resolution
+ambient occlusion, HDR and glow cost a weak GPU most. Now, once a card
+(`r_smallCardPreset`, so profiles `r_videoMemoryChecked` already chose for are considered
+too), it also gets Vanilla style (only from the untouched SJK preset, kept so Back to SJK
+restores it), `cg_stockBlades 1` and `com_maxfpsMenu 60` (only from 0), and a card on
+the main page says so with Keep and Back to SJK graphics
+([sjk-ui.md](sjk-ui.md#small-graphics-cards)). Verified on Windows 11, RTX 5080: unit
+tests (a 3 GB card lightened once, a second start unchanged, Back to SJK restoring all
+three; a player's own preset and settings left alone; 4 and 8 GB cards unchanged; the
+card's keys and words); the card rendered off screen over duel6's main menu in the SJK
+and classic styles (`small_card_notice_card`). Not verified: on a real small card or an
+integrated GPU, the reload card after Back to SJK in a running game.
+
 ## Decoded images no longer pile up
 
 25/10/2026, `personal/decoded-image-sweep`, based on `main` `296fca5f`: the decoded image

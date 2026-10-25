@@ -712,6 +712,14 @@ process's RAM in Task Manager.
   (an integrated GPU's few hundred MB too) it sets texture detail 2, under 4.5 GiB 1,
   and menu pictures on, each only from its default, once a card (`r_videoMemoryChecked`
   keeps the MiB it chose for). The size and budget go into the log and crash reports.
+  Under 3.5 GiB it also lightens the graphics once a card (`r_smallCardPreset`, since
+  25/10/2026): Vanilla style when the preset is the untouched SJK (recommended) one,
+  other players' blades stock and a 60 FPS menu cap when those are off, then says so
+  in a card on the main page with Keep and Back to SJK graphics
+  ([sjk-ui.md](sjk-ui.md#small-graphics-cards)). It runs before the graphics context
+  is made, so the first frame already draws with them. Vanilla and SJK (recommended)
+  differ by only about 45 MiB of video memory; this is for frame time (ambient
+  occlusion, HDR and glow at full resolution) and the skins' GPU work.
 - With menu pictures on, the menus' saber shader swatches show their drawings
   (`collection_swatch.rs`) instead of the live blade pictures (`blade_pictures.rs`, a
   832x1664 target of three textures, about 17 MB, and each signature blade's
