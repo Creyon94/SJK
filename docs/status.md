@@ -13,7 +13,11 @@ before), a body copy is pooled only when bodies wear the live model (not under
 `cg_forceModel` or a team model override, where no death would take it), its log line says
 `body copy`, and textures already uploaded cost no frame; main's texture compression and
 picmip upload (`upload_levels`) kept as they were. Verified at the merge: fmt, workspace
-build, Clippy and tests. Not verified: any frame in game, the hitches gone, the look of a
+build, Clippy and tests (3847 passed); against `main` `bbe66051` on an RTX 5080, debug
+build: `animation_cost_on_a_demo` on Sol's 21/03 demo the same (37 actor slots,
+pose+skin+upload mean 0.904 against 0.923 ms, max 1.359 against 1.377) and
+`map_changes_vram` the same through seven map changes (peaks 2879/3417/3772/3206 MiB,
+after 1987/2300/2342/1748). Not verified: any frame in game, the hitches gone, the look of a
 body drawn with the model's materials, that every `pose+skin+upload` hitch was a body copy.
 
 ## Site refresh
