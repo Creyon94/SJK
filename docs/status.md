@@ -17,6 +17,28 @@ pictures' windows, as before; unit tests of the request, the worker and a missin
 Not verified: in a game, on a small card, a binder page flipped quickly (pictures arrive
 two a frame, as before).
 
+## Performance options for weak PCs
+
+25/10/2026, `personal/perf-options`, based on `main` `ab4bd57b`: two opt-in settings for
+GTX 1050/1060 class and integrated GPUs, both off by default so nothing changes for anyone
+who leaves them. `cg_stockBlades` (Settings > Advanced > Gameplay > Effects > Stock blades,
+classic Game options; Off, Others, All): 1 draws other players' blades stock in their own
+colour, 2 every blade, yours included, through `SaberSkins::get` alone, so held and thrown
+blades lose the skin's whole look while the menus' previews, cards and sounds keep theirs
+([client.md](client.md#nameplates), [rendering.md](rendering.md#saber-blade-skins)).
+`com_maxfpsMenu` (Settings > Advanced > Display > Frame rate > Menu FPS cap, classic
+Video): frames a second while no live game, demo or waiting server connection exists (main
+menu, menu world, connecting card; not the game menu over a match, a map loading for a
+server or a demo), never above `com_maxfps`, the unfocused and minimized caps still first
+([client.md](client.md#configuration-and-content)). Verified (Windows x64): unit tests
+of both choices (the values, `SaberSkins` per mode with the own slot, thrown blades, the
+preview and sounds, the menu cap against the normal, uncapped and unfocused caps, defaults
+and archiving), the settings search finding both rows, the catalogue's help and label
+tests, and the SJK UI and classic Settings rows rendered off screen (`sjk_settings_snapshot`,
+`settings_panel_snapshot`) and looked at; `cargo fmt`, build, workspace tests and Clippy
+(no new warnings). Not verified: in a game or on a weak GPU, the GPU time saved (not
+measured), the menu frame pacing on a real window.
+
 ## Announcements and contributor reward rounds
 
 25/10/2026, `personal/announcements`, based on `main` `ca5643de`: the client side of the

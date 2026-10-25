@@ -1718,9 +1718,18 @@ table of who wears which (filled from the hub's looks; ids and names are
 [unlockables.rs](../crates/sjk-viewer/src/unlockables.rs)'s); `BladeColor::Skin` carries
 the skin's number, trail and light wherever a blade colour is chosen (in the hand,
 thrown, first person, the menu stage). A skin whose pack is not loaded is the player's
-stock blade. A chroma ([unlockables.md](unlockables.md#chromas)) takes its saber's
-colour: `SkinColor::worn_with` sets the turn from the skin's hue to the colour's, the
-instance carries it (`chroma`, location 8), and `saber.wgsl` turns the skin's finished
+stock blade. So is a blade the local player chose to draw stock: a duel's
+(`cg_duelStockBlades`, `SaberSkins::set_plain`) or, for weak PCs, other players' or every
+blade (`cg_stockBlades` 1 or 2, `SaberSkins::set_stock`,
+[stock_blades.rs](../crates/sjk-viewer/src/stock_blades.rs)). `SaberSkins::get` then
+gives the world's blade no skin, so nothing below is drawn for it (no skinned instance,
+afterimage, glint, petal or trail and light colour of the skin), and the haze, lens,
+horizon and solid passes, which need a skinned blade in the frame, are skipped once none
+is left. The menus' preview takes the player's own skin from `SaberSkins::local` and the
+cards and pictures from the loaded skins, so they keep showing it. A chroma
+([unlockables.md](unlockables.md#chromas)) takes its saber's colour:
+`SkinColor::worn_with` sets the turn from the skin's hue to the colour's, the instance
+carries it (`chroma`, location 8), and `saber.wgsl` turns the skin's finished
 glow and core round the grey axis by it (`skin_turn_hue`); the light and trail turn on
 the CPU (`SkinColor::light_color`, `trail_color`).
 

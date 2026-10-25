@@ -148,6 +148,17 @@ pub(super) const VIDEO: &[Setting] = &[
             step: 25,
         },
     },
+    Setting {
+        label: "Menu FPS cap (0 = game)",
+        cvar: crate::runtime_settings::MENU_CAP_CVAR,
+        // A cap to lower the menus' rate: past 300 it would rarely lower anything, and the
+        // usual 30 to 144 keep room on the slider.
+        kind: ValueKind::Integer {
+            min: 0,
+            max: 300,
+            step: 10,
+        },
+    },
     GAMEPLAY_FPS_ROW,
     Setting {
         label: "Ignore server caps",
@@ -871,6 +882,11 @@ pub(super) const GAME: &[Setting] = &[
         label: "Normal blades in duels",
         cvar: crate::duel_blades::CVAR,
         kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Stock blades (faster)",
+        cvar: crate::stock_blades::CVAR,
+        kind: ValueKind::Choice(&["0", "1", "2"]),
     },
     Setting {
         label: "Saber rain steam",

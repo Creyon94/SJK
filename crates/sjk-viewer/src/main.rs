@@ -298,6 +298,7 @@ mod sjk_packs;
 mod sky_stage;
 mod snapshot_presentation;
 mod static_models;
+mod stock_blades;
 mod symbols;
 mod text;
 mod text_dialog;

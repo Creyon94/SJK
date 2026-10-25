@@ -824,14 +824,17 @@ that mode for the visit and leaves the player's choice as it was.
     to the classic style. Graphics leads with a Quality heading (the graphics
     preset, impact marks and player shadows, out of Video) and then
     gathers the renderer's four tabs (image, lighting, shadows, weather) under
-    their names; Display is Video's other rows under Screen, Frame rate and
+    their names; Display is Video's other rows under Screen, Frame rate (with
+    the menus' own cap, Menu FPS cap, `com_maxfpsMenu`, since 25/10/2026) and
     View; Sound holds every sound, the game's under Game, then the unlock
     sound, the world ping's and the quick wheel's sounds under
     Notifications, and Chat sounds last (since 23/10/2026: the master switch, then
     for public chat, team chat, private messages and the SJK chat a switch, a sound
     list and a Play button, then the private message flash;
     [client.md](client.md#chat-sounds)); Gameplay is Game options without the packs and mods, with
-    JoF EJK's camera framing and damping rows under Camera and prediction;
+    JoF EJK's camera framing and damping rows under Camera and prediction and,
+    under Effects, Stock blades (`cg_stockBlades`, segments Off, Others, All,
+    since 25/10/2026; [client.md](client.md#nameplates));
     Interface the menus and the console (the quick wheel's rows are its
     category's and Sound's); HUD its classic rows without the chat box, the FPS
     readout opening its Readouts (moved there from Video, as the first-person

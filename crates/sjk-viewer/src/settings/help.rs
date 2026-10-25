@@ -147,6 +147,9 @@ const CHOICE_NAMES: &[(&str, &str, &str)] = &[
     (crate::effect_aux::saber_rain_steam::CVAR, "0", "Off"),
     (crate::effect_aux::saber_rain_steam::CVAR, "1", "Everyone"),
     (crate::effect_aux::saber_rain_steam::CVAR, "2", "Only mine"),
+    (crate::stock_blades::CVAR, "0", "Off"),
+    (crate::stock_blades::CVAR, "1", "Others"),
+    (crate::stock_blades::CVAR, "2", "All"),
     ("jof.contentSource", "auto", "Auto"),
     ("jof.contentSource", "mirror", "JoF Cloud"),
     ("jof.contentSource", "origin", "jofhub.eu"),
@@ -291,6 +294,10 @@ const HELP: &[(&str, &str)] = &[
     (
         "com_maxfps",
         "Most frames drawn a second; your movement is Gameplay FPS. AUTO is 125, or the monitor's rate with Detect refresh rate; 0 is off.",
+    ),
+    (
+        crate::runtime_settings::MENU_CAP_CVAR,
+        "Most frames a second in the menus while no game or demo runs, never above the FPS cap. 0 uses the FPS cap.",
     ),
     (
         crate::server_caps::OVERRIDE_CVAR,
@@ -653,6 +660,10 @@ const HELP: &[(&str, &str)] = &[
     (
         crate::duel_blades::CVAR,
         "In a duel you play or follow, and on Duel servers, every blade is a normal one in its own colour.",
+    ),
+    (
+        crate::stock_blades::CVAR,
+        "For weak PCs: blades drawn stock in their colour, no shaders or effects. Others: not yours. All: yours too.",
     ),
     (
         crate::effect_aux::saber_rain_steam::CVAR,

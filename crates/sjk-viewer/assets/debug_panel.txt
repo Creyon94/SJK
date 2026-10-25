@@ -2068,6 +2068,16 @@ note: Alt+Tab while holding Tab leaves the board and the hidden HUD up until Tab
 
 # ---- Rendering & effects ----
 
+[stock-blades-menu-cap]
+area: Rendering & effects
+title: Stock blades (cg_stockBlades) and a menu frame cap (com_maxfpsMenu) for weak PCs
+change: Stock blades: Off / Others / All draws blades without skins, in their own colour.
+change: Menu FPS cap: frames a second while only the menus run; 0 keeps the normal cap.
+test: Settings > Advanced > Gameplay > Effects: Stock blades Others: others' skins gone, yours kept.
+test: Stock blades All: your own blade is stock too; the Collection still shows skins.
+test: Settings > Advanced > Display > Frame rate: Menu FPS cap 30: the main menu runs at 30.
+test: Join a server with the cap set: the game runs at your normal cap, menus over it too.
+
 [blade-tip-edges]
 area: Rendering & effects
 title: Signature blades: no bright tip rim, no hard edges (Creyon, PR #191)

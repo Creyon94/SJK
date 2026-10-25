@@ -1883,7 +1883,8 @@ fn save_sjk_shot(
 
 /// The SJK UI's Settings over the duel6 levelshot: Interface with a changed
 /// slider focused (its dot and reset arrow), Display with a list open, a
-/// search's results, Graphics scrolled to its weather, and at 4:3.
+/// search's results, Graphics scrolled to its weather, at 4:3, and the weak-PC
+/// rows (Gameplay's stock blades, Display's menu FPS cap).
 #[test]
 #[ignore = "reads the installed game data named by JKA_GAME_DATA"]
 fn sjk_settings_snapshot() {
@@ -1920,7 +1921,7 @@ fn sjk_settings_snapshot() {
         bool,
         Option<&'a str>,
     );
-    let cases: [Case; 7] = [
+    let cases: [Case; 9] = [
         (
             "sjk-settings",
             VIEWPORT_WIDE,
@@ -1974,6 +1975,22 @@ fn sjk_settings_snapshot() {
             VIEWPORT_WIDE,
             2,
             Some("r_drawfog"),
+            false,
+            None,
+        ),
+        (
+            "sjk-settings-stock-blades",
+            VIEWPORT_WIDE,
+            6,
+            Some(crate::stock_blades::CVAR),
+            false,
+            None,
+        ),
+        (
+            "sjk-settings-menu-fps",
+            VIEWPORT_WIDE,
+            1,
+            Some(crate::runtime_settings::MENU_CAP_CVAR),
             false,
             None,
         ),
@@ -2141,7 +2158,7 @@ fn settings_panel_snapshot() {
             crate::text::retail_font::load(&crate::text::retail_font::MENU).expect("SJK Menu"),
         ),
     ];
-    let cases: [(&str, Page, Entry, Frame, &str); 5] = [
+    let cases: [(&str, Page, Entry, Frame, &str); 7] = [
         (
             "panel-interface",
             Page::Gameplay,
@@ -2176,6 +2193,20 @@ fn settings_panel_snapshot() {
             Entry::GameOptions,
             Frame::InGame,
             "cg_auraShell",
+        ),
+        (
+            "panel-stock-blades",
+            Page::Gameplay,
+            Entry::GameOptions,
+            Frame::Main,
+            crate::stock_blades::CVAR,
+        ),
+        (
+            "panel-menu-fps",
+            Page::Graphics,
+            Entry::Video,
+            Frame::Main,
+            crate::runtime_settings::MENU_CAP_CVAR,
         ),
     ];
     for (suffix, font) in fonts {

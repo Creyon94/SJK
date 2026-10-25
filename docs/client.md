@@ -3086,6 +3086,21 @@ that font is not loaded), whatever `cg_classicHudFont` says.
   `SaberSkins::set_plain`). Team and black blades follow their own settings as usual.
   Off by default (Creyon: skins stay on in duels unless a player asks). It changes only
   what you see; the other duellist sees what their own setting says.
+- `cg_stockBlades` (0, Off; Settings > Advanced > Gameplay > Effects > Stock blades, and
+  the classic Game options: Off, Others, All), Sol's request of 25/10/2026 for weak PCs
+  (GTX 1050/1060 class, integrated GPUs): `1` draws other players' blades as stock blades in the colour they set (a stock
+  colour or RGB), without their blade skin; `2` every blade, yours included. A blade skin
+  costs about 0.4 to 0.6 ms of GPU time on an RTX 5080 once one is in view (a heavy
+  signature up to 6 ms), so several milliseconds on a weak GPU on a full saber server.
+  Everything the skin draws goes with it (its shading, afterimages, glints, petals, heat
+  haze, black-hole lenses, solid parts, its trail and light colours), and the skin passes
+  are skipped once no skinned blade is left in the frame
+  ([rendering.md](rendering.md#saber-blade-skins)). Thrown sabers follow their owner.
+  Sounds stay as each player chose them. The menus keep showing skins: the Character and
+  Collection stage, the cards and the blade pictures never take them from this setting
+  ([stock_blades.rs](../crates/sjk-viewer/src/stock_blades.rs),
+  `SaberSkins::set_stock`). With `1`, a player you follow is another player. It changes
+  only what you see. Team, black and duel blades follow their own settings as usual.
 - `cg_hideCorpsesInDuel` (on; Settings > Advanced > Gameplay > Hide corpses in
   duel) keeps dead bodies out of the presentation world while the local player is
   in a private duel. It affects `ET_BODY` only: live players and gameplay state are
@@ -4808,6 +4823,19 @@ A window without focus has caps of its own: `com_maxfpsUnfocused` (SJK's default
 30; EternalJK's 0 keeps the normal cap) and `com_maxfpsMinimized` (50), where 0
 uses `com_maxfps`. They replace the normal cap while they apply, minimized first,
 so an alt-tabbed client does not render a 4K scene at full rate.
+
+`com_maxfpsMenu` (archived, default 0; Settings > Advanced > Display > Frame rate >
+Menu FPS cap, and the classic Video tab), Sol's request of 25/10/2026 for weak PCs,
+caps frames while only the menus run: no live game, no demo and no server connection
+waiting on its map (`GpuState::menus_only` in
+[runtime_settings.rs](../crates/sjk-viewer/src/runtime_settings.rs)). That is the main
+menu and its pages (Collection, Profile, Settings...), the menu world behind them and
+the connecting card until the server's game state arrives. The game menu over a match
+keeps the game's cap, since the game runs on under it, and so do a map loading for a
+server (its connection is serviced and the load's steps handed on once a frame) and demo
+playback. It lowers the normal cap, never raises it (an uncapped `com_maxfps 0` is
+lowered too), and 0 keeps the normal cap, so nothing changes for anyone who leaves it. The unfocused and minimized caps still
+replace it while they apply. The gameplay FPS's Auto follows `com_maxfps` alone.
 
 `snd_mute_losefocus` (archived, 1, EternalJK's name and default; Settings > Sound
 > Mute in background) silences every sound, music included, while the window is
