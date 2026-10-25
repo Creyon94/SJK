@@ -982,7 +982,9 @@ was uploaded at 1024 pixels in every world (see [cards.md](cards.md)), which the
 crash reports named (`label = 'SJK menu emblem'`, a GTX 1060 3GB in the main menu).
 Since then only the faces a screen draws are decoded and uploaded (at most 64 kept): the
 same menu holds 539 MiB with the packs mounted, siege_desert 654 MiB instead of 2431,
-and the map change's peak is 1105 MiB instead of 2882.
+and the map change's peak is 1105 MiB instead of 2882. Card pictures now carry their own
+label, `SJK card art` (medals `SJK medal art`), so `vram` and crash reports no longer put
+them under the emblem's.
 The table's numbers predate the single-channel font atlases (above), which take about
 120 MiB off every cell (measured at r_picmip 2 on mp/ffa3 and the menu on pictures).
 

@@ -1,3 +1,18 @@
+## Card pictures: decoder guard and labels
+
+25/10/2026, `personal/card-faces-guard`, based on `main` `bbe66051`: two pieces of Slash's
+#206 (closed; main had its own lazy card pictures) ported onto main's. A picture the
+decoder panics on fails alone (`faces::decode_guarded`, `catch_unwind`): before, the
+worker died with `working` set and no card picture loaded again that session. Card and
+medal pictures upload under their own labels (`SJK card art`, `SJK medal art`) through
+`emblem::upload_labelled`, so `vram` and out-of-memory crash reports stop counting them as
+`SJK menu emblem` (the audit `card_faces_vram_audit` reads the new label). The holocron
+opening draws the prize's picture as an invisible quad from the burst on, so it is asked
+for well before the card turns over. Verified on Windows 11, RTX 5080: workspace build,
+clippy (nothing new), `cargo test --workspace` (new
+`a_picture_the_decoder_panics_on_fails_alone`), the 11 card world shots, whose card and UI
+pixels match main's. Not verified in game.
+
 ## Site refresh
 
 25/10/2026, `personal/site-refresh`, based on `main` `0ff3c3e1`: the site's new layout,

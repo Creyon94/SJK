@@ -520,6 +520,9 @@ not know is kept but named nowhere; `Face::blade` in
   `label = 'SJK menu emblem'`), and they added 1.8 GB to every larger card's map
   changes; the menu on pictures at r_picmip 2 now holds 539 MiB with the packs mounted,
   as without them ([rendering.md](rendering.md#gpu-memory), `card_faces_vram_audit`).
+  Card pictures are labelled `SJK card art` and medal pictures `SJK medal art` in `vram`
+  and crash reports (they shared the emblem's label before), and a picture the decoder
+  panics on fails alone: the worker goes on with the next (both after Slash's #206).
 - **The kyber shard's mark** (17/10/2026) is a long crystal with a point at each end: a
   square turned on its point (one thick stroke) stretched upright by a transform, its left
   facet the same square again in the full kyber cyan (`shard::KYBER`) under a clip, its

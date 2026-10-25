@@ -318,6 +318,7 @@ did: #187 Emplaced guns turn with their gunner
 did: #189 A smaller chat sender card, cg_chatCardScale
 did: #200 Safety codes the hub cannot fake
 did: #199 Peek asks first and names who watches: the idea of the Drone toy
+did: #206 Card pictures: the decoder guard and their own memory labels, ported
 link: Slash's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AJoFSlash
 
 [Milamber]
