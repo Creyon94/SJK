@@ -147,6 +147,7 @@ did: Texture detail (r_picmip) for small graphics cards, and no crash when one r
 did: Texture detail shrinks the saber glows too: 280 MB less on small cards
 did: Small graphics cards found at start: smaller textures and menu pictures from the first map
 did: Card pictures loaded only when a screen shows them: 1.8 GB less video memory
+did: Lighter menus: shader pictures redrawn less often, no per-frame allocations
 did: Decoded textures of maps you left are freed
 did: Stock blades and a menu frame cap for weak PCs
 did: Texture detail shrinks skies and material maps too; nopicmip honoured

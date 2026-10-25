@@ -287,6 +287,9 @@ includes:
 - small graphics cards found at start: the card's video memory read from DXGI, a card
   of 4 GB or less starting on lower texture detail and menu pictures, and saber shader
   swatches drawn instead of rendered live while the menu pictures are on;
+- lighter menus (25/10/2026): shader pictures not pointed at redrawn at most 30 times a
+  second and 6 a frame, and setting lookups and the low-FPS check without allocations
+  every frame;
 - decoded textures freed once nothing uses them (25/10/2026): the cache kept every
   texture of every map seen in a session, up to about 0.8 GB more after a few maps;
 - card pictures decoded and uploaded only when a screen draws them (25/10/2026), at

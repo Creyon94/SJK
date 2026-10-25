@@ -1037,6 +1037,14 @@ note: A roll on landing while crouched (PM_CrashLand) is not prevented, in EJK e
 
 # ---- Menus & settings ----
 
+[menu-frame-cost]
+area: Menus & settings
+title: Lighter menus: shader pictures redrawn less often, no per-frame setting allocations
+change: Shader swatches not hovered animate up to 30 times a second, 6 redrawn a frame at most.
+change: Setting lookups and the low-FPS check no longer allocate every frame.
+test: Collection > Shaders grid with many owned shaders: hovered one smooth, others still animate.
+test: Forge, Saber tab and a holocron reveal: the blade pictures show with no seams or glow left.
+
 [card-faces-lazy]
 area: Menus & settings
 title: Card pictures load only when shown (1.8 GB less video memory; 3 GB cards crashed)
