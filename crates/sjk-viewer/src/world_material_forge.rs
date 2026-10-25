@@ -182,10 +182,17 @@ impl Forge {
             self.texture_cache.insert(key.to_owned(), view.clone());
             return Ok(view);
         }
+        let picmip = super::filtering::mips::picmip_for(key);
         let texture = if self.filtering.mipmapped() {
-            super::filtering::mips::upload(device, queue, pixels)?
+            super::filtering::mips::upload(device, queue, pixels, picmip)?
         } else {
-            upload_array(device, queue, pixels)?
+            upload_array(
+                device,
+                queue,
+                "SJK Q3 stage animation frames",
+                pixels,
+                picmip,
+            )?
         };
         self.texture_cache.insert(key.to_owned(), texture.clone());
         Ok(texture)
@@ -765,6 +772,7 @@ impl Runtime {
                 texture.width,
                 texture.height,
                 &texture.chains,
+                super::filtering::mips::picmip_for(&texture.key),
             )
         });
         match uploaded {

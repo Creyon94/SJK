@@ -571,8 +571,19 @@ Windows that memory also shows in the process's RAM in Task Manager.
   quarter of its memory, while its longest side stays at 128 pixels or more (smaller
   textures keep their size). The mip chains are still built whole on the processor;
   `upload_chains` skips levels, so the setting takes effect for textures uploaded
-  after it changes (the next map) and the non-mipmapped path (`r_textureMode
-  GL_LINEAR`) keeps full size. Once menu pictures are on, each world install that runs
+  after it changes (the next map). Since 25/10/2026 a texture takes the same size
+  whatever path it goes through (`mips::skipped`): the non-mipmapped path
+  (`r_textureMode GL_LINEAR`) and the sky boxes upload the shrunk size through
+  `upload_array`, and the material maps skip the same levels of their box-filtered
+  chains ([Material maps](#material-maps)); before, all three stayed at full size. As in
+  rd-vanilla, the stages of a shader that says `nopicmip` or `nomipmaps` keep their
+  images' size: the parser marks each stage parsed after the keyword
+  (`ShaderStage::no_picmip`, as `ParseStage` reads `shader.noPicMip`), and its texture
+  key ends with `$nopicmip;` (`mips::NO_PICMIP_KEY`), so it never shares an upload with
+  the shrunk copy. Sky boxes take the setting even then, as `ParseSkyParms` loads them
+  (retail's `textures/siege/desert` sky says `nomipmaps`); at 2 a 1024-pixel box is
+  256 pixels a face, 1.5 MiB instead of 24, and the sky looks softer. SJK still builds
+  mips for a `nomipmaps` shader. Once menu pictures are on, each world install that runs
   out of memory raises it one step, to 2 at most (`menu_pictures::after_out_of_memory`).
   Not measured on a 3 GB card yet; map textures are about 0.6 GB of duel6 and 1.1 GB of
   siege_desert at full size. The saber glows and cores follow it too
@@ -656,8 +667,12 @@ array's size. A shared map texture skips its mip preparation too. Each entry is 
 with the last world that took it, so a map change never keeps the old map's own
 textures. Not shared: the UI icon atlas and animated menu art, which a running world
 rewrites; textures a world makes after its build (models and effects that load during a
-match, video frames, the non-mipmapped filtering path); and anything across a graphics
-reload, whose new context may make textures differently and starts its own cache.
+match, video frames, the non-mipmapped filtering path); material maps, whose converted
+images each build makes again, so only a hash of their pixels could key them (and a
+server's old map leaves before the next is built, below); and anything across a graphics
+reload, whose new context may make textures differently and starts its own cache. A
+shared map texture's key holds the levels texture detail leaves off, so a world built
+after `r_picmip` changed takes its own size.
 
 | Map | Peak before | Shared assets | Shared map textures too |
 | --- | --- | --- | --- |
@@ -697,9 +712,21 @@ other shots never do. Measured 25/10/2026 at 1920x1080 (MiB in use):
 
 | Map, r_picmip 0 / 2 | Vanilla style | SJK (recommended) | Experimental |
 | --- | --- | --- | --- |
-| mp/ffa3 | 1769 / 626 | 1814 / 670 | 2213 / 1065 |
-| mp/siege_desert | 1915 / 618 | 1952 / 654 | 2572 / 1275 |
+| mp/ffa3 | 1769 / 603 | 1814 / 648 | 2213 / 1049 |
+| mp/siege_desert | 1915 / 596 | 1952 / 632 | 2572 / 1253 |
 | Menu on pictures | 1140 / 512 | 1168 / 539 | 1425 / 797 |
+
+The r_picmip 2 column is after the sky boxes followed texture detail (25/10/2026); each
+map held 22 MiB more before (its sky box, 24 MiB at any setting), and nothing else
+changed: at r_picmip 0 the labels are the same and the Vanilla and SJK frames are
+pixel-identical before and after (Experimental's differ as much as two runs of one
+build do, from its moving dust and noise). `SJK_AUDIT_GENERATED=1` mounts the player's
+generated material pack (`zzz_sjk_materials.pk3`), which no other shot does. With it,
+Experimental's normal, specular and emission maps held 884 MiB on ffa3 (218 maps) and
+427 MiB on siege_desert (85) whatever the texture detail, SJK's emission maps 9 and
+16 MiB; once they followed r_picmip, at 2 they hold 58 and 27 MiB (SJK's about 1), and
+the maps hold 1190 MiB instead of 2038 and 1327 instead of 1765 (SJK: 649 instead of
+680, 633 instead of 670).
 
 The presets that leave the real-time lighting off differ by about 45 MiB; Experimental
 adds its lamp light cache (up to 360 MiB on ffa5), fixture visibility, GI, froxels and
@@ -2887,7 +2914,11 @@ for the flattened world only when a stage has maps: a tangent with handedness,
 averaged over the triangles of patch and triangle-soup vertices, and the
 light-grid direction (`R_CalcVertexLightDirs`/`R_LightDirForPoint`). They use 8
 bytes per vertex. Building them for `mp/ffa3` (114,088 vertices) took about 24 ms
-in a release test build. Maps are uploaded as linear RGBA8 with box-filtered mips.
+in a release test build. Maps are uploaded as linear RGBA8 with box-filtered mips,
+less the levels texture detail (`r_picmip`, [GPU memory](#gpu-memory)) leaves off the
+diffuse texture: since 25/10/2026 a 1024-pixel normal map at r_picmip 2 is its 256-pixel
+level, as its diffuse texture is. As in rend2 (`ParseStage`, `CollapseStagesToGLSL`),
+the maps of a `nopicmip` or `nomipmaps` shader's stage keep their full size.
 
 Shading lives in [material_maps.wgsl](../crates/sjk-viewer/src/material_maps.wgsl):
 

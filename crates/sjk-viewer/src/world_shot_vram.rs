@@ -242,12 +242,19 @@ fn menu_pictures_vram() {
 
 /// Audit: every label an in-game map holds at each preset and texture detail, for the
 /// 3 GB cards. `SJK_AUDIT_MAPS` (comma separated) and `SJK_AUDIT_SIZE` (`WxH`) override
-/// the maps and the screen size.
+/// the maps and the screen size; `SJK_AUDIT_GENERATED` mounts the player's generated
+/// packs (`JKA_GAME_DATA/SJK/generated`, the material maps), which the other shots
+/// leave out. Each build's last frame is saved as `vram-audit-<map>-<preset>-<picmip>`.
 #[test]
 #[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
 fn low_end_vram_audit() {
     on_big_stack(|| {
         use crate::graphics_quality::{Level, preset_cvars};
+        if std::env::var_os("SJK_AUDIT_GENERATED").is_some()
+            && let Some(game_data) = std::env::var_os("JKA_GAME_DATA")
+        {
+            crate::assets::generated::locate_at_start(&PathBuf::from(game_data).join("SJK"));
+        }
         let maps = std::env::var("SJK_AUDIT_MAPS")
             .unwrap_or_else(|_| "maps/mp/ffa3.bsp,maps/mp/siege_desert.bsp".to_owned());
         let size = std::env::var("SJK_AUDIT_SIZE")
@@ -286,7 +293,15 @@ fn low_end_vram_audit() {
                     let Some((mut gpu, _profile)) = open(map, size, None, &cvars) else {
                         return;
                     };
-                    let _ = frame(&mut gpu, 8);
+                    let shot = frame(&mut gpu, 8);
+                    let stem = map
+                        .trim_start_matches("maps/")
+                        .trim_end_matches(".bsp")
+                        .replace(['/', ':'], "-");
+                    let _ = std::fs::create_dir_all(directory());
+                    let _ = shot.save(
+                        directory().join(format!("vram-audit-{stem}-{name}-picmip{picmip}.png")),
+                    );
                     let _ = gpu.device.poll(wgpu::PollType::wait_indefinitely());
                     let Some(report) = gpu.device.generate_allocator_report() else {
                         return;

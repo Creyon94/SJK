@@ -3,9 +3,12 @@
 //! `r_picmip` (as in Jedi Academy) leaves a texture's largest levels off the card:
 //! each step halves its sides and takes a quarter of its video memory, for cards
 //! that run out (a 3 GB card ran out on most JoF maps, 21/10/2026). Textures of
-//! [`PICMIP_FLOOR`] pixels or less keep their size. The chains are still built
-//! whole on the processor; only the upload skips levels. A change applies to the
-//! textures uploaded after it, so from the next map.
+//! [`PICMIP_FLOOR`] pixels or less keep their size, and so do the stages of a shader
+//! that says `nopicmip` or `nomipmaps` ([`NO_PICMIP_KEY`]). The chains are still built
+//! whole on the processor; only the upload skips levels. Textures uploaded without
+//! mips (sky boxes, the non-mipmapped filtering) and material maps take the same
+//! size ([`skipped`]). A change applies to the textures uploaded after it, so from the
+//! next map.
 use image::{RgbaImage, imageops};
 use std::{
     error::Error,
@@ -51,6 +54,21 @@ pub(crate) fn set_picmip(levels: i64) {
 /// `r_picmip` as last set.
 pub(crate) fn picmip() -> u32 {
     PICMIP.load(Ordering::Relaxed)
+}
+
+/// Ends the texture key of a stage whose shader says `nopicmip` or `nomipmaps`
+/// (`ShaderStage::no_picmip`): its images keep their size ([`picmip_for`]), and never
+/// share an upload with the same images at the texture detail.
+pub(crate) const NO_PICMIP_KEY: &str = "$nopicmip;";
+
+/// The `r_picmip` the texture under `key` takes: none when the key ends with
+/// [`NO_PICMIP_KEY`], else the setting.
+pub(crate) fn picmip_for(key: &str) -> u32 {
+    if key.ends_with(NO_PICMIP_KEY) {
+        0
+    } else {
+        picmip()
+    }
 }
 
 /// `image` with the levels `r_picmip` leaves off ([`skipped`]) taken away, for a
@@ -116,11 +134,16 @@ pub(crate) fn extent(images: &[Arc<RgbaImage>]) -> (u32, u32) {
 type Shared = (wgpu::TextureView, Arc<[Arc<RgbaImage>]>);
 const SHARED: &str = "map texture";
 
-/// The key of the `width` x `height` array `images` become. Decoded map images are
-/// one `Arc` per mounted file and content for the process
-/// ([`crate::decoded_image_cache`]), so two maps using the same file give one key.
-fn shared_key(images: &[Arc<RgbaImage>], width: u32, height: u32) -> u64 {
-    let mut parts = vec![width.to_le_bytes().to_vec(), height.to_le_bytes().to_vec()];
+/// The key of the `width` x `height` array `images` become, `skip` levels off. Decoded
+/// map images are one `Arc` per mounted file and content for the process
+/// ([`crate::decoded_image_cache`]), so two maps using the same file give one key; a
+/// world built after `r_picmip` changed (or a `nopicmip` stage) gets its own size.
+fn shared_key(images: &[Arc<RgbaImage>], width: u32, height: u32, skip: u32) -> u64 {
+    let mut parts = vec![
+        width.to_le_bytes().to_vec(),
+        height.to_le_bytes().to_vec(),
+        skip.to_le_bytes().to_vec(),
+    ];
     parts.extend(
         images
             .iter()
@@ -129,11 +152,12 @@ fn shared_key(images: &[Arc<RgbaImage>], width: u32, height: u32) -> u64 {
     crate::shared_textures::key(&parts.iter().map(Vec::as_slice).collect::<Vec<_>>())
 }
 
-/// The mipmapped array of `images` another world of this context holds, if any.
-pub(crate) fn find_shared(images: &[Arc<RgbaImage>]) -> Option<wgpu::TextureView> {
+/// The mipmapped array of `images` at `picmip` another world of this context holds,
+/// if any.
+pub(crate) fn find_shared(images: &[Arc<RgbaImage>], picmip: u32) -> Option<wgpu::TextureView> {
     let (width, height) = extent(images);
-    crate::shared_textures::find::<Shared>(SHARED, shared_key(images, width, height))
-        .map(|(view, _)| view)
+    let key = shared_key(images, width, height, skipped(width, height, picmip));
+    crate::shared_textures::find::<Shared>(SHARED, key).map(|(view, _)| view)
 }
 
 /// [`upload_chains`] of `images`, or another world's copy of the same array.
@@ -143,42 +167,45 @@ pub(crate) fn upload_shared(
     images: &[Arc<RgbaImage>],
     width: u32,
     height: u32,
+    picmip: u32,
     chains: impl FnOnce() -> Arc<Vec<Vec<RgbaImage>>>,
 ) -> Result<wgpu::TextureView, Box<dyn Error>> {
-    let key = shared_key(images, width, height);
+    let key = shared_key(images, width, height, skipped(width, height, picmip));
     if let Some((view, _)) = crate::shared_textures::find::<Shared>(SHARED, key) {
         return Ok(view);
     }
-    let view = upload_chains(device, queue, width, height, &chains())?;
+    let view = upload_chains(device, queue, width, height, &chains(), picmip)?;
     let shared: Shared = (view.clone(), images.into());
     crate::shared_textures::share(SHARED, key, || shared);
     Ok(view)
 }
 
-/// Upload mipmapped stage frames once; no frame-path image generation or readback.
+/// Upload mipmapped stage frames once, less the levels `picmip` leaves off; no
+/// frame-path image generation or readback.
 pub(crate) fn upload(
     device: &wgpu::Device,
     queue: &crate::frame_queue::FrameQueue,
     images: &[Arc<RgbaImage>],
+    picmip: u32,
 ) -> Result<wgpu::TextureView, Box<dyn Error>> {
     let (width, height) = extent(images);
-    upload_shared(device, queue, images, width, height, || {
+    upload_shared(device, queue, images, width, height, picmip, || {
         cache::prepare(images, width, height)
     })
 }
 
 /// Upload one [`chain`] per layer of a `width` x `height` array, less the levels
-/// `r_picmip` leaves off ([`skipped`]).
+/// `picmip` leaves off ([`skipped`]).
 pub(crate) fn upload_chains(
     device: &wgpu::Device,
     queue: &crate::frame_queue::FrameQueue,
     width: u32,
     height: u32,
     chains: &[Vec<RgbaImage>],
+    picmip: u32,
 ) -> Result<wgpu::TextureView, Box<dyn Error>> {
     let shortest = chains.iter().map(Vec::len).min().unwrap_or(0);
-    let skip = skipped(width, height, PICMIP.load(Ordering::Relaxed))
-        .min(u32::try_from(shortest.saturating_sub(1))?);
+    let skip = skipped(width, height, picmip).min(u32::try_from(shortest.saturating_sub(1))?);
     let (width, height) = ((width >> skip).max(1), (height >> skip).max(1));
     let texture = device.create_texture(&wgpu::TextureDescriptor {
         label: Some("SJK optional mipmapped material"),
@@ -240,6 +267,13 @@ mod tests {
         assert_eq!(skipped(256, 256, 3), 1);
         assert_eq!(skipped(128, 64, 3), 0);
         assert_eq!(skipped(4096, 4096, 9), PICMIP_MAX);
+    }
+
+    #[test]
+    fn nopicmip_keys_take_no_texture_detail() {
+        let key = format!("textures/a/b.tga;{NO_PICMIP_KEY}");
+        assert_eq!(picmip_for(&key), 0);
+        assert_eq!(picmip_for("textures/a/b.tga;"), picmip());
     }
 
     #[test]
