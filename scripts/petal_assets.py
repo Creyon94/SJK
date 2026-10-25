@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Draw the falling blossoms' petal pictures (`crates/sjk-viewer/assets/petals`,
 `saber_petals.rs`): one cherry blossom petal, a rounded teardrop with the little notch at its
-end, pale at its base and blushing toward its tip, in three tints.
+end, pale at its base and blushing toward its tip, in three tints; and the Thousand Cranes'
+paper crane, white paper in three shades that the particle tints (25/10/2026).
 
     python3 scripts/petal_assets.py
 """
@@ -59,7 +60,74 @@ def petal(base, tip):
     return img
 
 
+def triangle(p, a, b, c):
+    """Whether p is inside the triangle a, b, c (either winding)."""
+    def side(u, v, w):
+        return (v[0] - u[0]) * (w[1] - u[1]) - (v[1] - u[1]) * (w[0] - u[0])
+    d1, d2, d3 = side(a, b, p), side(b, c, p), side(c, a, p)
+    return not ((d1 < 0 or d2 < 0 or d3 < 0) and (d1 > 0 or d2 > 0 or d3 > 0))
+
+
+# The crane as the blade's shader draws it (`thousand_cranes.glsl`, `tc_crane`), from its side
+# with its wings up: each piece, its triangles and its shade of white paper, back to front.
+FLAP = 0.8
+CRANE = [
+    (0.58, [((-0.22, 0.08), (0.36, 0.08), (0.12, 0.06 + 0.86 * FLAP))]),
+    (0.82, [((0.14, 0.04), (0.36, -0.03), (0.7, 0.46)),
+            ((0.63, 0.39), (0.72, 0.48), (0.88, 0.35)),
+            ((-0.14, 0.04), (-0.36, -0.03), (-0.76, 0.42))]),
+    (0.94, [((-0.46, 0.0), (0.0, 0.13), (0.46, 0.0)),
+            ((-0.46, 0.0), (0.46, 0.0), (0.0, -0.17))]),
+    (1.0, [((-0.36, 0.06), (0.3, 0.06), (-0.02, 0.06 + 0.94 * FLAP))]),
+]
+
+
+def crane_shade(x, y):
+    """The paper's shade at (x, y) in -1..1, `None` outside the crane."""
+    shade = None
+    for tone, triangles in CRANE:
+        if any(triangle((x, y), *t) for t in triangles):
+            shade = tone
+    if shade is None:
+        return None
+    # the body's crease and the near wing's fold, darker lines of the paper
+    if shade == 0.94 and abs(y - 0.01) < 0.03 and abs(x) < 0.42:
+        shade *= 0.74
+    if shade == 1.0:
+        ax, ay, bx, by = 0.0, 0.06, -0.02, 0.06 + 0.94 * FLAP
+        t = max(0.0, min(1.0, ((x - ax) * (bx - ax) + (y - ay) * (by - ay)) / ((bx - ax) ** 2 + (by - ay) ** 2)))
+        if math.hypot(x - ax - (bx - ax) * t, y - ay - (by - ay) * t) < 0.025:
+            shade *= 0.8
+    return shade
+
+
+def crane():
+    img = Image.new("RGBA", (SIZE, SIZE))
+    px = img.load()
+    for j in range(SIZE):
+        for i in range(SIZE):
+            hits, total = 0, 0.0
+            for sj in range(SAMPLES):
+                for si in range(SAMPLES):
+                    x = ((i + (si + 0.5) / SAMPLES) / SIZE) * 2.0 - 1.0
+                    y = 1.0 - ((j + (sj + 0.5) / SAMPLES) / SIZE) * 2.0
+                    # the crane is about 1.65 across and 1.25 high: centred in the picture
+                    shade = crane_shade(x * 1.0, y * 1.0 + 0.3)
+                    if shade is not None:
+                        hits += 1
+                        total += shade
+            if not hits:
+                px[i, j] = (0, 0, 0, 0)
+                continue
+            v = total / hits
+            px[i, j] = (int(round(v * 255)),) * 3 + (int(round(hits / SAMPLES ** 2 * 255)),)
+    return img
+
+
 OUT.mkdir(parents=True, exist_ok=True)
 for name, (base, tip) in TINTS.items():
     petal(base, tip).save(OUT / f"{name}.png", optimize=True)
     print("written", name)
+crane().save(OUT / "crane.png", optimize=True)
+crane().transpose(Image.FLIP_LEFT_RIGHT).save(OUT / "crane_left.png", optimize=True)
+print("written crane, crane_left")

@@ -409,6 +409,24 @@ the hub's, described in its `scripts/blade_skin_sounds.py` and `saber_skin_sound
   a part its wearer may switch off. It borrows Royal Naboo's sounds
   (the skins pack is near its 16 MiB cap). Not built from her idea: the wooden hilt, which
   waits for custom hilts.
+- **Thousand Cranes** (25/10/2026, blade 167, the first Unique blade, Sol's; a signature,
+  `blade_signatures/thousand_cranes.glsl`): a thousand paper cranes (senbazuru), the old
+  Japanese gift of thanks and good wishes, for a blade Sol gives by hand. A warm silk-white
+  blade with the fine fibres of washi paper in its light (not a chroma), a red silk thread
+  wound round it from the hilt to near the tip (flat, as Sol's pieces are: bright where it
+  passes in front, faint behind the blade's light), and eight origami cranes in coloured
+  paper (vermilion, indigo, sakura, jade, gold, sky, plum, cream) circling it in 3D as they
+  rise up it, beating their wings and gliding by turns, each wearer's flock in its own order
+  of colours (`uSeed`). A golden crane, the thousandth, hovers over the tip in a warm light.
+  The cranes fold into being as the blade lights, spread wider on a swing, and a clash
+  startles a ring of them out round the blade; a swing also releases real paper cranes that
+  climb away from it ([rendering.md](rendering.md#falling-blossoms)). Five parts its wearer
+  may switch off. Its crane is drawn from triangles (`tc_tri`, `tc_crane`): the far wing in
+  shadow, the body with its crease, the neck and tail, the head folded down and the lit near
+  wing with its fold, turned to fly the way it goes across the view and narrowed when it
+  flies toward or away from it. Its own sounds, `sound/sjk/sol/thousand_cranes/`, are in
+  the hub's skins pack. Kintsugi was the first idea, but the Healed Kyber (106) already is
+  Creyon's Kintsugi; nothing in the catalogue had cranes.
 
 ## Hub protocol (additions to version 1)
 
@@ -1029,6 +1047,7 @@ off, and every other SJK player then draws the blade the same way.
 | Void | `holes` Black holes (holes, later additions file only), `stars` Infalling stars (motes), `warp` Warped space (haze), `pulse` Gravity pulse (pulse), `afterimages` Afterimages (ghosts) |
 | Spectral | `wisps` Wisps (wisps), `spirits` Souls (motes), `smoke` Smoky edge (sputter), `rim` Cold rim (hue), `echo` Echo (echo), `afterimages` Afterimages (ghosts) |
 | Varykino Blossom | `blossom_branch` Blossom branch, `lavender_mist` Lavender mist, `drifting_petals` Drifting petals, `falling_blossoms` Falling blossoms (the petals its swing sheds, [rendering.md](rendering.md#falling-blossoms)), `sakura_droplet` Sakura droplet (the pearl at its tip), `swing_and_clash_bursts` Swing and clash bursts (a signature's parts) |
+| Thousand Cranes | `red_thread` Red thread, `paper_cranes` Paper cranes (the flock and the cranes a clash startles), `golden_crane` Golden crane, `washi_light` Washi light (the paper's fibres in its glow), `flying_cranes` Flying cranes (the paper cranes its swing releases), `swing_and_clash_bursts` Swing and clash bursts (a signature's parts) |
 
 - Kept in `cg_saberSkinOptions` (archived, default empty;
   [saber_skin_options.rs](../crates/sjk-viewer/src/saber_skin_options.rs)): one

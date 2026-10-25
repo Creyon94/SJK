@@ -54,7 +54,7 @@ macro_rules! signature {
 /// Blade Lab designs reworked in full (19/10/2026: the Star Wars rework; the Bleeding Kyber in
 /// round 9), which replace their hand-ported designs (`blade_lab_designs.rs`). Sol's Sun
 /// (blade 001) became one on 20/10/2026, keeping its file's look under its own.
-pub(crate) const SIGNATURES: [Signature; 130] = [
+pub(crate) const SIGNATURES: [Signature; 131] = [
     signature!("sun"),
     signature!("abyssal_eye"),
     signature!("aurora_wyrm"),
@@ -188,6 +188,8 @@ pub(crate) const SIGNATURES: [Signature; 130] = [
     signature!("alderaan_velvet"),
     // 21/10/2026: Sol's Varykino Blossom, after Kushina's idea (blade 166).
     signature!("varykino_blossom"),
+    // 25/10/2026: Sol's Thousand Cranes (blade 167), the first Unique blade.
+    signature!("thousand_cranes"),
 ];
 
 /// The lab's helpers every signature may call (`lab.glsl`, translated).

@@ -1,5 +1,6 @@
 // The falling blossoms' petals (SJK; saber_petals.rs, scripts/petal_assets.py): a blossom
-// petal, both sides drawn, faded by the particle.
+// petal, both sides drawn, faded by the particle. The Thousand Cranes' paper crane, flying
+// right and flying left, white paper the particle tints.
 
 gfx/sjk/petals/blossom_pink
 {
@@ -31,6 +32,30 @@ gfx/sjk/petals/blossom_white
 	cull none
 	{
 		map gfx/sjk/petals/blossom_white
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+gfx/sjk/petals/crane
+{
+	nopicmip
+	cull none
+	{
+		map gfx/sjk/petals/crane
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+gfx/sjk/petals/crane_left
+{
+	nopicmip
+	cull none
+	{
+		map gfx/sjk/petals/crane_left
 		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
 		rgbGen vertex
 		alphaGen vertex
