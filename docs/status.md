@@ -425,7 +425,8 @@ hub reaches running clients; a request that came during play no longer opens by 
 over the main menu (only the game menu opening from play reopens a closed window); and
 `trade <player>` refuses a blocked player, as a request by key (the SJK chat page) now
 does too. Verified on Linux x86_64: the workspace format
-check (one unformatted file from `main`, `world_shot_official.rs`, left as it is), build,
+check (with `main` at `bb58da4b` merged; its three unformatted files, `launch.rs`,
+`platform.rs` and `update.rs`, are formatted in their own pull request, #208), build,
 tests and clippy; new tests of the card's Trade click, the slower reads seeing trading
 switched on, and Esc in play. Not verified here: in a game (no game data on the Linux
 machine). The hub's three points (SJK-hub-shared #4) are answered on its branch: a
