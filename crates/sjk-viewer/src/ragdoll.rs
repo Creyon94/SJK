@@ -645,21 +645,18 @@ impl GpuState {
             volume,
         } in self.ragdoll.cues.drain(..)
         {
-            let source = sjk_audio::SourceId(u32::from(slot));
-            match at {
-                None => audio.play_local(path, volume, source, crate::audio::TOY_CHANNEL),
-                Some(at) => audio.play_on_channel(
-                    path,
-                    volume,
-                    at.to_array(),
-                    source,
-                    if path == FLATLINE {
-                        crate::audio::TOY_CHANNEL
-                    } else {
-                        sjk_audio::ChannelId(0)
-                    },
-                ),
-            }
+            audio.play_toy(
+                crate::toy_sounds::Toy::Ragdoll,
+                path,
+                volume,
+                at.map(|at| at.to_array()),
+                sjk_audio::SourceId(u32::from(slot)),
+                if at.is_none() || path == FLATLINE {
+                    crate::audio::TOY_CHANNEL
+                } else {
+                    sjk_audio::ChannelId(0)
+                },
+            );
         }
     }
 }

@@ -397,6 +397,30 @@ const HELP: &[(&str, &str)] = &[
         "Loudness of emote sounds: 1 as recorded, 2 twice as loud. Yours plays in both ears; others' follow their player.",
     ),
     (
+        crate::toy_sounds::VOLUME_CVAR,
+        "Loudness of every toy's sounds: 1 as made, 2 twice as loud, 0 silent. Each toy can also be silenced below.",
+    ),
+    (
+        crate::toy_sounds::Toy::Box.cvar(),
+        "Off: cardboard box sounds are not played on this PC, yours or other players'. The toy still works and is still seen.",
+    ),
+    (
+        crate::toy_sounds::Toy::Order66.cvar(),
+        "Off: Order 66 sounds are not played on this PC, yours or other players'. The toy still works and is still seen.",
+    ),
+    (
+        crate::toy_sounds::Toy::Hax.cvar(),
+        "Off: Hax sounds are not played on this PC, yours or other players'. The toy still works and is still seen.",
+    ),
+    (
+        crate::toy_sounds::Toy::Ragdoll.cvar(),
+        "Off: Ragdoll sounds are not played on this PC, yours or other players'. The toy still works and is still seen.",
+    ),
+    (
+        crate::toy_sounds::Toy::Drone.cvar(),
+        "Off: Drone sounds are not played on this PC, yours or other players'. The toy still works and is still seen.",
+    ),
+    (
         crate::away_emote::SJK_CVAR,
         "A looping emote you play while away (alt-tabbed out or idle), silent. Any emote you play then goes quiet too, for everyone.",
     ),

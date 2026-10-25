@@ -209,6 +209,7 @@ mod siege_sabers;
 mod surface_tables;
 mod team_sabers;
 mod toy_saved;
+mod toy_sounds;
 mod trip_mine_lasers;
 mod video_memory;
 mod viewer_app;

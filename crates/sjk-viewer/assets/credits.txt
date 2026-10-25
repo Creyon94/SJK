@@ -45,6 +45,7 @@ did: The Ragdoll toy: go limp, sandbox style, the same fall on every SJK client
 did: Ragdoll lifts and doors, and each body part's knocks on what it hits
 did: SJK team announcements in chat, and contributor reward rounds with Claim
 did: The Drone toy: freecam and peek fly a remote others see; peek needs consent
+did: Toy sound settings: a toy volume and a switch per toy to silence it
 did: A macOS build for Apple Silicon, built by GitHub with every release (experimental)
 did: Medals from the SJK team, with medal pictures generated and chosen by Sol
 did: Clan tags: the JoF, JoFA, JAWA and {{S}} emblems beside tagged names

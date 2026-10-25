@@ -129,6 +129,7 @@ impl GameAudio {
             );
         }
         self.chat_sounds = crate::chat_sounds::Options::read(console);
+        self.toy_sounds = crate::toy_sounds::Options::read(console);
         self.duel_enabled = console
             .and_then(|c| c.bool_cvar("cg_duelMusic"))
             .unwrap_or(true);
@@ -318,6 +319,26 @@ impl GameAudio {
             SourceId(u32::from(slot)),
             EMOTE_CHANNEL,
         ));
+    }
+
+    /// Play a sound of `toy` at `volume` times its toy volume, placed at `origin`
+    /// (`None`: in both ears) on `channel`; nothing when the settings silence the toy.
+    pub(crate) fn play_toy(
+        &mut self,
+        toy: crate::toy_sounds::Toy,
+        path: &str,
+        volume: f32,
+        origin: Option<[f32; 3]>,
+        source: SourceId,
+        channel: ChannelId,
+    ) {
+        let Some(volume) = self.toy_sounds.gain(toy, volume) else {
+            return;
+        };
+        match origin {
+            Some(origin) => self.play_on_channel(path, volume, origin, source, channel),
+            None => self.play_local(path, volume, source, channel),
+        }
     }
 
     /// Play a listener-relative sound (interface cues) at full stereo.

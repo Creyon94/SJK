@@ -133,6 +133,8 @@ pub(crate) struct GameAudio {
     /// The Hax toy's hacking sound this frame (`hax.rs`): the hacker's slot, and where
     /// they stand (`None`: the player's own, in both ears).
     hax_loop: Option<(SourceId, Option<[f32; 3]>)>,
+    /// The toys' volume and per-toy switches (`toy_sounds.rs`), read each frame.
+    toy_sounds: crate::toy_sounds::Options,
 }
 
 impl GameAudio {
@@ -248,6 +250,7 @@ impl GameAudio {
             saber_sets_generation: None,
             box_music: Vec::with_capacity(8),
             hax_loop: None,
+            toy_sounds: Default::default(),
             map_music: None,
             music_tracks: Vec::with_capacity(8),
             duel_music: None,
@@ -575,31 +578,42 @@ impl GameAudio {
     /// muted here); it is the music of the toy, not the map's, so it ignores `s_musicVolume`.
     /// The Hax toy's hacking sound joins it the same way.
     fn send_box_music(&mut self) {
+        use crate::toy_sounds::Toy;
         if let Some(handle) = self.find_handle(crate::cardboard_box::MUSIC) {
             for index in 0..self.box_music.len() {
                 let (source, origin) = self.box_music[index];
-                self.send_toy_loop(handle, source, origin);
+                self.send_toy_loop(Toy::Box, handle, source, origin);
             }
         }
         if let (Some(handle), Some((source, origin))) =
             (self.find_handle(crate::hax::HACK_SOUND), self.hax_loop)
         {
-            self.send_toy_loop(handle, source, origin);
+            self.send_toy_loop(Toy::Hax, handle, source, origin);
         }
     }
 
-    /// A toy's loop on `source` at `origin` (`None`: in both ears), unless muted here.
-    fn send_toy_loop(&mut self, handle: SoundHandle, source: SourceId, origin: Option<[f32; 3]>) {
+    /// A toy's loop on `source` at `origin` (`None`: in both ears), unless muted here
+    /// (the player, or the toy's sounds in the settings).
+    fn send_toy_loop(
+        &mut self,
+        toy: crate::toy_sounds::Toy,
+        handle: SoundHandle,
+        source: SourceId,
+        origin: Option<[f32; 3]>,
+    ) {
         if self.mute.silences(source, None) {
             return;
         }
+        let Some(volume) = self.toy_sounds.gain(toy, 1.0) else {
+            return;
+        };
         self.output.send(AudioCommand::SetLoop(
             handle,
             PlayRequest {
                 origin,
                 source,
                 channel: TOY_CHANNEL,
-                volume: 1.0,
+                volume,
                 attenuation: match origin {
                     Some(_) => sjk_client::legacy_sound_attenuation(0),
                     None => sjk_audio::Attenuation::None,
