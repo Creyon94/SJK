@@ -287,6 +287,9 @@ includes:
 - small graphics cards found at start: the card's video memory read from DXGI, a card
   of 4 GB or less starting on lower texture detail and menu pictures, and saber shader
   swatches drawn instead of rendered live while the menu pictures are on;
+- card pictures decoded and uploaded only when a screen draws them (25/10/2026), at
+  most 64 kept, instead of the hub's 333 at start: 1.8 GB less video memory and as much
+  system memory, which 3 GB cards ran out of in the main menu;
 - Discord status (`cl_discordPresence`): the player's Discord profile showing the menu
   screen, or the server, map, mode, team and players, through the Discord app's
   local pipe;

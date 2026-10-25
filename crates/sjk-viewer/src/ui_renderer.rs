@@ -957,8 +957,10 @@ impl ShapeRenderer {
             }
             None if crate::cards::faces::index_of(texture).is_some() => {
                 let index = crate::cards::faces::index_of(texture).unwrap_or_default();
-                // Not uploaded yet: the window stays dark until it is.
-                self.cards.group(index)?;
+                // Not uploaded yet: asked for, and the window stays dark until it is.
+                if !self.cards.draw(index) {
+                    return None;
+                }
                 Source::Card(index as u16)
             }
             None => match crate::menu::emblem::EmblemLayer::from_texture(texture) {

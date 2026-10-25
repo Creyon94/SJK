@@ -1037,6 +1037,15 @@ note: A roll on landing while crouched (PM_CrashLand) is not prevented, in EJK e
 
 # ---- Menus & settings ----
 
+[card-faces-lazy]
+area: Menus & settings
+title: Card pictures load only when shown (1.8 GB less video memory; 3 GB cards crashed)
+change: A card's picture is decoded and uploaded when a screen draws it, 64 kept at most.
+change: 512 pixel pictures from Texture detail 1; 1024 at 0, as before.
+test: Collection > Cards: pictures appear within a moment; page through, they keep coming.
+test: Look closer at a card (Enter): the picture is sharp; open a holocron: the found card shows.
+test: Task Manager > GPU memory in the main menu: about 1.8 GB less than the last release.
+
 [profile-vfs-release]
 area: Menus & settings
 title: No 'Too many open files' after many maps (Lukas, PR #198)
