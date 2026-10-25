@@ -691,6 +691,12 @@ pub struct Unlock {
     /// When it was granted, unix seconds.
     #[serde(default)]
     pub granted: i64,
+    /// When growth counts from, unix seconds; 0 when it counts from `granted` (and from
+    /// hubs before 25/10/2026). A growing blade's parts come with the days held since then
+    /// (`docs/unlockables.md`, "Growing blades"); the team sets it to give a blade already
+    /// grown.
+    #[serde(default)]
+    pub since: i64,
     /// Public plain text from the team, often empty. Never markup.
     #[serde(default)]
     pub note: String,
@@ -1424,7 +1430,7 @@ mod tests {
         let profile: Profile = serde_json::from_str(
             r#"{"key_id":"aa","key":"bb","name":"Sol","bio":"","verified":true,"created":5,
                 "unlocks":[{"id":"saber_sun","granted":1791000000,"note":"Thanks"},
-                           {"id":"from_the_future","granted":7},
+                           {"id":"from_the_future","granted":7,"since":3},
                            {"id":"saber_glitch","granted":8,"note":"","medal":"bug_hunter"},
                            {"id":"saber_sun","granted":9,"card":"sjk_alpha_000"}]}"#,
         )
@@ -1435,6 +1441,7 @@ mod tests {
                 Unlock {
                     id: "saber_sun".to_owned(),
                     granted: 1_791_000_000,
+                    since: 0,
                     note: "Thanks".to_owned(),
                     count: 1,
                     medal: None,
@@ -1443,6 +1450,7 @@ mod tests {
                 Unlock {
                     id: "from_the_future".to_owned(),
                     granted: 7,
+                    since: 3,
                     note: String::new(),
                     count: 1,
                     medal: None,
@@ -1451,6 +1459,7 @@ mod tests {
                 Unlock {
                     id: "saber_glitch".to_owned(),
                     granted: 8,
+                    since: 0,
                     note: String::new(),
                     count: 1,
                     medal: Some("bug_hunter".to_owned()),
@@ -1459,6 +1468,7 @@ mod tests {
                 Unlock {
                     id: "saber_sun".to_owned(),
                     granted: 9,
+                    since: 0,
                     note: String::new(),
                     count: 1,
                     medal: None,

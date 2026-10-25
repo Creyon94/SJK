@@ -176,7 +176,7 @@ pub(crate) fn blade_skin_named(word: &str) -> Option<&'static Unlockable> {
 }
 
 /// Every unlockable, in the hub's catalogue order (the order profiles list them in).
-pub(crate) static ALL: [Unlockable; 167] = [
+pub(crate) static ALL: [Unlockable; 168] = [
     Unlockable {
         id: "saber_sun",
         number: 1,
@@ -2352,6 +2352,21 @@ pub(crate) static ALL: [Unlockable; 167] = [
         description: "A thousand paper cranes, the old gift of thanks: a silk-white blade with a red thread wound round it, origami cranes in coloured paper circling it and a golden crane at its tip. Swing it and cranes take flight.",
         how_to_get: PERSONAL_THANKS,
     },
+    // 25/10/2026: Sol's Hearth, a Unique blade that grows with how long it has been held
+    // (`blade_growth.rs`).
+    Unlockable {
+        id: "saber_hearth",
+        number: 168,
+        name: "Hearth blade",
+        kind: Kind::BladeSkin,
+        tier: Rarity::Unique,
+        chroma: false,
+        droppable: false,
+        edition: crate::editions::ALPHA,
+        smith: SOL,
+        description: "A home fire: a warm amber blade of glowing coals with embers rising off it, that grows the longer you hold it. Flames come at a month, a heat shimmer at three, a blaze at six, and at a year hearthstones ring its emitter and ash drifts off its swings.",
+        how_to_get: PERSONAL_THANKS,
+    },
 ];
 
 /// The unlockable `id` names (spaces round it and case ignored), if this client knows it.
@@ -2929,7 +2944,10 @@ mod tests {
             ]
         );
         // Sol's thank-you gifts (25/10/2026).
-        assert_eq!(of(Rarity::Unique), ["saber_thousand_cranes"]);
+        assert_eq!(
+            of(Rarity::Unique),
+            ["saber_thousand_cranes", "saber_hearth"]
+        );
         let order = blade_skins_by_tier();
         assert_eq!(order.len(), blade_skins().count());
         assert!(order.windows(2).all(|pair| pair[0].tier >= pair[1].tier));
@@ -3052,6 +3070,7 @@ mod tests {
         let unlock = Unlock {
             id: "saber_sun".into(),
             granted: 1_791_336_225,
+            since: 0,
             note: "Thanks".into(),
             count: 1,
             medal: None,
@@ -3151,12 +3170,16 @@ mod tests {
         let grant = |id: &str| sjk_identity::Unlock {
             id: id.into(),
             granted: 1_793_000_000,
+            since: 0,
             note: String::new(),
             count: 1,
             medal: None,
             card: None,
         };
         let total = blade_skins().count();
+        let unique = blade_skins()
+            .filter(|skin| skin.hidden_unless_held())
+            .count();
         let sun = [grant("saber_sun")];
         for holdings in [
             Holdings::Known(&[]),
@@ -3167,8 +3190,8 @@ mod tests {
         ] {
             assert!(!holdings.shows(cranes), "{holdings:?}");
             assert!(holdings.listed().all(|skin| skin.id != cranes.id));
-            assert_eq!(holdings.listed().count(), total - 1);
-            assert_eq!(holdings.listed_count(), total - 1, "not counted");
+            assert_eq!(holdings.listed().count(), total - unique);
+            assert_eq!(holdings.listed_count(), total - unique, "not counted");
             assert_eq!(
                 holdings.listed().next().map(|skin| skin.id),
                 Some("saber_sun")
@@ -3182,7 +3205,7 @@ mod tests {
             Some("saber_thousand_cranes"),
             "the rarest first"
         );
-        assert_eq!(holder.listed_count(), total);
+        assert_eq!(holder.listed_count(), total - unique + 1);
         // Every other shader shows to everyone, held or not.
         assert!(
             blade_skins()
@@ -3404,6 +3427,7 @@ mod tests {
                 ("saber_alderaan_velvet", "Alderaan Velvet blade"),
                 ("saber_varykino_blossom", "Varykino Blossom blade"),
                 ("saber_thousand_cranes", "Thousand Cranes blade"),
+                ("saber_hearth", "Hearth blade"),
             ]
         );
         assert!(ALL.iter().all(Unlockable::is_blade_skin));

@@ -3,7 +3,9 @@
 //! to the identity service when it changes. A frame costs the feed's queue and the
 //! roster's revision (two uncontended locks each) and the own Illuminate; the names
 //! are compared and the table rebuilt only when a roster or an event comes, the own
-//! look changes, or twice a second.
+//! look changes, or twice a second. Twice a second the own look also takes the parts of
+//! the player's growing blades not grown yet off (`blade_growth.rs`), from the clock and
+//! the profile as they are then.
 
 use super::*;
 use crate::looks::Worn;
@@ -76,24 +78,50 @@ impl GpuState {
             #[cfg(not(test))]
             let shot = false;
             let owned = |id: &str| shot || player_identity::owns_unlock(id);
-            let held = Worn::own(&setting, &options, owned, lit).with_sounds(&sounds, owned);
-            let debug = self
+            // A growing blade's parts not grown yet are off on top of the player's own
+            // choice, worked out again from the clock and the profile at each turn, so a
+            // stage reached while playing (or a growth start the hub moved) goes out with
+            // the next look (a world shot's blades are fully grown).
+            let now = crate::blade_growth::now();
+            let locked = crate::blade_growth::locked_words(|skin| {
+                if shot {
+                    return Some(u32::MAX);
+                }
+                player_identity::with_own_unlock(skin, |unlock| {
+                    crate::blade_growth::days_held(unlock, now)
+                })
+            });
+            let held_options = crate::blade_growth::gated(&options, &locked);
+            let held = Worn::own(&setting, &held_options, owned, lit).with_sounds(&sounds, owned);
+            let wanted = self
                 .console
                 .as_ref()
-                .is_some_and(crate::debug_collectibles::wanted)
-                && player_identity::is_staff();
-            let own = if debug {
-                Worn::own(&setting, &options, |_| true, lit).with_sounds(&sounds, |_| true)
+                .map(crate::debug_collectibles::wanted)
+                .unwrap_or_default();
+            let debug = wanted.on && player_identity::is_staff();
+            // `debug_collectibles` draws every growing blade fully grown, or held the days
+            // `debug_growthDays` gives, as its Collection shows them.
+            let (own, drawn_locked) = if debug {
+                let locked = crate::blade_growth::locked_words(|skin| {
+                    crate::blade_growth::of(skin).map(|growth| wanted.days_of(growth))
+                });
+                let drawn = crate::blade_growth::gated(&options, &locked);
+                (
+                    Worn::own(&setting, &drawn, |_| true, lit).with_sounds(&sounds, |_| true),
+                    locked,
+                )
             } else {
-                held
+                (held, locked)
             };
-            sent = Some(
+            sent = Some((
                 held.with_toy(crate::cardboard_box::TOY, self.cardboard_box.on())
                     .with_toy(crate::order66::TOY, self.order66.on())
                     .with_toy(crate::hax::TOY, self.hax.on())
                     .with_toy(crate::hax::AWAY_TOY, away_hackable)
                     .with_toy(crate::drone::TOY, self.drone.on()),
-            );
+                held_options,
+                drawn_locked,
+            ));
             (own.saber_skin, own.options_off, own.sounds)
         } else {
             let own = self.looks.own();
@@ -111,9 +139,9 @@ impl GpuState {
         .with_toy(crate::hax::TOY, self.hax.on())
         .with_toy(crate::hax::AWAY_TOY, away_hackable)
         .with_toy(crate::drone::TOY, self.drone.on());
-        if let Some(sent) = sent {
-            player_identity::set_look(&sent.to_look(&options));
-            self.looks.set_own_options(options);
+        if let Some((sent, held_options, drawn_locked)) = sent {
+            player_identity::set_look(&sent.to_look(&held_options));
+            self.looks.set_own_options(options, drawn_locked);
             // Who sits where, and the own name, for the saber shaders drawn from them.
             let slots = session.map_or_else(
                 || [crate::saber_persona::Persona::default(); crate::saber_skins::MAX_CLIENTS],
