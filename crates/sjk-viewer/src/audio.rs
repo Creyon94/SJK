@@ -87,6 +87,9 @@ pub(crate) struct GameAudio {
     sound_table_refresh: Option<SoundTableRefresh>,
     legacy_vfs: Option<Arc<VirtualFileSystem>>,
     map_music: Option<(SoundHandle, SoundHandle)>,
+    /// Music decoded for the current selection, outside `handles`, so it can be freed
+    /// when the music changes (`audio_assets.rs`).
+    music_tracks: Vec<assets::MusicTrack>,
     duel_music: Option<SoundHandle>,
     deferred_snapshots: VecDeque<(Instant, Snapshot, DeferredSoundChanges)>,
     music_value: Option<Vec<u8>>,
@@ -246,6 +249,7 @@ impl GameAudio {
             box_music: Vec::with_capacity(8),
             hax_loop: None,
             map_music: None,
+            music_tracks: Vec::with_capacity(8),
             duel_music: None,
             deferred_snapshots: VecDeque::with_capacity(16),
             music_value: None,

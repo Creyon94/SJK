@@ -296,6 +296,8 @@ includes:
 - texture detail also shrinking sky boxes, material maps and textures uploaded without
   mips (25/10/2026), and shaders that say `nopicmip` or `nomipmaps` keeping full size, as
   in the original game;
+- sounds kept as 16-bit samples instead of floats (25/10/2026), half the memory, and a
+  map's music freed once the next music is chosen instead of staying decoded all session;
 - Discord status (`cl_discordPresence`): the player's Discord profile showing the menu
   screen, or the server, map, mode, team and players, through the Discord app's
   local pipe;

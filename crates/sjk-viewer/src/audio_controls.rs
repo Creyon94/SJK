@@ -376,7 +376,8 @@ impl GameAudio {
         let stats = &self.output.stats;
         crate::log::progress(format_args!(
             "audio trace: peak={:.3} blocks={} music starts={} rejected={} \
-             decode failures={} handle mismatches={} split loop frames={} sounds={}",
+             decode failures={} handle mismatches={} split loop frames={} sounds={} \
+             pcm={:.1}MiB freed={:.1}MiB kept={}",
             stats.take_peak(),
             stats.rendered_blocks.load(Ordering::Relaxed),
             stats.music_starts.load(Ordering::Relaxed),
@@ -385,6 +386,9 @@ impl GameAudio {
             stats.handle_mismatches.load(Ordering::Relaxed),
             stats.split_loop_frames.load(Ordering::Relaxed),
             self.handles.len(),
+            stats.pcm_bytes.load(Ordering::Relaxed) as f64 / (1024.0 * 1024.0),
+            stats.freed_bytes.load(Ordering::Relaxed) as f64 / (1024.0 * 1024.0),
+            stats.releases_kept.load(Ordering::Relaxed),
         ));
     }
 }

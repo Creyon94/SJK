@@ -1448,6 +1448,51 @@ attacks included) every command holds the walk with no key past 64, the attacks 
 mirrored 4-24 ms late, it crouches, tracks within 8 units with no delay and 5 with 0.3
 seconds, and ends within 2. Not yet tried in a game.
 
+## Sound memory
+
+Every sound is decoded once, on the audio decode worker, to mono PCM at the mixer's
+44.1 kHz and kept for the session in the mixer's bank
+([sjk-audio](../crates/sjk-audio/src/lib.rs)). Since 25/10/2026 the bank keeps 16-bit
+samples, not 32-bit floats: half the memory. A 16-bit source (nearly all retail and
+community sounds) is kept exactly; a resampled sound (most retail WAVs are 22.05 kHz)
+or a float WAV is rounded to the nearest 16-bit step, at most 1/65536 of
+full scale off (a float WAV louder than full scale is clipped there). The mixer turns
+each sample back into a float as it reads it, with the 1/32768 step folded into the
+gain it already multiplies by, so mixing costs what it did and still never allocates.
+WAVs and MP3s decode straight to 16-bit mono (a WAV into room for its header's
+length), so decoding a long track no longer holds float copies of it as well.
+
+Music is no longer kept forever. A map's tracks are decoded as music, under handles of
+their own outside the shared sound cache (`MusicTrack` in
+[audio_assets.rs](../crates/sjk-viewer/src/audio_assets.rs)), and when the music is
+chosen again (the next map, a `CS_MUSIC` change, `music`, `stopmusic`, a map without
+music) the tracks the new choice does not use are released. The release travels the
+decode queue behind the track's registration; the audio callback stops whatever plays
+the sound, takes its PCM out of the bank (the handle then plays nothing and is never
+reused) and hands it back over a ring to the decode worker, which frees it. The
+callback never frees memory and takes no lock. A file another sound decoded first is
+shared and never released this way: the duel music (`music/mp/duel.mp3`) stays
+decoded for the session, as do effects and voices. A duel suspends the map's track
+without releasing it, and a dynamic music level keeps its states' tracks until the
+level changes. A map change only stops the old music: the next map's prefetch may hold
+the same tracks, so they are released when its music is chosen.
+
+Retail figures, mono at 44.1 kHz (`crates/sjk-audio/tests/retail_memory.rs`, ignored;
+`JKA_GAME_DATA=<GameData> cargo test --release -p sjk-audio --test retail_memory --
+--ignored --nocapture`): the 302 effect WAVs under `sound/`, 31.5 MiB of files, took
+127.1 MiB as floats and take 63.5 MiB; a music track averages 9.7 MiB as floats and
+4.8 MiB now, the longest (`yavtemp_explore`) 47.2 and 23.6 MiB. Before, every map's
+music stayed decoded on top of the last one. `soundinfo` prints the decoded total;
+with `SJK_TRACE_AUDIO=1` the audio trace adds it (`pcm`), what was freed (`freed`) and
+releases kept for want of room (`kept`, expected 0).
+
+Unit tests: `pcm16_tests` in sjk-audio (a 16-bit WAV kept exactly; voices, loops and
+music within 1/32768 of the float samples they replaced; a released sound hands back
+its PCM and stops playing; mixing and releasing make no allocator call, checked with
+the test-only `assert_no_alloc` allocator) and `music_memory_tests` in the viewer (a
+new track frees the old one on the decode worker, a shared one stays, prefetched music
+is music). Not yet listened to in a game.
+
 ## Sound listener
 
 The mixer hears from one place a frame, as cgame's `S_Respatialize` from

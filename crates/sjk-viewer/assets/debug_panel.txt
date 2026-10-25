@@ -2719,6 +2719,15 @@ note: Not run in a game against the deployed hub; the sounds have not been heard
 
 # ---- Audio ----
 
+[sound-memory]
+area: Audio
+title: Sounds kept at 16 bits (half the memory), old map music freed
+change: Every sound and music track is stored as 16-bit samples instead of floats.
+change: A map's music is freed once the next music is chosen, instead of piling up.
+test: Play a few maps: sounds, voices, loops and music sound as before (no crackle, no clicks).
+test: Change map a few times, then soundinfo: decoded total stays level, freed bytes grow.
+test: music and stopmusic in the console still play and stop the music.
+
 [stereo-sides]
 area: Audio
 title: Sounds on your right play in your right ear again
