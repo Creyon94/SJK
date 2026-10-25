@@ -30,6 +30,16 @@ The site (site/assets/site.js, parseChangelog) reads the release headings,
 introductions and recap lines too.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
+## 2026.1025.4 (Alpha) | 25/10/2026
+
+A small hotfix on top of 2026.1025.3.
+
+> Hotfix: A small general fix on top of 2026.1025.3.
+> Nothing to relearn: Everything else works as in 2026.1025.3.
+> Updating: The in-game update is all it takes.
+
+- A small general fix _(Sol)_
+
 ## 2026.1025.3 (Alpha) | 25/10/2026
 
 Team boxes for capture the flag, bodies that fade away, encrypted whispers kept to verified players, and fewer stutters in busy matches.
