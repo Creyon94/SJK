@@ -2205,13 +2205,16 @@ every menu style, on the 16:9 frame:
   Asking from a card or the command opens it at once. A request from another player
   never opens it by itself, in game or in the main menu: only the toast shows until its
   Open trade, or Esc in play (Sol's review, 24/10/2026: it took every key over the menus,
-  and Enter accepted). The other cards come first.
+  and Enter accepted). Esc in play means the game menu opening from play, so a request
+  that came during play stays a toast when the player leaves for the main menu (Sol's
+  review, 25/10/2026). The other cards come first.
 - **From the main menu:** no game is needed: the toast and the window show over the main
   menu too (the pointer is free there, so the toast is always a button), and Close keeps
   the window closed until the toast's Open trade.
 - **Blocked players** (Sol's decision, 24/10/2026): a request from a player blocked on
   this PC is declined without a word (no toast, no window), and no card offers Trade
-  with them (the Players page says "You blocked this player").
+  with them (the Players page says "You blocked this player"); `trade <player>` refuses
+  them too ("you blocked this player", Sol's review, 25/10/2026).
 - **The SJK chat page:** its sender card offers Trade too (by the player's SJK key); the
   page closes and the window opens over the game or the main menu.
 - **Request:** the kit's card, 800 wide from x 560, y 300, over a light shade (the match

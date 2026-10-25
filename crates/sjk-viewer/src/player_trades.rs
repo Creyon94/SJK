@@ -53,6 +53,9 @@ pub(crate) struct State {
     window_copy: Option<(i64, u64)>,
     /// A request from a blocked player, declined without a word (Sol's decision 1).
     quiet: Option<i64>,
+    /// The player was in play (a game, no game menu) last frame: the game menu opening
+    /// from there is Esc in play, which brings a closed window back.
+    was_in_play: bool,
     /// A world shot's trade, shown in the window (true) or the toast, with no hub.
     #[cfg(test)]
     pub(crate) shot: Option<(View, bool)>,
@@ -345,6 +348,13 @@ pub(crate) fn blocked(key_id: &str, name: &str) -> bool {
     crate::player_mutes::is_muted(Some(key_id), name)
 }
 
+/// Whether the game menu just opened from play (Esc in play), which brings a closed trade
+/// window back: `was_in_play` last frame, the game menu up in a game now. Never in the
+/// main menu, where only the toast's Open trade does.
+fn esc_in_play(was_in_play: bool, game_menu: bool, in_game: bool) -> bool {
+    was_in_play && game_menu && in_game
+}
+
 impl crate::GpuState {
     /// Once a frame: read the player's trades, choose what the window and the toast show.
     ///
@@ -362,11 +372,15 @@ impl crate::GpuState {
         if OPEN_REQUEST.swap(false, std::sync::atomic::Ordering::Relaxed) {
             self.open_trade_window();
         }
-        // Out of the game menu in a game, Esc opens the trade window again. In the main
-        // menu, it stays closed until the toast's Open trade.
-        if !self.game_menu && self.live_session.is_some() {
+        // Esc in play (the game menu opening from play) opens the trade window again. In
+        // the main menu, it stays closed until the toast's Open trade, also for a request
+        // that came during play (Sol's review, 25/10/2026: clearing it every frame in play
+        // let such a request open over the main menu).
+        let in_game = self.live_session.is_some();
+        if esc_in_play(self.trades.was_in_play, self.game_menu, in_game) {
             self.trades.hidden = None;
         }
+        self.trades.was_in_play = in_game && !self.game_menu;
         if let Some(slot) = self.chat.take_trade_request()
             && let Err(why) = self.trade_with_slot(slot)
             && let Some(console) = self.console.as_mut()
@@ -753,6 +767,11 @@ impl crate::GpuState {
             .ok_or_else(|| "no such player".to_owned())?;
         let mark = player_identity::hub_mark(shown.0, &shown.1)
             .ok_or_else(|| "they are not an SJK player the hub knows here".to_owned())?;
+        // As the cards and the Players page: no request to a blocked player (Sol's
+        // review, 25/10/2026).
+        if blocked(&mark.key_id, &shown.1) {
+            return Err("you blocked this player".to_owned());
+        }
         player_identity::with_service(|service| service.trade_ask(&mark.key_id))
             .ok_or_else(|| "the SJK identity is off (cl_identity 1)".to_owned())?;
         self.open_trade_window();
@@ -964,6 +983,18 @@ mod tests {
         view.trade.theirs.ready = false;
         refresh(&mut view, &clock, None, read_at);
         assert_eq!((view.confirm_in, view.resets_in), (None, None));
+    }
+
+    /// Only the game menu opening from play brings a closed window back: staying in the
+    /// game menu, play itself and the main menu do not, so a request that came during play
+    /// never opens over the main menu by itself (Sol's review, 25/10/2026).
+    #[test]
+    fn only_esc_in_play_reopens_the_window() {
+        assert!(esc_in_play(true, true, true), "Esc in play");
+        assert!(!esc_in_play(true, false, true), "still in play");
+        assert!(!esc_in_play(false, true, true), "already in the game menu");
+        assert!(!esc_in_play(true, false, false), "left for the main menu");
+        assert!(!esc_in_play(false, false, false), "in the main menu");
     }
 
     /// Sol's decision 1: a blocked player's requests are declined without a word.
