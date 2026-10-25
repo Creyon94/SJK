@@ -1,3 +1,18 @@
+## Decoded images no longer pile up
+
+25/10/2026, `personal/decoded-image-sweep`, based on `main` `296fca5f`: the decoded image
+cache never dropped an image, so every texture of every map, model and HUD a session
+saw stayed in memory at full size (the processor's side of the "about 1 GB per world"
+in [rendering.md](rendering.md#gpu-memory)). Past 128 MiB more than the last sweep kept,
+the next image decoded now sweeps out every image only the cache holds
+([rendering.md](rendering.md#load-time-texture-and-light-preparation)). Verified on
+Windows 11, RTX 5080, Vulkan: unit tests of the sweep (held images stay in both
+indexes, unheld ones go, the mark moves); `map_changes_vram` at r_picmip 2 over twelve
+map changes, the cache 1750 MiB from the third map on before, 906 to 1178 MiB after,
+with the same video memory and 302 shared textures. Not verified: process memory in a
+live session, a model or effect texture decoded again after a sweep (decoded again from
+its file, as on a cache miss).
+
 ## Card pictures only when drawn
 
 25/10/2026, `personal/card-faces-lazy`, based on `main` `ab4bd57b`: the hub's crash

@@ -2076,6 +2076,13 @@ test: Menus, console, chat (with Russian/Japanese and emoji), HUD numbers: text 
 test: Classic and SJK menu styles, retail fonts and SJK fonts: no missing or blocky glyphs.
 test: cg_groundHud 1 (ground HUD): its digits still draw.
 
+[decoded-image-sweep]
+area: Rendering & effects
+title: Decoded textures of maps you left are freed (memory no longer grows map after map)
+change: Past 128 MiB more than last time, images only the cache holds are dropped.
+test: Play several maps in a row: Task Manager memory stops growing after the second or third.
+test: Go back to a map you played: it loads and looks the same.
+
 [stock-blades-menu-cap]
 area: Rendering & effects
 title: Stock blades (cg_stockBlades) and a menu frame cap (com_maxfpsMenu) for weak PCs

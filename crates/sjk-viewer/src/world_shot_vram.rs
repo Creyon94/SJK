@@ -82,9 +82,10 @@ fn map_changes_vram() {
             let _ = frame(&mut gpu, 4);
             let (total, by_label) = live(&gpu.device);
             eprintln!(
-                "vram: change {change:2} {map:28} peak {:6.0} MiB, after {:6.0} MiB",
+                "vram: change {change:2} {map:28} peak {:6.0} MiB, after {:6.0} MiB, decoded images {:5.0} MiB",
                 peak as f64 / MIB,
-                total as f64 / MIB
+                total as f64 / MIB,
+                crate::decoded_image_cache::held_bytes() as f64 / MIB
             );
             for (label, bytes) in &by_label {
                 let before = previous.get(label).copied().unwrap_or(0);
