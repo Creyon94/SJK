@@ -550,11 +550,16 @@ impl Panel {
             let _ = self.filter_changed();
         }
         let by_tier = self.grid || self.shader_sort == ShaderSort::Tier;
+        // The shader chosen last frame, in last frame's list: a list that changes under it
+        // (a Unique shader the hub's answer brings first, one given or taken back) keeps it
+        // chosen rather than whatever now stands at its place.
+        let chosen = self.skin_at(self.shader).map(|skin| skin.id);
         let rows = Self::rows(inputs, &self.shader_filter, self.shader_sort, by_tier);
         self.shader_list = rows.iter().filter_map(|row| row.skin).collect();
         self.shader_count = rows.len();
         // A blade card's button (or a change of view or order) asked for its shader.
-        if let Some(id) = self.shader_focus.take()
+        let wanted = self.shader_focus.take().or(chosen);
+        if let Some(id) = wanted
             && let Some(row) = rows
                 .iter()
                 .position(|row| row.skin.is_some_and(|skin| skin.id == id))
@@ -562,7 +567,9 @@ impl Panel {
             self.shader = row;
         }
         if self.shader >= rows.len() {
+            // Opening on what is worn: from the top, scrolled only as far as it needs.
             self.shader = rows.iter().position(|row| row.worn).unwrap_or(0);
+            self.shader_first = 0;
         }
         let owned = unlockables::blade_skins()
             .filter(|skin| inputs.holdings.unlock(skin.id).is_some())
@@ -2511,6 +2518,67 @@ mod tests {
                 }
             }
         }
+    }
+
+    /// Sol's report (26/10/2026): reopened after scrolling, the wall started at the worn
+    /// shader's tier and hid what stood above it (the stock blade, his Unique shaders)
+    /// until a filter put it back at the top. Reopening starts from the top again, the worn
+    /// shader chosen and shown; and the hub's answer bringing Unique shaders first keeps
+    /// the shader chosen.
+    #[test]
+    fn reopening_starts_from_the_top_and_the_chosen_stays_chosen() {
+        let held = [
+            unlock("saber_sun"),
+            unlock("saber_thousand_cranes"),
+            unlock("saber_hearth"),
+        ];
+        let font = crate::text::load_modern(1.0, None).expect("Inter").font;
+        let inputs = Inputs {
+            grid: true,
+            ..super::super::tests::inputs(unlockables::Holdings::Known(&held), "saber_sun")
+        };
+        let mut panel = Panel::new();
+        panel.open(Tab::Shaders, true, true, ReturnTarget::MainMenu);
+        panel.build(&inputs, &font, [3_840.0, 2_160.0]);
+        for _ in 0..8 {
+            panel.scroll_shaders(false);
+            panel.build(&inputs, &font, [3_840.0, 2_160.0]);
+        }
+        assert!(panel.shader_first > 0, "scrolled down");
+        let _ = panel.close();
+        panel.open(Tab::Shaders, true, true, ReturnTarget::MainMenu);
+        panel.build(&inputs, &font, [3_840.0, 2_160.0]);
+        assert_eq!(panel.shader_first, 0, "from the top");
+        assert_eq!(
+            panel.skin_at(panel.shader).map(|skin| skin.id),
+            Some("saber_sun")
+        );
+        for row in 0..3 {
+            assert!(
+                panel.ui.rect_for(SHADER_BASE + row).is_some(),
+                "row {row} (the stock blade, the Unique ones) shown"
+            );
+        }
+        // The Void chosen while the hub has not answered; its answer brings the Unique
+        // shaders first, and the Void stays chosen.
+        let only_sun = [unlock("saber_sun")];
+        let before = Inputs {
+            grid: true,
+            ..super::super::tests::inputs(unlockables::Holdings::Known(&only_sun), "saber_sun")
+        };
+        let mut panel = Panel::new();
+        panel.open(Tab::Shaders, true, true, ReturnTarget::MainMenu);
+        panel.build(&before, &font, [1_920.0, 1_080.0]);
+        panel.shader = 1 + panel
+            .shader_list
+            .iter()
+            .position(|skin| skin.id == "saber_void")
+            .expect("the Void");
+        panel.build(&inputs, &font, [1_920.0, 1_080.0]);
+        assert_eq!(
+            panel.skin_at(panel.shader).map(|skin| skin.id),
+            Some("saber_void")
+        );
     }
 
     /// With Unique's segment (a player who holds a Unique shader) the strip still stands in
