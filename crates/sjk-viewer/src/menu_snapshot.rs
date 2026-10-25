@@ -24,7 +24,7 @@ use crate::menu::art::{ArtPiece, ArtSet};
 use crate::menu::classic::layout::{Entry, Page, Panel, Span};
 use crate::menu::classic::panel::{Frame, PanelFrame};
 use crate::settings::SettingsMenu;
-use image::{Rgba, RgbaImage};
+use image::{GrayImage, Rgba, RgbaImage};
 use sjk_ui::{DrawCommand, DrawList, Rect};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -225,7 +225,7 @@ fn raster(
     image: &mut RgbaImage,
     list: &DrawList,
     vertices: &[crate::text::TextVertex],
-    atlas: &RgbaImage,
+    atlas: &GrayImage,
     icons: &HashMap<u32, RgbaImage>,
 ) {
     let decoded = crate::menu::art::decoded();
@@ -468,10 +468,10 @@ fn raster(
 }
 
 /// Draw text `vertices` from `atlas` over `image`.
-fn raster_text(image: &mut RgbaImage, vertices: &[crate::text::TextVertex], atlas: &RgbaImage) {
+fn raster_text(image: &mut RgbaImage, vertices: &[crate::text::TextVertex], atlas: &GrayImage) {
     // Each glyph is six vertices `[x, y, u, v, r, g, b, a]` in clip space,
-    // top-left first and bottom-right third; its coverage is the atlas
-    // alpha averaged over each pixel's footprint. A wide glyph's coverage is the
+    // top-left first and bottom-right third; its coverage is the atlas's
+    // averaged over each pixel's footprint. A wide glyph's coverage is the
     // wide atlas's (`text::wide`), and an emoji draws its own colours from the emoji
     // atlas (`text::emoji`; black for a shadow), as `text.wgsl` picks them.
     use crate::text::{emoji, wide};
@@ -517,7 +517,7 @@ fn raster_text(image: &mut RgbaImage, vertices: &[crate::text::TextVertex], atla
                     .unwrap_or(0);
                 ([tint[0], tint[1], tint[2]], f32::from(coverage) / 255.0)
             } else {
-                let coverage = atlas.get_pixel(tx, ty).0[3];
+                let coverage = atlas.get_pixel(tx, ty).0[0];
                 ([tint[0], tint[1], tint[2]], f32::from(coverage) / 255.0)
             }
         };
@@ -1845,8 +1845,8 @@ fn sjk_home_snapshot() {
 
 /// The text of an SJK UI snapshot, each family's vertices with its atlas.
 struct SjkShotFonts<'a> {
-    display: (&'a [crate::text::TextVertex], &'a RgbaImage),
-    body: (&'a [crate::text::TextVertex], &'a RgbaImage),
+    display: (&'a [crate::text::TextVertex], &'a GrayImage),
+    body: (&'a [crate::text::TextVertex], &'a GrayImage),
 }
 
 /// Save SJK UI snapshot `name`: `backdrop` covering the window (cropped at
@@ -2894,7 +2894,7 @@ fn strafe_aura_snapshot() {
             &mut image,
             &list,
             &[],
-            &RgbaImage::new(1, 1),
+            &GrayImage::new(1, 1),
             &HashMap::new(),
         );
         let directory = workspace_root().join("target/menu-snapshots");

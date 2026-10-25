@@ -120,7 +120,7 @@ impl Layer {
         }
     }
 
-    fn upload(name: &str, font: UiFont, image: image::RgbaImage, gpu: &Device<'_>) -> Self {
+    fn upload(name: &str, font: UiFont, image: image::GrayImage, gpu: &Device<'_>) -> Self {
         let started = std::time::Instant::now();
         let (width, height) = image.dimensions();
         // The same atlas in every world: a map change's next world takes the last one's.
@@ -144,12 +144,11 @@ impl Layer {
                     "game font {name}: {width}x{height} atlas, drawn from coverage"
                 ));
             }
-            let view = gpu_texture::create_rgba8_texture_mipmapped(
+            let view = gpu_texture::create_r8_texture_mipmapped(
                 gpu.device,
                 gpu.queue,
                 "SJK game font atlas",
                 &field,
-                true,
                 mip_levels(field.width(), field.height()),
             );
             (view, distance_field)

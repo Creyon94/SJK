@@ -10,6 +10,8 @@ struct VertexOutput {
     @location(1) color: vec4<f32>,
 };
 
+// The font's own atlas (`text.rs`): R8 coverage, or an R8 distance field for
+// `fragment_sdf`.
 @group(0) @binding(0)
 var font_texture: texture_2d<f32>;
 
@@ -64,16 +66,16 @@ fn vertex_main(input: VertexInput) -> VertexOutput {
 @fragment
 fn fragment_main(input: VertexOutput) -> @location(0) vec4<f32> {
     // Every atlas is sampled in uniform control flow; the vertex's u picks one.
-    let font = textureSample(font_texture, font_sampler, input.uv).a;
+    let font = textureSample(font_texture, font_sampler, input.uv).r;
     return shade(input, select(font, wide_coverage(input.uv), is_wide(input.uv)));
 }
 
-// Retail bitmap fonts are uploaded as signed distance fields (`text/sdf.rs`): alpha
-// 0.5 on the glyph edge. The edge is rebuilt one screen pixel wide at any scale, so
+// Retail bitmap fonts are uploaded as signed distance fields (`text/sdf.rs`): 0.5 on
+// the glyph edge. The edge is rebuilt one screen pixel wide at any scale, so
 // magnified game fonts stay sharp instead of showing the atlas's bilinear ramp.
 @fragment
 fn fragment_sdf(input: VertexOutput) -> @location(0) vec4<f32> {
-    let distance = textureSample(font_texture, font_sampler, input.uv).a;
+    let distance = textureSample(font_texture, font_sampler, input.uv).r;
     // Change of the encoded distance across one screen pixel; the clamp keeps a
     // heavily minified glyph from washing out to half coverage.
     let pixel = clamp(length(vec2(dpdx(distance), dpdy(distance))), 1.0e-4, 0.5);
