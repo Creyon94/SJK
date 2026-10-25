@@ -139,6 +139,29 @@ pub fn open(
     boxed: &str,
     now: i64,
 ) -> Result<String, OpenError> {
+    open_signed(identity, sender, server, boxed, now).map(|opened| opened.text)
+}
+
+/// A whisper opened with what proves it the sender's: the time and signature found
+/// inside, which a player report hands the hub (`PROTOCOL.md`, "Player reports").
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Opened {
+    /// The whisper's text.
+    pub text: String,
+    /// When the sender sealed it, unix seconds.
+    pub time: i64,
+    /// The sender's signature over the whisper's signed message.
+    pub signature: [u8; 64],
+}
+
+/// [`open`], keeping the time and signature.
+pub fn open_signed(
+    identity: &Identity,
+    sender: &[u8; 32],
+    server: &str,
+    boxed: &str,
+    now: i64,
+) -> Result<Opened, OpenError> {
     let bytes = B64.decode(boxed).map_err(|_| OpenError::Unreadable)?;
     let (Some(&VERSION), Some(ephemeral), Some(sealed)) =
         (bytes.first(), bytes.get(1..33), bytes.get(33..))
@@ -164,7 +187,8 @@ pub fn open(
     };
     let time = i64::from_le_bytes(time.try_into().map_err(|_| OpenError::Unreadable)?);
     let text = std::str::from_utf8(text).map_err(|_| OpenError::Unreadable)?;
-    let signature = Signature::from_slice(signature).map_err(|_| OpenError::Forged)?;
+    let signed: [u8; 64] = signature.try_into().map_err(|_| OpenError::Forged)?;
+    let signature = Signature::from_bytes(&signed);
     VerifyingKey::from_bytes(sender)
         .and_then(|key| {
             key.verify_strict(
@@ -176,7 +200,11 @@ pub fn open(
     if (now - time).abs() > CLOCK_WINDOW {
         return Err(OpenError::Stale);
     }
-    Ok(text.to_owned())
+    Ok(Opened {
+        text: text.to_owned(),
+        time,
+        signature: signed,
+    })
 }
 
 /// A whisper the viewer hands the relay to seal and send.
@@ -214,8 +242,8 @@ pub struct Received {
     pub key_id: String,
     /// The key that sealed it (unpadded base64url).
     pub from: String,
-    /// The text, or why it could not be opened.
-    pub text: Result<String, OpenError>,
+    /// The text, with its time and signature, or why it could not be opened.
+    pub text: Result<Opened, OpenError>,
 }
 
 /// Why `failure` kept a whisper from going, in a player's words.
@@ -226,6 +254,11 @@ pub(crate) fn failure_words(failure: &crate::HubError) -> String {
         }
         crate::HubError::Rejected { code, .. } if code == "whisper_quota" => {
             "you whispered too often; wait a moment".to_owned()
+        }
+        crate::HubError::Rejected { code, .. } if code == "whisper_not_verified" => {
+            "only verified players start encrypted whispers; you may answer one for 30 \
+             minutes"
+                .to_owned()
         }
         crate::HubError::Rejected { code, .. } if code == "not_on_server" => {
             "the hub does not see you on this server yet".to_owned()
@@ -454,6 +487,27 @@ mod tests {
         assert_ne!(
             boxed,
             seal(&sol, &fox.public_key(), SERVER, 1_000, "hello ^1there").unwrap()
+        );
+    }
+
+    #[test]
+    fn an_opened_whisper_keeps_the_senders_proof() {
+        let (sol, fox) = (Identity::generate().unwrap(), Identity::generate().unwrap());
+        let boxed = seal(&sol, &fox.public_key(), SERVER, 1_000, "buy credits").unwrap();
+        let opened = open_signed(&fox, &sol.public_key(), SERVER, &boxed, 1_010).unwrap();
+        assert_eq!((opened.text.as_str(), opened.time), ("buy credits", 1_000));
+        // What the hub checks of a reported whisper: Sol's signature, to Fox, there.
+        let message = signed_message(
+            &sol.public_key(),
+            &fox.public_key(),
+            SERVER,
+            opened.time,
+            &opened.text,
+        );
+        let key = VerifyingKey::from_bytes(&sol.public_key()).unwrap();
+        assert!(
+            key.verify_strict(&message, &Signature::from_bytes(&opened.signature))
+                .is_ok()
         );
     }
 

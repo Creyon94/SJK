@@ -490,6 +490,18 @@ pub(crate) fn with_snapshot<R>(read: impl FnOnce(&Snapshot) -> R) -> Option<R> {
         .map(|service| service.with_snapshot(read))
 }
 
+/// Whether the hub vouches for the player (verified or staff): only they start
+/// encrypted whispers (`e2e_whispers.rs`).
+pub(crate) fn vouched() -> bool {
+    with_snapshot(|snapshot| {
+        snapshot
+            .me
+            .as_ref()
+            .is_some_and(|me| me.verified || me.staff)
+    })
+    .unwrap_or(false)
+}
+
 /// Why the key file could not be used, if that is why there is no identity.
 pub(crate) fn key_error() -> Option<String> {
     lock().key_error.clone()

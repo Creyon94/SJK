@@ -204,6 +204,7 @@ fn only_a_verified_player_on_the_server_reports_another() {
         build: "e2e".to_owned(),
         level_time: Some(754),
         name: "^2Reporter".to_owned(),
+        whisper: None,
     };
     let refused = hub.player_report(&me, &report).unwrap_err();
     assert!(

@@ -939,6 +939,16 @@ fn player_report_body(report: &PlayerReport) -> Value {
     if let Some(time) = report.level_time {
         body["level_time"] = json!(time);
     }
+    if let Some(whisper) = &report.whisper {
+        use base64::Engine;
+        body["whisper"] = json!({
+            "from": whisper.from,
+            "time": whisper.time,
+            "text": whisper.text,
+            "signature": base64::engine::general_purpose::URL_SAFE_NO_PAD
+                .encode(whisper.signature),
+        });
+    }
     body
 }
 
@@ -1808,6 +1818,21 @@ mod tests {
         assert_eq!(body["target_key_id"], "0123456789abcdef");
         assert_eq!(body["server_name"], "^4JoF");
         assert_eq!(body["name"], "^2Sol");
+        let whispered = PlayerReport {
+            whisper: Some(crate::ReportedWhisper {
+                from: "a2V5".to_owned(),
+                time: 1_000,
+                text: "buy credits".to_owned(),
+                signature: [0xff; 64],
+            }),
+            ..named
+        };
+        let body = player_report_body(&whispered);
+        assert_eq!(
+            body["whisper"],
+            json!({"from": "a2V5", "time": 1_000, "text": "buy credits",
+                   "signature": "_".repeat(85) + "w"})
+        );
     }
 
     #[test]

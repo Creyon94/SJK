@@ -252,6 +252,12 @@ particular this switch does not advertise `binoScan` or `cg_pickupConfirm`:
 those separately opt into binocular/party data and versioned pickup confirmation,
 and are still not implemented here. The existing `cjp_client` identity stays SJK.
 
+`jof.e2eWhispers` (archived, off by default; 25/10/2026, JoF's request) turns encrypted
+whispers back on on JoF servers. Without it, whispers there go through the game server,
+where JoF moderates them (against advertising), and the player takes no encrypted
+whispers there either. The client reads it whatever the mod's switch: the family table is
+`e2e_whispers::PLAIN_FAMILIES` ([hub-chat.md](hub-chat.md#encrypted-whispers)).
+
 `jof.abilitySounds` (archived, on by default) controls only local Stasis/Repulse
 confirmation audio; muting it does not withdraw the broader server opt-in.
 The JoF mod owns the documented command/sound table and independent 250 ms gates

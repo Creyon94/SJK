@@ -654,6 +654,7 @@ impl ViewerConsole {
             gameplay_fps,
             frame_cap: crate::runtime_settings::STOCK_FPS_CAP,
             server_cap: None,
+            server_family: None,
             caps_lifted,
             input_health: Default::default(),
             pmove_fixed,
@@ -955,6 +956,7 @@ impl ViewerConsole {
             info: raw.clone().into_owned(),
         };
         self.server_cap = crate::server_caps::find(&server_info);
+        self.server_family = server_info.family();
         if let Some(cap) = self.server_cap {
             self.shell.push_log(format!(
                 "gameplay FPS: {} servers take {} commands a second at most{}",

@@ -286,6 +286,8 @@ pub(crate) struct ViewerConsole {
     /// The server's known command cap (JoF's 8 ms), from its serverinfo
     /// ([`crate::server_caps`]).
     server_cap: Option<&'static crate::server_caps::ServerCap>,
+    /// The server's family, when SJK knows it (`sjk_mod::known_servers`).
+    server_family: Option<&'static sjk_mod::KnownServer>,
     /// `gameplay_fps_nocap`: 1 lifts the known caps.
     caps_lifted: console_cvars::IntegerSetting,
     /// Whether the server takes the inputs at that step ([`crate::input_health`]).
@@ -444,6 +446,11 @@ impl ViewerConsole {
     /// The server's known command cap ([`crate::server_caps`]), lifted or not.
     pub(crate) fn server_cap(&self) -> Option<&'static crate::server_caps::ServerCap> {
         self.server_cap
+    }
+
+    /// The server's family, when SJK knows it (`sjk_mod::known_servers`).
+    pub(crate) fn server_family(&self) -> Option<&'static sjk_mod::KnownServer> {
+        self.server_family
     }
 
     /// Whether `gameplay_fps_nocap` lifts the known caps.

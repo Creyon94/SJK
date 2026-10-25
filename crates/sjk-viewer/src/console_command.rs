@@ -340,6 +340,7 @@ impl ViewerConsole {
         self.mods.set_server(None);
         self.server_profile = None;
         self.server_cap = None;
+        self.server_family = None;
         self.input_health.reset();
         self.mods.sync(&mut self.shell);
         self.refresh_server_help();

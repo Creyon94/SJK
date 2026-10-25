@@ -143,6 +143,9 @@ pub(crate) struct State {
     pub(crate) waiting: bool,
     /// The serial of the last outcome shown.
     pub(crate) serial: u64,
+    /// The players (key ids) whose last encrypted whisper to us can go with a report
+    /// (`e2e_whispers.rs`): any SJK player may report them, not only a verified one.
+    pub(crate) whispered: Vec<String>,
     /// A made-up roster the tests set stays as it is.
     #[cfg(test)]
     held: bool,
@@ -286,10 +289,36 @@ impl State {
 
     /// Why the chosen player cannot be reported now, if they cannot.
     pub(crate) fn blocked(&self) -> Option<&'static str> {
-        self.gate.reason().or_else(|| {
-            self.target()
-                .map_or(Some("No player chosen"), Player::unreportable)
-        })
+        self.target()
+            .map_or(Some("No player chosen"), |player| self.blocked_for(player))
+    }
+
+    /// Why `player` cannot be reported now, if they cannot: a player who is not
+    /// verified reports one who whispered them, their whisper with it.
+    pub(crate) fn blocked_for(&self, player: &Player) -> Option<&'static str> {
+        match self.gate {
+            Gate::NotVerified if self.whispered_by(player) => None,
+            gate => gate.reason(),
+        }
+        .or_else(|| player.unreportable())
+    }
+
+    /// Whether `player`'s last encrypted whisper to us goes with a report.
+    pub(crate) fn whispered_by(&self, player: &Player) -> bool {
+        player
+            .hub
+            .as_ref()
+            .is_some_and(|hub| self.whispered.contains(&hub.key_id))
+    }
+
+    /// Choose the player in `slot` for a report, showing the page they are on; false
+    /// when nobody is there.
+    pub(crate) fn choose_slot(&mut self, slot: u8) -> bool {
+        let Some(index) = self.players.iter().position(|player| player.slot == slot) else {
+            return false;
+        };
+        self.offset = index - index % PAGE_ITEMS;
+        self.choose(index % PAGE_ITEMS)
     }
 
     /// Rows of `page`: the shown players, More players... when there are more, and
@@ -463,6 +492,10 @@ impl State {
             (Some(_), Some(key)) => format!("SJK hub  /  {key}"),
             _ => "SJK hub  /  not known to the hub".to_owned(),
         });
+        if self.whispered_by(player) {
+            self.info
+                .push("Whisper  /  Their last encrypted whisper goes with it".to_owned());
+        }
         if let Some(reason) = self.blocked() {
             self.info.push(format!("Report  /  {reason}"));
         }
@@ -694,5 +727,32 @@ mod tests {
             assert!(gate.reason().is_some_and(|reason| reason.len() < 60));
         }
         assert_eq!(Gate::Open.reason(), None);
+    }
+
+    #[test]
+    fn a_player_not_verified_reports_one_who_whispered_them() {
+        let mut state = State::for_shot(5, false, Gate::NotVerified);
+        assert!(state.choose_slot(0));
+        assert_eq!(state.target().map(|player| player.slot), Some(0));
+        assert_eq!(state.blocked(), Gate::NotVerified.reason());
+        state.whispered = vec!["0123456789abcdef".to_owned()];
+        assert_eq!(state.blocked(), None, "Vulpes whispered them");
+        state.write_info();
+        assert!(
+            state
+                .info(Page::ReportPlayer)
+                .iter()
+                .any(|line| line.starts_with("Whisper  /  "))
+        );
+        // Another player is still closed to them, and an offline hub closes it all.
+        assert!(state.choose_slot(3));
+        assert_eq!(state.blocked(), Gate::NotVerified.reason());
+        assert!(!state.choose_slot(40), "nobody there");
+        let offline = State {
+            whispered: state.whispered.clone(),
+            ..State::for_shot(5, false, Gate::Offline)
+        };
+        let vulpes = &offline.shown()[0];
+        assert_eq!(offline.blocked_for(vulpes), Gate::Offline.reason());
     }
 }

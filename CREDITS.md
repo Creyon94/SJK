@@ -72,7 +72,9 @@ includes:
   rewarded and why, and a window to Claim one's own (25/10/2026);
 - end-to-end encrypted whispers: whispers between SJK players sealed to the
   recipient's key and carried by the SJK hub, which cannot read them
-  (22/10/2026);
+  (22/10/2026); started by verified players only, answered by the others, kept on the
+  game server on JoF's servers unless a player turns them on there, and reported with
+  the sender's own signature (25/10/2026);
 - medals, the recognition the SJK team gives players, on the scoreboard, the
   player card and the Identity page, with medal pictures generated and chosen by
   Sol;
