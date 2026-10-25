@@ -572,7 +572,7 @@ merged into SJK
 - #198 "Too many open files" after a long session: the Profile menu's model icons, cosmetics and
   Force templates let go of the previous map's game files (its PK3 reopening part held back).
 
-Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 28 pull requests merged
+Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 29 pull requests merged
 into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AJoFSlash)):
 
 - #114 Tab completes the cfg file argument of `exec`, `execq`, `writeconfig` and `write`
@@ -631,6 +631,8 @@ into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author
   frame, a model shown again reuses its materials, and its body copy is ready before the first
   kill; at the merge a reused model still waits for its pipelines, and only a body the player
   will really leave (no forced or overridden model) is prepared.
+- #207 the site's cookie-less visit counter (GoatCounter), showing which video platform
+  brings visitors.
 
 His Peek work in #199 (closed 24/10/2026, not merged) shaped the Drone toy: a player is
 asked before being peeked, told who watches, and can end it. His #206 (closed 25/10/2026,
