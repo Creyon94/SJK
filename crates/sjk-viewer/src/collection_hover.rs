@@ -55,7 +55,13 @@ impl Panel {
             return Some(achievement_card(kind, standing));
         }
         if let Some(row) = within(SHADER_BASE, self.shader_count) {
-            return Some(shader_card(self.skin_at(row), &inputs.holdings));
+            let skin = self.skin_at(row);
+            // Never the card of a shader the player may not see (an unheld Unique one; the
+            // list leaves it out already).
+            if skin.is_some_and(|skin| !inputs.holdings.shows(skin)) {
+                return None;
+            }
+            return Some(shader_card(skin, &inputs.holdings));
         }
         if token == TOY_TOKEN {
             return Some(Card {
