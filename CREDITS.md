@@ -405,11 +405,11 @@ pull requests merged into SJK, most of them bringing SJK in line with EternalJK
 - #191 signature blades without the bright rim at the tip or hard straight edges round their
   effects, with their GPU cost measured and trimmed; at the merge the bent-picture margin is
   added only on frames with a haze or lens, and skinned blades look their skin up once a pixel;
-- trading between players (23/10/2026, its hub side in SJK-hub-shared): duplicate saber
+- #197 trading between players (its hub side in SJK-hub-shared #4): duplicate saber
   shaders, and later unopened holocrons, swapped or given as a gift through the SJK hub,
   from Trade on a player's card, the SJK chat page, the Players page or `trade`, in a
   game or from the main menu; the request card, the trade window with what each side is
-  worth, Ready and Confirm, the daily limits with their reset clock, the 7-day countdown
+  worth, Ready and Confirm, the daily limits with their reset clock, the resale countdown
   on a traded holocron and the window's size setting;
 - #102 a formatting fix that unblocked every pull request's checks.
 - the Saber ideas page, whose concepts became the Tidal, Circuit, Aurora, Echo, Nebula,
