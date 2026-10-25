@@ -1884,7 +1884,7 @@ fn save_sjk_shot(
 /// The SJK UI's Settings over the duel6 levelshot: Interface with a changed
 /// slider focused (its dot and reset arrow), Display with a list open, a
 /// search's results, Graphics scrolled to its weather, at 4:3, and the weak-PC
-/// rows (Gameplay's stock blades, Display's menu FPS cap).
+/// rows (Gameplay's stock blades, Display's menu FPS cap, Graphics' render scale).
 #[test]
 #[ignore = "reads the installed game data named by JKA_GAME_DATA"]
 fn sjk_settings_snapshot() {
@@ -1921,7 +1921,7 @@ fn sjk_settings_snapshot() {
         bool,
         Option<&'a str>,
     );
-    let cases: [Case; 9] = [
+    let cases: [Case; 10] = [
         (
             "sjk-settings",
             VIEWPORT_WIDE,
@@ -1991,6 +1991,14 @@ fn sjk_settings_snapshot() {
             VIEWPORT_WIDE,
             1,
             Some(crate::runtime_settings::MENU_CAP_CVAR),
+            false,
+            None,
+        ),
+        (
+            "sjk-settings-render-scale",
+            VIEWPORT_WIDE,
+            2,
+            Some(crate::frame_target::scale::CVAR),
             false,
             None,
         ),
@@ -2158,7 +2166,7 @@ fn settings_panel_snapshot() {
             crate::text::retail_font::load(&crate::text::retail_font::MENU).expect("SJK Menu"),
         ),
     ];
-    let cases: [(&str, Page, Entry, Frame, &str); 7] = [
+    let cases: [(&str, Page, Entry, Frame, &str); 8] = [
         (
             "panel-interface",
             Page::Gameplay,
@@ -2207,6 +2215,13 @@ fn settings_panel_snapshot() {
             Entry::Video,
             Frame::Main,
             crate::runtime_settings::MENU_CAP_CVAR,
+        ),
+        (
+            "panel-render-scale",
+            Page::Graphics,
+            Entry::RenderImage,
+            Frame::Main,
+            crate::frame_target::scale::CVAR,
         ),
     ];
     for (suffix, font) in fonts {

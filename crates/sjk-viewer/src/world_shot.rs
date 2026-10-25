@@ -50,7 +50,9 @@ pub(crate) fn open(
 }
 
 /// What [`open`] builds a client from: `map` loaded from `JKA_GAME_DATA`, a throwaway
-/// profile (kept alive by the returned directory) with `cvars` set, and `menu`.
+/// profile (kept alive by the returned directory) with `cvars` set, then those of
+/// `SJK_SHOT_CVARS` (`name=value`, comma separated, e.g. `r_renderScale=50`, to run any
+/// shot under other settings), and `menu`.
 pub(crate) fn world_input(
     map: &str,
     menu: Option<menu::ClientMenu>,
@@ -77,6 +79,13 @@ pub(crate) fn world_input(
     }
     for (name, value) in cvars {
         console.set_cvar(name, value);
+    }
+    for (name, value) in std::env::var("SJK_SHOT_CVARS")
+        .unwrap_or_default()
+        .split(',')
+        .filter_map(|pair| pair.split_once('='))
+    {
+        console.set_cvar(name.trim(), value.trim());
     }
     let (bsp, vfs) = assets::load_bsp(&game_data, map).expect("the map");
     let scene = StaticWorld::build(&bsp, MeshBuildOptions::default().with_sky_surfaces())
@@ -383,6 +392,8 @@ mod footprints_shots;
 mod mover_models_shots;
 #[path = "world_shot_pings.rs"]
 mod pings;
+#[path = "world_shot_render_scale.rs"]
+mod render_scale_shots;
 #[path = "world_shot_scene_views.rs"]
 mod scene_views_shots;
 

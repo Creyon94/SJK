@@ -1,3 +1,27 @@
+## Render scale for weak GPUs
+
+25/10/2026, `personal/render-scale`, based on `main` `7389dc91`: `r_renderScale` (50 to
+100 % per axis in steps of 5, default 100, archived; Settings > Simple > Display, Advanced >
+Graphics > Image, the classic+ IMAGE tab) draws the world at that share of the window and
+stretches it with a bilinear filter and an RCAS-limited sharpen, while the HUD, menus, text
+and console stay at the window's size. Supersampling wins: at `r_superSample` 2 or 3 the
+render scale is ignored. It applies with a graphics reload, as supersampling does
+([rendering.md](rendering.md#render-scale-and-supersampling)). The ground HUD's occlusion
+test now uses the scene's size (it used the window's, wrong under supersampling too).
+`SJK_SHOT_CVARS` sets extra cvars on any world shot. Verified on Windows 11, RTX 5080,
+Vulkan, release build: unit tests (100 by default and no scene target then, the range,
+supersampling wins, rounded sizes, the reload card's names); `render_scale_shots` on
+mp/ffa3: at 100 the world differs from main's build in 3.1 to 3.6 % of its pixels (at most
+79/255), as two runs of main differ (3.4 %, at most 64); at 75 and 50 the world is softer
+and the SJK UI's text as sharp (looked at); GPU frame at 100 / 75 / 50 %, 0.571 /
+0.456 / 0.293 ms at 1920x1080 on the SJK preset, 2.061 / 1.453 / 0.933 ms at 3840x2160
+(all presets in rendering.md); `low_end_vram_audit` on mp/ffa3 at r_picmip 2, 7 to 46 MiB less at 50 %;
+`map_change_after_resize`, `graphics_reload_menu` and `scene_view_targets_resize` pass at
+50 %; the Settings rows rendered (`sjk_settings_snapshot`, `settings_panel_snapshot`);
+fmt, build, workspace tests and Clippy. Not verified: in a game or on a weak GPU (the FPS
+gained there is not measured), the fixed sharpness (0.5) by eye in motion, a live window
+resize and screenshots in a game (off-screen only), macOS.
+
 ## Decoded images no longer pile up
 
 25/10/2026, `personal/decoded-image-sweep`, based on `main` `296fca5f`: the decoded image

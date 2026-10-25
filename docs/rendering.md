@@ -400,6 +400,8 @@ first drawn) and keys only a later remap uses. Not measured on a GPU; compare th
 | `r_ambientFill` | Live material-lighting floor in dark areas, 0–0.2; default 0.025. Fades as existing illumination increases |
 | `r_ambientFillOcclusion` | Fraction of ambient occlusion applied to the readability fill, 0–1; default 1 preserves the previous response. Real indirect lighting keeps full occlusion |
 | `r_sceneHdr` | Scene precision: 0 display format, 1 RGBA16F (default); applies after a graphics reload |
+| `r_superSample` | Scene supersampling, 1 (default, off), 2 or 3 per axis; applies after a graphics reload. See [Render scale and supersampling](#render-scale-and-supersampling) |
+| `r_renderScale` | The world's size in percent of the window per axis, 50 to 100 (default) in steps of 5, stretched to the window; ignored while `r_superSample` is above 1; applies after a graphics reload. See [Render scale and supersampling](#render-scale-and-supersampling) |
 | `r_hdrExposure` | Base exposure multiplier, 0.25–4; live. Eye adaptation adjusts around it; `r_sceneHdr 0` ignores it |
 | `r_autoExposure` | Eye adaptation, default 1 (on); 0 holds `r_hdrExposure`. Live; see [eye adaptation](#eye-adaptation) |
 | `r_autoExposureMin`, `r_autoExposureMax` | Adaptation range in EV around the base: -2–0 (default -0.5) and 0–2 (default 1). Live |
@@ -517,7 +519,7 @@ the thread.
 ## Graphics reload
 
 The settings read only when the graphics context is made (`r_sceneHdr`, `r_fxaa`,
-`r_superSample`, `r_dayNight`, the sun-shadow cvars and `r_volumetrics`, the
+`r_superSample`, `r_renderScale`, `r_dayNight`, the sun-shadow cvars and `r_volumetrics`, the
 material-map controls with `r_cubeMapping`/`r_cubeMapSize`, and texture filtering)
 used to need a restart. They now apply with a graphics reload
 ([graphics_reload.rs](../crates/sjk-viewer/src/graphics_reload.rs)), offered by a
@@ -549,6 +551,70 @@ pop-up card and run by `vid_restart` (see
 Measured off-screen on an RTX 5080 at 1920x1080 (release build, see
 [status](status.md)): duel6's menu world rebuilt in about 3 s; on a local server
 ffa3 took 5.6 to 7.2 s from `vid_restart` to play, with the connection kept.
+
+## Render scale and supersampling
+
+[render_scale.rs](../crates/sjk-viewer/src/render_scale.rs) sizes the scene's raster
+against the window with one number, the scene's size in percent of the window per axis
+(`Context::render_scale`, read when the graphics context is made, so a change applies with
+a [graphics reload](#graphics-reload)):
+
+- **Supersampling**, `r_superSample` 2 or 3: 200 or 300 %. The scene is drawn larger and
+  box-resolved, every covered texel averaged
+  ([render_scale.wgsl](../crates/sjk-viewer/src/render_scale.wgsl)). It falls back a
+  factor at a time to what the device's texture size and a 512 MiB budget for four
+  colour/depth pairs allow (`supported_bytes`), then to native.
+- **Render scale**, `r_renderScale` 50 to 99 (25/10/2026, for integrated GPUs and GTX
+  1050-class cards): the scene is drawn smaller and stretched over the window
+  ([render_scale_up.wgsl](../crates/sjk-viewer/src/render_scale_up.wgsl)) with a bilinear
+  filter, then a light contrast-adaptive sharpen that keeps RCAS's limits (AMD FidelityFX
+  Super Resolution 1, MIT): the negative lobe of four stretched samples one scene texel
+  away, at a fixed sharpness of 0.5, the largest that pushes no channel past its
+  neighbours' darkest or brightest, so edges get crisper without halos. It works on colour
+  compressed into [0, 1) (c / (1 + its largest channel), reversed after), so HDR values
+  past 1 keep the limits. The size rounds to the nearest pixel (1920x1080 at 75 %:
+  1440x810).
+- **Supersampling wins**: at `r_superSample` 2 or 3 the render scale is ignored
+  (`requested`); the two never combine. The graphics reload card names the side that moved
+  ("supersampling" above 100 %, "render scale" below).
+- **100 %**, the default, makes no scene target (`GpuState::render_scale` stays `None`):
+  the frame is the one from before the setting existed. A unit test pins the default; the
+  world shot `render_scale_shots` at 100 differs from main's build as much as two runs of
+  main differ from each other.
+
+Everything scene-sized follows the scene, not the window: the main depth, the colour target
+the world draws into, the secondary views' targets (floor mirrors, sky and map portals), the
+effect layer, the dynamic-glow image, the card outline mask and the real-time light buffer
+(half the scene each way at native and below; supersampling divides its factor out, so
+there the buffer stays at half the window). The resolve, box or stretch, writes the
+window-sized image the shared resolve (`post_aa.rs`) reads, so FXAA, bloom, eye adaptation
+and the display pass run at the window's size after it; the effect layer and the glow are
+sampled by texture coordinate there. The 2D layer (HUD, menus, text, console) is drawn
+after, at the window's size, against a window-sized `SJK HUD depth`, and pointer
+coordinates stay the window's. The ground HUD, drawn in the world, rebuilds its occlusion
+test from the scene's size (`ground_hud.rs`; until 25/10/2026 it used the window's, wrong
+under supersampling too). Screenshots copy the window's image: the stretched world under a
+full-size HUD. A window resize, a map change, the menu world and a graphics reload make the
+targets again at the new size (`install_render_scale_for`).
+
+Measured 25/10/2026 off-screen on an RTX 5080 (Vulkan, release build), mp/ffa3 from its
+start, median GPU time of 19 or 20 sampled main frames (`render_scale_shots` with
+`SJK_GPU_PHASES=1`; Experimental leaves out the reflection probes' 0.5 to 0.7 ms capture,
+which does not depend on the scale):
+
+| Window, preset | 100 % | 75 % | 50 % |
+| --- | --- | --- | --- |
+| 1920x1080, Vanilla style | 0.100 ms | 0.099 ms | 0.079 ms |
+| 1920x1080, SJK (recommended) | 0.571 ms | 0.456 ms | 0.293 ms |
+| 1920x1080, Experimental | 0.928 ms | 0.800 ms | 0.668 ms |
+| 3840x2160, SJK (recommended) | 2.061 ms | 1.453 ms | 0.933 ms |
+| 3840x2160, Experimental | 3.101 ms | 1.717 ms | 1.284 ms |
+
+The stretch itself costs 0.02 ms at 1920x1080 and 0.06 to 0.08 ms at 3840x2160 on this
+card (the `overlays+post+hud` phase). What does not shrink is drawn at a fixed size: the
+volumetric froxel grid, shadow maps, probes, and the post-processing at the window's size.
+A weak GPU spends a larger share of its frame on the pixels the scale removes, but no weak
+GPU has been measured yet.
 
 ## GPU memory
 
@@ -661,7 +727,7 @@ process's RAM in Task Manager.
   maps have one, among them mp/duel6, mp/duel9 and mp/siege_hoth; mp/ffa3 and
   mp/siege_desert have sky shaders and none), and no retail map has a `portal` face
   (community maps do, with their `misc_portal_surface`). A target is kept once made and
-  made again at a resize or another `r_superSample`; the floor mirrors' is dropped when
+  made again at a resize or another scene scale (`r_superSample`, `r_renderScale`); the floor mirrors' is dropped when
   `r_floorReflections` goes to 0. One the card has no room for (captured, `gpu_guard`)
   leaves its view undrawn, logged once, rather than ending the game. Their labels now say
   which view they serve (`SJK floor mirror view`/`depth`, `SJK sky portal view`/`depth`,
@@ -670,6 +736,16 @@ process's RAM in Task Manager.
   ([below](#characters-beyond-the-code-page)). With real-time lighting, a map with
   polished planes still keeps the mirrors' light-buffer images whether mirrors are on or
   not (`configure_light_preservation`).
+- The render scale ([above](#render-scale-and-supersampling)) shrinks the scene-sized
+  targets with its square: at 50 % of 1920x1080 the main depth, the effect layer's two
+  images and the glow image hold 2.3 MiB each instead of 8.4, the render-scale scene adds
+  4.7 MiB (HDR), and a window-sized `SJK HUD depth` (8.4 MiB) stays for the 2D layer; the
+  window-sized resolve images (`SJK FXAA scene`, 25.3 MiB for two) do not change.
+  `low_end_vram_audit` on mp/ffa3 at r_picmip 2 with `SJK_SHOT_CVARS=r_renderScale=50`
+  (25/10/2026, MiB in use, 100 % / 50 %): Vanilla style 428 / 421, SJK (recommended)
+  456 / 445, Experimental 851 / 805 (its light buffer and lighting images shrink too); the
+  menu on pictures 371 / 363, 398 / 387 and 656 / 616. It saves GPU time far more than
+  memory; texture detail (`r_picmip`) is the memory setting.
 - A map change still builds the next world while the last one lives. With
   `MemoryHints::Performance` (128 to 256 MiB blocks) the blocks the old world
   shared with the new one stayed partly used once it was dropped, about 2 GB of
@@ -758,6 +834,8 @@ second build: about 3 s in release, 1.4 s of it hidden behind the file read, abo
 
 The world shots above build their client from a fresh profile, whose renderer cvars are
 their defaults: the Experimental preset, not the SJK (recommended) one players start on.
+`SJK_SHOT_CVARS` (`name=value`, comma separated) sets more cvars on any world shot's
+profile, after the shot's own (`world_shot::world_input`).
 `low_end_vram_audit` (`world_shot_vram.rs`) builds each map at each preset
 (`graphics_quality::preset_cvars`) and texture detail and prints every label, the
 allocator's reserved bytes and what DXGI says the process uses (`VideoMemory::usage`);
@@ -2756,7 +2834,8 @@ frame a face selects a view ([GPU memory](#gpu-memory)). The ignored world shot
 `scene_view_targets` ([world_shot_scene_views.rs](../crates/sjk-viewer/src/world_shot_scene_views.rs))
 renders through each secondary view (floor mirrors on ffa3, duel6's sky portal, the mirrors
 of `sjk_shaders_e`) and prints which targets a world holds; `scene_view_targets_resize`
-checks the mirror target follows `r_superSample` and a resize.
+checks the mirror target follows `r_superSample` and a resize (with
+`SJK_SHOT_CVARS=r_superSample=1,r_renderScale=50`, the render scale).
 
 Camera-range caches also retain their PVS/area selection independently of the
 camera frustum. Turning or moving within a cluster rechecks bounds but reuses

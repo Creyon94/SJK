@@ -794,7 +794,7 @@ that mode for the visit and leaves the player's choice as it was.
 - **Rail:** the mode's categories down a lit holo line on the left, each with its
   settings icon. The one on show is gold with a gold bar on the line; none is lit
   while a search shows its results.
-  - Simple: Display (resolution, display mode, vertical sync, FPS cap, field of
+  - Simple: Display (resolution, render scale since 25/10/2026, display mode, vertical sync, FPS cap, field of
     view, brightness), Graphics (under Preset: the graphics preset dropdown;
     under Effects: weather, dynamic glow, impact marks, player shadows), Sound
     (effects and music volume, mute in background), Controls (sensitivity,

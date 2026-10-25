@@ -494,6 +494,7 @@ impl Group {
             ],
             Self::Simple(Simple::Display) => &[
                 "r_resolution",
+                crate::frame_target::scale::CVAR,
                 "r_fullscreen",
                 "r_vsync",
                 "com_maxfps",

@@ -2068,6 +2068,15 @@ note: Alt+Tab while holding Tab leaves the board and the hidden HUD up until Tab
 
 # ---- Rendering & effects ----
 
+[render-scale]
+area: Rendering & effects
+title: Render scale (r_renderScale 50-100%): the world drawn smaller, menus and text sharp
+change: Below 100 the 3D scene is drawn at that share of the window and stretched up, sharpened.
+change: Applies after a graphics reload; supersampling wins when both are set.
+test: Settings > Display > Render scale 50, reload graphics: world softer, HUD and text sharp.
+test: Back to 100 and reload: the image is exactly as before.
+test: Resize the window or alt-enter at 50: the world still fills the screen correctly.
+
 [font-atlas-r8]
 area: Rendering & effects
 title: Font atlases in one channel: 120 MiB less video memory, text unchanged

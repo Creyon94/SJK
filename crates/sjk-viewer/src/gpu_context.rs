@@ -22,7 +22,9 @@ pub(crate) struct Context {
     pub(crate) hdr: crate::frame_target::aa::hdr::Settings,
     /// Startup-only dynamic sun-shadow quality policy; changes request a restart.
     pub(crate) sun_shadows: crate::world_materials::shadows::settings::Settings,
-    /// Startup scene multiplier, retained across console-free map installs.
+    /// Startup scene size in percent of the window per axis (supersampling above 100, the
+    /// render scale below; `frame_target::scale::requested`), retained across console-free
+    /// map installs.
     pub(crate) render_scale: u32,
     /// Startup FXAA policy, preserved through background map installation.
     pub(crate) fxaa: bool,
