@@ -2487,6 +2487,11 @@
 - fed9acd |  | Hide duel opponents' bars and send nothing while duelling
 
 = Slash
++ 25/10/2026 | SJK #205 | Stage player model installs and pool body copies ahead of deaths
+- a77107c |  | Stage player model installs and pool body copies ahead of deaths
+- 4468c35 |  | Drop the all-at-once prepared texture upload, unused since players upload one a frame
+- 68b9fc2 |  | Restore main's earlier changelog line the merge had dropped; separate the status entry
+- fc0bb20 | Sol | Wait for a reused model's pipelines; pool only bodies the player will leave
 + 24/10/2026 | SJK #200 | Encrypted whispers: per-key safety code fingerprints (v2)
 - bf04bc1 |  | Encrypted whispers: per-key safety code fingerprints (v2)
 + 20/10/2026 | SJK #186 | Make the update notice clickable to start the download

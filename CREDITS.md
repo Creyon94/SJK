@@ -567,7 +567,7 @@ merged into SJK
 - #198 "Too many open files" after a long session: the Profile menu's model icons, cosmetics and
   Force templates let go of the previous map's game files (its PK3 reopening part held back).
 
-Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 26 pull requests merged
+Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 27 pull requests merged
 into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AJoFSlash)):
 
 - #114 Tab completes the cfg file argument of `exec`, `execq`, `writeconfig` and `write`
@@ -618,6 +618,10 @@ into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author
 - #189 a smaller chat sender card that waits for the pointer, sized by `cg_chatCardScale`.
 - #200 encrypted whispers' safety code made from each key's own fingerprint (60 digits, as
   Signal's safety numbers), after Slash found that the hub could make the 12-digit code match.
+- #205 fewer stutters when players join, change model or die: a model goes up one texture a
+  frame, a model shown again reuses its materials, and its body copy is ready before the first
+  kill; at the merge a reused model still waits for its pipelines, and only a body the player
+  will really leave (no forced or overridden model) is prepared.
 
 His Peek work in #199 (closed 24/10/2026, not merged) shaped the Drone toy: a player is
 asked before being peeked, told who watches, and can end it.
