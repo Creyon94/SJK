@@ -30,7 +30,16 @@ The site (site/assets/site.js, parseChangelog) reads the release headings,
 introductions and recap lines too.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
-## Unreleased
+## 2026.1025.3 (Alpha) | 25/10/2026
+
+Team boxes for capture the flag, bodies that fade away, encrypted whispers kept to verified players, and fewer stutters in busy matches.
+
+> Capture the flag: Team scores in SJK boxes, with where each flag is.
+> Bodies: They fade and burn away as in EternalJK.
+> Whispers: Only verified players start encrypted whispers now.
+> One window: No console window on Windows; SJK.app on a Mac.
+> Toys: A toy volume and a mute switch for each toy.
+> Smoother matches: Fewer stutters when players join, change model or die.
 
 = cg_teamScoresBoxes: Team scores in SJK team boxes, with each flag's state in capture the flag; off brings back the classic plates and flag icons.
 
@@ -45,7 +54,6 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Announcements: `announcement` and `rewards` now close the console as their window opens, and the mouse works in the window during a match _(Sol)_
 - Fewer stutters when players join, change model or die: a new player's model goes up a texture a frame, models shown again reuse what they had, and a model's body for deaths is ready before the first kill _(Slash)_
 - Card pictures: one picture the decoder trips on no longer stops every later card picture from loading for the session; opening a holocron loads the found card's picture as it starts, so the card no longer turns over on a dark window; video memory and crash reports name card and medal pictures as such _(Sol, after Slash's #206)_
-- Kyber crystals: every achievement now brings one, once, from Uncommon to Mythical (shown on the Achievements tab, its hover card and its unlock card). Opening one always gives a saber shader, the ones you do not have yet first, and every tenth crystal in a row without a Legendary or Mythical shader gives one: the Holocrons tab shows your crystals, how soon that is, and their loot table _(Sol)_
 
 ## 2026.1025.2 (Alpha) | 25/10/2026
 

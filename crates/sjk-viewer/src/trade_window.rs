@@ -99,7 +99,7 @@ impl Item {
             what: What::Holocron(id),
             name: found.map_or_else(|| "Holocron".to_owned(), |tier| tier.name.to_owned()),
             tier: found.map_or_else(String::new, |tier| tier.label.to_owned()),
-            holocron_slot: found.map(|tier| tier.slot),
+            holocron_slot: found.map(|tier| tier.index),
             colour: found.map_or(color::HOLO, |tier| tier.colour),
             value,
             locked_for: None,

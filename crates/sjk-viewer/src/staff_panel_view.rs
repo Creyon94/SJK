@@ -2183,7 +2183,6 @@ mod tests {
                     progress: kind.goal / 2 + 1,
                     goal: kind.goal,
                     unlocked: 0,
-                    reward: None,
                 })
                 .collect(),
             unlocks: crate::unlockables::ALL

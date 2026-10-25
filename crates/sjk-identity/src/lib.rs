@@ -64,9 +64,9 @@ pub use vitals::{Sharing, VitalsTable};
 pub use wire::{
     Achievement, Bought, BuyAnswer, CardStack, ChatMessage, CraftAnswer, Crafted, DropEvent,
     DropMark, EconomyTables, Emote, Feed, FindEvent, FindMark, HOLOCRONS_LISTED, Holocron,
-    HolocronBought, HolocronBuyAnswer, HolocronCounts, HolocronState, KyberPity, KyberTables,
-    KyberTier, Look, LookEvent, LootTier, Medal, OPEN_MAX, Offer, OpenAnswer, Opened, OpenedCard,
-    OpenedUnlock, People, Person, Ping, Presence, Profile, RelayBatch, RevealAnswer, Revealed,
-    SealedWhisper, SharedVitals, ShatterAllAnswer, ShatterAnswer, Shattered, ShatteredCopies,
-    ShopDay, ToyEvent, Trust, Unlock, Vitals, WornName, names_match, normal_form,
+    HolocronBought, HolocronBuyAnswer, HolocronCounts, HolocronState, Look, LookEvent, LootTier,
+    Medal, OPEN_MAX, Offer, OpenAnswer, Opened, OpenedCard, OpenedUnlock, People, Person, Ping,
+    Presence, Profile, RelayBatch, RevealAnswer, Revealed, SealedWhisper, SharedVitals,
+    ShatterAllAnswer, ShatterAnswer, Shattered, ShatteredCopies, ShopDay, ToyEvent, Trust, Unlock,
+    Vitals, WornName, names_match, normal_form,
 };
