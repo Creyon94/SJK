@@ -694,6 +694,32 @@ mod tests {
         assert_eq!(chat.take_safety_request(), Some(3));
     }
 
+    /// Trade is a button of its own: a click on it asks to trade (before 25/10/2026 the
+    /// press was taken for the card's and the click was lost).
+    #[test]
+    fn a_click_on_trade_asks_to_trade() {
+        let mut chat = game_chat(&[(0, "Me"), (3, "Fox")]);
+        let fox = chat.roster.target(Some(3)).expect("Fox");
+        chat.open(false);
+        chat.card = Some(Card {
+            who: Who::Player(fox),
+            person: Person {
+                name: "Fox".to_owned(),
+                trade: true,
+                ..Person::default()
+            },
+            muted: false,
+            anchor: Rect::new(10.0, 300.0, 40.0, 10.0),
+            left_ms: None,
+            pinned: true,
+        });
+        build(&mut chat);
+        let trade = chat.ui.rect_for(CARD_TRADE).expect("Trade");
+        click(&mut chat, centre(trade));
+        assert_eq!(chat.take_trade_request(), Some(3));
+        assert!(chat.card.is_none(), "the card makes way for the request");
+    }
+
     #[test]
     fn whisper_needs_the_same_player_still_here_and_not_ourselves() {
         let mut chat = game_chat(&[(0, "Me"), (3, "Fox")]);

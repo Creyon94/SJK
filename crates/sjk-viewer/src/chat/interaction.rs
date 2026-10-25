@@ -166,6 +166,7 @@ impl ChatOverlay {
             // composer, which covers the feed. Otherwise release activates a
             // different widget than the one recorded here and is discarded.
             self.pressed_action = [
+                card::CARD_TRADE,
                 card::CARD_WHISPER,
                 card::CARD_SAFETY,
                 card::CARD_BAN,
