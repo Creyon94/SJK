@@ -113,6 +113,9 @@ includes:
   Mythical, always a saber shader (the ones not held first), a guaranteed Legendary or
   better every tenth crystal; the old kyber prism became the crystal and the Mythical
   holocron a faceted gold engram whose plates breathe round a glowing core;
+- fourteen more achievements (26/10/2026, Sol's list): holocrons opened, crafting, a
+  full card set, Order 66, the cardboard box, flawless and close duels, duel partners, a
+  long saber throw and a thermal detonator sent back, a secret one, and Surveyor retired;
 - blade cards craft their saber shader for less (21/10/2026, Sol's idea): a Normal copy
   at the shop's price, a Holo or Solar one at half, the card kept, and a button under a
   held blade card on the Cards tab that leads to its shader (to the Forge's Craft while

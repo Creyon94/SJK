@@ -59,11 +59,8 @@ impl Count {
 /// Each tab's count, in the row's order.
 pub(super) fn counts(inputs: &Inputs<'_>) -> [Count; 8] {
     let medals = medals::held(inputs);
-    let achievements = inputs
-        .standings
-        .iter()
-        .filter(|standing| standing.unlocked.is_some())
-        .count();
+    // Out of the ones the player sees: a retired one not held is not counted.
+    let (achievements, achievements_total) = crate::achievements::tally(inputs.standings);
     let shaders = (inputs.holdings.reason().is_none()).then(|| {
         unlockables::ALL
             .iter()
@@ -79,7 +76,7 @@ pub(super) fn counts(inputs: &Inputs<'_>) -> [Count; 8] {
         },
         Count {
             held: Some(achievements),
-            total: inputs.standings.len(),
+            total: achievements_total,
         },
         Count {
             held: shaders,

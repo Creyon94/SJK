@@ -678,6 +678,93 @@ fn duel6_sjk_kyber_achievements() {
     });
 }
 
+/// The Achievements tab's 35 (26/10/2026) in six categories, at 1080 lines and 4:3: the
+/// made-up profile with Touched by the Force still a secret and the retired Surveyor
+/// held, then the hover cards of the secret, of Surveyor and of a new client count
+/// (`duel6-more-achievements-*`); then a profile without Surveyor, where it is gone.
+#[test]
+#[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+fn duel6_sjk_more_achievements() {
+    on_big_stack(|| {
+        let cvars = [
+            ("ui_menuStyle", "sjk"),
+            (crate::settings::quick::HIDE_CVAR, "1"),
+            ("name", "^1Sol^7Vulpes"),
+            (crate::discord_presence::CVAR, "0"),
+        ];
+        let index = |id: &str| {
+            crate::achievements::ALL
+                .iter()
+                .position(|kind| kind.id == id)
+                .expect("an achievement")
+        };
+        let with = |surveyor: bool| {
+            let mut preview = preview();
+            let mut held: Vec<sjk_identity::Achievement> = preview
+                .standings
+                .iter()
+                .map(|standing| sjk_identity::Achievement {
+                    id: standing.kind.id.to_owned(),
+                    progress: standing.progress,
+                    goal: standing.kind.goal,
+                    unlocked: standing.unlocked.unwrap_or(0),
+                    reward: None,
+                })
+                .collect();
+            for achievement in &mut held {
+                match achievement.id.as_str() {
+                    "mythical_find" => (achievement.progress, achievement.unlocked) = (0, 0),
+                    "surveyor" if surveyor => {
+                        (achievement.progress, achievement.unlocked) = (5, 1_791_336_225);
+                    }
+                    "surveyor" => (achievement.progress, achievement.unlocked) = (3, 0),
+                    _ => {}
+                }
+            }
+            preview.standings = crate::achievements::Record::default().standings(&held);
+            preview
+        };
+        for (size, label) in [([1920, 1080], "1080"), ([1440, 1080], "4x3")] {
+            let Some((mut gpu, _profile)) = open(
+                "maps/mp/duel6.bsp",
+                size,
+                Some(menu::ClientMenu::new(true, String::new())),
+                &cvars,
+            ) else {
+                return;
+            };
+            let _ = frame(&mut gpu, 10);
+            if let Some(console) = gpu.console.as_mut() {
+                console.preview_profile(with(true));
+                console.preview_collection(Some(vec![sun()]), 0.8);
+                console.open_profile_hub_page(Tab::Achievements, ReturnTarget::MainMenu);
+            }
+            let path = shoot(&mut gpu, 8, &format!("duel6-more-achievements-{label}"));
+            println!("{}", path.display());
+            assert!(!overflowed(&gpu), "{label}");
+            if label != "1080" {
+                continue;
+            }
+            for id in ["mythical_find", "surveyor", "thermal_return"] {
+                if let Some(console) = gpu.console.as_mut() {
+                    console.collection_hover_for_shot(Some(index(id)));
+                }
+                let path = shoot(&mut gpu, 8, &format!("duel6-more-achievements-hover-{id}"));
+                println!("{}", path.display());
+                assert!(!overflowed(&gpu), "{id}");
+            }
+            if let Some(console) = gpu.console.as_mut() {
+                console.collection_hover_for_shot(None);
+                console.preview_profile(with(false));
+                console.preview_collection(Some(vec![sun()]), 0.8);
+            }
+            let path = shoot(&mut gpu, 8, "duel6-more-achievements-no-surveyor");
+            println!("{}", path.display());
+            assert!(!overflowed(&gpu));
+        }
+    });
+}
+
 /// Frames [`duel6_blade_pictures_cost`] times a view.
 const COST_FRAMES: usize = 200;
 /// Rounds over its views.

@@ -375,6 +375,7 @@ impl GpuState {
                 session,
                 snapshot,
                 obituaries_before,
+                self.cardboard_box.hiding(),
                 visual_now,
             );
         }

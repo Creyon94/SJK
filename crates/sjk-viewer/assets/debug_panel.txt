@@ -116,6 +116,21 @@ test: Fall on metal, then grass or snow: the knocks sound of the floor.
 test: Run and go limp: the body slides and scrapes.
 test: A second SJK client near you sees the body ride the lift the same way.
 
+[more-achievements]
+area: Menus & settings
+title: 14 new achievements, a secret one, Surveyor retired
+change: Collection > Achievements: 35 in six categories (new Collection, Toys), in four bands.
+change: Touched by the Force shows as Secret (?) until unlocked; Surveyor only if you hold it.
+change: New counts: box time near players, flawless/close duels, partners, long throw, thermal.
+test: Collection > Achievements: all bands fit, arrows and Tab move through the wall in order.
+test: Hover the Secret medallion: "Secret achievement", no goal or count; same in Next up.
+test: Without Surveyor: it is gone and the total reads N of 34 (player card too).
+test: Hide in the box (toy_box) near another player for a minute: Tactical Espionage counts 1.
+test: Win a private duel untouched: Flawless; one under 5 health: Close Call; Well Met +1 each.
+test: Kill with a saber throw from far (over 512 units): Long Throw.
+test: Push a thermal detonator back at its thrower and kill them: Return to Sender.
+note: Hub side is a separate change; until it ships the new ones may not reach the hub.
+
 [ragdoll-toy]
 area: Gameplay
 title: Ragdoll toy: go limp and fall, sandbox style

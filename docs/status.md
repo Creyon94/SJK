@@ -1,3 +1,24 @@
+## More achievements
+
+26/10/2026, `personal/more-achievements`, based on `main` `1320d9ff` (Sol's list): 14 new
+achievements after Decorated (35 in all), with the categories Collection and Toys, each
+with its kyber crystal ([identity.md](identity.md#achievements)). The hub counts eight
+(holocrons opened, Touched by the Force, crafting, Full Set, Executor; a separate hub
+change); the client counts six in `achievements/tracker.rs`: time in the cardboard box
+with another player within 512 units, Flawless and Close Call from the player's own
+health and shield during a duel, Well Met from the duel partners' names, Long Throw (a
+saber kill while the saber flies, 512 units or more away) and Return to Sender (a thermal
+kill while a thermal detonator the victim threw went off; the thrower named by the client,
+as the game never sends a missile's owner). Touched by the Force is hidden (a secret on
+the board and its card until unlocked) and Surveyor retired (shown only to its holders,
+totals count the obtainable ones plus the retired ones held). The Achievements tab packs
+the categories into four bands of twelve. Verified: fmt (bar a line on `main`), Clippy,
+the viewer's tests (new unit tests for each counter, the secret and retired display, the
+wall's bands and navigation, the totals), world shots of the board at 1080 lines and 4:3
+and its hover cards (`duel6_sjk_more_achievements`). Not verified: anything in game, the
+counters against real servers (JA+ duel start health, a thermal batted back by a saber,
+throws at Saber Throw 1), the hub accepting the new ids.
+
 ## Boombox toy
 
 25/10/2026, `personal/boombox-toy`, based on `main` `44184714` (Sol's idea): `toy_boombox`

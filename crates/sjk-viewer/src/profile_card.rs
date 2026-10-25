@@ -87,7 +87,7 @@ pub(crate) static NOBODY: Summary = Summary {
     emoji: String::new(),
     medals: 0,
     unlocked: 0,
-    achievements: 21,
+    achievements: crate::achievements::OBTAINABLE,
 };
 
 fn lock() -> MutexGuard<'static, Summary> {
@@ -195,11 +195,8 @@ pub(crate) fn summarise(
         medals: me
             .filter(|_| online)
             .map_or(0, |me| crate::medals::Medals::from_wire(&me.medals).len()),
-        unlocked: standings
-            .iter()
-            .filter(|standing| standing.unlocked.is_some())
-            .count(),
-        achievements: standings.len(),
+        unlocked: crate::achievements::tally(standings).0,
+        achievements: crate::achievements::tally(standings).1,
     }
 }
 
@@ -602,7 +599,8 @@ mod tests {
     #[test]
     fn the_line_says_what_the_hub_knows() {
         let standings = standings();
-        let total = standings.len();
+        // The retired Surveyor, not held, is not counted.
+        let total = standings.len() - 1;
         let online = snapshot(Status::Online, Some(me()));
         let summary = summarise(
             "^1Sol",
