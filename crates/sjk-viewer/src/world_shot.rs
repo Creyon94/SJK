@@ -383,6 +383,8 @@ mod footprints_shots;
 mod mover_models_shots;
 #[path = "world_shot_pings.rs"]
 mod pings;
+#[path = "world_shot_scene_views.rs"]
+mod scene_views_shots;
 
 #[cfg(test)]
 mod tests {

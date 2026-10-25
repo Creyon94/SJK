@@ -1078,6 +1078,8 @@ pub(crate) struct SaberSkins {
     /// Whether every player's blade is the stock one this frame, in a duel
     /// ([`crate::duel_blades`]).
     plain: bool,
+    /// Whose blades the player draws stock to save GPU time ([`crate::stock_blades`]).
+    stock: crate::stock_blades::StockBlades,
     /// Blades the world shots add every frame, without a session (blade, unlock id or
     /// a stock colour, seed).
     #[cfg(test)]
@@ -1168,7 +1170,9 @@ impl SaberSkins {
         }
     }
 
-    /// The skin worn by the player whose body is entity `entity_id` (client + 1).
+    /// The skin worn by the player whose body is entity `entity_id` (client + 1); none
+    /// while their blade is drawn stock (a duel's [`Self::set_plain`], the player's
+    /// [`Self::set_stock`]).
     pub(crate) fn get(&self, entity_id: u64) -> Option<SkinColor> {
         let client = usize::try_from(entity_id.checked_sub(1)?).ok()?;
         let persona = if Some(client) == self.local_client {
@@ -1176,7 +1180,7 @@ impl SaberSkins {
         } else {
             self.personas.get(client).copied()?
         };
-        if self.plain {
+        if self.plain || self.stock.plain(Some(client) == self.local_client) {
             return None;
         }
         let skin = self.clients.get(client).copied().flatten()?;
@@ -1187,6 +1191,13 @@ impl SaberSkins {
     /// [`crate::duel_blades`]) or with the skin they wear.
     pub(crate) fn set_plain(&mut self, plain: bool) {
         self.plain = plain;
+    }
+
+    /// Draw the blades `stock` names as stock ones in their own colour, the others with
+    /// their skin ([`crate::stock_blades`]). Only the world's blades: the menus' preview
+    /// takes [`Self::local`], and the sounds are unchanged.
+    pub(crate) fn set_stock(&mut self, stock: crate::stock_blades::StockBlades) {
+        self.stock = stock;
     }
 
     /// Who sits in each client slot, and the local player's own name (`name`), for
@@ -1319,6 +1330,8 @@ impl GpuState {
             duel.map(|(game, _)| game),
             duel.map(|(_, snapshot)| &snapshot.player),
         ));
+        let stock = crate::stock_blades::StockBlades::read(self.console.as_ref());
+        self.saber_skins.set_stock(stock);
         let (looks, skins) = (&self.looks, &self.blade_skins);
         self.saber_skins
             .follow_looks_and_sounds(looks.revision(), skins.generation(), |client| {

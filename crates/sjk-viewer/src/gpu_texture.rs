@@ -1,4 +1,4 @@
-//! Shared image decoding and immutable RGBA texture upload helpers.
+//! Shared image decoding and immutable RGBA (and font atlas R8) texture upload helpers.
 
 /// Decode a supported renderer image using its extension when available.
 pub(crate) fn decode_image(
@@ -70,21 +70,18 @@ pub(crate) fn create_rgba8_texture(
     texture.create_view(&wgpu::TextureViewDescriptor::default())
 }
 
-/// Upload an RGBA image with a CPU-built mip chain of `levels` levels so
-/// minified sampling (small UI text from a large glyph atlas) stays smooth.
-pub(crate) fn create_rgba8_texture_mipmapped(
+/// Upload a single-channel image as `R8Unorm` with a CPU-built mip chain of `levels`
+/// levels so minified sampling (small UI text from a large glyph atlas) stays smooth.
+/// A font atlas holds only coverage (or a distance field), so one channel takes a
+/// quarter of an RGBA texture's memory; shaders read it from `.r`.
+pub(crate) fn create_r8_texture_mipmapped(
     device: &wgpu::Device,
     queue: &crate::frame_queue::FrameQueue,
     label: &str,
-    image: &image::RgbaImage,
-    srgb: bool,
+    image: &image::GrayImage,
     levels: u32,
 ) -> wgpu::TextureView {
-    let format = if srgb {
-        wgpu::TextureFormat::Rgba8UnormSrgb
-    } else {
-        wgpu::TextureFormat::Rgba8Unorm
-    };
+    let format = wgpu::TextureFormat::R8Unorm;
     let (width, height) = image.dimensions();
     let levels = levels.clamp(1, width.min(height).max(1).ilog2() + 1);
     let texture = device.create_texture(&wgpu::TextureDescriptor {
@@ -102,7 +99,7 @@ pub(crate) fn create_rgba8_texture_mipmapped(
         view_formats: &[],
     });
     let mut level_image;
-    let mut level_pixels: &image::RgbaImage = image;
+    let mut level_pixels: &image::GrayImage = image;
     for level in 0..levels {
         if level > 0 {
             let (w, h) = level_pixels.dimensions();
@@ -126,7 +123,7 @@ pub(crate) fn create_rgba8_texture_mipmapped(
             level_pixels.as_raw(),
             wgpu::TexelCopyBufferLayout {
                 offset: 0,
-                bytes_per_row: Some(w * 4),
+                bytes_per_row: Some(w),
                 rows_per_image: Some(h),
             },
             wgpu::Extent3d {

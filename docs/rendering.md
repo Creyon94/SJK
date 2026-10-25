@@ -322,6 +322,20 @@ texture cannot select a stale chain by filename. Active uploads may temporarily
 retain evicted data. These budgets do not describe total process memory. Cache
 locking and allocation happen during loading, not during drawing.
 
+The decoded images themselves ([decoded_image_cache.rs](../crates/sjk-viewer/src/decoded_image_cache.rs),
+one per file name and content, full size whatever `r_picmip`) were never dropped until
+25/10/2026: every texture of every map, model and HUD seen in a session stayed in
+memory. Once the images held grow 128 MiB past what the last sweep kept, the next image
+decoded sweeps out every image only the cache holds; an image a world's shared
+textures, the mip cache or a loader still holds stays, so an address used as a key is
+never freed and reused, and textures shared across a map change are shared as before.
+`map_changes_vram` prints the bytes held: four maps cycled three times at r_picmip 2
+(an install with HD texture packs) held 1750 MiB from the third map
+on before, 906 to 1178 MiB after (the current map's own images), with the same video
+memory and the same 302 shared textures. Not holding the images in the shared textures
+as well (keys by content rather than address) would free only 200 to 350 MiB more of
+that: the rest is held by other world structures.
+
 Lamp extraction uses up to four workers for ordinary maps as well as large ones,
 preserving emitter output order. Each emitter reuses sorted neighboring patch
 IDs while its spatial cell and patch count remain unchanged; live patch moments
@@ -541,8 +555,9 @@ ffa3 took 5.6 to 7.2 s from `vid_restart` to play, with the connection kept.
 A world's GPU memory belongs to its `GpuState`: map textures (uncompressed
 RGBA8 arrays with mips, 0.6 GB on duel6 and 1.1 GB on mp/siege_desert), material
 maps, lamp light caches, probes, its screen-size targets (saber glow, FXAA, depth,
-glow, at 4K about 0.8 GB) and its own font and UI atlases (about 0.3 GB). On
-Windows that memory also shows in the process's RAM in Task Manager.
+glow, at 4K about 0.8 GB) and its own font and UI atlases (about 0.2 GB, the font
+atlases 40 MiB of it at 1920x1080). On Windows that memory also shows in the
+process's RAM in Task Manager.
 
 - The menu world is dropped when a server world is installed and built again from
   its map once the client is back in the menu off a server
@@ -571,8 +586,19 @@ Windows that memory also shows in the process's RAM in Task Manager.
   quarter of its memory, while its longest side stays at 128 pixels or more (smaller
   textures keep their size). The mip chains are still built whole on the processor;
   `upload_chains` skips levels, so the setting takes effect for textures uploaded
-  after it changes (the next map) and the non-mipmapped path (`r_textureMode
-  GL_LINEAR`) keeps full size. Once menu pictures are on, each world install that runs
+  after it changes (the next map). Since 25/10/2026 a texture takes the same size
+  whatever path it goes through (`mips::skipped`): the non-mipmapped path
+  (`r_textureMode GL_LINEAR`) and the sky boxes upload the shrunk size through
+  `upload_array`, and the material maps skip the same levels of their box-filtered
+  chains ([Material maps](#material-maps)); before, all three stayed at full size. As in
+  rd-vanilla, the stages of a shader that says `nopicmip` or `nomipmaps` keep their
+  images' size: the parser marks each stage parsed after the keyword
+  (`ShaderStage::no_picmip`, as `ParseStage` reads `shader.noPicMip`), and its texture
+  key ends with `$nopicmip;` (`mips::NO_PICMIP_KEY`), so it never shares an upload with
+  the shrunk copy. Sky boxes take the setting even then, as `ParseSkyParms` loads them
+  (retail's `textures/siege/desert` sky says `nomipmaps`); at 2 a 1024-pixel box is
+  256 pixels a face, 1.5 MiB instead of 24, and the sky looks softer. SJK still builds
+  mips for a `nomipmaps` shader. Once menu pictures are on, each world install that runs
   out of memory raises it one step, to 2 at most (`menu_pictures::after_out_of_memory`).
   Not measured on a 3 GB card yet; map textures are about 0.6 GB of duel6 and 1.1 GB of
   siege_desert at full size. The saber glows and cores follow it too
@@ -580,9 +606,27 @@ Windows that memory also shows in the process's RAM in Task Manager.
   column integrals held 300 MiB on every map and in the menu; at 2 they hold 28 MiB.
   The menu on pictures measured 1082 MiB at 1920x1080 and r_picmip 2, 801 MiB after
   (`menu_pictures_vram` in world_shot_vram.rs, 21/10/2026, after Vin's 3 GB card ran
-  out in the main menu). The rest of that menu: the game font atlases (128 MiB, RGBA),
-  the UI icon atlas (56 MiB) and the world's shadow, GI and froxel targets (about
-  200 MiB) a picture menu does not draw.
+  out in the main menu). The rest of that menu: the game font atlases (128 MiB as
+  RGBA, 32 MiB since they are R8, below), the UI icon atlas (56 MiB) and the world's
+  shadow, GI and froxel targets (about 200 MiB) a picture menu does not draw.
+- The font atlases are single-channel `R8Unorm` textures
+  ([gpu_texture.rs](../crates/sjk-viewer/src/gpu_texture.rs)
+  `create_r8_texture_mipmapped`): every code-page atlas holds only glyph coverage (or
+  a distance field), and the text colour comes from the vertices, so `text.wgsl` and
+  `ground_hud.wgsl` read it from `.r`. Until 25/10/2026 they were white RGBA8 textures
+  read through alpha, four times the memory for the same values. At 1920x1080 the five
+  game font atlases (SJK Menu, SJK Chat, JetBrains Mono and the SJK UI's two
+  families) went from 128 to 32 MiB, the Inter UI atlas from 21.3 to 5.3 MiB and the
+  classic HUD atlas from 10.7 to 2.7 MiB: 120 MiB less in every world, the menu's
+  included. `low_end_vram_audit` at r_picmip 2 (MiB in use, Vanilla style / SJK /
+  Experimental): mp/ffa3 626 / 670 / 1065 before, 506 / 550 / 947 after; the menu on
+  pictures 512 / 539 / 797 before, 392 / 419 / 677 after. The Inter atlas grows with
+  the display scale (4096x4096 at 200 %: 85 MiB as RGBA, 21 MiB as R8, computed). The
+  CPU copies the atlases are built and mipmapped from are one channel too. Text draws
+  the same: the text pipeline drew the same glyph quads at six scales (every mip
+  level) from the old RGBA upload and from the R8 one, for all eight atlases and a
+  distance field, with no pixel different. The emoji atlas stays RGBA (colour
+  pictures) and the wide-glyph atlas was already R8.
 - Work on the render thread after a world is built runs inside wgpu error scopes
   ([gpu_guard.rs](../crates/sjk-viewer/src/gpu_guard.rs)) where it can fail alone: the
   menu stage's model (the creator's head, torso and legs), which then is not shown and
@@ -606,6 +650,26 @@ Windows that memory also shows in the process's RAM in Task Manager.
   (`collection_swatch.rs`) instead of the live blade pictures (`blade_pictures.rs`, a
   832x1664 target of three textures, about 17 MB, and each signature blade's
   pipeline), and that target is freed.
+- The secondary views make their targets the first frame each is drawn, not with the
+  world (`Lazy` in [scene_view_gpu.rs](../crates/sjk-viewer/src/scene_view_gpu.rs),
+  `Runtime::provide_targets` in [scene_views.rs](../crates/sjk-viewer/src/scene_views.rs)).
+  The floor mirrors' (any polished plane), the sky portal's (any sky shader) and the map
+  portal's (any `portal` face) were each a scene-format colour target and a depth target
+  at the scene's size, 25 MiB at 1920x1080 with HDR and four times that at 4K, and most
+  were never drawn: `r_floorReflections` is 0 at the Vanilla and SJK presets, the sky
+  portal draws only once the server sends `CS_SKYBOXORG` for a `misc_skyportal` (12 retail
+  maps have one, among them mp/duel6, mp/duel9 and mp/siege_hoth; mp/ffa3 and
+  mp/siege_desert have sky shaders and none), and no retail map has a `portal` face
+  (community maps do, with their `misc_portal_surface`). A target is kept once made and
+  made again at a resize or another `r_superSample`; the floor mirrors' is dropped when
+  `r_floorReflections` goes to 0. One the card has no room for (captured, `gpu_guard`)
+  leaves its view undrawn, logged once, rather than ending the game. Their labels now say
+  which view they serve (`SJK floor mirror view`/`depth`, `SJK sky portal view`/`depth`,
+  `SJK map portal view`/`depth`). The wide-glyph and emoji atlases (10.7 MiB each) wait
+  the same way for the first character beyond the code page or emoji
+  ([below](#characters-beyond-the-code-page)). With real-time lighting, a map with
+  polished planes still keeps the mirrors' light-buffer images whether mirrors are on or
+  not (`configure_light_preservation`).
 - A map change still builds the next world while the last one lives. With
   `MemoryHints::Performance` (128 to 256 MiB blocks) the blocks the old world
   shared with the new one stayed partly used once it was dropped, about 2 GB of
@@ -618,8 +682,9 @@ then mp/siege_desert, mp/ffa3, mp/siege_desert, mp/ffa3, as map changes on one
 device. Before: 11.0 to 12.5 GB private bytes once on a server (the GPU allocator
 reserving 5.2 to 5.9 GB). After: 7.2 to 7.4 GB (4.1 to 4.2 GB reserved for 3.3 to
 3.4 GB in use). Old worlds were freed in both (the resource counts went back down
-each time): it was not a leak. Each world also keeps about 1 GB of CPU memory
-after loading, not looked into yet.
+each time): it was not a leak. Each world also kept about 1 GB of CPU memory
+after loading; most of it was the decoded images, which no longer pile up from map to
+map ([Load-time texture and light preparation](#load-time-texture-and-light-preparation)).
 
 The players' "world installer stopped unexpectedly" (18/10/2026: 33 hub crash
 reports, `wgpu error: Out of Memory` in `create_texture` on `sjk-world-install`, on
@@ -640,7 +705,7 @@ Every map holds the same bytes on each cycle (duel6 1869 MiB after the first and
 last), and reserved memory settles back to 2.5 to 3.4 GB. With the desktop and other
 programs, a 6 GB card has no room for two worlds of the larger maps. About 0.55 GB of
 each world was the same whatever the map and was built again for each one: the saber
-glow column integrals (205 MiB), the game font atlas (128 MiB), the saber glow images
+glow column integrals (205 MiB), the game font atlas (128 MiB then, RGBA), the saber glow images
 (96 MiB), the UI icon atlas (50 MiB), the effect atlas (39 MiB) and the classic menu
 art (32 MiB). Map textures that two maps share (retail `textures/` among them) were
 uploaded again too.
@@ -656,8 +721,12 @@ array's size. A shared map texture skips its mip preparation too. Each entry is 
 with the last world that took it, so a map change never keeps the old map's own
 textures. Not shared: the UI icon atlas and animated menu art, which a running world
 rewrites; textures a world makes after its build (models and effects that load during a
-match, video frames, the non-mipmapped filtering path); and anything across a graphics
-reload, whose new context may make textures differently and starts its own cache.
+match, video frames, the non-mipmapped filtering path); material maps, whose converted
+images each build makes again, so only a hash of their pixels could key them (and a
+server's old map leaves before the next is built, below); and anything across a graphics
+reload, whose new context may make textures differently and starts its own cache. A
+shared map texture's key holds the levels texture detail leaves off, so a world built
+after `r_picmip` changed takes its own size.
 
 | Map | Peak before | Shared assets | Shared map textures too |
 | --- | --- | --- | --- |
@@ -697,9 +766,21 @@ other shots never do. Measured 25/10/2026 at 1920x1080 (MiB in use):
 
 | Map, r_picmip 0 / 2 | Vanilla style | SJK (recommended) | Experimental |
 | --- | --- | --- | --- |
-| mp/ffa3 | 1769 / 626 | 1814 / 670 | 2213 / 1065 |
-| mp/siege_desert | 1915 / 618 | 1952 / 654 | 2572 / 1275 |
+| mp/ffa3 | 1769 / 603 | 1814 / 648 | 2213 / 1049 |
+| mp/siege_desert | 1915 / 596 | 1952 / 632 | 2572 / 1253 |
 | Menu on pictures | 1140 / 512 | 1168 / 539 | 1425 / 797 |
+
+The r_picmip 2 column is after the sky boxes followed texture detail (25/10/2026); each
+map held 22 MiB more before (its sky box, 24 MiB at any setting), and nothing else
+changed: at r_picmip 0 the labels are the same and the Vanilla and SJK frames are
+pixel-identical before and after (Experimental's differ as much as two runs of one
+build do, from its moving dust and noise). `SJK_AUDIT_GENERATED=1` mounts the player's
+generated material pack (`zzz_sjk_materials.pk3`), which no other shot does. With it,
+Experimental's normal, specular and emission maps held 884 MiB on ffa3 (218 maps) and
+427 MiB on siege_desert (85) whatever the texture detail, SJK's emission maps 9 and
+16 MiB; once they followed r_picmip, at 2 they hold 58 and 27 MiB (SJK's about 1), and
+the maps hold 1190 MiB instead of 2038 and 1327 instead of 1765 (SJK: 649 instead of
+680, 633 instead of 670).
 
 The presets that leave the real-time lighting off differ by about 45 MiB; Experimental
 adds its lamp light cache (up to 360 MiB on ffa5), fixture visibility, GI, froxels and
@@ -708,6 +789,25 @@ stays level over 12 map changes. With the hub's 333 card faces mounted, the menu
 pictures at r_picmip 2 went from 539 to 2316 MiB in use (3235 MiB reserved): every face
 was uploaded at 1024 pixels in every world (see [cards.md](cards.md)), which the hub's
 crash reports named (`label = 'SJK menu emblem'`, a GTX 1060 3GB in the main menu).
+Since then only the faces a screen draws are decoded and uploaded (at most 64 kept): the
+same menu holds 539 MiB with the packs mounted, siege_desert 654 MiB instead of 2431,
+and the map change's peak is 1105 MiB instead of 2882.
+The table's numbers predate the single-channel font atlases (above), which take about
+120 MiB off every cell (measured at r_picmip 2 on mp/ffa3 and the menu on pictures).
+
+With the secondary views' targets and the text atlases made only when drawn (above), the
+same audit at r_picmip 2 (25/10/2026, MiB in use, before / after):
+
+| Map, r_picmip 2 | Vanilla style | SJK (recommended) | Experimental |
+| --- | --- | --- | --- |
+| mp/ffa3 | 626 / 571 | 670 / 598 | 1065 / 993 |
+| mp/siege_desert | 618 / 580 | 654 / 608 | 1279 / 1232 |
+| Menu on pictures | 512 / 490 | 539 / 518 | 797 / 775 |
+
+ffa3 lost its floor mirror and sky portal targets and both atlases, siege_desert its sky
+portal target and the atlases, the menu the atlases; the main view's `SJK depth` is the
+only depth target left. The audit's camera sees no polished floor, so at Experimental
+(`r_floorReflections 1`) the mirror target is only made once one comes into view.
 
 ## Eye adaptation
 
@@ -1715,9 +1815,18 @@ table of who wears which (filled from the hub's looks; ids and names are
 [unlockables.rs](../crates/sjk-viewer/src/unlockables.rs)'s); `BladeColor::Skin` carries
 the skin's number, trail and light wherever a blade colour is chosen (in the hand,
 thrown, first person, the menu stage). A skin whose pack is not loaded is the player's
-stock blade. A chroma ([unlockables.md](unlockables.md#chromas)) takes its saber's
-colour: `SkinColor::worn_with` sets the turn from the skin's hue to the colour's, the
-instance carries it (`chroma`, location 8), and `saber.wgsl` turns the skin's finished
+stock blade. So is a blade the local player chose to draw stock: a duel's
+(`cg_duelStockBlades`, `SaberSkins::set_plain`) or, for weak PCs, other players' or every
+blade (`cg_stockBlades` 1 or 2, `SaberSkins::set_stock`,
+[stock_blades.rs](../crates/sjk-viewer/src/stock_blades.rs)). `SaberSkins::get` then
+gives the world's blade no skin, so nothing below is drawn for it (no skinned instance,
+afterimage, glint, petal or trail and light colour of the skin), and the haze, lens,
+horizon and solid passes, which need a skinned blade in the frame, are skipped once none
+is left. The menus' preview takes the player's own skin from `SaberSkins::local` and the
+cards and pictures from the loaded skins, so they keep showing it. A chroma
+([unlockables.md](unlockables.md#chromas)) takes its saber's colour:
+`SkinColor::worn_with` sets the turn from the skin's hue to the colour's, the instance
+carries it (`chroma`, location 8), and `saber.wgsl` turns the skin's finished
 glow and core round the grey axis by it (`skin_turn_hue`); the light and trail turn on
 the CPU (`SkinColor::light_color`, `trail_color`).
 
@@ -2642,7 +2751,12 @@ entity (`ET_PORTAL`, 8) lies within 64 units of its plane, as stock's
 [scene_portal_math.rs](../crates/sjk-viewer/src/scene_portal_math.rs)). Until 19/10/2026
 the match looked for entity type 7 (`ET_BEAM`), so no network portal was ever found and
 such faces showed only their own texture: the grey `textures/lgnd_misc/camera` screen of
-JoF's `mp/ffa3` security camera, for example.
+JoF's `mp/ffa3` security camera, for example. The portal view's target is made the first
+frame a face selects a view ([GPU memory](#gpu-memory)). The ignored world shot
+`scene_view_targets` ([world_shot_scene_views.rs](../crates/sjk-viewer/src/world_shot_scene_views.rs))
+renders through each secondary view (floor mirrors on ffa3, duel6's sky portal, the mirrors
+of `sjk_shaders_e`) and prints which targets a world holds; `scene_view_targets_resize`
+checks the mirror target follows `r_superSample` and a resize.
 
 Camera-range caches also retain their PVS/area selection independently of the
 camera frustum. Turning or moving within a cluster rechecks bounds but reuses
@@ -2897,7 +3011,11 @@ for the flattened world only when a stage has maps: a tangent with handedness,
 averaged over the triangles of patch and triangle-soup vertices, and the
 light-grid direction (`R_CalcVertexLightDirs`/`R_LightDirForPoint`). They use 8
 bytes per vertex. Building them for `mp/ffa3` (114,088 vertices) took about 24 ms
-in a release test build. Maps are uploaded as linear RGBA8 with box-filtered mips.
+in a release test build. Maps are uploaded as linear RGBA8 with box-filtered mips,
+less the levels texture detail (`r_picmip`, [GPU memory](#gpu-memory)) leaves off the
+diffuse texture: since 25/10/2026 a 1024-pixel normal map at r_picmip 2 is its 256-pixel
+level, as its diffuse texture is. As in rend2 (`ParseStage`, `CollapseStagesToGLSL`),
+the maps of a `nopicmip` or `nomipmaps` shader's stage keep their full size.
 
 Shading lives in [material_maps.wgsl](../crates/sjk-viewer/src/material_maps.wgsl):
 
@@ -3259,7 +3377,8 @@ Each frame keeps at most six mirrors, the planes covering most of the screen: a 
 enters at 1% of the screen and leaves below 0.7%, so it does not flicker at the
 threshold. Every mirror re-renders the whole scene (sky, world, players, effects)
 from the reflected camera at half resolution into a shared target, cropped to the
-plane's screen rectangle; in real-time lighting it is lit in its own light-buffer
+plane's screen rectangle (the target is made the first frame a mirror is drawn and
+dropped when `r_floorReflections` is turned off, see [GPU memory](#gpu-memory)); in real-time lighting it is lit in its own light-buffer
 images, so the main view's light stays intact. The finish
 ([floor_reflection.wgsl](../crates/sjk-viewer/src/floor_reflection.wgsl)) blends the
 image over the floor with a Schlick rim from 0.12 head-on to 0.70 at grazing angles,
@@ -3819,6 +3938,14 @@ were converted at load into signed distance fields by
 atlas under 2048 texels, but every font SJK draws now rasterizes into a
 4096-texel coverage atlas, so none uses it.
 
+Every code-page atlas (Inter, the SJK UI's Rajdhani and Exo 2, SJK Menu, SJK Chat,
+SJK HUD, JetBrains Mono) and a distance field made from one hold a single value per
+texel, so they are one channel: a `GrayImage` on the CPU (the menu snapshots raster
+from it too) and an `R8Unorm` texture with its mips on the GPU, which `text.wgsl`'s
+`fragment_main` and `fragment_sdf` and the ground HUD read from `.r`; the colour
+comes from the vertices. They were white RGBA8 textures read through alpha until
+25/10/2026, four times the memory ([GPU memory](#gpu-memory)).
+
 In the Inter atlas, byte 0xAC (`¬`) is an exception: the retail `ergoec` and
 `ocr_a` fonts draw it as the boxed "WSI fonts" foundry logo, which players use in
 names, so the atlas takes that glyph instead of Inter's not-sign
@@ -3864,7 +3991,10 @@ character is shown, and emoji from a colour atlas beside it
 - The atlas is one 4096x2048 R8 texture with the code-page atlases' four mip levels,
   glyphs rasterized at 96 pixels per em on an 8-texel grid so every level's copy of
   a cell is whole texels, also kept on the CPU for menu snapshots. When it is full
-  it starts over and the glyphs on screen come back over the next frames.
+  it starts over and the glyphs on screen come back over the next frames. It is made
+  with its first glyph: until then the text bind groups carry a 1x1 stand-in, and they
+  are all made again when it or the emoji atlas is made (`GpuState::update_wide_text`),
+  so a world where no one writes beyond the code page never holds either.
 - Every text bind group carries it at binding 2
   ([wide_texture.rs](../crates/sjk-viewer/src/text/wide_texture.rs)); a glyph's
   vertices hold `u` offset by 2, and `text.wgsl` samples the wide atlas for those
@@ -3889,7 +4019,8 @@ one after another, 4.2 MB, and an index) and drawn by
 - An emoji is a square one em of the face wide (the em taken from its capitals),
   sitting a tenth of itself below the baseline, with a twentieth either side.
 - Its picture is decoded the first time it is shown, within the same 2 ms a frame as
-  the wide glyphs, into a 2048x1024 RGBA atlas (253 pictures, display values as every
+  the wide glyphs, into a 2048x1024 RGBA atlas (made with its first picture, 253
+  pictures, display values as every
   picture the 2D layer samples, mips averaged by alpha), bound at binding 3; its
   vertices hold `u` offset by 4. `text.wgsl` draws its own colours faded by the text's
   alpha, and black for the shadow quad (and for black text, `^0`).

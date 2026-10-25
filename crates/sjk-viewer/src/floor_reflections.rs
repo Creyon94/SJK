@@ -65,7 +65,9 @@ struct Floor {
 /// Map-owned floor reflection resources; no camera-ranked slots or frame allocations.
 pub(super) struct Floors {
     floors: Vec<Floor>,
-    pub(super) target: Option<gpu::Target>,
+    /// Made the first frame a mirror is drawn, dropped when mirrors are turned off.
+    pub(super) target: gpu::Lazy,
+    /// The finish's view of `target`, made with it.
     finish: Option<finish::Finish>,
     finish_layout: wgpu::BindGroupLayout,
     /// Floor material maps groups; 0 is the neutral one (`Face::maps`).
@@ -79,13 +81,10 @@ pub(super) struct Floors {
     commands_disabled: std::cell::Cell<bool>,
 }
 impl Floors {
-    #[allow(clippy::too_many_arguments)]
     pub(super) fn new(
         device: &wgpu::Device,
         camera: &wgpu::BindGroupLayout,
-        sample: &wgpu::BindGroupLayout,
         format: wgpu::TextureFormat,
-        size: [u32; 2],
         scene: &FlattenedScene,
         shaders: &ShaderCatalog,
         maps: &dyn Fn(usize) -> Option<crate::world_materials::material_maps::FloorMaps>,
@@ -122,12 +121,7 @@ impl Floors {
             floors.len(),
             floors.iter().filter(|floor| floor.plane.mapped).count()
         ));
-        let target =
-            (!floors.is_empty()).then(|| gpu::Target::new(device, camera, sample, format, size));
         let finish_layout = finish::layout(device);
-        let finish = target
-            .as_ref()
-            .map(|t| finish::Finish::new(device, &finish_layout, &t.color));
         let pipeline = resources::pipeline(device, camera, &finish_layout, &maps_layout, format);
         let visibility = visibility::Visibility::new(device, camera, &floors);
         Self {
@@ -135,8 +129,8 @@ impl Floors {
                 std::env::var("SJK_FLOOR_COMMANDS").as_deref() == Ok("0"),
             ),
             visibility,
-            target,
-            finish,
+            target: gpu::Lazy::new(gpu::FLOOR_MIRROR),
+            finish: None,
             finish_layout,
             map_groups,
             scale: finish::SCALE,
@@ -159,6 +153,10 @@ impl Floors {
             }
         }
     }
+    /// The map has polished planes, whether or not mirrors are on.
+    pub(super) fn has_planes(&self) -> bool {
+        !self.floors.is_empty()
+    }
     pub(super) fn resize(
         &mut self,
         device: &wgpu::Device,
@@ -167,19 +165,21 @@ impl Floors {
         format: wgpu::TextureFormat,
         size: [u32; 2],
     ) {
-        if self.target.is_some() {
-            self.set_target(
-                Some(gpu::Target::new(device, camera, sample, format, size)),
-                device,
-            );
-        }
+        self.target.resize(device, camera, sample, format, size);
+        self.make_finish(device);
     }
     pub(super) fn set_target(&mut self, target: Option<gpu::Target>, device: &wgpu::Device) {
-        self.finish = target
-            .as_ref()
-            .map(|t| finish::Finish::new(device, &self.finish_layout, &t.color));
-        self.target = target;
+        self.target.set(target);
+        self.make_finish(device);
     }
+    fn make_finish(&mut self, device: &wgpu::Device) {
+        self.finish = self
+            .target
+            .get()
+            .map(|t| finish::Finish::new(device, &self.finish_layout, &t.color));
+    }
+    /// Choose this frame's mirrors; `size` is the scene's, which the mirror target has.
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn prepare(
         &mut self,
         queue: &crate::frame_queue::FrameQueue,
@@ -188,11 +188,9 @@ impl Floors {
         view: Mat4,
         projection: Mat4,
         time: i32,
+        size: [u32; 2],
     ) {
         let eye = view.inverse().w_axis.truncate();
-        if let (Some(target), Some(finish)) = (&self.target, &self.finish) {
-            finish.update(queue, target.size, self.scale, self.roughness);
-        }
         self.cluster = usize::try_from(bsp.leaves()[bsp.leaf_at(eye.to_array())].cluster).ok();
         for floor in &mut self.floors {
             let p = &floor.plane;
@@ -225,7 +223,7 @@ impl Floors {
 
             floor.region = finish::region(
                 floor.region,
-                self.target.as_ref().unwrap().size,
+                size,
                 self.scale,
                 if p.mapped {
                     finish::MAPPED_MARGIN
@@ -259,6 +257,46 @@ impl Floors {
         self.apply_budget();
     }
 
+    /// Make the mirror target the first frame a mirror is drawn, and drop it once mirrors
+    /// are turned off: most maps' polished floors are never mirrored at the presets that
+    /// leave `r_floorReflections` off. Without a target no mirror is drawn.
+    pub(super) fn provide_target(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &crate::frame_queue::FrameQueue,
+        layouts: (&wgpu::BindGroupLayout, &wgpu::BindGroupLayout),
+        format: wgpu::TextureFormat,
+        size: [u32; 2],
+    ) {
+        if !enabled(self.enabled) {
+            if self.target.is_some() {
+                self.set_target(None, device);
+            }
+            return;
+        }
+        if !self.active() {
+            return;
+        }
+        if self.finish.is_none() {
+            let (camera, sample) = layouts;
+            if self
+                .target
+                .make(device, camera, sample, format, size)
+                .is_none()
+            {
+                for floor in &mut self.floors {
+                    floor.visible = false;
+                    floor.mirrored = false;
+                }
+                return;
+            }
+            self.make_finish(device);
+        }
+        if let (Some(target), Some(finish)) = (self.target.get(), &self.finish) {
+            finish.update(queue, target.size, self.scale, self.roughness);
+        }
+    }
+
     /// Keep the `MAX_MIRRORS` largest candidates above the coverage threshold; no allocation.
     fn apply_budget(&mut self) {
         let mut kept = [(0f32, usize::MAX); MAX_MIRRORS];
@@ -282,6 +320,28 @@ impl Floors {
     }
     pub(super) fn active(&self) -> bool {
         self.floors.iter().any(|f| f.visible)
+    }
+}
+
+#[cfg(test)]
+impl Floors {
+    /// Each polished plane's largest face, largest first: its centre, its radius and the
+    /// plane's normal.
+    pub(super) fn largest_faces(&self) -> Vec<(Vec3, f32, Vec3)> {
+        let mut faces: Vec<_> = self
+            .floors
+            .iter()
+            .filter_map(|floor| {
+                let face = floor
+                    .plane
+                    .faces
+                    .iter()
+                    .max_by(|a, b| a.radius.total_cmp(&b.radius))?;
+                Some((face.center, face.radius, floor.plane.normal))
+            })
+            .collect();
+        faces.sort_by(|a, b| b.1.total_cmp(&a.1));
+        faces
     }
 }
 

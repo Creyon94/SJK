@@ -82,9 +82,10 @@ fn map_changes_vram() {
             let _ = frame(&mut gpu, 4);
             let (total, by_label) = live(&gpu.device);
             eprintln!(
-                "vram: change {change:2} {map:28} peak {:6.0} MiB, after {:6.0} MiB",
+                "vram: change {change:2} {map:28} peak {:6.0} MiB, after {:6.0} MiB, decoded images {:5.0} MiB",
                 peak as f64 / MIB,
-                total as f64 / MIB
+                total as f64 / MIB,
+                crate::decoded_image_cache::held_bytes() as f64 / MIB
             );
             for (label, bytes) in &by_label {
                 let before = previous.get(label).copied().unwrap_or(0);
@@ -242,12 +243,19 @@ fn menu_pictures_vram() {
 
 /// Audit: every label an in-game map holds at each preset and texture detail, for the
 /// 3 GB cards. `SJK_AUDIT_MAPS` (comma separated) and `SJK_AUDIT_SIZE` (`WxH`) override
-/// the maps and the screen size.
+/// the maps and the screen size; `SJK_AUDIT_GENERATED` mounts the player's generated
+/// packs (`JKA_GAME_DATA/SJK/generated`, the material maps), which the other shots
+/// leave out. Each build's last frame is saved as `vram-audit-<map>-<preset>-<picmip>`.
 #[test]
 #[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
 fn low_end_vram_audit() {
     on_big_stack(|| {
         use crate::graphics_quality::{Level, preset_cvars};
+        if std::env::var_os("SJK_AUDIT_GENERATED").is_some()
+            && let Some(game_data) = std::env::var_os("JKA_GAME_DATA")
+        {
+            crate::assets::generated::locate_at_start(&PathBuf::from(game_data).join("SJK"));
+        }
         let maps = std::env::var("SJK_AUDIT_MAPS")
             .unwrap_or_else(|_| "maps/mp/ffa3.bsp,maps/mp/siege_desert.bsp".to_owned());
         let size = std::env::var("SJK_AUDIT_SIZE")
@@ -286,7 +294,15 @@ fn low_end_vram_audit() {
                     let Some((mut gpu, _profile)) = open(map, size, None, &cvars) else {
                         return;
                     };
-                    let _ = frame(&mut gpu, 8);
+                    let shot = frame(&mut gpu, 8);
+                    let stem = map
+                        .trim_start_matches("maps/")
+                        .trim_end_matches(".bsp")
+                        .replace(['/', ':'], "-");
+                    let _ = std::fs::create_dir_all(directory());
+                    let _ = shot.save(
+                        directory().join(format!("vram-audit-{stem}-{name}-picmip{picmip}.png")),
+                    );
                     let _ = gpu.device.poll(wgpu::PollType::wait_indefinitely());
                     let Some(report) = gpu.device.generate_allocator_report() else {
                         return;
@@ -336,8 +352,9 @@ fn low_end_vram_audit() {
 }
 
 /// Audit: the menus on pictures at r_picmip 2 (a 3 GB card's start) with the SJK packs
-/// the hub serves mounted from `JKA_GAME_DATA/SJK/assets`, before and after the card
-/// faces upload, then the next map built beside it (a map change's peak).
+/// the hub serves mounted from `JKA_GAME_DATA/SJK/assets`, before and after enough frames
+/// for every card face to upload (they uploaded whether drawn or not until 25/10/2026:
+/// 539 -> 2316 MiB), then the next map built beside it (a map change's peak).
 #[test]
 #[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
 fn card_faces_vram_audit() {
@@ -356,18 +373,8 @@ fn card_faces_vram_audit() {
         let _ = frame(&mut gpu, 8);
         let (before, _) = live(&gpu.device);
         let _skins = crate::sjk_packs::mount(&directory);
-        let faces = crate::cards::faces::current();
-        let count = faces.list.len();
-        let started = std::time::Instant::now();
-        while (0..count).any(|index| faces.art(index).is_none())
-            && started.elapsed() < std::time::Duration::from_secs(120)
-        {
-            std::thread::sleep(std::time::Duration::from_millis(200));
-        }
-        eprintln!(
-            "audit: {count} card faces decoded in {:.1} s",
-            started.elapsed().as_secs_f64()
-        );
+        let count = crate::cards::faces::current().list.len();
+        eprintln!("audit: {count} card faces mounted");
         let _ = frame(&mut gpu, (count as u32) / 2 + 20);
         let (after, by_label) = live(&gpu.device);
         let emblem = by_label.get("SJK menu emblem").copied().unwrap_or(0);

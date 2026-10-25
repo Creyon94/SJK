@@ -1043,6 +1043,46 @@ fn a_duel_draws_every_blade_stock() {
     assert_eq!(skins.get(3).map(|skin| skin.index), Some(worn.index));
 }
 
+/// Stock blades for weak PCs (`cg_stockBlades`): 1 draws other players' blades stock,
+/// the local player's own (in its slot) keeping its skin; 2 every blade. Thrown blades
+/// follow (`blade_color`), the menus' preview (`local`) and the sounds do not.
+#[test]
+fn stock_blades_draw_others_or_every_blade_stock() {
+    use crate::stock_blades::StockBlades;
+    let worn = sample_color();
+    let mut skins = SaberSkins::default();
+    skins.follow_looks(1, 1, |client| (client == 5).then_some(worn));
+    skins.set_local(Some(2), Some(worn));
+    let index = |skins: &SaberSkins, entity| skins.get(entity).map(|skin| skin.index);
+    // Off (the default): everyone's skin.
+    assert_eq!(index(&skins, 3), Some(worn.index), "the local player's own");
+    assert_eq!(index(&skins, 6), Some(worn.index));
+    skins.set_stock(StockBlades::Others);
+    assert_eq!(index(&skins, 3), Some(worn.index), "yours keeps its skin");
+    assert_eq!(skins.get(6), None);
+    let stock = BladeColor::Retail(Color::Green);
+    assert!(matches!(
+        skins.blade_color(6, stock),
+        BladeColor::Retail(Color::Green)
+    ));
+    assert!(matches!(skins.blade_color(3, stock), BladeColor::Skin(_)));
+    skins.set_stock(StockBlades::All);
+    assert_eq!(skins.get(3), None);
+    assert_eq!(skins.get(6), None);
+    // The menus still show what the player wears, and everyone is heard as chosen.
+    assert_eq!(skins.local().map(|skin| skin.index), Some(worn.index));
+    assert_eq!(skins.sound_sets()[5], Some(worn.index));
+    assert_eq!(skins.sound_sets()[2], Some(worn.index));
+    assert_eq!(skins.sound_of(6), Some(worn.index));
+    // With no session (no slot of one's own), every player is another.
+    skins.set_local(None, Some(worn));
+    skins.set_stock(StockBlades::Others);
+    assert_eq!(skins.get(6), None);
+    assert_eq!(skins.local().map(|skin| skin.index), Some(worn.index));
+    skins.set_stock(StockBlades::Off);
+    assert_eq!(index(&skins, 6), Some(worn.index));
+}
+
 /// The sound set each slot is heard with is taken apart from its blade (Nib's idea,
 /// 23/10/2026): another shader's, the stock sounds, or the blade's; the local player's
 /// own goes in its slot, the animation swings read the same table, and a duel's stock

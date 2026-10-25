@@ -1448,6 +1448,51 @@ attacks included) every command holds the walk with no key past 64, the attacks 
 mirrored 4-24 ms late, it crouches, tracks within 8 units with no delay and 5 with 0.3
 seconds, and ends within 2. Not yet tried in a game.
 
+## Sound memory
+
+Every sound is decoded once, on the audio decode worker, to mono PCM at the mixer's
+44.1 kHz and kept for the session in the mixer's bank
+([sjk-audio](../crates/sjk-audio/src/lib.rs)). Since 25/10/2026 the bank keeps 16-bit
+samples, not 32-bit floats: half the memory. A 16-bit source (nearly all retail and
+community sounds) is kept exactly; a resampled sound (most retail WAVs are 22.05 kHz)
+or a float WAV is rounded to the nearest 16-bit step, at most 1/65536 of
+full scale off (a float WAV louder than full scale is clipped there). The mixer turns
+each sample back into a float as it reads it, with the 1/32768 step folded into the
+gain it already multiplies by, so mixing costs what it did and still never allocates.
+WAVs and MP3s decode straight to 16-bit mono (a WAV into room for its header's
+length), so decoding a long track no longer holds float copies of it as well.
+
+Music is no longer kept forever. A map's tracks are decoded as music, under handles of
+their own outside the shared sound cache (`MusicTrack` in
+[audio_assets.rs](../crates/sjk-viewer/src/audio_assets.rs)), and when the music is
+chosen again (the next map, a `CS_MUSIC` change, `music`, `stopmusic`, a map without
+music) the tracks the new choice does not use are released. The release travels the
+decode queue behind the track's registration; the audio callback stops whatever plays
+the sound, takes its PCM out of the bank (the handle then plays nothing and is never
+reused) and hands it back over a ring to the decode worker, which frees it. The
+callback never frees memory and takes no lock. A file another sound decoded first is
+shared and never released this way: the duel music (`music/mp/duel.mp3`) stays
+decoded for the session, as do effects and voices. A duel suspends the map's track
+without releasing it, and a dynamic music level keeps its states' tracks until the
+level changes. A map change only stops the old music: the next map's prefetch may hold
+the same tracks, so they are released when its music is chosen.
+
+Retail figures, mono at 44.1 kHz (`crates/sjk-audio/tests/retail_memory.rs`, ignored;
+`JKA_GAME_DATA=<GameData> cargo test --release -p sjk-audio --test retail_memory --
+--ignored --nocapture`): the 302 effect WAVs under `sound/`, 31.5 MiB of files, took
+127.1 MiB as floats and take 63.5 MiB; a music track averages 9.7 MiB as floats and
+4.8 MiB now, the longest (`yavtemp_explore`) 47.2 and 23.6 MiB. Before, every map's
+music stayed decoded on top of the last one. `soundinfo` prints the decoded total;
+with `SJK_TRACE_AUDIO=1` the audio trace adds it (`pcm`), what was freed (`freed`) and
+releases kept for want of room (`kept`, expected 0).
+
+Unit tests: `pcm16_tests` in sjk-audio (a 16-bit WAV kept exactly; voices, loops and
+music within 1/32768 of the float samples they replaced; a released sound hands back
+its PCM and stops playing; mixing and releasing make no allocator call, checked with
+the test-only `assert_no_alloc` allocator) and `music_memory_tests` in the viewer (a
+new track frees the old one on the decode worker, a shared one stays, prefetched music
+is music). Not yet listened to in a game.
+
 ## Sound listener
 
 The mixer hears from one place a frame, as cgame's `S_Respatialize` from
@@ -3086,6 +3131,21 @@ that font is not loaded), whatever `cg_classicHudFont` says.
   `SaberSkins::set_plain`). Team and black blades follow their own settings as usual.
   Off by default (Creyon: skins stay on in duels unless a player asks). It changes only
   what you see; the other duellist sees what their own setting says.
+- `cg_stockBlades` (0, Off; Settings > Advanced > Gameplay > Effects > Stock blades, and
+  the classic Game options: Off, Others, All), Sol's request of 25/10/2026 for weak PCs
+  (GTX 1050/1060 class, integrated GPUs): `1` draws other players' blades as stock blades in the colour they set (a stock
+  colour or RGB), without their blade skin; `2` every blade, yours included. A blade skin
+  costs about 0.4 to 0.6 ms of GPU time on an RTX 5080 once one is in view (a heavy
+  signature up to 6 ms), so several milliseconds on a weak GPU on a full saber server.
+  Everything the skin draws goes with it (its shading, afterimages, glints, petals, heat
+  haze, black-hole lenses, solid parts, its trail and light colours), and the skin passes
+  are skipped once no skinned blade is left in the frame
+  ([rendering.md](rendering.md#saber-blade-skins)). Thrown sabers follow their owner.
+  Sounds stay as each player chose them. The menus keep showing skins: the Character and
+  Collection stage, the cards and the blade pictures never take them from this setting
+  ([stock_blades.rs](../crates/sjk-viewer/src/stock_blades.rs),
+  `SaberSkins::set_stock`). With `1`, a player you follow is another player. It changes
+  only what you see. Team, black and duel blades follow their own settings as usual.
 - `cg_hideCorpsesInDuel` (on; Settings > Advanced > Gameplay > Hide corpses in
   duel) keeps dead bodies out of the presentation world while the local player is
   in a private duel. It affects `ET_BODY` only: live players and gameplay state are
@@ -4808,6 +4868,19 @@ A window without focus has caps of its own: `com_maxfpsUnfocused` (SJK's default
 30; EternalJK's 0 keeps the normal cap) and `com_maxfpsMinimized` (50), where 0
 uses `com_maxfps`. They replace the normal cap while they apply, minimized first,
 so an alt-tabbed client does not render a 4K scene at full rate.
+
+`com_maxfpsMenu` (archived, default 0; Settings > Advanced > Display > Frame rate >
+Menu FPS cap, and the classic Video tab), Sol's request of 25/10/2026 for weak PCs,
+caps frames while only the menus run: no live game, no demo and no server connection
+waiting on its map (`GpuState::menus_only` in
+[runtime_settings.rs](../crates/sjk-viewer/src/runtime_settings.rs)). That is the main
+menu and its pages (Collection, Profile, Settings...), the menu world behind them and
+the connecting card until the server's game state arrives. The game menu over a match
+keeps the game's cap, since the game runs on under it, and so do a map loading for a
+server (its connection is serviced and the load's steps handed on once a frame) and demo
+playback. It lowers the normal cap, never raises it (an uncapped `com_maxfps 0` is
+lowered too), and 0 keeps the normal cap, so nothing changes for anyone who leaves it. The unfocused and minimized caps still
+replace it while they apply. The gameplay FPS's Auto follows `com_maxfps` alone.
 
 `snd_mute_losefocus` (archived, 1, EternalJK's name and default; Settings > Sound
 > Mute in background) silences every sound, music included, while the window is

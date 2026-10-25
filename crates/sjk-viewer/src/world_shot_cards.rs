@@ -478,18 +478,15 @@ fn duel6_sjk_card_binder() {
     });
 }
 
-/// Mount the test packs and wait for the first card's picture to decode; false (and a
-/// line) when the packs have no such card.
+/// Mount the test packs (their pictures decoded as soon as a shot draws their face);
+/// false (and a line) when the packs have no first card.
 fn faces_ready() -> bool {
     super::saber_skins::mount_test_packs();
-    // Up to five minutes: a debug build decodes the packs' 340 pictures slowly.
-    for _ in 0..12_000 {
-        let faces = crate::cards::faces::current();
-        match faces.find("sjk_alpha_010") {
-            Some((index, _)) if faces.art(index).is_some() => return true,
-            Some(_) => std::thread::sleep(std::time::Duration::from_millis(25)),
-            None => break,
-        }
+    if crate::cards::faces::current()
+        .find("sjk_alpha_010")
+        .is_some()
+    {
+        return true;
     }
     println!("no sjk_alpha_010 face in SJK_TEST_PACKS: skipped");
     false

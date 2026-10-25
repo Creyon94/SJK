@@ -30,6 +30,7 @@ pub(super) fn parse_stage(
         depth_write: true,
         depth_function: DepthFunction::LessEqual,
         material: StageMaterial::default(),
+        no_picmip: definition.no_picmip,
     };
     let mut depth_write_explicit = false;
     let mut colour = stage_colour::StageColourParser::default();
@@ -259,5 +260,27 @@ mod tests {
         assert_eq!(stage.video.as_deref(), Some("video/openinglogos"));
         assert!(stage.images.is_empty());
         assert_eq!(stage.blend, crate::StageBlend::Add);
+    }
+
+    #[test]
+    fn nopicmip_and_nomipmaps_hold_for_the_stages_after_them() {
+        // rd-vanilla reads `shader.noPicMip` as each stage loads its image.
+        let definitions = parse_shader_script(
+            b"a\n{\n{\nmap a1\n}\nnopicmip\n{\nmap a2\n}\n}\n\
+              b\n{\nnomipmaps\n{\nmap b1\n}\n}\nc\n{\n{\nmap c1\n}\n}",
+            "scripts/picmip.shader",
+        )
+        .expect("script parses");
+        let flags = |index: usize| -> Vec<bool> {
+            definitions[index]
+                .stages
+                .iter()
+                .map(|stage| stage.no_picmip)
+                .collect()
+        };
+        assert_eq!(flags(0), [false, true]);
+        assert!(definitions[0].no_picmip);
+        assert_eq!(flags(1), [true]);
+        assert_eq!(flags(2), [false]);
     }
 }

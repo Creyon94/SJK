@@ -15,6 +15,8 @@ struct Job<'a> {
     images: &'a [Arc<RgbaImage>],
     width: u32,
     height: u32,
+    /// The texture detail it takes ([`mips::picmip_for`]).
+    picmip: u32,
     bytes: u64,
 }
 
@@ -32,6 +34,7 @@ impl<'a> Job<'a> {
             images,
             width,
             height,
+            picmip: mips::picmip_for(key),
             bytes,
         }
     }
@@ -65,7 +68,7 @@ pub(super) fn upload(
                 && seen.insert(key)
             {
                 // The last map's world, still alive during a map change, may hold it.
-                if let Some(view) = mips::find_shared(images) {
+                if let Some(view) = mips::find_shared(images, mips::picmip_for(key)) {
                     forge.texture_cache.insert(key.to_owned(), view);
                 } else {
                     jobs.push(Job::new(key, images));
@@ -108,10 +111,15 @@ pub(super) fn upload(
             }
             drop(sender);
             for (job, chains) in receiver {
-                let texture =
-                    mips::upload_shared(device, queue, job.images, job.width, job.height, || {
-                        chains
-                    })?;
+                let texture = mips::upload_shared(
+                    device,
+                    queue,
+                    job.images,
+                    job.width,
+                    job.height,
+                    job.picmip,
+                    || chains,
+                )?;
                 forge.texture_cache.insert(job.key.to_owned(), texture);
             }
             Ok(())

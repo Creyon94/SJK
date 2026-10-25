@@ -28,7 +28,7 @@ pub(crate) use style::TextStyle;
 
 use bytemuck::{Pod, Zeroable};
 use fontdue::{Font, FontSettings, Metrics};
-use image::{Rgba, RgbaImage};
+use image::{GrayImage, Luma};
 use std::error::Error;
 
 pub(crate) const MAX_TEXT_VERTICES: usize = 32_768;
@@ -219,7 +219,8 @@ impl UiFont {
 /// CPU assets uploaded once to the GPU text texture.
 pub(crate) struct FontAtlas {
     pub(crate) font: UiFont,
-    pub(crate) image: RgbaImage,
+    /// Glyph coverage, one channel (uploaded as `R8Unorm`, read from `.r`).
+    pub(crate) image: GrayImage,
     /// `image` is a signed distance field for the distance-field text pipeline.
     pub(crate) distance_field: bool,
 }
@@ -394,7 +395,7 @@ pub(crate) fn load_family(
 
 /// Pack `rasterized` into a coverage atlas [`ATLAS_WIDTH`] wide with mipmappable
 /// padding, and return it with each glyph's rectangle `[u0, v0, u1, v1]`.
-fn paint_atlas(rasterized: &[RasterizedGlyph]) -> (RgbaImage, Vec<[f32; 4]>) {
+fn paint_atlas(rasterized: &[RasterizedGlyph]) -> (GrayImage, Vec<[f32; 4]>) {
     let placements = pack_glyphs(rasterized);
     let height = placements
         .iter()
@@ -403,9 +404,9 @@ fn paint_atlas(rasterized: &[RasterizedGlyph]) -> (RgbaImage, Vec<[f32; 4]>) {
         .max()
         .unwrap_or(1)
         .next_power_of_two();
-    // Transparent texels retain white RGB so bilinear sampling at a glyph
-    // boundary does not interpolate toward black before straight-alpha blend.
-    let mut image = RgbaImage::from_pixel(ATLAS_WIDTH, height, Rgba([255, 255, 255, 0]));
+    // Coverage only: the text colour comes from the vertices, so the atlas needs
+    // no RGB (the shaders read coverage from the red channel).
+    let mut image = GrayImage::new(ATLAS_WIDTH, height);
     let rectangles = rasterized
         .iter()
         .zip(placements)
@@ -413,12 +414,8 @@ fn paint_atlas(rasterized: &[RasterizedGlyph]) -> (RgbaImage, Vec<[f32; 4]>) {
             let metrics = glyph.metrics;
             for row in 0..metrics.height {
                 for column in 0..metrics.width {
-                    let alpha = glyph.pixels[row * metrics.width + column];
-                    image.put_pixel(
-                        x + column as u32,
-                        y + row as u32,
-                        Rgba([255, 255, 255, alpha]),
-                    );
+                    let coverage = glyph.pixels[row * metrics.width + column];
+                    image.put_pixel(x + column as u32, y + row as u32, Luma([coverage]));
                 }
             }
             [

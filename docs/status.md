@@ -1,3 +1,132 @@
+## Decoded images no longer pile up
+
+25/10/2026, `personal/decoded-image-sweep`, based on `main` `296fca5f`: the decoded image
+cache never dropped an image, so every texture of every map, model and HUD a session
+saw stayed in memory at full size (the processor's side of the "about 1 GB per world"
+in [rendering.md](rendering.md#gpu-memory)). Past 128 MiB more than the last sweep kept,
+the next image decoded now sweeps out every image only the cache holds
+([rendering.md](rendering.md#load-time-texture-and-light-preparation)). Verified on
+Windows 11, RTX 5080, Vulkan: unit tests of the sweep (held images stay in both
+indexes, unheld ones go, the mark moves); `map_changes_vram` at r_picmip 2 over twelve
+map changes, the cache 1750 MiB from the third map on before, 906 to 1178 MiB after,
+with the same video memory and 302 shared textures. Not verified: process memory in a
+live session, a model or effect texture decoded again after a sweep (decoded again from
+its file, as on a cache miss).
+
+## Card pictures only when drawn
+
+25/10/2026, `personal/card-faces-lazy`, based on `main` `ab4bd57b`: the hub's crash
+reports' largest named out-of-memory group was `label = 'SJK menu emblem'`, 16 crashes
+from 4 players on 2026.1022.1 to 2026.1023.3 (a GTX 1060 3GB in the main menu 20 s after
+start, 1919 MiB in use and 2682 MiB reserved against a 2520 MiB budget). That label is
+the card faces': every one of the hub's 333 was decoded at 1024 pixels with its mips when
+the packs were mounted, kept in memory, and uploaded to every world whether drawn or not
+(1.8 GB of video memory, 2.7 GB counted with the allocator's blocks, and 1.8 GB of system
+memory). A picture is now kept as its file and decoded on a worker only when a
+screen draws its face, at 512 pixels from `r_picmip` 1; the renderer keeps at most 64
+([cards.md](cards.md), "In the client"). Verified on Windows 11, RTX 5080, Vulkan, with
+the hub's packs: `card_faces_vram_audit` (menu on pictures at r_picmip 2, SJK preset,
+1920x1080) 2316 -> 539 MiB, the next map's build peak 2882 -> 1105 MiB, siege_desert
+2431 -> 654 MiB; `duel6_sjk_card_faces` shows the same pictures, pixel for pixel in the
+pictures' windows, as before; unit tests of the request, the worker and a missing picture.
+Not verified: in a game, on a small card, a binder page flipped quickly (pictures arrive
+two a frame, as before).
+
+## Performance options for weak PCs
+
+25/10/2026, `personal/perf-options`, based on `main` `ab4bd57b`: two opt-in settings for
+GTX 1050/1060 class and integrated GPUs, both off by default so nothing changes for anyone
+who leaves them. `cg_stockBlades` (Settings > Advanced > Gameplay > Effects > Stock blades,
+classic Game options; Off, Others, All): 1 draws other players' blades stock in their own
+colour, 2 every blade, yours included, through `SaberSkins::get` alone, so held and thrown
+blades lose the skin's whole look while the menus' previews, cards and sounds keep theirs
+([client.md](client.md#nameplates), [rendering.md](rendering.md#saber-blade-skins)).
+`com_maxfpsMenu` (Settings > Advanced > Display > Frame rate > Menu FPS cap, classic
+Video): frames a second while no live game, demo or waiting server connection exists (main
+menu, menu world, connecting card; not the game menu over a match, a map loading for a
+server or a demo), never above `com_maxfps`, the unfocused and minimized caps still first
+([client.md](client.md#configuration-and-content)). Verified (Windows x64): unit tests
+of both choices (the values, `SaberSkins` per mode with the own slot, thrown blades, the
+preview and sounds, the menu cap against the normal, uncapped and unfocused caps, defaults
+and archiving), the settings search finding both rows, the catalogue's help and label
+tests, and the SJK UI and classic Settings rows rendered off screen (`sjk_settings_snapshot`,
+`settings_panel_snapshot`) and looked at; `cargo fmt`, build, workspace tests and Clippy
+(no new warnings). Not verified: in a game or on a weak GPU, the GPU time saved (not
+measured), the menu frame pacing on a real window.
+
+## Texture detail everywhere
+
+25/10/2026, `personal/picmip-everywhere`, based on `main` `ab4bd57b`: `r_picmip` now also
+shrinks the sky boxes, the material maps and the textures of the non-mipmapped path
+(`r_textureMode GL_LINEAR`), to the size the mipmapped path gives; stages of `nopicmip`
+and `nomipmaps` shaders keep their size (parsed in `sjk-shader`), sky boxes do not, as in
+rd-vanilla ([rendering.md](rendering.md#gpu-memory)). Verified (release build, Vulkan on Sol's PC,
+1920x1080, `low_end_vram_audit`): at r_picmip 2 the sky box went from 24 to 1.5 MiB on
+mp/ffa3 and mp/siege_desert, and with the generated material pack mounted
+(`SJK_AUDIT_GENERATED`) Experimental's material maps from 884 to 58 MiB (ffa3) and 427 to
+27 MiB (siege_desert); at r_picmip 0 the labels are unchanged and the Vanilla and SJK
+frames pixel-identical, Experimental's within the noise between two runs; the picmip 2
+sky looked at (softer, sensible). Workspace fmt, build, tests and Clippy (no new
+warnings). Not verified: in a game, on a 3 GB card, the non-mipmapped path rendered (no
+shot uses it), a map whose world shaders say `nopicmip` (unit tests only).
+
+## Sound memory
+
+25/10/2026, `personal/audio-memory`, based on `main` `ab4bd57b`: decoded sounds are kept
+as 16-bit PCM instead of floats, half the memory, and a map's music is released when the
+music is chosen again instead of staying decoded all session
+([client.md](client.md#sound-memory)). Released PCM goes back from the audio callback to
+the decode worker, which frees it; the callback never frees or locks. Measured on the
+retail archives (ignored `retail_memory` test, release build): the 302 effect WAVs take
+63.5 MiB instead of 127.1 MiB, a music track 4.8 MiB instead of 9.7 on average (longest
+23.6 instead of 47.2). Verified: `pcm16_tests` (16-bit WAVs exact, voices, loops and music
+within 1/32768 of the float path, release, no allocator call while mixing or releasing)
+and the viewer's `music_memory_tests`, `cargo test --locked --workspace`, Clippy. Not
+verified: listening in a game, memory in a live session. The duel music, effects and
+voices stay decoded for the session; sounds keep the mixer's rate (per-voice resampling
+would halve 22 kHz effects again, not done).
+
+## Single-channel font atlases
+
+25/10/2026, `personal/font-atlas-r8`, based on `main` `ab4bd57b`, for 3 GB cards: the
+code-page font atlases (Inter, Rajdhani, Exo 2, SJK Menu, SJK Chat, SJK HUD, JetBrains
+Mono) and the distance-field path are one channel, a `GrayImage` on the CPU and an
+`R8Unorm` texture on the GPU, read from `.r` by `text.wgsl` and `ground_hud.wgsl`
+([rendering.md](rendering.md#gpu-memory)). Verified on Sol's PC (Vulkan, release
+build, 1920x1080): `low_end_vram_audit` (mp/ffa3 and the menu on pictures, r_picmip 2,
+the three presets) shows the font atlases at 40 MiB instead of 160 and 118 to 120 MiB
+less in use in every case (ffa3 on the SJK preset 670 to 550 MiB, the menu 539 to 419).
+A temporary GPU test (not committed) drew the same glyph quads at six scales from the
+old RGBA upload read through `.a` and from the R8 one read through `.r`, for all eight
+atlases and a distance field: no pixel differed. The world shots of the chat (Russian,
+Japanese, emoji; Inter and the game fonts), the consoles, the SJK UI menu, the text
+sizes and a demo with the player card differ from the old build's no more than two runs
+of the old build differ (clocks, animation); the 59 deterministic CPU menu snapshots of
+105 are identical. Not verified: the ground HUD drawn (same atlas, same `.r` change; no
+shot shows it), a 3 GB card, DirectX 12 and Metal.
+
+## Secondary view targets and text atlases made when drawn
+
+25/10/2026, `personal/lazy-scene-targets`, based on `main` `ab4bd57b`, for 3 GB cards: the
+floor mirror, sky portal and map portal targets (a scene-format colour target and a depth
+target each, 25 MiB at 1920x1080 in HDR) are made the first frame their view is drawn, the
+floor mirrors' dropped with `r_floorReflections 0`, and the wide-glyph and emoji atlases
+(10.7 MiB each) with their first character
+([rendering.md](rendering.md#gpu-memory)). Verified off screen on Sol's PC (RTX 5080,
+release): `low_end_vram_audit` at 1920x1080 and r_picmip 2, MiB in use at the SJK preset,
+ffa3 670 to 598, siege_desert 654 to 608, the menu on pictures 539 to 518 (Vanilla and
+Experimental lose the same targets); `scene_view_targets` (floor mirrors on ffa3 on, off and
+on again, duel6's sky portal through `CS_SKYBOXORG`, the seven mirrors of `sjk_shaders_e`)
+against `main`: every view drawn, and the differences (215 to 252 pixels above 8/255 on the
+floors, 1,718 on the sky, 115,985 on the animated shader map) no larger than two runs of
+`main` (406 to 448, 1,640, 132,589), while a floor mirror changes 10,862 to 106,176 pixels
+of its view, and the sky portal 185,587 and the first mirror 21,659 by more than 8/255;
+`scene_view_targets_resize` (the mirror target at `r_superSample 2`, then after a resize, at
+the scene's size); `chat_in_russian_and_japanese` (the chat text identical, only the caret
+and dust motes differ); `graphics_reload_menu`, `map_change_after_resize`. Not verified: in a
+game (a live server's sky portal and portals, the menu world after a match), a 3 GB card, a
+target refused for lack of memory.
+
 ## Announcements and contributor reward rounds
 
 25/10/2026, `personal/announcements`, based on `main` `ca5643de`: the client side of the

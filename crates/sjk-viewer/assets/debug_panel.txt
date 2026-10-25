@@ -1037,6 +1037,15 @@ note: A roll on landing while crouched (PM_CrashLand) is not prevented, in EJK e
 
 # ---- Menus & settings ----
 
+[card-faces-lazy]
+area: Menus & settings
+title: Card pictures load only when shown (1.8 GB less video memory; 3 GB cards crashed)
+change: A card's picture is decoded and uploaded when a screen draws it, 64 kept at most.
+change: 512 pixel pictures from Texture detail 1; 1024 at 0, as before.
+test: Collection > Cards: pictures appear within a moment; page through, they keep coming.
+test: Look closer at a card (Enter): the picture is sharp; open a holocron: the found card shows.
+test: Task Manager > GPU memory in the main menu: about 1.8 GB less than the last release.
+
 [profile-vfs-release]
 area: Menus & settings
 title: No 'Too many open files' after many maps (Lukas, PR #198)
@@ -2059,6 +2068,49 @@ note: Alt+Tab while holding Tab leaves the board and the hidden HUD up until Tab
 
 # ---- Rendering & effects ----
 
+[font-atlas-r8]
+area: Rendering & effects
+title: Font atlases in one channel: 120 MiB less video memory, text unchanged
+change: Every font atlas (game, UI, classic HUD) is coverage only (R8) instead of RGBA.
+test: Menus, console, chat (with Russian/Japanese and emoji), HUD numbers: text looks the same.
+test: Classic and SJK menu styles, retail fonts and SJK fonts: no missing or blocky glyphs.
+test: cg_groundHud 1 (ground HUD): its digits still draw.
+
+[decoded-image-sweep]
+area: Rendering & effects
+title: Decoded textures of maps you left are freed (memory no longer grows map after map)
+change: Past 128 MiB more than last time, images only the cache holds are dropped.
+test: Play several maps in a row: Task Manager memory stops growing after the second or third.
+test: Go back to a map you played: it loads and looks the same.
+
+[stock-blades-menu-cap]
+area: Rendering & effects
+title: Stock blades (cg_stockBlades) and a menu frame cap (com_maxfpsMenu) for weak PCs
+change: Stock blades: Off / Others / All draws blades without skins, in their own colour.
+change: Menu FPS cap: frames a second while only the menus run; 0 keeps the normal cap.
+test: Settings > Advanced > Gameplay > Effects: Stock blades Others: others' skins gone, yours kept.
+test: Stock blades All: your own blade is stock too; the Collection still shows skins.
+test: Settings > Advanced > Display > Frame rate: Menu FPS cap 30: the main menu runs at 30.
+test: Join a server with the cap set: the game runs at your normal cap, menus over it too.
+
+[picmip-everywhere]
+area: Rendering & effects
+title: Texture detail (r_picmip) now also shrinks skies, material maps, unmipped textures
+change: Sky boxes, normal/specular/emission maps and r_textureMode GL_LINEAR follow r_picmip.
+change: Shaders with nopicmip or nomipmaps keep full size, as in the original game.
+test: r_picmip 2, then a map with a sky (siege_desert): the sky draws, softer, no seams.
+test: r_picmip 0: skies and textures look exactly as before.
+test: Experimental preset with material maps at r_picmip 2: maps load, bumps still show.
+
+[lazy-scene-targets]
+area: Rendering & effects
+title: Mirror, sky portal and portal views, CJK and emoji atlases made only when drawn
+change: Floor mirror, sky portal and map portal targets are made the first frame they draw.
+change: The wide glyph (CJK) and emoji atlases are made with the first such character.
+test: r_floorReflections 1 on ffa3: the floor mirror draws; 0 then 1 again: it comes back.
+test: duel6 (sky portal): the sky scenery draws as before; resize the window: still right.
+test: Type Russian/Japanese and an emoji in chat: they show from the first character.
+
 [blade-tip-edges]
 area: Rendering & effects
 title: Signature blades: no bright tip rim, no hard edges (Creyon, PR #191)
@@ -2703,6 +2755,15 @@ note: Needs the hub's unlocks and asset packs (SJK-hub #2 and #3), not deployed 
 note: Not run in a game against the deployed hub; the sounds have not been heard yet.
 
 # ---- Audio ----
+
+[sound-memory]
+area: Audio
+title: Sounds kept at 16 bits (half the memory), old map music freed
+change: Every sound and music track is stored as 16-bit samples instead of floats.
+change: A map's music is freed once the next music is chosen, instead of piling up.
+test: Play a few maps: sounds, voices, loops and music sound as before (no crackle, no clicks).
+test: Change map a few times, then soundinfo: decoded total stays level, freed bytes grow.
+test: music and stopmusic in the console still play and stop the music.
 
 [stereo-sides]
 area: Audio

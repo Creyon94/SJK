@@ -127,6 +127,8 @@ impl GameAudio {
         self.legacy_load = None;
         self.sound_table_refresh = None;
         self.deferred_snapshots.clear();
+        // Stopped, not freed: the next map's prefetch may already hold the same
+        // tracks. The next selection (`start_music`, `clear_music`) frees the rest.
         self.map_music = None;
         self.music_sync_pending = false;
         self.music_value = None;

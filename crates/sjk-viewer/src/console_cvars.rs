@@ -750,6 +750,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "Draw every blade stock, in its own colour, in a duel you play or follow and on Duel or Power Duel servers; 0 keeps blade skins",
         ),
         CvarDefinition::new(
+            crate::stock_blades::CVAR,
+            0_i64,
+            archive,
+            "Draw blades stock, in their own colour, to save GPU time: 0 off, 1 other players' blades, 2 every blade, yours too",
+        ),
+        CvarDefinition::new(
             crate::effect_aux::saber_rain_steam::CVAR,
             1_i64,
             archive,

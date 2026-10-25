@@ -147,6 +147,19 @@ pub(super) fn find(
     {
         found.emission = load(vfs, &path, "emission", cache, convert_emission)?;
     }
+    // rend2 loads a stage's maps with its shader's `nopicmip` (`ParseStage`) or its
+    // diffuse image's flags (`CollapseStagesToGLSL`): they keep their size with it.
+    if diffuse.no_picmip {
+        let specular = found.specular.as_mut().map(|(image, _)| image);
+        for image in [found.normal.as_mut(), specular, found.emission.as_mut()]
+            .into_iter()
+            .flatten()
+        {
+            image
+                .key
+                .push_str(crate::world_materials::filtering::mips::NO_PICMIP_KEY);
+        }
+    }
     Ok(found)
 }
 
