@@ -102,7 +102,8 @@ impl Part {
     }
 }
 
-/// When each part of a body was last heard, and its scrape.
+/// When each part of a body was last heard, and its scrape (`i64::MIN`: never, so the
+/// gaps since are taken saturating).
 #[derive(Clone, Copy, Debug)]
 pub(super) struct Heard {
     knocked: [i64; PARTS],
@@ -153,7 +154,7 @@ pub(super) fn hear(heard: &mut Heard, body: &Body, time: i64, slot: u8, cues: &m
     let mut knocks: Vec<(Part, Knock)> = hardest
         .iter()
         .enumerate()
-        .filter(|(index, _)| time - heard.knocked[*index] >= KNOCK_GAP_MS)
+        .filter(|(index, _)| time.saturating_sub(heard.knocked[*index]) >= KNOCK_GAP_MS)
         .filter_map(|(index, knock)| knock.map(|knock| (part_at(index), knock)))
         .collect();
     knocks.sort_by(|a, b| b.1.speed.total_cmp(&a.1.speed));
@@ -184,7 +185,7 @@ pub(super) fn hear(heard: &mut Heard, body: &Body, time: i64, slot: u8, cues: &m
         });
     }
     // The fastest scrape.
-    if time - heard.scraped >= SCRAPE_GAP_MS
+    if time.saturating_sub(heard.scraped) >= SCRAPE_GAP_MS
         && let Some(scrape) = body
             .scrapes
             .iter()
@@ -226,8 +227,37 @@ pub(super) fn paths() -> impl Iterator<Item = &'static str> {
 
 #[cfg(test)]
 mod tests {
-    use super::super::body::JOINTS;
+    use super::super::body::{JOINTS, PELVIS, Start};
     use super::*;
+
+    #[test]
+    fn a_body_never_heard_before_is_heard_on_its_first_knock() {
+        let mut body = Body::new(&Start {
+            moment: 1_000,
+            origin: [0, 0, 24],
+            velocity: [0, 0, 0],
+            yaw: 0,
+        });
+        body.knocks.push(Knock {
+            joint: PELVIS,
+            speed: 300.0,
+            surface: 0,
+        });
+        body.scrapes.push(Knock {
+            joint: L_FOOT,
+            speed: 200.0,
+            surface: 0,
+        });
+        let mut heard = Heard::default();
+        let mut cues = Vec::new();
+        // A server's time well past zero: the gap since "never" must not wrap round.
+        hear(&mut heard, &body, 5_000_000, 3, &mut cues);
+        assert_eq!(cues.len(), 3, "flesh, surface and scrape");
+        assert!(TRUNK_SOFT.contains(&cues[0].path));
+        cues.clear();
+        hear(&mut heard, &body, 5_000_050, 3, &mut cues);
+        assert!(cues.is_empty(), "within the gaps");
+    }
 
     #[test]
     fn every_joint_has_its_part_and_a_part_set_for_each_index() {

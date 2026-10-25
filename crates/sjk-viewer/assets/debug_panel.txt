@@ -69,6 +69,13 @@ test: While A peeks, B reads "A's drone is watching you" and sees the remote beh
 test: B turns toy_drone off: A's view returns, "B sent your drone away"; the remote fades.
 test: Collection > Toys shows six niches, Drone's switch "Peek me" stays on after a restart.
 
+[ragdoll-sound-fix]
+area: Gameplay
+title: Ragdoll: knocks and scrapes are heard again
+change: The knock and scrape timers no longer wrap round in release builds (every sound was dropped).
+test: Go limp and fall: the body thuds on the ground, limbs too, and scrapes when it slides.
+test: Fall against a wall: it knocks on the wall's material.
+
 [ragdoll-physics]
 area: Gameplay
 title: Ragdoll: movers carry the body, every part heard on what it hits
