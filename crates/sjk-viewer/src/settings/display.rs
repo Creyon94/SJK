@@ -168,12 +168,19 @@ impl MonitorModes {
 }
 
 /// Whether the windowing system honours exclusive fullscreen: Wayland
-/// ignores the request (winit `Window::set_fullscreen`).
+/// ignores the request (winit `Window::set_fullscreen`), and macOS is left to
+/// borderless: winit captures the display there and asserts that capturing it
+/// and setting its video mode succeed, a panic inside AppKit's redraw that
+/// aborts the game (a Mac player's crash on choosing fullscreen, 25/10/2026),
+/// and a captured display also takes Cmd+Tab away.
 pub(crate) fn exclusive_supported(window: &Window) -> bool {
     use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
-    window
-        .window_handle()
-        .is_ok_and(|handle| !matches!(handle.as_raw(), RawWindowHandle::Wayland(_)))
+    window.window_handle().is_ok_and(|handle| {
+        !matches!(
+            handle.as_raw(),
+            RawWindowHandle::Wayland(_) | RawWindowHandle::AppKit(_)
+        )
+    })
 }
 
 /// The monitor's video mode of exactly `size`, at its highest refresh rate
