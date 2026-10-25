@@ -339,6 +339,21 @@ sizes, both ready, the gift question; `duel6_ingame_players` `players-trade`;
 `duel6_sjk_chat_page` `card-trade`) come from Creyon's Windows run; not verified here
 (no game data on the Linux machine).
 
+Sol's re-review of 25/10/2026 (`a781f9a0`), answered on the same branch after merging
+`main` (`bbe66051`): Trade on the in-game chat card takes its click (its token was missing
+from the press list); CREDITS.md and credits.txt name #197; the changelog line and
+CREDITS.md no longer state the hub's limits or the resale lock's length; with trading off
+the list is read every 30 minutes instead of after a day, so trading switched on at the
+hub reaches running clients; a request that came during play no longer opens by itself
+over the main menu (only the game menu opening from play reopens a closed window); and
+`trade <player>` refuses a blocked player. Verified on Linux x86_64: the workspace format
+check (one unformatted file from `main`, `world_shot_official.rs`, left as it is), build,
+tests and clippy; new tests of the card's Trade click, the slower reads seeing trading
+switched on, and Esc in play. Not verified here: in a game (no game data on the Linux
+machine). Still open on the hub's branch (SJK-hub-shared #4): the busy lock and request
+spam, the re-check at accept and confirm on the same connection, and trades erased with
+a deleted player (`ON DELETE CASCADE`); trading stays staff-only until they are done.
+
 ## Safety codes that a hub cannot match
 
 24/10/2026, `claude/kind-newton-h1d1ah`, based on `main` `62a5ac44`, after Slash's
