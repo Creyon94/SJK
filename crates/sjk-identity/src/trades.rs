@@ -181,6 +181,19 @@ impl PlayerTrade {
         let name = crate::chat::for_display(&self.with.name);
         match self.state.as_str() {
             "done" => "Trade complete. Your new items are in your collection.".to_owned(),
+            // The hub ends a request as `busy` when one of the two took another trade.
+            "declined" if self.reason == "busy" && self.asker => {
+                format!("{name} is trading with someone else.")
+            }
+            "declined" if self.reason == "busy" => {
+                "The request closed: you are trading with someone else.".to_owned()
+            }
+            "cancelled" if self.reason == "busy" => {
+                "Your request closed: you are trading with someone else.".to_owned()
+            }
+            "cancelled" if self.reason == "removed" => {
+                "The trade ended: an account was removed.".to_owned()
+            }
             "declined" if self.asker => format!("{name} declined the trade."),
             "declined" => "You declined the trade.".to_owned(),
             "cancelled" => "The trade was cancelled.".to_owned(),
@@ -404,6 +417,7 @@ pub fn reason_words(reason: &str) -> &'static str {
             "one of you reached the day's limit for holocrons of that tier."
         }
         "merged" => "an account was merged.",
+        "removed" => "an account was removed.",
         _ => "a check failed.",
     }
 }
@@ -513,6 +527,8 @@ pub fn refusal(error: &HubError) -> String {
             "same_address" => "Two accounts on one connection cannot trade with each other.",
             "trade_busy" => "You are in a trade already.",
             "they_are_busy" => "That player is in a trade already.",
+            "asked_recently" => "You asked that player a moment ago: wait before asking again.",
+            "asking_too_often" => "You sent many trade requests: wait a while before the next.",
             "trade_closed" => "That trade has ended.",
             "not_asked" => "Only the player asked can answer.",
             "trade_changed" => "The offer changed: look again before you are ready.",
@@ -638,7 +654,30 @@ mod tests {
             refusal(&rejected("holocrons_off")),
             "Holocrons cannot be traded yet: duplicates only for now."
         );
+        assert_eq!(
+            refusal(&rejected("asked_recently")),
+            "You asked that player a moment ago: wait before asking again."
+        );
         assert_eq!(refusal(&rejected("something_new")), "hub words");
+        // A request the hub closed because one of the two took another trade.
+        let busy = |asker: bool, state: &str, reason: &str| PlayerTrade {
+            state: state.to_owned(),
+            reason: reason.to_owned(),
+            asker,
+            ..PlayerTrade::default()
+        };
+        assert_eq!(
+            busy(true, "declined", "busy").ending(),
+            " is trading with someone else."
+        );
+        assert_eq!(
+            busy(false, "declined", "busy").ending(),
+            "The request closed: you are trading with someone else."
+        );
+        assert_eq!(
+            busy(true, "cancelled", "removed").ending(),
+            "The trade ended: an account was removed."
+        );
         let ended = PlayerTrade {
             state: "refused".to_owned(),
             reason: "their_mythical_received_day".to_owned(),
@@ -663,6 +702,9 @@ mod tests {
             "merged",
             "trade_busy",
             "they_are_busy",
+            "asked_recently",
+            "asking_too_often",
+            "removed",
             "something_new",
         ]
         .map(str::to_owned)

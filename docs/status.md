@@ -350,9 +350,13 @@ over the main menu (only the game menu opening from play reopens a closed window
 check (one unformatted file from `main`, `world_shot_official.rs`, left as it is), build,
 tests and clippy; new tests of the card's Trade click, the slower reads seeing trading
 switched on, and Esc in play. Not verified here: in a game (no game data on the Linux
-machine). Still open on the hub's branch (SJK-hub-shared #4): the busy lock and request
-spam, the re-check at accept and confirm on the same connection, and trades erased with
-a deleted player (`ON DELETE CASCADE`); trading stays staff-only until they are done.
+machine). The hub's three points (SJK-hub-shared #4) are answered on its branch: a
+waiting request no longer holds the player asked, a no or an unanswered request makes the
+asker wait before asking that player again and requests are capped per person
+(`asked_recently`, `asking_too_often`, worded here without numbers), one connection is
+checked again at the accept and every confirmation, and deleting a player keeps their
+trades (the running ones end `removed`); the client words those answers and the
+`busy` and `removed` endings.
 
 ## Safety codes that a hub cannot match
 

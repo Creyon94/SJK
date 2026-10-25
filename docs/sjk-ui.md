@@ -2220,7 +2220,12 @@ every menu style, on the 16:9 frame:
 - **Request:** the kit's card, 800 wide from x 560, y 300, over a light shade (the match
   shows round it): the SJK logo, "Trade request" in gold, "Nib wants to trade"
   (Rajdhani 36, their name in its colours) with the seconds left, what a trade is, the bar, Decline (outlined) and Accept (gold, Enter).
-  The asker's reads "Waiting for Nib" with Cancel request.
+  The asker's reads "Waiting for Nib" with Cancel request. A request waiting for a player
+  does not hold them at the hub (its review of 24/10/2026): they may be asked by others
+  and ask someone themselves, and taking one trade closes the rest, which say so ("Nib is
+  trading with someone else."). Asking a player again soon after they said no, or sending
+  many requests, gets the hub's answer to wait (`asked_recently`, `asking_too_often`), in
+  words that name no number.
 - **Open trade:** a card 1160 by 780 (its design size; the player's Trade window size
   setting, `cl_tradeWindowSize`, draws it at 80, 90 (the default) or 100 percent about the
   frame's middle). Its head: the SJK logo on its own (64 wide), "Trading with" in gold, and
