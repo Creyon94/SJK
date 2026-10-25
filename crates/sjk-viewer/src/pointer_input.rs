@@ -325,6 +325,11 @@ impl GpuState {
             self.reload_card_choice(choice);
             return true;
         }
+        if self.small_card_notice.is_open() {
+            let choice = self.small_card_notice.handle_pointer(event);
+            self.small_card_notice_choice(choice);
+            return true;
+        }
         if self.emote_help.card.is_open() {
             let choice = self.emote_help.card.handle_pointer(event);
             self.emote_help_choice(choice);

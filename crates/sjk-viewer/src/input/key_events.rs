@@ -90,6 +90,12 @@ impl GpuState {
             self.reload_card_choice(choice);
             return;
         }
+        // And the small-card notice.
+        if !console_open && self.small_card_notice.is_open() {
+            let choice = self.small_card_notice.handle_key(&event);
+            self.small_card_notice_choice(choice);
+            return;
+        }
         // And the emote help card.
         if !console_open && self.emote_help.card.is_open() {
             let choice = self.emote_help.card.handle_key(&event);

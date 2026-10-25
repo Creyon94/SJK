@@ -334,6 +334,8 @@ mod graphics_reload;
 
 #[path = "world_shot_fps_help.rs"]
 mod fps_help_shots;
+#[path = "world_shot_small_card.rs"]
+mod small_card;
 
 #[path = "world_shot_emote_help.rs"]
 mod emote_help_shots;

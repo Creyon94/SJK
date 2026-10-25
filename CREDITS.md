@@ -287,6 +287,9 @@ includes:
 - small graphics cards found at start: the card's video memory read from DXGI, a card
   of 4 GB or less starting on lower texture detail and menu pictures, and saber shader
   swatches drawn instead of rendered live while the menu pictures are on;
+- lighter graphics for small cards (25/10/2026): under 3.5 GB, once a card, Vanilla style,
+  stock blades for other players and a 60 FPS menu cap, with a card to keep them or go
+  back to SJK graphics;
 - decoded textures freed once nothing uses them (25/10/2026): the cache kept every
   texture of every map seen in a session, up to about 0.8 GB more after a few maps;
 - card pictures decoded and uploaded only when a screen draws them (25/10/2026), at
