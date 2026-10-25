@@ -2,6 +2,109 @@
 use super::*;
 use wgpu::util::DeviceExt;
 
+/// The floor mirrors' target's labels (colour, depth).
+pub(super) const FLOOR_MIRROR: [&str; 2] = ["SJK floor mirror view", "SJK floor mirror depth"];
+/// The sky portal's target's labels.
+pub(super) const SKY_PORTAL: [&str; 2] = ["SJK sky portal view", "SJK sky portal depth"];
+/// The map portal's target's labels.
+pub(super) const MAP_PORTAL: [&str; 2] = ["SJK map portal view", "SJK map portal depth"];
+
+/// A secondary view's target, made the first frame the view is drawn rather than with the
+/// world: a scene-format colour target and a depth target at the scene's size, 25 MiB at
+/// 1920x1080 in HDR and four times that at 4K, which most maps never draw (a sky shader
+/// without a `misc_skyportal`, polished floors with `r_floorReflections 0`, portal
+/// shaders without a `misc_portal_surface`). Once made it is kept, and made again at a
+/// new size, until the world goes or its owner drops it.
+pub(super) struct Lazy {
+    labels: [&'static str; 2],
+    target: Option<Target>,
+    /// Making it failed (out of video memory): the view is not drawn and making it is
+    /// not tried again until the scene's size changes.
+    refused: bool,
+}
+
+impl Lazy {
+    pub fn new(labels: [&'static str; 2]) -> Self {
+        Self {
+            labels,
+            target: None,
+            refused: false,
+        }
+    }
+
+    pub fn get(&self) -> Option<&Target> {
+        self.target.as_ref()
+    }
+
+    pub fn is_some(&self) -> bool {
+        self.target.is_some()
+    }
+
+    /// The target, made at `size` now if there is none yet; `None` when the card has no
+    /// room for it, which is logged once and leaves the view undrawn rather than ending
+    /// the game.
+    pub fn make(
+        &mut self,
+        device: &wgpu::Device,
+        camera_layout: &wgpu::BindGroupLayout,
+        samples: &wgpu::BindGroupLayout,
+        format: wgpu::TextureFormat,
+        size: [u32; 2],
+    ) -> Option<&Target> {
+        if self.target.is_none() && !self.refused {
+            let labels = self.labels;
+            match crate::gpu_guard::capture(device, || {
+                Target::new(device, camera_layout, samples, format, size, labels)
+            }) {
+                Ok(target) => self.target = Some(target),
+                Err(error) => {
+                    self.refused = true;
+                    crate::log::progress(format_args!(
+                        "warning: no {} at {}x{} ({error}); that view is not drawn",
+                        labels[0], size[0], size[1]
+                    ));
+                }
+            }
+        }
+        self.target.as_ref()
+    }
+
+    /// The target made again at `size` if there is one, for a resize; one refused may
+    /// be tried again at the new size.
+    pub fn resize(
+        &mut self,
+        device: &wgpu::Device,
+        camera_layout: &wgpu::BindGroupLayout,
+        samples: &wgpu::BindGroupLayout,
+        format: wgpu::TextureFormat,
+        size: [u32; 2],
+    ) {
+        let rebuilt = self.rebuilt(device, camera_layout, samples, format, size);
+        self.set(rebuilt);
+    }
+
+    /// A new target at `size` if there is one now, for a resize that installs it with
+    /// [`Self::set`] once every attachment fits (`install_render_scale_for`).
+    pub fn rebuilt(
+        &self,
+        device: &wgpu::Device,
+        camera_layout: &wgpu::BindGroupLayout,
+        samples: &wgpu::BindGroupLayout,
+        format: wgpu::TextureFormat,
+        size: [u32; 2],
+    ) -> Option<Target> {
+        self.target
+            .is_some()
+            .then(|| Target::new(device, camera_layout, samples, format, size, self.labels))
+    }
+
+    /// Replace the target (`None` drops it); a refused one may be tried again.
+    pub fn set(&mut self, target: Option<Target>) {
+        self.target = target;
+        self.refused = false;
+    }
+}
+
 pub(super) struct Target {
     pub size: [u32; 2],
     pub color: wgpu::TextureView,
@@ -20,9 +123,10 @@ impl Target {
         samples: &wgpu::BindGroupLayout,
         format: wgpu::TextureFormat,
         size: [u32; 2],
+        labels: [&str; 2],
     ) -> Self {
         let texture = device.create_texture(&wgpu::TextureDescriptor {
-            label: Some("SJK map portal view"),
+            label: Some(labels[0]),
             size: wgpu::Extent3d {
                 width: size[0],
                 height: size[1],
@@ -82,7 +186,7 @@ impl Target {
         Self {
             size,
             color,
-            depth: crate::DepthTarget::new(device, size[0], size[1]),
+            depth: crate::DepthTarget::labelled(device, size[0], size[1], labels[1]),
             camera,
             camera_bind,
             instances,

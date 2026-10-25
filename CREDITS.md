@@ -300,6 +300,8 @@ includes:
   map's music freed once the next music is chosen instead of staying decoded all session;
 - font atlases kept in one channel (25/10/2026): coverage only instead of RGBA, 120 MiB
   less video memory at 1080p in every world, text unchanged;
+- floor mirror, sky portal and map portal views, and the CJK and emoji glyph atlases,
+  made only when first drawn (25/10/2026): 20 to 70 MiB less video memory at 1080p;
 - Discord status (`cl_discordPresence`): the player's Discord profile showing the menu
   screen, or the server, map, mode, team and players, through the Discord app's
   local pipe;

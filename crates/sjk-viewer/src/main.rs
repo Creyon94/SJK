@@ -592,6 +592,8 @@ struct GpuState {
     text_vertex_buffer: wgpu::Buffer,
     classic_text_vertex_buffer: wgpu::Buffer,
     text_bind_group: wgpu::BindGroup,
+    /// The Inter atlas `text_bind_group` binds, kept to bind it again with the wide atlas.
+    text_atlas: wgpu::TextureView,
     text_layout: wgpu::BindGroupLayout,
     text_sampler: wgpu::Sampler,
     /// Glyphs beyond the code-page atlases, bound with every text atlas.
@@ -599,6 +601,8 @@ struct GpuState {
     /// The retail `¬` logo spliced into the Inter atlas, kept for DPI rebuilds.
     logo_glyph: Option<text::LogoGlyph>,
     classic_text_bind_group: Option<wgpu::BindGroup>,
+    /// The classic HUD atlas `classic_text_bind_group` binds.
+    classic_text_atlas: Option<wgpu::TextureView>,
     /// The classic HUD atlas is a distance field (see `text::sdf::for_atlas`).
     classic_text_sdf: bool,
     ui_font: UiFont,
@@ -1117,8 +1121,8 @@ impl GpuState {
         let classic_text_sdf = classic_atlas
             .as_ref()
             .is_some_and(|atlas| atlas.distance_field);
-        let (classic_hud_font, classic_text_bind_group) =
-            classic_atlas.map_or((None, None), |atlas| {
+        let (classic_hud_font, classic_text_bind_group, classic_text_atlas) =
+            classic_atlas.map_or((None, None, None), |atlas| {
                 let view = gpu_texture::create_r8_texture_mipmapped(
                     &device,
                     &queue,
@@ -1134,7 +1138,7 @@ impl GpuState {
                     &text_sampler,
                     &wide_text,
                 );
-                (Some(atlas.font), Some(bind_group))
+                (Some(atlas.font), Some(bind_group), Some(view))
             });
         let game_fonts = game_font::GameFonts::preload(
             preload_game_fonts || game_font::enabled(console.as_ref()),
@@ -1175,7 +1179,7 @@ impl GpuState {
         let scene_views = scene_views::Runtime::new(
             &device,
             &camera_layout,
-            (context.scene_format(), [size.width, size.height]),
+            context.scene_format(),
             &flattened,
             &bsp,
             &shaders,
@@ -1527,11 +1531,13 @@ impl GpuState {
             text_vertex_buffer,
             classic_text_vertex_buffer,
             text_bind_group,
+            text_atlas: font_view,
             text_layout,
             text_sampler,
             wide_text,
             logo_glyph,
             classic_text_bind_group,
+            classic_text_atlas,
             classic_text_sdf,
             ui_font,
             classic_hud_font,
@@ -1683,6 +1689,7 @@ impl GpuState {
             &self.text_sampler,
             &self.wide_text,
         );
+        self.text_atlas = view;
         self.ui_font = atlas.font;
         Ok(())
     }
@@ -2427,7 +2434,7 @@ impl GpuState {
         self.ui_shapes
             .prepare_layers(&self.queue, layers.into_iter().flatten(), viewport);
         // Wide glyphs this frame asked for first draw next frame.
-        self.wide_text.update(&self.queue);
+        self.update_wide_text();
         let text_vertex_count = u32::try_from(self.text_vertices.len()).unwrap_or(0);
         if !self.text_vertices.is_empty() {
             self.queue.write_buffer(

@@ -2,8 +2,9 @@
 use super::*;
 
 impl GpuState {
+    /// The map has polished floors, mirrored or not: their light-buffer images are kept.
     pub(crate) fn has_floor_surfaces(&self) -> bool {
-        self.scene_views.floors.target.is_some()
+        self.scene_views.floors.has_planes()
     }
     pub(crate) fn has_floor_reflections(&self) -> bool {
         self.scene_views.floors.active()
@@ -18,7 +19,7 @@ impl GpuState {
         particles: &crate::effect_submission::Ranges,
     ) {
         let floors = &self.scene_views.floors;
-        let Some(target) = &floors.target else {
+        let Some(target) = floors.target.get() else {
             return;
         };
         // Query/compute setup did not pay for itself on the one/two-view routes.

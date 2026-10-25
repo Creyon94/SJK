@@ -2095,6 +2095,15 @@ test: r_picmip 2, then a map with a sky (siege_desert): the sky draws, softer, n
 test: r_picmip 0: skies and textures look exactly as before.
 test: Experimental preset with material maps at r_picmip 2: maps load, bumps still show.
 
+[lazy-scene-targets]
+area: Rendering & effects
+title: Mirror, sky portal and portal views, CJK and emoji atlases made only when drawn
+change: Floor mirror, sky portal and map portal targets are made the first frame they draw.
+change: The wide glyph (CJK) and emoji atlases are made with the first such character.
+test: r_floorReflections 1 on ffa3: the floor mirror draws; 0 then 1 again: it comes back.
+test: duel6 (sky portal): the sky scenery draws as before; resize the window: still right.
+test: Type Russian/Japanese and an emoji in chat: they show from the first character.
+
 [blade-tip-edges]
 area: Rendering & effects
 title: Signature blades: no bright tip rim, no hard edges (Creyon, PR #191)

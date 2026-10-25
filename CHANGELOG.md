@@ -37,6 +37,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - New setting for weak PCs, Menu FPS cap: a lower frame rate in the menus while you are not in a game or watching a demo, never above your FPS cap; 0, the default, keeps your FPS cap: Settings > Advanced > Display > Menu FPS cap (`com_maxfpsMenu`) _(Sol)_
 - Texture detail (`r_picmip`) now also lowers skies and material maps (normal, shine and glow maps), and works with mipmaps off, leaving small graphics cards more video memory. Textures the original game keeps sharp (shaders marked nopicmip) keep their full size _(Sol)_
 - Text uses about 120 MiB less video memory: the font atlases keep one channel instead of four, and draw exactly as before _(Sol)_
+- Less video memory for small graphics cards: floor mirrors, sky portals and map portals now get their screen-size images only once the map really draws them (never with floor mirrors off, as in the Vanilla and SJK presets), and the atlases for Cyrillic, Asian letters and emoji only once such text first shows: about 20 to 70 MB less at 1080p, up to about 220 MB at 4K _(Sol)_
 
 ## 2026.1025.1 (Alpha) | 25/10/2026
 
