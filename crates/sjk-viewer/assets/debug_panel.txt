@@ -715,6 +715,7 @@ change: guillemets, section sign, bullet... (they were dropped). Messages keep t
 test: Wear a name like {JoF}Sol, send an SJK chat message: feed, dock and page show {JoF}Sol.
 test: The chat page's online window shows the braces; a holocron drop line too.
 test: A message with {JoF} is still refused (messages keep their alphabet).
+
 [chat-paste]
 area: Console & chat
 title: Paste into the SJK chat (Ctrl+V, Shift+Insert): page and docks
@@ -1045,6 +1046,14 @@ change: Only from the untouched SJK preset and settings still off; once per card
 test: r_smallCardPreset 0 and a small card (or ask Sol's tester): the card shows on the main menu.
 test: Back to SJK graphics: preset, stock blades and menu cap back; the reload card offers to apply.
 test: Keep (Enter): Vanilla style stays; the card does not come back at the next start.
+
+[menu-frame-cost]
+area: Menus & settings
+title: Lighter menus: shader pictures redrawn less often, no per-frame setting allocations
+change: Shader swatches not hovered animate up to 30 times a second, 6 redrawn a frame at most.
+change: Setting lookups and the low-FPS check no longer allocate every frame.
+test: Collection > Shaders grid with many owned shaders: hovered one smooth, others still animate.
+test: Forge, Saber tab and a holocron reveal: the blade pictures show with no seams or glow left.
 
 [card-faces-lazy]
 area: Menus & settings
@@ -3609,6 +3618,7 @@ test: Classic main menu: SJK > CHANGELOG; pick 2026.1005.1; scroll with the whee
 test: Modern menus (ui_menuStyle modern): Changelog sits above Quit and opens the same page.
 test: In a match, type changelog in the console; Escape closes the page and the console.
 test: At 4K with 150% scaling the text wraps inside the pane and nothing overlaps.
+
 [center-print-names]
 area: Console & chat
 title: Duel challenges from names with symbols: no crash, symbol shown (SJK PR #2, Creyon)
@@ -6532,6 +6542,7 @@ test: jof.content 1 with a group downloaded; put a zz_test.pk3 overriding one Jo
 test: in GameData/base; load a map: your texture shows, not JoF's.
 test: Without your pack, JoF's version of that texture shows (over the retail one).
 note: fs_debug 1 logs the mount order: jof/base packs now sit between base packs by name.
+
 [japro-move-styles]
 area: Gameplay
 title: jaPRO tools mod: styles SJK cannot predict are shown from the server (hub #97/#98)
@@ -6545,6 +6556,7 @@ test: japro.predictMoveStyles 1 with CPM: the old snapping returns; 0 again: smo
 test: mod_japro 0 with CPM: old snapping too. Settings > Mods shows both rows.
 test: On a JA+ or base server nothing changes; japro.styles says it is for jaPRO servers.
 note: Movement on those styles shows one snapshot late until each style is ported (CPM next).
+
 [leading-slash-images]
 area: Rendering & effects
 title: A texture named with a leading slash no longer fails the map load (Mae, siege_desert)
@@ -6611,6 +6623,7 @@ change: Bug reports, notes and player reports accept the characters of cvars and
 change: @ * & | ~ backtick $ % ^ and braces stay refused; the rules line lists what is taken.
 test: Report a bug: 'bind x "say hi; kill" [90] <value> cg_fov_2' is sent, no refusal.
 test: A report with @ or {braces}: refused, the message lists the allowed characters.
+
 [jkr-creator]
 area: HUD
 title: JKR CREATOR mark + centred card labels

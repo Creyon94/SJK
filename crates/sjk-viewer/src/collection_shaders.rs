@@ -706,6 +706,9 @@ impl Panel {
         match row.skin {
             None => swatch::small_stock(self.ui.draw_list_mut(), frame, swatch_rect, inputs.stock),
             Some(skin) => {
+                if chosen || hovered {
+                    crate::blade_pictures::focus(skin.id);
+                }
                 let look = self.skins.get(skin.id);
                 let _ = swatch::small_swatch(
                     self.ui.draw_list_mut(),
@@ -882,6 +885,9 @@ impl Panel {
         match row.skin {
             None => swatch::small_stock(self.ui.draw_list_mut(), frame, rect, inputs.stock),
             Some(skin) => {
+                if chosen || hovered {
+                    crate::blade_pictures::focus(skin.id);
+                }
                 let look = self.skins.get(skin.id);
                 let _ = swatch::small_swatch(
                     self.ui.draw_list_mut(),
@@ -1315,6 +1321,8 @@ impl Panel {
             match row.skin {
                 None => swatch::small_stock(self.ui.draw_list_mut(), frame, rect, inputs.stock),
                 Some(skin) => {
+                    // The chosen one, large.
+                    crate::blade_pictures::focus(skin.id);
                     let look = self.skins.get(skin.id);
                     let _ = swatch::small_swatch(
                         self.ui.draw_list_mut(),

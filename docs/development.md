@@ -94,6 +94,14 @@ set at build time gives a release's).
 | Server behavior | Isolated local server and relevant native/legacy client scenarios |
 | Documentation | Check commands against source, relative links and the accuracy of status claims |
 
+Per-frame bookkeeping can prove it allocates nothing: the debug test builds of
+`sjk-audio`, `sjk-shell` and `sjk-viewer` count allocator calls with
+`assert_no_alloc`'s `AllocDisabler` (a test-only global allocator that passes every
+call on), and a test wraps a warmed-up frame's work in `assert_no_alloc` and checks
+that `violation_count()` did not move (for example `cvar.rs`'s
+`reads_allocate_nothing_whatever_the_case` and `blade_pictures.rs`'s
+`a_frame_of_wishes_allocates_nothing`). Release builds have no such allocator.
+
 Use a server you control with no human players. Keep evidence under
 `target/parity-reports/`, delete large scratch reports afterwards, and record a
 compact account of the scenario, revision, expected result and observed result.

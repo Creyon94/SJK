@@ -296,6 +296,9 @@ includes:
 - the Experimental preset's lamp memory cut (25/10/2026): lamp shadow distances packed two
   to a texel, lamp lists in 16 bits, and the lamp light cache sized to the graphics card,
   up to 390 MiB less on 8 GB cards;
+- lighter menus (25/10/2026): shader pictures not pointed at redrawn at most 30 times a
+  second and 6 a frame, and setting lookups and the low-FPS check without allocations
+  every frame;
 - decoded textures freed once nothing uses them (25/10/2026): the cache kept every
   texture of every map seen in a session, up to about 0.8 GB more after a few maps;
 - card pictures decoded and uploaded only when a screen draws them (25/10/2026), at

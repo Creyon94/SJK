@@ -1155,8 +1155,23 @@ Profile page's See the collection) open it on its own:
   skin a swatch shows is drawn live by the blade renderer, its own pipelines for a
   signature, into a cell of one picture (16 cells, two columns of eight, one pass,
   [blade_pictures.rs](../crates/sjk-viewer/src/blade_pictures.rs)), which the UI adds over
-  the swatch's glass (`BLADE_PICTURES_TEXTURE`, clipped with the list). Until a skin has a
-  cell (the first frame, more than 16 swatches at once) the swatch is the drawing:
+  the swatch's glass (`BLADE_PICTURES_TEXTURE`, clipped with the list). Since 25/10/2026
+  (for weak PCs) a frame draws only the cells that need it: the hovered or chosen row or
+  card's and a large swatch's every frame (`blade_pictures::focus`, from the Shaders tab,
+  the Forge, the Saber tab and a holocron's shader), every cell while two or fewer are in
+  use, a new one at once, and the others 30 times a second, each at its own moment so
+  the frames share them, six of them a frame at most, the longest waiting first (a GPU
+  too slow for 30 a second draws a few a frame in turn rather than all of them). The UI
+  over them is still drawn every frame, so only those blades' animation steps: 30 times
+  a second, about 26 for the grid's fourteen at 60 FPS, fewer on a slower frame. A cell
+  drawn alone is cleared in its rectangle and the kept cells shielded by depth, so no
+  glow adds into a kept picture. Every shader owned, `duel6_blade_pictures_cost` at
+  1920x1080: on an RTX 5080 the Shaders grid's frame (fifteen pictures) went from 2.16,
+  2.97 and 3.41 ms to 1.69, 2.11 and 2.18 (three alternating runs; the list, six, 1.76 to
+  2.14 against 1.65 to 2.08); on the PC's integrated Radeon from 251 to 196 ms, where
+  each picture costs about 7 to 10 ms and the Medals tab's frame is 69 (such cards
+  usually have the menu pictures on, and the drawings). Until a skin has a cell (the
+  first frame, more than 16 swatches at once) the swatch is the drawing:
   (drawn with the UI's shapes from its loaded file's
   colours, flicker and flares, moving: a breathing corona, flame loops and granules, a
   flare running hilt to tip, and the file's lightning arcs, motes and turning hue when
