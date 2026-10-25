@@ -59,6 +59,15 @@ test: The rows fit inside the card; Mark verified turns them gold.
 test: A player verified before this version still shows VERIFIED.
 note: A client older than this shows 12 digits, which never match the new code.
 
+[drone-watched]
+area: Gameplay
+title: Drone: game-size remote, hidden from the player it watches
+change: The remote is drawn at the game's own seeker size (was 2.2 times bigger).
+change: A drone peeking at you is not drawn on your screen; a line at the top names who watches.
+test: Two SJK clients. A: freecam near B: B sees a small remote, the size of a seeker.
+test: A: peek B: B sees no remote, "A is spectating you with the Drone" near the top.
+test: A stops peeking: B's line goes. Third player C still sees A's remote behind B.
+
 [drone-toy]
 area: Gameplay
 title: Drone toy: freecam and peek fly a remote others see
@@ -67,7 +76,7 @@ change: Peek needs consent: the target's Drone switch (toy_drone, wheel Toys, Co
 change: Target reads who watches; switching off sends the drone away (relayed "away").
 test: Two SJK clients on a server. A: freecam and fly: B sees the remote glide, A's name over it.
 test: A: peek B with B's Drone off: "has not let drones follow them". B turns it on: peek works.
-test: While A peeks, B reads "A's drone is watching you" and sees the remote behind them.
+test: While A peeks, B reads "A is spectating you with the Drone" at the top (no remote).
 test: B turns toy_drone off: A's view returns, "B sent your drone away"; the remote fades.
 test: Collection > Toys shows six niches, Drone's switch "Peek me" stays on after a restart.
 

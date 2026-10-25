@@ -4435,7 +4435,7 @@ The icon (a limp figure slumped against a wall) is drawn by the same script. Wor
 
 The Drone (Sol's idea, 24/10/2026, grown from Slash's Peek work in #199) makes the free
 camera and Peek a toy: a little training remote, Jedi Academy's own seeker ball
-(`models/items/remote.md3`, drawn 2.2 times its size), that every other SJK player on
+(`models/items/remote.md3`, at the game's own size), that every other SJK player on
 the server sees fly, the pilot's name over it (white, shadowed, within 2,400 units and
 not behind a wall), coming out with the game's remote hiss.
 
@@ -4452,8 +4452,9 @@ under way ends as soon as the watched player turns it off ("Name sent your drone
 their client relays `away` to the pilot at once, and again at each repeat of a drone
 watching them while it is off; failing that, the pilot's client ends it when their look
 shows it off, "Your drone was sent away").
-The watched player, switch on, reads who watches as each drone comes ("Name's drone is
-watching you"). It stays as last switched, across maps, servers and restarts
+The watched player does not see the drones watching them (they would hover in their
+back); a line near the top of their screen names who watches while it lasts ("Name is
+spectating you with the Drone", names joined when several do). It stays as last switched, across maps, servers and restarts
 (`cl_toyDrone`, archived). In a local game no look is shared, so anyone may be peeked
 and nobody sees a drone.
 
