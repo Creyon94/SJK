@@ -8,7 +8,8 @@
 //!   peeking camera stands ([`crate::peek::behind`]). A player may be peeked only while
 //!   their own Drone switch is on (the consent: their look shows [`TOY`]); turning it off
 //!   sends any drone away at once (`away`, relayed to the pilot, as is an answer to a
-//!   drone that comes while it is off). The watched player reads who watches.
+//!   drone that comes while it is off). The watched player does not see the drones
+//!   behind them; a line at the top of their screen names who watches.
 //!
 //! The switch (`toy_drone`, the Collection's Toys tab, the quick wheel) is only that
 //! consent; `freecam` and `peek` keep their commands and binds, and fly the drone
@@ -40,8 +41,8 @@ pub(crate) const ICON: &str = "gfx/sjk/toy_drone.png";
 pub(crate) const MODEL: &str = "models/items/remote.md3";
 /// Heard where a drone comes out: the game's remote hiss.
 pub(crate) const LAUNCH_SOUND: &str = "sound/chars/remote/misc/hiss.wav";
-/// The drone's size against the stock ball.
-const SCALE: f32 = 2.2;
+/// The drone's size against the stock ball: the game's own.
+const SCALE: f32 = 1.0;
 /// Shortest time between two events sent (the relay takes 40 a second from a player,
 /// which the Hax and the Ragdoll share).
 const SEND_GAP: Duration = Duration::from_millis(50);
@@ -64,7 +65,11 @@ const BOB_PERIOD: f32 = 1.9;
 /// Names show over drones this close at most.
 const NAME_RANGE: f32 = 2_400.0;
 /// The name's place above the drone's centre.
-const NAME_RISE: f32 = 14.0;
+const NAME_RISE: f32 = 10.0;
+/// The watched player's line, by its top, against the screen's height.
+const WATCHED_TOP: f32 = 0.14;
+/// The watched player's line's text id (the names over drones are their slots).
+const WATCHED_TEXT: u32 = SLOTS as u32;
 const SLOTS: usize = crate::looks::SLOTS;
 
 /// A bundled file's bytes, by its name in `assets/drone`.
@@ -194,11 +199,13 @@ pub(crate) struct Drone {
     next: usize,
     send_at: Option<Instant>,
     others: [Shown; SLOTS],
-    /// Who watches the player now (bits by slot), so that each is named once.
+    /// Who watches the player now (bits by slot).
     watchers: u64,
     /// Where each shown drone is this frame, for its name; and the names.
     placed: [Option<Vec3>; SLOTS],
     names: [String; SLOTS],
+    /// The watched player's line ("Name is spectating you with the Drone").
+    watched_line: String,
     /// Where a drone came out this frame, to be heard, by its pilot's slot.
     launches: Vec<(u8, Vec3)>,
     /// The audio generation the launch sound was registered with.
@@ -223,9 +230,10 @@ impl Default for Drone {
             watchers: 0,
             placed: [None; SLOTS],
             names: std::array::from_fn(|_| String::new()),
+            watched_line: String::new(),
             launches: Vec::new(),
             sounds_registered: None,
-            list: DrawList::new(SLOTS * 2),
+            list: DrawList::new(SLOTS * 2 + 2),
             last: None,
             #[cfg(test)]
             shot: false,
@@ -382,8 +390,8 @@ impl GpuState {
                 shown.flight = None;
             }
         }
-        // Who watches the player: each named once as their drone comes.
-        let watchers = own.map_or(0, |own| {
+        // Who watches the player (named by the line at the top of the screen).
+        self.drone.watchers = own.map_or(0, |own| {
             self.drone
                 .others
                 .iter()
@@ -391,22 +399,6 @@ impl GpuState {
                 .filter(|(_, shown)| shown.flight == Some(Flight::Peek(own)))
                 .fold(0_u64, |bits, (slot, _)| bits | 1 << slot)
         });
-        let new = watchers & !self.drone.watchers;
-        self.drone.watchers = watchers;
-        if new != 0 && self.drone.on() {
-            let slot = new.trailing_zeros() as usize;
-            let name = self
-                .live_session
-                .as_ref()
-                .and_then(|session| crate::player_identity::shown_name(session.game_state(), slot))
-                .unwrap_or_else(|| "Someone".to_owned());
-            self.chat.receive(
-                sjk_client::ServerEventKind::CenterPrint,
-                format!("{name}^7's drone is watching you\n^3toy_drone^7 off sends it away"),
-                None,
-                now,
-            );
-        }
         self.drone_tell(own, now);
     }
 
@@ -513,8 +505,20 @@ impl GpuState {
             .iter()
             .position(|mesh| mesh.appearance.model == MODEL);
         let seconds = presentation_time as f32 * 0.001;
+        // A drone watching the player is not seen by them (it stands in their back, where
+        // a peeking camera would): the line at the top of the screen says who.
+        let own = self
+            .drone_game()
+            .and_then(|game| u8::try_from(game.client_num).ok())
+            .map(Flight::Peek);
         for slot in 0..SLOTS {
             let shown = self.drone.others[slot];
+            if own.is_some() && shown.flight == own {
+                let shown = &mut self.drone.others[slot];
+                shown.level = 0.0;
+                shown.position = None;
+                continue;
+            }
             if shown.flight.is_none() && shown.level <= 0.0 {
                 continue;
             }
@@ -617,6 +621,7 @@ impl GpuState {
             self.drone.names[slot] = name;
         }
         let unit = crate::ui_scale::height_scale(viewport[1]);
+        self.append_watched_line(viewport, unit);
         let size = 16.0 * unit;
         let width = (260.0 * unit).min(viewport[0]);
         for slot in 0..SLOTS {
@@ -665,12 +670,55 @@ impl GpuState {
         let drone = &self.drone;
         crate::ui_renderer::append_text_commands(
             &drone.list,
-            |id| drone.names.get(id.0 as usize).map_or("", String::as_str),
+            |id| match id.0 {
+                WATCHED_TEXT => drone.watched_line.as_str(),
+                slot => drone.names.get(slot as usize).map_or("", String::as_str),
+            },
             &mut self.text_vertices,
             &self.ui_font,
             viewport,
             crate::text::TextStyle::NEUTRAL,
         );
+    }
+
+    /// The watched player's line, while drones watch them: "Name is spectating you with
+    /// the Drone" (names joined when several do).
+    fn append_watched_line(&mut self, viewport: [f32; 2], unit: f32) {
+        let Some(game_state) = self.drone_game() else {
+            return;
+        };
+        let names: Vec<String> = (0..SLOTS)
+            .filter(|&slot| self.drone.watchers & 1 << slot != 0)
+            .map(|slot| {
+                let name = crate::player_identity::shown_name(game_state, slot)
+                    .unwrap_or_else(|| "Someone".to_owned());
+                let name = sjk_game_jka::client_view::strip_colours(name.as_bytes());
+                String::from_utf8_lossy(&name).into_owned()
+            })
+            .collect();
+        if names.is_empty() {
+            return;
+        }
+        let verb = if names.len() == 1 { "is" } else { "are" };
+        self.drone.watched_line =
+            format!("{} {verb} spectating you with the Drone", names.join(", "));
+        let size = 16.0 * unit;
+        let y = viewport[1] * WATCHED_TOP;
+        for (offset, color) in [
+            (1.5 * unit, Color::new(0.0, 0.0, 0.0, 0.7)),
+            (0.0, Color::new(1.0, 1.0, 1.0, 0.9)),
+        ] {
+            let _ = self.drone.list.push(DrawCommand::Text {
+                rect: Rect::new(offset, y + offset, viewport[0], size * 1.4),
+                text: TextId(WATCHED_TEXT),
+                size,
+                color,
+                align: TextAlign::Center,
+                overflow: TextOverflow::Ellipsis,
+                weight: FontWeight::Semibold,
+                letter_spacing: 0.0,
+            });
+        }
     }
 
     /// The game the drones fly in: the server's (a world shot's demo too).
