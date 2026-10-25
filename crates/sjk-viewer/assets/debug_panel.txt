@@ -6744,3 +6744,11 @@ test: A request in play stays a toast; it never opens over the main menu.
 test: Blocked player: no Trade on their card, their requests vanish quietly.
 test: Ask the same player again after a decline: the hub asks you to wait.
 note: Hub runs with SJK_HUB_TRADING=staff; holocrons stay out (no --trade-holocrons).
+
+[mod-settings-console]
+area: Console & chat
+title: Mod settings (jof.*, japlus.*) can be set from the console again
+change: The console asked the mod first and answered "Unknown command" for its settings.
+test: Console: jof.e2eWhispers 1, then jof.e2eWhispers: it says 1, no "Unknown command".
+test: Settings (F3), search e2e: the JoF row shows it on.
+test: jof.commands off a JoF server still says it works on JoF servers only.
