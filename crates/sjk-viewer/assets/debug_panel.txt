@@ -2059,6 +2059,15 @@ note: Alt+Tab while holding Tab leaves the board and the hidden HUD up until Tab
 
 # ---- Rendering & effects ----
 
+[picmip-everywhere]
+area: Rendering & effects
+title: Texture detail (r_picmip) now also shrinks skies, material maps, unmipped textures
+change: Sky boxes, normal/specular/emission maps and r_textureMode GL_LINEAR follow r_picmip.
+change: Shaders with nopicmip or nomipmaps keep full size, as in the original game.
+test: r_picmip 2, then a map with a sky (siege_desert): the sky draws, softer, no seams.
+test: r_picmip 0: skies and textures look exactly as before.
+test: Experimental preset with material maps at r_picmip 2: maps load, bumps still show.
+
 [blade-tip-edges]
 area: Rendering & effects
 title: Signature blades: no bright tip rim, no hard edges (Creyon, PR #191)
