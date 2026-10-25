@@ -856,9 +856,41 @@ impl MenuStage {
     }
 }
 
+/// The vertical field of view (degrees) that shows a window of `aspect` (width over
+/// height) what `fov` shows a 16:9 one in the page's frame: the SJK UI lays its pages out
+/// in a 16:9 frame scaled to fit the window, so a narrower window letterboxes it, and a
+/// camera kept at `fov` would set the model larger and further from the middle in frame
+/// pixels (at 4:3 under the Collection's words and keys, Sol's fit map of 25/10/2026). A
+/// window as wide as 16:9 or wider keeps `fov`.
+pub(crate) fn frame_fit_fov(fov: f32, aspect: f32) -> f32 {
+    const FRAME_ASPECT: f32 = 16.0 / 9.0;
+    if aspect.is_nan() || aspect <= 0.0 || aspect >= FRAME_ASPECT {
+        return fov;
+    }
+    let half = (fov.to_radians() * 0.5).tan() * FRAME_ASPECT / aspect;
+    (2.0 * half.atan()).to_degrees().min(170.0)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A window narrower than 16:9 widens the view so the frame sees what a 16:9 window
+    /// shows; 16:9 and wider keep it.
+    #[test]
+    fn a_narrow_window_widens_the_view_to_the_frame() {
+        assert_eq!(frame_fit_fov(70.0, 16.0 / 9.0), 70.0);
+        assert_eq!(frame_fit_fov(70.0, 21.0 / 9.0), 70.0);
+        let fitted = frame_fit_fov(70.0, 4.0 / 3.0);
+        // The frame's height in a 4:3 window is three quarters of the window's: across
+        // that height the widened view spans what 70 degrees spans at 16:9.
+        let frame_half = (fitted.to_radians() * 0.5).tan() * 0.75;
+        assert!(
+            (frame_half - (35.0f32).to_radians().tan()).abs() < 1e-5,
+            "{fitted}"
+        );
+        assert!(fitted > 70.0 && fitted < 170.0);
+    }
 
     fn sequence(loop_frame: i32) -> sjk_model::AnimationSequence {
         sjk_model::AnimationSequence {

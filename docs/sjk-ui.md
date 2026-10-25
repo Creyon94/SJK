@@ -1535,7 +1535,20 @@ for the run.
   (`profile_hub::collection_header`), each name with its count after it in small
   Rajdhani ("2/3", "11/21", how many holocrons for Holocrons; nothing while unknown or empty), the one on show gold and
   underlined. Drawn in Inter (the families not loaded, the classic menus), the row
-  makes room for the wider face.
+  makes room for the wider face. Over the map (Shaders, Toys, Nameplates) a band of
+  the page's dark stands behind the title, the tally and the tabs, solid to y 200 and
+  fading out by 290, as on the Holocrons page (25/10/2026, Sol: the tabs must read over
+  any map, the bright pillar of duel6 included).
+- **Fit (25/10/2026, Sol's pick from the Collection revamp's design canvas):** every tab
+  keeps to one frame: its things at x 96 to 960 (they grow down and scroll, never
+  sideways into the stage), the stage's column x 1000 to 1320 (the model, the lone
+  saber or the 3D holocron), the one chosen at x 1360 to 1824 (from 1000 on Shaders,
+  with no model) on a dark card, and the keys' line kept clear. A card's words are never
+  cut: it grows upward to hold them, wrapped for the menu text size. Behind the stage
+  the backdrop camera widens its field in a window narrower than 16:9
+  (`menu_stage::frame_fit_fov`), so the frame sees what a 16:9 window does and the model
+  stands in its column at 4:3 too (it used to drift to x 1200 to 1420 in frame pixels,
+  under the words and the keys).
 - **Medals:** "2 of 4 medals" (or why they are not known) over a line; every medal
   the client knows hangs by its ribbon from a lit holo rail (x 96 to 1000, y 336, a
   bead at each end), up to 226 apart, the ones given first in colour on a soft gold
@@ -1558,64 +1571,97 @@ for the run.
   unlocking with their medallion, bar and count; and how the counts are kept. It opens
   on the locked one nearest to unlocking. The arrows choose (Up and Down to the next
   category's, near the column).
-- **Shaders:** "1 of 5 owned" (or why that is not known) over a line, beside the kinds
-  as pills: Saber with its count, and Body ("soon", not offered yet). Then the rack, a
-  row of 106 to each: the stock blade first (its swatch in the player's `color1`), then
-  every blade skin, the rarest tier first (10/10/2026: Mythical, Legendary, Rare, then
-  Uncommon, the holocrons' tiers and colours; Unique above them since 25/10/2026, shown
-  only to a player who holds one: to anyone else a Unique shader is not listed, found by
-  the search, counted in "N of M owned", the Saber pill, the tab's count or the tally,
-  and has no chip, [unlockables.md](unlockables.md#unique-shaders)), each with its live swatch
-  ([unlockables.md](unlockables.md#tiers)) framed in its tier's colour, alive
-  when owned, grey and still under a padlock when not, its name at 28 and its state
-  (Worn, Yours, Locked, "In your colour") with the tier's name at the line's right in
-  its colour; the one chosen banded with a gold mark. Or, switched by the two marks
-  left of the kinds (three bars, four squares) or V and kept in `ui_shaderView`, a grid
-  of cards five to a line, three lines shown (each card: a tier band and frame, the
-  swatch, the name without "blade", the tier and the state; the chosen card lifted
-  over a shadow with a white outline), the arrows moving in two directions; from Rare up
-  the cards, the rack's swatch frames and the tier pill carry the tier's animated
-  effects ([unlockables.md](unlockables.md#rarity-effects), `ui_rarityEffects`) ([unlockables.md](unlockables.md#shaders-tab)). Six
-  rows show at a time (10/10/2026, fifteen no longer fit): the rack scrolls just enough
-  to keep the chosen row in view (a pointer over the rows never scrolls it), the wheel
-  scrolls it a row a notch, the chosen row kept in view, and a thin bar at its right
-  shows where it is. The
+- **Shaders** (the wall and the list since 25/10/2026,
+  [collection_shaders.rs](../crates/sjk-viewer/src/collection_shaders.rs)): "14 of 166
+  owned" (or why that is not known) over a line, beside the view switches (three bars:
+  the list; four squares: the wall) and the kinds as pills: Saber with its count, and
+  Body ("soon", not offered yet). Under the line Owned (O), Chroma (C, the shaders that
+  take the wearer's colour) and the search field (`/`, Ctrl+F) to the list's right
+  edge; under them the tiers' strip: All, then each tier the player may see, the rarest
+  first (Unique's first of all, only for a player who holds one), each its mark and name
+  in its colour, "2/12" held and a bar of that share; a click or T (Shift+T back) shows
+  that tier alone, the one shown lit gold. The stock blade is always the first thing
+  (its strip in the player's `color1`), then every blade skin, the rarest tier first
+  (Mythical, Legendary, Rare, Uncommon, Common, the holocrons' tiers and colours; a
+  Unique shader is never listed, found by the search, counted in "N of M owned", the
+  Saber pill, the tab's count or the tally for a player who does not hold one,
+  [unlockables.md](unlockables.md#unique-shaders)). Two views, V or the switches, kept
+  in `ui_shaderList` (0 the wall, everyone's start; 1 the list; it replaced
+  `ui_shaderView`, whose 0 was the old rack, dropped from saved profiles):
+  - **The wall** (from y 400): a heading to each tier ("Mythical" in its colour, "2 of
+    12", a line in its colour; the stock blade's "Stock") and its tiles six to a line
+    (135 wide, 100 tall at the ordinary text size, taller at a larger one), up to thirty
+    shown. A tile: its tier's band along the top and frame, the blade as a strip
+    (`swatch::strip`: the live picture when owned, else a still blade in the skin's own
+    colours, dimmed when not held, so locked ones are told apart; grey while its pack
+    has not come), the name without "blade" on two lines at most, its state (Worn,
+    Yours, "Yours x3", Locked) and the chroma's wheel; the chosen tile lifted over a
+    shadow in a white outline. Left and Right step a tile (on into the next tier's), Up
+    and Down a line of tiles, to the same column or the nearest, past the headings.
+  - **The list** (from y 400): column heads (Shader, Tier and Yours sort it; "#", the
+    blade's number, only while `debug_collectibles` shows numbers; Look, Smith and,
+    while the hub's economy is known, Forge), then a row of 40 to each: the strip, the
+    chroma's wheel and the name, the tier's mark and name in its colour, the smith, what
+    the player holds and the Forge's word (what a copy breaks down for, or what crafting
+    costs, a blade card's lower price, quiet past the player's kyber shards). By tier a
+    heading leads each tier's rows; by name or by what is held, none. S steps the order
+    (Tier, Name, Yours, then Number while numbers show), a click on a head sets it, the
+    order on show gold with three bars; the shader chosen stays chosen whatever the
+    order or the view.
+  Both scroll a line at a time just enough to keep the chosen one in view (a pointer
+  over them never scrolls them), the wheel a line a notch, the chosen one kept in view
+  in its column, a thin bar at the right saying where; from Rare up the tiles and the
+  card carry the tier's animated effects ([unlockables.md](unlockables.md#rarity-effects),
+  `ui_rarityEffects`). The
   model holds the chosen blade, a locked one too ("Preview on your saber: not yours
   yet" over the stage): the preview is drawn by this screen only and never sent
-  (`collection_panel::PreviewSkin`, `menu_stage`'s `skin_override`). Beside the model
-  (x 1300 to 1824, from y 618): the tier as a pill in its colour (over the line), "Saber shader" or "Your saber", the name at 56 (gold
-  when owned) with its state as a tag, what it is, "Yours since dd/mm/yyyy, from the
-  SJK team" with the note (", with your Bug Hunter medal" when a medal brings it), or "How to get it: ...", and Equip (gold), Unequip or "Wear
-  the stock blade". It opens on what is worn. Up and Down choose, Enter equips or
-  unequips (`cg_saberSkin`). Under an owned skin whose file offers parts (11/10/2026,
-  the Sun and the Spectral): "Parts" and a tick for each in two columns (three past
-  four), its name after it, closing up its rows so it never runs under the keys' line;
-  a click or the number keys 1 to 6 switch one (`cg_saberSkinOptions`), the model's
-  blade following at once and, worn, every SJK player's view of it
+  (`collection_panel::PreviewSkin`, `menu_stage`'s `skin_override`). Its card at the
+  foot of the right (x 1000 to 1824, its foot at y 990, as tall as its words, its top
+  no higher than 436, the lone saber's room above it and "Drag to turn" just over it):
+  the tier's mark and name, the edition, the name (gold when owned) with its state as
+  a tag, its facts, what it is in full, "Yours since dd/mm/yyyy, from the SJK team"
+  with the note (", with your Bug Hunter medal" when a medal brings it) or "How to get
+  it: ...", and Equip (gold), Unequip or "Wear the stock blade". It opens on what is
+  worn; Enter equips or unequips (`cg_saberSkin`). Under an owned skin whose file
+  offers parts (11/10/2026): "Parts" and a tick for each in two columns (three past
+  four); a click or the number keys 1 to 6 switch one (`cg_saberSkinOptions`), the
+  model's blade following at once and, worn, every SJK player's view of it
   ([unlockables.md](unlockables.md#options)).
-- **Toys:** "6 toys", things to use in a match. Illuminate's holocron, the
-  cardboard box (since 16/10/2026), Order 66 (since 17/10/2026), the Hax (since
-  21/10/2026), the Ragdoll (since 23/10/2026) and the Drone (since 24/10/2026), each its
-  icon in its niche (172 units, 186 apart, so six stand left of the stage's text), "Everyone's"; the chosen one ringed gold on a full glow, the others dimmed; a
-  dotted line for the toys to come. The arrows and Tab choose; a click on a niche chooses it, a click on the
-  chosen one runs it. With Illuminate chosen the holocron floats lit by the model on
-  the stage (`illuminate::submit_stage_holocron`); the box has no 3D stand-in on the
-  stage, nor have Order 66, the Hax, the Ragdoll and the Drone. Beside the model the chosen
-  toy's name, what it is, how to use it and its switch, "Holocron lit", "In the box", "In
-  the order", "Hacker", "Limp" or "Peek me": on while the toy is on, and Enter or a click
-  runs it (the `toy_illuminate`, `toy_box`, `toy_order66`, `toy_hax`, `toy_ragdoll` or
-  `toy_drone` toggle, set to the state wanted; the viewer owns the state, the console
-  mirrors it each frame). The keys line says "Enter: light" or "Enter: put out",
-  "Enter: hide" or "Enter: come out", "Enter: turn on" or "Enter: turn off". Hovering
-  Order 66's niche shows how to turn it on and that `order66` executes it; the Hax's,
-  how to turn it on and that `+use` held on a holder hacks them.
+- **Toys** (rows since 25/10/2026,
+  [collection_toys.rs](../crates/sjk-viewer/src/collection_toys.rs)): "6 toys", things
+  to use in a match, and how many are on now. Illuminate's holocron, the cardboard box
+  (since 16/10/2026), Order 66 (since 17/10/2026), the Hax (since 21/10/2026), the
+  Ragdoll (since 23/10/2026) and the Drone (since 24/10/2026), a row of 84 to each
+  under column heads (Toy, Your key, On; twelve rows fit over the keys): its icon, its
+  name and a line of what it does, the key bound to its command ("Not bound" when none)
+  and its own switch, which runs that toy in place and chooses it; the chosen row framed
+  gold on a soft gold ground. The arrows and Tab choose; a click on a row chooses it.
+  With Illuminate chosen the holocron floats lit by the model on the stage
+  (`illuminate::submit_stage_holocron`); the box has no 3D stand-in on the stage, nor
+  have Order 66, the Hax, the Ragdoll and the Drone. On a dark card beside the model (x
+  1360 to 1824, its foot at y 990, as tall as its words): "Toy · everyone's", its name,
+  what it is in full, its keys (Order 66 two: the join key, `toy_order66`, and the order
+  key, `order66`), each a button: a click (or K for the first) waits for a key ("Press
+  a key...", Escape lets go, Backspace clears), which binds it to the command in place
+  of its first key as the key-binding editor does (`rebind_action`, never a locked key);
+  "Quick wheel: On its Toys page", a line more for some (the Hax: hold Use on a player
+  who has it on; the Ragdoll: its key again gets up), then its switch, "Holocron lit",
+  "In the box", "In the order", "Hacker", "Limp" or "Peek me": on while the toy is on,
+  Enter or a click runs it (the `toy_illuminate`, `toy_box`, `toy_order66`, `toy_hax`,
+  `toy_ragdoll` or `toy_drone` toggle, set to the state wanted; the viewer owns the
+  state, the console mirrors it each frame). The keys line says "Enter: light" or
+  "Enter: put out", "Enter: hide" or "Enter: come out", "Enter: turn on" or "Enter: turn
+  off", and "K: bind a key" (while a key waits: "Esc: cancel", "Backspace: clear the
+  key"). Hovering Order 66's row shows how to turn it on and that `order66` executes it;
+  the Hax's, how to turn it on and that `+use` held on a holder hacks them.
 - **Nameplates:** none exist yet. "No nameplates yet"; three empty places, dashed, each
   with a drawing of where its kind will go: Crest (before the name), Frame (round the
   plate), Trail (under the plate). Over the model's head (projected from the stage
   model's head with the last frame's view, `GpuState::frame_view`; over the preview's
   head without a stage) the player's nameplate as a match draws it near: the name in
   its colours, the shield, health and Force bars, with dashed marks at the three places.
-  Under the words beside it, **See & share nameplates** (a switch; a click or Enter flips
+  Its words stand on a dark card beside the model (x 1360 to 1824, its foot at y 990,
+  as tall as they need, since 25/10/2026). Under them, **See & share nameplates** (a switch; a click or Enter flips
   it, its row pulsing gold every 1.2 s, a ring round it and a glow behind the switch)
   puts `cg_nameplate` in plain view: the one setting for seeing other players'
   nameplates and sharing your health, shield and Force
@@ -1682,7 +1728,7 @@ for the run.
   - **Craft:** every saber shader of the trade the player does not hold at all (a card's
     or a medal's copy counts as held), the commonest first so what the shards reach leads,
     as a grid of cards (five by three) or a list (six rows), switched by V or the two marks
-    at the chips' right (`ui_shaderView`, as on Shaders); chips for All and each tier (T
+    at the chips' right (`ui_shaderList`, as on Shaders: the grid first); chips for All and each tier (T
     steps them), Affordable (A) and a search field ("Search shaders", `/` or Ctrl+F; Ctrl+A,
     Ctrl+C, Ctrl+V and a held Backspace, `text_entry.rs`). Each card: the live blade, the
     name, the tier and the cost beside the shard's mark (quiet when out of reach). On the
@@ -1747,8 +1793,8 @@ for the run.
   the stage (`Backstage::World`); over a match, and in the classic menus, it shows in
   the page's live preview at (760, 110, 820, 840) (`Backstage::Preview`, as the
   in-game Character tab's). Without either the page draws the swatch or the picture
-  itself. In a window narrower than 16:9 the words beside the model keep a soft dark
-  pad.
+  itself. The words beside the model stand on cards of their own at every window shape,
+  and the backdrop camera keeps the model in the stage's column (Fit, above).
 - **Keys and pointer:** the keys line names what the arrows and Enter do on the tab,
   Ctrl+Tab and the next tab, Esc back. Ctrl+Tab (Ctrl+Shift+Tab back) changes tab, as
   on the Profile screen; a click on a tab shows it; hovering a thing chooses it; a

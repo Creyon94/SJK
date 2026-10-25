@@ -1134,7 +1134,9 @@ in the SJK UI's look in every menu style; in the SJK UI the main page's and the
 in-game menu's Collection open it, with the classic menus `unlockables` (and the
 Profile page's See the collection) open it on its own:
 
-- a rack, a row to each, or a grid of cards (below): the stock blade (in the player's
+- a wall of tiles under a heading to each tier, or a list whose column heads sort it
+  (25/10/2026, the Collection revamp: [Collection](sjk-ui.md#collection) has the layout,
+  keys and `ui_shaderList`): the stock blade (in the player's
   `color1`), then every blade skin the player may see (a Unique one only while they
   hold it, [Unique shaders](#unique-shaders)), the rarest [tier](#tiers) first, with a
   live swatch framed in its tier's colour. An owned skin's swatch shows the blade as the game draws
@@ -1165,18 +1167,16 @@ Profile page's See the collection) open it on its own:
   it has them; grey and still under a padlock when locked; owned but with its pack not
   loaded yet, a neutral still blade; a chroma in the player's colour, with its colour
   wheel before its name), its name and its state (Worn, Yours, Locked) under it, its
-  tier's name at the right of that line in its colour; a click chooses a row, a double click (within 0.4 s) wears an owned one as Equip does
-  (a locked one stays a preview, the worn one stays on);
-- the grid (10/10/2026, Sol's request, so many shaders scroll quickly): cards of
-  164 by 196 frame pixels, five to a line, three lines shown, each with a band of its
-  tier's colour along the top, a frame in it (gold and thicker for the chosen one), the
-  live swatch, the chroma's wheel, the name without "blade", the tier's name and the
-  state. The arrows move in two directions (Left and Right a card, Up and Down a line,
-  stopping at the ends), the wheel scrolls a line a notch keeping the chosen card in
-  view, a click chooses, a double click wears an owned one as on the rack, and a thin
-  bar at the right shows where it is once there are more lines than three. Two
-  switches left of the kinds (three bars: the rack; four squares: the grid) and V
-  change the view; `ui_shaderView` (archived, 0 the rack, 1 the grid) keeps it;
+  tier's name at the right of that line in its colour. The wall's tiles and the list's
+  rows draw a blade as a thin strip (`swatch::strip`, a handful of shapes, so thirty
+  tiles stay cheap): the live picture when owned, else a still blade in the skin's own
+  colours, dimmed when not held (25/10/2026: a wall of locked shaders all grey told
+  nothing apart), grey while its pack has not come. A click chooses a tile or a row, a
+  double click (within 0.4 s) wears an owned one as Equip does (a locked one stays a
+  preview, the worn one stays on);
+- until 25/10/2026 a rack of six rows of 106 and a grid of cards five by three
+  (10/10/2026) stood there, `ui_shaderView` choosing (dropped from saved profiles since,
+  so every player starts on the wall);
 - the chosen saber on its own (17/10/2026, Sol's request: "see and turn the saber, we
   don't need to see the character"), over the clear right of the screen
   (`SABER_AREA`): the hilts the stage model would hold float before the backdrop
@@ -1190,14 +1190,15 @@ Profile page's See the collection) open it on its own:
   stands as far off as makes the longest saber 600 frame pixels long, so a staff and a
   single saber fill the same room. A locked one shows too, as a preview this screen
   alone draws (`PreviewSkin`; nothing is set or sent), with a "Preview: not yours yet"
-  pill; "Drag to turn" sits at the area's foot;
+  pill; "Drag to turn" sits just over the card;
 - under it, the shader's card (17/10/2026), framed and banded in its tier's colour and
   alive as its tier is (the rarity effects): the tier's mark and name, its edition
   with a star, its name and its state pill (a lightsaber Worn, a tick Yours, a padlock
   Locked; the name ends short of the pill, ellipsised), its facts as chips with
   [SJK Symbols](sjk-ui.md#symbols) icons (a chroma's colour wheel and "Takes your
   colour", the copies held, where it comes from: the medal that brings it, a holocron
-  drop or an SJK team gift, and its saber smith), what it is, owned (a tick and `Yours
+  drop or an SJK team gift, and its saber smith), what it is in full (the card grows
+  upward to hold its words, 25/10/2026), owned (a tick and `Yours
   since dd/mm/yyyy, from the SJK team` with the team's note, or `..., with your Bug
   Hunter medal`) or how to get it (a padlock), and for a locked shader a holocron may
   drop, where it drops: a chip for each holocron tier that may bring it, in that tier's
