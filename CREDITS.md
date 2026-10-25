@@ -293,6 +293,9 @@ includes:
 - stock blades for weak PCs (`cg_stockBlades`, 25/10/2026): other players' blades, or
   every blade, drawn stock in their own colour, skipping the blade skins' GPU work; and a
   menu frame cap (`com_maxfpsMenu`) while no game runs;
+- texture detail also shrinking sky boxes, material maps and textures uploaded without
+  mips (25/10/2026), and shaders that say `nopicmip` or `nomipmaps` keeping full size, as
+  in the original game;
 - Discord status (`cl_discordPresence`): the player's Discord profile showing the menu
   screen, or the server, map, mode, team and players, through the Discord app's
   local pipe;

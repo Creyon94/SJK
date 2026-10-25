@@ -148,6 +148,7 @@ did: Texture detail shrinks the saber glows too: 280 MB less on small cards
 did: Small graphics cards found at start: smaller textures and menu pictures from the first map
 did: Card pictures loaded only when a screen shows them: 1.8 GB less video memory
 did: Stock blades and a menu frame cap for weak PCs
+did: Texture detail shrinks skies and material maps too; nopicmip honoured
 did: Discord status: your Discord profile shows the server, map and mode you play
 did: Chat sounds by kind, each with its own sound, and a taskbar flash for private messages
 link: https://github.com/Sol-Vulpes/SJK

@@ -39,6 +39,22 @@ tests, and the SJK UI and classic Settings rows rendered off screen (`sjk_settin
 (no new warnings). Not verified: in a game or on a weak GPU, the GPU time saved (not
 measured), the menu frame pacing on a real window.
 
+## Texture detail everywhere
+
+25/10/2026, `personal/picmip-everywhere`, based on `main` `ab4bd57b`: `r_picmip` now also
+shrinks the sky boxes, the material maps and the textures of the non-mipmapped path
+(`r_textureMode GL_LINEAR`), to the size the mipmapped path gives; stages of `nopicmip`
+and `nomipmaps` shaders keep their size (parsed in `sjk-shader`), sky boxes do not, as in
+rd-vanilla ([rendering.md](rendering.md#gpu-memory)). Verified (release build, Vulkan on Sol's PC,
+1920x1080, `low_end_vram_audit`): at r_picmip 2 the sky box went from 24 to 1.5 MiB on
+mp/ffa3 and mp/siege_desert, and with the generated material pack mounted
+(`SJK_AUDIT_GENERATED`) Experimental's material maps from 884 to 58 MiB (ffa3) and 427 to
+27 MiB (siege_desert); at r_picmip 0 the labels are unchanged and the Vanilla and SJK
+frames pixel-identical, Experimental's within the noise between two runs; the picmip 2
+sky looked at (softer, sensible). Workspace fmt, build, tests and Clippy (no new
+warnings). Not verified: in a game, on a 3 GB card, the non-mipmapped path rendered (no
+shot uses it), a map whose world shaders say `nopicmip` (unit tests only).
+
 ## Announcements and contributor reward rounds
 
 25/10/2026, `personal/announcements`, based on `main` `ca5643de`: the client side of the
