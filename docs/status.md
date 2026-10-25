@@ -1,3 +1,25 @@
+## Secondary view targets and text atlases made when drawn
+
+25/10/2026, `personal/lazy-scene-targets`, based on `main` `ab4bd57b`, for 3 GB cards: the
+floor mirror, sky portal and map portal targets (a scene-format colour target and a depth
+target each, 25 MiB at 1920x1080 in HDR) are made the first frame their view is drawn, the
+floor mirrors' dropped with `r_floorReflections 0`, and the wide-glyph and emoji atlases
+(10.7 MiB each) with their first character
+([rendering.md](rendering.md#gpu-memory)). Verified off screen on Sol's PC (RTX 5080,
+release): `low_end_vram_audit` at 1920x1080 and r_picmip 2, MiB in use at the SJK preset,
+ffa3 670 to 598, siege_desert 654 to 608, the menu on pictures 539 to 518 (Vanilla and
+Experimental lose the same targets); `scene_view_targets` (floor mirrors on ffa3 on, off and
+on again, duel6's sky portal through `CS_SKYBOXORG`, the seven mirrors of `sjk_shaders_e`)
+against `main`: every view drawn, and the differences (215 to 252 pixels above 8/255 on the
+floors, 1,718 on the sky, 115,985 on the animated shader map) no larger than two runs of
+`main` (406 to 448, 1,640, 132,589), while a floor mirror changes 10,862 to 106,176 pixels
+of its view, and the sky portal 185,587 and the first mirror 21,659 by more than 8/255;
+`scene_view_targets_resize` (the mirror target at `r_superSample 2`, then after a resize, at
+the scene's size); `chat_in_russian_and_japanese` (the chat text identical, only the caret
+and dust motes differ); `graphics_reload_menu`, `map_change_after_resize`. Not verified: in a
+game (a live server's sky portal and portals, the menu world after a match), a 3 GB card, a
+target refused for lack of memory.
+
 ## Announcements and contributor reward rounds
 
 25/10/2026, `personal/announcements`, based on `main` `ca5643de`: the client side of the

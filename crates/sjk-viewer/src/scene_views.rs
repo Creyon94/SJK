@@ -67,8 +67,11 @@ pub(crate) struct Runtime {
     offline_sky: Option<Vec3>,
     pub(crate) sky_only_fog: bool,
     needs_environment: bool,
-    portal_target: Option<gpu::Target>,
-    sky_target: Option<gpu::Target>,
+    /// Made the first frame a portal face selects a view ([`Runtime::provide_targets`]).
+    portal_target: gpu::Lazy,
+    /// Made the first frame the sky portal is drawn: a map's sky shaders alone, without the
+    /// server's `CS_SKYBOXORG` (a `misc_skyportal`), never draw it.
+    sky_target: gpu::Lazy,
     pipeline: wgpu::RenderPipeline,
     /// The sky portal's composite on the sky faces, pushed behind them like the sky.
     sky_pipeline: wgpu::RenderPipeline,
@@ -98,17 +101,16 @@ impl Runtime {
     pub(crate) fn has_portal_view(&self) -> bool {
         self.selection.is_some()
     }
-    /// Resolve map-authored view metadata and provision sky resources outside the frame path.
+    /// Resolve map-authored view metadata; the views' targets are made when first drawn.
     pub(crate) fn new(
         device: &wgpu::Device,
         camera_layout: &wgpu::BindGroupLayout,
-        target: (wgpu::TextureFormat, [u32; 2]),
+        format: wgpu::TextureFormat,
         scene: &FlattenedScene,
         bsp: &Bsp,
         shaders: &ShaderCatalog,
         floor_maps: &dyn Fn(usize) -> Option<crate::world_materials::material_maps::FloorMaps>,
     ) -> Self {
-        let (format, size) = target;
         let mut faces = Vec::new();
         for draw in &scene.draws {
             let Some(def) = shaders.get(&scene.materials[draw.material].shader) else {
@@ -186,12 +188,7 @@ impl Runtime {
             "sky_portal_main",
         );
         let sky_visibility = sky_visibility::SkyVisibility::new(scene, bsp, shaders);
-        let sky_target = sky_visibility
-            .has_candidates()
-            .then(|| gpu::Target::new(device, camera_layout, &sample_layout, format, size));
         let portal_enabled = std::env::var_os("SJK_MAP_PORTALS").is_none_or(|v| v != "0");
-        let portal_target = (portal_enabled && !faces.is_empty())
-            .then(|| gpu::Target::new(device, camera_layout, &sample_layout, format, size));
         let portals = Vec::with_capacity(if faces.is_empty() {
             0
         } else {
@@ -201,9 +198,7 @@ impl Runtime {
             floors: floor_reflections::Floors::new(
                 device,
                 camera_layout,
-                &sample_layout,
                 format,
-                size,
                 scene,
                 shaders,
                 floor_maps,
@@ -222,8 +217,8 @@ impl Runtime {
             sky_orientation,
             offline_sky,
             sky_only_fog,
-            portal_target,
-            sky_target,
+            portal_target: gpu::Lazy::new(gpu::MAP_PORTAL),
+            sky_target: gpu::Lazy::new(gpu::SKY_PORTAL),
             pipeline,
             sky_pipeline,
             needs_environment: scene.materials.iter().any(|m| {
@@ -398,6 +393,36 @@ impl Runtime {
         self.select_sky(bsp, origin, view, projection, area_mask);
     }
 
+    /// Make the targets of the views this frame draws, at the scene's `size`: each the
+    /// first time its view is drawn, the floor mirrors' too. A view whose target the card
+    /// has no room for is not drawn.
+    fn provide_targets(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &crate::frame_queue::FrameQueue,
+        size: [u32; 2],
+    ) {
+        let (camera, sample, format) = (&self.camera_layout, &self.sample_layout, self.format);
+        self.floors
+            .provide_target(device, queue, (camera, sample), format, size);
+        if self.selection.is_some()
+            && self
+                .portal_target
+                .make(device, camera, sample, format, size)
+                .is_none()
+        {
+            self.selection = None;
+        }
+        if self.sky_view.is_some()
+            && self
+                .sky_target
+                .make(device, camera, sample, format, size)
+                .is_none()
+        {
+            self.sky_view = None;
+        }
+    }
+
     fn select_sky(
         &mut self,
         bsp: &Bsp,
@@ -455,6 +480,43 @@ fn sphere_visible(matrix: Mat4, center: Vec3, radius: f32) -> bool {
     ]
     .iter()
     .all(|plane| plane.dot(p) >= -radius * plane.truncate().length())
+}
+
+#[cfg(test)]
+impl Runtime {
+    /// Whether the floor mirrors, the sky portal and the map portal hold a target.
+    pub(crate) fn targets(&self) -> [bool; 3] {
+        self.target_sizes().map(|size| size.is_some())
+    }
+
+    /// The sizes of the floor mirrors', the sky portal's and the map portal's targets.
+    pub(crate) fn target_sizes(&self) -> [Option<[u32; 2]>; 3] {
+        [&self.floors.target, &self.sky_target, &self.portal_target]
+            .map(|target| target.get().map(|target| target.size))
+    }
+
+    /// Whether this frame draws floor mirrors, the sky portal and a map portal.
+    pub(crate) fn drawn(&self) -> [bool; 3] {
+        [
+            self.floors.active(),
+            self.sky_view.is_some(),
+            self.selection.is_some(),
+        ]
+    }
+
+    /// Each polished plane's largest face, largest first: its centre, its radius and the
+    /// plane's normal.
+    pub(crate) fn polished_faces(&self) -> Vec<(Vec3, f32, Vec3)> {
+        self.floors.largest_faces()
+    }
+
+    /// Each portal face's centre, radius and normal.
+    pub(crate) fn portal_faces(&self) -> Vec<(Vec3, f32, Vec3)> {
+        self.faces
+            .iter()
+            .map(|face| (face.center, face.radius, face.normal))
+            .collect()
+    }
 }
 
 #[cfg(test)]

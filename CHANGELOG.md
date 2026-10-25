@@ -31,6 +31,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 ## Unreleased
 
 - Kyber crystals: every achievement now brings one, once, from Uncommon to Mythical (shown on the Achievements tab, its hover card and its unlock card). Opening one always gives a saber shader, the ones you do not have yet first, and every tenth crystal in a row without a Legendary or Mythical shader gives one: the Holocrons tab shows your crystals, how soon that is, and their loot table _(Sol)_
+- Less video memory for small graphics cards: floor mirrors, sky portals and map portals now get their screen-size images only once the map really draws them (never with floor mirrors off, as in the Vanilla and SJK presets), and the atlases for Cyrillic, Asian letters and emoji only once such text first shows: about 20 to 70 MB less at 1080p, up to about 220 MB at 4K _(Sol)_
 
 ## 2026.1025.1 (Alpha) | 25/10/2026
 

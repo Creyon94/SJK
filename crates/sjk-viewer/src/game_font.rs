@@ -72,6 +72,8 @@ struct Layer {
     font: UiFont,
     vertices: Vec<TextVertex>,
     buffer: wgpu::Buffer,
+    /// The font's atlas, kept to bind it again with the wide atlas ([`GameFonts::rebind`]).
+    atlas: wgpu::TextureView,
     bind_group: wgpu::BindGroup,
     /// The atlas was uploaded as a distance field.
     distance_field: bool,
@@ -172,6 +174,7 @@ impl Layer {
             font,
             vertices: Vec::with_capacity(4_096),
             buffer,
+            atlas: view,
             bind_group,
             distance_field,
             count: 0,
@@ -477,6 +480,21 @@ impl GameFonts {
             .chain(self.chat.iter_mut())
             .chain(self.console.iter_mut())
             .chain(sjk)
+    }
+
+    /// Bind every loaded font's atlas again with `gpu`'s wide and emoji atlases, after
+    /// one of those was made ([`text::wide_texture::WideTexture::update`]).
+    pub(crate) fn rebind(&mut self, gpu: &Device<'_>) {
+        for layer in self.layers_mut() {
+            layer.bind_group = text::wide_texture::bind_group(
+                gpu.device,
+                "SJK game font bind group",
+                gpu.layout,
+                &layer.atlas,
+                gpu.sampler,
+                gpu.wide,
+            );
+        }
     }
 
     /// Copy this frame's vertices to the GPU.

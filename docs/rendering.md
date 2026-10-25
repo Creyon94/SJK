@@ -606,6 +606,26 @@ Windows that memory also shows in the process's RAM in Task Manager.
   (`collection_swatch.rs`) instead of the live blade pictures (`blade_pictures.rs`, a
   832x1664 target of three textures, about 17 MB, and each signature blade's
   pipeline), and that target is freed.
+- The secondary views make their targets the first frame each is drawn, not with the
+  world (`Lazy` in [scene_view_gpu.rs](../crates/sjk-viewer/src/scene_view_gpu.rs),
+  `Runtime::provide_targets` in [scene_views.rs](../crates/sjk-viewer/src/scene_views.rs)).
+  The floor mirrors' (any polished plane), the sky portal's (any sky shader) and the map
+  portal's (any `portal` face) were each a scene-format colour target and a depth target
+  at the scene's size, 25 MiB at 1920x1080 with HDR and four times that at 4K, and most
+  were never drawn: `r_floorReflections` is 0 at the Vanilla and SJK presets, the sky
+  portal draws only once the server sends `CS_SKYBOXORG` for a `misc_skyportal` (12 retail
+  maps have one, among them mp/duel6, mp/duel9 and mp/siege_hoth; mp/ffa3 and
+  mp/siege_desert have sky shaders and none), and no retail map has a `portal` face
+  (community maps do, with their `misc_portal_surface`). A target is kept once made and
+  made again at a resize or another `r_superSample`; the floor mirrors' is dropped when
+  `r_floorReflections` goes to 0. One the card has no room for (captured, `gpu_guard`)
+  leaves its view undrawn, logged once, rather than ending the game. Their labels now say
+  which view they serve (`SJK floor mirror view`/`depth`, `SJK sky portal view`/`depth`,
+  `SJK map portal view`/`depth`). The wide-glyph and emoji atlases (10.7 MiB each) wait
+  the same way for the first character beyond the code page or emoji
+  ([below](#characters-beyond-the-code-page)). With real-time lighting, a map with
+  polished planes still keeps the mirrors' light-buffer images whether mirrors are on or
+  not (`configure_light_preservation`).
 - A map change still builds the next world while the last one lives. With
   `MemoryHints::Performance` (128 to 256 MiB blocks) the blocks the old world
   shared with the new one stayed partly used once it was dropped, about 2 GB of
@@ -708,6 +728,20 @@ stays level over 12 map changes. With the hub's 333 card faces mounted, the menu
 pictures at r_picmip 2 went from 539 to 2316 MiB in use (3235 MiB reserved): every face
 was uploaded at 1024 pixels in every world (see [cards.md](cards.md)), which the hub's
 crash reports named (`label = 'SJK menu emblem'`, a GTX 1060 3GB in the main menu).
+
+With the secondary views' targets and the text atlases made only when drawn (above), the
+same audit at r_picmip 2 (25/10/2026, MiB in use, before / after):
+
+| Map, r_picmip 2 | Vanilla style | SJK (recommended) | Experimental |
+| --- | --- | --- | --- |
+| mp/ffa3 | 626 / 571 | 670 / 598 | 1065 / 993 |
+| mp/siege_desert | 618 / 580 | 654 / 608 | 1279 / 1232 |
+| Menu on pictures | 512 / 490 | 539 / 518 | 797 / 775 |
+
+ffa3 lost its floor mirror and sky portal targets and both atlases, siege_desert its sky
+portal target and the atlases, the menu the atlases; the main view's `SJK depth` is the
+only depth target left. The audit's camera sees no polished floor, so at Experimental
+(`r_floorReflections 1`) the mirror target is only made once one comes into view.
 
 ## Eye adaptation
 
@@ -2632,7 +2666,12 @@ entity (`ET_PORTAL`, 8) lies within 64 units of its plane, as stock's
 [scene_portal_math.rs](../crates/sjk-viewer/src/scene_portal_math.rs)). Until 19/10/2026
 the match looked for entity type 7 (`ET_BEAM`), so no network portal was ever found and
 such faces showed only their own texture: the grey `textures/lgnd_misc/camera` screen of
-JoF's `mp/ffa3` security camera, for example.
+JoF's `mp/ffa3` security camera, for example. The portal view's target is made the first
+frame a face selects a view ([GPU memory](#gpu-memory)). The ignored world shot
+`scene_view_targets` ([world_shot_scene_views.rs](../crates/sjk-viewer/src/world_shot_scene_views.rs))
+renders through each secondary view (floor mirrors on ffa3, duel6's sky portal, the mirrors
+of `sjk_shaders_e`) and prints which targets a world holds; `scene_view_targets_resize`
+checks the mirror target follows `r_superSample` and a resize.
 
 Camera-range caches also retain their PVS/area selection independently of the
 camera frustum. Turning or moving within a cluster rechecks bounds but reuses
@@ -3249,7 +3288,8 @@ Each frame keeps at most six mirrors, the planes covering most of the screen: a 
 enters at 1% of the screen and leaves below 0.7%, so it does not flicker at the
 threshold. Every mirror re-renders the whole scene (sky, world, players, effects)
 from the reflected camera at half resolution into a shared target, cropped to the
-plane's screen rectangle; in real-time lighting it is lit in its own light-buffer
+plane's screen rectangle (the target is made the first frame a mirror is drawn and
+dropped when `r_floorReflections` is turned off, see [GPU memory](#gpu-memory)); in real-time lighting it is lit in its own light-buffer
 images, so the main view's light stays intact. The finish
 ([floor_reflection.wgsl](../crates/sjk-viewer/src/floor_reflection.wgsl)) blends the
 image over the floor with a Schlick rim from 0.12 head-on to 0.70 at grazing angles,
@@ -3854,7 +3894,10 @@ character is shown, and emoji from a colour atlas beside it
 - The atlas is one 4096x2048 R8 texture with the code-page atlases' four mip levels,
   glyphs rasterized at 96 pixels per em on an 8-texel grid so every level's copy of
   a cell is whole texels, also kept on the CPU for menu snapshots. When it is full
-  it starts over and the glyphs on screen come back over the next frames.
+  it starts over and the glyphs on screen come back over the next frames. It is made
+  with its first glyph: until then the text bind groups carry a 1x1 stand-in, and they
+  are all made again when it or the emoji atlas is made (`GpuState::update_wide_text`),
+  so a world where no one writes beyond the code page never holds either.
 - Every text bind group carries it at binding 2
   ([wide_texture.rs](../crates/sjk-viewer/src/text/wide_texture.rs)); a glyph's
   vertices hold `u` offset by 2, and `text.wgsl` samples the wide atlas for those
@@ -3879,7 +3922,8 @@ one after another, 4.2 MB, and an index) and drawn by
 - An emoji is a square one em of the face wide (the em taken from its capitals),
   sitting a tenth of itself below the baseline, with a twentieth either side.
 - Its picture is decoded the first time it is shown, within the same 2 ms a frame as
-  the wide glyphs, into a 2048x1024 RGBA atlas (253 pictures, display values as every
+  the wide glyphs, into a 2048x1024 RGBA atlas (made with its first picture, 253
+  pictures, display values as every
   picture the 2D layer samples, mips averaged by alpha), bound at binding 3; its
   vertices hold `u` offset by 4. `text.wgsl` draws its own colours faded by the text's
   alpha, and black for the shadow quad (and for black text, `^0`).
