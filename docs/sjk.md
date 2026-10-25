@@ -212,6 +212,16 @@ the script adds nothing. To
 update the library, replace the vendored file with a release's
 `dist/js/bundle.js` and check that `disableTelemetry` still stops its telemetry.
 
+Visits are counted with [GoatCounter](https://www.goatcounter.com) (no cookies, no
+personal data; the footer says so), whose ISC-licensed `count.js` is vendored as
+`assets/vendor/goatcounter/count.js` with its license, so the script is not fetched
+from another server; only the counts go to `sjk.goatcounter.com`. Links posted on video
+platforms carry `?utm_source=<platform>` (and `utm_campaign`), which GoatCounter lists
+as the visit's source, so the dashboard shows which platform brings visitors. The page's
+`rel="canonical"` link makes them all count as the one page `/SJK/`. To
+update the script, replace the vendored file with GoatCounter's current
+`public/count.js`.
+
 Release tags exist only on SJK and are created on Sol's request. The release
 title carries the stage, "Sol JK 2026.1005.1 (Alpha)" (`STAGE` in the workflow).
 Alphas are not marked as pre-releases, so the site's download link
