@@ -25,9 +25,11 @@ pub const JKA_PROFILE_BUDGET: usize = LEGACY_GAME_ENTITIES;
 const EVENT_VALID_MS: i32 = 300;
 /// `BODY_QUEUE_SIZE`: how many bodies lie around before the oldest is reused.
 const BODIES: usize = 8;
-/// `BODY_SINK_TIME`: a body fades this long after it fell, and is unlinked 18 s later.
+/// `BODY_SINK_TIME`: a body fades this long after it fell, and is unlinked 4 s later
+/// (`BodySink` thinks `BodyRid` 4 s on; its 18 s think is commented out in
+/// `g_client.c`), when the client's burn is over.
 const BODY_SINK_MS: i32 = 30_000;
-const BODY_FADE_THINK_MS: i32 = 18_000;
+const BODY_FADE_THINK_MS: i32 = 4_000;
 /// `EV_BODYFADE` (`bg_public.h`: 100, after `EV_CTFMESSAGE`), with `G_AddEvent`'s stepped
 /// sequence bits (125, sent before, is `EV_PUSHED1`: no client faded the body).
 const EV_BODYFADE: u32 = 100;
@@ -471,7 +473,7 @@ impl EntityPool {
                 continue;
             }
             // `BodySink`: a body's think, `BODY_SINK_TIME` after it fell, fades it
-            // (`EV_BODYFADE`) and thinks again 18 s later, when it is unlinked.
+            // (`EV_BODYFADE`) and `BodyRid` unlinks it 4 s later.
             if let Some(since) = slot.body_since
                 && slot.linked
             {
@@ -659,5 +661,10 @@ mod body_fade_tests {
         let event = pool.state(id).unwrap().raw_field(ES_EVENT).unwrap();
         assert_eq!(event & !EVENT_BITS, 100);
         assert_ne!(event & EVENT_BITS, 0);
+        // `BodyRid`, 4 s after the fade, once the client's burn is over.
+        pool.run_frame(35_000);
+        assert!(pool.is_linked(id));
+        pool.run_frame(35_001);
+        assert!(!pool.is_linked(id));
     }
 }

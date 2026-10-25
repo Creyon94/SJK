@@ -101,6 +101,8 @@ pub struct LegacyBodyFadeTracker {
     started: [Option<i32>; ENTITY_LIMIT],
     signatures: [u16; ENTITY_LIMIT],
     active: [bool; ENTITY_LIMIT],
+    /// The last snapshot's server time: one going back is a new gamestate.
+    server_time: i32,
 }
 
 impl Default for LegacyBodyFadeTracker {
@@ -109,6 +111,7 @@ impl Default for LegacyBodyFadeTracker {
             started: [None; ENTITY_LIMIT],
             signatures: [0; ENTITY_LIMIT],
             active: [false; ENTITY_LIMIT],
+            server_time: i32::MIN,
         }
     }
 }
@@ -117,6 +120,12 @@ impl LegacyBodyFadeTracker {
     /// Observe one snapshot's events, at its server time (`cg.time` as it becomes
     /// the current snapshot).
     pub fn observe_snapshot(&mut self, snapshot: &Snapshot) {
+        // A map change, `map_restart` or reconnect starts the server clock again:
+        // no fade of the old world carries over to a body in the same slot.
+        if snapshot.server_time < self.server_time {
+            self.clear();
+        }
+        self.server_time = snapshot.server_time;
         let mut present = [false; ENTITY_LIMIT];
         for entity in &snapshot.entities {
             let index = usize::from(entity.number());
@@ -129,12 +138,20 @@ impl LegacyBodyFadeTracker {
                 // starts unfaded.
                 self.started[index] = None;
             }
+            // `previousEvent` is remembered even when it is no event (0), so the
+            // next body's identical `EV_BODYFADE` in a reused slot is seen; an
+            // entity back in the snapshot starts from 0 (`CG_ResetEntity`).
             let signature = entity.event();
-            if signature == 0 || (self.active[index] && self.signatures[index] == signature) {
-                continue;
-            }
+            let previous = if self.active[index] {
+                self.signatures[index]
+            } else {
+                0
+            };
             self.active[index] = true;
             self.signatures[index] = signature;
+            if signature == previous || signature & EVENT_MASK == 0 {
+                continue;
+            }
             if signature & EVENT_MASK == EV_BODYFADE && entity.entity_type() == ET_BODY {
                 self.started[index] = Some(snapshot.server_time);
             }
@@ -235,6 +252,29 @@ mod tests {
         tracker.observe_snapshot(&snapshot(3_000, vec![entity(42, 15, 0x100 | 125)]));
         assert_eq!(tracker.started(41), None);
         assert_eq!(tracker.started(42), None);
+    }
+
+    #[test]
+    fn a_reused_slot_fades_again_after_its_event_clears() {
+        // The body queue's slot stays in every snapshot: the next body's fade carries
+        // the same value, seen again once the event field went back to 0.
+        let mut tracker = LegacyBodyFadeTracker::default();
+        tracker.observe_snapshot(&snapshot(1_000, vec![entity(40, 15, 0x100 | 100)]));
+        assert_eq!(tracker.started(40), Some(1_000));
+        tracker.reset(40);
+        tracker.observe_snapshot(&snapshot(2_000, vec![entity(40, 15, 0)]));
+        assert_eq!(tracker.started(40), None);
+        tracker.observe_snapshot(&snapshot(3_000, vec![entity(40, 15, 0x100 | 100)]));
+        assert_eq!(tracker.started(40), Some(3_000));
+    }
+
+    #[test]
+    fn a_new_gamestate_forgets_every_fade() {
+        let mut tracker = LegacyBodyFadeTracker::default();
+        tracker.observe_snapshot(&snapshot(90_000, vec![entity(40, 15, 0x100 | 100)]));
+        assert_eq!(tracker.started(40), Some(90_000));
+        tracker.observe_snapshot(&snapshot(1_000, vec![entity(40, 15, 0)]));
+        assert_eq!(tracker.started(40), None);
     }
 
     #[test]

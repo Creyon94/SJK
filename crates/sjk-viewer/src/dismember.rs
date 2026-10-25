@@ -164,6 +164,15 @@ impl Surfaces {
         }
     }
 
+    /// The surface named `name` back to the model's own flags (undoing [`Self::turn_off`]).
+    pub(crate) fn restore(&mut self, hierarchy: &[GlmSurfaceHierarchy], name: &str) {
+        if let Some(surface) = find(hierarchy, name) {
+            let flags = self.default_flags.get(surface).copied().unwrap_or(0);
+            self.set(surface, flags);
+            self.refresh(hierarchy);
+        }
+    }
+
     /// `G2_SetSurfaceOnOff`: only the off and no-descendants bits change.
     fn set(&mut self, surface: usize, flags: u32) {
         if let Some(current) = self.flags.get_mut(surface) {

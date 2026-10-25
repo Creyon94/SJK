@@ -2164,6 +2164,17 @@ test: r_floorReflections 1 on ffa3: the floor mirror draws; 0 then 1 again: it c
 test: duel6 (sky portal): the sky scenery draws as before; resize the window: still right.
 test: Type Russian/Japanese and an emoji in chat: they show from the first character.
 
+[body-fade]
+area: Rendering & effects
+title: Bodies fade away as in EternalJK (Creyon, PR #202)
+change: 30 s after death the body thins under a blue/red glow that burns away, with sounds.
+change: SJK's server sends EV_BODYFADE as 100 and unlinks the body 4 s after it.
+test: Die on a JoF server, wait 30 s: the body fades under its Force side's glow.
+test: Dark side body: red electric shell, a crackle now and then, not a rattle.
+test: Busy FFA, many deaths: every body fades, none just pops out.
+test: Own server (local): the body fades and is gone ~4 s later, no invisible corpse.
+note: Held hilt vanishes at fade start; rig models show squares in the glow (known).
+
 [blade-tip-edges]
 area: Rendering & effects
 title: Signature blades: no bright tip rim, no hard edges (Creyon, PR #191)

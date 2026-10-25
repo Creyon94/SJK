@@ -18,9 +18,6 @@ use std::cell::Cell;
 const MOUTH_SURFACE: &str = "head_eyes_mouth";
 /// `CHAN_AUTO`.
 const CHAN_AUTO: sjk_audio::ChannelId = sjk_audio::ChannelId(0);
-/// The dark side's crackle is rolled once per this many ms (`Q_flrand > 0.9` per
-/// frame in cgame; 8 ms is a frame at 125 FPS), so it is as frequent at any frame rate.
-const CRACKLE_STEP_MILLIS: i64 = 8;
 
 /// One body's fade (`centity_t::bodyFadeTime`, `dustTrailTime`).
 #[derive(Debug)]
@@ -71,7 +68,7 @@ impl GpuState {
     pub(crate) fn track_body_fades(&mut self) {
         for mesh in &mut self.actor_meshes {
             let Some(id) = mesh.entity_id.filter(|_| mesh.corpse_pool) else {
-                mesh.body_fade = None;
+                stop(mesh);
                 continue;
             };
             let started = u16::try_from(id.get().saturating_sub(1))
@@ -82,7 +79,7 @@ impl GpuState {
                 (Some(started), Some(state)) if state.started != i64::from(started) => {
                     start(mesh, started);
                 }
-                (None, Some(_)) => mesh.body_fade = None,
+                (None, Some(_)) => stop(mesh),
                 _ => {}
             }
         }
@@ -103,6 +100,15 @@ fn start(mesh: &mut ActorMesh, started: i32) {
     mesh.body_fade = Some(State::new(i64::from(started), light_side));
     mesh.surfaces
         .turn_off(&mesh.preview.mesh.hierarchy, MOUTH_SURFACE);
+}
+
+/// End a fade: a pooled mesh given to another body, which no `ircg` may copy surfaces
+/// into, gets its mouth back.
+fn stop(mesh: &mut ActorMesh) {
+    if mesh.body_fade.take().is_some() {
+        mesh.surfaces
+            .restore(&mesh.preview.mesh.hierarchy, MOUTH_SURFACE);
+    }
 }
 
 /// Everything [`submit`] draws into and plays on.
@@ -235,7 +241,9 @@ fn play_sounds(
             audio.play_on_channel(assets::HUM_SOUND, 1.0, origin, source, CHAN_AUTO);
         }
     } else {
-        let step = now.div_euclid(CRACKLE_STEP_MILLIS);
+        // EternalJK rolls `Q_flrand > 0.9` once per 100 ms (`cg.time % 100 <=
+        // cg.frametime`, its fix for the loud body sound), as for the hum.
+        let step = now.div_euclid(i64::from(assets::HUM_PERIOD_MILLIS));
         if state.crackle_step.replace(step) != step && frame_random(id, step).is_multiple_of(10) {
             audio.play_on_channel(assets::CRACKLE_SOUND, 1.0, origin, source, CHAN_AUTO);
         }

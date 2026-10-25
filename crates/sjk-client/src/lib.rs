@@ -15,7 +15,7 @@ pub use body_fade::{BodyFadeFrame, LegacyBodyFadeTracker, legacy_body_fade};
 pub mod body_fade_assets {
     pub use crate::body_fade::{
         BURN_START_MILLIS, CRACKLE_SOUND, DARK_SHADER, DARK_START_SOUND, ELECTRIC_SHADERS,
-        HUM_PERIOD_MILLIS, HUM_SOUND, LIGHT_SHADER, LIGHT_START_SOUND,
+        EV_BODYFADE, HUM_PERIOD_MILLIS, HUM_SOUND, LIGHT_SHADER, LIGHT_START_SOUND,
     };
 }
 mod idle_stances;

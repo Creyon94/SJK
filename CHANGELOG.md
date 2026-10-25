@@ -32,6 +32,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
+- Bodies fade away as in EternalJK: 30 s after a player died, their body thins out under a glow of their Force side (blue for the light side, red and crackling for the dark), which then burns away, with its sounds, instead of vanishing all at once. SJK's own servers now send the fade (they sent another event before) and clear the body once it has burned away _(Creyon, after EternalJK)_
 - Ragdoll: the body's knocks and scrapes are now heard; a timing error silenced every one of them in released builds _(Sol)_
 - Announcements: `announcement` and `rewards` now close the console as their window opens, and the mouse works in the window during a match _(Sol)_
 - Kyber crystals: every achievement now brings one, once, from Uncommon to Mythical (shown on the Achievements tab, its hover card and its unlock card). Opening one always gives a saber shader, the ones you do not have yet first, and every tenth crystal in a row without a Legendary or Mythical shader gives one: the Holocrons tab shows your crystals, how soon that is, and their loot table _(Sol)_
@@ -92,7 +93,6 @@ A small release: a ragdoll toy, chat and saber sound choices, and fixes from Cre
 = cl_privateChatFlash: A private message flashes the game's taskbar button while you are away from the window. On by default; switch it off if you would rather not be called back.
 = cg_wallGrabLock: Optionally lock your camera to a grabbed wall. Off keeps JA+ free look and mouse-aimed kick-offs.
 
-- Bodies fade away as in EternalJK: 30 s after a player died, their body thins out under a glow of their Force side (blue for the light side, red and crackling for the dark), which then burns away, with its sounds, instead of vanishing all at once. SJK's own servers now send the fade too _(Creyon, after EternalJK)_
 - New toy, the Ragdoll: `toy_ragdoll` (a bind, the quick wheel's Toys page or Collection > Toys) makes your body go limp and fall where physics takes it, sandbox style, with a flatline and body knocks; the camera follows the body, and every SJK player on the server sees the same fall. Press it again, or get hurt, to get up where you lie _(Sol)_
 - Emotes: a player typing (chat, console or a menu open: their talk balloon) keeps their emote until they move or attack after closing it, even if pushed meanwhile; Settings > Sound > Emotes: Typing keeps emote (`cg_emoteTypingKeep`, on) _(Sol, after Rollembones' idea)_
 - Alt-tabbing out or minimising the game always silences your emote's music, for everyone and for you, even with Away when alt-tabbed (`cg_awayAltTab`) off, which now only decides whether the away emote starts; coming back plays it again from where it is _(Sol)_
