@@ -54,6 +54,7 @@ mod saber_hilt_command;
 mod shader_image;
 mod shared_textures;
 
+mod body_fade;
 mod clock_trace;
 mod combat_effects;
 mod config_import;
@@ -527,6 +528,8 @@ struct GpuState {
     /// Vehicle volleys waiting for their vehicle to be posed (`vehicle_fire.rs`).
     vehicle_fires: vehicle_fire::Pending,
     force_overlays: sjk_client::LegacyForceOverlayTracker,
+    /// `EV_BODYFADE` per body (`body_fade.rs`).
+    body_fades: Box<sjk_client::LegacyBodyFadeTracker>,
     /// The jetpack model and its jet bolts.
     jetpack: jetpack::Catalog,
     /// Which entities' jets have sounded their start.
@@ -1487,6 +1490,7 @@ impl GpuState {
             muzzle_effects: sjk_client::LegacyMuzzleEffects::new(),
             vehicle_fires: Default::default(),
             force_overlays: sjk_client::LegacyForceOverlayTracker::default(),
+            body_fades: Box::default(),
             jetpack,
             jetpack_sounds: Default::default(),
             force_overlays_last: 0,

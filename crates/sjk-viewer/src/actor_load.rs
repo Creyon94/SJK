@@ -138,6 +138,7 @@ pub(crate) fn build_actor_mesh(
         cosmetics: Default::default(),
         jetpack,
         disintegration: None,
+        body_fade: None,
         surfaces,
         limb: None,
         ragdoll: Default::default(),

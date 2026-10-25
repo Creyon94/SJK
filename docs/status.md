@@ -299,6 +299,22 @@ on GitHub (Sol-Vulpes/SJK): CI run 40133298707 green on macOS, Ubuntu and Window
 macOS smoke check included (loopback server, client finds synthetic assets and saves
 `GameData/SJK/config.cfg`). Not verified: anything on a real Mac (window, Metal rendering of every shader, audio,
 input), the Mac edition's game-data layout. No Intel Mac build.
+## Body fade (EV_BODYFADE)
+
+24/10/2026, `fix/body-fade` (Creyon), based on `main` `47e38896`: a body the server
+clears on its own (`BodySink`) vanished at once in SJK; JoF players' EternalJK fades it.
+The client now keeps `EV_BODYFADE` per body and draws `CG_General`'s three layers
+([client.md](client.md#dismemberment-and-disintegration), body fade). SJK's server
+sent the event as 125 (`EV_PUSHED1`); it sends 100 (`bg_public.h`). Reference: OpenJK
+`codemp/cgame/cg_ents.c` and `cg_event.c`, EternalJK's same blocks (the 100 ms hum
+limit). Verified: unit tests of the fade's timing (body alpha, glow, burn start, extras,
+end), the tracker (one start per event, `ET_BODY` only, reset on a new body) and the
+server's event; the workspace format check, build, tests and clippy on Linux x86_64.
+Not verified: the drawing in a game (no GPU shot of a fading body), and Creyon's check
+against JoF EJK on Windows is pending. Held weapons and hilts drawn apart from the body
+vanish when the fade starts (cgame fades them with the body's Ghoul2 instance); the burn
+measures from the body's origin in world units, so a scaled model burns at the scale's
+pace, not the model's.
 
 ## Safety codes that a hub cannot match
 
