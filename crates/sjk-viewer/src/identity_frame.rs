@@ -116,10 +116,6 @@ impl GpuState {
         let _ = player_identity::with_snapshot(|snapshot| {
             crate::loot_odds::follow(&snapshot.loot);
             crate::economy::follow(snapshot.economy.as_ref());
-            crate::kyber::follow(snapshot.kyber.as_ref());
-            if let Some(me) = &snapshot.me {
-                crate::kyber::follow_rewards(&me.achievements);
-            }
         });
         self.update_achievements();
         self.update_holocron_activity();

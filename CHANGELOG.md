@@ -28,7 +28,16 @@ tests check this file):
 - ASCII only, as the menu font draws bytes.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
-## Unreleased
+## 2026.1025.2 (Alpha) | 25/10/2026
+
+A release for weak PCs and small graphics cards: new settings for more frames, far less video memory, and fewer crashes on cards of 3 to 6 GB.
+
+> Weak PCs: New Render scale, Stock blades and Menu FPS cap settings.
+> Small graphics cards: Under 3.5 GB, SJK starts on lighter graphics once.
+> Video memory: Card pictures, text and old maps take far less of it.
+> Texture compression: An experimental setting for cards short on memory.
+> Sound memory: Sounds and music take about half the memory.
+> Smoother menus: Shader pictures you are not pointing at animate less.
 
 - New setting for weak PCs, Render scale: the world is drawn at 50 to 100 % of the window's resolution and stretched to fit, for more frames on integrated and older graphics cards, while menus, HUD and text stay sharp. 100, the default, changes nothing, and supersampling takes over when it is on: Settings > Display (Simple) or Graphics > Image (Advanced) > Render scale (`r_renderScale`), after a graphics reload _(Sol)_
 - Graphics cards under 3.5 GB (and integrated graphics) now start once on lighter settings, Vanilla style graphics, other players' blades drawn stock and a 60 FPS menu cap, with a card on the main menu to keep them or go back to SJK graphics _(Sol)_
@@ -37,7 +46,6 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - SJK no longer keeps every texture it has loaded in memory for the whole session: the pictures of maps you left are freed (up to about 0.8 GB less memory after a few maps) _(Sol)_
 - Fixed SJK running out of video memory on graphics cards of 3 to 6 GB, in the menus or at a map change: card pictures load only when a screen shows them, instead of all of them at start (they held 1.8 GB of video memory and as much of the computer's) _(Sol)_
 - Sounds and music use about half the memory, and the previous map's music is let go when the music changes instead of staying loaded all session _(Sol)_
-- Kyber crystals: every achievement now brings one, once, from Uncommon to Mythical (shown on the Achievements tab, its hover card and its unlock card). Opening one always gives a saber shader, the ones you do not have yet first, and every tenth crystal in a row without a Legendary or Mythical shader gives one: the Holocrons tab shows your crystals, how soon that is, and their loot table _(Sol)_
 - New setting for weak PCs, Stock blades: draw other players' blades (Others) or every blade, yours included (All), as normal blades in their own colour, without shaders or their effects, to save GPU time on full saber servers. Menus and cards still show your shaders, and sounds are unchanged: Settings > Advanced > Gameplay > Stock blades (`cg_stockBlades`) _(Sol)_
 - New setting for weak PCs, Menu FPS cap: a lower frame rate in the menus while you are not in a game or watching a demo, never above your FPS cap; 0, the default, keeps your FPS cap: Settings > Advanced > Display > Menu FPS cap (`com_maxfpsMenu`) _(Sol)_
 - Texture detail (`r_picmip`) now also lowers skies and material maps (normal, shine and glow maps), and works with mipmaps off, leaving small graphics cards more video memory. Textures the original game keeps sharp (shaders marked nopicmip) keep their full size _(Sol)_
