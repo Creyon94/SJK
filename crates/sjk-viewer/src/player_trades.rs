@@ -253,17 +253,20 @@ fn partner_avatar(with: &sjk_identity::TradePartner, players: &[sjk_identity::Pr
 }
 
 /// Ask the player whose SJK key is `key_id` to trade, from a page that is not the game's
-/// (the SJK chat page): the window opens once that page closes. False when the
-/// identity is off or it is the player's own key.
-pub(crate) fn ask_by_key(key_id: &str) -> bool {
+/// (the SJK chat page): the window opens once that page closes. Why not, in the
+/// console's words: the player's own key, a player blocked on this PC (as every other
+/// way to ask, Sol's review of 25/10/2026), or the identity off.
+pub(crate) fn ask_by_key(key_id: &str) -> Result<(), &'static str> {
     if player_identity::own_key_id().as_deref() == Some(key_id) {
-        return false;
+        return Err("that is you");
     }
-    let asked = player_identity::with_service(|service| service.trade_ask(key_id)).is_some();
-    if asked {
-        OPEN_REQUEST.store(true, std::sync::atomic::Ordering::Relaxed);
+    if blocked(key_id, "") {
+        return Err("you blocked this player");
     }
-    asked
+    player_identity::with_service(|service| service.trade_ask(key_id))
+        .ok_or("the SJK identity is off (cl_identity 1)")?;
+    OPEN_REQUEST.store(true, std::sync::atomic::Ordering::Relaxed);
+    Ok(())
 }
 
 #[cfg(test)]
@@ -1005,8 +1008,11 @@ mod tests {
         assert!(!blocked(key, "Nib"));
         crate::player_mutes::set_muted(Some(key), "Nib", true);
         let was = blocked(key, "^1Nib");
+        // No way to ask leaves them out: by their key, from the SJK chat page, too.
+        let asked = ask_by_key(key);
         crate::player_mutes::set_muted(Some(key), "Nib", false);
         assert!(was);
+        assert_eq!(asked, Err("you blocked this player"));
     }
 
     /// The window's parts (the player's items, the limits) are built only for a window

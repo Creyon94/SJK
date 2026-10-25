@@ -163,12 +163,13 @@ impl ViewerConsole {
             }
             PanelAction::Ban(key_id) => crate::chat_ban::press(&key_id),
             PanelAction::Trade(key_id) => {
-                if crate::player_trades::ask_by_key(&key_id) {
-                    // The window shows over the game once this page is closed.
-                    self.close_sjk_chat_panel();
-                    self.set_open(false);
-                } else {
-                    self.push_log("^3Trade: the SJK identity is off (cl_identity 1)");
+                match crate::player_trades::ask_by_key(&key_id) {
+                    Ok(()) => {
+                        // The window shows over the game once this page is closed.
+                        self.close_sjk_chat_panel();
+                        self.set_open(false);
+                    }
+                    Err(why) => self.push_log(format!("^3Trade: {why}.")),
                 }
             }
             PanelAction::Staff(request) => {

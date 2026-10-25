@@ -2213,8 +2213,8 @@ every menu style, on the 16:9 frame:
   the window closed until the toast's Open trade.
 - **Blocked players** (Sol's decision, 24/10/2026): a request from a player blocked on
   this PC is declined without a word (no toast, no window), and no card offers Trade
-  with them (the Players page says "You blocked this player"); `trade <player>` refuses
-  them too ("you blocked this player", Sol's review, 25/10/2026).
+  with them (the Players page says "You blocked this player"); `trade <player>` and a
+  request by key refuse them too ("you blocked this player", Sol's review, 25/10/2026).
 - **The SJK chat page:** its sender card offers Trade too (by the player's SJK key); the
   page closes and the window opens over the game or the main menu.
 - **Request:** the kit's card, 800 wide from x 560, y 300, over a light shade (the match

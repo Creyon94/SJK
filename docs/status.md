@@ -346,13 +346,16 @@ CREDITS.md no longer state the hub's limits or the resale lock's length; with tr
 the list is read every 30 minutes instead of after a day, so trading switched on at the
 hub reaches running clients; a request that came during play no longer opens by itself
 over the main menu (only the game menu opening from play reopens a closed window); and
-`trade <player>` refuses a blocked player. Verified on Linux x86_64: the workspace format
+`trade <player>` refuses a blocked player, as a request by key (the SJK chat page) now
+does too. Verified on Linux x86_64: the workspace format
 check (one unformatted file from `main`, `world_shot_official.rs`, left as it is), build,
 tests and clippy; new tests of the card's Trade click, the slower reads seeing trading
 switched on, and Esc in play. Not verified here: in a game (no game data on the Linux
 machine). The hub's three points (SJK-hub-shared #4) are answered on its branch: a
-waiting request no longer holds the player asked, a no or an unanswered request makes the
-asker wait before asking that player again and requests are capped per person
+waiting request no longer holds the player asked (the requests a trade closes are told
+to both of their players at once), a request that ended without a trade (declined,
+unanswered or withdrawn) makes the asker wait before asking that player again and
+requests are capped per person
 (`asked_recently`, `asking_too_often`, worded here without numbers), one connection is
 checked again at the accept and every confirmation, and deleting a player keeps their
 trades (the running ones end `removed`); the client words those answers and the
