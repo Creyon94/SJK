@@ -348,7 +348,10 @@ commit with the file (`git commit --amend`), so the merge carries its own
 history and no extra commit appears in it; `--check` says whether the file is
 current. A new contributor goes into the script's `PEOPLE` (their git name and
 GitHub login) along with their card; the tests reject a person in the history
-without a card.
+without a card. The script's `QUIET` names the topics it leaves out, with every
+commit their merge brought: since 25/10/2026, Sol's hand-given Unique blades
+(`personal/thousand-cranes`, `personal/hearth`, `personal/hearth-full`), which show
+only to their holders ([unlockables.md](unlockables.md#unique-shaders)).
 
 ## Debug panel
 
