@@ -28,7 +28,16 @@ tests check this file):
 - ASCII only, as the menu font draws bytes.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
-## Unreleased
+## 2026.1025.2 (Alpha) | 25/10/2026
+
+A release for weak PCs and small graphics cards: new settings for more frames, far less video memory, and fewer crashes on cards of 3 to 6 GB.
+
+> Weak PCs: New Render scale, Stock blades and Menu FPS cap settings.
+> Small graphics cards: Under 3.5 GB, SJK starts on lighter graphics once.
+> Video memory: Card pictures, text and old maps take far less of it.
+> Texture compression: An experimental setting for cards short on memory.
+> Sound memory: Sounds and music take about half the memory.
+> Smoother menus: Shader pictures you are not pointing at animate less.
 
 - New setting for weak PCs, Render scale: the world is drawn at 50 to 100 % of the window's resolution and stretched to fit, for more frames on integrated and older graphics cards, while menus, HUD and text stay sharp. 100, the default, changes nothing, and supersampling takes over when it is on: Settings > Display (Simple) or Graphics > Image (Advanced) > Render scale (`r_renderScale`), after a graphics reload _(Sol)_
 - Graphics cards under 3.5 GB (and integrated graphics) now start once on lighter settings, Vanilla style graphics, other players' blades drawn stock and a 60 FPS menu cap, with a card on the main menu to keep them or go back to SJK graphics _(Sol)_
