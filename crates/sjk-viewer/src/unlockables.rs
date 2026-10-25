@@ -3129,6 +3129,7 @@ mod tests {
             log_requests: Vec::new(),
             log_answer: None,
             economy: None,
+            kyber: None,
             shop: None,
             trade: None,
             announcements: Vec::new(),
