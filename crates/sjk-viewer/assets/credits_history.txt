@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 25/10/2026 | - | Credits history: Slash's commits under his git name, and #207
+- b352b79 |  | Credits history: Slash's commits under his git name, and #207
 + 25/10/2026 | - | Encrypted whispers for verified players, JoF keeps whispers, signed whisper reports
 - 115d92c |  | Encrypted whispers for verified players; JoF keeps whispers; signed whisper reports
 + 25/10/2026 | - | Drone at the game's size; hidden from the watched player, who reads who spectates
@@ -2142,6 +2144,20 @@
 - 0d215f1 |  | Initial JKR source
 
 = Creyon
++ 25/10/2026 | SJK #197 | Add trading between players
+- a3ac938 |  | Add trading between players
+- 05a83c8 |  | Answer Sol's review of the trades
+- e6bd7d5 |  | Fit the Trade button's words on one line on the player card
+- b9b209e |  | Read the trade window size setting as a number
+- a781f9a |  | Shoot the trade card from a card built with trading open
+- d4fd04e |  | Let Trade on the chat card take its click
+- e1eac0b |  | Credit trading as #197, without the hub's numbers
+- c2c993d |  | Read the trade list every 30 minutes while trading is off
+- 6a80efd |  | Keep requests closed over the main menu; no trade with the blocked
+- 41ae856 |  | Record Sol's re-review of the trades in the status page
+- a1e7f1b |  | Word the hub's answers to request spam and closed requests
+- 0c41b37 |  | Refuse a blocked player's trade by key too
+- 88c3746 |  | Note the merge of main and its format fix in the status page
 + 25/10/2026 | SJK #208 | Format launch.rs, platform.rs and update.rs
 - fe7effc |  | Format launch.rs, platform.rs and update.rs
 + 25/10/2026 | SJK #202 | Fade bodies away on EV_BODYFADE as EternalJK does
