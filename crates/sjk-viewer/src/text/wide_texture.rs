@@ -190,6 +190,19 @@ mod tests {
         }
     }
 
+    /// The code-page atlases are R8 (`gpu_texture::create_r8_texture_mipmapped`): the
+    /// programs sampling one read its coverage or distance from red, where alpha is 1.
+    #[test]
+    fn the_font_atlases_are_read_from_red() {
+        let text = include_str!("../text.wgsl");
+        let sample = "textureSample(font_texture, font_sampler, input.uv)";
+        assert_eq!(text.matches(&format!("{sample}.r;")).count(), 2);
+        assert_eq!(text.matches(sample).count(), 2);
+        let ground = include_str!("../ground_hud.wgsl");
+        crate::wgsl_source::validate(ground);
+        assert!(ground.contains("q.bounds.zw), dx, dy).r;"));
+    }
+
     /// The game chat in other alphabets and emoji as they arrive: Windows-1251 from an
     /// EternalJK player, UTF-8 from SJK players (Russian, Japanese, Chinese, Korean,
     /// emoji with skin tones, a family and flags), and a draft typed in them, in Inter

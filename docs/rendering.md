@@ -541,8 +541,9 @@ ffa3 took 5.6 to 7.2 s from `vid_restart` to play, with the connection kept.
 A world's GPU memory belongs to its `GpuState`: map textures (uncompressed
 RGBA8 arrays with mips, 0.6 GB on duel6 and 1.1 GB on mp/siege_desert), material
 maps, lamp light caches, probes, its screen-size targets (saber glow, FXAA, depth,
-glow, at 4K about 0.8 GB) and its own font and UI atlases (about 0.3 GB). On
-Windows that memory also shows in the process's RAM in Task Manager.
+glow, at 4K about 0.8 GB) and its own font and UI atlases (about 0.2 GB, the font
+atlases 40 MiB of it at 1920x1080). On Windows that memory also shows in the
+process's RAM in Task Manager.
 
 - The menu world is dropped when a server world is installed and built again from
   its map once the client is back in the menu off a server
@@ -591,9 +592,27 @@ Windows that memory also shows in the process's RAM in Task Manager.
   column integrals held 300 MiB on every map and in the menu; at 2 they hold 28 MiB.
   The menu on pictures measured 1082 MiB at 1920x1080 and r_picmip 2, 801 MiB after
   (`menu_pictures_vram` in world_shot_vram.rs, 21/10/2026, after Vin's 3 GB card ran
-  out in the main menu). The rest of that menu: the game font atlases (128 MiB, RGBA),
-  the UI icon atlas (56 MiB) and the world's shadow, GI and froxel targets (about
-  200 MiB) a picture menu does not draw.
+  out in the main menu). The rest of that menu: the game font atlases (128 MiB as
+  RGBA, 32 MiB since they are R8, below), the UI icon atlas (56 MiB) and the world's
+  shadow, GI and froxel targets (about 200 MiB) a picture menu does not draw.
+- The font atlases are single-channel `R8Unorm` textures
+  ([gpu_texture.rs](../crates/sjk-viewer/src/gpu_texture.rs)
+  `create_r8_texture_mipmapped`): every code-page atlas holds only glyph coverage (or
+  a distance field), and the text colour comes from the vertices, so `text.wgsl` and
+  `ground_hud.wgsl` read it from `.r`. Until 25/10/2026 they were white RGBA8 textures
+  read through alpha, four times the memory for the same values. At 1920x1080 the five
+  game font atlases (SJK Menu, SJK Chat, JetBrains Mono and the SJK UI's two
+  families) went from 128 to 32 MiB, the Inter UI atlas from 21.3 to 5.3 MiB and the
+  classic HUD atlas from 10.7 to 2.7 MiB: 120 MiB less in every world, the menu's
+  included. `low_end_vram_audit` at r_picmip 2 (MiB in use, Vanilla style / SJK /
+  Experimental): mp/ffa3 626 / 670 / 1065 before, 506 / 550 / 947 after; the menu on
+  pictures 512 / 539 / 797 before, 392 / 419 / 677 after. The Inter atlas grows with
+  the display scale (4096x4096 at 200 %: 85 MiB as RGBA, 21 MiB as R8, computed). The
+  CPU copies the atlases are built and mipmapped from are one channel too. Text draws
+  the same: the text pipeline drew the same glyph quads at six scales (every mip
+  level) from the old RGBA upload and from the R8 one, for all eight atlases and a
+  distance field, with no pixel different. The emoji atlas stays RGBA (colour
+  pictures) and the wide-glyph atlas was already R8.
 - Work on the render thread after a world is built runs inside wgpu error scopes
   ([gpu_guard.rs](../crates/sjk-viewer/src/gpu_guard.rs)) where it can fail alone: the
   menu stage's model (the creator's head, torso and legs), which then is not shown and
@@ -651,7 +670,7 @@ Every map holds the same bytes on each cycle (duel6 1869 MiB after the first and
 last), and reserved memory settles back to 2.5 to 3.4 GB. With the desktop and other
 programs, a 6 GB card has no room for two worlds of the larger maps. About 0.55 GB of
 each world was the same whatever the map and was built again for each one: the saber
-glow column integrals (205 MiB), the game font atlas (128 MiB), the saber glow images
+glow column integrals (205 MiB), the game font atlas (128 MiB then, RGBA), the saber glow images
 (96 MiB), the UI icon atlas (50 MiB), the effect atlas (39 MiB) and the classic menu
 art (32 MiB). Map textures that two maps share (retail `textures/` among them) were
 uploaded again too.
@@ -738,6 +757,8 @@ crash reports named (`label = 'SJK menu emblem'`, a GTX 1060 3GB in the main men
 Since then only the faces a screen draws are decoded and uploaded (at most 64 kept): the
 same menu holds 539 MiB with the packs mounted, siege_desert 654 MiB instead of 2431,
 and the map change's peak is 1105 MiB instead of 2882.
+The table's numbers predate the single-channel font atlases (above), which take about
+120 MiB off every cell (measured at r_picmip 2 on mp/ffa3 and the menu on pictures).
 
 ## Eye adaptation
 
@@ -3851,6 +3872,14 @@ were converted at load into signed distance fields by
 `fragment_sdf`, so magnified text kept sharp edges. That path remains for any
 atlas under 2048 texels, but every font SJK draws now rasterizes into a
 4096-texel coverage atlas, so none uses it.
+
+Every code-page atlas (Inter, the SJK UI's Rajdhani and Exo 2, SJK Menu, SJK Chat,
+SJK HUD, JetBrains Mono) and a distance field made from one hold a single value per
+texel, so they are one channel: a `GrayImage` on the CPU (the menu snapshots raster
+from it too) and an `R8Unorm` texture with its mips on the GPU, which `text.wgsl`'s
+`fragment_main` and `fragment_sdf` and the ground HUD read from `.r`; the colour
+comes from the vertices. They were white RGBA8 textures read through alpha until
+25/10/2026, four times the memory ([GPU memory](#gpu-memory)).
 
 In the Inter atlas, byte 0xAC (`¬`) is an exception: the retail `ergoec` and
 `ocr_a` fonts draw it as the boxed "WSI fonts" foundry logo, which players use in

@@ -36,6 +36,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - New setting for weak PCs, Stock blades: draw other players' blades (Others) or every blade, yours included (All), as normal blades in their own colour, without shaders or their effects, to save GPU time on full saber servers. Menus and cards still show your shaders, and sounds are unchanged: Settings > Advanced > Gameplay > Stock blades (`cg_stockBlades`) _(Sol)_
 - New setting for weak PCs, Menu FPS cap: a lower frame rate in the menus while you are not in a game or watching a demo, never above your FPS cap; 0, the default, keeps your FPS cap: Settings > Advanced > Display > Menu FPS cap (`com_maxfpsMenu`) _(Sol)_
 - Texture detail (`r_picmip`) now also lowers skies and material maps (normal, shine and glow maps), and works with mipmaps off, leaving small graphics cards more video memory. Textures the original game keeps sharp (shaders marked nopicmip) keep their full size _(Sol)_
+- Text uses about 120 MiB less video memory: the font atlases keep one channel instead of four, and draw exactly as before _(Sol)_
 
 ## 2026.1025.1 (Alpha) | 25/10/2026
 

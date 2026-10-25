@@ -1067,12 +1067,11 @@ impl GpuState {
             logo_glyph.as_ref(),
         )?;
         let ui_font = modern_atlas.font;
-        let font_view = gpu_texture::create_rgba8_texture_mipmapped(
+        let font_view = gpu_texture::create_r8_texture_mipmapped(
             &device,
             &queue,
             "SJK UI font atlas",
             &modern_atlas.image,
-            true,
             text::ATLAS_MIP_LEVELS,
         );
         // The font's atlas, its sampler and the wide-glyph and emoji atlases
@@ -1120,12 +1119,11 @@ impl GpuState {
             .is_some_and(|atlas| atlas.distance_field);
         let (classic_hud_font, classic_text_bind_group) =
             classic_atlas.map_or((None, None), |atlas| {
-                let view = gpu_texture::create_rgba8_texture_mipmapped(
+                let view = gpu_texture::create_r8_texture_mipmapped(
                     &device,
                     &queue,
                     "SJK classic HUD font atlas",
                     &atlas.image,
-                    true,
                     game_font::mip_levels(atlas.image.width(), atlas.image.height()),
                 );
                 let bind_group = text::wide_texture::bind_group(
@@ -1670,12 +1668,11 @@ impl GpuState {
 
     fn rebuild_modern_text(&mut self, dpi_scale: f64) -> Result<(), Box<dyn Error>> {
         let atlas = text::load_modern(dpi_scale, self.logo_glyph.as_ref())?;
-        let view = gpu_texture::create_rgba8_texture_mipmapped(
+        let view = gpu_texture::create_r8_texture_mipmapped(
             &self.device,
             &self.queue,
             "SJK Inter UI font atlas",
             &atlas.image,
-            true,
             text::ATLAS_MIP_LEVELS,
         );
         self.text_bind_group = text::wide_texture::bind_group(

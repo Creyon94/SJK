@@ -150,6 +150,7 @@ did: Card pictures loaded only when a screen shows them: 1.8 GB less video memor
 did: Stock blades and a menu frame cap for weak PCs
 did: Texture detail shrinks skies and material maps too; nopicmip honoured
 did: Sounds kept at 16 bits: half the memory, old map music freed
+did: Font atlases in one channel: 120 MiB less video memory
 did: Discord status: your Discord profile shows the server, map and mode you play
 did: Chat sounds by kind, each with its own sound, and a taskbar flash for private messages
 link: https://github.com/Sol-Vulpes/SJK

@@ -71,6 +71,25 @@ verified: listening in a game, memory in a live session. The duel music, effects
 voices stay decoded for the session; sounds keep the mixer's rate (per-voice resampling
 would halve 22 kHz effects again, not done).
 
+## Single-channel font atlases
+
+25/10/2026, `personal/font-atlas-r8`, based on `main` `ab4bd57b`, for 3 GB cards: the
+code-page font atlases (Inter, Rajdhani, Exo 2, SJK Menu, SJK Chat, SJK HUD, JetBrains
+Mono) and the distance-field path are one channel, a `GrayImage` on the CPU and an
+`R8Unorm` texture on the GPU, read from `.r` by `text.wgsl` and `ground_hud.wgsl`
+([rendering.md](rendering.md#gpu-memory)). Verified on Sol's PC (Vulkan, release
+build, 1920x1080): `low_end_vram_audit` (mp/ffa3 and the menu on pictures, r_picmip 2,
+the three presets) shows the font atlases at 40 MiB instead of 160 and 118 to 120 MiB
+less in use in every case (ffa3 on the SJK preset 670 to 550 MiB, the menu 539 to 419).
+A temporary GPU test (not committed) drew the same glyph quads at six scales from the
+old RGBA upload read through `.a` and from the R8 one read through `.r`, for all eight
+atlases and a distance field: no pixel differed. The world shots of the chat (Russian,
+Japanese, emoji; Inter and the game fonts), the consoles, the SJK UI menu, the text
+sizes and a demo with the player card differ from the old build's no more than two runs
+of the old build differ (clocks, animation); the 59 deterministic CPU menu snapshots of
+105 are identical. Not verified: the ground HUD drawn (same atlas, same `.r` change; no
+shot shows it), a 3 GB card, DirectX 12 and Metal.
+
 ## Announcements and contributor reward rounds
 
 25/10/2026, `personal/announcements`, based on `main` `ca5643de`: the client side of the

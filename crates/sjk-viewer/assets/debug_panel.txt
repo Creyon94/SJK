@@ -2068,6 +2068,14 @@ note: Alt+Tab while holding Tab leaves the board and the hidden HUD up until Tab
 
 # ---- Rendering & effects ----
 
+[font-atlas-r8]
+area: Rendering & effects
+title: Font atlases in one channel: 120 MiB less video memory, text unchanged
+change: Every font atlas (game, UI, classic HUD) is coverage only (R8) instead of RGBA.
+test: Menus, console, chat (with Russian/Japanese and emoji), HUD numbers: text looks the same.
+test: Classic and SJK menu styles, retail fonts and SJK fonts: no missing or blocky glyphs.
+test: cg_groundHud 1 (ground HUD): its digits still draw.
+
 [stock-blades-menu-cap]
 area: Rendering & effects
 title: Stock blades (cg_stockBlades) and a menu frame cap (com_maxfpsMenu) for weak PCs
