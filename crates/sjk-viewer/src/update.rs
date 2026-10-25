@@ -938,7 +938,9 @@ mod tests {
                 .start_file("SJK.app/Contents/MacOS/sjk-client", options)
                 .unwrap();
             writer.write_all(b"new").unwrap();
-            writer.start_file("SJK.app/Contents/Info.plist", options).unwrap();
+            writer
+                .start_file("SJK.app/Contents/Info.plist", options)
+                .unwrap();
             writer.write_all(b"plist").unwrap();
             writer.start_file("sjk-server", options).unwrap();
             writer.write_all(b"server").unwrap();

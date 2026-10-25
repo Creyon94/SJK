@@ -340,7 +340,7 @@ includes:
 Creyon and Lumaya wear the SJK team's Early Contributor medal, shown on their
 cards of the in-game credits page.
 
-Creyon ([Creyon94](https://github.com/Creyon94)), contributor and tester, has 56
+Creyon ([Creyon94](https://github.com/Creyon94)), contributor and tester, has 57
 pull requests merged into SJK, most of them bringing SJK in line with EternalJK
 ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3ACreyon94)):
 
@@ -408,6 +408,7 @@ pull requests merged into SJK, most of them bringing SJK in line with EternalJK
 - #202 bodies fading away as in EternalJK (`EV_BODYFADE`), with SJK's server sending the
   event under its right number; at the merge every reused body slot fades again, the dark
   side crackles once per 100 ms and the server clears the body 4 s after the fade;
+- #208 formatting fixed in three files so CI's Formatting check passed again;
 - #102 a formatting fix that unblocked every pull request's checks.
 - the Saber ideas page, whose concepts became the Tidal, Circuit, Aurora, Echo, Nebula,
   Cinder, Venom, Sakura and Firefly blades, and the twelve that followed (Slate, Amber,

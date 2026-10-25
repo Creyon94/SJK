@@ -9,6 +9,10 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 25/10/2026 | - | No console window on Windows; SJK.app bundle on macOS
+- 13beb79 |  | One window: no console on Windows, SJK.app on macOS
++ 25/10/2026 | - | Credits history: a review branch's "Merge PR #N (Author: title)" counts as SJK #N
+- a6ad529 |  | Credits history: a review branch's "Merge PR #N (Author: title)" counts as SJK #N
 + 25/10/2026 | - | A card picture that crashes its decoder fails alone; card and medal art labelled; the prize asked for at the opening's start
 - 8a9e108 |  | Card pictures: decoder guard, own memory labels, found card asked early (after Slash's #206)
 + 25/10/2026 | - | Format: announcement world shot and the body fade shot's module
@@ -2130,6 +2134,8 @@
 - 0d215f1 |  | Initial JKR source
 
 = Creyon
++ 25/10/2026 | SJK #208 | Format launch.rs, platform.rs and update.rs
+- fe7effc |  | Format launch.rs, platform.rs and update.rs
 + 25/10/2026 | SJK #202 | Fade bodies away on EV_BODYFADE as EternalJK does
 - c6297c3 |  | Fade bodies away on EV_BODYFADE as EternalJK does
 - 8839c5d | Sol | Body fade: every reused slot fades, crackle once per 100 ms, body gone 4 s after
