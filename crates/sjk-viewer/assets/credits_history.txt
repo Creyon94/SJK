@@ -9,8 +9,12 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
-+ 25/10/2026 | - | Hold kyber crystals out of release 2026.1025.3
++ 25/10/2026 | - | Reapply kyber crystals on main after release 2026.1025.3
+- a3ecc84 |  | Reapply kyber crystals on main after release 2026.1025.3
++ 25/10/2026 | - | Release 2026.1025.3
 - 6219867 |  | Hold kyber crystals out of release 2026.1025.3
+- 13d6093 |  | Release 2026.1025.3
+- f0a000b |  | Release: trading counts holocron tiers by index without kyber crystals
 + 25/10/2026 | - | Credits history after #197 (trading)
 - 748b35f |  | Credits history after #197 (trading)
 + 25/10/2026 | - | Credits history: Slash's commits under his git name, and #207
