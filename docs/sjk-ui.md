@@ -262,8 +262,8 @@ open it). Bottom left on the 16:9 frame, from (84, 932), 474 by 96:
   ([identity.md](identity.md#pictures));
 - their name with its colours (Exo 2 at 27);
 - a line of what the SJK hub says: "Verified" (gold) or "SJK player", the medals
-  given ("2 medals", left out with none) and the achievements unlocked ("12/21
-  achievements"); without the hub it says "SJK identity off", "Connecting to the hub"
+  given ("2 medals", left out with none) and the achievements unlocked ("12/34
+  achievements", of the obtainable ones and the retired ones held); without the hub it says "SJK identity off", "Connecting to the hub"
   or "SJK hub out of reach", still with this PC's achievements;
 - their model and blade ("Kyle, blue saber", or "Kyle, Sun blade" while they wear a
   blade skin their profile holds, [unlockables.md](unlockables.md)); when the card is
@@ -1533,7 +1533,7 @@ for the run.
   those words, a stretch to each tab in the tabs' order, filled gold as far as that
   tab's share held (one tick a thing until 21/10/2026, a barcode at two hundred things). Under the title the row of tabs
   (`profile_hub::collection_header`), each name with its count after it in small
-  Rajdhani ("2/3", "11/21", how many holocrons for Holocrons; nothing while unknown or empty), the one on show gold and
+  Rajdhani ("2/3", "11/34", how many holocrons for Holocrons; nothing while unknown or empty), the one on show gold and
   underlined. Drawn in Inter (the families not loaded, the classic menus), the row
   makes room for the wider face. Over the map (Shaders, Toys, Nameplates) a band of
   the page's dark stands behind the title, the tally and the tabs, solid to y 200 and

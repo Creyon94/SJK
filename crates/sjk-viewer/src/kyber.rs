@@ -191,7 +191,7 @@ pub(crate) fn pity_line(pity: Option<Pity>) -> String {
 
 /// The crystal each achievement brings, by its id: this client's copy of the hub's
 /// catalogue (`reward` there), a position in [`TIERS`].
-pub(crate) const REWARDS: [(&str, usize); 21] = [
+pub(crate) const REWARDS: [(&str, usize); 35] = [
     ("first_blood", 0),
     ("kills_100", 1),
     ("kills_1000", 3),
@@ -213,6 +213,20 @@ pub(crate) const REWARDS: [(&str, usize); 21] = [
     ("bug_reporter", 0),
     ("surveyor", 1),
     ("decorated", 1),
+    ("holocrons_10", 0),
+    ("holocrons_50", 1),
+    ("holocrons_200", 2),
+    ("mythical_find", 1),
+    ("craft_blade", 0),
+    ("craft_finishes", 1),
+    ("full_set", 2),
+    ("order66_kill", 0),
+    ("box_minutes_10", 0),
+    ("duel_flawless", 1),
+    ("duel_close_call", 0),
+    ("duel_partners_25", 1),
+    ("saber_throw_far", 0),
+    ("thermal_return", 1),
 ];
 
 /// What the hub said each achievement brings, in [`crate::achievements::ALL`]'s order: 0
@@ -419,8 +433,9 @@ mod tests {
         );
     }
 
-    /// Every achievement brings a crystal, by the spec's table: ten Uncommon, eight Rare,
-    /// two Legendary, one Mythical. The hub's word replaces the copy.
+    /// Every achievement brings a crystal, by the spec's tables (21/10 and 26/10/2026):
+    /// sixteen Uncommon, fourteen Rare, four Legendary, one Mythical. The hub's word
+    /// replaces the copy.
     #[test]
     fn every_achievement_brings_its_crystal() {
         for kind in &crate::achievements::ALL {
@@ -435,7 +450,7 @@ mod tests {
             assert!(crate::achievements::find(id).is_some(), "{id}");
             per_tier[index] += 1;
         }
-        assert_eq!(per_tier, [10, 8, 2, 1]);
+        assert_eq!(per_tier, [16, 14, 4, 1]);
         assert_eq!(reward("kills_1000").map(|t| t.id), Some("kyber_mythical"));
         assert_eq!(reward("hours_100").map(|t| t.id), Some("kyber_legendary"));
         assert_eq!(reward("nope"), None);

@@ -52,6 +52,10 @@ impl Panel {
                 .standings
                 .iter()
                 .find(|standing| standing.kind.id == kind.id);
+            // A retired one not held has no card (nor a place on the wall).
+            if kind.retired && standing.is_none_or(|standing| !standing.listed()) {
+                return None;
+            }
             return Some(achievement_card(kind, standing));
         }
         if let Some(row) = within(SHADER_BASE, self.shader_count) {
@@ -196,12 +200,17 @@ fn medal_card(showing: &medals::Showing) -> Card {
 }
 
 /// An achievement's card: what to do, who counts it, how far the player is, and the kyber
-/// crystal it brings, in the crystal's colour ([`crate::kyber::reward`]).
+/// crystal it brings, in the crystal's colour ([`crate::kyber::reward`]). A secret not
+/// unlocked yet keeps its name, what it asks and the count to itself; a retired one says
+/// it is no longer obtainable.
 fn achievement_card(
     kind: &'static crate::achievements::Kind,
     standing: Option<&crate::achievements::Standing>,
 ) -> Card {
+    let done = standing.is_some_and(|standing| standing.unlocked.is_some());
+    let secret = kind.hidden && !done;
     let counted = match kind.source {
+        _ if kind.retired => crate::achievements::RETIRED_NOTE,
         Source::Client(_) => "Counted by SJK in your matches on servers.",
         Source::Hub => "Counted by the SJK hub.",
     };
@@ -210,7 +219,7 @@ fn achievement_card(
         Some(standing) => match standing.unlocked {
             Some(at) if at > 0 => Line::held(format!("Unlocked {}", crate::medals::date_text(at))),
             Some(_) => Line::held("Unlocked"),
-            None if kind.goal > 1 => Line::status(format!(
+            None if kind.goal > 1 && !secret => Line::status(format!(
                 "{} of {} so far",
                 kind.amount(standing.progress.min(kind.goal)),
                 kind.amount(kind.goal)
@@ -219,15 +228,22 @@ fn achievement_card(
         },
         None => Line::status("Not unlocked yet"),
     };
-    let done = standing.is_some_and(|standing| standing.unlocked.is_some());
+    let (title, how) = if secret {
+        (
+            crate::achievements::SECRET_NAME,
+            crate::achievements::SECRET_DESCRIPTION,
+        )
+    } else {
+        (kind.name, kind.description)
+    };
     Card {
-        title: kind.name.to_owned(),
+        title: title.to_owned(),
         colour: if done {
             color::GOLD_BRIGHT
         } else {
             crate::achievements::medallion::tint(kind.category)
         },
-        lines: [Line::how(kind.description), Line::status(counted), status]
+        lines: [Line::how(how), Line::status(counted), status]
             .into_iter()
             .chain(crate::kyber::reward(kind.id).map(|tier| Line {
                 words: crate::kyber::reward_line(tier).to_owned(),
@@ -368,11 +384,54 @@ mod tests {
         }
     }
 
+    /// A secret's card keeps its name, what it asks and its count until it is unlocked;
+    /// a retired one held says it is no longer obtainable.
+    #[test]
+    fn a_secret_card_says_nothing_until_unlocked_and_a_retired_one_says_so() {
+        let kind = crate::achievements::find("mythical_find").unwrap();
+        let locked = crate::achievements::Standing {
+            kind,
+            progress: 0,
+            unlocked: None,
+        };
+        let card = achievement_card(kind, Some(&locked));
+        assert_eq!(card.title, crate::achievements::SECRET_NAME);
+        assert_eq!(card.lines[0].words, crate::achievements::SECRET_DESCRIPTION);
+        assert_eq!(card.lines[2].words, "Not unlocked yet");
+        assert!(
+            card.lines
+                .iter()
+                .all(|line| !line.words.contains("Mythical in"))
+        );
+        let open = crate::achievements::Standing {
+            unlocked: Some(1_791_641_100),
+            ..locked
+        };
+        let card = achievement_card(kind, Some(&open));
+        assert_eq!(card.title, "Touched by the Force");
+        assert_eq!(card.lines[0].words, kind.description);
+        let surveyor = crate::achievements::find("surveyor").unwrap();
+        let held = crate::achievements::Standing {
+            kind: surveyor,
+            progress: 5,
+            unlocked: Some(1_791_641_100),
+        };
+        let card = achievement_card(surveyor, Some(&held));
+        assert_eq!(card.title, "Surveyor");
+        assert!(card.lines[1].words.starts_with("No longer obtainable."));
+        assert_eq!(card.lines[2].words, "Unlocked 10/10/2026");
+    }
+
     #[test]
     fn every_achievement_says_what_to_do_and_how_far() {
         for kind in &crate::achievements::ALL {
             let card = achievement_card(kind, None);
-            assert_eq!(card.lines[0].words, kind.description);
+            let how = if kind.hidden {
+                crate::achievements::SECRET_DESCRIPTION
+            } else {
+                kind.description
+            };
+            assert_eq!(card.lines[0].words, how);
             assert_eq!(card.lines.len(), 4);
             let reward = crate::kyber::reward(kind.id).expect("every achievement brings one");
             assert_eq!(card.lines[3].words, format!("Reward: {}", reward.name));

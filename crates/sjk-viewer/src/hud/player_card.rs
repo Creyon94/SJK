@@ -360,6 +360,9 @@ pub(crate) struct ProfileFacts {
     pub(crate) bio: String,
     /// Achievements unlocked, of those the client knows.
     pub(crate) unlocked: usize,
+    /// Of how many: every obtainable one and the retired ones they hold
+    /// ([`crate::achievements::total_for`]).
+    pub(crate) total: usize,
     /// The rarest unlocked ones: the highest step of their ladder first (Legend of the
     /// Arena before Centurion), the latest first among equals.
     pub(crate) rarest: Vec<&'static crate::achievements::Kind>,
@@ -415,6 +418,9 @@ impl ProfileFacts {
                 .unwrap_or_default()
                 .to_owned(),
             unlocked: done.len(),
+            total: crate::achievements::total_for(|kind| {
+                done.iter().any(|(held, _)| held.id == kind.id)
+            }),
             rarest: done.iter().take(RAREST).map(|(kind, _)| *kind).collect(),
             holocron,
             created: profile.created,
@@ -654,11 +660,8 @@ pub(crate) fn card_from(info: &[u8], hub: Option<HubInfo>, shader: Option<&'stat
                 card.texts[T_HOLOCRON] = tier.name.to_owned();
             }
             if facts.unlocked > 0 {
-                card.texts[T_ACHIEVEMENTS] = format!(
-                    "Achievements  {} / {}",
-                    facts.unlocked,
-                    crate::achievements::ALL.len()
-                );
+                card.texts[T_ACHIEVEMENTS] =
+                    format!("Achievements  {} / {}", facts.unlocked, facts.total);
             }
             card.texts[T_BIO] = facts.bio.clone();
             let date = crate::medals::date_text(facts.created);
@@ -2121,6 +2124,37 @@ mod tests {
         assert!(card.has_marks());
     }
 
+    /// A retired achievement counts in a player's total only when they hold it, and a
+    /// secret one held shows by its goal like any other.
+    #[test]
+    fn a_retired_achievement_counts_only_for_its_holders() {
+        let mut profile = full_profile();
+        let total = crate::achievements::ALL.len();
+        assert_eq!(ProfileFacts::of(&profile).total, total - 1);
+        for id in ["surveyor", "mythical_find"] {
+            profile.achievements.push(sjk_identity::Achievement {
+                id: id.to_owned(),
+                progress: 5,
+                goal: 5,
+                unlocked: 1_791_336_225,
+                reward: None,
+            });
+        }
+        let facts = ProfileFacts::of(&profile);
+        assert_eq!((facts.unlocked, facts.total), (6, total));
+        // Surveyor's unfinished progress, not unlocked, counts nothing.
+        let mut unfinished = full_profile();
+        unfinished.achievements.push(sjk_identity::Achievement {
+            id: "surveyor".to_owned(),
+            progress: 3,
+            goal: 5,
+            unlocked: 0,
+            reward: None,
+        });
+        let facts = ProfileFacts::of(&unfinished);
+        assert_eq!((facts.unlocked, facts.total), (4, total - 1));
+    }
+
     #[test]
     fn the_profile_gives_the_marks_and_the_pinned_lines() {
         let facts = ProfileFacts::of(&full_profile());
@@ -2134,7 +2168,8 @@ mod tests {
         let card = full_card(None);
         assert_eq!(card.texts[T_STAFF], "SJK TEAM");
         assert_eq!(card.texts[T_HOLOCRON], "Legendary Holocron");
-        assert_eq!(card.texts[T_ACHIEVEMENTS], "Achievements  4 / 21");
+        // Out of the obtainable ones: they do not hold the retired Surveyor.
+        assert_eq!(card.texts[T_ACHIEVEMENTS], "Achievements  4 / 34");
         assert_eq!(card.texts[T_BIO], "Fox of the JoF, maker of SJK.");
         assert!(card.texts[T_SINCE].starts_with("In SJK since "));
         assert_eq!(card.texts[T_GOAL], "1K");
@@ -2148,7 +2183,13 @@ mod tests {
             holocron_counts: sjk_identity::HolocronCounts::default(),
             ..full_profile()
         });
-        assert_eq!(bare, ProfileFacts::default());
+        assert_eq!(
+            bare,
+            ProfileFacts {
+                total: crate::achievements::OBTAINABLE,
+                ..ProfileFacts::default()
+            }
+        );
         let plain = card_from(
             &info("n|Sol|"),
             Some(HubInfo {

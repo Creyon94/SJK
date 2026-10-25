@@ -1093,12 +1093,7 @@ impl Panel {
     fn achievements_block(&mut self, frame: &Frame, inputs: &Inputs<'_>, y: f32) {
         let s = frame.s;
         kit::heading(&mut self.ui, frame, RIGHT_X, y, RIGHT_WIDTH, "Achievements");
-        let total = inputs.standings.len();
-        let unlocked = inputs
-            .standings
-            .iter()
-            .filter(|standing| standing.unlocked.is_some())
-            .count();
+        let (unlocked, total) = crate::achievements::tally(inputs.standings);
         text(
             &mut self.ui,
             TextFamily::Display,

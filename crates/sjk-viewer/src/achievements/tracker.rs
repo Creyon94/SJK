@@ -1,19 +1,24 @@
 //! What the client sees the player do in a match, for the achievements it counts
 //! (`achievements.rs`): players defeated (and how, and in a duel), the player's own
-//! deaths for streaks, flags captured, the maps and servers played and the time
-//! played. Only in a live match on a server: never in a demo, a game this client
-//! hosts, or while following someone else.
+//! deaths for streaks, flags captured, the maps and servers played, the time played,
+//! duels won flawless or by a hair, the players duelled, long saber throws, thermal
+//! detonators sent back and time hidden in the cardboard box. Only in a live match on a
+//! server: never in a demo, a game this client hosts, or while following someone else.
 //!
 //! Kills come from the obituaries the client already decodes (`EV_OBITUARY`, its
 //! attacker, victim and means of death); captures from the player's own
 //! `persistant[PERS_CAPTURES]` rising; duels from the player state's private duel
-//! (`duelInProgress`, `duelIndex`) or a duel game type.
+//! (`duelInProgress`, `duelIndex`) or a duel game type. What the player took in a duel is
+//! their own health and shield as the snapshots show them ([`Watch`]); a saber throw is
+//! a saber kill while the player's saber is in flight (`saberInFlight`) and the victim
+//! far away; a thermal detonator's thrower is the player it left ([`Thermal`]), as the
+//! game never sends a missile's owner (`r.ownerNum` stays on the server).
 
 use super::{Counter, Record};
 use sjk_client::{LegacyClientInfo, ObituaryEvent};
-use sjk_protocol::{GameState, Snapshot};
+use sjk_protocol::{EntityState, GameState, PlayerState, Snapshot};
 use std::net::SocketAddr;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 /// `persistant[PERS_CAPTURES]`.
 const PERS_CAPTURES: usize = 14;
@@ -31,10 +36,41 @@ const GT_TEAM: i32 = 6;
 const PLAY_STEP_MAX_MS: u64 = 1_000;
 /// Most captures one snapshot may add (a jump past it is a reset, not play).
 const CAPTURE_STEP_MAX: u32 = 3;
+/// Client numbers below this are players (the obituaries' bound).
+const PLAYERS: u16 = 64;
+/// `ET_PLAYER`, `ET_MISSILE`, `WP_THERMAL`, `EF_DEAD`, `EF_NODRAW`.
+const ET_PLAYER: u8 = 1;
+const ET_MISSILE: u8 = 3;
+const WP_THERMAL: u8 = 12;
+const EF_DEAD: u32 = 1 << 1;
+const EF_NODRAW: u32 = 1 << 8;
+
+/// How close another player must be for time in the cardboard box to count (game units,
+/// from origin to origin: about 14 metres, well within sight and earshot of the box).
+pub(crate) const BOX_NEAR: f32 = 512.0;
+/// The shortest saber throw Long Throw takes (game units, from the player to the victim).
+/// A swing reaches under 100; a thrown saber flies up to 700 per Saber Throw level
+/// (`SABER_MAX_THROW_DISTANCE`).
+pub(crate) const SABER_THROW_FAR: f32 = 512.0;
+/// Close Call: a duel won with less health than this left.
+pub(crate) const CLOSE_CALL_HEALTH: i32 = 5;
+/// How near a player a new thermal detonator must be first seen to be theirs (game
+/// units, from the player's origin to where it left: their muzzle is about 50 away).
+const THROWER_REACH: f32 = 96.0;
+/// How fresh a thermal detonator's flight must be when it is first seen to name its
+/// thrower (its trajectory's start, against the snapshot's time): an older one was not
+/// seen leaving a hand.
+const THROW_FRESH_MS: i32 = 250;
+/// How long a thermal detonator gone (gone off) still answers for a kill.
+const THERMAL_WINDOW: Duration = Duration::from_secs(1);
+/// How long a private duel's record waits for its obituary after the duel ends.
+const DUEL_LINGER: Duration = Duration::from_secs(2);
 
 /// `meansOfDeath_t` values (`sjk_game_jka::means_of_death`).
 mod means {
     pub(super) const SABER: u8 = 3;
+    pub(super) const THERMAL: u8 = 23;
+    pub(super) const THERMAL_SPLASH: u8 = 24;
     pub(super) const FORCE_DARK: u8 = 31;
     pub(super) const WATER: u8 = 33;
     pub(super) const SLIME: u8 = 34;
@@ -66,8 +102,19 @@ pub(crate) fn weapon_kind(means: u8) -> Option<u32> {
     })
 }
 
+/// How a kill by the player was made, beyond its means of death.
+#[derive(Clone, Copy, Debug, Default)]
+struct Kill {
+    /// It won a duel; with what the player took in it.
+    duel: Option<Watch>,
+    /// A saber kill while the player's saber flew, from at least [`SABER_THROW_FAR`].
+    long_throw: bool,
+    /// The victim's own thermal detonator, sent back.
+    returned: bool,
+}
+
 /// What a kill by the player counts towards.
-fn count_kill(record: &mut Record, means: u8, duel: bool, streak: u64) {
+fn count_kill(record: &mut Record, means: u8, kill: Kill, streak: u64) {
     record.add(Counter::Kills, 1);
     record.raise(Counter::BestStreak, streak);
     match means {
@@ -84,9 +131,87 @@ fn count_kill(record: &mut Record, means: u8, duel: bool, streak: u64) {
     if let Some(bit) = weapon_kind(means) {
         record.weapons |= 1 << bit;
     }
-    if duel {
+    if let Some(watch) = kill.duel {
         record.add(Counter::DuelWins, 1);
+        if !watch.hurt {
+            record.add(Counter::DuelFlawless, 1);
+        }
+        if watch.health > 0 && watch.health < CLOSE_CALL_HEALTH {
+            record.add(Counter::DuelCloseCall, 1);
+        }
     }
+    if kill.long_throw {
+        record.add(Counter::SaberThrowFar, 1);
+    }
+    if kill.returned {
+        record.add(Counter::ThermalReturn, 1);
+    }
+}
+
+/// What the player took during a fight, from their own health and shield in the
+/// snapshots: whether either fell, and the last health seen.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+struct Watch {
+    hurt: bool,
+    health: i32,
+    armor: i32,
+}
+
+impl Watch {
+    fn of(player: &PlayerState) -> Self {
+        Self {
+            hurt: false,
+            health: player.health(),
+            armor: player.armor(),
+        }
+    }
+
+    /// The next snapshot: health or shield lower is damage, unless it was above the
+    /// maximum health, which the game wears down by itself.
+    fn see(&mut self, player: &PlayerState) {
+        let max = player.max_health().max(1);
+        if (player.health() < self.health && self.health <= max)
+            || (player.armor() < self.armor && self.armor <= max)
+        {
+            self.hurt = true;
+        }
+        self.health = player.health();
+        self.armor = player.armor();
+    }
+}
+
+/// A private duel: the opponent, what the player took since it began, and when it
+/// ended (the obituary that ends it may come with the snapshot after).
+#[derive(Clone, Copy, Debug)]
+struct Duel {
+    with: u16,
+    watch: Watch,
+    ended: Option<Instant>,
+}
+
+/// A thermal detonator seen in flight: its entity, the player it left when that was
+/// seen ([`THROWER_REACH`], [`THROW_FRESH_MS`]), and when it went (gone off, or out of
+/// sight).
+#[derive(Clone, Copy, Debug)]
+struct Thermal {
+    entity: u16,
+    thrower: Option<u16>,
+    gone: Option<Instant>,
+}
+
+fn is_thermal(entity: &EntityState) -> bool {
+    entity.entity_type() == ET_MISSILE && entity.weapon() == WP_THERMAL
+}
+
+/// A player entity the game draws alive.
+fn standing_player(entity: &EntityState) -> bool {
+    entity.entity_type() == ET_PLAYER
+        && entity.number() < PLAYERS
+        && entity.e_flags() & (EF_DEAD | EF_NODRAW) == 0
+}
+
+fn distance(a: [f32; 3], b: [f32; 3]) -> f32 {
+    ((a[0] - b[0]).powi(2) + (a[1] - b[1]).powi(2) + (a[2] - b[2]).powi(2)).sqrt()
 }
 
 /// Where the player is, to tell one match from the next.
@@ -103,12 +228,22 @@ pub(crate) struct Tracker {
     place: Option<Place>,
     /// Players defeated since the player last fell.
     streak: u64,
-    /// The opponent of the private duel the last snapshot showed.
-    duel_with: Option<u16>,
+    /// The private duel the snapshots show, or showed a moment ago.
+    duel: Option<Duel>,
+    /// What the player took since they last spawned (a duel game's round).
+    life: Option<Watch>,
+    /// The player's saber was in flight at the last snapshot.
+    saber_flying: bool,
+    /// Where the players stood at the last snapshot, by client number.
+    positions: Vec<(u16, [f32; 3])>,
+    /// Thermal detonators in flight, or gone a moment ago.
+    thermals: Vec<Thermal>,
     /// The captures and team the last snapshot showed, to count rises.
     captures: Option<(u32, u8)>,
     /// When the last snapshot that counted as play was seen.
     last_play: Option<Instant>,
+    /// When the last snapshot that counted as time in the box was seen.
+    last_hide: Option<Instant>,
     /// The player has been in the game (not spectating) on this map.
     joined: bool,
 }
@@ -122,6 +257,8 @@ pub(crate) struct Seen<'a> {
     pub(crate) local: bool,
     /// The obituaries this snapshot brought, oldest first.
     pub(crate) obituaries: &'a [ObituaryEvent],
+    /// The player hides in the cardboard box (`cardboard_box.rs`: on, alive, playing).
+    pub(crate) boxed: bool,
     pub(crate) now: Instant,
 }
 
@@ -161,30 +298,77 @@ impl Tracker {
                 ..Self::default()
             };
         }
-        let player = &seen.snapshot.player;
+        let snapshot = seen.snapshot;
+        let player = &snapshot.player;
         let own_view = player.client_num() == me && player.movement_flags() & PMF_FOLLOW == 0;
         let playing = own_view && !player.is_spectator();
+        let duel_game = matches!(gametype, GT_DUEL | GT_POWERDUEL);
         let mut changed = false;
+
+        self.watch_fights(player, own_view, playing, snapshot.server_time, seen.now);
+        self.watch_thermals(snapshot, me, playing, seen.now);
+        let saber_flew = self.saber_flying || (own_view && player.saber_in_flight());
 
         for event in seen.obituaries {
             if event.target == me {
                 self.streak = 0;
+                // A duel lost still counts its partner.
+                if let Some(duel) = self.duel.take() {
+                    changed |= remember_partner(record, game, duel.with);
+                } else if duel_game && event.attacker < PLAYERS && event.attacker != me {
+                    changed |= remember_partner(record, game, event.attacker);
+                }
                 continue;
             }
-            if event.attacker != me || usize::from(event.target) >= 64 {
+            if event.target >= PLAYERS {
+                continue;
+            }
+            let private = self.duel.filter(|duel| duel.with == event.target);
+            if event.attacker != me {
+                // The opponent fell to another hand (or the world): the duel is over.
+                if private.is_some() {
+                    self.duel = None;
+                    changed |= remember_partner(record, game, event.target);
+                }
                 continue;
             }
             if gametype >= GT_TEAM && same_team(game, me, event.target) {
                 continue;
             }
-            let duel = matches!(gametype, GT_DUEL | GT_POWERDUEL)
-                || self.duel_with == Some(event.target)
-                || (player.duel_in_progress() && player.duel_index() == event.target);
+            let duel = match private {
+                Some(duel) => Some(duel.watch),
+                None if duel_game => Some(self.life.unwrap_or_default()),
+                None => None,
+            };
+            if duel.is_some() {
+                self.duel = self.duel.filter(|duel| duel.with != event.target);
+                remember_partner(record, game, event.target);
+            }
+            let long_throw = event.means_of_death == means::SABER
+                && saber_flew
+                && self
+                    .position_of(snapshot, event.target)
+                    .is_some_and(|at| distance(at, player.origin()) >= SABER_THROW_FAR);
+            let returned = matches!(event.means_of_death, means::THERMAL | means::THERMAL_SPLASH)
+                && self.sent_back(event.target, me);
             self.streak += 1;
-            count_kill(record, event.means_of_death, duel, self.streak);
+            let kill = Kill {
+                duel,
+                long_throw,
+                returned,
+            };
+            count_kill(record, event.means_of_death, kill, self.streak);
             changed = true;
         }
-        self.duel_with = (own_view && player.duel_in_progress()).then(|| player.duel_index());
+        self.saber_flying = own_view && player.saber_in_flight();
+        self.positions.clear();
+        self.positions.extend(
+            snapshot
+                .entities
+                .iter()
+                .filter(|entity| entity.entity_type() == ET_PLAYER && entity.number() < PLAYERS)
+                .map(|entity| (entity.number(), entity.trajectory_base())),
+        );
 
         if own_view {
             let captures = player.persistent[PERS_CAPTURES] & 0xffff;
@@ -206,20 +390,179 @@ impl Tracker {
             changed |= Record::remember(&mut record.maps, &place.map);
             changed |= Record::remember(&mut record.servers, &place.server.to_string());
         }
-        if in_match {
-            if let Some(last) = self.last_play {
-                let ms = seen.now.saturating_duration_since(last).as_millis() as u64;
-                if ms > 0 {
-                    record.play(ms.min(PLAY_STEP_MAX_MS));
-                    changed = true;
-                }
-            }
-            self.last_play = Some(seen.now);
-        } else {
-            self.last_play = None;
+        if let Some(ms) = step(&mut self.last_play, in_match, seen.now) {
+            record.play(ms);
+            changed = true;
+        }
+        let hiding = in_match && seen.boxed && someone_near(snapshot, me, player.origin());
+        if let Some(ms) = step(&mut self.last_hide, hiding, seen.now) {
+            record.hide(ms);
+            changed = true;
         }
         changed
     }
+
+    /// Follow what the player takes: in the private duel the snapshot shows (its
+    /// countdown sets health and shield, it is no damage), and in this life.
+    fn watch_fights(
+        &mut self,
+        player: &PlayerState,
+        own_view: bool,
+        playing: bool,
+        server_time: i32,
+        now: Instant,
+    ) {
+        if own_view && player.duel_in_progress() {
+            let with = player.duel_index();
+            match &mut self.duel {
+                Some(duel) if duel.with == with && duel.ended.is_none() => {
+                    if server_time < player.duel_time() {
+                        duel.watch = Watch::of(player);
+                    } else {
+                        duel.watch.see(player);
+                    }
+                }
+                _ => {
+                    self.duel = Some(Duel {
+                        with,
+                        watch: Watch::of(player),
+                        ended: None,
+                    });
+                }
+            }
+        } else if let Some(duel) = &mut self.duel {
+            let ended = *duel.ended.get_or_insert(now);
+            if now.saturating_duration_since(ended) > DUEL_LINGER {
+                self.duel = None;
+            }
+        }
+        if playing && player.health() > 0 {
+            match &mut self.life {
+                Some(life) => life.see(player),
+                None => self.life = Some(Watch::of(player)),
+            }
+        } else {
+            self.life = None;
+        }
+    }
+
+    /// Follow the thermal detonators in flight: the ones gone since the last snapshot,
+    /// and each new one's thrower.
+    fn watch_thermals(&mut self, snapshot: &Snapshot, me: u16, playing: bool, now: Instant) {
+        let entities = &snapshot.entities;
+        for thermal in &mut self.thermals {
+            if thermal.gone.is_none()
+                && !entities
+                    .iter()
+                    .any(|entity| entity.number() == thermal.entity && is_thermal(entity))
+            {
+                thermal.gone = Some(now);
+            }
+        }
+        self.thermals.retain(|thermal| {
+            thermal
+                .gone
+                .is_none_or(|gone| now.saturating_duration_since(gone) <= THERMAL_WINDOW)
+        });
+        for entity in entities.iter().filter(|entity| is_thermal(entity)) {
+            if self
+                .thermals
+                .iter()
+                .any(|thermal| thermal.entity == entity.number() && thermal.gone.is_none())
+            {
+                continue;
+            }
+            let fresh = snapshot
+                .server_time
+                .saturating_sub(entity.trajectory_time())
+                <= THROW_FRESH_MS;
+            let thrower = fresh
+                .then(|| thrower(snapshot, me, playing, entity.trajectory_base()))
+                .flatten();
+            self.thermals.push(Thermal {
+                entity: entity.number(),
+                thrower,
+                gone: None,
+            });
+        }
+    }
+
+    /// Whether a thermal detonator `victim` threw went off a moment ago, and none of
+    /// the player's own: the one the game credits the player with was the victim's,
+    /// pushed or batted back.
+    fn sent_back(&mut self, victim: u16, me: u16) -> bool {
+        let gone_of = |thermals: &[Thermal], who: u16| {
+            thermals
+                .iter()
+                .any(|thermal| thermal.thrower == Some(who) && thermal.gone.is_some())
+        };
+        if !gone_of(&self.thermals, victim) || gone_of(&self.thermals, me) {
+            return false;
+        }
+        self.thermals
+            .retain(|thermal| !(thermal.thrower == Some(victim) && thermal.gone.is_some()));
+        true
+    }
+
+    /// Where player `client` is: in this snapshot, else where the last one showed them.
+    fn position_of(&self, snapshot: &Snapshot, client: u16) -> Option<[f32; 3]> {
+        snapshot
+            .entities
+            .iter()
+            .find(|entity| entity.number() == client && entity.entity_type() == ET_PLAYER)
+            .map(EntityState::trajectory_base)
+            .or_else(|| {
+                self.positions
+                    .iter()
+                    .find(|(number, _)| *number == client)
+                    .map(|(_, at)| *at)
+            })
+    }
+}
+
+/// The time since `last` while `on`, at most [`PLAY_STEP_MAX_MS`] (a stall is not
+/// time spent); `last` follows.
+fn step(last: &mut Option<Instant>, on: bool, now: Instant) -> Option<u64> {
+    if !on {
+        *last = None;
+        return None;
+    }
+    let ms = last.map(|last| now.saturating_duration_since(last).as_millis() as u64);
+    *last = Some(now);
+    ms.filter(|ms| *ms > 0).map(|ms| ms.min(PLAY_STEP_MAX_MS))
+}
+
+/// Whether another player stands within [`BOX_NEAR`] of `origin`.
+fn someone_near(snapshot: &Snapshot, me: u16, origin: [f32; 3]) -> bool {
+    snapshot.entities.iter().any(|entity| {
+        standing_player(entity)
+            && entity.number() != me
+            && distance(entity.trajectory_base(), origin) <= BOX_NEAR
+    })
+}
+
+/// The player a thermal detonator leaving `from` left: the nearest within
+/// [`THROWER_REACH`], the player among them while they play.
+fn thrower(snapshot: &Snapshot, me: u16, playing: bool, from: [f32; 3]) -> Option<u16> {
+    let own = playing.then(|| (me, distance(snapshot.player.origin(), from)));
+    snapshot
+        .entities
+        .iter()
+        .filter(|entity| standing_player(entity) && entity.number() != me)
+        .map(|entity| (entity.number(), distance(entity.trajectory_base(), from)))
+        .chain(own)
+        .filter(|(_, far)| *far <= THROWER_REACH)
+        .min_by(|a, b| a.1.total_cmp(&b.1))
+        .map(|(number, _)| number)
+}
+
+/// Remember `client`, a player duelled, by the name the server shows (colours and
+/// punctuation left out, `sjk_identity::normal_form`); whether they were new.
+fn remember_partner(record: &mut Record, game: &GameState, client: u16) -> bool {
+    let Some(name) = crate::player_identity::shown_name(game, usize::from(client)) else {
+        return false;
+    };
+    Record::remember(&mut record.partners, &sjk_identity::normal_form(&name))
 }
 
 /// Whether players `a` and `b` are on the same team, as the server publishes it.
@@ -297,6 +640,7 @@ mod tests {
         now: Instant,
         server: SocketAddr,
         local: bool,
+        boxed: bool,
     }
 
     impl Bench {
@@ -313,6 +657,7 @@ mod tests {
                 now: Instant::now(),
                 server: "1.2.3.4:29070".parse().unwrap(),
                 local: false,
+                boxed: false,
             }
         }
 
@@ -324,6 +669,7 @@ mod tests {
                 server: self.server,
                 local: self.local,
                 obituaries,
+                boxed: self.boxed,
                 now: self.now,
             };
             self.tracker.observe(&seen, &mut self.record)
@@ -431,6 +777,251 @@ mod tests {
         bench.local = true;
         assert!(!bench.step(&[kill(2, 5, means::SABER)]));
         assert_eq!(bench.record, Record::default());
+    }
+
+    /// A player entity `number` standing at `at`.
+    fn player_at(number: u16, at: [f32; 3]) -> EntityState {
+        let mut entity = EntityState::zero(number, &sjk_protocol::LEGACY_ENTITY_FIELDS);
+        entity.set_raw_field(8, u32::from(ET_PLAYER));
+        for (field, axis) in [2, 1, 4].into_iter().zip(at) {
+            entity.set_raw_field(field, axis.to_bits());
+        }
+        entity
+    }
+
+    /// A thermal detonator `number` that left `from` at `time`.
+    fn thermal_at(number: u16, from: [f32; 3], time: i32) -> EntityState {
+        let mut entity = player_at(number, from);
+        entity.set_raw_field(8, u32::from(ET_MISSILE));
+        entity.set_raw_field(14, u32::from(WP_THERMAL));
+        entity.set_raw_field(0, time as u32);
+        entity
+    }
+
+    fn set_health(player: &mut PlayerState, health: i32, armor: i32) {
+        player.stats[0] = health as u32;
+        player.stats[5] = armor as u32;
+        player.stats[8] = 100;
+    }
+
+    #[test]
+    fn a_duel_won_untouched_is_flawless_and_one_won_by_a_hair_a_close_call() {
+        let mut bench = Bench::new(game("mp/ffa3", 0, 2, &[(5, 0), (6, 0)]));
+        // The countdown may set health and shield: no damage.
+        bench.snapshot.server_time = 1_000;
+        bench.snapshot.player.set_raw_field(118, 3_000);
+        set_health(&mut bench.snapshot.player, 100, 25);
+        set_duel(&mut bench.snapshot.player, true, 5);
+        bench.step(&[]);
+        set_health(&mut bench.snapshot.player, 100, 0);
+        bench.step(&[]);
+        bench.snapshot.server_time = 4_000;
+        bench.step(&[]);
+        // The duel ends with the kill, the winner's health restored.
+        set_duel(&mut bench.snapshot.player, false, 0);
+        bench.step(&[kill(2, 5, means::SABER)]);
+        assert_eq!(bench.record.count(Counter::DuelWins), 1);
+        assert_eq!(bench.record.count(Counter::DuelFlawless), 1);
+        assert_eq!(bench.record.count(Counter::DuelCloseCall), 0);
+        // A second duel, hurt down to 3 health before the kill.
+        set_duel(&mut bench.snapshot.player, true, 6);
+        bench.step(&[]);
+        set_health(&mut bench.snapshot.player, 40, 0);
+        bench.step(&[]);
+        set_health(&mut bench.snapshot.player, 3, 0);
+        bench.step(&[]);
+        set_health(&mut bench.snapshot.player, 100, 0);
+        set_duel(&mut bench.snapshot.player, false, 0);
+        bench.step(&[kill(2, 6, means::SABER)]);
+        assert_eq!(bench.record.count(Counter::DuelWins), 2);
+        assert_eq!(bench.record.count(Counter::DuelFlawless), 1, "hurt");
+        assert_eq!(bench.record.count(Counter::DuelCloseCall), 1);
+        // A kill out of a duel is neither.
+        bench.step(&[kill(2, 7, means::SABER)]);
+        assert_eq!(bench.record.count(Counter::DuelFlawless), 1);
+        assert_eq!(bench.record.count(Counter::DuelCloseCall), 1);
+    }
+
+    #[test]
+    fn health_worn_down_above_the_maximum_is_no_damage() {
+        let mut bench = Bench::new(game("mp/duel6", GT_DUEL, 2, &[(4, 0)]));
+        set_health(&mut bench.snapshot.player, 120, 0);
+        bench.step(&[]);
+        set_health(&mut bench.snapshot.player, 110, 0);
+        bench.step(&[]);
+        bench.step(&[kill(2, 4, means::SABER)]);
+        assert_eq!(bench.record.count(Counter::DuelFlawless), 1);
+        // A new life starts clean; a hit then spoils it.
+        set_health(&mut bench.snapshot.player, 0, 0);
+        bench.step(&[kill(4, 2, means::SABER)]);
+        set_health(&mut bench.snapshot.player, 100, 0);
+        bench.step(&[]);
+        set_health(&mut bench.snapshot.player, 90, 0);
+        bench.step(&[]);
+        bench.step(&[kill(2, 4, means::SABER)]);
+        assert_eq!(bench.record.count(Counter::DuelWins), 2);
+        assert_eq!(bench.record.count(Counter::DuelFlawless), 1);
+    }
+
+    #[test]
+    fn duel_partners_count_each_name_once_won_or_lost() {
+        let mut bench = Bench::new(game("mp/ffa3", 0, 2, &[(5, 0), (6, 0), (7, 0)]));
+        bench
+            .game
+            .replace_config_string(CS_PLAYERS + 7, b"n\\^1P^75\\t\\0".to_vec())
+            .unwrap();
+        set_duel(&mut bench.snapshot.player, true, 5);
+        bench.step(&[]);
+        set_duel(&mut bench.snapshot.player, false, 0);
+        bench.step(&[kill(2, 5, means::SABER)]);
+        assert_eq!(bench.record.count(Counter::DuelPartners), 1);
+        // Lost to P6: still a partner.
+        set_duel(&mut bench.snapshot.player, true, 6);
+        bench.step(&[]);
+        bench.step(&[kill(6, 2, means::SABER)]);
+        assert_eq!(bench.record.count(Counter::DuelPartners), 2);
+        // Client 7 shows as "P5" in colours: the same name, not a new partner.
+        set_duel(&mut bench.snapshot.player, true, 7);
+        bench.step(&[]);
+        set_duel(&mut bench.snapshot.player, false, 0);
+        bench.step(&[kill(2, 7, means::SABER)]);
+        assert_eq!(bench.record.count(Counter::DuelPartners), 2);
+        assert!(bench.record.partners.contains("p5"));
+        // A kill outside a duel is no partner; a duel game's every fight is.
+        bench.step(&[kill(2, 8, means::SABER)]);
+        assert_eq!(bench.record.count(Counter::DuelPartners), 2);
+        let mut duel = Bench::new(game("mp/duel6", GT_DUEL, 2, &[(4, 0), (9, 0)]));
+        duel.step(&[kill(2, 4, means::SABER)]);
+        duel.step(&[kill(9, 2, means::SABER)]);
+        assert_eq!(duel.record.count(Counter::DuelPartners), 2);
+    }
+
+    #[test]
+    fn a_saber_kill_far_away_with_the_saber_in_flight_is_a_long_throw() {
+        let mut bench = Bench::new(game("mp/ffa3", 0, 2, &[]));
+        bench.snapshot.entities = vec![
+            player_at(5, [SABER_THROW_FAR + 10.0, 0.0, 0.0]),
+            player_at(6, [40.0, 0.0, 0.0]),
+            player_at(7, [SABER_THROW_FAR + 50.0, 0.0, 0.0]),
+        ];
+        // Far, but swung: the saber is in hand.
+        bench.step(&[kill(2, 5, means::SABER)]);
+        assert_eq!(bench.record.count(Counter::SaberThrowFar), 0);
+        // In flight: far counts, near does not.
+        bench.snapshot.player.set_raw_field(88, 1);
+        bench.step(&[kill(2, 6, means::SABER)]);
+        assert_eq!(bench.record.count(Counter::SaberThrowFar), 0);
+        bench.step(&[kill(2, 5, means::SABER)]);
+        assert_eq!(bench.record.count(Counter::SaberThrowFar), 1);
+        // Back in hand in the kill's snapshot, and the victim out of sight: the last
+        // snapshot's flight and place count.
+        bench.snapshot.player.set_raw_field(88, 0);
+        bench.snapshot.entities.clear();
+        bench.step(&[kill(2, 7, means::SABER)]);
+        assert_eq!(bench.record.count(Counter::SaberThrowFar), 2);
+        // Another weapon in flight is no throw.
+        bench.snapshot.player.set_raw_field(88, 1);
+        bench.snapshot.entities = vec![player_at(5, [900.0, 0.0, 0.0])];
+        bench.step(&[kill(2, 5, 12)]);
+        assert_eq!(bench.record.count(Counter::SaberThrowFar), 2);
+    }
+
+    #[test]
+    fn a_thermal_detonator_sent_back_to_its_thrower_is_returned() {
+        let mut bench = Bench::new(game("mp/ffa3", 0, 2, &[]));
+        bench.snapshot.server_time = 10_000;
+        let victim = [600.0, 0.0, 0.0];
+        // Player 5 throws one: first seen fresh, next to them.
+        bench.snapshot.entities = vec![
+            player_at(5, victim),
+            thermal_at(200, [640.0, 0.0, 20.0], 9_950),
+        ];
+        bench.step(&[]);
+        assert_eq!(bench.tracker.thermals[0].thrower, Some(5));
+        // The player pushes it back: it flies anew from near the player, still 5's.
+        bench.snapshot.entities[1] = thermal_at(200, [40.0, 0.0, 20.0], 10_050);
+        bench.snapshot.server_time = 10_100;
+        bench.step(&[]);
+        assert_eq!(bench.tracker.thermals[0].thrower, Some(5));
+        // It goes off by 5, who falls to it, credited to the player.
+        bench.snapshot.entities.truncate(1);
+        bench.step(&[kill(2, 5, means::THERMAL_SPLASH)]);
+        assert_eq!(bench.record.count(Counter::ThermalReturn), 1);
+        assert_eq!(bench.record.count(Counter::Kills), 1);
+        // The player's own thermal detonator is no return.
+        bench.snapshot.server_time = 20_000;
+        bench.snapshot.entities = vec![
+            player_at(5, victim),
+            thermal_at(201, [30.0, 0.0, 20.0], 19_990),
+        ];
+        bench.step(&[]);
+        assert_eq!(bench.tracker.thermals[0].thrower, Some(2));
+        bench.snapshot.entities.truncate(1);
+        bench.step(&[kill(2, 5, means::THERMAL)]);
+        assert_eq!(bench.record.count(Counter::ThermalReturn), 1);
+        // One first seen long after it left names no thrower.
+        bench.snapshot.server_time = 30_000;
+        bench.snapshot.entities = vec![
+            player_at(5, victim),
+            thermal_at(202, [610.0, 0.0, 0.0], 27_000),
+        ];
+        bench.step(&[]);
+        let late = bench
+            .tracker
+            .thermals
+            .iter()
+            .find(|t| t.entity == 202)
+            .unwrap();
+        assert_eq!(late.thrower, None);
+        bench.snapshot.entities.truncate(1);
+        bench.step(&[kill(2, 5, means::THERMAL)]);
+        assert_eq!(bench.record.count(Counter::ThermalReturn), 1);
+        // One gone more than a second before the kill no longer answers for it.
+        bench.snapshot.server_time = 40_000;
+        bench.snapshot.entities = vec![
+            player_at(5, victim),
+            thermal_at(203, [620.0, 0.0, 0.0], 39_990),
+        ];
+        bench.step(&[]);
+        bench.snapshot.entities.truncate(1);
+        bench.step(&[]);
+        bench.now += THERMAL_WINDOW + Duration::from_millis(100);
+        bench.step(&[kill(2, 5, means::THERMAL)]);
+        assert_eq!(bench.record.count(Counter::ThermalReturn), 1);
+    }
+
+    #[test]
+    fn time_in_the_box_counts_only_with_another_player_close_by() {
+        let mut bench = Bench::new(game("mp/ffa3", 0, 2, &[]));
+        bench.boxed = true;
+        bench.snapshot.entities = vec![player_at(5, [BOX_NEAR + 50.0, 0.0, 0.0])];
+        for _ in 0..10 {
+            bench.step(&[]);
+        }
+        assert_eq!(bench.record.box_ms, 0, "nobody close by");
+        bench.snapshot.entities = vec![player_at(5, [BOX_NEAR - 50.0, 0.0, 0.0])];
+        for _ in 0..21 {
+            bench.step(&[]);
+        }
+        assert_eq!(bench.record.box_ms, 1_000);
+        // A dead player close by does not count, nor time out of the box.
+        bench.snapshot.entities[0].set_raw_field(19, EF_DEAD);
+        bench.step(&[]);
+        bench.step(&[]);
+        assert_eq!(bench.record.box_ms, 1_000);
+        bench.snapshot.entities[0].set_raw_field(19, 0);
+        bench.boxed = false;
+        bench.step(&[]);
+        bench.step(&[]);
+        assert_eq!(bench.record.box_ms, 1_000);
+        // Whole minutes go to the count.
+        bench.boxed = true;
+        bench.step(&[]);
+        for _ in 0..1_200 {
+            bench.step(&[]);
+        }
+        assert_eq!(bench.record.count(Counter::BoxMinutes), 1);
+        assert_eq!(bench.record.box_ms, 1_000);
     }
 
     #[test]

@@ -6,13 +6,15 @@
 use super::*;
 
 /// Count what the live `snapshot` of `session` shows for the achievements;
-/// `obituaries_before` is the obituary tracker's count before the snapshot was observed.
+/// `obituaries_before` is the obituary tracker's count before the snapshot was observed;
+/// `boxed` whether the player hides in the cardboard box.
 pub(crate) fn observe(
     tracker: &mut achievements::tracker::Tracker,
     obituaries: &sjk_client::ObituaryTracker,
     session: &ClientSession,
     snapshot: &Snapshot,
     obituaries_before: u64,
+    boxed: bool,
     now: Instant,
 ) {
     // The feed keeps the newest eight; more in one snapshot than that is unheard of.
@@ -28,6 +30,7 @@ pub(crate) fn observe(
         server: session.server(),
         local: session.is_local(),
         obituaries: &events,
+        boxed,
         now,
     };
     achievements::update(|record| tracker.observe(&seen, record));

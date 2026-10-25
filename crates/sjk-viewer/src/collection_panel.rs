@@ -443,6 +443,9 @@ pub(crate) struct Panel {
     /// catalogue's order, a shader's row.
     medal: usize,
     achievement: usize,
+    /// The achievements on the wall as the last frame laid them out, in its reading
+    /// order (`collection_achievements.rs`): the arrows and Tab follow it.
+    achievement_slots: Vec<achievements::Slot>,
     shader: usize,
     /// The toy chosen on Toys: 0 Illuminate, 1 the cardboard box, 2 Order 66, 3 the Hax,
     /// 4 the Ragdoll, 5 the Drone, 6 the Boombox.
@@ -583,6 +586,7 @@ impl Panel {
             medal: 0,
             // The first frame chooses the one nearest to unlocking.
             achievement: usize::MAX,
+            achievement_slots: Vec::with_capacity(crate::achievements::ALL.len()),
             shader: 0,
             toy: 0,
             box_on: false,
@@ -825,6 +829,11 @@ impl Panel {
     /// Move the choice `by` things: wrapping round for Tab, stopping at the ends for
     /// the arrows.
     fn step(&mut self, by: isize, wrap: bool) {
+        if self.tab == Tab::Achievements && !self.achievement_slots.is_empty() {
+            self.achievement =
+                achievements::sideways(&self.achievement_slots, self.achievement, by, wrap);
+            return;
+        }
         let count = self.things() as isize;
         let Some(chosen) = self.chosen_mut() else {
             return;
@@ -1170,8 +1179,11 @@ impl Panel {
             KeyCode::ArrowLeft if !vertical => self.step(-1, false),
             KeyCode::ArrowRight if !vertical => self.step(1, false),
             KeyCode::ArrowUp | KeyCode::ArrowDown if self.tab == Tab::Achievements => {
-                self.achievement =
-                    achievements::vertical(self.achievement, key == KeyCode::ArrowDown);
+                self.achievement = achievements::vertical(
+                    &self.achievement_slots,
+                    self.achievement,
+                    key == KeyCode::ArrowDown,
+                );
             }
             KeyCode::ArrowUp | KeyCode::ArrowLeft => self.step(-1, false),
             KeyCode::ArrowDown | KeyCode::ArrowRight => self.step(1, false),
