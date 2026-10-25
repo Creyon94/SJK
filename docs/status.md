@@ -1,3 +1,22 @@
+## Site refresh
+
+25/10/2026, `personal/site-refresh`, based on `main` `0ff3c3e1`: the site's new layout,
+Sol's pick of three proposals ([sjk.md](sjk.md#automation)): the title and
+Download beside the ring, the latest release's recap and What's new read from
+`CHANGELOG.md`, the Mac build offered and detected, Install by platform, contributor cards
+with their merged pull requests counted by GitHub's search, two new categories (Collection,
+Toys and emotes) with new renders, and the out-of-date text fixed (platforms, credits, the
+updater, the JoF edition line dropped there and in the README). Verified: `parseChangelog`
+in Node 24 on this `CHANGELOG.md` (46 releases, Unreleased left out, recaps and change
+counts right, the comment block skipped); `guessPlatform` on Windows, Linux, Mac, iPad
+and Android strings; the five-author search answers 153 (55, 52, 26, 17, 3, as each
+author's own search); raw.githubusercontent.com answers with
+`Access-Control-Allow-Origin: *`; headless Chrome screenshots of the page served locally,
+live GitHub data included, at 1440x900, the whole page at 1440 wide and inside a 390 px
+frame (no sideways overflow). Not verified: Firefox and Safari, a real phone, the
+changelog anchors against GitHub's rendering of every heading, the search's rate limit
+under many visitors (one hour's cache per browser), the published Pages build.
+
 ## Render scale for weak GPUs
 
 25/10/2026, `personal/render-scale`, based on `main` `7389dc91`: `r_renderScale` (50 to

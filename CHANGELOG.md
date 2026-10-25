@@ -26,6 +26,8 @@ tests check this file):
   in a clickable chip by the what's-new card and the changelog page;
 - "- <change> _(<credit>)_" is one change; every change ends with its credit;
 - ASCII only, as the menu font draws bytes.
+The site (site/assets/site.js, parseChangelog) reads the release headings,
+introductions and recap lines too.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased

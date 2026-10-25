@@ -186,18 +186,44 @@ timestamps in logs and JSON, and file names meant to sort.
 | [Pages](../.github/workflows/pages.yml) | Pushes to `main` changing `site/` or the workflow | Publishes `site/` to https://sol-vulpes.github.io/SJK/ |
 | [SJK release](../.github/workflows/release.yml) | Tags `sjk-v<version>` | Builds and publishes the release ZIPs |
 
-The site is static: `index.html`, `assets/style.css` and `assets/site.js` (release
-list, download entry, screenshot gallery, donation card). It wears the SJK UI's look
-([sjk-ui.md](sjk-ui.md), Sol's request of 09/10/2026): the home page is the
-client's main page, SJK's emblem in its turning ring with a plain menu beside it
-(a gold Download button, then the sections in one column; Sol found the first
-version's arc, whose entries grew and moved under the pointer, hard to use), the
-latest release where the client lists recent servers, a profile card for Sol with
-Sol's GitHub picture (the initial shows if it does not load),
-over shots of the client's tour of Yavin Training Grounds that cross-fade every 15
-seconds; What SJK brings is laid out as the client's Settings (a rail of categories,
-rows, a detail column with a screenshot). Below 900 px wide (or in a tall window) the
-home page stacks into a list. Its pictures are the client's own off-screen renders
+The site is static: `index.html`, `assets/style.css` and `assets/site.js` (download
+entry, release recap and log, platform steps, contributor counts, screenshot gallery,
+donation card). It wears the SJK UI's look ([sjk-ui.md](sjk-ui.md), Sol's request of
+09/10/2026). Its layout since 25/10/2026 is the one Sol chose from three proposals:
+the home page keeps the client's main page, SJK's emblem in its turning ring, with the
+title, a short introduction and a gold Download button beside it (the first version's
+menu arc, whose entries grew and moved under the pointer, was hard to use; the plain
+column after it gave way to the fixed navigation bar, clear over the home page and
+solid below it), the latest release's recap where the client lists recent servers,
+and a profile card for Sol with Sol's GitHub picture (the initial shows if it does not
+load), over shots of the client's tour of Yavin Training Grounds that cross-fade every
+15 seconds. The home page wraps to one column on narrow screens. What SJK brings is
+laid out as the client's Settings (a rail of categories, rows, a detail column with a
+screenshot); Why SJK, the gallery, What's new, Install and Credits follow.
+
+The script fills what changes from GitHub, and the page keeps working links without
+it:
+
+- **Download:** the latest published release (the releases API); the button takes
+  the visitor's platform (Windows, Linux, or Mac from the browser's description;
+  phones and tablets get Windows) and names it, and the line under it links the other
+  platforms' ZIPs and the release's files and checksums.
+- **Recap and What's new:** `CHANGELOG.md` read from `main` on
+  raw.githubusercontent.com: the home page shows the latest release's recap lines
+  (`> Heading: sentence`, at most six), What's new the last five releases GitHub has
+  published, each with its date, introduction, recap and a link to its changes in
+  the changelog. The format is the client's ([Changelog](#changelog)); a release's
+  notes written before its tag stay off the site until the release is published.
+- **Install:** one platform at a time, the visitor's first, with buttons for the
+  others; without the script all three are listed.
+- **Credits:** each contributor card (`data-author`, the GitHub login) shows its
+  merged pull requests in SJK, from one GitHub search over all of them (`is:merged`,
+  so a pull request Sol merged by hand counts only once GitHub marks it merged). The
+  search allows 10 requests a minute without a token, so the counts are kept an hour
+  in the visitor's browser; without an answer the cards say "Pull requests" and link
+  the list. A new contributor needs a card in `index.html`.
+
+Its pictures are the client's own off-screen renders
 ([screenshots/README.md](../site/screenshots/README.md)). The sun behind the
 emblem (a warm glow, uneven god rays and an 18-ray sunburst turning against each
 other) is CSS (`.sun` in `style.css`), so every browser shows it; it once was a
