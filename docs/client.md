@@ -1793,7 +1793,7 @@ not follow it either.
 ## Renderer settings
 
 SJK's own cvars have engine names: rendering ones are `r_*` (`r_sceneHdr`,
-`r_toneCurve`, `r_sceneBloom`, `r_superSample`, `r_actorSunShadows`,
+`r_toneCurve`, `r_sceneBloom`, `r_superSample`, `r_renderScale`, `r_actorSunShadows`,
 `r_sunShadow*`, `r_dayNight`, `r_liveLighting`, ...), the ground HUD is
 `cg_groundHud` and the dedicated server's are `g_npcNav` and `g_stockRules`.
 The ground HUD (health, shield and Force at the player's feet in third person)
@@ -1812,7 +1812,7 @@ of VIDEO is gone (10/10/2026). The groups are:
 
 | Tab | Settings |
 | --- | --- |
-| IMAGE | HDR scene and exposure, eye adaptation (`r_autoExposure`) and its range in EV, filmic tone curve, bloom, dynamic glow (`r_DynamicGlow` 0-3) and its blur style (`r_dynamicGlowStyle`), FXAA, supersampling (`r_superSample`), soft particles, ambient occlusion (`r_ssao`), sunbeam dust (`r_dustMotes`), per-pixel model lighting, reflection probes (`r_cubeMapping`), floor mirrors (`r_floorReflections`), normal and specular maps (`r_normalMapping`, `r_specularMapping`), parallax mapping (`r_parallaxMapping`) and its depth (`r_parallaxStrength`), emission maps (`r_emissiveMaps`), their strength (`r_emissionStrength`) and glow halo (`r_emissiveGlow`) |
+| IMAGE | HDR scene and exposure, eye adaptation (`r_autoExposure`) and its range in EV, filmic tone curve, bloom, dynamic glow (`r_DynamicGlow` 0-3) and its blur style (`r_dynamicGlowStyle`), FXAA, supersampling (`r_superSample`), render scale (`r_renderScale`, also in the SJK UI's Simple Display; see [Render scale](rendering.md#render-scale-and-supersampling)), soft particles, ambient occlusion (`r_ssao`), sunbeam dust (`r_dustMotes`), per-pixel model lighting, reflection probes (`r_cubeMapping`), floor mirrors (`r_floorReflections`), normal and specular maps (`r_normalMapping`, `r_specularMapping`), parallax mapping (`r_parallaxMapping`) and its depth (`r_parallaxStrength`), emission maps (`r_emissiveMaps`), their strength (`r_emissionStrength`) and glow halo (`r_emissiveGlow`) |
 | LIGHTING | Sun and sky (`r_dayNight`), live lighting tier, time of day, day length, sunlight brightness, ambient fill and its corner shading, indirect boost, emission-map lights (`r_emissiveLights`), light shafts (`r_volumetrics`) and their clarity |
 | SHADOWS | World and character sun shadows, shadow resolution, sharp and close cascade distances, filter taps, slit closing, contact shadows |
 | WEATHER | Weather (`r_weather`), its density (`r_weatherDensity`), quality (`r_weatherQuality`), forced weather (`r_weatherForce`), ground fog (`r_weatherFog`) and volumetric clouds (`r_clouds`); see [Weather](rendering.md#weather) |
@@ -1900,8 +1900,8 @@ archived, its name from before the renames) before applying Vanilla style;
 Vanilla style was picked as a preset and nothing was kept. The [low-FPS
 help](#low-fps-help) offers the same switch. Like the preset, it needs a [graphics
 reload](#graphics-reload) for the lighting to change. Everything else is left as the
-player set it: the FPS cap, vertical sync, resolution and supersampling (which
-multiplies the pixels drawn, so no preset sets it), the taste settings (exposure,
+player set it: the FPS cap, vertical sync, resolution, supersampling and render scale
+(which multiply or divide the pixels drawn, so no preset sets them), the taste settings (exposure,
 time of day, tone curve, glow style, parallax depth, emission strength), contact
 shadows (still being worked out) and whether weather and fog show at all. Rows
 marked "(reload)" apply after a graphics reload, so a new preset's shadows, light
@@ -1913,7 +1913,7 @@ profile. How many frames each preset gains on a given GPU is not yet measured.
 ### Graphics reload
 
 Some renderer settings are read only when the graphics start: HDR scene, FXAA,
-supersampling, sun and sky, sun shadows and their quality, light shafts, normal,
+supersampling, render scale, sun and sky, sun shadows and their quality, light shafts, normal,
 specular, parallax and emission maps, reflection probes and texture filtering,
 so the graphics presets too. They apply with a
 graphics reload rather than a restart of SJK

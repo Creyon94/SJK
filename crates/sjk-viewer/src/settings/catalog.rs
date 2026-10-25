@@ -1465,6 +1465,15 @@ pub(super) const RENDER_IMAGE: &[Setting] = &[
         },
     },
     Setting {
+        label: "Render scale (%) (reload)",
+        cvar: crate::frame_target::scale::CVAR,
+        kind: ValueKind::Integer {
+            min: crate::frame_target::scale::MIN_PERCENT as i64,
+            max: crate::frame_target::scale::NATIVE as i64,
+            step: 5,
+        },
+    },
+    Setting {
         label: "Texture detail, 0 full (next map)",
         cvar: crate::world_materials::filtering::mips::PICMIP_CVAR,
         kind: ValueKind::Integer {
