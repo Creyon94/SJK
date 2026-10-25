@@ -3,7 +3,7 @@
     python scripts/sjk_symbols.py            write crates/sjk-viewer/assets/fonts/SJKSymbols.ttf
     python scripts/sjk_symbols.py --check    fail when the committed font is out of date
 
-The symbols mark qualities in SJK's text: the rarities (Common to Mythical), the
+The symbols mark qualities in SJK's text: the rarities (Common to Unique), the
 cards' finishes, the items' icons (what a thing is and where it comes from) and the
 kyber shard. They sit in Unicode's Private Use Area from U+E000, one code point
 each for good: a symbol is never moved or reused, new ones take the next free point of
@@ -104,6 +104,17 @@ def diamond(r, cx=0.0, cy=MIDDLE):
     return [[(cx, cy + r), (cx + r, cy), (cx, cy - r), (cx - r, cy)]]
 
 
+def four_point_star(tip, waist, cx=0.0, cy=MIDDLE):
+    """A solid four-point star, its points up, down and to the sides: `tip` from its
+    centre to a point, `waist` to the corners between them."""
+    points = []
+    for i in range(8):
+        r = tip if i % 2 == 0 else waist
+        a = math.pi / 2 + i * math.pi / 4
+        points.append((cx + r * math.cos(a), cy + r * math.sin(a)))
+    return [points[::-1]]
+
+
 def rect_round(x, y, w, h, r):
     """A rounded rectangle's points (corners as quarter circles)."""
     points = []
@@ -141,6 +152,14 @@ def rarity(rank):
             shapes.append(capsule((sx * gap, MIDDLE + sy * gap), (sx * inner, MIDDLE + sy * inner), STROKE * 0.85))
         shapes.append(diamond(R * 0.78 * 0.17))
         shapes.append(ring(octagon(R * 1.08), STROKE * 0.7))
+    if rank == 5:
+        # Unique (25/10/2026): Mythical's two frames round a solid four-point star in
+        # place of its cross, so the two read apart at text sizes (a dot against a cross).
+        shapes = [
+            ring(octagon(R * 0.78), STROKE * 0.85),
+            four_point_star(R * 0.78 * 0.60, R * 0.78 * 0.23),
+            ring(octagon(R * 1.08), STROKE * 0.7),
+        ]
     return shapes
 
 
@@ -323,6 +342,7 @@ SYMBOLS = [
     (0xE002, "rarityRare", rarity(2)),
     (0xE003, "rarityLegendary", rarity(3)),
     (0xE004, "rarityMythical", rarity(4)),
+    (0xE005, "rarityUnique", rarity(5)),
     (0xE010, "finishNormal", finish(0)),
     (0xE011, "finishHolo", finish(1)),
     (0xE012, "finishSolar", finish(2)),

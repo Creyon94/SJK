@@ -20,8 +20,8 @@ pub(crate) enum Kind {
 }
 
 /// How rare an unlockable is, the commonest first: Common (14/10/2026, white: filler
-/// that holocrons of any tier may drop; there is no Common holocron) and the holocrons'
-/// four tiers ([`crate::holocrons::TIERS`]) with their names and colours.
+/// that holocrons of any tier may drop; there is no Common holocron), the holocrons'
+/// four tiers ([`crate::holocrons::TIERS`]) with their names and colours, and Unique.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub(crate) enum Rarity {
     Common,
@@ -29,25 +29,40 @@ pub(crate) enum Rarity {
     Rare,
     Legendary,
     Mythical,
+    /// 25/10/2026, rose: Sol's personal thank-you gifts, given by hand at the hub. Never
+    /// found, dropped, sold, traded or crafted (no holocron, crystal, shop or Forge has the
+    /// tier), and seen only by the players who hold one
+    /// ([`Unlockable::hidden_unless_held`]). After Mythical, so it sorts as the rarest.
+    Unique,
 }
 
 impl Rarity {
-    /// The holocron tier of the same name; `None` for Common, which no holocron is.
+    /// The holocron tier of the same name; `None` for Common and Unique, which no
+    /// holocron is.
     fn holocron_tier(self) -> Option<&'static crate::holocrons::Tier> {
-        (self as usize)
-            .checked_sub(1)
-            .map(|index| &crate::holocrons::TIERS[index])
+        match self {
+            Self::Common | Self::Unique => None,
+            tier => Some(&crate::holocrons::TIERS[tier as usize - 1]),
+        }
     }
 
     /// The tier's name ("Rare").
     pub(crate) fn label(self) -> &'static str {
-        self.holocron_tier().map_or("Common", |tier| tier.label)
+        match self {
+            Self::Unique => "Unique",
+            tier => tier.holocron_tier().map_or("Common", |tier| tier.label),
+        }
     }
 
-    /// The tier's colour: Common's is white (a touch cool, to sit on the menus).
+    /// The tier's colour: Common's is white (a touch cool, to sit on the menus), Unique's
+    /// rose.
     pub(crate) fn colour(self) -> sjk_ui::Color {
-        self.holocron_tier()
-            .map_or(crate::holocrons::rgb(0xE6_EAF2), |tier| tier.colour)
+        match self {
+            Self::Unique => crate::holocrons::rgb(0xFF_6B9A),
+            tier => tier
+                .holocron_tier()
+                .map_or(crate::holocrons::rgb(0xE6_EAF2), |tier| tier.colour),
+        }
     }
 
     /// The tier's mark in SJK Symbols, Common's the empty octagon.
@@ -56,9 +71,10 @@ impl Rarity {
     }
 
     /// Its place among the effects' ranks ([`crate::rarity_fx`]): Common and Uncommon
-    /// are 0 and draw none.
+    /// are 0 and draw none; Unique has Mythical's (Sol: "mythical level of effects"),
+    /// drawn in its own colour.
     pub(crate) fn effect_rank(self) -> usize {
-        (self as usize).saturating_sub(1)
+        (self.min(Self::Mythical) as usize).saturating_sub(1)
     }
 }
 
@@ -68,6 +84,8 @@ pub(crate) const CREYON: &str = "Creyon";
 
 /// How to get a shader that holocrons drop ([`Unlockable::how_to_get`]).
 pub(crate) const FROM_HOLOCRONS: &str = "Found in holocrons.";
+/// How to get a Unique one ([`Rarity::Unique`]): Sol gives it by hand.
+pub(crate) const PERSONAL_THANKS: &str = "A personal thank-you from Sol.";
 
 /// The blades a card brings, `(blade id, card id)`: a key holding a copy of the card holds
 /// the blade with it, and loses that copy of it with its last one, as a medal's blade goes with
@@ -101,7 +119,7 @@ pub(crate) struct Unlockable {
     pub(crate) number: u16,
     pub(crate) name: &'static str,
     pub(crate) kind: Kind,
-    /// How rare it is: the holocrons' four tiers, their names and colours.
+    /// How rare it is ([`Rarity`]): Common, the holocrons' four tiers or Unique.
     pub(crate) tier: Rarity,
     /// A chroma: a blade skin that takes the wearer's saber colour (`color1` for the
     /// first saber, `color2` for the second), its colours turned round to that hue
@@ -109,7 +127,8 @@ pub(crate) struct Unlockable {
     pub(crate) chroma: bool,
     /// Whether a holocron may drop it (the hub's `droppable`, `docs/unlockables.md`,
     /// "Holocron shader drops"): since 17/10/2026 every shader but those a medal brings
-    /// ([`crate::medals::Medal::blade`]); a card's blade drops too ([`CARD_BLADES`]).
+    /// ([`crate::medals::Medal::blade`]) and the Unique ones, given by hand; a card's blade
+    /// drops too ([`CARD_BLADES`]).
     pub(crate) droppable: bool,
     /// The edition it belongs to ([`crate::editions`]): the stamp of when it came.
     pub(crate) edition: &'static str,
@@ -132,6 +151,14 @@ impl Unlockable {
     pub(crate) fn number_text(&self) -> String {
         format!("{:03}", self.number)
     }
+
+    /// Whether only the players who hold it may see it (Sol's rule, 25/10/2026): a Unique
+    /// one, which no one can find, buy or trade, is never listed, counted or found by a
+    /// search for anyone else ([`Holdings::shows`]). The Staff page, where it is granted,
+    /// and `debug_collectibles` list it all the same.
+    pub(crate) const fn hidden_unless_held(&self) -> bool {
+        matches!(self.tier, Rarity::Unique)
+    }
 }
 
 /// The blade skin numbered `number` ([`Unlockable::number`]).
@@ -149,7 +176,7 @@ pub(crate) fn blade_skin_named(word: &str) -> Option<&'static Unlockable> {
 }
 
 /// Every unlockable, in the hub's catalogue order (the order profiles list them in).
-pub(crate) static ALL: [Unlockable; 166] = [
+pub(crate) static ALL: [Unlockable; 167] = [
     Unlockable {
         id: "saber_sun",
         number: 1,
@@ -2311,6 +2338,20 @@ pub(crate) static ALL: [Unlockable; 166] = [
         description: "Spring in the gardens of Varykino: a soft blossom-pink blade with a pearly sheen, wreathed in lavender and white mist, blossoms drifting down round it, a branch of cherry wood in flower at its hilt and a pearl of nacre at its tip. Swing it and it sheds blossoms that flutter to the ground behind it.",
         how_to_get: FROM_HOLOCRONS,
     },
+    // 25/10/2026: Sol's Thousand Cranes, the first Unique blade, a hand-given thank-you.
+    Unlockable {
+        id: "saber_thousand_cranes",
+        number: 167,
+        name: "Thousand Cranes blade",
+        kind: Kind::BladeSkin,
+        tier: Rarity::Unique,
+        chroma: false,
+        droppable: false,
+        edition: crate::editions::ALPHA,
+        smith: SOL,
+        description: "A thousand paper cranes, the old gift of thanks: a silk-white blade with a red thread wound round it, origami cranes in coloured paper circling it and a golden crane at its tip. Swing it and cranes take flight.",
+        how_to_get: PERSONAL_THANKS,
+    },
 ];
 
 /// The unlockable `id` names (spaces round it and case ignored), if this client knows it.
@@ -2335,8 +2376,9 @@ pub(crate) fn blade_skins() -> impl Iterator<Item = &'static Unlockable> {
     ALL.iter().filter(|unlockable| unlockable.is_blade_skin())
 }
 
-/// The blade skins as players see them listed: the rarest tier first, then in
-/// catalogue order within a tier.
+/// Every blade skin in the order players see them listed: the rarest tier first, then in
+/// catalogue order within a tier. A player's own lists leave out what they may not see
+/// ([`Holdings::listed`]); the Unique ones come first for those who hold them.
 pub(crate) fn blade_skins_by_tier() -> &'static [&'static Unlockable] {
     static ORDER: std::sync::OnceLock<Vec<&'static Unlockable>> = std::sync::OnceLock::new();
     ORDER.get_or_init(|| {
@@ -2405,6 +2447,29 @@ impl<'a> Holdings<'a> {
     /// their profile lists it; `None` for the stock blade.
     pub(crate) fn worn_blade_skin(&self, setting: &str) -> Option<&'static Unlockable> {
         blade_skin(setting).filter(|skin| self.can_wear(skin))
+    }
+
+    /// Whether `unlockable` shows to this player wherever the catalogue is listed, counted
+    /// or searched (the Collection, the Profile, the Saber tab, `saberskin`): every one,
+    /// but one hidden unless held ([`Unlockable::hidden_unless_held`]) only while their
+    /// profile lists it. Another player wearing it is still drawn and named as worn.
+    pub(crate) fn shows(&self, unlockable: &Unlockable) -> bool {
+        !unlockable.hidden_unless_held() || self.unlock(unlockable.id).is_some()
+    }
+
+    /// The blade skins this player sees listed, the rarest tier first
+    /// ([`blade_skins_by_tier`], kept to [`Self::shows`]): read with each frame's
+    /// holdings, so a Unique one appears as soon as it is given and goes when taken back.
+    pub(crate) fn listed(self) -> impl Iterator<Item = &'static Unlockable> + 'a {
+        blade_skins_by_tier()
+            .iter()
+            .copied()
+            .filter(move |skin| self.shows(skin))
+    }
+
+    /// How many blade skins this player sees ([`Self::shows`]): the M of "N of M owned".
+    pub(crate) fn listed_count(&self) -> usize {
+        blade_skins().filter(|skin| self.shows(skin)).count()
     }
 
     /// Why what the player holds is not known, in a sentence; `None` once it is.
@@ -2863,11 +2928,18 @@ mod tests {
                 "saber_alderaan_velvet",
             ]
         );
+        // Sol's thank-you gifts (25/10/2026).
+        assert_eq!(of(Rarity::Unique), ["saber_thousand_cranes"]);
         let order = blade_skins_by_tier();
         assert_eq!(order.len(), blade_skins().count());
         assert!(order.windows(2).all(|pair| pair[0].tier >= pair[1].tier));
-        assert_eq!(order[0].id, "saber_sun");
-        assert_eq!(order[of(Rarity::Mythical).len()].tier, Rarity::Legendary);
+        assert_eq!(order[0].id, "saber_thousand_cranes");
+        let unique = of(Rarity::Unique).len();
+        assert_eq!(order[unique].id, "saber_sun");
+        assert_eq!(
+            order[unique + of(Rarity::Mythical).len()].tier,
+            Rarity::Legendary
+        );
         // The holocrons' names and colours.
         assert_eq!(Rarity::Mythical.label(), "Mythical");
         assert_eq!(Rarity::Uncommon.label(), "Uncommon");
@@ -2877,22 +2949,53 @@ mod tests {
         assert_eq!(Rarity::Mythical.symbol(), crate::symbols::RARITY[4]);
     }
 
-    /// Sol's rule (17/10/2026, and 20/10/2026 for the Blade Lab signatures): every shader
-    /// drops from holocrons but those a medal brings (no achievement brings one yet), and
-    /// its "How to get it" says which. No shader is handed out by the team instead.
+    /// Unique is no holocron's tier: its own name, rose and mark, and Mythical's effects.
     #[test]
-    fn every_shader_but_the_medals_drops() {
+    fn unique_has_its_own_name_colour_and_mark_and_mythical_effects() {
+        assert_eq!(Rarity::Unique.holocron_tier(), None);
+        assert_eq!(Rarity::Common.holocron_tier(), None);
+        assert_eq!(
+            Rarity::Mythical.holocron_tier().map(|tier| tier.id),
+            Some("mythical")
+        );
+        assert_eq!(Rarity::Unique.label(), "Unique");
+        assert_eq!(Rarity::Unique.colour(), crate::holocrons::rgb(0xFF_6B9A));
+        assert!(
+            crate::holocrons::TIERS
+                .iter()
+                .all(|tier| tier.colour != Rarity::Unique.colour())
+        );
+        assert_eq!(Rarity::Unique.symbol(), crate::symbols::RARITY[5]);
+        assert_eq!(Rarity::Unique.effect_rank(), Rarity::Mythical.effect_rank());
+        assert_eq!(Rarity::Mythical.effect_rank(), 3);
+        assert!(Rarity::Unique > Rarity::Mythical, "the rarest");
+    }
+
+    /// Sol's rule (17/10/2026, and 20/10/2026 for the Blade Lab signatures): every shader
+    /// drops from holocrons but those a medal brings (no achievement brings one yet) and
+    /// the Unique ones, Sol's thank-you gifts given by hand (25/10/2026), and its "How to
+    /// get it" says which. No other shader is handed out by the team instead.
+    #[test]
+    fn every_shader_but_the_medals_and_the_unique_ones_drops() {
         for skin in blade_skins() {
             let medal = crate::medals::Medal::ALL
                 .iter()
                 .any(|medal| medal.blade() == Some(skin.id));
             let card = card_bringing(skin.id).is_some();
+            let unique = skin.tier == Rarity::Unique;
             assert!(!(medal && card), "{}: brought twice", skin.id);
+            assert!(!(unique && (medal || card)), "{}: given by hand", skin.id);
             assert_eq!(
-                skin.droppable, !medal,
-                "{}: a medal's shader never drops, every other one does (a card's too)",
+                skin.droppable,
+                !medal && !unique,
+                "{}: a medal's or a Unique shader never drops, every other one does (a card's too)",
                 skin.id
             );
+            assert_eq!(skin.hidden_unless_held(), unique, "{}", skin.id);
+            if unique {
+                assert_eq!(skin.how_to_get, PERSONAL_THANKS, "{}", skin.id);
+                assert!(!crate::economy::in_trade(skin), "{}: never traded", skin.id);
+            }
             if card {
                 assert!(skin.how_to_get.contains("card"), "{}", skin.id);
             }
@@ -3038,6 +3141,54 @@ mod tests {
                 .contains("SJK identity")
         );
         assert_eq!(Holdings::Waiting.unlock("saber_sun"), None);
+    }
+
+    /// Sol's rule (25/10/2026): a Unique shader shows only to its holders. Not held, it is
+    /// neither listed nor counted; held, it is listed first (the rarest) and counted.
+    #[test]
+    fn a_unique_shader_shows_only_to_its_holders() {
+        let cranes = find("saber_thousand_cranes").unwrap();
+        let grant = |id: &str| sjk_identity::Unlock {
+            id: id.into(),
+            granted: 1_793_000_000,
+            note: String::new(),
+            count: 1,
+            medal: None,
+            card: None,
+        };
+        let total = blade_skins().count();
+        let sun = [grant("saber_sun")];
+        for holdings in [
+            Holdings::Known(&[]),
+            Holdings::Known(&sun),
+            Holdings::IdentityOff,
+            Holdings::NoHub,
+            Holdings::Waiting,
+        ] {
+            assert!(!holdings.shows(cranes), "{holdings:?}");
+            assert!(holdings.listed().all(|skin| skin.id != cranes.id));
+            assert_eq!(holdings.listed().count(), total - 1);
+            assert_eq!(holdings.listed_count(), total - 1, "not counted");
+            assert_eq!(
+                holdings.listed().next().map(|skin| skin.id),
+                Some("saber_sun")
+            );
+        }
+        let held = [grant("saber_sun"), grant("saber_thousand_cranes")];
+        let holder = Holdings::Known(&held);
+        assert!(holder.shows(cranes));
+        assert_eq!(
+            holder.listed().next().map(|skin| skin.id),
+            Some("saber_thousand_cranes"),
+            "the rarest first"
+        );
+        assert_eq!(holder.listed_count(), total);
+        // Every other shader shows to everyone, held or not.
+        assert!(
+            blade_skins()
+                .filter(|skin| !skin.hidden_unless_held())
+                .all(|skin| Holdings::Known(&[]).shows(skin))
+        );
     }
 
     /// The hub's catalogue (`src/unlocks.rs` in Sol-Vulpes/SJK-hub) lists exactly these, in
@@ -3252,6 +3403,7 @@ mod tests {
                 ("saber_batuu_dusk", "Batuu Dusk blade"),
                 ("saber_alderaan_velvet", "Alderaan Velvet blade"),
                 ("saber_varykino_blossom", "Varykino Blossom blade"),
+                ("saber_thousand_cranes", "Thousand Cranes blade"),
             ]
         );
         assert!(ALL.iter().all(Unlockable::is_blade_skin));

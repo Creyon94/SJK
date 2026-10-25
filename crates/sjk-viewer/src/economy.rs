@@ -21,7 +21,7 @@
 use crate::unlockables::{Rarity, Unlockable};
 use std::sync::Mutex;
 
-/// The shader tiers, Common to Mythical.
+/// The shader tiers, Common to Mythical (Unique is never traded).
 pub(crate) const TIERS: usize = 5;
 
 /// The economy's tables by shader tier, Common to Mythical.
@@ -119,21 +119,27 @@ pub(crate) fn in_trade(skin: &Unlockable) -> bool {
             .any(|medal| medal.blade() == Some(skin.id))
 }
 
+/// Tier `tier`'s entry of a table row: 0 for Unique, which the tables leave out (no Unique
+/// shader is ever traded, [`in_trade`]).
+fn of_tier(row: [u64; TIERS], tier: Rarity) -> u64 {
+    row.get(tier as usize).copied().unwrap_or(0)
+}
+
 /// The kyber shards shattering one duplicate of tier `tier` gives.
 pub(crate) fn shatter_yield(tier: Rarity) -> u64 {
-    current().shatter[tier as usize]
+    of_tier(current().shatter, tier)
 }
 
 /// The kyber shards crafting a shader of tier `tier` costs.
 pub(crate) fn craft_cost(tier: Rarity) -> u64 {
-    current().craft[tier as usize]
+    of_tier(current().craft, tier)
 }
 
 /// What a shader of tier `tier` costs in the shop (the shop itself shows the prices the
 /// hub sends with its offers; this is the table's).
 #[cfg(test)]
 pub(crate) fn shop_price(tier: Rarity) -> u64 {
-    current().shop[tier as usize]
+    of_tier(current().shop, tier)
 }
 
 /// A count of shards as players read it: "1 250".
@@ -363,8 +369,12 @@ mod tests {
         assert!(
             unlockables::blade_skins()
                 .filter(|skin| in_trade(skin))
-                .all(|skin| skin.droppable)
+                .all(|skin| skin.droppable && skin.tier != Rarity::Unique)
         );
+        // Sol's thank-you gifts are never broken down, crafted or sold (25/10/2026).
+        assert!(!in_trade(
+            unlockables::find("saber_thousand_cranes").unwrap()
+        ));
     }
 
     #[test]
@@ -373,6 +383,10 @@ mod tests {
         assert_eq!(shatter_yield(Rarity::Mythical), 150);
         assert_eq!(craft_cost(Rarity::Rare), 300);
         assert_eq!(shop_price(Rarity::Legendary), 600);
+        // No table has Unique: nothing of it is priced.
+        assert_eq!(shatter_yield(Rarity::Unique), 0);
+        assert_eq!(craft_cost(Rarity::Unique), 0);
+        assert_eq!(shop_price(Rarity::Unique), 0);
     }
 
     /// A blade card's copy crafts its shader at the shop's price (Normal) or half (Holo,

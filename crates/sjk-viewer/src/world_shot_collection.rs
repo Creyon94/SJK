@@ -131,10 +131,11 @@ fn duel6_sjk_collection() {
                 shoot(&mut gpu, 60, "duel6-collection-toys-lit").display()
             );
             gpu.illuminate.set_on(false);
-            // A locked one, previewed on the saber.
+            // A locked one, previewed on the saber. Rows are counted as a player holding no
+            // Unique shader sees the list (the shots below hold none).
             gpu.profile_hub_show_for_shot(Tab::Shaders);
-            let storm = 1 + crate::unlockables::blade_skins_by_tier()
-                .iter()
+            let storm = 1 + crate::unlockables::Holdings::Known(&[])
+                .listed()
                 .position(|skin| skin.id == "saber_storm")
                 .expect("the Storm blade");
             if let Some(console) = gpu.console.as_mut() {
@@ -169,8 +170,8 @@ fn duel6_sjk_collection() {
             assert!(!overflowed(&gpu), "the grid");
             // The Spectral owned and chosen: its six parts in three columns, its smoky
             // edge switched off (`cg_saberSkinOptions`), on the model too.
-            let spectral = 1 + crate::unlockables::blade_skins_by_tier()
-                .iter()
+            let spectral = 1 + crate::unlockables::Holdings::Known(&[])
+                .listed()
                 .position(|skin| skin.id == "saber_spectral")
                 .expect("the Spectral blade");
             if let Some(console) = gpu.console.as_mut() {
@@ -209,8 +210,8 @@ fn duel6_sjk_collection() {
             // The hub's economy known: a Kamino held three times points to Break down in
             // the Forge beside Equip; a locked Echo Base to Craft in the Forge.
             let row = |id: &str| {
-                1 + crate::unlockables::blade_skins_by_tier()
-                    .iter()
+                1 + crate::unlockables::Holdings::Known(&[])
+                    .listed()
                     .position(|skin| skin.id == id)
                     .expect("the shader")
             };
