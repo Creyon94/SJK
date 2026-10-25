@@ -68,7 +68,10 @@ pub(crate) fn install_folder(program: &Path) -> Option<&Path> {
     let directory = program.parent()?;
     if directory.ends_with("Contents/MacOS") {
         let bundle = directory.parent()?.parent()?;
-        if bundle.extension().is_some_and(|extension| extension == "app") {
+        if bundle
+            .extension()
+            .is_some_and(|extension| extension == "app")
+        {
             return bundle.parent();
         }
     }
