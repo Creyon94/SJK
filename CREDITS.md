@@ -287,6 +287,9 @@ includes:
 - small graphics cards found at start: the card's video memory read from DXGI, a card
   of 4 GB or less starting on lower texture detail and menu pictures, and saber shader
   swatches drawn instead of rendered live while the menu pictures are on;
+- stock blades for weak PCs (`cg_stockBlades`, 25/10/2026): other players' blades, or
+  every blade, drawn stock in their own colour, skipping the blade skins' GPU work; and a
+  menu frame cap (`com_maxfpsMenu`) while no game runs;
 - Discord status (`cl_discordPresence`): the player's Discord profile showing the menu
   screen, or the server, map, mode, team and players, through the Discord app's
   local pipe;
