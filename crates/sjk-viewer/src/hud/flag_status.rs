@@ -69,8 +69,8 @@ const EV_EVENT_BITS: u16 = 0x300;
 /// `EV_CTFMESSAGE` and `CTFMESSAGE_PLAYER_GOT_FLAG` (`bg_public.h`, `ctfMessages_t`).
 const EV_CTFMESSAGE: u16 = 99;
 const CTFMESSAGE_PLAYER_GOT_FLAG: u32 = 4;
-/// `entityState_t::trickedentindex2`'s field: a CTF message's team.
-const ES_TRICKED2: usize = 74;
+/// `PMF_FOLLOW`: the player state is the followed player's, not the local player's.
+const PMF_FOLLOW: u16 = sjk_game_jka::follow::PMF_FOLLOW;
 /// `MAX_CLIENTS`.
 const MAX_CLIENTS: usize = 32;
 /// How long a CTF message naming who took a flag stays good for, in server time:
@@ -166,6 +166,11 @@ pub(crate) struct State {
     ysalamiri: bool,
     flags: [Flag; 2],
     carried: bool,
+    /// The player state is a followed player's: their flag is not "You".
+    following: bool,
+    /// `sv_serverid` at the last update: a new gamestate (map change, restart or
+    /// another server) forgets the drops and takers seen in the last one.
+    server_id: Option<i32>,
     show_flags: bool,
     show_scores: bool,
     /// The scores stand in SJK team boxes (`cg_teamScoresBoxes`), else on the classic
@@ -274,9 +279,10 @@ fn ctf_takers(snapshot: &sjk_protocol::Snapshot) -> [Option<u16>; 2] {
             continue;
         }
         let player = state.tracked_entity_num();
-        let side = match state.integer_field(ES_TRICKED2) {
-            Some(1) => 0,
-            Some(2) => 1,
+        // `trickedentindex2`, which the protocol's accessor names for its mute use.
+        let side = match state.mute_entity_num() {
+            1 => 0,
+            2 => 1,
             _ => continue,
         };
         if usize::from(player) < MAX_CLIENTS {
@@ -314,6 +320,10 @@ pub(crate) struct Staged {
     pub(crate) carried: bool,
     pub(crate) scores: [i32; 2],
     pub(crate) ysalamiri: bool,
+    /// A capture game; off stages team FFA (scores only).
+    pub(crate) ctf: bool,
+    /// The view follows the carrier rather than being theirs.
+    pub(crate) following: bool,
 }
 
 impl State {
@@ -342,6 +352,11 @@ impl State {
             .and_then(|s| sjk_client::LegacyClientInfo::new(s).integer("g_gametype"))
             .unwrap_or(0);
         self.team = snapshot.player.team();
+        self.following = snapshot.player.movement_flags() & PMF_FOLLOW != 0;
+        let server_id = game
+            .config_string(1)
+            .and_then(|s| sjk_client::LegacyClientInfo::new(s).integer("sv_serverid"));
+        self.new_game(server_id, i64::from(snapshot.server_time));
         self.ctf = matches!(gametype, GT_CTF | GT_CTY);
         self.ysalamiri = gametype == GT_CTY;
         self.flags = if self.ctf {
@@ -365,7 +380,8 @@ impl State {
         #[cfg(test)]
         if let Some(staged) = self.staged {
             self.team = staged.team;
-            self.ctf = true;
+            self.ctf = staged.ctf;
+            self.following = staged.following;
             self.ysalamiri = staged.ysalamiri;
             self.flags = staged.flags;
             self.carried = staged.carried;
@@ -389,6 +405,23 @@ impl State {
             }
         }
         self.format_statuses();
+    }
+
+    /// Forget the drops and CTF messages of the last game when the gamestate changes
+    /// (`server_id`) or the server's clock goes back: their times are another game's.
+    fn new_game(&mut self, server_id: Option<i32>, now: i64) {
+        if self.server_id != server_id || now < self.now {
+            self.seen = false;
+            self.dropped_at = [None; 2];
+            self.takers = [None; 2];
+        }
+        self.server_id = server_id;
+    }
+
+    /// The side of the flag the local player carries (not a followed player's).
+    fn own_carry(&self) -> Option<usize> {
+        self.enemy_side()
+            .filter(|_| self.carried && !self.following)
     }
 
     /// Note when a flag is seen dropping at server time `now`, the flags having been
@@ -427,8 +460,15 @@ impl State {
     /// kept storage.
     fn format_statuses(&mut self) {
         let enemy = self.enemy_side();
+        let mine = self.own_carry();
         for side in 0..2 {
-            let own = self.carried && enemy == Some(side);
+            let own = mine == Some(side);
+            // A followed carrier's flag reads as taken even before the status catches up.
+            let flag = if self.carried && enemy == Some(side) {
+                Flag::Taken
+            } else {
+                self.flags[side]
+            };
             let left = self.return_left(side);
             let status = &mut self.statuses[side];
             status.clear();
@@ -436,7 +476,7 @@ impl State {
                 status.push_str("You");
                 Tone::Own
             } else {
-                match self.flags[side] {
+                match flag {
                     Flag::AtBase => {
                         status.push_str("At base");
                         Tone::Quiet
@@ -458,8 +498,8 @@ impl State {
                 }
             };
         }
-        self.hint = match enemy {
-            Some(enemy) if self.carried && self.ctf => {
+        self.hint = match mine {
+            Some(enemy) if self.ctf => {
                 if self.flags[1 - enemy] == Flag::AtBase {
                     "Take it home"
                 } else {
@@ -685,7 +725,7 @@ impl State {
         };
         let s = crate::ui_scale::height_scale(h) * scale;
         let (box_w, box_h, gap, pad) = (168.0 * s, 42.0 * s, 6.0 * s, 9.0 * s);
-        let (icon, score_w, rule) = (22.0 * s, 48.0 * s, 2.0 * s);
+        let (icon, rule) = (22.0 * s, 2.0 * s);
         // HUD text sets its line box from the rectangle's top: give each run a line
         // about its size, centred on the box.
         let line = |size: f32| (top + (box_h - size * 1.25) * 0.5, size * 1.25);
@@ -706,22 +746,39 @@ impl State {
                 rect: Rect::new(x, top + box_h - rule, box_w, rule),
                 color: team,
             });
+            // Without flags the score has the whole box, centred; beside a flag, the
+            // inner edge, as wide as its digits ("-12" or "300" fit, smaller if need be).
+            let (score_w, score_size) = score_fit(
+                self.labels[side].chars().count(),
+                if flags {
+                    SCORE_MAX_W * s
+                } else {
+                    box_w - 2.0 * pad
+                },
+                36.0 * s,
+            );
+            let score_w = if flags { score_w } else { box_w - 2.0 * pad };
+            let (score_y, score_h) = line(score_size);
             let inner = Rect::new(
-                if red {
+                if !flags {
+                    x + pad
+                } else if red {
                     x + box_w - pad - score_w
                 } else {
                     x + pad
                 },
-                line(36.0 * s).0,
+                score_y,
                 score_w,
-                line(36.0 * s).1,
+                score_h,
             );
             let _ = list.push(DrawCommand::Text {
                 rect: inner,
                 text: TextId(TEXT_SCORES + side as u32),
-                size: 36.0 * s,
+                size: score_size,
                 color: color::TEXT,
-                align: if red {
+                align: if !flags {
+                    TextAlign::Center
+                } else if red {
                     TextAlign::End
                 } else {
                     TextAlign::Start
@@ -735,7 +792,8 @@ impl State {
             }
             let icon_x = if red { x + pad } else { x + box_w - pad - icon };
             let icon_y = top + (box_h - icon) * 0.5;
-            let away = self.flags[side] != Flag::AtBase || self.tones[side] == Tone::Own;
+            let away = self.flags[side] != Flag::AtBase
+                || (self.carried && self.enemy_side() == Some(side));
             let slot = match (red, self.ysalamiri, away) {
                 (true, _, true) => assets::RED_FLAG_TAKEN,
                 (false, _, true) => assets::BLUE_FLAG_TAKEN,
@@ -777,11 +835,11 @@ impl State {
                 x + pad + score_w
             };
             let words_w = box_w - 2.0 * pad - icon - 7.0 * s - score_w;
-            let (words_y, words_h) = line(14.0 * s);
+            let (words_y, words_h) = line(13.0 * s);
             let _ = list.push(DrawCommand::Text {
                 rect: Rect::new(words_x, words_y, words_w, words_h),
                 text: TextId(TEXT_STATUS + side as u32),
-                size: 14.0 * s,
+                size: 13.0 * s,
                 color: match self.tones[side] {
                     Tone::Quiet => color::MUTED,
                     Tone::Plain => color::TEXT,
@@ -824,6 +882,23 @@ impl State {
                 letter_spacing: 0.0,
             });
         }
+    }
+}
+
+/// The widest a box's score stands beside its flag, in 1080-line pixels.
+const SCORE_MAX_W: f32 = 66.0;
+/// A HUD digit's width over its size (the semibold figures, a little generous).
+const DIGIT_EM: f32 = 0.62;
+
+/// The width and size a score of `chars` characters takes at `size`, at most `max_w`
+/// wide: as wide as its digits, then smaller once they no longer fit.
+fn score_fit(chars: usize, max_w: f32, size: f32) -> (f32, f32) {
+    let chars = chars.max(1) as f32;
+    let need = chars * DIGIT_EM * size;
+    if need <= max_w {
+        (need.max(size * 0.7), size)
+    } else {
+        (max_w, max_w / (chars * DIGIT_EM))
     }
 }
 
@@ -982,7 +1057,8 @@ mod tests {
         event.set_raw_field(8, u32::from(ET_EVENTS) + u32::from(EV_CTFMESSAGE));
         event.set_raw_field(42, CTFMESSAGE_PLAYER_GOT_FLAG);
         event.set_raw_field(58, 7);
-        event.set_raw_field(ES_TRICKED2, 2);
+        // `trickedentindex2` (netfield 74): the flag's team.
+        event.set_raw_field(74, 2);
         let mut snapshot = sjk_protocol::Snapshot {
             message_sequence: 1,
             reliable_acknowledge: 0,
@@ -1140,6 +1216,100 @@ mod tests {
             DrawCommand::Text { text, .. } => [TEXT_FIRST, 343].contains(&text.0),
             _ => true,
         }));
+    }
+
+    #[test]
+    fn a_followed_carrier_is_named_not_you() {
+        // Spectating a red carrier who holds blue's flag: no "You", no line below.
+        let mut state = ctf_state(TEAM_RED, [Flag::AtBase; 2]);
+        state.carried = true;
+        state.following = true;
+        state.carriers[1].name.push_str("Torren");
+        state.format_statuses();
+        assert_eq!(state.text(347), "Torren");
+        assert_eq!(state.tones[1], Tone::Plain);
+        assert_eq!(state.text(TEXT_HINT), "");
+        // Unnamed yet: taken, even before the status catches up.
+        state.carriers[1].name.clear();
+        state.format_statuses();
+        assert_eq!(state.text(347), "Taken");
+    }
+
+    #[test]
+    fn a_new_gamestate_forgets_the_last_games_drops() {
+        let mut state = ctf_state(TEAM_RED, [Flag::AtBase; 2]);
+        state.new_game(Some(1), 1_000);
+        state.track_drops([Flag::AtBase; 2], 1_000);
+        state.flags = [Flag::AtBase, Flag::Dropped];
+        state.track_drops([Flag::AtBase; 2], 2_000);
+        state.takers[0] = Some((4, 2_000));
+        assert!(state.dropped_at[1].is_some());
+        // Another server, where a flag already lies: no count, no taker.
+        state.new_game(Some(2), 500_000);
+        state.flags = [Flag::Dropped, Flag::AtBase];
+        state.track_drops([Flag::AtBase; 2], 500_000);
+        assert_eq!(state.dropped_at, [None, None]);
+        assert_eq!(state.takers, [None, None]);
+        state.format_statuses();
+        assert_eq!(state.text(TEXT_STATUS), "Dropped");
+        // The same game's clock going back counts as a new game too.
+        state.flags = [Flag::AtBase; 2];
+        state.track_drops([Flag::Dropped, Flag::AtBase], 501_000);
+        state.flags = [Flag::Dropped, Flag::AtBase];
+        state.track_drops([Flag::AtBase; 2], 502_000);
+        assert!(state.dropped_at[0].is_some());
+        state.new_game(Some(2), 100);
+        assert_eq!(state.dropped_at, [None, None]);
+        assert!(!state.seen);
+    }
+
+    #[test]
+    fn long_scores_fit_their_box() {
+        // Two digits beside a flag: full size, narrower than the old fixed 48.
+        let (w, size) = score_fit(2, SCORE_MAX_W, 36.0);
+        assert_eq!(size, 36.0);
+        assert!(w <= 48.0);
+        // Three digits or a minus: still inside the widest score, smaller if need be.
+        for chars in [3, 4] {
+            let (w, size) = score_fit(chars, SCORE_MAX_W, 36.0);
+            assert!(w <= SCORE_MAX_W && chars as f32 * DIGIT_EM * size <= w + 0.01);
+        }
+        // Team FFA: the whole box, so "300" keeps the full size.
+        let (_, size) = score_fit(3, 150.0, 36.0);
+        assert_eq!(size, 36.0);
+        // A team FFA box centres the score over the box's width.
+        let mut state = State {
+            team: TEAM_RED,
+            show_scores: true,
+            boxes: true,
+            scores: Some([300, -12]),
+            ..State::default()
+        };
+        state.labels = ["300".into(), "-12".into()];
+        let mut list = DrawList::new(64);
+        let visibility = HudVisibility::from_console(None);
+        state.emit(
+            &mut list,
+            [1920.0, 1080.0],
+            &icons::Icons::default(),
+            visibility,
+        );
+        let scores: Vec<_> = list
+            .commands()
+            .iter()
+            .filter_map(|command| match command {
+                DrawCommand::Text {
+                    rect, size, align, ..
+                } => Some((*rect, *size, *align)),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(scores.len(), 2);
+        for (rect, size, align) in scores {
+            assert_eq!(align, TextAlign::Center);
+            assert_eq!(size, 36.0);
+            assert!(rect.width > 140.0);
+        }
     }
 
     #[test]

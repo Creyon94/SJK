@@ -543,7 +543,7 @@ const HELP: &[(&str, &str)] = &[
     ),
     (
         "cg_drawFlagStatus",
-        "Capture the flag: the flag icons at the left (taken or dropped, yours and theirs) and a note while you carry a flag.",
+        "Capture the flag: where each flag is, in the team boxes or as icons at the left, and a note while you carry one.",
     ),
     (
         crate::version_overlay::CVAR,

@@ -1,3 +1,17 @@
+## CTF team score boxes (PR #201)
+
+25/10/2026, `personal/pr-201-ctf-boxes`, Slash's #201 merged onto `main` `bbe66051` with
+the review's fixes ([client.md](client.md#capture-the-flag-hud)): a score is as wide as its
+digits beside a flag and has the whole box, centred, in team FFA, so "300" and "-12" fit;
+following another player names the carrier instead of "You" and drops the line below; a new
+`sv_serverid` or the server clock going back forgets the last game's drops and CTF
+messages; the status text is 13 pixels so a carrier's name has more room;
+`trickedentindex2` read through `EntityState::mute_entity_num`. Verified: workspace
+build, Clippy (no warnings in the touched files) and tests (3856 passed); the
+`ctf_flags_on_a_demo` world shots at 1920x1080 in the three HUD styles, carrying, dropped,
+following and team FFA. Not verified in game: a live CTF server's CTF messages, the count
+on a real drop, spectating a real carrier.
+
 ## Site refresh
 
 25/10/2026, `personal/site-refresh`, based on `main` `0ff3c3e1`: the site's new layout,
