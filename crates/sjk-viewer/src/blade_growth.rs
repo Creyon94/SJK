@@ -336,19 +336,48 @@ pub(crate) mod tests {
     /// The words added to the own choice: the parts not grown of each growing blade held.
     #[test]
     fn the_locked_words_name_each_held_blade_s_parts_not_grown() {
-        assert_eq!(locked_words(|_| Some(0)), "", "no signature grows yet");
         let _fake = fake("saber_sun", r#"{"glint":30,"haze":91}"#);
         assert_eq!(of("saber_sun").map(Growth::full), Some(91));
         assert_eq!(of("saber_void"), None);
+        // Held: the Sun alone (the Hearth grows too, but is not held here).
+        let sun = |days: u32| move |skin: &str| (skin == "saber_sun").then_some(days);
         assert_eq!(locked_words(|_| None), "", "not held");
-        assert_eq!(locked_words(|_| Some(0)), "saber_sun.glint saber_sun.haze");
-        assert_eq!(locked_words(|_| Some(40)), "saber_sun.haze");
+        assert_eq!(locked_words(sun(0)), "saber_sun.glint saber_sun.haze");
+        assert_eq!(locked_words(sun(40)), "saber_sun.haze");
         assert_eq!(locked_words(|_| Some(u32::MAX)), "");
-        let options = gated("saber_sun.sparks", &locked_words(|_| Some(40)));
+        let options = gated("saber_sun.sparks", &locked_words(sun(40)));
         assert_eq!(
             crate::saber_skin_options::off_list(&options, "saber_sun"),
             ["haze", "sparks"]
         );
         assert_eq!(gated("saber_sun.sparks", ""), "saber_sun.sparks");
+    }
+
+    /// The Hearth (25/10/2026, Sol): embers from the day it is given, flames at a month, a
+    /// heat shimmer at three, a blaze at six, the hearthstones at a year; its swings shed
+    /// ash only with the hearthstones (its `@petals` rides that part).
+    #[test]
+    fn the_hearth_grows_flames_shimmer_blaze_then_hearthstones() {
+        let growth = of("saber_hearth").expect("the Hearth grows");
+        assert_eq!(
+            growth.stages().collect::<Vec<_>>(),
+            [
+                ("hearth_flames", 30),
+                ("heat_shimmer", 91),
+                ("blaze", 182),
+                ("hearthstones", 365)
+            ]
+        );
+        assert_eq!(growth.locked_ids(0).count(), 4);
+        assert_eq!(
+            growth.locked_ids(100).collect::<Vec<_>>(),
+            ["blaze", "hearthstones"]
+        );
+        assert_eq!(growth.locked_ids(365).count(), 0);
+        let hearth = crate::blade_signatures::SIGNATURES
+            .iter()
+            .find(|signature| signature.id == "saber_hearth")
+            .expect("the Hearth is a signature");
+        assert_eq!(hearth.petals().map(|petals| petals.part), Some(2));
     }
 }
