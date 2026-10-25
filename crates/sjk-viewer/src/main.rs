@@ -1,3 +1,7 @@
+// A Windows release client is a windowed program: no console opens beside the game.
+// Debug builds keep theirs for `cargo run`; the log is standard error either way, so
+// a redirected start (play.bat) still writes it to a file.
+#![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 mod achievements;
 mod actor_instance;
 mod actor_load;

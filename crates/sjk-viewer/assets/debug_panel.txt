@@ -6691,3 +6691,13 @@ change: Bishop's card shows a rust JKR CREATOR pill (hub jkr_creator flag, no st
 change: SJK TEAM pill, holocron name and Achievements text no longer sit a bit high.
 test: Pin Bishop's card: rust JKR CREATOR pill, no staff tools for him.
 test: Pin a staff card: SJK TEAM text, holocron name, achievements centred on their shapes.
+
+[no-console-window]
+area: Menus & settings
+title: No console window on Windows; SJK.app on a Mac
+change: Windows release builds open no console beside the game, nor for the server or clipboard.
+change: The Mac ZIP holds SJK.app (own icon in the Dock) with sjk-server beside it.
+test: play: no black console window opens; logs\last-client.log still fills.
+test: Create game: the local server starts with no console window; Ctrl+C/Ctrl+V in chat work.
+test: Open a link from the menu (Ko-fi, changelog page): no window flashes.
+note: Mac side checked by a Mac player after the next release.

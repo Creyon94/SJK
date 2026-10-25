@@ -8,7 +8,7 @@ Keep the dedicated server beside it for Create game and local devmap. Updating
 the executables does not replace the `SJK/` user files.
 
 Each installation ZIP contains exactly four files: `sjk`, `sjk-server` (both with
-`.exe` on Windows; the client is `sjk-client` on macOS, [below](#macos)), `README-SJK.txt` and `LICENSES-SJK.txt`; the suffix keeps them
+`.exe` on Windows; on macOS the client is the `SJK.app` bundle, [below](#macos)), `README-SJK.txt` and `LICENSES-SJK.txt`; the suffix keeps them
 from replacing another program's `README.txt` or `LICENSES.txt` in the same
 GameData folder. The licence file consolidates the complete project, font and
 dependency notices with their source labels and attribution inventory; no
@@ -33,6 +33,12 @@ retention period, not automatically published GitHub Releases.
 The Linux build uses Ubuntu 22.04, requiring glibc 2.35 or newer, ALSA and the
 window-system/graphics-driver libraries. The Windows build targets MSVC with a
 static C runtime, for Windows 10/11 x64. Drivers remain a system requirement.
+The Windows release client is a windowed program (`windows_subsystem` in
+[main.rs](../crates/sjk-viewer/src/main.rs)), so no console opens beside the game;
+debug builds keep theirs. Its log is standard error, which a redirected start
+(`sjk.exe > log.txt 2>&1`) still writes to a file. The console programs it starts
+itself (the local server, PowerShell for the clipboard, `cmd` for links, `ipconfig`)
+go through `platform::hidden_command`, which gives them no window of their own.
 Source checkout and source archives preserve the repository's line endings on
 both platforms, including embedded WGSL used by exact-text shader patches.
 
@@ -60,17 +66,26 @@ reference environment for the distributed Linux ZIP.
 
 The `macos-arm64` package is built on GitHub's `macos-latest` runner for
 `aarch64-apple-darwin` with `MACOSX_DEPLOYMENT_TARGET=11.0`, and passes the same smoke
-check there. It holds two bare programs, no `.app` bundle (run from Finder they open in
-Terminal): `sjk-server` and the client as `sjk-client`. macOS disks ignore case by
-default, so a program named `sjk` would take the name of the `SJK/` client folder beside
-it and the client would fall back to per-user storage; the smoke check caught this. The client draws through wgpu's Metal backend (the
+check there. The client is an app bundle, `SJK.app`, so Finder starts it without
+Terminal and the Dock shows SJK's name and icon: `Contents/MacOS/sjk-client`, an
+`Info.plist` naming it and the release's version, and `Contents/Resources/SJK.icns`,
+which [package_client.py](../scripts/package_client.py) writes from
+`assets/branding/sjk-logo-512.png` and `sjk-logo.png`. `sjk-server` stays a bare
+program beside the bundle. The client counts the folder holding `SJK.app` as its own
+(`platform::install_folder`), for the game data, the `SJK/` client folder, the server
+and updates. The program inside is named `sjk-client`, not `sjk`: macOS disks ignore
+case by default, and before the bundle a bare `sjk` took the name of the `SJK/` folder
+beside it. The client draws through wgpu's Metal backend (the
 `metal` feature of `sjk-viewer`). Intel Macs have no build.
 
-The programs are only ad-hoc signed by the linker, not with an Apple Developer ID nor
-notarized, so Gatekeeper blocks a downloaded copy: the bundled README tells the player
-to clear the quarantine flag (`xattr -d com.apple.quarantine sjk sjk-server`) or allow
-it in System Settings > Privacy & Security. Signing and notarizing need a paid Apple
-Developer account and its certificate in the workflow's secrets.
+The bundle is only ad-hoc signed (`codesign --sign -` on the runner, so the signature
+covers its `Info.plist` and icon), not with an Apple Developer ID nor notarized, so
+Gatekeeper blocks a downloaded copy: the bundled README tells the player to clear the
+quarantine flag (`xattr -dr com.apple.quarantine SJK.app sjk-server`). Allowing it in
+System Settings > Privacy & Security instead keeps the flag, and macOS then runs a
+quarantined app from a random read-only copy (App Translocation), away from GameData.
+Signing and notarizing need a paid Apple Developer account and its certificate in the
+workflow's secrets.
 
 Game data: besides the drop-in folder, the client looks in Steam's macOS library for
 `Jedi Academy/GameData` and for a `base/` folder inside any `.app` bundle's

@@ -3587,7 +3587,10 @@ The client looks for a newer SJK release when it starts and from the Update page
   ZIP's files beside the running program as `<name>.new` and renames each running
   file to `<name>.old` before the new one takes its name (a Windows program can be
   renamed while it runs, not overwritten). A failed step puts the old files back.
-  Only plain file names are taken from the ZIP. The `.old` files are deleted at
+  Only plain file names are taken from the ZIP, and the Mac's `SJK.app` bundle,
+  which is written and swapped whole (the folder beside the bundle is the install
+  folder; a Mac client from before the bundle cannot install a bundled release and
+  says so). The `.old` files (and `SJK.app.old`) are deleted at
   the next start. Settings in `GameData/SJK/` are not touched.
 - The new version starts when the client exits, after it saved its settings:
   "Restart now" on the page quits, or the player keeps playing and restarts later.
