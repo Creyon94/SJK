@@ -2260,8 +2260,10 @@ every menu style, on the 16:9 frame:
   the hub, the own profile, the players known) and the window's parts (the player's items,
   the limits) only while the window can show, under one short identity lock; between, only
   their clocks run on, and the window keeps its copy. With trading off for the player, the
-  client stops reading the trade list until it registers again or the feed tells of a
-  trade (Sol's review, 24/10/2026).
+  client reads the trade list only every 30 minutes, not every ten (Sol's review,
+  24/10/2026), so trading switched on at the hub reaches running clients without a
+  restart (Sol's review, 25/10/2026); registering again or the feed's word of a trade
+  reads it at once.
 
 ## What's new card
 

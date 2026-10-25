@@ -48,10 +48,12 @@ const HOLOCRONS_EVERY: Duration = Duration::from_secs(300);
 const TRADES_LIVE: Duration = Duration::from_secs(15);
 /// How often they are read otherwise, for whether the hub lets players trade.
 const TRADES_EVERY: Duration = Duration::from_secs(600);
-/// When the hub says trading is off for this player (Sol's review, 24/10/2026): no
-/// more reads in this session; registering again (a restart, another hub, a lost
-/// connection) or the feed's `trades` event reads the list again.
-const TRADES_OFF: Duration = Duration::from_secs(86_400);
+/// How often they are read when the hub says trading is off for this player: not every
+/// [`TRADES_EVERY`] (Sol's review, 24/10/2026), yet soon enough that trading switched on
+/// at the hub (`--trading staff`, then everyone) reaches running clients without a
+/// restart (Sol's review, 25/10/2026), as the announcements and rewards are read.
+/// Registering again or the feed's `trades` event reads the list at once.
+const TRADES_OFF: Duration = Duration::from_secs(1_800);
 
 /// This PC's clock, unix seconds, standing in for the hub's when it does not say.
 fn unix_now() -> i64 {
@@ -4809,9 +4811,10 @@ mod tests {
     }
 
     /// Trading off on the hub: the list is not read again every ten minutes (Sol's
-    /// review, 24/10/2026); registering again reads it.
+    /// review, 24/10/2026), but trading switched on reaches a running client within
+    /// [`TRADES_OFF`] (Sol's review, 25/10/2026).
     #[test]
-    fn trading_off_stops_the_reads() {
+    fn trading_off_slows_the_reads() {
         let fake = Fake::default();
         fake.trading_off.store(true, Ordering::SeqCst);
         let t0 = Instant::now();
@@ -4821,15 +4824,19 @@ mod tests {
         let reads = |fake: &Fake| *fake.trade_reads.lock().unwrap();
         assert_eq!(reads(&fake), 1);
         assert!(!lock(&snapshot).trades.clone().unwrap().open(true));
-        for minutes in [10, 20, 60, 600] {
-            let at = t0 + Duration::from_secs(minutes * 60);
-            worker.tick(at);
+        for minutes in [10, 20] {
+            worker.tick(t0 + Duration::from_secs(minutes * 60));
         }
-        assert_eq!(reads(&fake), 1, "not read again while off");
-        // The feed's trades event still reads it.
-        worker.handle(Command::ReadTrades, t0 + Duration::from_secs(36_000));
-        worker.tick(t0 + Duration::from_secs(36_000));
+        assert_eq!(reads(&fake), 1, "not read every ten minutes while off");
+        // The hub turns trading on: the client sees it at the next slow read, no restart.
+        fake.trading_off.store(false, Ordering::SeqCst);
+        worker.tick(t0 + TRADES_OFF);
         assert_eq!(reads(&fake), 2);
+        assert!(lock(&snapshot).trades.clone().unwrap().open(true));
+        // The feed's trades event still reads it at once.
+        worker.handle(Command::ReadTrades, t0 + TRADES_OFF);
+        worker.tick(t0 + TRADES_OFF);
+        assert_eq!(reads(&fake), 3);
     }
 
     #[test]
