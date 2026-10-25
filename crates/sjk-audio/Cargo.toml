@@ -9,5 +9,11 @@ rust-version.workspace = true
 hound = "3.5.1"
 minimp3_fixed = "0.5.4"
 
+[dev-dependencies]
+# Test-only allocator that counts allocations inside a guarded block (pcm16_tests).
+assert_no_alloc = { version = "1.1.2", features = ["warn_debug"] }
+# Mounts the installed game's archives in the ignored retail measurement.
+sjk-vfs.workspace = true
+
 [lints]
 workspace = true

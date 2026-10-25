@@ -1,3 +1,19 @@
+## Sound memory
+
+25/10/2026, `personal/audio-memory`, based on `main` `ab4bd57b`: decoded sounds are kept
+as 16-bit PCM instead of floats, half the memory, and a map's music is released when the
+music is chosen again instead of staying decoded all session
+([client.md](client.md#sound-memory)). Released PCM goes back from the audio callback to
+the decode worker, which frees it; the callback never frees or locks. Measured on the
+retail archives (ignored `retail_memory` test, release build): the 302 effect WAVs take
+63.5 MiB instead of 127.1 MiB, a music track 4.8 MiB instead of 9.7 on average (longest
+23.6 instead of 47.2). Verified: `pcm16_tests` (16-bit WAVs exact, voices, loops and music
+within 1/32768 of the float path, release, no allocator call while mixing or releasing)
+and the viewer's `music_memory_tests`, `cargo test --locked --workspace`, Clippy. Not
+verified: listening in a game, memory in a live session. The duel music, effects and
+voices stay decoded for the session; sounds keep the mixer's rate (per-voice resampling
+would halve 22 kHz effects again, not done).
+
 ## Announcements and contributor reward rounds
 
 25/10/2026, `personal/announcements`, based on `main` `ca5643de`: the client side of the
