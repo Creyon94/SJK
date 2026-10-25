@@ -2,32 +2,71 @@
 //! holocron (`docs/client.md`, Illuminate), the cardboard box (`docs/client.md`,
 //! Cardboard box), Order 66 (`docs/client.md`, Order 66), the Hax (`docs/client.md`,
 //! Hax), the Ragdoll (`docs/client.md`, Ragdoll), the Drone (`docs/client.md`, Drone) and
-//! the Boombox (`docs/client.md`, Boombox) stand on plinths on the left; the chosen one is
-//! described beside the model with the switch that runs it (`toy_illuminate`, `toy_box`,
-//! `toy_order66`, `toy_hax`, `toy_ragdoll`, `toy_drone`, `toy_boombox`). The holocron
-//! floats lit by the model while it is chosen.
+//! the Boombox (`docs/client.md`, Boombox), a row to each on the left (Sol's pick of
+//! 25/10/2026, the Collection revamp's canvas): its picture, its name and a line of what
+//! it does, the key bound to it and its own switch, which runs it in place
+//! (`toy_illuminate`, `toy_box`, `toy_order66`, `toy_hax`, `toy_ragdoll`, `toy_drone`,
+//! `toy_boombox`). The chosen one is described on a dark card beside the
+//! model, where its key is bound without the console (a click or K, then the key). The
+//! holocron floats lit by the model while it is chosen.
 
-use super::view::{LEFT_X, STAGE_TEXT_WIDTH, STAGE_TEXT_X, glow, left_lines};
+use super::view::{LEFT_X, RIGHT_X};
 use super::*;
 use crate::menu::sjk::{Frame, color, kit, text};
 use crate::menu_widgets::TextFamily;
 use sjk_ui::{Color, DrawCommand, FontWeight, TextAlign, TextureId};
 
-/// The first toy's niche: its corner and size; the next stands [`NICHE_STEP`] to the
-/// right. Seven fit before the words beside the model.
-const NICHE: [f32; 3] = [LEFT_X, 300.0, 148.0];
-const NICHE_STEP: f32 = 160.0;
+/// The rows: their left edge and width, where the column heads and the first row stand,
+/// a row's height and the room between rows. Twelve fit over the keys.
+const ROWS_X: f32 = LEFT_X - 12.0;
+const ROWS_WIDTH: f32 = 860.0;
+const HEADS_Y: f32 = 300.0;
+const ROWS_Y: f32 = 336.0;
+const ROW_HEIGHT: f32 = 84.0;
+const ROW_GAP: f32 = 8.0;
+/// A row's key column: its width, and the room the switch keeps at the row's right.
+const KEY_WIDTH: f32 = 150.0;
+const SWITCH_ROOM: f32 = 130.0;
+/// The chosen toy's card beside the model: its left edge and width, its foot and the
+/// highest its top rises; the room inside it.
+const CARD_X: f32 = 1_360.0;
+const CARD_WIDTH: f32 = RIGHT_X - CARD_X;
+const CARD_BOTTOM: f32 = 990.0;
+const CARD_TOP_MIN: f32 = 300.0;
+const CARD_PAD: f32 = 26.0;
+/// A line of the card's description holds this many characters at the ordinary text
+/// size, a line of its other words this many.
+const ABOUT_CHARS: f32 = 46.0;
+const NOTE_CHARS: f32 = 52.0;
+
+/// Every command a toy is run by, in the order the page is told their keys
+/// ([`Inputs::toy_keys`]): each toy's switch, and Order 66's order after its own.
+pub(crate) const COMMANDS: [&str; 8] = [
+    "toy_illuminate",
+    "toy_box",
+    "toy_order66",
+    "order66",
+    "toy_hax",
+    "toy_ragdoll",
+    "toy_drone",
+    "toy_boombox",
+];
 
 /// One toy as the tab shows it.
 struct Toy {
     /// Its quick wheel icon's name (the pictures are uploaded into the atlas at start).
     icon: &'static str,
-    /// Under its niche.
+    /// On its row.
     name: &'static str,
-    /// Beside the model.
+    /// Its row's line under the name: what it does, in a few words.
+    tag: &'static str,
+    /// On its card.
     title: &'static str,
     what: &'static str,
-    how: &'static str,
+    /// What more its card says under its keys, when there is more to know.
+    more: Option<&'static str>,
+    /// The commands it is run by (the switch's first), and what each key is called.
+    commands: &'static [(&'static str, &'static str)],
     /// The switch's words.
     switch: &'static str,
     token: u16,
@@ -38,67 +77,97 @@ const TOYS: [Toy; TOY_COUNT] = [
     Toy {
         icon: "illuminate",
         name: "Illuminate",
+        tag: "A holocron by your shoulder lights dark maps.",
         title: "Illuminate holocron",
         what: "A holocron floats by your left shoulder and lights the way in dark maps. Other SJK players on your server see it lit.",
-        how: "Bind a key to toy_illuminate, or use the quick wheel's Toys page.",
+        more: None,
+        commands: &[("toy_illuminate", "Your key")],
         switch: "Holocron lit",
         token: TOY_TOKEN,
     },
     Toy {
         icon: "cardboard_box",
         name: "Cardboard box",
+        tag: "Hide in a carton; someone may lift it.",
         title: "Cardboard box",
         what: "Hide in a carton: you crouch in it with its music. Other SJK players see the box; one who walks up and presses Use lifts it. Die in it and everyone hears.",
-        how: "Bind a key to toy_box, or use the quick wheel's Toys page.",
+        more: None,
+        commands: &[("toy_box", "Your key")],
         switch: "In the box",
         token: BOX_TOKEN,
     },
     Toy {
         icon: "order66",
         name: "Order 66",
+        tag: "One order, and everyone in it falls.",
         title: "Order 66",
         what: "When one player with it on executes the order, everyone with it on dies three seconds later and blows apart. One order every 30 seconds.",
-        how: "Bind keys to toy_order66 and order66, or use the quick wheel's Toys page.",
+        more: Some("Join with its switch or key; the order key executes it for everyone in it."),
+        commands: &[("toy_order66", "Join key"), ("order66", "Order key")],
         switch: "In the order",
         token: ORDER_TOKEN,
     },
     Toy {
         icon: "hax",
         name: "Hax",
+        tag: "Hack a player and steer them for five seconds.",
         title: "The Hax",
         what: "Hold Use on a player who has it on too: the siege hack bar fills, then you steer them for five seconds, run, jump and swing included. Turn it off to break free.",
-        how: "Bind a key to toy_hax, or use the quick wheel's Toys page; then hold Use on them.",
+        more: Some("With it on, hold Use on a player who has it on too."),
+        commands: &[("toy_hax", "Your key")],
         switch: "Hacker",
         token: HAX_TOKEN,
     },
     Toy {
         icon: "ragdoll",
         name: "Ragdoll",
+        tag: "Go limp and fall where physics takes you.",
         title: "Ragdoll",
         what: "Go limp and fall where physics takes you, sandbox style, though you are not dead; the camera follows the body. Other SJK players see the same fall. Getting hurt gets you up.",
-        how: "Bind a key to toy_ragdoll, or use the quick wheel's Toys page; press it again to get up.",
+        more: Some("Press its key again to get up."),
+        commands: &[("toy_ragdoll", "Your key")],
         switch: "Limp",
         token: RAGDOLL_TOKEN,
     },
     Toy {
         icon: "drone",
         name: "Drone",
+        tag: "Fly a remote others see; let them peek at you.",
         title: "Drone",
         what: "Your free camera and Peek fly a training remote that other SJK players see, your name over it. With this on, players may peek at you: their drone hovers behind you.",
-        how: "freecam and peek fly it (keep your binds); bind toy_drone to switch, or use the quick wheel.",
+        more: Some("freecam and peek fly it, with the keys you have for them."),
+        commands: &[("toy_drone", "Your key")],
         switch: "Peek me",
         token: DRONE_TOKEN,
     },
     Toy {
         icon: "boombox",
         name: "Boombox",
+        tag: "Play your tracks to the players close by.",
         title: "Boombox",
         what: "Carry an 80s stereo on your shoulder, playing your tracks to the SJK players standing close by. Tracks are sound/boombox/<name>.mp3 files in your pk3s; others hear one when they have it too. For verified players.",
-        how: "Bind keys to toy_boombox and boombox next, or use the quick wheel; boombox in the console lists your tracks.",
+        more: Some("boombox in the console lists your tracks; boombox next skips one."),
+        commands: &[("toy_boombox", "Your key")],
         switch: "Play",
         token: BOOMBOX_TOKEN,
     },
 ];
+
+/// The command toy `toy`'s key `slot` runs (0 its switch's, 1 Order 66's order).
+pub(super) fn command(toy: usize, slot: usize) -> Option<&'static str> {
+    TOYS.get(toy)
+        .and_then(|toy| toy.commands.get(slot))
+        .map(|(command, _)| *command)
+}
+
+/// The keys bound to `command`, as the page was told them; empty for none.
+fn keys_of<'a>(inputs: &'a Inputs<'_>, command: &str) -> &'a str {
+    COMMANDS
+        .iter()
+        .position(|&known| known == command)
+        .and_then(|index| inputs.toy_keys.get(index))
+        .map_or("", String::as_str)
+}
 
 /// A toy's picture: the quick wheel's, uploaded into the atlas at start.
 fn icon(name: &str) -> TextureId {
@@ -106,6 +175,11 @@ fn icon(name: &str) -> TextureId {
         crate::quick_wheel::catalog::icon_index(name)
             .expect("the quick wheel's icons hold every toy's"),
     )
+}
+
+/// The player's text size (`ui_textScale`).
+fn text_scale() -> f32 {
+    crate::text::style::current().scale.max(0.5)
 }
 
 /// A row of dots across the left side at `y`: the room for more.
@@ -135,191 +209,469 @@ pub(super) fn room_for_more(
     );
 }
 
+/// Whether each toy is on now, as `inputs` says, in the order of [`TOYS`].
+fn states(inputs: &Inputs<'_>) -> [bool; TOY_COUNT] {
+    [
+        inputs.illuminate,
+        inputs.cardboard_box,
+        inputs.order66,
+        inputs.hax,
+        inputs.ragdoll,
+        inputs.drone,
+        inputs.boombox,
+    ]
+}
+
 impl Panel {
     /// The Toys tab.
     pub(super) fn toys(&mut self, frame: &Frame, inputs: &Inputs<'_>) {
-        self.lead(
-            frame,
-            "7 toys",
-            "Things to use in a match, from the quick wheel or a key.",
-        );
+        let on = states(inputs);
+        let lit = on.iter().filter(|on| **on).count();
+        let line = match lit {
+            0 => "Switch them here or in a match; other SJK players on your server see what you turn on.".to_owned(),
+            lit => format!("{lit} on now. Switch them here or in a match; other SJK players on your server see what you turn on."),
+        };
+        self.lead(frame, "7 toys", &line);
+        self.toy_heads(frame);
         let chosen = self.toy.min(TOY_COUNT - 1);
         for (index, toy) in TOYS.iter().enumerate() {
-            self.toy_niche(frame, toy, index as f32 * NICHE_STEP, index == chosen);
+            let y = ROWS_Y + index as f32 * (ROW_HEIGHT + ROW_GAP);
+            let key = keys_of(inputs, toy.commands[0].0);
+            self.toy_row(frame, index, toy, y, on[index], key, index == chosen);
         }
-        room_for_more(
-            &mut self.ui,
-            frame,
-            716.0,
-            "More toys will stand here as SJK adds them.",
-        );
-        let on = match chosen {
-            1 => inputs.cardboard_box,
-            2 => inputs.order66,
-            3 => inputs.hax,
-            4 => inputs.ragdoll,
-            5 => inputs.drone,
-            6 => inputs.boombox,
-            _ => inputs.illuminate,
-        };
-        self.toy_beside_model(frame, &TOYS[chosen], on);
+        self.toy_card(frame, inputs, chosen, on[chosen]);
     }
 
-    /// A toy's plinth, `offset` right of the first: brighter when it is the one chosen.
-    fn toy_niche(&mut self, frame: &Frame, toy: &Toy, offset: f32, chosen: bool) {
+    /// The rows' column heads: the toy, its key and its switch.
+    fn toy_heads(&mut self, frame: &Frame) {
         let s = frame.s;
-        let [x, y, size] = NICHE;
-        let x = x + offset;
-        let strength = if chosen { 1.0 } else { 0.45 };
-        glow(
-            &mut self.ui,
-            frame,
-            [x + size * 0.5, y + size * 0.55],
-            size * 0.62,
-            color::GOLD,
-            0.42 * strength,
-        );
-        let rect = frame.rect(x, y, size, size);
+        let right = ROWS_X + ROWS_WIDTH;
+        let key_x = right - SWITCH_ROOM - KEY_WIDTH;
+        for (words, x, width, align) in [
+            ("Toy", ROWS_X + 18.0, 300.0, TextAlign::Start),
+            ("Your key", key_x, KEY_WIDTH, TextAlign::Start),
+            (
+                "On",
+                right - SWITCH_ROOM,
+                SWITCH_ROOM - 18.0,
+                TextAlign::End,
+            ),
+        ] {
+            text(
+                &mut self.ui,
+                TextFamily::Display,
+                format_args!("{words}"),
+                frame.rect(x, HEADS_Y, width, 22.0),
+                15.0 * s,
+                color::MUTED,
+                FontWeight::Semibold,
+                align,
+            );
+        }
+        let _ = self.ui.draw_list_mut().push(DrawCommand::SolidRect {
+            rect: frame.rect(ROWS_X, HEADS_Y + 26.0, ROWS_WIDTH, 1.0),
+            color: color::alpha(color::HOLO, 0.25),
+        });
+    }
+
+    /// Toy `index`'s row at `y`: its picture, name and line, the key bound to it (`key`,
+    /// empty for none) and its switch (`on`), which runs it in place; the chosen one
+    /// framed gold on a soft gold ground.
+    #[allow(clippy::too_many_arguments)]
+    fn toy_row(
+        &mut self,
+        frame: &Frame,
+        index: usize,
+        toy: &Toy,
+        y: f32,
+        on: bool,
+        key: &str,
+        chosen: bool,
+    ) {
+        let s = frame.s;
+        let k = text_scale();
+        let x = ROWS_X;
+        let right = x + ROWS_WIDTH;
+        let area = frame.rect(x, y, ROWS_WIDTH, ROW_HEIGHT);
+        let hovered = self.ui.token_hovered(toy.token);
+        let _ = self.ui.draw_list_mut().push(DrawCommand::RoundedRect {
+            rect: area,
+            radius: 12.0 * s,
+            color: if chosen {
+                color::alpha(color::GOLD, 0.09)
+            } else {
+                color::alpha(color::SPACE, if hovered { 0.78 } else { 0.6 })
+            },
+        });
         let _ = self.ui.draw_list_mut().push(DrawCommand::Border {
-            rect,
-            radius: 14.0 * s,
-            width: 2.0 * s,
+            rect: area,
+            radius: 12.0 * s,
+            width: if chosen { 1.6 } else { 1.0 } * s,
             color: if chosen {
                 color::GOLD_BRIGHT
             } else {
-                color::alpha(color::GOLD, 0.5)
+                color::alpha(color::HOLO, if hovered { 0.35 } else { 0.16 })
             },
         });
-        let art = size * 0.72;
+        let art = 58.0;
         let _ = self.ui.draw_list_mut().push(DrawCommand::TexturedQuad {
-            rect: frame.rect(x + (size - art) * 0.5, y + (size - art) * 0.5, art, art),
+            rect: frame.rect(x + 14.0, y + (ROW_HEIGHT - art) * 0.5, art, art),
             texture: icon(toy.icon),
-            color: Color::new(1.0, 1.0, 1.0, 0.55 + 0.45 * strength),
+            color: Color::new(1.0, 1.0, 1.0, if chosen || on { 1.0 } else { 0.78 }),
         });
-        let _ = self.ui.draw_list_mut().push(DrawCommand::SolidRect {
-            rect: frame.rect(x, y + size + 16.0, size, 2.0),
-            color: color::alpha(color::GOLD, strength),
-        });
+        let key_x = right - SWITCH_ROOM - KEY_WIDTH;
+        let words_x = x + 14.0 + art + 16.0;
+        let words_width = key_x - 16.0 - words_x;
         text(
             &mut self.ui,
             TextFamily::Display,
             format_args!("{}", toy.name),
-            frame.rect(x, y + size + 30.0, size, 30.0),
-            24.0 * s,
+            frame.rect(words_x, y + 12.0, words_width, 30.0 * k),
+            23.0 * s,
             if chosen {
                 color::GOLD_BRIGHT
             } else {
-                color::GOLD
+                color::TEXT
             },
             FontWeight::Semibold,
-            TextAlign::Center,
+            TextAlign::Start,
         );
         text(
             &mut self.ui,
             TextFamily::Body,
-            format_args!("Everyone's"),
-            frame.rect(x, y + size + 62.0, size, 22.0),
+            format_args!("{}", toy.tag),
+            frame.rect(words_x, y + 14.0 + 30.0 * k, words_width, 22.0 * k),
             15.0 * s,
-            color::GOLD,
+            color::MUTED,
             FontWeight::Regular,
-            TextAlign::Center,
+            TextAlign::Start,
         );
-        self.ui.hit_region(toy.token, rect);
+        let middle = y + ROW_HEIGHT * 0.5;
+        if key.is_empty() {
+            text(
+                &mut self.ui,
+                TextFamily::Body,
+                format_args!("Not bound"),
+                frame.rect(key_x, middle - 11.0, KEY_WIDTH, 22.0),
+                15.0 * s,
+                color::QUIET,
+                FontWeight::Regular,
+                TextAlign::Start,
+            );
+        } else {
+            let width = (crate::text::display_width(key, 16.0) * k + 22.0).min(KEY_WIDTH);
+            let cap = frame.rect(key_x, middle - 15.0, width, 30.0);
+            let _ = self.ui.draw_list_mut().push(DrawCommand::Border {
+                rect: cap,
+                radius: 6.0 * s,
+                width: 1.2 * s,
+                color: color::alpha(color::TEXT, 0.55),
+            });
+            text(
+                &mut self.ui,
+                TextFamily::Display,
+                format_args!("{key}"),
+                frame.rect(key_x, middle - 11.0, width, 22.0),
+                16.0 * s,
+                color::TEXT,
+                FontWeight::Semibold,
+                TextAlign::Center,
+            );
+        }
+        // The switch answers before the row, so a click on it is the switch's.
+        let switch_right = right - 18.0;
+        let left = kit::switch(&mut self.ui, frame, switch_right, middle, on, false);
+        let switch_token = TOY_SWITCH_BASE + index as u16;
+        self.ui.hit_region(
+            switch_token,
+            frame.rect(left - 6.0, middle - 20.0, switch_right - left + 12.0, 40.0),
+        );
+        self.ui
+            .hit_region(toy.token, frame.rect(x, y, left - 12.0 - x, ROW_HEIGHT));
     }
 
-    /// What the chosen toy is, beside the model, and its switch (`on`: it is on now).
-    fn toy_beside_model(&mut self, frame: &Frame, toy: &Toy, on: bool) {
+    /// How tall the chosen toy's card stands: its words wrapped in full, its keys, the
+    /// quick wheel's line and its switch.
+    fn toy_card_height(&self, toy: &Toy) -> f32 {
+        let k = text_scale();
+        let line = |size: f32| size * 1.42 * k;
+        let about = crate::menu::sjk::wrap(toy.what, (ABOUT_CHARS / k).max(12.0) as usize).count();
+        let more = toy.more.map_or(0, |more| {
+            crate::menu::sjk::wrap(more, (NOTE_CHARS / k).max(12.0) as usize).count()
+        });
+        CARD_PAD
+            + 24.0
+            + 50.0 * k.max(1.0)
+            + 10.0
+            + about as f32 * line(17.0)
+            + 18.0
+            + toy.commands.len() as f32 * 44.0
+            + 34.0
+            + more as f32 * line(15.0)
+            + 18.0
+            + 48.0
+            + CARD_PAD
+    }
+
+    /// The chosen toy on its card beside the model, over dark glass: what it is, its keys
+    /// (each bound here: a click, or K for the first, then the key), the quick wheel and
+    /// its switch (`on`: it is on now). With no model on show, its picture stands large
+    /// where the model would.
+    fn toy_card(&mut self, frame: &Frame, inputs: &Inputs<'_>, chosen: usize, on: bool) {
         let s = frame.s;
-        let x = STAGE_TEXT_X;
-        let width = STAGE_TEXT_WIDTH;
+        let k = text_scale();
+        let toy = &TOYS[chosen];
         if self.backstage == Backstage::None {
-            glow(
+            super::view::glow(
                 &mut self.ui,
                 frame,
-                [x + 110.0, 400.0],
+                [1_160.0, 560.0],
                 150.0,
                 color::GOLD,
                 0.3,
             );
             let _ = self.ui.draw_list_mut().push(DrawCommand::TexturedQuad {
-                rect: frame.rect(x + 10.0, 300.0, 200.0, 200.0),
+                rect: frame.rect(1_060.0, 460.0, 200.0, 200.0),
                 texture: icon(toy.icon),
                 color: Color::new(1.0, 1.0, 1.0, 1.0),
             });
         }
-        let mut y = 618.0;
+        let height = self.toy_card_height(toy).min(CARD_BOTTOM - CARD_TOP_MIN);
+        let top = CARD_BOTTOM - height;
+        let area = frame.rect(CARD_X, top, CARD_WIDTH, height);
+        let _ = self.ui.draw_list_mut().push(DrawCommand::RoundedRect {
+            rect: area,
+            radius: 16.0 * s,
+            color: color::alpha(color::SPACE, 0.88),
+        });
+        let _ = self.ui.draw_list_mut().push(DrawCommand::RoundedRect {
+            rect: frame.rect(CARD_X + 24.0, top, CARD_WIDTH - 48.0, 3.0),
+            radius: 1.5 * s,
+            color: color::GOLD,
+        });
+        let _ = self.ui.draw_list_mut().push(DrawCommand::Border {
+            rect: area,
+            radius: 16.0 * s,
+            width: 1.2 * s,
+            color: color::alpha(color::HOLO, 0.3),
+        });
+        let x = CARD_X + CARD_PAD;
+        let width = CARD_WIDTH - CARD_PAD * 2.0;
+        let mut y = top + CARD_PAD;
         text(
             &mut self.ui,
             TextFamily::Body,
-            format_args!("Toy"),
+            format_args!("Toy  ·  everyone's"),
             frame.rect(x, y, width, 22.0),
             16.0 * s,
             color::HOLO,
             FontWeight::Semibold,
             TextAlign::Start,
         );
-        y += 26.0;
+        y += 24.0;
         text(
             &mut self.ui,
             TextFamily::Display,
             format_args!("{}", toy.title),
-            frame.rect(x, y, width, 62.0),
-            52.0 * s,
+            frame.rect(x, y, width, 50.0 * k.max(1.0)),
+            40.0 * s,
             color::GOLD_BRIGHT,
             FontWeight::Semibold,
             TextAlign::Start,
         );
-        y += 70.0;
-        y = left_lines(
+        y += 50.0 * k.max(1.0) + 10.0;
+        y = words(
             &mut self.ui,
             frame,
             toy.what,
             [x, y, width],
-            (52, 3),
-            18.0,
+            ABOUT_CHARS,
+            17.0,
             color::TEXT,
-            TextAlign::Start,
-        );
-        y += 4.0;
-        y = left_lines(
-            &mut self.ui,
-            frame,
-            toy.how,
-            [x, y, width],
-            (60, 2),
-            16.0,
-            color::MUTED,
-            TextAlign::Start,
         );
         y += 18.0;
+        for (slot, (command, label)) in toy.commands.iter().enumerate() {
+            let waiting = self.bind_wait == Some(slot);
+            let key = keys_of(inputs, command);
+            let token = if slot == 0 {
+                BIND_TOKEN
+            } else {
+                BIND_SECOND_TOKEN
+            };
+            text(
+                &mut self.ui,
+                TextFamily::Display,
+                format_args!("{label}"),
+                frame.rect(x, y + 8.0, 100.0, 22.0),
+                15.0 * s,
+                color::HOLO,
+                FontWeight::Semibold,
+                TextAlign::Start,
+            );
+            let shown = if waiting {
+                "Press a key..."
+            } else if key.is_empty() {
+                "Bind a key"
+            } else {
+                key
+            };
+            let button_width = (crate::text::display_width(shown, 17.0) * k + 32.0).max(110.0);
+            let button_x = x + 104.0;
+            let rect = frame.rect(button_x, y, button_width, 36.0);
+            let hovered = self.ui.token_hovered(token);
+            let _ = self.ui.draw_list_mut().push(DrawCommand::RoundedRect {
+                rect,
+                radius: 8.0 * s,
+                color: if waiting {
+                    color::alpha(color::GOLD, 0.16)
+                } else {
+                    color::alpha(color::HOLO, if hovered { 0.14 } else { 0.05 })
+                },
+            });
+            let _ = self.ui.draw_list_mut().push(DrawCommand::Border {
+                rect,
+                radius: 8.0 * s,
+                width: 1.2 * s,
+                color: if waiting {
+                    color::GOLD
+                } else if key.is_empty() {
+                    color::alpha(color::HOLO, 0.45)
+                } else {
+                    color::alpha(color::TEXT, 0.55)
+                },
+            });
+            text(
+                &mut self.ui,
+                TextFamily::Display,
+                format_args!("{shown}"),
+                frame.rect(button_x, y + 6.0, button_width, 24.0),
+                17.0 * s,
+                if waiting {
+                    color::GOLD_BRIGHT
+                } else {
+                    color::TEXT
+                },
+                FontWeight::Semibold,
+                TextAlign::Center,
+            );
+            self.ui.hit_region(token, rect);
+            let note_x = button_x + button_width + 12.0;
+            let note = if waiting {
+                "Esc cancels, Backspace clears"
+            } else {
+                command
+            };
+            text(
+                &mut self.ui,
+                TextFamily::Body,
+                format_args!("{note}"),
+                frame.rect(note_x, y + 9.0, (x + width - note_x).max(0.0), 20.0),
+                13.0 * s,
+                color::QUIET,
+                FontWeight::Regular,
+                TextAlign::Start,
+            );
+            y += 44.0;
+        }
+        text(
+            &mut self.ui,
+            TextFamily::Display,
+            format_args!("Quick wheel"),
+            frame.rect(x, y + 4.0, 100.0, 22.0),
+            15.0 * s,
+            color::HOLO,
+            FontWeight::Semibold,
+            TextAlign::Start,
+        );
+        text(
+            &mut self.ui,
+            TextFamily::Body,
+            format_args!("On its Toys page"),
+            frame.rect(x + 104.0, y + 4.0, width - 104.0, 22.0),
+            15.0 * s,
+            color::TEXT,
+            FontWeight::Regular,
+            TextAlign::Start,
+        );
+        y += 34.0;
+        if let Some(more) = toy.more {
+            y = words(
+                &mut self.ui,
+                frame,
+                more,
+                [x, y, width],
+                NOTE_CHARS,
+                15.0,
+                color::MUTED,
+            );
+        }
+        y += 8.0;
+        let _ = self.ui.draw_list_mut().push(DrawCommand::SolidRect {
+            rect: frame.rect(x, y, width, 1.0),
+            color: color::alpha(color::HOLO, 0.18),
+        });
+        y += 10.0;
+        let middle = y + 24.0;
         text(
             &mut self.ui,
             TextFamily::Display,
             format_args!("{}", toy.switch),
-            frame.rect(x, y, 300.0, 30.0),
+            frame.rect(x, middle - 15.0, width - 140.0, 30.0),
             22.0 * s,
             color::TEXT,
             FontWeight::Semibold,
             TextAlign::Start,
         );
-        let right = x + 330.0;
-        let left = kit::switch(&mut self.ui, frame, right, y + 15.0, on, true);
+        let right = x + width;
+        let left = kit::switch(&mut self.ui, frame, right, middle, on, true);
         self.ui.hit_region(
             TOY_SWITCH_TOKEN,
-            frame.rect(left - 4.0, y - 4.0, right - left + 8.0, 38.0),
+            frame.rect(left - 4.0, middle - 19.0, right - left + 8.0, 38.0),
         );
     }
+}
+
+/// `body` from (`x`, `y`) in a column `width` wide, wrapped at `chars` to a line at the
+/// ordinary text size (fewer at a larger one), every line of it; returns where the next
+/// line would stand. The Nameplates tab's card writes its words so too.
+pub(super) fn words(
+    canvas: &mut crate::menu_widgets::MenuCanvas,
+    frame: &Frame,
+    body: &str,
+    [x, mut y, width]: [f32; 3],
+    chars: f32,
+    size: f32,
+    colour: Color,
+) -> f32 {
+    let k = text_scale();
+    let step = size * 1.42 * k;
+    for part in crate::menu::sjk::wrap(body, (chars / k).max(12.0) as usize) {
+        text(
+            canvas,
+            TextFamily::Body,
+            format_args!("{part}"),
+            frame.rect(x, y, width, step),
+            size * frame.s,
+            colour,
+            FontWeight::Regular,
+            TextAlign::Start,
+        );
+        y += step;
+    }
+    y
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    /// Each toy, its words and the switch fit over the keys and answer the pointer,
+    /// Each toy's row, its switch and its card's keys and switch fit over the keys and
+    /// answer the pointer, the rows left of the model's column and the card right of it,
     /// with and without a model, at 1080 lines, 4K, 4:3 and 21:9.
     #[test]
     fn the_toys_fit_over_the_keys() {
         let font = crate::text::load_modern(1.0, None).expect("Inter").font;
+        let keys = ["F5".to_owned(), String::new(), "F6 / K".to_owned()];
         for viewport in [
             [1_920.0, 1_080.0],
             [3_840.0, 2_160.0],
@@ -328,7 +680,10 @@ mod tests {
         ] {
             for backstage in [Backstage::None, Backstage::Preview { ready: true }] {
                 for toy in 0..TOY_COUNT {
-                    let inputs = super::super::tests::inputs(unlockables::Holdings::Known(&[]), "");
+                    let inputs = Inputs {
+                        toy_keys: &keys,
+                        ..super::super::tests::inputs(unlockables::Holdings::Known(&[]), "")
+                    };
                     let mut panel = Panel::new();
                     panel.open(Tab::Toys, true, true, ReturnTarget::InGame);
                     panel.set_backstage(backstage);
@@ -336,27 +691,116 @@ mod tests {
                     panel.build(&inputs, &font, viewport);
                     assert!(!panel.ui.overflowed(), "{viewport:?}");
                     let frame = Frame::new(viewport);
-                    let keys = frame.point(0.0, super::super::view::KEYS_Y)[1];
-                    for token in [
-                        TOY_TOKEN,
-                        BOX_TOKEN,
-                        ORDER_TOKEN,
-                        HAX_TOKEN,
-                        RAGDOLL_TOKEN,
-                        DRONE_TOKEN,
-                        BOOMBOX_TOKEN,
-                        TOY_SWITCH_TOKEN,
-                    ] {
-                        let area = panel.ui.rect_for(token).expect("a target");
-                        assert!(area.bottom() <= keys, "{viewport:?}");
+                    let bottom = frame.point(0.0, super::super::view::KEYS_Y)[1];
+                    let stage_left = frame.point(1_000.0, 0.0)[0];
+                    let stage_right = frame.point(1_320.0, 0.0)[0];
+                    for (index, row) in TOY_TOKENS.iter().enumerate() {
+                        for token in [*row, TOY_SWITCH_BASE + index as u16] {
+                            let area = panel.ui.rect_for(token).expect("a target");
+                            assert!(area.bottom() <= bottom, "{viewport:?}");
+                            assert!(area.right() <= stage_left, "{viewport:?}");
+                        }
+                    }
+                    let mut card = vec![TOY_SWITCH_TOKEN, BIND_TOKEN];
+                    if toy == 2 {
+                        card.push(BIND_SECOND_TOKEN);
+                    }
+                    for token in card {
+                        let area = panel.ui.rect_for(token).expect("a card target");
+                        assert!(area.bottom() <= bottom, "{viewport:?}");
+                        assert!(area.x >= stage_right, "{viewport:?}");
                     }
                     for command in panel.ui.draw_list().commands() {
                         if let DrawCommand::Text { rect, .. } = command {
-                            assert!(rect.bottom() <= keys || rect.y >= keys, "{rect:?}");
+                            assert!(rect.bottom() <= bottom || rect.y >= bottom, "{rect:?}");
+                            assert!(rect.right() <= viewport[0] + 1.0, "{rect:?}");
                         }
                     }
                 }
             }
         }
+    }
+
+    /// Every toy's card holds its words in full below its highest top.
+    #[test]
+    fn every_toy_card_holds_its_words() {
+        let panel = Panel::new();
+        for toy in &TOYS {
+            assert!(
+                panel.toy_card_height(toy) <= CARD_BOTTOM - CARD_TOP_MIN,
+                "{}",
+                toy.name
+            );
+        }
+    }
+
+    /// A toy's key is bound from its card: K (or a click) waits, a key binds it to the
+    /// toy's command, Backspace clears it, Escape lets go without closing the page; Order
+    /// 66's order key binds `order66`.
+    #[test]
+    fn a_toy_key_is_bound_from_its_card() {
+        let mut panel = super::super::tests::drawn(
+            Tab::Toys,
+            &super::super::tests::inputs(unlockables::Holdings::Known(&[]), ""),
+        );
+        assert_eq!(panel.key(KeyCode::KeyK, false, true), PanelAction::None);
+        assert_eq!(panel.bind_wait, Some(0));
+        assert_eq!(
+            panel.bind_key(KeyCode::KeyK, Some("k".to_owned()), 0),
+            PanelAction::Bind {
+                command: "toy_illuminate",
+                key: "k".to_owned(),
+            }
+        );
+        assert_eq!(panel.bind_wait, None, "one key, then it lets go");
+        assert_eq!(
+            panel.bind_key(KeyCode::Backspace, Some("BACKSPACE".to_owned()), 0),
+            PanelAction::Unbind("toy_illuminate")
+        );
+        let _ = panel.key(KeyCode::KeyK, false, true);
+        assert_eq!(
+            panel.bind_key(KeyCode::Escape, Some("ESCAPE".to_owned()), 0),
+            PanelAction::None,
+            "Escape lets go and does not close the page"
+        );
+        assert_eq!(panel.bind_wait, None);
+        // A click elsewhere lets go too; the card's key waits again on its button.
+        panel.bind_wait = Some(0);
+        let fonts = crate::text::load_modern(1.0, None).expect("Inter");
+        panel.build(
+            &super::super::tests::inputs(unlockables::Holdings::Known(&[]), ""),
+            &fonts.font,
+            [1_920.0, 1_080.0],
+        );
+        let rect = panel.ui.rect_for(TOY_SWITCH_TOKEN).expect("the switch");
+        let at = sjk_ui::Vec2::new(rect.x + rect.width * 0.5, rect.y + rect.height * 0.5);
+        for event in [
+            InputEvent::PointerMove(at),
+            InputEvent::PointerPress {
+                position: at,
+                button: sjk_ui::PointerButton::Primary,
+            },
+            InputEvent::PointerRelease {
+                position: at,
+                button: sjk_ui::PointerButton::Primary,
+            },
+        ] {
+            let _ = panel.handle_pointer(event, true);
+        }
+        assert_eq!(panel.bind_wait, None, "a click elsewhere lets go");
+        panel.toy = 2;
+        assert_eq!(
+            panel.bind_key(KeyCode::KeyO, Some("o".to_owned()), 1),
+            PanelAction::Bind {
+                command: "order66",
+                key: "o".to_owned(),
+            }
+        );
+        assert_eq!(command(2, 1), Some("order66"));
+        assert_eq!(command(0, 1), None);
+        assert!(COMMANDS.iter().all(|command| {
+            TOYS.iter()
+                .any(|toy| toy.commands.iter().any(|(known, _)| known == command))
+        }));
     }
 }

@@ -128,9 +128,11 @@ impl ViewerConsole {
             PanelAction::ShaderView(grid) => {
                 self.set_cvar(
                     super::collection_panel::SHADER_VIEW_CVAR,
-                    if grid { "1" } else { "0" },
+                    if grid { "0" } else { "1" },
                 );
             }
+            PanelAction::Bind { command, key } => self.rebind_action(command, 0, &key),
+            PanelAction::Unbind(command) => self.clear_action(command, 0),
             PanelAction::Illuminate(on) => {
                 self.pending_illuminate = Some(on);
                 // The page shows it at once; the viewer applies it next frame.
@@ -321,7 +323,13 @@ impl ViewerConsole {
         let drone = self.drone_on;
         let boombox = self.boombox_on;
         let stock = self.stock_blade();
-        let grid = self.integer_cvar(super::collection_panel::SHADER_VIEW_CVAR) == Some(1);
+        // Tiles unless the list is chosen (`ui_shaderList 1`).
+        let grid = self.integer_cvar(super::collection_panel::SHADER_VIEW_CVAR) != Some(1);
+        let toy_keys = if self.collection_panel.tab() == Tab::Toys {
+            self.toy_keys()
+        } else {
+            Vec::new()
+        };
         let options = self
             .text_cvar(crate::saber_skin_options::CVAR)
             .unwrap_or_default()
@@ -359,6 +367,7 @@ impl ViewerConsole {
                 grid,
                 options: &options,
                 share,
+                toy_keys: &toy_keys,
             };
             self.collection_panel.append_sjk(&inputs, target, viewport);
             self.collection_panel.preview = Some(unlocks);
@@ -383,8 +392,27 @@ impl ViewerConsole {
             grid,
             options: &options,
             share,
+            toy_keys: &toy_keys,
         };
         self.collection_panel.append_sjk(&inputs, target, viewport);
+    }
+
+    /// The keys bound to each of the toys' commands, as players read them ("F5", "F5 /
+    /// K"), in the order of `collection_toys::COMMANDS`; empty for none.
+    fn toy_keys(&self) -> Vec<String> {
+        super::collection_panel::TOY_COMMANDS
+            .iter()
+            .map(|command| {
+                let mut shown = String::new();
+                for key in self.keys_for_command(command) {
+                    if !shown.is_empty() {
+                        shown.push_str(" / ");
+                    }
+                    sjk_shell::key_names::push_display_key(&mut shown, &key);
+                }
+                shown
+            })
+            .collect()
     }
 
     /// Give the Forge what the hub said this frame, read the shop when it asks, and take a

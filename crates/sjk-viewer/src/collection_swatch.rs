@@ -424,6 +424,213 @@ pub(crate) fn small_stock(canvas: &mut DrawList, frame: &Frame, rect: [f32; 4], 
     );
 }
 
+/// How bright a strip draws a shader the player does not hold: a ghost of its colours.
+const GHOST: f32 = 0.42;
+
+/// A blade skin as a thin strip, for the Shaders tab's wall of tiles and its list's rows
+/// (`rect`, frame pixels): a short hilt and the blade along the rest. Owned, its live
+/// picture from the blade renderer when it has one, else a still blade in the skin's own
+/// colours; not held, that still blade dimmed, a ghost of it, so a wall of locked shaders
+/// still tells them apart (25/10/2026); grey while its pack has not come. A handful of
+/// shapes each, so a wall of thirty stays cheap. `turn` turns a chroma's colours.
+pub(crate) fn strip(
+    canvas: &mut DrawList,
+    frame: &Frame,
+    rect: [f32; 4],
+    skin: Option<&LoadedSkin>,
+    owned: bool,
+    turn: f32,
+) -> Shown {
+    let [x, y, width, height] = rect;
+    let centre = y + height * 0.5;
+    let hilt = (height * 1.2).min(width * 0.25);
+    let start = x + hilt;
+    let length = (width - hilt - height * 0.25).max(1.0);
+    let shown = match (owned, skin) {
+        (true, Some(skin)) if real_picture(canvas, frame, skin, rect, [start, centre, length]) => {
+            Shown::Skin
+        }
+        (_, Some(skin)) => {
+            let light = if owned { 1.0 } else { GHOST };
+            still_blade(
+                canvas,
+                frame,
+                &skin.def,
+                [start, centre, length, height],
+                light,
+                turn,
+            );
+            if owned { Shown::Skin } else { Shown::Locked }
+        }
+        (true, None) => {
+            grey_strip(canvas, frame, [start, centre, length, height], 1.6);
+            Shown::Waiting
+        }
+        (false, None) => {
+            grey_strip(canvas, frame, [start, centre, length, height], 1.0);
+            Shown::Locked
+        }
+    };
+    let shade = if owned { 1.0 } else { 0.55 };
+    let steel = |level: f32| {
+        Color::new(
+            level * shade,
+            (level + 0.02) * shade,
+            (level + 0.06) * shade,
+            1.0,
+        )
+    };
+    push(
+        canvas,
+        DrawCommand::GradientRect {
+            rect: frame.rect(x, centre - height * 0.2, hilt - height * 0.2, height * 0.4),
+            radius: height * 0.08 * frame.s,
+            gradient: Gradient {
+                start: steel(0.78),
+                end: steel(0.3),
+                vertical: true,
+            },
+        },
+    );
+    push(
+        canvas,
+        DrawCommand::RoundedRect {
+            rect: frame.rect(
+                start - height * 0.24,
+                centre - height * 0.27,
+                height * 0.24,
+                height * 0.54,
+            ),
+            radius: height * 0.06 * frame.s,
+            color: steel(0.7),
+        },
+    );
+    shown
+}
+
+/// The stock blade as a [`strip`], in `colour`: its glow round a white core, from the
+/// same short hilt.
+pub(crate) fn stock_strip(canvas: &mut DrawList, frame: &Frame, rect: [f32; 4], colour: Color) {
+    let [x, y, width, height] = rect;
+    let centre = y + height * 0.5;
+    let hilt = (height * 1.2).min(width * 0.25);
+    let start = x + hilt;
+    let length = (width - hilt - height * 0.25).max(1.0);
+    let tint = |alpha: f32| Color::new(colour.r, colour.g, colour.b, alpha);
+    capsule(
+        canvas,
+        frame,
+        [
+            start - height * 0.15,
+            centre - height * 0.5,
+            length + height * 0.35,
+            height,
+        ],
+        tint(0.2),
+    );
+    capsule(
+        canvas,
+        frame,
+        [
+            start,
+            centre - height * 0.29,
+            length + height * 0.1,
+            height * 0.58,
+        ],
+        tint(0.7),
+    );
+    capsule(
+        canvas,
+        frame,
+        [start, centre - height * 0.12, length, height * 0.24],
+        Color::new(1.0, 1.0, 1.0, 1.0),
+    );
+    push(
+        canvas,
+        DrawCommand::GradientRect {
+            rect: frame.rect(x, centre - height * 0.2, hilt - height * 0.2, height * 0.4),
+            radius: height * 0.08 * frame.s,
+            gradient: Gradient {
+                start: Color::new(0.78, 0.8, 0.84, 1.0),
+                end: Color::new(0.3, 0.32, 0.36, 1.0),
+                vertical: true,
+            },
+        },
+    );
+}
+
+/// A still blade in `def`'s own colours from `start` along `length` at `centre`, `height`
+/// across its glow, at `light` (1 owned, [`GHOST`] not held): its haze, its corona and its
+/// core, a chroma's colours turned `turn`.
+fn still_blade(
+    canvas: &mut DrawList,
+    frame: &Frame,
+    def: &BladeSkinDef,
+    [start, centre, length, height]: [f32; 4],
+    light: f32,
+    turn: f32,
+) {
+    let colour = |u: f32, alpha: f32| {
+        let rgb = gradient(def, u);
+        let rgb = if turn == 0.0 {
+            rgb
+        } else {
+            crate::saber_skins::turn_hue(rgb, turn)
+        };
+        ui(rgb, alpha * light)
+    };
+    capsule(
+        canvas,
+        frame,
+        [
+            start - height * 0.15,
+            centre - height * 0.5,
+            length + height * 0.35,
+            height,
+        ],
+        colour(0.1, 0.2),
+    );
+    capsule(
+        canvas,
+        frame,
+        [
+            start,
+            centre - height * 0.29,
+            length + height * 0.1,
+            height * 0.58,
+        ],
+        colour(0.45, 0.6),
+    );
+    capsule(
+        canvas,
+        frame,
+        [start, centre - height * 0.12, length, height * 0.24],
+        colour(1.0, 0.95),
+    );
+}
+
+/// A grey, still strip of blade: locked with its pack not come (`light` 1), or owned
+/// with its look still to come (brighter).
+fn grey_strip(
+    canvas: &mut DrawList,
+    frame: &Frame,
+    [start, centre, length, height]: [f32; 4],
+    light: f32,
+) {
+    capsule(
+        canvas,
+        frame,
+        [start, centre - height * 0.25, length, height * 0.5],
+        color::alpha(color::QUIET, 0.25 * light),
+    );
+    capsule(
+        canvas,
+        frame,
+        [start, centre - height * 0.1, length, height * 0.2],
+        color::alpha(color::MUTED, (0.45 * light).min(1.0)),
+    );
+}
+
 /// `a` to `b` by `t`.
 fn mix(a: Rgb, b: Rgb, t: f32) -> Rgb {
     std::array::from_fn(|channel| a[channel] + (b[channel] - a[channel]) * t)

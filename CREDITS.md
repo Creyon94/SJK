@@ -200,6 +200,9 @@ includes:
 - chroma saber shaders that take the wearer's saber colour, marked with a colour wheel;
 - saber shader tiers (the holocrons' Uncommon to Mythical) and the Collection's grid of
   shader cards;
+- the Collection's revamp: Shaders as a wall of tiles by tier and a sortable list, locked
+  shaders in their own colours, Toys as rows with their own switches and keys bound from
+  the page, and every tab's words on dark ground at every window shape;
 - rarity effects: Rare frames breathing, Legendary sheens, Mythical sparks and motes,
   shared by shaders and holocrons;
 - the player card's saber shader, profile picture, SJK TEAM mark, holocron gem and, pinned,

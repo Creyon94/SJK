@@ -104,6 +104,7 @@ did: Nine more saber shaders, from Molten's lava to Runic's glyphs of your name
 did: Medals that bring a saber shader while you hold them
 did: Chroma saber shaders that take your saber colour
 did: Saber shader tiers, as the holocrons', and a grid of cards to browse them
+did: The Collection's revamp: a wall of shaders by tier, a sortable list, toys with their keys
 did: Rarity effects: Rare frames breathe, Legendary shine, Mythical spark
 did: Player cards with the worn saber shader, picture, SJK TEAM mark and achievements
 did: The kill feed with weapon icons

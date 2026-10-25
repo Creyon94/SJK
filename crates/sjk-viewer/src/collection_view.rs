@@ -29,10 +29,6 @@ pub(crate) const MODEL_AREA: [f32; 4] = [760.0, 110.0, 820.0, 840.0];
 /// the screen above the shader's card: on the menu map's stage before the backdrop
 /// camera, and over a match in the live preview drawn there.
 pub(crate) const SABER_AREA: [f32; 4] = [1_000.0, 196.0, RIGHT_X - 1_000.0, 300.0];
-/// Under Shaders, Toys and Nameplates, the column that says what is chosen, over the
-/// clear right of the screen beside the model.
-pub(super) const STAGE_TEXT_X: f32 = 1_300.0;
-pub(super) const STAGE_TEXT_WIDTH: f32 = RIGHT_X - STAGE_TEXT_X;
 
 /// The tick bar at the top right: a tick's size, the gaps between ticks and groups.
 /// The tally's bar at the top right: as wide as its words, a stretch to a tab.
@@ -154,6 +150,7 @@ pub(crate) fn row_labels(
         grid: false,
         options: "",
         share: false,
+        toy_keys: &[],
     };
     counts(&inputs).iter().map(|count| count.label()).collect()
 }
@@ -319,25 +316,6 @@ impl Panel {
             );
             self.tally(&frame, &counts);
         }
-        // A window narrower than 16:9 shows the model nearer the words beside it: they
-        // keep a dark ground of their own.
-        if kit && self.backstage != Backstage::None && viewport[0] / viewport[1] < 1.7 {
-            // A soft dark pad: rounded layers stacked from the rim inwards.
-            const LAYERS: usize = 6;
-            for layer in 0..LAYERS {
-                let inset = layer as f32 * 14.0;
-                let _ = self.ui.draw_list_mut().push(DrawCommand::RoundedRect {
-                    rect: frame.rect(
-                        STAGE_TEXT_X - 90.0 + inset,
-                        590.0 + inset,
-                        RIGHT_X - STAGE_TEXT_X + 150.0 - inset * 2.0,
-                        360.0 - inset * 2.0,
-                    ),
-                    radius: (80.0 - inset) * frame.s,
-                    color: color::alpha(color::SPACE, 0.14),
-                });
-            }
-        }
         match self.tab {
             Tab::Medals => self.medals(&frame, inputs),
             Tab::Achievements => self.achievements(&frame, inputs),
@@ -493,8 +471,10 @@ impl Panel {
                     keys.push((&["V"], "list"));
                 } else {
                     keys.push((&["Up", "Down"], "choose"));
-                    keys.push((&["V"], "grid"));
+                    keys.push((&["S"], "sort"));
+                    keys.push((&["V"], "tiles"));
                 }
+                keys.push((&["T"], "tier"));
                 keys.push((&["/"], "search"));
                 let worn = self.shader_rows.get(self.shader).and_then(|row| row.wear);
                 match worn {
@@ -502,6 +482,10 @@ impl Panel {
                     Some(_) => keys.push((&["Enter"], "equip")),
                     None => {}
                 }
+            }
+            Tab::Toys if self.bind_wait.is_some() => {
+                keys.push((&["Esc"], "cancel"));
+                keys.push((&["Backspace"], "clear the key"));
             }
             Tab::Toys => keys.push((
                 &["Enter"],
@@ -524,8 +508,12 @@ impl Panel {
             )),
             _ => {}
         }
+        if self.tab == Tab::Toys && self.bind_wait.is_none() {
+            keys.push((&["K"], "bind a key"));
+        }
         let covered = (self.tab == Tab::Cards && self.card_inspect)
-            || (self.tab == Tab::Forge && self.forge.ask.is_some());
+            || (self.tab == Tab::Forge && self.forge.ask.is_some())
+            || (self.tab == Tab::Toys && self.bind_wait.is_some());
         if !covered {
             keys.push((&["Ctrl", "Tab"], self.tab.next(true).label()));
             keys.push((&["Esc"], "back"));
@@ -544,8 +532,15 @@ impl Panel {
     }
 }
 
-/// Dark behind the things on the left, fading out before the model; light fades at the
-/// top behind the title and at the bottom behind the showcase's words and the keys.
+/// Where the band behind the title and the tabs holds solid, and where it has faded out,
+/// in frame pixels (25/10/2026, Sol: the tabs on top must read over any map).
+const HEADER_SOLID: f32 = 200.0;
+const HEADER_CLEAR: f32 = 290.0;
+
+/// Dark behind the things on the left, fading out at the stage before the model; a band
+/// behind the title and the tabs, solid under them and fading out above the stage, as
+/// the Holocrons page's; dark at the bottom behind the keys. The words beside the model
+/// stand on cards of their own.
 fn stage_scrims(canvas: &mut crate::menu_widgets::MenuCanvas, viewport: [f32; 2], frame: &Frame) {
     let [width, height] = viewport;
     let space = |alpha| color::alpha(color::SPACE, alpha);
@@ -553,25 +548,36 @@ fn stage_scrims(canvas: &mut crate::menu_widgets::MenuCanvas, viewport: [f32; 2]
     let y = |frame_y: f32| frame.point(0.0, frame_y)[1];
     fade_across(
         canvas,
-        sjk_ui::Rect::new(0.0, 0.0, x(780.0), height),
+        sjk_ui::Rect::new(0.0, 0.0, x(900.0), height),
         space(0.94),
-        space(0.86),
+        space(0.88),
     );
     fade_across(
         canvas,
-        sjk_ui::Rect::new(x(780.0), 0.0, x(1_060.0) - x(780.0), height),
+        sjk_ui::Rect::new(x(900.0), 0.0, x(1_060.0) - x(900.0), height),
+        space(0.88),
+        space(0.0),
+    );
+    fade(
+        canvas,
+        sjk_ui::Rect::new(0.0, 0.0, width, y(HEADER_SOLID)),
+        space(0.86),
+        space(0.86),
+    );
+    fade(
+        canvas,
+        sjk_ui::Rect::new(
+            0.0,
+            y(HEADER_SOLID),
+            width,
+            y(HEADER_CLEAR) - y(HEADER_SOLID),
+        ),
         space(0.86),
         space(0.0),
     );
     fade(
         canvas,
-        sjk_ui::Rect::new(0.0, 0.0, width, y(250.0)),
-        space(0.7),
-        space(0.0),
-    );
-    fade(
-        canvas,
-        sjk_ui::Rect::new(0.0, y(560.0), width, height - y(560.0)),
+        sjk_ui::Rect::new(0.0, y(860.0), width, height - y(860.0)),
         space(0.0),
         space(0.86),
     );
