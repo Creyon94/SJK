@@ -9,8 +9,11 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
-+ 25/10/2026 | - | Revert "Reapply kyber crystals on main after release 2026.1025.1"
++ 25/10/2026 | - | Reapply kyber crystals on main after release 2026.1025.2
+- f748baf |  | Reapply kyber crystals on main after release 2026.1025.2
++ 25/10/2026 | - | Release 2026.1025.2
 - 291a4dd |  | Revert "Reapply kyber crystals on main after release 2026.1025.1"
+- 285443e |  | Release 2026.1025.2 (Alpha)
 + 25/10/2026 | - | Credits history can leave topics out
 - 03cf654 |  | Credits history: topics it leaves out (QUIET)
 + 25/10/2026 | - | opt-in BC1/BC3 texture compression, r_textureCompression
