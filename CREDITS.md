@@ -287,6 +287,9 @@ includes:
 - small graphics cards found at start: the card's video memory read from DXGI, a card
   of 4 GB or less starting on lower texture detail and menu pictures, and saber shader
   swatches drawn instead of rendered live while the menu pictures are on;
+- the Experimental preset's lamp memory cut (25/10/2026): lamp shadow distances packed two
+  to a texel, lamp lists in 16 bits, and the lamp light cache sized to the graphics card,
+  up to 390 MiB less on 8 GB cards;
 - decoded textures freed once nothing uses them (25/10/2026): the cache kept every
   texture of every map seen in a session, up to about 0.8 GB more after a few maps;
 - card pictures decoded and uploaded only when a screen draws them (25/10/2026), at
