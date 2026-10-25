@@ -9,6 +9,14 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 25/10/2026 | - | Encrypted whispers for verified players, JoF keeps whispers, signed whisper reports
+- 115d92c |  | Encrypted whispers for verified players; JoF keeps whispers; signed whisper reports
++ 25/10/2026 | - | Drone at the game's size; hidden from the watched player, who reads who spectates
+- cb5dd2b |  | Drone: game-size remote, hidden from the player it watches
++ 25/10/2026 | - | Toy volume and a mute switch per toy, Settings > Sound > Toys
+- 37f4008 |  | Toy sounds: a toy volume and a switch per toy in Settings > Sound > Toys
++ 25/10/2026 | - | Console socket test: hand the output over once the password has arrived
+- eaf24fb |  | Console socket test: hand the output over once the password has arrived
 + 25/10/2026 | - | No console window on Windows; SJK.app bundle on macOS
 - 13beb79 |  | One window: no console on Windows, SJK.app on macOS
 + 25/10/2026 | - | Credits history: a review branch's "Merge PR #N (Author: title)" counts as SJK #N
@@ -2508,6 +2516,9 @@
 - fed9acd |  | Hide duel opponents' bars and send nothing while duelling
 
 = Slash
++ 25/10/2026 | SJK #207 | Count site visits with GoatCounter
+- 420c449 |  | Count site visits with GoatCounter
+- eb13752 |  | Update GoatCounter script source URL
 + 25/10/2026 | SJK #205 | Stage player model installs and pool body copies ahead of deaths
 - a77107c |  | Stage player model installs and pool body copies ahead of deaths
 - 4468c35 |  | Drop the all-at-once prepared texture upload, unused since players upload one a frame

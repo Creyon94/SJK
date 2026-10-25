@@ -41,6 +41,7 @@ PEOPLE = {
     "LukasMoudry": "Lukas",
     "JoFSlash": "Slash",
     "slashrq": "Slash",
+    "Slash": "Slash",
     "Milamber0": "Milamber",
     "Stéphane Roblin": "Milamber",
     "Claude": None,
