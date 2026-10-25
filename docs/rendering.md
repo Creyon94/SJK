@@ -552,13 +552,20 @@ All of a model's textures in one frame were the `config-refresh` hitches of Slas
 for `solfox` and `azuki`, each 11 to 19 ms after `client N now wears`. A material list
 appended once in a world is reused by every later install of the same list
 (`ClientInfoWatch::appended`): Kyle standing in for each model this PC lacks still cost
-32 to 55 ms a time with its textures cached. The worker also builds the model's body
+32 to 55 ms a time with its textures cached. A reused list still asks for what its
+pipelines lack (`Runtime::reused_pipeline_jobs`), so a second player on a model whose
+pipelines are still compiling for the first waits too rather than compiling them on its
+first draw, and textures already up cost no frame. The worker also builds the model's body
 copy, which a later frame of its own puts in the body pool drawing with the model's
 materials (as one hilt mesh serves every player): a player's first death with a model
 built that copy on the render thread (`corpse_actors.rs`), the 35 to 310 ms
-`pose+skin+upload` hitches of the same log at kills. An install over 4 ms logs
-`model install <model>: X ms (materials, geometry for N vertices, skin)`. Not measured
-since.
+`pose+skin+upload` hitches of the same log at kills. Only a body the player will leave is
+prepared: bodies wear the player's own model (`GpuState::body_appearance`), so under
+`cg_forceModel` or a team model override no copy is pooled and the first death builds it
+as before. The pool keeps one copy per appearance worn in the world, geometry only (the
+materials are the model's), until the map changes: a player cycling skins adds one each.
+An install over 4 ms logs `model install <model>: X ms (materials, geometry for N
+vertices, skin)`, a pooled body `body copy <model>: ...`. Not measured since.
 
 ## Graphics reload
 

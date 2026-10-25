@@ -54,6 +54,9 @@ pub(crate) struct Request {
     pub(crate) saber_names: [Option<String>; 2],
     /// The model failed in this world before: Kyle at once.
     pub(crate) known_failed: bool,
+    /// Build a body copy for the body pool: the player's bodies wear this model, not a
+    /// forced or overridden one ([`GpuState::body_appearance`]).
+    pub(crate) pool_body: bool,
 }
 
 struct Task {
@@ -242,18 +245,23 @@ fn prepare(request: Request, sources: Sources) -> Prepared {
             Err(error) => (load(&kyle)?, Some(error)),
         }
     };
-    let mut body_scene = FlattenedScene::default();
     // As the world load pairs each player with one (`actor_load.rs`).
-    let body = build_actor_mesh(
-        &mut body_scene,
-        preview.clone(),
-        None,
-        true,
-        request.appearance.clone(),
-        request.saber_names.clone(),
-    )
-    .ok()
-    .map(|mesh| (mesh, body_scene));
+    let body = request
+        .pool_body
+        .then(|| {
+            let mut body_scene = FlattenedScene::default();
+            build_actor_mesh(
+                &mut body_scene,
+                preview.clone(),
+                None,
+                true,
+                request.appearance.clone(),
+                request.saber_names.clone(),
+            )
+            .ok()
+            .map(|mesh| (mesh, body_scene))
+        })
+        .flatten();
     let mut scene = FlattenedScene::default();
     let mesh = build_actor_mesh(
         &mut scene,
@@ -322,13 +330,17 @@ impl GpuState {
             return;
         }
         if let Some(mut uploading) = uploading {
-            if let Some(texture) = uploading.loaded.textures.pop() {
-                self.world_materials
-                    .upload_prepared_texture(&self.device, &self.queue, texture);
-                self.clientinfo_watch.loads.uploading = Some(uploading);
-            } else {
-                self.install_player_model(uploading.client, uploading.appearance, uploading.loaded);
+            // A texture already up (a model shown again) costs no frame of its own.
+            while let Some(texture) = uploading.loaded.textures.pop() {
+                if self
+                    .world_materials
+                    .upload_prepared_texture(&self.device, &self.queue, texture)
+                {
+                    self.clientinfo_watch.loads.uploading = Some(uploading);
+                    return;
+                }
             }
+            self.install_player_model(uploading.client, uploading.appearance, uploading.loaded);
             return;
         }
         let Some((client, appearance, prepared)) = finished else {
@@ -434,7 +446,7 @@ impl GpuState {
             body.scene,
             body.material_base,
             &body.appearance,
-            std::time::Duration::ZERO,
+            ("body copy", std::time::Duration::ZERO),
         ) {
             Ok(mut mesh) => {
                 mesh.corpse_pool = true;
@@ -468,6 +480,7 @@ mod tests {
             entity_id: EntityId::new(u64::from(client) + 1),
             saber_names: [None, None],
             known_failed: false,
+            pool_body: true,
         }
     }
 

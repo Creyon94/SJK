@@ -748,15 +748,16 @@ impl Runtime {
     /// Upload one texture a worker prepared, under its material key, so the materials
     /// appended next find it uploaded and only copy it to the GPU: an HD pack's texture
     /// with its mips is near 90 MB to copy, so a model's textures go up one a frame.
+    /// False when there was nothing to copy (already uploaded, or mipmaps off).
     pub(crate) fn upload_prepared_texture(
         &mut self,
         device: &wgpu::Device,
         queue: &crate::frame_queue::FrameQueue,
         texture: PreparedTexture,
-    ) {
+    ) -> bool {
         if !self.forge.filtering.mipmapped() || self.forge.texture_cache.contains_key(&texture.key)
         {
-            return;
+            return false;
         }
         // A failure leaves the texture to the material's own upload; one the card had
         // no memory for is invalid and must not be cached.
@@ -780,6 +781,7 @@ impl Runtime {
                 texture.key
             )),
         }
+        true
     }
 
     /// The keys of the textures uploaded so far, for [`Self::forget_textures_since`].

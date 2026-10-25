@@ -1,15 +1,20 @@
 ## Player model and body stutters
 
-24/10/2026, `claude/sweet-pasteur-hitches`, based on `main` `f52f7758` (Slash's log on
-a built-in Radeon: 39 hitches in 20 minutes on a JoF server, `config-refresh` 30 to
-425 ms 11 to 19 ms after `client N now wears`, `pose+skin+upload` 35 to 310 ms at
-kills). Players' models go up one texture a frame, repeated models reuse their
-appended materials, and each model's body copy is built on the loading worker and
-pooled in a frame of its own ([rendering.md](rendering.md#geometry-and-pipelines-added-during-a-match)).
-An install over 4 ms logs its parts. Checked by the viewer build on Linux without a GPU;
-tests and Clippy not run. Not verified: any frame in game, the hitches gone, the look of
-a body drawn with the model's materials, that every `pose+skin+upload` hitch was a body
-copy (some had no load or kill near them).
+24/10/2026, Slash's `claude/sweet-pasteur-hitches` (PR #205), based on `main` `f52f7758`,
+merged 25/10/2026 as `personal/pr-205-model-staging` (Slash's log on a built-in Radeon: 39
+hitches in 20 minutes on a JoF server, `config-refresh` 30 to 425 ms 11 to 19 ms after
+`client N now wears`, `pose+skin+upload` 35 to 310 ms at kills). Players' models go up one
+texture a frame, repeated models reuse their appended materials, and each model's body
+copy is built on the loading worker and pooled in a frame of its own
+([rendering.md](rendering.md#geometry-and-pipelines-added-during-a-match)). An install
+over 4 ms logs its parts. At the merge: a reused material list asks again for the
+pipelines it still lacks (a second install during the first's compile waited for nothing
+before), a body copy is pooled only when bodies wear the live model (not under
+`cg_forceModel` or a team model override, where no death would take it), its log line says
+`body copy`, and textures already uploaded cost no frame; main's texture compression and
+picmip upload (`upload_levels`) kept as they were. Verified at the merge: fmt, workspace
+build, Clippy and tests. Not verified: any frame in game, the hitches gone, the look of a
+body drawn with the model's materials, that every `pose+skin+upload` hitch was a body copy.
 
 ## Site refresh
 
