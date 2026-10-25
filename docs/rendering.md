@@ -322,6 +322,20 @@ texture cannot select a stale chain by filename. Active uploads may temporarily
 retain evicted data. These budgets do not describe total process memory. Cache
 locking and allocation happen during loading, not during drawing.
 
+The decoded images themselves ([decoded_image_cache.rs](../crates/sjk-viewer/src/decoded_image_cache.rs),
+one per file name and content, full size whatever `r_picmip`) were never dropped until
+25/10/2026: every texture of every map, model and HUD seen in a session stayed in
+memory. Once the images held grow 128 MiB past what the last sweep kept, the next image
+decoded sweeps out every image only the cache holds; an image a world's shared
+textures, the mip cache or a loader still holds stays, so an address used as a key is
+never freed and reused, and textures shared across a map change are shared as before.
+`map_changes_vram` prints the bytes held: four maps cycled three times at r_picmip 2
+(an install with HD texture packs) held 1750 MiB from the third map
+on before, 906 to 1178 MiB after (the current map's own images), with the same video
+memory and the same 302 shared textures. Not holding the images in the shared textures
+as well (keys by content rather than address) would free only 200 to 350 MiB more of
+that: the rest is held by other world structures.
+
 Lamp extraction uses up to four workers for ordinary maps as well as large ones,
 preserving emitter output order. Each emitter reuses sorted neighboring patch
 IDs while its spatial cell and patch count remain unchanged; live patch moments
@@ -629,8 +643,9 @@ then mp/siege_desert, mp/ffa3, mp/siege_desert, mp/ffa3, as map changes on one
 device. Before: 11.0 to 12.5 GB private bytes once on a server (the GPU allocator
 reserving 5.2 to 5.9 GB). After: 7.2 to 7.4 GB (4.1 to 4.2 GB reserved for 3.3 to
 3.4 GB in use). Old worlds were freed in both (the resource counts went back down
-each time): it was not a leak. Each world also keeps about 1 GB of CPU memory
-after loading, not looked into yet.
+each time): it was not a leak. Each world also kept about 1 GB of CPU memory
+after loading; most of it was the decoded images, which no longer pile up from map to
+map ([Load-time texture and light preparation](#load-time-texture-and-light-preparation)).
 
 The players' "world installer stopped unexpectedly" (18/10/2026: 33 hub crash
 reports, `wgpu error: Out of Memory` in `create_texture` on `sjk-world-install`, on
