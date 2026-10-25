@@ -74,6 +74,8 @@ pub(super) fn counts(inputs: &Inputs<'_>) -> [Count; 8] {
             .filter(|skin| inputs.holdings.unlock(skin.id).is_some())
             .count()
     });
+    // Out of the shaders the player sees: an unheld Unique one is not counted.
+    let shaders_shown = inputs.holdings.listed_count();
     [
         Count {
             held: medals,
@@ -85,7 +87,7 @@ pub(super) fn counts(inputs: &Inputs<'_>) -> [Count; 8] {
         },
         Count {
             held: shaders,
-            total: unlockables::ALL.len(),
+            total: shaders_shown,
         },
         // Every toy is everyone's (Illuminate, the cardboard box, Order 66).
         Count {

@@ -54,7 +54,7 @@ macro_rules! signature {
 /// Blade Lab designs reworked in full (19/10/2026: the Star Wars rework; the Bleeding Kyber in
 /// round 9), which replace their hand-ported designs (`blade_lab_designs.rs`). Sol's Sun
 /// (blade 001) became one on 20/10/2026, keeping its file's look under its own.
-pub(crate) const SIGNATURES: [Signature; 130] = [
+pub(crate) const SIGNATURES: [Signature; 131] = [
     signature!("sun"),
     signature!("abyssal_eye"),
     signature!("aurora_wyrm"),
@@ -188,6 +188,8 @@ pub(crate) const SIGNATURES: [Signature; 130] = [
     signature!("alderaan_velvet"),
     // 21/10/2026: Sol's Varykino Blossom, after Kushina's idea (blade 166).
     signature!("varykino_blossom"),
+    // 25/10/2026: Sol's Thousand Cranes (blade 167), the first Unique blade.
+    signature!("thousand_cranes"),
 ];
 
 /// The lab's helpers every signature may call (`lab.glsl`, translated).
@@ -445,11 +447,12 @@ impl Signature {
     /// The shader its pipelines are built from: `saber.wgsl` with its own signature.
     pub(crate) fn module_source(&self) -> String {
         let source = slim(&module_source(include_str!("saber.wgsl"), self.wgsl));
-        // A mythical blade's awakening, breath and clash ring (round 19, `sig_mythic`),
-        // unless it draws its own (`@moments own`).
+        // A mythical blade's awakening, breath and clash ring (round 19, `sig_mythic`), and a
+        // Unique one's (25/10/2026, Sol: Mythical's level of effects), unless it draws its own
+        // (`@moments own`).
         if !self.own_moments()
             && crate::unlockables::find(self.id)
-                .is_some_and(|unlockable| unlockable.tier == crate::unlockables::Rarity::Mythical)
+                .is_some_and(|unlockable| unlockable.tier >= crate::unlockables::Rarity::Mythical)
         {
             source.replacen(
                 "const SIG_MYTHICAL: bool = false;",

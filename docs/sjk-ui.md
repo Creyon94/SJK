@@ -1562,7 +1562,10 @@ for the run.
   as pills: Saber with its count, and Body ("soon", not offered yet). Then the rack, a
   row of 106 to each: the stock blade first (its swatch in the player's `color1`), then
   every blade skin, the rarest tier first (10/10/2026: Mythical, Legendary, Rare, then
-  Uncommon, the holocrons' tiers and colours), each with its live swatch
+  Uncommon, the holocrons' tiers and colours; Unique above them since 25/10/2026, shown
+  only to a player who holds one: to anyone else a Unique shader is not listed, found by
+  the search, counted in "N of M owned", the Saber pill, the tab's count or the tally,
+  and has no chip, [unlockables.md](unlockables.md#unique-shaders)), each with its live swatch
   ([unlockables.md](unlockables.md#tiers)) framed in its tier's colour, alive
   when owned, grey and still under a padlock when not, its name at 28 and its state
   (Worn, Yours, Locked, "In your colour") with the tier's name at the line's right in
@@ -1766,7 +1769,7 @@ takes no input.
 | --- | --- | --- |
 | Medal | `Medal::how_to_get` (given by the SJK team, and for what) | the blade it brings while held; "Yours: given dd/mm/yyyy" or "Not given to you yet" |
 | Achievement | its goal | who counts it (SJK in matches, or the hub); "Unlocked dd/mm/yyyy" or "n of goal so far" |
-| Shader | the stock blade is everyone's; a blade skin's `how_to_get` | its tier; "Yours since dd/mm/yyyy", or locked (try it on here), or why holdings are not known |
+| Shader | the stock blade is everyone's; a blade skin's `how_to_get` | its tier; "Yours since dd/mm/yyyy", or locked (try it on here), or why holdings are not known (never a Unique one the player lacks) |
 | Toy | everyone's, and where to light it | "Yours" |
 | Card (a binder tile) | from opening holocrons: how many holocrons found hold a card of its rarity ([loot table](holocrons.md#loot-table)), one of how many of that rarity | its rarity, kind and set, no number (a sealed tile: picked when revealed); the copies by finish and edition and when the first was found, or "Not found yet" |
 | Holocron tier (Holocrons tab) | found by playing, the pace and the daily cap | the tier's share of drops and staff gifts; how many held |
@@ -2236,6 +2239,7 @@ group in the script (`SYMBOLS`) and gets its name in `symbols.rs`.
 | U+E002 | octagon with one upright bar | Rare |
 | U+E003 | octagon with a cross round a core | Legendary |
 | U+E004 | the Legendary mark in a second, outer octagon | Mythical |
+| U+E005 | Mythical's two octagons round a solid four-point star | Unique (25/10/2026) |
 | U+E010 | a card's outline | Normal finish |
 | U+E011 | a card with two slanting bands | Holo finish |
 | U+E012 | a card with a sun at its heart | Solar finish |

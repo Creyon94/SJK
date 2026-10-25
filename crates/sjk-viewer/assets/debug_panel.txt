@@ -2143,6 +2143,19 @@ test: Collection > Shaders > its parts: Falling blossoms off, swing: no petals.
 test: A second client sees your petals, and none once you switched them off.
 note: Hub drops need the hub branch varykino-blossom deployed; the client's own file draws it.
 
+[thousand-cranes]
+area: Rendering & effects
+title: Thousand Cranes, the first Unique blade (hand-given, hidden unless owned)
+change: Blade 167: silk-white blade, red thread, origami cranes circling, golden crane at tip.
+change: New Unique tier (rose): never drops, sold or traded; hidden from players who lack it.
+change: A swing releases paper cranes that climb away; a clash startles a ring of cranes.
+test: Collection > Shaders without it: no Thousand Cranes, no Unique chip, totals unchanged.
+test: Staff grant saber_thousand_cranes: it shows first in Shaders with its rose Unique mark.
+test: Wear it: cranes circle and rise, unfold as the blade lights, golden crane over the tip.
+test: Swing hard: coloured paper cranes fly up off the blade; still or running releases none.
+test: Collection > Shaders > its parts: each of the five switches off on its own.
+note: Needs the hub branch thousand-cranes deployed (pack, sounds, grant); client draws it alone.
+
 [lazy-blade-skins]
 area: Rendering & effects
 title: Blade skins and signature shaders load only when a blade draws them

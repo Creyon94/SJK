@@ -2660,6 +2660,16 @@ when it is swung, which its own quad could not hold: they are particles in the w
   the stand-in sprite (yellow dots, Sol's first test, 21/10/2026). A thrown
   saber sheds them along its spin and flight, its tip measured in the world (23/10/2026,
   hub report 127).
+- **Paper cranes** (25/10/2026, the Thousand Cranes): `"kind": "crane"` on the line (the
+  default is `"blossom"`) and `"rise"`, units a second it climbs (default 0), turn the petals
+  into paper cranes that climb away from the swing instead of sinking: `// @petals
+  {"part":4,"kind":"crane","per_unit":0.035,"life":2.4,"size":2.6,"fall":0.0,"drift":12.0,
+  "rise":42.0}`. Each is one crane picture in white paper (`crane.png`, flying right, and
+  `crane_left.png`, mirrored, drawn by `scripts/petal_assets.py` from the same triangles as
+  the shader's crane) tinted a colour of paper by the particle (`rgbGen vertex`, the eight
+  of the shader's flock), kept nearly upright, and flying on through the world
+  (`apply_physics` off) until it fades. Their two shaders are in `CODE_SHADERS` with the
+  petals'.
 
 ## Saber trails
 
