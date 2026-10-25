@@ -2838,6 +2838,10 @@ when it is swung, which its own quad could not hold: they are particles in the w
   of the shader's flock), kept nearly upright, and flying on through the world
   (`apply_physics` off) until it fades. Their two shaders are in `CODE_SHADERS` with the
   petals'.
+- **Ash** (25/10/2026, the Hearth): `"kind": "ash"` sheds flakes of ash that drift down and
+  settle as the petals do: a ragged grey flake (`ash_grey.png`) and, one in three, the same
+  flake with its edge still glowing orange (`ash_ember.png`), both drawn by
+  `scripts/petal_assets.py`, tumbling as they fall.
 
 ## Saber trails
 

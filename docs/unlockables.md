@@ -426,8 +426,24 @@ the hub's, described in its `scripts/blade_skin_sounds.py` and `saber_skin_sound
   shadow, the body with its crease, the neck and tail, the head folded down and the lit near
   wing with its fold, turned to fly the way it goes across the view and narrowed when it
   flies toward or away from it. Its own sounds, `sound/sjk/sol/thousand_cranes/` (soft and
-  airy: a warm hum, paper-wing swings), are in the hub's skins pack. Kintsugi was the first idea, but the Healed Kyber (106) already is
-  Creyon's Kintsugi; nothing in the catalogue had cranes.
+  airy: a warm hum, paper-wing swings), are in the hub's skins pack. Kintsugi was the
+  first idea, but the Healed Kyber (106) already is Creyon's Kintsugi; nothing in the
+  catalogue had cranes.
+- **Hearth** (25/10/2026, blade 168, Sol's, the second [Unique](#unique-shaders) blade; a
+  signature, `blade_signatures/hearth.glsl`): a home fire that grows the longer its holder
+  keeps it ([Growing blades](#growing-blades), its `@grows` line). From the day it is given,
+  a warm amber blade of glowing coals, their hearts bright and the cracks between them dark
+  red, each breathing on its own, with embers rising off it (its file's `embers`); it
+  kindles up from the hilt as it lights and cools to a deep red as it goes out. At 30 days
+  held, tongues of flame lick up both its edges (flat, as Sol's flames are); at 91 the air
+  over it shimmers (its file's `haze`); at 182 the fire is a blaze, taller and hotter, coals
+  popping off it in a flash and a few sparks; at 365 a ring of seven hearthstones stands
+  round its emitter in the firelight (in 3D, lit on the side toward the blade), ash drifts
+  down off it, and its swings shed ash that settles on the floor
+  ([rendering.md](rendering.md#falling-blossoms)). Its own sounds,
+  `sound/sjk/sol/hearth/` (a warm hum with a log fire's crackle in it), are in the hub's
+  skins pack. Not the Phoenix's fire: no plume or rebirth, a bed of coals and tongues of
+  flame instead.
 
 ## Hub protocol (additions to version 1)
 
@@ -1053,6 +1069,7 @@ off, and every other SJK player then draws the blade the same way.
 | Spectral | `wisps` Wisps (wisps), `spirits` Souls (motes), `smoke` Smoky edge (sputter), `rim` Cold rim (hue), `echo` Echo (echo), `afterimages` Afterimages (ghosts) |
 | Varykino Blossom | `blossom_branch` Blossom branch, `lavender_mist` Lavender mist, `drifting_petals` Drifting petals, `falling_blossoms` Falling blossoms (the petals its swing sheds, [rendering.md](rendering.md#falling-blossoms)), `sakura_droplet` Sakura droplet (the pearl at its tip), `swing_and_clash_bursts` Swing and clash bursts (a signature's parts) |
 | Thousand Cranes | `red_thread` Red thread, `paper_cranes` Paper cranes (the flock and the cranes a clash startles), `golden_crane` Golden crane, `washi_light` Washi light (the paper's fibres in its glow), `flying_cranes` Flying cranes (the paper cranes its swing releases), `swing_and_clash_bursts` Swing and clash bursts (a signature's parts) |
+| Hearth | `hearth_flames` Hearth flames (30 days held), `blaze` Blaze (182 days), `hearthstones` Hearthstones (365 days: the stones, the drifting ash and the ash its swings shed), `embers` Embers (embers, from the start), `heat_shimmer` Heat shimmer (haze, 91 days), `swing_and_clash_bursts` Swing and clash bursts (a signature's parts) |
 
 - Kept in `cg_saberSkinOptions` (archived, default empty;
   [saber_skin_options.rs](../crates/sjk-viewer/src/saber_skin_options.rs)): one

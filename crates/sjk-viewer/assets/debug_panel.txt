@@ -2182,6 +2182,18 @@ test: Swing hard: coloured paper cranes fly up off the blade; still or running r
 test: Collection > Shaders > its parts: each of the five switches off on its own.
 note: Needs the hub branch thousand-cranes deployed (pack, sounds, grant); client draws it alone.
 
+[hearth]
+area: Rendering & effects
+title: Hearth, a Unique blade that grows the longer it is held
+change: Blade 168: glowing coals and rising embers; flames at 30 days, shimmer 91, blaze 182.
+change: At 365 days hearthstones ring the emitter, ash drifts off it and its swings shed ash.
+change: Locked stages show in Collection > Shaders with when they grow; the look sends them off.
+test: Grant saber_hearth: coals and embers only; locked parts say "Grows in ..." in Collection.
+test: debug_collectibles 1 with debug_growthDays 0/30/91/182/365: each stage adds its part.
+test: Preview full growth in the Collection: all stages show there, your worn blade unchanged.
+test: A second client sees your stage, not the full blaze; lighting it kindles up from the hilt.
+note: Needs the hub branch hearth deployed (pack, sounds, since date); client draws it alone.
+
 [lazy-blade-skins]
 area: Rendering & effects
 title: Blade skins and signature shaders load only when a blade draws them
