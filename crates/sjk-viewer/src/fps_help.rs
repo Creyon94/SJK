@@ -78,6 +78,32 @@ pub(crate) struct State {
     pub(crate) finding: Option<Finding>,
     /// The card opened the game menu, which goes with it.
     pub(crate) opened_menu: bool,
+    /// Whether the graphics were Vanilla, with the archived cvars' stamp it was read at
+    /// ([`State::vanilla`]).
+    vanilla: Option<(u64, bool)>,
+}
+
+impl State {
+    /// Whether the graphics are Vanilla ([`crate::graphics_quality::vanilla`]), read again
+    /// only when an archived cvar changed (every preset value is one): the preset's
+    /// values are too many reads for every frame of a map.
+    fn vanilla(&mut self, console: &crate::console::ViewerConsole) -> bool {
+        let revision = console.archive_revision();
+        match self.vanilla {
+            Some((read, vanilla)) if read == revision => vanilla,
+            _ => {
+                let vanilla = crate::graphics_quality::vanilla(console);
+                self.vanilla = Some((revision, vanilla));
+                vanilla
+            }
+        }
+    }
+}
+
+/// Whether the check runs this frame: on a server's map, wanted, not over yet, and the
+/// graphics not Vanilla already; `vanilla` is asked last, only when the rest hold.
+fn due(on_map: bool, wanted: bool, checked: bool, vanilla: impl FnOnce() -> bool) -> bool {
+    on_map && wanted && !checked && !vanilla()
 }
 
 impl crate::GpuState {
@@ -92,9 +118,11 @@ impl crate::GpuState {
         let wanted = console
             .and_then(|console| console.bool_cvar(CVAR))
             .unwrap_or(true);
-        let vanilla = console.is_some_and(crate::graphics_quality::vanilla);
         let card_open = self.fps_card.wants();
-        let checking = on_map && wanted && !vanilla && !self.fps_help.checked;
+        let help = &mut self.fps_help;
+        let checking = due(on_map, wanted, help.checked, || {
+            console.is_some_and(|console| help.vanilla(console))
+        });
         phases.watch(checking || card_open);
         if card_open {
             if let Some(sample) = phases.take_sample() {
@@ -239,5 +267,40 @@ mod tests {
         ];
         assert_eq!(median(&mut samples), Some(sample(8.0, 5.0)));
         assert_eq!(median(&mut []), None);
+    }
+
+    /// The check runs as it did when Vanilla was read every frame, and Vanilla is read
+    /// only when the rest would let it run.
+    #[test]
+    fn vanilla_is_read_only_when_it_decides() {
+        for bits in 0..16_u8 {
+            let [on_map, wanted, checked, vanilla] = [0, 1, 2, 3].map(|bit| bits & (1 << bit) != 0);
+            let mut read = false;
+            let due = due(on_map, wanted, checked, || {
+                read = true;
+                vanilla
+            });
+            assert_eq!(due, on_map && wanted && !vanilla && !checked, "{bits:04b}");
+            assert_eq!(read, on_map && wanted && !checked, "{bits:04b}");
+        }
+    }
+
+    /// The reading is kept until an archived cvar changes, and follows a change of preset.
+    #[test]
+    fn vanilla_is_read_again_after_a_change() {
+        use crate::graphics_quality::Level;
+        let directory = tempfile::tempdir().unwrap();
+        let mut console =
+            crate::console::ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
+        let mut state = State::default();
+        Level::Sjk.apply(&mut console);
+        assert!(!state.vanilla(&console));
+        let read = state.vanilla;
+        assert!(!state.vanilla(&console));
+        assert_eq!(state.vanilla, read, "nothing changed, nothing read");
+        Level::Vanilla.apply(&mut console);
+        assert!(state.vanilla(&console));
+        console.set_cvar("r_sceneHdr", "1");
+        assert!(!state.vanilla(&console));
     }
 }

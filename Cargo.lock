@@ -3195,6 +3195,7 @@ dependencies = [
 name = "sjk-shell"
 version = "0.1.0"
 dependencies = [
+ "assert_no_alloc",
  "chrono",
 ]
 
@@ -3221,6 +3222,7 @@ dependencies = [
  "ab_glyph",
  "arboard",
  "arc-swap",
+ "assert_no_alloc",
  "bytemuck",
  "clipboard-win",
  "fontdue",

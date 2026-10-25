@@ -26,3 +26,16 @@ const EDGE: f32 = 5.0 / 26.0;
     let c = textureLoad(blades, vec2<i32>(at.xy), 0).rgb * fade;
     return vec4(c, max(c.r, max(c.g, c.b)));
 }
+
+// A cell drawn alone (`blade_pictures.rs`), inside its scissor: cleared to nothing and its
+// depth to the far plane, while the cells kept stay at the depth of 0 the pass clears to,
+// in front of every blade (the blades test depth and never write it), so no glow spills
+// into a picture kept from an earlier frame.
+@vertex fn vs_clear(@builtin(vertex_index) index: u32) -> @builtin(position) vec4<f32> {
+    let p = vec2<f32>(f32((index << 1u) & 2u), f32(index & 2u));
+    return vec4<f32>(p * 2.0 - 1.0, 1.0, 1.0);
+}
+
+@fragment fn fs_clear() -> @location(0) vec4<f32> {
+    return vec4<f32>(0.0);
+}

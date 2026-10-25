@@ -326,6 +326,12 @@ mod world_ping_frame;
 #[cfg(test)]
 mod world_shot;
 mod world_stage;
+
+/// Counts allocator calls inside `assert_no_alloc` blocks (tests of per-frame
+/// bookkeeping); every call goes on to the system allocator.
+#[cfg(all(test, debug_assertions))]
+#[global_allocator]
+static ALLOCATOR: assert_no_alloc::AllocDisabler = assert_no_alloc::AllocDisabler;
 use actor_instance::ActorInstance;
 use actor_mesh::ActorMesh;
 use animation_timing::animation_frame;

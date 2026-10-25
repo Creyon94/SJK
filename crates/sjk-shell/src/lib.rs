@@ -33,3 +33,8 @@ pub use config_saver::CONFIG_SAVE_DELAY;
 pub use cvar::{Cvar, CvarChange, CvarDefinition, CvarError, CvarFlags, CvarRegistry, CvarValue};
 pub use shell::{CommandSource, CompletionKey, ConsoleLine, ConsoleLineKind, Shell};
 pub use shell_error::ShellError;
+
+/// Counts allocator calls inside `assert_no_alloc` blocks (`cvar.rs`'s frame reads).
+#[cfg(all(test, debug_assertions))]
+#[global_allocator]
+static ALLOCATOR: assert_no_alloc::AllocDisabler = assert_no_alloc::AllocDisabler;
