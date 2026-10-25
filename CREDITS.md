@@ -631,7 +631,10 @@ into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author
   will really leave (no forced or overridden model) is prepared.
 
 His Peek work in #199 (closed 24/10/2026, not merged) shaped the Drone toy: a player is
-asked before being peeked, told who watches, and can end it.
+asked before being peeked, told who watches, and can end it. His #206 (closed 25/10/2026,
+main had its own lazy card pictures) brought two pieces ported onto main: a picture the
+decoder panics on fails alone instead of stopping every later card picture, and card and
+medal pictures carry their own labels in `vram` and crash reports.
 
 Milamber ([Milamber0](https://github.com/Milamber0)), contributor, has 3 pull requests merged
 into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AMilamber0)):

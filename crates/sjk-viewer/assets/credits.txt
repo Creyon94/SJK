@@ -321,6 +321,7 @@ did: #200 Safety codes the hub cannot fake
 did: #201 CTF team score boxes with each flag's state
 did: #205 Fewer stutters when players join, change model or die
 did: #199 Peek asks first and names who watches: the idea of the Drone toy
+did: #206 Card pictures: the decoder guard and their own memory labels, ported
 link: Slash's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AJoFSlash
 
 [Milamber]

@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 25/10/2026 | - | A card picture that crashes its decoder fails alone; card and medal art labelled; the prize asked for at the opening's start
+- 8a9e108 |  | Card pictures: decoder guard, own memory labels, found card asked early (after Slash's #206)
 + 25/10/2026 | - | Format: announcement world shot and the body fade shot's module
 - 206f17a |  | Format: announcement world shot and the body fade shot's module
 + 25/10/2026 | - | CTF HUD: team scores in SJK team boxes with each flag's state (work in progress)

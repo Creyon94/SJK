@@ -395,7 +395,7 @@ fn work(faces: &Faces) {
             index
         };
         let decoded = match faces.pictures.get(index).and_then(Option::as_deref) {
-            Some(bytes) => decode(bytes, texture_edge()),
+            Some(bytes) => decode_guarded(bytes, texture_edge()),
             None => Err("missing".to_owned()),
         };
         let mut art = faces.lock_art();
@@ -409,6 +409,24 @@ fn work(faces: &Faces) {
         }
     }
 }
+
+/// [`decode`], a panic in it failing that picture alone: the worker goes on and clears
+/// `working`, so later faces still load (after Slash's #206). The panic hook still
+/// writes its crash report, which names the picture's decoder.
+fn decode_guarded(bytes: &[u8], edge: u32) -> Result<MipChain, String> {
+    std::panic::catch_unwind(|| {
+        #[cfg(test)]
+        if bytes == PANICS_FOR_TEST {
+            panic!("a test picture the decoder trips on");
+        }
+        decode(bytes, edge)
+    })
+    .unwrap_or_else(|_| Err("the decoder panicked".to_owned()))
+}
+
+/// A picture file [`decode_guarded`] panics on, for tests.
+#[cfg(test)]
+const PANICS_FOR_TEST: &[u8] = b"sjk test: panic";
 
 /// The edge pictures decode to at the current texture detail ([`TEXTURE_EDGE`]).
 fn texture_edge() -> u32 {
@@ -694,6 +712,36 @@ mod tests {
         }
         request(&faces, &[]);
         assert!(faces.lock_art().ready.is_empty());
+    }
+
+    #[test]
+    fn a_picture_the_decoder_panics_on_fails_alone() {
+        let mut png = Vec::new();
+        let picture = image::RgbaImage::from_pixel(60, 50, image::Rgba([10, 20, 30, 255]));
+        image::DynamicImage::ImageRgba8(picture)
+            .write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)
+            .unwrap();
+        let list = (0..2)
+            .map(|index| parse(&format!("sjk_alpha_{index:03}"), FILE).unwrap())
+            .collect();
+        let faces = Arc::new(Faces::new(
+            list,
+            vec![Some(Arc::from(PANICS_FOR_TEST)), Some(Arc::from(png))],
+            1,
+        ));
+        // Face 0 panics in the decoder, face 1 behind it still decodes.
+        request(&faces, &[0, 1]);
+        let mut decoded = None;
+        for _ in 0..400 {
+            decoded = faces.take_art(1);
+            if decoded.is_some() {
+                break;
+            }
+            request(&faces, &[0, 1]);
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        assert!(decoded.is_some(), "the worker went on after the panic");
+        assert!(faces.lock_art().failed.contains(&0));
     }
 
     #[test]

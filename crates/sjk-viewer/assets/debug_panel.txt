@@ -1073,6 +1073,15 @@ test: Collection > Cards: pictures appear within a moment; page through, they ke
 test: Look closer at a card (Enter): the picture is sharp; open a holocron: the found card shows.
 test: Task Manager > GPU memory in the main menu: about 1.8 GB less than the last release.
 
+[card-faces-guard]
+area: Menus & settings
+title: Card pictures: decoder guard, found card loaded early, own memory labels (Slash #206)
+change: A picture the decoder panics on fails alone; the later card pictures still load.
+change: Opening a holocron asks for the found card's picture at the start, not at the flip.
+change: vram names "SJK card art" and "SJK medal art" instead of "SJK menu emblem".
+test: Open a holocron: the found card turns over with its picture, not a dark window.
+test: vram in the main menu after Collection > Cards: card pictures listed as SJK card art.
+
 [profile-vfs-release]
 area: Menus & settings
 title: No 'Too many open files' after many maps (Lukas, PR #198)

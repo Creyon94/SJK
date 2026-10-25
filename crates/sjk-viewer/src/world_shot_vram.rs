@@ -400,9 +400,9 @@ fn card_faces_vram_audit() {
         eprintln!("audit: {count} card faces mounted");
         let _ = frame(&mut gpu, (count as u32) / 2 + 20);
         let (after, by_label) = live(&gpu.device);
-        let emblem = by_label.get("SJK menu emblem").copied().unwrap_or(0);
+        let emblem = by_label.get("SJK card art").copied().unwrap_or(0);
         eprintln!(
-            "audit: picture menu {:.0} MiB before the packs, {:.0} MiB after {count} faces (SJK menu emblem {:.0} MiB)",
+            "audit: picture menu {:.0} MiB before the packs, {:.0} MiB after {count} faces (SJK card art {:.0} MiB)",
             before as f64 / MIB,
             after as f64 / MIB,
             emblem as f64 / MIB
@@ -427,9 +427,9 @@ fn card_faces_vram_audit() {
         let _ = frame(&mut gpu, (count as u32) / 2 + 20);
         let (in_map, by_label) = live(&gpu.device);
         eprintln!(
-            "audit: siege_desert after its faces upload {:.0} MiB (SJK menu emblem {:.0} MiB)",
+            "audit: siege_desert after its faces upload {:.0} MiB (SJK card art {:.0} MiB)",
             in_map as f64 / MIB,
-            by_label.get("SJK menu emblem").copied().unwrap_or(0) as f64 / MIB
+            by_label.get("SJK card art").copied().unwrap_or(0) as f64 / MIB
         );
     });
 }
