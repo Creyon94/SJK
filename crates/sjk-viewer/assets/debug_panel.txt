@@ -1077,6 +1077,7 @@ change: Locked shaders show their own colours dimmed; the card grows up, words n
 change: Toys: rows with key and own switch (K binds); dark band behind tabs; model fits 4:3.
 test: Collection > Shaders: the wall by tier; arrows, Up/Down by lines; wheel scrolls a line.
 test: V: the list; S and clicks on Shader, Tier, Yours sort it; the chosen one stays chosen.
+test: Scroll the wall down, leave the Collection, come back: it starts from the top again.
 test: Click a tier in the strip (or T), Owned (O) and Chroma (C); the search still filters.
 test: Choose a long one (Varykino Blossom): its whole description shows, nothing ends in "...".
 test: Toys: a row's switch turns that toy on; K then a key binds it; Backspace clears it.
