@@ -1283,6 +1283,9 @@ never in a game server's chat.
 - "Read more": a click on the line in the dock or on the chat page (Up and Down on the
   page pass over it), or the console's `announcement [number]` (no number: the newest),
   opens the announcement's card ([sjk-ui.md](sjk-ui.md#announcements-and-reward-rounds)).
+  The command closes the console first; the card frees the cursor, in a match too
+  (Sol's report, 25/10/2026: the console stayed under the card, and closing it closed
+  the card too).
 
 **Reward rounds** are the SJK team's contributor rewards, posted by the hub's operator.
 

@@ -14,6 +14,8 @@
 //! with no seen file) go to the end of the SJK chat once its first answer came
 //! ([`crate::GpuState::follow_official`]). A click on a line in the docked chat or the chat
 //! page opens it in full ([`request`]); the game's chat names the `announcement` command.
+//! A command closes the console as it opens the window; a click on the chat page keeps
+//! it under the window. While the window shows, the cursor is free and it takes every key.
 //!
 //! A reward round's line opens the round list (or `rewards`). A reward waiting for the
 //! player opens the claim window as the medal pop-up does: on the main menu, or when the
@@ -395,7 +397,16 @@ impl crate::GpuState {
             && !away
             && !busy
             && (self.official.asked || (place && !console_open));
+        let was_open = self.official.window.is_open();
         self.official.window.set_open(open);
+        if open != was_open {
+            // The window takes every key and click: nothing stays held under it, and the
+            // cursor is free while it shows, in a match too.
+            if open {
+                self.gameplay_input.release_keys();
+            }
+            self.sync_cursor_policy();
+        }
         if open && matches!(self.official.window.page, Some(Page::Claim { .. })) {
             self.unlock_toast.withdraw(Instant::now(), |unlock| {
                 matches!(unlock, crate::unlock_toast::Unlock::Reward { .. })
@@ -660,7 +671,20 @@ impl crate::GpuState {
                 }
             }
         }
+        // A window put away gives the cursor back at once, not on the next frame.
+        if self.official.window.page.is_none() {
+            self.official.window.set_open(false);
+        }
         self.sync_cursor_policy();
+    }
+
+    /// A command opened the window: the console closes, so the window shows alone and
+    /// closing it returns to the game (a line clicked on the chat page keeps the console,
+    /// and closing the window returns to the page).
+    fn close_console_for_window(&mut self) {
+        if let Some(console) = &mut self.console {
+            console.set_open(false);
+        }
     }
 
     /// `announcement [number]`.
@@ -678,6 +702,7 @@ impl crate::GpuState {
             None => format!("{ANNOUNCEMENT_COMMAND}: no announcement yet"),
         })?;
         self.open_announcement(announcement);
+        self.close_console_for_window();
         self.sync_cursor_policy();
         Ok(Vec::new())
     }
@@ -685,6 +710,7 @@ impl crate::GpuState {
     /// `rewards`.
     pub(crate) fn rewards_command(&mut self) -> Result<Vec<String>, String> {
         self.open_rounds(None);
+        self.close_console_for_window();
         self.sync_cursor_policy();
         Ok(Vec::new())
     }
@@ -698,6 +724,7 @@ impl crate::GpuState {
             self.official.open(Page::Compose(Composer::default()), true);
         }
         self.official.asked = true;
+        self.close_console_for_window();
         self.sync_cursor_policy();
         Ok(Vec::new())
     }
@@ -716,6 +743,7 @@ impl crate::GpuState {
             .rehearse_official(Mark::Announcement(announcement.clone()), Instant::now());
         self.official.rehearsed.push(announcement.clone());
         self.open_announcement(announcement);
+        self.close_console_for_window();
         self.sync_cursor_policy();
         Ok(vec![format!(
             "{DEBUG_ANNOUNCE_COMMAND}: rehearsal {id} in the game's chat; announcement {id} reads it again"
@@ -748,6 +776,7 @@ impl crate::GpuState {
         self.official.later = false;
         if list {
             self.open_rounds(Some(id));
+            self.close_console_for_window();
         }
         self.sync_cursor_policy();
         Ok(vec![format!(
