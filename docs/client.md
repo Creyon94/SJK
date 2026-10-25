@@ -4412,7 +4412,9 @@ every fall ends with the map or the server.
 - **The sounds:** going limp plays a flatline (`sound/sjk/ragdoll/flatline.wav`, two
   monitor beeps then the long tone, SJK's own, made by
   [ragdoll_assets.py](../scripts/ragdoll_assets.py)), to the player and at the body for
-  the others; a PK3 that has the same path replaces it. Since 25/10/2026 every part of
+  the others; a PK3 that has the same path replaces it. Since 26/10/2026 a player's
+  flatline is heard at most once every 15 seconds (`FLATLINE_GAP`, per player, on each
+  client); falls within that gap are silent, the toy itself is not held. Since 25/10/2026 every part of
   the body is heard on its own, as in the sandbox games
   ([sounds.rs](../crates/sjk-viewer/src/ragdoll/sounds.rs)): the trunk, the head and
   each arm and leg knock when they hit the world (110 units a second into it, 150 for a

@@ -49,6 +49,8 @@ pub(crate) const TOY: &str = "ragdoll";
 pub(crate) const ICON: &str = "gfx/sjk/toy_ragdoll.png";
 /// Heard as the body goes limp.
 pub(crate) const FLATLINE: &str = "sound/sjk/ragdoll/flatline.wav";
+/// A player's flatline is heard at most once in this long; the fall itself is not held.
+const FLATLINE_GAP: Duration = Duration::from_secs(15);
 /// The start event: this, then the start ([`body::encode`]); the end: this, then the
 /// fall's moment.
 const FALL_PREFIX: &str = "fall_";
@@ -171,6 +173,8 @@ pub(crate) struct Ragdoll {
     walk_to: Option<Vec3>,
     /// The sounds to play.
     cues: Vec<Cue>,
+    /// When each slot's flatline was last heard ([`FLATLINE_GAP`]).
+    flatline_heard: std::collections::HashMap<u8, Instant>,
     /// The movers in the bodies' way.
     movers: scene::Movers,
     sounds_registered: Option<u64>,
@@ -645,6 +649,14 @@ impl GpuState {
             volume,
         } in self.ragdoll.cues.drain(..)
         {
+            if path == FLATLINE {
+                let now = Instant::now();
+                let heard = self.ragdoll.flatline_heard.get(&slot);
+                if heard.is_some_and(|heard| now.duration_since(*heard) < FLATLINE_GAP) {
+                    continue;
+                }
+                self.ragdoll.flatline_heard.insert(slot, now);
+            }
             audio.play_toy(
                 crate::toy_sounds::Toy::Ragdoll,
                 path,
