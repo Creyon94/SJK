@@ -6,7 +6,8 @@
 //! It chooses once a card: [`CVAR`] keeps the size it chose for, so a player who sets
 //! the texture detail back is not overridden at the next start, and a new card is
 //! looked at again. It only lowers a setting still at its default. The card's size and
-//! budget also go into the log and into crash reports ([`summary`]).
+//! budget also go into the log and into crash reports ([`summary`]), and its size sets
+//! the real-time lighting's lamp cache budget ([`dedicated`]).
 
 use crate::console::ViewerConsole;
 use std::sync::OnceLock;
@@ -16,6 +17,26 @@ pub(crate) const CVAR: &str = "r_videoMemoryChecked";
 const MIB: u64 = 1 << 20;
 
 static SUMMARY: OnceLock<String> = OnceLock::new();
+static DEDICATED: OnceLock<Option<u64>> = OnceLock::new();
+
+/// The card's own video memory in bytes, read once (at start, or by the first world
+/// built without it); `None` off Windows or when the driver does not say. In tests,
+/// `SJK_VIDEO_MEMORY_MIB` stands in for it, so a world shot can be built as on a smaller
+/// card (`world_shot_vram.rs`).
+pub(crate) fn dedicated() -> Option<u64> {
+    #[cfg(test)]
+    if let Some(mib) = std::env::var("SJK_VIDEO_MEMORY_MIB")
+        .ok()
+        .and_then(|mib| mib.parse::<u64>().ok())
+    {
+        return Some(mib * MIB);
+    }
+    *DEDICATED.get_or_init(|| {
+        sjk_gpu_memory::high_performance()
+            .map(|memory| memory.dedicated)
+            .filter(|&bytes| bytes > 0)
+    })
+}
 
 /// Register [`CVAR`] (archived).
 pub(crate) fn register(cvars: &mut sjk_shell::CvarRegistry) -> Result<(), sjk_shell::CvarError> {
@@ -42,7 +63,14 @@ pub(crate) fn picmip_for(dedicated: u64) -> Option<i64> {
 /// At start, before the first map: read the card and choose for it once
 /// ([`apply`]); the menus' blade pictures follow the menu pictures either way.
 pub(crate) fn at_start(console: &mut ViewerConsole) {
-    if let Some(memory) = sjk_gpu_memory::high_performance() {
+    let memory = sjk_gpu_memory::high_performance();
+    let _ = DEDICATED.set(
+        memory
+            .as_ref()
+            .map(|memory| memory.dedicated)
+            .filter(|&bytes| bytes > 0),
+    );
+    if let Some(memory) = memory {
         let budget = memory.budget.map_or_else(String::new, |budget| {
             format!(", budget {} MiB", budget / MIB)
         });

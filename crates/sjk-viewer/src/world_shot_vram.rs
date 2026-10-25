@@ -245,7 +245,9 @@ fn menu_pictures_vram() {
 /// 3 GB cards. `SJK_AUDIT_MAPS` (comma separated) and `SJK_AUDIT_SIZE` (`WxH`) override
 /// the maps and the screen size; `SJK_AUDIT_GENERATED` mounts the player's generated
 /// packs (`JKA_GAME_DATA/SJK/generated`, the material maps), which the other shots
-/// leave out. Each build's last frame is saved as `vram-audit-<map>-<preset>-<picmip>`.
+/// leave out. `SJK_VIDEO_MEMORY_MIB` builds the worlds as for a card of that size (what
+/// follows it: the lamp cache budget, `video_memory::dedicated`). Each build's last frame
+/// is saved as `vram-audit-<map>-<preset>-<picmip>`.
 #[test]
 #[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
 fn low_end_vram_audit() {
