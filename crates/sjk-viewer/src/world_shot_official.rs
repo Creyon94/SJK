@@ -40,7 +40,9 @@ fn official_windows_shot() {
             }
             gpu.debug_announce_command(&args).expect("a rehearsal");
             assert!(
-                !gpu.console.as_ref().is_some_and(console::ViewerConsole::is_open),
+                !gpu.console
+                    .as_ref()
+                    .is_some_and(console::ViewerConsole::is_open),
                 "the command closes the console"
             );
             shoot(&mut gpu, 3, name);

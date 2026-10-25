@@ -92,6 +92,30 @@ impl Runtime {
         jobs
     }
 
+    /// How many pipeline keys are registered: taken before and after an append, the keys
+    /// its materials brought, for [`Self::reused_pipeline_jobs`].
+    pub(crate) fn pipeline_key_count(&self) -> usize {
+        self.forge.pipeline_keys.len()
+    }
+
+    /// [`Self::pipeline_jobs`] for materials appended earlier (from source index `base`,
+    /// `len` of them, bringing keys `keys`), drawn again by another model install: what
+    /// is still not compiled, empty once the first install's jobs are in. Without it a
+    /// copy installed while the first waits for its pipelines would compile them on its
+    /// first draw.
+    pub(crate) fn reused_pipeline_jobs(&self, keys: Range<usize>, base: usize, len: usize) -> Jobs {
+        let materials = match (
+            self.source_to_runtime.get(base),
+            base.checked_add(len)
+                .and_then(|end| end.checked_sub(1))
+                .and_then(|last| self.source_to_runtime.get(last)),
+        ) {
+            (Some(&first), Some(&last)) if len > 0 => first..last + 1,
+            _ => 0..0,
+        };
+        self.pipeline_jobs(keys, materials)
+    }
+
     /// Fill the slots of `compiled`, unless the programs changed since its jobs were
     /// made. A slot compiled meanwhile (a draw got there first) keeps its pipeline.
     pub(crate) fn install_pipelines(&self, compiled: Compiled) {

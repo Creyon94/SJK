@@ -340,7 +340,7 @@ includes:
 Creyon and Lumaya wear the SJK team's Early Contributor medal, shown on their
 cards of the in-game credits page.
 
-Creyon ([Creyon94](https://github.com/Creyon94)), contributor and tester, has 55
+Creyon ([Creyon94](https://github.com/Creyon94)), contributor and tester, has 56
 pull requests merged into SJK, most of them bringing SJK in line with EternalJK
 ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3ACreyon94)):
 
@@ -405,6 +405,9 @@ pull requests merged into SJK, most of them bringing SJK in line with EternalJK
 - #191 signature blades without the bright rim at the tip or hard straight edges round their
   effects, with their GPU cost measured and trimmed; at the merge the bent-picture margin is
   added only on frames with a haze or lens, and skinned blades look their skin up once a pixel;
+- #202 bodies fading away as in EternalJK (`EV_BODYFADE`), with SJK's server sending the
+  event under its right number; at the merge every reused body slot fades again, the dark
+  side crackles once per 100 ms and the server clears the body 4 s after the fade;
 - #197 trading between players (its hub side in SJK-hub-shared #4): duplicate saber
   shaders, and later unopened holocrons, swapped or given as a gift through the SJK hub,
   from Trade on a player's card, the SJK chat page, the Players page or `trade`, in a
@@ -573,7 +576,7 @@ merged into SJK
 - #198 "Too many open files" after a long session: the Profile menu's model icons, cosmetics and
   Force templates let go of the previous map's game files (its PK3 reopening part held back).
 
-Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 26 pull requests merged
+Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 28 pull requests merged
 into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AJoFSlash)):
 
 - #114 Tab completes the cfg file argument of `exec`, `execq`, `writeconfig` and `write`
@@ -624,9 +627,20 @@ into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author
 - #189 a smaller chat sender card that waits for the pointer, sized by `cg_chatCardScale`.
 - #200 encrypted whispers' safety code made from each key's own fingerprint (60 digits, as
   Signal's safety numbers), after Slash found that the hub could make the 12-digit code match.
+- #201 CTF team scores in SJK team boxes with each flag's state: at base, its carrier (named at
+  once from the CTF message), "You", or a dropped flag's return count; `cg_teamScoresBoxes`
+  and `cg_teamScoresScale`. At the merge: long scores fit, a followed carrier is named rather
+  than "You", and a new gamestate forgets the last game's drops.
+- #205 fewer stutters when players join, change model or die: a model goes up one texture a
+  frame, a model shown again reuses its materials, and its body copy is ready before the first
+  kill; at the merge a reused model still waits for its pipelines, and only a body the player
+  will really leave (no forced or overridden model) is prepared.
 
 His Peek work in #199 (closed 24/10/2026, not merged) shaped the Drone toy: a player is
-asked before being peeked, told who watches, and can end it.
+asked before being peeked, told who watches, and can end it. His #206 (closed 25/10/2026,
+main had its own lazy card pictures) brought two pieces ported onto main: a picture the
+decoder panics on fails alone instead of stopping every later card picture, and card and
+medal pictures carry their own labels in `vram` and crash reports.
 
 Milamber ([Milamber0](https://github.com/Milamber0)), contributor, has 3 pull requests merged
 into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AMilamber0)):

@@ -537,8 +537,16 @@ const HELP: &[(&str, &str)] = &[
         "Team games: the red and blue scores at the top centre of the HUD, in every HUD style.",
     ),
     (
+        "cg_teamScoresScale",
+        "Size of the SJK team score boxes: 1 is the default, 2 twice as large.",
+    ),
+    (
+        "cg_teamScoresBoxes",
+        "Team scores in SJK boxes, in CTF with each flag's carrier or return time. Off: the classic plates and flag icons.",
+    ),
+    (
         "cg_drawFlagStatus",
-        "Capture the flag: the flag icons at the left (taken or dropped, yours and theirs) and a note while you carry a flag.",
+        "Capture the flag: where each flag is, in the team boxes or as icons at the left, and a note while you carry one.",
     ),
     (
         crate::version_overlay::CVAR,

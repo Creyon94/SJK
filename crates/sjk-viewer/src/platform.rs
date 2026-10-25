@@ -2,7 +2,7 @@
 
 use std::env;
 use std::io::{Error, ErrorKind};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
 #[path = "platform/storage.rs"]
@@ -37,13 +37,42 @@ pub(crate) fn interface_addresses() -> Result<String, Error> {
     } else {
         ("ifconfig", &[])
     };
-    let output = std::process::Command::new(program).args(args).output()?;
+    let output = hidden_command(program).args(args).output()?;
     if !output.status.success() {
         return Err(Error::other(
             String::from_utf8_lossy(&output.stderr).into_owned(),
         ));
     }
     Ok(String::from_utf8_lossy(&output.stdout).into_owned())
+}
+
+/// A helper program started without a window of its own. A Windows release client
+/// has no console (`windows_subsystem` in main.rs), so a console program it starts
+/// (the server, PowerShell, `cmd`) would otherwise open one.
+pub(crate) fn hidden_command(program: impl AsRef<std::ffi::OsStr>) -> std::process::Command {
+    #[allow(unused_mut)]
+    let mut command = std::process::Command::new(program);
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        command.creation_flags(CREATE_NO_WINDOW);
+    }
+    command
+}
+
+/// The folder a program is installed in: the one holding it, or the one holding
+/// its macOS app bundle (`SJK.app/Contents/MacOS/sjk-client` is installed in the
+/// folder beside `SJK.app`, with `base/` and `sjk-server`).
+pub(crate) fn install_folder(program: &Path) -> Option<&Path> {
+    let directory = program.parent()?;
+    if directory.ends_with("Contents/MacOS") {
+        let bundle = directory.parent()?.parent()?;
+        if bundle.extension().is_some_and(|extension| extension == "app") {
+            return bundle.parent();
+        }
+    }
+    Some(directory)
 }
 
 /// The selected client configuration; all file consumers share this location.
@@ -74,4 +103,27 @@ fn env_path(name: &str) -> Result<PathBuf, Error> {
         .filter(|path| !path.is_empty())
         .map(PathBuf::from)
         .ok_or_else(|| Error::new(ErrorKind::NotFound, format!("{name} is not set")))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::install_folder;
+    use std::path::Path;
+
+    #[test]
+    fn a_bundled_program_is_installed_beside_its_bundle() {
+        assert_eq!(
+            install_folder(Path::new("/g/GameData/SJK.app/Contents/MacOS/sjk-client")),
+            Some(Path::new("/g/GameData"))
+        );
+        assert_eq!(
+            install_folder(Path::new("/g/GameData/sjk")),
+            Some(Path::new("/g/GameData"))
+        );
+        // Only an .app folder is a bundle.
+        assert_eq!(
+            install_folder(Path::new("/g/Other/Contents/MacOS/sjk")),
+            Some(Path::new("/g/Other/Contents/MacOS"))
+        );
+    }
 }

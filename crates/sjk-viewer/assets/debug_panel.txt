@@ -1073,6 +1073,15 @@ test: Collection > Cards: pictures appear within a moment; page through, they ke
 test: Look closer at a card (Enter): the picture is sharp; open a holocron: the found card shows.
 test: Task Manager > GPU memory in the main menu: about 1.8 GB less than the last release.
 
+[card-faces-guard]
+area: Menus & settings
+title: Card pictures: decoder guard, found card loaded early, own memory labels (Slash #206)
+change: A picture the decoder panics on fails alone; the later card pictures still load.
+change: Opening a holocron asks for the found card's picture at the start, not at the flip.
+change: vram names "SJK card art" and "SJK medal art" instead of "SJK menu emblem".
+test: Open a holocron: the found card turns over with its picture, not a dark window.
+test: vram in the main menu after Collection > Cards: card pictures listed as SJK card art.
+
 [profile-vfs-release]
 area: Menus & settings
 title: No 'Too many open files' after many maps (Lukas, PR #198)
@@ -1884,6 +1893,19 @@ test: 301 characters: the box stops at 300; sjksay with more sends the first 300
 
 # ---- HUD ----
 
+[ctf-team-boxes]
+area: HUD
+title: CTF team score boxes with each flag's state (Slash, PR #201)
+change: Team scores in two SJK boxes under the clock; in CTF each holds its flag and where it is.
+change: Carrier named from the CTF message, "You" in gold, a dropped flag's seconds and gold arc.
+test: CTF server: take the flag: "You" in gold, "Take it home" under the boxes.
+test: Die with it: the flag's box counts down from 30 s with a gold arc; at 0 it goes home.
+test: Spectate the carrier: their name, not "You", and no line under the boxes.
+test: Team FFA with scores over 99 or below 0: the whole number shows, centred.
+test: Settings > HUD: SJK team score boxes off: classic plates and left flag icons return.
+test: Team score box size 0.5 and 2: the boxes shrink and grow under the clock.
+note: Join a server with a flag already lying: it says Dropped, no count.
+
 [duel-no-weapon-icon]
 area: HUD
 title: Nameplates: no weapon icon beside a duellist's name (duel badge sat on top of it)
@@ -2095,6 +2117,16 @@ note: Alt+Tab while holding Tab leaves the board and the hidden HUD up until Tab
 
 # ---- Rendering & effects ----
 
+[model-install-stutters]
+area: Rendering & effects
+title: Fewer stutters at joins, model changes and first deaths (Slash, PR #205)
+change: A new player's model goes up one texture a frame; a model shown again reuses materials.
+change: The body for deaths is built on the loading worker, not at the first kill.
+test: Busy server: players joining or changing model cause no hitch lines in the console log.
+test: Kill a player who just joined: no stutter at their first death; the body looks right.
+test: cg_forceModel 1: bodies still show the player's own model, as before.
+note: Untested on a weak GPU at the merge; Slash measured the hitches on a built-in Radeon.
+
 [render-scale]
 area: Rendering & effects
 title: Render scale (r_renderScale 50-100%): the world drawn smaller, menus and text sharp
@@ -2163,6 +2195,17 @@ change: The wide glyph (CJK) and emoji atlases are made with the first such char
 test: r_floorReflections 1 on ffa3: the floor mirror draws; 0 then 1 again: it comes back.
 test: duel6 (sky portal): the sky scenery draws as before; resize the window: still right.
 test: Type Russian/Japanese and an emoji in chat: they show from the first character.
+
+[body-fade]
+area: Rendering & effects
+title: Bodies fade away as in EternalJK (Creyon, PR #202)
+change: 30 s after death the body thins under a blue/red glow that burns away, with sounds.
+change: SJK's server sends EV_BODYFADE as 100 and unlinks the body 4 s after it.
+test: Die on a JoF server, wait 30 s: the body fades under its Force side's glow.
+test: Dark side body: red electric shell, a crackle now and then, not a rattle.
+test: Busy FFA, many deaths: every body fades, none just pops out.
+test: Own server (local): the body fades and is gone ~4 s later, no invisible corpse.
+note: Held hilt vanishes at fade start; rig models show squares in the glow (known).
 
 [blade-tip-edges]
 area: Rendering & effects
@@ -6648,3 +6691,13 @@ change: Bishop's card shows a rust JKR CREATOR pill (hub jkr_creator flag, no st
 change: SJK TEAM pill, holocron name and Achievements text no longer sit a bit high.
 test: Pin Bishop's card: rust JKR CREATOR pill, no staff tools for him.
 test: Pin a staff card: SJK TEAM text, holocron name, achievements centred on their shapes.
+
+[no-console-window]
+area: Menus & settings
+title: No console window on Windows; SJK.app on a Mac
+change: Windows release builds open no console beside the game, nor for the server or clipboard.
+change: The Mac ZIP holds SJK.app (own icon in the Dock) with sjk-server beside it.
+test: play: no black console window opens; logs\last-client.log still fills.
+test: Create game: the local server starts with no console window; Ctrl+C/Ctrl+V in chat work.
+test: Open a link from the menu (Ko-fi, changelog page): no window flashes.
+note: Mac side checked by a Mac player after the next release.

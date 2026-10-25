@@ -31,6 +31,7 @@ pub(crate) struct Sinks<'a> {
     pub(crate) vehicle_fires: &'a mut vehicle_fire::Pending,
     pub(crate) muzzle_effects: &'a mut sjk_client::LegacyMuzzleEffects,
     pub(crate) force_overlays: &'a mut sjk_client::LegacyForceOverlayTracker,
+    pub(crate) body_fades: &'a mut sjk_client::LegacyBodyFadeTracker,
     /// The nameplates' Force, health and shield estimates.
     pub(crate) nameplate: &'a mut hud::nameplate::State,
     pub(crate) obituaries: &'a mut sjk_client::ObituaryTracker,
@@ -93,6 +94,7 @@ pub(crate) fn observe(
     );
     sinks.muzzle_effects.observe(snapshot);
     sinks.force_overlays.observe_snapshot(snapshot);
+    sinks.body_fades.observe_snapshot(snapshot);
     sinks
         .nameplate
         .observe_snapshot(snapshot, game_state, sinks.bsp, sinks.trace_scratch);
@@ -252,6 +254,7 @@ impl GpuState {
                     vehicle_fires: &mut self.vehicle_fires,
                     muzzle_effects: &mut self.muzzle_effects,
                     force_overlays: &mut self.force_overlays,
+                    body_fades: &mut self.body_fades,
                     nameplate: &mut self.hud.nameplate,
                     obituaries: &mut self.obituaries,
                     siege_notices: &mut self.siege_notices,
@@ -353,6 +356,7 @@ impl GpuState {
                     vehicle_fires: &mut self.vehicle_fires,
                     muzzle_effects: &mut self.muzzle_effects,
                     force_overlays: &mut self.force_overlays,
+                    body_fades: &mut self.body_fades,
                     nameplate: &mut self.hud.nameplate,
                     obituaries: &mut self.obituaries,
                     siege_notices: &mut self.siege_notices,

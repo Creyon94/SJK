@@ -437,6 +437,8 @@ impl Group {
                 "cg_drawTimer",
                 "cg_drawTimerUpperRight",
                 "cg_drawTeamScores",
+                "cg_teamScoresBoxes",
+                "cg_teamScoresScale",
                 "cg_drawFlagStatus",
                 crate::version_overlay::CVAR,
                 "cg_speedometer",

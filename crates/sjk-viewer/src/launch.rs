@@ -106,7 +106,7 @@ fn find_game_data(configured: Option<&Path>) -> Result<PathBuf, LaunchError> {
     find_game_data_in(
         configured,
         environment.as_deref(),
-        executable.as_deref().and_then(Path::parent),
+        executable.as_deref().and_then(crate::platform::install_folder),
         current.as_deref(),
         home.as_deref(),
     )

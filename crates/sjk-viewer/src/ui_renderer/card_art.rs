@@ -122,7 +122,7 @@ impl CardTextures {
                     ..Default::default()
                 })
             });
-            let view = super::emblem::upload(device, queue, &chain);
+            let view = super::emblem::upload_labelled(device, queue, &chain, "SJK card art");
             let group = device.create_bind_group(&wgpu::BindGroupDescriptor {
                 label: Some("SJK card art bind group"),
                 layout,

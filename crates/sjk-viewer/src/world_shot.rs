@@ -291,6 +291,8 @@ mod cardboard_box;
 #[path = "world_shot_map_edits.rs"]
 mod map_edit_shots;
 
+#[path = "world_shot_body_fade.rs"]
+mod body_fade_shots;
 #[path = "world_shot_drone.rs"]
 mod drone_shots;
 #[path = "world_shot_hax.rs"]

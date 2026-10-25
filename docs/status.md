@@ -1,3 +1,80 @@
+## Card pictures: decoder guard and labels
+
+25/10/2026, `personal/card-faces-guard`, based on `main` `bbe66051`: two pieces of Slash's
+#206 (closed; main had its own lazy card pictures) ported onto main's. A picture the
+decoder panics on fails alone (`faces::decode_guarded`, `catch_unwind`): before, the
+worker died with `working` set and no card picture loaded again that session. Card and
+medal pictures upload under their own labels (`SJK card art`, `SJK medal art`) through
+`emblem::upload_labelled`, so `vram` and out-of-memory crash reports stop counting them as
+`SJK menu emblem` (the audit `card_faces_vram_audit` reads the new label). The holocron
+opening draws the prize's picture as an invisible quad from the burst on, so it is asked
+for well before the card turns over. Verified on Windows 11, RTX 5080: workspace build,
+clippy (nothing new), `cargo test --workspace` (new
+`a_picture_the_decoder_panics_on_fails_alone`), the 11 card world shots, whose card and UI
+pixels match main's. Not verified in game.
+
+## Player model and body stutters
+
+24/10/2026, Slash's `claude/sweet-pasteur-hitches` (PR #205), based on `main` `f52f7758`,
+merged 25/10/2026 as `personal/pr-205-model-staging` (Slash's log on a built-in Radeon: 39
+hitches in 20 minutes on a JoF server, `config-refresh` 30 to 425 ms 11 to 19 ms after
+`client N now wears`, `pose+skin+upload` 35 to 310 ms at kills). Players' models go up one
+texture a frame, repeated models reuse their appended materials, and each model's body
+copy is built on the loading worker and pooled in a frame of its own
+([rendering.md](rendering.md#geometry-and-pipelines-added-during-a-match)). An install
+over 4 ms logs its parts. At the merge: a reused material list asks again for the
+pipelines it still lacks (a second install during the first's compile waited for nothing
+before), a body copy is pooled only when bodies wear the live model (not under
+`cg_forceModel` or a team model override, where no death would take it), its log line says
+`body copy`, and textures already uploaded cost no frame; main's texture compression and
+picmip upload (`upload_levels`) kept as they were. Verified at the merge: fmt, workspace
+build, Clippy and tests (3847 passed); against `main` `bbe66051` on an RTX 5080, debug
+build: `animation_cost_on_a_demo` on Sol's 21/03 demo the same (37 actor slots,
+pose+skin+upload mean 0.904 against 0.923 ms, max 1.359 against 1.377) and
+`map_changes_vram` the same through seven map changes (peaks 2879/3417/3772/3206 MiB,
+after 1987/2300/2342/1748). Not verified: any frame in game, the hitches gone, the look of a
+body drawn with the model's materials, that every `pose+skin+upload` hitch was a body copy.
+
+## CTF team score boxes (PR #201)
+
+25/10/2026, `personal/pr-201-ctf-boxes`, Slash's #201 merged onto `main` `bbe66051` with
+the review's fixes ([client.md](client.md#capture-the-flag-hud)): a score is as wide as its
+digits beside a flag and has the whole box, centred, in team FFA, so "300" and "-12" fit;
+following another player names the carrier instead of "You" and drops the line below; a new
+`sv_serverid` or the server clock going back forgets the last game's drops and CTF
+messages; the status text is 13 pixels so a carrier's name has more room;
+`trickedentindex2` read through `EntityState::mute_entity_num`. Verified: workspace
+build, Clippy (no warnings in the touched files) and tests (3856 passed); the
+`ctf_flags_on_a_demo` world shots at 1920x1080 in the three HUD styles, carrying, dropped,
+following and team FFA. Not verified in game: a live CTF server's CTF messages, the count
+on a real drop, spectating a real carrier.
+
+## Body fade (EV_BODYFADE)
+
+24/10/2026, `fix/body-fade` (Creyon), based on `main` `47e38896`: a body the server
+clears on its own (`BodySink`) vanished at once in SJK; JoF players' EternalJK fades it.
+The client now keeps `EV_BODYFADE` per body and draws `CG_General`'s three layers
+([client.md](client.md#dismemberment-and-disintegration), body fade). SJK's server
+sent the event as 125 (`EV_PUSHED1`); it sends 100 (`bg_public.h`). Reference: OpenJK
+`codemp/cgame/cg_ents.c` and `cg_event.c`, EternalJK's same blocks (the 100 ms hum
+limit). Verified: unit tests of the fade's timing (body alpha, glow, burn start, extras,
+end), the tracker (one start per event, `ET_BODY` only, reset on a new body) and the
+server's event; the workspace format check, build, tests and clippy on Linux x86_64.
+Not verified: the drawing in a game (no GPU shot of a fading body), and Creyon's check
+against JoF EJK on Windows is pending. Held weapons and hilts drawn apart from the body
+vanish when the fade starts (cgame fades them with the body's Ghoul2 instance); the burn
+measures from the body's origin in world units, so a scaled model burns at the scale's
+pace, not the model's.
+
+Merged 25/10/2026 as `personal/pr-202-body-fade` with review fixes: the tracker keeps
+an empty event as `previousEvent` (a reused body slot that never left the snapshot
+fades again; test 356, 0, 356), clears itself when the server clock goes back, the
+dark side's crackle is rolled once per 100 ms as EternalJK (it rolled every 8 ms,
+about 12 a second), the mouth surface comes back when the fade ends, and SJK's
+server unlinks the body 4 s after the fade (`BodyRid`) instead of 18 s. Still open:
+held hilts vanish at the fade's start, and rig models' see-through parts show as
+squares under the glow (shared override path, also force shells).
+
 ## Site refresh
 
 25/10/2026, `personal/site-refresh`, based on `main` `0ff3c3e1`: the site's new layout,

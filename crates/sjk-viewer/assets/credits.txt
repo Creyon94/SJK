@@ -167,7 +167,7 @@ link: https://sol-vulpes.github.io/SJK/
 
 [Creyon]
 github: Creyon94
-role: Contributor and tester: 55 merged pull requests, EternalJK parity
+role: Contributor and tester: 56 merged pull requests, EternalJK parity
 medal: early_contributor
 did: #2 #7 Duel challenges from names with symbols, centre prints kept whole
 did: #3 The third-person camera damped per frame as EternalJK (cg_cameraFPS)
@@ -200,6 +200,7 @@ did: #105 Duellists drawn as JoF EJK draws them, with paired duel badges on name
 did: #188 The Blade Lab signature blades: 128 saber shaders in five tiers, with their sounds
 did: #192 Normal blades in duels, each in its owner's colour (cg_duelStockBlades)
 did: #191 Signature blades without the bright rim at the tip or hard edges round their effects
+did: #202 Bodies fade away as in EternalJK, with their Force side's glow and sounds
 did: #197 Trading between players: duplicates (and later holocrons) swapped or given as gifts, from a game or the main menu
 did: Blade Lab rounds 15 to 22: every blade effect in 3D, richer mythicals, faster loading
 did: The Saber ideas page: the concepts of the Tidal, Circuit, Aurora, Echo, Nebula, Cinder, Venom, Sakura and Firefly blades and the twelve after them (Saber smith: Creyon)
@@ -291,7 +292,7 @@ link: Lukas's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+
 
 [Slash]
 github: JoFSlash
-role: Contributor: 26 merged pull requests
+role: Contributor: 28 merged pull requests
 did: #114 Tab completes cfg file names after exec and writeconfig
 did: #113 CTF team saber colours, an option
 did: #153 The SJK scoreboard tells who won the Siege round or team match
@@ -318,7 +319,10 @@ did: #186 One-click update from the main menu
 did: #187 Emplaced guns turn with their gunner
 did: #189 A smaller chat sender card, cg_chatCardScale
 did: #200 Safety codes the hub cannot fake
+did: #201 CTF team score boxes with each flag's state
+did: #205 Fewer stutters when players join, change model or die
 did: #199 Peek asks first and names who watches: the idea of the Drone toy
+did: #206 Card pictures: the decoder guard and their own memory labels, ported
 link: Slash's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AJoFSlash
 
 [Milamber]

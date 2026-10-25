@@ -805,6 +805,18 @@ impl Panel {
                 );
             }
         }
+        if flip < 0.5
+            && let Some(prize) = cards::shown(&faces, shown.card.as_deref())
+        {
+            // The prize's picture as an invisible quad until the card turns face up, so
+            // it is asked for from the burst on (pictures load when drawn) and the reveal
+            // shows it rather than its dark window.
+            let _ = self.ui.draw_list_mut().push(DrawCommand::TexturedQuad {
+                rect: frame.rect(CARD_X, top, 1.0, 1.0),
+                texture: cards::faces::texture(prize.index),
+                color: Color::new(0.0, 0.0, 0.0, 0.0),
+            });
+        }
         if flip >= 0.5 {
             // Face up: from edge-on to facing the player.
             let turn = smooth((flip - 0.5) * 2.0);

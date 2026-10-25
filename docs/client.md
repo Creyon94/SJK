@@ -1110,9 +1110,32 @@ Both follow EternalJK's cgame (`cg_ents.c`, `cg_players.c`) and rd-vanilla's ren
   model burns in its untinted colours, as rd-vanilla's `killGen` does. A corpse slashed
   until it gives way (`body_die`) burns from its own origin, the middle of the body,
   and is removed a second later (`BodyRid`): it looks cut in half and loses its tint
-  for that second in EternalJK too (Nib's hub report 122, 22/10/2026). The slow fade of
-  a corpse the server clears on its own (`EV_BODYFADE`, `cg_ents.c` `bodyFadeTime`) is
-  not drawn yet: the body stays as it is until it is removed.
+  for that second in EternalJK too (Nib's hub report 122, 22/10/2026).
+- **Body fade** (`EV_BODYFADE`): 30 s after a body fell the server sends the event
+  (`BodySink`) and unlinks the body 4 s later (`BodyRid`). As in OpenJK's and EternalJK's
+  `CG_General` (`cg_ents.c`, `bodyFadeTime`), the body then thins out (forced alpha
+  from 254 down by 0.08 a millisecond, gone after 2.54 s) while the body drawn again
+  with its side's shader brightens over it (`RF_RGB_TINT` rising to 200): the light
+  side's is `gfx/misc/personalshield`, the dark side's `gfx/effects/sabers/red_glow`.
+  At 2.513 s that glow burns away from the body's origin (`RF_DISINTEGRATE2`), with the
+  Force Sight sound for the light side and lightning for the dark. For the first 3.4 s
+  the light side hums (`saberhum1`, for 2.2 s, at most once per 100 ms as EternalJK
+  plays it) and the dark side's body is drawn red with a random one of the two electric
+  shaders, crackling now and then (a one-in-ten roll once per 100 ms, EternalJK's fix
+  for the loud body sound). The side is `ircg`'s fourth operand (no `ircg`: the
+  dark side, as cgame's zeroed `teamPowerType`). The event also turns off the body's
+  `head_eyes_mouth` surface, back on when the mesh is given to another body. The
+  client keeps each body's start, seen again in a body slot that never left the
+  snapshot once its event field went back to 0 (`CG_CheckEvents`), and forgets every
+  start when the server clock goes back (a new gamestate)
+  ([body_fade.rs](../crates/sjk-client/src/body_fade.rs)) and draws the layers in place
+  of the body ([body_fade.rs](../crates/sjk-viewer/src/body_fade.rs)); held weapons and
+  hilts drawn apart from the body stop drawing when the fade starts. SJK's own server
+  sent the event as 125 (`EV_PUSHED1`) before 24/10/2026, and kept the body 18 s after
+  it (the 18 s think commented out in `g_client.c`); it sends 100 now and unlinks the
+  body 4 s after it. On High Quality (rig) models, see-through parts show as squares
+  in the glow: an override shader drawn over an actor replaces each surface's material,
+  alpha test included (force shells use the same path).
 
 Model cap surfaces (`*_cap_*`) are carried in every actor mesh, hidden until a cut.
 
@@ -2958,10 +2981,39 @@ the original cgame reads:
   gold plate with "YOU HAVE THE FLAG". The upper-right powerup icon of `CG_DrawPowerupIcons`
   still follows `cg_drawPowerupIcons` and `cg_drawUpperRight`; it now uses the ysalamiri
   pictures in CTY only (it took CTF for CTY).
-- The team scores in every team game but Siege (`cg_drawTeamScores`, on by default): "RED 3"
-  and "BLUE 5" plates under the clock at the top centre, from `CS_SCORES1` and `CS_SCORES2`
-  (`-` while the server has not sent one). With them on, the layouts' score line drops its
-  trailing team scores (`cg_drawScore 2`), which they replace.
+- The team scores in every team game but Siege (`cg_drawTeamScores`, on by default): two
+  team boxes under the clock at the top centre, red left and blue right, from `CS_SCORES1`
+  and `CS_SCORES2` (`-` while the server has not sent one), in the SJK UI's look in every
+  HUD style (the design canvas of 24/10/2026): the UI's navy under the team's muted colour
+  (`menu::sjk::color::RED_TEAM` and `BLUE_TEAM`, the SJK scoreboard's), a rule of that
+  colour along the bottom. Beside a flag the score stands at the inner edge, as wide as its
+  digits (smaller past 66 pixels, so "300" or "-12" fit); without flags (team FFA) it has
+  the whole box, centred. `cg_teamScoresBoxes 0` (Settings > HUD, "SJK team score boxes")
+  brings back the classic look: "RED 3" and "BLUE 5" plates under the clock and the flag
+  icons at the left. With the scores on, the layouts' score line drops its trailing team
+  scores (`cg_drawScore 2`), which they replace.
+- In Capture the Flag and Capture the Ysalamiri, with `cg_drawFlagStatus` too, each box
+  holds its team's flag at the outer edge and says where it is: "At base", its carrier
+  (named at once from the broadcast `EV_CTFMESSAGE` that `Team_TouchEnemyFlag` raises with
+  the taker's number, `CTFMESSAGE_PLAYER_GOT_FLAG`, even out of sight; then as the left
+  captions, "Taken" while unknown), "You" in gold for the flag you carry, or for a dropped
+  flag the seconds before it goes home ("18 s"), with a gold arc round the flag running
+  down. While you follow another player, their flag shows their name, not "You", and the
+  line below stays out. A dropped flag goes home by itself 30 s after it fell (`LaunchItem`
+  in OpenJK `codemp/game/g_items.c`, kept by JoF EJK and jaPRO; jaPRO's Tribes weapons wait
+  45 s, which the client cannot tell, so there the count ends early and the box says
+  "Dropped" for the last 15 s): the count starts when the client sees the flag fall, so a
+  flag already lying when you join, or one still there after 30 s, just says "Dropped". A
+  new gamestate (map change, restart, another server) or the server's clock going back
+  forgets the drops and takers seen before. An away flag shows its taken picture
+  (`mpi_*flag_x`), or its own picture faint in a pack without one. While you carry a flag, a
+  line under the boxes says "Take it home", in gold, or "Your flag is away" while your own
+  flag is not at base (no capture until it is). The boxes then replace the left icons and
+  the carried flag's powerup pictures (bottom left and in the upper-right column), which
+  return with `cg_teamScoresBoxes 0` or `cg_drawTeamScores 0`. The boxes are compact: 168 by
+  42 pixels of a 1080-line screen, the score 36; `cg_teamScoresScale` (Settings > HUD, "Team
+  score box size", 0.5 to 2, default 1) makes them smaller or larger, under the clock as
+  before.
 
 The scoreboards (classic and SJK UI) draw a flag icon before a carrier's name. A
 `scores` reply is only as fresh as the last scoreboard press, so each frame the rows'
@@ -3535,7 +3587,10 @@ The client looks for a newer SJK release when it starts and from the Update page
   ZIP's files beside the running program as `<name>.new` and renames each running
   file to `<name>.old` before the new one takes its name (a Windows program can be
   renamed while it runs, not overwritten). A failed step puts the old files back.
-  Only plain file names are taken from the ZIP. The `.old` files are deleted at
+  Only plain file names are taken from the ZIP, and the Mac's `SJK.app` bundle,
+  which is written and swapped whole (the folder beside the bundle is the install
+  folder; a Mac client from before the bundle cannot install a bundled release and
+  says so). The `.old` files (and `SJK.app.old`) are deleted at
   the next start. Settings in `GameData/SJK/` are not touched.
 - The new version starts when the client exits, after it saved its settings:
   "Restart now" on the page quits, or the player keeps playing and restarts later.
