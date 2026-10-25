@@ -29,6 +29,12 @@
 - 51b7e4b |  | CTF HUD: clippy (iterate the drop timers, no same-type cast)
 + 25/10/2026 | - | Changelog: keep the CTF team boxes entry after the rebase
 - daff47b |  | Changelog: keep the CTF team boxes entry after the rebase
++ 25/10/2026 | - | Stage player model installs and pool body copies ahead of deaths
+- a77107c |  | Stage player model installs and pool body copies ahead of deaths
++ 25/10/2026 | - | Drop the all-at-once prepared texture upload, unused since players upload one a frame
+- 4468c35 |  | Drop the all-at-once prepared texture upload, unused since players upload one a frame
++ 25/10/2026 | - | Restore main's earlier changelog line the merge had dropped; separate the status entry
+- 68b9fc2 |  | Restore main's earlier changelog line the merge had dropped; separate the status entry
 + 25/10/2026 | - | Announcement commands close the console, the window frees the cursor
 - 7028074 |  | Announcements: commands close the console, the window frees the cursor
 + 25/10/2026 | - | Ragdoll knocks and scrapes heard in release builds
@@ -2519,6 +2525,10 @@
 - fed9acd |  | Hide duel opponents' bars and send nothing while duelling
 
 = Slash
++ 25/10/2026 | SJK #205 | Stage player model installs and pool body copies ahead of deaths
+- fc0bb20 | Sol | Model installs: wait for a reused model's pipelines; pool only bodies the player will leave
+- 462c1e2 | Sol | PR #205: credits and debug panel entry
+- 4203548 | Sol | PR #205 status: the checks run at the merge, against main
 + 25/10/2026 | SJK #201 | CTF HUD: team scores in SJK team boxes with each flag's state
 - 81ea659 | Sol | CTF team boxes: long scores fit, followed carriers named, drops forgotten per game
 + 24/10/2026 | SJK #200 | Encrypted whispers: per-key safety code fingerprints (v2)

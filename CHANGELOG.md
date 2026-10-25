@@ -38,6 +38,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Capture the flag: the team scores at the top of the screen stand in two team boxes in SJK's colours, each with its flag and where it is: at base, who carries it, or how many seconds a dropped flag has before it goes home. While you carry a flag a line under them says "Take it home", or that your own flag must be back first; `cg_teamScoresBoxes` 0 brings back the classic plates and flag icons _(Slash)_
 - Ragdoll: the body's knocks and scrapes are now heard; a timing error silenced every one of them in released builds _(Sol)_
 - Announcements: `announcement` and `rewards` now close the console as their window opens, and the mouse works in the window during a match _(Sol)_
+- Fewer stutters when players join, change model or die: a new player's model goes up a texture a frame, models shown again reuse what they had, and a model's body for deaths is ready before the first kill _(Slash)_
 - Kyber crystals: every achievement now brings one, once, from Uncommon to Mythical (shown on the Achievements tab, its hover card and its unlock card). Opening one always gives a saber shader, the ones you do not have yet first, and every tenth crystal in a row without a Legendary or Mythical shader gives one: the Holocrons tab shows your crystals, how soon that is, and their loot table _(Sol)_
 
 ## 2026.1025.2 (Alpha) | 25/10/2026
