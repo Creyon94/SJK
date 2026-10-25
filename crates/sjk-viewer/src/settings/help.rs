@@ -424,6 +424,10 @@ const HELP: &[(&str, &str)] = &[
         "Off: Drone sounds are not played on this PC, yours or other players'. The toy still works and is still seen.",
     ),
     (
+        crate::toy_sounds::Toy::Boombox.cvar(),
+        "Off: no boombox music plays on this PC, yours or other players'. Their stereo is still seen.",
+    ),
+    (
         crate::away_emote::SJK_CVAR,
         "A looping emote you play while away (alt-tabbed out or idle), silent. Any emote you play then goes quiet too, for everyone.",
     ),
@@ -691,6 +695,10 @@ const HELP: &[(&str, &str)] = &[
     (
         crate::hax::AWAY_CVAR,
         "With the Hax trap on: players may hack you while you are away, and blow up with you. Others can see it is set.",
+    ),
+    (
+        crate::boombox::RANGE_CVAR,
+        "How far your boombox carries, in units (a player is 64 tall). It fades out toward the edge.",
     ),
     (
         crate::duel_blades::CVAR,

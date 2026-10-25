@@ -550,6 +550,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "Play Drone sounds (SJK)",
         ),
         CvarDefinition::new(
+            crate::toy_sounds::Toy::Boombox.cvar(),
+            true,
+            archive,
+            "Play other players' boombox music and your own (SJK)",
+        ),
+        CvarDefinition::new(
             crate::emotes::ATTACK_STOP_CVAR,
             crate::emotes::DEFAULT_ATTACK_STOP,
             archive,
@@ -784,6 +790,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             false,
             archive,
             "The Drone toy is on: other players may peek at you, their drone following you (toy_drone switches it)",
+        ),
+        CvarDefinition::new(
+            crate::boombox::RANGE_CVAR,
+            crate::boombox::DEFAULT_RANGE,
+            archive,
+            "How far your boombox is heard, in units (128 to 1000; SJK)",
         ),
         CvarDefinition::new(
             crate::duel_blades::CVAR,

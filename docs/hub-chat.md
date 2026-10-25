@@ -1114,8 +1114,9 @@ The toy relay (since 21/10/2026, Sol-Vulpes/SJK-hub, `PROTOCOL.md`, "Toy relay")
 carries toy events that must reach one player at once, many times a
 second, which the feed's toy events (one a second, read by a poll every few seconds)
 cannot: the [Hax](client.md#hax)'s hacker steering the hacked player, the
-[Ragdoll](client.md#ragdoll)'s falls, told to every SJK player on the server, and the
-[Drone](client.md#drone)'s place, told to each in turn. Two threads of
+[Ragdoll](client.md#ragdoll)'s falls, told to every SJK player on the server, the
+[Drone](client.md#drone)'s place, told to each in turn, and the
+[Boombox](client.md#boombox)'s track, told to each player within reach. Two threads of
 the identity service of their own ([relay.rs](../crates/sjk-identity/src/relay.rs),
 `sjk-hub-relay-send` and `sjk-hub-relay-read`), each with its own HTTP client, read the
 hub and the game server as the feed does:

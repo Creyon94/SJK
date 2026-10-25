@@ -148,6 +148,7 @@ pub(crate) fn row_labels(
         hax: false,
         ragdoll: false,
         drone: false,
+        boombox: false,
         name: "",
         stock: color::HOLO,
         grid: false,
@@ -267,6 +268,7 @@ impl Panel {
         self.hax_on = inputs.hax;
         self.ragdoll_on = inputs.ragdoll;
         self.drone_on = inputs.drone;
+        self.boombox_on = inputs.boombox;
         self.share_on = inputs.share;
         let seconds = self.epoch.elapsed().as_secs_f32();
         #[cfg(test)]
@@ -514,6 +516,8 @@ impl Panel {
                     (4, _, _) => "go limp",
                     (5, _, _) if inputs.drone => "turn off",
                     (5, _, _) => "turn on",
+                    (6, _, _) if inputs.boombox => "put away",
+                    (6, _, _) => "play",
                     (_, true, _) => "put out",
                     _ => "light",
                 },

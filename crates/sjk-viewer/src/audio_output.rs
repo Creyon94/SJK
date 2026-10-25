@@ -149,6 +149,15 @@ impl Iterator for MixerSource {
                     self.pending.play(&mut self.mixer, handle, request);
                     continue;
                 }
+                if let AudioCommand::PlayTrack(handle, request, elapsed_ms, queued_at) = command {
+                    let offset = MusicOffset {
+                        elapsed_ms,
+                        queued_at,
+                    };
+                    self.pending
+                        .play_track(&mut self.mixer, handle, request, offset);
+                    continue;
+                }
                 if let AudioCommand::StopChannel(source, channel)
                 | AudioCommand::PlayFrom(
                     _,
@@ -210,6 +219,10 @@ pub(super) enum AudioCommand {
     /// given source's voice plays it near there ([`sjk_audio::Mixer::play_aligned`]);
     /// one still decoding is not started.
     PlayFrom(SoundHandle, PlayRequest, usize, Option<SourceId>),
+    /// Play a long sound (a boombox track) this many milliseconds in, as of the
+    /// instant given; one still decoding starts once it is, further in by the time it
+    /// waited.
+    PlayTrack(SoundHandle, PlayRequest, u64, Instant),
     Listener {
         origin: [f32; 3],
         forward: [f32; 3],
@@ -236,7 +249,7 @@ pub(super) enum AudioCommand {
 
 /// Clock anchor travels with one synced start through decoding and callback queues.
 #[derive(Clone, Copy)]
-struct MusicOffset {
+pub(super) struct MusicOffset {
     elapsed_ms: u64,
     queued_at: Instant,
 }
@@ -655,6 +668,17 @@ fn apply_command(mixer: &mut Mixer, command: AudioCommand) -> bool {
                 mixer.play_from(handle, request, offset);
             }
         },
+        AudioCommand::PlayTrack(handle, request, elapsed_ms, queued_at) => {
+            pending::start_track(
+                mixer,
+                handle,
+                request,
+                MusicOffset {
+                    elapsed_ms,
+                    queued_at,
+                },
+            );
+        }
         AudioCommand::Listener {
             origin,
             forward,

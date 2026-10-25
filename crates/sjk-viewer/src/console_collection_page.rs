@@ -156,6 +156,10 @@ impl ViewerConsole {
                 self.pending_drone = Some(on);
                 self.drone_on = on;
             }
+            PanelAction::Boombox(on) => {
+                self.pending_boombox = Some(on);
+                self.boombox_on = on;
+            }
             PanelAction::Hub(tab) => {
                 // A tab of another page: the Holocrons page.
                 let back = self.collection_panel.back();
@@ -235,6 +239,16 @@ impl ViewerConsole {
         self.pending_drone.take()
     }
 
+    /// The viewer says whether the Boombox is carried, once a frame.
+    pub(crate) fn set_boombox_on(&mut self, on: bool) {
+        self.boombox_on = on;
+    }
+
+    /// The Toys tab asked to carry the Boombox (`true`) or put it away, once.
+    pub(crate) fn take_boombox_request(&mut self) -> Option<bool> {
+        self.pending_boombox.take()
+    }
+
     /// Give a pressed key to the open page; false when the page is closed.
     pub(super) fn collection_panel_key(&mut self, event: &KeyEvent) -> bool {
         if !self.collection_panel.is_open() {
@@ -305,6 +319,7 @@ impl ViewerConsole {
         let hax = self.hax_on;
         let ragdoll = self.ragdoll_on;
         let drone = self.drone_on;
+        let boombox = self.boombox_on;
         let stock = self.stock_blade();
         let grid = self.integer_cvar(super::collection_panel::SHADER_VIEW_CVAR) == Some(1);
         let options = self
@@ -338,6 +353,7 @@ impl ViewerConsole {
                 hax,
                 ragdoll,
                 drone,
+                boombox,
                 name: &name,
                 stock,
                 grid,
@@ -361,6 +377,7 @@ impl ViewerConsole {
             hax,
             ragdoll,
             drone,
+            boombox,
             name: &name,
             stock,
             grid,

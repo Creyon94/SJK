@@ -1,10 +1,10 @@
 //! The Collection's Toys tab: things to use in a match, everyone's. SJK's Illuminate
 //! holocron (`docs/client.md`, Illuminate), the cardboard box (`docs/client.md`,
 //! Cardboard box), Order 66 (`docs/client.md`, Order 66), the Hax (`docs/client.md`,
-//! Hax), the Ragdoll (`docs/client.md`, Ragdoll) and the Drone (`docs/client.md`, Drone)
-//! stand on plinths on the left; the chosen one is described beside the model with the
-//! switch that runs it (`toy_illuminate`, `toy_box`, `toy_order66`, `toy_hax`,
-//! `toy_ragdoll`, `toy_drone`). The holocron
+//! Hax), the Ragdoll (`docs/client.md`, Ragdoll), the Drone (`docs/client.md`, Drone) and
+//! the Boombox (`docs/client.md`, Boombox) stand on plinths on the left; the chosen one is
+//! described beside the model with the switch that runs it (`toy_illuminate`, `toy_box`,
+//! `toy_order66`, `toy_hax`, `toy_ragdoll`, `toy_drone`, `toy_boombox`). The holocron
 //! floats lit by the model while it is chosen.
 
 use super::view::{LEFT_X, STAGE_TEXT_WIDTH, STAGE_TEXT_X, glow, left_lines};
@@ -14,9 +14,9 @@ use crate::menu_widgets::TextFamily;
 use sjk_ui::{Color, DrawCommand, FontWeight, TextAlign, TextureId};
 
 /// The first toy's niche: its corner and size; the next stands [`NICHE_STEP`] to the
-/// right. Six fit before the words beside the model.
-const NICHE: [f32; 3] = [LEFT_X, 300.0, 172.0];
-const NICHE_STEP: f32 = 186.0;
+/// right. Seven fit before the words beside the model.
+const NICHE: [f32; 3] = [LEFT_X, 300.0, 148.0];
+const NICHE_STEP: f32 = 160.0;
 
 /// One toy as the tab shows it.
 struct Toy {
@@ -89,6 +89,15 @@ const TOYS: [Toy; TOY_COUNT] = [
         switch: "Peek me",
         token: DRONE_TOKEN,
     },
+    Toy {
+        icon: "boombox",
+        name: "Boombox",
+        title: "Boombox",
+        what: "Carry an 80s stereo on your shoulder, playing your tracks to the SJK players standing close by. Tracks are sound/boombox/<name>.mp3 files in your pk3s; others hear one when they have it too. For verified players.",
+        how: "Bind keys to toy_boombox and boombox next, or use the quick wheel; boombox in the console lists your tracks.",
+        switch: "Play",
+        token: BOOMBOX_TOKEN,
+    },
 ];
 
 /// A toy's picture: the quick wheel's, uploaded into the atlas at start.
@@ -131,7 +140,7 @@ impl Panel {
     pub(super) fn toys(&mut self, frame: &Frame, inputs: &Inputs<'_>) {
         self.lead(
             frame,
-            "6 toys",
+            "7 toys",
             "Things to use in a match, from the quick wheel or a key.",
         );
         let chosen = self.toy.min(TOY_COUNT - 1);
@@ -150,6 +159,7 @@ impl Panel {
             3 => inputs.hax,
             4 => inputs.ragdoll,
             5 => inputs.drone,
+            6 => inputs.boombox,
             _ => inputs.illuminate,
         };
         self.toy_beside_model(frame, &TOYS[chosen], on);
@@ -334,6 +344,7 @@ mod tests {
                         HAX_TOKEN,
                         RAGDOLL_TOKEN,
                         DRONE_TOKEN,
+                        BOOMBOX_TOKEN,
                         TOY_SWITCH_TOKEN,
                     ] {
                         let area = panel.ui.rect_for(token).expect("a target");

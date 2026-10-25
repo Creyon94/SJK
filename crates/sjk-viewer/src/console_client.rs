@@ -195,6 +195,7 @@ pub(super) const COMMANDS: &[(&str, &str)] = &[
         crate::console::SJK_GIF_HELP,
     ),
     (crate::emotes::COMMAND, crate::emotes::HELP),
+    (crate::boombox::TRACK_COMMAND, crate::boombox::HELP),
     (crate::block_command::COMMAND, crate::block_command::HELP),
     (
         crate::block_command::UNBLOCK_COMMAND,
@@ -1092,6 +1093,7 @@ impl crate::GpuState {
                 self.sync_cursor_policy();
             }
             crate::emotes::COMMAND => return self.emote_command(args),
+            crate::boombox::TRACK_COMMAND => return self.boombox_command(args),
             crate::block_command::COMMAND => return self.block_command(args),
             crate::block_command::UNBLOCK_COMMAND => return self.unblock_command(args),
             crate::medal_popup::rehearsal::COMMAND => return self.debug_medal_command(args),

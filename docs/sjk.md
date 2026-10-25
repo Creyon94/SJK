@@ -22,7 +22,7 @@ general contributor rules.
   (`japlus.guntele`, `jof.commands`), and its switch is `mod_<id>`
   ([mods.md](mods.md)).
 - Every toy is a `toy_<name>` command (`toy_illuminate`, `toy_box`, `toy_order66`,
-  `toy_hax`, `toy_ragdoll`, `toy_drone`); a
+  `toy_hax`, `toy_ragdoll`, `toy_drone`, `toy_boombox`); a
   toy has no Force wheel entry, and one with a setting names it `cg_toy<Name>...`.
   Illuminate, the cardboard box and Order 66 have none: they are always available and
   on only for the client's run. A toy others see has an id in the look's `toys`

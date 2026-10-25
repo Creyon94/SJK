@@ -1,3 +1,24 @@
+## Boombox toy
+
+25/10/2026, `personal/boombox-toy`, based on `main` `44184714` (Sol's idea): `toy_boombox`
+puts an 80s stereo on the shoulder (drawn by `scripts/boombox_assets.py`) and plays the
+player's own tracks, `sound/boombox/<id>.mp3` in pk3s, to the SJK players close by who have
+a file of the same id and size ([client.md](client.md#boombox)). Verified players only: the
+toggle refuses an unverified key on a server, and every client ignores the relay events
+and look of a player the hub does not show as verified. What plays goes through the toy
+relay (`play_<moment>_<bytes>_<range>_<id>`, `stop`), the moment being the game server's
+time, so each listener starts at the same point; `cg_toyBoomboxRange` (128 to 1000,
+default 400) sets the reach, `s_toyBoomboxSound` silences it. New pieces under it:
+`VirtualFileSystem::size` (a file's size from the pk3 directory, nothing inflated) and
+`AudioCommand::PlayTrack` (a long sound waits for its decoder, then starts as far in as
+the time it waited); decoded tracks are freed when nothing plays them. No hub change (the
+hub checks no toy ids). Verified: fmt, workspace build, Clippy and tests (new unit tests
+for the events, the catalogue, telling, what plays, the model and `size`); the stereo's
+place on the shoulder from world shots of Sol's 21/03 demo (`boombox_on_a_demo`). Not
+verified: anything in game, two clients hearing the same moment, the fade at the range,
+the pending start's skip, the look on custom and rig models, or a track ending into the
+next.
+
 ## Card pictures: decoder guard and labels
 
 25/10/2026, `personal/card-faces-guard`, based on `main` `bbe66051`: two pieces of Slash's

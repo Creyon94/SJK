@@ -24,6 +24,7 @@ mod avatars;
 mod away_emote;
 mod block_command;
 mod bolt;
+mod boombox;
 mod brush_view;
 mod build_info;
 mod camera;
@@ -514,6 +515,8 @@ struct GpuState {
     hax: hax::Hax,
     /// The Drone toy (`toy_drone`): its consent switch and the other players' drones.
     drone: drone::Drone,
+    /// The Boombox toy (`toy_boombox`): the own stereo and track, and what plays here.
+    boombox: boombox::Boombox,
     /// The Ragdoll toy (`toy_ragdoll`): the player's own fall and the falls of others.
     ragdoll: ragdoll::Ragdoll,
     /// Order 66's, the Hax's and the Drone's switches as last saved (`toy_saved`).
@@ -1484,6 +1487,7 @@ impl GpuState {
             order66: Default::default(),
             hax: Default::default(),
             drone: Default::default(),
+            boombox: Default::default(),
             ragdoll: Default::default(),
             toys_saved: Default::default(),
             holocron_stage: Default::default(),

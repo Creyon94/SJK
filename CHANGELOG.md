@@ -32,6 +32,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
+- New toy for verified players, the Boombox: an 80s stereo on your shoulder playing your own tracks (`sound/boombox/<name>.mp3` in a pk3) to the SJK players standing close by who have the same track. `toy_boombox` carries it (quick wheel Toys page, Collection > Toys), `boombox` lists your tracks and `boombox next` skips; how far it carries is Settings > Game options, Boombox range (`cg_toyBoomboxRange`), and Settings > Sound silences everyone's (`s_toyBoomboxSound`) _(Sol)_
 - Mac: fullscreen is always the borderless kind, as the exclusive kind could crash the game when chosen and kept Cmd+Tab from working _(Sol, after Glen's report)_
 - Kyber crystals: every achievement now brings one, once, from Uncommon to Mythical (shown on the Achievements tab, its hover card and its unlock card). Opening one always gives a saber shader, the ones you do not have yet first, and every tenth crystal in a row without a Legendary or Mythical shader gives one: the Holocrons tab shows your crystals, how soon that is, and their loot table _(Sol)_
 

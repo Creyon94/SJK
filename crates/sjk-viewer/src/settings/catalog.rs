@@ -351,6 +351,11 @@ pub(super) const AUDIO: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Boombox music",
+        cvar: crate::toy_sounds::Toy::Boombox.cvar(),
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Unlock sound",
         cvar: crate::unlock_toast::SOUND_CVAR,
         kind: ValueKind::Bool,
@@ -925,6 +930,15 @@ pub(super) const GAME: &[Setting] = &[
         label: "Hax trap while away",
         cvar: crate::hax::AWAY_CVAR,
         kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Boombox range",
+        cvar: crate::boombox::RANGE_CVAR,
+        kind: ValueKind::Integer {
+            min: crate::boombox::MIN_RANGE,
+            max: crate::boombox::MAX_RANGE,
+            step: 32,
+        },
     },
     Setting {
         label: "Normal blades in duels",
