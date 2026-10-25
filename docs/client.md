@@ -4977,7 +4977,10 @@ waits for room as before, but stops when the output is dropped, so `snd_restart`
 quitting do not wait on it. See [audio_feed.rs](../crates/sjk-viewer/src/audio_feed.rs).
 
 The Video tab's Display mode row offers Windowed, Borderless fullscreen and,
-where the windowing system supports it, Exclusive fullscreen (Wayland does not).
+where the windowing system supports it, Exclusive fullscreen (Wayland does not,
+and macOS is kept to borderless: winit's exclusive mode there captures the display,
+which takes Cmd+Tab away, and panics inside AppKit's redraw when capturing it or
+setting its mode fails; a Mac player's game aborted on choosing fullscreen, 25/10/2026).
 Stock `r_fullscreen` keeps its meaning, fullscreen on or off, and Alt+Enter still
 toggles it. `r_exclusiveFullscreen` chooses the kind: 0 (default) is a borderless
 window at the desktop size, 1 switches the monitor to the `r_resolution` video

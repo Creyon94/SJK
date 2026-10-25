@@ -365,6 +365,12 @@ did: Click a name in the chat to whisper them
 role: Ideas for SJK
 did: Saber sounds of your choice, apart from your saber shader
 
+== Testing
+
+[Glen]
+role: The first player of SJK on a Mac
+did: Reported the Mac build's fullscreen crash, its frame rate and Cmd+Tab
+
 == Made with
 
 [Claude]

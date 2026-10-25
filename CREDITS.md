@@ -689,6 +689,13 @@ built it as the pinned chat card's Whisper button (23/10/2026).
 Nib, a player, asked to choose the saber sounds apart from the saber shader (18/10/2026,
 and hub report #109): Sol built it as the Saber tab's Sounds row (23/10/2026).
 
+## Testing
+
+Glen, a player, was the first to play SJK on a Mac (25/10/2026), on a MacBook Pro
+with Apple Silicon, and reported that the game aborted on choosing fullscreen, its
+frame rate on Metal and that Cmd+Tab did not work. Sol kept macOS to borderless
+fullscreen after that crash report (25/10/2026).
+
 ## Tools
 
 Many of Sol's changes were written with Claude (Anthropic) as a
