@@ -2105,8 +2105,11 @@ under it are not drawn and take no input. The same look in every menu style, on 
 team's windows ([hub-chat.md](hub-chat.md#announcements-and-reward-rounds)). One SJK
 pop-up card over the darkened screen at a time, the same look in every menu style, on the
 16:9 frame; the menus under it are not drawn and take no input. A window the player opened
-(a click on a line, `announcement`, `rewards`, `announce`) shows at once, over the console
-too; the claim window opens on the main menu or over the game menu, after the medal,
+(a click on a line, `announcement`, `rewards`, `announce`) shows at once, in the middle of
+play too; a command closes the console first, while a line clicked on the chat page opens
+its window over the page, which is back once the window closes. While a window shows the
+cursor is free and the window takes every key and click (held keys are let go); the claim
+window opens on the main menu or over the game menu, after the medal,
 holocron, reload, FPS and log request cards and before the what's-new card, never in the
 middle of play. Every card is 920 wide from x 500, as tall as what it holds, centred; its
 head is the mark (SJK's logo, or the gift box U+E028 in gold for rewards, 52), a kicker in

@@ -34,7 +34,9 @@ test: announcement reopens the newest; in the dock and chat page a click on the 
 test: debug_reward, then back to the main menu: the claim window shows; Claim and Later close it.
 test: In a match, debug_reward: the "Contributor reward waiting" card, the window on game menu.
 test: debug_reward list (and rewards): the round list scrolls with Up, Down and the wheel.
-note: The live hub does not have it yet (hub branch announcements): real rounds need a deploy.
+test: announcement from the console: the console closes; Esc closes the card, back to the game.
+test: In a match, announcement: the mouse cursor shows and clicks the card; Close gives it back.
+note: Live on the hub since 25/10 (announcement #1 is the 2026.1025.1 release).
 
 [japlus-names]
 area: Console & chat

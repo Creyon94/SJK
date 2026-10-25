@@ -222,6 +222,8 @@ impl GpuState {
     pub(crate) fn key_catcher_active(&self) -> bool {
         self.game_menu
             || self.text_dialog.is_open()
+            // The SJK team's window, which may show in the middle of play.
+            || self.official.window.is_open()
             || self.chat.is_typing()
             || self
                 .console

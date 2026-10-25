@@ -35,10 +35,19 @@ fn official_windows_shot() {
             ("long", "official-long"),
         ] {
             let args = [kind.to_owned()];
+            if let Some(console) = gpu.console.as_mut() {
+                console.set_open(true);
+            }
             gpu.debug_announce_command(&args).expect("a rehearsal");
+            assert!(
+                !gpu.console.as_ref().is_some_and(console::ViewerConsole::is_open),
+                "the command closes the console"
+            );
             shoot(&mut gpu, 3, name);
             assert!(gpu.official.window.is_open(), "{kind} shows");
+            assert!(gpu.key_catcher_active(), "the cursor is free over {kind}");
             gpu.official_choice(Some(crate::official::window::Choice::Close));
+            assert!(!gpu.official.window.is_open(), "Close puts it away at once");
         }
         gpu.debug_reward_command(&["list".to_owned()])
             .expect("a rehearsal");
