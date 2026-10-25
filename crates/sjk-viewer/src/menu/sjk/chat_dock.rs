@@ -1204,8 +1204,9 @@ pub(crate) fn sender_card(
             card: tokens.card,
             mute: tokens.mute,
             ban: tokens.ban,
-            // The safety code and Whisper are only offered in the game's chat.
+            // The safety code, Report and Whisper are only offered in the game's chat.
             safety: tokens.card,
+            report: tokens.card,
             whisper: None,
         },
     );
@@ -1228,6 +1229,7 @@ fn person(line: &DockLine<'_>) -> crate::sender_card::Person {
         avatar: None,
         note: None,
         safety: false,
+        report: false,
     }
 }
 

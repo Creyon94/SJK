@@ -1173,10 +1173,31 @@ whispers to it go through the game server as before, without the card. Asking wi
 `whispers=1` promises to open box format 1 (`whisper.rs`); a client that cannot must
 not ask, or the whispers sealed to it are lost.
 
+**Who may start one (Sol, 25/10/2026).** Encrypted whispers are for verified players,
+so nobody can advertise to players where no game server sees it: only a player the hub
+vouches for (verified or staff) starts one. A player who is not answers one, to its
+sender only, for 30 minutes after that sender's last whisper to them; their own answers
+do not keep the window open. The hub enforces it (403 `whisper_not_verified`; its window
+lives in memory, so a restart closes it), and the client follows the same rule
+(`player_identity::vouched`, the answer window `ANSWER_WINDOW`, a minute shorter so an
+answer never races its end): a whisper it may not send encrypted goes through the game
+server as a whisper always did, without the card, and the composer's "Not private" note
+says so. A refusal the client did not foresee (the hub restarted) opens the card.
+
+**Servers that moderate whispers (Sol, 25/10/2026).** JoF asked to keep moderating
+whispers on their servers (against advertising there), so on the server families of
+`e2e_whispers::PLAIN_FAMILIES` (JoF, told by `sjk_mod::known_servers`) the client neither
+takes nor sends encrypted whispers: it does not read with `whispers=1`, so the hub gives
+no `whisper_key` there, and every whisper goes through the game server. The player's
+setting for the family turns them back on (`jof.e2eWhispers`, off by default, a JoF tools
+setting that holds whatever the mod's switch, [mods.md](mods.md)). Both players need it
+on, since a player who does not take them there has no key to whisper to.
+
 **Sending** ([e2e_whispers.rs](../crates/sjk-viewer/src/e2e_whispers.rs)). Every whisper,
 from the composer, `tell` or `reply`, reaches `send_chat_command` after its
 substitutions and colours. When the recipient's slot has a claim under the name the game
-shows there with a `whisper_key`, the text after `tell <slot>` is handed to the identity
+shows there with a `whisper_key`, and the player may whisper them encrypted (above), the
+text after `tell <slot>` is handed to the identity
 service (`Service::send_whisper`), and the game server gets nothing. The relay's sending
 thread seals it (`whisper::seal`) and posts `POST /v1/whisper` before any toy frame. The
 hub refuses it when the recipient no longer reads with that key (409 `not_listening`),
@@ -1232,18 +1253,28 @@ goes encrypted to them without the card asking (it offers the game server, as fo
 refused whisper), and a whisper from the new key comes with a red console warning to
 compare the code again. Remove the check forgets it.
 
-**The composer** says "To <name> (encrypted)" in the pink when the recipient takes
-encrypted whispers (`ChatOverlay::set_encrypted_slots`, from presence, when it changes).
-When the whisper is not encrypted (the recipient does not take encrypted whispers, or
-`cl_e2eWhispers` is off), a red note under the field says so for as long as the composer
+**The composer** says "To <name> (encrypted)" in the pink when the whisper will go
+encrypted (`ChatOverlay::set_encrypted_slots`, from presence and the answer windows, when
+they change). When the whisper is not encrypted (the recipient does not take encrypted
+whispers, the player may not start one with them, `cl_e2eWhispers` is off, or a JoF
+server without `jof.e2eWhispers`), a red note under the field says so for as long as the composer
 is on it: "Not private: the server logs this whisper and its owner can read it" (Sol,
 22/10/2026; the same red pill as SJK chat's note on JoF servers, `chat/view/composer.rs`).
 
 **Limits.** Only on the same game server, both players on SJK with the identity on. The
 hub sees who whispers to whom, when, and how long the box is. A whisper not read
 within 60 seconds, or held when the hub restarts, is lost without the sender knowing
-(the hub had taken it). Staff cannot read whispers to judge a report; a recipient can
-show one, signed by its sender, but nothing sends that yet.
+(the hub had taken it). Staff cannot read whispers unless a recipient reports one.
+
+**Reporting one (Sol, 25/10/2026).** The chat's player card has Report for a player whose
+last encrypted whisper to us came in the last 23 hours on this server (beside Safety
+code when both show; `ChatOverlay::set_reportable_slots`). It opens the game menu's Report
+page for them ([identity.md](identity.md#player-reports)), and the report carries that
+whisper: its text and time and the signature its sender made inside the box
+(`whisper::open_signed`), which the hub checks against the sender's key, the reporter's
+key and the server. So staff read a whisper only when its recipient sends it, and know it
+the sender's: nobody can make one up in another's name. Only the last whisper from each
+player is kept, in memory, never written to disk.
 
 ## Announcements and reward rounds
 
@@ -1381,7 +1412,8 @@ ask GIPHY only for the GIFs themselves.
 Encrypted whispers ([Encrypted whispers](#encrypted-whispers)): with `cl_e2eWhispers` on,
 on a game server, the hub learns that the player takes them (their key, in presence)
 and, for each whisper, the sender, the recipient's slot and key, when, and the sealed
-box's length, never its text. It keeps a whisper 60 seconds in memory. The keys seen
+box's length, never its text, unless the recipient reports it (then the text, its time
+and the sender's signature, with the report). It keeps a whisper 60 seconds in memory. The keys seen
 for each player stay on this PC (`whisper-keys.txt`, and the checked ones in
 `whisper-verified.txt`) and are never sent.
 

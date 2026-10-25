@@ -20,12 +20,24 @@
 //! (`whisper-verified.txt`, [`sjk_identity::whisper::Verified`]): their whispers then say
 //! VERIFIED, and once their key changes nothing goes encrypted to it without the card
 //! asking, and what comes from it is flagged.
+//!
+//! Only a player the hub vouches for (verified or staff) starts an encrypted whisper
+//! (Sol, 25/10/2026: no advertising by strangers where no server can see it); another
+//! answers one, to its sender only, for [`ANSWER_WINDOW`] after it came, as the hub
+//! allows. Any other whisper goes through the game server as before, which the
+//! composer's "Not private" note says. A whisper that came can be reported with the
+//! sender's proof inside it (the chat card's Report, `player_report.rs`).
+//!
+//! Servers whose operators moderate whispers ([`PLAIN_FAMILIES`]) keep them on the game
+//! server: there the client neither takes nor sends encrypted whispers unless the
+//! player turns that family's setting on.
 
 use crate::e2e_whisper_card::{Choice, Failure, Safety};
 use crate::{GpuState, player_identity};
 use sjk_identity::whisper::{
     Checked, KeyPins, OpenError, Outgoing, PinCheck, Received, Verified, parse_key, safety_code,
 };
+use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
@@ -40,6 +52,53 @@ const VERIFIED_FILE: &str = "whisper-verified.txt";
 pub(crate) const VERIFY_COMMAND: &str = "whisper_verify";
 /// How long a sent whisper may wait for the hub's answer before it counts as failed.
 const ANSWER_WAIT: Duration = Duration::from_secs(10);
+/// How long a player the hub does not vouch for may answer an encrypted whisper after
+/// it came: the hub's 30 minutes (`PROTOCOL.md`, "Whispers") less one, so an answer
+/// does not race its end.
+const ANSWER_WINDOW: Duration = Duration::from_secs(29 * 60);
+/// How long the last encrypted whisper from a player may be reported: the hub takes
+/// one up to a day old.
+const REPORT_WINDOW: Duration = Duration::from_secs(23 * 60 * 60);
+
+/// A server family whose operators asked that whispers on their servers stay on the
+/// game server, where they moderate them (AGENTS.md, no hardcoded special cases; the
+/// families are `sjk_mod::known_servers`'), and the player's setting that turns
+/// encrypted whispers back on there.
+#[derive(Debug, Eq, PartialEq)]
+pub(crate) struct PlainFamily {
+    /// The family's id in `sjk_mod::known_servers`.
+    pub(crate) family: &'static str,
+    /// Its name, as the family's.
+    pub(crate) name: &'static str,
+    /// The setting, off by default.
+    pub(crate) cvar: &'static str,
+}
+
+/// The families that keep whispers on the game server.
+pub(crate) const PLAIN_FAMILIES: &[PlainFamily] = &[
+    // JoF asked to moderate whispers on their servers, against advertising (Sol,
+    // 25/10/2026). The setting is the JoF tools' (`sjk_mod_jof::E2E_WHISPERS`).
+    PlainFamily {
+        family: "jof",
+        name: "JoF",
+        cvar: "jof.e2eWhispers",
+    },
+];
+
+/// The family of [`PLAIN_FAMILIES`] `family` is, if any.
+fn plain_family(family: Option<&sjk_mod::KnownServer>) -> Option<&'static PlainFamily> {
+    let family = family?;
+    PLAIN_FAMILIES
+        .iter()
+        .find(|plain| plain.family == family.id)
+}
+
+/// The last encrypted whisper from a player, kept for a report.
+struct Reportable {
+    server: SocketAddr,
+    came: Instant,
+    whisper: sjk_identity::ReportedWhisper,
+}
 
 /// A whisper handed to the hub, until it answers.
 struct Pending {
@@ -66,8 +125,16 @@ pub(crate) struct State {
     pub(crate) card: crate::e2e_whisper_card::Card,
     /// The card opened the game menu, which goes with it.
     opened_menu: bool,
-    /// The server and identity revision the slots that take whispers were found for.
-    slots_for: Option<(SocketAddr, u64)>,
+    /// The server, identity revision and [`State::generation`] the slots that take
+    /// whispers were found for.
+    slots_for: Option<(SocketAddr, u64, u64)>,
+    /// When each player (key id) last whispered to us: a player the hub does not vouch
+    /// for answers them within [`ANSWER_WINDOW`].
+    answers: HashMap<String, Instant>,
+    /// The last encrypted whisper from each player (key id), for a report.
+    reportable: HashMap<String, Reportable>,
+    /// Bumped when whom we may answer or report changes.
+    generation: u64,
 }
 
 impl State {
@@ -106,6 +173,70 @@ impl State {
         self.verified(directory).check(key_id, key)
     }
 
+    /// Whether we may start or answer an encrypted whisper to `key_id`: always when the
+    /// hub `vouched` for us, else within [`ANSWER_WINDOW`] of their last one.
+    fn may_whisper(&self, key_id: &str, vouched: bool, now: Instant) -> bool {
+        vouched
+            || self
+                .answers
+                .get(key_id)
+                .is_some_and(|came| now.duration_since(*came) < ANSWER_WINDOW)
+    }
+
+    /// Remember a whisper that came from `key_id` on `server`: we may answer it, and
+    /// report it.
+    fn came(
+        &mut self,
+        key_id: &str,
+        server: SocketAddr,
+        whisper: sjk_identity::ReportedWhisper,
+        now: Instant,
+    ) {
+        self.answers.insert(key_id.to_owned(), now);
+        self.reportable.insert(
+            key_id.to_owned(),
+            Reportable {
+                server,
+                came: now,
+                whisper,
+            },
+        );
+        self.generation += 1;
+    }
+
+    /// Forget the answers and reports out of their windows.
+    fn expire(&mut self, now: Instant) {
+        let (answers, reportable) = (self.answers.len(), self.reportable.len());
+        self.answers
+            .retain(|_, came| now.duration_since(*came) < ANSWER_WINDOW);
+        self.reportable
+            .retain(|_, kept| now.duration_since(kept.came) < REPORT_WINDOW);
+        if (answers, reportable) != (self.answers.len(), self.reportable.len()) {
+            self.generation += 1;
+        }
+    }
+
+    /// The last encrypted whisper `key_id` sent us on `server`, for a report.
+    pub(crate) fn reportable(
+        &self,
+        key_id: &str,
+        server: SocketAddr,
+    ) -> Option<&sjk_identity::ReportedWhisper> {
+        self.reportable
+            .get(key_id)
+            .filter(|kept| kept.server == server)
+            .map(|kept| &kept.whisper)
+    }
+
+    /// The players (key ids) whose last encrypted whisper on `server` can be reported.
+    pub(crate) fn reportable_ids(&self, server: SocketAddr) -> Vec<String> {
+        self.reportable
+            .iter()
+            .filter(|(_, kept)| kept.server == server)
+            .map(|(id, _)| id.clone())
+            .collect()
+    }
+
     /// Mark `key` as checked for `key_id`, or forget the check, and write the file.
     fn set_checked(&mut self, directory: &Path, key_id: &str, key: Option<&str>) {
         let verified = self.verified(directory);
@@ -141,16 +272,24 @@ fn whisper_text(command: &str) -> Option<(u16, String)> {
         .flatten()
 }
 
+/// Whether encrypted whispers are on for `console`'s player here: `cl_e2eWhispers` and
+/// the identity on, and on a server of [`PLAIN_FAMILIES`] its setting too.
+fn on_here(console: &crate::console::ViewerConsole) -> bool {
+    console.bool_cvar(CVAR) != Some(false)
+        && console.bool_cvar("cl_identity") == Some(true)
+        && plain_family(console.server_family())
+            .is_none_or(|plain| console.bool_cvar(plain.cvar) == Some(true))
+}
+
 impl GpuState {
     /// Send `command`, a `tell`, encrypted through the hub when its recipient takes
-    /// encrypted whispers and `cl_e2eWhispers` is on: true when it went that way, and
-    /// the game server must not have it.
+    /// encrypted whispers, we may whisper them and they are on here ([`on_here`]): true
+    /// when it went that way, and the game server must not have it.
     pub(crate) fn route_encrypted_whisper(&mut self, command: &str) -> bool {
         let Some(console) = self.console.as_ref() else {
             return false;
         };
-        if console.bool_cvar(CVAR) == Some(false) || console.bool_cvar("cl_identity") != Some(true)
-        {
+        if !on_here(console) {
             return false;
         }
         let directory = console.config_directory().to_owned();
@@ -184,6 +323,13 @@ impl GpuState {
         .flatten() else {
             return false;
         };
+        // Not ours to start: it goes through the game server, as the composer said.
+        if !self
+            .e2e_whispers
+            .may_whisper(&key_id, player_identity::vouched(), Instant::now())
+        {
+            return false;
+        }
         let checked = self.e2e_whispers.checked(&directory, &key_id, &key);
         // A player checked with the safety code whose key changed: nothing goes to the
         // new key without asking; the card offers the game server instead.
@@ -319,9 +465,8 @@ impl GpuState {
     /// what the hub did with ours and the ones that came, and tell the chat which slots
     /// take them.
     pub(crate) fn update_e2e_whispers(&mut self) {
-        let on = self.console.as_ref().is_some_and(|console| {
-            console.bool_cvar(CVAR) != Some(false) && console.bool_cvar("cl_identity") == Some(true)
-        });
+        let on = self.console.as_ref().is_some_and(on_here);
+        self.e2e_whispers.expire(Instant::now());
         let server = self
             .live_session
             .as_ref()
@@ -335,6 +480,15 @@ impl GpuState {
         {
             console.push_log(format!("^3Safety code: {why}."));
         }
+        if let Some(slot) = self.chat.take_report_request() {
+            if self.chat.is_typing() {
+                self.chat.close_composer();
+            }
+            self.release_pointer();
+            self.game_menu = true;
+            self.open_whisper_report(slot);
+            self.sync_cursor_policy();
+        }
         self.e2e_whisper_answers(server);
         let received = player_identity::take_whispers(server);
         for whisper in received {
@@ -344,40 +498,53 @@ impl GpuState {
         self.e2e_whispers.card.keep_for(server);
     }
 
-    /// Tell the chat which slots' players take encrypted whispers, when the known
-    /// players or the server changed.
+    /// Tell the chat which slots' players we may whisper encrypted, and whose last
+    /// whisper can be reported, when the known players, the server or our answers
+    /// changed.
     fn update_encrypted_slots(&mut self, server: Option<SocketAddr>) {
         let Some(server) = server else {
             if self.e2e_whispers.slots_for.take().is_some() {
                 self.chat.set_encrypted_slots(0);
+                self.chat.set_reportable_slots(0);
             }
             return;
         };
         let revision = player_identity::revision();
-        if self.e2e_whispers.slots_for == Some((server, revision)) {
+        let key = (server, revision, self.e2e_whispers.generation);
+        if self.e2e_whispers.slots_for == Some(key) {
             return;
         }
         let Some(session) = self.live_session.as_ref() else {
             return;
         };
         let game_state = session.game_state();
-        let slots = player_identity::with_snapshot(|snapshot| {
-            let mut slots = 0_u64;
-            for player in snapshot.players.iter().filter(|p| p.whisper_key.is_some()) {
+        let vouched = player_identity::vouched();
+        let now = Instant::now();
+        let state = &self.e2e_whispers;
+        let (slots, reportable) = player_identity::with_snapshot(|snapshot| {
+            let (mut slots, mut reportable) = (0_u64, 0_u64);
+            for player in &snapshot.players {
                 let shown = player_identity::shown_name(game_state, usize::from(player.slot));
-                if player.slot < 64
-                    && shown.is_some_and(|shown| {
+                if player.slot >= 64
+                    || !shown.is_some_and(|shown| {
                         sjk_identity::names_match(&player.claimed_name, &shown)
                     })
                 {
+                    continue;
+                }
+                if player.whisper_key.is_some() && state.may_whisper(&player.key_id, vouched, now) {
                     slots |= 1 << player.slot;
                 }
+                if state.reportable(&player.key_id, server).is_some() {
+                    reportable |= 1 << player.slot;
+                }
             }
-            slots
+            (slots, reportable)
         })
-        .unwrap_or(0);
+        .unwrap_or((0, 0));
         self.chat.set_encrypted_slots(slots);
-        self.e2e_whispers.slots_for = Some((server, revision));
+        self.chat.set_reportable_slots(reportable);
+        self.e2e_whispers.slots_for = Some(key);
     }
 
     /// What the hub did with the whispers handed to it: shown when taken, else the card.
@@ -469,13 +636,28 @@ impl GpuState {
         if Some(slot) == own || crate::player_mutes::is_muted(Some(&whisper.key_id), &shown) {
             return;
         }
+        let server = session.server();
         let Some(console) = self.console.as_ref() else {
             return;
         };
         let directory = console.config_directory().to_owned();
         let sound = crate::chat_sounds::enabled(Some(console), crate::chat_sounds::Kind::Private);
         let text = match whisper.text {
-            Ok(text) => shown_text(&text),
+            Ok(opened) => {
+                let text = shown_text(&opened.text);
+                self.e2e_whispers.came(
+                    &whisper.key_id,
+                    server,
+                    sjk_identity::ReportedWhisper {
+                        from: whisper.from.clone(),
+                        time: opened.time,
+                        text: opened.text,
+                        signature: opened.signature,
+                    },
+                    Instant::now(),
+                );
+                text
+            }
             Err(failure) => {
                 let why = match failure {
                     OpenError::Unreadable => "it was not sealed to your key",
@@ -620,6 +802,71 @@ impl GpuState {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn proof(text: &str) -> sjk_identity::ReportedWhisper {
+        sjk_identity::ReportedWhisper {
+            from: "a2V5".to_owned(),
+            time: 1_000,
+            text: text.to_owned(),
+            signature: [1; 64],
+        }
+    }
+
+    #[test]
+    fn a_player_not_verified_answers_for_a_while_and_reports_for_a_day() {
+        let server: SocketAddr = "1.2.3.4:29070".parse().unwrap();
+        let elsewhere: SocketAddr = "1.2.3.4:29071".parse().unwrap();
+        let mut state = State::default();
+        let start = Instant::now();
+        assert!(!state.may_whisper("fox", false, start), "never whispered");
+        assert!(state.may_whisper("fox", true, start), "verified: anyone");
+        state.came("fox", server, proof("buy credits"), start);
+        assert!(state.may_whisper("fox", false, start));
+        assert!(!state.may_whisper("wolf", false, start));
+        assert_eq!(state.reportable_ids(server), ["fox"]);
+        assert!(state.reportable_ids(elsewhere).is_empty());
+        assert_eq!(
+            state.reportable("fox", server).map(|w| w.text.as_str()),
+            Some("buy credits")
+        );
+        let generation = state.generation;
+        let later = start + ANSWER_WINDOW;
+        state.expire(later);
+        assert!(!state.may_whisper("fox", false, later), "the window closed");
+        assert!(
+            state.reportable("fox", server).is_some(),
+            "still reportable"
+        );
+        assert_ne!(
+            state.generation, generation,
+            "the chat's slots are found again"
+        );
+        state.expire(start + REPORT_WINDOW);
+        assert!(state.reportable("fox", server).is_none());
+    }
+
+    #[test]
+    fn jof_servers_keep_whispers_unless_the_player_says_otherwise() {
+        let jof = sjk_mod::Server {
+            kind: sjk_mod::ServerKind::JaPlus,
+            address: "127.0.0.1:29070".into(),
+            info: r"\V\2.5B0".into(),
+        };
+        let plain = plain_family(jof.family()).expect("JoF");
+        assert_eq!(plain.cvar, sjk_mod_jof::E2E_WHISPERS);
+        let other = sjk_mod::Server {
+            info: r"\V\2.4B7".into(),
+            ..jof
+        };
+        assert!(plain_family(other.family()).is_none());
+        for plain in PLAIN_FAMILIES {
+            let family = sjk_mod::KNOWN_SERVERS
+                .iter()
+                .find(|family| family.id == plain.family)
+                .unwrap_or_else(|| panic!("{} is no known family", plain.family));
+            assert_eq!(family.name, plain.name);
+        }
+    }
 
     #[test]
     fn the_text_is_what_follows_tell_and_its_slot() {

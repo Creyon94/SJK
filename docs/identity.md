@@ -338,7 +338,15 @@ signed with the player's key, and the outcome (the hub's number, or why it refus
 on the SJK UI's card, else as a centre print. The player is copied when chosen, so the
 report names them as they were.
 
-Only a verified SJK player may report (`player_identity::report_gate`): with the identity
+A player whom the reported one sent an encrypted whisper may report them whether verified
+or not (25/10/2026): the chat card's Report opens the Report page for them, which says
+"Their last encrypted whisper goes with it", and the report carries that whisper with
+its sender's signature ([hub-chat.md](hub-chat.md#encrypted-whispers), "Reporting one").
+The hub checks the signature (400 `whisper_unsigned`), takes it up to a day old, and
+names the whisper's sender as the reported key (source `whisper`); the operator's panel
+shows the whisper under the reason.
+
+Otherwise only a verified SJK player may report (`player_identity::report_gate`): with the identity
 off, the hub not answering yet, an unverified key or a game on this PC, the Players page
 says why under its title (the classic pages in their first line), and the Report
 page's reasons are dimmed, Back carrying the reason; yourself and bots cannot be reported

@@ -544,10 +544,13 @@ pub(super) fn build(
     }
     match player {
         Some(player) => {
-            let blocked = roster.gate().reason().or_else(|| player.unreportable());
+            let blocked = roster.blocked_for(player);
             let status = match (blocked, view.page) {
                 (Some(reason), _) => reason,
                 (None, Page::Players) => "Enter: report this player",
+                (None, _) if roster.whispered_by(player) => {
+                    "Choose why: their last encrypted whisper goes with it"
+                }
                 (None, _) => "Choose why, then say what happened",
             };
             player_card(

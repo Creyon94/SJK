@@ -450,6 +450,7 @@ impl Panel {
                     avatar: None,
                     note: None,
                     safety: false,
+                    report: false,
                 };
                 hovered = Some((CardSource::Message(message.id), person, name));
             }
@@ -956,6 +957,7 @@ impl Panel {
                 avatar: version,
                 note: Some(note),
                 safety: false,
+                report: false,
             };
             (CardSource::Person(row.key_id.clone()), person, square)
         })
@@ -1561,8 +1563,9 @@ impl Panel {
                 card: CARD_TOKEN,
                 mute: CARD_MUTE_TOKEN,
                 ban: CARD_BAN_TOKEN,
-                // The safety code and Whisper are only offered in the game's chat.
+                // The safety code, Report and Whisper are only offered in the game's chat.
                 safety: CARD_TOKEN,
+                report: CARD_TOKEN,
                 whisper: None,
             },
         );

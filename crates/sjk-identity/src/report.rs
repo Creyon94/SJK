@@ -134,6 +134,22 @@ pub struct PlayerReport {
     pub level_time: Option<u32>,
     /// The in-game name the reporter wears; empty takes the one the service knows.
     pub name: String,
+    /// An encrypted whisper the player sent the reporter, which proves itself theirs
+    /// (`PROTOCOL.md`, "Player reports"): any SJK player may report with one.
+    pub whisper: Option<ReportedWhisper>,
+}
+
+/// An encrypted whisper a player report carries: what the box held and who sealed it.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ReportedWhisper {
+    /// The key that sealed it (unpadded base64url).
+    pub from: String,
+    /// When it was sealed, unix seconds.
+    pub time: i64,
+    /// The whisper's text.
+    pub text: String,
+    /// The sender's signature inside the box.
+    pub signature: [u8; 64],
 }
 
 /// A bug report: the tester's text and where they were.

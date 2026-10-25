@@ -46,7 +46,8 @@ pub use news::{
 };
 pub use relay::RelayHubs;
 pub use report::{
-    BugReport, Category, NoteModel, NoteModelShader, NoteRemap, PlayerReport, WorldNote,
+    BugReport, Category, NoteModel, NoteModelShader, NoteRemap, PlayerReport, ReportedWhisper,
+    WorldNote,
 };
 pub use service::{
     ClaimOutcome, HolocronProgress, HubFactory, Location, ModelCheck, OpenOutcome, ReportOutcome,

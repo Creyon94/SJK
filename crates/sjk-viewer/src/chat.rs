@@ -185,6 +185,11 @@ pub(crate) struct ChatOverlay {
     encrypted_slots: u64,
     /// Safety code asked from a card, for this slot, until the frame takes it.
     safety_request: Option<u16>,
+    /// The client slots (bits) whose player's last encrypted whisper to us can be
+    /// reported (`e2e_whispers.rs`): their card offers Report.
+    reportable_slots: u64,
+    /// Report asked from a card, for this slot, until the frame takes it.
+    report_request: Option<u16>,
     /// The feed draws during a world shot, which has no session.
     #[cfg(test)]
     pub(crate) for_shot: bool,
@@ -271,6 +276,8 @@ impl ChatOverlay {
             last_channel: (Channel::Global, None),
             encrypted_slots: 0,
             safety_request: None,
+            reportable_slots: 0,
+            report_request: None,
             #[cfg(test)]
             for_shot: false,
         }
@@ -289,6 +296,21 @@ impl ChatOverlay {
     /// The slot whose safety code a card asked for, once.
     pub(crate) fn take_safety_request(&mut self) -> Option<u16> {
         self.safety_request.take()
+    }
+
+    /// The client slots (bits) whose player's last encrypted whisper can be reported.
+    pub(crate) fn set_reportable_slots(&mut self, slots: u64) {
+        self.reportable_slots = slots;
+    }
+
+    /// Whether the last encrypted whisper from the player in `slot` can be reported.
+    fn reportable(&self, slot: u16) -> bool {
+        slot < 64 && self.reportable_slots & (1 << slot) != 0
+    }
+
+    /// The slot whose player a card asked to report, once.
+    pub(crate) fn take_report_request(&mut self) -> Option<u16> {
+        self.report_request.take()
     }
 
     /// An overlay showing the installed world's emoji pictures.

@@ -62,6 +62,9 @@ pub(crate) struct Person {
     /// They take encrypted whispers here: the card offers their safety code
     /// (`e2e_whisper_card.rs`).
     pub(crate) safety: bool,
+    /// Their last encrypted whisper to the player can be reported: the card offers
+    /// Report (`player_report.rs`).
+    pub(crate) report: bool,
 }
 
 impl Person {
@@ -112,6 +115,8 @@ pub(crate) struct Tokens {
     pub(crate) ban: u16,
     /// Safety code, when [`Person::safety`].
     pub(crate) safety: u16,
+    /// Report, when [`Person::report`].
+    pub(crate) report: u16,
     /// Whisper, at the head of the card's buttons: only where the card can open a
     /// whisper to them (the game's chat, for a player on the server), else `None`.
     pub(crate) whisper: Option<u16>,
@@ -155,7 +160,7 @@ pub(crate) fn size(person: &Person, whisper: bool, u: f32) -> [f32; 2] {
         height += MEDAL_ROW;
     }
     height += 6.0 + BUTTON + QUIET_GAP + QUIET_ROW + PAD;
-    if person.safety {
+    if person.safety || person.report {
         height += BUTTON + 6.0;
     }
     if person.key_id.is_none() {
@@ -438,19 +443,32 @@ pub(crate) fn draw(
             format_args!("By name, colours aside: anyone wearing it"),
         );
     }
-    let safety_button = Rect::new(
-        x,
-        under
-            + (QUIET_ROW
-                + if person.key_id.is_none() {
-                    QUIET_ROW
-                } else {
-                    0.0
-                })
-                * u,
-        inner,
-        BUTTON * u,
-    );
+    // Safety code and Report share the last row, each the whole of it when alone.
+    let last_row = under
+        + (QUIET_ROW
+            + if person.key_id.is_none() {
+                QUIET_ROW
+            } else {
+                0.0
+            })
+            * u;
+    let (safety_width, report_x) = if person.safety && person.report {
+        (half, x + inner - half)
+    } else {
+        (inner, x)
+    };
+    let safety_button = Rect::new(x, last_row, safety_width, BUTTON * u);
+    let report_button = Rect::new(report_x, last_row, safety_width, BUTTON * u);
+    if person.report {
+        card_button(
+            canvas,
+            report_button,
+            u,
+            tokens.report,
+            "Report",
+            color::EMBER,
+        );
+    }
     if person.safety {
         card_button(
             canvas,
@@ -471,6 +489,9 @@ pub(crate) fn draw(
     }
     if person.safety {
         canvas.hit_region(tokens.safety, safety_button);
+    }
+    if person.report {
+        canvas.hit_region(tokens.report, report_button);
     }
     card
 }
@@ -528,6 +549,7 @@ mod tests {
         mute: 8,
         ban: 9,
         safety: 10,
+        report: 11,
         whisper: None,
     };
 
@@ -546,6 +568,28 @@ mod tests {
         let block = canvas.rect_for(TOKENS.mute).expect("Block");
         assert!(button.y > block.bottom(), "under the other buttons");
         assert!(button.bottom() <= rect.bottom(), "inside the card");
+    }
+
+    #[test]
+    fn a_whisper_that_came_can_be_reported_beside_the_safety_code() {
+        let report = Person {
+            report: true,
+            ..sol()
+        };
+        let (canvas, rect, texts, _) = drawn(&report, false);
+        assert!(texts.contains(&"Report".to_owned()), "{texts:?}");
+        let alone = canvas.rect_for(TOKENS.report).expect("Report");
+        assert!(alone.bottom() <= rect.bottom(), "inside the card");
+        let both = Person {
+            safety: true,
+            ..report
+        };
+        let (canvas, rect, _, _) = drawn(&both, false);
+        let safety = canvas.rect_for(TOKENS.safety).expect("Safety code");
+        let report = canvas.rect_for(TOKENS.report).expect("Report");
+        assert_eq!(safety.y, report.y, "one row");
+        assert!(safety.right() < report.x, "side by side");
+        assert!(report.width < alone.width && report.bottom() <= rect.bottom());
     }
 
     #[test]
@@ -579,6 +623,7 @@ mod tests {
             avatar: Some(String::new()),
             note: None,
             safety: false,
+            report: false,
         }
     }
 

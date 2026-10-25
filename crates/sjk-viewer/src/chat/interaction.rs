@@ -167,6 +167,7 @@ impl ChatOverlay {
             // different widget than the one recorded here and is discarded.
             self.pressed_action = [
                 card::CARD_WHISPER,
+                card::CARD_REPORT,
                 card::CARD_SAFETY,
                 card::CARD_BAN,
                 card::CARD_MUTE,
@@ -245,6 +246,7 @@ impl ChatOverlay {
             card::CARD_MUTE => self.toggle_card_mute(),
             card::CARD_BAN => self.press_card_ban(),
             card::CARD_SAFETY => self.press_card_safety(),
+            card::CARD_REPORT => self.press_card_report(),
             card::CARD_WHISPER => self.press_card_whisper(),
             token if usize::from(token) < MAX_VISIBLE => {
                 let pressed = self.pressed_who.take();
