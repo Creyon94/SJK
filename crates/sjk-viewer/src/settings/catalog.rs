@@ -667,6 +667,20 @@ pub(super) const HUD: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "SJK team score boxes",
+        cvar: "cg_teamScoresBoxes",
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Team score box size",
+        cvar: "cg_teamScoresScale",
+        kind: ValueKind::Float {
+            min: 0.5,
+            max: 2.0,
+            step: 0.1,
+        },
+    },
+    Setting {
         label: "Flag status (capture the flag)",
         cvar: "cg_drawFlagStatus",
         kind: ValueKind::Bool,

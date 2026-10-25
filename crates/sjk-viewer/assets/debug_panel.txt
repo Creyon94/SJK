@@ -1884,6 +1884,19 @@ test: 301 characters: the box stops at 300; sjksay with more sends the first 300
 
 # ---- HUD ----
 
+[ctf-team-boxes]
+area: HUD
+title: CTF team score boxes with each flag's state (Slash, PR #201)
+change: Team scores in two SJK boxes under the clock; in CTF each holds its flag and where it is.
+change: Carrier named from the CTF message, "You" in gold, a dropped flag's seconds and gold arc.
+test: CTF server: take the flag: "You" in gold, "Take it home" under the boxes.
+test: Die with it: the flag's box counts down from 30 s with a gold arc; at 0 it goes home.
+test: Spectate the carrier: their name, not "You", and no line under the boxes.
+test: Team FFA with scores over 99 or below 0: the whole number shows, centred.
+test: Settings > HUD: SJK team score boxes off: classic plates and left flag icons return.
+test: Team score box size 0.5 and 2: the boxes shrink and grow under the clock.
+note: Join a server with a flag already lying: it says Dropped, no count.
+
 [duel-no-weapon-icon]
 area: HUD
 title: Nameplates: no weapon icon beside a duellist's name (duel badge sat on top of it)

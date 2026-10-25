@@ -2981,10 +2981,39 @@ the original cgame reads:
   gold plate with "YOU HAVE THE FLAG". The upper-right powerup icon of `CG_DrawPowerupIcons`
   still follows `cg_drawPowerupIcons` and `cg_drawUpperRight`; it now uses the ysalamiri
   pictures in CTY only (it took CTF for CTY).
-- The team scores in every team game but Siege (`cg_drawTeamScores`, on by default): "RED 3"
-  and "BLUE 5" plates under the clock at the top centre, from `CS_SCORES1` and `CS_SCORES2`
-  (`-` while the server has not sent one). With them on, the layouts' score line drops its
-  trailing team scores (`cg_drawScore 2`), which they replace.
+- The team scores in every team game but Siege (`cg_drawTeamScores`, on by default): two
+  team boxes under the clock at the top centre, red left and blue right, from `CS_SCORES1`
+  and `CS_SCORES2` (`-` while the server has not sent one), in the SJK UI's look in every
+  HUD style (the design canvas of 24/10/2026): the UI's navy under the team's muted colour
+  (`menu::sjk::color::RED_TEAM` and `BLUE_TEAM`, the SJK scoreboard's), a rule of that
+  colour along the bottom. Beside a flag the score stands at the inner edge, as wide as its
+  digits (smaller past 66 pixels, so "300" or "-12" fit); without flags (team FFA) it has
+  the whole box, centred. `cg_teamScoresBoxes 0` (Settings > HUD, "SJK team score boxes")
+  brings back the classic look: "RED 3" and "BLUE 5" plates under the clock and the flag
+  icons at the left. With the scores on, the layouts' score line drops its trailing team
+  scores (`cg_drawScore 2`), which they replace.
+- In Capture the Flag and Capture the Ysalamiri, with `cg_drawFlagStatus` too, each box
+  holds its team's flag at the outer edge and says where it is: "At base", its carrier
+  (named at once from the broadcast `EV_CTFMESSAGE` that `Team_TouchEnemyFlag` raises with
+  the taker's number, `CTFMESSAGE_PLAYER_GOT_FLAG`, even out of sight; then as the left
+  captions, "Taken" while unknown), "You" in gold for the flag you carry, or for a dropped
+  flag the seconds before it goes home ("18 s"), with a gold arc round the flag running
+  down. While you follow another player, their flag shows their name, not "You", and the
+  line below stays out. A dropped flag goes home by itself 30 s after it fell (`LaunchItem`
+  in OpenJK `codemp/game/g_items.c`, kept by JoF EJK and jaPRO; jaPRO's Tribes weapons wait
+  45 s, which the client cannot tell, so there the count ends early and the box says
+  "Dropped" for the last 15 s): the count starts when the client sees the flag fall, so a
+  flag already lying when you join, or one still there after 30 s, just says "Dropped". A
+  new gamestate (map change, restart, another server) or the server's clock going back
+  forgets the drops and takers seen before. An away flag shows its taken picture
+  (`mpi_*flag_x`), or its own picture faint in a pack without one. While you carry a flag, a
+  line under the boxes says "Take it home", in gold, or "Your flag is away" while your own
+  flag is not at base (no capture until it is). The boxes then replace the left icons and
+  the carried flag's powerup pictures (bottom left and in the upper-right column), which
+  return with `cg_teamScoresBoxes 0` or `cg_drawTeamScores 0`. The boxes are compact: 168 by
+  42 pixels of a 1080-line screen, the score 36; `cg_teamScoresScale` (Settings > HUD, "Team
+  score box size", 0.5 to 2, default 1) makes them smaller or larger, under the clock as
+  before.
 
 The scoreboards (classic and SJK UI) draw a flag icon before a carrier's name. A
 `scores` reply is only as fresh as the last scoreboard press, so each frame the rows'

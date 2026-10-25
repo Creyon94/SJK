@@ -1,8 +1,9 @@
 //! World shots of the capture-the-flag HUD ([`crate::hud::flag_status`]) on a recorded
 //! game: the demo `SJK_TEST_DEMO` names is played without a server, with a made-up CTF
 //! state staged over it (the viewer carrying the blue flag on red; then on blue, the red
-//! flag dropped and its own flag taken), in each HUD style. Ignored like the other
-//! world shots; skipped when `SJK_TEST_DEMO` is not set.
+//! flag dropped and its own flag taken; following a carrier; team FFA with long scores),
+//! in each HUD style. Ignored like the other world shots; skipped when `SJK_TEST_DEMO`
+//! is not set.
 
 use super::card_outline_shots::open_demo;
 use super::*;
@@ -25,6 +26,8 @@ fn ctf_flags_on_a_demo() {
                     carried: true,
                     scores: [3, 5],
                     ysalamiri: false,
+                    ctf: true,
+                    following: false,
                 },
             ),
             (
@@ -35,6 +38,32 @@ fn ctf_flags_on_a_demo() {
                     carried: false,
                     scores: [12, 9],
                     ysalamiri: false,
+                    ctf: true,
+                    following: false,
+                },
+            ),
+            (
+                "following",
+                Staged {
+                    team: 1,
+                    flags: [Flag::AtBase, Flag::Taken],
+                    carried: true,
+                    scores: [104, 99],
+                    ysalamiri: false,
+                    ctf: true,
+                    following: true,
+                },
+            ),
+            (
+                "tffa",
+                Staged {
+                    team: 1,
+                    flags: [Flag::AtBase; 2],
+                    carried: false,
+                    scores: [300, -12],
+                    ysalamiri: false,
+                    ctf: false,
+                    following: false,
                 },
             ),
         ];
