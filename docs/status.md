@@ -1,3 +1,22 @@
+## Card pictures only when drawn
+
+25/10/2026, `personal/card-faces-lazy`, based on `main` `ab4bd57b`: the hub's crash
+reports' largest named out-of-memory group was `label = 'SJK menu emblem'`, 16 crashes
+from 4 players on 2026.1022.1 to 2026.1023.3 (a GTX 1060 3GB in the main menu 20 s after
+start, 1919 MiB in use and 2682 MiB reserved against a 2520 MiB budget). That label is
+the card faces': every one of the hub's 333 was decoded at 1024 pixels with its mips when
+the packs were mounted, kept in memory, and uploaded to every world whether drawn or not
+(1.8 GB of video memory, 2.7 GB counted with the allocator's blocks, and 1.8 GB of system
+memory). A picture is now kept as its file and decoded on a worker only when a
+screen draws its face, at 512 pixels from `r_picmip` 1; the renderer keeps at most 64
+([cards.md](cards.md), "In the client"). Verified on Windows 11, RTX 5080, Vulkan, with
+the hub's packs: `card_faces_vram_audit` (menu on pictures at r_picmip 2, SJK preset,
+1920x1080) 2316 -> 539 MiB, the next map's build peak 2882 -> 1105 MiB, siege_desert
+2431 -> 654 MiB; `duel6_sjk_card_faces` shows the same pictures, pixel for pixel in the
+pictures' windows, as before; unit tests of the request, the worker and a missing picture.
+Not verified: in a game, on a small card, a binder page flipped quickly (pictures arrive
+two a frame, as before).
+
 ## Announcements and contributor reward rounds
 
 25/10/2026, `personal/announcements`, based on `main` `ca5643de`: the client side of the

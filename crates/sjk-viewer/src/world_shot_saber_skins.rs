@@ -16,6 +16,8 @@ use crate::saber_skins::ShotColor;
 /// Mount the packs of the folder `SJK_TEST_PACKS` names, as the cache folder would be
 /// at start; say so when it is not set.
 pub(super) fn mount_test_packs() {
+    // A card face a shot draws shows in its next frame rather than after a worker.
+    crate::cards::faces::decode_inline_for_shots();
     match std::env::var_os("SJK_TEST_PACKS") {
         Some(directory) => {
             let skins = crate::sjk_packs::mount(std::path::Path::new(&directory));

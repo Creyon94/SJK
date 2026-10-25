@@ -708,6 +708,9 @@ stays level over 12 map changes. With the hub's 333 card faces mounted, the menu
 pictures at r_picmip 2 went from 539 to 2316 MiB in use (3235 MiB reserved): every face
 was uploaded at 1024 pixels in every world (see [cards.md](cards.md)), which the hub's
 crash reports named (`label = 'SJK menu emblem'`, a GTX 1060 3GB in the main menu).
+Since then only the faces a screen draws are decoded and uploaded (at most 64 kept): the
+same menu holds 539 MiB with the packs mounted, siege_desert 654 MiB instead of 2431,
+and the map change's peak is 1105 MiB instead of 2882.
 
 ## Eye adaptation
 
