@@ -7,7 +7,8 @@
 //! the blade ([`crate::saber_trail::StateSlab::petals`]), and [`frame`] turns the queue into
 //! particles with the bundled petal pictures. Nothing is allocated per frame. The Thousand
 //! Cranes (25/10/2026) releases paper cranes the same way (`"kind": "crane"`): they rise and
-//! fly off instead of settling, each in a colour of paper.
+//! fly off instead of settling, each in a colour of paper. The Hearth (25/10/2026) sheds ash
+//! (`"kind": "ash"`): grey flakes, some still glowing at their edge, that drift down and settle.
 
 use glam::Vec3;
 use serde::Deserialize;
@@ -22,6 +23,8 @@ pub(crate) enum PetalKind {
     Blossom,
     /// Paper cranes that rise and fly off through the world, each tinted a colour of paper.
     Crane,
+    /// Flakes of ash that drift down and settle, grey or still glowing at their edge.
+    Ash,
 }
 
 /// A skin's falling blossoms, as its signature's `@petals` line gives them.
@@ -150,15 +153,19 @@ macro_rules! bundled {
     };
 }
 /// Their shaders, which the frame's effect materials must load (`effect_assets::CODE_SHADERS`):
-/// the blossoms' three tints, then the crane flying right and flying left.
-pub(crate) const SHADERS: [&str; 5] = [
+/// the blossoms' three tints, then the crane flying right and flying left, then grey ash and
+/// ash still glowing.
+pub(crate) const SHADERS: [&str; 7] = [
     "gfx/sjk/petals/blossom_pink",
     "gfx/sjk/petals/blossom_pale",
     "gfx/sjk/petals/blossom_white",
     "gfx/sjk/petals/crane",
     "gfx/sjk/petals/crane_left",
+    "gfx/sjk/petals/ash_grey",
+    "gfx/sjk/petals/ash_ember",
 ];
 const BLOSSOMS: usize = 3;
+const CRANES: usize = 2;
 /// The cranes' paper, as the Thousand Cranes' flock wears it (`tc_paper`): vermilion, indigo,
 /// sakura, jade, gold, sky, plum and cream.
 const PAPER: [[f32; 3]; 8] = [
@@ -171,7 +178,7 @@ const PAPER: [[f32; 3]; 8] = [
     [0.6, 0.32, 0.56],
     [0.97, 0.93, 0.84],
 ];
-const FILES: [(&str, &[u8]); 6] = [
+const FILES: [(&str, &[u8]); 8] = [
     ("shaders/sjk_petals.shader", bundled!("petals.shader")),
     (
         "gfx/sjk/petals/blossom_pink.png",
@@ -187,6 +194,8 @@ const FILES: [(&str, &[u8]); 6] = [
     ),
     ("gfx/sjk/petals/crane.png", bundled!("crane.png")),
     ("gfx/sjk/petals/crane_left.png", bundled!("crane_left.png")),
+    ("gfx/sjk/petals/ash_grey.png", bundled!("ash_grey.png")),
+    ("gfx/sjk/petals/ash_ember.png", bundled!("ash_ember.png")),
 ];
 
 /// Mount the bundled petal files.
@@ -221,10 +230,11 @@ pub(crate) fn frame(gpu: &mut crate::GpuState, now: Instant) {
         } else {
             (unit(seed, 9) * 360.0, (unit(seed, 8) - 0.5) * 50.0)
         };
-        let shader = if crane {
-            SHADERS[BLOSSOMS + (seed % 2) as usize]
-        } else {
-            SHADERS[(seed % BLOSSOMS as u32) as usize]
+        let shader = match spec.kind {
+            PetalKind::Blossom => SHADERS[(seed % BLOSSOMS as u32) as usize],
+            PetalKind::Crane => SHADERS[BLOSSOMS + (seed % CRANES as u32) as usize],
+            // One flake in three still glows.
+            PetalKind::Ash => SHADERS[BLOSSOMS + CRANES + usize::from(seed % 3 == 0)],
         };
         let [r, g, b] = if crane {
             PAPER[(seed % PAPER.len() as u32) as usize]
@@ -366,6 +376,9 @@ mod tests {
         }
         assert!(!queue.is_empty());
         assert!(queue.iter().all(|spawn| spawn.velocity.z > 0.0));
+        let line = r#"{"part":2,"kind":"ash","per_unit":0.04,"life":3.2,"size":0.9,"fall":10.0,"drift":8.0}"#;
+        let ash: PetalSpec = serde_json::from_str(line).unwrap();
+        assert!(ash.valid() && ash.kind == PetalKind::Ash);
         // A line without a kind or a rise is a blossom's, as the Varykino Blossom's is.
         let line = r#"{"part":3,"per_unit":0.07,"life":2.6,"size":1.6,"fall":38.0,"drift":14.0}"#;
         let spec: PetalSpec = serde_json::from_str(line).unwrap();

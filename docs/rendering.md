@@ -2889,6 +2889,11 @@ at that point and returning the blade's own: `sig_glow(g, b, r, px)` the glow's 
   signature keeps its images and colours, but the sounds, haze, wisps and embers are always
   the built-in file's (`Signature::adopt`, round 9: the Sith Alchemy still hissed with the
   snake design's sounds from the hub's pack).
+- **Growing (25/10/2026, Sol's Hearth).** A `// @grows {"<option id>": <days>, ...}` header
+  line makes those of its options come only once its holder has held the blade that many
+  days ([unlockables.md](unlockables.md#growing-blades)); the shader needs nothing more, a
+  part not grown yet reaching it as one its wearer switched off (`part(k)` 0, its
+  section's lanes zeroed).
 
 Two ignored GPU tests render the signatures through their own pipelines and real glow
 and core images: `blade_signatures_gpu_test.rs` still, mid-swing, after a clash,
@@ -2941,6 +2946,10 @@ when it is swung, which its own quad could not hold: they are particles in the w
   of the shader's flock), kept nearly upright, and flying on through the world
   (`apply_physics` off) until it fades. Their two shaders are in `CODE_SHADERS` with the
   petals'.
+- **Ash** (25/10/2026, the Hearth): `"kind": "ash"` sheds flakes of ash that drift down and
+  settle as the petals do: a ragged grey flake (`ash_grey.png`) and, one in three, the same
+  flake with its edge still glowing orange (`ash_ember.png`), both drawn by
+  `scripts/petal_assets.py`, tumbling as they fall.
 
 ## Saber trails
 

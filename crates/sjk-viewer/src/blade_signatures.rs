@@ -54,7 +54,7 @@ macro_rules! signature {
 /// Blade Lab designs reworked in full (19/10/2026: the Star Wars rework; the Bleeding Kyber in
 /// round 9), which replace their hand-ported designs (`blade_lab_designs.rs`). Sol's Sun
 /// (blade 001) became one on 20/10/2026, keeping its file's look under its own.
-pub(crate) const SIGNATURES: [Signature; 131] = [
+pub(crate) const SIGNATURES: [Signature; 132] = [
     signature!("sun"),
     signature!("abyssal_eye"),
     signature!("aurora_wyrm"),
@@ -190,6 +190,8 @@ pub(crate) const SIGNATURES: [Signature; 131] = [
     signature!("varykino_blossom"),
     // 25/10/2026: Sol's Thousand Cranes (blade 167), the first Unique blade.
     signature!("thousand_cranes"),
+    // 25/10/2026: Sol's Hearth (blade 168), a Unique blade that grows as it is held.
+    signature!("hearth"),
 ];
 
 /// The lab's helpers every signature may call (`lab.glsl`, translated).
@@ -231,7 +233,8 @@ pub(crate) fn of(id: &str) -> Option<&'static Signature> {
 }
 
 impl Signature {
-    /// A `// @key value` line of its header (`@room`, `@solid`, `@moments`, `@palette`).
+    /// A `// @key value` line of its header (`@room`, `@solid`, `@moments`, `@palette`,
+    /// `@petals`, `@grows`).
     fn meta(&self, key: &str) -> Option<&'static str> {
         self.wgsl
             .lines()
@@ -247,6 +250,12 @@ impl Signature {
     /// The blossoms its swing sheds (`@petals {..}`, `saber_petals.rs`), if it sheds any.
     pub(crate) fn petals(&self) -> Option<crate::saber_petals::PetalSpec> {
         serde_json::from_str(self.meta("petals")?).ok()
+    }
+
+    /// How its parts grow with the days its holder has held it (`@grows {..}`,
+    /// `blade_growth.rs`), if they do.
+    pub(crate) fn grows(&self) -> Option<crate::blade_growth::Growth> {
+        crate::blade_growth::Growth::parse(self.meta("grows")?)
     }
 
     /// How far (units) its quad reaches past the glow for what it draws there (`@room`).
@@ -747,6 +756,77 @@ mod tests {
         );
         // Its fourth part, "Falling blossoms", is the one its wearer switches them with.
         assert_eq!(blossom.parts().nth(3), Some("Falling blossoms"));
+    }
+
+    /// Whether `signature`'s `@grows` line, when it has one, parses and names only options
+    /// it has (`blade_growth.rs`); why not when it does not.
+    fn grows_check(signature: &Signature) -> Result<(), String> {
+        if signature.meta("grows").is_none() {
+            return Ok(());
+        }
+        let growth = signature.grows().ok_or("its @grows line does not parse")?;
+        let def = crate::blade_skin_file::parse(signature.id, signature.default_file())?;
+        let options = signature.shown(&def).options;
+        for (id, days) in growth.stages() {
+            if !options.iter().any(|option| option.id == id) {
+                return Err(format!("@grows names {id}, not one of its options"));
+            }
+            if days == 0 {
+                return Err(format!("@grows gives {id} no days"));
+            }
+        }
+        Ok(())
+    }
+
+    /// 25/10/2026 (Sol's Hearth): every `@grows` line parses and names only option ids its
+    /// signature has; checked on a header as Hearth's will be until its shader lands.
+    #[test]
+    fn every_grows_line_parses_and_names_only_its_options() {
+        for signature in &SIGNATURES {
+            grows_check(signature).unwrap_or_else(|why| panic!("{}: {why}", signature.id));
+        }
+        // Hearth's header, over a file with embers and a heat haze (the Malachor Forge's).
+        let file = of("saber_malachor_forge").unwrap().default_file();
+        let hearth = Signature {
+            id: "saber_malachor_forge",
+            wgsl: "// @part Hearth flames\n// @part Blaze\n// @part Hearthstones\n// @embers Embers\n// @haze Heat shimmer\n// @grows {\"hearth_flames\":30,\"heat_shimmer\":91,\"blaze\":182,\"hearthstones\":365}\n",
+            file,
+        };
+        assert_eq!(grows_check(&hearth), Ok(()));
+        let def = crate::blade_skin_file::parse(hearth.id, file).unwrap();
+        let ids: Vec<String> = hearth
+            .shown(&def)
+            .options
+            .into_iter()
+            .map(|option| option.id)
+            .collect();
+        assert_eq!(
+            ids,
+            [
+                "hearth_flames",
+                "blaze",
+                "hearthstones",
+                "embers",
+                "heat_shimmer",
+                "swing_and_clash_bursts"
+            ]
+        );
+        assert_eq!(hearth.grows().map(|growth| growth.full()), Some(365));
+        let elsewhere = Signature {
+            wgsl: "// @part Hearth flames\n// @grows {\"wings\":30}\n",
+            ..hearth
+        };
+        assert!(grows_check(&elsewhere).is_err(), "an option it has not");
+        let broken = Signature {
+            wgsl: "// @part Hearth flames\n// @grows {hearth_flames:30}\n",
+            ..elsewhere
+        };
+        assert!(grows_check(&broken).is_err(), "not JSON");
+        let at_once = Signature {
+            wgsl: "// @part Hearth flames\n// @grows {\"hearth_flames\":0}\n",
+            ..broken
+        };
+        assert!(grows_check(&at_once).is_err(), "no days");
     }
 
     #[test]

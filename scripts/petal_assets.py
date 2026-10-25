@@ -2,7 +2,8 @@
 """Draw the falling blossoms' petal pictures (`crates/sjk-viewer/assets/petals`,
 `saber_petals.rs`): one cherry blossom petal, a rounded teardrop with the little notch at its
 end, pale at its base and blushing toward its tip, in three tints; and the Thousand Cranes'
-paper crane, white paper in three shades that the particle tints (25/10/2026).
+paper crane, white paper in three shades that the particle tints (25/10/2026); and the
+Hearth's ash, a ragged grey flake, plain and with an edge still glowing.
 
     python3 scripts/petal_assets.py
 """
@@ -131,3 +132,41 @@ for name, (base, tip) in TINTS.items():
 crane().save(OUT / "crane.png", optimize=True)
 crane().transpose(Image.FLIP_LEFT_RIGHT).save(OUT / "crane_left.png", optimize=True)
 print("written crane, crane_left")
+
+
+def ash(glow):
+    """A ragged flake of ash: grey, darker at its heart, its edge orange where it still burns."""
+    rng = [0.82, 0.95, 0.7, 1.0, 0.78, 0.9, 0.66, 0.97, 0.84, 0.74, 0.92, 0.8]
+    img = Image.new("RGBA", (SIZE, SIZE))
+    px = img.load()
+    for j in range(SIZE):
+        for i in range(SIZE):
+            hits, edge = 0, 0.0
+            for sj in range(SAMPLES):
+                for si in range(SAMPLES):
+                    x = ((i + (si + 0.5) / SAMPLES) / SIZE) * 2.0 - 1.0
+                    y = 1.0 - ((j + (sj + 0.5) / SAMPLES) / SIZE) * 2.0
+                    a = math.atan2(y, x) / (2.0 * math.pi) * len(rng)
+                    k = int(math.floor(a)) % len(rng)
+                    t = a - math.floor(a)
+                    reach = 0.8 * (rng[k] * (1.0 - t) + rng[(k + 1) % len(rng)] * t)
+                    r = math.hypot(x, y * 1.25)
+                    if r < reach:
+                        hits += 1
+                        edge += r / reach
+            if not hits:
+                px[i, j] = (0, 0, 0, 0)
+                continue
+            e = edge / hits
+            grey = 0.34 + 0.16 * e
+            c = [grey, grey * 0.95, grey * 0.9]
+            if glow:
+                burn = max(0.0, (e - 0.72) / 0.28) ** 1.5
+                c = [c[0] + (1.0 - c[0]) * burn, c[1] + (0.5 - c[1]) * burn, c[2] + (0.12 - c[2]) * burn]
+            px[i, j] = tuple(int(round(min(v, 1.0) * 255)) for v in c) + (int(round(hits / SAMPLES ** 2 * 230)),)
+    return img
+
+
+ash(False).save(OUT / "ash_grey.png", optimize=True)
+ash(True).save(OUT / "ash_ember.png", optimize=True)
+print("written ash_grey, ash_ember")

@@ -10,11 +10,19 @@
 //! they lack), so other players see that; the new medal, achievement and holocron
 //! pop-ups and the Staff page read the real profile too, so the seen lists and staff
 //! actions are untouched. It only works while the hub says the player's key is staff.
+//!
+//! A growing blade (`blade_growth.rs`) shows fully grown in it, held or added, or held
+//! the days [`GROWTH_DAYS_CVAR`] gives, so staff can see each stage: in the copy and in
+//! the own blade drawn, never in the look sent.
 
 use sjk_identity::{Snapshot, Status};
 
 /// The switch: 1 shows every collectible as held (staff only), 0 the real profile.
 pub(crate) const CVAR: &str = "debug_collectibles";
+
+/// Not archived: the days held every growing blade shows while the mode is on, to see
+/// each stage; -1 (the default), fully grown.
+pub(crate) const GROWTH_DAYS_CVAR: &str = "debug_growthDays";
 
 /// The note on every shader and medal the mode adds, which their cards show.
 pub(crate) const NOTE: &str = "Debug collectibles: shown as yours on this PC only.";
@@ -24,48 +32,80 @@ pub(crate) fn added(grant: &sjk_identity::Unlock) -> bool {
     grant.note == NOTE
 }
 
-/// Whether `debug_collectibles` is set on `console`.
-pub(crate) fn wanted(console: &crate::console::ViewerConsole) -> bool {
-    console.bool_cvar(CVAR) == Some(true)
+/// What the mode is asked for on this PC ([`wanted`]).
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub(crate) struct Wanted {
+    /// `debug_collectibles` is on.
+    pub(crate) on: bool,
+    /// The days held a growing blade shows ([`GROWTH_DAYS_CVAR`]); `None`, fully grown.
+    pub(crate) growth_days: Option<u32>,
+}
+
+impl Wanted {
+    /// The days held growing blade `growth` shows while the mode is on.
+    pub(crate) fn days_of(self, growth: &crate::blade_growth::Growth) -> u32 {
+        self.growth_days.unwrap_or_else(|| growth.full())
+    }
+}
+
+/// What `debug_collectibles` and [`GROWTH_DAYS_CVAR`] ask for on `console`.
+pub(crate) fn wanted(console: &crate::console::ViewerConsole) -> Wanted {
+    Wanted {
+        on: console.bool_cvar(CVAR) == Some(true),
+        growth_days: console
+            .integer_cvar(GROWTH_DAYS_CVAR)
+            .and_then(|days| u32::try_from(days).ok()),
+    }
 }
 
 /// Whether the mode applies to `snapshot`: `wanted`, the hub answered and says the
 /// player's key is staff.
-pub(crate) fn active(wanted: bool, snapshot: &Snapshot) -> bool {
-    wanted
+pub(crate) fn active(wanted: Wanted, snapshot: &Snapshot) -> bool {
+    wanted.on
         && !matches!(snapshot.status, Status::Disabled | Status::NoHub)
         && snapshot.me.as_ref().is_some_and(|me| me.staff)
 }
 
 /// `snapshot` with every collectible held when the mode applies to it ([`active`]);
-/// what the profile really holds keeps its dates, notes and counts.
-pub(crate) fn dressed(wanted: bool, mut snapshot: Snapshot) -> Snapshot {
+/// what the profile really holds keeps its dates, notes and counts, but a growing blade's
+/// growth starts so that it shows the days `wanted` asks for.
+pub(crate) fn dressed(wanted: Wanted, mut snapshot: Snapshot) -> Snapshot {
     if !active(wanted, &snapshot) {
         return snapshot;
     }
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map_or(0, |since| i64::try_from(since.as_secs()).unwrap_or(0));
+    let now = crate::blade_growth::now();
     let faces = crate::cards::faces::current();
     if let Some(me) = snapshot.me.as_mut() {
-        dress(me, &faces.list, now);
+        dress(me, &faces.list, now, wanted);
     }
     snapshot
 }
 
 /// Give `me` every unlockable, medal and achievement the client knows and one copy of
-/// each card of `faces` in every finish, as held at `now`.
-fn dress(me: &mut sjk_identity::Profile, faces: &[crate::cards::faces::Face], now: i64) {
+/// each card of `faces` in every finish, as held at `now`; each growing blade held the
+/// days `wanted` asks for.
+fn dress(
+    me: &mut sjk_identity::Profile,
+    faces: &[crate::cards::faces::Face],
+    now: i64,
+    wanted: Wanted,
+) {
     for unlockable in &crate::unlockables::ALL {
         if !me.unlocks.iter().any(|unlock| unlock.id == unlockable.id) {
             me.unlocks.push(sjk_identity::Unlock {
                 id: unlockable.id.to_owned(),
                 granted: now,
+                since: 0,
                 note: NOTE.to_owned(),
                 count: 1,
                 medal: None,
                 card: None,
             });
+        }
+    }
+    for unlock in &mut me.unlocks {
+        if let Some(growth) = crate::blade_growth::of(&unlock.id) {
+            unlock.since = crate::blade_growth::start_for(wanted.days_of(growth), now);
         }
     }
     for medal in crate::medals::Medal::ALL {
@@ -119,12 +159,19 @@ fn dress(me: &mut sjk_identity::Profile, faces: &[crate::cards::faces::Face], no
 mod tests {
     use super::*;
 
+    /// The mode on, growing blades fully grown.
+    const ON: Wanted = Wanted {
+        on: true,
+        growth_days: None,
+    };
+
     fn snapshot(staff: bool) -> Snapshot {
         let me = sjk_identity::Profile {
             staff,
             unlocks: vec![sjk_identity::Unlock {
                 id: "saber_sun".to_owned(),
                 granted: 7,
+                since: 0,
                 note: "kept".to_owned(),
                 count: 3,
                 medal: None,
@@ -137,7 +184,7 @@ mod tests {
 
     #[test]
     fn staff_who_want_it_hold_everything_and_keep_what_they_had() {
-        let dressed = dressed(true, snapshot(true));
+        let dressed = dressed(ON, snapshot(true));
         let me = dressed.me.as_ref().expect("a profile");
         assert_eq!(me.unlocks.len(), crate::unlockables::ALL.len());
         let sun = me.unlocks.iter().find(|unlock| unlock.id == "saber_sun");
@@ -171,7 +218,7 @@ mod tests {
             grants: None,
             blade: None,
         };
-        dress(&mut me, std::slice::from_ref(&face), 5);
+        dress(&mut me, std::slice::from_ref(&face), 5, ON);
         let finishes: Vec<_> = me.cards.iter().map(|stack| stack.finish.as_str()).collect();
         assert_eq!(finishes, ["normal", "holo", "solar"]);
         assert!(me.cards.iter().all(|stack| stack.rarity == "rare"));
@@ -179,12 +226,39 @@ mod tests {
 
     #[test]
     fn only_staff_who_want_it_and_a_hub_that_answered() {
-        for (wanted, staff) in [(false, true), (true, false)] {
+        for (on, staff) in [(false, true), (true, false)] {
+            let wanted = Wanted {
+                on,
+                growth_days: None,
+            };
             let dressed = dressed(wanted, snapshot(staff));
             assert_eq!(dressed.me.as_ref().map(|me| me.unlocks.len()), Some(1));
         }
         let mut no_hub = snapshot(true);
         no_hub.status = Status::NoHub;
-        assert_eq!(dressed(true, no_hub).me.map(|me| me.unlocks.len()), Some(1));
+        assert_eq!(dressed(ON, no_hub).me.map(|me| me.unlocks.len()), Some(1));
+    }
+
+    /// A growing blade shows fully grown in the mode, the one really held too (its grant's
+    /// date kept), or held the days `debug_growthDays` gives.
+    #[test]
+    fn growing_blades_show_fully_grown_or_the_days_asked() {
+        let _growing = crate::blade_growth::tests::fake("saber_sun", r#"{"glint":30,"haze":91}"#);
+        let stage = |wanted: Wanted| {
+            let dressed = dressed(wanted, snapshot(true));
+            let holdings = crate::unlockables::Holdings::of(true, Some(&dressed));
+            let sun = holdings.unlock("saber_sun").map(|sun| sun.granted);
+            let stage =
+                crate::blade_growth::Stage::of("saber_sun", &holdings, crate::blade_growth::now())
+                    .map(|stage| (stage.held, stage.grown()));
+            (sun, stage)
+        };
+        assert_eq!(stage(ON), (Some(7), Some((91, true))));
+        let asked = Wanted {
+            on: true,
+            growth_days: Some(40),
+        };
+        assert_eq!(stage(asked), (Some(7), Some((40, false))));
+        assert_eq!(asked.days_of(&crate::blade_growth::Growth::default()), 40);
     }
 }

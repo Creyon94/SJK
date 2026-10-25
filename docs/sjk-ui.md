@@ -1592,7 +1592,14 @@ for the run.
   four), its name after it, closing up its rows so it never runs under the keys' line;
   a click or the number keys 1 to 6 switch one (`cg_saberSkinOptions`), the model's
   blade following at once and, worn, every SJK player's view of it
-  ([unlockables.md](unlockables.md#options)).
+  ([unlockables.md](unlockables.md#options)). On a growing blade the player holds
+  (25/10/2026, [unlockables.md](unlockables.md#growing-blades)) a part not grown yet has a
+  padlock in its tick's place, its name quiet and "Grows in 23 days" (or "in 4 months")
+  at its column's end, and does not switch; the Parts line says "Held 12 days" at its
+  right and, with a stage and parts still to grow, "See it grown" (G, and "G see it grown"
+  on the keys' line): the stage alone shows the blade fully grown until "See your stage"
+  or another shader; the classic menus' page, without a stage, shows the swatch at the
+  player's stage and offers no preview.
 - **Toys:** "6 toys", things to use in a match. Illuminate's holocron, the
   cardboard box (since 16/10/2026), Order 66 (since 17/10/2026), the Hax (since
   21/10/2026), the Ragdoll (since 23/10/2026) and the Drone (since 24/10/2026), each its

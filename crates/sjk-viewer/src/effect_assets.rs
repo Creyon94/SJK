@@ -143,6 +143,8 @@ pub(crate) const CODE_SHADERS: &[&str] = &[
     crate::saber_petals::SHADERS[2],
     crate::saber_petals::SHADERS[3],
     crate::saber_petals::SHADERS[4],
+    crate::saber_petals::SHADERS[5],
+    crate::saber_petals::SHADERS[6],
 ];
 
 pub(crate) fn required_shaders<'a>(

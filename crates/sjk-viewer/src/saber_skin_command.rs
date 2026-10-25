@@ -6,7 +6,9 @@
 //! `cg_saberSkin`. A locked skin is set all the same and shows once the player's own hub
 //! profile lists it (the gate is `GpuState::local_saber_skin`'s). `saberskin <id> parts`
 //! lists the parts a skin's file lets its wearer switch off, and `saberskin <id> <part>
-//! on|off` switches one (`cg_saberSkinOptions`, [`crate::saber_skin_options`]).
+//! on|off` switches one (`cg_saberSkinOptions`, [`crate::saber_skin_options`]); on a
+//! growing blade the player holds, a part not grown yet says when it grows and does not
+//! switch ([`crate::blade_growth`]).
 
 use crate::console::ViewerConsole;
 use crate::unlockables::{self, Holdings, SABER_SKIN_CVAR, Unlockable};
@@ -18,12 +20,20 @@ pub(crate) const HELP: &str = "List your blade skins, wear one or switch its par
 
 const USAGE: &str = "saberskin [<id> | none | <id> parts | <id> <part> on|off]";
 
+/// When a part of a growing blade grows, `days` from now, as the console says it:
+/// "grows in 23 days".
+fn grows_words(days: u32) -> String {
+    crate::blade_growth::grows_in(days).replacen("Grows", "grows", 1)
+}
+
 /// The parts skin `skin` offers (option id and name), and the lines `saberskin <id> parts`
-/// prints from them with `setting` (`cg_saberSkinOptions`).
+/// prints from them with `setting` (`cg_saberSkinOptions`); `stage`, a growing blade the
+/// player holds, says how long it has been held and when the parts not grown yet grow.
 pub(crate) fn parts_listing(
     skin: &Unlockable,
     parts: &[(String, String)],
     setting: &str,
+    stage: Option<crate::blade_growth::Stage<'_>>,
 ) -> Vec<String> {
     if parts.is_empty() {
         return vec![format!(
@@ -31,28 +41,34 @@ pub(crate) fn parts_listing(
             skin.name
         )];
     }
+    let held = stage.map_or_else(String::new, |stage| {
+        format!(", {}", stage.held_words().to_lowercase())
+    });
     let mut lines = vec![format!(
-        "{} parts (saberskin {} <part> on|off):",
+        "{} parts{held} (saberskin {} <part> on|off):",
         skin.name, skin.id
     )];
     for (id, name) in parts {
         let on = crate::saber_skin_options::is_on(setting, skin.id, id);
-        lines.push(format!(
-            "  {id}  {name}  {}",
-            if on { "^2on^7" } else { "^3off^7" }
-        ));
+        let state = match stage.and_then(|stage| stage.days_left(id)) {
+            Some(days) => format!("^3{}^7", grows_words(days)),
+            None if on => "^2on^7".to_owned(),
+            None => "^3off^7".to_owned(),
+        };
+        lines.push(format!("  {id}  {name}  {state}"));
     }
     lines
 }
 
 /// `saberskin <id> <part> on|off`: the new `cg_saberSkinOptions` and the answer, or why
-/// not.
+/// not (a part of a growing blade not grown yet, `stage`, does not switch).
 pub(crate) fn switch_part(
     skin: &Unlockable,
     parts: &[(String, String)],
     setting: &str,
     part: &str,
     state: &str,
+    stage: Option<crate::blade_growth::Stage<'_>>,
 ) -> Result<(String, String), String> {
     let on = match state.to_ascii_lowercase().as_str() {
         "on" | "1" => true,
@@ -66,6 +82,13 @@ pub(crate) fn switch_part(
             skin.name, skin.id
         ));
     };
+    if let Some(days) = stage.and_then(|stage| stage.days_left(id)) {
+        return Err(format!(
+            "{name} of the {} has not grown yet ({}).",
+            skin.name,
+            grows_words(days)
+        ));
+    }
     let setting = crate::saber_skin_options::with(setting, skin.id, id, on);
     let answer = format!(
         "{} of the {} {}.",
@@ -207,7 +230,9 @@ pub(crate) fn run(
             let setting = console
                 .text_cvar(crate::saber_skin_options::CVAR)
                 .unwrap_or_default();
-            Ok(parts_listing(skin, &parts_of(skin.id), setting))
+            let stage =
+                crate::blade_growth::Stage::of(skin.id, &holdings, crate::blade_growth::now());
+            Ok(parts_listing(skin, &parts_of(skin.id), setting, stage))
         }
         [word, part, state] => {
             let Choice::Skin(skin) = parse(word, holdings)? else {
@@ -217,7 +242,10 @@ pub(crate) fn run(
                 .text_cvar(crate::saber_skin_options::CVAR)
                 .unwrap_or_default()
                 .to_owned();
-            let (setting, answer) = switch_part(skin, &parts_of(skin.id), &setting, part, state)?;
+            let stage =
+                crate::blade_growth::Stage::of(skin.id, &holdings, crate::blade_growth::now());
+            let (setting, answer) =
+                switch_part(skin, &parts_of(skin.id), &setting, part, state, stage)?;
             if !console.set_cvar(crate::saber_skin_options::CVAR, &setting) {
                 return Err("cg_saberSkinOptions could not be set".to_owned());
             }
@@ -233,7 +261,8 @@ impl crate::GpuState {
         let wanted = self
             .console
             .as_ref()
-            .is_some_and(crate::debug_collectibles::wanted);
+            .map(crate::debug_collectibles::wanted)
+            .unwrap_or_default();
         let snapshot = crate::player_identity::collection_snapshot(wanted);
         let skins = &self.blade_skins;
         let parts_of = |id: &str| {
@@ -264,6 +293,7 @@ mod tests {
         Unlock {
             id: "saber_sun".into(),
             granted: 1_791_336_225,
+            since: 0,
             note: String::new(),
             count: 1,
             medal: None,
@@ -276,7 +306,9 @@ mod tests {
         let owned = [sun()];
         let lines = listing("saber_sun", Holdings::Known(&owned));
         // A line, then one per blade skin of the catalogue the player sees (no Unique).
-        let skins = crate::unlockables::blade_skins().count() - 1;
+        let skins = crate::unlockables::blade_skins()
+            .filter(|skin| !skin.hidden_unless_held())
+            .count();
         assert_eq!(Holdings::Known(&owned).listed_count(), skins);
         assert_eq!(lines.len(), 1 + skins);
         assert!(lines[1].contains("saber_sun  Sun blade"), "{}", lines[1]);
@@ -386,7 +418,11 @@ mod tests {
         let held = [sun(), cranes];
         let holder = Holdings::Known(&held);
         let lines = listing("saber_thousand_cranes", holder);
-        assert_eq!(lines.len(), 1 + crate::unlockables::blade_skins().count());
+        // A line, the shaders everyone sees and the one Unique held.
+        let seen = crate::unlockables::blade_skins()
+            .filter(|skin| !skin.hidden_unless_held())
+            .count();
+        assert_eq!(lines.len(), 1 + seen + 1);
         assert!(lines.iter().any(|line| {
             line.contains("167  saber_thousand_cranes  Thousand Cranes blade")
                 && line.contains("worn")
@@ -450,5 +486,42 @@ mod tests {
         // A skin without parts says so.
         let lines = run(&mut console, &words("saber_void parts"), None, sun_parts).unwrap();
         assert!(lines[0].contains("no parts"), "{}", lines[0]);
+    }
+
+    /// On a growing blade held (`blade_growth.rs`), the listing says how long it has been
+    /// held and when a part not grown yet grows; that part switches neither way.
+    #[test]
+    fn a_growing_blade_s_parts_not_grown_say_when_and_do_not_switch() {
+        let sun = crate::unlockables::find("saber_sun").unwrap();
+        let growth = crate::blade_growth::Growth::parse(r#"{"glint":30}"#).unwrap();
+        let stage = Some(crate::blade_growth::Stage {
+            growth: &growth,
+            held: 7,
+        });
+        let parts = sun_parts("saber_sun");
+        let lines = parts_listing(sun, &parts, "", stage);
+        assert_eq!(
+            lines,
+            [
+                "Sun blade parts, held 7 days (saberskin saber_sun <part> on|off):",
+                "  haze  Heat haze  ^2on^7",
+                "  glint  Tip glint  ^3grows in 23 days^7",
+            ]
+        );
+        assert_eq!(
+            switch_part(sun, &parts, "", "glint", "on", stage),
+            Err("Tip glint of the Sun blade has not grown yet (grows in 23 days).".to_owned())
+        );
+        assert!(switch_part(sun, &parts, "", "glint", "off", stage).is_err());
+        assert_eq!(
+            switch_part(sun, &parts, "", "haze", "off", stage).map(|(setting, _)| setting),
+            Ok("saber_sun.haze".to_owned())
+        );
+        let grown = Some(crate::blade_growth::Stage {
+            growth: &growth,
+            held: 30,
+        });
+        assert!(switch_part(sun, &parts, "", "glint", "off", grown).is_ok());
+        assert!(parts_listing(sun, &parts, "", grown)[0].contains("held 30 days, fully grown"));
     }
 }

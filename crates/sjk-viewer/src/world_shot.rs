@@ -1253,6 +1253,7 @@ Found the fog bug, ask me about it!"
             unlocks: vec![sjk_identity::Unlock {
                 id: "saber_sun".to_owned(),
                 granted: 1_791_336_225,
+                since: 0,
                 note: String::new(),
                 count: 1,
                 medal: None,
@@ -1508,6 +1509,7 @@ like this one.",
                 unlocks: vec![sjk_identity::Unlock {
                     id: "saber_sun".to_owned(),
                     granted: 1_791_336_225,
+                    since: 0,
                     note: String::new(),
                     count: 1,
                     medal: None,
@@ -2218,6 +2220,7 @@ like this one.",
             let sun = || sjk_identity::Unlock {
                 id: "saber_sun".to_owned(),
                 granted: 1_791_336_225,
+                since: 0,
                 note: "Thanks for testing the blades with us".to_owned(),
                 count: 1,
                 medal: None,

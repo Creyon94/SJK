@@ -17,6 +17,7 @@ fn sun() -> sjk_identity::Unlock {
     sjk_identity::Unlock {
         id: "saber_sun".to_owned(),
         granted: 1_791_336_225,
+        since: 0,
         note: "Thanks for testing the blades with us".to_owned(),
         count: 1,
         medal: None,
@@ -585,7 +586,11 @@ fn duel6_sjk_collection_debug() {
         if let Some(me) = preview.snapshot.me.as_mut() {
             me.staff = true;
         }
-        preview.snapshot = crate::debug_collectibles::dressed(true, preview.snapshot);
+        let wanted = crate::debug_collectibles::Wanted {
+            on: true,
+            growth_days: None,
+        };
+        preview.snapshot = crate::debug_collectibles::dressed(wanted, preview.snapshot);
         let me = preview.snapshot.me.clone().expect("the made-up profile");
         preview.standings = crate::achievements::standings(&me.achievements);
         if let Some(console) = gpu.console.as_mut() {

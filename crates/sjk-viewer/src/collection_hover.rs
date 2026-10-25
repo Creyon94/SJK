@@ -259,7 +259,7 @@ pub(super) fn shader_card(
     Card {
         title: skin.name.to_owned(),
         colour: skin.tier.colour(),
-        lines: vec![
+        lines: [
             Line::how(skin.how_to_get),
             // The blade number only while `debug_collectibles` is on (Sol, 21/10/2026).
             Line::status(if holdings.debug() {
@@ -278,7 +278,14 @@ pub(super) fn shader_card(
             }),
             Line::status(format!("Saber smith: {}", skin.smith)),
             status,
-        ],
+        ]
+        .into_iter()
+        // A growing blade held says how long ([`crate::blade_growth`]).
+        .chain(
+            crate::blade_growth::Stage::of(skin.id, holdings, crate::blade_growth::now())
+                .map(|stage| Line::status(stage.held_words())),
+        )
+        .collect(),
     }
 }
 
@@ -394,6 +401,7 @@ mod tests {
         let held = [sjk_identity::Unlock {
             id: "saber_sun".into(),
             granted: 1_791_336_225,
+            since: 0,
             note: String::new(),
             count: 1,
             medal: None,
@@ -413,6 +421,12 @@ mod tests {
             card.lines[1].words,
             "Blade 001. Mythical blade skin. Alpha Edition."
         );
+        assert_eq!(card.lines.len(), 4, "no growth");
+        // A growing blade held says how long (`blade_growth.rs`).
+        let _growing = crate::blade_growth::tests::fake("saber_sun", r#"{"glint":30}"#);
+        let held = [crate::blade_growth::tests::held_for("saber_sun", 12)];
+        let card = shader_card(Some(sun), &crate::unlockables::Holdings::Known(&held));
+        assert_eq!(card.lines[4].words, "Held 12 days");
     }
 
     #[test]
