@@ -184,7 +184,7 @@ impl Panel {
         let height = strip_height();
         for (row, prize) in these.iter().enumerate() {
             let top = TOP + row as f32 * row_step();
-            let tier = holocrons::slot(prize.tier());
+            let tier = &holocrons::TIERS[prize.tier()];
             let item = prize.item();
             let running = RUN + STAGGER * row as f32;
             let t = within / running;
@@ -283,7 +283,7 @@ impl Panel {
             super::unseal::flash(
                 &mut self.ui,
                 viewport,
-                holocrons::slot(shown[0].tier()).colour,
+                holocrons::TIERS[shown[0].tier()].colour,
                 1.0 - within / super::unseal::FLASH_OUT,
             );
         }

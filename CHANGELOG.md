@@ -45,7 +45,6 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Announcements: `announcement` and `rewards` now close the console as their window opens, and the mouse works in the window during a match _(Sol)_
 - Fewer stutters when players join, change model or die: a new player's model goes up a texture a frame, models shown again reuse what they had, and a model's body for deaths is ready before the first kill _(Slash)_
 - Card pictures: one picture the decoder trips on no longer stops every later card picture from loading for the session; opening a holocron loads the found card's picture as it starts, so the card no longer turns over on a dark window; video memory and crash reports name card and medal pictures as such _(Sol, after Slash's #206)_
-- Kyber crystals: every achievement now brings one, once, from Uncommon to Mythical (shown on the Achievements tab, its hover card and its unlock card). Opening one always gives a saber shader, the ones you do not have yet first, and every tenth crystal in a row without a Legendary or Mythical shader gives one: the Holocrons tab shows your crystals, how soon that is, and their loot table _(Sol)_
 
 ## 2026.1025.2 (Alpha) | 25/10/2026
 
