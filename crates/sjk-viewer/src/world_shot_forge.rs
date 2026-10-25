@@ -25,7 +25,6 @@ fn held(id: &str, count: u32) -> sjk_identity::Unlock {
     sjk_identity::Unlock {
         id: id.to_owned(),
         granted: 1_791_336_225,
-        since: 0,
         note: String::new(),
         count,
         medal: None,

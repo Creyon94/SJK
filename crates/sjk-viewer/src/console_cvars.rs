@@ -651,12 +651,6 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "SJK staff: show every collectible as held, on this PC only, to try them (the hub and other players see what you really hold)",
         ),
         CvarDefinition::new(
-            crate::debug_collectibles::GROWTH_DAYS_CVAR,
-            -1_i64,
-            CvarFlags::NONE,
-            "SJK staff, with debug_collectibles on: the days held every growing blade shows on this PC, to see each stage (-1: fully grown)",
-        ),
-        CvarDefinition::new(
             "cg_drawCrosshair",
             1_i64,
             archive,

@@ -5,19 +5,17 @@
 // @part Hearthstones
 // @embers Embers
 // @haze Heat shimmer
-// @grows {"hearth_flames":30,"heat_shimmer":91,"blaze":182,"hearthstones":365}
 // @petals {"part":2,"kind":"ash","per_unit":0.04,"life":3.2,"size":0.9,"fall":10.0,"drift":8.0}
 // @room 9
 // @solid 1
 // @palette {"corona.rim_cool":[0.7,0.2,0.04],"corona.rim_hot":[1.0,0.56,0.18],"corona.inner":[1.0,0.8,0.48],"core.white":[1.0,0.95,0.84],"core.fringe_cool":[1.0,0.5,0.16],"core.fringe_hot":[1.0,0.78,0.42],"light.color":[1.0,0.58,0.26],"trail":[1.0,0.58,0.24]}
 
-// Hearth: a home fire, the second Unique blade (Sol, 25/10/2026), a thank-you given by hand that
-// grows the longer its holder keeps it (`@grows`: days held before each part comes). A warm
-// amber blade of glowing coals that breathe, embers rising off it, kindling from the hilt as it
-// lights and cooling to a deep red as it goes out. At a month, tongues of flame lick up its
-// edges; at three, the air above it shimmers with heat; at six, the fire is a blaze, taller,
-// brighter and crackling, sparks popping off it; at a year a ring of hearthstones stands round
-// its emitter in the firelight and ash drifts off it, and its swings shed ash.
+// Hearth: a home fire, the second Unique blade (Sol, 25/10/2026), a thank-you given by hand. A
+// warm amber blade of glowing coals that breathe, embers rising off it, kindling from the hilt
+// as it lights and cooling to a deep red as it goes out. Tongues of flame lick up its edges, the
+// air above it shimmers with heat, and the fire is a blaze, taller, brighter and crackling,
+// sparks popping off it; a ring of hearthstones stands round its emitter in the firelight, ash
+// drifts off it, and its swings shed ash.
 const HE_RED: vec3<f32> = vec3<f32>(0.62, 0.1, 0.02);
 
 const HE_AMBER: vec3<f32> = vec3<f32>(1.0, 0.5, 0.12);

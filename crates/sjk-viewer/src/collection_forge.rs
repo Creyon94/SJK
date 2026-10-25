@@ -1245,7 +1245,6 @@ mod tests {
         sjk_identity::Unlock {
             id: id.to_owned(),
             granted: 1,
-            since: 0,
             note: String::new(),
             count,
             medal: None,

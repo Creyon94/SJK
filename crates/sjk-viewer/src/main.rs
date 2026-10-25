@@ -209,7 +209,6 @@ mod video_memory;
 mod viewer_app;
 use object_meshes::StaticModelMesh;
 mod achievements_frame;
-mod blade_growth;
 mod blade_lab_designs;
 mod blade_pictures;
 mod blade_signatures;

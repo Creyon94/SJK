@@ -2191,7 +2191,6 @@ mod tests {
                 .map(|unlockable| sjk_identity::Unlock {
                     id: unlockable.id.into(),
                     granted: 1_791_336_225,
-                    since: 0,
                     note: "n".repeat(200),
                     count: 1,
                     medal: None,

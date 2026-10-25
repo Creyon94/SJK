@@ -494,16 +494,6 @@ impl Panel {
                     keys.push((&["V"], "grid"));
                 }
                 keys.push((&["/"], "search"));
-                if self.growable.is_some() {
-                    keys.push((
-                        &["G"],
-                        if self.grown == self.growable {
-                            "your stage"
-                        } else {
-                            "see it grown"
-                        },
-                    ));
-                }
                 let worn = self.shader_rows.get(self.shader).and_then(|row| row.wear);
                 match worn {
                     Some("") if self.shader > 0 => keys.push((&["Enter"], "unequip")),

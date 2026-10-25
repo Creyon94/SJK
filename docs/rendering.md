@@ -2889,11 +2889,6 @@ at that point and returning the blade's own: `sig_glow(g, b, r, px)` the glow's 
   signature keeps its images and colours, but the sounds, haze, wisps and embers are always
   the built-in file's (`Signature::adopt`, round 9: the Sith Alchemy still hissed with the
   snake design's sounds from the hub's pack).
-- **Growing (25/10/2026, Sol's Hearth).** A `// @grows {"<option id>": <days>, ...}` header
-  line makes those of its options come only once its holder has held the blade that many
-  days ([unlockables.md](unlockables.md#growing-blades)); the shader needs nothing more, a
-  part not grown yet reaching it as one its wearer switched off (`part(k)` 0, its
-  section's lanes zeroed).
 
 Two ignored GPU tests render the signatures through their own pipelines and real glow
 and core images: `blade_signatures_gpu_test.rs` still, mid-swing, after a clash,

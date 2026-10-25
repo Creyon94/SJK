@@ -3364,7 +3364,6 @@ mod tests {
                 .map(|id| Unlock {
                     id: id.clone(),
                     granted: 1,
-                    since: 0,
                     note: String::new(),
                     count: 1,
                     medal: None,
