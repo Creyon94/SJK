@@ -322,6 +322,35 @@ texture cannot select a stale chain by filename. Active uploads may temporarily
 retain evicted data. These budgets do not describe total process memory. Cache
 locking and allocation happen during loading, not during drawing.
 
+With texture compression on (`r_textureCompression`, [GPU memory](#gpu-memory)) the
+workers also encode each array's kept levels (those `r_picmip` leaves) into BC1 or BC3
+blocks ([texture_compression.rs](../crates/sjk-viewer/src/texture_compression.rs)), with
+the CPU encoders of the `block_compression` crate (MIT, a pure Rust port of Intel's ISPC
+Texture Compressor kernels; its wgpu compute path is not built), and the mip cache keeps
+the blocks, one entry per texture detail, in place of the chains they were encoded from.
+The model warm-up worker (`warm_entity_materials`, players' and NPCs' models) encodes the
+same way. The render thread only uploads blocks: a texture it prepares itself, which no
+worker prepared, stays RGBA8 (`mips::upload` outside a world build). Encoding costs about
+21 ms of one core per megapixel for BC1 and BC3 (Sol's PC, release build); mp/ffa3's
+textures are 240 MP with their mips at r_picmip 0 with the HD packs installed, 5.1 s of one
+core. `texture_compression_load` ([world_shot_texture_compression.rs](../crates/sjk-viewer/src/world_shot_texture_compression.rs))
+builds each map twice per process, one process per setting, 25/10/2026 (RTX 5080, 4
+workers, two rounds; seconds, texture preparation and the whole world build):
+
+| Map, r_picmip | Preparation off | Preparation on | Build off | Build on |
+| --- | --- | --- | --- | --- |
+| mp/ffa3, 0 | 0.7 to 1.0 | 2.7 to 2.8 | 3.6 to 4.9 | 6.0 to 6.3 |
+| mp/siege_desert, 0 | 1.3 to 1.9 | 4.5 to 4.8 | 4.7 to 6.0 | 8.4 to 9.2 |
+| mp/ffa3, 1 | 0.6 to 0.7 | 1.0 to 1.2 | 3.4 to 3.5 | 3.9 to 4.0 |
+| mp/siege_desert, 1 | 1.0 to 1.1 | 2.0 to 2.1 | 3.9 to 4.5 | 5.7 to 5.8 |
+| mp/ffa3, 2 | 0.6 to 0.8 | 0.7 to 0.9 | 3.4 to 4.2 | 3.9 to 4.5 |
+| mp/siege_desert, 2 | 1.2 to 1.4 | 1.2 to 1.7 | 4.7 to 5.9 | 4.7 to 6.5 |
+
+(r_picmip 1: one round.) The second build of a map is no quicker either way: with the HD
+packs the cache's budget,
+which counts each entry's source images (16 MiB for a 2048-pixel one), holds few of their
+textures, blocks or chains.
+
 The decoded images themselves ([decoded_image_cache.rs](../crates/sjk-viewer/src/decoded_image_cache.rs),
 one per file name and content, full size whatever `r_picmip`) were never dropped until
 25/10/2026: every texture of every map, model and HUD seen in a session stayed in
@@ -609,6 +638,78 @@ process's RAM in Task Manager.
   out in the main menu). The rest of that menu: the game font atlases (128 MiB as
   RGBA, 32 MiB since they are R8, below), the UI icon atlas (56 MiB) and the world's
   shadow, GI and froxel targets (about 200 MiB) a picture menu does not draw.
+- Texture compression (`r_textureCompression`, 0 by default, Settings > Graphics > Image;
+  [texture_compression.rs](../crates/sjk-viewer/src/texture_compression.rs), 25/10/2026)
+  keeps the textures of the world and model materials block-compressed: BC1 (half a byte
+  a texel, an eighth of RGBA8) for an array whose texels are all opaque, BC3 (a byte, a
+  quarter) for one with a translucent texel, in the sRGB forms that decode as
+  `Rgba8UnormSrgb` does. One format per array: an animated stage with one translucent
+  frame is BC3 throughout. The array's level zero after `r_picmip` must be whole 4x4
+  blocks and at least 128 pixels long (`compress::fits`), or it stays RGBA8; levels under
+  4 texels a side are padded to a whole block (edge texels repeated) and written at their
+  physical size. Like `r_picmip` it applies to the textures uploaded after it changes (the
+  next map), and the shared map textures' key holds it. Not compressed: devices without
+  `TEXTURE_COMPRESSION_BC` (GLES; Apple Silicon has the formats), video stages, sky boxes
+  and the non-mipmapped path (`upload_array`; a sky's gradients band in BC1), material
+  maps (normal maps would need BC5 and the shader rebuilding their third component), and
+  everything outside the world materials (UI, menu art, fonts, atlases). The stage
+  table's binding array takes BC and RGBA8 views side by side: wgpu checks only the
+  sample type (filterable float for both) and the view dimension. Where the encoding
+  runs and what it costs at load: [Load-time texture and light
+  preparation](#load-time-texture-and-light-preparation).
+
+  `low_end_vram_audit` with `SJK_AUDIT_COMPRESSION=0,1`, 25/10/2026, 1920x1080, release
+  build, RTX 5080 on Vulkan, the HD packs installed (MiB in use, off / on):
+
+  | Map, r_picmip | Vanilla style | SJK (recommended) | Experimental |
+  | --- | --- | --- | --- |
+  | mp/ffa3, 0 | 1594 / 785 | 1622 / 812 | 2021 / 1207 |
+  | mp/ffa3, 1 | 660 / 455 | 688 / 483 | 1083 / 878 |
+  | mp/ffa3, 2 | 428 / 372 | 456 / 400 | 851 / 795 |
+  | mp/siege_desert, 0 | 1757 / 809 | 1785 / 837 | 2405 / 1457 |
+  | mp/siege_desert, 1 | 701 / 462 | 728 / 489 | 1349 / 1110 |
+  | mp/siege_desert, 2 | 438 / 374 | 465 / 402 | 1086 / 1022 |
+  | Menu on pictures, 0 | 999 / 671 | 1027 / 698 | 1284 / 956 |
+  | Menu on pictures, 2 | 371 / 346 | 398 / 374 | 656 / 631 |
+
+  The material textures themselves (labels "SJK optional mipmapped material", RGBA8, and
+  "SJK compressed mipmapped material"): ffa3 928 MiB in 335 arrays, then 118 MiB in 304
+  compressed arrays and 0.5 MiB in the 31 kept (small ones); siege_desert 1091 then 142;
+  the menu's models 377 then 48; at r_picmip 1 236 then 31, 276 then 36, 97 then 13; at
+  r_picmip 2 66 then 10, 75 then 10, 29 then 5. So the setting saves about 0.8 to
+  0.95 GB a world at full texture detail, about 0.2 GB at r_picmip 1 and 25 to 65 MiB at
+  r_picmip 2, where the map textures are already small. Full detail compressed (ffa3 at Vanilla, 785 MiB) still
+  holds more than r_picmip 1 uncompressed (660 MiB: the saber glows and the sky follow
+  r_picmip too, 300 and 24 MiB at 0), but every texture keeps its full size; r_picmip 1
+  compressed holds 455.
+
+  Quality, `texture_compression_quality`: frames from the same three cameras of each map
+  (its start, looking down, turned aside) at the SJK preset, whose frames repeat exactly
+  (two runs off: 0 pixels differ). Off against on: ffa3 41.9 to 44.5 dB over the frame
+  (nearly every pixel moves, by at most 29 to 45 of 255), siege_desert 47.8 to 49.8 dB (at
+  most 27 to 50); the sky does not change. The frames' middles doubled side by side
+  (`tc-<map>-<view>-crop.png` in `target/world-shots`) show no difference to the eye. Each
+  texture's level zero against its RGBA8 one (`compress::decode`): ffa3's 287 BC1 arrays
+  39.1 dB on average (median 38.0, 5th percentile 32.4), its 17 BC3 ones 39.1;
+  siege_desert's 212 BC1 39.5 (median 38.4, 5th percentile 33.1), 22 BC3 39.4. The worst
+  are noisy or hard-edged patterns: `models/weapons2/golan_arms/projectilemain.jpg`
+  27.3 dB, `textures/rocky_ruins/rancor_floor.jpg` 28.8,
+  `textures/factory/cat_floor2.png` (BC3) 29.1, `textures/kejim/kej_lights_glow.jpg`
+  30.3; doubled beside the originals (`tc-<map>-worst-<n>.png`) they look the same. No
+  BC1 texel came out translucent (flat blocks keep index 0). BC7, measured beside them
+  with the crate's alpha "ultra fast" settings, was about 10 dB better on the opaque
+  arrays at twice BC1's size and 19 times its encoding time (400 ms of one core per
+  megapixel), and 5 to 7 dB better on the translucent ones at BC3's size, 17 times
+  slower; hence BC1 and BC3. With the floor at 64 pixels `gfx/effects/chrome.jpg` (64x64,
+  an environment map) was the second worst at 28.4 dB; arrays under 128 pixels hold
+  almost nothing (0.5 MiB for ffa3's 31) and stay RGBA8.
+
+  Not decided: a default. The numbers argue for it on cards that already get a lower
+  texture detail (under 4.5 GiB, `video_memory.rs`): 200 to 240 MiB less at r_picmip 1
+  for 0.4 to 1 s more texture preparation per map; and for 6 to 8 GB cards at full
+  detail, 0.8 to 0.95 GB less per world, once the 1.8 to 3.5 s of preparation it adds here
+  is measured on a 4 to 6 core processor (or the encoding moves to the GPU,
+  `block_compression`'s wgpu 30 compute path, or to a disk cache).
 - The font atlases are single-channel `R8Unorm` textures
   ([gpu_texture.rs](../crates/sjk-viewer/src/gpu_texture.rs)
   `create_r8_texture_mipmapped`): every code-page atlas holds only glyph coverage (or

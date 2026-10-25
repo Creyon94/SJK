@@ -179,5 +179,12 @@ mod tests {
         for query in ["menu fps", "com_maxfpsmenu", "in the menus"] {
             found(query, crate::runtime_settings::MENU_CAP_CVAR, "Display");
         }
+        for query in ["texture compression", "r_texturecompression", "compressed"] {
+            found(
+                query,
+                crate::world_materials::filtering::mips::compress::CVAR,
+                "Graphics: image",
+            );
+        }
     }
 }

@@ -163,6 +163,7 @@ impl Context {
             })
             .await?;
         crate::gpu_guard::name_uncaptured(&device);
+        crate::world_materials::filtering::mips::compress::set_device(device.features());
         let capabilities = surface
             .as_ref()
             .map(|surface| surface.get_capabilities(&adapter));

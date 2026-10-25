@@ -1,3 +1,30 @@
+## Texture compression (opt-in)
+
+25/10/2026, `personal/texture-compression`, based on `main` `7389dc91`: a new setting,
+`r_textureCompression` (off by default; Settings > Graphics > Image > Texture
+compression, in the SJK UI and classic+), keeps the world and model materials' textures
+block-compressed, BC1 for opaque arrays and BC3 for translucent ones, encoded on the world
+installer's workers and the model warm-up worker with the `block_compression` crate's CPU
+encoders (MIT, pure Rust); the render thread only uploads
+([rendering.md](rendering.md#gpu-memory),
+[load times](rendering.md#load-time-texture-and-light-preparation)). Off is the previous
+path unchanged. Verified on Windows 11, RTX 5080, Vulkan, release build, HD packs
+installed: `low_end_vram_audit` with it off and on, the material textures of mp/ffa3 and
+mp/siege_desert 928 and 1091 MiB -> 118 and 142 at r_picmip 0 (the worlds at Vanilla 1594
+-> 785 and 1757 -> 809 MiB), 236 and 276 -> 31 and 36 at 1, 66 and 75 -> 10 at 2;
+`texture_compression_quality`, three cameras a map, two runs off identical, on against
+off 41.9 to 49.8 dB over the frame and no difference seen in doubled crops, each
+texture's level zero 39 dB on average, the worst 27.3 dB and looked at; texture
+preparation 1.8 to 3.5 s longer at r_picmip 0, 0.4 to 1 s at 1, 0 to 0.3 s at 2
+(`texture_compression_load`); unit tests of the formats, small levels' whole blocks,
+padding, BC1 opacity and the mip cache keeping blocks per texture detail; the settings
+search; the SJK UI and classic+ rows rendered off screen and looked at; fmt, build,
+workspace tests and Clippy. Not verified: in a game, a card without BC formats (the
+RGBA8 fallback), Metal or DX12, a small card or a weak processor (the load cost there), a
+player's or NPC's model loaded during a match (the warm-up path, not run by a shot), a
+graphics reload with it on. No default decided; the recommendation is in
+[rendering.md](rendering.md#gpu-memory).
+
 ## Decoded images no longer pile up
 
 25/10/2026, `personal/decoded-image-sweep`, based on `main` `296fca5f`: the decoded image

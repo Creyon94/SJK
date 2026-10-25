@@ -245,7 +245,9 @@ fn menu_pictures_vram() {
 /// 3 GB cards. `SJK_AUDIT_MAPS` (comma separated) and `SJK_AUDIT_SIZE` (`WxH`) override
 /// the maps and the screen size; `SJK_AUDIT_GENERATED` mounts the player's generated
 /// packs (`JKA_GAME_DATA/SJK/generated`, the material maps), which the other shots
-/// leave out. Each build's last frame is saved as `vram-audit-<map>-<preset>-<picmip>`.
+/// leave out; `SJK_AUDIT_COMPRESSION` (comma separated, default `0`) measures each
+/// `r_textureCompression` value. Each build's last frame is saved as
+/// `vram-audit-<map>-<preset>-<picmip>` (`-tc1` with compression).
 #[test]
 #[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
 fn low_end_vram_audit() {
@@ -279,15 +281,33 @@ fn low_end_vram_audit() {
             .split(',')
             .map(str::to_owned)
             .collect();
+        let compressions: Vec<String> = std::env::var("SJK_AUDIT_COMPRESSION")
+            .unwrap_or_else(|_| "0".to_owned())
+            .split(',')
+            .map(str::to_owned)
+            .collect();
         for map in maps.split(',').chain([empty.as_str()]) {
             for (level, name) in [
                 (Level::Vanilla, "vanilla"),
                 (Level::Sjk, "sjk"),
                 (Level::Experimental, "experimental"),
             ] {
-                for picmip in picmips.iter().map(String::as_str) {
+                for (picmip, compression) in picmips.iter().flat_map(|picmip| {
+                    compressions
+                        .iter()
+                        .map(move |compression| (picmip.as_str(), compression.as_str()))
+                }) {
                     let mut cvars = preset_cvars(level);
                     cvars.push((crate::world_materials::filtering::mips::PICMIP_CVAR, picmip));
+                    cvars.push((
+                        crate::world_materials::filtering::mips::compress::CVAR,
+                        compression,
+                    ));
+                    let tc = if compression == "0" {
+                        String::new()
+                    } else {
+                        format!("-tc{compression}")
+                    };
                     if crate::menu_pictures::pictured(map).is_some() {
                         cvars.push((crate::menu_pictures::CVAR, "1"));
                     }
@@ -301,7 +321,8 @@ fn low_end_vram_audit() {
                         .replace(['/', ':'], "-");
                     let _ = std::fs::create_dir_all(directory());
                     let _ = shot.save(
-                        directory().join(format!("vram-audit-{stem}-{name}-picmip{picmip}.png")),
+                        directory()
+                            .join(format!("vram-audit-{stem}-{name}-picmip{picmip}{tc}.png")),
                     );
                     let _ = gpu.device.poll(wgpu::PollType::wait_indefinitely());
                     let Some(report) = gpu.device.generate_allocator_report() else {
@@ -318,7 +339,7 @@ fn low_end_vram_audit() {
                         .and_then(|memory| memory.usage)
                         .unwrap_or(0);
                     eprintln!(
-                        "audit {map} {name} picmip {picmip}: {:.0} MiB in use, {:.0} MiB reserved, {} labels, DXGI process usage {:.0} MiB ({:?})",
+                        "audit {map} {name} picmip {picmip}{tc}: {:.0} MiB in use, {:.0} MiB reserved, {} labels, DXGI process usage {:.0} MiB ({:?})",
                         total as f64 / MIB,
                         report.total_reserved_bytes as f64 / MIB,
                         by_label.len(),
@@ -337,7 +358,7 @@ fn low_end_vram_audit() {
                         .and_then(|memory| memory.usage)
                         .unwrap_or(0);
                     summary.push(format!(
-                        "{map:40} {name:12} picmip {picmip}: {:6.0} MiB allocator, {:6.0} MiB DXGI, {:6.0} MiB DXGI after drop",
+                        "{map:40} {name:12} picmip {picmip}{tc:4}: {:6.0} MiB allocator, {:6.0} MiB DXGI, {:6.0} MiB DXGI after drop",
                         total as f64 / MIB,
                         dxgi as f64 / MIB,
                         after as f64 / MIB
