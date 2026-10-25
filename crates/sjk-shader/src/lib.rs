@@ -63,6 +63,9 @@ pub struct ShaderDefinition {
     /// `polygonOffset`: the surface is laid onto another (painted markings, decals) and
     /// must win the depth test against it instead of fighting with it.
     pub polygon_offset: bool,
+    /// `nopicmip` or `nomipmaps` seen so far: the stages parsed after it keep their
+    /// images' full size whatever the texture detail ([`ShaderStage::no_picmip`]).
+    pub no_picmip: bool,
 }
 
 /// Generic Quake 3 `fogParms` values.
@@ -138,6 +141,12 @@ pub struct ShaderStage {
     pub depth_function: DepthFunction,
     /// Optional rend2 material-map keywords; ignored unless material maps are enabled.
     pub material: StageMaterial,
+    /// The shader said `nopicmip` or `nomipmaps` before this stage: its images, and
+    /// rend2's material maps for it, keep their full size whatever `r_picmip`
+    /// (rd-vanilla `ParseStage` passes `!shader.noPicMip` to `R_FindImageFile` as each
+    /// stage is parsed; `nomipmaps` sets it too). Sky boxes take the texture detail
+    /// regardless, as in `ParseSkyParms`.
+    pub no_picmip: bool,
 }
 
 /// Texture-coordinate source selected by a Q3 stage.

@@ -182,10 +182,17 @@ impl Forge {
             self.texture_cache.insert(key.to_owned(), view.clone());
             return Ok(view);
         }
+        let picmip = super::filtering::mips::picmip_for(key);
         let texture = if self.filtering.mipmapped() {
-            super::filtering::mips::upload(device, queue, pixels)?
+            super::filtering::mips::upload(device, queue, pixels, picmip)?
         } else {
-            upload_array(device, queue, pixels)?
+            upload_array(
+                device,
+                queue,
+                "SJK Q3 stage animation frames",
+                pixels,
+                picmip,
+            )?
         };
         self.texture_cache.insert(key.to_owned(), texture.clone());
         Ok(texture)
@@ -668,7 +675,8 @@ pub(super) fn compile_profile() -> [u64; 2] {
 /// ([`crate::decoded_image_cache`]), so the append that follows on the render thread
 /// only uploads. Run on a worker; a failure is left for the append to report.
 ///
-/// With `mipmapped`, the textures' mip chains are built too and returned, for
+/// With `mipmapped`, the textures' mip chains are built too (and block-compressed, with
+/// `r_textureCompression`) and returned, for
 /// [`Runtime::upload_prepared_textures`]: resizing a model's textures down to one texel
 /// on the render thread cost 50 to 180 ms for some player models.
 pub(crate) fn warm_entity_materials(
@@ -714,7 +722,12 @@ pub(crate) fn warm_entity_materials(
                     key: key.clone(),
                     width,
                     height,
-                    chains: super::filtering::mips::cache::prepare(pixels, width, height),
+                    levels: super::filtering::mips::cache::prepare_levels(
+                        pixels,
+                        width,
+                        height,
+                        super::filtering::mips::picmip_for(key),
+                    ),
                 });
             }
         }
@@ -722,12 +735,13 @@ pub(crate) fn warm_entity_materials(
     prepared
 }
 
-/// One texture's mip chains built on a worker ([`warm_entity_materials`]).
+/// One texture's mip chains (or their blocks, with `r_textureCompression`) built on a
+/// worker ([`warm_entity_materials`]).
 pub(crate) struct PreparedTexture {
     key: String,
     width: u32,
     height: u32,
-    chains: Arc<Vec<Vec<RgbaImage>>>,
+    levels: super::filtering::mips::Levels,
 }
 
 impl Runtime {
@@ -759,12 +773,13 @@ impl Runtime {
         // A failure leaves the texture to the material's own upload; one the card had
         // no memory for is invalid and must not be cached.
         let uploaded = crate::gpu_guard::capture(device, || {
-            super::filtering::mips::upload_chains(
+            super::filtering::mips::upload_levels(
                 device,
                 queue,
                 texture.width,
                 texture.height,
-                &texture.chains,
+                &texture.levels,
+                super::filtering::mips::picmip_for(&texture.key),
             )
         });
         match uploaded {

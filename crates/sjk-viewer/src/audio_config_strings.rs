@@ -133,9 +133,7 @@ impl GameAudio {
         if let Some(music) = assets::game_music(game) {
             self.start_music(vfs, &music);
         } else {
-            self.map_music = None;
-            self.dynamic = None;
-            self.output.stop_music();
+            self.clear_music();
         }
     }
 }

@@ -15,11 +15,6 @@ pub(super) struct SkyVisibility {
 }
 
 impl SkyVisibility {
-    /// Provision a target at installation even if a server enables its camera later.
-    pub(super) fn has_candidates(&self) -> bool {
-        self.enabled && !self.surfaces.is_empty()
-    }
-
     /// Resolve shader policy and conservative geometry bounds once at map installation.
     pub(super) fn new(scene: &FlattenedScene, bsp: &Bsp, shaders: &ShaderCatalog) -> Self {
         let surfaces = scene

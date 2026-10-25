@@ -40,6 +40,7 @@ pub(super) fn parse_tokens(
             fog_contents: false,
             no_gl_fog: false,
             polygon_offset: false,
+            no_picmip: false,
         };
         while token(&tokens, cursor, source)? != "}" {
             if tokens[cursor] == "{" {
@@ -117,6 +118,9 @@ pub(super) fn parse_tokens(
                     cursor += 1;
                 }
                 "noglfog" => definition.no_gl_fog = true,
+                // rd-vanilla `ParseShader`: `nomipmaps` implies `nopicmip`. SJK still
+                // mipmaps a `nomipmaps` shader's images; neither shrinks them.
+                "nopicmip" | "nomipmaps" => definition.no_picmip = true,
                 "fogparms" => {
                     // rd-vanilla tr_shader.cpp:2271-2288: `( r g b ) depth`;
                     // any trailing gradient values are ignored.

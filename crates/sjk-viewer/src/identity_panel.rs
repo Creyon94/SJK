@@ -693,6 +693,12 @@ mod tests {
             shop: None,
             trade: None,
             trades: None,
+            announcements: Vec::new(),
+            announcements_revision: 0,
+            rewards: None,
+            rewards_revision: 0,
+            claim: None,
+            announce: None,
             public_key: String::new(),
         }
     }

@@ -96,10 +96,9 @@ pub(crate) fn frame(gpu: &mut GpuState, intermission: bool, time_ms: i32) -> Hud
     match (presentation, sample) {
         (Presentation::Ground, Some((_, placement, readings))) => {
             visibility.ground_hud = true;
-            let viewport = [
-                gpu.configuration.width as f32,
-                gpu.configuration.height as f32,
-            ];
+            // The scene's raster, which the HUD is drawn into and whose depth it reads:
+            // the window's size times the render scale or supersampling.
+            let viewport = gpu.scene_size().map(|n| n as f32);
             let layout = Layout::build(&gpu.ui_font, readings);
             let hud = &mut gpu.ground_hud;
             hud.active = true;

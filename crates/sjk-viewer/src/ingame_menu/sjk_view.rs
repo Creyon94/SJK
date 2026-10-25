@@ -2005,6 +2005,7 @@ mod tests {
             key_id: "0123456789abcdef",
             tier: None,
             gif: None,
+            official: None,
         },
         chat_dock::DockLine {
             name: "Kyle",
@@ -2018,6 +2019,7 @@ mod tests {
             key_id: "00000000000000ff",
             tier: None,
             gif: None,
+            official: None,
         },
         chat_dock::DockLine {
             name: "^1Fox",
@@ -2030,6 +2032,7 @@ mod tests {
             key_id: "fedcba9876543210",
             tier: None,
             gif: None,
+            official: None,
         },
     ];
 

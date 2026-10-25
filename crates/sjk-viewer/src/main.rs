@@ -39,6 +39,7 @@ mod client_guid;
 mod client_state;
 mod clientinfo_refresh;
 mod debug_collectibles;
+mod drone;
 mod duel_blades;
 mod duel_ghost;
 mod duel_visibility;
@@ -186,6 +187,7 @@ mod notice;
 mod npc_refresh;
 mod object_meshes;
 mod oblique_clip;
+mod official;
 mod order66;
 mod particle_atlas;
 mod particle_draw;
@@ -296,8 +298,10 @@ mod sjk_chat_frame;
 mod sjk_chat_look;
 mod sjk_packs;
 mod sky_stage;
+mod small_card_notice;
 mod snapshot_presentation;
 mod static_models;
+mod stock_blades;
 mod symbols;
 mod text;
 mod text_dialog;
@@ -325,6 +329,12 @@ mod world_ping_frame;
 #[cfg(test)]
 mod world_shot;
 mod world_stage;
+
+/// Counts allocator calls inside `assert_no_alloc` blocks (tests of per-frame
+/// bookkeeping); every call goes on to the system allocator.
+#[cfg(all(test, debug_assertions))]
+#[global_allocator]
+static ALLOCATOR: assert_no_alloc::AllocDisabler = assert_no_alloc::AllocDisabler;
 use actor_instance::ActorInstance;
 use actor_mesh::ActorMesh;
 use animation_timing::animation_frame;
@@ -423,8 +433,11 @@ struct GpuState {
     log_request_card: log_request_card::Card,
     /// A client mod's notice, shown once on its servers ([`mod_notice_card`]).
     mod_notice: mod_notice_card::State,
+    small_card_notice: small_card_notice::Card,
     /// What the update brought ([`whats_new_card`]).
     whats_new_card: whats_new_card::Card,
+    /// The SJK team's announcements and contributor rewards ([`official`]).
+    official: official::Official,
     window: Option<Arc<Window>>,
     post_aa: Option<frame_target::aa::Runtime>,
     render_scale: Option<frame_target::scale::Runtime>,
@@ -493,10 +506,12 @@ struct GpuState {
     order66: order66::Order66,
     /// The Hax toy (`toy_hax`): a hack under way, the player steered or steering.
     hax: hax::Hax,
+    /// The Drone toy (`toy_drone`): its consent switch and the other players' drones.
+    drone: drone::Drone,
     /// The Ragdoll toy (`toy_ragdoll`): the player's own fall and the falls of others.
     ragdoll: ragdoll::Ragdoll,
-    /// Order 66's and the Hax's switches as last saved (`toy_saved`).
-    toys_saved: [toy_saved::Saved; 2],
+    /// Order 66's, the Hax's and the Drone's switches as last saved (`toy_saved`).
+    toys_saved: [toy_saved::Saved; 3],
     /// The Holocrons tab's 3D holocron ([`holocrons::stage`]).
     holocron_stage: holocrons::stage::Stage,
     /// The time its turn and bob are drawn at, instead of the clock's, for a world shot.
@@ -589,6 +604,8 @@ struct GpuState {
     text_vertex_buffer: wgpu::Buffer,
     classic_text_vertex_buffer: wgpu::Buffer,
     text_bind_group: wgpu::BindGroup,
+    /// The Inter atlas `text_bind_group` binds, kept to bind it again with the wide atlas.
+    text_atlas: wgpu::TextureView,
     text_layout: wgpu::BindGroupLayout,
     text_sampler: wgpu::Sampler,
     /// Glyphs beyond the code-page atlases, bound with every text atlas.
@@ -596,6 +613,8 @@ struct GpuState {
     /// The retail `¬` logo spliced into the Inter atlas, kept for DPI rebuilds.
     logo_glyph: Option<text::LogoGlyph>,
     classic_text_bind_group: Option<wgpu::BindGroup>,
+    /// The classic HUD atlas `classic_text_bind_group` binds.
+    classic_text_atlas: Option<wgpu::TextureView>,
     /// The classic HUD atlas is a distance field (see `text::sdf::for_atlas`).
     classic_text_sdf: bool,
     ui_font: UiFont,
@@ -1064,12 +1083,11 @@ impl GpuState {
             logo_glyph.as_ref(),
         )?;
         let ui_font = modern_atlas.font;
-        let font_view = gpu_texture::create_rgba8_texture_mipmapped(
+        let font_view = gpu_texture::create_r8_texture_mipmapped(
             &device,
             &queue,
             "SJK UI font atlas",
             &modern_atlas.image,
-            true,
             text::ATLAS_MIP_LEVELS,
         );
         // The font's atlas, its sampler and the wide-glyph and emoji atlases
@@ -1115,14 +1133,13 @@ impl GpuState {
         let classic_text_sdf = classic_atlas
             .as_ref()
             .is_some_and(|atlas| atlas.distance_field);
-        let (classic_hud_font, classic_text_bind_group) =
-            classic_atlas.map_or((None, None), |atlas| {
-                let view = gpu_texture::create_rgba8_texture_mipmapped(
+        let (classic_hud_font, classic_text_bind_group, classic_text_atlas) =
+            classic_atlas.map_or((None, None, None), |atlas| {
+                let view = gpu_texture::create_r8_texture_mipmapped(
                     &device,
                     &queue,
                     "SJK classic HUD font atlas",
                     &atlas.image,
-                    true,
                     game_font::mip_levels(atlas.image.width(), atlas.image.height()),
                 );
                 let bind_group = text::wide_texture::bind_group(
@@ -1133,7 +1150,7 @@ impl GpuState {
                     &text_sampler,
                     &wide_text,
                 );
-                (Some(atlas.font), Some(bind_group))
+                (Some(atlas.font), Some(bind_group), Some(view))
             });
         let game_fonts = game_font::GameFonts::preload(
             preload_game_fonts || game_font::enabled(console.as_ref()),
@@ -1174,7 +1191,7 @@ impl GpuState {
         let scene_views = scene_views::Runtime::new(
             &device,
             &camera_layout,
-            (context.scene_format(), [size.width, size.height]),
+            context.scene_format(),
             &flattened,
             &bsp,
             &shaders,
@@ -1409,7 +1426,9 @@ impl GpuState {
             alpha_card: alpha_notice_card::Card::default(),
             log_request_card: log_request_card::Card::default(),
             mod_notice: mod_notice_card::State::default(),
+            small_card_notice: small_card_notice::Card::default(),
             whats_new_card: whats_new_card::Card::default(),
+            official: official::Official::default(),
 
             screenshots: screenshot_setup.manager,
             menu_pictures: menu_pictures::Painter::default(),
@@ -1456,6 +1475,7 @@ impl GpuState {
             cardboard_box: Default::default(),
             order66: Default::default(),
             hax: Default::default(),
+            drone: Default::default(),
             ragdoll: Default::default(),
             toys_saved: Default::default(),
             holocron_stage: Default::default(),
@@ -1525,11 +1545,13 @@ impl GpuState {
             text_vertex_buffer,
             classic_text_vertex_buffer,
             text_bind_group,
+            text_atlas: font_view,
             text_layout,
             text_sampler,
             wide_text,
             logo_glyph,
             classic_text_bind_group,
+            classic_text_atlas,
             classic_text_sdf,
             ui_font,
             classic_hud_font,
@@ -1666,12 +1688,11 @@ impl GpuState {
 
     fn rebuild_modern_text(&mut self, dpi_scale: f64) -> Result<(), Box<dyn Error>> {
         let atlas = text::load_modern(dpi_scale, self.logo_glyph.as_ref())?;
-        let view = gpu_texture::create_rgba8_texture_mipmapped(
+        let view = gpu_texture::create_r8_texture_mipmapped(
             &self.device,
             &self.queue,
             "SJK Inter UI font atlas",
             &atlas.image,
-            true,
             text::ATLAS_MIP_LEVELS,
         );
         self.text_bind_group = text::wide_texture::bind_group(
@@ -1682,6 +1703,7 @@ impl GpuState {
             &self.text_sampler,
             &self.wide_text,
         );
+        self.text_atlas = view;
         self.ui_font = atlas.font;
         Ok(())
     }
@@ -2011,13 +2033,23 @@ impl GpuState {
         let medal_shown = self.prepare_medal_popup(covered);
         let holocron_shown = self.prepare_holocron_popup(covered || medal_shown);
         // The graphics reload card waits for the others.
-        let reload_shown = self.prepare_reload_card(
+        let reload_card_shown = self.prepare_reload_card(
             covered
                 || medal_shown
                 || holocron_shown
                 || self.medal_popup.pending()
                 || self.holocron_popup.pending(),
         );
+        // Then the small-card notice, once a start; the cards after wait for both.
+        let small_card_shown = self.prepare_small_card_notice(
+            covered
+                || medal_shown
+                || holocron_shown
+                || reload_card_shown
+                || self.medal_popup.pending()
+                || self.holocron_popup.pending(),
+        );
+        let reload_shown = reload_card_shown || small_card_shown;
         // The low-FPS card too.
         self.update_fps_help();
         let fps_shown = self.prepare_fps_card(
@@ -2038,6 +2070,19 @@ impl GpuState {
                 || self.medal_popup.pending()
                 || self.holocron_popup.pending(),
         );
+        // The SJK team's windows: an announcement or the rounds asked for (over the
+        // console too), or a reward waiting.
+        let official_shown = self.prepare_official(
+            alpha_shown
+                || self.alpha_card.wants()
+                || medal_shown
+                || holocron_shown
+                || reload_shown
+                || fps_shown
+                || logs_shown
+                || self.medal_popup.pending()
+                || self.holocron_popup.pending(),
+        );
         // And what the update brought, last.
         let news_shown = self.prepare_whats_new_card(
             covered
@@ -2046,6 +2091,7 @@ impl GpuState {
                 || reload_shown
                 || fps_shown
                 || logs_shown
+                || official_shown
                 || self.medal_popup.pending()
                 || self.holocron_popup.pending(),
         );
@@ -2057,6 +2103,7 @@ impl GpuState {
                 || reload_shown
                 || fps_shown
                 || logs_shown
+                || official_shown
                 || news_shown
                 || self.medal_popup.pending()
                 || self.holocron_popup.pending(),
@@ -2069,6 +2116,7 @@ impl GpuState {
                 || reload_shown
                 || fps_shown
                 || logs_shown
+                || official_shown
                 || news_shown
                 || emote_help_shown
                 || self.medal_popup.pending()
@@ -2082,6 +2130,7 @@ impl GpuState {
                 || reload_shown
                 || fps_shown
                 || logs_shown
+                || official_shown
                 || news_shown
                 || emote_help_shown
                 || emote_picker_shown
@@ -2096,6 +2145,7 @@ impl GpuState {
                 || reload_shown
                 || fps_shown
                 || logs_shown
+                || official_shown
                 || news_shown
                 || emote_help_shown
                 || emote_picker_shown
@@ -2120,6 +2170,7 @@ impl GpuState {
                 || self.holocron_popup.pending(),
         );
         let medal_popup = alpha_shown
+            || official_shown
             || mod_notice_shown
             || medal_shown
             || holocron_shown
@@ -2153,6 +2204,10 @@ impl GpuState {
                 .is_some_and(|menu| menu.is_visible());
         let scoreboard_held = self.gameplay_input.held(input::GameButton::Scores);
         self.append_world_pings(
+            viewport,
+            information_visible && intermission_view.is_none() && !scoreboard_held,
+        );
+        self.append_drone_names(
             viewport,
             information_visible && intermission_view.is_none() && !scoreboard_held,
         );
@@ -2338,12 +2393,16 @@ impl GpuState {
             self.append_medal_popup(viewport);
         } else if holocron_shown {
             self.append_holocron_popup(viewport);
-        } else if reload_shown {
+        } else if reload_card_shown {
             self.append_reload_card(viewport);
+        } else if small_card_shown {
+            self.append_small_card_notice(viewport);
         } else if fps_shown {
             self.append_fps_card(viewport);
         } else if logs_shown {
             self.append_log_request_card(viewport);
+        } else if official_shown {
+            self.append_official(viewport);
         } else if news_shown {
             self.append_whats_new_card(viewport);
         } else if emote_help_shown {
@@ -2378,6 +2437,7 @@ impl GpuState {
             self.world_notes.highlight(),
             self.entity_view.active().then(|| self.entity_view.list()),
             Some(&self.world_pings.list),
+            Some(&self.drone.list),
             information_visible.then(|| &self.hud.team_logo.list),
             information_visible.then(|| &self.hud.nameplate.list),
             information_visible.then(|| &self.hud.identification.list),
@@ -2406,9 +2466,11 @@ impl GpuState {
                 .then(|| self.text_dialog.draw_list()),
             medal_shown.then(|| self.medal_popup.draw_list()),
             holocron_shown.then(|| self.holocron_popup.draw_list()),
-            reload_shown.then(|| self.graphics_reload.card.draw_list()),
+            reload_card_shown.then(|| self.graphics_reload.card.draw_list()),
+            small_card_shown.then(|| self.small_card_notice.draw_list()),
             fps_shown.then(|| self.fps_card.draw_list()),
             logs_shown.then(|| self.log_request_card.draw_list()),
+            official_shown.then(|| self.official.window.draw_list()),
             news_shown.then(|| self.whats_new_card.draw_list()),
             emote_help_shown.then(|| self.emote_help.card.draw_list()),
             emote_picker_shown.then(|| self.emote_picker.card.draw_list()),
@@ -2422,7 +2484,7 @@ impl GpuState {
         self.ui_shapes
             .prepare_layers(&self.queue, layers.into_iter().flatten(), viewport);
         // Wide glyphs this frame asked for first draw next frame.
-        self.wide_text.update(&self.queue);
+        self.update_wide_text();
         let text_vertex_count = u32::try_from(self.text_vertices.len()).unwrap_or(0);
         if !self.text_vertices.is_empty() {
             self.queue.write_buffer(
@@ -2489,6 +2551,7 @@ impl GpuState {
         self.submit_illuminate(presentation_time, visual_now);
         self.submit_cardboard_boxes(presentation_time, visual_now);
         self.submit_order66(presentation_time, visual_now);
+        self.submit_drones(presentation_time, visual_now);
         self.submit_holocron_stage(visual_now);
         self.sync_saber_skins(game_audio, presentation_time);
         let debug_missiles = effect_debug::sync(self.console.as_ref());

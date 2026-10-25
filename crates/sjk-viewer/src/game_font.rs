@@ -72,6 +72,8 @@ struct Layer {
     font: UiFont,
     vertices: Vec<TextVertex>,
     buffer: wgpu::Buffer,
+    /// The font's atlas, kept to bind it again with the wide atlas ([`GameFonts::rebind`]).
+    atlas: wgpu::TextureView,
     bind_group: wgpu::BindGroup,
     /// The atlas was uploaded as a distance field.
     distance_field: bool,
@@ -120,7 +122,7 @@ impl Layer {
         }
     }
 
-    fn upload(name: &str, font: UiFont, image: image::RgbaImage, gpu: &Device<'_>) -> Self {
+    fn upload(name: &str, font: UiFont, image: image::GrayImage, gpu: &Device<'_>) -> Self {
         let started = std::time::Instant::now();
         let (width, height) = image.dimensions();
         // The same atlas in every world: a map change's next world takes the last one's.
@@ -144,12 +146,11 @@ impl Layer {
                     "game font {name}: {width}x{height} atlas, drawn from coverage"
                 ));
             }
-            let view = gpu_texture::create_rgba8_texture_mipmapped(
+            let view = gpu_texture::create_r8_texture_mipmapped(
                 gpu.device,
                 gpu.queue,
                 "SJK game font atlas",
                 &field,
-                true,
                 mip_levels(field.width(), field.height()),
             );
             (view, distance_field)
@@ -172,6 +173,7 @@ impl Layer {
             font,
             vertices: Vec::with_capacity(4_096),
             buffer,
+            atlas: view,
             bind_group,
             distance_field,
             count: 0,
@@ -477,6 +479,21 @@ impl GameFonts {
             .chain(self.chat.iter_mut())
             .chain(self.console.iter_mut())
             .chain(sjk)
+    }
+
+    /// Bind every loaded font's atlas again with `gpu`'s wide and emoji atlases, after
+    /// one of those was made ([`text::wide_texture::WideTexture::update`]).
+    pub(crate) fn rebind(&mut self, gpu: &Device<'_>) {
+        for layer in self.layers_mut() {
+            layer.bind_group = text::wide_texture::bind_group(
+                gpu.device,
+                "SJK game font bind group",
+                gpu.layout,
+                &layer.atlas,
+                gpu.sampler,
+                gpu.wide,
+            );
+        }
     }
 
     /// Copy this frame's vertices to the GPU.

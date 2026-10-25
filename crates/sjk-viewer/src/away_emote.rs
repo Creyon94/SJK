@@ -18,7 +18,10 @@ use std::time::{Duration, Instant};
 /// The SJK emote to play while away, an emote id or [`NONE`].
 pub(crate) const SJK_CVAR: &str = "cg_awayEmote";
 /// The JA+ emote to play while away on a JA+ server, one of [`JAPLUS_EMOTES`].
-pub(crate) const JAPLUS_CVAR: &str = "cg_awayEmoteJaplus";
+/// Core-owned but JA+'s, so under the `japlus.` prefix (`docs/mods.md`).
+pub(crate) const JAPLUS_CVAR: &str = "japlus.awayEmote";
+/// Its name before the `japlus.` prefix, kept as an alias for saved profiles.
+pub(crate) const JAPLUS_OLD_CVAR: &str = "cg_awayEmoteJaplus";
 /// Whether an alt-tabbed out or minimised window counts as away.
 pub(crate) const ALT_TAB_CVAR: &str = "cg_awayAltTab";
 /// Seconds without input before the player is away; 0 never.

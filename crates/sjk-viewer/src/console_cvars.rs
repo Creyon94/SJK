@@ -744,10 +744,22 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "The Hax toy is on (toy_hax switches it; it stays on until turned off)",
         ),
         CvarDefinition::new(
+            crate::toy_saved::DRONE_CVAR,
+            false,
+            archive,
+            "The Drone toy is on: other players may peek at you, their drone following you (toy_drone switches it)",
+        ),
+        CvarDefinition::new(
             crate::duel_blades::CVAR,
             false,
             archive,
             "Draw every blade stock, in its own colour, in a duel you play or follow and on Duel or Power Duel servers; 0 keeps blade skins",
+        ),
+        CvarDefinition::new(
+            crate::stock_blades::CVAR,
+            0_i64,
+            archive,
+            "Draw blades stock, in their own colour, to save GPU time: 0 off, 1 other players' blades, 2 every blade, yours too",
         ),
         CvarDefinition::new(
             crate::effect_aux::saber_rain_steam::CVAR,
@@ -1303,12 +1315,28 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
         cvars.register(definition)?;
     }
     cvars.register_alias("r_vsync", "r_swapInterval")?;
+    cvars.register_alias(
+        crate::away_emote::JAPLUS_OLD_CVAR,
+        crate::away_emote::JAPLUS_CVAR,
+    )?;
     crate::cgame_options::register(cvars)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_old_away_emote_name_sets_the_japlus_one() {
+        let mut cvars = CvarRegistry::new();
+        register_daily_cvars(&mut cvars).unwrap();
+        cvars
+            .set_text(crate::away_emote::JAPLUS_OLD_CVAR, "amsit")
+            .unwrap();
+        let current = cvars.get(crate::away_emote::JAPLUS_CVAR).unwrap();
+        assert_eq!(current.value.as_text(), "amsit");
+        assert_eq!(current.name, crate::away_emote::JAPLUS_CVAR);
+    }
 
     #[test]
     fn an_integer_setting_follows_an_on_off_cvar() {

@@ -75,11 +75,18 @@ fn lamp_entry(world: vec3<f32>, index: vec3<i32>) -> vec2<u32> {
     }
     return entry;
 }
+// The lamp of list entry `k`. With `selection.z` (every lamp index below 65536) a list word
+// holds two 16-bit indices, the even entry in the low half; otherwise one (`lamp_lights.rs`).
+fn lamp_list_lamp(k: u32) -> u32 {
+    if lamp_grid.selection.z == 0u { return lamp_data[lamp_grid.offsets.y + k/4u][k & 3u]; }
+    let word = lamp_data[lamp_grid.offsets.y + k/8u][(k/2u) & 3u];
+    return (word >> ((k & 1u)*16u)) & 0xffffu;
+}
 // Lamp list entry `k` at the receiver: unshadowed irradiance (rgb) and shadow (a), zero
 // when it cannot reach. Callers form rgb*a beside their running sum, so it still compiles
 // to the fused multiply-add the light has always been summed with.
 fn lamp_term(k: u32, world: vec3<f32>, normal: vec3<f32>, threshold: f32) -> vec4<f32> {
-    let lamp = lamp_data[lamp_grid.offsets.y + k/4u][k & 3u]*5u;
+    let lamp = lamp_list_lamp(k)*5u;
     let term = lamp_unshadowed(lamp, world, normal, threshold);
     if all(term <= vec3(0.0)) { return vec4(0.0); }
     let to = bitcast<vec4<f32>>(lamp_data[lamp]).xyz - world;
@@ -107,7 +114,7 @@ struct LampLight { light: vec3<f32>, vector: vec3<f32> };
 fn lamp_luminance(rgb: vec3<f32>) -> f32 { return dot(rgb, vec3(0.2126, 0.7152, 0.0722)); }
 // Unit direction from `world` toward the centre of lamp list entry `k`.
 fn lamp_direction(k: u32, world: vec3<f32>) -> vec3<f32> {
-    let lamp = lamp_data[lamp_grid.offsets.y + k/4u][k & 3u]*5u;
+    let lamp = lamp_list_lamp(k)*5u;
     let to = bitcast<vec4<f32>>(lamp_data[lamp]).xyz - world;
     return to*inverseSqrt(max(dot(to, to), 1e-6));
 }

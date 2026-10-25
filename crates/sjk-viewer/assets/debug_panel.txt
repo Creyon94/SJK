@@ -24,6 +24,31 @@
 
 # ---- Console & chat ----
 
+[announcements]
+area: Console & chat
+title: SJK team announcements and contributor reward rounds (Claim)
+change: Announcements show in SJK chat (SJK logo, title, Read more card); releases offer update.
+change: Reward rounds list who was rewarded and why; your own reward opens a window with Claim.
+test: debug_announce: a line in the game chat and the card opens. Try debug_announce release / long.
+test: announcement reopens the newest; in the dock and chat page a click on the line opens it.
+test: debug_reward, then back to the main menu: the claim window shows; Claim and Later close it.
+test: In a match, debug_reward: the "Contributor reward waiting" card, the window on game menu.
+test: debug_reward list (and rewards): the round list scrolls with Up, Down and the wheel.
+test: announcement from the console: the console closes; Esc closes the card, back to the game.
+test: In a match, announcement: the mouse cursor shows and clicks the card; Close gives it back.
+note: Live on the hub since 25/10 (announcement #1 is the 2026.1025.1 release).
+
+[japlus-names]
+area: Console & chat
+title: JA+ settings renamed to japlus.* (old names still work)
+change: cg_antiAmKiss is japlus.antiAmKiss, cg_awayEmoteJaplus is japlus.awayEmote.
+change: Anti-kiss moved to Settings > Mods, under the JA+ tools switch. japlus.color is gone.
+test: Type japlus. then Tab: antiAmKiss and awayEmote show with the japlus commands.
+test: Type cg_antiAmKiss 1, then japlus.antiAmKiss: it says 1. Restart: it is still 1.
+test: Settings > Mods (SJK) and Game options (classic): Push away kiss attempts under JA+ tools.
+test: Settings > Gameplay: the JA+ away emote row still works and keeps its saved pick.
+test: amcolor 255 0 0 still tints you; japlus.color answers Unknown command.
+
 [safety-code-v2]
 area: Console & chat
 title: Safety code v2: 60 digits, one half per key (Slash, PR #200)
@@ -33,6 +58,38 @@ test: Two SJK clients, whisper_verify <name> on both: the same 60 digits, 3 rows
 test: The rows fit inside the card; Mark verified turns them gold.
 test: A player verified before this version still shows VERIFIED.
 note: A client older than this shows 12 digits, which never match the new code.
+
+[drone-toy]
+area: Gameplay
+title: Drone toy: freecam and peek fly a remote others see
+change: freecam/peek unchanged (binds too) but fly the seeker ball, name over it, for SJK players.
+change: Peek needs consent: the target's Drone switch (toy_drone, wheel Toys, Collection > Toys).
+change: Target reads who watches; switching off sends the drone away (relayed "away").
+test: Two SJK clients on a server. A: freecam and fly: B sees the remote glide, A's name over it.
+test: A: peek B with B's Drone off: "has not let drones follow them". B turns it on: peek works.
+test: While A peeks, B reads "A's drone is watching you" and sees the remote behind them.
+test: B turns toy_drone off: A's view returns, "B sent your drone away"; the remote fades.
+test: Collection > Toys shows six niches, Drone's switch "Peek me" stays on after a restart.
+
+[ragdoll-sound-fix]
+area: Gameplay
+title: Ragdoll: knocks and scrapes are heard again
+change: The knock and scrape timers no longer wrap round in release builds (every sound was dropped).
+test: Go limp and fall: the body thuds on the ground, limbs too, and scrapes when it slides.
+test: Fall against a wall: it knocks on the wall's material.
+
+[ragdoll-physics]
+area: Gameplay
+title: Ragdoll: movers carry the body, every part heard on what it hits
+change: Lifts, trains and turning platforms carry the limp body; closing doors push it.
+change: Each part (trunk, head, arms, legs) knocks on its own: flesh + the surface's footstep.
+change: Sliding along the ground scrapes; harder hits are louder.
+test: Go limp on a lift, ride it: the body stays on and rises with it, the camera too.
+test: Go limp standing on a lift that is still, then call it: the body wakes and rides.
+test: Fall down stairs or off a ledge: several knocks, limbs lighter than the trunk.
+test: Fall on metal, then grass or snow: the knocks sound of the floor.
+test: Run and go limp: the body slides and scrapes.
+test: A second SJK client near you sees the body ride the lift the same way.
 
 [ragdoll-toy]
 area: Gameplay
@@ -667,6 +724,7 @@ change: guillemets, section sign, bullet... (they were dropped). Messages keep t
 test: Wear a name like {JoF}Sol, send an SJK chat message: feed, dock and page show {JoF}Sol.
 test: The chat page's online window shows the braces; a holocron drop line too.
 test: A message with {JoF} is still refused (messages keep their alphabet).
+
 [chat-paste]
 area: Console & chat
 title: Paste into the SJK chat (Ctrl+V, Shift+Insert): page and docks
@@ -988,6 +1046,32 @@ test: With cl_idrive 2: hold C, then SPACE: you jump; let go of SPACE: you crouc
 note: A roll on landing while crouched (PM_CrashLand) is not prevented, in EJK either.
 
 # ---- Menus & settings ----
+
+[small-card-profile]
+area: Menus & settings
+title: Small graphics cards start once on lighter graphics, with a Keep / Back card
+change: Under 3.5 GB (or integrated): Vanilla style, stock blades for others, 60 FPS menu cap.
+change: Only from the untouched SJK preset and settings still off; once per card (r_smallCardPreset).
+test: r_smallCardPreset 0 and a small card (or ask Sol's tester): the card shows on the main menu.
+test: Back to SJK graphics: preset, stock blades and menu cap back; the reload card offers to apply.
+test: Keep (Enter): Vanilla style stays; the card does not come back at the next start.
+
+[menu-frame-cost]
+area: Menus & settings
+title: Lighter menus: shader pictures redrawn less often, no per-frame setting allocations
+change: Shader swatches not hovered animate up to 30 times a second, 6 redrawn a frame at most.
+change: Setting lookups and the low-FPS check no longer allocate every frame.
+test: Collection > Shaders grid with many owned shaders: hovered one smooth, others still animate.
+test: Forge, Saber tab and a holocron reveal: the blade pictures show with no seams or glow left.
+
+[card-faces-lazy]
+area: Menus & settings
+title: Card pictures load only when shown (1.8 GB less video memory; 3 GB cards crashed)
+change: A card's picture is decoded and uploaded when a screen draws it, 64 kept at most.
+change: 512 pixel pictures from Texture detail 1; 1024 at 0, as before.
+test: Collection > Cards: pictures appear within a moment; page through, they keep coming.
+test: Look closer at a card (Enter): the picture is sharp; open a holocron: the found card shows.
+test: Task Manager > GPU memory in the main menu: about 1.8 GB less than the last release.
 
 [profile-vfs-release]
 area: Menus & settings
@@ -2011,6 +2095,75 @@ note: Alt+Tab while holding Tab leaves the board and the hidden HUD up until Tab
 
 # ---- Rendering & effects ----
 
+[render-scale]
+area: Rendering & effects
+title: Render scale (r_renderScale 50-100%): the world drawn smaller, menus and text sharp
+change: Below 100 the 3D scene is drawn at that share of the window and stretched up, sharpened.
+change: Applies after a graphics reload; supersampling wins when both are set.
+test: Settings > Display > Render scale 50, reload graphics: world softer, HUD and text sharp.
+test: Back to 100 and reload: the image is exactly as before.
+test: Resize the window or alt-enter at 50: the world still fills the screen correctly.
+
+[experimental-vram]
+area: Rendering & effects
+title: Experimental preset: less video memory (lamp lists, lamp shadows, cache by card size)
+change: Lamp shadow distances packed two per texel; lamp lists 16-bit on maps under 65,536 lamps.
+change: The lamp light cache's budget follows the card: 32 MiB per GB, 64 to 512 MiB.
+test: Experimental preset on ffa5 and siege_hoth: lamps, door shadows and walls light as before.
+test: Change maps a few times on Experimental: no missing light or black walls.
+
+[texture-compression]
+area: Rendering & effects
+title: Texture compression (r_textureCompression, off): map and model textures 4 to 8x smaller
+change: On: opaque textures BC1, translucent BC3, encoded at load; skies, UI and material maps not.
+change: ffa3 at full detail: map textures 928 -> 118 MiB; the load takes 2 to 3.5 s longer.
+test: Settings > Texture compression on, change map: textures look the same (no blocky gradients).
+test: Translucent things (glass, grates, foliage) keep their see-through parts.
+test: Off again and change map: everything exactly as before.
+
+[font-atlas-r8]
+area: Rendering & effects
+title: Font atlases in one channel: 120 MiB less video memory, text unchanged
+change: Every font atlas (game, UI, classic HUD) is coverage only (R8) instead of RGBA.
+test: Menus, console, chat (with Russian/Japanese and emoji), HUD numbers: text looks the same.
+test: Classic and SJK menu styles, retail fonts and SJK fonts: no missing or blocky glyphs.
+test: cg_groundHud 1 (ground HUD): its digits still draw.
+
+[decoded-image-sweep]
+area: Rendering & effects
+title: Decoded textures of maps you left are freed (memory no longer grows map after map)
+change: Past 128 MiB more than last time, images only the cache holds are dropped.
+test: Play several maps in a row: Task Manager memory stops growing after the second or third.
+test: Go back to a map you played: it loads and looks the same.
+
+[stock-blades-menu-cap]
+area: Rendering & effects
+title: Stock blades (cg_stockBlades) and a menu frame cap (com_maxfpsMenu) for weak PCs
+change: Stock blades: Off / Others / All draws blades without skins, in their own colour.
+change: Menu FPS cap: frames a second while only the menus run; 0 keeps the normal cap.
+test: Settings > Advanced > Gameplay > Effects: Stock blades Others: others' skins gone, yours kept.
+test: Stock blades All: your own blade is stock too; the Collection still shows skins.
+test: Settings > Advanced > Display > Frame rate: Menu FPS cap 30: the main menu runs at 30.
+test: Join a server with the cap set: the game runs at your normal cap, menus over it too.
+
+[picmip-everywhere]
+area: Rendering & effects
+title: Texture detail (r_picmip) now also shrinks skies, material maps, unmipped textures
+change: Sky boxes, normal/specular/emission maps and r_textureMode GL_LINEAR follow r_picmip.
+change: Shaders with nopicmip or nomipmaps keep full size, as in the original game.
+test: r_picmip 2, then a map with a sky (siege_desert): the sky draws, softer, no seams.
+test: r_picmip 0: skies and textures look exactly as before.
+test: Experimental preset with material maps at r_picmip 2: maps load, bumps still show.
+
+[lazy-scene-targets]
+area: Rendering & effects
+title: Mirror, sky portal and portal views, CJK and emoji atlases made only when drawn
+change: Floor mirror, sky portal and map portal targets are made the first frame they draw.
+change: The wide glyph (CJK) and emoji atlases are made with the first such character.
+test: r_floorReflections 1 on ffa3: the floor mirror draws; 0 then 1 again: it comes back.
+test: duel6 (sky portal): the sky scenery draws as before; resize the window: still right.
+test: Type Russian/Japanese and an emoji in chat: they show from the first character.
+
 [blade-tip-edges]
 area: Rendering & effects
 title: Signature blades: no bright tip rim, no hard edges (Creyon, PR #191)
@@ -2042,6 +2195,30 @@ test: Swing hard: petals trail the swing and settle; still, turning or running s
 test: Collection > Shaders > its parts: Falling blossoms off, swing: no petals.
 test: A second client sees your petals, and none once you switched them off.
 note: Hub drops need the hub branch varykino-blossom deployed; the client's own file draws it.
+
+[thousand-cranes]
+area: Rendering & effects
+title: Thousand Cranes, the first Unique blade (hand-given, hidden unless owned)
+change: Blade 167: silk-white blade, red thread, origami cranes circling, golden crane at tip.
+change: New Unique tier (rose): never drops, sold or traded; hidden from players who lack it.
+change: A swing releases paper cranes that climb away; a clash startles a ring of cranes.
+test: Collection > Shaders without it: no Thousand Cranes, no Unique chip, totals unchanged.
+test: Staff grant saber_thousand_cranes: it shows first in Shaders with its rose Unique mark.
+test: Wear it: cranes circle and rise, unfold as the blade lights, golden crane over the tip.
+test: Swing hard: coloured paper cranes fly up off the blade; still or running releases none.
+test: Collection > Shaders > its parts: each of the five switches off on its own.
+note: Needs the hub branch thousand-cranes deployed (pack, sounds, grant); client draws it alone.
+
+[hearth]
+area: Rendering & effects
+title: Hearth, a Unique blade of coals and flame
+change: Blade 168: glowing coals, rising embers, flames up its edges, heat shimmer, a blaze.
+change: A ring of hearthstones stands round the emitter; ash drifts off it and off its swings.
+test: Wear it (granted to Sol 25/10): the whole fire shows at once, nothing locked or waiting.
+test: Light it: it kindles up from the hilt; put it away: it cools to a deep red.
+test: Swing hard: grey and glowing ash flakes drift down and settle; a still blade sheds none.
+test: Collection > Shaders > its parts: each of the five switches off on its own.
+note: Hub deployed 25/10 (pack, sounds); the growth by days held was dropped the same day.
 
 [lazy-blade-skins]
 area: Rendering & effects
@@ -2642,6 +2819,15 @@ note: Needs the hub's unlocks and asset packs (SJK-hub #2 and #3), not deployed 
 note: Not run in a game against the deployed hub; the sounds have not been heard yet.
 
 # ---- Audio ----
+
+[sound-memory]
+area: Audio
+title: Sounds kept at 16 bits (half the memory), old map music freed
+change: Every sound and music track is stored as 16-bit samples instead of floats.
+change: A map's music is freed once the next music is chosen, instead of piling up.
+test: Play a few maps: sounds, voices, loops and music sound as before (no crackle, no clicks).
+test: Change map a few times, then soundinfo: decoded total stays level, freed bytes grow.
+test: music and stopmusic in the console still play and stop the music.
 
 [stereo-sides]
 area: Audio
@@ -3449,6 +3635,7 @@ test: Classic main menu: SJK > CHANGELOG; pick 2026.1005.1; scroll with the whee
 test: Modern menus (ui_menuStyle modern): Changelog sits above Quit and opens the same page.
 test: In a match, type changelog in the console; Escape closes the page and the console.
 test: At 4K with 150% scaling the text wraps inside the pane and nothing overlaps.
+
 [center-print-names]
 area: Console & chat
 title: Duel challenges from names with symbols: no crash, symbol shown (SJK PR #2, Creyon)
@@ -6372,6 +6559,7 @@ test: jof.content 1 with a group downloaded; put a zz_test.pk3 overriding one Jo
 test: in GameData/base; load a map: your texture shows, not JoF's.
 test: Without your pack, JoF's version of that texture shows (over the retail one).
 note: fs_debug 1 logs the mount order: jof/base packs now sit between base packs by name.
+
 [japro-move-styles]
 area: Gameplay
 title: jaPRO tools mod: styles SJK cannot predict are shown from the server (hub #97/#98)
@@ -6385,6 +6573,7 @@ test: japro.predictMoveStyles 1 with CPM: the old snapping returns; 0 again: smo
 test: mod_japro 0 with CPM: old snapping too. Settings > Mods shows both rows.
 test: On a JA+ or base server nothing changes; japro.styles says it is for jaPRO servers.
 note: Movement on those styles shows one snapshot late until each style is ported (CPM next).
+
 [leading-slash-images]
 area: Rendering & effects
 title: A texture named with a leading slash no longer fails the map load (Mae, siege_desert)
@@ -6451,6 +6640,7 @@ change: Bug reports, notes and player reports accept the characters of cvars and
 change: @ * & | ~ backtick $ % ^ and braces stay refused; the rules line lists what is taken.
 test: Report a bug: 'bind x "say hi; kill" [90] <value> cg_fov_2' is sent, no refusal.
 test: A report with @ or {braces}: refused, the message lists the allowed characters.
+
 [jkr-creator]
 area: HUD
 title: JKR CREATOR mark + centred card labels

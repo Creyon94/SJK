@@ -5,6 +5,11 @@
 //! the wide atlas at 2 and the emoji atlas at 3; `text.wgsl` samples the wide atlas for
 //! vertices whose `u` is [`super::wide::U_OFFSET`] or more and the emoji atlas for
 //! those at [`super::emoji::U_OFFSET`] or more.
+//!
+//! Each atlas is a 1x1 stand-in until the first glyph or emoji is written into it: the
+//! full textures, about 10.7 MiB each, are made then, and every text bind group is made
+//! again with them ([`crate::GpuState::update_wide_text`]). A world in which no one
+//! writes beyond the code page or sends an emoji never holds them.
 
 use super::wide::Cell;
 use super::{emoji, wide};
@@ -13,18 +18,71 @@ use crate::frame_queue::FrameQueue;
 /// The wide atlas (R8 coverage) and the emoji atlas (RGBA display values) on the GPU,
 /// with the code-page atlases' mip levels.
 pub(crate) struct WideTexture {
-    wide: wgpu::Texture,
-    wide_view: wgpu::TextureView,
-    emoji: wgpu::Texture,
-    emoji_view: wgpu::TextureView,
+    wide: Atlas,
+    emoji: Atlas,
     /// Reused list of cells to copy this frame.
     cells: Vec<Cell>,
+}
+
+/// One atlas texture: the stand-in, or the full atlas once made.
+struct Atlas {
+    label: &'static str,
+    size: [u32; 2],
+    format: wgpu::TextureFormat,
+    texture: wgpu::Texture,
+    view: wgpu::TextureView,
+    made: bool,
+    /// The card had no room for it: the stand-in stays and it is not tried again.
+    refused: bool,
+}
+
+impl Atlas {
+    fn new(
+        device: &wgpu::Device,
+        label: &'static str,
+        size: [u32; 2],
+        format: wgpu::TextureFormat,
+    ) -> Self {
+        let texture = atlas_texture(device, "SJK text atlas stand-in", [1, 1], 1, format);
+        Self {
+            label,
+            size,
+            format,
+            view: texture.create_view(&wgpu::TextureViewDescriptor::default()),
+            texture,
+            made: false,
+            refused: false,
+        }
+    }
+
+    /// Make the full atlas if it is still the stand-in; whether it is made (not when the
+    /// card has no room for it, logged once: its characters then draw nothing).
+    fn make(&mut self, device: &wgpu::Device) -> bool {
+        if !self.made && !self.refused {
+            let (label, size, format) = (self.label, self.size, self.format);
+            match crate::gpu_guard::capture(device, || {
+                atlas_texture(device, label, size, super::ATLAS_MIP_LEVELS, format)
+            }) {
+                Ok(texture) => {
+                    self.view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+                    self.texture = texture;
+                    self.made = true;
+                }
+                Err(error) => {
+                    self.refused = true;
+                    crate::log::progress(format_args!("warning: no {label} ({error})"));
+                }
+            }
+        }
+        self.made
+    }
 }
 
 fn atlas_texture(
     device: &wgpu::Device,
     label: &str,
     size: [u32; 2],
+    mip_level_count: u32,
     format: wgpu::TextureFormat,
 ) -> wgpu::Texture {
     device.create_texture(&wgpu::TextureDescriptor {
@@ -34,7 +92,7 @@ fn atlas_texture(
             height: size[1],
             depth_or_array_layers: 1,
         },
-        mip_level_count: super::ATLAS_MIP_LEVELS,
+        mip_level_count,
         sample_count: 1,
         dimension: wgpu::TextureDimension::D2,
         format,
@@ -44,17 +102,17 @@ fn atlas_texture(
 }
 
 impl WideTexture {
-    /// Empty atlases. The CPU atlases start over with them, so every wide glyph and
-    /// emoji on screen is drawn into these textures over the next frames.
+    /// The stand-ins. The CPU atlases start over with them, so every wide glyph and
+    /// emoji on screen is drawn into the atlases made for them over the next frames.
     pub(crate) fn new(device: &wgpu::Device) -> Self {
-        let wide = atlas_texture(
+        let wide = Atlas::new(
             device,
             "SJK wide glyph atlas",
             [wide::ATLAS_WIDTH, wide::ATLAS_HEIGHT],
             wgpu::TextureFormat::R8Unorm,
         );
         // Display values, as every picture the 2D layer samples (`ui_target`).
-        let emoji = atlas_texture(
+        let emoji = Atlas::new(
             device,
             "SJK emoji atlas",
             [emoji::ATLAS_WIDTH, emoji::ATLAS_HEIGHT],
@@ -63,9 +121,7 @@ impl WideTexture {
         wide::start_over();
         emoji::start_over();
         Self {
-            wide_view: wide.create_view(&wgpu::TextureViewDescriptor::default()),
             wide,
-            emoji_view: emoji.create_view(&wgpu::TextureViewDescriptor::default()),
             emoji,
             cells: Vec::new(),
         }
@@ -73,32 +129,70 @@ impl WideTexture {
 
     /// Rasterize the glyphs and decode the emoji this frame asked for (within
     /// [`wide::FRAME_BUDGET`] for both) and copy every new cell, with its mip levels,
-    /// into the textures ahead of the next submission. Nothing is copied or allocated on
-    /// a frame that asked for nothing new.
-    pub(crate) fn update(&mut self, queue: &FrameQueue) {
+    /// into the textures ahead of the next submission, making an atlas for its first
+    /// cell. Nothing is copied or allocated on a frame that asked for nothing new.
+    /// Whether an atlas was made: the text bind groups must then be made again.
+    pub(crate) fn update(&mut self, device: &wgpu::Device, queue: &FrameQueue) -> bool {
         let deadline = std::time::Instant::now() + wide::FRAME_BUDGET;
         wide::rasterize_pending(wide::FRAME_BUDGET);
         emoji::rasterize_pending(deadline);
+        let made = (self.wide.made, self.emoji.made);
         wide::take_dirty(&mut self.cells);
-        if !self.cells.is_empty() {
+        if !self.cells.is_empty() && self.wide.make(device) {
             let cells = &self.cells;
             wide::mirror(|pixels| {
-                upload(queue, &self.wide, cells, 1, |cell, level| {
+                upload(queue, &self.wide.texture, cells, 1, |cell, level| {
                     wide::cell_level(pixels, cell, level)
                 });
             });
-            self.cells.clear();
         }
+        self.cells.clear();
         emoji::take_dirty(&mut self.cells);
-        if !self.cells.is_empty() {
+        if !self.cells.is_empty() && self.emoji.make(device) {
             let cells = &self.cells;
             emoji::mirror(|pixels| {
-                upload(queue, &self.emoji, cells, 4, |cell, level| {
+                upload(queue, &self.emoji.texture, cells, 4, |cell, level| {
                     emoji::cell_level(pixels, cell, level)
                 });
             });
-            self.cells.clear();
         }
+        self.cells.clear();
+        made != (self.wide.made, self.emoji.made)
+    }
+}
+
+impl crate::GpuState {
+    /// Bring the wide and emoji atlases up to date ([`WideTexture::update`]); when that
+    /// made one, every text bind group is made again to carry it.
+    pub(crate) fn update_wide_text(&mut self) {
+        if !self.wide_text.update(&self.device, &self.queue) {
+            return;
+        }
+        self.text_bind_group = bind_group(
+            &self.device,
+            "SJK text bind group",
+            &self.text_layout,
+            &self.text_atlas,
+            &self.text_sampler,
+            &self.wide_text,
+        );
+        if let Some(atlas) = &self.classic_text_atlas {
+            self.classic_text_bind_group = Some(bind_group(
+                &self.device,
+                "SJK classic HUD text bind group",
+                &self.text_layout,
+                atlas,
+                &self.text_sampler,
+                &self.wide_text,
+            ));
+        }
+        self.game_fonts.rebind(&crate::game_font::Device {
+            device: &self.device,
+            queue: &self.queue,
+            layout: &self.text_layout,
+            sampler: &self.text_sampler,
+            wide: &self.wide_text,
+        });
     }
 }
 
@@ -166,11 +260,11 @@ pub(crate) fn bind_group(
             },
             wgpu::BindGroupEntry {
                 binding: 2,
-                resource: wgpu::BindingResource::TextureView(&shared.wide_view),
+                resource: wgpu::BindingResource::TextureView(&shared.wide.view),
             },
             wgpu::BindGroupEntry {
                 binding: 3,
-                resource: wgpu::BindingResource::TextureView(&shared.emoji_view),
+                resource: wgpu::BindingResource::TextureView(&shared.emoji.view),
             },
         ],
     })
@@ -188,6 +282,19 @@ mod tests {
         ] {
             assert!(source.contains(&declared), "{declared}");
         }
+    }
+
+    /// The code-page atlases are R8 (`gpu_texture::create_r8_texture_mipmapped`): the
+    /// programs sampling one read its coverage or distance from red, where alpha is 1.
+    #[test]
+    fn the_font_atlases_are_read_from_red() {
+        let text = include_str!("../text.wgsl");
+        let sample = "textureSample(font_texture, font_sampler, input.uv)";
+        assert_eq!(text.matches(&format!("{sample}.r;")).count(), 2);
+        assert_eq!(text.matches(sample).count(), 2);
+        let ground = include_str!("../ground_hud.wgsl");
+        crate::wgsl_source::validate(ground);
+        assert!(ground.contains("q.bounds.zw), dx, dy).r;"));
     }
 
     /// The game chat in other alphabets and emoji as they arrive: Windows-1251 from an

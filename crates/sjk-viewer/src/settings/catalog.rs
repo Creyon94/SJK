@@ -148,6 +148,17 @@ pub(super) const VIDEO: &[Setting] = &[
             step: 25,
         },
     },
+    Setting {
+        label: "Menu FPS cap (0 = game)",
+        cvar: crate::runtime_settings::MENU_CAP_CVAR,
+        // A cap to lower the menus' rate: past 300 it would rarely lower anything, and the
+        // usual 30 to 144 keep room on the slider.
+        kind: ValueKind::Integer {
+            min: 0,
+            max: 300,
+            step: 10,
+        },
+    },
     GAMEPLAY_FPS_ROW,
     Setting {
         label: "Ignore server caps",
@@ -873,6 +884,11 @@ pub(super) const GAME: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Stock blades (faster)",
+        cvar: crate::stock_blades::CVAR,
+        kind: ValueKind::Choice(&["0", "1", "2"]),
+    },
+    Setting {
         label: "Saber rain steam",
         cvar: crate::effect_aux::saber_rain_steam::CVAR,
         kind: ValueKind::Choice(&["0", "1", "2"]),
@@ -1454,6 +1470,15 @@ pub(super) const RENDER_IMAGE: &[Setting] = &[
         },
     },
     Setting {
+        label: "Render scale (%) (reload)",
+        cvar: crate::frame_target::scale::CVAR,
+        kind: ValueKind::Integer {
+            min: crate::frame_target::scale::MIN_PERCENT as i64,
+            max: crate::frame_target::scale::NATIVE as i64,
+            step: 5,
+        },
+    },
+    Setting {
         label: "Texture detail, 0 full (next map)",
         cvar: crate::world_materials::filtering::mips::PICMIP_CVAR,
         kind: ValueKind::Integer {
@@ -1461,6 +1486,11 @@ pub(super) const RENDER_IMAGE: &[Setting] = &[
             max: crate::world_materials::filtering::mips::PICMIP_MAX as i64,
             step: 1,
         },
+    },
+    Setting {
+        label: "Texture compression (next map)",
+        cvar: crate::world_materials::filtering::mips::compress::CVAR,
+        kind: ValueKind::Bool,
     },
     Setting {
         label: "Soft particles",

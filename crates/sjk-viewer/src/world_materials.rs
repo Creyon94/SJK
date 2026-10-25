@@ -100,6 +100,13 @@ use std::sync::Arc;
 use std::time::Instant;
 use wgpu::util::DeviceExt;
 
+/// The textures world builds prepare, kept while `Some` (`texture_prepare::CAPTURED`).
+#[cfg(test)]
+pub(crate) fn texture_prepare_capture()
+-> &'static std::sync::Mutex<Option<texture_prepare::Captured>> {
+    &texture_prepare::CAPTURED
+}
+
 #[path = "gi_runtime.rs"]
 pub(crate) mod gi;
 #[path = "gi_probes.rs"]

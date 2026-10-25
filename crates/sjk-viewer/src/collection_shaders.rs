@@ -182,19 +182,22 @@ fn owned_line(grant: &sjk_identity::Unlock) -> String {
 const FILTER_Y: f32 = 292.0;
 const FILTER_HEIGHT: f32 = 28.0;
 
-/// The chip of tier `index` of [`FILTER_TIERS`]: its token, name, colour, whether it is
-/// the one on and its width.
+/// The tier chips' widths (frame pixels), Common to Unique.
+const CHIP_WIDTHS: [f32; 6] = [90.0, 104.0, 70.0, 100.0, 96.0, 84.0];
+
+/// The chip of `tier`, chip `index` after All ([`Panel::tier_chips`]), with the filter on
+/// tier `on`: its token, name, colour, whether it is the one on and its width.
 fn chip_of(
     index: usize,
-    filter: &ShaderFilter,
+    tier: unlockables::Rarity,
+    on: Option<unlockables::Rarity>,
     width: f32,
 ) -> (u16, String, sjk_ui::Color, bool, f32) {
-    let tier = FILTER_TIERS[index];
     (
         FILTER_TIER_BASE + 1 + index as u16,
         tier.label().to_owned(),
         tier.colour(),
-        filter.tier == Some(tier),
+        on == Some(tier),
         width,
     )
 }
@@ -276,7 +279,8 @@ impl Row {
 }
 
 impl Panel {
-    /// The rows, and the lead's words.
+    /// The rows: the stock blade, then the shaders the player may see
+    /// ([`unlockables::Holdings::listed`]: a Unique one only while held) that `filter` keeps.
     fn rows(inputs: &Inputs<'_>, filter: &ShaderFilter) -> Vec<Row> {
         let worn = inputs
             .holdings
@@ -290,10 +294,11 @@ impl Panel {
             numbered: false,
         })
         .chain(
-            unlockables::blade_skins_by_tier()
-                .iter()
+            inputs
+                .holdings
+                .listed()
                 .filter(|skin| filter.passes(skin, inputs.holdings.unlock(skin.id).is_some()))
-                .map(|&skin| Row {
+                .map(|skin| Row {
                     skin: Some(skin),
                     owned: inputs.holdings.unlock(skin.id).is_some(),
                     worn: worn == Some(skin.id),
@@ -311,6 +316,20 @@ impl Panel {
     pub(super) fn shaders(&mut self, frame: &Frame, inputs: &Inputs<'_>, seconds: f32) {
         let s = frame.s;
         self.grid = inputs.grid;
+        // Unique's chip only for a player who holds a Unique shader; one taken back takes
+        // its chip, and the filter on it, with it.
+        self.unique_chip = inputs
+            .holdings
+            .listed()
+            .any(|skin| skin.hidden_unless_held());
+        if self
+            .shader_filter
+            .tier
+            .is_some_and(|tier| !self.tier_chips().contains(&tier))
+        {
+            self.shader_filter.tier = None;
+            let _ = self.filter_changed();
+        }
         let rows = Self::rows(inputs, &self.shader_filter);
         self.shader_list = rows.iter().filter_map(|row| row.skin).collect();
         self.shader_count = rows.len();
@@ -328,8 +347,10 @@ impl Panel {
         let owned = unlockables::blade_skins()
             .filter(|skin| inputs.holdings.unlock(skin.id).is_some())
             .count();
+        // Out of the shaders this player sees: an unheld Unique one is not counted.
+        let total = inputs.holdings.listed_count();
         let headline = if inputs.holdings.reason().is_none() {
-            format!("{owned} of {} owned", unlockables::ALL.len())
+            format!("{owned} of {total} owned")
         } else {
             "Saber shaders".to_owned()
         };
@@ -337,9 +358,8 @@ impl Panel {
         let line = match inputs.holdings {
             unlockables::Holdings::Known(_) if self.shader_filter.active() => {
                 shown_words = format!(
-                    "{} of {} shaders shown: T tier, O owned, / search.",
+                    "{} of {total} shaders shown: T tier, O owned, / search.",
                     rows.len() - 1,
-                    unlockables::ALL.len()
                 );
                 shown_words.as_str()
             }
@@ -359,7 +379,7 @@ impl Panel {
         };
         self.lead(frame, &headline, line);
         self.filter_bar(frame);
-        self.kinds(frame, owned);
+        self.kinds(frame, owned, total);
         self.view_switches(frame);
         let unlocks = matches!(inputs.holdings, unlockables::Holdings::Known(_));
         // The rack (or the grid) scrolls just enough to keep the chosen one in view.
@@ -408,32 +428,36 @@ impl Panel {
     }
 
     /// The filter under the headline: a chip for All and one for each tier (in its tier's
-    /// colour), the owned-only chip and the search field.
+    /// colour; Unique's only for a player who holds a Unique shader), the owned-only chip
+    /// and the search field.
     fn filter_bar(&mut self, frame: &Frame) {
         let s = frame.s;
         let y = FILTER_Y;
         let mut left = LEFT_X;
-        let chips: [(u16, String, sjk_ui::Color, bool, f32); 7] = [
-            (
-                FILTER_TIER_BASE,
-                "All".to_owned(),
-                color::HOLO,
-                self.shader_filter.tier.is_none(),
-                56.0,
-            ),
-            chip_of(0, &self.shader_filter, 90.0),
-            chip_of(1, &self.shader_filter, 104.0),
-            chip_of(2, &self.shader_filter, 70.0),
-            chip_of(3, &self.shader_filter, 100.0),
-            chip_of(4, &self.shader_filter, 96.0),
-            (
-                FILTER_OWNED_TOKEN,
-                "Owned".to_owned(),
-                color::GOLD,
-                self.shader_filter.owned,
-                84.0,
-            ),
-        ];
+        let all = (
+            FILTER_TIER_BASE,
+            "All".to_owned(),
+            color::HOLO,
+            self.shader_filter.tier.is_none(),
+            56.0,
+        );
+        let on = self.shader_filter.tier;
+        let tiers = self
+            .tier_chips()
+            .iter()
+            .zip(CHIP_WIDTHS)
+            .enumerate()
+            .map(move |(index, (&tier, width))| chip_of(index, tier, on, width));
+        let owned = (
+            FILTER_OWNED_TOKEN,
+            "Owned".to_owned(),
+            color::GOLD,
+            self.shader_filter.owned,
+            84.0,
+        );
+        let chips = std::iter::once(all)
+            .chain(tiers)
+            .chain(std::iter::once(owned));
         for (token, label, colour, lit, width) in chips {
             let rect = frame.rect(left, y, width, FILTER_HEIGHT);
             let hovered = self.ui.token_hovered(token);
@@ -463,8 +487,9 @@ impl Panel {
             self.ui.hit_region(token, rect);
             left += width + 8.0;
         }
-        // The search field takes what is left of the rack's width.
-        let width = (LEFT_X - 12.0 + RACK_WIDTH - left).max(120.0);
+        // The search field takes what is left of the rack's width (100 frame pixels with
+        // Unique's chip, 192 without).
+        let width = (LEFT_X - 12.0 + RACK_WIDTH - left).max(100.0);
         let rect = frame.rect(left, y, width, FILTER_HEIGHT);
         let focused = self.search_focus;
         let _ = self.ui.draw_list_mut().push(DrawCommand::RoundedRect {
@@ -679,6 +704,9 @@ impl Panel {
         match row.skin {
             None => swatch::small_stock(self.ui.draw_list_mut(), frame, swatch_rect, inputs.stock),
             Some(skin) => {
+                if chosen || hovered {
+                    crate::blade_pictures::focus(skin.id);
+                }
                 let look = self.skins.get(skin.id);
                 let _ = swatch::small_swatch(
                     self.ui.draw_list_mut(),
@@ -766,13 +794,14 @@ impl Panel {
         self.ui.hit_region(token, area);
     }
 
-    /// The kinds of shader along the lead: Saber, and Body to come.
-    fn kinds(&mut self, frame: &Frame, owned: usize) {
+    /// The kinds of shader along the lead: Saber (`owned` of the `total` the player sees),
+    /// and Body to come.
+    fn kinds(&mut self, frame: &Frame, owned: usize, total: usize) {
         let s = frame.s;
         let x = LEFT_X + 560.0;
         let y = LEAD_Y - 2.0;
         let pills: [(&str, String, bool); 2] = [
-            ("Saber", format!("{owned}/{}", unlockables::ALL.len()), true),
+            ("Saber", format!("{owned}/{total}"), true),
             ("Body", "soon".to_owned(), false),
         ];
         let mut left = x;
@@ -854,6 +883,9 @@ impl Panel {
         match row.skin {
             None => swatch::small_stock(self.ui.draw_list_mut(), frame, rect, inputs.stock),
             Some(skin) => {
+                if chosen || hovered {
+                    crate::blade_pictures::focus(skin.id);
+                }
                 let look = self.skins.get(skin.id);
                 let _ = swatch::small_swatch(
                     self.ui.draw_list_mut(),
@@ -1287,6 +1319,8 @@ impl Panel {
             match row.skin {
                 None => swatch::small_stock(self.ui.draw_list_mut(), frame, rect, inputs.stock),
                 Some(skin) => {
+                    // The chosen one, large.
+                    crate::blade_pictures::focus(skin.id);
                     let look = self.skins.get(skin.id);
                     let _ = swatch::small_swatch(
                         self.ui.draw_list_mut(),
@@ -1702,12 +1736,49 @@ mod tests {
         }
         assert_eq!(panel.shader_first, 3);
         assert_eq!(panel.shader, 3, "the chosen row follows into view");
-        for _ in 0..SHADER_ROWS {
+        let rows = super::super::tests::rows_shown();
+        for _ in 0..rows {
             wheel(&mut panel, -1.0);
         }
-        assert_eq!(panel.shader_first, SHADER_ROWS - RACK_SHOWN);
+        assert_eq!(panel.shader_first, rows - RACK_SHOWN);
         wheel(&mut panel, 1.0);
-        assert_eq!(panel.shader_first, SHADER_ROWS - RACK_SHOWN - 1);
+        assert_eq!(panel.shader_first, rows - RACK_SHOWN - 1);
+    }
+
+    /// With Unique's chip (a player who holds a Unique shader) the chips and the search
+    /// field still stand in a row within the rack's width, none over another.
+    #[test]
+    fn the_filter_fits_the_rack_with_unique_s_chip() {
+        let held = [sjk_identity::Unlock {
+            id: "saber_thousand_cranes".into(),
+            granted: 1_793_000_000,
+            note: String::new(),
+            count: 1,
+            medal: None,
+            card: None,
+        }];
+        let font = crate::text::load_modern(1.0, None).expect("Inter").font;
+        for viewport in [[1_920.0, 1_080.0], [3_840.0, 2_160.0], [1_440.0, 1_080.0]] {
+            let inputs = super::super::tests::inputs(unlockables::Holdings::Known(&held), "");
+            let mut panel = Panel::new();
+            panel.open(Tab::Shaders, true, true, ReturnTarget::MainMenu);
+            panel.build(&inputs, &font, viewport);
+            let tokens = (0..=TIERS_WITH_UNIQUE.len() as u16)
+                .map(|index| FILTER_TIER_BASE + index)
+                .chain([FILTER_OWNED_TOKEN, SEARCH_TOKEN]);
+            let rects: Vec<_> = tokens
+                .map(|token| panel.ui.rect_for(token).expect("a chip"))
+                .collect();
+            for pair in rects.windows(2) {
+                assert!(pair[0].right() <= pair[1].x, "{viewport:?} {pair:?}");
+            }
+            let frame = Frame::new(viewport);
+            let right = frame.rect(LEFT_X - 12.0 + RACK_WIDTH, 0.0, 0.0, 0.0).x;
+            assert!(
+                rects[rects.len() - 1].right() <= right + 0.01,
+                "{viewport:?}"
+            );
+        }
     }
 
     /// Every row and the words beside the model fit the canvas over the keys, for an
@@ -1731,7 +1802,7 @@ mod tests {
             [2_560.0, 1_080.0],
         ] {
             for backstage in [Backstage::None, Backstage::World { head: None }] {
-                for row in 0..SHADER_ROWS {
+                for row in 0..super::super::tests::rows_shown() {
                     let inputs = super::super::tests::inputs(
                         unlockables::Holdings::Known(&sun),
                         "saber_sun",

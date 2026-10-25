@@ -1448,6 +1448,51 @@ attacks included) every command holds the walk with no key past 64, the attacks 
 mirrored 4-24 ms late, it crouches, tracks within 8 units with no delay and 5 with 0.3
 seconds, and ends within 2. Not yet tried in a game.
 
+## Sound memory
+
+Every sound is decoded once, on the audio decode worker, to mono PCM at the mixer's
+44.1 kHz and kept for the session in the mixer's bank
+([sjk-audio](../crates/sjk-audio/src/lib.rs)). Since 25/10/2026 the bank keeps 16-bit
+samples, not 32-bit floats: half the memory. A 16-bit source (nearly all retail and
+community sounds) is kept exactly; a resampled sound (most retail WAVs are 22.05 kHz)
+or a float WAV is rounded to the nearest 16-bit step, at most 1/65536 of
+full scale off (a float WAV louder than full scale is clipped there). The mixer turns
+each sample back into a float as it reads it, with the 1/32768 step folded into the
+gain it already multiplies by, so mixing costs what it did and still never allocates.
+WAVs and MP3s decode straight to 16-bit mono (a WAV into room for its header's
+length), so decoding a long track no longer holds float copies of it as well.
+
+Music is no longer kept forever. A map's tracks are decoded as music, under handles of
+their own outside the shared sound cache (`MusicTrack` in
+[audio_assets.rs](../crates/sjk-viewer/src/audio_assets.rs)), and when the music is
+chosen again (the next map, a `CS_MUSIC` change, `music`, `stopmusic`, a map without
+music) the tracks the new choice does not use are released. The release travels the
+decode queue behind the track's registration; the audio callback stops whatever plays
+the sound, takes its PCM out of the bank (the handle then plays nothing and is never
+reused) and hands it back over a ring to the decode worker, which frees it. The
+callback never frees memory and takes no lock. A file another sound decoded first is
+shared and never released this way: the duel music (`music/mp/duel.mp3`) stays
+decoded for the session, as do effects and voices. A duel suspends the map's track
+without releasing it, and a dynamic music level keeps its states' tracks until the
+level changes. A map change only stops the old music: the next map's prefetch may hold
+the same tracks, so they are released when its music is chosen.
+
+Retail figures, mono at 44.1 kHz (`crates/sjk-audio/tests/retail_memory.rs`, ignored;
+`JKA_GAME_DATA=<GameData> cargo test --release -p sjk-audio --test retail_memory --
+--ignored --nocapture`): the 302 effect WAVs under `sound/`, 31.5 MiB of files, took
+127.1 MiB as floats and take 63.5 MiB; a music track averages 9.7 MiB as floats and
+4.8 MiB now, the longest (`yavtemp_explore`) 47.2 and 23.6 MiB. Before, every map's
+music stayed decoded on top of the last one. `soundinfo` prints the decoded total;
+with `SJK_TRACE_AUDIO=1` the audio trace adds it (`pcm`), what was freed (`freed`) and
+releases kept for want of room (`kept`, expected 0).
+
+Unit tests: `pcm16_tests` in sjk-audio (a 16-bit WAV kept exactly; voices, loops and
+music within 1/32768 of the float samples they replaced; a released sound hands back
+its PCM and stops playing; mixing and releasing make no allocator call, checked with
+the test-only `assert_no_alloc` allocator) and `music_memory_tests` in the viewer (a
+new track frees the old one on the decode worker, a shared one stays, prefetched music
+is music). Not yet listened to in a game.
+
 ## Sound listener
 
 The mixer hears from one place a frame, as cgame's `S_Respatialize` from
@@ -1748,7 +1793,7 @@ not follow it either.
 ## Renderer settings
 
 SJK's own cvars have engine names: rendering ones are `r_*` (`r_sceneHdr`,
-`r_toneCurve`, `r_sceneBloom`, `r_superSample`, `r_actorSunShadows`,
+`r_toneCurve`, `r_sceneBloom`, `r_superSample`, `r_renderScale`, `r_actorSunShadows`,
 `r_sunShadow*`, `r_dayNight`, `r_liveLighting`, ...), the ground HUD is
 `cg_groundHud` and the dedicated server's are `g_npcNav` and `g_stockRules`.
 The ground HUD (health, shield and Force at the player's feet in third person)
@@ -1767,7 +1812,7 @@ of VIDEO is gone (10/10/2026). The groups are:
 
 | Tab | Settings |
 | --- | --- |
-| IMAGE | HDR scene and exposure, eye adaptation (`r_autoExposure`) and its range in EV, filmic tone curve, bloom, dynamic glow (`r_DynamicGlow` 0-3) and its blur style (`r_dynamicGlowStyle`), FXAA, supersampling (`r_superSample`), soft particles, ambient occlusion (`r_ssao`), sunbeam dust (`r_dustMotes`), per-pixel model lighting, reflection probes (`r_cubeMapping`), floor mirrors (`r_floorReflections`), normal and specular maps (`r_normalMapping`, `r_specularMapping`), parallax mapping (`r_parallaxMapping`) and its depth (`r_parallaxStrength`), emission maps (`r_emissiveMaps`), their strength (`r_emissionStrength`) and glow halo (`r_emissiveGlow`) |
+| IMAGE | HDR scene and exposure, eye adaptation (`r_autoExposure`) and its range in EV, filmic tone curve, bloom, dynamic glow (`r_DynamicGlow` 0-3) and its blur style (`r_dynamicGlowStyle`), FXAA, supersampling (`r_superSample`), render scale (`r_renderScale`, also in the SJK UI's Simple Display; see [Render scale](rendering.md#render-scale-and-supersampling)), soft particles, ambient occlusion (`r_ssao`), sunbeam dust (`r_dustMotes`), per-pixel model lighting, reflection probes (`r_cubeMapping`), floor mirrors (`r_floorReflections`), normal and specular maps (`r_normalMapping`, `r_specularMapping`), parallax mapping (`r_parallaxMapping`) and its depth (`r_parallaxStrength`), emission maps (`r_emissiveMaps`), their strength (`r_emissionStrength`) and glow halo (`r_emissiveGlow`) |
 | LIGHTING | Sun and sky (`r_dayNight`), live lighting tier, time of day, day length, sunlight brightness, ambient fill and its corner shading, indirect boost, emission-map lights (`r_emissiveLights`), light shafts (`r_volumetrics`) and their clarity |
 | SHADOWS | World and character sun shadows, shadow resolution, sharp and close cascade distances, filter taps, slit closing, contact shadows |
 | WEATHER | Weather (`r_weather`), its density (`r_weatherDensity`), quality (`r_weatherQuality`), forced weather (`r_weatherForce`), ground fog (`r_weatherFog`) and volumetric clouds (`r_clouds`); see [Weather](rendering.md#weather) |
@@ -1855,8 +1900,8 @@ archived, its name from before the renames) before applying Vanilla style;
 Vanilla style was picked as a preset and nothing was kept. The [low-FPS
 help](#low-fps-help) offers the same switch. Like the preset, it needs a [graphics
 reload](#graphics-reload) for the lighting to change. Everything else is left as the
-player set it: the FPS cap, vertical sync, resolution and supersampling (which
-multiplies the pixels drawn, so no preset sets it), the taste settings (exposure,
+player set it: the FPS cap, vertical sync, resolution, supersampling and render scale
+(which multiply or divide the pixels drawn, so no preset sets them), the taste settings (exposure,
 time of day, tone curve, glow style, parallax depth, emission strength), contact
 shadows (still being worked out) and whether weather and fog show at all. Rows
 marked "(reload)" apply after a graphics reload, so a new preset's shadows, light
@@ -1868,7 +1913,7 @@ profile. How many frames each preset gains on a given GPU is not yet measured.
 ### Graphics reload
 
 Some renderer settings are read only when the graphics start: HDR scene, FXAA,
-supersampling, sun and sky, sun shadows and their quality, light shafts, normal,
+supersampling, render scale, sun and sky, sun shadows and their quality, light shafts, normal,
 specular, parallax and emission maps, reflection probes and texture filtering,
 so the graphics presets too. They apply with a
 graphics reload rather than a restart of SJK
@@ -1914,7 +1959,11 @@ a whole. The low-FPS help
   ([gpu_phases.rs](../crates/sjk-viewer/src/gpu_phases.rs), timestamps when the GPU
   has them), give the median frame and the part of it spent in the `light-...`
   sections. The check is done once per map (each new world), not under Vanilla,
-  and gives up 30 s after the map came in.
+  and gives up 30 s after the map came in. Whether the graphics are Vanilla is read
+  only while the check could still run, and again only once an archived cvar has
+  changed (every preset value is one, `ViewerConsole::archive_revision`): reading
+  the preset's 25 values every frame took 184 allocator calls a frame at the SJK
+  preset (25/10/2026).
 - It offers Vanilla graphics when the frame misses the player's FPS target and the
   lighting is at least 40% of it. The target is the FPS cap (`com_maxfps`, or the
   monitor's rate for auto), kept between 60 and 144: an uncapped player is offered
@@ -2366,6 +2415,9 @@ overlays still use the local player aim. Monitoring only received entities
 respects server PVS, but may show surroundings outside your line of sight.
 `/peek` alone uses the crosshair player; `/peek off` or a duration of 0 cancels.
 Local flight (`fakenoclip` or `freecam`) ends a peek; stop flight before peeking.
+Since 24/10/2026 Peek is the [Drone](#drone)'s: on a server it watches only a player
+whose Drone switch is on (in a local game, anyone), stops when they turn it off, and
+other SJK players see the drone behind the watched player.
 The local body stays at its player position and the view gun is suppressed.
 The camera cancels when the timer ends, the target slot/name changes, or the
 map changes. Missing snapshot data pauses the view; it resumes if data returns
@@ -3083,6 +3135,21 @@ that font is not loaded), whatever `cg_classicHudFont` says.
   `SaberSkins::set_plain`). Team and black blades follow their own settings as usual.
   Off by default (Creyon: skins stay on in duels unless a player asks). It changes only
   what you see; the other duellist sees what their own setting says.
+- `cg_stockBlades` (0, Off; Settings > Advanced > Gameplay > Effects > Stock blades, and
+  the classic Game options: Off, Others, All), Sol's request of 25/10/2026 for weak PCs
+  (GTX 1050/1060 class, integrated GPUs): `1` draws other players' blades as stock blades in the colour they set (a stock
+  colour or RGB), without their blade skin; `2` every blade, yours included. A blade skin
+  costs about 0.4 to 0.6 ms of GPU time on an RTX 5080 once one is in view (a heavy
+  signature up to 6 ms), so several milliseconds on a weak GPU on a full saber server.
+  Everything the skin draws goes with it (its shading, afterimages, glints, petals, heat
+  haze, black-hole lenses, solid parts, its trail and light colours), and the skin passes
+  are skipped once no skinned blade is left in the frame
+  ([rendering.md](rendering.md#saber-blade-skins)). Thrown sabers follow their owner.
+  Sounds stay as each player chose them. The menus keep showing skins: the Character and
+  Collection stage, the cards and the blade pictures never take them from this setting
+  ([stock_blades.rs](../crates/sjk-viewer/src/stock_blades.rs),
+  `SaberSkins::set_stock`). With `1`, a player you follow is another player. It changes
+  only what you see. Team, black and duel blades follow their own settings as usual.
 - `cg_hideCorpsesInDuel` (on; Settings > Advanced > Gameplay > Hide corpses in
   duel) keeps dead bodies out of the presentation world while the local player is
   in a private duel. It affects `ET_BODY` only: live players and gameplay state are
@@ -4245,8 +4312,16 @@ every fall ends with the map or the server.
   It starts standing where the player stood, turned their way, with their speed, and
   pushed off balance (back, to a side, the knees buckling), so a running or jumping
   player tumbles on. It falls at `g_gravity`'s 800, slides and bounces a little on the
-  world's brushes (the map's own, not movers), and sleeps once it has lain still for a
-  second (or after 40 seconds whatever it does).
+  world's brushes, and sleeps once it has lain still for a second (or after 40 seconds
+  whatever it does), until a mover stirs it.
+- **Movers:** since 25/10/2026 lifts, doors, trains and the map's other brush movers are
+  in its way too ([scene.rs](../crates/sjk-viewer/src/ragdoll/scene.rs)). Each stands
+  where its trajectory puts it at the step's own moment, read from the first snapshot
+  at or after that moment, so every client places it alike. A point lying on a mover
+  goes with it (a lift takes the body up, a train along, a turning platform round) and
+  keeps the mover's speed when it leaves it; a mover that moves into a point pushes it
+  along (a closing door shoves the body). A sleeping body wakes when a mover it lies on
+  starts, or one comes into it.
 - **The model:** the player's own model is drawn posed by it
   ([skin.rs](../crates/sjk-viewer/src/ragdoll/skin.rs)): the `_humanoid` skeleton is cut
   into eleven rigid parts (pelvis, chest, head, upper arms, forearms, thighs, shins),
@@ -4282,14 +4357,64 @@ every fall ends with the map or the server.
 - **The sounds:** going limp plays a flatline (`sound/sjk/ragdoll/flatline.wav`, two
   monitor beeps then the long tone, SJK's own, made by
   [ragdoll_assets.py](../scripts/ragdoll_assets.py)), to the player and at the body for
-  the others; a PK3 that has the same path replaces it. Each point that hits the world
-  hard enough knocks, at most every 140 ms per body: the game's own body falls
-  (`sound/player/bodyfall_human1.mp3` to `3`), its slams for the hardest
-  (`sound/effects/body_slam1.mp3`, `2`).
+  the others; a PK3 that has the same path replaces it. Since 25/10/2026 every part of
+  the body is heard on its own, as in the sandbox games
+  ([sounds.rs](../crates/sjk-viewer/src/ragdoll/sounds.rs)): the trunk, the head and
+  each arm and leg knock when they hit the world (110 units a second into it, 150 for a
+  limb), each at most every 120 ms and at most three parts of a body in a frame, louder
+  the harder (a limb a quarter quieter). A knock is two sounds at once: the flesh (the
+  trunk the game's body falls, `sound/player/bodyfall_human1.mp3` to `3`, or slams from
+  420 units a second, `sound/effects/body_slam1.mp3`, `2`; a limb or the head the melee
+  punches, `sound/weapons/melee/punch1.mp3` to `4`, a limb's hard one the kicks,
+  `kick1.mp3` to `5`, the head's `sound/effects/thud.mp3`) and what it hit: the
+  footstep of its material (stone, metal, wood, grass, sand, snow, mud, gravel,
+  carpet..., the footsteps' own families and name guess, a hard knock the run's). A part
+  dragged along a surface faster than 120 units a second scrapes on it (its footsteps,
+  quiet, at most every 220 ms a body).
 
 The icon (a limp figure slumped against a wall) is drawn by the same script. World shots:
 `world_shot::ragdoll_shots::ragdoll_on_a_demo` (with `SJK_TEST_DEMO`). See
 [ragdoll.rs](../crates/sjk-viewer/src/ragdoll.rs).
+
+## Drone
+
+The Drone (Sol's idea, 24/10/2026, grown from Slash's Peek work in #199) makes the free
+camera and Peek a toy: a little training remote, Jedi Academy's own seeker ball
+(`models/items/remote.md3`, drawn 2.2 times its size), that every other SJK player on
+the server sees fly, the pilot's name over it (white, shadowed, within 2,400 units and
+not behind a wall), coming out with the game's remote hiss.
+
+- `freecam` (the detached free camera, [status.md](status.md#detached-free-camera)) flies the drone: it is where
+  the camera is, turned the way it looks.
+- `peek` ([timed player peek](#timed-player-peek)) sends it to a player: it hovers
+  where the peeking camera stands, behind them and above (`peek::behind`).
+
+Both commands, their binds and their quick wheel choice are unchanged; they fly the
+drone whatever the switch. The switch, `toy_drone` (a bind, the quick wheel's Toys page,
+Collection > Toys, "Peek me"), is the consent to be peeked: on a server `peek` refuses a
+player whose look does not show the toy ("has not let drones follow them"), and a peek
+under way ends as soon as the watched player turns it off ("Name sent your drone away":
+their client relays `away` to the pilot at once, and again at each repeat of a drone
+watching them while it is off; failing that, the pilot's client ends it when their look
+shows it off, "Your drone was sent away").
+The watched player, switch on, reads who watches as each drone comes ("Name's drone is
+watching you"). It stays as last switched, across maps, servers and restarts
+(`cl_toyDrone`, archived). In a local game no look is shared, so anyone may be peeked
+and nobody sees a drone.
+
+No game server knows of it. The pilot's client tells every other SJK player where the
+drone is through the toy relay (`PROTOCOL.md`, "Toy relay";
+[hub-chat.md](hub-chat.md#toy-relay)): `fly_<x>_<y>_<z>_<yaw>` (whole units, degrees)
+while the camera flies, `peek_<slot>` while it watches a player, `land` when it is put
+away. One event goes every 50 ms, to the players in turn: a player hears the drone's
+place again once it moved 2 units or turned 3 degrees, or every second while it holds
+still; so with two players each hears of it twenty times a second at most, with ten
+twice. A drone not heard of for 3 seconds goes. Each client glides the drones it shows to
+the latest place (and, for a peek, finds the place behind the watched player itself from
+what it shows of them), so they move smoothly between events. The pilot's own drone is
+not drawn on their screen (it is their camera). Players on stock clients see nothing.
+The icon (a training remote hovering) is drawn by `scripts/drone_assets.py`. See
+[drone.rs](../crates/sjk-viewer/src/drone.rs).
 
 ## Holstered saber hilts
 
@@ -4747,6 +4872,19 @@ A window without focus has caps of its own: `com_maxfpsUnfocused` (SJK's default
 30; EternalJK's 0 keeps the normal cap) and `com_maxfpsMinimized` (50), where 0
 uses `com_maxfps`. They replace the normal cap while they apply, minimized first,
 so an alt-tabbed client does not render a 4K scene at full rate.
+
+`com_maxfpsMenu` (archived, default 0; Settings > Advanced > Display > Frame rate >
+Menu FPS cap, and the classic Video tab), Sol's request of 25/10/2026 for weak PCs,
+caps frames while only the menus run: no live game, no demo and no server connection
+waiting on its map (`GpuState::menus_only` in
+[runtime_settings.rs](../crates/sjk-viewer/src/runtime_settings.rs)). That is the main
+menu and its pages (Collection, Profile, Settings...), the menu world behind them and
+the connecting card until the server's game state arrives. The game menu over a match
+keeps the game's cap, since the game runs on under it, and so do a map loading for a
+server (its connection is serviced and the load's steps handed on once a frame) and demo
+playback. It lowers the normal cap, never raises it (an uncapped `com_maxfps 0` is
+lowered too), and 0 keeps the normal cap, so nothing changes for anyone who leaves it. The unfocused and minimized caps still
+replace it while they apply. The gameplay FPS's Auto follows `com_maxfps` alone.
 
 `snd_mute_losefocus` (archived, 1, EternalJK's name and default; Settings > Sound
 > Mute in background) silences every sound, music included, while the window is

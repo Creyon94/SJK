@@ -61,7 +61,15 @@ includes:
 - the Hax, a meme toy: hold Use on another player who has it on to hack them
   with the siege hack bar, then steer them for a few seconds;
 - the Ragdoll, a meme toy: the body goes limp and falls where physics takes it,
-  every SJK player seeing the same fall from one relayed start (23/10/2026);
+  every SJK player seeing the same fall from one relayed start (23/10/2026), carried
+  by lifts and pushed by doors, each part heard as flesh and as what it hits
+  (25/10/2026);
+- the Drone toy: the free camera and Peek fly a training remote other SJK players see,
+  peeking only players who switched it on (24/10/2026, after Slash's #199);
+- a macOS build for Apple Silicon Macs, drawn through Metal and built by GitHub with
+  every release, unsigned and experimental (24/10/2026);
+- announcements from the SJK team in SJK chat, and contributor reward rounds: who was
+  rewarded and why, and a window to Claim one's own (25/10/2026);
 - end-to-end encrypted whispers: whispers between SJK players sealed to the
   recipient's key and carried by the SJK hub, which cannot read them
   (22/10/2026);
@@ -279,6 +287,38 @@ includes:
 - small graphics cards found at start: the card's video memory read from DXGI, a card
   of 4 GB or less starting on lower texture detail and menu pictures, and saber shader
   swatches drawn instead of rendered live while the menu pictures are on;
+- render scale below native (`r_renderScale`, 25/10/2026): the world drawn at 50 to 100 %
+  of the window and stretched up with a light sharpen, menus and text at full size, for
+  weak GPUs;
+- lighter graphics for small cards (25/10/2026): under 3.5 GB, once a card, Vanilla style,
+  stock blades for other players and a 60 FPS menu cap, with a card to keep them or go
+  back to SJK graphics;
+- the Experimental preset's lamp memory cut (25/10/2026): lamp shadow distances packed two
+  to a texel, lamp lists in 16 bits, and the lamp light cache sized to the graphics card,
+  up to 390 MiB less on 8 GB cards;
+- lighter menus (25/10/2026): shader pictures not pointed at redrawn at most 30 times a
+  second and 6 a frame, and setting lookups and the low-FPS check without allocations
+  every frame;
+- texture compression (`r_textureCompression`, off by default, 25/10/2026): map and model
+  textures block-compressed at load, BC1 when opaque and BC3 with alpha, a quarter to an
+  eighth of their video memory;
+- decoded textures freed once nothing uses them (25/10/2026): the cache kept every
+  texture of every map seen in a session, up to about 0.8 GB more after a few maps;
+- card pictures decoded and uploaded only when a screen draws them (25/10/2026), at
+  most 64 kept, instead of the hub's 333 at start: 1.8 GB less video memory and as much
+  system memory, which 3 GB cards ran out of in the main menu;
+- stock blades for weak PCs (`cg_stockBlades`, 25/10/2026): other players' blades, or
+  every blade, drawn stock in their own colour, skipping the blade skins' GPU work; and a
+  menu frame cap (`com_maxfpsMenu`) while no game runs;
+- texture detail also shrinking sky boxes, material maps and textures uploaded without
+  mips (25/10/2026), and shaders that say `nopicmip` or `nomipmaps` keeping full size, as
+  in the original game;
+- sounds kept as 16-bit samples instead of floats (25/10/2026), half the memory, and a
+  map's music freed once the next music is chosen instead of staying decoded all session;
+- font atlases kept in one channel (25/10/2026): coverage only instead of RGBA, 120 MiB
+  less video memory at 1080p in every world, text unchanged;
+- floor mirror, sky portal and map portal views, and the CJK and emoji glyph atlases,
+  made only when first drawn (25/10/2026): 20 to 70 MiB less video memory at 1080p;
 - Discord status (`cl_discordPresence`): the player's Discord profile showing the menu
   screen, or the server, map, mode, team and players, through the Discord app's
   local pipe;
@@ -584,6 +624,9 @@ into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author
 - #189 a smaller chat sender card that waits for the pointer, sized by `cg_chatCardScale`.
 - #200 encrypted whispers' safety code made from each key's own fingerprint (60 digits, as
   Signal's safety numbers), after Slash found that the hub could make the 12-digit code match.
+
+His Peek work in #199 (closed 24/10/2026, not merged) shaped the Drone toy: a player is
+asked before being peeked, told who watches, and can end it.
 
 Milamber ([Milamber0](https://github.com/Milamber0)), contributor, has 3 pull requests merged
 into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AMilamber0)):

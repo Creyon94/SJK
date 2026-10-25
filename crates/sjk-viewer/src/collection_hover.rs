@@ -55,7 +55,13 @@ impl Panel {
             return Some(achievement_card(kind, standing));
         }
         if let Some(row) = within(SHADER_BASE, self.shader_count) {
-            return Some(shader_card(self.skin_at(row), &inputs.holdings));
+            let skin = self.skin_at(row);
+            // Never the card of a shader the player may not see (an unheld Unique one; the
+            // list leaves it out already).
+            if skin.is_some_and(|skin| !inputs.holdings.shows(skin)) {
+                return None;
+            }
+            return Some(shader_card(skin, &inputs.holdings));
         }
         if token == TOY_TOKEN {
             return Some(Card {
@@ -93,6 +99,19 @@ impl Panel {
                     Line::how(
                         "Every SJK player has it. Go limp here, from the quick wheel's Toys \
                          page or with a key bound to toy_ragdoll; press it again to get up.",
+                    ),
+                    Line::status(crate::editions::name(crate::editions::ALPHA)),
+                    Line::held("Yours"),
+                ],
+            });
+        }
+        if token == DRONE_TOKEN {
+            return Some(Card {
+                title: "Drone".to_owned(),
+                colour: color::GOLD_BRIGHT,
+                lines: vec![
+                    Line::how(
+                        "Every SJK player has it: freecam and peek fly it. Turn it on here,                          from the quick wheel's Toys page or with a key bound to toy_drone,                          to let others peek at you.",
                     ),
                     Line::status(crate::editions::name(crate::editions::ALPHA)),
                     Line::held("Yours"),

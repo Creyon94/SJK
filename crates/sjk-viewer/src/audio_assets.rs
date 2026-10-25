@@ -79,6 +79,20 @@ pub(super) fn resolve_sound(vfs: &VirtualFileSystem, path: &str) -> Option<(Stri
 pub(crate) struct SoundPrefetch {
     /// `(requested path, resolved path, bytes)` in lower case.
     assets: Vec<(String, String, Asset)>,
+    /// The map music's files, the same way; decoded as music ([`MusicTrack`]).
+    music: Vec<(String, String, Asset)>,
+}
+
+/// A music file decoded for the current selection. Music stays out of the shared
+/// sound cache: a track nothing else can hold is freed when the music changes,
+/// instead of every map's tracks staying decoded for good (30-45 MB each).
+pub(super) struct MusicTrack {
+    /// Requested path, lower case, with its default extension.
+    path: String,
+    handle: SoundHandle,
+    /// Decoded for the music; a file another sound decoded first (the duel
+    /// music) is shared and never freed here.
+    owned: bool,
 }
 
 impl SoundPrefetch {
@@ -93,6 +107,7 @@ impl SoundPrefetch {
                     Some((requested.to_owned(), resolved, asset))
                 })
                 .collect(),
+            music: Vec::new(),
         }
     }
 
@@ -129,19 +144,27 @@ impl SoundPrefetch {
             ]
             .map(str::to_owned),
         );
-        if let Some(music) = music {
-            paths.push(default_music_extension(&music.intro));
-            paths.push(default_music_extension(&music.repeating));
-        }
-        let assets = paths
+        let mut music_paths: Vec<String> = music
             .iter()
-            .map(|path| path.to_ascii_lowercase())
-            .filter_map(|requested| {
-                let (resolved, asset) = resolve_sound(vfs, &requested)?;
-                Some((requested, resolved, asset))
-            })
+            .flat_map(|music| [&music.intro, &music.repeating])
+            .map(|path| default_music_extension(path).to_ascii_lowercase())
             .collect();
-        Self { assets }
+        // One read when the intro is the loop.
+        music_paths.dedup();
+        let read = |paths: &[String]| {
+            paths
+                .iter()
+                .map(|path| path.to_ascii_lowercase())
+                .filter_map(|requested| {
+                    let (resolved, asset) = resolve_sound(vfs, &requested)?;
+                    Some((requested, resolved, asset))
+                })
+                .collect()
+        };
+        Self {
+            assets: read(&paths),
+            music: read(&music_paths),
+        }
     }
 }
 
@@ -162,6 +185,12 @@ impl GameAudio {
     pub(crate) fn absorb_prefetch(&mut self, prefetch: SoundPrefetch) {
         for (requested, resolved, asset) in prefetch.assets {
             self.register_resolved(requested, resolved, &asset);
+        }
+        // After the shared sounds, so a map whose music is the duel music shares it.
+        for (requested, resolved, asset) in prefetch.music {
+            if self.music_handle(&requested).is_none() {
+                self.adopt_music(requested, &resolved, &asset);
+            }
         }
     }
 
@@ -193,7 +222,21 @@ impl GameAudio {
         self.duel_music = self.register_vfs_async(vfs, DUEL_MUSIC);
     }
 
+    /// Start `music` as the map's track, then free the previous selection's tracks.
     pub(crate) fn start_music(&mut self, vfs: &VirtualFileSystem, music: &MusicSpec) {
+        self.start_music_tracks(vfs, music);
+        self.release_unused_music();
+    }
+
+    /// Stop the map's music and free its decoded tracks: no music now.
+    pub(super) fn clear_music(&mut self) {
+        self.map_music = None;
+        self.dynamic = None;
+        self.output.stop_music();
+        self.release_unused_music();
+    }
+
+    fn start_music_tracks(&mut self, vfs: &VirtualFileSystem, music: &MusicSpec) {
         self.output.stop_music();
         self.map_music = None;
         self.dynamic = None;
@@ -237,14 +280,98 @@ impl GameAudio {
     pub(super) fn start_file_music(&mut self, vfs: &VirtualFileSystem, music: &MusicSpec) {
         let intro_path = default_music_extension(&music.intro);
         let loop_path = default_music_extension(&music.repeating);
-        let intro = self.register_vfs_async(vfs, &intro_path);
-        let repeating = self.register_vfs_async(vfs, &loop_path).or(intro);
+        let intro = self.register_music(vfs, &intro_path);
+        let repeating = self.register_music(vfs, &loop_path).or(intro);
         if let (Some(intro), Some(repeating)) = (intro, repeating) {
             self.map_music = Some((intro, repeating));
             if !self.music_sync_pending {
                 self.output.start_music(intro, repeating);
             }
         }
+    }
+
+    /// The handle of a music track already decoded for the current selection.
+    fn music_handle(&self, requested: &str) -> Option<SoundHandle> {
+        self.music_tracks
+            .iter()
+            .find(|track| track.path == requested)
+            .map(|track| track.handle)
+    }
+
+    /// [`Self::register_vfs_async`] for a music track: decoded under a handle of its
+    /// own, outside the shared cache, so freeing it can never silence another sound.
+    fn register_music(&mut self, vfs: &VirtualFileSystem, path: &str) -> Option<SoundHandle> {
+        let requested = path.to_ascii_lowercase();
+        if let Some(handle) = self.music_handle(&requested) {
+            return Some(handle);
+        }
+        if let Some(&handle) = self.handles.get(&requested) {
+            self.music_tracks.push(MusicTrack {
+                path: requested,
+                handle,
+                owned: false,
+            });
+            return Some(handle);
+        }
+        let (resolved, asset) = resolve_sound(vfs, &requested)?;
+        Some(self.adopt_music(requested, &resolved, &asset))
+    }
+
+    /// Decode `asset` as a music track of the current selection, unless another
+    /// sound already decoded that file (the duel music): that one is shared.
+    fn adopt_music(&mut self, requested: String, resolved: &str, asset: &Asset) -> SoundHandle {
+        let shared = self
+            .handles
+            .get(&requested)
+            .or_else(|| self.handles.get(resolved))
+            .copied();
+        let (handle, owned) = match shared {
+            Some(handle) => (handle, false),
+            None => {
+                let handle = SoundHandle(self.next_handle);
+                self.next_handle = self.next_handle.wrapping_add(1);
+                let extension = resolved.rsplit('.').next().unwrap_or("mp3");
+                self.output.decode(handle, &asset.bytes, extension);
+                (handle, true)
+            }
+        };
+        self.music_tracks.push(MusicTrack {
+            path: requested,
+            handle,
+            owned,
+        });
+        handle
+    }
+
+    /// Free the decoded music the map's track no longer uses: the previous map's or
+    /// selection's, and a dynamic level's other states once the level changes. Only
+    /// tracks decoded for the music; a duel suspends the map's track, never frees it.
+    fn release_unused_music(&mut self) {
+        let current = self.map_music;
+        let output = &self.output;
+        self.music_tracks.retain(|track| {
+            let used = current.is_some_and(|(intro, repeating)| {
+                track.handle == intro || track.handle == repeating
+            });
+            if !used && track.owned {
+                output.release(track.handle);
+            }
+            used
+        });
+    }
+
+    /// The path a sound handle was loaded from, music included.
+    pub(super) fn sound_path(&self, handle: SoundHandle) -> Option<&str> {
+        self.handles
+            .iter()
+            .find(|(_, h)| **h == handle)
+            .map(|(path, _)| path.as_str())
+            .or_else(|| {
+                self.music_tracks
+                    .iter()
+                    .find(|track| track.handle == handle)
+                    .map(|track| track.path.as_str())
+            })
     }
 
     pub(super) fn register_vfs_async(
@@ -334,9 +461,7 @@ impl GpuState {
         if let Some(music) = music.as_ref() {
             audio.start_music(vfs, music);
         } else {
-            audio.map_music = None;
-            audio.dynamic = None;
-            audio.output.stop_music();
+            audio.clear_music();
         }
         let music_done = Instant::now();
         audio.register_duel_music(vfs);
@@ -361,5 +486,148 @@ impl GpuState {
             effects_done.duration_since(music_done).as_secs_f64() * 1_000.0,
             Instant::now().duration_since(effects_done).as_secs_f64() * 1_000.0,
         ));
+    }
+}
+
+#[cfg(test)]
+mod music_memory_tests {
+    use super::*;
+    use crate::audio_output::AudioOutput;
+    use std::time::Duration;
+
+    /// `seconds` of constant 16-bit mono PCM at 44.1 kHz: 88 200 bytes a second.
+    fn wav(seconds: u32) -> Vec<u8> {
+        let samples = 44_100 * seconds;
+        let size = samples * 2;
+        let mut wav = Vec::new();
+        wav.extend_from_slice(b"RIFF");
+        wav.extend_from_slice(&(36 + size).to_le_bytes());
+        wav.extend_from_slice(b"WAVEfmt ");
+        wav.extend_from_slice(&16_u32.to_le_bytes());
+        wav.extend_from_slice(&1_u16.to_le_bytes());
+        wav.extend_from_slice(&1_u16.to_le_bytes());
+        wav.extend_from_slice(&44_100_u32.to_le_bytes());
+        wav.extend_from_slice(&88_200_u32.to_le_bytes());
+        wav.extend_from_slice(&2_u16.to_le_bytes());
+        wav.extend_from_slice(&16_u16.to_le_bytes());
+        wav.extend_from_slice(b"data");
+        wav.extend_from_slice(&size.to_le_bytes());
+        for _ in 0..samples {
+            wav.extend_from_slice(&4_096_i16.to_le_bytes());
+        }
+        wav
+    }
+
+    fn spec(path: &str) -> MusicSpec {
+        MusicSpec {
+            intro: path.into(),
+            repeating: path.into(),
+        }
+    }
+
+    /// Pull mixed audio, as the device would, until the output's counters say
+    /// `pcm` bytes are decoded and `freed` bytes were freed.
+    fn mix_until(audio: &GameAudio, source: &mut impl Iterator<Item = f32>, pcm: u64, freed: u64) {
+        let stats = &audio.output.stats;
+        let deadline = Instant::now() + Duration::from_secs(10);
+        while stats.pcm_bytes.load(Ordering::Relaxed) != pcm
+            || stats.freed_bytes.load(Ordering::Relaxed) != freed
+        {
+            assert!(
+                Instant::now() < deadline,
+                "pcm {} freed {}, expected {pcm} and {freed}",
+                stats.pcm_bytes.load(Ordering::Relaxed),
+                stats.freed_bytes.load(Ordering::Relaxed),
+            );
+            for _ in 0..256 {
+                source.next();
+            }
+            std::thread::yield_now();
+        }
+    }
+
+    #[test]
+    fn a_new_track_frees_the_previous_one_but_never_a_shared_sound() {
+        let (output, mut source) = AudioOutput::test_output();
+        let mut audio = GameAudio::with_output(output);
+        let mut vfs = VirtualFileSystem::new();
+        vfs.mount_memory(
+            "synthetic",
+            [
+                ("music/a.wav", wav(2)),
+                ("music/b.wav", wav(1)),
+                ("music/mp/duel.wav", wav(3)),
+            ],
+        )
+        .unwrap();
+        // The intro is the loop: decoded once, 2 s at 16 bits.
+        audio.start_music(&vfs, &spec("music/a.wav"));
+        let (a, _) = audio.map_music.unwrap();
+        mix_until(&audio, &mut source, 176_400, 0);
+        // The start follows the registration, possibly a mix block later.
+        let deadline = Instant::now() + Duration::from_secs(10);
+        while audio.output.stats.music_starts.load(Ordering::Relaxed) == 0 {
+            assert!(Instant::now() < deadline, "the music never started");
+            for _ in 0..256 {
+                source.next();
+            }
+            std::thread::yield_now();
+        }
+
+        // The next map's track: the old one is freed, by the decode worker.
+        audio.start_music(&vfs, &spec("music/b"));
+        mix_until(&audio, &mut source, 88_200, 176_400);
+        assert_ne!(audio.map_music.unwrap().0, a);
+        assert_eq!(audio.music_tracks.len(), 1);
+
+        // A file the duel music decoded first is shared, and stays when the
+        // map's music moves on.
+        audio.duel_music = audio.register_vfs_async(&vfs, "music/mp/duel.wav");
+        audio.start_music(&vfs, &spec("music/mp/duel"));
+        assert_eq!(audio.map_music.map(|music| music.0), audio.duel_music);
+        mix_until(&audio, &mut source, 264_600, 264_600);
+        audio.clear_music();
+        mix_until(&audio, &mut source, 264_600, 264_600);
+        assert!(audio.music_tracks.is_empty());
+
+        // The first track again is decoded afresh, under a new handle.
+        audio.start_music(&vfs, &spec("music/a.wav"));
+        assert_ne!(audio.map_music.unwrap().0, a);
+        mix_until(&audio, &mut source, 264_600 + 176_400, 264_600);
+    }
+
+    #[test]
+    fn prefetched_map_music_is_decoded_as_music_and_freed_with_it() {
+        let (output, mut source) = AudioOutput::test_output();
+        let mut audio = GameAudio::with_output(output);
+        let mut vfs = VirtualFileSystem::new();
+        vfs.mount_memory(
+            "synthetic",
+            [("music/a.wav", wav(2)), ("music/b.wav", wav(1))],
+        )
+        .unwrap();
+        let prefetch = SoundPrefetch {
+            assets: Vec::new(),
+            music: vec![(
+                "music/a.wav".into(),
+                "music/a.wav".into(),
+                vfs.read("music/a.wav").unwrap().unwrap(),
+            )],
+        };
+        audio.absorb_prefetch(prefetch);
+        assert!(
+            audio.handles.is_empty(),
+            "music stays out of the shared cache"
+        );
+        // The selection takes the prefetched track instead of reading it again.
+        audio.start_music(&vfs, &spec("music/a.wav"));
+        assert_eq!(audio.music_tracks.len(), 1);
+        assert_eq!(
+            audio.sound_path(audio.map_music.unwrap().0),
+            Some("music/a.wav")
+        );
+        mix_until(&audio, &mut source, 176_400, 0);
+        audio.start_music(&vfs, &spec("music/b.wav"));
+        mix_until(&audio, &mut source, 88_200, 176_400);
     }
 }

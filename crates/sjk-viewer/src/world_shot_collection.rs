@@ -131,10 +131,11 @@ fn duel6_sjk_collection() {
                 shoot(&mut gpu, 60, "duel6-collection-toys-lit").display()
             );
             gpu.illuminate.set_on(false);
-            // A locked one, previewed on the saber.
+            // A locked one, previewed on the saber. Rows are counted as a player holding no
+            // Unique shader sees the list (the shots below hold none).
             gpu.profile_hub_show_for_shot(Tab::Shaders);
-            let storm = 1 + crate::unlockables::blade_skins_by_tier()
-                .iter()
+            let storm = 1 + crate::unlockables::Holdings::Known(&[])
+                .listed()
                 .position(|skin| skin.id == "saber_storm")
                 .expect("the Storm blade");
             if let Some(console) = gpu.console.as_mut() {
@@ -169,8 +170,8 @@ fn duel6_sjk_collection() {
             assert!(!overflowed(&gpu), "the grid");
             // The Spectral owned and chosen: its six parts in three columns, its smoky
             // edge switched off (`cg_saberSkinOptions`), on the model too.
-            let spectral = 1 + crate::unlockables::blade_skins_by_tier()
-                .iter()
+            let spectral = 1 + crate::unlockables::Holdings::Known(&[])
+                .listed()
                 .position(|skin| skin.id == "saber_spectral")
                 .expect("the Spectral blade");
             if let Some(console) = gpu.console.as_mut() {
@@ -209,8 +210,8 @@ fn duel6_sjk_collection() {
             // The hub's economy known: a Kamino held three times points to Break down in
             // the Forge beside Equip; a locked Echo Base to Craft in the Forge.
             let row = |id: &str| {
-                1 + crate::unlockables::blade_skins_by_tier()
-                    .iter()
+                1 + crate::unlockables::Holdings::Known(&[])
+                    .listed()
                     .position(|skin| skin.id == id)
                     .expect("the shader")
             };
@@ -649,6 +650,94 @@ fn duel6_sjk_kyber_achievements() {
             let path = shoot(&mut gpu, 8, &format!("duel6-kyber-achievement-hover-{id}"));
             println!("{}", path.display());
             assert!(!overflowed(&gpu), "{id}");
+        }
+    });
+}
+
+/// Frames [`duel6_blade_pictures_cost`] times a view.
+const COST_FRAMES: usize = 200;
+/// Rounds over its views.
+const COST_ROUNDS: usize = 5;
+
+/// What the Collection's live blade pictures (`blade_pictures.rs`) cost the menu frame
+/// (25/10/2026): every shader owned, the Shaders grid (fifteen pictures) and list (six),
+/// and Medals (none) for reference, each frame waited for on the GPU, the median of
+/// [`COST_FRAMES`] frames, best of [`COST_ROUNDS`] rounds; then a shot of the grid and of
+/// the list (`duel6-blade-pictures-<view>`). Wall-clock times of whole frames: only the
+/// differences say something, and only on this machine.
+#[test]
+#[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+fn duel6_blade_pictures_cost() {
+    on_big_stack(|| {
+        super::saber_skins::mount_test_packs();
+        let cvars = [
+            ("ui_menuStyle", "sjk"),
+            (crate::settings::quick::HIDE_CVAR, "1"),
+            (crate::unlockables::SABER_SKIN_CVAR, "saber_sun"),
+            ("name", "^1Sol^7Vulpes"),
+            (crate::discord_presence::CVAR, "0"),
+        ];
+        let Some((mut gpu, _profile)) = open(
+            "maps/mp/duel6.bsp",
+            [1920, 1080],
+            Some(menu::ClientMenu::new(true, String::new())),
+            &cvars,
+        ) else {
+            return;
+        };
+        gpu.looks.shot_owns_unlocks = true;
+        let _ = frame(&mut gpu, 10);
+        let owned: Vec<sjk_identity::Unlock> = crate::unlockables::ALL
+            .iter()
+            .map(|skin| sjk_identity::Unlock {
+                id: skin.id.to_owned(),
+                ..sun()
+            })
+            .collect();
+        if let Some(console) = gpu.console.as_mut() {
+            console.preview_profile(preview());
+            console.preview_collection(Some(owned), 0.0);
+            console.open_profile_hub_page(Tab::Shaders, ReturnTarget::MainMenu);
+        }
+        let views = [
+            ("grid", Tab::Shaders, "1"),
+            ("list", Tab::Shaders, "0"),
+            ("medals", Tab::Medals, "0"),
+        ];
+        let show = |gpu: &mut GpuState, tab: Tab, view: &str| {
+            gpu.profile_hub_show_for_shot(tab);
+            if let Some(console) = gpu.console.as_mut() {
+                let _ = console.set_cvar(crate::console::collection_panel::SHADER_VIEW_CVAR, view);
+            }
+        };
+        let mut times = [f64::MAX; 3];
+        for _ in 0..COST_ROUNDS {
+            for ((_, tab, view), best) in views.iter().zip(&mut times) {
+                show(&mut gpu, *tab, view);
+                let _ = frame(&mut gpu, 30);
+                let mut frames: Vec<f64> = (0..COST_FRAMES)
+                    .map(|_| {
+                        let start = std::time::Instant::now();
+                        let _ = gpu.render(&mut None);
+                        let _ = gpu.device.poll(wgpu::PollType::wait_indefinitely());
+                        start.elapsed().as_secs_f64() * 1_000.0
+                    })
+                    .collect();
+                frames.sort_by(f64::total_cmp);
+                *best = best.min(frames[COST_FRAMES / 2]);
+            }
+        }
+        let reference = times[2];
+        for ((name, ..), median) in views.iter().zip(times) {
+            println!(
+                "{name:8} median {median:6.3} ms (best round), {:+6.3} ms over Medals",
+                median - reference
+            );
+        }
+        for (name, tab, view) in &views[..2] {
+            show(&mut gpu, *tab, view);
+            let path = shoot(&mut gpu, 30, &format!("duel6-blade-pictures-{name}"));
+            println!("{}", path.display());
         }
     });
 }

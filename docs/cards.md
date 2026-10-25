@@ -433,8 +433,8 @@ not know is kept but named nowhere; `Face::blade` in
 | The Forge: the shop, crafting and breaking down (the shop was the Holocrons tab's overlay, `holocrons_panel_shop.rs`, until 21/10/2026) | [collection_forge.rs](../crates/sjk-viewer/src/collection_forge.rs), [collection_forge_view.rs](../crates/sjk-viewer/src/collection_forge_view.rs) |
 | The Collection's Cards tab | [collection_cards.rs](../crates/sjk-viewer/src/collection_cards.rs); its tiles, filter and sets' progress in [cards/binder.rs](../crates/sjk-viewer/src/cards/binder.rs) |
 | `debug_open` | [cards/rehearsal.rs](../crates/sjk-viewer/src/cards/rehearsal.rs) |
-| The faces from the packs, their pictures decoded on a worker | [cards/faces.rs](../crates/sjk-viewer/src/cards/faces.rs), mounted by [sjk_packs.rs](../crates/sjk-viewer/src/sjk_packs.rs) |
-| The pictures' textures | [ui_renderer/card_art.rs](../crates/sjk-viewer/src/ui_renderer/card_art.rs) |
+| The faces from the packs, their pictures decoded on a worker when drawn | [cards/faces.rs](../crates/sjk-viewer/src/cards/faces.rs), mounted by [sjk_packs.rs](../crates/sjk-viewer/src/sjk_packs.rs) |
+| The pictures' textures, for the faces on screen | [ui_renderer/card_art.rs](../crates/sjk-viewer/src/ui_renderer/card_art.rs) |
 | Reveal (`Service::reveal_cards`, `Snapshot::reveal`) | [service.rs](../crates/sjk-identity/src/service.rs), [player_identity.rs](../crates/sjk-viewer/src/player_identity.rs) |
 
 - **Rarities' colours:** Common silver `#B4C0D4`, then the holocron tiers' green, blue,
@@ -507,10 +507,21 @@ not know is kept but named nowhere; `Face::blade` in
   that needs more than seven lines at the smallest size is cut at seven. Every face
   drawn (the Cards tab, the card looked at closely, the opening) does this, and the
   shapes are the same as before, only the words move.
-- **The pictures** are decoded on a worker thread when the packs are mounted, cut to
-  6:5 about their middle if they are not, squeezed into a 1024 square with its mip
-  chain and drawn back into the 6:5 window (which undoes the squeeze); the renderer
-  uploads two a frame. 512 faces at most.
+- **The pictures** are kept as the pack's files (15 MB for the hub's 333 faces) and
+  decoded only when a screen draws their face (`faces::request`, since 25/10/2026): on
+  a worker thread, cut to 6:5 about their middle if they are not, squeezed into a square
+  with its mip chain, 1024 pixels at full texture detail and 512 from `r_picmip` 1 (the
+  close-up's window is about 605 x 504 pixels at 1080p), and drawn back into the 6:5
+  window (which undoes the squeeze). The renderer uploads two a frame and keeps no more
+  than 64 (the least recently drawn go first), dropping one no frame has drawn for a
+  minute; the worker keeps no copy once it is taken. 512 faces at most. Until 25/10/2026
+  every picture was decoded when the packs were mounted and uploaded whether drawn or
+  not, in every world: the hub's 333 faces held 1.8 GB of video memory (2.7 GB with the
+  allocator's blocks) and 1.8 GB of system memory, from seconds after start. A GTX 1060
+  3GB ran out of video memory in the main menu with them (the hub's crash reports,
+  `label = 'SJK menu emblem'`), and they added 1.8 GB to every larger card's map
+  changes; the menu on pictures at r_picmip 2 now holds 539 MiB with the packs mounted,
+  as without them ([rendering.md](rendering.md#gpu-memory), `card_faces_vram_audit`).
 - **The kyber shard's mark** (17/10/2026) is a long crystal with a point at each end: a
   square turned on its point (one thick stroke) stretched upright by a transform, its left
   facet the same square again in the full kyber cyan (`shard::KYBER`) under a clip, its

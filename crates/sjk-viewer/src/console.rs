@@ -245,6 +245,10 @@ pub(crate) struct ViewerConsole {
     ragdoll_on: bool,
     /// The Toys tab asked to go limp (`true`) or get up, not yet taken.
     pending_ragdoll: Option<bool>,
+    /// The Drone is on, mirrored as [`Self::order66_on`] is.
+    drone_on: bool,
+    /// The Toys tab asked to turn the Drone on (`true`) or off, not yet taken.
+    pending_drone: Option<bool>,
     /// A chip naming a setting was clicked (`console_changelog.rs`): the cvar to search
     /// Settings for, not yet taken.
     pending_settings_search: Option<String>,
@@ -640,6 +644,13 @@ impl ViewerConsole {
 
     pub(crate) fn cvar(&self, name: &str) -> Option<&CvarValue> {
         self.shell.cvars.get(name).map(|cvar| &cvar.value)
+    }
+
+    /// A stamp of the archived cvars' values ([`CvarRegistry::archive_revision`]): it
+    /// changes whenever one of them does, so a reading of archived cvars can be kept
+    /// until it changes.
+    pub(crate) fn archive_revision(&self) -> u64 {
+        self.shell.cvars.archive_revision()
     }
 
     /// The value a cvar starts with in a fresh profile.

@@ -222,6 +222,8 @@ impl GpuState {
     pub(crate) fn key_catcher_active(&self) -> bool {
         self.game_menu
             || self.text_dialog.is_open()
+            // The SJK team's window, which may show in the middle of play.
+            || self.official.window.is_open()
             || self.chat.is_typing()
             || self
                 .console
@@ -286,6 +288,11 @@ impl GpuState {
         if !self.text_dialog.is_open() && self.profile_hub_pointer(event) {
             return true;
         }
+        // The SJK team's window, over the console too.
+        if self.official.window.is_open() {
+            self.official_pointer(event);
+            return true;
+        }
         if self
             .console
             .as_ref()
@@ -318,6 +325,11 @@ impl GpuState {
         if self.graphics_reload.card.is_open() {
             let choice = self.graphics_reload.card.handle_pointer(event);
             self.reload_card_choice(choice);
+            return true;
+        }
+        if self.small_card_notice.is_open() {
+            let choice = self.small_card_notice.handle_pointer(event);
+            self.small_card_notice_choice(choice);
             return true;
         }
         if self.emote_help.card.is_open() {

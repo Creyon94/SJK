@@ -1,5 +1,6 @@
 //! The `saberskin` console command (`docs/unlockables.md`, "Settings and commands"):
-//! alone it lists the catalogue's blade skins ([`crate::unlockables`]), each owned or
+//! alone it lists the catalogue's blade skins ([`crate::unlockables`]) the player may see
+//! (an unheld Unique one is neither listed nor taken), each owned or
 //! locked, with its number, and which one is worn; `saberskin <id>` (or its number,
 //! `saberskin 42`) or `saberskin none` sets
 //! `cg_saberSkin`. A locked skin is set all the same and shows once the player's own hub
@@ -93,28 +94,30 @@ impl Choice {
     }
 }
 
-/// Read the command's word.
-pub(crate) fn parse(word: &str) -> Result<Choice, String> {
+/// Read the command's word for a player with `holdings`: a skin they may not see (an
+/// unheld Unique one, [`Holdings::shows`]) is no skin to them, by id or number.
+pub(crate) fn parse(word: &str, holdings: Holdings<'_>) -> Result<Choice, String> {
     if word.eq_ignore_ascii_case("none") {
         return Ok(Choice::Stock);
     }
     unlockables::blade_skin_named(word)
+        .filter(|skin| holdings.shows(skin))
         .map(Choice::Skin)
         .ok_or_else(|| {
             format!("No blade skin \"{word}\": saberskin alone lists them (usage: {USAGE})")
         })
 }
 
-/// The lines `saberskin` alone prints: every blade skin with whether it is owned (and
-/// since when) or locked (and how to get it), the worn one marked, and why ownership is
-/// unknown when it is.
+/// The lines `saberskin` alone prints: every blade skin the player may see
+/// ([`Holdings::shows`]) with whether it is owned (and since when) or locked (and how to
+/// get it), the worn one marked, and why ownership is unknown when it is.
 pub(crate) fn listing(setting: &str, holdings: Holdings<'_>) -> Vec<String> {
-    let chosen = unlockables::blade_skin(setting);
+    let chosen = unlockables::blade_skin(setting).filter(|skin| holdings.shows(skin));
     let mut lines = vec![
         "Blade skins (saberskin <id> or <number> wears one, saberskin none the stock blade):"
             .to_owned(),
     ];
-    for unlockable in unlockables::blade_skins() {
+    for unlockable in unlockables::blade_skins().filter(|skin| holdings.shows(skin)) {
         let picked = chosen.is_some_and(|chosen| chosen.id == unlockable.id);
         let state = match holdings.unlock(unlockable.id) {
             Some(unlock) => {
@@ -191,14 +194,14 @@ pub(crate) fn run(
             holdings,
         )),
         [word] => {
-            let choice = parse(word)?;
+            let choice = parse(word, holdings)?;
             if !console.set_cvar(SABER_SKIN_CVAR, choice.setting()) {
                 return Err("cg_saberSkin could not be set".to_owned());
             }
             Ok(vec![answer(choice, holdings)])
         }
         [word, parts] if parts.eq_ignore_ascii_case("parts") => {
-            let Choice::Skin(skin) = parse(word)? else {
+            let Choice::Skin(skin) = parse(word, holdings)? else {
                 return Err(format!("usage: {USAGE}"));
             };
             let setting = console
@@ -207,7 +210,7 @@ pub(crate) fn run(
             Ok(parts_listing(skin, &parts_of(skin.id), setting))
         }
         [word, part, state] => {
-            let Choice::Skin(skin) = parse(word)? else {
+            let Choice::Skin(skin) = parse(word, holdings)? else {
                 return Err(format!("usage: {USAGE}"));
             };
             let setting = console
@@ -272,8 +275,11 @@ mod tests {
     fn the_listing_says_owned_locked_and_worn() {
         let owned = [sun()];
         let lines = listing("saber_sun", Holdings::Known(&owned));
-        // A line, then one per blade skin of the catalogue.
-        let skins = crate::unlockables::blade_skins().count();
+        // A line, then one per blade skin of the catalogue the player sees (no Unique).
+        let skins = crate::unlockables::blade_skins()
+            .filter(|skin| !skin.hidden_unless_held())
+            .count();
+        assert_eq!(Holdings::Known(&owned).listed_count(), skins);
         assert_eq!(lines.len(), 1 + skins);
         assert!(lines[1].contains("saber_sun  Sun blade"), "{}", lines[1]);
         assert!(
@@ -309,6 +315,7 @@ mod tests {
 
     #[test]
     fn words_choose_a_skin_or_the_stock_blade() {
+        let parse = |word: &str| parse(word, Holdings::IdentityOff);
         assert_eq!(parse("1").map(Choice::setting), Ok("saber_sun"));
         assert_eq!(parse("#001").map(Choice::setting), Ok("saber_sun"));
         assert_eq!(parse("none"), Ok(Choice::Stock));
@@ -352,6 +359,52 @@ mod tests {
         assert!(run(&mut console, &words("saber_moon"), None, no_parts).is_err());
         assert_eq!(console.text_cvar(SABER_SKIN_CVAR).unwrap(), "");
         assert!(run(&mut console, &words("a b"), None, no_parts).is_err());
+    }
+
+    /// A Unique shader (Sol's thank-you gifts, 25/10/2026) is neither listed nor taken by id
+    /// or number for a player who does not hold it; its holder sees it listed and wears it.
+    #[test]
+    fn an_unheld_unique_shader_is_neither_listed_nor_taken() {
+        let cranes = Unlock {
+            id: "saber_thousand_cranes".into(),
+            ..sun()
+        };
+        for holdings in [Holdings::Known(&[]), Holdings::IdentityOff] {
+            let lines = listing("saber_thousand_cranes", holdings);
+            assert!(
+                lines.iter().all(|line| !line.contains("Thousand Cranes")),
+                "{holdings:?}"
+            );
+            assert!(
+                lines
+                    .iter()
+                    .any(|line| line.contains("which this client does not know")),
+                "the setting names nothing this player knows"
+            );
+            for word in ["saber_thousand_cranes", "167", "#167"] {
+                assert!(parse(word, holdings).is_err(), "{word}");
+            }
+        }
+        let held = [sun(), cranes];
+        let holder = Holdings::Known(&held);
+        let lines = listing("saber_thousand_cranes", holder);
+        // A line, the shaders everyone sees and the one Unique held.
+        let seen = crate::unlockables::blade_skins()
+            .filter(|skin| !skin.hidden_unless_held())
+            .count();
+        assert_eq!(lines.len(), 1 + seen + 1);
+        assert!(lines.iter().any(|line| {
+            line.contains("167  saber_thousand_cranes  Thousand Cranes blade")
+                && line.contains("worn")
+        }));
+        assert_eq!(
+            parse("167", holder).map(Choice::setting),
+            Ok("saber_thousand_cranes")
+        );
+        assert_eq!(
+            answer(parse("167", holder).unwrap(), holder),
+            "You wear the Thousand Cranes blade."
+        );
     }
 
     fn no_parts(_: &str) -> Vec<(String, String)> {

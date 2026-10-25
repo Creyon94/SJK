@@ -50,7 +50,9 @@ pub(crate) fn open(
 }
 
 /// What [`open`] builds a client from: `map` loaded from `JKA_GAME_DATA`, a throwaway
-/// profile (kept alive by the returned directory) with `cvars` set, and `menu`.
+/// profile (kept alive by the returned directory) with `cvars` set, then those of
+/// `SJK_SHOT_CVARS` (`name=value`, comma separated, e.g. `r_renderScale=50`, to run any
+/// shot under other settings), and `menu`.
 pub(crate) fn world_input(
     map: &str,
     menu: Option<menu::ClientMenu>,
@@ -77,6 +79,13 @@ pub(crate) fn world_input(
     }
     for (name, value) in cvars {
         console.set_cvar(name, value);
+    }
+    for (name, value) in std::env::var("SJK_SHOT_CVARS")
+        .unwrap_or_default()
+        .split(',')
+        .filter_map(|pair| pair.split_once('='))
+    {
+        console.set_cvar(name.trim(), value.trim());
     }
     let (bsp, vfs) = assets::load_bsp(&game_data, map).expect("the map");
     let scene = StaticWorld::build(&bsp, MeshBuildOptions::default().with_sky_surfaces())
@@ -282,6 +291,8 @@ mod cardboard_box;
 #[path = "world_shot_map_edits.rs"]
 mod map_edit_shots;
 
+#[path = "world_shot_drone.rs"]
+mod drone_shots;
 #[path = "world_shot_hax.rs"]
 mod hax_shots;
 #[path = "world_shot_order66.rs"]
@@ -332,6 +343,8 @@ mod graphics_reload;
 
 #[path = "world_shot_fps_help.rs"]
 mod fps_help_shots;
+#[path = "world_shot_small_card.rs"]
+mod small_card;
 
 #[path = "world_shot_emote_help.rs"]
 mod emote_help_shots;
@@ -340,6 +353,9 @@ mod emote_picker_shots;
 
 #[path = "world_shot_alpha_notice.rs"]
 mod alpha_notice_shots;
+
+#[path = "world_shot_official.rs"]
+mod official_shots;
 
 #[path = "world_shot_chat_gifs.rs"]
 mod chat_gifs_shots;
@@ -356,6 +372,8 @@ mod map_change;
 
 #[path = "world_shot_menu_pictures.rs"]
 mod menu_pictures_shots;
+#[path = "world_shot_texture_compression.rs"]
+mod texture_compression_shots;
 #[path = "world_shot_vram.rs"]
 mod vram;
 
@@ -378,6 +396,10 @@ mod footprints_shots;
 mod mover_models_shots;
 #[path = "world_shot_pings.rs"]
 mod pings;
+#[path = "world_shot_render_scale.rs"]
+mod render_scale_shots;
+#[path = "world_shot_scene_views.rs"]
+mod scene_views_shots;
 
 #[cfg(test)]
 mod tests {
@@ -1276,6 +1298,12 @@ Found the fog bug, ask me about it!"
             shop: None,
             trade: None,
             trades: None,
+            announcements: Vec::new(),
+            announcements_revision: 0,
+            rewards: None,
+            rewards_revision: 0,
+            claim: None,
+            announce: None,
             public_key: String::new(),
         };
         let standings = crate::achievements::ALL
@@ -3443,6 +3471,7 @@ like this one.",
                     client: String::new(),
                     text: (*text).to_owned(),
                     holocron: None,
+                    official: None,
                 },
             )
             .collect();

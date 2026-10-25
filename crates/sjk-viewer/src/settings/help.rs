@@ -150,6 +150,9 @@ const CHOICE_NAMES: &[(&str, &str, &str)] = &[
     (crate::effect_aux::saber_rain_steam::CVAR, "0", "Off"),
     (crate::effect_aux::saber_rain_steam::CVAR, "1", "Everyone"),
     (crate::effect_aux::saber_rain_steam::CVAR, "2", "Only mine"),
+    (crate::stock_blades::CVAR, "0", "Off"),
+    (crate::stock_blades::CVAR, "1", "Others"),
+    (crate::stock_blades::CVAR, "2", "All"),
     ("jof.contentSource", "auto", "Auto"),
     ("jof.contentSource", "mirror", "JoF Cloud"),
     ("jof.contentSource", "origin", "jofhub.eu"),
@@ -294,6 +297,10 @@ const HELP: &[(&str, &str)] = &[
     (
         "com_maxfps",
         "Most frames drawn a second; your movement is Gameplay FPS. AUTO is 125, or the monitor's rate with Detect refresh rate; 0 is off.",
+    ),
+    (
+        crate::runtime_settings::MENU_CAP_CVAR,
+        "Most frames a second in the menus while no game or demo runs, never above the FPS cap. 0 uses the FPS cap.",
     ),
     (
         crate::server_caps::OVERRIDE_CVAR,
@@ -656,6 +663,10 @@ const HELP: &[(&str, &str)] = &[
     (
         crate::duel_blades::CVAR,
         "In a duel you play or follow, and on Duel servers, every blade is a normal one in its own colour.",
+    ),
+    (
+        crate::stock_blades::CVAR,
+        "For weak PCs: blades drawn stock in their colour, no shaders or effects. Others: not yours. All: yours too.",
     ),
     (
         crate::effect_aux::saber_rain_steam::CVAR,
@@ -1110,8 +1121,17 @@ const HELP: &[(&str, &str)] = &[
         "Draws the scene 2 or 3 times larger each way and shrinks it: very sharp, very costly.",
     ),
     (
+        crate::frame_target::scale::CVAR,
+        "Draws the world at this % of the window and stretches it, for weak graphics cards. \
+         Menus and HUD stay sharp. Off with supersampling.",
+    ),
+    (
         crate::world_materials::filtering::mips::PICMIP_CVAR,
         "Each step halves large textures: a quarter of their video memory. For graphics cards of 4 GB or less.",
+    ),
+    (
+        crate::world_materials::filtering::mips::compress::CVAR,
+        "Keeps map and model textures compressed: a quarter or less of their video memory, a little blockier. Experimental.",
     ),
     (
         "r_softParticles",

@@ -794,7 +794,7 @@ that mode for the visit and leaves the player's choice as it was.
 - **Rail:** the mode's categories down a lit holo line on the left, each with its
   settings icon. The one on show is gold with a gold bar on the line; none is lit
   while a search shows its results.
-  - Simple: Display (resolution, display mode, vertical sync, FPS cap, field of
+  - Simple: Display (resolution, render scale since 25/10/2026, display mode, vertical sync, FPS cap, field of
     view, brightness), Graphics (under Preset: the graphics preset dropdown;
     under Effects: weather, dynamic glow, impact marks, player shadows), Sound
     (effects and music volume, mute in background), Controls (sensitivity,
@@ -824,14 +824,17 @@ that mode for the visit and leaves the player's choice as it was.
     to the classic style. Graphics leads with a Quality heading (the graphics
     preset, impact marks and player shadows, out of Video) and then
     gathers the renderer's four tabs (image, lighting, shadows, weather) under
-    their names; Display is Video's other rows under Screen, Frame rate and
+    their names; Display is Video's other rows under Screen, Frame rate (with
+    the menus' own cap, Menu FPS cap, `com_maxfpsMenu`, since 25/10/2026) and
     View; Sound holds every sound, the game's under Game, then the unlock
     sound, the world ping's and the quick wheel's sounds under
     Notifications, and Chat sounds last (since 23/10/2026: the master switch, then
     for public chat, team chat, private messages and the SJK chat a switch, a sound
     list and a Play button, then the private message flash;
     [client.md](client.md#chat-sounds)); Gameplay is Game options without the packs and mods, with
-    JoF EJK's camera framing and damping rows under Camera and prediction;
+    JoF EJK's camera framing and damping rows under Camera and prediction and,
+    under Effects, Stock blades (`cg_stockBlades`, segments Off, Others, All,
+    since 25/10/2026; [client.md](client.md#nameplates));
     Interface the menus and the console (the quick wheel's rows are its
     category's and Sound's); HUD its classic rows without the chat box, the FPS
     readout opening its Readouts (moved there from Video, as the first-person
@@ -1559,7 +1562,10 @@ for the run.
   as pills: Saber with its count, and Body ("soon", not offered yet). Then the rack, a
   row of 106 to each: the stock blade first (its swatch in the player's `color1`), then
   every blade skin, the rarest tier first (10/10/2026: Mythical, Legendary, Rare, then
-  Uncommon, the holocrons' tiers and colours), each with its live swatch
+  Uncommon, the holocrons' tiers and colours; Unique above them since 25/10/2026, shown
+  only to a player who holds one: to anyone else a Unique shader is not listed, found by
+  the search, counted in "N of M owned", the Saber pill, the tab's count or the tally,
+  and has no chip, [unlockables.md](unlockables.md#unique-shaders)), each with its live swatch
   ([unlockables.md](unlockables.md#tiers)) framed in its tier's colour, alive
   when owned, grey and still under a padlock when not, its name at 28 and its state
   (Worn, Yours, Locked, "In your colour") with the tier's name at the line's right in
@@ -1587,17 +1593,18 @@ for the run.
   a click or the number keys 1 to 6 switch one (`cg_saberSkinOptions`), the model's
   blade following at once and, worn, every SJK player's view of it
   ([unlockables.md](unlockables.md#options)).
-- **Toys:** "5 toys", things to use in a match. Illuminate's holocron, the
+- **Toys:** "6 toys", things to use in a match. Illuminate's holocron, the
   cardboard box (since 16/10/2026), Order 66 (since 17/10/2026), the Hax (since
-  21/10/2026) and the Ragdoll (since 23/10/2026), each its icon in its niche (200 units,
-  220 apart, so five stand left of the stage's text), "Everyone's"; the chosen one ringed gold on a full glow, the others dimmed; a
+  21/10/2026), the Ragdoll (since 23/10/2026) and the Drone (since 24/10/2026), each its
+  icon in its niche (172 units, 186 apart, so six stand left of the stage's text), "Everyone's"; the chosen one ringed gold on a full glow, the others dimmed; a
   dotted line for the toys to come. The arrows and Tab choose; a click on a niche chooses it, a click on the
   chosen one runs it. With Illuminate chosen the holocron floats lit by the model on
   the stage (`illuminate::submit_stage_holocron`); the box has no 3D stand-in on the
-  stage, nor have Order 66, the Hax and the Ragdoll. Beside the model the chosen toy's
-  name, what it is, how to use it and its switch, "Holocron lit", "In the box", "In the
-  order", "Hacker" or "Limp": on while the toy is on, and Enter or a click runs it (the
-  `toy_illuminate`, `toy_box`, `toy_order66`, `toy_hax` or `toy_ragdoll` toggle, set to the state wanted; the viewer owns the state, the console
+  stage, nor have Order 66, the Hax, the Ragdoll and the Drone. Beside the model the chosen
+  toy's name, what it is, how to use it and its switch, "Holocron lit", "In the box", "In
+  the order", "Hacker", "Limp" or "Peek me": on while the toy is on, and Enter or a click
+  runs it (the `toy_illuminate`, `toy_box`, `toy_order66`, `toy_hax`, `toy_ragdoll` or
+  `toy_drone` toggle, set to the state wanted; the viewer owns the state, the console
   mirrors it each frame). The keys line says "Enter: light" or "Enter: put out",
   "Enter: hide" or "Enter: come out", "Enter: turn on" or "Enter: turn off". Hovering
   Order 66's niche shows how to turn it on and that `order66` executes it; the Hax's,
@@ -1762,7 +1769,7 @@ takes no input.
 | --- | --- | --- |
 | Medal | `Medal::how_to_get` (given by the SJK team, and for what) | the blade it brings while held; "Yours: given dd/mm/yyyy" or "Not given to you yet" |
 | Achievement | its goal | who counts it (SJK in matches, or the hub); "Unlocked dd/mm/yyyy" or "n of goal so far" |
-| Shader | the stock blade is everyone's; a blade skin's `how_to_get` | its tier; "Yours since dd/mm/yyyy", or locked (try it on here), or why holdings are not known |
+| Shader | the stock blade is everyone's; a blade skin's `how_to_get` | its tier; "Yours since dd/mm/yyyy", or locked (try it on here), or why holdings are not known (never a Unique one the player lacks) |
 | Toy | everyone's, and where to light it | "Yours" |
 | Card (a binder tile) | from opening holocrons: how many holocrons found hold a card of its rarity ([loot table](holocrons.md#loot-table)), one of how many of that rarity | its rarity, kind and set, no number (a sealed tile: picked when revealed); the copies by finish and edition and when the first was found, or "Not found yet" |
 | Holocron tier (Holocrons tab) | found by playing, the pace and the daily cap | the tier's share of drops and staff gifts; how many held |
@@ -1988,6 +1995,30 @@ not drawn and take no input. The same look in every menu style, on the 16:9 fram
   without its buttons: "Reloading the graphics..." and that it takes a few seconds.
   On a server the loading screen shows instead.
 
+## Small graphics cards
+
+[small_card_notice.rs](../crates/sjk-viewer/src/small_card_notice.rs): the pop-up that
+tells a player on a card under 3.5 GiB (integrated GPUs included) what SJK lightened at
+start (Sol's choice, 25/10/2026, after the low-end audit): Vanilla style instead of the
+untouched SJK (recommended) preset, other players' blades stock (`cg_stockBlades 1`) and
+a 60 FPS menu cap (`com_maxfpsMenu 60`), each only from its default and once a card
+(`r_smallCardPreset` keeps the MiB it was considered for;
+[rendering.md](rendering.md#gpu-memory)). It shows once a start on the main page, after
+the medal, holocron and reload cards and before the low-FPS card; the menus under it are
+not drawn and take no input. The same look in every menu style, on the 16:9 frame:
+
+- **Card:** the kit's card over its scrim, 800 wide from x 560, y 340, as tall as its
+  words.
+- **Words:** "Graphics" in gold (Rajdhani 22), "Lighter graphics for your card"
+  (Rajdhani 36), then up to five lines of Exo 2 18 (muted): the card's video memory,
+  what changed (and "with smaller textures" when the texture detail is lowered), and
+  that each can be changed in Settings.
+- **Buttons:** Back to SJK graphics (outlined, 270) and Keep (gold, 150),
+  right-aligned along the foot; keys bottom right: Enter keep, Backspace back to SJK
+  graphics (Escape and Space keep too). Back to SJK graphics puts the preset back with
+  the player's kept values (as the renderer command does) and turns the stock blades and
+  the menu cap off where SJK set them; the reload card then offers to apply the preset.
+
 ## Low FPS help
 
 [fps_help_card.rs](../crates/sjk-viewer/src/fps_help_card.rs): the pop-up of the
@@ -2067,6 +2098,51 @@ under it are not drawn and take no input. The same look in every menu style, on 
 - **Buttons:** Don't send (outlined, 170) and Send logs (gold, 200), right-aligned along
   the foot; focus starts on Don't send. Keys bottom right: Enter send logs, Esc don't
   send; Space does nothing, so sending takes a deliberate key.
+
+## Announcements and reward rounds
+
+[official/window.rs](../crates/sjk-viewer/src/official/window.rs), 25/10/2026: the SJK
+team's windows ([hub-chat.md](hub-chat.md#announcements-and-reward-rounds)). One SJK
+pop-up card over the darkened screen at a time, the same look in every menu style, on the
+16:9 frame; the menus under it are not drawn and take no input. A window the player opened
+(a click on a line, `announcement`, `rewards`, `announce`) shows at once, in the middle of
+play too; a command closes the console first, while a line clicked on the chat page opens
+its window over the page, which is back once the window closes. While a window shows the
+cursor is free and the window takes every key and click (held keys are let go); the claim
+window opens on the main menu or over the game menu, after the medal,
+holocron, reload, FPS and log request cards and before the what's-new card, never in the
+middle of play. Every card is 920 wide from x 500, as tall as what it holds, centred; its
+head is the mark (SJK's logo, or the gift box U+E028 in gold for rewards, 52), a kicker in
+gold (Rajdhani 19) and on the right the date (`dd/mm/yyyy HH:MM`, UTC) or the round; then
+the title (Rajdhani 32, two lines at most). A click outside the card closes the
+announcement and the round list.
+
+- **Announcement:** "FROM THE SJK TEAM" (or "SJK RELEASE"), the title, then the text in
+  Exo 2 18: paragraphs with a gap between them, `- ` lines as gold bullets whose wrapped
+  lines stay indented; 16 lines at once, Up, Down and the wheel scroll the rest. Close
+  (gold for news; Esc, Enter, Space). A release adds Update (gold, U) while this build is
+  older than its version (the main menu's update action: install a release waiting, else
+  the Update page), else See what's new (W, the what's-new card's newest recap).
+- **Round list:** "REWARD ROUND 1 OF 3", the round's title and note, then each person
+  rewarded on a row of 34, alternate rows banded: the clan emblem for a known tag, the
+  name with its colour codes ("Someone" when the hub has none) and the verified seal in a
+  column of 290, the reason (muted, cut at 64 characters) beside it. Eleven rows at once,
+  Up, Down and the wheel scroll; Older and Newer (Left, Right) change the round. No
+  amounts.
+- **Claim:** "CONTRIBUTOR REWARD" with the round's title, "You received", "From the SJK
+  team, thank you.", then a row of 46 per item: each holocron tier's icon (its gem without
+  one) and "2 Rare Holocrons" in the tier's colour, in the tiers' order; the credits' sign
+  and "500 credits"; the kyber shard and "25 kyber shards"; then "Why: <reason>". Claim
+  (gold, Enter; "Claiming..." while the hub answers) and Later (Esc). The hub's refusal
+  shows over the buttons in ember.
+- **Composer** (the creator's `announce`): Kind (News, Release), Version (a release's),
+  Title and Text fields, Tab between them; the fields take Ctrl+A, Ctrl+C, Ctrl+V and a held
+  Backspace ([text_entry.rs](../crates/sjk-viewer/src/text_entry.rs)); Enter in the text
+  makes a new line (a paste keeps its lines), with a count of characters and lines under
+  it. Under them the chat line as players will read it (SJK's logo, "SJK" in gold, the
+  words). Send (or Ctrl+Enter) checks the hub's rules and asks to confirm; Send now
+  (Enter) sends, Back (Esc) returns; the hub's words show if it refuses, and the window
+  closes once it took it.
 
 ## Encrypted whisper
 
@@ -2281,6 +2357,7 @@ group in the script (`SYMBOLS`) and gets its name in `symbols.rs`.
 | U+E002 | octagon with one upright bar | Rare |
 | U+E003 | octagon with a cross round a core | Legendary |
 | U+E004 | the Legendary mark in a second, outer octagon | Mythical |
+| U+E005 | Mythical's two octagons round a solid four-point star | Unique (25/10/2026) |
 | U+E010 | a card's outline | Normal finish |
 | U+E011 | a card with two slanting bands | Holo finish |
 | U+E012 | a card with a sun at its heart | Solar finish |
@@ -2292,7 +2369,7 @@ group in the script (`SYMBOLS`) and gets its name in `symbols.rs`.
 | U+E025 | a smith's hammer | its saber smith |
 | U+E026 | a turning arrow | drag to turn |
 | U+E027 | a lightsaber held up | worn |
-| U+E028 | a gift box with a bow | from the SJK team |
+| U+E028 | a gift box with a bow | from the SJK team (also a reward round's chat line and the claim window, 25/10/2026) |
 | U+E029 | a five-pointed star | its edition |
 | U+E030 | a long crystal, a ridge down its middle | Kyber shards (17/10/2026) |
 

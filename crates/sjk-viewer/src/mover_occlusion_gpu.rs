@@ -183,7 +183,7 @@ impl Tracer {
             visibility: wgpu::ShaderStages::COMPUTE,
             ty: wgpu::BindingType::StorageTexture {
                 access: wgpu::StorageTextureAccess::WriteOnly,
-                format: wgpu::TextureFormat::R32Float,
+                format: crate::lamp_lights::VISIBILITY_FORMAT,
                 view_dimension: wgpu::TextureViewDimension::D2,
             },
             count: None,
@@ -337,8 +337,9 @@ impl Tracer {
         });
         pass.set_pipeline(&self.pipeline);
         pass.set_bind_group(0, &self.group, &[]);
+        // Two texels an invocation across (`mover_occlusion.wgsl`); the pitch is even.
         let groups = self.pitch.div_ceil(8);
-        pass.dispatch_workgroups(groups, groups, tiles);
+        pass.dispatch_workgroups((self.pitch / 2).div_ceil(8), groups, tiles);
         pass.set_pipeline(&self.publish);
         pass.dispatch_workgroups(tiles, 1, 1);
         let mut stale = self.stale.borrow_mut();

@@ -37,15 +37,15 @@ fifteen choices no longer fit. Seen in off-screen GPU renders on duel6 (world sh
 | --- | --- |
 | Who sees a look | Every SJK player on the same game server, through the hub. |
 | Who may wear an unlockable | Only a key the hub lists it for. The hub refuses to relay a look whose blade skin the key does not own (`not_unlocked`). |
-| How one is unlocked | The hub operator or staff grant it by hand (Staff page, operator command), and since 10/10/2026 a medal brings one while held: Bug Hunter the Glitch, Early Tester the Hologram, Early Contributor the Runic blade ([Medal shaders](#medal-shaders)). Achievements granting them are an idea for later, with harder goals than today's. Since 17/10/2026 holocrons drop every shader but the medals' ([Holocron shader drops](#holocron-shader-drops)). |
+| How one is unlocked | The hub operator or staff grant it by hand (Staff page, operator command), and since 10/10/2026 a medal brings one while held: Bug Hunter the Glitch, Early Tester the Hologram, Early Contributor the Runic blade ([Medal shaders](#medal-shaders)). Achievements granting them are an idea for later, with harder goals than today's. Since 17/10/2026 holocrons drop every shader but the medals' ([Holocron shader drops](#holocron-shader-drops)). Since 25/10/2026 the Unique ones come only by hand, Sol's thank-you gifts ([Unique shaders](#unique-shaders)). |
 | How a look travels | Stored on the key's live claim, listed in presence for players who arrive later, and sent through the feed as a live event when it changes. |
 | Illuminate | Free for everyone, a toy (`toy_illuminate`); its lit state is part of the look so others see the holocron. |
 | Toys in the look | Since 16/10/2026 a look lists the toys out that others draw (`toys`, ids; the [cardboard box](client.md#cardboard-box)'s is `cardboard_box`, [Order 66](client.md#order-66)'s `order66`, the [Hax](client.md#hax)'s `hax`, and `hax_away` when its trap holds while away), sent only when one is out, so older hubs see the look they know. A client draws the toys it knows (`looks::TOYS`) and ignores the rest. Free for everyone, like Illuminate. |
 | Feed with chat off | The feed reads while the player is on a game server whatever `cl_sjkChat` says (chat stays hidden); in the menus it reads only with chat on. |
-| Choosing | The Collection's Shaders tab (SJK UI look; the Unlockables page until 10/10/2026) lists every blade skin, owned or locked, previews the chosen one on the player's own saber and equips owned ones; the Profile screen's Saber tab offers the owned blade skins too (10/10/2026); `cg_saberSkin` holds the choice. Since 23/10/2026 the Saber tab's Sounds row chooses the saber sounds apart from the blade (`cg_saberSounds`: follow it, stock, or an owned shader's; [Saber sounds](#saber-sounds)). |
+| Choosing | The Collection's Shaders tab (SJK UI look; the Unlockables page until 10/10/2026) lists every blade skin, owned or locked (a Unique one only to its holders), previews the chosen one on the player's own saber and equips owned ones; the Profile screen's Saber tab offers the owned blade skins too (10/10/2026); `cg_saberSkin` holds the choice. Since 23/10/2026 the Saber tab's Sounds row chooses the saber sounds apart from the blade (`cg_saberSounds`: follow it, stock, or an owned shader's; [Saber sounds](#saber-sounds)). |
 | Art (looks, sounds) | SJK's own, all rights reserved, not under the code's GPLv2: kept in the hub's private repository and served by the hub to registered SJK keys as packs. The code that draws it stays open and generic: no skin's values, sounds or pictures are in this repository or its history to come. |
 | Delivery | The identity service downloads the hub's packs into `assets/` beside `identity.key` (at start once registered, then every 6 hours, only when a pack's SHA-256 changed); the viewer mounts every cached pack at start and a new one at once, below the game data, so a PK3 with the same paths replaces their files. A cached pack mounts with the identity off too. |
-| Tiers | Every saber shader has a tier: Common (white, 14/10/2026: filler that holocrons of any tier may drop; there is no Common holocron) and the holocrons' four (Uncommon, Rare, Legendary, Mythical), their names and colours (10/10/2026, Sol's tiers; [Tiers](#tiers)). |
+| Tiers | Every saber shader has a tier: Common (white, 14/10/2026: filler that holocrons of any tier may drop; there is no Common holocron), the holocrons' four (Uncommon, Rare, Legendary, Mythical), their names and colours (10/10/2026, Sol's tiers; [Tiers](#tiers)), and Unique (rose, 25/10/2026: hand-given, seen only by its holders; [Unique shaders](#unique-shaders)). |
 | Format | A blade skin is a JSON file, `skins/blades/<unlock id>.bladeskin`, holding every parameter of the generic shading, its trail, light and sound paths. The format is documented here; the files are art. |
 
 ## Catalogue
@@ -241,6 +241,8 @@ came in.
 | 164 | `saber_batuu_dusk` | Batuu Dusk blade | Common | Creyon | yes |
 | 165 | `saber_alderaan_velvet` | Alderaan Velvet blade | Common | Creyon | yes |
 | 166 | `saber_varykino_blossom` | Varykino Blossom blade | Mythical | Sol | yes |
+| 167 | `saber_thousand_cranes` | Thousand Cranes blade | Unique | Sol | no |
+| 168 | `saber_hearth` | Hearth blade | Unique | Sol | no |
 
 A client ignores an id it does not know. Both catalogues' tests pin this exact list
 (ids, names, order), so a change to one fails until the other follows.
@@ -409,6 +411,41 @@ the hub's, described in its `scripts/blade_skin_sounds.py` and `saber_skin_sound
   a part its wearer may switch off. It borrows Royal Naboo's sounds
   (the skins pack is near its 16 MiB cap). Not built from her idea: the wooden hilt, which
   waits for custom hilts.
+- **Thousand Cranes** (25/10/2026, blade 167, Sol's, the first [Unique](#unique-shaders) blade; a
+  signature, `blade_signatures/thousand_cranes.glsl`): a thousand paper cranes (senbazuru), the old
+  Japanese gift of thanks and good wishes, for a blade Sol gives by hand. A warm silk-white
+  blade with the fine fibres of washi paper in its light (not a chroma), a red silk thread
+  wound round it from the hilt to near the tip (flat, as Sol's pieces are: bright where it
+  passes in front, faint behind the blade's light), and eight origami cranes in coloured
+  paper (vermilion, indigo, sakura, jade, gold, sky, plum, cream) circling it in 3D as they
+  rise up it, beating their wings and gliding by turns, each wearer's flock in its own order
+  of colours (`uSeed`). A golden crane, the thousandth, hovers over the tip in a warm light.
+  The cranes fold into being as the blade lights, spread wider on a swing, and a clash
+  startles a ring of them out round the blade; a swing also releases real paper cranes that
+  climb away from it ([rendering.md](rendering.md#falling-blossoms)). Five parts its wearer
+  may switch off. Its crane is drawn from triangles (`tc_tri`, `tc_crane`): the far wing in
+  shadow, the body with its crease, the neck and tail, the head folded down and the lit near
+  wing with its fold, turned to fly the way it goes across the view and narrowed when it
+  flies toward or away from it. Its own sounds, `sound/sjk/sol/thousand_cranes/` (soft and
+  airy: a warm hum, paper-wing swings), are in the hub's skins pack. Kintsugi was the
+  first idea, but the Healed Kyber (106) already is Creyon's Kintsugi; nothing in the
+  catalogue had cranes.
+- **Hearth** (25/10/2026, blade 168, Sol's, the second [Unique](#unique-shaders) blade; a
+  signature, `blade_signatures/hearth.glsl`): a home fire. A warm amber blade of glowing
+  coals, their hearts bright and the cracks between them dark red, each breathing on its
+  own, with embers rising off it (its file's `embers`); it kindles up from the hilt as it
+  lights and cools to a deep red as it goes out. Tongues of flame lick up both its edges
+  (flat, as Sol's flames are), the air over it shimmers (its file's `haze`), and the fire
+  is a blaze, taller and hotter, coals popping off it in a flash and a few sparks. A ring of
+  seven hearthstones stands round its emitter in the firelight (in 3D, lit on the side
+  toward the blade), ash drifts down off it, and its swings shed ash that settles on the
+  floor ([rendering.md](rendering.md#falling-blossoms)). Its own sounds,
+  `sound/sjk/sol/hearth/` (a warm hum with a log fire's crackle in it), are in the hub's
+  skins pack. Not the Phoenix's fire: no plume or rebirth, a bed of coals and tongues of
+  flame instead. It was first built to grow with the days its holder kept it (flames at a
+  month, the blaze at six, the stones at a year); Sol dropped that the same day, the stages
+  too alike to tell apart, so every holder has it whole (the growth code is on the branch
+  `personal/hearth`, commit `c8e8bf26`).
 
 ## Hub protocol (additions to version 1)
 
@@ -496,9 +533,10 @@ Built.
   for the hand, first person, a thrown saber, the sounds and the Character page's
   preview.
 - `saberskin` ([saber_skin_command.rs](../crates/sjk-viewer/src/saber_skin_command.rs))
-  alone lists the blade skins: id, name, owned (since when) or locked (how to get
-  it), which one is worn or chosen, and why ownership is not known when it is not
-  (identity off, no hub, waiting). `saberskin <id>` (case ignored, stored as the
+  alone lists the blade skins the player may see (an unheld Unique one is neither listed
+  nor taken by id or number, [Unique shaders](#unique-shaders)): id, name, owned (since
+  when) or locked (how to get it), which one is worn or chosen, and why ownership is not
+  known when it is not (identity off, no hub, waiting). `saberskin <id>` (case ignored, stored as the
   catalogue's id) or `saberskin none` sets `cg_saberSkin`; a locked skin is set all
   the same and the answer says it shows only once unlocked. An unknown id is refused.
   Tab completes the command's name; its argument has no completion (the console
@@ -712,7 +750,9 @@ too). Every blade skin has a tier (`Unlockable::tier`, `unlockables::Rarity` in
 [unlockables.rs](../crates/sjk-viewer/src/unlockables.rs)), one of the holocrons' four,
 with the holocron tier's name (`Tier::label`) and colour
 ([holocrons.rs](../crates/sjk-viewer/src/holocrons.rs)) so a Rare shader and a Rare
-holocron look alike:
+holocron look alike, or Common (14/10/2026) or Unique (25/10/2026, rarer than Mythical
+and no holocron's, [Unique shaders](#unique-shaders)). The table below is the first
+placing; the catalogue's table above has today's:
 
 | Tier | Shaders |
 | --- | --- |
@@ -727,9 +767,9 @@ otherwise. The hub keeps the same tiers (`UnlockKind::tier`) for its loot table
 ([Holocron shader drops](#holocron-shader-drops)).
 
 - Lists: the Collection's Shaders tab and the Saber tab's Blade row list the rarest
-  first, then in catalogue order within a tier (`unlockables::blade_skins_by_tier`),
-  the stock blade first. Profiles, the hub and the Staff page keep the catalogue's
-  order.
+  first, then in catalogue order within a tier (`unlockables::blade_skins_by_tier`,
+  kept to what the player may see by `Holdings::listed`), the stock blade first.
+  Profiles, the hub and the Staff page keep the catalogue's order.
 - Shown: the Collection's rack frames each swatch in its tier's colour (quieter when
   locked) and names the tier at the right of its state line; its cards carry a band of
   the tier's colour along the top, a frame and the tier's name; beside the model a pill
@@ -754,6 +794,7 @@ moment (no state, no randomness). Each tier up adds to the one under it:
 | Rare | the frame's glow breathes: a soft pulse every 3 seconds |
 | Legendary | the breath, and a slanted sheen sweeping left to right (1.4 seconds of every 4, each frame at its own moment so a page does not flash at once) |
 | Mythical | the sheen, a bright spark running round the border with a short tail (a lap in 3.2 seconds), and on cards and tiles four faint motes rising inside |
+| Unique | Mythical's, in Unique's rose (25/10/2026, Sol: "mythical level of effects"; `Rarity::effect_rank`) |
 
 - Sizes: `Full` (the Collection's cards, the Holocrons tab's tier rows) has all of it;
   `Small` (the rack's swatch frames, the detail's tier pill, the Saber tab's swatches)
@@ -1029,6 +1070,8 @@ off, and every other SJK player then draws the blade the same way.
 | Void | `holes` Black holes (holes, later additions file only), `stars` Infalling stars (motes), `warp` Warped space (haze), `pulse` Gravity pulse (pulse), `afterimages` Afterimages (ghosts) |
 | Spectral | `wisps` Wisps (wisps), `spirits` Souls (motes), `smoke` Smoky edge (sputter), `rim` Cold rim (hue), `echo` Echo (echo), `afterimages` Afterimages (ghosts) |
 | Varykino Blossom | `blossom_branch` Blossom branch, `lavender_mist` Lavender mist, `drifting_petals` Drifting petals, `falling_blossoms` Falling blossoms (the petals its swing sheds, [rendering.md](rendering.md#falling-blossoms)), `sakura_droplet` Sakura droplet (the pearl at its tip), `swing_and_clash_bursts` Swing and clash bursts (a signature's parts) |
+| Thousand Cranes | `red_thread` Red thread, `paper_cranes` Paper cranes (the flock and the cranes a clash startles), `golden_crane` Golden crane, `washi_light` Washi light (the paper's fibres in its glow), `flying_cranes` Flying cranes (the paper cranes its swing releases), `swing_and_clash_bursts` Swing and clash bursts (a signature's parts) |
+| Hearth | `hearth_flames` Hearth flames, `blaze` Blaze, `hearthstones` Hearthstones (the stones, the drifting ash and the ash its swings shed), `embers` Embers (embers), `heat_shimmer` Heat shimmer (haze), `swing_and_clash_bursts` Swing and clash bursts (a signature's parts) |
 
 - Kept in `cg_saberSkinOptions` (archived, default empty;
   [saber_skin_options.rs](../crates/sjk-viewer/src/saber_skin_options.rs)): one
@@ -1092,14 +1135,30 @@ in-game menu's Collection open it, with the classic menus `unlockables` (and the
 Profile page's See the collection) open it on its own:
 
 - a rack, a row to each, or a grid of cards (below): the stock blade (in the player's
-  `color1`), then every blade skin, the rarest [tier](#tiers) first, with a live swatch
-  framed in its tier's colour. An owned skin's swatch shows the blade as the game draws
+  `color1`), then every blade skin the player may see (a Unique one only while they
+  hold it, [Unique shaders](#unique-shaders)), the rarest [tier](#tiers) first, with a
+  live swatch framed in its tier's colour. An owned skin's swatch shows the blade as the game draws
   it (Creyon's round 13, 19/10/2026: the drawings did not look like the blades): every
   skin a swatch shows is drawn live by the blade renderer, its own pipelines for a
   signature, into a cell of one picture (16 cells, two columns of eight, one pass,
   [blade_pictures.rs](../crates/sjk-viewer/src/blade_pictures.rs)), which the UI adds over
-  the swatch's glass (`BLADE_PICTURES_TEXTURE`, clipped with the list). Until a skin has a
-  cell (the first frame, more than 16 swatches at once) the swatch is the drawing:
+  the swatch's glass (`BLADE_PICTURES_TEXTURE`, clipped with the list). Since 25/10/2026
+  (for weak PCs) a frame draws only the cells that need it: the hovered or chosen row or
+  card's and a large swatch's every frame (`blade_pictures::focus`, from the Shaders tab,
+  the Forge, the Saber tab and a holocron's shader), every cell while two or fewer are in
+  use, a new one at once, and the others 30 times a second, each at its own moment so
+  the frames share them, six of them a frame at most, the longest waiting first (a GPU
+  too slow for 30 a second draws a few a frame in turn rather than all of them). The UI
+  over them is still drawn every frame, so only those blades' animation steps: 30 times
+  a second, about 26 for the grid's fourteen at 60 FPS, fewer on a slower frame. A cell
+  drawn alone is cleared in its rectangle and the kept cells shielded by depth, so no
+  glow adds into a kept picture. Every shader owned, `duel6_blade_pictures_cost` at
+  1920x1080: on an RTX 5080 the Shaders grid's frame (fifteen pictures) went from 2.16,
+  2.97 and 3.41 ms to 1.69, 2.11 and 2.18 (three alternating runs; the list, six, 1.76 to
+  2.14 against 1.65 to 2.08); on the PC's integrated Radeon from 251 to 196 ms, where
+  each picture costs about 7 to 10 ms and the Medals tab's frame is 69 (such cards
+  usually have the menu pictures on, and the drawings). Until a skin has a cell (the
+  first frame, more than 16 swatches at once) the swatch is the drawing:
   (drawn with the UI's shapes from its loaded file's
   colours, flicker and flares, moving: a breathing corona, flame loops and granules, a
   flare running hilt to tip, and the file's lightning arcs, motes and turning hue when
@@ -1155,8 +1214,8 @@ Profile page's See the collection) open it on its own:
 - with the identity off, no hub or no answer yet, the tab says so and no skin is
   owned.
 
-The Staff page lists every unlockable for the player found, with Unlock (sending the
-note field's text) and Relock ([identity.md](identity.md#staff)), two to a row of 36
+The Staff page lists every unlockable for the player found (the Unique ones too), with
+Unlock (sending the note field's text) and Relock ([identity.md](identity.md#staff)), two to a row of 36
 pixels (10/10/2026) so the whole catalogue (fourteen) fits above the keys, each with the
 one button that applies.
 
@@ -1278,6 +1337,46 @@ test checks the texts). Verified: unit tests (client and hub, the hub's covering
 counted awards, revoke, a grant by hand surviving, relock and the look); the hub not
 deployed when built, nothing tried in the game.
 
+## Unique shaders
+
+Built 25/10/2026 (Sol's decision), branch `personal/unique-tier`: a tier above Mythical,
+**Unique** (rose, `#FF6B9A`; `Rarity::Unique` in
+[unlockables.rs](../crates/sjk-viewer/src/unlockables.rs)), for the personal thank-you
+gifts Sol gives by hand to people who helped SJK. The first is the **Thousand Cranes**
+blade (167), the second the **Hearth** (168). The hub names the tier `unique` (its side is
+built apart).
+
+- **Given by hand only:** granted at the hub like any grant by hand (the Staff page, the
+  operator's command), with the note Sol writes. Never found, dropped, sold, traded or
+  crafted: no holocron, kyber crystal, card or medal brings one (`droppable` is false,
+  so `economy::in_trade` is too), the economy's tables have no Unique column
+  (`shatter_yield` and `craft_cost` give 0) and no shop offers one. Its "How to get it"
+  reads "A personal thank-you from Sol." (`unlockables::PERSONAL_THANKS`).
+- **Seen only by its holders:** `Unlockable::hidden_unless_held` is true for a Unique
+  one, and `Holdings::shows` lets it through only while the player's own profile lists
+  it. Everything a player reads of the catalogue goes through it (`Holdings::listed`,
+  `Holdings::listed_count`), so to anyone else it is never listed or counted: the
+  Collection's Shaders tab (the rack and the grid, the search by name, tier word or
+  number, the tier chips, "N of M owned", the Saber pill and the lead's "n of M
+  shaders shown"), the Collection's Shaders count and tally, the hover cards, the
+  Profile's "N of M shaders owned", the Saber tab's Blade and Sounds rows, and
+  `saberskin` (not listed; its id or number answers "No blade skin"). These read each
+  frame's holdings, so a gift shows at once and goes when taken back, with its chip and
+  a filter on it. Its holder sees it first (the rarest), counted, with a Unique chip
+  after Mythical's.
+- **Still shown:** the Staff page lists every unlockable, so staff can grant and take it
+  back; `debug_collectibles` shows it as held to staff on their own PC; and a player
+  wearing one is seen wearing it like any blade (the look travels as usual), their
+  player card naming it.
+- **Its look:** the rarity mark U+E005 in SJK Symbols (Mythical's two frames round a
+  solid four-point star, [sjk-ui.md](sjk-ui.md#symbols)) and Mythical's rarity effects
+  in its rose ([Rarity effects](#rarity-effects)).
+
+Verified by unit tests: the tier's name, colour, mark and effects; an unheld Unique blade
+neither listed, counted, searched nor chipped on the Shaders tab, held one listed first,
+counted and chipped, and its chip gone once taken back; the Saber tab, `saberskin` and
+the economy. Not tried in the game; the hub's side is not part of this change.
+
 ## Holocron shader drops
 
 Built 14/10/2026 (hub branch `loot-kinds`, merged into the hub's `main`, not deployed).
@@ -1306,16 +1405,18 @@ Every Blade Lab blade drops too since 20/10/2026 (Sol: no loot is handed out by 
 instead of found). The same day Sol's card, SJK Alpha 000, began to bring the Sun blade
 for as long as the player holds a copy ([cards.md](cards.md#faces-and-the-first-set),
 `grants`, `unlockables::CARD_BLADES`): for a few hours it was the only way, then Sol made
-it a second way besides holocrons. So 163 of the 166 shaders drop (the Varykino Blossom, 166, since 21/10/2026), all but Glitch, Hologram
-and Runic (their medals); the test pins `droppable` exactly when no medal brings it.
+it a second way besides holocrons. So 163 of the 168 shaders drop (the Varykino Blossom, 166, since 21/10/2026), all but Glitch, Hologram
+and Runic (their medals) and the Thousand Cranes and the Hearth (Unique, given by hand,
+25/10/2026); the test pins `droppable` exactly when no medal brings it and it is not Unique.
 
 Duplicates show in the Collection's Shaders tab (14/10/2026): the rack's state line, the
 grid card's state and the big card's pill read "Yours x2" (or "Worn x2"), the card's
 owned line and the hover card say ", 2 held". The tab's headline still counts shaders
-owned out of the catalogue ("5 of 23 owned"), a duplicate counting once. The tab has a filter
-since 14/10/2026 for a catalogue near 200: chips for All and each tier (T and Shift+T
-step through them), Owned (O) and a search field (/ or Ctrl+F; Enter or Esc leave it,
-Esc first clears it) that matches a name or a tier's word; the stock blade stays first,
+owned out of the catalogue the player sees ("5 of 23 owned"; an unheld Unique shader is
+not counted), a duplicate counting once. The tab has a filter
+since 14/10/2026 for a catalogue near 200: chips for All and each tier (Unique's only for
+a player who holds one; T and Shift+T step through them), Owned (O) and a search field
+(/ or Ctrl+F; Enter or Esc leave it, Esc first clears it) that matches a name or a tier's word; the stock blade stays first,
 the rack and the grid scroll as before and the lead line says "n of 23 shaders shown"
 while anything is filtered. Row numbers are of the list shown, so the choice goes back
 to the top when the filter changes.
@@ -1334,9 +1435,9 @@ copy a request (the last copy too on a hub that says `shatter_last`, never a med
 card's), or every duplicate at once; shards craft any shader of the trade the player does
 not hold and buy the day's four offers. Only shaders of the *trade* take part: droppable
 and brought by no medal (`economy::in_trade`, read from the catalogue's `droppable` and
-`Medal::blade`, as the hub reads its own), so Glitch, Hologram and Runic never do, and a
-shader made droppable joins by itself. All of it is the Collection's Forge tab
-([cards.md](cards.md#the-forge)); its requests are in
+`Medal::blade`, as the hub reads its own), so Glitch, Hologram, Runic and the Unique ones
+([Unique shaders](#unique-shaders)) never do, and a shader made droppable joins by itself.
+All of it is the Collection's Forge tab ([cards.md](cards.md#the-forge)); its requests are in
 [economy.rs](../crates/sjk-viewer/src/economy.rs):
 
 | Hook | What it gives |

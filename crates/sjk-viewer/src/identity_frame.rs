@@ -68,6 +68,7 @@ impl GpuState {
         self.update_order66(&toy_events);
         self.update_hax(&toy_events, &relay_events);
         self.update_ragdoll(&relay_events);
+        self.update_drone(&relay_events);
         self.update_e2e_whispers();
         self.update_player_trades();
         if !due {
@@ -112,6 +113,7 @@ impl GpuState {
         profile_card::refresh(console);
         self.offer_medals();
         self.offer_holocrons();
+        self.follow_official();
         let _ = player_identity::with_snapshot(|snapshot| {
             crate::loot_odds::follow(&snapshot.loot);
             crate::economy::follow(snapshot.economy.as_ref());

@@ -5,11 +5,27 @@
 //! blade keeps where its tip was ([`PetalEmitter`]), every unit its tip travels in its
 //! wearer's frame (a swing, not a turn of the view or a run) queues a share of a petal along
 //! the blade ([`crate::saber_trail::StateSlab::petals`]), and [`frame`] turns the queue into
-//! particles with the bundled petal pictures. Nothing is allocated per frame.
+//! particles with the bundled petal pictures. Nothing is allocated per frame. The Thousand
+//! Cranes (25/10/2026) releases paper cranes the same way (`"kind": "crane"`): they rise and
+//! fly off instead of settling, each in a colour of paper. The Hearth (25/10/2026) sheds ash
+//! (`"kind": "ash"`): grey flakes, some still glowing at their edge, that drift down and settle.
 
 use glam::Vec3;
 use serde::Deserialize;
 use std::time::{Duration, Instant};
+
+/// What a swing sheds: blossom petals (the default) or paper cranes.
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub(crate) enum PetalKind {
+    /// Petals that flutter down and settle on the floor.
+    #[default]
+    Blossom,
+    /// Paper cranes that rise and fly off through the world, each tinted a colour of paper.
+    Crane,
+    /// Flakes of ash that drift down and settle, grey or still glowing at their edge.
+    Ash,
+}
 
 /// A skin's falling blossoms, as its signature's `@petals` line gives them.
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq)]
@@ -17,6 +33,9 @@ use std::time::{Duration, Instant};
 pub(crate) struct PetalSpec {
     /// The signature's own part (its `// @part` line, from 0) that switches them.
     pub(crate) part: u8,
+    /// What they are.
+    #[serde(default)]
+    pub(crate) kind: PetalKind,
     /// Petals for each unit the tip travels.
     pub(crate) per_unit: f32,
     /// How long one lasts (seconds), and its size (units).
@@ -25,6 +44,9 @@ pub(crate) struct PetalSpec {
     /// How fast it sinks (units a second) and how far it may drift sideways (units a second).
     pub(crate) fall: f32,
     pub(crate) drift: f32,
+    /// How fast it climbs (units a second): a crane's wings carry it up.
+    #[serde(default)]
+    pub(crate) rise: f32,
 }
 
 impl PetalSpec {
@@ -36,6 +58,7 @@ impl PetalSpec {
             && (0.2..=6.0).contains(&self.size)
             && (0.0..=200.0).contains(&self.fall)
             && (0.0..=100.0).contains(&self.drift)
+            && (0.0..=200.0).contains(&self.rise)
     }
 }
 
@@ -112,7 +135,9 @@ impl PetalEmitter {
             let drift = Vec3::new(unit(seed, 5) - 0.5, unit(seed, 6) - 0.5, 0.0) * 2.0 * spec.drift;
             queue.push(PetalSpawn {
                 origin: base + direction * (length * along) + side * 2.0,
-                velocity: carried.clamp_length_max(40.0) + drift - Vec3::Z * spec.fall * 0.5,
+                velocity: carried.clamp_length_max(40.0)
+                    + drift
+                    + Vec3::Z * (spec.rise - spec.fall) * 0.5,
                 seed,
                 spec,
             });
@@ -127,13 +152,33 @@ macro_rules! bundled {
         include_bytes!(concat!("../assets/petals/", $name))
     };
 }
-/// Their shaders, which the frame's effect materials must load (`effect_assets::CODE_SHADERS`).
-pub(crate) const SHADERS: [&str; 3] = [
+/// Their shaders, which the frame's effect materials must load (`effect_assets::CODE_SHADERS`):
+/// the blossoms' three tints, then the crane flying right and flying left, then grey ash and
+/// ash still glowing.
+pub(crate) const SHADERS: [&str; 7] = [
     "gfx/sjk/petals/blossom_pink",
     "gfx/sjk/petals/blossom_pale",
     "gfx/sjk/petals/blossom_white",
+    "gfx/sjk/petals/crane",
+    "gfx/sjk/petals/crane_left",
+    "gfx/sjk/petals/ash_grey",
+    "gfx/sjk/petals/ash_ember",
 ];
-const FILES: [(&str, &[u8]); 4] = [
+const BLOSSOMS: usize = 3;
+const CRANES: usize = 2;
+/// The cranes' paper, as the Thousand Cranes' flock wears it (`tc_paper`): vermilion, indigo,
+/// sakura, jade, gold, sky, plum and cream.
+const PAPER: [[f32; 3]; 8] = [
+    [0.9, 0.24, 0.18],
+    [0.22, 0.3, 0.62],
+    [0.98, 0.66, 0.74],
+    [0.3, 0.66, 0.5],
+    [0.96, 0.76, 0.3],
+    [0.46, 0.68, 0.9],
+    [0.6, 0.32, 0.56],
+    [0.97, 0.93, 0.84],
+];
+const FILES: [(&str, &[u8]); 8] = [
     ("shaders/sjk_petals.shader", bundled!("petals.shader")),
     (
         "gfx/sjk/petals/blossom_pink.png",
@@ -147,6 +192,10 @@ const FILES: [(&str, &[u8]); 4] = [
         "gfx/sjk/petals/blossom_white.png",
         bundled!("blossom_white.png"),
     ),
+    ("gfx/sjk/petals/crane.png", bundled!("crane.png")),
+    ("gfx/sjk/petals/crane_left.png", bundled!("crane_left.png")),
+    ("gfx/sjk/petals/ash_grey.png", bundled!("ash_grey.png")),
+    ("gfx/sjk/petals/ash_ember.png", bundled!("ash_ember.png")),
 ];
 
 /// Mount the bundled petal files.
@@ -157,7 +206,8 @@ pub(crate) fn mount(vfs: &mut sjk_vfs::VirtualFileSystem) -> Result<(), sjk_vfs:
 
 /// Turn the queued petals into particles: each a picture of a blossom petal facing the
 /// camera, turning as it sinks, settling where it lands (it stops on the floor) and fading
-/// over its last third.
+/// over its last third. A crane keeps nearly upright as it climbs, flies on through the world
+/// rather than landing, and takes a colour of paper.
 pub(crate) fn frame(gpu: &mut crate::GpuState, now: Instant) {
     use crate::particle_types::{Particle, PrimitiveShape};
     let queue = gpu.saber_states.petals();
@@ -174,14 +224,30 @@ pub(crate) fn frame(gpu: &mut crate::GpuState, now: Instant) {
         let seed = spawn.seed;
         let spec = spawn.spec;
         let size = spec.size * (0.75 + 0.5 * unit(seed, 7));
-        let spin = (unit(seed, 8) - 0.5) * 50.0;
+        let crane = spec.kind == PetalKind::Crane;
+        let (angle, spin) = if crane {
+            ((unit(seed, 9) - 0.5) * 30.0, (unit(seed, 8) - 0.5) * 12.0)
+        } else {
+            (unit(seed, 9) * 360.0, (unit(seed, 8) - 0.5) * 50.0)
+        };
+        let shader = match spec.kind {
+            PetalKind::Blossom => SHADERS[(seed % BLOSSOMS as u32) as usize],
+            PetalKind::Crane => SHADERS[BLOSSOMS + (seed % CRANES as u32) as usize],
+            // One flake in three still glows.
+            PetalKind::Ash => SHADERS[BLOSSOMS + CRANES + usize::from(seed % 3 == 0)],
+        };
+        let [r, g, b] = if crane {
+            PAPER[(seed % PAPER.len() as u32) as usize]
+        } else {
+            [1.0; 3]
+        };
         gpu.particles.push(Particle {
             motion: crate::particle_motion::Motion::new(
                 spawn.origin,
                 spawn.velocity,
-                // Sinking slowly, as a petal does in air.
-                Vec3::new(0.0, 0.0, -spec.fall * 0.6),
-                unit(seed, 9) * 360.0,
+                // Sinking slowly, as a petal does in air (a crane climbing).
+                Vec3::new(0.0, 0.0, (spec.rise - spec.fall) * 0.6),
+                angle,
                 spin,
                 now,
             ),
@@ -190,7 +256,7 @@ pub(crate) fn frame(gpu: &mut crate::GpuState, now: Instant) {
             lifetime: Duration::from_secs_f32(spec.life * (0.8 + 0.4 * unit(seed, 10))),
             size: crate::effect_envelope::Envelope::from_values(
                 size,
-                size * 0.8,
+                if crane { size } else { size * 0.8 },
                 0.0,
                 sjk_effect::CurveFlags {
                     linear: true,
@@ -212,19 +278,18 @@ pub(crate) fn frame(gpu: &mut crate::GpuState, now: Instant) {
             ),
             use_alpha: true,
             set_shader_time: false,
-            rgb: [constant(1.0), constant(1.0), constant(1.0)],
+            rgb: [constant(r), constant(g), constant(b)],
             seed,
-            shader: gpu
-                .effects
-                .shader(SHADERS[(seed % SHADERS.len() as u32) as usize]),
-            // Falling onto the floor, it stays there (no bounce) until it fades.
+            shader: gpu.effects.shader(shader),
+            // Falling onto the floor, it stays there (no bounce) until it fades; a crane flies
+            // on through.
             physics: crate::particle_physics::State::new(
                 gpu.effects.code_primitive_definition(),
                 0,
                 0,
                 0.0,
                 sjk_effect::PrimitiveFlags {
-                    apply_physics: true,
+                    apply_physics: !crane,
                     ..Default::default()
                 },
             ),
@@ -239,11 +304,13 @@ mod tests {
 
     const SPEC: PetalSpec = PetalSpec {
         part: 3,
+        kind: PetalKind::Blossom,
         per_unit: 0.2,
         life: 2.5,
         size: 1.3,
         fall: 40.0,
         drift: 10.0,
+        rise: 0.0,
     };
 
     #[test]
@@ -281,6 +348,41 @@ mod tests {
             );
             assert!(petal.velocity.z < 0.0);
         }
+    }
+
+    #[test]
+    fn cranes_rise_where_blossoms_sink() {
+        let crane = PetalSpec {
+            kind: PetalKind::Crane,
+            fall: 0.0,
+            rise: 40.0,
+            drift: 0.0,
+            ..SPEC
+        };
+        let mut emitter = PetalEmitter::default();
+        let mut queue = Vec::new();
+        for step in 0..10 {
+            let tip = Vec3::new(20.0 * step as f32, 0.0, 40.0);
+            emitter.shed(
+                Vec3::ZERO,
+                Vec3::Z,
+                40.0,
+                tip,
+                2_000 + step * 16,
+                7,
+                crane,
+                &mut queue,
+            );
+        }
+        assert!(!queue.is_empty());
+        assert!(queue.iter().all(|spawn| spawn.velocity.z > 0.0));
+        let line = r#"{"part":2,"kind":"ash","per_unit":0.04,"life":3.2,"size":0.9,"fall":10.0,"drift":8.0}"#;
+        let ash: PetalSpec = serde_json::from_str(line).unwrap();
+        assert!(ash.valid() && ash.kind == PetalKind::Ash);
+        // A line without a kind or a rise is a blossom's, as the Varykino Blossom's is.
+        let line = r#"{"part":3,"per_unit":0.07,"life":2.6,"size":1.6,"fall":38.0,"drift":14.0}"#;
+        let spec: PetalSpec = serde_json::from_str(line).unwrap();
+        assert_eq!((spec.kind, spec.rise), (PetalKind::Blossom, 0.0));
     }
 
     #[test]
