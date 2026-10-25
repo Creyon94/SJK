@@ -9,6 +9,13 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 25/10/2026 | - | Release 2026.1025.4
+- 6452958 |  | Console: settings under a mod's prefix are set again
+- 1563456 |  | Release 2026.1025.4
++ 25/10/2026 | - | Mod settings set from the console again
+- b39f87d |  | Mod settings can be set from the console again
++ 25/10/2026 | - | Credits history after release 2026.1025.3
+- fab91ff |  | Credits history after release 2026.1025.3
 + 25/10/2026 | - | Reapply kyber crystals on main after release 2026.1025.3
 - a3ecc84 |  | Reapply kyber crystals on main after release 2026.1025.3
 + 25/10/2026 | - | Release 2026.1025.3
