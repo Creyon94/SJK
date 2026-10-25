@@ -9,6 +9,10 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 25/10/2026 | - | Hold kyber crystals out of release 2026.1025.3
+- 6219867 |  | Hold kyber crystals out of release 2026.1025.3
++ 25/10/2026 | - | Credits history after #197 (trading)
+- 748b35f |  | Credits history after #197 (trading)
 + 25/10/2026 | - | Credits history: Slash's commits under his git name, and #207
 - b352b79 |  | Credits history: Slash's commits under his git name, and #207
 + 25/10/2026 | - | Encrypted whispers for verified players, JoF keeps whispers, signed whisper reports

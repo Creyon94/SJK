@@ -30,7 +30,16 @@ The site (site/assets/site.js, parseChangelog) reads the release headings,
 introductions and recap lines too.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
-## Unreleased
+## 2026.1025.3 (Alpha) | 25/10/2026
+
+Team boxes for capture the flag, bodies that fade away, encrypted whispers kept to verified players, and fewer stutters in busy matches.
+
+> Capture the flag: Team scores in SJK boxes, with where each flag is.
+> Bodies: They fade and burn away as in EternalJK.
+> Whispers: Only verified players start encrypted whispers now.
+> One window: No console window on Windows; SJK.app on a Mac.
+> Toys: A toy volume and a mute switch for each toy.
+> Smoother matches: Fewer stutters when players join, change model or die.
 
 = cg_teamScoresBoxes: Team scores in SJK team boxes, with each flag's state in capture the flag; off brings back the classic plates and flag icons.
 
