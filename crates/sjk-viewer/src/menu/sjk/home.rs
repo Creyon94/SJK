@@ -90,16 +90,6 @@ impl Page {
             Self::Quit => 5,
         }
     }
-
-    /// The page's name over its entries; none on the main page.
-    fn title(self) -> Option<&'static str> {
-        match self {
-            Self::Main => None,
-            Self::Play => Some("Play"),
-            Self::Sjk => Some("SJK"),
-            Self::Quit => Some("Quit"),
-        }
-    }
 }
 
 /// What an entry does.
@@ -671,7 +661,6 @@ pub(crate) fn build(
         }
     }
 
-    page_title(canvas, &frame, home);
     for (index, entry) in entries.iter().enumerate() {
         let chosen = index == home.entry;
         let lit = chosen && home.focus == Focus::Arc;
@@ -802,27 +791,6 @@ fn scrims(canvas: &mut MenuCanvas, viewport: [f32; 2], frame: &Frame) {
         Rect::new(0.0, height * 0.72, width, height * 0.28),
         space(0.0),
         space(0.85),
-    );
-}
-
-/// A sub-page's name over its first entry.
-fn page_title(canvas: &mut MenuCanvas, frame: &Frame, home: &Home) {
-    let Some(title) = home.page.title() else {
-        return;
-    };
-    let count = home.entries().len();
-    let angle = entry_angle(0, count) - (arc_step(count) * 1.1).to_radians();
-    let x = RING[0] + ARC_RADIUS * angle.cos();
-    let y = RING[1] + ARC_RADIUS * angle.sin();
-    text(
-        canvas,
-        TextFamily::Display,
-        format_args!("{title}"),
-        frame.rect(x, y - 16.0, 400.0, 30.0),
-        24.0 * frame.s,
-        color::alpha(color::HOLO, 0.85),
-        FontWeight::Semibold,
-        TextAlign::Start,
     );
 }
 
