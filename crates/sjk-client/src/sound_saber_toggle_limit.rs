@@ -20,6 +20,8 @@ struct Client {
     due: i32,
     /// The server time of the player's latest toggle sound, and whether it played.
     last: Option<(i32, bool)>,
+    /// The server time of the latest toggle given back ([`SaberToggleLimit::refund`]).
+    refunded: Option<i32>,
 }
 
 impl Default for Client {
@@ -27,6 +29,7 @@ impl Default for Client {
         Self {
             due: i32::MIN,
             last: None,
+            refunded: None,
         }
     }
 }
@@ -57,6 +60,20 @@ impl SaberToggleLimit {
         }
         state.last = Some((time, allowed));
         allowed
+    }
+
+    /// Give back the toggle `client` paid for at server `time`, once however many of
+    /// its sounds ask: a sound let through and then found to be a late copy of a
+    /// toggle already paid for (a holstered staff's weapon switch shutdown after the
+    /// one at its reach) is not a toggle of its own.
+    pub(super) fn refund(&mut self, client: u16, time: i32) {
+        let Some(state) = self.clients.get_mut(usize::from(client)) else {
+            return;
+        };
+        if state.refunded != Some(time) {
+            state.refunded = Some(time);
+            state.due = state.due.saturating_sub(INTERVAL);
+        }
     }
 }
 

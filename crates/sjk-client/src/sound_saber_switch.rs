@@ -517,6 +517,20 @@ impl LegacySoundAdapter {
         })
     }
 
+    /// Whether a saber on/off sound `client` makes outside this adapter at snapshot
+    /// `server_time` plays, paying for it from the toggle spam cap
+    /// ([`super::saber_toggle_limit`]): a holstered staff's shutdown at its reach.
+    pub fn allow_saber_toggle(&mut self, client: u16, server_time: i32) -> bool {
+        self.saber_toggle_limit.allow(client, server_time)
+    }
+
+    /// Give back the toggle a decision of `client`'s at snapshot `server_time` paid
+    /// for, when the renderer drops it as a late copy of a toggle already paid for
+    /// (a holstered staff's weapon switch shutdown); once for all its hilts.
+    pub fn refund_saber_toggle(&mut self, client: u16, server_time: i32) {
+        self.saber_toggle_limit.refund(client, server_time);
+    }
+
     /// `EV_SABER_UNHOLSTER` from a client: each hand's `soundOn`
     /// (`cg_event.c:2381-2407`), and the blade skin's ignition over them.
     pub(super) fn emit_unholster(&mut self, client: u16, origin: [f32; 3], snapshot: &Snapshot) {

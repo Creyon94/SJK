@@ -411,6 +411,7 @@ impl GameAudio {
                         .send(AudioCommand::Play(handle, decision.request));
                 }
             }
+            self.holster_sync.pay_back(adapter);
             for action in adapter.maintained_actions() {
                 match action.kind {
                     LegacyMaintainedActionKind::Start => {}
@@ -529,6 +530,7 @@ impl GameAudio {
                     .send(AudioCommand::Play(handle, decision.request));
             }
         }
+        self.holster_sync.pay_back(adapter);
     }
 
     /// The client slots muted on this PC (bits), whose sounds are no longer played;
