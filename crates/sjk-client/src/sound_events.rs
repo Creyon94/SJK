@@ -26,6 +26,8 @@ mod npc_sounds;
 mod saber_overrides;
 #[path = "sound_saber_switch.rs"]
 mod saber_switch;
+#[path = "sound_saber_toggle_limit.rs"]
+mod saber_toggle_limit;
 #[path = "sound_taunts.rs"]
 mod taunts;
 use saber_overrides::SaberSoundOverrides;
@@ -620,6 +622,8 @@ pub struct LegacySoundAdapter {
     saber_on: Option<u16>,
     /// cgame's per-player saber ignition on a weapon switch.
     saber_switch: saber_switch::SaberSwitchSounds,
+    /// Caps each player's saber on/off sounds against toggle spam.
+    saber_toggle_limit: saber_toggle_limit::SaberToggleLimit,
     fall: Option<u16>,
     land: Option<u16>,
     object_hit: Option<u16>,
@@ -909,6 +913,7 @@ impl LegacySoundAdapter {
             loops,
             maintained,
             saber_overrides: SaberSoundOverrides::default(),
+            saber_toggle_limit: Default::default(),
             inline_model_midpoints: Box::default(),
         }
     }
@@ -1523,6 +1528,9 @@ impl LegacySoundAdapter {
                 }),
             76 => {
                 let sound = self.configured_sound(parameter, voice);
+                if self.saber_toggle_muted(sound, entity.origin, snapshot) {
+                    return;
+                }
                 layered =
                     self.saber_overrides
                         .general(sound, &self.sounds, entity.origin, snapshot);

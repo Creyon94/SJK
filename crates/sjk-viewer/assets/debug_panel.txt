@@ -3069,6 +3069,15 @@ note: Not run in a game against the deployed hub; the sounds have not been heard
 
 # ---- Audio ----
 
+[saber-toggle-spam]
+area: Audio
+title: Saber on/off spam is capped to 4 sounds, then one per half second
+change: Toggling a saber over and over plays its on/off sound 4 times, then every 500 ms.
+change: Covers the server's toggle, attack ignition and weapon switch loops; saber still toggles.
+test: Bind a key to saber toggle, mash it near a second client: 4 sounds, then sparse ones.
+test: Toggle normally (on, wait, off): every sound plays. Weapon 1 / weapon 3 spam: capped too.
+test: Dual sabers and a blade skin: both hilts and the skin sound together, or none.
+
 [voice-volume]
 area: Audio
 title: Voice volume (s_volumeVoice) works, in Settings > Sound (Rollembones, #141)

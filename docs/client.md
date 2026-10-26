@@ -1639,6 +1639,16 @@ spectator, on respawning with a saber after dying with another weapon and on
 choosing another hilt with the saber out. A severed arm, which takes the weapon
 model off in cgame, is not modelled.
 
+Unlike cgame, SJK caps how often one player's saber is heard turning on or off, so a
+bound or scripted toggle spam does not fill the air
+([sound_saber_toggle_limit.rs](../crates/sjk-client/src/sound_saber_toggle_limit.rs)):
+four toggles play back to back, then one per half second while the spam goes on,
+and the budget refills at that pace. The server's toggle (taken as the nearest
+player's, as for blade skins), `EV_SABER_UNHOLSTER` and the switch path share it;
+all the sounds of one toggle (both hilts, a skin's) play or are dropped together,
+and NPCs are not capped. Only the sounds are dropped: the saber still lights and
+goes out as the server says.
+
 `fd.saberAnimLevelBase` is no wire field, so the client works it out for every
 command it predicts, as `CG_PredictPlayerState` does before `Pmove`
 (`cg_predict.c:1335-1347` in EternalJK and JoF EJK): the current style, unless one
@@ -4770,7 +4780,7 @@ sounds: Only skin; 1, With normal, is the default), in their place, or, with
 `EV_SABER_UNHOLSTER`, its ignition or switching off once when the player draws the
 saber from another weapon or puts a lit one away
 ([saber ignition sounds](#saber-ignition-and-retraction-sounds)), and for a general sound that is a stock `saberon*`/`saberoff*`
-or any `.sab` `soundOn`/`soundOff` (the game's `G_Sound` gives these no owner, so
+or `enemy_saber_on`/`enemy_saber_off`, or any `.sab` `soundOn`/`soundOff` (the game's `G_Sound` gives these no owner, so
 the player whose origin is nearest the sound, within 64 units, is taken), its hum
 once beside the sabers' hum loops, and three swings for `EV_SABER_ATTACK` and the
 animation `saberhup` cues, over a hilt's own `swingSound`s

@@ -165,6 +165,7 @@ did: Font atlases in one channel: 120 MiB less video memory
 did: Mirror and portal views, CJK and emoji atlases made only when drawn
 did: Discord status: your Discord profile shows the server, map and mode you play
 did: Chat sounds by kind, each with its own sound, and a taskbar flash for private messages
+did: Saber on/off spam quietened: four sounds, then one per half second
 link: https://github.com/Sol-Vulpes/SJK
 link: https://sol-vulpes.github.io/SJK/
 
