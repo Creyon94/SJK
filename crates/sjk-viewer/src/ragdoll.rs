@@ -40,8 +40,8 @@ mod sounds;
 
 use crate::GpuState;
 use crate::ghost_replay::Drive;
-use body::{Body, PELVIS, Start};
-pub(crate) use body::{JOINTS, MAX_PUSH, STEP_MS, Strike, World, friction, unbounced, unit};
+use body::{Body, PELVIS};
+pub(crate) use body::{JOINTS, MAX_PUSH, STEP_MS, Start, Strike, World, friction, unbounced, unit};
 use glam::Vec3;
 pub(crate) use scene::{Movers, Scene};
 use sjk_protocol::UserCommand;
@@ -76,6 +76,9 @@ const REST_UP: Duration = Duration::from_millis(2_500);
 const REST_WAIT: Duration = Duration::from_secs(6);
 /// Between two start events sent (the relay takes 40 a second from a player).
 const TELL_GAP: Duration = Duration::from_millis(35);
+/// A blow this client foresaw on another player ([`GpuState::ragdoll_foresee`]) waits
+/// this long for their own word of it, then is undone.
+pub(crate) const GUESS_WAIT: Duration = Duration::from_millis(1_200);
 /// A fall heard this far after its moment, or before it, is dropped (ms).
 const LATE_MS: i64 = 600_000;
 const EARLY_MS: i64 = 5_000;
@@ -252,6 +255,25 @@ impl Fall {
     }
 }
 
+/// A blow this client foresaw on another player's body, waiting for their own word:
+/// the fall it struck (its moment), the blow, when it landed (game server
+/// milliseconds), whether the fall itself was foreseen (they stood), and until when it
+/// waits.
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct Guess {
+    moment: i32,
+    strike: Strike,
+    at: i64,
+    new_fall: bool,
+    until: Instant,
+}
+
+/// The step of a fall begun at `moment` that `time` falls in (game server
+/// milliseconds), 0 before it.
+fn step_of(moment: i32, time: i64) -> u32 {
+    u32::try_from((time - i64::from(moment)).max(0) / i64::from(STEP_MS)).unwrap_or(u32::MAX)
+}
+
 /// A monitor struck the body of the player in slot `struck`: every client bounces it
 /// off at `by`'s step, `push` being the body's (`crate::monitor`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -303,6 +325,8 @@ pub(crate) struct Ragdoll {
     movers: scene::Movers,
     /// The monitors that struck a body since the Monitor toy last took them.
     bounces: Vec<Bounce>,
+    /// The blows this client foresaw on other players, by slot, until their word comes.
+    guesses: std::collections::HashMap<u8, Guess>,
     sounds_registered: Option<u64>,
     /// The game server time last stepped to.
     time: i64,
@@ -463,6 +487,7 @@ impl Ragdoll {
     fn leave(&mut self) {
         self.server = None;
         self.falls.clear();
+        self.guesses.clear();
         self.mine = None;
         self.walk_to = None;
         *shown_lock() = [None; SLOTS];
@@ -484,6 +509,169 @@ impl Ragdoll {
         Some(*fall.body.points())
     }
 
+    /// The body of the player in `slot` as it is now (its last step), if limp.
+    pub(crate) fn points_of(&self, slot: u8) -> Option<[Vec3; JOINTS]> {
+        Some(*self.falls.get(usize::from(slot))?.as_ref()?.body.points())
+    }
+
+    /// Whether a blow this client foresaw on the player in `slot` still waits for their
+    /// word.
+    pub(crate) fn guessing(&self, slot: u8) -> bool {
+        self.guesses.contains_key(&slot)
+    }
+
+    /// The player in `slot` (another) is foreseen struck at `time` at point `joint`,
+    /// pushed by `push`: their body falls from `standing` if they stand, and takes the
+    /// blow at once. False when it did not land (their own, one already foreseen, or a
+    /// body that takes no more).
+    fn foresee(
+        &mut self,
+        slot: u8,
+        time: i64,
+        joint: u8,
+        push: [i32; 3],
+        standing: Start,
+        now: Instant,
+    ) -> bool {
+        if Some(slot) == self.own || usize::from(slot) >= SLOTS || self.guesses.contains_key(&slot)
+        {
+            return false;
+        }
+        let push = push.map(|c| c.clamp(-MAX_PUSH, MAX_PUSH));
+        let new_fall = self.fall_mut(slot).is_none();
+        if new_fall {
+            self.set_fall(slot, Some(Fall::new(standing)));
+            self.cues
+                .push(Cue::flatline(Some(start_point(&standing)), slot));
+        }
+        let Some(fall) = self.fall_mut(slot) else {
+            return false;
+        };
+        if fall.body.strike_count() >= MAX_HITS {
+            return false;
+        }
+        let moment = fall.start.moment;
+        let strike = Strike {
+            step: step_of(moment, time).max(fall.body.steps()),
+            joint,
+            push,
+        };
+        fall.strike(strike);
+        self.guesses.insert(
+            slot,
+            Guess {
+                moment,
+                strike,
+                at: time,
+                new_fall,
+                until: now + GUESS_WAIT,
+            },
+        );
+        true
+    }
+
+    /// One relayed event of the player in `slot`, heard at game server time `now`.
+    fn hear(&mut self, slot: u8, event: Event, now: i64) {
+        match event {
+            Event::Fall(start) => {
+                let moment = i64::from(start.moment);
+                let known = self.fall_mut(slot).is_some_and(|fall| fall.start == start);
+                if known || moment > now + EARLY_MS || moment < now - LATE_MS {
+                    return;
+                }
+                let mut fall = Fall::new(start);
+                // A fall this client foresaw: the blow it foresaw stays, on the real
+                // fall, until the real blow comes.
+                let guess = self.guesses.get(&slot).copied();
+                if let Some(guess) = guess {
+                    let strike = Strike {
+                        step: step_of(start.moment, guess.at),
+                        ..guess.strike
+                    };
+                    fall.strike(strike);
+                    self.guesses.insert(
+                        slot,
+                        Guess {
+                            moment: start.moment,
+                            strike,
+                            new_fall: false,
+                            ..guess
+                        },
+                    );
+                }
+                self.set_fall(slot, Some(fall));
+                if guess.is_none() && moment >= now - 1_000 {
+                    self.cues
+                        .push(Cue::flatline(Some(start_point(&start)), slot));
+                }
+            }
+            Event::Up(moment) => {
+                if self
+                    .fall_mut(slot)
+                    .is_some_and(|fall| fall.start.moment == moment)
+                {
+                    self.set_fall(slot, None);
+                    self.guesses.remove(&slot);
+                }
+            }
+            Event::Hit(hit) => {
+                let guess = self
+                    .guesses
+                    .get(&slot)
+                    .copied()
+                    .filter(|guess| guess.moment == hit.fall);
+                let Some(fall) = self
+                    .fall_mut(slot)
+                    .filter(|fall| fall.start.moment == hit.fall)
+                else {
+                    return;
+                };
+                // The real blow takes the place of the one foreseen.
+                if let Some(guess) = guess.filter(|guess| guess.strike != hit.strike) {
+                    fall.body = fall.body.without(&fall.start, &guess.strike);
+                }
+                let fresh = !fall.body.has_strike(&hit.strike);
+                fall.strike(hit.strike);
+                if guess.is_some() {
+                    self.guesses.remove(&slot);
+                }
+                // The monitor bounces off it (and, foreseen, its foreseen bounce gives way).
+                if fresh || guess.is_some() {
+                    self.bounces.push(Bounce {
+                        by: hit.by,
+                        push: hit.strike.push,
+                        struck: slot,
+                    });
+                }
+            }
+        }
+    }
+
+    /// Undo the blows foreseen whose word did not come by `now`: a foreseen fall ends
+    /// (the player stands again), a foreseen blow on a fall leaves it.
+    fn expire_guesses(&mut self, now: Instant) {
+        let due: Vec<(u8, Guess)> = self
+            .guesses
+            .iter()
+            .filter(|(_, guess)| guess.until <= now)
+            .map(|(slot, guess)| (*slot, *guess))
+            .collect();
+        for (slot, guess) in due {
+            self.guesses.remove(&slot);
+            let Some(fall) = self
+                .fall_mut(slot)
+                .filter(|fall| fall.start.moment == guess.moment)
+            else {
+                continue;
+            };
+            if guess.new_fall {
+                self.set_fall(slot, None);
+            } else {
+                fall.body = fall.body.without(&fall.start, &guess.strike);
+            }
+        }
+    }
+
     /// The player's own fall's moment and the steps its body has taken, if limp.
     fn own_steps(&self) -> Option<(i32, u32)> {
         let mine = self.mine.as_ref()?;
@@ -501,6 +689,29 @@ impl Ragdoll {
         }
         self.falls[index] = fall;
     }
+}
+
+/// The SJK player (`sjk`, bits by slot) to tell next of a fall of `events` events
+/// (the fall, then its blows), each slot told `told` of them so far: a thrower of one of
+/// its blows (`throwers`) first, so the player who threw sees the hit soonest; then one
+/// partly told, so each hears the fall and its blows back to back; then the nearest
+/// (`distances` from the body). One told of all of them before others hear a new blow
+/// waits: every partly told slot comes first.
+fn next_told(
+    told: &[u8; SLOTS],
+    events: usize,
+    sjk: u64,
+    throwers: u64,
+    distances: &[f32; SLOTS],
+) -> Option<usize> {
+    (0..SLOTS)
+        .filter(|slot| sjk & (1 << slot) != 0 && usize::from(told[*slot]) < events)
+        .min_by(|a, b| {
+            let rank = |slot: usize| (throwers & (1 << slot) == 0, told[slot] == 0);
+            rank(*a)
+                .cmp(&rank(*b))
+                .then(distances[*a].total_cmp(&distances[*b]))
+        })
 }
 
 /// Send `event` to the player in `slot`.
@@ -597,50 +808,9 @@ impl GpuState {
             .filter_map(|event| Some((event.slot, Event::parse(&event.event)?)))
             .collect();
         for (slot, event) in heard {
-            match event {
-                Event::Fall(start) => {
-                    let moment = i64::from(start.moment);
-                    let known = self
-                        .ragdoll
-                        .fall_mut(slot)
-                        .is_some_and(|fall| fall.start == start);
-                    if !known && moment <= now + EARLY_MS && moment >= now - LATE_MS {
-                        self.ragdoll.set_fall(slot, Some(Fall::new(start)));
-                        if moment >= now - 1_000 {
-                            self.ragdoll
-                                .cues
-                                .push(Cue::flatline(Some(start_point(&start)), slot));
-                        }
-                    }
-                }
-                Event::Up(moment) => {
-                    if self
-                        .ragdoll
-                        .fall_mut(slot)
-                        .is_some_and(|fall| fall.start.moment == moment)
-                    {
-                        self.ragdoll.set_fall(slot, None);
-                    }
-                }
-                Event::Hit(hit) => {
-                    if let Some(fall) = self
-                        .ragdoll
-                        .fall_mut(slot)
-                        .filter(|fall| fall.start.moment == hit.fall)
-                    {
-                        let fresh = !fall.body.has_strike(&hit.strike);
-                        fall.strike(hit.strike);
-                        if fresh {
-                            self.ragdoll.bounces.push(Bounce {
-                                by: hit.by,
-                                push: hit.strike.push,
-                                struck: slot,
-                            });
-                        }
-                    }
-                }
-            }
+            self.ragdoll.hear(slot, event, now);
         }
+        self.ragdoll.expire_guesses(Instant::now());
         // The player's own fall.
         let toggled = std::mem::take(&mut self.ragdoll.toggled);
         let rested = self.ragdoll_rested();
@@ -730,9 +900,7 @@ impl GpuState {
         let Some((moment, steps)) = self.ragdoll.own_steps() else {
             return false;
         };
-        let step = u32::try_from((time - i64::from(moment)).max(0) / i64::from(STEP_MS))
-            .unwrap_or(u32::MAX)
-            .max(steps);
+        let step = step_of(moment, time).max(steps);
         let push = push.map(|c| c.clamp(-MAX_PUSH, MAX_PUSH));
         let hit = Hit {
             fall: moment,
@@ -759,6 +927,23 @@ impl GpuState {
             struck: own,
         });
         true
+    }
+
+    /// This client foresees the player in `slot` (another, with the Monitor on) struck
+    /// by a monitor at `time` at point `joint`, pushed by `push`: their body falls from
+    /// `standing` if they stand and takes the blow at once, rather than a ping or more
+    /// later when their own word of it comes; that word then takes its place, and
+    /// without it the blow is undone after [`GUESS_WAIT`]. False when it did not land.
+    pub(crate) fn ragdoll_foresee(
+        &mut self,
+        slot: u8,
+        time: i64,
+        joint: u8,
+        push: [i32; 3],
+        standing: Start,
+    ) -> bool {
+        self.ragdoll
+            .foresee(slot, time, joint, push, standing, Instant::now())
     }
 
     /// Whether the player's own fall, begun by a monitor, has lain still long enough to
@@ -821,6 +1006,20 @@ impl GpuState {
             None => return,
         };
         let sjk = self.looks.sjk_slots() & !(1 << own);
+        let from = self
+            .ragdoll
+            .falls
+            .get(usize::from(own))
+            .and_then(Option::as_ref)
+            .map_or(Vec3::ZERO, |fall| fall.body.centre());
+        let time = self.ragdoll.time;
+        let distances: [f32; SLOTS] = std::array::from_fn(|slot| {
+            self.live_world
+                .entity(EntityId::new(slot as u64 + 1))
+                .map_or(f32::MAX, |entity| {
+                    Vec3::from_array(entity.sample(time).translation).distance(from)
+                })
+        });
         let Some(mine) = self.ragdoll.mine.as_mut() else {
             return;
         };
@@ -834,12 +1033,12 @@ impl GpuState {
         if now < mine.tell_at {
             return;
         }
-        let events = 1 + mine.hits.len();
-        // The player least told first: a blow reaches everyone before a late comer
-        // hears the whole fall.
-        let Some(slot) = (0..SLOTS)
-            .filter(|slot| sjk & (1 << slot) != 0 && usize::from(mine.told[*slot]) < events)
-            .min_by_key(|slot| mine.told[*slot])
+        let throwers = mine
+            .hits
+            .iter()
+            .filter(|hit| usize::from(hit.by.thrower) < SLOTS)
+            .fold(0_u64, |throwers, hit| throwers | 1 << hit.by.thrower);
+        let Some(slot) = next_told(&mine.told, 1 + mine.hits.len(), sjk, throwers, &distances)
         else {
             return;
         };
@@ -1088,6 +1287,115 @@ pub(crate) fn camera(state: &mut GpuState, time: i64) -> Option<(Vec3, Vec3)> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn guess_start(moment: i32) -> Start {
+        Start {
+            moment,
+            origin: [0, 0, 24],
+            velocity: [0; 3],
+            yaw: 0,
+        }
+    }
+
+    #[test]
+    fn the_thrower_hears_first_then_each_player_the_fall_and_its_blows_in_a_row() {
+        let mut distances = [f32::MAX; SLOTS];
+        distances[1] = 500.0;
+        distances[2] = 100.0;
+        distances[3] = 300.0;
+        let sjk = 0b1110;
+        let mut told = [0_u8; SLOTS];
+        let mut order = Vec::new();
+        // A monitor of player 3 (not the nearest) knocked the player down: fall and blow.
+        while let Some(slot) = next_told(&told, 2, sjk, 1 << 3, &distances) {
+            told[slot] += 1;
+            order.push(slot);
+        }
+        assert_eq!(order, [3, 3, 2, 2, 1, 1]);
+        // A new blow by player 1, everyone told of the fall: 1 first, then the nearest.
+        let mut order = Vec::new();
+        while let Some(slot) = next_told(&told, 3, sjk, 1 << 1, &distances) {
+            told[slot] += 1;
+            order.push(slot);
+        }
+        assert_eq!(order, [1, 2, 3]);
+    }
+
+    #[test]
+    fn a_foreseen_fall_gives_way_to_the_real_one_and_its_blow() {
+        let mut ragdoll = Ragdoll::default();
+        let now = Instant::now();
+        let push = [2_000, 0, 260];
+        assert!(ragdoll.foresee(5, 10_000, 2, push, guess_start(10_000), now));
+        assert!(ragdoll.guessing(5));
+        // A second monitor waits for the first's word.
+        assert!(!ragdoll.foresee(5, 10_100, 2, push, guess_start(10_100), now));
+        // The real fall (begun a step later where they really stood) keeps the blow.
+        let real = Start {
+            origin: [8, 0, 24],
+            ..guess_start(10_016)
+        };
+        ragdoll.hear(5, Event::Fall(real), 10_100);
+        let fall = ragdoll.fall_mut(5).unwrap();
+        assert_eq!(fall.start, real);
+        assert_eq!(fall.body.strike_count(), 1);
+        assert!(ragdoll.guessing(5));
+        // The real blow takes the foreseen one's place; the monitor bounces off it.
+        let strike = Strike {
+            step: 0,
+            joint: 1,
+            push: [1_900, 100, 260],
+        };
+        let by = By {
+            thrower: 3,
+            number: 7,
+            step: 40,
+        };
+        ragdoll.hear(
+            5,
+            Event::Hit(Hit {
+                fall: real.moment,
+                strike,
+                by,
+            }),
+            10_120,
+        );
+        let fall = ragdoll.fall_mut(5).unwrap();
+        assert_eq!(fall.body.strike_count(), 1);
+        assert!(fall.body.has_strike(&strike));
+        assert!(!ragdoll.guessing(5));
+        assert_eq!(
+            ragdoll.take_bounces(),
+            [Bounce {
+                by,
+                push: strike.push,
+                struck: 5
+            }]
+        );
+    }
+
+    #[test]
+    fn a_foreseen_blow_no_word_confirms_is_undone() {
+        let mut ragdoll = Ragdoll::default();
+        let now = Instant::now();
+        // Standing: the foreseen fall ends and they stand again.
+        assert!(ragdoll.foresee(4, 5_000, 2, [1_500, 0, 260], guess_start(5_000), now));
+        ragdoll.expire_guesses(now + GUESS_WAIT / 2);
+        assert!(ragdoll.fall_mut(4).is_some());
+        ragdoll.expire_guesses(now + GUESS_WAIT);
+        assert!(ragdoll.fall_mut(4).is_none() && !ragdoll.guessing(4));
+        // Limp by themselves: the fall stays, without the blow.
+        ragdoll.hear(4, Event::Fall(guess_start(6_000)), 6_000);
+        assert!(ragdoll.foresee(4, 6_200, 1, [1_500, 0, 260], guess_start(6_200), now));
+        assert_eq!(ragdoll.fall_mut(4).unwrap().body.strike_count(), 1);
+        ragdoll.expire_guesses(now + GUESS_WAIT);
+        let fall = ragdoll.fall_mut(4).unwrap();
+        assert_eq!(fall.start.moment, 6_000);
+        assert_eq!(fall.body.strike_count(), 0);
+        // Never the player's own body.
+        ragdoll.own = Some(2);
+        assert!(!ragdoll.foresee(2, 7_000, 1, [1_500, 0, 260], guess_start(7_000), now));
+    }
 
     #[test]
     fn a_name_hangs_over_the_head_of_a_standing_body_and_low_over_a_lying_one() {

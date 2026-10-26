@@ -9,6 +9,10 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 26/10/2026 | - | Monitor hits foreseen, thrower told first
+- d21e8ba |  | Monitor hits foreseen on every client, and the thrower told first
++ 26/10/2026 | - | Achievement crystals announced once the SJK hub confirms, Tactical Espionage range 1024, clearer Master Craftsman and Full Set
+- 65e8378 |  | Achievements SJK counts wait for the hub before their card and crystal
 + 26/10/2026 | - | Charge ring and hit marker centred
 - 51656fc |  | Monitor: the charge ring and hit marker stand round the crosshair, not in the top left corner
 + 26/10/2026 | - | Release 2026.1026.4

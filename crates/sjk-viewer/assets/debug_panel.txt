@@ -116,6 +116,18 @@ test: Two SJK clients. A: freecam near B: B sees a small remote, the size of a s
 test: A: peek B: B sees no remote, "A is spectating you with the Drone" near the top.
 test: A stops peeking: B's line goes. Third player C still sees A's remote behind B.
 
+[monitor-foresee]
+area: Gameplay
+title: Monitor hits show at once: every client foresees them; the thrower hears first
+change: Your client knocks an opted-in player down the moment your monitor reaches them.
+change: Their own client's word then settles the fall; a hit not confirmed in 1.2 s undoes.
+change: The struck player's client tells the thrower first, fall and blow back to back.
+test: Two SJK clients, both toys on. A throws at B: on A's screen B flies at the touch.
+test: Watch for a snap a moment later (the real fall replacing the guess): small is fine.
+test: B strafes away at the last moment: if A saw a hit B dodged, B stands again in ~1 s.
+test: Third client C watching: B flies at the touch on C's screen too.
+test: B with the toy off: the monitor passes through on every screen, no guess.
+note: Untested in game; GUESS_WAIT in ragdoll.rs, FORESEE_LATE_MS in monitor.rs.
 [monitor-ring-centre]
 area: HUD
 title: Monitor charge ring and hit marker centred on the crosshair (were top left)
