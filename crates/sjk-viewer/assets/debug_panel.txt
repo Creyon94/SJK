@@ -3124,6 +3124,8 @@ change: Covers the server's toggle, attack ignition and weapon switch loops; sab
 test: Bind a key to saber toggle, mash it near a second client: 4 sounds, then sparse ones.
 test: Toggle normally (on, wait, off): every sound plays. Weapon 1 / weapon 3 spam: capped too.
 test: Dual sabers and a blade skin: both hilts and the skin sound together, or none.
+test: JA+ server, staff on the back: weapon 1 / weapon 3 spam is capped the same way.
+test: Staff put away normally: its shutdown plays once, at the reach, never twice.
 
 [voice-volume]
 area: Audio

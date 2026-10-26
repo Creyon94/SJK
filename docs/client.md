@@ -1647,7 +1647,12 @@ and the budget refills at that pace. The server's toggle (taken as the nearest
 player's, as for blade skins), `EV_SABER_UNHOLSTER` and the switch path share it;
 all the sounds of one toggle (both hilts, a skin's) play or are dropped together,
 and NPCs are not capped. Only the sounds are dropped: the saber still lights and
-goes out as the server says.
+goes out as the server says. A staff put away over a JA+ back
+(`cg_holsteredStaffSound`, [audio_holstered_staff.rs](../crates/sjk-viewer/src/audio_holstered_staff.rs))
+shares it too: the shutdown played at the reach pays for the toggle, and its weapon
+switch copy, dropped there as the late one, gives back what it paid, so each
+put-away is paid once whichever comes first, and a staff weapon switch loop is
+capped like any other.
 
 `fd.saberAnimLevelBase` is no wire field, so the client works it out for every
 command it predicts, as `CG_PredictPlayerState` does before `Pmove`
