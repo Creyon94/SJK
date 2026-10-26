@@ -9,6 +9,10 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 26/10/2026 | - | Names follow ragdolls
+- 888b8c2 |  | Nameplates and overhead names follow a ragdolling player's body
++ 26/10/2026 | - | Faster hub ticks, game menu refresh
+- 763921b |  | Faster hub ticks in game, and the game menu reads its hub pages as it opens
 + 26/10/2026 | - | Monitors unseen in duels, Show monitors setting
 - 691e185 |  | Monitor toy: unseen in duels, and a Show monitors setting (cg_toyMonitorShow)
 + 26/10/2026 | - | Blade skin toggle sound once
