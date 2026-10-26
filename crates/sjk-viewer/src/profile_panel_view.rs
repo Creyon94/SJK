@@ -1382,6 +1382,7 @@ mod tests {
                     kind.goal / 3
                 },
                 unlocked: (index % 2 == 0).then_some(1_759_900_000),
+                waiting: false,
             })
             .collect()
     }

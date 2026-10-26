@@ -593,6 +593,7 @@ mod tests {
                 kind,
                 progress: 0,
                 unlocked: (index < 3).then_some(1),
+                waiting: false,
             })
             .collect()
     }

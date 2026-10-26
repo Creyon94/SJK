@@ -230,6 +230,19 @@ test: Kill with a saber throw from far (over 512 units): Long Throw.
 test: Push a thermal detonator back at its thrower and kill them: Return to Sender.
 note: Hub side is a separate change; until it ships the new ones may not reach the hub.
 
+[achievement-hub-wait]
+area: Menus & settings
+title: Achievements wait for the SJK hub before their card and crystal
+change: With the identity on, one SJK counts is announced only once the hub unlocked it.
+change: Until then Collection > Achievements and its hover card say "Waiting for the SJK hub".
+change: Identity off: unlocks at once, card shows the category (no crystal). Box: 1024 units.
+test: Identity on, reach one (first_blood on a fresh key): no card yet, tab says Waiting.
+test: Within the hub's hour the card comes with "Reward: ... Kyber Crystal", once only.
+test: Reach one, quit before the hub unlocks it, wait, restart: the card comes after sync.
+test: Identity off (cl_identity 0): reaching one shows its card with its category, no reward.
+test: Hide in the box (toy_box) with a player about 20 m away: Tactical Espionage counts.
+test: Hover Master Craftsman and Full Set: the new descriptions.
+
 [ragdoll-held-view]
 area: Gameplay
 title: Ragdoll: only a new hit wakes you; held views stop the toys (#135 #139 #140)

@@ -855,7 +855,8 @@ for most, Rare for the harder ones, Legendary for Duel Master, Veteran, Keeper o
 Holocrons and Full Set, Mythical for Legend of the Arena. The Collection's Achievements tab says it under the achievement up
 close ("Reward: Rare Kyber Crystal" after the crystal's gem, in its colour), its hover card
 ends with it, and the unlock card says it at the right of "ACHIEVEMENT UNLOCKED" in place
-of the category. The hub's `reward` on each achievement wins over the client's own table
+of the category when the hub unlocked it (not with the identity off, which brings no
+crystal; see below). The hub's `reward` on each achievement wins over the client's own table
 (`kyber::REWARDS`) once it sends one. The catalogue, in [achievements.rs](../crates/sjk-viewer/src/achievements.rs)
 and in the hub (same ids):
 
@@ -879,8 +880,8 @@ and in the hub (same ids):
 | Collector, Archivist, Keeper of the Holocrons | `holocrons_10`, `holocrons_50`, `holocrons_200` | 10, 50, 200 holocrons opened (kyber crystals not counted) | hub |
 | Touched by the Force (hidden) | `mythical_find` | a Mythical shader or card from a holocron | hub |
 | Craftsman | `craft_blade` | a blade crafted from a card | hub |
-| Master Craftsman | `craft_finishes` | blades crafted from a card of every finish (3: Normal, Holo, Solar, `cards::FINISHES`); three crafts from cards of one finish count 1 | hub |
-| Full Set | `full_set` | every card of a set that can be obtained, revealed copies only (sealed ones do not count) | hub |
+| Master Craftsman | `craft_finishes` | a blade crafted from a card of every finish (3: Normal, Holo, Solar, `cards::FINISHES`); three crafts from cards of one finish count 1 | hub |
+| Full Set | `full_set` | every Common and Uncommon card of any one set, in any finish, revealed copies only (sealed ones do not count) | hub |
 | Executor | `order66_kill` | an Order 66 execute on another player who also has the toy | hub |
 | Tactical Espionage | `box_minutes_10` | 10 minutes hidden in the cardboard box with another player close by | client |
 | Flawless | `duel_flawless` | a duel won without taking damage | client |
@@ -924,7 +925,8 @@ live snapshot by `achievements_frame.rs`):
   snapshots, at most a second at once;
 - time in the cardboard box counts like time played, while the player hides in it (on,
   alive, playing: `CardboardBox::hiding`) and another player the game draws alive
-  stands within 512 units (`tracker::BOX_NEAR`, about 14 metres) in the snapshot;
+  stands within 1024 units (`tracker::BOX_NEAR`, about 28 metres; 512 until 26/10/2026)
+  in the snapshot;
 - what the player took in a private duel is their own health and shield in the
   snapshots while the duel is on: either falling is damage (not during the duel's
   countdown, which may set them, nor health or shield above the maximum health wearing
@@ -969,8 +971,25 @@ is over is taken in a later hour); a count the client keeps is never lower than 
 hub's, so another PC or a reinstall takes the hub's counts back. Achievements the hub
 counts itself come from what the key did there and no request can set them.
 
-When the client sees one of its achievements reach its goal (in a match, or the hub's
-count arriving), it writes "Achievement unlocked" to the console and shows its pop-up
+Since 26/10/2026 the hub has the last word on the achievements the client counts. With
+the identity on and a hub address (`player_identity::hub_on`, whether the hub answers
+or not), one whose count reaches its goal here is not unlocked yet: it waits for the hub
+(`Record::awaiting`, kept in `achievements.json`), which takes the count at its hourly
+pace, unlocks it and grants its crystal minutes to hours later. Until then the board
+and the hover card show it reached but "Waiting for the SJK hub" (`Standing::waiting`),
+and nothing is announced. Once the hub's profile holds it unlocked (`unlocked` above 0),
+the client announces it, with its crystal, once, at the next reading after it, also
+when the hub unlocked it while the game was closed. An achievement the hub unlocked that
+did not wait here (reached on another PC) is not announced. Before, the client unlocked
+and announced it with "Reward: ... Kyber Crystal" at once, and players read that a
+crystal had come while the hub had not unlocked it yet. With the identity off, or no hub
+address, there is no hub to wait for: the client unlocks it and announces it at once,
+with its category where the reward would stand, as no crystal comes; what was waiting
+for the hub when the identity is turned off unlocks the same way. Achievements the hub
+counts are unchanged.
+
+When one of the client's achievements is unlocked as above, it writes "Achievement
+unlocked" to the console and shows its pop-up
 ([achievement_toast.rs](../crates/sjk-viewer/src/achievement_toast.rs)): a card at the
 top centre of the screen, clear of the crosshair, the chat and the HUD's corners, with
 the board's medallion, "Achievement unlocked", the name, the category and what it

@@ -9,7 +9,10 @@
 //! itself, from what the player did there (a bio, bug reports, world notes, medals).
 //!
 //! The hub cannot see a match, so what the client counts is the player's own record:
-//! the hub bounds how fast each count may rise, nothing more. Adding an achievement is
+//! the hub bounds how fast each count may rise, nothing more. With a hub it has the
+//! last word all the same: one the client counts that reached its goal here waits for
+//! the hub to unlock it (and grant its kyber crystal) before it is announced
+//! ([`Standing::waiting`]); without one it unlocks here, with no crystal. Adding an achievement is
 //! one entry in [`ALL`] and the same id in the hub's catalogue.
 //!
 //! A hidden achievement ([`Kind::hidden`]) shows as a secret until it is unlocked; a
@@ -197,6 +200,8 @@ pub(crate) struct Kind {
 pub(crate) const SECRET_NAME: &str = "Secret achievement";
 /// What a board says a hidden achievement not unlocked yet asks.
 pub(crate) const SECRET_DESCRIPTION: &str = "A secret. Unlock it to find out what it is.";
+/// What a board says of an achievement reached here that the hub has not unlocked yet.
+pub(crate) const WAITING_NOTE: &str = "Waiting for the SJK hub";
 /// What a board says of a retired achievement its holder keeps.
 pub(crate) const RETIRED_NOTE: &str = "No longer obtainable.";
 
@@ -461,7 +466,7 @@ pub(crate) const ALL: [Kind; 35] = [
     kind(
         "craft_finishes",
         "Master Craftsman",
-        "Craft blades from a Normal, a Holo and a Solar card.",
+        "Craft a blade from a Normal, a Holo and a Solar card.",
         crate::cards::FINISHES.len() as u64,
         Collection,
         Hub,
@@ -469,7 +474,7 @@ pub(crate) const ALL: [Kind; 35] = [
     kind(
         "full_set",
         "Full Set",
-        "Complete a card set.",
+        "Hold every Common and Uncommon card of one set.",
         1,
         Collection,
         Hub,
@@ -575,6 +580,9 @@ pub(crate) struct Standing {
     pub(crate) kind: &'static Kind,
     pub(crate) progress: u64,
     pub(crate) unlocked: Option<i64>,
+    /// Reached here, waiting for the hub to unlock it (and grant its crystal): not
+    /// unlocked yet, nothing announced.
+    pub(crate) waiting: bool,
 }
 
 impl Standing {
@@ -656,6 +664,9 @@ pub(crate) struct Record {
     floors: [u64; Counter::COUNT],
     /// When each achievement the client counts was unlocked here, unix seconds.
     unlocked: BTreeMap<String, i64>,
+    /// The achievements the client counts that reached their goal here while the hub
+    /// was on, waiting for the hub to unlock them: announced when it does.
+    awaiting: BTreeSet<String>,
 }
 
 impl Record {
@@ -710,6 +721,7 @@ impl Record {
     /// its local mark.
     fn forget(&mut self, kind: &Kind) {
         self.unlocked.remove(kind.id);
+        self.awaiting.remove(kind.id);
         let Client(counter) = kind.source else {
             return;
         };
@@ -745,6 +757,7 @@ impl Record {
         for other in &ALL {
             if other.source == kind.source && other.goal > below {
                 self.unlocked.remove(other.id);
+                self.awaiting.remove(other.id);
             }
         }
     }
@@ -761,15 +774,20 @@ impl Record {
     }
 
     /// Take in what the hub holds: a count above the one kept here (another PC, a
-    /// reinstall) raises it.
-    pub(crate) fn merge_hub(&mut self, held: &[sjk_identity::Achievement]) -> bool {
+    /// reinstall) raises it, and an unlock it holds is taken. `None` when nothing
+    /// changed, else the achievements that were waiting here for the hub
+    /// ([`Self::unlock`]) and that it has now unlocked, to announce.
+    pub(crate) fn merge_hub(
+        &mut self,
+        held: &[sjk_identity::Achievement],
+    ) -> Option<Vec<&'static Kind>> {
         let before = self.clone();
+        let mut confirmed = Vec::new();
         for achievement in held {
-            let Some(Kind {
-                source: Client(counter),
-                ..
-            }) = find(&achievement.id)
-            else {
+            let Some(kind) = find(&achievement.id) else {
+                continue;
+            };
+            let Client(counter) = &kind.source else {
                 continue;
             };
             match counter {
@@ -779,27 +797,38 @@ impl Record {
                 }
                 _ => self.raise(*counter, achievement.progress),
             }
-            if achievement.unlocked > 0 {
+            if achievement.unlocked > 0 && !self.unlocked.contains_key(kind.id) {
                 self.unlocked
-                    .entry(achievement.id.clone())
-                    .or_insert(achievement.unlocked);
+                    .insert(kind.id.to_owned(), achievement.unlocked);
+                if self.awaiting.remove(kind.id) {
+                    confirmed.push(kind);
+                }
             }
         }
-        *self != before
+        (*self != before).then_some(confirmed)
     }
 
     /// Mark the achievements the client counts that reached their goal at `now`
-    /// (unix seconds); the ones newly unlocked.
-    fn unlock(&mut self, now: i64) -> Vec<&'static Kind> {
+    /// (unix seconds); the ones newly unlocked here, to announce. With the `hub` on they
+    /// only wait for it ([`Self::merge_hub`] gives them once it unlocks them), since the
+    /// hub raises a count at its own pace and grants the crystal when it unlocks; without
+    /// one they unlock here, with what was waiting when the hub went off.
+    fn unlock(&mut self, now: i64, hub: bool) -> Vec<&'static Kind> {
         let mut new = Vec::new();
         for kind in &ALL {
             let Client(counter) = kind.source else {
                 continue;
             };
-            if !kind.retired
-                && self.count(counter) >= kind.goal
-                && !self.unlocked.contains_key(kind.id)
+            if kind.retired
+                || self.count(counter) < kind.goal
+                || self.unlocked.contains_key(kind.id)
             {
+                continue;
+            }
+            if hub {
+                self.awaiting.insert(kind.id.to_owned());
+            } else {
+                self.awaiting.remove(kind.id);
                 self.unlocked.insert(kind.id.to_owned(), now);
                 new.push(kind);
             }
@@ -818,16 +847,18 @@ impl Record {
                     Hub => 0,
                 };
                 let progress = local.max(hub.map_or(0, |hub| hub.progress)).min(kind.goal);
-                let unlocked = self
+                let confirmed = self
                     .unlocked
                     .get(kind.id)
                     .copied()
-                    .or(hub.map(|hub| hub.unlocked).filter(|at| *at > 0))
-                    .or((progress >= kind.goal).then_some(0));
+                    .or(hub.map(|hub| hub.unlocked).filter(|at| *at > 0));
+                let waiting = confirmed.is_none() && self.awaiting.contains(kind.id);
+                let unlocked = confirmed.or((progress >= kind.goal && !waiting).then_some(0));
                 Standing {
                     kind,
                     progress,
                     unlocked,
+                    waiting,
                 }
             })
             .collect()
@@ -866,6 +897,7 @@ impl Record {
             "weapons": self.weapons,
             "floors": floors,
             "unlocked": self.unlocked,
+            "awaiting": self.awaiting,
         })
     }
 
@@ -898,8 +930,24 @@ impl Record {
                 }
             }
         }
+        if let Some(awaiting) = json["awaiting"].as_array() {
+            for kind in awaiting.iter().filter_map(Value::as_str).filter_map(find) {
+                if !record.unlocked.contains_key(kind.id) {
+                    record.awaiting.insert(kind.id.to_owned());
+                }
+            }
+        }
         record
     }
+}
+
+/// An unlock to announce.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct Announcement {
+    pub(crate) kind: &'static Kind,
+    /// Whether the hub unlocked it, so it grants the kyber crystal and the card says so.
+    /// Without a hub it unlocks here and brings none.
+    pub(crate) crystal: bool,
 }
 
 /// The shared state: the record, where it is kept, and the unlocks waiting to be told.
@@ -911,8 +959,49 @@ struct Shared {
     saved_at: Option<Instant>,
     /// Counts as the identity service was last given them.
     sent: Option<BTreeMap<String, u64>>,
-    /// Unlocked in a match, not yet announced.
-    announce: Vec<&'static Kind>,
+    /// Unlocked (in a match, or by the hub after waiting here), not yet announced.
+    announce: Vec<Announcement>,
+    /// Whether the hub is on, as [`sync`] last heard it.
+    hub: bool,
+}
+
+impl Shared {
+    /// After the counts changed at `now`: unlock what reached its goal (or let it wait
+    /// for the hub) and queue what unlocked to announce.
+    fn counted(&mut self, now: i64) {
+        self.dirty = true;
+        let new = self.record.unlock(now, self.hub);
+        self.announce_all(&new, false);
+    }
+
+    /// Queue `kinds` to announce, each once.
+    fn announce_all(&mut self, kinds: &[&'static Kind], crystal: bool) {
+        for &kind in kinds {
+            if !self.announce.iter().any(|told| told.kind.id == kind.id) {
+                self.announce.push(Announcement { kind, crystal });
+            }
+        }
+    }
+
+    /// [`sync`]'s turn with the record: take in what the hub holds (`held`), queue what
+    /// it unlocked of what waited here, and with the `hub` off unlock here what waited.
+    fn follow_hub(&mut self, held: Option<&[sjk_identity::Achievement]>, hub: bool, now: i64) {
+        self.hub = hub;
+        if let Some(held) = held
+            && let Some(confirmed) = self.record.merge_hub(held)
+        {
+            self.dirty = true;
+            self.announce_all(&confirmed, true);
+            // Reached on another PC and not unlocked yet: it waits here too.
+            let new = self.record.unlock(now, hub);
+            self.announce_all(&new, false);
+        }
+        if !hub && !self.record.awaiting.is_empty() {
+            self.dirty = true;
+            let new = self.record.unlock(now, false);
+            self.announce_all(&new, false);
+        }
+    }
 }
 
 static SHARED: Mutex<Shared> = Mutex::new(Shared {
@@ -926,12 +1015,14 @@ static SHARED: Mutex<Shared> = Mutex::new(Shared {
         weapons: 0,
         floors: [0; Counter::COUNT],
         unlocked: BTreeMap::new(),
+        awaiting: BTreeSet::new(),
     },
     file: None,
     dirty: false,
     saved_at: None,
     sent: None,
     announce: Vec::new(),
+    hub: false,
 });
 
 fn lock() -> MutexGuard<'static, Shared> {
@@ -963,7 +1054,8 @@ pub(crate) fn load(directory: &Path) {
 }
 
 /// Change the record with `change` (the tracker's counts), then unlock what reached
-/// its goal; newly unlocked achievements wait for [`take_announcements`].
+/// its goal; newly unlocked achievements wait for [`take_announcements`]. With the hub
+/// on they wait for the hub instead ([`Record::unlock`]).
 pub(crate) fn update(change: impl FnOnce(&mut Record) -> bool) {
     let mut shared = lock();
     if shared.file.is_none() {
@@ -973,30 +1065,25 @@ pub(crate) fn update(change: impl FnOnce(&mut Record) -> bool) {
     if !change(&mut shared.record) {
         return;
     }
-    shared.dirty = true;
-    let new = shared.record.unlock(unix_now());
-    shared.announce.extend(new);
+    shared.counted(unix_now());
 }
 
 /// Achievements unlocked since the last call, to announce.
-pub(crate) fn take_announcements() -> Vec<&'static Kind> {
+pub(crate) fn take_announcements() -> Vec<Announcement> {
     std::mem::take(&mut lock().announce)
 }
 
-/// Twice a second: take in what the hub holds, give the identity service the counts
-/// when they changed, and write the file when it is due (`force` on the way out).
-pub(crate) fn sync(held: Option<&[sjk_identity::Achievement]>, force: bool) {
+/// Twice a second: take in what the hub holds (`hub` whether the identity is on with a
+/// hub, [`crate::player_identity::hub_on`]): announce what it unlocked of what waited
+/// here, while one unlocked on another PC has nothing to announce here. Then give the
+/// identity service the counts when they changed, and write the file when it is due
+/// (`force` on the way out).
+pub(crate) fn sync(held: Option<&[sjk_identity::Achievement]>, hub: bool, force: bool) {
     let mut shared = lock();
     if shared.file.is_none() {
         return;
     }
-    if let Some(held) = held
-        && shared.record.merge_hub(held)
-    {
-        shared.dirty = true;
-        // Unlocked elsewhere: nothing to announce here.
-        let _ = shared.record.unlock(unix_now());
-    }
+    shared.follow_hub(held, hub, unix_now());
     let counts = shared.record.hub_counts();
     if shared.sent.as_ref() != Some(&counts)
         && crate::player_identity::set_achievement_counts(&counts)
@@ -1210,20 +1297,24 @@ mod tests {
         record.add(Counter::DuelFlawless, 1);
         let back = Record::from_json(&record.to_json());
         assert_eq!(back, record);
-        assert!(record.merge_hub(&[
-            held("duel_partners_25", 20, 0),
-            held("box_minutes_10", 4, 0)
-        ]));
+        assert!(
+            record
+                .merge_hub(&[
+                    held("duel_partners_25", 20, 0),
+                    held("box_minutes_10", 4, 0)
+                ])
+                .is_some()
+        );
         assert_eq!(record.count(Counter::DuelPartners), 20);
         assert_eq!(record.count(Counter::BoxMinutes), 4);
         assert_eq!(record.partners.len(), 3, "the floor, not names");
-        let new: Vec<&str> = record.unlock(9).iter().map(|kind| kind.id).collect();
+        let new: Vec<&str> = record.unlock(9, false).iter().map(|kind| kind.id).collect();
         assert_eq!(new, ["duel_flawless"]);
         for index in 0..10 {
             Record::remember(&mut record.partners, &format!("p{index}"));
         }
         record.floors[Counter::DuelPartners as usize] = 30;
-        let _ = record.unlock(10);
+        let _ = record.unlock(10, false);
         assert!(record.unlocked.contains_key("duel_partners_25"));
         record.forget(find("duel_partners_25").unwrap());
         assert_eq!(
@@ -1243,12 +1334,20 @@ mod tests {
     fn counts_unlock_once_and_go_to_the_hub_by_id() {
         let mut record = Record::default();
         record.add(Counter::Kills, 1);
-        let new: Vec<&str> = record.unlock(100).iter().map(|kind| kind.id).collect();
+        let new: Vec<&str> = record
+            .unlock(100, false)
+            .iter()
+            .map(|kind| kind.id)
+            .collect();
         assert_eq!(new, ["first_blood"]);
-        assert!(record.unlock(200).is_empty());
+        assert!(record.unlock(200, false).is_empty());
         record.add(Counter::Kills, 99);
         assert_eq!(
-            record.unlock(300).iter().map(|k| k.id).collect::<Vec<_>>(),
+            record
+                .unlock(300, false)
+                .iter()
+                .map(|k| k.id)
+                .collect::<Vec<_>>(),
             ["kills_100"]
         );
         let counts = record.hub_counts();
@@ -1260,6 +1359,109 @@ mod tests {
             "the hub counts its own"
         );
         assert!(!counts.contains_key("captures_10"), "nothing to send at 0");
+    }
+
+    /// The ids of what waits to be announced, with whether each brings its crystal.
+    fn told(shared: &mut Shared) -> Vec<(&'static str, bool)> {
+        std::mem::take(&mut shared.announce)
+            .into_iter()
+            .map(|told| (told.kind.id, told.crystal))
+            .collect()
+    }
+
+    fn standing(record: &Record, held: &[sjk_identity::Achievement], id: &str) -> Standing {
+        *record
+            .standings(held)
+            .iter()
+            .find(|standing| standing.kind.id == id)
+            .unwrap()
+    }
+
+    /// With the hub on, an achievement the client counts that reaches its goal waits for
+    /// the hub (shown reached, "Waiting for the SJK hub", nothing announced) and is
+    /// announced with its crystal once, when the hub holds it unlocked; one the hub
+    /// unlocked that never waited here (another PC) is not announced.
+    #[test]
+    fn a_client_counted_achievement_waits_for_the_hub_before_it_is_announced() {
+        let mut shared = Shared::default();
+        shared.follow_hub(Some(&[]), true, 1);
+        shared.record.add(Counter::Kills, 1);
+        shared.counted(2);
+        assert!(told(&mut shared).is_empty(), "not unlocked by the hub yet");
+        let waiting = standing(&shared.record, &[], "first_blood");
+        assert!(waiting.waiting);
+        assert_eq!(waiting.unlocked, None);
+        assert_eq!(waiting.fraction(), 1.0, "reached");
+        // The hub took the count but has not unlocked it yet (its hourly allowance).
+        let pending = [held("first_blood", 1, 0)];
+        shared.follow_hub(Some(&pending), true, 3);
+        assert!(told(&mut shared).is_empty());
+        assert!(standing(&shared.record, &pending, "first_blood").waiting);
+        // The hub unlocked it: announced once, with its crystal.
+        let confirmed = [held("first_blood", 1, 500), held("kills_100", 100, 600)];
+        shared.follow_hub(Some(&confirmed), true, 4);
+        assert_eq!(told(&mut shared), [("first_blood", true)]);
+        let done = standing(&shared.record, &confirmed, "first_blood");
+        assert!(!done.waiting);
+        assert_eq!(done.unlocked, Some(500));
+        assert_eq!(
+            standing(&shared.record, &confirmed, "kills_100").unlocked,
+            Some(600),
+            "unlocked on another PC: nothing to announce here"
+        );
+        shared.follow_hub(Some(&confirmed), true, 5);
+        shared.record.add(Counter::Kills, 1);
+        shared.counted(6);
+        assert!(told(&mut shared).is_empty(), "never twice");
+        assert!(shared.record.awaiting.is_empty());
+    }
+
+    /// What waits for the hub is kept in the file: when the hub unlocked it while the
+    /// game was closed, the next sync announces it, once.
+    #[test]
+    fn a_hub_unlock_while_the_game_was_closed_is_announced_at_the_next_sync() {
+        let mut record = Record::default();
+        record.add(Counter::DuelWins, 10);
+        assert!(record.unlock(1, true).is_empty());
+        let back = Record::from_json(&record.to_json());
+        assert_eq!(back, record);
+        assert!(back.awaiting.contains("duel_wins_10"));
+        let mut shared = Shared {
+            record: back,
+            ..Shared::default()
+        };
+        let held = [held("duel_wins_10", 10, 900)];
+        shared.follow_hub(Some(&held), true, 2);
+        assert_eq!(told(&mut shared), [("duel_wins_10", true)]);
+        shared.follow_hub(Some(&held), true, 3);
+        assert!(told(&mut shared).is_empty());
+        let kept = Record::from_json(&shared.record.to_json());
+        assert!(kept.awaiting.is_empty());
+        assert_eq!(kept.unlocked["duel_wins_10"], 900);
+    }
+
+    /// With the identity off there is no hub to wait for: the achievement unlocks here
+    /// and is announced at once, without a crystal; what was waiting for the hub when
+    /// the identity went off unlocks the same way.
+    #[test]
+    fn with_the_identity_off_an_achievement_unlocks_here_without_a_crystal() {
+        let mut shared = Shared::default();
+        shared.follow_hub(None, false, 1);
+        shared.record.add(Counter::Kills, 1);
+        shared.counted(2);
+        assert_eq!(told(&mut shared), [("first_blood", false)]);
+        let open = standing(&shared.record, &[], "first_blood");
+        assert_eq!((open.unlocked, open.waiting), (Some(2), false));
+        shared.counted(3);
+        assert!(told(&mut shared).is_empty(), "once");
+        // Reached with the hub on, then the identity turned off.
+        shared.follow_hub(Some(&[]), true, 4);
+        shared.record.add(Counter::Captures, 10);
+        shared.counted(5);
+        assert!(told(&mut shared).is_empty());
+        shared.follow_hub(None, false, 6);
+        assert_eq!(told(&mut shared), [("captures_10", false)]);
+        assert!(shared.record.awaiting.is_empty());
     }
 
     #[test]
@@ -1298,13 +1500,17 @@ mod tests {
     #[test]
     fn the_hub_restores_counts_after_a_reinstall() {
         let mut record = Record::default();
-        assert!(record.merge_hub(&[
-            held("kills_100", 40, 0),
-            held("first_blood", 1, 1_000),
-            held("maps_10", 7, 0),
-            held("storyteller", 1, 5),
-            held("unknown", 9, 9),
-        ]));
+        assert!(
+            record
+                .merge_hub(&[
+                    held("kills_100", 40, 0),
+                    held("first_blood", 1, 1_000),
+                    held("maps_10", 7, 0),
+                    held("storyteller", 1, 5),
+                    held("unknown", 9, 9),
+                ])
+                .is_some()
+        );
         assert_eq!(record.count(Counter::Kills), 40);
         assert_eq!(record.count(Counter::Maps), 7);
         assert_eq!(record.unlocked["first_blood"], 1_000);
@@ -1312,7 +1518,7 @@ mod tests {
         Record::remember(&mut record.maps, "mp/ffa1");
         assert_eq!(record.count(Counter::Maps), 7);
         assert!(
-            !record.merge_hub(&[held("kills_100", 12, 0)]),
+            record.merge_hub(&[held("kills_100", 12, 0)]).is_none(),
             "lower changes nothing"
         );
     }
@@ -1321,7 +1527,7 @@ mod tests {
     fn standings_show_the_furthest_count_and_the_hubs_own() {
         let mut record = Record::default();
         record.add(Counter::Kills, 3);
-        let _ = record.unlock(50);
+        let _ = record.unlock(50, false);
         let standings = record.standings(&[held("kills_100", 10, 0), held("storyteller", 1, 77)]);
         let of = |id: &str| *standings.iter().find(|s| s.kind.id == id).unwrap();
         assert_eq!(of("kills_100").progress, 10);
@@ -1343,7 +1549,7 @@ mod tests {
         }
         record.weapons = 0b1111_1111;
         record.play(700 * 60_000 + 5);
-        let _ = record.unlock(1);
+        let _ = record.unlock(1, false);
         assert!(record.unlocked.contains_key("kills_100"));
         record.forget(find("kills_100").unwrap());
         assert_eq!(record.count(Counter::Kills), 99);
@@ -1352,7 +1558,11 @@ mod tests {
         // The next count unlocks it again.
         record.add(Counter::Kills, 1);
         assert_eq!(
-            record.unlock(2).iter().map(|k| k.id).collect::<Vec<_>>(),
+            record
+                .unlock(2, false)
+                .iter()
+                .map(|k| k.id)
+                .collect::<Vec<_>>(),
             ["kills_100"]
         );
         record.forget(find("first_blood").unwrap());
@@ -1395,7 +1605,7 @@ mod tests {
         Record::remember(&mut record.servers, "1.2.3.4:29070");
         record.weapons = 0b101;
         record.floors[Counter::Maps as usize] = 3;
-        let _ = record.unlock(42);
+        let _ = record.unlock(42, false);
         let back = Record::from_json(&record.to_json());
         assert_eq!(back, record);
         // Wrong types and unknown ids count as nothing.

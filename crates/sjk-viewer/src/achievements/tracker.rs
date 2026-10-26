@@ -46,8 +46,9 @@ const EF_DEAD: u32 = 1 << 1;
 const EF_NODRAW: u32 = 1 << 8;
 
 /// How close another player must be for time in the cardboard box to count (game units,
-/// from origin to origin: about 14 metres, well within sight and earshot of the box).
-pub(crate) const BOX_NEAR: f32 = 512.0;
+/// from origin to origin: about 28 metres, within sight of the box across a room or a
+/// courtyard; 512 until 26/10/2026, which asked players to stand almost on top of it).
+pub(crate) const BOX_NEAR: f32 = 1024.0;
 /// The shortest saber throw Long Throw takes (game units, from the player to the victim).
 /// A swing reaches under 100; a thrown saber flies up to 700 per Saber Throw level
 /// (`SABER_MAX_THROW_DISTANCE`).
@@ -992,6 +993,7 @@ mod tests {
 
     #[test]
     fn time_in_the_box_counts_only_with_another_player_close_by() {
+        assert_eq!(BOX_NEAR, 1024.0, "about 28 metres");
         let mut bench = Bench::new(game("mp/ffa3", 0, 2, &[]));
         bench.boxed = true;
         bench.snapshot.entities = vec![player_at(5, [BOX_NEAR + 50.0, 0.0, 0.0])];
@@ -999,7 +1001,8 @@ mod tests {
             bench.step(&[]);
         }
         assert_eq!(bench.record.box_ms, 0, "nobody close by");
-        bench.snapshot.entities = vec![player_at(5, [BOX_NEAR - 50.0, 0.0, 0.0])];
+        // 900 units away: beyond the old 512, within the 1024 of 26/10/2026.
+        bench.snapshot.entities = vec![player_at(5, [900.0, 0.0, 0.0])];
         for _ in 0..21 {
             bench.step(&[]);
         }
