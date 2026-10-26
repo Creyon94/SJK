@@ -39,6 +39,7 @@ The hub's side is described in Sol-Vulpes/SJK-hub (`PROTOCOL.md`, "Chat", "Emote
 | Chat bans: the words and the hub's answer | [ban.rs](../crates/sjk-identity/src/ban.rs) |
 | Chat bans: Ban 24 h, armed then confirmed | [chat_ban.rs](../crates/sjk-viewer/src/chat_ban.rs) |
 | Blocking a player: drawn as Kyle, silenced | [muted_players.rs](../crates/sjk-viewer/src/muted_players.rs), [muted_players_frame.rs](../crates/sjk-viewer/src/muted_players_frame.rs), [audio_mute.rs](../crates/sjk-viewer/src/audio_mute.rs) |
+| Blocking for this map, and staff blocks for everyone | [map_blocks.rs](../crates/sjk-viewer/src/map_blocks.rs), `StaffRequest::MapBlock` in [staff.rs](../crates/sjk-identity/src/staff.rs), `MapBlock` in [wire.rs](../crates/sjk-identity/src/wire.rs) |
 | Sender card (pointer on a name) | [sender_card.rs](../crates/sjk-viewer/src/sender_card.rs), [chat/card.rs](../crates/sjk-viewer/src/chat/card.rs) |
 | In-game SJK channel | [chat/sjk.rs](../crates/sjk-viewer/src/chat/sjk.rs), [chat/view/sjk_line.rs](../crates/sjk-viewer/src/chat/view/sjk_line.rs), [sjk_chat_frame.rs](../crates/sjk-viewer/src/sjk_chat_frame.rs) |
 | Said on the game server too (JoF servers) | [chat/server_copy.rs](../crates/sjk-viewer/src/chat/server_copy.rs); the copy's tag and end in [sjk-client chat.rs](../crates/sjk-client/src/chat.rs) (`SJK_COPY_TAG`, `sjk_copy_*`); its `say` commands and the notice's words in [sjk-mod-jof sjk_chat.rs](../crates/sjk-mod-jof/src/sjk_chat.rs); sent by `sjk_chat_frame.rs`, the card in [mod_notice_card.rs](../crates/sjk-viewer/src/mod_notice_card.rs) |
@@ -909,6 +910,12 @@ and plays changes. The code still says "mute" (`chat_mutes.rs`, `muted_players.r
   nobody, so its beep plays even when the feed hides it. Their missiles' flight and impact sounds and the
   sounds of effect files stay: the protocol does not say whose they are. The test is a
   bit mask of slots, so it costs nothing while nobody is muted.
+- **Their name reads BLOCKED** (since 26/10/2026, Sol's request) wherever this client
+  draws a player's name from the game: the scoreboard, the kill feed, nameplates, the
+  crosshair's name and the followed player's (`muted_players::label`, the muted slots
+  kept for them by `muted_players::set_shown`). A staff saber of theirs is drawn as the
+  stock staff (`dual_1`), two sabers as two `single_1`, one as `single_1`
+  (`HiltCatalog::is_staff`, from the saber's definition).
 - **Everything else of theirs:** their emotes do not play (one playing when they are
   blocked ends; `emotes_frame.rs`, beside `sjkemote mute`'s emote-only list), their
   Order 66 orders and cardboard box spots are ignored (`order66.rs`,
@@ -916,8 +923,8 @@ and plays changes. The code still says "mute" (`chat_mutes.rs`, `muted_players.r
   before loses their hub profile (`hud_runtime.rs`), their world pings are not shown
   (`world_ping_frame.rs`), their toys and looks are not drawn (`looks.rs`), their GIFs
   are never fetched (`chat_gifs.rs`) and their holocron lines go with their chat. Their
-  name still shows where the game itself shows it (scoreboard, kill feed, nameplates,
-  the server's own messages): that is the game's, not theirs to send.
+  name reads BLOCKED (above), but for the server's own messages (`entered the game`,
+  votes): that text is the game server's.
 - **The list:** `chat-mutes.txt` beside `config.cfg`, one player a line: their SJK key
   (or `-` for a player the hub does not know) and the name they were last seen with
   ([chat_mutes.rs](../crates/sjk-viewer/src/chat_mutes.rs),
@@ -941,6 +948,48 @@ and plays changes. The code still says "mute" (`chat_mutes.rs`, `muted_players.r
   list, the hub's claims or the server's players change
   ([muted_players.rs](../crates/sjk-viewer/src/muted_players.rs)), as a bit mask the
   renderer, the chat feed and the sound filter test.
+
+## Blocking for this map
+
+Since 26/10/2026 (Sol's request: "temporary, on the current map, synced between players
+... only staff members can do the sync thing, everyone else it's personal"), a player can
+be blocked until the server's map changes, as the block above does it (Kyle, silent, no
+chat or emotes, named BLOCKED), with nothing written to `chat-mutes.txt`
+([map_blocks.rs](../crates/sjk-viewer/src/map_blocks.rs)). It works for any player of
+the server, an SJK player or not.
+
+- **Who:** anyone blocks a player for themselves (`block <player> map`, or the sender
+  card's Block for this map). SJK staff choose, on the card, between Block this map (for
+  them alone) and Block for all, or type `block <player> everyone`: the hub keeps that
+  block (`POST /v1/staff/map-block`, `PROTOCOL.md` "Map blocks") and gives it with
+  presence to every SJK client on the server. The hub refuses it from a player not
+  staff, from staff not on that server, on their own slot, and on a slot an SJK staff
+  player claims (403 `staff_target`); it goes to the staff log as `map_block`.
+- **Opting out:** `cl_staffBlocks` (Settings > Network > SJK chat, "Follow SJK staff
+  blocks", on by default) 0 shows staff-blocked players as themselves; the player's own
+  blocks stay. `unblock <player>` lifts a staff block for that player alone, until the
+  blocked player leaves.
+- **What a block names:** a slot and the name the game showed there, for one map load
+  (`sv_serverid`, which every client of the server sees the same and which changes at
+  every map load). A block follows that player through renames while they keep the slot
+  and ends when the slot empties (they left: the next player there is not blocked) or the
+  map load changes; a staff block also when staff lift it (Unblock all, `unblock
+  <player> everyone`) or when the hub's list for the server is replaced by another map
+  load's or forgotten (4 hours after its last change). A staff block applies on a client
+  while the name in its slot matches the one staff saw (colours aside,
+  `sjk_identity::names_match`), or the player that client saw match renamed since; so a
+  client that joins after the rename does not follow it. The player's own slot is never
+  blocked.
+- **How it reaches the frame:** the muted slots (`muted_players.rs`) are the PC list's
+  and the map's together (`MapBlocks::resolve`, worked out when the roster, the hub's
+  presence or the map blocks change), so everything a block does follows from the same
+  mask. A staff block shows within the presence poll (5 seconds) on the other clients,
+  at once on the staff player's (the service polls presence again after the request).
+- **Seen:** `block` alone lists the map's blocks after the PC's ("this map, by you", "by
+  SJK staff, for everyone"); the sender card of a player on the server shows Block for
+  this map (Unblock this map) and, to staff, Block this map and Block for all (Unblock
+  map, Unblock all) above Block ([sender_card.rs](../crates/sjk-viewer/src/sender_card.rs),
+  `MapBlockRow`).
 
 ## Emotes in the client
 

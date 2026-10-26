@@ -1143,6 +1143,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "Whisper other SJK players end-to-end encrypted through the SJK hub: only the two of you can read it (0 sends every whisper through the game server)",
         ),
         CvarDefinition::new(
+            crate::map_blocks::CVAR,
+            true,
+            archive,
+            "Draw players SJK staff blocked for everyone on this server as blocked until the map changes (0 shows them as themselves; your own blocks still apply)",
+        ),
+        CvarDefinition::new(
             crate::chat_gifs::search::KEY_CVAR,
             "",
             archive,

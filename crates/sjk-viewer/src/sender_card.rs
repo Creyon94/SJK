@@ -68,6 +68,18 @@ pub(crate) struct Person {
     /// They can be asked to trade from here (`crate::player_trades`): the card offers
     /// Trade.
     pub(crate) trade: bool,
+    /// They are on the server being played: the card offers blocking them for this map
+    /// (`crate::map_blocks`), and for everyone to staff.
+    pub(crate) map_block: Option<MapBlockRow>,
+}
+
+/// The card's row of blocks for this map: whether the player blocked them for the map,
+/// and, for an SJK staff player, whether staff blocked them for everyone (`None` for
+/// the others, who are not offered it).
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub(crate) struct MapBlockRow {
+    pub(crate) own: bool,
+    pub(crate) staff: Option<bool>,
 }
 
 impl Person {
@@ -119,6 +131,9 @@ pub(crate) struct Tokens {
     pub(crate) whisper: Option<u16>,
     /// Trade, when [`Person::trade`].
     pub(crate) trade: u16,
+    /// Block for this map and, for staff, block for everyone, when [`Person::map_block`].
+    pub(crate) map_block: u16,
+    pub(crate) staff_block: u16,
 }
 
 /// The card's width in 1080p pixels: compact, so it sits beside the chat without
@@ -146,6 +161,9 @@ const QUIET_ROW: f32 = 14.0;
 pub(crate) fn size(person: &Person, whisper: bool, u: f32) -> [f32; 2] {
     let mut height = PAD + HEAD + RULE;
     if whisper {
+        height += BUTTON + 6.0;
+    }
+    if person.map_block.is_some() {
         height += BUTTON + 6.0;
     }
     let lines = [
@@ -377,9 +395,47 @@ pub(crate) fn draw(
         card_button(canvas, whisper_button, u, token, "Whisper", color::HOLO);
         y += (BUTTON + 6.0) * u;
     }
+    let half = (inner - 8.0 * u) * 0.5;
+    // Blocks for this map: the whole row, or two halves for staff, the right one for
+    // everyone on the server.
+    let map_button = Rect::new(
+        x,
+        y,
+        if person.map_block.is_some_and(|row| row.staff.is_some()) {
+            half
+        } else {
+            inner
+        },
+        BUTTON * u,
+    );
+    let staff_button = Rect::new(x + inner - half, y, half, BUTTON * u);
+    if let Some(row) = person.map_block {
+        let own = match (row.own, row.staff.is_some()) {
+            (false, false) => "Block for this map",
+            (true, false) => "Unblock this map",
+            (false, true) => "Block this map",
+            (true, true) => "Unblock map",
+        };
+        card_button(canvas, map_button, u, tokens.map_block, own, color::GOLD);
+        if let Some(staff) = row.staff {
+            let label = if staff {
+                "Unblock all"
+            } else {
+                "Block for all"
+            };
+            card_button(
+                canvas,
+                staff_button,
+                u,
+                tokens.staff_block,
+                label,
+                color::EMBER,
+            );
+        }
+        y += (BUTTON + 6.0) * u;
+    }
     // The first row: Block on the left, and on the right Trade (when they can be asked)
     // or Ban 24 h: two even halves.
-    let half = (inner - 8.0 * u) * 0.5;
     let button = Rect::new(x, y, half, BUTTON * u);
     let right = Rect::new(x + inner - half, y, half, BUTTON * u);
     card_button(
@@ -496,6 +552,12 @@ pub(crate) fn draw(
         canvas.hit_region(token, whisper_button);
     }
     canvas.hit_region(tokens.mute, button);
+    if let Some(row) = person.map_block {
+        canvas.hit_region(tokens.map_block, map_button);
+        if row.staff.is_some() {
+            canvas.hit_region(tokens.staff_block, staff_button);
+        }
+    }
     if person.trade {
         canvas.hit_region(tokens.trade, right);
     }
@@ -574,6 +636,8 @@ mod tests {
         report: 11,
         whisper: None,
         trade: 12,
+        map_block: 13,
+        staff_block: 14,
     };
 
     #[test]
@@ -676,7 +740,47 @@ mod tests {
             safety: false,
             report: false,
             trade: false,
+            map_block: None,
         }
+    }
+
+    #[test]
+    fn a_player_on_the_server_can_be_blocked_for_the_map_and_by_staff_for_all() {
+        let (canvas, _, texts, _) = drawn(&sol(), false);
+        assert!(
+            canvas.rect_for(TOKENS.map_block).is_none(),
+            "not on the server"
+        );
+        assert!(!texts.iter().any(|text| text.contains("this map")));
+        let player = Person {
+            map_block: Some(MapBlockRow::default()),
+            ..sol()
+        };
+        let (canvas, rect, texts, _) = drawn(&player, false);
+        let map = canvas
+            .rect_for(TOKENS.map_block)
+            .expect("Block for this map");
+        assert!(texts.iter().any(|text| text == "Block for this map"));
+        assert!(canvas.rect_for(TOKENS.staff_block).is_none(), "staff only");
+        assert!(map.right() <= rect.right());
+        let staff = Person {
+            map_block: Some(MapBlockRow {
+                own: true,
+                staff: Some(false),
+            }),
+            ..sol()
+        };
+        let (canvas, rect, texts, _) = drawn(&staff, false);
+        for wanted in ["Unblock map", "Block for all"] {
+            assert!(texts.iter().any(|text| text == wanted), "{wanted}");
+        }
+        let (map, all) = (
+            canvas.rect_for(TOKENS.map_block).unwrap(),
+            canvas.rect_for(TOKENS.staff_block).unwrap(),
+        );
+        assert!(map.right() <= all.x && all.right() <= rect.right() && map.y == all.y);
+        let block = canvas.rect_for(TOKENS.mute).expect("Block");
+        assert!(map.bottom() <= block.y, "above Block");
     }
 
     /// The card drawn at (100, 100) on a 1080p canvas: its texts and whether it has

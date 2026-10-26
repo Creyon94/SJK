@@ -242,6 +242,7 @@ mod jetpack;
 mod live_session;
 mod looks;
 mod looks_frame;
+mod map_blocks;
 mod map_edits;
 mod net_timing;
 mod particle_motion;
@@ -644,6 +645,8 @@ struct GpuState {
     chat: chat::ChatOverlay,
     /// Players muted on this PC who are on the server being played.
     muted_players: muted_players::MutedPlayers,
+    /// Players blocked until the map changes, by this player or by staff for everyone.
+    map_blocks: map_blocks::MapBlocks,
     game_menu: bool,
     in_game_menu: ingame_menu::InGameMenu,
     game_menu_page: GameMenuPage,
@@ -1582,6 +1585,7 @@ impl GpuState {
             scoreboard: scoreboard::Scoreboard::new(),
             chat: chat::ChatOverlay::with_emojis(emojis),
             muted_players: muted_players::MutedPlayers::default(),
+            map_blocks: map_blocks::MapBlocks::default(),
             game_menu,
             in_game_menu: ingame_menu::InGameMenu::new(),
             game_menu_page: if game_menu {

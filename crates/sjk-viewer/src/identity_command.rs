@@ -206,6 +206,7 @@ mod tests {
                 shards: 0,
             }),
             server: None,
+            map_blocks: Vec::new(),
             players: vec![Presence {
                 slot: 3,
                 claimed_name: "^1Fox".to_owned(),

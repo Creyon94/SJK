@@ -141,6 +141,23 @@ pub enum StaffRequest {
         /// Why, shown with it; may be empty.
         note: String,
     },
+    /// Block a player of the game server being played for every SJK player there who
+    /// follows staff blocks, until its map changes (`PROTOCOL.md`, "Map blocks"), or
+    /// lift that block.
+    MapBlock {
+        /// The game server, `ip:port`.
+        server: String,
+        /// The map, as the game names it.
+        map: String,
+        /// The server's `sv_serverid` for this map load.
+        serverid: i64,
+        /// The player's slot.
+        slot: u8,
+        /// What the game shows in that slot.
+        name: String,
+        /// Block (true) or lift the block.
+        blocked: bool,
+    },
     /// Change a player's kyber shards by `delta` (`PROTOCOL.md`, "Shards and the
     /// shop"), as [`Self::Credits`] does credits.
     Shards {
@@ -157,7 +174,7 @@ impl StaffRequest {
     /// The key the request changes, if it changes one.
     pub fn target(&self) -> Option<&str> {
         match self {
-            Self::Search(_) | Self::ChatDelete { .. } => None,
+            Self::Search(_) | Self::ChatDelete { .. } | Self::MapBlock { .. } => None,
             Self::Award { key_id, .. }
             | Self::Unaward { key_id, .. }
             | Self::Unlock { key_id, .. }
@@ -465,6 +482,12 @@ pub(crate) fn done(request: &StaffRequest, count: usize) -> String {
             format!("Took {} kyber shards", delta.unsigned_abs())
         }
         StaffRequest::Shards { delta, .. } => format!("Gave {delta} kyber shards"),
+        StaffRequest::MapBlock { blocked: true, .. } => {
+            "Blocked for everyone on this map".to_owned()
+        }
+        StaffRequest::MapBlock { blocked: false, .. } => {
+            "No longer blocked for everyone".to_owned()
+        }
     }
 }
 

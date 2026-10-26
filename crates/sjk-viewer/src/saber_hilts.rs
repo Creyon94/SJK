@@ -132,6 +132,15 @@ impl HiltCatalog {
 
     /// Whether `name` is loaded, unknown to the `.sab` files, or failed —
     /// in every case [`Self::get`] has an answer without loading anything.
+    /// Whether the saber `name` is a staff (or any one hilt with more blades), as its
+    /// definition says; an unknown saber is not.
+    pub(crate) fn is_staff(&self, name: &str) -> bool {
+        self.definitions
+            .get(name)
+            .or_else(|| self.definitions.get(&name.to_ascii_lowercase()))
+            .is_some_and(|definition| definition.is_staff)
+    }
+
     pub(crate) fn is_resolved(&self, name: &str) -> bool {
         name.eq_ignore_ascii_case("none")
             || self.hilts.contains_key(name)

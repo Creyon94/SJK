@@ -666,6 +666,7 @@ mod tests {
             key_id: "0123456789abcdef".to_owned(),
             me: None,
             server: None,
+            map_blocks: Vec::new(),
             players: Vec::new(),
             profiles: HashMap::new(),
             model_checks: HashMap::new(),

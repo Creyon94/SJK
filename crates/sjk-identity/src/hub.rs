@@ -534,6 +534,14 @@ pub trait Hub: Send {
     fn release(&mut self, identity: &Identity, server: &str) -> Result<(), HubError>;
     /// The live claims on `server`.
     fn presence(&mut self, server: &str) -> Result<Vec<Presence>, HubError>;
+    /// The live claims on `server` and the players staff blocked there for everyone
+    /// (`PROTOCOL.md`, "Map blocks"); hubs before map blocks give none.
+    fn presence_with_blocks(
+        &mut self,
+        server: &str,
+    ) -> Result<(Vec<Presence>, Vec<crate::MapBlock>), HubError> {
+        self.presence(server).map(|players| (players, Vec::new()))
+    }
     /// Send a world note signed by the identity; the hub answers with its number.
     fn note(&mut self, _identity: &Identity, _note: &WorldNote) -> Result<i64, HubError> {
         Err(HubError::Protocol(
@@ -1117,6 +1125,20 @@ fn staff_call(request: &StaffRequest) -> (&'static str, Value) {
             json!({ "key_id": key_id, "muted": muted }),
         ),
         StaffRequest::ChatUnban { key_id } => ("/v1/staff/chat-unban", json!({ "key_id": key_id })),
+        StaffRequest::MapBlock {
+            server,
+            map,
+            serverid,
+            slot,
+            name,
+            blocked,
+        } => (
+            "/v1/staff/map-block",
+            json!({
+                "server": server, "map": map, "serverid": serverid,
+                "slot": slot, "name": name, "blocked": blocked
+            }),
+        ),
         StaffRequest::AvatarRemove { key_id } => {
             ("/v1/staff/avatar-remove", json!({ "key_id": key_id }))
         }
@@ -1307,7 +1329,8 @@ impl Hub for HttpHub {
             // The chat's moderation answers `{}`.
             StaffRequest::ChatDelete { .. }
             | StaffRequest::ChatMute { .. }
-            | StaffRequest::ChatUnban { .. } => Ok(Vec::new()),
+            | StaffRequest::ChatUnban { .. }
+            | StaffRequest::MapBlock { .. } => Ok(Vec::new()),
             _ => Ok(vec![parse(answer)?]),
         }
     }
@@ -1589,6 +1612,18 @@ impl Hub for HttpHub {
         let query = encode_server(server);
         let answer = self.send(None, "GET", &format!("/v1/presence?server={query}"), None)?;
         parse(answer["players"].clone())
+    }
+
+    fn presence_with_blocks(
+        &mut self,
+        server: &str,
+    ) -> Result<(Vec<Presence>, Vec<crate::MapBlock>), HubError> {
+        let query = encode_server(server);
+        let answer = self.send(None, "GET", &format!("/v1/presence?server={query}"), None)?;
+        let players = parse(answer["players"].clone())?;
+        // A hub from before map blocks leaves them out; a malformed list is none.
+        let blocks = serde_json::from_value(answer["blocks"].clone()).unwrap_or_default();
+        Ok((players, blocks))
     }
 
     fn set_models(&mut self, identity: &Identity, models: &[String]) -> Result<u64, HubError> {
@@ -1978,6 +2013,33 @@ mod tests {
             true,
         );
         assert!(matches!(refused, Some(HubError::Rejected { message, .. }) if message == "muted"));
+    }
+
+    #[test]
+    fn a_staff_map_block_sends_the_protocols_fields() {
+        assert_eq!(
+            staff_call(&StaffRequest::MapBlock {
+                server: "1.2.3.4:29070".into(),
+                map: "mp/ffa3".into(),
+                serverid: 77,
+                slot: 5,
+                name: "^1Troll".into(),
+                blocked: true,
+            }),
+            (
+                "/v1/staff/map-block",
+                json!({"server": "1.2.3.4:29070", "map": "mp/ffa3", "serverid": 77,
+                       "slot": 5, "name": "^1Troll", "blocked": true})
+            )
+        );
+        let block: crate::MapBlock = serde_json::from_value(
+            json!({"map": "mp/ffa3", "serverid": 77, "slot": 5, "name": "^1Troll", "at": 9}),
+        )
+        .unwrap();
+        assert_eq!(
+            (block.slot, block.serverid, block.name.as_str()),
+            (5, 77, "^1Troll")
+        );
     }
 
     #[test]

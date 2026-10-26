@@ -1063,6 +1063,10 @@ const HELP: &[(&str, &str)] = &[
         "Whispers to SJK players go end-to-end encrypted through the SJK hub: only you two can read them. Off sends them through the server.",
     ),
     (
+        crate::map_blocks::CVAR,
+        "Players SJK staff block for everyone show as a silent BLOCKED Kyle until the map changes. Off shows them as usual.",
+    ),
+    (
         super::catalog::IDENTITY_ROW,
         "Your SJK key: switch it on, back it up, copy its id. Enter opens it; the key stays hidden until Show.",
     ),

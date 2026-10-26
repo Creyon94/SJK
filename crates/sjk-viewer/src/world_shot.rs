@@ -1273,6 +1273,7 @@ Found the fog bug, ask me about it!"
             local_key_id: me.key_id.clone(),
             me: Some(me),
             server: None,
+            map_blocks: Vec::new(),
             players: Vec::new(),
             profiles: std::collections::HashMap::new(),
             model_checks: std::collections::HashMap::new(),
