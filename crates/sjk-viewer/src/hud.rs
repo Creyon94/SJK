@@ -553,10 +553,12 @@ impl HudOverlay {
                 crosshair::rect(crosshair_look, self.targeting.center(viewport), viewport),
                 self.icons.cell(icons::assets::HACKER),
             );
+            // The crosshair's middle is a fraction of the screen: in pixels here.
+            let [x, y] = self.targeting.center(viewport);
             monitor_marks::emit(
                 &mut self.draw_list,
                 viewport,
-                self.targeting.center(viewport),
+                [x * viewport[0], y * viewport[1]],
                 self.monitor_marks,
             );
         }

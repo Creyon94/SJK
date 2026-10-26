@@ -9,6 +9,10 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 26/10/2026 | - | Charge ring and hit marker centred
+- 51656fc |  | Monitor: the charge ring and hit marker stand round the crosshair, not in the top left corner
++ 26/10/2026 | - | Release 2026.1026.4
+- d9f8c65 |  | Release 2026.1026.4
 + 26/10/2026 | - | Block for this map, staff Block for all, BLOCKED names
 - 8f59376 |  | Block a player for this map, staff Block for all, BLOCKED names
 + 26/10/2026 | - | Credits history: names follow ragdolls
