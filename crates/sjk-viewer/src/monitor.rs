@@ -29,6 +29,9 @@
 //!   hit marker on their crosshair and hears [`HIT_SOUND`] when the struck player's
 //!   blow reaches them (red for a hard one).
 //!
+//! - **Busy:** nobody is struck while typing (a key catcher open: the chat, the
+//!   console, a menu, the talk balloon's `EF_TALK` for others) or away (alt-tabbed or
+//!   idle, or an away tag in their name, as the Hax reads it): a monitor passes through.
 //! - **Foreseen:** every SJK client also tries each monitor against the other players
 //!   who have the toy on (their look says so) as it sees them, and on a hit knocks
 //!   their body down and bounces the monitor at once, as a shooter shows a hit before
@@ -150,8 +153,10 @@ const STRONG_PUSH: f32 = 2_400.0;
 /// A hit on another player is foreseen only for a step this recent (ms): one older
 /// (a throw heard late, a flight run again) waits for their word.
 const FORESEE_LATE_MS: i64 = 300;
-/// `EF_DEAD`, `ET_PLAYER`, and the clients' slots.
+/// `EF_DEAD`, `EF_TALK` (a key catcher open: typing, a menu), `ET_PLAYER`, and the
+/// clients' slots.
 const EF_DEAD: u32 = 1 << 1;
+const EF_TALK: u32 = sjk_game_jka::pmove_talk::EF_TALK;
 const ET_PLAYER: u8 = 1;
 const MAX_CLIENTS: u16 = 32;
 /// The charge's sound, on its own source so its release stops it.
@@ -791,9 +796,11 @@ impl GpuState {
                 || sjk & (1 << slot) == 0
                 || !self.looks.toy(usize::from(slot), TOY)
                 || self.muted_players.contains(number)
-                || entity.e_flags() & EF_DEAD != 0
+                || entity.e_flags() & (EF_DEAD | EF_TALK) != 0
                 || entity.bolt1()
                 || self.ragdoll.guessing(slot)
+                || crate::player_identity::shown_name(session.game_state(), usize::from(slot))
+                    .is_some_and(|name| self.scoreboard.seen_away(slot, &name))
             {
                 continue;
             }
@@ -950,9 +957,14 @@ impl GpuState {
         );
     }
 
-    /// The player's own body as a monitor may strike it, if it may be struck.
+    /// The player's own body as a monitor may strike it, if it may be struck: not while
+    /// typing (or in a menu) nor away.
     fn monitor_target(&self) -> Option<Target> {
-        if !self.monitor.on || !self.ragdoll.strikable() {
+        if !self.monitor.on
+            || !self.ragdoll.strikable()
+            || self.talk_button()
+            || self.hax_own_away()
+        {
             return None;
         }
         if let Some(points) = self.ragdoll.own_points() {

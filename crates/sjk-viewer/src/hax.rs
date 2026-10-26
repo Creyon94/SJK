@@ -1203,7 +1203,7 @@ impl GpuState {
 
     /// Whether the player is away from the keyboard, as their own client knows it: idle or
     /// alt-tabbed (`away_emote`), or wearing an away tag in their name (`afk`).
-    fn hax_own_away(&self) -> bool {
+    pub(crate) fn hax_own_away(&self) -> bool {
         crate::away_emote::own_away()
             || self.hax_own().is_some_and(|own| {
                 let name = self.hax_name(own);
