@@ -569,7 +569,7 @@ impl crate::GpuState {
                 clock: state.clock(),
                 resets_at: state.list.today.resets_at,
                 steps: state.steps,
-                problem: state.problem.clone(),
+                problem: crate::terms::say_owned(state.problem.clone()),
             }))
         })
         .flatten();

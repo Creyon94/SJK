@@ -270,6 +270,17 @@ feature off stops queued/current confirmations. EJK #117 has no separate Dash
 confirmation cue. Nothing is bundled or downloaded, and base SJK owns none of
 these command names, sounds or repeat rules.
 
+### Honors and Echoes
+
+`jof.honorNames` (archived, on by default; 26/10/2026, JoF's request) calls medals
+"Honors" and holocrons "Echoes" (an Honor, an Echo) in every menu and message while
+`mod_jof` is on, on every server and in the menus too, not only on JoF servers. Off, or
+with `mod_jof 0`, they keep SJK's names. Only the client's own words change: what the
+hub, players or a map wrote (achievements' hub text, announcements, names, chat, the
+"Holocron FFA" game type, the lore holocrons in shader names, the Illuminate holocron
+toy) keeps its words. The words and the switch are
+[terms.rs](../crates/sjk-viewer/src/terms.rs); the setting is in Settings, Mods.
+
 ### SJK chat on JoF servers
 
 [sjk-mod-jof/sjk_chat.rs](../crates/sjk-mod-jof/src/sjk_chat.rs) says what the player

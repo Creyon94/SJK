@@ -101,6 +101,7 @@ did: debug_collectibles: staff try every collectible on their own PC, without th
 did: SJK chat through the hub, seen in the menus and in games, and the path for emotes
 did: End-to-end encrypted whispers between SJK players, through the hub
 did: Encrypted whispers for verified players, JoF's own whispers kept, signed whisper reports
+did: JoF names: Honors for medals and Echoes for holocrons while JoF tools are on
 did: Synced emotes: join another player's emote in step, music included
 did: Unlockables: the Sun blade skin and looks every SJK player sees
 did: The Collection: medals, achievements, saber shaders, toys and nameplates

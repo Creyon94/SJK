@@ -32,8 +32,13 @@ pub(crate) fn words(message: &ChatMessage) -> Option<Words> {
     let tier = super::any(&mark.tier)?;
     let end = if tier.is_announced() { '!' } else { '.' };
     let rest = match &mark.find {
-        Some(find) => format!("opened {} {}: {}!", tier.article(), tier.name, prize(find)),
-        None => format!("found {} {}{end}", tier.article(), tier.name),
+        Some(find) => format!(
+            "opened {} {}: {}!",
+            tier.article(),
+            tier.title(),
+            prize(find)
+        ),
+        None => format!("found {} {}{end}", tier.article(), tier.title()),
     };
     let text = if mark.own {
         format!("You {rest}")

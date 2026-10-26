@@ -179,7 +179,7 @@ fn lay(message: &ChatMessage, inputs: &Inputs<'_>, measure: &Measure<'_>, s: f32
     } else if let Some(words) = &words {
         words.rest.clone()
     } else if drop {
-        "found a holocron.".to_owned()
+        crate::terms::say("found a holocron.").into_owned()
     } else {
         // A muted sender's GIF is never asked for: the text above says so instead.
         let (text, id) =

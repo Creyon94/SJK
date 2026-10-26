@@ -183,6 +183,11 @@ impl Tier {
         }
     }
 
+    /// The name as players read it ([`crate::terms`]: "Rare Echo" with JoF's names).
+    pub(crate) fn title(&self) -> std::borrow::Cow<'static, str> {
+        crate::terms::say(self.name)
+    }
+
     /// "a" or "an" for the name: "an Uncommon Holocron", "a Rare Holocron".
     pub(crate) fn article(&self) -> &'static str {
         if self.name.starts_with(['A', 'E', 'I', 'O', 'U']) {

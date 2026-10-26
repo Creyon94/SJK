@@ -592,7 +592,8 @@ impl SettingsMenu {
             // label in steady white over its band.
             let label_color = if focused { FOCUS } else { OPTION };
             let value_color = if focused { FOCUS } else { VALUE };
-            let (label, timing) = help::classic_label(setting.cvar, setting.label);
+            let (label, timing) =
+                help::classic_label(setting.cvar, crate::terms::say_static(setting.label));
             place.label_marked(
                 &mut self.ui,
                 slot,
@@ -950,7 +951,7 @@ fn detail_of<'a>(
     };
     let value = values.get(row).map_or("", String::as_str);
     Detail {
-        title: help::timing(setting.label).0,
+        title: help::timing(crate::terms::say_static(setting.label)).0,
         value: match setting.kind() {
             ValueKind::Bool => on_off(value),
             _ => value,

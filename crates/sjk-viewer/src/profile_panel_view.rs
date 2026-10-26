@@ -416,7 +416,7 @@ impl Panel {
             text(
                 &mut self.ui,
                 TextFamily::Display,
-                format_args!("{}", standing.kind.name),
+                format_args!("{}", crate::terms::say(standing.kind.name)),
                 frame.rect(LEFT_X, y, LEFT_WIDTH - 140.0, 28.0),
                 21.0 * s,
                 color::GOLD_BRIGHT,
@@ -1013,7 +1013,7 @@ impl Panel {
             RIGHT_X,
             TOP + 20.0,
             RIGHT_WIDTH,
-            "Medals",
+            &crate::terms::say("Medals"),
         );
         let mut y = TOP + 48.0;
         let medals = inputs
@@ -1022,7 +1022,7 @@ impl Panel {
             .map(|me| crate::medals::awards(&me.medals))
             .unwrap_or_default();
         if medals.is_empty() {
-            for part in wrap(NO_MEDALS, 48) {
+            for part in wrap(&crate::terms::say(NO_MEDALS), 48) {
                 text(
                     &mut self.ui,
                     TextFamily::Body,
@@ -1146,7 +1146,8 @@ impl Panel {
             )
         } else {
             (
-                "Medals, shaders, toys and more, kept on the SJK hub".to_owned(),
+                crate::terms::say("Medals, shaders, toys and more, kept on the SJK hub")
+                    .into_owned(),
                 17.0,
                 color::MUTED,
             )
@@ -1181,7 +1182,14 @@ impl Panel {
         } else {
             "Holocrons"
         };
-        kit::heading(&mut self.ui, frame, RIGHT_X, y, RIGHT_WIDTH, heading);
+        kit::heading(
+            &mut self.ui,
+            frame,
+            RIGHT_X,
+            y,
+            RIGHT_WIDTH,
+            &crate::terms::say(heading),
+        );
         let known = inputs
             .snapshot
             .filter(|_| inputs.enabled)
@@ -1192,8 +1200,16 @@ impl Panel {
                     .sum::<u32>()
             });
         let (line, size, colour) = match known {
-            Some(1) => ("1 holocron".to_owned(), 30.0, color::TEXT),
-            Some(total) => (format!("{total} holocrons"), 30.0, color::TEXT),
+            Some(1) => (
+                crate::terms::say("1 holocron").into_owned(),
+                30.0,
+                color::TEXT,
+            ),
+            Some(total) => (
+                crate::terms::say_owned(format!("{total} holocrons")),
+                30.0,
+                color::TEXT,
+            ),
             None => (
                 "Found by playing, kept on the SJK hub".to_owned(),
                 17.0,
@@ -1214,7 +1230,7 @@ impl Panel {
             &mut self.ui,
             frame,
             [RIGHT_X, y + 76.0, 240.0, 46.0],
-            "See holocrons",
+            &crate::terms::say("See holocrons"),
             false,
             true,
             self.focus == Focus::Holocrons,

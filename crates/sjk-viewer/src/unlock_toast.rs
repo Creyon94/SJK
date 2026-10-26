@@ -320,12 +320,12 @@ pub(crate) struct Name(Unlock);
 impl fmt::Display for Name {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.0 {
-            Unlock::Achievement { kind, .. } => formatter.write_str(kind.name),
+            Unlock::Achievement { kind, .. } => formatter.write_str(&crate::terms::say(kind.name)),
             Unlock::Medal { medal, count } if count > 1 => {
                 write!(formatter, "{} x{count}", medal.name())
             }
             Unlock::Medal { medal, .. } => formatter.write_str(medal.name()),
-            Unlock::Holocron { tier, .. } => formatter.write_str(tier.name),
+            Unlock::Holocron { tier, .. } => formatter.write_str(&tier.title()),
             Unlock::Update { version, .. } => write!(formatter, "SJK {}", version.as_str()),
             Unlock::Reward { .. } => formatter.write_str("Contributor reward waiting"),
         }
@@ -339,7 +339,9 @@ pub(crate) struct Description(Unlock);
 impl fmt::Display for Description {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.0 {
-            Unlock::Achievement { kind, .. } => formatter.write_str(kind.description),
+            Unlock::Achievement { kind, .. } => {
+                formatter.write_str(&crate::terms::say(kind.description))
+            }
             Unlock::Medal { medal, .. } => formatter.write_str(medal.description()),
             Unlock::Holocron { gift: true, .. } => formatter.write_str("A gift from the SJK team"),
             Unlock::Holocron {
@@ -834,7 +836,7 @@ fn draw(canvas: &mut MenuCanvas, unlock: Unlock, t: f32, viewport: [f32; 2]) {
     };
     spaced(
         canvas,
-        format_args!("{}", unlock.kicker()),
+        format_args!("{}", crate::terms::say(unlock.kicker())),
         column(12.0, 24.0),
         KICKER_SIZE * k,
         color::GOLD,

@@ -41,11 +41,11 @@ pub(super) enum AskAll {
 /// The card's title and words for `opening` holocrons (or kyber crystals, `crystals`) of
 /// the `held` the page can open.
 pub(super) fn words(opening: usize, held: usize, crystals: bool) -> (String, Vec<String>) {
-    let things = if crystals {
+    let things = crate::terms::say(if crystals {
         "kyber crystals"
     } else {
         "holocrons"
-    };
+    });
     let title = if held > opening {
         format!("Open {opening} of your {held} {things}?")
     } else {

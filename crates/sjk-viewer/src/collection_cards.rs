@@ -98,9 +98,11 @@ fn headline(
         line.push_str(&format!("   ·   {} more sets", progress.len() - 4));
     }
     if stacks.is_empty() {
-        let open = "Open a holocron on the Holocrons tab: each holds a card and credits.";
+        let open = crate::terms::say(
+            "Open a holocron on the Holocrons tab: each holds a card and credits.",
+        );
         line = if line.is_empty() {
-            open.to_owned()
+            open.into_owned()
         } else {
             format!("{line}.   {open}")
         };
@@ -1010,7 +1012,7 @@ pub(super) fn rarity_odds(rarity: &cards::Rarity, faces: &cards::faces::Faces) -
         .iter()
         .map(|finish| loot::kind_any(rarity.index, finish.index))
         .sum();
-    let odds = match loot::one_in(chance) {
+    let odds = crate::terms::say_owned(match loot::one_in(chance) {
         rare if rare.is_empty() => format!(
             "From holocrons: {} of holocrons found hold a {} card",
             loot::percent(chance),
@@ -1021,7 +1023,7 @@ pub(super) fn rarity_odds(rarity: &cards::Rarity, faces: &cards::faces::Faces) -
             rarity.name,
             loot::percent(chance)
         ),
-    };
+    });
     match faces
         .list
         .iter()

@@ -176,7 +176,7 @@ impl ForgeData {
                 "Update SJK to trade: the Forge needs SJK {min} or newer."
             ))
         } else {
-            Some("The Forge opens with holocrons: soon.".to_owned())
+            Some(crate::terms::say("The Forge opens with holocrons: soon.").into_owned())
         };
         Self {
             closed,

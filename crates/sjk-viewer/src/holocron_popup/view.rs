@@ -308,7 +308,8 @@ impl std::fmt::Display for Odds {
         if self.0.is_kyber() {
             formatter.write_str(crate::kyber::ABOUT)
         } else {
-            write!(formatter, "{} of holocrons are this rare", self.0.odds())
+            let rare = format!("{} of holocrons are this rare", self.0.odds());
+            formatter.write_str(&crate::terms::say(&rare))
         }
     }
 }
@@ -327,11 +328,11 @@ fn words(
     let hue = color::alpha(tier.colour, 1.0);
     // A kyber crystal: "Earned: First Blood", or from an achievement the hub did not name.
     let earned = &crate::kyber::Earned::of(&view.entry.note);
-    let kicker = if tier.is_kyber() {
+    let kicker = crate::terms::say(if tier.is_kyber() {
         "New kyber crystal"
     } else {
         "New holocron"
-    };
+    });
     group(ui, moment, Words::Kicker, |ui, rise| {
         match view.place {
             Some((at, of)) => line(
@@ -378,7 +379,7 @@ fn words(
             ui,
             frame,
             TextFamily::Display,
-            format_args!("{}", tier.name),
+            format_args!("{}", tier.title()),
             NAME_Y + rise,
             NAME_SIZE,
             hue,

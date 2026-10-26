@@ -310,7 +310,14 @@ impl Panel {
                 (&self.row, 1.0),
             );
         } else {
-            top_bar(&mut self.ui, &frame, "Back", BACK_TOKEN, "Holocrons", None);
+            top_bar(
+                &mut self.ui,
+                &frame,
+                "Back",
+                BACK_TOKEN,
+                &crate::terms::say("Holocrons"),
+                None,
+            );
         }
         let keys = frame;
         // Under the Collection screen's row of tabs the page moves down.
@@ -387,7 +394,7 @@ impl Panel {
         text(
             &mut self.ui,
             TextFamily::Display,
-            format_args!("{headline}"),
+            format_args!("{}", crate::terms::say(&headline)),
             frame.rect(RIGHT_X, HEAD_Y, RIGHT_WIDTH, 48.0),
             38.0 * s,
             color::TEXT,
@@ -397,7 +404,7 @@ impl Panel {
         text(
             &mut self.ui,
             TextFamily::Body,
-            format_args!("{line}"),
+            format_args!("{}", crate::terms::say(line)),
             frame.rect(RIGHT_X, LINE_Y, RIGHT_WIDTH, 26.0),
             17.0 * s,
             color::MUTED,
@@ -471,7 +478,7 @@ impl Panel {
             text(
                 &mut self.ui,
                 TextFamily::Display,
-                format_args!("{}", tier.name),
+                format_args!("{}", tier.title()),
                 frame.rect(RIGHT_X + 90.0, y + 2.0, 440.0, 32.0),
                 27.0 * s,
                 tier.colour_alpha(if held { 1.0 } else { 0.62 }),
@@ -650,7 +657,7 @@ impl Panel {
         let s = frame.s;
         let tier = self.selected();
         let mut y = ABOUT_Y;
-        for part in wrap(tier.about(), ABOUT_CHARS).take(2) {
+        for part in wrap(&crate::terms::say(tier.about()), ABOUT_CHARS).take(2) {
             text(
                 &mut self.ui,
                 TextFamily::Body,
@@ -712,7 +719,7 @@ impl Panel {
         text(
             &mut self.ui,
             TextFamily::Display,
-            format_args!("{next}"),
+            format_args!("{}", crate::terms::say(next)),
             frame.rect(RIGHT_X, NEXT_Y, RIGHT_WIDTH - 190.0, 30.0),
             22.0 * s,
             if self.data.next.is_empty() {
@@ -762,7 +769,7 @@ impl Panel {
             RIGHT_X,
             RECENT_Y + 10.0,
             RIGHT_WIDTH - 130.0,
-            "Recent holocrons",
+            &crate::terms::say("Recent holocrons"),
         );
         text(
             &mut self.ui,
@@ -803,7 +810,7 @@ impl Panel {
             text(
                 &mut self.ui,
                 TextFamily::Display,
-                format_args!("{}", tier.name),
+                format_args!("{}", tier.title()),
                 frame.rect(x + 38.0, y + 3.0, 210.0, 22.0),
                 18.0 * s,
                 tier.colour_alpha(if recent.opened { 0.55 } else { 1.0 }),
@@ -899,7 +906,7 @@ impl Panel {
         text(
             &mut self.ui,
             TextFamily::Display,
-            format_args!("{}", tier.name),
+            format_args!("{}", tier.title()),
             frame.rect(centre - 380.0, NAME_Y, 760.0, 56.0),
             46.0 * s,
             tier.colour_alpha(if held { 1.0 } else { 0.7 }),
@@ -926,7 +933,7 @@ impl Panel {
             _ => text(
                 &mut self.ui,
                 TextFamily::Body,
-                format_args!("{line}"),
+                format_args!("{}", crate::terms::say(line)),
                 frame.rect(centre - 380.0, HELD_Y, 760.0, 28.0),
                 19.0 * s,
                 color::MUTED,
@@ -944,7 +951,7 @@ impl Panel {
             text(
                 &mut self.ui,
                 TextFamily::Body,
-                format_args!("{line}"),
+                format_args!("{}", crate::terms::say(&line)),
                 frame.rect(STAGE_AT[0] - 460.0, BUTTONS_Y, 920.0, BUTTON_HEIGHT),
                 19.0 * frame.s,
                 color::TEXT,
@@ -957,7 +964,7 @@ impl Panel {
             text(
                 &mut self.ui,
                 TextFamily::Body,
-                format_args!("{CLOSED_LINE}"),
+                format_args!("{}", crate::terms::say(CLOSED_LINE)),
                 frame.rect(STAGE_AT[0] - 380.0, BUTTONS_Y, 760.0, BUTTON_HEIGHT),
                 19.0 * frame.s,
                 color::MUTED,
@@ -1048,7 +1055,7 @@ impl Panel {
         if self.hub {
             add(
                 &["Ctrl", "Tab"],
-                crate::profile_hub::Tab::Holocrons.next(true).label(),
+                crate::terms::say_static(crate::profile_hub::Tab::Holocrons.next(true).label()),
             );
         }
         add(&["Esc"], "back");
@@ -1078,9 +1085,9 @@ pub(super) fn tier_card(index: usize, data: &Data) -> crate::menu::sjk::hover::C
     let minutes = data.every.map_or(30, |every| (every / 60).max(1));
     let cap = data.today.map_or(8, |(_, cap)| cap);
     let mut lines = vec![
-        Line::how(format!(
+        Line::how(crate::terms::say_owned(format!(
             "Found by playing on a server: one holocron every {minutes} minutes of active play, at most {cap} in 24 hours."
-        )),
+        ))),
         Line::status(format!(
             "{} of drops are {}. The SJK team can also give one.",
             tier.odds(),
@@ -1093,7 +1100,7 @@ pub(super) fn tier_card(index: usize, data: &Data) -> crate::menu::sjk::hover::C
         None => {}
     }
     Card {
-        title: tier.name.to_owned(),
+        title: tier.title().into_owned(),
         colour: tier.colour,
         lines,
     }
@@ -1116,7 +1123,7 @@ fn crystal_card(tier: &'static Tier, data: &Data) -> crate::menu::sjk::hover::Ca
         None => {}
     }
     Card {
-        title: tier.name.to_owned(),
+        title: tier.title().into_owned(),
         colour: tier.colour,
         lines,
     }

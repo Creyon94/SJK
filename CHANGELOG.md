@@ -32,6 +32,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
+- JoF names: with JoF tools on, medals are now called Honors and holocrons Echoes in every menu and message, as JoF asked; Settings > Mods > JoF names (`jof.honorNames`, on) brings back Medals and Holocrons. Names players, the hub and maps wrote keep their words _(Sol)_
 - The Monitor's charge ring and hit marker stand round your crosshair again: since 2026.1026.4 they were drawn in the top left corner of the screen _(Sol)_
 - An achievement SJK counts in your matches is announced, with its kyber crystal, only once the SJK hub has unlocked it: until then the Achievements tab says "Waiting for the SJK hub". With the identity off it unlocks at once and promises no crystal. Tactical Espionage counts with a player within about 28 m of the box (was 14 m), and Master Craftsman and Full Set say what the hub asks _(Sol)_
 - Monitor hits show at once: your game now sees a monitor strike another player who has the toy on and knocks them flying right away, with your hit marker, instead of waiting a moment for their game to say so; their game's word then settles where they land, and a hit they dodged on their screen is undone. The struck player also tells the thrower first _(Sol)_

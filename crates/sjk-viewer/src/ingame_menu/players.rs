@@ -486,7 +486,9 @@ impl State {
                 }
                 let trade = Self::trade_row();
                 rows[trade].push_str("Trade");
-                hints[trade].push_str(self.trade_blocked().unwrap_or(self.trade_hint()));
+                hints[trade].push_str(&crate::terms::say(
+                    self.trade_blocked().unwrap_or(self.trade_hint()),
+                ));
                 enabled[trade] = self.trade_blocked().is_none();
                 let back = trade + 1;
                 rows[back].push_str("Back");

@@ -7,6 +7,9 @@ is checked; the wire is the hub's `PROTOCOL.md` ("Holocrons") in Sol-Vulpes/SJK-
 decided together with the client and built in parallel. Players read the pop-up, the chat
 lines and the Collection's Holocrons tab.
 
+With the JoF tools on, holocrons are called "Echoes" and medals "Honors" by default
+([mods.md](mods.md#honors-and-echoes), `jof.honorNames`).
+
 ## Pieces
 
 | Piece | Where |

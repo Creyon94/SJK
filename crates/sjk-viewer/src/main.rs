@@ -315,6 +315,7 @@ mod static_models;
 mod stock_blades;
 mod support_links;
 mod symbols;
+mod terms;
 mod text;
 mod text_dialog;
 mod text_entry;

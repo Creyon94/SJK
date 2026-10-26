@@ -24,6 +24,16 @@
 
 # ---- Console & chat ----
 
+[jof-honor-names]
+area: Menus & settings
+title: JoF names: Honors for medals, Echoes for holocrons
+change: With mod_jof on and jof.honorNames on (default), medals read Honors, holocrons Echoes.
+change: Every menu and message, on every server; hub text, chat, names and Holocron FFA keep theirs.
+test: Profile, Collection, Holocrons tab, trade window, Esc menu: Honors and Echoes everywhere.
+test: debug_medal and debug_holocron: the pop-ups say New honor / New echo.
+test: Settings > Mods > JoF names off (or mod_jof 0): Medals and Holocrons are back at once.
+test: Settings > Game options: the "Holocron FFA" game type and Force holocron help keep their word.
+
 [map-block]
 area: Console & chat
 title: Block for this map, staff Block for all, BLOCKED names
