@@ -36,6 +36,9 @@ mod holster_submission;
 #[path = "player_sphere_submission.rs"]
 mod player_spheres;
 
+/// `EF_DEAD`.
+const EF_DEAD_FLAG: u32 = 1 << 1;
+
 struct Sinks<'a> {
     grip_victim: bool,
     force_fx: force_powers::policy::Policy,
@@ -52,6 +55,8 @@ struct Sinks<'a> {
     view_origin: Vec3,
     jetpack: crate::jetpack::Catalog,
     jetpack_sounds: &'a mut crate::jetpack::Sounds,
+    /// The boombox's model and who carries one (bits by slot, [`crate::boombox`]).
+    boombox: (Option<usize>, u64),
     world: &'a sjk_runtime::World,
     actor_meshes: &'a [ActorMesh],
     object_meshes: &'a [StaticModelMesh],
@@ -264,6 +269,12 @@ pub(crate) fn submit(
         view_origin: gpu.view_origin,
         jetpack: gpu.jetpack,
         jetpack_sounds: &mut gpu.jetpack_sounds,
+        boombox: (
+            gpu.object_meshes
+                .iter()
+                .position(|mesh| mesh.appearance.model == crate::boombox::MODEL),
+            gpu.boombox.carriers(),
+        ),
         world: active_world,
         actor_meshes: &gpu.actor_meshes,
         object_meshes: &gpu.object_meshes,
@@ -542,6 +553,32 @@ fn submit_actor(
         );
         return 0;
     }
+    // `EV_BODYFADE`: `CG_General` draws a fading body's layers and nothing else
+    // (`cg_ents.c`, [`crate::body_fade`]).
+    if entity.kind == EntityKind::Corpse
+        && (draw_actor || sinks.portal_view)
+        && let Some(index) = mesh
+        && let Some(fade) = meshes[index].body_fade.as_ref()
+    {
+        let rotation = weapon_view::actor_world_rotation(transform.rotation);
+        let mut body =
+            ActorInstance::new(transform.translation, rotation.to_array(), transform.scale)
+                .with_entity_color(entity.color());
+        body.view_flags = sinks.entity_view_flags | u32::from(!draw_actor);
+        let mut frame = crate::body_fade::Frame {
+            overrides: sinks.overrides,
+            materials: sinks.material_overrides,
+            audio: sinks.game_audio.as_mut(),
+            vfs: sinks.vfs,
+            now: presentation_time,
+        };
+        if crate::body_fade::submit(&mut frame, index, fade, entity, body) {
+            meshes[index]
+                .retained_pose
+                .mark_drawn(entity.id, presentation_time);
+            return 0;
+        }
+    }
     // A monster's victim is drawn in its hand or jaw (`cg_players.c:9220-9244`).
     let local = Some(entity.id.get()) == local_entity_id;
     let trick = trick_fade(sinks, snapshot, state, local, presentation_time);
@@ -576,7 +613,7 @@ fn submit_actor(
         let (hand, _) = saber::world_attachment(
             Vec3::from_array(transform.translation),
             weapon_view::actor_world_rotation(transform.rotation),
-            attachment,
+            attachment.scaled(transform.scale),
         );
         grapple_rope::submit(sinks, client, hand, visual_now);
     }
@@ -776,6 +813,22 @@ fn submit_actor(
             presentation_time as i32,
             visual_now,
         );
+    }
+    // The boombox on a carrier's shoulder, as their jetpack: none on the dead.
+    if entity.kind == EntityKind::Actor
+        && let (Some(mesh), (Some(boombox), carriers)) = (mesh, sinks.boombox)
+        && number < 64
+        && carriers & 1 << number != 0
+        && e_flags & EF_DEAD_FLAG == 0
+        && !trick.hidden
+    {
+        let actor = &sinks.actor_meshes[mesh];
+        if let Some(mut instance) = actor.animator.requested.and_then(|_| {
+            crate::boombox::instance(&actor.preview, actor.animator.matrices(), *transform)
+        }) {
+            instance.view_flags = sinks.entity_view_flags | u32::from(!draw_actor);
+            sinks.object_groups[boombox].push(instance);
+        }
     }
     // Everything after stock's mind-trick cut-off is skipped for a hidden trickster:
     // the body, its afterimages and its shells (`cg_players.c:11351-11356`).
@@ -1167,11 +1220,12 @@ fn submit_equipment(
             let mesh = &sinks.actor_meshes[actor_mesh];
             mesh.saber_names[hand]
                 .as_deref()
-                .zip(mesh.weapon_attachments[hand])
+                .zip(mesh.weapon_attachments[hand].map(|bolt| bolt.scaled(transform.scale)))
         }),
         equipment,
         origin,
         rotation,
+        transform.scale,
         sinks.saber_hilts,
         sinks.saber_states,
         sinks.saber_segments,
@@ -1197,7 +1251,8 @@ fn submit_equipment(
     let Some(model) = weapon_view::held_model(equipment.weapon) else {
         return;
     };
-    let (grip, weapon_rotation) = saber::world_attachment(origin, rotation, attachment);
+    let (grip, weapon_rotation) =
+        saber::world_attachment(origin, rotation, attachment.scaled(transform.scale));
     let Some(weapon_mesh) = sinks
         .object_meshes
         .iter()
@@ -1205,7 +1260,8 @@ fn submit_equipment(
     else {
         return;
     };
-    let mut instance = ActorInstance::new(grip.to_array(), weapon_rotation.to_array(), [1.0; 3]);
+    let mut instance =
+        ActorInstance::new(grip.to_array(), weapon_rotation.to_array(), transform.scale);
     let inside_body = local
         && sinks.detached_flight
         && crate::free_camera::inside_body(

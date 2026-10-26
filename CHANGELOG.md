@@ -26,12 +26,152 @@ tests check this file):
   in a clickable chip by the what's-new card and the changelog page;
 - "- <change> _(<credit>)_" is one change; every change ends with its credit;
 - ASCII only, as the menu font draws bytes.
+The site (site/assets/site.js, parseChangelog) reads the release headings,
+introductions and recap lines too.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
+- Two sabers can wear two blade skins, and a staff one on each half: in the Collection pick a saber (or half) above the preview, choose a shader and press Equip (tick Both sabers to dress both at once), or type `saberskin second <id>`; other SJK players see both once the hub has the change _(Creyon, #193, the staff's halves at Sol's request)_
+- The `saber` command checks both saber names before changing either, so a misspelt one changes nothing, and the Collection's preview follows it at once _(Creyon, #193)_
+
+## 2026.1026.2 (Alpha) | 26/10/2026
+
+Fixes from players' reports: a setting against bright flashes, voice volume, the Merc's force field and kyber crystals that arrive sooner.
+
+> Bright flashes: A new setting turns off the saber clash flare and screen flashes.
+> Sound: Voice volume works, and blocked players no longer beep.
+> Camera: JA+ kicks, knockdowns and kisses no longer shake or spin it.
+> Players: The Merc's force field shows, and skins show one outfit.
+> Kyber crystals: They arrive within a minute, with their own picture.
+
+= cg_reduceFlashes: For players sensitive to flashing light: no saber clash flare and no screen flash from explosions or DEMP2 shocks.
+
+- The `saber` command (from the console or a custom quick wheel choice) asks a JA+ server for your sabers on every run, the same pick too, as JoF EJK does: a switch the server refused (while you moved, or were not idle) is no longer stuck until you pick something else _(Sol, after Kushina's report)_
+- Ragdoll: only a new hit gets you up ("Ouch!"): falling again after being hit no longer wakes you at once _(Sol, after Sanji's report)_
+- Ragdoll and Hax: while the server holds your view (a JA+ kiss, kick or knockdown, a melee grapple or throw, a saber lock) the Ragdoll gets you up and will not start, and a hack ends, where the camera spun before _(Sol, after Rollembones' and Foshin's reports)_
+- While the server holds your view (JA+ kicks, knockdowns and kisses, grapples, saber locks), the mouse no longer turns it, which shook the camera; `cg_heldViewLook 1` lets it turn anyway _(Sol, after Rollembones' report)_
+- Call Vote's map list offers the maps of the server's game type again, the Jedi Academy maps first: it lists the maps the arena files allow (team FFA the FFA maps, as the base game does), with their full names, instead of every map file found, which JoF's maps filled before most of the base game's _(Sol, after Kushina's report)_
+- A chat field open when the map changes stays open, with what you were typing, and so does your chat bubble, as in EternalJK _(Sol, after Nib's report)_
+- In a private duel, other players' drones are hidden, so they no longer distract the duel; `cg_duelHideOthers 0` shows them _(Sol, after Sanji's report)_
+- Reduce bright flashes, a new setting for players sensitive to flashing light (Settings > Game options, `cg_reduceFlashes`): no saber clash flare, no screen flash from explosions or DEMP2 shocks, and no effect drawn with the clash flare's picture (some saber clash packs make every block such a flash). The clash flare itself can also be turned off or resized with EternalJK's `cg_saberClash` and `cg_saberClashSize` (Saber clash flare, Clash flare size) _(Sol, after Piza's report and EternalJK)_
+- Voice volume (`s_volumeVoice`) now works and is in Settings > Sound: voices (pain, death, taunts, jump grunts, voice commands) take it in place of the effects volume, as in the original game, so at its default they sound louder against the effects than before _(Sol, after Rollembones's report)_
+- A blocked player's chat messages no longer beep on servers that do not say who sent a line (JA+ and JoF): the beep is told apart by the name that starts the line, as the hidden line is _(Sol, after blec-bee's report)_
+- The force field a Merc places is visible again: a blue or red wall of light where it blocks you, as in the original game _(Sol, after blec-bee's report)_
+- Player models whose skin switches parts off further down its list (outfit variants such as Yuna's and Kushina's) now show only the parts they should, and caps switched back on show again, as in the original game _(Sol, after Rollembones' report)_
+- Small players the server scales down (younglings, Jawas) hold their saber, gun and Force effects in their hand again, instead of above it _(Sol, after g0dchris' report)_
+- Achievements reach the SJK hub within a minute of unlocking, even after it held some counts back, and their kyber crystal shows up within half a minute instead of up to ten _(Sol, after Creyon's and Kushina's reports)_
+- A new kyber crystal's arrival shows the crystal's own picture, no longer a plain gem like a holocron's _(Sol, after Kushina's report)_
+- Master Craftsman says what it asks: blades crafted from a Normal, a Holo and a Solar card _(Sol, after Kushina's report)_
+
+## 2026.1026.1 (Alpha) | 26/10/2026
+
+Kyber crystals from achievements, 14 new achievements, trading for every verified player and the Boombox toy.
+
+> Kyber crystals: Every achievement brings one, and opening it always gives a saber shader.
+> Achievements: 14 new ones, a secret one among them, in Collection and Toys.
+> Trading: Verified players can now trade shaders with each other.
+> Boombox: A new toy that plays your own tracks to SJK players close by.
+> Collection: A wall of shaders, and toy rows with their own key binding.
+
+- Trading is open to every verified player, no longer only to the SJK team _(Creyon)_
+- Achievements: 14 new ones, each with its kyber crystal, in two new categories, Collection and Toys: open 10, 50 and 200 holocrons, craft blades, complete a card set, defeat a player with Order 66, hide 10 minutes in the cardboard box with players close by, win a duel without a scratch or with under 5 health, duel 25 different players, a long saber throw and a thermal detonator sent back to its owner. One is a secret until you find it. Surveyor is retired: those who hold it keep it, nobody else sees it. The Achievements tab lays the 35 out in bands to fit any window _(Sol)_
+- New toy for verified players, the Boombox: an 80s stereo on your shoulder playing your own tracks (`sound/boombox/<name>.mp3` in a pk3) to the SJK players standing close by who have the same track. `toy_boombox` carries it (quick wheel Toys page, Collection > Toys), `boombox` lists your tracks and `boombox next` skips; how far it carries is Settings > Game options, Boombox range (`cg_toyBoomboxRange`), and Settings > Sound silences everyone's (`s_toyBoomboxSound`) _(Sol)_
+- Collection: the Shaders tab is a wall of tiles under a heading to each tier, with a strip of the tiers saying how many of each you hold; V shows a list you sort by name, tier or what you hold (S). Locked shaders show their own colours, dimmed, and a shader's card grows to hold all its words. The Toys tab is a row to each toy with its own switch and the key bound to it: bind one from its card (K). A dark band keeps the tabs readable over any map, and the model keeps its place in a 4:3 window _(Sol)_
+- Mac: fullscreen is always the borderless kind, as the exclusive kind could crash the game when chosen and kept Cmd+Tab from working _(Sol, after Glen's report)_
+- Ragdoll: a player's flatline is heard at most once every 15 seconds, so falling again and again is quiet; the toy itself has no wait _(Sol)_
+- Kyber crystals: every achievement now brings one, once, from Uncommon to Mythical (shown on the Achievements tab, its hover card and its unlock card). Opening one always gives a saber shader, the ones you do not have yet first, and every tenth crystal in a row without a Legendary or Mythical shader gives one: the Holocrons tab shows your crystals, how soon that is, and their loot table _(Sol)_
+
+## 2026.1025.4 (Alpha) | 25/10/2026
+
+A small hotfix on top of 2026.1025.3.
+
+> Hotfix: A small general fix on top of 2026.1025.3.
+> Nothing to relearn: Everything else works as in 2026.1025.3.
+> Updating: The in-game update is all it takes.
+
+- A small general fix _(Sol)_
+
+## 2026.1025.3 (Alpha) | 25/10/2026
+
+Team boxes for capture the flag, bodies that fade away, encrypted whispers kept to verified players, and fewer stutters in busy matches.
+
+> Capture the flag: Team scores in SJK boxes, with where each flag is.
+> Bodies: They fade and burn away as in EternalJK.
+> Whispers: Only verified players start encrypted whispers now.
+> One window: No console window on Windows; SJK.app on a Mac.
+> Toys: A toy volume and a mute switch for each toy.
+> Smoother matches: Fewer stutters when players join, change model or die.
+
+= cg_teamScoresBoxes: Team scores in SJK team boxes, with each flag's state in capture the flag; off brings back the classic plates and flag icons.
+
+- Encrypted whispers are now for verified players: only a verified player (or staff) starts one, and a player who is not can answer one for 30 minutes after it came, to that player only. Any other whisper goes through the game server as before, and the composer says it is not private. On JoF servers whispers stay on the game server, where JoF moderates them; `jof.e2eWhispers` turns encrypted whispers back on there (both players need it). A player who got an encrypted whisper can report its sender from the chat's player card (Report): the whisper goes with the report, signed by its sender, so the SJK team knows it is theirs _(Sol)_
+- Trading (ready for the SJK hub to turn on): swap duplicate saber shaders with another SJK player, or give them as a gift, from a game or the main menu; holocrons follow once the SJK hub opens them. Trade from their card in the chat, the SJK chat page, the Players page or `trade`; a request shows at the top of the screen and the trade window opens in the middle, where both of you choose, see what each side is worth, press Ready and then Confirm. The SJK hub sets how much each of you can trade in a day that starts with your first trade, with a Daily reset clock in the window. A holocron received in a trade can be traded again once its tile's countdown ends. Settings > Trade window size makes the window smaller or larger _(Creyon)_
+- Bodies fade away as in EternalJK: 30 s after a player died, their body thins out under a glow of their Force side (blue for the light side, red and crackling for the dark), which then burns away, with its sounds, instead of vanishing all at once. SJK's own servers now send the fade (they sent another event before) and clear the body once it has burned away _(Creyon, after EternalJK)_
+- Capture the flag: the team scores at the top of the screen stand in two team boxes in SJK's colours, each with its flag and where it is: at base, who carries it, or how many seconds a dropped flag has before it goes home. While you carry a flag a line under them says "Take it home", or that your own flag must be back first; `cg_teamScoresBoxes` 0 brings back the classic plates and flag icons _(Slash)_
+- One window: on Windows no console window opens beside the game any more, nor for the local server or copy and paste; on a Mac SJK is now an app, SJK.app, that starts without Terminal and shows its own name and icon in the Dock. Mac players install this release by hand once (the in-game update of the older Mac build cannot install the app) _(Sol)_
+- Toy sounds: Settings > Sound > Toys has a toy volume (`s_toyVolume`) and a switch per toy (cardboard box, Order 66, Hax, Ragdoll, Drone) that silences its sounds on your PC, yours and other players' _(Sol)_
+- Drone: the remote is now the size of the game's own seeker, and a drone peeking at you is no longer drawn on your screen; instead a line at the top says who is spectating you _(Sol)_
+- Ragdoll: the body's knocks and scrapes are now heard; a timing error silenced every one of them in released builds _(Sol)_
+- Announcements: `announcement` and `rewards` now close the console as their window opens, and the mouse works in the window during a match _(Sol)_
+- Fewer stutters when players join, change model or die: a new player's model goes up a texture a frame, models shown again reuse what they had, and a model's body for deaths is ready before the first kill _(Slash)_
+- Card pictures: one picture the decoder trips on no longer stops every later card picture from loading for the session; opening a holocron loads the found card's picture as it starts, so the card no longer turns over on a dark window; video memory and crash reports name card and medal pictures as such _(Sol, after Slash's #206)_
+
+## 2026.1025.2 (Alpha) | 25/10/2026
+
+A release for weak PCs and small graphics cards: new settings for more frames, far less video memory, and fewer crashes on cards of 3 to 6 GB.
+
+> Weak PCs: New Render scale, Stock blades and Menu FPS cap settings.
+> Small graphics cards: Under 3.5 GB, SJK starts on lighter graphics once.
+> Video memory: Card pictures, text and old maps take far less of it.
+> Texture compression: An experimental setting for cards short on memory.
+> Sound memory: Sounds and music take about half the memory.
+> Smoother menus: Shader pictures you are not pointing at animate less.
+
+- New setting for weak PCs, Render scale: the world is drawn at 50 to 100 % of the window's resolution and stretched to fit, for more frames on integrated and older graphics cards, while menus, HUD and text stay sharp. 100, the default, changes nothing, and supersampling takes over when it is on: Settings > Display (Simple) or Graphics > Image (Advanced) > Render scale (`r_renderScale`), after a graphics reload _(Sol)_
+- Graphics cards under 3.5 GB (and integrated graphics) now start once on lighter settings, Vanilla style graphics, other players' blades drawn stock and a 60 FPS menu cap, with a card on the main menu to keep them or go back to SJK graphics _(Sol)_
+- Smoother menus on weak PCs: with many shaders on screen (Collection, Forge, Saber tab), the shader pictures you are not pointing at or have not chosen now animate up to 30 times a second instead of every frame (on the Shaders grid of an integrated GPU, about a fifth less time a frame), and SJK reads its settings each frame without wasting memory _(Sol)_
+- New experimental setting for graphics cards short of video memory, Texture compression: map and model textures stay compressed on the graphics card, a quarter to an eighth of their video memory, a little blockier up close, and a map takes a moment longer to load. Off by default while it is tested: Settings > Graphics > Image > Texture compression (`r_textureCompression`), from the next map _(Sol)_
+- SJK no longer keeps every texture it has loaded in memory for the whole session: the pictures of maps you left are freed (up to about 0.8 GB less memory after a few maps) _(Sol)_
+- Fixed SJK running out of video memory on graphics cards of 3 to 6 GB, in the menus or at a map change: card pictures load only when a screen shows them, instead of all of them at start (they held 1.8 GB of video memory and as much of the computer's) _(Sol)_
+- Sounds and music use about half the memory, and the previous map's music is let go when the music changes instead of staying loaded all session _(Sol)_
+- New setting for weak PCs, Stock blades: draw other players' blades (Others) or every blade, yours included (All), as normal blades in their own colour, without shaders or their effects, to save GPU time on full saber servers. Menus and cards still show your shaders, and sounds are unchanged: Settings > Advanced > Gameplay > Stock blades (`cg_stockBlades`) _(Sol)_
+- New setting for weak PCs, Menu FPS cap: a lower frame rate in the menus while you are not in a game or watching a demo, never above your FPS cap; 0, the default, keeps your FPS cap: Settings > Advanced > Display > Menu FPS cap (`com_maxfpsMenu`) _(Sol)_
+- Texture detail (`r_picmip`) now also lowers skies and material maps (normal, shine and glow maps), and works with mipmaps off, leaving small graphics cards more video memory. Textures the original game keeps sharp (shaders marked nopicmip) keep their full size _(Sol)_
+- Text uses about 120 MiB less video memory: the font atlases keep one channel instead of four, and draw exactly as before _(Sol)_
+- Less video memory for small graphics cards: floor mirrors, sky portals and map portals now get their screen-size images only once the map really draws them (never with floor mirrors off, as in the Vanilla and SJK presets), and the atlases for Cyrillic, Asian letters and emoji only once such text first shows: about 20 to 70 MB less at 1080p, up to about 220 MB at 4K _(Sol)_
+- The Experimental preset (real-time lighting) uses less video memory: about 60 to 100 MB less on every graphics card, and on cards of 8 GB or less its lamp light cache is made smaller to leave room for map changes, up to about 400 MB less on large maps such as mp/ffa5 (the light looks the same; it can cost a little speed) _(Sol)_
+
+## 2026.1025.1 (Alpha) | 25/10/2026
+
+News from the SJK team and contributor rewards in SJK chat, the Drone toy, ragdolls that ride lifts, and a first Mac build.
+
+> Announcements: News from the SJK team now shows in SJK chat.
+> Contributor rewards: Rounds say who was thanked and why; Claim your own.
+> Drone: `freecam` and `peek` fly a remote other players see.
+> Ragdoll: Lifts, doors and trains carry your limp body.
+> JA+ settings: They now start with `japlus.`; old names still work.
+> Mac: An experimental Apple Silicon build comes with each release.
+
+- Ragdoll: lifts, doors and trains now carry and push your limp body, and every part of it is heard on its own as it lands, the flesh and what it hits (stone, metal, wood, grass, snow...), with scrapes when it slides _(Sol)_
+- Announcements from the SJK team now show in SJK chat: the title and first line, and a click on the line (or `announcement` in a match) reads it in full; a release's announcement offers the update or what's new. Contributor reward rounds show who was rewarded and why (`rewards`), and when one is for you a window lets you Claim it: its holocrons then arrive as gifts _(Sol)_
+- JA+ settings now all start with `japlus.`: anti-kiss is `japlus.antiAmKiss` and sits in Settings > Mods next to the JA+ tools switch, and the JA+ away emote is `japlus.awayEmote`. Your saved values and configs using the old names keep working. `japlus.color` is gone: `amcolor` does the same on every server _(Sol)_
+- Experimental Mac build: releases now include a ZIP for Macs with Apple Silicon (M1 or later), drawn through Metal. It is not signed by Apple, so macOS blocks it until you allow it once (its README says how), and it has not been played on a Mac yet: reports welcome _(Sol)_
+- New toy, the Drone: `freecam` and `peek` now fly a little training remote that other SJK players see, your name over it; peek sends it to hover behind the player you watch. Peeking needs consent now: a player can be peeked only with their Drone switched on (`toy_drone`, the quick wheel's Toys page or Collection > Toys, "Peek me"), they read who is watching, and switching it off sends the drone away. Your binds for both commands stay as they are _(Sol, after Slash's Peek work in #199)_
+
+## 2026.1024.1 (Alpha) | 24/10/2026
+
+A small release: a ragdoll toy, chat and saber sound choices, and fixes from Creyon, Lumaya and Lukas.
+
+> Ragdoll: `toy_ragdoll` makes you go limp and fall, and every SJK player sees the same fall.
+> Chat: Click a name in the open chat to whisper or block that player; each kind of chat has its own sound.
+> Saber sounds: Pick your saber's sounds apart from its shader, in Profile > Saber.
+> Fixes: Signature blades lose the bright rim at their tip, and long sessions no longer run out of open files.
+> Safety codes: The encrypted whispers' safety code is now 60 digits the hub cannot fake.
+
 = cg_emoteTypingKeep: New: a player typing in the chat or the console keeps their emote, even when pushed, until they move or attack after closing it.
 = cl_privateChatFlash: A private message flashes the game's taskbar button while you are away from the window. On by default; switch it off if you would rather not be called back.
+= cg_wallGrabLock: Optionally lock your camera to a grabbed wall. Off keeps JA+ free look and mouse-aimed kick-offs.
 
 - New toy, the Ragdoll: `toy_ragdoll` (a bind, the quick wheel's Toys page or Collection > Toys) makes your body go limp and fall where physics takes it, sandbox style, with a flatline and body knocks; the camera follows the body, and every SJK player on the server sees the same fall. Press it again, or get hurt, to get up where you lie _(Sol)_
 - Emotes: a player typing (chat, console or a menu open: their talk balloon) keeps their emote until they move or attack after closing it, even if pushed meanwhile; Settings > Sound > Emotes: Typing keeps emote (`cg_emoteTypingKeep`, on) _(Sol, after Rollembones' idea)_
@@ -40,9 +180,10 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Saber sounds of your choice: Profile > Saber > Sounds picks them apart from your saber shader. Follow the shader (as before), the stock sounds, or the sounds of any shader you own, with a Preview button; other SJK players hear your choice too (`cg_saberSounds`) _(Sol, after Nib's idea)_
 - Chat sounds by kind: public chat, team chat, private messages (a server's tells and encrypted whispers) and the SJK chat each have a switch and a sound to pick, with a Play button to hear it, in Settings > Sound > Chat sounds. Public chat off no longer silences private messages, and `cg_chatSounds` 2 gives team chat and private messages EJK's own sounds _(Sol, after Turin's and Nib's ideas)_
 - A private message flashes the game's taskbar button while you are away from the window (`cl_privateChatFlash`) _(Sol, after Turin's and Nib's ideas)_
-- Kyber crystals: every achievement now brings one, once, from Uncommon to Mythical (shown on the Achievements tab, its hover card and its unlock card). Opening one always gives a saber shader, the ones you do not have yet first, and every tenth crystal in a row without a Legendary or Mythical shader gives one: the Holocrons tab shows your crystals, how soon that is, and their loot table _(Sol)_
-- Two sabers can wear two blade skins, and a staff one on each half: in the Collection pick a saber (or half) above the preview, choose a shader and press Equip (tick Both sabers to dress both at once), or type `saberskin second <id>`; other SJK players see both once the hub has the change _(Creyon, the staff's halves at Sol's request)_
-- The `saber` command checks both saber names before changing either, so a misspelt one changes nothing, and the Collection's preview follows it at once _(Creyon)_
+- Encrypted whispers: the safety code is now 60 digits in twelve groups of five, one half for each player's key, so the SJK hub can no longer make two keys of its own show matching codes on both screens (the 12-digit code allowed that in seconds). Players compare the new code only with players on this version or later; players already marked verified stay verified _(Slash)_
+- Wall grabs: on a stock server the camera no longer comes loose for a frame when a snapshot catches up with your moves while you hang on the wall. JA+ servers keep their free look, so you can still aim the kick-off with the mouse; Settings > Advanced > Gameplay or Game options > Lock wall-grab camera (`cg_wallGrabLock`, off) locks it there too and turns the camera to the wall _(Lumaya)_
+- Signature blades: no more rim of bright pixels round the tip (in game, in the Collection and on holocron cards) and no hard straight edges round their glow, sparks and smoke, up close or seen along the blade _(Creyon)_
+- After a long session, changing maps or reconnecting no longer fails with "Too many open files": the Profile menu's model icons, cosmetics and Force templates let go of the previous map's game files _(Lukas, after Sol's report)_
 
 ## 2026.1023.3 (Alpha) | 23/10/2026
 
@@ -63,7 +204,6 @@ A small release of fixes from your reports: fewer kicks after a freeze, vehicles
 - The DEMP2's charged shot no longer whitens the whole screen: its flash fades with distance and direction as in the original game, so only a shock close in front of you flashes, and that flash whitens the view as there rather than a coloured square in the distance _(Sol, after Slash's report)_
 - The AT-ST's camera no longer jumps when the walker starts, stops or changes pace: its seat follows the walker's animations blended, as the original game shows them _(Sol, after Kushina's report)_
 - Riding a tauntaun with a lightsaber, holding attack swings again and again, as in the original game; it showed one swing and then only the swing sounds _(Sol, after Slash's report)_
-- Kyber crystals: every achievement now brings one, once, from Uncommon to Mythical (shown on the Achievements tab, its hover card and its unlock card). Opening one always gives a saber shader, the ones you do not have yet first, and every tenth crystal in a row without a Legendary or Mythical shader gives one: the Holocrons tab shows your crystals, how soon that is, and their loot table _(Sol)_
 
 ## 2026.1023.2 (Alpha) | 23/10/2026
 

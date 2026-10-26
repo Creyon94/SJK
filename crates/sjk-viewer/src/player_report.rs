@@ -4,7 +4,10 @@
 //! the report to the identity service, which signs it with the player's key and sends
 //! it to the hub (`POST /v1/player-report`).
 //!
-//! Only a verified SJK player may report; the pages say so to the others. The report
+//! Only a verified SJK player may report, except a player whom the reported one sent an
+//! encrypted whisper: the last one goes with the report, signed inside by its sender,
+//! so the hub knows it theirs (the chat card's Report opens the page for them). The
+//! pages say so to the others. The report
 //! names the player as they were when chosen (name, slot, the key the hub's presence
 //! list shows for them), the server's address and name, the map and the match clock;
 //! the hub checks everything again and limits how often a key may report and how often
@@ -45,6 +48,18 @@ impl crate::GpuState {
         self.refresh_game_menu_players();
     }
 
+    /// The chat card's Report: the Report page for the player in `slot`, their last
+    /// encrypted whisper with it.
+    pub(crate) fn open_whisper_report(&mut self, slot: u16) {
+        self.open_players_page();
+        let chosen =
+            u8::try_from(slot).is_ok_and(|slot| self.in_game_menu.players.choose_slot(slot));
+        if chosen {
+            self.game_menu_page = Page::ReportPlayer;
+            self.game_menu_row = self.in_game_menu.players.first_report_row();
+        }
+    }
+
     /// While the Players or Report page shows: read the roster again once a second, and
     /// ask for scores every two.
     pub(crate) fn refresh_game_menu_players(&mut self) {
@@ -66,6 +81,11 @@ impl crate::GpuState {
         };
         let game = session.game_state();
         let you = u8::try_from(game.client_num).ok();
+        self.in_game_menu.players.whispered = self.e2e_whispers.reportable_ids(session.server());
+        self.in_game_menu.players.set_trading(
+            crate::player_trades::trading_open(),
+            crate::player_trades::trading_holocrons(),
+        );
         self.in_game_menu.players.refresh(
             game,
             session.scores(),
@@ -96,6 +116,27 @@ impl crate::GpuState {
         }
     }
 
+    /// Trade on the Players or Report page's player card: ask the player on show (the
+    /// row chosen in the table, or the one being reported) to trade.
+    pub(crate) fn trade_with_menu_player(&mut self) {
+        let players = &self.in_game_menu.players;
+        let player = match self.game_menu_page {
+            Page::Players => players.shown().get(self.game_menu_row),
+            Page::ReportPlayer => players.target(),
+            _ => None,
+        };
+        let Some(player) = player.filter(|player| players.trade_blocked_for(player).is_none())
+        else {
+            return;
+        };
+        let slot = u16::from(player.slot);
+        if let Err(why) = self.trade_with_slot(slot)
+            && let Some(console) = self.console.as_mut()
+        {
+            console.push_log(format!("^3Trade: {why}."));
+        }
+    }
+
     /// Enter on row `row` of the Report page: a reason opens the text dialog, Back
     /// returns to the chosen player's row.
     pub(crate) fn activate_report_player_row(&mut self, row: usize) {
@@ -104,6 +145,15 @@ impl crate::GpuState {
                 self.open_player_report_dialog(category);
             }
             Some(_) => {}
+            None if row == players::State::trade_row() => {
+                if self.in_game_menu.players.trade_blocked().is_none()
+                    && let Some(slot) = self.in_game_menu.players.target().map(|p| p.slot)
+                    && let Err(why) = self.trade_with_slot(u16::from(slot))
+                    && let Some(console) = self.console.as_mut()
+                {
+                    console.push_log(format!("^3Trade: {why}."));
+                }
+            }
             None => self.back_to_players(),
         }
     }
@@ -202,6 +252,11 @@ impl crate::GpuState {
                 .as_ref()
                 .map(|hub| hub.key_id.clone())
                 .unwrap_or_default(),
+            whisper: target
+                .hub
+                .as_ref()
+                .and_then(|hub| self.e2e_whispers.reportable(&hub.key_id, session.server()))
+                .cloned(),
             map: sjk_identity::report::field(&self.world_load_map, 64),
             build: sjk_identity::report::field(crate::build_info::VERSION, 32),
             level_time,

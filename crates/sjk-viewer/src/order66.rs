@@ -185,13 +185,17 @@ pub(crate) enum Spared {
     Dead,
     Duel,
     Flag,
+    /// The game server holds the player's view (a kiss, a grapple, a kick: `held_view`).
+    /// Never from [`spared`]: the toys that steer the player add it, as their commands
+    /// would fight the server's view.
+    Held,
 }
 
 impl Spared {
     /// What the centre of the screen says, if anything.
     fn words(self) -> Option<&'static str> {
         match self {
-            Self::Away | Self::Dead => None,
+            Self::Away | Self::Dead | Self::Held => None,
             Self::Duel => Some("you are in a duel"),
             Self::Flag => Some("you carry the flag"),
         }
@@ -1049,9 +1053,11 @@ impl GpuState {
             self.order66.sounds_registered = Some(audio.generation());
         }
         for cue in self.order66.cues.drain(..) {
-            audio.play_local(
+            audio.play_toy(
+                crate::toy_sounds::Toy::Order66,
                 cue.path,
                 1.0,
+                None,
                 sjk_audio::SourceId(cue.source),
                 crate::audio::TOY_CHANNEL,
             );

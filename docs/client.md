@@ -241,7 +241,10 @@ Settings and SJK in place of retail's Controls and Setup:
     second and once per changed selection. Stock and unknown servers read
     `saber1`/`saber2` only at spawn, so there the change waits for the next
     respawn. The server may refuse the command (jaPRO: standing still, FFA
-    only, not in a duel) and says so in a `print`; it is not retried.
+    only, not in a duel) and says so in a `print`; it is not retried by itself, but
+    the `saber` command asks again on every run, the same pick too, as `CG_Saber_f`
+    does (Kushina's report #132: a refused switch to two sabers left the cvars on the
+    pick, so running it again sent nothing).
   - Force: retail's in-game `ingame_playerforce` window, here on both
     frames, editing the same draft as the SJK UI's Force tab. It keeps retail's
     frame, title band, gold mastery line, blue and red side bars and level
@@ -545,7 +548,17 @@ About shows the server info. Join picks
 a team, or opens the class page in Siege (the team first, then that team's
 classes, as in the SJK UI); in a team game Team Red and Team Blue
 carry their flag (`gfx/hud/mpi_rflag`, `mpi_bflag`) and the team's player count. Vote is Yes/No. Call Vote opens the
-call-vote lists. Exit offers Main Menu, Restart Match and Quit Program, each
+call-vote lists. Its map list is the server's own when its serverinfo carries one
+(`sv_maplist`), else, as the stock in-game vote screen (`loadArenas`,
+`UI_MapCountByGameType`), the installed maps the arena files (`scripts/arenas.txt`,
+`scripts/*.arena`, from every mounted pk3) allow for the server's `g_gametype`, team
+FFA listing the FFA maps and Capture the Ysalamiri the CTF ones; each row shows the
+arena's long name and the map, the retail maps first, then the community's, each by
+name. Only when no arena names an installed map does it list every installed
+`maps/mp` map. Until 26/10/2026 it listed every `.bsp` in path order, cut at 128, so
+with JoF's content the community maps at `maps/*.bsp` (and single-player levels) filled
+it before the retail `maps/mp` ones (Kushina's report #136;
+[callvote.rs](../crates/sjk-viewer/src/ingame_menu/callvote.rs)). Exit offers Main Menu, Restart Match and Quit Program, each
 with a Yes/No confirmation. Profile opens the retail in-game profile window
 (`ingame_player`: name, team colour, head grid, Custom, Saber and the Force
 summary, then `ingame_player2` and `ingame_saber`); its Apply returns to the
@@ -815,9 +828,16 @@ animates is not swapped for Kyle:
 - Skins are read with rd-vanilla's `CommaParse` loop (`RE_RegisterIndividualSkin`,
   `tr_skin.cpp`): tokens in surface/shader pairs, comments, missing commas, stray
   text and bytes outside UTF-8 change nothing about what loads, `tag_` entries
-  are skipped, `_off` is stripped from surface names, the first entry for a
-  surface wins and a skin keeps at most 128 entries
-  ([skin.rs](../crates/sjk-model/src/skin.rs)).
+  are skipped, `_off` is stripped from surface names and a skin keeps at most 128
+  entries ([skin.rs](../crates/sjk-model/src/skin.rs)). A surface named twice takes
+  its shader from its first entry (`RenderSurfaces` stops at the first match) but is
+  shown or hidden by its last: `G2_SetSurfaceOnOffFromSkin` (`G2_surfaces.cpp`)
+  applies every entry in turn, `*off` switching the surface off and any other shader
+  back on (never an `_off` cap, which the model keeps off). Until 26/10/2026 the
+  first entry decided both, so skins that name every part with its texture and then
+  switch an outfit's spare parts off further down (Yuna's and Kushina's) showed all
+  their outfits at once, and a cap switched off and then on again was missing
+  (Rollembones' report, #148).
 - A skin never costs the model (`CG_RegisterClientModelname`, `cg_players.c`):
   when the requested skin is missing, has a missing part or names no surface,
   the model wears `model_default.skin`, and without one its surfaces' own
@@ -938,7 +958,8 @@ menu; with no name it prints the sabers held, and an unknown hilt changes neithe
 ([saber_hilt_command.rs](../crates/sjk-viewer/src/saber_hilt_command.rs),
 [useful console commands](#useful-console-commands)). Sent to the
 server as is, it swapped the saber in play but left the cvars on the menu's pick, which
-the next map brought back (Kushina's report #126).
+the next map brought back (Kushina's report #126). Every run sends the server's
+command, the same pick too (#132).
 The classic profile's Cosmetics window does the same, and the SJK UI's
 Character page has Hat and Cape rows (None, then each installed piece; Enter or a
 click opens a picker of named chips, [sjk-ui.md](sjk-ui.md#character)). The menu stage
@@ -1055,22 +1076,34 @@ Live appearance with installed animations remains unverified; see
 
 A player grabbing a wall to jump off it (Force jump 3, pushing into a wall in the
 air: `BOTH_FORCEWALLREBOUND_*`, then `BOTH_FORCEWALLHOLD_*` while the hold lasts)
-is drawn facing the wall the way the animation needs, whatever their view does
-([wall_hold_pose.rs](../crates/sjk-viewer/src/wall_hold_pose.rs)). `CG_G2PlayerAngles`
-turns the body with the view yaw. A stock server turns that yaw to the wall during
-the hold (`PM_AdjustAngleForWallJump`), so the camera locks too, but a JA+ server
-leaves the view free there ([networking](networking.md#server-dialect-movement-rules)),
-and looking around turned the body off the wall, as if it floated. While the
-legs play a rebound the model's yaw is the stock server's facing instead
-(`vectoyaw(wall normal) + yawAdjust`, from the same 128-unit check along the
-view, [`wall_hold_yaw`](../crates/sjk-game-jka/src/pmove_wall_moves.rs)); a frame
-whose check misses keeps the rebound's last facing, and the kick off returns the
-body to the view. It applies to the local player (from the predicted state) and to
-other players alike. Only the model changes: the camera stays free on JA+ and
-locked on a stock server, as each server computes it, and the kick off still goes
-straight back from the side the view picks (`checkDir`), so on JA+ it follows
-where the player looks, not the wall. The check sees the world's brushes only: a
-wall on a mover keeps the body on the view.
+is drawn facing the wall as its animation needs
+([wall_hold_pose.rs](../crates/sjk-viewer/src/wall_hold_pose.rs)). The model takes
+`vectoyaw(wall normal) + yawAdjust` from OpenJK's `PM_AdjustAngleForWallJump`:
+forward grabs face the wall; side and backward grabs keep their animation's side
+offset. A missed model-facing check keeps the rebound's last facing, and leaving
+the rebound returns the model to the view. This applies to local and remote models;
+the model check uses world brushes.
+
+The camera follows the server profile by default (`cg_wallGrabLock 0`): stock
+locks the view during the grab, while JA+ leaves mouse and keyboard look free.
+On JA+ (including JoF servers using that profile), looking around while holding
+jump aims the kick-off; this is an intentional server feature.
+
+**Lock wall-grab camera** is in SJK Settings > Advanced > Gameplay and classic
+Setup > Game options. `cg_wallGrabLock 1` opts into locking on JA+ too. With it
+on, the camera uses the shared 128-unit upright-wall check against world and mover
+collision to face the wall with the rebound side's offset, including frames with
+only a snapshot seed. With it off nothing is re-aimed: a stock grab's view is the
+one its movement slice or snapshot already turned to the wall.
+Look input is consumed during a lock so it cannot build up or spill out after
+release; movement and jump buttons still reach the command. Turning the option
+off restores the profile's policy. Stock remains locked with either value.
+
+The optional lock changes the local view used to build subsequent commands, so
+JA+ players who enable it give up free mouse aiming during the hold. It does not
+change the server's movement rules, replay state, delta angles or velocity.
+Missing the wall keeps the current held view; releasing the grab ends the
+optional hold. Model facing remains independent of the camera option.
 
 ## Dismemberment and disintegration
 
@@ -1099,9 +1132,32 @@ Both follow EternalJK's cgame (`cg_ents.c`, `cg_players.c`) and rd-vanilla's ren
   model burns in its untinted colours, as rd-vanilla's `killGen` does. A corpse slashed
   until it gives way (`body_die`) burns from its own origin, the middle of the body,
   and is removed a second later (`BodyRid`): it looks cut in half and loses its tint
-  for that second in EternalJK too (Nib's hub report 122, 22/10/2026). The slow fade of
-  a corpse the server clears on its own (`EV_BODYFADE`, `cg_ents.c` `bodyFadeTime`) is
-  not drawn yet: the body stays as it is until it is removed.
+  for that second in EternalJK too (Nib's hub report 122, 22/10/2026).
+- **Body fade** (`EV_BODYFADE`): 30 s after a body fell the server sends the event
+  (`BodySink`) and unlinks the body 4 s later (`BodyRid`). As in OpenJK's and EternalJK's
+  `CG_General` (`cg_ents.c`, `bodyFadeTime`), the body then thins out (forced alpha
+  from 254 down by 0.08 a millisecond, gone after 2.54 s) while the body drawn again
+  with its side's shader brightens over it (`RF_RGB_TINT` rising to 200): the light
+  side's is `gfx/misc/personalshield`, the dark side's `gfx/effects/sabers/red_glow`.
+  At 2.513 s that glow burns away from the body's origin (`RF_DISINTEGRATE2`), with the
+  Force Sight sound for the light side and lightning for the dark. For the first 3.4 s
+  the light side hums (`saberhum1`, for 2.2 s, at most once per 100 ms as EternalJK
+  plays it) and the dark side's body is drawn red with a random one of the two electric
+  shaders, crackling now and then (a one-in-ten roll once per 100 ms, EternalJK's fix
+  for the loud body sound). The side is `ircg`'s fourth operand (no `ircg`: the
+  dark side, as cgame's zeroed `teamPowerType`). The event also turns off the body's
+  `head_eyes_mouth` surface, back on when the mesh is given to another body. The
+  client keeps each body's start, seen again in a body slot that never left the
+  snapshot once its event field went back to 0 (`CG_CheckEvents`), and forgets every
+  start when the server clock goes back (a new gamestate)
+  ([body_fade.rs](../crates/sjk-client/src/body_fade.rs)) and draws the layers in place
+  of the body ([body_fade.rs](../crates/sjk-viewer/src/body_fade.rs)); held weapons and
+  hilts drawn apart from the body stop drawing when the fade starts. SJK's own server
+  sent the event as 125 (`EV_PUSHED1`) before 24/10/2026, and kept the body 18 s after
+  it (the 18 s think commented out in `g_client.c`); it sends 100 now and unlinks the
+  body 4 s after it. On High Quality (rig) models, see-through parts show as squares
+  in the glow: an override shader drawn over an actor replaces each surface's material,
+  alpha test included (force shells use the same path).
 
 Model cap surfaces (`*_cap_*`) are carried in every actor mesh, hidden until a cut.
 
@@ -1437,6 +1493,51 @@ attacks included) every command holds the walk with no key past 64, the attacks 
 mirrored 4-24 ms late, it crouches, tracks within 8 units with no delay and 5 with 0.3
 seconds, and ends within 2. Not yet tried in a game.
 
+## Sound memory
+
+Every sound is decoded once, on the audio decode worker, to mono PCM at the mixer's
+44.1 kHz and kept for the session in the mixer's bank
+([sjk-audio](../crates/sjk-audio/src/lib.rs)). Since 25/10/2026 the bank keeps 16-bit
+samples, not 32-bit floats: half the memory. A 16-bit source (nearly all retail and
+community sounds) is kept exactly; a resampled sound (most retail WAVs are 22.05 kHz)
+or a float WAV is rounded to the nearest 16-bit step, at most 1/65536 of
+full scale off (a float WAV louder than full scale is clipped there). The mixer turns
+each sample back into a float as it reads it, with the 1/32768 step folded into the
+gain it already multiplies by, so mixing costs what it did and still never allocates.
+WAVs and MP3s decode straight to 16-bit mono (a WAV into room for its header's
+length), so decoding a long track no longer holds float copies of it as well.
+
+Music is no longer kept forever. A map's tracks are decoded as music, under handles of
+their own outside the shared sound cache (`MusicTrack` in
+[audio_assets.rs](../crates/sjk-viewer/src/audio_assets.rs)), and when the music is
+chosen again (the next map, a `CS_MUSIC` change, `music`, `stopmusic`, a map without
+music) the tracks the new choice does not use are released. The release travels the
+decode queue behind the track's registration; the audio callback stops whatever plays
+the sound, takes its PCM out of the bank (the handle then plays nothing and is never
+reused) and hands it back over a ring to the decode worker, which frees it. The
+callback never frees memory and takes no lock. A file another sound decoded first is
+shared and never released this way: the duel music (`music/mp/duel.mp3`) stays
+decoded for the session, as do effects and voices. A duel suspends the map's track
+without releasing it, and a dynamic music level keeps its states' tracks until the
+level changes. A map change only stops the old music: the next map's prefetch may hold
+the same tracks, so they are released when its music is chosen.
+
+Retail figures, mono at 44.1 kHz (`crates/sjk-audio/tests/retail_memory.rs`, ignored;
+`JKA_GAME_DATA=<GameData> cargo test --release -p sjk-audio --test retail_memory --
+--ignored --nocapture`): the 302 effect WAVs under `sound/`, 31.5 MiB of files, took
+127.1 MiB as floats and take 63.5 MiB; a music track averages 9.7 MiB as floats and
+4.8 MiB now, the longest (`yavtemp_explore`) 47.2 and 23.6 MiB. Before, every map's
+music stayed decoded on top of the last one. `soundinfo` prints the decoded total;
+with `SJK_TRACE_AUDIO=1` the audio trace adds it (`pcm`), what was freed (`freed`) and
+releases kept for want of room (`kept`, expected 0).
+
+Unit tests: `pcm16_tests` in sjk-audio (a 16-bit WAV kept exactly; voices, loops and
+music within 1/32768 of the float samples they replaced; a released sound hands back
+its PCM and stops playing; mixing and releasing make no allocator call, checked with
+the test-only `assert_no_alloc` allocator) and `music_memory_tests` in the viewer (a
+new track frees the old one on the decode worker, a shared one stays, prefetched music
+is music). Not yet listened to in a game.
+
 ## Sound listener
 
 The mixer hears from one place a frame, as cgame's `S_Respatialize` from
@@ -1448,6 +1549,31 @@ the audio thread mixes while the frame is built, so the blocks mixed in between 
 sounds near the player differently from the others whenever they moved, and the saber's
 hum, a loop on the view, crackled (Toad's report). Unit test:
 `a_snapshot_leaves_the_listener_where_the_frame_put_it`; not yet heard in a game.
+
+## Voice volume
+
+`s_volumeVoice` (Settings > Sound, Voice volume; 0 to 1, default 1) is the loudness of
+voices: every sound on the voice channels (`CHAN_VOICE`, `CHAN_VOICE_ATTEN`,
+`CHAN_VOICE_GLOBAL`): pain, death, taunts, jump and land grunts, gasps and a voice
+command where its speaker stands (its radio copy in the listener's ears is on
+`CHAN_MENU1`, an effect, `cg_event.c` `EV_VOICECMD_SOUND`). As in retail, voices take it in place of `s_volume` (the effects volume), not
+on top of it: `S_PaintChannels` mixes them at `s_volumeVoice * volume` and the rest at
+`s_volume * volume` (`snd_mix.cpp`), and the OpenAL path sets their gain from
+`s_volumeVoice` alone (`snd_dma.cpp`). Until 26/10/2026 SJK registered the cvar but
+mixed voices at `s_volume` (Rollembones, hub report #141), so at the defaults (effects
+0.5, voices 1) voices now sound twice as loud as before against the effects, as in
+retail and EternalJK.
+
+The sound adapter puts the three voice channels on one mixer channel
+(`normalize_voice_channel`, as the game's channel stomp groups them), and the mixer
+gives that channel its own gain (`Mixer::set_channel_gain`, a generic bus in
+[sjk-audio](../crates/sjk-audio/src/lib.rs)): `AudioCommand::Gains` carries effects,
+music and voice ([audio_controls.rs](../crates/sjk-viewer/src/audio_controls.rs)
+`VOICE_CHANNEL`). Loops and music do not take it. The interface's own sounds (menu cues,
+previews) play on channels past the game's (`interface_channel`), so none takes the
+voice volume. A muted window silences voices too. Unit tests:
+`a_channel_gain_replaces_the_master_gain_for_that_channel_only` (sjk-audio),
+`voices_take_the_voice_volume_and_other_sounds_the_effects_volume` (viewer).
 
 ## Jetpack sounds
 
@@ -1734,10 +1860,44 @@ crackles about seven times a second at any frame rate, as stock does at
 deflects lightning (`CG_LightningDeflectionActive`) is not followed, as the shell does
 not follow it either.
 
+## Bright flashes
+
+Settings > Game options (SJK UI: Advanced > Gameplay, Effects; Simple > Gameplay) has
+**Reduce bright flashes** (`cg_reduceFlashes`, off by default), added for photosensitive
+players after Piza's hub report #138 ("a BIG white flash when two sabers clash"). On,
+nothing bright flashes over the view:
+
+- no saber clash flare, the burst of `gfx/effects/saberFlare` drawn over the screen where
+  sabers meet (`CG_SaberClashFlare`, 150 ms, up to 2.35 times 600 virtual units across
+  close by: at a few metres it covers most of the screen);
+- no effect `Flash` primitive (`CFlash`, [effect_flash.rs](../crates/sjk-viewer/src/effect_flash.rs)),
+  the white screen flash of a DEMP2 alt shock, a rocket, a concussion blast and the
+  AT-ST's and ships' explosions (every retail effect with one);
+- no effect particle drawn with the clash flare's picture. Retail's saber block effect
+  never uses it, but packs that remake the block as a flash do (JoF's
+  `JoF_HDMovieSaberClash.pk3` makes `effects/saber/saber_block.efx` one 55-unit flare of
+  it at every block), so it goes whatever pack supplies the effect.
+
+The clash flare also follows EternalJK's switches (JoF EJK `CG_SaberClashFlare`):
+**Saber clash flare** (`cg_saberClash`, on) and **Clash flare size**
+(`cg_saberClashSize`, 0 to 2, 1; the picture's size times it, 0.001 at least as
+EternalJK's). Reduce bright flashes wins over both. The viewer reads them once a frame
+([saber_clash_flare.rs](../crates/sjk-viewer/src/saber_clash_flare.rs)); the effect
+spawner and submission read the reduce switch from an atomic the frame sets.
+
+Compared with retail: the flare's timing, size, the behind-the-view and wall tests
+follow `CG_SaberClashFlare` exactly ([sjk-client saber_clash_flare.rs](../crates/sjk-client/src/saber_clash_flare.rs)),
+and a `Flash` follows `CFlash`'s distance and direction scale. One difference is not
+settled: retail draws the flare in 2D after the scene, SJK draws it as a quad in the
+scene's effect pass, so with bloom on (`r_sceneBloom`) it may bloom where retail's never
+does. Not compared side by side in game. Unit tests:
+`the_flare_follows_its_settings_and_reduced_flashes`,
+`only_the_clash_flare_picture_is_a_flash_picture`.
+
 ## Renderer settings
 
 SJK's own cvars have engine names: rendering ones are `r_*` (`r_sceneHdr`,
-`r_toneCurve`, `r_sceneBloom`, `r_superSample`, `r_actorSunShadows`,
+`r_toneCurve`, `r_sceneBloom`, `r_superSample`, `r_renderScale`, `r_actorSunShadows`,
 `r_sunShadow*`, `r_dayNight`, `r_liveLighting`, ...), the ground HUD is
 `cg_groundHud` and the dedicated server's are `g_npcNav` and `g_stockRules`.
 The ground HUD (health, shield and Force at the player's feet in third person)
@@ -1756,7 +1916,7 @@ of VIDEO is gone (10/10/2026). The groups are:
 
 | Tab | Settings |
 | --- | --- |
-| IMAGE | HDR scene and exposure, eye adaptation (`r_autoExposure`) and its range in EV, filmic tone curve, bloom, dynamic glow (`r_DynamicGlow` 0-3) and its blur style (`r_dynamicGlowStyle`), FXAA, supersampling (`r_superSample`), soft particles, ambient occlusion (`r_ssao`), sunbeam dust (`r_dustMotes`), per-pixel model lighting, reflection probes (`r_cubeMapping`), floor mirrors (`r_floorReflections`), normal and specular maps (`r_normalMapping`, `r_specularMapping`), parallax mapping (`r_parallaxMapping`) and its depth (`r_parallaxStrength`), emission maps (`r_emissiveMaps`), their strength (`r_emissionStrength`) and glow halo (`r_emissiveGlow`) |
+| IMAGE | HDR scene and exposure, eye adaptation (`r_autoExposure`) and its range in EV, filmic tone curve, bloom, dynamic glow (`r_DynamicGlow` 0-3) and its blur style (`r_dynamicGlowStyle`), FXAA, supersampling (`r_superSample`), render scale (`r_renderScale`, also in the SJK UI's Simple Display; see [Render scale](rendering.md#render-scale-and-supersampling)), soft particles, ambient occlusion (`r_ssao`), sunbeam dust (`r_dustMotes`), per-pixel model lighting, reflection probes (`r_cubeMapping`), floor mirrors (`r_floorReflections`), normal and specular maps (`r_normalMapping`, `r_specularMapping`), parallax mapping (`r_parallaxMapping`) and its depth (`r_parallaxStrength`), emission maps (`r_emissiveMaps`), their strength (`r_emissionStrength`) and glow halo (`r_emissiveGlow`) |
 | LIGHTING | Sun and sky (`r_dayNight`), live lighting tier, time of day, day length, sunlight brightness, ambient fill and its corner shading, indirect boost, emission-map lights (`r_emissiveLights`), light shafts (`r_volumetrics`) and their clarity |
 | SHADOWS | World and character sun shadows, shadow resolution, sharp and close cascade distances, filter taps, slit closing, contact shadows |
 | WEATHER | Weather (`r_weather`), its density (`r_weatherDensity`), quality (`r_weatherQuality`), forced weather (`r_weatherForce`), ground fog (`r_weatherFog`) and volumetric clouds (`r_clouds`); see [Weather](rendering.md#weather) |
@@ -1844,8 +2004,8 @@ archived, its name from before the renames) before applying Vanilla style;
 Vanilla style was picked as a preset and nothing was kept. The [low-FPS
 help](#low-fps-help) offers the same switch. Like the preset, it needs a [graphics
 reload](#graphics-reload) for the lighting to change. Everything else is left as the
-player set it: the FPS cap, vertical sync, resolution and supersampling (which
-multiplies the pixels drawn, so no preset sets it), the taste settings (exposure,
+player set it: the FPS cap, vertical sync, resolution, supersampling and render scale
+(which multiply or divide the pixels drawn, so no preset sets them), the taste settings (exposure,
 time of day, tone curve, glow style, parallax depth, emission strength), contact
 shadows (still being worked out) and whether weather and fog show at all. Rows
 marked "(reload)" apply after a graphics reload, so a new preset's shadows, light
@@ -1857,7 +2017,7 @@ profile. How many frames each preset gains on a given GPU is not yet measured.
 ### Graphics reload
 
 Some renderer settings are read only when the graphics start: HDR scene, FXAA,
-supersampling, sun and sky, sun shadows and their quality, light shafts, normal,
+supersampling, render scale, sun and sky, sun shadows and their quality, light shafts, normal,
 specular, parallax and emission maps, reflection probes and texture filtering,
 so the graphics presets too. They apply with a
 graphics reload rather than a restart of SJK
@@ -1903,7 +2063,11 @@ a whole. The low-FPS help
   ([gpu_phases.rs](../crates/sjk-viewer/src/gpu_phases.rs), timestamps when the GPU
   has them), give the median frame and the part of it spent in the `light-...`
   sections. The check is done once per map (each new world), not under Vanilla,
-  and gives up 30 s after the map came in.
+  and gives up 30 s after the map came in. Whether the graphics are Vanilla is read
+  only while the check could still run, and again only once an archived cvar has
+  changed (every preset value is one, `ViewerConsole::archive_revision`): reading
+  the preset's 25 values every frame took 184 allocator calls a frame at the SJK
+  preset (25/10/2026).
 - It offers Vanilla graphics when the frame misses the player's FPS target and the
   lighting is at least 40% of it. The target is the FPS cap (`com_maxfps`, or the
   monitor's rate for auto), kept between 60 and 144: an uncapped player is offered
@@ -2254,6 +2418,12 @@ the talk flag have a chatbubble over their heads; the connection-trouble icon
 takes priority when the server marks a lost connection. These are upright frame
 billboards using the existing [sprite orientation](rendering.md#billboard-icons).
 Their texture opacity is preserved near walls even with soft particles enabled.
+A chat field open over a map change stays open, its draft and channel with it, and
+so does the balloon, as in EternalJK, where a server's map change resets no key
+catcher (Nib's report #134): the field goes to the new map's chat, and the commands
+sent while the map loads carry the talk button while it is open
+([resident_world.rs](../crates/sjk-viewer/src/resident_world.rs)). The chat box's
+lines start again with the new map, as a new map's cgame starts its chat box empty.
 Your own bubble is visible in third person, not the first-person view. Mind-tricked
 players, NPC talk flags and intermission do not show talk balloons. The balloons,
 pickup icons and hook ropes have their own share of the effect particle pool, so a
@@ -2355,6 +2525,9 @@ overlays still use the local player aim. Monitoring only received entities
 respects server PVS, but may show surroundings outside your line of sight.
 `/peek` alone uses the crosshair player; `/peek off` or a duration of 0 cancels.
 Local flight (`fakenoclip` or `freecam`) ends a peek; stop flight before peeking.
+Since 24/10/2026 Peek is the [Drone](#drone)'s: on a server it watches only a player
+whose Drone switch is on (in a local game, anyone), stops when they turn it off, and
+other SJK players see the drone behind the watched player.
 The local body stays at its player position and the view gun is suppressed.
 The camera cancels when the timer ends, the target slot/name changes, or the
 map changes. Missing snapshot data pauses the view; it resumes if data returns
@@ -2895,10 +3068,39 @@ the original cgame reads:
   gold plate with "YOU HAVE THE FLAG". The upper-right powerup icon of `CG_DrawPowerupIcons`
   still follows `cg_drawPowerupIcons` and `cg_drawUpperRight`; it now uses the ysalamiri
   pictures in CTY only (it took CTF for CTY).
-- The team scores in every team game but Siege (`cg_drawTeamScores`, on by default): "RED 3"
-  and "BLUE 5" plates under the clock at the top centre, from `CS_SCORES1` and `CS_SCORES2`
-  (`-` while the server has not sent one). With them on, the layouts' score line drops its
-  trailing team scores (`cg_drawScore 2`), which they replace.
+- The team scores in every team game but Siege (`cg_drawTeamScores`, on by default): two
+  team boxes under the clock at the top centre, red left and blue right, from `CS_SCORES1`
+  and `CS_SCORES2` (`-` while the server has not sent one), in the SJK UI's look in every
+  HUD style (the design canvas of 24/10/2026): the UI's navy under the team's muted colour
+  (`menu::sjk::color::RED_TEAM` and `BLUE_TEAM`, the SJK scoreboard's), a rule of that
+  colour along the bottom. Beside a flag the score stands at the inner edge, as wide as its
+  digits (smaller past 66 pixels, so "300" or "-12" fit); without flags (team FFA) it has
+  the whole box, centred. `cg_teamScoresBoxes 0` (Settings > HUD, "SJK team score boxes")
+  brings back the classic look: "RED 3" and "BLUE 5" plates under the clock and the flag
+  icons at the left. With the scores on, the layouts' score line drops its trailing team
+  scores (`cg_drawScore 2`), which they replace.
+- In Capture the Flag and Capture the Ysalamiri, with `cg_drawFlagStatus` too, each box
+  holds its team's flag at the outer edge and says where it is: "At base", its carrier
+  (named at once from the broadcast `EV_CTFMESSAGE` that `Team_TouchEnemyFlag` raises with
+  the taker's number, `CTFMESSAGE_PLAYER_GOT_FLAG`, even out of sight; then as the left
+  captions, "Taken" while unknown), "You" in gold for the flag you carry, or for a dropped
+  flag the seconds before it goes home ("18 s"), with a gold arc round the flag running
+  down. While you follow another player, their flag shows their name, not "You", and the
+  line below stays out. A dropped flag goes home by itself 30 s after it fell (`LaunchItem`
+  in OpenJK `codemp/game/g_items.c`, kept by JoF EJK and jaPRO; jaPRO's Tribes weapons wait
+  45 s, which the client cannot tell, so there the count ends early and the box says
+  "Dropped" for the last 15 s): the count starts when the client sees the flag fall, so a
+  flag already lying when you join, or one still there after 30 s, just says "Dropped". A
+  new gamestate (map change, restart, another server) or the server's clock going back
+  forgets the drops and takers seen before. An away flag shows its taken picture
+  (`mpi_*flag_x`), or its own picture faint in a pack without one. While you carry a flag, a
+  line under the boxes says "Take it home", in gold, or "Your flag is away" while your own
+  flag is not at base (no capture until it is). The boxes then replace the left icons and
+  the carried flag's powerup pictures (bottom left and in the upper-right column), which
+  return with `cg_teamScoresBoxes 0` or `cg_drawTeamScores 0`. The boxes are compact: 168 by
+  42 pixels of a 1080-line screen, the score 36; `cg_teamScoresScale` (Settings > HUD, "Team
+  score box size", 0.5 to 2, default 1) makes them smaller or larger, under the clock as
+  before.
 
 The scoreboards (classic and SJK UI) draw a flag icon before a carrier's name. A
 `scores` reply is only as fresh as the last scoreboard press, so each frame the rows'
@@ -3049,7 +3251,8 @@ that font is not loaded), whatever `cg_classicHudFont` says.
   hides unless your `cp_pluginDisable` sets bit 1 ("duel see others", `japlus.plugin
   1`; SJK's default 1536 leaves it clear), since a JA+ server sends bystanders to a
   plugin client and expects it to hide them; jaPRO (TaystJK) always hides; other
-  servers do not. `2` (Always) hides on every server, `0` (Off) never, and they are
+  servers do not. Other players' [drones](#drone) are hidden in a duel on every
+  server, unless the setting is 0. `2` (Always) hides on every server, `0` (Off) never, and they are
   then drawn very dark as in stock (`legacy_duel_tint`). Hiding leaves them out of
   what is presented, as if the server had not sent them: their bodies, held sabers
   with blade glow, trails and lights, thrown sabers (by the saber's
@@ -3072,6 +3275,21 @@ that font is not loaded), whatever `cg_classicHudFont` says.
   `SaberSkins::set_plain`). Team and black blades follow their own settings as usual.
   Off by default (Creyon: skins stay on in duels unless a player asks). It changes only
   what you see; the other duellist sees what their own setting says.
+- `cg_stockBlades` (0, Off; Settings > Advanced > Gameplay > Effects > Stock blades, and
+  the classic Game options: Off, Others, All), Sol's request of 25/10/2026 for weak PCs
+  (GTX 1050/1060 class, integrated GPUs): `1` draws other players' blades as stock blades in the colour they set (a stock
+  colour or RGB), without their blade skin; `2` every blade, yours included. A blade skin
+  costs about 0.4 to 0.6 ms of GPU time on an RTX 5080 once one is in view (a heavy
+  signature up to 6 ms), so several milliseconds on a weak GPU on a full saber server.
+  Everything the skin draws goes with it (its shading, afterimages, glints, petals, heat
+  haze, black-hole lenses, solid parts, its trail and light colours), and the skin passes
+  are skipped once no skinned blade is left in the frame
+  ([rendering.md](rendering.md#saber-blade-skins)). Thrown sabers follow their owner.
+  Sounds stay as each player chose them. The menus keep showing skins: the Character and
+  Collection stage, the cards and the blade pictures never take them from this setting
+  ([stock_blades.rs](../crates/sjk-viewer/src/stock_blades.rs),
+  `SaberSkins::set_stock`). With `1`, a player you follow is another player. It changes
+  only what you see. Team, black and duel blades follow their own settings as usual.
 - `cg_hideCorpsesInDuel` (on; Settings > Advanced > Gameplay > Hide corpses in
   duel) keeps dead bodies out of the presentation world while the local player is
   in a private duel. It affects `ET_BODY` only: live players and gameplay state are
@@ -3457,7 +3675,10 @@ The client looks for a newer SJK release when it starts and from the Update page
   ZIP's files beside the running program as `<name>.new` and renames each running
   file to `<name>.old` before the new one takes its name (a Windows program can be
   renamed while it runs, not overwritten). A failed step puts the old files back.
-  Only plain file names are taken from the ZIP. The `.old` files are deleted at
+  Only plain file names are taken from the ZIP, and the Mac's `SJK.app` bundle,
+  which is written and swapped whole (the folder beside the bundle is the install
+  folder; a Mac client from before the bundle cannot install a bundled release and
+  says so). The `.old` files (and `SJK.app.old`) are deleted at
   the next start. Settings in `GameData/SJK/` are not touched.
 - The new version starts when the client exits, after it saved its settings:
   "Restart now" on the page quits, or the player keeps playing and restarts later.
@@ -4162,7 +4383,8 @@ the archived `cl_toyHax`, as Order 66 in `cl_toyOrder66`).
 - **The control:** once the bar is full, the hacked player's client decides. It takes
   the seize only from a player the game shows under the name they claimed, not blocked
   here, whose look has the toy, while its own toy is on and its player plays (not
-  spectating or dead, not in a duel, not carrying a flag) and was not hacked in the last
+  spectating or dead, not in a duel, not carrying a flag, its view not held by the
+  server: [held view](#held-view)) and was not hacked in the last
   15 seconds, and is not away (idle or alt-tabbed as the [away emote](#away-emote)
   counts it, or an away tag in their name); else the hacker reads why ("Hack failed:
   <name> is in a duel", "is away"). Taken, for
@@ -4234,8 +4456,16 @@ every fall ends with the map or the server.
   It starts standing where the player stood, turned their way, with their speed, and
   pushed off balance (back, to a side, the knees buckling), so a running or jumping
   player tumbles on. It falls at `g_gravity`'s 800, slides and bounces a little on the
-  world's brushes (the map's own, not movers), and sleeps once it has lain still for a
-  second (or after 40 seconds whatever it does).
+  world's brushes, and sleeps once it has lain still for a second (or after 40 seconds
+  whatever it does), until a mover stirs it.
+- **Movers:** since 25/10/2026 lifts, doors, trains and the map's other brush movers are
+  in its way too ([scene.rs](../crates/sjk-viewer/src/ragdoll/scene.rs)). Each stands
+  where its trajectory puts it at the step's own moment, read from the first snapshot
+  at or after that moment, so every client places it alike. A point lying on a mover
+  goes with it (a lift takes the body up, a train along, a turning platform round) and
+  keeps the mover's speed when it leaves it; a mover that moves into a point pushes it
+  along (a closing door shoves the body). A sleeping body wakes when a mover it lies on
+  starts, or one comes into it.
 - **The model:** the player's own model is drawn posed by it
   ([skin.rs](../crates/sjk-viewer/src/ragdoll/skin.rs)): the `_humanoid` skeleton is cut
   into eleven rigid parts (pelvis, chest, head, upper arms, forearms, thighs, shins),
@@ -4251,9 +4481,14 @@ every fall ends with the map or the server.
   player gets up there. A limp player sends no button and cannot attack. Players on
   stock clients see a player walking about.
 - **Getting up:** `toy_ragdoll` again; or at once when the player is hurt ("Ouch! You
-  got up"), dies, spectates, is in a duel or carries a flag. Nobody goes limp in a duel
-  ("No ragdoll in a duel"), with the flag, while spectating or dead, or in a [Hax](#hax)
-  hack.
+  got up"), dies, spectates, is in a duel or carries a flag, or when the server holds
+  their view (a JA+ kiss, kick or knockdown, a melee grapple or throw, a saber lock:
+  [held view](#held-view)). Hurt is a new damage feedback from the server (the player
+  state's `damageEvent`, which `P_DamageFeedback` moves on at each hurt); comparing
+  health instead woke a player who fell again after a hit at once (Sanji's report
+  #135). Nobody goes limp in a duel ("No ragdoll in a duel"), with the flag, while
+  spectating or dead, in a [Hax](#hax) hack, or while the server holds the view ("No
+  ragdoll right now").
 - **Everyone sees the same fall:** no pose is ever sent. The faller's client relays
   one start event to each SJK player on the server through the hub's
   [toy relay](hub-chat.md#toy-relay), one every 35 ms: `fall_<moment>_<x>_<y>_<z>_<vx>_<vy>_<vz>_<yaw>`,
@@ -4271,14 +4506,152 @@ every fall ends with the map or the server.
 - **The sounds:** going limp plays a flatline (`sound/sjk/ragdoll/flatline.wav`, two
   monitor beeps then the long tone, SJK's own, made by
   [ragdoll_assets.py](../scripts/ragdoll_assets.py)), to the player and at the body for
-  the others; a PK3 that has the same path replaces it. Each point that hits the world
-  hard enough knocks, at most every 140 ms per body: the game's own body falls
-  (`sound/player/bodyfall_human1.mp3` to `3`), its slams for the hardest
-  (`sound/effects/body_slam1.mp3`, `2`).
+  the others; a PK3 that has the same path replaces it. Since 26/10/2026 a player's
+  flatline is heard at most once every 15 seconds (`FLATLINE_GAP`, per player, on each
+  client); falls within that gap are silent, the toy itself is not held. Since 25/10/2026 every part of
+  the body is heard on its own, as in the sandbox games
+  ([sounds.rs](../crates/sjk-viewer/src/ragdoll/sounds.rs)): the trunk, the head and
+  each arm and leg knock when they hit the world (110 units a second into it, 150 for a
+  limb), each at most every 120 ms and at most three parts of a body in a frame, louder
+  the harder (a limb a quarter quieter). A knock is two sounds at once: the flesh (the
+  trunk the game's body falls, `sound/player/bodyfall_human1.mp3` to `3`, or slams from
+  420 units a second, `sound/effects/body_slam1.mp3`, `2`; a limb or the head the melee
+  punches, `sound/weapons/melee/punch1.mp3` to `4`, a limb's hard one the kicks,
+  `kick1.mp3` to `5`, the head's `sound/effects/thud.mp3`) and what it hit: the
+  footstep of its material (stone, metal, wood, grass, sand, snow, mud, gravel,
+  carpet..., the footsteps' own families and name guess, a hard knock the run's). A part
+  dragged along a surface faster than 120 units a second scrapes on it (its footsteps,
+  quiet, at most every 220 ms a body).
 
 The icon (a limp figure slumped against a wall) is drawn by the same script. World shots:
 `world_shot::ragdoll_shots::ragdoll_on_a_demo` (with `SJK_TEST_DEMO`). See
 [ragdoll.rs](../crates/sjk-viewer/src/ragdoll.rs).
+
+## Held view
+
+A game server holds a player's view in some moves: it rewrites `delta_angles` every
+frame so that the view stays where it puts it. SJK knows these cases from one table,
+`server_holds_view` in
+[prediction_policy.rs](../crates/sjk-game-jka/src/prediction_policy.rs): a melee grapple
+(`BG_InGrappleMove`'s animations) or throw (`HANDEXTEND_PRETHROWN`, `POSTTHROWN`), a
+saber lock, and on a JA+ server JoF EJK's `CG_JAPlusViewLockedState` (kicked down,
+getting up, kissing, hanging from a ledge) ([held_view.rs](../crates/sjk-viewer/src/held_view.rs)).
+While it does:
+
+- the mouse does not turn the view (the motion is dropped): a view turned under the
+  server's rewrites shook as the player looked around, kicked down by a JA+ kata or a
+  melee kick (Rollembones' report #146). `cg_heldViewLook 1` lets the mouse turn it
+  anyway. A free camera and fake noclip are not held;
+- the [Ragdoll](#ragdoll) gets the player up and does not start, and a [Hax](#hax) hack
+  ends or is refused (the hacker reads "is busy"): their commands carry angles of their
+  own, so every rewrite turned the camera on by the gap between the two views and it
+  spun (Rollembones' report #139, a kiss; Foshin's #140, a grapple).
+
+## Drone
+
+The Drone (Sol's idea, 24/10/2026, grown from Slash's Peek work in #199) makes the free
+camera and Peek a toy: a little training remote, Jedi Academy's own seeker ball
+(`models/items/remote.md3`, at the game's own size), that every other SJK player on
+the server sees fly, the pilot's name over it (white, shadowed, within 2,400 units and
+not behind a wall), coming out with the game's remote hiss.
+
+- `freecam` (the detached free camera, [status.md](status.md#detached-free-camera)) flies the drone: it is where
+  the camera is, turned the way it looks.
+- `peek` ([timed player peek](#timed-player-peek)) sends it to a player: it hovers
+  where the peeking camera stands, behind them and above (`peek::behind`).
+
+Both commands, their binds and their quick wheel choice are unchanged; they fly the
+drone whatever the switch. The switch, `toy_drone` (a bind, the quick wheel's Toys page,
+Collection > Toys, "Peek me"), is the consent to be peeked: on a server `peek` refuses a
+player whose look does not show the toy ("has not let drones follow them"), and a peek
+under way ends as soon as the watched player turns it off ("Name sent your drone away":
+their client relays `away` to the pilot at once, and again at each repeat of a drone
+watching them while it is off; failing that, the pilot's client ends it when their look
+shows it off, "Your drone was sent away").
+The watched player does not see the drones watching them (they would hover in their
+back); a line near the top of their screen names who watches while it lasts ("Name is
+spectating you with the Drone", names joined when several do). A player in a private
+duel, or following one, does not see the drones of pilots outside it (Sanji's report
+#145: they distracted the duel), on every server since drones are SJK's own, unless
+`cg_duelHideOthers` is 0 ([Nameplates](#nameplates)). It stays as last switched, across maps, servers and restarts
+(`cl_toyDrone`, archived). In a local game no look is shared, so anyone may be peeked
+and nobody sees a drone.
+
+No game server knows of it. The pilot's client tells every other SJK player where the
+drone is through the toy relay (`PROTOCOL.md`, "Toy relay";
+[hub-chat.md](hub-chat.md#toy-relay)): `fly_<x>_<y>_<z>_<yaw>` (whole units, degrees)
+while the camera flies, `peek_<slot>` while it watches a player, `land` when it is put
+away. One event goes every 50 ms, to the players in turn: a player hears the drone's
+place again once it moved 2 units or turned 3 degrees, or every second while it holds
+still; so with two players each hears of it twenty times a second at most, with ten
+twice. A drone not heard of for 3 seconds goes. Each client glides the drones it shows to
+the latest place (and, for a peek, finds the place behind the watched player itself from
+what it shows of them), so they move smoothly between events. The pilot's own drone is
+not drawn on their screen (it is their camera). Players on stock clients see nothing.
+The icon (a training remote hovering) is drawn by `scripts/drone_assets.py`. See
+[drone.rs](../crates/sjk-viewer/src/drone.rs).
+
+## Boombox
+
+The Boombox (Sol's idea, 25/10/2026) is a toy for verified SJK players: a big 80s stereo
+on the shoulder, playing music from the player's own files to the SJK players standing
+close by. It works like emotes: the music is in pk3s, and SJK passes only its name.
+
+- **Tracks** are `sound/boombox/<id>.mp3` (or `.wav`) in any pk3 or the game folder;
+  `<id>` is 1 to 24 of `a` to `z`, `0` to `9` and `_`, and shows with spaces for its `_`.
+  SJK ships none.
+- **`toy_boombox`** (a bind, the quick wheel's Toys page, Collection > Toys, "Play") puts
+  the stereo on the shoulder and plays the chosen track (the first at first), or puts it
+  away. `boombox` in the console lists the tracks; `boombox <id>`, `next`, `prev`, `play`
+  and `stop` choose and play them (Settings > Key bindings > Interaction has "Boombox:
+  next track"). When a track ends the next one plays, the first after the last. It is off
+  at every start and on every new server.
+- **Verified players only** (Sol's rule, 25/10/2026): on a server only a player whose key
+  the SJK hub verified may turn it on ("The boombox is for verified SJK players"), and every
+  SJK client ignores the boombox, music and stereo, of a player the hub does not show as
+  verified. In a local game anyone may carry it.
+- **Heard close by:** Settings > Game options > Toys, "Boombox range"
+  (`cg_toyBoomboxRange`, 128 to 1000 units, default 400; a player is about 64 tall) sets
+  how far the player's own carries. It plays at full volume within a third of that and
+  fades to nothing at the edge; a listener further away (64 units more once it plays)
+  does not play it at all. The carrier hears their own in both ears. Settings > Sound >
+  Toys, "Boombox music" (`s_toyBoomboxSound`), silences every boombox on this PC, and a
+  player blocked here is never heard.
+- **Others hear it** only when they have the same file: the same id and size. A listener
+  without it reads once in the console which track it is
+  (`Name's boombox plays <id>, which you do not have`).
+
+No game server knows of it, and the hub never carries sound. The stereo is a toy in the
+player's look (`toys: ["boombox"]`), so every SJK player on the server draws it over the
+carrier's right shoulder (on the `*back` bolt, upright, facing where the body faces; not
+on the dead; one's own in first person only in mirrors). What plays travels through the
+[toy relay](hub-chat.md#toy-relay): `play_<moment>_<bytes>_<range>_<id>` names the track,
+its file's size, the game server's time it began at and how far it carries; `stop` ends
+it. The carrier's client tells each SJK player within the range and 128 units more, one
+event every 50 ms, again whenever one comes back within reach and every 15 seconds; a
+track not told again for 40 seconds stops. A listener starts the track as far in as the
+server's time says, so everyone hears the same part of it whenever they arrive: the file
+is read and decoded when first needed (not before), the start waits for the decoder and
+then skips the time it waited (`AudioCommand::PlayTrack`), and a track nothing plays any
+more is freed. The music plays on the protected emote channel (a full voice table drops
+every other sound first) but on a source of its own per player, so an emote never cuts
+it. The stereo's model, picture, shader and icon are bundled, made by
+[boombox_assets.py](../scripts/boombox_assets.py) from shapes (nothing taken from another
+game), and mounted below all game data, so a PK3 with the same paths replaces them. See
+[boombox.rs](../crates/sjk-viewer/src/boombox.rs).
+
+## Toy sounds
+
+Settings > Sound > Toys (Sol's request, 25/10/2026) sets how the toys sound on this PC:
+"Toy volume" (`s_toyVolume`, 0 to 2, default 1, times the effects volume) scales every
+toy's sounds, and a switch per toy silences that toy's sounds alone, the player's own
+and everyone else's (`s_toyBoxSound`, `s_toyOrder66Sound`, `s_toyHaxSound`,
+`s_toyRagdollSound`, `s_toyDroneSound`, `s_toyBoomboxSound`, all on by default,
+archived). The toy still
+runs and is still seen; nothing is sent to anyone. The Illuminate holocron makes no
+sound. Every toy sound goes through `GameAudio::play_toy`, and the box music and the
+Hax loop through `send_toy_loop`, which read the settings each frame, so a change is
+heard at once, loops included. See [toy_sounds.rs](../crates/sjk-viewer/src/toy_sounds.rs).
 
 ## Holstered saber hilts
 
@@ -4737,6 +5110,19 @@ A window without focus has caps of its own: `com_maxfpsUnfocused` (SJK's default
 uses `com_maxfps`. They replace the normal cap while they apply, minimized first,
 so an alt-tabbed client does not render a 4K scene at full rate.
 
+`com_maxfpsMenu` (archived, default 0; Settings > Advanced > Display > Frame rate >
+Menu FPS cap, and the classic Video tab), Sol's request of 25/10/2026 for weak PCs,
+caps frames while only the menus run: no live game, no demo and no server connection
+waiting on its map (`GpuState::menus_only` in
+[runtime_settings.rs](../crates/sjk-viewer/src/runtime_settings.rs)). That is the main
+menu and its pages (Collection, Profile, Settings...), the menu world behind them and
+the connecting card until the server's game state arrives. The game menu over a match
+keeps the game's cap, since the game runs on under it, and so do a map loading for a
+server (its connection is serviced and the load's steps handed on once a frame) and demo
+playback. It lowers the normal cap, never raises it (an uncapped `com_maxfps 0` is
+lowered too), and 0 keeps the normal cap, so nothing changes for anyone who leaves it. The unfocused and minimized caps still
+replace it while they apply. The gameplay FPS's Auto follows `com_maxfps` alone.
+
 `snd_mute_losefocus` (archived, 1, EternalJK's name and default; Settings > Sound
 > Mute in background) silences every sound, music included, while the window is
 unfocused or minimized. EternalJK pauses its sound device; SJK sets the effects
@@ -4760,7 +5146,10 @@ waits for room as before, but stops when the output is dropped, so `snd_restart`
 quitting do not wait on it. See [audio_feed.rs](../crates/sjk-viewer/src/audio_feed.rs).
 
 The Video tab's Display mode row offers Windowed, Borderless fullscreen and,
-where the windowing system supports it, Exclusive fullscreen (Wayland does not).
+where the windowing system supports it, Exclusive fullscreen (Wayland does not,
+and macOS is kept to borderless: winit's exclusive mode there captures the display,
+which takes Cmd+Tab away, and panics inside AppKit's redraw when capturing it or
+setting its mode fails; a Mac player's game aborted on choosing fullscreen, 25/10/2026).
 Stock `r_fullscreen` keeps its meaning, fullscreen on or off, and Alt+Enter still
 toggles it. `r_exclusiveFullscreen` chooses the kind: 0 (default) is a borderless
 window at the desktop size, 1 switches the monitor to the `r_resolution` video

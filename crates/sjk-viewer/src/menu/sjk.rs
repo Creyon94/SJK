@@ -427,6 +427,11 @@ pub(crate) mod color {
     pub(crate) const QUIET: Color = Color::new(0.53, 0.573, 0.675, 1.0);
     /// Only for leaving: Quit.
     pub(crate) const EMBER: Color = Color::new(1.0, 0.478, 0.239, 1.0);
+    /// The red team, muted: the SJK scoreboard's team rules and names, the CTF HUD's
+    /// team boxes.
+    pub(crate) const RED_TEAM: Color = Color::new(0.88, 0.38, 0.38, 1.0);
+    /// The blue team, muted as [`RED_TEAM`].
+    pub(crate) const BLUE_TEAM: Color = Color::new(0.44, 0.64, 0.98, 1.0);
 
     /// `color` at `alpha`.
     pub(crate) const fn alpha(color: Color, alpha: f32) -> Color {
@@ -519,10 +524,12 @@ pub(crate) fn key_hint(
     s: f32,
 ) -> f32 {
     let height = 24.0 * s;
+    // The characters' room grows with the menu text size (`ui_textScale`).
+    let k = crate::text::style::current().scale.max(0.5);
     let mut x = x;
     for key in keys {
         // Rajdhani Bold at 15 is about 8 pixels a character.
-        let width = (18.0 + 8.2 * key.len() as f32) * s;
+        let width = (18.0 + 8.2 * k * key.len() as f32) * s;
         let cap = Rect::new(x, y, width, height);
         let _ = canvas.draw_list_mut().push(DrawCommand::Border {
             rect: cap,
@@ -542,7 +549,7 @@ pub(crate) fn key_hint(
         );
         x += width + 6.0 * s;
     }
-    let action_width = (12.0 + 7.6 * action.len() as f32) * s;
+    let action_width = (12.0 + 7.6 * k * action.len() as f32) * s;
     text(
         canvas,
         TextFamily::Body,
@@ -558,11 +565,12 @@ pub(crate) fn key_hint(
 
 /// Width [`key_hint`] takes for `keys` and `action`, to right-align a row.
 pub(crate) fn key_hint_width(keys: &[&str], action: &str, s: f32) -> f32 {
+    let k = crate::text::style::current().scale.max(0.5);
     let caps: f32 = keys
         .iter()
-        .map(|key| (18.0 + 8.2 * key.len() as f32 + 6.0) * s)
+        .map(|key| (18.0 + 8.2 * k * key.len() as f32 + 6.0) * s)
         .sum();
-    caps + 4.0 * s + (12.0 + 7.6 * action.len() as f32) * s
+    caps + 4.0 * s + (12.0 + 7.6 * k * action.len() as f32) * s
 }
 
 /// Where the top bar's way back starts and its middle line, in frame pixels.

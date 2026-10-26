@@ -173,12 +173,14 @@ impl ViewerConsole {
                 }
                 // A mod's command runs with the client's frame state, as the
                 // client commands do; one whose mod is off answers here. The
-                // client's own commands come first, even under a mod's prefix.
-                let mod_answer = if console_client::known(&tokens[0]) {
-                    None
-                } else {
-                    mods.accepts(&tokens[0])
-                };
+                // client's own commands and the mods' settings come first, even
+                // under a mod's prefix.
+                let mod_answer =
+                    if console_client::known(&tokens[0]) || cvars.get(&tokens[0]).is_some() {
+                        None
+                    } else {
+                        mods.accepts(&tokens[0])
+                    };
                 match mod_answer {
                     Some(Ok(())) if client_commands.pending.len() == 64 => {
                         return Some(Err("Client command queue is full".into()));
@@ -340,6 +342,7 @@ impl ViewerConsole {
         self.mods.set_server(None);
         self.server_profile = None;
         self.server_cap = None;
+        self.server_family = None;
         self.input_health.reset();
         self.mods.sync(&mut self.shell);
         self.refresh_server_help();
@@ -401,6 +404,23 @@ mod tests {
         // The mod's own commands still wait for a JoF server.
         console.execute_console_line("jof.commands", None);
         assert_eq!(console.client_commands.pending.len(), 1);
+    }
+
+    /// A mod's setting is set from the console like any cvar, off its servers too.
+    #[cfg(feature = "mod-jof")]
+    #[test]
+    fn a_mod_setting_is_set_from_the_console() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut console =
+            crate::console::ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
+        console.execute_console_line("jof.e2eWhispers 1", None);
+        assert_eq!(console.bool_cvar("jof.e2eWhispers"), Some(true));
+        assert!(
+            !console
+                .shell
+                .lines()
+                .any(|line| line.text.contains("Unknown command"))
+        );
     }
 
     #[test]

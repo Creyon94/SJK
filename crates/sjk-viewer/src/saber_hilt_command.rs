@@ -15,7 +15,9 @@
 //! its own `saber` command, so it applies without a respawn: that is
 //! `sjk_client::SaberChangeNotifier`, which follows the two cvars whoever sets them (the
 //! menus too), with its table of the servers that take the command
-//! (`profile_accepts_saber_command`). This command only sets the cvars.
+//! (`profile_accepts_saber_command`). This command sets the cvars, then asks the
+//! notifier to send even an unchanged pick (a switch the server refused can be asked
+//! again, #132).
 
 use crate::console::ViewerConsole;
 
@@ -94,6 +96,9 @@ pub(crate) fn run(
         console.set_cvar("saber1", &before);
         return Err("saber2 could not be set; nothing changed".to_owned());
     }
+    // As `CG_Saber_f`, every run asks the server, the same pick too: a switch it
+    // refused (moving, not idle) left the cvars on the pick already (#132).
+    console.request_saber_command();
     Ok(vec![if second == "none" {
         format!("You hold {first}.")
     } else {

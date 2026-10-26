@@ -106,6 +106,12 @@ pub(crate) fn building(cache: &Arc<Cache>) -> (Holder, Building) {
     )
 }
 
+/// A world is being built on this thread ([`building`]): the world installer, not the
+/// render thread.
+pub(crate) fn in_build() -> bool {
+    BUILDING.with(|building| building.borrow().is_some())
+}
+
 /// The `kind` texture made from content `key`: another world's copy when one is alive
 /// on this context, else `make`'s. Outside a build, always `make`'s.
 pub(crate) fn share<T>(kind: &'static str, key: u64, make: impl FnOnce() -> T) -> T

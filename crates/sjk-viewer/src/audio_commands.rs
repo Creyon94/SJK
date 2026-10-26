@@ -58,9 +58,7 @@ impl GameAudio {
             }
             "stopmusic" | "soundstop" => {
                 self.music_sync_pending = false;
-                self.output.stop_music();
-                self.map_music = None;
-                self.dynamic = None;
+                self.clear_music();
                 if name == "soundstop" {
                     self.output.send(AudioCommand::StopAll);
                     self.deferred_snapshots.clear();
@@ -106,18 +104,20 @@ impl GameAudio {
                 .borrow()
                 .iter()
                 .map(|(handle, size, format)| {
-                    let path = self
-                        .handles
-                        .iter()
-                        .find(|(_, h)| *h == handle)
-                        .map_or("<loading>", |(path, _)| path.as_str());
-                    format!("{size:8} encoded bytes {format:4} -> 44100 Hz mono PCM: {path}")
+                    let path = self.sound_path(*handle).unwrap_or("<loading>");
+                    format!("{size:8} encoded bytes {format:4} -> 44100 Hz 16-bit mono PCM: {path}")
                 })
                 .collect()),
-            "soundinfo" => Ok(vec![format!(
-                "rodio/cpal {}; mixer: 44100 Hz, 2 channels",
-                self.output.description
-            )]),
+            "soundinfo" => Ok(vec![
+                format!(
+                    "rodio/cpal {}; mixer: 44100 Hz, 2 channels",
+                    self.output.description
+                ),
+                format!(
+                    "decoded sounds: {:.1} MiB of 16-bit PCM",
+                    self.output.stats.pcm_bytes.load(Ordering::Relaxed) as f64 / (1024.0 * 1024.0)
+                ),
+            ]),
             _ => Err("Unsupported sound command".into()),
         }
     }
@@ -125,11 +125,7 @@ impl GameAudio {
     /// Drain the bounded diagnostic handles; disabled s_show produces no strings.
     pub(crate) fn print_sound_starts(&mut self, console: &mut ViewerConsole) {
         while let Some(handle) = self.output.started.pop_front() {
-            let path = self
-                .handles
-                .iter()
-                .find(|(_, h)| **h == handle)
-                .map_or("<loading>", |(path, _)| path.as_str());
+            let path = self.sound_path(handle).unwrap_or("<loading>");
             console.push_log(format!("sound: {path}"));
         }
     }

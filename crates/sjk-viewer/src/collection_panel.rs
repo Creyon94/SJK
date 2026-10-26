@@ -59,6 +59,7 @@ mod toys;
 mod view;
 
 pub(crate) use spin::SaberTurn;
+pub(crate) use toys::COMMANDS as TOY_COMMANDS;
 pub(crate) use view::{MODEL_AREA, SABER_AREA, row_labels};
 
 /// The things' tokens: the medals, the achievements, the shaders' rows, the shader's
@@ -88,6 +89,10 @@ const ORDER_TOKEN: u16 = 1_315;
 const HAX_TOKEN: u16 = 1_318;
 /// The Ragdoll's niche on Toys.
 const RAGDOLL_TOKEN: u16 = 1_309;
+/// The Drone's niche on Toys.
+const DRONE_TOKEN: u16 = 1_308;
+/// The Boombox's niche on Toys.
+const BOOMBOX_TOKEN: u16 = 1_307;
 /// The Shaders tab's lone saber, where the pointer takes hold of it to turn it.
 const SABER_TOKEN: u16 = 1_316;
 /// The shader card's way to the Forge: Craft in the Forge (one not held) or Break down
@@ -95,19 +100,34 @@ const SABER_TOKEN: u16 = 1_316;
 const FORGE_LINK_TOKEN: u16 = 1_317;
 /// The Nameplates tab's See and share nameplates switch.
 const SHARE_TOKEN: u16 = 1_319;
-/// The target switch over the lone saber: the first saber (or half), the second.
-const TARGET_FIRST_TOKEN: u16 = 1_307;
-const TARGET_SECOND_TOKEN: u16 = 1_308;
+/// The target switch over the lone saber: the first saber (or half), the second (1_307
+/// and 1_308 are the Boombox's and the Drone's).
+const TARGET_FIRST_TOKEN: u16 = 1_301;
+const TARGET_SECOND_TOKEN: u16 = 1_302;
 /// The "Both" box beside the switch: Equip and Unequip dress both sabers (both halves).
 const BOTH_TOKEN: u16 = 1_306;
 /// How far (frame pixels) a press on the lone saber may move and still be a click.
 const CLICK_SLOP: f32 = 6.0;
-/// The toys the Toys tab shows: Illuminate, the cardboard box, Order 66, the Hax, then
-/// the Ragdoll.
-const TOY_COUNT: usize = 5;
-/// Each toy's niche, in the order of [`Panel::toy`].
-const TOY_TOKENS: [u16; TOY_COUNT] = [TOY_TOKEN, BOX_TOKEN, ORDER_TOKEN, HAX_TOKEN, RAGDOLL_TOKEN];
-/// The Shaders tab's view switches: the rack (a list) and the grid of cards.
+/// The toys the Toys tab shows: Illuminate, the cardboard box, Order 66, the Hax, the
+/// Ragdoll, the Drone, then the Boombox.
+const TOY_COUNT: usize = 7;
+/// Each toy's row, in the order of [`Panel::toy`].
+const TOY_TOKENS: [u16; TOY_COUNT] = [
+    TOY_TOKEN,
+    BOX_TOKEN,
+    ORDER_TOKEN,
+    HAX_TOKEN,
+    RAGDOLL_TOKEN,
+    DRONE_TOKEN,
+    BOOMBOX_TOKEN,
+];
+/// Each toy row's own switch (25/10/2026): it turns that toy on or off in place.
+const TOY_SWITCH_BASE: u16 = 1_360;
+/// The chosen toy's key, which a click or K waits for a key to bind, and Order 66's
+/// second (the key that executes the order).
+const BIND_TOKEN: u16 = 1_370;
+const BIND_SECOND_TOKEN: u16 = 1_371;
+/// The Shaders tab's view switches: the list and the wall of tiles.
 const LIST_VIEW_TOKEN: u16 = 1_312;
 const GRID_VIEW_TOKEN: u16 = 1_313;
 /// The chosen shader's options (its parts the wearer may switch off), one each.
@@ -138,14 +158,24 @@ const OPTION_TOKENS: usize = crate::blade_skin_file::extras::MAX_OPTIONS;
 /// ([`unlockables::blade_skins_by_tier`]).
 const SHADER_ROWS: usize = 1 + unlockables::ALL.len();
 const _: () = assert!(SHADER_BASE as usize + SHADER_ROWS <= SHADER_LIMIT as usize);
-/// The Shaders tab's filter (14/10/2026): its tier chips (All, then the five tiers), the
-/// owned-only chip and the search field.
+/// The Shaders tab's filter (14/10/2026): its tier chips (All, then the five tiers, and
+/// Unique's for a player who holds a Unique shader), the owned-only chip and the search
+/// field.
 const FILTER_TIER_BASE: u16 = 7_300;
 const FILTER_OWNED_TOKEN: u16 = 7_310;
+const _: () = assert!(
+    FILTER_TIER_BASE as usize + STRIP_TIERS_WITH_UNIQUE.len() < FILTER_OWNED_TOKEN as usize
+);
 const SEARCH_TOKEN: u16 = 7_311;
+/// The chroma-only chip (25/10/2026), and the list's column heads that sort it, one to
+/// each [`ShaderSort`].
+const FILTER_CHROMA_TOKEN: u16 = 7_312;
+const SORT_BASE: u16 = 7_313;
+const _: () = assert!(SORT_BASE as usize + ShaderSort::ALL.len() < CARD_BASE as usize);
 /// The most characters a search holds.
 const SEARCH_MAX: usize = 24;
-/// The tiers the chips filter by, after All, the commonest first.
+/// The tiers the Forge's chips filter by, after All, the commonest first, as its Craft
+/// list stands. The Forge never lists Unique (no Unique shader is traded).
 const FILTER_TIERS: [unlockables::Rarity; 5] = [
     unlockables::Rarity::Common,
     unlockables::Rarity::Uncommon,
@@ -154,24 +184,47 @@ const FILTER_TIERS: [unlockables::Rarity; 5] = [
     unlockables::Rarity::Mythical,
 ];
 
-/// What the Shaders tab lists: a tier, the shaders held only, and words of a name (or a
-/// tier) or a blade's number the search names. The stock blade is always the first row.
+/// The Shaders tab's tier strip (25/10/2026), after All: the rarest first, as the wall
+/// stands, and Unique's first of all for a player who holds a Unique shader.
+const STRIP_TIERS: [unlockables::Rarity; 5] = [
+    unlockables::Rarity::Mythical,
+    unlockables::Rarity::Legendary,
+    unlockables::Rarity::Rare,
+    unlockables::Rarity::Uncommon,
+    unlockables::Rarity::Common,
+];
+const STRIP_TIERS_WITH_UNIQUE: [unlockables::Rarity; 6] = [
+    unlockables::Rarity::Unique,
+    unlockables::Rarity::Mythical,
+    unlockables::Rarity::Legendary,
+    unlockables::Rarity::Rare,
+    unlockables::Rarity::Uncommon,
+    unlockables::Rarity::Common,
+];
+
+/// What the Shaders tab lists: a tier, the shaders held only, the chromas only, and words
+/// of a name (or a tier) or a blade's number the search names. The stock blade is always
+/// the first row.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub(super) struct ShaderFilter {
     pub(super) tier: Option<unlockables::Rarity>,
     pub(super) owned: bool,
+    pub(super) chroma: bool,
     pub(super) query: String,
 }
 
 impl ShaderFilter {
     /// Whether anything is filtered out.
     pub(super) fn active(&self) -> bool {
-        self.tier.is_some() || self.owned || !self.query.trim().is_empty()
+        self.tier.is_some() || self.owned || self.chroma || !self.query.trim().is_empty()
     }
 
     /// Whether `skin` (held or not) stays in the list.
     pub(super) fn passes(&self, skin: &unlockables::Unlockable, owned: bool) -> bool {
-        if self.tier.is_some_and(|tier| tier != skin.tier) || (self.owned && !owned) {
+        if self.tier.is_some_and(|tier| tier != skin.tier)
+            || (self.owned && !owned)
+            || (self.chroma && !skin.chroma)
+        {
             return false;
         }
         let query = self.query.trim().to_lowercase();
@@ -190,21 +243,48 @@ impl ShaderFilter {
     }
 }
 
-/// Shader rows the rack shows at once; it scrolls to the rest.
-const RACK_SHOWN: usize = 6;
-/// The grid's cards a line, and the lines it shows at once; it scrolls a line at a time.
-const GRID_COLUMNS: usize = 5;
-const GRID_LINES_SHOWN: usize = 3;
-/// Archived: how the Shaders tab lists the shaders, 0 the rack, 1 the grid of cards.
-pub(crate) const SHADER_VIEW_CVAR: &str = "ui_shaderView";
+/// How the Shaders tab's list orders its rows (S, or a click on a column's head); the
+/// wall of tiles always stands by tier. The blade numbers' order only while the numbers
+/// show (`debug_collectibles`).
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub(super) enum ShaderSort {
+    /// The rarest first, under a heading to each tier.
+    #[default]
+    Tier,
+    /// By name.
+    Name,
+    /// The ones held first, then by tier.
+    Yours,
+    /// By blade number.
+    Number,
+}
 
-/// The blade skin of shader row `row` with no filter: `None` for the stock blade (row 0) or
-/// past the end. The page itself reads the filtered list ([`Panel::skin_at`]).
+impl ShaderSort {
+    pub(super) const ALL: [Self; 4] = [Self::Tier, Self::Name, Self::Yours, Self::Number];
+
+    /// The next order S gives; past Yours, the numbers' when they show, else Tier again.
+    fn next(self, numbers: bool) -> Self {
+        match self {
+            Self::Tier => Self::Name,
+            Self::Name => Self::Yours,
+            Self::Yours if numbers => Self::Number,
+            Self::Yours | Self::Number => Self::Tier,
+        }
+    }
+}
+
+/// Archived (25/10/2026, replacing `ui_shaderView`, whose 0 meant the list): how the
+/// Shaders tab and the Forge show the shaders, 0 tiles (the wall, the Forge's grid of
+/// cards), 1 the list.
+pub(crate) const SHADER_VIEW_CVAR: &str = "ui_shaderList";
+
+/// The blade skin of shader row `row` with no filter, for a player who holds no Unique
+/// shader: `None` for the stock blade (row 0) or past the end. The page itself reads the
+/// filtered list ([`Panel::skin_at`]).
 #[cfg(test)]
 fn shader_skin(row: usize) -> Option<&'static unlockables::Unlockable> {
     row.checked_sub(1)
-        .and_then(|index| unlockables::blade_skins_by_tier().get(index))
-        .copied()
+        .and_then(|index| Holdings::Known(&[]).listed().nth(index))
 }
 
 /// What the console does after the page handled an event.
@@ -235,6 +315,11 @@ pub(crate) enum PanelAction {
     Hax(bool),
     /// Go limp (`true`) or get up: the same as `toy_ragdoll`, set rather than toggled.
     Ragdoll(bool),
+    /// Turn the Drone on (`true`) or off: the same as `toy_drone`, set rather than toggled.
+    Drone(bool),
+    /// Carry the Boombox (`true`) or put it away: the same as `toy_boombox`, set rather
+    /// than toggled.
+    Boombox(bool),
     /// Show a tab another page draws: the Holocrons page.
     Hub(Tab),
     /// Switch blade skin `skin`'s option `option` on or off (`cg_saberSkinOptions`).
@@ -262,6 +347,14 @@ pub(crate) enum PanelAction {
     /// See and share nameplates on (`true`) or off: `cg_nameplate`
     /// ([`crate::hud::nameplate::see_and_share`]).
     SeeAndShare(bool),
+    /// Bind `key` (its console name) to a toy's `command`, in place of the first key it
+    /// had, as the key-binding editor does.
+    Bind {
+        command: &'static str,
+        key: String,
+    },
+    /// Clear the first key bound to a toy's command.
+    Unbind(&'static str),
 }
 
 /// Where the player's model stands behind Shaders, Toys and Nameplates this frame, as
@@ -326,6 +419,10 @@ pub(crate) struct Inputs<'a> {
     pub(crate) hax: bool,
     /// The player is limp now (the Ragdoll, kept as [`Self::illuminate`] is).
     pub(crate) ragdoll: bool,
+    /// The Drone toy is on now (kept as [`Self::illuminate`] is).
+    pub(crate) drone: bool,
+    /// The player carries the Boombox now (kept as [`Self::illuminate`] is).
+    pub(crate) boombox: bool,
     /// The `name` cvar, for the nameplate.
     pub(crate) name: &'a str,
     /// The stock blade's colour (`color1`), for its swatch.
@@ -342,6 +439,9 @@ pub(crate) struct Inputs<'a> {
     /// See and share nameplates (`cg_nameplate`): the player sees nameplates and shares
     /// their health, shield and Force.
     pub(crate) share: bool,
+    /// The keys bound to the toys' commands, as players read them ("F5", "F5 / K"), in
+    /// the order of [`toys::COMMANDS`]; empty for none (or none known).
+    pub(crate) toy_keys: &'a [String],
 }
 
 /// What the last frame showed of a shader's row, for keys and clicks.
@@ -373,9 +473,12 @@ pub(crate) struct Panel {
     /// catalogue's order, a shader's row.
     medal: usize,
     achievement: usize,
+    /// The achievements on the wall as the last frame laid them out, in its reading
+    /// order (`collection_achievements.rs`): the arrows and Tab follow it.
+    achievement_slots: Vec<achievements::Slot>,
     shader: usize,
     /// The toy chosen on Toys: 0 Illuminate, 1 the cardboard box, 2 Order 66, 3 the Hax,
-    /// 4 the Ragdoll.
+    /// 4 the Ragdoll, 5 the Drone, 6 the Boombox.
     toy: usize,
     /// The player was in the cardboard box, as the last frame's inputs said.
     box_on: bool,
@@ -385,6 +488,10 @@ pub(crate) struct Panel {
     hax_on: bool,
     /// The player was limp, as the last frame's inputs said.
     ragdoll_on: bool,
+    /// The Drone was on, as the last frame's inputs said.
+    drone_on: bool,
+    /// The Boombox was carried, as the last frame's inputs said.
+    boombox_on: bool,
     /// See and share nameplates was on, as the last frame's inputs said.
     share_on: bool,
     /// The tile chosen on Cards (in the list the filter shows), how many tiles the last
@@ -410,14 +517,19 @@ pub(crate) struct Panel {
     /// The identity's last reveal when Reveal was pressed: the line under the button
     /// says what the next one brought.
     reveal_asked: Option<u64>,
-    /// The first shader row the rack shows (it scrolls, [`RACK_SHOWN`] at a time).
+    /// The first of the Shaders tab's lines shown (its headings, lines of tiles or rows;
+    /// it scrolls a line at a time), the lines as the last frame laid them out and how many
+    /// of them it showed.
     shader_first: usize,
-    /// The Shaders tab shows the grid of cards, as the last frame's inputs said (or a
-    /// switch since).
+    shader_lines: Vec<shaders::Line>,
+    shader_shown: usize,
+    /// How the list orders its rows, and whether the blades' numbers showed last frame
+    /// (their order is offered only then).
+    shader_sort: ShaderSort,
+    shader_numbers: bool,
+    /// The Shaders tab shows the wall of tiles, as the last frame's inputs said (or a
+    /// switch since); else the list. The Forge's grid of cards follows it too.
     grid: bool,
-    /// The first line of cards the grid shows (it scrolls, [`GRID_LINES_SHOWN`] at a
-    /// time).
-    grid_first: usize,
     /// What the Shaders tab dresses while the player holds two sabers or a staff: the
     /// second saber (or the staff's other half) when true, else the first. The target
     /// switch over the saber, or a click on a saber, chooses it.
@@ -433,6 +545,9 @@ pub(crate) struct Panel {
     /// The side changed: the next build chooses the row that side wears, so the card and
     /// the preview show what it has on rather than the other side's choice.
     jump_to_worn: bool,
+    /// The chosen toy's key waiting to be bound: its command's place in the toy's
+    /// commands (0 the switch's, 1 Order 66's order), until a key, Escape or a click.
+    bind_wait: Option<usize>,
     /// How many medals the last frame showed.
     medals_shown: usize,
     shader_rows: [ShaderRow; SHADER_ROWS],
@@ -441,6 +556,9 @@ pub(crate) struct Panel {
     shader_list: Vec<&'static unlockables::Unlockable>,
     shader_count: usize,
     shader_filter: ShaderFilter,
+    /// The Shaders tab offers Unique's chip: the player holds a Unique shader, as the last
+    /// frame's holdings said ([`Panel::tier_chips`]).
+    unique_chip: bool,
     /// The search field takes the typing.
     search_focus: bool,
     /// The chosen shader's options the last frame showed (its skin, the option's id and
@@ -510,16 +628,21 @@ impl Panel {
             // fifteen swatches drawn (the menu pictures on, or before their live pictures are
             // ready), took up to about 2 100 commands; 2 048 dropped the last ones on some
             // frames, which flickered.
-            ui: MenuCanvas::with_capacities(160, 220, DRAW_COMMANDS),
+            // The Shaders tab's wall shows up to thirty tiles, each its name on two lines
+            // and its state: 320 text runs leave the rest of the page its room.
+            ui: MenuCanvas::with_capacities(320, 220, DRAW_COMMANDS),
             medal: 0,
             // The first frame chooses the one nearest to unlocking.
             achievement: usize::MAX,
+            achievement_slots: Vec::with_capacity(crate::achievements::ALL.len()),
             shader: 0,
             toy: 0,
             box_on: false,
             order66_on: false,
             hax_on: false,
             ragdoll_on: false,
+            drone_on: false,
+            boombox_on: false,
             share_on: false,
             card: 0,
             cards_shown: 0,
@@ -533,18 +656,24 @@ impl Panel {
             revealable: 0,
             reveal_asked: None,
             shader_first: 0,
+            shader_lines: Vec::new(),
+            shader_shown: 0,
+            shader_sort: ShaderSort::default(),
+            shader_numbers: false,
             grid: false,
-            grid_first: 0,
             second_target: false,
             both: false,
             pair: crate::saber_skins::Pair::None,
             saber_press: None,
             jump_to_worn: false,
+            bind_wait: None,
             medals_shown: 0,
             shader_rows: [ShaderRow::default(); SHADER_ROWS],
-            shader_list: unlockables::blade_skins_by_tier().to_vec(),
-            shader_count: SHADER_ROWS,
+            // Until the first frame reads the holdings: what a player who holds nothing sees.
+            shader_list: Holdings::IdentityOff.listed().collect(),
+            shader_count: 1 + Holdings::IdentityOff.listed_count(),
             shader_filter: ShaderFilter::default(),
+            unique_chip: false,
             search_focus: false,
             shader_options: Vec::new(),
             backstage: Backstage::None,
@@ -610,6 +739,7 @@ impl Panel {
                 self.forge.leave_search();
                 self.forge.ask = None;
                 self.card_inspect = false;
+                self.bind_wait = None;
             }
             self.tab = tab;
         }
@@ -719,6 +849,8 @@ impl Panel {
             Tab::Toys if self.toy == 2 => PanelAction::Order66(!self.order66_on),
             Tab::Toys if self.toy == 3 => PanelAction::Hax(!self.hax_on),
             Tab::Toys if self.toy == 4 => PanelAction::Ragdoll(!self.ragdoll_on),
+            Tab::Toys if self.toy == 5 => PanelAction::Drone(!self.drone_on),
+            Tab::Toys if self.toy == 6 => PanelAction::Boombox(!self.boombox_on),
             Tab::Toys => PanelAction::Illuminate(!illuminate),
             Tab::Nameplates => PanelAction::SeeAndShare(!self.share_on),
             Tab::Cards => {
@@ -802,6 +934,11 @@ impl Panel {
     /// Move the choice `by` things: wrapping round for Tab, stopping at the ends for
     /// the arrows.
     fn step(&mut self, by: isize, wrap: bool) {
+        if self.tab == Tab::Achievements && !self.achievement_slots.is_empty() {
+            self.achievement =
+                achievements::sideways(&self.achievement_slots, self.achievement, by, wrap);
+            return;
+        }
         let count = self.things() as isize;
         let Some(chosen) = self.chosen_mut() else {
             return;
@@ -858,6 +995,12 @@ impl Panel {
             }
             return self.card_filter_changed();
         }
+        if self.tab == Tab::Toys
+            && let Some(slot) = self.bind_wait
+        {
+            let name = crate::input::keys::key_name(event).map(|name| name.as_str().to_owned());
+            return self.bind_key(key, name, slot);
+        }
         if self.tab == Tab::Shaders {
             if self.search_focus {
                 return self.search_key(event, key, shift, control);
@@ -867,10 +1010,31 @@ impl Panel {
                 KeyCode::KeyF if control => return self.focus_search(),
                 KeyCode::KeyT => return self.cycle_tier(shift),
                 KeyCode::KeyO => return self.toggle_owned(),
+                KeyCode::KeyC if !control => return self.toggle_chroma(),
+                KeyCode::KeyS if !self.grid && !control => {
+                    return self.sort_by(self.shader_sort.next(self.shader_numbers));
+                }
                 _ => {}
             }
         }
         self.key(key, shift, illuminate)
+    }
+
+    /// A key (`name`: its console name, when it has one) while the chosen toy's key waits
+    /// to be bound (`slot`: which of its commands): Escape lets go, Backspace or Delete
+    /// clears the key, any other binds it. A key the key-binding editor keeps locked
+    /// (Escape's, the console's) is never bound
+    /// ([`crate::console::ViewerConsole::rebind_action`] refuses it).
+    fn bind_key(&mut self, key: KeyCode, name: Option<String>, slot: usize) -> PanelAction {
+        self.bind_wait = None;
+        let Some(command) = toys::command(self.toy, slot) else {
+            return PanelAction::None;
+        };
+        match key {
+            KeyCode::Escape => PanelAction::None,
+            KeyCode::Backspace | KeyCode::Delete => PanelAction::Unbind(command),
+            _ => name.map_or(PanelAction::None, |key| PanelAction::Bind { command, key }),
+        }
     }
 
     /// The skin of shader row `row` in the list the tab shows: `None` for the stock blade
@@ -885,8 +1049,32 @@ impl Panel {
     fn filter_changed(&mut self) -> PanelAction {
         self.shader = 0;
         self.shader_first = 0;
-        self.grid_first = 0;
         PanelAction::None
+    }
+
+    /// The list or the wall is about to stand in another order: the shader chosen stays
+    /// chosen, wherever its row goes (the stock blade is row 0 in every order).
+    fn keep_chosen(&mut self) {
+        self.shader_focus = self.skin_at(self.shader).map(|skin| skin.id);
+        if self.shader_focus.is_none() {
+            self.shader = 0;
+        }
+        self.shader_first = 0;
+    }
+
+    /// Order the list the next way (S), or as the column head `sort` asks.
+    fn sort_by(&mut self, sort: ShaderSort) -> PanelAction {
+        if self.shader_sort != sort {
+            self.keep_chosen();
+            self.shader_sort = sort;
+        }
+        PanelAction::None
+    }
+
+    /// Show only the chromas, or all again.
+    fn toggle_chroma(&mut self) -> PanelAction {
+        self.shader_filter.chroma = !self.shader_filter.chroma;
+        self.filter_changed()
     }
 
     /// The Cards tab's filter changed: back to its first tile.
@@ -918,21 +1106,32 @@ impl Panel {
         PanelAction::None
     }
 
+    /// The tiers the Shaders tab's strip offers after All: [`STRIP_TIERS`], and Unique's
+    /// first only for a player who holds a Unique shader.
+    fn tier_chips(&self) -> &'static [unlockables::Rarity] {
+        if self.unique_chip {
+            &STRIP_TIERS_WITH_UNIQUE
+        } else {
+            &STRIP_TIERS
+        }
+    }
+
     /// Show one tier of shaders: the next chip (the previous with Shift), All after the
     /// last.
     fn cycle_tier(&mut self, back: bool) -> PanelAction {
+        let tiers = self.tier_chips();
         let at = self
             .shader_filter
             .tier
-            .and_then(|tier| FILTER_TIERS.iter().position(|&t| t == tier))
+            .and_then(|tier| tiers.iter().position(|&t| t == tier))
             .map_or(0, |index| index + 1);
-        let count = FILTER_TIERS.len() + 1;
+        let count = tiers.len() + 1;
         let next = if back {
             (at + count - 1) % count
         } else {
             (at + 1) % count
         };
-        self.shader_filter.tier = next.checked_sub(1).map(|index| FILTER_TIERS[index]);
+        self.shader_filter.tier = next.checked_sub(1).map(|index| tiers[index]);
         self.filter_changed()
     }
 
@@ -980,8 +1179,12 @@ impl Panel {
         PanelAction::None
     }
 
-    /// Switch the Shaders tab to the grid of cards (`true`) or the rack.
+    /// Switch the Shaders tab to the wall of tiles (`true`) or the list, the shader chosen
+    /// kept (the list may stand in another order).
     fn set_grid(&mut self, grid: bool) -> PanelAction {
+        if self.grid != grid && self.tab == Tab::Shaders {
+            self.keep_chosen();
+        }
         self.grid = grid;
         PanelAction::ShaderView(grid)
     }
@@ -1037,17 +1240,19 @@ impl Panel {
             return PanelAction::None;
         }
         if self.tab == Tab::Shaders && self.grid {
-            // The grid: Left and Right step a card, Up and Down a line, stopping at
-            // the ends (a short last line takes Down to its last card).
+            // The wall: Left and Right step a tile (on into the next tier's), Up and Down
+            // a line of tiles, to the same column or the nearest, past the headings,
+            // stopping at the ends.
             let last = self.shader_count - 1;
             match key {
                 KeyCode::ArrowLeft => self.shader = self.shader.min(last).saturating_sub(1),
                 KeyCode::ArrowRight => self.shader = (self.shader + 1).min(last),
-                KeyCode::ArrowUp => {
-                    self.shader = self.shader.checked_sub(GRID_COLUMNS).unwrap_or(self.shader);
-                }
-                KeyCode::ArrowDown if self.shader / GRID_COLUMNS < last / GRID_COLUMNS => {
-                    self.shader = (self.shader + GRID_COLUMNS).min(last);
+                KeyCode::ArrowUp | KeyCode::ArrowDown => {
+                    self.shader = shaders::vertical(
+                        &self.shader_lines,
+                        self.shader.min(last),
+                        key == KeyCode::ArrowDown,
+                    );
                 }
                 _ => {}
             }
@@ -1072,13 +1277,18 @@ impl Panel {
         match key {
             KeyCode::Escape => return PanelAction::Close,
             KeyCode::KeyV if self.tab == Tab::Shaders => return self.set_grid(!self.grid),
+            // K waits for a key to bind to the chosen toy.
+            KeyCode::KeyK if self.tab == Tab::Toys => self.bind_wait = Some(0),
             KeyCode::KeyR if self.tab == Tab::Cards => return self.reveal(),
             KeyCode::Tab => self.step(if shift { -1 } else { 1 }, true),
             KeyCode::ArrowLeft if !vertical => self.step(-1, false),
             KeyCode::ArrowRight if !vertical => self.step(1, false),
             KeyCode::ArrowUp | KeyCode::ArrowDown if self.tab == Tab::Achievements => {
-                self.achievement =
-                    achievements::vertical(self.achievement, key == KeyCode::ArrowDown);
+                self.achievement = achievements::vertical(
+                    &self.achievement_slots,
+                    self.achievement,
+                    key == KeyCode::ArrowDown,
+                );
             }
             KeyCode::ArrowUp | KeyCode::ArrowLeft => self.step(-1, false),
             KeyCode::ArrowDown | KeyCode::ArrowRight => self.step(1, false),
@@ -1221,36 +1431,11 @@ impl Panel {
         if let InputEvent::PointerWheel { delta, .. } = event
             && self.tab == Tab::Shaders
         {
-            if self.grid {
-                // The wheel scrolls the grid a line a notch; the chosen card stays in
-                // view.
-                let lines = self.shader_count.div_ceil(GRID_COLUMNS);
-                let last = lines.saturating_sub(GRID_LINES_SHOWN);
-                self.grid_first = if delta.y > 0.0 {
-                    self.grid_first.saturating_sub(1)
-                } else if delta.y < 0.0 {
-                    (self.grid_first + 1).min(last)
-                } else {
-                    self.grid_first
-                };
-                let line = (self.shader / GRID_COLUMNS)
-                    .clamp(self.grid_first, self.grid_first + GRID_LINES_SHOWN - 1);
-                self.shader =
-                    (line * GRID_COLUMNS + self.shader % GRID_COLUMNS).min(self.shader_count - 1);
-                return PanelAction::None;
+            // The wheel scrolls the wall or the list a line a notch; the shader chosen
+            // stays in view.
+            if delta.y != 0.0 {
+                self.scroll_shaders(delta.y > 0.0);
             }
-            // The wheel scrolls the rack a row a notch; the chosen row stays in view.
-            let last = self.shader_count.saturating_sub(RACK_SHOWN);
-            self.shader_first = if delta.y > 0.0 {
-                self.shader_first.saturating_sub(1)
-            } else if delta.y < 0.0 {
-                (self.shader_first + 1).min(last)
-            } else {
-                self.shader_first
-            };
-            self.shader = self
-                .shader
-                .clamp(self.shader_first, self.shader_first + RACK_SHOWN - 1);
             return PanelAction::None;
         }
         let Some(event) = self.ui.pointer(event) else {
@@ -1258,6 +1443,12 @@ impl Panel {
         };
         if event.kind == UiEventKind::Activate && event.token != Some(SEARCH_TOKEN) {
             self.leave_search();
+        }
+        // A click anywhere but on the key waiting lets go of it.
+        if event.kind == UiEventKind::Activate
+            && !matches!(event.token, Some(BIND_TOKEN | BIND_SECOND_TOKEN))
+        {
+            self.bind_wait = None;
         }
         let Some(token) = event.token else {
             return PanelAction::None;
@@ -1286,16 +1477,39 @@ impl Panel {
             return PanelAction::None;
         }
         if event.kind == UiEventKind::Activate {
+            let tiers = self.tier_chips();
             if let Some(index) = token
                 .checked_sub(FILTER_TIER_BASE)
                 .map(usize::from)
-                .filter(|index| *index <= FILTER_TIERS.len())
+                .filter(|index| *index <= tiers.len())
             {
-                self.shader_filter.tier = index.checked_sub(1).map(|index| FILTER_TIERS[index]);
+                self.shader_filter.tier = index.checked_sub(1).map(|index| tiers[index]);
                 return self.filter_changed();
             }
             if token == FILTER_OWNED_TOKEN {
                 return self.toggle_owned();
+            }
+            if token == FILTER_CHROMA_TOKEN {
+                return self.toggle_chroma();
+            }
+            if let Some(sort) = token
+                .checked_sub(SORT_BASE)
+                .and_then(|index| ShaderSort::ALL.get(usize::from(index)))
+            {
+                return self.sort_by(*sort);
+            }
+            if let Some(toy) = token
+                .checked_sub(TOY_SWITCH_BASE)
+                .map(usize::from)
+                .filter(|toy| *toy < TOY_COUNT)
+            {
+                self.toy = toy;
+                return self.activate(illuminate);
+            }
+            if matches!(token, BIND_TOKEN | BIND_SECOND_TOKEN) {
+                let slot = usize::from(token == BIND_SECOND_TOKEN);
+                self.bind_wait = (self.bind_wait != Some(slot)).then_some(slot);
+                return PanelAction::None;
             }
             if let Some(show) = token
                 .checked_sub(CARD_SHOW_BASE)
@@ -1365,18 +1579,11 @@ impl Panel {
             TARGET_SECOND_TOKEN => self.set_target(true),
             BOTH_TOKEN => self.toggle_both(),
             FORGE_LINK_TOKEN => self.open_forge_link(),
-            // A toy's niche chooses it; the chosen one's niche runs it, as its switch does.
-            TOY_TOKEN | BOX_TOKEN | ORDER_TOKEN | HAX_TOKEN | RAGDOLL_TOKEN => {
-                let toy = TOY_TOKENS
-                    .iter()
-                    .position(|&niche| niche == token)
-                    .unwrap_or(0);
-                if self.toy == toy {
-                    self.activate(illuminate)
-                } else {
-                    self.toy = toy;
-                    PanelAction::None
-                }
+            // A toy's row chooses it; its own switch runs it.
+            TOY_TOKEN | BOX_TOKEN | ORDER_TOKEN | HAX_TOKEN | RAGDOLL_TOKEN | DRONE_TOKEN
+            | BOOMBOX_TOKEN => {
+                self.toy = TOY_TOKENS.iter().position(|&row| row == token).unwrap_or(0);
+                PanelAction::None
             }
             REVEAL_TOKEN => self.reveal(),
             token => match crate::profile_hub::collection_tab_of(token) {
@@ -1587,6 +1794,8 @@ mod tests {
             order66: false,
             hax: false,
             ragdoll: false,
+            drone: false,
+            boombox: false,
             name: "^1Sol^7Vulpes",
             stock: sjk_ui::Color::new(0.16, 0.48, 1.0, 1.0),
             grid: false,
@@ -1594,6 +1803,7 @@ mod tests {
             second: "",
             pair: crate::saber_skins::Pair::None,
             share: true,
+            toy_keys: &[],
         }
     }
 
@@ -1604,6 +1814,12 @@ mod tests {
         let toys = &counts[3];
         assert_eq!((toys.held, toys.total), (Some(TOY_COUNT), TOY_COUNT));
         assert_eq!(TOY_COUNT, TOY_TOKENS.len());
+    }
+
+    /// The Shaders tab's rows for a player who holds no Unique shader: the stock blade
+    /// and every other blade skin.
+    pub(super) fn rows_shown() -> usize {
+        1 + Holdings::Known(&[]).listed_count()
     }
 
     /// The shader row of blade skin `id`.
@@ -1647,21 +1863,29 @@ mod tests {
         assert_eq!(found, [2]);
     }
 
-    /// A tier chip lists that tier's shaders alone; cycling comes round to All again.
+    /// A tier's segment lists that tier's shaders alone, the rarest first as the wall
+    /// stands; cycling comes round to All again.
     #[test]
     fn the_tier_filter_lists_one_tier_and_cycling_comes_round() {
         let held = [sun()];
         let inputs = inputs(Holdings::Known(&held), "");
         let mut panel = drawn(Tab::Shaders, &inputs);
         let all = ids(&panel);
-        assert_eq!(panel.shader_count, 1 + unlockables::ALL.len());
+        assert_eq!(panel.shader_count, rows_shown());
         panel.shader = 9;
         let _ = panel.cycle_tier(false);
         assert_eq!(panel.shader, 0, "back to the top");
         redraw(&mut panel, &inputs);
-        assert_eq!(ids(&panel).len(), 43);
-        assert_eq!(ids(&panel)[0], "saber_frost");
-        assert_eq!(panel.shader_count, 44, "the stock blade stays first");
+        assert_eq!(
+            panel.shader_filter.tier,
+            Some(unlockables::Rarity::Mythical)
+        );
+        assert_eq!(ids(&panel)[0], "saber_sun");
+        assert_eq!(
+            panel.shader_count,
+            1 + ids(&panel).len(),
+            "the stock blade stays first"
+        );
         for _ in 0..5 {
             let _ = panel.cycle_tier(false);
         }
@@ -1669,10 +1893,14 @@ mod tests {
         assert_eq!(ids(&panel), all, "All again after the last tier");
         let _ = panel.cycle_tier(true);
         redraw(&mut panel, &inputs);
-        assert_eq!(
-            panel.shader_filter.tier,
-            Some(unlockables::Rarity::Mythical)
-        );
+        assert_eq!(panel.shader_filter.tier, Some(unlockables::Rarity::Common));
+        assert_eq!(ids(&panel).len(), 43);
+        // C lists the chromas only.
+        panel.shader_filter = ShaderFilter::default();
+        let _ = panel.toggle_chroma();
+        redraw(&mut panel, &inputs);
+        assert!(!ids(&panel).is_empty());
+        assert!(panel.shader_list.iter().all(|skin| skin.chroma));
     }
 
     /// A hover card under a filter is the card of the row shown, not of the catalogue's
@@ -1742,6 +1970,83 @@ mod tests {
         assert!(panel.shader_filter.active());
         panel.shader_filter = ShaderFilter::default();
         assert!(!panel.shader_filter.active());
+    }
+
+    /// Sol's rule (25/10/2026): a Unique shader shows only to its holders. Not held, it is
+    /// not listed, found by a search (its name, its tier's word or its number), counted in
+    /// the headline, the Saber pill or the tab's tally, and has no chip; held, it is listed
+    /// first (the rarest), counted, and its chip lists it. Taken back, its chip goes too.
+    #[test]
+    fn a_unique_shader_shows_only_to_its_holders() {
+        // The shaders every player sees: all but the Unique ones.
+        let total = unlockables::blade_skins()
+            .filter(|skin| !skin.hidden_unless_held())
+            .count();
+        let only_sun = [sun()];
+        let lacking = inputs(Holdings::Known(&only_sun), "");
+        let mut panel = drawn(Tab::Shaders, &lacking);
+        let runs =
+            |panel: &Panel| -> Vec<String> { panel.ui.text_runs().map(str::to_owned).collect() };
+        assert!(!ids(&panel).contains(&"saber_thousand_cranes"));
+        assert_eq!(
+            panel.shader_count,
+            1 + total,
+            "the stock blade and the others"
+        );
+        let seen = runs(&panel);
+        assert!(seen.contains(&format!("1 of {total} owned")), "{seen:?}");
+        assert!(seen.contains(&format!("1/{total}")), "{seen:?}");
+        assert!(seen.iter().all(|run| !run.contains("Unique")), "{seen:?}");
+        assert!(panel.ui.rect_for(FILTER_TIER_BASE + 6).is_none(), "no chip");
+        let counts = view::counts(&lacking);
+        assert_eq!((counts[2].held, counts[2].total), (Some(1), total));
+        for query in ["thousand", "Cranes", "unique", "167", "#167"] {
+            panel.shader_filter.query = query.to_owned();
+            redraw(&mut panel, &lacking);
+            assert!(ids(&panel).is_empty(), "{query}");
+        }
+        panel.shader_filter = ShaderFilter::default();
+        for _ in 0..STRIP_TIERS_WITH_UNIQUE.len() + 1 {
+            let _ = panel.cycle_tier(false);
+            assert_ne!(panel.shader_filter.tier, Some(unlockables::Rarity::Unique));
+        }
+
+        let both = [
+            sun(),
+            Unlock {
+                id: "saber_thousand_cranes".into(),
+                ..sun()
+            },
+        ];
+        let holding = inputs(Holdings::Known(&both), "");
+        let mut panel = drawn(Tab::Shaders, &holding);
+        assert_eq!(ids(&panel)[0], "saber_thousand_cranes", "the rarest first");
+        assert_eq!(panel.shader_count, 2 + total, "and the one held");
+        let seen = runs(&panel);
+        assert!(
+            seen.contains(&format!("2 of {} owned", total + 1)),
+            "{seen:?}"
+        );
+        assert!(seen.contains(&format!("2/{}", total + 1)), "{seen:?}");
+        let counts = view::counts(&holding);
+        assert_eq!((counts[2].held, counts[2].total), (Some(2), total + 1));
+        assert!(
+            panel.ui.rect_for(FILTER_TIER_BASE + 6).is_some(),
+            "its chip"
+        );
+        let card = panel.card_of(SHADER_BASE + 1, &holding).expect("its card");
+        assert_eq!(card.title, "Thousand Cranes blade");
+        assert_eq!(card.lines[0].words, unlockables::PERSONAL_THANKS);
+        // T from All: the first segment, Unique's, lists it alone.
+        let _ = panel.cycle_tier(false);
+        assert_eq!(panel.shader_filter.tier, Some(unlockables::Rarity::Unique));
+        redraw(&mut panel, &holding);
+        assert_eq!(ids(&panel), ["saber_thousand_cranes"]);
+        // Taken back: no chip, no filter on it, not listed.
+        redraw(&mut panel, &lacking);
+        assert_eq!(panel.shader_filter.tier, None);
+        assert!(!ids(&panel).contains(&"saber_thousand_cranes"));
+        assert!(panel.ui.rect_for(FILTER_TIER_BASE + 6).is_none());
     }
 
     /// R on Cards (or Reveal) asks the hub only when the last frame offered something to
@@ -1857,14 +2162,14 @@ mod tests {
         assert_eq!(panel.shader, 0, "the stock blade, worn");
         let _ = panel.key(KeyCode::ArrowUp, false, true);
         assert_eq!(panel.shader, 0, "the arrows stop at the ends");
-        for _ in 0..SHADER_ROWS + 2 {
+        for _ in 0..rows_shown() + 2 {
             let _ = panel.key(KeyCode::ArrowDown, false, true);
         }
-        assert_eq!(panel.shader, SHADER_ROWS - 1);
+        assert_eq!(panel.shader, rows_shown() - 1);
         let _ = panel.key(KeyCode::Tab, false, true);
         assert_eq!(panel.shader, 0, "Tab comes round");
         let _ = panel.key(KeyCode::Tab, true, true);
-        assert_eq!(panel.shader, SHADER_ROWS - 1);
+        assert_eq!(panel.shader, rows_shown() - 1);
     }
 
     /// The Toys tab's switch and plinth light the holocron when it is out and put it out
@@ -1897,7 +2202,7 @@ mod tests {
         for (token, lit, wanted) in [
             (TOY_SWITCH_TOKEN, false, true),
             (TOY_SWITCH_TOKEN, true, false),
-            (TOY_TOKEN, false, true),
+            (TOY_SWITCH_BASE, false, true),
         ] {
             let mut shown = inputs(Holdings::Known(&[]), "");
             shown.illuminate = lit;
@@ -1954,7 +2259,7 @@ mod tests {
     }
 
     /// Order 66 is the third toy: chosen, then turned on or off by the state the page
-    /// was told, its niche running it once chosen.
+    /// was told; its row chooses it, its row's own switch runs it.
     #[test]
     fn order_66_is_chosen_then_turned_on_or_off() {
         let mut shown = inputs(Holdings::Known(&[]), "");
@@ -1990,8 +2295,23 @@ mod tests {
         };
         let mut panel = drawn(Tab::Toys, &shown);
         assert_eq!(click(&mut panel, ORDER_TOKEN), PanelAction::None, "chosen");
+        assert_eq!(panel.toy, 2);
         redraw(&mut panel, &shown);
-        assert_eq!(click(&mut panel, ORDER_TOKEN), PanelAction::Order66(false));
+        assert_eq!(
+            click(&mut panel, ORDER_TOKEN),
+            PanelAction::None,
+            "still chosen"
+        );
+        assert_eq!(
+            click(&mut panel, TOY_SWITCH_BASE + 2),
+            PanelAction::Order66(false)
+        );
+        // Another row's switch runs that toy, and chooses it.
+        assert_eq!(
+            click(&mut panel, TOY_SWITCH_BASE + 3),
+            PanelAction::Hax(true)
+        );
+        assert_eq!(panel.toy, 3);
         let all = panel.ui.text_runs().collect::<Vec<_>>().join("\n");
         assert!(
             all.contains("toy_order66") && all.contains("In the order"),
@@ -2328,7 +2648,7 @@ mod tests {
         assert_eq!(panel.forge.want.as_deref(), Some("saber_tidal"));
         // A locked shader of the trade points to Craft; a medal's blade nowhere.
         panel.show(Tab::Shaders);
-        let locked = (1..SHADER_ROWS)
+        let locked = (1..rows_shown())
             .find(|&row| {
                 shader_skin(row)
                     .is_some_and(|skin| skin.id != "saber_tidal" && crate::economy::in_trade(skin))
@@ -2349,21 +2669,83 @@ mod tests {
     #[test]
     fn the_shaders_list_the_rarest_first_after_the_stock_blade() {
         assert_eq!(shader_skin(0), None, "the stock blade first");
-        let tiers: Vec<_> = (1..SHADER_ROWS)
+        let tiers: Vec<_> = (1..rows_shown())
             .map(|row| shader_skin(row).unwrap().tier)
             .collect();
         assert!(tiers.windows(2).all(|pair| pair[0] >= pair[1]), "{tiers:?}");
         assert_eq!(shader_skin(1).unwrap().id, "saber_sun");
-        assert_eq!(shader_skin(SHADER_ROWS), None);
-        let panel = drawn(Tab::Shaders, &inputs(Holdings::Known(&[]), ""));
-        let names: Vec<_> = panel.ui.text_runs().collect();
-        let at = |name: &str| names.iter().position(|run| *run == name).unwrap();
-        assert!(at("Sun blade") < at("Void blade"));
-        let mythical = format!("{} Mythical", unlockables::Rarity::Mythical.symbol());
-        let legendary = format!("{} Legendary", unlockables::Rarity::Legendary.symbol());
-        // Below the Mythical ones, if the rack reaches that far.
-        let legendary = names.iter().position(|run| *run == legendary);
-        assert!(legendary.is_none_or(|l| at(&mythical) < l), "{names:?}");
+        assert_eq!(shader_skin(rows_shown()), None);
+        for grid in [false, true] {
+            let shown = Inputs {
+                grid,
+                ..inputs(Holdings::Known(&[]), "")
+            };
+            let panel = drawn(Tab::Shaders, &shown);
+            let names: Vec<_> = panel.ui.text_runs().collect();
+            let at = |name: &str| names.iter().position(|run| *run == name).unwrap();
+            assert!(at("Sun") < at("Void"), "{names:?}");
+            let mythical = format!("{}  Mythical", unlockables::Rarity::Mythical.symbol());
+            let legendary = format!("{}  Legendary", unlockables::Rarity::Legendary.symbol());
+            // Mythical's heading over its shaders; Legendary's below, if the list reaches
+            // that far.
+            assert!(at(&mythical) < at("Sun"), "{names:?}");
+            let legendary = names.iter().position(|run| *run == legendary);
+            assert!(legendary.is_none_or(|l| at(&mythical) < l), "{names:?}");
+        }
+    }
+
+    /// S orders the list by name, the ones held, the tier again (the blades' numbers'
+    /// only while they show), the chosen shader kept; a click on a column's head orders
+    /// it so too.
+    #[test]
+    fn s_and_the_heads_sort_the_list_keeping_the_chosen() {
+        let held = [sun()];
+        let inputs = inputs(Holdings::Known(&held), "");
+        let mut panel = drawn(Tab::Shaders, &inputs);
+        panel.shader = row_of("saber_void");
+        assert_eq!(panel.key_sort(), ShaderSort::Name);
+        redraw(&mut panel, &inputs);
+        assert_eq!(
+            panel.skin_at(panel.shader).map(|skin| skin.id),
+            Some("saber_void")
+        );
+        let names: Vec<_> = panel.shader_list.iter().map(|skin| skin.name).collect();
+        assert!(
+            names
+                .windows(2)
+                .all(|pair| pair[0].to_lowercase() <= pair[1].to_lowercase())
+        );
+        assert_eq!(panel.key_sort(), ShaderSort::Yours);
+        redraw(&mut panel, &inputs);
+        assert_eq!(panel.shader_list[0].id, "saber_sun", "held first");
+        assert_eq!(panel.key_sort(), ShaderSort::Tier, "no numbers shown");
+        // The tier's head is a click away.
+        let _ = panel.sort_by(ShaderSort::Name);
+        redraw(&mut panel, &inputs);
+        let head = SORT_BASE;
+        let tier = ShaderSort::ALL
+            .iter()
+            .position(|&sort| sort == ShaderSort::Tier)
+            .unwrap();
+        let rect = panel
+            .ui
+            .rect_for(head + tier as u16)
+            .expect("the tier's head");
+        let at = sjk_ui::Vec2::new(rect.x + rect.width * 0.5, rect.y + rect.height * 0.5);
+        for event in [
+            InputEvent::PointerMove(at),
+            InputEvent::PointerPress {
+                position: at,
+                button: sjk_ui::PointerButton::Primary,
+            },
+            InputEvent::PointerRelease {
+                position: at,
+                button: sjk_ui::PointerButton::Primary,
+            },
+        ] {
+            let _ = panel.handle_pointer(event, true);
+        }
+        assert_eq!(panel.shader_sort, ShaderSort::Tier);
     }
 
     /// The panel on Shaders in the grid after one frame.
@@ -2424,35 +2806,48 @@ mod tests {
         assert!(panel.grid);
     }
 
+    impl Panel {
+        /// S on the list, as `handle_key` takes it: the next order, which it returns.
+        fn key_sort(&mut self) -> ShaderSort {
+            let _ = self.sort_by(self.shader_sort.next(self.shader_numbers));
+            self.shader_sort
+        }
+    }
+
     #[test]
-    fn the_arrows_move_in_two_directions_on_the_grid() {
+    fn the_arrows_move_in_two_directions_on_the_wall() {
         let mut panel = grid(Holdings::Known(&[]), "", [1920.0, 1080.0]);
         assert_eq!(panel.shader, 0);
         let _ = panel.key(KeyCode::ArrowLeft, false, true);
         assert_eq!(panel.shader, 0, "stops at the start");
         let _ = panel.key(KeyCode::ArrowRight, false, true);
-        assert_eq!(panel.shader, 1);
+        assert_eq!(panel.shader, 1, "on into the first tier's");
         let _ = panel.key(KeyCode::ArrowDown, false, true);
-        assert_eq!(panel.shader, 1 + GRID_COLUMNS);
+        assert_eq!(panel.shader, 1 + shaders::WALL_COLUMNS);
         let _ = panel.key(KeyCode::ArrowUp, false, true);
         assert_eq!(panel.shader, 1);
         let _ = panel.key(KeyCode::ArrowUp, false, true);
-        assert_eq!(panel.shader, 1, "stops at the first line");
-        for _ in 0..SHADER_ROWS {
+        assert_eq!(panel.shader, 0, "the stock blade's line, over the headings");
+        let _ = panel.key(KeyCode::ArrowUp, false, true);
+        assert_eq!(panel.shader, 0, "stops at the first line");
+        for _ in 0..rows_shown() {
             let _ = panel.key(KeyCode::ArrowDown, false, true);
         }
-        let last_line = (SHADER_ROWS - 1) / GRID_COLUMNS;
-        assert_eq!(panel.shader / GRID_COLUMNS, last_line);
-        for _ in 0..SHADER_ROWS {
+        let last = panel.shader_lines.last().copied();
+        assert!(
+            matches!(last, Some(shaders::Line::Things(start, end)) if (start..end).contains(&panel.shader)),
+            "on the last line"
+        );
+        for _ in 0..rows_shown() {
             let _ = panel.key(KeyCode::ArrowRight, false, true);
         }
-        assert_eq!(panel.shader, SHADER_ROWS - 1, "stops at the last card");
+        assert_eq!(panel.shader, rows_shown() - 1, "stops at the last tile");
     }
 
     #[test]
-    fn the_wheel_scrolls_the_grid_a_line_and_keeps_the_card_shown() {
+    fn the_wheel_scrolls_the_wall_a_line_and_keeps_the_tile_shown() {
         let mut panel = grid(Holdings::Known(&[]), "", [1920.0, 1080.0]);
-        let lines = SHADER_ROWS.div_ceil(GRID_COLUMNS);
+        let lines = panel.shader_lines.len();
         let wheel = |panel: &mut Panel, y: f32| {
             let _ = panel.handle_pointer(
                 InputEvent::PointerWheel {
@@ -2465,13 +2860,26 @@ mod tests {
         for _ in 0..lines + 2 {
             wheel(&mut panel, -1.0);
         }
-        assert_eq!(panel.grid_first, lines.saturating_sub(GRID_LINES_SHOWN));
-        let line = panel.shader / GRID_COLUMNS;
-        assert!((panel.grid_first..panel.grid_first + GRID_LINES_SHOWN).contains(&line));
+        assert!(panel.shader_first > 0, "scrolled down");
+        let fonts = crate::text::load_modern(1.0, None).expect("Inter");
+        let shown = Inputs {
+            grid: true,
+            ..inputs(Holdings::Known(&[]), "")
+        };
+        panel.build(&shown, &fonts.font, [1920.0, 1080.0]);
+        let first = panel.shader_first;
+        assert!(
+            panel
+                .ui
+                .rect_for(SHADER_BASE + panel.shader as u16)
+                .is_some(),
+            "the chosen tile in view"
+        );
         for _ in 0..lines + 2 {
             wheel(&mut panel, 1.0);
         }
-        assert_eq!(panel.grid_first, 0);
+        assert_eq!(panel.shader_first, 0);
+        assert!(first > 0);
     }
 
     #[test]
@@ -2504,54 +2912,5 @@ mod tests {
             action
         };
         assert_eq!(click(0), PanelAction::None);
-    }
-
-    /// Every card in view, its words and the switches fit the canvas above the keys,
-    /// inside the cards' column, at 1080 lines, 4K, 4:3 and 21:9, wherever it scrolls.
-    #[test]
-    fn the_grid_fits_over_the_keys_at_every_shape() {
-        let sun = [sun()];
-        let font = crate::text::load_modern(1.0, None).expect("Inter").font;
-        for viewport in [
-            [1_920.0, 1_080.0],
-            [3_840.0, 2_160.0],
-            [1_440.0, 1_080.0],
-            [2_560.0, 1_080.0],
-        ] {
-            for chosen in [0, SHADER_ROWS - 1] {
-                let mut panel = Panel::new();
-                panel.open(Tab::Shaders, true, true, ReturnTarget::MainMenu);
-                panel.shader = chosen;
-                let shown = Inputs {
-                    grid: true,
-                    ..inputs(Holdings::Known(&sun), "saber_sun")
-                };
-                panel.build(&shown, &font, viewport);
-                assert!(!panel.ui.overflowed(), "{viewport:?}");
-                let frame = crate::menu::sjk::Frame::new(viewport);
-                let keys = frame.point(0.0, view::KEYS_Y)[1];
-                let first = panel.grid_first * GRID_COLUMNS;
-                let shown_cards = first..(first + GRID_COLUMNS * GRID_LINES_SHOWN).min(SHADER_ROWS);
-                assert!(shown_cards.contains(&chosen), "{chosen}");
-                let switches = [
-                    panel.ui.rect_for(LIST_VIEW_TOKEN).unwrap(),
-                    panel.ui.rect_for(GRID_VIEW_TOKEN).unwrap(),
-                ];
-                for index in 0..SHADER_ROWS {
-                    let area = panel.ui.rect_for(SHADER_BASE + index as u16);
-                    assert_eq!(area.is_some(), shown_cards.contains(&index), "{index}");
-                    if let Some(area) = area {
-                        assert!(area.bottom() <= keys, "{index} {viewport:?}");
-                        assert!(area.right() <= viewport[0], "{index} {viewport:?}");
-                        for switch in switches {
-                            assert!(switch.bottom() <= area.y, "{viewport:?}");
-                        }
-                    }
-                }
-                // The switches clear the kinds' pills.
-                let pills_left = frame.rect(view::LEFT_X + 560.0, 0.0, 0.0, 0.0).x;
-                assert!(switches[1].right() < pills_left, "{viewport:?}");
-            }
-        }
     }
 }

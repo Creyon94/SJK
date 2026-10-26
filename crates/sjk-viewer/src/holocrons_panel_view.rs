@@ -810,7 +810,24 @@ impl Panel {
                 FontWeight::Semibold,
                 TextAlign::Start,
             );
-            if recent.opened && !recent.gift {
+            if let Some(trade) = recent.trade.as_ref().filter(|_| !recent.gift) {
+                // Came in a trade: from whom, and how long it waits before it trades again.
+                let shown = if recent.opened {
+                    format!("Opened - {trade}")
+                } else {
+                    trade.clone()
+                };
+                text(
+                    &mut self.ui,
+                    TextFamily::Body,
+                    format_args!("{shown}"),
+                    frame.rect(x + 38.0, y + 22.0, RECENT_WIDTH - 50.0, 16.0),
+                    13.0 * s,
+                    color::alpha(color::HOLO, 0.9),
+                    FontWeight::Regular,
+                    TextAlign::Start,
+                );
+            } else if recent.opened && !recent.gift {
                 text(
                     &mut self.ui,
                     TextFamily::Body,
@@ -1141,6 +1158,7 @@ mod tests {
                     gift: true,
                     note: "n ".repeat(100),
                     opened: false,
+                    trade: None,
                 },
                 Recent {
                     tier: 0,
@@ -1148,6 +1166,9 @@ mod tests {
                     gift: false,
                     note: String::new(),
                     opened: true,
+                    trade: Some(
+                        "Received from ^1Nib^7 in a trade - tradable again in 6d 23h".into(),
+                    ),
                 },
             ],
             next: "Next holocron in about 20 minutes of play".into(),
@@ -1171,6 +1192,9 @@ mod tests {
                     String::new()
                 },
                 opened: index % 4 == 1,
+                trade: (index % 3 == 2).then(|| {
+                    "Received from ^5Padawan^7 in a trade - tradable again in 6d 23h".into()
+                }),
             })
             .collect();
         data

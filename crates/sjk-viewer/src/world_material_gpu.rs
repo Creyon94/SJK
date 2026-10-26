@@ -329,6 +329,9 @@ pub(super) fn load_stage_images(
         identity.push(';');
         images.push(missing_image());
     }
+    if stage.no_picmip {
+        identity.push_str(super::filtering::mips::NO_PICMIP_KEY);
+    }
     Ok((images, any, identity))
 }
 
@@ -354,16 +357,23 @@ fn default_image() -> RgbaImage {
     })
 }
 
+/// Upload `images` as the layers of one `label` array without mips, each fitted to the
+/// largest, less the levels `picmip` leaves off
+/// ([`skipped`](super::filtering::mips::skipped)): the size the mipmapped path gives
+/// the same texture.
 pub(crate) fn upload_array(
     device: &wgpu::Device,
     queue: &crate::frame_queue::FrameQueue,
+    label: &str,
     images: &[Arc<RgbaImage>],
+    picmip: u32,
 ) -> Result<wgpu::TextureView, Box<dyn Error>> {
-    let width = images.iter().map(|image| image.width()).max().unwrap_or(1);
-    let height = images.iter().map(|image| image.height()).max().unwrap_or(1);
+    let (width, height) = super::filtering::mips::extent(images);
+    let skip = super::filtering::mips::skipped(width, height, picmip);
+    let (width, height) = ((width >> skip).max(1), (height >> skip).max(1));
     let layers = u32::try_from(images.len().max(1))?;
     let texture = device.create_texture(&wgpu::TextureDescriptor {
-        label: Some("SJK Q3 stage animation frames"),
+        label: Some(label),
         size: wgpu::Extent3d {
             width,
             height,
@@ -466,5 +476,34 @@ mod default_image_tests {
         assert_eq!(image.get_pixel(0, 7).0, [255; 4]);
         assert_eq!(image.get_pixel(15, 15).0, [255; 4]);
         assert_eq!(image.get_pixel(7, 7).0, [32; 4]);
+    }
+
+    #[test]
+    fn a_nopicmip_stage_keys_its_images_apart() {
+        let texture = image::RgbaImage::from_pixel(256, 256, image::Rgba([90, 60, 30, 255]));
+        let mut png = std::io::Cursor::new(Vec::new());
+        texture
+            .write_to(&mut png, image::ImageFormat::Png)
+            .expect("a png");
+        let mut vfs = sjk_vfs::VirtualFileSystem::new();
+        vfs.mount_memory("synthetic", [("textures/a/b.png", png.into_inner())])
+            .expect("mounted");
+        let shaders = sjk_shader::ShaderCatalog::default();
+        let mut stage = crate::world_stage::default_stage();
+        stage.images = vec!["textures/a/b".into()];
+        let mut cache = std::collections::HashMap::new();
+        let mut key = |stage: &sjk_shader::ShaderStage| {
+            super::load_stage_images(&vfs, &shaders, stage, "", &mut cache)
+                .expect("loaded")
+                .2
+        };
+        let plain = key(&stage);
+        stage.no_picmip = true;
+        let kept = key(&stage);
+        assert_ne!(plain, kept, "never one upload for both sizes");
+        assert_eq!(
+            crate::world_materials::filtering::mips::picmip_for(&kept),
+            0
+        );
     }
 }

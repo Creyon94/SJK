@@ -2,7 +2,8 @@
 //! the medallion reads it (`1`, `100`, `1K`, `10h`) and the medallion itself, a ring
 //! filling with the count round the goal, gold and lit once unlocked. The Profile
 //! page's board (`profile_panel_view.rs`) and the unlock pop-up
-//! (`unlock_toast.rs`) share them, so the two look alike.
+//! (`unlock_toast.rs`) share them, so the two look alike. A hidden achievement not
+//! unlocked yet reads `?` and shows no count.
 
 use super::{Category, Counter, Kind, Source};
 use crate::menu::sjk::{color, text};
@@ -21,6 +22,8 @@ pub(crate) fn tint(category: Category) -> Color {
         Category::Duels => color::GOLD,
         Category::Journeys => color::HOLO,
         Category::Community => Color::new(0.45, 0.86, 0.62, 1.0),
+        Category::Collection => Color::new(0.72, 0.58, 1.0, 1.0),
+        Category::Toys => Color::new(1.0, 0.56, 0.74, 1.0),
     }
 }
 
@@ -71,6 +74,7 @@ pub(crate) fn draw(canvas: &mut MenuCanvas, medallion: Medallion) {
     } = medallion;
     // The board's line widths and type, at this medallion's size.
     let k = radius / BOARD_RADIUS;
+    let secret = kind.hidden && !done;
     let hue = tint(kind.category);
     let list = canvas.draw_list_mut();
     if done {
@@ -94,7 +98,11 @@ pub(crate) fn draw(canvas: &mut MenuCanvas, medallion: Medallion) {
         color: color::alpha(color::HOLO, 0.16),
         knockout: None,
     });
-    let fraction = fraction.clamp(0.0, 1.0);
+    let fraction = if secret {
+        0.0
+    } else {
+        fraction.clamp(0.0, 1.0)
+    };
     if fraction > 0.0 {
         let _ = list.push(DrawCommand::Arc {
             center: centre,
@@ -106,10 +114,12 @@ pub(crate) fn draw(canvas: &mut MenuCanvas, medallion: Medallion) {
             knockout: None,
         });
     }
+    let goal = goal_label(kind);
+    let mark: &dyn fmt::Display = if secret { &"?" } else { &goal };
     text(
         canvas,
         TextFamily::Display,
-        format_args!("{}", goal_label(kind)),
+        format_args!("{mark}"),
         Rect::new(
             centre[0] - radius,
             centre[1] - 16.0 * k,
@@ -138,5 +148,36 @@ mod tests {
         assert_eq!(label("kills_1000"), "1K");
         assert_eq!(label("hours_100"), "100h");
         assert_eq!(label("arsenal"), "8");
+        assert_eq!(label("craft_finishes"), "3");
+        assert_eq!(label("box_minutes_10"), "10");
+    }
+
+    /// A hidden achievement's medallion reads `?` and shows no count until unlocked.
+    #[test]
+    fn a_secret_medallion_reads_a_question_mark() {
+        let kind = super::super::find("mythical_find").unwrap();
+        let goal_text = |done: bool| {
+            let mut canvas = MenuCanvas::new();
+            draw(
+                &mut canvas,
+                Medallion {
+                    kind,
+                    centre: [100.0, 100.0],
+                    radius: 31.0,
+                    fraction: 1.0,
+                    done,
+                },
+            );
+            let arcs = canvas
+                .draw_list()
+                .commands()
+                .iter()
+                .filter(|command| matches!(command, DrawCommand::Arc { .. }))
+                .count();
+            let words: Vec<String> = canvas.text_runs().map(str::to_owned).collect();
+            (words, arcs)
+        };
+        assert_eq!(goal_text(false), (vec!["?".to_owned()], 1), "no count ring");
+        assert_eq!(goal_text(true), (vec!["1".to_owned()], 2));
     }
 }

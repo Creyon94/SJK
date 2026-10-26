@@ -293,7 +293,7 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             crate::duel_visibility::HIDE_OTHERS_CVAR,
             1_i64,
             archive,
-            "Hide players outside your private duel: 0 never, 1 where the server expects it, 2 always",
+            "Hide players outside your private duel: 0 never, 1 where the server expects it, 2 always (their drones: unless 0)",
         ),
         CvarDefinition::new(
             crate::duel_visibility::CORPSES_CVAR,
@@ -306,6 +306,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             1_i64,
             archive,
             "Hide pickups only while you are in a private duel",
+        ),
+        CvarDefinition::new(
+            "cg_wallGrabLock",
+            false,
+            archive,
+            "Lock wall-grab look even when the server allows free look; off follows the server profile",
         ),
         // EternalJK's: write prediction misses to the log (`cg_predict.c:1534`).
         CvarDefinition::new(
@@ -440,10 +446,10 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
         CvarDefinition::new("s_volume", 0.5_f64, archive, "Effects volume"),
         CvarDefinition::new("s_musicVolume", 0.25_f64, archive, "Music volume"),
         CvarDefinition::new(
-            "s_volumeVoice",
+            crate::audio::VOICE_VOLUME_CVAR,
             1.0_f64,
             archive,
-            "Saved voice gain; mixer bus integration pending",
+            "Voice volume: pain, death, taunts, grunts and voice commands, in place of s_volume",
         ),
         CvarDefinition::new(
             "s_khz",
@@ -508,6 +514,54 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "Loudness of emote sounds, times the effects volume (SJK)",
         ),
         CvarDefinition::new(
+            crate::toy_sounds::VOLUME_CVAR,
+            crate::toy_sounds::DEFAULT_VOLUME,
+            archive,
+            "Loudness of the toys' sounds, times the effects volume (SJK)",
+        ),
+        CvarDefinition::new(
+            crate::toy_sounds::Toy::Box.cvar(),
+            true,
+            archive,
+            "Play cardboard box sounds (SJK)",
+        ),
+        CvarDefinition::new(
+            crate::toy_sounds::Toy::Order66.cvar(),
+            true,
+            archive,
+            "Play Order 66 sounds (SJK)",
+        ),
+        CvarDefinition::new(
+            crate::toy_sounds::Toy::Hax.cvar(),
+            true,
+            archive,
+            "Play Hax sounds (SJK)",
+        ),
+        CvarDefinition::new(
+            crate::toy_sounds::Toy::Ragdoll.cvar(),
+            true,
+            archive,
+            "Play Ragdoll sounds (SJK)",
+        ),
+        CvarDefinition::new(
+            crate::toy_sounds::Toy::Drone.cvar(),
+            true,
+            archive,
+            "Play Drone sounds (SJK)",
+        ),
+        CvarDefinition::new(
+            crate::toy_sounds::Toy::Boombox.cvar(),
+            true,
+            archive,
+            "Play other players' boombox music and your own (SJK)",
+        ),
+        CvarDefinition::new(
+            crate::held_view::LOOK_CVAR,
+            crate::held_view::DEFAULT_LOOK,
+            archive,
+            "Let the mouse turn a view the server holds (JA+ kicks and kisses, grapples), which shakes it (SJK)",
+        ),
+        CvarDefinition::new(
             crate::emotes::ATTACK_STOP_CVAR,
             crate::emotes::DEFAULT_ATTACK_STOP,
             archive,
@@ -548,6 +602,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             true,
             archive,
             "Play the secret-area sound with the unlock cards",
+        ),
+        CvarDefinition::new(
+            crate::player_trades::SIZE_CVAR,
+            1_i64,
+            archive,
+            "Size of the trade window: 0 small, 1 normal (default), 2 large",
         ),
         CvarDefinition::new(
             crate::holocron_popup::NOTIFICATIONS_CVAR,
@@ -701,6 +761,25 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             archive,
             "Saber motion trails; mode 2 currently uses the normal trail",
         ),
+        // EternalJK's (JoF EJK `cg_xcvar.h`): the clash flare and its size.
+        CvarDefinition::new(
+            crate::saber_clash_flare::CVAR,
+            true,
+            archive,
+            "Saber clash flare: the burst of light where sabers meet",
+        ),
+        CvarDefinition::new(
+            crate::saber_clash_flare::SIZE_CVAR,
+            1.0_f64,
+            archive,
+            "Saber clash flare size, 0 to 2",
+        ),
+        CvarDefinition::new(
+            crate::effect_flash::REDUCE_CVAR,
+            false,
+            archive,
+            "Reduce bright flashes: no saber clash flare and no screen flash from explosions",
+        ),
         CvarDefinition::new(
             crate::blade_lab_designs::CVAR,
             true,
@@ -732,10 +811,28 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "The Hax toy is on (toy_hax switches it; it stays on until turned off)",
         ),
         CvarDefinition::new(
+            crate::toy_saved::DRONE_CVAR,
+            false,
+            archive,
+            "The Drone toy is on: other players may peek at you, their drone following you (toy_drone switches it)",
+        ),
+        CvarDefinition::new(
+            crate::boombox::RANGE_CVAR,
+            crate::boombox::DEFAULT_RANGE,
+            archive,
+            "How far your boombox is heard, in units (128 to 1000; SJK)",
+        ),
+        CvarDefinition::new(
             crate::duel_blades::CVAR,
             false,
             archive,
             "Draw every blade stock, in its own colour, in a duel you play or follow and on Duel or Power Duel servers; 0 keeps blade skins",
+        ),
+        CvarDefinition::new(
+            crate::stock_blades::CVAR,
+            0_i64,
+            archive,
+            "Draw blades stock, in their own colour, to save GPU time: 0 off, 1 other players' blades, 2 every blade, yours too",
         ),
         CvarDefinition::new(
             crate::effect_aux::saber_rain_steam::CVAR,
@@ -1297,12 +1394,28 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
         cvars.register(definition)?;
     }
     cvars.register_alias("r_vsync", "r_swapInterval")?;
+    cvars.register_alias(
+        crate::away_emote::JAPLUS_OLD_CVAR,
+        crate::away_emote::JAPLUS_CVAR,
+    )?;
     crate::cgame_options::register(cvars)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_old_away_emote_name_sets_the_japlus_one() {
+        let mut cvars = CvarRegistry::new();
+        register_daily_cvars(&mut cvars).unwrap();
+        cvars
+            .set_text(crate::away_emote::JAPLUS_OLD_CVAR, "amsit")
+            .unwrap();
+        let current = cvars.get(crate::away_emote::JAPLUS_CVAR).unwrap();
+        assert_eq!(current.value.as_text(), "amsit");
+        assert_eq!(current.name, crate::away_emote::JAPLUS_CVAR);
+    }
 
     #[test]
     fn an_integer_setting_follows_an_on_off_cvar() {

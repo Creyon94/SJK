@@ -41,6 +41,8 @@ pub(crate) struct ActorMesh {
     pub(crate) jetpack: crate::jetpack::Worn,
     /// `EF_DISINTEGRATION` while it lasts; the pose is frozen meanwhile.
     pub(crate) disintegration: Option<crate::disintegration::State>,
+    /// A body fading away (`EV_BODYFADE`, [`crate::body_fade`]).
+    pub(crate) body_fade: Option<crate::body_fade::State>,
     /// Surface overrides from dismemberment, and which draws they leave visible.
     pub(crate) surfaces: crate::dismember::Surfaces,
     /// Set on a cut-off limb's mesh (`CG_General`'s client-limb case).

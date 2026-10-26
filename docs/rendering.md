@@ -322,6 +322,49 @@ texture cannot select a stale chain by filename. Active uploads may temporarily
 retain evicted data. These budgets do not describe total process memory. Cache
 locking and allocation happen during loading, not during drawing.
 
+With texture compression on (`r_textureCompression`, [GPU memory](#gpu-memory)) the
+workers also encode each array's kept levels (those `r_picmip` leaves) into BC1 or BC3
+blocks ([texture_compression.rs](../crates/sjk-viewer/src/texture_compression.rs)), with
+the CPU encoders of the `block_compression` crate (MIT, a pure Rust port of Intel's ISPC
+Texture Compressor kernels; its wgpu compute path is not built), and the mip cache keeps
+the blocks, one entry per texture detail, in place of the chains they were encoded from.
+The model warm-up worker (`warm_entity_materials`, players' and NPCs' models) encodes the
+same way. The render thread only uploads blocks: a texture it prepares itself, which no
+worker prepared, stays RGBA8 (`mips::upload` outside a world build). Encoding costs about
+21 ms of one core per megapixel for BC1 and BC3 (Sol's PC, release build); mp/ffa3's
+textures are 240 MP with their mips at r_picmip 0 with the HD packs installed, 5.1 s of one
+core. `texture_compression_load` ([world_shot_texture_compression.rs](../crates/sjk-viewer/src/world_shot_texture_compression.rs))
+builds each map twice per process, one process per setting, 25/10/2026 (RTX 5080, 4
+workers, two rounds; seconds, texture preparation and the whole world build):
+
+| Map, r_picmip | Preparation off | Preparation on | Build off | Build on |
+| --- | --- | --- | --- | --- |
+| mp/ffa3, 0 | 0.7 to 1.0 | 2.7 to 2.8 | 3.6 to 4.9 | 6.0 to 6.3 |
+| mp/siege_desert, 0 | 1.3 to 1.9 | 4.5 to 4.8 | 4.7 to 6.0 | 8.4 to 9.2 |
+| mp/ffa3, 1 | 0.6 to 0.7 | 1.0 to 1.2 | 3.4 to 3.5 | 3.9 to 4.0 |
+| mp/siege_desert, 1 | 1.0 to 1.1 | 2.0 to 2.1 | 3.9 to 4.5 | 5.7 to 5.8 |
+| mp/ffa3, 2 | 0.6 to 0.8 | 0.7 to 0.9 | 3.4 to 4.2 | 3.9 to 4.5 |
+| mp/siege_desert, 2 | 1.2 to 1.4 | 1.2 to 1.7 | 4.7 to 5.9 | 4.7 to 6.5 |
+
+(r_picmip 1: one round.) The second build of a map is no quicker either way: with the HD
+packs the cache's budget,
+which counts each entry's source images (16 MiB for a 2048-pixel one), holds few of their
+textures, blocks or chains.
+
+The decoded images themselves ([decoded_image_cache.rs](../crates/sjk-viewer/src/decoded_image_cache.rs),
+one per file name and content, full size whatever `r_picmip`) were never dropped until
+25/10/2026: every texture of every map, model and HUD seen in a session stayed in
+memory. Once the images held grow 128 MiB past what the last sweep kept, the next image
+decoded sweeps out every image only the cache holds; an image a world's shared
+textures, the mip cache or a loader still holds stays, so an address used as a key is
+never freed and reused, and textures shared across a map change are shared as before.
+`map_changes_vram` prints the bytes held: four maps cycled three times at r_picmip 2
+(an install with HD texture packs) held 1750 MiB from the third map
+on before, 906 to 1178 MiB after (the current map's own images), with the same video
+memory and the same 302 shared textures. Not holding the images in the shared textures
+as well (keys by content rather than address) would free only 200 to 350 MiB more of
+that: the rest is held by other world structures.
+
 Lamp extraction uses up to four workers for ordinary maps as well as large ones,
 preserving emitter output order. Each emitter reuses sorted neighboring patch
 IDs while its spatial cell and patch count remain unchanged; live patch moments
@@ -386,6 +429,8 @@ first drawn) and keys only a later remap uses. Not measured on a GPU; compare th
 | `r_ambientFill` | Live material-lighting floor in dark areas, 0–0.2; default 0.025. Fades as existing illumination increases |
 | `r_ambientFillOcclusion` | Fraction of ambient occlusion applied to the readability fill, 0–1; default 1 preserves the previous response. Real indirect lighting keeps full occlusion |
 | `r_sceneHdr` | Scene precision: 0 display format, 1 RGBA16F (default); applies after a graphics reload |
+| `r_superSample` | Scene supersampling, 1 (default, off), 2 or 3 per axis; applies after a graphics reload. See [Render scale and supersampling](#render-scale-and-supersampling) |
+| `r_renderScale` | The world's size in percent of the window per axis, 50 to 100 (default) in steps of 5, stretched to the window; ignored while `r_superSample` is above 1; applies after a graphics reload. See [Render scale and supersampling](#render-scale-and-supersampling) |
 | `r_hdrExposure` | Base exposure multiplier, 0.25–4; live. Eye adaptation adjusts around it; `r_sceneHdr 0` ignores it |
 | `r_autoExposure` | Eye adaptation, default 1 (on); 0 holds `r_hdrExposure`. Live; see [eye adaptation](#eye-adaptation) |
 | `r_autoExposureMin`, `r_autoExposureMax` | Adaptation range in EV around the base: -2–0 (default -0.5) and 0–2 (default 1). Live |
@@ -494,16 +539,38 @@ server names later still compile on the render thread.
 
 The same worker also builds the model's texture mip chains (`warm_entity_materials`
 with `mipmapped`), and the render thread uploads them under their material keys
-(`Runtime::upload_prepared_textures`) before appending the materials, as the map
+(`Runtime::upload_prepared_texture`, one a frame) before appending the materials, as the map
 loader does (`world_texture_prepare.rs`). Built on the render thread, a chain cost
 6.5 ms for a 1024x1024 texture and 25 ms for a 2048x2048 one (release build): 56 and
 182 ms hitches for two player models in Sol's log, with their pipelines already off
 the thread.
 
+Players' models now go up as models a server names do: one prepared texture a frame,
+then the materials and geometry ([player_loads.rs](../crates/sjk-viewer/src/player_loads.rs)).
+All of a model's textures in one frame were the `config-refresh` hitches of Slash's
+24/10/2026 log on a built-in Radeon: 255 to 425 ms for `zzzpiza/original`, 150 to 166 ms
+for `solfox` and `azuki`, each 11 to 19 ms after `client N now wears`. A material list
+appended once in a world is reused by every later install of the same list
+(`ClientInfoWatch::appended`): Kyle standing in for each model this PC lacks still cost
+32 to 55 ms a time with its textures cached. A reused list still asks for what its
+pipelines lack (`Runtime::reused_pipeline_jobs`), so a second player on a model whose
+pipelines are still compiling for the first waits too rather than compiling them on its
+first draw, and textures already up cost no frame. The worker also builds the model's body
+copy, which a later frame of its own puts in the body pool drawing with the model's
+materials (as one hilt mesh serves every player): a player's first death with a model
+built that copy on the render thread (`corpse_actors.rs`), the 35 to 310 ms
+`pose+skin+upload` hitches of the same log at kills. Only a body the player will leave is
+prepared: bodies wear the player's own model (`GpuState::body_appearance`), so under
+`cg_forceModel` or a team model override no copy is pooled and the first death builds it
+as before. The pool keeps one copy per appearance worn in the world, geometry only (the
+materials are the model's), until the map changes: a player cycling skins adds one each.
+An install over 4 ms logs `model install <model>: X ms (materials, geometry for N
+vertices, skin)`, a pooled body `body copy <model>: ...`. Not measured since.
+
 ## Graphics reload
 
 The settings read only when the graphics context is made (`r_sceneHdr`, `r_fxaa`,
-`r_superSample`, `r_dayNight`, the sun-shadow cvars and `r_volumetrics`, the
+`r_superSample`, `r_renderScale`, `r_dayNight`, the sun-shadow cvars and `r_volumetrics`, the
 material-map controls with `r_cubeMapping`/`r_cubeMapSize`, and texture filtering)
 used to need a restart. They now apply with a graphics reload
 ([graphics_reload.rs](../crates/sjk-viewer/src/graphics_reload.rs)), offered by a
@@ -536,13 +603,78 @@ Measured off-screen on an RTX 5080 at 1920x1080 (release build, see
 [status](status.md)): duel6's menu world rebuilt in about 3 s; on a local server
 ffa3 took 5.6 to 7.2 s from `vid_restart` to play, with the connection kept.
 
+## Render scale and supersampling
+
+[render_scale.rs](../crates/sjk-viewer/src/render_scale.rs) sizes the scene's raster
+against the window with one number, the scene's size in percent of the window per axis
+(`Context::render_scale`, read when the graphics context is made, so a change applies with
+a [graphics reload](#graphics-reload)):
+
+- **Supersampling**, `r_superSample` 2 or 3: 200 or 300 %. The scene is drawn larger and
+  box-resolved, every covered texel averaged
+  ([render_scale.wgsl](../crates/sjk-viewer/src/render_scale.wgsl)). It falls back a
+  factor at a time to what the device's texture size and a 512 MiB budget for four
+  colour/depth pairs allow (`supported_bytes`), then to native.
+- **Render scale**, `r_renderScale` 50 to 99 (25/10/2026, for integrated GPUs and GTX
+  1050-class cards): the scene is drawn smaller and stretched over the window
+  ([render_scale_up.wgsl](../crates/sjk-viewer/src/render_scale_up.wgsl)) with a bilinear
+  filter, then a light contrast-adaptive sharpen that keeps RCAS's limits (AMD FidelityFX
+  Super Resolution 1, MIT): the negative lobe of four stretched samples one scene texel
+  away, at a fixed sharpness of 0.5, the largest that pushes no channel past its
+  neighbours' darkest or brightest, so edges get crisper without halos. It works on colour
+  compressed into [0, 1) (c / (1 + its largest channel), reversed after), so HDR values
+  past 1 keep the limits. The size rounds to the nearest pixel (1920x1080 at 75 %:
+  1440x810).
+- **Supersampling wins**: at `r_superSample` 2 or 3 the render scale is ignored
+  (`requested`); the two never combine. The graphics reload card names the side that moved
+  ("supersampling" above 100 %, "render scale" below).
+- **100 %**, the default, makes no scene target (`GpuState::render_scale` stays `None`):
+  the frame is the one from before the setting existed. A unit test pins the default; the
+  world shot `render_scale_shots` at 100 differs from main's build as much as two runs of
+  main differ from each other.
+
+Everything scene-sized follows the scene, not the window: the main depth, the colour target
+the world draws into, the secondary views' targets (floor mirrors, sky and map portals), the
+effect layer, the dynamic-glow image, the card outline mask and the real-time light buffer
+(half the scene each way at native and below; supersampling divides its factor out, so
+there the buffer stays at half the window). The resolve, box or stretch, writes the
+window-sized image the shared resolve (`post_aa.rs`) reads, so FXAA, bloom, eye adaptation
+and the display pass run at the window's size after it; the effect layer and the glow are
+sampled by texture coordinate there. The 2D layer (HUD, menus, text, console) is drawn
+after, at the window's size, against a window-sized `SJK HUD depth`, and pointer
+coordinates stay the window's. The ground HUD, drawn in the world, rebuilds its occlusion
+test from the scene's size (`ground_hud.rs`; until 25/10/2026 it used the window's, wrong
+under supersampling too). Screenshots copy the window's image: the stretched world under a
+full-size HUD. A window resize, a map change, the menu world and a graphics reload make the
+targets again at the new size (`install_render_scale_for`).
+
+Measured 25/10/2026 off-screen on an RTX 5080 (Vulkan, release build), mp/ffa3 from its
+start, median GPU time of 19 or 20 sampled main frames (`render_scale_shots` with
+`SJK_GPU_PHASES=1`; Experimental leaves out the reflection probes' 0.5 to 0.7 ms capture,
+which does not depend on the scale):
+
+| Window, preset | 100 % | 75 % | 50 % |
+| --- | --- | --- | --- |
+| 1920x1080, Vanilla style | 0.100 ms | 0.099 ms | 0.079 ms |
+| 1920x1080, SJK (recommended) | 0.571 ms | 0.456 ms | 0.293 ms |
+| 1920x1080, Experimental | 0.928 ms | 0.800 ms | 0.668 ms |
+| 3840x2160, SJK (recommended) | 2.061 ms | 1.453 ms | 0.933 ms |
+| 3840x2160, Experimental | 3.101 ms | 1.717 ms | 1.284 ms |
+
+The stretch itself costs 0.02 ms at 1920x1080 and 0.06 to 0.08 ms at 3840x2160 on this
+card (the `overlays+post+hud` phase). What does not shrink is drawn at a fixed size: the
+volumetric froxel grid, shadow maps, probes, and the post-processing at the window's size.
+A weak GPU spends a larger share of its frame on the pixels the scale removes, but no weak
+GPU has been measured yet.
+
 ## GPU memory
 
 A world's GPU memory belongs to its `GpuState`: map textures (uncompressed
 RGBA8 arrays with mips, 0.6 GB on duel6 and 1.1 GB on mp/siege_desert), material
 maps, lamp light caches, probes, its screen-size targets (saber glow, FXAA, depth,
-glow, at 4K about 0.8 GB) and its own font and UI atlases (about 0.3 GB). On
-Windows that memory also shows in the process's RAM in Task Manager.
+glow, at 4K about 0.8 GB) and its own font and UI atlases (about 0.2 GB, the font
+atlases 40 MiB of it at 1920x1080). On Windows that memory also shows in the
+process's RAM in Task Manager.
 
 - The menu world is dropped when a server world is installed and built again from
   its map once the client is back in the menu off a server
@@ -571,8 +703,19 @@ Windows that memory also shows in the process's RAM in Task Manager.
   quarter of its memory, while its longest side stays at 128 pixels or more (smaller
   textures keep their size). The mip chains are still built whole on the processor;
   `upload_chains` skips levels, so the setting takes effect for textures uploaded
-  after it changes (the next map) and the non-mipmapped path (`r_textureMode
-  GL_LINEAR`) keeps full size. Once menu pictures are on, each world install that runs
+  after it changes (the next map). Since 25/10/2026 a texture takes the same size
+  whatever path it goes through (`mips::skipped`): the non-mipmapped path
+  (`r_textureMode GL_LINEAR`) and the sky boxes upload the shrunk size through
+  `upload_array`, and the material maps skip the same levels of their box-filtered
+  chains ([Material maps](#material-maps)); before, all three stayed at full size. As in
+  rd-vanilla, the stages of a shader that says `nopicmip` or `nomipmaps` keep their
+  images' size: the parser marks each stage parsed after the keyword
+  (`ShaderStage::no_picmip`, as `ParseStage` reads `shader.noPicMip`), and its texture
+  key ends with `$nopicmip;` (`mips::NO_PICMIP_KEY`), so it never shares an upload with
+  the shrunk copy. Sky boxes take the setting even then, as `ParseSkyParms` loads them
+  (retail's `textures/siege/desert` sky says `nomipmaps`); at 2 a 1024-pixel box is
+  256 pixels a face, 1.5 MiB instead of 24, and the sky looks softer. SJK still builds
+  mips for a `nomipmaps` shader. Once menu pictures are on, each world install that runs
   out of memory raises it one step, to 2 at most (`menu_pictures::after_out_of_memory`).
   Not measured on a 3 GB card yet; map textures are about 0.6 GB of duel6 and 1.1 GB of
   siege_desert at full size. The saber glows and cores follow it too
@@ -580,9 +723,99 @@ Windows that memory also shows in the process's RAM in Task Manager.
   column integrals held 300 MiB on every map and in the menu; at 2 they hold 28 MiB.
   The menu on pictures measured 1082 MiB at 1920x1080 and r_picmip 2, 801 MiB after
   (`menu_pictures_vram` in world_shot_vram.rs, 21/10/2026, after Vin's 3 GB card ran
-  out in the main menu). The rest of that menu: the game font atlases (128 MiB, RGBA),
-  the UI icon atlas (56 MiB) and the world's shadow, GI and froxel targets (about
-  200 MiB) a picture menu does not draw.
+  out in the main menu). The rest of that menu: the game font atlases (128 MiB as
+  RGBA, 32 MiB since they are R8, below), the UI icon atlas (56 MiB) and the world's
+  shadow, GI and froxel targets (about 200 MiB) a picture menu does not draw.
+- Texture compression (`r_textureCompression`, 0 by default, Settings > Graphics > Image;
+  [texture_compression.rs](../crates/sjk-viewer/src/texture_compression.rs), 25/10/2026)
+  keeps the textures of the world and model materials block-compressed: BC1 (half a byte
+  a texel, an eighth of RGBA8) for an array whose texels are all opaque, BC3 (a byte, a
+  quarter) for one with a translucent texel, in the sRGB forms that decode as
+  `Rgba8UnormSrgb` does. One format per array: an animated stage with one translucent
+  frame is BC3 throughout. The array's level zero after `r_picmip` must be whole 4x4
+  blocks and at least 128 pixels long (`compress::fits`), or it stays RGBA8; levels under
+  4 texels a side are padded to a whole block (edge texels repeated) and written at their
+  physical size. Like `r_picmip` it applies to the textures uploaded after it changes (the
+  next map), and the shared map textures' key holds it. Not compressed: devices without
+  `TEXTURE_COMPRESSION_BC` (GLES; Apple Silicon has the formats), video stages, sky boxes
+  and the non-mipmapped path (`upload_array`; a sky's gradients band in BC1), material
+  maps (normal maps would need BC5 and the shader rebuilding their third component), and
+  everything outside the world materials (UI, menu art, fonts, atlases). The stage
+  table's binding array takes BC and RGBA8 views side by side: wgpu checks only the
+  sample type (filterable float for both) and the view dimension. Where the encoding
+  runs and what it costs at load: [Load-time texture and light
+  preparation](#load-time-texture-and-light-preparation).
+
+  `low_end_vram_audit` with `SJK_AUDIT_COMPRESSION=0,1`, 25/10/2026, 1920x1080, release
+  build, RTX 5080 on Vulkan, the HD packs installed (MiB in use, off / on):
+
+  | Map, r_picmip | Vanilla style | SJK (recommended) | Experimental |
+  | --- | --- | --- | --- |
+  | mp/ffa3, 0 | 1594 / 785 | 1622 / 812 | 2021 / 1207 |
+  | mp/ffa3, 1 | 660 / 455 | 688 / 483 | 1083 / 878 |
+  | mp/ffa3, 2 | 428 / 372 | 456 / 400 | 851 / 795 |
+  | mp/siege_desert, 0 | 1757 / 809 | 1785 / 837 | 2405 / 1457 |
+  | mp/siege_desert, 1 | 701 / 462 | 728 / 489 | 1349 / 1110 |
+  | mp/siege_desert, 2 | 438 / 374 | 465 / 402 | 1086 / 1022 |
+  | Menu on pictures, 0 | 999 / 671 | 1027 / 698 | 1284 / 956 |
+  | Menu on pictures, 2 | 371 / 346 | 398 / 374 | 656 / 631 |
+
+  The material textures themselves (labels "SJK optional mipmapped material", RGBA8, and
+  "SJK compressed mipmapped material"): ffa3 928 MiB in 335 arrays, then 118 MiB in 304
+  compressed arrays and 0.5 MiB in the 31 kept (small ones); siege_desert 1091 then 142;
+  the menu's models 377 then 48; at r_picmip 1 236 then 31, 276 then 36, 97 then 13; at
+  r_picmip 2 66 then 10, 75 then 10, 29 then 5. So the setting saves about 0.8 to
+  0.95 GB a world at full texture detail, about 0.2 GB at r_picmip 1 and 25 to 65 MiB at
+  r_picmip 2, where the map textures are already small. Full detail compressed (ffa3 at Vanilla, 785 MiB) still
+  holds more than r_picmip 1 uncompressed (660 MiB: the saber glows and the sky follow
+  r_picmip too, 300 and 24 MiB at 0), but every texture keeps its full size; r_picmip 1
+  compressed holds 455.
+
+  Quality, `texture_compression_quality`: frames from the same three cameras of each map
+  (its start, looking down, turned aside) at the SJK preset, whose frames repeat exactly
+  (two runs off: 0 pixels differ). Off against on: ffa3 41.9 to 44.5 dB over the frame
+  (nearly every pixel moves, by at most 29 to 45 of 255), siege_desert 47.8 to 49.8 dB (at
+  most 27 to 50); the sky does not change. The frames' middles doubled side by side
+  (`tc-<map>-<view>-crop.png` in `target/world-shots`) show no difference to the eye. Each
+  texture's level zero against its RGBA8 one (`compress::decode`): ffa3's 287 BC1 arrays
+  39.1 dB on average (median 38.0, 5th percentile 32.4), its 17 BC3 ones 39.1;
+  siege_desert's 212 BC1 39.5 (median 38.4, 5th percentile 33.1), 22 BC3 39.4. The worst
+  are noisy or hard-edged patterns: `models/weapons2/golan_arms/projectilemain.jpg`
+  27.3 dB, `textures/rocky_ruins/rancor_floor.jpg` 28.8,
+  `textures/factory/cat_floor2.png` (BC3) 29.1, `textures/kejim/kej_lights_glow.jpg`
+  30.3; doubled beside the originals (`tc-<map>-worst-<n>.png`) they look the same. No
+  BC1 texel came out translucent (flat blocks keep index 0). BC7, measured beside them
+  with the crate's alpha "ultra fast" settings, was about 10 dB better on the opaque
+  arrays at twice BC1's size and 19 times its encoding time (400 ms of one core per
+  megapixel), and 5 to 7 dB better on the translucent ones at BC3's size, 17 times
+  slower; hence BC1 and BC3. With the floor at 64 pixels `gfx/effects/chrome.jpg` (64x64,
+  an environment map) was the second worst at 28.4 dB; arrays under 128 pixels hold
+  almost nothing (0.5 MiB for ffa3's 31) and stay RGBA8.
+
+  Not decided: a default. The numbers argue for it on cards that already get a lower
+  texture detail (under 4.5 GiB, `video_memory.rs`): 200 to 240 MiB less at r_picmip 1
+  for 0.4 to 1 s more texture preparation per map; and for 6 to 8 GB cards at full
+  detail, 0.8 to 0.95 GB less per world, once the 1.8 to 3.5 s of preparation it adds here
+  is measured on a 4 to 6 core processor (or the encoding moves to the GPU,
+  `block_compression`'s wgpu 30 compute path, or to a disk cache).
+- The font atlases are single-channel `R8Unorm` textures
+  ([gpu_texture.rs](../crates/sjk-viewer/src/gpu_texture.rs)
+  `create_r8_texture_mipmapped`): every code-page atlas holds only glyph coverage (or
+  a distance field), and the text colour comes from the vertices, so `text.wgsl` and
+  `ground_hud.wgsl` read it from `.r`. Until 25/10/2026 they were white RGBA8 textures
+  read through alpha, four times the memory for the same values. At 1920x1080 the five
+  game font atlases (SJK Menu, SJK Chat, JetBrains Mono and the SJK UI's two
+  families) went from 128 to 32 MiB, the Inter UI atlas from 21.3 to 5.3 MiB and the
+  classic HUD atlas from 10.7 to 2.7 MiB: 120 MiB less in every world, the menu's
+  included. `low_end_vram_audit` at r_picmip 2 (MiB in use, Vanilla style / SJK /
+  Experimental): mp/ffa3 626 / 670 / 1065 before, 506 / 550 / 947 after; the menu on
+  pictures 512 / 539 / 797 before, 392 / 419 / 677 after. The Inter atlas grows with
+  the display scale (4096x4096 at 200 %: 85 MiB as RGBA, 21 MiB as R8, computed). The
+  CPU copies the atlases are built and mipmapped from are one channel too. Text draws
+  the same: the text pipeline drew the same glyph quads at six scales (every mip
+  level) from the old RGBA upload and from the R8 one, for all eight atlases and a
+  distance field, with no pixel different. The emoji atlas stays RGBA (colour
+  pictures) and the wide-glyph atlas was already R8.
 - Work on the render thread after a world is built runs inside wgpu error scopes
   ([gpu_guard.rs](../crates/sjk-viewer/src/gpu_guard.rs)) where it can fail alone: the
   menu stage's model (the creator's head, torso and legs), which then is not shown and
@@ -602,10 +835,52 @@ Windows that memory also shows in the process's RAM in Task Manager.
   (an integrated GPU's few hundred MB too) it sets texture detail 2, under 4.5 GiB 1,
   and menu pictures on, each only from its default, once a card (`r_videoMemoryChecked`
   keeps the MiB it chose for). The size and budget go into the log and crash reports.
+  Under 3.5 GiB it also lightens the graphics once a card (`r_smallCardPreset`, since
+  25/10/2026): Vanilla style when the preset is the untouched SJK (recommended) one,
+  other players' blades stock and a 60 FPS menu cap when those are off, then says so
+  in a card on the main page with Keep and Back to SJK graphics
+  ([sjk-ui.md](sjk-ui.md#small-graphics-cards)). It runs before the graphics context
+  is made, so the first frame already draws with them. Vanilla and SJK (recommended)
+  differ by only about 45 MiB of video memory; this is for frame time (ambient
+  occlusion, HDR and glow at full resolution) and the skins' GPU work.
+  The size also sets the lamp light cache's budget
+  ([below](#experimentals-lamp-memory)).
 - With menu pictures on, the menus' saber shader swatches show their drawings
   (`collection_swatch.rs`) instead of the live blade pictures (`blade_pictures.rs`, a
   832x1664 target of three textures, about 17 MB, and each signature blade's
-  pipeline), and that target is freed.
+  pipeline), and that target is freed. Live, a frame draws only the pictures that need
+  it: the hovered or chosen ones every frame, the others 30 times a second and six a
+  frame at most ([unlockables.md](unlockables.md#shaders-tab)).
+- The secondary views make their targets the first frame each is drawn, not with the
+  world (`Lazy` in [scene_view_gpu.rs](../crates/sjk-viewer/src/scene_view_gpu.rs),
+  `Runtime::provide_targets` in [scene_views.rs](../crates/sjk-viewer/src/scene_views.rs)).
+  The floor mirrors' (any polished plane), the sky portal's (any sky shader) and the map
+  portal's (any `portal` face) were each a scene-format colour target and a depth target
+  at the scene's size, 25 MiB at 1920x1080 with HDR and four times that at 4K, and most
+  were never drawn: `r_floorReflections` is 0 at the Vanilla and SJK presets, the sky
+  portal draws only once the server sends `CS_SKYBOXORG` for a `misc_skyportal` (12 retail
+  maps have one, among them mp/duel6, mp/duel9 and mp/siege_hoth; mp/ffa3 and
+  mp/siege_desert have sky shaders and none), and no retail map has a `portal` face
+  (community maps do, with their `misc_portal_surface`). A target is kept once made and
+  made again at a resize or another scene scale (`r_superSample`, `r_renderScale`); the floor mirrors' is dropped when
+  `r_floorReflections` goes to 0. One the card has no room for (captured, `gpu_guard`)
+  leaves its view undrawn, logged once, rather than ending the game. Their labels now say
+  which view they serve (`SJK floor mirror view`/`depth`, `SJK sky portal view`/`depth`,
+  `SJK map portal view`/`depth`). The wide-glyph and emoji atlases (10.7 MiB each) wait
+  the same way for the first character beyond the code page or emoji
+  ([below](#characters-beyond-the-code-page)). With real-time lighting, a map with
+  polished planes still keeps the mirrors' light-buffer images whether mirrors are on or
+  not (`configure_light_preservation`).
+- The render scale ([above](#render-scale-and-supersampling)) shrinks the scene-sized
+  targets with its square: at 50 % of 1920x1080 the main depth, the effect layer's two
+  images and the glow image hold 2.3 MiB each instead of 8.4, the render-scale scene adds
+  4.7 MiB (HDR), and a window-sized `SJK HUD depth` (8.4 MiB) stays for the 2D layer; the
+  window-sized resolve images (`SJK FXAA scene`, 25.3 MiB for two) do not change.
+  `low_end_vram_audit` on mp/ffa3 at r_picmip 2 with `SJK_SHOT_CVARS=r_renderScale=50`
+  (25/10/2026, MiB in use, 100 % / 50 %): Vanilla style 428 / 421, SJK (recommended)
+  456 / 445, Experimental 851 / 805 (its light buffer and lighting images shrink too); the
+  menu on pictures 371 / 363, 398 / 387 and 656 / 616. It saves GPU time far more than
+  memory; texture detail (`r_picmip`) is the memory setting.
 - A map change still builds the next world while the last one lives. With
   `MemoryHints::Performance` (128 to 256 MiB blocks) the blocks the old world
   shared with the new one stayed partly used once it was dropped, about 2 GB of
@@ -618,8 +893,9 @@ then mp/siege_desert, mp/ffa3, mp/siege_desert, mp/ffa3, as map changes on one
 device. Before: 11.0 to 12.5 GB private bytes once on a server (the GPU allocator
 reserving 5.2 to 5.9 GB). After: 7.2 to 7.4 GB (4.1 to 4.2 GB reserved for 3.3 to
 3.4 GB in use). Old worlds were freed in both (the resource counts went back down
-each time): it was not a leak. Each world also keeps about 1 GB of CPU memory
-after loading, not looked into yet.
+each time): it was not a leak. Each world also kept about 1 GB of CPU memory
+after loading; most of it was the decoded images, which no longer pile up from map to
+map ([Load-time texture and light preparation](#load-time-texture-and-light-preparation)).
 
 The players' "world installer stopped unexpectedly" (18/10/2026: 33 hub crash
 reports, `wgpu error: Out of Memory` in `create_texture` on `sjk-world-install`, on
@@ -640,7 +916,7 @@ Every map holds the same bytes on each cycle (duel6 1869 MiB after the first and
 last), and reserved memory settles back to 2.5 to 3.4 GB. With the desktop and other
 programs, a 6 GB card has no room for two worlds of the larger maps. About 0.55 GB of
 each world was the same whatever the map and was built again for each one: the saber
-glow column integrals (205 MiB), the game font atlas (128 MiB), the saber glow images
+glow column integrals (205 MiB), the game font atlas (128 MiB then, RGBA), the saber glow images
 (96 MiB), the UI icon atlas (50 MiB), the effect atlas (39 MiB) and the classic menu
 art (32 MiB). Map textures that two maps share (retail `textures/` among them) were
 uploaded again too.
@@ -656,8 +932,12 @@ array's size. A shared map texture skips its mip preparation too. Each entry is 
 with the last world that took it, so a map change never keeps the old map's own
 textures. Not shared: the UI icon atlas and animated menu art, which a running world
 rewrites; textures a world makes after its build (models and effects that load during a
-match, video frames, the non-mipmapped filtering path); and anything across a graphics
-reload, whose new context may make textures differently and starts its own cache.
+match, video frames, the non-mipmapped filtering path); material maps, whose converted
+images each build makes again, so only a hash of their pixels could key them (and a
+server's old map leaves before the next is built, below); and anything across a graphics
+reload, whose new context may make textures differently and starts its own cache. A
+shared map texture's key holds the levels texture detail leaves off, so a world built
+after `r_picmip` changed takes its own size.
 
 | Map | Peak before | Shared assets | Shared map textures too |
 | --- | --- | --- | --- |
@@ -686,6 +966,138 @@ second build: about 3 s in release, 1.4 s of it hidden behind the file read, abo
 | ffa3 alone | ffa3 + siege_desert | Empty world | Empty world + siege_desert |
 | --- | --- | --- | --- |
 | 2208 MiB | 3719 MiB | 1436 MiB | 3045 MiB |
+
+The world shots above build their client from a fresh profile, whose renderer cvars are
+their defaults: the Experimental preset, not the SJK (recommended) one players start on.
+`SJK_SHOT_CVARS` (`name=value`, comma separated) sets more cvars on any world shot's
+profile, after the shot's own (`world_shot::world_input`).
+`low_end_vram_audit` (`world_shot_vram.rs`) builds each map at each preset
+(`graphics_quality::preset_cvars`) and texture detail and prints every label, the
+allocator's reserved bytes and what DXGI says the process uses (`VideoMemory::usage`);
+`card_faces_vram_audit` mounts the SJK packs of `JKA_GAME_DATA/SJK/assets`, which the
+other shots never do. Measured 25/10/2026 at 1920x1080 (MiB in use):
+
+| Map, r_picmip 0 / 2 | Vanilla style | SJK (recommended) | Experimental |
+| --- | --- | --- | --- |
+| mp/ffa3 | 1769 / 603 | 1814 / 648 | 2213 / 1049 |
+| mp/siege_desert | 1915 / 596 | 1952 / 632 | 2572 / 1253 |
+| Menu on pictures | 1140 / 512 | 1168 / 539 | 1425 / 797 |
+
+The r_picmip 2 column is after the sky boxes followed texture detail (25/10/2026); each
+map held 22 MiB more before (its sky box, 24 MiB at any setting), and nothing else
+changed: at r_picmip 0 the labels are the same and the Vanilla and SJK frames are
+pixel-identical before and after (Experimental's differ as much as two runs of one
+build do, from its moving dust and noise). `SJK_AUDIT_GENERATED=1` mounts the player's
+generated material pack (`zzz_sjk_materials.pk3`), which no other shot does. With it,
+Experimental's normal, specular and emission maps held 884 MiB on ffa3 (218 maps) and
+427 MiB on siege_desert (85) whatever the texture detail, SJK's emission maps 9 and
+16 MiB; once they followed r_picmip, at 2 they hold 58 and 27 MiB (SJK's about 1), and
+the maps hold 1190 MiB instead of 2038 and 1327 instead of 1765 (SJK: 649 instead of
+680, 633 instead of 670).
+
+The presets that leave the real-time lighting off differ by about 45 MiB; Experimental
+adds its lamp light cache (up to 360 MiB on ffa5), fixture visibility, GI, froxels and
+sun shadow maps. DXGI's count is the allocator's reserved bytes plus about 200 MiB, and
+stays level over 12 map changes. With the hub's 333 card faces mounted, the menu on
+pictures at r_picmip 2 went from 539 to 2316 MiB in use (3235 MiB reserved): every face
+was uploaded at 1024 pixels in every world (see [cards.md](cards.md)), which the hub's
+crash reports named (`label = 'SJK menu emblem'`, a GTX 1060 3GB in the main menu).
+Since then only the faces a screen draws are decoded and uploaded (at most 64 kept): the
+same menu holds 539 MiB with the packs mounted, siege_desert 654 MiB instead of 2431,
+and the map change's peak is 1105 MiB instead of 2882. Card pictures now carry their own
+label, `SJK card art` (medals `SJK medal art`), so `vram` and crash reports no longer put
+them under the emblem's.
+The table's numbers predate the single-channel font atlases (above), which take about
+120 MiB off every cell (measured at r_picmip 2 on mp/ffa3 and the menu on pictures).
+
+With the secondary views' targets and the text atlases made only when drawn (above), the
+same audit at r_picmip 2 (25/10/2026, MiB in use, before / after):
+
+| Map, r_picmip 2 | Vanilla style | SJK (recommended) | Experimental |
+| --- | --- | --- | --- |
+| mp/ffa3 | 626 / 571 | 670 / 598 | 1065 / 993 |
+| mp/siege_desert | 618 / 580 | 654 / 608 | 1279 / 1232 |
+| Menu on pictures | 512 / 490 | 539 / 518 | 797 / 775 |
+
+ffa3 lost its floor mirror and sky portal targets and both atlases, siege_desert its sky
+portal target and the atlases, the menu the atlases; the main view's `SJK depth` is the
+only depth target left. The audit's camera sees no polished floor, so at Experimental
+(`r_floorReflections 1`) the mirror target is only made once one comes into view.
+
+### Experimental's lamp memory
+
+Players on 4 to 8 GB cards ran out of video memory at map loads on Experimental, where
+Vulkan fails outright. Its real-time lighting held three large map-lifetime resources,
+cut on 25/10/2026:
+
+- The fixture visibility atlas (`SJK all-fixture static visibility`,
+  [lamp_visibility.rs](../crates/sjk-viewer/src/lamp_visibility.rs)) keeps each texel in
+  16 bits, two texels to an `R32Uint` texel, instead of an `R32Float` each: 64 MiB at
+  most instead of 128, at the same resolution. A texel is not a visibility fraction but
+  the ray parameter of the first blocker in its direction, which each filter tap
+  compares with the receiver's plane, so it needs precision in world units. The 16 bits
+  are steps of 1/65534 of the longest hit the lamp can have (its tracing limit along a
+  diagonal), 0.03 units for a lamp of 1000, rounded to the nearest step but never more
+  than a quarter unit nearer than traced: the half-unit bias that keeps a receiver from
+  shadowing itself loses at most half (`lamp_visibility_common.wgsl`). A miss has its own
+  code. `R16Float` would be the plain choice, but WebGPU does not guarantee it as a
+  storage format (wgpu would need `TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES` on every
+  device), and half floats were tried: their step grows with the distance (half a unit
+  from 512 units), and rounding up by it let measurably more light through on lit walls
+  (mp/siege_hoth's mover shots 0.18/255 brighter on average, up to 7/255); rounding up
+  by the fixed step still left 0.03/255, rounding to the nearest step is as close as two
+  runs of one build. A door tile keeps its movers' covered rectangle in its first
+  stored texel (two border texels), a byte per bound. The lowest atlas resolution is now
+  2 (tiles stay an even number of texels across); 1 was only reached past two million
+  lamps.
+- The lamp lists (`SJK lamps`, [lamp_lights.rs](../crates/sjk-viewer/src/lamp_lights.rs))
+  hold two 16-bit lamp indices to a word when a map has at most 65,536 lamps (every
+  retail map), otherwise one 32-bit index as before (`lamp_list_lamp` in
+  `lamp_lights.wgsl`). Refining crowded cells had made mp/ffa5's lists 34.6 million
+  entries for 10,023 lamps, 132 of the buffer's 150 MiB. The lists and their order are
+  the same, so every lamp sum is too.
+- The lamp light cache's budget follows the card (`lamp_cache::budget`, from
+  `video_memory::dedicated`): 32 MiB per GiB of the card's own memory, at least 64 MiB,
+  and the old fixed 512 MiB from 16 GiB up or when the size is unknown (off Windows).
+  It counts the light layers; with material maps the direction layers add half as much
+  again. A cache over its budget halves its resolution: mp/ffa5's 45 layers go from
+  1024² (360 MiB, 540 with directions) to 512² (90, 135) on a card of 8 GB or less
+  (a 256 MiB budget, 192 at 6 GB, 128 at 4 GB), mp/siege_desert's 26 from 208 to 52 MiB
+  at 6 GB or less. A coarser cache keeps its accuracy, as before on large maps: the steep
+  pass sends texels whose light bends too sharply for interpolation to direct
+  evaluation, and so does a surface mapped more than 16 units a cache texel. It costs
+  speed instead: on an RTX 5080 at 1280×720 the light pass of the three ffa5 lamp views
+  (`world_shot::lamp_light`) took 0.223, 0.170 and 0.425 ms at 1024² and 0.222, 0.170 and
+  0.499 ms at 512². Tests take `SJK_VIDEO_MEMORY_MIB` for the card's size.
+
+`low_end_vram_audit` at 1920×1080 and r_picmip 2, Experimental, MiB in use (`main`
+7389dc91, then this change as built for cards of each size; Sol's is 16 GB):
+
+| Map | Before | 16 GB | 8 GB | 6 and 4 GB |
+| --- | --- | --- | --- | --- |
+| mp/ffa5 | 1314 | 1212 | 925 | 925 |
+| mp/siege_desert | 1086 | 1023 | 1019 | 851 |
+
+Per label: ffa5's atlas 58.9 → 29.5 MiB and lamps 149.9 → 83.8, siege_desert's atlas
+128.7 → 64.3 and lamps 10.9 → 8.0, and the caches as above. The totals move by a few
+MiB between runs of one build (wgpu's indirect-draw validation buffers, 1 MiB each); no
+other label changed, nor did the Vanilla and SJK presets or the menu on pictures.
+Images, compared with two runs of `main` (world shots are not time-deterministic): the
+audit frames, `world_shot::lamp_light` on ffa5 and ffa1 and `movers_shadow_lamps` on
+mp/siege_hoth (door tiles) differ from `main` as much as `main` from itself on a 16 GB
+card (the worst sheet: at most 4/255, 0.017/255 brighter on average, against 3/255 and
+0.006 between two `main` runs). With the smaller cache, most views stay within the
+cache's tolerance; one wall in siege_hoth's sheet 59 changes by up to 56/255, because at
+512² it is lit directly: there the 1024² cache had been off by up to 53/255 (30,355
+pixels over 8/255 against `SJK_LAMP_CACHE=0`, 3,036 at 512²).
+
+Looked at and left: the two froxel volumes (23.6 MiB each, RGBA16F, alpha unused; the
+RGB-only `Rg11b10Ufloat` is not a storage format WebGPU guarantees and has a 6-bit
+mantissa for the integrated sums), the GI probe depth moments (23 to 26 MiB, the mean
+and mean square of each direction's distance in two floats; half floats overflow past
+256 units squared and lose the variance to cancellation) and the six 16 MiB sun shadow
+targets (2048² `Depth32Float`; 16 bits over the far cascade's map-wide fit would show
+acne).
 
 ## Eye adaptation
 
@@ -959,7 +1371,9 @@ otherwise come from a trace of the static world only, done once when the map loa
   traced on the GPU against the movers near that lamp at their current pose; a
   receiver's lamp visibility is the world tile's times the door tile's. The trace also
   records the pixel rectangle the movers cover, in two border texels the filter never
-  reads; a receiver whose filter footprint lies outside it skips the door tile.
+  reads (the tile's first stored texel, a byte per bound, since the atlas went to 16 bits
+  a texel: [Experimental's lamp memory](#experimentals-lamp-memory)); a receiver whose
+  filter footprint lies outside it skips the door tile.
 - **Poses.** Movers in the snapshot block light where they are drawn; one hidden or
   broken (not drawn) blocks nothing. A mover no snapshot has shown yet stands at its
   baseline's spawn pose; one with neither blocks nothing. A mover missing from a
@@ -1000,7 +1414,10 @@ floor is 3.6 times coarser: lit directly it took 4.2 ms of a 7.5 ms frame at 4K 
 RTX 5080 (Sol's in-game run with every real-time term off still measured a 5.7 ms
 light pass), cached the frame is 3.6 ms, and the spawn view differs by at most 8/255
 (0.45 % of pixels by more than 4). `mp/ffa5`, `mp/ffa3` and `JKLevel1` were unchanged
-(3.1, 3.2 and 2.5 ms) and the cache kept its 519 MiB on `JoFTemple`.
+(3.1, 3.2 and 2.5 ms) and the cache kept its 519 MiB on `JoFTemple`. The cache's budget
+follows the card's video memory since 25/10/2026: on a card under 16 GB a large map's
+cache can be a resolution coarser, with more surfaces lit directly
+([Experimental's lamp memory](#experimentals-lamp-memory)).
 
 The ignored world shot `world_shot::movers::movers_shadow_lamps` renders the movers with
 the most door lamps closed, open and with every mover hidden, from beside a lamp, and
@@ -1225,6 +1642,34 @@ puffs. Rage/Heal sprays and Quick Heal remain animation-driven in every camera
 mode, as in #58.
 These presentation rules apply in every UI style and change no Force gameplay,
 movement, animation timing or protocol encoding.
+
+### Portable shields
+
+The force field a Merc places (`HI_SHIELD`) is an `ET_SPECIAL` entity with no model,
+drawn by `CG_Special` → `FX_DrawPortableShield` (`cg_ents.c`). Until 26/10/2026 SJK
+drew nothing for it, so players were blocked by a wall they could not see (blec-bee's
+report, #133). [portable_shields.rs](../crates/sjk-viewer/src/portable_shields.rs)
+reads its shape from `time2` (axis bit 24, height bits 16-23, the widths either side
+of its origin in bits 8-15 and 0-7), its look from `otherEntityNum2` (red team
+`gfx/misc/red_portashield`, otherwise blue) and `trickedentindex` (the `*_dmgshield`
+look while it is hit), skips it under `EF_NODRAW`, and adds stock's 50 ms
+`LE_OLINE` copy on the reference 8 ms cadence (`effect_cadence.rs`), so the additive
+copies overlap as at 125 FPS. The copy is a new effect primitive,
+`PrimitiveShape::OrientedLine` (`RB_SurfaceOrientedLine`'s upright quad, s across the
+height and t along the field), drawn by the effect geometry's quad stamp, which the
+GPU expansion handles too. World shot: `world_shot::portable_shield_shots`.
+
+### Scaled players' held items
+
+A player or NPC the server scales (`iModelScale`, also used for small models such as
+the Jawa and community younglings, whose meshes are full size) keeps what it holds in
+its hand: `G2API_GetBoltMatrix` scales a bolt's position by the model scale and keeps
+its axes, and the bolted saber or gun is drawn with the wearer's `modelScale`. Until
+26/10/2026 SJK scaled the body but put the hilt, the gun, the blade's start, a JA+
+hook's rope and the left-hand Force effects at the unscaled hand, above a small
+player's hand (g0dchris' report, #144). `saber::Attachment::scaled` and
+`BladeSocket::scaled` now apply the scale; the blade keeps the saber's length, as
+`CG_AddSaberBlade` does. Holstered hilts already followed it.
 
 ### Emplaced guns
 
@@ -1693,9 +2138,18 @@ table of who wears which (filled from the hub's looks; ids and names are
 [unlockables.rs](../crates/sjk-viewer/src/unlockables.rs)'s); `BladeColor::Skin` carries
 the skin's number, trail and light wherever a blade colour is chosen (in the hand,
 thrown, first person, the menu stage). A skin whose pack is not loaded is the player's
-stock blade. A chroma ([unlockables.md](unlockables.md#chromas)) takes its saber's
-colour: `SkinColor::worn_with` sets the turn from the skin's hue to the colour's, the
-instance carries it (`chroma`, location 8), and `saber.wgsl` turns the skin's finished
+stock blade. So is a blade the local player chose to draw stock: a duel's
+(`cg_duelStockBlades`, `SaberSkins::set_plain`) or, for weak PCs, other players' or every
+blade (`cg_stockBlades` 1 or 2, `SaberSkins::set_stock`,
+[stock_blades.rs](../crates/sjk-viewer/src/stock_blades.rs)). `SaberSkins::get` then
+gives the world's blade no skin, so nothing below is drawn for it (no skinned instance,
+afterimage, glint, petal or trail and light colour of the skin), and the haze, lens,
+horizon and solid passes, which need a skinned blade in the frame, are skipped once none
+is left. The menus' preview takes the player's own skin from `SaberSkins::local` and the
+cards and pictures from the loaded skins, so they keep showing it. A chroma
+([unlockables.md](unlockables.md#chromas)) takes its saber's colour:
+`SkinColor::worn_with` sets the turn from the skin's hue to the colour's, the instance
+carries it (`chroma`, location 8), and `saber.wgsl` turns the skin's finished
 glow and core round the grey axis by it (`skin_turn_hue`); the light and trail turn on
 the CPU (`SkinColor::light_color`, `trail_color`).
 
@@ -2343,6 +2797,65 @@ at that point and returning the blade's own: `sig_glow(g, b, r, px)` the glow's 
   what lies on the blade itself is never hidden, and bounds and the blade's own axis use the raw
   distances (`rayPtRaw`, `raySegRaw`). Liquid Beskar's rings no longer show through the blade, and
   the Clone Wars halftone no longer reaches below the hilt.
+- **Round 23 (players' reports after the 2026.1021.1 release: pixels at the tip, hard lines).**
+  A skin's core is sampled with the derivatives of its coordinates before the rounded tip narrows
+  them (`core_coordinates_at` with `core_breath`; the shaft's, where the two are the same): in the
+  tip the narrowing runs to a hundred times within a pixel and picked the core image's smallest
+  mip, which drew a bright rim of pixels round the end of every signature's core, in the game, the
+  Collection and the holocron cards. A signature's core fades out before its quad's sides
+  (`skin_core`): the core image's fringe is still a tenth as bright at its border, which drew a
+  straight edge along both sides of the line up close and a faint box past the narrowed tip. Round
+  22's hiding behind the blade is soft: `behindBlade` (and `ray_behind_blade`) fades in as the view
+  turns from along the blade instead of switching off at once, and ends before the tip where the
+  blade narrows; a hidden piece's distance goes through `hideD` (`hide_d`), which narrows and dims
+  it over the blade's soft edge, instead of adding a thousand times the hidden share, which cut it
+  at a hard edge and drew a box round the tip whenever a blade pointed at the camera; the
+  signatures' own ring code and `bladeSeen` do the same. `fxFlare` is skipped only where its widest
+  halo has faded (it ended at a hard ring), and Hypermatter's and the Uneti Tree's pulses fall off
+  over their fronts instead of ending at a line across the blade, as does the Starfighter
+  Canopy's. The other early-outs that cut glow at a line wait until it has faded: `fxFlakes`
+  (a dome seen along Yavin Vines), `fxCoils`, `fxRays`, `fxArcs` and `fxFall` in the lab, and
+  Balance's, Holo-Recording's and Orto Plutonia's own; `fxSmoke` takes a step at most about a
+  third of the cloud's width, up to 12 (a long path along the blade was sampled six units
+  apart). The blocky designs keep their look with edges smoothed over about a pixel (`aaStep`,
+  `cellMix` and `aaSquare` in `lab.glsl`): Code Cylinder, Canto Bight, Flimsiplast, Death Star
+  Plans, Cargo Stack, Holonet Feed and Targeting Display. Code Cylinder's and Flimsiplast's
+  stripes still alias seen right along the blade.
+  Sol's review (22/10/2026): the softened pulses are scaled back to their old peak (Hypermatter's
+  and the Starfighter Canopy's by 2.22, the Uneti Tree's second pulse 0.96 for 0.6), as their
+  fronts' fall-off had dimmed them to 45 and 63 percent. The hiding behind the blade no longer
+  ends 1.4 units before the tip (Exegol Rift's tip flare and Quasar's jet showed through it): its
+  width narrows with the rounded tip (a quarter circle over the last 1.4 units) to the point, so
+  nothing behind the tip shows and no dark round end is drawn past it. The tip fix needs the
+  core's coordinates without the tip's narrowing as well (`filter_uv`), on every skinned blade,
+  not only the signatures. Both come from one skin lookup per pixel (`core_line`, which also
+  gives the glitch's colour split): the first version ran `skin_at`, `skin_wave`, `skin_glitch`
+  and `skin_jitter` a second time for them, which the timing below counts. In
+  Creyon's game (third person and free camera, in front of a wall) Obsidian Edge still drew a box
+  round its tip: its edges' orange bloom stopped at once level with the tip (`inside` was a step;
+  it fades round the tip and into the hilt now), and its heat haze showed a stale strip cut at
+  straight edges, as the haze (and a black hole's lens) bends the effect layer's `original` image
+  up to 2 (6) percent of the screen outside the effects' rectangle, where that image keeps an
+  older frame: the rectangle (`effect_bounds`) now has that much more room on every side on a
+  frame that draws a haze or a lens (`HAZE_REACH`, `LENS_REACH`, `Bounds::bend`); other frames
+  keep the tight rectangle. Hypermatter's pulses come out of the hilt softly too.
+  The timing (Creyon's RTX 5070, Windows 11, `signature_gpu_cost_against_stock` with the 12
+  heaviest signatures, 33 blades a frame, `main` and this branch timed in turns, twice each, the
+  lower kept): the first version cost the 12 together 12 to 19 percent more than `main`, most of
+  it in the four arc blades (Sith Holocron, Quantum, Carbonite, Reactor, a fifth to a third more),
+  as `fxArcs` drew every bolt wherever its arc's glow could reach. Each of an arc's three bolts is
+  now drawn only near its own middle, its glow made to end 1.7 past it (`arcGlow`); `fxFlare` is
+  cut at 12 sizes (18 cost too much) and `fxSmoke` at 12 steps (16 cost the smoke blades a sixth
+  more seen along them). After that the 12 cost 2.0 (game), 1.8 (close) and 2.8 (along) percent
+  more than `main`, with the stock blade's own time (the stand-in) 3 to 4 percent more, so about
+  the same: Sith Holocron, Quantum and Carbonite 7 to 19 percent less, the others within a tenth.
+  Reactor still cost 13 to 17 percent more: its lightning was worked out while weighted to
+  nothing (cold and still, over half its cycle), and the arcs' outer bound used the arcs' asked
+  reach, not the reach the blade's room caps them at (`min(reach, 0.6*uReach)`). With both
+  fixed, timed again the same way: Reactor costs 3 percent less to 1 percent more than `main`,
+  Sith Holocron, Quantum and Carbonite 7 to 19 percent less; the stock blade's own time is 3 to 4
+  percent more in every run (the tip's second skin lookup and the softer hiding). The second
+  lookup was removed after this timing (`core_line`, Sol's review of 24/10/2026); not timed again.
 - **The big effects (round 9).** `lab.glsl` holds shared pieces every mythical draws its
   own way (flat since round 10): `fxRays` (beams shooting out of the blade and fading),
   `fxArcs` (Storm-like lightning leaving the blade, arcing out on any side and coming
@@ -2470,6 +2983,20 @@ when it is swung, which its own quad could not hold: they are particles in the w
   the stand-in sprite (yellow dots, Sol's first test, 21/10/2026). A thrown
   saber sheds them along its spin and flight, its tip measured in the world (23/10/2026,
   hub report 127).
+- **Paper cranes** (25/10/2026, the Thousand Cranes): `"kind": "crane"` on the line (the
+  default is `"blossom"`) and `"rise"`, units a second it climbs (default 0), turn the petals
+  into paper cranes that climb away from the swing instead of sinking: `// @petals
+  {"part":4,"kind":"crane","per_unit":0.035,"life":2.4,"size":2.6,"fall":0.0,"drift":12.0,
+  "rise":42.0}`. Each is one crane picture in white paper (`crane.png`, flying right, and
+  `crane_left.png`, mirrored, drawn by `scripts/petal_assets.py` from the same triangles as
+  the shader's crane) tinted a colour of paper by the particle (`rgbGen vertex`, the eight
+  of the shader's flock), kept nearly upright, and flying on through the world
+  (`apply_physics` off) until it fades. Their two shaders are in `CODE_SHADERS` with the
+  petals'.
+- **Ash** (25/10/2026, the Hearth): `"kind": "ash"` sheds flakes of ash that drift down and
+  settle as the petals do: a ragged grey flake (`ash_grey.png`) and, one in three, the same
+  flake with its edge still glowing orange (`ash_ember.png`), both drawn by
+  `scripts/petal_assets.py`, tumbling as they fall.
 
 ## Saber trails
 
@@ -2551,7 +3078,13 @@ entity (`ET_PORTAL`, 8) lies within 64 units of its plane, as stock's
 [scene_portal_math.rs](../crates/sjk-viewer/src/scene_portal_math.rs)). Until 19/10/2026
 the match looked for entity type 7 (`ET_BEAM`), so no network portal was ever found and
 such faces showed only their own texture: the grey `textures/lgnd_misc/camera` screen of
-JoF's `mp/ffa3` security camera, for example.
+JoF's `mp/ffa3` security camera, for example. The portal view's target is made the first
+frame a face selects a view ([GPU memory](#gpu-memory)). The ignored world shot
+`scene_view_targets` ([world_shot_scene_views.rs](../crates/sjk-viewer/src/world_shot_scene_views.rs))
+renders through each secondary view (floor mirrors on ffa3, duel6's sky portal, the mirrors
+of `sjk_shaders_e`) and prints which targets a world holds; `scene_view_targets_resize`
+checks the mirror target follows `r_superSample` and a resize (with
+`SJK_SHOT_CVARS=r_superSample=1,r_renderScale=50`, the render scale).
 
 Camera-range caches also retain their PVS/area selection independently of the
 camera frustum. Turning or moving within a cluster rechecks bounds but reuses
@@ -2806,7 +3339,11 @@ for the flattened world only when a stage has maps: a tangent with handedness,
 averaged over the triangles of patch and triangle-soup vertices, and the
 light-grid direction (`R_CalcVertexLightDirs`/`R_LightDirForPoint`). They use 8
 bytes per vertex. Building them for `mp/ffa3` (114,088 vertices) took about 24 ms
-in a release test build. Maps are uploaded as linear RGBA8 with box-filtered mips.
+in a release test build. Maps are uploaded as linear RGBA8 with box-filtered mips,
+less the levels texture detail (`r_picmip`, [GPU memory](#gpu-memory)) leaves off the
+diffuse texture: since 25/10/2026 a 1024-pixel normal map at r_picmip 2 is its 256-pixel
+level, as its diffuse texture is. As in rend2 (`ParseStage`, `CollapseStagesToGLSL`),
+the maps of a `nopicmip` or `nomipmaps` shader's stage keep their full size.
 
 Shading lives in [material_maps.wgsl](../crates/sjk-viewer/src/material_maps.wgsl):
 
@@ -3168,7 +3705,8 @@ Each frame keeps at most six mirrors, the planes covering most of the screen: a 
 enters at 1% of the screen and leaves below 0.7%, so it does not flicker at the
 threshold. Every mirror re-renders the whole scene (sky, world, players, effects)
 from the reflected camera at half resolution into a shared target, cropped to the
-plane's screen rectangle; in real-time lighting it is lit in its own light-buffer
+plane's screen rectangle (the target is made the first frame a mirror is drawn and
+dropped when `r_floorReflections` is turned off, see [GPU memory](#gpu-memory)); in real-time lighting it is lit in its own light-buffer
 images, so the main view's light stays intact. The finish
 ([floor_reflection.wgsl](../crates/sjk-viewer/src/floor_reflection.wgsl)) blends the
 image over the floor with a Schlick rim from 0.12 head-on to 0.70 at grazing angles,
@@ -3728,6 +4266,14 @@ were converted at load into signed distance fields by
 atlas under 2048 texels, but every font SJK draws now rasterizes into a
 4096-texel coverage atlas, so none uses it.
 
+Every code-page atlas (Inter, the SJK UI's Rajdhani and Exo 2, SJK Menu, SJK Chat,
+SJK HUD, JetBrains Mono) and a distance field made from one hold a single value per
+texel, so they are one channel: a `GrayImage` on the CPU (the menu snapshots raster
+from it too) and an `R8Unorm` texture with its mips on the GPU, which `text.wgsl`'s
+`fragment_main` and `fragment_sdf` and the ground HUD read from `.r`; the colour
+comes from the vertices. They were white RGBA8 textures read through alpha until
+25/10/2026, four times the memory ([GPU memory](#gpu-memory)).
+
 In the Inter atlas, byte 0xAC (`¬`) is an exception: the retail `ergoec` and
 `ocr_a` fonts draw it as the boxed "WSI fonts" foundry logo, which players use in
 names, so the atlas takes that glyph instead of Inter's not-sign
@@ -3773,7 +4319,10 @@ character is shown, and emoji from a colour atlas beside it
 - The atlas is one 4096x2048 R8 texture with the code-page atlases' four mip levels,
   glyphs rasterized at 96 pixels per em on an 8-texel grid so every level's copy of
   a cell is whole texels, also kept on the CPU for menu snapshots. When it is full
-  it starts over and the glyphs on screen come back over the next frames.
+  it starts over and the glyphs on screen come back over the next frames. It is made
+  with its first glyph: until then the text bind groups carry a 1x1 stand-in, and they
+  are all made again when it or the emoji atlas is made (`GpuState::update_wide_text`),
+  so a world where no one writes beyond the code page never holds either.
 - Every text bind group carries it at binding 2
   ([wide_texture.rs](../crates/sjk-viewer/src/text/wide_texture.rs)); a glyph's
   vertices hold `u` offset by 2, and `text.wgsl` samples the wide atlas for those
@@ -3798,7 +4347,8 @@ one after another, 4.2 MB, and an index) and drawn by
 - An emoji is a square one em of the face wide (the em taken from its capitals),
   sitting a tenth of itself below the baseline, with a twentieth either side.
 - Its picture is decoded the first time it is shown, within the same 2 ms a frame as
-  the wide glyphs, into a 2048x1024 RGBA atlas (253 pictures, display values as every
+  the wide glyphs, into a 2048x1024 RGBA atlas (made with its first picture, 253
+  pictures, display values as every
   picture the 2D layer samples, mips averaged by alpha), bound at binding 3; its
   vertices hold `u` offset by 4. `text.wgsl` draws its own colours faded by the text's
   alpha, and black for the shadow quad (and for black text, `^0`).

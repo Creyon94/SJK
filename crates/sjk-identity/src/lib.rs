@@ -22,10 +22,12 @@ mod keys;
 pub mod logs;
 pub mod map_edits;
 pub mod name_emoji;
+pub mod news;
 pub mod relay;
 pub mod report;
 pub mod service;
 pub mod staff;
+pub mod trades;
 pub mod usage;
 pub mod vitals;
 pub mod whisper;
@@ -39,15 +41,25 @@ pub use feed::{ChatState, ReceivedLooks};
 pub use hub::{HttpHub, Hub, HubError, valid_base_url};
 pub use keys::{Identity, KeyError};
 pub use logs::{LogRequest, LogUpload};
+pub use news::{
+    AnnounceError, AnnounceRequest, Announcement, ClaimAnswer, FeedAnnouncement, FeedRound,
+    Official, Reward, Rewards, Round, RoundPerson,
+};
 pub use relay::RelayHubs;
 pub use report::{
-    BugReport, Category, NoteModel, NoteModelShader, NoteRemap, PlayerReport, WorldNote,
+    BugReport, Category, NoteModel, NoteModelShader, NoteRemap, PlayerReport, ReportedWhisper,
+    WorldNote,
 };
 pub use service::{
-    HolocronProgress, HubFactory, Location, ModelCheck, OpenOutcome, ReportOutcome, RevealOutcome,
-    Service, Settings, ShopState, Snapshot, Status, Trade, TradeOutcome,
+    ClaimOutcome, HolocronProgress, HubFactory, Location, ModelCheck, OpenOutcome, ReportOutcome,
+    RevealOutcome, Service, Settings, ShopState, Snapshot, Status, Trade, TradeOutcome,
+    TradesClock,
 };
 pub use staff::{ChatBanRow, OpenedText, StaffAnswer, StaffQuery, StaffRequest, StaffState};
+pub use trades::{
+    PlayerTrade, TradeAnswer, TradeEvent, TradeItem, TradePartner, TradeRules, TradeSide,
+    TradeStep, TradeToday, TradesAnswer,
+};
 pub use vitals::{Sharing, VitalsTable};
 pub use wire::{
     Achievement, Bought, BuyAnswer, CardStack, ChatMessage, CraftAnswer, Crafted, DropEvent,

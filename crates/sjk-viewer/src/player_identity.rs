@@ -490,6 +490,48 @@ pub(crate) fn with_snapshot<R>(read: impl FnOnce(&Snapshot) -> R) -> Option<R> {
         .map(|service| service.with_snapshot(read))
 }
 
+/// Whether the hub vouches for the player (verified or staff): only they start
+/// encrypted whispers (`e2e_whispers.rs`).
+pub(crate) fn vouched() -> bool {
+    with_snapshot(|snapshot| {
+        snapshot
+            .me
+            .as_ref()
+            .is_some_and(|me| me.verified || me.staff)
+    })
+    .unwrap_or(false)
+}
+
+/// Whether the hub verified the player's own key (the boombox, `boombox.rs`).
+pub(crate) fn verified() -> bool {
+    with_snapshot(|snapshot| snapshot.me.as_ref().is_some_and(|me| me.verified)).unwrap_or(false)
+}
+
+/// The slots of the players on this server the hub verified, as bits: each one whose
+/// claim names the name the game shows there, and the local player's own slot when its
+/// key is verified (the boombox, `boombox.rs`).
+pub(crate) fn verified_slots(game_state: &GameState) -> u64 {
+    with_snapshot(|snapshot| {
+        let mut slots = 0_u64;
+        for player in snapshot.players.iter().filter(|player| {
+            player.verified
+                && usize::from(player.slot) < MAX_CLIENTS
+                && shown_name(game_state, usize::from(player.slot))
+                    .is_some_and(|shown| sjk_identity::names_match(&player.claimed_name, &shown))
+        }) {
+            slots |= 1 << player.slot;
+        }
+        if snapshot.me.as_ref().is_some_and(|me| me.verified)
+            && let Ok(own) = usize::try_from(game_state.client_num)
+            && own < MAX_CLIENTS
+        {
+            slots |= 1 << own;
+        }
+        slots
+    })
+    .unwrap_or(0)
+}
+
 /// Why the key file could not be used, if that is why there is no identity.
 pub(crate) fn key_error() -> Option<String> {
     lock().key_error.clone()
@@ -883,6 +925,13 @@ pub(crate) fn own_achievements() -> Option<Vec<sjk_identity::Achievement>> {
 pub(crate) fn is_staff() -> bool {
     lock().service.as_ref().is_some_and(|service| {
         service.with_snapshot(|snapshot| snapshot.me.as_ref().is_some_and(|me| me.staff))
+    })
+}
+
+/// Whether the player's own key is SJK's creator, as the hub's profile says.
+pub(crate) fn is_creator() -> bool {
+    lock().service.as_ref().is_some_and(|service| {
+        service.with_snapshot(|snapshot| snapshot.me.as_ref().is_some_and(|me| me.creator))
     })
 }
 

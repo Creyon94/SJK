@@ -3,6 +3,11 @@
 //! Asset registration is deliberately separated from playback: decoding and
 //! resampling may allocate, while [`Mixer::play`], [`Mixer::set_loop`], and
 //! [`Mixer::render`] operate entirely inside fixed-capacity storage.
+//!
+//! Decoded sounds are kept as 16-bit mono PCM at the mixer's rate, half the
+//! memory of floats; the mixer converts each sample as it reads it. A sound
+//! can be released ([`Mixer::release_sound`]): its PCM is handed back to the
+//! caller, who frees it off the audio thread.
 
 use std::error::Error;
 use std::fmt;
@@ -96,38 +101,65 @@ impl DopplerConfig {
     }
 }
 
-#[derive(Clone, Debug)]
-struct Sound {
-    samples: Box<[f32]>,
+/// What one stored 16-bit step is worth in the mixer's [-1, 1] float range.
+const SAMPLE_STEP: f32 = 1.0 / 32_768.0;
+
+/// Store a [-1, 1] float sample in 16 bits: rounded to the nearest step and
+/// clamped, so a 16-bit source read as `value / 32768` comes back exactly.
+pub fn quantize_sample(sample: f32) -> i16 {
+    (sample * 32_768.0).round().clamp(-32_768.0, 32_767.0) as i16
 }
 
-/// Decoded mono PCM ready to install into a mixer-rate [`SoundBank`].
+/// The [-1, 1] float the mixer hears for a stored 16-bit sample.
+pub fn sample_value(sample: i16) -> f32 {
+    f32::from(sample) * SAMPLE_STEP
+}
+
+#[derive(Clone, Debug)]
+struct Sound {
+    samples: Box<[i16]>,
+}
+
+/// Decoded 16-bit mono PCM ready to install into a mixer-rate [`SoundBank`].
 ///
 /// Decoding and resampling may allocate. Moving this value into a bank does
 /// not, provided the bank was created with sufficient reserved capacity.
 #[derive(Clone, Debug)]
 pub struct DecodedSound {
-    samples: Box<[f32]>,
+    samples: Box<[i16]>,
 }
 
 impl DecodedSound {
     /// One silent sample used when an asynchronous asset decoder rejects data.
     pub fn silence() -> Self {
         Self {
-            samples: Box::new([0.0]),
+            samples: Box::new([0]),
         }
     }
 
-    /// Mono PCM already at the mixer's rate, such as a sound made from another one.
+    /// Float mono PCM already at the mixer's rate, such as a sound made from
+    /// another one ([`decode_mono`]); stored at 16 bits ([`quantize_sample`]).
     pub fn from_samples(samples: Vec<f32>) -> Self {
+        Self {
+            samples: samples.into_iter().map(quantize_sample).collect(),
+        }
+    }
+
+    /// 16-bit mono PCM already at the mixer's rate.
+    pub fn from_pcm16(samples: Vec<i16>) -> Self {
         Self {
             samples: samples.into_boxed_slice(),
         }
     }
 
-    /// The decoded mono samples.
-    pub fn samples(&self) -> &[f32] {
+    /// The decoded 16-bit mono samples ([`sample_value`] gives each one's float).
+    pub fn samples(&self) -> &[i16] {
         &self.samples
+    }
+
+    /// Bytes of PCM this sound keeps in memory.
+    pub fn byte_len(&self) -> usize {
+        self.samples.len() * std::mem::size_of::<i16>()
     }
 }
 
@@ -137,21 +169,49 @@ pub fn decode_encoded(
     extension: &str,
     target_sample_rate: u32,
 ) -> Result<DecodedSound, DecodeError> {
-    let (samples, source_rate) = if extension.eq_ignore_ascii_case("mp3") {
-        decode_mp3(bytes)?
+    let (samples, source_rate) = decode_pcm16(bytes, extension)?;
+    let samples = if source_rate == target_sample_rate {
+        samples
     } else {
-        decode_wav(bytes)?
+        resample(
+            &samples,
+            source_rate,
+            target_sample_rate,
+            sample_value,
+            quantize_sample,
+        )
     };
-    Ok(DecodedSound {
-        samples: resample(&samples, source_rate, target_sample_rate).into_boxed_slice(),
-    })
+    Ok(DecodedSound::from_pcm16(samples))
+}
+
+/// Decode WAV or MP3 bytes to float mono PCM at `target_sample_rate`, for a
+/// caller that reworks the samples before registering them
+/// ([`DecodedSound::from_samples`]).
+pub fn decode_mono(
+    bytes: &[u8],
+    extension: &str,
+    target_sample_rate: u32,
+) -> Result<Vec<f32>, DecodeError> {
+    let (samples, source_rate) = decode_pcm16(bytes, extension)?;
+    Ok(resample(
+        &samples,
+        source_rate,
+        target_sample_rate,
+        sample_value,
+        std::convert::identity,
+    ))
 }
 
 /// Decoded mono PCM, resampled to one mixer rate at registration time.
+///
+/// Handles are indices assigned in registration order and never reused; a
+/// released sound leaves its slot empty, so later handles keep their meaning.
 #[derive(Default)]
 pub struct SoundBank {
     sample_rate: u32,
-    sounds: Vec<Sound>,
+    sounds: Vec<Option<Sound>>,
+    /// Bytes of PCM held by the registered, unreleased sounds.
+    sample_bytes: usize,
 }
 
 impl SoundBank {
@@ -160,15 +220,20 @@ impl SoundBank {
         Self {
             sample_rate,
             sounds: Vec::with_capacity(2_048),
+            sample_bytes: 0,
         }
     }
 
     /// Register mono PCM. Resampling occurs now, never from `play`/`render`.
     pub fn register_pcm(&mut self, samples: &[f32], sample_rate: u32) -> SoundHandle {
-        let samples = resample(samples, sample_rate, self.sample_rate).into_boxed_slice();
-        let handle = SoundHandle(u32::try_from(self.sounds.len()).unwrap_or(u32::MAX));
-        self.sounds.push(Sound { samples });
-        handle
+        let samples = resample(
+            samples,
+            sample_rate,
+            self.sample_rate,
+            std::convert::identity,
+            quantize_sample,
+        );
+        self.register_decoded(DecodedSound::from_pcm16(samples))
     }
 
     /// Decode PCM WAV or MP3 bytes once and register their mono mixdown.
@@ -184,17 +249,30 @@ impl SoundBank {
     /// Install already-decoded mixer-rate PCM without decoding in the mixer.
     pub fn register_decoded(&mut self, decoded: DecodedSound) -> SoundHandle {
         let handle = SoundHandle(u32::try_from(self.sounds.len()).unwrap_or(u32::MAX));
-        self.sounds.push(Sound {
+        self.sample_bytes += decoded.byte_len();
+        self.sounds.push(Some(Sound {
             samples: decoded.samples,
-        });
+        }));
         handle
     }
 
-    fn get(&self, handle: SoundHandle) -> Option<&Sound> {
-        self.sounds.get(handle.0 as usize)
+    /// Take a sound's PCM out of the bank without freeing it: the caller drops
+    /// it where freeing is allowed. The handle then names no sound. Prefer
+    /// [`Mixer::release_sound`], which also stops what plays it.
+    pub fn release(&mut self, handle: SoundHandle) -> Option<DecodedSound> {
+        let sound = self.sounds.get_mut(handle.0 as usize)?.take()?;
+        let decoded = DecodedSound {
+            samples: sound.samples,
+        };
+        self.sample_bytes -= decoded.byte_len();
+        Some(decoded)
     }
 
-    /// Number of registered decoded sounds.
+    fn get(&self, handle: SoundHandle) -> Option<&Sound> {
+        self.sounds.get(handle.0 as usize)?.as_ref()
+    }
+
+    /// Number of handles registered, released ones included.
     pub fn len(&self) -> usize {
         self.sounds.len()
     }
@@ -204,9 +282,14 @@ impl SoundBank {
         self.sounds.is_empty()
     }
 
-    /// Mixer-rate mono sample count for a registered sound.
+    /// Mixer-rate mono sample count for a registered, unreleased sound.
     pub fn sample_count(&self, handle: SoundHandle) -> Option<usize> {
         self.get(handle).map(|sound| sound.samples.len())
+    }
+
+    /// Bytes of PCM the bank holds now (released sounds excluded).
+    pub const fn sample_bytes(&self) -> usize {
+        self.sample_bytes
     }
 
     /// Target sample rate shared by every registered sound.
@@ -388,6 +471,9 @@ pub struct Mixer {
     listener_source: Option<SourceId>,
     rendered_frames: u64,
     master_gain: f32,
+    /// A channel whose voices take their own gain in place of the master gain
+    /// ([`Mixer::set_channel_gain`]).
+    channel_gain: Option<(ChannelId, f32)>,
     music_gain: f32,
     background: Option<BackgroundTrack>,
     doppler: DopplerConfig,
@@ -438,6 +524,7 @@ impl Mixer {
             listener_source: None,
             rendered_frames: 0,
             master_gain: 1.0,
+            channel_gain: None,
             music_gain: 1.0,
             background: None,
             doppler: config.doppler,
@@ -628,6 +715,31 @@ impl Mixer {
         stopped
     }
 
+    /// Stop every voice, loop and background track playing `handle`, then take
+    /// its PCM out of the bank and hand it back, so the caller frees it away
+    /// from the audio thread. The handle plays nothing afterwards; other
+    /// handles keep their sounds. Allocation-free and never frees.
+    pub fn release_sound(&mut self, handle: SoundHandle) -> Option<DecodedSound> {
+        let released = self.bank.release(handle)?;
+        for voice in &mut self.voices {
+            if voice.handle == handle {
+                voice.active = false;
+            }
+        }
+        for loop_voice in &mut self.loops {
+            if loop_voice.handle == handle {
+                loop_voice.active = false;
+            }
+        }
+        if self
+            .background
+            .is_some_and(|track| track.intro == handle || track.repeating == handle)
+        {
+            self.background = None;
+        }
+        Some(released)
+    }
+
     /// Stop all voices, loops and background music, retaining decoded assets.
     pub fn stop_all(&mut self) {
         self.stop_effects();
@@ -738,6 +850,13 @@ impl Mixer {
         self.master_gain = gain.clamp(0.0, 1.0);
     }
 
+    /// Give the one-shot voices of `channel` the gain `gain` in place of the master
+    /// gain (a separate volume bus, as a game's voice volume); `None` ends it. Loops
+    /// and music are not affected.
+    pub fn set_channel_gain(&mut self, bus: Option<(ChannelId, f32)>) {
+        self.channel_gain = bus.map(|(channel, gain)| (channel, gain.clamp(0.0, 1.0)));
+    }
+
     /// Set the background-music gain independently of the master gain.
     pub fn set_music_gain(&mut self, gain: f32) {
         self.music_gain = gain.clamp(0.0, 1.0);
@@ -841,12 +960,18 @@ impl Mixer {
             }
             let mut cursor = voice.cursor;
             let mut active = true;
+            // The 16-bit step joins the gain: one multiply a sample, as before.
+            let gain = match self.channel_gain {
+                Some((channel, gain)) if channel == voice.request.channel => gain,
+                _ => self.master_gain,
+            };
+            let scale = gain * SAMPLE_STEP;
             for frame in out.chunks_exact_mut(2) {
                 if cursor >= sound.samples.len() {
                     active = false;
                     break;
                 }
-                let sample = sound.samples[cursor] * self.master_gain;
+                let sample = f32::from(sound.samples[cursor]) * scale;
                 frame[0] += sample * gains[0];
                 frame[1] += sample * gains[1];
                 cursor += 1;
@@ -892,8 +1017,8 @@ impl Mixer {
                 gains[0] += spatial[0] * loop_voice.request.volume;
                 gains[1] += spatial[1] * loop_voice.request.volume;
             }
-            gains[0] = gains[0].min(1.0) * self.master_gain;
-            gains[1] = gains[1].min(1.0) * self.master_gain;
+            gains[0] = gains[0].min(1.0) * self.master_gain * SAMPLE_STEP;
+            gains[1] = gains[1].min(1.0) * self.master_gain * SAMPLE_STEP;
             let Some(sound) = self.bank.get(handle) else {
                 continue;
             };
@@ -912,8 +1037,12 @@ impl Mixer {
                 let fraction = (cursor - base as f64) as f32;
                 let low = base % sound.samples.len();
                 let high = (low + 1) % sound.samples.len();
-                let sample =
-                    sound.samples[low] + (sound.samples[high] - sound.samples[low]) * fraction;
+                // In 16-bit steps; the gains carry the step back to [-1, 1].
+                let (low, high) = (
+                    f32::from(sound.samples[low]),
+                    f32::from(sound.samples[high]),
+                );
+                let sample = low + (high - low) * fraction;
                 frame[0] += sample * gains[0];
                 frame[1] += sample * gains[1];
                 cursor += f64::from(pitch);
@@ -930,6 +1059,7 @@ impl Mixer {
         let Some(track) = &mut self.background else {
             return;
         };
+        let scale = track.volume * self.music_gain * SAMPLE_STEP;
         for frame in out.chunks_exact_mut(2) {
             let handle = if track.in_intro {
                 track.intro
@@ -958,7 +1088,7 @@ impl Mixer {
             if sound.samples.is_empty() {
                 return;
             }
-            let sample = sound.samples[track.cursor] * track.volume * self.music_gain;
+            let sample = f32::from(sound.samples[track.cursor]) * scale;
             frame[0] += sample;
             frame[1] += sample;
             track.cursor += 1;
@@ -1014,29 +1144,67 @@ fn doppler_scale(
     }
 }
 
-fn decode_wav(bytes: &[u8]) -> Result<(Vec<f32>, u32), DecodeError> {
+/// Decode WAV or MP3 bytes to 16-bit mono PCM at the file's own rate.
+fn decode_pcm16(bytes: &[u8], extension: &str) -> Result<(Vec<i16>, u32), DecodeError> {
+    if extension.eq_ignore_ascii_case("mp3") {
+        decode_mp3(bytes)
+    } else {
+        decode_wav(bytes)
+    }
+}
+
+fn decode_wav(bytes: &[u8]) -> Result<(Vec<i16>, u32), DecodeError> {
     let mut reader = hound::WavReader::new(Cursor::new(bytes))
         .map_err(|error| DecodeError(format!("WAV: {error}")))?;
     let spec = reader.spec();
     let channels = usize::from(spec.channels.max(1));
-    let raw = match spec.sample_format {
-        hound::SampleFormat::Float => reader
-            .samples::<f32>()
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(|error| DecodeError(format!("WAV samples: {error}")))?,
+    // The header's frame count, never more than the bytes could hold.
+    let frames = (reader.len() as usize / channels).min(bytes.len());
+    let mut output = Vec::with_capacity(frames);
+    match spec.sample_format {
+        hound::SampleFormat::Float => {
+            mix_down(
+                reader.samples::<f32>(),
+                channels,
+                &mut output,
+                std::convert::identity,
+            )?;
+        }
         hound::SampleFormat::Int => {
             let scale = (1_u64 << spec.bits_per_sample.saturating_sub(1)) as f32;
-            reader
-                .samples::<i32>()
-                .map(|sample| sample.map(|value| value as f32 / scale))
-                .collect::<Result<Vec<_>, _>>()
-                .map_err(|error| DecodeError(format!("WAV samples: {error}")))?
+            mix_down(reader.samples::<i32>(), channels, &mut output, |value| {
+                value as f32 / scale
+            })?;
         }
-    };
-    Ok((mono(&raw, channels), spec.sample_rate))
+    }
+    Ok((output, spec.sample_rate))
 }
 
-fn decode_mp3(bytes: &[u8]) -> Result<(Vec<f32>, u32), DecodeError> {
+/// Average each frame of `channels` interleaved WAV samples (read as [-1, 1]
+/// floats by `value`) into one 16-bit sample; a short last frame averages what
+/// it has.
+fn mix_down<S>(
+    samples: impl Iterator<Item = Result<S, hound::Error>>,
+    channels: usize,
+    output: &mut Vec<i16>,
+    value: impl Fn(S) -> f32,
+) -> Result<(), DecodeError> {
+    let (mut sum, mut count) = (0.0_f32, 0_usize);
+    for sample in samples {
+        sum += value(sample.map_err(|error| DecodeError(format!("WAV samples: {error}")))?);
+        count += 1;
+        if count == channels {
+            output.push(quantize_sample(sum / count as f32));
+            (sum, count) = (0.0, 0);
+        }
+    }
+    if count > 0 {
+        output.push(quantize_sample(sum / count as f32));
+    }
+    Ok(())
+}
+
+fn decode_mp3(bytes: &[u8]) -> Result<(Vec<i16>, u32), DecodeError> {
     let bytes = id3::without_id3v1(bytes);
     let mut decoder = minimp3_fixed::Decoder::new(Cursor::new(bytes));
     let mut output = Vec::new();
@@ -1045,12 +1213,11 @@ fn decode_mp3(bytes: &[u8]) -> Result<(Vec<f32>, u32), DecodeError> {
         match decoder.next_frame() {
             Ok(frame) => {
                 rate.get_or_insert(frame.sample_rate as u32);
-                let samples = frame
-                    .data
-                    .iter()
-                    .map(|sample| f32::from(*sample) / 32768.0)
-                    .collect::<Vec<_>>();
-                output.extend(mono(&samples, frame.channels));
+                let channels = frame.channels.max(1);
+                output.extend(frame.data.chunks(channels).map(|samples| {
+                    let sum = samples.iter().map(|sample| f32::from(*sample)).sum::<f32>();
+                    quantize_sample(sum * SAMPLE_STEP / samples.len() as f32)
+                }));
             }
             Err(minimp3_fixed::Error::Eof) => break,
             Err(error) => return Err(DecodeError(format!("MP3: {error:?}"))),
@@ -1062,16 +1229,17 @@ fn decode_mp3(bytes: &[u8]) -> Result<(Vec<f32>, u32), DecodeError> {
     ))
 }
 
-fn mono(samples: &[f32], channels: usize) -> Vec<f32> {
-    samples
-        .chunks(channels.max(1))
-        .map(|frame| frame.iter().copied().sum::<f32>() / frame.len() as f32)
-        .collect()
-}
-
-fn resample(samples: &[f32], source_rate: u32, target_rate: u32) -> Vec<f32> {
+/// Linear interpolation from `source_rate` to `target_rate`: `read` gives each
+/// source sample's [-1, 1] float and `store` keeps each result.
+fn resample<S: Copy, T>(
+    samples: &[S],
+    source_rate: u32,
+    target_rate: u32,
+    read: impl Fn(S) -> f32,
+    store: impl Fn(f32) -> T,
+) -> Vec<T> {
     if source_rate == target_rate || samples.is_empty() {
-        return samples.to_vec();
+        return samples.iter().map(|sample| store(read(*sample))).collect();
     }
     let length = (samples.len() as u64 * u64::from(target_rate) / u64::from(source_rate)) as usize;
     (0..length)
@@ -1080,7 +1248,8 @@ fn resample(samples: &[f32], source_rate: u32, target_rate: u32) -> Vec<f32> {
             let low = source.floor() as usize;
             let high = (low + 1).min(samples.len() - 1);
             let fraction = (source - low as f64) as f32;
-            samples[low] + (samples[high] - samples[low]) * fraction
+            let (low, high) = (read(samples[low]), read(samples[high]));
+            store(low + (high - low) * fraction)
         })
         .collect()
 }
@@ -1112,3 +1281,10 @@ mod voice_steal_tests;
 
 #[cfg(test)]
 mod music_offset_tests;
+#[cfg(test)]
+mod pcm16_tests;
+
+/// Counts allocator calls inside `assert_no_alloc` blocks (`pcm16_tests`).
+#[cfg(all(test, debug_assertions))]
+#[global_allocator]
+static ALLOCATOR: assert_no_alloc::AllocDisabler = assert_no_alloc::AllocDisabler;

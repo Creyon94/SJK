@@ -17,15 +17,18 @@
 //! player gets up there. Every SJK client draws the ragdoll in its place; players on
 //! stock clients see a player walking about. A limp player sends no button, so cannot
 //! attack, and gets up at once when hurt, dead, spectating, in a duel or carrying a flag
-//! ([`crate::order66::spared`]); nobody falls in one of those either.
+//! ([`crate::order66::spared`]), or when the server holds their view (a kiss, a grapple,
+//! a kick: [`crate::held_view`]); nobody falls in one of those either.
 //!
 //! The fall is heard: an original flatline, the toy's own ([`FLATLINE`], made by
 //! `scripts/ragdoll_assets.py`; a PK3 with the same path replaces it), at the body, and
-//! the game's own body falls and slams as its points hit the world ([`SOFT_KNOCKS`],
-//! [`HARD_KNOCKS`]).
+//! every part's knocks and scrapes on the world, flesh and the surface's material
+//! ([`sounds`]). Lifts, doors and trains carry and push the body ([`scene`]).
 
 mod body;
+mod scene;
 mod skin;
+mod sounds;
 
 use crate::GpuState;
 use crate::ghost_replay::Drive;
@@ -47,22 +50,8 @@ pub(crate) const TOY: &str = "ragdoll";
 pub(crate) const ICON: &str = "gfx/sjk/toy_ragdoll.png";
 /// Heard as the body goes limp.
 pub(crate) const FLATLINE: &str = "sound/sjk/ragdoll/flatline.wav";
-/// The game's own body falls, for a point that hits the world, and its slams, for one
-/// that hits it hard ([`HARD_SPEED`]).
-const SOFT_KNOCKS: [&str; 3] = [
-    "sound/player/bodyfall_human1.mp3",
-    "sound/player/bodyfall_human2.mp3",
-    "sound/player/bodyfall_human3.mp3",
-];
-const HARD_KNOCKS: [&str; 2] = [
-    "sound/effects/body_slam1.mp3",
-    "sound/effects/body_slam2.mp3",
-];
-/// A knock this hard (units a second into the surface) is heard, and this hard slams.
-const KNOCK_SPEED: f32 = 140.0;
-const HARD_SPEED: f32 = 420.0;
-/// One knock of a body is heard at most every this many game server milliseconds.
-const KNOCK_GAP_MS: i64 = 140;
+/// A player's flatline is heard at most once in this long; the fall itself is not held.
+const FLATLINE_GAP: Duration = Duration::from_secs(15);
 /// The start event: this, then the start ([`body::encode`]); the end: this, then the
 /// fall's moment.
 const FALL_PREFIX: &str = "fall_";
@@ -95,8 +84,6 @@ const EF_TELEPORT_BIT: u32 = 1 << 3;
 const EF_NODRAW: u32 = 1 << 8;
 /// `PMF_FOLLOW`.
 const PMF_FOLLOW: u16 = 4096;
-/// `CONTENTS_SOLID`.
-const CONTENTS_SOLID: u32 = 1;
 
 /// A bundled file's bytes, by its name in `assets/ragdoll`.
 macro_rules! bundled {
@@ -144,8 +131,8 @@ impl Event {
 struct Fall {
     start: Start,
     body: Body,
-    /// The last knock heard (game server time).
-    knocked: i64,
+    /// When its parts' knocks were last heard.
+    heard: sounds::Heard,
     /// The `EF_TELEPORT_BIT` the faller had (another's): a flip is a respawn.
     teleport: Option<u32>,
     /// Since when their real body has been far from the ragdoll (another's).
@@ -157,7 +144,7 @@ impl Fall {
         Self {
             body: Body::new(&start),
             start,
-            knocked: i64::MIN,
+            heard: sounds::Heard::default(),
             teleport: None,
             astray: None,
         }
@@ -165,12 +152,15 @@ impl Fall {
 }
 
 /// The player's own fall: the moment, who has been told (bits by slot), when the next
-/// may be, the health it began with, and the camera's angles to give back.
+/// may be, the damage feedback it began with, and the camera's angles to give back.
 struct Mine {
     moment: i32,
     told: u64,
     tell_at: Instant,
-    health: i32,
+    /// The player state's `damageEvent` at the fall (`P_DamageFeedback` changes it at
+    /// every hurt): a new one wakes the player. Health was compared before, and woke a
+    /// player who fell again after a hit without being hit (Sanji's report #135).
+    damage_event: u8,
     camera: (f32, f32),
 }
 
@@ -185,8 +175,12 @@ pub(crate) struct Ragdoll {
     /// The player's own slot, and where its real body is to walk to.
     own: Option<u8>,
     walk_to: Option<Vec3>,
-    /// The sounds to play: (path, where, whose slot); `None` where: the player's own.
-    cues: Vec<(&'static str, Option<Vec3>, u8)>,
+    /// The sounds to play.
+    cues: Vec<Cue>,
+    /// When each slot's flatline was last heard ([`FLATLINE_GAP`]).
+    flatline_heard: std::collections::HashMap<u8, Instant>,
+    /// The movers in the bodies' way.
+    movers: scene::Movers,
     sounds_registered: Option<u64>,
     /// The game server time last stepped to.
     time: i64,
@@ -335,39 +329,23 @@ fn relay(event: Event, slot: u8) {
     crate::player_identity::relay_toy_event(TOY, event.text(), slot, false);
 }
 
-/// The world's brushes in a ragdoll's way.
-fn world<'a>(
-    bsp: &'a sjk_bsp::Bsp,
-    scratch: &'a mut sjk_bsp::TraceScratch,
-) -> impl FnMut(Vec3, Vec3, f32) -> Option<(Vec3, Vec3)> + 'a {
-    move |from, to, half| {
-        let bounds = sjk_bsp::Aabb::new([-half; 3], [half; 3]).unwrap_or(sjk_bsp::Aabb::POINT);
-        let trace = bsp.trace_box_with(
-            scratch,
-            from.to_array(),
-            to.to_array(),
-            bounds,
-            CONTENTS_SOLID,
-        );
-        // A point caught in a brush (the sticks pulled it in) may leave it for open
-        // space, else stays: never pushed out some way, which would walk it up a wall.
-        if trace.start_solid {
-            let free = !bsp
-                .trace_box_with(
-                    scratch,
-                    to.to_array(),
-                    to.to_array(),
-                    bounds,
-                    CONTENTS_SOLID,
-                )
-                .start_solid;
-            return (!free).then_some((from, Vec3::ZERO));
+/// A sound of the toy to play: its path, where (`None`: the player's own, not placed),
+/// whose body, and how loud.
+struct Cue {
+    path: &'static str,
+    at: Option<Vec3>,
+    slot: u8,
+    volume: f32,
+}
+
+impl Cue {
+    fn flatline(at: Option<Vec3>, slot: u8) -> Self {
+        Self {
+            path: FLATLINE,
+            at,
+            slot,
+            volume: 1.0,
         }
-        let plane = trace.plane.filter(|_| trace.fraction < 1.0)?;
-        Some((
-            Vec3::from_array(trace.end_position),
-            Vec3::from_array(plane.normal),
-        ))
     }
 }
 
@@ -415,8 +393,14 @@ impl GpuState {
             .config_string(0)
             .and_then(|info| sjk_client::LegacyClientInfo::new(info).integer("g_gametype"))
             .unwrap_or(0);
-        let spared = crate::order66::spared(&snapshot.player, gametype);
-        let health = snapshot.player.health();
+        // A view the server holds (a kiss, a grapple, a kick) gets the player up and keeps
+        // them from falling: the walk's angles fought it and the camera spun (#139, #140,
+        // `held_view`).
+        let spared = crate::order66::spared(&snapshot.player, gametype).or_else(|| {
+            self.server_holds_view()
+                .then_some(crate::order66::Spared::Held)
+        });
+        let damage_event = snapshot.player.damage_event();
         let now = self.ragdoll.time;
         // The relay's events: a sender counts only when the game shows the name they
         // claimed, and never one blocked on this PC.
@@ -445,7 +429,7 @@ impl GpuState {
                         if moment >= now - 1_000 {
                             self.ragdoll
                                 .cues
-                                .push((FLATLINE, Some(start_point(&start)), slot));
+                                .push(Cue::flatline(Some(start_point(&start)), slot));
                         }
                     }
                 }
@@ -467,7 +451,7 @@ impl GpuState {
                 None
             } else if spared.is_some() {
                 Some("")
-            } else if health < mine.health {
+            } else if hurt(mine.damage_event, damage_event) {
                 Some("^3Ouch!^7 You got up")
             } else {
                 None
@@ -484,16 +468,17 @@ impl GpuState {
                 Some(crate::order66::Spared::Flag) => {
                     self.ragdoll_centre("No ragdoll while carrying the flag");
                 }
+                Some(crate::order66::Spared::Held) => self.ragdoll_centre("No ragdoll right now"),
                 Some(_) => {}
                 None if self.hax.busy() => self.ragdoll_centre("No ragdoll in a hack"),
-                None => self.ragdoll_fall(health),
+                None => self.ragdoll_fall(damage_event),
             }
         }
         self.ragdoll_tell();
     }
 
     /// The player falls, now.
-    fn ragdoll_fall(&mut self, health: i32) {
+    fn ragdoll_fall(&mut self, damage_event: u8) {
         let Some(own) = self.ragdoll.own else {
             return;
         };
@@ -513,10 +498,10 @@ impl GpuState {
             moment: start.moment,
             told: 0,
             tell_at: Instant::now(),
-            health,
+            damage_event,
             camera: (self.camera_pitch, self.camera_yaw),
         });
-        self.ragdoll.cues.push((FLATLINE, None, own));
+        self.ragdoll.cues.push(Cue::flatline(None, own));
     }
 
     /// The player gets up: everyone told hears of it (`tell`), the camera's angles are
@@ -587,7 +572,13 @@ impl GpuState {
         let snapshot = session.snapshot_at_or_before(time as i32);
         let own = self.ragdoll.own;
         let mut shown = [None; SLOTS];
-        let mut world = world(&self.bsp, &mut self.trace_scratch);
+        let mut movers = std::mem::take(&mut self.ragdoll.movers);
+        let mut world = scene::Scene::new(
+            &self.bsp,
+            &mut self.trace_scratch,
+            Some(session),
+            &mut movers,
+        );
         for (slot, entry) in self.ragdoll.falls.iter_mut().enumerate() {
             let Some(fall) = entry else {
                 continue;
@@ -628,27 +619,20 @@ impl GpuState {
             let fraction = (since % i64::from(STEP_MS)) as f32 / STEP_MS as f32;
             let before = fall.body.steps();
             fall.body.run_to(steps, &mut world);
-            // The knocks of this frame's steps, the hardest one heard (not while
-            // fast-forwarding a fall heard late).
-            if fall.body.steps() > before
-                && fall.body.steps() - before < 8
-                && time - fall.knocked >= KNOCK_GAP_MS
-                && let Some(&(joint, hard)) =
-                    fall.body.knocks.iter().max_by(|a, b| a.1.total_cmp(&b.1))
-                && hard >= KNOCK_SPEED
-            {
-                fall.knocked = time;
-                let pick = (time as usize / 7 + joint) % 6;
-                let path = if hard >= HARD_SPEED {
-                    HARD_KNOCKS[pick % HARD_KNOCKS.len()]
-                } else {
-                    SOFT_KNOCKS[pick % SOFT_KNOCKS.len()]
-                };
-                let at = fall.body.points()[joint];
-                self.ragdoll.cues.push((path, Some(at), slot));
+            // The knocks and scrapes of this frame's steps (not while fast-forwarding a
+            // fall heard late).
+            if fall.body.steps() > before && fall.body.steps() - before < 8 {
+                sounds::hear(
+                    &mut fall.heard,
+                    &fall.body,
+                    time,
+                    slot,
+                    &mut self.ragdoll.cues,
+                );
             }
             shown[usize::from(slot)] = Some(fall.body.between(fraction));
         }
+        self.ragdoll.movers = movers;
         // Where the player's own real body walks to: the ragdoll's pelvis.
         self.ragdoll.walk_to = own
             .and_then(|own| shown[usize::from(own)])
@@ -666,28 +650,36 @@ impl GpuState {
         if self.ragdoll.sounds_registered != Some(audio.generation())
             && let Some(vfs) = self.vfs.as_deref()
         {
-            audio.register_effect_paths(
-                vfs,
-                [FLATLINE].into_iter().chain(SOFT_KNOCKS).chain(HARD_KNOCKS),
-            );
+            audio.register_effect_paths(vfs, [FLATLINE].into_iter().chain(sounds::paths()));
             self.ragdoll.sounds_registered = Some(audio.generation());
         }
-        for (path, at, slot) in self.ragdoll.cues.drain(..) {
-            let source = sjk_audio::SourceId(u32::from(slot));
-            match at {
-                None => audio.play_local(path, 1.0, source, crate::audio::TOY_CHANNEL),
-                Some(at) => audio.play_on_channel(
-                    path,
-                    1.0,
-                    at.to_array(),
-                    source,
-                    if path == FLATLINE {
-                        crate::audio::TOY_CHANNEL
-                    } else {
-                        sjk_audio::ChannelId(0)
-                    },
-                ),
+        for Cue {
+            path,
+            at,
+            slot,
+            volume,
+        } in self.ragdoll.cues.drain(..)
+        {
+            if path == FLATLINE {
+                let now = Instant::now();
+                let heard = self.ragdoll.flatline_heard.get(&slot);
+                if heard.is_some_and(|heard| now.duration_since(*heard) < FLATLINE_GAP) {
+                    continue;
+                }
+                self.ragdoll.flatline_heard.insert(slot, now);
             }
+            audio.play_toy(
+                crate::toy_sounds::Toy::Ragdoll,
+                path,
+                volume,
+                at.map(|at| at.to_array()),
+                sjk_audio::SourceId(u32::from(slot)),
+                if at.is_none() || path == FLATLINE {
+                    crate::audio::TOY_CHANNEL
+                } else {
+                    sjk_audio::ChannelId(0)
+                },
+            );
         }
     }
 }
@@ -711,10 +703,20 @@ impl GpuState {
             yaw,
         };
         let mut body = Body::new(&start);
-        body.run_to(steps, &mut world(&self.bsp, &mut self.trace_scratch));
+        let mut movers = scene::Movers::default();
+        body.run_to(
+            steps,
+            &mut scene::Scene::new(&self.bsp, &mut self.trace_scratch, None, &mut movers),
+        );
         self.ragdoll.shot_frozen = true;
         shown_lock()[usize::from(slot)] = Some(*body.points());
     }
+}
+
+/// Whether the player was hurt since their fall began: the server's damage feedback
+/// sequence (`damage_event`, now) moved on from the one at the fall (`at_fall`).
+fn hurt(at_fall: u8, now: u8) -> bool {
+    at_fall != now
 }
 
 /// Where a fall starts, for its flatline: the player's origin.
@@ -801,7 +803,7 @@ mod tests {
             moment: 0,
             told: 0,
             tell_at: Instant::now(),
-            health: 100,
+            damage_event: 0,
             camera: (0.0, 0.0),
         });
         // Far off along +Y: runs there, facing it.
@@ -821,6 +823,15 @@ mod tests {
         ragdoll.walk_to = Some(Vec3::new(0.0, 300.0, 0.0));
         let drive = ragdoll.drive(&input, [0, 100, 0], [0.0; 3]).unwrap();
         assert_eq!(drive.command.angles[1], 16_284);
+    }
+
+    #[test]
+    fn only_a_new_hurt_wakes_the_player() {
+        // #135: a fall begun after a hit holds that hit's feedback, so it stays down
+        // until the next one.
+        assert!(!hurt(7, 7));
+        assert!(hurt(7, 8));
+        assert!(hurt(255, 0));
     }
 
     #[test]

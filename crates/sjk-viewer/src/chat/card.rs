@@ -24,6 +24,8 @@ pub(super) const CARD_MUTE: u16 = 121;
 pub(super) const CARD_BAN: u16 = 122;
 pub(super) const CARD_SAFETY: u16 = 123;
 pub(super) const CARD_WHISPER: u16 = 124;
+pub(super) const CARD_REPORT: u16 = 125;
+pub(super) const CARD_TRADE: u16 = 126;
 /// How long the card stays once the pointer is off the name and the card.
 pub(super) const GRACE_MS: u64 = 400;
 
@@ -120,9 +122,17 @@ impl ChatOverlay {
                     }
                 }
             }
-            None if [CARD, CARD_MUTE, CARD_BAN, CARD_SAFETY, CARD_WHISPER]
-                .into_iter()
-                .any(|token| self.ui.token_hovered(token)) =>
+            None if [
+                CARD,
+                CARD_MUTE,
+                CARD_BAN,
+                CARD_SAFETY,
+                CARD_WHISPER,
+                CARD_REPORT,
+                CARD_TRADE,
+            ]
+            .into_iter()
+            .any(|token| self.ui.token_hovered(token)) =>
             {
                 if let Some(card) = &mut self.card {
                     card.left_ms = None;
@@ -231,6 +241,11 @@ impl ChatOverlay {
                     place,
                     note: None,
                     safety: false,
+                    report: false,
+                    // On this server and not blocked here: it can be asked to trade.
+                    trade: matches!(place, Place::Slot(_) | Place::SlotByName(_))
+                        && !crate::player_trades::blocked(&hub.key_id, &line.name)
+                        && crate::player_trades::trading_open(),
                 }
             }
             Who::Player(target) => {
@@ -260,6 +275,11 @@ impl ChatOverlay {
                         Place::SlotByName(slot)
                     },
                     safety: mark.is_some() && self.takes_encrypted(target.slot()),
+                    report: mark.is_some() && self.reportable(target.slot()),
+                    trade: mark
+                        .as_ref()
+                        .is_some_and(|mark| !crate::player_trades::blocked(&mark.key_id, name))
+                        && crate::player_trades::trading_open(),
                     avatar: mark.as_ref().map(|mark| mark.avatar.clone()),
                     medals: mark.map(|mark| mark.medals).unwrap_or_default(),
                     note: None,
@@ -300,7 +320,9 @@ impl ChatOverlay {
                 mute: CARD_MUTE,
                 ban: CARD_BAN,
                 safety: CARD_SAFETY,
+                report: CARD_REPORT,
                 whisper,
+                trade: CARD_TRADE,
             },
         );
     }
@@ -362,6 +384,31 @@ impl ChatOverlay {
         }
     }
 
+    /// Report on the card: ask the frame to open the report, their whisper with it.
+    pub(super) fn press_card_report(&mut self) {
+        if let Some(Card {
+            who: Who::Player(target),
+            ..
+        }) = &self.card
+        {
+            self.report_request = Some(target.slot());
+            self.card = None;
+        }
+    }
+
+    /// Trade on the card: ask the frame to ask them (the slot they are in).
+    pub(super) fn press_card_trade(&mut self) {
+        let slot = match self.card.as_ref().map(|card| (card.who, card.person.place)) {
+            Some((Who::Player(target), _)) => Some(target.slot()),
+            Some((_, Place::Slot(slot) | Place::SlotByName(slot))) => Some(u16::from(slot)),
+            _ => None,
+        };
+        if let Some(slot) = slot {
+            self.trade_request = Some(slot);
+            self.card = None;
+        }
+    }
+
     /// What a card asked, once.
     pub(crate) fn take_mute_request(&mut self) -> Option<MuteRequest> {
         self.mute_request.take()
@@ -406,6 +453,7 @@ mod tests {
             client: String::new(),
             text: "gg all".to_owned(),
             holocron: None,
+            official: None,
         };
         chat.sync_sjk(&state([message].into_iter().collect()), |_| false, now);
         chat.open(false);
@@ -661,6 +709,32 @@ mod tests {
         let safety = chat.ui.rect_for(CARD_SAFETY).expect("Safety code");
         click(&mut chat, centre(safety));
         assert_eq!(chat.take_safety_request(), Some(3));
+    }
+
+    /// Trade is a button of its own: a click on it asks to trade (before 25/10/2026 the
+    /// press was taken for the card's and the click was lost).
+    #[test]
+    fn a_click_on_trade_asks_to_trade() {
+        let mut chat = game_chat(&[(0, "Me"), (3, "Fox")]);
+        let fox = chat.roster.target(Some(3)).expect("Fox");
+        chat.open(false);
+        chat.card = Some(Card {
+            who: Who::Player(fox),
+            person: Person {
+                name: "Fox".to_owned(),
+                trade: true,
+                ..Person::default()
+            },
+            muted: false,
+            anchor: Rect::new(10.0, 300.0, 40.0, 10.0),
+            left_ms: None,
+            pinned: true,
+        });
+        build(&mut chat);
+        let trade = chat.ui.rect_for(CARD_TRADE).expect("Trade");
+        click(&mut chat, centre(trade));
+        assert_eq!(chat.take_trade_request(), Some(3));
+        assert!(chat.card.is_none(), "the card makes way for the request");
     }
 
     #[test]

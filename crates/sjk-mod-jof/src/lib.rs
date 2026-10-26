@@ -20,6 +20,9 @@ pub mod sjk_chat;
 pub const EJK_OPT_IN: &str = "jof.ejkOptIn";
 /// Local confirmation sound preference, kept while the mod is unloaded.
 pub const ABILITY_SOUNDS: &str = "jof.abilitySounds";
+/// Encrypted whispers on JoF servers, off by default: JoF moderates whispers there
+/// (the client's `e2e_whispers::PLAIN_FAMILIES` reads it, whatever the mod's switch).
+pub const E2E_WHISPERS: &str = "jof.e2eWhispers";
 const SETTINGS: &[Setting] = &[
     Setting {
         name: destruction::CVAR,
@@ -40,6 +43,11 @@ const SETTINGS: &[Setting] = &[
         name: ABILITY_SOUNDS,
         default: sjk_mod::SettingValue::Bool(true),
         help: "Play installed Stasis/Repulse confirmation sounds from a JoF server",
+    },
+    Setting {
+        name: E2E_WHISPERS,
+        default: sjk_mod::SettingValue::Bool(false),
+        help: "Send and take encrypted whispers on JoF servers, where JoF asks that whispers go through their server so they can moderate them",
     },
     Setting {
         name: sjk_chat::NOTICE,

@@ -148,6 +148,17 @@ pub(super) const VIDEO: &[Setting] = &[
             step: 25,
         },
     },
+    Setting {
+        label: "Menu FPS cap (0 = game)",
+        cvar: crate::runtime_settings::MENU_CAP_CVAR,
+        // A cap to lower the menus' rate: past 300 it would rarely lower anything, and the
+        // usual 30 to 144 keep room on the slider.
+        kind: ValueKind::Integer {
+            min: 0,
+            max: 300,
+            step: 10,
+        },
+    },
     GAMEPLAY_FPS_ROW,
     Setting {
         label: "Ignore server caps",
@@ -201,6 +212,15 @@ pub(super) const AUDIO: &[Setting] = &[
     Setting {
         label: "Music volume",
         cvar: "s_musicVolume",
+        kind: ValueKind::Float {
+            min: 0.0,
+            max: 1.0,
+            step: 0.05,
+        },
+    },
+    Setting {
+        label: "Voice volume",
+        cvar: crate::audio::VOICE_VOLUME_CVAR,
         kind: ValueKind::Float {
             min: 0.0,
             max: 1.0,
@@ -304,6 +324,45 @@ pub(super) const AUDIO: &[Setting] = &[
             max: 1800,
             step: 30,
         },
+    },
+    Setting {
+        label: "Toy volume",
+        cvar: crate::toy_sounds::VOLUME_CVAR,
+        kind: ValueKind::Float {
+            min: 0.0,
+            max: crate::toy_sounds::MAX_VOLUME,
+            step: 0.1,
+        },
+    },
+    Setting {
+        label: "Cardboard box sounds",
+        cvar: crate::toy_sounds::Toy::Box.cvar(),
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Order 66 sounds",
+        cvar: crate::toy_sounds::Toy::Order66.cvar(),
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Hax sounds",
+        cvar: crate::toy_sounds::Toy::Hax.cvar(),
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Ragdoll sounds",
+        cvar: crate::toy_sounds::Toy::Ragdoll.cvar(),
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Drone sounds",
+        cvar: crate::toy_sounds::Toy::Drone.cvar(),
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Boombox music",
+        cvar: crate::toy_sounds::Toy::Boombox.cvar(),
+        kind: ValueKind::Bool,
     },
     Setting {
         label: "Unlock sound",
@@ -656,6 +715,20 @@ pub(super) const HUD: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "SJK team score boxes",
+        cvar: "cg_teamScoresBoxes",
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Team score box size",
+        cvar: "cg_teamScoresScale",
+        kind: ValueKind::Float {
+            min: 0.5,
+            max: 2.0,
+            step: 0.1,
+        },
+    },
+    Setting {
         label: "Flag status (capture the flag)",
         cvar: "cg_drawFlagStatus",
         kind: ValueKind::Bool,
@@ -838,6 +911,25 @@ pub(super) const GAME: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Reduce bright flashes",
+        cvar: crate::effect_flash::REDUCE_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Saber clash flare",
+        cvar: crate::saber_clash_flare::CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Clash flare size",
+        cvar: crate::saber_clash_flare::SIZE_CVAR,
+        kind: ValueKind::Float {
+            min: 0.0,
+            max: 2.0,
+            step: 0.1,
+        },
+    },
+    Setting {
         label: "Team saber colours",
         cvar: crate::team_sabers::TEAM_COLORS_CVAR,
         kind: ValueKind::Bool,
@@ -868,9 +960,23 @@ pub(super) const GAME: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Boombox range",
+        cvar: crate::boombox::RANGE_CVAR,
+        kind: ValueKind::Integer {
+            min: crate::boombox::MIN_RANGE,
+            max: crate::boombox::MAX_RANGE,
+            step: 32,
+        },
+    },
+    Setting {
         label: "Normal blades in duels",
         cvar: crate::duel_blades::CVAR,
         kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Stock blades (faster)",
+        cvar: crate::stock_blades::CVAR,
+        kind: ValueKind::Choice(&["0", "1", "2"]),
     },
     Setting {
         label: "Saber rain steam",
@@ -1110,6 +1216,11 @@ pub(super) const GAME: &[Setting] = &[
         },
     },
     Setting {
+        label: "Lock wall-grab camera",
+        cvar: "cg_wallGrabLock",
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Prediction error smoothing (ms)",
         cvar: "cg_errorDecay",
         kind: ValueKind::Float {
@@ -1142,6 +1253,11 @@ pub(super) const GAME: &[Setting] = &[
         label: "Quick wheel sounds",
         cvar: crate::quick_wheel::SOUNDS_CVAR,
         kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Trade window size",
+        cvar: crate::player_trades::SIZE_CVAR,
+        kind: ValueKind::Choice(&["0", "1", "2"]),
     },
     // The client mods (`docs/mods.md`): on, each loading on its servers only.
     Setting {
@@ -1444,6 +1560,15 @@ pub(super) const RENDER_IMAGE: &[Setting] = &[
         },
     },
     Setting {
+        label: "Render scale (%) (reload)",
+        cvar: crate::frame_target::scale::CVAR,
+        kind: ValueKind::Integer {
+            min: crate::frame_target::scale::MIN_PERCENT as i64,
+            max: crate::frame_target::scale::NATIVE as i64,
+            step: 5,
+        },
+    },
+    Setting {
         label: "Texture detail, 0 full (next map)",
         cvar: crate::world_materials::filtering::mips::PICMIP_CVAR,
         kind: ValueKind::Integer {
@@ -1451,6 +1576,11 @@ pub(super) const RENDER_IMAGE: &[Setting] = &[
             max: crate::world_materials::filtering::mips::PICMIP_MAX as i64,
             step: 1,
         },
+    },
+    Setting {
+        label: "Texture compression (next map)",
+        cvar: crate::world_materials::filtering::mips::compress::CVAR,
+        kind: ValueKind::Bool,
     },
     Setting {
         label: "Soft particles",

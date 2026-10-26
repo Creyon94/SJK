@@ -135,9 +135,11 @@ impl ViewerConsole {
             PanelAction::ShaderView(grid) => {
                 self.set_cvar(
                     super::collection_panel::SHADER_VIEW_CVAR,
-                    if grid { "1" } else { "0" },
+                    if grid { "0" } else { "1" },
                 );
             }
+            PanelAction::Bind { command, key } => self.rebind_action(command, 0, &key),
+            PanelAction::Unbind(command) => self.clear_action(command, 0),
             PanelAction::Illuminate(on) => {
                 self.pending_illuminate = Some(on);
                 // The page shows it at once; the viewer applies it next frame.
@@ -158,6 +160,14 @@ impl ViewerConsole {
             PanelAction::Ragdoll(on) => {
                 self.pending_ragdoll = Some(on);
                 self.ragdoll_on = on;
+            }
+            PanelAction::Drone(on) => {
+                self.pending_drone = Some(on);
+                self.drone_on = on;
+            }
+            PanelAction::Boombox(on) => {
+                self.pending_boombox = Some(on);
+                self.boombox_on = on;
             }
             PanelAction::Hub(tab) => {
                 // A tab of another page: the Holocrons page.
@@ -226,6 +236,26 @@ impl ViewerConsole {
     /// The Toys tab asked to go limp (`true`) or get up, once.
     pub(crate) fn take_ragdoll_request(&mut self) -> Option<bool> {
         self.pending_ragdoll.take()
+    }
+
+    /// The viewer says whether the Drone is on, once a frame.
+    pub(crate) fn set_drone_on(&mut self, on: bool) {
+        self.drone_on = on;
+    }
+
+    /// The Toys tab asked to turn the Drone on (`true`) or off, once.
+    pub(crate) fn take_drone_request(&mut self) -> Option<bool> {
+        self.pending_drone.take()
+    }
+
+    /// The viewer says whether the Boombox is carried, once a frame.
+    pub(crate) fn set_boombox_on(&mut self, on: bool) {
+        self.boombox_on = on;
+    }
+
+    /// The Toys tab asked to carry the Boombox (`true`) or put it away, once.
+    pub(crate) fn take_boombox_request(&mut self) -> Option<bool> {
+        self.pending_boombox.take()
     }
 
     /// Give a pressed key to the open page; false when the page is closed.
@@ -297,8 +327,16 @@ impl ViewerConsole {
         let order66 = self.order66_on;
         let hax = self.hax_on;
         let ragdoll = self.ragdoll_on;
+        let drone = self.drone_on;
+        let boombox = self.boombox_on;
         let stock = self.stock_blade();
-        let grid = self.integer_cvar(super::collection_panel::SHADER_VIEW_CVAR) == Some(1);
+        // Tiles unless the list is chosen (`ui_shaderList 1`).
+        let grid = self.integer_cvar(super::collection_panel::SHADER_VIEW_CVAR) != Some(1);
+        let toy_keys = if self.collection_panel.tab() == Tab::Toys {
+            self.toy_keys()
+        } else {
+            Vec::new()
+        };
         let options = self
             .text_cvar(crate::saber_skin_options::CVAR)
             .unwrap_or_default()
@@ -345,6 +383,8 @@ impl ViewerConsole {
                 order66,
                 hax,
                 ragdoll,
+                drone,
+                boombox,
                 name: &name,
                 stock,
                 grid,
@@ -352,6 +392,7 @@ impl ViewerConsole {
                 second: &second,
                 pair,
                 share,
+                toy_keys: &toy_keys,
             };
             self.collection_panel.append_sjk(&inputs, target, viewport);
             self.collection_panel.preview = Some(unlocks);
@@ -369,6 +410,8 @@ impl ViewerConsole {
             order66,
             hax,
             ragdoll,
+            drone,
+            boombox,
             name: &name,
             stock,
             grid,
@@ -376,8 +419,27 @@ impl ViewerConsole {
             second: &second,
             pair,
             share,
+            toy_keys: &toy_keys,
         };
         self.collection_panel.append_sjk(&inputs, target, viewport);
+    }
+
+    /// The keys bound to each of the toys' commands, as players read them ("F5", "F5 /
+    /// K"), in the order of `collection_toys::COMMANDS`; empty for none.
+    fn toy_keys(&self) -> Vec<String> {
+        super::collection_panel::TOY_COMMANDS
+            .iter()
+            .map(|command| {
+                let mut shown = String::new();
+                for key in self.keys_for_command(command) {
+                    if !shown.is_empty() {
+                        shown.push_str(" / ");
+                    }
+                    sjk_shell::key_names::push_display_key(&mut shown, &key);
+                }
+                shown
+            })
+            .collect()
     }
 
     /// Give the Forge what the hub said this frame, read the shop when it asks, and take a

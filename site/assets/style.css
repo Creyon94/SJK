@@ -8,12 +8,14 @@
   --gold: #e8b84a;
   --gold-bright: #ffd97a;
   --text: #e2e9f6;
+  --soft: #c5cfe0;
   --muted: #a9b5cb;
   --quiet: #8792ac;
   --ember: #ff7a3d;
   --rule: rgba(168, 207, 255, 0.28);
   --band: rgba(168, 207, 255, 0.07);
   --max: 1240px;
+  --gutter: max(16px, calc((100% - var(--max)) / 2));
   --display: Rajdhani, "Segoe UI", system-ui, sans-serif;
   --body: "Exo 2", system-ui, -apple-system, "Segoe UI", sans-serif;
 }
@@ -66,32 +68,36 @@ kbd:first-child { margin-left: 0; }
 }
 .skip:focus { left: 8px; }
 
-/* Navigation: a quiet line that appears once the home page is passed. */
+/* Navigation: a quiet line over the home page that turns solid once it is passed. */
 .nav {
   position: fixed; top: 0; left: 0; right: 0; z-index: 5;
-  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
-  padding: 0.6rem max(1rem, calc((100% - var(--max)) / 2));
+  display: flex; align-items: center; justify-content: space-between; gap: 0.6rem 1.6rem;
+  padding: 0.7rem var(--gutter);
   background: linear-gradient(rgba(6, 10, 20, 0.94), rgba(6, 10, 20, 0.82));
   backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--rule);
-  transition: transform 0.3s ease, opacity 0.3s ease;
+  transition: background 0.3s ease, border-color 0.3s ease, backdrop-filter 0.3s ease;
 }
-.js .nav.away { transform: translateY(-100%); opacity: 0; pointer-events: none; }
+.js .nav.over-home { background: transparent; border-bottom-color: transparent; backdrop-filter: none; }
 .nav ul { display: flex; flex-wrap: wrap; gap: 0.2rem 1.6rem; margin: 0; padding: 0; list-style: none; }
+.nav li[hidden] { display: none; }
 .nav a, .nav-brand {
   font: 600 1.05rem/1 var(--display);
   color: var(--text); text-decoration: none;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.6);
 }
 .nav a:hover, .nav a.chosen { color: var(--gold-bright); }
-.nav-brand { display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 700; font-size: 1.15rem; }
+.nav-brand { display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 700; font-size: 1.2rem; }
+.nav-out { display: flex; gap: 1.4rem; margin: 0; }
+.nav-out a { color: var(--holo); }
 
-/* ---- Home: the main page's 16:9 frame of 1080-line pixels ---- */
+/* ---- Home: the main page, the ring beside the title and the download ---- */
 .home {
   position: relative;
   min-height: 100vh;
   min-height: 100svh;
-  display: grid;
-  place-items: center;
+  display: flex; flex-direction: column; justify-content: center;
+  padding: 5.5rem var(--gutter) 2rem;
   overflow: hidden;
   isolation: isolate;
 }
@@ -110,27 +116,20 @@ kbd:first-child { margin-left: 0; }
   from { transform: scale(1.04) translateX(1%); }
   to { transform: scale(1.09) translateX(-1%); }
 }
-/* Dark fades at the screen's edges, darkest behind the ring and the column. */
+/* Dark fades at the screen's edges, darkest behind the ring and the title. */
 .home::before {
   content: ""; position: absolute; inset: 0; z-index: -1;
   background:
-    linear-gradient(90deg, rgba(6, 10, 20, 0.78), rgba(6, 10, 20, 0.35) 45%, rgba(6, 10, 20, 0.3) 62%, rgba(6, 10, 20, 0.82)),
-    linear-gradient(rgba(6, 10, 20, 0.55), rgba(6, 10, 20, 0) 22%, rgba(6, 10, 20, 0) 70%, var(--space));
+    linear-gradient(90deg, rgba(6, 10, 20, 0.88), rgba(6, 10, 20, 0.55) 50%, rgba(6, 10, 20, 0.8)),
+    linear-gradient(rgba(6, 10, 20, 0.55), rgba(6, 10, 20, 0) 22%, rgba(6, 10, 20, 0.35) 70%, var(--space));
 }
 
-.frame {
-  /* One pixel of a 1080-line screen; its children resolve 100cqw against the frame. */
-  --u: calc(100cqw / 1920);
-  container-type: inline-size;
-  position: relative;
-  width: min(100vw, 100vh * 16 / 9);
-  aspect-ratio: 16 / 9;
-}
+.hero { display: flex; flex-wrap: wrap; align-items: center; gap: 2rem 4.5rem; }
 
 .ring {
-  position: absolute;
-  left: calc(var(--u) * (620 - 340)); top: calc(var(--u) * (540 - 340));
-  width: calc(var(--u) * 680); height: calc(var(--u) * 680);
+  position: relative; flex: none;
+  width: min(440px, 78vw); aspect-ratio: 1;
+  margin: 0 auto;
 }
 .ticks, .gold-arc { position: absolute; inset: 0; border-radius: 50%; }
 /* A ring of tick marks, longer every 30 degrees, turning once every four minutes. */
@@ -146,7 +145,7 @@ kbd:first-child { margin-left: 0; }
   content: ""; position: absolute; inset: 11.5%; border-radius: 50%;
   border: 1px solid rgba(168, 207, 255, 0.3);
 }
-/* The 24-degree gold arc, pointing at the menu. */
+/* The 24-degree gold arc, pointing at the title. */
 .gold-arc {
   background: conic-gradient(from 78deg, var(--gold-bright) 0 24deg, transparent 24deg);
   -webkit-mask: radial-gradient(closest-side, transparent 95%, #000 95.5%, #000 97.5%, transparent 98%);
@@ -157,7 +156,7 @@ kbd:first-child { margin-left: 0; }
    glow, uneven god rays turning one way and an 18-ray sunburst the other. */
 .sun {
   position: absolute; left: 50%; top: 50%;
-  width: calc(var(--u) * 1500); height: calc(var(--u) * 1500);
+  width: 220%; height: 220%;
   translate: -50% -50%;
   pointer-events: none;
   mix-blend-mode: screen;
@@ -186,7 +185,7 @@ kbd:first-child { margin-left: 0; }
     rgba(255, 207, 112, 0.3) 341deg 343deg, transparent 343deg 360deg);
   -webkit-mask: radial-gradient(closest-side, #000 12%, rgba(0, 0, 0, 0.5) 40%, transparent 100%);
   mask: radial-gradient(closest-side, #000 12%, rgba(0, 0, 0, 0.5) 40%, transparent 100%);
-  filter: blur(calc(var(--u) * 10));
+  filter: blur(6px);
   animation: turn 180s linear infinite;
 }
 .burst {
@@ -194,13 +193,13 @@ kbd:first-child { margin-left: 0; }
   background: repeating-conic-gradient(rgba(255, 220, 140, 0.5) 0deg 4deg, transparent 4deg 20deg);
   -webkit-mask: radial-gradient(closest-side, #000 20%, rgba(0, 0, 0, 0.35) 55%, transparent 100%);
   mask: radial-gradient(closest-side, #000 20%, rgba(0, 0, 0, 0.35) 55%, transparent 100%);
-  filter: blur(calc(var(--u) * 7));
+  filter: blur(4px);
   animation: turn 240s linear infinite reverse;
 }
 @keyframes glow { from { opacity: 0.7; } to { opacity: 1; } }
 .emblem {
   position: absolute; left: 50%; top: 50%;
-  width: calc(var(--u) * 380); height: calc(var(--u) * 380);
+  width: 56%; height: 56%;
   translate: -50% -50%;
   filter: drop-shadow(0 0 22px rgba(242, 150, 60, 0.35));
   animation: breathe 2.1s ease-in-out infinite alternate;
@@ -209,28 +208,25 @@ kbd:first-child { margin-left: 0; }
 /* The emblem's glow breathes once every 4.2 s, as its core does in the client. */
 @keyframes breathe { to { filter: drop-shadow(0 0 34px rgba(255, 170, 70, 0.6)); } }
 
-.title { position: absolute; left: calc(var(--u) * 96); top: calc(var(--u) * 64); }
+.intro { flex: 1 1 26rem; min-width: 0; }
 .eyebrow {
-  margin: 0;
-  font: 600 calc(var(--u) * 18)/1.3 var(--display);
-  letter-spacing: 0.08em; color: var(--holo);
+  margin: 0 0 0.3rem;
+  font: 600 0.95rem/1.4 var(--display);
+  letter-spacing: 0.16em; text-transform: uppercase; color: var(--holo);
 }
 h1 {
   margin: 0;
-  font: 700 calc(var(--u) * 56)/1 var(--display);
-  color: var(--text);
+  font: 700 clamp(4.2rem, 9vw, 7.6rem)/0.95 var(--display);
+  color: var(--gold-bright);
+  text-shadow: 0 0 40px rgba(232, 184, 74, 0.35);
 }
-
-/* The menu: one column beside the ring, the download first. */
-.menu {
-  position: absolute;
-  left: calc(var(--u) * 1010); top: 50%;
-  translate: 0 -50%;
-}
+.lede { margin: 1.1rem 0 0; max-width: 36rem; font-size: 1.15rem; text-shadow: 0 1px 10px rgba(0, 0, 0, 0.6); }
+.get { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem 1.5rem; margin-top: 1.9rem; }
+/* The gold pill: the page's one main action. */
 .download {
-  display: inline-block;
-  padding: calc(var(--u) * 14) calc(var(--u) * 44);
-  font: 700 calc(var(--u) * 40)/1 var(--display);
+  display: inline-flex; align-items: center; gap: 0.7rem;
+  min-height: 3.3rem; padding: 0 1.9rem;
+  font: 700 1.4rem/1 var(--display);
   color: #1a1206; text-decoration: none;
   background: linear-gradient(180deg, var(--gold-bright), var(--gold));
   border-radius: 999px;
@@ -238,58 +234,33 @@ h1 {
   transition: box-shadow 0.2s, filter 0.2s;
 }
 .download:hover, .download:focus-visible { color: #000; filter: brightness(1.08); box-shadow: 0 0 34px rgba(255, 217, 122, 0.6); }
-.download-line {
-  margin: calc(var(--u) * 12) 0 calc(var(--u) * 34);
-  font-size: calc(var(--u) * 17); color: var(--muted);
-}
-.menu ul { list-style: none; margin: 0; padding: 0; border-left: 1px solid var(--rule); }
-.menu li[hidden] { display: none; }
-.menu ul a {
-  display: block; position: relative;
-  padding: calc(var(--u) * 8) 0 calc(var(--u) * 8) calc(var(--u) * 24);
-  font: 600 calc(var(--u) * 34)/1.1 var(--display);
-  color: var(--text); text-decoration: none;
-  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.6);
-  transition: color 0.15s;
-}
-.menu ul a::before {
-  content: ""; position: absolute; left: -2px; top: 22%; bottom: 22%;
-  width: 3px; background: var(--gold-bright); opacity: 0; transition: opacity 0.15s;
-}
-.menu ul a:hover, .menu ul a:focus-visible { color: var(--gold-bright); outline: none; }
-.menu ul a:hover::before, .menu ul a:focus-visible::before { opacity: 1; }
+.get-lines p { margin: 0; font-size: 0.95rem; line-height: 1.5; color: var(--muted); }
+.get-lines .get-main { color: var(--text); }
+.fine { margin: 1.1rem 0 0; font-size: 0.88rem; color: var(--quiet); }
 
-/* Where the client lists the servers joined last: a column with its rule. */
-.recent {
-  position: absolute;
-  left: calc(var(--u) * 1470); top: calc(var(--u) * 230);
-  width: calc(var(--u) * 380);
-  padding-left: calc(var(--u) * 30);
-  border-left: 1px solid var(--rule);
-}
-.recent h2 {
-  margin: 0 0 calc(var(--u) * 14);
-  font: 600 calc(var(--u) * 24)/1.2 var(--display);
-  color: var(--text);
-}
-.recent h2 + * { margin-top: 0; }
-.recent * + h2 { margin-top: calc(var(--u) * 40); }
-.recent p { margin: 0 0 calc(var(--u) * 8); }
-.recent-name { font: 600 calc(var(--u) * 27)/1.2 var(--display); }
+/* Where the client lists the servers joined last: the latest release's recap. */
+.recent { margin-top: 2.4rem; padding-top: 0.9rem; border-top: 1px solid var(--rule); }
+.recent-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.2rem 1.1rem; }
+.recent h2 { font-size: 1.4rem; }
+.recent-head p { margin: 0; }
+.recent-name { font: 600 1.2rem/1.2 var(--display); }
 .recent-name a { color: var(--gold-bright); text-decoration: none; }
-.recent a { text-decoration: none; }
-.recent a:hover { text-decoration: underline; }
-.recent-facts, .recent .lede { font-size: calc(var(--u) * 16); line-height: 1.5; color: var(--muted); }
-.recent .lede { color: var(--text); font-size: calc(var(--u) * 17); }
+.recent-name a:hover { text-decoration: underline; }
+.recent-date { color: var(--muted); font-size: 0.95rem; }
+.recap {
+  list-style: none; margin: 1rem 0 0; padding: 0;
+  display: grid; gap: 0.9rem 2.2rem;
+  grid-template-columns: repeat(auto-fill, minmax(min(15rem, 100%), 1fr));
+}
+.recap strong { display: block; font: 700 1.08rem/1.3 var(--display); color: var(--gold-bright); }
+.recap span { display: block; font-size: 0.93rem; line-height: 1.5; color: var(--soft); }
 
 /* The profile card, bottom left. */
 .card {
-  position: absolute;
-  left: calc(var(--u) * 84); top: calc(var(--u) * 932);
-  width: calc(var(--u) * 474); height: calc(var(--u) * 96);
-  display: flex; align-items: center; gap: calc(var(--u) * 16);
-  padding: 0 calc(var(--u) * 12);
-  border-radius: calc(var(--u) * 48);
+  align-self: flex-start;
+  display: inline-flex; align-items: center; gap: 1rem;
+  margin-top: 1.4rem; padding: 0.45rem 1.4rem 0.45rem 0.45rem;
+  border-radius: 999px;
   text-decoration: none; color: var(--text);
   border: 1px solid transparent;
   transition: background 0.2s, border-color 0.2s;
@@ -297,52 +268,20 @@ h1 {
 .card:hover, .card:focus-visible { background: rgba(6, 10, 20, 0.7); border-color: var(--gold); outline: none; }
 .disc {
   flex: none; display: grid; place-items: center;
-  width: calc(var(--u) * 72); height: calc(var(--u) * 72);
+  width: 3.6rem; height: 3.6rem;
   border-radius: 50%;
   border: 2px solid var(--gold);
   background: #3f6e3a;
-  font: 700 calc(var(--u) * 34)/1 var(--display);
+  font: 700 1.6rem/1 var(--display);
   position: relative; overflow: hidden;
 }
 .disc img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-.card-text { display: grid; gap: calc(var(--u) * 2); }
-.card-name { font: 600 calc(var(--u) * 27)/1.1 var(--display); }
-.card-facts, .card-hint { font-size: calc(var(--u) * 15); line-height: 1.3; color: var(--muted); }
+.card-text { display: grid; gap: 0.1rem; }
+.card-name { font: 600 1.3rem/1.1 var(--display); }
+.card-facts, .card-hint { font-size: 0.85rem; line-height: 1.3; color: var(--muted); }
 .card-facts .tick { color: var(--gold-bright); }
 .card-hint { display: none; color: var(--gold-bright); }
 .card:hover .card-hint, .card:focus-visible .card-hint { display: block; }
-
-.version {
-  position: absolute; margin: 0;
-  right: calc(var(--u) * 96); top: calc(var(--u) * 960);
-  font: 600 calc(var(--u) * 18)/1 var(--display); color: var(--text);
-}
-
-/* A narrow or tall window: the ring over a plain list, as a phone holds it. */
-@media (max-width: 900px), (max-aspect-ratio: 5/4) {
-  .home { display: block; place-items: normal; padding: 4.5rem 16px 2.5rem; }
-  .frame { width: auto; aspect-ratio: auto; container-type: normal; display: flex; flex-direction: column; gap: 1.6rem; }
-  .frame > * { --u: calc(min(100vw, 560px) / 1100); position: static !important; translate: none !important; }
-  .ring { width: min(72vw, 360px); height: min(72vw, 360px); margin: 0 auto; position: relative !important; left: auto; top: auto; }
-  .ring .emblem { position: absolute !important; translate: -50% -50% !important; width: 56%; height: 56%; }
-  .title { text-align: center; order: -1; }
-  .eyebrow { font-size: 0.85rem; }
-  h1 { font-size: 3rem; }
-  .menu { translate: none; }
-  .download { padding: 0.7rem 2rem; font-size: 1.6rem; }
-  .download-line { font-size: 0.9rem; margin: 0.5rem 0 1.2rem; }
-  .menu ul a { font-size: 1.5rem; padding: 0.35rem 0 0.35rem 1rem; }
-  .recent { width: auto; padding-left: 1rem; }
-  .recent h2 { font-size: 1.3rem; margin-bottom: 0.5rem; }
-  .recent * + h2 { margin-top: 1.4rem; }
-  .recent-name { font-size: 1.4rem; }
-  .recent-facts, .recent .lede { font-size: 0.95rem; }
-  .card { width: auto; height: auto; padding: 0.5rem; border-radius: 999px; gap: 0.8rem; }
-  .disc { width: 3.4rem; height: 3.4rem; font-size: 1.6rem; }
-  .card-name { font-size: 1.3rem; }
-  .card-facts, .card-hint { font-size: 0.85rem; }
-  .version { font-size: 1rem; text-align: right; }
-}
 
 /* ---- Pages below: SJK's screens, unboxed ---- */
 main { max-width: var(--max); margin: 0 auto; padding: 4rem 16px 3rem; }
@@ -423,7 +362,7 @@ h3 {
 
 .goal { max-width: 860px; font-size: 1.15rem; padding-left: 1.4rem; border-left: 2px solid var(--gold); }
 .goal p { margin: 0 0 0.9rem; }
-.goal p:last-child { margin-bottom: 0; color: var(--muted); }
+.goal p:last-child { margin-bottom: 0; }
 
 /* Support SJK: the reasons beside a column with the monthly goal, its bar, the
    gold Donate pill and the Supporter medal (DONATION in site.js fills them). */
@@ -497,7 +436,7 @@ h3 {
 /* Buttons: the kit's pills; gold for the one main action. */
 .button {
   display: inline-flex; align-items: center; cursor: pointer;
-  padding: 0.5rem 1.3rem;
+  min-height: 2.75rem; padding: 0.5rem 1.3rem;
   font: 600 1.05rem/1.2 var(--display);
   color: var(--text); text-decoration: none;
   background: rgba(10, 18, 38, 0.6);
@@ -508,42 +447,68 @@ h3 {
 .button kbd { margin: 0 0.5em; }
 .button:hover, .button:focus-visible { color: var(--gold-bright); border-color: var(--gold); }
 
-/* What's new: releases as the client's changelog page lists them. */
-.release { margin: 0 0 2.6rem; }
-.release header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.3rem 1.2rem; margin-bottom: 0.4rem; }
-.release header h3 { margin: 0; font-size: 1.7rem; }
-.release header h3 a { color: var(--text); text-decoration: none; }
-.release:first-child header h3 a { color: var(--gold-bright); }
-.release header h3 a:hover { color: var(--gold-bright); }
-.release time { color: var(--muted); font-size: 0.95rem; }
-.release-body { color: var(--muted); overflow-wrap: anywhere; }
-.release-body h4 { margin: 1.1rem 0 0.3rem; color: var(--holo); font: 600 1.15rem/1.3 var(--display); }
-.release-body ul { margin: 0.3rem 0; padding: 0; list-style: none; }
-.release-body li { padding: 0.45rem 0 0.45rem 1.2rem; position: relative; border-bottom: 1px solid rgba(168, 207, 255, 0.08); }
-.release-body li::before { content: ""; position: absolute; left: 0.1rem; top: 1.05rem; width: 0.4rem; height: 0.4rem; border-radius: 50%; background: var(--gold); }
-.release-body strong { color: var(--text); }
-.release-body p { margin: 0.4rem 0; }
-.release-body .release-image { text-align: center; }
-.release-body img { max-width: 100%; height: auto; }
+/* What's new: the changelog's releases down a line, the newest lit gold. */
+.log { list-style: none; margin: 0; padding: 0; border-left: 1px solid var(--rule); }
+.log > li { position: relative; padding: 0 0 2.4rem 1.8rem; }
+.log > li:last-child { padding-bottom: 0.4rem; }
+.log > li::before {
+  content: ""; position: absolute; left: -5px; top: 0.6rem;
+  width: 9px; height: 9px; border-radius: 50%; background: var(--holo);
+}
+.log > li:first-child::before { left: -6px; width: 11px; height: 11px; background: var(--gold); box-shadow: 0 0 12px rgba(232, 184, 74, 0.7); }
+.log-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.2rem 1.1rem; }
+.log-head h3 { margin: 0; font: 700 1.6rem/1.2 var(--display); }
+.log-head h3 a { color: var(--text); text-decoration: none; }
+.log > li:first-child .log-head h3 a { color: var(--gold-bright); }
+.log-head h3 a:hover { color: var(--gold-bright); }
+.log-head time { color: var(--muted); font-size: 0.95rem; }
+.log-intro { margin: 0.3rem 0 0.8rem; max-width: 52rem; }
+.log-recap { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.4rem; max-width: 52rem; }
+.log-recap li { color: var(--muted); }
+.log-recap strong { font: 700 1.05rem/1.3 var(--display); color: var(--holo); margin-right: 0.4rem; }
+.log-more { margin: 0.7rem 0 0; font-size: 0.92rem; }
+.log-all { margin: 1.6rem 0 0; font: 600 1.15rem/1.2 var(--display); }
 
-/* Install steps: numbered by key caps, in two columns. */
+/* Install: the visitor's platform, then the steps every platform shares. */
+.platform-pick { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-bottom: 1.8rem; }
+.platform-pick[hidden] { display: none; }
+.platform-pick .button[aria-pressed="true"] {
+  color: #1a1206; border-color: var(--gold);
+  background: linear-gradient(180deg, var(--gold-bright), var(--gold));
+}
+.js .platforms.picked .platform:not(.shown) { display: none; }
+.platform { margin-bottom: 2.4rem; }
 .steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 2.2rem 3rem; grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr)); counter-reset: step; }
 .steps > li { counter-increment: step; padding-top: 1rem; border-top: 1px solid var(--rule); }
-.steps h3 { color: var(--text); }
-.steps h3::before {
+.steps h4 { margin: 0 0 0.6rem; font: 600 1.35rem/1.2 var(--display); color: var(--text); }
+.steps h4::before {
   content: counter(step);
   display: inline-grid; place-items: center;
   min-width: 1.8rem; height: 1.8rem; margin-right: 0.7rem;
   border: 1px solid rgba(168, 207, 255, 0.55); border-radius: 4px;
   color: var(--gold-bright); font-size: 1rem;
 }
+.steps-shared h4::before { content: none; }
 .steps p { margin: 0 0 0.6rem; }
 
-/* Credits */
-.credits { display: grid; gap: 2rem 3rem; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); }
-.credits article { padding-top: 1rem; border-top: 1px solid var(--rule); }
-.credits h3 { color: var(--text); }
-.credits p { margin: 0; color: var(--muted); }
+/* Credits: Sol first, then a card per contributor with their merged pull requests. */
+.credits-lede { max-width: 52rem; margin: 0; color: var(--soft); }
+.people {
+  list-style: none; margin: 1.8rem 0; padding: 0;
+  display: grid; gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(min(14rem, 100%), 1fr));
+}
+.people a {
+  display: block; height: 100%;
+  padding: 1.1rem 1.2rem;
+  border: 1px solid rgba(168, 207, 255, 0.22); border-radius: 6px;
+  color: var(--text); text-decoration: none;
+  transition: border-color 0.2s, background 0.2s;
+}
+.people a:hover, .people a:focus-visible { border-color: var(--gold); background: var(--band); outline: none; }
+.people strong { display: block; font: 700 1.45rem/1.2 var(--display); }
+.people .count { display: block; font-size: 0.9rem; color: var(--gold-bright); }
+.people .known { display: block; margin-top: 0.5rem; font-size: 0.92rem; line-height: 1.5; color: var(--muted); }
 .legal { margin: 3rem auto 0; max-width: 860px; text-align: center; color: var(--quiet); font-size: 0.88rem; }
 .footer { text-align: center; color: var(--muted); font-size: 0.9rem; padding: 2rem 1rem 3rem; border-top: 1px solid var(--rule); }
 
@@ -551,6 +516,9 @@ h3 {
   body { font-size: 16px; }
   .nav ul { gap: 0.2rem 1rem; }
   .nav a { font-size: 0.95rem; }
+  .nav-out { display: none; }
+  .home { padding-top: 5rem; }
+  .hero { gap: 1.6rem; }
   .settings { grid-template-columns: 1fr; gap: 1.2rem; }
   .rail { position: static; display: flex; flex-wrap: wrap; gap: 0.2rem 0; border-left: 0; box-shadow: none; border-bottom: 1px solid var(--rule); }
   .rail a { padding: 0.4rem 0.9rem 0.6rem; font-size: 1.1rem; }
@@ -561,11 +529,13 @@ h3 {
 @media (max-width: 640px) {
   .nav { justify-content: center; }
   .nav-brand { display: none; }
+  .ring { width: min(72vw, 320px); }
+  .download { font-size: 1.25rem; padding: 0 1.5rem; }
 }
 
-/* WebGPU effects (effects.js): the sunburst behind the emblem, drifting dust
-   and a saber trail. They fade in once drawing, never take the pointer, are
-   held still for reduced motion, and are only added when the browser has WebGPU. */
+/* WebGPU effects (effects.js): drifting dust and a saber trail. They fade in
+   once drawing, never take the pointer, are held still for reduced motion, and
+   are only added when the browser has WebGPU. */
 .fx {
   display: block; pointer-events: none;
   opacity: 0; transition: opacity 1.6s ease;
@@ -576,7 +546,7 @@ h3 {
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   .emblem, .ticks, .sun > *, .backdrop img.shown, .cat { animation: none !important; }
-  .fx, .backdrop img, .nav, .menu ul a { transition: none; }
+  .fx, .backdrop img, .nav { transition: none; }
 }
 
-.settings > *, .cat > *, .steps > *, .credits > *, .gallery > *, .support > * { min-width: 0; }
+.settings > *, .cat > *, .steps > *, .people > *, .gallery > *, .support > *, .recap > * { min-width: 0; }

@@ -61,10 +61,24 @@ includes:
 - the Hax, a meme toy: hold Use on another player who has it on to hack them
   with the siege hack bar, then steer them for a few seconds;
 - the Ragdoll, a meme toy: the body goes limp and falls where physics takes it,
-  every SJK player seeing the same fall from one relayed start (23/10/2026);
+  every SJK player seeing the same fall from one relayed start (23/10/2026), carried
+  by lifts and pushed by doors, each part heard as flesh and as what it hits
+  (25/10/2026);
+- the Drone toy: the free camera and Peek fly a training remote other SJK players see,
+  peeking only players who switched it on (24/10/2026, after Slash's #199);
+- toy sound settings: a toy volume and a switch per toy to silence it (25/10/2026);
+- the Boombox toy for verified players: an 80s stereo on the shoulder playing the
+  player's own tracks, from their pk3s, to the SJK players close by who have them too
+  (25/10/2026);
+- a macOS build for Apple Silicon Macs, drawn through Metal and built by GitHub with
+  every release, unsigned and experimental (24/10/2026);
+- announcements from the SJK team in SJK chat, and contributor reward rounds: who was
+  rewarded and why, and a window to Claim one's own (25/10/2026);
 - end-to-end encrypted whispers: whispers between SJK players sealed to the
   recipient's key and carried by the SJK hub, which cannot read them
-  (22/10/2026);
+  (22/10/2026); started by verified players only, answered by the others, kept on the
+  game server on JoF's servers unless a player turns them on there, and reported with
+  the sender's own signature (25/10/2026);
 - medals, the recognition the SJK team gives players, on the scoreboard, the
   player card and the Identity page, with medal pictures generated and chosen by
   Sol;
@@ -99,6 +113,9 @@ includes:
   Mythical, always a saber shader (the ones not held first), a guaranteed Legendary or
   better every tenth crystal; the old kyber prism became the crystal and the Mythical
   holocron a faceted gold engram whose plates breathe round a glowing core;
+- fourteen more achievements (26/10/2026, Sol's list): holocrons opened, crafting, a
+  full card set, Order 66, the cardboard box, flawless and close duels, duel partners, a
+  long saber throw and a thermal detonator sent back, a secret one, and Surveyor retired;
 - blade cards craft their saber shader for less (21/10/2026, Sol's idea): a Normal copy
   at the shop's price, a Holo or Solar one at half, the card kept, and a button under a
   held blade card on the Cards tab that leads to its shader (to the Forge's Craft while
@@ -186,6 +203,9 @@ includes:
 - chroma saber shaders that take the wearer's saber colour, marked with a colour wheel;
 - saber shader tiers (the holocrons' Uncommon to Mythical) and the Collection's grid of
   shader cards;
+- the Collection's revamp: Shaders as a wall of tiles by tier and a sortable list, locked
+  shaders in their own colours, Toys as rows with their own switches and keys bound from
+  the page, and every tab's words on dark ground at every window shape;
 - rarity effects: Rare frames breathing, Legendary sheens, Mythical sparks and motes,
   shared by shaders and holocrons;
 - the player card's saber shader, profile picture, SJK TEAM mark, holocron gem and, pinned,
@@ -279,6 +299,38 @@ includes:
 - small graphics cards found at start: the card's video memory read from DXGI, a card
   of 4 GB or less starting on lower texture detail and menu pictures, and saber shader
   swatches drawn instead of rendered live while the menu pictures are on;
+- render scale below native (`r_renderScale`, 25/10/2026): the world drawn at 50 to 100 %
+  of the window and stretched up with a light sharpen, menus and text at full size, for
+  weak GPUs;
+- lighter graphics for small cards (25/10/2026): under 3.5 GB, once a card, Vanilla style,
+  stock blades for other players and a 60 FPS menu cap, with a card to keep them or go
+  back to SJK graphics;
+- the Experimental preset's lamp memory cut (25/10/2026): lamp shadow distances packed two
+  to a texel, lamp lists in 16 bits, and the lamp light cache sized to the graphics card,
+  up to 390 MiB less on 8 GB cards;
+- lighter menus (25/10/2026): shader pictures not pointed at redrawn at most 30 times a
+  second and 6 a frame, and setting lookups and the low-FPS check without allocations
+  every frame;
+- texture compression (`r_textureCompression`, off by default, 25/10/2026): map and model
+  textures block-compressed at load, BC1 when opaque and BC3 with alpha, a quarter to an
+  eighth of their video memory;
+- decoded textures freed once nothing uses them (25/10/2026): the cache kept every
+  texture of every map seen in a session, up to about 0.8 GB more after a few maps;
+- card pictures decoded and uploaded only when a screen draws them (25/10/2026), at
+  most 64 kept, instead of the hub's 333 at start: 1.8 GB less video memory and as much
+  system memory, which 3 GB cards ran out of in the main menu;
+- stock blades for weak PCs (`cg_stockBlades`, 25/10/2026): other players' blades, or
+  every blade, drawn stock in their own colour, skipping the blade skins' GPU work; and a
+  menu frame cap (`com_maxfpsMenu`) while no game runs;
+- texture detail also shrinking sky boxes, material maps and textures uploaded without
+  mips (25/10/2026), and shaders that say `nopicmip` or `nomipmaps` keeping full size, as
+  in the original game;
+- sounds kept as 16-bit samples instead of floats (25/10/2026), half the memory, and a
+  map's music freed once the next music is chosen instead of staying decoded all session;
+- font atlases kept in one channel (25/10/2026): coverage only instead of RGBA, 120 MiB
+  less video memory at 1080p in every world, text unchanged;
+- floor mirror, sky portal and map portal views, and the CJK and emoji glyph atlases,
+  made only when first drawn (25/10/2026): 20 to 70 MiB less video memory at 1080p;
 - Discord status (`cl_discordPresence`): the player's Discord profile showing the menu
   screen, or the server, map, mode, team and players, through the Discord app's
   local pipe;
@@ -300,7 +352,7 @@ includes:
 Creyon and Lumaya wear the SJK team's Early Contributor medal, shown on their
 cards of the in-game credits page.
 
-Creyon ([Creyon94](https://github.com/Creyon94)), contributor and tester, has 54
+Creyon ([Creyon94](https://github.com/Creyon94)), contributor and tester, has 58
 pull requests merged into SJK, most of them bringing SJK in line with EternalJK
 ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3ACreyon94)):
 
@@ -362,6 +414,19 @@ pull requests merged into SJK, most of them bringing SJK in line with EternalJK
   his review rounds 15 to 22 after it (every effect in 3D, richer mythicals, faster
   loading);
 - #192 normal blades in duels (`cg_duelStockBlades`), each in its owner's colour;
+- #191 signature blades without the bright rim at the tip or hard straight edges round their
+  effects, with their GPU cost measured and trimmed; at the merge the bent-picture margin is
+  added only on frames with a haze or lens, and skinned blades look their skin up once a pixel;
+- #202 bodies fading away as in EternalJK (`EV_BODYFADE`), with SJK's server sending the
+  event under its right number; at the merge every reused body slot fades again, the dark
+  side crackles once per 100 ms and the server clears the body 4 s after the fade;
+- #208 formatting fixed in three files so CI's Formatting check passed again;
+- #197 trading between players (its hub side in SJK-hub-shared #4): duplicate saber
+  shaders, and later unopened holocrons, swapped or given as a gift through the SJK hub,
+  from Trade on a player's card, the SJK chat page, the Players page or `trade`, in a
+  game or from the main menu; the request card, the trade window with what each side is
+  worth, Ready and Confirm, the daily limits with their reset clock, the resale countdown
+  on a traded holocron and the window's size setting;
 - #102 a formatting fix that unblocked every pull request's checks.
 - the Saber ideas page, whose concepts became the Tidal, Circuit, Aurora, Echo, Nebula,
   Cinder, Venom, Sakura and Firefly blades, and the twelve that followed (Slate, Amber,
@@ -372,7 +437,7 @@ pull requests merged into SJK, most of them bringing SJK in line with EternalJK
   its next seven the Sketch, Hourglass, Fiber Optic, Serpent, Monarch, Phoenix and Quantum
   blades, and its last three the Comic, Quicksilver and Obsidian Edge blades.
 
-Lumaya ([lumayaa](https://github.com/lumayaa)), contributor, has 51 pull requests
+Lumaya ([lumayaa](https://github.com/lumayaa)), contributor, has 52 pull requests
 merged into SJK
 ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3Alumayaa)):
 
@@ -479,8 +544,11 @@ merged into SJK
   opt-in MP4 through Windows Media Foundation (`cl_sjkChatVideo`, off) instead of OpenH264.
 - #166 Shift plus the console key opens to `con_height` and Shift+Escape a quarter screen;
   made an option at the merge (`con_shiftHeight`, off, EternalJK's heights by default).
+- #195 (with #196) the wall-grab camera no longer comes loose on stock servers when a snapshot
+  catches up, JA+'s free look kept; `cg_wallGrabLock` (off) locks it there too and faces the
+  wall. At the merge the facing runs only with the option on.
 
-Lukas ([LukasMoudry](https://github.com/LukasMoudry)), contributor, has 17 pull requests
+Lukas ([LukasMoudry](https://github.com/LukasMoudry)), contributor, has 18 pull requests
 merged into SJK
 ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3ALukasMoudry)):
 
@@ -518,8 +586,10 @@ merged into SJK
 - #179 `cl_holocronNotifications`: the card a holocron found in play gives is off, shown after
   a private duel or always, duels included; the holocron still waits for the game menu. At the
   merge a card that comes during a duel waits for the duel's end instead of being dropped.
+- #198 "Too many open files" after a long session: the Profile menu's model icons, cosmetics and
+  Force templates let go of the previous map's game files (its PK3 reopening part held back).
 
-Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 24 pull requests merged
+Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 29 pull requests merged
 into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AJoFSlash)):
 
 - #114 Tab completes the cfg file argument of `exec`, `execq`, `writeconfig` and `write`
@@ -568,6 +638,24 @@ into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author
 - #187 an emplaced gun turns to where its gunner looks, stand and handles with it, barrels held
   to 40 degrees down, and keeps its aim after the gunner leaves.
 - #189 a smaller chat sender card that waits for the pointer, sized by `cg_chatCardScale`.
+- #200 encrypted whispers' safety code made from each key's own fingerprint (60 digits, as
+  Signal's safety numbers), after Slash found that the hub could make the 12-digit code match.
+- #201 CTF team scores in SJK team boxes with each flag's state: at base, its carrier (named at
+  once from the CTF message), "You", or a dropped flag's return count; `cg_teamScoresBoxes`
+  and `cg_teamScoresScale`. At the merge: long scores fit, a followed carrier is named rather
+  than "You", and a new gamestate forgets the last game's drops.
+- #205 fewer stutters when players join, change model or die: a model goes up one texture a
+  frame, a model shown again reuses its materials, and its body copy is ready before the first
+  kill; at the merge a reused model still waits for its pipelines, and only a body the player
+  will really leave (no forced or overridden model) is prepared.
+- #207 the site's cookie-less visit counter (GoatCounter), showing which video platform
+  brings visitors.
+
+His Peek work in #199 (closed 24/10/2026, not merged) shaped the Drone toy: a player is
+asked before being peeked, told who watches, and can end it. His #206 (closed 25/10/2026,
+main had its own lazy card pictures) brought two pieces ported onto main: a picture the
+decoder panics on fails alone instead of stopping every later card picture, and card and
+medal pictures carry their own labels in `vram` and crash reports.
 
 Milamber ([Milamber0](https://github.com/Milamber0)), contributor, has 3 pull requests merged
 into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AMilamber0)):
@@ -609,6 +697,13 @@ built it as the pinned chat card's Whisper button (23/10/2026).
 
 Nib, a player, asked to choose the saber sounds apart from the saber shader (18/10/2026,
 and hub report #109): Sol built it as the Saber tab's Sounds row (23/10/2026).
+
+## Testing
+
+Glen, a player, was the first to play SJK on a Mac (25/10/2026), on a MacBook Pro
+with Apple Silicon, and reported that the game aborted on choosing fullscreen, its
+frame rate on Metal and that Cmd+Tab did not work. Sol kept macOS to borderless
+fullscreen after that crash report (25/10/2026).
 
 ## Tools
 

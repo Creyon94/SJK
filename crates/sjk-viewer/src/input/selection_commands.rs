@@ -45,6 +45,14 @@ pub(super) fn register(shell: &mut sjk_shell::Shell) -> Result<(), sjk_shell::Co
             crate::ragdoll::COMMAND,
             "Toy: go limp as a ragdoll, or get up (other SJK players see the same fall)",
         ),
+        (
+            crate::boombox::COMMAND,
+            "Toy: Boombox on or off (a stereo on your shoulder playing your boombox tracks to the SJK players close by; verified players)",
+        ),
+        (
+            crate::drone::COMMAND,
+            "Toy: Drone on or off (on, players may peek at you; freecam and peek fly a drone others see)",
+        ),
     ] {
         shell.commands.register(name, help, |_| {
             Err(sjk_shell::CommandError::Handler(

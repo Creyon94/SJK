@@ -43,6 +43,7 @@ struct Ground {
 
 @group(0) @binding(0) var<uniform> ground: Ground;
 @group(1) @binding(0) var scene_depth: texture_depth_2d;
+// The UI font atlas: R8 coverage (`text.rs`).
 @group(2) @binding(0) var atlas: texture_2d<f32>;
 @group(2) @binding(1) var atlas_sampler: sampler;
 
@@ -81,7 +82,7 @@ fn over(below: vec4<f32>, colour: vec3<f32>, alpha: f32) -> vec4<f32> {
 }
 
 fn coverage_at(q: GpuQuad, uv: vec2<f32>, dx: vec2<f32>, dy: vec2<f32>) -> f32 {
-    return textureSampleGrad(atlas, atlas_sampler, clamp(uv, q.bounds.xy, q.bounds.zw), dx, dy).a;
+    return textureSampleGrad(atlas, atlas_sampler, clamp(uv, q.bounds.xy, q.bounds.zw), dx, dy).r;
 }
 
 // A digit: the atlas coverage over a dark outline (the coverage dilated by the

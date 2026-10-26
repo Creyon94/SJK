@@ -11,6 +11,10 @@
 //! The hub cannot see a match, so what the client counts is the player's own record:
 //! the hub bounds how fast each count may rise, nothing more. Adding an achievement is
 //! one entry in [`ALL`] and the same id in the hub's catalogue.
+//!
+//! A hidden achievement ([`Kind::hidden`]) shows as a secret until it is unlocked; a
+//! retired one ([`Kind::retired`]) can no longer be earned and shows only to those who
+//! hold it ([`Standing::listed`]).
 
 pub(crate) mod medallion;
 pub(crate) mod tracker;
@@ -23,9 +27,9 @@ use std::time::{Duration, Instant};
 
 /// The file the counts are kept in, in the settings folder.
 const FILE: &str = "achievements.json";
-/// Most maps and servers remembered (their counts' goals are far below).
+/// Most maps, servers and duel partners remembered (their counts' goals are far below).
 const SET_MAX: usize = 512;
-/// Longest map name or server address kept.
+/// Longest map name, server address or player name kept.
 const NAME_MAX: usize = 64;
 /// Shortest time between two writes of the file while counts change.
 const SAVE_EVERY: Duration = Duration::from_secs(20);
@@ -55,10 +59,22 @@ pub(crate) enum Counter {
     Servers,
     /// Minutes played on servers.
     Minutes,
+    /// Minutes hidden in the cardboard box with another player close by.
+    BoxMinutes,
+    /// Duels won without taking damage.
+    DuelFlawless,
+    /// Duels won with less than 5 health left.
+    DuelCloseCall,
+    /// Different players duelled (by name).
+    DuelPartners,
+    /// Players defeated by a long saber throw.
+    SaberThrowFar,
+    /// Players defeated with their own thermal detonator.
+    ThermalReturn,
 }
 
 impl Counter {
-    const COUNT: usize = 11;
+    const COUNT: usize = 17;
     const ALL: [Self; Self::COUNT] = [
         Self::Kills,
         Self::SaberKills,
@@ -71,6 +87,12 @@ impl Counter {
         Self::Maps,
         Self::Servers,
         Self::Minutes,
+        Self::BoxMinutes,
+        Self::DuelFlawless,
+        Self::DuelCloseCall,
+        Self::DuelPartners,
+        Self::SaberThrowFar,
+        Self::ThermalReturn,
     ];
 
     /// Its name in `achievements.json`.
@@ -87,7 +109,22 @@ impl Counter {
             Self::Maps => "maps",
             Self::Servers => "servers",
             Self::Minutes => "minutes",
+            Self::BoxMinutes => "box_minutes",
+            Self::DuelFlawless => "duel_flawless",
+            Self::DuelCloseCall => "duel_close_calls",
+            Self::DuelPartners => "duel_partners",
+            Self::SaberThrowFar => "saber_throws_far",
+            Self::ThermalReturn => "thermal_returns",
         }
+    }
+
+    /// Whether the count is the size of a set the record keeps (maps, servers, weapons,
+    /// duel partners) rather than a number.
+    const fn is_set(self) -> bool {
+        matches!(
+            self,
+            Self::Maps | Self::Servers | Self::Weapons | Self::DuelPartners
+        )
     }
 }
 
@@ -98,11 +135,20 @@ pub(crate) enum Category {
     Duels,
     Journeys,
     Community,
+    Collection,
+    Toys,
 }
 
 impl Category {
     #[cfg(test)]
-    pub(crate) const ALL: [Self; 4] = [Self::Combat, Self::Duels, Self::Journeys, Self::Community];
+    pub(crate) const ALL: [Self; 6] = [
+        Self::Combat,
+        Self::Duels,
+        Self::Journeys,
+        Self::Community,
+        Self::Collection,
+        Self::Toys,
+    ];
 
     /// The name a board reads.
     pub(crate) const fn name(self) -> &'static str {
@@ -111,6 +157,8 @@ impl Category {
             Self::Duels => "Duels and flags",
             Self::Journeys => "Journeys",
             Self::Community => "Community",
+            Self::Collection => "Collection",
+            Self::Toys => "Toys",
         }
     }
 }
@@ -138,7 +186,19 @@ pub(crate) struct Kind {
     pub(crate) source: Source,
     /// The edition it belongs to ([`crate::editions`]).
     pub(crate) edition: &'static str,
+    /// A secret until unlocked: boards show it as [`SECRET_NAME`], with no goal or count.
+    pub(crate) hidden: bool,
+    /// No longer obtainable (Surveyor, 26/10/2026): shown only to those who hold it, and
+    /// counted in a person's total only then.
+    pub(crate) retired: bool,
 }
+
+/// What a board calls a hidden achievement not unlocked yet.
+pub(crate) const SECRET_NAME: &str = "Secret achievement";
+/// What a board says a hidden achievement not unlocked yet asks.
+pub(crate) const SECRET_DESCRIPTION: &str = "A secret. Unlock it to find out what it is.";
+/// What a board says of a retired achievement its holder keeps.
+pub(crate) const RETIRED_NOTE: &str = "No longer obtainable.";
 
 const fn kind(
     id: &'static str,
@@ -156,15 +216,35 @@ const fn kind(
         category,
         source,
         edition: crate::editions::ALPHA,
+        hidden: false,
+        retired: false,
     }
 }
 
-use Category::{Combat, Community, Duels, Journeys};
+impl Kind {
+    /// The same achievement, hidden until unlocked.
+    const fn secret(self) -> Self {
+        Self {
+            hidden: true,
+            ..self
+        }
+    }
+
+    /// The same achievement, retired.
+    const fn retire(self) -> Self {
+        Self {
+            retired: true,
+            ..self
+        }
+    }
+}
+
+use Category::{Collection, Combat, Community, Duels, Journeys, Toys};
 use Counter as C;
 use Source::{Client, Hub};
 
 /// Every achievement, in the hub's catalogue order.
-pub(crate) const ALL: [Kind; 21] = [
+pub(crate) const ALL: [Kind; 35] = [
     kind(
         "first_blood",
         "First Blood",
@@ -317,6 +397,7 @@ pub(crate) const ALL: [Kind; 21] = [
         Community,
         Hub,
     ),
+    // Retired 26/10/2026 (Sol): its holders keep it, nobody earns it any more.
     kind(
         "surveyor",
         "Surveyor",
@@ -324,7 +405,8 @@ pub(crate) const ALL: [Kind; 21] = [
         5,
         Community,
         Hub,
-    ),
+    )
+    .retire(),
     kind(
         "decorated",
         "Decorated",
@@ -333,7 +415,135 @@ pub(crate) const ALL: [Kind; 21] = [
         Community,
         Hub,
     ),
+    // 26/10/2026 (Sol): the fourteen after Decorated, with the hub's ids and goals.
+    kind(
+        "holocrons_10",
+        "Collector",
+        "Open 10 holocrons.",
+        10,
+        Collection,
+        Hub,
+    ),
+    kind(
+        "holocrons_50",
+        "Archivist",
+        "Open 50 holocrons.",
+        50,
+        Collection,
+        Hub,
+    ),
+    kind(
+        "holocrons_200",
+        "Keeper of the Holocrons",
+        "Open 200 holocrons.",
+        200,
+        Collection,
+        Hub,
+    ),
+    kind(
+        "mythical_find",
+        "Touched by the Force",
+        "Find a Mythical in a holocron.",
+        1,
+        Collection,
+        Hub,
+    )
+    .secret(),
+    kind(
+        "craft_blade",
+        "Craftsman",
+        "Craft a blade from a card.",
+        1,
+        Collection,
+        Hub,
+    ),
+    // Every finish a blade can be crafted from: Normal, Holo and Solar.
+    kind(
+        "craft_finishes",
+        "Master Craftsman",
+        "Craft blades from a Normal, a Holo and a Solar card.",
+        crate::cards::FINISHES.len() as u64,
+        Collection,
+        Hub,
+    ),
+    kind(
+        "full_set",
+        "Full Set",
+        "Complete a card set.",
+        1,
+        Collection,
+        Hub,
+    ),
+    kind(
+        "order66_kill",
+        "Executor",
+        "Defeat a player with Order 66.",
+        1,
+        Toys,
+        Hub,
+    ),
+    kind(
+        "box_minutes_10",
+        "Tactical Espionage",
+        "Spend 10 minutes hidden in the cardboard box with players close by.",
+        10,
+        Toys,
+        Client(C::BoxMinutes),
+    ),
+    kind(
+        "duel_flawless",
+        "Flawless",
+        "Win a duel without taking damage.",
+        1,
+        Duels,
+        Client(C::DuelFlawless),
+    ),
+    kind(
+        "duel_close_call",
+        "Close Call",
+        "Win a duel with less than 5 health left.",
+        1,
+        Duels,
+        Client(C::DuelCloseCall),
+    ),
+    kind(
+        "duel_partners_25",
+        "Well Met",
+        "Duel 25 different players.",
+        25,
+        Duels,
+        Client(C::DuelPartners),
+    ),
+    kind(
+        "saber_throw_far",
+        "Long Throw",
+        "Defeat a player with a long-range saber throw.",
+        1,
+        Combat,
+        Client(C::SaberThrowFar),
+    ),
+    kind(
+        "thermal_return",
+        "Return to Sender",
+        "Defeat a player with their own thermal detonator.",
+        1,
+        Combat,
+        Client(C::ThermalReturn),
+    ),
 ];
+
+/// How many achievements can still be earned (every one but the retired).
+pub(crate) const OBTAINABLE: usize = {
+    let mut count = 0;
+    let mut index = 0;
+    while index < ALL.len() {
+        if !ALL[index].retired {
+            count += 1;
+        }
+        index += 1;
+    }
+    count
+};
 
 /// The achievement called `id`, if the client knows it.
 pub(crate) fn find(id: &str) -> Option<&'static Kind> {
@@ -350,6 +560,8 @@ impl Kind {
             } else {
                 format!("{} h", count / 60)
             }
+        } else if self.source == Client(C::BoxMinutes) {
+            format!("{count} min")
         } else {
             count.to_string()
         }
@@ -366,10 +578,62 @@ pub(crate) struct Standing {
 }
 
 impl Standing {
-    /// How far towards the goal, from 0 to 1.
+    /// How far towards the goal, from 0 to 1 (0 for a secret: nothing of it is shown).
     pub(crate) fn fraction(&self) -> f32 {
+        if self.secret() {
+            return 0.0;
+        }
         (self.progress as f32 / self.kind.goal.max(1) as f32).clamp(0.0, 1.0)
     }
+
+    /// Whether it shows as a secret: hidden and not unlocked yet.
+    pub(crate) fn secret(&self) -> bool {
+        self.kind.hidden && self.unlocked.is_none()
+    }
+
+    /// Whether boards list it at all: a retired achievement only once unlocked.
+    pub(crate) fn listed(&self) -> bool {
+        !self.kind.retired || self.unlocked.is_some()
+    }
+
+    /// The name a board shows.
+    pub(crate) fn name(&self) -> &'static str {
+        if self.secret() {
+            SECRET_NAME
+        } else {
+            self.kind.name
+        }
+    }
+
+    /// What a board says it asks.
+    pub(crate) fn description(&self) -> &'static str {
+        if self.secret() {
+            SECRET_DESCRIPTION
+        } else {
+            self.kind.description
+        }
+    }
+}
+
+/// How many of `standings` are unlocked, of how many are listed: every obtainable
+/// achievement and the retired ones held ("12 of 34").
+pub(crate) fn tally(standings: &[Standing]) -> (usize, usize) {
+    let listed = standings.iter().filter(|standing| standing.listed());
+    let total = listed.clone().count();
+    let unlocked = listed
+        .filter(|standing| standing.unlocked.is_some())
+        .count();
+    (unlocked, total)
+}
+
+/// How many achievements a person's total counts: every obtainable one and the retired
+/// ones `holds` says they hold unlocked.
+pub(crate) fn total_for(holds: impl Fn(&Kind) -> bool) -> usize {
+    OBTAINABLE
+        + ALL
+            .iter()
+            .filter(|kind| kind.retired && holds(kind))
+            .count()
 }
 
 /// The counts the client keeps, as `achievements.json` holds them.
@@ -378,9 +642,13 @@ pub(crate) struct Record {
     counts: [u64; Counter::COUNT],
     /// Milliseconds played beyond the whole minutes in `counts`.
     play_ms: u64,
+    /// Milliseconds in the box beyond the whole minutes in `counts`.
+    box_ms: u64,
     /// Maps and servers played, lower case.
     maps: BTreeSet<String>,
     servers: BTreeSet<String>,
+    /// Players duelled, by their name without colours, lower case.
+    partners: BTreeSet<String>,
     /// Kinds of weapon (bits of [`tracker::weapon_kind`]).
     weapons: u32,
     /// What the hub held for the counts kept as sets (maps, servers, weapons), when
@@ -396,6 +664,7 @@ impl Record {
         let raw = match counter {
             Counter::Maps => self.maps.len() as u64,
             Counter::Servers => self.servers.len() as u64,
+            Counter::DuelPartners => self.partners.len() as u64,
             Counter::Weapons => u64::from(self.weapons.count_ones()),
             _ => self.counts[counter as usize],
         };
@@ -417,6 +686,13 @@ impl Record {
         let total = self.play_ms + ms;
         self.add(Counter::Minutes, total / 60_000);
         self.play_ms = total % 60_000;
+    }
+
+    /// Add `ms` hidden in the box, with someone close by, to its minutes.
+    fn hide(&mut self, ms: u64) {
+        let total = self.box_ms + ms;
+        self.add(Counter::BoxMinutes, total / 60_000);
+        self.box_ms = total % 60_000;
     }
 
     /// Remember `name` in `set` (lower case, bounded); whether it was new.
@@ -441,11 +717,11 @@ impl Record {
         let index = counter as usize;
         self.floors[index] = self.floors[index].min(below);
         match counter {
-            Counter::Maps | Counter::Servers => {
-                let set = if counter == Counter::Maps {
-                    &mut self.maps
-                } else {
-                    &mut self.servers
+            Counter::Maps | Counter::Servers | Counter::DuelPartners => {
+                let set = match counter {
+                    Counter::Maps => &mut self.maps,
+                    Counter::Servers => &mut self.servers,
+                    _ => &mut self.partners,
                 };
                 while set.len() as u64 > below {
                     set.pop_last();
@@ -460,6 +736,9 @@ impl Record {
                 self.counts[index] = self.counts[index].min(below);
                 if counter == Counter::Minutes {
                     self.play_ms = 0;
+                }
+                if counter == Counter::BoxMinutes {
+                    self.box_ms = 0;
                 }
             }
         }
@@ -494,7 +773,7 @@ impl Record {
                 continue;
             };
             match counter {
-                Counter::Maps | Counter::Servers | Counter::Weapons => {
+                _ if counter.is_set() => {
                     let floor = &mut self.floors[*counter as usize];
                     *floor = (*floor).max(achievement.progress);
                 }
@@ -517,7 +796,10 @@ impl Record {
             let Client(counter) = kind.source else {
                 continue;
             };
-            if self.count(counter) >= kind.goal && !self.unlocked.contains_key(kind.id) {
+            if !kind.retired
+                && self.count(counter) >= kind.goal
+                && !self.unlocked.contains_key(kind.id)
+            {
                 self.unlocked.insert(kind.id.to_owned(), now);
                 new.push(kind);
             }
@@ -555,9 +837,7 @@ impl Record {
     fn to_json(&self) -> Value {
         let counts: serde_json::Map<String, Value> = Counter::ALL
             .iter()
-            .filter(|counter| {
-                !matches!(counter, Counter::Maps | Counter::Servers | Counter::Weapons)
-            })
+            .filter(|counter| !counter.is_set())
             .map(|counter| {
                 (
                     counter.key().to_owned(),
@@ -579,8 +859,10 @@ impl Record {
             "version": 1,
             "counts": counts,
             "play_ms": self.play_ms,
+            "box_ms": self.box_ms,
             "maps": self.maps,
             "servers": self.servers,
+            "partners": self.partners,
             "weapons": self.weapons,
             "floors": floors,
             "unlocked": self.unlocked,
@@ -596,7 +878,12 @@ impl Record {
             record.floors[counter as usize] = number(json["floors"].get(counter.key()));
         }
         record.play_ms = number(json.get("play_ms")).min(59_999);
-        for (field, set) in [("maps", &mut record.maps), ("servers", &mut record.servers)] {
+        record.box_ms = number(json.get("box_ms")).min(59_999);
+        for (field, set) in [
+            ("maps", &mut record.maps),
+            ("servers", &mut record.servers),
+            ("partners", &mut record.partners),
+        ] {
             if let Some(names) = json[field].as_array() {
                 for name in names.iter().filter_map(Value::as_str) {
                     Self::remember(set, name);
@@ -632,8 +919,10 @@ static SHARED: Mutex<Shared> = Mutex::new(Shared {
     record: Record {
         counts: [0; Counter::COUNT],
         play_ms: 0,
+        box_ms: 0,
         maps: BTreeSet::new(),
         servers: BTreeSet::new(),
+        partners: BTreeSet::new(),
         weapons: 0,
         floors: [0; Counter::COUNT],
         unlocked: BTreeMap::new(),
@@ -813,6 +1102,141 @@ mod tests {
         for category in Category::ALL {
             assert!(ALL.iter().any(|kind| kind.category == category));
         }
+    }
+
+    /// The fourteen of 26/10/2026 follow Decorated in the hub's order, the eight the hub
+    /// counts are its own, Master Craftsman asks for every card finish, and only Touched
+    /// by the Force is hidden, only Surveyor retired.
+    #[test]
+    fn the_new_achievements_follow_the_hubs_catalogue() {
+        let ids: Vec<&str> = ALL[21..].iter().map(|kind| kind.id).collect();
+        assert_eq!(
+            ids,
+            [
+                "holocrons_10",
+                "holocrons_50",
+                "holocrons_200",
+                "mythical_find",
+                "craft_blade",
+                "craft_finishes",
+                "full_set",
+                "order66_kill",
+                "box_minutes_10",
+                "duel_flawless",
+                "duel_close_call",
+                "duel_partners_25",
+                "saber_throw_far",
+                "thermal_return",
+            ]
+        );
+        assert_eq!(ALL[20].id, "decorated");
+        let hub = ALL[21..].iter().filter(|kind| kind.source == Hub).count();
+        assert_eq!(hub, 8);
+        assert_eq!(find("craft_finishes").unwrap().goal, 3);
+        assert_eq!(
+            find("craft_finishes").unwrap().goal,
+            crate::cards::FINISHES.len() as u64
+        );
+        let hidden: Vec<&str> = ALL.iter().filter(|k| k.hidden).map(|k| k.id).collect();
+        assert_eq!(hidden, ["mythical_find"]);
+        let retired: Vec<&str> = ALL.iter().filter(|k| k.retired).map(|k| k.id).collect();
+        assert_eq!(retired, ["surveyor"]);
+        assert_eq!(OBTAINABLE, ALL.len() - 1);
+        assert_eq!(find("box_minutes_10").unwrap().amount(7), "7 min");
+        assert_eq!(find("holocrons_200").unwrap().category, Collection);
+        assert_eq!(find("order66_kill").unwrap().category, Toys);
+    }
+
+    /// A hidden achievement is a secret until unlocked: its name and what it asks are
+    /// kept, and nothing of its count shows. Once unlocked it shows as any other.
+    #[test]
+    fn a_hidden_achievement_is_a_secret_until_unlocked() {
+        let record = Record::default();
+        let standings = record.standings(&[held("mythical_find", 0, 0)]);
+        let secret = standings
+            .iter()
+            .find(|s| s.kind.id == "mythical_find")
+            .unwrap();
+        assert!(secret.secret() && secret.listed());
+        assert_eq!(secret.name(), SECRET_NAME);
+        assert_eq!(secret.description(), SECRET_DESCRIPTION);
+        assert_eq!(secret.fraction(), 0.0);
+        let standings = record.standings(&[held("mythical_find", 1, 1_791_336_225)]);
+        let found = standings
+            .iter()
+            .find(|s| s.kind.id == "mythical_find")
+            .unwrap();
+        assert!(!found.secret());
+        assert_eq!(found.name(), "Touched by the Force");
+        assert_eq!(found.description(), "Find a Mythical in a holocron.");
+        assert_eq!(found.fraction(), 1.0);
+    }
+
+    /// A retired achievement is listed and counted only for those who hold it, and its
+    /// unfinished progress never shows.
+    #[test]
+    fn a_retired_achievement_shows_only_to_its_holders() {
+        let record = Record::default();
+        let none = record.standings(&[]);
+        assert_eq!(tally(&none), (0, ALL.len() - 1));
+        let partway = record.standings(&[held("surveyor", 3, 0)]);
+        let surveyor = partway.iter().find(|s| s.kind.id == "surveyor").unwrap();
+        assert!(!surveyor.listed());
+        assert_eq!(tally(&partway), (0, ALL.len() - 1));
+        let holder = record.standings(&[held("surveyor", 5, 1_791_336_225)]);
+        let surveyor = holder.iter().find(|s| s.kind.id == "surveyor").unwrap();
+        assert!(surveyor.listed() && !surveyor.secret());
+        assert_eq!(tally(&holder), (1, ALL.len()));
+        assert_eq!(total_for(|_| false), ALL.len() - 1);
+        assert_eq!(total_for(|kind| kind.id == "surveyor"), ALL.len());
+    }
+
+    /// Duel partners are a set like maps: the hub's count is a floor after a reinstall,
+    /// clearing one keeps the set just below its goal, and the file keeps them, with the
+    /// time in the box beyond its whole minutes.
+    #[test]
+    fn duel_partners_and_box_time_are_kept_restored_and_cleared() {
+        let mut record = Record::default();
+        for name in ["sol", "bishop", "creyon"] {
+            assert!(Record::remember(&mut record.partners, name));
+        }
+        assert!(!Record::remember(&mut record.partners, "sol"));
+        assert_eq!(record.count(Counter::DuelPartners), 3);
+        record.hide(61_500);
+        assert_eq!(
+            (record.count(Counter::BoxMinutes), record.box_ms),
+            (1, 1_500)
+        );
+        record.add(Counter::DuelFlawless, 1);
+        let back = Record::from_json(&record.to_json());
+        assert_eq!(back, record);
+        assert!(record.merge_hub(&[
+            held("duel_partners_25", 20, 0),
+            held("box_minutes_10", 4, 0)
+        ]));
+        assert_eq!(record.count(Counter::DuelPartners), 20);
+        assert_eq!(record.count(Counter::BoxMinutes), 4);
+        assert_eq!(record.partners.len(), 3, "the floor, not names");
+        let new: Vec<&str> = record.unlock(9).iter().map(|kind| kind.id).collect();
+        assert_eq!(new, ["duel_flawless"]);
+        for index in 0..10 {
+            Record::remember(&mut record.partners, &format!("p{index}"));
+        }
+        record.floors[Counter::DuelPartners as usize] = 30;
+        let _ = record.unlock(10);
+        assert!(record.unlocked.contains_key("duel_partners_25"));
+        record.forget(find("duel_partners_25").unwrap());
+        assert_eq!(
+            record.count(Counter::DuelPartners),
+            24,
+            "just below the goal"
+        );
+        assert_eq!(record.partners.len(), 13, "the set itself was below");
+        record.forget(find("box_minutes_10").unwrap());
+        assert_eq!((record.count(Counter::BoxMinutes), record.box_ms), (4, 0));
+        let counts = record.hub_counts();
+        assert_eq!(counts["duel_partners_25"], 24);
+        assert_eq!(counts["duel_flawless"], 1);
     }
 
     #[test]

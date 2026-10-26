@@ -184,6 +184,7 @@ fn implicit_stage(
         depth_write,
         depth_function: DepthFunction::LessEqual,
         material: Default::default(),
+        no_picmip: false,
     }
 }
 

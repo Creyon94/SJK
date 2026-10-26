@@ -438,8 +438,7 @@ impl HolocronPopup {
             ui,
             View {
                 entry: &showing.entry,
-                // A kyber crystal has no picture in the atlas yet: its gem.
-                icon: icons.get(showing.entry.tier.slot).copied().flatten(),
+                icon: picture(icons, showing.entry.tier.slot),
                 when: &showing.when,
                 place: (total > 1).then_some((*step + 1, total)),
                 t,
@@ -448,6 +447,26 @@ impl HolocronPopup {
                 more: !queue.is_empty(),
             },
         ))
+    }
+}
+
+/// The picture of the tier in `slot`: a holocron's from `icons` (the HUD's), a kyber
+/// crystal's from its own cell of the atlas ([`holocrons::icons`], slots past
+/// [`COUNT`]) when it loaded; `None` draws the tier's gem. (Until 27/10/2026 a crystal
+/// always drew the gem, which reads as a plain holocron: report 150.)
+fn picture(icons: &[Option<TextureId>; COUNT], slot: usize) -> Option<TextureId> {
+    picture_of(icons, slot, holocrons::icons::is_loaded)
+}
+
+/// [`picture`] with `loaded` telling which atlas cells hold a picture.
+fn picture_of(
+    icons: &[Option<TextureId>; COUNT],
+    slot: usize,
+    loaded: impl Fn(usize) -> bool,
+) -> Option<TextureId> {
+    match icons.get(slot) {
+        Some(icon) => *icon,
+        None => loaded(slot).then(|| holocrons::icons::texture(slot)),
     }
 }
 
@@ -618,6 +637,24 @@ mod tests {
         pub(super) static FONTS: Fonts = Fonts::load();
     }
 
+    #[test]
+    fn a_kyber_crystal_shows_its_own_picture_when_it_loaded() {
+        let held = holocrons::icons::texture(1);
+        let mut icons = [None; COUNT];
+        icons[1] = Some(held);
+        // A holocron: the HUD's picture, or its gem.
+        assert_eq!(picture_of(&icons, 1, |_| true), Some(held));
+        assert_eq!(picture_of(&icons, 0, |_| true), None);
+        // A kyber crystal: its own cell, never a holocron's; its gem when it is missing.
+        for slot in COUNT..holocrons::SLOTS {
+            assert_eq!(
+                picture_of(&icons, slot, |cell| cell == slot),
+                Some(holocrons::icons::texture(slot))
+            );
+            assert_eq!(picture_of(&icons, slot, |_| false), None);
+        }
+    }
+
     /// A pop-up showing `entries`, the first held `at` seconds into its ceremony (and
     /// `leaving` seconds into its exit).
     pub(super) fn popup(entries: Vec<Entry>, at: f32, leaving: Option<f32>) -> HolocronPopup {
@@ -635,6 +672,9 @@ mod tests {
     fn wire(id: u64, tier: &str) -> Holocron {
         Holocron {
             opened: None,
+            traded: None,
+            traded_from_key: None,
+            traded_from: None,
             id,
             tier: tier.to_owned(),
             dropped: 1_791_641_100,
@@ -651,6 +691,7 @@ mod tests {
             gift: false,
             earned: false,
             note: String::new(),
+            traded: None,
         }
     }
 

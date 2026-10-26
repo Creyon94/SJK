@@ -106,6 +106,8 @@ const CHAT_ROWS: &[&str] = &[
 const MODS_ROWS: &[&str] = &[
     "assetbrowser",
     "mod_japlus",
+    #[cfg(feature = "mod-japlus")]
+    sjk_mod_japlus::anti_kiss::CVAR,
     "mod_japro",
     #[cfg(feature = "mod-japro")]
     sjk_mod_japro::movement_styles::PREDICT_ANYWAY_CVAR,
@@ -317,11 +319,15 @@ impl Group {
                 sjk_client::player_model_eligibility::METADATA_CVAR,
                 sjk_client::player_model_eligibility::BLACKLIST_CVAR,
                 "cg_saberTrail",
+                crate::effect_flash::REDUCE_CVAR,
+                crate::saber_clash_flare::CVAR,
+                crate::saber_clash_flare::SIZE_CVAR,
                 crate::team_sabers::TEAM_COLORS_CVAR,
                 crate::team_sabers::CVAR,
                 crate::saber_rgb::black::CVAR,
                 crate::blade_lab_designs::CVAR,
                 crate::duel_blades::CVAR,
+                crate::stock_blades::CVAR,
                 crate::effect_aux::saber_rain_steam::CVAR,
                 "cg_speedTrail",
                 crate::actor_world_submission::force_powers::victim::CVAR,
@@ -340,13 +346,12 @@ impl Group {
                 crate::duel_visibility::HIDE_OTHERS_CVAR,
                 crate::duel_visibility::CORPSES_CVAR,
                 crate::duel_visibility::PICKUPS_CVAR,
-                #[cfg(feature = "mod-japlus")]
-                sjk_mod_japlus::anti_kiss::CVAR,
                 crate::map_edits::CVAR,
                 crate::remap_blocked_maps::SERVER_CVAR,
                 "cg_remaps",
                 crate::hax::TRAP_CVAR,
                 crate::hax::AWAY_CVAR,
+                crate::boombox::RANGE_CVAR,
                 crate::camera::STYLE_CVAR,
                 "cg_drawGun",
                 "cg_fovViewmodel",
@@ -358,8 +363,11 @@ impl Group {
                 "cg_thirdPersonHorzOffset",
                 "cg_thirdPersonCameraDamp",
                 "cg_thirdPersonTargetDamp",
+                "cg_wallGrabLock",
                 "cg_errorDecay",
                 "mod_japlus",
+                #[cfg(feature = "mod-japlus")]
+                sjk_mod_japlus::anti_kiss::CVAR,
                 "mod_japro",
                 #[cfg(feature = "mod-japro")]
                 sjk_mod_japro::movement_styles::PREDICT_ANYWAY_CVAR,
@@ -393,6 +401,7 @@ impl Group {
                 crate::text::charset::CVAR,
                 crate::quick_wheel::pages::FILE,
                 crate::quick_wheel::SOUNDS_CVAR,
+                crate::player_trades::SIZE_CVAR,
             ],
             Self::Hud => &[
                 "cg_drawHud",
@@ -432,6 +441,8 @@ impl Group {
                 "cg_drawTimer",
                 "cg_drawTimerUpperRight",
                 "cg_drawTeamScores",
+                "cg_teamScoresBoxes",
+                "cg_teamScoresScale",
                 "cg_drawFlagStatus",
                 crate::version_overlay::CVAR,
                 "cg_speedometer",
@@ -466,6 +477,7 @@ impl Group {
                 "r_fullscreen",
                 "r_vsync",
                 "com_maxfps",
+                crate::runtime_settings::MENU_CAP_CVAR,
                 crate::gameplay_fps::CVAR,
                 crate::server_caps::OVERRIDE_CVAR,
                 crate::runtime_settings::MONITOR_CAP_CVAR,
@@ -489,6 +501,7 @@ impl Group {
             ],
             Self::Simple(Simple::Display) => &[
                 "r_resolution",
+                crate::frame_target::scale::CVAR,
                 "r_fullscreen",
                 "r_vsync",
                 "com_maxfps",
@@ -502,13 +515,19 @@ impl Group {
                 "cg_marks",
                 "cg_shadows",
             ],
-            Self::Simple(Simple::Sound) => &["s_volume", "s_musicVolume", "snd_mute_losefocus"],
+            Self::Simple(Simple::Sound) => &[
+                "s_volume",
+                "s_musicVolume",
+                crate::audio::VOICE_VOLUME_CVAR,
+                "snd_mute_losefocus",
+            ],
             Self::Simple(Simple::Controls) => &["sensitivity", "m_invert", "cl_run"],
             Self::Simple(Simple::Gameplay) => &[
                 crate::camera::STYLE_CVAR,
                 crate::gameplay_fps::CVAR,
                 "cg_drawGun",
                 "cg_saberTrail",
+                crate::effect_flash::REDUCE_CVAR,
                 crate::duel_blades::CVAR,
                 "cg_forceModel",
                 "cg_auraShell",
@@ -533,6 +552,7 @@ impl Group {
             Self::Simple(Simple::General) => &[
                 crate::menu::style::CVAR,
                 crate::text::style::SCALE_CVAR,
+                crate::player_trades::SIZE_CVAR,
                 super::catalog::IMPORT_ROW,
                 "jof.downloads",
                 "cl_autoUpdate",
@@ -558,8 +578,6 @@ impl Group {
                 ("assetbrowser", "Asset packs"),
                 ("cg_simpleItems", "Items and models"),
                 ("cg_saberTrail", "Effects"),
-                #[cfg(feature = "mod-japlus")]
-                (sjk_mod_japlus::anti_kiss::CVAR, "JA+ protection"),
                 (crate::hax::TRAP_CVAR, "Toys"),
                 (crate::camera::STYLE_CVAR, "Camera and prediction"),
                 (crate::brush_view::CVAR, "Map tools"),
@@ -587,14 +605,13 @@ impl Group {
             Self::Advanced(Advanced::Sound) => &[
                 ("s_volume", "Game"),
                 (crate::emotes::VOLUME_CVAR, "Emotes"),
+                (crate::toy_sounds::VOLUME_CVAR, "Toys"),
                 (crate::unlock_toast::SOUND_CVAR, "Notifications"),
                 (crate::chat_sounds::MASTER_CVAR, "Chat sounds"),
             ],
             Self::Advanced(Advanced::Gameplay) => &[
                 ("cg_simpleItems", "Items and models"),
                 ("cg_saberTrail", "Effects"),
-                #[cfg(feature = "mod-japlus")]
-                (sjk_mod_japlus::anti_kiss::CVAR, "JA+ protection"),
                 (crate::hax::TRAP_CVAR, "Toys"),
                 (crate::camera::STYLE_CVAR, "Camera and prediction"),
             ],
@@ -904,6 +921,7 @@ mod tests {
             "cg_thirdPersonHorzOffset",
             "cg_thirdPersonCameraDamp",
             "cg_thirdPersonTargetDamp",
+            "cg_wallGrabLock",
             "cg_errorDecay",
         ];
         for group in [Group::GameOptions, Group::Advanced(Advanced::Gameplay)] {

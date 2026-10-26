@@ -9,6 +9,165 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 26/10/2026 | - | Changelog: the Reduce bright flashes setting line before the Unreleased changes
+- 897501e |  | Changelog: the Reduce bright flashes setting line before the Unreleased changes
++ 26/10/2026 | - | Changelog and test list layout after the 26/10 hub report merges
+- 4985bd4 |  | Changelog and test list layout after the 26/10 hub report merges
++ 26/10/2026 | - | Hub reports #133 #144 #148: Merc force field, scaled held items, skin last line
+- 4193fe5 |  | Draw the portable shield as FX_DrawPortableShield does (blec-bee #133)
+- 41fa097 |  | Skins: a surface's last entry shows or hides it, as retail (Rollembones #148)
+- 9e06014 |  | Scale held sabers and guns with iModelScale (g0dchris #144)
+- 9fcbb97 |  | Docs, changelog and test list for hub reports #133 #144 #148
++ 26/10/2026 | - | Hub reports #149 #150 #151: kyber crystals shown sooner and with their picture
+- 7eb8d54 |  | Achievements reach the hub at the minute after a hold; crystal pictures
++ 26/10/2026 | - | Hub reports #138 #141 #147: reduce bright flashes, voice volume, blocked chat beep
+- 7e63d02 |  | Hub reports 26/10: reduce bright flashes (#138), voice volume (#141), no beep for blocked players (#147)
++ 26/10/2026 | - | Hub reports #134 #136 #145: chat kept over map change, Call Vote maps by arena, drones hidden in duels
+- b009cd2 |  | Hub reports: call-vote maps by game type, chat open over a map change, drones hidden in a duel
++ 26/10/2026 | - | Hub reports #132 #135 #139 #140 #146: saber re-sent, ragdoll wakes on hits, held view
+- 83dae52 |  | Saber command asks again, Ragdoll wakes on hits, held views stop toys and mouse (#132 #135 #139 #140 #146)
++ 26/10/2026 | - | Format console_command.rs (CI's cargo fmt check)
+- 8bb967a |  | Format console_command.rs (CI's cargo fmt check)
++ 26/10/2026 | - | Release 2026.1026.1
+- aaae96f |  | Release 2026.1026.1
++ 26/10/2026 | - | 14 new achievements with kyber crystal rewards, Surveyor retired
+- c4f0507 |  | Achievements: 14 new ones, a secret one, Surveyor retired
++ 26/10/2026 | - | Debug panel line
+- 01cc2cb |  | Debug panel: the Shaders wall reopens from the top
++ 26/10/2026 | - | Shaders reopens from the top
+- 2c0027c |  | Collection: Shaders reopens from the top, the chosen shader kept
++ 26/10/2026 | - | Ragdoll: a 15 s gap between a player's flatlines
+- b89b92c |  | Ragdoll: a player's flatline is heard at most once every 15 seconds
++ 25/10/2026 | - | Boombox toy: an 80s stereo playing your own tracks to players close by
+- 6154c84 |  | Boombox toy: an 80s stereo playing your own tracks to players close by
++ 25/10/2026 | - | Collection revamp: Shaders wall and list, Toys rows, backdrops that fit
+- 9cdbefd |  | Collection revamp: Shaders wall and list, Toys rows, backdrops that fit
++ 25/10/2026 | - | Mac: fullscreen always borderless
+- 72b0569 |  | Mac: fullscreen is always borderless
++ 25/10/2026 | - | Credits history after release 2026.1025.4
+- 037bbfb |  | Credits history after release 2026.1025.4
++ 25/10/2026 | - | Release 2026.1025.4
+- 6452958 |  | Console: settings under a mod's prefix are set again
+- 1563456 |  | Release 2026.1025.4
++ 25/10/2026 | - | Mod settings set from the console again
+- b39f87d |  | Mod settings can be set from the console again
++ 25/10/2026 | - | Credits history after release 2026.1025.3
+- fab91ff |  | Credits history after release 2026.1025.3
++ 25/10/2026 | - | Reapply kyber crystals on main after release 2026.1025.3
+- a3ecc84 |  | Reapply kyber crystals on main after release 2026.1025.3
++ 25/10/2026 | - | Release 2026.1025.3
+- 6219867 |  | Hold kyber crystals out of release 2026.1025.3
+- 13d6093 |  | Release 2026.1025.3
+- f0a000b |  | Release: trading counts holocron tiers by index without kyber crystals
++ 25/10/2026 | - | Credits history after #197 (trading)
+- 748b35f |  | Credits history after #197 (trading)
++ 25/10/2026 | - | Credits history: Slash's commits under his git name, and #207
+- b352b79 |  | Credits history: Slash's commits under his git name, and #207
++ 25/10/2026 | - | Encrypted whispers for verified players, JoF keeps whispers, signed whisper reports
+- 115d92c |  | Encrypted whispers for verified players; JoF keeps whispers; signed whisper reports
++ 25/10/2026 | - | Drone at the game's size; hidden from the watched player, who reads who spectates
+- cb5dd2b |  | Drone: game-size remote, hidden from the player it watches
++ 25/10/2026 | - | Toy volume and a mute switch per toy, Settings > Sound > Toys
+- 37f4008 |  | Toy sounds: a toy volume and a switch per toy in Settings > Sound > Toys
++ 25/10/2026 | - | Console socket test: hand the output over once the password has arrived
+- eaf24fb |  | Console socket test: hand the output over once the password has arrived
++ 25/10/2026 | - | No console window on Windows; SJK.app bundle on macOS
+- 13beb79 |  | One window: no console on Windows, SJK.app on macOS
++ 25/10/2026 | - | Credits history: a review branch's "Merge PR #N (Author: title)" counts as SJK #N
+- a6ad529 |  | Credits history: a review branch's "Merge PR #N (Author: title)" counts as SJK #N
++ 25/10/2026 | - | A card picture that crashes its decoder fails alone; card and medal art labelled; the prize asked for at the opening's start
+- 8a9e108 |  | Card pictures: decoder guard, own memory labels, found card asked early (after Slash's #206)
++ 25/10/2026 | - | Format: announcement world shot and the body fade shot's module
+- 206f17a |  | Format: announcement world shot and the body fade shot's module
++ 25/10/2026 | - | Announcement commands close the console, the window frees the cursor
+- 7028074 |  | Announcements: commands close the console, the window frees the cursor
++ 25/10/2026 | - | Ragdoll knocks and scrapes heard in release builds
+- a965bd3 |  | Ragdoll: hear the knocks and scrapes (gap since "never" wrapped round)
++ 25/10/2026 | - | The site's new layout, changelog recap, Mac download, live credits
+- 30efd22 |  | Site refresh: release recap from the changelog, Mac download, live credits
++ 25/10/2026 | - | Credits history after release 2026.1025.2
+- eb8cb38 |  | Credits history after release 2026.1025.2
++ 25/10/2026 | - | Reapply kyber crystals on main after release 2026.1025.2
+- f748baf |  | Reapply kyber crystals on main after release 2026.1025.2
++ 25/10/2026 | - | Release 2026.1025.2
+- 291a4dd |  | Revert "Reapply kyber crystals on main after release 2026.1025.1"
+- 285443e |  | Release 2026.1025.2 (Alpha)
++ 25/10/2026 | - | Credits history can leave topics out
+- 03cf654 |  | Credits history: topics it leaves out (QUIET)
++ 25/10/2026 | - | opt-in BC1/BC3 texture compression, r_textureCompression
+- d42a168 |  | Texture compression: opt-in BC1/BC3 map and model textures (r_textureCompression)
+- 4bdcb7d |  | Texture compression: debug panel entry and credits
++ 25/10/2026 | - | Lighter menus: blade pictures throttled, no per-frame setting allocations
+- efdcea6 |  | Cut per-frame menu work: blade pictures, cvar reads, FPS help
+- 446690e |  | Lighter menus: debug panel entry and credits
++ 25/10/2026 | - | Experimental preset: lamp data packed, lamp cache sized to the card
+- 6d177f0 |  | Experimental: less video memory for lamp visibility, lists and cache
+- 94a82a1 |  | Experimental lamp memory: debug panel entry and credits
++ 25/10/2026 | - | Small graphics cards start once on lighter graphics, Keep / Back card
+- 5d72419 |  | Small graphics cards start once on lighter graphics, with a Keep / Back card
++ 25/10/2026 | - | r_renderScale: the world drawn below native for weak GPUs
+- c511350 |  | Render scale: draw the world below the window's resolution for weak GPUs
+- 146d7ab |  | Render scale: debug panel entry and credits
++ 25/10/2026 | - | Decoded textures of maps you left are freed
+- 8d8d9df |  | Decoded image cache: sweep out images nothing else holds
++ 25/10/2026 | - | Mirror, portal and glyph atlas targets made only when drawn
+- ea7b532 |  | Make secondary view targets and text atlases when first drawn
+- d1d561e |  | Lazy scene targets: debug panel entry and credits
++ 25/10/2026 | - | Font atlases in one channel: 120 MiB less video memory
+- 8c9174d |  | Store the font atlases as single-channel R8 textures
+- b281c84 |  | Font atlases in one channel: debug panel entry and credits
++ 25/10/2026 | - | Music memory test race fixed
+- 4689027 |  | Music memory test: wait for the music to start, a mix block after its registration
++ 25/10/2026 | - | Sounds at 16 bits, old map music freed
+- 7a9c4e3 |  | Audio memory: 16-bit sound bank, release a map's music when it changes
+- cc17b46 |  | Sound memory: debug panel entry and credits
++ 25/10/2026 | - | Texture detail shrinks skies, material maps and unmipped textures; nopicmip honoured
+- 514a1f3 |  | Texture detail for skies, material maps and linear filtering
+- a64475a |  | Texture detail everywhere: debug panel entry and credits
++ 25/10/2026 | - | Stock blades and a menu frame cap for weak PCs
+- 1b4b75a |  | Add stock blades and a menu FPS cap for weak PCs
+- 85b0ae8 |  | Stock blades and menu cap: debug panel entry and credits
++ 25/10/2026 | - | Card pictures only when drawn: 1.8 GB less video memory
+- dd6a1c6 |  | Card pictures decoded and uploaded only when a screen draws them
++ 25/10/2026 | - | GitHub Sponsors button
+- 01d2335 |  | GitHub Sponsors button for the repository
++ 25/10/2026 | - | VRAM measurements per preset and with the SJK packs
+- 7ee65e7 |  | VRAM audit: per-preset world shots, DXGI usage, card faces measured
++ 25/10/2026 | - | Credits history after release 2026.1025.1
+- bf80476 |  | Credits history after release 2026.1025.1
++ 25/10/2026 | - | Reapply kyber crystals on main after release 2026.1025.1
+- d45aae0 |  | Reapply kyber crystals on main after release 2026.1025.1
++ 25/10/2026 | - | Release 2026.1025.1
+- 532695e |  | Revert "Reapply kyber crystals on main after release 2026.1024.1"
+- f771466 |  | Reward window: holocron icons by the tier's index, which works with or without kyber crystals
+- f4badc7 |  | Release 2026.1025.1 (Alpha)
++ 25/10/2026 | - | SJK team announcements in SJK chat and contributor reward rounds with Claim
+- 0f35492 |  | Announcements and contributor reward rounds (client)
+- 05f68f8 |  | Announcements: credits, test panel entry, and every release announced in SJK chat
++ 25/10/2026 | - | hub-chat docs: client field date
+- fdbb4b7 |  | SJK chat docs: the hub names a message's client since 25/10, not 21/10
++ 25/10/2026 | - | Ragdoll: movers carry the body, every part heard on what it hits
+- b205670 |  | Ragdoll: movers carry and push the body, every part heard on what it hits
++ 25/10/2026 | - | JA+ settings under japlus.*, old names kept as aliases
+- 256fb04 |  | JA+ names: every JA+-only setting under japlus.*
++ 24/10/2026 | - | macOS build: Metal backend and an Apple Silicon package from GitHub
+- b1c1c8a |  | macOS build: Metal backend and an Apple Silicon package from GitHub
+- 0d0102e |  | package_client.py: accept the macos-arm64 platform
+- 7879742 |  | macOS tests: turn on naga's SPIR-V and HLSL writers
+- 4907430 |  | package_client.py: license texts for the macOS bindings
+- 9e98105 |  | macOS package: ship the client as sjk-client
+- 8811a1b |  | status: macOS build verified on GitHub runners
++ 24/10/2026 | - | Drone toy: freecam and peek fly a remote others see; peek needs consent
+- cdf1588 |  | Drone toy: freecam and peek fly a remote others see; peek needs consent
++ 24/10/2026 | - | Reapply kyber crystals on main after release 2026.1024.1
+- e343aef |  | Reapply kyber crystals on main after release 2026.1024.1
++ 24/10/2026 | - | Release 2026.1024.1
+- 55b4829 |  | Revert "Reapply kyber crystals on main after release 2026.1023.3"
+- 37323f5 |  | Release 2026.1024.1 (Alpha)
++ 24/10/2026 | - | Saber sounds docs: the hub takes saber_sounds since 24/10
+- dcbf796 |  | Saber sounds docs: the hub takes saber_sounds since 24/10
++ 24/10/2026 | - | Credits history: #200 safety codes
+- 72c885d |  | Credits history: #200 safety codes
 + 24/10/2026 | - | Ragdoll toy: go limp and fall, sandbox style, the same fall on every SJK client
 - b010c18 |  | Ragdoll toy: go limp and fall, sandbox style, the same fall on every SJK client
 + 24/10/2026 | - | Credits for 23/10's features; history links merges named "Merge pull request #N (...)"
@@ -2037,6 +2196,38 @@
 - 0d215f1 |  | Initial JKR source
 
 = Creyon
++ 25/10/2026 | SJK #197 | Add trading between players
+- a3ac938 |  | Add trading between players
+- 05a83c8 |  | Answer Sol's review of the trades
+- e6bd7d5 |  | Fit the Trade button's words on one line on the player card
+- b9b209e |  | Read the trade window size setting as a number
+- a781f9a |  | Shoot the trade card from a card built with trading open
+- d4fd04e |  | Let Trade on the chat card take its click
+- e1eac0b |  | Credit trading as #197, without the hub's numbers
+- c2c993d |  | Read the trade list every 30 minutes while trading is off
+- 6a80efd |  | Keep requests closed over the main menu; no trade with the blocked
+- 41ae856 |  | Record Sol's re-review of the trades in the status page
+- a1e7f1b |  | Word the hub's answers to request spam and closed requests
+- 0c41b37 |  | Refuse a blocked player's trade by key too
+- 88c3746 |  | Note the merge of main and its format fix in the status page
++ 25/10/2026 | SJK #208 | Format launch.rs, platform.rs and update.rs
+- fe7effc |  | Format launch.rs, platform.rs and update.rs
++ 25/10/2026 | SJK #202 | Fade bodies away on EV_BODYFADE as EternalJK does
+- c6297c3 |  | Fade bodies away on EV_BODYFADE as EternalJK does
+- 8839c5d | Sol | Body fade: every reused slot fades, crackle once per 100 ms, body gone 4 s after
++ 24/10/2026 | SJK #191 | Fix blade tip pixels and hard edges on signature blades
+- b3f7f38 |  | Fix blade tip pixels and hard edges on signature blades
+- f43f320 |  | Add round 23 status entry and complete its rendering notes
+- 0f480ab |  | Time a near blade across and along the view in the cost test
+- 9964eeb |  | Keep the pulses' peaks and hide what passes behind the tip
+- 5975432 |  | Fade Obsidian Edge round its tip and give the haze room to bend
+- dab1823 |  | Trim round 23's flare, arc and smoke costs back
+- c6c5568 |  | Draw each arc bolt only near its own middle
+- 0ffb4da |  | Skip Reactor's unseen lightning and bound the arcs by their real reach
+- e82e90e |  | Write down Reactor's timing after its fix
+- 3da079d |  | Bring the round 23 status entry up to date
+- 98fc144 | Sol | Leave room for the bent picture only on frames that draw a haze or a lens
+- 491aac8 | Sol | Take the core's coordinates with and without the tip from one skin lookup
 + 22/10/2026 | SJK #192 | Add cg_duelStockBlades: normal blades in duels
 - 4e0daf9 |  | Add a setting for stock blades in duels
 + 21/10/2026 | SJK #188 | Add Creyon's Blade Lab signature blades
@@ -2206,6 +2397,8 @@
 - 0874042 |  | Decode print and cp text as legacy bytes
 
 = Lukas
++ 24/10/2026 | SJK #198 | Release stale profile VFS generations
+- 69c6da4 |  | Release stale profile VFS generations
 + 21/10/2026 | SJK #179 | Add holocron notification modes
 - d7ae6dc |  | Add holocron notification modes
 + 20/10/2026 | SJK #190 | Add JA+ anti-kiss protection
@@ -2248,6 +2441,12 @@
 - ddfe116 |  | Fix Linux clipboard integration
 
 = Lumaya
++ 24/10/2026 | SJK #195 | Respect wall-grab free look and add an opt-in camera lock
+- f71bf25 |  | Hold the camera throughout wall grabs
+- c03b6a5 |  | Fold wall-normal camera alignment into the wall-grab fix
+- fa4ac03 |  | Preserve profile free look and make wall-grab locking optional
+- a6c6f8d | Sol | Wall grab: re-aim the camera at the wall only with cg_wallGrabLock on
+- ea38f1a | Sol | Changelog line for the wall-grab camera fix and option (Lumaya)
 + 19/10/2026 | SJK #166 | Swap Shift console height shortcuts
 - 6746cfc |  | Swap Shift console height shortcuts
 + 18/10/2026 | SJK #165 | Add trusted chat media sources and silent MP4 playback
@@ -2385,6 +2584,29 @@
 - fed9acd |  | Hide duel opponents' bars and send nothing while duelling
 
 = Slash
++ 25/10/2026 | SJK #207 | Count site visits with GoatCounter
+- 420c449 |  | Count site visits with GoatCounter
+- eb13752 |  | Update GoatCounter script source URL
++ 25/10/2026 | SJK #205 | Stage player model installs and pool body copies ahead of deaths
+- a77107c |  | Stage player model installs and pool body copies ahead of deaths
+- 4468c35 |  | Drop the all-at-once prepared texture upload, unused since players upload one a frame
+- 68b9fc2 |  | Restore main's earlier changelog line the merge had dropped; separate the status entry
+- fc0bb20 | Sol | Model installs: wait for a reused model's pipelines; pool only bodies the player will leave
+- 462c1e2 | Sol | PR #205: credits and debug panel entry
+- 4203548 | Sol | PR #205 status: the checks run at the merge, against main
++ 25/10/2026 | SJK #201 | CTF HUD: team scores in SJK team boxes with each flag's state
+- 2f50b04 |  | CTF HUD: team scores in SJK team boxes with each flag's state (work in progress)
+- 5ac4fc1 |  | CTF HUD: cg_teamScoresBoxes brings back the classic plates; Windows test build workflow
+- 72498b8 |  | CTF HUD: compact boxes, carrier named at once, no duplicate flag pictures
+- 139d881 |  | CTF HUD: larger score, cg_teamScoresScale sizes the team boxes
+- 48be58d |  | CTF HUD: no gold rule over your team's box
+- 19dcd92 |  | Drop the test build workflow: GameData packages builds any branch on demand
+- 02c988a |  | Settings help: the team score rows fit two lines
+- 51b7e4b |  | CTF HUD: clippy (iterate the drop timers, no same-type cast)
+- daff47b |  | Changelog: keep the CTF team boxes entry after the rebase
+- 81ea659 | Sol | CTF team boxes: long scores fit, followed carriers named, drops forgotten per game
++ 24/10/2026 | SJK #200 | Encrypted whispers: per-key safety code fingerprints (v2)
+- bf04bc1 |  | Encrypted whispers: per-key safety code fingerprints (v2)
 + 20/10/2026 | SJK #186 | Make the update notice clickable to start the download
 - 367fb72 |  | Make the update notice clickable to start the download
 + 20/10/2026 | SJK #184 | Draw the HUD picker as an SJK card, added different pics

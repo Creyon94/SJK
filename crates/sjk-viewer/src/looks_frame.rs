@@ -96,7 +96,9 @@ impl GpuState {
                 held.with_toy(crate::cardboard_box::TOY, self.cardboard_box.on())
                     .with_toy(crate::order66::TOY, self.order66.on())
                     .with_toy(crate::hax::TOY, self.hax.on())
-                    .with_toy(crate::hax::AWAY_TOY, away_hackable),
+                    .with_toy(crate::hax::AWAY_TOY, away_hackable)
+                    .with_toy(crate::drone::TOY, self.drone.on())
+                    .with_toy(crate::boombox::TOY, self.boombox.on()),
             );
             (
                 own.saber_skin,
@@ -127,7 +129,9 @@ impl GpuState {
         .with_toy(crate::cardboard_box::TOY, self.cardboard_box.on())
         .with_toy(crate::order66::TOY, self.order66.on())
         .with_toy(crate::hax::TOY, self.hax.on())
-        .with_toy(crate::hax::AWAY_TOY, away_hackable);
+        .with_toy(crate::hax::AWAY_TOY, away_hackable)
+        .with_toy(crate::drone::TOY, self.drone.on())
+        .with_toy(crate::boombox::TOY, self.boombox.on());
         if let Some(sent) = sent {
             player_identity::set_look(&sent.to_look(&options));
             self.looks.set_own_options(options);

@@ -265,8 +265,8 @@ pub(super) fn submit(
     // In first person the local body is still posed under the camera, only hidden
     // (`RF_THIRD_PERSON`, `cg_players.c:10351-10359`); stock starts the beam and the
     // puffs at its left hand all the same.
-    let left =
-        actor.weapon_attachments[1].map(|bolt| saber::world_attachment(origin, rotation, bolt).0);
+    let left = actor.weapon_attachments[1]
+        .map(|bolt| saber::world_attachment(origin, rotation, bolt.scaled(transform.scale)).0);
     // The beam is re-played on the reference 8 ms cadence (`effect_cadence.rs`).
     if let (Some(name), Some(hand)) = (selection.beam, left)
         && sinks.effects.contains_definition(name)

@@ -192,6 +192,18 @@ pub struct Holocron {
     /// hubs older than opening).
     #[serde(default)]
     pub opened: Option<i64>,
+    /// When it last changed hands in a trade between players, unix seconds; `None` when
+    /// it never did (and from hubs before 22/10/2026). A traded holocron waits the hub's
+    /// resale lock before it trades again (`crate::trades`).
+    #[serde(default)]
+    pub traded: Option<i64>,
+    /// The person it came from in that trade, by key; `None` when never traded.
+    #[serde(default)]
+    pub traded_from_key: Option<String>,
+    /// Their name (colour codes kept; show it only through [`crate::chat::for_display`]),
+    /// when the hub knows it.
+    #[serde(default)]
+    pub traded_from: Option<String>,
 }
 
 impl Holocron {
@@ -997,6 +1009,11 @@ pub struct ChatMessage {
     /// the wire): `text` is empty and the viewer words the line.
     #[serde(skip)]
     pub holocron: Option<DropMark>,
+    /// Set when this "message" is the SJK team's (an announcement or a reward round,
+    /// [`crate::news`]; never read from the wire): `text` is empty and the viewer words
+    /// the line.
+    #[serde(skip)]
+    pub official: Option<crate::news::Official>,
 }
 
 /// What marks a [`ChatMessage`] as a holocron drop, or a grand find of one opened.
@@ -1171,6 +1188,18 @@ pub struct Feed {
     /// New grand finds (absent from hubs before 17/10/2026, and when none).
     #[serde(default)]
     pub finds: Vec<FindEvent>,
+    /// Changes to the reader's own trades (absent from hubs before 22/10/2026, and when
+    /// none).
+    #[serde(default)]
+    pub trades: Vec<crate::trades::TradeEvent>,
+    /// New announcements, oldest first (absent from hubs before 25/10/2026, and when
+    /// none).
+    #[serde(default)]
+    pub announcements: Vec<crate::news::FeedAnnouncement>,
+    /// New reward rounds, oldest first (absent from hubs before 25/10/2026, and when
+    /// none).
+    #[serde(default)]
+    pub rounds: Vec<crate::news::FeedRound>,
     /// Messages staff deleted.
     #[serde(default)]
     pub deleted: Vec<u64>,

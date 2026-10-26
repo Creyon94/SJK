@@ -313,6 +313,44 @@ pub trait Hub: Send {
             "this hub client does not read the feed".to_owned(),
         ))
     }
+    /// The SJK team's newest announcements (`GET /v1/announcements`, 25/10/2026), newest
+    /// first.
+    fn announcements(
+        &mut self,
+        _identity: &Identity,
+    ) -> Result<Vec<crate::news::Announcement>, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not read announcements".to_owned(),
+        ))
+    }
+    /// The person's rewards and the newest reward rounds (`GET /v1/rewards`, 25/10/2026).
+    fn rewards(&mut self, _identity: &Identity) -> Result<crate::news::Rewards, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not read rewards".to_owned(),
+        ))
+    }
+    /// Claim reward `id` (`POST /v1/rewards/claim`, 25/10/2026): the hub grants it and
+    /// answers the person's profile and rewards after it.
+    fn claim_reward(
+        &mut self,
+        _identity: &Identity,
+        _id: u64,
+    ) -> Result<crate::news::ClaimAnswer, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not claim rewards".to_owned(),
+        ))
+    }
+    /// The creator's announcement (`POST /v1/creator/announce`, 25/10/2026), checked by
+    /// [`crate::news::check`] first; the hub answers it as stored.
+    fn announce(
+        &mut self,
+        _identity: &Identity,
+        _request: &crate::news::AnnounceRequest,
+    ) -> Result<crate::news::Announcement, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not announce".to_owned(),
+        ))
+    }
     /// Make `png` (already cropped and scaled, `crate::avatar`) the identity's picture;
     /// the hub answers with the key's profile, whose `avatar` is the new version.
     fn set_avatar(&mut self, _identity: &Identity, _png: &[u8]) -> Result<Profile, HubError> {
@@ -459,6 +497,37 @@ pub trait Hub: Send {
     ) -> Result<crate::wire::HolocronBuyAnswer, HubError> {
         Err(HubError::Protocol(
             "this hub client does not buy holocrons".to_owned(),
+        ))
+    }
+
+    /// The player's trades, what they traded today and the rules (`GET /v1/trades`,
+    /// 22/10/2026).
+    fn trades(&mut self, _identity: &Identity) -> Result<crate::trades::TradesAnswer, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not trade".to_owned(),
+        ))
+    }
+
+    /// Ask the player whose hub id is `to` to trade (`POST /v1/trades`, 22/10/2026).
+    fn trade_ask(
+        &mut self,
+        _identity: &Identity,
+        _to: &str,
+    ) -> Result<crate::trades::TradeAnswer, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not trade".to_owned(),
+        ))
+    }
+
+    /// Take step `step` in trade `id` (`POST /v1/trades/<id>/<action>`, 22/10/2026).
+    fn trade_step(
+        &mut self,
+        _identity: &Identity,
+        _id: i64,
+        _step: &crate::trades::TradeStep,
+    ) -> Result<crate::trades::TradeAnswer, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not trade".to_owned(),
         ))
     }
     /// Withdraw the identity's claim on `server`.
@@ -901,6 +970,16 @@ fn player_report_body(report: &PlayerReport) -> Value {
     if let Some(time) = report.level_time {
         body["level_time"] = json!(time);
     }
+    if let Some(whisper) = &report.whisper {
+        use base64::Engine;
+        body["whisper"] = json!({
+            "from": whisper.from,
+            "time": whisper.time,
+            "text": whisper.text,
+            "signature": base64::engine::general_purpose::URL_SAFE_NO_PAD
+                .encode(whisper.signature),
+        });
+    }
     body
 }
 
@@ -979,6 +1058,21 @@ fn claim_body(server: &str, slot: u8, name: &str, active: bool) -> Value {
 }
 
 /// `POST /v1/holocrons/open`'s path and body.
+/// The body of a creator's announcement (`PROTOCOL.md`, "Announcements"): `version` only
+/// with a release.
+fn announce_body(request: &crate::news::AnnounceRequest) -> Value {
+    if request.release {
+        json!({
+            "kind": "release",
+            "title": request.title,
+            "text": request.text,
+            "version": request.version,
+        })
+    } else {
+        json!({ "kind": "news", "title": request.title, "text": request.text })
+    }
+}
+
 fn open_call(ids: &[u64]) -> (&'static str, Value) {
     ("/v1/holocrons/open", json!({ "ids": ids }))
 }
@@ -1392,6 +1486,45 @@ impl Hub for HttpHub {
         parse(self.send(Some(identity), "GET", "/v1/shop", None)?)
     }
 
+    fn announcements(
+        &mut self,
+        identity: &Identity,
+    ) -> Result<Vec<crate::news::Announcement>, HubError> {
+        let answer: crate::news::Announcements =
+            parse(self.send(Some(identity), "GET", "/v1/announcements", None)?)?;
+        Ok(answer.announcements)
+    }
+
+    fn rewards(&mut self, identity: &Identity) -> Result<crate::news::Rewards, HubError> {
+        parse(self.send(Some(identity), "GET", "/v1/rewards", None)?)
+    }
+
+    fn claim_reward(
+        &mut self,
+        identity: &Identity,
+        id: u64,
+    ) -> Result<crate::news::ClaimAnswer, HubError> {
+        parse(self.send(
+            Some(identity),
+            "POST",
+            "/v1/rewards/claim",
+            Some(json!({ "id": id })),
+        )?)
+    }
+
+    fn announce(
+        &mut self,
+        identity: &Identity,
+        request: &crate::news::AnnounceRequest,
+    ) -> Result<crate::news::Announcement, HubError> {
+        parse(self.send(
+            Some(identity),
+            "POST",
+            "/v1/creator/announce",
+            Some(announce_body(request)),
+        )?)
+    }
+
     fn buy_offer(
         &mut self,
         identity: &Identity,
@@ -1416,6 +1549,34 @@ impl Hub for HttpHub {
             "/v1/holocrons/buy",
             Some(json!({ "tier": tier })),
         )?)
+    }
+
+    fn trades(&mut self, identity: &Identity) -> Result<crate::trades::TradesAnswer, HubError> {
+        parse(self.send(Some(identity), "GET", "/v1/trades", None)?)
+    }
+
+    fn trade_ask(
+        &mut self,
+        identity: &Identity,
+        to: &str,
+    ) -> Result<crate::trades::TradeAnswer, HubError> {
+        parse(self.send(
+            Some(identity),
+            "POST",
+            "/v1/trades",
+            Some(json!({ "to": to })),
+        )?)
+    }
+
+    fn trade_step(
+        &mut self,
+        identity: &Identity,
+        id: i64,
+        step: &crate::trades::TradeStep,
+    ) -> Result<crate::trades::TradeAnswer, HubError> {
+        let (action, body) = step.call();
+        let path = format!("/v1/trades/{id}/{action}");
+        parse(self.send(Some(identity), "POST", &path, Some(body))?)
     }
 
     fn release(&mut self, identity: &Identity, server: &str) -> Result<(), HubError> {
@@ -1724,6 +1885,21 @@ mod tests {
         assert_eq!(body["target_key_id"], "0123456789abcdef");
         assert_eq!(body["server_name"], "^4JoF");
         assert_eq!(body["name"], "^2Sol");
+        let whispered = PlayerReport {
+            whisper: Some(crate::ReportedWhisper {
+                from: "a2V5".to_owned(),
+                time: 1_000,
+                text: "buy credits".to_owned(),
+                signature: [0xff; 64],
+            }),
+            ..named
+        };
+        let body = player_report_body(&whispered);
+        assert_eq!(
+            body["whisper"],
+            json!({"from": "a2V5", "time": 1_000, "text": "buy credits",
+                   "signature": "_".repeat(85) + "w"})
+        );
     }
 
     #[test]
@@ -1938,6 +2114,30 @@ mod tests {
                     "saber_sounds": sounds})
             );
         }
+    }
+
+    #[test]
+    fn an_announcement_sends_the_protocols_fields() {
+        let news = crate::news::AnnounceRequest {
+            release: false,
+            title: "Hello".into(),
+            text: "Line\n\n- point".into(),
+            version: String::new(),
+        };
+        assert_eq!(
+            announce_body(&news),
+            json!({"kind": "news", "title": "Hello", "text": "Line\n\n- point"})
+        );
+        let release = crate::news::AnnounceRequest {
+            release: true,
+            version: "2026.1025.1".into(),
+            ..news
+        };
+        assert_eq!(
+            announce_body(&release),
+            json!({"kind": "release", "title": "Hello", "text": "Line\n\n- point",
+                "version": "2026.1025.1"})
+        );
     }
 
     #[test]

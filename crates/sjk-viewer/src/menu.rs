@@ -471,6 +471,13 @@ impl ClientMenu {
         self.collection_stage = wanted;
     }
 
+    /// Whether the Collection wants the player's model this frame (Shaders, Toys,
+    /// Nameplates): the backdrop camera then frames the page's 16:9 frame at every window
+    /// shape ([`crate::menu_stage::frame_fit_fov`]).
+    pub(crate) fn collection_stage(&self) -> bool {
+        self.collection_stage
+    }
+
     /// Whether the Collection's Shaders tab shows the saber on its own.
     pub(crate) fn set_collection_saber(&mut self, alone: bool) {
         self.collection_saber = alone;

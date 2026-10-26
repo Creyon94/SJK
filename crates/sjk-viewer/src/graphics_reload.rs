@@ -1,8 +1,8 @@
 //! The graphics reload (`docs/rendering.md`, "Graphics reload"): the settings the
 //! renderer reads only when its graphics context is made (scene HDR, FXAA,
-//! supersampling, sun and sky, sun shadows, light shafts, material maps, reflection
-//! probes and texture filtering, so the renderer choice and the graphics quality
-//! levels too) apply without restarting SJK.
+//! supersampling and render scale, sun and sky, sun shadows, light shafts, material
+//! maps, reflection probes and texture filtering, so the renderer choice and the
+//! graphics quality levels too) apply without restarting SJK.
 //!
 //! The device, window and surface stay; a new [`Context`] on them reads those settings
 //! again ([`Context::resampled`]) and the world on show is built once more on it, the
@@ -20,6 +20,7 @@
 //! the renderer in the original game, and the reload card ([`card`]) offers it once the
 //! player leaves Settings for a menu.
 
+use crate::frame_target::scale::NATIVE;
 use crate::gpu_context::Context;
 use crate::session_transition::{WorldInstallPoll, WorldInstallTask, WorldLoadPoll, WorldLoadTask};
 use crate::world_materials::{filtering, material_maps};
@@ -115,7 +116,15 @@ impl Startup {
         [
             ("HDR", self.hdr != wanted.hdr),
             ("FXAA", self.fxaa != wanted.fxaa),
-            ("supersampling", self.scale != wanted.scale),
+            // One number, the scene's percent of the window: named by the side it moved.
+            (
+                "supersampling",
+                self.scale.max(NATIVE) != wanted.scale.max(NATIVE),
+            ),
+            (
+                "render scale",
+                self.scale.min(NATIVE) != wanted.scale.min(NATIVE),
+            ),
             ("normal maps", maps.normal != other.normal),
             ("specular maps", maps.specular != other.specular),
             ("parallax", maps.parallax != other.parallax),
@@ -470,6 +479,32 @@ mod tests {
             assert!(changes.contains(&name), "{name}: {changes:?}");
         }
         assert!(!changes.contains(&"texture filtering"), "{changes:?}");
+    }
+
+    #[test]
+    fn the_scene_scale_is_named_by_the_side_it_moved() {
+        let (_directory, mut console) = console();
+        let before = Startup::read(&console, 16);
+        console.set_cvar(crate::frame_target::scale::CVAR, "50");
+        assert_eq!(
+            before.changes(Startup::read(&console, 16)),
+            ["render scale"]
+        );
+        // Supersampling wins: the render scale under it changes nothing.
+        console.set_cvar("r_superSample", "2");
+        let supersampled = Startup::read(&console, 16);
+        assert_eq!(before.changes(supersampled), ["supersampling"]);
+        // From 50 % to 200 %, both sides moved.
+        let half = Startup {
+            scale: 50,
+            ..supersampled
+        };
+        assert_eq!(
+            half.changes(supersampled),
+            ["supersampling", "render scale"]
+        );
+        console.set_cvar(crate::frame_target::scale::CVAR, "75");
+        assert!(supersampled.changes(Startup::read(&console, 16)).is_empty());
     }
 
     #[test]

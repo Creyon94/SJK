@@ -338,7 +338,15 @@ signed with the player's key, and the outcome (the hub's number, or why it refus
 on the SJK UI's card, else as a centre print. The player is copied when chosen, so the
 report names them as they were.
 
-Only a verified SJK player may report (`player_identity::report_gate`): with the identity
+A player whom the reported one sent an encrypted whisper may report them whether verified
+or not (25/10/2026): the chat card's Report opens the Report page for them, which says
+"Their last encrypted whisper goes with it", and the report carries that whisper with
+its sender's signature ([hub-chat.md](hub-chat.md#encrypted-whispers), "Reporting one").
+The hub checks the signature (400 `whisper_unsigned`), takes it up to a day old, and
+names the whisper's sender as the reported key (source `whisper`); the operator's panel
+shows the whisper under the reason.
+
+Otherwise only a verified SJK player may report (`player_identity::report_gate`): with the identity
 off, the hub not answering yet, an unverified key or a game on this PC, the Players page
 says why under its title (the classic pages in their first line), and the Report
 page's reasons are dimmed, Back carrying the reason; yourself and bots cannot be reported
@@ -833,8 +841,8 @@ clients show the stand-in.
 
 An achievement is a milestone of the player's own play. Since 21/10/2026 each brings a
 kyber crystal once, when it unlocks ([holocrons.md](holocrons.md#kyber-crystals)): Uncommon
-for most, Rare for the harder ones, Legendary for Duel Master and Veteran, Mythical for
-Legend of the Arena. The Collection's Achievements tab says it under the achievement up
+for most, Rare for the harder ones, Legendary for Duel Master, Veteran, Keeper of the
+Holocrons and Full Set, Mythical for Legend of the Arena. The Collection's Achievements tab says it under the achievement up
 close ("Reward: Rare Kyber Crystal" after the crystal's gem, in its colour), its hover card
 ends with it, and the unlock card says it at the right of "ACHIEVEMENT UNLOCKED" in place
 of the category. The hub's `reward` on each achievement wins over the client's own table
@@ -856,8 +864,33 @@ and in the hub (same ids):
 | Regular, Veteran | `hours_10`, `hours_100` | 10, 100 hours played on servers | client |
 | Storyteller | `storyteller` | a bio | hub |
 | Bug Reporter | `bug_reporter` | a bug report the hub took | hub |
-| Surveyor | `surveyor` | 5 world notes the hub took | hub |
+| Surveyor (retired 26/10/2026) | `surveyor` | 5 world notes the hub took | hub |
 | Decorated | `decorated` | a medal | hub |
+| Collector, Archivist, Keeper of the Holocrons | `holocrons_10`, `holocrons_50`, `holocrons_200` | 10, 50, 200 holocrons opened (kyber crystals not counted) | hub |
+| Touched by the Force (hidden) | `mythical_find` | a Mythical shader or card from a holocron | hub |
+| Craftsman | `craft_blade` | a blade crafted from a card | hub |
+| Master Craftsman | `craft_finishes` | blades crafted from a card of every finish (3: Normal, Holo, Solar, `cards::FINISHES`); three crafts from cards of one finish count 1 | hub |
+| Full Set | `full_set` | every card of a set that can be obtained, revealed copies only (sealed ones do not count) | hub |
+| Executor | `order66_kill` | an Order 66 execute on another player who also has the toy | hub |
+| Tactical Espionage | `box_minutes_10` | 10 minutes hidden in the cardboard box with another player close by | client |
+| Flawless | `duel_flawless` | a duel won without taking damage | client |
+| Close Call | `duel_close_call` | a duel won with less than 5 health left | client |
+| Well Met | `duel_partners_25` | 25 different players duelled | client |
+| Long Throw | `saber_throw_far` | a player defeated by a saber throw from 512 units or more | client |
+| Return to Sender | `thermal_return` | a player defeated with their own thermal detonator | client |
+
+The fourteen after Decorated came on 26/10/2026 (Sol's list), with the categories
+Collection and Toys. A hidden achievement (Touched by the Force) is a secret until it
+is unlocked: the board, its hover card and the "Next up" list show "Secret" or "Secret
+achievement", a `?` in its medallion, no goal and no count; unlocked, it shows like any
+other (the unlock card names it). A retired achievement (Surveyor, since 26/10/2026)
+can no longer be earned: it shows only to a player who holds it unlocked, with "No
+longer obtainable", and is not listed at all, nor its progress, for anyone else. Hidden
+and retired are flags of the client's catalogue (`Kind::hidden`, `Kind::retired`); the
+hub's `"retired": true` on Surveyor's entry is not needed by the client.
+Totals ("12 of 34 unlocked", the player card's "Achievements 12 / 34", the profile
+card) count every obtainable achievement and the retired ones the player holds, so a
+holder of Surveyor reads "of 35".
 
 What the client counts comes from its live matches on servers, never a demo or a game
 it hosts ([tracker.rs](../crates/sjk-viewer/src/achievements/tracker.rs), fed each
@@ -878,14 +911,48 @@ live snapshot by `achievements_frame.rs`):
   3 at once, with the same team; a team, map, server or slot change starts afresh);
 - a map and a server count once the player is in the game there (not spectating, not
   following, not in the intermission), and time played is the time between such
-  snapshots, at most a second at once.
+  snapshots, at most a second at once;
+- time in the cardboard box counts like time played, while the player hides in it (on,
+  alive, playing: `CardboardBox::hiding`) and another player the game draws alive
+  stands within 512 units (`tracker::BOX_NEAR`, about 14 metres) in the snapshot;
+- what the player took in a private duel is their own health and shield in the
+  snapshots while the duel is on: either falling is damage (not during the duel's
+  countdown, which may set them, nor health or shield above the maximum health wearing
+  down); the last health seen in the duel is the one it was won with, as the game gives
+  the winner full health when it ends. A win is Flawless when nothing fell and a Close
+  Call under 5 health (`tracker::CLOSE_CALL_HEALTH`). In a Duel or Power Duel game the
+  same is followed from the player's last spawn;
+- a duel partner is the opponent of a private duel that ends with a death (won or lost:
+  the obituary of either), or the other player of any kill or death in a Duel or Power
+  Duel game, kept by the name the server shows without colours or punctuation
+  (`sjk_identity::normal_form`), so a player who changes name counts again and two who
+  share one count once;
+- a long saber throw is a saber kill (the game gives a thrown saber's kills
+  `MOD_SABER`, as a swing's) while the player's saber is in flight (`saberInFlight`, in
+  that snapshot or the one before) with the victim 512 units or more away
+  (`tracker::SABER_THROW_FAR`; a swing reaches under 100, a throw up to 700 per Saber
+  Throw level);
+- a thermal detonator sent back is a thermal kill (`MOD_THERMAL`, `MOD_THERMAL_SPLASH`)
+  credited to the player while a thermal detonator the victim threw went off (left the
+  snapshot) within the last second and none of the player's own did. The game credits
+  a pushed or deflected missile to whoever sent it back (`G_ReflectMissile` sets
+  `r.ownerNum`) but never sends a missile's owner to clients (`entityState_t::owner`
+  stays 0 for missiles), so the client names a thermal detonator's thrower itself: the
+  player nearest (within 96 units) to where its flight started when it is first seen,
+  provided that start is at most 250 ms old. A thermal detonator first seen later (it
+  came into view after leaving the hand, or after a bounce) has no thrower and counts
+  nothing.
 
 The counts are kept in `achievements.json` beside `identity.key` (written at most
 every 20 seconds while they change, through a temporary file, and on the way out),
 so they work with the identity off. With it on, the identity service sends the
 counts of the achievements the client counts to the hub (`PUT /v1/achievements`, a
-signed request, at most once a minute, and again an hour later when the hub held
-part back). The hub keeps each key's best count, up to the goal, and when it was
+signed request, at most once a minute while they change, and unchanged again an hour
+later when the hub held part back; changed counts go at the minute even after a hold,
+so an achievement unlocked then reaches the hub within a minute). When the hub's answer
+unlocks an achievement, the profile is read again within 30 seconds, so its kyber
+crystal is listed at once rather than at the next ten-minute reading (reports 149 and
+150, 26/10/2026). The hub keeps each key's best count, up to the goal, and when it was
 reached. Because the hub cannot see a match, it takes the counts as the player's own
 record and bounds how fast each may rise (an hourly allowance per achievement: what
 is over is taken in a later hour); a count the client keeps is never lower than the
@@ -897,7 +964,7 @@ count arriving), it writes "Achievement unlocked" to the console and shows its p
 ([achievement_toast.rs](../crates/sjk-viewer/src/achievement_toast.rs)): a card at the
 top centre of the screen, clear of the crosshair, the chat and the HUD's corners, with
 the board's medallion, "Achievement unlocked", the name, the category and what it
-asked. It takes no input and pauses nothing, over play and over the menus alike. It
+asked (a hidden one too: it is unlocked). It takes no input and pauses nothing, over play and over the menus alike. It
 slides down and grows into place in under half a second while a gold ring sweeps
 round the medallion, light bursts from it (a glow, a ring of light, sparks), its edge
 flares and a glint crosses the card; it holds five seconds and fades out. Several
@@ -920,9 +987,13 @@ tier's colour. One arrival brings at most three cards, and the large pop-up that
 the game menu takes back the cards of what it shows. The new medal and holocron pop-ups'
 entrances (and their fanfare) also wait for the window to come back. A newer SJK release
 the update check finds has a card too ([client.md](client.md#updates)). The board shows every
-achievement in three columns: a medallion with the goal that fills with the count,
-gold once unlocked, the name, the category (Combat, Duels and flags, Journeys,
-Community), what to do, a bar and the count or the date it was unlocked.
+achievement listed as a wall of medallions in four bands of up to twelve (since
+26/10/2026; each category's run under its name and count, two short categories
+sharing a band, `collection_achievements.rs`): a medallion with the goal that fills
+with the count, gold once unlocked, and the name under it, the categories Combat,
+Duels and flags, Journeys, Community, Collection and Toys. The arrows and Tab read the
+wall in its order; the one chosen shows up close on the right with what to do, a bar
+and the count or the date it was unlocked.
 
 What this proves: an achievement is the player's own record, as a claim is the
 player's own word. A modified client or an edited `achievements.json` can send counts
@@ -1018,7 +1089,8 @@ action, and limits a staff key to 120 requests an hour. Staff cannot make staff 
 and bios.
 
 Clearing achievements at the hub alone does not stick for the ones a client counts:
-the player's game sends its counts again. So when staff members clear their own,
+the player's game sends its counts again (clearing is the creator's alone at the hub,
+above). So when the creator clears their own,
 the client also forgets them (`achievements::forget`): the counter goes just below
 the cleared achievement's goal, and every achievement on the same counter with a
 higher goal is cleared with it (clearing First Blood clears Centurion and Legend of

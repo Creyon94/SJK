@@ -182,10 +182,17 @@ impl Forge {
             self.texture_cache.insert(key.to_owned(), view.clone());
             return Ok(view);
         }
+        let picmip = super::filtering::mips::picmip_for(key);
         let texture = if self.filtering.mipmapped() {
-            super::filtering::mips::upload(device, queue, pixels)?
+            super::filtering::mips::upload(device, queue, pixels, picmip)?
         } else {
-            upload_array(device, queue, pixels)?
+            upload_array(
+                device,
+                queue,
+                "SJK Q3 stage animation frames",
+                pixels,
+                picmip,
+            )?
         };
         self.texture_cache.insert(key.to_owned(), texture.clone());
         Ok(texture)
@@ -668,8 +675,9 @@ pub(super) fn compile_profile() -> [u64; 2] {
 /// ([`crate::decoded_image_cache`]), so the append that follows on the render thread
 /// only uploads. Run on a worker; a failure is left for the append to report.
 ///
-/// With `mipmapped`, the textures' mip chains are built too and returned, for
-/// [`Runtime::upload_prepared_textures`]: resizing a model's textures down to one texel
+/// With `mipmapped`, the textures' mip chains are built too (and block-compressed, with
+/// `r_textureCompression`) and returned, for
+/// [`Runtime::upload_prepared_texture`]: resizing a model's textures down to one texel
 /// on the render thread cost 50 to 180 ms for some player models.
 pub(crate) fn warm_entity_materials(
     vfs: &VirtualFileSystem,
@@ -714,7 +722,12 @@ pub(crate) fn warm_entity_materials(
                     key: key.clone(),
                     width,
                     height,
-                    chains: super::filtering::mips::cache::prepare(pixels, width, height),
+                    levels: super::filtering::mips::cache::prepare_levels(
+                        pixels,
+                        width,
+                        height,
+                        super::filtering::mips::picmip_for(key),
+                    ),
                 });
             }
         }
@@ -722,49 +735,40 @@ pub(crate) fn warm_entity_materials(
     prepared
 }
 
-/// One texture's mip chains built on a worker ([`warm_entity_materials`]).
+/// One texture's mip chains (or their blocks, with `r_textureCompression`) built on a
+/// worker ([`warm_entity_materials`]).
 pub(crate) struct PreparedTexture {
     key: String,
     width: u32,
     height: u32,
-    chains: Arc<Vec<Vec<RgbaImage>>>,
+    levels: super::filtering::mips::Levels,
 }
 
 impl Runtime {
-    /// Upload textures a worker prepared, under their material keys, so the materials
-    /// appended next find them uploaded and only copy them to the GPU.
-    pub(crate) fn upload_prepared_textures(
-        &mut self,
-        device: &wgpu::Device,
-        queue: &crate::frame_queue::FrameQueue,
-        textures: Vec<PreparedTexture>,
-    ) {
-        for texture in textures {
-            self.upload_prepared_texture(device, queue, texture);
-        }
-    }
-
-    /// [`Self::upload_prepared_textures`] for one texture: an HD pack's texture with
-    /// its mips is near 90 MB to copy, so a model's textures go up one a frame.
+    /// Upload one texture a worker prepared, under its material key, so the materials
+    /// appended next find it uploaded and only copy it to the GPU: an HD pack's texture
+    /// with its mips is near 90 MB to copy, so a model's textures go up one a frame.
+    /// False when there was nothing to copy (already uploaded, or mipmaps off).
     pub(crate) fn upload_prepared_texture(
         &mut self,
         device: &wgpu::Device,
         queue: &crate::frame_queue::FrameQueue,
         texture: PreparedTexture,
-    ) {
+    ) -> bool {
         if !self.forge.filtering.mipmapped() || self.forge.texture_cache.contains_key(&texture.key)
         {
-            return;
+            return false;
         }
         // A failure leaves the texture to the material's own upload; one the card had
         // no memory for is invalid and must not be cached.
         let uploaded = crate::gpu_guard::capture(device, || {
-            super::filtering::mips::upload_chains(
+            super::filtering::mips::upload_levels(
                 device,
                 queue,
                 texture.width,
                 texture.height,
-                &texture.chains,
+                &texture.levels,
+                super::filtering::mips::picmip_for(&texture.key),
             )
         });
         match uploaded {
@@ -777,6 +781,7 @@ impl Runtime {
                 texture.key
             )),
         }
+        true
     }
 
     /// The keys of the textures uploaded so far, for [`Self::forget_textures_since`].

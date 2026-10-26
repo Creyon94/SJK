@@ -160,6 +160,8 @@ impl GpuState {
         self.play_order66_sounds(audio);
         self.play_hax_sounds(audio);
         self.play_ragdoll_sounds(audio);
+        self.play_drone_sounds(audio);
+        self.play_boombox_sounds(audio);
         self.spawn_hax_glyphs(audio, presentation_time);
         Ok(())
     }
@@ -197,6 +199,7 @@ impl GpuState {
                 mesh.entity_id = Some(corpse.id);
             }
         }
+        self.track_body_fades();
     }
 }
 

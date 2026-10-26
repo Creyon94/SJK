@@ -60,6 +60,8 @@ impl GpuState {
         self.local_prediction
             .set_predict_items(console.bool_cvar("cg_predictItems").unwrap_or(true));
         self.local_prediction
+            .set_wall_grab_lock(console.bool_cvar("cg_wallGrabLock").unwrap_or(false));
+        self.local_prediction
             .set_show_miss(console.bool_cvar("cg_showMiss").unwrap_or(false));
         if let Some(adapter) = &mut self.legacy_world_adapter {
             adapter.set_smooth_clients(console.smooth_clients());
@@ -183,15 +185,32 @@ impl GpuState {
     }
 
     /// The FPS cap `com_maxfps` asks for (AUTO resolved, 0 uncapped), without the
-    /// unfocused and minimized caps: what the gameplay FPS's Auto follows.
+    /// menus', unfocused and minimized caps: what the gameplay FPS's Auto follows.
     pub(crate) fn frame_cap(&self) -> u32 {
         normal_cap(self.console.as_ref(), || self.refresh_rate_cap())
     }
 
+    /// The frame pacer's cap: [`Self::frame_cap`], lowered by [`MENU_CAP_CVAR`] while
+    /// only the menus run ([`Self::menus_only`]), then replaced by the unfocused or
+    /// minimized cap while one applies.
     pub(crate) fn maximum_fps(&self) -> u32 {
         let console = self.console.as_ref();
         let normal = normal_cap(console, || self.refresh_rate_cap());
-        console.map_or(normal, |console| console.window_fps(normal))
+        console.map_or(normal, |console| {
+            console.window_fps(console.menu_fps(normal, self.menus_only()))
+        })
+    }
+
+    /// Whether only the menus run, for [`MENU_CAP_CVAR`]: no live game, no demo and no
+    /// server connection waiting on a map (the resident session). So the main menu and
+    /// its pages, the menu world behind them and the connecting card until the server's
+    /// game state arrives; not the game menu over a game (the game runs on under it), a
+    /// map loading for a server (its connection is serviced and the load's steps handed
+    /// on once a frame) or a demo.
+    fn menus_only(&self) -> bool {
+        self.live_session.is_none()
+            && self.demo_session.is_none()
+            && self.resident.session.is_none()
     }
 
     /// `com_maxfps -1` with [`MONITOR_CAP_CVAR`] on: the refresh rate of the
@@ -228,6 +247,11 @@ pub(crate) const MONITOR_CAP_CVAR: &str = "com_maxfpsMonitor";
 /// Stock's `com_maxfps` default: AUTO's cap with [`MONITOR_CAP_CVAR`] off, or
 /// when the monitor reports no refresh rate.
 const UNKNOWN_REFRESH_CAP: u32 = 125;
+/// Frames a second while only the menus run (`GpuState::menus_only`), never above
+/// `com_maxfps`; 0 (the default) keeps the normal cap. SJK's own, for weak PCs (Sol's
+/// request, 25/10/2026). Registered and cached for frame reads with the other frame caps
+/// (`console_window_options.rs`).
+pub(crate) const MENU_CAP_CVAR: &str = "com_maxfpsMenu";
 /// AUTO's cap with the monitor's rate off: what the console assumes before the
 /// first frame.
 pub(crate) const STOCK_FPS_CAP: u32 = UNKNOWN_REFRESH_CAP;

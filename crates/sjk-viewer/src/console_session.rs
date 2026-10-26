@@ -630,6 +630,10 @@ impl ViewerConsole {
             pending_hax: None,
             ragdoll_on: false,
             pending_ragdoll: None,
+            drone_on: false,
+            pending_drone: None,
+            boombox_on: false,
+            pending_boombox: None,
             pending_settings_search: None,
             sjk_chat_panel: super::sjk_chat_panel::Panel::new(),
             config_import: super::config_import_panel::Panel::new(),
@@ -652,6 +656,7 @@ impl ViewerConsole {
             gameplay_fps,
             frame_cap: crate::runtime_settings::STOCK_FPS_CAP,
             server_cap: None,
+            server_family: None,
             caps_lifted,
             input_health: Default::default(),
             pmove_fixed,
@@ -759,6 +764,12 @@ impl ViewerConsole {
         if let Some(notice) = output.notice {
             self.shell.push_log(notice);
         }
+    }
+
+    /// Send the sabers to a JA+ or jaPRO-lineage server on the next frame even if
+    /// they did not change (the `saber` command, #132).
+    pub(crate) fn request_saber_command(&mut self) {
+        self.saber_change.request();
     }
 
     /// Tell a JA+ or jaPRO-lineage server about a saber changed since the last
@@ -953,6 +964,7 @@ impl ViewerConsole {
             info: raw.clone().into_owned(),
         };
         self.server_cap = crate::server_caps::find(&server_info);
+        self.server_family = server_info.family();
         if let Some(cap) = self.server_cap {
             self.shell.push_log(format!(
                 "gameplay FPS: {} servers take {} commands a second at most{}",
@@ -1071,6 +1083,9 @@ fn retire_modern_ui(cvars: &mut CvarRegistry) {
         "con_datetime",
         // Darkened the backdrop of the old form screens, removed on 10/10/2026.
         "ui_menuContrast",
+        // The Shaders tab's rack or grid (0 the rack), replaced on 25/10/2026 by
+        // `ui_shaderList`, whose 0 is the new wall of tiles, so every player starts on it.
+        "ui_shaderView",
     ] {
         let _ = cvars.unset(retired);
     }

@@ -20,15 +20,15 @@
 //! would be rebuilt half as wide; at twice the size it keeps its width. An HD atlas's
 //! strokes are already several texels wide, so its field keeps the atlas size.
 //! Glyph rectangles are normalised, so they and the metrics are unchanged. The field
-//! is the alpha channel of a white RGBA image, so the text pipeline's atlas layout,
-//! mip chain and sampler stay as they are.
+//! is a single-channel image like the coverage atlases, so the text pipeline's atlas
+//! layout, mip chain and sampler stay as they are.
 //!
 //! HD replacement atlases of [`HD_LONG_SIDE`] texels or more (4x retail, such as an
 //! 8x `ergoec`) already resolve 4K text and keep their own anti-aliasing, so
 //! [`for_atlas`] leaves them as coverage; smaller HD atlases get a field like
 //! retail ones.
 
-use image::RgbaImage;
+use image::GrayImage;
 
 /// Distance, in output texels, that maps to the full 0..1 range either side of the
 /// edge (encoded 0.5). It must exceed the anti-aliasing band at the coarsest scale the
@@ -47,7 +47,7 @@ pub(crate) const HD_LONG_SIDE: u32 = 2_048;
 
 /// The texture to upload for a font `atlas` and whether it is a distance field:
 /// a field for retail-size atlases, the atlas itself for large HD ones.
-pub(crate) fn for_atlas(atlas: image::RgbaImage) -> (image::RgbaImage, bool) {
+pub(crate) fn for_atlas(atlas: GrayImage) -> (GrayImage, bool) {
     if atlas.width().max(atlas.height()) >= HD_LONG_SIDE {
         (atlas, false)
     } else {
@@ -55,15 +55,15 @@ pub(crate) fn for_atlas(atlas: image::RgbaImage) -> (image::RgbaImage, bool) {
     }
 }
 
-/// Replace `atlas`'s coverage with a signed distance field: white RGB, alpha 0.5 on
-/// the glyph edge, rising inside and falling outside over [`SPREAD`] texels. A small
-/// atlas's field is larger than the atlas (see [`output_scale`]).
-pub(crate) fn distance_field(atlas: &RgbaImage) -> RgbaImage {
+/// Replace `atlas`'s coverage with a signed distance field: 0.5 on the glyph edge,
+/// rising inside and falling outside over [`SPREAD`] texels. A small atlas's field is
+/// larger than the atlas (see [`output_scale`]).
+pub(crate) fn distance_field(atlas: &GrayImage) -> GrayImage {
     let (width, height) = atlas.dimensions();
     let factor = supersample(width, height);
     let coverage: Vec<f32> = atlas
         .pixels()
-        .map(|pixel| f32::from(pixel[3]) / 255.0)
+        .map(|pixel| f32::from(pixel[0]) / 255.0)
         .collect();
     let (work_width, work_height) = (width * factor, height * factor);
     let inside = resample_inside(&coverage, width, height, factor);
@@ -86,7 +86,7 @@ pub(crate) fn distance_field(atlas: &RgbaImage) -> RgbaImage {
     let step = factor / output;
     let block = (step * step) as f32;
     let scale = 1.0 / (step as f32 * 2.0 * SPREAD);
-    RgbaImage::from_fn(width * output, height * output, |x, y| {
+    GrayImage::from_fn(width * output, height * output, |x, y| {
         let mut sum = 0.0;
         for dy in 0..step {
             let row = ((y * step + dy) * work_width) as usize;
@@ -95,7 +95,7 @@ pub(crate) fn distance_field(atlas: &RgbaImage) -> RgbaImage {
             }
         }
         let value = (0.5 - sum / block * scale).clamp(0.0, 1.0);
-        image::Rgba([255, 255, 255, (value * 255.0).round() as u8])
+        image::Luma([(value * 255.0).round() as u8])
     })
 }
 
@@ -225,26 +225,24 @@ mod tests {
 
     /// Coverage, in atlas texels, that the text shader rebuilds from `field` when one
     /// screen pixel covers one field texel.
-    fn rebuilt_coverage(field: &RgbaImage, scale: u32) -> f32 {
+    fn rebuilt_coverage(field: &GrayImage, scale: u32) -> f32 {
         let band = 1.0 / (2.0 * SPREAD);
         let sum: f32 = field
             .pixels()
-            .map(|pixel| ((f32::from(pixel[3]) / 255.0 - 0.5) / band + 0.5).clamp(0.0, 1.0))
+            .map(|pixel| ((f32::from(pixel[0]) / 255.0 - 0.5) / band + 0.5).clamp(0.0, 1.0))
             .sum();
         sum / (scale * scale) as f32
     }
 
-    fn coverage(atlas: &RgbaImage) -> f32 {
+    fn coverage(atlas: &GrayImage) -> f32 {
         atlas
             .pixels()
-            .map(|pixel| f32::from(pixel[3]) / 255.0)
+            .map(|pixel| f32::from(pixel[0]) / 255.0)
             .sum()
     }
 
-    fn atlas(width: u32, height: u32, alpha: impl Fn(u32, u32) -> u8) -> RgbaImage {
-        RgbaImage::from_fn(width, height, |x, y| {
-            image::Rgba([255, 255, 255, alpha(x, y)])
-        })
+    fn atlas(width: u32, height: u32, coverage: impl Fn(u32, u32) -> u8) -> GrayImage {
+        GrayImage::from_fn(width, height, |x, y| image::Luma([coverage(x, y)]))
     }
 
     #[test]
@@ -265,8 +263,8 @@ mod tests {
             "{rebuilt} vs {original}"
         );
         // Both field texels of the stroke are inside; the next ones out are outside.
-        assert!(field.get_pixel(40, 64)[3] > 128 && field.get_pixel(41, 64)[3] > 128);
-        assert!(field.get_pixel(39, 64)[3] < 128 && field.get_pixel(42, 64)[3] < 128);
+        assert!(field.get_pixel(40, 64)[0] > 128 && field.get_pixel(41, 64)[0] > 128);
+        assert!(field.get_pixel(39, 64)[0] < 128 && field.get_pixel(42, 64)[0] < 128);
     }
 
     #[test]
@@ -289,14 +287,13 @@ mod tests {
         // Left half covered: the edge lies between field columns 31 and 32.
         let half = atlas(32, 8, |x, _| if x < 16 { 255 } else { 0 });
         let field = distance_field(&half);
-        let encoded = |x| f32::from(field.get_pixel(x, 8)[3]) / 255.0;
+        let encoded = |x| f32::from(field.get_pixel(x, 8)[0]) / 255.0;
         let per_texel = 1.0 / (2.0 * SPREAD);
         assert!((encoded(31) - (0.5 + 0.5 * per_texel)).abs() < 0.01);
         assert!((encoded(32) - (0.5 - 0.5 * per_texel)).abs() < 0.01);
         assert!((encoded(28) - (0.5 + 3.5 * per_texel)).abs() < 0.01);
-        assert_eq!(field.get_pixel(0, 8)[3], 255);
-        assert_eq!(field.get_pixel(63, 8)[3], 0);
-        assert_eq!(&field.get_pixel(63, 8).0[..3], &[255, 255, 255]);
+        assert_eq!(field.get_pixel(0, 8)[0], 255);
+        assert_eq!(field.get_pixel(63, 8)[0], 0);
     }
 
     #[test]
@@ -304,12 +301,12 @@ mod tests {
         assert!(
             distance_field(&atlas(8, 8, |_, _| 0))
                 .pixels()
-                .all(|p| p[3] == 0)
+                .all(|p| p[0] == 0)
         );
         assert!(
             distance_field(&atlas(8, 8, |_, _| 255))
                 .pixels()
-                .all(|p| p[3] == 255)
+                .all(|p| p[0] == 255)
         );
     }
 
@@ -328,7 +325,7 @@ mod tests {
     fn large_hd_atlases_keep_their_coverage() {
         let (hd, field) = for_atlas(atlas(2_048, 4, |_, _| 7));
         assert!(!field);
-        assert_eq!(hd.get_pixel(0, 0)[3], 7);
+        assert_eq!(hd.get_pixel(0, 0)[0], 7);
         let (retail, field) = for_atlas(atlas(512, 4, |_, _| 0));
         assert!(field);
         assert_eq!(retail.dimensions(), (1_024, 8));

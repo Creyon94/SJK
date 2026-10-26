@@ -57,6 +57,12 @@ impl GpuState {
             .as_ref()
             .is_some_and(console::ViewerConsole::is_open);
         let typed = matches!(event.physical_key, PhysicalKey::Code(_));
+        // The SJK team's window takes every key while it shows, over the console too (an
+        // announcement read from the chat page or a command).
+        if self.official.window.is_open() {
+            self.official_key(&event);
+            return;
+        }
         if !console_open && self.text_dialog.is_open() {
             let action = self.text_dialog.handle_key(&event);
             self.apply_dialog_action(action);
@@ -84,6 +90,12 @@ impl GpuState {
             self.reload_card_choice(choice);
             return;
         }
+        // And the small-card notice.
+        if !console_open && self.small_card_notice.is_open() {
+            let choice = self.small_card_notice.handle_key(&event);
+            self.small_card_notice_choice(choice);
+            return;
+        }
         // And the emote help card.
         if !console_open && self.emote_help.card.is_open() {
             let choice = self.emote_help.card.handle_key(&event);
@@ -105,6 +117,12 @@ impl GpuState {
         if !console_open && self.mod_notice.card.is_open() {
             let choice = self.mod_notice.card.handle_key(&event);
             self.mod_notice_choice(choice);
+            return;
+        }
+        // And the trade window.
+        if !console_open && self.trades.window.is_open() {
+            let choice = self.trades.window.handle_key(&event);
+            self.trade_window_choice(choice);
             return;
         }
         // And the low-FPS card.

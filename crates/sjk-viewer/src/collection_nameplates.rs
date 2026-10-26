@@ -7,7 +7,7 @@
 //! setting for seeing other players' nameplates and sharing the player's own health,
 //! shield and Force ([`crate::hud::nameplate::see_and_share`]).
 
-use super::view::{LEFT_X, MODEL_AREA, STAGE_TEXT_WIDTH, STAGE_TEXT_X, glow, left_lines};
+use super::view::{LEFT_X, MODEL_AREA, RIGHT_X, glow};
 use super::*;
 use crate::menu::sjk::{Frame, color, kit, text};
 use crate::menu_widgets::TextFamily;
@@ -25,8 +25,21 @@ const SHIELD: Color = Color::new(0.25, 0.82, 0.5, 1.0);
 const HEALTH: Color = Color::new(0.9, 0.28, 0.3, 1.0);
 const FORCE: Color = Color::new(0.29, 0.66, 1.0, 1.0);
 
-/// The See and share nameplates row's width, from its name to the switch's right edge.
-const SHARE_ROW: f32 = 420.0;
+/// The words beside the model: their card's left edge, width and foot, and the room
+/// inside it; a line of the description holds this many characters at the ordinary
+/// text size, a line of the other words this many.
+const WORDS_X: f32 = 1_360.0;
+const WORDS_WIDTH: f32 = RIGHT_X - WORDS_X;
+const WORDS_BOTTOM: f32 = 990.0;
+const WORDS_PAD: f32 = 26.0;
+const ABOUT_CHARS: f32 = 44.0;
+const NOTE_CHARS: f32 = 50.0;
+const ABOUT: &str = "What every SJK player sees over your head in a match: your name, then your shield, health and Force.";
+const ORNAMENTS: &str =
+    "Ornaments will go before your name, round your plate and under it: the dashed marks.";
+/// The See and share nameplates row's width, from its name to the switch's right edge:
+/// the card's inside, less the ring round the row.
+const SHARE_ROW: f32 = WORDS_WIDTH - WORDS_PAD * 2.0 - 28.0;
 /// How long one pulse of the See and share nameplates row takes.
 const SHARE_PULSE_SECONDS: f32 = 1.2;
 
@@ -271,7 +284,8 @@ impl Panel {
                 let [x, y, width, _] = MODEL_AREA;
                 [x + width * 0.5, y + 70.0]
             }
-            Backstage::None => [STAGE_TEXT_X + STAGE_TEXT_WIDTH * 0.5, 380.0],
+            // The stage's column, where the model would stand.
+            Backstage::None => [1_160.0, 380.0],
         }
     }
 
@@ -348,12 +362,43 @@ impl Panel {
         );
     }
 
-    /// What the nameplate is, beside the model, and the See and share nameplates switch.
+    /// What the nameplate is, beside the model, and the See and share nameplates switch,
+    /// on a dark card at the foot of the column right of the stage (25/10/2026: words
+    /// never stand on the bare map), as tall as its words need.
     fn nameplate_words(&mut self, frame: &Frame, inputs: &Inputs<'_>) {
         let s = frame.s;
-        let x = STAGE_TEXT_X;
-        let width = STAGE_TEXT_WIDTH;
-        let mut y = 640.0;
+        let k = crate::text::style::current().scale.max(0.5);
+        let note = share_note(inputs);
+        let lines = |body: &str, chars: f32| {
+            crate::menu::sjk::wrap(body, (chars / k).max(12.0) as usize).count() as f32
+        };
+        let height = WORDS_PAD
+            + 26.0
+            + 62.0 * k.max(1.0)
+            + 8.0
+            + lines(ABOUT, ABOUT_CHARS) * 18.0 * 1.42 * k
+            + 4.0
+            + lines(ORNAMENTS, NOTE_CHARS) * 16.0 * 1.42 * k
+            + 26.0
+            + 48.0
+            + lines(note, NOTE_CHARS) * 16.0 * 1.42 * k
+            + WORDS_PAD;
+        let top = WORDS_BOTTOM - height;
+        let area = frame.rect(WORDS_X, top, WORDS_WIDTH, height);
+        let _ = self.ui.draw_list_mut().push(DrawCommand::RoundedRect {
+            rect: area,
+            radius: 16.0 * s,
+            color: color::alpha(color::SPACE, 0.88),
+        });
+        let _ = self.ui.draw_list_mut().push(DrawCommand::Border {
+            rect: area,
+            radius: 16.0 * s,
+            width: 1.2 * s,
+            color: color::alpha(color::HOLO, 0.3),
+        });
+        let x = WORDS_X + WORDS_PAD;
+        let width = WORDS_WIDTH - WORDS_PAD * 2.0;
+        let mut y = top + WORDS_PAD;
         text(
             &mut self.ui,
             TextFamily::Body,
@@ -369,41 +414,45 @@ impl Panel {
             &mut self.ui,
             TextFamily::Display,
             format_args!("Your nameplate"),
-            frame.rect(x, y, width, 62.0),
-            52.0 * s,
+            frame.rect(x, y, width, 62.0 * k.max(1.0)),
+            48.0 * s,
             color::TEXT,
             FontWeight::Semibold,
             TextAlign::Start,
         );
-        y += 70.0;
-        y = left_lines(
+        y += 62.0 * k.max(1.0) + 8.0;
+        y = super::toys::words(
             &mut self.ui,
             frame,
-            "What every SJK player sees over your head in a match: your name, then your shield, health and Force.",
+            ABOUT,
             [x, y, width],
-            (52, 3),
+            ABOUT_CHARS,
             18.0,
             color::TEXT,
-            TextAlign::Start,
         );
         y += 4.0;
-        y = left_lines(
+        y = super::toys::words(
             &mut self.ui,
             frame,
-            "Ornaments will go before your name, round your plate and under it: the dashed marks.",
+            ORNAMENTS,
             [x, y, width],
-            (60, 2),
+            NOTE_CHARS,
             16.0,
             color::MUTED,
-            TextAlign::Start,
         );
-        y += 18.0;
-        self.share_switch(frame, inputs, [x, y, width]);
+        y += 26.0;
+        self.share_switch(frame, inputs, [x, y, width], note);
     }
 
     /// See and share nameplates: its name, the switch and what it does, from `y`. The row
     /// pulses, a gold ring round it and a glow behind the switch, so it is not missed.
-    fn share_switch(&mut self, frame: &Frame, inputs: &Inputs<'_>, [x, y, width]: [f32; 3]) {
+    fn share_switch(
+        &mut self,
+        frame: &Frame,
+        inputs: &Inputs<'_>,
+        [x, y, width]: [f32; 3],
+        note: &str,
+    ) {
         let s = frame.s;
         let seconds = self.epoch.elapsed().as_secs_f32();
         #[cfg(test)]
@@ -439,23 +488,26 @@ impl Panel {
             SHARE_TOKEN,
             frame.rect(left - 4.0, y - 4.0, right - left + 8.0, 38.0),
         );
-        let note = match (inputs.enabled, inputs.share) {
-            (false, _) => "Needs the SJK identity (Settings > Network) to reach other players.",
-            (true, true) => {
-                "You see other players' nameplates, and your health, shield and Force go to the SJK players of your server."
-            }
-            (true, false) => "Off: you see no nameplates, and nothing of yours is sent.",
-        };
-        left_lines(
+        let _ = super::toys::words(
             &mut self.ui,
             frame,
             note,
-            [x, y + 40.0, width],
-            (60, 2),
+            [x, y + 48.0, width],
+            NOTE_CHARS,
             16.0,
             color::QUIET,
-            TextAlign::Start,
         );
+    }
+}
+
+/// What the line under See and share nameplates says on or off now.
+fn share_note(inputs: &Inputs<'_>) -> &'static str {
+    match (inputs.enabled, inputs.share) {
+        (false, _) => "Needs the SJK identity (Settings > Network) to reach other players.",
+        (true, true) => {
+            "You see other players' nameplates, and your health, shield and Force go to the SJK players of your server."
+        }
+        (true, false) => "Off: you see no nameplates, and nothing of yours is sent.",
     }
 }
 

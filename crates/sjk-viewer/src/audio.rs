@@ -27,6 +27,8 @@ use std::time::Instant;
 
 #[path = "audio_assets.rs"]
 mod assets;
+#[path = "audio_boombox.rs"]
+mod boombox;
 #[path = "audio_commands.rs"]
 mod commands;
 #[path = "audio_controls.rs"]
@@ -34,7 +36,10 @@ mod controls;
 #[cfg(feature = "mod-jof")]
 #[path = "jof_dialogue_audio.rs"]
 mod dialogue;
-pub(crate) use controls::{EMOTE_CHANNEL, SKIN_SOUNDS_CVAR, TOY_CHANNEL};
+pub(crate) use controls::{
+    EMOTE_CHANNEL, SKIN_SOUNDS_CVAR, TOY_CHANNEL, VOICE_CHANNEL, VOICE_VOLUME_CVAR,
+    interface_channel,
+};
 #[path = "audio_dynamic.rs"]
 mod dynamic;
 #[path = "audio_feedback.rs"]
@@ -87,6 +92,9 @@ pub(crate) struct GameAudio {
     sound_table_refresh: Option<SoundTableRefresh>,
     legacy_vfs: Option<Arc<VirtualFileSystem>>,
     map_music: Option<(SoundHandle, SoundHandle)>,
+    /// Music decoded for the current selection, outside `handles`, so it can be freed
+    /// when the music changes (`audio_assets.rs`).
+    music_tracks: Vec<assets::MusicTrack>,
     duel_music: Option<SoundHandle>,
     deferred_snapshots: VecDeque<(Instant, Snapshot, DeferredSoundChanges)>,
     music_value: Option<Vec<u8>>,
@@ -130,6 +138,8 @@ pub(crate) struct GameAudio {
     /// The Hax toy's hacking sound this frame (`hax.rs`): the hacker's slot, and where
     /// they stand (`None`: the player's own, in both ears).
     hax_loop: Option<(SourceId, Option<[f32; 3]>)>,
+    /// The toys' volume and per-toy switches (`toy_sounds.rs`), read each frame.
+    toy_sounds: crate::toy_sounds::Options,
 }
 
 impl GameAudio {
@@ -194,7 +204,7 @@ impl GameAudio {
                     PlayRequest {
                         origin: None,
                         source: SourceId(u32::MAX - 2),
-                        channel: ChannelId(channel as u32),
+                        channel: interface_channel(channel),
                         volume: 0.9,
                         attenuation: sjk_audio::Attenuation::None,
                     },
@@ -245,7 +255,9 @@ impl GameAudio {
             saber_sets_generation: None,
             box_music: Vec::with_capacity(8),
             hax_loop: None,
+            toy_sounds: Default::default(),
             map_music: None,
+            music_tracks: Vec::with_capacity(8),
             duel_music: None,
             deferred_snapshots: VecDeque::with_capacity(16),
             music_value: None,
@@ -272,10 +284,10 @@ impl GameAudio {
             trace_due: std::env::var_os("SJK_TRACE_AUDIO").map(|_| Instant::now()),
             mute: crate::audio_mute::AudioMute::default(),
         };
-        // `s_volume`/`s_musicvolume` defaults from `S_Init` in
+        // `s_volume`/`s_musicvolume`/`s_volumeVoice` defaults from `S_Init` in
         // codemp/client/snd_dma.cpp:462-466. The console overwrites these on
         // the first frame, but the initial ring fill must use them too.
-        audio.set_gains(0.5, 0.25);
+        audio.set_gains(0.5, 0.25, 1.0);
         audio
     }
 
@@ -571,31 +583,42 @@ impl GameAudio {
     /// muted here); it is the music of the toy, not the map's, so it ignores `s_musicVolume`.
     /// The Hax toy's hacking sound joins it the same way.
     fn send_box_music(&mut self) {
+        use crate::toy_sounds::Toy;
         if let Some(handle) = self.find_handle(crate::cardboard_box::MUSIC) {
             for index in 0..self.box_music.len() {
                 let (source, origin) = self.box_music[index];
-                self.send_toy_loop(handle, source, origin);
+                self.send_toy_loop(Toy::Box, handle, source, origin);
             }
         }
         if let (Some(handle), Some((source, origin))) =
             (self.find_handle(crate::hax::HACK_SOUND), self.hax_loop)
         {
-            self.send_toy_loop(handle, source, origin);
+            self.send_toy_loop(Toy::Hax, handle, source, origin);
         }
     }
 
-    /// A toy's loop on `source` at `origin` (`None`: in both ears), unless muted here.
-    fn send_toy_loop(&mut self, handle: SoundHandle, source: SourceId, origin: Option<[f32; 3]>) {
+    /// A toy's loop on `source` at `origin` (`None`: in both ears), unless muted here
+    /// (the player, or the toy's sounds in the settings).
+    fn send_toy_loop(
+        &mut self,
+        toy: crate::toy_sounds::Toy,
+        handle: SoundHandle,
+        source: SourceId,
+        origin: Option<[f32; 3]>,
+    ) {
         if self.mute.silences(source, None) {
             return;
         }
+        let Some(volume) = self.toy_sounds.gain(toy, 1.0) else {
+            return;
+        };
         self.output.send(AudioCommand::SetLoop(
             handle,
             PlayRequest {
                 origin,
                 source,
                 channel: TOY_CHANNEL,
-                volume: 1.0,
+                volume,
                 attenuation: match origin {
                     Some(_) => sjk_client::legacy_sound_attenuation(0),
                     None => sjk_audio::Attenuation::None,

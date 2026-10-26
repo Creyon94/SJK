@@ -9,6 +9,15 @@ mod animation_selection;
 mod asset_catalog;
 mod base_server_commands;
 mod body_animation;
+mod body_fade;
+pub use body_fade::{BodyFadeFrame, LegacyBodyFadeTracker, legacy_body_fade};
+/// The constants of a body's fade (`EV_BODYFADE`).
+pub mod body_fade_assets {
+    pub use crate::body_fade::{
+        BURN_START_MILLIS, CRACKLE_SOUND, DARK_SHADER, DARK_START_SOUND, ELECTRIC_SHADERS,
+        EV_BODYFADE, HUM_PERIOD_MILLIS, HUM_SOUND, LIGHT_SHADER, LIGHT_START_SOUND,
+    };
+}
 mod idle_stances;
 mod shader_remaps;
 mod siege_result;

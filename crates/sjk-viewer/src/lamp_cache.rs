@@ -31,6 +31,9 @@ const MAX_RESOLUTION: u32 = 2048;
 // receivers run the full lamp loop each frame. The bounded larger cache uses the
 // same validity/error checks; small maps still allocate only their required pages.
 const BUDGET_BYTES: u64 = 512 * 1024 * 1024;
+/// The budget's share of a card: 32 MiB per GiB of its own video memory ([`budget`]).
+const BUDGET_PER_GIB: u64 = 32 * 1024 * 1024;
+const MIN_BUDGET_BYTES: u64 = 64 * 1024 * 1024;
 const FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba16Float;
 const TEXEL_BYTES: u64 = 8;
 /// The direction layers of a directed cache (`bake_light_directed`): a unit-luminance
@@ -39,6 +42,20 @@ const DIRECTION_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgb10a2Unorm;
 const DIRECTION_TEXEL_BYTES: u64 = 4;
 /// Receiver attribute targets: two RGBA32F plus the RGBA32F cache coordinates.
 pub(crate) const ATTACHMENT_BYTES: u32 = 48;
+
+/// The cache's budget (its light layers; directions add half as much again) on a card of
+/// `dedicated` bytes of its own video memory (`video_memory::dedicated`): 32 MiB per GiB,
+/// from 64 MiB up to [`BUDGET_BYTES`] at 16 GiB and more, so a 4 to 8 GB card keeps more
+/// room for the rest of a map change (players' cards of that size ran out at map loads,
+/// 25/10/2026). [`BUDGET_BYTES`] when the size is unknown (off Windows).
+pub(crate) fn budget(dedicated: Option<u64>) -> u64 {
+    const GIB: u64 = 1 << 30;
+    dedicated
+        .filter(|&bytes| bytes > 0)
+        .map_or(BUDGET_BYTES, |bytes| {
+            (bytes.div_ceil(GIB) * BUDGET_PER_GIB).clamp(MIN_BUDGET_BYTES, BUDGET_BYTES)
+        })
+}
 
 /// CPU plan: which world vertices read which cache layer, and what each layer draws.
 pub(crate) struct Pages {
@@ -78,13 +95,15 @@ impl Pages {
         self.resolution
     }
 
-    /// `None` when the map has no lightmapped static surface worth caching.
+    /// `None` when the map has no lightmapped static surface worth caching. The light
+    /// layers' resolution halves until they fit `budget` bytes ([`budget`]).
     pub(crate) fn plan(
         positions: &[[f32; 3]],
         coordinates: &[[f32; 2]],
         indices: &[u32],
         surfaces: &[Surface],
         max_layers: u32,
+        budget: u64,
     ) -> Option<Self> {
         if std::env::var_os("SJK_LAMP_CACHE").is_some_and(|value| value == "0") {
             return None;
@@ -136,7 +155,6 @@ impl Pages {
         let mut resolution = ((median / spacing).ceil() as u32)
             .next_power_of_two()
             .clamp(MIN_RESOLUTION, MAX_RESOLUTION);
-        let budget = BUDGET_BYTES;
 
         while resolution > MIN_RESOLUTION
             && layers.len() as u64 * u64::from(resolution) * u64::from(resolution) * TEXEL_BYTES
@@ -1007,6 +1025,25 @@ impl Baker {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn the_budget_follows_the_card_up_to_512_mib() {
+        const MIB: u64 = 1 << 20;
+        let budget = |mib: u64| super::budget(Some(mib * MIB)) / MIB;
+        // DXGI's sizes of a 16, 8, 6 and 4 GB card.
+        assert_eq!(budget(16_303), 512);
+        assert_eq!(budget(24_564), 512);
+        assert_eq!(budget(8_188), 256);
+        assert_eq!(budget(6_144), 192);
+        assert_eq!(budget(4_058), 128);
+        assert_eq!(budget(512), 64, "an integrated GPU");
+        assert_eq!(super::budget(None) / MIB, 512, "off Windows");
+        assert_eq!(
+            super::budget(Some(0)) / MIB,
+            512,
+            "a driver that does not say"
+        );
+    }
+
     #[test]
     fn the_kept_bake_targets_take_20_bytes_a_texel_with_directions() {
         const MIB: u64 = 1 << 20;

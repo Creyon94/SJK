@@ -155,8 +155,13 @@ impl GpuState {
     }
 
     /// Poll the waiting transport independently of the world being rendered.
-    /// Neutral commands acknowledge gamestates without sending local exploration input.
+    /// Neutral commands acknowledge gamestates without sending local exploration input;
+    /// they carry only `BUTTON_TALK`, while the chat field is open.
     pub(crate) fn poll_resident_connection(&mut self) {
+        // An open chat field keeps the talk balloon while the map loads: the server
+        // begins the player in the new map on these commands, before the world is
+        // attached (#134). The loading screen itself is not a reason to show it.
+        let talking = self.chat.is_typing();
         let Some(session) = &mut self.resident.session else {
             return;
         };
@@ -213,7 +218,10 @@ impl GpuState {
         if now < self.resident.remote_command_due {
             return;
         }
-        let command = sjk_protocol::UserCommand::default();
+        let command = sjk_protocol::UserCommand {
+            buttons: sjk_game_jka::pmove_talk::command_buttons(0, talking),
+            ..Default::default()
+        };
         if let Err(error) = self
             .resident
             .session

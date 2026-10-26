@@ -81,6 +81,7 @@ pub(super) const COMMANDS: &[(&str, &str)] = &[
         "reply",
         "Whisper to the last player who whispered to you: reply <message>, or bare to open the chat on it",
     ),
+    (crate::player_trades::COMMAND, crate::player_trades::HELP),
     (
         crate::e2e_whispers::VERIFY_COMMAND,
         "Show the safety code of your encrypted whispers with a player, to compare with them: whisper_verify <player>",
@@ -120,6 +121,26 @@ pub(super) const COMMANDS: &[(&str, &str)] = &[
     (
         crate::unlock_toast::UPDATE_COMMAND,
         crate::unlock_toast::UPDATE_HELP,
+    ),
+    (
+        crate::official::ANNOUNCEMENT_COMMAND,
+        crate::official::ANNOUNCEMENT_HELP,
+    ),
+    (
+        crate::official::REWARDS_COMMAND,
+        crate::official::REWARDS_HELP,
+    ),
+    (
+        crate::official::ANNOUNCE_COMMAND,
+        crate::official::ANNOUNCE_HELP,
+    ),
+    (
+        crate::official::DEBUG_ANNOUNCE_COMMAND,
+        crate::official::DEBUG_ANNOUNCE_HELP,
+    ),
+    (
+        crate::official::DEBUG_REWARD_COMMAND,
+        crate::official::DEBUG_REWARD_HELP,
     ),
     (
         crate::quick_wheel::OPEN_COMMAND,
@@ -174,6 +195,7 @@ pub(super) const COMMANDS: &[(&str, &str)] = &[
         crate::console::SJK_GIF_HELP,
     ),
     (crate::emotes::COMMAND, crate::emotes::HELP),
+    (crate::boombox::TRACK_COMMAND, crate::boombox::HELP),
     (crate::block_command::COMMAND, crate::block_command::HELP),
     (
         crate::block_command::UNBLOCK_COMMAND,
@@ -966,6 +988,7 @@ impl crate::GpuState {
             }
             "reply" => return self.reply_command(args),
             crate::e2e_whispers::VERIFY_COMMAND => return self.whisper_verify_command(args),
+            crate::player_trades::COMMAND => return self.trade_command(args),
             crate::player_ids::CLIENT_LIST_COMMAND | crate::player_ids::SHOW_PLAYER_ID_COMMAND => {
                 let session = self
                     .resident
@@ -1070,12 +1093,18 @@ impl crate::GpuState {
                 self.sync_cursor_policy();
             }
             crate::emotes::COMMAND => return self.emote_command(args),
+            crate::boombox::TRACK_COMMAND => return self.boombox_command(args),
             crate::block_command::COMMAND => return self.block_command(args),
             crate::block_command::UNBLOCK_COMMAND => return self.unblock_command(args),
             crate::medal_popup::rehearsal::COMMAND => return self.debug_medal_command(args),
             crate::holocrons::rehearsal::COMMAND => return self.debug_holocron_command(args),
             crate::cards::rehearsal::COMMAND => return self.debug_open_command(args),
             crate::unlock_toast::UPDATE_COMMAND => return self.debug_update_command(args),
+            crate::official::ANNOUNCEMENT_COMMAND => return self.announcement_command(args),
+            crate::official::REWARDS_COMMAND => return self.rewards_command(),
+            crate::official::ANNOUNCE_COMMAND => return self.announce_command(),
+            crate::official::DEBUG_ANNOUNCE_COMMAND => return self.debug_announce_command(args),
+            crate::official::DEBUG_REWARD_COMMAND => return self.debug_reward_command(args),
             crate::saber_skin_command::COMMAND => return self.saber_skin_command(args),
             crate::console::SJK_CHAT_COMMAND => {
                 if let Some(console) = &mut self.console {

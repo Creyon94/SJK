@@ -71,6 +71,7 @@ const SHORT_LABELS: &[(&str, &str)] = &[
     ("cg_thirdPersonHorzOffset", "Camera side"),
     ("cg_thirdPersonCameraDamp", "Camera damping"),
     ("cg_thirdPersonTargetDamp", "Target damping"),
+    ("cg_wallGrabLock", "Lock wall-grab camera"),
     ("cg_errorDecay", "Error smoothing"),
     (crate::ghost_replay::SHOWCASE_CVAR, "Showcase tools"),
     (crate::frame_target::aa::exposure::MIN_EV, "Max darken, EV"),
@@ -100,6 +101,9 @@ const CHOICE_NAMES: &[(&str, &str, &str)] = &[
     (crate::chat_sounds::MASTER_CVAR, "0", "Off"),
     (crate::chat_sounds::MASTER_CVAR, "1", "On"),
     (crate::chat_sounds::MASTER_CVAR, "2", "Distinct (EJK)"),
+    (crate::player_trades::SIZE_CVAR, "0", "Small"),
+    (crate::player_trades::SIZE_CVAR, "1", "Normal"),
+    (crate::player_trades::SIZE_CVAR, "2", "Large"),
     (crate::holocron_popup::NOTIFICATIONS_CVAR, "0", "Off"),
     (
         crate::holocron_popup::NOTIFICATIONS_CVAR,
@@ -146,6 +150,9 @@ const CHOICE_NAMES: &[(&str, &str, &str)] = &[
     (crate::effect_aux::saber_rain_steam::CVAR, "0", "Off"),
     (crate::effect_aux::saber_rain_steam::CVAR, "1", "Everyone"),
     (crate::effect_aux::saber_rain_steam::CVAR, "2", "Only mine"),
+    (crate::stock_blades::CVAR, "0", "Off"),
+    (crate::stock_blades::CVAR, "1", "Others"),
+    (crate::stock_blades::CVAR, "2", "All"),
     ("jof.contentSource", "auto", "Auto"),
     ("jof.contentSource", "mirror", "JoF Cloud"),
     ("jof.contentSource", "origin", "jofhub.eu"),
@@ -292,6 +299,10 @@ const HELP: &[(&str, &str)] = &[
         "Most frames drawn a second; your movement is Gameplay FPS. AUTO is 125, or the monitor's rate with Detect refresh rate; 0 is off.",
     ),
     (
+        crate::runtime_settings::MENU_CAP_CVAR,
+        "Most frames a second in the menus while no game or demo runs, never above the FPS cap. 0 uses the FPS cap.",
+    ),
+    (
         crate::server_caps::OVERRIDE_CVAR,
         "On, Gameplay FPS applies on servers SJK knows to cap commands (JoF's: 125) too. Inputs may stop going through.",
     ),
@@ -329,8 +340,15 @@ const HELP: &[(&str, &str)] = &[
         "Brightness curve of the whole display, HUD included. 1 is neutral; higher lifts dark areas.",
     ),
     // AUDIO
-    ("s_volume", "Loudness of every sound but the music."),
+    (
+        "s_volume",
+        "Loudness of every sound but the music and the voices.",
+    ),
     ("s_musicVolume", "Loudness of the music."),
+    (
+        crate::audio::VOICE_VOLUME_CVAR,
+        "Loudness of voices (pain, taunts, grunts, voice commands), which ignore the effects volume, as in the original game.",
+    ),
     (
         crate::jetpack::ON_SOUND_CVAR,
         "Jetpack ignition: 1 default, 2 alternate, as in JoF EJK. Shutdown uses one fixed sound.",
@@ -387,6 +405,34 @@ const HELP: &[(&str, &str)] = &[
     (
         crate::emotes::VOLUME_CVAR,
         "Loudness of emote sounds: 1 as recorded, 2 twice as loud. Yours plays in both ears; others' follow their player.",
+    ),
+    (
+        crate::toy_sounds::VOLUME_CVAR,
+        "Loudness of every toy's sounds: 1 as made, 2 twice as loud, 0 silent. Each toy can also be silenced below.",
+    ),
+    (
+        crate::toy_sounds::Toy::Box.cvar(),
+        "Off: cardboard box sounds are not played on this PC, yours or other players'. The toy still works and is still seen.",
+    ),
+    (
+        crate::toy_sounds::Toy::Order66.cvar(),
+        "Off: Order 66 sounds are not played on this PC, yours or other players'. The toy still works and is still seen.",
+    ),
+    (
+        crate::toy_sounds::Toy::Hax.cvar(),
+        "Off: Hax sounds are not played on this PC, yours or other players'. The toy still works and is still seen.",
+    ),
+    (
+        crate::toy_sounds::Toy::Ragdoll.cvar(),
+        "Off: Ragdoll sounds are not played on this PC, yours or other players'. The toy still works and is still seen.",
+    ),
+    (
+        crate::toy_sounds::Toy::Drone.cvar(),
+        "Off: Drone sounds are not played on this PC, yours or other players'. The toy still works and is still seen.",
+    ),
+    (
+        crate::toy_sounds::Toy::Boombox.cvar(),
+        "Off: no boombox music plays on this PC, yours or other players'. Their stereo is still seen.",
     ),
     (
         crate::away_emote::SJK_CVAR,
@@ -526,8 +572,16 @@ const HELP: &[(&str, &str)] = &[
         "Team games: the red and blue scores at the top centre of the HUD, in every HUD style.",
     ),
     (
+        "cg_teamScoresScale",
+        "Size of the SJK team score boxes: 1 is the default, 2 twice as large.",
+    ),
+    (
+        "cg_teamScoresBoxes",
+        "Team scores in SJK boxes, in CTF with each flag's carrier or return time. Off: the classic plates and flag icons.",
+    ),
+    (
         "cg_drawFlagStatus",
-        "Capture the flag: the flag icons at the left (taken or dropped, yours and theirs) and a note while you carry a flag.",
+        "Capture the flag: where each flag is, in the team boxes or as icons at the left, and a note while you carry one.",
     ),
     (
         crate::version_overlay::CVAR,
@@ -626,6 +680,18 @@ const HELP: &[(&str, &str)] = &[
         "The light trail behind a swinging saber blade.",
     ),
     (
+        crate::effect_flash::REDUCE_CVAR,
+        "For players sensitive to flashing light: no saber clash flare and no screen flash from explosions or DEMP2 shocks.",
+    ),
+    (
+        crate::saber_clash_flare::CVAR,
+        "The burst of light drawn over the screen where two sabers meet, as in the original game.",
+    ),
+    (
+        crate::saber_clash_flare::SIZE_CVAR,
+        "Size of the saber clash flare: 1 as in the original game, 0 to 2.",
+    ),
+    (
         crate::team_sabers::TEAM_COLORS_CVAR,
         "Team games: sabers in the team's colour, shaders worn over it. Off changes only the other team's colour and RGB or black.",
     ),
@@ -650,8 +716,16 @@ const HELP: &[(&str, &str)] = &[
         "With the Hax trap on: players may hack you while you are away, and blow up with you. Others can see it is set.",
     ),
     (
+        crate::boombox::RANGE_CVAR,
+        "How far your boombox carries, in units (a player is 64 tall). It fades out toward the edge.",
+    ),
+    (
         crate::duel_blades::CVAR,
         "In a duel you play or follow, and on Duel servers, every blade is a normal one in its own colour.",
+    ),
+    (
+        crate::stock_blades::CVAR,
+        "For weak PCs: blades drawn stock in their colour, no shaders or effects. Others: not yours. All: yours too.",
     ),
     (
         crate::effect_aux::saber_rain_steam::CVAR,
@@ -707,7 +781,7 @@ const HELP: &[(&str, &str)] = &[
     ),
     (
         crate::duel_visibility::HIDE_OTHERS_CVAR,
-        "In a duel, hides all but you and your opponent: bodies, sabers, shots, sounds. Auto: JA+ and jaPRO servers. Always: all. Off: dark.",
+        "In a duel, hides all but you and your opponent: bodies, sabers, shots, sounds, drones. Auto: JA+, jaPRO. Always: all. Off: dark.",
     ),
     (
         crate::duel_visibility::CORPSES_CVAR,
@@ -769,6 +843,10 @@ const HELP: &[(&str, &str)] = &[
     (
         "cg_thirdPersonTargetDamp",
         "How loosely the third-person camera turns where you aim: lower is smoother, 1 is instant.",
+    ),
+    (
+        "cg_wallGrabLock",
+        "Off: stock locks; JA+ lets you look and aim the kick-off. On locks JA+ too, preventing aim during the hold.",
     ),
     (
         "cg_errorDecay",
@@ -938,6 +1016,10 @@ const HELP: &[(&str, &str)] = &[
         "Flashes the game's taskbar button when a private message arrives while you are away from the window.",
     ),
     (
+        crate::player_trades::SIZE_CVAR,
+        "How big the trade window is in the middle of the screen. Small leaves the most of the match in view.",
+    ),
+    (
         crate::holocron_popup::NOTIFICATIONS_CVAR,
         "A card for each holocron found in play; After duels holds it in a private duel until the end. The holocron waits in ESC.",
     ),
@@ -1098,8 +1180,17 @@ const HELP: &[(&str, &str)] = &[
         "Draws the scene 2 or 3 times larger each way and shrinks it: very sharp, very costly.",
     ),
     (
+        crate::frame_target::scale::CVAR,
+        "Draws the world at this % of the window and stretches it, for weak graphics cards. \
+         Menus and HUD stay sharp. Off with supersampling.",
+    ),
+    (
         crate::world_materials::filtering::mips::PICMIP_CVAR,
         "Each step halves large textures: a quarter of their video memory. For graphics cards of 4 GB or less.",
+    ),
+    (
+        crate::world_materials::filtering::mips::compress::CVAR,
+        "Keeps map and model textures compressed: a quarter or less of their video memory, a little blockier. Experimental.",
     ),
     (
         "r_softParticles",

@@ -11,7 +11,8 @@
 //!
 //! A release is the ZIP `SJK-<version>-<platform>.zip` that `release.yml`
 //! publishes with `SJK-<version>-SHA256SUMS-<platform>.txt`. Only flat file
-//! names are taken from the ZIP, beside the running program.
+//! names and macOS app bundles (`SJK.app/...`) are taken from the ZIP, beside the
+//! running program (or its bundle).
 
 use sha2::{Digest, Sha256};
 use std::io::{Read, Write};
@@ -27,6 +28,8 @@ const PLATFORM: Option<&str> = if cfg!(all(target_os = "windows", target_arch = 
     Some("windows-x64")
 } else if cfg!(all(target_os = "linux", target_arch = "x86_64")) {
     Some("linux-x64")
+} else if cfg!(all(target_os = "macos", target_arch = "aarch64")) {
+    Some("macos-arm64")
 } else {
     None
 };
@@ -427,10 +430,10 @@ fn installed_name(exe: &Path) -> PathBuf {
     }
 }
 
-/// The folder of the running program, where the update's files go.
+/// The folder of the running program (or of its macOS bundle), where the update's
+/// files go.
 fn install_directory() -> Result<PathBuf, String> {
-    program()?
-        .parent()
+    crate::platform::install_folder(&program()?)
         .map(Path::to_path_buf)
         .ok_or_else(|| "no program folder".to_owned())
 }
@@ -544,10 +547,35 @@ fn flat_name(name: &str) -> Option<&str> {
     plain.then_some(name)
 }
 
-/// Put the ZIP's files in `directory`. Each is written as `<name>.new` first;
-/// then the running files are renamed to `<name>.old` (a program cannot be
-/// overwritten while it runs on Windows, but it can be renamed) and the new ones
-/// renamed into place. A failure puts the old files back.
+/// Where a ZIP entry goes: a plain file name ([`flat_name`]), or a file inside a
+/// macOS app bundle (`SJK.app/Contents/MacOS/sjk-client`), given as the bundle's
+/// name and the path inside it. Every part of that path is a plain name.
+fn entry_place(name: &str) -> Option<(&str, Option<&str>)> {
+    match name.split_once('/') {
+        None => flat_name(name).map(|name| (name, None)),
+        Some((bundle, inside)) => {
+            let bundle = flat_name(bundle).filter(|bundle| bundle.ends_with(".app"))?;
+            let plain = inside.split('/').all(|part| {
+                !part.is_empty() && part != "." && part != ".." && !part.contains(['\\', ':'])
+            });
+            plain.then_some((bundle, Some(inside)))
+        }
+    }
+}
+
+/// Remove a file, or a folder (an app bundle) with what it holds.
+fn remove_entry(path: &Path) {
+    if path.is_dir() {
+        let _ = std::fs::remove_dir_all(path);
+    } else {
+        let _ = std::fs::remove_file(path);
+    }
+}
+
+/// Put the ZIP's files in `directory`. Each (or each app bundle) is written as
+/// `<name>.new` first; then the running files are renamed to `<name>.old` (a
+/// program cannot be overwritten while it runs on Windows, but it can be renamed)
+/// and the new ones renamed into place. A failure puts the old files back.
 fn install_zip(zip: &Path, directory: &Path) -> Result<(), String> {
     let file = std::fs::File::open(zip).map_err(|error| format!("cannot open the ZIP: {error}"))?;
     let mut archive =
@@ -560,10 +588,21 @@ fn install_zip(zip: &Path, directory: &Path) -> Result<(), String> {
         if entry.is_dir() {
             continue;
         }
-        let name = flat_name(entry.name())
-            .ok_or_else(|| format!("unexpected file in the ZIP: {}", entry.name()))?
-            .to_owned();
-        let target = directory.join(format!("{name}.new"));
+        let (name, inside) = entry_place(entry.name())
+            .ok_or_else(|| format!("unexpected file in the ZIP: {}", entry.name()))?;
+        let name = name.to_owned();
+        let mut target = directory.join(format!("{name}.new"));
+        if let Some(inside) = inside {
+            if !names.contains(&name) {
+                // A bundle left half written by a failed install.
+                remove_entry(&target);
+            }
+            target.push(inside);
+            if let Some(folder) = target.parent() {
+                std::fs::create_dir_all(folder)
+                    .map_err(|error| format!("cannot write {name}: {error}"))?;
+            }
+        }
         let mut out = std::fs::File::create(&target)
             .map_err(|error| format!("cannot write {name}: {error}"))?;
         std::io::copy(&mut entry, &mut out)
@@ -574,7 +613,9 @@ fn install_zip(zip: &Path, directory: &Path) -> Result<(), String> {
             let mode = entry.unix_mode().unwrap_or(0o644) & 0o777;
             let _ = std::fs::set_permissions(&target, std::fs::Permissions::from_mode(mode));
         }
-        names.push(name);
+        if !names.contains(&name) {
+            names.push(name);
+        }
     }
     if names.is_empty() {
         return Err("the ZIP is empty".to_owned());
@@ -584,7 +625,7 @@ fn install_zip(zip: &Path, directory: &Path) -> Result<(), String> {
     for name in &names {
         let current = directory.join(name);
         let old = directory.join(format!("{name}.old"));
-        let _ = std::fs::remove_file(&old);
+        remove_entry(&old);
         let swapped = (!current.exists() || std::fs::rename(&current, &old).is_ok())
             && std::fs::rename(directory.join(format!("{name}.new")), &current).is_ok();
         if swapped {
@@ -601,11 +642,11 @@ fn install_zip(zip: &Path, directory: &Path) -> Result<(), String> {
     if let Some(error) = failure {
         for name in moved {
             let current = directory.join(name);
-            let _ = std::fs::remove_file(&current);
+            remove_entry(&current);
             let _ = std::fs::rename(directory.join(format!("{name}.old")), &current);
         }
         for name in &names {
-            let _ = std::fs::remove_file(directory.join(format!("{name}.new")));
+            remove_entry(&directory.join(format!("{name}.new")));
         }
         return Err(error);
     }
@@ -624,7 +665,7 @@ pub(crate) fn clean_up_old_files() {
         let name = entry.file_name();
         let name = name.to_string_lossy();
         if name.ends_with(".old") && name.to_ascii_lowercase().contains("sjk") {
-            let _ = std::fs::remove_file(entry.path());
+            remove_entry(&entry.path());
         }
     }
     // A staging folder left by a crash.
@@ -662,9 +703,11 @@ pub(crate) fn open_page(url: &str) {
     }
     let _ = if cfg!(target_os = "windows") {
         // `start` reads its first quoted argument as a window title.
-        std::process::Command::new("cmd")
+        crate::platform::hidden_command("cmd")
             .args(["/C", "start", "", url])
             .spawn()
+    } else if cfg!(target_os = "macos") {
+        std::process::Command::new("open").arg(url).spawn()
     } else {
         std::process::Command::new("xdg-open").arg(url).spawn()
     };
@@ -862,6 +905,57 @@ mod tests {
             b"readme"
         );
         assert!(!root.join("sjk.exe.new").exists());
+    }
+
+    #[test]
+    fn a_mac_app_bundle_is_taken_whole_from_the_zip() {
+        assert_eq!(
+            entry_place("SJK.app/Contents/MacOS/sjk-client"),
+            Some(("SJK.app", Some("Contents/MacOS/sjk-client")))
+        );
+        assert_eq!(entry_place("sjk-server"), Some(("sjk-server", None)));
+        for bad in [
+            "base/x.pk3",
+            "SJK.app/../evil",
+            "SJK.app//x",
+            "SJK.app/Contents/a\\b",
+            "../SJK.app/x",
+            ".app/x",
+        ] {
+            assert_eq!(entry_place(bad), None, "{bad}");
+        }
+        let directory = tempfile::tempdir().unwrap();
+        let root = directory.path();
+        let program = root.join("SJK.app/Contents/MacOS/sjk-client");
+        std::fs::create_dir_all(program.parent().unwrap()).unwrap();
+        std::fs::write(&program, b"old").unwrap();
+        std::fs::write(root.join("SJK.app/Contents/stale.txt"), b"x").unwrap();
+        let zip_path = root.join("update.zip");
+        {
+            let mut writer = zip::ZipWriter::new(std::fs::File::create(&zip_path).unwrap());
+            let options = zip::write::SimpleFileOptions::default();
+            writer
+                .start_file("SJK.app/Contents/MacOS/sjk-client", options)
+                .unwrap();
+            writer.write_all(b"new").unwrap();
+            writer
+                .start_file("SJK.app/Contents/Info.plist", options)
+                .unwrap();
+            writer.write_all(b"plist").unwrap();
+            writer.start_file("sjk-server", options).unwrap();
+            writer.write_all(b"server").unwrap();
+            writer.finish().unwrap();
+        }
+        install_zip(&zip_path, root).unwrap();
+        assert_eq!(std::fs::read(&program).unwrap(), b"new");
+        assert!(root.join("SJK.app/Contents/Info.plist").is_file());
+        // The whole bundle was swapped: nothing of the old one stays inside.
+        assert!(!root.join("SJK.app/Contents/stale.txt").exists());
+        assert_eq!(
+            std::fs::read(root.join("SJK.app.old/Contents/MacOS/sjk-client")).unwrap(),
+            b"old"
+        );
+        assert!(!root.join("SJK.app.new").exists());
     }
 
     #[test]

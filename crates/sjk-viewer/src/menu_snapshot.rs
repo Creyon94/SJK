@@ -24,7 +24,7 @@ use crate::menu::art::{ArtPiece, ArtSet};
 use crate::menu::classic::layout::{Entry, Page, Panel, Span};
 use crate::menu::classic::panel::{Frame, PanelFrame};
 use crate::settings::SettingsMenu;
-use image::{Rgba, RgbaImage};
+use image::{GrayImage, Rgba, RgbaImage};
 use sjk_ui::{DrawCommand, DrawList, Rect};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -225,7 +225,7 @@ fn raster(
     image: &mut RgbaImage,
     list: &DrawList,
     vertices: &[crate::text::TextVertex],
-    atlas: &RgbaImage,
+    atlas: &GrayImage,
     icons: &HashMap<u32, RgbaImage>,
 ) {
     let decoded = crate::menu::art::decoded();
@@ -468,10 +468,10 @@ fn raster(
 }
 
 /// Draw text `vertices` from `atlas` over `image`.
-fn raster_text(image: &mut RgbaImage, vertices: &[crate::text::TextVertex], atlas: &RgbaImage) {
+fn raster_text(image: &mut RgbaImage, vertices: &[crate::text::TextVertex], atlas: &GrayImage) {
     // Each glyph is six vertices `[x, y, u, v, r, g, b, a]` in clip space,
-    // top-left first and bottom-right third; its coverage is the atlas
-    // alpha averaged over each pixel's footprint. A wide glyph's coverage is the
+    // top-left first and bottom-right third; its coverage is the atlas's
+    // averaged over each pixel's footprint. A wide glyph's coverage is the
     // wide atlas's (`text::wide`), and an emoji draws its own colours from the emoji
     // atlas (`text::emoji`; black for a shadow), as `text.wgsl` picks them.
     use crate::text::{emoji, wide};
@@ -517,7 +517,7 @@ fn raster_text(image: &mut RgbaImage, vertices: &[crate::text::TextVertex], atla
                     .unwrap_or(0);
                 ([tint[0], tint[1], tint[2]], f32::from(coverage) / 255.0)
             } else {
-                let coverage = atlas.get_pixel(tx, ty).0[3];
+                let coverage = atlas.get_pixel(tx, ty).0[0];
                 ([tint[0], tint[1], tint[2]], f32::from(coverage) / 255.0)
             }
         };
@@ -1343,6 +1343,7 @@ fn identity_page(shots: &Snapshot, art: ArtSet) {
         profiles: std::collections::HashMap::new(),
         model_checks: std::collections::HashMap::new(),
         profiles_revision: 0,
+        me_revision: 0,
         notice: Some("saved".to_owned()),
         revision: 0,
         report: None,
@@ -1363,6 +1364,13 @@ fn identity_page(shots: &Snapshot, art: ArtSet) {
         kyber: None,
         shop: None,
         trade: None,
+        trades: None,
+        announcements: Vec::new(),
+        announcements_revision: 0,
+        rewards: None,
+        rewards_revision: 0,
+        claim: None,
+        announce: None,
         public_key: String::new(),
     };
     let online = hub(Status::Online, "^1Sol", &["^4Vulpes", "Padawan"]);
@@ -1720,6 +1728,7 @@ fn sjk_home_snapshot() {
             key_id: "0123456789abcdef",
             tier: None,
             gif: None,
+            official: None,
         },
         DockLine {
             name: "^1Fox",
@@ -1732,6 +1741,7 @@ fn sjk_home_snapshot() {
             key_id: "fedcba9876543210",
             tier: None,
             gif: None,
+            official: None,
         },
         DockLine {
             name: "Kyle",
@@ -1744,6 +1754,7 @@ fn sjk_home_snapshot() {
             key_id: "00000000000000ff",
             tier: None,
             gif: None,
+            official: None,
         },
     ];
     // Name, window, page, chosen entry, focused server, servers.
@@ -1836,8 +1847,8 @@ fn sjk_home_snapshot() {
 
 /// The text of an SJK UI snapshot, each family's vertices with its atlas.
 struct SjkShotFonts<'a> {
-    display: (&'a [crate::text::TextVertex], &'a RgbaImage),
-    body: (&'a [crate::text::TextVertex], &'a RgbaImage),
+    display: (&'a [crate::text::TextVertex], &'a GrayImage),
+    body: (&'a [crate::text::TextVertex], &'a GrayImage),
 }
 
 /// Save SJK UI snapshot `name`: `backdrop` covering the window (cropped at
@@ -1874,7 +1885,9 @@ fn save_sjk_shot(
 
 /// The SJK UI's Settings over the duel6 levelshot: Interface with a changed
 /// slider focused (its dot and reset arrow), Display with a list open, a
-/// search's results, Graphics scrolled to its weather, and at 4:3.
+/// search's results, Graphics scrolled to its weather, at 4:3, the weak-PC
+/// rows (Gameplay's stock blades, Display's menu FPS cap, Graphics' render scale)
+/// and Graphics' texture compression.
 #[test]
 #[ignore = "reads the installed game data named by JKA_GAME_DATA"]
 fn sjk_settings_snapshot() {
@@ -1911,7 +1924,7 @@ fn sjk_settings_snapshot() {
         bool,
         Option<&'a str>,
     );
-    let cases: [Case; 7] = [
+    let cases: [Case; 11] = [
         (
             "sjk-settings",
             VIEWPORT_WIDE,
@@ -1965,6 +1978,38 @@ fn sjk_settings_snapshot() {
             VIEWPORT_WIDE,
             2,
             Some("r_drawfog"),
+            false,
+            None,
+        ),
+        (
+            "sjk-settings-stock-blades",
+            VIEWPORT_WIDE,
+            6,
+            Some(crate::stock_blades::CVAR),
+            false,
+            None,
+        ),
+        (
+            "sjk-settings-menu-fps",
+            VIEWPORT_WIDE,
+            1,
+            Some(crate::runtime_settings::MENU_CAP_CVAR),
+            false,
+            None,
+        ),
+        (
+            "sjk-settings-render-scale",
+            VIEWPORT_WIDE,
+            2,
+            Some(crate::frame_target::scale::CVAR),
+            false,
+            None,
+        ),
+        (
+            "sjk-settings-texture-compression",
+            VIEWPORT_WIDE,
+            2,
+            Some(crate::world_materials::filtering::mips::compress::CVAR),
             false,
             None,
         ),
@@ -2132,7 +2177,7 @@ fn settings_panel_snapshot() {
             crate::text::retail_font::load(&crate::text::retail_font::MENU).expect("SJK Menu"),
         ),
     ];
-    let cases: [(&str, Page, Entry, Frame, &str); 5] = [
+    let cases: [(&str, Page, Entry, Frame, &str); 9] = [
         (
             "panel-interface",
             Page::Gameplay,
@@ -2167,6 +2212,34 @@ fn settings_panel_snapshot() {
             Entry::GameOptions,
             Frame::InGame,
             "cg_auraShell",
+        ),
+        (
+            "panel-stock-blades",
+            Page::Gameplay,
+            Entry::GameOptions,
+            Frame::Main,
+            crate::stock_blades::CVAR,
+        ),
+        (
+            "panel-menu-fps",
+            Page::Graphics,
+            Entry::Video,
+            Frame::Main,
+            crate::runtime_settings::MENU_CAP_CVAR,
+        ),
+        (
+            "panel-render-scale",
+            Page::Graphics,
+            Entry::RenderImage,
+            Frame::Main,
+            crate::frame_target::scale::CVAR,
+        ),
+        (
+            "panel-texture-compression",
+            Page::Graphics,
+            Entry::RenderImage,
+            Frame::Main,
+            crate::world_materials::filtering::mips::compress::CVAR,
         ),
     ];
     for (suffix, font) in fonts {
@@ -2648,6 +2721,7 @@ fn medals_snapshot() {
         profiles: HashMap::new(),
         model_checks: HashMap::new(),
         profiles_revision: 0,
+        me_revision: 0,
         notice: None,
         revision: 0,
         report: None,
@@ -2668,6 +2742,13 @@ fn medals_snapshot() {
         kyber: None,
         shop: None,
         trade: None,
+        trades: None,
+        announcements: Vec::new(),
+        announcements_revision: 0,
+        rewards: None,
+        rewards_revision: 0,
+        claim: None,
+        announce: None,
         public_key: String::new(),
     };
     let with = hub(shot_medals());
@@ -2879,7 +2960,7 @@ fn strafe_aura_snapshot() {
             &mut image,
             &list,
             &[],
-            &RgbaImage::new(1, 1),
+            &GrayImage::new(1, 1),
             &HashMap::new(),
         );
         let directory = workspace_root().join("target/menu-snapshots");

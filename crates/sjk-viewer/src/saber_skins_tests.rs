@@ -446,8 +446,9 @@ fn a_skinned_blade_ends_round_not_square() {
         "let into = clamp((along - (length - cap)) / max(cap, 0.0001), 0.0, 1.0);",
         "return select(sqrt(max(1.0 - into * into, 0.0001)), 1.0, into <= 0.0);",
         "/ skin_tip_taper(along, input.length, skin.core_fringe.w * input.radius);",
-        "var across = input.blade.x / (2.0 * input.radius) * core_stretch(input);",
-        "let footprint = pixel / (2.0 * input.radius) * core_stretch(input);",
+        "return core_coordinates_at(input, line, line.stretch);",
+        "let across = input.blade.x / (2.0 * input.radius) * stretch - line.moved;",
+        "let footprint = pixel / (2.0 * input.radius) * line.stretch;",
         "let beyond = max(input.blade.y - input.shaft, 0.0);",
         "shaded.blade = vec2(x / widen, min(input.blade.y, input.shaft) + beyond / widen);",
         "let radial = select(abs(x), length(vec2(x, beyond)), beyond > 0.0);",
@@ -456,6 +457,42 @@ fn a_skinned_blade_ends_round_not_square() {
         "core *= clamp((0.5 - abs(uv.x - 0.5)) / max(footprint, 0.00001) + 0.5, 0.0, 1.0);",
     ] {
         assert!(shader.contains(line), "saber.wgsl lost {line:?}");
+    }
+}
+
+#[test]
+fn a_skinned_blades_tip_is_filtered_as_its_shaft_is() {
+    // Round 23 (players' reports after 2026.1021.1): the core is sampled with the
+    // derivatives of its coordinates before the rounded tip narrows them, else the tip's
+    // narrowing picks the core image's smallest mip and draws a bright rim round the tip.
+    // Along the shaft the two coordinates are the same, so the shaft looks as before.
+    let (length, radius) = (40.0, 1.0);
+    let cap = crate::blade_skin_file::DEFAULT_TIP * radius;
+    for along in [-1.0, 0.0, 20.0, length - cap] {
+        assert_eq!(tip_taper(along, length, cap), 1.0, "{along}");
+    }
+    let shader = include_str!("saber.wgsl");
+    for line in [
+        // One skin lookup (`core_line`) gives both coordinates, not one lookup each.
+        "let line = core_line(input);",
+        "let core_uv = core_coordinates_at(input, line, line.stretch);",
+        "let filter_uv = core_coordinates_at(input, line, line.breath);",
+        "let core_dx = dpdx(filter_uv);",
+        "let core_dy = dpdy(filter_uv);",
+        "let stretch = breath\n        / skin_tip_taper(along, input.length, skin.core_fringe.w * input.radius);",
+        // A signature's core fades out before its quad's sides.
+        "core *= 1.0 - smoothstep(0.36, 0.5, abs(uv.x - 0.5));",
+    ] {
+        assert!(shader.contains(line), "saber.wgsl lost {line:?}");
+    }
+    // No second skin lookup per pixel for the filter alone (it ran on every skinned blade).
+    for gone in [
+        "dpdx(core_uv)",
+        "dpdy(core_uv)",
+        "fn core_breath(",
+        "fn core_stretch(",
+    ] {
+        assert!(!shader.contains(gone), "saber.wgsl has {gone:?} again");
     }
 }
 
@@ -1106,6 +1143,46 @@ fn a_click_on_a_staff_goes_to_the_half_it_lands_on() {
     assert_eq!(staff_half_at([460.0, 320.0]), Some(true));
     set_staff_halves(None);
     assert_eq!(staff_half_at([460.0, 320.0]), None);
+}
+
+/// Stock blades for weak PCs (`cg_stockBlades`): 1 draws other players' blades stock,
+/// the local player's own (in its slot) keeping its skin; 2 every blade. Thrown blades
+/// follow (`blade_color`), the menus' preview (`local`) and the sounds do not.
+#[test]
+fn stock_blades_draw_others_or_every_blade_stock() {
+    use crate::stock_blades::StockBlades;
+    let worn = sample_color();
+    let mut skins = SaberSkins::default();
+    skins.follow_looks(1, 1, |client| (client == 5).then_some(worn));
+    skins.set_local(Some(2), Some(worn));
+    let index = |skins: &SaberSkins, entity| skins.get(entity).map(|skin| skin.index);
+    // Off (the default): everyone's skin.
+    assert_eq!(index(&skins, 3), Some(worn.index), "the local player's own");
+    assert_eq!(index(&skins, 6), Some(worn.index));
+    skins.set_stock(StockBlades::Others);
+    assert_eq!(index(&skins, 3), Some(worn.index), "yours keeps its skin");
+    assert_eq!(skins.get(6), None);
+    let stock = BladeColor::Retail(Color::Green);
+    assert!(matches!(
+        skins.blade_color(6, stock),
+        BladeColor::Retail(Color::Green)
+    ));
+    assert!(matches!(skins.blade_color(3, stock), BladeColor::Skin(_)));
+    skins.set_stock(StockBlades::All);
+    assert_eq!(skins.get(3), None);
+    assert_eq!(skins.get(6), None);
+    // The menus still show what the player wears, and everyone is heard as chosen.
+    assert_eq!(skins.local().map(|skin| skin.index), Some(worn.index));
+    assert_eq!(skins.sound_sets()[5], Some(worn.index));
+    assert_eq!(skins.sound_sets()[2], Some(worn.index));
+    assert_eq!(skins.sound_of(6), Some(worn.index));
+    // With no session (no slot of one's own), every player is another.
+    skins.set_local(None, Some(worn));
+    skins.set_stock(StockBlades::Others);
+    assert_eq!(skins.get(6), None);
+    assert_eq!(skins.local().map(|skin| skin.index), Some(worn.index));
+    skins.set_stock(StockBlades::Off);
+    assert_eq!(index(&skins, 6), Some(worn.index));
 }
 
 /// The sound set each slot is heard with is taken apart from its blade (Nib's idea,

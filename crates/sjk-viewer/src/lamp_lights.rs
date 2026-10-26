@@ -16,6 +16,7 @@ mod refine;
 mod selection;
 #[path = "lamp_visibility.rs"]
 mod visibility;
+pub(crate) use visibility::FORMAT as VISIBILITY_FORMAT;
 
 /// One lamp: an area light seen from beyond its own size.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -78,8 +79,9 @@ impl LampSet {
 
 /// GPU form: a grid uniform and one storage buffer of vec4<u32> holding the lamps (five
 /// vec4 of floats each, bit-cast), the cell table (two cells per vec4: offset, count) and
-/// the cell lamp lists (four indices per vec4). One buffer keeps the compute stage of the
-/// probe update within the eight storage buffers a baseline device allows.
+/// the cell lamp lists (eight 16-bit indices per vec4 while every index fits, else four
+/// 32-bit ones; [`NARROW_LISTS`]). One buffer keeps the compute stage of the probe update
+/// within the eight storage buffers a baseline device allows.
 pub(crate) struct Gpu {
     pub(crate) grid: wgpu::Buffer,
     pub(crate) data: wgpu::Buffer,
@@ -91,6 +93,11 @@ pub(crate) struct Gpu {
     door_tiles: u32,
     doors: Option<crate::world_materials::mover_occlusion::Doors>,
 }
+
+/// Lamp counts up to which the cell lists hold 16-bit indices (`lamp_list_lamp`), half the
+/// memory of 32-bit ones: the refined lists of mp/ffa5 (10,023 lamps, 34.6 million
+/// entries) took 132 of the buffer's 150 MiB until 25/10/2026.
+const NARROW_LISTS: usize = 1 << 16;
 
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
@@ -177,11 +184,8 @@ impl Gpu {
         } else {
             &set.cell_lamps
         };
-        for quad in lists.chunks(4) {
-            let mut entry = [0u32; 4];
-            entry[..quad.len()].copy_from_slice(quad);
-            data.push(entry);
-        }
+        let narrow = lamps.len() <= NARROW_LISTS;
+        push_lists(&mut data, lists, narrow);
         let threshold_offset = data.len() as u32;
         for values in set.thresholds.chunks(4) {
             let mut entry = [0u32; 4];
@@ -203,7 +207,7 @@ impl Gpu {
             selection: [
                 threshold_offset,
                 u32::from(!set.thresholds.is_empty()),
-                0,
+                u32::from(narrow),
                 doors.tiles.len() as u32,
             ],
         };
@@ -277,6 +281,23 @@ impl Gpu {
     }
 }
 
+/// Append the cell lamp lists to `data`: with `narrow`, two 16-bit indices to a word, the
+/// even entry in the low half (`lamp_list_lamp` reads them).
+fn push_lists(data: &mut Vec<[u32; 4]>, lists: &[u32], narrow: bool) {
+    for chunk in lists.chunks(if narrow { 8 } else { 4 }) {
+        let mut entry = [0u32; 4];
+        if narrow {
+            for (k, &lamp) in chunk.iter().enumerate() {
+                debug_assert!(lamp < 1 << 16);
+                entry[k / 2] |= lamp << (16 * (k % 2));
+            }
+        } else {
+            entry[..chunk.len()].copy_from_slice(chunk);
+        }
+        data.push(entry);
+    }
+}
+
 pub(crate) const SHADER: &str = include_str!("lamp_lights.wgsl");
 
 /// The lamp module at `group` from `base`: bindings `base`, `base+1` for the lamps and,
@@ -317,4 +338,31 @@ pub(crate) fn source(group: u32, base: u32, shadowed: bool) -> String {
         );
     }
     source
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// `lamp_list_lamp` of lamp_lights.wgsl.
+    fn list_lamp(data: &[[u32; 4]], narrow: bool, k: u32) -> u32 {
+        if !narrow {
+            return data[(k / 4) as usize][(k & 3) as usize];
+        }
+        let word = data[(k / 8) as usize][((k / 2) & 3) as usize];
+        (word >> ((k & 1) * 16)) & 0xffff
+    }
+
+    #[test]
+    fn narrow_lists_read_back_the_same_lamps() {
+        let lists: Vec<u32> = (0..1001).map(|k| (k * 7919 + 65535) % 65536).collect();
+        for narrow in [false, true] {
+            let mut data = Vec::new();
+            push_lists(&mut data, &lists, narrow);
+            assert_eq!(data.len(), lists.len().div_ceil(if narrow { 8 } else { 4 }));
+            for (k, &lamp) in lists.iter().enumerate() {
+                assert_eq!(list_lamp(&data, narrow, k as u32), lamp, "entry {k}");
+            }
+        }
+    }
 }

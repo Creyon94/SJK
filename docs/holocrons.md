@@ -156,9 +156,13 @@ The client's list is [kyber.rs](../crates/sjk-viewer/src/kyber.rs) (`kyber::TIER
   a holocron's shader does. Medal shaders never come out.
 - **Rewards** (`kyber::REWARDS`, pinned against `achievements::ALL`): Uncommon for
   `first_blood`, `streak_5`, `ledge_10`, `duel_wins_10`, `captures_10`, `maps_10`,
-  `servers_5`, `hours_10`, `storyteller`, `bug_reporter`; Rare for `kills_100`,
-  `saber_kills_100`, `streak_10`, `dark_side_25`, `arsenal`, `maps_25`, `surveyor`,
-  `decorated`; Legendary for `duel_wins_100`, `hours_100`; Mythical for `kills_1000`. A hub
+  `servers_5`, `hours_10`, `storyteller`, `bug_reporter`, `holocrons_10`, `craft_blade`,
+  `order66_kill`, `box_minutes_10`, `duel_close_call`, `saber_throw_far`; Rare for
+  `kills_100`, `saber_kills_100`, `streak_10`, `dark_side_25`, `arsenal`, `maps_25`,
+  `surveyor` (retired 26/10/2026: its holders keep their crystal), `decorated`,
+  `holocrons_50`, `mythical_find`, `craft_finishes`, `duel_flawless`, `duel_partners_25`,
+  `thermal_return`; Legendary for `duel_wins_100`, `hours_100`, `holocrons_200`,
+  `full_set`; Mythical for `kills_1000`. A hub
   that sends `reward` on an achievement replaces the client's word for it
   (`kyber::follow_rewards`, lock-free, read by the boards every frame). The hub grants a
   crystal when the achievement unlocks and backfills those already unlocked; clearing an
@@ -318,7 +322,10 @@ for a gift, the team's note. It follows the medal pop-up
 - A kyber crystal the hub grants arrives the same way, as a gift does: "New kyber crystal",
   "Earned from an achievement" (or "Earned: <achievement>" when the hub names it in the
   row's note, which is then not quoted), its name, when, and "Earned from achievements.
-  Always a saber shader." in place of the drop odds; its gem until its picture comes.
+  Always a saber shader." in place of the drop odds; its own picture
+  (`gfx/sjk/holocron_kyber_<tier>`, the atlas cells 4 to 7) since 27/10/2026, its gem only
+  when that picture is missing (until then the pop-up always drew the gem, which read as a
+  plain holocron: report 150).
 - Each arrives in a ceremony of the medal's timing and light in the tier's colour (it comes
   down into place, rings and sparks run out, a ring of ticks turns, a glow breathes while it
   waits, the words fade up one group after another) with the multiplayer game's fanfare
@@ -336,6 +343,9 @@ for a gift, the team's note. It follows the medal pop-up
 - The identity worker reads the own profile again soon (at most once every 30 seconds) when
   a drop for the player's own key arrives in the feed, and the pop-up sees the new holocron
   within half a second of the profile arriving.
+- A contributor reward's holocrons (25/10/2026, [hub-chat.md](hub-chat.md#announcements-and-reward-rounds))
+  are gifts: claiming the reward brings the profile that holds them, and they arrive
+  through this pop-up as any gift does.
 
 ### Chat lines
 

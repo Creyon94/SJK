@@ -410,6 +410,7 @@ fn build(
             geometry.1,
             &surfaces,
             device.limits().max_texture_array_layers,
+            super::lamp_cache::budget(crate::video_memory::dedicated()),
         );
     }
     result.0.environment_policy = super::lighting_environment::Policy::from_bsp(bsp);

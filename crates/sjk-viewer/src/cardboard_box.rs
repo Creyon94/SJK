@@ -273,6 +273,12 @@ impl CardboardBox {
         self.on
     }
 
+    /// Whether the player hides in their box: on, alive and playing (Tactical
+    /// Espionage counts this time, `achievements/tracker.rs`).
+    pub(crate) fn hiding(&self) -> bool {
+        self.crouching
+    }
+
     /// Hold crouch in `command` while the box is on and the player plays, as a held
     /// `+movedown` would (over a jump), and note a `+use` press for [`Self::update`].
     pub(crate) fn shape_command(&mut self, command: &mut UserCommand) {
@@ -816,13 +822,14 @@ impl GpuState {
             self.cardboard_box.sounds_registered = Some(audio.generation());
         }
         for cue in self.cardboard_box.take_cues() {
-            let source = sjk_audio::SourceId(u32::from(cue.slot));
-            match cue.origin {
-                Some(origin) => {
-                    audio.play_on_channel(cue.path, 1.0, origin, source, crate::audio::TOY_CHANNEL)
-                }
-                None => audio.play_local(cue.path, 1.0, source, crate::audio::TOY_CHANNEL),
-            }
+            audio.play_toy(
+                crate::toy_sounds::Toy::Box,
+                cue.path,
+                1.0,
+                cue.origin,
+                sjk_audio::SourceId(u32::from(cue.slot)),
+                crate::audio::TOY_CHANNEL,
+            );
         }
     }
 }

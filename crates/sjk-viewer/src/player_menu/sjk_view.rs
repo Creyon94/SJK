@@ -1325,6 +1325,9 @@ impl PlayerMenu {
             match self.blade_choice.get(choice).flatten() {
                 None => swatch::small_stock(self.canvas.draw_list_mut(), frame, rect, colour),
                 Some(skin) => {
+                    if hovered || choice == chosen {
+                        crate::blade_pictures::focus(skin.id);
+                    }
                     let look = self.blade_choice.look(skin.id);
                     let _ = swatch::small_blade(
                         self.canvas.draw_list_mut(),

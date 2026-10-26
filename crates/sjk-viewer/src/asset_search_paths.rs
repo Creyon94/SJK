@@ -368,6 +368,8 @@ impl Options {
         crate::order66::mount(&mut vfs)?;
         crate::hax::mount(&mut vfs)?;
         crate::ragdoll::mount(&mut vfs)?;
+        crate::drone::mount(&mut vfs)?;
+        crate::boombox::mount(&mut vfs)?;
         crate::saber_petals::mount(&mut vfs)?;
         super::force_presets::mount(&mut vfs)?;
         crate::card_outline::mount(&mut vfs)?;

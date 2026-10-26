@@ -7,9 +7,12 @@
 //! A symbol keeps its code point for good: a new one takes the next free point of its
 //! group in the script and gets its name here.
 
-/// The rarity marks, Common to Mythical: one holocron octagon for every rank, the marks
-/// inside it growing (empty, a core, an axis, a cross round a core, a second frame).
-pub(crate) const RARITY: [char; 5] = ['\u{E000}', '\u{E001}', '\u{E002}', '\u{E003}', '\u{E004}'];
+/// The rarity marks, Common to Unique: one holocron octagon for every rank, the marks
+/// inside it growing (empty, a core, an axis, a cross round a core, a second frame), then
+/// Unique's (25/10/2026): the two frames round a solid four-point star.
+pub(crate) const RARITY: [char; 6] = [
+    '\u{E000}', '\u{E001}', '\u{E002}', '\u{E003}', '\u{E004}', '\u{E005}',
+];
 
 /// The cards' finishes: Normal (a card), Holo (a card with slanting bands), Solar (a
 /// card with a sun at its heart).
@@ -42,9 +45,9 @@ const ICONS: [char; 10] = [
 pub(crate) const SHARD: char = '\u{E030}';
 
 /// The rarity mark of a card rarity (`crate::cards::RARITIES` order, Common to
-/// Mythical).
+/// Mythical): cards have no Unique, so an index past Mythical keeps Mythical's.
 pub(crate) fn card_rarity(index: usize) -> char {
-    RARITY[index.min(RARITY.len() - 1)]
+    RARITY[index.min(crate::cards::RARITIES.len() - 1)]
 }
 
 /// The mark of a card finish (`crate::cards::FINISHES` order).
@@ -80,6 +83,7 @@ mod tests {
         assert_eq!(card_rarity(0), '\u{E000}');
         assert_eq!(card_rarity(3), '\u{E003}');
         assert_eq!(card_rarity(4), '\u{E004}');
+        assert_eq!(card_rarity(9), '\u{E004}', "a card is never Unique");
         use crate::unlockables::Rarity;
         assert_eq!(Rarity::Common.symbol(), '\u{E000}');
         assert_eq!(
@@ -88,6 +92,7 @@ mod tests {
             "an Uncommon holocron"
         );
         assert_eq!(Rarity::Mythical.symbol(), '\u{E004}', "a Mythical one");
+        assert_eq!(Rarity::Unique.symbol(), '\u{E005}', "rarityUnique");
         assert_eq!(finish(2), '\u{E012}');
     }
 }

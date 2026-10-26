@@ -103,6 +103,9 @@ struct HubLine {
     /// The line is a holocron drop of this tier (`holocrons/line.rs`): in the tier's
     /// colour, a gem before it instead of the verified tick.
     tier: Option<&'static crate::holocrons::Tier>,
+    /// The line is the SJK team's (an announcement or a reward round, `official.rs`):
+    /// "SJK" in the SJK UI's accent gold, no label.
+    official: bool,
 }
 
 /// Bounded incoming history and the currently active unboxed composer.
@@ -148,6 +151,9 @@ pub(crate) struct ChatOverlay {
     sjk_seen: Option<u64>,
     /// The reading of the hub (`ChatState::loaded`) whose backlog was marked.
     sjk_epoch: Option<u64>,
+    /// The announcements whose lines the feed has shown (`chat/sjk.rs`): one the service
+    /// put at the chat's end takes the newest message's id, so it is followed by its own.
+    sjk_officials: Vec<u64>,
     /// The serial of the last SJK chat outcome shown.
     sjk_outcome: u64,
     /// The SJK chat's revision, outcome serial and mutes revision last followed.
@@ -179,6 +185,13 @@ pub(crate) struct ChatOverlay {
     encrypted_slots: u64,
     /// Safety code asked from a card, for this slot, until the frame takes it.
     safety_request: Option<u16>,
+    /// The client slots (bits) whose player's last encrypted whisper to us can be
+    /// reported (`e2e_whispers.rs`): their card offers Report.
+    reportable_slots: u64,
+    /// Report asked from a card, for this slot, until the frame takes it.
+    report_request: Option<u16>,
+    /// The slot whose card asked to trade, for the frame (`crate::player_trades`).
+    trade_request: Option<u16>,
     /// The feed draws during a world shot, which has no session.
     #[cfg(test)]
     pub(crate) for_shot: bool,
@@ -251,6 +264,7 @@ impl ChatOverlay {
             emojis: emoji::Emojis::default(),
             sjk_seen: None,
             sjk_epoch: None,
+            sjk_officials: Vec::new(),
             sjk_outcome: 0,
             sjk_mark: None,
             sjk_sound_at: None,
@@ -264,6 +278,9 @@ impl ChatOverlay {
             last_channel: (Channel::Global, None),
             encrypted_slots: 0,
             safety_request: None,
+            reportable_slots: 0,
+            report_request: None,
+            trade_request: None,
             #[cfg(test)]
             for_shot: false,
         }
@@ -282,6 +299,26 @@ impl ChatOverlay {
     /// The slot whose safety code a card asked for, once.
     pub(crate) fn take_safety_request(&mut self) -> Option<u16> {
         self.safety_request.take()
+    }
+
+    /// The client slots (bits) whose player's last encrypted whisper can be reported.
+    pub(crate) fn set_reportable_slots(&mut self, slots: u64) {
+        self.reportable_slots = slots;
+    }
+
+    /// Whether the last encrypted whisper from the player in `slot` can be reported.
+    fn reportable(&self, slot: u16) -> bool {
+        slot < 64 && self.reportable_slots & (1 << slot) != 0
+    }
+
+    /// The slot whose player a card asked to report, once.
+    pub(crate) fn take_report_request(&mut self) -> Option<u16> {
+        self.report_request.take()
+    }
+
+    /// The slot a card asked to trade with, once.
+    pub(crate) fn take_trade_request(&mut self) -> Option<u16> {
+        self.trade_request.take()
     }
 
     /// An overlay showing the installed world's emoji pictures.
@@ -564,6 +601,23 @@ impl ChatOverlay {
         self.input.is_some()
     }
 
+    /// Hand the open composer, its channel and draft, to the next world's chat, so a
+    /// field open over a map change stays open after it, as EternalJK keeps its message
+    /// field (a remote map change resets no key catcher there) and with it the talk
+    /// balloon (`BUTTON_TALK`; report #134). The feed's lines stay behind, as a new
+    /// map's cgame starts its chat box empty.
+    pub(crate) fn hand_composer_to(&mut self, to: &mut ChatOverlay) {
+        let Some(input) = self.input.take() else {
+            return;
+        };
+        to.input = Some(input);
+        to.modifiers = self.modifiers;
+        to.scroll = 0;
+        to.unread = 0;
+        // Already open: no fade-in on the new world's clock.
+        to.opened_ms = 0;
+    }
+
     /// What SJK knows of each slot's player, as the frame sets it (world shots).
     #[cfg(test)]
     pub(crate) fn set_slot_marks(&mut self, marks: Vec<marks::SlotMark>) {
@@ -672,6 +726,24 @@ pub(crate) enum ChatInputResult {
 #[cfg(test)]
 mod escape_tests {
     use super::*;
+
+    // Report #134 (Nib): a chat field open over a map change closed with the old
+    // world's chat, and the talk balloon with it.
+    #[test]
+    fn the_open_field_and_its_draft_go_to_the_next_world() {
+        let mut old = ChatOverlay::new();
+        old.draft_for_shot("gg");
+        old.input.as_mut().expect("composer open").channel = Channel::Team;
+        let mut next = ChatOverlay::new();
+        old.hand_composer_to(&mut next);
+        assert!(!old.is_typing() && next.is_typing());
+        let input = next.input.as_ref().expect("composer open");
+        assert_eq!((input.text.as_str(), input.channel), ("gg", Channel::Team));
+        // A closed field opens nothing.
+        let mut closed = ChatOverlay::new();
+        old.hand_composer_to(&mut closed);
+        assert!(!closed.is_typing());
+    }
 
     #[test]
     fn eternaljk_escapes_show_as_what_was_typed() {

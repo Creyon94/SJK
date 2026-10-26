@@ -68,9 +68,15 @@ fn duel6_sjk_collection() {
             (crate::settings::quick::HIDE_CVAR, "1"),
             (crate::unlockables::SABER_SKIN_CVAR, "saber_sun"),
             ("name", "^1Sol^7Vulpes"),
+            // Never the machine's own Discord.
+            (crate::discord_presence::CVAR, "0"),
         ];
-        for size in [[1920, 1080], [1440, 1080]] {
-            let suffix = if size[0] == 1920 { "" } else { "-4x3" };
+        for size in [[1920, 1080], [1440, 1080], [2560, 1080]] {
+            let suffix = match size[0] {
+                1920 => "",
+                1440 => "-4x3",
+                _ => "-21x9",
+            };
             let Some((mut gpu, _profile)) = open(
                 "maps/mp/duel6.bsp",
                 size,
@@ -105,17 +111,15 @@ fn duel6_sjk_collection() {
                 assert!(!overflowed(&gpu), "{tab:?}{suffix}");
             }
             if size[0] != 1920 {
-                // The grid of cards in the 4:3 window.
+                // The list (`ui_shaderList 1`) in the narrower or wider window.
                 gpu.profile_hub_show_for_shot(Tab::Shaders);
                 if let Some(console) = gpu.console.as_mut() {
                     let _ =
                         console.set_cvar(crate::console::collection_panel::SHADER_VIEW_CVAR, "1");
                 }
-                println!(
-                    "{}",
-                    shoot(&mut gpu, 30, "duel6-collection-shaders-grid-4x3").display()
-                );
-                assert!(!overflowed(&gpu), "the grid, 4:3");
+                let name = format!("duel6-collection-shaders-list{suffix}");
+                println!("{}", shoot(&mut gpu, 30, &name).display());
+                assert!(!overflowed(&gpu), "the list{suffix}");
                 if let Some(console) = gpu.console.as_mut() {
                     let _ =
                         console.set_cvar(crate::console::collection_panel::SHADER_VIEW_CVAR, "0");
@@ -131,10 +135,11 @@ fn duel6_sjk_collection() {
                 shoot(&mut gpu, 60, "duel6-collection-toys-lit").display()
             );
             gpu.illuminate.set_on(false);
-            // A locked one, previewed on the saber.
+            // A locked one, previewed on the saber. Rows are counted as a player holding no
+            // Unique shader sees the list (the shots below hold none).
             gpu.profile_hub_show_for_shot(Tab::Shaders);
-            let storm = 1 + crate::unlockables::blade_skins_by_tier()
-                .iter()
+            let storm = 1 + crate::unlockables::Holdings::Known(&[])
+                .listed()
                 .position(|skin| skin.id == "saber_storm")
                 .expect("the Storm blade");
             if let Some(console) = gpu.console.as_mut() {
@@ -144,7 +149,7 @@ fn duel6_sjk_collection() {
                 "{}",
                 shoot(&mut gpu, 30, "duel6-collection-shaders-preview").display()
             );
-            // The grid of cards (`ui_shaderView 1`), a few more owned, a Mythical chosen.
+            // The list (`ui_shaderList 1`), a few more owned, a Mythical chosen.
             if let Some(console) = gpu.console.as_mut() {
                 let owned = [
                     "saber_sun",
@@ -164,13 +169,13 @@ fn duel6_sjk_collection() {
             }
             println!(
                 "{}",
-                shoot(&mut gpu, 30, "duel6-collection-shaders-grid").display()
+                shoot(&mut gpu, 30, "duel6-collection-shaders-list").display()
             );
-            assert!(!overflowed(&gpu), "the grid");
+            assert!(!overflowed(&gpu), "the list");
             // The Spectral owned and chosen: its six parts in three columns, its smoky
             // edge switched off (`cg_saberSkinOptions`), on the model too.
-            let spectral = 1 + crate::unlockables::blade_skins_by_tier()
-                .iter()
+            let spectral = 1 + crate::unlockables::Holdings::Known(&[])
+                .listed()
                 .position(|skin| skin.id == "saber_spectral")
                 .expect("the Spectral blade");
             if let Some(console) = gpu.console.as_mut() {
@@ -209,8 +214,8 @@ fn duel6_sjk_collection() {
             // The hub's economy known: a Kamino held three times points to Break down in
             // the Forge beside Equip; a locked Echo Base to Craft in the Forge.
             let row = |id: &str| {
-                1 + crate::unlockables::blade_skins_by_tier()
-                    .iter()
+                1 + crate::unlockables::Holdings::Known(&[])
+                    .listed()
                     .position(|skin| skin.id == id)
                     .expect("the shader")
             };
@@ -245,6 +250,26 @@ fn duel6_sjk_collection() {
             if let Some(console) = gpu.console.as_mut() {
                 let _ = console.set_cvar(crate::saber_skin_options::CVAR, "");
                 console.preview_collection(Some(vec![sun()]), 0.8);
+            }
+            // The largest menu text (`ui_textScale 1.4`): the wall, the list and the toys
+            // still fit, rows and tiles grown, words wrapped.
+            for (tab, view, name) in [
+                (Tab::Shaders, "0", "duel6-collection-text14-wall"),
+                (Tab::Shaders, "1", "duel6-collection-text14-list"),
+                (Tab::Toys, "0", "duel6-collection-text14-toys"),
+            ] {
+                gpu.profile_hub_show_for_shot(tab);
+                if let Some(console) = gpu.console.as_mut() {
+                    let _ = console.set_cvar("ui_textScale", "1.4");
+                    let _ =
+                        console.set_cvar(crate::console::collection_panel::SHADER_VIEW_CVAR, view);
+                }
+                println!("{}", shoot(&mut gpu, 30, name).display());
+                assert!(!overflowed(&gpu), "{name}");
+            }
+            if let Some(console) = gpu.console.as_mut() {
+                let _ = console.set_cvar("ui_textScale", "1");
+                let _ = console.set_cvar(crate::console::collection_panel::SHADER_VIEW_CVAR, "0");
             }
             // Ctrl+Tab goes on to Holocrons (the Holocrons page, under the same row), on
             // to the Forge and to Cards, on the same screen.
@@ -363,7 +388,7 @@ fn duel6_sjk_rarity_effects() {
         }
         gpu.profile_hub_show_for_shot(Tab::Shaders);
         if let Some(console) = gpu.console.as_mut() {
-            let _ = console.set_cvar(crate::console::collection_panel::SHADER_VIEW_CVAR, "1");
+            let _ = console.set_cvar(crate::console::collection_panel::SHADER_VIEW_CVAR, "0");
             // Void, a Mythical, chosen: its white outline beside the worn Sun's gold.
             console.collection_shader_for_shot(2);
         }
@@ -378,7 +403,7 @@ fn duel6_sjk_rarity_effects() {
             assert!(!overflowed(&gpu), "the grid at {seconds}");
         }
         if let Some(console) = gpu.console.as_mut() {
-            let _ = console.set_cvar(crate::console::collection_panel::SHADER_VIEW_CVAR, "0");
+            let _ = console.set_cvar(crate::console::collection_panel::SHADER_VIEW_CVAR, "1");
             console.collection_shader_for_shot(1);
         }
         for (step, seconds) in [0.4_f32, 2.2].into_iter().enumerate() {
@@ -649,6 +674,181 @@ fn duel6_sjk_kyber_achievements() {
             let path = shoot(&mut gpu, 8, &format!("duel6-kyber-achievement-hover-{id}"));
             println!("{}", path.display());
             assert!(!overflowed(&gpu), "{id}");
+        }
+    });
+}
+
+/// The Achievements tab's 35 (26/10/2026) in six categories, at 1080 lines and 4:3: the
+/// made-up profile with Touched by the Force still a secret and the retired Surveyor
+/// held, then the hover cards of the secret, of Surveyor and of a new client count
+/// (`duel6-more-achievements-*`); then a profile without Surveyor, where it is gone.
+#[test]
+#[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+fn duel6_sjk_more_achievements() {
+    on_big_stack(|| {
+        let cvars = [
+            ("ui_menuStyle", "sjk"),
+            (crate::settings::quick::HIDE_CVAR, "1"),
+            ("name", "^1Sol^7Vulpes"),
+            (crate::discord_presence::CVAR, "0"),
+        ];
+        let index = |id: &str| {
+            crate::achievements::ALL
+                .iter()
+                .position(|kind| kind.id == id)
+                .expect("an achievement")
+        };
+        let with = |surveyor: bool| {
+            let mut preview = preview();
+            let mut held: Vec<sjk_identity::Achievement> = preview
+                .standings
+                .iter()
+                .map(|standing| sjk_identity::Achievement {
+                    id: standing.kind.id.to_owned(),
+                    progress: standing.progress,
+                    goal: standing.kind.goal,
+                    unlocked: standing.unlocked.unwrap_or(0),
+                    reward: None,
+                })
+                .collect();
+            for achievement in &mut held {
+                match achievement.id.as_str() {
+                    "mythical_find" => (achievement.progress, achievement.unlocked) = (0, 0),
+                    "surveyor" if surveyor => {
+                        (achievement.progress, achievement.unlocked) = (5, 1_791_336_225);
+                    }
+                    "surveyor" => (achievement.progress, achievement.unlocked) = (3, 0),
+                    _ => {}
+                }
+            }
+            preview.standings = crate::achievements::Record::default().standings(&held);
+            preview
+        };
+        for (size, label) in [([1920, 1080], "1080"), ([1440, 1080], "4x3")] {
+            let Some((mut gpu, _profile)) = open(
+                "maps/mp/duel6.bsp",
+                size,
+                Some(menu::ClientMenu::new(true, String::new())),
+                &cvars,
+            ) else {
+                return;
+            };
+            let _ = frame(&mut gpu, 10);
+            if let Some(console) = gpu.console.as_mut() {
+                console.preview_profile(with(true));
+                console.preview_collection(Some(vec![sun()]), 0.8);
+                console.open_profile_hub_page(Tab::Achievements, ReturnTarget::MainMenu);
+            }
+            let path = shoot(&mut gpu, 8, &format!("duel6-more-achievements-{label}"));
+            println!("{}", path.display());
+            assert!(!overflowed(&gpu), "{label}");
+            if label != "1080" {
+                continue;
+            }
+            for id in ["mythical_find", "surveyor", "thermal_return"] {
+                if let Some(console) = gpu.console.as_mut() {
+                    console.collection_hover_for_shot(Some(index(id)));
+                }
+                let path = shoot(&mut gpu, 8, &format!("duel6-more-achievements-hover-{id}"));
+                println!("{}", path.display());
+                assert!(!overflowed(&gpu), "{id}");
+            }
+            if let Some(console) = gpu.console.as_mut() {
+                console.collection_hover_for_shot(None);
+                console.preview_profile(with(false));
+                console.preview_collection(Some(vec![sun()]), 0.8);
+            }
+            let path = shoot(&mut gpu, 8, "duel6-more-achievements-no-surveyor");
+            println!("{}", path.display());
+            assert!(!overflowed(&gpu));
+        }
+    });
+}
+
+/// Frames [`duel6_blade_pictures_cost`] times a view.
+const COST_FRAMES: usize = 200;
+/// Rounds over its views.
+const COST_ROUNDS: usize = 5;
+
+/// What the Collection's live blade pictures (`blade_pictures.rs`) cost the menu frame
+/// (25/10/2026): every shader owned, the Shaders grid (fifteen pictures) and list (six),
+/// and Medals (none) for reference, each frame waited for on the GPU, the median of
+/// [`COST_FRAMES`] frames, best of [`COST_ROUNDS`] rounds; then a shot of the grid and of
+/// the list (`duel6-blade-pictures-<view>`). Wall-clock times of whole frames: only the
+/// differences say something, and only on this machine.
+#[test]
+#[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+fn duel6_blade_pictures_cost() {
+    on_big_stack(|| {
+        super::saber_skins::mount_test_packs();
+        let cvars = [
+            ("ui_menuStyle", "sjk"),
+            (crate::settings::quick::HIDE_CVAR, "1"),
+            (crate::unlockables::SABER_SKIN_CVAR, "saber_sun"),
+            ("name", "^1Sol^7Vulpes"),
+            (crate::discord_presence::CVAR, "0"),
+        ];
+        let Some((mut gpu, _profile)) = open(
+            "maps/mp/duel6.bsp",
+            [1920, 1080],
+            Some(menu::ClientMenu::new(true, String::new())),
+            &cvars,
+        ) else {
+            return;
+        };
+        gpu.looks.shot_owns_unlocks = true;
+        let _ = frame(&mut gpu, 10);
+        let owned: Vec<sjk_identity::Unlock> = crate::unlockables::ALL
+            .iter()
+            .map(|skin| sjk_identity::Unlock {
+                id: skin.id.to_owned(),
+                ..sun()
+            })
+            .collect();
+        if let Some(console) = gpu.console.as_mut() {
+            console.preview_profile(preview());
+            console.preview_collection(Some(owned), 0.0);
+            console.open_profile_hub_page(Tab::Shaders, ReturnTarget::MainMenu);
+        }
+        let views = [
+            ("wall", Tab::Shaders, "0"),
+            ("list", Tab::Shaders, "1"),
+            ("medals", Tab::Medals, "0"),
+        ];
+        let show = |gpu: &mut GpuState, tab: Tab, view: &str| {
+            gpu.profile_hub_show_for_shot(tab);
+            if let Some(console) = gpu.console.as_mut() {
+                let _ = console.set_cvar(crate::console::collection_panel::SHADER_VIEW_CVAR, view);
+            }
+        };
+        let mut times = [f64::MAX; 3];
+        for _ in 0..COST_ROUNDS {
+            for ((_, tab, view), best) in views.iter().zip(&mut times) {
+                show(&mut gpu, *tab, view);
+                let _ = frame(&mut gpu, 30);
+                let mut frames: Vec<f64> = (0..COST_FRAMES)
+                    .map(|_| {
+                        let start = std::time::Instant::now();
+                        let _ = gpu.render(&mut None);
+                        let _ = gpu.device.poll(wgpu::PollType::wait_indefinitely());
+                        start.elapsed().as_secs_f64() * 1_000.0
+                    })
+                    .collect();
+                frames.sort_by(f64::total_cmp);
+                *best = best.min(frames[COST_FRAMES / 2]);
+            }
+        }
+        let reference = times[2];
+        for ((name, ..), median) in views.iter().zip(times) {
+            println!(
+                "{name:8} median {median:6.3} ms (best round), {:+6.3} ms over Medals",
+                median - reference
+            );
+        }
+        for (name, tab, view) in &views[..2] {
+            show(&mut gpu, *tab, view);
+            let path = shoot(&mut gpu, 30, &format!("duel6-blade-pictures-{name}"));
+            println!("{}", path.display());
         }
     });
 }

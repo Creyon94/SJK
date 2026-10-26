@@ -112,9 +112,8 @@ impl BladeChoice {
     ) {
         owned.clear();
         owned.extend(
-            unlockables::blade_skins_by_tier()
-                .iter()
-                .copied()
+            holdings
+                .listed()
                 .filter(|unlockable| holdings.can_wear(unlockable)),
         );
         *worn = holdings.worn_blade_skin(setting);
@@ -272,6 +271,28 @@ mod tests {
         assert_eq!(console.text_value(SABER_SKIN_CVAR), Some(""));
         choice.step(&mut console, -1);
         assert_eq!(console.text_value(SABER_SKIN_CVAR), Some("saber_void"));
+    }
+
+    /// A Unique shader held (Sol's thank-you gifts, 25/10/2026) is offered first, the
+    /// rarest; one not held is not offered (none locked is).
+    #[test]
+    fn a_held_unique_shader_comes_first() {
+        let (_directory, console) = console();
+        let mut choice = BladeChoice::new();
+        choice.preview = Some(vec![unlock("saber_sun"), unlock("saber_thousand_cranes")]);
+        choice.read(&console);
+        assert_eq!(choice.count(), 3);
+        assert_eq!(
+            choice.get(1).flatten().map(|skin| skin.id),
+            Some("saber_thousand_cranes")
+        );
+        assert_eq!(
+            choice.get(2).flatten().map(|skin| skin.id),
+            Some("saber_sun")
+        );
+        choice.preview = Some(vec![unlock("saber_sun")]);
+        choice.read(&console);
+        assert_eq!(choice.count(), 2);
     }
 
     /// The row is browsed without wearing anything, never past either end, and picking

@@ -158,4 +158,33 @@ mod tests {
         let scoreboard = super::lines("scoreboard");
         assert!(scoreboard.contains(&super::super::Line::Heading("HUD")));
     }
+
+    /// The weak-PC settings are found by their names, console names and what they do.
+    #[test]
+    fn the_weak_pc_settings_are_found() {
+        let found = |query: &str, cvar: &str, group: &str| {
+            let lines = super::lines(query);
+            let row = lines
+                .iter()
+                .find_map(|line| match line {
+                    super::super::Line::Row(row) if rows()[*row].cvar == cvar => Some(*row),
+                    _ => None,
+                })
+                .unwrap_or_else(|| panic!("{query:?} does not find {cvar}"));
+            assert_eq!(super::group(row), Some(group), "{cvar}");
+        };
+        for query in ["stock blades", "cg_stockblades", "weak pc"] {
+            found(query, crate::stock_blades::CVAR, "Gameplay");
+        }
+        for query in ["menu fps", "com_maxfpsmenu", "in the menus"] {
+            found(query, crate::runtime_settings::MENU_CAP_CVAR, "Display");
+        }
+        for query in ["texture compression", "r_texturecompression", "compressed"] {
+            found(
+                query,
+                crate::world_materials::filtering::mips::compress::CVAR,
+                "Graphics: image",
+            );
+        }
+    }
 }

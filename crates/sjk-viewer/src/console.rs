@@ -245,6 +245,14 @@ pub(crate) struct ViewerConsole {
     ragdoll_on: bool,
     /// The Toys tab asked to go limp (`true`) or get up, not yet taken.
     pending_ragdoll: Option<bool>,
+    /// The Drone is on, mirrored as [`Self::order66_on`] is.
+    drone_on: bool,
+    /// The Toys tab asked to turn the Drone on (`true`) or off, not yet taken.
+    pending_drone: Option<bool>,
+    /// The Boombox is carried, mirrored as [`Self::order66_on`] is.
+    boombox_on: bool,
+    /// The Toys tab asked to carry the Boombox (`true`) or put it away, not yet taken.
+    pending_boombox: Option<bool>,
     /// A chip naming a setting was clicked (`console_changelog.rs`): the cvar to search
     /// Settings for, not yet taken.
     pending_settings_search: Option<String>,
@@ -282,6 +290,8 @@ pub(crate) struct ViewerConsole {
     /// The server's known command cap (JoF's 8 ms), from its serverinfo
     /// ([`crate::server_caps`]).
     server_cap: Option<&'static crate::server_caps::ServerCap>,
+    /// The server's family, when SJK knows it (`sjk_mod::known_servers`).
+    server_family: Option<&'static sjk_mod::KnownServer>,
     /// `gameplay_fps_nocap`: 1 lifts the known caps.
     caps_lifted: console_cvars::IntegerSetting,
     /// Whether the server takes the inputs at that step ([`crate::input_health`]).
@@ -440,6 +450,11 @@ impl ViewerConsole {
     /// The server's known command cap ([`crate::server_caps`]), lifted or not.
     pub(crate) fn server_cap(&self) -> Option<&'static crate::server_caps::ServerCap> {
         self.server_cap
+    }
+
+    /// The server's family, when SJK knows it (`sjk_mod::known_servers`).
+    pub(crate) fn server_family(&self) -> Option<&'static sjk_mod::KnownServer> {
+        self.server_family
     }
 
     /// Whether `gameplay_fps_nocap` lifts the known caps.
@@ -640,6 +655,13 @@ impl ViewerConsole {
 
     pub(crate) fn cvar(&self, name: &str) -> Option<&CvarValue> {
         self.shell.cvars.get(name).map(|cvar| &cvar.value)
+    }
+
+    /// A stamp of the archived cvars' values ([`CvarRegistry::archive_revision`]): it
+    /// changes whenever one of them does, so a reading of archived cvars can be kept
+    /// until it changes.
+    pub(crate) fn archive_revision(&self) -> u64 {
+        self.shell.cvars.archive_revision()
     }
 
     /// The value a cvar starts with in a fresh profile.

@@ -51,6 +51,22 @@ pub(crate) const EMOTE_CHANNEL: ChannelId = ChannelId(13);
 /// game's channels, so a toy's sound never cuts a voice, a swing or an emote.
 pub(crate) const TOY_CHANNEL: ChannelId = ChannelId(14);
 
+/// The channel every voice sound plays on: `CHAN_VOICE`, which `CHAN_VOICE_ATTEN` and
+/// `CHAN_VOICE_GLOBAL` join (`sjk_client` `normalize_voice_channel`, as the game's
+/// channel stomp groups them). Its sounds take `s_volumeVoice` in place of `s_volume`,
+/// as retail's mixer gives them (`snd_mix.cpp` `S_PaintChannels`, `voice_vol`).
+pub(crate) const VOICE_CHANNEL: ChannelId = ChannelId(3);
+
+/// The `index`th of the interface's own channels (menu cues, previews): past the
+/// game's channels, so none of them is [`VOICE_CHANNEL`] and takes the voice volume.
+pub(crate) fn interface_channel(index: usize) -> ChannelId {
+    ChannelId(64 + index as u32)
+}
+
+/// `s_volumeVoice`: the loudness of voices (pain, death, taunts, jump grunts, voice
+/// commands), retail's name and default 1 (`snd_dma.cpp` `S_Init`).
+pub(crate) const VOICE_VOLUME_CVAR: &str = "s_volumeVoice";
+
 /// Which saber sounds a blade skin's wearer is heard with (its ignition, switching off,
 /// swings and hum): 0 the stock saber sounds alone (the skin's are not played), 1 the
 /// skin's over the stock ones (the default), 2 the skin's alone.
@@ -80,9 +96,9 @@ pub(super) fn event_handle(
 }
 
 impl GameAudio {
-    /// Apply the live archived `s_volume` and `s_musicvolume` values.
-    pub(crate) fn set_gains(&mut self, effects: f32, music: f32) {
-        self.output.send(AudioCommand::Gains(effects, music));
+    /// Apply the live archived `s_volume`, `s_musicvolume` and `s_volumeVoice` values.
+    pub(crate) fn set_gains(&mut self, effects: f32, music: f32, voice: f32) {
+        self.output.send(AudioCommand::Gains(effects, music, voice));
     }
 
     /// Pull the two codemp volume cvars through the existing shell registry.
@@ -129,6 +145,7 @@ impl GameAudio {
             );
         }
         self.chat_sounds = crate::chat_sounds::Options::read(console);
+        self.toy_sounds = crate::toy_sounds::Options::read(console);
         self.duel_enabled = console
             .and_then(|c| c.bool_cvar("cg_duelMusic"))
             .unwrap_or(true);
@@ -147,10 +164,13 @@ impl GameAudio {
         let music = console
             .and_then(|console| console.float_cvar("s_musicVolume"))
             .unwrap_or(0.25) as f32;
+        let voice = console
+            .and_then(|console| console.float_cvar(VOICE_VOLUME_CVAR))
+            .unwrap_or(1.0) as f32;
         if console.is_some_and(ViewerConsole::window_muted) {
-            self.set_gains(0.0, 0.0);
+            self.set_gains(0.0, 0.0, 0.0);
         } else {
-            self.set_gains(effects, music);
+            self.set_gains(effects, music, voice);
         }
         self.footsteps = console
             .and_then(|console| console.bool_cvar("cg_footsteps"))
@@ -320,6 +340,26 @@ impl GameAudio {
         ));
     }
 
+    /// Play a sound of `toy` at `volume` times its toy volume, placed at `origin`
+    /// (`None`: in both ears) on `channel`; nothing when the settings silence the toy.
+    pub(crate) fn play_toy(
+        &mut self,
+        toy: crate::toy_sounds::Toy,
+        path: &str,
+        volume: f32,
+        origin: Option<[f32; 3]>,
+        source: SourceId,
+        channel: ChannelId,
+    ) {
+        let Some(volume) = self.toy_sounds.gain(toy, volume) else {
+            return;
+        };
+        match origin {
+            Some(origin) => self.play_on_channel(path, volume, origin, source, channel),
+            None => self.play_local(path, volume, source, channel),
+        }
+    }
+
     /// Play a listener-relative sound (interface cues) at full stereo.
     pub(crate) fn play_local(
         &mut self,
@@ -376,7 +416,8 @@ impl GameAudio {
         let stats = &self.output.stats;
         crate::log::progress(format_args!(
             "audio trace: peak={:.3} blocks={} music starts={} rejected={} \
-             decode failures={} handle mismatches={} split loop frames={} sounds={}",
+             decode failures={} handle mismatches={} split loop frames={} sounds={} \
+             pcm={:.1}MiB freed={:.1}MiB kept={}",
             stats.take_peak(),
             stats.rendered_blocks.load(Ordering::Relaxed),
             stats.music_starts.load(Ordering::Relaxed),
@@ -385,6 +426,9 @@ impl GameAudio {
             stats.handle_mismatches.load(Ordering::Relaxed),
             stats.split_loop_frames.load(Ordering::Relaxed),
             self.handles.len(),
+            stats.pcm_bytes.load(Ordering::Relaxed) as f64 / (1024.0 * 1024.0),
+            stats.freed_bytes.load(Ordering::Relaxed) as f64 / (1024.0 * 1024.0),
+            stats.releases_kept.load(Ordering::Relaxed),
         ));
     }
 }
@@ -479,6 +523,56 @@ mod listener_tests {
             assert!(
                 left > 0.001 && (left - right).abs() < 1e-4,
                 "{left} {right}"
+            );
+        }
+    }
+    /// Hub report #141 (Rollembones): `s_volumeVoice` did nothing. Voices (the voice
+    /// channel) now take it in place of `s_volume`, as retail's mixer gives them; the
+    /// interface's own sounds and every other channel keep `s_volume`.
+    #[test]
+    fn voices_take_the_voice_volume_and_other_sounds_the_effects_volume() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut console = ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
+        assert!(console.set_cvar("s_volume", "0.5"));
+        assert!(console.set_cvar(VOICE_VOLUME_CVAR, "0.25"));
+        // The sample's level, 8192 of 32768, at each gain, in both ears.
+        for (channel, gain) in [
+            (VOICE_CHANNEL, 0.25),
+            // Channel 0 never replaces its sound, so the sends below would add up.
+            (ChannelId(2), 0.5),
+            (interface_channel(3), 0.5),
+        ] {
+            let (output, mut source) = AudioOutput::test_output();
+            let mut audio = GameAudio::with_output(output);
+            audio.sync_gains(Some(&console));
+            let mut vfs = VirtualFileSystem::new();
+            vfs.mount_memory("synthetic", [("sound/voice.wav", constant_wav())])
+                .unwrap();
+            let sound = audio.register_vfs_async(&vfs, "sound/voice.wav").unwrap();
+            let request = PlayRequest {
+                origin: None,
+                source: SourceId(1),
+                channel,
+                volume: 1.0,
+                attenuation: sjk_audio::Attenuation::None,
+            };
+            // Sent again until the sound is decoded and sounds.
+            let deadline = Instant::now() + std::time::Duration::from_secs(10);
+            let level = loop {
+                audio.output.send(AudioCommand::Play(sound, request));
+                if let Some(level) = (0..2048)
+                    .map(|_| source.next().unwrap())
+                    .find(|sample| sample.abs() > 0.001)
+                {
+                    break level;
+                }
+                assert!(Instant::now() < deadline, "the sound did not start");
+                std::thread::yield_now();
+            };
+            let want = 0.25 * gain;
+            assert!(
+                (level - want).abs() < 1e-3,
+                "{channel:?}: {level} against {want}"
             );
         }
     }

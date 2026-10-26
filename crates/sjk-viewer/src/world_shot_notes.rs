@@ -127,6 +127,7 @@ fn renderer_settings(game_data: &std::path::Path) -> Vec<(String, String)> {
                 "r_custom",
                 "r_resolution",
                 "r_superSample",
+                "r_renderScale",
             ]
             .iter()
             .any(|prefix| name.starts_with(prefix));

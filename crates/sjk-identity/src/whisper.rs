@@ -139,6 +139,29 @@ pub fn open(
     boxed: &str,
     now: i64,
 ) -> Result<String, OpenError> {
+    open_signed(identity, sender, server, boxed, now).map(|opened| opened.text)
+}
+
+/// A whisper opened with what proves it the sender's: the time and signature found
+/// inside, which a player report hands the hub (`PROTOCOL.md`, "Player reports").
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Opened {
+    /// The whisper's text.
+    pub text: String,
+    /// When the sender sealed it, unix seconds.
+    pub time: i64,
+    /// The sender's signature over the whisper's signed message.
+    pub signature: [u8; 64],
+}
+
+/// [`open`], keeping the time and signature.
+pub fn open_signed(
+    identity: &Identity,
+    sender: &[u8; 32],
+    server: &str,
+    boxed: &str,
+    now: i64,
+) -> Result<Opened, OpenError> {
     let bytes = B64.decode(boxed).map_err(|_| OpenError::Unreadable)?;
     let (Some(&VERSION), Some(ephemeral), Some(sealed)) =
         (bytes.first(), bytes.get(1..33), bytes.get(33..))
@@ -164,7 +187,8 @@ pub fn open(
     };
     let time = i64::from_le_bytes(time.try_into().map_err(|_| OpenError::Unreadable)?);
     let text = std::str::from_utf8(text).map_err(|_| OpenError::Unreadable)?;
-    let signature = Signature::from_slice(signature).map_err(|_| OpenError::Forged)?;
+    let signed: [u8; 64] = signature.try_into().map_err(|_| OpenError::Forged)?;
+    let signature = Signature::from_bytes(&signed);
     VerifyingKey::from_bytes(sender)
         .and_then(|key| {
             key.verify_strict(
@@ -176,7 +200,11 @@ pub fn open(
     if (now - time).abs() > CLOCK_WINDOW {
         return Err(OpenError::Stale);
     }
-    Ok(text.to_owned())
+    Ok(Opened {
+        text: text.to_owned(),
+        time,
+        signature: signed,
+    })
 }
 
 /// A whisper the viewer hands the relay to seal and send.
@@ -214,8 +242,8 @@ pub struct Received {
     pub key_id: String,
     /// The key that sealed it (unpadded base64url).
     pub from: String,
-    /// The text, or why it could not be opened.
-    pub text: Result<String, OpenError>,
+    /// The text, with its time and signature, or why it could not be opened.
+    pub text: Result<Opened, OpenError>,
 }
 
 /// Why `failure` kept a whisper from going, in a player's words.
@@ -226,6 +254,11 @@ pub(crate) fn failure_words(failure: &crate::HubError) -> String {
         }
         crate::HubError::Rejected { code, .. } if code == "whisper_quota" => {
             "you whispered too often; wait a moment".to_owned()
+        }
+        crate::HubError::Rejected { code, .. } if code == "whisper_not_verified" => {
+            "only verified players start encrypted whispers; you may answer one for 30 \
+             minutes"
+                .to_owned()
         }
         crate::HubError::Rejected { code, .. } if code == "not_on_server" => {
             "the hub does not see you on this server yet".to_owned()
@@ -240,23 +273,53 @@ pub fn parse_key(text: &str) -> Option<[u8; 32]> {
     B64.decode(text).ok()?.try_into().ok()
 }
 
-/// The safety code of two players' keys (`a` and `b`, in either order): twelve digits
-/// in three groups (`4821 0937 5512`), the same on both screens. Compared outside the
-/// game, it proves each has the other's real key, so not even the hub can read their
-/// whispers. 60 bits of SHA-256: no one can make a key that shows a chosen code.
+/// Hash rounds of a [`fingerprint`]: they make each try of a key search cost 5200
+/// SHA-512s, as Signal's safety numbers do.
+const FINGERPRINT_ROUNDS: usize = 5200;
+/// Digits of one key's [`fingerprint`]: six groups of five.
+const FINGERPRINT_DIGITS: usize = 30;
+
+/// One key's half of the [`safety_code`]: 30 digits (about 100 bits) from
+/// [`FINGERPRINT_ROUNDS`] rounds of SHA-512 over the key alone, so it depends on no
+/// other key and a key made to match it must hit all 30 digits.
+fn fingerprint(key: &[u8; 32]) -> String {
+    use sha2::{Digest, Sha512};
+    let mut hash = Sha512::new()
+        .chain_update(b"SJK safety code v2")
+        .chain_update(key)
+        .finalize();
+    for _ in 0..FINGERPRINT_ROUNDS {
+        hash = Sha512::new()
+            .chain_update(hash)
+            .chain_update(key)
+            .finalize();
+    }
+    let mut digits = String::with_capacity(FINGERPRINT_DIGITS);
+    for chunk in hash[..30].chunks(5) {
+        let number = chunk
+            .iter()
+            .fold(0_u64, |number, &byte| (number << 8) | u64::from(byte));
+        digits.push_str(&format!("{:05}", number % 100_000));
+    }
+    digits
+}
+
+/// The safety code of two players' keys (`a` and `b`, in either order): 60 digits in
+/// twelve groups of five (`48210 93755 ...`), the same on both screens: the
+/// [`fingerprint`] of the lower key, then the higher's. Compared outside the game, it
+/// proves each has the other's real key, so not even the hub can read their whispers.
+///
+/// Each half belongs to one key, so a hub handing out keys of its own must find a key
+/// whose 30-digit fingerprint equals a real one's, not just two keys whose codes meet:
+/// the twelve-digit code of v1 (SHA-256 of both keys) fell to such a meet in seconds.
 pub fn safety_code(a: &[u8; 32], b: &[u8; 32]) -> String {
-    use sha2::Digest;
     let (low, high) = if a <= b { (a, b) } else { (b, a) };
-    let mut hash = Sha256::new();
-    hash.update(b"SJK safety code v1");
-    hash.update(low);
-    hash.update(high);
-    let digest = hash.finalize();
-    let mut bytes = [0_u8; 8];
-    bytes.copy_from_slice(&digest[..8]);
-    let number = u64::from_be_bytes(bytes) % 1_000_000_000_000;
-    let digits = format!("{number:012}");
-    format!("{} {} {}", &digits[..4], &digits[4..8], &digits[8..])
+    let digits = fingerprint(low) + &fingerprint(high);
+    let groups: Vec<&str> = (0..digits.len())
+        .step_by(5)
+        .map(|at| &digits[at..at + 5])
+        .collect();
+    groups.join(" ")
 }
 
 /// The players whose key the player checked with the safety code, by key id: the key
@@ -428,6 +491,27 @@ mod tests {
     }
 
     #[test]
+    fn an_opened_whisper_keeps_the_senders_proof() {
+        let (sol, fox) = (Identity::generate().unwrap(), Identity::generate().unwrap());
+        let boxed = seal(&sol, &fox.public_key(), SERVER, 1_000, "buy credits").unwrap();
+        let opened = open_signed(&fox, &sol.public_key(), SERVER, &boxed, 1_010).unwrap();
+        assert_eq!((opened.text.as_str(), opened.time), ("buy credits", 1_000));
+        // What the hub checks of a reported whisper: Sol's signature, to Fox, there.
+        let message = signed_message(
+            &sol.public_key(),
+            &fox.public_key(),
+            SERVER,
+            opened.time,
+            &opened.text,
+        );
+        let key = VerifyingKey::from_bytes(&sol.public_key()).unwrap();
+        assert!(
+            key.verify_strict(&message, &Signature::from_bytes(&opened.signature))
+                .is_ok()
+        );
+    }
+
+    #[test]
     fn a_whisper_cannot_be_moved_or_put_in_another_name() {
         let (sol, fox, hub) = (
             Identity::generate().unwrap(),
@@ -502,15 +586,40 @@ mod tests {
         );
         let code = safety_code(&sol.public_key(), &fox.public_key());
         assert_eq!(code, safety_code(&fox.public_key(), &sol.public_key()));
-        assert_eq!(code.len(), 14);
+        assert_eq!(code.len(), 71);
+        assert_eq!(code.split(' ').count(), 12);
         assert!(
             code.split(' ')
-                .all(|group| group.len() == 4 && group.bytes().all(|b| b.is_ascii_digit()))
+                .all(|group| group.len() == 5 && group.bytes().all(|b| b.is_ascii_digit()))
+        );
+        // Each half is one key's own: the lower key's first, then the higher's.
+        let (low, high) = if sol.public_key() <= fox.public_key() {
+            (sol.public_key(), fox.public_key())
+        } else {
+            (fox.public_key(), sol.public_key())
+        };
+        assert_eq!(
+            code.replace(' ', ""),
+            fingerprint(&low) + &fingerprint(&high)
         );
         // A hub handing out its own key shows another code.
         assert_ne!(code, safety_code(&sol.public_key(), &hub.public_key()));
         // Pinned: the format must not change under players who compared.
-        assert_eq!(safety_code(&[2; 32], &[1; 32]), "8823 8617 6531");
+        assert_eq!(
+            safety_code(&[2; 32], &[1; 32]),
+            "84017 83486 07110 59323 10299 40656 37217 30494 56215 28645 39432 28934"
+        );
+    }
+
+    #[test]
+    fn a_key_shows_the_same_half_in_every_code() {
+        // A hub's own key changes the half it stands for, never the real key's half.
+        let (low, mid, high) = ([1; 32], [2; 32], [3; 32]);
+        let with_mid = safety_code(&low, &mid);
+        let with_high = safety_code(&low, &high);
+        assert_eq!(with_mid[..35], with_high[..35]);
+        assert_ne!(with_mid[36..], with_high[36..]);
+        assert_eq!(safety_code(&mid, &high)[..35], with_mid[36..]);
     }
 
     #[test]

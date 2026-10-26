@@ -22,15 +22,13 @@ impl GpuState {
         }
         let views = &mut self.scene_views;
         for target in [&mut views.sky_target, &mut views.portal_target] {
-            if target.is_some() {
-                *target = Some(gpu::Target::new(
-                    &self.device,
-                    &views.camera_layout,
-                    &views.sample_layout,
-                    views.format,
-                    [size.width, size.height],
-                ));
-            }
+            target.resize(
+                &self.device,
+                &views.camera_layout,
+                &views.sample_layout,
+                views.format,
+                [size.width, size.height],
+            );
         }
         views.floors.resize(
             &self.device,
@@ -47,46 +45,55 @@ impl GpuState {
         self.install_render_scale_for(self.context.render_scale);
     }
 
-    /// Transaction shared by startup, resize and fixed offscreen evidence.
+    /// Transaction shared by startup, resize and fixed offscreen evidence. `requested` is
+    /// the scene's size in percent of the window per axis
+    /// ([`crate::frame_target::scale::requested`]); 100 installs nothing.
     pub(crate) fn install_render_scale_for(&mut self, requested: u32) {
+        use crate::frame_target::scale::NATIVE;
         let output = [self.size.width, self.size.height];
-        let scale = crate::frame_target::scale::supported_bytes(
+        let percent = crate::frame_target::scale::supported_bytes(
             requested,
             output,
             self.device.limits().max_texture_dimension_2d,
             if self.context.hdr.mode == 1 { 48 } else { 32 },
         );
-        for factor in (2..=scale).rev() {
+        // Supersampling falls back a factor at a time; a render scale is tried as it is.
+        let candidates = (2..=percent / NATIVE)
+            .rev()
+            .map(|factor| factor * NATIVE)
+            .chain((percent < NATIVE).then_some(percent));
+        for percent in candidates {
             let views = &self.scene_views;
             let candidate = crate::frame_target::scale::checked(&self.device, || {
                 let scaled = crate::frame_target::scale::Runtime::new(
                     &self.device,
                     self.context.scene_format(),
                     output,
-                    factor,
+                    percent,
                 );
                 let size = scaled.size;
                 let depth = crate::DepthTarget::new(&self.device, size[0], size[1]);
-                let target = |present: bool| {
-                    present.then(|| {
-                        gpu::Target::new(
-                            &self.device,
-                            &views.camera_layout,
-                            &views.sample_layout,
-                            views.format,
-                            size,
-                        )
-                    })
+                // Only the views' targets made so far; the others are made at this size
+                // when first drawn.
+                let target = |made: &gpu::Lazy| {
+                    made.rebuilt(
+                        &self.device,
+                        &views.camera_layout,
+                        &views.sample_layout,
+                        views.format,
+                        size,
+                    )
                 };
-                let sky = target(views.sky_target.is_some());
-                let portal = target(views.portal_target.is_some());
-                let floors = target(views.floors.target.is_some());
+                let sky = target(&views.sky_target);
+                let portal = target(&views.portal_target);
+                let floors = target(&views.floors.target);
                 (scaled, depth, sky, portal, floors)
             });
             if let Some((scaled, depth, sky, portal, floors)) = candidate {
+                let supersampling = scaled.supersampling();
                 self.depth = depth;
-                self.scene_views.sky_target = sky;
-                self.scene_views.portal_target = portal;
+                self.scene_views.sky_target.set(sky);
+                self.scene_views.portal_target.set(portal);
                 self.scene_views.floors.set_target(floors, &self.device);
                 self.render_scale = Some(scaled);
                 let scene = self.scene_size();
@@ -94,16 +101,17 @@ impl GpuState {
                     aa.fit_effects(&self.device, scene);
                 }
                 self.world_materials
-                    .fit_light_buffer(&self.device, scene, factor);
+                    .fit_light_buffer(&self.device, scene, supersampling);
                 crate::log::progress(format_args!(
-                    "scene scale requested={requested} effective={factor}"
+                    "scene scale requested={requested}% effective={percent}% ({}x{})",
+                    scene[0], scene[1]
                 ));
                 return;
             }
         }
-        if requested > 1 {
+        if requested != NATIVE {
             crate::log::progress(format_args!(
-                "scene scale requested={requested}; native fallback"
+                "scene scale requested={requested}%; native fallback"
             ));
         }
     }
@@ -122,6 +130,7 @@ impl GpuState {
                 self.console.as_ref().map(|c| &c.geometry_controls),
             );
         }
+        let scene_size = self.scene_size();
         self.scene_views.floors.prepare(
             &self.queue,
             &self.bsp,
@@ -129,6 +138,7 @@ impl GpuState {
             view,
             projection,
             time,
+            scene_size,
         );
         self.scene_views.selection = None;
         self.scene_views.sky_view = None;
@@ -163,13 +173,12 @@ impl GpuState {
                 projection,
                 self.world_materials.areas.mask(),
             );
-        } else {
-            return;
         }
+        self.scene_views
+            .provide_targets(&self.device, &self.queue, scene_size);
 
-        let scene_size = self.scene_size();
         let views = &mut self.scene_views;
-        if let (Some(selection), Some(target)) = (&views.selection, &views.portal_target) {
+        if let (Some(selection), Some(target)) = (&views.selection, views.portal_target.get()) {
             debug_assert_eq!(target.size, scene_size);
             let p = crate::oblique_clip::oblique_projection(
                 projection,
@@ -184,7 +193,7 @@ impl GpuState {
                 bytemuck::bytes_of(&selection.instance),
             );
         }
-        if let (Some(view), Some(target)) = (views.sky_view, &views.sky_target) {
+        if let (Some(view), Some(target)) = (views.sky_view, views.sky_target.get()) {
             upload(&self.queue, target, view, projection, time, true);
         }
     }
@@ -198,12 +207,9 @@ impl GpuState {
         for (index, (view, target)) in [
             (
                 self.scene_views.selection.as_ref().map(|s| s.view),
-                self.scene_views.portal_target.as_ref(),
+                self.scene_views.portal_target.get(),
             ),
-            (
-                self.scene_views.sky_view,
-                self.scene_views.sky_target.as_ref(),
-            ),
+            (self.scene_views.sky_view, self.scene_views.sky_target.get()),
         ]
         .into_iter()
         .enumerate()
@@ -361,7 +367,7 @@ impl GpuState {
         let Some(target) = self
             .scene_views
             .sky_target
-            .as_ref()
+            .get()
             .filter(|_| self.scene_views.sky_view.is_some())
         else {
             // No sky portal: the Q3 sky stages, shaded on their faces.
@@ -388,9 +394,10 @@ impl GpuState {
     }
 
     pub(crate) fn composite_map_portal<'a>(&'a self, pass: &mut wgpu::RenderPass<'a>) {
-        let (Some(selection), Some(target)) =
-            (&self.scene_views.selection, &self.scene_views.portal_target)
-        else {
+        let (Some(selection), Some(target)) = (
+            &self.scene_views.selection,
+            self.scene_views.portal_target.get(),
+        ) else {
             return;
         };
         let selected = &self.scene_views.faces[selection.face];

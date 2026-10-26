@@ -19,6 +19,37 @@
 //! the effect's screen position) is not modelled: no retail effect uses it.
 
 use glam::Vec3;
+use std::sync::atomic::{AtomicBool, Ordering};
+
+/// `cg_reduceFlashes`: the accessibility switch for photosensitive players (Piza, hub
+/// report #138). On, no bright flash is drawn: no saber clash flare
+/// ([`crate::saber_clash_flare`]), no effect `Flash` (the screen flash of a DEMP2
+/// shock, a rocket or a concussion blast), and no effect particle drawn with the clash
+/// flare's own picture ([`is_clash_flare_picture`]). Off by default: retail draws them.
+pub(crate) const REDUCE_CVAR: &str = "cg_reduceFlashes";
+
+/// [`REDUCE_CVAR`] as the frame last read it, for the effect spawner and submission,
+/// which have no console.
+static REDUCED: AtomicBool = AtomicBool::new(false);
+
+/// Note [`REDUCE_CVAR`]'s value (once a frame).
+pub(crate) fn set_reduced(reduced: bool) {
+    REDUCED.store(reduced, Ordering::Relaxed);
+}
+
+/// Whether bright flashes are reduced ([`REDUCE_CVAR`]).
+pub(crate) fn reduced() -> bool {
+    REDUCED.load(Ordering::Relaxed)
+}
+
+/// The clash flare's picture, `gfx/effects/saberFlare`, which the saber clash flare
+/// draws over the screen. Retail effects never use it, but packs that remake the saber
+/// block effect as a flash do (JoF's `JoF_HDMovieSaberClash.pk3` draws a 55-unit
+/// flare with it at every block), so reduced flashes leave out any effect particle
+/// that draws it, whatever pack supplies the effect.
+pub(crate) fn is_clash_flare_picture(shader: &str) -> bool {
+    shader.eq_ignore_ascii_case(crate::saber_clash_flare::PICTURE)
+}
 
 /// `CFlash::Draw`'s `FLASH_DISTANCE_FROM_VIEWER`: how far in front of the eye the
 /// flash's sprite stands.
@@ -72,6 +103,14 @@ mod tests {
 
     fn at(forward: f32, side: f32) -> f32 {
         visibility(Some((EYE, Vec3::X)), EYE + Vec3::new(forward, side, 0.0))
+    }
+
+    #[test]
+    fn only_the_clash_flare_picture_is_a_flash_picture() {
+        assert!(is_clash_flare_picture("gfx/effects/saberFlare"));
+        assert!(is_clash_flare_picture("GFX/EFFECTS/SABERFLARE"));
+        assert!(!is_clash_flare_picture("gfx/effects/whiteFlare"));
+        assert!(!is_clash_flare_picture("gfx/misc/spark"));
     }
 
     #[test]

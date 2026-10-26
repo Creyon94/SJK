@@ -6,6 +6,7 @@
 //! diffuse sampler. Its ordinary bind group stays, so every pass that binds stage
 //! groups with its own pipelines (light pass cut-outs, flares) is unaffected.
 
+use super::super::filtering::mips;
 use super::super::forge::Forge;
 use super::{Params, StageMaps};
 use image::RgbaImage;
@@ -94,12 +95,14 @@ impl Gpu {
             queue,
             &RgbaImage::from_pixel(1, 1, image::Rgba([128, 128, 255, 255])),
             false,
+            0,
         );
         let neutral_emission = upload(
             device,
             queue,
             &RgbaImage::from_pixel(1, 1, image::Rgba([0, 0, 0, 255])),
             true,
+            0,
         );
         Self {
             layout,
@@ -146,7 +149,10 @@ impl Gpu {
                 |image| {
                     self.textures
                         .entry(image.key.clone())
-                        .or_insert_with(|| upload(device, queue, &image.pixels, srgb))
+                        .or_insert_with(|| {
+                            let picmip = mips::picmip_for(&image.key);
+                            upload(device, queue, &image.pixels, srgb, picmip)
+                        })
                         .clone()
                 },
             )
@@ -299,19 +305,21 @@ fn frames_buffer(device: &wgpu::Device, packed: &[[u32; 2]]) -> wgpu::Buffer {
 
 /// Upload one map as RGBA8 with a full box-filtered mip chain, linear (normal and
 /// specular maps are data, never colour) or `srgb` (emission maps are colour, encoded
-/// like the diffuse image). Unfiltered normal maps shimmer at a distance.
+/// like the diffuse image), less the levels `picmip` leaves off ([`mips::skipped`]), as
+/// for the diffuse texture. Unfiltered normal maps shimmer at a distance.
 fn upload(
     device: &wgpu::Device,
     queue: &crate::frame_queue::FrameQueue,
     image: &RgbaImage,
     srgb: bool,
+    picmip: u32,
 ) -> wgpu::TextureView {
-    let chain = mip_chain(image);
+    let chain = mip_chain(image, mips::skipped(image.width(), image.height(), picmip));
     let texture = device.create_texture(&wgpu::TextureDescriptor {
         label: Some("SJK material map"),
         size: wgpu::Extent3d {
-            width: image.width(),
-            height: image.height(),
+            width: chain[0].width(),
+            height: chain[0].height(),
             depth_or_array_layers: 1,
         },
         mip_level_count: chain.len() as u32,
@@ -349,33 +357,42 @@ fn upload(
     texture.create_view(&wgpu::TextureViewDescriptor::default())
 }
 
-/// Every level down to 1x1, each texel the mean of the 2x2 (or 2x1 at an odd edge)
-/// texels above it.
-pub(super) fn mip_chain(image: &RgbaImage) -> Vec<RgbaImage> {
-    let mut chain = vec![image.clone()];
+/// Every level down to 1x1 but the first `skip`, each texel the mean of the 2x2 (or
+/// 2x1 at an odd edge) texels above it. Skipped levels are made only to halve.
+pub(super) fn mip_chain(image: &RgbaImage, skip: u32) -> Vec<RgbaImage> {
+    let mut top = None;
+    for _ in 0..skip {
+        top = Some(halve(top.as_ref().unwrap_or(image)));
+    }
+    let mut chain = vec![top.unwrap_or_else(|| image.clone())];
     while let Some(previous) = chain.last().filter(|p| p.width() > 1 || p.height() > 1) {
-        let (width, height) = (
-            (previous.width() / 2).max(1),
-            (previous.height() / 2).max(1),
-        );
-        let next = RgbaImage::from_fn(width, height, |x, y| {
-            let mut sum = [0_u32; 4];
-            let mut count = 0;
-            for (dx, dy) in [(0, 0), (1, 0), (0, 1), (1, 1)] {
-                let (sx, sy) = (x * 2 + dx, y * 2 + dy);
-                if sx < previous.width() && sy < previous.height() {
-                    let texel = previous.get_pixel(sx, sy).0;
-                    for channel in 0..4 {
-                        sum[channel] += u32::from(texel[channel]);
-                    }
-                    count += 1;
-                }
-            }
-            image::Rgba(sum.map(|value| ((value + count / 2) / count) as u8))
-        });
-        chain.push(next);
+        chain.push(halve(previous));
     }
     chain
+}
+
+/// The next level of `previous`: each texel the mean of the 2x2 (or 2x1 at an odd edge)
+/// texels above it.
+fn halve(previous: &RgbaImage) -> RgbaImage {
+    let (width, height) = (
+        (previous.width() / 2).max(1),
+        (previous.height() / 2).max(1),
+    );
+    RgbaImage::from_fn(width, height, |x, y| {
+        let mut sum = [0_u32; 4];
+        let mut count = 0;
+        for (dx, dy) in [(0, 0), (1, 0), (0, 1), (1, 1)] {
+            let (sx, sy) = (x * 2 + dx, y * 2 + dy);
+            if sx < previous.width() && sy < previous.height() {
+                let texel = previous.get_pixel(sx, sy).0;
+                for channel in 0..4 {
+                    sum[channel] += u32::from(texel[channel]);
+                }
+                count += 1;
+            }
+        }
+        image::Rgba(sum.map(|value| ((value + count / 2) / count) as u8))
+    })
 }
 
 #[cfg(test)]
@@ -386,10 +403,23 @@ mod tests {
     fn mip_chain_reaches_one_texel_and_averages() {
         let mut image = RgbaImage::from_pixel(4, 2, image::Rgba([0, 0, 0, 0]));
         image.put_pixel(0, 0, image::Rgba([255, 255, 255, 255]));
-        let chain = mip_chain(&image);
+        let chain = mip_chain(&image, 0);
         let sizes: Vec<_> = chain.iter().map(RgbaImage::dimensions).collect();
         assert_eq!(sizes, vec![(4, 2), (2, 1), (1, 1)]);
         assert_eq!(chain[1].get_pixel(0, 0).0, [64; 4]);
         assert_eq!(chain[2].get_pixel(0, 0).0, [32; 4]);
+    }
+
+    #[test]
+    fn a_skipped_chain_is_the_whole_chain_less_its_largest_levels() {
+        let image = RgbaImage::from_fn(512, 256, |x, y| {
+            image::Rgba([(x % 256) as u8, (y % 256) as u8, ((x * y) % 256) as u8, 255])
+        });
+        let whole = mip_chain(&image, 0);
+        // r_picmip 2: a 512-pixel map is uploaded from its 128-pixel level, as the
+        // diffuse texture beside it.
+        let skip = mips::skipped(512, 256, 2);
+        assert_eq!(skip, 2);
+        assert_eq!(mip_chain(&image, skip), whole[skip as usize..]);
     }
 }

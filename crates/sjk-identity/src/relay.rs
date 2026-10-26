@@ -326,7 +326,13 @@ impl Reader {
                         text: whisper::parse_key(&sealed.from)
                             .ok_or(whisper::OpenError::Unreadable)
                             .and_then(|from| {
-                                whisper::open(&self.identity, &from, server, &sealed.boxed, now)
+                                whisper::open_signed(
+                                    &self.identity,
+                                    &from,
+                                    server,
+                                    &sealed.boxed,
+                                    now,
+                                )
                             }),
                         slot: sealed.slot,
                         claimed_name: sealed.claimed_name,
@@ -574,7 +580,10 @@ mod tests {
         assert_eq!(*lock(&hub.asked_whispers), [true, true]);
         let received = lock(&shared.0).take_received(Some(SERVER.parse().unwrap()));
         assert_eq!(received.len(), 2);
-        assert_eq!(received[0].text, Ok("hi".to_owned()));
+        assert_eq!(
+            received[0].text.as_ref().map(|opened| opened.text.as_str()),
+            Ok("hi")
+        );
         assert_eq!(received[0].from, key_text(&sol));
         assert!(received[1].text.is_err());
         // Read for another server than the viewer's: dropped.

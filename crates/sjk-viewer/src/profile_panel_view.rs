@@ -1093,12 +1093,7 @@ impl Panel {
     fn achievements_block(&mut self, frame: &Frame, inputs: &Inputs<'_>, y: f32) {
         let s = frame.s;
         kit::heading(&mut self.ui, frame, RIGHT_X, y, RIGHT_WIDTH, "Achievements");
-        let total = inputs.standings.len();
-        let unlocked = inputs
-            .standings
-            .iter()
-            .filter(|standing| standing.unlocked.is_some())
-            .count();
+        let (unlocked, total) = crate::achievements::tally(inputs.standings);
         text(
             &mut self.ui,
             TextFamily::Display,
@@ -1143,8 +1138,9 @@ impl Panel {
                 .iter()
                 .filter(|unlockable| holdings.unlock(unlockable.id).is_some())
                 .count();
+            // Out of the shaders the player sees: an unheld Unique one is not counted.
             (
-                format!("{owned} of {} shaders owned", crate::unlockables::ALL.len()),
+                format!("{owned} of {} shaders owned", holdings.listed_count()),
                 30.0,
                 color::TEXT,
             )

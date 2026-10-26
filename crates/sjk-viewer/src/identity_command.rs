@@ -208,6 +208,7 @@ mod tests {
             profiles: HashMap::new(),
             model_checks: HashMap::new(),
             profiles_revision: 0,
+            me_revision: 0,
             notice: None,
             revision: 0,
             report: None,
@@ -228,6 +229,13 @@ mod tests {
             kyber: None,
             shop: None,
             trade: None,
+            trades: None,
+            announcements: Vec::new(),
+            announcements_revision: 0,
+            rewards: None,
+            rewards_revision: 0,
+            claim: None,
+            announce: None,
             public_key: String::new(),
         }
     }
