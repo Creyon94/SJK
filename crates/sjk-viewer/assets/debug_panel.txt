@@ -7096,3 +7096,11 @@ change: The console asked the mod first and answered "Unknown command" for its s
 test: Console: jof.e2eWhispers 1, then jof.e2eWhispers: it says 1, no "Unknown command".
 test: Settings (F3), search e2e: the JoF row shows it on.
 test: jof.commands off a JoF server still says it works on JoF servers only.
+
+[sun-perf]
+area: Rendering & effects
+title: Sun blade costs about 40 % less to draw (no FPS drop once lit)
+change: Its coronal rain is only worked out near its loops; nothing changes on screen.
+test: Wear the Sun, light it in first person with cg_drawFPS 1: frames stay close to stock.
+test: Look at the blade: loops with beads of light sliding down, as before; none cut off.
+test: Hold the blade across the view and along it (tip pointing away): no loop pops in or out.

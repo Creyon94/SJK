@@ -1,3 +1,16 @@
+## Sun blade drawn for less
+
+26/10/2026, `personal/sun-perf`, based on `main` `62d3e587` (Sol: the Sun blade ate a lot
+of frames once lit). Its coronal rain worked out three loops of ten segments and six beads
+for every pixel of the widest quad of any blade (`@room 10`), even far from every loop; a
+loop is now skipped between its lives and where the ray passes further than half its
+height plus three halo widths from the line halfway up it, which holds the whole arch and
+its beads, and the rain is skipped with the corona part off
+([sun.glsl](../crates/sjk-viewer/src/blade_signatures/sun.glsl)). Verified: the signature
+cost test (`saber_gpu::cost_test`, 1080p on Sol's PC, old and new back to back with
+Starforge steady): game scene 1.74 to 1.01 ms, close 1.01 to 0.60 ms, along 0.72 to
+0.41 ms; the `duel6_sun_blade` world shot's fixed-time sheets are byte-identical before
+and after. Not verified: in game.
 ## Monitor hits foreseen, ring centred
 
 26/10/2026, `personal/monitor-fixes`, based on `main` `62d3e587` (Sol's report after
