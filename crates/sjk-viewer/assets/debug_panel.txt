@@ -1361,16 +1361,17 @@ test: Esc menu: the Credits icon is a grey disc with a silver laurel.
 test: Settings rail: every category icon is grey; Chat, Mods and Quick wheel have one too.
 test: What's new card: the headings' icons are grey discs.
 
-[donation-goal]
+[support-links]
 area: Menus & settings
-title: Donations shelved: no Support card, setting or unheld Supporter medal
-change: Shelved 14/10: the main page's Support SJK card and its Donation goal setting are gone.
-change: Collection > Medals lists Supporter only to holders (three medals otherwise).
-change: Site: the Support SJK section and its two menu links are hidden.
-test: SJK UI main page: no Support SJK card top left, even with ui_donationGoal 1.
-test: Settings > Interface and settings search: no "Donation goal" row.
-test: Collection > Medals: Early Tester, Early Contributor, Bug Hunter; "x of 3 medals".
-test: Site (after push): no Support link in either menu, no Support SJK section.
+title: Support SJK on the main page: GitHub Sponsors and Ko-fi, x hides it for good
+change: SJK UI main page, top left: "Support SJK", GitHub Sponsors and Ko-fi pills, and x.
+change: x sets ui_supportLinks 0; Settings > Interface > Support SJK shows it again.
+change: The old donation goal card and its hub request are gone; Supporter still holders only.
+test: Main page: the line sits top left, clear of the ring, at 1080p and 4K (150 %).
+test: GitHub Sponsors opens github.com/sponsors/Sol-Vulpes; Ko-fi opens ko-fi.com/soljk.
+test: Hover x: a quiet line says where to bring it back. Click x: the line goes at once.
+test: Restart: still hidden. Settings > Interface > Support SJK on: it comes back.
+test: Classic+ menus: no Support SJK line.
 
 [settings-simple-advanced]
 area: Menus & settings

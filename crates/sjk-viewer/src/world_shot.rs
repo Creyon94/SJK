@@ -745,14 +745,6 @@ mod tests {
             else {
                 return;
             };
-            // The donation goal as the hub would answer it: 80 of 200 euros this month.
-            crate::donation_goal::set_for_shot(Some(sjk_identity::DonationGoal {
-                url: sjk_identity::donations::DEFAULT_URL.to_owned(),
-                currency: "EUR".to_owned(),
-                goal_cents: 20_000,
-                raised_cents: 8_000,
-                monthly: true,
-            }));
             // Past the first shot's fade-in.
             let _ = frame(&mut gpu, 20);
             gpu.ui_epoch -= std::time::Duration::from_millis(2_000);

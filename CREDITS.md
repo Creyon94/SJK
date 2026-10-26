@@ -140,8 +140,9 @@ includes:
   are seen, team logos over teammates' heads after JoF EJK, the team overlay removed;
 - world notes (13/10/2026): up to 4000 characters, the shader remaps in play and the
   map's MD3 models as a note's subject;
-- donations (13/10/2026): SJK's Ko-fi goal live on the site and the main page through
-  the hub, and the Supporter medal given on its own for more than 1 euro;
+- donations (13/10/2026): the Supporter medal, given on its own for more than 1 euro on
+  Ko-fi; since 26/10/2026, Support SJK at the top left of the main page, with links to
+  SJK's GitHub Sponsors and Ko-fi pages and a cross that hides it for good;
 - footprints and dust on sand, snow and mud, steps on jumps and landings, and props a
   map hangs on movers drawn, such as t2_rancor's bar tables (13/10/2026);
 - material maps generation 7 (13/10/2026): the generator finds its overrides again and

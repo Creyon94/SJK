@@ -1,3 +1,18 @@
+## Support SJK on the main page
+
+26/10/2026, `personal/support-links`, Sol's request: a small line at the top left of the
+SJK UI's main page, "Support SJK" with outlined GitHub Sponsors and Ko-fi pills that open
+those pages in the browser, and a round x that hides it for good (`ui_supportLinks 0`,
+Settings, Interface, "Support SJK" brings it back; [sjk-ui.md](sjk-ui.md#main-page),
+[sjk.md](sjk.md#donations)). It takes the place of the donation goal shelved on
+14/10/2026: the goal card, its reader of the hub (`donation_goal.rs`) and
+`sjk_identity::donations` were removed, the line asks no server anything and promises
+nothing; the Collection still lists Supporter only to its holders. Checked on Windows 11:
+format, Clippy (sjk-viewer and sjk-identity, no warning), tests (3047 and 198 passed, with
+`support_sjk_opens_each_page_and_hides`) and the `sjk_home_snapshot` pictures at 16:9 and
+4:3. Not verified in game: the pages opening in the browser, the x and its hint on hover,
+the hidden line after a restart.
+
 ## A blade skin for each saber
 
 21/10/2026, `feat/second-saber-skin` (Creyon, SJK pull request with the hub's), based on `main`
