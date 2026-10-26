@@ -298,7 +298,8 @@ impl Entry {
 }
 
 /// The known holocrons of a profile's list, in the hub's order (newest first): kyber
-/// crystals left out.
+/// crystals left out. (The Staff page lists crystals too, so only tests ask now.)
+#[cfg(test)]
 pub(crate) fn entries(list: &[Holocron]) -> Vec<Entry> {
     list.iter()
         .filter_map(Entry::from_wire)

@@ -2,12 +2,17 @@
 //! the players found down the left, and on the right the chosen player's picture and
 //! name beside the note sent with the next gift, over a row of tabs:
 //!
-//! - Overview: their account (key, flags, trust, what they hold, the names they wore)
+//! Key ids never show (nor anywhere in the game): players go by name, a key id typed or
+//! pasted into the search or the merge field shows as dots, linked keys are numbered.
+//!
+//! - Overview: their account (flags, trust, when last seen, what they hold, the names
+//!   they wore)
 //!   with Verify, and moderation: their picture (Take down, Block pictures, Allow
 //!   pictures) and the SJK chat (Mute at the hub, Unmute, Lift chat bans);
 //! - Medals and unlocks: the medals with Give and Take back, the unlockables with
 //!   Unlock and Relock;
-//! - Holocrons and credits: a tier to choose, Give and their holocrons with Remove;
+//! - Holocrons and credits: a holocron or kyber crystal tier to choose, Give, and their
+//!   holocrons and crystals with Remove;
 //!   their credits and kyber shards with an amount, Give and Take;
 //! - Achievements with Clear (and Clear all), in two columns;
 //! - Keys: their keys with Unlink and merging another player into them;
@@ -65,6 +70,39 @@ const MERGE_TOP: f32 = 640.0;
 /// The keys' line.
 const KEYS_Y: f32 = 1_010.0;
 
+/// `text` as a field shows it: a key id (8 hex digits or more, nothing else) as dots,
+/// since key ids never show in the game; anything else as it is.
+fn hide_key(text: &str) -> String {
+    let trimmed = text.trim();
+    if trimmed.len() >= 8 && trimmed.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        format!("{} (key id)", "\u{2022}".repeat(trimmed.len().min(16)))
+    } else {
+        text.to_owned()
+    }
+}
+
+/// When the hub last saw `profile` wear a name in a game, unix seconds; 0 when never.
+fn last_seen(profile: &Profile) -> i64 {
+    profile
+        .names
+        .iter()
+        .map(|worn| worn.last_seen)
+        .max()
+        .unwrap_or(0)
+}
+
+/// How many kyber crystals of each tier `profile` holds unopened, as its list shows
+/// them (in `crate::kyber::TIERS` order).
+fn crystal_counts(profile: &Profile) -> [u32; crate::kyber::COUNT] {
+    let mut counts = [0; crate::kyber::COUNT];
+    for holocron in profile.holocrons.iter().filter(|h| h.opened.is_none()) {
+        if let Some(tier) = crate::kyber::from_id(&holocron.tier) {
+            counts[tier.index] += 1;
+        }
+    }
+    counts
+}
+
 /// `text` cut to `chars` characters with an ellipsis.
 fn cut(text: &str, chars: usize) -> String {
     if text.chars().count() <= chars {
@@ -98,9 +136,9 @@ impl Panel {
         crate::settings::sjk_view::backdrop(&mut self.ui, viewport);
         let caret = (self.epoch.elapsed().as_millis() / 500).is_multiple_of(2);
         let query = if self.focus == SEARCH_TOKEN && caret {
-            format!("{}|", self.query)
+            format!("{}|", hide_key(&self.query))
         } else {
-            self.query.clone()
+            hide_key(&self.query)
         };
         top_bar(
             &mut self.ui,
@@ -241,17 +279,26 @@ impl Panel {
                 FontWeight::Regular,
                 TextAlign::Start,
             );
+            // When the hub last saw them in a game, never their key id.
+            let seen = crate::medals::date_text(last_seen(player));
+            let you = self.shown.me.as_deref() == Some(player.key_id.as_str());
+            let about = match (you, seen.is_empty()) {
+                (true, _) => "you".to_owned(),
+                (false, true) => "not seen in a game yet".to_owned(),
+                (false, false) => format!("seen {seen}"),
+            };
             text(
                 &mut self.ui,
                 TextFamily::Body,
-                format_args!("{}", player.key_id),
-                frame.rect(LEFT_X + 18.0, y + 26.0, 220.0, 18.0),
+                format_args!("{about}"),
+                frame.rect(LEFT_X + 18.0, y + 26.0, 260.0, 18.0),
                 13.0 * s,
                 color::QUIET,
                 FontWeight::Regular,
                 TextAlign::Start,
             );
             let tags = match (player.staff, player.verified) {
+                _ if player.creator => "Creator",
                 (true, true) => "Staff, verified",
                 (true, false) => "Staff",
                 (false, true) => "Verified",
@@ -337,12 +384,25 @@ impl Panel {
             TextAlign::Start,
         );
         self.note_field(frame);
-        let mut facts = vec![format!("Key id {}", profile.key_id)];
+        let mut facts = Vec::new();
+        if profile.creator {
+            facts.push("creator".to_owned());
+        }
         if profile.verified {
             facts.push("verified".to_owned());
         }
-        if profile.staff {
+        if profile.staff && !profile.creator {
             facts.push("staff".to_owned());
+        }
+        let keys = profile.keys.len().max(1);
+        facts.push(if keys == 1 {
+            "1 key".to_owned()
+        } else {
+            format!("{keys} keys")
+        });
+        let seen = crate::medals::date_text(last_seen(profile));
+        if !seen.is_empty() {
+            facts.push(format!("seen {seen}"));
         }
         if mine {
             facts.push("this is you".to_owned());
@@ -625,7 +685,7 @@ impl Panel {
     /// What the chosen player holds of holocrons, the tier Give holocron gives and the
     /// recent ones with Remove.
     fn holocrons(&mut self, frame: &Frame, profile: &Profile) {
-        use crate::holocrons::{self, TIERS};
+        use crate::holocrons::{self, SLOTS, TIERS, slot};
         let s = frame.s;
         kit::heading(
             &mut self.ui,
@@ -633,31 +693,47 @@ impl Panel {
             MIDDLE_X,
             HOLOCRONS_TOP - 36.0,
             MIDDLE_WIDTH,
-            "Holocrons",
+            "Holocrons and kyber crystals",
         );
         let counts = holocrons::counts_of(&profile.holocron_counts);
-        text(
-            &mut self.ui,
-            TextFamily::Body,
-            format_args!(
-                "Holds {} uncommon, {} rare, {} legendary, {} mythical",
-                counts[0], counts[1], counts[2], counts[3]
-            ),
-            frame.rect(MIDDLE_X, HOLOCRONS_TOP - 30.0 + 22.0, MIDDLE_WIDTH, 20.0),
-            14.0 * s,
-            color::MUTED,
-            FontWeight::Regular,
-            TextAlign::Start,
-        );
-        // The tier chips: its gem and name, the chosen tier ringed in its colour.
-        let chips_y = HOLOCRONS_TOP + 16.0;
-        for (index, tier) in TIERS.iter().enumerate() {
+        let crystals = crystal_counts(profile);
+        for (line, (what, held)) in [("Holocrons", counts), ("Crystals", crystals)]
+            .into_iter()
+            .enumerate()
+        {
+            text(
+                &mut self.ui,
+                TextFamily::Body,
+                format_args!(
+                    "{what}: {} uncommon, {} rare, {} legendary, {} mythical unopened",
+                    held[0], held[1], held[2], held[3]
+                ),
+                frame.rect(
+                    MIDDLE_X,
+                    HOLOCRONS_TOP - 8.0 + line as f32 * 20.0,
+                    MIDDLE_WIDTH,
+                    20.0,
+                ),
+                14.0 * s,
+                color::MUTED,
+                FontWeight::Regular,
+                TextAlign::Start,
+            );
+        }
+        // The tier chips, holocrons on the first row and kyber crystals on the second:
+        // its gem and name, the chosen one ringed in its colour.
+        let chips_y = HOLOCRONS_TOP + 40.0;
+        let row_step = TIER_CHIP[1] + 8.0;
+        for index in 0..SLOTS {
+            let tier = slot(index);
             let token = HOLOCRON_TIER_BASE + index as u16;
-            let x = MIDDLE_X + index as f32 * (TIER_CHIP[0] + 8.0);
+            let column = index % TIERS.len();
+            let x = MIDDLE_X + column as f32 * (TIER_CHIP[0] + 8.0);
+            let y = chips_y + (index / TIERS.len()) as f32 * row_step;
             kit::button(
                 &mut self.ui,
                 frame,
-                [x, chips_y, TIER_CHIP[0], TIER_CHIP[1]],
+                [x, y, TIER_CHIP[0], TIER_CHIP[1]],
                 "",
                 false,
                 true,
@@ -667,17 +743,17 @@ impl Panel {
             let chosen = self.holocron_tier == index;
             if chosen {
                 let _ = self.ui.draw_list_mut().push(DrawCommand::Border {
-                    rect: frame.rect(x, chips_y, TIER_CHIP[0], TIER_CHIP[1]),
+                    rect: frame.rect(x, y, TIER_CHIP[0], TIER_CHIP[1]),
                     radius: TIER_CHIP[1] * 0.5 * s,
                     width: 2.0 * s,
                     color: tier.colour,
                 });
             }
-            let [gem_x, gem_y] = frame.point(x + 24.0, chips_y + TIER_CHIP[1] * 0.5);
+            let [gem_x, gem_y] = frame.point(x + 24.0, y + TIER_CHIP[1] * 0.5);
             holocrons::gem::draw(
                 self.ui.draw_list_mut(),
                 [gem_x, gem_y],
-                9.0 * s,
+                if tier.is_kyber() { 7.0 } else { 9.0 } * s,
                 tier.colour,
                 if chosen { 1.0 } else { 0.7 },
                 holocrons::gem::MARK_ROWS,
@@ -686,7 +762,7 @@ impl Panel {
                 &mut self.ui,
                 TextFamily::Display,
                 format_args!("{}", tier.label),
-                frame.rect(x + 38.0, chips_y + 6.0, TIER_CHIP[0] - 42.0, 30.0),
+                frame.rect(x + 38.0, y + 6.0, TIER_CHIP[0] - 42.0, 30.0),
                 16.0 * s,
                 if chosen { color::TEXT } else { color::MUTED },
                 FontWeight::Semibold,
@@ -694,14 +770,16 @@ impl Panel {
             );
             self.order.push(token);
         }
+        // Give, as tall as both rows, gives the chosen one.
+        let give_x = MIDDLE_X + TIERS.len() as f32 * (TIER_CHIP[0] + 8.0) + 4.0;
         kit::button(
             &mut self.ui,
             frame,
             [
-                MIDDLE_X + 4.0 * (TIER_CHIP[0] + 8.0) + 4.0,
+                give_x,
                 chips_y,
-                MIDDLE_WIDTH - 4.0 * (TIER_CHIP[0] + 8.0) - 4.0,
-                TIER_CHIP[1],
+                MIDDLE_X + MIDDLE_WIDTH - give_x,
+                row_step + TIER_CHIP[1],
             ],
             "Give",
             true,
@@ -710,14 +788,41 @@ impl Panel {
             HOLOCRON_GIVE_TOKEN,
         );
         self.order.push(HOLOCRON_GIVE_TOKEN);
-        // The recent ones, newest first.
-        let entries = holocrons::entries(&profile.holocrons);
-        let rows_y = chips_y + TIER_CHIP[1] + 14.0;
+        let chosen = slot(self.holocron_tier);
+        let gives = if chosen.is_kyber() {
+            format!(
+                "Give: {} {}, opened to a saber shader",
+                chosen.article(),
+                chosen.name
+            )
+        } else {
+            format!("Give: {} {}", chosen.article(), chosen.name)
+        };
+        let rows_y = chips_y + row_step + TIER_CHIP[1] + 8.0;
+        text(
+            &mut self.ui,
+            TextFamily::Body,
+            format_args!("{gives}"),
+            frame.rect(MIDDLE_X, rows_y, MIDDLE_WIDTH, 20.0),
+            14.0 * s,
+            chosen.colour,
+            FontWeight::Regular,
+            TextAlign::Start,
+        );
+        // The recent ones, holocrons and crystals, newest first.
+        let entries: Vec<(holocrons::Entry, bool)> = profile
+            .holocrons
+            .iter()
+            .filter_map(|wire| {
+                holocrons::Entry::from_wire(wire).map(|entry| (entry, wire.opened.is_some()))
+            })
+            .collect();
+        let rows_y = rows_y + 28.0;
         if entries.is_empty() {
             text(
                 &mut self.ui,
                 TextFamily::Body,
-                format_args!("No holocrons yet."),
+                format_args!("No holocrons or crystals yet."),
                 frame.rect(MIDDLE_X, rows_y, MIDDLE_WIDTH, 24.0),
                 16.0 * s,
                 color::MUTED,
@@ -725,48 +830,59 @@ impl Panel {
                 TextAlign::Start,
             );
         }
-        for (row, entry) in entries.iter().take(HOLOCRONS_SHOWN).enumerate() {
+        for (row, (entry, opened)) in entries.iter().take(HOLOCRONS_SHOWN).enumerate() {
             let y = rows_y + row as f32 * HOLOCRON_ROW;
             let token = HOLOCRON_REMOVE_BASE + row as u16;
             let [gem_x, gem_y] = frame.point(MIDDLE_X + 14.0, y + HOLOCRON_ROW * 0.5 - 2.0);
             holocrons::gem::draw(
                 self.ui.draw_list_mut(),
                 [gem_x, gem_y],
-                10.0 * s,
+                if entry.tier.is_kyber() { 8.0 } else { 10.0 } * s,
                 entry.tier.colour,
-                1.0,
+                if *opened { 0.45 } else { 1.0 },
                 holocrons::gem::MARK_ROWS,
             );
             text(
                 &mut self.ui,
                 TextFamily::Display,
                 format_args!("{}", entry.tier.name),
-                frame.rect(MIDDLE_X + 34.0, y, 200.0, 28.0),
-                18.0 * s,
+                frame.rect(MIDDLE_X + 34.0, y, 190.0, 28.0),
+                17.0 * s,
                 entry.tier.colour,
                 FontWeight::Semibold,
                 TextAlign::Start,
             );
-            let kind = if entry.gift { "gift" } else { "play" };
+            let kind = match (entry.earned, entry.gift, entry.traded.is_some()) {
+                (true, ..) => "earned",
+                (_, true, _) => "gift",
+                (.., true) => "trade",
+                _ => "play",
+            };
             text(
                 &mut self.ui,
                 TextFamily::Body,
                 format_args!(
-                    "#{} {} {kind}",
+                    "#{} {} {kind}{}",
                     entry.id,
-                    holocrons::when_text(entry.dropped)
+                    holocrons::when_text(entry.dropped),
+                    if *opened { ", opened" } else { "" }
                 ),
-                frame.rect(MIDDLE_X + 200.0, y + 2.0, MIDDLE_WIDTH - 316.0, 24.0),
-                13.0 * s,
+                frame.rect(MIDDLE_X + 196.0, y + 3.0, MIDDLE_WIDTH - 332.0, 24.0),
+                12.5 * s,
                 color::QUIET,
                 FontWeight::Regular,
                 TextAlign::End,
             );
+            let remove = if self.confirming(token) {
+                "Press again"
+            } else {
+                "Remove"
+            };
             kit::button(
                 &mut self.ui,
                 frame,
-                [MIDDLE_X + MIDDLE_WIDTH - 100.0, y - 1.0, 100.0, 30.0],
-                "Remove",
+                [MIDDLE_X + MIDDLE_WIDTH - 124.0, y - 1.0, 124.0, 30.0],
+                remove,
                 false,
                 self.shown.creator,
                 self.focus == token,
@@ -958,8 +1074,9 @@ impl Panel {
             .iter()
             .filter(|held| held.unlocked > 0)
             .count();
+        let seen = crate::medals::date_text(last_seen(profile));
+        let crystals = crystal_counts(profile);
         let mut rows = vec![
-            ("Key id", profile.key_id.clone()),
             (
                 "Flags",
                 match (profile.staff, profile.verified) {
@@ -980,7 +1097,21 @@ impl Panel {
                     since
                 },
             ),
-            ("Keys", format!("{} linked", profile.linked_keys().count())),
+            (
+                "Last seen",
+                if seen.is_empty() {
+                    "not in a game yet".to_owned()
+                } else {
+                    seen
+                },
+            ),
+            (
+                "Keys",
+                format!(
+                    "1 main, {} linked (never shown)",
+                    profile.linked_keys().count()
+                ),
+            ),
             (
                 "Medals",
                 format!(
@@ -1001,6 +1132,13 @@ impl Panel {
                 format!(
                     "{} uncommon, {} rare, {} legendary, {} mythical unopened",
                     counts[0], counts[1], counts[2], counts[3]
+                ),
+            ),
+            (
+                "Kyber crystals",
+                format!(
+                    "{} uncommon, {} rare, {} legendary, {} mythical unopened",
+                    crystals[0], crystals[1], crystals[2], crystals[3]
                 ),
             ),
             (
@@ -1291,6 +1429,11 @@ impl Panel {
                 self.focus == give_token,
                 give_token,
             );
+            let take = if self.confirming(take_token) {
+                "Press again"
+            } else {
+                take
+            };
             kit::button(
                 &mut self.ui,
                 frame,
@@ -1310,8 +1453,8 @@ impl Panel {
             frame,
             RIGHT_X,
             y + 110.0,
-            "The note goes with it. The hub refuses taking more than they have, and \
-             shards from a hub before the shop.",
+            "The note goes with it. Taking waits for a second press; the hub refuses \
+             taking more than they have.",
         );
     }
 
@@ -1364,7 +1507,7 @@ impl Panel {
                 TextAlign::Start,
             );
             let by = if ban.by_name.is_empty() {
-                cut(&ban.by_key_id, 16)
+                "a player".to_owned()
             } else {
                 cut(&crate::medals::plain_note(&ban.by_name), 16)
             };
@@ -1784,7 +1927,7 @@ impl Panel {
         text(
             &mut self.ui,
             TextFamily::Body,
-            format_args!("Main key {}", profile.key_id),
+            format_args!("Main key: the one this player started with (key ids never show)"),
             frame.rect(MIDDLE_X, y, PANE_WIDTH, 24.0),
             16.0 * s,
             color::MUTED,
@@ -1811,13 +1954,13 @@ impl Panel {
                 y += 22.0;
             }
         }
-        for (row, key) in linked.iter().take(LINKED_SHOWN).enumerate() {
+        for row in 0..linked.len().min(LINKED_SHOWN) {
             let token = UNLINK_BASE + row as u16;
             let row_y = y + row as f32 * LINKED_ROW;
             text(
                 &mut self.ui,
                 TextFamily::Display,
-                format_args!("Linked {key}"),
+                format_args!("Linked key {}", row + 1),
                 frame.rect(MIDDLE_X, row_y + 2.0, PANE_WIDTH - 150.0, 26.0),
                 18.0 * s,
                 color::TEXT,
@@ -1886,12 +2029,12 @@ impl Panel {
         );
         match self.pending_merge.clone() {
             Some(merge) => self.merge_confirmation(frame, profile, &merge, players),
-            None => self.merge_entry(frame),
+            None => self.merge_entry(frame, players),
         }
     }
 
     /// The merge field with Pick in list, what is wrong with it, and Merge.
-    fn merge_entry(&mut self, frame: &Frame) {
+    fn merge_entry(&mut self, frame: &Frame, players: &[Profile]) {
         let s = frame.s;
         let mut y = MERGE_TOP + 30.0;
         for part in wrap(
@@ -1915,15 +2058,21 @@ impl Panel {
         let field = [MIDDLE_X, y, PANE_WIDTH - pick_width - 10.0, 44.0];
         let focused = self.focus == MERGE_FIELD_TOKEN;
         let caret = focused && (self.epoch.elapsed().as_millis() / 500).is_multiple_of(2);
+        // The key never shows: dots, and the player it names when the list has them.
+        let from = merge_key(&self.merge_from);
+        let shown = match players.iter().find(|player| player.has_key(&from)) {
+            Some(player) if !from.is_empty() => format!(
+                "{} {}",
+                hide_key(&from),
+                crate::medals::plain_note(&player.name)
+            ),
+            _ => hide_key(&self.merge_from),
+        };
         kit::field(
             &mut self.ui,
             frame,
             field,
-            format_args!(
-                "{}{}",
-                cut(&self.merge_from, 28),
-                if caret { "|" } else { "" }
-            ),
+            format_args!("{}{}", cut(&shown, 44), if caret { "|" } else { "" }),
             focused,
             false,
         );
@@ -2017,14 +2166,23 @@ impl Panel {
             .find(|player| player.has_key(&merge.from))
             .map_or_else(|| "a player not in the list".to_owned(), |p| named(&p.name));
         let mut y = MERGE_TOP + 42.0;
-        for (label, who, key, colour) in [
+        // Who goes and who stays by name and when they were seen, never by key.
+        let seen_of = |profile: Option<&Profile>| {
+            let seen = profile.map_or(0, last_seen);
+            match crate::medals::date_text(seen) {
+                date if date.is_empty() => "not seen in a game yet".to_owned(),
+                date => format!("last seen {date}"),
+            }
+        };
+        let gone_profile = players.iter().find(|player| player.has_key(&merge.from));
+        for (label, who, about, colour) in [
             (
                 "Kept",
                 named(&kept.name),
-                merge.kept.as_str(),
+                seen_of(Some(kept)),
                 color::GOLD_BRIGHT,
             ),
-            ("Merged away", gone, merge.from.as_str(), color::EMBER),
+            ("Merged away", gone, seen_of(gone_profile), color::EMBER),
         ] {
             text(
                 &mut self.ui,
@@ -2039,7 +2197,7 @@ impl Panel {
             text(
                 &mut self.ui,
                 TextFamily::Body,
-                format_args!("Key id {key}"),
+                format_args!("{about}"),
                 frame.rect(MIDDLE_X, y + 28.0, PANE_WIDTH, 20.0),
                 14.0 * s,
                 color::MUTED,

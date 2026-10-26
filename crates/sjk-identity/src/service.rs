@@ -6248,7 +6248,7 @@ mod tests {
             t0,
         );
         let merged = state();
-        assert_eq!(merged.message, "Merged cccccccccccccccc into this player");
+        assert_eq!(merged.message, "Merged the other player into this one");
         let ids: Vec<&str> = merged.players.iter().map(|p| p.key_id.as_str()).collect();
         assert_eq!(ids, ["aaaaaaaaaaaaaaaa", "dddddddddddddddd"]);
         assert_eq!(
@@ -6269,7 +6269,7 @@ mod tests {
             }),
             t0,
         );
-        assert_eq!(state().message, "Unlinked cccccccccccccccc");
+        assert_eq!(state().message, "Unlinked the key: it starts afresh");
         worker.tick(t0);
         assert_eq!(registers(), before);
         // Unlinking this PC's own key: it starts afresh and registers again.

@@ -22,8 +22,13 @@ pub(crate) fn listing(blocked: &[Mute]) -> Vec<String> {
     }
     std::iter::once(format!("Blocked on this PC ({}):", blocked.len()))
         .chain(blocked.iter().map(|mute| {
-            let key = mute.key_id.as_deref().unwrap_or("by name");
-            format!("  {}^7  ({key})", mute.name)
+            // How it matches, never the key id itself: key ids never show in the game.
+            let how = if mute.key_id.is_some() {
+                "by key"
+            } else {
+                "by name"
+            };
+            format!("  {}^7  ({how})", mute.name)
         }))
         .collect()
 }
@@ -169,7 +174,8 @@ mod tests {
         assert_eq!(listing(&[]), ["Nobody is blocked on this PC"]);
         let lines = listing(&[mute(Some("0123456789abcdef"), "^1Troll"), mute(None, "Sol")]);
         assert_eq!(lines[0], "Blocked on this PC (2):");
-        assert!(lines[1].contains("0123456789abcdef"));
+        assert!(lines[1].contains("by key"));
+        assert!(!lines[1].contains("0123456789abcdef"), "key ids never show");
         assert!(lines[2].contains("by name"));
     }
 }

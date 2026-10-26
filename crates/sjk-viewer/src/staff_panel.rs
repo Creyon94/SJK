@@ -5,7 +5,9 @@
 //! credits and kyber shards (Holocrons and credits), clear their achievements, list
 //! their keys and unlink one or merge another player into them (a player who reset
 //! their key), and ask them for their game's logs; two more tabs read every player's
-//! crash reports and the SJK chat bans in force, with Lift. Every action is a
+//! crash reports and the SJK chat bans in force, with Lift. Key ids never show on the
+//! page (nor anywhere in the game): players go by name, a pasted key id shows as dots,
+//! and linked keys are numbered. Every action is a
 //! request signed by the player's own key (`sjk_identity::StaffRequest`,
 //! `sjk_identity::StaffQuery`); the hub refuses it from any other key, and the page
 //! only opens for a key whose profile says staff.
@@ -46,12 +48,12 @@ const UNLOCK_PREV_TOKEN: u16 = 7_590;
 const UNLOCK_NEXT_TOKEN: u16 = 7_591;
 const UNLOCK_BASE: u16 = 7_600;
 const RELOCK_BASE: u16 = 7_900;
-/// The holocron tier chips (one token per tier), Give holocron, and Remove (one token
-/// per holocron row).
+/// The tier chips (one token per holocron tier, then one per kyber crystal tier, as
+/// `crate::holocrons::slot` counts them), Give, and Remove (one token per row).
 const HOLOCRON_TIER_BASE: u16 = 1_300;
 const HOLOCRON_GIVE_TOKEN: u16 = 1_310;
 const HOLOCRON_REMOVE_BASE: u16 = 1_320;
-/// The chosen player's recent holocrons listed with Remove.
+/// The chosen player's recent holocrons and kyber crystals listed with Remove.
 const HOLOCRONS_SHOWN: usize = 12;
 /// Verify or Unverify the chosen player.
 const VERIFY_TOKEN: u16 = 1_400;
@@ -118,7 +120,8 @@ const MERGE_FIELD_MAX: usize = 40;
 const QUERY_MAX: usize = 64;
 /// Longest note with a medal or an unlock, as the hub takes it.
 const NOTE_MAX: usize = 200;
-/// How long Clear all and Unlink wait for their second press.
+/// How long the buttons that take something away (Clear all, Unlink, Remove, Take
+/// credits, Take shards, Make or Remove staff) wait for their second press.
 const CONFIRM_FOR: Duration = Duration::from_secs(3);
 
 /// Whether `token` is one of the buttons only SJK's creator may use (the hub's
@@ -144,7 +147,7 @@ fn owner_only(token: u16) -> bool {
         || within(TAKE_BASE, crate::medals::Medal::COUNT)
         || within(UNLOCK_BASE, crate::unlockables::ALL.len())
         || within(RELOCK_BASE, crate::unlockables::ALL.len())
-        || within(HOLOCRON_TIER_BASE, crate::holocrons::COUNT)
+        || within(HOLOCRON_TIER_BASE, crate::holocrons::SLOTS)
         || within(HOLOCRON_REMOVE_BASE, HOLOCRONS_SHOWN)
         || within(CLEAR_BASE, crate::achievements::ALL.len())
         || within(UNLINK_BASE, LINKED_SHOWN)
@@ -222,7 +225,7 @@ enum MergeProblem {
 impl MergeProblem {
     fn words(self) -> &'static str {
         match self {
-            Self::Empty => "Type or paste the other player's key id, or pick them in the list",
+            Self::Empty => "Pick the other player in the list, or paste their key id",
             Self::NotKey => "A key id is 16 hex digits",
             Self::Same => "That key is already this player's",
             Self::Staff => "A staff player cannot be merged away",
@@ -285,7 +288,8 @@ pub(crate) struct Panel {
     amount: String,
     /// The chosen player's key; the player's own until another is chosen.
     selected: Option<String>,
-    /// The holocron tier Give holocron gives (its index in the catalogue).
+    /// What Give gives: a holocron tier or a kyber crystal tier, as
+    /// `crate::holocrons::slot` counts them.
     holocron_tier: usize,
     /// The unlockables list's page, from 0.
     unlock_page: usize,
@@ -541,11 +545,12 @@ impl Panel {
                 let (Some(key_id), Some(amount)) = (target, self.amount()) else {
                     return PanelAction::None;
                 };
-                let delta = if matches!(token, CREDITS_TAKE_TOKEN | SHARDS_TAKE_TOKEN) {
-                    -amount
-                } else {
-                    amount
-                };
+                let take = matches!(token, CREDITS_TAKE_TOKEN | SHARDS_TAKE_TOKEN);
+                // Taking away waits for a second press.
+                if take && !self.second_press(token) {
+                    return PanelAction::None;
+                }
+                let delta = if take { -amount } else { amount };
                 let note = self.note.trim().to_owned();
                 PanelAction::Request(
                     if matches!(token, CREDITS_GIVE_TOKEN | CREDITS_TAKE_TOKEN) {
@@ -782,7 +787,7 @@ impl Panel {
                 }
             }
             token
-                if (HOLOCRON_TIER_BASE..HOLOCRON_TIER_BASE + crate::holocrons::COUNT as u16)
+                if (HOLOCRON_TIER_BASE..HOLOCRON_TIER_BASE + crate::holocrons::SLOTS as u16)
                     .contains(&token) =>
             {
                 self.holocron_tier = usize::from(token - HOLOCRON_TIER_BASE);
@@ -791,7 +796,7 @@ impl Panel {
             HOLOCRON_GIVE_TOKEN => match target {
                 Some(key_id) => PanelAction::Request(StaffRequest::HolocronGive {
                     key_id,
-                    tier: crate::holocrons::TIERS[self.holocron_tier].id.to_owned(),
+                    tier: crate::holocrons::slot(self.holocron_tier).id.to_owned(),
                     note: self.note.trim().to_owned(),
                 }),
                 None => PanelAction::None,
@@ -802,7 +807,7 @@ impl Panel {
             {
                 let row = usize::from(token - HOLOCRON_REMOVE_BASE);
                 match target {
-                    Some(key_id) if row < self.shown.holocron_rows => {
+                    Some(key_id) if row < self.shown.holocron_rows && self.second_press(token) => {
                         PanelAction::Request(StaffRequest::HolocronRemove {
                             key_id,
                             id: self.shown.holocrons[row],
@@ -840,6 +845,8 @@ impl Panel {
         };
         if tab == ShotTab::Economy {
             self.amount = "50".to_owned();
+            // A rare kyber crystal chosen, from the chips' second row.
+            self.holocron_tier = crate::holocrons::COUNT + 1;
         }
     }
 
@@ -1316,8 +1323,27 @@ mod tests {
             })
         );
         assert!(panel.order.contains(&HOLOCRON_GIVE_TOKEN));
-        for tier in 0..crate::holocrons::COUNT as u16 {
+        for tier in 0..crate::holocrons::SLOTS as u16 {
             assert!(panel.order.contains(&(HOLOCRON_TIER_BASE + tier)));
+        }
+    }
+
+    #[test]
+    fn a_kyber_crystal_is_given_from_the_second_row_of_chips() {
+        let (mut panel, me, _) = drawn(Vec::new());
+        let _ = panel.activate(ECONOMY_TAB_TOKEN);
+        redraw(&mut panel, &me, Vec::new());
+        for (slot, tier) in crate::kyber::TIERS.iter().enumerate() {
+            let chip = HOLOCRON_TIER_BASE + (crate::holocrons::COUNT + slot) as u16;
+            assert_eq!(panel.activate(chip), PanelAction::None);
+            assert_eq!(
+                panel.activate(HOLOCRON_GIVE_TOKEN),
+                PanelAction::Request(StaffRequest::HolocronGive {
+                    key_id: me.key_id.clone(),
+                    tier: tier.id.into(),
+                    note: String::new(),
+                })
+            );
         }
     }
 
@@ -1333,6 +1359,7 @@ mod tests {
             staff: true,
             creator: true,
             holocrons: vec![
+                wire_holocron(42, "kyber_rare"),
                 wire_holocron(41, "legendary"),
                 wire_holocron(40, "from_the_future"),
                 wire_holocron(39, "rare"),
@@ -1348,24 +1375,26 @@ mod tests {
             &fonts.font,
             [1920.0, 1080.0],
         );
-        // Rows are the known tiers, newest first.
-        assert_eq!(
-            panel.activate(HOLOCRON_REMOVE_BASE),
-            PanelAction::Request(StaffRequest::HolocronRemove {
-                key_id: "aaaaaaaaaaaaaaaa".into(),
-                id: 41
-            })
-        );
-        assert_eq!(
-            panel.activate(HOLOCRON_REMOVE_BASE + 1),
-            PanelAction::Request(StaffRequest::HolocronRemove {
-                key_id: "aaaaaaaaaaaaaaaa".into(),
-                id: 39
-            })
-        );
-        assert_eq!(panel.activate(HOLOCRON_REMOVE_BASE + 2), PanelAction::None);
-        assert!(panel.order.contains(&(HOLOCRON_REMOVE_BASE + 1)));
-        assert!(!panel.order.contains(&(HOLOCRON_REMOVE_BASE + 2)));
+        // Rows are the known tiers, kyber crystals too, newest first; each Remove
+        // waits for a second press.
+        for (row, id) in [42, 41, 39].into_iter().enumerate() {
+            let token = HOLOCRON_REMOVE_BASE + row as u16;
+            assert_eq!(panel.activate(token), PanelAction::None, "first press");
+            assert_eq!(
+                panel.activate(token),
+                PanelAction::Request(StaffRequest::HolocronRemove {
+                    key_id: "aaaaaaaaaaaaaaaa".into(),
+                    id
+                })
+            );
+        }
+        // A first press elsewhere lets go of the one waiting.
+        let _ = panel.activate(HOLOCRON_REMOVE_BASE);
+        let _ = panel.activate(HOLOCRON_REMOVE_BASE + 1);
+        assert_eq!(panel.activate(HOLOCRON_REMOVE_BASE), PanelAction::None);
+        assert_eq!(panel.activate(HOLOCRON_REMOVE_BASE + 3), PanelAction::None);
+        assert!(panel.order.contains(&(HOLOCRON_REMOVE_BASE + 2)));
+        assert!(!panel.order.contains(&(HOLOCRON_REMOVE_BASE + 3)));
     }
 
     #[test]
@@ -1659,6 +1688,11 @@ mod tests {
         ] {
             assert!(panel.order.contains(&token), "{token}");
         }
+        assert_eq!(
+            panel.activate(CREDITS_TAKE_TOKEN),
+            PanelAction::None,
+            "taking waits for a second press"
+        );
         assert_eq!(
             panel.activate(CREDITS_TAKE_TOKEN),
             PanelAction::Request(StaffRequest::Credits {

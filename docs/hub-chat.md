@@ -309,8 +309,8 @@ feed: the hub took them, so the sound says the message went out.
   Open chat, `sjkchat`, `messagemode5` outside a game, the classic in-game SJK menu's
   SJK chat and the SJK UI in-game menu's SJK chat icon.
   The page draws a copy of the chat taken under the identity's lock, never the chat
-  itself: drawing asks for the player's own key (`printable_key_id`), which takes that
-  lock again, and a lock held while drawing froze the game.
+  itself: a lock held while drawing froze the game. The side panel names no key id
+  (none shows in the game, [identity.md](identity.md#settings-and-commands)).
 - Pasting (Sol's request, 10/10/2026): Ctrl+V, or Shift+Insert as in the console and
   the game's chat, pastes the clipboard's text into the page's field and the docks'
   (main page and in-game menu), through the console's clipboard tools, at the caret,

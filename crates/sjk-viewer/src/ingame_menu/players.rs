@@ -556,14 +556,11 @@ impl State {
             let _ = write!(place, ", {side}");
         }
         self.info.push(format!("Place  /  {place}"));
-        let key = player.hub.as_ref().map(|hub| {
-            crate::player_identity::printable_key_id(&hub.key_id)
-                .map_or_else(|| "your key".to_owned(), |key| format!("key {key}"))
-        });
-        self.info.push(match (&player.hub, key) {
-            (Some(hub), Some(key)) if hub.verified => format!("SJK hub  /  verified, {key}"),
-            (Some(_), Some(key)) => format!("SJK hub  /  {key}"),
-            _ => "SJK hub  /  not known to the hub".to_owned(),
+        // Key ids never show in the game, the player's own or anyone else's.
+        self.info.push(match &player.hub {
+            Some(hub) if hub.verified => "SJK hub  /  known, verified".to_owned(),
+            Some(_) => "SJK hub  /  known".to_owned(),
+            None => "SJK hub  /  not known to the hub".to_owned(),
         });
         if self.whispered_by(player) {
             self.info
@@ -734,7 +731,7 @@ mod tests {
             [
                 "Player  /  ^1Troll",
                 "Place  /  slot 0, red team",
-                "SJK hub  /  key 0123456789abcdef"
+                "SJK hub  /  known"
             ]
         );
         assert!(!state.choose(4), "Back is not a player");

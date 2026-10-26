@@ -88,12 +88,6 @@ impl Person {
             (false, ..) => "Not known to the SJK hub",
         }
     }
-    /// The key id the card prints: none for the player's own.
-    fn printed_key(&self) -> Option<&str> {
-        self.key_id
-            .as_deref()
-            .and_then(crate::player_identity::printable_key_id)
-    }
 }
 
 /// A card to draw: who, whether they are muted on this PC (the button then
@@ -156,7 +150,6 @@ pub(crate) fn size(person: &Person, whisper: bool, u: f32) -> [f32; 2] {
     }
     let lines = [
         person.hub_name.is_some(),
-        person.printed_key().is_some(),
         person.place != Place::Unknown,
         person.note.is_some(),
     ];
@@ -341,10 +334,6 @@ pub(crate) fn draw(
             color::MUTED,
             format_args!("Known as {hub}"),
         );
-        y += LINE * u;
-    }
-    if let Some(key) = person.printed_key() {
-        line(canvas, y, info, color::QUIET, format_args!("Key {key}"));
         y += LINE * u;
     }
     let (slot, how) = match person.place {
@@ -727,8 +716,8 @@ mod tests {
         assert!(texts.contains(&"^2Sol".to_owned()), "{texts:?}");
         assert!(texts.contains(&"SJK player".to_owned()), "{texts:?}");
         assert!(
-            texts.contains(&"Key 0123456789abcdef".to_owned()),
-            "{texts:?}"
+            !texts.iter().any(|text| text.contains("0123456789abcdef")),
+            "key ids never show: {texts:?}"
         );
         assert!(
             texts.contains(&"On this server, slot 5 (by name)".to_owned()),

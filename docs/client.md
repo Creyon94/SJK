@@ -3867,16 +3867,17 @@ are in [identity.md](identity.md).
 - The Identity page is where a player sets all of this up without a command:
   Settings > Network > SJK identity key, main menu > SJK > IDENTITY (classic menus),
   the in-game SJK menu, or the `identity` command
-  ([identity_panel.rs](../crates/sjk-viewer/src/identity_panel.rs)). It shows the key
-  id and the file to back up (hidden behind bullets until Show key, each time the page
-  opens, so it can be opened on a stream), whether the hub's operator vouches for the
+  ([identity_panel.rs](../crates/sjk-viewer/src/identity_panel.rs)). It shows the file
+  to back up (hidden behind bullets until Show file, each time the page opens, so it can
+  be opened on a stream; the key id is always bullets, as no key id ever shows in the
+  game, [identity.md](identity.md#settings-and-commands)), whether the hub's operator vouches for the
   player, the hub's status and the players it knows on the current server, and has
   - a switch for `cl_identity` ("Share my identity with the SJK hub", ON or OFF);
   - an optional bio field (500 characters at most), saved to the hub with Save or Enter.
     There is no name field: the hub takes the name the player plays under (`name`), and
     the page shows it with up to three earlier names. A new player has nothing to do;
   - "Copy my key id" (for the operator to verify the player);
-  - "Show key" (then "Hide key"): shows the key id and file;
+  - "Show file" (then "Hide file"): shows where the key file is;
   - "Use the official hub", shown only while `cl_hubUrl` is another address (a hub tried
     on this PC, say): it sets `cl_hubUrl` back to `https://sjk.dfox.app`. A saved
     `cl_hubUrl` wins over the default, so an old address stays until it is changed.
@@ -3890,8 +3891,8 @@ are in [identity.md](identity.md).
   switch and the buttons, letters type into the focused field (Ctrl+V pastes) and Escape
   closes; the pointer works too. The bio field follows the hub's copy until the player
   types in it. The commands remain: `identity bio <text>` changes
-  the bio (`identity name` says the name is the one played under), `identity key` prints
-  the key id and file,
+  the bio (`identity name` says the name is the one played under), `identity key` copies
+  the key id to the clipboard (never printing it) and says where the file is,
   `identity who [slot]` lists known players (with a slot, that player's bio).
 - The Profile page (in the SJK UI the Profile screen's SJK Profile tab, opened by its
   main page's Profile and profile card and the in-game menu's Profile; the classic

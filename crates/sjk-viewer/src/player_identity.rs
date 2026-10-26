@@ -967,16 +967,16 @@ pub(crate) fn own_key_id() -> Option<String> {
         .map(|service| service.with_snapshot(|snapshot| snapshot.key_id.clone()))
 }
 
-/// `key_id` as a card or a list prints it beside a player: `None` for the player's own
-/// key, kept off screen in play like the Identity page keeps it hidden, so a stream does
-/// not show it.
-pub(crate) fn printable_key_id(key_id: &str) -> Option<&str> {
-    others_key_id(key_id, own_key_id().as_deref())
+/// Whether `key_id` is another player's, not this player's own. Key ids are never
+/// drawn in the game, the player's own or anyone else's (Sol's rule, 26/10/2026), so a
+/// stream never shows one; this only tells whose a key is.
+pub(crate) fn is_others_key(key_id: &str) -> bool {
+    others_key(key_id, own_key_id().as_deref())
 }
 
-/// `key_id` unless it is `own`.
-fn others_key_id<'a>(key_id: &'a str, own: Option<&str>) -> Option<&'a str> {
-    (own != Some(key_id)).then_some(key_id)
+/// Whether `key_id` is not `own`.
+fn others_key(key_id: &str, own: Option<&str>) -> bool {
+    own != Some(key_id)
 }
 
 /// This PC's key id (for the pop-up's seen list, kept per key) and what the player's
@@ -1468,18 +1468,12 @@ mod tests {
     }
 
     #[test]
-    fn only_the_players_own_key_id_stays_off_screen() {
+    fn a_key_is_the_players_own_only_when_it_matches() {
         let own = Some("0123456789abcdef");
-        assert_eq!(others_key_id("0123456789abcdef", own), None);
-        assert_eq!(
-            others_key_id("fedcba9876543210", own),
-            Some("fedcba9876543210")
-        );
-        // Before the identity started every key prints.
-        assert_eq!(
-            others_key_id("0123456789abcdef", None),
-            Some("0123456789abcdef")
-        );
+        assert!(!others_key("0123456789abcdef", own));
+        assert!(others_key("fedcba9876543210", own));
+        // Before the identity started every key is another's.
+        assert!(others_key("0123456789abcdef", None));
     }
 
     #[test]

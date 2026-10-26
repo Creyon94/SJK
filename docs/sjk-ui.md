@@ -603,10 +603,10 @@ overlay routes their text to the UI's families (`console_sjk_pages.rs`).
 - **Identity** ([identity_panel_sjk.rs](../crates/sjk-viewer/src/identity_panel_sjk.rs)):
   the identity's state as a headline (the name the hub knows, or "Identity is
   off") over its lines, the switch sharing it with the hub, then while it is on
-  the bio's field and Save (gold), Copy my key id, Show key (Hide key once shown)
+  the bio's field and Save (gold), Copy my key id, Show file (Hide file once shown)
   and Use the official hub, and the known players here under a sub-heading,
-  verified ones marked gold. The key's id and file are bullets with "(hidden)" until
-  Show key, every time the page opens ([identity.md](identity.md#settings-and-commands)). A Medals
+  verified ones marked gold. The key id is always bullets with "(hidden)", the key file
+  until Show file, every time the page opens ([identity.md](identity.md#settings-and-commands)). A Medals
   column right of the page's lists the player's own medals once the hub answered
   (picture, name in gold, description, date given, the team's note), or says how
   medals come ([identity.md](identity.md#medals)).

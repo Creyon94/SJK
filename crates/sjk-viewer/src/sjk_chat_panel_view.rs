@@ -1303,19 +1303,7 @@ impl Panel {
                 1.0,
             );
         }
-        // The player's own key stays off screen, on their own messages too.
-        if let Some(key) = crate::player_identity::printable_key_id(&message.key_id) {
-            text(
-                &mut self.ui,
-                TextFamily::Body,
-                format_args!("Key id {key}"),
-                frame.rect(SIDE_X, top + 66.0, SIDE_WIDTH, 22.0),
-                15.0 * s,
-                color::MUTED,
-                FontWeight::Regular,
-                TextAlign::Start,
-            );
-        }
+        // No key id here: key ids never show in the game.
         let mut y = top + 110.0;
         kit::button(
             &mut self.ui,

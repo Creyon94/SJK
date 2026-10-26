@@ -451,13 +451,13 @@ impl Panel {
             place,
             REVEAL_TOKEN,
             if self.revealed {
-                "Hide key"
+                "Hide file"
             } else {
-                "Show key"
+                "Show file"
             },
             [x + 236.0, y, 100.0, height],
             focus == Focus::Reveal,
-            "Show your key id and key file, hidden while nobody asks (on a stream, say).",
+            "Show where your key file is, hidden while nobody asks (on a stream, say). The key id never shows.",
             hint,
         );
         if self.offer_hub {
