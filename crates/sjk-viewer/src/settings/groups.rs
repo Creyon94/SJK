@@ -364,6 +364,7 @@ impl Group {
                 "cg_thirdPersonCameraDamp",
                 "cg_thirdPersonTargetDamp",
                 "cg_wallGrabLock",
+                crate::held_view::LOOK_CVAR,
                 "cg_errorDecay",
                 "mod_japlus",
                 #[cfg(feature = "mod-japlus")]
@@ -922,6 +923,7 @@ mod tests {
             "cg_thirdPersonCameraDamp",
             "cg_thirdPersonTargetDamp",
             "cg_wallGrabLock",
+            crate::held_view::LOOK_CVAR,
             "cg_errorDecay",
         ];
         for group in [Group::GameOptions, Group::Advanced(Advanced::Gameplay)] {

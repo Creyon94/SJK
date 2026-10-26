@@ -4540,8 +4540,9 @@ While it does:
 
 - the mouse does not turn the view (the motion is dropped): a view turned under the
   server's rewrites shook as the player looked around, kicked down by a JA+ kata or a
-  melee kick (Rollembones' report #146). `cg_heldViewLook 1` lets the mouse turn it
-  anyway. A free camera and fake noclip are not held;
+  melee kick (Rollembones' report #146). Free look when held (`cg_heldViewLook`,
+  Settings > Game options and Advanced > Gameplay, off by default) lets the mouse turn
+  it anyway, with the shake. A free camera and fake noclip are not held;
 - the [Ragdoll](#ragdoll) gets the player up and does not start, and a [Hax](#hax) hack
   ends or is refused (the hacker reads "is busy"): their commands carry angles of their
   own, so every rewrite turned the camera on by the gap between the two views and it

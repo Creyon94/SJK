@@ -72,6 +72,7 @@ const SHORT_LABELS: &[(&str, &str)] = &[
     ("cg_thirdPersonCameraDamp", "Camera damping"),
     ("cg_thirdPersonTargetDamp", "Target damping"),
     ("cg_wallGrabLock", "Lock wall-grab camera"),
+    (crate::held_view::LOOK_CVAR, "Free look when held"),
     ("cg_errorDecay", "Error smoothing"),
     (crate::ghost_replay::SHOWCASE_CVAR, "Showcase tools"),
     (crate::frame_target::aa::exposure::MIN_EV, "Max darken, EV"),
@@ -847,6 +848,10 @@ const HELP: &[(&str, &str)] = &[
     (
         "cg_wallGrabLock",
         "Off: stock locks; JA+ lets you look and aim the kick-off. On locks JA+ too, preventing aim during the hold.",
+    ),
+    (
+        crate::held_view::LOOK_CVAR,
+        "On lets the mouse look around while a kick, knockdown, kiss or grapple holds your view; the camera may shake.",
     ),
     (
         "cg_errorDecay",
