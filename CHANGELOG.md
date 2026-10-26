@@ -30,6 +30,12 @@ The site (site/assets/site.js, parseChangelog) reads the release headings,
 introductions and recap lines too.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
+## Unreleased
+
+- Achievements reach the SJK hub within a minute of unlocking, even after it held some counts back, and their kyber crystal shows up within half a minute instead of up to ten _(Sol, after Creyon's and Kushina's reports)_
+- A new kyber crystal's arrival shows the crystal's own picture, no longer a plain gem like a holocron's _(Sol, after Kushina's report)_
+- Master Craftsman says what it asks: blades crafted from a Normal, a Holo and a Solar card _(Sol, after Kushina's report)_
+
 ## 2026.1026.1 (Alpha) | 26/10/2026
 
 Kyber crystals from achievements, 14 new achievements, trading for every verified player and the Boombox toy.

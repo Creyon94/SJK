@@ -322,7 +322,10 @@ for a gift, the team's note. It follows the medal pop-up
 - A kyber crystal the hub grants arrives the same way, as a gift does: "New kyber crystal",
   "Earned from an achievement" (or "Earned: <achievement>" when the hub names it in the
   row's note, which is then not quoted), its name, when, and "Earned from achievements.
-  Always a saber shader." in place of the drop odds; its gem until its picture comes.
+  Always a saber shader." in place of the drop odds; its own picture
+  (`gfx/sjk/holocron_kyber_<tier>`, the atlas cells 4 to 7) since 27/10/2026, its gem only
+  when that picture is missing (until then the pop-up always drew the gem, which read as a
+  plain holocron: report 150).
 - Each arrives in a ceremony of the medal's timing and light in the tier's colour (it comes
   down into place, rings and sparks run out, a ring of ticks turns, a glow breathes while it
   waits, the words fade up one group after another) with the multiplayer game's fanfare
