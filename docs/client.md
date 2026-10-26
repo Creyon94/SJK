@@ -4603,11 +4603,12 @@ saber lock, and on a JA+ server JoF EJK's `CG_JAPlusViewLockedState` (kicked dow
 getting up, kissing, hanging from a ledge) ([held_view.rs](../crates/sjk-viewer/src/held_view.rs)).
 While it does:
 
-- the mouse does not turn the view (the motion is dropped): a view turned under the
-  server's rewrites shook as the player looked around, kicked down by a JA+ kata or a
-  melee kick (Rollembones' report #146). Free look when held (`cg_heldViewLook`,
-  Settings > Game options and Advanced > Gameplay, off by default) lets the mouse turn
-  it anyway, with the shake. A free camera and fake noclip are not held;
+- the mouse turns the view as in the base game while Free look when held
+  (`cg_heldViewLook`, Settings > Game options and Advanced > Gameplay) is on, the
+  default since Sol found the locked camera worse than the shake; switched off, the
+  mouse does not turn it (the motion is dropped), as a view turned under the server's
+  rewrites shakes, kicked down by a JA+ kata or a melee kick (Rollembones' report
+  #146). A free camera and fake noclip are not held;
 - the [Ragdoll](#ragdoll) gets the player up and does not start, and a [Hax](#hax) hack
   ends or is refused (the hacker reads "is busy"): their commands carry angles of their
   own, so every rewrite turned the camera on by the gap between the two views and it

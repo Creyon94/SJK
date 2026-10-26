@@ -193,12 +193,12 @@ test: Hax: steer someone and amkiss (or be kissed while hacked): the hack ends, 
 
 [held-view-look]
 area: Input
-title: The mouse waits while the server holds your view (Rollembones #146)
-change: JA+ kicks, knockdowns, kisses, grapples, throws and saber locks: the mouse is ignored.
-change: cg_heldViewLook 1 lets the mouse turn the view anyway (it shakes, as before).
+title: Free look when held: on by default, off holds the view still (Rollembones #146)
+change: JA+ kicks, knockdowns, kisses, grapples, throws and saber locks: the mouse turns the view.
+change: Free look when held off (cg_heldViewLook 0): the mouse is ignored then, no shake.
 test: On a JoF server, get kicked down by a kata or a WD melee kick, move the mouse: no shake.
 test: When you are up again the mouse turns the view at once, from where it was held.
-test: Game options > Free look when held on, kicked again: the mouse turns it (it shakes).
+test: Default: kicked down, the mouse turns the view. Option off, kicked again: it stays still.
 test: The what's-new card offers Free look when held with its switch.
 
 [ragdoll-toy]
