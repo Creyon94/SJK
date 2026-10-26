@@ -192,7 +192,7 @@ one (4:3, 5:4) scales the frame down to its width.
     the main page's Profile, and its profile card). The arc holds six entries (a
     seventh curls back into the ring); the identity's key is in Settings, Network.
   - Quit: Quit to desktop (ember when chosen), Stay. It opens on Stay.
-  A page's name stands small over its first entry.
+  Sub-pages have no title over the arc; their entries say where the player is.
 - **Recent servers:** a column on the right (its rule at x 1470) of the servers
   the player joined last, newest first, up to four, kept in
   `recent_servers.json` beside `favorites.json` ([recent.rs](../crates/sjk-viewer/src/menu/sjk/recent.rs)):
