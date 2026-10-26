@@ -13,6 +13,9 @@ const EV_CHANGE_WEAPON: u32 = 26;
 const EV_SABER_UNHOLSTER: u32 = 33;
 /// `CS_SOUNDS` slot of a hilt's own `soundOn`, as the server's toggle plays it.
 const SLOT_SINGLE2_ON: u8 = 1;
+/// `CS_SOUNDS` slot of the removed second slot's default ignition, which the server's
+/// toggle of a single saber plays as well (`WP_RemoveSaber`, `Cmd_ToggleSaber_f`).
+const SLOT_DEFAULT_ON: u8 = 2;
 
 /// A blade skin's sounds (an SJK unlockable), worn in place of the hilts'.
 const SKIN: SaberSoundSet<'static> = SaberSoundSet {
@@ -106,6 +109,12 @@ impl Fixture {
             .replace_config_string(
                 CS_SOUNDS + usize::from(SLOT_SINGLE2_ON),
                 b"sound/weapons/saber/single2_on.wav".to_vec(),
+            )
+            .unwrap();
+        game_state
+            .replace_config_string(
+                CS_SOUNDS + usize::from(SLOT_DEFAULT_ON),
+                b"sound/weapons/saber/enemy_saber_on.wav".to_vec(),
             )
             .unwrap();
         for (client, sabers) in [
@@ -831,4 +840,47 @@ fn toggle_spam_sounds_a_burst_then_one_toggle_per_half_second() {
         played.push(fixture.played().len());
     }
     assert_eq!(played, [2, 0]);
+}
+
+/// The server's toggle of a single saber sounds both slots: the hilt's own `soundOn` and
+/// the removed second slot's default. A blade skin plays once over the pair, not per sound.
+#[test]
+fn a_blade_skin_plays_once_over_a_single_sabers_two_toggle_sounds() {
+    let mut fixture = Fixture::new();
+    fixture.wear(&[DUAL]);
+    let local = view(WP_SABER, 0);
+    let lit = player(DUAL, WP_SABER, 0);
+    fixture.step(local, &[lit.clone()]);
+    let toggle = |number, slot| general_sound(number, slot, lit.trajectory_base());
+    let snapshot = fixture.snapshot(
+        local,
+        &[
+            lit.clone(),
+            toggle(100, SLOT_SINGLE2_ON),
+            toggle(101, SLOT_DEFAULT_ON),
+        ],
+    );
+    fixture.adapter.observe_snapshot(&snapshot);
+    let played = fixture.played();
+    let skins = played
+        .iter()
+        .filter(|played| played.sound == "sound/sjk/skin_on")
+        .count();
+    assert_eq!(skins, 1, "{:?}", names(&played));
+    assert_eq!(played.len(), 3, "both stock sounds and the skin's");
+    // With `s_saberSkinSounds 2` the skin's one sound is the whole toggle.
+    fixture.adapter.set_saber_skin_sounds_only(true);
+    let snapshot = fixture.snapshot(
+        local,
+        &[
+            lit.clone(),
+            toggle(102, SLOT_SINGLE2_ON),
+            toggle(103, SLOT_DEFAULT_ON),
+        ],
+    );
+    fixture.adapter.observe_snapshot(&snapshot);
+    assert_eq!(
+        names(&fixture.played()),
+        [(LegacySoundEvent::General, "sound/sjk/skin_on")]
+    );
 }

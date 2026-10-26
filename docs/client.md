@@ -4894,7 +4894,9 @@ sounds: Only skin; 1, With normal, is the default), in their place, or, with
 saber from another weapon or puts a lit one away
 ([saber ignition sounds](#saber-ignition-and-retraction-sounds)), and for a general sound that is a stock `saberon*`/`saberoff*`
 or `enemy_saber_on`/`enemy_saber_off`, or any `.sab` `soundOn`/`soundOff` (the game's `G_Sound` gives these no owner, so
-the player whose origin is nearest the sound, within 64 units, is taken), its hum
+the player whose origin is nearest the sound, within 64 units, is taken; the toggle
+sounds every hilt, a single saber's removed second slot too, and the skin's sound
+plays once over them all, or with Only skin is the whole toggle), its hum
 once beside the sabers' hum loops, and three swings for `EV_SABER_ATTACK` and the
 animation `saberhup` cues, over a hilt's own `swingSound`s
 ([saber_sound_overrides.rs](../crates/sjk-client/src/saber_sound_overrides.rs)).
