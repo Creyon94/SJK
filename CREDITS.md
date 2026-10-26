@@ -715,6 +715,9 @@ with Apple Silicon, and reported that the game aborted on choosing fullscreen, i
 frame rate on Metal and that Cmd+Tab did not work. Sol kept macOS to borderless
 fullscreen after that crash report (25/10/2026).
 
+Blep, a player, reported that a whisper ending with a backslash left unencrypted
+through the game server; Sol fixed it (26/10/2026).
+
 ## Tools
 
 Many of Sol's changes were written with Claude (Anthropic) as a

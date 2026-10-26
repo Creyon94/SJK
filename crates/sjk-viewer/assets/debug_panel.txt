@@ -405,6 +405,14 @@ test: B whispers A first: not encrypted, red "Not private" note, no card.
 test: A whispers B: encrypted. B replies within 30 min: encrypted, to A only.
 test: Hover A's name in B's chat (composer open): Report beside Safety code.
 test: Report > a reason > Send: the panel shows the whisper under the report, "signed whisper".
+
+[whisper-backslash]
+area: Console & chat
+title: Encrypted whispers ending with a backslash stay encrypted (Blep's report)
+change: The whisper's text is split as the game server does: a backslash is plain text.
+test: Two SJK clients that whisper encrypted: A whispers B "hello\" (ending with \).
+test: B gets it as an encrypted whisper reading hello\; no "Not private" note on A.
+test: A whispers B "a\nb \ c": B reads exactly that, backslashes kept.
 test: On a JoF server: whispers go through the server; jof.e2eWhispers 1 on both: encrypted.
 
 [sjk-chat-caret]
