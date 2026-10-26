@@ -123,6 +123,9 @@ list as authorization to start unrelated work.
 
 Contributions reach `main` through pull requests, one topic per pull request.
 
+- Claim before you fix ([the rule in AGENTS.md](../AGENTS.md#verification-and-scope)):
+  check open and draft pull requests for the same fix first, then open a draft pull
+  request as soon as you start, naming the report or issue it fixes.
 - Start each change on its own branch from the current `main` of this repository,
   named for its topic with a type prefix: `fix/`, `feat/`, `perf/`, `refactor/`
   or `docs/` (for example `fix/windows-main-stack`). Do not commit to `main`; in a
