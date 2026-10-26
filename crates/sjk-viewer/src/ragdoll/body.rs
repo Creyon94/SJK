@@ -11,7 +11,15 @@
 //! step's own moment ([`World::at`]), which every client that sees the mover reads the
 //! same, so a lift carries the body and a closing door pushes it the same way everywhere.
 //! Once every point has lain still for [`SLEEP_STEPS`] steps the body sleeps, until a
-//! mover carries or pushes it again.
+//! mover carries or pushes it again, or something strikes it.
+//!
+//! Since 26/10/2026 (the Monitor toy) the points weigh what the body's parts weigh
+//! ([`MASSES`]: the sticks move a hand more than the pelvis), a surface holds a point by
+//! Coulomb friction (what it presses into the surface sets how much of its slide it
+//! loses, so a body thrown hard skids and tumbles on rather than stopping dead), the limbs
+//! keep out of each other ([`Body::apart`]) and a [`Strike`] gives the whole body a push
+//! at one of its points, at a given step, as a solid would take it: a blow to the head
+//! turns it heels over head, one to the legs sweeps them from under it.
 
 use glam::Vec3;
 
@@ -86,6 +94,11 @@ const STICKS: [(usize, usize); 26] = [
     (CHEST, R_HIP),
 ];
 
+/// What each point weighs, in kilograms or near enough: the trunk heavy, the hands light.
+const MASSES: [f32; JOINTS] = [
+    12.0, 14.0, 6.0, 4.0, 2.5, 1.2, 4.0, 2.5, 1.2, 6.0, 4.0, 2.0, 6.0, 4.0, 2.0,
+];
+
 /// Pairs that may come closer than they stand but not further, and not closer than this
 /// share of it: a limb folds at its middle joint, never inside out to nothing; a hand
 /// never sinks into its own shoulder.
@@ -121,13 +134,19 @@ const ROUNDS: usize = 6;
 const HALVES: [f32; JOINTS] = [
     4.5, 5.0, 5.0, 3.0, 2.5, 2.0, 3.0, 2.5, 2.0, 3.5, 3.0, 2.5, 3.5, 3.0, 2.5,
 ];
-/// Off a surface a point keeps this much of its speed along it, and bounces back with
-/// this much of its speed into it.
-const FRICTION_KEPT: f32 = 0.55;
+/// Coulomb's friction of a point on a surface: it loses this much of its slide for what
+/// it presses into the surface; and the share of its slide it keeps besides, each step
+/// it touches (a body rolls and rubs, it does not skate). It bounces back with this much
+/// of its speed into the surface.
+const FRICTION: f32 = 0.8;
+const CONTACT_KEPT: f32 = 0.985;
 const BOUNCE: f32 = 0.2;
 /// Slower into a surface than this (units a second), a point does not bounce, and its
 /// knock is not heard.
 const BOUNCE_SPEED: f32 = 60.0;
+/// The fastest a point bounces back off a surface, units a second: flesh takes a hard
+/// blow in, it does not spring a body back across the room.
+const MAX_BOUNCE: f32 = 120.0;
 /// A point that moves less than this in a step is still (the sticks and the floor keep
 /// a lying body trembling by a tenth of a unit); the body sleeps once all are, for this
 /// many steps in a row (a second).
@@ -137,8 +156,16 @@ pub(crate) const SLEEP_STEPS: u32 = 60;
 pub(crate) const MAX_STEPS: u32 = 2_500;
 /// A point that falls this far below where the body started stops: the void under a map.
 const FLOOR_DEPTH: f32 = 8_192.0;
-/// The fastest a point may go, in units a step (what the trace can follow).
-const TOP_SPEED: f32 = 40.0;
+/// The fastest a point may go, in units a step (3,500 units a second: the traces sweep
+/// the whole way, so a fast point does not pass through a wall).
+const TOP_SPEED: f32 = 56.0;
+/// The hardest push a [`Strike`] gives, in units a second, and the fastest it may turn
+/// the body (radians a second).
+pub(crate) const MAX_PUSH: i32 = 3_000;
+const MAX_TURN: f32 = 24.0;
+/// The share of a strike's push its own point and the points next to it take again, on
+/// top of the whole body's: the limb struck whips.
+const WHIP: f32 = 0.35;
 /// A point sliding along a surface faster than this (units a second) scrapes.
 const SCRAPE_SPEED: f32 = 80.0;
 
@@ -151,6 +178,16 @@ pub(crate) struct Start {
     pub(crate) origin: [i32; 3],
     pub(crate) velocity: [i32; 3],
     pub(crate) yaw: u16,
+}
+
+/// A blow to the body: at the start of step `step` since the fall's moment, the body
+/// takes a push of `push` (units a second, what its centre of mass gains) at point
+/// `joint`, as a solid would (the push off the centre turns it), the struck limb whipping.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct Strike {
+    pub(crate) step: u32,
+    pub(crate) joint: u8,
+    pub(crate) push: [i32; 3],
 }
 
 /// What a point met: where it stopped, the surface's normal, what the surface is made
@@ -212,6 +249,8 @@ pub(crate) struct Body {
     earlier: [Vec3; JOINTS],
     lengths: [f32; STICKS.len()],
     reach: [f32; REACH.len()],
+    /// The blows the body takes, by step (those taken and to come).
+    strikes: Vec<Strike>,
     /// The fall's moment (game server milliseconds).
     moment: i32,
     /// Steps taken since the moment, how many of the last in a row all were still, and
@@ -229,7 +268,7 @@ pub(crate) struct Body {
 }
 
 /// A number in 0..1 from `seed` and `salt`, the same on every client.
-fn unit(seed: u32, salt: u32) -> f32 {
+pub(crate) fn unit(seed: u32, salt: u32) -> f32 {
     let mut mixed = seed ^ salt.wrapping_mul(0x9e37_79b9);
     mixed ^= mixed >> 16;
     mixed = mixed.wrapping_mul(0x85eb_ca6b);
@@ -305,6 +344,7 @@ impl Body {
             earlier: points,
             lengths,
             reach,
+            strikes: Vec::new(),
             moment: start.moment,
             steps: 0,
             still: 0,
@@ -344,13 +384,46 @@ impl Body {
         self.points[PELVIS]
     }
 
+    /// Add `strike` to the blows the body takes; false (and not added) when its step has
+    /// gone by: the body must then be run again from its start with it
+    /// ([`Body::rerun`]), as every client that heard of it in time ran it.
+    pub(crate) fn strike(&mut self, strike: Strike) -> bool {
+        if strike.step < self.steps {
+            return false;
+        }
+        if !self.strikes.contains(&strike) {
+            let at = self.strikes.partition_point(|s| s.step <= strike.step);
+            self.strikes.insert(at, strike);
+        }
+        true
+    }
+
+    /// Whether the body took or will take `strike`.
+    pub(crate) fn has_strike(&self, strike: &Strike) -> bool {
+        self.strikes.contains(strike)
+    }
+
+    /// How many blows the body takes, those taken and to come.
+    pub(crate) fn strike_count(&self) -> usize {
+        self.strikes.len()
+    }
+
+    /// The body from `start` again, with every blow it took and `strike`, not yet run
+    /// (the next [`Body::run_to`] fast-forwards it).
+    pub(crate) fn rerun(&self, start: &Start, strike: Strike) -> Self {
+        let mut body = Self::new(start);
+        body.strikes.clone_from(&self.strikes);
+        body.strike(strike);
+        body
+    }
+
     /// Step on to `steps` steps since the moment, against `world`. Asleep, the steps go
-    /// by with the body lying still, unless a mover wakes it.
+    /// by with the body lying still, unless a mover wakes it or a blow comes.
     pub(crate) fn run_to(&mut self, steps: u32, world: &mut impl World) {
         self.knocks.clear();
         self.scrapes.clear();
         while self.steps < steps {
-            if self.asleep() && !self.stirred(world) {
+            if self.asleep() && !self.struck_now() && !self.stirred(world) {
                 self.steps += 1;
                 continue;
             }
@@ -393,9 +466,71 @@ impl Body {
         stirred
     }
 
-    /// One step: the movers carry or push the points they hold, then every point moves
-    /// on by its speed and gravity, out of the world's way, and the sticks hold.
+    /// Whether a blow comes at the start of the next step.
+    fn struck_now(&self) -> bool {
+        self.strikes.iter().any(|strike| strike.step == self.steps)
+    }
+
+    /// The centre of the points' masses.
+    fn centre_of_mass(&self) -> Vec3 {
+        let total: f32 = MASSES.iter().sum();
+        self.points
+            .iter()
+            .zip(MASSES)
+            .fold(Vec3::ZERO, |sum, (point, mass)| sum + *point * mass)
+            / total
+    }
+
+    /// Give the body the blows of the step about to begin: each pushes the centre of
+    /// mass and turns the body by its push off the centre (the inertia of the points as
+    /// they lie), the struck limb whipping on top.
+    fn take_strikes(&mut self) {
+        let first = self.strikes.partition_point(|s| s.step < self.steps);
+        let end = self.strikes.partition_point(|s| s.step <= self.steps);
+        if first == end {
+            return;
+        }
+        let total: f32 = MASSES.iter().sum();
+        for index in first..end {
+            let strike = self.strikes[index];
+            let push = Vec3::new(
+                strike.push[0] as f32,
+                strike.push[1] as f32,
+                strike.push[2] as f32,
+            );
+            let joint = usize::from(strike.joint).min(JOINTS - 1);
+            let centre = self.centre_of_mass();
+            // The inertia about the centre, a ball's share added so that a body lying
+            // straight still has some about its length.
+            let mut inertia = glam::Mat3::from_diagonal(Vec3::splat(total * 20.0));
+            for (point, mass) in self.points.iter().zip(MASSES) {
+                let r = *point - centre;
+                let rr = r.length_squared();
+                inertia += glam::Mat3::from_cols(
+                    Vec3::new(rr - r.x * r.x, -r.x * r.y, -r.x * r.z),
+                    Vec3::new(-r.y * r.x, rr - r.y * r.y, -r.y * r.z),
+                    Vec3::new(-r.z * r.x, -r.z * r.y, rr - r.z * r.z),
+                ) * mass;
+            }
+            let lever = self.points[joint] - centre;
+            let turn = (inertia.inverse() * lever.cross(push * total)).clamp_length_max(MAX_TURN);
+            for point in 0..JOINTS {
+                let mut gain = push + turn.cross(self.points[point] - centre);
+                if point == joint || boned(joint, point) {
+                    gain += push * WHIP;
+                }
+                self.previous[point] -= gain * STEP;
+            }
+        }
+        self.still = 0;
+        self.restless = 0;
+    }
+
+    /// One step: the blows due land, the movers carry or push the points they hold,
+    /// then every point moves on by its speed and gravity, out of the world's way, and
+    /// the sticks hold.
     fn step(&mut self, world: &mut impl World) {
+        self.take_strikes();
         self.steps += 1;
         self.restless += 1;
         let began = self.points;
@@ -445,6 +580,11 @@ impl Body {
                     None => base + slide,
                     Some(hit) => hit.stop + hit.normal * 0.125,
                 };
+                // Put back out of the surface, the point keeps no speed away from it:
+                // else the way out becomes a bounce, and a body thrown at a wall flies
+                // back off it.
+                self.previous[joint] = self.points[joint]
+                    - unbounced(self.points[joint] - self.previous[joint], hit.normal);
             }
             moved = moved.max(self.points[joint].distance(began[joint]));
         }
@@ -479,8 +619,12 @@ impl Body {
         let into = speed.dot(normal);
         let along = speed - normal * into;
         let hard = -into.min(0.0) / STEP;
-        let bounce = if hard > BOUNCE_SPEED { BOUNCE } else { 0.0 };
-        let after = along * FRICTION_KEPT - normal * into.min(0.0) * bounce;
+        let back = if hard > BOUNCE_SPEED {
+            (hard * BOUNCE).min(MAX_BOUNCE) * STEP
+        } else {
+            0.0
+        };
+        let after = friction(along, -into.min(0.0), FRICTION) * CONTACT_KEPT + normal * back;
         let at = hit.stop + normal * 0.125;
         self.previous[joint] = at - after;
         let surface = hit.surface;
@@ -502,7 +646,7 @@ impl Body {
         (at, Some(hit))
     }
 
-    /// One round of the sticks, the reaches and the hinges.
+    /// One round of the sticks, the reaches, the limbs kept apart and the hinges.
     fn hold(&mut self) {
         for (index, &(a, b)) in STICKS.iter().enumerate() {
             self.keep(a, b, self.lengths[index], self.lengths[index]);
@@ -511,6 +655,7 @@ impl Body {
             let standing = Vec3::from_array(STANDING[a]).distance(Vec3::from_array(STANDING[b]));
             self.keep(a, b, self.reach[index], standing);
         }
+        self.apart();
         let forward = self.facing();
         for &(upper, middle, lower, forth) in &HINGES {
             let line = (self.points[upper] + self.points[lower]) * 0.5;
@@ -525,7 +670,17 @@ impl Body {
         }
     }
 
-    /// Hold `a` and `b` between `shortest` and `longest` apart, each moved half the way.
+    /// Keep the points no stick or reach holds out of each other: no closer than their
+    /// boxes' sizes together, or than they stand if that is closer (a hand hangs by the
+    /// hip). A leg no longer passes through the other, nor a hand through the head.
+    fn apart(&mut self) {
+        for &(a, b, shortest) in APART.iter() {
+            self.keep(a, b, shortest, f32::MAX);
+        }
+    }
+
+    /// Hold `a` and `b` between `shortest` and `longest` apart, each moved by its share
+    /// of their weight (the lighter further).
     fn keep(&mut self, a: usize, b: usize, shortest: f32, longest: f32) {
         let gap = self.points[b] - self.points[a];
         let length = gap.length();
@@ -536,9 +691,11 @@ impl Body {
         if target == length {
             return;
         }
-        let shift = gap * ((length - target) / length * 0.5);
-        self.points[a] += shift;
-        self.points[b] -= shift;
+        let shift = gap * ((length - target) / length);
+        let (light_a, light_b) = (1.0 / MASSES[a], 1.0 / MASSES[b]);
+        let share = light_a / (light_a + light_b);
+        self.points[a] += shift * share;
+        self.points[b] -= shift * (1.0 - share);
     }
 
     /// The way the trunk faces: its left (hips, right to left) crossed with its up.
@@ -553,6 +710,64 @@ impl Body {
 fn half(joint: usize) -> f32 {
     HALVES[joint]
 }
+
+/// The bones: the sticks before the trunk's braces.
+const BONES: usize = 14;
+
+/// Whether a bone joins `a` and `b`.
+fn boned(a: usize, b: usize) -> bool {
+    STICKS[..BONES]
+        .iter()
+        .any(|&(x, y)| (x, y) == (a, b) || (x, y) == (b, a))
+}
+
+/// A step's move `speed` of a point put back out of a surface of `normal`, without what
+/// takes it away from the surface.
+pub(crate) fn unbounced(speed: Vec3, normal: Vec3) -> Vec3 {
+    let out = speed.dot(normal);
+    if out > 0.0 {
+        speed - normal * out
+    } else {
+        speed
+    }
+}
+
+/// What is left of a slide `along` (a step's move along a surface) once friction of
+/// `coefficient` took its share for a press of `press` (the step's move into it): none
+/// when the press holds the point still (static friction).
+pub(crate) fn friction(along: Vec3, press: f32, coefficient: f32) -> Vec3 {
+    let slide = along.length();
+    let lost = press * coefficient;
+    if slide <= lost {
+        Vec3::ZERO
+    } else {
+        along * (1.0 - lost / slide)
+    }
+}
+
+/// The pairs [`Body::apart`] keeps apart: every two points no stick or reach holds, and
+/// how close they may come.
+static APART: std::sync::LazyLock<Vec<(usize, usize, f32)>> = std::sync::LazyLock::new(|| {
+    let held = |a: usize, b: usize| {
+        STICKS
+            .iter()
+            .any(|&(x, y)| (x, y) == (a, b) || (x, y) == (b, a))
+            || REACH
+                .iter()
+                .any(|&(x, y, _)| (x, y) == (a, b) || (x, y) == (b, a))
+    };
+    let mut pairs = Vec::new();
+    for a in 0..JOINTS {
+        for b in a + 1..JOINTS {
+            if held(a, b) {
+                continue;
+            }
+            let standing = Vec3::from_array(STANDING[a]).distance(Vec3::from_array(STANDING[b]));
+            pairs.push((a, b, (HALVES[a] + HALVES[b]).min(standing * 0.95)));
+        }
+    }
+    pairs
+});
 
 /// `Start` as one relay event's text after its prefix: the moment, the origin, the
 /// speed and the yaw, whole numbers parted by `_` (the relay takes 64 characters).
@@ -766,6 +981,128 @@ mod tests {
             piecemeal.run_to(steps, &mut lift);
         }
         assert_eq!(body.points(), piecemeal.points());
+    }
+
+    #[test]
+    fn a_strike_sends_the_body_flying_its_way_and_it_lands_in_one_piece() {
+        let mut body = Body::new(&start(9));
+        assert!(body.strike(Strike {
+            step: 0,
+            joint: CHEST as u8,
+            push: [1_650, 0, 260],
+        }));
+        let mut world = floor(false);
+        body.run_to(15, &mut world);
+        // A quarter of a second on, it is well on its way, off the ground.
+        let centre = body.centre_of_mass();
+        assert!(centre.x > 250.0, "{centre}");
+        assert!(body.points().iter().all(|p| p.z > 2.0));
+        body.run_to(MAX_STEPS, &mut world);
+        assert!(body.still >= SLEEP_STEPS, "came to rest");
+        assert!(
+            body.centre().x > 600.0,
+            "slid and tumbled on: {}",
+            body.centre()
+        );
+        for (index, &(a, b)) in STICKS.iter().enumerate() {
+            let length = body.points[a].distance(body.points[b]);
+            assert!(
+                (length - body.lengths[index]).abs() < 1.5,
+                "{a} {b} {length}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_blow_to_the_head_turns_the_body_the_other_way_from_one_to_the_legs() {
+        // Struck along +X: at the head, the head goes first and the feet trail; at the
+        // knees, the feet go first and the head trails.
+        let spin = |joint: usize| {
+            let mut body = Body::new(&Start {
+                velocity: [0, 0, 0],
+                ..start(3)
+            });
+            body.strike(Strike {
+                step: 0,
+                joint: joint as u8,
+                push: [900, 0, 0],
+            });
+            body.run_to(6, &mut |_: Vec3, _: Vec3, _: f32| None);
+            let head = body.points()[HEAD].x - body.centre_of_mass().x;
+            let feet =
+                (body.points()[L_FOOT].x + body.points()[R_FOOT].x) * 0.5 - body.centre_of_mass().x;
+            head - feet
+        };
+        assert!(spin(HEAD) > 4.0, "{}", spin(HEAD));
+        assert!(spin(L_KNEE) < -4.0, "{}", spin(L_KNEE));
+    }
+
+    #[test]
+    fn a_strike_heard_late_gives_the_body_one_heard_in_time() {
+        let mut world = floor(true);
+        let strike = Strike {
+            step: 30,
+            joint: HEAD as u8,
+            push: [-700, 300, 500],
+        };
+        let mut in_time = Body::new(&start(41));
+        assert!(in_time.strike(strike));
+        in_time.run_to(400, &mut world);
+        let mut late = Body::new(&start(41));
+        late.run_to(120, &mut world);
+        assert!(!late.strike(strike), "its step went by");
+        let mut late = late.rerun(&start(41), strike);
+        late.run_to(400, &mut world);
+        assert_eq!(in_time.points(), late.points());
+        // And a sleeping body wakes for a blow.
+        let mut asleep = Body::new(&start(41));
+        asleep.run_to(MAX_STEPS, &mut world);
+        assert!(asleep.asleep());
+        let lying = asleep.centre();
+        let steps = asleep.steps();
+        asleep.strike(Strike {
+            step: steps,
+            ..strike
+        });
+        asleep.run_to(steps + 20, &mut world);
+        assert!(asleep.centre().distance(lying) > 20.0);
+    }
+
+    #[test]
+    fn friction_holds_a_slow_slide_and_slows_a_fast_one() {
+        let slow = friction(Vec3::new(0.1, 0.0, 0.0), 0.2, 0.8);
+        assert_eq!(slow, Vec3::ZERO);
+        let fast = friction(Vec3::new(10.0, 0.0, 0.0), 0.2, 0.8);
+        assert!((fast.x - 9.84).abs() < 1e-4, "{fast}");
+    }
+
+    #[test]
+    fn the_limbs_keep_out_of_each_other() {
+        // A body dropped folded: its feet thrown into each other and its hand at its head.
+        let mut body = Body::new(&start(12));
+        body.points[R_FOOT] = body.points[L_FOOT];
+        body.points[L_HAND] = body.points[HEAD];
+        for _ in 0..ROUNDS * 4 {
+            body.hold();
+        }
+        assert!(body.points[R_FOOT].distance(body.points[L_FOOT]) > 2.0);
+        assert!(body.points[L_HAND].distance(body.points[HEAD]) > 5.0);
+    }
+
+    #[test]
+    fn a_body_slammed_into_a_wall_drops_by_it_rather_than_flying_back() {
+        let mut body = Body::new(&start(21));
+        body.strike(Strike {
+            step: 0,
+            joint: CHEST as u8,
+            push: [2_400, 0, 200],
+        });
+        let mut world = floor(true);
+        body.run_to(MAX_STEPS, &mut world);
+        assert!(body.asleep());
+        // The wall is at x = 100: it lies within a body's length of it.
+        assert!(body.centre().x > 40.0, "flew back to {}", body.centre());
+        assert!(body.points().iter().all(|point| point.x <= 100.0));
     }
 
     #[test]

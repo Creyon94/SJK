@@ -634,6 +634,8 @@ impl ViewerConsole {
             pending_drone: None,
             boombox_on: false,
             pending_boombox: None,
+            monitor_on: false,
+            pending_monitor: None,
             pending_settings_search: None,
             sjk_chat_panel: super::sjk_chat_panel::Panel::new(),
             config_import: super::config_import_panel::Panel::new(),

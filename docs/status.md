@@ -1,3 +1,30 @@
+## Monitor toy and ragdoll physics
+
+26/10/2026, `personal/crt-toy`, based on `main` `99f3e7cc` (Sol's idea, after the old
+sandbox-game joke): `toy_monitor` (opt-in, `cl_toyMonitor`, both the right to throw and the
+consent to be hit) and `monitor_throw` throw an old CRT monitor ([client.md](client.md#monitor)),
+a rigid solid of eight corners on the Ragdoll's Verlet steps
+([flight.rs](../crates/sjk-viewer/src/monitor/flight.rs)), relayed as
+`throw_<number>_<moment>_<origin>_<velocity>` to every SJK player, nearest first, each
+running the same flight. The struck player's client decides a hit against its own body
+and gives its ragdoll a blow (`Strike`: a push at the struck point, turning the body as a
+solid), relayed after the fall as `hit_...`, which also bounces the monitor on every
+client; a client that hears a blow late runs the body (or the flight) again from its start.
+A fall a monitor began ends by itself once the body has rested 2.5 seconds. The ragdoll's
+physics changed for everyone: per-part masses, Coulomb friction, limbs kept apart, a top
+speed of 3,500 units a second, and since this change a point pushed back out of a surface
+keeps no speed away from it and bounces back at 120 units a second at most (a body slammed
+into a wall flew back across the room before). The astray rule lets a far ragdoll stay
+while the real body walks nearer. Model, texture, icon and sounds are SJK's own
+(`scripts/monitor_assets.py`). No hub change (the relay checks no toy ids). Verified: fmt,
+workspace build, Clippy and tests (new unit tests for the events, the flight, strikes,
+late blows, friction, limbs apart, a wall slam, the launch and where a standing player is
+struck); world shots of Sol's 21/03 demo (`monitor_on_a_demo`: the monitor in flight, the
+player slammed into a wall and crumpling at its foot, blows at the head, chest and knee, a
+monitor at rest). Not verified: anything in game, two clients seeing the same throw and
+fall, the hit test against real movement and latency, the real body's walk after a long
+flight, the sounds' mix, or how the older clients' view of a fall differs.
+
 ## Support SJK on the main page
 
 26/10/2026, `personal/support-links`, Sol's request: a small line at the top left of the

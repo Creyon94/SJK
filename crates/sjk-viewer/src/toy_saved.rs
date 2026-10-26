@@ -1,6 +1,6 @@
 //! Toys that stay on until the player turns them off (Sol's request, 22/10/2026): Order 66,
-//! the Hax and the Drone keep their switch in an archived cvar ([`ORDER66_CVAR`],
-//! [`HAX_CVAR`], [`DRONE_CVAR`]), so
+//! the Hax, the Drone and the Monitor keep their switch in an archived cvar
+//! ([`ORDER66_CVAR`], [`HAX_CVAR`], [`DRONE_CVAR`], [`MONITOR_CVAR`]), so
 //! a toy turned on is still on after a map change, another server or a restart of the
 //! game. The toy's own state stays the viewer's; [`Saved::sync`] keeps the two in step
 //! once a frame, the cvar winning when it was set from the console or a config.
@@ -13,6 +13,8 @@ pub(crate) const ORDER66_CVAR: &str = "cl_toyOrder66";
 pub(crate) const HAX_CVAR: &str = "cl_toyHax";
 /// The Drone's switch (the consent to be peeked), saved.
 pub(crate) const DRONE_CVAR: &str = "cl_toyDrone";
+/// The Monitor's switch (throw them, and be hit), saved.
+pub(crate) const MONITOR_CVAR: &str = "cl_toyMonitor";
 
 /// The value a toy's cvar had when it was last in step with the toy.
 #[derive(Clone, Copy, Debug, Default)]

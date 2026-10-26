@@ -1,12 +1,13 @@
 //! The Collection's Toys tab: things to use in a match, everyone's. SJK's Illuminate
 //! holocron (`docs/client.md`, Illuminate), the cardboard box (`docs/client.md`,
 //! Cardboard box), Order 66 (`docs/client.md`, Order 66), the Hax (`docs/client.md`,
-//! Hax), the Ragdoll (`docs/client.md`, Ragdoll), the Drone (`docs/client.md`, Drone) and
-//! the Boombox (`docs/client.md`, Boombox), a row to each on the left (Sol's pick of
+//! Hax), the Ragdoll (`docs/client.md`, Ragdoll), the Drone (`docs/client.md`, Drone),
+//! the Boombox (`docs/client.md`, Boombox) and the Monitor (`docs/client.md`, Monitor), a
+//! row to each on the left (Sol's pick of
 //! 25/10/2026, the Collection revamp's canvas): its picture, its name and a line of what
 //! it does, the key bound to it and its own switch, which runs it in place
 //! (`toy_illuminate`, `toy_box`, `toy_order66`, `toy_hax`, `toy_ragdoll`, `toy_drone`,
-//! `toy_boombox`). The chosen one is described on a dark card beside the
+//! `toy_boombox`, `toy_monitor`). The chosen one is described on a dark card beside the
 //! model, where its key is bound without the console (a click or K, then the key). The
 //! holocron floats lit by the model while it is chosen.
 
@@ -17,13 +18,13 @@ use crate::menu_widgets::TextFamily;
 use sjk_ui::{Color, DrawCommand, FontWeight, TextAlign, TextureId};
 
 /// The rows: their left edge and width, where the column heads and the first row stand,
-/// a row's height and the room between rows. Twelve fit over the keys.
+/// a row's height and the room between rows. Eight fit over the keys.
 const ROWS_X: f32 = LEFT_X - 12.0;
 const ROWS_WIDTH: f32 = 860.0;
 const HEADS_Y: f32 = 300.0;
 const ROWS_Y: f32 = 336.0;
-const ROW_HEIGHT: f32 = 84.0;
-const ROW_GAP: f32 = 8.0;
+const ROW_HEIGHT: f32 = 76.0;
+const ROW_GAP: f32 = 6.0;
 /// A row's key column: its width, and the room the switch keeps at the row's right.
 const KEY_WIDTH: f32 = 150.0;
 const SWITCH_ROOM: f32 = 130.0;
@@ -40,8 +41,9 @@ const ABOUT_CHARS: f32 = 46.0;
 const NOTE_CHARS: f32 = 52.0;
 
 /// Every command a toy is run by, in the order the page is told their keys
-/// ([`Inputs::toy_keys`]): each toy's switch, and Order 66's order after its own.
-pub(crate) const COMMANDS: [&str; 8] = [
+/// ([`Inputs::toy_keys`]): each toy's switch, Order 66's order after its own, and the
+/// Monitor's throw after its own.
+pub(crate) const COMMANDS: [&str; 10] = [
     "toy_illuminate",
     "toy_box",
     "toy_order66",
@@ -50,6 +52,8 @@ pub(crate) const COMMANDS: [&str; 8] = [
     "toy_ragdoll",
     "toy_drone",
     "toy_boombox",
+    "toy_monitor",
+    "monitor_throw",
 ];
 
 /// One toy as the tab shows it.
@@ -151,6 +155,17 @@ const TOYS: [Toy; TOY_COUNT] = [
         switch: "Play",
         token: BOOMBOX_TOKEN,
     },
+    Toy {
+        icon: "monitor",
+        name: "Monitor",
+        tag: "Throw an old monitor; it sends players flying.",
+        title: "Monitor",
+        what: "Throw a big old CRT monitor. One that hits a player who has it on too knocks them down as a ragdoll and sends them flying, the way it struck them; they get up once they land. With it off, monitors pass through you.",
+        more: Some("Its switch lets you throw and be hit; the throw key throws one."),
+        commands: &[("toy_monitor", "Your key"), ("monitor_throw", "Throw key")],
+        switch: "Hit me",
+        token: MONITOR_TOKEN,
+    },
 ];
 
 /// The command toy `toy`'s key `slot` runs (0 its switch's, 1 Order 66's order).
@@ -219,6 +234,7 @@ fn states(inputs: &Inputs<'_>) -> [bool; TOY_COUNT] {
         inputs.ragdoll,
         inputs.drone,
         inputs.boombox,
+        inputs.monitor,
     ]
 }
 
@@ -231,7 +247,7 @@ impl Panel {
             0 => "Switch them here or in a match; other SJK players on your server see what you turn on.".to_owned(),
             lit => format!("{lit} on now. Switch them here or in a match; other SJK players on your server see what you turn on."),
         };
-        self.lead(frame, "7 toys", &line);
+        self.lead(frame, "8 toys", &line);
         self.toy_heads(frame);
         let chosen = self.toy.min(TOY_COUNT - 1);
         for (index, toy) in TOYS.iter().enumerate() {
@@ -326,7 +342,7 @@ impl Panel {
             &mut self.ui,
             TextFamily::Display,
             format_args!("{}", toy.name),
-            frame.rect(words_x, y + 12.0, words_width, 30.0 * k),
+            frame.rect(words_x, y + 8.0, words_width, 30.0 * k),
             23.0 * s,
             if chosen {
                 color::GOLD_BRIGHT
@@ -340,7 +356,7 @@ impl Panel {
             &mut self.ui,
             TextFamily::Body,
             format_args!("{}", toy.tag),
-            frame.rect(words_x, y + 14.0 + 30.0 * k, words_width, 22.0 * k),
+            frame.rect(words_x, y + 10.0 + 30.0 * k, words_width, 22.0 * k),
             15.0 * s,
             color::MUTED,
             FontWeight::Regular,
@@ -702,7 +718,7 @@ mod tests {
                         }
                     }
                     let mut card = vec![TOY_SWITCH_TOKEN, BIND_TOKEN];
-                    if toy == 2 {
+                    if toy == 2 || toy == 7 {
                         card.push(BIND_SECOND_TOKEN);
                     }
                     for token in card {

@@ -299,6 +299,8 @@ mod boombox_shots;
 mod drone_shots;
 #[path = "world_shot_hax.rs"]
 mod hax_shots;
+#[path = "world_shot_monitor.rs"]
+mod monitor_shots;
 #[path = "world_shot_order66.rs"]
 mod order66_shots;
 #[path = "world_shot_petals.rs"]

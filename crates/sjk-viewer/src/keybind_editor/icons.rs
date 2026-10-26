@@ -45,6 +45,9 @@ const ICONS: &[(&str, &str)] = &[
     // SJK's Boombox, which the client bundles (`crate::boombox`).
     (crate::boombox::COMMAND, crate::boombox::ICON),
     ("boombox next", crate::boombox::ICON),
+    // SJK's Monitor, which the client bundles (`crate::monitor`).
+    (crate::monitor::COMMAND, crate::monitor::ICON),
+    (crate::monitor::THROW_COMMAND, crate::monitor::ICON),
     // WEAPONS
     ("weapon 1", "gfx/hud/w_icon_lightsaber.tga"),
     ("weapmelee", "gfx/hud/w_icon_melee.tga"),

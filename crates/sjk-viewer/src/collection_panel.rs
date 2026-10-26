@@ -93,6 +93,8 @@ const RAGDOLL_TOKEN: u16 = 1_309;
 const DRONE_TOKEN: u16 = 1_308;
 /// The Boombox's niche on Toys.
 const BOOMBOX_TOKEN: u16 = 1_307;
+/// The Monitor's niche on Toys.
+const MONITOR_TOKEN: u16 = 1_303;
 /// The Shaders tab's lone saber, where the pointer takes hold of it to turn it.
 const SABER_TOKEN: u16 = 1_316;
 /// The shader card's way to the Forge: Craft in the Forge (one not held) or Break down
@@ -100,8 +102,8 @@ const SABER_TOKEN: u16 = 1_316;
 const FORGE_LINK_TOKEN: u16 = 1_317;
 /// The Nameplates tab's See and share nameplates switch.
 const SHARE_TOKEN: u16 = 1_319;
-/// The target switch over the lone saber: the first saber (or half), the second (1_307
-/// and 1_308 are the Boombox's and the Drone's).
+/// The target switch over the lone saber: the first saber (or half), the second (1_303,
+/// 1_307 and 1_308 are the Monitor's, the Boombox's and the Drone's).
 const TARGET_FIRST_TOKEN: u16 = 1_301;
 const TARGET_SECOND_TOKEN: u16 = 1_302;
 /// The "Both" box beside the switch: Equip and Unequip dress both sabers (both halves).
@@ -109,8 +111,8 @@ const BOTH_TOKEN: u16 = 1_306;
 /// How far (frame pixels) a press on the lone saber may move and still be a click.
 const CLICK_SLOP: f32 = 6.0;
 /// The toys the Toys tab shows: Illuminate, the cardboard box, Order 66, the Hax, the
-/// Ragdoll, the Drone, then the Boombox.
-const TOY_COUNT: usize = 7;
+/// Ragdoll, the Drone, the Boombox, then the Monitor.
+const TOY_COUNT: usize = 8;
 /// Each toy's row, in the order of [`Panel::toy`].
 const TOY_TOKENS: [u16; TOY_COUNT] = [
     TOY_TOKEN,
@@ -120,6 +122,7 @@ const TOY_TOKENS: [u16; TOY_COUNT] = [
     RAGDOLL_TOKEN,
     DRONE_TOKEN,
     BOOMBOX_TOKEN,
+    MONITOR_TOKEN,
 ];
 /// Each toy row's own switch (25/10/2026): it turns that toy on or off in place.
 const TOY_SWITCH_BASE: u16 = 1_360;
@@ -320,6 +323,9 @@ pub(crate) enum PanelAction {
     /// Carry the Boombox (`true`) or put it away: the same as `toy_boombox`, set rather
     /// than toggled.
     Boombox(bool),
+    /// Turn the Monitor on (`true`) or off: the same as `toy_monitor`, set rather than
+    /// toggled.
+    Monitor(bool),
     /// Show a tab another page draws: the Holocrons page.
     Hub(Tab),
     /// Switch blade skin `skin`'s option `option` on or off (`cg_saberSkinOptions`).
@@ -423,6 +429,8 @@ pub(crate) struct Inputs<'a> {
     pub(crate) drone: bool,
     /// The player carries the Boombox now (kept as [`Self::illuminate`] is).
     pub(crate) boombox: bool,
+    /// The Monitor toy is on now (kept as [`Self::illuminate`] is).
+    pub(crate) monitor: bool,
     /// The `name` cvar, for the nameplate.
     pub(crate) name: &'a str,
     /// The stock blade's colour (`color1`), for its swatch.
@@ -478,7 +486,7 @@ pub(crate) struct Panel {
     achievement_slots: Vec<achievements::Slot>,
     shader: usize,
     /// The toy chosen on Toys: 0 Illuminate, 1 the cardboard box, 2 Order 66, 3 the Hax,
-    /// 4 the Ragdoll, 5 the Drone, 6 the Boombox.
+    /// 4 the Ragdoll, 5 the Drone, 6 the Boombox, 7 the Monitor.
     toy: usize,
     /// The player was in the cardboard box, as the last frame's inputs said.
     box_on: bool,
@@ -492,6 +500,8 @@ pub(crate) struct Panel {
     drone_on: bool,
     /// The Boombox was carried, as the last frame's inputs said.
     boombox_on: bool,
+    /// The Monitor was on, as the last frame's inputs said.
+    monitor_on: bool,
     /// See and share nameplates was on, as the last frame's inputs said.
     share_on: bool,
     /// The tile chosen on Cards (in the list the filter shows), how many tiles the last
@@ -643,6 +653,7 @@ impl Panel {
             ragdoll_on: false,
             drone_on: false,
             boombox_on: false,
+            monitor_on: false,
             share_on: false,
             card: 0,
             cards_shown: 0,
@@ -851,6 +862,7 @@ impl Panel {
             Tab::Toys if self.toy == 4 => PanelAction::Ragdoll(!self.ragdoll_on),
             Tab::Toys if self.toy == 5 => PanelAction::Drone(!self.drone_on),
             Tab::Toys if self.toy == 6 => PanelAction::Boombox(!self.boombox_on),
+            Tab::Toys if self.toy == 7 => PanelAction::Monitor(!self.monitor_on),
             Tab::Toys => PanelAction::Illuminate(!illuminate),
             Tab::Nameplates => PanelAction::SeeAndShare(!self.share_on),
             Tab::Cards => {
@@ -1581,7 +1593,7 @@ impl Panel {
             FORGE_LINK_TOKEN => self.open_forge_link(),
             // A toy's row chooses it; its own switch runs it.
             TOY_TOKEN | BOX_TOKEN | ORDER_TOKEN | HAX_TOKEN | RAGDOLL_TOKEN | DRONE_TOKEN
-            | BOOMBOX_TOKEN => {
+            | BOOMBOX_TOKEN | MONITOR_TOKEN => {
                 self.toy = TOY_TOKENS.iter().position(|&row| row == token).unwrap_or(0);
                 PanelAction::None
             }
@@ -1796,6 +1808,7 @@ mod tests {
             ragdoll: false,
             drone: false,
             boombox: false,
+            monitor: false,
             name: "^1Sol^7Vulpes",
             stock: sjk_ui::Color::new(0.16, 0.48, 1.0, 1.0),
             grid: false,

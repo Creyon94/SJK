@@ -34,6 +34,8 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 = cg_heldViewLook: Kicks, knockdowns, kisses and grapples now hold your camera still. Switch this on to keep looking around during them, as before (the camera may shake).
 
+- New toy, the Monitor: throw a big old CRT monitor (`monitor_throw`), and one that hits a player who has the toy on too knocks them down as a ragdoll and sends them flying the way it struck them; they get up by themselves once they land. Turn it on with `toy_monitor` (quick wheel Toys page, Collection > Toys): it is both the right to throw and the consent to be hit, and monitors pass through players without it _(Sol)_
+- Ragdolls move better: heavy trunk and light limbs, real friction so a body thrown hard skids and tumbles on, limbs that no longer pass through each other, and blows that spin the body by where they land _(Sol)_
 - Support SJK, a small line at the top left of the SJK UI's main page, links to SJK's GitHub Sponsors and Ko-fi pages; its x hides it for good, and Settings > Interface > Support SJK brings it back _(Sol)_
 - Free look when held, a new option in Settings > Game options: the mouse keeps turning the view while a JA+ kick, knockdown or kiss, a grapple or a saber lock holds it, as before 2026.1026.2, for players who prefer looking around to a still camera _(Sol)_
 - Two sabers can wear two blade skins, and a staff one on each half: in the Collection pick a saber (or half) above the preview, choose a shader and press Equip (tick Both sabers to dress both at once), or type `saberskin second <id>`; other SJK players see both once the hub has the change _(Creyon, PR #193, the staff's halves at Sol's request)_
