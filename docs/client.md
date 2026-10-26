@@ -1254,12 +1254,15 @@ has no automatic fade when the camera nears the player. See
 
 `cg_cameraStyle` (archived; Settings > Gameplay > Game options, "Camera and
 prediction", and First setup's third row, under Styles) picks how the camera
-follows the player ([camera_style.rs](../crates/sjk-viewer/src/camera_style.rs)):
+follows the player ([camera_style.rs](../crates/sjk-viewer/src/camera_style.rs)).
+Settings names the values MP camera (`ejk`) and SP camera (`sjk`), Sol's names
+of 26/10/2026 (EJK and SJK before); the cvar values stay, so saved profiles keep
+their choice.
 
 | Value | Camera |
 | --- | --- |
-| `ejk` (default) | Sits at its ideal place every frame: no camera or target damping, whatever the damping cvars say. |
-| `sjk` | Eases towards its ideal place with `cg_thirdPersonCameraDamp` and `cg_thirdPersonTargetDamp`, as described above, so it trails a moving or turning player a little. |
+| `ejk` (default, MP camera) | Sits at its ideal place every frame: no camera or target damping, whatever the damping cvars say. |
+| `sjk` (SP camera) | Eases towards its ideal place with `cg_thirdPersonCameraDamp` and `cg_thirdPersonTargetDamp`, as described above, so it trails a moving or turning player a little. |
 
 An unknown value selects `ejk`. `ejk` became the default on 08/10/2026 (Sol's
 choice; `sjk` was the default before). Every profile had saved `sjk`, so the
@@ -1945,8 +1948,9 @@ a dropdown of three presets (Sol's request, 16/10/2026; until then a Renderer ro
 Vanilla or SJK (alpha), and an SJK quality row of four levels, from 12/10/2026):
 
 - **Vanilla style**: the original game's look at the most frames per second, every
-  SJK extra off (the level called EJK from 10/10/2026, Ultra low before, then
-  Vanilla).
+  SJK extra off, as EternalJK draws it with its defaults (the level called EJK from
+  10/10/2026, Ultra low before, then Vanilla). See [Vanilla style and
+  EternalJK](#vanilla-style-and-eternaljk).
 - **SJK (recommended)**: Sol's own setup (as Sol had it on 16/10/2026): SJK's image
   (HDR, bloom, dynamic glow, FXAA, ambient occlusion, per-pixel model lighting,
   emission maps and their halo) over the maps' baked lighting, without the sun,
@@ -1980,6 +1984,7 @@ levels read Experimental (High) or Custom (Performance, Balanced, Ultra).
 | Soft particles | off | off | on |
 | Ambient occlusion (`r_ssao`) | off | on | on |
 | Dynamic glow (`r_DynamicGlow`) | off | on | on |
+| Light flares (`r_flares`) | off | on | on |
 | Sunbeam dust (`r_dustMotes`) | 0 | 0 | 1 |
 | Reflection probes, floor mirrors | off | off | on |
 | Normal, specular and parallax maps | off | off | on |
@@ -1993,6 +1998,31 @@ levels read Experimental (High) or Custom (Performance, Balanced, Ultra).
 | Weather density | 1 | 1 | 2 |
 | Weather quality | 0 | 0 | 2 |
 | Volumetric clouds | off | off | on |
+
+### Vanilla style and EternalJK
+
+Vanilla style follows EternalJK's defaults on its default renderer, `rd-eternaljk`
+(built from `codemp/rd-vanilla`; JoF EJK's `cl_main.cpp` `DEFAULT_RENDER_LIBRARY`),
+surveyed on 26/10/2026 (Sol's request) from JoF EJK's `rd-vanilla/tr_init.cpp`,
+`shared/sdl/sdl_window.cpp` and `cgame/cg_xcvar.h`:
+
+| EternalJK default | SJK under Vanilla style |
+| --- | --- |
+| `r_DynamicGlow 0` | Off (the preset) |
+| `r_flares 0` | Off (the preset; SJK's own default is 1) |
+| No HDR, bloom, FXAA (`r_ext_multisample 0`), SSAO, soft particles, material or emission maps, sun, shadows or light shafts | All off (the preset); emission maps are SJK's own `_e` textures |
+| Lighting per vertex on models | `r_modelPixelLight 0` (the preset) |
+| The map's weather at the original density | Density 1, quality 0, no clouds (the preset) |
+| `r_picmip 0`, `r_textureMode GL_LINEAR_MIPMAP_LINEAR`, 16x anisotropy, no texture compression | SJK's defaults already |
+| `r_dynamiclight 1`, `r_drawfog 2`, `r_surfaceSprites 1`, `r_gamma 1` | SJK's defaults already |
+| `cg_shadows 1`, `cg_marks 1`, `cg_saberTrail 1`, `cg_fov 90` | SJK's defaults already (not graphics settings) |
+
+What SJK cannot match: rd-vanilla's own cvars (`r_overBrightBits 0`,
+`r_mapOverBrightBits 0`, `r_lodbias`, `r_lodscale 16`, `r_subdivisions 4`,
+`r_ambientScale 0.6`, `r_texturebits`) have no counterpart in SJK's renderer, which
+draws the maps' lighting in its own way. Vertical sync (`r_swapInterval`) and the
+window are left to the player, as for every preset. Sol's own JoF EJK profile differs
+from these defaults: rd-vulkan with dynamic glow and 8x multisampling.
 
 Under Vanilla style and SJK (recommended), with no sun, light shafts or sun shadows,
 a map loads without building its lamps (see [rendering](rendering.md#default-visual-profile)), which no pass reads there.

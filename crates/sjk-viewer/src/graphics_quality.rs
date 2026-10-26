@@ -3,7 +3,9 @@
 //! 16/10/2026, in place of the Renderer row and the SJK renderer's four levels).
 //!
 //! Vanilla style is the original game's look at the least cost, every SJK extra
-//! off (the EJK level until 12/10/2026, then Vanilla). SJK (recommended) is
+//! off: EternalJK's defaults on its own renderer (rd-eternaljk, rd-vanilla's
+//! code: no dynamic glow, no light flares; the EJK level until 12/10/2026, then
+//! Vanilla). SJK (recommended) is
 //! Sol's own setup: SJK's image (HDR, bloom, glow, FXAA, ambient occlusion, lit
 //! models, emission maps) over the maps' baked lighting, without the sun,
 //! shadows, reflections, material maps or weather extras still in alpha. A new
@@ -63,6 +65,8 @@ const VALUES: &[(&str, [&str; 3])] = &[
     ("r_DynamicGlow", ["0", "1", "1"]),
     ("r_fxaa", ["0", "1", "1"]),
     ("r_softParticles", ["0", "0", "1"]),
+    // EternalJK's rd-vanilla registers `r_flares` 0; SJK draws them by default.
+    ("r_flares", ["0", "1", "1"]),
     ("r_ssao", ["0", "1", "1"]),
     // Dust shows only in light shafts.
     (crate::dust_motes::CVAR, ["0", "0", "1"]),
@@ -478,6 +482,10 @@ mod tests {
             "r_ssao",
             "r_sceneHdr",
         ] {
+            assert!(holds(&console, cvar, "0"), "{cvar}");
+        }
+        // EternalJK's own renderer defaults (rd-vanilla `tr_init.cpp`).
+        for cvar in ["r_DynamicGlow", "r_flares"] {
             assert!(holds(&console, cvar, "0"), "{cvar}");
         }
     }

@@ -1,3 +1,16 @@
+## MP and SP camera, Vanilla style as EternalJK
+
+26/10/2026, `personal/mp-sp-camera`, Sol's request: Settings names the camera styles MP
+camera (`cg_cameraStyle ejk`, the locked default) and SP camera (`sjk`, the eased one),
+EJK and SJK before; only the names changed, the cvar values stay
+([client.md](client.md#camera-style)). The Vanilla style graphics preset follows a survey
+of EternalJK's defaults on its default renderer (rd-eternaljk, rd-vanilla's code;
+[client.md](client.md#vanilla-style-and-eternaljk)): it now turns light flares off too
+(`r_flares 0`, a new Light flares row in Graphics > Image; SJK's default stays 1), dynamic
+glow stays off; everything else already matched or has no counterpart in SJK's renderer.
+A profile set to Vanilla style before reads Custom until the preset is picked again. Not
+verified in game.
+
 ## Support SJK on the main page
 
 26/10/2026, `personal/support-links`, Sol's request: a small line at the top left of the
