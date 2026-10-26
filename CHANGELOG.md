@@ -32,6 +32,9 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
+= cg_heldViewLook: Kicks, knockdowns, kisses and grapples now hold your camera still. Switch this on to keep looking around during them, as before (the camera may shake).
+
+- Free look when held, a new option in Settings > Game options: the mouse keeps turning the view while a JA+ kick, knockdown or kiss, a grapple or a saber lock holds it, as before 2026.1026.2, for players who prefer looking around to a still camera _(Sol)_
 - Two sabers can wear two blade skins, and a staff one on each half: in the Collection pick a saber (or half) above the preview, choose a shader and press Equip (tick Both sabers to dress both at once), or type `saberskin second <id>`; other SJK players see both once the hub has the change _(Creyon, PR #193, the staff's halves at Sol's request)_
 - The `saber` command checks both saber names before changing either, so a misspelt one changes nothing, and the Collection's preview follows it at once _(Creyon, PR #193)_
 - Tab after `devmap` completes the map name from the game data, also by the name after its folder (`devmap siege_ho` gives `devmap mp/siege_hoth`), and lists every map when nothing is typed _(Slash, PR #209)_

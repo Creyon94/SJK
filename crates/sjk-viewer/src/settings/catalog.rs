@@ -1221,6 +1221,11 @@ pub(super) const GAME: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Free look when held",
+        cvar: crate::held_view::LOOK_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Prediction error smoothing (ms)",
         cvar: "cg_errorDecay",
         kind: ValueKind::Float {
