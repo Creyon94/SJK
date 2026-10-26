@@ -411,6 +411,7 @@ impl Panel {
     /// The keys of the tab on show, right-aligned at the bottom.
     fn keys(&mut self, frame: &Frame, inputs: &Inputs<'_>) {
         let s = frame.s;
+        let next_tab = crate::terms::say(self.tab.next(true).label());
         let mut keys: Vec<(&[&str], &str)> = Vec::with_capacity(6);
         match self.tab {
             Tab::Medals => keys.push((&["Left", "Right"], "choose")),
@@ -518,7 +519,7 @@ impl Panel {
             || (self.tab == Tab::Forge && self.forge.ask.is_some())
             || (self.tab == Tab::Toys && self.bind_wait.is_some());
         if !covered {
-            keys.push((&["Ctrl", "Tab"], self.tab.next(true).label()));
+            keys.push((&["Ctrl", "Tab"], &*next_tab));
             keys.push((&["Esc"], "back"));
         }
         let gap = 30.0 * s;

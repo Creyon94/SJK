@@ -86,6 +86,7 @@ fn notes() -> [String; 5] {
         "The card is picked evenly among the cards of its rarity; a rarity with no card yet stays sealed.".to_owned(),
         "Gifts from the SJK team are given, not found; they open the same way.".to_owned(),
     ]
+    .map(crate::terms::say_owned)
 }
 
 /// The notes on how a kyber crystal's shader is picked, and its pity.
@@ -101,6 +102,7 @@ fn kyber_notes(pity: Option<crate::kyber::Pity>) -> [String; 5] {
         "Each achievement brings its crystal once, when it unlocks: its reward shows on the Achievements tab.".to_owned(),
         "Crystals are never dropped by play, bought, sold, traded or broken down.".to_owned(),
     ]
+    .map(crate::terms::say_owned)
 }
 
 /// How many droppable saber shaders the shader tier `rarity` holds.
@@ -327,7 +329,7 @@ impl Panel {
             text(
                 &mut self.ui,
                 TextFamily::Display,
-                format_args!("{}", tier.name),
+                format_args!("{}", tier.title()),
                 frame.rect(LEFT + 58.0, y + 12.0, TIER_WIDTH - 60.0, 28.0),
                 22.0 * s,
                 tier.colour,
@@ -437,7 +439,10 @@ impl Panel {
             &mut self.ui,
             TextFamily::Body,
             format_args!(
-                "What a holocron is and what opening one gives. The SJK hub rolls each one with these odds."
+                "{}",
+                crate::terms::say(
+                    "What a holocron is and what opening one gives. The SJK hub rolls each one with these odds."
+                )
             ),
             frame.rect(LEFT, LINE_Y, WIDTH, 26.0),
             17.0 * s,
@@ -455,7 +460,7 @@ impl Panel {
         text(
             &mut self.ui,
             TextFamily::Body,
-            format_args!("{pace}"),
+            format_args!("{}", crate::terms::say(&pace)),
             frame.rect(LEFT, PACE_Y, WIDTH, 24.0),
             16.0 * s,
             color::QUIET,
@@ -468,7 +473,14 @@ impl Panel {
     /// any holocron found.
     fn loot_table(&mut self, frame: &Frame) {
         let s = frame.s;
-        kit::heading(&mut self.ui, frame, LEFT, TABLE_Y, WIDTH, "Per holocron");
+        kit::heading(
+            &mut self.ui,
+            frame,
+            LEFT,
+            TABLE_Y,
+            WIDTH,
+            &crate::terms::say("Per holocron"),
+        );
         // The groups' labels over a rule each.
         for (label, x, columns) in [
             ("Card rarity", RARITY_X, RARITIES.len() as f32),
@@ -507,7 +519,7 @@ impl Panel {
         text(
             &mut self.ui,
             TextFamily::Body,
-            format_args!("Holocron"),
+            format_args!("{}", crate::terms::say("Holocron")),
             frame.rect(LEFT + 16.0, COLUMNS_Y, TIER_WIDTH, 24.0),
             16.0 * s,
             color::MUTED,
@@ -565,7 +577,7 @@ impl Panel {
             text(
                 &mut self.ui,
                 TextFamily::Display,
-                format_args!("{}", tier.name),
+                format_args!("{}", tier.title()),
                 frame.rect(LEFT + 58.0, y + 12.0, TIER_WIDTH - 60.0, 28.0),
                 22.0 * s,
                 tier.colour,
@@ -610,7 +622,7 @@ impl Panel {
         text(
             &mut self.ui,
             TextFamily::Display,
-            format_args!("Any holocron found"),
+            format_args!("{}", crate::terms::say("Any holocron found")),
             frame.rect(LEFT + 20.0, y + 12.0, TIER_WIDTH - 20.0, 28.0),
             22.0 * s,
             color::GOLD_BRIGHT,
@@ -743,7 +755,7 @@ impl Panel {
             LEFT,
             GRID_Y,
             TIER_WIDTH + GRID_CELL * 3.0,
-            "Every card, per holocron found",
+            &crate::terms::say("Every card, per holocron found"),
         );
         for finish in &FINISHES {
             let words = format!("{} {}", crate::symbols::finish(finish.index), finish.name);
@@ -871,12 +883,12 @@ impl Panel {
             false,
             LOOT_BACK_TOKEN,
         );
-        let back = if self.selected().is_kyber() {
+        let back = crate::terms::say(if self.selected().is_kyber() {
             "crystals"
         } else {
             "holocrons"
-        };
-        let keys: [(&[&str], &str); 2] = [(&["L"], back), (&["Esc"], "back")];
+        });
+        let keys: [(&[&str], &str); 2] = [(&["L"], &back), (&["Esc"], "back")];
         let gap = 30.0 * s;
         let width: f32 = keys
             .iter()

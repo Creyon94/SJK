@@ -214,7 +214,7 @@ fn words(
             Some((at, of)) => text(
                 ui,
                 place,
-                format_args!("NEW MEDAL  {at} OF {of}"),
+                format_args!("{}  {at} OF {of}", crate::terms::say("NEW MEDAL")),
                 title,
                 12.5,
                 LABEL,
@@ -224,7 +224,7 @@ fn words(
             None => text(
                 ui,
                 place,
-                format_args!("NEW MEDAL"),
+                format_args!("{}", crate::terms::say("NEW MEDAL")),
                 title,
                 12.5,
                 LABEL,
@@ -353,11 +353,11 @@ fn words(
         TextAlign::Center,
     );
     ui.hit_region(NEXT_TOKEN, area);
-    let hint = if view.more {
+    let hint = crate::terms::say(if view.more {
         "Enter or a click shows the next medal."
     } else {
         "Enter or a click closes the medal."
-    };
+    });
     text(
         ui,
         place,

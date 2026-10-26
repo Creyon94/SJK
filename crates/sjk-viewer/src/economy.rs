@@ -224,7 +224,9 @@ pub(crate) fn update_to(snapshot: &sjk_identity::Snapshot) -> Option<&str> {
 /// What the Holocrons tab says in place of Open and Open all when this build is older
 /// than `min`, the hub's minimum client.
 pub(crate) fn update_line(min: &str) -> String {
-    format!("Update SJK to open holocrons: this needs SJK {min} or newer.")
+    crate::terms::say_owned(format!(
+        "Update SJK to open holocrons: this needs SJK {min} or newer."
+    ))
 }
 
 /// Shatter one duplicate of shader `id`; false when the identity has not started. What
@@ -263,7 +265,7 @@ pub(crate) fn buy_holocron(tier: &str) -> bool {
 pub(crate) fn outcome_words(outcome: &sjk_identity::TradeOutcome, name: &str) -> String {
     use sjk_identity::Trade;
     if !outcome.done() {
-        return outcome.message.clone();
+        return crate::terms::say_owned(outcome.message.clone());
     }
     let amount = shards_text(outcome.amount);
     match outcome.trade {
@@ -285,10 +287,10 @@ pub(crate) fn outcome_words(outcome: &sjk_identity::TradeOutcome, name: &str) ->
             format!("{name} bought for {amount} kyber shards. It is yours.")
         }
         Trade::Buy => format!("{name} bought for {amount} credits. It is yours."),
-        Trade::Holocron => format!(
+        Trade::Holocron => crate::terms::say_owned(format!(
             "{name} bought for {} credits. It waits in your holocrons.",
             crate::cards::credits_text(outcome.amount)
-        ),
+        )),
     }
 }
 

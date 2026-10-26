@@ -303,11 +303,11 @@ impl Panel {
         }
         let mut y = top + RADIUS * 2.0 + 14.0;
         let name = if standing.secret() {
-            "Secret"
+            std::borrow::Cow::Borrowed("Secret")
         } else {
-            standing.kind.name
+            crate::terms::say(standing.kind.name)
         };
-        for part in wrap(name, NAME_CHARS).take(2) {
+        for part in wrap(&name, NAME_CHARS).take(2) {
             text(
                 &mut self.ui,
                 TextFamily::Body,
@@ -392,7 +392,7 @@ impl Panel {
         y = centred_lines(
             &mut self.ui,
             frame,
-            standing.description(),
+            &standing.description(),
             [SHOWCASE_X, y, SHOWCASE_WIDTH],
             56,
             2,
@@ -509,7 +509,7 @@ impl Panel {
             text(
                 &mut self.ui,
                 TextFamily::Display,
-                format_args!("{}", kind.name),
+                format_args!("{}", crate::terms::say(kind.name)),
                 frame.rect(x + 54.0, y + 6.0, 260.0, 28.0),
                 22.0 * s,
                 color::TEXT,

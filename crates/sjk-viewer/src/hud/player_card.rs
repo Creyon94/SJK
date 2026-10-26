@@ -657,7 +657,7 @@ pub(crate) fn card_from(info: &[u8], hub: Option<HubInfo>, shader: Option<&'stat
                 .holocron
                 .and_then(|index| crate::holocrons::TIERS.get(index))
             {
-                card.texts[T_HOLOCRON] = tier.name.to_owned();
+                card.texts[T_HOLOCRON] = tier.title().into_owned();
             }
             if facts.unlocked > 0 {
                 card.texts[T_ACHIEVEMENTS] =

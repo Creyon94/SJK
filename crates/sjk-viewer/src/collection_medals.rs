@@ -112,7 +112,11 @@ impl Panel {
     /// The Medals tab.
     pub(super) fn medals(&mut self, frame: &Frame, inputs: &Inputs<'_>) {
         let ((headline, line), shown) = showing(inputs);
-        self.lead(frame, &headline, line);
+        self.lead(
+            frame,
+            &crate::terms::say(&headline),
+            &crate::terms::say(line),
+        );
         self.medals_shown = shown.len();
         self.medal = self.medal.min(shown.len().saturating_sub(1));
         let s = frame.s;
@@ -146,7 +150,10 @@ impl Panel {
         text(
             &mut self.ui,
             TextFamily::Body,
-            format_args!("More medals will hang here as the SJK team adds them."),
+            format_args!(
+                "{}",
+                crate::terms::say("More medals will hang here as the SJK team adds them.")
+            ),
             frame.rect(LEFT_X, 736.0, RAIL_WIDTH, 24.0),
             15.0 * s,
             color::QUIET,

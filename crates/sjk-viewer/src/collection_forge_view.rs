@@ -686,7 +686,7 @@ impl Panel {
             LEFT_X,
             HOLOCRONS_HEAD_Y,
             width_all - 620.0,
-            "Holocrons for credits",
+            &crate::terms::say("Holocrons for credits"),
         );
         text(
             &mut self.ui,
@@ -710,7 +710,7 @@ impl Panel {
             let chosen = self.forge.shop_selected == choice;
             let tier = holocron_tier(tier_id);
             let colour = tier.map_or(color::HOLO, |tier| tier.colour);
-            let name = tier.map_or(tier_id, |tier| tier.name);
+            let name = crate::terms::say(tier.map_or(tier_id, |tier| tier.name));
             let rect = frame.rect(x, y, width, HOLOCRON_HEIGHT);
             let _ = self.ui.draw_list_mut().push(DrawCommand::RoundedRect {
                 rect,
@@ -826,7 +826,7 @@ impl Panel {
             if let Some((outcome, Some(Press::Holocron(asked)))) = self.forge.answer()
                 && asked == index
             {
-                let words = crate::economy::outcome_words(outcome, name);
+                let words = crate::economy::outcome_words(outcome, &name);
                 let colour = if outcome.done() {
                     color::GOLD_BRIGHT
                 } else {
@@ -853,7 +853,7 @@ impl Panel {
         let shards = self.forge.data.shards.unwrap_or(0);
         let affordable = all.iter().filter(|item| item.cost <= shards).count();
         let line = if total == 0 {
-            "Every shader holocrons drop is yours already.".to_owned()
+            crate::terms::say("Every shader holocrons drop is yours already.").into_owned()
         } else {
             format!(
                 "{total} saber shaders you lack, made with kyber shards: {affordable} within reach."
@@ -879,7 +879,7 @@ impl Panel {
                 frame,
                 [LIST_LEFT, LIST_TOP, LIST_RIGHT - LIST_LEFT, 560.0],
                 title,
-                words,
+                &crate::terms::say(words),
             );
         }
         let first = self.forge.craft_first;
@@ -937,7 +937,7 @@ impl Panel {
                 frame,
                 [LIST_LEFT, LIST_TOP, LIST_RIGHT - LIST_LEFT, 560.0],
                 title,
-                words,
+                &crate::terms::say(words),
             );
         }
         let first = self.forge.break_first;
@@ -1680,10 +1680,10 @@ impl Panel {
             )
         } else {
             (
-                format!(
+                crate::terms::say_owned(format!(
                     "{} kyber shards more needed: break down a duplicate, or open holocrons",
                     crate::economy::shards_text(item.cost - shards)
-                ),
+                )),
                 color::EMBER,
             )
         };
@@ -1966,11 +1966,11 @@ impl Panel {
                     &crate::cards::faces::current(),
                 );
                 let again = crate::economy::craft_price(skin, card).0;
-                lines.push(format!(
+                lines.push(crate::terms::say_owned(format!(
                     "To have it again you would craft it for {} kyber shards, or find it in a \
                      holocron.",
                     crate::economy::shards_text(again)
-                ));
+                )));
                 (
                     "This is your only copy",
                     lines,
@@ -1991,7 +1991,8 @@ impl Panel {
                         if copies == 1 { "copy" } else { "copies" },
                         if shaders == 1 { "shader" } else { "shaders" }
                     ),
-                    "Copies a medal or a card brings are never touched.".to_owned(),
+                    crate::terms::say("Copies a medal or a card brings are never touched.")
+                        .into_owned(),
                 ];
                 let shown: Vec<_> = owned(&inputs.holdings, false)
                     .into_iter()
@@ -2176,10 +2177,10 @@ impl Panel {
                 title: "Kyber shards".to_owned(),
                 colour: crate::cards::shard::KYBER,
                 lines: vec![
-                    Line::how(
+                    Line::how(crate::terms::say(
                         "Found in holocrons as a pile, a few with every card, and from \
                          breaking saber shaders down here.",
-                    ),
+                    )),
                     Line::status("They craft any shader of the trade and buy the shop's offers."),
                     Line::held(format!(
                         "You hold {}.",
@@ -2191,8 +2192,12 @@ impl Panel {
                 title: "Credits".to_owned(),
                 colour: color::GOLD_BRIGHT,
                 lines: vec![
-                    Line::how("Every card a holocron brings comes with credits."),
-                    Line::status("They buy Uncommon and Rare holocrons in the shop."),
+                    Line::how(crate::terms::say(
+                        "Every card a holocron brings comes with credits.",
+                    )),
+                    Line::status(crate::terms::say(
+                        "They buy Uncommon and Rare holocrons in the shop.",
+                    )),
                     Line::held(format!(
                         "You hold {}.",
                         crate::cards::credits_text(self.forge.data.credits.unwrap_or(0))

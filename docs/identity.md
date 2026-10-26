@@ -407,6 +407,9 @@ menu's row of icons): [sjk-ui.md](sjk-ui.md#report-a-bug-and-its-dialogs).
 
 ## Medals
 
+With the JoF tools on, medals are called "Honors" by default
+([mods.md](mods.md#honors-and-echoes), `jof.honorNames`).
+
 A medal is recognition the SJK team gives a player by hand: for testing SJK early,
 contributing to its code, finding bugs or donating to SJK. Since 10/10/2026 (Sol's decision)
 a medal may bring one saber shader for as long as the player holds it: Early Tester the

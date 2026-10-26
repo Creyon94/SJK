@@ -215,11 +215,25 @@ pub(super) const ALPHA_WARNING: &str = "The SJK renderer is in alpha: some maps 
     (lighting, shadows, missing surfaces) or run slower. Report them from the SJK menu's Report a \
     bug; Vanilla style is the safe choice.";
 
+/// The settings whose description speaks of SJK's medals and holocrons, which the JoF
+/// tools may rename ([`crate::terms`]); the others' holocrons are the game's pickups.
+const SJK_TERMS: &[&str] = &[
+    crate::unlock_toast::SOUND_CVAR,
+    "cl_identity",
+    crate::holocron_popup::NOTIFICATIONS_CVAR,
+];
+
 /// The description of setting `cvar`.
 pub(super) fn help(cvar: &str) -> Option<&'static str> {
     HELP.iter()
         .find(|(name, _)| name.eq_ignore_ascii_case(cvar))
-        .map(|(_, text)| *text)
+        .map(|&(name, text)| {
+            if SJK_TERMS.contains(&name) {
+                crate::terms::say_static(text)
+            } else {
+                text
+            }
+        })
 }
 
 /// `text` cut into at most [`HELP_LINES`] lines of [`HELP_LINE_CHARS`]
@@ -263,6 +277,11 @@ const HELP: &[(&str, &str)] = &[
     (
         sjk_mod_jof::ABILITY_SOUNDS,
         "Play installed Stasis and Repulse sounds when the server confirms firing. Duplicate cues within 250 ms are suppressed.",
+    ),
+    #[cfg(feature = "mod-jof")]
+    (
+        sjk_mod_jof::HONOR_NAMES,
+        "Call medals Honors and holocrons Echoes in every menu and message while JoF tools are on, on every server. On by default.",
     ),
     (
         sjk_client::player_model_eligibility::METADATA_CVAR,

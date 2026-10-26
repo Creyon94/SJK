@@ -192,7 +192,7 @@ impl Panel {
 /// player holds it.
 fn medal_card(showing: &medals::Showing) -> Card {
     let medal = showing.medal;
-    let mut lines = vec![Line::how(medal.how_to_get())];
+    let mut lines = vec![Line::how(crate::terms::say(medal.how_to_get()))];
     if let Some(blade) = medal.blade().and_then(crate::unlockables::find) {
         lines.push(Line::status(format!(
             "Brings the {} while you hold it.",
@@ -251,8 +251,9 @@ fn achievement_card(
     } else {
         (kind.name, kind.description)
     };
+    let (title, how) = (crate::terms::say(title), crate::terms::say(how));
     Card {
-        title: title.to_owned(),
+        title: title.into_owned(),
         colour: if done {
             color::GOLD_BRIGHT
         } else {
@@ -308,7 +309,7 @@ pub(super) fn shader_card(
         title: skin.name.to_owned(),
         colour: skin.tier.colour(),
         lines: vec![
-            Line::how(skin.how_to_get),
+            Line::how(crate::terms::say(skin.how_to_get)),
             // The blade number only while `debug_collectibles` is on (Sol, 21/10/2026).
             Line::status(if holdings.debug() {
                 format!(

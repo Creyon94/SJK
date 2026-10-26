@@ -1027,6 +1027,12 @@ pub(super) const GAME: &[Setting] = &[
         cvar: sjk_mod_jof::ABILITY_SOUNDS,
         kind: ValueKind::Bool,
     },
+    #[cfg(feature = "mod-jof")]
+    Setting {
+        label: "JoF names (Honors, Echoes)",
+        cvar: sjk_mod_jof::HONOR_NAMES,
+        kind: ValueKind::Bool,
+    },
     Setting {
         label: "Flamethrower effects",
         cvar: crate::actor_world_submission::force_powers::flame::CVAR,

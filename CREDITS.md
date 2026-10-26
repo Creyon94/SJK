@@ -84,6 +84,8 @@ includes:
   (22/10/2026); started by verified players only, answered by the others, kept on the
   game server on JoF's servers unless a player turns them on there, and reported with
   the sender's own signature (25/10/2026);
+- JoF names: medals called Honors and holocrons Echoes while JoF tools are on, at
+  JoF's request (`jof.honorNames`, 26/10/2026);
 - medals, the recognition the SJK team gives players, on the scoreboard, the
   player card and the Identity page, with medal pictures generated and chosen by
   Sol;

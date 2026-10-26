@@ -1055,9 +1055,11 @@ pub(crate) fn item_words(item: &Item) -> String {
         }
     };
     match item {
-        Item::Holocrons(tier, count) => {
-            plural(u64::from(*count), tier.name, &format!("{}s", tier.name))
-        }
+        Item::Holocrons(tier, count) => crate::terms::say_owned(plural(
+            u64::from(*count),
+            tier.name,
+            &format!("{}s", tier.name),
+        )),
         Item::Credits(count) => plural(*count, "credit", "credits"),
         Item::Shards(count) => plural(*count, "kyber shard", "kyber shards"),
     }

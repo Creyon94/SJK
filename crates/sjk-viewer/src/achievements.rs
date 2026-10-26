@@ -605,20 +605,20 @@ impl Standing {
     }
 
     /// The name a board shows.
-    pub(crate) fn name(&self) -> &'static str {
+    pub(crate) fn name(&self) -> std::borrow::Cow<'static, str> {
         if self.secret() {
-            SECRET_NAME
+            SECRET_NAME.into()
         } else {
-            self.kind.name
+            crate::terms::say(self.kind.name)
         }
     }
 
     /// What a board says it asks.
-    pub(crate) fn description(&self) -> &'static str {
+    pub(crate) fn description(&self) -> std::borrow::Cow<'static, str> {
         if self.secret() {
-            SECRET_DESCRIPTION
+            SECRET_DESCRIPTION.into()
         } else {
-            self.kind.description
+            crate::terms::say(self.kind.description)
         }
     }
 }

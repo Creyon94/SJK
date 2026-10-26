@@ -137,7 +137,10 @@ impl Panel {
                 viewport,
                 shown[0].tier(),
                 within,
-                format_args!("{} holocrons", shown.len()),
+                format_args!(
+                    "{}",
+                    crate::terms::say(&format!("{} holocrons", shown.len()))
+                ),
                 None,
             ),
             Moment::Round { round, within } => {
@@ -169,10 +172,13 @@ impl Panel {
             &mut self.ui,
             TextFamily::Display,
             format_args!(
-                "Holocrons {} to {} of {}",
-                first + 1,
-                first + these.len(),
-                shown.len()
+                "{}",
+                crate::terms::say(&format!(
+                    "Holocrons {} to {} of {}",
+                    first + 1,
+                    first + these.len(),
+                    shown.len()
+                ))
             ),
             frame.rect(MIDDLE_X - 500.0, 92.0, 1_000.0, 44.0),
             32.0 * s,
@@ -304,7 +310,10 @@ impl Panel {
         text(
             &mut self.ui,
             TextFamily::Display,
-            format_args!("{} holocrons opened", shown.len()),
+            format_args!(
+                "{}",
+                crate::terms::say(&format!("{} holocrons opened", shown.len()))
+            ),
             frame.rect(MIDDLE_X - 500.0, 80.0, 1_000.0, 50.0),
             40.0 * s,
             color::TEXT,

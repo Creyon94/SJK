@@ -305,7 +305,7 @@ impl Earned {
 impl std::fmt::Display for Earned {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.0 {
-            Some(kind) => write!(formatter, "Earned: {}", kind.name),
+            Some(kind) => write!(formatter, "Earned: {}", crate::terms::say(kind.name)),
             None => formatter.write_str("Earned from an achievement"),
         }
     }

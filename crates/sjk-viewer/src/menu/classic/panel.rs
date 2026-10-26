@@ -301,7 +301,7 @@ impl PanelFrame {
             let target = place.rect(target);
             let hovered = canvas.token_hovered(token);
             if hovered {
-                hovered_hint = Some((slot.hint, slot.enabled()));
+                hovered_hint = Some((crate::terms::say_static(slot.hint), slot.enabled()));
             }
             if hovered && slot.enabled() {
                 self.glow(canvas, &place, slot, target);

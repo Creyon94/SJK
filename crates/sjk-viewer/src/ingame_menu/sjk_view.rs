@@ -163,7 +163,7 @@ pub(crate) fn return_focus(page: Page) -> Focus {
 /// Write `label` and `hint` into row `row`.
 fn put(rows: &mut [String], hints: &mut [String], row: usize, label: &str, hint: &str) {
     rows[row].push_str(label);
-    hints[row].push_str(hint);
+    hints[row].push_str(&crate::terms::say(hint));
 }
 
 /// "1 player", "4 players".
@@ -570,7 +570,7 @@ pub(super) fn build(
                     &frame,
                     under,
                     roster.trade_blocked_for(player),
-                    roster.trade_hint(),
+                    &crate::terms::say(roster.trade_hint()),
                 );
             }
         }

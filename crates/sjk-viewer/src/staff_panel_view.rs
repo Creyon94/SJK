@@ -471,7 +471,7 @@ impl Panel {
             MIDDLE_X,
             SECTION_TOP - 20.0,
             MIDDLE_WIDTH,
-            "Medals",
+            &crate::terms::say("Medals"),
         );
         for medal in Medal::ALL {
             let y = SECTION_TOP + medal.index() as f32 * MEDAL_ROW;
@@ -693,11 +693,12 @@ impl Panel {
             MIDDLE_X,
             HOLOCRONS_TOP - 36.0,
             MIDDLE_WIDTH,
-            "Holocrons and kyber crystals",
+            &crate::terms::say("Holocrons and kyber crystals"),
         );
         let counts = holocrons::counts_of(&profile.holocron_counts);
         let crystals = crystal_counts(profile);
-        for (line, (what, held)) in [("Holocrons", counts), ("Crystals", crystals)]
+        let holocrons_word = crate::terms::say("Holocrons");
+        for (line, (what, held)) in [(&*holocrons_word, counts), ("Crystals", crystals)]
             .into_iter()
             .enumerate()
         {
@@ -822,7 +823,7 @@ impl Panel {
             text(
                 &mut self.ui,
                 TextFamily::Body,
-                format_args!("No holocrons or crystals yet."),
+                format_args!("{}", crate::terms::say("No holocrons or crystals yet.")),
                 frame.rect(MIDDLE_X, rows_y, MIDDLE_WIDTH, 24.0),
                 16.0 * s,
                 color::MUTED,
@@ -845,7 +846,7 @@ impl Panel {
             text(
                 &mut self.ui,
                 TextFamily::Display,
-                format_args!("{}", entry.tier.name),
+                format_args!("{}", entry.tier.title()),
                 frame.rect(MIDDLE_X + 34.0, y, 190.0, 28.0),
                 17.0 * s,
                 entry.tier.colour,
@@ -973,7 +974,7 @@ impl Panel {
             text(
                 &mut self.ui,
                 TextFamily::Display,
-                format_args!("{}", kind.name),
+                format_args!("{}", crate::terms::say(kind.name)),
                 frame.rect(x, y, 230.0, 28.0),
                 19.0 * s,
                 if held.unlocked > 0 {
@@ -1159,7 +1160,7 @@ impl Panel {
             text(
                 &mut self.ui,
                 TextFamily::Body,
-                format_args!("{label}"),
+                format_args!("{}", crate::terms::say(label)),
                 frame.rect(MIDDLE_X, y, 140.0, 24.0),
                 15.0 * s,
                 color::QUIET,
@@ -1616,7 +1617,7 @@ impl Panel {
                 &mut self.ui,
                 frame,
                 [x, TABS_Y, width, 38.0],
-                label,
+                &crate::terms::say(label),
                 self.view == view,
                 true,
                 self.focus == token,
@@ -1684,8 +1685,11 @@ impl Panel {
             format!("{name} has a request open; their game asks them when they are in the menu.")
         } else {
             format!(
-                "Asks {name} for their game's logs, with the note under the medals. Their \
-                 game asks them first; nothing comes without their yes."
+                "Asks {name} {}",
+                crate::terms::say(
+                    "for their game's logs, with the note under the medals. Their game asks \
+                     them first; nothing comes without their yes."
+                )
             )
         };
         for part in wrap(&explain, 72).take(2) {
@@ -2038,7 +2042,9 @@ impl Panel {
         let s = frame.s;
         let mut y = MERGE_TOP + 30.0;
         for part in wrap(
-            "For a player who reset their key: this player is kept, the other one's medals, unlocks, achievements, holocrons and names move here and their keys become linked keys.",
+            &crate::terms::say(
+                "For a player who reset their key: this player is kept, the other one's medals, unlocks, achievements, holocrons and names move here and their keys become linked keys.",
+            ),
             72,
         ) {
             text(
@@ -2253,7 +2259,7 @@ impl Panel {
         let (line, colour) = if staff.busy {
             ("Working...".to_owned(), color::MUTED)
         } else if staff.failed {
-            (cut(&staff.message, 90), color::EMBER)
+            (cut(&crate::terms::say(&staff.message), 90), color::EMBER)
         } else if staff.message.is_empty()
             && !self.shown.creator
             && matches!(
@@ -2267,7 +2273,10 @@ impl Panel {
                 color::MUTED,
             )
         } else {
-            (cut(&staff.message, 90), color::GOLD_BRIGHT)
+            (
+                cut(&crate::terms::say(&staff.message), 90),
+                color::GOLD_BRIGHT,
+            )
         };
         text(
             &mut self.ui,

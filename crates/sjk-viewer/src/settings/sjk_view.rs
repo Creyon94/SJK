@@ -285,7 +285,7 @@ impl SettingsMenu {
         if focused {
             kit::band(&mut self.ui, frame, [ROWS_X, top, ROWS_WIDTH, LINE]);
         }
-        let (label, _) = help::classic_label(setting.cvar, setting.label);
+        let (label, _) = help::classic_label(setting.cvar, crate::terms::say_static(setting.label));
         let changed = self
             .defaults
             .get(row)
@@ -603,7 +603,7 @@ impl SettingsMenu {
                 .and_then(|index| rail.categories.get(index))
                 .map(|(_, icon)| *icon),
         };
-        let (title, timing) = help::timing(setting.label);
+        let (title, timing) = help::timing(crate::terms::say_static(setting.label));
         let title_x = DETAIL_X + if icon.is_some() { 58.0 } else { 0.0 };
         let title_lines: Vec<&str> = wrap(title, 24).take(2).collect();
         let title_height = title_lines.len().max(1) as f32 * 38.0;

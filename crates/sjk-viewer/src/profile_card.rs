@@ -215,8 +215,8 @@ impl std::fmt::Display for HubLine<'_> {
         }
         match summary.medals {
             0 => {}
-            1 => f.write_str(" \u{b7} 1 medal")?,
-            count => write!(f, " \u{b7} {count} medals")?,
+            1 => write!(f, " \u{b7} 1 {}", crate::terms::say("medal"))?,
+            count => write!(f, " \u{b7} {count} {}", crate::terms::say("medals"))?,
         }
         write!(
             f,

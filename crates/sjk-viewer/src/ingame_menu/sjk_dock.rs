@@ -125,7 +125,7 @@ pub(super) fn icon_row(canvas: &mut MenuCanvas, frame: &Frame, extras: &Extras<'
     text(
         canvas,
         TextFamily::Body,
-        format_args!("{}", icon.hint()),
+        format_args!("{}", crate::terms::say(icon.hint())),
         frame.rect(x, LABEL_Y + 3.0, 560.0, 24.0),
         16.0 * s,
         color::MUTED,

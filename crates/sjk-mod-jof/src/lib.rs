@@ -23,6 +23,9 @@ pub const ABILITY_SOUNDS: &str = "jof.abilitySounds";
 /// Encrypted whispers on JoF servers, off by default: JoF moderates whispers there
 /// (the client's `e2e_whispers::PLAIN_FAMILIES` reads it, whatever the mod's switch).
 pub const E2E_WHISPERS: &str = "jof.e2eWhispers";
+/// Medals called "Honors" and holocrons "Echoes" everywhere while the mod is on, on by
+/// default (JoF's request; the client's `terms` module reads it).
+pub const HONOR_NAMES: &str = "jof.honorNames";
 const SETTINGS: &[Setting] = &[
     Setting {
         name: destruction::CVAR,
@@ -48,6 +51,11 @@ const SETTINGS: &[Setting] = &[
         name: E2E_WHISPERS,
         default: sjk_mod::SettingValue::Bool(false),
         help: "Send and take encrypted whispers on JoF servers, where JoF asks that whispers go through their server so they can moderate them",
+    },
+    Setting {
+        name: HONOR_NAMES,
+        default: sjk_mod::SettingValue::Bool(true),
+        help: "Call medals \"Honors\" and holocrons \"Echoes\" in every menu and message while JoF tools are on",
     },
     Setting {
         name: sjk_chat::NOTICE,

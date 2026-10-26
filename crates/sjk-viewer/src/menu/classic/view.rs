@@ -215,7 +215,7 @@ pub(crate) fn build(
     }
     if let Some(slot) = menu.slots().get(described) {
         canvas.text_aligned(
-            slot.hint,
+            crate::terms::say_static(slot.hint),
             place.centered([CANVAS[0] * 0.5, HINT_Y], 560.0, 18.0),
             13.0 * s,
             if slot.enabled() { HINT } else { DISABLED },

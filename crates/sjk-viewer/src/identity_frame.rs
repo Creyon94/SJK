@@ -44,6 +44,10 @@ impl GpuState {
             crate::chat::client_icons::set_shown(
                 console.bool_cvar(crate::chat::client_icons::CVAR) != Some(false),
             );
+            crate::terms::set_renamed(
+                console.bool_cvar(&crate::mods::switch("jof")) == Some(true)
+                    && console.bool_cvar(crate::terms::CVAR) == Some(true),
+            );
         }
         chat_gifs::service(&mut self.ui_shapes, &self.device, &self.queue);
         // The own look is read twice a second, and at once when the worn skins change (the

@@ -97,7 +97,10 @@ impl Item {
         let found = crate::holocrons::by_id(tier);
         Self {
             what: What::Holocron(id),
-            name: found.map_or_else(|| "Holocron".to_owned(), |tier| tier.name.to_owned()),
+            name: found.map_or_else(
+                || crate::terms::say("Holocron").into_owned(),
+                |tier| tier.title().into_owned(),
+            ),
             tier: found.map_or_else(String::new, |tier| tier.label.to_owned()),
             holocron_slot: found.map(|tier| tier.index),
             colour: found.map_or(color::HOLO, |tier| tier.colour),
@@ -243,7 +246,7 @@ impl Room {
             (false, true) => "Today's duplicates are given.".to_owned(),
             (false, false) => return None,
         };
-        Some(format!("{limit} More tomorrow."))
+        Some(crate::terms::say_owned(format!("{limit} More tomorrow.")))
     }
 }
 
@@ -594,6 +597,17 @@ pub(crate) fn countdown(seconds: i64) -> String {
     }
 }
 
+/// How `trade` ended, in words; a refusal's reason goes by the JoF names
+/// ([`crate::terms`]), the lines with the partner's name stay as they are.
+fn ending(trade: &PlayerTrade) -> String {
+    let words = trade.ending();
+    if trade.state == "refused" {
+        crate::terms::say_owned(words)
+    } else {
+        words
+    }
+}
+
 /// `seconds` as a clock: "4:05", or "24s" under a minute.
 pub(crate) fn clock(seconds: u64) -> String {
     if seconds >= 60 {
@@ -624,8 +638,8 @@ fn draw_small(ui: &mut MenuCanvas, frame: &Frame, view: &View) {
             "Trade request".to_owned(),
             format!("{shown} wants to trade"),
             format!(
-                "Swap unopened holocrons and duplicate saber shaders with {name}. Nothing \
-                 changes hands until you both press Ready and then Confirm."
+                "{} {name}. Nothing changes hands until you both press Ready and then Confirm.",
+                crate::terms::say("Swap unopened holocrons and duplicate saber shaders with")
             ),
         )
     } else {
@@ -636,7 +650,7 @@ fn draw_small(ui: &mut MenuCanvas, frame: &Frame, view: &View) {
             } else {
                 format!("Trade with {shown} ended")
             },
-            trade.ending(),
+            ending(trade),
         )
     };
     let lines: Vec<&str> = wrap(&words, LINE_CHARS).take(4).collect();
@@ -903,11 +917,11 @@ fn own_items(ui: &mut MenuCanvas, frame: &Frame, view: &View, own_y: f32) {
         TextFamily::Display,
         format_args!(
             "{}",
-            if view.holocrons {
+            crate::terms::say(if view.holocrons {
                 "Your holocrons and duplicates"
             } else {
                 "Your duplicates"
-            }
+            })
         ),
         frame.rect(LEFT_X, own_y, COLUMN_W, 26.0),
         19.0 * s,
@@ -919,7 +933,7 @@ fn own_items(ui: &mut MenuCanvas, frame: &Frame, view: &View, own_y: f32) {
     if view.own.is_empty() {
         let words = "Nothing to offer yet: unopened holocrons you found by playing, and \
                      second copies of saber shaders, can be traded.";
-        for (index, part) in wrap(words, 52).enumerate() {
+        for (index, part) in wrap(&crate::terms::say(words), 52).enumerate() {
             line(
                 ui,
                 frame,
@@ -965,7 +979,14 @@ fn own_items(ui: &mut MenuCanvas, frame: &Frame, view: &View, own_y: f32) {
         under += 24.0;
     }
     if view.own.iter().any(|item| item.locked_for.is_some()) {
-        under += warning(ui, frame, LEFT_X, under, COLUMN_W, LOCK_WARNING) + 8.0;
+        under += warning(
+            ui,
+            frame,
+            LEFT_X,
+            under,
+            COLUMN_W,
+            &crate::terms::say(LOCK_WARNING),
+        ) + 8.0;
     }
     if let Some(note) = view.room.note(&view.own) {
         for (index, part) in wrap(&note, 58).enumerate() {
@@ -1028,7 +1049,15 @@ fn daily_limits(ui: &mut MenuCanvas, frame: &Frame, view: &View, own_y: f32) {
     let mut y = head_y + 34.0;
     for limit in &view.limits {
         let ink = limit.colour.unwrap_or(color::MUTED);
-        line(ui, frame, RIGHT_X, y, COLUMN_W, limit.label, ink);
+        line(
+            ui,
+            frame,
+            RIGHT_X,
+            y,
+            COLUMN_W,
+            &crate::terms::say(limit.label),
+            ink,
+        );
         for ((done, most), right) in [(limit.received, received_right), (limit.given, given_right)]
         {
             text(
@@ -1148,7 +1177,7 @@ fn gift_question(ui: &mut MenuCanvas, frame: &Frame, view: &View, top: f32, bott
         .mine
         .iter()
         .map(|item| match item.holocron_slot {
-            Some(_) => format!("a {} Holocron", item.tier),
+            Some(_) => crate::terms::say_owned(format!("a {} Holocron", item.tier)),
             None => format!("a {} blade", item.name),
         })
         .collect();
@@ -1603,7 +1632,8 @@ impl Said {
             (
                 format!("{name} wants to trade"),
                 if view.holocrons {
-                    "Holocrons and duplicate shaders. You keep playing.".to_owned()
+                    crate::terms::say("Holocrons and duplicate shaders. You keep playing.")
+                        .into_owned()
                 } else {
                     "Duplicate shaders. You keep playing.".to_owned()
                 },
@@ -1626,7 +1656,7 @@ impl Said {
                 None,
             )
         } else {
-            (trade.ending(), String::new(), None)
+            (ending(trade), String::new(), None)
         };
         let share = clock.filter(|(_, whole)| *whole > 0).map(|(_, whole)| {
             let exact = if view.left_exact > 0.0 {

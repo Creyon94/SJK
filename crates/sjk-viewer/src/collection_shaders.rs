@@ -261,11 +261,17 @@ fn sources(skin: &Unlockable) -> Vec<(char, String)> {
         .iter()
         .find(|medal| medal.blade() == Some(skin.id))
     {
-        return vec![(symbols::MEDAL, format!("{} medal", medal.name()))];
+        return vec![(
+            symbols::MEDAL,
+            crate::terms::say_owned(format!("{} medal", medal.name())),
+        )];
     }
     let mut sources = Vec::new();
     if skin.droppable {
-        sources.push((symbols::HOLOCRON, "Holocron drop".to_owned()));
+        sources.push((
+            symbols::HOLOCRON,
+            crate::terms::say("Holocron drop").into_owned(),
+        ));
     }
     if let Some(card) = unlockables::card_bringing(skin.id) {
         let name = crate::cards::faces::name_of(card);
@@ -333,7 +339,7 @@ fn owned_line(grant: &sjk_identity::Unlock) -> String {
         .medal
         .as_deref()
         .and_then(crate::medals::Medal::from_id)
-        .map(|medal| format!("with your {} medal", medal.name()));
+        .map(|medal| crate::terms::say_owned(format!("with your {} medal", medal.name())));
     let card = || {
         grant
             .card
@@ -1643,7 +1649,11 @@ impl Panel {
                 color::GOLD,
             ),
             (Some(skin), None) => (
-                format!("{}  How to get it: {}", symbols::LOCK, skin.how_to_get),
+                format!(
+                    "{}  How to get it: {}",
+                    symbols::LOCK,
+                    crate::terms::say(skin.how_to_get)
+                ),
                 color::MUTED,
             ),
         }

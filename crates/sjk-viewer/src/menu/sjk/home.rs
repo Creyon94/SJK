@@ -700,7 +700,7 @@ pub(crate) fn build(
             text(
                 canvas,
                 TextFamily::Body,
-                format_args!("{}", entry.hint),
+                format_args!("{}", crate::terms::say(entry.hint)),
                 frame.rect(x + 2.0, y + 32.0, 520.0, 24.0),
                 18.0 * s,
                 color::MUTED,

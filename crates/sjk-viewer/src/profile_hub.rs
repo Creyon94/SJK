@@ -450,10 +450,11 @@ pub(crate) fn collection_header(
     (counts, widen): (&[String], f32),
 ) {
     top_bar(canvas, frame, back, back_token, COLLECTION, None);
+    let labels = COLLECTION_LABELS.map(crate::terms::say);
     counted_tabs(
         canvas,
         frame,
-        &COLLECTION_LABELS,
+        &labels.each_ref().map(|label| &**label),
         counts,
         current.index(),
         TOKEN,

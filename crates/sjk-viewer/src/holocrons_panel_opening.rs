@@ -439,7 +439,7 @@ impl Panel {
     pub(crate) fn refused(&mut self, message: &str, now: Instant) {
         self.glide_from = None;
         self.ceremony = Some(Ceremony::Failed {
-            message: message.to_owned(),
+            message: crate::terms::say_owned(message.to_owned()),
             since: now,
         });
     }
@@ -604,7 +604,7 @@ impl Panel {
                     viewport,
                     tier,
                     elapsed,
-                    format_args!("{}", holocrons::slot(tier).name),
+                    format_args!("{}", holocrons::slot(tier).title()),
                     of,
                 );
             }
@@ -990,7 +990,7 @@ impl Panel {
                     format!("{}. ", card.edition)
                 },
                 tier.article(),
-                tier.name
+                tier.title()
             ),
             frame.rect(CARD_X - 500.0, EDITION_Y, 1_000.0, 28.0),
             19.0 * s,
@@ -1103,7 +1103,7 @@ impl Panel {
         text(
             &mut self.ui,
             TextFamily::Display,
-            format_args!("{}", tier.name),
+            format_args!("{}", tier.title()),
             frame.rect(CARD_X - 500.0, STRIP_Y - 120.0, 1_000.0, 50.0),
             38.0 * s,
             tier.colour_alpha(appear),
@@ -1588,7 +1588,7 @@ impl Panel {
         text(
             &mut self.ui,
             TextFamily::Body,
-            format_args!("From {} {}", tier.article(), tier.name),
+            format_args!("From {} {}", tier.article(), tier.title()),
             frame.rect(CARD_X - 500.0, EDITION_Y, 1_000.0, 28.0),
             19.0 * s,
             fade(color::TEXT),
@@ -1599,7 +1599,10 @@ impl Panel {
             &mut self.ui,
             TextFamily::Body,
             format_args!(
-                "Kyber shards craft the saber shader you choose, among those holocrons drop."
+                "{}",
+                crate::terms::say(
+                    "Kyber shards craft the saber shader you choose, among those holocrons drop."
+                )
             ),
             frame.rect(CARD_X - 600.0, ABOUT_Y, 1_200.0, 26.0),
             17.0 * s,
@@ -1676,7 +1679,7 @@ impl Panel {
         text(
             &mut self.ui,
             TextFamily::Body,
-            format_args!("{kind}. From {} {}", tier.article(), tier.name),
+            format_args!("{kind}. From {} {}", tier.article(), tier.title()),
             frame.rect(CARD_X - 500.0, EDITION_Y, 1_000.0, 28.0),
             19.0 * s,
             fade(color::TEXT),
