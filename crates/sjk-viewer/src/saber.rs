@@ -33,11 +33,35 @@ pub(crate) struct Attachment {
     pub(crate) rotation: [f32; 4],
 }
 
+impl Attachment {
+    /// The bolt of a model drawn at `scale` (`iModelScale`): `G2API_GetBoltMatrix`
+    /// scales the bolt's position by the model scale and keeps its axes unit length
+    /// (`G2_API.cpp`), so what a scaled player holds stays in its hand.
+    pub(crate) fn scaled(self, scale: [f32; 3]) -> Self {
+        Self {
+            grip: (Vec3::from_array(self.grip) * Vec3::from_array(scale)).to_array(),
+            ..self
+        }
+    }
+}
+
 /// Saber-model-space blade origin and codemp forward direction.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct BladeSocket {
     pub(crate) origin: [f32; 3],
     pub(crate) direction: [f32; 3],
+}
+
+impl BladeSocket {
+    /// The socket of a hilt drawn at `scale`: `CG_AddSaberBlade` reads `*blade1`
+    /// through `G2API_GetBoltMatrix` with the wearer's model scale, so the blade
+    /// starts on the scaled hilt; its length stays the saber's (`cg_players.c`).
+    pub(crate) fn scaled(self, scale: [f32; 3]) -> Self {
+        Self {
+            origin: (Vec3::from_array(self.origin) * Vec3::from_array(scale)).to_array(),
+            ..self
+        }
+    }
 }
 
 /// Fully transformed blade submitted to the saber renderer.
@@ -1285,5 +1309,34 @@ mod skin_extras_tests {
             assert!(away <= 2.0 * 1.2 + 0.05 * 40.0 + 0.01, "{away}");
         }
         assert!(Instance::echo(blade(), skin(None, None), 1.0, 7).is_none());
+    }
+}
+
+#[cfg(test)]
+mod scale_tests {
+    use super::*;
+
+    #[test]
+    fn a_scaled_model_keeps_its_saber_in_its_hand() {
+        // A player drawn at 60 % (`iModelScale 60`): the hand is 60 % as far from the
+        // origin, so the hilt goes there, turned as before; the blade starts on the
+        // smaller hilt.
+        let hand = Attachment {
+            grip: [-20.0, 0.0, 37.0],
+            rotation: Quat::from_rotation_z(0.5).to_array(),
+        };
+        let scaled = hand.scaled([0.6; 3]);
+        let (grip, rotation) = world_attachment(Vec3::ZERO, Quat::IDENTITY, scaled);
+        assert!(grip.abs_diff_eq(Vec3::new(-12.0, 0.0, 22.2), 1e-4));
+        assert_eq!(rotation.to_array(), hand.rotation);
+        let socket = BladeSocket {
+            origin: [0.0, 0.0, 10.0],
+            direction: [0.0, 0.0, 1.0],
+        }
+        .scaled([0.6; 3]);
+        assert_eq!(socket.origin, [0.0, 0.0, 6.0]);
+        assert_eq!(socket.direction, [0.0, 0.0, 1.0]);
+        // Unscaled models are untouched.
+        assert_eq!(hand.scaled([1.0; 3]).grip, hand.grip);
     }
 }

@@ -29,7 +29,7 @@ pub(super) fn submit(
         // EJK #58 leaves this uninitialized on a missing hand bolt. Use the actor
         // origin instead, never the world origin or a previous actor's hand.
         let hand = actor.weapon_attachments[1].map_or(origin, |bolt| {
-            saber::world_attachment(origin, rotation, bolt).0
+            saber::world_attachment(origin, rotation, bolt.scaled(transform.scale)).0
         });
         let left = Vec3::new(-sinks.camera_yaw.sin(), sinks.camera_yaw.cos(), 0.0);
         sprites::pair(sinks.particles, sinks.effects, hand, left, false, time, now);

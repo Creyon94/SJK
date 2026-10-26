@@ -13,7 +13,9 @@ pub(crate) mod lights;
 
 /// Submit both hilts and every numbered blade for one actor. `trails` is
 /// `None` with `cg_saberTrail 0`; `skin` is the blade skin the actor wears, which
-/// replaces both sabers' colours.
+/// replaces both sabers' colours. `hands` are the bolts already at the actor's
+/// `scale` ([`saber::Attachment::scaled`]); the hilts are drawn at it too, as stock
+/// draws the bolted saber model with the wearer's `modelScale`.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn submit(
     entity_id: u64,
@@ -23,6 +25,7 @@ pub(crate) fn submit(
     equipment: HeldEquipment,
     actor_origin: Vec3,
     actor_rotation: Quat,
+    scale: [f32; 3],
     catalog: Option<&HiltCatalog>,
     states: &mut StateSlab,
     segments: &mut SegmentPool,
@@ -62,7 +65,7 @@ pub(crate) fn submit(
         object_groups[hilt.mesh_index].push(ActorInstance::new(
             grip.to_array(),
             weapon_rotation.to_array(),
-            [1.0; 3],
+            scale,
         ));
         let stock = black_sabers.color(
             entity_id,
@@ -77,9 +80,10 @@ pub(crate) fn submit(
         let color = skin.map_or(stock, |skin| BladeColor::Skin(skin.worn_with(stock)));
         let mut light_blades = [None; 8];
         for blade_index in 0..usize::from(hilt.num_blades) {
-            let Some(hilt_blade) = hilt.blade(blade_index) else {
+            let Some(mut hilt_blade) = hilt.blade(blade_index) else {
                 continue;
             };
+            hilt_blade.socket = hilt_blade.socket.scaled(scale);
             let active = blade_is_active(&equipment, saber_index, blade_index);
             let Some((state, petal_queue)) =
                 states.blade_and_petals(entity_id, saber_index, blade_index)

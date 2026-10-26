@@ -613,7 +613,7 @@ fn submit_actor(
         let (hand, _) = saber::world_attachment(
             Vec3::from_array(transform.translation),
             weapon_view::actor_world_rotation(transform.rotation),
-            attachment,
+            attachment.scaled(transform.scale),
         );
         grapple_rope::submit(sinks, client, hand, visual_now);
     }
@@ -1219,11 +1219,12 @@ fn submit_equipment(
             let mesh = &sinks.actor_meshes[actor_mesh];
             mesh.saber_names[hand]
                 .as_deref()
-                .zip(mesh.weapon_attachments[hand])
+                .zip(mesh.weapon_attachments[hand].map(|bolt| bolt.scaled(transform.scale)))
         }),
         equipment,
         origin,
         rotation,
+        transform.scale,
         sinks.saber_hilts,
         sinks.saber_states,
         sinks.saber_segments,
@@ -1249,7 +1250,8 @@ fn submit_equipment(
     let Some(model) = weapon_view::held_model(equipment.weapon) else {
         return;
     };
-    let (grip, weapon_rotation) = saber::world_attachment(origin, rotation, attachment);
+    let (grip, weapon_rotation) =
+        saber::world_attachment(origin, rotation, attachment.scaled(transform.scale));
     let Some(weapon_mesh) = sinks
         .object_meshes
         .iter()
@@ -1257,7 +1259,8 @@ fn submit_equipment(
     else {
         return;
     };
-    let mut instance = ActorInstance::new(grip.to_array(), weapon_rotation.to_array(), [1.0; 3]);
+    let mut instance =
+        ActorInstance::new(grip.to_array(), weapon_rotation.to_array(), transform.scale);
     let inside_body = local
         && sinks.detached_flight
         && crate::free_camera::inside_body(
