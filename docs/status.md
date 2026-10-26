@@ -1,3 +1,17 @@
+## Short shader waves
+
+26/10/2026, `fix/shader-short-wave` (Creyon), based on `main` `8f73ab73`: Creyon's
+session logs showed three `coruscant_promenade.shader` shaders (holograms of JoF's
+The-Council-RPG map) skipped at every load ("wave
+generator requires four numeric arguments"). The original engine keeps a wave with
+missing values (0) and stops at the line's end; SJK read the next line's keyword as a
+number and dropped the shader. Its values now end at the first non-number
+([rendering.md](rendering.md#where-to-work)). Verified on Linux x86_64: sjk-shader tests
+(new `a_short_wave_keeps_its_shader_and_the_next_directive`), fmt, workspace build, tests
+(4155 passed) and Clippy; on Creyon's PC (28/10/2026) the build without the fix logged the
+nine warnings at load and the build with it none; in game by Creyon on Windows
+(28/10/2026, The-Council-RPG): the holograms draw, their text scrolling and pulsing.
+
 ## Capsule nameplates
 
 28/10/2026, `personal/nameplate-capsule`, based on `main` `fbd28832` (Sol's pick of design E,
