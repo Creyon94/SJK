@@ -625,7 +625,7 @@ mod tests {
         // Order 66's switch and its order, then the Hax.
         let toys = &pages.pages()[2];
         assert!(!toys.force);
-        assert_eq!(toys.choices.len(), 8);
+        assert_eq!(toys.choices.len(), 10);
         assert_eq!(toys.choices[0].label(), "Illuminate");
         assert_eq!(toys.choices[0].command(), "toy_illuminate");
         assert_eq!(toys.choices[0].state(), State::Illuminate);
@@ -645,6 +645,8 @@ mod tests {
         assert_eq!(toys.choices[6].state(), State::Drone);
         assert_eq!(toys.choices[7].command(), "toy_boombox");
         assert_eq!(toys.choices[7].state(), State::Boombox);
+        assert_eq!(toys.choices[8].command(), "toy_monitor");
+        assert_eq!(toys.choices[8].state(), State::Monitor);
         assert!(
             toys.choices[2..]
                 .iter()
@@ -691,12 +693,12 @@ mod tests {
         let toys = saved.find("toys").unwrap();
         let illuminate = catalog::action_index("illuminate").unwrap();
         pages.remove_choice(toys, 0);
-        assert_eq!(pages.pages()[toys].choices.len(), 7);
+        assert_eq!(pages.pages()[toys].choices.len(), 9);
         assert_eq!(
             pages.set_choice(toys, None, Slot::Action(illuminate)),
-            Some(7)
+            Some(9)
         );
-        assert_eq!(pages.pages()[toys].choices[7].label(), "Illuminate");
+        assert_eq!(pages.pages()[toys].choices[9].label(), "Illuminate");
         // The Force page is kept as a page of its own kind, without choices.
         assert!(
             saved

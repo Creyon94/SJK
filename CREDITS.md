@@ -70,6 +70,9 @@ includes:
 - the Boombox toy for verified players: an 80s stereo on the shoulder playing the
   player's own tracks, from their pk3s, to the SJK players close by who have them too
   (25/10/2026);
+- the Monitor toy: an old CRT monitor thrown at players who opted in, sending them
+  flying as ragdolls the way it struck them, and better ragdoll physics under it
+  (weights, friction, limbs kept apart, blows that spin the body) (26/10/2026);
 - a macOS build for Apple Silicon Macs, drawn through Metal and built by GitHub with
   every release, unsigned and experimental (24/10/2026);
 - announcements from the SJK team in SJK chat, and contributor reward rounds: who was

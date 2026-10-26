@@ -4498,7 +4498,22 @@ every fall ends with the map or the server.
   pushed off balance (back, to a side, the knees buckling), so a running or jumping
   player tumbles on. It falls at `g_gravity`'s 800, slides and bounces a little on the
   world's brushes, and sleeps once it has lain still for a second (or after 40 seconds
-  whatever it does), until a mover stirs it.
+  whatever it does), until a mover stirs it or something strikes it.
+- **Its physics** (since 26/10/2026, with the [Monitor](#monitor)): the points weigh what
+  the body's parts weigh (the trunk 26 of its 71, a hand 1.2), so the sticks move a hand
+  more than the pelvis and a limb flails while the trunk holds its course. A surface
+  holds a point by Coulomb friction (0.8 of what the point presses into it, plus 1.5 % a
+  step besides), so a slow point stays put (a body lies on a slope up to about 35
+  degrees) and a body thrown hard skids and tumbles on rather than stopping dead. The
+  limbs keep out of each other: every two points no stick holds stay as far apart as
+  their sizes (a leg no longer passes through the other, nor a hand through the head).
+  A point goes 3,500 units a second at most (was 2,500); its trace sweeps the whole way.
+- **Blows** (since 26/10/2026, the [Monitor](#monitor)'s): a body takes a push at one of
+  its points at a given step (`Strike`), as a solid would: its centre of mass gains the
+  push, and the push off the centre turns it about its inertia as it lies (24 radians a
+  second at most), the struck limb whipping on top. A blow to the head turns the body
+  heels over head, one to the legs sweeps them from under it. A sleeping body wakes for
+  one.
 - **Movers:** since 25/10/2026 lifts, doors, trains and the map's other brush movers are
   in its way too ([scene.rs](../crates/sjk-viewer/src/ragdoll/scene.rs)). Each stands
   where its trajectory puts it at the step's own moment, read from the first snapshot
@@ -4541,7 +4556,16 @@ every fall ends with the map or the server.
   server during a fall (as the hub's looks tell) is told too. Getting up relays
   `up_<moment>`; a client that missed it lets the ragdoll go when the faller dies,
   respawns, leaves, or their real body stays more than 320 units from it for 3
-  seconds. On a game server, every SJK client keeps its relay poll open for this. A
+  seconds without coming 24 units nearer (since 26/10/2026: the faller's client walks
+  the real body to a ragdoll thrown far, which takes longer). A blow to the body is
+  relayed after the fall,
+  `hit_<fall moment>_<step>_<joint>_<px>_<py>_<pz>_<thrower>_<number>_<flight step>`
+  (the push in units a second; the last three name the monitor), to every player told
+  of the fall, the least told first, and to a late comer after the fall; at most 24 a
+  fall. A client that hears of a blow whose step its body already ran runs the body
+  again from its start with every blow (`Body::rerun`, fast-forwarded at once), so it
+  lies where the struck player's does. Clients before 26/10/2026 run the older physics
+  and ignore blows: their view of a fall differs. On a game server, every SJK client keeps its relay poll open for this. A
   sender counts only when the game shows the name they claimed, and never one blocked
   here. Without the hub (`cl_identity 0`) nobody else sees the fall.
 - **The sounds:** going limp plays a flatline (`sound/sjk/ragdoll/flatline.wav`, two
@@ -4682,13 +4706,74 @@ it. The stereo's model, picture, shader and icon are bundled, made by
 game), and mounted below all game data, so a PK3 with the same paths replaces them. See
 [boombox.rs](../crates/sjk-viewer/src/boombox.rs).
 
+## Monitor
+
+The Monitor (Sol's idea, 26/10/2026, after the old sandbox-game joke of hurling a big CRT
+monitor at someone) is a toy for every SJK player: throw an old square monitor, and one
+that hits a player who has the toy on too knocks them down as a [ragdoll](#ragdoll) and
+sends them flying, the way the monitor struck them.
+
+- **`toy_monitor`** (a bind, the quick wheel's Toys page, Collection > Toys, "Hit me")
+  is the switch, both the right to throw and the consent to be hit (Sol's rule: always
+  opt in). It stays as last switched, across maps, servers and restarts
+  (`cl_toyMonitor`, archived). A monitor passes through a player without it.
+- **`monitor_throw`** (Settings > Key bindings > Interaction > Throw monitor, the Toys
+  page's Throw monitor, the Collection's Throw key) throws one from the eyes, the way the
+  player looks, at 1,100 units a second plus the player's own speed, tumbling end over
+  end; one every 1.2 seconds at most, four of a player's out at once (the oldest goes).
+  Without the toy on it says "Turn the Monitor toy on to throw one"; nobody throws while
+  limp, dead, spectating, in a duel, with the flag, hacked or held by the server ("No
+  monitor right now").
+- **The monitor** is a solid of eight corners held by sticks between every two
+  ([flight.rs](../crates/sjk-viewer/src/monitor/flight.rs)), the same Verlet steps as the
+  Ragdoll's body: it bounces off the world (more than a body, plastic and glass), slides
+  with friction, topples over an edge and comes to rest on a face. It lies 10 seconds,
+  then shrinks away; one still flying after 20 seconds stops.
+- **The hit** is decided by the struck player's client alone, against its own body: a
+  standing player's box (lower crouched), or a limp one's ragdoll points. The monitor
+  must come at them, faster than 250 units a second against their own speed. The body
+  falls limp (if standing) and takes a [blow](#ragdoll) at its point nearest the
+  monitor: the monitor's speed against the body's times 1.5, 260 upwards, 2,600 units a
+  second at most. A monitor thrown at someone standing still sends them off at about
+  1,650 units a second. A ragdoll can be struck again where it lies or flies (not for
+  0.2 seconds after a blow, nor by the same monitor for 0.6). The thrower's own monitor
+  can hit them once it is 0.4 seconds out of the hand. The monitor bounces back off the
+  body (half the body's push, back, and 150 up).
+- **Getting up:** a fall a monitor began ends by itself 2.5 seconds after the body came
+  to rest, once the real body has walked to it (or 6 seconds later whatever it did);
+  `toy_ragdoll` gets up at once, and being hurt does as for the Ragdoll.
+- **The sounds** are SJK's own, synthesized by
+  [monitor_assets.py](../scripts/monitor_assets.py): a whoosh as it leaves the hand
+  (`sound/sjk/monitor/throw.wav`), a hollow plastic thunk with the glass ringing when it
+  strikes a body (`bonk.wav`), a clunk and rattle when it knocks on the world harder than
+  160 units a second (`knock.wav`, at most every 120 ms a monitor, louder the harder).
+  Settings > Sound > Toys, "Monitor sounds" (`s_toyMonitorSound`), silences them.
+
+No game server knows of it: the struck player's real body stays where it was and walks
+to the ragdoll, as for the Ragdoll; players on stock clients see nothing. Every SJK client
+on the server sees the same throw: the thrower's client relays
+`throw_<number>_<moment>_<x>_<y>_<z>_<vx>_<vy>_<vz>` (the monitor's number among the
+thrower's, 0 to 99; the game server time; where it leaves the hand and how fast, whole
+units) through the [toy relay](hub-chat.md#toy-relay) to each SJK player in turn, the
+nearest first, one every 40 ms, and each runs the same flight from it in 16 ms steps of
+the game server's clock, fast-forwarding a throw heard late (up to 8 seconds). A hit
+travels as the Ragdoll's `hit_` event, which names the monitor, so every client bounces
+it off the body at the same step (a flight that already ran past it runs again from its
+throw). A sender counts only when the game shows the name they claimed, and never one
+blocked here. The model (a beige CRT, 20 x 17 x 18 units), its picture, shader, icon and
+sounds are bundled, made by the script from shapes, noise and synthesized tones (nothing
+taken from another game), and mounted below all game data, so a PK3 with the same paths
+replaces them. World shots: `world_shot::monitor_shots::monitor_on_a_demo` (with
+`SJK_TEST_DEMO`). See [monitor.rs](../crates/sjk-viewer/src/monitor.rs).
+
 ## Toy sounds
 
 Settings > Sound > Toys (Sol's request, 25/10/2026) sets how the toys sound on this PC:
 "Toy volume" (`s_toyVolume`, 0 to 2, default 1, times the effects volume) scales every
 toy's sounds, and a switch per toy silences that toy's sounds alone, the player's own
 and everyone else's (`s_toyBoxSound`, `s_toyOrder66Sound`, `s_toyHaxSound`,
-`s_toyRagdollSound`, `s_toyDroneSound`, `s_toyBoomboxSound`, all on by default,
+`s_toyRagdollSound`, `s_toyDroneSound`, `s_toyBoomboxSound`, `s_toyMonitorSound`, all
+on by default,
 archived). The toy still
 runs and is still seen; nothing is sent to anyone. The Illuminate holocron makes no
 sound. Every toy sound goes through `GameAudio::play_toy`, and the box music and the
@@ -4901,9 +4986,10 @@ state; no cvar holds it). Since 16/10/2026 the default page also has the
 [Cardboard box](#cardboard-box) (`toy_box`, marked while the player is in it), and
 since 17/10/2026 [Order 66](#order-66) (`toy_order66`, marked while it is on, then
 Execute Order 66, `order66`), since 21/10/2026 the [Hax](#hax) (`toy_hax`, marked
-while it is on), and since 23/10/2026 the [Ragdoll](#ragdoll) (`toy_ragdoll`, marked
-while the player is limp); a wheel saved before keeps its Toys page as it was, and gains
-them from Add a choice, Toys.
+while it is on), since 23/10/2026 the [Ragdoll](#ragdoll) (`toy_ragdoll`, marked
+while the player is limp), and since 26/10/2026 the [Monitor](#monitor) (`toy_monitor`,
+marked while it is on, then Throw monitor, `monitor_throw`); a wheel saved before keeps
+its Toys page as it was, and gains them from Add a choice, Toys.
 
 ### GIF wheel
 

@@ -78,6 +78,7 @@ impl GpuState {
         self.update_order66(&toy_events);
         self.update_hax(&toy_events, &relay_events);
         self.update_ragdoll(&relay_events);
+        self.update_monitor(&relay_events);
         self.update_drone(&relay_events);
         self.update_boombox(&relay_events);
         self.update_e2e_whispers();

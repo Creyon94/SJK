@@ -370,6 +370,7 @@ impl Options {
         crate::ragdoll::mount(&mut vfs)?;
         crate::drone::mount(&mut vfs)?;
         crate::boombox::mount(&mut vfs)?;
+        crate::monitor::mount(&mut vfs)?;
         crate::saber_petals::mount(&mut vfs)?;
         super::force_presets::mount(&mut vfs)?;
         crate::card_outline::mount(&mut vfs)?;

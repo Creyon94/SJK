@@ -181,6 +181,7 @@ mod missile_trails;
 mod mod_notice_card;
 mod model_materials;
 mod mods;
+mod monitor;
 mod movement_collision;
 mod mover_models;
 mod movers;
@@ -519,10 +520,12 @@ struct GpuState {
     drone: drone::Drone,
     /// The Boombox toy (`toy_boombox`): the own stereo and track, and what plays here.
     boombox: boombox::Boombox,
+    /// The Monitor toy (`toy_monitor`): its switch and the monitors thrown.
+    monitor: monitor::Monitor,
     /// The Ragdoll toy (`toy_ragdoll`): the player's own fall and the falls of others.
     ragdoll: ragdoll::Ragdoll,
     /// Order 66's, the Hax's and the Drone's switches as last saved (`toy_saved`).
-    toys_saved: [toy_saved::Saved; 3],
+    toys_saved: [toy_saved::Saved; 4],
     /// The Holocrons tab's 3D holocron ([`holocrons::stage`]).
     holocron_stage: holocrons::stage::Stage,
     /// The time its turn and bob are drawn at, instead of the clock's, for a world shot.
@@ -1490,6 +1493,7 @@ impl GpuState {
             hax: Default::default(),
             drone: Default::default(),
             boombox: Default::default(),
+            monitor: Default::default(),
             ragdoll: Default::default(),
             toys_saved: Default::default(),
             holocron_stage: Default::default(),
@@ -1752,7 +1756,9 @@ impl GpuState {
             demo_playback::Session::current_server_time,
         );
         prediction_preview::tick(self, game_audio, Instant::now(), presentation_time as i32);
-        // The Ragdoll's bodies at this frame's time, for the camera and the actors.
+        // The Monitor's monitors, then the Ragdoll's bodies (one may strike) at this
+        // frame's time, for the camera and the actors.
+        self.step_monitors(presentation_time);
         self.step_ragdolls(presentation_time);
         timing.mark(Phase::Config);
         self.refresh_config_strings(game_audio);
@@ -2579,6 +2585,7 @@ impl GpuState {
         self.submit_cardboard_boxes(presentation_time, visual_now);
         self.submit_order66(presentation_time, visual_now);
         self.submit_drones(presentation_time, visual_now);
+        self.submit_monitors(presentation_time);
         self.submit_holocron_stage(visual_now);
         self.sync_saber_skins(game_audio, presentation_time);
         let debug_missiles = effect_debug::sync(self.console.as_ref());

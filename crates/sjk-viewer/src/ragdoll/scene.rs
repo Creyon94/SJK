@@ -23,7 +23,7 @@ const REACH: f32 = 96.0;
 
 /// The brush movers of the snapshot last read, and those near the body at the step.
 #[derive(Default)]
-pub(super) struct Movers {
+pub(crate) struct Movers {
     /// The server time of the snapshot `solids` were read from.
     snapshot: Option<i32>,
     solids: Vec<Collider>,
@@ -32,7 +32,7 @@ pub(super) struct Movers {
 }
 
 /// The world for one frame's steps.
-pub(super) struct Scene<'a> {
+pub(crate) struct Scene<'a> {
     bsp: &'a Bsp,
     scratch: &'a mut TraceScratch,
     session: Option<&'a ClientSession>,
@@ -41,7 +41,7 @@ pub(super) struct Scene<'a> {
 
 impl<'a> Scene<'a> {
     /// The map's brushes, and the movers of `session`'s snapshots (none without one).
-    pub(super) fn new(
+    pub(crate) fn new(
         bsp: &'a Bsp,
         scratch: &'a mut TraceScratch,
         session: Option<&'a ClientSession>,

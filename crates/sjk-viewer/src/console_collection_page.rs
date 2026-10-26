@@ -169,6 +169,10 @@ impl ViewerConsole {
                 self.pending_boombox = Some(on);
                 self.boombox_on = on;
             }
+            PanelAction::Monitor(on) => {
+                self.pending_monitor = Some(on);
+                self.monitor_on = on;
+            }
             PanelAction::Hub(tab) => {
                 // A tab of another page: the Holocrons page.
                 let back = self.collection_panel.back();
@@ -258,6 +262,16 @@ impl ViewerConsole {
         self.pending_boombox.take()
     }
 
+    /// The viewer says whether the Monitor toy is on, once a frame.
+    pub(crate) fn set_monitor_on(&mut self, on: bool) {
+        self.monitor_on = on;
+    }
+
+    /// The Toys tab asked to turn the Monitor on (`true`) or off, once.
+    pub(crate) fn take_monitor_request(&mut self) -> Option<bool> {
+        self.pending_monitor.take()
+    }
+
     /// Give a pressed key to the open page; false when the page is closed.
     pub(super) fn collection_panel_key(&mut self, event: &KeyEvent) -> bool {
         if !self.collection_panel.is_open() {
@@ -329,6 +343,7 @@ impl ViewerConsole {
         let ragdoll = self.ragdoll_on;
         let drone = self.drone_on;
         let boombox = self.boombox_on;
+        let monitor = self.monitor_on;
         let stock = self.stock_blade();
         // Tiles unless the list is chosen (`ui_shaderList 1`).
         let grid = self.integer_cvar(super::collection_panel::SHADER_VIEW_CVAR) != Some(1);
@@ -385,6 +400,7 @@ impl ViewerConsole {
                 ragdoll,
                 drone,
                 boombox,
+                monitor,
                 name: &name,
                 stock,
                 grid,
@@ -412,6 +428,7 @@ impl ViewerConsole {
             ragdoll,
             drone,
             boombox,
+            monitor,
             name: &name,
             stock,
             grid,

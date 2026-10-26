@@ -556,6 +556,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "Play other players' boombox music and your own (SJK)",
         ),
         CvarDefinition::new(
+            crate::toy_sounds::Toy::Monitor.cvar(),
+            true,
+            archive,
+            "Play Monitor sounds (SJK)",
+        ),
+        CvarDefinition::new(
             crate::held_view::LOOK_CVAR,
             crate::held_view::DEFAULT_LOOK,
             archive,
@@ -815,6 +821,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             false,
             archive,
             "The Drone toy is on: other players may peek at you, their drone following you (toy_drone switches it)",
+        ),
+        CvarDefinition::new(
+            crate::toy_saved::MONITOR_CVAR,
+            false,
+            archive,
+            "The Monitor toy is on: you may throw monitors (monitor_throw) and be hit by them (toy_monitor switches it)",
         ),
         CvarDefinition::new(
             crate::boombox::RANGE_CVAR,

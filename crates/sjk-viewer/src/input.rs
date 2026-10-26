@@ -103,6 +103,10 @@ pub(crate) enum InputAction {
     Drone,
     /// `toy_boombox`: carry the stereo and play music, or not ([`crate::boombox`]).
     Boombox,
+    /// `toy_monitor`: throw monitors and be hit by them, or not ([`crate::monitor`]).
+    Monitor,
+    /// `monitor_throw`: throw a monitor ([`crate::monitor`]).
+    ThrowMonitor,
     /// `cameracontrol`: open Camera control, as F8 does
     /// ([`crate::ingame_menu::Page::Shot`]).
     CameraControl,
@@ -307,6 +311,8 @@ impl GameplayInput {
                     | crate::ragdoll::COMMAND
                     | crate::drone::COMMAND
                     | crate::boombox::COMMAND
+                    | crate::monitor::COMMAND
+                    | crate::monitor::THROW_COMMAND
                     | "cameracontrol"
             )
     }
@@ -477,6 +483,8 @@ impl GameplayInput {
             crate::ragdoll::COMMAND => Some(InputAction::Ragdoll),
             crate::drone::COMMAND => Some(InputAction::Drone),
             crate::boombox::COMMAND => Some(InputAction::Boombox),
+            crate::monitor::COMMAND => Some(InputAction::Monitor),
+            crate::monitor::THROW_COMMAND => Some(InputAction::ThrowMonitor),
             "cameracontrol" => Some(InputAction::CameraControl),
             "vote" => match words.next().map(str::to_ascii_lowercase).as_deref() {
                 Some("yes" | "y" | "1") => Some(InputAction::Vote(true)),
@@ -606,6 +614,8 @@ impl super::GpuState {
             Some(InputAction::Ragdoll) => self.toggle_ragdoll(),
             Some(InputAction::Drone) => self.toggle_drone(),
             Some(InputAction::Boombox) => self.toggle_boombox(),
+            Some(InputAction::Monitor) => self.toggle_monitor(),
+            Some(InputAction::ThrowMonitor) => self.throw_monitor(),
             Some(InputAction::FlipKick) => {
                 let restricted = self.live_session.as_ref().is_some_and(|session| {
                     session

@@ -104,6 +104,19 @@ test: Two SJK clients. A: freecam near B: B sees a small remote, the size of a s
 test: A: peek B: B sees no remote, "A is spectating you with the Drone" near the top.
 test: A stops peeking: B's line goes. Third player C still sees A's remote behind B.
 
+[monitor-toy]
+area: Gameplay
+title: Monitor toy: throw an old CRT that sends opted-in players flying as ragdolls
+change: toy_monitor (opt-in: throw and be hit), monitor_throw throws a CRT the way you look.
+change: A hit knocks the player limp and launches them the way it struck; they get up on rest.
+change: Ragdoll physics for all falls: weights, friction, limbs apart, no wall rebound.
+test: Bind monitor_throw. Toy off: 'Turn the Monitor toy on'. On: a beige CRT flies, tumbles.
+test: It bounces off walls, lands on a face, knocks are heard, it shrinks away after ~10 s.
+test: Two SJK clients, both toys on: A throws at B. Both see B fly the same way, CRT bounce back.
+test: Hit B at the head vs the legs: head flips them backwards, legs sweep them over.
+test: B lands, rests ~2.5 s, gets up where the body lies. B with toy off: CRT passes through.
+test: toy_ragdoll on a slope and against a wall: body lies still, no flying back off walls.
+note: Untested in game; launch numbers are guesses (monitor.rs TRANSFER/LIFT/MAX_LAUNCH).
 [boombox-toy]
 area: Gameplay
 title: Boombox toy: an 80s stereo playing your tracks to players close by
