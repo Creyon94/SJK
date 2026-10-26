@@ -33,6 +33,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 ## Unreleased
 
 - The Monitor's charge ring and hit marker stand round your crosshair again: since 2026.1026.4 they were drawn in the top left corner of the screen _(Sol)_
+- An achievement SJK counts in your matches is announced, with its kyber crystal, only once the SJK hub has unlocked it: until then the Achievements tab says "Waiting for the SJK hub". With the identity off it unlocks at once and promises no crystal. Tactical Espionage counts with a player within about 28 m of the box (was 14 m), and Master Craftsman and Full Set say what the hub asks _(Sol)_
 
 ## 2026.1026.4 (Alpha) | 26/10/2026
 

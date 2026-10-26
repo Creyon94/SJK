@@ -215,7 +215,8 @@ fn medal_card(showing: &medals::Showing) -> Card {
 /// An achievement's card: what to do, who counts it, how far the player is, and the kyber
 /// crystal it brings, in the crystal's colour ([`crate::kyber::reward`]). A secret not
 /// unlocked yet keeps its name, what it asks and the count to itself; a retired one says
-/// it is no longer obtainable.
+/// it is no longer obtainable; one reached here says it waits for the SJK hub
+/// ([`crate::achievements::Standing::waiting`]).
 fn achievement_card(
     kind: &'static crate::achievements::Kind,
     standing: Option<&crate::achievements::Standing>,
@@ -232,6 +233,7 @@ fn achievement_card(
         Some(standing) => match standing.unlocked {
             Some(at) if at > 0 => Line::held(format!("Unlocked {}", crate::medals::date_text(at))),
             Some(_) => Line::held("Unlocked"),
+            None if standing.waiting => Line::status(crate::achievements::WAITING_NOTE),
             None if kind.goal > 1 && !secret => Line::status(format!(
                 "{} of {} so far",
                 kind.amount(standing.progress.min(kind.goal)),
@@ -406,6 +408,7 @@ mod tests {
             kind,
             progress: 0,
             unlocked: None,
+            waiting: false,
         };
         let card = achievement_card(kind, Some(&locked));
         assert_eq!(card.title, crate::achievements::SECRET_NAME);
@@ -428,6 +431,7 @@ mod tests {
             kind: surveyor,
             progress: 5,
             unlocked: Some(1_791_641_100),
+            waiting: false,
         };
         let card = achievement_card(surveyor, Some(&held));
         assert_eq!(card.title, "Surveyor");
@@ -458,6 +462,7 @@ mod tests {
             kind,
             progress: 37,
             unlocked: None,
+            waiting: false,
         };
         let card = achievement_card(kind, Some(&standing));
         assert_eq!(card.lines[2].words, "37 of 100 so far");

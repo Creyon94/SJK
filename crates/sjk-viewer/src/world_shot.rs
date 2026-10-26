@@ -1319,6 +1319,7 @@ Found the fog bug, ask me about it!"
                     _ => 0,
                 },
                 unlocked: (index % 3 == 0).then_some(1_791_336_225 + index as i64 * 3_600),
+                waiting: false,
             })
             .collect();
         let record = vec![
@@ -1866,11 +1867,14 @@ like this one.",
     fn duel6_unlock_toast() {
         use crate::unlock_toast::{ENTER, HOLD, LEAVE, Unlock, UnlockToast};
         on_big_stack(|| {
-            let streak =
-                Unlock::Achievement(crate::achievements::find("streak_5").expect("Rampage"));
-            let lightning = Unlock::Achievement(
-                crate::achievements::find("dark_side_25").expect("Unlimited Power"),
-            );
+            let streak = Unlock::Achievement {
+                kind: crate::achievements::find("streak_5").expect("Rampage"),
+                crystal: true,
+            };
+            let lightning = Unlock::Achievement {
+                kind: crate::achievements::find("dark_side_25").expect("Unlimited Power"),
+                crystal: true,
+            };
             let mut others = vec![Unlock::Medal {
                 medal: crate::medals::Medal::BugHunter,
                 count: 2,

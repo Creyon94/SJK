@@ -193,8 +193,9 @@ fn ease_out_back(x: f32) -> f32 {
 /// What a card announces.
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum Unlock {
-    /// An achievement reached its goal.
-    Achievement(&'static Kind),
+    /// An achievement unlocked; `crystal` when the hub unlocked it, so its kyber crystal
+    /// comes (without a hub it unlocks on this client and brings none).
+    Achievement { kind: &'static Kind, crystal: bool },
     /// The SJK team gave a medal, `count` times in all for a repeatable one.
     Medal { medal: Medal, count: u32 },
     /// A holocron dropped, numbered `id` at the hub; `gift` when staff gave it. A kyber
@@ -217,7 +218,7 @@ impl Unlock {
     /// The same arrival: the same achievement, medal and count, or holocron.
     fn same(self, other: Self) -> bool {
         match (self, other) {
-            (Self::Achievement(a), Self::Achievement(b)) => a.id == b.id,
+            (Self::Achievement { kind: a, .. }, Self::Achievement { kind: b, .. }) => a.id == b.id,
             (
                 Self::Medal { medal, count },
                 Self::Medal {
@@ -235,7 +236,7 @@ impl Unlock {
     /// The capitals over the name.
     pub(crate) const fn kicker(self) -> &'static str {
         match self {
-            Self::Achievement(_) => "ACHIEVEMENT UNLOCKED",
+            Self::Achievement { .. } => "ACHIEVEMENT UNLOCKED",
             Self::Medal { .. } => "NEW MEDAL",
             Self::Holocron { tier, .. } if tier.is_kyber() => "NEW KYBER CRYSTAL",
             Self::Holocron { .. } => "NEW HOLOCRON",
@@ -250,12 +251,17 @@ impl Unlock {
         !matches!(self, Self::Update { .. })
     }
 
-    /// The words at the kicker's line's end: the kyber crystal an achievement brings, else
-    /// its category; else where the large pop-up or the Update page shows it.
+    /// The words at the kicker's line's end: the kyber crystal an achievement brings when
+    /// the hub unlocked it, else its category; else where the large pop-up or the Update
+    /// page shows it.
     pub(crate) fn tag(self) -> &'static str {
         match self {
-            Self::Achievement(kind) => crate::kyber::reward(kind.id)
+            Self::Achievement {
+                kind,
+                crystal: true,
+            } => crate::kyber::reward(kind.id)
                 .map_or(kind.category.name(), crate::kyber::reward_line),
+            Self::Achievement { kind, .. } => kind.category.name(),
             Self::Medal { .. } | Self::Holocron { .. } => MENU_HINT,
             Self::Update { manual: false, .. } => UPDATE_HINT,
             Self::Update { manual: true, .. } => UPDATE_MANUAL_HINT,
@@ -266,7 +272,7 @@ impl Unlock {
     /// The colour the card is washed with from the left.
     fn hue(self) -> Color {
         match self {
-            Self::Achievement(kind) => tint(kind.category),
+            Self::Achievement { kind, .. } => tint(kind.category),
             Self::Medal { .. } | Self::Reward { .. } => color::GOLD,
             Self::Holocron { tier, .. } => tier.colour,
             Self::Update { .. } => color::HOLO,
@@ -314,7 +320,7 @@ pub(crate) struct Name(Unlock);
 impl fmt::Display for Name {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.0 {
-            Unlock::Achievement(kind) => formatter.write_str(kind.name),
+            Unlock::Achievement { kind, .. } => formatter.write_str(kind.name),
             Unlock::Medal { medal, count } if count > 1 => {
                 write!(formatter, "{} x{count}", medal.name())
             }
@@ -333,7 +339,7 @@ pub(crate) struct Description(Unlock);
 impl fmt::Display for Description {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.0 {
-            Unlock::Achievement(kind) => formatter.write_str(kind.description),
+            Unlock::Achievement { kind, .. } => formatter.write_str(kind.description),
             Unlock::Medal { medal, .. } => formatter.write_str(medal.description()),
             Unlock::Holocron { gift: true, .. } => formatter.write_str("A gift from the SJK team"),
             Unlock::Holocron {
@@ -842,7 +848,7 @@ fn draw(canvas: &mut MenuCanvas, unlock: Unlock, t: f32, viewport: [f32; 2]) {
         TAG_SIZE * k,
         match unlock {
             // The crystal it brings, in the crystal's colour.
-            Unlock::Achievement(kind) => {
+            Unlock::Achievement { kind, .. } => {
                 crate::kyber::reward(kind.id).map_or(color::alpha(hue, 0.9), |tier| tier.colour)
             }
             _ => color::MUTED,
@@ -883,7 +889,7 @@ fn draw(canvas: &mut MenuCanvas, unlock: Unlock, t: f32, viewport: [f32; 2]) {
 /// disc.
 fn emblem(canvas: &mut MenuCanvas, unlock: Unlock, centre: [f32; 2], radius: f32, sweep: f32) {
     let (picture, gem_colour) = match unlock {
-        Unlock::Achievement(kind) => {
+        Unlock::Achievement { kind, .. } => {
             medallion::draw(
                 canvas,
                 Medallion {
@@ -1199,7 +1205,10 @@ mod tests {
     use crate::holocrons::TIERS;
 
     fn kind(id: &str) -> Unlock {
-        Unlock::Achievement(achievements::find(id).expect("an achievement"))
+        Unlock::Achievement {
+            kind: achievements::find(id).expect("an achievement"),
+            crystal: true,
+        }
     }
 
     fn medal(medal: Medal, count: u32) -> Unlock {
@@ -1243,7 +1252,10 @@ mod tests {
     /// Every unlock a card can show: each achievement, each medal once and given many
     /// times, each tier dropped and given.
     fn every_unlock() -> Vec<Unlock> {
-        let mut unlocks: Vec<Unlock> = ALL.iter().map(Unlock::Achievement).collect();
+        let mut unlocks: Vec<Unlock> = ALL
+            .iter()
+            .flat_map(|kind| [true, false].map(|crystal| Unlock::Achievement { kind, crystal }))
+            .collect();
         for each in Medal::ALL {
             unlocks.push(medal(each, 1));
             if each.repeatable() {
@@ -1498,6 +1510,12 @@ mod tests {
         // An achievement's tag is the kyber crystal it brings (21/10/2026).
         assert_eq!(kind("streak_5").tag(), "Reward: Uncommon Kyber Crystal");
         assert_eq!(kind("kills_1000").tag(), "Reward: Mythical Kyber Crystal");
+        // Unlocked without a hub (identity off), it brings no crystal: its category.
+        let local = Unlock::Achievement {
+            kind: achievements::find("streak_5").expect("Rampage"),
+            crystal: false,
+        };
+        assert_eq!(local.tag(), "Combat");
         let crystal = Unlock::Holocron {
             tier: &crate::kyber::TIERS[1],
             id: 2,

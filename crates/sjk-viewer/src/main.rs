@@ -407,7 +407,7 @@ fn main() {
     }
     crash_report::clean_exit();
     // Keep the last achievement counts, then withdraw the identity claim on the hub.
-    achievements::sync(None, true);
+    achievements::sync(None, player_identity::hub_on(), true);
     player_identity::shutdown();
     // After the settings were saved on the way out, start an installed update.
     update::restart_if_requested();

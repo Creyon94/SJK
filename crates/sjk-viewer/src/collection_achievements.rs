@@ -422,6 +422,7 @@ impl Panel {
             Some(at) if at > 0 => format!("Unlocked {}", crate::medals::date_text(at)),
             Some(_) => "Unlocked".to_owned(),
             None if standing.secret() => "Not unlocked yet".to_owned(),
+            None if standing.waiting => crate::achievements::WAITING_NOTE.to_owned(),
             None => {
                 let left = kind.goal.saturating_sub(standing.progress);
                 format!("{} more to go", kind.amount(left))

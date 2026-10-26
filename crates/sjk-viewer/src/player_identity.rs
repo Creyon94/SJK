@@ -924,6 +924,19 @@ pub(crate) fn own_achievements() -> Option<Vec<sjk_identity::Achievement>> {
     })
 }
 
+/// Whether the player's achievements go to an SJK hub: the identity is on with a hub
+/// address (whether it answers right now or not). The hub then has the last word on
+/// the achievements the client counts, and grants their kyber crystals
+/// (`achievements.rs`).
+pub(crate) fn hub_on() -> bool {
+    let runtime = lock();
+    runtime.service.is_some()
+        && runtime
+            .sent_settings
+            .as_ref()
+            .is_some_and(|settings| settings.enabled && !settings.hub_url.trim().is_empty())
+}
+
 /// Whether the hub says the player's own key is staff.
 pub(crate) fn is_staff() -> bool {
     lock().service.as_ref().is_some_and(|service| {
