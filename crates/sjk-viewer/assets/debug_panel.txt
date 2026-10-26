@@ -2253,6 +2253,7 @@ test: Rocket or DEMP2 alt shot near you: the screen no longer flashes white (wit
 test: Off, Clash flare size 0.5 and 2: the flare is half and twice the size; Saber clash flare off.
 test: The what's-new card offers Reduce bright flashes with its switch.
 note: Not compared with retail in game: SJK draws the flare in the scene, so bloom may add to it.
+
 [portable-shield]
 area: Rendering & effects
 title: The Merc's force field is drawn (blec-bee #133)
