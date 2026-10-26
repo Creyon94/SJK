@@ -303,12 +303,15 @@ fn file_completion(prefix: &str, names: &[String]) -> Option<(String, Vec<String
 /// `mp/siege_hoth`. A unique map replaces the typed text; several extend it to their
 /// shared start when that still holds what was typed, and are listed as `Map` rows.
 fn map_completion(prefix: &str, names: &[String]) -> Option<(String, Vec<String>)> {
-    let base = |name: &str| name.rsplit('/').next().unwrap_or(name).to_owned();
+    fn base(name: &str) -> &str {
+        name.rsplit_once('/').map_or(name, |(_, base)| base)
+    }
+    let by_base = !prefix.contains('/');
     let mut candidates = names
         .iter()
         .filter(|name| {
             ascii_starts_with_ignore_case(name, prefix)
-                || (!prefix.contains('/') && ascii_starts_with_ignore_case(&base(name), prefix))
+                || (by_base && ascii_starts_with_ignore_case(base(name), prefix))
         })
         .collect::<Vec<_>>();
     candidates.sort_by_cached_key(|name| name.to_ascii_lowercase());
@@ -319,7 +322,7 @@ fn map_completion(prefix: &str, names: &[String]) -> Option<(String, Vec<String>
     let shared = shared_prefix(candidates.iter().map(|name| name.as_str()))?;
     let completed = if ascii_starts_with_ignore_case(shared, prefix) {
         format!("{prefix}{}", &shared[prefix.len()..])
-    } else if ascii_starts_with_ignore_case(&base(shared), prefix) {
+    } else if ascii_starts_with_ignore_case(base(shared), prefix) {
         // Every match is by its name after the folder, and all are in one folder.
         shared.to_owned()
     } else {
@@ -494,6 +497,16 @@ mod tests {
             shell.complete_line_with_files("devmap nothing", CompletionKey::Tab, maps),
             None
         );
+    }
+
+    #[test]
+    fn devmap_keeps_what_was_typed_when_matches_are_in_several_folders() {
+        let mut shell = shell();
+        let maps = |_: &str| ["mp/duel1", "jof/duel_arena"].map(str::to_owned).to_vec();
+        let completed = shell.complete_line_with_files("devmap duel", CompletionKey::Tab, maps);
+        assert_eq!(completed.as_deref(), Some("devmap duel"));
+        let completed = shell.complete_line_with_files("devmap jof/", CompletionKey::Tab, maps);
+        assert_eq!(completed.as_deref(), Some("devmap jof/duel_arena "));
     }
 
     #[test]
