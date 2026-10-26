@@ -32,7 +32,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
-- Monitor toy: hold the throw key to charge a throw, a ring filling round your crosshair and a tube humming up, and let go to hurl it more than twice as fast, with a heavier sound everyone hears; a charged hit sends players flying harder. When your monitor hits someone you see a hit marker and hear a tick (red for a charged hit). Your Throw monitor key now charges while held; the quick wheel still throws at once _(Sol)_
+- Monitor toy: hold the throw key to charge a throw, a ring filling round your crosshair and a tube humming up, and let go to hurl it more than twice as fast, with a heavier sound everyone hears; a charged hit sends players flying harder. When your monitor hits someone you see a hit marker and hear a tick (red for a charged hit). Your Throw monitor key now charges while held; the quick wheel still throws at once. Monitors are never seen or heard in a duel, and Settings > Game options > Toys > Show monitors hides them everywhere _(Sol)_
 - Saber on/off spam stays quiet with a staff too: putting a staff away over a JA+ back again and again (a weapon switch loop) is now capped like any other saber toggle, and a staff put away normally still pays for its shutdown only once _(Sol, after Luma's review of the same fix in JoF EJK)_
 
 ## 2026.1026.3 (Alpha) | 26/10/2026
