@@ -16,7 +16,9 @@ writes, into the output folder:
   speed lines behind it, on transparency;
 - `throw.wav`: the whoosh of a throw; `bonk.wav`: a monitor striking a body, a hollow
   plastic thunk and the ring of its glass; `knock.wav`: a monitor knocking on the
-  floor; all 22050 Hz mono 16-bit.
+  floor; `charge.wav`: a throw held to charge, a tube's hum rising to a ready ping;
+  `throw_hard.wav`: a charged throw, a thump and a deep whoosh; `hit.wav`: the tick the
+  thrower hears when their monitor strikes someone; all 22050 Hz mono 16-bit.
 
     python scripts/monitor_assets.py crates/sjk-viewer/assets/monitor
 
@@ -355,6 +357,46 @@ def sounds(output: Path) -> None:
         burst = lowpass(rng.standard_normal(n - at), 2500) * np.exp(-np.arange(n - at) / RATE * 90)
         rattle[at:] += burst * (0.5 - start * 2.2)
     write_wav(output / "knock.wav", clunk + lowpass(rattle, 4000) * 0.8)
+    charged_sounds(output)
+
+
+def charged_sounds(output: Path) -> None:
+    """The charged throw's sounds and the thrower's hit sound (their own seed, so the
+    sounds above stay as they were)."""
+    rng = np.random.default_rng(11)
+    # The charge: a tube warming up, a hum rising from 110 to 880 Hz with its harmonics,
+    # buzzing faster and crackling more as it rises, then a bright two-note ready ping.
+    rise = 1.0
+    n = int(RATE * (rise + 0.3))
+    t = np.arange(n) / RATE
+    up = np.clip(t / rise, 0, 1)
+    pitch = 110 * 8 ** (up ** 1.4)
+    phase = 2 * np.pi * np.cumsum(pitch) / RATE
+    hum = np.sin(phase) + 0.45 * np.sin(2 * phase) + 0.25 * np.sin(3 * phase)
+    buzz = 0.75 + 0.25 * np.sin(2 * np.pi * np.cumsum(8 + 30 * up) / RATE)
+    crackle = lowpass(rng.standard_normal(n), 6000) * (rng.random(n) < 0.004 + 0.02 * up)
+    hold = np.where(t < rise, 0.25 + 0.75 * up, np.exp(-(t - rise) * 14))
+    ping_t = np.clip(t - rise, 0, None)
+    ping = ((np.sin(2 * np.pi * 1320 * ping_t) + 0.6 * np.sin(2 * np.pi * 1980 * ping_t))
+            * np.exp(-ping_t * 12) * (t >= rise) * 0.7)
+    write_wav(output / "charge.wav", (hum * buzz + crackle * 2.5) * hold * 0.6 + ping)
+    # The charged throw: a heavy thump, then a deep long whoosh with a low roar under it.
+    n = int(RATE * 0.7)
+    t = np.arange(n) / RATE
+    swell = np.sin(np.pi * np.clip(t / 0.6, 0, 1)) ** 1.5
+    sweep = 300 + 3200 * np.sin(np.pi * np.clip(t / 0.6, 0, 1))
+    white = rng.standard_normal(n)
+    band = lowpass(white, sweep) - lowpass(white, sweep * 0.2)
+    roar = lowpass(rng.standard_normal(n), 220) * swell * 4.0
+    thump = np.sin(2 * np.pi * 70 * t) * np.exp(-t * 16) * 1.6
+    write_wav(output / "throw_hard.wav", band * swell + roar + thump)
+    # The hit: a short bright tick the thrower hears when their monitor strikes someone.
+    n = int(RATE * 0.22)
+    t = np.arange(n) / RATE
+    tick = ((np.sin(2 * np.pi * 1870 * t) + 0.5 * np.sin(2 * np.pi * 2810 * t))
+            * np.exp(-t * 28))
+    click = lowpass(rng.standard_normal(n), 7000) * np.exp(-t * 400)
+    write_wav(output / "hit.wav", tick + click * 0.8)
 
 
 def main() -> None:

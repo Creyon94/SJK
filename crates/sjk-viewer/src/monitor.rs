@@ -11,7 +11,11 @@
 //!   hacked or held by the server (as for the Ragdoll), and a throw waits
 //!   [`COOLDOWN`] after the last.
 //! - **The throw:** from the eyes, the way the player looks, at [`THROW_SPEED`] plus
-//!   the thrower's own speed, tumbling end over end. The monitor is a solid of eight
+//!   the thrower's own speed, tumbling end over end. Held (`+monitor_throw`, the key
+//!   bindings' Throw monitor), the throw charges while a ring fills round the crosshair
+//!   and a tube's hum rises ([`CHARGE_SOUND`]), and goes on the release, up to
+//!   [`MAX_THROW_SPEED`] once held [`CHARGE_TIME`]; a charged throw is heard as one
+//!   ([`THROW_HARD_SOUND`]) by everyone, from its speed. The monitor is a solid of eight
 //!   corners ([`flight`]): it bounces off the world, topples and comes to rest on a
 //!   face, and goes [`LINGER`] after.
 //! - **The hit:** the struck player's client alone decides it, against its own body (a
@@ -21,7 +25,9 @@
 //!   speed against theirs times [`TRANSFER`], [`LIFT`] upwards, at most [`MAX_LAUNCH`];
 //!   a blow off the body's centre turns it. A ragdoll can be struck again where it lies
 //!   or flies. The monitor bounces back off the body. The player gets up by themselves
-//!   once the body has lain still a little, or with `toy_ragdoll`.
+//!   once the body has lain still a little, or with `toy_ragdoll`. The thrower sees a
+//!   hit marker on their crosshair and hears [`HIT_SOUND`] when the struck player's
+//!   blow reaches them (red for a hard one).
 //!
 //! No game server knows of it: the player's real body stays where it was and walks to
 //! the ragdoll, as for the Ragdoll. Every SJK client on the server sees the same throw:
@@ -47,6 +53,10 @@ use std::time::{Duration, Instant};
 pub(crate) const COMMAND: &str = "toy_monitor";
 /// Throw a monitor.
 pub(crate) const THROW_COMMAND: &str = "monitor_throw";
+/// The held bind: charge a throw while held, throw on the release.
+pub(crate) const CHARGE_COMMAND: &str = "+monitor_throw";
+/// The release of [`CHARGE_COMMAND`].
+pub(crate) const CHARGE_RELEASE: &str = "-monitor_throw";
 /// The toy's id in relayed toy events.
 pub(crate) const TOY: &str = "monitor";
 /// The toy's icon (quick wheel, Collection, key bindings).
@@ -59,10 +69,23 @@ pub(crate) const MODEL: &str = "models/sjk/monitor.md3";
 pub(crate) const THROW_SOUND: &str = "sound/sjk/monitor/throw.wav";
 pub(crate) const BONK_SOUND: &str = "sound/sjk/monitor/bonk.wav";
 pub(crate) const KNOCK_SOUND: &str = "sound/sjk/monitor/knock.wav";
+/// Heard by the thrower while a throw charges; heard as a charged throw leaves the
+/// hand; heard by the thrower when their monitor strikes someone.
+pub(crate) const CHARGE_SOUND: &str = "sound/sjk/monitor/charge.wav";
+pub(crate) const THROW_HARD_SOUND: &str = "sound/sjk/monitor/throw_hard.wav";
+pub(crate) const HIT_SOUND: &str = "sound/sjk/monitor/hit.wav";
 /// The throw event: this, then [`Event::text`]'s numbers.
 const THROW_PREFIX: &str = "throw_";
 /// How fast a monitor leaves the hand, units a second (the thrower's speed added).
 const THROW_SPEED: f32 = 1_100.0;
+/// A throw held this long goes this fast (units a second, the thrower's speed added);
+/// one held less, in between.
+const CHARGE_TIME: Duration = Duration::from_millis(1_000);
+const MAX_THROW_SPEED: f32 = 2_600.0;
+/// A throw held this long is put down (its release was lost, the window left).
+const CHARGE_LIMIT: Duration = Duration::from_secs(6);
+/// A throw leaving the hand faster than this is heard as a charged one.
+const HARD_SPEED: f32 = 1_800.0;
 /// Where it leaves the hand: this far ahead of the eyes.
 const HAND: f32 = 20.0;
 /// The shortest time between two throws of a player.
@@ -76,10 +99,11 @@ const SELF_SAFE_STEPS: u32 = 25;
 /// down: one lying there is only in the way.
 const MIN_HIT_SPEED: f32 = 250.0;
 /// A struck body's push: the monitor's speed against it times this, and this much
-/// upwards, at most this fast. More than a real monitor would: it is the joke.
+/// upwards, at most this fast (the hardest blow a ragdoll takes, which the clients
+/// before the charged throw take too). More than a real monitor would: it is the joke.
 const TRANSFER: f32 = 1.5;
 const LIFT: f32 = 260.0;
-const MAX_LAUNCH: f32 = 2_600.0;
+const MAX_LAUNCH: f32 = crate::ragdoll::MAX_PUSH as f32;
 /// A monitor bounces off a body with this share of the body's push, back, and this
 /// much upwards (units a second).
 const BOUNCE_BACK: f32 = 0.5;
@@ -100,6 +124,17 @@ const LATE_MS: i64 = 8_000;
 const EARLY_MS: i64 = 3_000;
 /// A monitor's knocks on the world are heard this far apart at least.
 const KNOCK_GAP: Duration = Duration::from_millis(120);
+/// A monitor's way over a step is tried for a body every this many units (a fast one
+/// goes farther in a step than a limb is thick).
+const SWEEP_PIECE: f32 = 6.0;
+/// The hit marker shows this long; a hit heard later than this after it happened (ms)
+/// shows none. A blow this hard marks red.
+const MARK_TIME: Duration = Duration::from_millis(350);
+const MARK_LATE_MS: i64 = 1_500;
+const STRONG_PUSH: f32 = 2_400.0;
+/// The charge's sound, on its own source so its release stops it.
+const CHARGE_SOURCE: sjk_audio::SourceId = sjk_audio::SourceId(0x5100_0001);
+const CHARGE_CHANNEL: sjk_audio::ChannelId = sjk_audio::ChannelId(1);
 /// The numbers of a player's monitors go round this many.
 const NUMBERS: u8 = 100;
 const SLOTS: usize = crate::looks::SLOTS;
@@ -112,7 +147,7 @@ macro_rules! bundled {
 }
 
 /// The bundled files at their game paths (made by `scripts/monitor_assets.py`).
-const FILES: [(&str, &[u8]); 7] = [
+const FILES: [(&str, &[u8]); 10] = [
     (MODEL, bundled!("monitor.md3")),
     ("models/sjk/monitor.jpg", bundled!("monitor.jpg")),
     ("shaders/sjk_monitor.shader", bundled!("monitor.shader")),
@@ -120,6 +155,9 @@ const FILES: [(&str, &[u8]); 7] = [
     (THROW_SOUND, bundled!("throw.wav")),
     (BONK_SOUND, bundled!("bonk.wav")),
     (KNOCK_SOUND, bundled!("knock.wav")),
+    (CHARGE_SOUND, bundled!("charge.wav")),
+    (THROW_HARD_SOUND, bundled!("throw_hard.wav")),
+    (HIT_SOUND, bundled!("hit.wav")),
 ];
 
 /// Mount the bundled files.
@@ -204,10 +242,10 @@ impl Shown {
     }
 }
 
-/// A sound of the toy to play: its path, where, and how loud.
+/// A sound of the toy to play: its path, where (`None`: in both ears), and how loud.
 struct Cue {
     path: &'static str,
-    at: Vec3,
+    at: Option<Vec3>,
     volume: f32,
 }
 
@@ -215,8 +253,15 @@ struct Cue {
 #[derive(Default)]
 pub(crate) struct Monitor {
     on: bool,
-    /// `monitor_throw` was pressed since the last frame.
-    throw_asked: bool,
+    /// A throw was asked since the last frame, charged this much (0 to 1).
+    throw_asked: Option<f32>,
+    /// The throw held (`+monitor_throw`): since when it charges (the press, or the end
+    /// of the cooldown), and whether its sound began.
+    charging: Option<(Instant, bool)>,
+    /// The charge's sound is to stop.
+    stop_charge: bool,
+    /// The last hit of the player's monitors on someone: when it was heard, and hard.
+    mark: Option<(Instant, bool)>,
     server: Option<SocketAddr>,
     shown: Vec<Shown>,
     next_number: u8,
@@ -249,7 +294,31 @@ impl Monitor {
 
     /// `monitor_throw`: throw one at the next frame.
     pub(crate) fn throw(&mut self) {
-        self.throw_asked = true;
+        self.throw_asked.get_or_insert(0.0);
+    }
+
+    /// Put down a throw held, if any.
+    fn put_down(&mut self) {
+        if self.charging.take().is_some() {
+            self.stop_charge = true;
+        }
+    }
+
+    /// How much the throw held has charged (0 to 1), if one is.
+    fn charge(&self) -> Option<f32> {
+        let (since, _) = self.charging?;
+        Some(charge_of(Instant::now().saturating_duration_since(since)))
+    }
+
+    /// What the HUD draws for the toy now.
+    fn marks(&self) -> crate::hud::MonitorMarks {
+        crate::hud::MonitorMarks {
+            charge: self.charge(),
+            hit: self.mark.and_then(|(when, hard)| {
+                let age = when.elapsed().as_secs_f32() / MARK_TIME.as_secs_f32();
+                (age < 1.0).then_some((age, hard))
+            }),
+        }
     }
 
     /// Forget every monitor: no game, or another server.
@@ -258,6 +327,8 @@ impl Monitor {
         self.shown.clear();
         self.struck = None;
         self.tell_at = None;
+        self.mark = None;
+        self.put_down();
     }
 
     /// The monitor `thrower`'s number `number`, if out.
@@ -295,6 +366,26 @@ impl Monitor {
 /// Send `event` to the player in `slot`.
 fn relay(event: Event, slot: u8) {
     crate::player_identity::relay_toy_event(TOY, event.text(), slot, false);
+}
+
+/// How much a throw held `held` has charged: 0 to 1 over [`CHARGE_TIME`].
+fn charge_of(held: Duration) -> f32 {
+    (held.as_secs_f32() / CHARGE_TIME.as_secs_f32()).clamp(0.0, 1.0)
+}
+
+/// How fast a throw charged `charge` (0 to 1) leaves the hand, before the thrower's own
+/// speed.
+fn throw_speed(charge: f32) -> f32 {
+    THROW_SPEED + (MAX_THROW_SPEED - THROW_SPEED) * charge.clamp(0.0, 1.0)
+}
+
+/// The sound of a throw leaving the hand at `velocity`.
+fn throw_sound(velocity: Vec3) -> &'static str {
+    if velocity.length() > HARD_SPEED {
+        THROW_HARD_SOUND
+    } else {
+        THROW_SOUND
+    }
 }
 
 /// The way `pitch` and `yaw` (degrees) look.
@@ -354,6 +445,16 @@ impl Target {
         }
     }
 
+    /// The first point of a monitor's way from `from` to `to` (a step) where it reaches
+    /// the body, with what [`Target::struck`] tells there.
+    fn struck_along(&self, from: Vec3, to: Vec3) -> Option<(Vec3, u8, Vec3)> {
+        let pieces = ((to - from).length() / SWEEP_PIECE).ceil().max(1.0) as u32;
+        (1..=pieces).find_map(|piece| {
+            let at = from.lerp(to, piece as f32 / pieces as f32);
+            self.struck(at).map(|(joint, body)| (at, joint, body))
+        })
+    }
+
     /// Where the body is, for the way a monitor comes at it.
     fn centre(&self) -> Vec3 {
         match self {
@@ -388,7 +489,7 @@ impl GpuState {
     pub(crate) fn toggle_monitor(&mut self) {
         self.monitor.toggle();
         self.monitor_centre(if self.monitor.on() {
-            "Monitor: throw with monitor_throw; monitors knock you flying"
+            "Monitor: throw with your throw key, hold it to charge; monitors knock you flying"
         } else {
             "Monitor off: monitors pass through you"
         });
@@ -397,6 +498,43 @@ impl GpuState {
     /// `monitor_throw`: throw one.
     pub(crate) fn throw_monitor(&mut self) {
         self.monitor.throw();
+    }
+
+    /// `+monitor_throw` (`pressed`) begins charging a throw, `-monitor_throw` throws it.
+    /// A throw pressed during the cooldown begins charging once it ends.
+    pub(crate) fn charge_monitor(&mut self, pressed: bool) {
+        if !pressed {
+            if let Some((since, _)) = self.monitor.charging {
+                let charge = charge_of(Instant::now().saturating_duration_since(since));
+                self.monitor.put_down();
+                self.monitor.throw_asked = Some(charge);
+            }
+            return;
+        }
+        if self.monitor.charging.is_some() {
+            return;
+        }
+        if let Some(why) = self.monitor_refusal() {
+            self.monitor_centre(why);
+            return;
+        }
+        let now = Instant::now();
+        let ready = self
+            .monitor
+            .last_throw
+            .map_or(now, |last| (last + COOLDOWN).max(now));
+        self.monitor.charging = Some((ready, false));
+    }
+
+    /// Why the player may not throw now, if they may not.
+    fn monitor_refusal(&self) -> Option<&'static str> {
+        if !self.monitor.on {
+            Some("Turn the Monitor toy on to throw one")
+        } else if self.ragdoll.on() || !self.ragdoll.strikable() {
+            Some("No monitor right now")
+        } else {
+            None
+        }
     }
 
     /// Say `text` on the centre of the screen.
@@ -421,7 +559,10 @@ impl GpuState {
             if self.monitor.server.is_some() {
                 self.monitor.leave();
             }
-            self.monitor.throw_asked = false;
+            self.monitor.put_down();
+            self.monitor.throw_asked = None;
+            self.hud
+                .set_monitor_marks(crate::hud::MonitorMarks::default());
             return;
         };
         let server = session.server();
@@ -457,8 +598,8 @@ impl GpuState {
                 .put(Shown::new(slot, event.number, &event.throw));
             if moment >= now - 500 {
                 self.monitor.cues.push(Cue {
-                    path: THROW_SOUND,
-                    at: Vec3::from_array(event.throw.origin.map(|c| c as f32)),
+                    path: throw_sound(Vec3::from_array(event.throw.velocity.map(|c| c as f32))),
+                    at: Some(Vec3::from_array(event.throw.origin.map(|c| c as f32))),
                     volume: 0.9,
                 });
             }
@@ -469,34 +610,66 @@ impl GpuState {
             let Some(shown) = self.monitor.find(hit.by.thrower, hit.by.number) else {
                 continue;
             };
+            let when = i64::from(shown.flight.throw().moment)
+                + i64::from(hit.by.step) * i64::from(STEP_MS);
             if !shown.flight.deflect(deflect) {
                 shown.flight = shown.flight.rerun(deflect);
             }
             shown.rest = None;
-            let at = shown.flight.centre();
+            let at = Some(shown.flight.centre());
             self.monitor.cues.push(Cue {
                 path: BONK_SOUND,
                 at,
                 volume: 1.0,
             });
+            // The player's own monitor struck someone else, just now: the hit marker.
+            if Some(hit.by.thrower) == own && Some(hit.struck) != own && now - when <= MARK_LATE_MS
+            {
+                let hard = Vec3::from_array(hit.push.map(|c| c as f32)).length() >= STRONG_PUSH;
+                self.monitor.mark = Some((Instant::now(), hard));
+                self.monitor.cues.push(Cue {
+                    path: HIT_SOUND,
+                    at: None,
+                    volume: if hard { 1.0 } else { 0.8 },
+                });
+            }
         }
-        if std::mem::take(&mut self.monitor.throw_asked) {
-            self.monitor_throw_now(own);
+        self.monitor_charging();
+        if let Some(charge) = self.monitor.throw_asked.take() {
+            self.monitor_throw_now(own, charge);
         }
         self.monitor_tell(own);
+        self.hud.set_monitor_marks(self.monitor.marks());
     }
 
-    /// The player throws a monitor now, if they may.
-    fn monitor_throw_now(&mut self, own: Option<u8>) {
+    /// A throw held: its sound once it begins charging; put down when the player may
+    /// no longer throw, or held too long.
+    fn monitor_charging(&mut self) {
+        let Some((since, sounded)) = self.monitor.charging else {
+            return;
+        };
+        let now = Instant::now();
+        if self.monitor_refusal().is_some() || now.saturating_duration_since(since) > CHARGE_LIMIT {
+            self.monitor.put_down();
+            return;
+        }
+        if !sounded && now >= since {
+            self.monitor.charging = Some((since, true));
+            self.monitor.cues.push(Cue {
+                path: CHARGE_SOUND,
+                at: None,
+                volume: 0.7,
+            });
+        }
+    }
+
+    /// The player throws a monitor charged `charge` (0 to 1) now, if they may.
+    fn monitor_throw_now(&mut self, own: Option<u8>, charge: f32) {
         let Some(own) = own else {
             return;
         };
-        if !self.monitor.on {
-            self.monitor_centre("Turn the Monitor toy on to throw one");
-            return;
-        }
-        if self.ragdoll.on() || !self.ragdoll.strikable() {
-            self.monitor_centre("No monitor right now");
+        if let Some(why) = self.monitor_refusal() {
+            self.monitor_centre(why);
             return;
         }
         if self
@@ -511,7 +684,7 @@ impl GpuState {
         };
         let eyes = Vec3::from_array(state.origin) + Vec3::Z * state.view_height as f32;
         let way = looking(state.view_angles[0], state.view_angles[1]);
-        let velocity = way * THROW_SPEED + Vec3::from_array(state.velocity);
+        let velocity = way * throw_speed(charge) + Vec3::from_array(state.velocity);
         // Out of the hand, short of a wall in the way.
         let mut movers = std::mem::take(&mut self.monitor.movers);
         let hand = {
@@ -538,8 +711,8 @@ impl GpuState {
         self.monitor.last_throw = Some(Instant::now());
         self.monitor.put(Shown::new(own, number, &throw));
         self.monitor.cues.push(Cue {
-            path: THROW_SOUND,
-            at: hand,
+            path: throw_sound(velocity),
+            at: Some(hand),
             volume: 0.9,
         });
     }
@@ -642,6 +815,7 @@ impl GpuState {
             let mut knock = 0.0_f32;
             while shown.flight.steps() < steps {
                 let step = shown.flight.steps() + 1;
+                let before = shown.flight.centre();
                 shown.flight.run_to(step, &mut world);
                 knock = knock.max(shown.flight.knock);
                 let Some(target) = target.as_ref() else {
@@ -660,8 +834,9 @@ impl GpuState {
                 {
                     continue;
                 }
-                let centre = shown.flight.centre();
-                let Some((joint, body)) = target.struck(centre) else {
+                let Some((centre, joint, body)) =
+                    target.struck_along(before, shown.flight.centre())
+                else {
                     continue;
                 };
                 let velocity = shown.flight.velocity();
@@ -684,7 +859,7 @@ impl GpuState {
                 shown.knocked = Some(Instant::now());
                 self.monitor.cues.push(Cue {
                     path: KNOCK_SOUND,
-                    at: shown.flight.centre(),
+                    at: Some(shown.flight.centre()),
                     volume: (knock / 900.0).clamp(0.25, 1.0),
                 });
             }
@@ -745,17 +920,35 @@ impl GpuState {
         if self.monitor.sounds_registered != Some(audio.generation())
             && let Some(vfs) = self.vfs.as_deref()
         {
-            audio.register_effect_paths(vfs, [THROW_SOUND, BONK_SOUND, KNOCK_SOUND]);
+            audio.register_effect_paths(
+                vfs,
+                [
+                    THROW_SOUND,
+                    BONK_SOUND,
+                    KNOCK_SOUND,
+                    CHARGE_SOUND,
+                    THROW_HARD_SOUND,
+                    HIT_SOUND,
+                ],
+            );
             self.monitor.sounds_registered = Some(audio.generation());
         }
+        if std::mem::take(&mut self.monitor.stop_charge) {
+            audio.stop_toy(CHARGE_SOURCE, CHARGE_CHANNEL);
+        }
         for Cue { path, at, volume } in self.monitor.cues.drain(..) {
+            let (source, channel) = if path == CHARGE_SOUND {
+                (CHARGE_SOURCE, CHARGE_CHANNEL)
+            } else {
+                (sjk_audio::SourceId(0x5100_0000), sjk_audio::ChannelId(0))
+            };
             audio.play_toy(
                 crate::toy_sounds::Toy::Monitor,
                 path,
                 volume,
-                Some(at.to_array()),
-                sjk_audio::SourceId(0x5100_0000),
-                sjk_audio::ChannelId(0),
+                at.map(|at| at.to_array()),
+                source,
+                channel,
             );
         }
     }
@@ -827,6 +1020,7 @@ mod tests {
         let push = launch(Vec3::new(1_100.0, 0.0, 0.0), Vec3::ZERO).unwrap();
         assert_eq!(push, [1_650, 0, 260]);
         let hard = launch(Vec3::new(3_000.0, 3_000.0, 0.0), Vec3::ZERO).unwrap();
+        assert!(hard.iter().all(|c| c.abs() <= crate::ragdoll::MAX_PUSH));
         let length = Vec3::from_array(hard.map(|c| c as f32)).length();
         assert!(length <= MAX_LAUNCH + 1.0, "{length}");
         // The monitor goes back off the body, slower, and up.
@@ -850,6 +1044,49 @@ mod tests {
         let (foot, _) = target.struck(Vec3::new(-20.0, -4.0, 6.0)).unwrap();
         assert!(matches!(foot, 11 | 14), "{foot}");
         assert!(target.struck(Vec3::new(-40.0, 0.0, 40.0)).is_none());
+    }
+
+    #[test]
+    fn a_held_throw_charges_to_its_top_speed_and_is_heard_as_charged() {
+        assert_eq!(charge_of(Duration::ZERO), 0.0);
+        assert_eq!(charge_of(CHARGE_TIME / 2), 0.5);
+        assert_eq!(charge_of(CHARGE_TIME * 3), 1.0);
+        assert_eq!(throw_speed(0.0), THROW_SPEED);
+        assert_eq!(throw_speed(1.0), MAX_THROW_SPEED);
+        assert_eq!(throw_speed(4.0), MAX_THROW_SPEED);
+        assert_eq!(throw_sound(Vec3::X * throw_speed(0.0)), THROW_SOUND);
+        assert_eq!(throw_sound(Vec3::X * throw_speed(1.0)), THROW_HARD_SOUND);
+        // A full charge, running, still fits the throw event's limits.
+        let fastest = MAX_THROW_SPEED + 1_000.0;
+        assert!(fastest < 4_000.0);
+        // A charged monitor's blow is the hardest a ragdoll takes, and marks red.
+        let push = launch(Vec3::X * MAX_THROW_SPEED, Vec3::ZERO).unwrap();
+        let length = Vec3::from_array(push.map(|c| c as f32)).length();
+        assert!(
+            (STRONG_PUSH..=MAX_LAUNCH + 1.0).contains(&length),
+            "{length}"
+        );
+        let plain = launch(Vec3::X * THROW_SPEED, Vec3::ZERO).unwrap();
+        assert!(Vec3::from_array(plain.map(|c| c as f32)).length() < STRONG_PUSH);
+    }
+
+    #[test]
+    fn a_fast_monitor_strikes_a_body_it_passes_through_within_a_step() {
+        let points = crate::ragdoll::standing(Vec3::new(0.0, 0.0, 24.0), 0.0);
+        let target = Target::Limp(points);
+        let head = points[2];
+        // 2,600 units a second: 41.6 units a step, through the head and out.
+        let from = head - Vec3::X * 20.8;
+        let to = head + Vec3::X * 20.8;
+        assert!(target.struck(from).is_none() && target.struck(to).is_none());
+        let (at, joint, _) = target.struck_along(from, to).unwrap();
+        assert_eq!(usize::from(joint), 2);
+        assert!(at.x < head.x, "met on the way in: {at}");
+        assert!(
+            target
+                .struck_along(from + Vec3::Z * 60.0, to + Vec3::Z * 60.0)
+                .is_none()
+        );
     }
 
     #[test]

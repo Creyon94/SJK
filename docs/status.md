@@ -1,3 +1,23 @@
+## Monitor charged throw and hit marker
+
+26/10/2026, `personal/monitor-charge`, based on `main` `131c68f1` (Sol's ask, after the
+Monitor shipped in 2026.1026.3): `+monitor_throw`, the held bind (Settings > Key bindings'
+Throw monitor and the Collection's Throw key now bind it; a key bound to the plain
+`monitor_throw` alone is rebound when the profile loads), charges a throw from 1,100 to
+2,600 units a second over a second, with a ring round the crosshair and a rising hum
+(`charge.wav`), and throws on the release ([client.md](client.md#monitor)). A throw faster
+than 1,800 is heard by everyone as a charged one (`throw_hard.wav`), from the speed the
+unchanged `throw_` event carries. A blow's cap rose from 2,600 to the ragdoll's own 3,000
+(`MAX_PUSH`, which the clients before take too), and a monitor's way over each step is
+tried every 6 units for a body, so a fast one cannot pass through a limb. The thrower sees
+a hit marker (four diagonal strokes, red for a blow of 2,400 or more) and hears `hit.wav`
+when the struck player's `hit_` event reaches them
+([monitor_marks.rs](../crates/sjk-viewer/src/hud/monitor_marks.rs)). No hub change.
+Verified: fmt, workspace build, Clippy and tests (charge and speed, sound choice, the swept
+hit, the marks, the input commands, the bind rewrite). Not verified: anything in game (the
+feel of the charge time and speeds, the sounds' mix, the marker's look and its delay over
+a real ping).
+
 ## Monitor toy and ragdoll physics
 
 26/10/2026, `personal/crt-toy`, based on `main` `99f3e7cc` (Sol's idea, after the old

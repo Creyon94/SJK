@@ -4723,13 +4723,25 @@ sends them flying, the way the monitor struck them.
   is the switch, both the right to throw and the consent to be hit (Sol's rule: always
   opt in). It stays as last switched, across maps, servers and restarts
   (`cl_toyMonitor`, archived). A monitor passes through a player without it.
-- **`monitor_throw`** (Settings > Key bindings > Interaction > Throw monitor, the Toys
-  page's Throw monitor, the Collection's Throw key) throws one from the eyes, the way the
-  player looks, at 1,100 units a second plus the player's own speed, tumbling end over
-  end; one every 1.2 seconds at most, four of a player's out at once (the oldest goes).
-  Without the toy on it says "Turn the Monitor toy on to throw one"; nobody throws while
-  limp, dead, spectating, in a duel, with the flag, hacked or held by the server ("No
-  monitor right now").
+- **`monitor_throw`** (the Toys page's Throw monitor, the console) throws one from the
+  eyes, the way the player looks, at 1,100 units a second plus the player's own speed,
+  tumbling end over end; one every 1.2 seconds at most, four of a player's out at once
+  (the oldest goes). Without the toy on it says "Turn the Monitor toy on to throw one";
+  nobody throws while limp, dead, spectating, in a duel, with the flag, hacked or held by
+  the server ("No monitor right now").
+- **The charged throw** (Sol's ask, 26/10/2026): `+monitor_throw`, the held bind
+  (Settings > Key bindings > Interaction > Throw monitor, the Collection's Throw key),
+  charges while held and throws on the release, from 1,100 units a second for a tap to
+  2,600 once held a second. A ring round the crosshair fills clockwise from the top,
+  yellow turning orange, white when full, and the thrower hears a tube's hum rise to a
+  ready ping (`charge.wav`), stopped on the release. Pressed during the cooldown, it
+  begins charging once the cooldown ends; it is put down when the player may no longer
+  throw, or held 6 seconds (a release lost to the window). A throw leaving the hand
+  faster than 1,800 is heard by everyone as a charged one, a thump and a deep whoosh
+  (`throw_hard.wav`), from the speed its event carries: no new event, so the clients
+  before it see the same flight (they hear the plain whoosh). A key bound to the plain
+  `monitor_throw` alone before is bound to `+monitor_throw` when the profile loads; a
+  bind running it among other commands stays, throwing at once.
 - **The monitor** is a solid of eight corners held by sticks between every two
   ([flight.rs](../crates/sjk-viewer/src/monitor/flight.rs)), the same Verlet steps as the
   Ragdoll's body: it bounces off the world (more than a body, plastic and glass), slides
@@ -4739,12 +4751,21 @@ sends them flying, the way the monitor struck them.
   standing player's box (lower crouched), or a limp one's ragdoll points. The monitor
   must come at them, faster than 250 units a second against their own speed. The body
   falls limp (if standing) and takes a [blow](#ragdoll) at its point nearest the
-  monitor: the monitor's speed against the body's times 1.5, 260 upwards, 2,600 units a
-  second at most. A monitor thrown at someone standing still sends them off at about
-  1,650 units a second. A ragdoll can be struck again where it lies or flies (not for
+  monitor: the monitor's speed against the body's times 1.5, 260 upwards, 3,000 units a
+  second at most (the hardest blow a ragdoll takes, 2,600 before the charged throw). A
+  monitor thrown at someone standing still sends them off at about 1,650 units a second,
+  a fully charged one at 3,000. The monitor's way over each step is tried every 6 units,
+  so a fast one does not pass through a limb between two steps. A ragdoll can be struck again where it lies or flies (not for
   0.2 seconds after a blow, nor by the same monitor for 0.6). The thrower's own monitor
   can hit them once it is 0.4 seconds out of the hand. The monitor bounces back off the
   body (half the body's push, back, and 150 up).
+- **The hit marker:** when the struck player's blow reaches the thrower's client (the
+  `hit_` event, so a ping or so after the hit), four short strokes stand out diagonally
+  from the crosshair and fade over 0.35 seconds, spreading a little, red for a blow of
+  2,400 or more (a charged throw), white otherwise, and the thrower hears a bright tick
+  (`hit.wav`). Not for a hit on themselves, nor one heard more than 1.5 seconds after it
+  happened. The marks go with the crosshair (`cg_drawCrosshair` 0 hides them)
+  ([monitor_marks.rs](../crates/sjk-viewer/src/hud/monitor_marks.rs)).
 - **Getting up:** a fall a monitor began ends by itself 2.5 seconds after the body came
   to rest, once the real body has walked to it (or 6 seconds later whatever it did);
   `toy_ragdoll` gets up at once, and being hurt does as for the Ragdoll.

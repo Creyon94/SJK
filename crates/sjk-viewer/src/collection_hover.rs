@@ -145,7 +145,7 @@ impl Panel {
                 colour: color::GOLD_BRIGHT,
                 lines: vec![
                     Line::how(
-                        "Every SJK player has it. Turn it on here, from the quick wheel's Toys                          page or with a key bound to toy_monitor, then throw with monitor_throw                          at players who have it on too.",
+                        "Every SJK player has it. Turn it on here, from the quick wheel's Toys                          page or with a key bound to toy_monitor, then throw (hold the throw key to charge)                          at players who have it on too.",
                     ),
                     Line::status(crate::editions::name(crate::editions::ALPHA)),
                     Line::held("Yours"),

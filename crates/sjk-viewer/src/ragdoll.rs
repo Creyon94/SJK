@@ -252,12 +252,13 @@ impl Fall {
     }
 }
 
-/// A monitor struck a body: every client bounces it off at `by`'s step, `push` being
-/// the body's (`crate::monitor`).
+/// A monitor struck the body of the player in slot `struck`: every client bounces it
+/// off at `by`'s step, `push` being the body's (`crate::monitor`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct Bounce {
     pub(crate) by: By,
     pub(crate) push: [i32; 3],
+    pub(crate) struck: u8,
 }
 
 /// The player's own fall: the moment, how many of its events each slot has been told
@@ -614,6 +615,7 @@ impl GpuState {
                             self.ragdoll.bounces.push(Bounce {
                                 by: hit.by,
                                 push: hit.strike.push,
+                                struck: slot,
                             });
                         }
                     }
@@ -718,8 +720,10 @@ impl GpuState {
             strike: Strike { step, joint, push },
             by,
         };
-        let own = self.ragdoll.own;
-        let Some(fall) = own.and_then(|own| self.ragdoll.fall_mut(own)) else {
+        let Some(own) = self.ragdoll.own else {
+            return false;
+        };
+        let Some(fall) = self.ragdoll.fall_mut(own) else {
             return false;
         };
         if fall.body.strike_count() >= MAX_HITS {
@@ -730,7 +734,11 @@ impl GpuState {
             mine.hits.push(hit);
             mine.rest = None;
         }
-        self.ragdoll.bounces.push(Bounce { by, push });
+        self.ragdoll.bounces.push(Bounce {
+            by,
+            push,
+            struck: own,
+        });
         true
     }
 

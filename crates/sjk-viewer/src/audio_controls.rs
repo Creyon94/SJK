@@ -360,6 +360,11 @@ impl GameAudio {
         }
     }
 
+    /// Stop the toy sound playing on `source`'s `channel`.
+    pub(crate) fn stop_toy(&mut self, source: SourceId, channel: ChannelId) {
+        self.output.send(AudioCommand::StopChannel(source, channel));
+    }
+
     /// Play a listener-relative sound (interface cues) at full stereo.
     pub(crate) fn play_local(
         &mut self,

@@ -72,7 +72,9 @@ includes:
   (25/10/2026);
 - the Monitor toy: an old CRT monitor thrown at players who opted in, sending them
   flying as ragdolls the way it struck them, and better ragdoll physics under it
-  (weights, friction, limbs kept apart, blows that spin the body) (26/10/2026);
+  (weights, friction, limbs kept apart, blows that spin the body) (26/10/2026); then a
+  throw charged by holding the key, and a hit marker and hit sound for the thrower
+  (26/10/2026);
 - a macOS build for Apple Silicon Macs, drawn through Metal and built by GitHub with
   every release, unsigned and experimental (24/10/2026);
 - announcements from the SJK team in SJK chat, and contributor reward rounds: who was

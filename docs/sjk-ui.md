@@ -1641,7 +1641,7 @@ for the run.
   1360 to 1824, its foot at y 990, as tall as its words): "Toy · everyone's", its name,
   what it is in full, its keys (Order 66 two: the join key, `toy_order66`, and the order
   key, `order66`; the Monitor two: its key, `toy_monitor`, and the throw key,
-  `monitor_throw`), each a button: a click (or K for the first) waits for a key ("Press
+  `+monitor_throw`, held to charge), each a button: a click (or K for the first) waits for a key ("Press
   a key...", Escape lets go, Backspace clears), which binds it to the command in place
   of its first key as the key-binding editor does (`rebind_action`, never a locked key);
   "Quick wheel: On its Toys page", a line more for some (the Hax: hold Use on a player
