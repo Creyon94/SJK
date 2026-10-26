@@ -5,7 +5,7 @@
 //! turns the view fights it:
 //!
 //! - the mouse: the view shook as the player looked around while kicked down (Rollembones'
-//!   report #146). The mouse does not turn a held view ([`LOOK_CVAR`] lets it);
+//!   report #146). With [`LOOK_CVAR`] off the mouse does not turn a held view (on by default);
 //! - a toy whose commands carry their own angles (the Ragdoll's walk, the Hax's steering):
 //!   each server rewrite turned the camera on by the gap between the two views, so it spun
 //!   (#139, #140). The toys stop while the view is held ([`crate::ragdoll`],
@@ -15,8 +15,9 @@ use crate::GpuState;
 
 /// `1` lets the mouse turn a view the server holds, as before (it shakes).
 pub(crate) const LOOK_CVAR: &str = "cg_heldViewLook";
-/// [`LOOK_CVAR`]'s default: the mouse waits.
-pub(crate) const DEFAULT_LOOK: bool = false;
+/// [`LOOK_CVAR`]'s default: the mouse turns a held view, as in the base game (Sol: a
+/// locked camera while down is worse than the shake).
+pub(crate) const DEFAULT_LOOK: bool = true;
 
 impl GpuState {
     /// Whether the game server holds the player's own view in the latest snapshot.

@@ -32,7 +32,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
-= cg_heldViewLook: Kicks, knockdowns, kisses and grapples now hold your camera still. Switch this on to keep looking around during them, as before (the camera may shake).
+= cg_heldViewLook: You can look around again while kicked down, kissed or grappled. Switch this off to hold the camera still then, which stops it shaking.
 
 - The Sun blade has its own swing trail: plasma, white gold where the blade just passed and cooling to deep red, its edge torn into flames. A Solar copy of SJK Alpha 000 (Sol's card) unlocks three extras to switch on in Collection > Shaders: the Flare trail (flames and loops licking past the tip), Swing embers (sparks flung off the swing) and a Heat wake (the air behind the trail shimmers), seen by every SJK player _(Sol)_
 - New toy, the Monitor: throw a big old CRT monitor (`monitor_throw`), and one that hits a player who has the toy on too knocks them down as a ragdoll and sends them flying the way it struck them; they get up by themselves once they land. Turn it on with `toy_monitor` (quick wheel Toys page, Collection > Toys): it is both the right to throw and the consent to be hit, and monitors pass through players without it _(Sol)_
@@ -42,7 +42,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Saber on/off spam is quiet: a player who turns their saber on and off over and over (a bind or script doing it every frame, or a weapon switch loop) is heard four times, then once per half second while they keep at it; the saber itself still lights and goes out as before _(Sol)_
 - Key ids are never shown in the game any more, yours or anyone else's: not on the Identity page, player cards, the report page or the SJK chat, nor in the console's `identity who` and `block` lists; the Identity page's Show file shows only where your key file is, Copy my key id still copies it, and `identity key` copies it instead of printing it, so a stream never shows one _(Sol)_
 - Support SJK, a small line at the top left of the SJK UI's main page, links to SJK's GitHub Sponsors and Ko-fi pages; its x hides it for good, and Settings > Interface > Support SJK brings it back _(Sol)_
-- Free look when held, a new option in Settings > Game options: the mouse keeps turning the view while a JA+ kick, knockdown or kiss, a grapple or a saber lock holds it, as before 2026.1026.2, for players who prefer looking around to a still camera _(Sol)_
+- Free look when held, a new option in Settings > Game options, on by default: the mouse turns the view again while a JA+ kick, knockdown or kiss, a grapple or a saber lock holds it, as before 2026.1026.2; switch it off for a still camera that does not shake _(Sol)_
 - Two sabers can wear two blade skins, and a staff one on each half: in the Collection pick a saber (or half) above the preview, choose a shader and press Equip (tick Both sabers to dress both at once), or type `saberskin second <id>`; other SJK players see both once the hub has the change _(Creyon, PR #193, the staff's halves at Sol's request)_
 - The `saber` command checks both saber names before changing either, so a misspelt one changes nothing, and the Collection's preview follows it at once _(Creyon, PR #193)_
 - Encrypted whispers: a whisper ending with a backslash (\) is encrypted like any other; it went through the game server unencrypted before. A backslash elsewhere in a whisper no longer changes its text either _(Sol, after Blep's report)_
