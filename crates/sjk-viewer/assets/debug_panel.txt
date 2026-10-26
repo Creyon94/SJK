@@ -126,6 +126,12 @@ test: Two SJK clients. A: freecam near B: B sees a small remote, the size of a s
 test: A: peek B: B sees no remote, "A is spectating you with the Drone" near the top.
 test: A stops peeking: B's line goes. Third player C still sees A's remote behind B.
 
+[monitor-busy]
+area: Gameplay
+title: Monitors pass through players who are typing or away
+change: Chat/console/menu open, alt-tabbed, idle or an AFK tag: not hit, by anyone's monitor.
+test: Two SJK clients, toys on. B opens the chat: A's monitor passes through B on both screens.
+test: B alt-tabs or types afk: same. B closes the chat: B can be hit again.
 [monitor-foresee]
 area: Gameplay
 title: Monitor hits show at once: every client foresees them; the thrower hears first

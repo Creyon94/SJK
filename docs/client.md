@@ -4768,6 +4768,12 @@ sends them flying, the way the monitor struck them.
   0.2 seconds after a blow, nor by the same monitor for 0.6). The thrower's own monitor
   can hit them once it is 0.4 seconds out of the hand. The monitor bounces back off the
   body (half the body's push, back, and 150 up).
+- **Busy players are not hit** (Sol's ask, 26/10/2026): a player typing (a key catcher
+  open: the chat, the console or a menu, what sends the talk balloon's `BUTTON_TALK`,
+  `GpuState::talk_button`) or away (alt-tabbed or idle as the away emote counts it, or an
+  away tag in their name: the Hax's `hax_own_away`) is not struck; the monitor passes
+  through. Other clients foresee no hit on a player showing the talk balloon
+  (`EF_TALK`) or whom their scoreboard counts away (`seen_away`).
 - **Foreseen hits** (Sol's ask, 26/10/2026, after hits showed a ping or more late):
   the struck player's client alone decides a hit, and its word reaches the others a
   ping or more later (and after its turn in the relay's 35 ms queue). So every SJK
