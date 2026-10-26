@@ -30,6 +30,14 @@ The site (site/assets/site.js, parseChangelog) reads the release headings,
 introductions and recap lines too.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
+## Unreleased
+
+= cg_reduceFlashes: For players sensitive to flashing light: no saber clash flare and no screen flash from explosions or DEMP2 shocks.
+
+- Reduce bright flashes, a new setting for players sensitive to flashing light (Settings > Game options, `cg_reduceFlashes`): no saber clash flare, no screen flash from explosions or DEMP2 shocks, and no effect drawn with the clash flare's picture (some saber clash packs make every block such a flash). The clash flare itself can also be turned off or resized with EternalJK's `cg_saberClash` and `cg_saberClashSize` (Saber clash flare, Clash flare size) _(Sol, after Piza's report and EternalJK)_
+- Voice volume (`s_volumeVoice`) now works and is in Settings > Sound: voices (pain, death, taunts, jump grunts, voice commands) take it in place of the effects volume, as in the original game, so at its default they sound louder against the effects than before _(Sol, after Rollembones's report)_
+- A blocked player's chat messages no longer beep on servers that do not say who sent a line (JA+ and JoF): the beep is told apart by the name that starts the line, as the hidden line is _(Sol, after blec-bee's report)_
+
 ## 2026.1026.1 (Alpha) | 26/10/2026
 
 Kyber crystals from achievements, 14 new achievements, trading for every verified player and the Boombox toy.

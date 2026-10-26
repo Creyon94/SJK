@@ -2810,6 +2810,14 @@ impl GpuState {
             phases.begin(&mut encoder);
         }
         dynamic_lights::entities::finish(self, presentation_time, visual_now, game_audio);
+        // Bright flashes (`cg_reduceFlashes`, the clash flare's settings), once a frame.
+        let clash_flare = saber_clash_flare::Options::read(self.console.as_ref());
+        effect_flash::set_reduced(
+            self.console
+                .as_ref()
+                .and_then(|console| console.bool_cvar(effect_flash::REDUCE_CVAR))
+                .unwrap_or(false),
+        );
         let detached_flight = self.free_camera_active();
         let object_groups = &mut self.object_groups;
         let mover_groups = &mut self.mover_groups;
@@ -2836,6 +2844,7 @@ impl GpuState {
             object_groups,
         );
         saber_clash_flare::append(
+            clash_flare,
             &self.saber_clash_flare,
             presentation_time as i32,
             view_position,

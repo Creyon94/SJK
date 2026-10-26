@@ -1,3 +1,29 @@
+## Hub reports 26/10 (a): flashes, voice volume, blocked beeps
+
+26/10/2026, `personal/hub-reports-1026-a`, based on `main` `8bb967a1`. Three player
+reports from JoF JA+ servers (builds 2026.1023 to 1025):
+
+- #138 (Piza, photosensitive): a big white flash at every saber clash. SJK's clash flare
+  already follows `CG_SaberClashFlare` (time, size, tests) and its effect flashes
+  `CFlash`; what was missing were the switches. Added Reduce bright flashes
+  (`cg_reduceFlashes`: no clash flare, no effect `Flash`, no effect particle drawn with
+  the flare's picture, which JoF's HD movie saber clash pack makes every block draw)
+  and EternalJK's `cg_saberClash`/`cg_saberClashSize`
+  ([client.md](client.md#bright-flashes)). Not settled: whether bloom makes SJK's flare
+  larger than retail's 2D one.
+- #141 (Rollembones): `s_volumeVoice` did nothing. Voices now take it in place of
+  `s_volume`, as retail mixes them, and it is a Settings > Sound row
+  ([client.md](client.md#voice-volume)); at the defaults voices are twice as loud
+  against effects as before.
+- #147 (blec-bee): a blocked player's chat beeped on JA+/JoF, which send no sender slot.
+  The beep names the player whose name starts the line, as the feed does
+  ([hub-chat.md](hub-chat.md#blocking-a-player)).
+
+Verified: fmt, workspace build, Clippy and tests (new unit tests for the channel gain, the
+voice volume through the output, the beep's sender by name, the flare's options and the
+flash picture). Not verified: anything in game, the flare and flashes with the switch on,
+the voice loudness against retail's, the beep on a live JoF server.
+
 ## More achievements
 
 26/10/2026, `personal/more-achievements`, based on `main` `1320d9ff` (Sol's list): 14 new

@@ -1528,6 +1528,31 @@ sounds near the player differently from the others whenever they moved, and the 
 hum, a loop on the view, crackled (Toad's report). Unit test:
 `a_snapshot_leaves_the_listener_where_the_frame_put_it`; not yet heard in a game.
 
+## Voice volume
+
+`s_volumeVoice` (Settings > Sound, Voice volume; 0 to 1, default 1) is the loudness of
+voices: every sound on the voice channels (`CHAN_VOICE`, `CHAN_VOICE_ATTEN`,
+`CHAN_VOICE_GLOBAL`): pain, death, taunts, jump and land grunts, gasps and a voice
+command where its speaker stands (its radio copy in the listener's ears is on
+`CHAN_MENU1`, an effect, `cg_event.c` `EV_VOICECMD_SOUND`). As in retail, voices take it in place of `s_volume` (the effects volume), not
+on top of it: `S_PaintChannels` mixes them at `s_volumeVoice * volume` and the rest at
+`s_volume * volume` (`snd_mix.cpp`), and the OpenAL path sets their gain from
+`s_volumeVoice` alone (`snd_dma.cpp`). Until 26/10/2026 SJK registered the cvar but
+mixed voices at `s_volume` (Rollembones, hub report #141), so at the defaults (effects
+0.5, voices 1) voices now sound twice as loud as before against the effects, as in
+retail and EternalJK.
+
+The sound adapter puts the three voice channels on one mixer channel
+(`normalize_voice_channel`, as the game's channel stomp groups them), and the mixer
+gives that channel its own gain (`Mixer::set_channel_gain`, a generic bus in
+[sjk-audio](../crates/sjk-audio/src/lib.rs)): `AudioCommand::Gains` carries effects,
+music and voice ([audio_controls.rs](../crates/sjk-viewer/src/audio_controls.rs)
+`VOICE_CHANNEL`). Loops and music do not take it. The interface's own sounds (menu cues,
+previews) play on channels past the game's (`interface_channel`), so none takes the
+voice volume. A muted window silences voices too. Unit tests:
+`a_channel_gain_replaces_the_master_gain_for_that_channel_only` (sjk-audio),
+`voices_take_the_voice_volume_and_other_sounds_the_effects_volume` (viewer).
+
 ## Jetpack sounds
 
 Settings > Audio (classic) and Settings > Advanced > Sound (SJK UI) offer
@@ -1812,6 +1837,40 @@ crackles about seven times a second at any frame rate, as stock does at
 ([electrify.rs](../crates/sjk-viewer/src/electrify.rs)). JoF EJK's skip while a saber
 deflects lightning (`CG_LightningDeflectionActive`) is not followed, as the shell does
 not follow it either.
+
+## Bright flashes
+
+Settings > Game options (SJK UI: Advanced > Gameplay, Effects; Simple > Gameplay) has
+**Reduce bright flashes** (`cg_reduceFlashes`, off by default), added for photosensitive
+players after Piza's hub report #138 ("a BIG white flash when two sabers clash"). On,
+nothing bright flashes over the view:
+
+- no saber clash flare, the burst of `gfx/effects/saberFlare` drawn over the screen where
+  sabers meet (`CG_SaberClashFlare`, 150 ms, up to 2.35 times 600 virtual units across
+  close by: at a few metres it covers most of the screen);
+- no effect `Flash` primitive (`CFlash`, [effect_flash.rs](../crates/sjk-viewer/src/effect_flash.rs)),
+  the white screen flash of a DEMP2 alt shock, a rocket, a concussion blast and the
+  AT-ST's and ships' explosions (every retail effect with one);
+- no effect particle drawn with the clash flare's picture. Retail's saber block effect
+  never uses it, but packs that remake the block as a flash do (JoF's
+  `JoF_HDMovieSaberClash.pk3` makes `effects/saber/saber_block.efx` one 55-unit flare of
+  it at every block), so it goes whatever pack supplies the effect.
+
+The clash flare also follows EternalJK's switches (JoF EJK `CG_SaberClashFlare`):
+**Saber clash flare** (`cg_saberClash`, on) and **Clash flare size**
+(`cg_saberClashSize`, 0 to 2, 1; the picture's size times it, 0.001 at least as
+EternalJK's). Reduce bright flashes wins over both. The viewer reads them once a frame
+([saber_clash_flare.rs](../crates/sjk-viewer/src/saber_clash_flare.rs)); the effect
+spawner and submission read the reduce switch from an atomic the frame sets.
+
+Compared with retail: the flare's timing, size, the behind-the-view and wall tests
+follow `CG_SaberClashFlare` exactly ([sjk-client saber_clash_flare.rs](../crates/sjk-client/src/saber_clash_flare.rs)),
+and a `Flash` follows `CFlash`'s distance and direction scale. One difference is not
+settled: retail draws the flare in 2D after the scene, SJK draws it as a quad in the
+scene's effect pass, so with bloom on (`r_sceneBloom`) it may bloom where retail's never
+does. Not compared side by side in game. Unit tests:
+`the_flare_follows_its_settings_and_reduced_flashes`,
+`only_the_clash_flare_picture_is_a_flash_picture`.
 
 ## Renderer settings
 

@@ -428,6 +428,10 @@ pub(crate) fn spawn_effect(
             );
             // `CFlash::Init`: the flash's colour scaled by where it is from the viewer.
             let rgb = if component.kind == ComponentKind::Flash {
+                // Reduced flashes (`cg_reduceFlashes`): no screen flash at all.
+                if crate::effect_flash::reduced() {
+                    continue;
+                }
                 let visibility =
                     crate::effect_flash::visibility(auxiliary.viewer(), particle_origin);
                 if visibility <= 0.0 {

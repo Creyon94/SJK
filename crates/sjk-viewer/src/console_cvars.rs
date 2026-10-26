@@ -446,10 +446,10 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
         CvarDefinition::new("s_volume", 0.5_f64, archive, "Effects volume"),
         CvarDefinition::new("s_musicVolume", 0.25_f64, archive, "Music volume"),
         CvarDefinition::new(
-            "s_volumeVoice",
+            crate::audio::VOICE_VOLUME_CVAR,
             1.0_f64,
             archive,
-            "Saved voice gain; mixer bus integration pending",
+            "Voice volume: pain, death, taunts, grunts and voice commands, in place of s_volume",
         ),
         CvarDefinition::new(
             "s_khz",
@@ -754,6 +754,25 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             1_i64,
             archive,
             "Saber motion trails; mode 2 currently uses the normal trail",
+        ),
+        // EternalJK's (JoF EJK `cg_xcvar.h`): the clash flare and its size.
+        CvarDefinition::new(
+            crate::saber_clash_flare::CVAR,
+            true,
+            archive,
+            "Saber clash flare: the burst of light where sabers meet",
+        ),
+        CvarDefinition::new(
+            crate::saber_clash_flare::SIZE_CVAR,
+            1.0_f64,
+            archive,
+            "Saber clash flare size, 0 to 2",
+        ),
+        CvarDefinition::new(
+            crate::effect_flash::REDUCE_CVAR,
+            false,
+            archive,
+            "Reduce bright flashes: no saber clash flare and no screen flash from explosions",
         ),
         CvarDefinition::new(
             crate::blade_lab_designs::CVAR,

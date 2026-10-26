@@ -36,7 +36,10 @@ mod controls;
 #[cfg(feature = "mod-jof")]
 #[path = "jof_dialogue_audio.rs"]
 mod dialogue;
-pub(crate) use controls::{EMOTE_CHANNEL, SKIN_SOUNDS_CVAR, TOY_CHANNEL};
+pub(crate) use controls::{
+    EMOTE_CHANNEL, SKIN_SOUNDS_CVAR, TOY_CHANNEL, VOICE_CHANNEL, VOICE_VOLUME_CVAR,
+    interface_channel,
+};
 #[path = "audio_dynamic.rs"]
 mod dynamic;
 #[path = "audio_feedback.rs"]
@@ -201,7 +204,7 @@ impl GameAudio {
                     PlayRequest {
                         origin: None,
                         source: SourceId(u32::MAX - 2),
-                        channel: ChannelId(channel as u32),
+                        channel: interface_channel(channel),
                         volume: 0.9,
                         attenuation: sjk_audio::Attenuation::None,
                     },
@@ -281,10 +284,10 @@ impl GameAudio {
             trace_due: std::env::var_os("SJK_TRACE_AUDIO").map(|_| Instant::now()),
             mute: crate::audio_mute::AudioMute::default(),
         };
-        // `s_volume`/`s_musicvolume` defaults from `S_Init` in
+        // `s_volume`/`s_musicvolume`/`s_volumeVoice` defaults from `S_Init` in
         // codemp/client/snd_dma.cpp:462-466. The console overwrites these on
         // the first frame, but the initial ring fill must use them too.
-        audio.set_gains(0.5, 0.25);
+        audio.set_gains(0.5, 0.25, 1.0);
         audio
     }
 
