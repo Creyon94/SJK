@@ -4,7 +4,8 @@ use super::GpuState;
 use super::console::ViewerConsole;
 use super::pointer_input::MouseLook;
 use crate::settings::{
-    DisplayMode, MonitorModes, exclusive_supported, exclusive_video_mode, suspended_after_focus,
+    DisplayMode, MonitorModes, exclusive_supported, exclusive_video_mode, minimise_after_focus,
+    suspended_after_focus,
 };
 use std::time::{Duration, Instant};
 use winit::dpi::PhysicalSize;
@@ -183,6 +184,14 @@ impl GpuState {
         if suspended != self.display_suspended {
             self.display_suspended = suspended;
             self.apply_display();
+            // Leaving exclusive fullscreen alone left the game as a window over the
+            // desktop (hub report #131): it goes to the taskbar as well, as SDL
+            // minimises a fullscreen window on focus loss in OpenJK.
+            if minimise_after_focus(suspended, focused)
+                && let Some(window) = &self.window
+            {
+                window.set_minimized(true);
+            }
         }
     }
 

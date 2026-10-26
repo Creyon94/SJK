@@ -5555,9 +5555,11 @@ of that size falls back to borderless.
 Exclusive fullscreen is paused while the window lacks focus: winit makes an
 exclusive window topmost and keeps the monitor's video mode, which left the game
 over the desktop after Alt+Tab or Win+D. On focus loss the window goes windowed
-(restoring the desktop mode and the window's earlier placement) and `r_resolution`
-is not re-requested; on focus gain, such as restoring from the taskbar, it enters
-the exclusive mode again. A loss within 0.75 s of a display change is ignored so
+(restoring the desktop mode and the window's earlier placement), then minimises to
+the taskbar, as SDL does for a fullscreen window in OpenJK (a window left on the
+desktop was hub report #131; `minimise_after_focus`), and `r_resolution` is not
+re-requested; on focus gain, such as restoring from the taskbar, it enters the
+exclusive mode again. A loss within 0.75 s of a display change is ignored so
 a focus flicker caused by the switch cannot loop. Borderless and windowed are
 unaffected. The logic is in `apply_display` and `display_focus_changed`
 ([runtime_settings.rs](../crates/sjk-viewer/src/runtime_settings.rs)) and
