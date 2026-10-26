@@ -1598,6 +1598,11 @@ pub(super) const RENDER_IMAGE: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Light flares",
+        cvar: "r_flares",
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Ambient occlusion",
         cvar: "r_ssao",
         kind: ValueKind::Bool,

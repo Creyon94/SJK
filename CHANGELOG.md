@@ -34,6 +34,8 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 = cg_heldViewLook: Kicks, knockdowns, kisses and grapples now hold your camera still. Switch this on to keep looking around during them, as before (the camera may shake).
 
+- The camera styles are now called MP camera (locked behind you, the default) and SP camera (trails you a little), instead of EJK and SJK; your choice is kept _(Sol)_
+- The Vanilla style graphics preset is closer to EternalJK's own defaults: it also turns off light flares, the halos some maps put around lamps (a new Light flares setting in Graphics); a profile already on Vanilla style picks it again to get it _(Sol, after EternalJK)_
 - Support SJK, a small line at the top left of the SJK UI's main page, links to SJK's GitHub Sponsors and Ko-fi pages; its x hides it for good, and Settings > Interface > Support SJK brings it back _(Sol)_
 - Free look when held, a new option in Settings > Game options: the mouse keeps turning the view while a JA+ kick, knockdown or kiss, a grapple or a saber lock holds it, as before 2026.1026.2, for players who prefer looking around to a still camera _(Sol)_
 - Two sabers can wear two blade skins, and a staff one on each half: in the Collection pick a saber (or half) above the preview, choose a shader and press Equip (tick Both sabers to dress both at once), or type `saberskin second <id>`; other SJK players see both once the hub has the change _(Creyon, PR #193, the staff's halves at Sol's request)_

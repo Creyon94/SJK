@@ -971,11 +971,12 @@ pub(super) fn choice_label<'a>(cvar: &str, value: &'a str) -> &'a str {
     if let Some(name) = help::choice_name(cvar, value) {
         return name;
     }
-    // Client names stay in capitals: the menu style's "sjk", the camera style's.
-    ["SJK", "EJK"]
-        .into_iter()
-        .find(|name| value.eq_ignore_ascii_case(name))
-        .unwrap_or(value)
+    // Client names stay in capitals: the menu style's "sjk".
+    if value.eq_ignore_ascii_case("SJK") {
+        "SJK"
+    } else {
+        value
+    }
 }
 
 /// Whether a switch row's value text (`ON` or `OFF`) is on.

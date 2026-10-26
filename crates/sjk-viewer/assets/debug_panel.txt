@@ -1167,6 +1167,21 @@ note: A roll on landing while crouched (PM_CrashLand) is not prevented, in EJK e
 
 # ---- Menus & settings ----
 
+[mp-sp-camera-names]
+area: Menus & settings
+title: Camera styles named MP camera and SP camera
+change: Settings > Game options, Camera style: MP camera (was EJK) and SP camera (was SJK).
+test: Game options: Camera style shows MP camera; the other choice reads SP camera.
+test: First setup's camera row shows the same names; the help line names them too.
+
+[vanilla-style-ejk-defaults]
+area: Menus & settings
+title: Vanilla style follows EternalJK's defaults: light flares off too
+change: Graphics > Image has a Light flares row (r_flares); Vanilla style sets it off.
+change: SJK (recommended) and Experimental keep flares on; glow stays off in Vanilla style.
+test: Graphics preset: pick Vanilla style: Light flares reads Off, the row reads Vanilla style.
+test: On a map whose lamps have halos, they are gone; the SJK preset brings them back.
+
 [second-saber-skin]
 area: Menus & settings
 title: A blade skin for each saber and each staff half (Creyon, PR #193)

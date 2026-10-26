@@ -9,6 +9,14 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 26/10/2026 | - | MP/SP camera names, Vanilla style as EternalJK
+- 9d379eb |  | MP camera and SP camera; Vanilla style follows EternalJK's defaults (light flares off)
++ 26/10/2026 | - | Support SJK links on the main page
+- adf78ba |  | Support SJK on the main page: GitHub Sponsors and Ko-fi links, x hides it for good
++ 26/10/2026 | - | Free look when held option
+- 041d10b |  | Free look when held: a Settings row for cg_heldViewLook, offered on the what's-new card
++ 26/10/2026 | - | Release 2026.1026.2
+- d62c799 |  | Release 2026.1026.2
 + 26/10/2026 | - | Changelog: the Reduce bright flashes setting line before the Unreleased changes
 - 897501e |  | Changelog: the Reduce bright flashes setting line before the Unreleased changes
 + 26/10/2026 | - | Changelog and test list layout after the 26/10 hub report merges
@@ -2196,6 +2204,22 @@
 - 0d215f1 |  | Initial JKR source
 
 = Creyon
++ 26/10/2026 | SJK #193 | A blade skin for each saber and each staff half
+- 0d4b8f2 |  | Let a second saber wear its own blade skin
+- 54177be |  | Dress a staff's other half and pick the saber in the Collection
+- 6566a6a |  | Say how to show the second blade while one saber is held
+- 74711f7 |  | Add the saber command and dress a side with one click
+- 160ca7e |  | Wear a shader with one click and show the chosen side's own
+- 6af6e50 |  | Make the switch clickable, wear with Equip and keep sides apart
+- a9141d6 |  | Add a Both sabers box that dresses both sides at once
+- 98bc64c |  | Preview a shader only over its blade and show the Both label whole
+- 9dc9cb0 | Sol | Second saber: follow the first until dressed, retry saber2 after bad_body
+- 806d1b2 |  | Answer the second saber review: sides, stock, staffs, clicks, hilts
+- f574281 |  | Keep the second saber's skin by value despite its size lint
+- 0fcb351 |  | Leave the Both box alone when a lone saber is clicked
+- 05d0431 |  | Bring the second saber's status entry up to date
+- aa58c39 | Sol | saberskin second: an unheld skin is the stock blade until held, not the first's
+- 4ac621d | Sol | Changelog: the saber command line names what this branch adds
 + 25/10/2026 | SJK #197 | Add trading between players
 - a3ac938 |  | Add trading between players
 - 05a83c8 |  | Answer Sol's review of the trades
@@ -2584,6 +2608,9 @@
 - fed9acd |  | Hide duel opponents' bars and send nothing while duelling
 
 = Slash
++ 26/10/2026 | SJK #209 | Complete devmap's map name on Tab
+- 027bdba |  | Complete devmap's map name on Tab
+- 0bf3b86 | Sol | devmap completion: no copy per map name, a test for matches in several folders
 + 25/10/2026 | SJK #207 | Count site visits with GoatCounter
 - 420c449 |  | Count site visits with GoatCounter
 - eb13752 |  | Update GoatCounter script source URL

@@ -102,6 +102,8 @@ const CHOICE_NAMES: &[(&str, &str, &str)] = &[
     (crate::chat_sounds::MASTER_CVAR, "0", "Off"),
     (crate::chat_sounds::MASTER_CVAR, "1", "On"),
     (crate::chat_sounds::MASTER_CVAR, "2", "Distinct (EJK)"),
+    (crate::camera::STYLE_CVAR, "ejk", "MP camera"),
+    (crate::camera::STYLE_CVAR, "sjk", "SP camera"),
     (crate::player_trades::SIZE_CVAR, "0", "Small"),
     (crate::player_trades::SIZE_CVAR, "1", "Normal"),
     (crate::player_trades::SIZE_CVAR, "2", "Large"),
@@ -811,11 +813,11 @@ const HELP: &[(&str, &str)] = &[
     ),
     (
         crate::camera::STYLE_CVAR,
-        "EJK: the third-person camera stays locked behind you, as in JoF EJK. SJK: it trails you a little as you move and turn.",
+        "MP camera: the third-person camera stays locked behind you, as in JoF EJK. SP camera: it trails you a little as you move and turn.",
     ),
     (
         "cg_cameraFPS",
-        "With SJK camera style, use EJK damping timing: Default 125, Smooth (SP) 30, or BaseJKA's original 50 ms steps.",
+        "With SP camera, use EJK damping timing: Default 125, Smooth (SP) 30, or BaseJKA's original 50 ms steps.",
     ),
     (
         "cg_thirdPersonRange",
@@ -1200,6 +1202,10 @@ const HELP: &[(&str, &str)] = &[
     (
         crate::world_materials::filtering::mips::compress::CVAR,
         "Keeps map and model textures compressed: a quarter or less of their video memory, a little blockier. Experimental.",
+    ),
+    (
+        "r_flares",
+        "Halos the maps put around some lamps, which fade as walls hide them. EternalJK has them off.",
     ),
     (
         "r_softParticles",
