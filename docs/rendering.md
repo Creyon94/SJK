@@ -61,6 +61,11 @@ colour generators are compared after `ParseStage` defaults: an unset rgbGen is
 identity, or identityLighting when the blend source is `GL_ONE` or `GL_SRC_ALPHA`
 ([stage_colour.rs](../crates/sjk-shader/src/stage_colour.rs),
 [world_stage_collapse.rs](../crates/sjk-viewer/src/world_stage_collapse.rs)).
+A `wave` generator with fewer than four numbers keeps its shader, the missing values 0,
+as `ParseWaveForm` stops at the line's end; its values end at the first token that does
+not start with a number, and are read as C's `atof` reads them (`1.0f` is 1, `.5` is 0.5;
+[parse.rs](../crates/sjk-shader/src/parse.rs)). Taking the next line's
+keyword for a number dropped whole shaders, such as coruscant_promenade's holograms.
 
 Programs are embedded with `include_str!`, so they carry the checkout's line
 endings. Code that patches a program by text with a pattern spanning a line break

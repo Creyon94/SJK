@@ -259,15 +259,19 @@ pub(super) fn parse_generator(
     }
     let function = token(tokens, *cursor, source)?.to_ascii_lowercase();
     *cursor += 1;
+    // `ParseWaveForm` (`tr_shader.cpp:404-448`) reads base, amplitude, phase and
+    // frequency up to the end of the line and keeps the stage when one is missing, the
+    // rest staying 0, with a warning. A community map's `rgbGen wave sin 0.5 0.5 0`
+    // took the next line's keyword for its frequency here and lost its whole shader
+    // (coruscant_promenade's holograms, in Creyon's logs of 26/10/2026). The values
+    // end at the first token that is not a number, which is left for the next
+    // directive: a script's line never goes on with a bare number.
     let mut values = [0.0; 4];
     for value in &mut values {
-        *value = token(tokens, *cursor, source)?
-            .parse::<f32>()
-            .map_err(|_| ShaderError::Syntax {
-                source: source.clone(),
-                offset: *cursor,
-                message: "wave generator requires four numeric arguments",
-            })?;
+        let Some(number) = tokens.get(*cursor).and_then(|text| atof_prefix(text)) else {
+            break;
+        };
+        *value = number;
         *cursor += 1;
     }
     Ok((
@@ -280,6 +284,47 @@ pub(super) fn parse_generator(
             frequency: values[3],
         }),
     ))
+}
+
+/// C's `atof` on a token that starts with a number: the longest numeric prefix (sign,
+/// digits, a point, an exponent), so `1.0f` reads 1 and `.5` reads 0.5, as the
+/// original parser reads them. `None` when the token does not start with a number (a
+/// directive or a brace), which ends a wave's values.
+pub(super) fn atof_prefix(token: &str) -> Option<f32> {
+    let bytes = token.as_bytes();
+    let mut end = 0;
+    if matches!(bytes.first(), Some(b'+' | b'-')) {
+        end += 1;
+    }
+    let digits_start = end;
+    while bytes.get(end).is_some_and(u8::is_ascii_digit) {
+        end += 1;
+    }
+    let mut digits = end - digits_start;
+    if bytes.get(end) == Some(&b'.') {
+        end += 1;
+        let fraction = end;
+        while bytes.get(end).is_some_and(u8::is_ascii_digit) {
+            end += 1;
+        }
+        digits += end - fraction;
+    }
+    if digits == 0 {
+        return None;
+    }
+    if matches!(bytes.get(end), Some(b'e' | b'E')) {
+        let mut exponent = end + 1;
+        if matches!(bytes.get(exponent), Some(b'+' | b'-')) {
+            exponent += 1;
+        }
+        if bytes.get(exponent).is_some_and(u8::is_ascii_digit) {
+            while bytes.get(exponent).is_some_and(u8::is_ascii_digit) {
+                exponent += 1;
+            }
+            end = exponent;
+        }
+    }
+    token[..end].parse().ok()
 }
 
 pub(super) fn is_stage_directive(token: &str) -> bool {

@@ -1,3 +1,14 @@
+## Short shader waves
+
+26/10/2026, `fix/shader-short-wave` (Creyon), based on `main` `8f73ab73`: Creyon's
+session logs showed three coruscant_promenade shaders skipped at every load ("wave
+generator requires four numeric arguments"). The original engine keeps a wave with
+missing values (0) and stops at the line's end; SJK read the next line's keyword as a
+number and dropped the shader. Its values now end at the first non-number
+([rendering.md](rendering.md#where-to-work)). Verified on Linux x86_64: sjk-shader tests
+(new `a_short_wave_keeps_its_shader_and_the_next_directive`). Not verified: the real
+map's shader file (not available here) and its look in game.
+
 ## Capsule nameplates
 
 28/10/2026, `personal/nameplate-capsule`, based on `main` `fbd28832` (Sol's pick of design E,
