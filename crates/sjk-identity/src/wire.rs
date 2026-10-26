@@ -748,6 +748,15 @@ pub struct Look {
     /// The second saber's skin's options its wearer switched off; empty when absent.
     #[serde(default)]
     pub saber2_off: Vec<String>,
+    /// The blade skin's extras its wearer switched on (since 26/10/2026): parts that are
+    /// off until switched on and that only a holder of the skin's card in its finish may
+    /// switch on (the Sun's: a Solar copy of SJK Alpha 000). The hub relays only those
+    /// the wearer may wear; absent, and empty, from older hubs and wearers with none on.
+    #[serde(default)]
+    pub saber_on: Vec<String>,
+    /// The second saber's skin's extras switched on; empty when absent.
+    #[serde(default)]
+    pub saber2_on: Vec<String>,
     /// The saber sounds the player chose apart from their blade (since 23/10/2026):
     /// empty to follow the blade skin (absent from older hubs and clients), `stock` for
     /// the retail sounds, or a blade-skin unlock id whose sounds they hear.
@@ -787,6 +796,12 @@ pub struct LookEvent {
     /// The second saber's skin's options switched off; empty when absent.
     #[serde(default)]
     pub saber2_off: Vec<String>,
+    /// The blade skin's extras switched on; empty when absent.
+    #[serde(default)]
+    pub saber_on: Vec<String>,
+    /// The second saber's skin's extras switched on; empty when absent.
+    #[serde(default)]
+    pub saber2_on: Vec<String>,
     /// The saber sounds the wearer chose; empty (follow the blade) when absent.
     #[serde(default)]
     pub saber_sounds: String,
@@ -802,6 +817,8 @@ impl LookEvent {
             toys: self.toys.clone(),
             saber2: self.saber2.clone(),
             saber2_off: self.saber2_off.clone(),
+            saber_on: self.saber_on.clone(),
+            saber2_on: self.saber2_on.clone(),
             saber_sounds: self.saber_sounds.clone(),
         }
     }
@@ -1516,6 +1533,8 @@ mod tests {
                 toys: Vec::new(),
                 saber2: None,
                 saber2_off: Vec::new(),
+                saber_on: Vec::new(),
+                saber2_on: Vec::new(),
                 saber_sounds: String::new(),
             })
         );
@@ -1551,6 +1570,8 @@ mod tests {
                 toys: Vec::new(),
                 saber2: None,
                 saber2_off: Vec::new(),
+                saber_on: Vec::new(),
+                saber2_on: Vec::new(),
                 saber_sounds: String::new(),
             }
         );

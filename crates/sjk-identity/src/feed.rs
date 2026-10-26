@@ -1353,6 +1353,8 @@ mod tests {
             toys: Vec::new(),
             saber2: None,
             saber2_off: Vec::new(),
+            saber_on: Vec::new(),
+            saber2_on: Vec::new(),
             saber_sounds: String::new(),
         }
     }

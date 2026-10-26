@@ -585,6 +585,16 @@ impl Runtime {
             mapped_at_creation: false,
         });
         let neutral = materials[crate::saber_rgb::SKIN_MATERIAL as usize].clone();
+        // Its heat wakes bend the scene the haze's way, through the haze's bind group.
+        let trails = crate::saber_trail_gpu::Runtime::new(
+            device,
+            queue,
+            vfs,
+            shaders,
+            camera_layout,
+            &haze_layout,
+            format,
+        )?;
         Ok(Self {
             pipeline,
             black_pipeline,
@@ -626,14 +636,7 @@ impl Runtime {
                 .clone(),
             signatures: signatures.clone(),
             signed: Vec::new(),
-            trails: crate::saber_trail_gpu::Runtime::new(
-                device,
-                queue,
-                vfs,
-                shaders,
-                camera_layout,
-                format,
-            )?,
+            trails,
         })
     }
 
@@ -792,9 +795,9 @@ impl Runtime {
 
     /// Whether this frame's blades may bend the scene with heat haze or a black hole's
     /// lens: a loaded skin has one and a skinned blade is drawn (the vertex stage folds
-    /// away every other one).
+    /// away every other one), or a trail with a heat wake is drawn.
     pub(crate) fn has_haze(&self) -> bool {
-        (self.any_haze || self.any_holes) && skinned(&self.ranges)
+        (self.any_haze || self.any_holes) && skinned(&self.ranges) || self.trails.has_wake()
     }
 
     /// How far this frame's haze or lenses may bend the picture they sample, as a share of
@@ -807,7 +810,12 @@ impl Runtime {
             return 0.0;
         }
         let first = crate::saber_rgb::SKIN_MATERIAL as usize;
-        let mut reach = 0.0_f32;
+        // A heat wake bends as far as the haze does.
+        let mut reach = if self.trails.has_wake() {
+            HAZE_REACH
+        } else {
+            0.0_f32
+        };
         for (index, skin) in self.loaded.iter() {
             if self.ranges[first + usize::from(index)].is_empty() {
                 continue;
@@ -871,7 +879,8 @@ impl Runtime {
 
     /// Draw the skins' heat haze into the effect layer whose scene image is `scene`
     /// (`effect_layer.rs` `original`), before any other effect: each pixel it covers is
-    /// the scene there, bent.
+    /// the scene there, bent. The trails' heat wakes after it, then the black holes'
+    /// lenses.
     pub(crate) fn draw_haze(
         &self,
         device: &wgpu::Device,
@@ -906,31 +915,43 @@ impl Runtime {
                 }
             }
         };
-        // The haze first, then the lenses over it: each in its own run, as the instances
-        // of a material are in no set order.
-        let pipelines = [
-            (self.any_haze, &self.haze_pipeline),
-            (self.any_holes, &self.lens_pipeline),
-        ];
-        for (_, pipeline) in pipelines.into_iter().filter(|(any, _)| *any) {
-            pass.set_pipeline(pipeline);
-            pass.set_bind_group(0, camera, &[]);
-            pass.set_bind_group(2, &self.skins, &[]);
-            pass.set_bind_group(3, &bind, &[]);
-            pass.set_vertex_buffer(0, self.instance_buffer.slice(..));
-            let skins = crate::saber_rgb::SKIN_MATERIAL as usize;
-            for (material, instances) in self
-                .materials
-                .iter()
-                .zip(self.ranges.iter().cloned())
-                .skip(skins)
-            {
-                if instances.is_empty() {
-                    continue;
-                }
-                pass.set_bind_group(1, material, &[]);
-                pass.draw(0..6, instances);
+        // The haze first, then the trails' wakes, then the lenses over them: each in its
+        // own run, as the instances of a material are in no set order.
+        if self.any_haze {
+            self.draw_bending(pass, camera, &bind, &self.haze_pipeline);
+        }
+        self.trails.draw_wake(pass, camera, &bind);
+        if self.any_holes {
+            self.draw_bending(pass, camera, &bind, &self.lens_pipeline);
+        }
+    }
+
+    /// Draw every skinned blade with `pipeline`, one of those that bend the scene bound in
+    /// `bind` (the haze's or the lenses').
+    fn draw_bending(
+        &self,
+        pass: &mut wgpu::RenderPass<'_>,
+        camera: &wgpu::BindGroup,
+        bind: &wgpu::BindGroup,
+        pipeline: &wgpu::RenderPipeline,
+    ) {
+        pass.set_pipeline(pipeline);
+        pass.set_bind_group(0, camera, &[]);
+        pass.set_bind_group(2, &self.skins, &[]);
+        pass.set_bind_group(3, bind, &[]);
+        pass.set_vertex_buffer(0, self.instance_buffer.slice(..));
+        let skins = crate::saber_rgb::SKIN_MATERIAL as usize;
+        for (material, instances) in self
+            .materials
+            .iter()
+            .zip(self.ranges.iter().cloned())
+            .skip(skins)
+        {
+            if instances.is_empty() {
+                continue;
             }
+            pass.set_bind_group(1, material, &[]);
+            pass.draw(0..6, instances);
         }
     }
 

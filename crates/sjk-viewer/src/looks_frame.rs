@@ -77,8 +77,13 @@ impl GpuState {
             #[cfg(not(test))]
             let shot = false;
             let owned = |id: &str| shot || player_identity::owns_unlock(id);
-            let held = Worn::own(&setting, &options, owned, lit)
-                .with_second(&second_setting, &options, owned)
+            // The extras of a skin whose card the player does not hold in its finish stay
+            // off (`blade_extras.rs`): the hub would not relay them either.
+            let held_options = crate::blade_extras::gated(&options, |gate| {
+                shot || player_identity::holds_card(gate)
+            });
+            let held = Worn::own(&setting, &held_options, owned, lit)
+                .with_second(&second_setting, &held_options, owned)
                 .with_sounds(&sounds, owned);
             let debug = self
                 .console
@@ -133,6 +138,7 @@ impl GpuState {
         .with_toy(crate::drone::TOY, self.drone.on())
         .with_toy(crate::boombox::TOY, self.boombox.on());
         if let Some(sent) = sent {
+            let options = crate::blade_extras::gated(&options, player_identity::holds_card);
             player_identity::set_look(&sent.to_look(&options));
             self.looks.set_own_options(options);
             // Who sits where, and the own name, for the saber shaders drawn from them.

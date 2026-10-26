@@ -246,6 +246,40 @@ impl Signature {
             })
     }
 
+    /// Every `// @key value` line of its header, the values in order (`@extra`, which
+    /// repeats).
+    pub(crate) fn header_lines(&self, key: &'static str) -> impl Iterator<Item = &'static str> {
+        self.wgsl
+            .lines()
+            .take_while(|line| line.starts_with("//"))
+            .filter_map(move |line| {
+                line.strip_prefix("// @")?
+                    .strip_prefix(key)?
+                    .strip_prefix(' ')
+                    .map(str::trim)
+            })
+    }
+
+    /// The trail every wearer of it gets (`@trail plasma`, `blade_extras.rs`), if not the
+    /// blur in its trail colour.
+    pub(crate) fn trail(&self) -> Option<crate::blade_extras::TrailKind> {
+        serde_json::from_value(serde_json::Value::String(self.meta("trail")?.to_owned())).ok()
+    }
+
+    /// Its extras (`@extras {..}` and an `@extra {..}` line each, `blade_extras.rs`), if it
+    /// has any; a line that does not parse is left out (a test checks none is).
+    pub(crate) fn extras(&self) -> Option<crate::blade_extras::Extras> {
+        let gate = serde_json::from_str(self.meta("extras")?).ok()?;
+        Some(crate::blade_extras::Extras {
+            skin: self.id,
+            gate,
+            list: self
+                .header_lines("extra")
+                .filter_map(|line| serde_json::from_str(line).ok())
+                .collect(),
+        })
+    }
+
     /// The blossoms its swing sheds (`@petals {..}`, `saber_petals.rs`), if it sheds any.
     pub(crate) fn petals(&self) -> Option<crate::saber_petals::PetalSpec> {
         serde_json::from_str(self.meta("petals")?).ok()

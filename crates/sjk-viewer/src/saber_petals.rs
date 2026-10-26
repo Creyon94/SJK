@@ -9,6 +9,9 @@
 //! Cranes (25/10/2026) releases paper cranes the same way (`"kind": "crane"`): they rise and
 //! fly off instead of settling, each in a colour of paper. The Hearth (25/10/2026) sheds ash
 //! (`"kind": "ash"`): grey flakes, some still glowing at their edge, that drift down and settle.
+//! The Sun's Swing embers (26/10/2026, one of its extras, `blade_extras.rs`) are sparks
+//! (`"kind": "ember"`) flung off along the swing, rising as hot air does, cooling from white
+//! gold to deep red and going out in the air.
 
 use glam::Vec3;
 use serde::Deserialize;
@@ -25,13 +28,18 @@ pub(crate) enum PetalKind {
     Crane,
     /// Flakes of ash that drift down and settle, grey or still glowing at their edge.
     Ash,
+    /// Sparks flung off the swing that rise, cool from white gold to red and go out in the
+    /// air, glowing (drawn added to what is behind them).
+    Ember,
 }
 
 /// A skin's falling blossoms, as its signature's `@petals` line gives them.
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct PetalSpec {
-    /// The signature's own part (its `// @part` line, from 0) that switches them.
+    /// The signature's own part (its `// @part` line, from 0) that switches them; not read
+    /// for an extra's (`blade_extras.rs`), which its own switch turns on.
+    #[serde(default)]
     pub(crate) part: u8,
     /// What they are.
     #[serde(default)]
@@ -47,6 +55,17 @@ pub(crate) struct PetalSpec {
     /// How fast it climbs (units a second): a crane's wings carry it up.
     #[serde(default)]
     pub(crate) rise: f32,
+    /// The share of the tip's speed it leaves with ([`DEFAULT_FLING`] when absent): an
+    /// ember is flung off far harder than a petal is let go.
+    #[serde(default = "default_fling")]
+    pub(crate) fling: f32,
+}
+
+/// A petal's share of the tip's speed (the swing's breath).
+pub(crate) const DEFAULT_FLING: f32 = 0.025;
+
+fn default_fling() -> f32 {
+    DEFAULT_FLING
 }
 
 impl PetalSpec {
@@ -59,6 +78,7 @@ impl PetalSpec {
             && (0.0..=200.0).contains(&self.fall)
             && (0.0..=100.0).contains(&self.drift)
             && (0.0..=200.0).contains(&self.rise)
+            && (0.0..=0.5).contains(&self.fling)
     }
 }
 
@@ -118,8 +138,10 @@ impl PetalEmitter {
         self.carry += body_tip.distance(last_body) * spec.per_unit;
         let count = (self.carry.floor() as u32).min(MOST_A_FRAME);
         self.carry -= self.carry.floor();
-        // A share of the tip's speed carries them on a little (the swing's breath).
-        let carried = (tip - last_tip) / (since as f32 * 0.001) * 0.025;
+        // A share of the tip's speed carries them on (a little: the swing's breath; an
+        // ember far more).
+        let carried = (tip - last_tip) / (since as f32 * 0.001) * spec.fling;
+        let most = 40.0_f32.max(spec.fling * 1_600.0);
         for i in 0..count {
             if queue.len() >= MOST_QUEUED {
                 return;
@@ -135,7 +157,7 @@ impl PetalEmitter {
             let drift = Vec3::new(unit(seed, 5) - 0.5, unit(seed, 6) - 0.5, 0.0) * 2.0 * spec.drift;
             queue.push(PetalSpawn {
                 origin: base + direction * (length * along) + side * 2.0,
-                velocity: carried.clamp_length_max(40.0)
+                velocity: carried.clamp_length_max(most)
                     + drift
                     + Vec3::Z * (spec.rise - spec.fall) * 0.5,
                 seed,
@@ -154,8 +176,8 @@ macro_rules! bundled {
 }
 /// Their shaders, which the frame's effect materials must load (`effect_assets::CODE_SHADERS`):
 /// the blossoms' three tints, then the crane flying right and flying left, then grey ash and
-/// ash still glowing.
-pub(crate) const SHADERS: [&str; 7] = [
+/// ash still glowing, then the ember.
+pub(crate) const SHADERS: [&str; 8] = [
     "gfx/sjk/petals/blossom_pink",
     "gfx/sjk/petals/blossom_pale",
     "gfx/sjk/petals/blossom_white",
@@ -163,9 +185,14 @@ pub(crate) const SHADERS: [&str; 7] = [
     "gfx/sjk/petals/crane_left",
     "gfx/sjk/petals/ash_grey",
     "gfx/sjk/petals/ash_ember",
+    "gfx/sjk/petals/ember",
 ];
 const BLOSSOMS: usize = 3;
 const CRANES: usize = 2;
+const ASHES: usize = 2;
+/// An ember's colour as it leaves the blade and as it goes out.
+const EMBER_HOT: [f32; 3] = [1.0, 0.92, 0.62];
+const EMBER_COOL: [f32; 3] = [0.95, 0.22, 0.04];
 /// The cranes' paper, as the Thousand Cranes' flock wears it (`tc_paper`): vermilion, indigo,
 /// sakura, jade, gold, sky, plum and cream.
 const PAPER: [[f32; 3]; 8] = [
@@ -178,7 +205,7 @@ const PAPER: [[f32; 3]; 8] = [
     [0.6, 0.32, 0.56],
     [0.97, 0.93, 0.84],
 ];
-const FILES: [(&str, &[u8]); 8] = [
+const FILES: [(&str, &[u8]); 9] = [
     ("shaders/sjk_petals.shader", bundled!("petals.shader")),
     (
         "gfx/sjk/petals/blossom_pink.png",
@@ -196,6 +223,7 @@ const FILES: [(&str, &[u8]); 8] = [
     ("gfx/sjk/petals/crane_left.png", bundled!("crane_left.png")),
     ("gfx/sjk/petals/ash_grey.png", bundled!("ash_grey.png")),
     ("gfx/sjk/petals/ash_ember.png", bundled!("ash_ember.png")),
+    ("gfx/sjk/petals/ember.png", bundled!("ember.png")),
 ];
 
 /// Mount the bundled petal files.
@@ -207,7 +235,8 @@ pub(crate) fn mount(vfs: &mut sjk_vfs::VirtualFileSystem) -> Result<(), sjk_vfs:
 /// Turn the queued petals into particles: each a picture of a blossom petal facing the
 /// camera, turning as it sinks, settling where it lands (it stops on the floor) and fading
 /// over its last third. A crane keeps nearly upright as it climbs, flies on through the world
-/// rather than landing, and takes a colour of paper.
+/// rather than landing, and takes a colour of paper. An ember flies on too, shrinking and
+/// cooling as it goes.
 pub(crate) fn frame(gpu: &mut crate::GpuState, now: Instant) {
     use crate::particle_types::{Particle, PrimitiveShape};
     let queue = gpu.saber_states.petals();
@@ -225,6 +254,9 @@ pub(crate) fn frame(gpu: &mut crate::GpuState, now: Instant) {
         let spec = spawn.spec;
         let size = spec.size * (0.75 + 0.5 * unit(seed, 7));
         let crane = spec.kind == PetalKind::Crane;
+        let ember = spec.kind == PetalKind::Ember;
+        // Cranes and embers fly on through the world; petals and ash settle.
+        let flies = crane || ember;
         let (angle, spin) = if crane {
             ((unit(seed, 9) - 0.5) * 30.0, (unit(seed, 8) - 0.5) * 12.0)
         } else {
@@ -235,11 +267,28 @@ pub(crate) fn frame(gpu: &mut crate::GpuState, now: Instant) {
             PetalKind::Crane => SHADERS[BLOSSOMS + (seed % CRANES as u32) as usize],
             // One flake in three still glows.
             PetalKind::Ash => SHADERS[BLOSSOMS + CRANES + usize::from(seed % 3 == 0)],
+            PetalKind::Ember => SHADERS[BLOSSOMS + CRANES + ASHES],
         };
         let [r, g, b] = if crane {
             PAPER[(seed % PAPER.len() as u32) as usize]
         } else {
             [1.0; 3]
+        };
+        let linear = sjk_effect::CurveFlags {
+            linear: true,
+            ..Default::default()
+        };
+        let rgb = if ember {
+            std::array::from_fn(|channel| {
+                crate::effect_envelope::Envelope::from_values(
+                    EMBER_HOT[channel],
+                    EMBER_COOL[channel],
+                    0.0,
+                    linear,
+                )
+            })
+        } else {
+            [constant(r), constant(g), constant(b)]
         };
         gpu.particles.push(Particle {
             motion: crate::particle_motion::Motion::new(
@@ -256,12 +305,13 @@ pub(crate) fn frame(gpu: &mut crate::GpuState, now: Instant) {
             lifetime: Duration::from_secs_f32(spec.life * (0.8 + 0.4 * unit(seed, 10))),
             size: crate::effect_envelope::Envelope::from_values(
                 size,
-                if crane { size } else { size * 0.8 },
-                0.0,
-                sjk_effect::CurveFlags {
-                    linear: true,
-                    ..Default::default()
+                match spec.kind {
+                    PetalKind::Crane => size,
+                    PetalKind::Ember => size * 0.35,
+                    _ => size * 0.8,
                 },
+                0.0,
+                linear,
             ),
             length: None,
             streak: None,
@@ -278,18 +328,18 @@ pub(crate) fn frame(gpu: &mut crate::GpuState, now: Instant) {
             ),
             use_alpha: true,
             set_shader_time: false,
-            rgb: [constant(r), constant(g), constant(b)],
+            rgb,
             seed,
             shader: gpu.effects.shader(shader),
-            // Falling onto the floor, it stays there (no bounce) until it fades; a crane flies
-            // on through.
+            // Falling onto the floor, it stays there (no bounce) until it fades; a crane or an
+            // ember flies on through.
             physics: crate::particle_physics::State::new(
                 gpu.effects.code_primitive_definition(),
                 0,
                 0,
                 0.0,
                 sjk_effect::PrimitiveFlags {
-                    apply_physics: !crane,
+                    apply_physics: !flies,
                     ..Default::default()
                 },
             ),
@@ -311,6 +361,7 @@ mod tests {
         fall: 40.0,
         drift: 10.0,
         rise: 0.0,
+        fling: DEFAULT_FLING,
     };
 
     #[test]
@@ -383,6 +434,51 @@ mod tests {
         let line = r#"{"part":3,"per_unit":0.07,"life":2.6,"size":1.6,"fall":38.0,"drift":14.0}"#;
         let spec: PetalSpec = serde_json::from_str(line).unwrap();
         assert_eq!((spec.kind, spec.rise), (PetalKind::Blossom, 0.0));
+        assert_eq!(spec.fling, DEFAULT_FLING);
+    }
+
+    #[test]
+    fn embers_are_flung_off_the_swing_and_rise() {
+        let ember = PetalSpec {
+            kind: PetalKind::Ember,
+            fall: 0.0,
+            rise: 36.0,
+            drift: 0.0,
+            fling: 0.16,
+            ..SPEC
+        };
+        let mut emitter = PetalEmitter::default();
+        let mut queue = Vec::new();
+        // The blade sweeps along x at 20 units a 16 ms frame (1250 units a second), in the
+        // world and in its wearer's frame.
+        for step in 0..10 {
+            let tip = Vec3::new(20.0 * step as f32, 0.0, 40.0);
+            emitter.shed(
+                Vec3::new(tip.x, 0.0, 0.0),
+                Vec3::Z,
+                40.0,
+                tip,
+                2_000 + step * 16,
+                7,
+                ember,
+                &mut queue,
+            );
+        }
+        assert!(!queue.is_empty());
+        for spawn in &queue {
+            // Flung along the swing far faster than a petal's breath (0.025 of it, 31), and
+            // rising.
+            assert!(spawn.velocity.x > 150.0, "{spawn:?}");
+            assert!(spawn.velocity.z > 0.0, "{spawn:?}");
+        }
+        assert!(ember.valid());
+        assert!(
+            !PetalSpec {
+                fling: 0.9,
+                ..ember
+            }
+            .valid()
+        );
     }
 
     #[test]

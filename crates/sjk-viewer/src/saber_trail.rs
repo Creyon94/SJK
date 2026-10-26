@@ -8,6 +8,16 @@ const MAX_ENTITIES: usize = 1_024;
 const SABERS_PER_ENTITY: usize = 2;
 const BLADES_PER_SABER: usize = 8;
 pub(crate) const MAX_SEGMENTS: usize = 4_096;
+/// A vertex style's bit for a trail that bends what is behind it (`saber_trail.wgsl`
+/// `fragment_wake`, a skin's Heat wake), beside the style in its low byte.
+pub(crate) const WAKE: u32 = 0x100;
+/// The vertex style's low byte: the style itself.
+pub(crate) const STYLE: u32 = 0xff;
+/// How many times longer a plasma, flare or wake trail lives than the blur: the plasma's
+/// cooling and the heat's shimmer need time to be seen.
+const LONG_LIFE: u16 = 3;
+/// How far (units) the flare trail's flames reach past the tip.
+pub(crate) const FLARE_REACH: f32 = 10.0;
 
 #[path = "thrown_saber_tilt.rs"]
 pub(crate) mod tilt;
@@ -24,16 +34,19 @@ pub(crate) struct Vertex {
     pub(crate) uv: [f32; 2],
     pub(crate) color: [f32; 4],
     pub(crate) style: u32,
-    pub(crate) _padding: u32,
+    /// The flare's V at its slice's far edge, past the tip (below 0, see [`FLARE_REACH`]);
+    /// 0 for the other styles.
+    pub(crate) past: f32,
 }
 
 impl Vertex {
     pub(crate) fn layout() -> wgpu::VertexBufferLayout<'static> {
-        const ATTRIBUTES: [wgpu::VertexAttribute; 4] = wgpu::vertex_attr_array![
+        const ATTRIBUTES: [wgpu::VertexAttribute; 5] = wgpu::vertex_attr_array![
             0 => Float32x3,
             1 => Float32x2,
             2 => Float32x4,
-            3 => Uint32
+            3 => Uint32,
+            4 => Float32
         ];
         wgpu::VertexBufferLayout {
             array_stride: std::mem::size_of::<Self>() as wgpu::BufferAddress,
@@ -323,15 +336,15 @@ pub(crate) fn trail_duration(authored_duration: u16) -> u16 {
 
 /// The vertex style a slice is drawn with: the hilt's stock `trailStyle` (0 the blur
 /// trail, 1 the sword trail), except a black blade's blur trail (2, alpha-blended) and a
-/// blade skin's (3: the blur trail's white core takes the skin's trail colour too, so the
-/// trail reads as the blade's colour rather than white; 4 when the skin's trail is comic
-/// speed lines, `SkinColor::comic_trail`).
+/// blade skin's (`SkinColor::trail_kind`: 3, the blur trail whose white core takes the
+/// skin's trail colour too, so the trail reads as the blade's colour rather than white; 4
+/// comic speed lines; 5 plasma; 6 the flare), with [`WAKE`] when the skin's trail bends
+/// what is behind it.
 pub(crate) fn vertex_style(style: u8, color: BladeColor) -> u32 {
     match (style, color) {
         (1, _) => 1,
         (_, BladeColor::Black) => 2,
-        (0, BladeColor::Skin(skin)) if skin.comic_trail => 4,
-        (0, BladeColor::Skin(_)) => 3,
+        (0, BladeColor::Skin(skin)) => skin.trail_kind.style() | if skin.wake { WAKE } else { 0 },
         _ => u32::from(style),
     }
 }
@@ -349,25 +362,49 @@ fn build_quad(
     if diff > 10_000 {
         return None;
     }
-    let lifetime_millis = trail_duration(authored_duration);
+    let vertex_style = vertex_style(style, color);
+    let kind = vertex_style & STYLE;
+    // The plasma and flare, and a wake, live longer (`LONG_LIFE`).
+    let lifetime_millis = if kind >= 5 || vertex_style & WAKE != 0 {
+        trail_duration(authored_duration).saturating_mul(LONG_LIFE)
+    } else {
+        trail_duration(authored_duration)
+    };
     let old_alpha = 1.0 - diff as f32 / f32::from(lifetime_millis);
     let rgb = if style == 1 {
         [32.0 / 255.0; 3]
     } else {
         color.trail_rgb()
     };
+    // The flare's flames lick off past the tip: its slice reaches `FLARE_REACH` further,
+    // the texture's V going below 0 there (the tip stays at 0).
+    let (new_tip, old_tip, tip_v) = if kind == 6 {
+        let past = |base: [f32; 3], tip: [f32; 3]| {
+            let base = glam::Vec3::from_array(base);
+            let tip = glam::Vec3::from_array(tip);
+            (tip + (tip - base).normalize_or_zero() * FLARE_REACH).to_array()
+        };
+        let length = glam::Vec3::from_array(new_tip).distance(glam::Vec3::from_array(new_base));
+        (
+            past(new_base, new_tip),
+            past(old_base, old_tip),
+            -FLARE_REACH / length.max(1.0),
+        )
+    } else {
+        (new_tip, old_tip, 0.0)
+    };
     let vertex = |position, uv| Vertex {
         position,
         uv,
         color: [rgb[0], rgb[1], rgb[2], 1.0],
-        style: vertex_style(style, color),
-        _padding: 0,
+        style: vertex_style,
+        past: tip_v,
     };
     Some(Quad {
         vertices: [
             vertex(new_base, [0.0, 1.0]),
-            vertex(new_tip, [0.0, 0.0]),
-            vertex(old_tip, [1.0 - old_alpha, 0.0]),
+            vertex(new_tip, [0.0, tip_v]),
+            vertex(old_tip, [1.0 - old_alpha, tip_v]),
             vertex(old_base, [1.0 - old_alpha, 1.0]),
         ],
         lifetime_millis: if style == 1 {

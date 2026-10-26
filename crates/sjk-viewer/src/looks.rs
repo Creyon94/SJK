@@ -144,12 +144,18 @@ impl Worn {
         Self {
             saber_skin,
             illuminate: look.illuminate,
-            options_off: saber_skin.map_or(0, |_| {
-                crate::saber_skin_options::bits(look.saber_off.iter().map(String::as_str))
+            options_off: saber_skin.map_or(0, |skin| {
+                crate::saber_skin_options::look_bits(
+                    skin,
+                    look.saber_off.iter().map(String::as_str),
+                    look.saber_on.iter().map(String::as_str),
+                )
             }),
             second: SecondSkin::of(look.saber2.as_deref()),
-            options_off2: crate::saber_skin_options::bits(
+            options_off2: crate::saber_skin_options::look_bits(
+                look.saber2.as_deref().unwrap_or(&look.saber),
                 look.saber2_off.iter().map(String::as_str),
+                look.saber2_on.iter().map(String::as_str),
             ),
             toys: look
                 .toys
@@ -232,8 +238,8 @@ impl Worn {
         }
     }
 
-    /// The wire form, for `Service::set_look`, with the options `options` switches off
-    /// for its skin.
+    /// The wire form, for `Service::set_look`, with the options `options` switches from
+    /// their default for its skin (its parts off, its extras on).
     pub(crate) fn to_look(self, options: &str) -> Look {
         let saber = self.saber_skin.unwrap_or_default();
         Look {
@@ -243,6 +249,11 @@ impl Worn {
                 Vec::new()
             } else {
                 crate::saber_skin_options::off_list(options, saber)
+            },
+            saber_on: if saber.is_empty() {
+                Vec::new()
+            } else {
+                crate::saber_skin_options::on_list(options, saber)
             },
             toys: TOYS
                 .iter()
@@ -260,6 +271,12 @@ impl Worn {
             saber2_off: match self.second {
                 SecondSkin::Own(Some(skin)) if Some(skin) != self.saber_skin => {
                     crate::saber_skin_options::off_list(options, skin)
+                }
+                _ => Vec::new(),
+            },
+            saber2_on: match self.second {
+                SecondSkin::Own(Some(skin)) if Some(skin) != self.saber_skin => {
+                    crate::saber_skin_options::on_list(options, skin)
                 }
                 _ => Vec::new(),
             },
@@ -551,6 +568,8 @@ mod tests {
             toys: Vec::new(),
             saber2: None,
             saber2_off: Vec::new(),
+            saber_on: Vec::new(),
+            saber2_on: Vec::new(),
             saber_sounds: String::new(),
         }
     }
@@ -689,6 +708,8 @@ mod tests {
         let dual = Look {
             saber2: Some("saber_glitch".to_owned()),
             saber2_off: vec!["haze".to_owned()],
+            saber_on: Vec::new(),
+            saber2_on: Vec::new(),
             ..look("saber_sun", false)
         };
         let stock_second = Look {
@@ -880,6 +901,28 @@ mod tests {
             Worn::own("saber_sun", "", owned, false).to_look(""),
             look("saber_sun", false)
         );
+    }
+
+    #[test]
+    fn the_own_look_carries_the_worn_skins_extras_switched_on() {
+        let options = "saber_sun.flare_trail saber_sun.haze";
+        let own = Worn::own("saber_sun", options, |_| true, false);
+        let sent = own.to_look(options);
+        assert_eq!(sent.saber_off, ["haze"]);
+        assert_eq!(sent.saber_on, ["flare_trail"]);
+        assert_eq!(
+            Worn::of(&sent),
+            own,
+            "read back from the hub, the same choice"
+        );
+        // An extra named among the parts switched off (which the hub does not check) turns
+        // nothing on, nor does a part named among the extras switched on.
+        let sneaky = Look {
+            saber_off: vec!["flare_trail".to_owned()],
+            saber_on: vec!["haze".to_owned()],
+            ..sent.clone()
+        };
+        assert_eq!(Worn::of(&sneaky).options_off, 0);
     }
 
     #[test]

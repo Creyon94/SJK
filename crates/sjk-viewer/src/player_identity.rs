@@ -1357,6 +1357,23 @@ pub(crate) fn owns_unlock(id: &str) -> bool {
     })
 }
 
+/// Whether the player's own hub profile lists a revealed copy of `gate`'s card in its
+/// finish (`blade_extras.rs`): false with the identity off, no hub or before the hub
+/// answered.
+pub(crate) fn holds_card(gate: &crate::blade_extras::Gate) -> bool {
+    lock().service.as_ref().is_some_and(|service| {
+        service.with_snapshot(|snapshot| {
+            !matches!(
+                snapshot.status,
+                sjk_identity::Status::Disabled | sjk_identity::Status::NoHub
+            ) && snapshot
+                .me
+                .as_ref()
+                .is_some_and(|me| crate::blade_extras::holds(&me.cards, gate))
+        })
+    })
+}
+
 /// Give the service the look the player wears, when it is not the one it was last
 /// given; false when the service has not started.
 pub(crate) fn set_look(look: &sjk_identity::Look) -> bool {
@@ -1516,6 +1533,8 @@ mod tests {
             toys: Vec::new(),
             saber2: None,
             saber2_off: Vec::new(),
+            saber_on: Vec::new(),
+            saber2_on: Vec::new(),
             saber_sounds: String::new(),
         };
         let mut sent = None;
