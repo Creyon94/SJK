@@ -545,7 +545,17 @@ About shows the server info. Join picks
 a team, or opens the class page in Siege (the team first, then that team's
 classes, as in the SJK UI); in a team game Team Red and Team Blue
 carry their flag (`gfx/hud/mpi_rflag`, `mpi_bflag`) and the team's player count. Vote is Yes/No. Call Vote opens the
-call-vote lists. Exit offers Main Menu, Restart Match and Quit Program, each
+call-vote lists. Its map list is the server's own when its serverinfo carries one
+(`sv_maplist`), else, as the stock in-game vote screen (`loadArenas`,
+`UI_MapCountByGameType`), the installed maps the arena files (`scripts/arenas.txt`,
+`scripts/*.arena`, from every mounted pk3) allow for the server's `g_gametype`, team
+FFA listing the FFA maps and Capture the Ysalamiri the CTF ones; each row shows the
+arena's long name and the map, the retail maps first, then the community's, each by
+name. Only when no arena names an installed map does it list every installed
+`maps/mp` map. Until 26/10/2026 it listed every `.bsp` in path order, cut at 128, so
+with JoF's content the community maps at `maps/*.bsp` (and single-player levels) filled
+it before the retail `maps/mp` ones (Kushina's report #136;
+[callvote.rs](../crates/sjk-viewer/src/ingame_menu/callvote.rs)). Exit offers Main Menu, Restart Match and Quit Program, each
 with a Yes/No confirmation. Profile opens the retail in-game profile window
 (`ingame_player`: name, team colour, head grid, Custom, Saber and the Force
 summary, then `ingame_player2` and `ingame_saber`); its Apply returns to the
@@ -2337,6 +2347,12 @@ the talk flag have a chatbubble over their heads; the connection-trouble icon
 takes priority when the server marks a lost connection. These are upright frame
 billboards using the existing [sprite orientation](rendering.md#billboard-icons).
 Their texture opacity is preserved near walls even with soft particles enabled.
+A chat field open over a map change stays open, its draft and channel with it, and
+so does the balloon, as in EternalJK, where a server's map change resets no key
+catcher (Nib's report #134): the field goes to the new map's chat, and the commands
+sent while the map loads carry the talk button while it is open
+([resident_world.rs](../crates/sjk-viewer/src/resident_world.rs)). The chat box's
+lines start again with the new map, as a new map's cgame starts its chat box empty.
 Your own bubble is visible in third person, not the first-person view. Mind-tricked
 players, NPC talk flags and intermission do not show talk balloons. The balloons,
 pickup icons and hook ropes have their own share of the effect particle pool, so a
@@ -3164,7 +3180,8 @@ that font is not loaded), whatever `cg_classicHudFont` says.
   hides unless your `cp_pluginDisable` sets bit 1 ("duel see others", `japlus.plugin
   1`; SJK's default 1536 leaves it clear), since a JA+ server sends bystanders to a
   plugin client and expects it to hide them; jaPRO (TaystJK) always hides; other
-  servers do not. `2` (Always) hides on every server, `0` (Off) never, and they are
+  servers do not. Other players' [drones](#drone) are hidden in a duel on every
+  server, unless the setting is 0. `2` (Always) hides on every server, `0` (Off) never, and they are
   then drawn very dark as in stock (`legacy_duel_tint`). Hiding leaves them out of
   what is presented, as if the server had not sent them: their bodies, held sabers
   with blade glow, trails and lights, thrown sabers (by the saber's
@@ -4456,7 +4473,10 @@ watching them while it is off; failing that, the pilot's client ends it when the
 shows it off, "Your drone was sent away").
 The watched player does not see the drones watching them (they would hover in their
 back); a line near the top of their screen names who watches while it lasts ("Name is
-spectating you with the Drone", names joined when several do). It stays as last switched, across maps, servers and restarts
+spectating you with the Drone", names joined when several do). A player in a private
+duel, or following one, does not see the drones of pilots outside it (Sanji's report
+#145: they distracted the duel), on every server since drones are SJK's own, unless
+`cg_duelHideOthers` is 0 ([Nameplates](#nameplates)). It stays as last switched, across maps, servers and restarts
 (`cl_toyDrone`, archived). In a local game no look is shared, so anyone may be peeked
 and nobody sees a drone.
 

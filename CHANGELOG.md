@@ -30,6 +30,12 @@ The site (site/assets/site.js, parseChangelog) reads the release headings,
 introductions and recap lines too.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
+## Unreleased
+
+- Call Vote's map list offers the maps of the server's game type again, the Jedi Academy maps first: it lists the maps the arena files allow (team FFA the FFA maps, as the base game does), with their full names, instead of every map file found, which JoF's maps filled before most of the base game's _(Sol, after Kushina's report)_
+- A chat field open when the map changes stays open, with what you were typing, and so does your chat bubble, as in EternalJK _(Sol, after Nib's report)_
+- In a private duel, other players' drones are hidden, so they no longer distract the duel; `cg_duelHideOthers 0` shows them _(Sol, after Sanji's report)_
+
 ## 2026.1026.1 (Alpha) | 26/10/2026
 
 Kyber crystals from achievements, 14 new achievements, trading for every verified player and the Boombox toy.

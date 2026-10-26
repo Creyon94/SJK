@@ -538,6 +538,11 @@ impl GpuState {
         to.completed_map_changes = self.completed_map_changes;
         to.gameplay_input.clear();
         to.gameplay_input.inherit_focus(&self.gameplay_input);
+        // A chat field open over a map change or a graphics reload stays open (and the
+        // talk balloon with it); leaving for the menu closes it.
+        if to.live_session.is_some() || to.resident.session.is_some() {
+            self.chat.hand_composer_to(&mut to.chat);
+        }
     }
 
     pub(crate) fn adopt_world(&mut self, mut loaded: GpuState) -> GpuState {

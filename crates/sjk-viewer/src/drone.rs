@@ -10,6 +10,8 @@
 //!   sends any drone away at once (`away`, relayed to the pilot, as is an answer to a
 //!   drone that comes while it is off). The watched player does not see the drones
 //!   behind them; a line at the top of their screen names who watches.
+//! - A player in a private duel does not see the drones of pilots outside it
+//!   ([`duel_hidden_pilots`]), unless `cg_duelHideOthers` is 0.
 //!
 //! The switch (`toy_drone`, the Collection's Toys tab, the quick wheel) is only that
 //! consent; `freecam` and `peek` keep their commands and binds, and fly the drone
@@ -271,6 +273,24 @@ fn relay(event: Event, slot: u8) {
 }
 
 /// Ease in and out.
+/// The pilots (bits by slot) whose drones `player` does not see: everyone outside
+/// their private duel while they (or the player they follow) duel, unless `mode` is
+/// Off (Sanji's report #145: drones flying about distract a duel). Drones are SJK's
+/// own, so this holds on every server, not only on those whose bystanders
+/// `cg_duelHideOthers`'s Auto hides.
+fn duel_hidden_pilots(player: &sjk_protocol::PlayerState, mode: sjk_client::DuelHideMode) -> u64 {
+    if mode == sjk_client::DuelHideMode::Off || !player.duel_in_progress() {
+        return 0;
+    }
+    let mut duellists = 0u64;
+    for slot in [player.client_num(), player.duel_index()] {
+        if usize::from(slot) < SLOTS {
+            duellists |= 1 << slot;
+        }
+    }
+    !duellists
+}
+
 fn smooth(t: f32) -> f32 {
     t * t * (3.0 - 2.0 * t)
 }
@@ -511,9 +531,16 @@ impl GpuState {
             .drone_game()
             .and_then(|game| u8::try_from(game.client_num).ok())
             .map(Flight::Peek);
+        // Nor are the drones of pilots outside the player's private duel.
+        let duel_hidden = match (&self.live_session, &self.console) {
+            (Some(session), Some(console)) => {
+                duel_hidden_pilots(&session.latest_snapshot().player, console.duel_hide().mode)
+            }
+            _ => 0,
+        };
         for slot in 0..SLOTS {
             let shown = self.drone.others[slot];
-            if own.is_some() && shown.flight == own {
+            if (own.is_some() && shown.flight == own) || duel_hidden & 1 << slot != 0 {
                 let shown = &mut self.drone.others[slot];
                 shown.level = 0.0;
                 shown.position = None;
@@ -820,6 +847,22 @@ mod tests {
         }));
         assert!(at.differs(Flight::Peek(1)));
         assert!(!Flight::Peek(1).differs(Flight::Peek(1)));
+    }
+
+    #[test]
+    fn a_duel_hides_the_drones_of_pilots_outside_it() {
+        use sjk_client::DuelHideMode;
+        let mut player = sjk_protocol::PlayerState::default();
+        player.set_client_num(3);
+        assert_eq!(duel_hidden_pilots(&player, DuelHideMode::Auto), 0);
+        player.set_raw_field(119, 1);
+        player.set_raw_field(44, 5);
+        let hidden = duel_hidden_pilots(&player, DuelHideMode::Auto);
+        assert_eq!(hidden & (1 << 3 | 1 << 5), 0);
+        assert_ne!(hidden & 1 << 4, 0);
+        assert_eq!(hidden.count_ones() as usize, 64 - 2);
+        assert_eq!(duel_hidden_pilots(&player, DuelHideMode::Always), hidden);
+        assert_eq!(duel_hidden_pilots(&player, DuelHideMode::Off), 0);
     }
 
     #[test]
