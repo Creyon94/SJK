@@ -30,6 +30,10 @@ The site (site/assets/site.js, parseChangelog) reads the release headings,
 introductions and recap lines too.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
+## Unreleased
+
+- The Monitor's charge ring and hit marker stand round your crosshair again: since 2026.1026.4 they were drawn in the top left corner of the screen _(Sol)_
+
 ## 2026.1026.4 (Alpha) | 26/10/2026
 
 A charged Monitor throw with a hit marker, blocks for a single map, a faster hub, and names that follow ragdolls.

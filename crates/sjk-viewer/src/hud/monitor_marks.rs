@@ -35,7 +35,8 @@ const MARK: Color = Color::new(1.0, 1.0, 1.0, 1.0);
 const MARK_HARD: Color = Color::new(1.0, 0.2, 0.15, 1.0);
 const SHADOW: Color = Color::new(0.0, 0.0, 0.0, 0.6);
 
-/// Draw `marks` round the crosshair's `centre` in a `viewport` of physical pixels.
+/// Draw `marks` round the crosshair's `centre`, in pixels, in a `viewport` of physical
+/// pixels.
 pub(super) fn emit(list: &mut DrawList, viewport: [f32; 2], centre: [f32; 2], marks: MonitorMarks) {
     let unit = viewport[1] / 480.0;
     if let Some(charge) = marks.charge {
@@ -113,6 +114,53 @@ mod tests {
         let mut list = DrawList::new(32);
         emit(&mut list, [1920.0, 1080.0], [960.0, 540.0], marks);
         list
+    }
+
+    /// Through the whole HUD: the ring stands round the crosshair in the middle of the
+    /// screen (it once took the crosshair's middle, a share of the screen, for pixels,
+    /// and stood in the top left corner).
+    #[test]
+    fn the_hud_draws_the_ring_round_the_crosshair_in_the_middle() {
+        use crate::hud::{HudLook, HudOverlay, HudVisibility};
+        let font = crate::text::load_modern(1.0, None).unwrap().font;
+        let mut hud = HudOverlay::new();
+        hud.set_monitor_marks(MonitorMarks {
+            charge: Some(0.5),
+            hit: Some((0.0, false)),
+        });
+        let visibility = HudVisibility {
+            hud: true,
+            status: false,
+            vehicle: false,
+            weapon: false,
+            selection: false,
+            crosshair: true,
+            crosshair_names: false,
+            timer: false,
+            lagometer: false,
+            ground_hud: false,
+            menu_hud: false,
+        };
+        let _ = hud.layout(&font, HudLook::Radial, [1920.0, 1080.0], 1.0, visibility, 0);
+        let mut centres = 0;
+        for command in hud.draw_list().commands() {
+            match *command {
+                DrawCommand::Arc { center, radius, .. } if radius == RING_RADIUS * 2.25 => {
+                    assert_eq!(center, [960.0, 540.0]);
+                    centres += 1;
+                }
+                DrawCommand::Line { from, .. } => {
+                    assert!((from[0] - 960.0).abs() < 60.0 && (from[1] - 540.0).abs() < 60.0);
+                    centres += 1;
+                }
+                _ => {}
+            }
+        }
+        assert_eq!(
+            centres,
+            2 + 8,
+            "the ring's two arcs and the marker's eight strokes"
+        );
     }
 
     #[test]
