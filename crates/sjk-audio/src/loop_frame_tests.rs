@@ -13,7 +13,7 @@ fn mixer(loops: usize) -> Mixer {
         sample_rate: RATE,
         loop_attenuation: Attenuation::None,
         doppler: DopplerConfig::disabled(),
-        protected_channel: None,
+        protected_channels: &[],
     })
 }
 

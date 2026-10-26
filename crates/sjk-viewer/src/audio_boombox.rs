@@ -1,5 +1,5 @@
 //! The boombox toy's music (`boombox.rs`): a track per player, on its own source
-//! ([`crate::boombox::source`]) on the protected emote channel, started from where the
+//! ([`crate::boombox::source`]) on its own protected channel, started from where the
 //! song is when its file is decoded, heard up to the carrier's range.
 use super::*;
 
@@ -33,7 +33,7 @@ impl GameAudio {
             PlayRequest {
                 origin,
                 source,
-                channel: EMOTE_CHANNEL,
+                channel: BOOMBOX_CHANNEL,
                 volume,
                 attenuation: match origin {
                     Some(_) => sjk_audio::Attenuation::Linear {
@@ -52,7 +52,7 @@ impl GameAudio {
     pub(crate) fn stop_boombox(&mut self, slot: u8) {
         self.output.send(AudioCommand::StopChannel(
             crate::boombox::source(slot),
-            EMOTE_CHANNEL,
+            BOOMBOX_CHANNEL,
         ));
     }
 

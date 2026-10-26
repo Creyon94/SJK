@@ -241,8 +241,8 @@ pub(super) enum AudioCommand {
     StopAll,
     StopEffects,
     SetLoop(SoundHandle, PlayRequest, [f32; 3]),
-    /// Effects (`s_volume`), music and voice (`s_volumeVoice`) gains.
-    Gains(f32, f32, f32),
+    /// Effects (`s_volume`), music, voice (`s_volumeVoice`) and emote-channel gains.
+    Gains(f32, f32, f32, f32),
     Doppler(bool),
     Separation(f32),
     Shutdown,
@@ -395,7 +395,7 @@ impl AudioOutput {
                 sample_rate: SAMPLE_RATE,
                 loop_attenuation: sjk_client::legacy_sound_attenuation(0),
                 doppler: sjk_client::legacy_doppler_config(true),
-                protected_channel: Some(crate::audio::EMOTE_CHANNEL),
+                protected_channels: crate::audio::PROTECTED_CHANNELS,
             },
             "detached music test".into(),
         )
@@ -709,10 +709,11 @@ fn apply_command(mixer: &mut Mixer, command: AudioCommand) -> bool {
         AudioCommand::SetLoop(handle, request, velocity) => {
             mixer.set_loop_request(handle, request, velocity);
         }
-        AudioCommand::Gains(effects, music, voice) => {
+        AudioCommand::Gains(effects, music, voice, emotes) => {
             mixer.set_master_gain(effects);
             mixer.set_music_gain(music);
-            mixer.set_channel_gain(Some((crate::audio::VOICE_CHANNEL, voice)));
+            mixer.set_channel_gain(crate::audio::VOICE_CHANNEL, Some(voice));
+            mixer.set_channel_gain(crate::audio::EMOTE_CHANNEL, Some(emotes));
         }
         AudioCommand::Doppler(enabled) => {
             mixer.set_doppler_enabled(enabled);
@@ -740,7 +741,7 @@ mod stopped_stream_tests {
                 sample_rate: SAMPLE_RATE,
                 loop_attenuation: sjk_client::legacy_sound_attenuation(0),
                 doppler: sjk_client::legacy_doppler_config(true),
-                protected_channel: Some(crate::audio::EMOTE_CHANNEL),
+                protected_channels: crate::audio::PROTECTED_CHANNELS,
             },
             "detached".into(),
         )
@@ -787,12 +788,12 @@ mod stopped_stream_tests {
             // Several seconds of a live game's commands (a listener and gains each
             // frame, a position for each entity of each snapshot), far past the queue.
             for _ in 0..COMMANDS * 4 {
-                output.send(AudioCommand::Gains(0.0, 0.0, 0.0));
+                output.send(AudioCommand::Gains(0.0, 0.0, 0.0, 0.0));
             }
             let stalled = output.feed.stalled();
             // A callback that drains the queue again (one mix block) ends the stall.
             let _ = source.next();
-            output.send(AudioCommand::Gains(0.5, 0.25, 1.0));
+            output.send(AudioCommand::Gains(0.5, 0.25, 1.0, 1.0));
             let _ = done.send((stalled, output.feed.stalled()));
         });
         assert_eq!(finished.recv_timeout(LIMIT), Ok((true, false)));

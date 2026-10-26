@@ -17,6 +17,15 @@ pub(crate) const OLD_DEFAULT_RATE: i64 = 25_000;
 /// Marks that move as done.
 pub(crate) const RATE_VERSION_CVAR: &str = "rateDefaultVersion";
 
+/// `name`'s value as a number, whole or not, for the one-time moves of saved values.
+pub(crate) fn saved_number(cvars: &CvarRegistry, name: &str) -> Option<f64> {
+    match cvars.get(name).map(|cvar| &cvar.value) {
+        Some(sjk_shell::CvarValue::Float(value)) => Some(*value),
+        Some(sjk_shell::CvarValue::Integer(value)) => Some(*value as f64),
+        _ => None,
+    }
+}
+
 /// Change-callback cache for integer values; frame reads never look up a name.
 pub(super) struct IntegerSetting(Arc<AtomicI64>);
 
@@ -511,7 +520,13 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             crate::emotes::VOLUME_CVAR,
             crate::emotes::DEFAULT_VOLUME,
             archive,
-            "Loudness of emote sounds, times the effects volume (SJK)",
+            "Loudness of emote sounds, 1 as recorded, apart from the effects volume (SJK)",
+        ),
+        CvarDefinition::new(
+            crate::emotes::VOLUME_VERSION_CVAR,
+            0_i64,
+            archive,
+            "Internal migration marker for the emote volume apart from s_volume",
         ),
         CvarDefinition::new(
             crate::toy_sounds::VOLUME_CVAR,

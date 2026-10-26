@@ -30,7 +30,7 @@ mod console_cvars;
 #[cfg(feature = "mod-jof")]
 #[path = "console_jof_content.rs"]
 mod console_jof_content;
-pub(crate) use console_cvars::DEFAULT_MAX_PACKETS;
+pub(crate) use console_cvars::{DEFAULT_MAX_PACKETS, saved_number};
 #[path = "console_collection_page.rs"]
 mod collection_page;
 #[path = "collection_panel.rs"]

@@ -73,10 +73,18 @@ pub(crate) const TARGET: &str = "target";
 /// How far (game units) `sjkemote sync` alone looks for a player to join.
 pub(crate) const SYNC_RANGE: f32 = 512.0;
 pub(crate) const HELP: &str = "Play an emote the SJK players on this server see (sjkemote alone lists them; sjkemote sync [player] joins one in step; stop [all|player|target] ends emotes; mute/unmute <player|target> hides a player's; help_emotes explains them)";
-/// How loud emote sounds play, times the effects volume (Settings > Sound > Emotes).
+/// How loud emote sounds play, 1 as recorded (Settings > Sound > Emotes). Apart from
+/// the effects volume since 27/10/2026: times `s_volume` it stayed quiet at its top
+/// for a player who lowered the game's sounds (Rollembones's report #163).
 pub(crate) const VOLUME_CVAR: &str = "s_emoteVolume";
-/// [`VOLUME_CVAR`]'s default: recorded music sits well under the game's effects.
-pub(crate) const DEFAULT_VOLUME: f64 = 2.0;
+/// [`VOLUME_CVAR`]'s default: as loud as the old default 2 at the default `s_volume`
+/// 0.5.
+pub(crate) const DEFAULT_VOLUME: f64 = 1.0;
+/// [`VOLUME_CVAR`]'s top, the Settings slider's too.
+pub(crate) const MAX_VOLUME: f64 = 3.0;
+/// Archived marker of the one-time move of a saved [`VOLUME_CVAR`] to its own scale
+/// (`console_session.rs`).
+pub(crate) const VOLUME_VERSION_CVAR: &str = "s_emoteVolumeVersion";
 /// Whether an attack or alt attack ends the player's own emote (Settings > Sound >
 /// Emotes, [`ActiveEmotes::end_on_attack`]). Off by default: the dance goes on
 /// through the attacks, as before 19/10/2026.

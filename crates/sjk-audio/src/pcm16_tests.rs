@@ -17,7 +17,7 @@ fn mixer() -> Mixer {
         sample_rate: RATE,
         loop_attenuation: Attenuation::None,
         doppler: DopplerConfig::disabled(),
-        protected_channel: None,
+        protected_channels: &[],
     })
 }
 
@@ -119,24 +119,36 @@ fn a_channel_gain_replaces_the_master_gain_for_that_channel_only() {
     let source = float_sound(2_000);
     let floats = resample(&source, 22_050, RATE, std::convert::identity, |x| x);
     let voice_channel = ChannelId(3);
-    let mut voices = mixer();
-    voices.set_master_gain(0.5);
-    voices.set_channel_gain(Some((voice_channel, 0.2)));
-    let sound = voices.sound_bank_mut().register_pcm(&source, 22_050);
+    let emote_channel = ChannelId(13);
     let on_voice = PlayRequest {
         channel: voice_channel,
         ..request(1, 1.0)
     };
-    assert!(voices.play(sound, on_voice));
-    let rendered = render(&mut voices, 60);
-    assert_within_a_step(&rendered, |n| {
-        floats.get(n).map_or(0.0, |sample| sample * 0.2)
-    });
+    // Two buses at once: each channel takes its own gain (the voice volume, and the
+    // emotes' full gain while their loudness is their own, #163).
+    for (channel, gain) in [(voice_channel, 0.2), (emote_channel, 1.0)] {
+        let mut voices = mixer();
+        voices.set_master_gain(0.5);
+        voices.set_channel_gain(voice_channel, Some(0.2));
+        voices.set_channel_gain(emote_channel, Some(1.0));
+        let sound = voices.sound_bank_mut().register_pcm(&source, 22_050);
+        assert!(voices.play(
+            sound,
+            PlayRequest {
+                channel,
+                ..on_voice
+            }
+        ));
+        let rendered = render(&mut voices, 60);
+        assert_within_a_step(&rendered, |n| {
+            floats.get(n).map_or(0.0, |sample| sample * gain)
+        });
+    }
     // Another channel keeps the master gain, and so does every voice once the bus ends.
-    for bus in [Some((voice_channel, 0.2)), None] {
+    for bus in [Some(0.2), None] {
         let mut others = mixer();
         others.set_master_gain(0.5);
-        others.set_channel_gain(bus);
+        others.set_channel_gain(voice_channel, bus);
         let sound = others.sound_bank_mut().register_pcm(&source, 22_050);
         let request = if bus.is_some() {
             request(1, 1.0)
@@ -240,7 +252,7 @@ fn mixing_and_releasing_never_allocate() {
             distance_ratio_divisor: 1.0,
             maximum_scale: 2.0,
         },
-        protected_channel: Some(ChannelId(13)),
+        protected_channels: &[ChannelId(13)],
     });
     let source = float_sound(5_000);
     let effect = mixer.sound_bank_mut().register_pcm(&source, 22_050);

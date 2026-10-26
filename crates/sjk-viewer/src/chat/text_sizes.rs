@@ -36,10 +36,8 @@ pub(crate) fn migrate(cvars: &mut CvarRegistry, new_profile: bool) {
         _ => return,
     };
     if !new_profile {
-        let saved = |cvars: &CvarRegistry, name| match cvars.get(name).map(|cvar| &cvar.value) {
-            Some(CvarValue::Float(value)) => Some(*value as f32),
-            Some(CvarValue::Integer(value)) => Some(*value as f32),
-            _ => None,
+        let saved = |cvars: &CvarRegistry, name| {
+            crate::console::saved_number(cvars, name).map(|value| value as f32)
         };
         // The default 1 of either earlier scale takes today's default.
         let chat_was_default = saved(cvars, CHAT) == Some(1.0);

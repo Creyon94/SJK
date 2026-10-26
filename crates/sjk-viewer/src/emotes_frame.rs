@@ -203,7 +203,7 @@ impl GpuState {
             .as_ref()
             .and_then(|console| console.float_cvar(emotes::VOLUME_CVAR))
             .unwrap_or(emotes::DEFAULT_VOLUME)
-            .clamp(0.0, 4.0) as f32;
+            .clamp(0.0, emotes::MAX_VOLUME) as f32;
         for cue in cues {
             match cue {
                 emotes::Cue::Start {

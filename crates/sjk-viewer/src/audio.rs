@@ -37,8 +37,8 @@ mod controls;
 #[path = "jof_dialogue_audio.rs"]
 mod dialogue;
 pub(crate) use controls::{
-    EMOTE_CHANNEL, SKIN_SOUNDS_CVAR, TOY_CHANNEL, VOICE_CHANNEL, VOICE_VOLUME_CVAR,
-    interface_channel,
+    BOOMBOX_CHANNEL, EMOTE_CHANNEL, PROTECTED_CHANNELS, SKIN_SOUNDS_CVAR, TOY_CHANNEL,
+    VOICE_CHANNEL, VOICE_VOLUME_CVAR, interface_channel,
 };
 #[path = "audio_dynamic.rs"]
 mod dynamic;
@@ -228,7 +228,7 @@ impl GameAudio {
             sample_rate: SAMPLE_RATE,
             loop_attenuation: sjk_client::legacy_sound_attenuation(0),
             doppler: sjk_client::legacy_doppler_config(true),
-            protected_channel: Some(EMOTE_CHANNEL),
+            protected_channels: crate::audio::PROTECTED_CHANNELS,
         })?;
         Some(Self::with_output(output))
     }
@@ -287,7 +287,7 @@ impl GameAudio {
         // `s_volume`/`s_musicvolume`/`s_volumeVoice` defaults from `S_Init` in
         // codemp/client/snd_dma.cpp:462-466. The console overwrites these on
         // the first frame, but the initial ring fill must use them too.
-        audio.set_gains(0.5, 0.25, 1.0);
+        audio.set_gains(0.5, 0.25, 1.0, 1.0);
         audio
     }
 
