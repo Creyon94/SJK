@@ -1,3 +1,41 @@
+## A blade skin for each saber
+
+21/10/2026, `feat/second-saber-skin` (Creyon, SJK pull request with the hub's), based on `main`
+`fc3d0aa9`: a player with two sabers can give the second its own blade skin, and one with a staff its
+other half (Sol's request) (`cg_saberSkin2`, `saberskin second`, and the Collection's target
+switch over the saber, which a click on a saber also works, choosing the side Equip then
+dresses, and its "Both sabers" ("Both halves") box, which makes Equip dress both at once;
+the `saber` command, `saber kyle kyle` or `saber dual_4`, holds two
+sabers or a staff and the preview follows;
+[unlockables.md](unlockables.md#settings-and-commands)). The look carries it to the hub as
+`saber2` and `saber2_off` (hub pull request on `Sol-Vulpes/SJK-hub-shared`,
+`feat/second-saber-skin`), and every SJK player draws each saber with its own skin. Needs the
+hub change deployed: an older hub refuses `saber2`, and the client then sends its looks
+without it. Checked on Linux x86_64: the workspace format check, build, tests (the wire body,
+the fallbacks on a refused or unknown `saber2`, the looks both ways, each saber's and each
+staff half's skin, the command, the target switch, Equip on either target and on both with
+the box ticked) and clippy; the
+hub's tests and clippy. Review of 22/10/2026 (Sol), answered on the same branch after merging
+`main` (the duel's stock blades in `get_both`, both sabers): the hub names the side it refuses
+(`saber2_not_unlocked`, `bad_saber2`) and the client drops only that skin; an unheld second skin
+is the stock blade here as at the hub; a staff's other half is told by its blades' directions
+(a crossguard is no staff); a click on a staff picks the half it lands on; `saber` checks both
+hilts against the installed sabers before setting either (the server's own `saber` command on
+JA+ and jaPRO already follows from the cvars, `SaberChangeNotifier`); a click on a lone saber
+leaves the Both box ticked; the hub's admin panel names the second saber's own blade. Merged
+with `main` at 0279b8f3 (Release 2026.1022.2). Checked on Linux x86_64: the workspace format
+check, build, tests (3631 passed) and clippy; the hub's tests (452) and clippy. Creyon tried it
+in his game on Windows 11 (RTX 5070): two sabers and a staff's two halves each with their own
+skin, and `saber kyle kyle` and `saber dual_4`. Not verified: a thrown staff (it keeps the
+first skin), a crossguard hilt in game, and other players seeing both skins (that needs a hub
+running the change). Merged with `main` again on 26/10/2026 (Sol, `d62c7991`, Release 2026.1026.2):
+the Collection's wall and list (25/10) take the target switch, the Both box and the
+blade-only hover (each tile's and row's strip); the double click to wear stays gone; the
+target pills moved to tokens 1_301/1_302 (1_307/1_308 went to the Boombox and the Drone);
+the player's stock blades (`cg_stockBlades`) draw both sabers stock; `saber` asks the
+server on every run (#132) after checking both names. Checked on Windows 11: format,
+workspace build, tests (3968 passed) and Clippy (no new warning). Not verified in game.
+
 ## Hub reports 26/10 (b): saber command, Ragdoll wake, held views
 
 26/10/2026, `personal/hub-reports-1026-b`, based on `main` `8bb967a1`. Kushina's #132: the

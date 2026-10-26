@@ -361,6 +361,8 @@ struct Row {
     skin: Option<&'static Unlockable>,
     owned: bool,
     worn: bool,
+    /// The second saber wears it (`cg_saberSkin2`) and not the first.
+    second: bool,
     /// How many the player holds (holocrons may drop the same shader again): 1 for the
     /// stock blade and a shader held once, 0 when locked.
     count: u32,
@@ -410,7 +412,17 @@ impl Row {
     fn status(self) -> String {
         match (self.skin, self.worn, self.owned) {
             (None, true, _) => format!("{}  Worn", symbols::SABER),
+            (None, false, _) if self.second => {
+                format!("{}  2nd blade", symbols::SABER)
+            }
             (None, false, _) => "Your colour".to_owned(),
+            (Some(_), false, true) if self.second => {
+                format!(
+                    "{}  {}",
+                    symbols::SABER,
+                    held_words("2nd blade", self.count)
+                )
+            }
             (Some(_), true, _) => format!("{}  {}", symbols::SABER, held_words("Worn", self.count)),
             (Some(_), false, true) => {
                 format!("{}  {}", symbols::TICK, held_words("Yours", self.count))
@@ -425,9 +437,24 @@ impl Row {
         match (self.skin, self.worn, self.owned) {
             (None, _, _) => None,
             (Some(_), true, _) => Some(format!("{}  Worn", symbols::SABER)),
+            (Some(_), false, true) if self.second => Some(format!("{}  2nd blade", symbols::SABER)),
             (Some(_), false, true) => Some(format!("{}  Yours", symbols::TICK)),
             (Some(_), false, false) => Some(format!("{}  Locked", symbols::LOCK)),
         }
+    }
+}
+
+/// What the second saber (or a staff's other half) wears by its own choice
+/// (`cg_saberSkin2`): `None` when it has none and wears the first's, `Some(None)` for the
+/// stock blade, `Some(Some(id))` for a skin the player holds (one not held is no choice,
+/// as `looks::SecondSkin::own` reads it).
+fn second_own(inputs: &Inputs<'_>) -> Option<Option<&'static str>> {
+    match inputs.second.trim() {
+        "" => None,
+        crate::looks::STOCK_SECOND => Some(None),
+        id => unlockables::blade_skin(id)
+            .filter(|skin| inputs.holdings.unlock(skin.id).is_some())
+            .map(|skin| Some(skin.id)),
     }
 }
 
@@ -491,6 +518,10 @@ impl Panel {
             .holdings
             .worn_blade_skin(inputs.setting)
             .map(|skin| skin.id);
+        // "2nd blade" only while there is a second saber or a staff's other half to wear it,
+        // on a row the first does not wear.
+        let pair = inputs.pair != crate::saber_skins::Pair::None;
+        let second = second_own(inputs);
         let mut skins: Vec<Row> = inputs
             .holdings
             .listed()
@@ -499,6 +530,7 @@ impl Panel {
                 skin: Some(skin),
                 owned: inputs.holdings.unlock(skin.id).is_some(),
                 worn: worn == Some(skin.id),
+                second: pair && second == Some(Some(skin.id)) && worn != Some(skin.id),
                 count: inputs
                     .holdings
                     .unlock(skin.id)
@@ -521,6 +553,7 @@ impl Panel {
             skin: None,
             owned: true,
             worn: worn.is_none(),
+            second: pair && second == Some(None) && worn.is_some(),
             count: 1,
             numbered: false,
         })
@@ -531,6 +564,10 @@ impl Panel {
     /// The Shaders tab, swatches alive at `seconds`.
     pub(super) fn shaders(&mut self, frame: &Frame, inputs: &Inputs<'_>, seconds: f32) {
         self.grid = inputs.grid;
+        self.pair = inputs.pair;
+        if self.pair == crate::saber_skins::Pair::None {
+            self.second_target = false;
+        }
         self.shader_numbers = inputs.holdings.debug();
         if self.shader_sort == ShaderSort::Number && !self.shader_numbers {
             self.shader_sort = ShaderSort::Tier;
@@ -557,6 +594,7 @@ impl Panel {
         let rows = Self::rows(inputs, &self.shader_filter, self.shader_sort, by_tier);
         self.shader_list = rows.iter().filter_map(|row| row.skin).collect();
         self.shader_count = rows.len();
+        self.shader_swatches.clear();
         // A blade card's button (or a change of view or order) asked for its shader.
         let wanted = self.shader_focus.take().or(chosen);
         if let Some(id) = wanted
@@ -610,7 +648,26 @@ impl Panel {
         self.toolbar(frame);
         self.tier_strip(frame, inputs);
         let unlocks = matches!(inputs.holdings, unlockables::Holdings::Known(_));
+        // A side just chosen: show the row it wears (the second's own, else the first's).
+        if std::mem::take(&mut self.jump_to_worn) {
+            let own = second_own(inputs);
+            let worn_by_target = rows
+                .iter()
+                .position(|row| {
+                    self.second_target && own.is_some_and(|own| own == row.skin.map(|s| s.id))
+                })
+                .or_else(|| rows.iter().position(|row| row.worn));
+            if let Some(index) = worn_by_target {
+                self.shader = index;
+            }
+        }
+        // While the second has no choice of its own it wears the first's.
+        let second = second_own(inputs);
         for (index, row) in rows.iter().enumerate() {
+            // What a second saber wears now: its own choice, else the first's.
+            let row_id = row.skin.map(|skin| skin.id);
+            let second_id = row_id.unwrap_or(crate::looks::STOCK_SECOND);
+            let second_worn = second.map_or(row.worn, |own| own == row_id);
             self.shader_rows[index] = ShaderRow {
                 wear: match row.skin {
                     // The stock blade, worn by taking the skin off.
@@ -618,7 +675,31 @@ impl Panel {
                     Some(skin) if row.owned && unlocks => Some(if row.worn { "" } else { skin.id }),
                     Some(_) => None,
                 },
-                worn: row.worn,
+                // Offered while the player holds two sabers or a staff: Equip puts it on the
+                // second, Unequip leaves the second the stock blade (the stock row has none).
+                second: if inputs.pair == crate::saber_skins::Pair::None
+                    || !(row.skin.is_none() || (row.owned && unlocks))
+                {
+                    None
+                } else if second_worn {
+                    row.skin.map(|_| crate::looks::STOCK_SECOND)
+                } else {
+                    Some(second_id)
+                },
+                second_worn,
+                // Both sides at once ("Both" box): they wear it, the second following the
+                // first; Unequip leaves both the stock blade.
+                both: if inputs.pair == crate::saber_skins::Pair::None
+                    || !(row.skin.is_none() || (row.owned && unlocks))
+                    || (row.skin.is_none() && row.worn && second_worn)
+                {
+                    None
+                } else if row.worn && second_worn {
+                    Some(("", ""))
+                } else {
+                    Some((row_id.unwrap_or(""), ""))
+                },
+                both_worn: row.worn && second_worn,
             };
         }
         // The wall or the list scrolls just enough to keep the chosen one in view.
@@ -1171,6 +1252,9 @@ impl Panel {
             });
         }
         let strip = [x + 10.0, y + 10.0, width - 20.0, 22.0];
+        // Resting the pointer chooses a shader only over its blade ([`Panel::hover_chooses`]).
+        self.shader_swatches
+            .push((index, frame.rect(strip[0], strip[1], strip[2], strip[3])));
         match row.skin {
             None => swatch::stock_strip(self.ui.draw_list_mut(), frame, strip, inputs.stock),
             Some(skin) => {
@@ -1292,6 +1376,8 @@ impl Panel {
         }
         let [look_x, look_width] = columns.look;
         let strip = [look_x, middle - 9.0, look_width, 18.0];
+        self.shader_swatches
+            .push((index, frame.rect(strip[0], strip[1], strip[2], strip[3])));
         match row.skin {
             None => swatch::stock_strip(self.ui.draw_list_mut(), frame, strip, inputs.stock),
             Some(skin) => {
@@ -1780,8 +1866,10 @@ impl Panel {
         if let Some(skin) = row.skin.filter(|skin| !row.owned && skin.droppable) {
             self.drops(frame, skin, [x, y + 12.0]);
         }
-        // Equip or Unequip at the foot of the card, its parts between.
+        // Equip or Unequip at the foot of the card, then the second saber's, its parts
+        // between.
         let button_y = card_y + card_height - CARD_PAD - 44.0;
+        let shown_row = self.shader_rows.get(self.shader).copied();
         self.shader_options.clear();
         if let Some(skin) = row.skin.filter(|_| row.owned) {
             self.shader_parts(
@@ -1791,23 +1879,52 @@ impl Panel {
                 inputs,
             );
         }
-        let wear = self.shader_rows.get(self.shader).and_then(|row| row.wear);
         let mut left = x;
-        if let Some(wear) = wear {
-            let label = if wear.is_empty() && row.skin.is_some() {
-                "Unequip"
-            } else if row.skin.is_none() {
-                "Wear the stock blade"
+        // Equip follows the target the switch over the saber chose (the gold pill says
+        // which): the first saber, or the second (the staff's other half).
+        let label = shown_row.and_then(|shown| {
+            if self.both_sides() {
+                shown.both.map(|_| {
+                    if row.skin.is_none() {
+                        ("Stock on both", true)
+                    } else if shown.both_worn {
+                        ("Unequip both", false)
+                    } else {
+                        ("Equip both", true)
+                    }
+                })
+            } else if self.second_target {
+                shown.second.map(|_| {
+                    (
+                        if shown.second_worn {
+                            "Unequip"
+                        } else {
+                            "Equip"
+                        },
+                        !shown.second_worn,
+                    )
+                })
             } else {
-                "Equip"
-            };
-            let button_width = if row.skin.is_none() { 250.0 } else { 180.0 };
+                shown.wear.map(|wear| {
+                    let label = if wear.is_empty() && row.skin.is_some() {
+                        "Unequip"
+                    } else if row.skin.is_none() {
+                        "Wear the stock blade"
+                    } else {
+                        "Equip"
+                    };
+                    (label, !(wear.is_empty() && row.skin.is_some()))
+                })
+            }
+        });
+        if let Some((label, primary)) = label {
+            let button_width = (crate::text::display_width(label, 18.0) + 56.0).max(180.0);
             kit::button(
                 &mut self.ui,
                 frame,
                 [x, button_y, button_width, 44.0],
                 label,
-                !(wear.is_empty() && row.skin.is_some()),
+                primary,
                 true,
                 false,
                 WEAR_TOKEN,
@@ -1897,8 +2014,18 @@ impl Panel {
     ) {
         let s = frame.s;
         let [x, y, width, height] = SABER_AREA;
+        // The sabers take a drag (and a click) anywhere in their room, but the switch over
+        // them is registered after, so a click on a pill reaches the pill: the later of two
+        // overlapping regions is the one hit.
+        // Above the card only: the card grows upward over the room (main's fit rule).
+        let bottom = card_y.min(y + height);
+        if self.backstage != Backstage::None {
+            self.ui
+                .hit_region(SABER_TOKEN, frame.rect(x, y, width, (bottom - y).max(40.0)));
+        }
+        let switch_bottom = self.target_switch(frame, inputs, [x, y]);
         if self.backstage == Backstage::None {
-            let middle = (y + card_y.min(y + height)) * 0.5;
+            let middle = (y + bottom) * 0.5;
             let rect = [x + 40.0, middle - 59.0, width - 80.0, 118.0];
             match row.skin {
                 None => swatch::small_stock(self.ui.draw_list_mut(), frame, rect, inputs.stock),
@@ -1919,9 +2046,6 @@ impl Panel {
             }
             return;
         }
-        let bottom = card_y.min(y + height);
-        self.ui
-            .hit_region(SABER_TOKEN, frame.rect(x, y, width, (bottom - y).max(40.0)));
         let hint_colour = if self.spin.held() {
             color::HOLO
         } else {
@@ -1930,7 +2054,19 @@ impl Panel {
         text(
             &mut self.ui,
             TextFamily::Body,
-            format_args!("{}  Drag to turn", symbols::TURN),
+            format_args!(
+                "{}  Drag to turn{}",
+                symbols::TURN,
+                match self.pair {
+                    crate::saber_skins::Pair::TwoSabers => {
+                        ",  pick a saber above (or click it), choose a shader, Equip"
+                    }
+                    crate::saber_skins::Pair::Staff => {
+                        ",  pick a half above (or click the staff), choose a shader, Equip"
+                    }
+                    crate::saber_skins::Pair::None => "",
+                }
+            ),
             frame.rect(x, bottom - 26.0, width, 22.0),
             15.0 * s,
             hint_colour,
@@ -1940,7 +2076,7 @@ impl Panel {
         if !row.owned {
             let words = format!("{}  Preview: not yours yet", symbols::LOCK);
             let pill = crate::text::display_width(&words, 16.0) * text_scale() + 40.0;
-            let rect = frame.rect(x, y, pill, 34.0);
+            let rect = frame.rect(x, switch_bottom, pill, 34.0);
             let _ = self.ui.draw_list_mut().push(DrawCommand::RoundedRect {
                 rect,
                 radius: 17.0 * s,
@@ -1956,13 +2092,140 @@ impl Panel {
                 &mut self.ui,
                 TextFamily::Display,
                 format_args!("{words}"),
-                frame.rect(x, y + 6.0, pill, 22.0),
+                frame.rect(x, switch_bottom + 6.0, pill, 22.0),
                 16.0 * s,
                 color::HOLO,
                 FontWeight::Semibold,
                 TextAlign::Center,
             );
         }
+    }
+
+    /// The target switch at `[x, y]`, over the lone saber, while the player holds two
+    /// sabers or a staff: the first saber (or half) and the second, each with what it
+    /// wears, the one Equip dresses lit in gold. Answers where what follows it may start
+    /// (`y` without a switch).
+    fn target_switch(&mut self, frame: &Frame, inputs: &Inputs<'_>, [x, y]: [f32; 2]) -> f32 {
+        let s = frame.s;
+        let (first_word, second_word) = match self.pair {
+            // One saber of one blade: a second skin chosen before waits, and the page says
+            // how to show it, in place of the switch.
+            crate::saber_skins::Pair::None if !inputs.second.trim().is_empty() => {
+                let words = format!(
+                    "{}  Your 2nd blade shows with two sabers or a staff: Profile, Saber",
+                    symbols::SABER
+                );
+                text(
+                    &mut self.ui,
+                    TextFamily::Body,
+                    format_args!("{words}"),
+                    frame.rect(x, y + 4.0, 700.0, 22.0),
+                    15.0 * s,
+                    color::QUIET,
+                    FontWeight::Semibold,
+                    TextAlign::Start,
+                );
+                return y + 34.0;
+            }
+            crate::saber_skins::Pair::None => return y,
+            crate::saber_skins::Pair::TwoSabers => ("1st saber", "2nd saber"),
+            crate::saber_skins::Pair::Staff => ("1st half", "Other half"),
+        };
+        let first = inputs.holdings.worn_blade_skin(inputs.setting);
+        let first_name = first.map_or("Stock blade", |skin| skin.name);
+        let second_name = match inputs.second.trim() {
+            "" => "Same as the 1st",
+            crate::looks::STOCK_SECOND => "Stock blade",
+            id => unlockables::blade_skin(id)
+                .filter(|skin| inputs.holdings.unlock(skin.id).is_some())
+                .map_or("Same as the 1st", |skin| skin.name),
+        };
+        let (width, height) = (236.0, 52.0);
+        for (index, (word, name, token)) in [
+            (first_word, first_name, TARGET_FIRST_TOKEN),
+            (second_word, second_name, TARGET_SECOND_TOKEN),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let left = x + index as f32 * (width + 10.0);
+            let lit = self.both_sides() || self.second_target == (index == 1);
+            let hovered = self.ui.token_hovered(token);
+            let rect = frame.rect(left, y, width, height);
+            let _ = self.ui.draw_list_mut().push(DrawCommand::RoundedRect {
+                rect,
+                radius: 14.0 * s,
+                color: if lit {
+                    color::alpha(color::GOLD, 0.14)
+                } else {
+                    color::alpha(color::SPACE, 0.62)
+                },
+            });
+            let _ = self.ui.draw_list_mut().push(DrawCommand::Border {
+                rect,
+                radius: 14.0 * s,
+                width: if lit { 1.6 * s } else { 1.2 * s },
+                color: if lit {
+                    color::GOLD
+                } else if hovered {
+                    color::alpha(color::HOLO, 0.6)
+                } else {
+                    color::alpha(color::HOLO, 0.25)
+                },
+            });
+            text(
+                &mut self.ui,
+                TextFamily::Body,
+                format_args!("{}  {word}", symbols::SABER),
+                frame.rect(left + 16.0, y + 6.0, width - 32.0, 18.0),
+                13.0 * s,
+                if lit { color::GOLD } else { color::QUIET },
+                FontWeight::Semibold,
+                TextAlign::Start,
+            );
+            text(
+                &mut self.ui,
+                TextFamily::Display,
+                format_args!("{name}"),
+                frame.rect(left + 16.0, y + 24.0, width - 32.0, 24.0),
+                18.0 * s,
+                if lit {
+                    color::GOLD_BRIGHT
+                } else {
+                    color::MUTED
+                },
+                FontWeight::Semibold,
+                TextAlign::Start,
+            );
+            self.ui.hit_region(token, rect);
+        }
+        // The "Both" box, beside the pills: Equip dresses both sides at once.
+        let left = x + 2.0 * (width + 10.0) + 8.0;
+        let middle = y + height * 0.5;
+        let both_word = match self.pair {
+            crate::saber_skins::Pair::Staff => "Both halves",
+            _ => "Both sabers",
+        };
+        // Drawn in the face it is measured in, with room to spare (Creyon, 21/10/2026: in
+        // the body face it was wider than measured and cut to "Both sab...").
+        let label_width = crate::text::display_width(both_word, 16.0) + 16.0;
+        let hovered = self.ui.token_hovered(BOTH_TOKEN);
+        let after = kit::tick(&mut self.ui, frame, left, middle, self.both, hovered);
+        text(
+            &mut self.ui,
+            TextFamily::Display,
+            format_args!("{both_word}"),
+            frame.rect(after + 10.0, middle - 11.0, label_width, 22.0),
+            16.0 * s,
+            if self.both { color::GOLD } else { color::MUTED },
+            FontWeight::Semibold,
+            TextAlign::Start,
+        );
+        self.ui.hit_region(
+            BOTH_TOKEN,
+            frame.rect(left - 6.0, y, after - left + label_width + 22.0, height),
+        );
+        y + height + 10.0
     }
 
     /// Where a locked `skin` drops, from `[x, y]`: a chip for each holocron tier that may

@@ -733,6 +733,8 @@ fn following_another_player_draws_their_look_not_the_own_skin() {
         illuminate: true,
         saber_off: Vec::new(),
         toys: Vec::new(),
+        saber2: None,
+        saber2_off: Vec::new(),
         saber_sounds: String::new(),
     };
     looks.apply_event(5, "Fox", &stock);
@@ -1001,6 +1003,76 @@ fn a_skins_blur_trail_is_drawn_in_its_own_colour() {
 }
 
 #[test]
+fn each_saber_wears_its_own_skin() {
+    let worn = sample_color();
+    let other = SkinColor { index: 5, ..worn };
+    let mut skins = SaberSkins::default();
+    skins.follow_looks_each(1, 1, |client| match client {
+        2 => (Some(worn), Second::Own(Some(other)), None),
+        3 => (Some(worn), Second::Own(None), None),
+        4 => (Some(worn), Second::Same, None),
+        _ => (None, Second::Same, None),
+    });
+    let indices = |skins: &SaberSkins, entity| {
+        skins
+            .get_both(entity)
+            .map(|skin| skin.map(|skin| skin.index))
+    };
+    assert_eq!(indices(&skins, 3), [Some(worn.index), Some(5)]);
+    assert_eq!(indices(&skins, 4), [Some(worn.index), None]);
+    assert_eq!(indices(&skins, 5), [Some(worn.index), Some(worn.index)]);
+    assert_eq!(indices(&skins, 6), [None, None]);
+    // The local player's own slot takes its own second saber.
+    skins.set_local_each(Some(2), None, Second::Own(Some(other)), None);
+    assert_eq!(indices(&skins, 3), [None, Some(5)]);
+}
+
+#[test]
+fn a_staffs_other_half_wears_the_second_skin() {
+    let first = sample_color();
+    let second = SkinColor { index: 5, ..first };
+    let skins = [Some(first), Some(second)];
+    let index = |two, saber, other_half| {
+        skin_of_blade(skins, two, saber, other_half).map(|skin| skin.index)
+    };
+    // One staff: its first half the first skin, the other half the second.
+    assert_eq!(index(false, 0, false), Some(first.index));
+    assert_eq!(index(false, 0, true), Some(5));
+    // Two sabers: every blade of the second saber, none of the first.
+    assert_eq!(index(true, 0, true), Some(first.index));
+    assert_eq!(index(true, 1, false), Some(5));
+    set_local_pair([Some(true), None]);
+    assert_eq!(local_pair(), Pair::Staff);
+    set_local_pair([Some(false), Some(false)]);
+    assert_eq!(local_pair(), Pair::TwoSabers);
+    // One saber of one blade, or a crossguard's three blades in one direction's half.
+    set_local_pair([Some(false), None]);
+    assert_eq!(local_pair(), Pair::None);
+}
+
+#[test]
+fn the_preview_dresses_one_side_and_leaves_the_other_as_worn() {
+    let worn_first = sample_color();
+    let shown = SkinColor {
+        index: 7,
+        ..worn_first
+    };
+    let index = |pair: [Option<SkinColor>; 2]| pair.map(|skin| skin.map(|skin| skin.index));
+    // The second wears the first's skin (none of its own): previewing on the first leaves
+    // it so, as Equip will.
+    let worn = [Some(worn_first), Some(worn_first)];
+    assert_eq!(
+        index(previewed(worn, Some(Some(shown)), [true, false])),
+        [Some(7), Some(worn_first.index)]
+    );
+    assert_eq!(
+        index(previewed(worn, Some(None), [false, true])),
+        [Some(worn_first.index), None]
+    );
+    assert_eq!(index(previewed(worn, None, [true, true])), index(worn));
+}
+
+#[test]
 fn the_varykino_blossom_sheds_petals_until_its_wearer_switches_them_off() {
     let skins = LoadedSkins::load(VirtualFileSystem::new(), 1);
     let color = skins.color_of("saber_varykino_blossom").unwrap();
@@ -1041,6 +1113,36 @@ fn a_duel_draws_every_blade_stock() {
     assert_eq!(skins.sound_sets()[2], None);
     skins.set_plain(false);
     assert_eq!(skins.get(3).map(|skin| skin.index), Some(worn.index));
+}
+
+#[test]
+fn a_duel_draws_the_second_saber_stock_too() {
+    let worn = sample_color();
+    let other = SkinColor { index: 5, ..worn };
+    let mut skins = SaberSkins::default();
+    skins.follow_looks_each(1, 1, |client| {
+        if client == 2 {
+            (Some(worn), Second::Own(Some(other)), None)
+        } else {
+            (None, Second::Same, None)
+        }
+    });
+    skins.set_plain(true);
+    assert_eq!(skins.get_both(3), [None, None]);
+    skins.set_plain(false);
+    assert_eq!(
+        skins.get_both(3).map(|skin| skin.map(|skin| skin.index)),
+        [Some(worn.index), Some(5)]
+    );
+}
+
+#[test]
+fn a_click_on_a_staff_goes_to_the_half_it_lands_on() {
+    set_staff_halves(Some([[100.0, 300.0], [500.0, 300.0]]));
+    assert_eq!(staff_half_at([140.0, 290.0]), Some(false));
+    assert_eq!(staff_half_at([460.0, 320.0]), Some(true));
+    set_staff_halves(None);
+    assert_eq!(staff_half_at([460.0, 320.0]), None);
 }
 
 /// Stock blades for weak PCs (`cg_stockBlades`): 1 draws other players' blades stock,
@@ -1091,14 +1193,14 @@ fn stock_blades_draw_others_or_every_blade_stock() {
 fn sounds_are_taken_apart_from_the_blade_for_others_and_the_local_player() {
     let worn = sample_color();
     let mut skins = SaberSkins::default();
-    skins.follow_looks_and_sounds(1, 1, |client| match client {
+    skins.follow_looks_each(1, 1, |client| match client {
         // A blade heard with another skin's set (number 3).
-        2 => (Some(worn), Some(3)),
+        2 => (Some(worn), Second::Same, Some(3)),
         // A blade heard with the stock sounds.
-        4 => (Some(worn), None),
+        4 => (Some(worn), Second::Same, None),
         // The stock blade heard with a skin's set.
-        6 => (None, Some(worn.index)),
-        _ => (None, None),
+        6 => (None, Second::Same, Some(worn.index)),
+        _ => (None, Second::Same, None),
     });
     let sets = skins.sound_sets();
     assert_eq!(
@@ -1113,7 +1215,7 @@ fn sounds_are_taken_apart_from_the_blade_for_others_and_the_local_player() {
     assert_eq!(skins.sound_of(3), Some(3), "the swings' set, by entity");
     assert_eq!(skins.sound_of(5), None);
     // The local player in slot 4, heard with set 1 on the stock blade.
-    skins.set_local_with_sound(Some(4), None, Some(1));
+    skins.set_local_each(Some(4), None, Second::Same, Some(1));
     assert_eq!(skins.sound_sets()[4], Some(1));
     assert_eq!(skins.get(5), None);
     skins.set_plain(true);

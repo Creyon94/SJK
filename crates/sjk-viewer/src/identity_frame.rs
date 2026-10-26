@@ -44,7 +44,17 @@ impl GpuState {
             );
         }
         chat_gifs::service(&mut self.ui_shapes, &self.device, &self.queue);
-        let due = player_identity::due();
+        // The own look is read twice a second, and at once when the worn skins change (the
+        // Collection's Equip), so the preview never shows the side before it.
+        let skins_changed = self.console.as_ref().is_some_and(|console| {
+            let text = |name| console.text_cvar(name).unwrap_or_default();
+            let (first, second) = (
+                text(crate::unlockables::SABER_SKIN_CVAR),
+                text(crate::looks::SECOND_CVAR),
+            );
+            self.looks.own_settings_changed(first, second)
+        });
+        let due = player_identity::due() || skins_changed;
         self.update_looks(due);
         // The hub's toy events for this server, taken once for every toy.
         let toy_events = self

@@ -91,6 +91,13 @@ impl ViewerConsole {
             PanelAction::None => {}
             PanelAction::Close => self.close_collection_panel(),
             PanelAction::Wear(id) => crate::unlockables::wear(self, id),
+            PanelAction::WearSecond(id) => {
+                let _ = self.set_cvar(crate::looks::SECOND_CVAR, id);
+            }
+            PanelAction::WearBoth { first, second } => {
+                let _ = self.set_cvar(crate::looks::SECOND_CVAR, second);
+                crate::unlockables::wear(self, first);
+            }
             PanelAction::SkinOption { skin, option, on } => {
                 let setting = self
                     .text_cvar(crate::saber_skin_options::CVAR)
@@ -334,6 +341,22 @@ impl ViewerConsole {
             .text_cvar(crate::saber_skin_options::CVAR)
             .unwrap_or_default()
             .to_owned();
+        let second = self
+            .text_cvar(crate::looks::SECOND_CVAR)
+            .unwrap_or_default()
+            .to_owned();
+        // What the model holds (two sabers, a staff), or two sabers when `saber2` names a
+        // second hilt and the model has not been drawn yet.
+        let pair = match crate::saber_skins::local_pair() {
+            crate::saber_skins::Pair::None
+                if self.text_value("saber2").is_some_and(|saber2| {
+                    !saber2.is_empty() && !saber2.eq_ignore_ascii_case("none")
+                }) =>
+            {
+                crate::saber_skins::Pair::TwoSabers
+            }
+            pair => pair,
+        };
         let enabled = self.bool_cvar("cl_identity") == Some(true);
         let share = crate::hud::nameplate::see_and_share(self);
         let snapshot =
@@ -366,6 +389,8 @@ impl ViewerConsole {
                 stock,
                 grid,
                 options: &options,
+                second: &second,
+                pair,
                 share,
                 toy_keys: &toy_keys,
             };
@@ -391,6 +416,8 @@ impl ViewerConsole {
             stock,
             grid,
             options: &options,
+            second: &second,
+            pair,
             share,
             toy_keys: &toy_keys,
         };

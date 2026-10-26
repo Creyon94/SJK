@@ -1166,6 +1166,20 @@ note: A roll on landing while crouched (PM_CrashLand) is not prevented, in EJK e
 
 # ---- Menus & settings ----
 
+[second-saber-skin]
+area: Menus & settings
+title: A blade skin for each saber and each staff half (Creyon, PR #193)
+change: Collection > Shaders: with two sabers or a staff, pills over the saber pick a side.
+change: Equip dresses that side; the Both box dresses both; a click on a saber picks it.
+change: saberskin second <id> | stock | same; saber <hilt> [<hilt>] checks both names.
+test: Profile > Saber: two sabers. Collection > Shaders: 2nd pill, a shader, Equip: only it.
+test: Tick Both, Equip: both wear it; Unequip: both stock. Staff: a half each the same way.
+test: Click a saber (or half) on the preview: the pill follows; a drag still turns them.
+test: Hover over a tile's or row's words: nothing changes; over its blade strip: previewed.
+test: saber kyle kyle, then saber dual_4, then saber dual_4 kyel: the last changes nothing.
+test: Another SJK player sees both skins (needs the hub deployed with SJK-hub-shared #2).
+test: cg_stockBlades 2 and a private duel: both sabers stock.
+
 [collection-revamp]
 area: Menus & settings
 title: Collection revamp: Shaders wall by tier and sortable list, Toys rows with keys

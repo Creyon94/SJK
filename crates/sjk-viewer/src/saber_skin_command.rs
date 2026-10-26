@@ -7,6 +7,9 @@
 //! profile lists it (the gate is `GpuState::local_saber_skin`'s). `saberskin <id> parts`
 //! lists the parts a skin's file lets its wearer switch off, and `saberskin <id> <part>
 //! on|off` switches one (`cg_saberSkinOptions`, [`crate::saber_skin_options`]).
+//! `saberskin second <id> | none | same` sets what a second saber wears
+//! (`cg_saberSkin2`, [`crate::looks::SECOND_CVAR`]): its own skin, the stock blade, or the
+//! first saber's.
 
 use crate::console::ViewerConsole;
 use crate::unlockables::{self, Holdings, SABER_SKIN_CVAR, Unlockable};
@@ -14,9 +17,10 @@ use crate::unlockables::{self, Holdings, SABER_SKIN_CVAR, Unlockable};
 /// Console command name.
 pub(crate) const COMMAND: &str = "saberskin";
 /// Help text for completion and `cmdlist`.
-pub(crate) const HELP: &str = "List your blade skins, wear one or switch its parts: saberskin <id> | none | <id> parts | <id> <part> on|off";
+pub(crate) const HELP: &str = "List your blade skins, wear one or switch its parts: saberskin <id> | none | <id> parts | <id> <part> on|off | second <id>|none|same";
 
-const USAGE: &str = "saberskin [<id> | none | <id> parts | <id> <part> on|off]";
+const USAGE: &str =
+    "saberskin [<id> | none | <id> parts | <id> <part> on|off | second <id> | none | same]";
 
 /// The parts skin `skin` offers (option id and name), and the lines `saberskin <id> parts`
 /// prints from them with `setting` (`cg_saberSkinOptions`).
@@ -193,6 +197,37 @@ pub(crate) fn run(
             console.text_cvar(SABER_SKIN_CVAR).unwrap_or_default(),
             holdings,
         )),
+        [second, word] if second.eq_ignore_ascii_case("second") => {
+            let (setting, answer) = if word.eq_ignore_ascii_case("same") {
+                (
+                    "",
+                    "Your second saber wears the same as the first.".to_owned(),
+                )
+            } else {
+                match parse(word, holdings)? {
+                    Choice::Stock => (
+                        crate::looks::STOCK_SECOND,
+                        "Your second saber wears the stock blade.".to_owned(),
+                    ),
+                    Choice::Skin(skin) => (
+                        skin.id,
+                        format!(
+                            "Your second saber wears the {}{}.",
+                            skin.name,
+                            if holdings.unlock(skin.id).is_some() {
+                                ""
+                            } else {
+                                " once your SJK profile holds it (until then, the stock blade)"
+                            }
+                        ),
+                    ),
+                }
+            };
+            if !console.set_cvar(crate::looks::SECOND_CVAR, setting) {
+                return Err("cg_saberSkin2 could not be set".to_owned());
+            }
+            Ok(vec![answer])
+        }
         [word] => {
             let choice = parse(word, holdings)?;
             if !console.set_cvar(SABER_SKIN_CVAR, choice.setting()) {
@@ -359,6 +394,34 @@ mod tests {
         assert!(run(&mut console, &words("saber_moon"), None, no_parts).is_err());
         assert_eq!(console.text_cvar(SABER_SKIN_CVAR).unwrap(), "");
         assert!(run(&mut console, &words("a b"), None, no_parts).is_err());
+    }
+
+    #[test]
+    fn the_command_sets_the_second_sabers_skin() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut console =
+            ViewerConsole::new(directory.path().join("config.cfg")).expect("a console");
+        let second = crate::looks::SECOND_CVAR;
+        let lines = run(&mut console, &words("second saber_sun"), None, no_parts).unwrap();
+        assert_eq!(console.text_cvar(second).unwrap(), "saber_sun");
+        assert!(
+            lines[0].contains("once your SJK profile holds it"),
+            "{}",
+            lines[0]
+        );
+        run(&mut console, &words("SECOND none"), None, no_parts).unwrap();
+        assert_eq!(
+            console.text_cvar(second).unwrap(),
+            crate::looks::STOCK_SECOND
+        );
+        run(&mut console, &words("second same"), None, no_parts).unwrap();
+        assert_eq!(console.text_cvar(second).unwrap(), "");
+        assert!(run(&mut console, &words("second saber_moon"), None, no_parts).is_err());
+        assert_eq!(
+            console.text_cvar(SABER_SKIN_CVAR).unwrap(),
+            "",
+            "the first is untouched"
+        );
     }
 
     /// A Unique shader (Sol's thank-you gifts, 25/10/2026) is neither listed nor taken by id

@@ -1055,10 +1055,16 @@ impl LoadedSkins {
 pub(crate) struct SaberSkins {
     /// What each slot is drawn wearing: `others`, with the local player's own in its slot.
     clients: [Option<SkinColor>; MAX_CLIENTS],
+    /// What each slot's second saber wears ([`Second`]), as `clients`.
+    seconds: [Second; MAX_CLIENTS],
     /// What the hub's looks say each slot wears.
     others: [Option<SkinColor>; MAX_CLIENTS],
+    /// What the hub's looks say each slot's second saber wears.
+    other_seconds: [Second; MAX_CLIENTS],
     /// The local player's skin, also shown with no session (the Character preview).
     local: Option<SkinColor>,
+    /// The local player's second saber's.
+    local_second: Second,
     /// The local player's client slot, in a session.
     local_client: Option<usize>,
     /// Which skin's sound set each slot is heard with (its number): `sound_others`, with
@@ -1095,6 +1101,130 @@ pub(crate) struct SaberSkins {
     pub(crate) shot_persona: crate::saber_persona::Persona,
 }
 
+/// What a player's second saber wears: the first saber's skin (players with one skin, and
+/// every look from before 21/10/2026), or its own (`None`: the stock blade).
+// Kept by value in fixed per-slot arrays read every frame: boxing `Own` (clippy's advice)
+// would allocate there, which the per-frame paths avoid.
+#[allow(clippy::large_enum_variant)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub(crate) enum Second {
+    #[default]
+    Same,
+    Own(Option<SkinColor>),
+}
+
+/// What the local player holds that a second skin can go on ([`pair`]): nothing, two
+/// sabers, or one saber with more than one blade (a staff's other half).
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub(crate) enum Pair {
+    #[default]
+    None,
+    TwoSabers,
+    Staff,
+}
+
+/// [`Pair`] as last seen on the local player's model (`menu_stage`), for the Collection.
+static LOCAL_PAIR: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(0);
+
+/// What the local player's model held when last drawn.
+pub(crate) fn local_pair() -> Pair {
+    match LOCAL_PAIR.load(std::sync::atomic::Ordering::Relaxed) {
+        1 => Pair::TwoSabers,
+        2 => Pair::Staff,
+        _ => Pair::None,
+    }
+}
+
+/// Where the Collection's lone staff draws the middle of its first half and of its other
+/// half, in window pixels, each packed as two `f32` (`u64::MAX`: not drawn), so a click on
+/// the staff goes to the half it lands on.
+static STAFF_HALVES: [std::sync::atomic::AtomicU64; 2] = [
+    std::sync::atomic::AtomicU64::new(u64::MAX),
+    std::sync::atomic::AtomicU64::new(u64::MAX),
+];
+
+/// Keep where the lone staff's halves were drawn (`None`: no staff drawn whole).
+pub(crate) fn set_staff_halves(halves: Option<[[f32; 2]; 2]>) {
+    for (index, cell) in STAFF_HALVES.iter().enumerate() {
+        let packed = halves.map_or(u64::MAX, |halves| {
+            let [x, y] = halves[index];
+            (u64::from(x.to_bits()) << 32) | u64::from(y.to_bits())
+        });
+        cell.store(packed, std::sync::atomic::Ordering::Relaxed);
+    }
+}
+
+/// Whether a click at `at` (window pixels) lands on the lone staff's other half (nearer its
+/// middle than the first half's); `None` when no staff was drawn whole.
+pub(crate) fn staff_half_at(at: [f32; 2]) -> Option<bool> {
+    let [first, other] = STAFF_HALVES.each_ref().map(|cell| {
+        let packed = cell.load(std::sync::atomic::Ordering::Relaxed);
+        (packed != u64::MAX).then(|| {
+            [
+                f32::from_bits((packed >> 32) as u32),
+                f32::from_bits(packed as u32),
+            ]
+        })
+    });
+    let distance = |point: [f32; 2]| (point[0] - at[0]).hypot(point[1] - at[1]);
+    Some(distance(other?) < distance(first?))
+}
+
+/// Keep what the local player's model holds: on each hand, whether it holds a saber and
+/// whether that saber has another half ([`crate::saber_hilts::other_half`]: a staff's
+/// second blade, not a crossguard's side blades).
+pub(crate) fn set_local_pair(held: [Option<bool>; 2]) {
+    let pair = match held {
+        [_, Some(_)] => 1,
+        [Some(true), None] => 2,
+        _ => 0,
+    };
+    LOCAL_PAIR.store(pair, std::sync::atomic::Ordering::Relaxed);
+}
+
+/// What the local player's two sabers (or a staff's halves) show on the Collection's
+/// stage: what they wear (`worn`), with `shown` (the shader the page shows, `Some(None)` the
+/// stock blade) on the sides being dressed (`dressed`: the first, the second; both with the
+/// Collection's "Both" box ticked). A side not dressed keeps what it wears now, so the
+/// pair looks as Equip will leave it.
+pub(crate) fn previewed(
+    worn: [Option<SkinColor>; 2],
+    shown: Option<Option<SkinColor>>,
+    dressed: [bool; 2],
+) -> [Option<SkinColor>; 2] {
+    match shown {
+        None => worn,
+        Some(shown) => [0, 1].map(|side| if dressed[side] { shown } else { worn[side] }),
+    }
+}
+
+/// The skin a blade of saber `saber_index` wears, of `skins` (the first's and the
+/// second's): the second saber wears the second, and with one saber, the blades of its other
+/// half (`other_half`, [`crate::saber_hilts::other_half`]) do (a staff's, Sol's request of
+/// 21/10/2026; a crossguard's side blades wear the first's with its main blade).
+pub(crate) fn skin_of_blade(
+    skins: [Option<SkinColor>; 2],
+    two_sabers: bool,
+    saber_index: usize,
+    other_half: bool,
+) -> Option<SkinColor> {
+    if saber_index >= 1 || (!two_sabers && other_half) {
+        skins[1]
+    } else {
+        skins[0]
+    }
+}
+
+impl Second {
+    /// The second saber's skin when the first wears `first`.
+    pub(crate) fn resolve(self, first: Option<SkinColor>) -> Option<SkinColor> {
+        match self {
+            Self::Same => first,
+            Self::Own(skin) => skin,
+        }
+    }
+}
+
 /// A world shot's blade colour: stock, or the loaded skin of an unlock id.
 #[cfg(test)]
 #[derive(Clone, Copy, Debug)]
@@ -1122,7 +1252,7 @@ impl SaberSkins {
     /// Take every other slot's skin from the looks (`skin_of` a client slot) when their
     /// `revision` or the loaded skins' `generation` is not the one last taken; no
     /// allocation, 32 lookups when it changed.
-    /// Each slot is heard with its blade's sound set.
+    /// Each slot is heard with its blade's sound set, and both sabers wear the first's.
     #[cfg(test)]
     pub(crate) fn follow_looks(
         &mut self,
@@ -1130,42 +1260,48 @@ impl SaberSkins {
         generation: u64,
         skin_of: impl Fn(usize) -> Option<SkinColor>,
     ) {
-        self.follow_looks_and_sounds(revision, generation, |client| {
+        self.follow_looks_each(revision, generation, |client| {
             let skin = skin_of(client);
-            (skin, skin.map(|skin| skin.index))
+            (skin, Second::Same, skin.map(|skin| skin.index))
         });
     }
 
-    /// [`Self::follow_looks`], with each slot's sound set (a loaded skin's number, `None`
-    /// the stock sounds) taken apart from its blade: `of` a client slot gives both.
-    pub(crate) fn follow_looks_and_sounds(
+    /// Take every other slot's skins and sound set from the looks when their `revision`
+    /// or the loaded skins' `generation` is not the one last taken: `of` a client slot
+    /// gives its first saber's skin, its second's, and its sound set (a loaded skin's
+    /// number, `None` the stock sounds) taken apart from its blade. No allocation, 32
+    /// lookups when it changed.
+    pub(crate) fn follow_looks_each(
         &mut self,
         revision: u64,
         generation: u64,
-        of: impl Fn(usize) -> (Option<SkinColor>, Option<u8>),
+        of: impl Fn(usize) -> (Option<SkinColor>, Second, Option<u8>),
     ) {
         if self.taken_at == Some((revision, generation)) {
             return;
         }
         self.taken_at = Some((revision, generation));
-        for (client, (skin, sound)) in self
+        for (client, ((skin, second), sound)) in self
             .others
             .iter_mut()
+            .zip(self.other_seconds.iter_mut())
             .zip(self.sound_others.iter_mut())
             .enumerate()
         {
-            (*skin, *sound) = of(client);
+            (*skin, *second, *sound) = of(client);
         }
         self.merge();
     }
 
-    /// Draw `others`, with the local player's own skin in its slot, and hear
+    /// Draw `others`, with the local player's own skins in its slot, and hear
     /// `sound_others` so.
     fn merge(&mut self) {
         self.clients = self.others;
+        self.seconds = self.other_seconds;
         self.sounds = self.sound_others;
         if let Some(client) = self.local_client.filter(|client| *client < MAX_CLIENTS) {
             self.clients[client] = self.local;
+            self.seconds[client] = self.local_second;
             self.sounds[client] = self.sound_local;
         }
     }
@@ -1174,17 +1310,32 @@ impl SaberSkins {
     /// while their blade is drawn stock (a duel's [`Self::set_plain`], the player's
     /// [`Self::set_stock`]).
     pub(crate) fn get(&self, entity_id: u64) -> Option<SkinColor> {
-        let client = usize::try_from(entity_id.checked_sub(1)?).ok()?;
+        self.get_both(entity_id)[0]
+    }
+
+    /// The skins worn on the first and the second saber by the player whose body is entity
+    /// `entity_id` (client + 1).
+    pub(crate) fn get_both(&self, entity_id: u64) -> [Option<SkinColor>; 2] {
+        let Some(client) = entity_id
+            .checked_sub(1)
+            .and_then(|client| usize::try_from(client).ok())
+            .filter(|client| *client < MAX_CLIENTS)
+        else {
+            return [None, None];
+        };
         let persona = if Some(client) == self.local_client {
             self.local_persona.in_team(self.personas[client].team)
         } else {
-            self.personas.get(client).copied()?
+            self.personas[client]
         };
+        // A duel's stock blades ([`Self::set_plain`]) and the player's own choice of
+        // stock blades ([`Self::set_stock`]) are stock on both sabers.
         if self.plain || self.stock.plain(Some(client) == self.local_client) {
-            return None;
+            return [None, None];
         }
-        let skin = self.clients.get(client).copied().flatten()?;
-        Some(SkinColor { persona, ..skin })
+        let wear = |skin: Option<SkinColor>| skin.map(|skin| SkinColor { persona, ..skin });
+        let first = self.clients[client];
+        [wear(first), wear(self.seconds[client].resolve(first))]
     }
 
     /// Draw every player's blade as the stock one in its own colour (in a duel,
@@ -1223,6 +1374,23 @@ impl SaberSkins {
             .map_or(color, |skin| BladeColor::Skin(skin.worn_with(color)))
     }
 
+    /// The local player's skins on its first and second saber (or a staff's halves), worn
+    /// with its own persona.
+    pub(crate) fn local_both(&self) -> [Option<SkinColor>; 2] {
+        let first = self.local();
+        [first, self.local_second_with(first)]
+    }
+
+    /// What the local player's second saber (or a staff's other half) wears when the first
+    /// wears `first`: its own choice, else `first` (the Collection previews a shader on the
+    /// first and shows the second as it is).
+    pub(crate) fn local_second_with(&self, first: Option<SkinColor>) -> Option<SkinColor> {
+        self.local_second.resolve(first).map(|skin| SkinColor {
+            persona: self.local_persona,
+            ..skin
+        })
+    }
+
     /// The local player's skin, worn with its own persona.
     pub(crate) fn local(&self) -> Option<SkinColor> {
         self.local.map(|skin| SkinColor {
@@ -1235,21 +1403,31 @@ impl SaberSkins {
     /// sits in slot `client`.
     #[cfg(test)]
     pub(crate) fn set_local(&mut self, client: Option<usize>, skin: Option<SkinColor>) {
-        self.set_local_with_sound(client, skin, skin.map(|skin| skin.index));
+        self.set_local_each(client, skin, self.local_second, skin.map(|skin| skin.index));
     }
 
-    /// [`Self::set_local`], heard with sound set `sound` (a loaded skin's number, `None`
-    /// the stock sounds) whatever the blade.
-    pub(crate) fn set_local_with_sound(
+    /// The local player wears `skin`, and `second` on its second saber, heard with sound
+    /// set `sound` (a loaded skin's number, `None` the stock sounds) whatever the blade,
+    /// and, in a session, sits in slot `client`.
+    pub(crate) fn set_local_each(
         &mut self,
         client: Option<usize>,
         skin: Option<SkinColor>,
+        second: Second,
         sound: Option<u8>,
     ) {
-        if (client, skin, sound) == (self.local_client, self.local, self.sound_local) {
+        if (client, skin, second, sound)
+            == (
+                self.local_client,
+                self.local,
+                self.local_second,
+                self.sound_local,
+            )
+        {
             return;
         }
         self.local = skin;
+        self.local_second = second;
         self.sound_local = sound;
         self.local_client = client;
         self.merge();
@@ -1333,23 +1511,34 @@ impl GpuState {
         let stock = crate::stock_blades::StockBlades::read(self.console.as_ref());
         self.saber_skins.set_stock(stock);
         let (looks, skins) = (&self.looks, &self.blade_skins);
+        let second = |second: crate::looks::SecondSkin, off| match second {
+            crate::looks::SecondSkin::Same => Second::Same,
+            crate::looks::SecondSkin::Own(id) => {
+                Second::Own(id.and_then(|id| skins.color_with(id, off)))
+            }
+        };
         self.saber_skins
-            .follow_looks_and_sounds(looks.revision(), skins.generation(), |client| {
+            .follow_looks_each(looks.revision(), skins.generation(), |client| {
                 let skin = looks
                     .saber_skin_id(client)
                     .and_then(|id| skins.color_with(id, looks.options_off(client)));
                 let sound = looks
                     .sound_skin_id(client)
                     .and_then(|id| skins.index_of(id));
-                (skin, sound)
+                (
+                    skin,
+                    second(looks.second_skin(client), looks.options_off2(client)),
+                    sound,
+                )
             });
         let skin = self.local_saber_skin();
-        let sound = self
-            .looks
-            .own()
+        let own = self.looks.own();
+        let own_second = second(own.second, own.options_off2);
+        let sound = own
             .sound_skin()
             .and_then(|id| self.blade_skins.index_of(id));
-        self.saber_skins.set_local_with_sound(client, skin, sound);
+        self.saber_skins
+            .set_local_each(client, skin, own_second, sound);
         if let Some(preview) = crate::saber_sound_choice::take_preview() {
             self.play_sound_preview(game_audio, preview);
         }

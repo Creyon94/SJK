@@ -488,6 +488,22 @@ distinct ids of 1 to 24 of `a`-`z`, `0`-`9`, `_`, else 400 `bad_look`; an older 
 refuses it with `bad_body`, so a client sends it only when it names one), stored with
 the look and given back in presence and look events only when not empty.
 
+Since 21/10/2026 (hub pull request with SJK's, Creyon) a look may also carry `"saber2"`,
+the second saber's blade skin for a player with two sabers (a blade-skin id the key holds
+like `saber`, or `""` for the stock blade), and `"saber2_off"`, that skin's options
+switched off, on `saber_off`'s rules. Without `saber2` both sabers wear `saber`, as
+before; presence and look events carry it only when sent, and `saber2_off` only when not
+empty. A hub from before refuses both with `bad_body`: the client sends `saber2` only
+when the second saber wears another skin than the first, and on a `bad_body` sends its
+looks without it for 10 minutes (`SABER2_RETRY`), or until the hub changes, then tries
+again. Taking a skin back makes a second saber wearing it the
+stock blade. The hub names the side it refuses (review of 22/10/2026): the second saber's
+skin is 403 `saber2_not_unlocked` (not held) or 400 `bad_saber2` (not a blade skin), the
+first's keeps `not_unlocked` and `bad_look`, and it checks the first before the second.
+The client drops only the skin named and sends the rest of the look again
+(`service::refused_skin`; a hub before the side was named answers `not_unlocked` for
+either, read as the first's, or the second's when the first wears none).
+
 `saber` is a blade-skin unlock id or `""` for the stock blade; `illuminate` is
 whether the Illuminate holocron is lit. Both are required in a request.
 
@@ -532,6 +548,22 @@ Built.
   (`GpuState::local_saber_skin`, [saber_skins.rs](../crates/sjk-viewer/src/saber_skins.rs)),
   for the hand, first person, a thrown saber, the sounds and the Character page's
   preview.
+- `cg_saberSkin2` (archived, default empty, `looks::SECOND_CVAR`; 21/10/2026, Creyon):
+  what the player's second saber wears when they hold two: empty for the first saber's
+  skin, `stock` for the stock blade, or a blade-skin id, worn only while the profile lists
+  it (else the stock blade, as for the first saber and as the hub makes a second saber whose
+  skin is taken back: review of 22/10/2026, it followed the first here while the others saw
+  it stock). The look sends it as `saber2` ([Looks](#looks)) and every other
+  SJK player draws each saber with its own skin (`SaberSkins::get_both`,
+  `saber_skins::skin_of_blade`, `saber_submission::submit`). With one saber whose blades
+  point both ways, a staff, the second skin goes on its other half (the blades pointing more
+  than 120 degrees away from the first, `saber_hilts::other_half`; Sol's request of
+  21/10/2026), each half with its own light. A crossguard's side blades stand across the
+  first and wear the first's skin with it, so a one-handed saber of three blades is no
+  staff (review of 22/10/2026: counting blades took it for one); a thrown staff keeps the
+  first skin, and the sounds stay the first skin's. `saberskin second <id>`,
+  `saberskin second none` (the stock blade) and `saberskin second same` set it, and so does
+  the Collection's Shaders tab through its target switch ([Shaders tab](#shaders-tab)).
 - `saberskin` ([saber_skin_command.rs](../crates/sjk-viewer/src/saber_skin_command.rs))
   alone lists the blade skins the player may see (an unheld Unique one is neither listed
   nor taken by id or number, [Unique shaders](#unique-shaders)): id, name, owned (since
@@ -1171,9 +1203,10 @@ Profile page's See the collection) open it on its own:
   rows draw a blade as a thin strip (`swatch::strip`, a handful of shapes, so thirty
   tiles stay cheap): the live picture when owned, else a still blade in the skin's own
   colours, dimmed when not held (25/10/2026: a wall of locked shaders all grey told
-  nothing apart), grey while its pack has not come. A click chooses a tile or a row, a
-  double click (within 0.4 s) wears an owned one as Equip does (a locked one stays a
-  preview, the worn one stays on);
+  nothing apart), grey while its pack has not come. A click chooses a tile or a row and
+  previews it (a double click wore it until 21/10/2026: Creyon found wearing on a click
+  too easy to do by mistake, and the double click unclear), and Equip, Unequip or Enter
+  wear it; resting the pointer chooses one only over its blade strip, not its words;
 - until 25/10/2026 a rack of six rows of 106 and a grid of cards five by three
   (10/10/2026) stood there, `ui_shaderView` choosing (dropped from saved profiles since,
   so every player starts on the wall);
@@ -1205,6 +1238,42 @@ Profile page's See the collection) open it on its own:
   colour, with the chance an opening of one does (the hub's odds split evenly among
   the droppable shaders of its tier, `cards::loot::shader_in`); then its parts and, at
   the card's foot, Equip, Unequip or Wear the stock blade, which set `cg_saberSkin`.
+  While the player holds two sabers or a staff (`saber_skins::local_pair`, from the model
+  the stage draws, or `saber2` naming a hilt), a target switch tops the saber's room: two
+  pills, 1st saber and 2nd saber (1st half and Other half for a staff, told by its blades'
+  directions as above), each with what it
+  wears ("Same as the 1st" for none of its own), the one being dressed in gold. A click on
+  a pill, or a click (not a drag) on the sabers themselves (the upper saber is the first;
+  on a staff the half nearer the click: the stage keeps where it drew each half's middle on
+  screen as the staff turns, `saber_skins::staff_half_at`, review of 22/10/2026), chooses it and moves the choice to the row that side wears, so the card and the sabers
+  show what it has on; the pills are hit before the sabers' drag area under them. Each
+  side is dressed on its own (Creyon, 21/10/2026): Equip puts the chosen shader on that side
+  only and the second's Unequip leaves it the stock blade. While the second has no skin of
+  its own (`cg_saberSkin2` empty) it follows the first, so dressing the first dresses both,
+  as `saberskin` does; once the second was dressed, it keeps its own (review, 22/10/2026:
+  a player who never used the switch no longer finds the second half left on the old skin
+  and `cg_saberSkin2` written unasked). The first's skin chosen for the second is sent as
+  no `saber2`, so `saber2` goes only when the two differ. The own look
+  is read again as soon as `cg_saberSkin` or `cg_saberSkin2` changes
+  (`Looks::own_settings_changed`), so the sabers show the new skin at once. The sabers show
+  the shader on
+  the target, the other keeping what it wears, the second laid below the first (a staff
+  shows both halves on its one hilt), and the card's Equip and Unequip work on that side,
+  for the second setting `cg_saberSkin2` (to the shader, or `stock` from the stock row and
+  from Unequip); Enter does the same. A row the second wears
+  says "2nd blade". Holding one saber of one blade, the room shows no switch and no row says
+  "2nd blade"; a second skin chosen before waits, and a line says it shows with two sabers or
+  a staff (chosen in the Profile's Saber tab, `saber1` and `saber2`).
+  Beside the pills a "Both sabers" box ("Both halves" for a staff; Creyon, 21/10/2026)
+  makes Equip dress both sides at once: both pills light, the sabers show the chosen shader
+  on both, and Equip sets `cg_saberSkin` to it and `cg_saberSkin2` to empty (the second
+  follows the first; `PanelAction::WearBoth`); with both wearing it, Unequip leaves both the
+  stock blade ("Unequip both"), and the stock row reads "Stock on both". The box is kept
+  for the session; choosing a side (a pill or a click on a saber) unticks it, a click on a lone saber does not (review of 22/10/2026). Its label is
+  drawn in the face it is measured in, so it is never cut short ("Both sab...").
+  Resting the pointer on a shader's row chooses and previews it only over its blade (the
+  swatch), not over its name or state (Creyon, 21/10/2026: going to Equip, the pointer crossed
+  other rows' words and changed the preview); a click anywhere on the row still chooses it.
   Once the hub's economy is known, the foot also leads to the Collection's Forge
   ([cards.md](cards.md#the-forge), 21/10/2026; Shatter and Craft stood here before):
   "Craft in the Forge" for a shader of the trade not held, with its cost, or "Break down
@@ -1224,7 +1293,7 @@ Verified: unit tests (keys, pointer, the worn one chosen on opening, equip and u
 a locked one previewed but never equipped, every row and its words within the canvas
 at 1080p, 4K, 4:3 and 21:9, the swatch moving and staying inside its frame, the Staff
 page's Unlock and Relock; the grid's switches and V, its arrows in two directions, its
-wheel, a double click on a card, every card above the keys at the four shapes) and the
+wheel, a click on a card, every card above the keys at the four shapes) and the
 world shot `duel6_sjk_collection` (the Sun worn on the stage, the Storm previewed, the
 grid with five owned, a 4:3 window and its grid, the in-game preview, the classic
 menus; since 17/10/2026 the saber alone and `duel6-collection-shaders-turned`, turned by

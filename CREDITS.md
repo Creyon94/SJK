@@ -421,6 +421,11 @@ pull requests merged into SJK, most of them bringing SJK in line with EternalJK
   event under its right number; at the merge every reused body slot fades again, the dark
   side crackles once per 100 ms and the server clears the body 4 s after the fade;
 - #208 formatting fixed in three files so CI's Formatting check passed again;
+- #193 a blade skin for each saber and each half of a staff (`cg_saberSkin2`, `saberskin
+  second`, its hub side in SJK-hub-shared #2): the Collection's target switch over the
+  saber, a click on the saber or half to dress, the Both box, and the `saber` command
+  checking both hilts before setting either; at the merge it moved onto the new wall and
+  list of the Shaders tab, and the player's stock blades draw both sabers stock;
 - #197 trading between players (its hub side in SJK-hub-shared #4): duplicate saber
   shaders, and later unopened holocrons, swapped or given as a gift through the SJK hub,
   from Trade on a player's card, the SJK chat page, the Players page or `trade`, in a

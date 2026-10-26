@@ -267,20 +267,39 @@ impl GpuState {
         self.saber_instances.clear();
         // The stage model is the local player: its blades wear the player's skin, or
         // the one the Collection's Shaders tab shows.
-        let skin = match self.menu_stage.skin_override {
-            Some(crate::console::collection_panel::PreviewSkin::Stock) => None,
-            Some(crate::console::collection_panel::PreviewSkin::Skin(id)) => self
-                .blade_skins
-                .color_with(id, self.looks.own_options_off(id))
-                .map(|skin| crate::saber_skins::SkinColor {
-                    persona: self.saber_skins.local_persona(),
-                    ..skin
-                }),
-            _ => self.saber_skins.local(),
+        // The shader the Collection shows goes on the side being dressed; the other side
+        // shows what it wears now, so the pair is seen as Equip will leave it.
+        // With the target switch on the second, the shader goes there and the first keeps
+        // what it wears.
+        let shown = match self.menu_stage.skin_override {
+            Some(crate::console::collection_panel::PreviewSkin::Stock) => Some(None),
+            Some(crate::console::collection_panel::PreviewSkin::Skin(id)) => Some(
+                self.blade_skins
+                    .color_with(id, self.looks.own_options_off(id))
+                    .map(|skin| crate::saber_skins::SkinColor {
+                        persona: self.saber_skins.local_persona(),
+                        ..skin
+                    }),
+            ),
+            _ => None,
         };
+        let skins = crate::saber_skins::previewed(
+            self.saber_skins.local_both(),
+            shown,
+            self.menu_stage.override_dressed,
+        );
         let frame_view = self.frame_view;
         let stage = &mut self.menu_stage;
         stage.preview.blades.clear();
+        // What the local player holds, for the Collection's second-saber button.
+        crate::saber_skins::set_local_pair(stage.sabers.each_ref().map(|saber| {
+            saber
+                .as_ref()
+                .map(|saber| crate::saber_hilts::has_other_half(&saber.blades, saber.num_blades))
+        }));
+        // Found again below while a lone staff is drawn whole.
+        crate::saber_skins::set_staff_halves(None);
+        let two_sabers = stage.sabers[1].is_some();
         // The classic preview's blades are drawn into it, not into the world.
         let preview = stage.preview_only;
         let Some(actor) = &stage.actor else {
@@ -332,6 +351,8 @@ impl GpuState {
         };
         // A jumping preview's blades drawn in (none at all once they are off).
         let out = 1.0 - stage.blades_in.clamp(0.0, 1.0);
+        // Where a lone staff's two halves lie on screen, for a click on it to choose one.
+        let mut halves = [None; 2];
         for (hand, saber) in stage.sabers.iter().enumerate() {
             let Some(saber) = saber else {
                 continue;
@@ -372,9 +393,6 @@ impl GpuState {
                 self.queue
                     .write_buffer(&saber.instance_buffer, 0, bytemuck::bytes_of(&instance));
             }
-            let color = skin.map_or(saber.color, |skin| {
-                BladeColor::Skin(skin.worn_with(saber.color))
-            });
             for (index, blade) in saber
                 .blades
                 .iter()
@@ -390,6 +408,20 @@ impl GpuState {
                     blade.length * out,
                     blade.radius,
                 );
+                let other_half =
+                    crate::saber_hilts::other_half(&saber.blades, saber.num_blades, index);
+                if lone.is_some() && !two_sabers && hand == 0 {
+                    let middle = Vec3::from_array(blade.base)
+                        + Vec3::from_array(blade.direction) * (blade.length * 0.5);
+                    let half = &mut halves[usize::from(other_half)];
+                    if half.is_none() {
+                        *half = frame_view.and_then(|view| view.project_within(middle, 4.0));
+                    }
+                }
+                let skin = crate::saber_skins::skin_of_blade(skins, two_sabers, hand, other_half);
+                let color = skin.map_or(saber.color, |skin| {
+                    BladeColor::Skin(skin.worn_with(saber.color))
+                });
                 let seed = (hand * 8 + index) as u32;
                 let pair = saber::Instance::pair(blade, color)
                     .map(|i| i.with_animation(seconds, seed))
@@ -402,6 +434,10 @@ impl GpuState {
                 }
             }
         }
+        crate::saber_skins::set_staff_halves(match halves {
+            [Some(first), Some(other)] => Some([first, other]),
+            _ => None,
+        });
         stage.sabers_dirty = false;
     }
 }

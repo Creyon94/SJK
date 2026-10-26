@@ -461,8 +461,12 @@ impl ClientMenu {
     /// Nameplates). When it starts wanting it and the player screen is not open, the
     /// model and sabers are read from the cvars, so the stage shows the player's own.
     pub(crate) fn set_collection_stage(&mut self, wanted: bool, console: &ViewerConsole) {
-        if wanted && !self.collection_stage && !matches!(self.state.phase(), ClientPhase::Player) {
+        let profile = matches!(self.state.phase(), ClientPhase::Player);
+        if wanted && !self.collection_stage && !profile {
             self.player.read_for_stage(console);
+        } else if wanted && !profile {
+            // `saber kyle kyle` (or `saber1`, `saber2`) while the Collection is open.
+            self.player.follow_sabers_for_stage(console);
         }
         self.collection_stage = wanted;
     }

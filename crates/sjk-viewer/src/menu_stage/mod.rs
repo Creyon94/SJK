@@ -53,7 +53,7 @@ pub(crate) struct MenuStage {
     /// Model cvar whose load failed; not retried until the value changes.
     failed: Option<String>,
     /// `.sab` definitions, read once the first hilt is needed.
-    saber_definitions: Option<BTreeMap<String, crate::saber_defs::Definition>>,
+    pub(crate) saber_definitions: Option<BTreeMap<String, crate::saber_defs::Definition>>,
     /// The rigid model the model viewer shows in place of the player, and the path whose
     /// load failed (not retried until another is chosen).
     prop: Option<prop::StageProp>,
@@ -81,6 +81,10 @@ pub(crate) struct MenuStage {
     /// The blade the Collection's Shaders tab has the model hold instead of the one
     /// worn (only drawn here, never sent); `None` outside it.
     skin_override: Option<crate::console::collection_panel::PreviewSkin>,
+    /// The sides [`Self::skin_override`] goes on (the first saber, the second or the
+    /// staff's other half), a side not named keeping what it wears (the Collection's target
+    /// switch and its "Both" box).
+    override_dressed: [bool; 2],
     /// The Collection's Shaders tab: the saber on its own, turned so, before the
     /// backdrop camera (or on the live preview's showcase), and no model drawn.
     lone: Option<crate::console::collection_panel::SaberTurn>,
@@ -189,6 +193,12 @@ impl GpuState {
             menu.follow_model_viewer(console);
         }
         self.menu_stage.skin_override = wish.map(|wish| wish.skin);
+        self.menu_stage.override_dressed = wish.map_or([true, false], |wish| {
+            [
+                wish.on_both || !wish.on_second,
+                wish.on_both || wish.on_second,
+            ]
+        });
         let lone = wish.and_then(|wish| wish.saber);
         if lone.is_some() != self.menu_stage.lone.is_some() {
             // Into or out of the lone saber: the hilts' places are written again.

@@ -954,8 +954,9 @@ JoF's `saber <saber1>` (one saber or a staff, `saber2` becomes `none`) and
 `saber <saber1> <saber2>` (two sabers) are the client's own too (`CG_Saber_f`): they
 write `saber1`/`saber2`, which Profile > Saber shows and every userinfo sends, and
 JA+ and jaPRO-lineage servers get their `saber` command from that change, as from the
-menu; with no name it prints the sabers held
-([saber_hilt_command.rs](../crates/sjk-viewer/src/saber_hilt_command.rs)). Sent to the
+menu; with no name it prints the sabers held, and an unknown hilt changes neither
+([saber_hilt_command.rs](../crates/sjk-viewer/src/saber_hilt_command.rs),
+[useful console commands](#useful-console-commands)). Sent to the
 server as is, it swapped the saber in play but left the cvars on the menu's pick, which
 the next map brought back (Kushina's report #126). Every run sends the server's
 command, the same pick too (#132).
@@ -5573,6 +5574,20 @@ command execution); not yet run against a game session or Sol's Archive itself.
 
 Every command and cvar the client knows, with its help, default and Settings row, is
 in the generated [command reference](development.md#command-reference).
+
+`saber <hilt> [<second hilt>]` ([saber_hilt_command.rs](../crates/sjk-viewer/src/saber_hilt_command.rs),
+21/10/2026, Creyon) sets the hilts held, as JoF EJK players type them: `saber kyle` one
+saber, `saber kyle kyle` two, `saber dual_4` a staff (`saber1`, and `saber2` set to `none`
+when no second is named); `saber` alone says what is held. Both names must be installed
+`.sab` sabers (any case; `none` for the second) before either cvar changes, so a misspelt
+second hilt leaves both as they were (review of 22/10/2026); with no game data read, the
+names go unchecked. On JA+ (JoF's servers too) and jaPRO-lineage servers the new sabers
+also go to the server as its own `saber` command, so they apply without a respawn: not
+from this command but from `sjk_client::SaberChangeNotifier`, which follows the two cvars
+whoever sets them, with its list of the servers that take it
+(`profile_accepts_saber_command`). The Collection's stage follows
+`saber1` and `saber2` while it is open (`SaberMenu::follow`), so its preview, and its switch
+for two sabers or a staff, change at once.
 
 The console key opens and closes either console style and never types its
 character, as in EternalJK (`IN_TranslateSDLToJKKey` and `IN_IsConsoleKey` turn

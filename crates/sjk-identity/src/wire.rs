@@ -741,6 +741,13 @@ pub struct Look {
     /// 16/10/2026; absent, and empty, from older hubs and from players with none out).
     #[serde(default)]
     pub toys: Vec<String>,
+    /// The second saber's blade skin (since 21/10/2026): `None` (absent) when both sabers
+    /// wear `saber`, else a blade-skin unlock id or empty for the stock blade.
+    #[serde(default)]
+    pub saber2: Option<String>,
+    /// The second saber's skin's options its wearer switched off; empty when absent.
+    #[serde(default)]
+    pub saber2_off: Vec<String>,
     /// The saber sounds the player chose apart from their blade (since 23/10/2026):
     /// empty to follow the blade skin (absent from older hubs and clients), `stock` for
     /// the retail sounds, or a blade-skin unlock id whose sounds they hear.
@@ -774,6 +781,12 @@ pub struct LookEvent {
     /// The toys the wearer has out; empty when absent.
     #[serde(default)]
     pub toys: Vec<String>,
+    /// The second saber's blade skin; `None` when both wear `saber`.
+    #[serde(default)]
+    pub saber2: Option<String>,
+    /// The second saber's skin's options switched off; empty when absent.
+    #[serde(default)]
+    pub saber2_off: Vec<String>,
     /// The saber sounds the wearer chose; empty (follow the blade) when absent.
     #[serde(default)]
     pub saber_sounds: String,
@@ -787,6 +800,8 @@ impl LookEvent {
             illuminate: self.illuminate,
             saber_off: self.saber_off.clone(),
             toys: self.toys.clone(),
+            saber2: self.saber2.clone(),
+            saber2_off: self.saber2_off.clone(),
             saber_sounds: self.saber_sounds.clone(),
         }
     }
@@ -1499,6 +1514,8 @@ mod tests {
                 illuminate: true,
                 saber_off: Vec::new(),
                 toys: Vec::new(),
+                saber2: None,
+                saber2_off: Vec::new(),
                 saber_sounds: String::new(),
             })
         );
@@ -1532,6 +1549,8 @@ mod tests {
                 illuminate: true,
                 saber_off: Vec::new(),
                 toys: Vec::new(),
+                saber2: None,
+                saber2_off: Vec::new(),
                 saber_sounds: String::new(),
             }
         );

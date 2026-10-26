@@ -1022,9 +1022,11 @@ fn feed_path(after: u64, server: Option<&str>, wait: u64) -> String {
 /// `POST /v1/look`'s body: exactly the server and the look's fields. `saber_off` goes only
 /// when it names an option (and with a blade skin): a hub from before 11/10/2026 refuses
 /// the field, so a look with every part on stays as it was. `toys` goes only when a toy
-/// is out, for the same reason (hubs before 16/10/2026). `saber_sounds` goes only when
-/// the player chose sounds apart from their blade (hubs before it refuse the field, and
-/// the service then sends the look without it).
+/// is out, for the same reason (hubs before 16/10/2026). `saber2` goes only when the
+/// second saber wears another skin than the first, and `saber2_off` only when it names an
+/// option of that skin (hubs before 21/10/2026). `saber_sounds` goes only when the player
+/// chose sounds apart from their blade (hubs before it refuse the field, and the service
+/// then sends the look without it).
 fn look_body(server: &str, look: &Look) -> Value {
     let mut body = json!({ "server": server, "saber": look.saber, "illuminate": look.illuminate });
     if !look.saber.is_empty() && !look.saber_off.is_empty() {
@@ -1032,6 +1034,12 @@ fn look_body(server: &str, look: &Look) -> Value {
     }
     if !look.toys.is_empty() {
         body["toys"] = json!(look.toys);
+    }
+    if let Some(saber2) = look.saber2.as_ref() {
+        body["saber2"] = json!(saber2);
+        if !saber2.is_empty() && !look.saber2_off.is_empty() {
+            body["saber2_off"] = json!(look.saber2_off);
+        }
     }
     if !look.saber_sounds.is_empty() {
         body["saber_sounds"] = json!(look.saber_sounds);
@@ -2033,6 +2041,8 @@ mod tests {
             illuminate: true,
             saber_off: Vec::new(),
             toys: Vec::new(),
+            saber2: None,
+            saber2_off: Vec::new(),
             saber_sounds: String::new(),
         };
         assert_eq!(
@@ -2071,6 +2081,26 @@ mod tests {
             look_body("1.2.3.4:29070", &boxed),
             json!({"server": "1.2.3.4:29070", "saber": "", "illuminate": false,
                 "toys": ["cardboard_box"]})
+        );
+        // The second saber's skin goes only when it differs, its options only with a skin.
+        let dual = Look {
+            saber2: Some("saber_glitch".to_owned()),
+            saber2_off: vec!["haze".to_owned()],
+            ..look.clone()
+        };
+        assert_eq!(
+            look_body("1.2.3.4:29070", &dual),
+            json!({"server": "1.2.3.4:29070", "saber": "saber_sun", "illuminate": true,
+                "saber2": "saber_glitch", "saber2_off": ["haze"]})
+        );
+        let stock_second = Look {
+            saber2: Some(String::new()),
+            ..dual
+        };
+        assert_eq!(
+            look_body("1.2.3.4:29070", &stock_second),
+            json!({"server": "1.2.3.4:29070", "saber": "saber_sun", "illuminate": true,
+                "saber2": ""})
         );
         // The sounds chosen apart from the blade go only when chosen, stock or a skin's.
         for sounds in ["stock", "saber_void"] {

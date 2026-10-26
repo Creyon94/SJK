@@ -1520,6 +1520,8 @@ mod tests {
             illuminate: true,
             saber_off: Vec::new(),
             toys: Vec::new(),
+            saber2: None,
+            saber2_off: Vec::new(),
             saber_sounds: String::new(),
         };
         let mut sent = None;

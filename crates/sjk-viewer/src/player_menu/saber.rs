@@ -150,6 +150,20 @@ impl SaberMenu {
         }
     }
 
+    /// Read the saber cvars again when `saber1` or `saber2` no longer say what the draft
+    /// holds (the `saber` command, or another screen, changed them), so the stage holds what
+    /// the player does.
+    pub(super) fn follow(&mut self, console: &ViewerConsole) {
+        let same = |cvar: &str, held: &str| {
+            console
+                .text_value(cvar)
+                .is_none_or(|value| value.eq_ignore_ascii_case(held))
+        };
+        if !same("saber1", &self.draft.primary) || !same("saber2", &self.draft.secondary) {
+            self.open(console);
+        }
+    }
+
     pub(super) fn open(&mut self, console: &ViewerConsole) {
         self.draft.primary = console
             .text_value("saber1")
@@ -467,13 +481,14 @@ mod tests {
                 .map(str::to_owned)
                 .collect::<Vec<_>>()
         };
-        crate::saber_hilt_command::run(&mut console, &words("single_2 single_3"));
+        crate::saber_hilt_command::run(&mut console, &words("single_2 single_3"), |_| true)
+            .unwrap();
         let mut reopened = SaberMenu::new();
         reopened.open(&console);
         assert_eq!(reopened.style(), SaberStyle::Dual);
         assert_eq!(reopened.hilt(false), "single_2");
         assert_eq!(reopened.hilt(true), "single_3");
-        crate::saber_hilt_command::run(&mut console, &words("single_4"));
+        crate::saber_hilt_command::run(&mut console, &words("single_4"), |_| true).unwrap();
         reopened.open(&console);
         assert_eq!(reopened.style(), SaberStyle::Single);
         assert_eq!(reopened.hilt(false), "single_4");

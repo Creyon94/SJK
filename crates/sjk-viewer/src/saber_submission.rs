@@ -12,14 +12,14 @@ use sjk_runtime::{HeldEquipment, HeldItemKind};
 pub(crate) mod lights;
 
 /// Submit both hilts and every numbered blade for one actor. `trails` is
-/// `None` with `cg_saberTrail 0`; `skin` is the blade skin the actor wears, which
-/// replaces both sabers' colours. `hands` are the bolts already at the actor's
-/// `scale` ([`saber::Attachment::scaled`]); the hilts are drawn at it too, as stock
-/// draws the bolted saber model with the wearer's `modelScale`.
+/// `None` with `cg_saberTrail 0`; `skins` are the blade skins the actor wears on its first
+/// and second saber, which replace those sabers' colours. `hands` are the bolts already at
+/// the actor's `scale` ([`saber::Attachment::scaled`]); the hilts are drawn at it too, as
+/// stock draws the bolted saber model with the wearer's `modelScale`.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn submit(
     entity_id: u64,
-    skin: Option<crate::saber_skins::SkinColor>,
+    skins: [Option<crate::saber_skins::SkinColor>; 2],
     black_sabers: crate::saber_rgb::black::Policy,
     hands: [Option<(&str, saber::Attachment)>; 2],
     equipment: HeldEquipment,
@@ -59,6 +59,7 @@ pub(crate) fn submit(
         let Some((name, attachment)) = hand else {
             continue;
         };
+        let two_sabers = hands[1].is_some();
         let hilt = catalog.get(name);
         let (grip, weapon_rotation) =
             saber::world_attachment(actor_origin, actor_rotation, attachment);
@@ -77,9 +78,23 @@ pub(crate) fn submit(
             }),
         );
         // A chroma skin takes this saber's colour.
-        let color = skin.map_or(stock, |skin| BladeColor::Skin(skin.worn_with(stock)));
-        let mut light_blades = [None; 8];
+        let worn = |skin: Option<crate::saber_skins::SkinColor>| {
+            skin.map_or(stock, |skin| BladeColor::Skin(skin.worn_with(stock)))
+        };
+        // The blades lit by each skin this saber wears: a staff's other half may wear the
+        // second (Sol's request of 21/10/2026), so its light is its own.
+        let mut light_blades = [[None; 8]; 2];
+        let mut light_colors = [stock; 2];
         for blade_index in 0..usize::from(hilt.num_blades) {
+            // The second skin on the second saber, or on a staff's other half (a blade
+            // pointing away from the first; a crossguard's side blades keep the first's).
+            // (Only when the two differ: otherwise one light as before.)
+            let other_half = hilt.is_other_half(blade_index);
+            let half = usize::from(!two_sabers && other_half && skins[0] != skins[1]);
+            let skin =
+                crate::saber_skins::skin_of_blade(skins, two_sabers, saber_index, other_half);
+            let color = worn(skin);
+            light_colors[half] = color;
             let Some(mut hilt_blade) = hilt.blade(blade_index) else {
                 continue;
             };
@@ -248,7 +263,7 @@ pub(crate) fn submit(
                     petal_queue,
                 );
             }
-            light_blades[blade_index] = Some(blade);
+            light_blades[half][blade_index] = Some(blade);
             if let Some(edges) = trails.as_deref_mut()
                 && let Some(quad) = state.trail.update(
                     edges.edge(blade),
@@ -262,15 +277,19 @@ pub(crate) fn submit(
                 segments.insert(quad, presentation_time);
             }
         }
-        self::lights::append(
-            lights,
-            &light_blades,
-            color,
-            hilt.num_blades,
-            hilt.no_dlight,
-            presentation_time,
-            entity_id.wrapping_add(saber_index as u64),
-        );
+        for (half, (blades, color)) in light_blades.iter().zip(light_colors).enumerate() {
+            if blades.iter().any(Option::is_some) {
+                self::lights::append(
+                    lights,
+                    blades,
+                    color,
+                    hilt.num_blades,
+                    hilt.no_dlight,
+                    presentation_time,
+                    entity_id.wrapping_add((saber_index + half * 8) as u64),
+                );
+            }
+        }
     }
     true
 }
