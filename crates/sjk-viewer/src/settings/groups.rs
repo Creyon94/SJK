@@ -351,6 +351,7 @@ impl Group {
                 "cg_remaps",
                 crate::hax::TRAP_CVAR,
                 crate::hax::AWAY_CVAR,
+                crate::monitor::SHOW_CVAR,
                 crate::boombox::RANGE_CVAR,
                 crate::camera::STYLE_CVAR,
                 "cg_drawGun",

@@ -29,6 +29,12 @@
 //!   hit marker on their crosshair and hears [`HIT_SOUND`] when the struck player's
 //!   blow reaches them (red for a hard one).
 //!
+//! - **Unseen:** in a duel (the player's own or the one they follow, and on Duel and
+//!   Power Duel servers) no monitor is drawn or heard, nor any mark shown; and
+//!   [`SHOW_CVAR`] at 0 hides every monitor and its sounds in the world, everywhere (the
+//!   player's own throw ring and hit marker stay). Neither changes who may be hit: the
+//!   switch does.
+//!
 //! No game server knows of it: the player's real body stays where it was and walks to
 //! the ragdoll, as for the Ragdoll. Every SJK client on the server sees the same throw:
 //! the thrower's client relays `throw_<number>_<moment>_<x>_<y>_<z>_<vx>_<vy>_<vz>`
@@ -57,6 +63,9 @@ pub(crate) const THROW_COMMAND: &str = "monitor_throw";
 pub(crate) const CHARGE_COMMAND: &str = "+monitor_throw";
 /// The release of [`CHARGE_COMMAND`].
 pub(crate) const CHARGE_RELEASE: &str = "-monitor_throw";
+/// `cg_toyMonitorShow` (archived, on by default): off, no monitor is drawn, and none of
+/// their sounds in the world is heard, on this PC.
+pub(crate) const SHOW_CVAR: &str = "cg_toyMonitorShow";
 /// The toy's id in relayed toy events.
 pub(crate) const TOY: &str = "monitor";
 /// The toy's icon (quick wheel, Collection, key bindings).
@@ -262,6 +271,10 @@ pub(crate) struct Monitor {
     stop_charge: bool,
     /// The last hit of the player's monitors on someone: when it was heard, and hard.
     mark: Option<(Instant, bool)>,
+    /// This frame: the player is in a duel (nothing of the toy is seen or heard), and
+    /// [`SHOW_CVAR`] is off (no monitor seen, nor heard in the world).
+    duel: bool,
+    unseen: bool,
     server: Option<SocketAddr>,
     shown: Vec<Shown>,
     next_number: u8,
@@ -310,8 +323,11 @@ impl Monitor {
         Some(charge_of(Instant::now().saturating_duration_since(since)))
     }
 
-    /// What the HUD draws for the toy now.
+    /// What the HUD draws for the toy now (nothing in a duel).
     fn marks(&self) -> crate::hud::MonitorMarks {
+        if self.duel {
+            return crate::hud::MonitorMarks::default();
+        }
         crate::hud::MonitorMarks {
             charge: self.charge(),
             hit: self.mark.and_then(|(when, hard)| {
@@ -571,6 +587,16 @@ impl GpuState {
             self.monitor.server = Some(server);
         }
         let game_state = session.game_state();
+        let gametype = game_state
+            .config_string(0)
+            .and_then(|info| sjk_client::LegacyClientInfo::new(info).integer("g_gametype"))
+            .unwrap_or(0);
+        self.monitor.duel = crate::order66::duelling(&session.latest_snapshot().player, gametype);
+        self.monitor.unseen = self
+            .console
+            .as_ref()
+            .and_then(|console| console.bool_cvar(SHOW_CVAR))
+            == Some(false);
         let own = u8::try_from(game_state.client_num).ok();
         let now = self.monitor.time;
         let heard: Vec<(u8, Event)> = relay_events
@@ -888,6 +914,9 @@ impl GpuState {
 
     /// Add this frame's monitors, between their last two steps.
     pub(crate) fn submit_monitors(&mut self, presentation_time: i64) {
+        if self.monitor.duel || self.monitor.unseen {
+            return;
+        }
         let Some(mesh) = self
             .object_meshes
             .iter()
@@ -937,6 +966,10 @@ impl GpuState {
             audio.stop_toy(CHARGE_SOURCE, CHARGE_CHANNEL);
         }
         for Cue { path, at, volume } in self.monitor.cues.drain(..) {
+            // In a duel nothing is heard; unseen, no monitor in the world is.
+            if self.monitor.duel || (self.monitor.unseen && at.is_some()) {
+                continue;
+            }
             let (source, channel) = if path == CHARGE_SOUND {
                 (CHARGE_SOURCE, CHARGE_CHANNEL)
             } else {

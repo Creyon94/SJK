@@ -723,6 +723,10 @@ const HELP: &[(&str, &str)] = &[
         "With the Hax trap on: players may hack you while you are away, and blow up with you. Others can see it is set.",
     ),
     (
+        crate::monitor::SHOW_CVAR,
+        "Off: no Monitor toy monitor is drawn, yours or other players', nor their sounds heard. You can still be hit while the toy is on.",
+    ),
+    (
         crate::boombox::RANGE_CVAR,
         "How far your boombox carries, in units (a player is 64 tall). It fades out toward the edge.",
     ),

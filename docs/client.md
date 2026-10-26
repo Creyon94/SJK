@@ -4766,6 +4766,14 @@ sends them flying, the way the monitor struck them.
   (`hit.wav`). Not for a hit on themselves, nor one heard more than 1.5 seconds after it
   happened. The marks go with the crosshair (`cg_drawCrosshair` 0 hides them)
   ([monitor_marks.rs](../crates/sjk-viewer/src/hud/monitor_marks.rs)).
+- **Unseen in duels, or on request** (Sol's ask, 26/10/2026): while the player, or the
+  player they follow, is in a private duel, and on Duel and Power Duel servers, no monitor
+  is drawn or heard, and no charge ring or hit marker shows (nobody throws or is hit in a
+  duel anyway; this hides the monitors of the players around it). Settings > Game options >
+  Toys, "Show monitors" (`cg_toyMonitorShow`, archived, default 1), at 0 hides every
+  monitor and its sounds in the world on this PC, the player's own too; their charge ring,
+  charge hum, hit marker and tick stay. Neither changes who may be hit: a player with the
+  toy on and monitors hidden can still be struck.
 - **Getting up:** a fall a monitor began ends by itself 2.5 seconds after the body came
   to rest, once the real body has walked to it (or 6 seconds later whatever it did);
   `toy_ragdoll` gets up at once, and being hurt does as for the Ragdoll.

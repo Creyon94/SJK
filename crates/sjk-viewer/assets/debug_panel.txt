@@ -104,6 +104,16 @@ test: Two SJK clients. A: freecam near B: B sees a small remote, the size of a s
 test: A: peek B: B sees no remote, "A is spectating you with the Drone" near the top.
 test: A stops peeking: B's line goes. Third player C still sees A's remote behind B.
 
+[monitor-hide]
+area: Gameplay
+title: Monitors unseen in duels; Show monitors setting hides them everywhere
+change: In a duel (yours or followed, or a Duel server): no monitor drawn or heard, no marks.
+change: Game options > Toys > Show monitors (cg_toyMonitorShow) off hides all monitors + sounds.
+test: Two SJK clients, toys on. B duels C; A throws near them: B and C see/hear no monitor.
+test: Spectate-follow B in the duel: still none. Duel ends: monitors show again.
+test: Show monitors off: none drawn, no whoosh/bonk/knock; your ring and hit tick still show.
+test: Show monitors off with the toy on: you can still be hit (only the toy switch stops it).
+note: Untested in game.
 [monitor-charge]
 area: Gameplay
 title: Monitor: hold the throw key to charge a harder throw; hit marker and tick on a hit

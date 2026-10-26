@@ -9,6 +9,10 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 26/10/2026 | - | Monitors unseen in duels, Show monitors setting
+- 691e185 |  | Monitor toy: unseen in duels, and a Show monitors setting (cg_toyMonitorShow)
++ 26/10/2026 | - | Blade skin toggle sound once
+- f62f2c3 |  | Blade skin toggle sound plays once per toggle, not once per hilt sound
 + 26/10/2026 | - | Monitor charged throw and hit marker
 - eb8a407 |  | Monitor toy: hold the throw to charge it, and a hit marker with a hit sound
 + 26/10/2026 | - | Changelog: the staff toggle cap goes under Unreleased, 2026.1026.3's line as shipped

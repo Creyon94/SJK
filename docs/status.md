@@ -13,8 +13,12 @@ tried every 6 units for a body, so a fast one cannot pass through a limb. The th
 a hit marker (four diagonal strokes, red for a blow of 2,400 or more) and hears `hit.wav`
 when the struck player's `hit_` event reaches them
 ([monitor_marks.rs](../crates/sjk-viewer/src/hud/monitor_marks.rs)). No hub change.
-Verified: fmt, workspace build, Clippy and tests (charge and speed, sound choice, the swept
-hit, the marks, the input commands, the bind rewrite). Not verified: anything in game (the
+Then, at Sol's ask: no monitor is drawn or heard, nor any mark shown, while the player (or
+the one they follow) is in a duel or on a Duel or Power Duel server (`order66::duelling`),
+and `cg_toyMonitorShow` 0 (Settings > Game options > Toys, "Show monitors") hides every
+monitor and its world sounds; hits are unchanged. Verified: fmt, workspace build, Clippy
+and tests (charge and speed, sound choice, the swept hit, the marks, the input commands,
+the bind rewrite). Not verified: anything in game (the
 feel of the charge time and speeds, the sounds' mix, the marker's look and its delay over
 a real ping).
 

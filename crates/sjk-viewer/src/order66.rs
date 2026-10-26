@@ -202,6 +202,12 @@ impl Spared {
     }
 }
 
+/// Whether `player` (the player's own state, or the followed player's) is in a duel: a
+/// private one, or any game of a Duel or Power Duel server (`gametype`, `g_gametype`).
+pub(crate) fn duelling(player: &sjk_protocol::PlayerState, gametype: i32) -> bool {
+    matches!(gametype, GT_DUEL | GT_POWERDUEL) || player.duel_in_progress()
+}
+
 /// Why the player's own `kill` is not sent, if it is not: `player` is the player's
 /// state, `gametype` the server's `g_gametype`.
 pub(crate) fn spared(player: &sjk_protocol::PlayerState, gametype: i32) -> Option<Spared> {
@@ -215,7 +221,7 @@ pub(crate) fn spared(player: &sjk_protocol::PlayerState, gametype: i32) -> Optio
     if player.health() <= 0 || player.movement_type() == 5 {
         return Some(Spared::Dead);
     }
-    if matches!(gametype, GT_DUEL | GT_POWERDUEL) || player.duel_in_progress() {
+    if duelling(player, gametype) {
         return Some(Spared::Duel);
     }
     let time = player.command_time();

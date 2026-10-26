@@ -829,6 +829,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "The Monitor toy is on: you may throw monitors (monitor_throw, or +monitor_throw held to charge) and be hit by them (toy_monitor switches it)",
         ),
         CvarDefinition::new(
+            crate::monitor::SHOW_CVAR,
+            true,
+            archive,
+            "Monitors are seen (0: no Monitor toy monitor is drawn, nor its sounds in the world heard, on this PC; SJK)",
+        ),
+        CvarDefinition::new(
             crate::boombox::RANGE_CVAR,
             crate::boombox::DEFAULT_RANGE,
             archive,

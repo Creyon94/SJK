@@ -965,6 +965,11 @@ pub(super) const GAME: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Show monitors",
+        cvar: crate::monitor::SHOW_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Boombox range",
         cvar: crate::boombox::RANGE_CVAR,
         kind: ValueKind::Integer {
