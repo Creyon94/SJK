@@ -1,3 +1,14 @@
+## Exclusive fullscreen minimises on focus loss
+
+26/10/2026, `fix/fullscreen-focus-minimise` (Creyon), based on `main` `8f73ab73`: Alt+Tab
+or Win+D in exclusive fullscreen left the game as a window over the desktop (hub report
+#131, 2026.1023.3). Pausing exclusive fullscreen on focus loss now also minimises the
+window, as SDL does for a fullscreen window in OpenJK
+([client.md](client.md#configuration-and-content)). Verified: fmt, workspace build, tests (4155 passed) and Clippy on Linux x86_64, with the
+display unit tests; in game by Creyon on Windows (28/10/2026, exclusive fullscreen): Alt+Tab
+and Win+D send the game to the taskbar and its button brings it back fullscreen (a second
+Win+D does not, as Windows restores only what Win+D hid itself).
+
 ## Capsule nameplates
 
 28/10/2026, `personal/nameplate-capsule`, based on `main` `fbd28832` (Sol's pick of design E,
