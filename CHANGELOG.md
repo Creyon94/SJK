@@ -30,7 +30,15 @@ The site (site/assets/site.js, parseChangelog) reads the release headings,
 introductions and recap lines too.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
-## Unreleased
+## 2026.1026.4 (Alpha) | 26/10/2026
+
+A charged Monitor throw with a hit marker, blocks for a single map, a faster hub, and names that follow ragdolls.
+
+> Monitor toy: Hold the throw key to charge a much faster throw, and a hit marker and a tick tell you when you hit someone.
+> Block for this map: Block any player until the map changes, SJK player or not; blocked players read BLOCKED.
+> Faster hub: Pings, emotes and toy events arrive within half a second, and the Escape menu refreshes your profile at once.
+> Ragdolls: A falling player's nameplate and overhead name now follow their ragdoll.
+> Saber sounds: Blade skin toggle sounds play once again, and staff put-away spam is capped too.
 
 - Block a player for this map only: the card on a player's name (or `block <player> map`) now offers Block for this map, which lasts until the map changes or they leave, for anyone on the server, SJK player or not. Every blocked player now reads BLOCKED on the scoreboard, in the kill feed and on nameplates, and a staff saber of theirs shows as the stock staff. Settings > Network > Follow SJK staff blocks (on) lets you ignore blocks SJK staff make for everyone on a server _(Sol)_
 - A ragdolling player's nameplate and overhead name now follow their ragdoll as it falls and flies, instead of staying where their real body walks _(Sol)_

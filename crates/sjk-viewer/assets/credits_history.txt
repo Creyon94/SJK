@@ -9,6 +9,10 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 26/10/2026 | - | Block for this map, staff Block for all, BLOCKED names
+- 8f59376 |  | Block a player for this map, staff Block for all, BLOCKED names
++ 26/10/2026 | - | Credits history: names follow ragdolls
+- 97a7504 |  | Credits history: names follow ragdolls
 + 26/10/2026 | - | Names follow ragdolls
 - 888b8c2 |  | Nameplates and overhead names follow a ragdolling player's body
 + 26/10/2026 | - | Faster hub ticks, game menu refresh
