@@ -9,6 +9,22 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 26/10/2026 | - | test-only extras checks
+- 01da4a7 |  | Blade extras: test-only checks are cfg(test), so the release build has no dead code
++ 26/10/2026 | - | Free look when held on by default
+- b530bde |  | Free look when held on by default: the mouse turns the view while down again
++ 26/10/2026 | - | Sun blade trails and blade extras
+- e4e744f |  | Sun blade trails: plasma for every wearer, Solar card 000 unlocks Flare, Embers, Heat wake
++ 26/10/2026 | - | Claim a fix before starting it
+- bc007ec |  | AGENTS.md: claim a fix before starting it
++ 26/10/2026 | - | Monitor toy and better ragdoll physics
+- e4fca04 |  | Monitor toy: throw an old CRT that sends opted-in players flying as ragdolls
++ 26/10/2026 | - | Encrypted whispers ending with a backslash
+- cf823be |  | Encrypted whispers: a whisper ending with a backslash stays encrypted
++ 26/10/2026 | - | Staff tools: kyber crystal gifts, no key id in game
+- abbde4a |  | Staff tools: kyber crystal gifts, second presses, and no key id anywhere in game
++ 26/10/2026 | - | Saber on/off sound spam cap
+- 6ea3605 |  | Saber toggle spam: cap each player's on/off sounds at 4, then one per 500 ms
 + 26/10/2026 | - | MP/SP camera names, Vanilla style as EternalJK
 - 9d379eb |  | MP camera and SP camera; Vanilla style follows EternalJK's defaults (light flares off)
 + 26/10/2026 | - | Support SJK links on the main page

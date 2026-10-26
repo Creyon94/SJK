@@ -30,7 +30,15 @@ The site (site/assets/site.js, parseChangelog) reads the release headings,
 introductions and recap lines too.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
-## Unreleased
+## 2026.1026.3 (Alpha) | 26/10/2026
+
+The Sun blade's own trails, the Monitor toy, a blade skin on each of two sabers, free look when held back by default, and a quieter, safer game.
+
+> Sun blade: A plasma trail of its own, and a Solar copy of Sol's card unlocks the Flare trail, Swing embers and a Heat wake.
+> Monitor toy: Throw an old CRT at players who turned the toy on and send them flying as ragdolls.
+> Two sabers: Each saber, or each half of a staff, can wear its own blade skin.
+> Camera: Free look when held is back by default; the camera styles are now MP camera and SP camera.
+> Quieter and safer: Saber on/off spam is capped, key ids never show, and whispers ending in a backslash stay encrypted.
 
 = cg_heldViewLook: You can look around again while kicked down, kissed or grappled. Switch this off to hold the camera still then, which stops it shaking.
 
