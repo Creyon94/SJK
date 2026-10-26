@@ -530,7 +530,8 @@ impl LegacySoundAdapter {
         );
     }
 
-    /// `S_StartSound(origin, number, CHAN_AUTO, sound)` for each set hand.
+    /// `S_StartSound(origin, number, CHAN_AUTO, sound)` for each set hand, unless
+    /// the client's toggle spam is capped ([`super::saber_toggle_limit`]).
     fn emit_hands(
         &mut self,
         event: LegacySoundEvent,
@@ -539,6 +540,9 @@ impl LegacySoundAdapter {
         origin: [f32; 3],
         snapshot: &Snapshot,
     ) {
+        if !self.saber_toggle_limit.allow(client, snapshot.server_time) {
+            return;
+        }
         let mut additional = false;
         for sound in sounds.into_iter().flatten() {
             self.emit(

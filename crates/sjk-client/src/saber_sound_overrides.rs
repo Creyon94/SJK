@@ -14,7 +14,8 @@
 //! - `EV_SABER_UNHOLSTER` (the ignition the game predicts) plays the set's `on`;
 //! - cgame's own ignition and switching off as the player draws the saber from another
 //!   weapon or puts a lit one away ([`super::saber_switch`]) play `on` or `off`, once;
-//! - `EV_GENERAL_SOUND` of a stock `saberon*`/`saberoff*` sound, or of any `.sab`
+//! - `EV_GENERAL_SOUND` of a stock `saberon*`/`saberoff*` or `enemy_saber_on`/`off`
+//!   sound, or of any `.sab`
 //!   `soundOn`/`soundOff`, plays `on`/`off`. The game's `G_Sound` puts these on a
 //!   temporary entity with no owner (`g_utils.c`), so the sound is taken as the
 //!   player's whose origin is nearest the event's, within [`TOGGLE_REACH`];
@@ -196,6 +197,13 @@ impl SaberSoundOverrides {
         if stock && starts("saberoff") {
             return Some(Toggle::Off);
         }
+        // `WP_SaberSetDefaults`' sounds, for a hilt that authors none.
+        if stock && file.eq_ignore_ascii_case("enemy_saber_on") {
+            return Some(Toggle::On);
+        }
+        if stock && file.eq_ignore_ascii_case("enemy_saber_off") {
+            return Some(Toggle::Off);
+        }
         self.toggles
             .iter()
             .find(|(known, _)| known.eq_ignore_ascii_case(stem))
@@ -237,6 +245,24 @@ fn nearest_player(snapshot: &Snapshot, origin: [f32; 3]) -> Option<u16> {
 }
 
 impl LegacySoundAdapter {
+    /// Whether a general sound `sound` at `origin` is a saber switching on or off whose
+    /// player has spent their toggle sounds ([`super::saber_toggle_limit`]).
+    pub(super) fn saber_toggle_muted(
+        &mut self,
+        sound: Option<u16>,
+        origin: [f32; 3],
+        snapshot: &Snapshot,
+    ) -> bool {
+        let Some(registered) = sound.and_then(|index| self.sounds.get(usize::from(index))) else {
+            return false;
+        };
+        if self.saber_overrides.toggle(&registered.path).is_none() {
+            return false;
+        }
+        nearest_player(snapshot, origin)
+            .is_some_and(|client| !self.saber_toggle_limit.allow(client, snapshot.server_time))
+    }
+
     /// Register replacement saber sound sets; a set is then worn by its index here.
     /// Call once after [`Self::new`], with the same `register`, before snapshots are
     /// observed (registration reads the files and the `.sab` definitions).

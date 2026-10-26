@@ -787,12 +787,48 @@ fn a_blade_skin_voices_the_unholster_and_toggle_once_and_the_switch_adds_nothing
             (On, "sound/sjk/skin_on")
         ]
     );
-    // A client not wearing it keeps its hilts on the same event.
+    // A client not wearing it keeps its hilts on the same event (later on, past
+    // the toggle spam cap of the four toggles above and the retraction).
     fixture.wear(&[]);
+    fixture.time += 2_000;
     let snapshot = fixture.snapshot(local, std::slice::from_ref(&unholster));
     fixture.adapter.observe_snapshot(&snapshot);
     assert_eq!(
         names(&fixture.played()),
         [(SaberUnholster, "single2_on"), (SaberUnholster, "dual2_on")]
     );
+}
+
+#[test]
+fn toggle_spam_sounds_a_burst_then_one_toggle_per_half_second() {
+    let mut fixture = Fixture::new();
+    let local = view(WP_SABER, 0);
+    let lit = player(DUAL, WP_SABER, 0);
+    // The local view's own first-frame ignition out of the way.
+    fixture.step(local, &[lit.clone()]);
+    // The server's toggle every 50 ms for two seconds, from a bound command.
+    let mut toggles = 0;
+    for number in 100..140 {
+        let toggle = general_sound(number, SLOT_SINGLE2_ON, lit.trajectory_base());
+        let snapshot = fixture.snapshot(local, &[lit.clone(), toggle]);
+        fixture.adapter.observe_snapshot(&snapshot);
+        toggles += fixture.played().len();
+    }
+    assert_eq!(toggles, 4 + 3);
+    // A weapon switch loop is capped the same way, and the unholster with it.
+    fixture.time += 5_000;
+    let mut switches = 0;
+    for weapon in [WP_MELEE, WP_SABER].into_iter().cycle().take(40) {
+        switches += usize::from(!fixture.step(local, &[player(DUAL, weapon, 0)]).is_empty());
+    }
+    assert_eq!(switches, 4 + 3);
+    // The budget has refilled one toggle since; the next one, 50 ms on, is capped.
+    let mut played = Vec::new();
+    for event in [EV_SABER_UNHOLSTER, EV_SABER_UNHOLSTER | 0x100] {
+        let unholster = with_field(lit.clone(), 28, event);
+        let snapshot = fixture.snapshot(local, std::slice::from_ref(&unholster));
+        fixture.adapter.observe_snapshot(&snapshot);
+        played.push(fixture.played().len());
+    }
+    assert_eq!(played, [2, 0]);
 }

@@ -342,6 +342,8 @@ includes:
 - emotes while typing (23/10/2026, after Rollembones' idea): a player typing keeps their
   emote until they move or attack (`cg_emoteTypingKeep`), and alt-tabbing out always
   silences your emote's music;
+- saber toggle spam muted (26/10/2026): a player turning a saber on and off over and
+  over, by hand, bind or script, is heard four times, then once per half second;
 - chat name actions (23/10/2026, after Bishop's and Sanjisan's ideas): a click on a
   player's name in the chat pins their card, to Whisper or Block them;
 - SJK Alpha (19/10/2026), the first collection of cards: the Mythical rarity, the
