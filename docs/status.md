@@ -1,3 +1,13 @@
+## Names over ragdolls
+
+26/10/2026, `personal/ragdoll-nameplate`, based on `main` `13ab1819` (Sol's ask): a limp
+player's nameplate (others', and the player's own in third person) and overhead name
+(`cg_drawPlayerNames`) hang over the ragdoll as shown this frame (`ragdoll::shown_top`:
+the pelvis, and the body's highest point plus 6) instead of over the real body walking to
+it, for a fall of the player's own or a monitor's ([client.md](client.md#ragdoll)).
+Verified: fmt, viewer build, Clippy and tests (a unit test of the top standing and lying).
+Not verified: anything in game.
+
 ## Faster hub ticks and a refresh on the game menu
 
 27/10/2026, `personal/hub-tick`, based on `main` `b8fe0304` (Sol's ask: make the hub more

@@ -327,6 +327,25 @@ pub(crate) fn shown(slot: u8) -> Option<[Vec3; JOINTS]> {
     shown_lock().get(usize::from(slot)).copied().flatten()
 }
 
+/// The head joint's centre lies this far below the top of the head.
+const HEAD_TOP: f32 = 6.0;
+
+/// Where names over the player in `slot` hang while they are limp (their nameplate,
+/// their overhead name): the ragdoll as shown this frame, its pelvis (the point names
+/// are traced to) and how far above it the body's highest point is, the top of the head
+/// standing, a little above the body lying.
+pub(crate) fn shown_top(slot: u8) -> Option<(Vec3, f32)> {
+    let points = shown(slot)?;
+    Some(top_of(&points))
+}
+
+/// [`shown_top`] for `points`.
+fn top_of(points: &[Vec3; JOINTS]) -> (Vec3, f32) {
+    let pelvis = points[PELVIS];
+    let top = points.iter().map(|point| point.z).fold(f32::MIN, f32::max) + HEAD_TOP;
+    (pelvis, top - pelvis.z)
+}
+
 /// The ragdoll of the player whose actor is `entity` (`slot + 1`), if any.
 pub(crate) fn shown_entity(entity: EntityId) -> Option<[Vec3; JOINTS]> {
     let slot = u8::try_from(entity.get().checked_sub(1)?).ok()?;
@@ -1069,6 +1088,24 @@ pub(crate) fn camera(state: &mut GpuState, time: i64) -> Option<(Vec3, Vec3)> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_name_hangs_over_the_head_of_a_standing_body_and_low_over_a_lying_one() {
+        let origin = Vec3::new(100.0, 0.0, 24.0);
+        let standing = standing(origin, 0.0);
+        let (pelvis, head) = top_of(&standing);
+        assert_eq!(pelvis, standing[PELVIS]);
+        // About where a standing player's box top is (40 over the origin).
+        let top = pelvis.z + head;
+        assert!((origin.z + 30.0..origin.z + 52.0).contains(&top), "{top}");
+        // The same body laid flat along +X: the top barely over the pelvis.
+        let lying = standing.map(|point| {
+            let up = point - standing[PELVIS];
+            standing[PELVIS] + Vec3::new(up.z, up.y, -up.x * 0.1)
+        });
+        let (_, low) = top_of(&lying);
+        assert!(low < 15.0, "{low}");
+    }
 
     fn start() -> Start {
         Start {
