@@ -1209,6 +1209,8 @@ pub(crate) fn sender_card(
             report: tokens.card,
             whisper: None,
             trade: tokens.card,
+            map_block: tokens.card,
+            staff_block: tokens.card,
         },
     );
 }
@@ -1232,6 +1234,7 @@ fn person(line: &DockLine<'_>) -> crate::sender_card::Person {
         safety: false,
         report: false,
         trade: false,
+        map_block: None,
     }
 }
 

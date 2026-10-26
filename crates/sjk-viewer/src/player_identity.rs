@@ -1088,6 +1088,22 @@ pub(crate) fn follow_game_menu(open: bool) {
     runtime.game_menu_open = open;
 }
 
+/// The players SJK staff blocked for everyone on the server being played, until its map
+/// changes (`map_blocks.rs`), as the hub's presence last gave them.
+pub(crate) fn map_blocks() -> Vec<sjk_identity::MapBlock> {
+    lock().service.as_ref().map_or_else(Vec::new, |service| {
+        service.with_snapshot(|snapshot| snapshot.map_blocks.clone())
+    })
+}
+
+/// The game server the hub sees this player on (their claim's), if any.
+pub(crate) fn claimed_server() -> Option<std::net::SocketAddr> {
+    lock()
+        .service
+        .as_ref()?
+        .with_snapshot(|snapshot| snapshot.server)
+}
+
 /// Send a staff request through the service; false when the service has not started.
 pub(crate) fn staff(request: sjk_identity::StaffRequest) -> bool {
     lock()

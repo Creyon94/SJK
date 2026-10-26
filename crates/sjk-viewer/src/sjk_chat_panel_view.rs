@@ -452,6 +452,7 @@ impl Panel {
                     safety: false,
                     report: false,
                     trade: offers_trade(&message.key_id, &laid.name),
+                    map_block: None,
                 };
                 hovered = Some((CardSource::Message(message.id), person, name));
             }
@@ -960,6 +961,7 @@ impl Panel {
                 safety: false,
                 report: false,
                 trade: offers_trade(&row.key_id, &row.name),
+                map_block: None,
             };
             (CardSource::Person(row.key_id.clone()), person, square)
         })
@@ -1580,6 +1582,8 @@ impl Panel {
                 report: CARD_TOKEN,
                 whisper: None,
                 trade: CARD_TRADE_TOKEN,
+                map_block: CARD_TOKEN,
+                staff_block: CARD_TOKEN,
             },
         );
     }

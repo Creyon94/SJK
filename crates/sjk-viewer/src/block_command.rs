@@ -4,6 +4,12 @@
 //! number, or part of the name the game shows), and `unblock <player|all>` lifts a block,
 //! by a name of the list (so it works away from the server too) or a player here. The
 //! list is the one the sender cards' Block keeps ([`crate::player_mutes`]).
+//!
+//! `block <player> map` blocks them for this player until the map changes, and, for SJK
+//! staff, `block <player> everyone` for every SJK player on the server who follows staff
+//! blocks ([`crate::map_blocks`]); `unblock <player>` lifts this player's blocks of them
+//! and a staff block for this player alone, and `unblock <player> everyone` (staff) a
+//! staff block for everyone.
 
 use crate::chat_mutes::Mute;
 use crate::emotes::plain_name;
@@ -12,8 +18,36 @@ use crate::emotes::plain_name;
 pub(crate) const COMMAND: &str = "block";
 pub(crate) const UNBLOCK_COMMAND: &str = "unblock";
 /// Help texts for completion and `cmdlist`.
-pub(crate) const HELP: &str = "Block an SJK player on this PC (no chat, Kyle, no sounds, no emotes): block <player|target>; block alone lists them";
+pub(crate) const HELP: &str = "Block a player (no chat, Kyle, no sounds, no emotes, named BLOCKED): block <player|target> on this PC, block <player> map until the map changes; block alone lists them";
 pub(crate) const UNBLOCK_HELP: &str = "Lift a block: unblock <player|all>";
+/// The last words after a player that make a block last the map only, or (staff)
+/// reach everyone on the server.
+const MAP: &str = "map";
+const EVERYONE: &str = "everyone";
+
+/// How long and for whom a block is.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum Scope {
+    /// On this PC, until lifted.
+    Pc,
+    /// For this player, until the map changes.
+    Map,
+    /// For every SJK player on the server following staff blocks, until the map
+    /// changes (staff only).
+    Everyone,
+}
+
+/// The player words and the scope `word` asks for: a last word `map` or `everyone`
+/// after a player.
+pub(crate) fn scope(word: &str) -> (&str, Scope) {
+    match word.rsplit_once(' ') {
+        Some((player, last)) if last.eq_ignore_ascii_case(MAP) => (player.trim(), Scope::Map),
+        Some((player, last)) if last.eq_ignore_ascii_case(EVERYONE) => {
+            (player.trim(), Scope::Everyone)
+        }
+        _ => (word, Scope::Pc),
+    }
+}
 
 /// The console's lines for the list.
 pub(crate) fn listing(blocked: &[Mute]) -> Vec<String> {
@@ -67,7 +101,7 @@ pub(crate) fn find<'a>(blocked: &'a [Mute], word: &str) -> Result<Option<&'a Mut
 impl crate::GpuState {
     /// The player `word` names on the server being played: their slot, the name the
     /// game shows (colours kept) and their SJK key when the hub's claim covers them.
-    fn blockable(&self, word: &str) -> Result<(String, String, Option<String>), String> {
+    fn blockable(&self, word: &str) -> Result<(u8, String, String, Option<String>), String> {
         let Some(session) = self.live_session.as_ref() else {
             return Err("Join a server to block a player there".to_owned());
         };
@@ -76,17 +110,89 @@ impl crate::GpuState {
         let shown = crate::player_identity::shown_name(session.game_state(), usize::from(slot))
             .unwrap_or_else(|| plain.clone());
         let key = crate::player_identity::hub_mark(slot, &shown).map(|mark| mark.key_id);
-        Ok((plain, shown, key))
+        Ok((slot, plain, shown, key))
     }
 
-    /// `block [player]`.
+    /// Ask the hub to block (or stop blocking) the player in `slot`, shown as `shown`,
+    /// for every SJK player on this server until the map changes; SJK staff only. What
+    /// became of it shows on the Staff page's line.
+    pub(crate) fn staff_map_block(
+        &self,
+        slot: u8,
+        shown: &str,
+        blocked: bool,
+    ) -> Result<(), String> {
+        if !crate::player_identity::is_staff() {
+            return Err("Only SJK staff block players for everyone".to_owned());
+        }
+        let session = self
+            .live_session
+            .as_ref()
+            .ok_or("Join a server to block a player there")?;
+        let server = crate::player_identity::claimed_server()
+            .ok_or("The SJK hub does not see you on this server yet")?;
+        let map = session
+            .game_state()
+            .config_string(0)
+            .map(sjk_client::LegacyClientInfo::new)
+            .and_then(|info| info.bytes("mapname"))
+            .map(|bytes| String::from_utf8_lossy(bytes).to_ascii_lowercase())
+            .filter(|map| !map.is_empty())
+            .ok_or("This server names no map")?;
+        let request = sjk_identity::StaffRequest::MapBlock {
+            server: server.to_string(),
+            map,
+            serverid: i64::from(session.server_id()),
+            slot,
+            name: shown.to_owned(),
+            blocked,
+        };
+        if crate::player_identity::staff(request) {
+            Ok(())
+        } else {
+            Err("The SJK hub is off (cl_identity 0)".to_owned())
+        }
+    }
+
+    /// The console's lines for `block` alone: the PC's list, then the map's blocks.
+    fn block_listing(&self) -> Vec<String> {
+        let mut lines = listing(&crate::player_mutes::entries());
+        let (own, staff) = (self.map_blocks.own_slots(), self.map_blocks.shared_slots());
+        for (slots, what) in [(own, "by you"), (staff, "by SJK staff, for everyone")] {
+            for slot in (0..crate::chat_mutes::SLOTS as u16).filter(|slot| slots & 1 << slot != 0) {
+                lines.push(format!(
+                    "  {}^7  (this map, {what})",
+                    self.chat.player_label(slot)
+                ));
+            }
+        }
+        lines
+    }
+
+    /// `block [player] [map|everyone]`.
     pub(crate) fn block_command(&mut self, args: &[String]) -> Result<Vec<String>, String> {
         let word = args.get(1..).unwrap_or_default().join(" ");
         let word = word.trim();
         if word.is_empty() {
-            return Ok(listing(&crate::player_mutes::entries()));
+            return Ok(self.block_listing());
         }
-        let (plain, shown, key) = self.blockable(word)?;
+        let (word, scope) = scope(word);
+        let (slot, plain, shown, key) = self.blockable(word)?;
+        match scope {
+            Scope::Pc => {}
+            Scope::Map => {
+                self.map_blocks.block(usize::from(slot), &shown);
+                return Ok(vec![format!(
+                    "{plain} is blocked for you until the map changes (unblock {plain})"
+                )]);
+            }
+            Scope::Everyone => {
+                self.staff_map_block(slot, &shown, true)?;
+                return Ok(vec![format!(
+                    "Asked the SJK hub to block {plain} for everyone on this server until the map changes"
+                )]);
+            }
+        }
         if crate::player_mutes::is_muted(key.as_deref(), &shown) {
             return Err(format!("{plain} is already blocked"));
         }
@@ -99,7 +205,7 @@ impl crate::GpuState {
         }])
     }
 
-    /// `unblock <player|all>`.
+    /// `unblock <player|all> [everyone]`.
     pub(crate) fn unblock_command(&mut self, args: &[String]) -> Result<Vec<String>, String> {
         let word = args.get(1..).unwrap_or_default().join(" ");
         let word = word.trim();
@@ -107,8 +213,27 @@ impl crate::GpuState {
             return Err(UNBLOCK_HELP.to_owned());
         }
         if word.eq_ignore_ascii_case(crate::emotes::ALL) {
-            let count = crate::player_mutes::clear();
+            let count = crate::player_mutes::clear() + self.map_blocks.clear();
             return Ok(vec![format!("Unblocked {count} player(s)")]);
+        }
+        let (word, scope) = scope(word);
+        if scope == Scope::Everyone {
+            let (slot, plain, shown, _) = self.blockable(word)?;
+            self.staff_map_block(slot, &shown, false)?;
+            return Ok(vec![format!(
+                "Asked the SJK hub to stop blocking {plain} for everyone"
+            )]);
+        }
+        // A player here blocked for the map, by this player or by staff (lifted for
+        // this player alone), and on this PC too if they are.
+        if self.live_session.is_some()
+            && let Ok((slot, plain, shown, key)) = self.blockable(word)
+            && self.map_blocks.unblock(usize::from(slot))
+        {
+            if crate::player_mutes::is_muted(key.as_deref(), &shown) {
+                crate::player_mutes::set_muted(key.as_deref(), &shown, false);
+            }
+            return Ok(vec![format!("{plain} is unblocked")]);
         }
         let blocked = crate::player_mutes::entries();
         let entry = match find(&blocked, word)? {
@@ -118,7 +243,7 @@ impl crate::GpuState {
                 if self.live_session.is_none() {
                     return Err(format!("Nobody blocked is called {word}"));
                 }
-                let (plain, shown, key) = self.blockable(word)?;
+                let (_, plain, shown, key) = self.blockable(word)?;
                 if !crate::player_mutes::is_muted(key.as_deref(), &shown) {
                     return Err(format!("{plain} is not blocked"));
                 }
@@ -167,6 +292,14 @@ mod tests {
         );
         assert_eq!(find(&list, "nobody").unwrap(), None);
         assert!(find(&list, "o").is_err(), "several match");
+    }
+
+    #[test]
+    fn a_last_word_says_how_long_and_for_whom() {
+        assert_eq!(scope("troll"), ("troll", Scope::Pc));
+        assert_eq!(scope("troll map"), ("troll", Scope::Map));
+        assert_eq!(scope("big troll EVERYONE"), ("big troll", Scope::Everyone));
+        assert_eq!(scope("map"), ("map", Scope::Pc), "a player called map");
     }
 
     #[test]

@@ -952,6 +952,23 @@ pub struct WornName {
     pub last_seen: i64,
 }
 
+/// A player SJK staff blocked for everyone on a game server until its map changes
+/// (`PROTOCOL.md`, "Map blocks"), as presence gives it.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+pub struct MapBlock {
+    /// The map, as the game names it.
+    pub map: String,
+    /// The server's `sv_serverid` for that map load.
+    pub serverid: i64,
+    /// The blocked player's slot.
+    pub slot: u8,
+    /// The name the game showed in `slot` when they were blocked.
+    pub name: String,
+    /// When, in Unix seconds.
+    #[serde(default)]
+    pub at: i64,
+}
+
 /// One live claim on a game server and who made it.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
 pub struct Presence {

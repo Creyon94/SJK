@@ -41,7 +41,10 @@ impl GpuState {
     ) -> Result<(), Box<dyn Error>> {
         // The body of a player muted on this PC looks as they did: Kyle, the default saber.
         if self.muted_players.contains(u16::from(body.client_num)) {
-            crate::muted_players::sabers(&mut body.sabers);
+            let hilts = self.saber_hilts.as_ref();
+            crate::muted_players::sabers(&mut body.sabers, |name| {
+                hilts.is_some_and(|catalog| catalog.is_staff(name))
+            });
         }
         body.appearance = self.body_appearance(u16::from(body.client_num), &body.appearance);
         let id = EntityId::new(u64::from(body.entity_num) + 1);

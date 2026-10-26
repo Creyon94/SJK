@@ -194,6 +194,9 @@ pub struct Snapshot {
     pub server: Option<SocketAddr>,
     /// Known players on that server, by slot.
     pub players: Vec<Presence>,
+    /// The players SJK staff blocked there for everyone until the map changes
+    /// (`PROTOCOL.md`, "Map blocks"), by slot; counted in `revision` with `players`.
+    pub map_blocks: Vec<crate::MapBlock>,
     /// Profiles fetched with [`Service::look_up`].
     pub profiles: HashMap<String, Profile>,
     /// What the hub answered to [`Service::check_model`], by server, slot and model.
@@ -552,6 +555,7 @@ impl Snapshot {
             me: None,
             server: None,
             players: Vec::new(),
+            map_blocks: Vec::new(),
             profiles: HashMap::new(),
             model_checks: HashMap::new(),
             profiles_revision: 0,
@@ -1384,6 +1388,7 @@ impl Worker {
         self.update(|snapshot| {
             snapshot.server = None;
             snapshot.players.clear();
+            snapshot.map_blocks.clear();
             snapshot.revision += 1;
         });
     }
@@ -1932,6 +1937,10 @@ impl Worker {
             .unwrap_or_else(|poisoned| poisoned.into_inner());
         staff.serial += 1;
         staff.busy = false;
+        if outcome.is_ok() && matches!(request, StaffRequest::MapBlock { .. }) {
+            // The list changed at the hub: see it now, not at the next poll.
+            self.due_poll = Instant::now();
+        }
         match outcome {
             Ok(profiles) => {
                 staff.failed = false;
@@ -2862,12 +2871,13 @@ impl Worker {
                 }
             }
             if now >= self.due_poll {
-                match hub.presence(&server) {
-                    Ok(players) => {
+                match hub.presence_with_blocks(&server) {
+                    Ok((players, blocks)) => {
                         self.due_poll = now + POLL_EVERY;
                         let mut snapshot = lock(&self.snapshot);
-                        if snapshot.players != players {
+                        if snapshot.players != players || snapshot.map_blocks != blocks {
                             snapshot.players = players;
+                            snapshot.map_blocks = blocks;
                             snapshot.revision += 1;
                         }
                     }
@@ -4483,7 +4493,8 @@ mod tests {
                 }],
                 StaffRequest::ChatDelete { .. }
                 | StaffRequest::ChatMute { .. }
-                | StaffRequest::ChatUnban { .. } => Vec::new(),
+                | StaffRequest::ChatUnban { .. }
+                | StaffRequest::MapBlock { .. } => Vec::new(),
                 StaffRequest::Verify { key_id, verified } => vec![Profile {
                     key_id: key_id.clone(),
                     verified: *verified,

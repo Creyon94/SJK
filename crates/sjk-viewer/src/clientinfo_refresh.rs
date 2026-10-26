@@ -221,7 +221,10 @@ impl GpuState {
                 forcing::sabers(&mut names, &self.clientinfo_watch.overrides[2]);
             }
             if muted {
-                crate::muted_players::sabers(&mut names);
+                let hilts = self.saber_hilts.as_ref();
+                crate::muted_players::sabers(&mut names, |name| {
+                    hilts.is_some_and(|catalog| catalog.is_staff(name))
+                });
                 (crate::muted_players::appearance(&appearance), names, body)
             } else {
                 (appearance, names, body)

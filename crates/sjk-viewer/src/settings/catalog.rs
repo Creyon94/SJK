@@ -1408,6 +1408,11 @@ pub(super) const NETWORK: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Follow SJK staff blocks",
+        cvar: crate::map_blocks::CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Send crash reports",
         cvar: crate::crash_report::CVAR,
         kind: ValueKind::Bool,

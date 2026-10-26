@@ -250,6 +250,8 @@ impl ChatOverlay {
             card::CARD_REPORT => self.press_card_report(),
             card::CARD_WHISPER => self.press_card_whisper(),
             card::CARD_TRADE => self.press_card_trade(),
+            card::CARD_MAP_BLOCK => self.press_card_map_block(false),
+            card::CARD_STAFF_BLOCK => self.press_card_map_block(true),
             token if usize::from(token) < MAX_VISIBLE => {
                 let pressed = self.pressed_who.take();
                 self.click_name(usize::from(token), pressed);

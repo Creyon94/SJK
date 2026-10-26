@@ -2069,7 +2069,8 @@ fn label(chat: &ChatOverlay, id: TextId) -> &str {
         return "?";
     }
     match id.0.checked_sub(NPC_TEXT) {
-        None => chat.player_label(id.0 as u16),
+        // A blocked player's plate reads BLOCKED (`muted_players.rs`).
+        None => crate::muted_players::label(id.0, chat.player_label(id.0 as u16)),
         Some(class) => super::npc_class::name(class as u8).unwrap_or(""),
     }
 }

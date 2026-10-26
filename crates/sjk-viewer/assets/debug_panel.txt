@@ -24,6 +24,18 @@
 
 # ---- Console & chat ----
 
+[map-block]
+area: Console & chat
+title: Block for this map, staff Block for all, BLOCKED names
+change: Card on a player here: Block for this map (until the map changes or they leave).
+change: Staff: Block this map / Block for all (everyone on the server, needs hub map-block).
+change: Every blocked player reads BLOCKED (scoreboard, kill feed, plates); staff saber = dual_1.
+test: Rest on a player's name in chat, Block for this map: Kyle, silent, BLOCKED everywhere.
+test: block alone lists them under "this map"; change map: they are back to normal.
+test: As staff with a 2nd client: Block for all shows them BLOCKED there within 5 seconds.
+test: 2nd client: Settings > Network > Follow SJK staff blocks off: they show as usual.
+note: Block for all fails until the hub branch map-block is deployed.
+
 [devmap-tab-completion]
 area: Console & chat
 title: Tab completes the map name after devmap (Slash, PR #209)

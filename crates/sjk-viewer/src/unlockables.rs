@@ -3108,6 +3108,7 @@ mod tests {
             key_id: "0123456789abcdef".into(),
             me,
             server: None,
+            map_blocks: Vec::new(),
             players: Vec::new(),
             profiles: std::collections::HashMap::new(),
             model_checks: std::collections::HashMap::new(),

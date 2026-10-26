@@ -704,12 +704,17 @@ fn server_info(game_state: &GameState) -> (String, &'static str) {
 }
 
 fn client_identity(game_state: &GameState, client_num: u8) -> (String, u8) {
-    game_state
+    let (name, team) = game_state
         .config_string(CS_PLAYERS + usize::from(client_num))
         .map_or_else(
             || (format!("Client {client_num}"), 3),
             |bytes| client_identity_from_config(bytes, client_num),
-        )
+        );
+    // A blocked player's name reads BLOCKED (`muted_players.rs`).
+    if crate::muted_players::shown_muted(client_num) {
+        return (crate::muted_players::LABEL.to_owned(), team);
+    }
+    (name, team)
 }
 fn client_identity_from_config(bytes: &[u8], client_num: u8) -> (String, u8) {
     let info = sjk_client::LegacyClientInfo::new(bytes);

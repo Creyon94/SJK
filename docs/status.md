@@ -1,3 +1,24 @@
+## Blocking for this map, staff blocks for everyone, BLOCKED names
+
+26/10/2026, `personal/map-block`, based on `main` `13ab1819` (Sol's ask: a block that
+works on non-SJK players, lasts the current map and is synced by staff, with an opt-out;
+"only staff members can do the sync thing ... everyone else it's personal"). `block
+<player> map` and the sender card's Block for this map block a player until the map load
+(`sv_serverid`) changes or they leave; staff get Block for all / `block <player>
+everyone`, kept by the hub and given with presence to every SJK client on the server that
+follows staff blocks (`cl_staffBlocks`, on) ([hub-chat.md](hub-chat.md#blocking-for-this-map),
+[map_blocks.rs](../crates/sjk-viewer/src/map_blocks.rs)). Every blocked player (the PC
+list's too) now reads BLOCKED on the scoreboard, kill feed, nameplates and crosshair, and a
+lone staff saber of theirs becomes the stock `dual_1`. Hub side, Sol-Vulpes/SJK-hub branch
+`map-block` (`POST /v1/staff/map-block`, in memory, presence `blocks`; NOT deployed): until
+it is, Block for all fails with a 404 and nothing else changes. Verified: fmt, Clippy (no
+new warning in the touched files), sjk-identity tests (203), the viewer's map_blocks,
+muted_players, block_command, sender_card, chat card, settings, scoreboard, nameplate and
+kill feed tests, the hub's tests and Clippy (with
+`staff_block_a_player_for_everyone_until_the_map_changes`). Not verified: anything in game
+(the card's new row, BLOCKED in each place, the staff saber, a staff block reaching a
+second client).
+
 ## Names over ragdolls
 
 26/10/2026, `personal/ragdoll-nameplate`, based on `main` `13ab1819` (Sol's ask): a limp

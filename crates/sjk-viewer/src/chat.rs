@@ -135,6 +135,11 @@ pub(crate) struct ChatOverlay {
     card: Option<card::Card>,
     /// Mute or Unmute asked from the card, until the frame takes it.
     mute_request: Option<card::MuteRequest>,
+    /// A block for this map a card asked for (`chat/card.rs`).
+    map_block_request: Option<card::MapBlockRequest>,
+    /// The map blocks as the frame last said: the player's own slots, staff's, and
+    /// whether the player is staff (`ChatOverlay::set_map_blocks`).
+    map_blocks: (u32, u32, bool),
     /// Client slots muted on this PC (bits, `muted_players.rs`): their lines are hidden.
     muted_slots: u32,
     /// What SJK knows of each slot's player, for their game lines (`chat/marks.rs`).
@@ -254,6 +259,8 @@ impl ChatOverlay {
             visible_people: [None; MAX_VISIBLE],
             card: None,
             mute_request: None,
+            map_block_request: None,
+            map_blocks: (0, 0, false),
             muted_slots: 0,
             slot_marks: Vec::new(),
             spoken: [0; 32],

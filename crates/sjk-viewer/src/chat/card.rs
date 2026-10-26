@@ -26,6 +26,8 @@ pub(super) const CARD_SAFETY: u16 = 123;
 pub(super) const CARD_WHISPER: u16 = 124;
 pub(super) const CARD_REPORT: u16 = 125;
 pub(super) const CARD_TRADE: u16 = 126;
+pub(super) const CARD_MAP_BLOCK: u16 = 127;
+pub(super) const CARD_STAFF_BLOCK: u16 = 128;
 /// How long the card stays once the pointer is off the name and the card.
 pub(super) const GRACE_MS: u64 = 400;
 
@@ -49,6 +51,16 @@ pub(super) struct Card {
     pub(super) left_ms: Option<u64>,
     /// A click on the name pinned it: it stays until dismissed.
     pub(super) pinned: bool,
+}
+
+/// A block for this map asked from a card, which the frame carries out
+/// (`crate::map_blocks`): `everyone` for staff's block for every SJK player there.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct MapBlockRequest {
+    pub(crate) slot: u8,
+    pub(crate) name: String,
+    pub(crate) everyone: bool,
+    pub(crate) blocked: bool,
 }
 
 /// Mute or unmute asked from a card, which the frame carries out
@@ -130,6 +142,8 @@ impl ChatOverlay {
                 CARD_WHISPER,
                 CARD_REPORT,
                 CARD_TRADE,
+                CARD_MAP_BLOCK,
+                CARD_STAFF_BLOCK,
             ]
             .into_iter()
             .any(|token| self.ui.token_hovered(token)) =>
@@ -246,6 +260,7 @@ impl ChatOverlay {
                     trade: matches!(place, Place::Slot(_) | Place::SlotByName(_))
                         && !crate::player_trades::blocked(&hub.key_id, &line.name)
                         && crate::player_trades::trading_open(),
+                    map_block: None,
                 }
             }
             Who::Player(target) => {
@@ -283,9 +298,14 @@ impl ChatOverlay {
                     avatar: mark.as_ref().map(|mark| mark.avatar.clone()),
                     medals: mark.map(|mark| mark.medals).unwrap_or_default(),
                     note: None,
+                    map_block: None,
                 }
             }
         };
+        let mut person = person;
+        if let Place::Slot(slot) | Place::SlotByName(slot) = person.place {
+            person.map_block = Some(self.map_block_row(slot));
+        }
         let muted = crate::player_mutes::is_muted(person.key_id.as_deref(), &person.name);
         Some((person, muted))
     }
@@ -323,6 +343,8 @@ impl ChatOverlay {
                 report: CARD_REPORT,
                 whisper,
                 trade: CARD_TRADE,
+                map_block: CARD_MAP_BLOCK,
+                staff_block: CARD_STAFF_BLOCK,
             },
         );
     }
@@ -346,6 +368,56 @@ impl ChatOverlay {
             }
             None => self.notice = "Player left or changed identity. Choose a name again.",
         }
+    }
+
+    /// The card's blocks for this map of the player in `slot`, as the frame last said
+    /// ([`ChatOverlay::set_map_blocks`]).
+    fn map_block_row(&self, slot: u8) -> sender_card::MapBlockRow {
+        let bit = 1u32.checked_shl(u32::from(slot)).unwrap_or(0);
+        sender_card::MapBlockRow {
+            own: self.map_blocks.0 & bit != 0,
+            staff: self.map_blocks.2.then_some(self.map_blocks.1 & bit != 0),
+        }
+    }
+
+    /// Block for this map (`everyone` false) or for everyone (staff) on the card: ask
+    /// the frame, which works the card's row out again next frame.
+    pub(super) fn press_card_map_block(&mut self, everyone: bool) {
+        let Some(card) = &mut self.card else {
+            return;
+        };
+        let (Some(row), Place::Slot(slot) | Place::SlotByName(slot)) =
+            (&mut card.person.map_block, card.person.place)
+        else {
+            return;
+        };
+        let blocked = if everyone {
+            let Some(staff) = &mut row.staff else {
+                return;
+            };
+            *staff = !*staff;
+            *staff
+        } else {
+            row.own = !row.own;
+            row.own
+        };
+        self.map_block_request = Some(MapBlockRequest {
+            slot,
+            name: card.person.name.clone(),
+            everyone,
+            blocked,
+        });
+    }
+
+    /// The frame's map blocks: the slots the player blocked for the map, the ones staff
+    /// blocked for everyone, and whether the player is staff.
+    pub(crate) fn set_map_blocks(&mut self, own: u32, staff: u32, is_staff: bool) {
+        self.map_blocks = (own, staff, is_staff);
+    }
+
+    /// What a card asked for this map, once.
+    pub(crate) fn take_map_block_request(&mut self) -> Option<MapBlockRequest> {
+        self.map_block_request.take()
     }
 
     /// Mute or Unmute on the card: ask the frame to change the list.
