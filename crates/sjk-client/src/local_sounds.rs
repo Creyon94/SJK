@@ -62,6 +62,8 @@ const MAX_SOUNDBUFFER: usize = 20;
 const ANNOUNCER_COOLDOWN_MILLIS: i32 = 3_000;
 const BUFFERED_SPACING_MILLIS: i32 = 750;
 const MAX_LOCAL_SOUNDS_PER_SNAPSHOT: usize = 8;
+/// Protocol 26's player slots.
+const MAX_CLIENTS: usize = 32;
 /// `cg_chatBeep` and `cg_teamChatsOnly` at their BaseJKA defaults.
 const CG_CHAT_BEEP: bool = true;
 const CG_TEAM_CHATS_ONLY: bool = false;
@@ -153,6 +155,9 @@ pub(crate) struct LegacyLocalSounds {
     previous_team: Option<u8>,
     last_command_sequence: i32,
     pending: Vec<LegacyLocalSound>,
+    /// The players' names, to tell who sent a chat line the server does not attribute
+    /// (JA+ and JoF send none), as the chat feed does.
+    roster: crate::chat::ChatRoster,
 }
 
 impl LegacyLocalSounds {
@@ -191,8 +196,10 @@ impl LegacyLocalSounds {
             pm_only: false,
             chat_filter: chat_filter::Filter::default(),
             pending: Vec::with_capacity(MAX_LOCAL_SOUNDS_PER_SNAPSHOT),
+            roster: crate::chat::ChatRoster::default(),
         };
         local.observe_config(game_state);
+        local.observe_players(game_state);
         local
     }
 
@@ -227,6 +234,11 @@ impl LegacyLocalSounds {
         }
         self.scores = [CS_SCORES1, CS_SCORES2].map(|index| config_int(game_state, index));
         self.level_start_time = config_int(game_state, CS_LEVEL_START_TIME);
+    }
+
+    /// A player's `CS_PLAYERS` string changed: read the names again.
+    pub(crate) fn observe_players(&mut self, game_state: &GameState) {
+        self.roster.update(game_state);
     }
 
     /// Run one snapshot through the reference frame order: new reliable
@@ -487,7 +499,7 @@ impl LegacyLocalSounds {
 
     /// The beep just pushed is for chat `command`: name its sender.
     fn name_sender(&mut self, command: &[u8]) {
-        let sender = chat_sender(command);
+        let sender = chat_sender(command, &self.roster);
         if let Some(beep) = self.pending.last_mut() {
             beep.cause = sender;
         }
@@ -495,9 +507,33 @@ impl LegacyLocalSounds {
 }
 
 /// The sender of chat `command`: the slot `G_SayTo` appends, as the chat feed reads
-/// it (`chat::server_chat_event`); `None` when the server names none.
-fn chat_sender(command: &[u8]) -> Option<u16> {
-    crate::chat::server_chat_event(&crate::tokenize_command(command)).and_then(|event| event.sender)
+/// it (`chat::server_chat_event`); when the server names none (JA+, JoF), the one
+/// player whose name, as the game shows it, starts the line, then `: ` (or the team's
+/// and a whisper's brackets), as the chat feed attributes such a line (the viewer's
+/// `chat/marks.rs`, `line_sender`). `None` when nobody or two players fit, so a blocked
+/// player's beep is silenced as their line is hidden (`docs/hub-chat.md`).
+fn chat_sender(command: &[u8], roster: &crate::chat::ChatRoster) -> Option<u16> {
+    let event = crate::chat::server_chat_event(&crate::tokenize_command(command))?;
+    if event.sender.is_some() {
+        return event.sender;
+    }
+    let display = crate::chat::chat_display_text(&crate::chat::chat_unescape(&event.text));
+    let mut found = None;
+    for slot in 0..MAX_CLIENTS as u16 {
+        let Some(name) = roster
+            .target(Some(slot))
+            .and_then(|target| roster.display_name(target))
+        else {
+            continue;
+        };
+        if crate::chat::chat_body(&display, name).0.len() < display.len() {
+            if found.is_some() {
+                return None;
+            }
+            found = Some(slot);
+        }
+    }
+    found
 }
 
 fn fnv1a(bytes: &[u8]) -> u64 {
@@ -527,14 +563,53 @@ fn info_int(info: &[u8], key: &str) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::chat_sender;
+    use crate::chat::ChatRoster;
+    use sjk_protocol::GameState;
 
     #[test]
     fn a_chat_beep_names_the_slot_the_server_appends() {
-        assert_eq!(chat_sender(b"chat \"\x19^2Sol^7\x19: gg\" 5"), Some(5));
-        assert_eq!(chat_sender(b"tchat \"\x19(Sol)\x19: go\" \"12\""), Some(12));
-        // Servers that send no slot, or one past the clients, name nobody.
-        assert_eq!(chat_sender(b"chat \"Sol: hi\""), None);
-        assert_eq!(chat_sender(b"chat \"Sol: hi\" 40"), None);
+        let roster = ChatRoster::default();
+        assert_eq!(
+            chat_sender(b"chat \"\x19^2Sol^7\x19: gg\" 5", &roster),
+            Some(5)
+        );
+        assert_eq!(
+            chat_sender(b"tchat \"\x19(Sol)\x19: go\" \"12\"", &roster),
+            Some(12)
+        );
+        // Servers that send no slot, or one past the clients, name nobody here.
+        assert_eq!(chat_sender(b"chat \"Sol: hi\"", &roster), None);
+        assert_eq!(chat_sender(b"chat \"Sol: hi\" 40", &roster), None);
+    }
+
+    /// Report #147 (blec-bee): JA+ servers append no slot, so a blocked player's beep
+    /// played while their line was hidden. The beep now names the one player whose
+    /// name starts the line, as the chat feed does.
+    #[test]
+    fn a_chat_beep_without_a_slot_names_the_player_whose_name_starts_it() {
+        let mut game = GameState::empty_local(0);
+        for (slot, name) in [(2, "^1Fox"), (4, "^3D^5avy"), (6, "Twin"), (7, "Twin")] {
+            game.replace_config_string(1131 + slot, format!("n\\{name}\\t\\0").into_bytes())
+                .unwrap();
+        }
+        let mut roster = ChatRoster::default();
+        roster.update(&game);
+        assert_eq!(
+            chat_sender(b"chat \"\x19^1Fox^7\x19: ^2hi\"", &roster),
+            Some(2)
+        );
+        assert_eq!(
+            chat_sender(b"tchat \"\x19(^3D^5avy^7)\x19: go\"", &roster),
+            Some(4)
+        );
+        // A whisper's brackets.
+        assert_eq!(
+            chat_sender(b"chat \"\x19[^3D^5avy^7]\x19: psst\"", &roster),
+            Some(4)
+        );
+        // Two players wearing one name, or nobody's name: nobody.
+        assert_eq!(chat_sender(b"chat \"Twin: hi\"", &roster), None);
+        assert_eq!(chat_sender(b"chat \"server: restart\"", &roster), None);
     }
 }
 

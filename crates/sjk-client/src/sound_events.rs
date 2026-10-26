@@ -958,12 +958,14 @@ impl LegacySoundAdapter {
         mut register: impl FnMut(&str, &[u8]) -> Option<SoundHandle>,
     ) {
         let mut saber_definitions = None;
+        let mut players_changed = false;
         for client in 0..MAX_CLIENTS {
             let hash = player_config_hash(game_state, client);
             if hash == self.client_config_hash[client] {
                 continue;
             }
             self.client_config_hash[client] = hash;
+            players_changed = true;
             let sounds = &mut self.sounds;
             let mut intern = |path: &str| intern_sound(sounds, vfs, path, &mut register);
             self.custom[client] = custom_set(game_state, vfs, client as u16, &mut intern);
@@ -976,6 +978,9 @@ impl LegacySoundAdapter {
 
         self.loops.refresh_clients(game_state, vfs, &mut register);
         self.local.observe_config(game_state);
+        if players_changed {
+            self.local.observe_players(game_state);
+        }
     }
 
     /// Synchronize event latches without producing sound (initial snapshot).

@@ -9,7 +9,8 @@
 //! ten hovers in one frame play one tick, which is what a menu wants.
 
 use super::GameAudio;
-use sjk_audio::{ChannelId, SourceId};
+use crate::audio::interface_channel;
+use sjk_audio::SourceId;
 use std::sync::atomic::{AtomicU32, Ordering};
 
 /// One interface sound; each maps to a sound file below.
@@ -138,7 +139,7 @@ pub(crate) fn play_pending(audio: &mut GameAudio) {
     // own after the cues'.
     for kind in crate::chat_sounds::take_previews() {
         let key = audio.chat_sounds.preview(kind);
-        audio.play_local(key, 1.0, UI_SOURCE, ChannelId(CUE_SOUNDS.len() as u32 + 2));
+        audio.play_local(key, 1.0, UI_SOURCE, interface_channel(CUE_SOUNDS.len() + 2));
     }
     let pending = PENDING.swap(0, Ordering::Relaxed);
     if pending == 0 {
@@ -146,14 +147,14 @@ pub(crate) fn play_pending(audio: &mut GameAudio) {
     }
     for (index, (cue, path, volume)) in CUE_SOUNDS.iter().enumerate() {
         if pending & *cue as u32 != 0 {
-            audio.play_local(path, *volume, UI_SOURCE, ChannelId(index as u32));
+            audio.play_local(path, *volume, UI_SOURCE, interface_channel(index));
         }
     }
     if pending & Cue::SjkChat as u32 != 0 {
-        audio.play_sjk_chat(UI_SOURCE, ChannelId(CUE_SOUNDS.len() as u32));
+        audio.play_sjk_chat(UI_SOURCE, interface_channel(CUE_SOUNDS.len()));
     }
     if pending & Cue::EncryptedWhisper as u32 != 0 {
-        audio.play_encrypted_whisper(UI_SOURCE, ChannelId(CUE_SOUNDS.len() as u32 + 1));
+        audio.play_encrypted_whisper(UI_SOURCE, interface_channel(CUE_SOUNDS.len() + 1));
     }
 }
 

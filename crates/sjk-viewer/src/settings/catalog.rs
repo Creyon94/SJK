@@ -219,6 +219,15 @@ pub(super) const AUDIO: &[Setting] = &[
         },
     },
     Setting {
+        label: "Voice volume",
+        cvar: crate::audio::VOICE_VOLUME_CVAR,
+        kind: ValueKind::Float {
+            min: 0.0,
+            max: 1.0,
+            step: 0.05,
+        },
+    },
+    Setting {
         label: "Map music sync",
         cvar: crate::audio::music::CVAR,
         kind: ValueKind::Bool,
@@ -900,6 +909,25 @@ pub(super) const GAME: &[Setting] = &[
         label: "Saber trail",
         cvar: "cg_saberTrail",
         kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Reduce bright flashes",
+        cvar: crate::effect_flash::REDUCE_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Saber clash flare",
+        cvar: crate::saber_clash_flare::CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Clash flare size",
+        cvar: crate::saber_clash_flare::SIZE_CVAR,
+        kind: ValueKind::Float {
+            min: 0.0,
+            max: 2.0,
+            step: 0.1,
+        },
     },
     Setting {
         label: "Team saber colours",

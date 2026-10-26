@@ -2242,6 +2242,18 @@ note: Alt+Tab while holding Tab leaves the board and the hidden HUD up until Tab
 
 # ---- Rendering & effects ----
 
+[reduce-flashes]
+area: Rendering & effects
+title: Reduce bright flashes, saber clash flare settings (Piza, #138)
+change: Game options: Reduce bright flashes (cg_reduceFlashes), Saber clash flare, Clash flare size.
+change: Reduced: no clash flare, no screen flash (rocket, concussion, DEMP2), no saberFlare particle.
+test: Saber duel: clashes flash as before. Reduce bright flashes on: no burst over the screen.
+test: With JoF's HD movie saber clash pack: blocks no longer show the big white flare.
+test: Rocket or DEMP2 alt shot near you: the screen no longer flashes white (with it on).
+test: Off, Clash flare size 0.5 and 2: the flare is half and twice the size; Saber clash flare off.
+test: The what's-new card offers Reduce bright flashes with its switch.
+note: Not compared with retail in game: SJK draws the flare in the scene, so bloom may add to it.
+
 [model-install-stutters]
 area: Rendering & effects
 title: Fewer stutters at joins, model changes and first deaths (Slash, PR #205)
@@ -2987,6 +2999,25 @@ note: Needs the hub's unlocks and asset packs (SJK-hub #2 and #3), not deployed 
 note: Not run in a game against the deployed hub; the sounds have not been heard yet.
 
 # ---- Audio ----
+
+[voice-volume]
+area: Audio
+title: Voice volume (s_volumeVoice) works, in Settings > Sound (Rollembones, #141)
+change: Voices (pain, death, taunts, grunts, voice commands) take s_volumeVoice, not s_volume.
+change: As in the original game: at the default 1 they are louder against effects than before.
+test: Settings > Sound: Voice volume shows under Music volume (Advanced and Simple).
+test: In a game, Voice volume 0: no pain or jump grunts, no taunts; sabers and guns still heard.
+test: Voice volume 1, Effects volume 0.2: voices loud, effects quiet. Menu sounds follow Effects.
+test: A teammate's voice command: at them follows Voice volume, the radio copy follows Effects.
+
+[blocked-chat-beep]
+area: Audio
+title: No chat beep for a blocked player's messages on JA+ and JoF (blec-bee, #147)
+change: JA+ and JoF send no sender slot, so the beep played while the line was hidden.
+change: The beep now names the player whose name starts the line, as the chat feed does.
+test: On a JoF server, block a player who chats (block <name>): their lines hide and are silent.
+test: Other players' messages still beep; unblock: theirs beep again.
+test: A whisper from the blocked player: hidden and silent too.
 
 [sound-memory]
 area: Audio

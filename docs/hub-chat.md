@@ -900,7 +900,12 @@ and plays changes. The code still says "mute" (`chat_mutes.rs`, `muted_players.r
   and charging, saber swings, hum, hits and blocks (`otherEntityNum2`), Force sounds,
   their voice commands, the hum and wall scrapes of their sabers, and the chat beep of
   their messages ([audio_mute.rs](../crates/sjk-viewer/src/audio_mute.rs),
-  `LegacySoundDecision::cause`). Their missiles' flight and impact sounds and the
+  `LegacySoundDecision::cause`). A beep names the slot the server appends to the chat
+  command; where it appends none (JA+ and JoF), the one player whose name starts the
+  line, then `: ` (or a team line's or a whisper's brackets), as the feed attributes
+  the line (sjk-client `local_sounds.rs` `chat_sender`, after blec-bee's hub report
+  #147: the line was hidden but its beep played). A line two players' names fit names
+  nobody, so its beep plays even when the feed hides it. Their missiles' flight and impact sounds and the
   sounds of effect files stay: the protocol does not say whose they are. The test is a
   bit mask of slots, so it costs nothing while nobody is muted.
 - **Everything else of theirs:** their emotes do not play (one playing when they are

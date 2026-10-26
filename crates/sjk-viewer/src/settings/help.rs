@@ -340,8 +340,15 @@ const HELP: &[(&str, &str)] = &[
         "Brightness curve of the whole display, HUD included. 1 is neutral; higher lifts dark areas.",
     ),
     // AUDIO
-    ("s_volume", "Loudness of every sound but the music."),
+    (
+        "s_volume",
+        "Loudness of every sound but the music and the voices.",
+    ),
     ("s_musicVolume", "Loudness of the music."),
+    (
+        crate::audio::VOICE_VOLUME_CVAR,
+        "Loudness of voices (pain, taunts, grunts, voice commands), which ignore the effects volume, as in the original game.",
+    ),
     (
         crate::jetpack::ON_SOUND_CVAR,
         "Jetpack ignition: 1 default, 2 alternate, as in JoF EJK. Shutdown uses one fixed sound.",
@@ -671,6 +678,18 @@ const HELP: &[(&str, &str)] = &[
     (
         "cg_saberTrail",
         "The light trail behind a swinging saber blade.",
+    ),
+    (
+        crate::effect_flash::REDUCE_CVAR,
+        "For players sensitive to flashing light: no saber clash flare and no screen flash from explosions or DEMP2 shocks.",
+    ),
+    (
+        crate::saber_clash_flare::CVAR,
+        "The burst of light drawn over the screen where two sabers meet, as in the original game.",
+    ),
+    (
+        crate::saber_clash_flare::SIZE_CVAR,
+        "Size of the saber clash flare: 1 as in the original game, 0 to 2.",
     ),
     (
         crate::team_sabers::TEAM_COLORS_CVAR,

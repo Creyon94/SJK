@@ -471,6 +471,9 @@ pub struct Mixer {
     listener_source: Option<SourceId>,
     rendered_frames: u64,
     master_gain: f32,
+    /// A channel whose voices take their own gain in place of the master gain
+    /// ([`Mixer::set_channel_gain`]).
+    channel_gain: Option<(ChannelId, f32)>,
     music_gain: f32,
     background: Option<BackgroundTrack>,
     doppler: DopplerConfig,
@@ -521,6 +524,7 @@ impl Mixer {
             listener_source: None,
             rendered_frames: 0,
             master_gain: 1.0,
+            channel_gain: None,
             music_gain: 1.0,
             background: None,
             doppler: config.doppler,
@@ -846,6 +850,13 @@ impl Mixer {
         self.master_gain = gain.clamp(0.0, 1.0);
     }
 
+    /// Give the one-shot voices of `channel` the gain `gain` in place of the master
+    /// gain (a separate volume bus, as a game's voice volume); `None` ends it. Loops
+    /// and music are not affected.
+    pub fn set_channel_gain(&mut self, bus: Option<(ChannelId, f32)>) {
+        self.channel_gain = bus.map(|(channel, gain)| (channel, gain.clamp(0.0, 1.0)));
+    }
+
     /// Set the background-music gain independently of the master gain.
     pub fn set_music_gain(&mut self, gain: f32) {
         self.music_gain = gain.clamp(0.0, 1.0);
@@ -949,8 +960,12 @@ impl Mixer {
             }
             let mut cursor = voice.cursor;
             let mut active = true;
-            // The 16-bit step joins the master gain: one multiply a sample, as before.
-            let scale = self.master_gain * SAMPLE_STEP;
+            // The 16-bit step joins the gain: one multiply a sample, as before.
+            let gain = match self.channel_gain {
+                Some((channel, gain)) if channel == voice.request.channel => gain,
+                _ => self.master_gain,
+            };
+            let scale = gain * SAMPLE_STEP;
             for frame in out.chunks_exact_mut(2) {
                 if cursor >= sound.samples.len() {
                     active = false;

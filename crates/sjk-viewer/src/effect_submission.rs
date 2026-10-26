@@ -91,6 +91,7 @@ pub(crate) fn prepare(timing: &mut frame_pacing::budget::Timer, inputs: Inputs<'
 
     let capacity =
         crate::particle_types::INSTANCE_CAPACITY.saturating_sub(inputs.entity_instances.len());
+    let reduced_flashes = crate::effect_flash::reduced();
     'particles: for particle in inputs.particles.iter_mut() {
         if !matches!(
             particle.shape,
@@ -102,6 +103,10 @@ pub(crate) fn prepare(timing: &mut frame_pacing::budget::Timer, inputs: Inputs<'
         }
         let age = inputs.now.saturating_duration_since(particle.spawned_at);
         if age < particle.delay {
+            continue;
+        }
+        // Reduced flashes (`cg_reduceFlashes`): a pack's flare-picture particles too.
+        if reduced_flashes && crate::effect_flash::is_clash_flare_picture(&particle.shader) {
             continue;
         }
         crate::effect_geometry::resolve_traced_streak(particle, inputs.bsp, inputs.trace_scratch);

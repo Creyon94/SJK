@@ -115,6 +115,43 @@ fn a_resampled_wav_stays_within_half_a_step_of_the_float_resampling() {
 }
 
 #[test]
+fn a_channel_gain_replaces_the_master_gain_for_that_channel_only() {
+    let source = float_sound(2_000);
+    let floats = resample(&source, 22_050, RATE, std::convert::identity, |x| x);
+    let voice_channel = ChannelId(3);
+    let mut voices = mixer();
+    voices.set_master_gain(0.5);
+    voices.set_channel_gain(Some((voice_channel, 0.2)));
+    let sound = voices.sound_bank_mut().register_pcm(&source, 22_050);
+    let on_voice = PlayRequest {
+        channel: voice_channel,
+        ..request(1, 1.0)
+    };
+    assert!(voices.play(sound, on_voice));
+    let rendered = render(&mut voices, 60);
+    assert_within_a_step(&rendered, |n| {
+        floats.get(n).map_or(0.0, |sample| sample * 0.2)
+    });
+    // Another channel keeps the master gain, and so does every voice once the bus ends.
+    for bus in [Some((voice_channel, 0.2)), None] {
+        let mut others = mixer();
+        others.set_master_gain(0.5);
+        others.set_channel_gain(bus);
+        let sound = others.sound_bank_mut().register_pcm(&source, 22_050);
+        let request = if bus.is_some() {
+            request(1, 1.0)
+        } else {
+            on_voice
+        };
+        assert!(others.play(sound, request));
+        let rendered = render(&mut others, 60);
+        assert_within_a_step(&rendered, |n| {
+            floats.get(n).map_or(0.0, |sample| sample * 0.5)
+        });
+    }
+}
+
+#[test]
 fn voices_loops_and_music_sound_as_their_float_samples_did() {
     // Resampled from 22.05 kHz like most retail effects: the float path kept
     // exactly these resampled floats; 16-bit storage may differ by one step.
