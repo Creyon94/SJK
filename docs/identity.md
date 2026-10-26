@@ -869,7 +869,7 @@ and in the hub (same ids):
 | Collector, Archivist, Keeper of the Holocrons | `holocrons_10`, `holocrons_50`, `holocrons_200` | 10, 50, 200 holocrons opened (kyber crystals not counted) | hub |
 | Touched by the Force (hidden) | `mythical_find` | a Mythical shader or card from a holocron | hub |
 | Craftsman | `craft_blade` | a blade crafted from a card | hub |
-| Master Craftsman | `craft_finishes` | a blade crafted from a card of every finish (3: Normal, Holo, Solar, `cards::FINISHES`) | hub |
+| Master Craftsman | `craft_finishes` | blades crafted from a card of every finish (3: Normal, Holo, Solar, `cards::FINISHES`); three crafts from cards of one finish count 1 | hub |
 | Full Set | `full_set` | every card of a set that can be obtained, revealed copies only (sealed ones do not count) | hub |
 | Executor | `order66_kill` | an Order 66 execute on another player who also has the toy | hub |
 | Tactical Espionage | `box_minutes_10` | 10 minutes hidden in the cardboard box with another player close by | client |
@@ -947,8 +947,12 @@ The counts are kept in `achievements.json` beside `identity.key` (written at mos
 every 20 seconds while they change, through a temporary file, and on the way out),
 so they work with the identity off. With it on, the identity service sends the
 counts of the achievements the client counts to the hub (`PUT /v1/achievements`, a
-signed request, at most once a minute, and again an hour later when the hub held
-part back). The hub keeps each key's best count, up to the goal, and when it was
+signed request, at most once a minute while they change, and unchanged again an hour
+later when the hub held part back; changed counts go at the minute even after a hold,
+so an achievement unlocked then reaches the hub within a minute). When the hub's answer
+unlocks an achievement, the profile is read again within 30 seconds, so its kyber
+crystal is listed at once rather than at the next ten-minute reading (reports 149 and
+150, 26/10/2026). The hub keeps each key's best count, up to the goal, and when it was
 reached. Because the hub cannot see a match, it takes the counts as the player's own
 record and bounds how fast each may rise (an hourly allowance per achievement: what
 is over is taken in a later hour); a count the client keeps is never lower than the

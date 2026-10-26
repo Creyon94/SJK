@@ -47,6 +47,9 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - The force field a Merc places is visible again: a blue or red wall of light where it blocks you, as in the original game _(Sol, after blec-bee's report)_
 - Player models whose skin switches parts off further down its list (outfit variants such as Yuna's and Kushina's) now show only the parts they should, and caps switched back on show again, as in the original game _(Sol, after Rollembones' report)_
 - Small players the server scales down (younglings, Jawas) hold their saber, gun and Force effects in their hand again, instead of above it _(Sol, after g0dchris' report)_
+- Achievements reach the SJK hub within a minute of unlocking, even after it held some counts back, and their kyber crystal shows up within half a minute instead of up to ten _(Sol, after Creyon's and Kushina's reports)_
+- A new kyber crystal's arrival shows the crystal's own picture, no longer a plain gem like a holocron's _(Sol, after Kushina's report)_
+- Master Craftsman says what it asks: blades crafted from a Normal, a Holo and a Solar card _(Sol, after Kushina's report)_
 
 ## 2026.1026.1 (Alpha) | 26/10/2026
 

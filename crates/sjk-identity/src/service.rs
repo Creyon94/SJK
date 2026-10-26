@@ -69,7 +69,8 @@ const HOLOCRONS_AGAIN: Duration = Duration::from_secs(3_600);
 /// Shortest time between two sendings of the achievement counts.
 const ACHIEVEMENTS_EVERY: Duration = Duration::from_secs(60);
 /// How long counts the hub held back (over an hourly allowance) wait before they are
-/// sent again unchanged, and how long a refusal waits.
+/// sent again unchanged (changed ones go at [`ACHIEVEMENTS_EVERY`]), and how long a
+/// refusal waits.
 const ACHIEVEMENTS_AGAIN: Duration = Duration::from_secs(3_600);
 /// How long a refused model list waits before it is sent again unchanged.
 const MODELS_AGAIN: Duration = Duration::from_secs(3_600);
@@ -752,11 +753,12 @@ struct Worker {
     lookups: Vec<String>,
     /// Notes the hub took, as (tag, hub id), while their pictures may come.
     notes_sent: Vec<(u64, i64)>,
-    /// The achievement counts the client keeps, the last ones the hub was sent, and
-    /// when they may be sent next.
+    /// The achievement counts the client keeps, the last ones the hub was sent, when
+    /// they may be sent next, and when counts the hub held back may go again unchanged.
     counts: BTreeMap<String, u64>,
     counts_sent: Option<BTreeMap<String, u64>>,
     due_counts: Instant,
+    counts_held_until: Instant,
     /// The player models the game has, the last list the hub took, and when the list
     /// may be sent next.
     models: Option<Vec<String>>,
@@ -1019,6 +1021,7 @@ impl Worker {
             counts: BTreeMap::new(),
             counts_sent: None,
             due_counts: now,
+            counts_held_until: now,
             models: None,
             models_sent: None,
             due_models: now,
@@ -2078,8 +2081,11 @@ impl Worker {
             wait = wait.min(self.due_name.saturating_duration_since(now));
         }
         wait = wait.min(self.due_profile.saturating_duration_since(now));
-        if self.counts_waiting() {
+        if self.counts_waiting(now) {
             wait = wait.min(self.due_counts.saturating_duration_since(now));
+        } else if self.counts_waiting(self.counts_held_until) {
+            let at = self.due_counts.max(self.counts_held_until);
+            wait = wait.min(at.saturating_duration_since(now));
         }
         if !self.lookups.is_empty() || !self.model_checks.is_empty() {
             wait = Duration::ZERO;
@@ -2573,15 +2579,18 @@ impl Worker {
         });
     }
 
-    /// Whether the hub should hear the achievement counts: they changed since they
-    /// were last sent, or one is above what the hub holds (it was held back by its
+    /// Whether the hub should hear the achievement counts at `now`: they changed since
+    /// they were last sent, or one is above what the hub holds (it was held back by its
     /// hourly allowance) and the last sending is an hour old.
-    fn counts_waiting(&self) -> bool {
+    fn counts_waiting(&self, now: Instant) -> bool {
         if self.counts.is_empty() {
             return false;
         }
         if self.counts_sent.as_ref() != Some(&self.counts) {
             return true;
+        }
+        if now < self.counts_held_until {
+            return false;
         }
         let held = lock(&self.snapshot).me.as_ref().map(|me| {
             self.counts.iter().any(|(id, &count)| {
@@ -2640,20 +2649,24 @@ impl Worker {
         }
     }
 
-    /// Send the achievement counts if they are waiting and due.
+    /// Send the achievement counts if they are waiting and due. An achievement the
+    /// answer unlocks brings a kyber crystal, which the profile lists: it is read soon.
     fn send_counts(&mut self, now: Instant) -> Option<HubError> {
-        if now < self.due_counts || !self.counts_waiting() {
+        if now < self.due_counts || !self.counts_waiting(now) {
             return None;
         }
         let hub = self.hub.as_mut()?;
         match hub.set_achievements(&self.identity, &self.counts) {
             Ok(achievements) => {
+                let unlocked = newly_unlocked(&lock(&self.snapshot), &achievements);
                 set_achievements(&mut lock(&self.snapshot), achievements);
                 self.counts_sent = Some(self.counts.clone());
                 self.due_counts = now + ACHIEVEMENTS_EVERY;
-                // Counts the hub held back wait an hour unless they change.
-                if self.counts_waiting() {
-                    self.due_counts = now + ACHIEVEMENTS_AGAIN;
+                // Counts the hub held back wait an hour unless they change (then they
+                // go at the minute, as any change).
+                self.counts_held_until = now + ACHIEVEMENTS_AGAIN;
+                if unlocked {
+                    self.own_drop(now);
                 }
                 None
             }
@@ -2870,6 +2883,20 @@ fn announce_refusal(error: HubError) -> HubError {
         },
         other => other,
     }
+}
+
+/// Whether `answer` holds an achievement unlocked that the snapshot's profile did not.
+fn newly_unlocked(snapshot: &Snapshot, answer: &[Achievement]) -> bool {
+    let Some(me) = snapshot.me.as_ref() else {
+        return false;
+    };
+    answer.iter().any(|achievement| {
+        achievement.unlocked != 0
+            && !me
+                .achievements
+                .iter()
+                .any(|held| held.id == achievement.id && held.unlocked != 0)
+    })
 }
 
 fn set_achievements(snapshot: &mut Snapshot, achievements: Vec<Achievement>) {
@@ -4238,7 +4265,7 @@ mod tests {
                     id: id.clone(),
                     progress: cap.map_or(count, |cap| count.min(cap)),
                     goal: 100,
-                    unlocked: 0,
+                    unlocked: i64::from(cap.map_or(count, |cap| count.min(cap)) >= 100),
                     reward: None,
                 })
                 .collect();
@@ -5873,6 +5900,71 @@ mod tests {
         assert_eq!(sent_counts(&fake).len(), 2);
         worker.tick(t0 + Duration::from_secs(8_000));
         assert_eq!(sent_counts(&fake).len(), 2, "all taken: nothing waits");
+    }
+
+    #[test]
+    fn counts_that_change_after_a_hold_go_at_the_minute() {
+        // Report 149 (26/10/2026): an achievement unlocked during the hour after a hold
+        // waited that hour, its kyber crystal with it.
+        let fake = Fake::default();
+        *fake.cap.lock().unwrap() = Some(2);
+        let t0 = Instant::now();
+        let (mut worker, _) = worker(&fake, t0);
+        worker.handle(Command::Configure(on("https://hub")), t0);
+        worker.handle(Command::Achievements(counts(&[("kills_100", 5)])), t0);
+        worker.tick(t0);
+        assert_eq!(sent_counts(&fake).len(), 1);
+        *fake.cap.lock().unwrap() = None;
+        let later = t0 + Duration::from_secs(30);
+        worker.handle(
+            Command::Achievements(counts(&[("kills_100", 5), ("duel_flawless", 1)])),
+            later,
+        );
+        let wait = worker.tick(later);
+        assert!(wait <= Duration::from_secs(30), "{wait:?}");
+        worker.tick(t0 + Duration::from_secs(61));
+        assert_eq!(
+            sent_counts(&fake).last().unwrap(),
+            "achievements duel_flawless=1,kills_100=5"
+        );
+    }
+
+    #[test]
+    fn an_unlock_reads_the_profile_soon_for_its_kyber_crystal() {
+        let fake = Fake::default();
+        let t0 = Instant::now();
+        let (mut worker, _) = worker(&fake, t0);
+        worker.handle(Command::Configure(on("https://hub")), t0);
+        worker.handle(Command::Achievements(counts(&[("kills_100", 99)])), t0);
+        worker.tick(t0);
+        let reads = profile_reads(&fake);
+        // Short of the goal: the profile keeps its ten minutes.
+        worker.tick(t0 + Duration::from_secs(40));
+        assert_eq!(profile_reads(&fake), reads);
+        worker.handle(
+            Command::Achievements(counts(&[("kills_100", 100)])),
+            t0 + Duration::from_secs(40),
+        );
+        worker.tick(t0 + Duration::from_secs(61));
+        assert_eq!(
+            sent_counts(&fake).last().unwrap(),
+            "achievements kills_100=100"
+        );
+        worker.tick(t0 + Duration::from_secs(62));
+        assert_eq!(
+            profile_reads(&fake),
+            reads + 1,
+            "the crystal is listed soon"
+        );
+        // Unlocked already: a later answer reads nothing more.
+        worker.handle(
+            Command::Achievements(counts(&[("kills_100", 101)])),
+            t0 + Duration::from_secs(130),
+        );
+        worker.tick(t0 + Duration::from_secs(130));
+        worker.tick(t0 + Duration::from_secs(200));
+        assert_eq!(sent_counts(&fake).len(), 3);
+        assert_eq!(profile_reads(&fake), reads + 1);
     }
 
     #[test]

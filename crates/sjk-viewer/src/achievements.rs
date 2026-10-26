@@ -461,7 +461,7 @@ pub(crate) const ALL: [Kind; 35] = [
     kind(
         "craft_finishes",
         "Master Craftsman",
-        "Craft a blade in every finish.",
+        "Craft blades from a Normal, a Holo and a Solar card.",
         crate::cards::FINISHES.len() as u64,
         Collection,
         Hub,
