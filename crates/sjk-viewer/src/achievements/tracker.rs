@@ -271,7 +271,10 @@ impl Tracker {
 
     /// Count what `seen` shows; whether the record changed.
     pub(crate) fn observe(&mut self, seen: &Seen<'_>, record: &mut Record) -> bool {
-        if seen.local {
+        // A server on this machine is one the player runs: Create game and `devmap`
+        // start `sjk-server` on 127.0.0.1, a new port each time, so each one read as
+        // another server (Server Hopper by devmap, #165) and its bots as kills.
+        if seen.local || seen.server.ip().is_loopback() {
             self.leave();
             return false;
         }
@@ -778,6 +781,19 @@ mod tests {
         bench.local = true;
         assert!(!bench.step(&[kill(2, 5, means::SABER)]));
         assert_eq!(bench.record, Record::default());
+    }
+
+    #[test]
+    fn nothing_counts_on_a_server_on_this_machine() {
+        // Each devmap starts sjk-server on another loopback port (#165).
+        for port in [55942, 55943] {
+            let mut bench = Bench::new(game("mp/ctf2", 0, 2, &[]));
+            bench.server = format!("127.0.0.1:{port}").parse().unwrap();
+            for _ in 0..21 {
+                assert!(!bench.step(&[kill(2, 5, means::SABER)]));
+            }
+            assert_eq!(bench.record, Record::default());
+        }
     }
 
     /// A player entity `number` standing at `at`.

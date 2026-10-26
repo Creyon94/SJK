@@ -906,8 +906,10 @@ Totals ("12 of 34 unlocked", the player card's "Achievements 12 / 34", the profi
 card) count every obtainable achievement and the retired ones the player holds, so a
 holder of Surveyor reads "of 35".
 
-What the client counts comes from its live matches on servers, never a demo or a game
-it hosts ([tracker.rs](../crates/sjk-viewer/src/achievements/tracker.rs), fed each
+What the client counts comes from its live matches on servers, never a demo, a game
+it hosts or a server on the player's own machine (a loopback address: Create game and
+`devmap` run `sjk-server` there, on a new port each time, #165)
+([tracker.rs](../crates/sjk-viewer/src/achievements/tracker.rs), fed each
 live snapshot by `achievements_frame.rs`):
 
 - a kill is an obituary (`EV_OBITUARY`) whose attacker is the player's own client
