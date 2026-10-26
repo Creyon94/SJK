@@ -175,13 +175,12 @@ impl ViewerConsole {
                 // client commands do; one whose mod is off answers here. The
                 // client's own commands and the mods' settings come first, even
                 // under a mod's prefix.
-                let mod_answer = if console_client::known(&tokens[0])
-                    || cvars.get(&tokens[0]).is_some()
-                {
-                    None
-                } else {
-                    mods.accepts(&tokens[0])
-                };
+                let mod_answer =
+                    if console_client::known(&tokens[0]) || cvars.get(&tokens[0]).is_some() {
+                        None
+                    } else {
+                        mods.accepts(&tokens[0])
+                    };
                 match mod_answer {
                     Some(Ok(())) if client_commands.pending.len() == 64 => {
                         return Some(Err("Client command queue is full".into()));
