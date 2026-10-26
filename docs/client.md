@@ -4554,8 +4554,9 @@ every fall ends with the map or the server.
   state's `damageEvent`, which `P_DamageFeedback` moves on at each hurt); comparing
   health instead woke a player who fell again after a hit at once (Sanji's report
   #135). Nobody goes limp in a duel ("No ragdoll in a duel"), with the flag, while
-  spectating or dead, in a [Hax](#hax) hack, or while the server holds the view ("No
-  ragdoll right now").
+  spectating or dead, in a [Hax](#hax) hack, while the server holds the view ("No
+  ragdoll right now") or in a vehicle ("No ragdoll in a vehicle"): a monitor's hit
+  left a limp pilot unable to drive or get out (Rollembones's report #168).
 - **Everyone sees the same fall:** no pose is ever sent. The faller's client relays
   one start event to each SJK player on the server through the hub's
   [toy relay](hub-chat.md#toy-relay), one every 35 ms: `fall_<moment>_<x>_<y>_<z>_<vx>_<vy>_<vz>_<yaw>`,
@@ -4733,8 +4734,9 @@ sends them flying, the way the monitor struck them.
   eyes, the way the player looks, at 1,100 units a second plus the player's own speed,
   tumbling end over end; one every 1.2 seconds at most, four of a player's out at once
   (the oldest goes). Without the toy on it says "Turn the Monitor toy on to throw one";
-  nobody throws while limp, dead, spectating, in a duel, with the flag, hacked or held by
-  the server ("No monitor right now").
+  nobody throws while limp, dead, spectating, in a duel, with the flag, hacked, held by
+  the server or in a vehicle ("No monitor right now"), and nobody in a vehicle is
+  knocked down.
 - **The charged throw** (Sol's ask, 26/10/2026): `+monitor_throw`, the held bind
   (Settings > Key bindings > Interaction > Throw monitor, the Collection's Throw key),
   charges while held and throws on the release, from 1,100 units a second for a tap to

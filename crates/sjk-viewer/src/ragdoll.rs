@@ -574,10 +574,11 @@ impl GpuState {
             .unwrap_or(0);
         // A view the server holds (a kiss, a grapple, a kick) gets the player up and keeps
         // them from falling: the walk's angles fought it and the camera spun (#139, #140,
-        // `held_view`).
+        // `held_view`). A pilot or passenger is held by the vehicle the same way: a limp
+        // body could neither drive nor get out (a Monitor's hit, #168).
+        let riding = snapshot.player.vehicle_entity_num() != 0;
         let spared = crate::order66::spared(&snapshot.player, gametype).or_else(|| {
-            self.server_holds_view()
-                .then_some(crate::order66::Spared::Held)
+            (riding || self.server_holds_view()).then_some(crate::order66::Spared::Held)
         });
         let damage_event = snapshot.player.damage_event();
         self.ragdoll.spared = spared.is_some() || self.hax.busy();
@@ -665,6 +666,9 @@ impl GpuState {
                 Some(crate::order66::Spared::Duel) => self.ragdoll_centre("No ragdoll in a duel"),
                 Some(crate::order66::Spared::Flag) => {
                     self.ragdoll_centre("No ragdoll while carrying the flag");
+                }
+                Some(crate::order66::Spared::Held) if riding => {
+                    self.ragdoll_centre("No ragdoll in a vehicle");
                 }
                 Some(crate::order66::Spared::Held) => self.ragdoll_centre("No ragdoll right now"),
                 Some(_) => {}
