@@ -615,7 +615,9 @@ blade-skin unlock id or `""`, and whether the Illuminate holocron is lit.
   blade skins are drawn by the saber renderer from `Looks::saber_skin_id`, with the
   parts their wearer switched off (`Look::saber_off`, sent only when it names one, as
   an older hub refuses the field; `Looks::options_off`,
-  [unlockables.md](unlockables.md#options)).
+  [unlockables.md](unlockables.md#options)) and the extras they switched on
+  (`Look::saber_on` and `saber2_on`, since 26/10/2026, which the hub relays only while
+  the wearer holds the card that unlocks them; [unlockables.md](unlockables.md#extras)).
 
 Looks are public to every SJK player on the server, as badges are.
 

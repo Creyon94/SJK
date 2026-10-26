@@ -2317,6 +2317,18 @@ note: Alt+Tab while holding Tab leaves the board and the hidden HUD up until Tab
 
 # ---- Rendering & effects ----
 
+[sun-trails]
+area: Rendering & effects
+title: Sun blade trails: plasma for all, Solar card 000 unlocks Flare, Embers, Heat wake
+change: Sun blade's swing trail is plasma: white gold cooling to deep red, flame-torn edge.
+change: Extras (off until on): Flare trail, Swing embers, Heat wake; a Solar 000 copy unlocks.
+change: Collection > Shaders > Sun: extras after the parts, padlocked without the card.
+test: Wear the Sun, swing hard: the trail cools from white gold to red, edge in flames.
+test: With a Solar copy of card 000: switch on Flare trail, Swing embers, Heat wake; swing.
+test: Without it: extras padlocked, 'saberskin saber_sun flare_trail on' says it is locked.
+test: A second SJK client sees the same trail and extras (needs the hub's sun-trails branch).
+note: Untested in game. Needs hub branch sun-trails deployed for others to see the extras.
+
 [reduce-flashes]
 area: Rendering & effects
 title: Reduce bright flashes, saber clash flare settings (Piza, #138)

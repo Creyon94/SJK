@@ -343,6 +343,12 @@ brings a blade adds an entry there and to its file. The Shaders tab's owned line
 reads "Yours since dd/mm/yyyy, with your Sol card" (the face's name, or the card's id
 without one), and its source facts "Holocron drop" and "Sol card".
 
+A copy in a given finish may also unlock a blade's extras (26/10/2026, Sol: "the Solar card
+unlocks all the other customizations"): a Solar copy of SJK Alpha 000 unlocks the Sun
+blade's Flare trail, Swing embers and Heat wake ([unlockables.md](unlockables.md#extras)).
+The client reads the pair from the blade's signature (`@extras`) and the hub from its own
+table (`cards::EXTRAS_GATES`); a new pair goes in both.
+
 ### SJK Blades
 
 **Since 20/10/2026 (Sol's decision)** a second collection, **SJK Blades** (set

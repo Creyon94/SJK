@@ -1614,10 +1614,15 @@ impl Panel {
         if let Some(skin) = row.skin.filter(|_| row.owned)
             && let Some(look) = self.skins.get(skin.id)
         {
-            let options = look.options().len();
+            let extras = crate::blade_extras::of(skin.id).map_or(0, |extras| extras.list.len());
+            let options = look.options().len() + extras;
             if options > 0 {
                 let columns = if options > 4 { 3 } else { 2 };
                 height += 10.0 + 28.0 + options.div_ceil(columns) as f32 * 34.0 * k.max(1.0);
+            }
+            // The line saying what unlocks the extras.
+            if extras > 0 && !extras_unlocked(skin.id, inputs) {
+                height += LINE_SIZE * 1.42 * k + 4.0;
             }
         }
         height + 12.0 + 44.0 + CARD_PAD
@@ -2329,7 +2334,9 @@ impl Panel {
     /// The chosen shader's parts its wearer may switch off, under its words from `y`:
     /// a tick each in two columns (three past four), named as its file names them,
     /// ticked while on; a click or its number key switches it, on the model at once and,
-    /// worn, for every SJK player.
+    /// worn, for every SJK player. Its extras follow (`blade_extras.rs`), off until
+    /// switched on; while the player lacks the card that unlocks them each is greyed
+    /// behind a padlock, takes no click, and a line under them says what unlocks them.
     fn shader_parts(
         &mut self,
         frame: &Frame,
@@ -2340,13 +2347,39 @@ impl Panel {
         let Some(look) = self.skins.get(skin) else {
             return;
         };
-        let options = look.options();
+        let extras = crate::blade_extras::of(skin);
+        let unlocked = extras_unlocked(skin, inputs);
+        // Each part, then each extra: id, name and whether it is locked.
+        let options: Vec<(&str, &str, bool)> = look
+            .options()
+            .iter()
+            .map(|option| (option.id.as_str(), option.name.as_str(), false))
+            .chain(extras.into_iter().flat_map(|extras| {
+                extras
+                    .list
+                    .iter()
+                    .map(move |extra| (extra.id.as_str(), extra.name.as_str(), !unlocked))
+            }))
+            .collect();
         if options.is_empty() {
             return;
         }
         let s = frame.s;
         let columns = if options.len() > 4 { 3 } else { 2 };
         let column = width / columns as f32;
+        // The line saying what unlocks the extras takes the foot while they are locked.
+        let note = extras.filter(|_| !unlocked).map(|extras| {
+            format!(
+                "{}  Extras: {}.",
+                symbols::LOCK,
+                capitalised(&extras.gate.unlocks())
+            )
+        });
+        let bottom = if note.is_some() {
+            bottom - LINE_SIZE * 1.42 * text_scale() - 4.0
+        } else {
+            bottom
+        };
         // Never under `bottom` (the card's button): the rows close up when room is short.
         let rows = options.len().div_ceil(columns);
         let step = ((bottom - (y + 28.0)) / rows as f32).clamp(26.0, 36.0);
@@ -2360,23 +2393,32 @@ impl Panel {
             FontWeight::Semibold,
             TextAlign::Start,
         );
-        let shown: Vec<(&'static str, String, bool, String)> = options
+        let shown: Vec<(&'static str, String, bool, String, bool)> = options
             .iter()
-            .map(|option| {
-                let on = crate::saber_skin_options::is_on(inputs.options, skin, &option.id);
-                (skin, option.id.clone(), on, option.name.clone())
+            .map(|(id, name, locked)| {
+                let on = !locked && crate::saber_skin_options::is_on(inputs.options, skin, id);
+                (skin, (*id).to_owned(), on, (*name).to_owned(), *locked)
             })
             .collect();
-        for (index, (_, _, on, name)) in shown.iter().enumerate() {
+        let mut last_middle = y + 28.0;
+        for (index, (_, _, on, name, locked)) in shown.iter().enumerate() {
             let token = OPTION_BASE + index as u16;
             let left = x + (index % columns) as f32 * column;
             let middle = y + 28.0 + (index / columns) as f32 * step + step * 0.5;
-            let hovered = self.ui.token_hovered(token);
+            last_middle = middle;
+            let hovered = !locked && self.ui.token_hovered(token);
             let after = kit::tick(&mut self.ui, frame, left, middle, *on, hovered);
             text(
                 &mut self.ui,
                 TextFamily::Body,
-                format_args!("{name}"),
+                format_args!(
+                    "{}{name}",
+                    if *locked {
+                        format!("{}  ", symbols::LOCK)
+                    } else {
+                        String::new()
+                    }
+                ),
                 frame.rect(
                     after + 10.0,
                     middle - 11.0,
@@ -2388,16 +2430,53 @@ impl Panel {
                 FontWeight::Semibold,
                 TextAlign::Start,
             );
-            self.ui.hit_region(
-                token,
-                frame.rect(left - 4.0, middle - step * 0.5, column - 8.0, step),
+            if !locked && index < OPTION_TOKENS {
+                self.ui.hit_region(
+                    token,
+                    frame.rect(left - 4.0, middle - step * 0.5, column - 8.0, step),
+                );
+            }
+        }
+        if let Some(note) = note {
+            text(
+                &mut self.ui,
+                TextFamily::Body,
+                format_args!("{note}"),
+                frame.rect(x, last_middle + step * 0.5 + 4.0, width, LINE_SIZE * 1.42),
+                LINE_SIZE * s,
+                color::MUTED,
+                FontWeight::Regular,
+                TextAlign::Start,
             );
         }
+        // A locked extra is listed (for the number keys' order) but never switched.
         self.shader_options = shown
             .into_iter()
-            .map(|(skin, option, on, _)| (skin, option, on))
+            .map(|(skin, option, on, _, locked)| {
+                (skin, if locked { String::new() } else { option }, on)
+            })
             .collect();
     }
+}
+
+/// Whether the player holds the card that unlocks blade skin `skin`'s extras
+/// (`blade_extras.rs`), as their own hub profile lists their cards.
+fn extras_unlocked(skin: &str, inputs: &Inputs<'_>) -> bool {
+    crate::blade_extras::of(skin).is_some_and(|extras| {
+        inputs
+            .snapshot
+            .filter(|_| inputs.enabled)
+            .and_then(|snapshot| snapshot.me.as_ref())
+            .is_some_and(|me| crate::blade_extras::holds(&me.cards, &extras.gate))
+    })
+}
+
+/// `text` with its first letter in capitals.
+fn capitalised(text: &str) -> String {
+    let mut chars = text.chars();
+    chars.next().map_or_else(String::new, |first| {
+        first.to_uppercase().chain(chars).collect()
+    })
 }
 
 /// What a fact's chip shows before its words.

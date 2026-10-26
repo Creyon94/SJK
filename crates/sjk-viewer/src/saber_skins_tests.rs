@@ -735,6 +735,8 @@ fn following_another_player_draws_their_look_not_the_own_skin() {
         toys: Vec::new(),
         saber2: None,
         saber2_off: Vec::new(),
+        saber_on: Vec::new(),
+        saber2_on: Vec::new(),
         saber_sounds: String::new(),
     };
     looks.apply_event(5, "Fox", &stock);
@@ -1070,6 +1072,40 @@ fn the_preview_dresses_one_side_and_leaves_the_other_as_worn() {
         [Some(worn_first.index), None]
     );
     assert_eq!(index(previewed(worn, None, [true, true])), index(worn));
+}
+
+#[test]
+fn the_sun_trails_plasma_and_its_extras_change_it_only_when_switched_on() {
+    use crate::blade_extras::TrailKind;
+    use crate::blade_skin_file::extras::option_bit;
+    use crate::saber_trail::{STYLE, WAKE, vertex_style};
+    let skins = LoadedSkins::load(VirtualFileSystem::new(), 1);
+    let plain = skins.color_of("saber_sun").unwrap();
+    assert_eq!(plain.trail_kind, TrailKind::Plasma, "every wearer's");
+    assert!(!plain.wake && plain.petals.is_none());
+    assert_eq!(vertex_style(0, BladeColor::Skin(plain)), 5);
+    let with = |ids: &[&str]| {
+        skins
+            .color_with(
+                "saber_sun",
+                ids.iter().fold(0, |bits, id| bits | option_bit(id)),
+            )
+            .unwrap()
+    };
+    let flare = with(&["flare_trail"]);
+    assert_eq!(flare.trail_kind, TrailKind::Flare);
+    assert_eq!(vertex_style(0, BladeColor::Skin(flare)), 6);
+    let all = with(&["flare_trail", "swing_embers", "heat_wake", "haze"]);
+    let style = vertex_style(0, BladeColor::Skin(all));
+    assert_eq!((style & STYLE, style & WAKE), (6, WAKE));
+    assert_eq!(
+        all.petals.map(|petals| petals.kind),
+        Some(crate::saber_petals::PetalKind::Ember)
+    );
+    // The parts switched off still go off with the extras on.
+    assert_ne!(all.off, plain.off);
+    // The sword trail stays the sword trail.
+    assert_eq!(vertex_style(1, BladeColor::Skin(all)), 1);
 }
 
 #[test]

@@ -3,7 +3,8 @@
 `saber_petals.rs`): one cherry blossom petal, a rounded teardrop with the little notch at its
 end, pale at its base and blushing toward its tip, in three tints; and the Thousand Cranes'
 paper crane, white paper in three shades that the particle tints (25/10/2026); and the
-Hearth's ash, a ragged grey flake, plain and with an edge still glowing.
+Hearth's ash, a ragged grey flake, plain and with an edge still glowing; and the Sun's
+swing ember, a soft white spark (26/10/2026).
 
     python3 scripts/petal_assets.py
 """
@@ -170,3 +171,25 @@ def ash(glow):
 ash(False).save(OUT / "ash_grey.png", optimize=True)
 ash(True).save(OUT / "ash_ember.png", optimize=True)
 print("written ash_grey, ash_ember")
+
+
+def ember():
+    """The Sun's swing ember: a white spark, hottest at its heart, its glow falling off softly
+    (the particle tints it from white gold to deep red and it is drawn added)."""
+    img = Image.new("RGBA", (SIZE, SIZE))
+    px = img.load()
+    for j in range(SIZE):
+        for i in range(SIZE):
+            x = (i + 0.5) / SIZE * 2.0 - 1.0
+            y = (j + 0.5) / SIZE * 2.0 - 1.0
+            r = math.hypot(x, y)
+            glow = math.exp(-r * r * 9.0) * 0.75 + math.exp(-r * r * 60.0) * 0.6
+            glow *= max(0.0, 1.0 - r) ** 0.5
+            core = min(1.0, math.exp(-r * r * 60.0) * 1.2)
+            px[i, j] = (255, int(round(255 * (0.85 + 0.15 * core))), int(round(255 * (0.7 + 0.3 * core))),
+                        int(round(min(glow, 1.0) * 255)))
+    return img
+
+
+ember().save(OUT / "ember.png", optimize=True)
+print("written ember")

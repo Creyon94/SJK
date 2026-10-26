@@ -156,7 +156,8 @@ const CARD_CLOSE_UP_TOKEN: u16 = 8_007;
 /// the Shaders tab.
 const CARD_SHADER_TOKEN: u16 = 8_008;
 const _: () = assert!(CARD_BASE as usize + CARD_TILES_MAX <= CARD_SHOW_BASE as usize);
-const OPTION_TOKENS: usize = crate::blade_skin_file::extras::MAX_OPTIONS;
+const OPTION_TOKENS: usize =
+    crate::blade_skin_file::extras::MAX_OPTIONS + crate::blade_extras::MAX_EXTRAS;
 /// The Shaders tab's rows: the stock blade, then every blade skin, the rarest first
 /// ([`unlockables::blade_skins_by_tier`]).
 const SHADER_ROWS: usize = 1 + unlockables::ALL.len();
@@ -1332,10 +1333,11 @@ impl Panel {
     }
 
     /// Switch the chosen shader's option `index` (as the last frame showed them) the
-    /// other way.
+    /// other way; a locked extra (listed without its id) stays as it is.
     fn switch_option(&self, index: usize) -> PanelAction {
         self.shader_options
             .get(index)
+            .filter(|(_, option, _)| !option.is_empty())
             .map_or(PanelAction::None, |(skin, option, on)| {
                 PanelAction::SkinOption {
                     skin,

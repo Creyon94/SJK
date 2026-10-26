@@ -113,7 +113,8 @@ pub(crate) struct SkinColor {
     pub(crate) hue: [f32; 2],
     /// The skin's afterimages (`ghosts` in its file); none when absent.
     pub(crate) ghosts: Option<crate::saber_ghosts::GhostSpec>,
-    /// The blossoms its swing sheds (its signature's `@petals`); none when absent or off.
+    /// The blossoms its swing sheds (its signature's `@petals`, or an extra's sheds,
+    /// `blade_extras.rs`); none when absent or off.
     pub(crate) petals: Option<crate::saber_petals::PetalSpec>,
     /// Who wears it (team, name), for the skins drawn from that; the default with no
     /// wearer known.
@@ -141,9 +142,13 @@ pub(crate) struct SkinColor {
     /// Whether its motion's last lane carries how stirred the blade is
     /// ([`crate::blade_lab_designs::stirred`]).
     pub(crate) stirred: bool,
-    /// Whether its swing trail is drawn as comic speed lines (the Clone Wars blade, round
-    /// 19: `saber_trail.wgsl` style 4) rather than the blur's afterimage.
-    pub(crate) comic_trail: bool,
+    /// How its swing trail is drawn: the blur's afterimage, comic speed lines (the Clone
+    /// Wars blade, round 19), or its signature's `@trail` or an extra's (the Sun's plasma
+    /// and flare, 26/10/2026; `saber_trail.wgsl` styles 3 to 6).
+    pub(crate) trail_kind: crate::blade_extras::TrailKind,
+    /// Whether its trail bends what is behind it, as heat does (an extra's, the Sun's
+    /// Heat wake; `saber_trail.wgsl` `fragment_wake`).
+    pub(crate) wake: bool,
 }
 
 /// Where a skin's glints (or black holes) are, for their quads
@@ -711,9 +716,14 @@ impl LoadedSkin {
     }
 
     /// What its blades are drawn with, as the loaded skin numbered `index`, worn with
-    /// the options in `off` switched off.
+    /// the options in `off` switched from their default (its parts off, its extras on).
     fn color(&self, index: u8, off: crate::saber_skin_options::OptionsOff) -> SkinColor {
+        use crate::blade_extras::TrailKind;
         use crate::blade_skin_file::extras::Section;
+        // The extras are a signature's, drawn while the designs are.
+        let extras = self.signature_shown().map_or_else(Default::default, |_| {
+            crate::blade_extras::worn(self.id, off)
+        });
         let def = self.shown();
         let off = def.off_mask(off);
         let on = |section: Section| off & section.bit() == 0;
@@ -762,16 +772,32 @@ impl LoadedSkin {
                 .filter(|petals| {
                     crate::blade_signatures::part_section(petals.part)
                         .is_some_and(|section| on(section))
-                }),
+                })
+                .or(extras.sheds),
             persona: crate::saber_persona::Persona::default(),
             linger: crate::blade_lab_designs::linger(self.id),
             each_swing: crate::blade_lab_designs::each_swing(self.id),
             stirred: crate::blade_lab_designs::stirred(self.id),
-            // With its comic panel (the sputter bit of its options), while the designs draw.
-            comic_trail: self
-                .design_shown()
-                .is_some_and(|design| crate::blade_lab_designs::comic_trail(design.id))
-                && on(Section::Sputter),
+            // An extra's trail, else its signature's; the comic lines with the Clone Wars
+            // design's comic panel (the sputter bit of its options), while the designs draw.
+            trail_kind: extras
+                .trail
+                .or_else(|| {
+                    self.signature_shown()
+                        .and_then(|signature| signature.trail())
+                })
+                .unwrap_or(
+                    if self
+                        .design_shown()
+                        .is_some_and(|design| crate::blade_lab_designs::comic_trail(design.id))
+                        && on(Section::Sputter)
+                    {
+                        TrailKind::Comic
+                    } else {
+                        TrailKind::Blur
+                    },
+                ),
+            wake: extras.wake,
             chroma: Chroma {
                 base: crate::unlockables::is_chroma(self.id)
                     .then(|| match self.design_shown() {
@@ -1099,6 +1125,10 @@ pub(crate) struct SaberSkins {
     /// Who the world shots' skinned blades are worn by (team, name).
     #[cfg(test)]
     pub(crate) shot_persona: crate::saber_persona::Persona,
+    /// Swings the world shots trail every frame: the poses a blade passed, oldest first,
+    /// 8 ms apart, the last at the frame's time, and what it wears (`saber_trail.rs`).
+    #[cfg(test)]
+    pub(crate) shot_swings: Vec<(Vec<crate::saber::Blade>, ShotColor)>,
 }
 
 /// What a player's second saber wears: the first saber's skin (players with one skin, and
@@ -1233,7 +1263,8 @@ pub(crate) enum ShotColor {
     Skin(&'static str),
     /// A skin on a saber of that stock colour (a chroma takes it).
     Worn(&'static str, BladeColor),
-    /// A skin with these options switched off (`crate::saber_skin_options`).
+    /// A skin with these options switched from their default: parts off, extras on
+    /// (`crate::saber_skin_options`).
     Parts(&'static str, crate::saber_skin_options::OptionsOff),
 }
 
@@ -1601,6 +1632,35 @@ impl GpuState {
                 millis,
                 u64::from(seed),
             );
+        }
+        // Each swing's trail, laid again every frame ending at the frame's time.
+        if !self.saber_skins.shot_swings.is_empty() {
+            self.saber_trail_segments = Default::default();
+        }
+        for (poses, color) in self.saber_skins.shot_swings.clone() {
+            let color = match color {
+                ShotColor::Skin(id) => self.blade_skins.color_of(id),
+                ShotColor::Parts(id, off) => self.blade_skins.color_with(id, off),
+                _ => None,
+            }
+            .map_or(
+                BladeColor::Retail(crate::saber::Color::Blue),
+                BladeColor::Skin,
+            );
+            let mut trail = crate::saber_trail::Trail::default();
+            let last = poses.len() as i64 - 1;
+            for (index, blade) in poses.iter().enumerate() {
+                let at = presentation_time - (last - index as i64) * 8;
+                let base = glam::Vec3::from_array(blade.base);
+                let tip = base + glam::Vec3::from_array(blade.direction) * blade.length;
+                let edge = crate::saber_trail::Edge {
+                    base: blade.base,
+                    tip: tip.to_array(),
+                };
+                if let Some(quad) = trail.update(edge, at, 200, 0, color, true) {
+                    self.saber_trail_segments.insert(quad, at);
+                }
+            }
         }
         let persona = self.saber_skins.shot_persona;
         for (blade, id, fade) in self.saber_skins.shot_ghosts.clone() {

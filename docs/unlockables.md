@@ -488,6 +488,13 @@ distinct ids of 1 to 24 of `a`-`z`, `0`-`9`, `_`, else 400 `bad_look`; an older 
 refuses it with `bad_body`, so a client sends it only when it names one), stored with
 the look and given back in presence and look events only when not empty.
 
+Since 26/10/2026 a look may also carry `"saber_on":["flare_trail"]` and `"saber2_on"`,
+each saber's extras switched on ([Extras](#extras)), on `saber_off`'s rules. The hub keeps
+a saber's only while the key holds a revealed copy of the card that unlocks that skin's
+extras in its finish, and drops them otherwise without refusing the look. A hub from
+before refuses them with `bad_body`: the client sends each only when it is not empty, and
+on a `bad_body` sends its looks without them for 10 minutes, or until the hub changes.
+
 Since 21/10/2026 (hub pull request with SJK's, Creyon) a look may also carry `"saber2"`,
 the second saber's blade skin for a player with two sabers (a blade-skin id the key holds
 like `saber`, or `""` for the stock blade), and `"saber2_off"`, that skin's options
@@ -1135,6 +1142,45 @@ and upright, and the haze checked to bend the scene behind the Sun: about 87,000
 change with it on, none of the glow's) and `duel6_sjk_collection` (the Parts grid of
 the Sun and of the Spectral, one part off); not yet against the deployed hub or in a
 live match.
+
+### Extras
+
+Built 26/10/2026 (Sol: a special trail for the Sun blade, the plasma by default, "the Solar
+card unlocks all the other customizations", and likely the same for other blades later).
+An extra is a part of a signature skin that is off until its wearer switches it on, and
+that only a holder of a given card in a given finish may switch on
+([blade_extras.rs](../crates/sjk-viewer/src/blade_extras.rs)).
+
+| Skin | Every wearer | Extras (id: what it does) | Unlocked by |
+| --- | --- | --- | --- |
+| Sun | the plasma trail | `flare_trail` Flare trail (flames and loops licking past the tip), `swing_embers` Swing embers (sparks flung off the swing), `heat_wake` Heat wake (the air behind the trail shimmers) | a Solar copy of SJK Alpha 000 (Sol) |
+
+- **Declared** by the signature's header: `// @trail plasma` (the trail every wearer gets),
+  `// @extras {"card":..,"card_name":..,"finish":..}` (the card that unlocks them) and an
+  `// @extra {"id":..,"name":..}` line each, with what it does: `"trail"` (another trail,
+  [rendering.md](rendering.md#saber-trails)), `"sheds"` (a `@petals` spec without its part,
+  [rendering.md](rendering.md#falling-blossoms)) or `"wake": true`. At most 6 extras;
+  a test checks every line parses and that no extra's bit takes an option's or another
+  extra's.
+- **Kept** in `cg_saberSkinOptions` with the parts: a word there names a part switched off
+  and an extra switched on, so a word always names a choice that differs from its default
+  (`saber_skin_options.rs`). In a frame both ride on the same 64 bits.
+- **Gated** in the client before the look is made (`blade_extras::gated`): the words for
+  the extras of a skin whose card the own hub profile does not list in its finish are left
+  out, so they are neither drawn for the player nor sent. The Collection lists the extras
+  after the parts, each behind a padlock while locked, with a line saying what unlocks them;
+  a locked one takes no click. `saberskin <id> parts` lists them too ("locked" until the
+  card is held) and `saberskin <id> <extra> on` refuses while locked, saying why.
+- **Sent** as `saber_on` (and `saber2_on` for a second saber's own skin), only when not
+  empty: the hub keeps them only while the key holds the card in its finish and drops
+  them otherwise ([identity.md](identity.md)). A viewer reads `saber_on` for extras only and
+  `saber_off` for parts only (`saber_skin_options::look_bits`), so an extra named among the
+  parts switched off, which the hub does not check, turns nothing on.
+
+Verified by unit tests (the Sun's header, the words and lists, the look round trip and the
+lists read for their own kind, the gate, the colour's trail and wake, the command's lock)
+and the hub's tests (dropped without a Solar copy of the card, a Holo copy or a Solar copy
+of another card, kept and relayed with one); not yet in game, nor against the deployed hub.
 
 ### Illuminate for others
 

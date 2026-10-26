@@ -5,8 +5,10 @@
 //! `saberskin 42`) or `saberskin none` sets
 //! `cg_saberSkin`. A locked skin is set all the same and shows once the player's own hub
 //! profile lists it (the gate is `GpuState::local_saber_skin`'s). `saberskin <id> parts`
-//! lists the parts a skin's file lets its wearer switch off, and `saberskin <id> <part>
-//! on|off` switches one (`cg_saberSkinOptions`, [`crate::saber_skin_options`]).
+//! lists the parts a skin's file lets its wearer switch off and its extras
+//! ([`crate::blade_extras`], off until switched on, each locked until the player holds its
+//! card in its finish), and `saberskin <id> <part> on|off` switches one
+//! (`cg_saberSkinOptions`, [`crate::saber_skin_options`]).
 //! `saberskin second <id> | none | same` sets what a second saber wears
 //! (`cg_saberSkin2`, [`crate::looks::SECOND_CVAR`]): its own skin, the stock blade, or the
 //! first saber's.
@@ -22,12 +24,14 @@ pub(crate) const HELP: &str = "List your blade skins, wear one or switch its par
 const USAGE: &str =
     "saberskin [<id> | none | <id> parts | <id> <part> on|off | second <id> | none | same]";
 
-/// The parts skin `skin` offers (option id and name), and the lines `saberskin <id> parts`
-/// prints from them with `setting` (`cg_saberSkinOptions`).
+/// The parts skin `skin` offers (option id and name, its extras among them), and the lines
+/// `saberskin <id> parts` prints from them with `setting` (`cg_saberSkinOptions`);
+/// `unlocked` says whether the player may switch the skin's extras on.
 pub(crate) fn parts_listing(
     skin: &Unlockable,
     parts: &[(String, String)],
     setting: &str,
+    unlocked: bool,
 ) -> Vec<String> {
     if parts.is_empty() {
         return vec![format!(
@@ -41,22 +45,36 @@ pub(crate) fn parts_listing(
     )];
     for (id, name) in parts {
         let on = crate::saber_skin_options::is_on(setting, skin.id, id);
+        let locked = !unlocked && crate::blade_extras::is_extra(skin.id, id);
         lines.push(format!(
             "  {id}  {name}  {}",
-            if on { "^2on^7" } else { "^3off^7" }
+            if locked {
+                "^1locked^7"
+            } else if on {
+                "^2on^7"
+            } else {
+                "^3off^7"
+            }
+        ));
+    }
+    if let Some(extras) = crate::blade_extras::of(skin.id) {
+        lines.push(format!(
+            "Its extras are off until switched on; {}.",
+            extras.gate.unlocks()
         ));
     }
     lines
 }
 
 /// `saberskin <id> <part> on|off`: the new `cg_saberSkinOptions` and the answer, or why
-/// not.
+/// not (an extra switched on while `unlocked` says the player lacks its card).
 pub(crate) fn switch_part(
     skin: &Unlockable,
     parts: &[(String, String)],
     setting: &str,
     part: &str,
     state: &str,
+    unlocked: bool,
 ) -> Result<(String, String), String> {
     let on = match state.to_ascii_lowercase().as_str() {
         "on" | "1" => true,
@@ -70,6 +88,16 @@ pub(crate) fn switch_part(
             skin.name, skin.id
         ));
     };
+    if on
+        && !unlocked
+        && let Some(extras) = crate::blade_extras::of(skin.id).filter(|extras| extras.has(id))
+    {
+        return Err(format!(
+            "The {name} of the {} is locked: {}.",
+            skin.name,
+            extras.gate.unlocks()
+        ));
+    }
     let setting = crate::saber_skin_options::with(setting, skin.id, id, on);
     let answer = format!(
         "{} of the {} {}.",
@@ -192,6 +220,15 @@ pub(crate) fn run(
 ) -> Result<Vec<String>, String> {
     let enabled = console.bool_cvar("cl_identity") == Some(true);
     let holdings = Holdings::of(enabled, snapshot);
+    // Whether the player holds the card that unlocks `skin`'s extras.
+    let unlocked = |skin: &str| {
+        crate::blade_extras::of(skin).is_some_and(|extras| {
+            snapshot
+                .filter(|_| enabled)
+                .and_then(|snapshot| snapshot.me.as_ref())
+                .is_some_and(|me| crate::blade_extras::holds(&me.cards, &extras.gate))
+        })
+    };
     match args {
         [] => Ok(listing(
             console.text_cvar(SABER_SKIN_CVAR).unwrap_or_default(),
@@ -242,7 +279,12 @@ pub(crate) fn run(
             let setting = console
                 .text_cvar(crate::saber_skin_options::CVAR)
                 .unwrap_or_default();
-            Ok(parts_listing(skin, &parts_of(skin.id), setting))
+            Ok(parts_listing(
+                skin,
+                &parts_of(skin.id),
+                setting,
+                unlocked(skin.id),
+            ))
         }
         [word, part, state] => {
             let Choice::Skin(skin) = parse(word, holdings)? else {
@@ -252,7 +294,14 @@ pub(crate) fn run(
                 .text_cvar(crate::saber_skin_options::CVAR)
                 .unwrap_or_default()
                 .to_owned();
-            let (setting, answer) = switch_part(skin, &parts_of(skin.id), &setting, part, state)?;
+            let (setting, answer) = switch_part(
+                skin,
+                &parts_of(skin.id),
+                &setting,
+                part,
+                state,
+                unlocked(skin.id),
+            )?;
             if !console.set_cvar(crate::saber_skin_options::CVAR, &setting) {
                 return Err("cg_saberSkinOptions could not be set".to_owned());
             }
@@ -271,13 +320,25 @@ impl crate::GpuState {
             .is_some_and(crate::debug_collectibles::wanted);
         let snapshot = crate::player_identity::collection_snapshot(wanted);
         let skins = &self.blade_skins;
+        // Its parts, then its extras.
         let parts_of = |id: &str| {
-            skins.get(id).map_or_else(Vec::new, |skin| {
+            let mut parts: Vec<(String, String)> = skins.get(id).map_or_else(Vec::new, |skin| {
                 skin.options()
                     .iter()
                     .map(|option| (option.id.clone(), option.name.clone()))
                     .collect()
-            })
+            });
+            if skins.get(id).is_some()
+                && let Some(extras) = crate::blade_extras::of(id)
+            {
+                parts.extend(
+                    extras
+                        .list
+                        .iter()
+                        .map(|extra| (extra.id.clone(), extra.name.clone())),
+                );
+            }
+            parts
         };
         let Some(console) = self.console.as_mut() else {
             return Err("The console is not ready".to_owned());
@@ -478,9 +539,13 @@ mod tests {
         if id != "saber_sun" {
             return Vec::new();
         }
-        [("haze", "Heat haze"), ("glint", "Tip glint")]
-            .map(|(id, name)| (id.to_owned(), name.to_owned()))
-            .to_vec()
+        [
+            ("haze", "Heat haze"),
+            ("glint", "Tip glint"),
+            ("flare_trail", "Flare trail"),
+        ]
+        .map(|(id, name)| (id.to_owned(), name.to_owned()))
+        .to_vec()
     }
 
     #[test]
@@ -489,11 +554,30 @@ mod tests {
         let mut console =
             ViewerConsole::new(directory.path().join("config.cfg")).expect("a console");
         let lines = run(&mut console, &words("saber_sun parts"), None, sun_parts).unwrap();
-        assert_eq!(lines.len(), 3);
+        assert_eq!(lines.len(), 5);
         assert!(
             lines[1].contains("haze  Heat haze") && lines[1].contains("on"),
             "{}",
             lines[1]
+        );
+        // Its extra is locked without a Solar copy of Sol's card, and the last line says so.
+        assert!(lines[3].contains("flare_trail  Flare trail") && lines[3].contains("locked"));
+        assert_eq!(
+            lines[4],
+            "Its extras are off until switched on; a Solar copy of SJK Alpha 000 (Sol) unlocks them."
+        );
+        let refused = run(
+            &mut console,
+            &words("saber_sun flare_trail on"),
+            None,
+            sun_parts,
+        );
+        assert_eq!(
+            refused,
+            Err(
+                "The Flare trail of the Sun blade is locked: a Solar copy of SJK Alpha 000 (Sol) unlocks them."
+                    .to_owned()
+            )
         );
         let lines = run(&mut console, &words("saber_sun HAZE off"), None, sun_parts).unwrap();
         assert_eq!(lines, ["Heat haze of the Sun blade off."]);

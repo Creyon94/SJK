@@ -796,6 +796,9 @@ struct Worker {
     /// The hub refused `saber2` as an unknown field (a hub from before 21/10/2026): looks
     /// go without the second saber's skin until then, or until the hub changes.
     saber2_unknown: Option<Instant>,
+    /// The hub refused `saber_on` or `saber2_on` as unknown fields (a hub from before
+    /// 26/10/2026): looks go without the extras until then, or until the hub changes.
+    extras_unknown: Option<Instant>,
     /// The hub refused a look's `saber_sounds` as an unknown field (a hub from before
     /// 23/10/2026): looks go without it, so the blade and the rest still sync and other
     /// players hear the sounds that follow the blade, until the hub changes.
@@ -1064,6 +1067,7 @@ impl Worker {
             look_sounds_unsupported: false,
             look_refused_for: Vec::new(),
             saber2_unknown: None,
+            extras_unknown: None,
             look_id: None,
             profile_soon_after: now,
             assets_dir: None,
@@ -1485,6 +1489,7 @@ impl Worker {
         self.registered = false;
         self.name_sent = None;
         self.saber2_unknown = None;
+        self.extras_unknown = None;
         self.update(Snapshot::clear_me);
         // Another hub's news, or none.
         self.update(|snapshot| {
@@ -2044,6 +2049,9 @@ impl Worker {
         if self.saber2_unknown.is_some_and(|until| now >= until) {
             self.saber2_unknown = None;
         }
+        if self.extras_unknown.is_some_and(|until| now >= until) {
+            self.extras_unknown = None;
+        }
         if !self.settings.enabled {
             self.update(|snapshot| snapshot.status = Status::Disabled);
             return IDLE_MAX;
@@ -2513,6 +2521,11 @@ impl Worker {
         if self.look_refused.contains(&look.saber) {
             look.saber.clear();
             look.saber_off.clear();
+            look.saber_on.clear();
+        }
+        if self.extras_unknown.is_some() {
+            look.saber_on.clear();
+            look.saber2_on.clear();
         }
         // A second skin refused, or a hub that does not know the field: the second saber
         // wears the first's skin, as before `saber2` existed.
@@ -2524,6 +2537,7 @@ impl Worker {
         {
             look.saber2 = None;
             look.saber2_off.clear();
+            look.saber2_on.clear();
         }
         if self.look_sounds_unsupported || self.look_refused.contains(&look.saber_sounds) {
             look.saber_sounds.clear();
@@ -2569,6 +2583,15 @@ impl Worker {
                 if let Some(refused) = refused_skin(code, &look) {
                     self.look_refused.push(refused.to_owned());
                 }
+            }
+            // A hub from before 26/10/2026 refuses the extras: the look goes again without
+            // them (before `saber2` is suspected, which such a hub may know).
+            Err(HubError::Rejected { code, .. })
+                if code == "bad_body"
+                    && (!look.saber_on.is_empty() || !look.saber2_on.is_empty()) =>
+            {
+                self.extras_unknown = Some(now + SABER2_RETRY);
+                self.due_look = now;
             }
             // A hub from before 21/10/2026 refuses `saber2`: the look goes again without it.
             Err(HubError::Rejected { code, .. }) if code == "bad_body" && look.saber2.is_some() => {
@@ -4253,6 +4276,11 @@ mod tests {
                 .saber2
                 .as_ref()
                 .map_or_else(String::new, |saber2| format!(" second {saber2:?}"));
+            let second = if look.saber_on.is_empty() && look.saber2_on.is_empty() {
+                second
+            } else {
+                format!("{second} on {:?} {:?}", look.saber_on, look.saber2_on)
+            };
             Fake::record(
                 self,
                 if look.saber_sounds.is_empty() {
@@ -5351,6 +5379,8 @@ mod tests {
             toys: Vec::new(),
             saber2: None,
             saber2_off: Vec::new(),
+            saber_on: Vec::new(),
+            saber2_on: Vec::new(),
             saber_sounds: String::new(),
         }
     }
@@ -5498,6 +5528,46 @@ mod tests {
         assert_eq!(
             fake.looks()[4..],
             ["look 1.2.3.4:29070 \"saber_sun\" false second \"\""]
+        );
+    }
+
+    #[test]
+    fn extras_go_with_the_look_and_wait_when_the_hub_does_not_know_them() {
+        let fake = Fake::default();
+        fake.owned.lock().unwrap().push("saber_sun".to_owned());
+        let t0 = Instant::now();
+        let (mut worker, _) = worker(&fake, t0);
+        worker.handle(Command::Configure(on("https://hub")), t0);
+        worker.handle(Command::Enter(here(3, "Sol")), t0);
+        let flare = Look {
+            saber_on: vec!["flare_trail".to_owned()],
+            ..lit("saber_sun")
+        };
+        // A hub from before 26/10/2026 refuses the field (400 `bad_body`): the look goes
+        // again at once without the extras, the skin kept.
+        fake.look_refusals
+            .lock()
+            .unwrap()
+            .push_back(HubError::Rejected {
+                status: 400,
+                code: "bad_body".to_owned(),
+                message: "unknown field".to_owned(),
+            });
+        worker.handle(Command::Look(flare.clone()), t0);
+        worker.tick(t0);
+        worker.tick(t0 + Duration::from_millis(1_000));
+        assert_eq!(
+            fake.looks(),
+            [
+                "look 1.2.3.4:29070 \"saber_sun\" true on [\"flare_trail\"] []",
+                "look 1.2.3.4:29070 \"saber_sun\" true",
+            ]
+        );
+        // After a while they are tried again (the hub may have been updated).
+        worker.tick(t0 + Duration::from_millis(1_000) + SABER2_RETRY);
+        assert_eq!(
+            fake.looks()[2..],
+            ["look 1.2.3.4:29070 \"saber_sun\" true on [\"flare_trail\"] []"]
         );
     }
 

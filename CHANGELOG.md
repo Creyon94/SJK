@@ -34,6 +34,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 = cg_heldViewLook: Kicks, knockdowns, kisses and grapples now hold your camera still. Switch this on to keep looking around during them, as before (the camera may shake).
 
+- The Sun blade has its own swing trail: plasma, white gold where the blade just passed and cooling to deep red, its edge torn into flames. A Solar copy of SJK Alpha 000 (Sol's card) unlocks three extras to switch on in Collection > Shaders: the Flare trail (flames and loops licking past the tip), Swing embers (sparks flung off the swing) and a Heat wake (the air behind the trail shimmers), seen by every SJK player _(Sol)_
 - New toy, the Monitor: throw a big old CRT monitor (`monitor_throw`), and one that hits a player who has the toy on too knocks them down as a ragdoll and sends them flying the way it struck them; they get up by themselves once they land. Turn it on with `toy_monitor` (quick wheel Toys page, Collection > Toys): it is both the right to throw and the consent to be hit, and monitors pass through players without it _(Sol)_
 - Ragdolls move better: heavy trunk and light limbs, real friction so a body thrown hard skids and tumbles on, limbs that no longer pass through each other, and blows that spin the body by where they land _(Sol)_
 - The camera styles are now called MP camera (locked behind you, the default) and SP camera (trails you a little), instead of EJK and SJK; your choice is kept _(Sol)_

@@ -237,6 +237,10 @@ includes:
   blade below the tip and heat haze, the Void's orbiting black holes, warped space,
   gravity pulse and afterimages, the Spectral's wisps, souls, smoky edge, cold rim and swaying echo, each a part
   its wearer can switch off, seen so by every SJK player;
+- the Sun blade's trails (26/10/2026): a plasma trail for every wearer, cooling from white
+  gold to deep red with a flame-torn edge, and three extras a Solar copy of SJK Alpha 000
+  unlocks: the Flare trail (flames and loops licking past the tip), Swing embers and a
+  Heat wake bending the air behind the trail;
 - the SJK chat's GIFs (GIPHY links show their GIF) and its GIF picker (favourites,
   GIPHY search with each player's own key and the card that says how to get one,
   the GIFs seen in the chat), `sjksay`, `sjkgif` and the GIF wheel for binds, who is

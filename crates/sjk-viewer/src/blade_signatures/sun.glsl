@@ -17,6 +17,11 @@
 // @room 10
 // @moments own
 // @palette {"corona.rim_cool":[1.0,0.2,0.02],"corona.rim_hot":[1.0,0.42,0.05],"corona.inner":[1.0,0.72,0.24],"core.white":[1.0,0.97,0.86],"core.fringe_cool":[1.0,0.42,0.05],"core.fringe_hot":[1.0,0.72,0.24],"light.color":[1.5,0.85,0.3],"trail":[1.0,0.6,0.12]}
+// @trail plasma
+// @extras {"card":"sjk_alpha_000","card_name":"SJK Alpha 000 (Sol)","finish":"solar"}
+// @extra {"id":"flare_trail","name":"Flare trail","trail":"flare"}
+// @extra {"id":"swing_embers","name":"Swing embers","sheds":{"kind":"ember","per_unit":0.1,"life":0.9,"size":0.8,"fall":0.0,"rise":36.0,"drift":10.0,"fling":0.16}}
+// @extra {"id":"heat_wake","name":"Heat wake","wake":true}
 
 
 const vec3 SU_WHITE = vec3(1.0, 0.96, 0.84);

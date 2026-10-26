@@ -361,6 +361,62 @@ fn duel6_second_blades() {
     });
 }
 
+/// The Sun blade's trails (26/10/2026, `blade_extras.rs`) on duel6: one swing over the
+/// head, right to left across the view, ending as the frame is drawn, worn as the stock
+/// blue blade (for the blur), the Sun (its plasma), and with each extra on (the Flare
+/// trail, the Heat wake, then all of them), each at two moments of the blade's own
+/// animation (sheet `duel6-sun-trails`).
+#[test]
+#[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+fn duel6_sun_trails() {
+    use crate::blade_skin_file::extras::option_bit;
+    on_big_stack(|| {
+        mount_test_packs();
+        let Some((mut gpu, _profile)) = open("maps/mp/duel6.bsp", [1280, 720], None, &[]) else {
+            return;
+        };
+        let (spawn, yaw) = assets::initial_camera(&gpu.bsp).expect("a spawn point");
+        let turn = glam::Quat::from_rotation_z(yaw);
+        let eye = Vec3::from_array(spawn);
+        let ahead = |x: f32, y: f32, z: f32| eye + turn * Vec3::new(x, y, z);
+        let base = ahead(80.0, 0.0, -28.0);
+        // 15 poses 8 ms apart: 112 ms from 160 to 20 degrees over the head.
+        let poses: Vec<Blade> = (0..15)
+            .map(|step| {
+                let angle = (160.0 - 10.0 * step as f32).to_radians();
+                Blade {
+                    base: base.to_array(),
+                    direction: (turn * Vec3::new(0.0, angle.cos(), angle.sin())).to_array(),
+                    length: 40.0,
+                    radius: 3.0,
+                }
+            })
+            .collect();
+        let camera = ahead(22.0, 0.0, -6.0);
+        let (look_yaw, look_pitch) = look(camera.to_array(), ahead(80.0, 0.0, -10.0).to_array());
+        aim(&mut gpu, camera.to_array(), look_yaw, look_pitch);
+        let sun = |off: crate::saber_skin_options::OptionsOff| ShotColor::Parts("saber_sun", off);
+        let variants = [
+            ShotColor::Stock(BladeColor::Retail(crate::saber::Color::Blue)),
+            sun(0),
+            sun(option_bit("flare_trail")),
+            sun(option_bit("heat_wake")),
+            sun(option_bit("flare_trail") | option_bit("heat_wake") | option_bit("swing_embers")),
+        ];
+        let mut shots = Vec::new();
+        for (index, color) in variants.into_iter().enumerate() {
+            gpu.saber_skins.shot_blades = vec![(*poses.last().unwrap(), color, 2)];
+            gpu.saber_skins.shot_swings = vec![(poses.clone(), color)];
+            for seconds in [3.0, 3.4] {
+                gpu.saber_skins.shot_seconds = Some(seconds);
+                shots.push(frame(&mut gpu, if index == 0 { 40 } else { 8 }));
+            }
+        }
+        gpu.saber_skins.shot_swings.clear();
+        println!("{}", sheet(&shots, 2, 960, "duel6-sun-trails").display());
+    });
+}
+
 /// Every option the Sun, the Spectral and the Void offer, switched off.
 fn all_parts_off(id: &str) -> crate::saber_skin_options::OptionsOff {
     let options = match id {

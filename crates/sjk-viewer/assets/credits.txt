@@ -119,6 +119,7 @@ did: Client mods: JA+ tools (admin teleports after JoF EJK) and JoF tools, loade
 did: JoF content: JoF's maps, skins, hilts and packs from JoF's repository, opt in, after JoF's launcher
 did: Mythical shader parts: the Sun's and the Spectral's effects, each switched on or off
 did: The Sun's orbiting glints, circling its blade below the tip
+did: The Sun's plasma trail, and the Flare trail, embers and heat wake a Solar card 000 unlocks
 did: The Void's black holes orbiting its blade, bending the world behind them
 did: SJK chat GIFs, who is online, chat sounds, reply and the last channel remembered
 did: The SJK chat GIF picker: favourites, GIPHY search with your own key, the GIFs seen in the chat

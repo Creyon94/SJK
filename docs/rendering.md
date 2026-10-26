@@ -2983,6 +2983,15 @@ when it is swung, which its own quad could not hold: they are particles in the w
   the stand-in sprite (yellow dots, Sol's first test, 21/10/2026). A thrown
   saber sheds them along its spin and flight, its tip measured in the world (23/10/2026,
   hub report 127).
+- **Embers** (`"kind": "ember"`, 26/10/2026, the Sun's Swing embers extra,
+  [unlockables.md](unlockables.md#extras)): sparks flung off along the swing (`fling`, the
+  share of the tip's speed a shed piece leaves with: 0.16 for them, a petal's 0.025 when
+  absent; at most 1600 times it, units a second), rising as hot air does and flying on
+  through the world rather than settling. One white spark picture (`ember`, drawn by the
+  same script) drawn added to what is behind it (`GL_SRC_ALPHA GL_ONE`), the particle's
+  colour cooling from white gold to deep red and its size shrinking to a third over its
+  life. An extra's `sheds` is read as a `@petals` line without its part, for a skin that
+  sheds nothing of its own.
 - **Paper cranes** (25/10/2026, the Thousand Cranes): `"kind": "crane"` on the line (the
   default is `"blossom"`) and `"rise"`, units a second it climbs (default 0), turn the petals
   into paper cranes that climb away from the swing instead of sinking: `// @petals
@@ -3018,7 +3027,41 @@ stock adds the white `blurcore` untinted, which washed every skin's trail out to
 (Creyon's report, 17/10/2026), so for a skin the glow and the core both take the trail colour,
 deepened (normalised to its brightest channel and squared) so a pale trail colour does
 not add up to white (vertex style 3, `saber_trail::vertex_style`). Stock blades, black blades
-and the sword trail are unchanged. With `cg_saberContact` on, the tip stops at
+and the sword trail are unchanged.
+
+A skin's trail may be other than the blur (`SkinColor::trail_kind`, `blade_extras::TrailKind`):
+the Clone Wars design's comic speed lines (style 4), or what its signature's `@trail` line or
+one of its extras ([unlockables.md](unlockables.md#extras)) asks for. Built 26/10/2026 for
+the Sun blade (Sol: a sun or fire trail; 1 the default, the Solar card unlocking the others):
+
+- **Plasma** (style 5, every Sun's, `// @trail plasma`): white gold where the blade just
+  passed, cooling through the trail colour to deep red as the slice ages, brightest toward
+  the tip with a white-hot seam where the tip went, its trailing edge torn into flames by
+  two octaves of value noise laid in the world (so they run on unbroken from one slice to
+  the next) and rising with the slice's age. The colours come from the trail colour
+  normalised to its brightest channel, so another blade's plasma cools from its own.
+- **Flare** (style 6, the Sun's Flare trail extra): the plasma, and past the tip flames and
+  thin magnetic loops licking off it, as prominences off the Sun's limb: its slice reaches
+  `saber_trail::FLARE_REACH` (10 units) past the tip, the texture's V going below 0 there,
+  and each vertex carries that V at the far edge (`Vertex::past`, attribute 4).
+- **Heat wake** (`saber_trail::WAKE`, a bit beside the style, the Sun's Heat wake extra):
+  what is behind the trail shimmers, drawn by `fragment_wake` in the blades' heat-haze run
+  (`SaberGpu::draw_haze`, through the haze's bind group of the effect layer's scene image,
+  before the black holes' lenses): no blending, the scene read at an offset of up to 2.5
+  units (never more than 2 % of the screen, `HAZE_REACH`, the room the effect rectangle
+  keeps), gone at the slice's edges and as it ages, so the merge sees no seam.
+
+The plasma, flare and a wake live three times as long as the blur (`LONG_LIFE`: 90 to 120 ms
+for most moves): the cooling and the shimmer need that time to be seen. Each slice's age
+reaches the fragment shader in the colour's alpha, which the additive blend ignores. Verified
+by unit tests (the styles and the wake bit from the Sun's choices, the shader validated by
+naga) and the world shot `duel6_sun_trails` (a swing over the head as the stock blue, the
+Sun's plasma, the Flare trail, the Heat wake and all extras, `SaberSkins::shot_swings`;
+with `SJK_TEST_PACKS` naming the hub's packs): the plasma reads gold and see-through with
+a flame-torn edge, the flare's red loops lick past the tip; the wake's bend is faint in a
+still. Not yet looked at in game.
+
+With `cg_saberContact` on, the tip stops at
 the first world surface the blade enters
 ([saber_trail_edge.rs](../crates/sjk-viewer/src/saber_trail_edge.rs)); stock
 also stops it at solid brush entities, which the client does not trace yet. A flying
