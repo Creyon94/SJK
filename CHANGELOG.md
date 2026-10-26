@@ -30,7 +30,15 @@ The site (site/assets/site.js, parseChangelog) reads the release headings,
 introductions and recap lines too.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
-## Unreleased
+## 2026.1026.2 (Alpha) | 26/10/2026
+
+Fixes from players' reports: a setting against bright flashes, voice volume, the Merc's force field and kyber crystals that arrive sooner.
+
+> Bright flashes: A new setting turns off the saber clash flare and screen flashes.
+> Sound: Voice volume works, and blocked players no longer beep.
+> Camera: JA+ kicks, knockdowns and kisses no longer shake or spin it.
+> Players: The Merc's force field shows, and skins show one outfit.
+> Kyber crystals: They arrive within a minute, with their own picture.
 
 = cg_reduceFlashes: For players sensitive to flashing light: no saber clash flare and no screen flash from explosions or DEMP2 shocks.
 

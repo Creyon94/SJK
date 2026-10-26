@@ -9,6 +9,27 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 26/10/2026 | - | Changelog: the Reduce bright flashes setting line before the Unreleased changes
+- 897501e |  | Changelog: the Reduce bright flashes setting line before the Unreleased changes
++ 26/10/2026 | - | Changelog and test list layout after the 26/10 hub report merges
+- 4985bd4 |  | Changelog and test list layout after the 26/10 hub report merges
++ 26/10/2026 | - | Hub reports #133 #144 #148: Merc force field, scaled held items, skin last line
+- 4193fe5 |  | Draw the portable shield as FX_DrawPortableShield does (blec-bee #133)
+- 41fa097 |  | Skins: a surface's last entry shows or hides it, as retail (Rollembones #148)
+- 9e06014 |  | Scale held sabers and guns with iModelScale (g0dchris #144)
+- 9fcbb97 |  | Docs, changelog and test list for hub reports #133 #144 #148
++ 26/10/2026 | - | Hub reports #149 #150 #151: kyber crystals shown sooner and with their picture
+- 7eb8d54 |  | Achievements reach the hub at the minute after a hold; crystal pictures
++ 26/10/2026 | - | Hub reports #138 #141 #147: reduce bright flashes, voice volume, blocked chat beep
+- 7e63d02 |  | Hub reports 26/10: reduce bright flashes (#138), voice volume (#141), no beep for blocked players (#147)
++ 26/10/2026 | - | Hub reports #134 #136 #145: chat kept over map change, Call Vote maps by arena, drones hidden in duels
+- b009cd2 |  | Hub reports: call-vote maps by game type, chat open over a map change, drones hidden in a duel
++ 26/10/2026 | - | Hub reports #132 #135 #139 #140 #146: saber re-sent, ragdoll wakes on hits, held view
+- 83dae52 |  | Saber command asks again, Ragdoll wakes on hits, held views stop toys and mouse (#132 #135 #139 #140 #146)
++ 26/10/2026 | - | Format console_command.rs (CI's cargo fmt check)
+- 8bb967a |  | Format console_command.rs (CI's cargo fmt check)
++ 26/10/2026 | - | Release 2026.1026.1
+- aaae96f |  | Release 2026.1026.1
 + 26/10/2026 | - | 14 new achievements with kyber crystal rewards, Surveyor retired
 - c4f0507 |  | Achievements: 14 new ones, a secret one, Surveyor retired
 + 26/10/2026 | - | Debug panel line
