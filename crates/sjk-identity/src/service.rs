@@ -33,8 +33,8 @@ use std::time::{Duration, Instant};
 
 /// How often a claim is repeated; a claim lives 90 seconds at the hub.
 const CLAIM_EVERY: Duration = Duration::from_secs(45);
-/// How often the roster of known players is read.
-const POLL_EVERY: Duration = Duration::from_secs(15);
+/// How often the roster of known players is read (15 seconds before 27/10/2026).
+const POLL_EVERY: Duration = Duration::from_secs(5);
 /// How often the player's own profile is read again while registered, so a medal
 /// the SJK team gives during a session shows without a restart.
 const PROFILE_EVERY: Duration = Duration::from_secs(600);
@@ -116,6 +116,12 @@ const NEWS_AGAIN: Duration = Duration::from_secs(3_600);
 /// Shortest time between two readings of the rewards brought forward (a window that
 /// shows them opening, a round the feed told of).
 const REWARDS_SOON: Duration = Duration::from_secs(30);
+/// Shortest time between two readings of the profile, holocron progress and trades
+/// brought forward by the game menu opening ([`Service::menu_opened`]).
+const MENU_SOON: Duration = Duration::from_secs(15);
+/// Shortest time between two sendings of the achievement counts brought forward by it:
+/// the hub takes 40 in 10 minutes from an address.
+const MENU_COUNTS_SOON: Duration = Duration::from_secs(30);
 /// Announcements kept for the viewer, newest first.
 const ANNOUNCEMENTS_KEPT: usize = 20;
 
@@ -680,6 +686,8 @@ enum Command {
     OwnDrop,
     /// The viewer wants fresh holocron progress.
     RefreshHolocrons,
+    /// The game menu opened (`Service::menu_opened`).
+    MenuOpened,
     /// Open these holocrons of the player's.
     OpenHolocrons(Vec<u64>),
     /// Reveal the player's sealed cards.
@@ -840,6 +848,10 @@ struct Worker {
     due_announcements: Instant,
     due_rewards: Instant,
     rewards_soon_after: Instant,
+    /// When the game menu may next bring the profile, holocrons and trades forward,
+    /// and the achievement counts.
+    menu_soon_after: Instant,
+    menu_counts_after: Instant,
 }
 
 /// What the hub holds as the player's look.
@@ -1087,6 +1099,8 @@ impl Worker {
             due_announcements: now,
             due_rewards: now,
             rewards_soon_after: now,
+            menu_soon_after: now,
+            menu_counts_after: now,
         }
     }
 
@@ -1097,6 +1111,29 @@ impl Worker {
         if at < self.due_holocrons {
             self.due_holocrons = at;
             self.holocrons_soon_after = at + HOLOCRONS_SOON;
+        }
+    }
+
+    /// The game menu opened: what its pages show of the hub (the profile with its
+    /// achievements and medals, the holocron progress, the trades) is read now, at most
+    /// once every [`MENU_SOON`], and changed achievement counts are sent, at most once
+    /// every [`MENU_COUNTS_SOON`]. A hub that refused a reading or the counts (an older
+    /// hub, a quota) keeps its longer wait.
+    fn menu_opened(&mut self, now: Instant) {
+        if now >= self.menu_soon_after {
+            self.menu_soon_after = now + MENU_SOON;
+            self.due_profile = self.due_profile.min(now);
+            self.due_trades = self.due_trades.min(now);
+            if self.due_holocrons <= now + HOLOCRONS_EVERY {
+                self.due_holocrons = self.due_holocrons.min(now);
+            }
+        }
+        if now >= self.menu_counts_after
+            && self.counts_sent.as_ref() != Some(&self.counts)
+            && self.due_counts <= now + ACHIEVEMENTS_EVERY
+        {
+            self.menu_counts_after = now + MENU_COUNTS_SOON;
+            self.due_counts = self.due_counts.min(now);
         }
     }
 
@@ -1452,6 +1489,7 @@ impl Worker {
             Command::Active(active) => self.active = active,
             Command::OwnDrop => self.own_drop(now),
             Command::RefreshHolocrons => self.holocrons_soon(now),
+            Command::MenuOpened => self.menu_opened(now),
             Command::OpenHolocrons(ids) => self.open_holocrons(&ids, now),
             Command::RevealCards => self.reveal_cards(),
             Command::Shatter(id) => self.trade(Trade::Shatter, &id),
@@ -3228,6 +3266,12 @@ impl Service {
         let _ = self.commands.send(Command::RefreshHolocrons);
     }
 
+    /// The game menu opened: read the profile, the holocron progress and the trades
+    /// again, and send changed achievement counts, each with a short cooldown.
+    pub fn menu_opened(&self) {
+        let _ = self.commands.send(Command::MenuOpened);
+    }
+
     /// Open the player's holocrons `ids` (their own, not opened yet; at most
     /// [`crate::wire::OPEN_MAX`] are taken): what they brought arrives in
     /// [`Snapshot::opening`], and the profile after it.
@@ -4603,6 +4647,63 @@ mod tests {
         assert_eq!(again.remaining_secs(), 10);
         assert!(again.capped(), "8 of 8 today");
         assert_eq!(lock(&snapshot).status, Status::Online);
+    }
+
+    /// The game menu opening reads the profile, the holocron progress and the trades at
+    /// once, at most every [`MENU_SOON`], and sends changed achievement counts, at most
+    /// every [`MENU_COUNTS_SOON`].
+    #[test]
+    fn the_game_menu_opening_reads_its_pages_soon_with_a_cooldown() {
+        let fake = Fake::default();
+        *fake.progress.lock().unwrap() = Some(progress(0));
+        let t0 = Instant::now();
+        let (mut worker, _) = worker(&fake, t0);
+        worker.handle(Command::Configure(on("https://hub")), t0);
+        worker.handle(Command::Achievements(counts(&[("kills_100", 3)])), t0);
+        worker.tick(t0);
+        let trades = |fake: &Fake| *fake.trade_reads.lock().unwrap();
+        let reads = |fake: &Fake| {
+            (
+                profile_reads(fake),
+                holocron_reads(fake),
+                trades(fake),
+                sent_counts(fake).len(),
+            )
+        };
+        let start = reads(&fake);
+        let at = |seconds| t0 + Duration::from_secs(seconds);
+        worker.handle(Command::Achievements(counts(&[("kills_100", 4)])), at(5));
+        worker.handle(Command::MenuOpened, at(5));
+        worker.tick(at(5));
+        assert_eq!(
+            reads(&fake),
+            (start.0 + 1, start.1 + 1, start.2 + 1, start.3 + 1)
+        );
+        // Opened again within the cooldown: nothing more.
+        worker.handle(Command::Achievements(counts(&[("kills_100", 5)])), at(10));
+        worker.handle(Command::MenuOpened, at(10));
+        worker.tick(at(10));
+        assert_eq!(
+            reads(&fake),
+            (start.0 + 1, start.1 + 1, start.2 + 1, start.3 + 1)
+        );
+        // After it the pages are read again; the counts wait for their half minute.
+        worker.handle(Command::MenuOpened, at(20));
+        worker.tick(at(20));
+        assert_eq!(
+            reads(&fake),
+            (start.0 + 2, start.1 + 2, start.2 + 2, start.3 + 1)
+        );
+        worker.handle(Command::MenuOpened, at(35));
+        worker.tick(at(35));
+        assert_eq!(
+            reads(&fake),
+            (start.0 + 3, start.1 + 3, start.2 + 3, start.3 + 2)
+        );
+        assert_eq!(
+            sent_counts(&fake).last().unwrap(),
+            "achievements kills_100=5"
+        );
     }
 
     #[test]
@@ -6659,9 +6760,9 @@ mod tests {
         );
         assert_eq!(lock(&snapshot).status, Status::Online);
         // Nothing is due for a while, then the roster, then the claim.
-        worker.tick(t0 + Duration::from_secs(10));
+        worker.tick(t0 + POLL_EVERY - Duration::from_secs(1));
         assert_eq!(fake.log().len(), 4);
-        worker.tick(t0 + Duration::from_secs(16));
+        worker.tick(t0 + POLL_EVERY);
         assert_eq!(fake.log().last().unwrap(), "presence 1.2.3.4:29070");
         worker.tick(t0 + Duration::from_secs(46));
         assert!(

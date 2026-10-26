@@ -93,6 +93,8 @@ struct Runtime {
     /// Whether the service was last told the player is actively playing
     /// (`holocrons/activity.rs`).
     sent_active: Option<bool>,
+    /// Whether the game menu was open at the last frame ([`follow_game_menu`]).
+    game_menu_open: bool,
     next_sync: Option<Instant>,
     /// Keys whose profile was asked for their picture's version ([`avatar_version`]),
     /// newest last, so each is asked once.
@@ -124,6 +126,7 @@ static RUNTIME: Mutex<Runtime> = Mutex::new(Runtime {
     sent_chat: None,
     sent_look: None,
     sent_active: None,
+    game_menu_open: false,
     next_sync: None,
     picture_lookups: Vec::new(),
     card_lookups: Vec::new(),
@@ -1070,6 +1073,19 @@ pub(crate) fn set_active(active: bool) -> bool {
         service.set_active(active);
     }
     true
+}
+
+/// Follow whether the game menu is open (each frame): as it opens, the service reads
+/// what its pages show of the hub again (it keeps its own cooldown).
+pub(crate) fn follow_game_menu(open: bool) {
+    let mut runtime = lock();
+    if open
+        && !runtime.game_menu_open
+        && let Some(service) = runtime.service.as_ref()
+    {
+        service.menu_opened();
+    }
+    runtime.game_menu_open = open;
 }
 
 /// Send a staff request through the service; false when the service has not started.

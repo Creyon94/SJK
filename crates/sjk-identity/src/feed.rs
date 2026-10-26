@@ -30,7 +30,7 @@
 //! [`take_looks`] hands over only those of the current generation and the viewer's
 //! server, so a poll still under way when either changed cannot bring old looks back.
 
-use crate::hub::Hub;
+use crate::hub::{Hub, HubError};
 use crate::keys::Identity;
 use crate::news::{Announcement, Official};
 use crate::service::{HubFactory, ReportOutcome};
@@ -49,8 +49,12 @@ pub const MESSAGES_KEPT: usize = 200;
 pub const WAIT: u64 = 25;
 /// The feed's HTTP timeout: the hub's wait and room for a slow answer.
 pub const TIMEOUT: Duration = Duration::from_secs(40);
-/// Shortest time between the starts of two polls.
-const POLL_GAP: Duration = Duration::from_secs(2);
+/// Shortest time between the starts of two polls: a ping, emote or toy event that comes
+/// just after another answer waits at most this long (2 seconds before 27/10/2026).
+const POLL_GAP: Duration = Duration::from_millis(500);
+/// The gap a hub from before 27/10/2026 wants: it takes 40 polls a minute from a key and
+/// answers more with 429 `feed_quota`, after which the feed keeps to this.
+const OLD_POLL_GAP: Duration = Duration::from_secs(2);
 /// First wait after a failure, doubled up to [`RETRY_MAX`].
 const RETRY_MIN: Duration = Duration::from_secs(2);
 const RETRY_MAX: Duration = Duration::from_secs(60);
@@ -259,6 +263,8 @@ pub(crate) struct FeedWorker {
     after: u64,
     due: Instant,
     backoff: Duration,
+    /// [`POLL_GAP`], or [`OLD_POLL_GAP`] once this hub refused a poll as too soon.
+    gap: Duration,
     /// Counts the hubs read (`ChatState::loaded`).
     epoch: u64,
 }
@@ -298,6 +304,7 @@ impl FeedWorker {
             after: 0,
             due: now,
             backoff: RETRY_MIN,
+            gap: POLL_GAP,
             epoch: 0,
         }
     }
@@ -360,7 +367,14 @@ impl FeedWorker {
             Ok(feed) => {
                 self.apply(feed, &shared);
                 self.backoff = RETRY_MIN;
-                self.due = now + POLL_GAP;
+                self.due = now + self.gap;
+            }
+            // An older hub's quota: the poll did not count, the feed is still live.
+            Err(HubError::Rejected {
+                status: 429, code, ..
+            }) if code == "feed_quota" => {
+                self.gap = OLD_POLL_GAP;
+                self.due = now + OLD_POLL_GAP;
             }
             Err(_) => {
                 self.set_live(false);
@@ -380,6 +394,7 @@ impl FeedWorker {
         self.news_told = (0, 0);
         self.due = now;
         self.backoff = RETRY_MIN;
+        self.gap = POLL_GAP;
         self.clear_chat();
     }
 
@@ -1606,18 +1621,41 @@ mod tests {
     }
 
     #[test]
-    fn polls_are_two_seconds_apart() {
+    fn polls_are_half_a_second_apart() {
         let t0 = Instant::now();
         let mut rig = rig(t0);
         rig.read("https://hub", None);
         assert_eq!(rig.worker.step(t0), POLL_GAP);
         assert_eq!(
-            rig.worker.step(t0 + Duration::from_millis(500)),
-            Duration::from_millis(1_500)
+            rig.worker.step(t0 + Duration::from_millis(200)),
+            Duration::from_millis(300)
         );
         assert_eq!(rig.asked().len(), 1);
         rig.worker.step(t0 + POLL_GAP);
         assert_eq!(rig.asked().len(), 2);
+    }
+
+    /// A hub from before 27/10/2026 takes a poll every 2 seconds: its `feed_quota`
+    /// slows the feed to that, without counting as a failure, until another hub is read.
+    #[test]
+    fn an_older_hubs_feed_quota_slows_polls_to_two_seconds() {
+        let t0 = Instant::now();
+        let mut rig = rig(t0);
+        rig.read("https://hub", None);
+        rig.worker.step(t0);
+        assert!(lock(&rig.state).live);
+        rig.script(Err(HubError::Rejected {
+            status: 429,
+            code: "feed_quota".to_owned(),
+            message: "slow down".to_owned(),
+        }));
+        assert_eq!(rig.worker.step(t0 + POLL_GAP), OLD_POLL_GAP);
+        assert!(lock(&rig.state).live);
+        let later = t0 + POLL_GAP + OLD_POLL_GAP;
+        assert_eq!(rig.worker.step(later), OLD_POLL_GAP);
+        assert_eq!(rig.asked().len(), 3);
+        rig.read("https://other", None);
+        assert_eq!(rig.worker.step(later + OLD_POLL_GAP), POLL_GAP);
     }
 
     #[test]

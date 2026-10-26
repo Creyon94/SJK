@@ -180,7 +180,7 @@ const DUEL_BADGE_OPACITY: f32 = 0.9;
 /// Milliseconds between reads of which players are verified.
 const VERIFIED_EVERY: i64 = 1_000;
 /// Milliseconds between reads of what the other players share: their values come
-/// about twice a second.
+/// about four times a second.
 const SHARED_EVERY: i64 = 100;
 
 /// What one slot's player shares (`PROTOCOL.md`, "Vitals"), their claim matching the

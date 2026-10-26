@@ -3451,7 +3451,7 @@ seeing any of them means sharing your own, through the hub (Sol's rule, 15/10/20
   heal) is kept on top, and the doubt the estimate had then is dropped. With nothing
   seen since, the bar is exact; it never waits for the next value to move. Their
   Force bar is the last Force they shared, not estimated (17/10/2026,
-  `hud::nameplate::shared_force`), so it moves with each value, about twice a second.
+  `hud::nameplate::shared_force`), so it moves with each value, about four times a second.
 - **Gold contour:** the plate of a player who shares (See & share nameplates) is framed in the verified badge's
   gold instead of grey; in team games a thin line of the
   team's colour stays inside it. Your own plate (`cg_nameplateSelf`) gets it too

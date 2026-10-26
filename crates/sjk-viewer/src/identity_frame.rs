@@ -14,7 +14,8 @@
 //! (`muted_players_frame.rs`) and what SJK knows of each slot's player for the game
 //! chat (`chat/marks.rs`), notes the Profile screen's tab on show
 //! (`profile_hub.rs`), hands the hub the player models the game has
-//! (`installed_models.rs`), puts the pictures that finished loading into the UI's atlas and
+//! (`installed_models.rs`), tells the hub's service when the game menu opens, so its
+//! pages read the hub again, puts the pictures that finished loading into the UI's atlas and
 //! gives the UI the frames of the SJK chat's GIFs on screen (`chat_gifs.rs`), and
 //! carries the encrypted whispers (`e2e_whispers.rs`).
 
@@ -25,6 +26,7 @@ impl GpuState {
     /// Tell the identity service about the settings and the live session. Does
     /// nothing between its twice-a-second turns.
     pub(crate) fn update_identity(&mut self) {
+        player_identity::follow_game_menu(self.game_menu);
         self.remember_profile_hub_tab();
         self.update_sjk_chat();
         self.update_emotes();
