@@ -17,7 +17,8 @@
 //! player gets up there. Every SJK client draws the ragdoll in its place; players on
 //! stock clients see a player walking about. A limp player sends no button, so cannot
 //! attack, and gets up at once when hurt, dead, spectating, in a duel or carrying a flag
-//! ([`crate::order66::spared`]); nobody falls in one of those either.
+//! ([`crate::order66::spared`]), or when the server holds their view (a kiss, a grapple,
+//! a kick: [`crate::held_view`]); nobody falls in one of those either.
 //!
 //! The fall is heard: an original flatline, the toy's own ([`FLATLINE`], made by
 //! `scripts/ragdoll_assets.py`; a PK3 with the same path replaces it), at the body, and
@@ -151,12 +152,15 @@ impl Fall {
 }
 
 /// The player's own fall: the moment, who has been told (bits by slot), when the next
-/// may be, the health it began with, and the camera's angles to give back.
+/// may be, the damage feedback it began with, and the camera's angles to give back.
 struct Mine {
     moment: i32,
     told: u64,
     tell_at: Instant,
-    health: i32,
+    /// The player state's `damageEvent` at the fall (`P_DamageFeedback` changes it at
+    /// every hurt): a new one wakes the player. Health was compared before, and woke a
+    /// player who fell again after a hit without being hit (Sanji's report #135).
+    damage_event: u8,
     camera: (f32, f32),
 }
 
@@ -389,8 +393,14 @@ impl GpuState {
             .config_string(0)
             .and_then(|info| sjk_client::LegacyClientInfo::new(info).integer("g_gametype"))
             .unwrap_or(0);
-        let spared = crate::order66::spared(&snapshot.player, gametype);
-        let health = snapshot.player.health();
+        // A view the server holds (a kiss, a grapple, a kick) gets the player up and keeps
+        // them from falling: the walk's angles fought it and the camera spun (#139, #140,
+        // `held_view`).
+        let spared = crate::order66::spared(&snapshot.player, gametype).or_else(|| {
+            self.server_holds_view()
+                .then_some(crate::order66::Spared::Held)
+        });
+        let damage_event = snapshot.player.damage_event();
         let now = self.ragdoll.time;
         // The relay's events: a sender counts only when the game shows the name they
         // claimed, and never one blocked on this PC.
@@ -441,7 +451,7 @@ impl GpuState {
                 None
             } else if spared.is_some() {
                 Some("")
-            } else if health < mine.health {
+            } else if hurt(mine.damage_event, damage_event) {
                 Some("^3Ouch!^7 You got up")
             } else {
                 None
@@ -458,16 +468,17 @@ impl GpuState {
                 Some(crate::order66::Spared::Flag) => {
                     self.ragdoll_centre("No ragdoll while carrying the flag");
                 }
+                Some(crate::order66::Spared::Held) => self.ragdoll_centre("No ragdoll right now"),
                 Some(_) => {}
                 None if self.hax.busy() => self.ragdoll_centre("No ragdoll in a hack"),
-                None => self.ragdoll_fall(health),
+                None => self.ragdoll_fall(damage_event),
             }
         }
         self.ragdoll_tell();
     }
 
     /// The player falls, now.
-    fn ragdoll_fall(&mut self, health: i32) {
+    fn ragdoll_fall(&mut self, damage_event: u8) {
         let Some(own) = self.ragdoll.own else {
             return;
         };
@@ -487,7 +498,7 @@ impl GpuState {
             moment: start.moment,
             told: 0,
             tell_at: Instant::now(),
-            health,
+            damage_event,
             camera: (self.camera_pitch, self.camera_yaw),
         });
         self.ragdoll.cues.push(Cue::flatline(None, own));
@@ -702,6 +713,12 @@ impl GpuState {
     }
 }
 
+/// Whether the player was hurt since their fall began: the server's damage feedback
+/// sequence (`damage_event`, now) moved on from the one at the fall (`at_fall`).
+fn hurt(at_fall: u8, now: u8) -> bool {
+    at_fall != now
+}
+
 /// Where a fall starts, for its flatline: the player's origin.
 fn start_point(start: &Start) -> Vec3 {
     Vec3::new(
@@ -786,7 +803,7 @@ mod tests {
             moment: 0,
             told: 0,
             tell_at: Instant::now(),
-            health: 100,
+            damage_event: 0,
             camera: (0.0, 0.0),
         });
         // Far off along +Y: runs there, facing it.
@@ -806,6 +823,15 @@ mod tests {
         ragdoll.walk_to = Some(Vec3::new(0.0, 300.0, 0.0));
         let drive = ragdoll.drive(&input, [0, 100, 0], [0.0; 3]).unwrap();
         assert_eq!(drive.command.angles[1], 16_284);
+    }
+
+    #[test]
+    fn only_a_new_hurt_wakes_the_player() {
+        // #135: a fall begun after a hit holds that hit's feedback, so it stays down
+        // until the next one.
+        assert!(!hurt(7, 7));
+        assert!(hurt(7, 8));
+        assert!(hurt(255, 0));
     }
 
     #[test]

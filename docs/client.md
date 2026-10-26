@@ -241,7 +241,10 @@ Settings and SJK in place of retail's Controls and Setup:
     second and once per changed selection. Stock and unknown servers read
     `saber1`/`saber2` only at spawn, so there the change waits for the next
     respawn. The server may refuse the command (jaPRO: standing still, FFA
-    only, not in a duel) and says so in a `print`; it is not retried.
+    only, not in a duel) and says so in a `print`; it is not retried by itself, but
+    the `saber` command asks again on every run, the same pick too, as `CG_Saber_f`
+    does (Kushina's report #132: a refused switch to two sabers left the cvars on the
+    pick, so running it again sent nothing).
   - Force: retail's in-game `ingame_playerforce` window, here on both
     frames, editing the same draft as the SJK UI's Force tab. It keeps retail's
     frame, title band, gold mastery line, blue and red side bars and level
@@ -937,7 +940,8 @@ JA+ and jaPRO-lineage servers get their `saber` command from that change, as fro
 menu; with no name it prints the sabers held
 ([saber_hilt_command.rs](../crates/sjk-viewer/src/saber_hilt_command.rs)). Sent to the
 server as is, it swapped the saber in play but left the cvars on the menu's pick, which
-the next map brought back (Kushina's report #126).
+the next map brought back (Kushina's report #126). Every run sends the server's
+command, the same pick too (#132).
 The classic profile's Cosmetics window does the same, and the SJK UI's
 Character page has Hat and Cape rows (None, then each installed piece; Enter or a
 click opens a picker of named chips, [sjk-ui.md](sjk-ui.md#character)). The menu stage
@@ -4295,7 +4299,8 @@ the archived `cl_toyHax`, as Order 66 in `cl_toyOrder66`).
 - **The control:** once the bar is full, the hacked player's client decides. It takes
   the seize only from a player the game shows under the name they claimed, not blocked
   here, whose look has the toy, while its own toy is on and its player plays (not
-  spectating or dead, not in a duel, not carrying a flag) and was not hacked in the last
+  spectating or dead, not in a duel, not carrying a flag, its view not held by the
+  server: [held view](#held-view)) and was not hacked in the last
   15 seconds, and is not away (idle or alt-tabbed as the [away emote](#away-emote)
   counts it, or an away tag in their name); else the hacker reads why ("Hack failed:
   <name> is in a duel", "is away"). Taken, for
@@ -4392,9 +4397,14 @@ every fall ends with the map or the server.
   player gets up there. A limp player sends no button and cannot attack. Players on
   stock clients see a player walking about.
 - **Getting up:** `toy_ragdoll` again; or at once when the player is hurt ("Ouch! You
-  got up"), dies, spectates, is in a duel or carries a flag. Nobody goes limp in a duel
-  ("No ragdoll in a duel"), with the flag, while spectating or dead, or in a [Hax](#hax)
-  hack.
+  got up"), dies, spectates, is in a duel or carries a flag, or when the server holds
+  their view (a JA+ kiss, kick or knockdown, a melee grapple or throw, a saber lock:
+  [held view](#held-view)). Hurt is a new damage feedback from the server (the player
+  state's `damageEvent`, which `P_DamageFeedback` moves on at each hurt); comparing
+  health instead woke a player who fell again after a hit at once (Sanji's report
+  #135). Nobody goes limp in a duel ("No ragdoll in a duel"), with the flag, while
+  spectating or dead, in a [Hax](#hax) hack, or while the server holds the view ("No
+  ragdoll right now").
 - **Everyone sees the same fall:** no pose is ever sent. The faller's client relays
   one start event to each SJK player on the server through the hub's
   [toy relay](hub-chat.md#toy-relay), one every 35 ms: `fall_<moment>_<x>_<y>_<z>_<vx>_<vy>_<vz>_<yaw>`,
@@ -4432,6 +4442,26 @@ every fall ends with the map or the server.
 The icon (a limp figure slumped against a wall) is drawn by the same script. World shots:
 `world_shot::ragdoll_shots::ragdoll_on_a_demo` (with `SJK_TEST_DEMO`). See
 [ragdoll.rs](../crates/sjk-viewer/src/ragdoll.rs).
+
+## Held view
+
+A game server holds a player's view in some moves: it rewrites `delta_angles` every
+frame so that the view stays where it puts it. SJK knows these cases from one table,
+`server_holds_view` in
+[prediction_policy.rs](../crates/sjk-game-jka/src/prediction_policy.rs): a melee grapple
+(`BG_InGrappleMove`'s animations) or throw (`HANDEXTEND_PRETHROWN`, `POSTTHROWN`), a
+saber lock, and on a JA+ server JoF EJK's `CG_JAPlusViewLockedState` (kicked down,
+getting up, kissing, hanging from a ledge) ([held_view.rs](../crates/sjk-viewer/src/held_view.rs)).
+While it does:
+
+- the mouse does not turn the view (the motion is dropped): a view turned under the
+  server's rewrites shook as the player looked around, kicked down by a JA+ kata or a
+  melee kick (Rollembones' report #146). `cg_heldViewLook 1` lets the mouse turn it
+  anyway. A free camera and fake noclip are not held;
+- the [Ragdoll](#ragdoll) gets the player up and does not start, and a [Hax](#hax) hack
+  ends or is refused (the hacker reads "is busy"): their commands carry angles of their
+  own, so every rewrite turned the camera on by the gap between the two views and it
+  spun (Rollembones' report #139, a kiss; Foshin's #140, a grapple).
 
 ## Drone
 

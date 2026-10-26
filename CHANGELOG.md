@@ -30,6 +30,13 @@ The site (site/assets/site.js, parseChangelog) reads the release headings,
 introductions and recap lines too.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
+## Unreleased
+
+- The `saber` command (from the console or a custom quick wheel choice) asks a JA+ server for your sabers on every run, the same pick too, as JoF EJK does: a switch the server refused (while you moved, or were not idle) is no longer stuck until you pick something else _(Sol, after Kushina's report)_
+- Ragdoll: only a new hit gets you up ("Ouch!"): falling again after being hit no longer wakes you at once _(Sol, after Sanji's report)_
+- Ragdoll and Hax: while the server holds your view (a JA+ kiss, kick or knockdown, a melee grapple or throw, a saber lock) the Ragdoll gets you up and will not start, and a hack ends, where the camera spun before _(Sol, after Rollembones' and Foshin's reports)_
+- While the server holds your view (JA+ kicks, knockdowns and kisses, grapples, saber locks), the mouse no longer turns it, which shook the camera; `cg_heldViewLook 1` lets it turn anyway _(Sol, after Rollembones' report)_
+
 ## 2026.1026.1 (Alpha) | 26/10/2026
 
 Kyber crystals from achievements, 14 new achievements, trading for every verified player and the Boombox toy.

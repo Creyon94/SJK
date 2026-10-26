@@ -773,7 +773,12 @@ impl GpuState {
             .config_string(0)
             .and_then(|info| sjk_client::LegacyClientInfo::new(info).integer("g_gametype"))
             .unwrap_or(0);
-        let spared = crate::order66::spared(&snapshot.player, gametype);
+        // A view the server holds (a kiss, a grapple, a kick) ends a hack and refuses one:
+        // the steering's angles fought it and the camera spun (#139, `held_view`).
+        let spared = crate::order66::spared(&snapshot.player, gametype).or_else(|| {
+            self.server_holds_view()
+                .then_some(crate::order66::Spared::Held)
+        });
         // A new map restarts the server's clock: a hack timed on the old one ends here,
         // the camera given back, without a word to the other player (their clock went
         // back too).
@@ -893,6 +898,7 @@ impl GpuState {
                         }
                         crate::order66::Spared::Duel => Refusal::Duel,
                         crate::order66::Spared::Flag => Refusal::Flag,
+                        crate::order66::Spared::Held => Refusal::Busy,
                     })
                 };
                 if let Some(why) = why {

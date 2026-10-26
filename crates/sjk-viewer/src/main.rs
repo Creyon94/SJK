@@ -143,6 +143,7 @@ mod graphics_quality;
 mod graphics_reload;
 mod ground_hud;
 mod hax;
+mod held_view;
 mod hitch_log;
 mod holocron_popup;
 mod holocrons;

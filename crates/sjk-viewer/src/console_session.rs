@@ -766,6 +766,12 @@ impl ViewerConsole {
         }
     }
 
+    /// Send the sabers to a JA+ or jaPRO-lineage server on the next frame even if
+    /// they did not change (the `saber` command, #132).
+    pub(crate) fn request_saber_command(&mut self) {
+        self.saber_change.request();
+    }
+
     /// Tell a JA+ or jaPRO-lineage server about a saber changed since the last
     /// frame (menu or console), so it applies without a respawn.
     fn poll_saber_change(&mut self, session: &mut ClientSession, now: Instant) {

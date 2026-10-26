@@ -131,6 +131,26 @@ test: Kill with a saber throw from far (over 512 units): Long Throw.
 test: Push a thermal detonator back at its thrower and kill them: Return to Sender.
 note: Hub side is a separate change; until it ships the new ones may not reach the hub.
 
+[ragdoll-held-view]
+area: Gameplay
+title: Ragdoll: only a new hit wakes you; held views stop the toys (#135 #139 #140)
+change: Falling again after an "Ouch!" stays down until the next hit (server damage feedback).
+change: A JA+ kiss, kick or knockdown, a grapple, a throw or a saber lock gets you up.
+change: The Ragdoll will not start then ("No ragdoll right now"), and a Hax hack ends.
+test: toy_ragdoll, get hit: "Ouch! You got up". toy_ragdoll again: you stay down.
+test: On a JoF server, ragdoll then amkiss someone: you get up, no camera spin.
+test: During a kiss, toy_ragdoll: "No ragdoll right now". Melee grapple: same, no spin.
+test: Hax: steer someone and amkiss (or be kissed while hacked): the hack ends, no spin.
+
+[held-view-look]
+area: Input
+title: The mouse waits while the server holds your view (Rollembones #146)
+change: JA+ kicks, knockdowns, kisses, grapples, throws and saber locks: the mouse is ignored.
+change: cg_heldViewLook 1 lets the mouse turn the view anyway (it shakes, as before).
+test: On a JoF server, get kicked down by a kata or a WD melee kick, move the mouse: no shake.
+test: When you are up again the mouse turns the view at once, from where it was held.
+test: cg_heldViewLook 1, kicked again: the mouse turns it (the old shaking).
+
 [ragdoll-toy]
 area: Gameplay
 title: Ragdoll toy: go limp and fall, sandbox style
@@ -208,6 +228,16 @@ title: Thrown saber keeps its skin's afterimages and swing parts (Kushina #127)
 change: The flying blade records afterimages, blossoms and swing motion like the held one.
 test: Wear Spectral (or a signature with afterimages), throw the saber: afterimages trail it.
 test: Varykino Blossom thrown: petals fall along its flight. Catch: no stray afterimage.
+
+[saber-command-again]
+area: Console & chat
+title: The saber command asks the server again, same pick too (Kushina #132)
+change: Every /saber run sends the server's saber command on JA+, as JoF EJK does.
+change: A switch the server refused (moving, not idle) can be asked again at once.
+test: On a JoF server, single saber, run /saber single_1 single_1 while running: refused.
+test: Stand still, run the same /saber single_1 single_1 again: you hold two sabers now.
+test: Wheel custom choices for single and dual, standing still: both ways swap at once.
+test: The console shows "Saber: saber ..." for each run.
 
 [saber-command]
 area: Console & chat

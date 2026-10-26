@@ -1,3 +1,20 @@
+## Hub reports 26/10 (b): saber command, Ragdoll wake, held views
+
+26/10/2026, `personal/hub-reports-1026-b`, based on `main` `8bb967a1`. Kushina's #132: the
+`saber` command now asks a JA+ server on every run, the same pick too, as `CG_Saber_f`
+does (`SaberChangeNotifier::request`); the cause is inferred from the code only: the
+command sent only for a changed selection, so a switch the server refused (it wants the
+player still and idle) left the cvars on the pick and running it again sent nothing.
+Sanji's #135: the Ragdoll wakes on a new `damageEvent` instead of a health drop since the
+fall (why health fell with no hit after a first one is not known; inferred). Rollembones'
+#139 and Foshin's #140: while the server holds the view (`server_holds_view`: grapple,
+throw, saber lock, JA+ locks) the Ragdoll gets up and the Hax ends, as their commands'
+own angles made each `delta_angles` rewrite turn the camera on (spin worked out from the
+code). Rollembones' #146: the mouse does not turn a held view (`cg_heldViewLook 1` lets
+it), inferred to be the shake. Verified: fmt, workspace build, Clippy and tests (new unit
+tests for the request, the wake and the held-view table). Not verified: anything in game,
+on a JoF server, or which JA+ moves really hold the view beyond EJK's list.
+
 ## More achievements
 
 26/10/2026, `personal/more-achievements`, based on `main` `1320d9ff` (Sol's list): 14 new

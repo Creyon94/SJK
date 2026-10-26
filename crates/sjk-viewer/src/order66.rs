@@ -185,13 +185,17 @@ pub(crate) enum Spared {
     Dead,
     Duel,
     Flag,
+    /// The game server holds the player's view (a kiss, a grapple, a kick: `held_view`).
+    /// Never from [`spared`]: the toys that steer the player add it, as their commands
+    /// would fight the server's view.
+    Held,
 }
 
 impl Spared {
     /// What the centre of the screen says, if anything.
     fn words(self) -> Option<&'static str> {
         match self {
-            Self::Away | Self::Dead => None,
+            Self::Away | Self::Dead | Self::Held => None,
             Self::Duel => Some("you are in a duel"),
             Self::Flag => Some("you carry the flag"),
         }
