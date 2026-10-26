@@ -1643,6 +1643,34 @@ mode, as in #58.
 These presentation rules apply in every UI style and change no Force gameplay,
 movement, animation timing or protocol encoding.
 
+### Portable shields
+
+The force field a Merc places (`HI_SHIELD`) is an `ET_SPECIAL` entity with no model,
+drawn by `CG_Special` → `FX_DrawPortableShield` (`cg_ents.c`). Until 26/10/2026 SJK
+drew nothing for it, so players were blocked by a wall they could not see (blec-bee's
+report, #133). [portable_shields.rs](../crates/sjk-viewer/src/portable_shields.rs)
+reads its shape from `time2` (axis bit 24, height bits 16-23, the widths either side
+of its origin in bits 8-15 and 0-7), its look from `otherEntityNum2` (red team
+`gfx/misc/red_portashield`, otherwise blue) and `trickedentindex` (the `*_dmgshield`
+look while it is hit), skips it under `EF_NODRAW`, and adds stock's 50 ms
+`LE_OLINE` copy on the reference 8 ms cadence (`effect_cadence.rs`), so the additive
+copies overlap as at 125 FPS. The copy is a new effect primitive,
+`PrimitiveShape::OrientedLine` (`RB_SurfaceOrientedLine`'s upright quad, s across the
+height and t along the field), drawn by the effect geometry's quad stamp, which the
+GPU expansion handles too. World shot: `world_shot::portable_shield_shots`.
+
+### Scaled players' held items
+
+A player or NPC the server scales (`iModelScale`, also used for small models such as
+the Jawa and community younglings, whose meshes are full size) keeps what it holds in
+its hand: `G2API_GetBoltMatrix` scales a bolt's position by the model scale and keeps
+its axes, and the bolted saber or gun is drawn with the wearer's `modelScale`. Until
+26/10/2026 SJK scaled the body but put the hilt, the gun, the blade's start, a JA+
+hook's rope and the left-hand Force effects at the unscaled hand, above a small
+player's hand (g0dchris' report, #144). `saber::Attachment::scaled` and
+`BladeSocket::scaled` now apply the scale; the blade keeps the saber's length, as
+`CG_AddSaberBlade` does. Holstered hilts already followed it.
+
 ### Emplaced guns
 
 An emplaced gun's top follows its gunner's view as in `CG_General`

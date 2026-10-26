@@ -30,6 +30,12 @@ The site (site/assets/site.js, parseChangelog) reads the release headings,
 introductions and recap lines too.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
+## Unreleased
+
+- The force field a Merc places is visible again: a blue or red wall of light where it blocks you, as in the original game _(Sol, after blec-bee's report)_
+- Player models whose skin switches parts off further down its list (outfit variants such as Yuna's and Kushina's) now show only the parts they should, and caps switched back on show again, as in the original game _(Sol, after Rollembones' report)_
+- Small players the server scales down (younglings, Jawas) hold their saber, gun and Force effects in their hand again, instead of above it _(Sol, after g0dchris' report)_
+
 ## 2026.1026.1 (Alpha) | 26/10/2026
 
 Kyber crystals from achievements, 14 new achievements, trading for every verified player and the Boombox toy.

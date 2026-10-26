@@ -2185,6 +2185,35 @@ note: Alt+Tab while holding Tab leaves the board and the hidden HUD up until Tab
 
 # ---- Rendering & effects ----
 
+[portable-shield]
+area: Rendering & effects
+title: The Merc's force field is drawn (blec-bee #133)
+change: ET_SPECIAL HI_SHIELD fields drawn as FX_DrawPortableShield: an upright additive wall.
+change: Red team red, else blue; the damaged look while hit; hidden while down (EF_NODRAW).
+test: CTF on a JA+ server as Merc: use the field (holdable): a blue/red wall where it stands.
+test: Walk round it: seen from both sides, as tall as it blocks; it flickers off when it drops.
+test: Shoot it: the damaged look; another team's field in its own colour.
+note: Brightness follows stock at 125 FPS (overlapping copies); compare with JoF EJK.
+
+[skin-last-entry]
+area: Rendering & effects
+title: Skins: a part's last entry shows or hides it (Rollembones #148)
+change: A surface named twice takes its shader from its first line, on/off from its last.
+change: Before, the first line decided both: outfit skins showed every outfit at once.
+test: Model yuna (and kushina), default, sum and song skins: one outfit each, as in JoF EJK.
+test: Model zuvio: the neck cap shows as in JoF EJK (a grey default-image cap there too).
+test: Kyle, Jedi and other retail models look unchanged.
+
+[scaled-saber-hand]
+area: Rendering & effects
+title: Scaled players hold their saber in the hand (g0dchris #144)
+change: iModelScale now scales the hand bolt: hilt, gun, blade start, hook rope, Force hand FX.
+change: The hilt and gun are drawn at the player's scale; the blade keeps its length.
+test: A youngling (or Jawa) player on JoF: the saber sits in the hand while idle and swinging.
+test: Gun in hand on a scaled player: in the hand, scaled with the body.
+test: Normal-size players: sabers and guns unchanged.
+note: The cause is inferred: the server scales those models (their meshes are full size).
+
 [model-install-stutters]
 area: Rendering & effects
 title: Fewer stutters at joins, model changes and first deaths (Slash, PR #205)
