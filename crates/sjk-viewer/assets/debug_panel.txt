@@ -24,6 +24,42 @@
 
 # ---- Console & chat ----
 
+[slash-emote-volume]
+area: Audio
+title: Emote volume apart from s_volume (Slash, PR #216, hub #163)
+change: s_emoteVolume is the emote loudness itself (1 as recorded, 0-3), no longer times s_volume.
+change: Saved values moved once to what was heard; boombox on its own channel 15, keeps s_volume.
+test: s_volume 0.2, s_emoteVolume 3: an emote plays loud over quiet game sounds.
+test: Your old emote loudness is the same as before the update at your usual s_volume.
+test: Boombox: changing s_volume changes its loudness; s_emoteVolume does not.
+test: Window muted (alt-tab with mute on): emotes are silent too.
+
+[slash-devmap-no-count]
+area: Gameplay
+title: Nothing counts on a server on your machine (Slash, PR #212, hub #165)
+change: The achievement tracker ignores loopback servers (Create game, devmap), like a hosted game.
+test: devmap a few maps: Servers played, Maps played and Time played stay the same.
+test: Join a real server: they count again.
+
+[slash-vehicle-ragdoll]
+area: Gameplay
+title: No ragdoll in a vehicle (Slash, PR #213, hub #168)
+change: A pilot or passenger never goes limp; a monitor's hit is refused; toy_ragdoll says so.
+test: devmap, npc spawn vehicle swoop_mp, board it, toy_ragdoll: "No ragdoll in a vehicle".
+test: 2nd client throws a monitor at you on the swoop: you stay seated and can drive.
+
+[slash-hack-ragdoll]
+area: Gameplay
+title: A hacked limp player gets up (Slash, PR #214, hub #167)
+change: A Hax hack on a player lying as a ragdoll gets them up, hacker or hacked.
+test: 2 clients with Ragdoll and Hax on: go limp, get hacked: you stand and the hacker steers.
+
+[slash-home-title]
+area: Menus & settings
+title: No small title over the main menu arc (Slash, PR #215)
+change: SJK main menu Play, SJK and Quit pages no longer draw their name above the first entry.
+test: ui_menuStyle sjk: open Play, SJK and Quit: no small title over the arc.
+
 [jof-honor-names]
 area: Menus & settings
 title: JoF names: Honors for medals, Echoes for holocrons

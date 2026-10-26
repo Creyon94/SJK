@@ -2658,6 +2658,16 @@
 - fed9acd |  | Hide duel opponents' bars and send nothing while duelling
 
 = Slash
++ 27/10/2026 | SJK #216 | Give emotes their own volume, apart from s_volume (#163)
+- 091168d |  | Give emotes their own volume, apart from s_volume (#163)
++ 27/10/2026 | SJK #213 | Keep a player in a vehicle from going limp (168)
+- a82916a |  | Keep a player in a vehicle from going limp (#168)
++ 27/10/2026 | SJK #214 | Get a limp player up when a hack starts (#167)
+- f81334e |  | Get a limp player up when a hack starts (#167)
++ 27/10/2026 | SJK #215 | Main menu: drop the small sub-page title over the arc
+- 1aea589 |  | Main menu: drop the small sub-page title over the arc
++ 27/10/2026 | SJK #212 | Count nothing on a server on this machine (#165)
+- 33aa1f3 |  | Count nothing on a server on this machine (#165)
 + 26/10/2026 | SJK #209 | Complete devmap's map name on Tab
 - 027bdba |  | Complete devmap's map name on Tab
 - 0bf3b86 | Sol | devmap completion: no copy per map name, a test for matches in several folders

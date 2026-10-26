@@ -12,7 +12,7 @@ fn emote_mixer() -> Mixer {
         sample_rate: RATE,
         loop_attenuation: Attenuation::None,
         doppler: DopplerConfig::disabled(),
-        protected_channel: Some(EMOTE),
+        protected_channels: &[EMOTE],
     })
 }
 

@@ -287,7 +287,7 @@ pub(super) const AUDIO: &[Setting] = &[
         cvar: crate::emotes::VOLUME_CVAR,
         kind: ValueKind::Float {
             min: 0.0,
-            max: 3.0,
+            max: crate::emotes::MAX_VOLUME,
             step: 0.1,
         },
     },

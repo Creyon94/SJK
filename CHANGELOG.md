@@ -38,6 +38,11 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - An achievement SJK counts in your matches is announced, with its kyber crystal, only once the SJK hub has unlocked it: until then the Achievements tab says "Waiting for the SJK hub". With the identity off it unlocks at once and promises no crystal. Tactical Espionage counts with a player within about 28 m of the box (was 14 m), and Master Craftsman and Full Set say what the hub asks _(Sol)_
 - Monitor hits show at once: your game now sees a monitor strike another player who has the toy on and knocks them flying right away, with your hit marker, instead of waiting a moment for their game to say so; their game's word then settles where they land, and a hit they dodged on their screen is undone. The struck player also tells the thrower first _(Sol)_
 - Monitors no longer hit a player who is typing (chat, console or a menu open) or away (alt-tabbed, idle, or an AFK tag in their name): they pass through _(Sol)_
+- Achievements: nothing counts on a server on your own machine (Create game, `devmap`), so Server Hopper no longer completes by running devmap a few times, and bots' kills no longer count _(Slash, PR #212, after Foshin's report)_
+- Ragdoll: nobody in a vehicle goes limp, so a Monitor no longer knocks a pilot out of control; a body already limp gets up when it boards _(Slash, PR #213, after Rollembones' report)_
+- Ragdoll and Hax: a player hacked while lying limp gets up, so the hacker steers a standing body _(Slash, PR #214, after Rollembones' report)_
+- The SJK main menu's Play, SJK and Quit pages no longer draw their name small over the arc, which read like a stray label _(Slash, PR #215)_
+- Emote volume is now its own, no longer times the game volume, so emotes can be loud with quiet game sounds (`s_emoteVolume`, 1 as recorded, up to 3); your current loudness is kept. The Boombox keeps following the game volume _(Slash, PR #216, after Rollembones' report)_
 
 ## 2026.1026.4 (Alpha) | 26/10/2026
 

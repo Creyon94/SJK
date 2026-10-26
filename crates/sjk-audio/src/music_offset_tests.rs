@@ -7,7 +7,7 @@ fn mixer() -> (Mixer, SoundHandle, SoundHandle) {
         sample_rate: 1000,
         loop_attenuation: Attenuation::None,
         doppler: DopplerConfig::disabled(),
-        protected_channel: None,
+        protected_channels: &[],
     });
     let intro = mixer
         .sound_bank_mut()

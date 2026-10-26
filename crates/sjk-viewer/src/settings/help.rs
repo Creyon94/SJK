@@ -426,7 +426,7 @@ const HELP: &[(&str, &str)] = &[
     ),
     (
         crate::emotes::VOLUME_CVAR,
-        "Loudness of emote sounds: 1 as recorded, 2 twice as loud. Yours plays in both ears; others' follow their player.",
+        "Loudness of emote sounds, apart from the game volume: 1 as recorded, 2 twice as loud.",
     ),
     (
         crate::toy_sounds::VOLUME_CVAR,

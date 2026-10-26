@@ -306,7 +306,7 @@ link: Lukas's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+
 
 [Slash]
 github: JoFSlash
-role: Contributor: 29 merged pull requests
+role: Contributor: 34 merged pull requests
 did: #114 Tab completes cfg file names after exec and writeconfig
 did: #113 CTF team saber colours, an option
 did: #153 The SJK scoreboard tells who won the Siege round or team match
@@ -339,6 +339,11 @@ did: #207 The site's cookie-less visit counter
 did: #199 Peek asks first and names who watches: the idea of the Drone toy
 did: #206 Card pictures: the decoder guard and their own memory labels, ported
 did: #209 Tab completes the map name after devmap
+did: #212 Nothing counts on a server on your own machine
+did: #213 Nobody in a vehicle goes limp
+did: #214 A hacked limp player gets up
+did: #215 No stray title over the main menu arc
+did: #216 Emote volume apart from the game volume
 link: Slash's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AJoFSlash
 
 [Milamber]

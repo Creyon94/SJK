@@ -316,6 +316,8 @@ impl ViewerConsole {
         // no migration below should touch (sensitivity's rescale turned a new
         // profile's 5 into 13.022).
         let new_profile = !config_path.exists();
+        let emote_volume_saved = std::fs::read_to_string(&config_path)
+            .is_ok_and(|config| saves(&config, crate::emotes::VOLUME_CVAR));
         shell.set_config_path(config_path);
         shell.set_log_path(config_directory.join("qconsole.log"));
         shell.set_line_tap(crate::crash_report::trail);
@@ -586,6 +588,7 @@ impl ViewerConsole {
         }
         retire_force_illuminate(&mut shell);
         hold_monitor_throw(&mut shell);
+        emote_volume_on_its_own(&mut shell.cvars, emote_volume_saved);
         shell.push_log("^5SJK console ready. ^7Type cmdlist for commands.");
         mods.migrate_defaults(&mut shell);
         Ok(Self {
@@ -1159,9 +1162,91 @@ fn hold_monitor_throw(shell: &mut sjk_shell::Shell) {
     }
 }
 
+/// `s_emoteVolume` was times `s_volume` until 27/10/2026 (#163) and every profile saved
+/// it: a saved value moves once to what the player heard, itself times the saved
+/// `s_volume` (the old default 2 at the default 0.5 is the new default 1). `saved`:
+/// the config holds an `s_emoteVolume` line; a profile without one (a new one, or one
+/// saved before the emote volume) keeps the new default and only takes the marker.
+fn emote_volume_on_its_own(cvars: &mut sjk_shell::CvarRegistry, saved: bool) {
+    let version = crate::emotes::VOLUME_VERSION_CVAR;
+    if !matches!(
+        cvars.get(version).map(|cvar| &cvar.value),
+        Some(CvarValue::Integer(0))
+    ) {
+        return;
+    }
+    let number = crate::console::saved_number;
+    if saved
+        && let (Some(emotes), Some(effects)) = (
+            number(cvars, crate::emotes::VOLUME_CVAR),
+            number(cvars, "s_volume"),
+        )
+    {
+        let heard = (emotes * effects.clamp(0.0, 1.0)).clamp(0.0, crate::emotes::MAX_VOLUME);
+        let _ = cvars.set_text(crate::emotes::VOLUME_CVAR, &format!("{heard:.2}"));
+    }
+    let _ = cvars.set_text(version, "1");
+}
+
+/// Whether `config` sets cvar `name` (`seta name "value"`, any case).
+fn saves(config: &str, name: &str) -> bool {
+    config.lines().any(|line| {
+        let mut words = line.split_whitespace();
+        words.next().is_some_and(|command| {
+            command.eq_ignore_ascii_case("seta") || command.eq_ignore_ascii_case("set")
+        }) && words
+            .next()
+            .is_some_and(|cvar| cvar.eq_ignore_ascii_case(name))
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use crate::console::ViewerConsole;
+
+    /// Hub report #163: a saved emote volume moves once to what was heard (times the
+    /// saved effects volume); a new profile keeps the default 1, and a value set
+    /// afterwards stays.
+    #[test]
+    fn a_saved_emote_volume_moves_once_to_what_was_heard() {
+        let directory = tempfile::tempdir().unwrap();
+        let fresh = ViewerConsole::new(directory.path().join("new.cfg")).unwrap();
+        assert_eq!(fresh.float_cvar(crate::emotes::VOLUME_CVAR), Some(1.0));
+        drop(fresh);
+        for (emotes, effects, after) in [("2", "0.5", 1.0), ("3", "0.2", 0.6), ("4", "1", 3.0)] {
+            let path = directory.path().join(format!("old-{emotes}-{effects}.cfg"));
+            std::fs::write(
+                &path,
+                format!("seta s_emoteVolume \"{emotes}\"\nseta s_volume \"{effects}\"\n"),
+            )
+            .unwrap();
+            let mut console = ViewerConsole::new(path.clone()).unwrap();
+            let volume = console.float_cvar(crate::emotes::VOLUME_CVAR).unwrap();
+            assert!(
+                (volume - after).abs() < 1e-9,
+                "{emotes} at {effects}: {volume}"
+            );
+            assert!(console.set_cvar(crate::emotes::VOLUME_CVAR, "2"));
+            drop(console);
+            let console = ViewerConsole::new(path).unwrap();
+            assert_eq!(console.float_cvar(crate::emotes::VOLUME_CVAR), Some(2.0));
+        }
+        // An old profile that never saved the emote volume keeps the new default, not
+        // the default times its s_volume.
+        let path = directory.path().join("old-without.cfg");
+        std::fs::write(
+            &path,
+            "seta s_volume \"0.5\"\nseta s_emoteVolumeVersion \"0\"\n",
+        )
+        .unwrap();
+        let console = ViewerConsole::new(path).unwrap();
+        assert_eq!(console.float_cvar(crate::emotes::VOLUME_CVAR), Some(1.0));
+        assert!(!super::saves(
+            "seta s_emoteVolumeVersion \"0\"",
+            "s_emoteVolume"
+        ));
+        assert!(super::saves("SETA S_EMOTEVOLUME \"2\"", "s_emoteVolume"));
+    }
 
     #[cfg(feature = "mod-jof")]
     #[test]

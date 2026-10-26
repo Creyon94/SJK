@@ -611,7 +611,7 @@ merged into SJK
 - #198 "Too many open files" after a long session: the Profile menu's model icons, cosmetics and
   Force templates let go of the previous map's game files (its PK3 reopening part held back).
 
-Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 29 pull requests merged
+Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 34 pull requests merged
 into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AJoFSlash)):
 
 - #114 Tab completes the cfg file argument of `exec`, `execq`, `writeconfig` and `write`
@@ -674,6 +674,13 @@ into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author
   brings visitors.
 - #209 Tab after `devmap` completes the map name from the game data's `maps/*.bsp`, also by
   the name after its folder (`siege_ho` finds `mp/siege_hoth`), as `SV_CompleteMapName` does.
+- #212 nothing counts toward achievements on a loopback server (Create game, `devmap`), so
+  Server Hopper no longer completes by devmap.
+- #213 nobody in a vehicle goes limp: a Monitor's hit no longer leaves a pilot unable to drive.
+- #214 a player hacked while limp gets up, so the hacker steers a standing body.
+- #215 the main menu's sub-pages no longer draw their name small over the arc.
+- #216 emotes take their own gain in the mixer (`s_emoteVolume` apart from `s_volume`, saved
+  values moved to what was heard), and the Boombox its own protected channel.
 
 His Peek work in #199 (closed 24/10/2026, not merged) shaped the Drone toy: a player is
 asked before being peeked, told who watches, and can end it. His #206 (closed 25/10/2026,

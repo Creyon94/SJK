@@ -62,12 +62,13 @@ pub struct MixerConfig {
     /// Caller-supplied loop pitch policy. Compatibility adapters own all
     /// game-specific values; the mixer only evaluates this generic ratio.
     pub doppler: DopplerConfig,
-    /// A channel whose voices are stolen last when the table is full: long
-    /// sounds (an emote's music) are always the oldest, so the plain
-    /// oldest-first steal would cut them first. Its voices playing the same
-    /// sound at the same sample (synced emotes, [`Mixer::play_aligned`]) are
-    /// mixed once, each ear as loud as the loudest of them, not their sum.
-    pub protected_channel: Option<ChannelId>,
+    /// Channels whose voices are stolen last when the table is full: long
+    /// sounds (an emote's music, a boombox track) are always the oldest, so the
+    /// plain oldest-first steal would cut them first. Their voices playing the same
+    /// sound at the same sample on one channel (synced emotes,
+    /// [`Mixer::play_aligned`]) are mixed once, each ear as loud as the loudest of
+    /// them, not their sum.
+    pub protected_channels: &'static [ChannelId],
 }
 
 /// Whether `other` plays the very sample `voice` plays, on its channel: a synced
@@ -471,16 +472,21 @@ pub struct Mixer {
     listener_source: Option<SourceId>,
     rendered_frames: u64,
     master_gain: f32,
-    /// A channel whose voices take their own gain in place of the master gain
-    /// ([`Mixer::set_channel_gain`]).
-    channel_gain: Option<(ChannelId, f32)>,
+    /// Channels whose voices take their own gain in place of the master gain
+    /// ([`Mixer::set_channel_gain`]): a handful at most.
+    channel_gains: Vec<(ChannelId, f32)>,
     music_gain: f32,
     background: Option<BackgroundTrack>,
     doppler: DopplerConfig,
-    protected_channel: Option<ChannelId>,
+    protected_channels: &'static [ChannelId],
 }
 
 impl Mixer {
+    /// Whether `channel` is one of [`MixerConfig::protected_channels`].
+    fn protected(&self, channel: ChannelId) -> bool {
+        self.protected_channels.contains(&channel)
+    }
+
     /// Adjust the existing spatializer without replacing or allocating it.
     pub fn set_separation(&mut self, separation: f32) {
         self.spatial.set_separation(separation);
@@ -524,11 +530,11 @@ impl Mixer {
             listener_source: None,
             rendered_frames: 0,
             master_gain: 1.0,
-            channel_gain: None,
+            channel_gains: Vec::new(),
             music_gain: 1.0,
             background: None,
             doppler: config.doppler,
-            protected_channel: config.protected_channel,
+            protected_channels: config.protected_channels,
         }
     }
 
@@ -636,7 +642,7 @@ impl Mixer {
     /// [`Self::play_from`], but at the very sample `align`'s voice on the same
     /// channel plays the same sound, when it plays it within `window` samples of
     /// `offset`: the two then sound as one (see
-    /// [`MixerConfig::protected_channel`]). Otherwise from `offset`.
+    /// [`MixerConfig::protected_channels`]). Otherwise from `offset`.
     pub fn play_aligned(
         &mut self,
         handle: SoundHandle,
@@ -690,12 +696,7 @@ impl Mixer {
                 !(Some(voice.request.source) == self.listener_source
                     && Some(source) != self.listener_source)
             })
-            .min_by_key(|(_, voice)| {
-                (
-                    Some(voice.request.channel) == self.protected_channel,
-                    voice.started,
-                )
-            })
+            .min_by_key(|(_, voice)| (self.protected(voice.request.channel), voice.started))
             .map(|(index, _)| index)
     }
 
@@ -851,10 +852,13 @@ impl Mixer {
     }
 
     /// Give the one-shot voices of `channel` the gain `gain` in place of the master
-    /// gain (a separate volume bus, as a game's voice volume); `None` ends it. Loops
-    /// and music are not affected.
-    pub fn set_channel_gain(&mut self, bus: Option<(ChannelId, f32)>) {
-        self.channel_gain = bus.map(|(channel, gain)| (channel, gain.clamp(0.0, 1.0)));
+    /// gain (a separate volume bus, as a game's voice volume); `None` ends it. Each
+    /// channel keeps its own bus. Loops and music are not affected.
+    pub fn set_channel_gain(&mut self, channel: ChannelId, gain: Option<f32>) {
+        self.channel_gains.retain(|(bus, _)| *bus != channel);
+        if let Some(gain) = gain {
+            self.channel_gains.push((channel, gain.clamp(0.0, 1.0)));
+        }
     }
 
     /// Set the background-music gain independently of the master gain.
@@ -933,7 +937,7 @@ impl Mixer {
                 self.voices[index].active = false;
                 continue;
             };
-            let merged = Some(voice.request.channel) == self.protected_channel;
+            let merged = self.protected(voice.request.channel);
             // Mixed already with an earlier voice of its group this block.
             if merged
                 && self.voices[..index]
@@ -961,10 +965,11 @@ impl Mixer {
             let mut cursor = voice.cursor;
             let mut active = true;
             // The 16-bit step joins the gain: one multiply a sample, as before.
-            let gain = match self.channel_gain {
-                Some((channel, gain)) if channel == voice.request.channel => gain,
-                _ => self.master_gain,
-            };
+            let gain = self
+                .channel_gains
+                .iter()
+                .find(|(channel, _)| *channel == voice.request.channel)
+                .map_or(self.master_gain, |(_, gain)| *gain);
             let scale = gain * SAMPLE_STEP;
             for frame in out.chunks_exact_mut(2) {
                 if cursor >= sound.samples.len() {

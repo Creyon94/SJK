@@ -51,6 +51,13 @@ pub(crate) const EMOTE_CHANNEL: ChannelId = ChannelId(13);
 /// game's channels, so a toy's sound never cuts a voice, a swing or an emote.
 pub(crate) const TOY_CHANNEL: ChannelId = ChannelId(14);
 
+/// The channel boombox tracks play on: apart from [`EMOTE_CHANNEL`], whose gain is the
+/// emotes' own (#163), so the boombox, a toy, keeps the effects volume.
+pub(crate) const BOOMBOX_CHANNEL: ChannelId = ChannelId(15);
+
+/// The channels of long music the mixer cuts last ([`sjk_audio::MixerConfig`]).
+pub(crate) const PROTECTED_CHANNELS: &[ChannelId] = &[EMOTE_CHANNEL, BOOMBOX_CHANNEL];
+
 /// The channel every voice sound plays on: `CHAN_VOICE`, which `CHAN_VOICE_ATTEN` and
 /// `CHAN_VOICE_GLOBAL` join (`sjk_client` `normalize_voice_channel`, as the game's
 /// channel stomp groups them). Its sounds take `s_volumeVoice` in place of `s_volume`,
@@ -96,9 +103,12 @@ pub(super) fn event_handle(
 }
 
 impl GameAudio {
-    /// Apply the live archived `s_volume`, `s_musicvolume` and `s_volumeVoice` values.
-    pub(crate) fn set_gains(&mut self, effects: f32, music: f32, voice: f32) {
-        self.output.send(AudioCommand::Gains(effects, music, voice));
+    /// Apply the live archived `s_volume`, `s_musicvolume` and `s_volumeVoice` values,
+    /// and the emote channel's gain: 1 (emotes carry `s_emoteVolume` themselves, apart
+    /// from `s_volume`, #163), 0 while the window is muted.
+    pub(crate) fn set_gains(&mut self, effects: f32, music: f32, voice: f32, emotes: f32) {
+        self.output
+            .send(AudioCommand::Gains(effects, music, voice, emotes));
     }
 
     /// Pull the two codemp volume cvars through the existing shell registry.
@@ -168,9 +178,9 @@ impl GameAudio {
             .and_then(|console| console.float_cvar(VOICE_VOLUME_CVAR))
             .unwrap_or(1.0) as f32;
         if console.is_some_and(ViewerConsole::window_muted) {
-            self.set_gains(0.0, 0.0, 0.0);
+            self.set_gains(0.0, 0.0, 0.0, 0.0);
         } else {
-            self.set_gains(effects, music, voice);
+            self.set_gains(effects, music, voice, 1.0);
         }
         self.footsteps = console
             .and_then(|console| console.bool_cvar("cg_footsteps"))
