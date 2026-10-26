@@ -400,6 +400,9 @@ mod footprints_shots;
 mod mover_models_shots;
 #[path = "world_shot_pings.rs"]
 mod pings;
+#[cfg(test)]
+#[path = "world_shot_portable_shield.rs"]
+mod portable_shield_shots;
 #[path = "world_shot_render_scale.rs"]
 mod render_scale_shots;
 #[path = "world_shot_scene_views.rs"]

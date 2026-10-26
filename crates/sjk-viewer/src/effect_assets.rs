@@ -145,6 +145,11 @@ pub(crate) const CODE_SHADERS: &[&str] = &[
     crate::saber_petals::SHADERS[4],
     crate::saber_petals::SHADERS[5],
     crate::saber_petals::SHADERS[6],
+    // The portable shield's looks (`portable_shields.rs`).
+    crate::portable_shields::SHADERS[0],
+    crate::portable_shields::SHADERS[1],
+    crate::portable_shields::SHADERS[2],
+    crate::portable_shields::SHADERS[3],
 ];
 
 pub(crate) fn required_shaders<'a>(

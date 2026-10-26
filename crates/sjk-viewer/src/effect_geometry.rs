@@ -346,6 +346,18 @@ impl Mesh {
                         *depth_hack,
                     );
                 }
+                PrimitiveShape::OrientedLine { end, up } => {
+                    let start = particle.motion.sample().origin;
+                    self.oriented_line(
+                        start,
+                        *end,
+                        *up,
+                        size * 0.5,
+                        layer.uv_rect,
+                        layer.uv_transform,
+                        layer_color,
+                    );
+                }
                 PrimitiveShape::Billboard
                 | PrimitiveShape::FrameBillboard
                 | PrimitiveShape::ScreenFlash => {}
@@ -469,6 +481,36 @@ impl Mesh {
                 depth_hack,
             );
         }
+    }
+
+    /// `DoLine_Oriented` (`rd-vanilla/tr_surface.cpp`): `half_width` either side of the
+    /// line along `up`, s across it (0 on the `up` side), t along it from 0 at `start`
+    /// to 1 at `end` (the `stscale` every caller passes). A quad stamp, so the GPU
+    /// expansion draws it too; every shader that uses it is two-sided.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn oriented_line(
+        &mut self,
+        start: Vec3,
+        end: Vec3,
+        up: Vec3,
+        half_width: f32,
+        uv: [f32; 4],
+        uv_transform: [f32; 4],
+        color: [f32; 4],
+    ) {
+        let up = up.normalize_or(Vec3::Z) * half_width;
+        self.quad(
+            [
+                (start + up, [0.0, 0.0]),
+                (start - up, [1.0, 0.0]),
+                (end - up, [1.0, 1.0]),
+                (end + up, [0.0, 1.0]),
+            ],
+            uv,
+            uv_transform,
+            color,
+            false,
+        );
     }
 
     #[allow(clippy::too_many_arguments)]
