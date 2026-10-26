@@ -70,6 +70,7 @@ fn default_fling() -> f32 {
 
 impl PetalSpec {
     /// Whether its numbers are in reason (checked with the signature's other lines).
+    #[cfg(test)]
     pub(crate) fn valid(&self) -> bool {
         self.part < 6
             && (0.0..=2.0).contains(&self.per_unit)
