@@ -122,6 +122,7 @@ impl Extras {
     }
 
     /// Their ids' bits ([`crate::blade_skin_file::extras::option_bit`]).
+    #[cfg(test)]
     pub(crate) fn bits(&self) -> OptionsOff {
         crate::saber_skin_options::bits(self.list.iter().map(|extra| extra.id.as_str()))
     }
@@ -144,6 +145,7 @@ impl Extras {
     /// Whether everything in them is in reason: 1 to [`MAX_EXTRAS`] extras with distinct
     /// ids and names of the options' form, each doing something, whose bits take none of
     /// another's or of the skin's options (`options`' bits), and a card and finish named.
+    #[cfg(test)]
     pub(crate) fn check(&self, options: OptionsOff) -> Result<(), String> {
         let id_ok = |id: &str| {
             (1..=24).contains(&id.len())
