@@ -15,6 +15,39 @@ it), inferred to be the shake. Verified: fmt, workspace build, Clippy and tests 
 tests for the request, the wake and the held-view table). Not verified: anything in game,
 on a JoF server, or which JA+ moves really hold the view beyond EJK's list.
 
+## Call-vote maps, chat over a map change, drones in a duel
+
+26/10/2026, `personal/hub-reports-1026-d`, based on `main` `8bb967a1`.
+
+- Kushina's report #136 (a JoF base server, `mp/ffa3`, team FFA): Call Vote > Change map
+  showed JoF's maps and missed most of the base game's. Without a server `sv_maplist`, the
+  list was every `maps/**.bsp` of the VFS in path order, cut at 128: JoF's community maps
+  at `maps/*.bsp` sort before `maps/mp/` and filled it, single-player levels with them.
+  The cause is read from the code (her install was not seen). The list is now built as
+  the stock in-game vote screen builds it (`loadArenas`, `UI_MapCountByGameType`): the
+  arena files' maps that are installed, filtered by the serverinfo's `g_gametype` with
+  `G_GetMapTypeBits` (`sjk_game_jka::arenas::map_type_bits`; team FFA lists FFA maps, CTY
+  the CTF ones), the retail maps first (`retail_view`), each part by name, rows "long name
+  / map" ([client.md](client.md)). The retail-first order has no "Jedi Academy" and
+  "Community" headings: the list's rows are its actions.
+- Nib's report #134: a chat field open over a map change closed and the talk balloon
+  went. Each world install builds a new `GpuState`, whose `ChatOverlay` started closed.
+  `hand_shell_to` now hands the open composer (draft, channel) to the new world when a
+  session goes with it, and the neutral commands sent while the map loads carry
+  `BUTTON_TALK` while the field is open; EternalJK resets no key catcher on a server's map
+  change (only `CL_MapLoading`, a local `map`, does) ([client.md](client.md#talk-balloons)).
+- Sanji's report #145: drones seen during a private duel. A player in a private duel (or
+  following one) no longer sees the drones of pilots outside it, on every server unless
+  `cg_duelHideOthers` is 0 (`drone::duel_hidden_pilots`; [client.md](client.md#drone)).
+  Drones are SJK's own, so the server table `DUEL_HIDE_SERVERS` (which says where a
+  server expects bystanders hidden) is not consulted.
+
+Verified on Windows 11: fmt, Clippy, workspace tests (new unit tests: the vote list per
+game type with team FFA, CTY, an unknown type and no arena files; rows and the vote sent;
+the composer handed to the next world; the pilots a duel hides). Not verified: anything in
+game, the list against Kushina's install, the balloon seen by another client after a map
+change, a drone hidden in a real duel.
+
 ## More achievements
 
 26/10/2026, `personal/more-achievements`, based on `main` `1320d9ff` (Sol's list): 14 new

@@ -762,7 +762,7 @@ const HELP: &[(&str, &str)] = &[
     ),
     (
         crate::duel_visibility::HIDE_OTHERS_CVAR,
-        "In a duel, hides all but you and your opponent: bodies, sabers, shots, sounds. Auto: JA+ and jaPRO servers. Always: all. Off: dark.",
+        "In a duel, hides all but you and your opponent: bodies, sabers, shots, sounds, drones. Auto: JA+, jaPRO. Always: all. Off: dark.",
     ),
     (
         crate::duel_visibility::CORPSES_CVAR,

@@ -24,6 +24,33 @@
 
 # ---- Console & chat ----
 
+[chat-open-over-map-change]
+area: Console & chat
+title: Chat field and bubble stay open over a map change (Nib #134)
+change: The open chat field, its draft and channel go to the new map; the bubble comes back.
+change: Commands sent while the map loads carry the talk button while the field is open.
+test: Two clients on a local server; on one, open chat (team chat too) and type, then map change.
+test: After the load: the field is still open with the draft; the other client sees the bubble.
+test: Esc closes it; Enter sends the draft. Leaving to the main menu closes the field.
+
+[callvote-arena-maps]
+area: Menus & settings
+title: Call Vote map list: arena maps of the server's game type (Kushina #136)
+change: Maps from the arena files for g_gametype (team FFA lists FFA maps), Jedi Academy first.
+change: Rows show the long name and the map; no more 128-map cut or single-player levels.
+test: A team FFA server with JoF content: Call Vote > Change map lists mp/ffa1.. first.
+test: A duel server: only duel maps. A server sending sv_maplist: its own list as before.
+test: Pick a map: the vote names the map (mp/ffa3), not the long name.
+
+[duel-hides-drones]
+area: Gameplay
+title: Drones of pilots outside your private duel are hidden (Sanji #145)
+change: In a private duel (or following a duellist), others' drones, names and hiss are hidden.
+change: On every server; cg_duelHideOthers 0 shows them.
+test: Two SJK clients and a third flying freecam near the duel: the drone shows before the duel.
+test: Start a private duel: the drone and its name go; the duel ends: it comes back.
+test: cg_duelHideOthers 0: the drone stays during the duel.
+
 [announcements]
 area: Console & chat
 title: SJK team announcements and contributor reward rounds (Claim)

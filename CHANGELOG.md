@@ -36,6 +36,9 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Ragdoll: only a new hit gets you up ("Ouch!"): falling again after being hit no longer wakes you at once _(Sol, after Sanji's report)_
 - Ragdoll and Hax: while the server holds your view (a JA+ kiss, kick or knockdown, a melee grapple or throw, a saber lock) the Ragdoll gets you up and will not start, and a hack ends, where the camera spun before _(Sol, after Rollembones' and Foshin's reports)_
 - While the server holds your view (JA+ kicks, knockdowns and kisses, grapples, saber locks), the mouse no longer turns it, which shook the camera; `cg_heldViewLook 1` lets it turn anyway _(Sol, after Rollembones' report)_
+- Call Vote's map list offers the maps of the server's game type again, the Jedi Academy maps first: it lists the maps the arena files allow (team FFA the FFA maps, as the base game does), with their full names, instead of every map file found, which JoF's maps filled before most of the base game's _(Sol, after Kushina's report)_
+- A chat field open when the map changes stays open, with what you were typing, and so does your chat bubble, as in EternalJK _(Sol, after Nib's report)_
+- In a private duel, other players' drones are hidden, so they no longer distract the duel; `cg_duelHideOthers 0` shows them _(Sol, after Sanji's report)_
 
 ## 2026.1026.1 (Alpha) | 26/10/2026
 

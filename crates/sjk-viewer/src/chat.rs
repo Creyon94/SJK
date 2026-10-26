@@ -601,6 +601,23 @@ impl ChatOverlay {
         self.input.is_some()
     }
 
+    /// Hand the open composer, its channel and draft, to the next world's chat, so a
+    /// field open over a map change stays open after it, as EternalJK keeps its message
+    /// field (a remote map change resets no key catcher there) and with it the talk
+    /// balloon (`BUTTON_TALK`; report #134). The feed's lines stay behind, as a new
+    /// map's cgame starts its chat box empty.
+    pub(crate) fn hand_composer_to(&mut self, to: &mut ChatOverlay) {
+        let Some(input) = self.input.take() else {
+            return;
+        };
+        to.input = Some(input);
+        to.modifiers = self.modifiers;
+        to.scroll = 0;
+        to.unread = 0;
+        // Already open: no fade-in on the new world's clock.
+        to.opened_ms = 0;
+    }
+
     /// What SJK knows of each slot's player, as the frame sets it (world shots).
     #[cfg(test)]
     pub(crate) fn set_slot_marks(&mut self, marks: Vec<marks::SlotMark>) {
@@ -709,6 +726,24 @@ pub(crate) enum ChatInputResult {
 #[cfg(test)]
 mod escape_tests {
     use super::*;
+
+    // Report #134 (Nib): a chat field open over a map change closed with the old
+    // world's chat, and the talk balloon with it.
+    #[test]
+    fn the_open_field_and_its_draft_go_to_the_next_world() {
+        let mut old = ChatOverlay::new();
+        old.draft_for_shot("gg");
+        old.input.as_mut().expect("composer open").channel = Channel::Team;
+        let mut next = ChatOverlay::new();
+        old.hand_composer_to(&mut next);
+        assert!(!old.is_typing() && next.is_typing());
+        let input = next.input.as_ref().expect("composer open");
+        assert_eq!((input.text.as_str(), input.channel), ("gg", Channel::Team));
+        // A closed field opens nothing.
+        let mut closed = ChatOverlay::new();
+        old.hand_composer_to(&mut closed);
+        assert!(!closed.is_typing());
+    }
 
     #[test]
     fn eternaljk_escapes_show_as_what_was_typed() {
