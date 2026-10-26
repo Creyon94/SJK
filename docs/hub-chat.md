@@ -128,8 +128,9 @@ Old clients ignore all of it, so it stays `/v1/`.
   the long poll. It reads only while the identity is on and the hub answered the
   registration, and then while the player is on a game server (whatever `cl_sjkChat`
   says, for the looks and emotes) or `cl_sjkChat` is on (`Service::set_chat`); in the
-  menus with the chat off it makes no request. It polls at most every 2 seconds and
-  backs off (2 to 60 seconds) when the hub fails. With the chat on it keeps the last
+  menus with the chat off it makes no request. It polls at most every half second (2
+  seconds before 27/10/2026; a hub from before then answers the faster polls with 429
+  `feed_quota`, and the feed keeps to 2 seconds for that hub) and backs off (2 to 60 seconds) when the hub fails. With the chat on it keeps the last
   200 messages, the online count and whether the last poll reached the hub
   (`ChatState`; `loaded` says when the hub being read first answered, so the game's
   feed marks that backlog instead of replaying it); with the chat off it keeps none of
@@ -1080,9 +1081,9 @@ it goes through each server mod's chat flood limits (JA+ and JoF mute or kick a 
 talker) and the server's logs; and a team chat line reaches stock-client teammates as
 garbage. The hub reaches only SJK clients, on any server (base, JA+, JoF), with no
 server change. The cost is latency: a reader waiting in its long poll gets a ping in
-the hub's round trip, but the feed starts polls at most every 2 seconds
+the hub's round trip, but the feed starts polls at most every half second
 ([client service](#client-service)), so a ping that comes just after another answer
-waits up to that long. Pings need `cl_identity 1` and a live claim on the server (a
+waits up to that long (2 seconds before 27/10/2026). Pings need `cl_identity 1` and a live claim on the server (a
 few seconds after joining).
 
 The hub knows no teams, so the team rule is the readers' (`world_ping::Scope::sees`):
@@ -1174,8 +1175,8 @@ more than 10 minutes from its clock). New dependencies: `chacha20poly1305`, `hkd
 a game server, the toy relay's reader (the [Toy relay](#toy-relay)'s
 `sjk-hub-relay-read`) keeps its long poll open with `whispers=1`, whether or not a toy
 listens. The hub then gives the reading key in the player's presence as `whisper_key`,
-for 45 seconds after each read. Presence is read every 15 seconds, so a player is known
-to take them a few seconds to 15 after joining. A client that only speaks the SJK chat
+for 45 seconds after each read. Presence is read every 5 seconds (15 before 27/10/2026),
+so a player is known to take them a few seconds to 5 after joining. A client that only speaks the SJK chat
 (another client built on the hub's protocol) never asks, so it has no `whisper_key` and
 whispers to it go through the game server as before, without the card. Asking with
 `whispers=1` promises to open box format 1 (`whisper.rs`); a client that cannot must
@@ -1373,7 +1374,7 @@ worker tells the feed (identity on, registered, on a server) and what to send fr
 `Service::set_sharing`, which the HUD sets every frame. Each `POST /v1/vitals` sends the
 player's flags and, while they share and are alive, their values with the snapshot's
 server time; the answer lists the server's sharers (`Service::with_vitals`). It posts
-every half second while the player shares or somebody listed does, every 2 seconds
+four times a second (twice before 27/10/2026) while the player shares or somebody listed does, every 2 seconds
 otherwise (to notice a sharer), at once when a flag changes, and backs off (2 to 30
 seconds) when the hub fails; a 403 (no live claim yet) waits 2 seconds. The viewer
 uses an entry only while its claimed name matches the name the game shows in its slot
@@ -1391,7 +1392,7 @@ feed requests made on a game server (for the looks), with the server's address. 
 through the claim, the player's slot and name on that server; it is kept 10 seconds in
 the hub's memory and reaches the SJK players reading that server. Shared vitals
 (`cg_nameplate`, See & share nameplates; `cg_nameplateShare` before 17/10/2026) send the hub the player's health,
-shield and Force twice a second and whether they see everyone's bars; the hub keeps
+shield and Force four times a second and whether they see everyone's bars; the hub keeps
 them 5 seconds in memory and gives them to every SJK player on that server. Without
 either setting, the client still asks the hub every 2 seconds, on a game server, who
 shares there (with its key and address, as any request). Messages are public to every SJK player,

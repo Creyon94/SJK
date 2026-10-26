@@ -59,7 +59,8 @@ vector that both test suites check, so a drift in either shows as a failing test
    mid-match, out of the menus, with input in the last two minutes), which is how the hub
    counts play time toward the next holocron ([holocrons.md](holocrons.md#earning)); the
    flag is left out otherwise.
-4. The thread reads the hub's list of claims for the server every 15 seconds. The
+4. The thread reads the hub's list of claims for the server every 5 seconds (15 before
+   27/10/2026; the hub gives the reads an allowance of their own since then). The
    scoreboard marks a row with SJK's emblem, in gold when verified, the player card
    shows the hub name, and a verified player's nameplate gets a gold badge after the
    name (`ui_renderer/verified_badge.rs`, read once a second), when a claim names
@@ -83,6 +84,13 @@ team changes reach a running client. It reads it sooner, at most once every 30
 seconds, when its unlocks look out of date: the hub refused a blade skin
 (`not_unlocked`), or the feed relayed a look of the player's own key, newer than the
 last one sent, with another blade skin (staff took it back).
+
+Opening the game menu (Escape on a server, since 27/10/2026) reads what its pages show
+of the hub at once: the profile (achievements, medals, unlocks, kyber crystals), the
+holocron progress and the trades, at most once every 15 seconds (`Service::menu_opened`,
+`player_identity::follow_game_menu`), and sends achievement counts that changed since the
+last sending, at most once every 30 seconds (the hub takes 40 in 10 minutes from an
+address). A hub that refused one of them (an older hub, a quota) keeps its longer wait.
 
 ## What a badge proves
 

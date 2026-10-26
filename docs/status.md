@@ -1,3 +1,26 @@
+## Faster hub ticks and a refresh on the game menu
+
+27/10/2026, `personal/hub-tick`, based on `main` `b8fe0304` (Sol's ask: make the hub more
+responsive in game, and refresh achievements, holocrons, profile and trades when the
+Escape menu opens). The feed polls at most every half second (`POLL_GAP`, was 2 s; an
+older hub's 429 `feed_quota` puts that hub back to 2 s, `OLD_POLL_GAP`), presence is read
+every 5 seconds (`POLL_EVERY`, was 15) and vitals post four times a second (`vitals::FAST`,
+was 0.5 s) ([hub-chat.md](hub-chat.md#client-service)). The game menu opening sends
+`Command::MenuOpened`: profile, holocron progress and trades read at once at most every
+15 s (`MENU_SOON`), changed achievement counts sent at most every 30 s
+(`MENU_COUNTS_SOON`) ([identity.md](identity.md#what-happens)). Hub side, Sol-Vulpes/SJK-hub
+branch `hub-tick` (3ae3931, NOT deployed): the feed takes 150 reads a minute per key (was
+40) and 900 per address (was 300), `GET /v1/presence` has its own allowance (120 a minute
+per address) instead of the general 30, vitals 2400 a minute (was 1200). Deploy the hub
+before a release with this client: against today's hub, presence every 5 s spends 12 of
+the 30 general requests a minute, and the feed falls back to 2 s. Verified: fmt, Clippy
+(no new warning), sjk-identity tests (202, with
+`polls_are_half_a_second_apart`, `an_older_hubs_feed_quota_slows_polls_to_two_seconds`,
+`the_game_menu_opening_reads_its_pages_soon_with_a_cooldown`); the hub's tests (606, with
+`presence_does_not_use_the_general_allowance`) and Clippy. Not verified: anything in game
+or through the deployed hub and Cloudflare's tunnel; the hub's load with many players
+polling faster.
+
 ## Monitor charged throw and hit marker
 
 26/10/2026, `personal/monitor-charge`, based on `main` `131c68f1` (Sol's ask, after the

@@ -19,8 +19,9 @@ use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-/// Time between two requests while the player shares or somebody on the server does.
-pub const FAST: Duration = Duration::from_millis(500);
+/// Time between two requests while the player shares or somebody on the server does
+/// (half a second before 27/10/2026).
+pub const FAST: Duration = Duration::from_millis(250);
 /// Time between two requests while nobody shares: only to notice a sharer.
 pub const SLOW: Duration = Duration::from_secs(2);
 /// The HTTP timeout: an answer later than this is out of date anyway.
