@@ -94,6 +94,14 @@ multiplayer. Read [docs/status.md](docs/status.md),
 - Respect the requested scope and existing work. Do not discard unrelated changes,
   rewrite history or publish without authorization. A status page is context, not
   permission to start a new task.
+- Claim before you fix (Sol's rule, 26/10/2026), so two people (or their assistants)
+  never fix the same thing. Before starting on a bug, report or feature, look for an
+  open pull request on this repository, drafts included, that covers it, and, for a
+  player's bug report, for a claim on it in the hub (staff see and set claims there).
+  If someone has it, leave it to them or comment on their pull request instead. Once
+  you start, open a draft pull request early, one commit is enough, naming the report
+  or issue it fixes, and claim the hub report if you can. A claim lapses after two
+  days without being renewed; a draft pull request holds until it is closed.
 - Follow the [branch, commit and pull request
   rules](docs/development.md#branches-commits-and-pull-requests): one topic per
   branch and pull request, never commit to `main`.
