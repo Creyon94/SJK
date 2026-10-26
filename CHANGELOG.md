@@ -30,8 +30,17 @@ The site (site/assets/site.js, parseChangelog) reads the release headings,
 introductions and recap lines too.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
-## Unreleased
+## 2026.1026.1 (Alpha) | 26/10/2026
 
+Kyber crystals from achievements, 14 new achievements, trading for every verified player and the Boombox toy.
+
+> Kyber crystals: Every achievement brings one, and opening it always gives a saber shader.
+> Achievements: 14 new ones, a secret one among them, in Collection and Toys.
+> Trading: Verified players can now trade shaders with each other.
+> Boombox: A new toy that plays your own tracks to SJK players close by.
+> Collection: A wall of shaders, and toy rows with their own key binding.
+
+- Trading is open to every verified player, no longer only to the SJK team _(Creyon)_
 - Achievements: 14 new ones, each with its kyber crystal, in two new categories, Collection and Toys: open 10, 50 and 200 holocrons, craft blades, complete a card set, defeat a player with Order 66, hide 10 minutes in the cardboard box with players close by, win a duel without a scratch or with under 5 health, duel 25 different players, a long saber throw and a thermal detonator sent back to its owner. One is a secret until you find it. Surveyor is retired: those who hold it keep it, nobody else sees it. The Achievements tab lays the 35 out in bands to fit any window _(Sol)_
 - New toy for verified players, the Boombox: an 80s stereo on your shoulder playing your own tracks (`sound/boombox/<name>.mp3` in a pk3) to the SJK players standing close by who have the same track. `toy_boombox` carries it (quick wheel Toys page, Collection > Toys), `boombox` lists your tracks and `boombox next` skips; how far it carries is Settings > Game options, Boombox range (`cg_toyBoomboxRange`), and Settings > Sound silences everyone's (`s_toyBoomboxSound`) _(Sol)_
 - Collection: the Shaders tab is a wall of tiles under a heading to each tier, with a strip of the tiers saying how many of each you hold; V shows a list you sort by name, tier or what you hold (S). Locked shaders show their own colours, dimmed, and a shader's card grows to hold all its words. The Toys tab is a row to each toy with its own switch and the key bound to it: bind one from its card (K). A dark band keeps the tabs readable over any map, and the model keeps its place in a 4:3 window _(Sol)_

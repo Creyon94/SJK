@@ -9,6 +9,22 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 26/10/2026 | - | 14 new achievements with kyber crystal rewards, Surveyor retired
+- c4f0507 |  | Achievements: 14 new ones, a secret one, Surveyor retired
++ 26/10/2026 | - | Debug panel line
+- 01cc2cb |  | Debug panel: the Shaders wall reopens from the top
++ 26/10/2026 | - | Shaders reopens from the top
+- 2c0027c |  | Collection: Shaders reopens from the top, the chosen shader kept
++ 26/10/2026 | - | Ragdoll: a 15 s gap between a player's flatlines
+- b89b92c |  | Ragdoll: a player's flatline is heard at most once every 15 seconds
++ 25/10/2026 | - | Boombox toy: an 80s stereo playing your own tracks to players close by
+- 6154c84 |  | Boombox toy: an 80s stereo playing your own tracks to players close by
++ 25/10/2026 | - | Collection revamp: Shaders wall and list, Toys rows, backdrops that fit
+- 9cdbefd |  | Collection revamp: Shaders wall and list, Toys rows, backdrops that fit
++ 25/10/2026 | - | Mac: fullscreen always borderless
+- 72b0569 |  | Mac: fullscreen is always borderless
++ 25/10/2026 | - | Credits history after release 2026.1025.4
+- 037bbfb |  | Credits history after release 2026.1025.4
 + 25/10/2026 | - | Release 2026.1025.4
 - 6452958 |  | Console: settings under a mod's prefix are set again
 - 1563456 |  | Release 2026.1025.4
