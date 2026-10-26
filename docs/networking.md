@@ -335,6 +335,10 @@ These cases show the server's state instead of predicting, as JoF EternalJK's
   pmove does not model: it is shown as the server has it, keeping the mouse. The mod
   owns the styles ([client mods](mods.md#japro-tools-japro)).
 
+Whether predicted or not, while the server holds the view (those JA+ locks, a melee
+grapple or throw, a saber lock) the mouse does not turn it, as the server's rewrites of
+`delta_angles` made a turned view shake ([held view](client.md#held-view)).
+
 A JA+ server that walks a player through others (amghost, the grace after unghosting
 inside someone, a duel's walk-apart) sets `GHOST_KNOWN_FLAG`, bit 31 of
 `fd.forcePowersKnown`; prediction then drops `CONTENTS_BODY` and `CONTENTS_PLAYERCLIP` from

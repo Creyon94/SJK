@@ -556,6 +556,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "Play other players' boombox music and your own (SJK)",
         ),
         CvarDefinition::new(
+            crate::held_view::LOOK_CVAR,
+            crate::held_view::DEFAULT_LOOK,
+            archive,
+            "Let the mouse turn a view the server holds (JA+ kicks and kisses, grapples), which shakes it (SJK)",
+        ),
+        CvarDefinition::new(
             crate::emotes::ATTACK_STOP_CVAR,
             crate::emotes::DEFAULT_ATTACK_STOP,
             archive,

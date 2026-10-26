@@ -9,7 +9,8 @@
 //! on JA+ servers but left the cvars on the menu's choice, which the next map's
 //! userinfo brought back (Kushina's report #126). JA+ and jaPRO-lineage servers still
 //! get the server's `saber` command, from [`sjk_client::SaberChangeNotifier`], which
-//! sends it for any change of the two cvars.
+//! sends it for any change of the two cvars and, after this command, for an
+//! unchanged pick too (a switch the server refused can be asked again, #132).
 
 use crate::console::ViewerConsole;
 
@@ -40,6 +41,9 @@ pub(crate) fn run(console: &mut ViewerConsole, args: &[String]) -> Vec<String> {
     };
     console.set_cvar("saber1", saber1);
     console.set_cvar("saber2", saber2);
+    // As `CG_Saber_f`, every run asks the server, the same pick too: a switch it
+    // refused (moving, not idle) left the cvars on the pick already (#132).
+    console.request_saber_command();
     Vec::new()
 }
 
