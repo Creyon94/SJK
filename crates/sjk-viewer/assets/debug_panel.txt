@@ -104,6 +104,19 @@ test: Two SJK clients. A: freecam near B: B sees a small remote, the size of a s
 test: A: peek B: B sees no remote, "A is spectating you with the Drone" near the top.
 test: A stops peeking: B's line goes. Third player C still sees A's remote behind B.
 
+[monitor-charge]
+area: Gameplay
+title: Monitor: hold the throw key to charge a harder throw; hit marker and tick on a hit
+change: +monitor_throw charges while held (1100 to 2600 u/s over 1 s) and throws on release.
+change: Ring round the crosshair + rising hum; charged throws sound heavier for everyone.
+change: Your monitor hitting someone: 4 diagonal strokes on the crosshair (red if hard), tick.
+test: Old bind to monitor_throw: now shows +monitor_throw in Key bindings, and charges.
+test: Tap: plain throw. Hold 1 s: ring fills, turns white, ping; release: fast heavy throw.
+test: Hold during the 1.2 s cooldown: the ring waits, then fills. Die while holding: put down.
+test: Two SJK clients: A charges at B. B flies harder; A sees the red marker and hears a tick.
+test: B hears the heavy whoosh for A's charged throw, the plain one for a tap.
+test: Quick wheel Throw monitor still throws at once. Hitting yourself shows no marker.
+note: Untested in game; tune CHARGE_TIME / MAX_THROW_SPEED / MARK_TIME in monitor.rs.
 [monitor-toy]
 area: Gameplay
 title: Monitor toy: throw an old CRT that sends opted-in players flying as ragdolls

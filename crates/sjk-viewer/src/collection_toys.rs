@@ -42,7 +42,7 @@ const NOTE_CHARS: f32 = 52.0;
 
 /// Every command a toy is run by, in the order the page is told their keys
 /// ([`Inputs::toy_keys`]): each toy's switch, Order 66's order after its own, and the
-/// Monitor's throw after its own.
+/// Monitor's throw (held, it charges) after its own.
 pub(crate) const COMMANDS: [&str; 10] = [
     "toy_illuminate",
     "toy_box",
@@ -53,7 +53,7 @@ pub(crate) const COMMANDS: [&str; 10] = [
     "toy_drone",
     "toy_boombox",
     "toy_monitor",
-    "monitor_throw",
+    "+monitor_throw",
 ];
 
 /// One toy as the tab shows it.
@@ -161,8 +161,10 @@ const TOYS: [Toy; TOY_COUNT] = [
         tag: "Throw an old monitor; it sends players flying.",
         title: "Monitor",
         what: "Throw a big old CRT monitor. One that hits a player who has it on too knocks them down as a ragdoll and sends them flying, the way it struck them; they get up once they land. With it off, monitors pass through you.",
-        more: Some("Its switch lets you throw and be hit; the throw key throws one."),
-        commands: &[("toy_monitor", "Your key"), ("monitor_throw", "Throw key")],
+        more: Some(
+            "Its switch lets you throw and be hit; the throw key throws one, harder the longer you hold it.",
+        ),
+        commands: &[("toy_monitor", "Your key"), ("+monitor_throw", "Throw key")],
         switch: "Hit me",
         token: MONITOR_TOKEN,
     },

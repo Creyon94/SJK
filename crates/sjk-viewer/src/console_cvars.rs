@@ -826,7 +826,7 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             crate::toy_saved::MONITOR_CVAR,
             false,
             archive,
-            "The Monitor toy is on: you may throw monitors (monitor_throw) and be hit by them (toy_monitor switches it)",
+            "The Monitor toy is on: you may throw monitors (monitor_throw, or +monitor_throw held to charge) and be hit by them (toy_monitor switches it)",
         ),
         CvarDefinition::new(
             crate::boombox::RANGE_CVAR,

@@ -13,6 +13,8 @@ pub(crate) use follow::shown as follow_shown;
 mod force_streams;
 pub(crate) mod force_wheel;
 mod hack_bar;
+mod monitor_marks;
+pub(crate) use monitor_marks::MonitorMarks;
 pub(crate) mod icons;
 pub(crate) mod identification;
 mod info;
@@ -238,6 +240,8 @@ pub(crate) struct HudOverlay {
     hack_left: Option<f32>,
     /// The Hax toy's hack still to go (`hax.rs`), drawn as a siege hack is.
     toy_hack_left: Option<f32>,
+    /// The Monitor toy's charge ring and hit marker (`monitor.rs`).
+    monitor_marks: MonitorMarks,
     lagometer: sjk_client::LagometerSamples,
     default_document: HudLayoutDocument,
     classic_document: HudLayoutDocument,
@@ -363,6 +367,7 @@ impl HudOverlay {
             interrupted: false,
             hack_left: None,
             toy_hack_left: None,
+            monitor_marks: MonitorMarks::default(),
             lagometer: sjk_client::LagometerSamples::new(),
             default_document: HudLayoutDocument::from_json(DEFAULT_LAYOUT)
                 .expect("bundled default HUD document is valid"),
@@ -389,6 +394,11 @@ impl HudOverlay {
     /// The share of a Hax toy's hack still to go, while the player hacks or is hacked.
     pub(crate) fn set_toy_hack(&mut self, left: Option<f32>) {
         self.toy_hack_left = left;
+    }
+
+    /// The Monitor toy's marks on the crosshair this frame.
+    pub(crate) fn set_monitor_marks(&mut self, marks: MonitorMarks) {
+        self.monitor_marks = marks;
     }
 
     /// Build, lay out and retain the HUD widget draw list. `user_scale` is
@@ -542,6 +552,12 @@ impl HudOverlay {
                 self.hack_left.or(self.toy_hack_left),
                 crosshair::rect(crosshair_look, self.targeting.center(viewport), viewport),
                 self.icons.cell(icons::assets::HACKER),
+            );
+            monitor_marks::emit(
+                &mut self.draw_list,
+                viewport,
+                self.targeting.center(viewport),
+                self.monitor_marks,
             );
         }
         let mut output = HudLayout::default();

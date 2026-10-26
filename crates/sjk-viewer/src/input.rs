@@ -107,6 +107,8 @@ pub(crate) enum InputAction {
     Monitor,
     /// `monitor_throw`: throw a monitor ([`crate::monitor`]).
     ThrowMonitor,
+    /// `+monitor_throw` (true) charges a throw while held, `-monitor_throw` throws it.
+    ChargeMonitor(bool),
     /// `cameracontrol`: open Camera control, as F8 does
     /// ([`crate::ingame_menu::Page::Shot`]).
     CameraControl,
@@ -313,6 +315,8 @@ impl GameplayInput {
                     | crate::boombox::COMMAND
                     | crate::monitor::COMMAND
                     | crate::monitor::THROW_COMMAND
+                    | crate::monitor::CHARGE_COMMAND
+                    | crate::monitor::CHARGE_RELEASE
                     | "cameracontrol"
             )
     }
@@ -485,6 +489,8 @@ impl GameplayInput {
             crate::boombox::COMMAND => Some(InputAction::Boombox),
             crate::monitor::COMMAND => Some(InputAction::Monitor),
             crate::monitor::THROW_COMMAND => Some(InputAction::ThrowMonitor),
+            crate::monitor::CHARGE_COMMAND => Some(InputAction::ChargeMonitor(true)),
+            crate::monitor::CHARGE_RELEASE => Some(InputAction::ChargeMonitor(false)),
             "cameracontrol" => Some(InputAction::CameraControl),
             "vote" => match words.next().map(str::to_ascii_lowercase).as_deref() {
                 Some("yes" | "y" | "1") => Some(InputAction::Vote(true)),
@@ -616,6 +622,7 @@ impl super::GpuState {
             Some(InputAction::Boombox) => self.toggle_boombox(),
             Some(InputAction::Monitor) => self.toggle_monitor(),
             Some(InputAction::ThrowMonitor) => self.throw_monitor(),
+            Some(InputAction::ChargeMonitor(pressed)) => self.charge_monitor(pressed),
             Some(InputAction::FlipKick) => {
                 let restricted = self.live_session.as_ref().is_some_and(|session| {
                     session
@@ -834,6 +841,19 @@ mod tests {
         assert_eq!(input.apply("-ping 147 1100"), None);
         // `ping` is the engine's server query, not a world ping.
         assert!(!GameplayInput::recognizes("ping"));
+    }
+
+    #[test]
+    fn a_held_monitor_throw_charges_on_the_press_and_throws_on_the_release() {
+        let mut input = GameplayInput::default();
+        for (command, action) in [
+            ("+monitor_throw 30 1000", InputAction::ChargeMonitor(true)),
+            ("-monitor_throw 30 1900", InputAction::ChargeMonitor(false)),
+            ("monitor_throw", InputAction::ThrowMonitor),
+        ] {
+            assert!(GameplayInput::recognizes(command), "{command}");
+            assert_eq!(input.apply(command), Some(action), "{command}");
+        }
     }
 
     #[test]

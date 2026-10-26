@@ -15,6 +15,9 @@ synthesized sound (nothing taken from another game), so none is edited by hand e
 | `throw.wav` | `sound/sjk/monitor/throw.wav` | A throw's whoosh, 22050 Hz mono |
 | `bonk.wav` | `sound/sjk/monitor/bonk.wav` | A monitor striking a body: a hollow plastic thunk and its glass ringing |
 | `knock.wav` | `sound/sjk/monitor/knock.wav` | A monitor knocking on the world: a clunk and a rattle |
+| `charge.wav` | `sound/sjk/monitor/charge.wav` | A throw held to charge (the thrower's): a tube's hum rising over a second to a ready ping |
+| `throw_hard.wav` | `sound/sjk/monitor/throw_hard.wav` | A charged throw leaving the hand: a thump and a deep whoosh |
+| `hit.wav` | `sound/sjk/monitor/hit.wav` | The thrower's hit sound when their monitor strikes someone: a bright tick |
 
 The client mounts them in memory below all game data
 ([monitor.rs](../../src/monitor.rs)), so a PK3 that has the same paths replaces them.

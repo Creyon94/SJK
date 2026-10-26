@@ -9,6 +9,14 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 26/10/2026 | - | Monitor charged throw and hit marker
+- eb8a407 |  | Monitor toy: hold the throw to charge it, and a hit marker with a hit sound
++ 26/10/2026 | - | Changelog: the staff toggle cap goes under Unreleased, 2026.1026.3's line as shipped
+- 131c68f |  | Changelog: the staff toggle cap goes under Unreleased, 2026.1026.3's line as shipped
++ 26/10/2026 | - | Staff put-away under the saber toggle cap
+- 73c1792 |  | Saber toggle cap: a staff put away over a JA+ back pays once, and is capped too
++ 26/10/2026 | - | Release 2026.1026.3
+- 1c2e692 |  | Release 2026.1026.3
 + 26/10/2026 | - | test-only extras checks
 - 01da4a7 |  | Blade extras: test-only checks are cfg(test), so the release build has no dead code
 + 26/10/2026 | - | Free look when held on by default

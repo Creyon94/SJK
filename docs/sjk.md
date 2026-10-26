@@ -27,7 +27,8 @@ general contributor rules.
   Illuminate, the cardboard box and Order 66 have none: they are always available and
   on only for the client's run. A toy others see has an id in the look's `toys`
   (`cardboard_box`, `order66`). A toy may have a command of its own besides
-  (`order66`, which gives the order; `monitor_throw`, which throws a monitor).
+  (`order66`, which gives the order; `monitor_throw`, which throws a monitor, and
+  `+monitor_throw`, its held bind, which charges the throw).
 - The crates are SJK's too: `crates/sjk-*`, packages `sjk-*` (`cargo build -p
   sjk-viewer -p sjk-dedicated`) and Rust paths `sjk_*`. Environment variables for
   diagnostics are `SJK_*`; the game-data and server paths keep the neutral

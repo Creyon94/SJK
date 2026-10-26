@@ -585,6 +585,7 @@ impl ViewerConsole {
                 .set_text("cg_shieldBrightnessDefaultVersion", "2");
         }
         retire_force_illuminate(&mut shell);
+        hold_monitor_throw(&mut shell);
         shell.push_log("^5SJK console ready. ^7Type cmdlist for commands.");
         mods.migrate_defaults(&mut shell);
         Ok(Self {
@@ -1138,6 +1139,26 @@ fn renamed_illuminate_command(command: &str) -> Option<String> {
     changed.then(|| parts.join(";"))
 }
 
+/// The Monitor's throw charges while held since 26/10/2026 (`+monitor_throw`): a key
+/// bound to the plain `monitor_throw` alone (as the key bindings and the Collection
+/// bound it before) is bound to the held one, which throws on the release. A bind that
+/// runs it among other commands stays, still throwing at once.
+fn hold_monitor_throw(shell: &mut sjk_shell::Shell) {
+    let plain: Vec<String> = shell
+        .binds
+        .iter()
+        .filter(|(_, command)| {
+            command
+                .trim()
+                .eq_ignore_ascii_case(crate::monitor::THROW_COMMAND)
+        })
+        .map(|(key, _)| key.to_owned())
+        .collect();
+    for key in plain {
+        let _ = shell.binds.bind(&key, crate::monitor::CHARGE_COMMAND);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::console::ViewerConsole;
@@ -1413,6 +1434,24 @@ mod tests {
         .unwrap();
         let console = ViewerConsole::new(chosen).unwrap();
         assert_eq!(console.shell.binds.get("q"), Some("+wheel general"));
+    }
+
+    #[test]
+    fn a_key_bound_to_the_monitor_throw_holds_it_to_charge() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("monitor.cfg");
+        std::fs::write(
+            &path,
+            "bind t \"monitor_throw\"
+bind y \"say hi; monitor_throw\"
+bind u \"+monitor_throw\"
+",
+        )
+        .unwrap();
+        let console = ViewerConsole::new(path).unwrap();
+        assert_eq!(console.shell.binds.get("t"), Some("+monitor_throw"));
+        assert_eq!(console.shell.binds.get("y"), Some("say hi; monitor_throw"));
+        assert_eq!(console.shell.binds.get("u"), Some("+monitor_throw"));
     }
 
     /// Illuminate left the Force wheel: a saved `cg_illuminate` (the old on-the-wheel
