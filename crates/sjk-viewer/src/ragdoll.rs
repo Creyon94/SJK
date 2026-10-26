@@ -818,7 +818,9 @@ impl GpuState {
         if let Some(mine) = &self.ragdoll.mine {
             let why = if toggled {
                 None
-            } else if spared.is_some() || rested {
+            } else if spared.is_some() || self.hax.busy() || rested {
+                // A hack gets a limp player up too: the hacker steers a standing body,
+                // not one left on the floor (#167).
                 Some("")
             } else if hurt(mine.damage_event, damage_event) {
                 Some("^3Ouch!^7 You got up")

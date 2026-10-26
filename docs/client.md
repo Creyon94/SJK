@@ -4548,9 +4548,10 @@ every fall ends with the map or the server.
   standing, just over the body lying), whether they fell by themselves or a monitor
   knocked them down (`ragdoll::shown_top`).
 - **Getting up:** `toy_ragdoll` again; or at once when the player is hurt ("Ouch! You
-  got up"), dies, spectates, is in a duel or carries a flag, or when the server holds
-  their view (a JA+ kiss, kick or knockdown, a melee grapple or throw, a saber lock:
-  [held view](#held-view)). Hurt is a new damage feedback from the server (the player
+  got up"), dies, spectates, is in a duel, carries a flag or is hacked (a [Hax](#hax)
+  hack on a limp player left the body on the floor, Rollembones's report #167), or
+  when the server holds their view (a JA+ kiss, kick or knockdown, a melee grapple or
+  throw, a saber lock: [held view](#held-view)). Hurt is a new damage feedback from the server (the player
   state's `damageEvent`, which `P_DamageFeedback` moves on at each hurt); comparing
   health instead woke a player who fell again after a hit at once (Sanji's report
   #135). Nobody goes limp in a duel ("No ragdoll in a duel"), with the flag, while
