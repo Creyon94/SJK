@@ -200,6 +200,7 @@ mod particle_atlas;
 mod particle_draw;
 mod peek;
 mod player_trades;
+mod portable_shields;
 mod portal;
 mod prediction_preview;
 mod ragdoll;
@@ -2690,6 +2691,13 @@ impl GpuState {
                 game_audio,
                 visual_now,
                 presentation_time as i32,
+            );
+            portable_shields::spawn(
+                snapshot,
+                &mut self.particles,
+                &mut self.effect_aux,
+                &mut self.effects,
+                visual_now,
             );
             pickups::simple::prepare(&mut self.pickups, self.console.as_ref());
             pickups::spawn_cones(

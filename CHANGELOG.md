@@ -44,6 +44,9 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Reduce bright flashes, a new setting for players sensitive to flashing light (Settings > Game options, `cg_reduceFlashes`): no saber clash flare, no screen flash from explosions or DEMP2 shocks, and no effect drawn with the clash flare's picture (some saber clash packs make every block such a flash). The clash flare itself can also be turned off or resized with EternalJK's `cg_saberClash` and `cg_saberClashSize` (Saber clash flare, Clash flare size) _(Sol, after Piza's report and EternalJK)_
 - Voice volume (`s_volumeVoice`) now works and is in Settings > Sound: voices (pain, death, taunts, jump grunts, voice commands) take it in place of the effects volume, as in the original game, so at its default they sound louder against the effects than before _(Sol, after Rollembones's report)_
 - A blocked player's chat messages no longer beep on servers that do not say who sent a line (JA+ and JoF): the beep is told apart by the name that starts the line, as the hidden line is _(Sol, after blec-bee's report)_
+- The force field a Merc places is visible again: a blue or red wall of light where it blocks you, as in the original game _(Sol, after blec-bee's report)_
+- Player models whose skin switches parts off further down its list (outfit variants such as Yuna's and Kushina's) now show only the parts they should, and caps switched back on show again, as in the original game _(Sol, after Rollembones' report)_
+- Small players the server scales down (younglings, Jawas) hold their saber, gun and Force effects in their hand again, instead of above it _(Sol, after g0dchris' report)_
 
 ## 2026.1026.1 (Alpha) | 26/10/2026
 

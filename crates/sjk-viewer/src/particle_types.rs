@@ -54,6 +54,13 @@ pub(crate) enum PrimitiveShape {
         trace_end: bool,
         depth_hack: bool,
     },
+    /// An upright quad from the particle's origin to `end`, `size` across along `up`:
+    /// codemp's `RT_ORIENTEDLINE` (`RB_SurfaceOrientedLine`), which draws the portable
+    /// shield ([`crate::portable_shields`]).
+    OrientedLine {
+        end: Vec3,
+        up: Vec3,
+    },
     Electricity {
         end: Vec3,
         chaos: f32,

@@ -1258,18 +1258,19 @@ impl Glm {
                 .iter()
                 .map(|vertex| reskin::vertex(surface, vertex, matrices))
                 .collect();
-            // A skin entry of `*off` hides the surface (species variants
-            // switch heads, torsos and legs this way); no entry keeps the
-            // model's own shader. A bolt surface (a tag: `*r_hand`, `*hip_l`)
-            // is never drawn, whatever the skin says: Ghoul2 draws a surface
-            // only while all its flags are clear (`RenderSurfaces`, rd-vanilla
-            // tr_ghoul2.cpp), and a tag carries the bolt flag. Its shader is
-            // often `[nomaterial]`, which would draw as a missing image.
-            let shader = if hierarchy.flags & GLM_SURFACE_BOLT != 0 {
+            // A skin whose last entry for the surface is `*off` hides it
+            // (species variants switch heads, torsos and legs this way); a
+            // shown surface takes its first entry's shader ([`Skin::hides`]);
+            // no entry keeps the model's own shader. A bolt surface (a tag:
+            // `*r_hand`, `*hip_l`) is never drawn, whatever the skin says:
+            // Ghoul2 draws a surface only while all its flags are clear
+            // (`RenderSurfaces`, rd-vanilla tr_ghoul2.cpp), and a tag carries
+            // the bolt flag. Its shader is often `[nomaterial]`, which would
+            // draw as a missing image.
+            let shader = if hierarchy.flags & GLM_SURFACE_BOLT != 0 || skin.hides(&hierarchy.name) {
                 None
             } else {
                 match skin.shader(&hierarchy.name) {
-                    Some(SKIN_SHADER_OFF) => None,
                     Some(shader) => Some(shader.to_owned()),
                     None => (!hierarchy.shader.is_empty()).then(|| hierarchy.shader.clone()),
                 }

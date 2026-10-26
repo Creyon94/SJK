@@ -828,9 +828,16 @@ animates is not swapped for Kyle:
 - Skins are read with rd-vanilla's `CommaParse` loop (`RE_RegisterIndividualSkin`,
   `tr_skin.cpp`): tokens in surface/shader pairs, comments, missing commas, stray
   text and bytes outside UTF-8 change nothing about what loads, `tag_` entries
-  are skipped, `_off` is stripped from surface names, the first entry for a
-  surface wins and a skin keeps at most 128 entries
-  ([skin.rs](../crates/sjk-model/src/skin.rs)).
+  are skipped, `_off` is stripped from surface names and a skin keeps at most 128
+  entries ([skin.rs](../crates/sjk-model/src/skin.rs)). A surface named twice takes
+  its shader from its first entry (`RenderSurfaces` stops at the first match) but is
+  shown or hidden by its last: `G2_SetSurfaceOnOffFromSkin` (`G2_surfaces.cpp`)
+  applies every entry in turn, `*off` switching the surface off and any other shader
+  back on (never an `_off` cap, which the model keeps off). Until 26/10/2026 the
+  first entry decided both, so skins that name every part with its texture and then
+  switch an outfit's spare parts off further down (Yuna's and Kushina's) showed all
+  their outfits at once, and a cap switched off and then on again was missing
+  (Rollembones' report, #148).
 - A skin never costs the model (`CG_RegisterClientModelname`, `cg_players.c`):
   when the requested skin is missing, has a missing part or names no surface,
   the model wears `model_default.skin`, and without one its surfaces' own

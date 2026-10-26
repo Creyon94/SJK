@@ -74,6 +74,31 @@ voice volume through the output, the beep's sender by name, the flare's options 
 flash picture). Not verified: anything in game, the flare and flashes with the switch on,
 the voice loudness against retail's, the beep on a live JoF server.
 
+## Hub reports 26/10 (c): force field, skin parts, scaled players' sabers
+
+26/10/2026, `personal/hub-reports-1026-c`, based on `main` `8bb967a1`, three player reports
+from JoF JA+ servers. #133 (blec-bee): the Merc's force field (`HI_SHIELD`, `ET_SPECIAL`)
+was invisible because nothing drew `CG_Special`'s portable shield; it is now drawn as
+`FX_DrawPortableShield` draws it ([rendering.md](rendering.md#portable-shields)). #148
+(Rollembones): a surface named twice in a skin took both its shader and its visibility
+from its first entry; retail shows or hides it by its last (`G2_SetSurfaceOnOffFromSkin`)
+([client.md](client.md#player-models)). A scan of the installed skins found
+135 surfaces where the two differ (Yuna, Kushina, footballplayer, Vin, Corran, Shisui,
+jedi_hm's hars/crocky, Zuvio's neck cap). #144 (g0dchris): the youngling and Jawa meshes
+are full size (`alienyounglings1` and `jawa` reach 75 units, the hand tag where Kyle's is),
+so those players are small only through the server's `iModelScale`; SJK scaled the body
+but not the hand bolt, so the saber floated above a small player's hand
+([rendering.md](rendering.md#scaled-players-held-items)). That the JoF server sends
+`iModelScale` for those players is inferred, not seen in a capture. Not changed: a
+surface no skin entry names still draws the mesh's own shader where rd-vanilla draws its
+default image (184 installed single-file skins leave a visible surface unnamed; whether
+that is what #148 also saw is unknown). Verified on Windows 11, RTX 5080: fmt, workspace build, Clippy (no new
+warnings) and `cargo test --workspace` (new unit tests for the field's shape and look, its
+quad, the skin's last entry and the scaled bolt and socket); the world shot
+`duel6_portable_shields` draws a blue and a red field. Not verified: anything in game, the
+field's brightness against JoF EJK, the skins on Yuna/Kushina/Zuvio in a frame, a scaled
+player's saber in a frame.
+
 ## More achievements
 
 26/10/2026, `personal/more-achievements`, based on `main` `1320d9ff` (Sol's list): 14 new
