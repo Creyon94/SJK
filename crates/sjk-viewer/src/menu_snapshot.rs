@@ -1810,14 +1810,7 @@ fn sjk_home_snapshot() {
                 )),
             }),
             summary: &crate::profile_card::NOBODY,
-            donation: Some(crate::donation_goal::Card {
-                numbers: Some(crate::donation_goal::Numbers {
-                    raised_cents: 8_000,
-                    goal_cents: 20_000,
-                    monthly: true,
-                    euros: true,
-                }),
-            }),
+            support: true,
         };
         home::build(&mut canvas, viewport, &mut home, &view, 1.0);
         let (mut display_text, mut body_text) = (Vec::new(), Vec::new());

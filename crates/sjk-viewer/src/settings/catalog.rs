@@ -1245,6 +1245,11 @@ pub(super) const GAME: &[Setting] = &[
         kind: ValueKind::Choice(&crate::menu::style::MenuStyle::NAMES),
     },
     Setting {
+        label: "Support SJK",
+        cvar: crate::support_links::CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Menu pictures (saves video memory)",
         cvar: crate::menu_pictures::CVAR,
         kind: ValueKind::Bool,

@@ -903,6 +903,10 @@ const HELP: &[(&str, &str)] = &[
         "The SJK UI, SJK's own menus over the live map; or classic menus after the original game's.",
     ),
     (
+        crate::support_links::CVAR,
+        "Support SJK at the top left of the SJK UI's main page: links to SJK's GitHub Sponsors and Ko-fi pages. Off hides it, as its x does.",
+    ),
+    (
         crate::menu_pictures::CVAR,
         "Map pictures behind the menus and drawn saber shaders, not live ones: saves video memory. On by itself on small cards.",
     ),

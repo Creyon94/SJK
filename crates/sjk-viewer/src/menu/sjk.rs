@@ -214,7 +214,7 @@ impl ClientMenu {
                 seconds: super::art::motion::seconds(),
                 chat,
                 summary,
-                donation: crate::donation_goal::card(console),
+                support: crate::support_links::shown(console),
             };
             home::build(&mut self.ui, viewport, &mut self.home, &view, reveal);
         });
@@ -301,8 +301,12 @@ impl ClientMenu {
             }
             home::Action::Open(destination) => self.open_main_destination(destination, console),
             home::Action::Quit => MenuAction::Quit,
-            home::Action::Donate => {
-                crate::donation_goal::open();
+            home::Action::Support(link) => {
+                crate::support_links::open(link);
+                MenuAction::None
+            }
+            home::Action::HideSupport => {
+                crate::support_links::hide(console);
                 MenuAction::None
             }
             home::Action::Update => self.follow_update_notice(console),

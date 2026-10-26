@@ -999,10 +999,10 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "The SJK version whose update put the settings it changed back to their default (the what's-new card's Settings to review), so they are reset once",
         ),
         CvarDefinition::new(
-            crate::donation_goal::CVAR,
+            crate::support_links::CVAR,
             true,
             archive,
-            "Show SJK's donation goal on the SJK UI's main page, read from the SJK hub, with Donate opening SJK's Ko-fi page (0 hides it and asks the hub nothing)",
+            "Show Support SJK at the top left of the SJK UI's main page: links to SJK's GitHub Sponsors and Ko-fi pages (0 hides it, as its x does)",
         ),
         CvarDefinition::new(
             crate::alpha_notice_card::CVAR,

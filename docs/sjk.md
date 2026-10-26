@@ -82,7 +82,7 @@ migrated, except where the table says so. Where each is documented:
 | `mod_japlus`, `mod_jof` | on (each mod loads on its servers only), saved 0 moved to 1 once | [Client mods](mods.md) |
 | `con_drawNotify` | off (no console feed at the top left; chat keeps its box) | [Classic console](client.md#classic-console) |
 | `cl_experimentalShowcase` | off (the experimental `ghost` and `mimic` commands, staff keys only) | [Ghost replay](client.md#ghost-replay) |
-| `ui_donationGoal` | on, but shelved since 14/10/2026: the card never shows ([Donations](#donations)) | [Main page](sjk-ui.md#main-page) |
+| `ui_supportLinks` | on: Support SJK's links to GitHub Sponsors and Ko-fi, until its × hides them ([Donations](#donations)) | [Main page](sjk-ui.md#main-page) |
 
 The HUD look (`cg_hudStyle game`) and the console (`con_style auto`: the SJK UI's
 console with its menus, else the classic one; a saved `classic` moved once to
@@ -258,50 +258,47 @@ Alphas are not marked as pre-releases, so the site's download link
 
 ## Donations
 
-**Shelved since 14/10/2026 (Sol's decision).** Nothing in the game or on the site asks
-for donations for now; only the GitHub repository's Sponsor button does, since
-25/10/2026, pointing at Sol's GitHub Sponsors page (https://github.com/sponsors/Sol-Vulpes)
-through [.github/FUNDING.yml](../.github/FUNDING.yml), with "Sponsorships" ticked in
-the repository's settings (General, Features). The
-site's Support SJK section and its two menu links carry `hidden` and `site.js` skips the
-hub (`DONATION.shelved`); the client's card never shows and its setting is out of the
-settings screens (`donation_goal::SHELVED`), and the Collection lists the Supporter
-medal only to players who hold it. The hub's webhook, goal endpoint and medal stay as
-they are. To bring it back: `DONATION.shelved = false` and the three `hidden`
-attributes in `index.html`, then `SHELVED = false` and the "Donation goal" row back in
-`settings/catalog.rs` (GAME), `settings/groups.rs` (Interface) and its help line in
-`settings/help.rs`, all three in git history before 14/10/2026. What follows is how
-it works once back.
+SJK takes donations on two pages: Sol's GitHub Sponsors page,
+https://github.com/sponsors/Sol-Vulpes (since 25/10/2026), and Ko-fi,
+https://ko-fi.com/soljk (Sol's page, 13/10/2026). They are offered in two places:
 
-SJK takes donations on Ko-fi, https://ko-fi.com/soljk (Sol's page, 13/10/2026). The
-site's Support SJK section and the SJK UI's main page ([sjk-ui.md](sjk-ui.md#main-page))
-say what they are for: a full Claude plan used only for SJK, so more of the tasks Sol
-has ready can run as parallel agents. A Claude plan is billed monthly, so the goal is
-monthly ("80 € of 200 € this month") and starts again on the 1st.
+- the GitHub repository's Sponsor button, GitHub Sponsors only (Sol's choice), through
+  [.github/FUNDING.yml](../.github/FUNDING.yml), with "Sponsorships" ticked in the
+  repository's settings (General, Features);
+- Support SJK, a small line at the top left of the SJK UI's main page (since
+  26/10/2026, Sol's request; [sjk-ui.md](sjk-ui.md#main-page)): a link to each page and
+  ×, which hides it for good (`ui_supportLinks 0`; Settings, Interface, "Support SJK"
+  shows it again). Both addresses are in
+  [support_links.rs](../crates/sjk-viewer/src/support_links.rs); it asks no server
+  anything.
 
-The goal is live: Ko-fi calls the SJK hub's webhook for every payment and the hub sums
-them (the hub's `PROTOCOL.md`, "Donations"). Ko-fi has no API to read a goal, and its
-public page does not carry it, so the goal set on Ko-fi is repeated in the hub's
-configuration, which the hub operator keeps. Both the site and the client read
-`GET https://sjk.dfox.app/v1/donations/goal` (no key, readable from any origin):
+Nothing is sold: a donation brings no feature and no advantage in the game, and
+neither place promises anything for one.
 
-| Reader | Where | Without an answer |
-| --- | --- | --- |
-| Site | `DONATION.hub` at the top of [site.js](../site/assets/site.js), fetched once per visit (6 s at most) | `DONATION`'s own `url`, `goal`, `raised` and `monthly`; without JavaScript, [index.html](../site/index.html)'s "200 € a month" and its Ko-fi link |
-| Client | [donation_goal.rs](../crates/sjk-viewer/src/donation_goal.rs) through `cl_hubUrl`, every ten minutes while the main page shows | The card without numbers, Donate still opening Ko-fi |
+### The shelved goal
 
-The Ko-fi address is written in three places, all for when the hub cannot answer: the
-site's `DONATION.url` and its link in `index.html`, and the client's
-`sjk_identity::donations::DEFAULT_URL`. Changing the page means changing the three and
-the hub's configuration. `ui_donationGoal 0` hides the client's card and asks nothing.
+From 13/10/2026 the site and the main page showed a live monthly goal on Ko-fi
+("80 € of 200 € this month", for a full Claude plan used only for SJK) and offered the
+Supporter medal for more than 1 euro. Sol shelved both on 14/10/2026. What is left:
 
-A donation of more than 1 euro earns the Supporter medal
-([identity.md](identity.md#medals)): with the donor's SJK key id in the Ko-fi message
-(Settings, Network, SJK identity key, Copy key id), the hub gives it as soon as Ko-fi
-calls; without one, or in another currency, the SJK team matches it by hand. The site
-shows the medallion from `site/assets/medal-supporter.png`, a copy of the client's
-`supporter_small.png`: replace both when the art changes. The page promises nothing
-else: no feature is sold and a donation brings no advantage in the game.
+- Site: the Support SJK section and its two menu links carry `hidden`, and `site.js`
+  skips the hub (`DONATION.shelved`). To bring it back: `DONATION.shelved = false` and
+  the three `hidden` attributes in `index.html`. Its Ko-fi address is in
+  `DONATION.url` and in the section's link. The section shows the medallion from
+  `site/assets/medal-supporter.png`, a copy of the client's `supporter_small.png`:
+  replace both when the art changes.
+- Client: the goal card and its reader of the hub were removed on 26/10/2026, when
+  Support SJK took their place (`donation_goal.rs` and `sjk_identity::donations` are
+  in git history before that date). The Collection lists the Supporter medal only to
+  players who hold it (`collection_medals.rs`).
+- Hub: unchanged. Ko-fi calls its webhook for every payment and the hub sums them for
+  `GET https://sjk.dfox.app/v1/donations/goal` (the hub's `PROTOCOL.md`,
+  "Donations"). Ko-fi has no API to read a goal, so the goal is repeated in the hub's
+  configuration, which the hub operator keeps. A Ko-fi donation of more than 1 euro
+  with the donor's SJK key id in its message (Settings, Network, SJK identity key,
+  Copy key id) gives the Supporter medal ([identity.md](identity.md#medals)) as soon
+  as Ko-fi calls; without one, or in another currency, the SJK team matches it by
+  hand.
 
 ## Changelog
 
