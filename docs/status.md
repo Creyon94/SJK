@@ -1,3 +1,19 @@
+## Monitor hits foreseen, ring centred
+
+26/10/2026, `personal/monitor-fixes`, based on `main` `62d3e587` (Sol's report after
+2026.1026.4): the charge ring and hit marker took the crosshair's middle (a share of the
+screen) for pixels and stood in the top left corner; fixed, with a whole-HUD test. Hits
+showed a ping or more late (the struck player's client decides, then tells everyone 35
+ms apart): the faller's client now tells a blow's thrower first and each player the fall
+and its blows in a row (`ragdoll::next_told`), and every client foresees monitors
+striking other players with the toy on (their look lists `monitor`), knocking them down
+at once until their word replaces the guess or it is undone after 1.2 seconds
+([client.md](client.md#monitor)). No hub change (looks take up to 8 toy ids). Verified:
+fmt, viewer build, Clippy, tests (tell order, a foreseen fall giving way to the real one
+and its blow, an unconfirmed guess undone, immunity, the ring's place). Not verified:
+anything in game (how often a guess is wrong on real pings, the snap when the real fall
+replaces a foreseen one).
+
 ## Blocking for this map, staff blocks for everyone, BLOCKED names
 
 26/10/2026, `personal/map-block`, based on `main` `13ab1819` (Sol's ask: a block that

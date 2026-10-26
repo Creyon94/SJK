@@ -103,7 +103,8 @@ impl GpuState {
                     .with_toy(crate::hax::TOY, self.hax.on())
                     .with_toy(crate::hax::AWAY_TOY, away_hackable)
                     .with_toy(crate::drone::TOY, self.drone.on())
-                    .with_toy(crate::boombox::TOY, self.boombox.on()),
+                    .with_toy(crate::boombox::TOY, self.boombox.on())
+                    .with_toy(crate::monitor::TOY, self.monitor.on()),
             );
             (
                 own.saber_skin,
@@ -136,7 +137,8 @@ impl GpuState {
         .with_toy(crate::hax::TOY, self.hax.on())
         .with_toy(crate::hax::AWAY_TOY, away_hackable)
         .with_toy(crate::drone::TOY, self.drone.on())
-        .with_toy(crate::boombox::TOY, self.boombox.on());
+        .with_toy(crate::boombox::TOY, self.boombox.on())
+        .with_toy(crate::monitor::TOY, self.monitor.on());
         if let Some(sent) = sent {
             let options = crate::blade_extras::gated(&options, player_identity::holds_card);
             player_identity::set_look(&sent.to_look(&options));

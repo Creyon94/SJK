@@ -29,6 +29,12 @@
 //!   hit marker on their crosshair and hears [`HIT_SOUND`] when the struck player's
 //!   blow reaches them (red for a hard one).
 //!
+//! - **Foreseen:** every SJK client also tries each monitor against the other players
+//!   who have the toy on (their look says so) as it sees them, and on a hit knocks
+//!   their body down and bounces the monitor at once, as a shooter shows a hit before
+//!   the server's word: their own client's word (the `hit_` event) comes a ping or more
+//!   later and takes its place, and without it the guess is undone
+//!   ([`crate::ragdoll::GUESS_WAIT`]). The thrower's hit marker shows at the guess.
 //! - **Unseen:** in a duel (the player's own or the one they follow, and on Duel and
 //!   Power Duel servers) no monitor is drawn or heard, nor any mark shown; and
 //!   [`SHOW_CVAR`] at 0 hides every monitor and its sounds in the world, everywhere (the
@@ -48,7 +54,7 @@ mod flight;
 
 use crate::GpuState;
 use crate::actor_instance::ActorInstance;
-use crate::ragdoll::{By, JOINTS, STEP_MS};
+use crate::ragdoll::{By, JOINTS, STEP_MS, Start};
 use flight::{Deflect, Flight, Throw};
 use glam::Vec3;
 use sjk_runtime::EntityId;
@@ -141,6 +147,13 @@ const SWEEP_PIECE: f32 = 6.0;
 const MARK_TIME: Duration = Duration::from_millis(350);
 const MARK_LATE_MS: i64 = 1_500;
 const STRONG_PUSH: f32 = 2_400.0;
+/// A hit on another player is foreseen only for a step this recent (ms): one older
+/// (a throw heard late, a flight run again) waits for their word.
+const FORESEE_LATE_MS: i64 = 300;
+/// `EF_DEAD`, `ET_PLAYER`, and the clients' slots.
+const EF_DEAD: u32 = 1 << 1;
+const ET_PLAYER: u8 = 1;
+const MAX_CLIENTS: u16 = 32;
 /// The charge's sound, on its own source so its release stops it.
 const CHARGE_SOURCE: sjk_audio::SourceId = sjk_audio::SourceId(0x5100_0001);
 const CHARGE_CHANNEL: sjk_audio::ChannelId = sjk_audio::ChannelId(1);
@@ -251,6 +264,30 @@ impl Shown {
     }
 }
 
+/// A hit this client foresaw on another player ([`GpuState::ragdoll_foresee`]): the
+/// monitor (its thrower and number), whom it struck, the bounce it took, and until when
+/// it waits for their word.
+#[derive(Clone, Copy, Debug)]
+struct Guess {
+    thrower: u8,
+    number: u8,
+    victim: u8,
+    deflect: Deflect,
+    until: Instant,
+}
+
+/// A hit foreseen this frame, to land once the monitors have stepped.
+struct Foreseen {
+    thrower: u8,
+    number: u8,
+    victim: u8,
+    at: i64,
+    joint: u8,
+    push: [i32; 3],
+    deflect: Deflect,
+    standing: Start,
+}
+
 /// A sound of the toy to play: its path, where (`None`: in both ears), and how loud.
 struct Cue {
     path: &'static str,
@@ -275,6 +312,11 @@ pub(crate) struct Monitor {
     /// [`SHOW_CVAR`] is off (no monitor seen, nor heard in the world).
     duel: bool,
     unseen: bool,
+    /// The hits foreseen on other players, waiting for their word.
+    guesses: Vec<Guess>,
+    /// The last time each other player was struck (foreseen or told), and by which
+    /// monitor, as [`Monitor::struck`] for the player.
+    others_struck: std::collections::HashMap<u8, (i64, u8, u8)>,
     server: Option<SocketAddr>,
     shown: Vec<Shown>,
     next_number: u8,
@@ -344,6 +386,8 @@ impl Monitor {
         self.struck = None;
         self.tell_at = None;
         self.mark = None;
+        self.guesses.clear();
+        self.others_struck.clear();
         self.put_down();
     }
 
@@ -478,6 +522,14 @@ impl Target {
             Self::Limp(points) => points[0],
         }
     }
+}
+
+/// Whether a body last struck at `struck` (when, by which monitor) is immune at `at`
+/// to monitor `monitor` (thrower, number).
+fn immune(struck: Option<(i64, u8, u8)>, at: i64, monitor: (u8, u8)) -> bool {
+    struck.is_some_and(|(when, thrower, number)| {
+        at - when < IMMUNE || ((thrower, number) == monitor && at - when < IMMUNE_SAME)
+    })
 }
 
 /// The push a body takes from a monitor going `monitor` against its own `body` speed;
@@ -633,16 +685,38 @@ impl GpuState {
         // The monitors that struck a body bounce off it.
         for hit in self.ragdoll.take_bounces() {
             let deflect = bounce(hit.push, hit.by.step);
+            let guess = self
+                .monitor
+                .guesses
+                .iter()
+                .position(|guess| {
+                    (guess.thrower, guess.number, guess.victim)
+                        == (hit.by.thrower, hit.by.number, hit.struck)
+                })
+                .map(|index| self.monitor.guesses.remove(index));
             let Some(shown) = self.monitor.find(hit.by.thrower, hit.by.number) else {
                 continue;
             };
             let when = i64::from(shown.flight.throw().moment)
                 + i64::from(hit.by.step) * i64::from(STEP_MS);
+            // The bounce foreseen gives way to the real one.
+            if let Some(guess) = guess.filter(|guess| guess.deflect != deflect) {
+                shown.flight = shown.flight.without(&guess.deflect);
+            }
             if !shown.flight.deflect(deflect) {
                 shown.flight = shown.flight.rerun(deflect);
             }
             shown.rest = None;
             let at = Some(shown.flight.centre());
+            if Some(hit.struck) != own {
+                self.monitor
+                    .others_struck
+                    .insert(hit.struck, (when, hit.by.thrower, hit.by.number));
+            }
+            // Foreseen, it was heard and marked already.
+            if guess.is_some() {
+                continue;
+            }
             self.monitor.cues.push(Cue {
                 path: BONK_SOUND,
                 at,
@@ -652,20 +726,104 @@ impl GpuState {
             if Some(hit.by.thrower) == own && Some(hit.struck) != own && now - when <= MARK_LATE_MS
             {
                 let hard = Vec3::from_array(hit.push.map(|c| c as f32)).length() >= STRONG_PUSH;
-                self.monitor.mark = Some((Instant::now(), hard));
-                self.monitor.cues.push(Cue {
-                    path: HIT_SOUND,
-                    at: None,
-                    volume: if hard { 1.0 } else { 0.8 },
-                });
+                self.monitor_mark(hard);
             }
         }
+        self.monitor_expire_guesses();
         self.monitor_charging();
         if let Some(charge) = self.monitor.throw_asked.take() {
             self.monitor_throw_now(own, charge);
         }
         self.monitor_tell(own);
         self.hud.set_monitor_marks(self.monitor.marks());
+    }
+
+    /// The bounces foreseen whose word did not come in time are undone (the Ragdoll
+    /// undoes the blows).
+    fn monitor_expire_guesses(&mut self) {
+        let now = Instant::now();
+        let due: Vec<Guess> = self
+            .monitor
+            .guesses
+            .iter()
+            .filter(|guess| guess.until <= now)
+            .copied()
+            .collect();
+        self.monitor.guesses.retain(|guess| guess.until > now);
+        for guess in due {
+            if let Some(shown) = self.monitor.find(guess.thrower, guess.number) {
+                shown.flight = shown.flight.without(&guess.deflect);
+            }
+        }
+    }
+
+    /// The hit marker and sound for a hit of the player's own monitor, `hard` or not.
+    fn monitor_mark(&mut self, hard: bool) {
+        self.monitor.mark = Some((Instant::now(), hard));
+        self.monitor.cues.push(Cue {
+            path: HIT_SOUND,
+            at: None,
+            volume: if hard { 1.0 } else { 0.8 },
+        });
+    }
+
+    /// The other players a monitor may be foreseen striking this frame: SJK players with
+    /// the Monitor on (their look), alive, in no duel, not blocked, and not already
+    /// waiting for the word of one; their body as this client shows it (standing, or
+    /// their ragdoll), and where a fall of theirs would start.
+    fn monitor_others(&self, time: i64) -> Vec<(u8, Target, Start)> {
+        let Some(session) = self.live_session.as_ref() else {
+            return Vec::new();
+        };
+        if self.monitor.duel {
+            return Vec::new();
+        }
+        let own = u8::try_from(session.game_state().client_num).ok();
+        let sjk = self.looks.sjk_slots();
+        let mut others = Vec::new();
+        for entity in &session.latest_snapshot().entities {
+            let number = entity.number();
+            if number >= MAX_CLIENTS || entity.entity_type() != ET_PLAYER {
+                continue;
+            }
+            let slot = number as u8;
+            if Some(slot) == own
+                || sjk & (1 << slot) == 0
+                || !self.looks.toy(usize::from(slot), TOY)
+                || self.muted_players.contains(number)
+                || entity.e_flags() & EF_DEAD != 0
+                || entity.bolt1()
+                || self.ragdoll.guessing(slot)
+            {
+                continue;
+            }
+            let Some(presented) = self.live_world.entity(EntityId::new(u64::from(number) + 1))
+            else {
+                continue;
+            };
+            let origin = Vec3::from_array(presented.sample(time).translation);
+            let velocity = Vec3::from_array(entity.trajectory_delta());
+            let yaw = entity.angles()[1];
+            let standing = Start {
+                moment: time as i32,
+                origin: origin.to_array().map(|c| c.round() as i32),
+                velocity: velocity
+                    .to_array()
+                    .map(|c| c.clamp(-3_999.0, 3_999.0).round() as i32),
+                yaw: (yaw.rem_euclid(360.0).round() as u16) % 360,
+            };
+            let target = match self.ragdoll.points_of(slot) {
+                Some(points) => Target::Limp(points),
+                None => Target::Standing {
+                    low: origin + Vec3::new(-15.0, -15.0, -24.0),
+                    high: origin + Vec3::new(15.0, 15.0, 40.0),
+                    velocity,
+                    points: crate::ragdoll::standing(origin, yaw),
+                },
+            };
+            others.push((slot, target, standing));
+        }
+        others
     }
 
     /// A throw held: its sound once it begins charging; put down when the player may
@@ -826,8 +984,11 @@ impl GpuState {
         };
         let own = u8::try_from(session.game_state().client_num).ok();
         let target = self.monitor_target();
+        let others = self.monitor_others(time);
         let struck = self.monitor.struck;
+        let others_struck = self.monitor.others_struck.clone();
         let mut hits = Vec::new();
+        let mut foreseen: Vec<Foreseen> = Vec::new();
         let mut movers = std::mem::take(&mut self.monitor.movers);
         let mut world = crate::ragdoll::Scene::new(
             &self.bsp,
@@ -835,7 +996,7 @@ impl GpuState {
             Some(session),
             &mut movers,
         );
-        for (index, shown) in self.monitor.shown.iter_mut().enumerate() {
+        for shown in &mut self.monitor.shown {
             let since = (time - i64::from(shown.flight.throw().moment)).max(0);
             let steps = (since / i64::from(STEP_MS)) as u32;
             let mut knock = 0.0_f32;
@@ -844,17 +1005,49 @@ impl GpuState {
                 let before = shown.flight.centre();
                 shown.flight.run_to(step, &mut world);
                 knock = knock.max(shown.flight.knock);
+                let at =
+                    i64::from(shown.flight.throw().moment) + i64::from(step) * i64::from(STEP_MS);
+                let monitor = (shown.thrower, shown.number);
+                // Another player it meets now, as this client sees them: foreseen.
+                if !shown.flight.asleep() && at >= time - FORESEE_LATE_MS {
+                    let velocity = shown.flight.velocity();
+                    let meets = others.iter().find_map(|(slot, other, standing)| {
+                        if *slot == shown.thrower
+                            || foreseen.iter().any(|f| f.victim == *slot)
+                            || immune(others_struck.get(slot).copied(), at, monitor)
+                        {
+                            return None;
+                        }
+                        let (centre, joint, body) =
+                            other.struck_along(before, shown.flight.centre())?;
+                        if velocity.dot(other.centre() - centre) <= 0.0 {
+                            return None;
+                        }
+                        Some((*slot, joint, launch(velocity, body)?, *standing))
+                    });
+                    if let Some((victim, joint, push, standing)) = meets {
+                        let deflect = bounce(push, u16::try_from(step).unwrap_or(u16::MAX));
+                        shown.flight.deflect(deflect);
+                        foreseen.push(Foreseen {
+                            thrower: shown.thrower,
+                            number: shown.number,
+                            victim,
+                            at,
+                            joint,
+                            push,
+                            deflect,
+                            standing: Start {
+                                moment: at as i32,
+                                ..standing
+                            },
+                        });
+                        continue;
+                    }
+                }
                 let Some(target) = target.as_ref() else {
                     continue;
                 };
-                let at =
-                    i64::from(shown.flight.throw().moment) + i64::from(step) * i64::from(STEP_MS);
-                let immune = struck.is_some_and(|(when, thrower, number)| {
-                    at - when < IMMUNE
-                        || ((thrower, number) == (shown.thrower, shown.number)
-                            && at - when < IMMUNE_SAME)
-                });
-                if immune
+                if immune(struck, at, monitor)
                     || (Some(shown.thrower) == own && step < SELF_SAFE_STEPS)
                     || shown.flight.asleep()
                 {
@@ -870,7 +1063,7 @@ impl GpuState {
                     continue;
                 }
                 if let Some(push) = launch(velocity, body) {
-                    hits.push((index, at, joint, push, step));
+                    hits.push((shown.thrower, shown.number, at, joint, push, step));
                     // The rest of its flight waits for the bounce, next frame.
                     break;
                 }
@@ -895,14 +1088,43 @@ impl GpuState {
         }
         self.monitor.movers = movers;
         self.monitor.shown.retain(|shown| shown.level() > 0.0);
-        // At most one blow a frame: the first.
-        if let Some((index, at, joint, push, step)) = hits.into_iter().next() {
-            let Some(shown) = self.monitor.shown.get(index) else {
-                return;
+        // The hits foreseen on others land, or the bounce is undone.
+        for hit in foreseen {
+            let landed =
+                self.ragdoll_foresee(hit.victim, hit.at, hit.joint, hit.push, hit.standing);
+            let Some(shown) = self.monitor.find(hit.thrower, hit.number) else {
+                continue;
             };
+            if !landed {
+                shown.flight = shown.flight.without(&hit.deflect);
+                continue;
+            }
+            let at = Some(shown.flight.centre());
+            self.monitor.guesses.push(Guess {
+                thrower: hit.thrower,
+                number: hit.number,
+                victim: hit.victim,
+                deflect: hit.deflect,
+                until: Instant::now() + crate::ragdoll::GUESS_WAIT,
+            });
+            self.monitor
+                .others_struck
+                .insert(hit.victim, (hit.at, hit.thrower, hit.number));
+            self.monitor.cues.push(Cue {
+                path: BONK_SOUND,
+                at,
+                volume: 1.0,
+            });
+            if Some(hit.thrower) == own {
+                let hard = Vec3::from_array(hit.push.map(|c| c as f32)).length() >= STRONG_PUSH;
+                self.monitor_mark(hard);
+            }
+        }
+        // At most one blow a frame: the first.
+        if let Some((thrower, number, at, joint, push, step)) = hits.into_iter().next() {
             let by = By {
-                thrower: shown.thrower,
-                number: shown.number,
+                thrower,
+                number,
                 step: u16::try_from(step).unwrap_or(u16::MAX),
             };
             // Struck or not (a fall takes so many blows), it is immune a while, so the
@@ -1077,6 +1299,18 @@ mod tests {
         let (foot, _) = target.struck(Vec3::new(-20.0, -4.0, 6.0)).unwrap();
         assert!(matches!(foot, 11 | 14), "{foot}");
         assert!(target.struck(Vec3::new(-40.0, 0.0, 40.0)).is_none());
+    }
+
+    #[test]
+    fn a_struck_body_is_immune_a_while_and_longer_to_the_same_monitor() {
+        let struck = Some((1_000, 3, 7));
+        assert!(!immune(None, 1_000, (3, 7)));
+        assert!(immune(struck, 1_100, (4, 1)));
+        assert!(!immune(struck, 1_000 + IMMUNE, (4, 1)));
+        assert!(immune(struck, 1_000 + IMMUNE, (3, 7)));
+        assert!(!immune(struck, 1_000 + IMMUNE_SAME, (3, 7)));
+        // A flight run again goes by the same steps: they stay immune.
+        assert!(immune(struck, 984, (3, 7)));
     }
 
     #[test]

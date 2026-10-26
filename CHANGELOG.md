@@ -33,6 +33,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 ## Unreleased
 
 - The Monitor's charge ring and hit marker stand round your crosshair again: since 2026.1026.4 they were drawn in the top left corner of the screen _(Sol)_
+- Monitor hits show at once: your game now sees a monitor strike another player who has the toy on and knocks them flying right away, with your hit marker, instead of waiting a moment for their game to say so; their game's word then settles where they land, and a hit they dodged on their screen is undone. The struck player also tells the thrower first _(Sol)_
 
 ## 2026.1026.4 (Alpha) | 26/10/2026
 

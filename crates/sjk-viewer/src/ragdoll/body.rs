@@ -417,6 +417,19 @@ impl Body {
         body
     }
 
+    /// The body from `start` again, with every blow it took but `strike` (one this
+    /// client foresaw that did not come so), not yet run.
+    pub(crate) fn without(&self, start: &Start, strike: &Strike) -> Self {
+        let mut body = Self::new(start);
+        body.strikes = self
+            .strikes
+            .iter()
+            .filter(|taken| *taken != strike)
+            .copied()
+            .collect();
+        body
+    }
+
     /// Step on to `steps` steps since the moment, against `world`. Asleep, the steps go
     /// by with the body lying still, unless a mover wakes it or a blow comes.
     pub(crate) fn run_to(&mut self, steps: u32, world: &mut impl World) {

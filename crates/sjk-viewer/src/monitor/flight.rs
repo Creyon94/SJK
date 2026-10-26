@@ -193,6 +193,19 @@ impl Flight {
         flight
     }
 
+    /// The flight from its throw again, with every bounce it took but `deflect` (one
+    /// this client foresaw that did not come so), not yet run.
+    pub(crate) fn without(&self, deflect: &Deflect) -> Self {
+        let mut flight = Self::new(&self.throw);
+        flight.deflects = self
+            .deflects
+            .iter()
+            .filter(|taken| *taken != deflect)
+            .copied()
+            .collect();
+        flight
+    }
+
     /// Where it is shown `fraction` of the way through its last step: its centre and
     /// its turn (the model's +X its screen).
     pub(crate) fn pose(&self, fraction: f32) -> (Vec3, Quat) {

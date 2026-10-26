@@ -4572,8 +4572,11 @@ every fall ends with the map or the server.
   relayed after the fall,
   `hit_<fall moment>_<step>_<joint>_<px>_<py>_<pz>_<thrower>_<number>_<flight step>`
   (the push in units a second; the last three name the monitor), to every player told
-  of the fall, the least told first, and to a late comer after the fall; at most 24 a
-  fall. A client that hears of a blow whose step its body already ran runs the body
+  of the fall, and to a late comer after the fall; at most 24 a fall. Since 26/10/2026
+  the order is: the thrower of a blow first (fall and blow back to back, 35 ms apart),
+  then each player the fall and its blows in a row, a player partly told before one not
+  told yet, the nearest to the body first; a new blow reaches everyone already told of
+  the fall before a late comer hears the whole of it. A client that hears of a blow whose step its body already ran runs the body
   again from its start with every blow (`Body::rerun`, fast-forwarded at once), so it
   lies where the struck player's does. Clients before 26/10/2026 run the older physics
   and ignore blows: their view of a fall differs. On a game server, every SJK client keeps its relay poll open for this. A
@@ -4765,8 +4768,25 @@ sends them flying, the way the monitor struck them.
   0.2 seconds after a blow, nor by the same monitor for 0.6). The thrower's own monitor
   can hit them once it is 0.4 seconds out of the hand. The monitor bounces back off the
   body (half the body's push, back, and 150 up).
+- **Foreseen hits** (Sol's ask, 26/10/2026, after hits showed a ping or more late):
+  the struck player's client alone decides a hit, and its word reaches the others a
+  ping or more later (and after its turn in the relay's 35 ms queue). So every SJK
+  client also tries each monitor against the other players who have the toy on (their
+  look lists `monitor` since then), as it shows them (the presented body's box, or
+  their ragdoll), with the same rules (a step no older than 0.3 seconds, the same
+  immunity, never the thrower themselves, nobody dead, in a duel or blocked). On a hit
+  it knocks the body down there and then (a fall from where it shows them, with the
+  blow), bounces the monitor and plays the bonk. Their own word then takes its place:
+  their `fall_` replaces the foreseen fall, keeping the foreseen blow until their
+  `hit_` replaces it (`Body::without`), and the monitor's foreseen bounce gives way to
+  the real one (`Flight::without`). Without their word within 1.2 seconds
+  (`ragdoll::GUESS_WAIT`: they dodged on their screen, carry the flag, or stand where
+  the client did not show them), the blow is undone: a foreseen fall ends and they
+  stand again, a foreseen blow leaves a fall they were already in. One foreseen blow
+  waits at a time for a player.
 - **The hit marker:** when the struck player's blow reaches the thrower's client (the
-  `hit_` event, so a ping or so after the hit), four short strokes stand out diagonally
+  `hit_` event, so a ping or so after the hit), or at once when the thrower's client
+  foresees it, four short strokes stand out diagonally
   from the crosshair and fade over 0.35 seconds, spreading a little, red for a blow of
   2,400 or more (a charged throw), white otherwise, and the thrower hears a bright tick
   (`hit.wav`). Not for a hit on themselves, nor one heard more than 1.5 seconds after it
