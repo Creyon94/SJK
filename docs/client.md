@@ -4541,6 +4541,12 @@ every fall ends with the map or the server.
   commands, running far off, walking near, stopping within 12 units), so that the
   player gets up there. A limp player sends no button and cannot attack. Players on
   stock clients see a player walking about.
+- **Names follow the body** (Sol's ask, 26/10/2026): a limp player's nameplate, their own
+  plate in third person (`cg_nameplateSelf`) and their overhead name
+  (`cg_drawPlayerNames`) hang over the ragdoll as drawn this frame, not over the real
+  body walking to it: traced to its pelvis, above its highest point (the head's top
+  standing, just over the body lying), whether they fell by themselves or a monitor
+  knocked them down (`ragdoll::shown_top`).
 - **Getting up:** `toy_ragdoll` again; or at once when the player is hurt ("Ouch! You
   got up"), dies, spectates, is in a duel or carries a flag, or when the server holds
   their view (a JA+ kiss, kick or knockdown, a melee grapple or throw, a saber lock:

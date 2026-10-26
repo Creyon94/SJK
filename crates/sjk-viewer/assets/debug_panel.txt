@@ -104,6 +104,15 @@ test: Two SJK clients. A: freecam near B: B sees a small remote, the size of a s
 test: A: peek B: B sees no remote, "A is spectating you with the Drone" near the top.
 test: A stops peeking: B's line goes. Third player C still sees A's remote behind B.
 
+[ragdoll-nameplate]
+area: HUD
+title: Nameplates and overhead names follow a ragdolling player's body
+change: Limp (toy_ragdoll or a monitor): plate/overhead name hang over the ragdoll, not the real body.
+test: Two SJK clients, nameplates on. B goes limp: B's plate drops with the body, lies low over it.
+test: A knocks B flying with a monitor: the plate flies with the body; B gets up: back over B.
+test: B in third person with cg_nameplateSelf 1, limp: own plate over the ragdoll.
+test: cg_drawPlayerNames 1: B's overhead name follows the ragdoll the same way.
+note: Untested in game.
 [monitor-hide]
 area: Gameplay
 title: Monitors unseen in duels; Show monitors setting hides them everywhere

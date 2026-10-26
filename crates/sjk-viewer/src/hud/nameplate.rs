@@ -872,10 +872,21 @@ impl State {
                         presented(id).map(|origin| (origin, snapshot.entities[at].solid()))
                     }),
             };
-            let Some(placed) = math::anchor(
-                presented(number).map(|origin| (origin, entity.solid())),
-                vehicle.filter(|_| player),
-            ) else {
+            // A limp player's plate hangs over their ragdoll, not their real body.
+            let ragdoll = u8::try_from(number)
+                .ok()
+                .filter(|_| player)
+                .and_then(crate::ragdoll::shown_top)
+                .map(|(pelvis, head)| math::Anchor {
+                    origin: pelvis.to_array(),
+                    head,
+                });
+            let Some(placed) = ragdoll.or_else(|| {
+                math::anchor(
+                    presented(number).map(|origin| (origin, entity.solid())),
+                    vehicle.filter(|_| player),
+                )
+            }) else {
                 continue;
             };
             let origin = Vec3::from_array(placed.origin);
@@ -1149,16 +1160,23 @@ impl State {
             return;
         }
         let local = player.client_num();
+        // `CROUCH_VIEWHEIGHT` is 12, the standing one 36: the box top drops to 16. Limp,
+        // the plate hangs over the ragdoll.
+        let (origin, head) = u8::try_from(local)
+            .ok()
+            .and_then(crate::ragdoll::shown_top)
+            .unwrap_or((
+                origin,
+                if player.view_height() < 24 {
+                    16.0
+                } else {
+                    math::head_height(0)
+                },
+            ));
         let distance = origin.distance(camera.eye);
         if distance >= settings.range {
             return;
         }
-        // `CROUCH_VIEWHEIGHT` is 12, the standing one 36: the box top drops to 16.
-        let head = if player.view_height() < 24 {
-            16.0
-        } else {
-            math::head_height(0)
-        };
         let Some(point) = camera.project_within(
             origin + Vec3::Z * (head + math::HEAD_CLEARANCE),
             SCREEN_MARGIN,
