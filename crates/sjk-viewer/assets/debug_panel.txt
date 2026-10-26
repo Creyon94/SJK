@@ -3127,6 +3127,14 @@ test: Dual sabers and a blade skin: both hilts and the skin sound together, or n
 test: JA+ server, staff on the back: weapon 1 / weapon 3 spam is capped the same way.
 test: Staff put away normally: its shutdown plays once, at the reach, never twice.
 
+[saber-skin-toggle-once]
+area: Audio
+title: A blade skin's on/off sound plays once per toggle (was doubled since 2026.1026.3)
+change: The server's toggle sounds every hilt, a single saber's empty slot too; the skin layered each.
+change: Now it plays once over them; with Only skin, it is the toggle's only sound.
+test: Wear a blade skin, single saber: toggle on and off; the skin's sound is heard once, clean.
+test: Same with dual sabers, and with Settings > Sound > Blade skin sounds on Only skin.
+
 [voice-volume]
 area: Audio
 title: Voice volume (s_volumeVoice) works, in Settings > Sound (Rollembones, #141)

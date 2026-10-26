@@ -82,6 +82,22 @@ pub(crate) struct SaberSoundOverrides {
     pub(crate) only: bool,
     /// The `.sab` definitions' own on/off sounds, lowercase and without extension.
     toggles: Vec<(Box<str>, Toggle)>,
+    /// The server toggle each client's set last voiced: its snapshot server time and
+    /// way. The toggle sounds every hilt (a single saber's removed second slot too), and
+    /// the set's sound plays once over them all.
+    voiced: [Option<(i32, Toggle)>; SABER_SOUND_CLIENTS],
+}
+
+/// What a worn set does with a general sound ([`SaberSoundOverrides::general`]).
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum GeneralSkin {
+    /// Not a toggle of a client wearing a set with that sound: the stock sound alone.
+    Stock,
+    /// The set's sound, over the stock one or in its place.
+    Skin(u16),
+    /// Another sound of a toggle the set already voiced: the stock sound alone, or
+    /// nothing with `s_saberSkinSounds 2`.
+    Voiced,
 }
 
 impl SaberSoundOverrides {
@@ -161,25 +177,44 @@ impl SaberSoundOverrides {
         self.for_source(source)?.off
     }
 
-    /// The replacement for a general sound `sound` started at `origin`: the set's on or
-    /// off when `sound` switches a saber and the nearest player wears a set.
+    /// What a general sound `sound` started at `origin` gets: the set's on or off when
+    /// `sound` switches a saber and the nearest player wears a set, once per toggle.
     pub(crate) fn general(
-        &self,
+        &mut self,
         sound: Option<u16>,
         sounds: &[RegisteredLegacySound],
         origin: [f32; 3],
         snapshot: &Snapshot,
-    ) -> Option<u16> {
+    ) -> GeneralSkin {
         if !self.active {
-            return None;
+            return GeneralSkin::Stock;
         }
-        let path = &sounds.get(usize::from(sound?))?.path;
-        let toggle = self.toggle(path)?;
-        let set = self.for_source(nearest_player(snapshot, origin)?)?;
-        match toggle {
+        let Some(path) = sound.and_then(|index| sounds.get(usize::from(index))) else {
+            return GeneralSkin::Stock;
+        };
+        let Some(toggle) = self.toggle(&path.path) else {
+            return GeneralSkin::Stock;
+        };
+        let Some(client) = nearest_player(snapshot, origin) else {
+            return GeneralSkin::Stock;
+        };
+        let Some(set) = self.for_source(client) else {
+            return GeneralSkin::Stock;
+        };
+        let skin = match toggle {
             Toggle::On => set.on,
             Toggle::Off => set.off,
+        };
+        let Some(skin) = skin else {
+            return GeneralSkin::Stock;
+        };
+        let voiced = &mut self.voiced[usize::from(client)];
+        let key = (snapshot.server_time, toggle);
+        if *voiced == Some(key) {
+            return GeneralSkin::Voiced;
         }
+        *voiced = Some(key);
+        GeneralSkin::Skin(skin)
     }
 
     fn toggle(&self, path: &str) -> Option<Toggle> {

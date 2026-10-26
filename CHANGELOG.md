@@ -32,6 +32,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
+- A blade skin's ignition and switch-off sound play once again when a player turns their saber on or off: since 2026.1026.3 they doubled on a single saber, and on dual sabers they always had; with Blade skin sounds on Only skin, the skin's sound is the whole toggle _(Sol)_
 - Saber on/off spam stays quiet with a staff too: putting a staff away over a JA+ back again and again (a weapon switch loop) is now capped like any other saber toggle, and a staff put away normally still pays for its shutdown only once _(Sol, after Luma's review of the same fix in JoF EJK)_
 
 ## 2026.1026.3 (Alpha) | 26/10/2026

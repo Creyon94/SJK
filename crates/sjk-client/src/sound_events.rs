@@ -1531,9 +1531,15 @@ impl LegacySoundAdapter {
                 if self.saber_toggle_muted(sound, entity.origin, snapshot) {
                     return;
                 }
-                layered =
-                    self.saber_overrides
-                        .general(sound, &self.sounds, entity.origin, snapshot);
+                match self
+                    .saber_overrides
+                    .general(sound, &self.sounds, entity.origin, snapshot)
+                {
+                    saber_overrides::GeneralSkin::Skin(skin) => layered = Some(skin),
+                    // Its skin already replaced this toggle's first sound.
+                    saber_overrides::GeneralSkin::Voiced if self.saber_overrides.only => return,
+                    _ => {}
+                }
                 Some((
                     LegacySoundEvent::General,
                     sound,
