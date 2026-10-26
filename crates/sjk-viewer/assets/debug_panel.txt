@@ -1373,6 +1373,20 @@ test: Hover x: a quiet line says where to bring it back. Click x: the line goes 
 test: Restart: still hidden. Settings > Interface > Support SJK on: it comes back.
 test: Classic+ menus: no Support SJK line.
 
+[staff-tools-2]
+area: Menus & settings
+title: Staff page: kyber crystal gifts, second presses, and key ids never shown in game
+change: Holocrons tab: a row of kyber crystal tiers; Remove and Take wait for a second press.
+change: No key id anywhere in game: Staff page, cards, chat, Identity page, console lists.
+change: Staff list shows when last seen; identity key copies the key id instead of printing.
+test: staff, Holocrons and credits on yourself: pick Rare crystal, Give: it lists as earned/gift.
+test: Collection > Holocrons: the gifted crystal is there and opens to a saber shader.
+test: Remove a row: first press says Press again, second removes it.
+test: Search by pasting a key id: the field shows dots, the player is found.
+test: Keys tab: linked keys numbered; merge field and confirmation show names, no key.
+test: Player card, report page, chat page side panel, sender card: no key id anywhere.
+test: Identity page: Show file shows the path; the key id stays dots. identity key copies it.
+
 [settings-simple-advanced]
 area: Menus & settings
 title: Settings: Simple and Advanced, Vanilla or SJK renderer, Ctrl+F/F3, usage sent anonymously

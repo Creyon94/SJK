@@ -143,7 +143,7 @@ pub(crate) fn offered(
 ) -> bool {
     !verified
         && !staff
-        && key_id.is_some_and(|key| crate::player_identity::printable_key_id(key).is_some())
+        && key_id.is_some_and(crate::player_identity::is_others_key)
         && trusted()
         && (trust != Some(sjk_identity::Trust::Trusted) || crate::player_identity::is_staff())
 }

@@ -21,7 +21,8 @@ const NAME_FROM_GAME: &str =
 pub(crate) enum Action {
     /// No words: open or close the page.
     Toggle,
-    /// Show the key id and where the key file is.
+    /// Copy the key id to the clipboard (key ids never show in the game) and say where
+    /// the key file is.
     Key,
     /// List the players the hub knows on this server, or one of them.
     Who(Option<u8>),
@@ -50,11 +51,21 @@ pub(crate) fn parse(args: &[String]) -> Result<Action, String> {
     }
 }
 
-/// The lines `identity key` prints.
-pub(crate) fn key_lines(snapshot: Option<&Snapshot>, file: &std::path::Path) -> Vec<String> {
+/// The lines `identity key` prints, `copied` when the key id went to the clipboard. The
+/// key id itself never prints: key ids never show in the game, so a stream never shows
+/// one.
+pub(crate) fn key_lines(
+    snapshot: Option<&Snapshot>,
+    file: &std::path::Path,
+    copied: bool,
+) -> Vec<String> {
     match snapshot {
-        Some(snapshot) => vec![
-            format!("Key id: {}", snapshot.local_key_id),
+        Some(_) => vec![
+            if copied {
+                "Key id copied to the clipboard (it is never shown in the game).".to_owned()
+            } else {
+                "Key id hidden (it is never shown in the game); copying it failed.".to_owned()
+            },
             format!(
                 "The private key is in {}. Back it up: losing it loses this identity, and nobody else may have it.",
                 file.display()
@@ -76,11 +87,11 @@ pub(crate) fn who_lines(snapshot: &Snapshot, slot: Option<u8>) -> Vec<String> {
         } else {
             &player.name
         };
+        // No key id: key ids never show in the game.
         lines.push(format!(
-            "{:>2}  {}  {}{}",
+            "{:>2}  {}{}",
             player.slot,
             name,
-            player.key_id,
             if player.verified { "  VERIFIED" } else { "" }
         ));
         if slot.is_some() {
@@ -129,7 +140,10 @@ impl crate::GpuState {
                     .as_ref()
                     .map(|console| console.config_directory().join("identity.key"))
                     .unwrap_or_default();
-                Ok(key_lines(snapshot.as_ref(), &file))
+                let copied = snapshot.as_ref().is_some_and(|snapshot| {
+                    crate::console::clipboard::copy(&snapshot.local_key_id)
+                });
+                Ok(key_lines(snapshot.as_ref(), &file, copied))
             }
             Action::Who(slot) => match &snapshot {
                 Some(snapshot) => Ok(who_lines(snapshot, slot)),
@@ -264,7 +278,7 @@ mod tests {
     #[test]
     fn who_lists_slots_and_marks_verified_players() {
         let lines = who_lines(&snapshot(), None);
-        assert_eq!(lines, [" 3  Fox  fedcba9876543210  VERIFIED"]);
+        assert_eq!(lines, [" 3  Fox  VERIFIED"], "no key id");
         assert_eq!(
             who_lines(&snapshot(), Some(9)),
             ["The hub knows nobody in slot 9 here."]
@@ -309,6 +323,17 @@ mod tests {
         );
         let lines = who_lines(&shown, Some(3));
         assert_eq!(lines[1..], ["    line one", "    line two"]);
+    }
+
+    #[test]
+    fn identity_key_never_prints_the_key_id() {
+        let lines = key_lines(
+            Some(&snapshot()),
+            std::path::Path::new("identity.key"),
+            true,
+        );
+        assert!(lines[0].contains("copied"), "{lines:?}");
+        assert!(lines.iter().all(|line| !line.contains("0123456789abcdef")));
     }
 
     #[test]

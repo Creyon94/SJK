@@ -1,3 +1,27 @@
+## Staff tools: kyber crystal gifts, second presses; no key id in the game
+
+26/10/2026, `personal/staff-tools-2`, Sol's request ("improve the in game staff tools,
+everything better overall, need kyber crystal gifting too, also ALWAYS hide the keys,
+never show them in game"). The Staff page's Holocrons and credits tab gives kyber
+crystals: a second row of chips with the four crystal tiers, Give sending the tier id
+(`kyber_rare`...) through the same `StaffRequest::HolocronGive`, which the hub already
+takes (`holocrons::any_kind`); its list shows crystals too, with how each came and
+whether opened ([holocrons.md](holocrons.md#staff)). Remove, Take credits and Take
+shards wait for a second press. The players' list says when each was last seen, the
+header and Overview add keys counted, last seen and the crystals held, and the status
+lines name crystals ("Gave a legendary kyber crystal"). No key id is drawn anywhere in
+the game any more ([identity.md](identity.md#settings-and-commands)): the Staff page
+(list, header, Overview, Keys with numbered linked keys, the merge field and its
+confirmation by name, chat bans, status lines), the player card, the report page, sender
+cards, the SJK chat page, the Identity page (Show file shows the file only) and the
+console's `identity key` (copies instead), `identity who` and `block`;
+`player_identity::printable_key_id` became `is_others_key`. Checked on Windows 11:
+format, Clippy (no new warning in sjk-viewer or sjk-identity), tests (sjk-viewer 3049
+and sjk-identity 199 passed, with `a_kyber_crystal_is_given_from_the_second_row_of_chips`,
+`gifts_say_what_they_were_and_no_line_names_a_key`,
+`identity_key_never_prints_the_key_id`) and the `duel6_sjk_staff` world shots looked at.
+Not verified in game: a crystal given at the live hub, then opened.
+
 ## Support SJK on the main page
 
 26/10/2026, `personal/support-links`, Sol's request: a small line at the top left of the

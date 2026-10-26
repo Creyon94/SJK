@@ -34,6 +34,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 = cg_heldViewLook: Kicks, knockdowns, kisses and grapples now hold your camera still. Switch this on to keep looking around during them, as before (the camera may shake).
 
+- Key ids are never shown in the game any more, yours or anyone else's: not on the Identity page, player cards, the report page or the SJK chat, nor in the console's `identity who` and `block` lists; the Identity page's Show file shows only where your key file is, Copy my key id still copies it, and `identity key` copies it instead of printing it, so a stream never shows one _(Sol)_
 - Support SJK, a small line at the top left of the SJK UI's main page, links to SJK's GitHub Sponsors and Ko-fi pages; its x hides it for good, and Settings > Interface > Support SJK brings it back _(Sol)_
 - Free look when held, a new option in Settings > Game options: the mouse keeps turning the view while a JA+ kick, knockdown or kiss, a grapple or a saber lock holds it, as before 2026.1026.2, for players who prefer looking around to a still camera _(Sol)_
 - Two sabers can wear two blade skins, and a staff one on each half: in the Collection pick a saber (or half) above the preview, choose a shader and press Equip (tick Both sabers to dress both at once), or type `saberskin second <id>`; other SJK players see both once the hub has the change _(Creyon, PR #193, the staff's halves at Sol's request)_

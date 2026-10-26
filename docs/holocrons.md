@@ -382,11 +382,17 @@ goes, in all three places the SJK chat shows ([hub-chat.md](hub-chat.md#how-a-li
 
 ### Staff
 
-The Staff page ([identity.md](identity.md#staff)) has a Holocrons section on its
-Holocrons and credits tab: the chosen player's counts, the four tiers to choose (the
-choice ringed in its colour), Give (with the note field, `StaffRequest::HolocronGive`,
-`POST /v1/staff/holocron-give`) and the player's twelve newest holocrons with Remove
-(`StaffRequest::HolocronRemove`, `POST /v1/staff/holocron-remove`). The hub's answer is the
+The Staff page ([identity.md](identity.md#staff)) has a Holocrons and kyber crystals
+section on its Holocrons and credits tab: the chosen player's unopened counts of both, the
+four holocron tiers and under them the four kyber crystal tiers to choose (the choice
+ringed in its colour, and named under the chips: "Give: a Rare Kyber Crystal, opened to a
+saber shader"), Give (with the note field, `StaffRequest::HolocronGive`, `POST
+/v1/staff/holocron-give`, which takes a crystal tier id such as `kyber_rare` as well as a
+holocron's; 26/10/2026, Sol's request) and the player's twelve newest holocrons and
+crystals (number, date, how it came: play, gift, trade or earned, and whether opened) with
+Remove on a second press (`StaffRequest::HolocronRemove`, `POST
+/v1/staff/holocron-remove`). A crystal given by staff is a sealed row of source `staff`:
+clearing an achievement never takes it back, and it opens like an earned one. The hub's answer is the
 target's profile and replaces the chosen player's, and the player's own when it is theirs.
 
 ### `debug_holocron`

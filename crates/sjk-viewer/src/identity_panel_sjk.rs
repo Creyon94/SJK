@@ -169,9 +169,9 @@ impl Panel {
             ),
             (
                 if self.revealed {
-                    "Hide key"
+                    "Hide file"
                 } else {
-                    "Show key"
+                    "Show file"
                 },
                 false,
                 REVEAL_TOKEN,
@@ -275,8 +275,8 @@ impl Panel {
             Focus::Bio | Focus::Save => "save",
             Focus::Copy => "copy",
             Focus::Hub => "use",
-            Focus::Reveal if self.revealed => "hide the key",
-            Focus::Reveal => "show the key",
+            Focus::Reveal if self.revealed => "hide the file",
+            Focus::Reveal => "show the file",
         };
         let keys: [(&[&str], &str); 3] =
             [(&["Tab"], "next"), (&["Enter"], enter), (&["Esc"], "back")];

@@ -1307,12 +1307,13 @@ fn player_card(
     );
     y += 38.0;
     if let Some(hub) = &player.hub {
-        // The player's own key stays off screen; "Known as" alone then.
-        let key = crate::player_identity::printable_key_id(&hub.key_id).map_or_else(
-            || "Known as".to_owned(),
-            |key| format!("Key {key}, known as"),
+        // Key ids never show in the game, the player's own or anyone else's.
+        body(
+            canvas,
+            y,
+            color::QUIET,
+            format_args!("Known as {}", hub.name),
         );
-        body(canvas, y, color::QUIET, format_args!("{key} {}", hub.name));
     }
     y += 40.0;
     // The medals the SJK team gave them: medallions with their names, two a line.

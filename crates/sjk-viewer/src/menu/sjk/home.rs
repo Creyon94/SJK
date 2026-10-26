@@ -1551,9 +1551,13 @@ mod tests {
         canvas.pointer(InputEvent::PointerMove(centre(name)));
         draw(&mut canvas, &mut home);
         let runs: Vec<&str> = canvas.text_runs().collect();
-        for wanted in ["SJK player, SJK staff", "Key 0123456789abcdef", "Block"] {
+        for wanted in ["SJK player, SJK staff", "Block"] {
             assert!(runs.contains(&wanted), "{wanted:?} in {runs:?}");
         }
+        assert!(
+            !runs.iter().any(|run| run.contains("0123456789abcdef")),
+            "key ids never show: {runs:?}"
+        );
         let card = canvas.rect_for(SENDER_CARD_TOKEN).expect("the card");
         assert!(
             card.x >= name.right() || card.right() <= name.x,

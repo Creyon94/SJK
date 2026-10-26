@@ -1038,16 +1038,22 @@ after SJK TEAM or SJK CREATOR when the person has one.
 
 The Staff page ([staff_panel.rs](../crates/sjk-viewer/src/staff_panel.rs), the SJK
 UI's look) finds players down its left (a name or part of one, colour codes ignored; a
-key id; or, with Seen lately, the players the hub saw last; 15 shown), and shows the
-chosen one (the player themself until another is chosen, or with Me) on the right: their
-picture, name, key id and flags beside the note field (the note sent with the next
+key id; or, with Seen lately, the players the hub saw last; 15 shown, each with their
+flags and when the hub last saw them in a game, "you" on the player's own), and shows
+the chosen one (the player themself until another is chosen, or with Me) on the right:
+their picture, name, flags, how many keys and when last seen beside the note field (the note sent with the next
 medal, unlock, holocron, credits or shards, and with a log request, which everyone
 reads), over a row of tabs (reworked 18/10/2026 at Sol's request, "manage all that's
-needed better"; the page used to squeeze everything into three columns):
+needed better"; the page used to squeeze everything into three columns). Since
+26/10/2026 no key id shows anywhere on it ([Settings and commands](#settings-and-commands)):
+a key id typed or pasted into the search or the merge field shows as bullets and "(key
+id)" (with the player's name when the list has them), linked keys are numbered, a chat
+ban given by a player without a name says "a player", and the status line never names a
+key ("Merged the other player into this one", "Unlinked the key: it starts afresh").
 
-- **Overview**, where the page opens: the account (key id, flags, trust, member since,
-  linked keys, medals and unlockables held, achievements, unopened holocrons, credits,
-  shards and cards), Verify (`StaffRequest::Verify`; Unverify while the player is
+- **Overview**, where the page opens: the account (flags, trust, member since, last seen,
+  keys counted, medals and unlockables held, achievements, unopened holocrons and kyber
+  crystals, credits, shards and cards), Verify (`StaffRequest::Verify`; Unverify while the player is
   verified), the last six names the hub kept, and moderation: their picture (Take down,
   `StaffRequest::AvatarRemove`; Block pictures and Allow pictures,
   `StaffRequest::AvatarBlock`, [Pictures](#pictures)) and the SJK chat (Mute at the hub
@@ -1059,16 +1065,19 @@ needed better"; the page used to squeeze everything into three columns):
   counts down); beside them every unlockable with whether the player holds it (and since
   when): Unlock (`StaffRequest::Unlock`) and Relock (`StaffRequest::Relock`), in pages of
   36 with `<` and `>`;
-- **Holocrons and credits**: the player's holocrons, the four tiers to choose and Give
-  (`StaffRequest::HolocronGive`) and their twelve newest with Remove
-  (`StaffRequest::HolocronRemove`) ([holocrons.md](holocrons.md#staff)); beside them their
-  credits and kyber shards, an amount (digits only) and Give credits, Take credits, Give
-  shards and Take shards (`StaffRequest::Credits` and `StaffRequest::Shards`, `POST
-  /v1/staff/credits` and `/v1/staff/shards` with the amount as `delta`, negative to take).
-  The hub refuses taking more than they hold; a hub before the shop refuses shards;
+- **Holocrons and credits**: the player's holocrons and kyber crystals, the four holocron
+  tiers and under them the four crystal tiers to choose, Give (`StaffRequest::HolocronGive`)
+  and their twelve newest holocrons and crystals with Remove
+  (`StaffRequest::HolocronRemove`, on a second press within 3 seconds)
+  ([holocrons.md](holocrons.md#staff)); beside them their credits and kyber shards, an
+  amount (digits only) and Give credits, Take credits, Give shards and Take shards
+  (`StaffRequest::Credits` and `StaffRequest::Shards`, `POST /v1/staff/credits` and
+  `/v1/staff/shards` with the amount as `delta`, negative to take; Take waits for a second
+  press). The hub refuses taking more than they hold;
 - **Achievements**: the player's achievements at the hub in two columns, each with
   Clear, and Clear all, which waits for a second press within 3 seconds;
-- **Keys**: the player's main key and their linked keys, each with Unlink
+- **Keys**: the player's main key and their linked keys (numbered, never shown), each
+  with Unlink
   (`StaffRequest::Unlink`, which waits for a second press within 3 seconds), then Merge
   another key into this player ([Players with several keys](#players-with-several-keys));
 - **Logs**: Request logs for the chosen player and the log requests with Open
@@ -1110,11 +1119,12 @@ achievements and holocrons, whichever PC they play from.
 Keys get linked by a merge, for a player who reset their key (deleted `identity.key`
 by accident, a new PC without the backup). On the Staff page, with the kept player
 chosen (the one with the history, usually), the Keys and merge tab takes the key id
-of the other player, typed or pasted (Ctrl+V), or Pick in list and then a click on them
-among the players found; the page says when it is not a key id, already this
+of the other player, pasted (Ctrl+V) or typed, or Pick in list and then a click on them
+among the players found (the field shows bullets, never the key, and the player's name
+when the list has them); the page says when it is not a key id, already this
 player's, or a staff player (who is never merged away). Merge... only asks: a card
-says who is kept and who is merged away, by name and key id, and that it cannot be
-undone, with Cancel first under the keyboard and Merge for good
+says who is kept and who is merged away, by name and when last seen (never by key), and
+that it cannot be undone, with Cancel first under the keyboard and Merge for good
 (`StaffRequest::Merge`). Everything of the merged-away player (medals, unlocks,
 achievements, holocrons, names, reports, the picture when the kept player has none, a
 verified mark) goes to the kept player and their keys become its linked keys; the hub's
@@ -1172,18 +1182,24 @@ once.
 - The Identity page (Settings > Network > SJK identity key, main menu > SJK > IDENTITY
   in the classic menus, the in-game SJK menu, or the `identity` command) shows what the
   hub knows: the name worn now and up to three earlier ones, whether the key is
-  verified, the key id and the key file's location and the players the hub knows here.
-  The key id and the file (whose path names the Windows account) are bullets and
-  "(hidden)" until Show key is pressed, every time the page opens (not saved), so a
-  player can open it on a stream (09/10/2026, Sol's request). Elsewhere the player's
-  own key id is never printed: not on the Profile page, nor on their own row of the
-  Players cards, their own sender card or the SJK chat page's side panel for their own
-  message (`player_identity::printable_key_id`); other players' key ids still show. Its controls are
-  optional: the on/off switch, a bio field with Save, a button that copies the key id
-  (to the clipboard, never on screen), Show key. The words do the same without it: `identity bio <text>` sets the bio,
-  `identity key` shows the key id and file, `identity who [slot]` lists the players the hub
-  knows here (with a slot, their bio). `identity name` explains that the name is the one
-  played under (`/name`).
+  verified, the key file's location and the players the hub knows here. The key id is
+  always bullets and "(hidden)", and the file (whose path names the Windows account)
+  until Show file is pressed, every time the page opens (not saved), so a player can
+  open it on a stream (09/10/2026, Sol's request).
+
+  **Key ids never show in the game** (26/10/2026, Sol's rule: "ALWAYS hide the keys,
+  never show them in game"), the player's own or anyone else's: not on the Identity or
+  Profile page, the Players cards, the player card, the report page, sender cards, the
+  SJK chat page's side panel, the Staff page ([Staff](#staff)), nor in the console's
+  `identity key`, `identity who` and `block` lists. Where a key used to show, a player
+  goes by name (and the report page says "known" or "known, verified").
+  `player_identity::is_others_key` only tells whose a key is (for chat bans). Its
+  controls are optional: the on/off switch, a bio field with Save, a button that copies
+  the key id (to the clipboard, never on screen), Show file. The words do the same
+  without it: `identity bio <text>` sets the bio, `identity key` copies the key id to the
+  clipboard and says where the key file is, `identity who [slot]` lists the players the
+  hub knows here (with a slot, their bio). `identity name` explains that the name is the
+  one played under (`/name`).
 
 ## The key file
 

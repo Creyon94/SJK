@@ -413,7 +413,8 @@ fn file_part(name: &str) -> String {
     }
 }
 
-/// What a request's success is called on the page.
+/// What a request's success is called on the page: never a key id, which the game never
+/// shows.
 pub(crate) fn done(request: &StaffRequest, count: usize) -> String {
     match request {
         StaffRequest::Search(query) if query.is_empty() => {
@@ -443,7 +444,10 @@ pub(crate) fn done(request: &StaffRequest, count: usize) -> String {
         StaffRequest::AvatarBlock { blocked: false, .. } => {
             "They may upload pictures again".to_owned()
         }
-        StaffRequest::HolocronGive { tier, .. } => format!("Gave a {tier} holocron"),
+        StaffRequest::HolocronGive { tier, .. } => match tier.strip_prefix("kyber_") {
+            Some(crystal) => format!("Gave {} {crystal} kyber crystal", article(crystal)),
+            None => format!("Gave {} {tier} holocron", article(tier)),
+        },
         StaffRequest::HolocronRemove { id, .. } => format!("Took back holocron #{id}"),
         StaffRequest::Verify { verified: true, .. } => "Verified".to_owned(),
         StaffRequest::Verify {
@@ -451,8 +455,8 @@ pub(crate) fn done(request: &StaffRequest, count: usize) -> String {
         } => "No longer verified".to_owned(),
         StaffRequest::SetStaff { staff: true, .. } => "Made staff".to_owned(),
         StaffRequest::SetStaff { staff: false, .. } => "No longer staff".to_owned(),
-        StaffRequest::Merge { from, .. } => format!("Merged {from} into this player"),
-        StaffRequest::Unlink { key_id } => format!("Unlinked {key_id}"),
+        StaffRequest::Merge { .. } => "Merged the other player into this one".to_owned(),
+        StaffRequest::Unlink { .. } => "Unlinked the key: it starts afresh".to_owned(),
         StaffRequest::Credits { delta, .. } if *delta < 0 => {
             format!("Took {} credits", delta.unsigned_abs())
         }
@@ -461,6 +465,15 @@ pub(crate) fn done(request: &StaffRequest, count: usize) -> String {
             format!("Took {} kyber shards", delta.unsigned_abs())
         }
         StaffRequest::Shards { delta, .. } => format!("Gave {delta} kyber shards"),
+    }
+}
+
+/// "an" before a tier that starts with a vowel ("an uncommon"), else "a".
+fn article(word: &str) -> &'static str {
+    if word.starts_with(['a', 'e', 'i', 'o', 'u']) {
+        "an"
+    } else {
+        "a"
     }
 }
 
@@ -553,5 +566,32 @@ mod tests {
         };
         assert_eq!(done(&shards, 1), "Took 5 kyber shards");
         assert_eq!(shards.target(), Some("0123456789abcdef"));
+    }
+
+    #[test]
+    fn gifts_say_what_they_were_and_no_line_names_a_key() {
+        let give = |tier: &str| StaffRequest::HolocronGive {
+            key_id: "0123456789abcdef".into(),
+            tier: tier.into(),
+            note: String::new(),
+        };
+        assert_eq!(done(&give("rare"), 1), "Gave a rare holocron");
+        assert_eq!(done(&give("uncommon"), 1), "Gave an uncommon holocron");
+        assert_eq!(
+            done(&give("kyber_legendary"), 1),
+            "Gave a legendary kyber crystal"
+        );
+        for request in [
+            StaffRequest::Merge {
+                key_id: "0123456789abcdef".into(),
+                from: "fedcba9876543210".into(),
+            },
+            StaffRequest::Unlink {
+                key_id: "fedcba9876543210".into(),
+            },
+        ] {
+            let line = done(&request, 1);
+            assert!(!line.contains("fedcba9876543210"), "{line}");
+        }
     }
 }
