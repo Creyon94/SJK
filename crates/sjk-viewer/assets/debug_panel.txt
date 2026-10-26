@@ -24,6 +24,15 @@
 
 # ---- Console & chat ----
 
+[devmap-tab-completion]
+area: Console & chat
+title: Tab completes the map name after devmap (Slash, PR #209)
+change: devmap + Tab completes from the game data's maps, also by the name after the folder.
+change: devmap with nothing typed + Tab lists every map as Map rows.
+test: Console: "devmap siege_ho" + Tab gives "devmap mp/siege_hoth ".
+test: "devmap mp/ff" + Tab lists mp/ffa1..ffa5 and extends to "devmap mp/ffa".
+test: "devmap " + Tab lists your maps, custom pk3 maps included.
+
 [chat-open-over-map-change]
 area: Console & chat
 title: Chat field and bubble stay open over a map change (Nib #134)

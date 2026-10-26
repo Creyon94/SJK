@@ -330,6 +330,7 @@ did: #205 Fewer stutters when players join, change model or die
 did: #207 The site's cookie-less visit counter
 did: #199 Peek asks first and names who watches: the idea of the Drone toy
 did: #206 Card pictures: the decoder guard and their own memory labels, ported
+did: #209 Tab completes the map name after devmap
 link: Slash's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AJoFSlash
 
 [Milamber]

@@ -30,6 +30,10 @@ The site (site/assets/site.js, parseChangelog) reads the release headings,
 introductions and recap lines too.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
+## Unreleased
+
+- Tab after `devmap` completes the map name from the game data, also by the name after its folder (`devmap siege_ho` gives `devmap mp/siege_hoth`), and lists every map when nothing is typed _(Slash, PR #209)_
+
 ## 2026.1026.2 (Alpha) | 26/10/2026
 
 Fixes from players' reports: a setting against bright flashes, voice volume, the Merc's force field and kyber crystals that arrive sooner.

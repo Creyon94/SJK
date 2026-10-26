@@ -31,7 +31,7 @@ pub use command_buffer::{
 pub use config::{ConfigError, decode_config_text, load_config, save_config};
 pub use config_saver::CONFIG_SAVE_DELAY;
 pub use cvar::{Cvar, CvarChange, CvarDefinition, CvarError, CvarFlags, CvarRegistry, CvarValue};
-pub use shell::{CommandSource, CompletionKey, ConsoleLine, ConsoleLineKind, Shell};
+pub use shell::{CommandSource, CompletionKey, ConsoleLine, ConsoleLineKind, MAP_EXTENSION, Shell};
 pub use shell_error::ShellError;
 
 /// Counts allocator calls inside `assert_no_alloc` blocks (`cvar.rs`'s frame reads).

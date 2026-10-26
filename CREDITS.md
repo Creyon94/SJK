@@ -650,6 +650,8 @@ into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author
   will really leave (no forced or overridden model) is prepared.
 - #207 the site's cookie-less visit counter (GoatCounter), showing which video platform
   brings visitors.
+- #209 Tab after `devmap` completes the map name from the game data's `maps/*.bsp`, also by
+  the name after its folder (`siege_ho` finds `mp/siege_hoth`), as `SV_CompleteMapName` does.
 
 His Peek work in #199 (closed 24/10/2026, not merged) shaped the Drone toy: a player is
 asked before being peeked, told who watches, and can end it. His #206 (closed 25/10/2026,
