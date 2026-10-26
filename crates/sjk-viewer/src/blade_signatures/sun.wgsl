@@ -110,6 +110,15 @@ fn su_rain(ro: vec3<f32>, rd: vec3<f32>, px: f32, k: f32) -> vec3<f32> {
     let H = 2.6 + 1.8 * h11(n * 3.1 + k);
     // its own way round the blade, so from any side some loops show their arch
     let side = h11(n * 4.9 + k * 2.2);
+    // skipped between lives and where the ray passes far from it: the arch and its beads lie within
+    // H/2 of the line halfway up it, and their widest halo is nothing past three widths
+    if life <= 0.0 {
+        return col;
+    }
+    let far = raySegRaw(ro, rd, around(0.35 + 0.5 * H, side, y0), around(0.35 + 0.5 * H, side, y0 + span), &s);
+    if far > 0.5 * H + 3.0 * max(0.6, px) {
+        return col;
+    }
     // the loop itself: a faint arch, brightest at its top
     var best: f32 = 1.0e3;
     var bs: f32 = 0.0;
@@ -174,9 +183,11 @@ fn sig_vol(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec3<f32> {
         col += fxFlare(ro, rd, vec3<f32>(0.0, 1.2, 0.0), px, 0.45, 9.0, 4.0, 0.4, SU_GOLD) * dawn * 1.4;
         col += fxAura(ro, rd, 0.0, L, 2.0 + 6.0 * smoothstep(0.25, 1.4, uAge), mix(SU_WHITE, SU_GOLD, 0.5)) * dawn * 0.8;
     }
-    // coronal rain on three loops
-    for (var k = 0; k < 3; k++) {
-        col += su_rain(ro, rd, px, f32(k)) * corona;
+    // coronal rain on three loops (none drawn with the part off)
+    if corona > 0.0 {
+        for (var k = 0; k < 3; k++) {
+            col += su_rain(ro, rd, px, f32(k)) * corona;
+        }
     }
     // the clash: a total eclipse's diamond ring
     let moon = su_moon();

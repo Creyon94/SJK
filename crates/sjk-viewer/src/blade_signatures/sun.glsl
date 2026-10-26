@@ -91,6 +91,11 @@ vec3 su_rain(vec3 ro, vec3 rd, float px, float k){
   float H = 2.6 + 1.8*h11(n*3.1 + k);
   // its own way round the blade, so from any side some loops show their arch
   float side = h11(n*4.9 + k*2.2);
+  // skipped between lives and where the ray passes far from it: the arch and its beads lie within
+  // H/2 of the line halfway up it, and their widest halo is nothing past three widths
+  if (life <= 0.0) return col;
+  float far = raySegRaw(ro, rd, around(0.35 + 0.5*H, side, y0), around(0.35 + 0.5*H, side, y0 + span), s);
+  if (far > 0.5*H + 3.0*max(0.6, px)) return col;
   // the loop itself: a faint arch, brightest at its top
   float best = 1e3, bs = 0.0;
   vec3 prev = around(0.35, side, y0);
@@ -149,9 +154,11 @@ vec3 sig_vol(vec3 ro, vec3 rd, float px){
     col += fxAura(ro, rd, 0.0, L, 2.0 + 6.0*smoothstep(0.25, 1.4, uAge), mix(SU_WHITE, SU_GOLD, 0.5))*dawn*0.8;
   }
 
-  // coronal rain on three loops
-  for (int k = 0; k < 3; k++){
-    col += su_rain(ro, rd, px, float(k))*corona;
+  // coronal rain on three loops (none drawn with the part off)
+  if (corona > 0.0){
+    for (int k = 0; k < 3; k++){
+      col += su_rain(ro, rd, px, float(k))*corona;
+    }
   }
 
   // the clash: a total eclipse's diamond ring
