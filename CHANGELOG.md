@@ -30,6 +30,10 @@ The site (site/assets/site.js, parseChangelog) reads the release headings,
 introductions and recap lines too.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
+## Unreleased
+
+- Trading: after a trade, the player who confirmed first sees the holocrons and duplicates they gave leave their collection, and those they received arrive, at once instead of up to ten minutes later _(Creyon, PR #210)_
+
 ## 2026.1028.1 (Alpha) | 28/10/2026
 
 Capsule nameplates, the Sith cloud, a chest and a hunt for mystery boxes, and a working jetpack.

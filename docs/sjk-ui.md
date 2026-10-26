@@ -2331,6 +2331,12 @@ every menu style, on the 16:9 frame:
   trade says so under its name: "Received from Nib in a trade", and while the hub's lock
   runs "- tradable again in 6d 23h" (no countdown before the hub said how long).
 - **Ended:** "Traded with Nib" (or ended) and how, with Close, while the window was open.
+  The swap happens at the second confirmation, so only that player's answer from the hub
+  carries their new profile. The first to confirm learns of it from the trade list (the
+  feed's word, or the 15-second read): the list that first shows a trade done reads the
+  own profile and the holocron progress at once, so the holocrons and duplicates given
+  leave the collection, and those received arrive, without waiting for the ten-minute
+  profile read (Sol, in game, 25/10/2026).
 - **Cost:** the views are built only when what they show changes (a new list or step from
   the hub, the own profile, the players known) and the window's parts (the player's items,
   the limits) only while the window can show, under one short identity lock; between, only
