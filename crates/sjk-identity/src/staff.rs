@@ -31,6 +31,16 @@ pub enum StaffRequest {
         /// The medal's id.
         medal: String,
     },
+    /// Set the rank of a medal the key holds, 1 (Issued) to 5 (Solar), by hand
+    /// (`PROTOCOL.md`, "Staff", since 27/10/2026). Quiet, like every staff change.
+    MedalRank {
+        /// The key that holds it.
+        key_id: String,
+        /// The medal's id.
+        medal: String,
+        /// The new rank.
+        rank: u8,
+    },
     /// Grant an unlockable (`PROTOCOL.md`, "Unlocks").
     Unlock {
         /// The key that gets it.
@@ -177,6 +187,7 @@ impl StaffRequest {
             Self::Search(_) | Self::ChatDelete { .. } | Self::MapBlock { .. } => None,
             Self::Award { key_id, .. }
             | Self::Unaward { key_id, .. }
+            | Self::MedalRank { key_id, .. }
             | Self::Unlock { key_id, .. }
             | Self::Relock { key_id, .. }
             | Self::ClearAchievements { key_id, .. }
@@ -444,6 +455,7 @@ pub(crate) fn done(request: &StaffRequest, count: usize) -> String {
         },
         StaffRequest::Award { medal, .. } => format!("Gave {medal}"),
         StaffRequest::Unaward { medal, .. } => format!("Took back {medal}"),
+        StaffRequest::MedalRank { medal, rank, .. } => format!("Set {medal} to rank {rank}"),
         StaffRequest::Unlock { unlock, .. } => format!("Unlocked {unlock}"),
         StaffRequest::Relock { unlock, .. } => format!("Took back {unlock}"),
         StaffRequest::ClearAchievements { id, .. } if id.is_empty() => {

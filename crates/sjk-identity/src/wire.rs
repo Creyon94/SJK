@@ -920,11 +920,12 @@ pub struct Achievements {
 /// One medal the SJK team gave a key: recognition, and some bring a saber blade (an
 /// [`Unlock`] with `medal`) while held.
 ///
-/// A profile carries every field; a presence entry only `id` and `count`, the rest
-/// keeping their defaults. A client shows only the ids it knows.
+/// A profile carries every field; a presence entry only `id`, `count` and `rank`, the
+/// rest keeping their defaults. A client shows only the ids it knows.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
 pub struct Medal {
-    /// The medal's id (`early_tester`, `bug_hunter`, ...).
+    /// The medal's id (`early_tester`, `bug_hunter`, ...): a wire id, which keeps its
+    /// old wording ("Early Tester" reads "Tester" since 27/10/2026).
     pub id: String,
     /// How many times it was given: 1 unless the medal is repeatable.
     #[serde(default = "one")]
@@ -935,10 +936,32 @@ pub struct Medal {
     /// Public plain text from the team about why, often empty. Never markup.
     #[serde(default)]
     pub note: String,
+    /// The rank the SJK team set, [`MEDAL_RANK_MIN`] to [`MEDAL_RANK_MAX`] (since
+    /// 27/10/2026): 1 from older hubs, and a value out of range is brought into it.
+    #[serde(default = "rank_one", deserialize_with = "medal_rank")]
+    pub rank: u8,
 }
+
+/// The lowest medal rank (Issued).
+pub const MEDAL_RANK_MIN: u8 = 1;
+/// The highest medal rank (Solar).
+pub const MEDAL_RANK_MAX: u8 = 5;
 
 fn one() -> u32 {
     1
+}
+
+fn rank_one() -> u8 {
+    MEDAL_RANK_MIN
+}
+
+/// A medal's rank as sent, clamped into 1..=5; a rank that is not a number reads as 1.
+fn medal_rank<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<u8, D::Error> {
+    let value = serde_json::Value::deserialize(deserializer)?;
+    Ok(match value.as_f64() {
+        Some(rank) => rank.clamp(f64::from(MEDAL_RANK_MIN), f64::from(MEDAL_RANK_MAX)) as u8,
+        None => MEDAL_RANK_MIN,
+    })
 }
 
 /// One in-game name a key has worn, as the hub saw it in registrations and claims.
@@ -1910,14 +1933,39 @@ mod tests {
                     count: 1,
                     awarded: 0,
                     note: String::new(),
+                    rank: 1,
                 },
                 Medal {
                     id: "jof_clan".to_owned(),
                     count: 1,
                     awarded: 0,
                     note: String::new(),
+                    rank: 1,
                 },
             ]
         );
+    }
+
+    #[test]
+    fn medal_ranks_default_to_one_and_are_clamped() {
+        let profile: Profile = serde_json::from_str(
+            r#"{"key_id":"aa","key":"bb","name":"Sol","bio":"","verified":true,"created":5,
+                "medals":[{"id":"early_tester","count":1,"awarded":1,"note":"","rank":3},
+                          {"id":"bug_hunter","count":1,"awarded":1,"note":""},
+                          {"id":"supporter","count":1,"awarded":1,"note":"","rank":9},
+                          {"id":"early_contributor","count":1,"awarded":1,"note":"","rank":0},
+                          {"id":"x","rank":-4},
+                          {"id":"y","rank":"high"}]}"#,
+        )
+        .unwrap();
+        let ranks: Vec<u8> = profile.medals.iter().map(|medal| medal.rank).collect();
+        assert_eq!(ranks, [3, 1, 5, 1, 1, 1]);
+        let presence: Presence = serde_json::from_str(
+            r#"{"slot":3,"claimed_name":"x","key_id":"aa","name":"Sol","verified":false,
+                "medals":[{"id":"early_tester","count":1,"rank":5},{"id":"bug_hunter","count":1}]}"#,
+        )
+        .unwrap();
+        let ranks: Vec<u8> = presence.medals.iter().map(|medal| medal.rank).collect();
+        assert_eq!(ranks, [5, 1]);
     }
 }
