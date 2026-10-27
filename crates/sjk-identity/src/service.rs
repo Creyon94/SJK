@@ -2593,7 +2593,7 @@ impl Worker {
         let serial = self.mystery_box_serial;
         let outcome = match (self.hub.as_mut(), self.registered) {
             (Some(hub), true) => request(hub.as_mut(), &self.identity),
-            _ => Err(not_connected()),
+            _ => Err(self.not_connected()),
         };
         let reread = match &outcome {
             Ok((BoxDone::Placed(_) | BoxDone::Removed(_), _)) => true,
