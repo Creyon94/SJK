@@ -20,11 +20,13 @@
 //! never expires: a message the player wrote is still worth reading late,
 //! while a late action fires in a situation the player has left.
 //!
-//! What the player sends also goes ahead of the client's own commands still waiting
-//! (a `score` request every two seconds while dead or holding the scoreboard, a
-//! `userinfo`), so typed chat leaves in the next window instead of queueing behind
-//! them a second each (hub report 172). The client's own keep their order among
-//! themselves, as the player's do.
+//! What the player sends also goes ahead of the client's own `score` requests still
+//! waiting (one every two seconds while dead or holding the scoreboard), so typed chat
+//! leaves in the next window instead of queueing behind them a second each (hub report
+//! 172). It stays behind the client's other commands (a `userinfo` after a model or
+//! saber change, a Force-profile `team` retry): a `kill` bind must not respawn the
+//! player before the new model is sent, nor a typed `/team s` be undone by a retry
+//! sent after it. Both keep their order among themselves.
 //!
 //! Commands sent while the server still considers the client `CS_PRIMED`
 //! (the connect and map-restart bootstrap packets) are exempt and are not
@@ -67,6 +69,13 @@ struct Queued {
     expires: Option<Instant>,
 }
 
+impl Queued {
+    /// The client's own scoreboard request, which a player's command may pass.
+    fn is_score_request(&self) -> bool {
+        self.origin == ReliableCommandOrigin::System && self.command == b"score"
+    }
+}
+
 /// Unsequenced outbox that releases one command per interval.
 #[derive(Debug)]
 pub(crate) struct ReliableCommandPacer {
@@ -89,7 +98,7 @@ impl ReliableCommandPacer {
     /// An input or chat command identical to one of the same origin still
     /// waiting is folded into it (an input one's deadline restarts from `now`,
     /// its place is kept) and counts as accepted. A new one goes ahead of the
-    /// waiting [`ReliableCommandOrigin::System`] commands.
+    /// `score` requests waiting at the end of the outbox, and nothing else.
     pub(crate) fn push(
         &mut self,
         command: Vec<u8>,
@@ -115,16 +124,15 @@ impl ReliableCommandPacer {
             origin,
             expires,
         };
-        let first_system = (origin != ReliableCommandOrigin::System)
-            .then(|| {
-                self.outbox
-                    .iter()
-                    .position(|queued| queued.origin == ReliableCommandOrigin::System)
-            })
-            .flatten();
-        match first_system {
-            Some(index) => self.outbox.insert(index, queued),
-            None => self.outbox.push_back(queued),
+        if origin == ReliableCommandOrigin::System {
+            self.outbox.push_back(queued);
+        } else {
+            let after = self
+                .outbox
+                .iter()
+                .rposition(|queued| !queued.is_score_request())
+                .map_or(0, |index| index + 1);
+            self.outbox.insert(after, queued);
         }
         true
     }
@@ -286,12 +294,12 @@ mod tests {
     }
 
     #[test]
-    fn player_commands_go_ahead_of_waiting_system_commands() {
+    fn player_commands_go_ahead_of_waiting_score_requests_only() {
         let start = Instant::now();
         let mut pacer = pacer();
         pacer.push(b"score".to_vec(), ReliableCommandOrigin::System, start);
         assert!(pacer.pop_due(start).is_some());
-        pacer.push(b"userinfo".to_vec(), ReliableCommandOrigin::System, start);
+        pacer.push(b"score".to_vec(), ReliableCommandOrigin::System, start);
         pacer.push(b"score".to_vec(), ReliableCommandOrigin::System, start);
         pacer.push(b"say gg".to_vec(), ReliableCommandOrigin::Chat, start);
         // Pressed late enough to still be alive in the second window.
@@ -304,7 +312,38 @@ mod tests {
         for step in 1..=4 {
             sent.extend(pacer.pop_due(start + ms(step * 1_050)));
         }
-        let expected: [&[u8]; 4] = [b"say gg", b"amhug", b"userinfo", b"score"];
+        let expected: [&[u8]; 4] = [b"say gg", b"amhug", b"score", b"score"];
+        assert_eq!(sent, expected);
+    }
+
+    #[test]
+    fn player_commands_stay_behind_the_clients_other_commands() {
+        let start = Instant::now();
+        let mut pacer = pacer();
+        pacer.push(b"score".to_vec(), ReliableCommandOrigin::System, start);
+        assert!(pacer.pop_due(start).is_some());
+        // A model changed in a menu, then a `kill` bind: the new model goes first,
+        // so the player respawns with it. A typed `/team s` lands after a waiting
+        // Force-profile retry, so the retry cannot undo it.
+        pacer.push(b"userinfo".to_vec(), ReliableCommandOrigin::System, start);
+        pacer.push(b"team r".to_vec(), ReliableCommandOrigin::System, start);
+        pacer.push(b"score".to_vec(), ReliableCommandOrigin::System, start);
+        // Pressed late enough to still be alive when their windows come.
+        pacer.push(
+            b"kill".to_vec(),
+            ReliableCommandOrigin::Input,
+            start + ms(2_000),
+        );
+        pacer.push(
+            b"team s".to_vec(),
+            ReliableCommandOrigin::Input,
+            start + ms(3_000),
+        );
+        let mut sent = Vec::new();
+        for step in 1..=5 {
+            sent.extend(pacer.pop_due(start + ms(step * 1_050)));
+        }
+        let expected: [&[u8]; 5] = [b"userinfo", b"team r", b"kill", b"team s", b"score"];
         assert_eq!(sent, expected);
     }
 

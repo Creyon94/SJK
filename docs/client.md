@@ -5895,7 +5895,8 @@ holster's 400 ms); a press before that does nothing, as in `CG_Weapon_f`, and ne
 picks another weapon (hub report 172). A pressed `generic_cmd` (this toggle, a bound
 `force_*` or `use_*`) goes on every user command until a packet takes them, as
 `CL_FinishMove` keeps it until `CL_WritePacket`, so one command the server skips does
-not lose it; the server's debounce takes it once. `weapmelee` never selects the saber and never toggles: it does nothing when
+not lose it; the server's debounce takes it once.
+`weapmelee` never selects the saber and never toggles: it does nothing when
 the fists are already selected, when the player does not hold them, while
 following someone or on an emplaced gun. The stun baton, `WP_STUN_BATON`, is another
 weapon and is not chosen. Like `weapnext` it only changes the client's selection

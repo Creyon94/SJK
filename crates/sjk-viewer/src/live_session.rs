@@ -195,6 +195,7 @@ impl GpuState {
         if dialogue_active && !dialogue_was_active {
             self.gameplay_input.release_keys();
             self.pending_generic_command = 0;
+            self.generic_command_sent = 0;
         }
         let talking = talking || dialogue_active;
         let force_repeat = if dialogue_active { None } else { force_repeat };
@@ -367,6 +368,7 @@ impl GpuState {
             // command at once.
             if session.queued_commands() == 0 {
                 self.pending_generic_command = 0;
+                self.generic_command_sent = 0;
             } else {
                 self.generic_command_sent = self.pending_generic_command;
             }

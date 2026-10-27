@@ -499,10 +499,11 @@ used to queue twenty hugs, still firing one a second after the player stopped. C
 (`say`, `say_team`, `tell`, typed or bound) is not queued twice while identical chat
 waits, but is never dropped: a message is still worth reading late, a late action is not.
 What the player sends (chat, binds, console commands) goes ahead of the client's own
-commands still waiting, which keep their order among themselves (27/10/2026, hub
-report 172): chat no longer queues a second each behind `score` requests (every two
-seconds while dead or holding the scoreboard) or a `userinfo`. A `name` change typed
-just before a message may therefore reach the server after it.
+`score` requests still waiting (every two seconds while dead or holding the
+scoreboard), so chat no longer queues a second each behind them (27/10/2026, hub
+report 172). It stays behind the client's other commands, a `userinfo` after a model
+or saber change or a Force-profile `team` retry, so a `kill` bind respawns with the
+new model and a typed `/team s` is not undone by a retry sent after it.
 
 ## Parity requirements
 

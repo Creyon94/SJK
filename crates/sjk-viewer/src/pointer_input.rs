@@ -186,6 +186,7 @@ impl GpuState {
         self.gameplay_input.focus(focused);
         if !focused {
             self.pending_generic_command = 0;
+            self.generic_command_sent = 0;
             if let Some(console) = &mut self.console {
                 console.clear_force_repeat();
             }
