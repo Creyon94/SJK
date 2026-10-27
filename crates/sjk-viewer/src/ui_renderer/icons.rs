@@ -107,8 +107,11 @@ pub(crate) const TRUST_ICON_CELLS: u32 = 3;
 /// The cell holding JoF EternalJK's icon (`ui_renderer::EJK_TEXTURE`), after the trust
 /// marks'.
 pub(crate) const EJK_ICON: u32 = TRUST_ICON_FIRST + TRUST_ICON_CELLS;
+/// The cell holding the SJK Launcher's icon (`ui_renderer::LAUNCHER_TEXTURE`), after JoF
+/// EternalJK's.
+pub(crate) const LAUNCHER_ICON: u32 = EJK_ICON + 1;
 /// Every icon cell.
-pub(crate) const ATLAS_CELLS: u32 = EJK_ICON + 1;
+pub(crate) const ATLAS_CELLS: u32 = LAUNCHER_ICON + 1;
 const TOTAL_CELLS: u32 = ATLAS_CELLS;
 const ATLAS_HEIGHT: u32 = TOTAL_CELLS.div_ceil(COLUMNS) * ICON_SIZE;
 
