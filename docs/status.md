@@ -1,3 +1,14 @@
+## Mystery boxes
+
+27/10/2026, `personal/mystery-box`, based on `main` `685edded` (Sol's idea): boxes SJK's
+creator places on maps (`mysterybox_place`, or the map editor's Place page), opened by
+any SJK player with `+use` for credits ([mystery-boxes.md](mystery-boxes.md)). The hub
+(its branch `mystery-box`) keeps the boxes, takes the price, rolls on a provisional table
+(empty, refund, double, jackpot; 85 % paid back on average) and tells the server's other
+players. Verified: unit tests on both sides and the workspace checks. Not verified: in a
+game, or against a hub serving it (the hub branch is not deployed); the box is a retail
+crate and outcomes pay credits only for now.
+
 ## Sun blade drawn for less
 
 26/10/2026, `personal/sun-perf`, based on `main` `62d3e587` (Sol: the Sun blade ate a lot

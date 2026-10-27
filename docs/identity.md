@@ -640,6 +640,14 @@ document newer than its copy downloaded, a copy the hub stopped listing removed,
 copy with unpublished changes left alone. What the edits do is in
 [map-edits.md](map-edits.md).
 
+## Mystery boxes
+
+The worker reads the hub's mystery boxes once registered and every 10 minutes
+(`Snapshot::mystery_boxes`), and sends openings and the creator's placings and removals
+(`Service::open_mystery_box`, `place_mystery_box`, `remove_mystery_box`), whose answer
+lands in `Snapshot::mystery_box` with the profile (credits) after. What a box does is in
+[mystery-boxes.md](mystery-boxes.md).
+
 ## Asset packs
 
 The art of the unlockable cosmetics (each blade skin's look and sounds) is not part of

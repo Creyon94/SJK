@@ -7156,3 +7156,15 @@ change: Its coronal rain is only worked out near its loops; nothing changes on s
 test: Wear the Sun, light it in first person with cg_drawFPS 1: frames stay close to stock.
 test: Look at the blade: loops with beads of light sliding down, as before; none cut off.
 test: Hold the blade across the view and along it (tip pointing away): no loop pops in or out.
+
+[mystery-box]
+area: Gameplay
+title: Mystery boxes: placed by Sol, opened with Use for credits
+change: Boxes on maps via the hub; opening costs 100 credits: empty, refund, double or jackpot.
+test: Needs the hub's mystery-box branch (local hub or deployed); give yourself credits first.
+test: As creator, aim at the floor, mysterybox_place: a crate faces you; mysterybox_list: its id.
+test: mapedit_panel > Place: Mystery box places one where you aim; Remove box takes the nearest.
+test: Face it up close: centre says press Use (100 credits). Use: hop, sound, result, credits left.
+test: Use again at once: "The box is still closing"; under 100 credits: "Not enough credits".
+test: A 2nd SJK player sees and hears it open; Settings > Sound > Toys > Mystery box sounds mutes.
+test: Another map or another server (box placed with 'server'): no box.

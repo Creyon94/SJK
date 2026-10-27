@@ -39,6 +39,8 @@ pub(crate) const PLACED_CLASS: &str = "sjk_map_edit";
 #[derive(Default)]
 pub(crate) struct State {
     lookup: Lookup,
+    /// A map whose checksum is read even with no edits for it ([`State::want_checksum`]).
+    checksum_wanted: Option<String>,
     /// The loaded map's document, when it has one (or staff began one).
     pub(super) document: Option<Document>,
     /// Bumped on every change of [`Self::document`].
@@ -93,6 +95,24 @@ struct Placed {
 }
 
 impl State {
+    /// Read the checksum of map `map` (any case) even with no edits for it, when it is
+    /// the loaded one: a mystery box may stand on it (`mystery_box`). Allocation-free
+    /// once asked.
+    pub(crate) fn want_checksum(&mut self, map: &str) {
+        if self
+            .checksum_wanted
+            .as_deref()
+            .is_some_and(|wanted| wanted.eq_ignore_ascii_case(map))
+        {
+            return;
+        }
+        let map = map.to_ascii_lowercase();
+        if matches!(&self.lookup, Lookup::Done { map: done, checksum: None } if *done == map) {
+            self.lookup = Lookup::Idle;
+        }
+        self.checksum_wanted = Some(map);
+    }
+
     /// The loaded map's name and checksum, once known.
     pub(crate) fn map(&self) -> Option<(&str, i32)> {
         match &self.lookup {
@@ -317,7 +337,8 @@ impl GpuState {
                 let wanted = folder
                     .as_deref()
                     .is_some_and(|directory| has_documents(directory, map))
-                    || state.editor.active;
+                    || state.editor.active
+                    || state.checksum_wanted.as_deref() == Some(map);
                 let Some(vfs) = self.vfs.clone().filter(|_| wanted) else {
                     state.lookup = Lookup::Done {
                         map: map.to_owned(),

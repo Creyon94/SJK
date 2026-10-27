@@ -284,6 +284,8 @@ impl GpuState {
             self.cardboard_box.shape_command(&mut command);
             // A Hax hack starts and holds on `+use` (`hax`).
             self.hax.observe_use(&command);
+            // `+use` at a mystery box opens it (`mystery_box`).
+            self.mystery_boxes.observe_use(&command);
             // Getting up from a JA+ away emote crouches (`away_emote`).
             crate::away_emote::shape_command(&mut command);
             command.buttons = sjk_game_jka::pmove_talk::command_buttons(command.buttons, talking);

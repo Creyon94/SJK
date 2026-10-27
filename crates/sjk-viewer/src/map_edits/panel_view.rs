@@ -500,16 +500,32 @@ fn place(ui: &mut MenuCanvas, frame: &Frame, panel: &mut Panel) {
         );
     }
     y += height + 12.0;
-    kit::button(
-        ui,
-        frame,
-        [COLUMN_X, y, COLUMN_WIDTH, BUTTON],
-        "Place where you aimed",
-        false,
-        panel.chosen_model().is_some(),
-        panel.focus == PLACE,
-        PLACE,
-    );
+    // SJK's creator also places mystery boxes here (`crate::mystery_box`), with the scope
+    // below; the page has no room for a section of their own.
+    if crate::player_identity::is_creator() {
+        buttons(
+            ui,
+            frame,
+            panel,
+            y,
+            &[
+                (PLACE, "Place model", panel.chosen_model().is_some()),
+                (BOX_PLACE, "Mystery box", true),
+                (BOX_REMOVE, "Remove box", true),
+            ],
+        );
+    } else {
+        kit::button(
+            ui,
+            frame,
+            [COLUMN_X, y, COLUMN_WIDTH, BUTTON],
+            "Place where you aimed",
+            false,
+            panel.chosen_model().is_some(),
+            panel.focus == PLACE,
+            PLACE,
+        );
+    }
     y += BUTTON + 30.0;
     kit::heading(ui, frame, COLUMN_X, y, COLUMN_WIDTH, "Placed model");
     y += 14.0;

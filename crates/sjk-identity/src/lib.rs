@@ -20,6 +20,7 @@ pub mod hub;
 mod keys;
 pub mod logs;
 pub mod map_edits;
+pub mod mystery_box;
 pub mod name_emoji;
 pub mod news;
 pub mod relay;
