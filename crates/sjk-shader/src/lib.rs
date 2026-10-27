@@ -137,6 +137,8 @@ pub struct ShaderStage {
     pub rgb_constant: Option<[f32; 3]>,
     pub alpha_constant: Option<f32>,
     pub texture_generator: TextureGenerator,
+    /// The s and t axes of [`TextureGenerator::Vector`]; zero otherwise.
+    pub texture_vectors: [[f32; 3]; 2],
     pub depth_write: bool,
     pub depth_function: DepthFunction,
     /// Optional rend2 material-map keywords; ignored unless material maps are enabled.
@@ -156,6 +158,10 @@ pub enum TextureGenerator {
     Base,
     Lightmap,
     Environment,
+    /// `tcGen vector ( sx sy sz ) ( tx ty tz )`: s and t are the vertex position dotted
+    /// with [`ShaderStage::texture_vectors`] (rd-vanilla `TCGEN_VECTOR`), a world-space
+    /// projection such as caustics laid over a whole room.
+    Vector,
 }
 
 /// Depth comparison selected by a Q3 stage.

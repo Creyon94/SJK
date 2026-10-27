@@ -137,6 +137,12 @@ fn collapse_pair(
     first: &ShaderStage,
     second: &ShaderStage,
 ) -> Option<(CollapseOperator, StageBlend)> {
+    // The GPU stage carries `tcGen vector` axes for its primary bundle only.
+    if first.texture_generator == TextureGenerator::Vector
+        || second.texture_generator == TextureGenerator::Vector
+    {
+        return None;
+    }
     // State bits other than blend and depth-write: alpha test and depth function.
     if first.depth_function != second.depth_function
         || alpha_test(first.alpha_function.as_deref())

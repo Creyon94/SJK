@@ -3901,8 +3901,26 @@ like this one.",
     #[test]
     #[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
     fn duel6_spawn_views() {
-        on_big_stack(|| {
-            let Some((mut gpu, _profile)) = open("maps/mp/duel6.bsp", [960, 540], None, &[]) else {
+        spawn_views("maps/mp/duel6.bsp".to_owned(), "duel6-spawns");
+    }
+
+    /// [`duel6_spawn_views`] for the map named by `SJK_SHOT_MAP` (`maps/<name>.bsp`), in
+    /// `<name>-spawns.png`: a look over any map, community ones too.
+    #[test]
+    #[ignore = "renders with the GPU, SJK_SHOT_MAP and the game data named by JKA_GAME_DATA"]
+    fn map_spawn_views() {
+        let map = std::env::var("SJK_SHOT_MAP").expect("set SJK_SHOT_MAP to maps/<name>.bsp");
+        let name = map
+            .trim_start_matches("maps/")
+            .trim_end_matches(".bsp")
+            .replace('/', "-");
+        spawn_views(map, &format!("{name}-spawns"));
+    }
+
+    fn spawn_views(map: String, name: &str) {
+        let name = name.to_owned();
+        on_big_stack(move || {
+            let Some((mut gpu, _profile)) = open(&map, [960, 540], None, &[]) else {
                 return;
             };
             let entities = sjk_entity::parse_entity_lump(gpu.bsp.entities()).expect("entities");
@@ -3934,7 +3952,7 @@ like this one.",
                 images.push(frame(&mut gpu, 6));
                 println!("{index:2}: {class} {origin:?} yaw {yaw}");
             }
-            println!("{}", sheet(&images, 4, 480, "duel6-spawns").display());
+            println!("{}", sheet(&images, 4, 480, &name).display());
         });
     }
 }

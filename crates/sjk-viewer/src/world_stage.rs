@@ -43,6 +43,8 @@ pub(crate) struct GpuStage {
     /// X/Y: live emission gain for primary/secondary texture bundles (zero means
     /// diffuse); Z shader time offset; W material gloss. Never a diffuse illumination term.
     pub(crate) emission: [f32; 4],
+    /// `tcGen vector`'s s and t axes (xyz) for the primary bundle.
+    pub(crate) texture_vectors: [[f32; 4]; 2],
 }
 
 #[path = "surface_deform.rs"]
@@ -181,6 +183,7 @@ fn implicit_stage(
         rgb_constant: None,
         alpha_constant: None,
         texture_generator: generator,
+        texture_vectors: [[0.0; 3]; 2],
         depth_write,
         depth_function: DepthFunction::LessEqual,
         material: Default::default(),
@@ -190,16 +193,9 @@ fn implicit_stage(
 
 pub(crate) fn compile_stage(stage: &ShaderStage) -> GpuStage {
     let mut result = GpuStage::zeroed();
-    result.animation = [
-        stage.animation_frequency.unwrap_or(0.0),
-        stage.images.len().max(1) as f32,
-        f32::from(stage.one_shot),
-        match stage.texture_generator {
-            TextureGenerator::Base => 0.0,
-            TextureGenerator::Lightmap => 1.0,
-            TextureGenerator::Environment => 2.0,
-        },
-    ];
+    result.animation = animation_parameters(stage);
+    let [s, t] = stage.texture_vectors;
+    result.texture_vectors = [[s[0], s[1], s[2], 0.0], [t[0], t[1], t[2], 0.0]];
     result.generators = [
         generator_code(stage.rgb_generator.as_deref(), stage.rgb_constant.is_some()),
         generator_code(
@@ -275,6 +271,7 @@ fn animation_parameters(stage: &ShaderStage) -> [f32; 4] {
             TextureGenerator::Base => 0.0,
             TextureGenerator::Lightmap => 1.0,
             TextureGenerator::Environment => 2.0,
+            TextureGenerator::Vector => 3.0,
         },
     ]
 }
