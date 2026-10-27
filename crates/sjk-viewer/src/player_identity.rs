@@ -42,6 +42,9 @@ pub(crate) struct Tag {
     pub(crate) medals: crate::medals::Medals,
     /// Their name emoji, after the name.
     pub(crate) emoji: NameEmoji,
+    /// The client they claimed from, when it has its own icon in place of SJK's emblem
+    /// (`chat::client_icons`).
+    pub(crate) client: Option<&'static crate::chat::client_icons::ClientIcon>,
 }
 
 /// A name emoji (`sjk_identity::name_emoji`) held in place, so a [`Tag`] stays `Copy`:
@@ -556,6 +559,7 @@ pub(crate) fn tag(slot: u8, shown: &str) -> Option<Tag> {
             trust: player.trust,
             medals: crate::medals::Medals::from_wire(&player.medals),
             emoji: NameEmoji::new(&player.emoji),
+            client: crate::chat::client_icons::find(&player.client),
         })
     })
 }
@@ -583,6 +587,7 @@ pub(crate) fn hub_info(slot: u8, shown: &str) -> Option<crate::hud::player_card:
             avatar: player.avatar.clone(),
             profile: profile.map(crate::hud::player_card::ProfileFacts::of),
             vitals: crate::hud::player_card::Vitals::Private,
+            client: crate::chat::client_icons::find(&player.client),
         };
         let wanted = (player.key_id != snapshot.key_id).then(|| player.key_id.clone());
         Some((info, wanted))

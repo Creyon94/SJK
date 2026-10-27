@@ -1,6 +1,8 @@
 //! The mark after a player's name on the scoreboard when the SJK hub knows them
 //! (`player_identity.rs`): SJK's emblem, in gold for a player the hub's operator
-//! vouches for and in soft white for any other registered player, then up to three
+//! vouches for and in soft white for any other registered player (or, for a player
+//! who claimed from another client with its own icon, that icon in its own colours,
+//! `chat::client_icons`), then up to three
 //! ribbon bars for the medals the SJK team gave them (`medals.rs`), plain coloured
 //! rectangles sized after the emblem. A player who is neither verified nor staff wears
 //! their trust mark (`ui_renderer::trust_texture`) small on the emblem's foot. The marks
@@ -24,9 +26,21 @@ const TRUST_SIDE: f32 = 0.55;
 /// The share of the name's room the marks may take.
 const MARKS_SHARE: f32 = 0.5;
 
-/// The emblem's tint.
+/// The emblem's texture: SJK's, or the icon of the client the player claimed from
+/// (`chat::client_icons`).
+fn texture(tag: Tag) -> sjk_ui::TextureId {
+    crate::chat::client_icons::texture(tag.client)
+}
+
+/// The emblem's tint. Another client's icon keeps its own colours.
 pub(super) fn tint(tag: Tag) -> Color {
-    if tag.verified { VERIFIED } else { REGISTERED }
+    if texture(tag) != crate::ui_renderer::LOGO_TEXTURE {
+        Color::new(1.0, 1.0, 1.0, 1.0)
+    } else if tag.verified {
+        VERIFIED
+    } else {
+        REGISTERED
+    }
 }
 
 /// A ribbon bar's width and height, and the gap before it, for an emblem `side` across.
@@ -84,7 +98,7 @@ pub(super) fn draw_marks(
 ) {
     push(DrawCommand::TexturedQuad {
         rect: Rect::new(x, middle - side * 0.5, side, side),
-        texture: crate::ui_renderer::LOGO_TEXTURE,
+        texture: texture(tag),
         color: tint(tag),
     });
     if let Some(mark) = tag.trust.and_then(crate::ui_renderer::trust_texture) {
@@ -155,12 +169,28 @@ mod tests {
             trust: None,
             emoji: Default::default(),
             medals: Medals::from_wire(&list),
+            client: None,
         }
     }
 
     #[test]
     fn verified_players_are_tinted_apart_from_registered_ones() {
         assert_ne!(tint(tag(true, &[])), tint(tag(false, &[])));
+    }
+
+    #[test]
+    fn another_clients_players_wear_its_icon_untinted() {
+        let ejk = Tag {
+            client: crate::chat::client_icons::find("ejk"),
+            ..tag(true, &[])
+        };
+        let mut list = DrawList::new(16);
+        push(&mut list, Rect::new(0.0, 0.0, 200.0, 30.0), 20.0, ejk);
+        let Some(DrawCommand::TexturedQuad { texture, color, .. }) = list.commands().first() else {
+            panic!("a textured quad");
+        };
+        assert_eq!(*texture, crate::ui_renderer::EJK_TEXTURE);
+        assert_eq!(*color, Color::new(1.0, 1.0, 1.0, 1.0));
     }
 
     #[test]

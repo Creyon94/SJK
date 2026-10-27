@@ -294,6 +294,9 @@ pub(crate) struct HubInfo {
     pub(crate) vitals: Vitals,
     /// Whether they see the model the local player wears (`PROTOCOL.md`, "Models").
     pub(crate) model: ModelSight,
+    /// The client they claimed from, when it has its own icon in place of SJK's emblem
+    /// (`chat::client_icons`).
+    pub(crate) client: Option<&'static crate::chat::client_icons::ClientIcon>,
 }
 
 /// Whether a player sees the model the local player wears: their game has it, or
@@ -1436,7 +1439,11 @@ impl State {
                 rect: Rect::new(left, y - row(6.0), inner, unit.max(1.0)),
                 color: white(0.12),
             });
-            let tint = if hub.verified {
+            let texture = crate::chat::client_icons::texture(hub.client);
+            // Another client's icon keeps its own colours.
+            let tint = if texture != crate::ui_renderer::LOGO_TEXTURE {
+                white(1.0)
+            } else if hub.verified {
                 Color::new(1.0, 0.82, 0.25, a)
             } else {
                 white(0.95)
@@ -1444,7 +1451,7 @@ impl State {
             let side = row(22.0);
             let _ = self.list.push(DrawCommand::TexturedQuad {
                 rect: Rect::new(left, y, side, side),
-                texture: crate::ui_renderer::LOGO_TEXTURE,
+                texture,
                 color: tint,
             });
             let hub_x = left + side + 8.0 * unit;
@@ -2080,6 +2087,7 @@ mod tests {
                 profile: Some(ProfileFacts::of(&full_profile())),
                 vitals: Vitals::SeesAll,
                 model: ModelSight::Missing,
+                client: None,
             }),
             shader,
         )

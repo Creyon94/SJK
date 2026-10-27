@@ -1326,6 +1326,7 @@ fn identity_page(shots: &Snapshot, art: ArtSet) {
                 avatar: String::new(),
                 look: None,
                 whisper_key: None,
+                client: String::new(),
             },
             Presence {
                 slot: 7,
@@ -1339,6 +1340,7 @@ fn identity_page(shots: &Snapshot, art: ArtSet) {
                 avatar: String::new(),
                 look: None,
                 whisper_key: None,
+                client: String::new(),
             },
         ],
         profiles: std::collections::HashMap::new(),
@@ -1660,6 +1662,7 @@ fn player_card_profile(shots: &mut Snapshot) {
                 profile: Some(ProfileFacts::of(&profile)),
                 vitals: crate::hud::player_card::Vitals::SeesAll,
                 model: crate::hud::player_card::ModelSight::Missing,
+                client: None,
             }),
             shader,
         );
