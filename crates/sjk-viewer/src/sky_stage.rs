@@ -17,6 +17,8 @@ use std::ops::Range;
 use std::sync::Arc;
 use wgpu::util::DeviceExt;
 
+#[path = "sky_clouds.rs"]
+mod clouds;
 #[path = "day_sky.rs"]
 mod day;
 #[cfg(test)]
@@ -123,7 +125,6 @@ impl Runtime {
             else {
                 continue;
             };
-            let sky = definition.sky.as_ref().expect("filtered sky definition");
             let sky_draws: Vec<SkyDraw> = draws
                 .iter()
                 .filter(|draw| draw.world_surface && draw.material == material_index)
@@ -136,10 +137,7 @@ impl Runtime {
                 sun = definition.sun;
             }
             let (bind_group, vertex_buffer, vertex_count, missing_faces) =
-                sky.outer_box.as_deref().map_or_else(
-                    || Ok((None, None, 0, Vec::new())),
-                    |prefix| load_box(device, queue, &texture_layout, vfs, shaders, prefix),
-                )?;
+                load_sky(device, queue, &texture_layout, vfs, shaders, definition)?;
             sky_materials.push(SkyMaterial {
                 name: material.shader.clone(),
                 remapped: None,
@@ -316,18 +314,32 @@ impl Runtime {
     }
 }
 
-fn load_box(
+/// A sky shader's outer box and cloud stages; nothing to draw without either.
+fn load_sky(
     device: &wgpu::Device,
     queue: &crate::frame_queue::FrameQueue,
     layout: &wgpu::BindGroupLayout,
     vfs: &VirtualFileSystem,
     shaders: &ShaderCatalog,
-    prefix: &str,
+    definition: &sjk_shader::ShaderDefinition,
 ) -> Result<LoadedBox, Box<dyn Error>> {
+    let prefix = definition
+        .sky
+        .as_ref()
+        .and_then(|sky| sky.outer_box.as_deref());
+    let (clouds, cloud_images) = clouds::compile(definition, vfs, shaders)?;
+    let cloudy = clouds::any(&clouds);
+    if prefix.is_none() && !cloudy {
+        return Ok((None, None, 0, Vec::new()));
+    }
     let mut images = Vec::with_capacity(6);
     let mut present = [false; 6];
     let mut missing = Vec::new();
     for (axis, suffix) in FACE_SUFFIXES.iter().enumerate() {
+        let Some(prefix) = prefix else {
+            images.push(missing_face());
+            continue;
+        };
         let name = format!("{prefix}_{suffix}");
         if let Some(path) = shaders.resolve_stage_image(vfs, &name)? {
             if let Some(image) =
@@ -363,6 +375,32 @@ fn load_box(
         min_filter: wgpu::FilterMode::Linear,
         ..Default::default()
     });
+    // A stage without `nopicmip` takes the texture detail, as the world's do.
+    let cloud_picmip = if definition.stages.iter().all(|stage| stage.no_picmip) {
+        0
+    } else {
+        super::world_materials::filtering::mips::picmip()
+    };
+    let cloud_texture = super::world_materials::upload_array(
+        device,
+        queue,
+        "SJK Q3 sky clouds",
+        &cloud_images,
+        cloud_picmip,
+    )?;
+    let cloud_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+        label: Some("SJK Q3 sky cloud sampler"),
+        address_mode_u: wgpu::AddressMode::Repeat,
+        address_mode_v: wgpu::AddressMode::Repeat,
+        mag_filter: wgpu::FilterMode::Linear,
+        min_filter: wgpu::FilterMode::Linear,
+        ..Default::default()
+    });
+    let cloud_stages = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        label: Some("SJK Q3 sky cloud stages"),
+        contents: bytemuck::bytes_of(&clouds),
+        usage: wgpu::BufferUsages::UNIFORM,
+    });
     let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
         label: Some("SJK Q3 sky-box bind group"),
         layout,
@@ -375,9 +413,22 @@ fn load_box(
                 binding: 1,
                 resource: wgpu::BindingResource::Sampler(&sampler),
             },
+            wgpu::BindGroupEntry {
+                binding: 2,
+                resource: wgpu::BindingResource::TextureView(&cloud_texture),
+            },
+            wgpu::BindGroupEntry {
+                binding: 3,
+                resource: wgpu::BindingResource::Sampler(&cloud_sampler),
+            },
+            wgpu::BindGroupEntry {
+                binding: 4,
+                resource: cloud_stages.as_entire_binding(),
+            },
         ],
     });
-    let vertices = box_vertices(present);
+    // Clouds cover every face but the bottom, box or not.
+    let vertices = box_vertices(if cloudy { [true; 6] } else { present });
     // Every face missing: no box to draw, and wgpu panics on a slice of an empty buffer.
     if vertices.is_empty() {
         return Ok((None, None, 0, missing));

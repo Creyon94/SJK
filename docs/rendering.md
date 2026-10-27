@@ -4146,6 +4146,26 @@ programs agree and, with the client's projection in f32 at the jofmemorial note,
 pushed sky and clouds stay behind the ceiling over 2000 camera positions (unpushed, the
 sky came in front at 17 of them).
 
+### Sky shader stages (cloud layers)
+
+A sky shader's own stages are its cloud layer: rd-vanilla's `RB_StageIteratorSky` draws
+the outer box, then `R_BuildCloudData` draws the stages over it with the generic stage
+iterator, on the box's faces (the bottom one left out), with texture coordinates where the
+view ray meets a dome `cloudheight` above a world of radius 4096 (`R_InitSkyTexCoords`,
+the arc cosines of the hit point's unit x and y). Until 27/10/2026 SJK drew only the box,
+so a scrolling sky such as `baronshed_share`'s `textures/DF2_baronshed/beach_sky`
+(`tcMod scroll` clouds under a mask) stood still. The sky program now composites the
+stages per pixel in `with_clouds` ([sky_stage.wgsl](../crates/sjk-viewer/src/sky_stage.wgsl)),
+in the box pass and on the sky faces: the dome coordinates from the view direction, each
+stage's tcMods (scroll, scale, rotate, turb, stretch, transform, as the world's stages
+apply them), `rgbGen`/`alphaGen` const and wave, the alpha test, and its `blendFunc`
+computed in the shader over the colour so far; the first stage without a blendFunc covers
+the box, as in retail. [sky_clouds.rs](../crates/sjk-viewer/src/sky_clouds.rs) packs up to
+eight stages and one image each (an `animMap` shows its first frame; a stage whose image
+is missing is left out). Retail interpolates the dome over a coarse grid per face; the
+per-pixel form is the exact curve. The ignored test `baronshed_clouds_move` renders the
+beach sky twice, four seconds apart, from open ground it finds under that sky.
+
 ## UI ownership
 
 `sjk-ui` provides renderer-independent retained widgets. The viewer supplies GPU

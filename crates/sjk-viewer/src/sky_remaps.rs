@@ -21,23 +21,17 @@ impl Runtime {
             if material.remapped.as_deref() == Some(target) {
                 continue;
             }
-            let Some(sky) = shaders.get(target).and_then(|d| d.sky.as_ref()) else {
+            let Some(definition) = shaders.get(target).filter(|d| d.sky.is_some()) else {
                 continue;
             };
-            let (bind_group, vertex_buffer, vertex_count, missing_faces) =
-                sky.outer_box.as_deref().map_or_else(
-                    || Ok((None, None, 0, Vec::new())),
-                    |prefix| {
-                        load_box(
-                            device,
-                            queue,
-                            &gpu::texture_layout(device),
-                            vfs,
-                            shaders,
-                            prefix,
-                        )
-                    },
-                )?;
+            let (bind_group, vertex_buffer, vertex_count, missing_faces) = load_sky(
+                device,
+                queue,
+                &gpu::texture_layout(device),
+                vfs,
+                shaders,
+                definition,
+            )?;
             material.bind_group = bind_group;
             material.vertex_buffer = vertex_buffer;
             material.vertex_count = vertex_count;

@@ -302,7 +302,7 @@ fn generator_code(generator: Option<&str>, constant: bool) -> f32 {
     }
 }
 
-fn alpha_function_code(function: Option<&str>) -> f32 {
+pub(crate) fn alpha_function_code(function: Option<&str>) -> f32 {
     match function.unwrap_or("").to_ascii_lowercase().as_str() {
         "gt0" => 1.0,
         "lt128" => 2.0,
@@ -320,7 +320,7 @@ fn wave_parameters(wave: Option<&WaveForm>) -> [f32; 4] {
     })
 }
 
-fn wave_code(function: &str) -> f32 {
+pub(crate) fn wave_code(function: &str) -> f32 {
     match function.to_ascii_lowercase().as_str() {
         "square" => 1.0,
         "triangle" => 2.0,
@@ -332,7 +332,7 @@ fn wave_code(function: &str) -> f32 {
     }
 }
 
-fn compile_tcmod(modification: &TextureModification) -> ([f32; 4], [f32; 4]) {
+pub(crate) fn compile_tcmod(modification: &TextureModification) -> ([f32; 4], [f32; 4]) {
     let argument = |index| modification.arguments.get(index).copied().unwrap_or(0.0);
     match modification.kind.as_str() {
         "scroll" => ([1.0, argument(0), argument(1), 0.0], [0.0; 4]),
@@ -425,7 +425,7 @@ pub(crate) fn hardware_pipeline_key(stage: &CompiledStage, cull: ShaderCull) -> 
     pipeline_key(&primary, cull)
 }
 
-fn blend_factors(blend: &StageBlend) -> (wgpu::BlendFactor, wgpu::BlendFactor) {
+pub(crate) fn blend_factors(blend: &StageBlend) -> (wgpu::BlendFactor, wgpu::BlendFactor) {
     match blend {
         StageBlend::Replace => (wgpu::BlendFactor::One, wgpu::BlendFactor::Zero),
         StageBlend::Add => (wgpu::BlendFactor::One, wgpu::BlendFactor::One),
