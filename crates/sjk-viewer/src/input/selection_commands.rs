@@ -61,6 +61,10 @@ pub(super) fn register(shell: &mut sjk_shell::Shell) -> Result<(), sjk_shell::Co
             crate::monitor::THROW_COMMAND,
             "Throw a monitor the way you look (the Monitor toy on); it sends players who have it on flying",
         ),
+        (
+            crate::box_hunt::COMMAND,
+            "Toy: Box hunt on or off (on, you may become the mark every few minutes, and killing the mark wins you a free mystery box roll; only players with it on take part)",
+        ),
     ] {
         shell.commands.register(name, help, |_| {
             Err(sjk_shell::CommandError::Handler(

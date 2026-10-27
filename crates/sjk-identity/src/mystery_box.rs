@@ -106,6 +106,68 @@ pub fn parse_event(event: &str) -> Option<(i64, &str)> {
     Some((id.parse().ok()?, outcome)).filter(|(_, outcome)| !outcome.is_empty())
 }
 
+/// The look toy of the box hunt (`POST /v1/box-hunt`): a player wearing it takes part.
+pub const HUNT_TOY: &str = "box_hunt";
+
+/// The box hunt's mark as the hub tells hunters.
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq)]
+pub struct HuntMark {
+    /// The mark's slot.
+    pub slot: u8,
+    /// The mark's worn name.
+    pub name: String,
+    /// When the hub picks another, Unix seconds.
+    pub until: i64,
+}
+
+/// `POST /v1/box-hunt`: the hunt on a server as the player reads it.
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq)]
+pub struct HuntState {
+    /// The player wears the hunt's toy there: only then is the mark told.
+    #[serde(default)]
+    pub hunting: bool,
+    /// The mark, told while the player hunts and a mark is picked.
+    #[serde(default)]
+    pub mark: Option<HuntMark>,
+    /// Free box openings won and not spent.
+    #[serde(default)]
+    pub free: u64,
+    /// How long a mark lasts, in seconds.
+    #[serde(default)]
+    pub every: u64,
+}
+
+/// What a feed event of the hunt says.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum HuntEvent {
+    /// The player on this slot is the new mark (`mark_<slot>`).
+    Mark(u8),
+    /// The player on `slot` killed the mark, and whether it won them a free opening
+    /// (`hunted_<slot>_<won>`).
+    Hunted {
+        /// The hunter's slot.
+        slot: u8,
+        /// Whether it won them a free opening.
+        won: bool,
+    },
+}
+
+/// Read a feed event of [`HUNT_TOY`].
+pub fn parse_hunt_event(event: &str) -> Option<HuntEvent> {
+    if let Some(slot) = event.strip_prefix("mark_") {
+        return Some(HuntEvent::Mark(slot.parse().ok()?));
+    }
+    let (slot, won) = event.strip_prefix("hunted_")?.split_once('_')?;
+    Some(HuntEvent::Hunted {
+        slot: slot.parse().ok()?,
+        won: match won {
+            "1" => true,
+            "0" => false,
+            _ => return None,
+        },
+    })
+}
+
 /// Why an opening, a placing or a removal failed, in the player's words.
 pub fn refusal(error: &HubError) -> String {
     let words = match error {
@@ -132,6 +194,31 @@ pub fn refusal(error: &HubError) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn hunt_events_read_back() {
+        assert_eq!(parse_hunt_event("mark_7"), Some(HuntEvent::Mark(7)));
+        assert_eq!(
+            parse_hunt_event("hunted_3_1"),
+            Some(HuntEvent::Hunted { slot: 3, won: true })
+        );
+        assert_eq!(
+            parse_hunt_event("hunted_3_0"),
+            Some(HuntEvent::Hunted {
+                slot: 3,
+                won: false
+            })
+        );
+        for bad in ["mark_", "mark_x", "hunted_3", "hunted_3_2", "open_1_empty"] {
+            assert_eq!(parse_hunt_event(bad), None, "{bad}");
+        }
+        let state: HuntState = serde_json::from_str(
+            r#"{"hunting":true,"mark":{"slot":4,"name":"Kyle","until":99},"free":1,"every":180}"#,
+        )
+        .unwrap();
+        assert_eq!(state.mark.map(|mark| mark.slot), Some(4));
+        assert_eq!(state.free, 1);
+    }
 
     #[test]
     fn the_list_reads_as_the_hub_sends_it() {

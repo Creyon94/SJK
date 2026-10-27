@@ -41,8 +41,16 @@ players. The hub side is deployed (27/10/2026). An opening rolls for 5.5 seconds
 box tune of SJK's own (`scripts/mystery_box_assets.py`), retail weapons and crystals
 cycling over the box and slowing to a stop on what came out, which floats there until the
 opener takes it with `+use` or for 10 seconds (`personal/mystery-box-roll`). Verified:
-unit tests on both sides and the workspace checks. Not verified: in a game; the box is a
-retail crate and outcomes pay credits only for now.
+unit tests on both sides and the workspace checks. Not verified: in a game; outcomes pay
+credits only for now.
+
+27/10/2026 later, `personal/box-hunt`: the box is SJK's own chest
+(`scripts/mystery_box_model.py`: wood and iron, glowing question marks, a lid swinging
+open as it rolls), words stand over every box (price, roll, what came out), and the Box
+hunt toy (`toy_boxhunt`, look toy `box_hunt`) makes a random player with it on the mark
+every 3 minutes; another with it on who kills the mark wins a free roll (the mark's client
+tells the hub who killed it). Needs the hub's `box-hunt` branch (not deployed). Verified:
+unit tests on both sides. Not verified: in a game.
 
 ## Sun blade drawn for less
 

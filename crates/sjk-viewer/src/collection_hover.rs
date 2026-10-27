@@ -139,6 +139,21 @@ impl Panel {
                 ],
             });
         }
+        if token == BOX_HUNT_TOKEN {
+            return Some(Card {
+                title: "Box hunt".to_owned(),
+                colour: color::GOLD_BRIGHT,
+                lines: vec![
+                    Line::how(
+                        "Every few minutes one player with Box hunt on becomes the mark. Kill \
+                         the mark to win a free mystery box roll. Only players with it on see \
+                         the mark or can be it.",
+                    ),
+                    Line::status(crate::editions::name(crate::editions::ALPHA)),
+                    Line::held("Yours"),
+                ],
+            });
+        }
         if token == MONITOR_TOKEN {
             return Some(Card {
                 title: "Monitor".to_owned(),

@@ -8,6 +8,9 @@
 //! players' openings come through the hub's toy event. No game server knows of them: a
 //! box is drawn by SJK clients only and has no collision.
 
+mod hunt;
+pub(crate) mod label;
+
 use crate::GpuState;
 use crate::actor_instance::ActorInstance;
 use glam::{Quat, Vec3};
@@ -16,8 +19,17 @@ use sjk_identity::service::BoxDone;
 use sjk_protocol::{PlayerState, UserCommand};
 use std::time::{Duration, Instant};
 
-/// The box's model: a retail crate until the box gets its own.
-pub(crate) const MODEL: &str = "models/map_objects/imperial/crate_banded.md3";
+/// The box's chest and its lid (bundled, `scripts/mystery_box_model.py`).
+pub(crate) const MODEL: &str = "models/sjk/mystery_box.md3";
+const LID_MODEL: &str = "models/sjk/mystery_box_lid.md3";
+/// The chest's height and depth (across its front), and how far the lid reaches past it.
+const HEIGHT: f32 = 24.0;
+const DEPTH: f32 = 26.0;
+const LID_OVERHANG: f32 = 1.0;
+/// How far the lid swings open, in degrees, and how long it takes to open and to close.
+const LID_OPEN: f32 = 75.0;
+const LID_OPENING: Duration = Duration::from_millis(450);
+const LID_CLOSING: Duration = Duration::from_millis(700);
 /// Played when a box opens, for the opener and everyone near.
 const OPEN: &str = "sound/effects/crate_slide.mp3";
 /// The roll's music box tune, its last chord at [`ROLL`] (bundled).
@@ -45,7 +57,7 @@ const HOLD: Duration = Duration::from_secs(10);
 /// How long the roll's first thing takes to rise out of the box.
 const RISE: Duration = Duration::from_millis(700);
 /// How high over the box's base the roll floats (the crate is 33 units tall).
-const FLOAT: f32 = 46.0;
+const FLOAT: f32 = 44.0;
 /// How many times the roll changes what it shows; it slows to a stop on the last.
 const SWAPS: f32 = 30.0;
 /// How long an opening waits for the hub before the player may ask again.
@@ -105,9 +117,11 @@ fn prize(outcome: &str, pays: bool) -> Item {
     }
 }
 
-/// Every model the boxes draw: the box, then [`REEL`] (which holds the prizes).
+/// Every model the boxes draw: the box, its lid, then [`REEL`] (which holds the prizes).
 fn models() -> impl Iterator<Item = &'static str> {
-    std::iter::once(MODEL).chain(REEL.iter().map(|item| item.model))
+    [MODEL, LID_MODEL]
+        .into_iter()
+        .chain(REEL.iter().map(|item| item.model))
 }
 
 /// The creator's console commands, with their help.
@@ -138,10 +152,22 @@ macro_rules! bundled {
     };
 }
 
-/// The bundled files at their game paths (made by `scripts/mystery_box_assets.py`).
-const FILES: [(&str, &[u8]); 2] = [
+/// The bundled files at their game paths (made by `scripts/mystery_box_assets.py` and
+/// `scripts/mystery_box_model.py`; the shader by hand).
+const FILES: [(&str, &[u8]); 7] = [
     (ROLL_SOUND, bundled!("roll.wav")),
     (TAKE_SOUND, bundled!("take.wav")),
+    (MODEL, bundled!("mystery_box.md3")),
+    (LID_MODEL, bundled!("mystery_box_lid.md3")),
+    ("models/sjk/mystery_box.jpg", bundled!("mystery_box.jpg")),
+    (
+        "models/sjk/mystery_box_glow.jpg",
+        bundled!("mystery_box_glow.jpg"),
+    ),
+    (
+        "shaders/sjk_mystery_box.shader",
+        bundled!("mystery_box.shader"),
+    ),
 ];
 
 /// Mount the bundled files.
@@ -195,6 +221,42 @@ struct Here {
     /// Facing, in degrees.
     yaw: f32,
     opening: Option<Opening>,
+    lid: Lid,
+}
+
+/// A box's lid: open or not, and since when (it swings between the two).
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+struct Lid {
+    open: bool,
+    since: Option<Instant>,
+}
+
+impl Lid {
+    fn set(&mut self, open: bool, now: Instant) {
+        if self.open != open {
+            *self = Self {
+                open,
+                since: Some(now),
+            };
+        }
+    }
+
+    /// How far open it is at `now`, in degrees.
+    fn angle(&self, now: Instant) -> f32 {
+        let Some(since) = self.since else {
+            return 0.0;
+        };
+        let elapsed = now.saturating_duration_since(since).as_secs_f32();
+        let ease = |t: f32| {
+            let t = t.clamp(0.0, 1.0);
+            t * t * (3.0 - 2.0 * t)
+        };
+        if self.open {
+            LID_OPEN * ease(elapsed / LID_OPENING.as_secs_f32())
+        } else {
+            LID_OPEN * (1.0 - ease(elapsed / LID_CLOSING.as_secs_f32()))
+        }
+    }
 }
 
 /// A sound to play once.
@@ -261,6 +323,12 @@ pub(crate) struct MysteryBoxes {
     pending_place: Option<PendingPlace>,
     cues: Vec<Cue>,
     sounds_registered: Option<u64>,
+    /// What an outcome pays, by the hub's list (for other players' openings).
+    outcomes: Vec<(String, u64)>,
+    /// Free openings the player won in the box hunt and has not spent.
+    free: u64,
+    hunt: hunt::Hunt,
+    labels: label::Labels,
 }
 
 impl MysteryBoxes {
@@ -282,6 +350,19 @@ impl MysteryBoxes {
             .map(|(_, model)| model)
     }
 
+    /// The words over the boxes this frame (`label`).
+    pub(crate) fn labels(&self) -> &sjk_ui::DrawList {
+        &self.labels.list
+    }
+
+    /// What `outcome` pays, by the hub's list.
+    fn pays(&self, outcome: &str) -> Option<u64> {
+        self.outcomes
+            .iter()
+            .find(|(id, _)| id == outcome)
+            .map(|(_, credits)| *credits)
+    }
+
     fn mesh_of(&self, model: &str) -> Option<usize> {
         let index = models().position(|known| known == model)?;
         self.meshes.get(index).copied().flatten()
@@ -299,6 +380,11 @@ impl MysteryBoxes {
     fn take(&mut self, boxes: &wire::Boxes, map: &str, checksum: i32, server: Option<&str>) {
         let mut old = std::mem::take(&mut self.here);
         self.price = boxes.price;
+        self.outcomes = boxes
+            .outcomes
+            .iter()
+            .map(|outcome| (outcome.id.clone(), outcome.credits))
+            .collect();
         self.here = boxes
             .boxes
             .iter()
@@ -311,6 +397,11 @@ impl MysteryBoxes {
                     .iter_mut()
                     .find(|here| here.id == placed.id)
                     .and_then(|here| here.opening.take()),
+                lid: old
+                    .iter()
+                    .find(|here| here.id == placed.id)
+                    .map(|here| here.lid)
+                    .unwrap_or_default(),
             })
             .collect();
         if self.here.is_empty() {
@@ -333,6 +424,7 @@ impl MysteryBoxes {
             mine,
             revealed: false,
         });
+        here.lid.set(true, now);
         let origin = here.origin.to_array();
         self.cues.push(Cue { path: OPEN, origin });
         self.cues.push(Cue {
@@ -368,6 +460,9 @@ impl MysteryBoxes {
                     });
                 }
             }
+            if elapsed >= ROLL + HOLD {
+                here.lid.set(false, now);
+            }
             if elapsed >= ROLL + HOLD
                 && let Some(opening) = here.opening.take()
                 && let Some(prize) = opening.mine
@@ -393,6 +488,7 @@ impl MysteryBoxes {
             return None;
         }
         let opening = here.opening.take()?;
+        here.lid.set(false, Instant::now());
         self.cues.push(Cue {
             path: TAKE_SOUND,
             origin: here.origin.to_array(),
@@ -425,6 +521,15 @@ fn pick_box<'a>(from: Vec3, yaw: f32, boxes: impl IntoIterator<Item = &'a Here>)
 
 /// How an opening reads for the opener.
 fn result_text(outcome: &str, price: u64, won: u64) -> String {
+    // A free roll won in the box hunt: what it paid alone.
+    if price == 0 {
+        return match outcome {
+            "jackpot" => format!("JACKPOT! +{won} credits"),
+            "double" => format!("Double! +{won} credits"),
+            _ if won > 0 => format!("+{won} credits"),
+            _ => "The box was empty: your free roll is spent".to_owned(),
+        };
+    }
     match outcome {
         "empty" => format!("The box was empty: -{price} credits"),
         "refund" => format!("Your {price} credits back"),
@@ -443,7 +548,7 @@ fn float(elapsed: Duration, yaw: f32) -> (f32, f32) {
     let rise = (seconds / RISE.as_secs_f32()).min(1.0);
     let rise = 1.0 - (1.0 - rise) * (1.0 - rise);
     let bob = (seconds * 2.4).sin() * 1.5;
-    let height = 18.0 + (FLOAT - 18.0) * rise + bob;
+    let height = 12.0 + (FLOAT - 12.0) * rise + bob;
     let held = seconds - ROLL.as_secs_f32();
     let turn = if held > 0.0 { held * 60.0 } else { 0.0 };
     (height, yaw + 90.0 + turn)
@@ -492,6 +597,9 @@ impl GpuState {
             return;
         };
         let server = session.server().to_string();
+        if let Ok(own) = u8::try_from(session.game_state().client_num) {
+            self.update_box_hunt(events, &server, own, now);
+        }
         // The map's checksum is read when a box may stand on it (`map_edits`).
         let map_name = crate::remap_blocked_maps::map_name(&self.world_load_map);
         let (revision, on_map) = crate::player_identity::with_snapshot(|snapshot| {
@@ -583,7 +691,9 @@ impl GpuState {
                     .iter()
                     .any(|here| here.id == id && here.opening.is_none())
             });
-            if idle {
+            if idle && self.mystery_boxes.free > 0 {
+                self.mystery_box_centre("Mystery box: press Use for your free roll".to_owned());
+            } else if idle {
                 let price = self.mystery_boxes.price;
                 self.mystery_box_centre(format!(
                     "Mystery box: press Use to open it ({price} credits)"
@@ -620,7 +730,9 @@ impl GpuState {
             snapshot.me.as_ref().map(|me| me.credits)
         })
         .flatten();
-        if credits.is_some_and(|credits| credits < self.mystery_boxes.price) {
+        if self.mystery_boxes.free == 0
+            && credits.is_some_and(|credits| credits < self.mystery_boxes.price)
+        {
             self.mystery_box_centre(format!(
                 "Not enough credits: the box costs {}",
                 self.mystery_boxes.price
@@ -651,6 +763,9 @@ impl GpuState {
         let asked = self.mystery_boxes.asked.take();
         match outcome {
             Ok(BoxDone::Opened(opened)) => {
+                if opened.price == 0 {
+                    self.mystery_boxes.free = self.mystery_boxes.free.saturating_sub(1);
+                }
                 let mine = Prize {
                     price: opened.price,
                     won: opened.won,
@@ -813,6 +928,7 @@ Press Use to take it"
         let now = Instant::now();
         let boxes = &self.mystery_boxes;
         let box_mesh = boxes.mesh_of(MODEL);
+        let lid_mesh = boxes.mesh_of(LID_MODEL);
         for here in &boxes.here {
             let elapsed = here
                 .opening
@@ -831,6 +947,20 @@ Press Use to take it"
                     sjk_client::legacy_angles_to_quaternion([0.0, here.yaw + shake, 0.0]),
                     [1.0; 3],
                 ));
+                // The lid on its hinge, the chest's back top edge, pitched open.
+                if let Some(lid) = lid_mesh {
+                    let turn = Quat::from_rotation_z((here.yaw + shake).to_radians());
+                    let hinge = Vec3::new(-(DEPTH / 2.0 + LID_OVERHANG), 0.0, HEIGHT);
+                    self.object_groups[lid].push(ActorInstance::new(
+                        (here.origin + turn * hinge).to_array(),
+                        sjk_client::legacy_angles_to_quaternion([
+                            -here.lid.angle(now),
+                            here.yaw + shake,
+                            0.0,
+                        ]),
+                        [1.0; 3],
+                    ));
+                }
             }
             let (Some(opening), Some(elapsed)) = (&here.opening, elapsed) else {
                 continue;
@@ -891,6 +1021,7 @@ mod tests {
             origin: Vec3::from_array(origin),
             yaw: 0.0,
             opening: None,
+            lid: Lid::default(),
         }
     }
 
@@ -954,10 +1085,10 @@ mod tests {
         let ids: Vec<i64> = state.here.iter().map(|here| here.id).collect();
         assert_eq!(ids, [1, 3]);
         assert_eq!(state.price, 100);
-        // The box and everything the roll shows, each once.
+        // The box, its lid and everything the roll shows, each once.
         let wanted: Vec<&str> = state.wanted_models().collect();
-        assert_eq!(wanted.first(), Some(&MODEL));
-        assert_eq!(wanted.len(), 1 + REEL.len());
+        assert_eq!(wanted[..2], [MODEL, LID_MODEL]);
+        assert_eq!(wanted.len(), 2 + REEL.len());
         state.meshes = vec![Some(0); wanted.len()];
         assert_eq!(state.wanted_models().count(), 0);
     }
@@ -997,6 +1128,9 @@ mod tests {
         state.opened(7, "double", Some(prize_of(200)), 1, now);
         let paths: Vec<&str> = state.cues.drain(..).map(|cue| cue.path).collect();
         assert_eq!(paths, [OPEN, ROLL_SOUND]);
+        // The lid swings open, and stays open while it rolls.
+        assert_eq!(state.here[0].lid.angle(now), 0.0);
+        assert_eq!(state.here[0].lid.angle(now + LID_OPENING), LID_OPEN);
         // Not taken while it rolls; the box is busy.
         assert!(state.tick(now + Duration::from_secs(2)).is_empty());
         assert_eq!(state.take_prize(7), None);
@@ -1016,6 +1150,7 @@ mod tests {
         assert_eq!(taken.prize.won, 200);
         assert_eq!(state.cues[0].path, TAKE_SOUND);
         assert!(state.here[0].opening.is_none());
+        assert!(!state.here[0].lid.open);
         assert!(state.tick(now + ROLL + HOLD).is_empty());
     }
 
@@ -1051,6 +1186,11 @@ mod tests {
             "The box was empty: -100 credits"
         );
         assert_eq!(result_text("jackpot", 100, 500), "JACKPOT! +500 credits");
+        assert_eq!(result_text("refund", 0, 100), "+100 credits");
+        assert_eq!(
+            result_text("empty", 0, 0),
+            "The box was empty: your free roll is spent"
+        );
         assert_eq!(result_text("newer_thing", 100, 300), "+300 credits");
         assert_eq!(
             result_text("newer_thing", 100, 0),

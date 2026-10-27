@@ -503,6 +503,8 @@ pub(crate) struct Toys {
     pub(crate) boombox: bool,
     /// The Monitor toy is on.
     pub(crate) monitor: bool,
+    /// Box hunt is on.
+    pub(crate) box_hunt: bool,
 }
 
 /// Whether a choice in `state` is in effect in `console` now; `toys` says which toys
@@ -523,6 +525,7 @@ fn in_effect(console: &crate::console::ViewerConsole, state: State, toys: Toys) 
         State::Drone => toys.drone,
         State::Boombox => toys.boombox,
         State::Monitor => toys.monitor,
+        State::BoxHunt => toys.box_hunt,
         State::Equals(name, value) => integer(name) == Some(value),
         State::On(name) => integer(name).is_some_and(|value| value != 0),
         State::Near(name, value) => console
@@ -688,6 +691,7 @@ impl crate::GpuState {
             drone: self.drone.on(),
             boombox: self.boombox.on(),
             monitor: self.monitor.on(),
+            box_hunt: self.box_hunt.on(),
         };
         let pages = shown_pages(console, force.as_ref(), toys);
         let last = shown_index(&pages, self.quick_wheel.last_page()).unwrap_or(0);

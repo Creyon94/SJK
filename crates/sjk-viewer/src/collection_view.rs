@@ -143,6 +143,7 @@ pub(crate) fn row_labels(
         drone: false,
         boombox: false,
         monitor: false,
+        box_hunt: false,
         name: "",
         stock: color::HOLO,
         grid: false,
@@ -267,6 +268,7 @@ impl Panel {
         self.drone_on = inputs.drone;
         self.boombox_on = inputs.boombox;
         self.monitor_on = inputs.monitor;
+        self.box_hunt_on = inputs.box_hunt;
         self.share_on = inputs.share;
         let seconds = self.epoch.elapsed().as_secs_f32();
         #[cfg(test)]
@@ -506,6 +508,8 @@ impl Panel {
                     (6, _, _) => "play",
                     (7, _, _) if inputs.monitor => "turn off",
                     (7, _, _) => "turn on",
+                    (8, _, _) if inputs.box_hunt => "turn off",
+                    (8, _, _) => "turn on",
                     (_, true, _) => "put out",
                     _ => "light",
                 },

@@ -256,6 +256,9 @@ pub struct Snapshot {
     /// The answer to the last mystery box request, by serial, or why it was refused
     /// (in the player's words).
     pub mystery_box: Option<(u64, Result<BoxDone, String>)>,
+    /// The box hunt as last read, by serial, for the server named
+    /// ([`Service::read_box_hunt`]).
+    pub box_hunt: Option<(u64, String, crate::mystery_box::HuntState)>,
     /// Counts crash reports the hub took ([`Service::send_crashes`]).
     pub crashes_sent: u64,
     /// What the last round of crash reports did, for the log, once a round sent,
@@ -594,6 +597,7 @@ impl Snapshot {
             mystery_boxes: None,
             mystery_boxes_revision: 0,
             mystery_box: None,
+            box_hunt: None,
             crashes_sent: 0,
             crash_note: None,
             holocrons: None,
@@ -708,6 +712,13 @@ enum Command {
     PlaceMysteryBox(crate::mystery_box::MysteryBox),
     /// SJK's creator: remove mystery box `id`.
     RemoveMysteryBox(i64),
+    /// Read the box hunt on `server`.
+    BoxHunt(String),
+    /// The player, the box hunt's mark on `server`, was killed by slot `by`.
+    BoxHuntKilled {
+        server: String,
+        by: u8,
+    },
     /// Staff: publish a map's edits.
     PublishMapEdits {
         map: String,
@@ -861,6 +872,7 @@ struct Worker {
     /// When the hub's mystery boxes are next read, and the last request's serial.
     due_mystery_boxes: Instant,
     mystery_box_serial: u64,
+    box_hunt_serial: u64,
     /// The folder crash reports wait in; without one none is sent.
     crash_dir: Option<PathBuf>,
     /// When the crash folder is next looked at.
@@ -1122,6 +1134,7 @@ impl Worker {
             map_edits_serial: 0,
             due_mystery_boxes: now,
             mystery_box_serial: 0,
+            box_hunt_serial: 0,
             crash_dir: None,
             due_crashes: now,
             due_assets: now,
@@ -1543,6 +1556,8 @@ impl Worker {
                 hub.place_mystery_box(identity, &placed)
                     .map(|id| (BoxDone::Placed(id), None))
             }),
+            Command::BoxHunt(server) => self.box_hunt(&server, None),
+            Command::BoxHuntKilled { server, by } => self.box_hunt(&server, Some(by)),
             Command::RemoveMysteryBox(id) => self.mystery_box(now, |hub, identity| {
                 hub.remove_mystery_box(identity, id)
                     .map(|_| (BoxDone::Removed(id), None))
@@ -2620,6 +2635,25 @@ impl Worker {
         });
     }
 
+    /// Read the box hunt on `server` into [`Snapshot::box_hunt`], first saying the
+    /// player (the mark) was killed by slot `killed_by` when given. A failed read leaves
+    /// the last one.
+    fn box_hunt(&mut self, server: &str, killed_by: Option<u8>) {
+        let (Some(hub), true) = (self.hub.as_mut(), self.registered) else {
+            return;
+        };
+        if let Some(by) = killed_by {
+            let _ = hub.box_hunt_killed(&self.identity, server, by);
+        }
+        let Ok(state) = hub.box_hunt(&self.identity, server) else {
+            return;
+        };
+        self.box_hunt_serial += 1;
+        let serial = self.box_hunt_serial;
+        let server = server.to_owned();
+        self.update(|snapshot| snapshot.box_hunt = Some((serial, server, state)));
+    }
+
     /// Send a map's edits for staff; the folder is read again at once after.
     fn publish_map_edits(&mut self, map: &str, checksum: i32, edits: &Value, now: Instant) {
         self.map_edits_serial += 1;
@@ -3380,6 +3414,17 @@ impl Service {
     /// SJK's creator: remove mystery box `id`.
     pub fn remove_mystery_box(&self, id: i64) {
         let _ = self.commands.send(Command::RemoveMysteryBox(id));
+    }
+
+    /// Read the box hunt on `server`: it arrives in [`Snapshot::box_hunt`].
+    pub fn read_box_hunt(&self, server: String) {
+        let _ = self.commands.send(Command::BoxHunt(server));
+    }
+
+    /// The player, the box hunt's mark on `server`, was killed by the player on slot
+    /// `by`; the hunt is read again after.
+    pub fn box_hunt_killed(&self, server: String, by: u8) {
+        let _ = self.commands.send(Command::BoxHuntKilled { server, by });
     }
 
     /// Staff: publish `edits` for `map` and `checksum`; the answer lands in

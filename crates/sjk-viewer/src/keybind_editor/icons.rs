@@ -48,6 +48,8 @@ const ICONS: &[(&str, &str)] = &[
     // SJK's Monitor, which the client bundles (`crate::monitor`).
     (crate::monitor::COMMAND, crate::monitor::ICON),
     (crate::monitor::CHARGE_COMMAND, crate::monitor::ICON),
+    // SJK's Box hunt, which the client bundles (`crate::box_hunt`).
+    (crate::box_hunt::COMMAND, crate::box_hunt::ICON),
     // WEAPONS
     ("weapon 1", "gfx/hud/w_icon_lightsaber.tga"),
     ("weapmelee", "gfx/hud/w_icon_melee.tga"),
