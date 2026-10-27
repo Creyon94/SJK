@@ -4615,12 +4615,23 @@ frame so that the view stays where it puts it. SJK knows these cases from one ta
 `server_holds_view` in
 [prediction_policy.rs](../crates/sjk-game-jka/src/prediction_policy.rs): a melee grapple
 (`BG_InGrappleMove`'s animations) or throw (`HANDEXTEND_PRETHROWN`, `POSTTHROWN`), a
-saber lock, and on a JA+ server JoF EJK's `CG_JAPlusViewLockedState` (kicked down,
-getting up, kissing, hanging from a ledge) ([held_view.rs](../crates/sjk-viewer/src/held_view.rs)).
-A JA+ emote (`PM_FREEZE`) never holds the view, even one that plays a knockdown's
-animation (`amneo` is `BOTH_FORCE_GETUP_B4`): the base game turns a frozen player's view,
-and with `cg_heldViewLook 0` the mouse stopped turning the camera through `amneo` (vini's
-report #166, 27/10/2026). While the view is held:
+saber lock, and on a JA+ server JoF EJK's `CG_JAPlusViewLockedState` less its
+knockdowns and get-ups (`japlus_view_held`: kissing, the backflip kick's victim, the
+stab, hanging from a ledge) ([held_view.rs](../crates/sjk-viewer/src/held_view.rs)).
+
+- Knockdowns and get-ups are not held: in two demos of the JoF server's knockdowns
+  (27/10/2026, `BOTH_KNOCKDOWN1`, `BOTH_GETUP1`, the get-up rolls, `BOTH_FORCE_GETUP_B1`)
+  `delta_angles` never changed and the view followed the mouse. Counted as held,
+  `cg_heldViewLook 0` locked the camera through them (Kushina's report #169), and the
+  pmove's JA+ freeze held the view through `BOTH_GETUP1` as EternalJK's cgame does, so
+  every snapshot pulled the camera back to the server's lagging view (Rollembones'
+  report #164). The get-up still holds the body.
+- A JA+ emote (`PM_FREEZE`) never holds the view, even one that plays a knockdown's or a
+  kiss's animation (`amneo` is `BOTH_FORCE_GETUP_B4`, `amkiss` the kiss): the base game
+  turns a frozen player's view, and the mouse stopped turning the camera through them
+  (vini's report #166).
+
+While the view is held:
 
 - the mouse turns the view as in the base game while Free look when held
   (`cg_heldViewLook`, Settings > Game options and Advanced > Gameplay) is on, the

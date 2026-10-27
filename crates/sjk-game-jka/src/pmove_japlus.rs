@@ -271,7 +271,6 @@ mod tests {
         for (legs, torso) in [
             ("BOTH_KISSEE", "BOTH_KISSEE"),
             ("BOTH_LEDGE_MERCPULL", "BOTH_LEDGE_MERCPULL"),
-            ("BOTH_STAND1", "BOTH_GETUP1"),
             ("BOTH_STAND1", "BOTH_NEW_STABEE"),
             ("BOTH_JUMP_BACKFLIP_ATCKEE", "BOTH_STAND1"),
             ("BOTH_STAND1", "BOTH_JUMP_BACKFLIP_ATCKEE"),
@@ -288,6 +287,33 @@ mod tests {
                 "{legs}/{torso}"
             );
         }
+    }
+
+    #[test]
+    fn ja_plus_kiss_emote_holds_the_body_but_not_the_view() {
+        // `amkiss`: the kiss's animation with the body frozen by the emote.
+        let state = crate::pmove::MovementState {
+            legs_anim: animation("BOTH_KISSER"),
+            torso_anim: animation("BOTH_KISSER"),
+            movement_type: 6,
+            ..Default::default()
+        };
+        let (japlus_state, japlus) = filtered(state.clone(), ja_plus());
+        assert_eq!(japlus.forward_move, 0);
+        assert_eq!(japlus_state.delta_angles, state.delta_angles);
+    }
+
+    #[test]
+    fn ja_plus_get_up_holds_the_body_but_not_the_view() {
+        // The JoF server turns the view through `BOTH_GETUP1` (hub report #164).
+        let state = crate::pmove::MovementState {
+            legs_anim: animation("BOTH_STAND1"),
+            torso_anim: animation("BOTH_GETUP1"),
+            ..Default::default()
+        };
+        let (japlus_state, japlus) = filtered(state.clone(), ja_plus());
+        assert_eq!(japlus.forward_move, 0);
+        assert_eq!(japlus_state.delta_angles, state.delta_angles);
     }
 
     #[test]

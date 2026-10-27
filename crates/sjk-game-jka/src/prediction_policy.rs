@@ -98,8 +98,8 @@ const GRAPPLE_ANIMS: [&str; 9] = [
 
 /// Whether the server holds the player's view this snapshot: a melee grapple or throw, a
 /// saber lock (`PM_SetPMViewAngle` while `saberLockTime` runs) and, on a JA+ server
-/// (`japlus`, asked only when it matters), [`japlus_view_locked`]'s kisses, kicks,
-/// knockdowns, get-ups and ledges. The server rewrites `delta_angles` every frame then, so
+/// (`japlus`, asked only when it matters), [`japlus_view_held`]'s kisses, kicks and
+/// ledges. The server rewrites `delta_angles` every frame then, so
 /// a view turned by the mouse, or commands whose angles a toy sets, fight it: the camera
 /// shakes or spins (hub reports #139, #140, #146).
 ///
@@ -124,7 +124,22 @@ pub fn server_holds_view(player: &PlayerState, japlus: impl FnOnce() -> bool) ->
     {
         return true;
     }
-    japlus_view_locked(player) && japlus()
+    japlus_view_held(player) && japlus()
+}
+
+/// [`japlus_view_locked`] less the knockdowns and their get-ups, which the JoF server
+/// leaves free: in demos of its knockdowns (`BOTH_KNOCKDOWN1`, `BOTH_GETUP1`, the get-up
+/// rolls, `BOTH_FORCE_GETUP_B1`) `delta_angles` never change and the view follows the
+/// mouse. Counted as held, `cg_heldViewLook 0` locked the camera through every
+/// knockdown (Kushina's hub report #169). The kisses, ledges and the backflip kick's
+/// victim are kept, untested.
+fn japlus_view_held(player: &PlayerState) -> bool {
+    let (legs, torso) = (player.leg_animation(), player.torso_animation());
+    let backflip_victim = index("BOTH_JUMP_BACKFLIP_ATCKEE");
+    legs == backflip_victim
+        || torso == backflip_victim
+        || torso == index("BOTH_NEW_STABEE")
+        || (legs >= index("BOTH_KISSEE") && legs <= index("BOTH_LEDGE_MERCPULL"))
 }
 
 /// `CG_InJAPlusSpecialKickState`: the victim of JA+'s added side and back kicks.
@@ -310,11 +325,27 @@ mod tests {
     }
 
     #[test]
+    fn japlus_knockdowns_and_get_ups_leave_the_view_free() {
+        // As the JoF server's demos show: `delta_angles` unchanged, the view the mouse's.
+        for (legs, torso, hand) in [
+            ("BOTH_KNOCKDOWN1", "BOTH_KNOCKDOWN1", 8),
+            ("BOTH_GETUP1", "BOTH_GETUP1", 0),
+            ("BOTH_GETUP_BROLL_R", "BOTH_GETUP_BROLL_R", 0),
+            ("BOTH_FORCE_GETUP_B1", "BOTH_FORCE_GETUP_B1", 0),
+        ] {
+            let player = player_with(&[(13, animation(legs)), (15, animation(torso)), (80, hand)]);
+            assert!(
+                japlus_view_locked(&player),
+                "{legs}: still a lock for cg_noPredict 1"
+            );
+            assert!(!server_holds_view(&player, || true), "{legs}");
+        }
+    }
+
+    #[test]
     fn a_japlus_emote_with_a_knockdowns_animation_leaves_the_view_free() {
         // `amneo`: a get-up animation, the body frozen by the emote.
         let neo = animation("BOTH_FORCE_GETUP_B4");
-        let knocked_down = player_with(&[(13, neo), (15, neo)]);
-        assert!(server_holds_view(&knocked_down, || true));
         let emote = player_with(&[(13, neo), (15, neo), (63, u32::from(PM_FREEZE))]);
         assert!(!server_holds_view(&emote, || true));
     }
