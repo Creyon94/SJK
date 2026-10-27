@@ -295,6 +295,9 @@ pub(crate) struct Panel {
     ui: MenuCanvas,
     query: String,
     note: String,
+    /// The rank each medal is given at, chosen with its Rank button while the player does
+    /// not hold it; back to I once given.
+    give_ranks: [crate::medals::Rank; crate::medals::Medal::COUNT],
     /// The credits or shards Give and Take change, as typed (digits only).
     amount: String,
     /// The chosen player's key; the player's own until another is chosen.
@@ -356,6 +359,7 @@ impl Panel {
             ui: MenuCanvas::with_capacities(260, 160, 1_200),
             query: String::new(),
             note: String::new(),
+            give_ranks: [crate::medals::Rank::Issued; crate::medals::Medal::COUNT],
             amount: String::new(),
             selected: None,
             holocron_tier: 0,
@@ -747,10 +751,12 @@ impl Panel {
                 let held = self.shown.medals[medal.index()];
                 match target {
                     Some(key_id) if held == 0 || medal.repeatable() => {
+                        let rank = std::mem::take(&mut self.give_ranks[medal.index()]);
                         PanelAction::Request(StaffRequest::Award {
                             key_id,
                             medal: medal.id().to_owned(),
                             note: self.note.trim().to_owned(),
+                            rank: rank.number(),
                         })
                     }
                     _ => PanelAction::None,
@@ -771,7 +777,13 @@ impl Panel {
                             rank: rank.next().unwrap_or_default().number(),
                         })
                     }
-                    _ => PanelAction::None,
+                    // Not held yet: the rank Give will give it at, nothing sent.
+                    Some(_) => {
+                        let give = &mut self.give_ranks[medal.index()];
+                        *give = give.next().unwrap_or_default();
+                        PanelAction::None
+                    }
+                    None => PanelAction::None,
                 }
             }
             token
@@ -1267,7 +1279,8 @@ mod tests {
             PanelAction::Request(StaffRequest::Award {
                 key_id: me.key_id.clone(),
                 medal: "bug_hunter".into(),
-                note: "found the fog bug".into()
+                note: "found the fog bug".into(),
+                rank: 1,
             })
         );
         // Not held: nothing to take back.
@@ -1280,7 +1293,10 @@ mod tests {
         let _ = panel.activate(REWARDS_TAB_TOKEN);
         redraw(&mut panel, &me, Vec::new());
         assert!(panel.order.contains(&RANK_BASE), "Tester is held");
-        assert!(!panel.order.contains(&(RANK_BASE + 2)), "Bug Hunter is not");
+        assert!(
+            panel.order.contains(&(RANK_BASE + 2)),
+            "Bug Hunter picks its rank"
+        );
         assert_eq!(
             panel.activate(RANK_BASE),
             PanelAction::Request(StaffRequest::MedalRank {
@@ -1289,7 +1305,28 @@ mod tests {
                 rank: 2,
             })
         );
-        assert_eq!(panel.activate(RANK_BASE + 2), PanelAction::None);
+        // Not held: the Rank button picks the rank Give uses (IV here), then back to I.
+        for _ in 0..3 {
+            assert_eq!(panel.activate(RANK_BASE + 2), PanelAction::None);
+        }
+        assert_eq!(
+            panel.activate(GIVE_BASE + 2),
+            PanelAction::Request(StaffRequest::Award {
+                key_id: me.key_id.clone(),
+                medal: "bug_hunter".into(),
+                note: String::new(),
+                rank: 4,
+            })
+        );
+        assert_eq!(
+            panel.activate(GIVE_BASE + 2),
+            PanelAction::Request(StaffRequest::Award {
+                key_id: me.key_id.clone(),
+                medal: "bug_hunter".into(),
+                note: String::new(),
+                rank: 1,
+            })
+        );
         // At rank V the next press goes back to I.
         let mut solar = me.clone();
         solar.medals[0].rank = 5;

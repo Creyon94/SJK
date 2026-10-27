@@ -1165,13 +1165,24 @@ fn open_call(ids: &[u64]) -> (&'static str, Value) {
 fn staff_call(request: &StaffRequest) -> (&'static str, Value) {
     match request {
         StaffRequest::Search(query) => ("/v1/staff/search", json!({ "query": query })),
+        // Rank 1 sends no rank, as before ranks: a hub from before 28/10/2026 refuses one.
         StaffRequest::Award {
             key_id,
             medal,
             note,
+            rank: 1,
         } => (
             "/v1/staff/award",
             json!({ "key_id": key_id, "medal": medal, "note": note }),
+        ),
+        StaffRequest::Award {
+            key_id,
+            medal,
+            note,
+            rank,
+        } => (
+            "/v1/staff/award",
+            json!({ "key_id": key_id, "medal": medal, "note": note, "rank": rank }),
         ),
         StaffRequest::Unaward { key_id, medal } => (
             "/v1/staff/unaward",
@@ -2454,6 +2465,25 @@ mod tests {
                 json!({"key_id": "0123456789abcdef", "medal": "early_tester", "rank": 4})
             )
         );
+    }
+
+    #[test]
+    fn an_award_sends_its_rank_only_above_one() {
+        let award = |rank| {
+            staff_call(&StaffRequest::Award {
+                key_id: "0123456789abcdef".into(),
+                medal: "early_tester".into(),
+                note: String::new(),
+                rank,
+            })
+            .1
+        };
+        assert_eq!(
+            award(1),
+            json!({"key_id": "0123456789abcdef", "medal": "early_tester", "note": ""}),
+            "a hub from before 28/10/2026 refuses a rank"
+        );
+        assert_eq!(award(4)["rank"], 4);
     }
 
     #[test]

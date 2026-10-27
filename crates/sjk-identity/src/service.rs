@@ -6786,6 +6786,7 @@ mod tests {
                 key_id: me.clone(),
                 medal: "bug_hunter".into(),
                 note: String::new(),
+                rank: 1,
             }),
             t0,
         );

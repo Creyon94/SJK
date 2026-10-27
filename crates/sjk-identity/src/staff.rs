@@ -23,6 +23,8 @@ pub enum StaffRequest {
         medal: String,
         /// Why, shown with the medal; may be empty.
         note: String,
+        /// The rank it starts at, 1 (Issued) to 5 (Solar) (since 28/10/2026).
+        rank: u8,
     },
     /// Take one award of a medal back.
     Unaward {
@@ -456,7 +458,8 @@ pub(crate) fn done(request: &StaffRequest, count: usize) -> String {
             1 => "1 player found".to_owned(),
             count => format!("{count} players found"),
         },
-        StaffRequest::Award { medal, .. } => format!("Gave {medal}"),
+        StaffRequest::Award { medal, rank: 1, .. } => format!("Gave {medal}"),
+        StaffRequest::Award { medal, rank, .. } => format!("Gave {medal} at rank {rank}"),
         StaffRequest::Unaward { medal, .. } => format!("Took back {medal}"),
         StaffRequest::MedalRank { medal, rank, .. } => format!("Set {medal} to rank {rank}"),
         StaffRequest::Unlock { unlock, .. } => format!("Unlocked {unlock}"),

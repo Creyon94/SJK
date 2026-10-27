@@ -1209,7 +1209,9 @@ key ("Merged the other player into this one", "Unlinked the key: it starts afres
   Rank button ("Rank III"; each press sets the next rank, V back to I,
   `StaffRequest::MedalRank`, `POST /v1/staff/medal-rank` with `key_id`, `medal` and
   `rank`, answered with the profile as an award is; since 27/10/2026, quiet like every
-  staff change: only the player's own pop-up tells them), Give
+  staff change: only the player's own pop-up tells them; on a medal not held, since
+  28/10/2026, each press picks the rank Give gives it at, shown as "gives at IV", sent as
+  `rank` in `POST /v1/staff/award` only above I, back to I once given), Give
   (Give +1 for a repeatable one already held) and Take back (one award; a repeatable one
   counts down); beside them every unlockable with whether the player holds it (and since
   when): Unlock (`StaffRequest::Unlock`) and Relock (`StaffRequest::Relock`), in pages of
