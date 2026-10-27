@@ -1,3 +1,21 @@
+## Saber key and chat delay (#172)
+
+27/10/2026, `fix/saber-key-chat-delay`, based on `main` `685edded` (hub report #172: key 1
+sometimes did not switch the saber, public chat came late). Causes inferred from the code
+and JoF EJK only: `weapon 1` gated the toggle on the snapshot's `weaponTime`, a round
+trip behind the predicted one EJK reads (the holster sets 400 ms), and with
+`weaponTime` running it fell through to choosing a weapon; a pressed `generic_cmd` rode on
+one user command, where `CL_FinishMove` keeps it on every command until the packet
+leaves; and chat waited in the one-a-second outbox behind the client's own `score` and
+`userinfo` commands. Now: the predicted state gates the toggle, the `generic_cmd` stays
+until the packet ([client.md](client.md)), and player commands go ahead of waiting `score`
+requests ([networking.md](networking.md#reliable-command-pacing)). After Sol's review they
+no longer pass the client's other commands (a `kill` bind went before a waiting
+`userinfo`, a typed `/team s` before a Force-profile retry), and the `generic_cmd`
+already on a command is forgotten wherever the press is. Verified: fmt, workspace
+build, Clippy and tests (pacer order). Not verified: in game, on a JoF server, or that
+these were the reporter's causes.
+
 ## Mystery boxes
 
 27/10/2026, `personal/mystery-box`, based on `main` `685edded` (Sol's idea): boxes SJK's
@@ -1078,6 +1096,16 @@ messages; the bio's keys, Ctrl+A, Shift+Enter and repeats; a click on a wrapped 
 1080p and 4K with a larger text style; line breaks in the field layout). Not verified: in
 a game.
 
+## DEMP2 alt fire's bubble
+
+27/10/2026, `fix/demp2-alt-shell`, based on `main` `685edded` (Slash's hub report #157:
+the DEMP2's alt fire shows no bubble). The shock played `demp2/altdetonate` but not the
+growing `gfx/effects/demp2shell` sphere `FX_DEMP2_AltDetonate` adds; it is now drawn as
+`CG_AddFadeScaleModel` draws it, with rd-vanilla's `RF_VOLUMETRIC` rim colouring
+([rendering.md](rendering.md)). Verified on Windows 11: unit tests (the size and colour
+curve, only `EFFECT_EXPLOSION_DEMP2ALT` starts one, gone after 800 ms, the pool's
+limit), the workspace checks. Not verified: in a game, against stock's look side by side.
+
 ## DEMP2 flash scaled by distance
 
 23/10/2026, `personal/hub-reports-1023-c`, based on `main` `7bc8bc89` (Slash's report #125,
@@ -1090,7 +1118,7 @@ SJK drew it at full colour as an ordinary billboard wherever the shock went off;
 spawns nothing far away or behind and three quarters of its colour at 450 units ahead),
 the workspace checks. Not verified: in a game; a flash close behind the viewer, which stock
 shows on the screen, stays out of sight; the DEMP2 shell sphere (`FX_DEMP2_AltDetonate`) is
-still not drawn.
+still not drawn (drawn since 27/10/2026, report #157).
 Follow-up 23/10/2026, `personal/demp2-flash-screen` (Slash's video: a magenta, yellow,
 then purple square tinting the sky behind the shock): the flash is now drawn on the
 viewer as `CFlash::Draw` draws it, a quad over the whole view in front of everything,
@@ -8613,6 +8641,11 @@ Branch `feat/classic-crosshair`: the crosshair is retail's picture,
 - The picture follows the dynamic crosshair and `cg_crosshairX/Y` and takes the
   existing target colours. With the default `cg_crosshairColor` "0 0 0 255" and no
   target it is drawn white, in its own colours, as EternalJK's `R_SetColor(NULL)`.
+  A `cg_crosshairColor` of the player's own (any channel above 0) comes before the
+  target colours of `cg_crosshairIdentifyTarget`, as `CG_DrawCrosshair` tests it
+  first; health and saber-style colours still come before both (hub report #159).
+  EternalJK takes the colour only when all three channels are above 0; SJK takes
+  any colour that is not the black default, as it did with identify off.
 - The default crosshair colour changed from the old bluish tint (0.964, 0.991, 1.0)
   to white (1, 1, 1): `crosshair_color` returns white for the all-black default and
   for an unparsable `cg_crosshairColor`, and the targeting state starts white. The

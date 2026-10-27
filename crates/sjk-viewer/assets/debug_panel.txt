@@ -37,6 +37,63 @@ test: Press Sith, then Jawa, then Gold: each shows; Unverify takes the tick away
 test: Staff members show the silver/teal tick, Bishop the rusted one.
 test: The sun moves smoothly and costs no FPS (it is 40 still frames).
 
+[slash-crosshair-color]
+area: HUD
+title: Own crosshair colour over targets (Slash, PR #217, hub #159)
+change: An own cg_crosshairColor wins over the target colours; health/saber-style colours first.
+test: cg_crosshairColor "0 255 0 255", aim at a player and an object: the crosshair stays green.
+
+[slash-screenshot-opaque]
+area: Rendering & effects
+title: Screenshots saved opaque (Slash, PR #220, hub #155)
+change: Screenshots and world-note pictures are written with full alpha.
+test: Wear an RGB-tinted skin, screenshotJPEG and screenshot: the tint shows in both files.
+
+[slash-leave-title]
+area: Menus & settings
+title: No small title over the in-game Leave page (Slash, PR #221)
+change: The in-game menu's Leave page no longer draws its name above the arc.
+test: In a game, Esc, open Leave: no small title over the arc.
+
+[slash-demp2-bubble]
+area: Rendering & effects
+title: DEMP2 alt fire shock bubble (Slash, PR #223)
+change: An alt-fire shot draws the growing sphere where it lands, 800 ms, as in the original game.
+test: devmap, give weapon_demp2, alt fire at a wall: a bubble grows and fades there.
+
+[slash-hub-refusal-why]
+area: Console & chat
+title: A refusal before the hub answers says why (Slash, PR #218)
+change: Chat, emotes, reports or trades refused before registration name the cause.
+change: Identity off: cl_identity 1; no hub: cl_hubUrl; else not connected yet + last failure.
+test: Join a server and chat at once: the message names the cause, not always cl_identity.
+test: cl_identity 0, send SJK chat: it says to turn cl_identity 1 on.
+
+[slash-knockdown-view]
+area: Gameplay
+title: Free view through JoF knockdowns and emotes (Slash, PR #219, hub #164 #169)
+change: On JoF servers knockdowns, get-ups and emotes leave the view free, as the server does.
+change: Other JA+ servers keep the held view; cg_japlusFreeKnockdownView -1 auto, 0 held, 1 free.
+test: JoF: get knocked down, move the mouse: the view turns, no shaking while getting up.
+test: JoF: emote and look around: no shake. Ragdoll and Hax toys behave as before.
+
+[slash-saber-key-chat]
+area: Gameplay
+title: Key 1 saber toggle at once, chat no longer waits (Slash, PR #222, hub #172)
+change: weapon 1 reads the predicted state; generic_cmd stays on every command until sent.
+change: Chat and commands go ahead of waiting score requests only, never ahead of userinfo.
+test: JoF: press 1 right after a swing or holster: the saber toggles, never picks fists.
+test: Hold Tab (scoreboard) and chat: the line shows at once.
+
+[slash-devmap-commands]
+area: Gameplay
+title: OpenJK's player commands on devmap (Slash, PR #224)
+change: god, notarget, giveother, killother, give <item>, where, levelshot, thedestroyer.
+change: voice_cmd, forcechanged and debugBMove_*; unknown commands answer Unknown command.
+test: devmap ffa_bespin, god then take damage: none; kill: god ends.
+test: devmap on TDM (g_gametype 6): Join Red / Join Blue land on that side.
+test: notarget near NPCs; where; giveother <you> health; a typo answers Unknown command.
+
 [presence-client-icon]
 area: HUD
 title: JoF EJK players wear the EJK icon on the scoreboard

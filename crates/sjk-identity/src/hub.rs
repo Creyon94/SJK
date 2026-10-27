@@ -48,6 +48,9 @@ pub enum HubError {
     },
     /// The answer was not what `PROTOCOL.md` describes.
     Protocol(String),
+    /// Nothing was sent: the client is not connected to a hub (the identity is off,
+    /// there is no hub, or the registration has not gone through yet), for this reason.
+    NotConnected(String),
 }
 
 impl std::fmt::Display for HubError {
@@ -58,6 +61,7 @@ impl std::fmt::Display for HubError {
                 write!(f, "the hub refused it ({code}): {message}")
             }
             Self::Protocol(why) => write!(f, "unexpected answer from the hub: {why}"),
+            Self::NotConnected(why) => f.write_str(why),
         }
     }
 }

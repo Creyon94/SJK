@@ -78,6 +78,7 @@ mod decal_marks;
 mod decal_store;
 mod decoded_image_cache;
 mod demo_playback;
+mod demp2_shell;
 mod discord_ipc;
 mod discord_presence;
 mod disintegration;
@@ -552,6 +553,8 @@ struct GpuState {
     force_overlays: sjk_client::LegacyForceOverlayTracker,
     /// `EV_BODYFADE` per body (`body_fade.rs`).
     body_fades: Box<sjk_client::LegacyBodyFadeTracker>,
+    /// The DEMP2 alternate fire's bubbles (`demp2_shell.rs`).
+    demp2_shells: demp2_shell::Shells,
     /// The jetpack model and its jet bolts.
     jetpack: jetpack::Catalog,
     /// Which entities' jets have sounded their start.
@@ -753,6 +756,9 @@ struct GpuState {
     weapon_selection_view: weapon_select::view::Tracker,
     weapon_selected_at: Option<Instant>,
     pending_generic_command: u8,
+    /// The `generic_cmd` already on a user command still waiting for its packet
+    /// (`cl.gcmdSentValue`): it rides on every command until the packet leaves.
+    generic_command_sent: u8,
     anti_emote: anti_emote::State,
     vfs: Option<Arc<VirtualFileSystem>>,
     pending_map_reload: bool,
@@ -1520,6 +1526,7 @@ impl GpuState {
             vehicle_fires: Default::default(),
             force_overlays: sjk_client::LegacyForceOverlayTracker::default(),
             body_fades: Box::default(),
+            demp2_shells: Default::default(),
             jetpack,
             jetpack_sounds: Default::default(),
             force_overlays_last: 0,
@@ -1666,6 +1673,7 @@ impl GpuState {
             weapon_selection_view: Default::default(),
             weapon_selected_at: None,
             pending_generic_command: 0,
+            generic_command_sent: 0,
             anti_emote: anti_emote::State::default(),
             effects,
             sound_prefetch,

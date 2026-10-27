@@ -2351,10 +2351,16 @@ change maps or allow cheats. Missing map names are reported before leaving the
 current game. Disconnecting, cancelling the join, or exiting stops the owned
 server. Ordinary Create game launches still leave cheats disabled.
 
-The native server implements `noclip`, `give`, `setviewpos`, and `t_use` for
-development. Run `noclip` again to return to ordinary movement; spawning again
-clears it. Normal servers still require their own cheat permission. `god` remains
-unimplemented on the native server.
+The native server takes all of OpenJK's player commands, the cheats among them:
+`noclip`, `god`, `notarget`, `give` (also an item by classname), `giveother`,
+`killother`, `setviewpos`, `t_use`, `npc`, `levelshot`, `thedestroyer` and
+`debugBMove_*`, plus `where`, `forcechanged` and `voice_cmd` (see its
+[cheat commands](server.md#cheat-commands) and
+[other client commands](server.md#other-client-commands)). Run `noclip`, `god` or
+`notarget` again to turn it off; spawning again clears all three. Normal servers
+still require their own cheat permission. A command the server does not know
+answers `Unknown command`; mod commands such as JoF EJK's or JA+'s `amtele` are
+not there, as the local server runs no mod.
 
 ## Invisible brushes
 
@@ -4615,9 +4621,33 @@ frame so that the view stays where it puts it. SJK knows these cases from one ta
 `server_holds_view` in
 [prediction_policy.rs](../crates/sjk-game-jka/src/prediction_policy.rs): a melee grapple
 (`BG_InGrappleMove`'s animations) or throw (`HANDEXTEND_PRETHROWN`, `POSTTHROWN`), a
-saber lock, and on a JA+ server JoF EJK's `CG_JAPlusViewLockedState` (kicked down,
-getting up, kissing, hanging from a ledge) ([held_view.rs](../crates/sjk-viewer/src/held_view.rs)).
-While it does:
+saber lock, and on a JA+ server JoF EJK's `CG_JAPlusViewLockedState` (kissing, the
+backflip kick's victim, the stab, hanging from a ledge, kicked down, getting up)
+([held_view.rs](../crates/sjk-viewer/src/held_view.rs)).
+
+- Knockdowns and get-ups are held or not by server family, as no serverinfo says which:
+  EternalJK's cgame holds them and some JA+ servers do, so every JA+ server does in SJK
+  unless its family is in `FREE_KNOCKDOWN_VIEW` in
+  [held_view.rs](../crates/sjk-viewer/src/held_view.rs) (one entry per family with its
+  evidence, families told apart by
+  [known_servers.rs](../crates/sjk-mod/src/known_servers.rs)), which sets
+  `JaPlusRules::free_knockdown_view` for the pmove and `server_holds_view`. Its one
+  entry is JoF's servers: in two demos of their knockdowns (27/10/2026,
+  `BOTH_KNOCKDOWN1`, `BOTH_GETUP1`, the get-up rolls, `BOTH_FORCE_GETUP_B1`)
+  `delta_angles` never changed and the view followed the mouse. Counted as held there,
+  `cg_heldViewLook 0` locked the camera through them (Kushina's report #169), and the
+  pmove's JA+ freeze held the view through `BOTH_GETUP1`, so every snapshot pulled the
+  camera back to the server's lagging view (Rollembones' report #164). The get-up still
+  holds the body everywhere. `cg_japlusFreeKnockdownView` (archived, console only)
+  overrides the table: -1 by the family (the default), 0 held on every JA+ server, 1
+  free on every one. `cg_noPredict 1` still takes the server's angles through every
+  `CG_JAPlusViewLockedState`, as EternalJK does.
+- A JA+ emote (`PM_FREEZE`) never holds the view, even one that plays a knockdown's or a
+  kiss's animation (`amneo` is `BOTH_FORCE_GETUP_B4`, `amkiss` the kiss): the base game
+  turns a frozen player's view, and the mouse stopped turning the camera through them
+  (vini's report #166).
+
+While the view is held:
 
 - the mouse turns the view as in the base game while Free look when held
   (`cg_heldViewLook`, Settings > Game options and Advanced > Gameplay) is on, the
@@ -5857,7 +5887,10 @@ the SJK UI's look in every menu style
 console output. A capture copies the final swapchain image into a buffer that is
 mapped over the next frames; frames keep running meanwhile, and the readback stays
 in [screenshot.rs](../crates/sjk-viewer/src/screenshot.rs)'s state until its own map
-callback lands (dropping it earlier aborts the map). See [console registration](../crates/sjk-viewer/src/console_session.rs)
+callback lands (dropping it earlier aborts the map). The picture is written opaque, as
+rd-vanilla reads it (`GL_RGB`): the scene's alpha holds what the shader stages left (a
+tinted player skin's tint mask), which a PNG would otherwise show see-through (hub
+report #155). See [console registration](../crates/sjk-viewer/src/console_session.rs)
 and [file commands](../crates/sjk-viewer/src/console_files.rs) for argument handling.
 
 `tell <player> <message>` takes a slot number or, as in EternalJK, a name or a
@@ -5890,7 +5923,14 @@ default, Sol's request of 10/10/2026) selects the melee weapon, the fists
 (`WP_MELEE`), by name. The numbered binds cannot: `weapon 1` is the saber while the
 player holds one (`CG_Weapon_f`), and with the saber already selected it switches
 the saber on or off instead; the fists otherwise come only from cycling the weapon
-keys. `weapmelee` never selects the saber and never toggles: it does nothing when
+keys. The toggle is sent only once the predicted `weaponTime` has run out, as JoF
+EJK reads it, not the snapshot's, which is a round trip behind (a swing, the
+holster's 400 ms); a press before that does nothing, as in `CG_Weapon_f`, and never
+picks another weapon (hub report 172). A pressed `generic_cmd` (this toggle, a bound
+`force_*` or `use_*`) goes on every user command until a packet takes them, as
+`CL_FinishMove` keeps it until `CL_WritePacket`, so one command the server skips does
+not lose it; the server's debounce takes it once.
+`weapmelee` never selects the saber and never toggles: it does nothing when
 the fists are already selected, when the player does not hold them, while
 following someone or on an emplaced gun. The stun baton, `WP_STUN_BATON`, is another
 weapon and is not chosen. Like `weapnext` it only changes the client's selection

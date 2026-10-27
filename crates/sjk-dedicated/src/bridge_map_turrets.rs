@@ -365,7 +365,7 @@ impl NativeGame {
                     client: true,
                     takes_damage: true,
                     health: peer.health,
-                    no_target: false,
+                    no_target: peer.notarget,
                     breakable: false,
                     session_team: peer.session.team,
                     temp_spectate_until: 0,

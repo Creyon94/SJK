@@ -1,14 +1,26 @@
 //! The cheats of a server with `sv_cheats` that live here: `t_use name`
 //! (`Cmd_TargetUse_f`, `g_cmds.c`), which fires a name as the player
-//! (`G_UseTargets2(ent, ent, name)`), as mappers test a map's targets and scripts; and
+//! (`G_UseTargets2(ent, ent, name)`), as mappers test a map's targets and scripts;
 //! `noclip` (`Cmd_Noclip_f`), which lets the player fly through the world
-//! ([`sjk_game_jka::noclip`]; the think applies it). (`setviewpos` is
-//! `bridge_teleport`'s, `give` `bridge_commands`'.)
+//! ([`sjk_game_jka::noclip`]; the think applies it); and `god` and `notarget`
+//! (`Cmd_God_f`, `Cmd_Notarget_f`, [`sjk_game_jka::client_commands`]), which `G_Damage`
+//! and the enemy checks read. (`setviewpos` is `bridge_teleport`'s, `give`
+//! `bridge_commands`'.)
 
 use super::*;
 
+/// The cheats [`NativeGame::cheat_command`] runs.
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum Cheat {
+    Noclip,
+    God,
+    Notarget,
+    TargetUse,
+}
+
 impl NativeGame {
-    /// `ClientCommand` for `t_use` and `noclip`: whether `text` was one of them.
+    /// `ClientCommand` for `t_use`, `noclip`, `god` and `notarget`: whether `text` was
+    /// one of them.
     pub(super) fn cheat_command(&mut self, client: usize, text: &[u8]) -> bool {
         let mut words = text
             .split(|byte| byte.is_ascii_whitespace())
@@ -16,13 +28,19 @@ impl NativeGame {
         let Some(command) = words.next() else {
             return false;
         };
-        let noclip = command.eq_ignore_ascii_case(b"noclip");
-        if !noclip && !command.eq_ignore_ascii_case(b"t_use") {
+        let Some(cheat) = [
+            (&b"noclip"[..], Cheat::Noclip),
+            (b"god", Cheat::God),
+            (b"notarget", Cheat::Notarget),
+            (b"t_use", Cheat::TargetUse),
+        ]
+        .into_iter()
+        .find_map(|(name, cheat)| command.eq_ignore_ascii_case(name).then_some(cheat)) else {
             return false;
-        }
-        // `ClientCommand`'s gates (`g_cmds.c:3466-3480`), in its order: `noclip` is
-        // also `CMD_NOINTERMISSION`.
-        if noclip && self.refused_at_intermission(client, b"noclip") {
+        };
+        // `ClientCommand`'s gates (`g_cmds.c:3466-3480`), in its order: all but `t_use`
+        // are also `CMD_NOINTERMISSION`.
+        if cheat != Cheat::TargetUse && self.refused_at_intermission(client, command) {
             return true;
         }
         if !self.settings.cheats {
@@ -38,19 +56,23 @@ impl NativeGame {
                 .push(Told::One(client, b"print \"@@@MUSTBEALIVE\n\"".to_vec()));
             return true;
         }
-        if noclip {
-            // `Cmd_Noclip_f`: the flag toggled and the player told; its next think puts
-            // it in (or takes it out of) `PM_NOCLIP`.
-            if let Some(peer) = self.peer_mut(client) {
-                let message = sjk_game_jka::noclip::toggle(&mut peer.noclip);
-                self.told.push(Told::One(client, message.to_vec()));
+        if cheat == Cheat::TargetUse {
+            // `Cmd_TargetUse_f`: needs a name.
+            if let Some(name) = words.next() {
+                let name = String::from_utf8_lossy(name).into_owned();
+                self.fire_targets(&name, client, self.last_frame_time);
             }
             return true;
         }
-        // `Cmd_TargetUse_f`: needs a name.
-        if let Some(name) = words.next() {
-            let name = String::from_utf8_lossy(name).into_owned();
-            self.fire_targets(&name, client, self.last_frame_time);
+        // The flag toggled and the player told. Noclip's next think puts it in (or takes
+        // it out of) `PM_NOCLIP`; the other two are read where they apply.
+        if let Some(peer) = self.peer_mut(client) {
+            let message = match cheat {
+                Cheat::Noclip => sjk_game_jka::noclip::toggle(&mut peer.noclip),
+                Cheat::God => sjk_game_jka::client_commands::toggle_god(&mut peer.god),
+                _ => sjk_game_jka::client_commands::toggle_notarget(&mut peer.notarget),
+            };
+            self.told.push(Told::One(client, message.to_vec()));
         }
         true
     }

@@ -2,7 +2,8 @@
 //! so mods and the client read one table instead of each testing version strings
 //! (AGENTS.md, no hardcoded special cases). What SJK does differently on a family
 //! lives in its own table keyed by [`KnownServer::id`] (the client's command caps,
-//! `server_caps.rs`), each with a player override.
+//! `server_caps.rs`; the JA+ servers that leave knockdowns' view free,
+//! `held_view.rs`), each with a player override.
 
 use crate::{Server, ServerKind};
 

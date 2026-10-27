@@ -312,7 +312,7 @@ link: Lukas's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+
 
 [Slash]
 github: JoFSlash
-role: Contributor: 34 merged pull requests
+role: Contributor: 43 merged pull requests
 did: #114 Tab completes cfg file names after exec and writeconfig
 did: #113 CTF team saber colours, an option
 did: #153 The SJK scoreboard tells who won the Siege round or team match
@@ -350,6 +350,15 @@ did: #213 Nobody in a vehicle goes limp
 did: #214 A hacked limp player gets up
 did: #215 No stray title over the main menu arc
 did: #216 Emote volume apart from the game volume
+did: #218 A refusal before the hub answers says why
+did: #219 Free view through JoF knockdowns and emotes
+did: #222 Key 1 saber toggle at once, chat no longer waits
+did: #224 OpenJK's player commands on devmap
+did: #228 Floor-mirror test no longer races
+did: #217 Own crosshair colour stays over targets
+did: #220 Screenshots saved opaque
+did: #221 No stray title over the Leave page
+did: #223 The DEMP2 alt fire's shock bubble
 link: Slash's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AJoFSlash
 
 [Milamber]

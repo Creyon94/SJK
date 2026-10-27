@@ -120,6 +120,8 @@ struct Runtime {
     model_asks: Vec<((SocketAddr, u8, String), Instant)>,
     /// The serial of the last map edits answer shown ([`map_edits_published`]).
     map_edits_seen: u64,
+    /// The service's status last written to the log ([`log_status`]).
+    logged_status: Option<sjk_identity::Status>,
 }
 
 static RUNTIME: Mutex<Runtime> = Mutex::new(Runtime {
@@ -140,6 +142,7 @@ static RUNTIME: Mutex<Runtime> = Mutex::new(Runtime {
     own_model: None,
     map_edits_seen: 0,
     model_asks: Vec::new(),
+    logged_status: None,
 });
 
 fn lock() -> MutexGuard<'static, Runtime> {
@@ -225,6 +228,27 @@ pub(crate) fn location(
     })
 }
 
+/// The log line for the service's `status` when it differs from the one last
+/// logged (`last`): whether the hub took the registration, or why the last request
+/// failed, so a player's `session.log` shows what a refusal before the registration
+/// meant (`docs/identity.md`, "What happens"). Read twice a second, with [`apply`].
+fn log_status(
+    last: Option<&sjk_identity::Status>,
+    status: &sjk_identity::Status,
+) -> Option<String> {
+    use sjk_identity::Status;
+    if last == Some(status) {
+        return None;
+    }
+    Some(match status {
+        Status::Disabled => "identity: off (cl_identity 0)".to_owned(),
+        Status::NoHub => "identity: no hub (cl_hubUrl empty)".to_owned(),
+        Status::Registering => "identity: registering with the hub".to_owned(),
+        Status::Online => "identity: registered with the hub".to_owned(),
+        Status::Failed(why) => format!("identity: hub request failed: {why}"),
+    })
+}
+
 /// Whether it is time to [`apply`] the settings and the player's place again.
 /// True twice a second at most, so the caller builds them only then.
 pub(crate) fn due() -> bool {
@@ -286,6 +310,11 @@ pub(crate) fn apply(
     let Some(service) = runtime.service.as_ref() else {
         return;
     };
+    let status = service.with_snapshot(|snapshot| snapshot.status.clone());
+    if let Some(line) = log_status(runtime.logged_status.as_ref(), &status) {
+        crate::log::progress(format_args!("{line}"));
+    }
+    runtime.logged_status = Some(status);
     if runtime.sent_name.as_ref() != Some(&name) {
         service.set_name(name.clone());
         runtime.sent_name = Some(name);
@@ -1527,6 +1556,30 @@ pub(crate) fn shutdown() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_log_tells_each_change_of_the_hub_status_once() {
+        use sjk_identity::Status;
+        let registering = log_status(None, &Status::Registering);
+        assert_eq!(
+            registering.as_deref(),
+            Some("identity: registering with the hub")
+        );
+        assert_eq!(
+            log_status(Some(&Status::Registering), &Status::Registering),
+            None
+        );
+        let refused = Status::Failed("the hub refused it (rate_limited): slow down".to_owned());
+        assert_eq!(
+            log_status(Some(&Status::Registering), &refused).as_deref(),
+            Some("identity: hub request failed: the hub refused it (rate_limited): slow down")
+        );
+        assert_eq!(log_status(Some(&refused), &refused), None);
+        assert_eq!(
+            log_status(Some(&refused), &Status::Online).as_deref(),
+            Some("identity: registered with the hub")
+        );
+    }
 
     #[test]
     fn a_message_with_a_gif_is_never_said_on_the_server() {

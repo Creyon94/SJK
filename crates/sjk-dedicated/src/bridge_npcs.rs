@@ -575,7 +575,12 @@ impl NativeGame {
                 },
                 eye_angles: peer.state.view_angles(),
                 health: peer.health,
-                flags: 0,
+                // `ent->flags`: of a player's, the enemy checks read only `notarget`'s.
+                flags: if peer.notarget {
+                    sjk_game_jka::npc_spawn::FL_NOTARGET
+                } else {
+                    0
+                },
                 entity_flags: peer.entity.state().raw_field(19).unwrap_or(0),
                 player_team,
                 enemy_team: 0,
