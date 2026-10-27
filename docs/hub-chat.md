@@ -714,9 +714,10 @@ request, 08/10/2026):
   have none and Team chat reads TEAM: SJK for a message only in SJK chat, ALL/SJK for
   one also said in the server's All chat ([Said on the game server too](#said-on-the-game-server-too);
   Sol's request, 22/10/2026). A holocron drop has no label.
-- A verified sender has the verified tick after the name (the nameplates' gold seal
-  with its white tick, `ui_renderer::VERIFIED_TEXTURE`) and no word: no "SJK VERIFIED"
-  or "Verified" tag. Staff stays written on the page.
+- A verified sender has their tick after the name (the nameplates' seal, gold or their
+  group's, staff's or a creator's: [Ticks](identity.md#ticks),
+  `ui_renderer::mark_texture`) and no word: no "SJK VERIFIED" or "Verified" tag. Staff
+  stays written on the page.
 - The line flows as one line and wraps only when it is too long, as a game chat line
   does. In the game it used to break straight away: the feed drew a sender's name and
   its tag on a row of their own and the message under it (`NAME_ADVANCE` in

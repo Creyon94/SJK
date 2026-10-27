@@ -67,6 +67,6 @@ pub use wire::{
     KyberTier, Look, LookEvent, LootTier, MEDAL_RANK_MAX, MEDAL_RANK_MIN, MapBlock, Medal,
     OPEN_MAX, Offer, OpenAnswer, Opened, OpenedCard, OpenedUnlock, People, Person, Ping, Presence,
     Profile, RelayBatch, RevealAnswer, Revealed, SealedWhisper, SharedVitals, ShatterAllAnswer,
-    ShatterAnswer, Shattered, ShatteredCopies, ShopDay, ToyEvent, Trust, Unlock, Vitals, WornName,
-    names_match, normal_form,
+    ShatterAnswer, Shattered, ShatteredCopies, ShopDay, Tick, ToyEvent, Trust, Unlock, Vitals,
+    WornName, names_match, normal_form,
 };

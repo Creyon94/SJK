@@ -64,6 +64,8 @@ pub(crate) struct HubMark {
     /// Their hub display name.
     pub(crate) name: String,
     pub(crate) verified: bool,
+    /// Their tick, as the hub sent it.
+    pub(crate) tick: sjk_identity::Tick,
     /// Their trust (`ui_renderer::mark_texture`).
     pub(crate) trust: Option<sjk_identity::Trust>,
     /// Their name emoji, empty for none.
@@ -628,6 +630,7 @@ impl State {
                         key_id: "0123456789abcdef".to_owned(),
                         name: "Vulpes".to_owned(),
                         verified: false,
+                        tick: sjk_identity::Tick::None,
                         trust: None,
                         emoji: String::new(),
                         medals: shot_medals(&["bug_hunter"]),
@@ -637,6 +640,7 @@ impl State {
                         key_id: "fedcba9876543210".to_owned(),
                         name: "Sol".to_owned(),
                         verified: true,
+                        tick: sjk_identity::Tick::None,
                         trust: None,
                         emoji: String::new(),
                         medals: shot_medals(&["early_tester", "early_contributor", "bug_hunter"]),
@@ -701,6 +705,7 @@ mod tests {
                 key_id: "0123456789abcdef".to_owned(),
                 name: "Troll".to_owned(),
                 verified: false,
+                tick: sjk_identity::Tick::None,
                 trust: None,
                 emoji: String::new(),
                 medals: crate::medals::Medals::default(),

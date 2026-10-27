@@ -117,6 +117,9 @@ pub enum StaffRequest {
         key_id: String,
         /// Vouch (true) or no longer.
         verified: bool,
+        /// The group their tick shows ([`crate::Tick::GROUPS`]); `None` leaves it as it
+        /// was.
+        tick: Option<crate::Tick>,
     },
     /// Make a player staff or take it away; only SJK's creator may (the hub refuses
     /// anyone else), and never from the creator.
@@ -478,6 +481,11 @@ pub(crate) fn done(request: &StaffRequest, count: usize) -> String {
             None => format!("Gave {} {tier} holocron", article(tier)),
         },
         StaffRequest::HolocronRemove { id, .. } => format!("Took back holocron #{id}"),
+        StaffRequest::Verify {
+            verified: true,
+            tick: Some(tick),
+            ..
+        } => format!("Verified, {} tick", tick.label()),
         StaffRequest::Verify { verified: true, .. } => "Verified".to_owned(),
         StaffRequest::Verify {
             verified: false, ..

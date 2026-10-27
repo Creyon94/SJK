@@ -43,6 +43,8 @@ pub(crate) struct Summary {
     pub(crate) avatar: String,
     pub(crate) hub: HubState,
     pub(crate) verified: bool,
+    /// Their tick, as the hub sent it.
+    pub(crate) tick: sjk_identity::Tick,
     /// Their trust (`ui_renderer::mark_texture`).
     pub(crate) trust: Option<sjk_identity::Trust>,
     /// Their name emoji, after the name; empty for none.
@@ -64,6 +66,7 @@ static SUMMARY: Mutex<Summary> = Mutex::new(Summary {
     avatar: String::new(),
     hub: HubState::Off,
     verified: false,
+    tick: sjk_identity::Tick::None,
     staff: false,
     trust: None,
     emoji: String::new(),
@@ -82,6 +85,7 @@ pub(crate) static NOBODY: Summary = Summary {
     avatar: String::new(),
     hub: HubState::Off,
     verified: false,
+    tick: sjk_identity::Tick::None,
     staff: false,
     trust: None,
     emoji: String::new(),
@@ -186,6 +190,9 @@ pub(crate) fn summarise(
             .unwrap_or_default(),
         hub,
         verified: online && me.is_some_and(|me| me.verified),
+        tick: me
+            .filter(|_| online)
+            .map_or(sjk_identity::Tick::None, |me| me.tick),
         trust: me.filter(|_| online).and_then(|me| me.trust),
         emoji: me
             .filter(|_| online)
@@ -308,6 +315,7 @@ pub(crate) fn draw(canvas: &mut MenuCanvas, frame: &Frame, card: &Card<'_>, toke
             version: &card.summary.avatar,
             name: card.name,
             verified: card.summary.verified,
+            tick: card.summary.tick,
             trust: card.summary.trust,
             preview: false,
             lit: card.lit,
@@ -371,6 +379,8 @@ pub(crate) struct Avatar<'a> {
     /// Their name, for the stand-in's initial.
     pub(crate) name: &'a str,
     pub(crate) verified: bool,
+    /// Their tick, as the hub sent it.
+    pub(crate) tick: sjk_identity::Tick,
     /// Their trust: its mark at the picture's foot when not verified
     /// (`ui_renderer::mark_texture`).
     pub(crate) trust: Option<sjk_identity::Trust>,
@@ -438,7 +448,9 @@ pub(crate) fn avatar(canvas: &mut MenuCanvas, centre: [f32; 2], radius: f32, ava
         color: ring,
         knockout: None,
     });
-    if let Some(texture) = crate::ui_renderer::mark_texture(avatar.verified, avatar.trust) {
+    if let Some(texture) =
+        crate::ui_renderer::mark_texture(avatar.verified, avatar.tick, avatar.trust)
+    {
         // The badge at the picture's foot, right, on a disc of the ground.
         let badge = radius * 0.36;
         let at = [centre[0] + radius * 0.72, centre[1] + radius * 0.72];
@@ -512,6 +524,7 @@ mod tests {
             name: "Sol".to_owned(),
             bio: String::new(),
             verified: true,
+            tick: sjk_identity::Tick::None,
             staff: false,
             creator: false,
             jkr_creator: false,

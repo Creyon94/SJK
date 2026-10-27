@@ -1208,9 +1208,16 @@ fn staff_call(request: &StaffRequest) -> (&'static str, Value) {
             "/v1/staff/holocron-remove",
             json!({ "key_id": key_id, "id": id }),
         ),
-        StaffRequest::Verify { key_id, verified } => (
+        StaffRequest::Verify {
+            key_id,
+            verified,
+            tick,
+        } => (
             "/v1/staff/verify",
-            json!({ "key_id": key_id, "verified": verified }),
+            match tick.and_then(crate::Tick::group_wire) {
+                Some(tick) => json!({ "key_id": key_id, "verified": verified, "tick": tick }),
+                None => json!({ "key_id": key_id, "verified": verified }),
+            },
         ),
         StaffRequest::SetStaff { key_id, staff } => (
             "/v1/staff/staff",
@@ -2453,10 +2460,22 @@ mod tests {
             staff_call(&StaffRequest::Verify {
                 key_id: "0123456789abcdef".into(),
                 verified: true,
+                tick: None,
             }),
             (
                 "/v1/staff/verify",
                 json!({"key_id": "0123456789abcdef", "verified": true})
+            )
+        );
+        assert_eq!(
+            staff_call(&StaffRequest::Verify {
+                key_id: "0123456789abcdef".into(),
+                verified: true,
+                tick: Some(crate::Tick::Sith),
+            }),
+            (
+                "/v1/staff/verify",
+                json!({"key_id": "0123456789abcdef", "verified": true, "tick": "sith"})
             )
         );
         assert_eq!(

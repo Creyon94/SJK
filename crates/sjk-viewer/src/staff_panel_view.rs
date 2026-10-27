@@ -167,6 +167,9 @@ impl Panel {
         self.shown.unlocks = vec![false; crate::unlockables::ALL.len()];
         self.shown.holocron_rows = 0;
         self.shown.verified = target.as_ref().is_some_and(|profile| profile.verified);
+        self.shown.tick = target.as_ref().map_or(sjk_identity::Tick::None, |profile| {
+            profile.tick.shown(profile.verified)
+        });
         self.shown.staff = target.as_ref().is_some_and(|profile| profile.staff);
         self.shown.creator = inputs.me.is_some_and(|me| me.creator);
         self.shown.linked.clear();
@@ -369,6 +372,7 @@ impl Panel {
                 version: &profile.avatar,
                 name: &profile.name,
                 verified: profile.verified,
+                tick: profile.tick,
                 trust: profile.trust,
                 preview: false,
                 lit: false,
@@ -1237,7 +1241,31 @@ impl Panel {
             );
             self.order.push(SET_STAFF_TOKEN);
         }
-        y += 66.0;
+        y += 56.0;
+        // The tick buttons: the one drawn now lit, each with its tick.
+        for (index, tick) in sjk_identity::Tick::GROUPS.into_iter().enumerate() {
+            let token = TICK_BASE + index as u16;
+            let x = MIDDLE_X + index as f32 * 120.0;
+            kit::button(
+                &mut self.ui,
+                frame,
+                [x, y, 112.0, 32.0],
+                tick.label(),
+                self.shown.tick == tick,
+                true,
+                self.focus == token,
+                token,
+            );
+            if let Some(texture) = crate::ui_renderer::tick_texture(tick) {
+                let _ = self.ui.draw_list_mut().push(DrawCommand::TexturedQuad {
+                    rect: frame.rect(x + 8.0, y + 6.0, 20.0, 20.0),
+                    texture,
+                    color: Color::new(1.0, 1.0, 1.0, 1.0),
+                });
+            }
+            self.order.push(token);
+        }
+        y += 52.0;
         kit::heading(&mut self.ui, frame, MIDDLE_X, y, MIDDLE_WIDTH, "Names worn");
         y += 20.0;
         if profile.names.is_empty() {

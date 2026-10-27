@@ -20,6 +20,7 @@ fn profile(key: &str, name: &str) -> sjk_identity::Profile {
         name: name.to_owned(),
         bio: String::new(),
         verified: false,
+        tick: sjk_identity::Tick::None,
         staff: false,
         creator: false,
         jkr_creator: false,

@@ -24,6 +24,19 @@
 
 # ---- Console & chat ----
 
+[verified-ticks]
+area: HUD
+title: Ticks: JoF, Sith, Jawa, JKR creator, staff and the creator's sun
+change: One tick per person from the hub (creator > staff > JKR creator > group > gold).
+change: Staff page: Gold/JoF/Sith/Jawa buttons under Verify verify with that tick or change it.
+change: Scoreboard and player card: emblem white, the tick small on its foot (no gold emblem).
+test: Needs the hub deployed (hub branch verified-ticks), else everyone verified stays gold.
+test: Your own nameplate (cg_nameplateSelf 1), chat line and scoreboard row: the turning sun.
+test: Staff page > Overview on a player: press JoF, their tick turns cyan everywhere.
+test: Press Sith, then Jawa, then Gold: each shows; Unverify takes the tick away.
+test: Staff members show the silver/teal tick, Bishop the rusted one.
+test: The sun moves smoothly and costs no FPS (it is 40 still frames).
+
 [medal-ranks]
 area: Menus & settings
 title: Medal ranks I-V; Early Tester/Contributor renamed Tester/Contributor

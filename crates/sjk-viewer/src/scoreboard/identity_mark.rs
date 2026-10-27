@@ -1,19 +1,17 @@
 //! The mark after a player's name on the scoreboard when the SJK hub knows them
-//! (`player_identity.rs`): SJK's emblem, in gold for a player the hub's operator
-//! vouches for and in soft white for any other registered player (or, for a player
-//! who claimed from another client with its own icon, that icon in its own colours,
-//! `chat::client_icons`), then up to three
-//! ribbon bars for the medals the SJK team gave them (`medals.rs`), plain coloured
-//! rectangles sized after the emblem. A player who is neither verified nor staff wears
-//! their trust mark (`ui_renderer::trust_texture`) small on the emblem's foot. The marks
-//! take room from the name, never from the columns: where the name would keep less than
-//! half its room, fewer bars show.
+//! (`player_identity.rs`): SJK's emblem in soft white (or, for a player who claimed
+//! from another client with its own icon, that icon in its own colours,
+//! `chat::client_icons`), then up to three ribbon bars for the medals the SJK team gave
+//! them (`medals.rs`), plain coloured rectangles sized after the emblem. Their tick
+//! (gold, a group's, staff's, a creator's) or, without one, their trust mark sits small
+//! on the emblem's foot (`ui_renderer::mark_texture`; the emblem was gold for a verified
+//! player until 27/10/2026). The marks take room from the name, never from the
+//! columns: where the name would keep less than half its room, fewer bars show.
 
 use crate::medals::{Medal, Medals};
 use crate::player_identity::Tag;
 use sjk_ui::{Color, DrawCommand, DrawList, Rect};
 
-const VERIFIED: Color = Color::new(1.0, 0.82, 0.25, 1.0);
 const REGISTERED: Color = Color::new(0.92, 0.94, 1.0, 0.9);
 /// Most ribbon bars a row shows.
 const RIBBONS_MAX: usize = 3;
@@ -21,7 +19,7 @@ const RIBBONS_MAX: usize = 3;
 const RIBBON_WIDTH: f32 = 1.05;
 const RIBBON_HEIGHT: f32 = 0.42;
 const RIBBON_GAP: f32 = 0.2;
-/// The trust mark's side on the emblem's foot, as a share of the emblem's.
+/// The tick's or trust mark's side on the emblem's foot, as a share of the emblem's.
 const TRUST_SIDE: f32 = 0.55;
 /// The share of the name's room the marks may take.
 const MARKS_SHARE: f32 = 0.5;
@@ -36,8 +34,6 @@ fn texture(tag: Tag) -> sjk_ui::TextureId {
 pub(super) fn tint(tag: Tag) -> Color {
     if texture(tag) != crate::ui_renderer::LOGO_TEXTURE {
         Color::new(1.0, 1.0, 1.0, 1.0)
-    } else if tag.verified {
-        VERIFIED
     } else {
         REGISTERED
     }
@@ -101,7 +97,7 @@ pub(super) fn draw_marks(
         texture: texture(tag),
         color: tint(tag),
     });
-    if let Some(mark) = tag.trust.and_then(crate::ui_renderer::trust_texture) {
+    if let Some(mark) = crate::ui_renderer::mark_texture(tag.verified, tag.tick, tag.trust) {
         let small = side * TRUST_SIDE;
         push(DrawCommand::TexturedQuad {
             rect: Rect::new(
@@ -166,6 +162,7 @@ mod tests {
             .collect();
         Tag {
             verified,
+            tick: sjk_identity::Tick::None,
             trust: None,
             emoji: Default::default(),
             medals: Medals::from_wire(&list),
@@ -174,8 +171,29 @@ mod tests {
     }
 
     #[test]
-    fn verified_players_are_tinted_apart_from_registered_ones() {
-        assert_ne!(tint(tag(true, &[])), tint(tag(false, &[])));
+    fn a_verified_players_tick_sits_on_a_white_emblem() {
+        assert_eq!(tint(tag(true, &[])), tint(tag(false, &[])));
+        let sith = Tag {
+            tick: sjk_identity::Tick::Sith,
+            ..tag(true, &[])
+        };
+        let mut list = DrawList::new(16);
+        push(&mut list, Rect::new(0.0, 0.0, 200.0, 30.0), 20.0, sith);
+        let textures: Vec<_> = list
+            .commands()
+            .iter()
+            .filter_map(|command| match command {
+                DrawCommand::TexturedQuad { texture, .. } => Some(*texture),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(
+            textures,
+            [
+                crate::ui_renderer::LOGO_TEXTURE,
+                crate::ui_renderer::tick_texture(sjk_identity::Tick::Sith).unwrap()
+            ]
+        );
     }
 
     #[test]
@@ -219,7 +237,8 @@ mod tests {
             &mut list,
             name,
             20.0,
-            tag(true, &["early_tester", "bug_hunter"]),
+            // Unverified, so no tick sits on the emblem's foot among the rectangles.
+            tag(false, &["early_tester", "bug_hunter"]),
         );
         let rects: Vec<Rect> =
             list.commands()

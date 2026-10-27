@@ -246,6 +246,7 @@ impl ChatOverlay {
                     key_id: Some(hub.key_id.clone()),
                     hub_name: None,
                     verified: hub.verified,
+                    tick: hub.tick,
                     staff: hub.staff,
                     creator: hub.creator,
                     trust: hub.trust,
@@ -277,6 +278,9 @@ impl ChatOverlay {
                         .map(|mark| mark.name.clone())
                         .filter(|hub| !sjk_identity::names_match(hub, name)),
                     verified: mark.as_ref().is_some_and(|mark| mark.verified),
+                    tick: mark
+                        .as_ref()
+                        .map_or(sjk_identity::Tick::None, |mark| mark.tick),
                     staff: false,
                     creator: false,
                     trust: mark.as_ref().and_then(|mark| mark.trust),
@@ -518,6 +522,7 @@ mod tests {
             key_id: KEY.to_owned(),
             name: "^2Sol".to_owned(),
             verified: true,
+            tick: sjk_identity::Tick::None,
             staff: true,
             creator: false,
             trust: None,

@@ -127,6 +127,7 @@ mod tests {
             key_id: String::new(),
             name: SENDER.to_owned(),
             verified: false,
+            tick: sjk_identity::Tick::None,
             staff: false,
             creator: false,
             trust: None,

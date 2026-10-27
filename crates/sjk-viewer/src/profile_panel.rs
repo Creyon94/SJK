@@ -1156,6 +1156,7 @@ pub(crate) mod tests {
             name: "^1Sol".to_owned(),
             bio: bio.to_owned(),
             verified: true,
+            tick: sjk_identity::Tick::None,
             staff: false,
             creator: false,
             jkr_creator: false,

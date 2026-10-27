@@ -3963,6 +3963,7 @@ mod tests {
             name: name.to_owned(),
             bio: String::new(),
             verified: false,
+            tick: crate::Tick::None,
             staff: true,
             creator: false,
             jkr_creator: false,
@@ -4649,7 +4650,9 @@ mod tests {
                 | StaffRequest::ChatMute { .. }
                 | StaffRequest::ChatUnban { .. }
                 | StaffRequest::MapBlock { .. } => Vec::new(),
-                StaffRequest::Verify { key_id, verified } => vec![Profile {
+                StaffRequest::Verify {
+                    key_id, verified, ..
+                } => vec![Profile {
                     key_id: key_id.clone(),
                     verified: *verified,
                     ..profile("Target")
@@ -6570,6 +6573,7 @@ mod tests {
             Command::Staff(StaffRequest::Verify {
                 key_id: "aaaaaaaaaaaaaaaa".into(),
                 verified: true,
+                tick: None,
             }),
             t0,
         );
@@ -7031,6 +7035,7 @@ mod tests {
             key_id: "0123456789abcdef".to_owned(),
             name: "Sol".to_owned(),
             verified: true,
+            tick: crate::Tick::None,
             trust: None,
             emoji: String::new(),
             medals: Vec::new(),

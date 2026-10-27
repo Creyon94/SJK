@@ -262,10 +262,13 @@ fn trust_word(hub: &HubInfo) -> &'static str {
     }
 }
 
-/// The trust word's colour at alpha `a` (the trust marks' grey, green and red); `None`
-/// for VERIFIED, which takes the hub name's gold.
+/// The trust word's colour at alpha `a` (the trust marks' grey, green and red, and
+/// VERIFIED the tick's colour); `None` for none.
 fn trust_colour(hub: &HubInfo, a: f32) -> Option<Color> {
     use sjk_identity::Trust;
+    if hub.verified {
+        return crate::ui_renderer::tick_accent(hub.tick.shown(true), a);
+    }
     match (hub.verified, hub.trust?) {
         (true, _) | (_, Trust::Unknown) => None,
         (false, Trust::New) => Some(Color::new(0.8, 0.82, 0.85, a)),
@@ -280,6 +283,8 @@ pub(crate) struct HubInfo {
     /// Hub display name, empty if they have none yet.
     pub(crate) name: String,
     pub(crate) verified: bool,
+    /// Their tick, as the hub sent it: small on the emblem's foot, and VERIFIED's colour.
+    pub(crate) tick: sjk_identity::Tick,
     /// Their trust (`PROTOCOL.md` of the hub, "Trust"): NEW, TRUSTED or CHAT BANNED
     /// where VERIFIED would be.
     pub(crate) trust: Option<sjk_identity::Trust>,
@@ -1440,11 +1445,10 @@ impl State {
                 color: white(0.12),
             });
             let texture = crate::chat::client_icons::texture(hub.client);
-            // Another client's icon keeps its own colours.
+            // Another client's icon keeps its own colours; SJK's emblem is white, its
+            // tick (or trust mark) small on its foot, as on the scoreboard.
             let tint = if texture != crate::ui_renderer::LOGO_TEXTURE {
                 white(1.0)
-            } else if hub.verified {
-                Color::new(1.0, 0.82, 0.25, a)
             } else {
                 white(0.95)
             };
@@ -1454,6 +1458,20 @@ impl State {
                 texture,
                 color: tint,
             });
+            if let Some(mark) = crate::ui_renderer::mark_texture(hub.verified, hub.tick, hub.trust)
+            {
+                let small = side * 0.55;
+                let _ = self.list.push(DrawCommand::TexturedQuad {
+                    rect: Rect::new(
+                        left + side - small * 0.8,
+                        y + side - small * 0.9,
+                        small,
+                        small,
+                    ),
+                    texture: mark,
+                    color: white(1.0),
+                });
+            }
             let hub_x = left + side + 8.0 * unit;
             let verified_width = if trust_word(hub).is_empty() {
                 0.0
@@ -2042,6 +2060,7 @@ mod tests {
             name: "Sol".to_owned(),
             bio: "\n  Fox of the JoF, maker of SJK.  \nSecond line".to_owned(),
             verified: true,
+            tick: sjk_identity::Tick::None,
             staff: true,
             creator: false,
             jkr_creator: false,
@@ -2077,6 +2096,7 @@ mod tests {
             Some(HubInfo {
                 name: "Sol".to_owned(),
                 verified: true,
+                tick: sjk_identity::Tick::None,
                 trust: None,
                 medals: crate::medals::Medals::from_wire(&[sjk_identity::Medal {
                     id: "bug_hunter".to_owned(),

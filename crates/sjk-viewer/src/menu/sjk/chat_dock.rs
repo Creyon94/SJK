@@ -66,6 +66,8 @@ pub(crate) struct DockLine<'a> {
     pub(crate) name: &'a str,
     pub(crate) text: &'a str,
     pub(crate) verified: bool,
+    /// The sender's tick, as the hub sent it.
+    pub(crate) tick: sjk_identity::Tick,
     pub(crate) staff: bool,
     pub(crate) creator: bool,
     /// The sender's trust (`ui_renderer::mark_texture`).
@@ -88,6 +90,7 @@ pub(crate) const BLANK: DockLine<'static> = DockLine {
     name: "",
     text: "",
     verified: false,
+    tick: sjk_identity::Tick::None,
     staff: false,
     creator: false,
     trust: None,
@@ -378,6 +381,7 @@ struct Line {
     name: String,
     text: String,
     verified: bool,
+    tick: sjk_identity::Tick,
     staff: bool,
     creator: bool,
     trust: Option<sjk_identity::Trust>,
@@ -462,6 +466,11 @@ impl DockCache {
                     name: shown.name,
                     text: String::new(),
                     verified: message.verified && shown.tier.is_none(),
+                    tick: if shown.tier.is_none() {
+                        message.tick
+                    } else {
+                        sjk_identity::Tick::None
+                    },
                     staff: message.staff,
                     creator: message.creator,
                     trust: message.trust.filter(|_| shown.tier.is_none()),
@@ -503,6 +512,7 @@ impl DockCache {
                 name: &line.name,
                 text: &line.text,
                 verified: line.verified,
+                tick: line.tick,
                 staff: line.staff,
                 creator: line.creator,
                 trust: line.trust,
@@ -543,6 +553,7 @@ impl DockCache {
                     name: (*name).to_owned(),
                     text: String::new(),
                     verified: *verified,
+                    tick: sjk_identity::Tick::None,
                     staff: false,
                     creator: false,
                     trust: None,
@@ -611,7 +622,8 @@ impl Lay<'_> {
     /// Where the text starts on the first row: after the JoF emblem, the name, the
     /// tick (or a drop's gem) and a colon (a drop has no name, so none).
     fn indent(&self, line: &DockLine<'_>) -> f32 {
-        let tick = if crate::ui_renderer::mark_texture(line.verified, line.trust).is_some()
+        let tick = if crate::ui_renderer::mark_texture(line.verified, line.tick, line.trust)
+            .is_some()
             || line.tier.is_some()
             || line.official.is_some()
         {
@@ -1042,7 +1054,9 @@ fn message(
             1.0,
         );
         x += sjk_chat_look::tick_room(lay.size);
-    } else if let Some(mark) = crate::ui_renderer::mark_texture(line.verified, line.trust) {
+    } else if let Some(mark) =
+        crate::ui_renderer::mark_texture(line.verified, line.tick, line.trust)
+    {
         sjk_chat_look::tick(
             canvas.draw_list_mut(),
             mark,
@@ -1223,6 +1237,7 @@ fn person(line: &DockLine<'_>) -> crate::sender_card::Person {
         key_id: (!line.key_id.is_empty()).then(|| line.key_id.to_owned()),
         hub_name: None,
         verified: line.verified,
+        tick: line.tick,
         staff: line.staff,
         creator: line.creator,
         trust: line.trust,
@@ -1264,6 +1279,7 @@ mod tests {
             name,
             text,
             verified: false,
+            tick: sjk_identity::Tick::None,
             staff: false,
             creator: false,
             trust: None,

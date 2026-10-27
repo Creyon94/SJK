@@ -785,6 +785,7 @@ fn a_staff_key_verifies_merges_and_unlinks() {
     let verify = StaffRequest::Verify {
         key_id: kept.key_id(),
         verified: true,
+        tick: None,
     };
     assert!(hub.staff(&staff, &verify).unwrap()[0].verified);
     // The reset key merged into the kept player: its keys are the kept one's, linked.
@@ -820,6 +821,7 @@ fn a_staff_key_verifies_merges_and_unlinks() {
     let unverify = StaffRequest::Verify {
         key_id: kept.key_id(),
         verified: false,
+        tick: None,
     };
     assert!(!hub.staff(&staff, &unverify).unwrap()[0].verified);
 }
