@@ -88,9 +88,6 @@ impl NativeGame {
         let holder = holder_of(peer);
         self.gather_obstacles(client);
         let usable = match self.map.as_ref() {
-            // SJK: stock's `G_ItemUsable` refuses the jetpack (it is never selectable),
-            // so `use_jetpack` never switched one on; here it does.
-            _ if tag == HI_JETPACK => holdables::jetpack_usable(&holder),
             Some(map) => holdables::usable(
                 &holder,
                 tag,
@@ -218,20 +215,12 @@ impl NativeGame {
                 peer.movement = peer.movement.reseeded(&peer.state);
             }
             HI_CLOAK => {
-                let wearer = wearer_of(peer);
+                let wearer = wearer_of(peer, level_time);
                 let toggled = holdables::use_cloak(&mut peer.gear.packs, &wearer, level_time);
                 self.cloak_toggled(client, toggled, level_time);
             }
             HI_SHIELD => self.place_shield(client, level_time),
-            HI_JETPACK => {
-                // `ItemUse_Jetpack`; the think flies the player while it is on.
-                let wearer = wearer_of(peer);
-                let toggled = holdables::use_jetpack(&mut peer.gear.packs, &wearer, level_time);
-                if toggled == Toggled::JetpackOn {
-                    let origin = peer.state.origin();
-                    self.holdable_sound(b"sound/boba/JETON", origin, CHAN_AUTO, level_time);
-                }
-            }
+            HI_JETPACK => self.use_jetpack(client, level_time),
             HI_SENTRY_GUN | HI_EWEB => {
                 // Given back: the movement used a sentry up.
                 if moved && tag == HI_SENTRY_GUN {
@@ -242,6 +231,20 @@ impl NativeGame {
                 self.told_unported_holdable(tag);
             }
             _ => {}
+        }
+    }
+
+    /// `ItemUse_Jetpack` for `client`, which the use key reaches (`TryUse`'s
+    /// `tryJetPack`); the think flies the player while it is on.
+    pub(super) fn use_jetpack(&mut self, client: usize, level_time: i32) {
+        let Some(peer) = self.peer_mut(client) else {
+            return;
+        };
+        let wearer = wearer_of(peer, level_time);
+        let toggled = holdables::use_jetpack(&mut peer.gear.packs, &wearer, level_time);
+        if toggled == Toggled::JetpackOn {
+            let origin = peer.state.origin();
+            self.holdable_sound(b"sound/boba/JETON", origin, CHAN_AUTO, level_time);
         }
     }
 
@@ -458,16 +461,16 @@ fn holder_of(peer: &Peer) -> Holder {
     }
 }
 
-/// The jetpack's and cloak's view of a player.
-fn wearer_of(peer: &Peer) -> Wearer {
+/// The jetpack's and cloak's view of a player at `level_time`.
+pub(super) fn wearer_of(peer: &Peer, level_time: i32) -> Wearer {
     Wearer {
         health: peer.health,
         dead: peer.state.raw_field(PS_EFLAGS).unwrap_or(0) & holdables::EF_DEAD != 0,
         jetpack_fuel: peer.state.raw_field(PS_JETPACK_FUEL).unwrap_or(0) as i32,
         cloak_fuel: peer.state.raw_field(PS_CLOAK_FUEL).unwrap_or(0) as i32,
         cloaked: peer.state.powerups[PW_CLOAKED] != 0,
-        gripped: false,
-        falling_to_death: false,
+        gripped: peer.force.grip_being_gripped >= level_time as f32,
+        falling_to_death: peer.state.falling_to_death() != 0,
     }
 }
 

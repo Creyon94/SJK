@@ -66,16 +66,22 @@ and the command are untested in a game.
 Then the flight on SJK's own server (Slash: in `devmap` the jetpack could not be flown;
 on other servers it flies). The movement already had stock `PM_JETPACK`
 ([pmove_jetpack.rs](../crates/sjk-game-jka/src/pmove_jetpack.rs)) and the batteries ran;
-what was missing is switching it on. `use_jetpack` (Settings > Controls, **Item: Jetpack**,
-unbound) now runs `ItemUse_Jetpack` (a second between switches, 5 fuel to start, not while
-gripped or falling to death, `sound/boba/JETON`), and the player's think flies a player
-whose jetpack is on (`PM_JETPACK`, `EF_JETPACK_ACTIVE`, `g_active.c:4007-4038`), lands one
-whose is off and puts the jets out; dying turns it off (`player_die`). Jump thrusts up and
-burns two fuel a tick instead of one; empty, it switches off. One deliberate departure:
-stock's `G_ItemUsable` refuses the jetpack (`BG_IsItemSelectable` never selects it), so
-stock `use_jetpack` never switched one on; SJK keeps only its first gates (alive, not
-riding, the use key let go). Not ported: a DEMP2 hit switching the jetpack off for 3 to 10
-seconds (`G_Damage`). Unit tests cover the think's link and the gates; untested in a game.
+what was missing is switching it on. The use key now does, as stock `TryUse` does
+(`tryJetPack`, `g_utils.c:2040-2048`): having used nothing in front of the eyes, it runs
+`ItemUse_Jetpack` for a held jetpack in the air (a second between switches, 5 fuel to
+start, not while gripped or falling to death, `sound/boba/JETON`), and while the jetpack
+burns it reaches for nothing else and only switches it off
+([bridge_use.rs](../crates/sjk-dedicated/src/bridge_use.rs)). The player's think flies a
+player whose jetpack is on (`PM_JETPACK`, `EF_JETPACK_ACTIVE`, `g_active.c:4007-4038`),
+lands one whose is off and puts the jets out; dying, a grip (`w_force.c:4185`) and the
+trigger a fall to death begins in (`g_trigger.c:2372`) turn it off, checked each frame
+(`holdables::jetpack_forced_off`). Jump thrusts up and burns two fuel a tick instead of
+one; empty, it switches off. `use_jetpack` stays refused, as stock's `G_ItemUsable`
+refuses it (`BG_IsItemSelectable` never selects the jetpack), and the client offers no
+bind for it. Sol's review on PR #225 moved the flight from that bind to the use key. Not
+ported: a DEMP2 hit switching the jetpack off for 3 to 10
+seconds (`G_Damage`). Unit tests cover the think's link, `tryJetPack`'s gate and the
+switch-offs; untested in a game.
 
 ## Sun blade drawn for less
 

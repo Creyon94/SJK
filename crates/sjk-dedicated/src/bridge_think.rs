@@ -130,11 +130,10 @@ impl NativeGame {
             peer.state.set_movement_type(PM_NOCLIP);
             peer.movement = peer.movement.reseeded(&peer.state);
         }
-        // `player_die` turns the jetpack off; then `ClientThink_real` flies a player whose
-        // jetpack is on (`PM_JETPACK`) and lands one whose is off.
-        if peer.health <= 0 {
-            peer.gear.packs.jetpack_on = false;
-        }
+        // Death, a grip and a fall to death turn the jetpack off; then `ClientThink_real`
+        // flies a player whose jetpack is on (`PM_JETPACK`) and lands one whose is off.
+        let wearer = super::bridge_holdables::wearer_of(peer, level_time);
+        sjk_game_jka::holdables::jetpack_forced_off(&mut peer.gear.packs, &wearer);
         let (kind, flags) = sjk_game_jka::holdables::jetpack_movement(
             peer.gear.packs.jetpack_on,
             peer.state.movement_type(),

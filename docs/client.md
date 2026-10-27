@@ -1584,8 +1584,8 @@ While the player holds a jetpack, or its tank is not full, a tall bar at the rig
 of the screen shows the fuel left in dark red, as JoF EJK's `CG_DrawJetpackFuel` draws it
 (20 by 100 units, 8 in from the right, 260 down). It hides with the HUD. In a
 [devmap](#development-maps) game the `jetpack` command gives or takes away the jetpack;
-`use_jetpack` (Settings > Controls, **Item: Jetpack**) switches it on and off, and jump
-climbs.
+as in the original game, the use key in the air switches it on (and off while it burns),
+and jump climbs.
 See
 [status](status.md#jetpack-fuel-bar).
 

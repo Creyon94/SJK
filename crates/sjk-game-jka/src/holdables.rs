@@ -10,6 +10,7 @@
 
 use crate::items::{ITEMS, Kind};
 use crate::pmove::{MovementCollision, MovementTrace};
+use crate::{PM_JETPACK, PM_NORMAL};
 
 /// `holdable_t`.
 pub const HI_NONE: i32 = 0;
@@ -37,9 +38,6 @@ pub const EF_DEAD: u32 = 0x0000_0002;
 /// `EF_JETPACK_ACTIVE`, `EF_JETPACK_FLAMING`.
 pub const EF_JETPACK_ACTIVE: u32 = 1 << 11;
 pub const EF_JETPACK_FLAMING: u32 = 1 << 30;
-/// `PM_NORMAL`, `PM_JETPACK`.
-const PM_NORMAL: u8 = 0;
-const PM_JETPACK: u8 = 1;
 /// `MAX_MEDPACK_HEAL_AMOUNT`, `MAX_MEDPACK_BIG_HEAL_AMOUNT`.
 pub const MEDPACK_HEAL: i32 = 25;
 pub const MEDPACK_BIG_HEAL: i32 = 50;
@@ -340,13 +338,22 @@ pub fn use_jetpack(packs: &mut Packs, wearer: &Wearer, level_time: i32) -> Toggl
     toggled
 }
 
-/// SJK's `use_jetpack` gates: `G_ItemUsable`'s first ones (alive, not riding, the use key
-/// let go), without its selectability, which refuses the jetpack outright.
-pub fn jetpack_usable(holder: &Holder) -> Result<(), Option<ItemUseFail>> {
-    if holder.health <= 0 || holder.riding || holder.movement_flags & PMF_USE_ITEM_HELD != 0 {
-        Err(None)
-    } else {
-        Ok(())
+/// `TryUse`'s `tryJetPack` (`g_utils.c:2040-2048`), where the use key reaches when it
+/// used nothing else, or straight away while the jetpack is on: whether to toggle a
+/// `held` jetpack (`ItemUse_Jetpack`), as it does while `on` or while `airborne`
+/// (`groundEntityNum == ENTITYNUM_NONE`).
+pub fn try_jetpack(held: bool, on: bool, airborne: bool) -> bool {
+    held && (on || airborne)
+}
+
+/// `Jetpack_Off` where stock calls it but for the use key: `player_die`, every tick of a
+/// grip on the wearer (`ForceGrip`, `w_force.c:4185`, which also renews
+/// `forceGripBeingGripped`) and the trigger a fall to death begins in (`g_trigger.c:2372`).
+/// The server checks each frame; `Jetpack_On` refuses the same wearer, so the second
+/// after a grip ends changes nothing.
+pub fn jetpack_forced_off(packs: &mut Packs, wearer: &Wearer) {
+    if wearer.health <= 0 || wearer.dead || wearer.gripped || wearer.falling_to_death {
+        packs.jetpack_on = false;
     }
 }
 
@@ -431,38 +438,67 @@ pub fn batteries(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{PM_FLOAT, PM_SPECTATOR};
+
+    fn wearer() -> Wearer {
+        Wearer {
+            health: 100,
+            dead: false,
+            jetpack_fuel: 100,
+            cloak_fuel: 100,
+            cloaked: false,
+            gripped: false,
+            falling_to_death: false,
+        }
+    }
 
     #[test]
-    fn use_jetpack_passes_where_stock_refuses_the_unselectable_jetpack() {
-        let holder = Holder {
-            client: 0,
-            origin: [0.0; 3],
-            view_angles: [0.0; 3],
-            health: 100,
-            max_health: 100,
-            entity_flags: 0,
-            movement_flags: 0,
-            riding: false,
-            duel_in_progress: false,
-            sentry_deployed: false,
+    fn the_use_key_toggles_a_held_jetpack_in_the_air_or_while_it_burns() {
+        assert!(try_jetpack(true, false, true));
+        assert!(try_jetpack(true, true, false));
+        // On the ground with it off the use key reaches for nothing.
+        assert!(!try_jetpack(true, false, false));
+        assert!(!try_jetpack(false, false, true));
+    }
+
+    #[test]
+    fn death_a_grip_or_a_fall_to_death_puts_the_jetpack_out() {
+        let lit = Packs {
+            jetpack_on: true,
+            ..Packs::default()
         };
-        assert_eq!(jetpack_usable(&holder), Ok(()));
-        assert!(!selectable(HI_JETPACK));
-        for refused in [
-            Holder {
+        let mut packs = lit;
+        jetpack_forced_off(&mut packs, &wearer());
+        assert!(packs.jetpack_on);
+        // Off, a fit wearer lights it again; the others below cannot.
+        packs.jetpack_on = false;
+        assert_eq!(
+            use_jetpack(&mut packs, &wearer(), 5_000),
+            Toggled::JetpackOn
+        );
+        for wearer in [
+            Wearer {
                 health: 0,
-                ..holder
+                ..wearer()
             },
-            Holder {
-                riding: true,
-                ..holder
+            Wearer {
+                dead: true,
+                ..wearer()
             },
-            Holder {
-                movement_flags: PMF_USE_ITEM_HELD,
-                ..holder
+            Wearer {
+                gripped: true,
+                ..wearer()
+            },
+            Wearer {
+                falling_to_death: true,
+                ..wearer()
             },
         ] {
-            assert_eq!(jetpack_usable(&refused), Err(None));
+            let mut packs = lit;
+            jetpack_forced_off(&mut packs, &wearer);
+            assert!(!packs.jetpack_on);
+            // Nor does the use key light it again.
+            assert_eq!(use_jetpack(&mut packs, &wearer, 5_000), Toggled::Nothing);
         }
     }
 
@@ -473,9 +509,11 @@ mod tests {
             jetpack_movement(true, PM_NORMAL, 0),
             (PM_JETPACK, EF_JETPACK_ACTIVE)
         );
-        // Gripped (`PM_FLOAT`) or dead (5): the chain's type stands, the jets out.
+        // Gripped (`PM_FLOAT`), spectating or dead (5): the chain's type stands, the
+        // jets out.
         let lit = EF_JETPACK_ACTIVE | EF_JETPACK_FLAMING | 1;
-        assert_eq!(jetpack_movement(true, 4, lit), (4, 1));
+        assert_eq!(jetpack_movement(true, PM_FLOAT, lit), (PM_FLOAT, 1));
+        assert_eq!(jetpack_movement(true, PM_SPECTATOR, lit), (PM_SPECTATOR, 1));
         assert_eq!(jetpack_movement(true, 5, lit), (5, 1));
         // Off: flying lands, walking stays.
         assert_eq!(jetpack_movement(false, PM_JETPACK, lit), (PM_NORMAL, 1));

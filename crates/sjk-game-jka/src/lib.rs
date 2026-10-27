@@ -323,6 +323,12 @@ pub use weapon_data::{
     LEGACY_WEAPON_COUNT, LEGACY_WEAPON_DATA, LegacyWeaponData, legacy_weapon_data,
 };
 
+/// `pmtype_t::PM_NORMAL` (`bg_public.h`): walks.
+pub const PM_NORMAL: u8 = 0;
+/// `pmtype_t::PM_JETPACK`: flies on a switched-on jetpack.
+pub const PM_JETPACK: u8 = 1;
+/// `pmtype_t::PM_FLOAT`: hangs in a grip.
+pub const PM_FLOAT: u8 = 2;
 /// `pmtype_t::PM_SPECTATOR` (`bg_public.h:430`): flies, still runs into walls.
 pub const PM_SPECTATOR: u8 = 4;
 

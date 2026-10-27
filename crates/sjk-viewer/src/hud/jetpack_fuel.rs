@@ -59,7 +59,10 @@ pub(super) fn emit(list: &mut DrawList, viewport: [f32; 2], fuel: Option<i32>) {
     rect(0.0, HEIGHT - 1.0, WIDTH, 1.0, FRAME);
     rect(0.0, 0.0, 1.0, HEIGHT, FRAME);
     rect(WIDTH - 1.0, 0.0, 1.0, HEIGHT, FRAME);
-    rect(1.0, 1.0 + HEIGHT - filled, WIDTH - 1.0, filled - 1.0, FUEL);
+    // An empty tank leaves `filled` at 0.1, under the frame's unit: no fuel rect.
+    if filled > 1.0 {
+        rect(1.0, 1.0 + HEIGHT - filled, WIDTH - 1.0, filled - 1.0, FUEL);
+    }
     rect(1.0, 1.0, WIDTH - 1.0, HEIGHT - filled, BURNT);
 }
 
@@ -119,5 +122,13 @@ mod tests {
         assert!(draw(Some(101)).is_empty());
         assert!(!draw(Some(100)).is_empty());
         assert!(!draw(Some(0)).is_empty());
+    }
+
+    #[test]
+    fn an_empty_tank_draws_no_fuel_and_no_rect_of_negative_height() {
+        let rects = rects(&draw(Some(0)));
+        assert_eq!(rects.len(), 5);
+        assert!(rects.iter().all(|(rect, _)| rect.height >= 0.0));
+        assert!(rects.iter().all(|(_, color)| *color != FUEL));
     }
 }
