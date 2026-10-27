@@ -1,3 +1,21 @@
+## Each swing heard once across the predicted and server animations
+
+27/10/2026, `fix/swing-sound-171`, based on `main` `685edded` (hub report #171, Kushina,
+T2_Trip, 2026.1026.3: a combo's end sometimes played one swing more, and then the next
+held combo's first swing was silent). The local player is shown the server's animation, a
+ping behind, while a saber move is not predicted; the cue cursor carried on across the
+switch, so the server's animation crossed the swing's key again, and the way back to the
+predicted one landed past the new swing's key. The local player's cues now go through
+`animation_events::Handover`, which holds back keys already heard and plays the ones the
+prediction passed unheard ([client.md](client.md#animation-sounds-and-voice-variants)).
+No hub change. Verified: fmt, Clippy (no warning in the touched files), sjk-client tests
+(325, with `a_bare_cursor_repeats_the_swing_and_misses_the_next_across_the_hand_over`,
+which reproduces the report, `the_hand_over_hears_each_swing_once` and
+`the_servers_animation_is_heard_again_once_it_leaves_the_swing_or_the_hold_lapses`),
+sjk-viewer tests (3094 passed; `cards::faces::tests::only_the_faces_asked_for_are_decoded`
+timed out under the full run's load and passes alone). Not verified: in game, which
+saber moves at a combo's end hand over to the server's animation, and the caught-up
+swing's delay over a real ping.
 ## Medal ranks
 
 27/10/2026, `personal/medal-ranks`, based on `main` `ef6364c0` (Sol's decision): every

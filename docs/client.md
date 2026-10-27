@@ -1675,6 +1675,15 @@ loading and queues decoding on the audio worker; ordinary frame playback perform
 no file reads. A world build shares the skeleton and event assets across matching
 appearances. Active actors release their prefetched encoded bytes after registration.
 
+The local player is shown the predicted animation, or the server's (a ping behind)
+while a saber move is not predicted (`local_actor_state`). Its cues go through
+`animation_events::Handover` (hub report #171, 27/10/2026): the server's animation
+replayed the swing just heard and the way back to the predicted one landed past the
+next swing's key, which then stayed silent. Handed to the server's, a track keeps back
+its cues until that animation (clip and revision) reaches the frame already heard, or
+for `HOLD_MILLIS` (1 s); handed back to the predicted one, it plays the keys of a
+non-looping clip the prediction passed unheard, at most `CATCH_UP_FRAMES` (12) back.
+
 Ground-contact events trace beneath the animated foot and select the authored
 walk/run sound bank for the surface material. Ground the map gives no material
 (no `MATERIAL_*` bits, which codemp plays as stone) takes its bank from the hit
