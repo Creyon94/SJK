@@ -75,7 +75,8 @@ includes:
   (weights, friction, limbs kept apart, blows that spin the body) (26/10/2026); then a
   throw charged by holding the key, and a hit marker and hit sound for the thrower
   (26/10/2026);
-- mystery boxes: boxes placed on maps through the hub, opened by players for credits,
+- mystery boxes: boxes placed on maps through the hub, opened by players for credits
+  to a music box tune of SJK's own while the roll slows to a stop on what came out,
   with a roll the hub makes and every SJK player around seeing them open (27/10/2026);
 - a macOS build for Apple Silicon Macs, drawn through Metal and built by GitHub with
   every release, unsigned and experimental (24/10/2026);

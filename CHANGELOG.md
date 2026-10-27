@@ -32,7 +32,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
-- Mystery boxes: SJK's creator places boxes on maps, and any SJK player opens one with Use for 100 credits: it may be empty, give your credits back, double them or pay a jackpot. Everyone around sees and hears it open; `mysterybox_list` shows the boxes on the map, and Settings > Sound > Toys silences them (`s_toyMysteryBoxSound`) _(Sol)_
+- Mystery boxes: SJK's creator places boxes on maps, and any SJK player opens one with Use for 100 credits: a little music box tune plays while weapons and crystals roll over the box, slowing to a stop on what came out (empty, your credits back, double or a jackpot), which floats there until you take it with Use (or it is taken for you after 10 seconds). Everyone around sees and hears it; `mysterybox_list` shows the boxes on the map, and Settings > Sound > Toys silences them (`s_toyMysteryBoxSound`) _(Sol)_
 
 ## 2026.1027.1 (Alpha) | 27/10/2026
 

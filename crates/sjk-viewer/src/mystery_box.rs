@@ -2,13 +2,15 @@
 //! places on maps through the hub, which any SJK player opens for credits with `+use`.
 //! The hub keeps where they stand, takes the price and rolls what is inside
 //! (`sjk_identity::mystery_box`); this module draws the boxes standing on the loaded map
-//! file, asks to open the one the player faces, shows and plays what came out, and shows
-//! other players' openings (the hub's toy event). No game server knows of them: a box is
-//! drawn by SJK clients only and has no collision.
+//! file, asks to open the one the player faces, and plays the opening: a music box tune
+//! while things roll over the box, slowing to a stop on what came out, which then floats
+//! there until the opener takes it with `+use` (or by itself after [`HOLD`]). Other
+//! players' openings come through the hub's toy event. No game server knows of them: a
+//! box is drawn by SJK clients only and has no collision.
 
 use crate::GpuState;
 use crate::actor_instance::ActorInstance;
-use glam::Vec3;
+use glam::{Quat, Vec3};
 use sjk_identity::mystery_box::{self as wire, MysteryBox};
 use sjk_identity::service::BoxDone;
 use sjk_protocol::{PlayerState, UserCommand};
@@ -18,11 +20,15 @@ use std::time::{Duration, Instant};
 pub(crate) const MODEL: &str = "models/map_objects/imperial/crate_banded.md3";
 /// Played when a box opens, for the opener and everyone near.
 const OPEN: &str = "sound/effects/crate_slide.mp3";
-/// Played over [`OPEN`] when the box paid credits back.
+/// The roll's music box tune, its last chord at [`ROLL`] (bundled).
+const ROLL_SOUND: &str = "sound/sjk/mystery_box/roll.wav";
+/// The opener taking what came out (bundled).
+const TAKE_SOUND: &str = "sound/sjk/mystery_box/take.wav";
+/// Played as the roll stops on credits.
 const WIN: &str = "sound/player/holocron.wav";
-/// Played over [`OPEN`] for the jackpot.
+/// Played as the roll stops on the jackpot.
 const JACKPOT: &str = "sound/items/respawn1.wav";
-/// Played over [`OPEN`] when the box was empty.
+/// Played as the roll stops on nothing.
 const EMPTY: &str = "sound/movers/doors/door_locked.mp3";
 /// `BUTTON_USE`, `+use`.
 const BUTTON_USE: u16 = 32;
@@ -32,14 +38,77 @@ const REACH: f32 = 80.0;
 const REACH_UP: f32 = 96.0;
 /// Widest angle between the player's facing and the box, in radians (60 degrees).
 const FACING: f32 = std::f32::consts::FRAC_PI_3;
-/// How long an opened box hops and turns.
-const HOP: Duration = Duration::from_millis(1_600);
-/// How high it hops, in game units.
-const HOP_HEIGHT: f32 = 18.0;
+/// How long the roll lasts, to the tune's last chord (`scripts/mystery_box_assets.py`).
+const ROLL: Duration = Duration::from_millis(5_500);
+/// How long what came out waits for its opener before it is taken by itself.
+const HOLD: Duration = Duration::from_secs(10);
+/// How long the roll's first thing takes to rise out of the box.
+const RISE: Duration = Duration::from_millis(700);
+/// How high over the box's base the roll floats (the crate is 33 units tall).
+const FLOAT: f32 = 46.0;
+/// How many times the roll changes what it shows; it slows to a stop on the last.
+const SWAPS: f32 = 30.0;
 /// How long an opening waits for the hub before the player may ask again.
 const ASK_TIMEOUT: Duration = Duration::from_secs(10);
 /// Farthest a box `mysterybox_remove` takes without an id may stand.
 const REMOVE_REACH: f32 = 256.0;
+
+/// A thing the roll shows: a model and how much it is grown to read at a box's size.
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct Item {
+    model: &'static str,
+    scale: f32,
+}
+
+const fn item(model: &'static str, scale: f32) -> Item {
+    Item { model, scale }
+}
+
+/// What the roll stops on, by outcome: bolts (empty), a blue crystal (refund), a green
+/// one (double), a red one (jackpot).
+const PRIZES: [Item; 4] = [
+    item("models/items/metallic_bolts.md3", 1.5),
+    item("models/map_objects/mp/crystal_blue.md3", 0.8),
+    item("models/map_objects/mp/crystal_green.md3", 0.8),
+    item("models/map_objects/mp/crystal_red.md3", 1.0),
+];
+
+/// What rolls over an opened box before it stops: the game's weapons and the prizes.
+const REEL: [Item; 16] = [
+    item("models/weapons2/blaster_pistol/blaster_pistol.md3", 2.0),
+    item("models/weapons2/blaster_r/blaster.md3", 0.9),
+    item("models/weapons2/bowcaster/bowcaster.md3", 1.2),
+    item("models/weapons2/briar_pistol/briar_pistol.md3", 1.8),
+    item("models/weapons2/concussion/c_rifle.md3", 0.9),
+    item("models/weapons2/disruptor/disruptor.md3", 1.0),
+    item("models/weapons2/golan_arms/golan_arms.md3", 0.9),
+    item("models/weapons2/heavy_repeater/heavy_repeater.md3", 1.0),
+    item("models/weapons2/detpack/det_pack.md3", 2.2),
+    item("models/weapons2/saber/saber_w.md3", 1.4),
+    item("models/weapons2/thermal/thermal.md3", 3.0),
+    item("models/weapons2/tusken_rifle/tusken_rifle.md3", 0.35),
+    PRIZES[0],
+    PRIZES[1],
+    PRIZES[2],
+    PRIZES[3],
+];
+
+/// The prize the roll stops on for `outcome`; a newer hub's outcome by whether it pays.
+fn prize(outcome: &str, pays: bool) -> Item {
+    match outcome {
+        "empty" => PRIZES[0],
+        "refund" => PRIZES[1],
+        "double" => PRIZES[2],
+        "jackpot" => PRIZES[3],
+        _ if pays => PRIZES[2],
+        _ => PRIZES[0],
+    }
+}
+
+/// Every model the boxes draw: the box, then [`REEL`] (which holds the prizes).
+fn models() -> impl Iterator<Item = &'static str> {
+    std::iter::once(MODEL).chain(REEL.iter().map(|item| item.model))
+}
 
 /// The creator's console commands, with their help.
 pub(crate) const COMMANDS: &[(&str, &str)] = &[
@@ -62,6 +131,62 @@ pub(crate) fn is_command(name: &str) -> bool {
     COMMANDS.iter().any(|(command, _)| *command == name)
 }
 
+/// A bundled file's bytes, by its name in `assets/mystery_box`.
+macro_rules! bundled {
+    ($name:literal) => {
+        include_bytes!(concat!("../assets/mystery_box/", $name))
+    };
+}
+
+/// The bundled files at their game paths (made by `scripts/mystery_box_assets.py`).
+const FILES: [(&str, &[u8]); 2] = [
+    (ROLL_SOUND, bundled!("roll.wav")),
+    (TAKE_SOUND, bundled!("take.wav")),
+];
+
+/// Mount the bundled files.
+pub(crate) fn mount(vfs: &mut sjk_vfs::VirtualFileSystem) -> Result<(), sjk_vfs::VfsError> {
+    vfs.mount_memory("SJK mystery box", FILES.iter().copied())?;
+    Ok(())
+}
+
+/// What the opener gets, told when they take it.
+#[derive(Clone, Debug, PartialEq)]
+struct Prize {
+    price: u64,
+    won: u64,
+    balance: u64,
+}
+
+/// A box's opening under way: the roll, then what came out waiting to be taken.
+#[derive(Clone, Debug, PartialEq)]
+struct Opening {
+    started: Instant,
+    outcome: String,
+    /// What the roll stops on.
+    prize: Item,
+    /// Varies what the roll shows from one opening to the next.
+    seed: u32,
+    /// The player's own opening: what they get.
+    mine: Option<Prize>,
+    /// The roll has stopped (its sound played).
+    revealed: bool,
+}
+
+impl Opening {
+    /// What the roll shows `elapsed` into it: changing fast, then slower, the prize from
+    /// the last change on.
+    fn showing(&self, elapsed: Duration) -> Item {
+        let t = (elapsed.as_secs_f32() / ROLL.as_secs_f32()).min(1.0);
+        let swap = (SWAPS * (1.0 - (1.0 - t) * (1.0 - t))) as u32;
+        if swap + 1 >= SWAPS as u32 {
+            return self.prize;
+        }
+        let mixed = (self.seed ^ swap.wrapping_mul(0x9E37_79B9)).wrapping_mul(0x85EB_CA6B);
+        REEL[(mixed >> 16) as usize % REEL.len()]
+    }
+}
+
 /// One box standing on the loaded map.
 #[derive(Clone, Debug, PartialEq)]
 struct Here {
@@ -69,14 +194,39 @@ struct Here {
     origin: Vec3,
     /// Facing, in degrees.
     yaw: f32,
-    /// When it last opened, for its hop.
-    opened: Option<Instant>,
+    opening: Option<Opening>,
 }
 
 /// A sound to play once.
 struct Cue {
     path: &'static str,
     origin: [f32; 3],
+}
+
+/// The player took what came out of their box (`by_itself`: after [`HOLD`]).
+#[derive(Debug, PartialEq)]
+struct Taken {
+    outcome: String,
+    prize: Prize,
+    by_itself: bool,
+}
+
+/// What the player is told of their own opening.
+#[derive(Debug, PartialEq)]
+enum Moment {
+    /// The roll stopped on what came out.
+    Stopped {
+        outcome: String,
+        prize: Prize,
+    },
+    Taken(Taken),
+}
+
+/// A number to vary a roll by.
+fn seed() -> u32 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |since| since.subsec_nanos())
 }
 
 /// A box the creator asked to place, waiting for the map's checksum.
@@ -87,7 +237,7 @@ struct PendingPlace {
     server: String,
 }
 
-/// The boxes of the loaded map, the opening under way and the sounds to play.
+/// The boxes of the loaded map, the openings under way and the sounds to play.
 #[derive(Default)]
 pub(crate) struct MysteryBoxes {
     /// The hub list's revision the boxes were taken from, and the map, checksum and
@@ -96,8 +246,9 @@ pub(crate) struct MysteryBoxes {
     here: Vec<Here>,
     /// What opening one costs, as the hub said.
     price: u64,
-    /// The rigid mesh of [`MODEL`] once loaded, and the mesh count it was looked up at.
-    mesh: Option<usize>,
+    /// The rigid meshes of [`models`] once loaded, in its order, and the mesh count
+    /// they were looked up at.
+    meshes: Vec<Option<usize>>,
     meshes_seen: usize,
     use_pressed: bool,
     use_held: bool,
@@ -105,7 +256,7 @@ pub(crate) struct MysteryBoxes {
     asked: Option<(i64, Instant)>,
     /// The last hub answer read.
     answer_seen: u64,
-    /// The box the player was last told how to open, while they stay at it.
+    /// The box the player was last told about, while they stay at it.
     hinted: Option<i64>,
     pending_place: Option<PendingPlace>,
     cues: Vec<Cue>,
@@ -122,9 +273,18 @@ impl MysteryBoxes {
         self.use_held = using;
     }
 
-    /// Whether [`MODEL`] must be loaded: a box stands here and its mesh is not there.
-    pub(crate) fn wants_model(&self) -> bool {
-        !self.here.is_empty() && self.mesh.is_none()
+    /// The models to load: those of [`models`] not loaded, while a box stands here.
+    pub(crate) fn wanted_models(&self) -> impl Iterator<Item = &'static str> + '_ {
+        models()
+            .enumerate()
+            .filter(|_| !self.here.is_empty())
+            .filter(|(index, _)| self.meshes.get(*index).copied().flatten().is_none())
+            .map(|(_, model)| model)
+    }
+
+    fn mesh_of(&self, model: &str) -> Option<usize> {
+        let index = models().position(|known| known == model)?;
+        self.meshes.get(index).copied().flatten()
     }
 
     fn clear(&mut self) {
@@ -137,7 +297,7 @@ impl MysteryBoxes {
 
     /// Take the boxes standing on `map` of `checksum` on `server` from `boxes`.
     fn take(&mut self, boxes: &wire::Boxes, map: &str, checksum: i32, server: Option<&str>) {
-        let old = std::mem::take(&mut self.here);
+        let mut old = std::mem::take(&mut self.here);
         self.price = boxes.price;
         self.here = boxes
             .boxes
@@ -147,10 +307,10 @@ impl MysteryBoxes {
                 id: placed.id,
                 origin: Vec3::from_array(placed.origin),
                 yaw: placed.yaw,
-                opened: old
-                    .iter()
+                opening: old
+                    .iter_mut()
                     .find(|here| here.id == placed.id)
-                    .and_then(|here| here.opened),
+                    .and_then(|here| here.opening.take()),
             })
             .collect();
         if self.here.is_empty() {
@@ -158,19 +318,90 @@ impl MysteryBoxes {
         }
     }
 
-    fn opened(&mut self, id: i64, outcome: &str, won: u64, now: Instant) {
+    /// Box `id` opened at `now` on `outcome`: the roll starts. `mine` is what the player
+    /// gets from their own opening; `seed` varies what the roll shows.
+    fn opened(&mut self, id: i64, outcome: &str, mine: Option<Prize>, seed: u32, now: Instant) {
         let Some(here) = self.here.iter_mut().find(|here| here.id == id) else {
             return;
         };
-        here.opened = Some(now);
+        let pays = outcome != "empty" && mine.as_ref().is_none_or(|prize| prize.won > 0);
+        here.opening = Some(Opening {
+            started: now,
+            outcome: outcome.to_owned(),
+            prize: prize(outcome, pays),
+            seed,
+            mine,
+            revealed: false,
+        });
         let origin = here.origin.to_array();
         self.cues.push(Cue { path: OPEN, origin });
-        let over = match outcome {
-            "jackpot" => JACKPOT,
-            _ if won > 0 => WIN,
-            _ => EMPTY,
-        };
-        self.cues.push(Cue { path: over, origin });
+        self.cues.push(Cue {
+            path: ROLL_SOUND,
+            origin,
+        });
+    }
+
+    /// Move the openings on to `now`: a roll that stops plays what it stopped on, and
+    /// what waited [`HOLD`] is taken by itself; what the player is told of theirs.
+    fn tick(&mut self, now: Instant) -> Vec<Moment> {
+        let mut moments = Vec::new();
+        for here in &mut self.here {
+            let Some(opening) = here.opening.as_mut() else {
+                continue;
+            };
+            let elapsed = now.saturating_duration_since(opening.started);
+            if !opening.revealed && elapsed >= ROLL {
+                opening.revealed = true;
+                let path = match opening.outcome.as_str() {
+                    "jackpot" => JACKPOT,
+                    _ if opening.prize == PRIZES[0] => EMPTY,
+                    _ => WIN,
+                };
+                self.cues.push(Cue {
+                    path,
+                    origin: here.origin.to_array(),
+                });
+                if let Some(prize) = &opening.mine {
+                    moments.push(Moment::Stopped {
+                        outcome: opening.outcome.clone(),
+                        prize: prize.clone(),
+                    });
+                }
+            }
+            if elapsed >= ROLL + HOLD
+                && let Some(opening) = here.opening.take()
+                && let Some(prize) = opening.mine
+            {
+                moments.push(Moment::Taken(Taken {
+                    outcome: opening.outcome,
+                    prize,
+                    by_itself: true,
+                }));
+            }
+        }
+        moments
+    }
+
+    /// The player takes what came out of box `id`, when it is theirs and waiting.
+    fn take_prize(&mut self, id: i64) -> Option<Taken> {
+        let here = self.here.iter_mut().find(|here| here.id == id)?;
+        let waiting = here
+            .opening
+            .as_ref()
+            .is_some_and(|opening| opening.revealed && opening.mine.is_some());
+        if !waiting {
+            return None;
+        }
+        let opening = here.opening.take()?;
+        self.cues.push(Cue {
+            path: TAKE_SOUND,
+            origin: here.origin.to_array(),
+        });
+        Some(Taken {
+            outcome: opening.outcome,
+            prize: opening.mine?,
+            by_itself: false,
+        })
     }
 }
 
@@ -202,6 +433,20 @@ fn result_text(outcome: &str, price: u64, won: u64) -> String {
         _ if won > 0 => format!("+{won} credits"),
         _ => format!("Nothing inside: -{price} credits"),
     }
+}
+
+/// Where the thing an opening shows floats `elapsed` into it, over a box facing `yaw`
+/// (degrees): its height over the box's base (rising out of it, then bobbing) and its
+/// yaw (side on to the box's front, turning slowly once the roll stopped).
+fn float(elapsed: Duration, yaw: f32) -> (f32, f32) {
+    let seconds = elapsed.as_secs_f32();
+    let rise = (seconds / RISE.as_secs_f32()).min(1.0);
+    let rise = 1.0 - (1.0 - rise) * (1.0 - rise);
+    let bob = (seconds * 2.4).sin() * 1.5;
+    let height = 18.0 + (FLOAT - 18.0) * rise + bob;
+    let held = seconds - ROLL.as_secs_f32();
+    let turn = if held > 0.0 { held * 60.0 } else { 0.0 };
+    (height, yaw + 90.0 + turn)
 }
 
 /// `pmtype_t`: the player plays (not dead, spectating or in intermission).
@@ -286,9 +531,16 @@ impl GpuState {
         }
         if self.mystery_boxes.meshes_seen != self.object_meshes.len() {
             self.mystery_boxes.meshes_seen = self.object_meshes.len();
-            self.mystery_boxes.mesh = self.object_meshes.iter().position(|mesh| {
-                mesh.appearance.variant.is_empty() && mesh.appearance.model == MODEL
-            });
+            self.mystery_boxes.meshes = models()
+                .map(|model| {
+                    self.object_meshes.iter().position(|mesh| {
+                        mesh.appearance.variant.is_empty() && mesh.appearance.model == model
+                    })
+                })
+                .collect();
+        }
+        for moment in self.mystery_boxes.tick(now) {
+            self.mystery_box_moment(moment);
         }
         let Some(session) = self.live_session.as_ref() else {
             return;
@@ -300,8 +552,7 @@ impl GpuState {
                 continue;
             }
             if let Some((id, outcome)) = wire::parse_event(&event.event) {
-                let won = u64::from(outcome != "empty");
-                self.mystery_boxes.opened(id, outcome, won, now);
+                self.mystery_boxes.opened(id, outcome, None, seed(), now);
             }
         }
         if self.mystery_boxes.here.is_empty() {
@@ -326,7 +577,13 @@ impl GpuState {
         let pressed = std::mem::take(&mut self.mystery_boxes.use_pressed);
         if at != self.mystery_boxes.hinted {
             self.mystery_boxes.hinted = at;
-            if at.is_some() {
+            let idle = at.is_some_and(|id| {
+                self.mystery_boxes
+                    .here
+                    .iter()
+                    .any(|here| here.id == id && here.opening.is_none())
+            });
+            if idle {
                 let price = self.mystery_boxes.price;
                 self.mystery_box_centre(format!(
                     "Mystery box: press Use to open it ({price} credits)"
@@ -336,6 +593,22 @@ impl GpuState {
         let (Some(id), true) = (at, pressed) else {
             return;
         };
+        if let Some(taken) = self.mystery_boxes.take_prize(id) {
+            self.mystery_box_moment(Moment::Taken(taken));
+            return;
+        }
+        let busy = self
+            .mystery_boxes
+            .here
+            .iter()
+            .find(|here| here.id == id)
+            .and_then(|here| here.opening.as_ref());
+        if let Some(opening) = busy {
+            if opening.mine.is_none() {
+                self.mystery_box_centre("Someone is opening this box".to_owned());
+            }
+            return;
+        }
         if self
             .mystery_boxes
             .asked
@@ -378,14 +651,13 @@ impl GpuState {
         let asked = self.mystery_boxes.asked.take();
         match outcome {
             Ok(BoxDone::Opened(opened)) => {
+                let mine = Prize {
+                    price: opened.price,
+                    won: opened.won,
+                    balance: opened.balance,
+                };
                 self.mystery_boxes
-                    .opened(opened.box_id, &opened.outcome, opened.won, now);
-                let text = result_text(&opened.outcome, opened.price, opened.won);
-                self.mystery_box_centre(text.clone());
-                self.mystery_box_print(format!(
-                    "Mystery box: {text} ({} credits left)",
-                    opened.balance
-                ));
+                    .opened(opened.box_id, &opened.outcome, Some(mine), seed(), now);
             }
             Ok(BoxDone::Placed(id)) => {
                 self.mystery_box_print(format!("Mystery box {id} placed"));
@@ -395,6 +667,31 @@ impl GpuState {
             }
             Err(why) if asked.is_some() => self.mystery_box_centre(why),
             Err(why) => self.mystery_box_print(format!("Mystery box: {why}")),
+        }
+    }
+
+    /// Tell the player their roll stopped, or that they took what came out.
+    fn mystery_box_moment(&mut self, moment: Moment) {
+        match moment {
+            Moment::Stopped { outcome, prize } => {
+                let text = result_text(&outcome, prize.price, prize.won);
+                self.mystery_box_centre(format!(
+                    "{text}
+Press Use to take it"
+                ));
+            }
+            Moment::Taken(taken) => {
+                let text = result_text(&taken.outcome, taken.prize.price, taken.prize.won);
+                let how = if taken.by_itself {
+                    " (taken for you)"
+                } else {
+                    ""
+                };
+                self.mystery_box_print(format!(
+                    "Mystery box: {text}{how} ({} credits left)",
+                    taken.prize.balance
+                ));
+            }
         }
     }
 
@@ -510,27 +807,47 @@ impl GpuState {
         lines
     }
 
-    /// Add this frame's boxes to the scene: each standing, an opened one hopping and
-    /// turning for [`HOP`].
+    /// Add this frame's boxes to the scene: each standing, an opened one shaking while it
+    /// rolls, and what its opening shows floating over it.
     pub(crate) fn append_mystery_box_instances(&mut self) {
-        let Some(mesh) = self.mystery_boxes.mesh else {
-            return;
-        };
         let now = Instant::now();
-        let group = &mut self.object_groups[mesh];
-        for here in &self.mystery_boxes.here {
-            let t = here
-                .opened
-                .map(|opened| now.duration_since(opened).as_secs_f32() / HOP.as_secs_f32())
-                .filter(|t| *t < 1.0);
-            let (lift, turn) = t.map_or((0.0, 0.0), |t| {
-                ((t * std::f32::consts::PI).sin() * HOP_HEIGHT, t * 360.0)
-            });
-            let origin = here.origin + Vec3::Z * lift;
-            group.push(ActorInstance::new(
+        let boxes = &self.mystery_boxes;
+        let box_mesh = boxes.mesh_of(MODEL);
+        for here in &boxes.here {
+            let elapsed = here
+                .opening
+                .as_ref()
+                .map(|opening| now.saturating_duration_since(opening.started));
+            if let Some(mesh) = box_mesh {
+                // Rattling while the roll runs, less and less as it slows.
+                let shake = elapsed
+                    .filter(|elapsed| *elapsed < ROLL)
+                    .map_or(0.0, |elapsed| {
+                        let t = elapsed.as_secs_f32();
+                        (t * 47.0).sin() * 2.5 * (1.0 - t / ROLL.as_secs_f32())
+                    });
+                self.object_groups[mesh].push(ActorInstance::new(
+                    here.origin.to_array(),
+                    sjk_client::legacy_angles_to_quaternion([0.0, here.yaw + shake, 0.0]),
+                    [1.0; 3],
+                ));
+            }
+            let (Some(opening), Some(elapsed)) = (&here.opening, elapsed) else {
+                continue;
+            };
+            let item = opening.showing(elapsed);
+            let Some(mesh) = boxes.mesh_of(item.model) else {
+                continue;
+            };
+            let (height, yaw) = float(elapsed, here.yaw);
+            let rotation = sjk_client::legacy_angles_to_quaternion([0.0, yaw, 0.0]);
+            // The model's own centre over the box, whatever its origin.
+            let centre = Vec3::from_array(self.object_meshes[mesh].center) * item.scale;
+            let origin = here.origin + Vec3::Z * height - Quat::from_array(rotation) * centre;
+            self.object_groups[mesh].push(ActorInstance::new(
                 origin.to_array(),
-                sjk_client::legacy_angles_to_quaternion([0.0, here.yaw + turn, 0.0]),
-                [1.0; 3],
+                rotation,
+                [item.scale; 3],
             ));
         }
     }
@@ -548,7 +865,7 @@ impl GpuState {
         if self.mystery_boxes.sounds_registered != Some(audio.generation())
             && let Some(vfs) = self.vfs.as_deref()
         {
-            audio.register_effect_paths(vfs, [OPEN, WIN, JACKPOT, EMPTY]);
+            audio.register_effect_paths(vfs, [OPEN, ROLL_SOUND, TAKE_SOUND, WIN, JACKPOT, EMPTY]);
             self.mystery_boxes.sounds_registered = Some(audio.generation());
         }
         for cue in self.mystery_boxes.cues.drain(..) {
@@ -573,7 +890,15 @@ mod tests {
             id,
             origin: Vec3::from_array(origin),
             yaw: 0.0,
-            opened: None,
+            opening: None,
+        }
+    }
+
+    fn prize_of(won: u64) -> Prize {
+        Prize {
+            price: 100,
+            won,
+            balance: 900,
         }
     }
 
@@ -621,34 +946,102 @@ mod tests {
             price: 100,
             ..Default::default()
         };
+        assert_eq!(state.wanted_models().count(), 0);
         state.take(&boxes, "mp/ffa3", 5, Some("5.6.7.8:29070"));
         let ids: Vec<i64> = state.here.iter().map(|here| here.id).collect();
         assert_eq!(ids, [1]);
         state.take(&boxes, "mp/ffa3", 5, Some("1.2.3.4:29070"));
         let ids: Vec<i64> = state.here.iter().map(|here| here.id).collect();
         assert_eq!(ids, [1, 3]);
-        assert!(state.wants_model());
         assert_eq!(state.price, 100);
+        // The box and everything the roll shows, each once.
+        let wanted: Vec<&str> = state.wanted_models().collect();
+        assert_eq!(wanted.first(), Some(&MODEL));
+        assert_eq!(wanted.len(), 1 + REEL.len());
+        state.meshes = vec![Some(0); wanted.len()];
+        assert_eq!(state.wanted_models().count(), 0);
     }
 
     #[test]
-    fn an_opening_hops_and_plays_what_came_out() {
+    fn the_roll_slows_to_a_stop_on_what_came_out() {
+        let opening = Opening {
+            started: Instant::now(),
+            outcome: "jackpot".to_owned(),
+            prize: prize("jackpot", true),
+            seed: 12345,
+            mine: None,
+            revealed: false,
+        };
+        // Changing often early on, the prize over the last second and after.
+        let early: std::collections::HashSet<&str> = (0..20)
+            .map(|step| opening.showing(Duration::from_millis(step * 50)).model)
+            .collect();
+        assert!(early.len() > 3, "{early:?}");
+        for ms in [ROLL.as_millis() as u64 - 700, 5_500, 12_000] {
+            assert_eq!(opening.showing(Duration::from_millis(ms)), PRIZES[3]);
+        }
+        assert_eq!(prize("empty", false), PRIZES[0]);
+        assert_eq!(prize("newer_thing", true), PRIZES[2]);
+        // Rising out of the box, then floating over it.
+        assert!(float(Duration::ZERO, 0.0).0 < 33.0);
+        assert!((float(Duration::from_secs(3), 0.0).0 - FLOAT).abs() <= 1.5);
+    }
+
+    #[test]
+    fn an_opening_rolls_stops_and_waits_to_be_taken() {
         let mut state = MysteryBoxes {
             here: vec![here(7, [0.0; 3])],
             ..Default::default()
         };
         let now = Instant::now();
-        state.opened(7, "jackpot", 500, now);
-        assert_eq!(state.here[0].opened, Some(now));
-        let paths: Vec<&str> = state.cues.iter().map(|cue| cue.path).collect();
-        assert_eq!(paths, [OPEN, JACKPOT]);
-        state.cues.clear();
-        state.opened(7, "empty", 0, now);
-        assert_eq!(state.cues[1].path, EMPTY);
-        // A box not here: nothing.
-        state.cues.clear();
-        state.opened(8, "double", 200, now);
-        assert!(state.cues.is_empty());
+        state.opened(7, "double", Some(prize_of(200)), 1, now);
+        let paths: Vec<&str> = state.cues.drain(..).map(|cue| cue.path).collect();
+        assert_eq!(paths, [OPEN, ROLL_SOUND]);
+        // Not taken while it rolls; the box is busy.
+        assert!(state.tick(now + Duration::from_secs(2)).is_empty());
+        assert_eq!(state.take_prize(7), None);
+        // The roll stops: its sound, and the player is told.
+        let moments = state.tick(now + ROLL);
+        assert_eq!(
+            moments,
+            [Moment::Stopped {
+                outcome: "double".to_owned(),
+                prize: prize_of(200),
+            }]
+        );
+        assert_eq!(state.cues.drain(..).next().map(|cue| cue.path), Some(WIN));
+        // Taken with Use.
+        let taken = state.take_prize(7).expect("taken");
+        assert!(!taken.by_itself);
+        assert_eq!(taken.prize.won, 200);
+        assert_eq!(state.cues[0].path, TAKE_SOUND);
+        assert!(state.here[0].opening.is_none());
+        assert!(state.tick(now + ROLL + HOLD).is_empty());
+    }
+
+    #[test]
+    fn what_is_left_is_taken_by_itself_after_the_hold() {
+        let mut state = MysteryBoxes {
+            here: vec![here(7, [0.0; 3]), here(8, [99.0; 3])],
+            ..Default::default()
+        };
+        let now = Instant::now();
+        state.opened(7, "empty", Some(prize_of(0)), 1, now);
+        // Another player's opening: rolls and goes, nothing taken for the player.
+        state.opened(8, "jackpot", None, 2, now);
+        let moments = state.tick(now + ROLL);
+        assert_eq!(moments.len(), 1);
+        let stops: Vec<&str> = state.cues[4..].iter().map(|cue| cue.path).collect();
+        assert_eq!(stops, [EMPTY, JACKPOT]);
+        assert_eq!(state.take_prize(8), None);
+        assert!(state.tick(now + ROLL + HOLD / 2).is_empty());
+        let moments = state.tick(now + ROLL + HOLD);
+        let [Moment::Taken(taken)] = moments.as_slice() else {
+            panic!("{moments:?}");
+        };
+        assert!(taken.by_itself);
+        assert_eq!(taken.outcome, "empty");
+        assert!(state.here.iter().all(|here| here.opening.is_none()));
     }
 
     #[test]
