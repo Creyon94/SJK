@@ -32,7 +32,6 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
-- Saber swings: a combo's end no longer plays one swing too many, and the next combo's first swing is no longer silent; parries, deflects and saber locks the server shows are heard at once, and footsteps carry on while running _(Slash, PR #226, after Kushina's and T2_Trip's report)_
 - Verified ticks come in colours: cyan for JoF, crimson for the Sith clan, leather for the JAWA clan, rust for JKR's creator, silver and teal for SJK staff and a turning sun for SJK's creator, chosen by the SJK team when they verify a player (gold stays for everyone else). The scoreboard and player card emblem stays white with the tick on its foot _(Sol)_
 - Medal ranks: every medal you hold now has a rank from I to V, set by the SJK team: I Issued, II Polished (a sheen sweeps across it), III Engraved (it leans towards your pointer, its rim glowing), IV Holo (the cards' rainbow foil) and V Solar (a corona round its rim and rising motes). The Collection, the Identity and profile pages and the new medal pop-up show the look; the scoreboard, player cards and other small places show a pip on the ribbon (bronze, silver, gold, then a sun). A rank going up shows the pop-up again, "Promoted to Holo". With `ui_rarityEffects 0` the medals stay still and wear the pip. Early Tester and Early Contributor are now simply Tester and Contributor _(Sol)_
 - JoF EternalJK players logged into SJK chat wear JoF EJK's icon on the scoreboard and the player card, as their chat lines do, once their client tells the hub which slot is theirs _(Sol)_
@@ -48,6 +47,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Your own crosshair colour (`cg_crosshairColor`) stays when it passes over a player or an object, instead of turning to the target's colour; health and saber-style colours still come first _(Slash, PR #217)_
 - Screenshots are saved fully opaque, so a skin tinted with your RGB colour keeps its colour in the picture instead of fading where the game left the alpha low _(Slash, PR #220)_
 - The in-game menu's Leave page no longer draws its name small over the arc _(Slash, PR #221)_
+- Saber swings: a combo's end no longer plays one swing too many, and the next combo's first swing is no longer silent; parries, deflects and saber locks the server shows are heard at once, and footsteps carry on while running _(Slash, PR #226, after Kushina's and T2_Trip's report)_
 
 ## 2026.1027.1 (Alpha) | 27/10/2026
 
