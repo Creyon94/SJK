@@ -267,6 +267,7 @@ impl NativeGame {
                 wounds: &mut victim.wounds,
                 force: None,
                 spared_by_master: false,
+                god: victim.god,
             };
             sjk_game_jka::damage::shock(&mut view, request, &mut rng);
             victim.movement = victim.movement.reseeded(&victim.state);

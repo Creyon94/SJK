@@ -88,9 +88,12 @@ loads one with it off. The client's [devmap](client.md#development-maps) starts
 an owned local game with cheats on.
 
 Players type these in the client console. Without cheats the server answers
-with the stock "cheats are not enabled" message (`@@@NOCHEATS`). `give`, `t_use`
-and `noclip` also need a living player in the game (`@@@MUSTBEALIVE`), as in
-OpenJK's `ClientCommand`; `setviewpos` also works for spectators.
+with the stock "cheats are not enabled" message (`@@@NOCHEATS`). `give`, `t_use`,
+`npc`, `noclip`, `god`, `notarget`, `giveother`, `killother`, `levelshot`,
+`thedestroyer` and `debugBMove_*` also need a living player in the game
+(`@@@MUSTBEALIVE`), as in OpenJK's `ClientCommand`; `setviewpos` also works for
+spectators. `noclip`, `god`, `notarget`, `giveother` and `levelshot` are refused
+during intermission.
 
 | Command | Effect |
 | --- | --- |
@@ -100,16 +103,49 @@ OpenJK's `ClientCommand`; `setviewpos` also works for spectators.
 | `give weapons`, `give weaponnum N` | Every usable weapon, or the weapon with number `N` |
 | `give ammo [N]` | `N` (0–999, 999 without `N`) of every ammo type |
 | `give excellent` (also `impressive`, `gauntletaward`, `defend`, `assist`) | One more of that award |
+| `give CLASSNAME` | The item with that classname (`item_seeker`, `weapon_rocket_launcher`, `ammo_thermal`…, without case), taken as if walked over (`Touch_Item`): what the player cannot carry is not taken. Flags are not given |
+| `giveother PLAYER WHAT…` | `give` for another living player, by slot number or name ("Target must be alive to use this command." otherwise) |
+| `killother PLAYER` | Kill another living player, as its own `kill` would |
 | `t_use NAME` | Fire every target named `NAME` as the player (`Cmd_TargetUse_f`), as mappers test triggers and scripts |
 | `setviewpos X Y Z YAW` | Teleport to the position, facing `YAW` |
 | `noclip` | Toggle flying through the world (see [Noclip](#noclip)) |
+| `god` | Toggle god mode (`FL_GODMODE`, "godmode ON/OFF"): no damage, the player's own included, though blows still push; only damage that ignores protection (`DAMAGE_NO_PROTECTION`, such as a `trigger_hurt` with that spawnflag) still hurts |
+| `notarget` | Toggle notarget (`FL_NOTARGET`, "notarget ON/OFF"): NPCs, vehicle turrets and map turrets no longer take the player for an enemy and drop it if they had. Bots still do, as their reference enemy checks (`PassStandardEnemyChecks`) never read the flag |
+| `levelshot` | For a player on the server's own machine (`localhost` or a loopback address, `pers.localClient`): the intermission begins and the client is sent `clientLevelShot`, which the SJK client does not act on |
+| `thedestroyer` | Light the saber in hand when it is holstered (`Cmd_ToggleSaber_f`) |
+| `debugBMove_Forward BOT` (also `_Back`, `_Left`, `_Right`, `_Up`) | Toggle a forced move for the bot in slot `BOT` (`Bot_SetForcedMovement`); it only moves the bot while `bot_forgimmick` is set, as in OpenJK |
 
-`give` follows OpenJK's `G_Give`; giving an item by its name (which the reference
-spawns on the player) is not ported and does nothing. See
+A spawn (respawn or team change) clears `noclip`, `god` and `notarget`, as
+`ClientSpawn` clears `client->noclip` and `ent->flags`; `kill` ends god mode too
+(`G_Kill`).
+
+`give` follows OpenJK's `G_Give`. An item given by name raises no pickup event,
+since the reference's item entity exists only for the touch: no pickup sound and no
+automatic weapon switch. See
 [give.rs](../crates/sjk-game-jka/src/give.rs),
 [bridge_commands.rs](../crates/sjk-dedicated/src/bridge_commands.rs),
-[bridge_cheats.rs](../crates/sjk-dedicated/src/bridge_cheats.rs) and
+[bridge_cheats.rs](../crates/sjk-dedicated/src/bridge_cheats.rs),
+[bridge_client_commands.rs](../crates/sjk-dedicated/src/bridge_client_commands.rs),
+[client_commands.rs](../crates/sjk-game-jka/src/client_commands.rs) and
 [bridge_teleport.rs](../crates/sjk-dedicated/src/bridge_teleport.rs).
+
+## Other client commands
+
+Besides chat, votes, teams, following and the cheats, the server takes the rest of
+OpenJK's `ClientCommand` table:
+
+| Command | Effect |
+| --- | --- |
+| `where` | Print the player's origin in whole units, `(x y z)` (`Cmd_Where_f`) |
+| `forcechanged [TEAM]` | Sent by the Force menu: a spectator's Force is read again from the userinfo at once; a player is told the change waits for its next spawn (`@@@FORCEPOWERCHANGED`) and spawns with the new Force next time (`forceDoInit`). Given a team outside the duels, it goes on as `team TEAM`. A siege or power duel respawn does not read it again yet |
+| `voice_cmd SOUND` | In team games, one of the 29 siege voice sounds (`req_medic`, `tac_hold`…, `bg_customSiegeSoundNames`), heard by everyone from the speaker (`EV_VOICECMD_SOUND`); a spectator is told `@@@NOVOICECHATASSPEC` |
+
+A command not in that table (`commands[]` in OpenJK's `g_cmds.c`) gets
+`Unknown command <name>`, as OpenJK and JoF EJK answer. `addbot` gets the stock
+refusal that only the server adds bots (`@@@ONLY_ADD_BOTS_AS_SERVER`). Mod commands
+(JoF EJK's and JA+'s `am*`, accounts, clans, races and the like) are not part of this
+server. The table is
+[client_commands.rs](../crates/sjk-game-jka/src/client_commands.rs).
 
 ## Noclip
 

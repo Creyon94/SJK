@@ -1621,6 +1621,7 @@ impl NativeGame {
         let Some(begun) = client_respawn(
             client as u16,
             &mut peer.session,
+            &peer.userinfo,
             &peer.accepted,
             settings,
             SPAWN_INVULNERABILITY,
@@ -2497,7 +2498,7 @@ impl NativeGame {
             std::array::from_fn(|axis| origin[axis] + bottom[axis] - 1.0),
             std::array::from_fn(|axis| origin[axis] + top[axis] + 1.0),
         );
-        let team = victim.session.team;
+        let (team, god) = (victim.session.team, victim.god);
         let mut target_view = Target {
             client: target as u16,
             state: &mut victim.state,
@@ -2509,6 +2510,7 @@ impl NativeGame {
             wounds: &mut victim.wounds,
             force: Some(&mut victim.force),
             spared_by_master,
+            god,
         };
         let damaged = if sheltered {
             sjk_game_jka::damage::shock(&mut target_view, &request, &mut rng);
@@ -3351,6 +3353,8 @@ const CONNECTIONS_PER_ADDRESS: usize = 3;
 mod bridge_chat;
 #[path = "bridge_cheats.rs"]
 mod bridge_cheats;
+#[path = "bridge_client_commands.rs"]
+mod bridge_client_commands;
 #[path = "bridge_ctf.rs"]
 mod bridge_ctf;
 #[path = "bridge_duel.rs"]

@@ -294,6 +294,9 @@ pub struct Target<'a> {
     /// `G_Damage`'s Jedi Master rule holds between this target and the attacker
     /// ([`crate::jedi_master::spares`]): the blow's push lands, nothing more.
     pub spared_by_master: bool,
+    /// `FL_GODMODE`, the `god` cheat ([`crate::client_commands`]): only the push and a
+    /// `DAMAGE_NO_PROTECTION` blow land.
+    pub god: bool,
 }
 
 /// What `G_Damage` came to.
@@ -485,6 +488,10 @@ pub fn damage_at(
         (by_a_player || !by_a_client) && attacker.team != 0 && attacker.team == target.team
     });
     if flags & DAMAGE_NO_PROTECTION == 0 && by_another && (teammate || target.spared_by_master) {
+        return damaged;
+    }
+    // God mode, from any blow, the player's own too (`g_combat.c`, "check for godmode").
+    if flags & DAMAGE_NO_PROTECTION == 0 && target.god {
         return damaged;
     }
     // Complete protection: the spawn's, while it lasts.
@@ -969,4 +976,57 @@ pub fn radius_damage(
         hit_client |= hurt(target.number, request);
     }
     hit_client
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A blow of 50 from the world's direction `+x` on a 100-health player.
+    fn blow(god: bool, flags: u32) -> (i32, [f32; 3], Damaged) {
+        let mut state = PlayerState::default();
+        let (mut health, mut invulnerable_until) = (100, 0);
+        let mut wounds = Wounds::default();
+        let mut target = Target {
+            client: 0,
+            state: &mut state,
+            health: &mut health,
+            origin: [0.0; 3],
+            bounds: ([-16.0, -16.0, -24.0], [16.0, 16.0, 40.0]),
+            invulnerable_until: &mut invulnerable_until,
+            team: 0,
+            wounds: &mut wounds,
+            force: None,
+            spared_by_master: false,
+            god,
+        };
+        let request = DamageRequest {
+            level_time: 1_000,
+            attacker: None,
+            direction: Some([1.0, 0.0, 0.0]),
+            point: None,
+            damage: 50,
+            flags,
+            means: 0,
+        };
+        let damaged = damage(&mut target, request, &mut crate::player_death::Rng(1));
+        (health, state.velocity(), damaged)
+    }
+
+    #[test]
+    fn god_mode_takes_the_push_but_not_the_damage() {
+        let (health, velocity, damaged) = blow(true, 0);
+        assert_eq!(health, 100);
+        assert!(velocity[0] > 0.0);
+        assert!(!damaged.landed);
+        let (health, ..) = blow(false, 0);
+        assert!(health < 100);
+    }
+
+    #[test]
+    fn god_mode_does_not_stop_a_blow_past_protection() {
+        let (health, _, damaged) = blow(true, DAMAGE_NO_PROTECTION);
+        assert!(health < 100);
+        assert!(damaged.landed);
+    }
 }

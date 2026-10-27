@@ -69,10 +69,10 @@ impl NativeGame {
                 return;
             }
             let arguments: Vec<&[u8]> = words.collect();
-            let Some(peer) = self.peer_mut(client) else {
-                return;
-            };
-            if peer.health <= 0 || !peer.playing() {
+            if self
+                .peer(client)
+                .is_none_or(|peer| peer.health <= 0 || !peer.playing())
+            {
                 self.told
                     .push(Told::One(client, b"print \"@@@MUSTBEALIVE\n\"".to_vec()));
                 return;
@@ -80,11 +80,7 @@ impl NativeGame {
             let (name, rest) = arguments
                 .split_first()
                 .map_or((&b""[..], &[][..]), |(name, rest)| (*name, rest));
-            let _ = give(&mut peer.state, &mut peer.health, name, rest);
-            // The weapons and the ammo are the movement's to spend: it restarts from
-            // the state as given.
-            peer.movement = peer.movement.reseeded(&peer.state);
-            peer.movement.set_health(peer.health);
+            self.give_to(client, name, rest);
             return;
         }
         if command.eq_ignore_ascii_case(b"siegeclass") {
@@ -99,11 +95,27 @@ impl NativeGame {
         {
             return;
         }
-        if !command.eq_ignore_ascii_case(b"team") {
-            // Every other game command is still to come.
+        let arguments: Vec<&[u8]> = words.collect();
+        if self.table_command(client, command, &arguments, server_time) {
             return;
         }
-        let arguments: Vec<&[u8]> = words.collect();
+        // `Cmd_ForceChanged_f` goes on as `Cmd_Team_f` when the menu sent a team with it.
+        let team = command.eq_ignore_ascii_case(b"team")
+            || (command.eq_ignore_ascii_case(b"forcechanged")
+                && self.force_changed(
+                    client,
+                    arguments.first().is_some_and(|word| !word.is_empty()),
+                ));
+        if !team {
+            use sjk_game_jka::client_commands::{ADDBOT_REFUSED, is_command, unknown};
+            // A name `commands[]` does not have is unknown; `addbot` is the server's.
+            if command.eq_ignore_ascii_case(b"addbot") {
+                self.told.push(Told::One(client, ADDBOT_REFUSED.to_vec()));
+            } else if !is_command(command) {
+                self.told.push(Told::One(client, unknown(command)));
+            }
+            return;
+        }
         let gametype = self.gametype;
         // `SetTeam` on a siege server, once `Cmd_Team_f`'s own checks have passed.
         if self.siege.is_some()
