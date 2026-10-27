@@ -24,23 +24,11 @@ const ENTER: f32 = 0.010;
 const LEAVE: f32 = 0.007;
 
 /// Live `r_floorReflections`; `SJK_FLOOR_REFLECTIONS=0` still forces mirrors off.
-#[cfg(not(test))]
 static ENABLED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(true);
-#[cfg(test)]
-thread_local! {
-    /// Each test thread's own switch, as tests that register cvars run side by side.
-    static ENABLED: std::cell::Cell<bool> = const { std::cell::Cell::new(true) };
-}
-
-fn set_enabled(on: bool) {
-    #[cfg(not(test))]
-    ENABLED.store(on, std::sync::atomic::Ordering::Relaxed);
-    #[cfg(test)]
-    ENABLED.with(|enabled| enabled.set(on));
-}
 
 /// Register `r_floorReflections` (default 1, live): polished floors mirror the scene.
 pub(crate) fn register(cvars: &mut sjk_shell::CvarRegistry) -> Result<(), sjk_shell::CvarError> {
+    use std::sync::atomic::Ordering;
     cvars.register(sjk_shell::CvarDefinition::new(
         "r_floorReflections",
         1_i64,
@@ -49,22 +37,18 @@ pub(crate) fn register(cvars: &mut sjk_shell::CvarRegistry) -> Result<(), sjk_sh
          ordinary material; live",
     ))?;
     let on = |value: &sjk_shell::CvarValue| !matches!(value, sjk_shell::CvarValue::Integer(0));
-    set_enabled(on(&cvars
-        .get("r_floorReflections")
-        .expect("registered")
-        .value));
+    ENABLED.store(
+        on(&cvars.get("r_floorReflections").expect("registered").value),
+        Ordering::Relaxed,
+    );
     cvars.on_change("r_floorReflections", move |change| {
-        set_enabled(on(&change.current))
+        ENABLED.store(on(&change.current), Ordering::Relaxed)
     })
 }
 
 /// Mirrors are drawn: the cvar is on and the environment override does not forbid them.
 fn enabled(environment: bool) -> bool {
-    #[cfg(not(test))]
-    let on = ENABLED.load(std::sync::atomic::Ordering::Relaxed);
-    #[cfg(test)]
-    let on = ENABLED.with(std::cell::Cell::get);
-    environment && on
+    environment && ENABLED.load(std::sync::atomic::Ordering::Relaxed)
 }
 
 struct Floor {
