@@ -20,13 +20,15 @@ use crate::text::TextStyle;
 const SUN: [f32; 2] = [300.0, 330.0];
 const EMBLEM: f32 = 220.0;
 const CAPTION_Y: f32 = 486.0;
-/// The sections down a rail on the left, and Expand all under them.
+/// The sections down a rail on the left, and Expand all under them; the
+/// sections draw closer when there are too many for their full step.
 const RAIL_X: f32 = 96.0;
-const RAIL_TOP: f32 = 584.0;
+const RAIL_TOP: f32 = 556.0;
 const SECTION_STEP: f32 = 52.0;
 const SECTION_HEIGHT: f32 = 44.0;
 const RAIL_WIDTH: f32 = 420.0;
 const EXPAND: [f32; 2] = [230.0, 46.0];
+const EXPAND_GAP: f32 = 24.0;
 /// The reading column and the part of it on show.
 const COLUMN_X: f32 = 640.0;
 const COLUMN_WIDTH: f32 = 1120.0;
@@ -1017,19 +1019,27 @@ impl Panel {
     fn sjk_rail(&mut self, frame: &Frame) -> usize {
         let s = frame.s;
         let count = self.sections.len().min(usize::from(SECTION_TOKENS));
+        let step = if count > 1 {
+            SECTION_STEP.min(
+                (VIEW_BOTTOM - EXPAND[1] - EXPAND_GAP - SECTION_HEIGHT - RAIL_TOP)
+                    / (count - 1) as f32,
+            )
+        } else {
+            SECTION_STEP
+        };
+        let bottom = RAIL_TOP + count.saturating_sub(1) as f32 * step + SECTION_HEIGHT;
         if count > 0 {
             let current = self.current_section();
-            let bottom = RAIL_TOP + count as f32 * SECTION_STEP - (SECTION_STEP - SECTION_HEIGHT);
             kit::rail(
                 &mut self.ui,
                 frame,
                 RAIL_X,
                 RAIL_TOP - 14.0,
                 bottom + 14.0,
-                Some(RAIL_TOP + current as f32 * SECTION_STEP + SECTION_HEIGHT * 0.5),
+                Some(RAIL_TOP + current as f32 * step + SECTION_HEIGHT * 0.5),
             );
             for (index, section) in self.sections.iter().take(count).enumerate() {
-                let top = RAIL_TOP + index as f32 * SECTION_STEP;
+                let top = RAIL_TOP + index as f32 * step;
                 let token = SECTION_BASE + index as u16;
                 let hovered = self.ui.token_hovered(token);
                 text(
@@ -1050,7 +1060,11 @@ impl Panel {
                     .hit_region(token, frame.rect(RAIL_X, top, RAIL_WIDTH, SECTION_HEIGHT));
             }
         }
-        let y = (RAIL_TOP + count as f32 * SECTION_STEP + 28.0).min(VIEW_BOTTOM - EXPAND[1]);
+        let y = if count > 0 {
+            bottom + EXPAND_GAP
+        } else {
+            RAIL_TOP
+        };
         kit::button(
             &mut self.ui,
             frame,

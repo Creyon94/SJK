@@ -676,7 +676,8 @@ overlay routes their text to the UI's families (`console_sjk_pages.rs`).
   reading column has a navy shade of its own (half), so the rays cross it softly.
   Under the emblem "The people who make SJK", then the sections down a lit
   rail, the one in view gold (a click scrolls to it), and Expand all (Collapse
-  all once a fold is open). The column (x 640, 1120 wide, from y 140 to 960,
+  all once a fold is open) under them; the sections draw closer when there are
+  too many for the rail to end above y 960 with Expand all. The column (x 640, 1120 wide, from y 140 to 960,
   scrolled by the arrows, Page Up and Down, Space, Home and End, the wheel and a
   thin holo scrollbar at x 1800) holds each section under a sub-heading:
   - Someone with a history: the name (Rajdhani 84 for Sol JK's section, 62 for
