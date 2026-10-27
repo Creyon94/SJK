@@ -294,7 +294,8 @@ pub(super) fn split_hints(page: Page, rows: &mut [String], hints: &mut [String])
 /// The page's name over its first entry; none on the main page.
 fn page_title(page: Page, siege: bool) -> Option<&'static str> {
     Some(match page {
-        Page::Main | Page::Shot | Page::MapEdit => return None,
+        // Leave's rows say what they do; a title over them only repeats it.
+        Page::Main | Page::Shot | Page::MapEdit | Page::Leave => return None,
         Page::Team if siege => "Class",
         Page::Team => "Team",
         // Its step's own title comes with the rows (`Rows::title`).
@@ -309,7 +310,6 @@ fn page_title(page: Page, siege: bool) -> Option<&'static str> {
         Page::VoteTimeLimit => "Time limit, minutes",
         Page::VoteFragLimit => "Frag limit",
         Page::Sjk => "SJK",
-        Page::Leave => "Leave",
         Page::About => "Server info",
         Page::ConfirmLeave => "Leave the server?",
         Page::ConfirmQuit => "Quit to desktop?",

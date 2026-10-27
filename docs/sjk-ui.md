@@ -1329,7 +1329,7 @@ entry of its own under Profile, making seven.
   440), 68 apart (50 for eleven or twelve, 36 for more, smaller type), the
   chosen one gold and larger with a line under it saying what it opens (while the
   list has the keyboard; white and without its line while the row or the card has
-  it); a page's name stands small over its first entry. Beside them a lit holo rail
+  it); a page's name stands small over its first entry (not on Leave). Beside them a lit holo rail
   with a gold mark that eases to the chosen entry, and inside the curve SJK's emblem
   in its turning ring. Leaving entries are ember when chosen; Back and Stay are
   quiet, as is the main page's Leave.
@@ -1370,7 +1370,8 @@ entry of its own under Profile, making seven.
     are the shared call-vote lists. Calling a vote returns to the match, as
     retail's pop-ups do.
   - Leave: Leave the server, Quit to desktop (ember when chosen), Stay. It opens on
-    Stay, since its rows act at once.
+    Stay, since its rows act at once. It has no title over the arc; its rows say
+    what they do.
 - **Row of icons:** under the emblem, from (96, 852), icons 54 across and 66 apart:
   Camera control (the settings `camera` icon; F8 opens it too), What's new (the
   wheel's `whats_new`), Credits (`credits`), Report a bug (`other_controls`, the
