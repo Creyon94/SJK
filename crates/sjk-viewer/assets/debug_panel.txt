@@ -24,6 +24,30 @@
 
 # ---- Console & chat ----
 
+[slash-crosshair-color]
+area: HUD
+title: Own crosshair colour over targets (Slash, PR #217, hub #159)
+change: An own cg_crosshairColor wins over the target colours; health/saber-style colours first.
+test: cg_crosshairColor "0 255 0 255", aim at a player and an object: the crosshair stays green.
+
+[slash-screenshot-opaque]
+area: Rendering & effects
+title: Screenshots saved opaque (Slash, PR #220, hub #155)
+change: Screenshots and world-note pictures are written with full alpha.
+test: Wear an RGB-tinted skin, screenshotJPEG and screenshot: the tint shows in both files.
+
+[slash-leave-title]
+area: Menus & settings
+title: No small title over the in-game Leave page (Slash, PR #221)
+change: The in-game menu's Leave page no longer draws its name above the arc.
+test: In a game, Esc, open Leave: no small title over the arc.
+
+[slash-demp2-bubble]
+area: Rendering & effects
+title: DEMP2 alt fire shock bubble (Slash, PR #223)
+change: An alt-fire shot draws the growing sphere where it lands, 800 ms, as in the original game.
+test: devmap, give weapon_demp2, alt fire at a wall: a bubble grows and fades there.
+
 [slash-hub-refusal-why]
 area: Console & chat
 title: A refusal before the hub answers says why (Slash, PR #218)

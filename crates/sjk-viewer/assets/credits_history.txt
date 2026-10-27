@@ -2676,6 +2676,15 @@
 - fed9acd |  | Hide duel opponents' bars and send nothing while duelling
 
 = Slash
++ 27/10/2026 | SJK #223 | Draw the DEMP2 alt fire's shock bubble
+- 95a7b01 |  | Draw the DEMP2 alt fire's shock bubble
+- a15c459 |  | Changelog: credit PR #223
++ 27/10/2026 | SJK #217 | Keep an own cg_crosshairColor over the target colours (#159)
+- 6a51a31 |  | Keep an own cg_crosshairColor over the target colours (#159)
++ 27/10/2026 | SJK #220 | Write screenshots opaque, so tinted skins keep their colour (#155)
+- f87b469 |  | Write screenshots opaque, so tinted skins keep their colour (#155)
++ 27/10/2026 | SJK #221 | In-game menu: drop the small "Leave" title over the arc
+- 6d7a82a |  | In-game menu: drop the small "Leave" title over the arc
 + 27/10/2026 | SJK #219 | Leave the view free through JA+ knockdowns, get-ups and emotes (#164, #166, #169)
 - bc667b8 |  | Leave the view free through a JA+ emote that plays a knockdown animation (#166)
 - 4904664 |  | Leave the view free through JA+ knockdowns, get-ups and a kiss emote (#164, #169)

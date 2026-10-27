@@ -1096,6 +1096,16 @@ messages; the bio's keys, Ctrl+A, Shift+Enter and repeats; a click on a wrapped 
 1080p and 4K with a larger text style; line breaks in the field layout). Not verified: in
 a game.
 
+## DEMP2 alt fire's bubble
+
+27/10/2026, `fix/demp2-alt-shell`, based on `main` `685edded` (Slash's hub report #157:
+the DEMP2's alt fire shows no bubble). The shock played `demp2/altdetonate` but not the
+growing `gfx/effects/demp2shell` sphere `FX_DEMP2_AltDetonate` adds; it is now drawn as
+`CG_AddFadeScaleModel` draws it, with rd-vanilla's `RF_VOLUMETRIC` rim colouring
+([rendering.md](rendering.md)). Verified on Windows 11: unit tests (the size and colour
+curve, only `EFFECT_EXPLOSION_DEMP2ALT` starts one, gone after 800 ms, the pool's
+limit), the workspace checks. Not verified: in a game, against stock's look side by side.
+
 ## DEMP2 flash scaled by distance
 
 23/10/2026, `personal/hub-reports-1023-c`, based on `main` `7bc8bc89` (Slash's report #125,
@@ -1108,7 +1118,7 @@ SJK drew it at full colour as an ordinary billboard wherever the shock went off;
 spawns nothing far away or behind and three quarters of its colour at 450 units ahead),
 the workspace checks. Not verified: in a game; a flash close behind the viewer, which stock
 shows on the screen, stays out of sight; the DEMP2 shell sphere (`FX_DEMP2_AltDetonate`) is
-still not drawn.
+still not drawn (drawn since 27/10/2026, report #157).
 Follow-up 23/10/2026, `personal/demp2-flash-screen` (Slash's video: a magenta, yellow,
 then purple square tinting the sky behind the shock): the flash is now drawn on the
 viewer as `CFlash::Draw` draws it, a quad over the whole view in front of everything,

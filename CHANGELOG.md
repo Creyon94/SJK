@@ -41,6 +41,10 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - SJK chat, emotes, reports and trades refused before the SJK hub has answered say why: the identity is off (`cl_identity 1`), no hub is set (`cl_hubUrl`), or the hub is not connected yet, with its last failure, instead of always blaming `cl_identity` _(Slash, PR #218)_
 - On JoF servers the view stays free through knockdowns, get-ups and emotes, as the server leaves it, instead of shaking against it; other JA+ servers keep it held until they are known to do the same, and `cg_japlusFreeKnockdownView` chooses for any server _(Slash, PR #219, after Rollembones' and Kushina's reports)_
 - `devmap`: your own local game now takes every OpenJK player command: `god`, `notarget`, `giveother`, `killother`, `give` with an item name, `where`, `levelshot`, `thedestroyer`, `voice_cmd`, `forcechanged` and the bots' `debugBMove_*`, and a command it does not know says so instead of doing nothing _(Slash, PR #224, after OpenJK)_
+- The DEMP2's alt fire now shows its shock bubble: a sphere grows where the shot lands and bursts as the shock spreads, as in the original game _(Slash, PR #223)_
+- Your own crosshair colour (`cg_crosshairColor`) stays when it passes over a player or an object, instead of turning to the target's colour; health and saber-style colours still come first _(Slash, PR #217)_
+- Screenshots are saved fully opaque, so a skin tinted with your RGB colour keeps its colour in the picture instead of fading where the game left the alpha low _(Slash, PR #220)_
+- The in-game menu's Leave page no longer draws its name small over the arc _(Slash, PR #221)_
 
 ## 2026.1027.1 (Alpha) | 27/10/2026
 

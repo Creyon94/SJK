@@ -620,7 +620,7 @@ merged into SJK
 - #198 "Too many open files" after a long session: the Profile menu's model icons, cosmetics and
   Force templates let go of the previous map's game files (its PK3 reopening part held back).
 
-Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 39 pull requests merged
+Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 43 pull requests merged
 into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AJoFSlash)):
 
 - #114 Tab completes the cfg file argument of `exec`, `execq`, `writeconfig` and `write`
@@ -699,6 +699,10 @@ into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author
 - #224 `devmap` takes the rest of OpenJK's player commands (`god`, `notarget`, `giveother`,
   `killother`, `voice_cmd`, `where`, ...) and answers unknown ones.
 - #228 the floor-mirror cvar test no longer races other tests.
+- #217 an own `cg_crosshairColor` stays over targets (after health and saber-style colours).
+- #220 screenshots are written opaque, so tinted skins keep their colour.
+- #221 the in-game menu's Leave page no longer draws its name over the arc.
+- #223 the DEMP2 alt fire's shock bubble, as `FX_DEMP2_AltDetonate` draws it.
 
 His Peek work in #199 (closed 24/10/2026, not merged) shaped the Drone toy: a player is
 asked before being peeked, told who watches, and can end it. His #206 (closed 25/10/2026,
