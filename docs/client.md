@@ -2351,10 +2351,16 @@ change maps or allow cheats. Missing map names are reported before leaving the
 current game. Disconnecting, cancelling the join, or exiting stops the owned
 server. Ordinary Create game launches still leave cheats disabled.
 
-The native server implements `noclip`, `give`, `setviewpos`, and `t_use` for
-development. Run `noclip` again to return to ordinary movement; spawning again
-clears it. Normal servers still require their own cheat permission. `god` remains
-unimplemented on the native server.
+The native server takes all of OpenJK's player commands, the cheats among them:
+`noclip`, `god`, `notarget`, `give` (also an item by classname), `giveother`,
+`killother`, `setviewpos`, `t_use`, `npc`, `levelshot`, `thedestroyer` and
+`debugBMove_*`, plus `where`, `forcechanged` and `voice_cmd` (see its
+[cheat commands](server.md#cheat-commands) and
+[other client commands](server.md#other-client-commands)). Run `noclip`, `god` or
+`notarget` again to turn it off; spawning again clears all three. Normal servers
+still require their own cheat permission. A command the server does not know
+answers `Unknown command`; mod commands such as JoF EJK's or JA+'s `amtele` are
+not there, as the local server runs no mod.
 
 ## Invisible brushes
 

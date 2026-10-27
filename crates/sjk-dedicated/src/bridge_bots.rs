@@ -21,8 +21,9 @@ pub(super) struct Bots {
     clock: sjk_game_jka::bot_think::BotClock,
     /// `botSpawnQueue`: when each delayed bot begins, and which.
     queue: [(i32, usize); SPAWN_QUEUE],
-    /// `botstates`: each bot's thinking, by its place, from its connect on.
-    minds: Vec<Option<sjk_game_jka::bot_think::BotMind>>,
+    /// `botstates`: each bot's thinking, by its place, from its connect on (the
+    /// `debugBMove_*` commands steer it).
+    pub(super) minds: Vec<Option<sjk_game_jka::bot_think::BotMind>>,
     /// What the bots see each frame, kept to be reused.
     views: bridge_bot_views::BotViews,
     /// `G_CheckMinimumPlayers`' `checkminimumplayers_time`, a `static` that no level resets.
