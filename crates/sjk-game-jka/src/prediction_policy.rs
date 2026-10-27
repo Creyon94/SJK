@@ -9,10 +9,13 @@
 
 use crate::knockdown::in_knockdown;
 use crate::legacy_animation_index;
+use crate::pmove_japlus::JaPlusRules;
 use sjk_protocol::PlayerState;
 
 /// `HANDEXTEND_KNOCKDOWN`.
 const HANDEXTEND_KNOCKDOWN: u8 = 8;
+/// `PM_FREEZE`: a JA+ emote holds the body.
+const PM_FREEZE: u8 = 6;
 /// `ps.forceDodgeAnim` (player-state field 89) in a JA+ added kick's victim.
 const KICK_DODGE_ANIMS: [u32; 2] = [4, 5];
 
@@ -60,19 +63,13 @@ fn in_knockdown_state(player: &PlayerState) -> bool {
 /// `CG_JAPlusViewLockedState`: JA+ rewrites `delta_angles` every server frame while the
 /// player is kicked down, getting up, kissing or hanging from a ledge.
 pub fn japlus_view_locked(player: &PlayerState) -> bool {
-    let (legs, torso) = (player.leg_animation(), player.torso_animation());
-    let backflip_victim = index("BOTH_JUMP_BACKFLIP_ATCKEE");
-    if legs == backflip_victim
-        || torso == backflip_victim
-        || torso == index("BOTH_GETUP1")
-        || torso == index("BOTH_NEW_STABEE")
-    {
-        return true;
-    }
-    if legs >= index("BOTH_KISSEE") && legs <= index("BOTH_LEDGE_MERCPULL") {
-        return true;
-    }
-    in_knockdown_state(player)
+    japlus_view_held(player) || japlus_knockdown(player)
+}
+
+/// [`japlus_view_locked`]'s knockdowns and their get-ups, which some JA+ servers leave
+/// free ([`JaPlusRules::free_knockdown_view`]).
+fn japlus_knockdown(player: &PlayerState) -> bool {
+    player.torso_animation() == index("BOTH_GETUP1") || in_knockdown_state(player)
 }
 
 /// `HANDEXTEND_PRETHROWN` and `HANDEXTEND_POSTTHROWN`: the victim of a melee throw, whose
@@ -96,11 +93,25 @@ const GRAPPLE_ANIMS: [&str; 9] = [
 
 /// Whether the server holds the player's view this snapshot: a melee grapple or throw, a
 /// saber lock (`PM_SetPMViewAngle` while `saberLockTime` runs) and, on a JA+ server
-/// (`japlus`, asked only when it matters), [`japlus_view_locked`]'s kisses, kicks,
-/// knockdowns, get-ups and ledges. The server rewrites `delta_angles` every frame then, so
-/// a view turned by the mouse, or commands whose angles a toy sets, fight it: the camera
-/// shakes or spins (hub reports #139, #140, #146).
-pub fn server_holds_view(player: &PlayerState, japlus: impl FnOnce() -> bool) -> bool {
+/// (`japlus`, the session's rules, asked only when it matters), [`japlus_view_locked`]'s
+/// kisses, kicks, knockdowns, get-ups and ledges. The server rewrites `delta_angles`
+/// every frame then, so a view turned by the mouse, or commands whose angles a toy sets,
+/// fight it: the camera shakes or spins (hub reports #139, #140, #146).
+///
+/// A server known to leave the view free through knockdowns and get-ups
+/// ([`JaPlusRules::free_knockdown_view`]) holds only the rest: counted as held there,
+/// `cg_heldViewLook 0` locked the camera through every knockdown (Kushina's hub report
+/// #169).
+///
+/// A JA+ emote (`PM_FREEZE`) holds the body, not the view: `PmoveSingle` turns the view
+/// before it returns for a frozen player (`bg_pmove.c:13270,13328`), and some emotes play
+/// a knockdown's animation (JA++'s `amneo` is `BOTH_FORCE_GETUP_B4`, `g_cmds.cpp`), which
+/// [`japlus_view_locked`] would take for a knockdown: with `cg_heldViewLook 0` the mouse
+/// stopped turning the camera through the emote (vini's hub report #166).
+pub fn server_holds_view(player: &PlayerState, japlus: impl FnOnce() -> JaPlusRules) -> bool {
+    if player.movement_type() == PM_FREEZE {
+        return false;
+    }
     // By name (one lookup each), as this is asked every frame.
     let grapple = |animation: u16| {
         crate::legacy_animation_name(usize::from(animation))
@@ -113,7 +124,22 @@ pub fn server_holds_view(player: &PlayerState, japlus: impl FnOnce() -> bool) ->
     {
         return true;
     }
-    japlus_view_locked(player) && japlus()
+    if !japlus_view_locked(player) {
+        return false;
+    }
+    let rules = japlus();
+    rules.enabled && (rules.holds_knockdown_view() || japlus_view_held(player))
+}
+
+/// [`japlus_view_locked`] less the knockdowns and their get-ups: the kisses, ledges, the
+/// stab and the backflip kick's victim, held on every JA+ server.
+fn japlus_view_held(player: &PlayerState) -> bool {
+    let (legs, torso) = (player.leg_animation(), player.torso_animation());
+    let backflip_victim = index("BOTH_JUMP_BACKFLIP_ATCKEE");
+    legs == backflip_victim
+        || torso == backflip_victim
+        || torso == index("BOTH_NEW_STABEE")
+        || (legs >= index("BOTH_KISSEE") && legs <= index("BOTH_LEDGE_MERCPULL"))
 }
 
 /// `CG_InJAPlusSpecialKickState`: the victim of JA+'s added side and back kicks.
@@ -189,6 +215,13 @@ mod tests {
 
     fn animation(name: &str) -> u32 {
         legacy_animation_index(name).expect("known animation") as u32
+    }
+
+    fn ja_plus() -> JaPlusRules {
+        JaPlusRules {
+            enabled: true,
+            ..Default::default()
+        }
     }
 
     #[test]
@@ -279,22 +312,61 @@ mod tests {
     #[test]
     fn the_server_holds_the_view_in_grapples_throws_locks_and_japlus_locks() {
         let free = PlayerState::default();
-        assert!(!server_holds_view(&free, || true));
+        assert!(!server_holds_view(&free, ja_plus));
         // A melee grapple, either side of it, on any server.
         let beaten = player_with(&[(15, animation("BOTH_PLAYER_PA_1"))]);
-        assert!(server_holds_view(&beaten, || false));
+        assert!(server_holds_view(&beaten, JaPlusRules::default));
         let grabbing = player_with(&[(13, animation("BOTH_KYLE_GRAB"))]);
-        assert!(server_holds_view(&grabbing, || false));
+        assert!(server_holds_view(&grabbing, JaPlusRules::default));
         // Thrown: `HANDEXTEND_PRETHROWN`.
-        assert!(server_holds_view(&player_with(&[(80, 13)]), || false));
+        assert!(server_holds_view(
+            &player_with(&[(80, 13)]),
+            JaPlusRules::default
+        ));
         // A saber lock running at the command's time, not one long over.
         let locked = player_with(&[(0, 5_000), (107, 5_200)]);
-        assert!(server_holds_view(&locked, || false));
+        assert!(server_holds_view(&locked, JaPlusRules::default));
         let over = player_with(&[(0, 5_000), (107, 4_000)]);
-        assert!(!server_holds_view(&over, || false));
+        assert!(!server_holds_view(&over, JaPlusRules::default));
         // A JA+ kiss only on a JA+ server.
         let kiss = player_with(&[(13, animation("BOTH_KISSEE"))]);
-        assert!(server_holds_view(&kiss, || true));
-        assert!(!server_holds_view(&kiss, || false));
+        assert!(server_holds_view(&kiss, ja_plus));
+        assert!(!server_holds_view(&kiss, JaPlusRules::default));
+    }
+
+    #[test]
+    fn japlus_knockdowns_and_get_ups_hold_the_view_unless_the_server_leaves_it_free() {
+        let free_knockdowns = || JaPlusRules {
+            free_knockdown_view: true,
+            ..ja_plus()
+        };
+        for (legs, torso, hand) in [
+            ("BOTH_KNOCKDOWN1", "BOTH_KNOCKDOWN1", 8),
+            ("BOTH_GETUP1", "BOTH_GETUP1", 0),
+            ("BOTH_GETUP_BROLL_R", "BOTH_GETUP_BROLL_R", 0),
+            ("BOTH_FORCE_GETUP_B1", "BOTH_FORCE_GETUP_B1", 0),
+        ] {
+            let player = player_with(&[(13, animation(legs)), (15, animation(torso)), (80, hand)]);
+            assert!(
+                japlus_view_locked(&player),
+                "{legs}: still a lock for cg_noPredict 1"
+            );
+            // EternalJK's rule, kept on JA+ servers not known to differ.
+            assert!(server_holds_view(&player, ja_plus), "{legs}");
+            // As the JoF server's demos show: `delta_angles` unchanged, the view the
+            // mouse's.
+            assert!(!server_holds_view(&player, free_knockdowns), "{legs}");
+        }
+        // The kiss stays held there.
+        let kiss = player_with(&[(13, animation("BOTH_KISSEE"))]);
+        assert!(server_holds_view(&kiss, free_knockdowns));
+    }
+
+    #[test]
+    fn a_japlus_emote_with_a_knockdowns_animation_leaves_the_view_free() {
+        // `amneo`: a get-up animation, the body frozen by the emote.
+        let neo = animation("BOTH_FORCE_GETUP_B4");
+        let emote = player_with(&[(13, neo), (15, neo), (63, u32::from(PM_FREEZE))]);
+        assert!(!server_holds_view(&emote, ja_plus));
     }
 }

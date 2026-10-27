@@ -588,6 +588,14 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             archive,
             "Let the mouse turn a view the server holds (JA+ kicks and kisses, grapples), which shakes it (SJK)",
         ),
+        // SJK's: the JA+ servers known to leave the view free through knockdowns keep
+        // it free unless overridden (`held_view::FREE_KNOCKDOWN_VIEW`).
+        CvarDefinition::new(
+            crate::held_view::KNOCKDOWN_CVAR,
+            -1_i64,
+            archive,
+            "JA+ knockdowns and get-ups: -1 hold the view or not as SJK knows the server (JoF's leave it free), 0 the server holds it (EternalJK), 1 the view stays free (SJK)",
+        ),
         CvarDefinition::new(
             crate::emotes::ATTACK_STOP_CVAR,
             crate::emotes::DEFAULT_ATTACK_STOP,

@@ -9,6 +9,22 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 27/10/2026 | - | Mystery boxes: refuse through the worker's not_connected, as PR #218 made it
+- 17434bf |  | Mystery boxes: refuse through the worker's not_connected, as PR #218 made it
++ 27/10/2026 | - | Show a claiming client's own icon on the scoreboard and player card
+- 4dfad1c |  | Show a claiming client's own icon on the scoreboard and player card
++ 27/10/2026 | - | Project tcGen vector stages in world space
+- f44e32d |  | Project tcGen vector stages in world space
++ 27/10/2026 | - | Draw sky shader stages as the cloud layer over the sky box
+- 70ca9f6 |  | Draw sky shader stages as the cloud layer over the sky box
++ 27/10/2026 | - | Load maps with external lightmaps (q3map2 -external)
+- 1dad73d |  | Load maps with external lightmaps (q3map2 -external)
++ 27/10/2026 | - | Mystery boxes: a 5.5 s roll to a music box tune, and what came out waits to be taken
+- 143c212 |  | Mystery boxes: a 5.5 s roll to a music box tune, and what came out waits to be taken
++ 27/10/2026 | - | Mystery boxes: the creator places boxes on maps, players open them for credits
+- 58ea5bb |  | Mystery boxes: the creator places boxes on maps, players open them for credits
++ 27/10/2026 | - | Release 2026.1027.1
+- 685edde |  | Release 2026.1027.1
 + 26/10/2026 | - | No hit while typing or away
 - a57a00f |  | Monitor: no hit on a player typing or away
 + 26/10/2026 | - | JoF names: Honors for medals, Echoes for holocrons, jof.honorNames
@@ -2658,6 +2674,24 @@
 - fed9acd |  | Hide duel opponents' bars and send nothing while duelling
 
 = Slash
++ 27/10/2026 | SJK #219 | Leave the view free through JA+ knockdowns, get-ups and emotes (#164, #166, #169)
+- bc667b8 |  | Leave the view free through a JA+ emote that plays a knockdown animation (#166)
+- 4904664 |  | Leave the view free through JA+ knockdowns, get-ups and a kiss emote (#164, #169)
+- 41623e3 |  | Drop two files the last commit took by mistake
+- d12a0cf |  | Keep the floor-mirror cvar test from racing other tests
+- 4394032 |  | Hold JA+ knockdowns' view by server family, JoF's left free (#164, #169)
++ 27/10/2026 | SJK #222 | Key 1 toggles the saber as soon as the server would; chat no longer waits behind client commands (#172)
+- df4d7ba |  | Key 1 toggles the saber on the predicted weaponTime; chat goes ahead of client commands (#172)
+- a6c0295 |  | Rerun CI (Windows Media Foundation decode test failed on the runner)
+- 5daf51a |  | Let player commands pass only waiting score requests (#172)
++ 27/10/2026 | SJK #224 | Devmap: take the rest of OpenJK's player commands (god, notarget, giveother, ...)
+- 244b822 |  | Native server: take the rest of OpenJK's player commands
+- 19f74e0 |  | Split player commands as Cmd_Argv does, so forcechanged "RED" joins red
++ 27/10/2026 | SJK #228 | Keep the floor-mirror cvar test from racing other tests
+- 9f39834 |  | Keep the floor-mirror cvar test from racing other tests
++ 27/10/2026 | SJK #218 | Say why the hub refused something before the registration, and log the hub status
+- 83a2fa8 |  | Say why the hub refused something before the registration, and log the hub status
+- 3189ba8 |  | Tell a refusal the client makes itself from the hub's
 + 27/10/2026 | SJK #216 | Give emotes their own volume, apart from s_volume (#163)
 - 091168d |  | Give emotes their own volume, apart from s_volume (#163)
 + 27/10/2026 | SJK #213 | Keep a player in a vehicle from going limp (168)

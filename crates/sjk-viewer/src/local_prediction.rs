@@ -290,7 +290,9 @@ impl LocalPrediction {
 
     /// Refresh server policy while preserving saber restrictions and prediction history.
     pub(crate) fn refresh_roll_rules(&mut self, game_state: &GameState) {
+        let free_knockdown_view = self.movement_config.ja_plus.free_knockdown_view;
         self.movement_config.refresh_game_state(game_state);
+        self.movement_config.ja_plus.free_knockdown_view = free_knockdown_view;
         for predictor in self.predictor.iter_mut().chain(self.preview.iter_mut()) {
             predictor.set_config(self.movement_config);
         }
@@ -388,6 +390,18 @@ impl LocalPrediction {
     /// Override the view height (demo playback follows the snapshot).
     pub(crate) fn set_view_height(&mut self, view_height: f32) {
         self.view_height = view_height;
+    }
+
+    /// Update whether the JA+ server leaves the view free through knockdowns and get-ups
+    /// (`held_view::free_knockdown_view`), which no serverinfo says.
+    pub(crate) fn set_free_knockdown_view(&mut self, free: bool) {
+        if self.movement_config.ja_plus.free_knockdown_view == free {
+            return;
+        }
+        self.movement_config.ja_plus.free_knockdown_view = free;
+        for predictor in self.predictor.iter_mut().chain(self.preview.iter_mut()) {
+            predictor.set_config(self.movement_config);
+        }
     }
 
     /// Update `cg_showMiss`: whether large misses are written to the log.

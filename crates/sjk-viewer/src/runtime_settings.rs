@@ -63,6 +63,8 @@ impl GpuState {
             .set_wall_grab_lock(console.bool_cvar("cg_wallGrabLock").unwrap_or(false));
         self.local_prediction
             .set_show_miss(console.bool_cvar("cg_showMiss").unwrap_or(false));
+        self.local_prediction
+            .set_free_knockdown_view(crate::held_view::free_knockdown_view(Some(console)));
         if let Some(adapter) = &mut self.legacy_world_adapter {
             adapter.set_smooth_clients(console.smooth_clients());
             let corpses_changed = adapter.set_hide_corpses_in_duel(console.hide_corpses_in_duel());

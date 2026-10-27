@@ -4621,9 +4621,33 @@ frame so that the view stays where it puts it. SJK knows these cases from one ta
 `server_holds_view` in
 [prediction_policy.rs](../crates/sjk-game-jka/src/prediction_policy.rs): a melee grapple
 (`BG_InGrappleMove`'s animations) or throw (`HANDEXTEND_PRETHROWN`, `POSTTHROWN`), a
-saber lock, and on a JA+ server JoF EJK's `CG_JAPlusViewLockedState` (kicked down,
-getting up, kissing, hanging from a ledge) ([held_view.rs](../crates/sjk-viewer/src/held_view.rs)).
-While it does:
+saber lock, and on a JA+ server JoF EJK's `CG_JAPlusViewLockedState` (kissing, the
+backflip kick's victim, the stab, hanging from a ledge, kicked down, getting up)
+([held_view.rs](../crates/sjk-viewer/src/held_view.rs)).
+
+- Knockdowns and get-ups are held or not by server family, as no serverinfo says which:
+  EternalJK's cgame holds them and some JA+ servers do, so every JA+ server does in SJK
+  unless its family is in `FREE_KNOCKDOWN_VIEW` in
+  [held_view.rs](../crates/sjk-viewer/src/held_view.rs) (one entry per family with its
+  evidence, families told apart by
+  [known_servers.rs](../crates/sjk-mod/src/known_servers.rs)), which sets
+  `JaPlusRules::free_knockdown_view` for the pmove and `server_holds_view`. Its one
+  entry is JoF's servers: in two demos of their knockdowns (27/10/2026,
+  `BOTH_KNOCKDOWN1`, `BOTH_GETUP1`, the get-up rolls, `BOTH_FORCE_GETUP_B1`)
+  `delta_angles` never changed and the view followed the mouse. Counted as held there,
+  `cg_heldViewLook 0` locked the camera through them (Kushina's report #169), and the
+  pmove's JA+ freeze held the view through `BOTH_GETUP1`, so every snapshot pulled the
+  camera back to the server's lagging view (Rollembones' report #164). The get-up still
+  holds the body everywhere. `cg_japlusFreeKnockdownView` (archived, console only)
+  overrides the table: -1 by the family (the default), 0 held on every JA+ server, 1
+  free on every one. `cg_noPredict 1` still takes the server's angles through every
+  `CG_JAPlusViewLockedState`, as EternalJK does.
+- A JA+ emote (`PM_FREEZE`) never holds the view, even one that plays a knockdown's or a
+  kiss's animation (`amneo` is `BOTH_FORCE_GETUP_B4`, `amkiss` the kiss): the base game
+  turns a frozen player's view, and the mouse stopped turning the camera through them
+  (vini's report #166).
+
+While the view is held:
 
 - the mouse turns the view as in the base game while Free look when held
   (`cg_heldViewLook`, Settings > Game options and Advanced > Gameplay) is on, the
