@@ -32,7 +32,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
-- The DEMP2's alt fire now shows its shock bubble: a sphere grows where the shot lands and bursts as the shock spreads, as in the original game _(Slash)_
+- The DEMP2's alt fire now shows its shock bubble: a sphere grows where the shot lands and bursts as the shock spreads, as in the original game _(Slash, PR #223)_
 
 ## 2026.1027.1 (Alpha) | 27/10/2026
 
