@@ -128,6 +128,8 @@ pub(crate) const ACTIONS: &[BindableAction] = &[
     ),
     // Box hunt: the switch, the consent to hunt and be the mark.
     action(Interaction, "Toy: Box hunt", crate::box_hunt::COMMAND, ""),
+    // The Tag: sticks the chosen tag where the player looks.
+    action(Interaction, "Toy: Tag", crate::tags::COMMAND, ""),
     action(Interaction, "Item: Bacta", "use_bacta", ""),
     action(Interaction, "Item: Seeker drone", "use_seeker", ""),
     action(Interaction, "Item: Sentry gun", "use_sentry", ""),

@@ -185,6 +185,9 @@ pub(crate) struct Found {
     /// (the hub's catalogue grows before every player updates): it is shown by the
     /// hub's name for it, and its blade if the hub's pack brought one.
     pub(crate) skin: Option<&'static Unlockable>,
+    /// The tag it is instead, when it is one this client knows (`tags.rs`, 27/10/2026):
+    /// the hub answers a tag dropped as it answers a shader.
+    pub(crate) tag: Option<&'static crate::tags::Tag>,
     /// Its id and name as the hub sent them.
     pub(crate) id: String,
     pub(crate) name: String,
@@ -205,6 +208,7 @@ impl Found {
             holocron: opened.holocron,
             tier: holocrons::any(&opened.tier)?.slot,
             skin: crate::unlockables::blade_skin(&unlock.id),
+            tag: crate::tags::get(&unlock.id),
             id: unlock.id.clone(),
             name,
             count: unlock.count,
@@ -214,8 +218,20 @@ impl Found {
     /// The colour it is shown in: its tier's, or the holocron's for one this client
     /// does not know.
     pub(super) fn colour(&self) -> Color {
-        self.skin
-            .map_or(holocrons::slot(self.tier).colour, |skin| skin.tier.colour())
+        match (self.skin, self.tag) {
+            (Some(skin), _) => skin.tier.colour(),
+            (None, Some(tag)) => tag.tier.colour(),
+            (None, None) => holocrons::slot(self.tier).colour,
+        }
+    }
+
+    /// What it is, in two words ("saber shader", "tag").
+    pub(super) fn kind(&self) -> &'static str {
+        if self.tag.is_some() {
+            "tag"
+        } else {
+            "saber shader"
+        }
     }
 }
 
@@ -299,7 +315,11 @@ impl Prize {
                 tier: shown.tier,
                 credits: shown.credits,
             },
-            Self::Shader(found) => found.skin.map_or(strip::Item::New, strip::Item::Shader),
+            Self::Shader(found) => match (found.skin, found.tag) {
+                (Some(skin), _) => strip::Item::Shader(skin),
+                (None, Some(tag)) => strip::Item::Tag(tag),
+                (None, None) => strip::Item::New,
+            },
             Self::Shards(pile) => strip::Item::Shards {
                 tier: pile.tier,
                 shards: pile.shards,
@@ -383,7 +403,9 @@ fn cue(prize: &Prize) -> Cue {
         Prize::Shader(found)
             if found
                 .skin
-                .is_some_and(|skin| skin.tier >= crate::unlockables::Rarity::Legendary) =>
+                .map(|skin| skin.tier)
+                .or(found.tag.map(|tag| tag.tier))
+                .is_some_and(|tier| tier >= crate::unlockables::Rarity::Legendary) =>
         {
             Cue::Medal
         }
@@ -923,9 +945,9 @@ impl Panel {
             TextAlign::Center,
         );
         let label = if found.count > 1 {
-            format!("saber shader, x{}", found.count)
+            format!("{}, x{}", found.kind(), found.count)
         } else {
-            "saber shader, new".to_owned()
+            format!("{}, new", found.kind())
         };
         text(
             &mut self.ui,
@@ -1432,6 +1454,37 @@ impl Panel {
                     TextAlign::Center,
                 );
             }
+            strip::Item::Tag(tag) => {
+                let colour = item.colour();
+                let _ = self.ui.draw_list_mut().push(DrawCommand::RoundedRect {
+                    rect,
+                    radius: 14.0 * k * s,
+                    color: color::alpha(color::SPACE, 0.9),
+                });
+                let _ = self.ui.draw_list_mut().push(DrawCommand::Border {
+                    rect,
+                    radius: 14.0 * k * s,
+                    width: (2.0 + near) * s,
+                    color: color::alpha(colour, 0.7 + 0.3 * near),
+                });
+                let side = (width - 24.0 * k).min(height - 70.0 * k);
+                self.prize_tag(
+                    frame,
+                    tag,
+                    [x + (width - side) * 0.5, y + 14.0 * k, side, side],
+                    1.0,
+                );
+                text(
+                    &mut self.ui,
+                    TextFamily::Body,
+                    format_args!("Tag"),
+                    frame.rect(x, y + height - 40.0 * k, width, 26.0 * k),
+                    17.0 * k * s,
+                    color::TEXT,
+                    FontWeight::Regular,
+                    TextAlign::Center,
+                );
+            }
             strip::Item::New => {
                 let _ = self.ui.draw_list_mut().push(DrawCommand::RoundedRect {
                     rect,
@@ -1496,6 +1549,23 @@ impl Panel {
             radius: 22.0 * s,
             color: color::alpha(color::SPACE, 0.95 * eased),
         });
+        // A tag stands as its picture.
+        if let Some(tag) = found.tag {
+            let side = (height - 60.0).min(width - 60.0);
+            self.prize_tag(
+                frame,
+                tag,
+                [CARD_X - side * 0.5, middle[1] - side * 0.5, side, side],
+                eased,
+            );
+            let _ = self.ui.draw_list_mut().push(DrawCommand::Border {
+                rect: area,
+                radius: 22.0 * s,
+                width: 3.0 * s,
+                color: color::alpha(colour, eased),
+            });
+            return;
+        }
         // The blade the hub's pack brought, even for a shader this client does not list.
         let look = self.skins.get(&found.id);
         if let Some(look) = look {
@@ -1521,6 +1591,39 @@ impl Panel {
             width: 3.0 * s,
             color: color::alpha(colour, eased),
         });
+    }
+
+    /// Tag `tag`'s picture over `[x, y, width, height]` at `alpha`, or its name in its
+    /// tier's colour while the hub's pack has not brought the picture.
+    pub(super) fn prize_tag(
+        &mut self,
+        frame: &Frame,
+        tag: &crate::tags::Tag,
+        [x, y, width, height]: [f32; 4],
+        alpha: f32,
+    ) {
+        match crate::tag_icons::texture(tag.id) {
+            Some(texture) => {
+                let _ = self.ui.draw_list_mut().push(DrawCommand::TexturedQuad {
+                    rect: frame.rect(x, y, width, height),
+                    texture,
+                    color: Color::new(1.0, 1.0, 1.0, alpha),
+                });
+            }
+            None => {
+                let tier = tag.tier.colour();
+                text(
+                    &mut self.ui,
+                    TextFamily::Display,
+                    format_args!("{}", tag.name.trim_end_matches(" tag")),
+                    frame.rect(x, y + height * 0.5 - 20.0, width, 40.0),
+                    (height * 0.18).clamp(14.0, 34.0) * frame.s,
+                    Color::new(tier.r, tier.g, tier.b, alpha),
+                    FontWeight::Semibold,
+                    TextAlign::Center,
+                );
+            }
+        }
     }
 
     /// A pile of shards' burst and crystals: the tier's light, then three kyber crystals
@@ -1672,10 +1775,11 @@ impl Panel {
             FontWeight::Semibold,
             TextAlign::Center,
         );
-        let kind = found.skin.map_or_else(
-            || "A saber shader new to this version of SJK".to_owned(),
-            |skin| format!("{} {} saber shader", skin.tier.symbol(), skin.tier.label()),
-        );
+        let kind = match (found.skin, found.tag) {
+            (Some(skin), _) => format!("{} {} saber shader", skin.tier.symbol(), skin.tier.label()),
+            (None, Some(tag)) => format!("{} {} tag", tag.tier.symbol(), tag.tier.label()),
+            (None, None) => "A saber shader new to this version of SJK".to_owned(),
+        };
         text(
             &mut self.ui,
             TextFamily::Body,
@@ -1691,10 +1795,14 @@ impl Panel {
             TextFamily::Body,
             format_args!(
                 "{}",
-                found.skin.map_or(
-                    "It is yours: update SJK to see it in your Collection and wear it.",
-                    |skin| skin.description
-                )
+                match (found.skin, found.tag) {
+                    (Some(skin), _) => skin.description,
+                    (None, Some(_)) =>
+                        "Stick it on walls and floors with toy_tag; everyone on the map sees it.",
+                    (None, None) => {
+                        "It is yours: update SJK to see it in your Collection and wear it."
+                    }
+                }
             ),
             frame.rect(CARD_X - 600.0, ABOUT_Y, 1_200.0, 26.0),
             17.0 * s,
@@ -1702,11 +1810,12 @@ impl Panel {
             FontWeight::Regular,
             TextAlign::Center,
         );
-        let held = match (found.count, found.skin) {
-            (count, _) if count > 1 => format!("You hold {count} of it now."),
-            (_, Some(_)) => "Yours now: wear it in the Collection.".to_owned(),
+        let held = match (found.count, found.skin, found.tag) {
+            (count, _, _) if count > 1 => format!("You hold {count} of it now."),
+            (_, Some(_), _) => "Yours now: wear it in the Collection.".to_owned(),
+            (_, None, Some(_)) => "Yours now: choose it on the Collection's Tags tab.".to_owned(),
             // Its line above says where it will show.
-            (_, None) => String::new(),
+            (_, None, None) => String::new(),
         };
         text(
             &mut self.ui,
@@ -1910,6 +2019,26 @@ impl Panel {
                     frame,
                     [x + width * 0.5, y + height * 0.5],
                     56.0 * k,
+                    1.0,
+                );
+            }
+            strip::Item::Tag(tag) => {
+                let _ = list.push(DrawCommand::Border {
+                    rect,
+                    radius: 8.0 * k * s,
+                    width: 2.0 * s,
+                    color: color::alpha(colour, 0.8),
+                });
+                let side = (width - 12.0 * k).min(height - 12.0 * k);
+                self.prize_tag(
+                    frame,
+                    tag,
+                    [
+                        x + (width - side) * 0.5,
+                        y + (height - side) * 0.5,
+                        side,
+                        side,
+                    ],
                     1.0,
                 );
             }

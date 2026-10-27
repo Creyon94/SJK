@@ -24,6 +24,10 @@
 //! `MAX_MARK_POLYS` polys, the oldest mark's polys given up for a new one
 //! (`CG_AllocMark`), each kept `MARK_TOTAL_TIME` and faded over its last
 //! `MARK_FADE_TIME` (`CG_AddMarks`, `cg_marks.c:238-305`).
+//!
+//! Players' tags (`tags.rs`) have a fourth list of their own, a slot per player: a tag
+//! is projected once when it changes and drawn until it goes, so impact marks never
+//! push one out and `cg_marks 0` keeps them.
 
 use super::*;
 use crate::decal_marks::{DecalRequest, DecalScratch, DecalSurfaces, DecalVertex};
@@ -43,6 +47,8 @@ const MAX_MARK_POLYS: usize = 256;
 /// `MARK_TOTAL_TIME` and `MARK_FADE_TIME` (`cg_marks.c:238-239`).
 const MARK_TOTAL_TIME: u32 = 10_000;
 const MARK_FADE_TIME: u32 = 1_000;
+/// Fragments one tag keeps at most (a tag over a corner or a patch is cut in several).
+const MAX_TAG_POLYS: usize = 48;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Ring {
@@ -106,6 +112,13 @@ impl DecalRing {
     }
 }
 
+/// A player's tag: what it is, and its fragments once projected (`None` until then).
+#[derive(Clone)]
+struct TagMark {
+    tag: sjk_identity::PlacedTag,
+    polys: Option<Vec<DecalPoly>>,
+}
+
 /// A poly emitted this frame by [`DecalStore::emit`].
 pub(crate) struct DecalDraw<'a> {
     pub(crate) shader: &'a Arc<str>,
@@ -123,6 +136,8 @@ pub(crate) struct DecalStore {
     pending_marks: Vec<DecalRequest>,
     /// Cgame's lasting marks, oldest first.
     marks: std::collections::VecDeque<DecalPoly>,
+    /// Each player slot's tag: the tag, and its fragments once projected.
+    tags: Vec<Option<TagMark>>,
     dropped_requests: usize,
     scratch: DecalScratch,
     epoch: Instant,
@@ -139,6 +154,7 @@ impl Default for DecalStore {
             temporary: Vec::with_capacity(MAX_TEMPORARY_POLYS),
             pending_marks: Vec::with_capacity(MAX_PENDING_REQUESTS),
             marks: std::collections::VecDeque::with_capacity(MAX_MARK_POLYS),
+            tags: vec![None; crate::looks::SLOTS],
             dropped_requests: 0,
             scratch: DecalScratch::default(),
             epoch: Instant::now(),
@@ -188,6 +204,32 @@ impl DecalStore {
         }
     }
 
+    /// Show `tag` as the tag of player slot `slot`, or none: projected at the next pass
+    /// when it changed, kept as it is otherwise.
+    pub(crate) fn set_tag(&mut self, slot: usize, tag: Option<&sjk_identity::PlacedTag>) {
+        let Some(entry) = self.tags.get_mut(slot) else {
+            return;
+        };
+        if entry.as_ref().map(|mark| &mark.tag) == tag {
+            return;
+        }
+        *entry = tag.map(|tag| TagMark {
+            tag: tag.clone(),
+            polys: None,
+        });
+    }
+
+    /// Fragments of the tags on show (world shots).
+    #[cfg(test)]
+    pub(crate) fn tag_polys(&self) -> usize {
+        self.tags
+            .iter()
+            .flatten()
+            .filter_map(|mark| mark.polys.as_ref())
+            .map(Vec::len)
+            .sum()
+    }
+
     /// Lasting cgame mark polys stored and requests waiting (world shots).
     #[cfg(test)]
     pub(crate) fn mark_counts(&self) -> (usize, usize) {
@@ -196,7 +238,14 @@ impl DecalStore {
 
     /// Whether any poly would be emitted this frame.
     pub(crate) fn has_polys(&self) -> bool {
-        self.live_count() != (0, 0) || !self.temporary.is_empty() || !self.marks.is_empty()
+        self.live_count() != (0, 0)
+            || !self.temporary.is_empty()
+            || !self.marks.is_empty()
+            || self
+                .tags
+                .iter()
+                .flatten()
+                .any(|mark| mark.polys.as_ref().is_some_and(|polys| !polys.is_empty()))
     }
 
     /// Live polys in the normal and fade rings.
@@ -262,6 +311,26 @@ impl DecalStore {
             });
         }
         self.pending_marks.clear();
+        for index in 0..self.tags.len() {
+            let Self { tags, scratch, .. } = self;
+            let Some(mark) = tags[index].as_mut().filter(|mark| mark.polys.is_none()) else {
+                continue;
+            };
+            let mut polys = Vec::new();
+            if let Some(request) = crate::tags::decal(&mark.tag) {
+                let slot = slot_of(&request.shader) as u8;
+                crate::decal_marks::project(world, bsp, &request, scratch, |vertices| {
+                    if polys.len() < MAX_TAG_POLYS {
+                        let mut poly = DecalPoly::free();
+                        poly.time = time;
+                        poly.fill(&request, slot, vertices);
+                        polys.push(poly);
+                    }
+                });
+            }
+            stored += polys.len();
+            mark.polys = Some(polys);
+        }
         stored
     }
 
@@ -278,6 +347,20 @@ impl DecalStore {
                     break;
                 }
             }
+        }
+        for poly in self
+            .tags
+            .iter()
+            .flatten()
+            .filter_map(|mark| mark.polys.as_ref())
+            .flatten()
+        {
+            draw(DecalDraw {
+                shader: &poly.shader,
+                slot: poly.slot,
+                color: poly.color,
+                vertices: &poly.vertices[..usize::from(poly.count)],
+            });
         }
         for poly in &self.temporary {
             draw(DecalDraw {

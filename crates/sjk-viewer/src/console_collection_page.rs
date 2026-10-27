@@ -177,6 +177,9 @@ impl ViewerConsole {
                 self.pending_box_hunt = Some(on);
                 self.box_hunt_on = on;
             }
+            PanelAction::ChooseTag(id) => {
+                self.set_cvar(crate::tags::CVAR, id);
+            }
             PanelAction::Hub(tab) => {
                 // A tab of another page: the Holocrons page.
                 let back = self.collection_panel.back();
@@ -350,6 +353,10 @@ impl ViewerConsole {
             .unwrap_or_default()
             .to_owned();
         let name = self.text_value("name").unwrap_or_default().to_owned();
+        let tag = self
+            .text_cvar(crate::tags::CVAR)
+            .unwrap_or_default()
+            .to_owned();
         let illuminate = self.illuminate_lit();
         let cardboard_box = self.cardboard_box_on;
         let order66 = self.order66_on;
@@ -425,6 +432,7 @@ impl ViewerConsole {
                 pair,
                 share,
                 toy_keys: &toy_keys,
+                tag: &tag,
             };
             self.collection_panel.append_sjk(&inputs, target, viewport);
             self.collection_panel.preview = Some(unlocks);
@@ -454,6 +462,7 @@ impl ViewerConsole {
             pair,
             share,
             toy_keys: &toy_keys,
+            tag: &tag,
         };
         self.collection_panel.append_sjk(&inputs, target, viewport);
     }

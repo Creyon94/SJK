@@ -13,6 +13,8 @@ impl GpuState {
     /// twice-a-second turn, when the own blade skin is read again and given to the
     /// service.
     pub(crate) fn update_looks(&mut self, due: bool) {
+        // The own tag (`tags.rs`) goes with the look sent.
+        let own_tag = if due { self.own_tag() } else { None };
         let session = self.live_session.as_ref();
         let server = session
             .filter(|session| !session.is_local())
@@ -143,7 +145,9 @@ impl GpuState {
         .with_toy(crate::box_hunt::TOY, self.box_hunt.on());
         if let Some(sent) = sent {
             let options = crate::blade_extras::gated(&options, player_identity::holds_card);
-            player_identity::set_look(&sent.to_look(&options));
+            let mut look = sent.to_look(&options);
+            look.tag = own_tag;
+            player_identity::set_look(&look);
             self.looks.set_own_options(options);
             // Who sits where, and the own name, for the saber shaders drawn from them.
             let slots = session.map_or_else(

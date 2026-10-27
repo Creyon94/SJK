@@ -1100,7 +1100,8 @@ fn feed_path(after: u64, server: Option<&str>, wait: u64) -> String {
 /// chose sounds apart from their blade (hubs before it refuse the field, and the service
 /// then sends the look without it). `saber_on` and `saber2_on` go only when they name an
 /// extra of their saber's skin (hubs before 26/10/2026 refuse them, and the service then
-/// sends the look without them).
+/// sends the look without them). `tag` goes only while a tag is stuck (hubs before
+/// 27/10/2026 refuse it, and the service then sends the look without it).
 fn look_body(server: &str, look: &Look) -> Value {
     let mut body = json!({ "server": server, "saber": look.saber, "illuminate": look.illuminate });
     if !look.saber.is_empty() && !look.saber_off.is_empty() {
@@ -1123,6 +1124,9 @@ fn look_body(server: &str, look: &Look) -> Value {
     }
     if !look.saber_sounds.is_empty() {
         body["saber_sounds"] = json!(look.saber_sounds);
+    }
+    if let Some(tag) = look.tag.as_ref() {
+        body["tag"] = json!(tag);
     }
     body
 }
@@ -2273,6 +2277,7 @@ mod tests {
             saber_on: Vec::new(),
             saber2_on: Vec::new(),
             saber_sounds: String::new(),
+            tag: None,
         };
         assert_eq!(
             look_body("1.2.3.4:29070", &look),
@@ -2368,6 +2373,23 @@ mod tests {
                     "saber_sounds": sounds})
             );
         }
+        // A stuck tag goes whole, only while there is one.
+        let tagged = Look {
+            tag: Some(crate::PlacedTag {
+                id: "tag_gg".to_owned(),
+                map: "mp/ffa3".to_owned(),
+                at: [120.5, -64.0, 24.0],
+                normal: [0.0, 0.0, 1.0],
+                spin: 90.0,
+            }),
+            ..look.clone()
+        };
+        assert_eq!(
+            look_body("1.2.3.4:29070", &tagged),
+            json!({"server": "1.2.3.4:29070", "saber": "saber_sun", "illuminate": true,
+                "tag": {"id": "tag_gg", "map": "mp/ffa3", "at": [120.5, -64.0, 24.0],
+                    "normal": [0.0, 0.0, 1.0], "spin": 90.0}})
+        );
     }
 
     #[test]

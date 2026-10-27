@@ -26,6 +26,7 @@ use sjk_protocol::{PlayerState, UserCommand};
 mod file;
 #[path = "ghost_replay/frame.rs"]
 mod frame;
+pub(crate) use frame::current_map;
 #[path = "ghost_replay/steer.rs"]
 mod steer;
 

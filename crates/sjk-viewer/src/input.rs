@@ -111,6 +111,11 @@ pub(crate) enum InputAction {
     ChargeMonitor(bool),
     /// `toy_boxhunt`: take part in the box hunt, or not ([`crate::box_hunt`]).
     BoxHunt,
+    /// `toy_tag`: stick the chosen tag where the crosshair meets the world
+    /// ([`crate::tags`]).
+    StickTag,
+    /// `toy_tag clear`: take the own tag off.
+    ClearTag,
     /// `cameracontrol`: open Camera control, as F8 does
     /// ([`crate::ingame_menu::Page::Shot`]).
     CameraControl,
@@ -320,6 +325,7 @@ impl GameplayInput {
                     | crate::monitor::CHARGE_COMMAND
                     | crate::monitor::CHARGE_RELEASE
                     | crate::box_hunt::COMMAND
+                    | crate::tags::COMMAND
                     | "cameracontrol"
             )
     }
@@ -495,6 +501,10 @@ impl GameplayInput {
             crate::monitor::CHARGE_COMMAND => Some(InputAction::ChargeMonitor(true)),
             crate::monitor::CHARGE_RELEASE => Some(InputAction::ChargeMonitor(false)),
             crate::box_hunt::COMMAND => Some(InputAction::BoxHunt),
+            crate::tags::COMMAND => match words.next().map(str::to_ascii_lowercase).as_deref() {
+                Some("clear" | "off") => Some(InputAction::ClearTag),
+                _ => Some(InputAction::StickTag),
+            },
             "cameracontrol" => Some(InputAction::CameraControl),
             "vote" => match words.next().map(str::to_ascii_lowercase).as_deref() {
                 Some("yes" | "y" | "1") => Some(InputAction::Vote(true)),
@@ -625,6 +635,8 @@ impl super::GpuState {
             Some(InputAction::Drone) => self.toggle_drone(),
             Some(InputAction::Boombox) => self.toggle_boombox(),
             Some(InputAction::Monitor) => self.toggle_monitor(),
+            Some(InputAction::StickTag) => self.stick_tag(),
+            Some(InputAction::ClearTag) => self.clear_tag(),
             Some(InputAction::ThrowMonitor) => self.throw_monitor(),
             Some(InputAction::ChargeMonitor(pressed)) => self.charge_monitor(pressed),
             Some(InputAction::BoxHunt) => self.toggle_box_hunt(),
@@ -856,6 +868,19 @@ mod tests {
         assert_eq!(input.apply("-ping 147 1100"), None);
         // `ping` is the engine's server query, not a world ping.
         assert!(!GameplayInput::recognizes("ping"));
+    }
+
+    #[test]
+    fn toy_tag_sticks_and_toy_tag_clear_takes_it_off() {
+        let mut input = GameplayInput::default();
+        for (command, action) in [
+            ("toy_tag", InputAction::StickTag),
+            ("toy_tag clear", InputAction::ClearTag),
+            ("toy_tag OFF", InputAction::ClearTag),
+        ] {
+            assert!(GameplayInput::recognizes(command), "{command}");
+            assert_eq!(input.apply(command), Some(action), "{command}");
+        }
     }
 
     #[test]

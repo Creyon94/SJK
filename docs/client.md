@@ -4873,6 +4873,44 @@ taken from another game), and mounted below all game data, so a PK3 with the sam
 replaces them. World shots: `world_shot::monitor_shots::monitor_on_a_demo` (with
 `SJK_TEST_DEMO`). See [monitor.rs](../crates/sjk-viewer/src/monitor.rs).
 
+## Tag
+
+The Tag (Sol's idea, 27/10/2026, after TF2's sprays) is a toy for every SJK player: stick
+a premade picture on the wall or floor you look at, and every SJK player on the same map
+sees it there.
+
+- **The tags** are unlocks of the hub (its `PROTOCOL.md`,
+  "Unlocks"; the client's list is [tags.rs](../crates/sjk-viewer/src/tags.rs)), each with a
+  tier as shaders have. Three are everyone's from the start (SJK, GG, Fox); the others drop
+  from holocrons ([holocrons.md](holocrons.md)), duplicates stacking. There are no uploads
+  (Sol's decision, 27/10/2026): Sol picks every tag, new ones from rounds on Discord, and
+  each needs a new id in both catalogues and its picture in the hub's `sjk_tags` pack.
+- **Choosing:** Collection > Tags shows every tag, the ones the player lacks dimmed;
+  Choose (or Enter) sets `cg_tag`, the tag `toy_tag` sticks (default `tag_sjk`).
+- **Sticking:** `toy_tag` (a bind, Settings > Key bindings > Interaction "Toy: Tag", the
+  quick wheel's Toys page) traces the crosshair 128 units into the world and sticks the
+  chosen tag where it lands: upright on a wall, its top away from the player on a floor,
+  56 units wide. One tag a player: a new one replaces the last, at most one every 10
+  seconds. `toy_tag clear` takes it off. A tag the player does not hold is refused.
+- **Others see it** through the player's look: the tag rides in it (`tag`, the tag's id,
+  map, point, surface normal and turn), so players who come later see it too, and the hub
+  refuses a tag the key does not hold (`tag_not_unlocked`). It stays until the player
+  sticks another, clears it, changes map or server, or leaves. A client draws it only on
+  the same map. `cg_toyTags 0` hides other players' tags on this PC; a muted or blocked
+  player's never show.
+
+A tag is a lasting decal with a slot of its own per player
+([decal_store.rs](../crates/sjk-viewer/src/decal_store.rs)): projected once when it
+changes (as impact marks are, over corners and patches), drawn until it goes, never pushed
+out by impact marks, and kept with `cg_marks 0`. The pictures (`gfx/tags/<id>.png`) are
+art in the hub's `sjk_tags` pack, the first ones placeholders until Sol's art; their decal
+shaders (`shaders/sjk_tags.shader`, alpha-blended) and the toy's spray-can icon are
+bundled, made by [tag_assets.py](../scripts/tag_assets.py). The pictures are put into the
+UI atlas from the hub's packs for the Collection and the holocron opening
+([tag_icons.rs](../crates/sjk-viewer/src/tag_icons.rs)), 128 pixels a side. See
+[tags.rs](../crates/sjk-viewer/src/tags.rs) and
+[tags_frame.rs](../crates/sjk-viewer/src/tags_frame.rs).
+
 ## Toy sounds
 
 Settings > Sound > Toys (Sol's request, 25/10/2026) sets how the toys sound on this PC:

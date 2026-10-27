@@ -1514,7 +1514,10 @@ future", with tabs Medals, Achievements, Shaders (the blade skins, renamed: sabe
 body later), Toys and Nameplates (ornaments for the nameplate), then Holocrons (the
 loot-box drops, built the same day as a Profile tab and moved here), since 21/10/2026
 the Forge (the shop, crafting and breaking shaders down) and, since 12/10/2026, Cards
-(what opening holocrons brings, [cards.md](cards.md)). Sol picked the
+(what opening holocrons brings, [cards.md](cards.md)), and since 27/10/2026 Tags after Toys
+(the tags `toy_tag` sticks, [client.md](client.md#tag): a wall of tiles, the ones not held
+dimmed, the chosen one on a card with Choose, which sets `cg_tag`; with nine tabs the row
+shrinks its names when even its narrowest gaps leave them too wide). Sol picked the
 direction from a design canvas (`the vault`): every thing has its place from the
 start, the ones the player lacks dimmed; each tab shows its things on the left and
 the one chosen up close on the right.

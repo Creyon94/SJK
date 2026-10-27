@@ -194,6 +194,7 @@ fn tab_words(tab: Tab) -> &'static str {
         Tab::Achievements => "Looking at achievements",
         Tab::Shaders => "Looking at saber shaders",
         Tab::Toys => "Looking at toys",
+        Tab::Tags => "Looking at tags",
         Tab::Nameplates => "Looking at nameplates",
         Tab::Holocrons if crate::terms::renamed() => "Opening echoes",
         Tab::Holocrons => "Opening holocrons",

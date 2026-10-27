@@ -90,6 +90,7 @@ fn twelve() -> Vec<Prize> {
             holocron,
             tier,
             skin,
+            tag: None,
             id: id.to_owned(),
             name: skin.map_or("A blade", |skin| skin.name).to_owned(),
             count: 1,

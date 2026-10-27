@@ -134,6 +134,15 @@ pub(crate) fn emote_icon(index: usize) -> sjk_ui::TextureId {
     sjk_ui::TextureId(icons::EMOTE_ICON_FIRST + index as u32)
 }
 
+/// Atlas cells reserved for the tags' pictures (`tag_icons`).
+pub(crate) const TAG_ICON_CELLS: usize = icons::TAG_ICON_CELLS as usize;
+
+/// `TexturedQuad` texture naming tag picture cell `index` (`tag_icons`).
+pub(crate) fn tag_icon(index: usize) -> sjk_ui::TextureId {
+    debug_assert!(index < TAG_ICON_CELLS);
+    sjk_ui::TextureId(icons::TAG_ICON_FIRST + index as u32)
+}
+
 /// Atlas cells reserved for the settings menu's icons.
 pub(crate) const SETTINGS_ICON_CELLS: usize = icons::SETTINGS_ICON_CELLS as usize;
 

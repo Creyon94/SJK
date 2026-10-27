@@ -58,6 +58,10 @@ pub(super) fn register(shell: &mut sjk_shell::Shell) -> Result<(), sjk_shell::Co
             "Toy: Monitor on or off (on, you throw monitors with monitor_throw and they knock you flying)",
         ),
         (
+            crate::tags::COMMAND,
+            "Toy: stick your tag (cg_tag) where you look, on a wall or the floor; toy_tag clear takes it off (other SJK players on the map see it)",
+        ),
+        (
             crate::monitor::THROW_COMMAND,
             "Throw a monitor the way you look (the Monitor toy on); it sends players who have it on flying",
         ),

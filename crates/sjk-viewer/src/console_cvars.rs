@@ -870,6 +870,18 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "Monitors are seen (0: no Monitor toy monitor is drawn, nor its sounds in the world heard, on this PC; SJK)",
         ),
         CvarDefinition::new(
+            crate::tags::CVAR,
+            crate::tags::DEFAULT,
+            archive,
+            "The tag toy_tag sticks, by id (tag_gg); one you do not hold is not stuck (the Collection's Tags tab chooses it; SJK)",
+        ),
+        CvarDefinition::new(
+            crate::tags::SHOW_CVAR,
+            true,
+            archive,
+            "Other players' tags are seen (0: no tag but your own is drawn on this PC; SJK)",
+        ),
+        CvarDefinition::new(
             crate::boombox::RANGE_CVAR,
             crate::boombox::DEFAULT_RANGE,
             archive,

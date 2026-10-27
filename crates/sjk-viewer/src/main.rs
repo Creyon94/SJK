@@ -213,6 +213,9 @@ mod server_caps;
 mod siege_objective_notice;
 mod siege_sabers;
 mod surface_tables;
+mod tag_icons;
+mod tags;
+mod tags_frame;
 mod team_sabers;
 mod toy_saved;
 mod toy_sounds;
@@ -531,6 +534,8 @@ struct GpuState {
     monitor: monitor::Monitor,
     /// The Box hunt toy (`toy_boxhunt`): its switch, the consent to hunt and be the mark.
     box_hunt: box_hunt::BoxHunt,
+    /// The Tag toy (`toy_tag`): the own tag stuck on the world.
+    tags: tags::Tags,
     /// The Ragdoll toy (`toy_ragdoll`): the player's own fall and the falls of others.
     ragdoll: ragdoll::Ragdoll,
     /// Order 66's, the Hax's, the Drone's, the Monitor's and Box hunt's switches as last
@@ -1514,6 +1519,7 @@ impl GpuState {
             boombox: Default::default(),
             monitor: Default::default(),
             box_hunt: Default::default(),
+            tags: Default::default(),
             ragdoll: Default::default(),
             toys_saved: Default::default(),
             holocron_stage: Default::default(),

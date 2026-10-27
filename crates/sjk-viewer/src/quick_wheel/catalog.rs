@@ -39,7 +39,7 @@ pub(crate) enum State {
 /// icons and cut by `scripts/wheel_icons.py` from two boards (the first sixteen
 /// from the first, the rest, named by the actions they are for, from the
 /// second); uploaded into the UI atlas at start (`ui_renderer::wheel_icon`).
-pub(crate) const ICONS: [(&str, &[u8]); 54] = [
+pub(crate) const ICONS: [(&str, &[u8]); 55] = [
     ("drizzle", include_bytes!("../../assets/wheel/drizzle.png")),
     ("rain", include_bytes!("../../assets/wheel/rain.png")),
     ("storm", include_bytes!("../../assets/wheel/storm.png")),
@@ -193,6 +193,8 @@ pub(crate) const ICONS: [(&str, &[u8]); 54] = [
         "box_hunt",
         include_bytes!("../../assets/mystery_box/toy_boxhunt.png"),
     ),
+    // The Tag's picture, the spray can (bundled with the client).
+    ("tag", include_bytes!("../../assets/tags/toy_tag.png")),
     ("custom", include_bytes!("../../assets/wheel/custom.png")),
     (
         "quick_wheel",
@@ -678,6 +680,15 @@ pub(crate) const ACTIONS: &[Action] = &[
         Toys,
         State::BoxHunt,
         Some("box_hunt"),
+    ),
+    // Sticks the chosen tag where the player looks.
+    action(
+        "tag",
+        "Tag",
+        crate::tags::COMMAND,
+        Toys,
+        State::None,
+        Some("tag"),
     ),
     action(
         "day",

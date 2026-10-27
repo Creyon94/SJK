@@ -75,6 +75,9 @@ includes:
   (weights, friction, limbs kept apart, blows that spin the body) (26/10/2026); then a
   throw charged by holding the key, and a hit marker and hit sound for the thrower
   (26/10/2026);
+- the Tag toy: premade tags stuck on walls and floors, TF2 style, seen by every SJK
+  player on the map, three free and the rest dropped by holocrons, with a Collection tab
+  to choose them (27/10/2026);
 - mystery boxes: boxes placed on maps through the hub, chests of SJK's own with glowing
   question marks, opened by players for credits to a music box tune of SJK's own while
   the roll slows to a stop on what came out, with a roll the hub makes and every SJK

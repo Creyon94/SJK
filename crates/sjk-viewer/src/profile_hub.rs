@@ -70,6 +70,8 @@ pub(crate) enum Tab {
     Shaders,
     /// Things to use in a match: the Illuminate holocron.
     Toys,
+    /// The tags a player sticks on walls (`tags.rs`): the starter set and holocron drops.
+    Tags,
     /// Ornaments for the nameplate over the player's head.
     Nameplates,
     /// The player's holocrons, the loot-box drops, a 3D holocron cycled by tier.
@@ -81,22 +83,24 @@ pub(crate) enum Tab {
 }
 
 const PROFILE_TABS: [Tab; 4] = [Tab::Character, Tab::Saber, Tab::Force, Tab::Profile];
-const COLLECTION_TABS: [Tab; 8] = [
+const COLLECTION_TABS: [Tab; 9] = [
     Tab::Medals,
     Tab::Achievements,
     Tab::Shaders,
     Tab::Toys,
+    Tab::Tags,
     Tab::Nameplates,
     Tab::Holocrons,
     Tab::Forge,
     Tab::Cards,
 ];
 const PROFILE_LABELS: [&str; 4] = ["Character", "Saber", "Force", "SJK Profile"];
-const COLLECTION_LABELS: [&str; 8] = [
+const COLLECTION_LABELS: [&str; 9] = [
     "Medals",
     "Achievements",
     "Shaders",
     "Toys",
+    "Tags",
     "Nameplates",
     HOLOCRONS,
     FORGE,
@@ -114,7 +118,7 @@ pub(crate) const FORGE: &str = "Forge";
 
 impl Tab {
     #[cfg(test)]
-    pub(crate) const ALL: [Self; 12] = [
+    pub(crate) const ALL: [Self; 13] = [
         Self::Character,
         Self::Saber,
         Self::Force,
@@ -123,6 +127,7 @@ impl Tab {
         Self::Achievements,
         Self::Shaders,
         Self::Toys,
+        Self::Tags,
         Self::Nameplates,
         Self::Holocrons,
         Self::Forge,
@@ -144,10 +149,11 @@ impl Tab {
             Self::Saber | Self::Achievements => 1,
             Self::Force | Self::Shaders => 2,
             Self::Profile | Self::Toys => 3,
-            Self::Nameplates => 4,
-            Self::Holocrons => 5,
-            Self::Forge => 6,
-            Self::Cards => 7,
+            Self::Tags => 4,
+            Self::Nameplates => 5,
+            Self::Holocrons => 6,
+            Self::Forge => 7,
+            Self::Cards => 8,
         }
     }
 
@@ -275,6 +281,39 @@ fn row_gap_in(
     ((ROW_RIGHT - ROW_X - content) / gaps as f32).clamp(MIN_GAP, GAP)
 }
 
+/// How much the row's names and counts shrink to stand within the frame: 1 while they fit
+/// with at least [`MIN_GAP`] between them, less only when even that is too wide (the
+/// Collection's nine tabs at the largest text style, 27/10/2026).
+fn row_fit(labels: &[&str], counts: &[String], widen: f32) -> f32 {
+    row_fit_in(labels, counts, widen, crate::text::style::current())
+}
+
+/// [`row_fit`] in `style`.
+fn row_fit_in(
+    labels: &[&str],
+    counts: &[String],
+    widen: f32,
+    style: crate::text::TextStyle,
+) -> f32 {
+    let content: f32 = labels
+        .iter()
+        .enumerate()
+        .map(|(at, label)| {
+            (styled_width(label, style)
+                + counts
+                    .get(at)
+                    .map_or(0.0, |count| count_width_in(count, style)))
+                * widen
+        })
+        .sum();
+    let room = ROW_RIGHT - ROW_X - MIN_GAP * labels.len().saturating_sub(1) as f32;
+    if content > room && content > 0.0 {
+        room / content
+    } else {
+        1.0
+    }
+}
+
 /// Where tab `index` of `labels` starts, how wide its name is and how wide its count
 /// (frame pixels); `counts` follow the names, missing or empty for none. `widen` makes
 /// room for a face wider than the display family (Inter, where the families are not
@@ -333,7 +372,10 @@ fn counted_tabs(
     token_base: u16,
     widen: f32,
 ) {
-    let s = frame.s;
+    // Shrunk to fit, the names and counts are measured and drawn smaller alike.
+    let fit = row_fit(labels, counts, widen);
+    let widen = widen * fit;
+    let s = frame.s * fit;
     for (index, label) in labels.iter().enumerate() {
         let (x, width, count) = places(labels, counts, index, widen);
         let token = token_base + index as u16;
@@ -761,10 +803,11 @@ mod tests {
         assert_eq!(Tab::Profile.label(), "SJK Profile");
         assert_eq!(Tab::Nameplates.label(), "Nameplates");
         assert_eq!(collection_tab_of(TOKEN + 2), Some(Tab::Shaders));
-        assert_eq!(collection_tab_of(TOKEN + 5), Some(Tab::Holocrons));
-        assert_eq!(collection_tab_of(TOKEN + 6), Some(Tab::Forge));
-        assert_eq!(collection_tab_of(TOKEN + 7), Some(Tab::Cards));
-        assert_eq!(collection_tab_of(TOKEN + 8), None);
+        assert_eq!(collection_tab_of(TOKEN + 4), Some(Tab::Tags));
+        assert_eq!(collection_tab_of(TOKEN + 6), Some(Tab::Holocrons));
+        assert_eq!(collection_tab_of(TOKEN + 7), Some(Tab::Forge));
+        assert_eq!(collection_tab_of(TOKEN + 8), Some(Tab::Cards));
+        assert_eq!(collection_tab_of(TOKEN + 9), None);
         assert_eq!(collection_tab_of(TOKEN - 1), None);
     }
 
@@ -792,15 +835,17 @@ mod tests {
             } else {
                 Vec::new()
             };
-            let gap = row_gap_in(labels, &counts, 1.0, widest);
+            let fit = row_fit_in(labels, &counts, 1.0, widest);
+            let gap = row_gap_in(labels, &counts, fit, widest);
             let content: f32 = labels
                 .iter()
                 .enumerate()
                 .map(|(at, label)| {
-                    styled_width(label, widest)
+                    (styled_width(label, widest)
                         + counts
                             .get(at)
-                            .map_or(0.0, |count| count_width_in(count, widest))
+                            .map_or(0.0, |count| count_width_in(count, widest)))
+                        * fit
                 })
                 .sum();
             let right = ROW_X + content + gap * labels.len().saturating_sub(1) as f32;
