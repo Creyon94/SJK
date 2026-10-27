@@ -376,6 +376,7 @@ fn a_staff_key_finds_players_gives_and_takes_back_medals_and_clears_achievements
                 key_id: player.key_id(),
                 medal: "bug_hunter".into(),
                 note: "found the fog bug".into(),
+                rank: 1,
             },
         )
         .unwrap();

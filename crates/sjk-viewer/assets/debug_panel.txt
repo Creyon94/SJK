@@ -58,6 +58,15 @@ test: Press Sith, then Jawa, then Gold: each shows; Unverify takes the tick away
 test: Staff members show the silver/teal tick, Bishop the rusted one.
 test: The sun moves smoothly and costs no FPS (it is 40 still frames).
 
+[award-rank]
+area: Menus & settings
+title: Staff page: choose a medal's rank when giving it
+change: On a medal the player does not hold, Rank picks the rank Give uses ("gives at IV").
+test: Staff page, a player without Bug Hunter: press Rank three times - line says gives at IV.
+test: Press Give: they get Bug Hunter at Rank IV Holo; the button goes back to Rank I.
+test: Rank on a held medal still promotes it one step (V back to I).
+note: Needs the hub with ranked awards deployed; at rank I the request is as before.
+
 [medal-ranks]
 area: Menus & settings
 title: Medal ranks I-V; Early Tester/Contributor renamed Tester/Contributor

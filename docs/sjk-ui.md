@@ -645,7 +645,8 @@ overlay routes their text to the UI's families (`console_sjk_pages.rs`).
   player's picture (a disc 64 across), name at 38 and facts over the middle and
   right, and Take picture down at the right (dimmed without one); Medals: each medal's
   medallion (dim when not held) with its rank's device, name and count, rank and date
-  given, a held one's Rank button (the next rank each press), Give (gold) and Take
+  given, a Rank button (held: the next rank each press; not held: the rank Give gives
+  it at), Give (gold) and Take
   back, then the note's field (sent with the next medal or unlock); Unlockables under
   it: each unlockable of the catalogue, two to a row of 36 (all fourteen fit, since
   10/10/2026), its name at 16 (gold when held), "Since" its date or "Not held", and one
