@@ -114,8 +114,13 @@ pub(crate) const TICK_ICON_FIRST: u32 = EJK_ICON + 1;
 pub(crate) const CREATOR_TICK_FIRST: u32 = TICK_ICON_FIRST + 5;
 /// Tick cells: the five still ones and the sun's frames.
 pub(crate) const TICK_ICON_CELLS: u32 = 5 + super::tick_badge::CREATOR_FRAMES;
+/// First of the tags' picture cells (`tag_icons`, in `tags::CATALOGUE`'s order), after
+/// the ticks'.
+pub(crate) const TAG_ICON_FIRST: u32 = TICK_ICON_FIRST + TICK_ICON_CELLS;
+/// Tag cells: two rows, room for twice the first tags.
+pub(crate) const TAG_ICON_CELLS: u32 = 2 * COLUMNS;
 /// Every icon cell.
-pub(crate) const ATLAS_CELLS: u32 = TICK_ICON_FIRST + TICK_ICON_CELLS;
+pub(crate) const ATLAS_CELLS: u32 = TAG_ICON_FIRST + TAG_ICON_CELLS;
 const TOTAL_CELLS: u32 = ATLAS_CELLS;
 const ATLAS_HEIGHT: u32 = TOTAL_CELLS.div_ceil(COLUMNS) * ICON_SIZE;
 

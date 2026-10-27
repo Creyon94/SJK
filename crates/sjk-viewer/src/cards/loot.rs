@@ -16,10 +16,10 @@ pub(crate) fn drop(tier: usize) -> f64 {
 }
 
 /// The chance an opening of a holocron of tier `tier` brings a card (and its credits),
-/// not a saber shader or a pile of kyber shards.
+/// not a saber shader, a tag or a pile of kyber shards.
 pub(crate) fn card_in(tier: usize) -> f64 {
     let table = current();
-    1.0 - f64::from(table.shader[tier] + table.shard_pile[tier]) / 1_000.0
+    1.0 - f64::from(table.shader[tier] + table.tag[tier] + table.shard_pile[tier]) / 1_000.0
 }
 
 /// The chance an opening of a holocron of tier `tier` brings a pile of kyber shards.

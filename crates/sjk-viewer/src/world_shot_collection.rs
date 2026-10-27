@@ -852,3 +852,42 @@ fn duel6_blade_pictures_cost() {
         }
     });
 }
+
+/// The Tags tab (27/10/2026) on the made-up profile with two copies of a Rare tag and
+/// `cg_tag` on it: the free ones held, the rest locked. The pictures come from the
+/// packs `SJK_TEST_PACKS` names (the hub's `assets/dist`, with `sjk_tags.pk3`).
+#[test]
+#[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+fn duel6_sjk_collection_tags() {
+    on_big_stack(|| {
+        super::saber_skins::mount_test_packs();
+        let cvars = [
+            ("ui_menuStyle", "sjk"),
+            (crate::settings::quick::HIDE_CVAR, "1"),
+            (crate::tags::CVAR, "tag_ez"),
+            (crate::discord_presence::CVAR, "0"),
+        ];
+        let Some((mut gpu, _profile)) = open(
+            "maps/mp/duel6.bsp",
+            [1920, 1080],
+            Some(menu::ClientMenu::new(true, String::new())),
+            &cvars,
+        ) else {
+            return;
+        };
+        let _ = frame(&mut gpu, 10);
+        let ez = sjk_identity::Unlock {
+            id: "tag_ez".to_owned(),
+            count: 2,
+            ..sun()
+        };
+        if let Some(console) = gpu.console.as_mut() {
+            console.preview_profile(preview());
+            console.preview_collection(Some(vec![sun(), ez]), 0.8);
+            console.open_profile_hub_page(Tab::Tags, ReturnTarget::MainMenu);
+        }
+        assert_eq!(gpu.profile_hub_tab(), Some(Tab::Tags));
+        println!("{}", shoot(&mut gpu, 20, "duel6-collection-tags").display());
+        assert!(!overflowed(&gpu));
+    });
+}

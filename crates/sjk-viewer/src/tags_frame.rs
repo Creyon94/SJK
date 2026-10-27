@@ -1,0 +1,161 @@
+//! The frame glue of tags (`tags.rs`): `toy_tag` traces the crosshair to a wall and
+//! sticks the chosen tag there; each frame the tags on show (the own and those the hub
+//! relayed in other players' looks) are handed to the decal store, which projects one
+//! only when it changed.
+
+use super::*;
+
+/// `CONTENTS_SOLID`: what a tag sticks to (not clips, which nobody sees).
+const TAG_MASK: u32 = 1;
+
+impl GpuState {
+    fn tag_centre(&mut self, text: &str) {
+        self.chat.receive(
+            sjk_client::ServerEventKind::CenterPrint,
+            text.to_owned(),
+            None,
+            Instant::now(),
+        );
+    }
+
+    /// The server and map the session is on, the server `None` out of a game.
+    fn tag_place(&self) -> (Option<std::net::SocketAddr>, Option<String>) {
+        let Some(session) = self.live_session.as_ref() else {
+            return (None, None);
+        };
+        (
+            Some(session.server()),
+            crate::ghost_replay::current_map(session.game_state()),
+        )
+    }
+
+    /// Whether the player may stick tag `id`: a free one or one the profile lists (any in
+    /// a local game, which has no hub).
+    fn may_stick_tag(&self, id: &str) -> bool {
+        let local = self
+            .live_session
+            .as_ref()
+            .is_some_and(ClientSession::is_local);
+        crate::tags::may_stick(id, |id| local || player_identity::owns_unlock(id))
+    }
+
+    /// `toy_tag`: stick the chosen tag where the crosshair meets a wall or the floor.
+    pub(crate) fn stick_tag(&mut self) {
+        let now = Instant::now();
+        let (Some(server), Some(map)) = self.tag_place() else {
+            self.tag_centre("Join a server to tag");
+            return;
+        };
+        let chosen = self
+            .console
+            .as_ref()
+            .and_then(|console| console.text_cvar(crate::tags::CVAR).ok())
+            .map(str::trim)
+            .filter(|id| !id.is_empty())
+            .unwrap_or(crate::tags::DEFAULT)
+            .to_owned();
+        if crate::tags::get(&chosen).is_none() {
+            self.tag_centre("No such tag: choose one in the Collection");
+            return;
+        }
+        if !self.may_stick_tag(&chosen) {
+            self.tag_centre("You do not hold that tag yet");
+            return;
+        }
+        if let Err(wait) = self.tags.may_stick(now) {
+            self.tag_centre(&format!("Tag again in {} s", wait.as_secs() + 1));
+            return;
+        }
+        let Some(camera) = self.frame_view else {
+            return;
+        };
+        let (start, forward) = self.ping_ray(camera);
+        let trace = self.bsp.trace_box_with(
+            &mut self.trace_scratch,
+            start.to_array(),
+            (start + forward * crate::tags::REACH).to_array(),
+            sjk_bsp::Aabb::new([0.0; 3], [0.0; 3]).expect("point bounds are valid"),
+            TAG_MASK,
+        );
+        let normal = trace
+            .plane
+            .as_ref()
+            .map(|plane| Vec3::from_array(plane.normal));
+        let Some(normal) = normal.filter(|_| {
+            forward != Vec3::ZERO
+                && trace.fraction < 1.0
+                && !trace.start_solid
+                && trace.surface_flags & weather::cover::SURF_SKY == 0
+        }) else {
+            self.tag_centre("Nothing to tag there: get closer to a wall");
+            return;
+        };
+        let normal = normal.normalize_or(Vec3::Z);
+        let spin = crate::tags::spin_for(normal, crate::tags::up_for(normal, forward));
+        let tag = sjk_identity::PlacedTag {
+            id: chosen,
+            map,
+            at: Vec3::from_array(trace.end_position).to_array(),
+            normal: normal.to_array(),
+            spin,
+        };
+        self.tags.stick(server, tag, now);
+    }
+
+    /// `toy_tag clear`: take the own tag off.
+    pub(crate) fn clear_tag(&mut self) {
+        if self.tags.clear() {
+            self.tag_centre("Tag taken off");
+        }
+    }
+
+    /// The own tag, while it stands where the player is and they still hold it.
+    pub(crate) fn own_tag(&mut self) -> Option<sjk_identity::PlacedTag> {
+        let (server, map) = self.tag_place();
+        let local = self
+            .live_session
+            .as_ref()
+            .is_some_and(ClientSession::is_local);
+        self.tags
+            .own(server, map.as_deref(), |id| {
+                local || player_identity::owns_unlock(id)
+            })
+            .cloned()
+    }
+
+    /// Hand the decal store the tags on show: the own, and each other player's on this
+    /// map unless [`crate::tags::SHOW_CVAR`] hides them.
+    pub(crate) fn update_tags(&mut self) {
+        // Out of a game the tags go once; the store is left alone after (world shots
+        // stick their own).
+        if self.live_session.is_none() {
+            if std::mem::take(&mut self.tags.in_game) {
+                for slot in 0..crate::looks::SLOTS {
+                    self.effect_aux.decals.set_tag(slot, None);
+                }
+            }
+            return;
+        }
+        self.tags.in_game = true;
+        let own = self.own_tag();
+        let (_, map) = self.tag_place();
+        let show = self
+            .console
+            .as_ref()
+            .and_then(|console| console.bool_cvar(crate::tags::SHOW_CVAR))
+            .unwrap_or(true);
+        let own_slot = self.looks.own_slot().map(usize::from);
+        for slot in 0..crate::looks::SLOTS {
+            let tag = if Some(slot) == own_slot {
+                own.as_ref()
+            } else if show && map.is_some() {
+                self.looks
+                    .tag(slot)
+                    .filter(|tag| Some(tag.map.as_str()) == map.as_deref())
+            } else {
+                None
+            };
+            self.effect_aux.decals.set_tag(slot, tag);
+        }
+    }
+}

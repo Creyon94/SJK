@@ -65,8 +65,8 @@ pub use wire::{
     DropMark, EconomyTables, Emote, Feed, FindEvent, FindMark, HOLOCRONS_LISTED, Holocron,
     HolocronBought, HolocronBuyAnswer, HolocronCounts, HolocronState, KyberPity, KyberTables,
     KyberTier, Look, LookEvent, LootTier, MEDAL_RANK_MAX, MEDAL_RANK_MIN, MapBlock, Medal,
-    OPEN_MAX, Offer, OpenAnswer, Opened, OpenedCard, OpenedUnlock, People, Person, Ping, Presence,
-    Profile, RelayBatch, RevealAnswer, Revealed, SealedWhisper, SharedVitals, ShatterAllAnswer,
-    ShatterAnswer, Shattered, ShatteredCopies, ShopDay, Tick, ToyEvent, Trust, Unlock, Vitals,
-    WornName, names_match, normal_form,
+    OPEN_MAX, Offer, OpenAnswer, Opened, OpenedCard, OpenedUnlock, People, Person, Ping, PlacedTag,
+    Presence, Profile, RelayBatch, RevealAnswer, Revealed, SealedWhisper, SharedVitals,
+    ShatterAllAnswer, ShatterAnswer, Shattered, ShatteredCopies, ShopDay, Tick, ToyEvent, Trust,
+    Unlock, Vitals, WornName, names_match, normal_form,
 };

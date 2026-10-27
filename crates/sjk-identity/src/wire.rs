@@ -738,6 +738,10 @@ pub struct LootTier {
     /// (17/10/2026; 0 from hubs before).
     #[serde(default)]
     pub shard_pile: u32,
+    /// How often an opening brings a tag instead of the card and credits (27/10/2026; 0
+    /// from hubs before).
+    #[serde(default)]
+    pub tag: u32,
     /// The shards a pile holds: the least and the most.
     #[serde(default)]
     pub shards: [u64; 2],
@@ -836,7 +840,30 @@ pub struct Look {
     /// the retail sounds, or a blade-skin unlock id whose sounds they hear.
     #[serde(default)]
     pub saber_sounds: String,
+    /// The tag the player stuck on the world (since 27/10/2026); `None` when absent.
+    #[serde(default)]
+    pub tag: Option<PlacedTag>,
 }
+
+/// A tag stuck on the world (`PROTOCOL.md`, "Looks", since 27/10/2026): a tag unlock the
+/// wearer holds (or a free one), on map `map`, centred at `at` on a surface facing
+/// `normal`, turned `spin` degrees about it. The hub checks the numbers are finite, so
+/// the look stays `Eq`.
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+pub struct PlacedTag {
+    /// The tag's unlock id.
+    pub id: String,
+    /// The map it is stuck on (`mp/ffa3`).
+    pub map: String,
+    /// Its centre, in world units.
+    pub at: [f32; 3],
+    /// The surface's normal, a unit vector.
+    pub normal: [f32; 3],
+    /// Its turn about the normal, in degrees from 0 up to 360.
+    pub spin: f32,
+}
+
+impl Eq for PlacedTag {}
 
 /// A look worn on a game server, as the feed relays it when it changes: the slot and
 /// name come from the wearer's claim, as an emote's do.
@@ -879,6 +906,9 @@ pub struct LookEvent {
     /// The saber sounds the wearer chose; empty (follow the blade) when absent.
     #[serde(default)]
     pub saber_sounds: String,
+    /// The tag the wearer stuck on the world; `None` when absent.
+    #[serde(default)]
+    pub tag: Option<PlacedTag>,
 }
 
 impl LookEvent {
@@ -894,6 +924,7 @@ impl LookEvent {
             saber_on: self.saber_on.clone(),
             saber2_on: self.saber2_on.clone(),
             saber_sounds: self.saber_sounds.clone(),
+            tag: self.tag.clone(),
         }
     }
 }
@@ -1665,6 +1696,7 @@ mod tests {
                 saber_on: Vec::new(),
                 saber2_on: Vec::new(),
                 saber_sounds: String::new(),
+                tag: None,
             })
         );
         let options: Presence = serde_json::from_str(
@@ -1701,6 +1733,7 @@ mod tests {
                 saber2_off: Vec::new(),
                 saber_on: Vec::new(),
                 saber2_on: Vec::new(),
+                tag: None,
                 saber_sounds: String::new(),
             }
         );

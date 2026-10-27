@@ -283,6 +283,8 @@ impl Worn {
                 _ => Vec::new(),
             },
             saber_sounds: self.sounds.wire().to_owned(),
+            // The tag goes on by the frame (`looks_frame.rs`): it is not part of [`Worn`].
+            tag: None,
         }
     }
 }
@@ -292,6 +294,8 @@ impl Worn {
 struct Claimed {
     claimed_name: String,
     worn: Worn,
+    /// The tag they stuck on the world (`tags.rs`), if any.
+    tag: Option<sjk_identity::PlacedTag>,
 }
 
 /// Every slot's look on the current game server.
@@ -391,6 +395,18 @@ impl Looks {
     /// Whether the player in `client` has toy `id` out (and is not muted on this PC).
     pub(crate) fn toy(&self, client: usize, id: &str) -> bool {
         self.shown(client).is_some_and(|worn| worn.has_toy(id))
+    }
+
+    /// The tag another player in `client` stuck on the world, as the hub relayed it:
+    /// only while the game shows their claimed name there and they are not muted on this
+    /// PC; never the local player's own (`tags.rs` keeps it).
+    pub(crate) fn tag(&self, client: usize) -> Option<&sjk_identity::PlacedTag> {
+        let matched = client < SLOTS && self.matched & (1 << client) != 0;
+        if !matched || self.own_slot.map(usize::from) == Some(client) {
+            return None;
+        }
+        self.shown(client)?;
+        self.claimed.get(client)?.as_ref()?.tag.as_ref()
     }
 
     /// What the player in `client` is drawn wearing: nothing while they are muted on
@@ -498,6 +514,7 @@ impl Looks {
             *entry = Some(Claimed {
                 claimed_name: claimed_name.to_owned(),
                 worn: Worn::of(look),
+                tag: look.tag.clone(),
             });
         }
     }
@@ -573,6 +590,7 @@ mod tests {
             saber_on: Vec::new(),
             saber2_on: Vec::new(),
             saber_sounds: String::new(),
+            tag: None,
         }
     }
 

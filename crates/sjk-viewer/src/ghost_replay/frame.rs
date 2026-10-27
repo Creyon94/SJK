@@ -270,7 +270,7 @@ impl crate::GpuState {
 }
 
 /// The map's name in `CS_SERVERINFO`, lower-cased (`mp/ffa3`).
-fn current_map(game: &sjk_protocol::GameState) -> Option<String> {
+pub(crate) fn current_map(game: &sjk_protocol::GameState) -> Option<String> {
     let info = game
         .config_string(0)
         .map(sjk_client::LegacyClientInfo::new)?;

@@ -60,8 +60,10 @@ impl GpuState {
             );
             self.looks.own_settings_changed(first, second)
         });
-        let due = player_identity::due() || skins_changed;
+        // A tag just stuck or taken off goes at once too.
+        let due = player_identity::due() || skins_changed | self.tags.take_changed();
         self.update_looks(due);
+        self.update_tags();
         // The hub's toy events for this server, taken once for every toy.
         let toy_events = self
             .live_session

@@ -17,7 +17,7 @@ impl GpuState {
     /// along), else the view's centre. The ping once always took the view's centre, so
     /// with such a camera it landed away from the crosshair (players' bug reports,
     /// 13/10/2026).
-    fn ping_ray(&self, camera: crate::hud::identification::Camera) -> (Vec3, Vec3) {
+    pub(crate) fn ping_ray(&self, camera: crate::hud::identification::Camera) -> (Vec3, Vec3) {
         let centre = (camera.eye, (camera.target - camera.eye).normalize_or_zero());
         let Some(session) = self.live_session.as_ref() else {
             return centre;

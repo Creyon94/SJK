@@ -69,6 +69,9 @@ pub(crate) enum Item {
     Shader(&'static Unlockable),
     /// A saber shader newer than this client (only ever the prize).
     New,
+    /// A tag (`tags.rs`, 27/10/2026; only ever the prize: the strip's neighbours are cards,
+    /// shaders and shards).
+    Tag(&'static crate::tags::Tag),
     /// A pile of kyber shards (17/10/2026): `shards` of them for the prize, 0 for a
     /// neighbour (its tier's range is shown instead).
     Shards { tier: usize, shards: u64 },
@@ -81,6 +84,7 @@ impl Item {
             Self::Card { finish: 2, .. } => crate::menu::sjk::color::GOLD_BRIGHT,
             Self::Card { rarity, .. } => RARITIES[rarity].colour,
             Self::Shader(skin) => skin.tier.colour(),
+            Self::Tag(tag) => tag.tier.colour(),
             Self::New => crate::menu::sjk::color::GOLD,
             Self::Shards { .. } => crate::cards::shard::KYBER,
         }
@@ -92,6 +96,8 @@ impl Item {
         match self {
             Self::Card { rarity, finish, .. } => rarity as u32 * 10 + finish as u32 * 4,
             Self::Shader(skin) => skin.tier as u32 * 10 + 1,
+            // A tag stands just under a shader of its tier.
+            Self::Tag(tag) => tag.tier as u32 * 10,
             Self::New => 21,
             // A consolation: above a plain Common card, below everything rarer.
             Self::Shards { .. } => 2,
@@ -104,6 +110,7 @@ impl Item {
         match self {
             Self::Card { rarity, finish, .. } => rarity >= 3 || finish == 2,
             Self::Shader(skin) => skin.tier >= Rarity::Legendary,
+            Self::Tag(tag) => tag.tier >= Rarity::Legendary,
             Self::New | Self::Shards { .. } => false,
         }
     }
@@ -179,6 +186,8 @@ pub(crate) fn pool(tier: usize) -> Vec<(Item, u64)> {
     let table = crate::loot_odds::current();
     let shader = u64::from(table.shader[tier]);
     let pile = u64::from(table.shard_pile[tier]);
+    // A tag (27/10/2026) stands only as the prize: its share leaves the cards'.
+    let tag = u64::from(table.tag[tier]);
     let odds = &table.card[tier];
     let mut pool = Vec::new();
     if pile > 0 {
@@ -186,7 +195,7 @@ pub(crate) fn pool(tier: usize) -> Vec<(Item, u64)> {
     }
     for rarity in 0..RARITIES.len() {
         for finish in 0..FINISHES.len() {
-            let weight = (1_000 - shader - pile)
+            let weight = (1_000 - shader - pile - tag)
                 * u64::from(odds.rarity[rarity])
                 * u64::from(odds.finish[finish]);
             if weight > 0 {
@@ -339,7 +348,7 @@ mod tests {
                         assert!(cards::ODDS[tier].finish[*finish] > 0);
                     }
                     Item::Shader(skin) => assert!(skin.droppable, "{}", skin.id),
-                    Item::New => panic!("only a prize is new"),
+                    Item::New | Item::Tag(_) => panic!("only a prize is new or a tag"),
                     Item::Shards { tier: of, shards } => {
                         assert_eq!((*of, *shards), (tier, 0), "a neighbour's pile");
                     }

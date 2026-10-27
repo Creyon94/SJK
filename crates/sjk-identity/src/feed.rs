@@ -1375,6 +1375,7 @@ mod tests {
             saber_on: Vec::new(),
             saber2_on: Vec::new(),
             saber_sounds: String::new(),
+            tag: None,
         }
     }
 

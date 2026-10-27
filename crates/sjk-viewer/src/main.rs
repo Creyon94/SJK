@@ -212,6 +212,9 @@ mod server_caps;
 mod siege_objective_notice;
 mod siege_sabers;
 mod surface_tables;
+mod tag_icons;
+mod tags;
+mod tags_frame;
 mod team_sabers;
 mod toy_saved;
 mod toy_sounds;
@@ -528,6 +531,8 @@ struct GpuState {
     boombox: boombox::Boombox,
     /// The Monitor toy (`toy_monitor`): its switch and the monitors thrown.
     monitor: monitor::Monitor,
+    /// The Tag toy (`toy_tag`): the own tag stuck on the world.
+    tags: tags::Tags,
     /// The Ragdoll toy (`toy_ragdoll`): the player's own fall and the falls of others.
     ragdoll: ragdoll::Ragdoll,
     /// Order 66's, the Hax's and the Drone's switches as last saved (`toy_saved`).
@@ -1509,6 +1514,7 @@ impl GpuState {
             drone: Default::default(),
             boombox: Default::default(),
             monitor: Default::default(),
+            tags: Default::default(),
             ragdoll: Default::default(),
             toys_saved: Default::default(),
             holocron_stage: Default::default(),
