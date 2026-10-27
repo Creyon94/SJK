@@ -24,6 +24,7 @@ const ICONS: &[(&str, &str)] = &[
     ("use_bacta", "gfx/hud/i_icon_bacta.tga"),
     ("use_seeker", "gfx/hud/i_icon_seeker.tga"),
     ("use_sentry", "gfx/hud/i_icon_sentrygun.tga"),
+    ("use_jetpack", "gfx/hud/i_icon_jetpack.tga"),
     ("use_field", "gfx/hud/i_icon_shieldwall.tga"),
     ("use_electrobinoculars", "gfx/hud/i_icon_zoom.tga"),
     // SJK's Illuminate holocron, which the client bundles (`crate::illuminate`).

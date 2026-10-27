@@ -129,6 +129,7 @@ pub(crate) const ACTIONS: &[BindableAction] = &[
     action(Interaction, "Item: Bacta", "use_bacta", ""),
     action(Interaction, "Item: Seeker drone", "use_seeker", ""),
     action(Interaction, "Item: Sentry gun", "use_sentry", ""),
+    action(Interaction, "Item: Jetpack", "use_jetpack", ""),
     action(Interaction, "Item: Force field", "use_field", "KP_HOME"),
     action(
         Interaction,

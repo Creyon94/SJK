@@ -4,7 +4,7 @@
 //! jetpack and cloak batteries and the seeker drone. The rules are
 //! `sjk_game_jka::holdables` and `seeker_drone`, held to `holdables.c`.
 //!
-//! Not yet: the sentry, the E-Web and the jetpack's flight. Used, each says
+//! Not yet: the sentry and the E-Web. Used, each says
 //! so once and is given back (the movement had used it up), so no item is lost.
 
 use super::*;
@@ -52,13 +52,14 @@ const GENERIC_TAGS: [i32; 12] = [
     HI_CLOAK,
 ];
 /// The holdables this server cannot use yet.
-const UNPORTED: [i32; 3] = [HI_SENTRY_GUN, HI_JETPACK, HI_EWEB];
+const UNPORTED: [i32; 2] = [HI_SENTRY_GUN, HI_EWEB];
 /// `EV_PLAY_EFFECT`, `EFFECT_SPARK_EXPLOSION`, `s.angles`, `s.origin`.
 const EV_PLAY_EFFECT: u32 = 68;
 const EFFECT_SPARK_EXPLOSION: u32 = 4;
 const ES_ANGLES: [usize; 3] = [25, 9, 24];
 const ES_ORIGIN: [usize; 3] = [11, 12, 13];
 /// `CHAN_WEAPON`, `CHAN_ITEM`, `CHAN_BODY`, `CHAN_AUTO`, carried in `saberEntityNum`.
+const CHAN_AUTO: u32 = 0;
 const CHAN_WEAPON: u32 = 2;
 const CHAN_ITEM: u32 = 4;
 const CHAN_BODY: u32 = 5;
@@ -87,6 +88,9 @@ impl NativeGame {
         let holder = holder_of(peer);
         self.gather_obstacles(client);
         let usable = match self.map.as_ref() {
+            // SJK: stock's `G_ItemUsable` refuses the jetpack (it is never selectable),
+            // so `use_jetpack` never switched one on; here it does.
+            _ if tag == HI_JETPACK => holdables::jetpack_usable(&holder),
             Some(map) => holdables::usable(
                 &holder,
                 tag,
@@ -219,7 +223,16 @@ impl NativeGame {
                 self.cloak_toggled(client, toggled, level_time);
             }
             HI_SHIELD => self.place_shield(client, level_time),
-            HI_JETPACK | HI_SENTRY_GUN | HI_EWEB => {
+            HI_JETPACK => {
+                // `ItemUse_Jetpack`; the think flies the player while it is on.
+                let wearer = wearer_of(peer);
+                let toggled = holdables::use_jetpack(&mut peer.gear.packs, &wearer, level_time);
+                if toggled == Toggled::JetpackOn {
+                    let origin = peer.state.origin();
+                    self.holdable_sound(b"sound/boba/JETON", origin, CHAN_AUTO, level_time);
+                }
+            }
+            HI_SENTRY_GUN | HI_EWEB => {
                 // Given back: the movement used a sentry up.
                 if moved && tag == HI_SENTRY_GUN {
                     peer.state.stats[STAT_HOLDABLE_ITEMS] |= 1 << tag;

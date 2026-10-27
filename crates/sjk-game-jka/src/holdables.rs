@@ -34,6 +34,12 @@ pub const PMF_USE_ITEM_HELD: u16 = 1_024;
 /// `EF_SEEKERDRONE`, `EF_DEAD`.
 pub const EF_SEEKERDRONE: u32 = 0x0020_0000;
 pub const EF_DEAD: u32 = 0x0000_0002;
+/// `EF_JETPACK_ACTIVE`, `EF_JETPACK_FLAMING`.
+pub const EF_JETPACK_ACTIVE: u32 = 1 << 11;
+pub const EF_JETPACK_FLAMING: u32 = 1 << 30;
+/// `PM_NORMAL`, `PM_JETPACK`.
+const PM_NORMAL: u8 = 0;
+const PM_JETPACK: u8 = 1;
 /// `MAX_MEDPACK_HEAL_AMOUNT`, `MAX_MEDPACK_BIG_HEAL_AMOUNT`.
 pub const MEDPACK_HEAL: i32 = 25;
 pub const MEDPACK_BIG_HEAL: i32 = 50;
@@ -334,6 +340,35 @@ pub fn use_jetpack(packs: &mut Packs, wearer: &Wearer, level_time: i32) -> Toggl
     toggled
 }
 
+/// SJK's `use_jetpack` gates: `G_ItemUsable`'s first ones (alive, not riding, the use key
+/// let go), without its selectability, which refuses the jetpack outright.
+pub fn jetpack_usable(holder: &Holder) -> Result<(), Option<ItemUseFail>> {
+    if holder.health <= 0 || holder.riding || holder.movement_flags & PMF_USE_ITEM_HELD != 0 {
+        Err(None)
+    } else {
+        Ok(())
+    }
+}
+
+/// `ClientThink_real`'s jetpack link (`g_active.c:4007-4038`) for a player the rest of
+/// the chain left in `movement_type` with `flags`: a switched-on jetpack flies one left
+/// walking (`PM_JETPACK`, `EF_JETPACK_ACTIVE`); anything else lands one left flying
+/// (`PM_NORMAL`) and puts out the jets (`killJetFlags`).
+pub fn jetpack_movement(on: bool, movement_type: u8, flags: u32) -> (u8, u32) {
+    if on && matches!(movement_type, PM_NORMAL | PM_JETPACK) {
+        return (PM_JETPACK, flags | EF_JETPACK_ACTIVE);
+    }
+    let movement_type = if movement_type == PM_JETPACK {
+        PM_NORMAL
+    } else {
+        movement_type
+    };
+    (
+        movement_type,
+        flags & !(EF_JETPACK_ACTIVE | EF_JETPACK_FLAMING),
+    )
+}
+
 /// `ItemUse_UseCloak`: cloaked or uncloaked, a second apart; never while dead, never
 /// cloaked with less than 5 in the battery.
 pub fn use_cloak(packs: &mut Packs, wearer: &Wearer, level_time: i32) -> Toggled {
@@ -391,4 +426,59 @@ pub fn batteries(
         packs.cloak_recharge_at = level_time + REFUEL_RATE;
     }
     off
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn use_jetpack_passes_where_stock_refuses_the_unselectable_jetpack() {
+        let holder = Holder {
+            client: 0,
+            origin: [0.0; 3],
+            view_angles: [0.0; 3],
+            health: 100,
+            max_health: 100,
+            entity_flags: 0,
+            movement_flags: 0,
+            riding: false,
+            duel_in_progress: false,
+            sentry_deployed: false,
+        };
+        assert_eq!(jetpack_usable(&holder), Ok(()));
+        assert!(!selectable(HI_JETPACK));
+        for refused in [
+            Holder {
+                health: 0,
+                ..holder
+            },
+            Holder {
+                riding: true,
+                ..holder
+            },
+            Holder {
+                movement_flags: PMF_USE_ITEM_HELD,
+                ..holder
+            },
+        ] {
+            assert_eq!(jetpack_usable(&refused), Err(None));
+        }
+    }
+
+    #[test]
+    fn a_switched_on_jetpack_flies_a_walking_player_and_lands_it_once_off() {
+        // On: walking becomes flying, the jets lit.
+        assert_eq!(
+            jetpack_movement(true, PM_NORMAL, 0),
+            (PM_JETPACK, EF_JETPACK_ACTIVE)
+        );
+        // Gripped (`PM_FLOAT`) or dead (5): the chain's type stands, the jets out.
+        let lit = EF_JETPACK_ACTIVE | EF_JETPACK_FLAMING | 1;
+        assert_eq!(jetpack_movement(true, 4, lit), (4, 1));
+        assert_eq!(jetpack_movement(true, 5, lit), (5, 1));
+        // Off: flying lands, walking stays.
+        assert_eq!(jetpack_movement(false, PM_JETPACK, lit), (PM_NORMAL, 1));
+        assert_eq!(jetpack_movement(false, PM_NORMAL, 0), (PM_NORMAL, 0));
+    }
 }

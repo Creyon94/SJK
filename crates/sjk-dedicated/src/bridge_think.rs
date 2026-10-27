@@ -130,6 +130,26 @@ impl NativeGame {
             peer.state.set_movement_type(PM_NOCLIP);
             peer.movement = peer.movement.reseeded(&peer.state);
         }
+        // `player_die` turns the jetpack off; then `ClientThink_real` flies a player whose
+        // jetpack is on (`PM_JETPACK`) and lands one whose is off.
+        if peer.health <= 0 {
+            peer.gear.packs.jetpack_on = false;
+        }
+        let (kind, flags) = sjk_game_jka::holdables::jetpack_movement(
+            peer.gear.packs.jetpack_on,
+            peer.state.movement_type(),
+            peer.state.raw_field(EFLAGS).unwrap_or(0),
+        );
+        if (kind, flags)
+            != (
+                peer.state.movement_type(),
+                peer.state.raw_field(EFLAGS).unwrap_or(0),
+            )
+        {
+            peer.state.set_movement_type(kind);
+            peer.state.set_raw_field(EFLAGS, flags);
+            peer.movement = peer.movement.reseeded(&peer.state);
+        }
         let others = crate::peer::Others {
             boxes: obstacles,
             legs: body_legs,

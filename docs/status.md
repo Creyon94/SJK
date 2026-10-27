@@ -60,10 +60,22 @@ never set `EF_JETPACK` on a player (only on NPCs), so no pack hung on the back; 
 player's think now sets it from the held jetpack, as `ClientThink_real` does. A new cheat,
 `jetpack` (SJK's own; needs cheats, e.g. `devmap`, and a living player), gives the jetpack
 with a full tank, or takes it away switched off with the tank full again, so the pack and
-the fuel bar go with it. SJK's own server does not port the jetpack's flight yet (using
-it says so in the server log), so there the bar stays full; on other servers, where the
-jetpack flies, the bar follows the fuel they send. Unit tests cover the toggle and `give all`; the
-`EF_JETPACK` sync and the command are untested in a game.
+the fuel bar go with it. Unit tests cover the toggle and `give all`; the `EF_JETPACK` sync
+and the command are untested in a game.
+
+Then the flight on SJK's own server (Slash: in `devmap` the jetpack could not be flown;
+on other servers it flies). The movement already had stock `PM_JETPACK`
+([pmove_jetpack.rs](../crates/sjk-game-jka/src/pmove_jetpack.rs)) and the batteries ran;
+what was missing is switching it on. `use_jetpack` (Settings > Controls, **Item: Jetpack**,
+unbound) now runs `ItemUse_Jetpack` (a second between switches, 5 fuel to start, not while
+gripped or falling to death, `sound/boba/JETON`), and the player's think flies a player
+whose jetpack is on (`PM_JETPACK`, `EF_JETPACK_ACTIVE`, `g_active.c:4007-4038`), lands one
+whose is off and puts the jets out; dying turns it off (`player_die`). Jump thrusts up and
+burns two fuel a tick instead of one; empty, it switches off. One deliberate departure:
+stock's `G_ItemUsable` refuses the jetpack (`BG_IsItemSelectable` never selects it), so
+stock `use_jetpack` never switched one on; SJK keeps only its first gates (alive, not
+riding, the use key let go). Not ported: a DEMP2 hit switching the jetpack off for 3 to 10
+seconds (`G_Damage`). Unit tests cover the think's link and the gates; untested in a game.
 
 ## Sun blade drawn for less
 
