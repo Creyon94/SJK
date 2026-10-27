@@ -517,6 +517,30 @@ pub trait Hub: Send {
         ))
     }
 
+    /// The box hunt on `server` as the player reads it (`POST /v1/box-hunt`).
+    fn box_hunt(
+        &mut self,
+        _identity: &Identity,
+        _server: &str,
+    ) -> Result<crate::mystery_box::HuntState, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not read the box hunt".to_owned(),
+        ))
+    }
+
+    /// The player, the box hunt's mark on `server`, was killed by the player on slot
+    /// `by` (`POST /v1/box-hunt/killed`); whether the hub counted it.
+    fn box_hunt_killed(
+        &mut self,
+        _identity: &Identity,
+        _server: &str,
+        _by: u8,
+    ) -> Result<bool, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not report box hunt kills".to_owned(),
+        ))
+    }
+
     /// SJK's creator: place a mystery box (`POST /v1/creator/mystery-box`); answers its id.
     fn place_mystery_box(
         &mut self,
@@ -1641,6 +1665,37 @@ impl Hub for HttpHub {
             "/v1/mystery-box/open",
             Some(json!({ "box": id, "server": server })),
         )?)
+    }
+
+    fn box_hunt(
+        &mut self,
+        identity: &Identity,
+        server: &str,
+    ) -> Result<crate::mystery_box::HuntState, HubError> {
+        parse(self.send(
+            Some(identity),
+            "POST",
+            "/v1/box-hunt",
+            Some(json!({ "server": server })),
+        )?)
+    }
+
+    fn box_hunt_killed(
+        &mut self,
+        identity: &Identity,
+        server: &str,
+        by: u8,
+    ) -> Result<bool, HubError> {
+        let answer = self.send(
+            Some(identity),
+            "POST",
+            "/v1/box-hunt/killed",
+            Some(json!({ "server": server, "by": by })),
+        )?;
+        Ok(answer
+            .get("counted")
+            .and_then(Value::as_bool)
+            .unwrap_or(false))
     }
 
     fn place_mystery_box(

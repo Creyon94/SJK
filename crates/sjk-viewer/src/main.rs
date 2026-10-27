@@ -25,6 +25,7 @@ mod away_emote;
 mod block_command;
 mod bolt;
 mod boombox;
+mod box_hunt;
 mod brush_view;
 mod build_info;
 mod camera;
@@ -531,12 +532,15 @@ struct GpuState {
     boombox: boombox::Boombox,
     /// The Monitor toy (`toy_monitor`): its switch and the monitors thrown.
     monitor: monitor::Monitor,
+    /// The Box hunt toy (`toy_boxhunt`): its switch, the consent to hunt and be the mark.
+    box_hunt: box_hunt::BoxHunt,
     /// The Tag toy (`toy_tag`): the own tag stuck on the world.
     tags: tags::Tags,
     /// The Ragdoll toy (`toy_ragdoll`): the player's own fall and the falls of others.
     ragdoll: ragdoll::Ragdoll,
-    /// Order 66's, the Hax's and the Drone's switches as last saved (`toy_saved`).
-    toys_saved: [toy_saved::Saved; 4],
+    /// Order 66's, the Hax's, the Drone's, the Monitor's and Box hunt's switches as last
+    /// saved (`toy_saved`).
+    toys_saved: [toy_saved::Saved; 5],
     /// The Holocrons tab's 3D holocron ([`holocrons::stage`]).
     holocron_stage: holocrons::stage::Stage,
     /// The time its turn and bob are drawn at, instead of the clock's, for a world shot.
@@ -1514,6 +1518,7 @@ impl GpuState {
             drone: Default::default(),
             boombox: Default::default(),
             monitor: Default::default(),
+            box_hunt: Default::default(),
             tags: Default::default(),
             ragdoll: Default::default(),
             toys_saved: Default::default(),
@@ -2269,6 +2274,10 @@ impl GpuState {
             viewport,
             information_visible && intermission_view.is_none() && !scoreboard_held,
         );
+        self.append_mystery_box_labels(
+            viewport,
+            information_visible && intermission_view.is_none() && !scoreboard_held,
+        );
         self.append_entity_view(
             viewport,
             information_visible && intermission_view.is_none() && !scoreboard_held,
@@ -2496,6 +2505,7 @@ impl GpuState {
             self.entity_view.active().then(|| self.entity_view.list()),
             Some(&self.world_pings.list),
             Some(&self.drone.list),
+            Some(self.mystery_boxes.labels()),
             information_visible.then(|| &self.hud.team_logo.list),
             information_visible.then(|| &self.hud.nameplate.list),
             information_visible.then(|| &self.hud.identification.list),

@@ -109,6 +109,8 @@ pub(crate) enum InputAction {
     ThrowMonitor,
     /// `+monitor_throw` (true) charges a throw while held, `-monitor_throw` throws it.
     ChargeMonitor(bool),
+    /// `toy_boxhunt`: take part in the box hunt, or not ([`crate::box_hunt`]).
+    BoxHunt,
     /// `toy_tag`: stick the chosen tag where the crosshair meets the world
     /// ([`crate::tags`]).
     StickTag,
@@ -322,6 +324,7 @@ impl GameplayInput {
                     | crate::monitor::THROW_COMMAND
                     | crate::monitor::CHARGE_COMMAND
                     | crate::monitor::CHARGE_RELEASE
+                    | crate::box_hunt::COMMAND
                     | crate::tags::COMMAND
                     | "cameracontrol"
             )
@@ -497,6 +500,7 @@ impl GameplayInput {
             crate::monitor::THROW_COMMAND => Some(InputAction::ThrowMonitor),
             crate::monitor::CHARGE_COMMAND => Some(InputAction::ChargeMonitor(true)),
             crate::monitor::CHARGE_RELEASE => Some(InputAction::ChargeMonitor(false)),
+            crate::box_hunt::COMMAND => Some(InputAction::BoxHunt),
             crate::tags::COMMAND => match words.next().map(str::to_ascii_lowercase).as_deref() {
                 Some("clear" | "off") => Some(InputAction::ClearTag),
                 _ => Some(InputAction::StickTag),
@@ -635,6 +639,7 @@ impl super::GpuState {
             Some(InputAction::ClearTag) => self.clear_tag(),
             Some(InputAction::ThrowMonitor) => self.throw_monitor(),
             Some(InputAction::ChargeMonitor(pressed)) => self.charge_monitor(pressed),
+            Some(InputAction::BoxHunt) => self.toggle_box_hunt(),
             Some(InputAction::FlipKick) => {
                 let restricted = self.live_session.as_ref().is_some_and(|session| {
                     session

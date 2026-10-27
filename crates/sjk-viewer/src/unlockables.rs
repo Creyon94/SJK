@@ -3128,6 +3128,7 @@ mod tests {
             mystery_boxes: None,
             mystery_boxes_revision: 0,
             mystery_box: None,
+            box_hunt: None,
             assets_note: None,
             crashes_sent: 0,
             crash_note: None,

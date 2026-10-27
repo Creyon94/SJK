@@ -62,7 +62,7 @@ fn blade_skin(id: &str) -> Option<&'static str> {
 /// The toys a look can have out that this client draws, by id (`PROTOCOL.md`, "Looks"):
 /// a toy's bit in [`Worn::toys`] is its place here. A look naming another id (a newer
 /// client's toy) draws nothing more.
-pub(crate) const TOYS: [&str; 7] = [
+pub(crate) const TOYS: [&str; 8] = [
     crate::cardboard_box::TOY,
     crate::order66::TOY,
     crate::hax::TOY,
@@ -71,7 +71,11 @@ pub(crate) const TOYS: [&str; 7] = [
     crate::boombox::TOY,
     // The Monitor's switch: others foresee its monitors striking this player.
     crate::monitor::TOY,
+    // Box hunt's switch: the hub picks the mark among the players whose look has it.
+    crate::box_hunt::TOY,
 ];
+// A bit each in a `u8`: this is as many as there is room for.
+const _: () = assert!(TOYS.len() <= u8::BITS as usize);
 
 /// The bit of toy `id` in [`Worn::toys`], if this client knows it.
 fn toy_bit(id: &str) -> Option<u8> {

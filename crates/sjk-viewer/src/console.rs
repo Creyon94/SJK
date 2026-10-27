@@ -257,6 +257,10 @@ pub(crate) struct ViewerConsole {
     monitor_on: bool,
     /// The Toys tab asked to turn the Monitor on (`true`) or off, not yet taken.
     pending_monitor: Option<bool>,
+    /// Box hunt is on, mirrored as [`Self::order66_on`] is.
+    box_hunt_on: bool,
+    /// The Toys tab asked to turn Box hunt on (`true`) or off, not yet taken.
+    pending_box_hunt: Option<bool>,
     /// A chip naming a setting was clicked (`console_changelog.rs`): the cvar to search
     /// Settings for, not yet taken.
     pending_settings_search: Option<String>,

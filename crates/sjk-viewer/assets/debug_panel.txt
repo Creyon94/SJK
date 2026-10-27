@@ -7281,7 +7281,7 @@ area: Gameplay
 title: Mystery boxes: placed by Sol, opened with Use for credits
 change: Boxes on maps via the hub; opening costs 100 credits: empty, refund, double or jackpot.
 test: The hub serves boxes since 27/10 (deployed); give yourself credits first.
-test: As creator, aim at the floor, mysterybox_place: a crate faces you; mysterybox_list: its id.
+test: As creator aim at the floor, mysterybox_place: a wooden chest with glowing ? marks.
 test: mapedit_panel > Place: Mystery box places one where you aim; Remove box takes the nearest.
 test: Face it up close: centre says press Use (100 credits); under 100: "Not enough credits".
 test: Use: the box rattles, a music box tune, weapons roll over it and slow to a stop at 5.5 s.
@@ -7290,6 +7290,18 @@ test: Use at the box: a sparkle, chat line with credits left; wait 10 s instead:
 test: Use while it rolls: nothing; a 2nd SJK player sees the roll, Use there: someone is opening.
 test: Settings > Sound > Toys > Mystery box sounds off mutes the tune and its sounds.
 test: Another map or another server (box placed with 'server'): no box.
+test: Over the box: MYSTERY BOX + price, Rolling..., then e.g. JACKPOT! +500; not through walls.
+test: The lid swings open on Use and closes once the prize is taken.
+
+[box-hunt]
+area: Gameplay
+title: Box hunt toy: kill the mark for a free mystery box roll
+change: New toy toy_boxhunt; the hub picks a mark among players with it on every 3 minutes.
+test: Needs the hub's box-hunt branch; two SJK players with Box hunt on (Collection > Toys).
+test: Within 20 s one is told "You are the mark!", the other gets a chat line and sees red MARK.
+test: Hunter kills the mark: "You hunted the mark! Free mystery box roll"; chat tells others.
+test: At a box the hunter sees "Free roll: press Use"; that roll costs nothing (credits same).
+test: Toy off: no mark shown, never picked; a third player without it never sees the mark.
 
 [external-lightmaps]
 area: Rendering & effects

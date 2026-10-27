@@ -10,6 +10,18 @@ around. Code: [mystery_box.rs](../crates/sjk-viewer/src/mystery_box.rs), the hub
 No game server knows of a box. It is drawn by SJK clients only, has no collision (players
 walk through it), and players on other clients see someone pressing Use at nothing.
 
+The box is SJK's own (bundled, `assets/mystery_box`, made by
+[mystery_box_model.py](../scripts/mystery_box_model.py)): a long wooden chest bound in
+iron, 60 x 26 x 24 units, a pale question mark glowing (pulsing) on each half of its two
+long sides, and a lid hinged at the back that swings open while it rolls and closes once
+what came out is taken.
+
+Words stand in the world over every box, for every SJK player who sees it (hidden behind
+walls, fading out past 1000 units, gone past 1400): "MYSTERY BOX" and its price (or "Free
+roll: press Use" for a player holding one), "Rolling..." while it rolls, then what came
+out ("JACKPOT!", "DOUBLE!", "CREDITS BACK" or "EMPTY", and the credits; the opener's also
+says to press Use to take it).
+
 ## Opening one
 
 Standing at a box (within 80 units across the floor and 96 up or down) and facing it
@@ -68,16 +80,39 @@ stands in that exact map file only. The hub takes the creator's request only; ev
 placing and removal goes to the staff log. The client reads the hub's list once registered,
 every 10 minutes, and at once after a placing, a removal or a box that is gone.
 
-The box is a retail crate (`models/map_objects/imperial/crate_banded.md3`) until it gets a
-model of its own; its sounds are retail too.
+Some of its sounds are retail (the crate sliding open, the chime, the fanfare, the locked
+door); the tune and the take are SJK's own.
+
+## Box hunt
+
+Players opt in with the Box hunt toy (`toy_boxhunt`, Collection > Toys, the quick wheel;
+look toy `box_hunt`); with it off a player is never the mark and is told nothing of the
+hunt. Among the players of a server with it on (at least 2), the hub picks a mark at
+random for 3 minutes. The mark is told in the centre of the screen ("You are the mark!"),
+the other hunters by a chat line, and they see "MARK" in red over the mark's head
+(hidden behind walls). A hunter who kills the mark wins a free mystery box roll: the
+next box they open costs nothing (the centre says "press Use for your free roll" at a
+box). The hunt then pauses a minute before the next mark.
+
+The hub never sees kills, so the mark's own client says who killed it
+(`POST /v1/box-hunt/killed`, from the game's obituary): a hunter cannot claim a kill it
+did not make, only the mark could fail to tell. A hunter keeps at most 3 free rolls and
+wins at most 5 a day. The client reads the hunt (`POST /v1/box-hunt`) every 20 seconds
+while the toy is on or a box stands on the map, and at once after the hub's toy events
+(`box_hunt`: `mark_<slot>`, `hunted_<slot>_<won>`). All the numbers are the hub's,
+PROVISIONAL.
 
 ## Limits
 
 - The hub cannot tell where a player stands: the reach is the client's.
 - No other bonuses or penalties yet: an outcome only pays credits. Effects (toys played on
   the opener, items) are Sol's plan for later and need a client release for each new kind.
+- Two friends with the toy on could take turns being killed for free rolls; the 3-minute
+  mark, the pause and the 5 a day cap how much that pays.
 - Verified: unit tests (the pick of the faced box, which boxes stand on a map file and
   server, the roll slowing to its prize, the stop, the take and the take after 10
-  seconds, the result lines; on the hub, the odds, placing and
+  seconds, the lid, the words over a box, the hunt's words and reads, the result lines;
+  on the hub, the mark picked among hunters only, the kill counted only from the mark
+  and for a hunter, the pause, the free roll spent; on the hub, the odds, placing and
   removing as the creator only, the price, the roll, the cooldown and another server's
   box). Not tried in a game; the hub side is deployed (27/10/2026).

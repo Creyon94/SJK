@@ -52,6 +52,8 @@ did: Charged Monitor throws (hold the key) and a hit marker with a hit sound
 did: The Tag toy: stick a premade tag on walls and floors, TF2 style
 did: Mystery boxes on maps: open one with Use for credits, and maybe win big
 did: The mystery box's roll and its music box tune
+did: The mystery box's own chest and the words over it
+did: The Box hunt toy: kill the mark for a free mystery box roll
 did: A macOS build for Apple Silicon, built by GitHub with every release (experimental)
 did: Medals from the SJK team, with medal pictures generated and chosen by Sol
 did: Medal ranks I to V set by the SJK team, from Polished to Solar, pips on ribbons

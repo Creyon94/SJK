@@ -78,9 +78,11 @@ includes:
 - the Tag toy: premade tags stuck on walls and floors, TF2 style, seen by every SJK
   player on the map, three free and the rest dropped by holocrons, with a Collection tab
   to choose them (27/10/2026);
-- mystery boxes: boxes placed on maps through the hub, opened by players for credits
-  to a music box tune of SJK's own while the roll slows to a stop on what came out,
-  with a roll the hub makes and every SJK player around seeing them open (27/10/2026);
+- mystery boxes: boxes placed on maps through the hub, chests of SJK's own with glowing
+  question marks, opened by players for credits to a music box tune of SJK's own while
+  the roll slows to a stop on what came out, with a roll the hub makes and every SJK
+  player around seeing them open, and the box hunt, whose mark's killer wins a free roll
+  (27/10/2026);
 - a macOS build for Apple Silicon Macs, drawn through Metal and built by GitHub with
   every release, unsigned and experimental (24/10/2026);
 - announcements from the SJK team in SJK chat, and contributor reward rounds: who was

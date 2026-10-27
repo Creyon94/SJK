@@ -173,6 +173,10 @@ impl ViewerConsole {
                 self.pending_monitor = Some(on);
                 self.monitor_on = on;
             }
+            PanelAction::BoxHunt(on) => {
+                self.pending_box_hunt = Some(on);
+                self.box_hunt_on = on;
+            }
             PanelAction::ChooseTag(id) => {
                 self.set_cvar(crate::tags::CVAR, id);
             }
@@ -275,6 +279,16 @@ impl ViewerConsole {
         self.pending_monitor.take()
     }
 
+    /// The viewer says whether Box hunt is on, once a frame.
+    pub(crate) fn set_box_hunt_on(&mut self, on: bool) {
+        self.box_hunt_on = on;
+    }
+
+    /// The Toys tab asked to turn Box hunt on (`true`) or off, once.
+    pub(crate) fn take_box_hunt_request(&mut self) -> Option<bool> {
+        self.pending_box_hunt.take()
+    }
+
     /// Give a pressed key to the open page; false when the page is closed.
     pub(super) fn collection_panel_key(&mut self, event: &KeyEvent) -> bool {
         if !self.collection_panel.is_open() {
@@ -351,6 +365,7 @@ impl ViewerConsole {
         let drone = self.drone_on;
         let boombox = self.boombox_on;
         let monitor = self.monitor_on;
+        let box_hunt = self.box_hunt_on;
         let stock = self.stock_blade();
         // Tiles unless the list is chosen (`ui_shaderList 1`).
         let grid = self.integer_cvar(super::collection_panel::SHADER_VIEW_CVAR) != Some(1);
@@ -408,6 +423,7 @@ impl ViewerConsole {
                 drone,
                 boombox,
                 monitor,
+                box_hunt,
                 name: &name,
                 stock,
                 grid,
@@ -437,6 +453,7 @@ impl ViewerConsole {
             drone,
             boombox,
             monitor,
+            box_hunt,
             name: &name,
             stock,
             grid,

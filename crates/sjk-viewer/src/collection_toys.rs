@@ -2,12 +2,12 @@
 //! holocron (`docs/client.md`, Illuminate), the cardboard box (`docs/client.md`,
 //! Cardboard box), Order 66 (`docs/client.md`, Order 66), the Hax (`docs/client.md`,
 //! Hax), the Ragdoll (`docs/client.md`, Ragdoll), the Drone (`docs/client.md`, Drone),
-//! the Boombox (`docs/client.md`, Boombox) and the Monitor (`docs/client.md`, Monitor), a
-//! row to each on the left (Sol's pick of
+//! the Boombox (`docs/client.md`, Boombox), the Monitor (`docs/client.md`, Monitor) and
+//! Box hunt (`docs/client.md`, Box hunt), a row to each on the left (Sol's pick of
 //! 25/10/2026, the Collection revamp's canvas): its picture, its name and a line of what
 //! it does, the key bound to it and its own switch, which runs it in place
 //! (`toy_illuminate`, `toy_box`, `toy_order66`, `toy_hax`, `toy_ragdoll`, `toy_drone`,
-//! `toy_boombox`, `toy_monitor`). The chosen one is described on a dark card beside the
+//! `toy_boombox`, `toy_monitor`, `toy_boxhunt`). The chosen one is described on a dark card beside the
 //! model, where its key is bound without the console (a click or K, then the key). The
 //! holocron floats lit by the model while it is chosen.
 
@@ -18,13 +18,13 @@ use crate::menu_widgets::TextFamily;
 use sjk_ui::{Color, DrawCommand, FontWeight, TextAlign, TextureId};
 
 /// The rows: their left edge and width, where the column heads and the first row stand,
-/// a row's height and the room between rows. Eight fit over the keys.
+/// a row's height and the room between rows. Nine fit over the keys.
 const ROWS_X: f32 = LEFT_X - 12.0;
 const ROWS_WIDTH: f32 = 860.0;
 const HEADS_Y: f32 = 300.0;
 const ROWS_Y: f32 = 336.0;
-const ROW_HEIGHT: f32 = 76.0;
-const ROW_GAP: f32 = 6.0;
+const ROW_HEIGHT: f32 = 68.0;
+const ROW_GAP: f32 = 4.0;
 /// A row's key column: its width, and the room the switch keeps at the row's right.
 const KEY_WIDTH: f32 = 150.0;
 const SWITCH_ROOM: f32 = 130.0;
@@ -43,7 +43,7 @@ const NOTE_CHARS: f32 = 52.0;
 /// Every command a toy is run by, in the order the page is told their keys
 /// ([`Inputs::toy_keys`]): each toy's switch, Order 66's order after its own, and the
 /// Monitor's throw (held, it charges) after its own.
-pub(crate) const COMMANDS: [&str; 10] = [
+pub(crate) const COMMANDS: [&str; 11] = [
     "toy_illuminate",
     "toy_box",
     "toy_order66",
@@ -54,6 +54,7 @@ pub(crate) const COMMANDS: [&str; 10] = [
     "toy_boombox",
     "toy_monitor",
     "+monitor_throw",
+    "toy_boxhunt",
 ];
 
 /// One toy as the tab shows it.
@@ -168,6 +169,17 @@ const TOYS: [Toy; TOY_COUNT] = [
         switch: "Hit me",
         token: MONITOR_TOKEN,
     },
+    Toy {
+        icon: "box_hunt",
+        name: "Box hunt",
+        tag: "Hunt the mark for a free mystery box roll.",
+        title: "Box hunt",
+        what: "Every few minutes one player with Box hunt on becomes the mark. Kill the mark to win a free mystery box roll. Only players with it on see the mark or can be it.",
+        more: Some("Its switch is all there is: on, you hunt and may be the mark."),
+        commands: &[("toy_boxhunt", "Your key")],
+        switch: "Hunt",
+        token: BOX_HUNT_TOKEN,
+    },
 ];
 
 /// The command toy `toy`'s key `slot` runs (0 its switch's, 1 Order 66's order).
@@ -237,6 +249,7 @@ fn states(inputs: &Inputs<'_>) -> [bool; TOY_COUNT] {
         inputs.drone,
         inputs.boombox,
         inputs.monitor,
+        inputs.box_hunt,
     ]
 }
 
@@ -249,7 +262,7 @@ impl Panel {
             0 => "Switch them here or in a match; other SJK players on your server see what you turn on.".to_owned(),
             lit => format!("{lit} on now. Switch them here or in a match; other SJK players on your server see what you turn on."),
         };
-        self.lead(frame, "8 toys", &line);
+        self.lead(frame, "9 toys", &line);
         self.toy_heads(frame);
         let chosen = self.toy.min(TOY_COUNT - 1);
         for (index, toy) in TOYS.iter().enumerate() {
