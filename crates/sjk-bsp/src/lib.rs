@@ -35,7 +35,7 @@ pub use leaf_links::BoxLeaves;
 pub use light_grid::{GridLight, LIGHT_STYLE_NONE, LightGridLayout};
 pub use mark_fragments::{MAX_VERTICES_ON_POLY, MarkFragment, MarkFragments, MarkProjection};
 pub use render_data::{
-    DrawVertex, LightGridSample, Model, RenderData, Surface, SurfaceKind, Visibility,
+    DrawVertex, LightGridSample, Lightmap, Model, RenderData, Surface, SurfaceKind, Visibility,
 };
 pub use trace_scratch::TraceScratch;
 
@@ -312,6 +312,21 @@ impl Bsp {
 
     pub fn render(&self) -> &RenderData {
         &self.render
+    }
+
+    /// Fill an empty lightmap slot with an external page, as q3map2 `-external` maps
+    /// need. Refuses filled slots and pixels that are not `width * height` RGB.
+    pub fn set_external_lightmap(&mut self, index: usize, lightmap: Lightmap) -> bool {
+        let expected = (lightmap.width as usize)
+            .checked_mul(lightmap.height as usize)
+            .and_then(|pixels| pixels.checked_mul(3));
+        match self.render.lightmaps.get_mut(index) {
+            Some(slot @ None) if expected == Some(lightmap.rgb.len()) => {
+                *slot = Some(lightmap);
+                true
+            }
+            _ => false,
+        }
     }
 
     pub fn leaf_surface_indices(&self, leaf_index: usize) -> Option<&[usize]> {

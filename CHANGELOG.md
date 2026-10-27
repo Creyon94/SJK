@@ -32,6 +32,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
+- Maps compiled with external lightmaps (q3map2 `-external`, `lm_0000.tga` pages beside the map) load and are lit, instead of failing with "Surfaces record ... references ..., outside 0..0" _(Sol, after EJK)_
 - Mystery boxes: SJK's creator places boxes on maps, and any SJK player opens one with Use for 100 credits: it may be empty, give your credits back, double them or pay a jackpot. Everyone around sees and hears it open; `mysterybox_list` shows the boxes on the map, and Settings > Sound > Toys silences them (`s_toyMysteryBoxSound`) _(Sol)_
 
 ## 2026.1027.1 (Alpha) | 27/10/2026

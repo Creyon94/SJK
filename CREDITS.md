@@ -360,6 +360,8 @@ includes:
   silences your emote's music;
 - saber toggle spam muted (26/10/2026): a player turning a saber on and off over and
   over, by hand, bind or script, is heard four times, then once per half second;
+- maps with external lightmaps (27/10/2026, after EJK's `R_FindLightmap`): maps
+  compiled with q3map2's `-external` load their `lm_NNNN.tga` pages instead of failing;
 - chat name actions (23/10/2026, after Bishop's and Sanjisan's ideas): a click on a
   player's name in the chat pins their card, to Whisper or Block them;
 - SJK Alpha (19/10/2026), the first collection of cards: the Mythical rarity, the

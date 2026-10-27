@@ -443,12 +443,12 @@ pub(crate) fn upload_lightmaps(
 ) -> Result<HashMap<i32, wgpu::TextureView>, Box<dyn Error>> {
     let mut result = HashMap::new();
     for index in 0..bsp.render().lightmap_count() {
-        let pixels = bsp
-            .render()
-            .lightmap(index)
-            .ok_or("invalid parsed lightmap")?;
-        let mut rgba = Vec::with_capacity(128 * 128 * 4);
-        for rgb in pixels.chunks_exact(3) {
+        // An external page that was not found draws with the fallback lightmap.
+        let Some(lightmap) = bsp.render().lightmap(index) else {
+            continue;
+        };
+        let mut rgba = Vec::with_capacity(lightmap.rgb.len() / 3 * 4);
+        for rgb in lightmap.rgb.chunks_exact(3) {
             rgba.extend_from_slice(&[rgb[0], rgb[1], rgb[2], 255]);
         }
         result.insert(
@@ -457,8 +457,8 @@ pub(crate) fn upload_lightmaps(
                 device,
                 queue,
                 "SJK Q3 stage lightmap",
-                128,
-                128,
+                lightmap.width,
+                lightmap.height,
                 &rgba,
                 true,
             ),

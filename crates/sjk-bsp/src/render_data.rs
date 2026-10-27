@@ -6,7 +6,8 @@ use std::ops::Range;
 
 const DRAW_VERTEX_BYTES: usize = 80;
 const SURFACE_BYTES: usize = 148;
-const LIGHTMAP_BYTES: usize = 128 * 128 * 3;
+const LIGHTMAP_SIDE: u32 = 128;
+const LIGHTMAP_BYTES: usize = (LIGHTMAP_SIDE * LIGHTMAP_SIDE * 3) as usize;
 const LIGHT_GRID_SAMPLE_BYTES: usize = 30;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -24,6 +25,14 @@ pub struct DrawVertex {
     pub lightmap_coordinates: [[f32; 2]; 4],
     pub normal: [f32; 3],
     pub colors: [[u8; 4]; 4],
+}
+
+/// One RGB lightmap: a 128x128 tile from the file, or an external page of any size.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Lightmap {
+    pub width: u32,
+    pub height: u32,
+    pub rgb: Box<[u8]>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -95,7 +104,8 @@ pub struct RenderData {
     pub(super) vertices: Box<[DrawVertex]>,
     pub(super) indices: Box<[u32]>,
     pub(super) surfaces: Box<[Surface]>,
-    pub(super) lightmap_pixels: Box<[u8]>,
+    /// Empty slots are external pages not loaded (yet); they draw unlit by lightmap.
+    pub(super) lightmaps: Box<[Option<Lightmap>]>,
     light_grid: Box<[LightGridSample]>,
     light_grid_array: Box<[u16]>,
     visibility: Option<Visibility>,
@@ -114,7 +124,7 @@ impl RenderData {
             vertices: Box::default(),
             indices: Box::default(),
             surfaces: Box::default(),
-            lightmap_pixels: Box::default(),
+            lightmaps: Box::default(),
             light_grid: Box::default(),
             light_grid_array: Box::default(),
             visibility: None,
@@ -147,12 +157,19 @@ impl RenderData {
     }
 
     pub fn lightmap_count(&self) -> usize {
-        self.lightmap_pixels.len() / LIGHTMAP_BYTES
+        self.lightmaps.len()
     }
 
-    pub fn lightmap(&self, index: usize) -> Option<&[u8]> {
-        let start = index.checked_mul(LIGHTMAP_BYTES)?;
-        self.lightmap_pixels.get(start..start + LIGHTMAP_BYTES)
+    pub fn lightmap(&self, index: usize) -> Option<&Lightmap> {
+        self.lightmaps.get(index)?.as_ref()
+    }
+
+    /// Slots the file left to external `lm_NNNN` pages and nothing has filled.
+    pub fn missing_lightmaps(&self) -> impl Iterator<Item = usize> + '_ {
+        self.lightmaps
+            .iter()
+            .enumerate()
+            .filter_map(|(index, slot)| slot.is_none().then_some(index))
     }
 
     pub fn light_grid(&self) -> &[LightGridSample] {

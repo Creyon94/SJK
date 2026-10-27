@@ -7168,3 +7168,12 @@ test: Face it up close: centre says press Use (100 credits). Use: hop, sound, re
 test: Use again at once: "The box is still closing"; under 100 credits: "Not enough credits".
 test: A 2nd SJK player sees and hears it open; Settings > Sound > Toys > Mystery box sounds mutes.
 test: Another map or another server (box placed with 'server'): no box.
+
+[external-lightmaps]
+area: Rendering & effects
+title: Maps with external lightmaps (q3map2 -external) load
+change: Empty lightmap lump: surfaces use maps/<map>/lm_NNNN.tga pages, any size, after EJK.
+test: /connect 143.103.168.40:30071 (baronshed_share): the map loads instead of failing.
+test: Its rooms are lit with shadows and light pools, not flat grey.
+test: Log: "external lightmaps: loaded 57 of 57 pages from maps/baronshed_share/".
+test: A retail map (mp/ffa3) still looks the same as before.

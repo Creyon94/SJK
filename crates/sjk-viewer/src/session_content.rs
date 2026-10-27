@@ -202,7 +202,9 @@ impl Selection {
             asset.source.mount_name,
             self.map_checksum.is_some()
         ));
-        Ok(sjk_bsp::Bsp::parse(&asset.bytes)?)
+        let mut bsp = sjk_bsp::Bsp::parse(&asset.bytes)?;
+        crate::external_lightmaps::load(vfs, path, &mut bsp);
+        Ok(bsp)
     }
 }
 
