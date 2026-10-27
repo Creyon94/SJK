@@ -103,6 +103,13 @@ fn vertex_result(input: VertexInput, position: vec3<f32>, normal: vec3<f32>,
         let reflected = reflect(normalize(position - camera.camera_position), normalize(normal));
         uv = reflected.yz * vec2(0.5, -0.5) + vec2(0.5);
     }
+    // TCGEN_VECTOR (`tr_shade.cpp` ComputeTexCoords): the position dotted with the stage's
+    // two axes. World surfaces are in world space as in rd-vanilla; an entity's surface
+    // projects from its placed position rather than its model space.
+    if i32(stage.animation.w) == 3 {
+        uv = vec2(dot(position, stage.texture_vectors[0].xyz),
+                  dot(position, stage.texture_vectors[1].xyz));
+    }
     output.stage_uv = apply_tcmods(uv, position, shader_tex_coord);
     var secondary_uv = select(input.texture_coordinates, input.lightmap_coordinates,
         i32(stage.secondary_animation.w) == 1);

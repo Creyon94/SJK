@@ -361,6 +361,8 @@ includes:
   silences your emote's music;
 - saber toggle spam muted (26/10/2026): a player turning a saber on and off over and
   over, by hand, bind or script, is heard four times, then once per half second;
+- `tcGen vector` stages (27/10/2026, after rd-vanilla's `TCGEN_VECTOR`): images
+  projected in world space, such as caustics over a room;
 - sky cloud layers (27/10/2026, after rd-vanilla's `R_BuildCloudData`): a sky
   shader's own stages drawn over its box, so scrolling skies move;
 - maps with external lightmaps (27/10/2026, after EJK's `R_FindLightmap`): maps

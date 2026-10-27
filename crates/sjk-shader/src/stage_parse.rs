@@ -27,6 +27,7 @@ pub(super) fn parse_stage(
         rgb_constant: None,
         alpha_constant: None,
         texture_generator: TextureGenerator::Base,
+        texture_vectors: [[0.0; 3]; 2],
         depth_write: true,
         depth_function: DepthFunction::LessEqual,
         material: StageMaterial::default(),
@@ -155,9 +156,16 @@ pub(super) fn parse_stage(
                 {
                     "lightmap" => TextureGenerator::Lightmap,
                     "environment" | "environmentmapped" => TextureGenerator::Environment,
+                    "vector" => TextureGenerator::Vector,
                     _ => TextureGenerator::Base,
                 };
                 *cursor += 1;
+                if stage.texture_generator == TextureGenerator::Vector {
+                    stage.texture_vectors = [
+                        parse_parenthesized_vec3(tokens, cursor, source)?,
+                        parse_parenthesized_vec3(tokens, cursor, source)?,
+                    ];
+                }
             }
             "depthwrite" => {
                 stage.depth_write = true;
@@ -248,6 +256,29 @@ pub(super) fn parse_stage(
 #[cfg(test)]
 mod tests {
     use crate::parse_shader_script;
+
+    /// Forgotten_City_02's caustics: both axes are kept, and the stage's tcMods after them.
+    #[test]
+    fn tcgen_vector_keeps_its_two_axes() {
+        let definitions = parse_shader_script(
+            b"textures/fc/glass\n{\n{\nmap textures/fc/seph_caustics\ntcMod scale 0.05 0.05\n\
+              tcGen vector ( 0.001953125 0.00048828125 0 ) ( 0 0.001953125 0.00048828125 )\n\
+              blendFunc GL_SRC_ALPHA GL_ONE\n}\n}",
+            "scripts/fc.shader",
+        )
+        .expect("script parses");
+        let stage = &definitions[0].stages[0];
+        assert_eq!(stage.texture_generator, crate::TextureGenerator::Vector);
+        assert_eq!(
+            stage.texture_vectors,
+            [
+                [0.001953125, 0.00048828125, 0.0],
+                [0.0, 0.001953125, 0.00048828125]
+            ]
+        );
+        assert_eq!(stage.texture_modifications.len(), 1);
+        assert_ne!(stage.blend, crate::StageBlend::Replace);
+    }
 
     #[test]
     fn video_map_names_the_stage_video_and_ends_at_the_next_directive() {

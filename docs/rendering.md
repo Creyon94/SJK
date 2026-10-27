@@ -276,6 +276,21 @@ missing or does not decode leaves its surfaces on the unlit mid-grey lightmap. B
 27/10/2026 such a map was refused ("Surfaces record 0 references 50, outside 0..0"),
 as `baronshed_share` was.
 
+## Projected stage coordinates (`tcGen vector`)
+
+`tcGen vector ( sx sy sz ) ( tx ty tz )` gives a stage the vertex position dotted with
+two axes as its texture coordinates (rd-vanilla `TCGEN_VECTOR`, `ComputeTexCoords`), so
+an image is laid over a whole area in world space: `Forgotten_City_02` drapes its
+caustics over every crystal and glass panel this way. Until 27/10/2026 `sjk-shader` read
+it as the base coordinates, and those caustics, with their `tcMod scale 0.05`, were
+stretched twenty times over each surface. The generator is now
+`TextureGenerator::Vector` with `ShaderStage::texture_vectors`; the GPU stage carries the
+axes (`texture_vectors`, [geometry_stage.wgsl](../crates/sjk-viewer/src/geometry_stage.wgsl))
+and `stage_runtime.wgsl` projects the world position before the tcMods. Only the primary
+bundle has axes, so a `tcGen vector` stage is never collapsed into a multitexture pair.
+An entity's surface projects from its placed position, where rd-vanilla uses model space.
+The ignored world shot `map_spawn_views` renders any map's spawns (`SJK_SHOT_MAP`).
+
 ## Video stages (`videoMap`)
 
 A stage with `videoMap <name>` plays a RoQ video on its surface, as rd-vanilla's

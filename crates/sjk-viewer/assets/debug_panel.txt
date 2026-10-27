@@ -7189,3 +7189,10 @@ test: /connect 143.103.168.40:30071 (baronshed_share), go to the beach: the clou
 test: The city part keeps its still Coruscant sky (that shader has no stages).
 test: A retail map with a plain sky (mp/ffa3, mp/duel6) looks the same as before.
 test: With r_dayNight 1 the clouds take the hour's tint like the box.
+
+[tcgen-vector]
+area: Rendering & effects
+title: tcGen vector stages projected in world space
+change: Stages with tcGen vector use the position dotted with their axes, not the base UVs.
+test: Forgotten_City_02: caustics on crystals and glass panels are small ripples, not a wash.
+test: Retail maps look the same as before (no retail shader uses tcGen vector).

@@ -10,6 +10,8 @@ struct Stage {
     deform_a: array<vec4<f32>, 3>, deform_b: array<vec4<f32>, 3>, deform_c: array<vec4<f32>, 3>,
     sprites: array<vec4<f32>, 5>,
     emission: vec4<f32>,
+    // `tcGen vector`'s s and t axes (xyz), primary bundle only.
+    texture_vectors: array<vec4<f32>, 2>,
 };
 
 // TableForFunc/EvalWaveForm; rd-vanilla's sin table has a 1023 denominator.
