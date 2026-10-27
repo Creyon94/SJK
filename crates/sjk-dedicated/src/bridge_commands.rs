@@ -3,15 +3,25 @@
 //! them for legacy clients; the bots' frame calls them for bots.
 
 use super::*;
+use sjk_network::LegacyTokens;
+
+/// `text` split as `Cmd_Argv` splits it, the command and then its arguments: the
+/// client sends quoted ones (`forcechanged "RED"`), and an empty one (`""`) is no
+/// argument.
+fn command_words(text: &[u8]) -> Option<(&[u8], Vec<&[u8]>)> {
+    let mut tokens = LegacyTokens::new(text);
+    let command = tokens.next()?;
+    Some((command, tokens.filter(|word| !word.is_empty()).collect()))
+}
 
 impl NativeGame {
     /// `ClientCommand`: a reliable command from the player at `client`'s place, at the
     /// server's clock `server_time`.
     pub(super) fn player_command(&mut self, client: usize, text: &[u8], server_time: i32) {
-        let mut words = text
-            .split(|byte| byte.is_ascii_whitespace())
-            .filter(|word| !word.is_empty());
-        let Some(command) = words.next() else { return };
+        let Some((command, words)) = command_words(text) else {
+            return;
+        };
+        let mut words = words.into_iter();
         if [
             b"kill".as_slice(),
             b"team",
@@ -34,11 +44,7 @@ impl NativeGame {
             return;
         }
         if command.eq_ignore_ascii_case(b"duelteam") {
-            let word = text
-                .split(|byte| byte.is_ascii_whitespace())
-                .filter(|word| !word.is_empty())
-                .nth(1);
-            self.duel_team_command(client, word, server_time);
+            self.duel_team_command(client, words.next(), server_time);
             return;
         }
         if [&b"follow"[..], b"follownext", b"followprev"]
@@ -47,10 +53,7 @@ impl NativeGame {
         {
             // `CMD_NOINTERMISSION` (`g_cmds.c:3398-3400`).
             if !self.refused_at_intermission(client, command) {
-                let words: Vec<&[u8]> = text
-                    .split(|byte| byte.is_ascii_whitespace())
-                    .filter(|word| !word.is_empty())
-                    .collect();
+                let words: Vec<&[u8]> = std::iter::once(command).chain(words).collect();
                 self.follow_command(client, &words, server_time);
             }
             return;
@@ -61,18 +64,22 @@ impl NativeGame {
             return;
         }
         if command.eq_ignore_ascii_case(b"give") {
-            // `ClientCommand`'s gates (`g_cmds.c:3466-3480`): a cheat needs `sv_cheats`, and
-            // this one a living player; then `Cmd_Give_f`.
+            // `ClientCommand`'s gates (`g_cmds.c:3466-3480`): not at the intermission
+            // (`CMD_NOINTERMISSION`), a cheat needs `sv_cheats`, and this one a living
+            // player; then `Cmd_Give_f`.
+            if self.refused_at_intermission(client, command) {
+                return;
+            }
             if !self.settings.cheats {
                 self.told
                     .push(Told::One(client, b"print \"@@@NOCHEATS\n\"".to_vec()));
                 return;
             }
             let arguments: Vec<&[u8]> = words.collect();
-            let Some(peer) = self.peer_mut(client) else {
-                return;
-            };
-            if peer.health <= 0 || !peer.playing() {
+            if self
+                .peer(client)
+                .is_none_or(|peer| peer.health <= 0 || !peer.playing())
+            {
                 self.told
                     .push(Told::One(client, b"print \"@@@MUSTBEALIVE\n\"".to_vec()));
                 return;
@@ -80,11 +87,7 @@ impl NativeGame {
             let (name, rest) = arguments
                 .split_first()
                 .map_or((&b""[..], &[][..]), |(name, rest)| (*name, rest));
-            let _ = give(&mut peer.state, &mut peer.health, name, rest);
-            // The weapons and the ammo are the movement's to spend: it restarts from
-            // the state as given.
-            peer.movement = peer.movement.reseeded(&peer.state);
-            peer.movement.set_health(peer.health);
+            self.give_to(client, name, rest);
             return;
         }
         if command.eq_ignore_ascii_case(b"siegeclass") {
@@ -99,11 +102,24 @@ impl NativeGame {
         {
             return;
         }
-        if !command.eq_ignore_ascii_case(b"team") {
-            // Every other game command is still to come.
+        let arguments: Vec<&[u8]> = words.collect();
+        if self.table_command(client, command, &arguments, server_time) {
             return;
         }
-        let arguments: Vec<&[u8]> = words.collect();
+        // `Cmd_ForceChanged_f` goes on as `Cmd_Team_f` when the menu sent a team with it.
+        let team = command.eq_ignore_ascii_case(b"team")
+            || (command.eq_ignore_ascii_case(b"forcechanged")
+                && self.force_changed(client, !arguments.is_empty()));
+        if !team {
+            use sjk_game_jka::client_commands::{ADDBOT_REFUSED, is_command, unknown};
+            // A name `commands[]` does not have is unknown; `addbot` is the server's.
+            if command.eq_ignore_ascii_case(b"addbot") {
+                self.told.push(Told::One(client, ADDBOT_REFUSED.to_vec()));
+            } else if !is_command(command) {
+                self.told.push(Told::One(client, unknown(command)));
+            }
+            return;
+        }
         let gametype = self.gametype;
         // `SetTeam` on a siege server, once `Cmd_Team_f`'s own checks have passed.
         if self.siege.is_some()
@@ -215,5 +231,27 @@ impl NativeGame {
             return;
         }
         self.think_in_world(client, command, server_time);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::command_words;
+    use sjk_game_jka::client_begin::{Sides, TEAM_RED, team_for_word};
+
+    #[test]
+    fn quoted_arguments_are_split_as_cmd_argv_splits_them() {
+        let (command, words) = command_words(b"forcechanged \"RED\"").unwrap();
+        assert_eq!(command, b"forcechanged");
+        assert_eq!(words, [b"RED".as_slice()]);
+        // The menu's team is the team asked for, not a random one.
+        assert_eq!(team_for_word(words[0], Sides::default()), TEAM_RED);
+        // An empty argument is none: `forcechanged ""` does not go on as `team`.
+        assert_eq!(command_words(b"forcechanged \"\"").unwrap().1.len(), 0);
+        assert_eq!(
+            command_words(b"team  blue ").unwrap().1,
+            [b"blue".as_slice()]
+        );
+        assert!(command_words(b"   ").is_none());
     }
 }

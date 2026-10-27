@@ -408,7 +408,10 @@ apart in one table, [known_servers.rs](../crates/sjk-mod/src/known_servers.rs)
 (`KNOWN_SERVERS`: an id, a name, the game module, a serverinfo key and value), which
 the client and the mods (the `jof` mod's `is_jof`) both read; the caps are a second
 table keyed by family id, [server_caps.rs](../crates/sjk-viewer/src/server_caps.rs)
-(`KNOWN`: the family, the step); private-duel hiding has its own table keyed by
+(`KNOWN`: the family, the step); the JA+ servers that leave the view free through
+knockdowns and get-ups are a third, `FREE_KNOCKDOWN_VIEW` in
+[held_view.rs](../crates/sjk-viewer/src/held_view.rs) (JoF's; `cg_japlusFreeKnockdownView`
+overrides it, see [client](client.md#held-view)); private-duel hiding has its own table keyed by
 compatibility profile, `DUEL_HIDE_SERVERS` in
 [duel_hide.rs](../crates/sjk-client/src/duel_hide.rs) (JA+ unless `cp_pluginDisable`
 bit 1, jaPRO always and with missile owners; `cg_duelHideOthers` overrides it, see
@@ -498,6 +501,12 @@ dropped, as the server drops a stock client's extras. Pressing a hug bind twenty
 used to queue twenty hugs, still firing one a second after the player stopped. Chat
 (`say`, `say_team`, `tell`, typed or bound) is not queued twice while identical chat
 waits, but is never dropped: a message is still worth reading late, a late action is not.
+What the player sends (chat, binds, console commands) goes ahead of the client's own
+`score` requests still waiting (every two seconds while dead or holding the
+scoreboard), so chat no longer queues a second each behind them (27/10/2026, hub
+report 172). It stays behind the client's other commands, a `userinfo` after a model
+or saber change or a Force-profile `team` retry, so a `kill` bind respawns with the
+new model and a typed `/team s` is not undone by a retry sent after it.
 
 ## Parity requirements
 

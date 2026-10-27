@@ -181,6 +181,10 @@ pub struct Peer {
     /// `client->noclip`: the `noclip` cheat is on ([`sjk_game_jka::noclip`]). A spawn
     /// clears it with the rest of the client.
     pub(crate) noclip: bool,
+    /// `FL_GODMODE` and `FL_NOTARGET`: the `god` and `notarget` cheats are on
+    /// ([`sjk_game_jka::client_commands`]). A spawn clears them with `ent->flags`.
+    pub(crate) god: bool,
+    pub(crate) notarget: bool,
     /// The player's movement, simulated with the rules the client predicts with.
     /// Spectating is the only state with the evidence a server needs so far.
     pub(crate) movement: Predictor,
@@ -285,6 +289,8 @@ impl Peer {
             suffocation: 0,
             no_corpse: false,
             noclip: false,
+            god: false,
+            notarget: false,
             last_command_time: 0,
             movement,
         }

@@ -24,6 +24,39 @@
 
 # ---- Console & chat ----
 
+[slash-hub-refusal-why]
+area: Console & chat
+title: A refusal before the hub answers says why (Slash, PR #218)
+change: Chat, emotes, reports or trades refused before registration name the cause.
+change: Identity off: cl_identity 1; no hub: cl_hubUrl; else not connected yet + last failure.
+test: Join a server and chat at once: the message names the cause, not always cl_identity.
+test: cl_identity 0, send SJK chat: it says to turn cl_identity 1 on.
+
+[slash-knockdown-view]
+area: Gameplay
+title: Free view through JoF knockdowns and emotes (Slash, PR #219, hub #164 #169)
+change: On JoF servers knockdowns, get-ups and emotes leave the view free, as the server does.
+change: Other JA+ servers keep the held view; cg_japlusFreeKnockdownView -1 auto, 0 held, 1 free.
+test: JoF: get knocked down, move the mouse: the view turns, no shaking while getting up.
+test: JoF: emote and look around: no shake. Ragdoll and Hax toys behave as before.
+
+[slash-saber-key-chat]
+area: Gameplay
+title: Key 1 saber toggle at once, chat no longer waits (Slash, PR #222, hub #172)
+change: weapon 1 reads the predicted state; generic_cmd stays on every command until sent.
+change: Chat and commands go ahead of waiting score requests only, never ahead of userinfo.
+test: JoF: press 1 right after a swing or holster: the saber toggles, never picks fists.
+test: Hold Tab (scoreboard) and chat: the line shows at once.
+
+[slash-devmap-commands]
+area: Gameplay
+title: OpenJK's player commands on devmap (Slash, PR #224)
+change: god, notarget, giveother, killother, give <item>, where, levelshot, thedestroyer.
+change: voice_cmd, forcechanged and debugBMove_*; unknown commands answer Unknown command.
+test: devmap ffa_bespin, god then take damage: none; kill: god ends.
+test: devmap on TDM (g_gametype 6): Join Red / Join Blue land on that side.
+test: notarget near NPCs; where; giveother <you> health; a typo answers Unknown command.
+
 [presence-client-icon]
 area: HUD
 title: JoF EJK players wear the EJK icon on the scoreboard

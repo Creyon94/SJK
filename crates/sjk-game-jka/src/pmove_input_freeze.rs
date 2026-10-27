@@ -16,6 +16,8 @@ use crate::pmove_japlus::JaPlusRules;
 use crate::saber_move_data::movement::*;
 
 const PM_FLOAT: u8 = 2;
+/// `PM_FREEZE`: a JA+ emote holds the body.
+const PM_FREEZE: u8 = 6;
 const EF_DISINTEGRATION: u32 = 1 << 26;
 const PMF_DUCKED: u16 = 1;
 const SOLID_CONTENT_MASK: u32 = 1;
@@ -112,7 +114,7 @@ pub(crate) fn apply(
         command.up_move = 0;
     }
     if ja_plus.enabled {
-        japlus_animation_freeze(state, &mut stiffened, &mut lock_view);
+        japlus_animation_freeze(state, ja_plus, &mut stiffened, &mut lock_view);
     }
     filter_emplaced(state, command, collision, &mut stiffened);
     if lock_view {
@@ -341,7 +343,14 @@ fn in_kata(state: &MovementState) -> bool {
 /// the view too; the kicker's spin, back and jumping kicks, the backflip kick and the
 /// flip stab only stop the movement. JA+ plays these server-side, so without this the
 /// client kept walking through its own kick and was pulled back by every snapshot.
-fn japlus_animation_freeze(state: &MovementState, stiffened: &mut bool, lock_view: &mut bool) {
+/// The get-up leaves the view free on a server known to
+/// ([`JaPlusRules::free_knockdown_view`]).
+fn japlus_animation_freeze(
+    state: &MovementState,
+    ja_plus: JaPlusRules,
+    stiffened: &mut bool,
+    lock_view: &mut bool,
+) {
     let legs = animation_name(state.legs_anim);
     let torso = animation_name(state.torso_anim);
     let index = |name: &str| crate::legacy_animation_index(name);
@@ -349,14 +358,17 @@ fn japlus_animation_freeze(state: &MovementState, stiffened: &mut bool, lock_vie
         (index("BOTH_KISSEE"), index("BOTH_LEDGE_MERCPULL")),
         (Some(first), Some(last)) if (first..=last).contains(&usize::from(state.legs_anim))
     );
-    if legs == Some("BOTH_JUMP_BACKFLIP_ATCKEE")
-        || matches!(
-            torso,
-            Some("BOTH_JUMP_BACKFLIP_ATCKEE" | "BOTH_GETUP1" | "BOTH_NEW_STABEE")
-        )
-        || in_kiss_or_ledge
-    {
-        *lock_view = true;
+    let held = legs == Some("BOTH_JUMP_BACKFLIP_ATCKEE")
+        || matches!(torso, Some("BOTH_JUMP_BACKFLIP_ATCKEE" | "BOTH_NEW_STABEE"))
+        || in_kiss_or_ledge;
+    let get_up = torso == Some("BOTH_GETUP1");
+    if held || get_up {
+        // An emote that plays these (`amkiss` the kiss) holds the body only: the base
+        // game turns a frozen player's view (hub report #166). A server that leaves the
+        // view free through get-ups (`free_knockdown_view`, the JoF one) is not fought
+        // either: held here, every snapshot pulled the camera back to the server's
+        // lagging view, which shook it (Rollembones' hub report #164).
+        *lock_view = state.movement_type != PM_FREEZE && (held || ja_plus.holds_knockdown_view());
         *stiffened = true;
     } else if matches!(
         legs,

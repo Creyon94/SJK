@@ -1,3 +1,21 @@
+## Saber key and chat delay (#172)
+
+27/10/2026, `fix/saber-key-chat-delay`, based on `main` `685edded` (hub report #172: key 1
+sometimes did not switch the saber, public chat came late). Causes inferred from the code
+and JoF EJK only: `weapon 1` gated the toggle on the snapshot's `weaponTime`, a round
+trip behind the predicted one EJK reads (the holster sets 400 ms), and with
+`weaponTime` running it fell through to choosing a weapon; a pressed `generic_cmd` rode on
+one user command, where `CL_FinishMove` keeps it on every command until the packet
+leaves; and chat waited in the one-a-second outbox behind the client's own `score` and
+`userinfo` commands. Now: the predicted state gates the toggle, the `generic_cmd` stays
+until the packet ([client.md](client.md)), and player commands go ahead of waiting `score`
+requests ([networking.md](networking.md#reliable-command-pacing)). After Sol's review they
+no longer pass the client's other commands (a `kill` bind went before a waiting
+`userinfo`, a typed `/team s` before a Force-profile retry), and the `generic_cmd`
+already on a command is forgotten wherever the press is. Verified: fmt, workspace
+build, Clippy and tests (pacer order). Not verified: in game, on a JoF server, or that
+these were the reporter's causes.
+
 ## Mystery boxes
 
 27/10/2026, `personal/mystery-box`, based on `main` `685edded` (Sol's idea): boxes SJK's

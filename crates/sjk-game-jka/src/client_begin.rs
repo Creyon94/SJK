@@ -77,6 +77,9 @@ pub struct PlayerSession {
     pub switch_team_time: i32,
     /// `fd` as the last begin's `WP_InitForcePowers` left it: a respawn spawns with it.
     pub force: Option<ForceInitialisation>,
+    /// `fd.forceDoInit`: the player changed its Force (`forcechanged`), which the next
+    /// spawn reads again from the userinfo.
+    pub force_do_init: bool,
     /// `sess.spectatorNum`: a spectator's place in the tournament's line, the longest
     /// waiting highest ([`crate::tournament::add_to_queue`]).
     pub spectator_num: i32,
@@ -169,35 +172,7 @@ pub fn client_begin(
 ) -> Begun {
     // The state is cleared first, the style with it.
     (session.saber_style.level, session.saber_style.draw_level) = (0, 0);
-    let configuration = info_value(userinfo, b"forcepowers").unwrap_or_default();
-    let force = initialise_force_powers(
-        configuration,
-        settings,
-        session.team,
-        session.told_force,
-        session.selected_power,
-        session
-            .bot_force
-            .as_ref()
-            .map(|(configuration, skill)| crate::force_config::BotForce {
-                configuration,
-                skill: *skill,
-            }),
-    );
-    let force = if settings.gametype == GT_SIEGE {
-        crate::force_config::siege_force_powers(
-            force,
-            session.siege_force.as_ref(),
-            session.told_force,
-        )
-    } else {
-        force
-    };
-    session.saber_style.force_initialised();
-    session.told_force = true;
-    if force.to_spectators {
-        session.team = TEAM_SPECTATOR;
-    }
+    let force = read_force_powers(session, userinfo, settings);
     let attack = i32::from(force.levels[15]);
     sabers_spawned(session, attack);
     // `ClientBegin` clears the state; the spawn count and the entity flags survive.
@@ -248,6 +223,47 @@ pub fn client_begin(
     }
 }
 
+/// `WP_InitForcePowers` for the player of `session`: the Force read from the userinfo
+/// (a bot's from its personality, a siege class's from the class), which may send the
+/// player to the spectators. Any begin's pending `forceDoInit` is spent with it.
+pub fn read_force_powers(
+    session: &mut PlayerSession,
+    userinfo: &[u8],
+    settings: ForceServerSettings,
+) -> ForceInitialisation {
+    let configuration = info_value(userinfo, b"forcepowers").unwrap_or_default();
+    let force = initialise_force_powers(
+        configuration,
+        settings,
+        session.team,
+        session.told_force,
+        session.selected_power,
+        session
+            .bot_force
+            .as_ref()
+            .map(|(configuration, skill)| crate::force_config::BotForce {
+                configuration,
+                skill: *skill,
+            }),
+    );
+    let force = if settings.gametype == GT_SIEGE {
+        crate::force_config::siege_force_powers(
+            force,
+            session.siege_force.as_ref(),
+            session.told_force,
+        )
+    } else {
+        force
+    };
+    session.saber_style.force_initialised();
+    session.told_force = true;
+    session.force_do_init = false;
+    if force.to_spectators {
+        session.team = TEAM_SPECTATOR;
+    }
+    force
+}
+
 /// `ClientSpawn`'s saber blocks: the stance the sabers bring when they were set on
 /// this spawn, then the settled single-saber style.
 fn sabers_spawned(session: &mut PlayerSession, attack: i32) {
@@ -262,11 +278,13 @@ fn sabers_spawned(session: &mut PlayerSession, attack: i32) {
 
 /// `ClientRespawn` outside power duels and siege, after the body is left behind:
 /// `ClientSpawn` again with the Force the last begin gave, the persistants kept, and the
-/// flash where the player reappears. A player that has not begun cannot respawn.
+/// flash where the player reappears. A player that has not begun cannot respawn. One
+/// that changed its Force since (`forceDoInit`) has it read again from `userinfo` first.
 #[allow(clippy::too_many_arguments)]
 pub fn client_respawn(
     client: u16,
     session: &mut PlayerSession,
+    userinfo: &[u8],
     accepted: &AcceptedUserinfo,
     settings: ForceServerSettings,
     spawn_invulnerability: i32,
@@ -274,6 +292,13 @@ pub fn client_respawn(
     previous: &PlayerState,
     lengths: &dyn AnimationLengths,
 ) -> Option<Begun> {
+    session.force.as_ref()?;
+    let mut commands = Vec::new();
+    if session.force_do_init {
+        let mut force = read_force_powers(session, userinfo, settings);
+        commands = std::mem::take(&mut force.commands);
+        session.force = Some(force);
+    }
     let mut force = session.force.clone()?;
     // `WP_SpawnInitForcePowers` (`w_force.c:519-532`): a siege class's powers, again, at
     // every spawn — a class picked since the last begin is the one spawned with.
@@ -307,7 +332,7 @@ pub fn client_respawn(
     let state = client_spawn(&request, lengths);
     Some(Begun {
         state,
-        commands: Vec::new(),
+        commands,
         entered: None,
         events: vec![EventEntity::teleport_in(place.origin, client)],
     })

@@ -443,7 +443,9 @@ impl NativeGame {
         let Some(peer) = self.peer_mut(client) else {
             return;
         };
-        // `G_Kill` (`g_cmds.c:526-527`): the caller sets both the health and its stat.
+        // `G_Kill` (`g_cmds.c:526-527`): god mode ends, and the caller sets both the
+        // health and its stat.
+        peer.god = false;
         peer.health = -999;
         peer.state.stats[0] = (-999i32) as u32;
         let request = DeathRequest::suicide(

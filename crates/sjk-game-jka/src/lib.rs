@@ -239,6 +239,7 @@ pub mod team_info;
 pub mod text_parse;
 
 pub mod breakables;
+pub mod client_commands;
 pub mod dropped_items;
 pub mod generic_commands;
 pub mod give;
