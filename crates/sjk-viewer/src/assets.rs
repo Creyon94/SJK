@@ -57,7 +57,9 @@ pub(crate) fn load_bsp_from_vfs(
     let asset = vfs
         .read(map_path)?
         .ok_or_else(|| format!("map {map_path:?} was not found in the mounted game data"))?;
-    Ok(Bsp::parse(&asset.bytes)?)
+    let mut bsp = Bsp::parse(&asset.bytes)?;
+    crate::external_lightmaps::load(vfs, map_path, &mut bsp);
+    Ok(bsp)
 }
 
 pub(crate) fn initial_camera(bsp: &Bsp) -> Result<([f32; 3], f32), Box<dyn Error>> {

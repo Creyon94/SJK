@@ -30,8 +30,9 @@ pub(crate) fn parse_render_data(
         surfaces.len(),
         brush_count,
     )?;
-    let lightmap_pixels = parse_lightmaps(data, lumps[LumpKind::Lightmaps as usize])?;
-    validate_surface_lightmaps(&surfaces, lightmap_pixels.len() / LIGHTMAP_BYTES)?;
+    let mut lightmaps = parse_lightmaps(data, lumps[LumpKind::Lightmaps as usize])?;
+    let slots = validate_surface_lightmaps(&surfaces, lightmaps.len())?;
+    lightmaps.resize(slots, None);
     let light_grid = parse_light_grid(data, lumps[LumpKind::LightGrid as usize])?;
     let light_grid_array =
         parse_light_grid_array(data, lumps[LumpKind::LightArray as usize], light_grid.len())?;
@@ -42,7 +43,7 @@ pub(crate) fn parse_render_data(
         vertices: vertices.into_boxed_slice(),
         indices: indices.into_boxed_slice(),
         surfaces: surfaces.into_boxed_slice(),
-        lightmap_pixels,
+        lightmaps: lightmaps.into_boxed_slice(),
         light_grid: light_grid.into_boxed_slice(),
         light_grid_array: light_grid_array.into_boxed_slice(),
         visibility,

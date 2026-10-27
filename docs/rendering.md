@@ -261,6 +261,21 @@ retail's default image (`R_CreateDefaultImage`, `tr_image.cpp:1279-1307`): a 16x
 grey 32 with a white border. Until 20/10/2026 the missing stage itself was drawn with a
 magenta checker over the rest of the shader.
 
+## External lightmaps
+
+A map compiled with q3map2's `-external` (usually with `-lightmapsize 512`) stores no
+lightmap tiles in its BSP: the lightmap lump is empty, and surfaces index pages shipped
+beside the map as `maps/<name>/lm_NNNN.tga`, as EJK's `R_FindLightmap`
+(`rd-vanilla/tr_shader.cpp`) loads them. `sjk-bsp` keeps one lightmap slot per index,
+each with its own size: a 128x128 tile from the file, or an empty slot when the lump is
+empty (indices then only need to stay below four per surface record, which bounds the
+slots by what was read). [external_lightmaps.rs](../crates/sjk-viewer/src/external_lightmaps.rs)
+fills the empty slots from the pk3s right after each BSP is parsed (the world, the
+session map and `misc_bsp` instances) and logs how many pages it found; a page that is
+missing or does not decode leaves its surfaces on the unlit mid-grey lightmap. Before
+27/10/2026 such a map was refused ("Surfaces record 0 references 50, outside 0..0"),
+as `baronshed_share` was.
+
 ## Video stages (`videoMap`)
 
 A stage with `videoMap <name>` plays a RoQ video on its surface, as rd-vanilla's

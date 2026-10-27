@@ -107,6 +107,7 @@ mod effect_wave;
 mod entity_instance;
 mod entity_lighting;
 mod entity_materials;
+mod external_lightmaps;
 mod fall_camera;
 mod first_person_view;
 mod first_person_weapon;

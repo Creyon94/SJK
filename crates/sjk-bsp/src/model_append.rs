@@ -39,10 +39,9 @@ impl Bsp {
         checked_total(&self.render.vertices, &asset.render.vertices)?;
         checked_total(&self.render.indices, &asset.render.indices)?;
         let surfaces = checked_total(&self.render.surfaces, &asset.render.surfaces)?;
-        let pixels = checked_total(&self.render.lightmap_pixels, &asset.render.lightmap_pixels)?;
+        let lightmaps = checked_total(&self.render.lightmaps, &asset.render.lightmaps)?;
         i32::try_from(surfaces).map_err(|_| BspError::InternalValidatedRangeFailure)?;
-        i32::try_from(pixels / (128 * 128 * 3))
-            .map_err(|_| BspError::InternalValidatedRangeFailure)?;
+        i32::try_from(lightmaps).map_err(|_| BspError::InternalValidatedRangeFailure)?;
         for model in &mut asset.render.models {
             shift(&mut model.surfaces, surface);
             shift(&mut model.brushes, brush);
@@ -87,10 +86,7 @@ impl Bsp {
         append(&mut self.render.surfaces, asset.render.surfaces);
         append(&mut self.render.vertices, asset.render.vertices);
         append(&mut self.render.indices, asset.render.indices);
-        append(
-            &mut self.render.lightmap_pixels,
-            asset.render.lightmap_pixels,
-        );
+        append(&mut self.render.lightmaps, asset.render.lightmaps);
         Ok(first..end)
     }
 }

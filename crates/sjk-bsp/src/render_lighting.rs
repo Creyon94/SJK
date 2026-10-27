@@ -2,7 +2,7 @@
 use super::*;
 
 /// Copy only validated, complete RGB lightmap tiles from the file.
-pub(super) fn parse_lightmaps(data: &[u8], lump: Lump) -> Result<Box<[u8]>, BspError> {
+pub(super) fn parse_lightmaps(data: &[u8], lump: Lump) -> Result<Vec<Option<Lightmap>>, BspError> {
     if !lump.length.is_multiple_of(LIGHTMAP_BYTES) {
         return Err(BspError::MisalignedLump {
             lump: LumpKind::Lightmaps,
@@ -10,17 +10,36 @@ pub(super) fn parse_lightmaps(data: &[u8], lump: Lump) -> Result<Box<[u8]>, BspE
             record_bytes: LIGHTMAP_BYTES,
         });
     }
-    Ok(lump_bytes(data, lump)?.to_vec().into_boxed_slice())
+    Ok(lump_bytes(data, lump)?
+        .chunks_exact(LIGHTMAP_BYTES)
+        .map(|tile| {
+            Some(Lightmap {
+                width: LIGHTMAP_SIDE,
+                height: LIGHTMAP_SIDE,
+                rgb: tile.into(),
+            })
+        })
+        .collect())
 }
 
 /// Surface lightmap indices must refer to stored tiles or a format sentinel.
+///
+/// A map compiled with q3map2's `-external` stores no tiles and keeps its lightmaps
+/// as `maps/<name>/lm_NNNN.tga` pages beside it. Its indices then name those pages,
+/// and this returns how many slots they need, left empty for the loader to fill.
+/// Each page is referenced by some surface layer, which bounds the slot count by
+/// the surface records actually read.
 pub(super) fn validate_surface_lightmaps(
     surfaces: &[Surface],
     lightmap_count: usize,
-) -> Result<(), BspError> {
+) -> Result<usize, BspError> {
+    let external = lightmap_count == 0;
+    let page_bound = surfaces.len().saturating_mul(4);
+    let mut slots = lightmap_count;
     for (surface_index, surface) in surfaces.iter().enumerate() {
         for lightmap in surface.lightmaps {
-            if lightmap >= 0 && lightmap as usize >= lightmap_count {
+            let bound = if external { page_bound } else { lightmap_count };
+            if lightmap >= 0 && lightmap as usize >= bound || lightmap < -5 {
                 return Err(BspError::InvalidReference {
                     owner: LumpKind::Surfaces,
                     index: surface_index,
@@ -28,17 +47,12 @@ pub(super) fn validate_surface_lightmaps(
                     target_count: lightmap_count,
                 });
             }
-            if lightmap < -5 {
-                return Err(BspError::InvalidReference {
-                    owner: LumpKind::Surfaces,
-                    index: surface_index,
-                    target: lightmap,
-                    target_count: lightmap_count,
-                });
+            if lightmap >= 0 {
+                slots = slots.max(lightmap as usize + 1);
             }
         }
     }
-    Ok(())
+    Ok(slots)
 }
 
 /// Decode one sample per complete on-disk record.
