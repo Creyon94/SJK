@@ -55,6 +55,15 @@ opener takes it with `+use` or for 10 seconds (`personal/mystery-box-roll`). Ver
 unit tests on both sides and the workspace checks. Not verified: in a game; the box is a
 retail crate and outcomes pay credits only for now.
 
+Slash's test the same day: `give all` showed no jetpack. It did hold one, but the server
+never set `EF_JETPACK` on a player (only on NPCs), so no pack hung on the back; the
+player's think now sets it from the held jetpack, as `ClientThink_real` does. A new cheat,
+`jetpack` (SJK's own; needs cheats, e.g. `devmap`, and a living player), gives the jetpack
+with a full tank, or takes it away switched off with the tank full again, so the pack and
+the fuel bar go with it. Flying with it is still not ported (using it says so in the
+server log), so the bar stays full. Unit tests cover the toggle and `give all`; the
+`EF_JETPACK` sync and the command are untested in a game.
+
 ## Sun blade drawn for less
 
 26/10/2026, `personal/sun-perf`, based on `main` `62d3e587` (Sol: the Sun blade ate a lot

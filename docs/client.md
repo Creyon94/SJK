@@ -1582,7 +1582,9 @@ voice volume. A muted window silences voices too. Unit tests:
 
 While the player holds a jetpack, or its tank is not full, a tall bar at the right edge
 of the screen shows the fuel left in dark red, as JoF EJK's `CG_DrawJetpackFuel` draws it
-(20 by 100 units, 8 in from the right, 260 down). It hides with the HUD. See
+(20 by 100 units, 8 in from the right, 260 down). It hides with the HUD. In a
+[devmap](#development-maps) game the `jetpack` command gives or takes away the jetpack.
+See
 [status](status.md#jetpack-fuel-bar).
 
 ## Jetpack sounds

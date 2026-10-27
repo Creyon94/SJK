@@ -90,6 +90,18 @@ impl NativeGame {
             let flags = peer.state.raw_field(EFLAGS).unwrap_or(0);
             peer.state.set_raw_field(EFLAGS, flags & !EF_INVULNERABLE);
         }
+        // A held jetpack shows on the player's back (`g_active.c`, `EF_JETPACK`).
+        let flags = peer.state.raw_field(EFLAGS).unwrap_or(0);
+        let held =
+            peer.state.stats[STAT_HOLDABLE_ITEMS] & (1 << sjk_game_jka::holdables::HI_JETPACK) != 0;
+        peer.state.set_raw_field(
+            EFLAGS,
+            if held {
+                flags | EF_JETPACK
+            } else {
+                flags & !EF_JETPACK
+            },
+        );
         // `client->noclip` heads the chain (`g_active.c`): `PM_NOCLIP` while it is on,
         // the type the rest of the chain picks once it is off. A spectator has none.
         if peer.playing()
