@@ -1578,6 +1578,13 @@ voice volume. A muted window silences voices too. Unit tests:
 `a_channel_gain_replaces_the_master_gain_for_that_channel_only` (sjk-audio),
 `voices_take_the_voice_volume_and_other_sounds_the_effects_volume` (viewer).
 
+## Jetpack fuel bar
+
+While the player holds a jetpack, or its tank is not full, a tall bar at the right edge
+of the screen shows the fuel left in dark red, as JoF EJK's `CG_DrawJetpackFuel` draws it
+(20 by 100 units, 8 in from the right, 260 down). It hides with the HUD. See
+[status](status.md#jetpack-fuel-bar).
+
 ## Jetpack sounds
 
 Settings > Audio (classic) and Settings > Advanced > Sound (SJK UI) offer

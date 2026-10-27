@@ -1,3 +1,14 @@
+## Jetpack fuel bar
+
+27/10/2026, `feat/jetpack-fuel-bar`, based on `main` `685edded`: the HUD showed
+nothing of a jetpack's fuel. As JoF EJK's `CG_DrawJetpackFuel` (`cg_draw.c:9897-9940`)
+does, a 20 by 100 unit bar now stands 8 units in from the right edge, 260 down: a black
+frame, the fuel left in dark red from the bottom, the fuel burnt greyed out above it
+([jetpack_fuel.rs](../crates/sjk-viewer/src/hud/jetpack_fuel.rs)). Stock draws it only while
+the tank is not full; SJK also draws it while the player holds a jetpack (`HI_JETPACK`), so
+the full tank shows before the first burn. It hides with the HUD (`cg_draw2D`,
+`cg_drawHud`). The cloak fuel bar is not drawn yet. Unit tests cover when it shows, its
+position and fill; untested in a game.
 ## Medal ranks
 
 27/10/2026, `personal/medal-ranks`, based on `main` `ef6364c0` (Sol's decision): every

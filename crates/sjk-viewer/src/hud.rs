@@ -13,6 +13,7 @@ pub(crate) use follow::shown as follow_shown;
 mod force_streams;
 pub(crate) mod force_wheel;
 mod hack_bar;
+mod jetpack_fuel;
 mod monitor_marks;
 pub(crate) use monitor_marks::MonitorMarks;
 pub(crate) mod icons;
@@ -238,6 +239,9 @@ pub(crate) struct HudOverlay {
     /// The share of the player's hack still to go (`hack_bar`), `None` while it hacks
     /// nothing.
     hack_left: Option<f32>,
+    /// The jetpack fuel the bar at the right edge shows (`jetpack_fuel`), `None` while
+    /// it is hidden.
+    jetpack_fuel: Option<i32>,
     /// The Hax toy's hack still to go (`hax.rs`), drawn as a siege hack is.
     toy_hack_left: Option<f32>,
     /// The Monitor toy's charge ring and hit marker (`monitor.rs`).
@@ -366,6 +370,7 @@ impl HudOverlay {
             followed_name: String::with_capacity(64),
             interrupted: false,
             hack_left: None,
+            jetpack_fuel: None,
             toy_hack_left: None,
             monitor_marks: MonitorMarks::default(),
             lagometer: sjk_client::LagometerSamples::new(),
@@ -597,6 +602,7 @@ impl HudOverlay {
             );
         }
         if visibility.hud {
+            jetpack_fuel::emit(&mut self.draw_list, viewport, self.jetpack_fuel);
             if visibility.vehicle {
                 self.vehicle
                     .emit(&mut self.draw_list, self.theme, viewport, user_scale);
