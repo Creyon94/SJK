@@ -4617,7 +4617,10 @@ frame so that the view stays where it puts it. SJK knows these cases from one ta
 (`BG_InGrappleMove`'s animations) or throw (`HANDEXTEND_PRETHROWN`, `POSTTHROWN`), a
 saber lock, and on a JA+ server JoF EJK's `CG_JAPlusViewLockedState` (kicked down,
 getting up, kissing, hanging from a ledge) ([held_view.rs](../crates/sjk-viewer/src/held_view.rs)).
-While it does:
+A JA+ emote (`PM_FREEZE`) never holds the view, even one that plays a knockdown's
+animation (`amneo` is `BOTH_FORCE_GETUP_B4`): the base game turns a frozen player's view,
+and with `cg_heldViewLook 0` the mouse stopped turning the camera through `amneo` (vini's
+report #166, 27/10/2026). While the view is held:
 
 - the mouse turns the view as in the base game while Free look when held
   (`cg_heldViewLook`, Settings > Game options and Advanced > Gameplay) is on, the

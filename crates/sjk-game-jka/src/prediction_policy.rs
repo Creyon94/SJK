@@ -13,6 +13,8 @@ use sjk_protocol::PlayerState;
 
 /// `HANDEXTEND_KNOCKDOWN`.
 const HANDEXTEND_KNOCKDOWN: u8 = 8;
+/// `PM_FREEZE`: a JA+ emote holds the body.
+const PM_FREEZE: u8 = 6;
 /// `ps.forceDodgeAnim` (player-state field 89) in a JA+ added kick's victim.
 const KICK_DODGE_ANIMS: [u32; 2] = [4, 5];
 
@@ -100,7 +102,16 @@ const GRAPPLE_ANIMS: [&str; 9] = [
 /// knockdowns, get-ups and ledges. The server rewrites `delta_angles` every frame then, so
 /// a view turned by the mouse, or commands whose angles a toy sets, fight it: the camera
 /// shakes or spins (hub reports #139, #140, #146).
+///
+/// A JA+ emote (`PM_FREEZE`) holds the body, not the view: `PmoveSingle` turns the view
+/// before it returns for a frozen player (`bg_pmove.c:13270,13328`), and some emotes play
+/// a knockdown's animation (JA++'s `amneo` is `BOTH_FORCE_GETUP_B4`, `g_cmds.cpp`), which
+/// [`japlus_view_locked`] would take for a knockdown: with `cg_heldViewLook 0` the mouse
+/// stopped turning the camera through the emote (vini's hub report #166).
 pub fn server_holds_view(player: &PlayerState, japlus: impl FnOnce() -> bool) -> bool {
+    if player.movement_type() == PM_FREEZE {
+        return false;
+    }
     // By name (one lookup each), as this is asked every frame.
     let grapple = |animation: u16| {
         crate::legacy_animation_name(usize::from(animation))
@@ -296,5 +307,15 @@ mod tests {
         let kiss = player_with(&[(13, animation("BOTH_KISSEE"))]);
         assert!(server_holds_view(&kiss, || true));
         assert!(!server_holds_view(&kiss, || false));
+    }
+
+    #[test]
+    fn a_japlus_emote_with_a_knockdowns_animation_leaves_the_view_free() {
+        // `amneo`: a get-up animation, the body frozen by the emote.
+        let neo = animation("BOTH_FORCE_GETUP_B4");
+        let knocked_down = player_with(&[(13, neo), (15, neo)]);
+        assert!(server_holds_view(&knocked_down, || true));
+        let emote = player_with(&[(13, neo), (15, neo), (63, u32::from(PM_FREEZE))]);
+        assert!(!server_holds_view(&emote, || true));
     }
 }
