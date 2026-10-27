@@ -30,7 +30,15 @@ The site (site/assets/site.js, parseChangelog) reads the release headings,
 introductions and recap lines too.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
-## Unreleased
+## 2026.1027.1 (Alpha) | 27/10/2026
+
+Faster Monitor hits, emote volume of its own, achievements that wait for the hub, and a lighter Sun blade.
+
+> Monitor toy: Hits land at once, the charge ring is back round your crosshair, and players typing or away can't be hit.
+> Emotes: Emote volume is its own now, so emotes can be loud while the game stays quiet.
+> Achievements: Crystals are announced once the SJK hub confirms them, and nothing counts on a server on your own machine.
+> Ragdolls: Nobody in a vehicle goes limp, and a hacked player lying down gets up.
+> Sun blade: About 40 % cheaper to draw, same look.
 
 - JoF names: with JoF tools on, medals are now called Honors and holocrons Echoes in every menu and message, as JoF asked; Settings > Mods > JoF names (`jof.honorNames`, on) brings back Medals and Holocrons. Names players, the hub and maps wrote keep their words _(Sol)_
 - The Sun blade costs about 40 % less to draw, so it no longer eats frames when you light it up close: its coronal rain is only worked out where its loops can show. It looks the same _(Sol)_
