@@ -8631,6 +8631,11 @@ Branch `feat/classic-crosshair`: the crosshair is retail's picture,
 - The picture follows the dynamic crosshair and `cg_crosshairX/Y` and takes the
   existing target colours. With the default `cg_crosshairColor` "0 0 0 255" and no
   target it is drawn white, in its own colours, as EternalJK's `R_SetColor(NULL)`.
+  A `cg_crosshairColor` of the player's own (any channel above 0) comes before the
+  target colours of `cg_crosshairIdentifyTarget`, as `CG_DrawCrosshair` tests it
+  first; health and saber-style colours still come before both (hub report #159).
+  EternalJK takes the colour only when all three channels are above 0; SJK takes
+  any colour that is not the black default, as it did with identify off.
 - The default crosshair colour changed from the old bluish tint (0.964, 0.991, 1.0)
   to white (1, 1, 1): `crosshair_color` returns white for the all-black default and
   for an unparsable `cg_crosshairColor`, and the targeting state starts white. The

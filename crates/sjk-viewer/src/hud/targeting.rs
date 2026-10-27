@@ -93,6 +93,8 @@ pub(crate) struct Policy {
     lagometer: [f32; 2],
     lagometer_scale: f32,
     color: [f32; 4],
+    /// `cg_crosshairColor` is a colour of its own, ahead of the target colours.
+    own_color: bool,
     /// The classic crosshair's picture and size.
     pub(crate) look: super::crosshair::Look,
 }
@@ -121,6 +123,7 @@ impl Policy {
             lagometer: [f("cg_lagometerx", 48.0), f("cg_lagometery", 144.0)],
             lagometer_scale: f("cg_lagometerscale", 1.0).clamp(0.25, 4.0),
             color: crate::cgame_options::crosshair_color(console),
+            own_color: crate::cgame_options::crosshair_color_set(console),
             look: super::crosshair::Look::new(
                 console
                     .and_then(|c| c.integer_cvar("cg_drawcrosshair"))
@@ -192,8 +195,14 @@ impl Default for State {
 
 impl State {
     /// Apply the existing trace classification after local-health/style precedence.
+    /// A `cg_crosshairColor` of the player's own comes first, as `CG_DrawCrosshair`
+    /// tests it before `cg_crosshairIdentifyTarget`.
     pub(crate) fn classify(&mut self, color: Option<[f32; 4]>, weapon: u8) {
-        if self.policy.identify && !self.policy.health && !(self.policy.style && weapon == 3) {
+        if self.policy.identify
+            && !self.policy.own_color
+            && !self.policy.health
+            && !(self.policy.style && weapon == 3)
+        {
             self.color = color.unwrap_or([1.0; 4]);
         }
     }
@@ -294,6 +303,37 @@ fn style_color(style: u32, alpha: f32) -> [f32; 4] {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn an_own_crosshair_colour_wins_over_the_target_colours() {
+        let profile = tempfile::tempdir().unwrap();
+        let mut console = ViewerConsole::new(profile.path().join("config.cfg")).unwrap();
+        let red_target = Some([1.0, 0.0, 0.0, 1.0]);
+        let mut state = State::default();
+
+        // The default "0 0 0 255": the target colours, white over nothing.
+        state.policy = Policy::read(Some(&console));
+        state.color = state.policy.color;
+        state.classify(red_target, 1);
+        assert_eq!(state.color, [1.0, 0.0, 0.0, 1.0]);
+        state.classify(None, 1);
+        assert_eq!(state.color, [1.0; 4]);
+
+        // Hub report #159: a colour of the player's own stays over a target.
+        assert!(console.set_cvar("cg_crosshairColor", "0 255 0 255"));
+        state.policy = Policy::read(Some(&console));
+        state.color = state.policy.color;
+        state.classify(red_target, 1);
+        assert_eq!(state.color, [0.0, 1.0, 0.0, 1.0]);
+        state.classify(None, 1);
+        assert_eq!(state.color, [0.0, 1.0, 0.0, 1.0]);
+
+        // An unreadable value is the default again.
+        assert!(console.set_cvar("cg_crosshairColor", "green"));
+        state.policy = Policy::read(Some(&console));
+        state.classify(red_target, 1);
+        assert_eq!(state.color, [1.0, 0.0, 0.0, 1.0]);
+    }
 
     #[test]
     fn lagometer_scale_keeps_the_default_anchor_and_history_dimensions() {

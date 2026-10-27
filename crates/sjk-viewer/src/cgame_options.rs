@@ -188,9 +188,10 @@ pub(crate) fn bob(console: Option<&ViewerConsole>) -> sjk_client::LegacyViewBobC
     }
 }
 
-/// TaystJK uses an all-black RGB value as the default crosshair-colour sentinel,
-/// which draws the picture untinted (`R_SetColor(NULL)`).
-pub(crate) fn crosshair_color(console: Option<&ViewerConsole>) -> [f32; 4] {
+/// `cg_crosshairColor` as EternalJK's `CG_CrosshairColorChange` reads it: four
+/// numbers in 0..=255, each below 1 read as 0; anything else is the default
+/// "0 0 0 255".
+fn crosshair_rgba(console: Option<&ViewerConsole>) -> [f32; 4] {
     let mut rgba = [0.0, 0.0, 0.0, 255.0];
     let text = console
         .and_then(|c| c.text_cvar("cg_crosshaircolor").ok())
@@ -202,14 +203,28 @@ pub(crate) fn crosshair_color(console: Option<&ViewerConsole>) -> [f32; 4] {
             .and_then(|word| word.parse::<f32>().ok())
             .filter(|v| v.is_finite())
         else {
-            return [1.0, 1.0, 1.0, 1.0];
+            return [0.0, 0.0, 0.0, 255.0];
         };
         *slot = if value < 1.0 { 0.0 } else { value.min(255.0) };
     }
+    rgba
+}
+
+/// TaystJK uses an all-black RGB value as the default crosshair-colour sentinel,
+/// which draws the picture untinted (`R_SetColor(NULL)`).
+pub(crate) fn crosshair_color(console: Option<&ViewerConsole>) -> [f32; 4] {
+    let rgba = crosshair_rgba(console);
     if rgba[..3] == [0.0; 3] {
         return [1.0, 1.0, 1.0, rgba[3] / 255.0];
     }
     rgba.map(|value| value / 255.0)
+}
+
+/// Whether `cg_crosshairColor` names a colour of its own (not the all-black
+/// default), which then wins over the target colours of
+/// `cg_crosshairIdentifyTarget`, as in `CG_DrawCrosshair`.
+pub(crate) fn crosshair_color_set(console: Option<&ViewerConsole>) -> bool {
+    crosshair_rgba(console)[..3] != [0.0; 3]
 }
 
 impl crate::GpuState {
