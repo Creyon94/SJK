@@ -207,6 +207,10 @@ tables' `shard_pile` and `shards`, a "Kyber shards" column (the chance and the r
 average under it, a dash from a hub without piles), and the card's share counts them too.
 A card comes with a few shards beside its credits (the card pack, `card_shards`,
 [cards.md](cards.md#odds)).
+Since 27/10/2026 (the hub's `tag-toy` branch) an opening may bring a tag instead of the card
+(`tag` in the tables, 150 per mille in every tier, taken from the cards' share; the tag's
+tier rolled as a shader's; [client.md](client.md#tag)); this client's own copy of the
+tables keeps no tags, so the figures below are without them.
 The figures below are with the piles.
 
 Per holocron:

@@ -131,7 +131,7 @@ fn backed(picture: &image::RgbaImage) -> image::RgbaImage {
 }
 
 /// `image` scaled to fit an [`ICON_SIZE`] square whole, centred on transparency.
-fn fit(image: &image::RgbaImage) -> image::RgbaImage {
+pub(crate) fn fit(image: &image::RgbaImage) -> image::RgbaImage {
     let (width, height) = image.dimensions();
     let longest = width.max(height).max(1) as f32;
     let scaled = |side: u32| ((side as f32 * ICON_SIZE as f32 / longest).round() as u32).max(1);

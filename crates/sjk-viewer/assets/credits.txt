@@ -49,6 +49,7 @@ did: Toy sound settings: a toy volume and a switch per toy to silence it
 did: The Boombox toy: an 80s stereo playing your own tracks to players close by
 did: The Monitor toy: throw an old CRT that sends opted-in players flying as ragdolls
 did: Charged Monitor throws (hold the key) and a hit marker with a hit sound
+did: The Tag toy: stick a premade tag on walls and floors, TF2 style
 did: Mystery boxes on maps: open one with Use for credits, and maybe win big
 did: The mystery box's roll and its music box tune
 did: A macOS build for Apple Silicon, built by GitHub with every release (experimental)

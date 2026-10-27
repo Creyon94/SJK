@@ -24,6 +24,19 @@
 
 # ---- Console & chat ----
 
+[tag-toy]
+area: Gameplay
+title: Tag toy: stick a tag on a wall or the floor (needs the hub's tag-toy branch)
+change: toy_tag sticks the tag cg_tag names where you look; others on the map see it.
+change: Collection > Tags chooses it; 3 free tags, the rest drop from holocrons.
+test: Collection > Tags: the free SJK, GG and Fox are held; Choose one.
+test: Bind toy_tag (Key bindings > Interaction > Toy: Tag), look at a wall, press it.
+test: The tag stands upright on walls; on the floor its top points away from you.
+test: Press again within 10 s: "Tag again in N s". toy_tag clear takes it off.
+test: A second SJK client on the same map sees it; one joining later sees it too.
+test: cg_toyTags 0 on the other client hides yours; a map change clears it.
+note: Pictures are hub placeholders until Sol's art; the hub branch is not deployed.
+
 [ragdoll-wake]
 area: Gameplay
 title: Jump, attack or taunt gets you up from a ragdoll

@@ -413,7 +413,7 @@ fn clip(world: &DecalSurfaces, bsp: &Bsp, projection: &MarkProjection, scratch: 
 /// `tr_decals.cpp:180-184`: axis 0 along the normal, axis 1 any
 /// perpendicular rotated by `orientation` about the normal, axis 2 closing
 /// the frame.
-fn texture_axes(direction: Vec3, orientation: f32) -> [Vec3; 3] {
+pub(crate) fn texture_axes(direction: Vec3, orientation: f32) -> [Vec3; 3] {
     let forward = direction.normalize_or(Vec3::Z);
     let seed = perpendicular_vector(forward);
     let rotated = Quat::from_axis_angle(forward, orientation.to_radians()) * seed;

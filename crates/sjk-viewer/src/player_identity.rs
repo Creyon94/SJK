@@ -1644,6 +1644,7 @@ mod tests {
             saber_on: Vec::new(),
             saber2_on: Vec::new(),
             saber_sounds: String::new(),
+            tag: None,
         };
         let mut sent = None;
         assert!(newly(&mut sent, &lit));

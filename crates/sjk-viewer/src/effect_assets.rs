@@ -177,6 +177,8 @@ pub(crate) fn required_shaders<'a>(
         }
     }
     shaders.extend(CODE_SHADERS.iter().map(|shader| (*shader).to_owned()));
+    // The players' tags (`tags.rs`), drawn as decals.
+    shaders.extend(crate::tags::CATALOGUE.iter().map(crate::tags::Tag::shader));
     shaders.extend(
         crate::pickups::simple::ICONS
             .iter()

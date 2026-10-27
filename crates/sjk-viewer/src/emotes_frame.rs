@@ -44,6 +44,7 @@ impl GpuState {
             }
             crate::emote_icons::service(vfs, &self.ui_shapes, &self.queue);
         }
+        crate::tag_icons::service(&self.ui_shapes, &self.queue);
         let Some(session) = self.live_session.as_ref() else {
             let mut state = emotes::lock();
             match self.demo_session.as_ref() {

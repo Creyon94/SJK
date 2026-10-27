@@ -191,6 +191,14 @@ pub(crate) fn inside(index: usize) -> String {
     let (least, most) = odds.credits[index];
     let percent = |per_mille: u32| crate::cards::loot::percent(f64::from(per_mille) / 1_000.0);
     let shader = percent(odds.shader[index]);
+    if odds.tag[index] > 0 {
+        let tag = percent(odds.tag[index]);
+        let shards = percent(odds.shard_pile[index]);
+        return format!(
+            "Opening it gives a sealed card and {least} to {most} credits, or a saber shader \
+             ({shader}), a tag ({tag}) or kyber shards ({shards})."
+        );
+    }
     if odds.shard_pile[index] == 0 {
         return format!(
             "Opening it gives a sealed card and {least} to {most} credits, or ({shader} of \

@@ -34,6 +34,9 @@ pub(crate) struct Table {
     /// How often an opening brings a pile of kyber shards instead of the card and its
     /// credits.
     pub(crate) shard_pile: [u32; COUNT],
+    /// How often an opening brings a tag (`tags.rs`, 27/10/2026) instead of the card and
+    /// its credits.
+    pub(crate) tag: [u32; COUNT],
     /// The shards a pile holds: the least and the most.
     pub(crate) shards: [(u32, u32); COUNT],
     /// The shards a card brings beside its credits (the card pack): the least and the
@@ -60,6 +63,9 @@ pub(crate) const BUILT_IN: Table = Table {
         [50, 150, 350, 330, 120],
     ],
     shard_pile: [100, 100, 100, 100],
+    // The hub sends its share (150 per mille a tier since 27/10/2026); the copy keeps a
+    // hub's from before tags, which the documented figures are.
+    tag: [0, 0, 0, 0],
     shards: [(5, 15), (10, 25), (25, 50), (100, 200)],
     card_shards: [(1, 3), (2, 5), (5, 10), (20, 40)],
 };
@@ -108,7 +114,7 @@ fn of_hub(tiers: &[sjk_identity::LootTier]) -> Option<Table> {
             && whole(&tier.rarity)
             && whole(&tier.finish)
             && whole(&tier.shader_tier)
-            && tier.shader + tier.shard_pile <= 1_000
+            && tier.shader + tier.tag + tier.shard_pile <= 1_000
             && tier.credits[0] <= tier.credits[1]
             && tier.shards[0] <= tier.shards[1]
             && tier.card_shards[0] <= tier.card_shards[1];
@@ -129,6 +135,7 @@ fn of_hub(tiers: &[sjk_identity::LootTier]) -> Option<Table> {
         table.shader[index] = tier.shader;
         table.shader_tier[index].copy_from_slice(&tier.shader_tier);
         table.shard_pile[index] = tier.shard_pile;
+        table.tag[index] = tier.tag;
         table.shards[index] = (
             u32::try_from(tier.shards[0]).ok()?,
             u32::try_from(tier.shards[1]).ok()?,
@@ -168,6 +175,7 @@ mod tests {
                 shader: table.shader[index],
                 shader_tier: table.shader_tier[index].to_vec(),
                 shard_pile: table.shard_pile[index],
+                tag: table.tag[index],
                 shards: [
                     u64::from(table.shards[index].0),
                     u64::from(table.shards[index].1),
@@ -188,10 +196,25 @@ mod tests {
         );
         for index in 0..COUNT {
             assert_eq!(BUILT_IN.shader_tier[index].iter().sum::<u32>(), 1_000);
-            assert!(BUILT_IN.shader[index] + BUILT_IN.shard_pile[index] <= 1_000);
+            assert!(
+                BUILT_IN.shader[index] + BUILT_IN.tag[index] + BUILT_IN.shard_pile[index] <= 1_000
+            );
             assert!(BUILT_IN.shards[index].0 <= BUILT_IN.shards[index].1);
         }
         assert_eq!(of_hub(&wire(&BUILT_IN)), Some(BUILT_IN));
+    }
+
+    /// A hub with tags (27/10/2026) sends their share, which leaves the cards'; one with
+    /// more than the whole left for cards does not fit.
+    #[test]
+    fn the_hubs_tag_share_is_read() {
+        let mut tiers = wire(&BUILT_IN);
+        for tier in &mut tiers {
+            tier.tag = 150;
+        }
+        assert_eq!(of_hub(&tiers).map(|table| table.tag), Some([150; COUNT]));
+        tiers[0].tag = 1_000;
+        assert_eq!(of_hub(&tiers), None);
     }
 
     #[test]

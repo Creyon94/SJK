@@ -85,6 +85,9 @@ pub(crate) fn preload_effects(
     for shader in effect_assets::CODE_SHADERS {
         let _ = effects.shader(shader);
     }
+    for tag in crate::tags::CATALOGUE {
+        let _ = effects.shader(&tag.shader());
+    }
     let _ = effects.code_primitive_definition();
     for icon in crate::pickups::simple::ICONS
         .iter()

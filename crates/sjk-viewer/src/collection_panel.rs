@@ -53,6 +53,8 @@ mod shaders;
 mod spin;
 #[path = "collection_swatch.rs"]
 pub(crate) mod swatch;
+#[path = "collection_tags.rs"]
+mod tags;
 #[path = "collection_toys.rs"]
 mod toys;
 #[path = "collection_view.rs"]
@@ -156,6 +158,11 @@ const CARD_CLOSE_UP_TOKEN: u16 = 8_007;
 /// the Shaders tab.
 const CARD_SHADER_TOKEN: u16 = 8_008;
 const _: () = assert!(CARD_BASE as usize + CARD_TILES_MAX <= CARD_SHOW_BASE as usize);
+/// The Tags tab's tiles, one to each tag of `tags::CATALOGUE` (27/10/2026), and its card's
+/// Choose button.
+const TAG_BASE: u16 = 8_100;
+const TAG_CHOOSE_TOKEN: u16 = 8_099;
+const _: () = assert!(TAG_BASE as usize + crate::tags::CATALOGUE.len() <= 8_200);
 const OPTION_TOKENS: usize =
     crate::blade_skin_file::extras::MAX_OPTIONS + crate::blade_extras::MAX_EXTRAS;
 /// The Shaders tab's rows: the stock blade, then every blade skin, the rarest first
@@ -327,6 +334,8 @@ pub(crate) enum PanelAction {
     /// Turn the Monitor on (`true`) or off: the same as `toy_monitor`, set rather than
     /// toggled.
     Monitor(bool),
+    /// Set `cg_tag` to this tag's id: the one `toy_tag` sticks.
+    ChooseTag(&'static str),
     /// Show a tab another page draws: the Holocrons page.
     Hub(Tab),
     /// Switch blade skin `skin`'s option `option` on or off (`cg_saberSkinOptions`).
@@ -451,6 +460,8 @@ pub(crate) struct Inputs<'a> {
     /// The keys bound to the toys' commands, as players read them ("F5", "F5 / K"), in
     /// the order of [`toys::COMMANDS`]; empty for none (or none known).
     pub(crate) toy_keys: &'a [String],
+    /// `cg_tag`: the tag `toy_tag` sticks.
+    pub(crate) tag: &'a str,
 }
 
 /// What the last frame showed of a shader's row, for keys and clicks.
@@ -489,6 +500,10 @@ pub(crate) struct Panel {
     /// The toy chosen on Toys: 0 Illuminate, 1 the cardboard box, 2 Order 66, 3 the Hax,
     /// 4 the Ragdoll, 5 the Drone, 6 the Boombox, 7 the Monitor.
     toy: usize,
+    /// The tag chosen on Tags, in `tags::CATALOGUE`'s order, and which tags the last
+    /// frame showed as held (Enter picks only one of those).
+    tag: usize,
+    tag_held: Vec<bool>,
     /// The player was in the cardboard box, as the last frame's inputs said.
     box_on: bool,
     /// Order 66 was on, as the last frame's inputs said.
@@ -648,6 +663,8 @@ impl Panel {
             achievement_slots: Vec::with_capacity(crate::achievements::ALL.len()),
             shader: 0,
             toy: 0,
+            tag: 0,
+            tag_held: Vec::new(),
             box_on: false,
             order66_on: false,
             hax_on: false,
@@ -866,6 +883,7 @@ impl Panel {
             Tab::Toys if self.toy == 7 => PanelAction::Monitor(!self.monitor_on),
             Tab::Toys => PanelAction::Illuminate(!illuminate),
             Tab::Nameplates => PanelAction::SeeAndShare(!self.share_on),
+            Tab::Tags => self.choose_tag(),
             Tab::Cards => {
                 self.card_inspect = self.cards_shown > 0;
                 PanelAction::None
@@ -928,6 +946,7 @@ impl Panel {
             Tab::Shaders => self.shader_count,
             Tab::Cards => self.cards_shown,
             Tab::Toys => TOY_COUNT,
+            Tab::Tags => crate::tags::CATALOGUE.len(),
             _ => 0,
         }
     }
@@ -940,6 +959,7 @@ impl Panel {
             Tab::Shaders => Some(&mut self.shader),
             Tab::Cards => Some(&mut self.card),
             Tab::Toys => Some(&mut self.toy),
+            Tab::Tags => Some(&mut self.tag),
             _ => None,
         }
     }
@@ -1512,6 +1532,18 @@ impl Panel {
             {
                 return self.sort_by(*sort);
             }
+            if let Some(tag) = token
+                .checked_sub(TAG_BASE)
+                .map(usize::from)
+                .filter(|tag| *tag < crate::tags::CATALOGUE.len())
+            {
+                // A click chooses (and shows) a tag; Choose or Enter picks it for toy_tag.
+                self.tag = tag;
+                return PanelAction::None;
+            }
+            if token == TAG_CHOOSE_TOKEN {
+                return self.choose_tag();
+            }
             if let Some(toy) = token
                 .checked_sub(TOY_SWITCH_BASE)
                 .map(usize::from)
@@ -1760,6 +1792,7 @@ impl Panel {
             }
             Tab::Shaders => SHADER_BASE + self.shader as u16,
             Tab::Toys => TOY_TOKENS[self.toy.min(TOY_COUNT - 1)],
+            Tab::Tags => TAG_BASE + self.tag.min(crate::tags::CATALOGUE.len() - 1) as u16,
             Tab::Cards if self.cards_shown > 0 => CARD_BASE + self.card as u16,
             Tab::Nameplates => SHARE_TOKEN,
             Tab::Forge => match self.forge.ask {
@@ -1819,6 +1852,7 @@ mod tests {
             pair: crate::saber_skins::Pair::None,
             share: true,
             toy_keys: &[],
+            tag: "",
         }
     }
 

@@ -1,3 +1,21 @@
+## Tag toy
+
+27/10/2026, `personal/tag-toy`, based on `main` `26f546b6` (Sol's idea: TF2-style sprays,
+premade tags only, Sol picking new ones from Discord rounds): `toy_tag` sticks the tag
+`cg_tag` names where the crosshair meets a wall or the floor, carried in the look so every
+SJK player on the map sees it ([client.md](client.md#tag)); fifteen tags, three free
+(SJK, GG, Fox), the others dropping from holocrons; a Collection > Tags tab to choose
+them; tag prizes in the holocron opening. The hub side (tag unlocks, the look's `tag`,
+holocron tag drops at 150 per mille taken from cards, the `sjk_tags` pack of placeholder
+pictures) is the hub's `tag-toy` branch, not merged or deployed. Verified: fmt, Clippy
+(no new warnings), unit tests (catalogue, free tags, the tag's turn upright on walls and
+facing the player on floors, the own tag's gap and its going with server, map or grant,
+`toy_tag` and `toy_tag clear`, the look's `tag` on the wire and the identity's fallbacks
+for an older hub or a tag not held), and off screen: tags projected on duel6's walls and
+floor (`world_shot::duel6_tags_on_walls_and_floor`) and the Tags tab
+(`world_shot::duel6_sjk_collection_tags`). Not verified: in a game, against the hub, two
+clients seeing each other's tags, or the opening's tag prize drawn.
+
 ## Medal ranks
 
 27/10/2026, `personal/medal-ranks`, based on `main` `ef6364c0` (Sol's decision): every

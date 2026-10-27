@@ -843,6 +843,9 @@ struct Worker {
     /// The hub refused `saber_on` or `saber2_on` as unknown fields (a hub from before
     /// 26/10/2026): looks go without the extras until then, or until the hub changes.
     extras_unknown: Option<Instant>,
+    /// The hub refused a look's `tag` as an unknown field (a hub from before 27/10/2026):
+    /// looks go without the tag until then, or until the hub changes.
+    tag_unknown: Option<Instant>,
     /// The hub refused a look's `saber_sounds` as an unknown field (a hub from before
     /// 23/10/2026): looks go without it, so the blade and the rest still sync and other
     /// players hear the sounds that follow the blade, until the hub changes.
@@ -902,13 +905,13 @@ enum Held {
     /// claim whatever it is.
     Unknown,
     /// This look; [`Look::default`] for none, as a new claim starts.
-    Look(Look),
+    Look(Box<Look>),
 }
 
 impl Held {
     /// No look: what a new claim starts with.
     fn none() -> Self {
-        Self::Look(Look::default())
+        Self::Look(Box::default())
     }
 }
 
@@ -1114,6 +1117,7 @@ impl Worker {
             look_refused_for: Vec::new(),
             saber2_unknown: None,
             extras_unknown: None,
+            tag_unknown: None,
             look_id: None,
             profile_soon_after: now,
             assets_dir: None,
@@ -1595,6 +1599,7 @@ impl Worker {
         self.name_sent = None;
         self.saber2_unknown = None;
         self.extras_unknown = None;
+        self.tag_unknown = None;
         self.update(Snapshot::clear_me);
         // Another hub's news, or none; a failure from before is not this hub's, and
         // the next tick says where the new settings stand.
@@ -2157,6 +2162,9 @@ impl Worker {
         if self.extras_unknown.is_some_and(|until| now >= until) {
             self.extras_unknown = None;
         }
+        if self.tag_unknown.is_some_and(|until| now >= until) {
+            self.tag_unknown = None;
+        }
         if !self.settings.enabled {
             self.update(|snapshot| snapshot.status = Status::Disabled);
             return IDLE_MAX;
@@ -2710,12 +2718,20 @@ impl Worker {
         if self.look_sounds_unsupported || self.look_refused.contains(&look.saber_sounds) {
             look.saber_sounds.clear();
         }
+        if self.tag_unknown.is_some()
+            || look
+                .tag
+                .as_ref()
+                .is_some_and(|tag| self.look_refused.contains(&tag.id))
+        {
+            look.tag = None;
+        }
         look
     }
 
     /// Whether the hub's claim should get another look than the one it holds.
     fn look_waiting(&mut self) -> bool {
-        self.look_claim.is_some() && Held::Look(self.look_to_send()) != self.look_held
+        self.look_claim.is_some() && Held::Look(Box::new(self.look_to_send())) != self.look_held
     }
 
     /// Send the look for the accepted claim if it changed and one may go.
@@ -2731,7 +2747,7 @@ impl Worker {
         self.due_look = now + LOOK_EVERY;
         match &outcome {
             Ok(id) => {
-                self.look_held = Held::Look(look.clone());
+                self.look_held = Held::Look(Box::new(look.clone()));
                 self.look_id = Some(*id);
             }
             // The skin is not the key's (or not the hub's): the rest of the look still
@@ -2751,6 +2767,30 @@ impl Worker {
                 if let Some(refused) = refused_skin(code, &look) {
                     self.look_refused.push(refused.to_owned());
                 }
+            }
+            // The tag is not the key's (or not the hub's): the look goes again without it
+            // until the profile changes.
+            Err(HubError::Rejected { code, .. })
+                if (code == "tag_not_unlocked" || code == "bad_tag") && look.tag.is_some() =>
+            {
+                if code == "tag_not_unlocked" {
+                    self.profile_soon(now);
+                }
+                self.look_refused_for = lock(&self.snapshot)
+                    .me
+                    .as_ref()
+                    .map(|me| me.unlocks.clone())
+                    .unwrap_or_default();
+                if let Some(tag) = look.tag.as_ref() {
+                    self.look_refused.push(tag.id.clone());
+                }
+                self.due_look = now;
+            }
+            // A hub from before 27/10/2026 refuses the tag, the newest field: the look goes
+            // again without it (before the older fields are suspected).
+            Err(HubError::Rejected { code, .. }) if code == "bad_body" && look.tag.is_some() => {
+                self.tag_unknown = Some(now + SABER2_RETRY);
+                self.due_look = now;
             }
             // A hub from before 26/10/2026 refuses the extras: the look goes again without
             // them (before `saber2` is suspected, which such a hub may know).
@@ -2805,7 +2845,7 @@ impl Worker {
             // Any other refusal (an older hub without looks) is not repeated until the
             // look or the claim changes.
             Err(HubError::Rejected { status, .. }) if (400..500).contains(status) => {
-                self.look_held = Held::Look(look.clone());
+                self.look_held = Held::Look(Box::new(look.clone()));
             }
             Err(_) => self.due_look = now + LOOK_AGAIN,
         }
@@ -4474,6 +4514,10 @@ mod tests {
             } else {
                 format!("{second} on {:?} {:?}", look.saber_on, look.saber2_on)
             };
+            let second = match look.tag.as_ref() {
+                Some(tag) => format!("{second} tag {}", tag.id),
+                None => second,
+            };
             Fake::record(
                 self,
                 if look.saber_sounds.is_empty() {
@@ -5651,6 +5695,7 @@ mod tests {
             saber_on: Vec::new(),
             saber2_on: Vec::new(),
             saber_sounds: String::new(),
+            tag: None,
         }
     }
 
@@ -6205,6 +6250,53 @@ mod tests {
                 "look 1.2.3.4:29070 \"saber_sun\" true",
             ]
         );
+    }
+
+    fn tagged(id: &str) -> Look {
+        Look {
+            tag: Some(crate::PlacedTag {
+                id: id.to_owned(),
+                map: "mp/ffa3".to_owned(),
+                at: [1.0, 2.0, 3.0],
+                normal: [0.0, 0.0, 1.0],
+                spin: 90.0,
+            }),
+            ..lit("saber_sun")
+        }
+    }
+
+    /// A hub from before tags refuses `tag` as an unknown field: the look goes again at
+    /// once without it, and later looks leave it out. A tag the key does not hold is
+    /// left out the same way, the blade kept.
+    #[test]
+    fn a_tag_an_older_hub_refuses_or_the_key_lacks_is_left_out_and_the_blade_goes() {
+        for code in ["bad_body", "tag_not_unlocked", "bad_tag"] {
+            let fake = Fake::default();
+            fake.owned.lock().unwrap().push("saber_sun".to_owned());
+            let t0 = Instant::now();
+            let (mut worker, _) = worker(&fake, t0);
+            worker.handle(Command::Configure(on("https://hub")), t0);
+            worker.handle(Command::Enter(here(3, "Sol")), t0);
+            worker.tick(t0);
+            let sent = fake.looks().len();
+            let status = if code == "tag_not_unlocked" { 403 } else { 400 };
+            fake.look_refusals
+                .lock()
+                .unwrap()
+                .push_back(refused(status, code));
+            let at = t0 + LOOK_EVERY;
+            worker.handle(Command::Look(tagged("tag_ez")), at);
+            worker.tick(at);
+            worker.tick(at);
+            assert_eq!(
+                fake.looks()[sent..],
+                [
+                    "look 1.2.3.4:29070 \"saber_sun\" true tag tag_ez",
+                    "look 1.2.3.4:29070 \"saber_sun\" true",
+                ],
+                "{code}"
+            );
+        }
     }
 
     fn profile_reads(fake: &Fake) -> usize {
