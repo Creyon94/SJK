@@ -5889,7 +5889,13 @@ default, Sol's request of 10/10/2026) selects the melee weapon, the fists
 (`WP_MELEE`), by name. The numbered binds cannot: `weapon 1` is the saber while the
 player holds one (`CG_Weapon_f`), and with the saber already selected it switches
 the saber on or off instead; the fists otherwise come only from cycling the weapon
-keys. `weapmelee` never selects the saber and never toggles: it does nothing when
+keys. The toggle is sent only once the predicted `weaponTime` has run out, as JoF
+EJK reads it, not the snapshot's, which is a round trip behind (a swing, the
+holster's 400 ms); a press before that does nothing, as in `CG_Weapon_f`, and never
+picks another weapon (hub report 172). A pressed `generic_cmd` (this toggle, a bound
+`force_*` or `use_*`) goes on every user command until a packet takes them, as
+`CL_FinishMove` keeps it until `CL_WritePacket`, so one command the server skips does
+not lose it; the server's debounce takes it once. `weapmelee` never selects the saber and never toggles: it does nothing when
 the fists are already selected, when the player does not hold them, while
 following someone or on an emplaced gun. The stun baton, `WP_STUN_BATON`, is another
 weapon and is not chosen. Like `weapnext` it only changes the client's selection

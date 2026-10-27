@@ -359,7 +359,17 @@ impl GpuState {
                 self.ghost
                     .record(&command, &pose, self.local_prediction.committed_state());
             }
-            self.pending_generic_command = 0;
+            // A pressed `generic_cmd` goes on every command until a packet takes
+            // them (`CL_FinishMove`, cleared in `CL_WritePacket`): a single command
+            // the server skips (`ClientThink_real` drops one whose `serverTime` it
+            // clamped onto the last) no longer loses the press (hub report 172).
+            // The server's 300 ms debounce takes it once. A local game takes each
+            // command at once.
+            if session.queued_commands() == 0 {
+                self.pending_generic_command = 0;
+            } else {
+                self.generic_command_sent = self.pending_generic_command;
+            }
         }
         self.gameplay_input.set_command_age(0);
         self.send_due_packet(now);
@@ -383,6 +393,10 @@ impl GpuState {
             return;
         }
         self.packet_pacer.sent(now);
+        // A press made after the packet's commands waits for the next one.
+        if std::mem::take(&mut self.generic_command_sent) == self.pending_generic_command {
+            self.pending_generic_command = 0;
+        }
     }
 }
 

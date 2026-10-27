@@ -20,6 +20,12 @@
 //! never expires: a message the player wrote is still worth reading late,
 //! while a late action fires in a situation the player has left.
 //!
+//! What the player sends also goes ahead of the client's own commands still waiting
+//! (a `score` request every two seconds while dead or holding the scoreboard, a
+//! `userinfo`), so typed chat leaves in the next window instead of queueing behind
+//! them a second each (hub report 172). The client's own keep their order among
+//! themselves, as the player's do.
+//!
 //! Commands sent while the server still considers the client `CS_PRIMED`
 //! (the connect and map-restart bootstrap packets) are exempt and are not
 //! routed through here.
@@ -82,7 +88,8 @@ impl ReliableCommandPacer {
     ///
     /// An input or chat command identical to one of the same origin still
     /// waiting is folded into it (an input one's deadline restarts from `now`,
-    /// its place is kept) and counts as accepted.
+    /// its place is kept) and counts as accepted. A new one goes ahead of the
+    /// waiting [`ReliableCommandOrigin::System`] commands.
     pub(crate) fn push(
         &mut self,
         command: Vec<u8>,
@@ -103,11 +110,22 @@ impl ReliableCommandPacer {
         if self.outbox.len() >= MAX_QUEUED {
             return false;
         }
-        self.outbox.push_back(Queued {
+        let queued = Queued {
             command,
             origin,
             expires,
-        });
+        };
+        let first_system = (origin != ReliableCommandOrigin::System)
+            .then(|| {
+                self.outbox
+                    .iter()
+                    .position(|queued| queued.origin == ReliableCommandOrigin::System)
+            })
+            .flatten();
+        match first_system {
+            Some(index) => self.outbox.insert(index, queued),
+            None => self.outbox.push_back(queued),
+        }
         true
     }
 
@@ -195,9 +213,9 @@ mod tests {
     fn input_command_expires_instead_of_firing_late() {
         let start = Instant::now();
         let mut pacer = pacer();
-        let system: [&[u8]; 3] = [b"userinfo", b"forcechanged", b"team f"];
-        for command in system {
-            pacer.push(command.to_vec(), ReliableCommandOrigin::System, start);
+        let chat: [&[u8]; 3] = [b"say a", b"say b", b"say c"];
+        for command in chat {
+            pacer.push(command.to_vec(), ReliableCommandOrigin::Chat, start);
         }
         pacer.push(b"amhug".to_vec(), ReliableCommandOrigin::Input, start);
         let mut sent = Vec::new();
@@ -206,7 +224,7 @@ mod tests {
                 sent.push(command);
             }
         }
-        assert_eq!(sent, system);
+        assert_eq!(sent, chat);
         assert_eq!(pacer.queued(), 0);
     }
 
@@ -231,8 +249,8 @@ mod tests {
     fn pressing_again_restarts_the_lifetime() {
         let start = Instant::now();
         let mut pacer = pacer();
-        pacer.push(b"userinfo".to_vec(), ReliableCommandOrigin::System, start);
-        pacer.push(b"team f".to_vec(), ReliableCommandOrigin::System, start);
+        pacer.push(b"say a".to_vec(), ReliableCommandOrigin::Chat, start);
+        pacer.push(b"say b".to_vec(), ReliableCommandOrigin::Chat, start);
         assert!(pacer.pop_due(start).is_some());
         pacer.push(b"amhug".to_vec(), ReliableCommandOrigin::Input, start);
         pacer.push(
@@ -252,7 +270,7 @@ mod tests {
     fn chat_is_deduplicated_but_never_expires() {
         let start = Instant::now();
         let mut pacer = pacer();
-        pacer.push(b"userinfo".to_vec(), ReliableCommandOrigin::System, start);
+        pacer.push(b"say hi".to_vec(), ReliableCommandOrigin::Chat, start);
         for _ in 0..3 {
             pacer.push(b"say gg".to_vec(), ReliableCommandOrigin::Chat, start);
         }
@@ -265,6 +283,29 @@ mod tests {
             pacer.pop_due(late + DEFAULT_COMMAND_INTERVAL).as_deref(),
             Some(&b"say wp"[..])
         );
+    }
+
+    #[test]
+    fn player_commands_go_ahead_of_waiting_system_commands() {
+        let start = Instant::now();
+        let mut pacer = pacer();
+        pacer.push(b"score".to_vec(), ReliableCommandOrigin::System, start);
+        assert!(pacer.pop_due(start).is_some());
+        pacer.push(b"userinfo".to_vec(), ReliableCommandOrigin::System, start);
+        pacer.push(b"score".to_vec(), ReliableCommandOrigin::System, start);
+        pacer.push(b"say gg".to_vec(), ReliableCommandOrigin::Chat, start);
+        // Pressed late enough to still be alive in the second window.
+        pacer.push(
+            b"amhug".to_vec(),
+            ReliableCommandOrigin::Input,
+            start + ms(1_000),
+        );
+        let mut sent = Vec::new();
+        for step in 1..=4 {
+            sent.extend(pacer.pop_due(start + ms(step * 1_050)));
+        }
+        let expected: [&[u8]; 4] = [b"say gg", b"amhug", b"userinfo", b"score"];
+        assert_eq!(sent, expected);
     }
 
     #[test]

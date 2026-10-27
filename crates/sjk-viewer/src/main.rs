@@ -749,6 +749,9 @@ struct GpuState {
     weapon_selection_view: weapon_select::view::Tracker,
     weapon_selected_at: Option<Instant>,
     pending_generic_command: u8,
+    /// The `generic_cmd` already on a user command still waiting for its packet
+    /// (`cl.gcmdSentValue`): it rides on every command until the packet leaves.
+    generic_command_sent: u8,
     anti_emote: anti_emote::State,
     vfs: Option<Arc<VirtualFileSystem>>,
     pending_map_reload: bool,
@@ -1661,6 +1664,7 @@ impl GpuState {
             weapon_selection_view: Default::default(),
             weapon_selected_at: None,
             pending_generic_command: 0,
+            generic_command_sent: 0,
             anti_emote: anti_emote::State::default(),
             effects,
             sound_prefetch,

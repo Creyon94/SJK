@@ -498,6 +498,11 @@ dropped, as the server drops a stock client's extras. Pressing a hug bind twenty
 used to queue twenty hugs, still firing one a second after the player stopped. Chat
 (`say`, `say_team`, `tell`, typed or bound) is not queued twice while identical chat
 waits, but is never dropped: a message is still worth reading late, a late action is not.
+What the player sends (chat, binds, console commands) goes ahead of the client's own
+commands still waiting, which keep their order among themselves (27/10/2026, hub
+report 172): chat no longer queues a second each behind `score` requests (every two
+seconds while dead or holding the scoreboard) or a `userinfo`. A `name` change typed
+just before a message may therefore reach the server after it.
 
 ## Parity requirements
 

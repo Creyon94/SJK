@@ -30,6 +30,10 @@ The site (site/assets/site.js, parseChangelog) reads the release headings,
 introductions and recap lines too.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
+## Unreleased
+
+- Key 1 switches the saber on or off as soon as the server would let it, no longer a round trip later, and a press that is too early never picks another weapon. Chat you type no longer waits behind the scoreboard's requests _(Slash)_
+
 ## 2026.1027.1 (Alpha) | 27/10/2026
 
 Faster Monitor hits, emote volume of its own, achievements that wait for the hub, and a lighter Sun blade.
