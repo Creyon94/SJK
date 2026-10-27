@@ -32,6 +32,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
+- Verified ticks come in colours: cyan for JoF, crimson for the Sith clan, leather for the JAWA clan, rust for JKR's creator, silver and teal for SJK staff and a turning sun for SJK's creator, chosen by the SJK team when they verify a player (gold stays for everyone else). The scoreboard and player card emblem stays white with the tick on its foot _(Sol)_
 - JoF EternalJK players logged into SJK chat wear JoF EJK's icon on the scoreboard and the player card, as their chat lines do, once their client tells the hub which slot is theirs _(Sol)_
 - Shader stages with `tcGen vector` (textures projected in world space, such as caustics over a room) are laid out as in the original game instead of stretched over each surface _(Sol, after JKA)_
 - Animated skies move again: a sky shader's own stages (scrolling clouds and the like) are drawn over its sky box as a cloud layer, as in the original game, instead of only the box _(Sol, after JKA)_

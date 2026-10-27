@@ -36,6 +36,8 @@ const MAX_CLIENTS: usize = 32;
 pub(crate) struct Tag {
     /// The hub's operator vouches for this player's key.
     pub(crate) verified: bool,
+    /// Their tick, as the hub sent it (`ui_renderer::mark_texture`).
+    pub(crate) tick: sjk_identity::Tick,
     /// Their trust (`ui_renderer::mark_texture`): a small mark on the emblem.
     pub(crate) trust: Option<sjk_identity::Trust>,
     /// The medals the SJK team gave them, for the ribbon bars.
@@ -495,6 +497,7 @@ pub(crate) fn hub_mark(slot: u8, shown: &str) -> Option<crate::ingame_menu::play
                 key_id: player.key_id.clone(),
                 name: player.name.clone(),
                 verified: player.verified,
+                tick: player.tick,
                 trust: player.trust,
                 emoji: sjk_identity::name_emoji::for_display(&player.emoji).to_owned(),
                 medals: crate::medals::Medals::from_wire(&player.medals),
@@ -585,6 +588,7 @@ pub(crate) fn tag(slot: u8, shown: &str) -> Option<Tag> {
     lock().service.as_ref()?.with_snapshot(|snapshot| {
         snapshot.badge(slot, shown).map(|player| Tag {
             verified: player.verified,
+            tick: player.tick,
             trust: player.trust,
             medals: crate::medals::Medals::from_wire(&player.medals),
             emoji: NameEmoji::new(&player.emoji),
@@ -610,6 +614,7 @@ pub(crate) fn hub_info(slot: u8, shown: &str) -> Option<crate::hud::player_card:
             model: crate::hud::player_card::ModelSight::Unknown,
             name: player.name.clone(),
             verified: player.verified,
+            tick: player.tick,
             trust: player.trust,
             medals: crate::medals::Medals::from_wire(&player.medals),
             key_id: player.key_id.clone(),
@@ -781,13 +786,13 @@ pub(crate) fn slot_marks(game_state: &GameState) -> SlotMarks {
             })
         {
             marks[usize::from(player.slot)] =
-                crate::ui_renderer::mark_texture(player.verified, player.trust);
+                crate::ui_renderer::mark_texture(player.verified, player.tick, player.trust);
         }
         if let Some(me) = snapshot.me.as_ref()
             && let Ok(own) = usize::try_from(game_state.client_num)
             && own < MAX_CLIENTS
         {
-            marks[own] = crate::ui_renderer::mark_texture(me.verified, me.trust);
+            marks[own] = crate::ui_renderer::mark_texture(me.verified, me.tick, me.trust);
         }
     });
     marks

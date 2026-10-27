@@ -86,6 +86,8 @@ pub(super) struct Row {
     /// The name as the hub or the message gives it, colour codes kept.
     pub(super) name: String,
     pub(super) verified: bool,
+    /// Their tick, as the hub sent it.
+    pub(super) tick: sjk_identity::Tick,
     pub(super) staff: bool,
     pub(super) creator: bool,
     /// Their trust (`ui_renderer::mark_texture`).
@@ -139,6 +141,7 @@ pub(super) fn derive(chat: &ChatState, muted: &[String]) -> Listed {
                 key_id: message.key_id.clone(),
                 name: message.name.clone(),
                 verified: message.verified,
+                tick: message.tick,
                 staff: message.staff,
                 creator: message.creator,
                 trust: message.trust,
@@ -161,6 +164,7 @@ pub(super) fn derive(chat: &ChatState, muted: &[String]) -> Listed {
         key_id: person.key_id.clone(),
         name: person.name.clone(),
         verified: person.verified,
+        tick: person.tick,
         staff: person.staff,
         creator: person.creator,
         trust: person.trust,
@@ -235,6 +239,7 @@ mod tests {
             key_id: key.repeat(16),
             name: name.to_owned(),
             verified: key == "a",
+            tick: sjk_identity::Tick::None,
             staff: false,
             creator: false,
             trust: None,

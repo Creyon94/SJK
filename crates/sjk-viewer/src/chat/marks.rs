@@ -18,6 +18,8 @@ pub(crate) struct SlotMark {
     /// The hub knows them in this slot: SJK's emblem goes before their name.
     pub(crate) sjk: bool,
     pub(crate) verified: bool,
+    /// Their tick, as the hub sent it.
+    pub(crate) tick: sjk_identity::Tick,
     /// Their trust (`ui_renderer::mark_texture`), none when verified or staff.
     pub(crate) trust: Option<sjk_identity::Trust>,
     /// Their name emoji, shown at the right of their name; empty for none.
@@ -68,6 +70,7 @@ pub(crate) fn marks<'a>(
                 *mark = SlotMark {
                     sjk: true,
                     verified: me.verified,
+                    tick: me.tick,
                     trust: me.trust,
                     emoji: sjk_identity::name_emoji::for_display(&me.emoji).to_owned(),
                     name: restores(worn, name).then(|| worn.to_owned()),
@@ -85,6 +88,7 @@ pub(crate) fn marks<'a>(
         *mark = SlotMark {
             sjk: true,
             verified: player.verified,
+            tick: player.tick,
             trust: player.trust,
             emoji: sjk_identity::name_emoji::for_display(&player.emoji).to_owned(),
             name: restores(&player.claimed_name, name).then(|| player.claimed_name.clone()),
@@ -230,6 +234,7 @@ mod tests {
                 gpu.chat.slot_marks[0] = SlotMark {
                     sjk: true,
                     verified: true,
+                    tick: sjk_identity::Tick::None,
                     trust: None,
                     emoji: "⚔️".to_owned(),
                     name: Some("^0JoF J S^7olol 🦊".to_owned()),
@@ -238,6 +243,7 @@ mod tests {
                 gpu.chat.slot_marks[7] = SlotMark {
                     sjk: true,
                     verified: false,
+                    tick: sjk_identity::Tick::None,
                     trust: None,
                     emoji: "🐺".to_owned(),
                     name: None,
@@ -277,6 +283,7 @@ mod tests {
                     key_id: "00000000000000ab".to_owned(),
                     name: "^0JoF J S^7olol 🦊".to_owned(),
                     verified: true,
+                    tick: sjk_identity::Tick::None,
                     staff: false,
                     creator: false,
                     trust: None,

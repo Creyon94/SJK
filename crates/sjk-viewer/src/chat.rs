@@ -86,6 +86,8 @@ struct ChatLine {
 struct HubLine {
     id: u64,
     verified: bool,
+    /// The sender's tick when they sent it, as the hub sent it.
+    tick: sjk_identity::Tick,
     staff: bool,
     /// SJK's creator (staff too).
     creator: bool,

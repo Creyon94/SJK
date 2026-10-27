@@ -103,6 +103,7 @@ fn row(client: u8, name: &str, team: u8, score: i32) -> ScoreRow {
         identity: match client {
             0 => Some(Tag {
                 verified: true,
+                tick: sjk_identity::Tick::None,
                 trust: None,
                 emoji: Default::default(),
                 medals: medals(&["early_tester", "early_contributor", "bug_hunter"], 3),
@@ -110,6 +111,7 @@ fn row(client: u8, name: &str, team: u8, score: i32) -> ScoreRow {
             }),
             11 => Some(Tag {
                 verified: true,
+                tick: sjk_identity::Tick::None,
                 trust: None,
                 emoji: crate::player_identity::NameEmoji::new("🦊"),
                 medals: medals(&["early_contributor"], 1),
@@ -117,6 +119,7 @@ fn row(client: u8, name: &str, team: u8, score: i32) -> ScoreRow {
             }),
             3 => Some(Tag {
                 verified: false,
+                tick: sjk_identity::Tick::None,
                 trust: None,
                 emoji: Default::default(),
                 medals: medals(&["early_tester", "bug_hunter"], 2),

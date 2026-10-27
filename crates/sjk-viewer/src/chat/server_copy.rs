@@ -315,6 +315,7 @@ mod tests {
             key_id: key_id.to_owned(),
             name: "Sol".to_owned(),
             verified: false,
+            tick: sjk_identity::Tick::None,
             staff: false,
             creator: false,
             trust: None,

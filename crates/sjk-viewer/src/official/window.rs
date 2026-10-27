@@ -173,6 +173,7 @@ impl Composer {
             key_id: String::new(),
             name: SENDER.to_owned(),
             verified: false,
+            tick: sjk_identity::Tick::None,
             staff: false,
             creator: false,
             trust: None,
@@ -924,7 +925,9 @@ fn rounds_page(
                 FontWeight::Semibold,
                 TextAlign::Start,
             );
-            if let Some(mark) = crate::ui_renderer::mark_texture(person.verified, None) {
+            if let Some(mark) =
+                crate::ui_renderer::mark_texture(person.verified, sjk_identity::Tick::None, None)
+            {
                 let side = 16.0;
                 let _ = ui.draw_list_mut().push(DrawCommand::TexturedQuad {
                     rect: frame.rect(
