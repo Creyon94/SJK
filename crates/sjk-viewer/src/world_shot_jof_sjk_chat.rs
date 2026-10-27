@@ -111,7 +111,12 @@ fn duel6_jof_sjk_chat_feed() {
         assert!(chat.hold_server_copy(&copy, now));
         chat.follow_server_copies([&both], None, None, now);
         all.push(message(2, "^5Milamber", "hello from JoF EternalJK", "ejk"));
-        all.push(message(3, "^2Jaden", "hello from the SJK Launcher", "launcher"));
+        all.push(message(
+            3,
+            "^2Jaden",
+            "hello from the SJK Launcher",
+            "launcher",
+        ));
         all.push(message(
             4,
             "^3Lumaya",
