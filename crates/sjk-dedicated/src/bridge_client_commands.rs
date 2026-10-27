@@ -16,8 +16,7 @@ const NO_INTERMISSION: u8 = 4;
 /// `EV_VOICECMD_SOUND`, and the field its speaker is in (`s.groundEntityNum`).
 const EV_VOICECMD_SOUND: u32 = 75;
 const ES_GROUND_ENTITY: usize = 22;
-/// `ps.saberHolstered`, and `WP_SABER`.
-const PS_SABER_HOLSTERED: usize = 81;
+/// `WP_SABER`.
 const WP_SABER: u8 = 3;
 /// `GT_SINGLE_PLAYER`.
 const GT_SINGLE_PLAYER: i32 = 5;
@@ -111,12 +110,17 @@ impl NativeGame {
         if peer.session.team == i32::from(TEAM_SPECTATOR) {
             // "if it's a spec, just make the changes now", without a word: "the UI calls
             // this a lot".
-            let force = sjk_game_jka::client_begin::read_force_powers(
+            let mut force = sjk_game_jka::client_begin::read_force_powers(
                 &mut peer.session,
                 &peer.userinfo,
                 settings,
             );
+            // The profile menu and the rank (`spc`, `nfr`), or why the string was
+            // refused, as a spawn sends them.
+            let commands = std::mem::take(&mut force.commands);
             peer.session.force = Some(force);
+            self.told
+                .extend(commands.into_iter().map(|text| Told::One(client, text)));
         } else {
             peer.session.force_do_init = true;
             self.told
@@ -248,10 +252,7 @@ impl NativeGame {
     fn the_destroyer(&mut self, client: usize, level_time: i32) {
         let Some(origin) = self
             .peer(client)
-            .filter(|peer| {
-                peer.state.raw_field(PS_SABER_HOLSTERED).unwrap_or(0) != 0
-                    && peer.state.weapon() == WP_SABER
-            })
+            .filter(|peer| peer.state.saber_holstered() != 0 && peer.state.weapon() == WP_SABER)
             .map(|peer| peer.state.origin())
         else {
             return;

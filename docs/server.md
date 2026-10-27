@@ -92,8 +92,8 @@ with the stock "cheats are not enabled" message (`@@@NOCHEATS`). `give`, `t_use`
 `npc`, `noclip`, `god`, `notarget`, `giveother`, `killother`, `levelshot`,
 `thedestroyer` and `debugBMove_*` also need a living player in the game
 (`@@@MUSTBEALIVE`), as in OpenJK's `ClientCommand`; `setviewpos` also works for
-spectators. `noclip`, `god`, `notarget`, `giveother` and `levelshot` are refused
-during intermission.
+spectators. `give`, `noclip`, `god`, `notarget`, `giveother` and `levelshot` are
+refused during intermission.
 
 | Command | Effect |
 | --- | --- |
@@ -103,7 +103,7 @@ during intermission.
 | `give weapons`, `give weaponnum N` | Every usable weapon, or the weapon with number `N` |
 | `give ammo [N]` | `N` (0–999, 999 without `N`) of every ammo type |
 | `give excellent` (also `impressive`, `gauntletaward`, `defend`, `assist`) | One more of that award |
-| `give CLASSNAME` | The item with that classname (`item_seeker`, `weapon_rocket_launcher`, `ammo_thermal`…, without case), taken as if walked over (`Touch_Item`): what the player cannot carry is not taken. Flags are not given |
+| `give CLASSNAME` | The item with that classname (`item_seeker`, `weapon_rocket_launcher`, `ammo_thermal`…, without case), taken as if walked over (`Touch_Item`): what the player cannot carry is not taken. Flags are not given, and a powerup (`item_quad`, `item_enviro`…) gives nothing, as `pick_up` skips them |
 | `giveother PLAYER WHAT…` | `give` for another living player, by slot number or name ("Target must be alive to use this command." otherwise) |
 | `killother PLAYER` | Kill another living player, as its own `kill` would |
 | `t_use NAME` | Fire every target named `NAME` as the player (`Cmd_TargetUse_f`), as mappers test triggers and scripts |
