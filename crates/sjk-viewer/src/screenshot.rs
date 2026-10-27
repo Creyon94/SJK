@@ -279,14 +279,7 @@ impl Manager {
         {
             destination.copy_from_slice(&source[..row_bytes]);
         }
-        if matches!(
-            self.texture_format,
-            wgpu::TextureFormat::Bgra8Unorm | wgpu::TextureFormat::Bgra8UnormSrgb
-        ) {
-            for pixel in pixels.chunks_exact_mut(4) {
-                pixel.swap(0, 2);
-            }
-        }
+        opaque_rgba(&mut pixels, self.texture_format);
         drop(mapped);
         readback.buffer.unmap();
         let sender = self.write_sender.clone();
@@ -383,9 +376,36 @@ fn validate_name(name: &str) -> Result<String, String> {
         .to_owned())
 }
 
+/// The swapchain's pixels as opaque RGBA. The scene's alpha is whatever the shader
+/// stages left (a tinted player skin keeps its tint mask there) and the window shows
+/// none of it, so a PNG keeping it drew those parts see-through (hub report #155);
+/// rd-vanilla reads screenshots as `GL_RGB` (`RB_ReadPixels`).
+fn opaque_rgba(pixels: &mut [u8], format: wgpu::TextureFormat) {
+    let bgra = matches!(
+        format,
+        wgpu::TextureFormat::Bgra8Unorm | wgpu::TextureFormat::Bgra8UnormSrgb
+    );
+    for pixel in pixels.as_chunks_mut::<4>().0 {
+        if bgra {
+            pixel.swap(0, 2);
+        }
+        pixel[3] = u8::MAX;
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn screenshots_are_opaque_whatever_alpha_the_scene_left() {
+        let mut bgra = vec![10, 20, 30, 0, 40, 50, 60, 128];
+        opaque_rgba(&mut bgra, wgpu::TextureFormat::Bgra8UnormSrgb);
+        assert_eq!(bgra, [30, 20, 10, 255, 60, 50, 40, 255]);
+        let mut rgba = vec![10, 20, 30, 64];
+        opaque_rgba(&mut rgba, wgpu::TextureFormat::Rgba8Unorm);
+        assert_eq!(rgba, [10, 20, 30, 255]);
+    }
 
     /// Frames keep calling `after_submit` while the readback maps; the readback must
     /// survive them and reach the file (it was dropped, aborting the map).
