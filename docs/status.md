@@ -60,8 +60,9 @@ never set `EF_JETPACK` on a player (only on NPCs), so no pack hung on the back; 
 player's think now sets it from the held jetpack, as `ClientThink_real` does. A new cheat,
 `jetpack` (SJK's own; needs cheats, e.g. `devmap`, and a living player), gives the jetpack
 with a full tank, or takes it away switched off with the tank full again, so the pack and
-the fuel bar go with it. Flying with it is still not ported (using it says so in the
-server log), so the bar stays full. Unit tests cover the toggle and `give all`; the
+the fuel bar go with it. SJK's own server does not port the jetpack's flight yet (using
+it says so in the server log), so there the bar stays full; on other servers, where the
+jetpack flies, the bar follows the fuel they send. Unit tests cover the toggle and `give all`; the
 `EF_JETPACK` sync and the command are untested in a game.
 
 ## Sun blade drawn for less
