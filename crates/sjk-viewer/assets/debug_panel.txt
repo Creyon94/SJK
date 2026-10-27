@@ -24,6 +24,14 @@
 
 # ---- Console & chat ----
 
+[ragdoll-wake]
+area: Gameplay
+title: Jump, attack or taunt gets you up from a ragdoll
+change: Limp (toy_ragdoll or a monitor hit): a new jump, attack, alt attack or taunt gets up.
+change: Counts from 0.5 s after the fall; a button held as you fell must be pressed again.
+test: toy_ragdoll, wait a second, press jump: you stand where the body lay. Same for attack.
+test: Get hit by a monitor while holding attack: you stay down until you press it again.
+test: Bow or taunt while limp: you get up. Moving or crouching does not.
 [verified-ticks]
 area: HUD
 title: Ticks: JoF, Sith, Jawa, JKR creator, staff and the creator's sun
