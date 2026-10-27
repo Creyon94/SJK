@@ -33,6 +33,12 @@ pub struct JaPlusRules {
     /// `JAPLUS_CINFO_YELLOWDFA` (`jp_improveYellowDFA`): the medium style's flip over
     /// leaps 60 forward instead of 150 and does not spin or lock the view.
     pub yellow_dfa: bool,
+    /// The server leaves the view free through knockdowns and their get-ups, where
+    /// EternalJK's cgame (`CG_JAPlusViewLockedState`) holds it, as some JA+ servers do.
+    /// No serverinfo says which: the client sets it from its table of server families
+    /// (`sjk-viewer`'s `held_view::FREE_KNOCKDOWN_VIEW`, with a cvar override); off,
+    /// a JA+ server keeps EternalJK's held view.
+    pub free_knockdown_view: bool,
 }
 
 impl JaPlusRules {
@@ -46,6 +52,7 @@ impl JaPlusRules {
             flip_kick: capabilities.contains(JaPlusCapabilities::FLIP_KICK),
             head_slide: capabilities.contains(JaPlusCapabilities::HEAD_SLIDE),
             yellow_dfa: capabilities.contains(JaPlusCapabilities::YELLOW_DFA),
+            free_knockdown_view: false,
         }
     }
 
@@ -100,6 +107,12 @@ impl JaPlusRules {
     /// free (`bg_pmove.c:12228-12270`).
     pub(crate) fn free_taunts(self) -> bool {
         self.enabled
+    }
+
+    /// Whether the server holds the view through knockdowns and get-ups
+    /// (`CG_JAPlusViewLockedState`), unless [`Self::free_knockdown_view`].
+    pub fn holds_knockdown_view(self) -> bool {
+        self.enabled && !self.free_knockdown_view
     }
 
     /// Whether wall flips and runs, and the front flip, push off players
@@ -304,16 +317,32 @@ mod tests {
     }
 
     #[test]
-    fn ja_plus_get_up_holds_the_body_but_not_the_view() {
-        // The JoF server turns the view through `BOTH_GETUP1` (hub report #164).
+    fn ja_plus_get_up_holds_the_view_unless_the_server_leaves_it_free() {
         let state = crate::pmove::MovementState {
             legs_anim: animation("BOTH_STAND1"),
             torso_anim: animation("BOTH_GETUP1"),
             ..Default::default()
         };
-        let (japlus_state, japlus) = filtered(state.clone(), ja_plus());
-        assert_eq!(japlus.forward_move, 0);
-        assert_eq!(japlus_state.delta_angles, state.delta_angles);
+        // EternalJK's rule, kept on JA+ servers not known to differ.
+        let (held_state, held) = filtered(state.clone(), ja_plus());
+        assert_eq!(held.forward_move, 0);
+        assert_ne!(held_state.delta_angles, state.delta_angles);
+        // The JoF server turns the view through `BOTH_GETUP1` (hub report #164).
+        let free_rules = JaPlusRules {
+            free_knockdown_view: true,
+            ..ja_plus()
+        };
+        assert!(ja_plus().holds_knockdown_view() && !free_rules.holds_knockdown_view());
+        let (free_state, free) = filtered(state.clone(), free_rules);
+        assert_eq!(free.forward_move, 0, "the body is still held");
+        assert_eq!(free_state.delta_angles, state.delta_angles);
+        // An emote that plays it holds the body only, wherever.
+        let emote = crate::pmove::MovementState {
+            movement_type: 6,
+            ..state.clone()
+        };
+        let (emote_state, _) = filtered(emote.clone(), ja_plus());
+        assert_eq!(emote_state.delta_angles, emote.delta_angles);
     }
 
     #[test]

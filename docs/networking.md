@@ -408,7 +408,10 @@ apart in one table, [known_servers.rs](../crates/sjk-mod/src/known_servers.rs)
 (`KNOWN_SERVERS`: an id, a name, the game module, a serverinfo key and value), which
 the client and the mods (the `jof` mod's `is_jof`) both read; the caps are a second
 table keyed by family id, [server_caps.rs](../crates/sjk-viewer/src/server_caps.rs)
-(`KNOWN`: the family, the step); private-duel hiding has its own table keyed by
+(`KNOWN`: the family, the step); the JA+ servers that leave the view free through
+knockdowns and get-ups are a third, `FREE_KNOCKDOWN_VIEW` in
+[held_view.rs](../crates/sjk-viewer/src/held_view.rs) (JoF's; `cg_japlusFreeKnockdownView`
+overrides it, see [client](client.md#held-view)); private-duel hiding has its own table keyed by
 compatibility profile, `DUEL_HIDE_SERVERS` in
 [duel_hide.rs](../crates/sjk-client/src/duel_hide.rs) (JA+ unless `cp_pluginDisable`
 bit 1, jaPRO always and with missile owners; `cg_duelHideOthers` overrides it, see
