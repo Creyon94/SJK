@@ -84,20 +84,45 @@ impl Advanced {
 /// (Network's).
 const CHAT_ROWS: &[&str] = &[
     "cg_drawChat",
+    crate::chat::pm_only::CVAR,
+    "cg_chatBoxFontSize",
     crate::chat::emoji::CVAR,
     crate::chat::reply::REMEMBER_CVAR,
+    crate::chat::options::LINE_SPACING_CVAR,
     "cg_chatBoxLetterSpacing",
+    crate::chat::options::CARD_SCALE_CVAR,
     crate::text::charset::CVAR,
     "cl_sjkChat",
+    crate::sjk_chat_frame::FEED_CVAR,
+    crate::sjk_chat_frame::CONSOLE_CVAR,
     crate::chat_gifs::CVAR,
+    crate::chat_gifs::VIDEO_CVAR,
+    crate::chat::client_icons::CVAR,
     crate::chat_gifs::search::KEY_CVAR,
+    crate::e2e_whispers::CVAR,
+    crate::map_blocks::CVAR,
 ];
 
 /// The rows Mods gathers from the classic Game options.
 const MODS_ROWS: &[&str] = &[
     "assetbrowser",
     "mod_japlus",
+    #[cfg(feature = "mod-japlus")]
+    sjk_mod_japlus::anti_kiss::CVAR,
+    "mod_japro",
+    #[cfg(feature = "mod-japro")]
+    sjk_mod_japro::movement_styles::PREDICT_ANYWAY_CVAR,
     "mod_jof",
+    #[cfg(feature = "mod-jof")]
+    sjk_mod_jof::destruction::CVAR,
+    #[cfg(feature = "mod-jof")]
+    sjk_mod_jof::dialogue::CVAR,
+    #[cfg(feature = "mod-jof")]
+    sjk_mod_jof::EJK_OPT_IN,
+    #[cfg(feature = "mod-jof")]
+    sjk_mod_jof::ABILITY_SOUNDS,
+    #[cfg(feature = "mod-jof")]
+    sjk_mod_jof::HONOR_NAMES,
     "jof.downloads",
     "jof.contentSource",
     crate::brush_view::CVAR,
@@ -107,10 +132,32 @@ const MODS_ROWS: &[&str] = &[
 
 /// The sounds Sound gathers from Network and Interface after the Sound tab's.
 const NOTIFICATION_SOUNDS: &[&str] = &[
-    crate::sjk_chat_frame::SOUND_CVAR,
     crate::world_ping::SOUND_CVAR,
     crate::quick_wheel::SOUNDS_CVAR,
 ];
+
+/// The chat sounds' rows (`chat_sounds.rs`), which Sound shows last under their
+/// heading: the master switch, then each kind's switch, sound and preview, then the
+/// private messages' taskbar flash.
+const CHAT_SOUND_ROWS: &[&str] = {
+    use crate::chat_sounds::Kind;
+    &[
+        crate::chat_sounds::MASTER_CVAR,
+        Kind::Public.switch_cvar(),
+        Kind::Public.sound_cvar(),
+        Kind::Public.preview_row(),
+        Kind::Team.switch_cvar(),
+        Kind::Team.sound_cvar(),
+        Kind::Team.preview_row(),
+        Kind::Private.switch_cvar(),
+        Kind::Private.sound_cvar(),
+        Kind::Private.preview_row(),
+        Kind::Sjk.switch_cvar(),
+        Kind::Sjk.sound_cvar(),
+        Kind::Sjk.preview_row(),
+        crate::chat_sounds::FLASH_CVAR,
+    ]
+};
 
 /// The quick wheel's rows of the classic Interface, which Advanced's Quick
 /// wheel category and Sound hold.
@@ -247,8 +294,13 @@ impl Group {
                 cvars
             }
             Self::Advanced(Advanced::Sound) => {
-                let mut cvars: Vec<&str> = AUDIO.iter().map(|setting| setting.cvar).collect();
+                let mut cvars: Vec<&str> = AUDIO
+                    .iter()
+                    .map(|setting| setting.cvar)
+                    .filter(|cvar| !CHAT_SOUND_ROWS.contains(cvar))
+                    .collect();
                 cvars.extend_from_slice(NOTIFICATION_SOUNDS);
+                cvars.extend_from_slice(CHAT_SOUND_ROWS);
                 cvars
             }
             _ => self.cvars().to_vec(),
@@ -267,22 +319,74 @@ impl Group {
                 "assetbrowser",
                 "cg_simpleItems",
                 "cg_forceModel",
+                sjk_client::player_model_eligibility::METADATA_CVAR,
+                sjk_client::player_model_eligibility::BLACKLIST_CVAR,
                 "cg_saberTrail",
+                crate::effect_flash::REDUCE_CVAR,
+                crate::saber_clash_flare::CVAR,
+                crate::saber_clash_flare::SIZE_CVAR,
+                crate::team_sabers::TEAM_COLORS_CVAR,
+                crate::team_sabers::CVAR,
+                crate::saber_rgb::black::CVAR,
+                crate::blade_lab_designs::CVAR,
+                crate::duel_blades::CVAR,
+                crate::stock_blades::CVAR,
                 crate::effect_aux::saber_rain_steam::CVAR,
                 "cg_speedTrail",
+                crate::actor_world_submission::force_powers::victim::CVAR,
+                crate::actor_world_submission::force_powers::flame::CVAR,
+                crate::holstered_sabers::CVAR,
+                crate::holstered_sabers::SUPPORT_CVAR,
+                crate::holstered_sabers::SWAP_CVAR,
+                "cg_holsteredStaffSound",
                 "cg_auraShell",
+                crate::actor_world_submission::force_powers::policy::ANIMATION_CVAR,
+                crate::actor_world_submission::force_powers::policy::EMPOWER_CVAR,
                 "cg_spProtAbsColor",
                 "cg_shieldSphere",
                 "cg_shieldBrightness",
                 crate::duel_ghost::CVAR,
+                crate::duel_visibility::HIDE_OTHERS_CVAR,
+                crate::duel_visibility::CORPSES_CVAR,
+                crate::duel_visibility::PICKUPS_CVAR,
+                crate::map_edits::CVAR,
+                crate::remap_blocked_maps::SERVER_CVAR,
                 "cg_remaps",
+                crate::hax::TRAP_CVAR,
+                crate::hax::AWAY_CVAR,
+                crate::monitor::SHOW_CVAR,
+                crate::boombox::RANGE_CVAR,
                 crate::camera::STYLE_CVAR,
                 "cg_drawGun",
+                "cg_fovViewmodel",
+                "cg_cameraFPS",
+                "cg_thirdPersonRange",
+                "cg_thirdPersonAngle",
+                "cg_thirdPersonPitchOffset",
+                "cg_thirdPersonVertOffset",
+                "cg_thirdPersonHorzOffset",
                 "cg_thirdPersonCameraDamp",
                 "cg_thirdPersonTargetDamp",
+                "cg_wallGrabLock",
+                crate::held_view::LOOK_CVAR,
                 "cg_errorDecay",
                 "mod_japlus",
+                #[cfg(feature = "mod-japlus")]
+                sjk_mod_japlus::anti_kiss::CVAR,
+                "mod_japro",
+                #[cfg(feature = "mod-japro")]
+                sjk_mod_japro::movement_styles::PREDICT_ANYWAY_CVAR,
                 "mod_jof",
+                #[cfg(feature = "mod-jof")]
+                sjk_mod_jof::destruction::CVAR,
+                #[cfg(feature = "mod-jof")]
+                sjk_mod_jof::dialogue::CVAR,
+                #[cfg(feature = "mod-jof")]
+                sjk_mod_jof::EJK_OPT_IN,
+                #[cfg(feature = "mod-jof")]
+                sjk_mod_jof::ABILITY_SOUNDS,
+                #[cfg(feature = "mod-jof")]
+                sjk_mod_jof::HONOR_NAMES,
                 "jof.downloads",
                 "jof.contentSource",
                 crate::brush_view::CVAR,
@@ -291,6 +395,8 @@ impl Group {
             ],
             Self::Interface => &[
                 crate::menu::style::CVAR,
+                crate::support_links::CVAR,
+                crate::menu_pictures::CVAR,
                 crate::rarity_fx::CVAR,
                 crate::game_font::CVAR,
                 crate::text::style::SCALE_CVAR,
@@ -298,9 +404,12 @@ impl Group {
                 crate::console::console_options::STYLE_CVAR,
                 "con_scale",
                 crate::console::console_options::DRAW_NOTIFY_CVAR,
+                crate::console::console_options::COPY_COLORS_CVAR,
+                crate::console::console_options::SHIFT_HEIGHT_CVAR,
                 crate::text::charset::CVAR,
                 crate::quick_wheel::pages::FILE,
                 crate::quick_wheel::SOUNDS_CVAR,
+                crate::player_trades::SIZE_CVAR,
             ],
             Self::Hud => &[
                 "cg_drawHud",
@@ -310,6 +419,7 @@ impl Group {
                 "cg_classicHudFont",
                 "cg_drawStatus",
                 "cg_drawWeapon",
+                "cg_drawInventory",
                 "cg_crosshair",
                 "cg_crosshairSize",
                 "cg_hitMarker",
@@ -326,11 +436,9 @@ impl Group {
                 "cg_nameplateNear",
                 "cg_nameplateScale",
                 "cg_nameplateBars",
-                "cg_nameplateForce",
-                "cg_nameplateShare",
-                "cg_nameplateEstimate",
                 "cg_nameplateWeapon",
                 "cg_nameplateSelf",
+                "cg_nameplateHideDuelers",
                 "cg_nameplateIcons",
                 "cg_nameplateDuel",
                 "cg_nameplateWalls",
@@ -340,22 +448,33 @@ impl Group {
                 "cg_drawFps",
                 "cg_drawTimer",
                 "cg_drawTimerUpperRight",
+                "cg_drawTeamScores",
+                "cg_teamScoresBoxes",
+                "cg_teamScoresScale",
+                "cg_drawFlagStatus",
                 crate::version_overlay::CVAR,
                 "cg_speedometer",
                 crate::hud::movement::LINES_ROW,
+                crate::hud::movement::AURA_CVAR,
+                crate::hud::movement::AURA_GROUND_CVAR,
                 "cg_lagometer",
                 "cg_lagometerScale",
                 "cg_killfeed",
                 crate::ground_hud::CVAR,
                 "cg_drawChat",
+                crate::chat::pm_only::CVAR,
+                "cg_chatBoxFontSize",
                 crate::chat::emoji::CVAR,
                 crate::chat::reply::REMEMBER_CVAR,
+                crate::chat::options::LINE_SPACING_CVAR,
                 "cg_chatBoxLetterSpacing",
+                crate::chat::options::CARD_SCALE_CVAR,
             ],
             Self::Scoreboard => &[
                 crate::scoreboard::style::CVAR,
                 crate::scoreboard::style::COMPACT_CVAR,
                 crate::scoreboard::style::FPS_CVAR,
+                crate::scoreboard::AFK_CVAR,
                 "cg_showClientIDs",
                 crate::jof_tag::CVAR,
                 "cg_drawScoreboardIcons",
@@ -366,6 +485,7 @@ impl Group {
                 "r_fullscreen",
                 "r_vsync",
                 "com_maxfps",
+                crate::runtime_settings::MENU_CAP_CVAR,
                 crate::gameplay_fps::CVAR,
                 crate::server_caps::OVERRIDE_CVAR,
                 crate::runtime_settings::MONITOR_CAP_CVAR,
@@ -378,8 +498,10 @@ impl Group {
                 super::catalog::IDENTITY_ROW,
                 crate::installed_models::CVAR,
                 "cl_hubUrl",
+                crate::holocron_popup::NOTIFICATIONS_CVAR,
                 crate::crash_report::CVAR,
                 crate::settings_usage::CVAR,
+                crate::discord_presence::CVAR,
                 "rate",
                 "snaps",
                 "cl_master",
@@ -387,6 +509,7 @@ impl Group {
             ],
             Self::Simple(Simple::Display) => &[
                 "r_resolution",
+                crate::frame_target::scale::CVAR,
                 "r_fullscreen",
                 "r_vsync",
                 "com_maxfps",
@@ -400,15 +523,24 @@ impl Group {
                 "cg_marks",
                 "cg_shadows",
             ],
-            Self::Simple(Simple::Sound) => &["s_volume", "s_musicVolume", "snd_mute_losefocus"],
+            Self::Simple(Simple::Sound) => &[
+                "s_volume",
+                "s_musicVolume",
+                crate::audio::VOICE_VOLUME_CVAR,
+                "snd_mute_losefocus",
+            ],
             Self::Simple(Simple::Controls) => &["sensitivity", "m_invert", "cl_run"],
             Self::Simple(Simple::Gameplay) => &[
                 crate::camera::STYLE_CVAR,
                 crate::gameplay_fps::CVAR,
                 "cg_drawGun",
                 "cg_saberTrail",
+                crate::effect_flash::REDUCE_CVAR,
+                crate::duel_blades::CVAR,
                 "cg_forceModel",
                 "cg_auraShell",
+                crate::away_emote::SJK_CVAR,
+                crate::away_emote::JAPLUS_CVAR,
             ],
             Self::Simple(Simple::Hud) => &[
                 crate::menu_hud::STYLE_CVAR,
@@ -423,16 +555,20 @@ impl Group {
                 "cg_speedometer",
                 "cg_killfeed",
                 "cg_drawChat",
+                "cg_chatBoxFontSize",
             ],
             Self::Simple(Simple::General) => &[
                 crate::menu::style::CVAR,
                 crate::text::style::SCALE_CVAR,
+                crate::player_trades::SIZE_CVAR,
                 super::catalog::IMPORT_ROW,
                 "jof.downloads",
                 "cl_autoUpdate",
                 "cl_sjkChat",
+                crate::holocron_popup::NOTIFICATIONS_CVAR,
                 crate::crash_report::CVAR,
                 crate::settings_usage::CVAR,
+                crate::discord_presence::CVAR,
                 super::catalog::IDENTITY_ROW,
             ],
             Self::Advanced(Advanced::Chat) => CHAT_ROWS,
@@ -450,6 +586,7 @@ impl Group {
                 ("assetbrowser", "Asset packs"),
                 ("cg_simpleItems", "Items and models"),
                 ("cg_saberTrail", "Effects"),
+                (crate::hax::TRAP_CVAR, "Toys"),
                 (crate::camera::STYLE_CVAR, "Camera and prediction"),
                 (crate::brush_view::CVAR, "Map tools"),
             ],
@@ -476,11 +613,14 @@ impl Group {
             Self::Advanced(Advanced::Sound) => &[
                 ("s_volume", "Game"),
                 (crate::emotes::VOLUME_CVAR, "Emotes"),
+                (crate::toy_sounds::VOLUME_CVAR, "Toys"),
                 (crate::unlock_toast::SOUND_CVAR, "Notifications"),
+                (crate::chat_sounds::MASTER_CVAR, "Chat sounds"),
             ],
             Self::Advanced(Advanced::Gameplay) => &[
                 ("cg_simpleItems", "Items and models"),
                 ("cg_saberTrail", "Effects"),
+                (crate::hax::TRAP_CVAR, "Toys"),
                 (crate::camera::STYLE_CVAR, "Camera and prediction"),
             ],
             Self::Advanced(Advanced::Interface) => &[
@@ -717,7 +857,7 @@ mod tests {
         for simple in Simple::ALL {
             let rows = Group::Simple(simple).rows();
             assert!(
-                (3..=12).contains(&rows.len()),
+                (3..=13).contains(&rows.len()),
                 "{simple:?}: {} rows",
                 rows.len()
             );
@@ -727,6 +867,93 @@ mod tests {
             Group::Simple(Simple::Graphics).rows()[0].cvar,
             crate::graphics_quality::ROW_NAME
         );
+    }
+
+    #[test]
+    fn chat_text_size_is_offered_in_every_settings_mode() {
+        let has_size = |group: Group| {
+            group
+                .rows()
+                .iter()
+                .any(|setting| setting.cvar.eq_ignore_ascii_case("cg_chatBoxFontSize"))
+        };
+        assert!(has_size(Group::Hud), "classic+ HUD");
+        assert!(has_size(Group::Advanced(Advanced::Chat)), "SJK Advanced");
+        assert!(has_size(Group::Simple(Simple::Hud)), "SJK Simple");
+    }
+
+    #[test]
+    fn console_text_size_stays_in_the_full_settings_modes() {
+        let has_size = |group: Group| {
+            group
+                .rows()
+                .iter()
+                .any(|setting| setting.cvar.eq_ignore_ascii_case("con_scale"))
+        };
+        assert!(has_size(Group::Interface), "classic+ Interface");
+        assert!(
+            has_size(Group::Advanced(Advanced::Interface)),
+            "SJK Advanced"
+        );
+        assert!(!has_size(Group::Simple(Simple::General)), "SJK Simple");
+    }
+
+    #[test]
+    fn console_colour_copy_stays_in_the_full_interface_settings() {
+        let has_switch = |group: Group| {
+            group.rows().iter().any(|setting| {
+                setting
+                    .cvar
+                    .eq_ignore_ascii_case(crate::console::console_options::COPY_COLORS_CVAR)
+            })
+        };
+        assert!(has_switch(Group::Interface), "classic+ Interface");
+        assert!(
+            has_switch(Group::Advanced(Advanced::Interface)),
+            "SJK Advanced"
+        );
+        assert!(!has_switch(Group::Simple(Simple::General)), "SJK Simple");
+    }
+
+    #[test]
+    fn ejk_camera_rows_stay_together_in_classic_and_advanced_gameplay() {
+        let expected = [
+            crate::camera::STYLE_CVAR,
+            "cg_drawGun",
+            "cg_fovViewmodel",
+            "cg_cameraFPS",
+            "cg_thirdPersonRange",
+            "cg_thirdPersonAngle",
+            "cg_thirdPersonPitchOffset",
+            "cg_thirdPersonVertOffset",
+            "cg_thirdPersonHorzOffset",
+            "cg_thirdPersonCameraDamp",
+            "cg_thirdPersonTargetDamp",
+            "cg_wallGrabLock",
+            crate::held_view::LOOK_CVAR,
+            "cg_errorDecay",
+        ];
+        for group in [Group::GameOptions, Group::Advanced(Advanced::Gameplay)] {
+            let rows: Vec<&str> = group.rows().iter().map(|setting| setting.cvar).collect();
+            assert!(
+                rows.windows(expected.len())
+                    .any(|window| window == expected)
+            );
+        }
+
+        let float_range = |cvar| match find(cvar).unwrap().kind() {
+            ValueKind::Float { min, max, step } => (min, max, step),
+            _ => panic!("{cvar} is not a float slider"),
+        };
+        assert_eq!(float_range("cg_fovViewmodel"), (0.0, 120.0, 5.0));
+        assert_eq!(float_range("cg_thirdPersonRange"), (40.0, 500.0, 5.0));
+        assert_eq!(float_range("cg_thirdPersonAngle"), (-180.0, 180.0, 5.0));
+        assert_eq!(
+            float_range("cg_thirdPersonPitchOffset"),
+            (-129.0, 50.0, 1.0)
+        );
+        assert_eq!(float_range("cg_thirdPersonVertOffset"), (-58.0, 80.0, 1.0));
+        assert_eq!(float_range("cg_thirdPersonHorzOffset"), (-64.0, 64.0, 1.0));
     }
 
     #[test]

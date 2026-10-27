@@ -17,10 +17,18 @@ pub(crate) struct GhostSpec {
     pub(crate) spacing_millis: f32,
     /// The first one's brightness; each next is this much of the one before.
     pub(crate) fade: f32,
+    /// Kept in the wearer's own frame (Creyon's signature blades, round 12): turning the
+    /// view or running moves the whole body, which leaves no afterimage; only the blade's
+    /// own swing does.
+    pub(crate) wearer: bool,
 }
 
 /// How far (units) a kept pose's tip must be from the blade's for it to be drawn.
 const MOVED: f32 = 1.5;
+
+/// The faintest afterimage drawn: one dimmer barely shows over the others and the scene
+/// (the Spectral's fourth, 0.45⁴ ≈ 0.04, hub report 64).
+const FAINTEST: f32 = 0.06;
 
 /// One blade's kept poses, newest first.
 #[derive(Clone, Copy, Debug, Default)]
@@ -53,6 +61,18 @@ impl GhostTrail {
         color: BladeColor,
         spec: GhostSpec,
     ) -> impl Iterator<Item = Instance> + '_ {
+        self.instances_placed(blade, color, spec, |pose| pose)
+    }
+
+    /// [`Self::instances`] for poses kept in another frame (the wearer's): `blade` in that
+    /// frame too, and `place` taking a pose back to the world before it is drawn.
+    pub(crate) fn instances_placed<'s>(
+        &'s self,
+        blade: Blade,
+        color: BladeColor,
+        spec: GhostSpec,
+        place: impl Fn(Blade) -> Blade + 's,
+    ) -> impl Iterator<Item = Instance> + 's {
         let tip = |b: &Blade| {
             glam::Vec3::from_array(b.base) + glam::Vec3::from_array(b.direction) * b.length
         };
@@ -63,10 +83,9 @@ impl GhostTrail {
             .enumerate()
             .filter_map(move |(index, pose)| {
                 let pose = (*pose)?;
-                (tip(&pose).distance(now_tip) >= MOVED).then(|| {
-                    let fade = spec.fade.powi(index as i32 + 1);
-                    Instance::ghost(pose, color, fade)
-                })
+                let fade = spec.fade.powi(index as i32 + 1);
+                (fade >= FAINTEST && tip(&pose).distance(now_tip) >= MOVED)
+                    .then(|| Instance::ghost(place(pose), color, fade))
             })
     }
 }
@@ -85,6 +104,7 @@ mod tests {
     }
 
     const SPEC: GhostSpec = GhostSpec {
+        wearer: false,
         count: 3,
         spacing_millis: 40.0,
         fade: 0.5,
@@ -112,6 +132,24 @@ mod tests {
         }
         // From the newest pose itself, that one is skipped.
         assert_eq!(trail.instances(blade(40.0), color, SPEC).count(), 2);
+        // Each is marked as an afterimage, drawn as the plain capsule.
+        assert!(
+            trail
+                .instances(blade(50.0), color, SPEC)
+                .all(|i| i.is_afterimage())
+        );
+        // One fainter than `FAINTEST` is left out: the Spectral's fourth.
+        let spectral = GhostSpec {
+            wearer: false,
+            count: 4,
+            fade: 0.45,
+            ..SPEC
+        };
+        let fades: Vec<f32> = trail
+            .instances(blade(50.0), color, spectral)
+            .map(|i| i.fade())
+            .collect();
+        assert_eq!(fades.len(), 3, "{fades:?}");
     }
 
     #[test]

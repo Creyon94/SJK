@@ -26,7 +26,7 @@ use crate::game_font::GameFonts;
 use crate::menu::emblem::{self, EmblemLayer};
 use crate::menu::sjk::chat_dock::{self, ChatDock, Dock};
 use crate::menu::sjk::{
-    Frame, TextTarget, color, fade, fade_across, key_hint, key_hint_width, text,
+    Frame, TextTarget, color, fade, fade_across, key_hint, key_hint_width, kit, text,
 };
 use crate::menu_widgets::{MenuCanvas, TextFamily};
 use crate::text::{TextVertex, UiFont};
@@ -130,7 +130,7 @@ pub(crate) fn row_count(page: Page, team_game: bool) -> Option<usize> {
 /// with [`return_focus`] on the card). `None` closes the menu.
 pub(crate) fn parent(page: Page) -> Option<(Page, usize)> {
     Some(match page {
-        Page::Main | Page::Shot => return None,
+        Page::Main | Page::Shot | Page::MapEdit => return None,
         Page::Team | Page::Siege | Page::CallVote => (Page::Main, Entry::Resume.index()),
         Page::Players => (Page::Main, Entry::Players.index()),
         // The chosen player's row: `sjk_back` takes it from the roster.
@@ -163,11 +163,11 @@ pub(crate) fn return_focus(page: Page) -> Focus {
 /// Write `label` and `hint` into row `row`.
 fn put(rows: &mut [String], hints: &mut [String], row: usize, label: &str, hint: &str) {
     rows[row].push_str(label);
-    hints[row].push_str(hint);
+    hints[row].push_str(&crate::terms::say(hint));
 }
 
 /// "1 player", "4 players".
-struct Players(usize);
+pub(super) struct Players(pub(super) usize);
 
 impl std::fmt::Display for Players {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -275,8 +275,8 @@ pub(super) fn prepare(view: &View<'_>, rows: &mut [String], hints: &mut [String]
     row_count(view.page, view.team_game)
 }
 
-/// Rows of the shared pages written "label  /  detail" (Siege's team row, a
-/// client number to kick) keep the label; the detail becomes the hint. A game
+/// Rows of the shared pages written "label  /  detail" (Siege's sides and
+/// classes, a client number to kick) keep the label; the detail becomes the hint. A game
 /// type's number is left out.
 pub(super) fn split_hints(page: Page, rows: &mut [String], hints: &mut [String]) {
     for (row, hint) in rows.iter_mut().zip(hints.iter_mut()) {
@@ -294,10 +294,11 @@ pub(super) fn split_hints(page: Page, rows: &mut [String], hints: &mut [String])
 /// The page's name over its first entry; none on the main page.
 fn page_title(page: Page, siege: bool) -> Option<&'static str> {
     Some(match page {
-        Page::Main | Page::Shot => return None,
+        Page::Main | Page::Shot | Page::MapEdit => return None,
         Page::Team if siege => "Class",
         Page::Team => "Team",
-        Page::Siege => "Choose your class",
+        // Its step's own title comes with the rows (`Rows::title`).
+        Page::Siege => "Choose your team",
         Page::Vote => "Vote",
         Page::CallVote => "Call a vote",
         Page::VoteMap => "Change map",
@@ -358,6 +359,8 @@ const MEDAL_PITCH: f32 = 44.0;
 const KEYS_Y: f32 = 1004.0;
 /// Pointer token of the player's profile card, bottom left (`profile_card`).
 pub(crate) const CARD_TOKEN: u16 = 900;
+/// Pointer token of Trade on the Players page's player card (`crate::player_trades`).
+pub(crate) const TRADE_TOKEN: u16 = 901;
 /// The docked SJK chat on the main page: in the match card's column, under its controls
 /// (Sol's layout, 11/10/2026: the card moved up and the chat squeezed in under it, so
 /// the middle of the screen shows the match), its last line near the frame's foot, right
@@ -470,6 +473,10 @@ pub(super) struct Rows<'a> {
     pub(super) labels: &'a [String],
     pub(super) hints: &'a [String],
     pub(super) enabled: &'a [bool],
+    /// Each row's team mark (1 red, 2 blue) beside its label, if any.
+    pub(super) marks: &'a [Option<u8>],
+    /// The page's name when it depends on more than the page (Siege's step).
+    pub(super) title: Option<&'static str>,
 }
 
 /// The main page beyond its list: the icons of the row under the emblem, the match
@@ -539,13 +546,16 @@ pub(super) fn build(
     }
     match player {
         Some(player) => {
-            let blocked = roster.gate().reason().or_else(|| player.unreportable());
+            let blocked = roster.blocked_for(player);
             let status = match (blocked, view.page) {
                 (Some(reason), _) => reason,
                 (None, Page::Players) => "Enter: report this player",
+                (None, _) if roster.whispered_by(player) => {
+                    "Choose why: their last encrypted whisper goes with it"
+                }
                 (None, _) => "Choose why, then say what happened",
             };
-            player_card(
+            let under = player_card(
                 canvas,
                 &frame,
                 player,
@@ -553,6 +563,16 @@ pub(super) fn build(
                 status,
                 blocked.is_none(),
             );
+            // Trade, for another SJK player: gold when it can go, else why not.
+            if !player.you && !player.bot && player.hub.is_some() {
+                trade_button(
+                    canvas,
+                    &frame,
+                    under,
+                    roster.trade_blocked_for(player),
+                    &crate::terms::say(roster.trade_hint()),
+                );
+            }
         }
         None if card.known => {
             let main = view.page == Page::Main;
@@ -787,7 +807,7 @@ fn entries(canvas: &mut MenuCanvas, frame: &Frame, view: &View<'_>, rows: &Rows<
         return;
     }
     let m = metrics(count);
-    if let Some(title) = page_title(view.page, view.siege) {
+    if let Some(title) = rows.title.or_else(|| page_title(view.page, view.siege)) {
         let offset = entry_offset(0, count) - m.pitch.max(56.0);
         let x = CENTRE[0]
             + (TEXT_RADIUS * TEXT_RADIUS - offset * offset)
@@ -833,7 +853,7 @@ fn entries(canvas: &mut MenuCanvas, frame: &Frame, view: &View<'_>, rows: &Rows<
             );
         } else {
             // A compact page has no room under the chosen entry: the row's
-            // detail (a client number, Siege's other team) follows its label.
+            // detail (a client number, a Siege class's side) follows its label.
             text(
                 canvas,
                 TextFamily::Display,
@@ -857,12 +877,7 @@ fn entries(canvas: &mut MenuCanvas, frame: &Frame, view: &View<'_>, rows: &Rows<
                 TextAlign::Start,
             );
         }
-        let team = match (view.page, view.team_game, row) {
-            (Page::Team, true, 1) => Some(1),
-            (Page::Team, true, 2) => Some(2),
-            _ => None,
-        };
-        if let Some(team) = team {
+        if let Some(team) = rows.marks.get(row).copied().flatten() {
             let height = size * 0.62;
             let _ = canvas.draw_list_mut().push(DrawCommand::RoundedRect {
                 rect: frame.rect(x - 14.0, y - height * 0.5, 5.0, height),
@@ -1162,7 +1177,7 @@ fn player_card(
     team_game: bool,
     status: &str,
     open: bool,
-) {
+) -> f32 {
     let s = frame.s;
     let rule = |canvas: &mut MenuCanvas, y: f32| {
         fade_across(
@@ -1292,12 +1307,13 @@ fn player_card(
     );
     y += 38.0;
     if let Some(hub) = &player.hub {
-        // The player's own key stays off screen; "Known as" alone then.
-        let key = crate::player_identity::printable_key_id(&hub.key_id).map_or_else(
-            || "Known as".to_owned(),
-            |key| format!("Key {key}, known as"),
+        // Key ids never show in the game, the player's own or anyone else's.
+        body(
+            canvas,
+            y,
+            color::QUIET,
+            format_args!("Known as {}", hub.name),
         );
-        body(canvas, y, color::QUIET, format_args!("{key} {}", hub.name));
     }
     y += 40.0;
     // The medals the SJK team gave them: medallions with their names, two a line.
@@ -1392,6 +1408,44 @@ fn player_card(
             TextAlign::Start,
         );
     }
+    y + 44.0
+}
+
+/// The Trade button's width, and its words beside it on one line: the hint, or why not
+/// (Creyon, 24/10/2026: at 220 the hint was cut off).
+const TRADE_BUTTON_W: f32 = 140.0;
+const TRADE_WORDS_X: f32 = CARD_X + TRADE_BUTTON_W + 14.0;
+const TRADE_WORDS_W: f32 = CARD_X + CARD_WIDTH - TRADE_WORDS_X;
+const TRADE_WORDS_SIZE: f32 = 16.0;
+
+/// Trade on the player card, under its status line: the gold button when the player can
+/// be asked (`blocked` none) with what it does (`hint`), else the button dimmed and why.
+fn trade_button(canvas: &mut MenuCanvas, frame: &Frame, y: f32, blocked: Option<&str>, hint: &str) {
+    kit::button(
+        canvas,
+        frame,
+        [CARD_X, y, TRADE_BUTTON_W, 50.0],
+        "Trade",
+        true,
+        blocked.is_none(),
+        false,
+        TRADE_TOKEN,
+    );
+    let words = blocked.unwrap_or(hint);
+    text(
+        canvas,
+        TextFamily::Body,
+        format_args!("{words}"),
+        frame.rect(TRADE_WORDS_X, y + 13.0, TRADE_WORDS_W, 24.0),
+        TRADE_WORDS_SIZE * frame.s,
+        if blocked.is_none() {
+            color::MUTED
+        } else {
+            color::QUIET
+        },
+        FontWeight::Regular,
+        TextAlign::Start,
+    );
 }
 
 /// What the player is in the match.
@@ -1949,11 +2003,13 @@ mod tests {
             text: "anyone up for duels on ffa3?",
             verified: true,
             staff: false,
+            creator: false,
             trust: None,
             emoji: "",
             key_id: "0123456789abcdef",
             tier: None,
             gif: None,
+            official: None,
         },
         chat_dock::DockLine {
             name: "Kyle",
@@ -1961,22 +2017,26 @@ mod tests {
                    too small at 4K and the clock could move a little to the left",
             verified: false,
             staff: false,
+            creator: false,
             trust: None,
             emoji: "",
             key_id: "00000000000000ff",
             tier: None,
             gif: None,
+            official: None,
         },
         chat_dock::DockLine {
             name: "^1Fox",
             text: "in 5 min",
             verified: false,
             staff: false,
+            creator: false,
             trust: None,
             emoji: "",
             key_id: "fedcba9876543210",
             tier: None,
             gif: None,
+            official: None,
         },
     ];
 
@@ -2076,6 +2136,8 @@ mod tests {
                         labels: &labels,
                         hints: &hints,
                         enabled: &enabled,
+                        marks: &[],
+                        title: None,
                     },
                     &Sides {
                         card: &card,
@@ -2133,6 +2195,8 @@ mod tests {
                         labels: &labels,
                         hints: &hints,
                         enabled: &enabled,
+                        marks: &[],
+                        title: None,
                     },
                     &Sides {
                         card: &card,
@@ -2231,6 +2295,8 @@ mod tests {
                         labels: &labels,
                         hints: &hints,
                         enabled: &enabled,
+                        marks: &[],
+                        title: None,
                     },
                     &Sides {
                         card: &card,
@@ -2315,6 +2381,8 @@ mod tests {
                         labels: &labels,
                         hints: &hints,
                         enabled: &enabled,
+                        marks: &[],
+                        title: None,
                     },
                     &Sides {
                         card: &card,
@@ -2398,6 +2466,8 @@ mod tests {
                         labels: &labels,
                         hints: &hints,
                         enabled: &enabled,
+                        marks: &[],
+                        title: None,
                     },
                     &Sides {
                         card: &card,
@@ -2477,13 +2547,13 @@ mod tests {
     #[test]
     fn shared_rows_keep_their_label_and_move_the_detail_to_the_hint() {
         let (mut labels, mut hints, _) = rows([
-            "Red team  /  switch to Blue",
+            "Red team  /  Your team, 4 players",
             "Padawan  /  client 3",
             "Back",
         ]);
         split_hints(Page::VoteClientKick, &mut labels, &mut hints);
         assert_eq!(labels, ["Red team", "Padawan", "Back"]);
-        assert_eq!(hints, ["switch to Blue", "client 3", ""]);
+        assert_eq!(hints, ["Your team, 4 players", "client 3", ""]);
         let (mut labels, mut hints, _) = rows(["Duel  /  3"]);
         split_hints(Page::VoteGameType, &mut labels, &mut hints);
         assert_eq!((labels[0].as_str(), hints[0].as_str()), ("Duel", ""));
@@ -2637,5 +2707,98 @@ mod tests {
         assert_eq!(motion.towards(0.5, 10.0), 0.5);
         let next = motion.towards(-0.2, 10.05);
         assert!(next < 0.5 && next > -0.2);
+    }
+
+    /// Trade sits on the Players page's player card, under its status line, for another
+    /// SJK player: lit while the hub lets players trade, dimmed with why otherwise, and
+    /// never for the player themselves.
+    #[test]
+    fn the_players_card_offers_trade_to_another_sjk_player() {
+        let card = Card::for_shot(false, false);
+        let labels = vec!["Player".to_owned(); 9];
+        let hints = vec!["A line".to_owned(); 9];
+        let enabled = vec![true; 9];
+        let draw = |roster: &players::State, row: usize| {
+            let mut canvas = MenuCanvas::new();
+            let mut extras = Extras::NONE;
+            build(
+                &mut canvas,
+                &view(Page::Players, row, false, 0),
+                &Rows {
+                    labels: &labels,
+                    hints: &hints,
+                    enabled: &enabled,
+                    marks: &[],
+                    title: None,
+                },
+                &Sides {
+                    card: &card,
+                    players: roster,
+                },
+                &mut extras,
+                &mut Motion::default(),
+                [1920.0, 1080.0],
+            );
+            canvas
+        };
+        let mut roster = players::State::for_shot(8, false, players::Gate::Open);
+        let row = |roster: &players::State, slot: u8| {
+            roster.shown().iter().position(|p| p.slot == slot).unwrap()
+        };
+        let other = row(&roster, 0);
+        let canvas = draw(&roster, other);
+        let texts: Vec<String> = canvas.text_runs().map(str::to_owned).collect();
+        assert!(canvas.rect_for(TRADE_TOKEN).is_some(), "{texts:?}");
+        assert!(
+            texts
+                .iter()
+                .any(|t| t == "Trading is not open on the SJK hub"),
+            "{texts:?}"
+        );
+        roster.set_trading(true, true);
+        let canvas = draw(&roster, other);
+        let button = canvas.rect_for(TRADE_TOKEN).expect("Trade");
+        assert!(
+            button.bottom() < 1004.0 - 24.0,
+            "above the keys: {button:?}"
+        );
+        let texts: Vec<String> = canvas.text_runs().map(str::to_owned).collect();
+        assert!(
+            texts
+                .iter()
+                .any(|t| t == "Swap holocrons and duplicate shaders"),
+            "{texts:?}"
+        );
+        // Not for the player themselves.
+        let canvas = draw(&roster, row(&roster, 2));
+        assert!(canvas.rect_for(TRADE_TOKEN).is_none());
+    }
+
+    /// Every line beside Trade fits on one line in the card, in the SJK UI's fonts
+    /// (Inter, and Exo 2 for the other text style), with room for the text scale of 1.2:
+    /// measured from the fonts' own advances at the line height the text is set at, as
+    /// `crate::text::display_width` does.
+    #[test]
+    fn the_trade_buttons_words_fit_on_one_line() {
+        use fontdue::{Font, FontSettings};
+        let faces: [&[u8]; 2] = [
+            include_bytes!("../../assets/fonts/Inter-Regular.ttf"),
+            include_bytes!("../../assets/fonts/Exo2-Regular.ttf"),
+        ];
+        for bytes in faces {
+            let font = Font::from_bytes(bytes, FontSettings::default()).unwrap();
+            let line = font.horizontal_line_metrics(100.0).unwrap().new_line_size;
+            for words in players::State::TRADE_LINES {
+                let advances: f32 = words
+                    .chars()
+                    .map(|c| font.metrics(c, 100.0).advance_width)
+                    .sum();
+                let width = advances / line * TRADE_WORDS_SIZE * 1.2;
+                assert!(
+                    width <= TRADE_WORDS_W,
+                    "{words}: {width:.0} of {TRADE_WORDS_W:.0}"
+                );
+            }
+        }
     }
 }

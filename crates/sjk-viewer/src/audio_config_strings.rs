@@ -52,6 +52,12 @@ impl GameAudio {
         vfs: &VirtualFileSystem,
     ) {
         changes.visit(|index| {
+            // CS_SERVERINFO: the flame contract follows the same detection the
+            // visuals re-run each frame (a mid-map gamename change included).
+            if index == 0 {
+                self.flame.detected =
+                    crate::actor_world_submission::force_powers::flame::detect(Some(game));
+            }
             if matches!(index, 32 | 37..=292 | 811..=1066) {
                 self.refresh_sound_table(index, game, vfs);
             }
@@ -119,11 +125,15 @@ impl GameAudio {
             return;
         }
         self.music_value = Some(value.to_vec());
+        // `cgs.musicStartTime = cg.time`: a mid-level `target_play_music` starts
+        // its track now, so a later resync is timed from here, not the level start.
+        self.music_start_time = self
+            .last_server_time
+            .unwrap_or_else(|| super::music::level_start_time(game));
         if let Some(music) = assets::game_music(game) {
             self.start_music(vfs, &music);
         } else {
-            self.map_music = None;
-            self.output.stop_music();
+            self.clear_music();
         }
     }
 }

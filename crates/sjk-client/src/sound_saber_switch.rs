@@ -493,14 +493,42 @@ impl LegacySoundAdapter {
     }
 
     /// What `client` plays for `switch`: each hand's own (`soundOn`/`soundOff` or their
-    /// defaults), then its blade skin's one sound on top when it wears one.
+    /// defaults), then its blade skin's one sound on top when it wears one, or that sound
+    /// alone with `s_saberSkinSounds 2`.
     fn switch_sounds(&self, client: u16, switch: Switch) -> [Option<u16>; 3] {
         let skin = match switch {
             Switch::On => self.saber_overrides.on(client),
             Switch::Off => self.saber_overrides.off(client),
         };
+        if skin.is_some() && self.saber_overrides.only {
+            return [None, None, skin];
+        }
         let [first, second] = self.saber_switch.hands(client).sounds(switch);
         [first, second, skin]
+    }
+
+    /// Both hilt slots and optional blade-skin layer, for ignition then shutdown.
+    /// Uses the registered switch catalog, including default and custom sounds;
+    /// a renderer may synchronize these starts with an attachment handoff.
+    pub fn saber_switch_handles(&self, client: u16) -> [[Option<sjk_audio::SoundHandle>; 3]; 2] {
+        [Switch::On, Switch::Off].map(|switch| {
+            let sounds = self.switch_sounds(client, switch);
+            sounds.map(|index| index.and_then(|index| self.sound(index)?.handle))
+        })
+    }
+
+    /// Whether a saber on/off sound `client` makes outside this adapter at snapshot
+    /// `server_time` plays, paying for it from the toggle spam cap
+    /// ([`super::saber_toggle_limit`]): a holstered staff's shutdown at its reach.
+    pub fn allow_saber_toggle(&mut self, client: u16, server_time: i32) -> bool {
+        self.saber_toggle_limit.allow(client, server_time)
+    }
+
+    /// Give back the toggle a decision of `client`'s at snapshot `server_time` paid
+    /// for, when the renderer drops it as a late copy of a toggle already paid for
+    /// (a holstered staff's weapon switch shutdown); once for all its hilts.
+    pub fn refund_saber_toggle(&mut self, client: u16, server_time: i32) {
+        self.saber_toggle_limit.refund(client, server_time);
     }
 
     /// `EV_SABER_UNHOLSTER` from a client: each hand's `soundOn`
@@ -516,7 +544,8 @@ impl LegacySoundAdapter {
         );
     }
 
-    /// `S_StartSound(origin, number, CHAN_AUTO, sound)` for each set hand.
+    /// `S_StartSound(origin, number, CHAN_AUTO, sound)` for each set hand, unless
+    /// the client's toggle spam is capped ([`super::saber_toggle_limit`]).
     fn emit_hands(
         &mut self,
         event: LegacySoundEvent,
@@ -525,6 +554,9 @@ impl LegacySoundAdapter {
         origin: [f32; 3],
         snapshot: &Snapshot,
     ) {
+        if !self.saber_toggle_limit.allow(client, snapshot.server_time) {
+            return;
+        }
         let mut additional = false;
         for sound in sounds.into_iter().flatten() {
             self.emit(

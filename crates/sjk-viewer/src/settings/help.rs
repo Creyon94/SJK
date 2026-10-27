@@ -62,10 +62,19 @@ pub(super) fn row_label(label: &str) -> (&str, Timing) {
 const SHORT_LABELS: &[(&str, &str)] = &[
     ("cg_drawFps", "FPS readout"),
     ("cg_forceModel", "Everyone as my model"),
+    ("cg_fovViewmodel", "Weapon FOV"),
+    ("cg_cameraFPS", "Damping style"),
+    ("cg_thirdPersonRange", "Camera distance"),
+    ("cg_thirdPersonAngle", "Camera angle"),
+    ("cg_thirdPersonPitchOffset", "Camera pitch"),
+    ("cg_thirdPersonVertOffset", "Camera height"),
+    ("cg_thirdPersonHorzOffset", "Camera side"),
     ("cg_thirdPersonCameraDamp", "Camera damping"),
     ("cg_thirdPersonTargetDamp", "Target damping"),
+    ("cg_wallGrabLock", "Lock wall-grab camera"),
+    (crate::held_view::LOOK_CVAR, "Free look when held"),
     ("cg_errorDecay", "Error smoothing"),
-    (crate::ghost_replay::SHOWCASE_CVAR, "Experimental showcase"),
+    (crate::ghost_replay::SHOWCASE_CVAR, "Showcase tools"),
     (crate::frame_target::aa::exposure::MIN_EV, "Max darken, EV"),
     (
         crate::frame_target::aa::exposure::MAX_EV,
@@ -90,21 +99,72 @@ pub(super) fn classic_label<'a>(cvar: &str, label: &'a str) -> (&'a str, Timing)
 /// a code: each `(cvar, value, name)`. A value not listed is shown as it is
 /// written ([`super::classic_view::choice_label`]).
 const CHOICE_NAMES: &[(&str, &str, &str)] = &[
+    (crate::chat_sounds::MASTER_CVAR, "0", "Off"),
+    (crate::chat_sounds::MASTER_CVAR, "1", "On"),
+    (crate::chat_sounds::MASTER_CVAR, "2", "Distinct (EJK)"),
+    (crate::camera::STYLE_CVAR, "ejk", "MP camera"),
+    (crate::camera::STYLE_CVAR, "sjk", "SP camera"),
+    (crate::player_trades::SIZE_CVAR, "0", "Small"),
+    (crate::player_trades::SIZE_CVAR, "1", "Normal"),
+    (crate::player_trades::SIZE_CVAR, "2", "Large"),
+    (crate::holocron_popup::NOTIFICATIONS_CVAR, "0", "Off"),
+    (
+        crate::holocron_popup::NOTIFICATIONS_CVAR,
+        "1",
+        "After duels",
+    ),
+    (crate::holocron_popup::NOTIFICATIONS_CVAR, "2", "Always"),
+    (crate::discord_presence::CVAR, "0", "Off"),
+    (crate::discord_presence::CVAR, "1", "On"),
+    (crate::discord_presence::CVAR, "2", "Server hidden"),
+    #[cfg(feature = "mod-jof")]
+    (sjk_mod_jof::destruction::CVAR, "-1", "Auto"),
+    #[cfg(feature = "mod-jof")]
+    (sjk_mod_jof::destruction::CVAR, "0", "Off"),
+    #[cfg(feature = "mod-jof")]
+    (sjk_mod_jof::destruction::CVAR, "1", "Grant contract"),
+    (
+        crate::actor_world_submission::force_powers::flame::CVAR,
+        "-1",
+        "Auto",
+    ),
+    (
+        crate::actor_world_submission::force_powers::flame::CVAR,
+        "0",
+        "Off",
+    ),
+    (
+        crate::actor_world_submission::force_powers::flame::CVAR,
+        "1",
+        "JA+",
+    ),
     (crate::text::charset::CVAR, "auto", "Auto"),
     (crate::text::charset::CVAR, "western", "Western"),
     (crate::text::charset::CVAR, "cyrillic", "Cyrillic"),
+    (crate::duel_visibility::HIDE_OTHERS_CVAR, "0", "Off"),
+    (crate::duel_visibility::HIDE_OTHERS_CVAR, "1", "Auto"),
+    (crate::duel_visibility::HIDE_OTHERS_CVAR, "2", "Always"),
     (crate::input::idrive::CVAR, "0", "Off"),
     (crate::input::idrive::CVAR, "1", "All keys"),
     (crate::input::idrive::CVAR, "2", "Jump, crouch"),
+    (crate::audio::SKIN_SOUNDS_CVAR, "0", "Off"),
+    (crate::audio::SKIN_SOUNDS_CVAR, "1", "With normal"),
+    (crate::audio::SKIN_SOUNDS_CVAR, "2", "Only skin"),
     (crate::effect_aux::saber_rain_steam::CVAR, "0", "Off"),
     (crate::effect_aux::saber_rain_steam::CVAR, "1", "Everyone"),
     (crate::effect_aux::saber_rain_steam::CVAR, "2", "Only mine"),
+    (crate::stock_blades::CVAR, "0", "Off"),
+    (crate::stock_blades::CVAR, "1", "Others"),
+    (crate::stock_blades::CVAR, "2", "All"),
     ("jof.contentSource", "auto", "Auto"),
     ("jof.contentSource", "mirror", "JoF Cloud"),
     ("jof.contentSource", "origin", "jofhub.eu"),
     ("cg_remaps", "0", "Never"),
     ("cg_remaps", "1", "Not players"),
     ("cg_remaps", "2", "Always"),
+    ("cg_cameraFPS", "125.0", "Default"),
+    ("cg_cameraFPS", "30.0", "Smooth (SP)"),
+    ("cg_cameraFPS", "0.0", "BaseJKA"),
     (crate::brush_view::CVAR, "0", "Off"),
     (crate::brush_view::CVAR, "1", "Gameplay"),
     (crate::brush_view::CVAR, "2", "All"),
@@ -145,6 +205,8 @@ pub(super) fn choice_name(cvar: &str, value: &str) -> Option<&'static str> {
             name.eq_ignore_ascii_case(cvar) && choice.eq_ignore_ascii_case(value.trim())
         })
         .map(|(_, _, shown)| *shown)
+        .or_else(|| crate::away_emote::choice_name(cvar, value))
+        .or_else(|| crate::chat_sounds::choice_name(cvar, value))
 }
 
 /// What the detail column says, in gold, while the SJK renderer is on and a
@@ -153,11 +215,25 @@ pub(super) const ALPHA_WARNING: &str = "The SJK renderer is in alpha: some maps 
     (lighting, shadows, missing surfaces) or run slower. Report them from the SJK menu's Report a \
     bug; Vanilla style is the safe choice.";
 
+/// The settings whose description speaks of SJK's medals and holocrons, which the JoF
+/// tools may rename ([`crate::terms`]); the others' holocrons are the game's pickups.
+const SJK_TERMS: &[&str] = &[
+    crate::unlock_toast::SOUND_CVAR,
+    "cl_identity",
+    crate::holocron_popup::NOTIFICATIONS_CVAR,
+];
+
 /// The description of setting `cvar`.
 pub(super) fn help(cvar: &str) -> Option<&'static str> {
     HELP.iter()
         .find(|(name, _)| name.eq_ignore_ascii_case(cvar))
-        .map(|(_, text)| *text)
+        .map(|&(name, text)| {
+            if SJK_TERMS.contains(&name) {
+                crate::terms::say_static(text)
+            } else {
+                text
+            }
+        })
 }
 
 /// `text` cut into at most [`HELP_LINES`] lines of [`HELP_LINE_CHARS`]
@@ -182,6 +258,47 @@ pub(super) fn lines(text: &str) -> [&str; HELP_LINES] {
 }
 
 const HELP: &[(&str, &str)] = &[
+    #[cfg(feature = "mod-jof")]
+    (
+        sjk_mod_jof::destruction::CVAR,
+        "Auto follows the server flag; Off hides Destruction. Grant contract skips the flag. The server must still grant the power.",
+    ),
+    #[cfg(feature = "mod-jof")]
+    (
+        sjk_mod_jof::dialogue::CVAR,
+        "Show server conversations and their installed voice audio. Off cancels the current conversation; quests remain server-owned.",
+    ),
+    #[cfg(feature = "mod-jof")]
+    (
+        sjk_mod_jof::EJK_OPT_IN,
+        "Advertise JoF EJK extension support on JoF servers with JoF tools on. Enables server confirmations; see Client mods for scope.",
+    ),
+    #[cfg(feature = "mod-jof")]
+    (
+        sjk_mod_jof::ABILITY_SOUNDS,
+        "Play installed Stasis and Repulse sounds when the server confirms firing. Duplicate cues within 250 ms are suppressed.",
+    ),
+    #[cfg(feature = "mod-jof")]
+    (
+        sjk_mod_jof::HONOR_NAMES,
+        "Call medals Honors and holocrons Echoes in every menu and message while JoF tools are on, on every server. On by default.",
+    ),
+    (
+        sjk_client::player_model_eligibility::METADATA_CVAR,
+        "Respect installed NPC-only model declarations and pack lists. Off ignores those rules; your blacklist still applies.",
+    ),
+    (
+        sjk_client::player_model_eligibility::BLACKLIST_CVAR,
+        "Model names separated by spaces, commas or semicolons. Players use Kyle instead; NPCs are unaffected.",
+    ),
+    (
+        "cg_drawInventory",
+        "Permanent list of carried items, off by default. Cycling items still shows the inventory selector.",
+    ),
+    (
+        crate::actor_world_submission::force_powers::flame::CVAR,
+        "Flame visuals, pose and sound: Auto detects JA+ servers; Off disables them; JA+ forces support. Needs installed flame assets.",
+    ),
     // VIDEO
     (
         crate::graphics_quality::ROW_NAME,
@@ -202,6 +319,10 @@ const HELP: &[(&str, &str)] = &[
     (
         "com_maxfps",
         "Most frames drawn a second; your movement is Gameplay FPS. AUTO is 125, or the monitor's rate with Detect refresh rate; 0 is off.",
+    ),
+    (
+        crate::runtime_settings::MENU_CAP_CVAR,
+        "Most frames a second in the menus while no game or demo runs, never above the FPS cap. 0 uses the FPS cap.",
     ),
     (
         crate::server_caps::OVERRIDE_CVAR,
@@ -229,6 +350,10 @@ const HELP: &[(&str, &str)] = &[
         "Shows your weapon in first person; off hides it for a clear view.",
     ),
     (
+        "cg_fovViewmodel",
+        "Width of the first-person weapon view. 80 is EJK; 0 uses the world FOV like the original game.",
+    ),
+    (
         "cg_drawFps",
         "Shows frames per second and frame time in a corner of the screen.",
     ),
@@ -237,11 +362,50 @@ const HELP: &[(&str, &str)] = &[
         "Brightness curve of the whole display, HUD included. 1 is neutral; higher lifts dark areas.",
     ),
     // AUDIO
-    ("s_volume", "Loudness of every sound but the music."),
+    (
+        "s_volume",
+        "Loudness of every sound but the music and the voices.",
+    ),
     ("s_musicVolume", "Loudness of the music."),
+    (
+        crate::audio::VOICE_VOLUME_CVAR,
+        "Loudness of voices (pain, taunts, grunts, voice commands), which ignore the effects volume, as in the original game.",
+    ),
+    (
+        crate::jetpack::ON_SOUND_CVAR,
+        "Jetpack ignition: 1 default, 2 alternate, as in JoF EJK. Shutdown uses one fixed sound.",
+    ),
+    (
+        crate::jetpack::HOVER_SOUND_CVAR,
+        "Jetpack hover: 1 default, 2 alternate, as in JoF EJK. The flaming fire loop is independent.",
+    ),
     (
         "s_doppler",
         "Moving looping sounds, such as passing ships, change pitch as they come and go.",
+    ),
+    (
+        crate::actor_world_submission::force_powers::policy::ANIMATION_CVAR,
+        "Rage, Heal, Quick Heal and Grip-victim effects. Plugin settings can also disable them.",
+    ),
+    (
+        crate::actor_world_submission::force_powers::policy::EMPOWER_CVAR,
+        "Empower glow: -1 follows the server; 0 full body, 1 arms, 2 hands. Ordinary Push stays full body.",
+    ),
+    (
+        "cg_tauntAntiSpam",
+        "Limits repeated player model voices. Taunts wait until the previous line ends; other grunts have separate short holds.",
+    ),
+    (
+        crate::audio::music::CVAR,
+        "Resume map music by level time on join or after duels. Off restarts it. Dynamic music keeps its own timing.",
+    ),
+    (
+        crate::chat::pm_only::CVAR,
+        "Shows only server-marked private game chat for this map. Console history and SJK hub chat stay available.",
+    ),
+    (
+        crate::audio::SKIN_SOUNDS_CVAR,
+        "A blade skin's own ignition, swings and hum: off (normal saber sounds), over the normal ones, or instead of them.",
     ),
     ("cg_footsteps", "Footstep sounds, yours and other players'."),
     (
@@ -262,7 +426,63 @@ const HELP: &[(&str, &str)] = &[
     ),
     (
         crate::emotes::VOLUME_CVAR,
-        "Loudness of emote sounds: 1 as recorded, 2 twice as loud. Yours plays in both ears; others' follow their player.",
+        "Loudness of emote sounds, apart from the game volume: 1 as recorded, 2 twice as loud.",
+    ),
+    (
+        crate::toy_sounds::VOLUME_CVAR,
+        "Loudness of every toy's sounds: 1 as made, 2 twice as loud, 0 silent. Each toy can also be silenced below.",
+    ),
+    (
+        crate::toy_sounds::Toy::Box.cvar(),
+        "Off: cardboard box sounds are not played on this PC, yours or other players'. The toy still works and is still seen.",
+    ),
+    (
+        crate::toy_sounds::Toy::Order66.cvar(),
+        "Off: Order 66 sounds are not played on this PC, yours or other players'. The toy still works and is still seen.",
+    ),
+    (
+        crate::toy_sounds::Toy::Hax.cvar(),
+        "Off: Hax sounds are not played on this PC, yours or other players'. The toy still works and is still seen.",
+    ),
+    (
+        crate::toy_sounds::Toy::Ragdoll.cvar(),
+        "Off: Ragdoll sounds are not played on this PC, yours or other players'. The toy still works and is still seen.",
+    ),
+    (
+        crate::toy_sounds::Toy::Drone.cvar(),
+        "Off: Drone sounds are not played on this PC, yours or other players'. The toy still works and is still seen.",
+    ),
+    (
+        crate::toy_sounds::Toy::Boombox.cvar(),
+        "Off: no boombox music plays on this PC, yours or other players'. Their stereo is still seen.",
+    ),
+    (
+        crate::toy_sounds::Toy::Monitor.cvar(),
+        "Off: Monitor sounds are not played on this PC, yours or other players'. The toy still works and is still seen.",
+    ),
+    (
+        crate::away_emote::SJK_CVAR,
+        "A looping emote you play while away (alt-tabbed out or idle), silent. Any emote you play then goes quiet too, for everyone.",
+    ),
+    (
+        crate::away_emote::JAPLUS_CVAR,
+        "On a JA+ server, the JA+ emote you play while away instead (sit, kneel...). Coming back stands you up.",
+    ),
+    (
+        crate::away_emote::ALT_TAB_CVAR,
+        "On: alt-tabbing out or minimising counts as away and starts the away emote. Your emote goes quiet either way.",
+    ),
+    (
+        crate::away_emote::IDLE_CVAR,
+        "How long without a key or the mouse before you count as away; 0 only alt-tabbing does.",
+    ),
+    (
+        crate::emotes::ATTACK_STOP_CVAR,
+        "On: attacking or alt attacking ends your emote, for everyone, so your real swing shows. Off: you keep dancing.",
+    ),
+    (
+        crate::emotes::TYPING_KEEP_CVAR,
+        "On: while a player types (chat, console or menu open), their emote stays, even if pushed; moving after ends it.",
     ),
     (
         crate::unlock_toast::SOUND_CVAR,
@@ -317,7 +537,7 @@ const HELP: &[(&str, &str)] = &[
     ),
     (
         "cg_nameplate",
-        "MMO-style nameplates: a name far away, with bars and a frame up close.",
+        "Nameplates over players, and your health, shield and Force for SJK players on your server. Off: neither.",
     ),
     (
         "cg_nameplateRange",
@@ -329,20 +549,12 @@ const HELP: &[(&str, &str)] = &[
     ),
     ("cg_nameplateScale", "Size of the nameplate text."),
     (
+        "cg_nameplateHideDuelers",
+        "Hide names, bars and icons on players the server marks as private duellers, including your own plate. Off by default.",
+    ),
+    (
         "cg_nameplateBars",
-        "Bars under the name: 0 none, 1 allies, 2 everyone, 3 your target and duel opponent. V cycles modes.",
-    ),
-    (
-        "cg_nameplateForce",
-        "Force bar under the name, estimated from the powers the player uses. The grey haze shows how unsure the estimate is.",
-    ),
-    (
-        "cg_nameplateShare",
-        "Your real health, shield and Force for the other SJK players, through the SJK hub. Always on while your nameplates show bars.",
-    ),
-    (
-        "cg_nameplateEstimate",
-        "Estimated bars on players who don't share, while the hub has yours. Your player card tells others you see theirs.",
+        "Bars under the name: 0 none, 1 allies, 2 everyone, 3 your target. Never on a duel opponent. V cycles modes.",
     ),
     (
         "cg_nameplateSelf",
@@ -366,7 +578,7 @@ const HELP: &[(&str, &str)] = &[
     ),
     (
         "cg_nameplateNpcs",
-        "Nameplates on NPCs with their class and health, such as Stormtrooper.",
+        "NPC names, such as Stormtrooper. Health requires active level 3 Sense unless the mapper enables it.",
     ),
     (
         crate::world_ping::SHOW_CVAR,
@@ -380,6 +592,22 @@ const HELP: &[(&str, &str)] = &[
     (
         "cg_drawTimerUpperRight",
         "Puts the match time in the upper right under the frame rate, as JoF EJK does, instead of in the HUD layout.",
+    ),
+    (
+        "cg_drawTeamScores",
+        "Team games: the red and blue scores at the top centre of the HUD, in every HUD style.",
+    ),
+    (
+        "cg_teamScoresScale",
+        "Size of the SJK team score boxes: 1 is the default, 2 twice as large.",
+    ),
+    (
+        "cg_teamScoresBoxes",
+        "Team scores in SJK boxes, in CTF with each flag's carrier or return time. Off: the classic plates and flag icons.",
+    ),
+    (
+        "cg_drawFlagStatus",
+        "Capture the flag: where each flag is, in the team boxes or as icons at the left, and a note while you carry one.",
     ),
     (
         crate::version_overlay::CVAR,
@@ -399,16 +627,28 @@ const HELP: &[(&str, &str)] = &[
     ),
     ("cg_drawChat", "Shows chat messages over the game."),
     (
+        "cg_chatBoxFontSize",
+        "Size of chat messages and their rows; 1 is EternalJK's size, higher is larger and wraps sooner.",
+    ),
+    (
         crate::chat::emoji::CVAR,
         "Shows emoji pictures in place of names like :poop: in new chat messages.",
     ),
     (
         crate::chat::reply::REMEMBER_CVAR,
-        "The chat key opens on your last channel: All, Team, SJK or a whisper. Off, it opens on All.",
+        "On, the chat key opens on your last channel: All, Team, SJK or a whisper. Off (the default), it always opens on All.",
+    ),
+    (
+        crate::chat::options::LINE_SPACING_CVAR,
+        "Space between chat messages; lower packs them closer. A long message's own lines stay together.",
     ),
     (
         "cg_chatBoxLetterSpacing",
         "Adds space between the letters of chat messages; below zero packs them closer.",
+    ),
+    (
+        crate::chat::options::CARD_SCALE_CVAR,
+        "Size of the player card a chat name shows, over the chat's own size: 0.5 half, 2 double.",
     ),
     (
         crate::menu_hud::STYLE_CVAR,
@@ -466,6 +706,58 @@ const HELP: &[(&str, &str)] = &[
         "The light trail behind a swinging saber blade.",
     ),
     (
+        crate::effect_flash::REDUCE_CVAR,
+        "For players sensitive to flashing light: no saber clash flare and no screen flash from explosions or DEMP2 shocks.",
+    ),
+    (
+        crate::saber_clash_flare::CVAR,
+        "The burst of light drawn over the screen where two sabers meet, as in the original game.",
+    ),
+    (
+        crate::saber_clash_flare::SIZE_CVAR,
+        "Size of the saber clash flare: 1 as in the original game, 0 to 2.",
+    ),
+    (
+        crate::team_sabers::TEAM_COLORS_CVAR,
+        "Team games: sabers in the team's colour, shaders worn over it. Off changes only the other team's colour and RGB or black.",
+    ),
+    (
+        crate::team_sabers::CVAR,
+        "In capture the flag, every red or blue player's sabers in their team's colour, with no blade shader. Off by default.",
+    ),
+    (
+        crate::saber_rgb::black::CVAR,
+        "Show black blades on JA+/jaPRO; off uses orange. Plugin feature 3 must also be allowed.",
+    ),
+    (
+        crate::blade_lab_designs::CVAR,
+        "Draw the Blade Lab skins (Serpent, Comic and the rest) as Creyon's Blade Lab drew them; off uses their skin files.",
+    ),
+    (
+        crate::hax::TRAP_CVAR,
+        "The Hax toy: a player who hacks you springs a trap; after two seconds you both blow up, as in Order 66.",
+    ),
+    (
+        crate::hax::AWAY_CVAR,
+        "With the Hax trap on: players may hack you while you are away, and blow up with you. Others can see it is set.",
+    ),
+    (
+        crate::monitor::SHOW_CVAR,
+        "Off: no Monitor toy monitor is drawn, yours or other players', nor their sounds heard. You can still be hit while the toy is on.",
+    ),
+    (
+        crate::boombox::RANGE_CVAR,
+        "How far your boombox carries, in units (a player is 64 tall). It fades out toward the edge.",
+    ),
+    (
+        crate::duel_blades::CVAR,
+        "In a duel you play or follow, and on Duel servers, every blade is a normal one in its own colour.",
+    ),
+    (
+        crate::stock_blades::CVAR,
+        "For weak PCs: blades drawn stock in their colour, no shaders or effects. Others: not yours. All: yours too.",
+    ),
+    (
         crate::effect_aux::saber_rain_steam::CVAR,
         "Steam and sizzle in rain on exposed blades: everyone's, or only your own.",
     ),
@@ -474,12 +766,32 @@ const HELP: &[(&str, &str)] = &[
         "Afterimages behind players using Force Speed.",
     ),
     (
+        crate::actor_world_submission::force_powers::victim::CVAR,
+        "Red neck puffs on choking players. On by default; your own stay hidden in first person and while zoomed.",
+    ),
+    (
+        crate::holstered_sabers::CVAR,
+        "Show stowed hilts on the hips; a single staff goes on the back when JA+ plugin 9 is enabled. Hidden, dead and mounted players show none.",
+    ),
+    (
+        crate::holstered_sabers::SUPPORT_CVAR,
+        "0: off. 1: detect supported servers. 2: force the JA+ ownership and plugin-bit contract; use only when your server supports it.",
+    ),
+    (
+        crate::holstered_sabers::SWAP_CVAR,
+        "Where the hand takes the staff during a JA+ reach (default 0.45). Requires installed reach animations.",
+    ),
+    (
+        "cg_holsteredStaffSound",
+        "Delay staff ignition until the hand reaches its hilt, sound shutdown at the put-away reach, and suppress its late duplicate.",
+    ),
+    (
         "cg_auraShell",
         "The glowing shell Force Sight shows around other players.",
     ),
     (
         "cg_spProtAbsColor",
-        "Protect and Absorb at once show one cyan shell like single player, not green plus blue.",
+        "Cyan when Protect and Absorb run together. Plugin settings can force the separate green/blue shells.",
     ),
     (
         "cg_shieldSphere",
@@ -498,12 +810,61 @@ const HELP: &[(&str, &str)] = &[
         "On: players in a duel show as see-through blue figures, as on JoF EJK. Off: dark under a blue bubble, as in the base game.",
     ),
     (
+        crate::duel_visibility::HIDE_OTHERS_CVAR,
+        "In a duel, hides all but you and your opponent: bodies, sabers, shots, sounds, drones. Auto: JA+, jaPRO. Always: all. Off: dark.",
+    ),
+    (
+        crate::duel_visibility::CORPSES_CVAR,
+        "Hide dead bodies while you are in a private duel. Bodies remain visible outside duels. On by default.",
+    ),
+    (
+        crate::duel_visibility::PICKUPS_CVAR,
+        "Hide health, shield, weapons, ammo and holocrons while you are in a private duel. On by default.",
+    ),
+    #[cfg(feature = "mod-japlus")]
+    (
+        sjk_mod_japlus::anti_kiss::CVAR,
+        "On JA+ servers, with JA+ tools on, use Force Push once when another player puts you in the amkiss victim animation. Off by default.",
+    ),
+    (
+        crate::map_edits::CVAR,
+        "Shows the SJK team's fixes to maps: props removed, models added and textures swapped. Only what you see changes. On by default.",
+    ),
+    (
+        crate::remap_blocked_maps::SERVER_CVAR,
+        "Lets servers swap the map's textures. Off by default; the map's own swaps and SJK's map fixes always apply.",
+    ),
+    (
         "cg_remaps",
-        "Lets the server swap textures: never, all but player models, or always. Maps' own always apply.",
+        "With Server remaps on, which server swaps apply: never, all but player models, or always.",
     ),
     (
         crate::camera::STYLE_CVAR,
-        "EJK: the third-person camera stays locked behind you, as in JoF EJK. SJK: it trails you a little as you move and turn.",
+        "MP camera: the third-person camera stays locked behind you, as in JoF EJK. SP camera: it trails you a little as you move and turn.",
+    ),
+    (
+        "cg_cameraFPS",
+        "With SP camera, use EJK damping timing: Default 125, Smooth (SP) 30, or BaseJKA's original 50 ms steps.",
+    ),
+    (
+        "cg_thirdPersonRange",
+        "Distance of the third-person camera behind your character, from 40 to 500 units.",
+    ),
+    (
+        "cg_thirdPersonAngle",
+        "Turns the third-person camera around your character: 0 is directly behind.",
+    ),
+    (
+        "cg_thirdPersonPitchOffset",
+        "Raises or lowers the direction the third-person camera looks, in degrees.",
+    ),
+    (
+        "cg_thirdPersonVertOffset",
+        "Raises or lowers the third-person camera relative to your character.",
+    ),
+    (
+        "cg_thirdPersonHorzOffset",
+        "Moves the third-person camera sideways: negative left, positive right.",
     ),
     (
         "cg_thirdPersonCameraDamp",
@@ -514,12 +875,29 @@ const HELP: &[(&str, &str)] = &[
         "How loosely the third-person camera turns where you aim: lower is smoother, 1 is instant.",
     ),
     (
+        "cg_wallGrabLock",
+        "Off: stock locks; JA+ lets you look and aim the kick-off. On locks JA+ too, preventing aim during the hold.",
+    ),
+    (
+        crate::held_view::LOOK_CVAR,
+        "On lets the mouse look around while a kick, knockdown, kiss or grapple holds your view; the camera may shake.",
+    ),
+    (
         "cg_errorDecay",
         "Smooths the view over this many milliseconds when the server corrects you; 0 snaps.",
     ),
     (
         "mod_japlus",
         "On JA+ servers: the japlus. commands (admin teleports, auto login, plugin options) and JA+ command completion.",
+    ),
+    (
+        "mod_japro",
+        "On jaPRO servers: shows the movement styles SJK does not predict yet (CPM, QW...) as the server has them; japro.styles lists them.",
+    ),
+    #[cfg(feature = "mod-japro")]
+    (
+        sjk_mod_japro::movement_styles::PREDICT_ANYWAY_CVAR,
+        "Predict every jaPRO movement style as JKA, as before: smoother to aim, but styles SJK does not model snap you back.",
     ),
     (
         "mod_jof",
@@ -535,7 +913,7 @@ const HELP: &[(&str, &str)] = &[
     ),
     (
         crate::ghost_replay::SHOWCASE_CVAR,
-        "Experimental, for filming: ghost replays a run you recorded, mimic copies a player facing you. Any key stops them.",
+        "Showcase tools, for SJK staff.",
     ),
     (
         crate::brush_view::CVAR,
@@ -552,6 +930,14 @@ const HELP: &[(&str, &str)] = &[
     (
         crate::menu::style::CVAR,
         "The SJK UI, SJK's own menus over the live map; or classic menus after the original game's.",
+    ),
+    (
+        crate::support_links::CVAR,
+        "Support SJK at the top left of the SJK UI's main page: links to SJK's GitHub Sponsors and Ko-fi pages. Off hides it, as its x does.",
+    ),
+    (
+        crate::menu_pictures::CVAR,
+        "Map pictures behind the menus and drawn saber shaders, not live ones: saves video memory. On by itself on small cards.",
     ),
     (
         crate::quick_wheel::pages::FILE,
@@ -595,6 +981,10 @@ const HELP: &[(&str, &str)] = &[
         "After a crash, the next start sends the SJK team a report: system, map, the error, recent console lines (no chat). Off sends none.",
     ),
     (
+        crate::discord_presence::CVAR,
+        "Shows on your Discord profile what you do in SJK: menus, server, map, mode, players. Server hides its name.",
+    ),
+    (
         crate::settings_usage::CVAR,
         "Tells the SJK team anonymously what you change and search for here, to make Settings clearer. No key or name sent.",
     ),
@@ -603,16 +993,97 @@ const HELP: &[(&str, &str)] = &[
         "The chat every SJK player shares through the SJK hub, in menus and games. Off hides it.",
     ),
     (
+        crate::sjk_chat_frame::FEED_CVAR,
+        "Shows live SJK chat messages in the in-game general chat feed. Off still leaves SJK chat in the ESC menu and on its own page.",
+    ),
+    (
+        crate::sjk_chat_frame::CONSOLE_CVAR,
+        "Keeps live SJK chat messages in console scrollback. Off does not hide SJK chat anywhere else.",
+    ),
+    (
+        crate::chat_sounds::MASTER_CVAR,
+        "Every chat sound. Distinct (EJK) gives team chat and private messages EJK's own sounds when theirs is Default.",
+    ),
+    (
+        "cg_chatBeep",
+        "A sound for public chat on game servers. Private messages have their own switch below.",
+    ),
+    (
+        "cl_chatSoundPublic",
+        "The sound public chat plays; Default is JKA's chat sound. Choosing one plays it.",
+    ),
+    (
+        "chatsoundpreview public",
+        "Plays the sound public chat plays now, even with its switch off.",
+    ),
+    ("cg_teamChatBeep", "A sound for team chat on game servers."),
+    (
+        "cl_chatSoundTeam",
+        "The sound team chat plays; Default is JKA's chat sound (EJK's team beep with Distinct).",
+    ),
+    (
+        "chatsoundpreview team",
+        "Plays the sound team chat plays now, even with its switch off.",
+    ),
+    (
+        crate::chat_sounds::Kind::Private.switch_cvar(),
+        "A sound for private messages: a server's tells (JA+, JoF and others) and encrypted whispers.",
+    ),
+    (
+        "cl_chatSoundPrivate",
+        "The sound private messages play; Default is JKA's chat sound for a tell, the SJK whisper sound for an encrypted whisper.",
+    ),
+    (
+        "chatsoundpreview private",
+        "Plays the sound private messages play now, even with their switch off.",
+    ),
+    (
         crate::sjk_chat_frame::SOUND_CVAR,
-        "A sound for each new SJK chat message, yours included, in menus and games. Chat sounds off (cg_chatSounds 0) silences it too.",
+        "A sound for each new SJK chat message, yours included, in menus and games.",
+    ),
+    (
+        "cl_chatSoundSjk",
+        "The sound SJK chat messages play; Default is SJK's own variant of JKA's chat sound.",
+    ),
+    (
+        "chatsoundpreview sjk",
+        "Plays the sound SJK chat messages play now, even with their switch off.",
+    ),
+    (
+        crate::chat_sounds::FLASH_CVAR,
+        "Flashes the game's taskbar button when a private message arrives while you are away from the window.",
+    ),
+    (
+        crate::player_trades::SIZE_CVAR,
+        "How big the trade window is in the middle of the screen. Small leaves the most of the match in view.",
+    ),
+    (
+        crate::holocron_popup::NOTIFICATIONS_CVAR,
+        "A card for each holocron found in play; After duels holds it in a private duel until the end. The holocron waits in ESC.",
+    ),
+    (
+        crate::chat::client_icons::CVAR,
+        "SJK chat messages sent from JoF EternalJK start with its icon. Off, every message starts with SJK's emblem.",
     ),
     (
         crate::chat_gifs::CVAR,
         "GIPHY links in SJK chat show their GIF. Your PC loads it from GIPHY, which sees your address. Off keeps links as text.",
     ),
     (
+        crate::chat_gifs::VIDEO_CVAR,
+        "Off by default. MP4 clips from the internet are read by Windows' decoder, outside SJK's safe Rust: a crafted clip could exploit it.",
+    ),
+    (
         crate::chat_gifs::search::KEY_CVAR,
         "Your own GIPHY key, which GIF search needs: free at developers.giphy.com. The GIF picker's Search shows how.",
+    ),
+    (
+        crate::e2e_whispers::CVAR,
+        "Whispers to SJK players go end-to-end encrypted through the SJK hub: only you two can read them. Off sends them through the server.",
+    ),
+    (
+        crate::map_blocks::CVAR,
+        "Players SJK staff block for everyone show as a silent BLOCKED Kyle until the map changes. Off shows them as usual.",
     ),
     (
         super::catalog::IDENTITY_ROW,
@@ -642,6 +1113,14 @@ const HELP: &[(&str, &str)] = &[
         "JoF EJK's strafe helper: a line to the best heading for each strafe key. Keep the crosshair on the green one to gain speed.",
     ),
     (
+        crate::hud::movement::AURA_CVAR,
+        "A glow over the crosshair while you jump or fall: the speed each heading gains. Turn until its top tick sits on the white edge.",
+    ),
+    (
+        crate::hud::movement::AURA_GROUND_CVAR,
+        "Shows the strafe aura while you run on the ground too, not only in the air.",
+    ),
+    (
         crate::scoreboard::style::CVAR,
         "Auto matches the menus: SJK's own with the SJK UI, else the classic one after the original game's.",
     ),
@@ -654,12 +1133,16 @@ const HELP: &[(&str, &str)] = &[
         "Shows your frame rate on SJK's scoreboard, left of the match clock.",
     ),
     (
+        crate::scoreboard::AFK_CVAR,
+        "Players whose view has not moved for 3 minutes, or with [AFK] in their name, show faint below the others.",
+    ),
+    (
         "cg_showClientIDs",
         "Shows each player's client number on the scoreboard.",
     ),
     (
         crate::jof_tag::CVAR,
-        "Shows a clan's emblem (JoF, JoFA) left of a tagged player's name in the chat, on the scoreboard and on player cards.",
+        "Shows a clan's emblem (JoF, JoFA, JAWA, {{S}}) left of a tagged player's name in the chat, on the scoreboard and on player cards.",
     ),
     (
         "cg_drawScoreboardIcons",
@@ -683,6 +1166,14 @@ const HELP: &[(&str, &str)] = &[
     (
         crate::console::console_options::DRAW_NOTIFY_CVAR,
         "Shows the newest console lines at the top left while playing. Chat keeps its own box.",
+    ),
+    (
+        crate::console::console_options::COPY_COLORS_CVAR,
+        "Keeps ^0-^9 colour codes in text copied from console scrollback.",
+    ),
+    (
+        crate::console::console_options::SHIFT_HEIGHT_CVAR,
+        "Shift+console opens at Console height, Shift+Escape a quarter screen. Off: as in EternalJK.",
     ),
     (
         crate::text::charset::CVAR,
@@ -729,6 +1220,23 @@ const HELP: &[(&str, &str)] = &[
     (
         "r_superSample",
         "Draws the scene 2 or 3 times larger each way and shrinks it: very sharp, very costly.",
+    ),
+    (
+        crate::frame_target::scale::CVAR,
+        "Draws the world at this % of the window and stretches it, for weak graphics cards. \
+         Menus and HUD stay sharp. Off with supersampling.",
+    ),
+    (
+        crate::world_materials::filtering::mips::PICMIP_CVAR,
+        "Each step halves large textures: a quarter of their video memory. For graphics cards of 4 GB or less.",
+    ),
+    (
+        crate::world_materials::filtering::mips::compress::CVAR,
+        "Keeps map and model textures compressed: a quarter or less of their video memory, a little blockier. Experimental.",
+    ),
+    (
+        "r_flares",
+        "Halos the maps put around some lamps, which fade as walls hide them. EternalJK has them off.",
     ),
     (
         "r_softParticles",
@@ -1008,5 +1516,12 @@ mod tests {
             row_label("Supersampling, 1 off (reload)").0,
             "Supersampling, 1 off"
         );
+    }
+
+    #[test]
+    fn camera_damping_styles_have_their_ejk_names() {
+        assert_eq!(choice_name("cg_cameraFPS", "125.0"), Some("Default"));
+        assert_eq!(choice_name("cg_cameraFPS", "30.0"), Some("Smooth (SP)"));
+        assert_eq!(choice_name("cg_cameraFPS", "0.0"), Some("BaseJKA"));
     }
 }

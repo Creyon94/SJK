@@ -30,10 +30,19 @@ mod grapple_rope;
 #[path = "jetpack_submission.rs"]
 mod jetpack_submission;
 
+#[path = "holstered_saber_submission.rs"]
+mod holster_submission;
+
 #[path = "player_sphere_submission.rs"]
 mod player_spheres;
 
+/// `EF_DEAD`.
+const EF_DEAD_FLAG: u32 = 1 << 1;
+
 struct Sinks<'a> {
+    grip_victim: bool,
+    force_fx: force_powers::policy::Policy,
+    flame: Option<&'static force_powers::flame::Contract>,
     flag_meshes: [Option<usize>; 2],
     shield_mesh: Option<usize>,
     shield_sphere: bool,
@@ -46,16 +55,21 @@ struct Sinks<'a> {
     view_origin: Vec3,
     jetpack: crate::jetpack::Catalog,
     jetpack_sounds: &'a mut crate::jetpack::Sounds,
+    /// The boombox's model and who carries one (bits by slot, [`crate::boombox`]).
+    boombox: (Option<usize>, u64),
     world: &'a sjk_runtime::World,
     actor_meshes: &'a [ActorMesh],
     object_meshes: &'a [StaticModelMesh],
     actor_groups: &'a mut [Vec<ActorInstance>],
     object_groups: &'a mut [Vec<ActorInstance>],
+    /// Where each emplaced gun's top was last turned ([`crate::emplaced_swivel`]).
+    emplaced_turned: &'a mut crate::emplaced_swivel::Turned,
     overrides: &'a mut Vec<entity_materials::OverrideInstance>,
     entity_instances: &'a mut Vec<EntityInstance>,
     saber_hilts: Option<&'a saber::HiltCatalog>,
     /// Who wears which blade skin.
     saber_skins: &'a crate::saber_skins::SaberSkins,
+    black_sabers: crate::saber_rgb::black::Policy,
     saber_states: &'a mut saber_trail::StateSlab,
     saber_segments: &'a mut saber_trail::SegmentPool,
     /// Trail edges for held and flying blades; `None` with `cg_saberTrail 0`.
@@ -64,6 +78,9 @@ struct Sinks<'a> {
     lights: &'a mut dynamic_lights::PointLightList,
     presentation_time: i64,
     muzzle_effects: &'a sjk_client::LegacyMuzzleEffects,
+    /// Vehicle volleys to play at their muzzles, and the guns' `muzzleFX`.
+    vehicle_fires: &'a mut crate::vehicle_fire::Pending,
+    missile_effects: &'a sjk_client::LegacyMissileEffects,
     particles: &'a mut Vec<Particle>,
     effect_aux: &'a mut effect_aux::Runtime,
     effects: &'a mut EffectLibrary,
@@ -77,11 +94,14 @@ struct Sinks<'a> {
     viewer_force_powers_active: u32,
     /// `cg_speedTrail`.
     speed_trail: bool,
+    holsters: crate::holstered_sabers::Policy,
+    holster_geometry: crate::holstered_sabers::pose::Geometry,
     /// `cg_cosmetics`: whose hats and capes are drawn.
     cosmetics: crate::cosmetics::Visibility,
     material_overrides: model_materials::Overrides,
     camera_position: Vec3,
     camera_yaw: f32,
+    camera_pitch: f32,
     view_height: f32,
     predicted_force_powers_active: Option<u32>,
     predicted_local_state: Option<&'a sjk_client::pmove::MovementState>,
@@ -100,6 +120,10 @@ struct Sinks<'a> {
     /// Client slots muted on this PC (bits): drawn with the default saber colour
     /// and without hat or cape (`muted_players.rs`).
     muted: u32,
+    /// Each client slot's team blade colours in team games: `cg_saberTeamColors`, and
+    /// `cg_ctfTeamSabers` (no skin over them) in CTF or CTY (`team_sabers.rs`); in
+    /// Siege the class-forced colours (`siege_sabers.rs`).
+    team_blades: crate::team_sabers::Blades,
     /// The player whose card is up with its outline on (`card_outline.rs`).
     card_outline: Option<u16>,
     /// The players outlined as teammates and enemies (`hud::team_outline`).
@@ -175,11 +199,13 @@ pub(crate) fn submit(
         .and_then(|console| console.integer_cvar("cg_auraShell"))
         .unwrap_or(1)
         != 0;
-    let combined_protect_absorb = gpu
-        .console
-        .as_ref()
-        .and_then(|console| console.bool_cvar("cg_spprotabscolor"))
-        .unwrap_or(true);
+    let force_fx = force_powers::policy::Policy::sample(gpu.console.as_ref(), game_state);
+    let combined_protect_absorb = force_fx.combined
+        && gpu
+            .console
+            .as_ref()
+            .and_then(|console| console.bool_cvar("cg_spprotabscolor"))
+            .unwrap_or(true);
     // 1 draws multiplayer's sphere around a shield hit; 0 hugs the body like single player.
     let shield_sphere = gpu
         .console
@@ -223,6 +249,14 @@ pub(crate) fn submit(
         .and_then(|info| sjk_client::LegacyClientInfo::new(info).integer("g_gametype"))
         .unwrap_or(0);
     let mut sinks = Sinks {
+        force_fx,
+        grip_victim: force_fx.animation
+            && gpu
+                .console
+                .as_ref()
+                .and_then(|console| console.bool_cvar("cg_gripvictimfx"))
+                .unwrap_or(true),
+        flame: force_powers::flame::policy(game_state, gpu.console.as_ref()),
         flag_meshes: gpu.pickup_catalog.carrier_meshes[flags::model_set(gametype)],
         shield_mesh: gpu
             .object_meshes
@@ -235,15 +269,34 @@ pub(crate) fn submit(
         view_origin: gpu.view_origin,
         jetpack: gpu.jetpack,
         jetpack_sounds: &mut gpu.jetpack_sounds,
+        boombox: (
+            gpu.object_meshes
+                .iter()
+                .position(|mesh| mesh.appearance.model == crate::boombox::MODEL),
+            gpu.boombox.carriers(),
+        ),
         world: active_world,
         actor_meshes: &gpu.actor_meshes,
         object_meshes: &gpu.object_meshes,
         actor_groups: &mut gpu.actor_groups,
         object_groups: &mut gpu.object_groups,
+        emplaced_turned: &mut gpu.emplaced_turned,
         overrides: &mut gpu.pickup_override_instances,
         entity_instances: &mut gpu.entity_instances,
         saber_hilts: gpu.saber_hilts.as_ref(),
         saber_skins: &gpu.saber_skins,
+        black_sabers: gpu.black_sabers.policy(
+            game_state,
+            gpu.console
+                .as_ref()
+                .and_then(|c| c.bool_cvar(crate::saber_rgb::black::CVAR))
+                .unwrap_or(true),
+            gpu.console
+                .as_ref()
+                .and_then(|c| c.integer_cvar("cp_plugindisable"))
+                .unwrap_or(i64::from(sjk_client::PLUGIN_DISABLE_DEFAULT)),
+            gpu.muted_players.slots().muted,
+        ),
         saber_states: &mut gpu.saber_states,
         saber_segments: &mut gpu.saber_trail_segments,
         trail_edges: trails.then(|| {
@@ -253,6 +306,8 @@ pub(crate) fn submit(
         lights: &mut gpu.dynamic_lights,
         presentation_time,
         muzzle_effects: &gpu.muzzle_effects,
+        vehicle_fires: &mut gpu.vehicle_fires,
+        missile_effects: &gpu.missile_effects,
         particles: &mut gpu.particles,
         effect_aux: &mut gpu.effect_aux,
         effects: &mut gpu.effects,
@@ -271,10 +326,17 @@ pub(crate) fn submit(
             .or_else(|| snapshot.map(|snapshot| snapshot.player.force_powers_active()))
             .unwrap_or(0),
         speed_trail,
+        holsters: crate::holstered_sabers::Policy::read(
+            gpu.console.as_ref(),
+            &mut gpu.holster_server,
+            game_state,
+        ),
+        holster_geometry: crate::holstered_sabers::pose::Geometry::read(gpu.console.as_ref()),
         cosmetics,
         material_overrides: gpu.model_material_overrides,
         camera_position: gpu.camera_position,
         camera_yaw: gpu.camera_yaw,
+        camera_pitch: gpu.camera_pitch,
         view_height: gpu.local_prediction.view_height(),
         predicted_force_powers_active: gpu
             .local_prediction
@@ -303,6 +365,10 @@ pub(crate) fn submit(
                 .and_then(|_| gpu.local_prediction.predicted_state()),
         ),
         muted: gpu.muted_players.slots().muted,
+        team_blades: crate::team_sabers::with_classes(
+            crate::team_sabers::blades(gpu.console.as_ref(), game_state),
+            gpu.siege_sabers.forced(game_state, gpu.vfs.as_deref()),
+        ),
         card_outline: gpu.hud.card.outline().map(|(client, _)| client),
         team_outline: gpu.hud.team_outline.groups(),
     };
@@ -310,6 +376,17 @@ pub(crate) fn submit(
         .zip(game_state)
         .map(|(snapshot, game)| sjk_client::LegacyThrownSabers::new(snapshot, game));
     let mut overlay_count = 0;
+    if let Some(snapshot) = snapshot {
+        force_powers::flame::submit_hits(
+            &mut sinks,
+            snapshot,
+            presentation_time as i32,
+            visual_now,
+        );
+    }
+    if let Some(audio) = sinks.game_audio.as_mut() {
+        audio.begin_holsters();
+    }
     for entity in active_world
         .entities()
         .filter(|entity| {
@@ -344,6 +421,8 @@ pub(crate) fn submit(
             // A cut-off limb draws its own copy of the owner (`dismember`).
         } else if thrown_saber::submit(&mut sinks, thrown.as_ref(), entity, transform) {
             // The flying hilt is owned by this branch, including its blades.
+        } else if submit_emplaced(&mut sinks, entity, &transform, snapshot, local_entity_id) {
+            // A turned emplaced gun is drawn in its two parts.
         } else if let Some(mesh) = entity.appearance().and_then(|appearance| {
             sinks
                 .object_meshes
@@ -356,7 +435,28 @@ pub(crate) fn submit(
             sinks.object_groups[mesh].push(instance);
         }
     }
+    // Volleys of vehicles not drawn this frame play where their events were.
+    while let Some(fire) = sinks.vehicle_fires.take_any(visual_now) {
+        crate::vehicle_fire::play(&mut sinks.vehicle_fire(), &fire, |_| None, visual_now);
+    }
+    if let Some(audio) = sinks.game_audio.as_mut() {
+        audio.end_holsters();
+    }
     overlay_count
+}
+
+impl Sinks<'_> {
+    /// What [`crate::vehicle_fire::play`] needs.
+    fn vehicle_fire(&mut self) -> crate::vehicle_fire::Sinks<'_> {
+        crate::vehicle_fire::Sinks {
+            particles: self.particles,
+            auxiliary: self.effect_aux,
+            effects: self.effects,
+            vfs: self.vfs,
+            audio: self.game_audio,
+            missiles: self.missile_effects,
+        }
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -412,8 +512,35 @@ fn submit_actor(
         presentation_time,
         sinks.predicted_vehicle,
     );
-    if let Some(state) = state {
-        model_scale::apply(transform, state.model_scale_percent(), state.npc_class());
+    let local_player = snapshot
+        .filter(|_| Some(entity.id.get()) == local_entity_id)
+        .map(|snapshot| &snapshot.player);
+    if let Some((percent, npc_class)) = model_scale::source(state, local_player) {
+        model_scale::apply(transform, percent, npc_class);
+    }
+    // A limp player (the Ragdoll toy) is drawn where the ragdoll lies, posed in its
+    // model space (`actor_pose_steps`).
+    if entity.kind != EntityKind::Corpse
+        && mesh.is_some_and(|index| sinks.actor_meshes[index].ragdoll.posed)
+        && let Some(points) = crate::ragdoll::shown_entity(entity.id)
+    {
+        crate::ragdoll::place(transform, &points);
+    }
+    // `EV_VEH_FIRE`: this vehicle's volleys, at its muzzles as posed now.
+    if let Some(index) = mesh
+        && sinks.actor_meshes[index].preview.vehicle.is_some()
+        && let Ok(number) = u16::try_from(entity.id.get().saturating_sub(1))
+    {
+        let muzzles = sinks.actor_meshes[index].vehicle_muzzles;
+        let placed = *transform;
+        while let Some(fire) = sinks.vehicle_fires.take(number) {
+            crate::vehicle_fire::play(
+                &mut sinks.vehicle_fire(),
+                &fire,
+                |muzzle| muzzles[muzzle].map(|at| crate::vehicle_fire::world_socket(at, &placed)),
+                visual_now,
+            );
+        }
     }
     // `EF_DISINTEGRATION`: `CG_Disintegration` draws the body and nothing else
     // (`cg_players.c`, `cg_ents.c`).
@@ -425,6 +552,32 @@ fn submit_actor(
             sinks, index, burning, entity, transform, draw_actor, visual_now,
         );
         return 0;
+    }
+    // `EV_BODYFADE`: `CG_General` draws a fading body's layers and nothing else
+    // (`cg_ents.c`, [`crate::body_fade`]).
+    if entity.kind == EntityKind::Corpse
+        && (draw_actor || sinks.portal_view)
+        && let Some(index) = mesh
+        && let Some(fade) = meshes[index].body_fade.as_ref()
+    {
+        let rotation = weapon_view::actor_world_rotation(transform.rotation);
+        let mut body =
+            ActorInstance::new(transform.translation, rotation.to_array(), transform.scale)
+                .with_entity_color(entity.color());
+        body.view_flags = sinks.entity_view_flags | u32::from(!draw_actor);
+        let mut frame = crate::body_fade::Frame {
+            overrides: sinks.overrides,
+            materials: sinks.material_overrides,
+            audio: sinks.game_audio.as_mut(),
+            vfs: sinks.vfs,
+            now: presentation_time,
+        };
+        if crate::body_fade::submit(&mut frame, index, fade, entity, body) {
+            meshes[index]
+                .retained_pose
+                .mark_drawn(entity.id, presentation_time);
+            return 0;
+        }
     }
     // A monster's victim is drawn in its hand or jaw (`cg_players.c:9220-9244`).
     let local = Some(entity.id.get()) == local_entity_id;
@@ -460,7 +613,7 @@ fn submit_actor(
         let (hand, _) = saber::world_attachment(
             Vec3::from_array(transform.translation),
             weapon_view::actor_world_rotation(transform.rotation),
-            attachment,
+            attachment.scaled(transform.scale),
         );
         grapple_rope::submit(sinks, client, hand, visual_now);
     }
@@ -510,6 +663,35 @@ fn submit_actor(
     if mesh.is_some_and(|index| sinks.actor_meshes[index].surfaces.weapon_lost) {
         equipment = None;
     }
+    // An NPC's blades without a colour override wear their `.sab` colour, and with
+    // no saber entity its primary saber is not drawn (`sjk_client::npc_identity`).
+    let npc = state.filter(|state| state.entity_type() == 13);
+    let npc_primary_missing = npc.is_some_and(sjk_client::legacy_npc_primary_saber_missing);
+    if let (Some(npc), Some(catalog), Some(index)) = (npc, sinks.saber_hilts, mesh) {
+        let overrides = sjk_client::legacy_npc_saber_color_overrides(npc);
+        let names = &sinks.actor_meshes[index].saber_names;
+        let definition = |saber: usize| {
+            names[saber].as_deref().map(|name| {
+                sjk_client::legacy_npc_definition_rgb(
+                    catalog.get_any_case(name).default_color,
+                    npc.number(),
+                )
+            })
+        };
+        equipment = equipment.map(|mut held| {
+            if overrides[0].is_none()
+                && let Some(rgb) = definition(0)
+            {
+                held.color = rgb;
+            }
+            if overrides[1].is_none()
+                && let Some(rgb) = definition(1)
+            {
+                held.secondary_color = rgb;
+            }
+            held
+        });
+    }
     // A player muted on this PC, or their body, has the default blade colour.
     let client = match mesh.and_then(|index| sinks.actor_meshes[index].body_identity.as_ref()) {
         Some(body) => u64::from(body.client_num) + 1,
@@ -520,11 +702,63 @@ fn submit_actor(
     if muted {
         equipment = equipment.map(crate::muted_players::equipment);
     }
+    // In team games the blades take the team's colour, muted or not
+    // (`cg_saberTeamColors`, `cg_ctfTeamSabers`), and in Siege the class's forced
+    // colour (`siege_sabers.rs`): the game sets those, not the player.
+    let team_blade = crate::team_sabers::of(&sinks.team_blades, client);
+    if team_blade.any() {
+        equipment = equipment.map(|mut held| {
+            held.color = team_blade.color(0, held.color);
+            held.secondary_color = team_blade.color(1, held.secondary_color);
+            held
+        });
+    }
+    let holster = mesh.map_or_else(holster_submission::Plan::default, |index| {
+        holster_submission::submit(
+            sinks,
+            index,
+            entity,
+            *transform,
+            snapshot,
+            state,
+            equipment,
+            local,
+            draw_actor,
+            trick.hidden || trick.fading,
+        )
+    });
+    if holster.blades_in {
+        equipment = equipment.map(|mut held| {
+            held.active = false;
+            held.secondary_active = false;
+            held
+        });
+    }
+    if holster.on_back {
+        // Do not retain a lit blade or trail while its hilt moves onto the back.
+        for blade in 0..8 {
+            if let Some(state) = sinks.saber_states.blade_mut(entity.id.get(), 0, blade) {
+                state.stow(presentation_time);
+            }
+        }
+    }
     // A hidden trickster keeps only a saber in flight (`cg_players.c:11732-11746`).
     if let Some((equipment, held_mesh)) = equipment
         .filter(|held| !trick.hidden || held.primary_in_flight)
         .zip(mesh)
     {
+        // Whether its saber is in an attack (`saberMove`), for the blade skins that answer a
+        // swing: only an attack is one (Creyon's round 14: a run's arm sway set the Clone
+        // Wars blade's words off); unknown without a snapshot.
+        let saber_move = if local {
+            snapshot.map(|snapshot| snapshot.player.saber_move())
+        } else {
+            state.map(sjk_protocol::EntityState::saber_move)
+        };
+        let attacking = saber_move.map(|saber_move| {
+            sjk_game_jka::saber_rules::in_attack(saber_move)
+                || sjk_game_jka::saber_rules::in_special(saber_move)
+        });
         submit_equipment(
             sinks,
             entity,
@@ -533,9 +767,11 @@ fn submit_actor(
             *transform,
             draw_actor,
             local,
+            holster.on_back || npc_primary_missing,
             trick.fading.then_some(trick.alpha),
             presentation_time,
             visual_now,
+            attacking,
         );
     }
     let ghosts = match (mesh, snapshot) {
@@ -578,10 +814,41 @@ fn submit_actor(
             visual_now,
         );
     }
+    // The boombox on a carrier's shoulder, as their jetpack: none on the dead.
+    if entity.kind == EntityKind::Actor
+        && let (Some(mesh), (Some(boombox), carriers)) = (mesh, sinks.boombox)
+        && number < 64
+        && carriers & 1 << number != 0
+        && e_flags & EF_DEAD_FLAG == 0
+        && !trick.hidden
+    {
+        let actor = &sinks.actor_meshes[mesh];
+        if let Some(mut instance) = actor.animator.requested.and_then(|_| {
+            crate::boombox::instance(&actor.preview, actor.animator.matrices(), *transform)
+        }) {
+            instance.view_flags = sinks.entity_view_flags | u32::from(!draw_actor);
+            sinks.object_groups[boombox].push(instance);
+        }
+    }
     // Everything after stock's mind-trick cut-off is skipped for a hidden trickster:
     // the body, its afterimages and its shells (`cg_players.c:11351-11356`).
     if trick.hidden {
         return 0;
+    }
+    // A Grip victim's puffs come after that cut-off too (`cg_players.c:13221`), so a
+    // gripped trickster hidden from the viewer gives away nothing.
+    if entity.kind == EntityKind::Actor
+        && let (Some(mesh), Some(snapshot)) = (mesh, snapshot)
+    {
+        force_powers::victim::submit(
+            sinks,
+            mesh,
+            entity,
+            *transform,
+            snapshot,
+            presentation_time as i32,
+            visual_now,
+        );
     }
     // An electrified player crackles (`electrify.rs`), the local one in first person too.
     if entity.kind == EntityKind::Actor
@@ -740,6 +1007,9 @@ fn submit_actor(
                     view_flags: sinks.entity_view_flags,
                     tricked: trick.fading,
                     dead: flags.is_some_and(|flags| flags & EF_DEAD != 0),
+                    state_visible: snapshot.is_none_or(|snapshot| {
+                        crate::cosmetics::actors::visible_in_state(&snapshot.player, state, local)
+                    }),
                 },
                 sinks.object_groups,
             );
@@ -921,24 +1191,41 @@ fn submit_equipment(
     transform: sjk_runtime::Transform,
     draw_actor: bool,
     local: bool,
+    holstered_primary: bool,
     forced_alpha: Option<u8>,
     presentation_time: i64,
     visual_now: Instant,
+    attacking: Option<bool>,
 ) {
     let rotation = weapon_view::actor_world_rotation(transform.rotation);
     let origin = Vec3::from_array(transform.translation);
+    let team_plain = crate::team_sabers::of(&sinks.team_blades, entity.id.get()).plain;
     if saber_submission::submit(
         entity.id.get(),
-        sinks.saber_skins.get(entity.id.get()),
+        sinks
+            .saber_skins
+            .get_both(entity.id.get())
+            .map(|skin| skin.filter(|_| !team_plain)),
+        // A team colour replaces a black blade too (it is past `SABER_PURPLE`).
+        sinks.black_sabers.without(
+            entity.id.get(),
+            crate::team_sabers::of(&sinks.team_blades, entity.id.get())
+                .colors
+                .map(|color| color.is_some()),
+        ),
         std::array::from_fn(|hand| {
+            if hand == 0 && holstered_primary {
+                return None;
+            }
             let mesh = &sinks.actor_meshes[actor_mesh];
             mesh.saber_names[hand]
                 .as_deref()
-                .zip(mesh.weapon_attachments[hand])
+                .zip(mesh.weapon_attachments[hand].map(|bolt| bolt.scaled(transform.scale)))
         }),
         equipment,
         origin,
         rotation,
+        transform.scale,
         sinks.saber_hilts,
         sinks.saber_states,
         sinks.saber_segments,
@@ -947,6 +1234,7 @@ fn submit_equipment(
         presentation_time,
         sinks.trail_edges.as_mut(),
         sinks.lights,
+        attacking,
     ) {
         return;
     }
@@ -963,7 +1251,8 @@ fn submit_equipment(
     let Some(model) = weapon_view::held_model(equipment.weapon) else {
         return;
     };
-    let (grip, weapon_rotation) = saber::world_attachment(origin, rotation, attachment);
+    let (grip, weapon_rotation) =
+        saber::world_attachment(origin, rotation, attachment.scaled(transform.scale));
     let Some(weapon_mesh) = sinks
         .object_meshes
         .iter()
@@ -971,7 +1260,8 @@ fn submit_equipment(
     else {
         return;
     };
-    let mut instance = ActorInstance::new(grip.to_array(), weapon_rotation.to_array(), [1.0; 3]);
+    let mut instance =
+        ActorInstance::new(grip.to_array(), weapon_rotation.to_array(), transform.scale);
     let inside_body = local
         && sinks.detached_flight
         && crate::free_camera::inside_body(
@@ -1109,6 +1399,60 @@ fn submit_disintegration(
             combat_effects::rotation_from_direction([0.0, 1.0, 0.0]),
         );
     }
+}
+
+/// An emplaced gun whose top a gunner has turned ([`crate::emplaced_swivel`]). The
+/// gunner's view is this client's own for the local player and the player's view angles
+/// for anyone else (`cg_ents.c:1401-1409`). Returns whether `entity` was drawn so.
+fn submit_emplaced(
+    sinks: &mut Sinks<'_>,
+    entity: &sjk_runtime::SceneEntity,
+    transform: &sjk_runtime::Transform,
+    snapshot: Option<&Snapshot>,
+    local_entity_id: Option<u64>,
+) -> bool {
+    let (Some(snapshot), Some(appearance)) = (snapshot, entity.appearance()) else {
+        return false;
+    };
+    // Every rigid entity comes through here each frame: the snapshot's entities are
+    // sorted by number, so look the state up without a linear scan.
+    let Some(state) = u16::try_from(entity.id.get().wrapping_sub(1))
+        .ok()
+        .and_then(|number| {
+            snapshot
+                .entities
+                .binary_search_by_key(&number, |state| state.number())
+                .ok()
+        })
+        .map(|index| &snapshot.entities[index])
+    else {
+        return false;
+    };
+    let (world, presentation_time) = (sinks.world, sinks.presentation_time);
+    let local_view = [
+        -sinks.camera_pitch.to_degrees(),
+        sinks.camera_yaw.to_degrees(),
+        0.0,
+    ];
+    crate::emplaced_swivel::submit(
+        sinks.emplaced_turned,
+        sinks.object_meshes,
+        sinks.object_groups,
+        state,
+        appearance,
+        transform,
+        sinks.entity_view_flags,
+        |gunner| {
+            let id = u64::from(gunner) + 1;
+            if Some(id) == local_entity_id {
+                return Some(local_view);
+            }
+            world
+                .entity(EntityId::new(id))?
+                .sample_pose(presentation_time)
+                .map(|pose| pose.view_angles_degrees)
+        },
+    )
 }
 
 /// A cut-off limb (`CG_General`'s client-limb case): its own mesh, rooted at the limb

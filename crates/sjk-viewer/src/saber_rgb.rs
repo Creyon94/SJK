@@ -12,20 +12,26 @@
 use crate::saber::Color;
 use crate::saber_skins::{MAX_SKINS, SkinColor};
 
+#[path = "black_sabers.rs"]
+pub(crate) mod black;
+
 /// Material slot of the engine-generated neutral pair, after the six retail
 /// colours.
 pub(crate) const RGB_MATERIAL: u32 = Color::ALL.len() as u32;
 /// Material slot of the first loaded blade skin (`saber_skins.rs` `LoadedSkins` order),
 /// after the neutral pair.
 pub(crate) const SKIN_MATERIAL: u32 = RGB_MATERIAL + 1;
-/// Number of saber material bind groups (six retail pairs, the neutral one and
-/// one per blade-skin slot).
-pub(crate) const MATERIAL_COUNT: usize = SKIN_MATERIAL as usize + MAX_SKINS;
+/// Independent alpha-blended black pair after every blade-skin slot.
+pub(crate) const BLACK_MATERIAL: u32 = SKIN_MATERIAL + MAX_SKINS as u32;
+/// Six retail pairs, the neutral pair, all blade skins and the black pair.
+pub(crate) const MATERIAL_COUNT: usize = BLACK_MATERIAL as usize + 1;
 
 /// Blade colour as the renderer needs it: a retail shader pair, or a tint
 /// applied to the neutral pair.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) enum BladeColor {
+    /// JA+'s alpha-blended black blade, distinct from an RGB tint of zero.
+    Black,
     /// One of the six retail colours, drawn with its own textures.
     Retail(Color),
     /// Any other colour, drawn with the neutral textures tinted by this RGB.
@@ -46,6 +52,7 @@ impl BladeColor {
     /// Bind-group slot of this colour's glow/core pair.
     pub(crate) fn material(self) -> u32 {
         match self {
+            Self::Black => BLACK_MATERIAL,
             Self::Retail(color) => color.index() as u32,
             Self::Rgb(_) => RGB_MATERIAL,
             Self::Skin(skin) => SKIN_MATERIAL + u32::from(skin.index),
@@ -57,6 +64,9 @@ impl BladeColor {
     /// skin comes back with that light (and that as its trail), no flicker and no hue
     /// turning: enough for a contact's light.
     pub(crate) fn from_material(material: u32, tint: [f32; 3]) -> Self {
+        if material == BLACK_MATERIAL {
+            return Self::Black;
+        }
         if let Some(color) = Color::ALL.get(material as usize) {
             return Self::Retail(*color);
         }
@@ -71,12 +81,18 @@ impl BladeColor {
                 flicker: Default::default(),
                 hue: [0.0; 2],
                 ghosts: None,
+                petals: None,
                 persona: Default::default(),
                 chroma: Default::default(),
                 off: 0,
                 room: 0.0,
                 star: None,
                 echo: None,
+                linger: 0.0,
+                each_swing: false,
+                stirred: false,
+                trail_kind: Default::default(),
+                wake: false,
             });
         }
         Self::Rgb(tint.map(|c| (c * 255.).round().clamp(0., 255.) as u8))
@@ -87,6 +103,7 @@ impl BladeColor {
     /// [`Self::from_material`].
     pub(crate) fn tint(self) -> [f32; 3] {
         match self {
+            Self::Black => [1.0; 3],
             Self::Retail(_) => [1.0; 3],
             Self::Rgb(rgb) => rgb.map(|channel| f32::from(channel) / 255.0),
             Self::Skin(skin) => skin.light_color(),
@@ -97,6 +114,7 @@ impl BladeColor {
     /// the player's tint for RGB (`cg_players.c:7840-7855`), the skin's own for a skin.
     pub(crate) fn trail_rgb(self) -> [f32; 3] {
         match self {
+            Self::Black => [0.0; 3],
             Self::Retail(color) => color.trail_rgb(),
             Self::Rgb(rgb) => rgb.map(|channel| f32::from(channel) / 255.0),
             Self::Skin(skin) => skin.trail_color(),

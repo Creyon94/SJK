@@ -5,14 +5,16 @@
 //! replacing levelshots often caption them), with a crosshair to show where
 //! the screen's centre is. The HUD's text (the score line, or the whole text
 //! HUD) is returned beside the picture for the menu to draw in its own font.
+//! SJK's own layouts get the backdrop and crosshair alone: the picker draws
+//! the layout over them with the live HUD's own code.
 //!
 //! [`plan`] resolves the files on the calling thread (menus and shader names
 //! only); [`render`] decodes the pictures and composites them, which is the
 //! slow part, on a worker.
 
 use super::choices::{HudChoice, is_retail_archive};
-use super::frame::{Frame, Readout, Timers};
-use super::layout::{Layout, Side};
+use super::frame::{Frame, Readout, Timers, VehicleReadout};
+use super::layout::{Layout, Side, WHITE_PICTURE};
 use super::{DIGITS, Source, gpu::to_pixels, mount_file_name, pack_view, read_menus, source};
 use image::{Rgba, RgbaImage};
 use sjk_shader::{ShaderCatalog, StageBlend};
@@ -40,6 +42,8 @@ pub(crate) struct Plan {
 }
 
 enum Kind {
+    /// One of SJK's layouts, which the picker draws over the backdrop.
+    Sjk,
     /// The text-only HUD: nothing but text runs.
     Text,
     Menus {
@@ -71,18 +75,22 @@ pub(crate) struct Preview {
     pub(crate) texts: Vec<PreviewText>,
 }
 
-/// Resolve `choice`'s menus and picture paths, or `None` when it is not a
-/// game-data HUD or its files describe no HUD.
+/// Resolve `choice`'s menus and picture paths (the backdrop alone for SJK's
+/// layouts), or `None` when its files describe no HUD.
 pub(crate) fn plan(
     vfs: &VirtualFileSystem,
     shaders: &ShaderCatalog,
     choice: &HudChoice,
 ) -> Option<Plan> {
+    let backdrop = retail_levelshot(vfs);
     if !choice.has_preview() {
-        return None;
+        return Some(Plan {
+            vfs: vfs.clone(),
+            kind: Kind::Sjk,
+            backdrop,
+        });
     }
     let view = pack_view(vfs, &choice.pack).unwrap_or_else(|| vfs.clone());
-    let backdrop = retail_levelshot(vfs);
     let kind = match source(&choice.files) {
         Source::Text => Kind::Text,
         Source::Menus(list) => {
@@ -98,6 +106,9 @@ pub(crate) fn plan(
                 .pictures
                 .iter()
                 .map(|name| {
+                    if name.eq_ignore_ascii_case(WHITE_PICTURE) {
+                        return Some((WHITE_PICTURE.to_owned(), false));
+                    }
                     let path = shaders.resolve_image(&view, name).ok().flatten()?;
                     let additive = shaders
                         .get(name)
@@ -140,21 +151,35 @@ fn sample() -> Readout {
 
 /// Draw the planned HUD.
 pub(crate) fn render(plan: &Plan) -> Preview {
+    render_with(plan, Some(&sample()), None)
+}
+
+/// Draw the planned HUD for `readout` (`None`: a vehicle hides its rider)
+/// with the vehicle HUD of `vehicle`, where the menus have one.
+pub(crate) fn render_with(
+    plan: &Plan,
+    readout: Option<&Readout>,
+    vehicle: Option<&VehicleReadout>,
+) -> Preview {
     let [width, height] = SIZE;
     let viewport = [width as f32, height as f32];
     let mut canvas = backdrop(plan.backdrop.as_ref());
     crosshair(&mut canvas);
     let mut frame = Frame::default();
     let mut timers = Timers::default();
-    let readout = sample();
     match &plan.kind {
-        Kind::Text => frame.simple_hud(&readout, &mut timers),
+        Kind::Sjk => {}
+        Kind::Text => {
+            if let Some(readout) = readout {
+                frame.simple_hud(readout, &mut timers);
+            }
+        }
         Kind::Menus {
             layout,
             pictures,
             digits,
         } => {
-            frame.menu_hud(layout, &readout, &mut timers, *digits, "Score");
+            frame.stats(layout, readout, vehicle, &mut timers, *digits, "Score");
             let mut decoded: Vec<Option<Option<RgbaImage>>> =
                 (0..pictures.len()).map(|_| None).collect();
             for picture in &frame.pictures[..frame.picture_count] {
@@ -192,6 +217,9 @@ pub(crate) fn render(plan: &Plan) -> Preview {
 }
 
 fn decode(vfs: &VirtualFileSystem, path: &str) -> Option<RgbaImage> {
+    if path == WHITE_PICTURE {
+        return Some(RgbaImage::from_pixel(8, 8, Rgba([255; 4])));
+    }
     let asset = vfs.read(path).ok().flatten()?;
     Some(crate::decode_image(&asset.bytes, path).ok()?.into_rgba8())
 }
@@ -391,7 +419,7 @@ mod tests {
     }
 
     #[test]
-    fn the_text_hud_is_text_only_and_sjk_layouts_have_no_preview() {
+    fn the_text_hud_is_text_only_and_sjk_layouts_get_the_backdrop() {
         let vfs = files();
         let shaders = ShaderCatalog::default();
         let choices = list(&vfs);
@@ -405,8 +433,60 @@ mod tests {
         // Health at x 16 on the left; the style right of the centre.
         assert_eq!(preview.texts[0].x, 16.0 * 1.5);
         assert!(preview.texts[3].x > 640.0);
+        // SJK's layouts: the backdrop alone, which the picker draws them over.
         for own in choices.iter().filter(|choice| !choice.has_preview()) {
-            assert!(plan(&vfs, &shaders, own).is_none(), "{}", own.label);
+            let preview = render(&plan(&vfs, &shaders, own).unwrap());
+            assert_eq!(preview.image.dimensions(), (SIZE[0], SIZE[1]));
+            assert!(preview.texts.is_empty(), "{}", own.label);
+        }
+    }
+
+    /// The retail HUD of the installation in `JKA_GAME_DATA` with the stock
+    /// vehicle HUD, written to `target/menu-snapshots/vehicle-hud-*.png`:
+    ///
+    /// ```sh
+    /// JKA_GAME_DATA="/path/to/GameData" cargo test -p sjk-viewer \
+    ///     vehicle_hud_snapshot -- --ignored --nocapture
+    /// ```
+    #[test]
+    #[ignore = "reads the local game installation"]
+    fn vehicle_hud_snapshot() {
+        let game = std::env::var_os("JKA_GAME_DATA").expect("set JKA_GAME_DATA");
+        let vfs = crate::assets::mount_game_data(std::path::Path::new(&game)).unwrap();
+        let shaders = ShaderCatalog::load_with_warnings(&vfs, |_, _| {});
+        let choices = list(&vfs);
+        let retail = plan(&vfs, &shaders, &choices[0]).expect("the retail HUD");
+        let swoop = VehicleReadout {
+            hull: [430.0, 700.0],
+            shields: [40.0, 100.0],
+            speed: [1_100.0, 1_600.0],
+            ammo: [[60.0, 100.0], [0.0, 0.0]],
+            weapons: [true, false],
+            boost_flash: false,
+            turbo: Some((0.45, false)),
+            linked: true,
+        };
+        let walker = VehicleReadout {
+            hull: [800.0, 800.0],
+            shields: [0.0, 0.0],
+            speed: [120.0, 160.0],
+            ammo: [[300.0, 300.0], [6.0, 8.0]],
+            weapons: [true, true],
+            boost_flash: false,
+            turbo: None,
+            linked: false,
+        };
+        let directory =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/menu-snapshots");
+        std::fs::create_dir_all(&directory).unwrap();
+        for (name, readout, vehicle) in [
+            ("vehicle-hud-swoop", Some(sample()), swoop),
+            ("vehicle-hud-atst", None, walker),
+        ] {
+            let preview = render_with(&retail, readout.as_ref(), Some(&vehicle));
+            let path = directory.join(format!("{name}.png"));
+            preview.image.save(&path).unwrap();
+            println!("{}", path.display());
         }
     }
 

@@ -21,6 +21,13 @@ pub fn decode_legacy(bytes: &[u8]) -> Cow<'_, str> {
     sjk_protocol::decode_legacy_text(bytes)
 }
 
+/// [`decode_legacy`] for bytes that are a whole chat message, such as a localized
+/// chat's body: a single Russian letter (`я`, byte 0xFF) reads as one, not as `ÿ`
+/// ([`sjk_protocol::decode_legacy_message`]).
+pub fn decode_legacy_message(bytes: &[u8]) -> Cow<'_, str> {
+    sjk_protocol::decode_legacy_message(bytes)
+}
+
 /// The bytes a reliable command leaves with.
 ///
 /// A command built as UTF-8 text is encoded for legacy clients

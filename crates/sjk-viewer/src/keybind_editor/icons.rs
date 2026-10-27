@@ -16,7 +16,7 @@ use std::sync::Arc;
 /// action with a picture. `weapon N` selects weapon `N + 2` of
 /// `weapon_t` (`weapon 1` the saber, else melee; `weapon 10` cycles the
 /// explosives), as `legacy_direct_weapon` reads it.
-const ICONS: [(&str, &str); 40] = [
+const ICONS: &[(&str, &str)] = &[
     // INTERACTION
     ("sv_saberswitch", "gfx/hud/w_icon_lightsaber.tga"),
     ("saberAttackCycle", "gfx/hud/saber_med.tga"),
@@ -30,6 +30,24 @@ const ICONS: [(&str, &str); 40] = [
     ("toy_illuminate", "gfx/sjk/toy_illuminate.png"),
     // SJK's cardboard box, which the client bundles (`crate::cardboard_box`).
     (crate::cardboard_box::COMMAND, "gfx/sjk/toy_box.png"),
+    // SJK's Order 66, which the client bundles (`crate::order66`).
+    (crate::order66::COMMAND, crate::order66::ICON),
+    (
+        crate::order66::EXECUTE_COMMAND,
+        crate::order66::EXECUTE_ICON,
+    ),
+    // SJK's Hax, which the client bundles (`crate::hax`).
+    (crate::hax::COMMAND, crate::hax::ICON),
+    // SJK's Ragdoll, which the client bundles (`crate::ragdoll`).
+    (crate::ragdoll::COMMAND, crate::ragdoll::ICON),
+    // SJK's Drone, which the client bundles (`crate::drone`).
+    (crate::drone::COMMAND, crate::drone::ICON),
+    // SJK's Boombox, which the client bundles (`crate::boombox`).
+    (crate::boombox::COMMAND, crate::boombox::ICON),
+    ("boombox next", crate::boombox::ICON),
+    // SJK's Monitor, which the client bundles (`crate::monitor`).
+    (crate::monitor::COMMAND, crate::monitor::ICON),
+    (crate::monitor::CHARGE_COMMAND, crate::monitor::ICON),
     // WEAPONS
     ("weapon 1", "gfx/hud/w_icon_lightsaber.tga"),
     ("weapmelee", "gfx/hud/w_icon_melee.tga"),
@@ -63,6 +81,11 @@ const ICONS: [(&str, &str); 40] = [
     ("force_dash", "gfx/jof/force_dash.tga"),
     ("+force_stasis", "gfx/mp/f_icon_levitation.tga"),
     ("force_repulse", "gfx/jof/force_repulse.tga"),
+    #[cfg(feature = "mod-jof")]
+    (
+        sjk_mod_jof::destruction::COMMAND,
+        "gfx/mp/f_icon_lightning.tga",
+    ),
     // OTHER
     ("teammenu", "gfx/hud/mpi_rflag.tga"),
 ];
@@ -89,7 +112,7 @@ pub(super) fn texture(action: usize) -> Option<TextureId> {
 /// Each distinct picture and its cell.
 pub(super) fn requests() -> Vec<IconRequest> {
     let mut requests: Vec<IconRequest> = Vec::with_capacity(ICONS.len());
-    for (_, path) in ICONS {
+    for &(_, path) in ICONS {
         let Some(texture) = cell(path) else { continue };
         if requests.iter().all(|(other, _)| *other != texture) {
             requests.push((texture, vec![path.to_owned()]));

@@ -6,6 +6,9 @@ use sjk_ui::InputEvent;
 
 impl ViewerConsole {
     pub(crate) fn handle_pointer(&mut self, event: InputEvent) {
+        if self.dialogue_pointer(event) {
+            return;
+        }
         #[cfg(feature = "mod-jof")]
         if self.jof_content_pointer(event) {
             return;

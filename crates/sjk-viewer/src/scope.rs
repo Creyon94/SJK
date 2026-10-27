@@ -160,6 +160,13 @@ impl ZoomView {
     }
 }
 
+/// The player's camera choice, or third person while the viewed player is dead:
+/// EternalJK's `cg.renderingThirdPerson = cg_thirdPerson || stats[STAT_HEALTH] <= 0`
+/// (`cg_view.c:3098`), so a death is always seen from the death camera.
+pub(crate) fn third_person_wanted(choice: bool, view: Option<ZoomView>) -> bool {
+    choice || view.is_some_and(|view| view.health <= 0)
+}
+
 /// The third-person state the frame renders: the player's choice, unless a zoom
 /// forces first person this frame. A pure function of this frame's inputs.
 pub(crate) fn rendering_third_person(choice: bool, zoom_first_person: bool) -> bool {
@@ -173,12 +180,12 @@ impl GpuState {
     ///
     /// Call it once a frame before anything reads `third_person`.
     pub(crate) fn update_zoom_view(&mut self, time: i32) {
-        self.zoom_first_person = self
-            .zoom_view(time)
-            .is_some_and(ZoomView::forces_first_person);
-        self.third_person =
-            rendering_third_person(self.third_person_choice, self.zoom_first_person)
-                || self.free_camera_active();
+        let view = self.zoom_view(time);
+        self.zoom_first_person = view.is_some_and(ZoomView::forces_first_person);
+        self.third_person = rendering_third_person(
+            third_person_wanted(self.third_person_choice, view),
+            self.zoom_first_person,
+        ) || self.free_camera_active();
         if self.live_session.is_some() {
             self.detached_camera = self.free_camera_active();
         }
@@ -330,9 +337,32 @@ impl GpuState {
     }
 }
 
+/// Whether the crosshair and the crosshair names draw while zoomed in `mode` with
+/// `cg_crosshairscope` `scope_style`, or with the quick wheel open (its middle shows
+/// its names where the crosshair would be). A zoom's mask replaces the crosshair
+/// unless the style keeps it (1), but only the binoculars (2) hide the names: JoF
+/// EJK's `CG_DrawCrosshairNames` returns on `zoomMode == 2` alone, after the scan,
+/// so the disruptor's scope still names its target (hub #103, chris). The scan runs
+/// either way, so the U whisper keeps its target.
+pub(crate) fn crosshair_visibility(mode: u8, scope_style: i64, wheel_open: bool) -> [bool; 2] {
+    let crosshair = !wheel_open && (mode == 0 || scope_style == 1);
+    let names = !wheel_open && mode != 2;
+    [crosshair, names]
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn only_the_binoculars_hide_the_crosshair_names() {
+        // Disruptor zoom: the mask replaces the crosshair, the names stay.
+        assert_eq!(crosshair_visibility(1, 0, false), [false, true]);
+        assert_eq!(crosshair_visibility(1, 1, false), [true, true]);
+        assert_eq!(crosshair_visibility(2, 0, false), [false, false]);
+        assert_eq!(crosshair_visibility(0, 0, false), [true, true]);
+        assert_eq!(crosshair_visibility(0, 0, true), [false, false]);
+    }
 
     const WP_BRYAR_PISTOL: u8 = 4;
     const WP_DISRUPTOR: u8 = 6;
@@ -397,6 +427,28 @@ mod tests {
             ..zoomed(WP_DISRUPTOR)
         };
         assert!(!dead.forces_first_person());
+    }
+
+    #[test]
+    fn a_dead_player_is_seen_in_third_person_whatever_the_choice() {
+        let alive = ZoomView {
+            health: 100,
+            ..ZoomView::default()
+        };
+        let dead = ZoomView {
+            health: -12,
+            ..alive
+        };
+        assert!(!third_person_wanted(false, Some(alive)));
+        assert!(third_person_wanted(true, Some(alive)));
+        assert!(third_person_wanted(false, Some(dead)));
+        // A detached demo camera has no player view, so the choice stands.
+        assert!(!third_person_wanted(false, None));
+        // A dead player's zoom never forces first person back.
+        assert!(rendering_third_person(
+            third_person_wanted(false, Some(dead)),
+            dead.forces_first_person()
+        ));
     }
 
     #[test]

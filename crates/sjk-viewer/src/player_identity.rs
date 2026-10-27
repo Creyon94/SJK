@@ -93,6 +93,8 @@ struct Runtime {
     /// Whether the service was last told the player is actively playing
     /// (`holocrons/activity.rs`).
     sent_active: Option<bool>,
+    /// Whether the game menu was open at the last frame ([`follow_game_menu`]).
+    game_menu_open: bool,
     next_sync: Option<Instant>,
     /// Keys whose profile was asked for their picture's version ([`avatar_version`]),
     /// newest last, so each is asked once.
@@ -111,6 +113,8 @@ struct Runtime {
     /// Model questions the player card asked and when, newest last, so each is asked
     /// at most every [`MODEL_CHECK_EVERY`].
     model_asks: Vec<((SocketAddr, u8, String), Instant)>,
+    /// The serial of the last map edits answer shown ([`map_edits_published`]).
+    map_edits_seen: u64,
 }
 
 static RUNTIME: Mutex<Runtime> = Mutex::new(Runtime {
@@ -122,12 +126,14 @@ static RUNTIME: Mutex<Runtime> = Mutex::new(Runtime {
     sent_chat: None,
     sent_look: None,
     sent_active: None,
+    game_menu_open: false,
     next_sync: None,
     picture_lookups: Vec::new(),
     card_lookups: Vec::new(),
     sent_crash_dir: None,
     sent_models: None,
     own_model: None,
+    map_edits_seen: 0,
     model_asks: Vec::new(),
 });
 
@@ -138,23 +144,48 @@ fn lock() -> MutexGuard<'static, Runtime> {
 }
 
 fn make_hub(url: &str) -> Result<Box<dyn Hub>, sjk_identity::HubError> {
-    let agent = format!("SJK/{}", crate::build_info::VERSION);
-    HttpHub::new(url, &agent).map(|hub| Box::new(hub) as Box<dyn Hub>)
+    HttpHub::new(url, crate::build_info::hub_agent()).map(|hub| Box::new(hub) as Box<dyn Hub>)
 }
 
 /// A hub client for the SJK chat's long poll, whose requests may last longer.
 fn make_feed_hub(url: &str) -> Result<Box<dyn Hub>, sjk_identity::HubError> {
-    let agent = format!("SJK/{}", crate::build_info::VERSION);
-    HttpHub::with_timeout(url, &agent, sjk_identity::feed::TIMEOUT)
-        .map(|hub| Box::new(hub) as Box<dyn Hub>)
+    HttpHub::with_timeout(
+        url,
+        crate::build_info::hub_agent(),
+        sjk_identity::feed::TIMEOUT,
+    )
+    .map(|hub| Box::new(hub) as Box<dyn Hub>)
 }
 
 /// A hub client for shared vitals, whose requests give up sooner: a late answer is
 /// out of date anyway.
 fn make_vitals_hub(url: &str) -> Result<Box<dyn Hub>, sjk_identity::HubError> {
-    let agent = format!("SJK/{}", crate::build_info::VERSION);
-    HttpHub::with_timeout(url, &agent, sjk_identity::vitals::TIMEOUT)
-        .map(|hub| Box::new(hub) as Box<dyn Hub>)
+    HttpHub::with_timeout(
+        url,
+        crate::build_info::hub_agent(),
+        sjk_identity::vitals::TIMEOUT,
+    )
+    .map(|hub| Box::new(hub) as Box<dyn Hub>)
+}
+
+/// A hub client for the toy relay's sends, which give up soon: a late one is out of date.
+fn make_relay_send_hub(url: &str) -> Result<Box<dyn Hub>, sjk_identity::HubError> {
+    HttpHub::with_timeout(
+        url,
+        crate::build_info::hub_agent(),
+        sjk_identity::relay::SEND_TIMEOUT,
+    )
+    .map(|hub| Box::new(hub) as Box<dyn Hub>)
+}
+
+/// A hub client for the toy relay's long poll.
+fn make_relay_read_hub(url: &str) -> Result<Box<dyn Hub>, sjk_identity::HubError> {
+    HttpHub::with_timeout(
+        url,
+        crate::build_info::hub_agent(),
+        sjk_identity::relay::TIMEOUT,
+    )
+    .map(|hub| Box::new(hub) as Box<dyn Hub>)
 }
 
 /// The name the game shows for `slot`, as the server published it.
@@ -228,9 +259,15 @@ pub(crate) fn apply(
                     Box::new(make_hub),
                     Some(Box::new(make_feed_hub)),
                     Some(Box::new(make_vitals_hub)),
+                    Some(sjk_identity::RelayHubs {
+                        send: Box::new(make_relay_send_hub),
+                        read: Box::new(make_relay_read_hub),
+                    }),
                 );
                 // The hub's packs (unlockables' art) are kept beside the key.
                 service.keep_assets(crate::sjk_packs::directory_in(config_directory));
+                // SJK's map edits, every player's copy beside the key too.
+                service.keep_map_edits(crate::map_edits::folder(config_directory));
                 runtime.service = Some(service);
             }
             Err(error) => {
@@ -272,6 +309,48 @@ pub(crate) fn packs() -> (u64, Option<String>) {
     lock().service.as_ref().map_or((0, None), |service| {
         service.with_snapshot(|snapshot| (snapshot.packs_revision, snapshot.assets_note.clone()))
     })
+}
+
+/// How many map edit documents the service has changed in their folder
+/// ([`crate::map_edits`] reads the loaded map's again when it changes).
+pub(crate) fn map_edits_revision() -> u64 {
+    lock().service.as_ref().map_or(0, |service| {
+        service.with_snapshot(|snapshot| snapshot.map_edits_revision)
+    })
+}
+
+/// Staff: send a map's edits to the hub; the answer comes from
+/// [`map_edits_published`].
+pub(crate) fn publish_map_edits(
+    map: String,
+    checksum: i32,
+    edits: serde_json::Value,
+) -> Result<(), String> {
+    if !sjk_identity::map_edits::valid_map(&map) {
+        return Err(format!("The hub takes no edits for a map named {map}"));
+    }
+    let runtime = lock();
+    let service = runtime
+        .service
+        .as_ref()
+        .ok_or("Not connected to the SJK hub")?;
+    service.publish_map_edits(map, checksum, edits);
+    Ok(())
+}
+
+/// The hub's answer to the last map edits sent, once, when it is new.
+pub(crate) fn map_edits_published() -> Option<Result<(String, i32, u64), String>> {
+    let mut runtime = lock();
+    let runtime = &mut *runtime;
+    let (serial, outcome) = runtime
+        .service
+        .as_ref()?
+        .with_snapshot(|snapshot| snapshot.map_edits_published.clone())?;
+    if runtime.map_edits_seen == serial {
+        return None;
+    }
+    runtime.map_edits_seen = serial;
+    Some(outcome)
 }
 
 /// Send a bug report through the service; false when the service has not started.
@@ -412,6 +491,48 @@ pub(crate) fn with_snapshot<R>(read: impl FnOnce(&Snapshot) -> R) -> Option<R> {
         .service
         .as_ref()
         .map(|service| service.with_snapshot(read))
+}
+
+/// Whether the hub vouches for the player (verified or staff): only they start
+/// encrypted whispers (`e2e_whispers.rs`).
+pub(crate) fn vouched() -> bool {
+    with_snapshot(|snapshot| {
+        snapshot
+            .me
+            .as_ref()
+            .is_some_and(|me| me.verified || me.staff)
+    })
+    .unwrap_or(false)
+}
+
+/// Whether the hub verified the player's own key (the boombox, `boombox.rs`).
+pub(crate) fn verified() -> bool {
+    with_snapshot(|snapshot| snapshot.me.as_ref().is_some_and(|me| me.verified)).unwrap_or(false)
+}
+
+/// The slots of the players on this server the hub verified, as bits: each one whose
+/// claim names the name the game shows there, and the local player's own slot when its
+/// key is verified (the boombox, `boombox.rs`).
+pub(crate) fn verified_slots(game_state: &GameState) -> u64 {
+    with_snapshot(|snapshot| {
+        let mut slots = 0_u64;
+        for player in snapshot.players.iter().filter(|player| {
+            player.verified
+                && usize::from(player.slot) < MAX_CLIENTS
+                && shown_name(game_state, usize::from(player.slot))
+                    .is_some_and(|shown| sjk_identity::names_match(&player.claimed_name, &shown))
+        }) {
+            slots |= 1 << player.slot;
+        }
+        if snapshot.me.as_ref().is_some_and(|me| me.verified)
+            && let Ok(own) = usize::try_from(game_state.client_num)
+            && own < MAX_CLIENTS
+        {
+            slots |= 1 << own;
+        }
+        slots
+    })
+    .unwrap_or(0)
 }
 
 /// Why the key file could not be used, if that is why there is no identity.
@@ -641,29 +762,6 @@ pub(crate) fn slot_marks(game_state: &GameState) -> SlotMarks {
 /// Each slot's mark after its nameplate's name ([`slot_marks`]).
 pub(crate) type SlotMarks = [Option<sjk_ui::TextureId>; MAX_CLIENTS];
 
-/// The slots of the other SJK players on this server: each one the hub lists with a
-/// claim naming the name the game shows there. A nameplate greys their bars unless
-/// they share them.
-pub(crate) fn sjk_slots(game_state: &GameState) -> [bool; MAX_CLIENTS] {
-    let mut slots = [false; MAX_CLIENTS];
-    let runtime = lock();
-    let Some(service) = runtime.service.as_ref() else {
-        return slots;
-    };
-    service.with_snapshot(|snapshot| {
-        for player in snapshot
-            .players
-            .iter()
-            .filter(|player| usize::from(player.slot) < MAX_CLIENTS)
-        {
-            let slot = usize::from(player.slot);
-            slots[slot] = shown_name(game_state, slot)
-                .is_some_and(|shown| sjk_identity::names_match(&player.claimed_name, &shown));
-        }
-    });
-    slots
-}
-
 /// How long the hub's list of sharers stays good without a new answer: a little over
 /// the life of its entries.
 const SHARED_FRESH: Duration = Duration::from_secs(6);
@@ -826,10 +924,30 @@ pub(crate) fn own_achievements() -> Option<Vec<sjk_identity::Achievement>> {
     })
 }
 
+/// Whether the player's achievements go to an SJK hub: the identity is on with a hub
+/// address (whether it answers right now or not). The hub then has the last word on
+/// the achievements the client counts, and grants their kyber crystals
+/// (`achievements.rs`).
+pub(crate) fn hub_on() -> bool {
+    let runtime = lock();
+    runtime.service.is_some()
+        && runtime
+            .sent_settings
+            .as_ref()
+            .is_some_and(|settings| settings.enabled && !settings.hub_url.trim().is_empty())
+}
+
 /// Whether the hub says the player's own key is staff.
 pub(crate) fn is_staff() -> bool {
     lock().service.as_ref().is_some_and(|service| {
         service.with_snapshot(|snapshot| snapshot.me.as_ref().is_some_and(|me| me.staff))
+    })
+}
+
+/// Whether the player's own key is SJK's creator, as the hub's profile says.
+pub(crate) fn is_creator() -> bool {
+    lock().service.as_ref().is_some_and(|service| {
+        service.with_snapshot(|snapshot| snapshot.me.as_ref().is_some_and(|me| me.creator))
     })
 }
 
@@ -865,16 +983,16 @@ pub(crate) fn own_key_id() -> Option<String> {
         .map(|service| service.with_snapshot(|snapshot| snapshot.key_id.clone()))
 }
 
-/// `key_id` as a card or a list prints it beside a player: `None` for the player's own
-/// key, kept off screen in play like the Identity page keeps it hidden, so a stream does
-/// not show it.
-pub(crate) fn printable_key_id(key_id: &str) -> Option<&str> {
-    others_key_id(key_id, own_key_id().as_deref())
+/// Whether `key_id` is another player's, not this player's own. Key ids are never
+/// drawn in the game, the player's own or anyone else's (Sol's rule, 26/10/2026), so a
+/// stream never shows one; this only tells whose a key is.
+pub(crate) fn is_others_key(key_id: &str) -> bool {
+    others_key(key_id, own_key_id().as_deref())
 }
 
-/// `key_id` unless it is `own`.
-fn others_key_id<'a>(key_id: &'a str, own: Option<&str>) -> Option<&'a str> {
-    (own != Some(key_id)).then_some(key_id)
+/// Whether `key_id` is not `own`.
+fn others_key(key_id: &str, own: Option<&str>) -> bool {
+    own != Some(key_id)
 }
 
 /// This PC's key id (for the pop-up's seen list, kept per key) and what the player's
@@ -921,6 +1039,24 @@ pub(crate) fn reveal_cards() -> bool {
         .is_some()
 }
 
+/// Run `act` on the identity service; `None` before it started (the economy's requests,
+/// `crate::economy`, and the shop's).
+pub(crate) fn with_service<R>(act: impl FnOnce(&Service) -> R) -> Option<R> {
+    lock().service.as_ref().map(act)
+}
+
+/// Ask the hub to sell today's offer `id` for credits; false when the service has not
+/// started. What came of it arrives in the snapshot's `trade`.
+pub(crate) fn buy(id: &str) -> bool {
+    with_service(|service| service.buy(id)).is_some()
+}
+
+/// Ask the hub for the shop's offers of the day; false when the service has not
+/// started. They arrive in the snapshot's `shop`.
+pub(crate) fn read_shop() -> bool {
+    with_service(Service::read_shop).is_some()
+}
+
 /// What became of the last reveal of sealed cards, if the service has started.
 pub(crate) fn reveal_outcome() -> Option<sjk_identity::RevealOutcome> {
     with_snapshot(|snapshot| snapshot.reveal.clone()).flatten()
@@ -950,6 +1086,35 @@ pub(crate) fn set_active(active: bool) -> bool {
         service.set_active(active);
     }
     true
+}
+
+/// Follow whether the game menu is open (each frame): as it opens, the service reads
+/// what its pages show of the hub again (it keeps its own cooldown).
+pub(crate) fn follow_game_menu(open: bool) {
+    let mut runtime = lock();
+    if open
+        && !runtime.game_menu_open
+        && let Some(service) = runtime.service.as_ref()
+    {
+        service.menu_opened();
+    }
+    runtime.game_menu_open = open;
+}
+
+/// The players SJK staff blocked for everyone on the server being played, until its map
+/// changes (`map_blocks.rs`), as the hub's presence last gave them.
+pub(crate) fn map_blocks() -> Vec<sjk_identity::MapBlock> {
+    lock().service.as_ref().map_or_else(Vec::new, |service| {
+        service.with_snapshot(|snapshot| snapshot.map_blocks.clone())
+    })
+}
+
+/// The game server the hub sees this player on (their claim's), if any.
+pub(crate) fn claimed_server() -> Option<std::net::SocketAddr> {
+    lock()
+        .service
+        .as_ref()?
+        .with_snapshot(|snapshot| snapshot.server)
 }
 
 /// Send a staff request through the service; false when the service has not started.
@@ -995,12 +1160,34 @@ pub(crate) fn staff_state() -> Option<sjk_identity::StaffState> {
 }
 
 /// Send an SJK chat message; false when the service has not started. What became of
-/// it arrives in the chat's `outcome`.
+/// it arrives in the chat's `outcome`. In a match, the game server's chat gets it too
+/// (`chat/server_copy.rs`).
 pub(crate) fn chat(text: String) -> bool {
+    send_chat(text, true)
+}
+
+/// [`chat`], but never said in the game server's chat: the SJK chat page's Send only in
+/// SJK, and staff's Shift+Enter. [`chat`] keeps a message with a GIF out of it too (`docs/mods.md`, "SJK chat on JoF servers").
+pub(crate) fn chat_sjk_only(text: String) -> bool {
+    send_chat(text, false)
+}
+
+/// Whether an SJK chat message may be said in the game server's chat too where a mod
+/// says SJK chat there: not one with a GIF, whose link would only spam the server's
+/// other players (Sol, 22/10/2026).
+fn may_go_to_server(text: &str) -> bool {
+    crate::chat_gifs::link::find(text).is_none()
+}
+
+fn send_chat(text: String, server_too: bool) -> bool {
     let runtime = lock();
     let Some(service) = runtime.service.as_ref() else {
         return false;
     };
+    if server_too && may_go_to_server(&text) {
+        let outcome = service.with_chat(|chat| chat.outcome.as_ref().map_or(0, |o| o.serial));
+        crate::chat::server_copy::note_said(&text, outcome);
+    }
     service.chat(text);
     true
 }
@@ -1012,7 +1199,40 @@ pub(crate) fn emote(id: String, sync: Option<u8>) -> bool {
         return false;
     };
     service.emote(id, sync);
+    note_emote_post();
     true
+}
+
+/// Play an emote as [`emote`] does, without its sound for the others (the player is
+/// away, `away_emote.rs`); false when the service has not started.
+pub(crate) fn emote_quiet(id: String) -> bool {
+    let runtime = lock();
+    let Some(service) = runtime.service.as_ref() else {
+        return false;
+    };
+    service.emote_quiet(id);
+    note_emote_post();
+    true
+}
+
+/// The hub takes one emote every 2 seconds from a key (`PROTOCOL.md`, "Emotes"), and
+/// a little more for the clock's rounding.
+const EMOTE_GAP: Duration = Duration::from_millis(2_100);
+static LAST_EMOTE_POST: Mutex<Option<Instant>> = Mutex::new(None);
+
+fn note_emote_post() {
+    *LAST_EMOTE_POST
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(Instant::now());
+}
+
+/// Whether the hub would take an emote from the player at `now`, as far as this
+/// client's own posts go.
+pub(crate) fn emote_ready(now: Instant) -> bool {
+    LAST_EMOTE_POST
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .is_none_or(|last| now.saturating_duration_since(last) >= EMOTE_GAP)
 }
 
 /// Ping `pos` (whole game units) for `scope` from the player's slot
@@ -1055,6 +1275,69 @@ pub(crate) fn toy_event(toy: &str, event: &str, target: u8) -> bool {
     };
     service.toy_event(toy.to_owned(), event.to_owned(), target);
     true
+}
+
+/// Relay `event` of the player's toy `toy` to the player in slot `target` at once
+/// (`PROTOCOL.md`, "Toy relay"); `replace` lets a later one take its place while it
+/// waits. False when the service has not started.
+pub(crate) fn relay_toy_event(toy: &str, event: String, target: u8, replace: bool) -> bool {
+    let runtime = lock();
+    let Some(service) = runtime.service.as_ref() else {
+        return false;
+    };
+    service.relay_toy_event(toy.to_owned(), event, target, replace);
+    true
+}
+
+/// Whether the toy relay reads the events meant for the player.
+pub(crate) fn set_relay_listen(listen: bool) {
+    if let Some(service) = lock().service.as_ref() {
+        service.set_relay_listen(listen);
+    }
+}
+
+/// Whether the player takes encrypted whispers (`e2e_whispers.rs`).
+pub(crate) fn set_whisper_listen(listen: bool) {
+    if let Some(service) = lock().service.as_ref() {
+        service.set_whisper_listen(listen);
+    }
+}
+
+/// Seal and send an encrypted whisper; false when the service has not started.
+pub(crate) fn send_whisper(whisper: sjk_identity::whisper::Outgoing) -> bool {
+    let runtime = lock();
+    let Some(service) = runtime.service.as_ref() else {
+        return false;
+    };
+    service.send_whisper(whisper);
+    true
+}
+
+/// What became of the encrypted whispers sent since the last call.
+pub(crate) fn take_whispers_sent() -> Vec<sjk_identity::whisper::Sent> {
+    lock()
+        .service
+        .as_ref()
+        .map(|service| service.take_whispers_sent())
+        .unwrap_or_default()
+}
+
+/// The encrypted whispers read for `server` since the last call.
+pub(crate) fn take_whispers(server: Option<SocketAddr>) -> Vec<sjk_identity::whisper::Received> {
+    lock()
+        .service
+        .as_ref()
+        .map(|service| service.take_whispers(server))
+        .unwrap_or_default()
+}
+
+/// The relayed toy events read for `server` since the last call.
+pub(crate) fn take_relay_events(server: Option<SocketAddr>) -> Vec<sjk_identity::ToyEvent> {
+    lock()
+        .service
+        .as_ref()
+        .map(|service| service.take_relay_events(server))
+        .unwrap_or_default()
 }
 
 /// The toy events received for `server`, the game server the player is on, since the
@@ -1115,6 +1398,23 @@ pub(crate) fn owns_unlock(id: &str) -> bool {
                 .me
                 .as_ref()
                 .is_some_and(|me| me.unlocks.iter().any(|unlock| unlock.id == id))
+        })
+    })
+}
+
+/// Whether the player's own hub profile lists a revealed copy of `gate`'s card in its
+/// finish (`blade_extras.rs`): false with the identity off, no hub or before the hub
+/// answered.
+pub(crate) fn holds_card(gate: &crate::blade_extras::Gate) -> bool {
+    lock().service.as_ref().is_some_and(|service| {
+        service.with_snapshot(|snapshot| {
+            !matches!(
+                snapshot.status,
+                sjk_identity::Status::Disabled | sjk_identity::Status::NoHub
+            ) && snapshot
+                .me
+                .as_ref()
+                .is_some_and(|me| crate::blade_extras::holds(&me.cards, gate))
         })
     })
 }
@@ -1219,18 +1519,23 @@ mod tests {
     use super::*;
 
     #[test]
-    fn only_the_players_own_key_id_stays_off_screen() {
+    fn a_message_with_a_gif_is_never_said_on_the_server() {
+        assert!(may_go_to_server("gg wp"));
+        assert!(!may_go_to_server(
+            "hello https://giphy.com/gifs/hello-wave-ShotGifWide01"
+        ));
+        assert!(!may_go_to_server(
+            "https://i.giphy.com/ShotGifSquare02.gif nice"
+        ));
+    }
+
+    #[test]
+    fn a_key_is_the_players_own_only_when_it_matches() {
         let own = Some("0123456789abcdef");
-        assert_eq!(others_key_id("0123456789abcdef", own), None);
-        assert_eq!(
-            others_key_id("fedcba9876543210", own),
-            Some("fedcba9876543210")
-        );
-        // Before the identity started every key prints.
-        assert_eq!(
-            others_key_id("0123456789abcdef", None),
-            Some("0123456789abcdef")
-        );
+        assert!(!others_key("0123456789abcdef", own));
+        assert!(others_key("fedcba9876543210", own));
+        // Before the identity started every key is another's.
+        assert!(others_key("0123456789abcdef", None));
     }
 
     #[test]
@@ -1239,7 +1544,6 @@ mod tests {
         assert_eq!(revision(), 0);
         assert!(snapshot().is_none());
         assert_eq!(slot_marks(&GameState::empty_local(0)), [None; MAX_CLIENTS]);
-        assert_eq!(sjk_slots(&GameState::empty_local(0)), [false; MAX_CLIENTS]);
         assert_eq!(report_gate(), crate::ingame_menu::players::Gate::NoIdentity);
         assert_eq!(hub_mark(3, "Sol"), None);
         assert!(player_report_outcome().is_none());
@@ -1272,6 +1576,11 @@ mod tests {
             illuminate: true,
             saber_off: Vec::new(),
             toys: Vec::new(),
+            saber2: None,
+            saber2_off: Vec::new(),
+            saber_on: Vec::new(),
+            saber2_on: Vec::new(),
+            saber_sounds: String::new(),
         };
         let mut sent = None;
         assert!(newly(&mut sent, &lit));

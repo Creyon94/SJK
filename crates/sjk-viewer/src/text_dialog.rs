@@ -5,7 +5,8 @@
 //! it; Enter or Send sends it.
 //!
 //! All keep only what the hub accepts as it is typed or pasted (letters and digits of
-//! any script, spaces and `. , ! ? ' - : ( )`, line breaks turned into spaces), a report
+//! any script, spaces and [`sjk_identity::report::PUNCTUATION`], line breaks turned into
+//! spaces), a report
 //! at most 600 characters, a note at most [`NOTE_MAX`], a player report at most 300.
 //!
 //! The text has an insertion point (the console's `LineEdit`): the arrows, Home, End,
@@ -29,7 +30,7 @@
 //! model to drop it ([`Action::ClearModel`]); a click on the scene round the dialog
 //! asks for what is under the pointer to be noted instead ([`Action::PickAt`]).
 
-use crate::console::line_edit::{LineEdit, Motion};
+use crate::console::line_edit::LineEdit;
 use crate::menu::art::ArtSet;
 use crate::menu_widgets::MenuCanvas;
 use crate::text::{TextVertex, UiFont};
@@ -42,7 +43,7 @@ use winit::keyboard::{KeyCode, PhysicalKey};
 #[path = "text_dialog_classic.rs"]
 mod classic;
 #[path = "text_dialog_field.rs"]
-mod field;
+pub(crate) mod field;
 #[path = "text_dialog_sjk.rs"]
 mod sjk;
 
@@ -227,6 +228,7 @@ fn wrap(text: &str, width: usize) -> Vec<String> {
 
 /// `text` broken into lines that `fits` accepts, at spaces where it can be; a word longer
 /// than a line is cut where the line ends.
+#[cfg(test)]
 fn wrap_by(text: &str, fits: impl Fn(&str) -> bool) -> Vec<String> {
     let mut ranges = Vec::new();
     field::wrap_ranges(text, fits, &mut ranges);
@@ -238,13 +240,8 @@ fn wrap_by(text: &str, fits: impl Fn(&str) -> bool) -> Vec<String> {
 
 /// `text` broken into lines no wider than `width` pixels when drawn `size` pixels high
 /// in `font` with `spacing` pixels between glyphs, leaving room for the caret.
-pub(crate) fn wrap_to(
-    text: &str,
-    font: &UiFont,
-    size: f32,
-    spacing: f32,
-    width: f32,
-) -> Vec<String> {
+#[cfg(test)]
+fn wrap_to(text: &str, font: &UiFont, size: f32, spacing: f32, width: f32) -> Vec<String> {
     let scale = size / font.height.max(1.0);
     let room = width - size * 0.5;
     wrap_by(text, |line| {
@@ -427,48 +424,20 @@ impl TextDialog {
             KeyCode::Tab => self.step_focus(shift),
             KeyCode::Enter | KeyCode::NumpadEnter => return self.press_focused(),
             KeyCode::Space if self.focus != Focus::Field => return self.press_focused(),
-            KeyCode::Backspace if self.focus == Focus::Field => {
-                let word = self.control;
-                self.erase(if word { Motion::WordLeft } else { Motion::Left });
-            }
-            KeyCode::Delete if self.focus == Focus::Field => {
-                let word = self.control;
-                self.erase(if word {
-                    Motion::WordRight
+            _ if self.focus == Focus::Field
+                && let Some(changed) = field::caret_key(
+                    &mut self.text,
+                    &mut self.edit,
+                    &mut self.layout,
+                    key,
+                    self.control,
+                ) =>
+            {
+                if changed {
+                    self.touched();
                 } else {
-                    Motion::Right
-                });
-            }
-            KeyCode::ArrowLeft | KeyCode::ArrowRight if self.focus == Focus::Field => {
-                let left = key == KeyCode::ArrowLeft;
-                let motion = match (self.control, left) {
-                    (false, true) => Motion::Left,
-                    (false, false) => Motion::Right,
-                    (true, true) => Motion::WordLeft,
-                    (true, false) => Motion::WordRight,
-                };
-                self.edit.motion(&self.text, motion, false);
-                self.moved();
-            }
-            KeyCode::ArrowUp | KeyCode::ArrowDown if self.focus == Focus::Field => {
-                let at = self.edit.cursor(&self.text);
-                let to = self
-                    .layout
-                    .vertical(&self.text, at, key == KeyCode::ArrowDown);
-                self.edit.place(&self.text, to, false);
-                self.moved();
-            }
-            KeyCode::Home | KeyCode::End if self.focus == Focus::Field => {
-                let home = key == KeyCode::Home;
-                let at = self.edit.cursor(&self.text);
-                // Control takes the caret to the ends of the whole text.
-                let to = match (self.control, home) {
-                    (true, true) => 0,
-                    (true, false) => self.text.len(),
-                    _ => self.layout.edge(&self.text, at, home),
-                };
-                self.edit.place(&self.text, to, false);
-                self.moved();
+                    self.moved();
+                }
             }
             // The arrows walk the buttons as Tab does.
             KeyCode::ArrowLeft | KeyCode::ArrowUp => self.step_focus(true),
@@ -512,12 +481,6 @@ impl TextDialog {
             _ => {}
         }
         Action::None
-    }
-
-    /// Delete from the caret to where `motion` goes (Backspace is `Left`, Delete `Right`).
-    fn erase(&mut self, motion: Motion) {
-        self.edit.delete(&mut self.text, motion);
-        self.touched();
     }
 
     /// The text changed: the refusal no longer applies and the caret shows.
@@ -707,18 +670,17 @@ mod tests {
     #[test]
     fn reports_and_notes_keep_only_what_the_hub_accepts() {
         assert_eq!(
-            typed(
-                &Kind::Report,
-                "",
-                "Door <b>flickers</b>\n\u{1F642} \"left\"!"
-            ),
-            "Door bflickersb  left!"
+            typed(&Kind::Report, "", "Door *flickers*\n\u{1F642} @left&!"),
+            "Door flickers  left!"
         );
+        // Cvars and commands are kept (19/10/2026).
+        let cvars = "cg_fov \"90\"; /kill [x] <y> #2 \\ +a=b";
+        assert_eq!(typed(&Kind::Report, "", cvars), cvars);
         let note = Kind::Note {
             subject: String::new(),
             model: None,
         };
-        assert_eq!(typed(&note, "", "a <b> \"x\"\tz?"), "a b x z?");
+        assert_eq!(typed(&note, "", "a {b} @x&\tz?"), "a b x z?");
         // Nothing past the limit.
         let full = "x".repeat(NOTE_MAX);
         assert_eq!(typed(&note, &full, "more"), "");
@@ -885,7 +847,7 @@ mod tests {
             dialog.key(KeyCode::Delete, None);
         }
         // Pasted: what the hub refuses is dropped, a line break is a space.
-        dialog.key(KeyCode::KeyV, Some("<b>\n\u{1F642}ö"));
+        dialog.key(KeyCode::KeyV, Some("{b}\n\u{1F642}ö"));
         assert_eq!(
             dialog.text.chars().count(),
             sjk_identity::report::TEXT_MAX - 1

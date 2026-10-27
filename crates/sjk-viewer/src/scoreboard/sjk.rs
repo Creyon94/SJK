@@ -102,8 +102,8 @@ const BARS_BEFORE_PING: f32 = 76.0;
 /// the general dim.
 const BOARD_DIM: f32 = 0.5;
 /// A team's colour, muted: only its thin rule and its name wear it.
-const RED_TEAM: Color = Color::new(0.88, 0.38, 0.38, 1.0);
-const BLUE_TEAM: Color = Color::new(0.44, 0.64, 0.98, 1.0);
+const RED_TEAM: Color = color::RED_TEAM;
+const BLUE_TEAM: Color = color::BLUE_TEAM;
 
 /// The match's limits, from the server's info.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -139,12 +139,27 @@ pub(super) struct SjkHeader<'a> {
     pub(super) local: LocalStatus,
     /// Who last killed you, while you are dead.
     pub(super) killer: Option<&'a str>,
+    /// The siege team that won the round now over (1 red, 2 blue).
+    pub(super) siege_winner: Option<u8>,
+    /// The match is over: your intermission, or the server's `CS_INTERMISSION`, which
+    /// tells every client at once (a team game's result is shown from it).
+    pub(super) match_over: bool,
     pub(super) duel: Duelists,
     /// `cg_compactScoreboard`: thin rows, every player in one column.
     pub(super) compact: bool,
     /// The frame rate to show left of the clock (`cg_scoreboardFps`), when on and
     /// measured.
     pub(super) fps: Option<u32>,
+}
+
+/// What a team's head shows before its name.
+#[derive(Clone, Copy)]
+enum Standing {
+    /// Its score, muted while it trails, and whether it won the match now at its
+    /// intermission.
+    Score { score: i32, trails: bool, won: bool },
+    /// Siege scores no team: nothing, and whether it won the round.
+    Siege { won: bool },
 }
 
 /// Measures runs before they are drawn, so what follows them can be placed:
@@ -195,6 +210,9 @@ fn visible_chars(value: &str) -> usize {
     }
     count
 }
+
+/// How strongly an away player's name shows.
+const AWAY_ALPHA: f32 = 0.4;
 
 /// A short run formatted on the stack, to measure and then draw it.
 struct Short {
@@ -310,7 +328,6 @@ fn watching(row: &ScoreRow) -> bool {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Stat {
     Score,
-    Deaths,
     /// Duel wins and losses.
     Record,
     Captures,
@@ -324,7 +341,6 @@ impl Stat {
     fn label(self, wide: bool) -> &'static str {
         match self {
             Self::Score => "Score",
-            Self::Deaths => "Deaths",
             Self::Record => "Won/lost",
             Self::Captures if wide => "Captures",
             Self::Captures => "Caps",
@@ -342,10 +358,9 @@ impl fmt::Display for StatText<'_> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         let Self(stat, row) = self;
         match stat {
-            Stat::Score => write!(formatter, "{}", row.score),
-            Stat::Deaths => match row.deaths {
-                Some(deaths) => write!(formatter, "{deaths}"),
-                None => formatter.write_str("–"),
+            Stat::Score => match row.deaths {
+                Some(deaths) => write!(formatter, "{}/{deaths}", row.score),
+                None => write!(formatter, "{}", row.score),
             },
             Stat::Record => match row.record {
                 Some((wins, losses)) => write!(formatter, "{wins}/{losses}"),
@@ -362,8 +377,8 @@ impl fmt::Display for StatText<'_> {
 /// What a list shows.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Kind {
-    /// Free-for-all players: score, deaths when counted, time.
-    Free { deaths: bool },
+    /// Free-for-all players: score (optionally score/deaths) and time.
+    Free,
     /// A team: score and time, or in capture modes score, captures, assists
     /// and defends (and a carried flag before the name).
     Team { capture: bool },
@@ -375,10 +390,7 @@ impl Kind {
     /// The list's number columns, left to right.
     fn stats(self) -> &'static [Stat] {
         match self {
-            Self::Free { deaths: true } => &[Stat::Score, Stat::Deaths, Stat::Time],
-            Self::Free { deaths: false } | Self::Team { capture: false } => {
-                &[Stat::Score, Stat::Time]
-            }
+            Self::Free | Self::Team { capture: false } => &[Stat::Score, Stat::Time],
             Self::Team { capture: true } => {
                 &[Stat::Score, Stat::Captures, Stat::Assists, Stat::Defends]
             }
@@ -583,6 +595,11 @@ pub(super) fn build(
     };
     let board = painter.board(rows);
     dim(painter.ui, &frame, viewport, board.span);
+    match outcome(header) {
+        Some(Outcome::Won(RED)) => won_tint(painter.ui, viewport, RED_TEAM),
+        Some(Outcome::Won(_)) => won_tint(painter.ui, viewport, BLUE_TEAM),
+        Some(Outcome::Tied) | None => {}
+    }
     // It settles into place as it opens, as the classic board does.
     painter.frame.origin[1] -= (1.0 - opacity) * 12.0 * frame.s;
     painter.header_line(rows);
@@ -632,6 +649,45 @@ fn dim(ui: &mut MenuCanvas, frame: &Frame, viewport: [f32; 2], span: Option<[f32
     } else {
         ui.accent_bar(Rect::new(full, 0.0, width - full, height), navy(BOARD_DIM));
     }
+}
+
+/// How a team match came out, once it is known: a siege round over (siege scores no
+/// team), or any other team game at its intermission, by the team scores.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Outcome {
+    Won(u8),
+    Tied,
+}
+
+fn outcome(header: &SjkHeader<'_>) -> Option<Outcome> {
+    if header.gametype == SIEGE {
+        return header
+            .siege_winner
+            .filter(|team| matches!(*team, RED | BLUE))
+            .map(Outcome::Won);
+    }
+    if header.gametype < TEAM || !header.match_over {
+        return None;
+    }
+    let [red, blue] = header.team_scores;
+    Some(match red.cmp(&blue) {
+        std::cmp::Ordering::Greater => Outcome::Won(RED),
+        std::cmp::Ordering::Less => Outcome::Won(BLUE),
+        std::cmp::Ordering::Equal => Outcome::Tied,
+    })
+}
+
+/// A team match won: the whole window washed faintly in the winner's colour,
+/// a little deeper towards the top, where the winner is told.
+fn won_tint(ui: &mut MenuCanvas, viewport: [f32; 2], tint: Color) {
+    let [width, height] = viewport;
+    ui.accent_bar(Rect::new(0.0, 0.0, width, height), color::alpha(tint, 0.06));
+    fade(
+        ui,
+        Rect::new(0.0, 0.0, width, height * 0.55),
+        color::alpha(tint, 0.14),
+        color::alpha(tint, 0.0),
+    );
 }
 
 impl Painter<'_> {
@@ -794,7 +850,7 @@ impl Painter<'_> {
                 span: Some([x, x + whole]),
             };
         }
-        let list = List::players(rows.iter().any(|row| row.deaths.is_some()));
+        let list = List::players();
         let (x, width) = self.compact_list(rows, &list, |row| !watching(row), CENTRE);
         Board {
             x,
@@ -1033,7 +1089,9 @@ impl Painter<'_> {
             return RIGHT;
         }
         if header.gametype >= TEAM {
-            if header.gametype == SIEGE {
+            // Siege scores no team, and a match over tells its outcome above the
+            // teams ([`Self::outcome`]): nothing to say here.
+            if header.gametype == SIEGE || outcome(header).is_some() {
                 return RIGHT;
             }
             let [red, blue] = header.team_scores;
@@ -1141,15 +1199,21 @@ impl Painter<'_> {
     /// Everyone playing in one list, by place; two side by side once rows
     /// would be thinner than [`ROW_SPLIT`].
     fn free_for_all(&mut self, rows: &[ScoreRow], board: &Board) {
-        let deaths = rows.iter().any(|row| row.deaths.is_some());
-        let list = List::players(deaths).at(board.x, board.width);
+        let list = List::players().at(board.x, board.width);
         self.list(rows, &list, |row| !watching(row));
     }
 
-    /// The two teams side by side, red on the left, each under its score.
+    /// The two teams side by side, red on the left, each under its score; in
+    /// siege, which scores no team, under the round's winner once it is over.
     fn teams(&mut self, rows: &[ScoreRow], board: &Board) {
         let capture = matches!(self.header.gametype, CTF | CTY);
+        let siege = self.header.gametype == SIEGE;
         let width = board.width;
+        self.outcome(board);
+        let winner = match outcome(self.header) {
+            Some(Outcome::Won(team)) => Some(team),
+            Some(Outcome::Tied) | None => None,
+        };
         let [red, blue] = self.header.team_scores;
         for (team, x) in [(RED, board.x), (BLUE, board.x + width + GUTTER)] {
             let (score, other) = if team == RED {
@@ -1158,48 +1222,102 @@ impl Painter<'_> {
                 (blue, red)
             };
             let members = rows.iter().filter(|row| row.team == team).count();
-            self.team_head(team, x, width, score, score < other, members);
+            let won = winner == Some(team);
+            let standing = if siege {
+                Standing::Siege { won }
+            } else {
+                Standing::Score {
+                    score,
+                    trails: score < other,
+                    won,
+                }
+            };
+            self.team_head(team, x, width, standing, members);
             let list = List::team(capture).at(x, width);
             self.list(rows, &list, |row| row.team == team);
         }
     }
 
-    /// A team's head: its score large (muted while it trails), its name in
-    /// its colour with how many play, and a thin rule in that colour.
-    fn team_head(
-        &mut self,
-        team: u8,
-        x: f32,
-        width: f32,
-        score: i32,
-        trails: bool,
-        members: usize,
-    ) {
+    /// The match's outcome, large and in the winner's colour, centred over both teams,
+    /// as siege tells a round's: "Blue team won", or "Teams tied" in white (the scores
+    /// stand in the team heads below).
+    fn outcome(&mut self, board: &Board) {
+        let Some(outcome) = outcome(self.header) else {
+            return;
+        };
+        let (line, tint) = match outcome {
+            Outcome::Won(RED) => ("Red team won", RED_TEAM),
+            Outcome::Won(_) => ("Blue team won", BLUE_TEAM),
+            Outcome::Tied => ("Teams tied", color::TEXT),
+        };
+        self.run(
+            TextFamily::Display,
+            format_args!("{line}"),
+            board.x,
+            142.0,
+            board.width * 2.0 + GUTTER,
+            56.0,
+            tint,
+            FontWeight::Semibold,
+            TextAlign::Center,
+        );
+    }
+
+    /// A team's head: its score large (muted while it trails; in siege no score),
+    /// then its name in its colour with how many play, "Winner" by the side that
+    /// won once the match (siege: the round) is over, and a thin rule in that colour.
+    fn team_head(&mut self, team: u8, x: f32, width: f32, standing: Standing, members: usize) {
         let (name, tint) = if team == RED {
             ("Red team", RED_TEAM)
         } else {
             ("Blue team", BLUE_TEAM)
         };
         let y = 200.0;
-        let value = Short::of(format_args!("{score}"));
-        self.run(
-            TextFamily::Display,
-            format_args!("{}", value.as_str()),
-            x,
-            y,
-            240.0,
-            76.0,
-            if trails { color::MUTED } else { color::TEXT },
-            FontWeight::Semibold,
-            TextAlign::Start,
-        );
-        let after =
-            x + self.width(
+        let (after, won) = match standing {
+            Standing::Score { score, trails, won } => {
+                let value = Short::of(format_args!("{score}"));
+                self.run(
+                    TextFamily::Display,
+                    format_args!("{}", value.as_str()),
+                    x,
+                    y,
+                    240.0,
+                    76.0,
+                    if trails { color::MUTED } else { color::TEXT },
+                    FontWeight::Semibold,
+                    TextAlign::Start,
+                );
+                let after =
+                    x + self.width(
+                        TextFamily::Display,
+                        value.as_str(),
+                        76.0,
+                        FontWeight::Semibold,
+                    ) + 22.0;
+                (after, won)
+            }
+            Standing::Siege { won } => (x, won),
+        };
+        // On the name's line at the column's end, where both fit (a compact board's
+        // columns may be too narrow).
+        let fits = || {
+            let name = self.width(TextFamily::Display, name, 26.0, FontWeight::Semibold);
+            let mark = self.width(TextFamily::Display, "Winner", 26.0, FontWeight::Semibold);
+            after - x + name + mark + 16.0 <= width
+        };
+        if won && fits() {
+            self.run(
                 TextFamily::Display,
-                value.as_str(),
-                76.0,
+                format_args!("Winner"),
+                x,
+                y - 10.0,
+                width,
+                26.0,
+                color::GOLD_BRIGHT,
                 FontWeight::Semibold,
-            ) + 22.0;
+                TextAlign::End,
+            );
+        }
         self.run(
             TextFamily::Display,
             format_args!("{name}"),
@@ -1493,9 +1611,14 @@ impl Painter<'_> {
         let mut slot = 0;
         for (index, row) in rows.iter().filter(|row| member(row)).enumerate() {
             // Players waiting are numbered in turn; others by score, ties
-            // sharing a place.
-            if list.kind == Kind::Waiting || previous != Some(row.score) {
+            // sharing a place, counting the away players moved below.
+            if list.kind == Kind::Waiting {
                 place = index + 1;
+            } else if previous != Some(row.score) {
+                place = 1 + rows
+                    .iter()
+                    .filter(|other| member(other) && other.score > row.score)
+                    .count();
                 previous = Some(row.score);
             }
             let local = self.is_local(row);
@@ -1509,7 +1632,7 @@ impl Painter<'_> {
             } else {
                 target
             };
-            let numbered = (list.numbered && row.has_score).then_some(place);
+            let numbered = (list.numbered && row.has_score && row.away.is_none()).then_some(place);
             self.row(&columns(half), row, numbered, y, row_height);
             slot += 1;
         }
@@ -1610,7 +1733,7 @@ impl Painter<'_> {
             });
         }
         let (name_size, number_size) = text_sizes(self.header.compact, height);
-        let quiet = row.bot || !row.has_score;
+        let quiet = row.bot || !row.has_score || row.away.is_some();
         if let (Some(right), Some(place)) = (columns.place, place) {
             self.run(
                 TextFamily::Display,
@@ -1693,7 +1816,10 @@ impl Painter<'_> {
             middle,
             (room - marks - jof).max(0.0),
             name_size,
-            if quiet {
+            // An away name keeps its colours, faint (they take the run's alpha).
+            if row.away.is_some() {
+                color::alpha(color::TEXT, AWAY_ALPHA)
+            } else if quiet {
                 color::alpha(color::MUTED, 0.85)
             } else {
                 color::TEXT
@@ -1753,6 +1879,27 @@ impl Painter<'_> {
         } else {
             None
         };
+        let away = row.away.filter(|_| status.is_none());
+        if let Some(minutes) = away {
+            // Where the ping goes: what matters of them now.
+            let text = if minutes > 0 {
+                Short::of(format_args!("AFK {minutes}m"))
+            } else {
+                Short::of(format_args!("AFK"))
+            };
+            self.run(
+                TextFamily::Body,
+                format_args!("{}", text.as_str()),
+                columns.ping - 120.0,
+                middle,
+                120.0,
+                15.0,
+                color::QUIET,
+                FontWeight::Regular,
+                TextAlign::End,
+            );
+            return;
+        }
         match status {
             Some(status) => self.run(
                 TextFamily::Body,
@@ -1811,13 +1958,13 @@ struct List {
 
 impl List {
     /// Free-for-all: everyone playing, by place.
-    fn players(deaths: bool) -> Self {
+    fn players() -> Self {
         Self {
             x: BOARD_LEFT,
             width: BOARD_WIDTH,
             top: LIST_TOP,
             bottom: BOTTOM,
-            kind: Kind::Free { deaths },
+            kind: Kind::Free,
             numbered: true,
             split: true,
             title: "Player",
@@ -1921,6 +2068,7 @@ mod tests {
             name: format!("^{}Player{client}", client % 8),
             team,
             score,
+            reported_deaths: None,
             deaths: None,
             ping: 20 + i32::from(client) * 9,
             time: 3 + i32::from(client),
@@ -1935,6 +2083,64 @@ mod tests {
                 verified: client % 12 == 1,
                 ..Default::default()
             }),
+            order: client,
+            tagged: false,
+            away: None,
+        }
+    }
+
+    #[test]
+    fn score_includes_deaths_in_the_same_column() {
+        let mut row = row(0, 0, 3);
+        assert_eq!(StatText(Stat::Score, &row).to_string(), "3");
+        row.deaths = Some(2);
+        assert_eq!(StatText(Stat::Score, &row).to_string(), "3/2");
+        row.score = -2;
+        assert_eq!(StatText(Stat::Score, &row).to_string(), "-2/2");
+        assert_eq!(Kind::Free.stats(), &[Stat::Score, Stat::Time]);
+    }
+
+    #[test]
+    fn a_team_match_tells_its_outcome_only_once_it_is_over() {
+        let mut ctf = header(CTF, 5);
+        // `header` gives red 5, blue 3.
+        assert_eq!(outcome(&ctf), None);
+        ctf.match_over = true;
+        assert_eq!(outcome(&ctf), Some(Outcome::Won(RED)));
+        ctf.team_scores = [3, 4];
+        assert_eq!(outcome(&ctf), Some(Outcome::Won(BLUE)));
+        ctf.team_scores = [2, 2];
+        assert_eq!(outcome(&ctf), Some(Outcome::Tied));
+        let mut free = header(0, 5);
+        free.match_over = true;
+        assert_eq!(outcome(&free), None);
+        // Siege: its round's winner, whatever the (unkept) team scores say.
+        let mut siege = header(SIEGE, 5);
+        assert_eq!(outcome(&siege), None);
+        siege.siege_winner = Some(BLUE);
+        assert_eq!(outcome(&siege), Some(Outcome::Won(BLUE)));
+    }
+
+    /// A capture match over draws its outcome as a siege round's: "Red team won"
+    /// without the score, and "Winner" by the red head, compact or not.
+    #[test]
+    fn a_capture_match_over_is_told_as_a_siege_round() {
+        let rows: Vec<_> = (0..8)
+            .map(|client| row(client, 1 + client % 2, 4))
+            .collect();
+        for viewport in VIEWPORTS {
+            for compact in [false, true] {
+                let mut ctf = header(CTF, 3);
+                ctf.compact = compact;
+                ctf.match_over = true;
+                let ui = draw(&rows, &ctf, viewport);
+                let runs: Vec<_> = ui.text_runs().collect();
+                assert!(runs.contains(&"Red team won"), "{viewport:?} {runs:?}");
+                assert!(!runs.iter().any(|run| run.contains(" : ")), "{runs:?}");
+                if !compact {
+                    assert!(runs.contains(&"Winner"), "{viewport:?} {runs:?}");
+                }
+            }
         }
     }
 
@@ -1959,6 +2165,8 @@ mod tests {
                 intermission: false,
             },
             killer: None,
+            siege_winner: None,
+            match_over: false,
             duel: Duelists::default(),
             compact: false,
             fps: None,
@@ -2067,6 +2275,7 @@ mod tests {
         };
         let mut ready = header(CTF, 3);
         ready.local.intermission = true;
+        ready.match_over = true;
         ready.local.ready = u32::MAX;
         vec![
             ("free for all of 8", free(8), header(0, 3)),
@@ -2162,6 +2371,7 @@ mod tests {
                     .collect();
                 let mut ready = with(header(CTF, 3));
                 ready.local.intermission = true;
+                ready.match_over = true;
                 ready.local.ready = u32::MAX;
                 let ui = draw(&ctf, &ready, viewport);
                 assert!(!ui.overflowed(), "capture the flag at {viewport:?}");
@@ -2348,8 +2558,7 @@ mod tests {
     #[test]
     fn compact_columns_pack_the_numbers_after_the_names() {
         for kind in [
-            Kind::Free { deaths: true },
-            Kind::Free { deaths: false },
+            Kind::Free,
             Kind::Team { capture: true },
             Kind::Team { capture: false },
             Kind::Waiting,
@@ -2450,8 +2659,7 @@ mod tests {
     #[test]
     fn names_end_before_the_numbers_in_every_list() {
         for kind in [
-            Kind::Free { deaths: true },
-            Kind::Free { deaths: false },
+            Kind::Free,
             Kind::Team { capture: true },
             Kind::Team { capture: false },
             Kind::Waiting,

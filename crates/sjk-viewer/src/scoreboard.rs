@@ -1,11 +1,14 @@
 //! Cached authoritative scoreboard projection rendered through `sjk-ui`.
 
+mod afk;
+pub(crate) use afk::CVAR as AFK_CVAR;
 pub(crate) mod behavior;
 mod classic;
 mod deaths;
 mod icons;
 mod identity_mark;
 pub(crate) mod layout;
+mod live_flags;
 mod motion;
 #[cfg(test)]
 pub(crate) mod shot;
@@ -41,7 +44,9 @@ pub(super) struct ScoreRow {
     pub(super) name: String,
     pub(super) team: u8,
     pub(super) score: i32,
-    /// Optional session-observed count; no fabricated authoritative plugin statistic.
+    /// Deaths reported by a compatible server plugin, before display policy.
+    pub(super) reported_deaths: Option<i32>,
+    /// Optional count selected for display from the report or session observer.
     pub(super) deaths: Option<i32>,
     pub(super) ping: i32,
     pub(super) time: i32,
@@ -58,6 +63,12 @@ pub(super) struct ScoreRow {
     pub(super) captures: i32,
     /// The SJK hub knows this player under this name (`player_identity.rs`).
     pub(super) identity: Option<crate::player_identity::Tag>,
+    /// The row's place in the server's `scores` order, which away rows leave.
+    pub(super) order: u8,
+    /// The name wears an away tag ([`afk::NAME_TAGS`]).
+    pub(super) tagged: bool,
+    /// Away from the keyboard ([`afk`]), with the whole minutes seen idle.
+    pub(super) away: Option<u32>,
 }
 
 /// Cached scoreboard data and fixed retained presentation storage.
@@ -71,6 +82,7 @@ pub(crate) struct Scoreboard {
     rows: Vec<ScoreRow>,
     ui: MenuCanvas,
     deaths: deaths::Deaths,
+    afk: afk::Afk,
     hostname: String,
     max_clients: i32,
     gametype: i32,
@@ -83,6 +95,13 @@ pub(crate) struct Scoreboard {
     /// Who last killed the viewing player, named in `killer_name`.
     killer: Option<u16>,
     killer_name: String,
+    /// The last siege round won that the snapshots carried (`EV_SIEGE_ROUNDOVER`) in this
+    /// session, and the tracker's last one, which a new session does not take again.
+    siege_round_over: Option<sjk_client::SiegeRoundOver>,
+    siege_round_seen: Option<sjk_client::SiegeRoundOver>,
+    /// The server ended the match ([`ServerIntermission`]), followed every frame.
+    server_intermission: bool,
+    intermission: ServerIntermission,
     context: behavior::Context,
     requests: behavior::Requests,
     /// The hub roster revision the rows' `identity` tags were derived from;
@@ -109,6 +128,7 @@ impl Scoreboard {
             rows: Vec::with_capacity(32),
             ui: MenuCanvas::with_capacities(TEXT_SLOTS, 96, DRAWS),
             deaths: deaths::Deaths::default(),
+            afk: afk::Afk::default(),
             hostname: String::with_capacity(64),
             max_clients: 0,
             gametype: 0,
@@ -119,6 +139,10 @@ impl Scoreboard {
             icons: icons::HeadIcons::default(),
             killer: None,
             killer_name: String::with_capacity(64),
+            siege_round_over: None,
+            siege_round_seen: None,
+            server_intermission: false,
+            intermission: ServerIntermission::default(),
             context: behavior::Context::default(),
             requests: behavior::Requests::default(),
             identity_revision: u64::MAX,
@@ -145,7 +169,7 @@ impl Scoreboard {
         let allowed = allowed
             && (self.style != style::ScoreboardStyle::Classic
                 || (!console.is_some_and(|c| c.bool_cvar("cl_paused") == Some(true))
-                    && (!self.context.warmup || self.context.held || self.context.intermission)));
+                    && (!self.context.warmup || self.context.held)));
         let visible = self
             .motion
             .present(requested, allowed, std::time::Instant::now());
@@ -179,8 +203,15 @@ impl Scoreboard {
     ) {
         self.refresh(session);
         for row in &mut self.rows {
-            row.deaths = self.deaths.count(row.client_num);
+            row.deaths = self.deaths.count(row.client_num, row.reported_deaths);
         }
+        self.mark_away(afk::enabled(options));
+        live_flags::apply(
+            &mut self.rows,
+            session.latest_snapshot(),
+            session.team_info().entries(),
+            session.game_state(),
+        );
         // Tags follow the hub's roster, not the frame: derived again only when it
         // or the rows changed.
         let revision = crate::player_identity::revision();
@@ -216,6 +247,11 @@ impl Scoreboard {
                 team_scores: session.team_scores(),
                 local: local_status,
                 killer,
+                // Siege's alone: two configuration strings read per frame otherwise.
+                siege_winner: (self.gametype == sjk_game_jka::match_end::GT_SIEGE)
+                    .then(|| sjk_client::siege_round_winner(game, self.siege_round_over))
+                    .flatten(),
+                match_over: local_status.intermission || self.server_intermission,
                 duel: sjk::Duelists {
                     local: Some((player.health(), player.armor())),
                     ..duelists(game)
@@ -292,6 +328,20 @@ impl Scoreboard {
         );
     }
 
+    /// Mark who is away and move them below the others of their list, in the
+    /// server's order again once back; with `enabled` off, nobody is.
+    fn mark_away(&mut self, enabled: bool) {
+        for row in &mut self.rows {
+            row.away = if !enabled || row.bot || !row.has_score {
+                None
+            } else {
+                self.afk.away(row.client_num).or(row.tagged.then_some(0))
+            };
+        }
+        self.rows
+            .sort_unstable_by_key(|row| (row.away.is_some(), row.order));
+    }
+
     fn refresh(&mut self, session: &ClientSession) {
         let signature = config_signature(session.game_state());
         let server_signature = session
@@ -320,6 +370,7 @@ impl Scoreboard {
                 name,
                 team,
                 score: score.score,
+                reported_deaths: score.deaths,
                 deaths: None,
                 ping: score.ping,
                 time: score.time_minutes,
@@ -331,6 +382,9 @@ impl Scoreboard {
                 assists: score.assists,
                 captures: score.captures,
                 identity: None,
+                order: 0,
+                tagged: false,
+                away: None,
             });
         }
         // Connected clients the scores do not list yet (`CG_TeamScoreboard`'s
@@ -353,6 +407,7 @@ impl Scoreboard {
                 name,
                 team,
                 score: 0,
+                reported_deaths: None,
                 deaths: None,
                 ping: 0,
                 time: 0,
@@ -364,7 +419,14 @@ impl Scoreboard {
                 assists: 0,
                 captures: 0,
                 identity: None,
+                order: 0,
+                tagged: false,
+                away: None,
             });
+        }
+        for (order, row) in self.rows.iter_mut().enumerate() {
+            row.order = order as u8;
+            row.tagged = afk::tagged(&row.name);
         }
         let server = server_info(game);
         self.map.clear();
@@ -440,6 +502,48 @@ fn level_elapsed(game: &GameState, server_time: i32) -> Option<i32> {
         .map(|start| server_time.saturating_sub(start).max(0))
 }
 
+/// Whether `CS_INTERMISSION` reads "1": set the moment a limit is hit, as siege's round
+/// end is told by its own configuration string, so the result does not wait on this
+/// client's `PM_INTERMISSION` (a spectator's or follower's may never carry it, and a mod
+/// may hold it back).
+fn intermission_set(game: &GameState) -> bool {
+    config_text(game, sjk_game_jka::match_end::CS_INTERMISSION)
+        .is_some_and(|text| text.trim().parse::<i32>().is_ok_and(|value| value != 0))
+}
+
+/// The server's end of the match as cgame takes it (`cg.intermissionStarted`): on when
+/// `CS_INTERMISSION` turns on, off again at a new level start (`CG_MapRestart`). The
+/// game never clears the string, and a `map_restart` (a single-map server's
+/// `nextmap`, "map_restart 0") keeps it, so the string alone would call the next match
+/// over too; a "1" already there when the level starts or this client joins is not
+/// taken either, as in cgame.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(super) struct ServerIntermission {
+    level_start: Option<i32>,
+    set: bool,
+    started: bool,
+}
+
+impl ServerIntermission {
+    /// Follow this frame's configuration strings; whether the match is over.
+    fn observe(&mut self, game: &GameState) -> bool {
+        let start = config_text(game, CS_LEVEL_START_TIME)
+            .and_then(|start| start.trim().parse::<i32>().ok());
+        let set = intermission_set(game);
+        if start != self.level_start {
+            *self = Self {
+                level_start: start,
+                set,
+                started: false,
+            };
+        } else if set != self.set {
+            self.set = set;
+            self.started = set;
+        }
+        self.started
+    }
+}
+
 /// Who duels (`CS_CLIENT_DUELISTS`, `-1` for nobody) and their health when the
 /// server shares it (`CS_CLIENT_DUELHEALTHS`, `g_showDuelHealths`).
 fn duelists(game: &GameState) -> sjk::Duelists {
@@ -473,6 +577,24 @@ const STAT_CLIENTS_READY: usize = 7;
 const PM_INTERMISSION: u8 = 6;
 
 impl Scoreboard {
+    /// Watch the players for the away marks ([`afk`]); every frame, scores and
+    /// chat counters included, whether the board shows or not.
+    pub(crate) fn observe_afk(
+        &mut self,
+        snapshot: &sjk_protocol::Snapshot,
+        game: &GameState,
+        scores: &[ScoreEntry],
+        spoken: &[u32; 32],
+    ) {
+        self.afk.observe(snapshot, game, scores, spoken);
+    }
+
+    /// Whether `client`, shown as `name`, is away as the scoreboard marks it: seen still
+    /// for 3 minutes, or wearing an away tag in their name (`afk`).
+    pub(crate) fn seen_away(&self, client: u8, name: &str) -> bool {
+        self.afk.away(client).is_some() || afk::tagged(name)
+    }
+
     /// The resolved model icon of `client`'s slot.
     pub(crate) fn head_icon(&self, client: u8) -> Option<sjk_ui::TextureId> {
         self.icons.texture(client)
@@ -582,12 +704,17 @@ fn server_info(game_state: &GameState) -> (String, &'static str) {
 }
 
 fn client_identity(game_state: &GameState, client_num: u8) -> (String, u8) {
-    game_state
+    let (name, team) = game_state
         .config_string(CS_PLAYERS + usize::from(client_num))
         .map_or_else(
             || (format!("Client {client_num}"), 3),
             |bytes| client_identity_from_config(bytes, client_num),
-        )
+        );
+    // A blocked player's name reads BLOCKED (`muted_players.rs`).
+    if crate::muted_players::shown_muted(client_num) {
+        return (crate::muted_players::LABEL.to_owned(), team);
+    }
+    (name, team)
 }
 fn client_identity_from_config(bytes: &[u8], client_num: u8) -> (String, u8) {
     let info = sjk_client::LegacyClientInfo::new(bytes);
@@ -657,7 +784,8 @@ fn byte_signature(bytes: &[u8]) -> u64 {
 
 /// Automatic intermission scores and the ordinary held scoreboard share one layout.
 pub(crate) fn requested(gpu: &crate::GpuState, intermission: bool) -> bool {
-    behavior::context(gpu, intermission).requested()
+    behavior::context(gpu, intermission)
+        .requested(style::ScoreboardStyle::from_console(gpu.console.as_ref()))
 }
 
 /// Sample before presentation so death, warmup and roster changes apply together.
@@ -665,9 +793,10 @@ pub(crate) fn update_context(gpu: &mut crate::GpuState, intermission: bool) {
     gpu.scoreboard.context = behavior::context(gpu, intermission);
 }
 
-/// Both looks replace the whole HUD while held, as chosen for SJK.
+/// SJK replaces the whole HUD while held; classic uses selective JoF visibility.
 pub(crate) fn hides_hud(gpu: &crate::GpuState) -> bool {
-    gpu.gameplay_input.held(crate::input::GameButton::Scores)
+    style::ScoreboardStyle::from_console(gpu.console.as_ref()) == style::ScoreboardStyle::Sjk
+        && gpu.gameplay_input.held(crate::input::GameButton::Scores)
         && gpu
             .console
             .as_ref()
@@ -675,12 +804,16 @@ pub(crate) fn hides_hud(gpu: &crate::GpuState) -> bool {
             .unwrap_or(true)
 }
 
+#[path = "scoreboard/hud_policy.rs"]
+mod hud_policy;
+pub(crate) use hud_policy::{hides_crosshair, visibility};
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn manual_death_scores_keep_the_killer_until_respawn_and_close() {
+    fn automatic_classic_death_scores_keep_the_killer_until_respawn_and_close() {
         let directory = tempfile::tempdir().unwrap();
         let mut console =
             crate::console::ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
@@ -689,7 +822,11 @@ mod tests {
         board.context.dead = true;
         board.killer = Some(7);
         board.killer_name.push_str("Attacker");
-        assert!(!board.present(Some(&console), false, true));
+        assert!(board.present(
+            Some(&console),
+            board.context.requested(style::ScoreboardStyle::Classic),
+            true
+        ));
         assert_eq!(board.killer, Some(7));
         assert!(board.present(Some(&console), true, true));
         board.context.dead = false;
@@ -733,6 +870,32 @@ mod tests {
         );
         game.replace_config_string(30, b"-1|0|1".to_vec()).unwrap();
         assert_eq!(classic_duel_result(&game, &board.rows, 4, true), None);
+    }
+
+    #[test]
+    fn the_match_is_over_once_the_server_sets_cs_intermission() {
+        let mut game = GameState::empty_local(0);
+        let mut over = ServerIntermission::default();
+        game.replace_config_string(CS_LEVEL_START_TIME, b"1000".to_vec())
+            .unwrap();
+        assert!(!over.observe(&game));
+        game.replace_config_string(22, b"1".to_vec()).unwrap();
+        assert!(over.observe(&game));
+        // A `map_restart` keeps the string but starts a new level: not over.
+        game.replace_config_string(CS_LEVEL_START_TIME, b"90000".to_vec())
+            .unwrap();
+        assert!(!over.observe(&game));
+        assert!(!over.observe(&game));
+        // A new map clears it; "0" is not over either.
+        game.replace_config_string(22, Vec::new()).unwrap();
+        assert!(!over.observe(&game));
+        game.replace_config_string(22, b"0".to_vec()).unwrap();
+        assert!(!over.observe(&game));
+        game.replace_config_string(22, b"1".to_vec()).unwrap();
+        assert!(over.observe(&game));
+        // Joining while it already reads "1" does not end the match.
+        let mut joined = ServerIntermission::default();
+        assert!(!joined.observe(&game));
     }
 
     #[test]

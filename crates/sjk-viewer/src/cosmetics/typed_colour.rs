@@ -14,10 +14,21 @@ use sjk_client::CosmeticSlot;
 /// The cvar and value to set instead when `tokens` (`color1 2`, `set color1 2`,
 /// `seta color2 3`) set a colour with digits only while `worn` holds a piece for that
 /// cvar, `worn` being each slot's current piece; `None` leaves the command alone.
+#[cfg(test)]
 pub(crate) fn keep_worn(
     tokens: &[String],
     worn: &[Option<String>; 2],
 ) -> Option<(&'static str, String)> {
+    let (slot, value) = assignment(tokens)?;
+    let piece = worn[slot.index()].as_deref()?;
+    let colour = sjk_client::split_color_value(value).0;
+    Some((
+        slot.cvar(),
+        sjk_client::join_color_value(colour, Some(piece)),
+    ))
+}
+
+fn assignment(tokens: &[String]) -> Option<(CosmeticSlot, &str)> {
     let (name, value) = match tokens {
         [name, value] => (name, value),
         [set, name, value]
@@ -35,22 +46,38 @@ pub(crate) fn keep_worn(
     if value.is_empty() || !value.bytes().all(|byte| byte.is_ascii_digit()) {
         return None;
     }
-    let piece = worn[slot.index()].as_deref()?;
-    let colour = sjk_client::split_color_value(value).0;
-    Some((
-        slot.cvar(),
-        sjk_client::join_color_value(colour, Some(piece)),
-    ))
+    Some((slot, value))
 }
 
-/// The piece each slot wears now, read from `console`'s `color1` and `color2`.
-pub(crate) fn worn(console: &crate::console::ViewerConsole) -> [Option<String>; 2] {
-    CosmeticSlot::ALL.map(|slot| {
-        console
-            .text_value(slot.cvar())
-            .and_then(|value| sjk_client::split_color_value(value).1)
-            .map(str::to_owned)
-    })
+/// Preserve the current suffix at this command's position in the buffer.
+/// Writes happen now, including normal cvar change callbacks and set flags.
+pub(crate) fn apply(
+    tokens: &[String],
+    cvars: &mut sjk_shell::CvarRegistry,
+) -> Option<Result<Vec<String>, String>> {
+    let (slot, number) = assignment(tokens)?;
+    let name = slot.cvar();
+    let current = cvars.get(name)?.value.as_text();
+    let piece = sjk_client::split_color_value(&current).1?;
+    let value = sjk_client::join_color_value(sjk_client::split_color_value(number).0, Some(piece));
+    Some((|| {
+        cvars
+            .set_text(name, &value)
+            .map_err(|error| error.to_string())?;
+        let flags = if tokens[0].eq_ignore_ascii_case("seta") {
+            sjk_shell::CvarFlags::ARCHIVE
+        } else if tokens[0].eq_ignore_ascii_case("setu") {
+            sjk_shell::CvarFlags::USER_INFO
+        } else {
+            sjk_shell::CvarFlags::NONE
+        };
+        cvars
+            .add_flags(name, flags)
+            .map_err(|error| error.to_string())?;
+        Ok(vec![format!(
+            "{name} = \"{value}\" (your hat or cape stays on)"
+        )])
+    })())
 }
 
 #[cfg(test)]

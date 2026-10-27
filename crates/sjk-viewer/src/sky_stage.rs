@@ -344,7 +344,16 @@ fn load_box(
             missing.push(name);
         }
     }
-    let texture = super::world_materials::upload_array(device, queue, &images)?;
+    // Texture detail shrinks the box, `nopicmip` or not, as `ParseSkyParms` loads it
+    // (rd-vanilla `tr_shader.cpp`, `R_FindImageFile(..., qtrue, qtrue, ...)`): a 1024-pixel
+    // box held 24 MiB at every setting.
+    let texture = super::world_materials::upload_array(
+        device,
+        queue,
+        "SJK Q3 sky box",
+        &images,
+        super::world_materials::filtering::mips::picmip(),
+    )?;
     let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
         label: Some("SJK Q3 sky clamp sampler"),
         address_mode_u: wgpu::AddressMode::ClampToEdge,
@@ -369,6 +378,10 @@ fn load_box(
         ],
     });
     let vertices = box_vertices(present);
+    // Every face missing: no box to draw, and wgpu panics on a slice of an empty buffer.
+    if vertices.is_empty() {
+        return Ok((None, None, 0, missing));
+    }
     let vertex_count = u32::try_from(vertices.len())?;
     let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
         label: Some("SJK Q3 sky-box vertices"),

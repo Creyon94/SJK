@@ -78,6 +78,7 @@ impl NativeGame {
             power_duel_full: self.power_duel_full(ignore),
             ..Sides::default()
         };
+        let siege = self.gametype == super::GAMETYPE_SIEGE;
         for other in 0..self.players.places() {
             if other == ignore {
                 continue;
@@ -85,10 +86,15 @@ impl NativeGame {
             let Some(peer) = self.peer_mut(other) else {
                 continue;
             };
-            match peer.session.team {
-                1 => sides.red_players += 1,
-                2 => sides.blue_players += 1,
-                _ => {}
+            // `TeamCount`: a player counts for the side it is on and, in siege, for the
+            // side it wants (`siegeDesiredTeam`): a player waiting for the round is on
+            // neither yet, and one who asked to switch counts for both. Otherwise a bot
+            // added before the round picks the side a waiting player already took.
+            let (team, wanted) = (peer.session.team, peer.session.siege_desired_team);
+            for (side, players) in [(1, &mut sides.red_players), (2, &mut sides.blue_players)] {
+                if team == side || (siege && wanted == side) {
+                    *players += 1;
+                }
             }
         }
         sides
@@ -96,6 +102,12 @@ impl NativeGame {
 
     /// `SetTeam(ent, wanted)` as the game calls it itself.
     pub(super) fn set_team_to(&mut self, client: usize, wanted: &[u8], server_time: i32) {
+        // `SetTeam`'s siege branch runs for every caller: a player waiting for its respawn
+        // wave may not be made a spectator (`g_cmds.c:772-780`), not even by following.
+        if self.siege.is_some() {
+            self.siege_set_team_word(client, wanted, false, server_time);
+            return;
+        }
         let (gametype, sides) = (self.gametype, self.sides(client));
         let Some(peer) = self.peer_mut(client) else {
             return;

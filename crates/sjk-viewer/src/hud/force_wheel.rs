@@ -70,7 +70,11 @@ pub(crate) fn icon(
         LIGHTNING if flamethrower => FLAMETHROWER,
         _ => usize::from(slot),
     };
-    icons.get(index).copied().flatten()
+    icons.get(index).copied().flatten().or_else(|| {
+        // A mod's entry without its own picture borrows a stock one.
+        let entry = crate::input::force_abilities::entry(slot)?;
+        icons.get(usize::from(entry.fallback)).copied().flatten()
+    })
 }
 
 /// The name the bar shows under wheel entry `slot` (retail's, as Dark Rage and
@@ -100,7 +104,7 @@ fn placements(
     user_scale: f32,
     drawn: impl Fn(u8) -> bool,
 ) -> Option<([(u8, Rect); 7], usize)> {
-    let (slots, count) = force_wheel::build(view.available);
+    let (slots, count) = force_wheel::build_with(view.available, view.extensions);
     let current = slots[..count]
         .iter()
         .position(|&slot| slot == view.selected)?;
@@ -207,6 +211,34 @@ pub(crate) fn picture_names() -> impl Iterator<Item = (usize, &'static str)> {
         .chain(JOF_ICONS.iter().copied())
 }
 
+impl super::HudOverlay {
+    /// Load optional extension images only once after their owning mod activates.
+    pub(crate) fn load_extension_icons(
+        &mut self,
+        entries: &[force_wheel::Ability],
+        vfs: &VirtualFileSystem,
+        shaders: &ShaderCatalog,
+        renderer: &crate::ui_renderer::ShapeRenderer,
+        queue: &crate::frame_queue::FrameQueue,
+    ) {
+        for entry in entries {
+            let slot = entry.slot as usize;
+            if slot >= ICONS
+                || entry.slot >= 32
+                || self.extension_icons_tried & (1 << entry.slot) != 0
+            {
+                continue;
+            }
+            self.extension_icons_tried |= 1 << entry.slot;
+            if let Some(pixels) = entry.icon.and_then(|path| decode(vfs, shaders, path)) {
+                let id = TextureId(crate::ui_renderer::FORCE_WHEEL_ICON_FIRST + slot as u32);
+                renderer.upload_icon(queue, id, pixels.as_raw());
+                self.force_wheel_icons[slot] = Some(id);
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -217,6 +249,7 @@ mod tests {
             available,
             selected,
             alpha: 1.0,
+            extensions: &[],
         }
     }
 
@@ -293,7 +326,9 @@ mod tests {
             assert_ne!(name(*slot, false), "Illuminate");
             assert_ne!(name(*slot, true), "Illuminate");
         }
-        assert_eq!(name(21, false), "Flamethrower");
+        #[cfg(feature = "mod-jof")]
+        assert_eq!(name(21, false), sjk_mod_jof::destruction::LABEL);
+        assert_eq!(name(22, false), "Flamethrower");
         assert!(placements(&view(1 << 21, 21), [640.0, 480.0], 1.0, |_| true).is_none());
         assert!(
             (0..32u8)

@@ -26,6 +26,9 @@ impl CvarFlags {
     pub const USER_CREATED: Self = Self(1 << 4);
     /// Omit an archived value from generated configuration when it equals its default.
     pub const OMIT_DEFAULT: Self = Self(1 << 5);
+    /// A password or key: the console never prints the value ([`crate::secret`]).
+    /// Registration adds it to a cvar [`crate::secret::is_secret_name`] names.
+    pub const SECRET: Self = Self(1 << 6);
 
     /// Returns whether every bit in `other` is present.
     pub const fn contains(self, other: Self) -> bool {
@@ -193,6 +196,32 @@ pub struct Cvar {
     pub description: String,
 }
 
+impl Cvar {
+    /// The value as the console may print it: [`crate::secret::MASK`] when the cvar
+    /// is [`CvarFlags::SECRET`]; for a cvar the player created (`seta autologin
+    /// "amlogin hunter2"`), the command line it holds with its passwords masked
+    /// ([`crate::secret::shown`]); the value itself otherwise, so a registered
+    /// cvar such as `name` is never read as a command.
+    pub fn shown_value(&self) -> String {
+        self.shown(&self.value.as_text())
+    }
+
+    /// The default as [`Self::shown_value`] shows a value.
+    pub fn shown_default(&self) -> String {
+        self.shown(&self.default.as_text())
+    }
+
+    fn shown(&self, text: &str) -> String {
+        if self.flags.contains(CvarFlags::SECRET) {
+            crate::secret::shown(true, text)
+        } else if self.flags.contains(CvarFlags::USER_CREATED) {
+            crate::secret::shown(false, text)
+        } else {
+            text.to_owned()
+        }
+    }
+}
+
 /// Immutable change notification delivered after a successful mutation.
 #[derive(Clone, Debug, PartialEq)]
 pub struct CvarChange {
@@ -218,6 +247,9 @@ pub struct CvarRegistry {
     aliases: BTreeMap<String, String>,
     /// Stamp of the archived state ([`Self::archive_revision`]).
     revision: u64,
+    /// Keys of the [`CvarFlags::SECRET`] cvars, for [`Self::scrub`]; a key whose
+    /// cvar was unset is skipped there.
+    secrets: Vec<String>,
 }
 
 impl CvarRegistry {
@@ -298,6 +330,13 @@ impl CvarRegistry {
         if definition.flags.contains(CvarFlags::ARCHIVE) {
             self.archive_changed();
         }
+        let mut flags = definition.flags;
+        if crate::secret::is_secret_name(&definition.name) {
+            flags |= CvarFlags::SECRET;
+        }
+        if flags.contains(CvarFlags::SECRET) && !self.secrets.contains(&key) {
+            self.secrets.push(key.clone());
+        }
         self.entries.insert(
             key,
             CvarEntry {
@@ -305,7 +344,7 @@ impl CvarRegistry {
                     name: definition.name,
                     value: definition.default.clone(),
                     default: definition.default,
-                    flags: definition.flags,
+                    flags,
                     description: definition.description,
                 },
                 callbacks: Vec::new(),
@@ -314,18 +353,50 @@ impl CvarRegistry {
         Ok(())
     }
 
-    /// Look up a cvar case-insensitively.
+    /// Look up a cvar case-insensitively, allocating nothing for any name up to 64
+    /// bytes: frames read camel-case names (`cg_drawScores`) many times.
     pub fn get(&self, name: &str) -> Option<&Cvar> {
-        // Runtime consumers use normalized names; do not allocate on every frame read.
-        if !name.bytes().any(|byte| byte.is_ascii_uppercase()) {
-            return self
-                .entries
-                .get(self.canonical_key(name))
-                .map(|entry| &entry.cvar);
+        lowercase(name, |key| {
+            self.entries
+                .get(self.canonical_key(key))
+                .map(|entry| &entry.cvar)
+        })
+    }
+
+    /// Whether `name` holds a secret: a [`CvarFlags::SECRET`] cvar, or a name
+    /// [`crate::secret::is_secret_name`] gives that flag once it is created.
+    pub fn is_secret(&self, name: &str) -> bool {
+        self.get(name).map_or_else(
+            || crate::secret::is_secret_name(name),
+            |cvar| cvar.flags.contains(CvarFlags::SECRET),
+        )
+    }
+
+    /// `text` with each current secret value of [`crate::secret::SCRUB_MIN_CHARS`]
+    /// characters or more replaced by [`crate::secret::MASK`], the longest first so
+    /// one that holds another (`jedi2024`, `jedi`) is masked whole; borrowed, without
+    /// allocating, when it holds none, as for nearly every line.
+    pub fn scrub<'a>(&self, text: &'a str) -> std::borrow::Cow<'a, str> {
+        let mut found: Vec<&str> = self
+            .secrets
+            .iter()
+            .filter_map(|key| match &self.entries.get(key)?.cvar.value {
+                CvarValue::Text(value) => Some(value.as_str()),
+                _ => None,
+            })
+            .filter(|value| {
+                value.chars().count() >= crate::secret::SCRUB_MIN_CHARS && text.contains(value)
+            })
+            .collect();
+        if found.is_empty() {
+            return std::borrow::Cow::Borrowed(text);
         }
-        self.entries
-            .get(self.canonical_key(&name.to_ascii_lowercase()))
-            .map(|entry| &entry.cvar)
+        found.sort_by_key(|value| std::cmp::Reverse(value.len()));
+        let mut scrubbed = text.to_owned();
+        for value in found {
+            scrubbed = scrubbed.replace(value, crate::secret::MASK);
+        }
+        std::borrow::Cow::Owned(scrubbed)
     }
 
     /// Iterate cvars in deterministic normalized-name order.
@@ -345,6 +416,14 @@ impl CvarRegistry {
 
     /// Add behavioral flags to an existing cvar.
     pub fn add_flags(&mut self, name: &str, flags: CvarFlags) -> Result<(), CvarError> {
+        // An unknown name is refused before it can be remembered as a secret.
+        self.entry_mut(name)?;
+        if flags.contains(CvarFlags::SECRET) {
+            let key = self.canonical_key(&name.to_ascii_lowercase()).to_owned();
+            if !self.secrets.contains(&key) {
+                self.secrets.push(key);
+            }
+        }
         let cvar = &mut self.entry_mut(name)?.cvar;
         let before = cvar.flags;
         cvar.flags |= flags;
@@ -397,6 +476,27 @@ fn set_entry(entry: &mut CvarEntry, value: CvarValue, restoring: bool) -> Result
     Ok(true)
 }
 
+/// The longest name [`lowercase`] lowers on the stack; registered names are far shorter.
+const STACK_NAME: usize = 64;
+
+/// Run `with` on `name` in lower case: `name` itself when it has no capital, else a copy
+/// lowered in a stack buffer, or in a new string past [`STACK_NAME`] bytes.
+fn lowercase<R>(name: &str, with: impl FnOnce(&str) -> R) -> R {
+    if !name.bytes().any(|byte| byte.is_ascii_uppercase()) {
+        return with(name);
+    }
+    let mut buffer = [0_u8; STACK_NAME];
+    if let Some(lowered) = buffer.get_mut(..name.len()) {
+        lowered.copy_from_slice(name.as_bytes());
+        lowered.make_ascii_lowercase();
+        // Lowering ASCII letters keeps UTF-8 valid; the check costs a pass over the name.
+        if let Ok(lowered) = std::str::from_utf8(lowered) {
+            return with(lowered);
+        }
+    }
+    with(&name.to_ascii_lowercase())
+}
+
 fn normalize_name(name: &str) -> Result<String, CvarError> {
     if name.is_empty()
         || !name
@@ -442,6 +542,16 @@ impl Display for CvarError {
 
 impl std::error::Error for CvarError {}
 
+impl crate::secret::Names for CvarRegistry {
+    fn is_secret(&self, name: &str) -> bool {
+        CvarRegistry::is_secret(self, name)
+    }
+
+    fn is_cvar(&self, name: &str) -> bool {
+        self.get(name).is_some()
+    }
+}
+
 #[cfg(test)]
 mod float_text_tests {
     use super::CvarValue;
@@ -454,5 +564,194 @@ mod float_text_tests {
         // A value no f32 holds keeps its full form.
         assert_eq!(CvarValue::Float(0.1).as_text(), "0.1");
         assert_eq!(CvarValue::Float(1.0 / 3.0).as_text(), "0.3333333333333333");
+    }
+}
+
+#[cfg(test)]
+mod secret_tests {
+    use super::*;
+
+    fn registry() -> CvarRegistry {
+        let mut cvars = CvarRegistry::new();
+        for name in ["password", "rconPassword", "name"] {
+            cvars
+                .register(CvarDefinition::new(name, "", CvarFlags::NONE, "test"))
+                .unwrap();
+        }
+        cvars
+    }
+
+    #[test]
+    fn a_secret_holding_another_is_scrubbed_whole() {
+        let mut cvars = registry();
+        cvars.set_text("password", "jedi").unwrap();
+        cvars.set_text("rconPassword", "jedi2024").unwrap();
+        assert_eq!(
+            cvars.scrub("rcon jedi2024, join jedi"),
+            "rcon ********, join ********"
+        );
+        assert!(matches!(
+            cvars.scrub("nothing here"),
+            std::borrow::Cow::Borrowed(_)
+        ));
+    }
+
+    #[test]
+    fn a_short_secret_is_not_scrubbed_from_ordinary_text() {
+        let mut cvars = registry();
+        cvars.set_text("password", "on").unwrap();
+        assert_eq!(cvars.scrub("console on"), "console on");
+    }
+
+    #[test]
+    fn an_unknown_name_is_not_remembered_as_a_secret() {
+        let mut cvars = registry();
+        assert!(cvars.add_flags("foo", CvarFlags::SECRET).is_err());
+        cvars
+            .register(CvarDefinition::new("foo", "", CvarFlags::NONE, "test"))
+            .unwrap();
+        cvars.set_text("foo", "word").unwrap();
+        assert_eq!(cvars.scrub("a word"), "a word");
+    }
+
+    #[test]
+    fn only_player_created_cvars_are_read_as_command_lines() {
+        crate::secret::add(crate::secret::TEST_MOD);
+        let mut cvars = registry();
+        cvars.set_text("name", "Login Required").unwrap();
+        assert_eq!(cvars.get("name").unwrap().shown_value(), "Login Required");
+        cvars
+            .register(CvarDefinition::new(
+                "autologin",
+                "",
+                CvarFlags::USER_CREATED,
+                "test",
+            ))
+            .unwrap();
+        cvars.set_text("autologin", "modlogin hunter2").unwrap();
+        assert_eq!(
+            cvars.get("autologin").unwrap().shown_value(),
+            "modlogin ********"
+        );
+        cvars.set_text("rconPassword", "hunter2").unwrap();
+        assert_eq!(cvars.get("rconPassword").unwrap().shown_value(), "********");
+    }
+}
+
+#[cfg(test)]
+mod lookup_tests {
+    use super::*;
+
+    /// A registry holding camel-case cvars, an alias to one and a name past the stack
+    /// buffer's length.
+    fn registry() -> CvarRegistry {
+        let mut cvars = CvarRegistry::new();
+        for name in [
+            "cg_drawScores",
+            "r_DynamicGlow",
+            "cg_hudScale",
+            "name",
+            LONG,
+        ] {
+            cvars
+                .register(CvarDefinition::new(name, 1_i64, CvarFlags::NONE, "test"))
+                .unwrap();
+        }
+        cvars
+            .register_alias("cg_OldScores", "CG_DRAWSCORES")
+            .unwrap();
+        cvars
+    }
+
+    const LONG: &str = "sjk_aVeryLongCvarNameThatIsLongerThanSixtyFourBytesForTheFallbackPath";
+
+    #[test]
+    fn any_spelling_finds_its_cvar_and_aliases_their_target() {
+        let cvars = registry();
+        assert!(LONG.len() > 64);
+        for (asked, found) in [
+            ("cg_drawScores", "cg_drawScores"),
+            ("cg_drawscores", "cg_drawScores"),
+            ("CG_DRAWSCORES", "cg_drawScores"),
+            ("cG_DrAwScOrEs", "cg_drawScores"),
+            ("r_dynamicglow", "r_DynamicGlow"),
+            ("R_DynamicGlow", "r_DynamicGlow"),
+            ("cg_oldscores", "cg_drawScores"),
+            ("cg_OldScores", "cg_drawScores"),
+            ("CG_OLDSCORES", "cg_drawScores"),
+            ("NAME", "name"),
+            (LONG, LONG),
+            (&LONG.to_ascii_uppercase(), LONG),
+            (&LONG.to_ascii_lowercase(), LONG),
+        ] {
+            assert_eq!(
+                cvars.get(asked).map(|cvar| cvar.name.as_str()),
+                Some(found),
+                "{asked}"
+            );
+        }
+        for unknown in ["", "cg_drawScore", "CG_DRAWSCORESX", "cg_dräwScores", "Ä"] {
+            assert!(cvars.get(unknown).is_none(), "{unknown}");
+        }
+    }
+
+    /// The cvar reads a frame makes (`cg_draw2D`, `cg_hudScale`...) take no allocation,
+    /// whatever their case; only a name past the stack buffer is lowered into a string.
+    #[cfg(debug_assertions)]
+    #[test]
+    fn reads_allocate_nothing_whatever_the_case() {
+        let cvars = registry();
+        let before = assert_no_alloc::violation_count();
+        let found = assert_no_alloc::assert_no_alloc(|| {
+            [
+                "cg_drawScores",
+                "CG_HUDSCALE",
+                "r_DynamicGlow",
+                "cg_OldScores",
+                "name",
+                "cg_missing",
+            ]
+            .into_iter()
+            .filter(|name| cvars.get(name).is_some())
+            .count()
+        });
+        assert_eq!(found, 5);
+        assert_eq!(assert_no_alloc::violation_count(), before);
+    }
+
+    /// What a camel-case read costs: `cargo test --release -p sjk-shell lookup_cost --
+    /// --ignored --nocapture`, in a registry of 1500 cvars, as the client's.
+    #[test]
+    #[ignore = "a timing, printed"]
+    fn lookup_cost() {
+        let mut cvars = registry();
+        for n in 0..1_500 {
+            cvars
+                .register(CvarDefinition::new(
+                    format!("cg_someSetting{n}"),
+                    0_i64,
+                    CvarFlags::NONE,
+                    "test",
+                ))
+                .unwrap();
+        }
+        let names = [
+            "cg_drawScores",
+            "cg_hudScale",
+            "r_DynamicGlow",
+            "cg_someSetting700",
+        ];
+        let rounds = 1_000_000;
+        let start = std::time::Instant::now();
+        let mut found = 0;
+        for round in 0..rounds {
+            found += usize::from(cvars.get(std::hint::black_box(names[round % 4])).is_some());
+        }
+        let elapsed = start.elapsed();
+        assert_eq!(found, rounds);
+        println!(
+            "camel-case cvar read: {:.1} ns",
+            elapsed.as_nanos() as f64 / rounds as f64
+        );
     }
 }

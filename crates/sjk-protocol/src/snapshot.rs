@@ -457,6 +457,14 @@ impl PlayerState {
         self.fields[22] as i32
     }
 
+    /// Protocol-26 `playerState_t::iModelScale` (netfield 123): the player's model
+    /// scale as a percentage, 0 for the unit scale. The local player is never sent
+    /// as an entity, so cgame takes it from here (`BG_PlayerStateToEntityState`,
+    /// `bg_misc.c`).
+    pub fn model_scale_percent(&self) -> i32 {
+        self.fields[123] as i32
+    }
+
     pub fn delta_angles(&self) -> [i32; 3] {
         [
             self.fields[14] as i32,

@@ -8,6 +8,7 @@ pub(crate) mod force_repeat;
 pub(crate) mod idrive;
 pub(crate) mod motion;
 
+pub(crate) mod force_abilities;
 mod selection_commands;
 pub(crate) mod settings;
 mod state;
@@ -65,6 +66,8 @@ pub(crate) enum InputAction {
     /// `forceselect <entry>`: select that Force wheel entry at once (the quick
     /// wheel's Force page); local, as cycling is.
     ForceSelect(u8),
+    /// A capability-gated instant server ability.
+    ForceAbility(u8),
     RequestScores,
     TeamMenu,
     Vote(bool),
@@ -88,6 +91,24 @@ pub(crate) enum InputAction {
     Illuminate,
     /// `toy_box`: put the cardboard box on or take it off ([`crate::cardboard_box`]).
     CardboardBox,
+    /// `toy_order66`: turn the Order 66 toy on or off ([`crate::order66`]).
+    Order66,
+    /// `order66`: execute Order 66 for every player who has the toy on.
+    ExecuteOrder66,
+    /// `toy_hax`: turn the Hax toy on or off ([`crate::hax`]).
+    Hax,
+    /// `toy_ragdoll`: go limp, or get up ([`crate::ragdoll`]).
+    Ragdoll,
+    /// `toy_drone`: let drones follow the player, or not ([`crate::drone`]).
+    Drone,
+    /// `toy_boombox`: carry the stereo and play music, or not ([`crate::boombox`]).
+    Boombox,
+    /// `toy_monitor`: throw monitors and be hit by them, or not ([`crate::monitor`]).
+    Monitor,
+    /// `monitor_throw`: throw a monitor ([`crate::monitor`]).
+    ThrowMonitor,
+    /// `+monitor_throw` (true) charges a throw while held, `-monitor_throw` throws it.
+    ChargeMonitor(bool),
     /// `cameracontrol`: open Camera control, as F8 does
     /// ([`crate::ingame_menu::Page::Shot`]).
     CameraControl,
@@ -236,8 +257,13 @@ impl GameplayInput {
     ) -> (u16, Option<&'static str>) {
         let stasis = &self.held[GameButton::ForceStasis.slot()];
         let stasis = stasis.active || stasis.pressed;
-        self.force_wheel_use
-            .apply(buttons, self.selection.wheel_pseudo(), known, stasis)
+        self.force_wheel_use.apply_with(
+            buttons,
+            self.selection.wheel_pseudo(),
+            known,
+            stasis,
+            self.selection.extensions(),
+        )
     }
 
     /// Return whether a buffered console command belongs to gameplay input.
@@ -248,6 +274,7 @@ impl GameplayInput {
         };
         button_for_command(&name).is_some()
             || generic_commands::generic_command(&name).is_some()
+            || force_abilities::command_slot(&name).is_some()
             || matches!(
                 name.as_str(),
                 "messagemode"
@@ -280,6 +307,16 @@ impl GameplayInput {
                     | "toy_illuminate"
                     | "force_illuminate"
                     | crate::cardboard_box::COMMAND
+                    | crate::order66::COMMAND
+                    | crate::order66::EXECUTE_COMMAND
+                    | crate::hax::COMMAND
+                    | crate::ragdoll::COMMAND
+                    | crate::drone::COMMAND
+                    | crate::boombox::COMMAND
+                    | crate::monitor::COMMAND
+                    | crate::monitor::THROW_COMMAND
+                    | crate::monitor::CHARGE_COMMAND
+                    | crate::monitor::CHARGE_RELEASE
                     | "cameracontrol"
             )
     }
@@ -410,6 +447,9 @@ impl GameplayInput {
         if let Some(value) = generic_commands::generic_command(&name) {
             return Some(InputAction::GenericCommand(value));
         }
+        if let Some(slot) = force_abilities::command_slot(&name) {
+            return Some(InputAction::ForceAbility(slot));
+        }
         match name.as_str() {
             "messagemode" => Some(InputAction::MessageMode(false)),
             "messagemode2" => Some(InputAction::MessageMode(true)),
@@ -441,6 +481,16 @@ impl GameplayInput {
             // The old name still runs the toy, but is not listed (`selection_commands`).
             "toy_illuminate" | "force_illuminate" => Some(InputAction::Illuminate),
             crate::cardboard_box::COMMAND => Some(InputAction::CardboardBox),
+            crate::order66::COMMAND => Some(InputAction::Order66),
+            crate::order66::EXECUTE_COMMAND => Some(InputAction::ExecuteOrder66),
+            crate::hax::COMMAND => Some(InputAction::Hax),
+            crate::ragdoll::COMMAND => Some(InputAction::Ragdoll),
+            crate::drone::COMMAND => Some(InputAction::Drone),
+            crate::boombox::COMMAND => Some(InputAction::Boombox),
+            crate::monitor::COMMAND => Some(InputAction::Monitor),
+            crate::monitor::THROW_COMMAND => Some(InputAction::ThrowMonitor),
+            crate::monitor::CHARGE_COMMAND => Some(InputAction::ChargeMonitor(true)),
+            crate::monitor::CHARGE_RELEASE => Some(InputAction::ChargeMonitor(false)),
             "cameracontrol" => Some(InputAction::CameraControl),
             "vote" => match words.next().map(str::to_ascii_lowercase).as_deref() {
                 Some("yes" | "y" | "1") => Some(InputAction::Vote(true)),
@@ -499,11 +549,13 @@ fn button_for_command(command: &str) -> Option<GameButton> {
 
 impl super::GpuState {
     pub(crate) fn apply_input_action(&mut self, action: Option<InputAction>) {
+        self.refresh_force_support();
         match action {
             Some(InputAction::TargetMessage(attacker)) => self.targeted_chat(attacker),
             Some(InputAction::MessageMode(team)) if self.live_session.is_some() => {
                 self.gameplay_input.release_keys();
-                // The chat key opens on the last channel used (`chat/reply.rs`).
+                // The chat key opens on All, or on the last channel used with
+                // `cg_chatRememberChannel` 1 (`chat/reply.rs`).
                 if team {
                     self.chat.open(true);
                 } else {
@@ -562,6 +614,15 @@ impl super::GpuState {
             Some(InputAction::WorldPing) => self.world_ping_press(),
             Some(InputAction::Illuminate) => self.toggle_illuminate(),
             Some(InputAction::CardboardBox) => self.toggle_cardboard_box(),
+            Some(InputAction::Order66) => self.toggle_order66(),
+            Some(InputAction::ExecuteOrder66) => self.execute_order66(),
+            Some(InputAction::Hax) => self.toggle_hax(),
+            Some(InputAction::Ragdoll) => self.toggle_ragdoll(),
+            Some(InputAction::Drone) => self.toggle_drone(),
+            Some(InputAction::Boombox) => self.toggle_boombox(),
+            Some(InputAction::Monitor) => self.toggle_monitor(),
+            Some(InputAction::ThrowMonitor) => self.throw_monitor(),
+            Some(InputAction::ChargeMonitor(pressed)) => self.charge_monitor(pressed),
             Some(InputAction::FlipKick) => {
                 let restricted = self.live_session.as_ref().is_some_and(|session| {
                     session
@@ -616,6 +677,31 @@ impl super::GpuState {
                     }
                 }
             }
+            Some(InputAction::ForceAbility(slot)) => {
+                if let Some(session) = &mut self.live_session {
+                    let extensions = self.gameplay_input.selection.extensions();
+                    let command = if extensions.iter().any(|a| a.slot == slot) {
+                        let known = self
+                            .gameplay_input
+                            .selection
+                            .known(&session.latest_snapshot().player);
+                        sjk_client::force_wheel::valid_with(known, slot, extensions)
+                            .then(|| force_abilities::command_for(slot))
+                            .flatten()
+                    } else {
+                        // Not active here: forwarded unchanged, as before the mod owned it.
+                        force_abilities::command_for(slot)
+                    };
+                    if let Some(command) = command
+                        && let Err(error) = session.send_reliable_command_from(
+                            command.as_bytes(),
+                            sjk_client::ReliableCommandOrigin::Input,
+                        )
+                    {
+                        eprintln!("failed to send {command}: {error}");
+                    }
+                }
+            }
             Some(InputAction::RequestScores) => {
                 crate::scoreboard::behavior::request_scores(self);
             }
@@ -633,7 +719,10 @@ impl super::GpuState {
             Some(InputAction::Vote(yes)) => {
                 let command: &[u8] = if yes { b"vote yes" } else { b"vote no" };
                 if let Some(session) = &mut self.live_session
-                    && let Err(error) = session.send_reliable_command(command)
+                    && let Err(error) = session.send_reliable_command_from(
+                        command,
+                        sjk_client::ReliableCommandOrigin::Input,
+                    )
                 {
                     eprintln!("failed to cast vote: {error}");
                 }
@@ -752,6 +841,19 @@ mod tests {
         assert_eq!(input.apply("-ping 147 1100"), None);
         // `ping` is the engine's server query, not a world ping.
         assert!(!GameplayInput::recognizes("ping"));
+    }
+
+    #[test]
+    fn a_held_monitor_throw_charges_on_the_press_and_throws_on_the_release() {
+        let mut input = GameplayInput::default();
+        for (command, action) in [
+            ("+monitor_throw 30 1000", InputAction::ChargeMonitor(true)),
+            ("-monitor_throw 30 1900", InputAction::ChargeMonitor(false)),
+            ("monitor_throw", InputAction::ThrowMonitor),
+        ] {
+            assert!(GameplayInput::recognizes(command), "{command}");
+            assert_eq!(input.apply(command), Some(action), "{command}");
+        }
     }
 
     #[test]
@@ -1111,5 +1213,80 @@ mod tests {
             input.apply("+moveup 57 1016");
             assert_eq!(step_command(&mut input, 1024).2, expected, "mode {mode}");
         }
+    }
+
+    fn look() -> crate::pointer_input::MouseLook {
+        crate::pointer_input::MouseLook {
+            sensitivity: 5.0,
+            yaw_scale: 0.022,
+            pitch_scale: 0.022,
+            invert: false,
+        }
+    }
+
+    /// A wheel notch: the bind's `+` and `-` with one key id and timestamp, as
+    /// `route_gameplay_wheel` queues them.
+    fn wheel_notch(input: &mut GameplayInput, bind: &str, time: u64) {
+        input.apply(&format!("+{bind} 184 {time}"));
+        input.apply(&format!("-{bind} 184 {time}"));
+    }
+
+    #[test]
+    fn a_wheel_notch_on_moveup_jumps_for_one_command_at_every_command_step() {
+        for step in [8, 7, 4, 3] {
+            let mut input = GameplayInput::default();
+            step_command(&mut input, 1000);
+            // Between two frames, and sampled in the frame it arrived in.
+            wheel_notch(&mut input, "moveup", 1000 + step - 1);
+            assert_eq!(step_command(&mut input, 1000 + step).2, 127, "step {step}");
+            assert_eq!(
+                step_command(&mut input, 1000 + 2 * step).2,
+                0,
+                "step {step}"
+            );
+            input.sample_motion(1000 + 3 * step, look());
+            wheel_notch(&mut input, "moveup", 1000 + 3 * step);
+            assert_eq!(command(&input).up_move, 127, "step {step}");
+        }
+    }
+
+    #[test]
+    fn a_wheel_notch_lasts_until_a_command_is_made() {
+        // Frames faster than the command step keep the notch, as EJK's wasPressed.
+        let mut input = GameplayInput::default();
+        let look = look();
+        input.sample_motion(1000, look);
+        input.finish_command();
+        wheel_notch(&mut input, "moveup", 1001);
+        input.sample_motion(1002, look);
+        input.sample_motion(1004, look);
+        input.sample_motion(1008, look);
+        assert_eq!(command(&input).up_move, 127);
+    }
+
+    #[test]
+    fn a_wheel_notch_presses_buttons_and_moves() {
+        let mut input = GameplayInput::default();
+        step_command(&mut input, 1000);
+        wheel_notch(&mut input, "attack", 1004);
+        wheel_notch(&mut input, "use", 1004);
+        wheel_notch(&mut input, "forward", 1004);
+        input.sample_motion(1008, look());
+        let c = command(&input);
+        assert_eq!(c.buttons & 0b10_0001, 0b10_0001);
+        assert_eq!(c.forward_move, 127);
+        input.finish_command();
+        let c = command(&input);
+        assert_eq!((c.buttons & 0b10_0001, c.forward_move), (0, 0));
+    }
+
+    #[test]
+    fn a_short_key_tap_still_moves_for_its_time() {
+        // A press with time down keeps stock's share of the command: 2 of 8 ms.
+        let mut input = GameplayInput::default();
+        step_command(&mut input, 1000);
+        input.apply("+moveup 57 1002");
+        input.apply("-moveup 57 1004");
+        assert_eq!(step_command(&mut input, 1008).2, 31);
     }
 }

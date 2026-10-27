@@ -21,6 +21,10 @@
 //!   remaining whole second changes, never in Siege; a negative warmup means
 //!   "waiting for players"; `CG_ParseWarmup` (`cg_servercmds.c:226-236`) resets
 //!   the count on every `CS_WARMUP` change.
+//! - `cg_draw.c:8168-8226`: Siege speaks its own 3/2/1 while `CS_SIEGE_STATE` counts
+//!   the round in (`2|time`, `SIEGE_ROUND_BEGIN_TIME`), once per remaining whole
+//!   second from three; `cgSiegeRoundCountTime` is never reset, so a count that ended
+//!   on one speaks three again at the next round.
 //! - `cg_servercmds.c:1070-1090`: `map_restart` clears both warning masks and
 //!   plays the "fight" line when there is no warmup outside Siege/Power Duel.
 //! - `cg_servercmds.c:1509-1572`: `chat`/`lchat` beep unless `cg_teamChatsOnly`
@@ -44,6 +48,7 @@ const CS_WARMUP: usize = 5;
 const CS_SCORES1: usize = 6;
 const CS_SCORES2: usize = 7;
 const CS_LEVEL_START_TIME: usize = 21;
+const CS_SIEGE_STATE: usize = sjk_game_jka::siege_class::CS_SIEGE_STATE;
 const GT_DUEL: i32 = 3;
 const GT_POWERDUEL: i32 = 4;
 const GT_TEAM: i32 = 6;
@@ -57,6 +62,8 @@ const MAX_SOUNDBUFFER: usize = 20;
 const ANNOUNCER_COOLDOWN_MILLIS: i32 = 3_000;
 const BUFFERED_SPACING_MILLIS: i32 = 750;
 const MAX_LOCAL_SOUNDS_PER_SNAPSHOT: usize = 8;
+/// Protocol 26's player slots.
+const MAX_CLIENTS: usize = 32;
 /// `cg_chatBeep` and `cg_teamChatsOnly` at their BaseJKA defaults.
 const CG_CHAT_BEEP: bool = true;
 const CG_TEAM_CHATS_ONLY: bool = false;
@@ -115,6 +122,7 @@ impl LocalSoundMedia {
 pub(crate) struct LegacyLocalSounds {
     /// TaystJK cg_chatSounds mode; final muting remains in the output consumer.
     pub(crate) chat_mode: i64,
+    pub(crate) pm_only: bool,
     /// Fixed-capacity filtering shared with chat presentation policy.
     pub(crate) chat_filter: chat_filter::Filter,
     media: LocalSoundMedia,
@@ -131,6 +139,13 @@ pub(crate) struct LegacyLocalSounds {
     warmup: i32,
     warmup_count: i32,
     warmup_hash: u64,
+    /// `cgSiegeRoundState` and `cgSiegeRoundTime` (`CG_ParseSiegeState`); a state
+    /// with no time takes the time of the snapshot that sees it (`cg.time`).
+    siege_round_state: i32,
+    siege_round_time: Option<i32>,
+    siege_state_hash: u64,
+    /// `cgSiegeRoundCountTime`: the round count last spoken.
+    siege_round_count: i32,
     serverinfo_hash: u64,
     timelimit: i32,
     fraglimit: i32,
@@ -140,6 +155,9 @@ pub(crate) struct LegacyLocalSounds {
     previous_team: Option<u8>,
     last_command_sequence: i32,
     pending: Vec<LegacyLocalSound>,
+    /// The players' names, to tell who sent a chat line the server does not attribute
+    /// (JA+ and JoF send none), as the chat feed does.
+    roster: crate::chat::ChatRoster,
 }
 
 impl LegacyLocalSounds {
@@ -162,6 +180,10 @@ impl LegacyLocalSounds {
             warmup: 0,
             warmup_count: -1,
             warmup_hash: 0,
+            siege_round_state: 0,
+            siege_round_time: None,
+            siege_state_hash: 0,
+            siege_round_count: 0,
             serverinfo_hash: 0,
             timelimit: 0,
             fraglimit: 0,
@@ -171,10 +193,13 @@ impl LegacyLocalSounds {
             previous_team: None,
             last_command_sequence: game_state.server_command_sequence,
             chat_mode: 1,
+            pm_only: false,
             chat_filter: chat_filter::Filter::default(),
             pending: Vec::with_capacity(MAX_LOCAL_SOUNDS_PER_SNAPSHOT),
+            roster: crate::chat::ChatRoster::default(),
         };
         local.observe_config(game_state);
+        local.observe_players(game_state);
         local
     }
 
@@ -197,8 +222,23 @@ impl LegacyLocalSounds {
             self.warmup = atoi(warmup);
             self.warmup_count = -1;
         }
+        let siege_state = game_state.config_string(CS_SIEGE_STATE).unwrap_or_default();
+        let hash = fnv1a(siege_state);
+        if hash != self.siege_state_hash {
+            self.siege_state_hash = hash;
+            // An empty string leaves the state as it was, as in the reference.
+            if let Some((state, time)) = crate::match_info::parse_siege_state(siege_state) {
+                self.siege_round_state = state;
+                self.siege_round_time = time;
+            }
+        }
         self.scores = [CS_SCORES1, CS_SCORES2].map(|index| config_int(game_state, index));
         self.level_start_time = config_int(game_state, CS_LEVEL_START_TIME);
+    }
+
+    /// A player's `CS_PLAYERS` string changed: read the names again.
+    pub(crate) fn observe_players(&mut self, game_state: &GameState) {
+        self.roster.update(game_state);
     }
 
     /// Run one snapshot through the reference frame order: new reliable
@@ -219,6 +259,10 @@ impl LegacyLocalSounds {
         }
         self.play_buffered(time);
         self.draw_warmup(time);
+        // `CG_Draw2D` returns before its siege count during intermission.
+        if snapshot.player.movement_type() != PM_INTERMISSION {
+            self.draw_siege_round_count(time);
+        }
     }
 
     /// Sounds requested by the latest [`Self::observe_snapshot`].
@@ -240,19 +284,33 @@ impl LegacyLocalSounds {
                 .split(|byte| matches!(byte, b' ' | b'\n' | b'\r'))
                 .next()
                 .unwrap_or_default();
+            if self.pm_only
+                && matches!(verb, b"chat" | b"lchat" | b"tchat" | b"ltchat")
+                && !crate::chat::private_chat_command(&command.command)
+            {
+                continue;
+            }
             match verb {
                 b"chat" | b"tchat"
                     if self.chat_filter.suppress(&command.command, verb == b"chat") =>
                 {
                     continue;
                 }
+                // The server's copy of an SJK chat message: the SJK chat's own sound
+                // announces the message (`docs/hub-chat.md`, "Said on the game server too").
+                b"chat" if crate::chat::sjk_copy_command(&command.command) => continue,
                 b"chat" | b"lchat" if !CG_TEAM_CHATS_ONLY && CG_CHAT_BEEP => {
-                    let private = self.chat_mode == 2
-                        && verb == b"chat"
-                        && command.command.windows(7).any(|bytes| bytes == b"^7]: ^6");
+                    // A tell is told apart at every mode, so the viewer can switch and
+                    // voice it on its own; its default sound is EJK's private one only
+                    // under cg_chatSounds 2 (JoF EJK `cg_servercmds.c:1814`).
+                    let private = crate::chat::private_chat_command(&command.command);
                     if self.push(
-                        LegacySoundEvent::ChatBeep,
                         if private {
+                            LegacySoundEvent::PrivateChatBeep
+                        } else {
+                            LegacySoundEvent::ChatBeep
+                        },
+                        if private && self.chat_mode == 2 {
                             self.media.private_chat
                         } else {
                             self.media.talk
@@ -409,6 +467,22 @@ impl LegacyLocalSounds {
         }
     }
 
+    /// The countdown half of `CG_Draw2D`'s siege round state (`cg_draw.c:8168-8226`).
+    fn draw_siege_round_count(&mut self, time: i32) {
+        if self.siege_round_state != 2 {
+            return;
+        }
+        let since = time.wrapping_sub(*self.siege_round_time.get_or_insert(time));
+        let seconds = crate::match_info::siege_round_seconds(since);
+        if seconds > 3 || seconds == self.siege_round_count {
+            return;
+        }
+        self.siege_round_count = seconds;
+        if let Some(sound) = self.media.count.get(seconds as usize - 1) {
+            self.push(LegacySoundEvent::SiegeRoundCount, *sound, CHAN_ANNOUNCER);
+        }
+    }
+
     /// Queue a sound; false when the snapshot's room is full.
     fn push(&mut self, event: LegacySoundEvent, sound: Option<u16>, channel: u32) -> bool {
         if self.pending.len() >= MAX_LOCAL_SOUNDS_PER_SNAPSHOT {
@@ -425,7 +499,7 @@ impl LegacyLocalSounds {
 
     /// The beep just pushed is for chat `command`: name its sender.
     fn name_sender(&mut self, command: &[u8]) {
-        let sender = chat_sender(command);
+        let sender = chat_sender(command, &self.roster);
         if let Some(beep) = self.pending.last_mut() {
             beep.cause = sender;
         }
@@ -433,9 +507,33 @@ impl LegacyLocalSounds {
 }
 
 /// The sender of chat `command`: the slot `G_SayTo` appends, as the chat feed reads
-/// it (`chat::server_chat_event`); `None` when the server names none.
-fn chat_sender(command: &[u8]) -> Option<u16> {
-    crate::chat::server_chat_event(&crate::tokenize_command(command)).and_then(|event| event.sender)
+/// it (`chat::server_chat_event`); when the server names none (JA+, JoF), the one
+/// player whose name, as the game shows it, starts the line, then `: ` (or the team's
+/// and a whisper's brackets), as the chat feed attributes such a line (the viewer's
+/// `chat/marks.rs`, `line_sender`). `None` when nobody or two players fit, so a blocked
+/// player's beep is silenced as their line is hidden (`docs/hub-chat.md`).
+fn chat_sender(command: &[u8], roster: &crate::chat::ChatRoster) -> Option<u16> {
+    let event = crate::chat::server_chat_event(&crate::tokenize_command(command))?;
+    if event.sender.is_some() {
+        return event.sender;
+    }
+    let display = crate::chat::chat_display_text(&crate::chat::chat_unescape(&event.text));
+    let mut found = None;
+    for slot in 0..MAX_CLIENTS as u16 {
+        let Some(name) = roster
+            .target(Some(slot))
+            .and_then(|target| roster.display_name(target))
+        else {
+            continue;
+        };
+        if crate::chat::chat_body(&display, name).0.len() < display.len() {
+            if found.is_some() {
+                return None;
+            }
+            found = Some(slot);
+        }
+    }
+    found
 }
 
 fn fnv1a(bytes: &[u8]) -> u64 {
@@ -445,7 +543,7 @@ fn fnv1a(bytes: &[u8]) -> u64 {
 }
 
 /// C `atoi`: optional sign and leading digits, anything else yields zero.
-fn atoi(bytes: &[u8]) -> i32 {
+pub(crate) fn atoi(bytes: &[u8]) -> i32 {
     let text = std::str::from_utf8(bytes).unwrap_or_default().trim_start();
     let end = text
         .char_indices()
@@ -465,13 +563,274 @@ fn info_int(info: &[u8], key: &str) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::chat_sender;
+    use crate::chat::ChatRoster;
+    use sjk_protocol::GameState;
 
     #[test]
     fn a_chat_beep_names_the_slot_the_server_appends() {
-        assert_eq!(chat_sender(b"chat \"\x19^2Sol^7\x19: gg\" 5"), Some(5));
-        assert_eq!(chat_sender(b"tchat \"\x19(Sol)\x19: go\" \"12\""), Some(12));
-        // Servers that send no slot, or one past the clients, name nobody.
-        assert_eq!(chat_sender(b"chat \"Sol: hi\""), None);
-        assert_eq!(chat_sender(b"chat \"Sol: hi\" 40"), None);
+        let roster = ChatRoster::default();
+        assert_eq!(
+            chat_sender(b"chat \"\x19^2Sol^7\x19: gg\" 5", &roster),
+            Some(5)
+        );
+        assert_eq!(
+            chat_sender(b"tchat \"\x19(Sol)\x19: go\" \"12\"", &roster),
+            Some(12)
+        );
+        // Servers that send no slot, or one past the clients, name nobody here.
+        assert_eq!(chat_sender(b"chat \"Sol: hi\"", &roster), None);
+        assert_eq!(chat_sender(b"chat \"Sol: hi\" 40", &roster), None);
+    }
+
+    /// Report #147 (blec-bee): JA+ servers append no slot, so a blocked player's beep
+    /// played while their line was hidden. The beep now names the one player whose
+    /// name starts the line, as the chat feed does.
+    #[test]
+    fn a_chat_beep_without_a_slot_names_the_player_whose_name_starts_it() {
+        let mut game = GameState::empty_local(0);
+        for (slot, name) in [(2, "^1Fox"), (4, "^3D^5avy"), (6, "Twin"), (7, "Twin")] {
+            game.replace_config_string(1131 + slot, format!("n\\{name}\\t\\0").into_bytes())
+                .unwrap();
+        }
+        let mut roster = ChatRoster::default();
+        roster.update(&game);
+        assert_eq!(
+            chat_sender(b"chat \"\x19^1Fox^7\x19: ^2hi\"", &roster),
+            Some(2)
+        );
+        assert_eq!(
+            chat_sender(b"tchat \"\x19(^3D^5avy^7)\x19: go\"", &roster),
+            Some(4)
+        );
+        // A whisper's brackets.
+        assert_eq!(
+            chat_sender(b"chat \"\x19[^3D^5avy^7]\x19: psst\"", &roster),
+            Some(4)
+        );
+        // Two players wearing one name, or nobody's name: nobody.
+        assert_eq!(chat_sender(b"chat \"Twin: hi\"", &roster), None);
+        assert_eq!(chat_sender(b"chat \"server: restart\"", &roster), None);
+    }
+}
+
+/// An empty snapshot at `server_time`, for the tests below.
+#[cfg(test)]
+fn test_snapshot(server_time: i32) -> Snapshot {
+    Snapshot {
+        message_sequence: 1,
+        reliable_acknowledge: 0,
+        server_commands: vec![],
+        server_time,
+        delta_from: None,
+        flags: 0,
+        area_mask: vec![],
+        player: sjk_protocol::PlayerState::zero(),
+        vehicle_player: None,
+        entities: vec![],
+        consumed_bits: 0,
+    }
+}
+
+#[cfg(test)]
+mod pm_only_tests {
+    use super::*;
+    use sjk_protocol::ReliableServerCommand;
+    #[test]
+    fn pm_only_notifications_keep_only_marked_tells_and_resume_after_toggle() {
+        let game = GameState::empty_local(0);
+        let media = LocalSoundMedia::register(|_| 1);
+        let mut local = LegacyLocalSounds::new(&game, media);
+        local.pm_only = true;
+        local.chat_mode = 2;
+        let mut snapshot = test_snapshot(1000);
+        for (sequence, command) in [
+            b"chat \"Fox: public\" 2".as_slice(),
+            b"tchat \"(Fox): team\" 2",
+            b"chat \"Fox: [Fake^7]: ^6fake\" 2",
+            b"chat \"\x19[Fox]: real PM\" 2",
+            b"lchat Fox 0 7 hi 2",
+        ]
+        .iter()
+        .enumerate()
+        {
+            snapshot.server_commands.push(ReliableServerCommand {
+                sequence: sequence as i32 + 1,
+                command: command.to_vec(),
+            });
+        }
+        local.observe_snapshot(&snapshot);
+        let beeps: Vec<_> = local
+            .pending()
+            .iter()
+            .filter(|sound| {
+                matches!(
+                    sound.event,
+                    LegacySoundEvent::ChatBeep
+                        | LegacySoundEvent::TeamChatBeep
+                        | LegacySoundEvent::PrivateChatBeep
+                )
+            })
+            .collect();
+        assert_eq!(beeps.len(), 1);
+        assert_eq!(beeps[0].cause, Some(2));
+        // Repeated snapshots do not replay that notification.
+        local.observe_snapshot(&snapshot);
+        assert!(local.pending().is_empty());
+        local.pm_only = false;
+        snapshot.server_commands = vec![ReliableServerCommand {
+            sequence: 6,
+            command: b"chat \"Fox: back\" 2".to_vec(),
+        }];
+        local.observe_snapshot(&snapshot);
+        assert_eq!(
+            local
+                .pending()
+                .iter()
+                .filter(|sound| sound.event == LegacySoundEvent::ChatBeep)
+                .count(),
+            1
+        );
+    }
+}
+
+#[cfg(test)]
+mod chat_beep_tests {
+    use super::*;
+    use sjk_protocol::ReliableServerCommand;
+
+    /// The chat beeps `commands` make at `mode`: each one's event and sound (talk 1,
+    /// EJK team 2, EJK private 3).
+    fn beeps(mode: i64, commands: &[&[u8]]) -> Vec<(LegacySoundEvent, Option<u16>)> {
+        let media = LocalSoundMedia::register(|path| match path {
+            "sound/player/talk.wav" => 1,
+            "sound/movers/switches/button_11.mp3" => 2,
+            "sound/movers/switches/button_15.mp3" => 3,
+            _ => 9,
+        });
+        let mut local = LegacyLocalSounds::new(&GameState::empty_local(0), media);
+        local.chat_mode = mode;
+        let mut snapshot = test_snapshot(1000);
+        snapshot.server_commands = commands
+            .iter()
+            .enumerate()
+            .map(|(sequence, command)| ReliableServerCommand {
+                sequence: sequence as i32 + 1,
+                command: command.to_vec(),
+            })
+            .collect();
+        local.observe_snapshot(&snapshot);
+        local
+            .pending()
+            .iter()
+            .map(|sound| (sound.event, sound.sound))
+            .collect()
+    }
+
+    const COMMANDS: [&[u8]; 5] = [
+        b"chat \"Fox: public\" 2",
+        b"tchat \"(Fox): team\" 2",
+        b"chat \"[Fox^7]: ^6a tell\" 2",
+        // A tell to a teammate, with a location (G_Say's SAY_TELL in team games).
+        b"lchat \"[Fox^7]: \" \"@Base\" \"6\" \"hello\" 2",
+        // Typed to look like a tell: public chat.
+        b"chat \"Fox: [Fake^7]: ^6fake\" 2",
+    ];
+
+    #[test]
+    fn a_tell_is_its_own_event_at_every_mode_with_ejk_sounds_at_mode_2() {
+        use LegacySoundEvent::{ChatBeep, PrivateChatBeep, TeamChatBeep};
+        assert_eq!(
+            beeps(1, &COMMANDS),
+            [
+                (ChatBeep, Some(1)),
+                (TeamChatBeep, Some(1)),
+                (PrivateChatBeep, Some(1)),
+                (PrivateChatBeep, Some(1)),
+                (ChatBeep, Some(1)),
+            ]
+        );
+        assert_eq!(
+            beeps(2, &COMMANDS),
+            [
+                (ChatBeep, Some(1)),
+                (TeamChatBeep, Some(2)),
+                (PrivateChatBeep, Some(3)),
+                (PrivateChatBeep, Some(3)),
+                (ChatBeep, Some(1)),
+            ]
+        );
+    }
+}
+
+#[cfg(test)]
+mod siege_round_count_tests {
+    use super::*;
+
+    fn set_state(game: &mut GameState, state: &str) {
+        game.replace_config_string(CS_SIEGE_STATE, state.as_bytes().to_vec())
+            .expect("a configstring");
+    }
+
+    /// The count sounds spoken by the latest snapshot, as 1, 2 or 3.
+    fn counts(local: &LegacyLocalSounds) -> Vec<i32> {
+        local
+            .pending()
+            .iter()
+            .filter(|sound| sound.event == LegacySoundEvent::SiegeRoundCount)
+            .filter_map(|sound| sound.sound.map(i32::from))
+            .collect()
+    }
+
+    #[test]
+    fn a_siege_round_counts_in_three_two_one_once_each() {
+        let mut game = GameState::empty_local(0);
+        set_state(&mut game, "2|10000");
+        // count1Sound, count2Sound and count3Sound intern as 1, 2 and 3.
+        let media = LocalSoundMedia::register(|path| match path.rsplit('/').next() {
+            Some("40MOM037") => 1,
+            Some("40MOM036") => 2,
+            Some("40MOM035") => 3,
+            _ => 99,
+        });
+        let mut local = LegacyLocalSounds::new(&game, media);
+        let mut heard = Vec::new();
+        for time in (10_000..16_000).step_by(50) {
+            local.observe_snapshot(&test_snapshot(time));
+            heard.extend(counts(&local));
+        }
+        assert_eq!(heard, [3, 2, 1]);
+
+        // The round in play says nothing; the next one counts in from three again.
+        set_state(&mut game, "0|15000");
+        local.observe_config(&game);
+        local.observe_snapshot(&test_snapshot(16_000));
+        assert!(counts(&local).is_empty());
+        set_state(&mut game, "2|20000");
+        local.observe_config(&game);
+        local.observe_snapshot(&test_snapshot(22_100));
+        assert_eq!(counts(&local), [3]);
+    }
+
+    #[test]
+    fn an_empty_state_keeps_the_count_and_intermission_silences_it() {
+        let mut game = GameState::empty_local(0);
+        set_state(&mut game, "2|10000");
+        let media = LocalSoundMedia::register(|path| match path.rsplit('/').next() {
+            Some("40MOM035") => 3,
+            _ => 99,
+        });
+        let mut local = LegacyLocalSounds::new(&game, media);
+        // A cleared string is ignored, as `CG_ConfigStringModified` ignores it.
+        set_state(&mut game, "");
+        local.observe_config(&game);
+        let mut intermission = test_snapshot(12_100);
+        intermission.player.set_movement_type(PM_INTERMISSION);
+        local.observe_snapshot(&intermission);
+        assert!(
+            counts(&local).is_empty(),
+            "nothing is counted in intermission"
+        );
+        local.observe_snapshot(&test_snapshot(12_150));
+        assert_eq!(counts(&local), [3], "the round still counts in");
     }
 }

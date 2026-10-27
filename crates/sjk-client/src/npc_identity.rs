@@ -9,8 +9,10 @@
 //! splits at the last `*`, a `|` inside the skin meaning a three-part skin).
 //! Saber definitions come from `npcSaber1`/`npcSaber2`, `CS_MODELS` indices
 //! whose strings start with `@` (`cg_players.c:7184-7203`). Blade colours
-//! are the packed `boltToPlayer` overrides (`CG_AddSaberBlade`,
-//! `cg_players.c:6115-6127`), falling back to the `.sab` default.
+//! are the packed `boltToPlayer` overrides when `boltToPlayer` is non-zero,
+//! else each blade's `.sab` colour (`CG_AddSaberBlade`, JoF EJK
+//! `cg_players.c:8049-8064`). The primary saber is drawn only while
+//! `saberEntityNum` names its entity (`cg_players.c:14210-14228`).
 //!
 //! Vehicles (`NPC_class == CLASS_VEHICLE`) pass their vehicle name as the model string,
 //! `$<vehicle>` (`cg_players.c:8738-8790`): model and skin come from the vehicle table in
@@ -18,13 +20,17 @@
 //! as the appearance's model and whoever loads assets resolves it
 //! ([`legacy_vehicle_name`]).
 //!
-//! Out of scope here: the `.sab` `saberColor` default, for which this adapter uses
-//! `SABER_RED` like `WP_SaberSetDefaults` (`bg_saberLoad.c:407`).
+//! This adapter has no `.sab` definitions: it reports which blades take the
+//! definition's colour ([`legacy_npc_saber_color_overrides`]) and uses
+//! `SABER_RED`, `WP_SaberSetDefaults`' own default (`bg_saberLoad.c:407`), until
+//! the presentation that loaded the hilt replaces it
+//! ([`legacy_npc_definition_rgb`]).
 
 use crate::presentation_equipment::{
     equipment_active, legacy_blade_rgb, legacy_held_item_kind, secondary_equipment_active,
     trail_duration,
 };
+use crate::saber_definitions::LegacySaberColor;
 use sjk_protocol::{EntityState, GameState, Snapshot};
 use sjk_runtime::{Appearance, HeldEquipment};
 
@@ -119,9 +125,48 @@ pub(crate) fn npc_packed_saber_color(bolt_to_player: u8, saber: usize) -> Option
     (packed != 0).then(|| i32::from(packed) - 1)
 }
 
-/// Blade colour of NPC saber `saber`: the packed override, else `SABER_RED`.
-fn npc_blade_rgb(bolt_to_player: u8, saber: usize) -> [u8; 3] {
-    legacy_blade_rgb(npc_packed_saber_color(bolt_to_player, saber).unwrap_or(0))
+/// `SABER_BLUE`: `CG_DoSaber`'s `default` shaders, which a packed `-1` reaches.
+const SABER_BLUE: i32 = 4;
+
+/// Blade colour overrides of an NPC's two sabers, `None` where the blade takes
+/// its `.sab` colour. Stock reads the packed colours whenever `boltToPlayer` is
+/// non-zero, so a saber whose own three bits are zero there gets `-1`, which
+/// `ClampSaberColor` keeps and `CG_DoSaber` draws with its `default` (blue)
+/// shaders (JoF EJK `cg_players.c:6526-6543`, `:6735-6790`, `:8049-8064`).
+pub fn legacy_npc_saber_color_overrides(state: &EntityState) -> [Option<[u8; 3]>; 2] {
+    let bolt = state.bolt_to_player();
+    if bolt == 0 {
+        return [None, None];
+    }
+    [0, 1].map(|saber| {
+        Some(legacy_blade_rgb(
+            npc_packed_saber_color(bolt, saber).unwrap_or(SABER_BLUE),
+        ))
+    })
+}
+
+/// Blade colour of NPC saber `saber` without its `.sab` definition: the packed
+/// override, else `SABER_RED`, `WP_SaberSetDefaults`' default.
+pub(crate) fn npc_blade_rgb(state: &EntityState, saber: usize) -> [u8; 3] {
+    legacy_npc_saber_color_overrides(state)[saber].unwrap_or_else(|| legacy_blade_rgb(0))
+}
+
+/// The tint of a `.sab` `saberColor` for an NPC blade without an override.
+/// `saberColor random` draws `Q_irand(SABER_ORANGE, SABER_PURPLE)` once when the
+/// client parses it (`bg_saberLoad.c`); this picks one of those five by the
+/// NPC's entity number, so it stays the same from frame to frame.
+pub fn legacy_npc_definition_rgb(color: LegacySaberColor, entity_number: u16) -> [u8; 3] {
+    match color {
+        LegacySaberColor::Fixed(color) => legacy_blade_rgb(i32::from(color.index())),
+        LegacySaberColor::Random => legacy_blade_rgb(1 + i32::from(entity_number % 5)),
+    }
+}
+
+/// `true` for an NPC whose `saberEntityNum` is zero: stock then draws only its
+/// second saber, `l = 1` (JoF EJK `cg_players.c:14210-14212`),
+/// and retracts the first (`:14153-14157`).
+pub fn legacy_npc_primary_saber_missing(state: &EntityState) -> bool {
+    state.entity_type() == ET_NPC && state.saber_entity_num() == 0
 }
 
 /// [`HeldEquipment`] for an NPC entity; the clientinfo-free twin of
@@ -129,16 +174,19 @@ fn npc_blade_rgb(bolt_to_player: u8, saber: usize) -> [u8; 3] {
 pub(crate) fn legacy_npc_equipment(state: &EntityState, alive: bool) -> Option<HeldEquipment> {
     let kind = legacy_held_item_kind(state.weapon())?;
     let holstered = state.saber_holstered();
-    let bolt = state.bolt_to_player();
     Some(HeldEquipment {
         kind,
         weapon: state.weapon(),
         primary_in_flight: kind == sjk_runtime::HeldItemKind::EnergyBlade
             && state.saber_in_flight(),
         active: equipment_active(kind, holstered, alive),
-        color: npc_blade_rgb(bolt, 0),
+        color: npc_blade_rgb(state, 0),
         secondary_active: secondary_equipment_active(kind, holstered, alive),
-        secondary_color: npc_blade_rgb(bolt, 1),
+        secondary_color: npc_blade_rgb(state, 1),
         trail_duration_millis: trail_duration(kind, state.saber_move()),
     })
 }
+
+#[cfg(test)]
+#[path = "npc_identity_tests.rs"]
+mod tests;

@@ -3,14 +3,17 @@
 //!
 //! What a JA+ server needs to be played correctly stays in the core client (its
 //! movement rules, `cjp_client`, `cp_pluginDisable`, saber colours and cosmetics):
-//! this mod only adds commands a player types.
+//! this mod adds commands a player types, the JA+ family's passwords the console
+//! masks ([`secrets`]) and JoF EternalJK's anti-kiss ([`anti_kiss`]).
 
+pub mod anti_kiss;
 mod login;
 mod options;
+mod secrets;
 mod server_commands;
 mod teleport;
 
-use sjk_mod::{ClientMod, Command, Host, ServerKind, Setting, command};
+use sjk_mod::{ClientMod, Command, Host, Secrets, ServerKind, Setting, command};
 
 /// The mod's id and prefix.
 pub const ID: &str = "japlus";
@@ -49,44 +52,48 @@ const COMMANDS: &[Command] = &[
         "japlus.plugin",
         "List or toggle JA+ plugin features (cp_pluginDisable): japlus.plugin [id]",
     ),
-    command(
-        "japlus.color",
-        "Set your model's tint: japlus.color <red> <green> <blue> (0-255)",
-    ),
 ];
 
 const SETTINGS: &[Setting] = &[
     Setting {
         name: "japlus.loginServer1",
-        default: "",
+        default: sjk_mod::SettingValue::Text(""),
         help: "Server address for japlus.autologin (port 29070 when left out)",
     },
     Setting {
         name: "japlus.loginPass1",
-        default: "",
+        default: sjk_mod::SettingValue::Text(""),
         help: "Admin password sent to japlus.loginServer1 (saved as plain text)",
     },
     Setting {
         name: "japlus.loginServer2",
-        default: "",
+        default: sjk_mod::SettingValue::Text(""),
         help: "Server address for japlus.autologin (port 29070 when left out)",
     },
     Setting {
         name: "japlus.loginPass2",
-        default: "",
+        default: sjk_mod::SettingValue::Text(""),
         help: "Admin password sent to japlus.loginServer2 (saved as plain text)",
     },
     Setting {
         name: "japlus.loginServer3",
-        default: "",
+        default: sjk_mod::SettingValue::Text(""),
         help: "Server address for japlus.autologin (port 29070 when left out)",
     },
     Setting {
         name: "japlus.loginPass3",
-        default: "",
+        default: sjk_mod::SettingValue::Text(""),
         help: "Admin password sent to japlus.loginServer3 (saved as plain text)",
     },
+    Setting {
+        name: anti_kiss::CVAR,
+        default: sjk_mod::SettingValue::Bool(false),
+        help: "Push when a JA+ player puts you in the amkiss victim animation",
+    },
 ];
+
+/// Settings renamed into `japlus.`, under the names configs may still use.
+const OLD_SETTING_NAMES: &[(&str, &str)] = &[(anti_kiss::EJK_CVAR, anti_kiss::CVAR)];
 
 /// The JA+ tools mod.
 #[derive(Default)]
@@ -103,30 +110,6 @@ impl JaPlus {
 /// The local player, for the commands that need one.
 fn me(host: &dyn Host) -> Result<sjk_mod::Me, String> {
     host.me().ok_or_else(|| "not in a game".to_owned())
-}
-
-/// `japlus.color <red> <green> <blue>`: EternalJK's `amColor`
-/// (`cg_consolecmds.c:1245`), checked to 0-255.
-fn color(args: &[String], host: &mut dyn Host) -> Result<Vec<String>, String> {
-    let [red, green, blue] = args else {
-        return Err(
-            "usage: japlus.color <red> <green> <blue>, such as japlus.color 255 255 0".into(),
-        );
-    };
-    let mut values = [0_u8; 3];
-    for (value, text) in values.iter_mut().zip([red, green, blue]) {
-        *value = text
-            .trim()
-            .parse()
-            .map_err(|_| format!("japlus.color: {text} is not 0 to 255"))?;
-    }
-    for (name, value) in ["char_color_red", "char_color_green", "char_color_blue"]
-        .iter()
-        .zip(values)
-    {
-        host.set_cvar(name, &value.to_string())?;
-    }
-    Ok(Vec::new())
 }
 
 impl ClientMod for JaPlus {
@@ -157,6 +140,16 @@ impl ClientMod for JaPlus {
 
     fn settings(&self) -> &'static [Setting] {
         SETTINGS
+    }
+
+    fn old_setting_names(&self) -> &'static [(&'static str, &'static str)] {
+        OLD_SETTING_NAMES
+    }
+
+    /// `amlogin`, the JA+ family's account and clan passwords and
+    /// `japlus.loginPass1-3` ([`secrets`]).
+    fn secrets(&self) -> Secrets {
+        secrets::SECRETS
     }
 
     fn server_commands(&self, server: &sjk_mod::Server) -> &'static [Command] {
@@ -191,7 +184,6 @@ impl ClientMod for JaPlus {
             "japlus.autologin" => return login::auto_login(host),
             "japlus.serverconfig" => return options::server_config(host),
             "japlus.plugin" => return options::plugin(args, host),
-            "japlus.color" => return color(args, host),
             _ => return Err(format!("Unknown JA+ tools command {name}")),
         };
         host.send(&command)?;
@@ -218,6 +210,10 @@ mod tests {
             let (server, password) = login::names(slot);
             assert!(SETTINGS.iter().any(|setting| setting.name == server));
             assert!(SETTINGS.iter().any(|setting| setting.name == password));
+        }
+        for &(old, current) in mod_.old_setting_names() {
+            assert!(!old.starts_with("japlus."), "{old}");
+            assert!(SETTINGS.iter().any(|setting| setting.name == current));
         }
     }
 }

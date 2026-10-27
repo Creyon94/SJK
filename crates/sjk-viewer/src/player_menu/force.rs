@@ -55,8 +55,8 @@ pub(super) const POWER_NOTES: [&str; 18] = [
     "Fights faster and harder for a while, draining your health. Tires you after.",
     "Shields your health with your Force, taking damage from the Force pool instead.",
     "Draws in the Force powers used on you to refill your own Force.",
-    "Heals the teammates around you. Team games only.",
-    "Refills the Force of the teammates around you. Team games only.",
+    "Heals nearby teammates when the server permits it.",
+    "Refills nearby teammates' Force when the server permits it.",
     "Drains health from an enemy into yourself.",
     "Shows enemies through walls and those hiding with Mind Trick.",
     "Your saber stances: each level opens one more (blue, yellow, then red).",
@@ -67,7 +67,8 @@ pub(super) const POWER_NOTES: [&str; 18] = [
 /// Stock `forcepowers` default, used when the cvar is unset.
 const DEFAULT_FORCEPOWERS: &str = "7-1-032330000000001333";
 
-/// `GT_TEAM` (`bg_public.h`): team powers are legal from here on.
+/// `GT_TEAM` (`bg_public.h`): stock grants team powers from here on;
+/// other modes depend on the server's game rules.
 pub(super) const GT_TEAM: i32 = 6;
 
 /// Why the server the client plays on will not let a power be used as the
@@ -79,8 +80,8 @@ pub(super) enum ServerLimit {
     /// `g_forcePowerDisable` holds it at this level (Jump at 1, Saber Offense
     /// and Defense at 3, as `BG_LegalizedForcePowers` sets them).
     Fixed(u8),
-    /// A team power on a server that is not playing a team game.
-    TeamGamesOnly,
+    /// Below `GT_TEAM`, stock removes team powers but modified servers may grant them.
+    ServerDecidesTeamPowers,
 }
 
 impl ServerLimit {
@@ -89,7 +90,7 @@ impl ServerLimit {
         match self {
             Self::Disabled => "Off on this server",
             Self::Fixed(_) => "Fixed on this server",
-            Self::TeamGamesOnly => "Team games only",
+            Self::ServerDecidesTeamPowers => "Server decides",
         }
     }
 
@@ -99,7 +100,7 @@ impl ServerLimit {
             Self::Disabled => "Disabled on this server",
             Self::Fixed(1) => "Held at level 1 on this server",
             Self::Fixed(_) => "Held at level 3 on this server",
-            Self::TeamGamesOnly => "Not used here: team games only",
+            Self::ServerDecidesTeamPowers => "Team power: availability depends on the server",
         }
     }
 }
@@ -229,8 +230,8 @@ impl ForceMenu {
         self.server
     }
 
-    /// Why the server will not let power `index` be used as the draft has it,
-    /// if it will not.
+    /// A known server restriction, or a notice that team-power availability
+    /// outside team games depends on its game rules.
     pub(super) fn server_limit(&self, index: usize) -> Option<ServerLimit> {
         let server = self.server?;
         let power = ForcePower::ALL.get(index).copied()?;
@@ -241,7 +242,8 @@ impl ForceMenu {
                 _ => ServerLimit::Disabled,
             });
         }
-        (power.is_team_power() && server.gametype < GT_TEAM).then_some(ServerLimit::TeamGamesOnly)
+        (power.is_team_power() && server.gametype < GT_TEAM)
+            .then_some(ServerLimit::ServerDecidesTeamPowers)
     }
 
     /// What raising power `index` one level would take.
@@ -533,6 +535,27 @@ mod tests {
     }
 
     #[test]
+    fn ffa_team_powers_are_buyable_on_their_side_and_show_server_dependent_availability() {
+        for (side, allowed, opposite) in [(ForceSide::Light, 11, 12), (ForceSide::Dark, 12, 11)] {
+            let mut menu = ForceMenu::new();
+            menu.load(
+                &format!("7-{}-000000000000000000", side as u8),
+                Some(adept_server()),
+            );
+            assert_eq!(menu.next_level(allowed), NextLevel::Costs(1));
+            assert_eq!(menu.next_level(opposite), NextLevel::OtherSide);
+            assert!(menu.step(allowed, true));
+            assert_eq!(
+                menu.server_limit(allowed),
+                Some(ServerLimit::ServerDecidesTeamPowers)
+            );
+            assert_eq!(ServerLimit::ServerDecidesTeamPowers.tag(), "Server decides");
+            let sent = menu.commit().unwrap();
+            assert_eq!(ForceAllocation::parse(sent).unwrap().levels[allowed], 1);
+        }
+    }
+
+    #[test]
     fn on_a_server_the_draft_takes_its_rank_and_marks_what_it_will_not_use() {
         let mut menu = ForceMenu::new();
         // Push 3 and the saber skills at 2: 20 of the 30 points.
@@ -545,7 +568,10 @@ mod tests {
         assert_eq!(menu.server_limit(0), Some(ServerLimit::Disabled));
         assert_eq!(menu.server_limit(1), Some(ServerLimit::Fixed(1)));
         assert_eq!(menu.server_limit(6), Some(ServerLimit::Disabled));
-        assert_eq!(menu.server_limit(11), Some(ServerLimit::TeamGamesOnly));
+        assert_eq!(
+            menu.server_limit(11),
+            Some(ServerLimit::ServerDecidesTeamPowers)
+        );
         assert_eq!(menu.server_limit(3), None);
         // A disabled power and a team power can still be bought, for the
         // profile's full Force duels or the next server.

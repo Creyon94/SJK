@@ -1,13 +1,14 @@
 // Door tiles of the lamp visibility atlas (`mover_occlusion.rs`): the same biased ray
 // parameters as `lamp_visibility_build.wgsl`, traced against the movers alone at their
-// current pose. One workgroup layer per queued tile. `publish` then writes the pixel
-// rectangle the movers cover into two border texels the filter never reads, so a
-// receiver whose filter footprint lies outside it skips the filter
-// (`lamp_door_visibility`).
+// current pose. One workgroup layer per queued tile, each invocation two neighbouring
+// texels (one stored texel, `lamp_visibility_pack`). `publish` then writes the pixel
+// rectangle the movers cover over the tile's first stored texel, two border texels the
+// filter never reads, so a receiver whose filter footprint lies outside it skips the
+// filter (`lamp_door_visibility`).
 struct LampGrid { origin: vec4<i32>, counts: vec4<u32>, cell: vec4<f32>, offsets: vec4<u32>, selection:vec4<u32> };
 @group(0) @binding(0) var<uniform> lamps: LampGrid;
 @group(0) @binding(1) var<storage,read> data: array<vec4<u32>>;
-@group(0) @binding(2) var distances: texture_storage_2d<r32float,write>;
+@group(0) @binding(2) var distances: texture_storage_2d<r32uint,write>;
 // Per occluder: rotation (xyzw), origin and blocking (w), model-space lower bound and
 // first triangle (w, bit-cast), upper bound and triangle count (w, bit-cast).
 @group(0) @binding(3) var<storage,read> occluders: array<vec4<f32>>;
@@ -51,14 +52,18 @@ fn mover_box(origin: vec3<f32>, direction: vec3<f32>, lo: vec3<f32>, hi: vec3<f3
     workgroupBarrier();
     let resolution = lamps.offsets.z;
     let pitch = resolution+2u;
+    let even = vec2(id.x*2u, id.y);
     // Every invocation reaches the barriers below; only those on the tile trace.
-    if resolution != 0u && all(id.xy < vec2(pitch)) && trace_texel(id) {
-        let pixel = id.xy-vec2(1u);
-        // Border texels mirror the interior; only interior pixels are filtered.
-        if all(id.xy >= vec2(1u)) && all(pixel < vec2(resolution)) {
-            atomicMin(&group_low_x, pixel.x); atomicMin(&group_low_y, pixel.y);
-            atomicMax(&group_high_x, pixel.x); atomicMax(&group_high_y, pixel.y);
-        }
+    if resolution != 0u && all(even < vec2(pitch)) {
+        let tile = tiles[work[id.z]];
+        let slot = lamps.counts.w+work[id.z];
+        let at = vec2(slot%lamps.offsets.w, slot/lamps.offsets.w)*pitch+even;
+        let first = trace_texel(tile, even);
+        let second = trace_texel(tile, even+vec2(1u, 0u));
+        let step = lamp_visibility_step(bitcast<vec4<f32>>(data[tile.x*5u]).w);
+        textureStore(distances, vec2(at.x/2u, at.y), vec4(lamp_visibility_pack(first, second, step)));
+        cover(even, first, resolution);
+        cover(even+vec2(1u, 0u), second, resolution);
     }
     workgroupBarrier();
     if local == 0u && atomicLoad(&group_high_x) >= atomicLoad(&group_low_x) {
@@ -69,14 +74,21 @@ fn mover_box(origin: vec3<f32>, direction: vec3<f32>, lo: vec3<f32>, hi: vec3<f3
         atomicMax(&covered[base+3u], atomicLoad(&group_high_y));
     }
 }
-// One texel of a queued tile; whether a mover is in its direction.
-fn trace_texel(id: vec3<u32>) -> bool {
+// Texel `texel` of a door tile whose movers block `parameter` (below 1e20) into the
+// workgroup's covered rectangle. Border texels mirror the interior; only interior pixels
+// are filtered.
+fn cover(texel: vec2<u32>, parameter: f32, resolution: u32) {
+    let pixel = texel-vec2(1u);
+    if parameter < 1e20 && all(texel >= vec2(1u)) && all(pixel < vec2(resolution)) {
+        atomicMin(&group_low_x, pixel.x); atomicMin(&group_low_y, pixel.y);
+        atomicMax(&group_high_x, pixel.x); atomicMax(&group_high_y, pixel.y);
+    }
+}
+// One texel of door tile `tile`: the biased ray parameter of the nearest mover in its
+// direction, 1e20 without one.
+fn trace_texel(tile: vec4<u32>, texel: vec2<u32>) -> f32 {
     let resolution = lamps.offsets.z;
-    let pitch = resolution+2u;
-    let tile = tiles[work[id.z]];
-    let slot = lamps.counts.w+work[id.z];
-    let at = vec2(slot%lamps.offsets.w, slot/lamps.offsets.w)*pitch+id.xy;
-    let pixel = vec2<f32>(id.xy)-1.0;
+    let pixel = vec2<f32>(texel)-1.0;
     let direction = lamp_octa_direction((pixel+0.5)/f32(resolution)*2.0-1.0);
     let source = bitcast<vec4<f32>>(data[tile.x*5u]);
     let normal = bitcast<vec4<f32>>(data[tile.x*5u+1u]).xyz;
@@ -114,21 +126,21 @@ fn trace_texel(id: vec3<u32>) -> bool {
         }
     }
     let ray_parameter = (nearest+0.5)*dot(abs(direction), vec3(1.0));
-    textureStore(distances, at, vec4(select(1e20, ray_parameter, hit)));
-    return hit;
+    return select(1e20, ray_parameter, hit);
 }
-// The covered rectangle of each traced tile, packed x + 256 y (exact in a float), into
-// its top border row: lower corner, upper corner; -1 when no mover is in view.
+// The covered rectangle of each traced tile, a byte per bound (lower x and y, upper x and
+// y, from the low byte; pixels are below 128), over its first stored texel;
+// `LAMP_DOOR_UNCOVERED` when no mover is in view.
 @compute @workgroup_size(1,1,1) fn publish(@builtin(workgroup_id) id: vec3<u32>) {
     let resolution = lamps.offsets.z;
     if resolution == 0u { return; }
     let pitch = resolution+2u;
     let slot = lamps.counts.w+work[id.x];
-    let origin = vec2(slot%lamps.offsets.w, slot/lamps.offsets.w)*pitch;
+    let origin = vec2(slot%lamps.offsets.w, slot/lamps.offsets.w)*pitch/vec2(2u, 1u);
     let base = id.x*4u;
     let low = vec2(atomicLoad(&covered[base]), atomicLoad(&covered[base+1u]));
     let high = vec2(atomicLoad(&covered[base+2u]), atomicLoad(&covered[base+3u]));
     let any_cover = high.x >= low.x && high.y >= low.y;
-    textureStore(distances, origin, vec4(select(-1.0, f32(low.x+low.y*256u), any_cover)));
-    textureStore(distances, origin+vec2(1u, 0u), vec4(select(-1.0, f32(high.x+high.y*256u), any_cover)));
+    let rect = low.x|(low.y<<8u)|(high.x<<16u)|(high.y<<24u);
+    textureStore(distances, origin, vec4(select(LAMP_DOOR_UNCOVERED, rect, any_cover)));
 }

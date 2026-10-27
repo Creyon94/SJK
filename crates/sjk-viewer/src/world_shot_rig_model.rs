@@ -89,7 +89,7 @@ fn rig_model_on_a_demo() {
             state.catalogue = Some(catalogue);
             state
                 .active
-                .start(slot, id, def.as_ref(), at, std::time::Instant::now());
+                .start(slot, id, def.as_ref(), Some(at), std::time::Instant::now());
         }
         let between = if emote.is_some() { 6 } else { 50 };
         // Close-ups about a second apart: the orbit keeps the player near the centre.

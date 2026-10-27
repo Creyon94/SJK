@@ -6,8 +6,14 @@
 //! text change nothing about what loads. No file is ever refused; a file with
 //! no usable pair gives an empty skin, which a caller treats as rd-vanilla
 //! treats skin handle 0.
+//!
+//! A surface named more than once takes its shader from its first entry, as
+//! `RenderSurfaces` (`tr_ghoul2.cpp`) stops at the first match, but whether it
+//! is shown from its last: `G2_SetSurfaceOnOffFromSkin` (`G2_surfaces.cpp`)
+//! walks every entry in order, an `*off` one switching the surface off and any
+//! other switching it back on ([`Skin::hides`]).
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 /// Skin shader name that hides a surface instead of texturing it.
 pub const SKIN_SHADER_OFF: &str = "*off";
@@ -24,6 +30,8 @@ pub struct Skin {
     mappings: HashMap<String, String>,
     /// Surface entries read, duplicates included, as `skin_t::numSurfaces` counts them.
     entries: usize,
+    /// Lower-case surfaces without `_off` whose last entry is `*off`.
+    hidden: HashSet<String>,
 }
 
 impl Skin {
@@ -38,7 +46,9 @@ impl Skin {
     /// Add one more file to this skin, as `RE_RegisterSkin` adds the torso and
     /// lower parts of a `head|torso|lower` skin to the head's. An entry for a
     /// surface already named keeps the earlier shader: the renderer takes the
-    /// first match (`RenderSurfaces`, `tr_ghoul2.cpp`).
+    /// first match (`RenderSurfaces`, `tr_ghoul2.cpp`). It still switches the
+    /// surface off (`*off`) or back on (any other shader), as
+    /// `G2_SetSurfaceOnOffFromSkin` applies every entry in turn.
     pub fn append(&mut self, bytes: &[u8]) {
         let mut tokens = CommaParser { bytes, position: 0 };
         loop {
@@ -67,16 +77,29 @@ impl Skin {
             }
             self.entries += 1;
             let shader = text(&shader).replace('\\', "/").to_ascii_lowercase();
+            if shader == SKIN_SHADER_OFF {
+                self.hidden.insert(surface.clone());
+            } else {
+                self.hidden.remove(&surface);
+            }
             self.mappings.entry(surface).or_insert(shader);
         }
     }
 
     /// The shader for a mesh surface, matched without case and without a
-    /// trailing `_off`, which `R_LoadMDXM` strips from surface names.
+    /// trailing `_off`, which `R_LoadMDXM` strips from surface names: its first
+    /// entry's. That is `*off` itself for a surface first switched off and then
+    /// on again, which retail draws with the shader `R_FindShader("*off")` makes:
+    /// no script and no image, so the default image.
     pub fn shader(&self, surface: &str) -> Option<&str> {
-        let surface = surface.to_ascii_lowercase();
-        let surface = surface.strip_suffix("_off").unwrap_or(&surface);
-        self.mappings.get(surface).map(String::as_str)
+        self.mappings.get(&key(surface)).map(String::as_str)
+    }
+
+    /// Whether the skin switches the surface off: its last entry is `*off`
+    /// (`G2_SetSurfaceOnOffFromSkin`). A surface the model itself has off (an
+    /// `_off` cap) stays off whatever the skin says; that is the model's flag.
+    pub fn hides(&self, surface: &str) -> bool {
+        self.hidden.contains(&key(surface))
     }
 
     /// Distinct surfaces the skin names.
@@ -89,6 +112,15 @@ impl Skin {
     pub fn is_empty(&self) -> bool {
         self.mappings.is_empty()
     }
+}
+
+/// A surface name as the skin stores it: lower case, without a trailing `_off`.
+fn key(surface: &str) -> String {
+    let mut surface = surface.to_ascii_lowercase();
+    if surface.ends_with("_off") {
+        surface.truncate(surface.len() - 4);
+    }
+    surface
 }
 
 fn text(bytes: &[u8]) -> String {
@@ -239,6 +271,28 @@ mod tests {
     fn star_off_hides_ordinary_surfaces() {
         let skin = Skin::parse(b"helmet,*off");
         assert_eq!(skin.shader("helmet"), Some(SKIN_SHADER_OFF));
+        assert!(skin.hides("helmet"));
+        assert!(skin.hides("HELMET_off"));
+        assert!(!skin.hides("head"));
+    }
+
+    #[test]
+    fn the_last_entry_switches_a_surface_on_or_off() {
+        // A community skin (Yuna's) names every surface with its texture, then
+        // switches the outfit's spare parts off further down.
+        let skin = Skin::parse(b"hips_skirt,skirt\ntorso_sum,x_torso\nhips_skirt,*off\n");
+        assert!(skin.hides("hips_skirt"));
+        assert_eq!(skin.shader("hips_skirt"), Some("skirt"));
+        assert!(!skin.hides("torso_sum"));
+        // Switched off, then on again by its `_off` name (Zuvio's neck cap): shown,
+        // with the first entry's shader, `*off`, which retail draws as its default image.
+        let skin = Skin::parse(b"torso_cap_head,*off\ntorso_cap_head_off,caps\n");
+        assert!(!skin.hides("torso_cap_head"));
+        assert_eq!(skin.shader("torso_cap_head"), Some(SKIN_SHADER_OFF));
+        // Across the parts of a three-part skin as well.
+        let mut skin = Skin::parse(b"cloak,cloak\n");
+        skin.append(b"cloak,*off\n");
+        assert!(skin.hides("cloak"));
     }
 
     #[test]

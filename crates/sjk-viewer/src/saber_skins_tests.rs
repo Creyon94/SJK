@@ -1,7 +1,7 @@
 use super::*;
 use crate::blade_skin_file::tests::{SAMPLE, sample_with};
 use crate::saber::{self, Blade, Color, Instance};
-use crate::saber_rgb::{MATERIAL_COUNT, RGB_MATERIAL, SKIN_MATERIAL};
+use crate::saber_rgb::{BLACK_MATERIAL, MATERIAL_COUNT, RGB_MATERIAL, SKIN_MATERIAL};
 use crate::saber_submission::lights;
 
 fn blade() -> Blade {
@@ -16,19 +16,20 @@ fn blade() -> Blade {
 /// The test blade skin ([`SAMPLE`], made-up values) loaded as the catalogue's one blade
 /// skin, numbered 0, under `generation`.
 pub(crate) fn loaded_sample(generation: u64) -> LoadedSkins {
-    let def = crate::blade_skin_file::parse("saber_sun", SAMPLE).unwrap();
-    let skin = LoadedSkin::new("saber_sun", def, &VirtualFileSystem::new()).unwrap();
+    let def = crate::blade_skin_file::parse("saber_tidal", SAMPLE).unwrap();
+    let skin = LoadedSkin::new("saber_tidal", def, &VirtualFileSystem::new()).unwrap();
     LoadedSkins::of(vec![skin], generation)
 }
 
 fn sample_color() -> SkinColor {
-    loaded_sample(1).color_of("saber_sun").unwrap()
+    loaded_sample(1).color_of("saber_tidal").unwrap()
 }
 
 #[test]
 fn skins_have_their_materials_after_the_neutral_pair() {
     assert_eq!(SKIN_MATERIAL, RGB_MATERIAL + 1);
-    assert_eq!(MATERIAL_COUNT, 7 + MAX_SKINS);
+    assert_eq!(BLACK_MATERIAL, 7 + MAX_SKINS as u32);
+    assert_eq!(MATERIAL_COUNT, 8 + MAX_SKINS);
     let skin = BladeColor::Skin(sample_color());
     assert_eq!(skin.material(), 7);
     let third = BladeColor::Skin(SkinColor {
@@ -290,7 +291,7 @@ fn the_uniform_holds_the_files_parameters_where_the_shader_reads_them() {
     // Past the loaded skins, zeros.
     assert!(uniforms[1..].iter().all(|u| *u == SkinUniform::default()));
     let bytes: &[u8] = bytemuck::cast_slice(&uniforms);
-    assert_eq!(bytes.len(), MAX_SKINS * 95 * 16);
+    assert_eq!(bytes.len(), MAX_SKINS * 97 * 16);
     // The array stays inside the storage binding WebGPU guarantees (128 MiB).
     assert!(bytes.len() <= 128 * 1024 * 1024);
 }
@@ -298,7 +299,7 @@ fn the_uniform_holds_the_files_parameters_where_the_shader_reads_them() {
 #[test]
 fn arcs_motes_and_hue_reach_the_uniform_where_the_shader_reads_them() {
     let text = crate::blade_skin_file::tests::sample_with_effects();
-    let def = crate::blade_skin_file::parse("saber_sun", &text).unwrap();
+    let def = crate::blade_skin_file::parse("saber_tidal", &text).unwrap();
     let one = SkinUniform::of(&def);
     assert_eq!(one.core_fringe[3], 2.5, "core.tip");
     assert_eq!(one.arc_color, [0.7, 0.8, 1.0, 2.0]);
@@ -312,7 +313,7 @@ fn arcs_motes_and_hue_reach_the_uniform_where_the_shader_reads_them() {
     assert_eq!(one.mote_band, [0.4, 1.7, 0.6, 0.0]);
     assert_eq!(one.hue, [0.1, 0.02, 0.2, 0.0]);
     // The light turns with the blade's middle; without a hue it holds.
-    let skin = LoadedSkin::new("saber_sun", def, &VirtualFileSystem::new()).unwrap();
+    let skin = LoadedSkin::new("saber_tidal", def, &VirtualFileSystem::new()).unwrap();
     let color = skin.color(0, 0);
     assert_eq!(
         color.hue,
@@ -445,8 +446,9 @@ fn a_skinned_blade_ends_round_not_square() {
         "let into = clamp((along - (length - cap)) / max(cap, 0.0001), 0.0, 1.0);",
         "return select(sqrt(max(1.0 - into * into, 0.0001)), 1.0, into <= 0.0);",
         "/ skin_tip_taper(along, input.length, skin.core_fringe.w * input.radius);",
-        "var across = input.blade.x / (2.0 * input.radius) * core_stretch(input);",
-        "let footprint = pixel / (2.0 * input.radius) * core_stretch(input);",
+        "return core_coordinates_at(input, line, line.stretch);",
+        "let across = input.blade.x / (2.0 * input.radius) * stretch - line.moved;",
+        "let footprint = pixel / (2.0 * input.radius) * line.stretch;",
         "let beyond = max(input.blade.y - input.shaft, 0.0);",
         "shaded.blade = vec2(x / widen, min(input.blade.y, input.shaft) + beyond / widen);",
         "let radial = select(abs(x), length(vec2(x, beyond)), beyond > 0.0);",
@@ -455,6 +457,42 @@ fn a_skinned_blade_ends_round_not_square() {
         "core *= clamp((0.5 - abs(uv.x - 0.5)) / max(footprint, 0.00001) + 0.5, 0.0, 1.0);",
     ] {
         assert!(shader.contains(line), "saber.wgsl lost {line:?}");
+    }
+}
+
+#[test]
+fn a_skinned_blades_tip_is_filtered_as_its_shaft_is() {
+    // Round 23 (players' reports after 2026.1021.1): the core is sampled with the
+    // derivatives of its coordinates before the rounded tip narrows them, else the tip's
+    // narrowing picks the core image's smallest mip and draws a bright rim round the tip.
+    // Along the shaft the two coordinates are the same, so the shaft looks as before.
+    let (length, radius) = (40.0, 1.0);
+    let cap = crate::blade_skin_file::DEFAULT_TIP * radius;
+    for along in [-1.0, 0.0, 20.0, length - cap] {
+        assert_eq!(tip_taper(along, length, cap), 1.0, "{along}");
+    }
+    let shader = include_str!("saber.wgsl");
+    for line in [
+        // One skin lookup (`core_line`) gives both coordinates, not one lookup each.
+        "let line = core_line(input);",
+        "let core_uv = core_coordinates_at(input, line, line.stretch);",
+        "let filter_uv = core_coordinates_at(input, line, line.breath);",
+        "let core_dx = dpdx(filter_uv);",
+        "let core_dy = dpdy(filter_uv);",
+        "let stretch = breath\n        / skin_tip_taper(along, input.length, skin.core_fringe.w * input.radius);",
+        // A signature's core fades out before its quad's sides.
+        "core *= 1.0 - smoothstep(0.36, 0.5, abs(uv.x - 0.5));",
+    ] {
+        assert!(shader.contains(line), "saber.wgsl lost {line:?}");
+    }
+    // No second skin lookup per pixel for the filter alone (it ran on every skinned blade).
+    for gone in [
+        "dpdx(core_uv)",
+        "dpdy(core_uv)",
+        "fn core_breath(",
+        "fn core_stretch(",
+    ] {
+        assert!(!shader.contains(gone), "saber.wgsl has {gone:?} again");
     }
 }
 
@@ -474,7 +512,10 @@ fn skins_load_from_the_packs_files_with_their_images_and_sounds() {
         .mount_memory(
             "pack",
             [
-                ("skins/blades/saber_sun.bladeskin", with_image.into_bytes()),
+                (
+                    "skins/blades/saber_tidal.bladeskin",
+                    with_image.into_bytes(),
+                ),
                 ("gfx/test/glow.png", png),
                 // Not a blade skin this client knows, and a broken one: left out.
                 (
@@ -487,26 +528,36 @@ fn skins_load_from_the_packs_files_with_their_images_and_sounds() {
         .unwrap();
     let skins = LoadedSkins::load(packs, 4);
     assert_eq!(skins.generation(), 4);
-    assert_eq!(skins.ids().collect::<Vec<_>>(), ["saber_sun"]);
-    let skin = skins.get("saber_sun").unwrap();
+    // The pack's skin, then the signature skins no pack carries, from their built-in files.
+    let ids: Vec<_> = skins.ids().collect();
+    assert_eq!(ids[0], "saber_tidal");
+    assert!(
+        ids[1..]
+            .iter()
+            .copied()
+            .eq(crate::blade_signatures::SIGNATURES
+                .iter()
+                .map(|signature| signature.id))
+    );
+    let skin = skins.get("saber_tidal").unwrap();
     assert_eq!(skin.glow.dimensions(), (32, 32));
     assert_eq!(skin.glow.get_pixel(3, 3).0, [90, 90, 90, 255]);
     assert_eq!(skin.core.dimensions(), (64, 256));
-    assert_eq!(skins.color_of("saber_sun").map(|c| c.index), Some(0));
+    assert_eq!(skins.color_of("saber_tidal").map(|c| c.index), Some(0));
     assert_eq!(skins.color_of("saber_moon"), None);
     let sets = skins.sound_sets();
-    assert_eq!(sets.len(), 1);
+    assert_eq!(sets.len(), 1 + crate::blade_signatures::SIGNATURES.len());
     assert_eq!(sets[0].hum, "sound/test/blade/hum.wav");
     assert_eq!(sets[0].swings[1], "sound/test/blade/s2.wav");
     assert_eq!(skins.swing(0, 4), Some("sound/test/blade/s2.wav"));
-    assert_eq!(skins.swing(1, 0), None);
+    assert_eq!(skins.swing(sets.len() as u8, 0), None);
     // A missing image refuses the skin: the stock blade.
     let mut missing = VirtualFileSystem::new();
     missing
         .mount_memory(
             "pack",
             [(
-                "skins/blades/saber_sun.bladeskin",
+                "skins/blades/saber_tidal.bladeskin",
                 sample_with(
                     r#""core_profile": {"width": 0.3, "fringe_width": 0.6},"#,
                     r#""core_profile": {"width": 0.3, "fringe_width": 0.6}, "core_image": "gfx/none.png","#,
@@ -515,7 +566,12 @@ fn skins_load_from_the_packs_files_with_their_images_and_sounds() {
             )],
         )
         .unwrap();
-    assert_eq!(LoadedSkins::load(missing, 5).ids().count(), 0);
+    assert_eq!(
+        LoadedSkins::load(missing, 5)
+            .get("saber_tidal")
+            .map(|skin| skin.id),
+        None
+    );
 }
 
 #[test]
@@ -571,11 +627,11 @@ fn the_local_choice_follows_the_players_slot() {
 fn a_skin_whose_pack_is_not_loaded_is_the_stock_blade() {
     let none = LoadedSkins::default();
     assert_eq!(none.generation(), 0);
-    assert_eq!(none.color_of("saber_sun"), None);
+    assert_eq!(none.color_of("saber_tidal"), None);
     assert!(none.sound_sets().is_empty());
     assert_eq!(none.uniforms(), vec![SkinUniform::default(); MAX_SKINS]);
     let mut skins = SaberSkins::default();
-    skins.follow_looks(1, none.generation(), |_| none.color_of("saber_sun"));
+    skins.follow_looks(1, none.generation(), |_| none.color_of("saber_tidal"));
     assert_eq!(skins.get(1), None);
 }
 
@@ -621,14 +677,14 @@ fn other_players_skins_follow_the_looks_and_the_packs_only_when_they_change() {
 fn the_local_skin_is_gated_by_the_own_profile_and_its_pack() {
     let loaded = loaded_sample(1);
     let mut looks = crate::looks::Looks::default();
-    // `cg_saberSkin saber_sun` without the unlock: the stock blade.
-    let unowned = crate::looks::Worn::own("saber_sun", "", |_| false, false);
+    // `cg_saberSkin saber_tidal` without the unlock: the stock blade.
+    let unowned = crate::looks::Worn::own("saber_tidal", "", |_| false, false);
     looks.set_own(None, unowned);
     assert_eq!(
         looks.own_saber_skin().and_then(|id| loaded.color_of(id)),
         None
     );
-    let owned = crate::looks::Worn::own("saber_sun", "", |id| id == "saber_sun", false);
+    let owned = crate::looks::Worn::own("saber_tidal", "", |id| id == "saber_tidal", false);
     looks.set_own(Some(4), owned);
     assert_eq!(
         looks.own_saber_skin().and_then(|id| loaded.color_of(id)),
@@ -677,12 +733,17 @@ fn following_another_player_draws_their_look_not_the_own_skin() {
         illuminate: true,
         saber_off: Vec::new(),
         toys: Vec::new(),
+        saber2: None,
+        saber2_off: Vec::new(),
+        saber_on: Vec::new(),
+        saber2_on: Vec::new(),
+        saber_sounds: String::new(),
     };
     looks.apply_event(5, "Fox", &stock);
     let slots = ViewSlots::of(&game_state, &followed);
     looks.set_own(
         slots.own.and_then(|slot| u8::try_from(slot).ok()),
-        Worn::own("saber_sun", "", |_| true, false),
+        Worn::own("saber_tidal", "", |_| true, false),
     );
     looks.rebuild(|slot| (slot == 5).then(|| "Fox".to_owned()));
     let mut skins = SaberSkins::default();
@@ -724,11 +785,12 @@ fn hues_run_round_the_grey_axis_as_turn_hue_turns() {
     assert!(close(hue_of([1.0, 0.0, 0.0]).unwrap(), 0.0));
     assert!(close(hue_of([0.0, 1.0, 0.0]).unwrap(), 1.0 / 3.0));
     assert!(close(hue_of([0.0, 0.0, 1.0]).unwrap(), 2.0 / 3.0));
-    // Grey, white, black and nearly grey colours have none.
+    // Grey, white, black and almost grey colours have none; a pastel has its hue.
     assert_eq!(hue_of([0.5, 0.5, 0.5]), None);
     assert_eq!(hue_of([1.0, 1.0, 1.0]), None);
     assert_eq!(hue_of([0.0, 0.0, 0.0]), None);
-    assert_eq!(hue_of([1.0, 0.95, 0.9]), None);
+    assert_eq!(hue_of([1.0, 0.99, 0.98]), None);
+    assert!(hue_of([0.81, 0.725, 0.918]).is_some());
     // Turning a colour by the gap between two hues lands on the second.
     let from = [0.9, 0.3, 0.1];
     for target in [[0.1, 0.4, 1.0], [0.2, 1.0, 0.3], [1.0, 0.0, 0.8]] {
@@ -826,18 +888,18 @@ fn the_orbit_moves_the_glints_below_the_tip_for_the_cpu_and_the_gpu() {
         crate::blade_skin_file::tests::LATER_ADDITIONS,
     )
     .unwrap();
-    let def = crate::blade_skin_file::parse("saber_sun", &text).unwrap();
+    let def = crate::blade_skin_file::parse("saber_tidal", &text).unwrap();
     let one = SkinUniform::of(&def);
     assert_eq!(one.star_motion[3], 2.0, "two glints");
     assert_eq!(one.star_orbit, [10.0, 4.5, 0.4, 0.3]);
-    let skin = LoadedSkin::new("saber_sun", def, &VirtualFileSystem::new()).unwrap();
+    let skin = LoadedSkin::new("saber_tidal", def, &VirtualFileSystem::new()).unwrap();
     let glint = skin.color(0, 0).star.unwrap();
     assert_eq!((glint.length, glint.at, glint.count), (8.0, 10.0, 2));
     // The circle's reach, its tilt included.
     assert!((glint.reach - 4.5 / 0.3_f32.cos()).abs() < 1e-5);
     // Without an orbit: one glint at the tip, and the orbit's lanes zeros.
     let plain = crate::blade_skin_file::tests::sample_with_additions();
-    let one = SkinUniform::of(&crate::blade_skin_file::parse("saber_sun", &plain).unwrap());
+    let one = SkinUniform::of(&crate::blade_skin_file::parse("saber_tidal", &plain).unwrap());
     assert_eq!((one.star_motion[3], one.star_orbit), (0.0, [0.0; 4]));
 }
 
@@ -849,8 +911,8 @@ fn a_wearers_options_leave_out_their_parts_on_the_cpu_and_the_gpu() {
         r#""ghosts": {"count": 2, "spacing": 40.0, "fade": 0.5}, "trail""#,
         1,
     );
-    let def = crate::blade_skin_file::parse("saber_sun", &text).unwrap();
-    let skin = LoadedSkin::new("saber_sun", def, &VirtualFileSystem::new()).unwrap();
+    let def = crate::blade_skin_file::parse("saber_tidal", &text).unwrap();
+    let skin = LoadedSkin::new("saber_tidal", def, &VirtualFileSystem::new()).unwrap();
     let all = skin.color(0, 0);
     assert_eq!(all.off, 0);
     let glint = all.star.unwrap();
@@ -886,4 +948,313 @@ fn a_wearers_options_leave_out_their_parts_on_the_cpu_and_the_gpu() {
     assert_eq!(extras.len(), 2);
     assert!(extras[0].is_star() && !extras[1].is_star());
     assert!(pair.iter().all(|instance| instance.contact().is_none()));
+}
+
+#[test]
+fn a_custom_tint_never_jumps_hue_between_neighbouring_values() {
+    // Kushina's report: (207, 185, 234) drew violet, (207, 190, 234) cyan, because
+    // pastels under a saturation cliff kept the skin's own hue. Step every channel by
+    // 5 across the cube: the hue the tint gives a chroma moves no more than the
+    // input's own, never by a jump, and any non-grey tint has one.
+    let hue = |rgb: [u8; 3]| hue_of(rgb.map(|c| f32::from(c) / 255.0));
+    let gap = |a: f32, b: f32| (a - b).abs().min(1.0 - (a - b).abs());
+    for red in (0..=250u8).step_by(5) {
+        for green in (0..=250u8).step_by(5) {
+            for blue in (0..=250u8).step_by(5) {
+                let here = [red, green, blue];
+                let high = here.iter().copied().max().unwrap();
+                let low = here.iter().copied().min().unwrap();
+                if high < 120 || f32::from(high - low) / f32::from(high) < 0.2 {
+                    // Near grey the hue moves fast by nature; only demand it exists
+                    // above the grey threshold.
+                    continue;
+                }
+                let Some(a) = hue(here) else {
+                    panic!("{here:?} has no hue")
+                };
+                for step in 0..3 {
+                    let mut next = here;
+                    next[step] += 5;
+                    if let Some(b) = hue(next) {
+                        assert!(gap(a, b) < 0.06, "{here:?} -> {next:?}: {a} -> {b}");
+                    }
+                }
+            }
+        }
+    }
+    let pastel = |green| {
+        hue(crate::saber_rgb::BladeColor::Rgb([207, green, 234])
+            .tint()
+            .map(|c| (c * 255.0).round() as u8))
+    };
+    assert!(gap(pastel(185).unwrap(), pastel(190).unwrap()) < 0.02);
+}
+
+#[test]
+fn a_skins_blur_trail_is_drawn_in_its_own_colour() {
+    use crate::saber_trail::vertex_style;
+    let skin = BladeColor::Skin(sample_color());
+    // The blur trail of a skin tints its white core too (style 3)...
+    assert_eq!(vertex_style(0, skin), 3);
+    // ...while the sword trail, stock blades and black blades keep their styles.
+    assert_eq!(vertex_style(1, skin), 1);
+    assert_eq!(vertex_style(0, BladeColor::Retail(Color::Blue)), 0);
+    assert_eq!(vertex_style(1, BladeColor::Retail(Color::Blue)), 1);
+    assert_eq!(vertex_style(0, BladeColor::Black), 2);
+    assert_eq!(vertex_style(1, BladeColor::Black), 1);
+}
+
+#[test]
+fn each_saber_wears_its_own_skin() {
+    let worn = sample_color();
+    let other = SkinColor { index: 5, ..worn };
+    let mut skins = SaberSkins::default();
+    skins.follow_looks_each(1, 1, |client| match client {
+        2 => (Some(worn), Second::Own(Some(other)), None),
+        3 => (Some(worn), Second::Own(None), None),
+        4 => (Some(worn), Second::Same, None),
+        _ => (None, Second::Same, None),
+    });
+    let indices = |skins: &SaberSkins, entity| {
+        skins
+            .get_both(entity)
+            .map(|skin| skin.map(|skin| skin.index))
+    };
+    assert_eq!(indices(&skins, 3), [Some(worn.index), Some(5)]);
+    assert_eq!(indices(&skins, 4), [Some(worn.index), None]);
+    assert_eq!(indices(&skins, 5), [Some(worn.index), Some(worn.index)]);
+    assert_eq!(indices(&skins, 6), [None, None]);
+    // The local player's own slot takes its own second saber.
+    skins.set_local_each(Some(2), None, Second::Own(Some(other)), None);
+    assert_eq!(indices(&skins, 3), [None, Some(5)]);
+}
+
+#[test]
+fn a_staffs_other_half_wears_the_second_skin() {
+    let first = sample_color();
+    let second = SkinColor { index: 5, ..first };
+    let skins = [Some(first), Some(second)];
+    let index = |two, saber, other_half| {
+        skin_of_blade(skins, two, saber, other_half).map(|skin| skin.index)
+    };
+    // One staff: its first half the first skin, the other half the second.
+    assert_eq!(index(false, 0, false), Some(first.index));
+    assert_eq!(index(false, 0, true), Some(5));
+    // Two sabers: every blade of the second saber, none of the first.
+    assert_eq!(index(true, 0, true), Some(first.index));
+    assert_eq!(index(true, 1, false), Some(5));
+    set_local_pair([Some(true), None]);
+    assert_eq!(local_pair(), Pair::Staff);
+    set_local_pair([Some(false), Some(false)]);
+    assert_eq!(local_pair(), Pair::TwoSabers);
+    // One saber of one blade, or a crossguard's three blades in one direction's half.
+    set_local_pair([Some(false), None]);
+    assert_eq!(local_pair(), Pair::None);
+}
+
+#[test]
+fn the_preview_dresses_one_side_and_leaves_the_other_as_worn() {
+    let worn_first = sample_color();
+    let shown = SkinColor {
+        index: 7,
+        ..worn_first
+    };
+    let index = |pair: [Option<SkinColor>; 2]| pair.map(|skin| skin.map(|skin| skin.index));
+    // The second wears the first's skin (none of its own): previewing on the first leaves
+    // it so, as Equip will.
+    let worn = [Some(worn_first), Some(worn_first)];
+    assert_eq!(
+        index(previewed(worn, Some(Some(shown)), [true, false])),
+        [Some(7), Some(worn_first.index)]
+    );
+    assert_eq!(
+        index(previewed(worn, Some(None), [false, true])),
+        [Some(worn_first.index), None]
+    );
+    assert_eq!(index(previewed(worn, None, [true, true])), index(worn));
+}
+
+#[test]
+fn the_sun_trails_plasma_and_its_extras_change_it_only_when_switched_on() {
+    use crate::blade_extras::TrailKind;
+    use crate::blade_skin_file::extras::option_bit;
+    use crate::saber_trail::{STYLE, WAKE, vertex_style};
+    let skins = LoadedSkins::load(VirtualFileSystem::new(), 1);
+    let plain = skins.color_of("saber_sun").unwrap();
+    assert_eq!(plain.trail_kind, TrailKind::Plasma, "every wearer's");
+    assert!(!plain.wake && plain.petals.is_none());
+    assert_eq!(vertex_style(0, BladeColor::Skin(plain)), 5);
+    let with = |ids: &[&str]| {
+        skins
+            .color_with(
+                "saber_sun",
+                ids.iter().fold(0, |bits, id| bits | option_bit(id)),
+            )
+            .unwrap()
+    };
+    let flare = with(&["flare_trail"]);
+    assert_eq!(flare.trail_kind, TrailKind::Flare);
+    assert_eq!(vertex_style(0, BladeColor::Skin(flare)), 6);
+    let all = with(&["flare_trail", "swing_embers", "heat_wake", "haze"]);
+    let style = vertex_style(0, BladeColor::Skin(all));
+    assert_eq!((style & STYLE, style & WAKE), (6, WAKE));
+    assert_eq!(
+        all.petals.map(|petals| petals.kind),
+        Some(crate::saber_petals::PetalKind::Ember)
+    );
+    // The parts switched off still go off with the extras on.
+    assert_ne!(all.off, plain.off);
+    // The sword trail stays the sword trail.
+    assert_eq!(vertex_style(1, BladeColor::Skin(all)), 1);
+}
+
+#[test]
+fn the_varykino_blossom_sheds_petals_until_its_wearer_switches_them_off() {
+    let skins = LoadedSkins::load(VirtualFileSystem::new(), 1);
+    let color = skins.color_of("saber_varykino_blossom").unwrap();
+    let petals = color
+        .petals
+        .expect("its signature's @petals reaches the colour");
+    assert_eq!(petals.part, 3);
+    // Switched off in the Collection: none.
+    let off = skins.get("saber_varykino_blossom").unwrap().options();
+    let falling = off.iter().find(|o| o.name == "Falling blossoms").unwrap();
+    assert!(
+        skins
+            .color_with(
+                "saber_varykino_blossom",
+                crate::blade_skin_file::extras::option_bit(&falling.id)
+            )
+            .unwrap()
+            .petals
+            .is_none()
+    );
+}
+
+#[test]
+fn a_duel_draws_every_blade_stock() {
+    let worn = sample_color();
+    let mut skins = SaberSkins::default();
+    skins.follow_looks(1, 1, |client| (client == 2).then_some(worn));
+    assert_eq!(skins.get(3).map(|skin| skin.index), Some(worn.index));
+    assert_eq!(skins.sound_sets()[2], Some(worn.index));
+    // In a duel: the stock blade in the wearer's own colour, and the stock sounds.
+    skins.set_plain(true);
+    assert!(skins.get(3).is_none());
+    let stock = BladeColor::Retail(Color::Green);
+    assert!(matches!(
+        skins.blade_color(3, stock),
+        BladeColor::Retail(Color::Green)
+    ));
+    assert_eq!(skins.sound_sets()[2], None);
+    skins.set_plain(false);
+    assert_eq!(skins.get(3).map(|skin| skin.index), Some(worn.index));
+}
+
+#[test]
+fn a_duel_draws_the_second_saber_stock_too() {
+    let worn = sample_color();
+    let other = SkinColor { index: 5, ..worn };
+    let mut skins = SaberSkins::default();
+    skins.follow_looks_each(1, 1, |client| {
+        if client == 2 {
+            (Some(worn), Second::Own(Some(other)), None)
+        } else {
+            (None, Second::Same, None)
+        }
+    });
+    skins.set_plain(true);
+    assert_eq!(skins.get_both(3), [None, None]);
+    skins.set_plain(false);
+    assert_eq!(
+        skins.get_both(3).map(|skin| skin.map(|skin| skin.index)),
+        [Some(worn.index), Some(5)]
+    );
+}
+
+#[test]
+fn a_click_on_a_staff_goes_to_the_half_it_lands_on() {
+    set_staff_halves(Some([[100.0, 300.0], [500.0, 300.0]]));
+    assert_eq!(staff_half_at([140.0, 290.0]), Some(false));
+    assert_eq!(staff_half_at([460.0, 320.0]), Some(true));
+    set_staff_halves(None);
+    assert_eq!(staff_half_at([460.0, 320.0]), None);
+}
+
+/// Stock blades for weak PCs (`cg_stockBlades`): 1 draws other players' blades stock,
+/// the local player's own (in its slot) keeping its skin; 2 every blade. Thrown blades
+/// follow (`blade_color`), the menus' preview (`local`) and the sounds do not.
+#[test]
+fn stock_blades_draw_others_or_every_blade_stock() {
+    use crate::stock_blades::StockBlades;
+    let worn = sample_color();
+    let mut skins = SaberSkins::default();
+    skins.follow_looks(1, 1, |client| (client == 5).then_some(worn));
+    skins.set_local(Some(2), Some(worn));
+    let index = |skins: &SaberSkins, entity| skins.get(entity).map(|skin| skin.index);
+    // Off (the default): everyone's skin.
+    assert_eq!(index(&skins, 3), Some(worn.index), "the local player's own");
+    assert_eq!(index(&skins, 6), Some(worn.index));
+    skins.set_stock(StockBlades::Others);
+    assert_eq!(index(&skins, 3), Some(worn.index), "yours keeps its skin");
+    assert_eq!(skins.get(6), None);
+    let stock = BladeColor::Retail(Color::Green);
+    assert!(matches!(
+        skins.blade_color(6, stock),
+        BladeColor::Retail(Color::Green)
+    ));
+    assert!(matches!(skins.blade_color(3, stock), BladeColor::Skin(_)));
+    skins.set_stock(StockBlades::All);
+    assert_eq!(skins.get(3), None);
+    assert_eq!(skins.get(6), None);
+    // The menus still show what the player wears, and everyone is heard as chosen.
+    assert_eq!(skins.local().map(|skin| skin.index), Some(worn.index));
+    assert_eq!(skins.sound_sets()[5], Some(worn.index));
+    assert_eq!(skins.sound_sets()[2], Some(worn.index));
+    assert_eq!(skins.sound_of(6), Some(worn.index));
+    // With no session (no slot of one's own), every player is another.
+    skins.set_local(None, Some(worn));
+    skins.set_stock(StockBlades::Others);
+    assert_eq!(skins.get(6), None);
+    assert_eq!(skins.local().map(|skin| skin.index), Some(worn.index));
+    skins.set_stock(StockBlades::Off);
+    assert_eq!(index(&skins, 6), Some(worn.index));
+}
+
+/// The sound set each slot is heard with is taken apart from its blade (Nib's idea,
+/// 23/10/2026): another shader's, the stock sounds, or the blade's; the local player's
+/// own goes in its slot, the animation swings read the same table, and a duel's stock
+/// blades are heard stock.
+#[test]
+fn sounds_are_taken_apart_from_the_blade_for_others_and_the_local_player() {
+    let worn = sample_color();
+    let mut skins = SaberSkins::default();
+    skins.follow_looks_each(1, 1, |client| match client {
+        // A blade heard with another skin's set (number 3).
+        2 => (Some(worn), Second::Same, Some(3)),
+        // A blade heard with the stock sounds.
+        4 => (Some(worn), Second::Same, None),
+        // The stock blade heard with a skin's set.
+        6 => (None, Second::Same, Some(worn.index)),
+        _ => (None, Second::Same, None),
+    });
+    let sets = skins.sound_sets();
+    assert_eq!(
+        (sets[2], sets[4], sets[6]),
+        (Some(3), None, Some(worn.index))
+    );
+    assert_eq!(
+        skins.get(5).map(|skin| skin.index),
+        Some(worn.index),
+        "blade kept"
+    );
+    assert_eq!(skins.sound_of(3), Some(3), "the swings' set, by entity");
+    assert_eq!(skins.sound_of(5), None);
+    // The local player in slot 4, heard with set 1 on the stock blade.
+    skins.set_local_each(Some(4), None, Second::Same, Some(1));
+    assert_eq!(skins.sound_sets()[4], Some(1));
+    assert_eq!(skins.get(5), None);
+    skins.set_plain(true);
+    assert_eq!(skins.sound_sets(), [None; MAX_CLIENTS]);
+    assert_eq!(skins.sound_of(3), None);
 }

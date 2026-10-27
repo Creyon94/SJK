@@ -88,6 +88,31 @@ fn the_fixture_parses() {
 }
 
 #[test]
+fn cached_bolt_index_matches_named_lookup_and_rejects_stale_indices() {
+    let mut glm = crate::Glm::parse(&TestGlm::default().bytes()).unwrap();
+    glm.hierarchy[0].name = "*back".into();
+    for (vertex, point) in
+        glm.lods[0].surfaces[0]
+            .vertices
+            .iter_mut()
+            .zip([[1., 0., 0.], [0., 1., 0.], [0., 0., 0.]])
+    {
+        vertex.position = point;
+    }
+    let matrices = [[[1., 0., 0., 2.], [0., 1., 0., 3.], [0., 0., 1., 4.]]];
+    let named = glm
+        .surface_bolt_matrix("*back", 0, &matrices)
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        glm.surface_bolt_matrix_at(0, 0, &matrices).unwrap(),
+        Some(named)
+    );
+    assert!(glm.surface_bolt_matrix_at(1, 0, &matrices).is_err());
+    assert!(glm.surface_bolt_matrix_at(0, 0, &[]).is_err());
+}
+
+#[test]
 fn weights_adding_up_past_one_are_kept_as_written() {
     // Three weights; the first two are both 1023/1023, so the last is 1 - 2.
     let packed = (2 << 30) | (0b1111 << 20);

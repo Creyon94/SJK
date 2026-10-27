@@ -31,10 +31,14 @@ impl HudOverlay {
             317 => &self.targeting.position,
             318 => &self.enemy_info.name,
             319 => &self.enemy_info.detail,
+            324 => &self.followed_name,
             value @ vehicle::TEXT_FIRST..=vehicle::TEXT_LAST => self.vehicle.text(value),
             value @ crate::scope::binoculars::TEXT_FIRST..=crate::scope::binoculars::TEXT_LAST => {
                 crate::scope::binoculars::DIGIT_TEXT
                     [(value - crate::scope::binoculars::TEXT_FIRST) as usize]
+            }
+            value @ flag_status::TEXT_FIRST..=flag_status::TEXT_LAST => {
+                self.flag_status.text(value)
             }
             value @ 400..=415 => self.icons.text((value - 400) as usize),
             value @ kill_feed::TEXT_FIRST..=kill_feed::TEXT_LAST => self.kill_feed.text(value),
@@ -47,15 +51,15 @@ impl HudOverlay {
 /// keeps the HUD's own font (Inter, or `arialnb` with `cg_classicHudFont`).
 ///
 /// OpenJK `codemp` `cg_draw.c`: `CG_DrawCrosshairNames`, `CG_DrawWarmup`,
-/// `CG_DrawTimer` and `CG_DrawEnemyInfo` paint with `FONT_MEDIUM`; the Force and
-/// inventory selection names use `UI_SMALLFONT` (`FONT_SMALL`); vote,
+/// `CG_DrawTimer`, `CG_DrawEnemyInfo` and JoF EternalJK's `CG_DrawFollow` paint with
+/// `FONT_MEDIUM`; the Force and inventory selection names use `UI_SMALLFONT` (`FONT_SMALL`); vote,
 /// snapshot and `CG_DrawDisconnect` draw console characters
 /// (`CG_DrawSmallString`, `CG_DrawStringExt`, `CG_DrawBigString`). Retail has no
 /// kill feed (obituaries are console prints, `CG_Obituary`): SJK's
 /// ([`super::kill_feed`]) stays on the HUD font it is measured in.
 pub(super) fn retail_font(id: TextId) -> Option<RetailFont> {
     match id.0 {
-        310..=312 | 318 | 319 => Some(RetailFont::Medium),
+        310..=312 | 318 | 319 | 324 => Some(RetailFont::Medium),
         1000..=1022 | 1100..=1111 => Some(RetailFont::Small),
         200..=204 | 313 | 316 => Some(RetailFont::Console),
         _ => None,

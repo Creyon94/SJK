@@ -64,6 +64,7 @@ fn dress(me: &mut sjk_identity::Profile, faces: &[crate::cards::faces::Face], no
                 note: NOTE.to_owned(),
                 count: 1,
                 medal: None,
+                card: None,
             });
         }
     }
@@ -90,6 +91,7 @@ fn dress(me: &mut sjk_identity::Profile, faces: &[crate::cards::faces::Face], no
                 progress: kind.goal,
                 goal: kind.goal,
                 unlocked: now,
+                reward: None,
             }),
         }
     }
@@ -126,6 +128,7 @@ mod tests {
                 note: "kept".to_owned(),
                 count: 3,
                 medal: None,
+                card: None,
             }],
             ..crate::console::profile_panel::tests::me("")
         };
@@ -144,6 +147,11 @@ mod tests {
         assert!(me.achievements.iter().all(|held| held.unlocked > 0));
         let holdings = crate::unlockables::Holdings::of(true, Some(&dressed));
         assert!(crate::unlockables::blade_skins().all(|skin| holdings.can_wear(skin)));
+        // The Unique ones too, which only their holders see otherwise.
+        assert_eq!(
+            holdings.listed_count(),
+            crate::unlockables::blade_skins().count()
+        );
     }
 
     #[test]
@@ -152,14 +160,16 @@ mod tests {
         let face = crate::cards::faces::Face {
             id: "sol_001".to_owned(),
             name: "Sol".to_owned(),
-            set: "sol_lore".to_owned(),
-            set_name: "Sol lore".to_owned(),
+            set: "sjk_alpha".to_owned(),
+            set_name: "SJK Alpha".to_owned(),
             number: 1,
             kind: crate::cards::faces::Kind::Game,
             rarity: &crate::cards::RARITIES[2],
             lore: String::new(),
             artist: "Sol".to_owned(),
             art: String::new(),
+            grants: None,
+            blade: None,
         };
         dress(&mut me, std::slice::from_ref(&face), 5);
         let finishes: Vec<_> = me.cards.iter().map(|stack| stack.finish.as_str()).collect();

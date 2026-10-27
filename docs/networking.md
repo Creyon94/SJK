@@ -34,7 +34,8 @@ released. jaPRO gets `cjp_client 1.4JAPRO`, which is a switch rather than a name
 server enables its client support (the deaths column, client-predicted moves such as
 `amrun`) only for that exact value (TaystJK `g_client.c:2342`). The player's
 `cjp_client` setting (archived, empty by default) replaces the value on both plugin
-profiles; it is sent nowhere else, and a value the info string cannot carry (`\`, `;`,
+profiles, for an SJK staff key only (Sol, 19/10/2026; `player_identity::is_staff`):
+another key always sends the default, whatever the setting says. It is sent nowhere else, and a value the info string cannot carry (`\`, `;`,
 `"`) leaves the default. The userinfo carries it as a generic override of an adapter
 extension (`LegacyUserInfo::extension_overrides`). Both plugin profiles also get the player's
 `cp_pluginDisable` cvar (archived; a set bit switches a plugin feature off),
@@ -46,7 +47,9 @@ serves custom RGB blades (`cp_sbRGB1`/`cp_sbRGB2`, sent whenever a blade selects
 RGB) and its flame, electric and black ones (`color1`/`color2` 7 to 11, which the
 userinfo carries as set, any number up to 255: none stops a connection any more,
 and SJK draws its own blade in the colour EternalJK's `ClampSaberColor` gives) and
-appends a deaths field to each `scores` row (15 fields instead of 14).
+appends a deaths field to each `scores` row (15 fields instead of 14). The signed
+field is retained on the parsed score entry and used by both scoreboard styles;
+it is not merely used to detect the wider row.
 The server sends at most 20 rows (`MAX_CLIENT_SCORE_SEND`) but announces every
 connected player, so the row width comes from the fields actually sent rather than
 the announced count: the width that divides them, and when both do, the one whose
@@ -85,7 +88,13 @@ a word of a Latin-script language mixes accented letters with ASCII ones (`été
 leaves in Windows-1252 when every character has a byte there, else in Windows-1251
 when every one has a byte there; under `auto` a single-byte encoding is used only
 when it reads back as the same text, so SJK players always read each other exactly
-(a short capital `ДА` or a Latin `àé` goes as UTF-8). Any other text (Japanese,
+(a Latin `àé` goes as UTF-8, and so does a short capital `ДА` outside a chat message).
+A chat message (the text after a `"` in a typed command, after the `: ` of a received
+line, or a localized chat's body) with no ASCII letter and a high letter reads as
+Windows-1251 too, so a lone `я` or `ДА` goes as the byte EternalJK sends and comes
+back as Russian (`looks_cyrillic`, `looks_cyrillic_message`); before 17/10/2026 these
+went as UTF-8, which JoF, JA+ and EternalJK players saw as two garbage characters.
+A Latin message that is a lone accented letter (`à`) now reads as Cyrillic; `cl_charset western` pins it. A Russian letter next to ASCII words (`я lol`) still goes as UTF-8. Any other text (Japanese,
 Chinese, Korean, emoji, Cyrillic mixed with `é`) is sent as UTF-8, which only SJK
 clients decode;
 EternalJK's Windows-1250 mapping is not reproduced. Incoming text, including the
@@ -213,8 +222,36 @@ camera then presents that slice's held pitch and yaw, including frames that
 reuse prediction at the same command time. Applying only changes in
 `delta_angles` left fresh mouse movement visible on those frames; the local
 character's root also follows the camera yaw. The hold clears on the next
-slice that does not hold the view. JA+'s free-look rebound does not set it.
-This is local presentation state, with no protocol field or movement change.
+slice that does not hold the view. JA+'s server-angle rule does not set it.
+This is local presentation state, with no protocol field change.
+
+A snapshot with `PMF_STUCK_TO_WALL` also seeds the stock grab's view hold. When
+the snapshot acknowledges every queued command, the camera can render that seed
+without another movement slice; it must still use the snapshot's held pitch and
+yaw, as OpenJK renders `predictedPlayerState.viewangles`. Clearing the wall flag
+in the next snapshot releases this hold.
+
+Local mouse and keyboard look obey `wall_view_locked`, not the wall flag alone.
+The stock snapshot seed sets it only when stuck and the profile's
+`DebugMelee::free_wall_look` is false. JA+ keeps its documented free look by
+default, so command angles and kick-off aim follow the player's mouse.
+`cg_wallGrabLock` (archived, default 0) can force the local presentation lock on
+for a grabbed wall. [motion.rs](../crates/sjk-viewer/src/input/motion.rs) consumes
+look samples only while that lock is set, preserving movement/jump buttons and
+clearing filtered mouse history. Fake noclip and detached free camera keep
+normal input. The option never changes the shared simulation's profile.
+
+### View yaw kept within a turn
+
+The camera yaw that mouse and `+left`/`+right` (`cl_yawspeed`) turns accumulate is
+brought back into one turn, -180 to 180 degrees, every frame and on every
+`delta_angles` change (`view_authority::wrap_yaw`). Unbounded, a very fast spin
+(`cl_yawspeed 100000` for half a minute, Yernow's report #121) grew it until the
+`f32` held it in steps of a degree, so the view shook on every mouse move, and past
+about 11.8 million degrees the command's `ANGLE2SHORT` saturated, so the character
+stopped turning while the camera spun on. Only the 16-bit short reaches the server,
+so wrapping by whole turns changes nothing that is sent; `angle_to_short` also goes
+through `i64` now, wrapping rather than saturating if a huge angle ever reaches it.
 
 ### Equipped jetpack prediction
 
@@ -236,6 +273,21 @@ height/thrust boundaries. This is not verification against a running JA+ server;
 its unpublished settings, the stock spinning-saber random horizontal impulses,
 and jaPRO's separate new/race jetpack path remain outside this implementation.
 Equipping and fuel state still arrive from the server.
+
+### Local wall-grab facing
+
+A local grabbed player presents OpenJK's wall-normal yaw and rebound-side offset
+only when `cg_wallGrabLock` is enabled. With the default option there is no yaw
+override or extra wall trace: JA+ stays free, and a stock grab presents the yaw
+its movement slice or snapshot seed already holds.
+[`wall_hold_yaw`](../crates/sjk-game-jka/src/pmove_wall_moves.rs)'s upright-wall
+check uses world and mover collision, even when no command advances beyond the
+snapshot. [wall_grab_view.rs](../crates/sjk-viewer/src/wall_grab_view.rs) modifies
+the display copy, leaving raw replay angles, deltas and velocity untouched.
+Because the camera supplies subsequent commands, opting into the hold on JA+
+also opts out of freely aiming the kick-off. A missed check retains the held
+view; clearing `PMF_STUCK_TO_WALL` releases the optional hold. See
+[wall grab facing](client.md#wall-grab-facing).
 
 ### Standing on uneven ground
 
@@ -267,7 +319,7 @@ list altogether
 
 ### When prediction steps aside
 
-Three cases show the server's state instead of predicting, as JoF EternalJK's
+These cases show the server's state instead of predicting, as JoF EternalJK's
 `CG_PredictPlayerState` does
 ([prediction_policy.rs](../crates/sjk-game-jka/src/prediction_policy.rs), applied by
 [interpolated_view.rs](../crates/sjk-viewer/src/interpolated_view.rs)):
@@ -279,6 +331,13 @@ Three cases show the server's state instead of predicting, as JoF EternalJK's
   knockdown rules the client's pmove lacks, so predicting shakes the camera. With
   `cg_noPredict 1` the server's angles are also taken while JA+ holds the view locked
   (kick, get-up, kiss, ledge).
+- On a jaPRO (TaystJK) server with the jaPRO tools mod loaded, a movement style SJK's
+  pmove does not model: it is shown as the server has it, keeping the mouse. The mod
+  owns the styles ([client mods](mods.md#japro-tools-japro)).
+
+Whether predicted or not, while the server holds the view (those JA+ locks, a melee
+grapple or throw, a saber lock) the mouse does not turn it, as the server's rewrites of
+`delta_angles` made a turned view shake ([held view](client.md#held-view)).
 
 A JA+ server that walks a player through others (amghost, the grace after unghosting
 inside someone, a duel's walk-apart) sets `GHOST_KNOWN_FLAG`, bit 31 of
@@ -291,6 +350,17 @@ held from the moment it began, with the command time intact. The predicted state
 reseeded from snapshots, every map area is drawn, and turning it off (or dying,
 spectating or boarding a vehicle) snaps back to the server's position without error
 smoothing. Turbo (attack held) sets the velocity along the aim directly.
+The flight ignores the animations that hold a body still (a taunt, a JA+ emote, a kick, a
+saber lock): `pmove_input_freeze` does not run for a fake-noclip predictor, so the camera
+flies while the real body stays in its emote.
+Nor does the flight take the body's speed when the server has stopped it: EJK flies at
+`ps.speed` as `BG_AdjustClientSpeed` leaves it, but a server can hold a body in a JA+
+seated or dance emote (`amsit`, `amhips`) with no speed, and a dodge, knockdown or throw
+hand extend zeroes it too, so the camera turned but never moved (hub reports 57 and 62).
+When that speed is zero the flight uses the base speed, and when that is zero as well
+codemp's default `g_speed`, 250 (servers do not advertise `g_speed`). Walking movement
+keeps the server's speed unchanged. With `developer 1` the console log records the body's
+move type, speed, base speed and hand extend as the flight starts.
 
 A ghost replay ([Ghost replay](client.md#ghost-replay)) or the mimic
 ([Mimic](client.md#mimic)) sends its own commands in place of the keys' ones through the
@@ -338,7 +408,11 @@ apart in one table, [known_servers.rs](../crates/sjk-mod/src/known_servers.rs)
 (`KNOWN_SERVERS`: an id, a name, the game module, a serverinfo key and value), which
 the client and the mods (the `jof` mod's `is_jof`) both read; the caps are a second
 table keyed by family id, [server_caps.rs](../crates/sjk-viewer/src/server_caps.rs)
-(`KNOWN`: the family, the step). Its one entry so far is JoF's servers (JA+ with
+(`KNOWN`: the family, the step); private-duel hiding has its own table keyed by
+compatibility profile, `DUEL_HIDE_SERVERS` in
+[duel_hide.rs](../crates/sjk-client/src/duel_hide.rs) (JA+ unless `cp_pluginDisable`
+bit 1, jaPRO always and with missile owners; `cg_duelHideOthers` overrides it, see
+[client](client.md#nameplates)). The caps table's one entry so far is JoF's servers (JA+ with
 serverinfo `V` 2.5B0) at 8 ms: they are not `pmove_fixed` (they report 0),
 yet faster commands made the game unplayable there (Sol, 11/10/2026), and JoF EJK
 sends them 125 a second. The player lifts every listed cap with `gameplay_fps_nocap 1`
@@ -366,6 +440,27 @@ time, so packets keep acknowledging the server. Every command is predicted when
 it is made; between commands the frame presents a preview through its own input
 ([prediction_preview.rs](../crates/sjk-viewer/src/prediction_preview.rs)).
 
+The server time commands are stamped with comes from
+[server_clock.rs](../crates/sjk-client/src/server_clock.rs), stock's
+`cl.serverTimeDelta` (`CL_FirstSnapshot`, `CL_AdjustTimeDelta`, `CL_SetCGameTime`):
+realtime plus a delta that resets past a 500 ms error, halves past 100 ms and otherwise
+drifts 1 or 2 ms a snapshot. `cl_timeNudge` moves only what is drawn
+([presentation_clock.rs](../crates/sjk-viewer/src/presentation_clock.rs)), never the
+stamps, as stock subtracts it from `cl.serverTime` only for the cgame's view. The delta
+is adjusted once a frame, on the newest snapshot, and only once the frame has read
+every queued snapshot (a frame reads at most 8, `SNAPSHOTS_PER_FRAME` in
+[live_session.rs](../crates/sjk-viewer/src/live_session.rs)): stock reads the whole
+socket and then adjusts on `cl.snap`. Until 23/10/2026 the client adjusted on each
+snapshot as it was read, so after a hitch the snapshots that had waited in the socket,
+as old as the hitch, put the clock back by it: after a 1.3 s hitch commands reached the
+server about 1.2 s behind its time, then hundreds of milliseconds behind for a while.
+Servers that estimate a player's time nudge from how far commands trail their time read
+that as a large `cl_timeNudge`; JoF's anti-cheat (Heimdall) kicked Slash for it with
+"Set /cl_timeNudge 0 in your console!". Tests in `server_clock.rs` play 59 FPS against
+40 snapshots a second through 150, 400 and 1346 ms hitches at 8, 7, 4 and 3 ms steps.
+The userinfo's `cg_displayNetSettings` (JA+ and jaPRO read the time nudge from it)
+always says `125 0 125` ([compat_profile.rs](../crates/sjk-client/src/compat_profile.rs)).
+
 `rate` defaults to 90000 bytes a second (11/10/2026, Sol's choice): stock's 25000
 leaves about 600 bytes a snapshot at a server's 40 a second, less than a busy
 free-for-all's snapshot, so the server delayed snapshots and other players looked
@@ -388,6 +483,21 @@ Losing window focus lets the next packet leave at once with the released keys.
 Prediction keeps 512 unacknowledged commands (JoF EJK's `cl_commandsize` ceiling),
 1.5 seconds at a gameplay FPS of 333. The flip kick's frame cvars stay EJK's frames
 at 125 FPS, converted to commands at the step in use.
+
+### Reliable command pacing
+
+Stock servers ignore a client command that arrives within `sv_floodProtect` (1000 ms)
+of the last one they ran, without telling the client. SJK therefore releases its
+reliable commands at most one per 1050 ms, in order
+([reliable_pacing.rs](../crates/sjk-client/src/reliable_pacing.rs)), so a burst the
+client makes itself (`userinfo`, `forcechanged`, `team`, menu actions) is never lost.
+What the player sends waits differently (17/10/2026, hub report 73): a bind or console
+command (`amhug`, `vote yes`, `cmd ...`) pressed again while the same one still waits
+is not queued a second time, and one that could not leave within 1.5 seconds is
+dropped, as the server drops a stock client's extras. Pressing a hug bind twenty times
+used to queue twenty hugs, still firing one a second after the player stopped. Chat
+(`say`, `say_team`, `tell`, typed or bound) is not queued twice while identical chat
+waits, but is never dropped: a message is still worth reading late, a late action is not.
 
 ## Parity requirements
 

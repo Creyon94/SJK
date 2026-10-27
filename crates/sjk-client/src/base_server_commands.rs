@@ -54,8 +54,12 @@ pub enum BaseServerCommandEvent {
     CopyBody(BodyIdentity),
     /// Release a non-client entity's copied Ghoul2 state (`kg2`).
     KillGhoul2(u16),
-    /// First observation of an unknown reliable command name (bounded to 64).
-    UnknownCommand(String),
+    /// Opaque reliable operands for optional client mods. Base SJK does not parse
+    /// the extension; the frontend may log the first unknown name (bounded to 64).
+    UnhandledCommand {
+        arguments: Vec<Vec<u8>>,
+        first_observation: bool,
+    },
     /// Ask the modern shell to present its siege-profile flow.
     SiegeProfileMenu,
     /// Open Siege class selection (`scl`), with no operands.
@@ -84,6 +88,9 @@ pub struct BodyIdentity {
     pub sabers: [Option<String>; 2],
     /// Weapon supplied by CopyToBodyQue.
     pub weapon: i32,
+    /// The player's force side (`ircg`'s fourth operand, `teamPowerType`): how the
+    /// body fades (`body_fade`).
+    pub light_side: bool,
 }
 
 impl BodyIdentity {
@@ -99,6 +106,7 @@ impl BodyIdentity {
             appearance: crate::legacy_client_appearance(game, u16::from(restore.client_num))?,
             sabers: crate::legacy_client_saber_names(game, u16::from(restore.client_num)),
             weapon: copy.weapon,
+            light_side: copy.light_side,
         })
     }
 }

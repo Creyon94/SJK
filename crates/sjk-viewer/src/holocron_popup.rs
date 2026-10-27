@@ -39,6 +39,25 @@ use std::time::Instant;
 use winit::event::{ElementState, KeyEvent};
 use winit::keyboard::{KeyCode, PhysicalKey};
 
+/// Whether a holocron found during play shows an unlock card: [`OFF`] never, 1 (the
+/// default) yes, held back during a private duel until it ends as every reward card is
+/// ([`crate::unlock_toast`]), [`ALWAYS`] yes, during a duel too. The waiting holocron
+/// still opens in the game menu in every mode.
+pub(crate) const NOTIFICATIONS_CVAR: &str = "cl_holocronNotifications";
+pub(crate) const NOTIFICATIONS_DEFAULT: i64 = 1;
+/// [`NOTIFICATIONS_CVAR`]'s value for no live cards.
+pub(crate) const OFF: i64 = 0;
+/// [`NOTIFICATIONS_CVAR`]'s value for cards during a private duel too.
+pub(crate) const ALWAYS: i64 = 2;
+
+/// [`NOTIFICATIONS_CVAR`] as set, held to [`OFF`]..=[`ALWAYS`].
+pub(crate) fn notification_mode(console: Option<&crate::console::ViewerConsole>) -> i64 {
+    console
+        .and_then(|console| console.integer_cvar(NOTIFICATIONS_CVAR))
+        .unwrap_or(NOTIFICATIONS_DEFAULT)
+        .clamp(OFF, ALWAYS)
+}
+
 /// The button (Next, or Close on the last holocron).
 const NEXT_TOKEN: u16 = 972;
 /// The rest of the screen: a click there acts as the button too.
@@ -274,8 +293,20 @@ impl HolocronPopup {
                     tier: waiting.entry.tier,
                     id: waiting.entry.id,
                     gift: waiting.entry.gift,
+                    earned: waiting
+                        .entry
+                        .earned
+                        .then(|| crate::kyber::Earned::of(&waiting.entry.note)),
                 });
             }
+        }
+    }
+
+    /// Consume the live cards of every waiting holocron without consuming the holocrons
+    /// themselves ([`OFF`]). Opening the game menu can still show the large pop-up later.
+    fn suppress_announcements(&mut self) {
+        for waiting in &mut self.queue {
+            waiting.announced = true;
         }
     }
 
@@ -407,7 +438,7 @@ impl HolocronPopup {
             ui,
             View {
                 entry: &showing.entry,
-                icon: icons[showing.entry.tier.index],
+                icon: picture(icons, showing.entry.tier.slot),
                 when: &showing.when,
                 place: (total > 1).then_some((*step + 1, total)),
                 t,
@@ -416,6 +447,26 @@ impl HolocronPopup {
                 more: !queue.is_empty(),
             },
         ))
+    }
+}
+
+/// The picture of the tier in `slot`: a holocron's from `icons` (the HUD's), a kyber
+/// crystal's from its own cell of the atlas ([`holocrons::icons`], slots past
+/// [`COUNT`]) when it loaded; `None` draws the tier's gem. (Until 27/10/2026 a crystal
+/// always drew the gem, which reads as a plain holocron: report 150.)
+fn picture(icons: &[Option<TextureId>; COUNT], slot: usize) -> Option<TextureId> {
+    picture_of(icons, slot, holocrons::icons::is_loaded)
+}
+
+/// [`picture`] with `loaded` telling which atlas cells hold a picture.
+fn picture_of(
+    icons: &[Option<TextureId>; COUNT],
+    slot: usize,
+    loaded: impl Fn(usize) -> bool,
+) -> Option<TextureId> {
+    match icons.get(slot) {
+        Some(icon) => *icon,
+        None => loaded(slot).then(|| holocrons::icons::texture(slot)),
     }
 }
 
@@ -439,6 +490,15 @@ impl crate::GpuState {
     /// Returns whether the pop-up draws this frame (not under the console).
     pub(crate) fn prepare_holocron_popup(&mut self, console_covers_frame: bool) -> bool {
         let now = Instant::now();
+        // Off takes back the cards already given, and those not given yet are never
+        // given. A private duel holding the cards back is the unlock pop-up's own wait
+        // ([`crate::unlock_toast`]), so the cards are given as usual otherwise.
+        let notifications = notification_mode(self.console.as_ref()) != OFF;
+        if !notifications && self.holocron_popup.pending() {
+            self.unlock_toast
+                .withdraw(now, |unlock| matches!(unlock, Unlock::Holocron { .. }));
+            self.holocron_popup.suppress_announcements();
+        }
         let console_open = self
             .console
             .as_ref()
@@ -456,7 +516,7 @@ impl crate::GpuState {
                 self.holocron_popup.open_next(now);
                 self.unlock_toast
                     .withdraw(now, |unlock| matches!(unlock, Unlock::Holocron { .. }));
-            } else if !menu && self.live_session.is_some() {
+            } else if notifications && !menu && self.live_session.is_some() {
                 let toast = &mut self.unlock_toast;
                 self.holocron_popup.announce(|unlock| toast.push(unlock));
             }
@@ -505,7 +565,8 @@ impl crate::GpuState {
             self.holocron_popup.rehearsal_base(),
         )?;
         let lines = holocrons::rehearsal::queued(&entries);
-        if let Some(entry) = entries.first() {
+        // A drop's chat line; a kyber crystal's grant is not announced, so none.
+        if let Some(entry) = entries.first().filter(|entry| !entry.tier.is_kyber()) {
             self.chat.rehearse_holocron(entry.tier.id, Instant::now());
         }
         self.holocron_popup.rehearse(entries);
@@ -576,6 +637,24 @@ mod tests {
         pub(super) static FONTS: Fonts = Fonts::load();
     }
 
+    #[test]
+    fn a_kyber_crystal_shows_its_own_picture_when_it_loaded() {
+        let held = holocrons::icons::texture(1);
+        let mut icons = [None; COUNT];
+        icons[1] = Some(held);
+        // A holocron: the HUD's picture, or its gem.
+        assert_eq!(picture_of(&icons, 1, |_| true), Some(held));
+        assert_eq!(picture_of(&icons, 0, |_| true), None);
+        // A kyber crystal: its own cell, never a holocron's; its gem when it is missing.
+        for slot in COUNT..holocrons::SLOTS {
+            assert_eq!(
+                picture_of(&icons, slot, |cell| cell == slot),
+                Some(holocrons::icons::texture(slot))
+            );
+            assert_eq!(picture_of(&icons, slot, |_| false), None);
+        }
+    }
+
     /// A pop-up showing `entries`, the first held `at` seconds into its ceremony (and
     /// `leaving` seconds into its exit).
     pub(super) fn popup(entries: Vec<Entry>, at: f32, leaving: Option<f32>) -> HolocronPopup {
@@ -593,6 +672,9 @@ mod tests {
     fn wire(id: u64, tier: &str) -> Holocron {
         Holocron {
             opened: None,
+            traded: None,
+            traded_from_key: None,
+            traded_from: None,
             id,
             tier: tier.to_owned(),
             dropped: 1_791_641_100,
@@ -607,7 +689,9 @@ mod tests {
             tier: &holocrons::TIERS[tier],
             dropped: 1_791_641_100,
             gift: false,
+            earned: false,
             note: String::new(),
+            traded: None,
         }
     }
 
@@ -706,6 +790,26 @@ mod tests {
         let mut again = HolocronPopup::default();
         again.offer(directory.path(), "aa", &list);
         assert!(!again.pending());
+    }
+
+    /// `cl_holocronNotifications` 0: no card is given, now or later, and the holocrons
+    /// still wait for the game menu.
+    #[test]
+    fn suppressing_live_cards_keeps_the_holocrons_for_the_game_menu() {
+        let directory = tempfile::tempdir().expect("a folder");
+        let mut popup = HolocronPopup::default();
+        popup.offer(
+            directory.path(),
+            "aa",
+            &[wire(2, "rare"), wire(1, "uncommon")],
+        );
+
+        popup.suppress_announcements();
+        assert!(cards(&mut popup).is_empty(), "no live cards are replayed");
+        assert!(popup.pending(), "the large pop-up still waits");
+        popup.open_next(Instant::now());
+        assert_eq!(shown(&popup), Some(1), "the ESC menu can still show it");
+        assert_eq!(popup.queue.len(), 1);
     }
 
     #[test]

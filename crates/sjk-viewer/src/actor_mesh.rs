@@ -3,6 +3,7 @@ use super::*;
 
 /// Map-lifetime actor mesh ranges and reusable pose storage.
 pub(crate) struct ActorMesh {
+    pub(crate) flame_pose: crate::actor_world_submission::force_powers::flame::Pose,
     pub(crate) entity_id: Option<EntityId>,
     pub(crate) corpse_pool: bool,
     pub(crate) body_identity: Option<sjk_client::BodyIdentity>,
@@ -15,8 +16,12 @@ pub(crate) struct ActorMesh {
     pub(crate) vertex_ranges: Vec<PreviewVertexRange>,
     pub(crate) current_frames: (usize, usize),
     pub(crate) weapon_attachments: [Option<saber::Attachment>; 2],
+    pub(crate) holsters: crate::holstered_sabers::pose::Worn,
     /// A vehicle's driver bolt in this frame's pose, model space.
     pub(crate) driver_seat: Option<[f32; 3]>,
+    /// A vehicle's muzzles in this frame's pose, model space (`vehicle_fire.rs`).
+    pub(crate) vehicle_muzzles:
+        [Option<crate::vehicle_fire::Muzzle>; sjk_game_jka::vehicle_fields::VEHICLE_MUZZLES],
     pub(crate) saber_names: [Option<String>; 2],
     pub(crate) angle_controller: sjk_client::LegacyPlayerAngleController,
     pub(crate) render_yaw_degrees: Option<f32>,
@@ -36,8 +41,12 @@ pub(crate) struct ActorMesh {
     pub(crate) jetpack: crate::jetpack::Worn,
     /// `EF_DISINTEGRATION` while it lasts; the pose is frozen meanwhile.
     pub(crate) disintegration: Option<crate::disintegration::State>,
+    /// A body fading away (`EV_BODYFADE`, [`crate::body_fade`]).
+    pub(crate) body_fade: Option<crate::body_fade::State>,
     /// Surface overrides from dismemberment, and which draws they leave visible.
     pub(crate) surfaces: crate::dismember::Surfaces,
     /// Set on a cut-off limb's mesh (`CG_General`'s client-limb case).
     pub(crate) limb: Option<crate::dismember::Limb>,
+    /// The Ragdoll toy's pose of this actor, while its player is limp.
+    pub(crate) ragdoll: crate::ragdoll::Scratch,
 }

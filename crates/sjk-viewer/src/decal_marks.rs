@@ -59,6 +59,8 @@ pub(crate) struct DecalSurfaces {
     indices: Vec<u32>,
     /// Index range per BSP surface; empty for surfaces the renderer skipped.
     ranges: Vec<Range<u32>>,
+    /// Surfaces a map edit hides ([`crate::map_edits`]): no marks, no picks.
+    hidden: Vec<bool>,
 }
 
 impl DecalSurfaces {
@@ -86,12 +88,79 @@ impl DecalSurfaces {
                 .collect(),
             normals: scene.vertices.iter().map(|vertex| vertex.normal).collect(),
             indices: scene.indices.clone(),
+            hidden: vec![false; ranges.len()],
             ranges,
         }
     }
 
+    /// Hide `surface` from marks and picks, or show it again; true when that changed.
+    pub(crate) fn set_hidden(&mut self, surface: usize, hidden: bool) -> bool {
+        match self.hidden.get_mut(surface) {
+            Some(state) if *state != hidden => {
+                *state = hidden;
+                true
+            }
+            _ => false,
+        }
+    }
+
+    /// Where `surface` lies in the world's index buffer, and its indices as loaded.
+    /// `None` for a surface the renderer did not draw.
+    pub(crate) fn surface_indices(&self, surface: usize) -> Option<(Range<u32>, &[u32])> {
+        let range = self.ranges.get(surface).filter(|range| !range.is_empty())?;
+        Some((
+            range.clone(),
+            &self.indices[range.start as usize..range.end as usize],
+        ))
+    }
+
+    /// `surface` and the surfaces touching it, through shared corners, among those
+    /// `joins` accepts, nearest first and at most `limit`: the pieces a compiled model
+    /// (a `misc_model` the map compiler merged into the world) is left as.
+    pub(crate) fn connected(
+        &self,
+        surface: usize,
+        joins: impl Fn(usize) -> bool,
+        limit: usize,
+    ) -> Vec<usize> {
+        // Corners an eighth of a unit apart are the same corner.
+        let key =
+            |index: u32| self.positions[index as usize].map(|axis| (axis * 8.0).round() as i32);
+        let mut by_corner: std::collections::HashMap<[i32; 3], Vec<usize>> = Default::default();
+        for (other, range) in self.ranges.iter().enumerate() {
+            if other != surface && (!joins(other) || self.hidden[other]) {
+                continue;
+            }
+            for &index in &self.indices[range.start as usize..range.end as usize] {
+                let list = by_corner.entry(key(index)).or_default();
+                if list.last() != Some(&other) {
+                    list.push(other);
+                }
+            }
+        }
+        let mut found = vec![surface];
+        let mut seen = std::collections::HashSet::from([surface]);
+        let mut next = 0;
+        while next < found.len() && found.len() < limit {
+            let range = self.ranges[found[next]].clone();
+            next += 1;
+            for &index in &self.indices[range.start as usize..range.end as usize] {
+                for &other in by_corner.get(&key(index)).into_iter().flatten() {
+                    if found.len() < limit && seen.insert(other) {
+                        found.push(other);
+                    }
+                }
+            }
+        }
+        found
+    }
+
     fn triangles(&self, surface_index: usize) -> impl Iterator<Item = [usize; 3]> + '_ {
-        let range = self.ranges.get(surface_index).cloned().unwrap_or(0..0);
+        let range = if self.hidden.get(surface_index).copied().unwrap_or(false) {
+            0..0
+        } else {
+            self.ranges.get(surface_index).cloned().unwrap_or(0..0)
+        };
         self.indices[range.start as usize..range.end as usize]
             .chunks_exact(3)
             .map(|triangle| {

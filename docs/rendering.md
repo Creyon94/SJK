@@ -7,11 +7,20 @@ BSP geometry, PVS visibility, lightmaps, shader stages and legacy models.
 ## Where to work
 
 Unused server-advertised rigid models load on first reference through
-`config_string_refresh::model_demand`. CPU model parsing runs on a single worker
-per world; geometry/material installation stays with the GPU owner. Idle scans
-borrow existing entity appearances and use a sorted set of attempted models,
-without per-frame name allocation. Texture preparation during GPU installation
-can still hitch, and models remain resident until the world is replaced.
+`config_string_refresh::model_demand`. CPU model parsing, texture decoding and
+mip chains run on a single worker per world (`warm_entity_materials`, as for
+players' models); upload and geometry/material installation stay with the GPU
+owner. Idle scans borrow existing entity appearances and use a sorted set of
+attempted models, without per-frame name allocation. The prepared textures go up
+one a frame (an HD pack's texture with its mips is near 90 MB to copy), then the
+model's geometry and materials, and new pipelines compile on a
+`sjk-model-pipelines` worker before the model is drawn: `falcon2.md3` with an HD
+pack, off screen on duel6 in a release build, held its worst frame 209 ms, now
+31 ms. Models remain resident until the world is replaced. NPC bodies and vehicles
+(`$swoop`, `$tauntaun`, an admin's spawned NPC) load the same way through
+`npc_refresh::npc_loads`, one NPC at a time, the NPC unseen until its model is in.
+Vehicle projectile, effect and cosmetic models still load whole on the render
+thread (`load_config_model`), as do NPC saber hilts not yet loaded.
 
 | Area | Entry point |
 | --- | --- |
@@ -70,6 +79,22 @@ by its users and subtracted from shader time; server offsets are parsed like C
 `atof`. Removing an entry from the server's configstring alone does not undo it,
 matching stock cgame.
 
+A target the client cannot draw (no shader script and no image of that name) leaves
+the surface as it was, as stock does, and is logged once a map:
+`shader remap ignored: missing <target> (not tried again on this map)`
+([world_remap_material.rs](../crates/sjk-viewer/src/world_remap_material.rs)
+`MissingTargets`). Remaps are applied again whenever the world registers a material it
+had not drawn yet (a player's new skin, a prop loaded mid-match), and each slot of a
+remapped model asks again; before 18/10/2026 every one of them searched the game data
+and wrote that line again. JoF's night ffa3 (`dl_JoF_MapFFA3Night`, a `trigger_always`
+firing `target_relay`s on `remap_kyle`) remaps the stock Kyle model's seven shaders to
+`models/players/kyle_new/`, a pack the map does not carry: without it, about 170
+lookups and log lines made each skin change a 400 ms hitch (`config-refresh` in the
+[hitch lines](#gameplay-hitch-lines)). The list lives with the world, as its shader
+catalog and game data do, so the next map checks again. Effect atlas remaps already
+skip a target they could not load (`effect_remaps.rs`, `unloadable`); a sky remap to a
+missing target costs one catalog lookup.
+
 A replacement keeps the lighting of the surface it replaces: a lightmapped world
 surface samples its own lightmap page, a vertex-lit one its vertex light, and an
 entity material its entity light. Here SJK departs from rd-vanilla, whose
@@ -117,11 +142,18 @@ each `CS_SHADERSTATE` update applies all its entries again, as `CG_ShaderStateCh
 does. The session keeps the server state and stamps each entry; the displayed map
 keeps its worldspawn and local remaps and picks the latest of the three.
 
-`cg_remaps` follows Tayst's policy: **0** disables server remaps, **1** (Tayst's
-default) accepts them while excluding player-texture configstring entries, and
-**2** (the default, as in EternalJK) includes those entries. Like Tayst, a reliable
-`remapShader` command is accepted in either nonzero mode. The client applies this
-preference live rather than requiring a map reload; a server remap it excludes reveals the earlier remap it had replaced.
+SJK's map edits ([map-edits.md](map-edits.md)) are a fourth source, `edit`: they win
+over the worldspawn and server remaps of a shader, and a console remap made after every
+server one still wins over them.
+`cg_serverRemaps` (default **0**, since 18/10/2026) must be on for any server remap
+to apply; it reads as `cg_remaps 0` while off. Then `cg_remaps` uses **0** to disable server remaps, **1** to exclude
+`models/players/` sources in both configstrings and reliable `remapShader`
+commands, and **2** (the default) to include all server entries. Mode 1 follows
+JoF EJK #297; it previously retained Tayst's reliable-command exception. An
+excluded player command also leaves the mode-1 destination time offset alone.
+Worldspawn and explicit local console remaps are independent. The preference
+applies live without reloading the map; an excluded server remap reveals the
+earlier remap it replaced.
 `cg_remapsBlockedMaps` lists maps on which SJK ignores server remaps, as `cg_remaps 0`
 does there; worldspawn and local remaps still apply. The frame reads a cached answer,
 refreshed when the cvar or the loaded map changes
@@ -211,6 +243,24 @@ Implementation: [compatibility state](../crates/sjk-client/src/shader_remaps.rs)
 [replacement compilation](../crates/sjk-viewer/src/world_remap_material.rs),
 [effect atlas entries](../crates/sjk-viewer/src/effect_remaps.rs).
 
+## Missing stage images
+
+A scripted shader whose `map`, `clampmap` or `animMap` frame names an image that is not
+there is dropped as rd-vanilla drops it
+([world_missing_stages.rs](../crates/sjk-viewer/src/world_missing_stages.rs), decided
+once when the material is built): `ParseStage` fails on it (`tr_shader.cpp:1218-1243`,
+`:1275-1279`; `$lightmap`, `$whiteimage` and `*white` are never missing), parsing stops
+there, and `R_FindShader` flags the shader as a default one (`:3460-3463`). World
+surfaces then draw the default shader (`tr_bsp.cpp:339`), as do shaders named inside a
+model; a skin keeps the stages before the missing one (`tr_skin.cpp:168`), none leaving
+the surface undrawn. SJK's materials do not say whether a model's shader came from its
+skin, so model surfaces (`LIGHTMAP_NONE`) take the skin's way and lit world surfaces the
+default shader. The log prints retail's "R_FindImageFile could not find" once per image
+and shader. The default shader, and an implicit shader whose own image is missing, show
+retail's default image (`R_CreateDefaultImage`, `tr_image.cpp:1279-1307`): a 16x16 box of
+grey 32 with a white border. Until 20/10/2026 the missing stage itself was drawn with a
+magenta checker over the rest of the shader.
+
 ## Video stages (`videoMap`)
 
 A stage with `videoMap <name>` plays a RoQ video on its surface, as rd-vanilla's
@@ -233,7 +283,7 @@ the first frame under a texture key of its own (`$video:<path>`);
 [world_videos.rs](../crates/sjk-viewer/src/world_videos.rs) keeps that texture as one
 updatable layer without mips and, each frame, decodes what the clock asks for (at
 most six frames, then it skips ahead) and uploads the newest picture. A missing or
-unreadable video shows the missing-image checker, as a missing image does.
+unreadable video shows the missing image (retail's default box), as a missing image does.
 
 Verified: unit tests decode synthetic RoQ files (codebook cells, motion, split
 blocks, looping, a truncated frame) and parse the keyword; an off-screen world shot
@@ -271,6 +321,49 @@ image identities, whose upstream cache checks mounted content, so replacing a
 texture cannot select a stale chain by filename. Active uploads may temporarily
 retain evicted data. These budgets do not describe total process memory. Cache
 locking and allocation happen during loading, not during drawing.
+
+With texture compression on (`r_textureCompression`, [GPU memory](#gpu-memory)) the
+workers also encode each array's kept levels (those `r_picmip` leaves) into BC1 or BC3
+blocks ([texture_compression.rs](../crates/sjk-viewer/src/texture_compression.rs)), with
+the CPU encoders of the `block_compression` crate (MIT, a pure Rust port of Intel's ISPC
+Texture Compressor kernels; its wgpu compute path is not built), and the mip cache keeps
+the blocks, one entry per texture detail, in place of the chains they were encoded from.
+The model warm-up worker (`warm_entity_materials`, players' and NPCs' models) encodes the
+same way. The render thread only uploads blocks: a texture it prepares itself, which no
+worker prepared, stays RGBA8 (`mips::upload` outside a world build). Encoding costs about
+21 ms of one core per megapixel for BC1 and BC3 (Sol's PC, release build); mp/ffa3's
+textures are 240 MP with their mips at r_picmip 0 with the HD packs installed, 5.1 s of one
+core. `texture_compression_load` ([world_shot_texture_compression.rs](../crates/sjk-viewer/src/world_shot_texture_compression.rs))
+builds each map twice per process, one process per setting, 25/10/2026 (RTX 5080, 4
+workers, two rounds; seconds, texture preparation and the whole world build):
+
+| Map, r_picmip | Preparation off | Preparation on | Build off | Build on |
+| --- | --- | --- | --- | --- |
+| mp/ffa3, 0 | 0.7 to 1.0 | 2.7 to 2.8 | 3.6 to 4.9 | 6.0 to 6.3 |
+| mp/siege_desert, 0 | 1.3 to 1.9 | 4.5 to 4.8 | 4.7 to 6.0 | 8.4 to 9.2 |
+| mp/ffa3, 1 | 0.6 to 0.7 | 1.0 to 1.2 | 3.4 to 3.5 | 3.9 to 4.0 |
+| mp/siege_desert, 1 | 1.0 to 1.1 | 2.0 to 2.1 | 3.9 to 4.5 | 5.7 to 5.8 |
+| mp/ffa3, 2 | 0.6 to 0.8 | 0.7 to 0.9 | 3.4 to 4.2 | 3.9 to 4.5 |
+| mp/siege_desert, 2 | 1.2 to 1.4 | 1.2 to 1.7 | 4.7 to 5.9 | 4.7 to 6.5 |
+
+(r_picmip 1: one round.) The second build of a map is no quicker either way: with the HD
+packs the cache's budget,
+which counts each entry's source images (16 MiB for a 2048-pixel one), holds few of their
+textures, blocks or chains.
+
+The decoded images themselves ([decoded_image_cache.rs](../crates/sjk-viewer/src/decoded_image_cache.rs),
+one per file name and content, full size whatever `r_picmip`) were never dropped until
+25/10/2026: every texture of every map, model and HUD seen in a session stayed in
+memory. Once the images held grow 128 MiB past what the last sweep kept, the next image
+decoded sweeps out every image only the cache holds; an image a world's shared
+textures, the mip cache or a loader still holds stays, so an address used as a key is
+never freed and reused, and textures shared across a map change are shared as before.
+`map_changes_vram` prints the bytes held: four maps cycled three times at r_picmip 2
+(an install with HD texture packs) held 1750 MiB from the third map
+on before, 906 to 1178 MiB after (the current map's own images), with the same video
+memory and the same 302 shared textures. Not holding the images in the shared textures
+as well (keys by content rather than address) would free only 200 to 350 MiB more of
+that: the rest is held by other world structures.
 
 Lamp extraction uses up to four workers for ordinary maps as well as large ones,
 preserving emitter output order. Each emitter reuses sorted neighboring patch
@@ -336,6 +429,8 @@ first drawn) and keys only a later remap uses. Not measured on a GPU; compare th
 | `r_ambientFill` | Live material-lighting floor in dark areas, 0–0.2; default 0.025. Fades as existing illumination increases |
 | `r_ambientFillOcclusion` | Fraction of ambient occlusion applied to the readability fill, 0–1; default 1 preserves the previous response. Real indirect lighting keeps full occlusion |
 | `r_sceneHdr` | Scene precision: 0 display format, 1 RGBA16F (default); applies after a graphics reload |
+| `r_superSample` | Scene supersampling, 1 (default, off), 2 or 3 per axis; applies after a graphics reload. See [Render scale and supersampling](#render-scale-and-supersampling) |
+| `r_renderScale` | The world's size in percent of the window per axis, 50 to 100 (default) in steps of 5, stretched to the window; ignored while `r_superSample` is above 1; applies after a graphics reload. See [Render scale and supersampling](#render-scale-and-supersampling) |
 | `r_hdrExposure` | Base exposure multiplier, 0.25–4; live. Eye adaptation adjusts around it; `r_sceneHdr 0` ignores it |
 | `r_autoExposure` | Eye adaptation, default 1 (on); 0 holds `r_hdrExposure`. Live; see [eye adaptation](#eye-adaptation) |
 | `r_autoExposureMin`, `r_autoExposureMax` | Adaptation range in EV around the base: -2–0 (default -0.5) and 0–2 (default 1). Live |
@@ -444,16 +539,38 @@ server names later still compile on the render thread.
 
 The same worker also builds the model's texture mip chains (`warm_entity_materials`
 with `mipmapped`), and the render thread uploads them under their material keys
-(`Runtime::upload_prepared_textures`) before appending the materials, as the map
+(`Runtime::upload_prepared_texture`, one a frame) before appending the materials, as the map
 loader does (`world_texture_prepare.rs`). Built on the render thread, a chain cost
 6.5 ms for a 1024x1024 texture and 25 ms for a 2048x2048 one (release build): 56 and
 182 ms hitches for two player models in Sol's log, with their pipelines already off
 the thread.
 
+Players' models now go up as models a server names do: one prepared texture a frame,
+then the materials and geometry ([player_loads.rs](../crates/sjk-viewer/src/player_loads.rs)).
+All of a model's textures in one frame were the `config-refresh` hitches of Slash's
+24/10/2026 log on a built-in Radeon: 255 to 425 ms for `zzzpiza/original`, 150 to 166 ms
+for `solfox` and `azuki`, each 11 to 19 ms after `client N now wears`. A material list
+appended once in a world is reused by every later install of the same list
+(`ClientInfoWatch::appended`): Kyle standing in for each model this PC lacks still cost
+32 to 55 ms a time with its textures cached. A reused list still asks for what its
+pipelines lack (`Runtime::reused_pipeline_jobs`), so a second player on a model whose
+pipelines are still compiling for the first waits too rather than compiling them on its
+first draw, and textures already up cost no frame. The worker also builds the model's body
+copy, which a later frame of its own puts in the body pool drawing with the model's
+materials (as one hilt mesh serves every player): a player's first death with a model
+built that copy on the render thread (`corpse_actors.rs`), the 35 to 310 ms
+`pose+skin+upload` hitches of the same log at kills. Only a body the player will leave is
+prepared: bodies wear the player's own model (`GpuState::body_appearance`), so under
+`cg_forceModel` or a team model override no copy is pooled and the first death builds it
+as before. The pool keeps one copy per appearance worn in the world, geometry only (the
+materials are the model's), until the map changes: a player cycling skins adds one each.
+An install over 4 ms logs `model install <model>: X ms (materials, geometry for N
+vertices, skin)`, a pooled body `body copy <model>: ...`. Not measured since.
+
 ## Graphics reload
 
 The settings read only when the graphics context is made (`r_sceneHdr`, `r_fxaa`,
-`r_superSample`, `r_dayNight`, the sun-shadow cvars and `r_volumetrics`, the
+`r_superSample`, `r_renderScale`, `r_dayNight`, the sun-shadow cvars and `r_volumetrics`, the
 material-map controls with `r_cubeMapping`/`r_cubeMapSize`, and texture filtering)
 used to need a restart. They now apply with a graphics reload
 ([graphics_reload.rs](../crates/sjk-viewer/src/graphics_reload.rs)), offered by a
@@ -486,13 +603,78 @@ Measured off-screen on an RTX 5080 at 1920x1080 (release build, see
 [status](status.md)): duel6's menu world rebuilt in about 3 s; on a local server
 ffa3 took 5.6 to 7.2 s from `vid_restart` to play, with the connection kept.
 
+## Render scale and supersampling
+
+[render_scale.rs](../crates/sjk-viewer/src/render_scale.rs) sizes the scene's raster
+against the window with one number, the scene's size in percent of the window per axis
+(`Context::render_scale`, read when the graphics context is made, so a change applies with
+a [graphics reload](#graphics-reload)):
+
+- **Supersampling**, `r_superSample` 2 or 3: 200 or 300 %. The scene is drawn larger and
+  box-resolved, every covered texel averaged
+  ([render_scale.wgsl](../crates/sjk-viewer/src/render_scale.wgsl)). It falls back a
+  factor at a time to what the device's texture size and a 512 MiB budget for four
+  colour/depth pairs allow (`supported_bytes`), then to native.
+- **Render scale**, `r_renderScale` 50 to 99 (25/10/2026, for integrated GPUs and GTX
+  1050-class cards): the scene is drawn smaller and stretched over the window
+  ([render_scale_up.wgsl](../crates/sjk-viewer/src/render_scale_up.wgsl)) with a bilinear
+  filter, then a light contrast-adaptive sharpen that keeps RCAS's limits (AMD FidelityFX
+  Super Resolution 1, MIT): the negative lobe of four stretched samples one scene texel
+  away, at a fixed sharpness of 0.5, the largest that pushes no channel past its
+  neighbours' darkest or brightest, so edges get crisper without halos. It works on colour
+  compressed into [0, 1) (c / (1 + its largest channel), reversed after), so HDR values
+  past 1 keep the limits. The size rounds to the nearest pixel (1920x1080 at 75 %:
+  1440x810).
+- **Supersampling wins**: at `r_superSample` 2 or 3 the render scale is ignored
+  (`requested`); the two never combine. The graphics reload card names the side that moved
+  ("supersampling" above 100 %, "render scale" below).
+- **100 %**, the default, makes no scene target (`GpuState::render_scale` stays `None`):
+  the frame is the one from before the setting existed. A unit test pins the default; the
+  world shot `render_scale_shots` at 100 differs from main's build as much as two runs of
+  main differ from each other.
+
+Everything scene-sized follows the scene, not the window: the main depth, the colour target
+the world draws into, the secondary views' targets (floor mirrors, sky and map portals), the
+effect layer, the dynamic-glow image, the card outline mask and the real-time light buffer
+(half the scene each way at native and below; supersampling divides its factor out, so
+there the buffer stays at half the window). The resolve, box or stretch, writes the
+window-sized image the shared resolve (`post_aa.rs`) reads, so FXAA, bloom, eye adaptation
+and the display pass run at the window's size after it; the effect layer and the glow are
+sampled by texture coordinate there. The 2D layer (HUD, menus, text, console) is drawn
+after, at the window's size, against a window-sized `SJK HUD depth`, and pointer
+coordinates stay the window's. The ground HUD, drawn in the world, rebuilds its occlusion
+test from the scene's size (`ground_hud.rs`; until 25/10/2026 it used the window's, wrong
+under supersampling too). Screenshots copy the window's image: the stretched world under a
+full-size HUD. A window resize, a map change, the menu world and a graphics reload make the
+targets again at the new size (`install_render_scale_for`).
+
+Measured 25/10/2026 off-screen on an RTX 5080 (Vulkan, release build), mp/ffa3 from its
+start, median GPU time of 19 or 20 sampled main frames (`render_scale_shots` with
+`SJK_GPU_PHASES=1`; Experimental leaves out the reflection probes' 0.5 to 0.7 ms capture,
+which does not depend on the scale):
+
+| Window, preset | 100 % | 75 % | 50 % |
+| --- | --- | --- | --- |
+| 1920x1080, Vanilla style | 0.100 ms | 0.099 ms | 0.079 ms |
+| 1920x1080, SJK (recommended) | 0.571 ms | 0.456 ms | 0.293 ms |
+| 1920x1080, Experimental | 0.928 ms | 0.800 ms | 0.668 ms |
+| 3840x2160, SJK (recommended) | 2.061 ms | 1.453 ms | 0.933 ms |
+| 3840x2160, Experimental | 3.101 ms | 1.717 ms | 1.284 ms |
+
+The stretch itself costs 0.02 ms at 1920x1080 and 0.06 to 0.08 ms at 3840x2160 on this
+card (the `overlays+post+hud` phase). What does not shrink is drawn at a fixed size: the
+volumetric froxel grid, shadow maps, probes, and the post-processing at the window's size.
+A weak GPU spends a larger share of its frame on the pixels the scale removes, but no weak
+GPU has been measured yet.
+
 ## GPU memory
 
 A world's GPU memory belongs to its `GpuState`: map textures (uncompressed
 RGBA8 arrays with mips, 0.6 GB on duel6 and 1.1 GB on mp/siege_desert), material
 maps, lamp light caches, probes, its screen-size targets (saber glow, FXAA, depth,
-glow, at 4K about 0.8 GB) and its own font and UI atlases (about 0.3 GB). On
-Windows that memory also shows in the process's RAM in Task Manager.
+glow, at 4K about 0.8 GB) and its own font and UI atlases (about 0.2 GB, the font
+atlases 40 MiB of it at 1920x1080). On Windows that memory also shows in the
+process's RAM in Task Manager.
 
 - The menu world is dropped when a server world is installed and built again from
   its map once the client is back in the menu off a server
@@ -504,6 +686,201 @@ Windows that memory also shows in the process's RAM in Task Manager.
   timed out made the client reconnect, the join cancelled each rebuild and the next
   frame started one again, 13,865 map reads in Sol's log, which stalled the join and
   could exhaust memory.
+- Menu pictures (`ui_menuPictures`, [menu_pictures.rs](../crates/sjk-viewer/src/menu_pictures.rs))
+  build the menu world from an empty map, so the menus hold almost none of this:
+  the backdrop is a 3840x2160 picture per view, taken off screen
+  (`world_shot_menu_pictures.rs` `menu_pictures_generate`, with the scene bloom off,
+  since the client blooms the picture again), decoded on a worker to the size the
+  screen shows and drawn first in the world pass, turned back into scene colour
+  under the frame's exposure (as the effect layer's `scene_value`). The camera
+  stands at the picture's camera with its field of view, narrowed on screens wider
+  than 16:9 so they never see past it, which lines the 3D stage up with the picture.
+  A world install that runs out of memory turns the setting on
+  ([status](status.md#menu-pictures-and-readable-world-install-failures)).
+- Texture detail (`r_picmip`, 0 to 3, as in Jedi Academy,
+  [world_texture_mips.rs](../crates/sjk-viewer/src/world_texture_mips.rs)) leaves a
+  material texture's largest mip levels off the card: each step halves its sides, a
+  quarter of its memory, while its longest side stays at 128 pixels or more (smaller
+  textures keep their size). The mip chains are still built whole on the processor;
+  `upload_chains` skips levels, so the setting takes effect for textures uploaded
+  after it changes (the next map). Since 25/10/2026 a texture takes the same size
+  whatever path it goes through (`mips::skipped`): the non-mipmapped path
+  (`r_textureMode GL_LINEAR`) and the sky boxes upload the shrunk size through
+  `upload_array`, and the material maps skip the same levels of their box-filtered
+  chains ([Material maps](#material-maps)); before, all three stayed at full size. As in
+  rd-vanilla, the stages of a shader that says `nopicmip` or `nomipmaps` keep their
+  images' size: the parser marks each stage parsed after the keyword
+  (`ShaderStage::no_picmip`, as `ParseStage` reads `shader.noPicMip`), and its texture
+  key ends with `$nopicmip;` (`mips::NO_PICMIP_KEY`), so it never shares an upload with
+  the shrunk copy. Sky boxes take the setting even then, as `ParseSkyParms` loads them
+  (retail's `textures/siege/desert` sky says `nomipmaps`); at 2 a 1024-pixel box is
+  256 pixels a face, 1.5 MiB instead of 24, and the sky looks softer. SJK still builds
+  mips for a `nomipmaps` shader. Once menu pictures are on, each world install that runs
+  out of memory raises it one step, to 2 at most (`menu_pictures::after_out_of_memory`).
+  Not measured on a 3 GB card yet; map textures are about 0.6 GB of duel6 and 1.1 GB of
+  siege_desert at full size. The saber glows and cores follow it too
+  (`mips::shrunk`, in `saber::material`): eight 2048-pixel glows and their half-float
+  column integrals held 300 MiB on every map and in the menu; at 2 they hold 28 MiB.
+  The menu on pictures measured 1082 MiB at 1920x1080 and r_picmip 2, 801 MiB after
+  (`menu_pictures_vram` in world_shot_vram.rs, 21/10/2026, after Vin's 3 GB card ran
+  out in the main menu). The rest of that menu: the game font atlases (128 MiB as
+  RGBA, 32 MiB since they are R8, below), the UI icon atlas (56 MiB) and the world's
+  shadow, GI and froxel targets (about 200 MiB) a picture menu does not draw.
+- Texture compression (`r_textureCompression`, 0 by default, Settings > Graphics > Image;
+  [texture_compression.rs](../crates/sjk-viewer/src/texture_compression.rs), 25/10/2026)
+  keeps the textures of the world and model materials block-compressed: BC1 (half a byte
+  a texel, an eighth of RGBA8) for an array whose texels are all opaque, BC3 (a byte, a
+  quarter) for one with a translucent texel, in the sRGB forms that decode as
+  `Rgba8UnormSrgb` does. One format per array: an animated stage with one translucent
+  frame is BC3 throughout. The array's level zero after `r_picmip` must be whole 4x4
+  blocks and at least 128 pixels long (`compress::fits`), or it stays RGBA8; levels under
+  4 texels a side are padded to a whole block (edge texels repeated) and written at their
+  physical size. Like `r_picmip` it applies to the textures uploaded after it changes (the
+  next map), and the shared map textures' key holds it. Not compressed: devices without
+  `TEXTURE_COMPRESSION_BC` (GLES; Apple Silicon has the formats), video stages, sky boxes
+  and the non-mipmapped path (`upload_array`; a sky's gradients band in BC1), material
+  maps (normal maps would need BC5 and the shader rebuilding their third component), and
+  everything outside the world materials (UI, menu art, fonts, atlases). The stage
+  table's binding array takes BC and RGBA8 views side by side: wgpu checks only the
+  sample type (filterable float for both) and the view dimension. Where the encoding
+  runs and what it costs at load: [Load-time texture and light
+  preparation](#load-time-texture-and-light-preparation).
+
+  `low_end_vram_audit` with `SJK_AUDIT_COMPRESSION=0,1`, 25/10/2026, 1920x1080, release
+  build, RTX 5080 on Vulkan, the HD packs installed (MiB in use, off / on):
+
+  | Map, r_picmip | Vanilla style | SJK (recommended) | Experimental |
+  | --- | --- | --- | --- |
+  | mp/ffa3, 0 | 1594 / 785 | 1622 / 812 | 2021 / 1207 |
+  | mp/ffa3, 1 | 660 / 455 | 688 / 483 | 1083 / 878 |
+  | mp/ffa3, 2 | 428 / 372 | 456 / 400 | 851 / 795 |
+  | mp/siege_desert, 0 | 1757 / 809 | 1785 / 837 | 2405 / 1457 |
+  | mp/siege_desert, 1 | 701 / 462 | 728 / 489 | 1349 / 1110 |
+  | mp/siege_desert, 2 | 438 / 374 | 465 / 402 | 1086 / 1022 |
+  | Menu on pictures, 0 | 999 / 671 | 1027 / 698 | 1284 / 956 |
+  | Menu on pictures, 2 | 371 / 346 | 398 / 374 | 656 / 631 |
+
+  The material textures themselves (labels "SJK optional mipmapped material", RGBA8, and
+  "SJK compressed mipmapped material"): ffa3 928 MiB in 335 arrays, then 118 MiB in 304
+  compressed arrays and 0.5 MiB in the 31 kept (small ones); siege_desert 1091 then 142;
+  the menu's models 377 then 48; at r_picmip 1 236 then 31, 276 then 36, 97 then 13; at
+  r_picmip 2 66 then 10, 75 then 10, 29 then 5. So the setting saves about 0.8 to
+  0.95 GB a world at full texture detail, about 0.2 GB at r_picmip 1 and 25 to 65 MiB at
+  r_picmip 2, where the map textures are already small. Full detail compressed (ffa3 at Vanilla, 785 MiB) still
+  holds more than r_picmip 1 uncompressed (660 MiB: the saber glows and the sky follow
+  r_picmip too, 300 and 24 MiB at 0), but every texture keeps its full size; r_picmip 1
+  compressed holds 455.
+
+  Quality, `texture_compression_quality`: frames from the same three cameras of each map
+  (its start, looking down, turned aside) at the SJK preset, whose frames repeat exactly
+  (two runs off: 0 pixels differ). Off against on: ffa3 41.9 to 44.5 dB over the frame
+  (nearly every pixel moves, by at most 29 to 45 of 255), siege_desert 47.8 to 49.8 dB (at
+  most 27 to 50); the sky does not change. The frames' middles doubled side by side
+  (`tc-<map>-<view>-crop.png` in `target/world-shots`) show no difference to the eye. Each
+  texture's level zero against its RGBA8 one (`compress::decode`): ffa3's 287 BC1 arrays
+  39.1 dB on average (median 38.0, 5th percentile 32.4), its 17 BC3 ones 39.1;
+  siege_desert's 212 BC1 39.5 (median 38.4, 5th percentile 33.1), 22 BC3 39.4. The worst
+  are noisy or hard-edged patterns: `models/weapons2/golan_arms/projectilemain.jpg`
+  27.3 dB, `textures/rocky_ruins/rancor_floor.jpg` 28.8,
+  `textures/factory/cat_floor2.png` (BC3) 29.1, `textures/kejim/kej_lights_glow.jpg`
+  30.3; doubled beside the originals (`tc-<map>-worst-<n>.png`) they look the same. No
+  BC1 texel came out translucent (flat blocks keep index 0). BC7, measured beside them
+  with the crate's alpha "ultra fast" settings, was about 10 dB better on the opaque
+  arrays at twice BC1's size and 19 times its encoding time (400 ms of one core per
+  megapixel), and 5 to 7 dB better on the translucent ones at BC3's size, 17 times
+  slower; hence BC1 and BC3. With the floor at 64 pixels `gfx/effects/chrome.jpg` (64x64,
+  an environment map) was the second worst at 28.4 dB; arrays under 128 pixels hold
+  almost nothing (0.5 MiB for ffa3's 31) and stay RGBA8.
+
+  Not decided: a default. The numbers argue for it on cards that already get a lower
+  texture detail (under 4.5 GiB, `video_memory.rs`): 200 to 240 MiB less at r_picmip 1
+  for 0.4 to 1 s more texture preparation per map; and for 6 to 8 GB cards at full
+  detail, 0.8 to 0.95 GB less per world, once the 1.8 to 3.5 s of preparation it adds here
+  is measured on a 4 to 6 core processor (or the encoding moves to the GPU,
+  `block_compression`'s wgpu 30 compute path, or to a disk cache).
+- The font atlases are single-channel `R8Unorm` textures
+  ([gpu_texture.rs](../crates/sjk-viewer/src/gpu_texture.rs)
+  `create_r8_texture_mipmapped`): every code-page atlas holds only glyph coverage (or
+  a distance field), and the text colour comes from the vertices, so `text.wgsl` and
+  `ground_hud.wgsl` read it from `.r`. Until 25/10/2026 they were white RGBA8 textures
+  read through alpha, four times the memory for the same values. At 1920x1080 the five
+  game font atlases (SJK Menu, SJK Chat, JetBrains Mono and the SJK UI's two
+  families) went from 128 to 32 MiB, the Inter UI atlas from 21.3 to 5.3 MiB and the
+  classic HUD atlas from 10.7 to 2.7 MiB: 120 MiB less in every world, the menu's
+  included. `low_end_vram_audit` at r_picmip 2 (MiB in use, Vanilla style / SJK /
+  Experimental): mp/ffa3 626 / 670 / 1065 before, 506 / 550 / 947 after; the menu on
+  pictures 512 / 539 / 797 before, 392 / 419 / 677 after. The Inter atlas grows with
+  the display scale (4096x4096 at 200 %: 85 MiB as RGBA, 21 MiB as R8, computed). The
+  CPU copies the atlases are built and mipmapped from are one channel too. Text draws
+  the same: the text pipeline drew the same glyph quads at six scales (every mip
+  level) from the old RGBA upload and from the R8 one, for all eight atlases and a
+  distance field, with no pixel different. The emoji atlas stays RGBA (colour
+  pictures) and the wide-glyph atlas was already R8.
+- Work on the render thread after a world is built runs inside wgpu error scopes
+  ([gpu_guard.rs](../crates/sjk-viewer/src/gpu_guard.rs)) where it can fail alone: the
+  menu stage's model (the creator's head, torso and legs), which then is not shown and
+  drops the textures it uploaded from the material cache, and players' prepared
+  textures, which are then not cached. wgpu's default handler panics on any error no
+  scope captures, so an out-of-memory elsewhere (a player's geometry joining the
+  shared buffers, entity materials) still ends the game: a 3 GB GTX 1060 crashed
+  changing legs in the creator (21/10/2026). That panic names what failed
+  (`gpu_guard::name_uncaptured`): `wgpu error: Out of Memory (In Device::create_texture,
+  label = '...')`, then the causes and the video memory SJK held (allocator report), so a
+  crash report says which texture a small card could not take; wgpu's own said only
+  `Out of Memory` (Vin's crash in the main menu, 21/10/2026).
+- At start SJK reads the card's video memory before the first map
+  ([video_memory.rs](../crates/sjk-viewer/src/video_memory.rs), through
+  [sjk-gpu-memory](../crates/sjk-gpu-memory/src/lib.rs): DXGI's high-performance
+  adapter, its `DedicatedVideoMemory` and budget; nothing off Windows). Under 3.5 GiB
+  (an integrated GPU's few hundred MB too) it sets texture detail 2, under 4.5 GiB 1,
+  and menu pictures on, each only from its default, once a card (`r_videoMemoryChecked`
+  keeps the MiB it chose for). The size and budget go into the log and crash reports.
+  Under 3.5 GiB it also lightens the graphics once a card (`r_smallCardPreset`, since
+  25/10/2026): Vanilla style when the preset is the untouched SJK (recommended) one,
+  other players' blades stock and a 60 FPS menu cap when those are off, then says so
+  in a card on the main page with Keep and Back to SJK graphics
+  ([sjk-ui.md](sjk-ui.md#small-graphics-cards)). It runs before the graphics context
+  is made, so the first frame already draws with them. Vanilla and SJK (recommended)
+  differ by only about 45 MiB of video memory; this is for frame time (ambient
+  occlusion, HDR and glow at full resolution) and the skins' GPU work.
+  The size also sets the lamp light cache's budget
+  ([below](#experimentals-lamp-memory)).
+- With menu pictures on, the menus' saber shader swatches show their drawings
+  (`collection_swatch.rs`) instead of the live blade pictures (`blade_pictures.rs`, a
+  832x1664 target of three textures, about 17 MB, and each signature blade's
+  pipeline), and that target is freed. Live, a frame draws only the pictures that need
+  it: the hovered or chosen ones every frame, the others 30 times a second and six a
+  frame at most ([unlockables.md](unlockables.md#shaders-tab)).
+- The secondary views make their targets the first frame each is drawn, not with the
+  world (`Lazy` in [scene_view_gpu.rs](../crates/sjk-viewer/src/scene_view_gpu.rs),
+  `Runtime::provide_targets` in [scene_views.rs](../crates/sjk-viewer/src/scene_views.rs)).
+  The floor mirrors' (any polished plane), the sky portal's (any sky shader) and the map
+  portal's (any `portal` face) were each a scene-format colour target and a depth target
+  at the scene's size, 25 MiB at 1920x1080 with HDR and four times that at 4K, and most
+  were never drawn: `r_floorReflections` is 0 at the Vanilla and SJK presets, the sky
+  portal draws only once the server sends `CS_SKYBOXORG` for a `misc_skyportal` (12 retail
+  maps have one, among them mp/duel6, mp/duel9 and mp/siege_hoth; mp/ffa3 and
+  mp/siege_desert have sky shaders and none), and no retail map has a `portal` face
+  (community maps do, with their `misc_portal_surface`). A target is kept once made and
+  made again at a resize or another scene scale (`r_superSample`, `r_renderScale`); the floor mirrors' is dropped when
+  `r_floorReflections` goes to 0. One the card has no room for (captured, `gpu_guard`)
+  leaves its view undrawn, logged once, rather than ending the game. Their labels now say
+  which view they serve (`SJK floor mirror view`/`depth`, `SJK sky portal view`/`depth`,
+  `SJK map portal view`/`depth`). The wide-glyph and emoji atlases (10.7 MiB each) wait
+  the same way for the first character beyond the code page or emoji
+  ([below](#characters-beyond-the-code-page)). With real-time lighting, a map with
+  polished planes still keeps the mirrors' light-buffer images whether mirrors are on or
+  not (`configure_light_preservation`).
+- The render scale ([above](#render-scale-and-supersampling)) shrinks the scene-sized
+  targets with its square: at 50 % of 1920x1080 the main depth, the effect layer's two
+  images and the glow image hold 2.3 MiB each instead of 8.4, the render-scale scene adds
+  4.7 MiB (HDR), and a window-sized `SJK HUD depth` (8.4 MiB) stays for the 2D layer; the
+  window-sized resolve images (`SJK FXAA scene`, 25.3 MiB for two) do not change.
+  `low_end_vram_audit` on mp/ffa3 at r_picmip 2 with `SJK_SHOT_CVARS=r_renderScale=50`
+  (25/10/2026, MiB in use, 100 % / 50 %): Vanilla style 428 / 421, SJK (recommended)
+  456 / 445, Experimental 851 / 805 (its light buffer and lighting images shrink too); the
+  menu on pictures 371 / 363, 398 / 387 and 656 / 616. It saves GPU time far more than
+  memory; texture detail (`r_picmip`) is the memory setting.
 - A map change still builds the next world while the last one lives. With
   `MemoryHints::Performance` (128 to 256 MiB blocks) the blocks the old world
   shared with the new one stayed partly used once it was dropped, about 2 GB of
@@ -516,8 +893,211 @@ then mp/siege_desert, mp/ffa3, mp/siege_desert, mp/ffa3, as map changes on one
 device. Before: 11.0 to 12.5 GB private bytes once on a server (the GPU allocator
 reserving 5.2 to 5.9 GB). After: 7.2 to 7.4 GB (4.1 to 4.2 GB reserved for 3.3 to
 3.4 GB in use). Old worlds were freed in both (the resource counts went back down
-each time): it was not a leak. Each world also keeps about 1 GB of CPU memory
-after loading, not looked into yet.
+each time): it was not a leak. Each world also kept about 1 GB of CPU memory
+after loading; most of it was the decoded images, which no longer pile up from map to
+map ([Load-time texture and light preparation](#load-time-texture-and-light-preparation)).
+
+The players' "world installer stopped unexpectedly" (18/10/2026: 33 hub crash
+reports, `wgpu error: Out of Memory` in `create_texture` on `sjk-world-install`, on
+NVIDIA cards of 3 to 8 GB) is that peak, not a leak. The ignored world shot
+`map_changes_vram` ([world_shot_vram.rs](../crates/sjk-viewer/src/world_shot_vram.rs))
+installs mp/ffa3, mp/ffa5, mp/siege_desert and mp/duel6 three times over at
+1920x1080 on one device and prints the allocator's live and reserved bytes after each
+change, and the labels that grew. On Sol's PC (release build, a fresh profile):
+
+| Map | In use after | Peak during the build | Reserved at the peak |
+| --- | --- | --- | --- |
+| mp/duel6 | 1.87 GB | 4.22 GB | 3.9 GB |
+| mp/ffa3 | 2.19 GB | 3.85 GB | 4.6 GB |
+| mp/ffa5 | 2.54 GB | 4.51 GB | 5.0 GB |
+| mp/siege_desert | 2.55 GB | 4.87 GB | 5.1 GB |
+
+Every map holds the same bytes on each cycle (duel6 1869 MiB after the first and the
+last), and reserved memory settles back to 2.5 to 3.4 GB. With the desktop and other
+programs, a 6 GB card has no room for two worlds of the larger maps. About 0.55 GB of
+each world was the same whatever the map and was built again for each one: the saber
+glow column integrals (205 MiB), the game font atlas (128 MiB then, RGBA), the saber glow images
+(96 MiB), the UI icon atlas (50 MiB), the effect atlas (39 MiB) and the classic menu
+art (32 MiB). Map textures that two maps share (retail `textures/` among them) were
+uploaded again too.
+
+The worlds alive at once on one context now share those textures
+([shared_textures.rs](../crates/sjk-viewer/src/shared_textures.rs)). A world being
+built (`new_with_context`, on its thread) takes the copy another world holds, keyed by
+what the texture is made from: the saber glow and core images, a game font's atlas, the
+effect atlas's pixels, a static menu art piece, and for map textures the decoded images'
+identities (one `Arc` per mounted file and content, from
+[decoded_image_cache.rs](../crates/sjk-viewer/src/decoded_image_cache.rs)) with the
+array's size. A shared map texture skips its mip preparation too. Each entry is freed
+with the last world that took it, so a map change never keeps the old map's own
+textures. Not shared: the UI icon atlas and animated menu art, which a running world
+rewrites; textures a world makes after its build (models and effects that load during a
+match, video frames, the non-mipmapped filtering path); material maps, whose converted
+images each build makes again, so only a hash of their pixels could key them (and a
+server's old map leaves before the next is built, below); and anything across a graphics
+reload, whose new context may make textures differently and starts its own cache. A
+shared map texture's key holds the levels texture detail leaves off, so a world built
+after `r_picmip` changed takes its own size.
+
+| Map | Peak before | Shared assets | Shared map textures too |
+| --- | --- | --- | --- |
+| mp/ffa3 | 3849 MiB | 3479 MiB | 3119 MiB |
+| mp/ffa5 | 4507 MiB | 4133 MiB | 3773 MiB |
+| mp/siege_desert | 4870 MiB | 4496 MiB | 4136 MiB |
+| mp/duel6 | 4220 MiB | 3846 MiB | 3481 MiB |
+
+Memory in use after each change is unchanged, and the worst reserved peak went from
+5.1 to 4.4 GB. The last duel6 of the run, built on 282 shared textures, differs from the
+same run with sharing off in 791 of 2,073,600 pixels; two runs with sharing off differ
+in 477 (animation timing).
+
+On a server, the old map now leaves the card before the next one is built
+([session_transition.rs](../crates/sjk-viewer/src/session_transition.rs), `unload_task`):
+when a map change, a switch to another server or a graphics reload starts loading a
+map, an empty world (the empty map of the menu pictures) is built on the worker while
+the next map's file is read, takes the shell over and drops the old world; the next
+map is built beside it. The loading screen covers the world either way. A world
+without a map still holds about 1.4 GB at 1920x1080 (screen targets, shadow maps,
+the shared textures above), so it saves the old map's own part only, and it costs a
+second build: about 3 s in release, 1.4 s of it hidden behind the file read, about
+2.2 s more per map change. Demos keep the old way. `map_change_unloaded_vram`
+(`world_shot_vram.rs`) measures it, 22/10/2026 at 1920x1080:
+
+| ffa3 alone | ffa3 + siege_desert | Empty world | Empty world + siege_desert |
+| --- | --- | --- | --- |
+| 2208 MiB | 3719 MiB | 1436 MiB | 3045 MiB |
+
+The world shots above build their client from a fresh profile, whose renderer cvars are
+their defaults: the Experimental preset, not the SJK (recommended) one players start on.
+`SJK_SHOT_CVARS` (`name=value`, comma separated) sets more cvars on any world shot's
+profile, after the shot's own (`world_shot::world_input`).
+`low_end_vram_audit` (`world_shot_vram.rs`) builds each map at each preset
+(`graphics_quality::preset_cvars`) and texture detail and prints every label, the
+allocator's reserved bytes and what DXGI says the process uses (`VideoMemory::usage`);
+`card_faces_vram_audit` mounts the SJK packs of `JKA_GAME_DATA/SJK/assets`, which the
+other shots never do. Measured 25/10/2026 at 1920x1080 (MiB in use):
+
+| Map, r_picmip 0 / 2 | Vanilla style | SJK (recommended) | Experimental |
+| --- | --- | --- | --- |
+| mp/ffa3 | 1769 / 603 | 1814 / 648 | 2213 / 1049 |
+| mp/siege_desert | 1915 / 596 | 1952 / 632 | 2572 / 1253 |
+| Menu on pictures | 1140 / 512 | 1168 / 539 | 1425 / 797 |
+
+The r_picmip 2 column is after the sky boxes followed texture detail (25/10/2026); each
+map held 22 MiB more before (its sky box, 24 MiB at any setting), and nothing else
+changed: at r_picmip 0 the labels are the same and the Vanilla and SJK frames are
+pixel-identical before and after (Experimental's differ as much as two runs of one
+build do, from its moving dust and noise). `SJK_AUDIT_GENERATED=1` mounts the player's
+generated material pack (`zzz_sjk_materials.pk3`), which no other shot does. With it,
+Experimental's normal, specular and emission maps held 884 MiB on ffa3 (218 maps) and
+427 MiB on siege_desert (85) whatever the texture detail, SJK's emission maps 9 and
+16 MiB; once they followed r_picmip, at 2 they hold 58 and 27 MiB (SJK's about 1), and
+the maps hold 1190 MiB instead of 2038 and 1327 instead of 1765 (SJK: 649 instead of
+680, 633 instead of 670).
+
+The presets that leave the real-time lighting off differ by about 45 MiB; Experimental
+adds its lamp light cache (up to 360 MiB on ffa5), fixture visibility, GI, froxels and
+sun shadow maps. DXGI's count is the allocator's reserved bytes plus about 200 MiB, and
+stays level over 12 map changes. With the hub's 333 card faces mounted, the menu on
+pictures at r_picmip 2 went from 539 to 2316 MiB in use (3235 MiB reserved): every face
+was uploaded at 1024 pixels in every world (see [cards.md](cards.md)), which the hub's
+crash reports named (`label = 'SJK menu emblem'`, a GTX 1060 3GB in the main menu).
+Since then only the faces a screen draws are decoded and uploaded (at most 64 kept): the
+same menu holds 539 MiB with the packs mounted, siege_desert 654 MiB instead of 2431,
+and the map change's peak is 1105 MiB instead of 2882. Card pictures now carry their own
+label, `SJK card art` (medals `SJK medal art`), so `vram` and crash reports no longer put
+them under the emblem's.
+The table's numbers predate the single-channel font atlases (above), which take about
+120 MiB off every cell (measured at r_picmip 2 on mp/ffa3 and the menu on pictures).
+
+With the secondary views' targets and the text atlases made only when drawn (above), the
+same audit at r_picmip 2 (25/10/2026, MiB in use, before / after):
+
+| Map, r_picmip 2 | Vanilla style | SJK (recommended) | Experimental |
+| --- | --- | --- | --- |
+| mp/ffa3 | 626 / 571 | 670 / 598 | 1065 / 993 |
+| mp/siege_desert | 618 / 580 | 654 / 608 | 1279 / 1232 |
+| Menu on pictures | 512 / 490 | 539 / 518 | 797 / 775 |
+
+ffa3 lost its floor mirror and sky portal targets and both atlases, siege_desert its sky
+portal target and the atlases, the menu the atlases; the main view's `SJK depth` is the
+only depth target left. The audit's camera sees no polished floor, so at Experimental
+(`r_floorReflections 1`) the mirror target is only made once one comes into view.
+
+### Experimental's lamp memory
+
+Players on 4 to 8 GB cards ran out of video memory at map loads on Experimental, where
+Vulkan fails outright. Its real-time lighting held three large map-lifetime resources,
+cut on 25/10/2026:
+
+- The fixture visibility atlas (`SJK all-fixture static visibility`,
+  [lamp_visibility.rs](../crates/sjk-viewer/src/lamp_visibility.rs)) keeps each texel in
+  16 bits, two texels to an `R32Uint` texel, instead of an `R32Float` each: 64 MiB at
+  most instead of 128, at the same resolution. A texel is not a visibility fraction but
+  the ray parameter of the first blocker in its direction, which each filter tap
+  compares with the receiver's plane, so it needs precision in world units. The 16 bits
+  are steps of 1/65534 of the longest hit the lamp can have (its tracing limit along a
+  diagonal), 0.03 units for a lamp of 1000, rounded to the nearest step but never more
+  than a quarter unit nearer than traced: the half-unit bias that keeps a receiver from
+  shadowing itself loses at most half (`lamp_visibility_common.wgsl`). A miss has its own
+  code. `R16Float` would be the plain choice, but WebGPU does not guarantee it as a
+  storage format (wgpu would need `TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES` on every
+  device), and half floats were tried: their step grows with the distance (half a unit
+  from 512 units), and rounding up by it let measurably more light through on lit walls
+  (mp/siege_hoth's mover shots 0.18/255 brighter on average, up to 7/255); rounding up
+  by the fixed step still left 0.03/255, rounding to the nearest step is as close as two
+  runs of one build. A door tile keeps its movers' covered rectangle in its first
+  stored texel (two border texels), a byte per bound. The lowest atlas resolution is now
+  2 (tiles stay an even number of texels across); 1 was only reached past two million
+  lamps.
+- The lamp lists (`SJK lamps`, [lamp_lights.rs](../crates/sjk-viewer/src/lamp_lights.rs))
+  hold two 16-bit lamp indices to a word when a map has at most 65,536 lamps (every
+  retail map), otherwise one 32-bit index as before (`lamp_list_lamp` in
+  `lamp_lights.wgsl`). Refining crowded cells had made mp/ffa5's lists 34.6 million
+  entries for 10,023 lamps, 132 of the buffer's 150 MiB. The lists and their order are
+  the same, so every lamp sum is too.
+- The lamp light cache's budget follows the card (`lamp_cache::budget`, from
+  `video_memory::dedicated`): 32 MiB per GiB of the card's own memory, at least 64 MiB,
+  and the old fixed 512 MiB from 16 GiB up or when the size is unknown (off Windows).
+  It counts the light layers; with material maps the direction layers add half as much
+  again. A cache over its budget halves its resolution: mp/ffa5's 45 layers go from
+  1024² (360 MiB, 540 with directions) to 512² (90, 135) on a card of 8 GB or less
+  (a 256 MiB budget, 192 at 6 GB, 128 at 4 GB), mp/siege_desert's 26 from 208 to 52 MiB
+  at 6 GB or less. A coarser cache keeps its accuracy, as before on large maps: the steep
+  pass sends texels whose light bends too sharply for interpolation to direct
+  evaluation, and so does a surface mapped more than 16 units a cache texel. It costs
+  speed instead: on an RTX 5080 at 1280×720 the light pass of the three ffa5 lamp views
+  (`world_shot::lamp_light`) took 0.223, 0.170 and 0.425 ms at 1024² and 0.222, 0.170 and
+  0.499 ms at 512². Tests take `SJK_VIDEO_MEMORY_MIB` for the card's size.
+
+`low_end_vram_audit` at 1920×1080 and r_picmip 2, Experimental, MiB in use (`main`
+7389dc91, then this change as built for cards of each size; Sol's is 16 GB):
+
+| Map | Before | 16 GB | 8 GB | 6 and 4 GB |
+| --- | --- | --- | --- | --- |
+| mp/ffa5 | 1314 | 1212 | 925 | 925 |
+| mp/siege_desert | 1086 | 1023 | 1019 | 851 |
+
+Per label: ffa5's atlas 58.9 → 29.5 MiB and lamps 149.9 → 83.8, siege_desert's atlas
+128.7 → 64.3 and lamps 10.9 → 8.0, and the caches as above. The totals move by a few
+MiB between runs of one build (wgpu's indirect-draw validation buffers, 1 MiB each); no
+other label changed, nor did the Vanilla and SJK presets or the menu on pictures.
+Images, compared with two runs of `main` (world shots are not time-deterministic): the
+audit frames, `world_shot::lamp_light` on ffa5 and ffa1 and `movers_shadow_lamps` on
+mp/siege_hoth (door tiles) differ from `main` as much as `main` from itself on a 16 GB
+card (the worst sheet: at most 4/255, 0.017/255 brighter on average, against 3/255 and
+0.006 between two `main` runs). With the smaller cache, most views stay within the
+cache's tolerance; one wall in siege_hoth's sheet 59 changes by up to 56/255, because at
+512² it is lit directly: there the 1024² cache had been off by up to 53/255 (30,355
+pixels over 8/255 against `SJK_LAMP_CACHE=0`, 3,036 at 512²).
+
+Looked at and left: the two froxel volumes (23.6 MiB each, RGBA16F, alpha unused; the
+RGB-only `Rg11b10Ufloat` is not a storage format WebGPU guarantees and has a 6-bit
+mantissa for the integrated sums), the GI probe depth moments (23 to 26 MiB, the mean
+and mean square of each direction's distance in two floats; half floats overflow past
+256 units squared and lose the variance to cancellation) and the six 16 MiB sun shadow
+targets (2048² `Depth32Float`; 16 bits over the far cascade's map-wide fit would show
+acne).
 
 ## Eye adaptation
 
@@ -791,7 +1371,9 @@ otherwise come from a trace of the static world only, done once when the map loa
   traced on the GPU against the movers near that lamp at their current pose; a
   receiver's lamp visibility is the world tile's times the door tile's. The trace also
   records the pixel rectangle the movers cover, in two border texels the filter never
-  reads; a receiver whose filter footprint lies outside it skips the door tile.
+  reads (the tile's first stored texel, a byte per bound, since the atlas went to 16 bits
+  a texel: [Experimental's lamp memory](#experimentals-lamp-memory)); a receiver whose
+  filter footprint lies outside it skips the door tile.
 - **Poses.** Movers in the snapshot block light where they are drawn; one hidden or
   broken (not drawn) blocks nothing. A mover no snapshot has shown yet stands at its
   baseline's spawn pose; one with neither blocks nothing. A mover missing from a
@@ -832,7 +1414,10 @@ floor is 3.6 times coarser: lit directly it took 4.2 ms of a 7.5 ms frame at 4K 
 RTX 5080 (Sol's in-game run with every real-time term off still measured a 5.7 ms
 light pass), cached the frame is 3.6 ms, and the spawn view differs by at most 8/255
 (0.45 % of pixels by more than 4). `mp/ffa5`, `mp/ffa3` and `JKLevel1` were unchanged
-(3.1, 3.2 and 2.5 ms) and the cache kept its 519 MiB on `JoFTemple`.
+(3.1, 3.2 and 2.5 ms) and the cache kept its 519 MiB on `JoFTemple`. The cache's budget
+follows the card's video memory since 25/10/2026: on a card under 16 GB a large map's
+cache can be a resolution coarser, with more surfaces lit directly
+([Experimental's lamp memory](#experimentals-lamp-memory)).
 
 The ignored world shot `world_shot::movers::movers_shadow_lamps` renders the movers with
 the most door lamps closed, open and with every mover hidden, from beside a lamp, and
@@ -1026,6 +1611,111 @@ exhaustive quality/map coverage remain open.
 
 ## Entity render effects
 
+NPC nameplate health uses JoF EJK
+[#80](https://github.com/JediofFreedom/JoF_EJK/pull/80)'s visibility rule: active
+level 3 Sense is required for an ordinary NPC, while mapper `showhealth`
+(`shouldtarget`) bypasses the gate. The server's decoded Sense-rank field supplies
+the level; live prediction supplies active-power bits when present, otherwise
+the viewed player state does (including demos). Names remain visible, and player
+bar consent, non-NPC map entities and ordinary bar-mode settings keep their rules.
+The shared nameplate renderer applies this in every HUD/menu style. SJK's older
+overhead-label pass handles players only; this change adds no separate crosshair
+health widget. Wire codecs and server NPC behavior are unchanged.
+
+JoF EJK's animation-driven Force sprays run in live play for the local player,
+other players and NPCs ([#58](https://github.com/JediofFreedom/JoF_EJK/pull/58),
+with [#89](https://github.com/JediofFreedom/JoF_EJK/pull/89)'s full-body gate).
+Rage uses `force/rage2`, Heal `force/heal2`, every 120 ms while both animation
+tracks match and speed is below 250 units/s. They follow `*chestg`, then
+`thoracic`, then `lower_lumbar`, falling back to the actor's origin. Quick Heal
+uses Push-blur puffs at the left hand, falling back to the actor's origin when
+the attachment is absent. The hand effect uses SJK's reference 8 ms cadence
+instead of multiplying emissions with rendering FPS. Local animation selection
+uses prediction, falling back to player state; remote players and NPCs use their
+own snapshot state. Timer storage belongs to the rendered world's effect pool;
+inactive animations reset it and backward demo time restarts it.
+
+The local player's body-push blur and Grip hand puffs are hidden in first person
+and zoom, while remote actors keep them. This follows the local visibility intent
+of [JoF #90](https://github.com/JediofFreedom/JoF_EJK/pull/90), including Grip-victim
+puffs. Rage/Heal sprays and Quick Heal remain animation-driven in every camera
+mode, as in #58.
+These presentation rules apply in every UI style and change no Force gameplay,
+movement, animation timing or protocol encoding.
+
+### Portable shields
+
+The force field a Merc places (`HI_SHIELD`) is an `ET_SPECIAL` entity with no model,
+drawn by `CG_Special` → `FX_DrawPortableShield` (`cg_ents.c`). Until 26/10/2026 SJK
+drew nothing for it, so players were blocked by a wall they could not see (blec-bee's
+report, #133). [portable_shields.rs](../crates/sjk-viewer/src/portable_shields.rs)
+reads its shape from `time2` (axis bit 24, height bits 16-23, the widths either side
+of its origin in bits 8-15 and 0-7), its look from `otherEntityNum2` (red team
+`gfx/misc/red_portashield`, otherwise blue) and `trickedentindex` (the `*_dmgshield`
+look while it is hit), skips it under `EF_NODRAW`, and adds stock's 50 ms
+`LE_OLINE` copy on the reference 8 ms cadence (`effect_cadence.rs`), so the additive
+copies overlap as at 125 FPS. The copy is a new effect primitive,
+`PrimitiveShape::OrientedLine` (`RB_SurfaceOrientedLine`'s upright quad, s across the
+height and t along the field), drawn by the effect geometry's quad stamp, which the
+GPU expansion handles too. World shot: `world_shot::portable_shield_shots`.
+
+### Scaled players' held items
+
+A player or NPC the server scales (`iModelScale`, also used for small models such as
+the Jawa and community younglings, whose meshes are full size) keeps what it holds in
+its hand: `G2API_GetBoltMatrix` scales a bolt's position by the model scale and keeps
+its axes, and the bolted saber or gun is drawn with the wearer's `modelScale`. Until
+26/10/2026 SJK scaled the body but put the hilt, the gun, the blade's start, a JA+
+hook's rope and the left-hand Force effects at the unscaled hand, above a small
+player's hand (g0dchris' report, #144). `saber::Attachment::scaled` and
+`BladeSocket::scaled` now apply the scale; the blade keeps the saber's length, as
+`CG_AddSaberBlade` does. Holstered hilts already followed it.
+
+### Emplaced guns
+
+An emplaced gun's top follows its gunner's view as in `CG_General`
+(`cg_ents.c:1392-1416`): while the server marks the gun worked (`activeForcePass`
+`NUM_FORCE_POWERS + 1`, a non-player, non-vehicle entity), its model's `Bone02` takes
+the gunner's view angles with `BONE_ANGLES_REPLACE` about `NEGATIVE_Y`, `NEGATIVE_X`,
+`POSITIVE_Z`, the pitch held to 40 degrees down and the yaw less the gun's own. The
+gunner's view is this client's own for the local player, the player's interpolated
+view angles for anyone else. Ghoul2 keeps a replaced bone's angles, so a gun keeps its
+last aim after its gunner leaves; one no one has worked stays at its bind pose, barrels
+to its right, as in the retail game.
+
+Rigid models are drawn as instanced bind-pose meshes, so a turned gun is drawn as two
+parts cut from its model
+([emplaced_swivel.rs](../crates/sjk-viewer/src/emplaced_swivel.rs)): the surfaces bound
+to `Bone02` or its descendants (the top and both barrels of `turret_chair.glm`), carried
+by the bone's replaced matrix ([`replace_bone_matrix`](../crates/sjk-model/src/bone_angles.rs),
+`G2_Generate_Matrix` and `G2_TransformBone`'s replace step), and the rest, the stand.
+Here SJK departs from Ghoul2, which leaves the stand (on `Bone01`) still: the stand
+turns with the top's yaw, upright, about the vertical through `Bone02`. Its brace
+carries the handles the gunner holds, behind the top at the bind pose; left still, they
+show off to the gun's side once the top turns. The parts
+load through the model loader the first time a gun is worked. The model's animation is
+taken at its bind pose, as the static mesh is; Ghoul2's frame 0 of `mp.gla` differs from
+it by under a tenth of a unit. The muzzle flash and the dying gun's red pulse and
+damaged skin are not changed by this.
+
+### Force presentation controls
+
+`cg_forceAnimFX` (on) controls animation-driven Rage, Heal, Quick Heal and Grip-victim
+FX in every UI style. `cp_pluginDisable` bit 5 also disables these new effects,
+following EJK #130, and disables the combined cyan Protect/Absorb shell. In that
+case the existing green/blue shells remain available, following #168; Absorb is
+already shown by default in SJK. The local animation switch does not change the
+separate `cg_spProtAbsColor` preference or ordinary Push/Grip-caster effects.
+
+Empower-marked body blur (`EF_EMPOWERED` with `EF_BODYPUSH`) follows the advertised
+`jp_empowerEffect` scope: 0 full body, 1 hands plus radius joints, 2 hands only,
+after #132. `cg_empowerEffect` defaults to -1 (server); 0/1/2 override it. Both
+settings interfaces expose the controls. Ordinary Push always uses the full
+cached joint set. The named contract/scope tables in
+[force_fx_policy.rs](../crates/sjk-viewer/src/force_fx_policy.rs) document the
+reference; missing or unknown modes use full body. No new pose, per-frame
+allocation or wire field is needed. Installed-model/GPU parity remains unverified.
+
 cgame custom shaders on actors (force shells, pickup placeholders) are extra
 instances of the same mesh in [entity_materials.rs](../crates/sjk-viewer/src/entity_materials.rs).
 The same path also draws rd-vanilla's `RF_FORCE_ENT_ALPHA`: the mesh keeps its
@@ -1105,8 +1795,8 @@ A player with `EF_JETPACK` wears `models/weapons2/jetpack/model.glm` on the body
 `*chestg` bolt, faded and hidden with a mind trick like a held gun. While
 `EF_JETPACK_ACTIVE` is set, `effects/boba/jet` plays at the pack's `torso_ljet` and
 `torso_rjet` bolts on the 8 ms effect cadence (twice each with `EF_JETPACK_FLAMING`),
-`bf_land` sounds when the jets start and `bf_blast-off` when they stop, and the
-`jethover` loop (plus `fire_lp` while flaming) joins the frame's loops
+the selected ignition sounds when the jets start and `bf_blast-off` when they
+stop, and the selected hover loop (plus `fire_lp` while flaming) joins the frame's loops
 ([jetpack.rs](../crates/sjk-viewer/src/jetpack.rs),
 [jetpack_submission.rs](../crates/sjk-viewer/src/jetpack_submission.rs),
 `cg_players.c:11843-11935`). A player who mind-tricks you shows no flames and makes no
@@ -1114,9 +1804,25 @@ jet sound. The chest attachment is initialized with the body's resting pose,
 including the shared fallback body, and equipping resolves the current pose
 immediately rather than waiting for the next pose upload. The stock pack's bind
 pose is already identity; personal replacement packs may omit its flame bolts.
+The jet graph joins the startup effect catalogue, so a replacement PK3's own
+flame/smoke shaders and nested dependencies are available before flight. Tail length
+uses the authored curve flags: a negative constant stays constant instead of
+shrinking toward an unused end value. A shader remapped to `clear` supplies no
+layers, including on exhaust tails; only an unknown shader gets the fallback spark.
+These rules are shared by the other EFX users, without a jetpack-specific renderer.
+
 Flight prediction now implements the equipped `PM_JETPACK` path described in
 [networking.md](networking.md#equipped-jetpack-prediction). In first person the
 pack remains hidden with the body, as in the reference.
+
+JoF EJK #43's `cg_jetpackOnSound` and `cg_jetpackHoverSound` (both default 1)
+select `bf_land`/`jeton` and `jethover`/`bf_jetpack_lp` respectively. The named
+asset tables and integer-choice semantics live in
+[jetpack_sounds.rs](../crates/sjk-client/src/jetpack_sounds.rs); both hover
+samples are registered at load, with fixed-capacity loop selection per frame.
+Start/stop use the actual wearer's source on `CHAN_AUTO`, following EJK #87,
+with normal positional falloff. The shared settings expose both choices in
+SJK and classic menus; see [client](client.md#jetpack-sounds).
 
 `EV_PLAYER_TELEPORT_IN/OUT` play `mp/spawn`, and `EV_BECOME_JEDIMASTER` plays
 `mp/jedispawn`, where the player's box (mins z -16, maxs z 40) lands when dropped up to
@@ -1153,9 +1859,44 @@ or Grip puffs there while `PW_DISINT_4` is set, and the body push blur for
 `EF_BODYPUSH`. The local player's effects come from its predicted player state,
 since stock rebuilds the local entity from `cg.predictedPlayerState` and the
 server never sends it; in first person they start at the local body's left
-hand, and Grip's puffs are third-person only. A player who mind-tricked the
-viewer still shows its beam and hand puffs, which stock draws before its
-mind-trick cut-off; only the body push blur is hidden for it.
+hand, and Grip's puffs are third-person only. Mindtrick hides these Force effects,
+the animation-driven sprays and the flamethrower stream/audio from the tricked viewer, after EJK #93. Active Force
+Sight defeats that hiding, as it does for the actor. Jetpack visibility/audio
+already uses the same rule. Existing emitted particles retain their normal lifetime.
+
+Grip victim puffs (`cg_gripVictimFX`, archived, default on) follow JoF EJK
+#33 and the later #90 victim path: `BOTH_CHOKE3` on the legs marks a choking
+actor, including while the torso transitions. Two red `gfx/effects/forcePush`
+puffs move in opposite directions at 55 units/s, live for 120 ms, fade their
+RGB from 60/8/8 to black and grow from radius 8 to 10 (`CG_AddPuff`). They use
+the existing 8 ms emission cadence to bound density at higher frame rates.
+The posed `cervical` joint is preferred, with head-minus-eight-world-units as
+fallback and a two-unit forward offset. Missing joints suppress the effect.
+Joint indices are cached at model load; the existing pose supplies positions.
+The viewed player's puffs are hidden in first person or while zoomed; other
+players and detached cameras retain them. This visual animation marker does
+not identify a Grip attacker or change gameplay. See
+[grip_victim.rs](../crates/sjk-viewer/src/grip_victim.rs).
+JA+ flamethrower presentation uses the documented table in
+[japlus_flame.rs](../crates/sjk-viewer/src/japlus_flame.rs), with the archived
+`cg_flameThrower` Auto/Off/JA+ override. `eFlags` bit 17 during a Lightning pass
+selects `mp/fthrw_bobafire` at the same left-hand attachment and 8 ms cadence;
+when missing, the preloaded retail `boba/fthrw` graph is used instead (JoF EJK
+[#67](https://github.com/JediofFreedom/JoF_EJK/pull/67)). Its forward direction is
+reversed with a half-turn around local up. SJK's quaternion frame also reverses
+the side axis, whereas EJK flips forward alone; asymmetric community replacements
+need live comparison before claiming exact appearance parity. When both graphs
+are missing, stock Lightning stays, without repeated load attempts during actor
+submission;
+the humanoid upper body uses `BOTH_FORCELIGHTNING_HOLD` with the standard 100 ms
+blend. `ET_GENERAL` entities with `eFlags2` bit 8 replay `env/fire_wall` after
+the reference 100 ms interval. Impact timers use presentation time, so they
+advance between snapshots and restart on a backward demo seek. The positional
+`bf_flame.mp3` sample's 2.9 s repeats retain snapshot server time. The weapon
+channel is stopped when firing ends, the player disappears or is muted, or the
+session ends. Models missing the named pose or hand keep the safe existing
+fallback; effect graphs and audio must exist in installed data. No server
+weapon or protocol rules are changed.
 
 EFX `bounce` and `intensity` are one key in retail: both set a primitive's
 single elasticity value (default 0.1) and its physics flag (`FxTemplate.cpp:44`,
@@ -1164,6 +1905,29 @@ its jaggedness (`FxScheduler.cpp:1502-1508`) and a camera shake as its strength.
 SJK applies it as stock, so Drain's `bounce 0.8 2` bolts get that jaggedness
 rather than the default 0.1, which draws them almost straight. `elasticity` and
 `chaos` are not retail keys and are ignored.
+
+A `Flash` primitive's colour is scaled as `CFlash::Init` scales it when it starts:
+by its distance from the rendered view, quadratically to nothing at 900 units, and to
+nothing beyond 60 degrees off the view axis past 100 units (brighter within them). It is
+then drawn as `CFlash::Draw` draws it, on the viewer rather than where it went off: stock
+places an `RT_SPRITE` 12 units along the view axis with radius `12 * tan(fov_x / 2)`
+(its size curve ignored), and `gfx/effects/whiteFlash` adds `$whiteimage` with
+`depthFunc disable`, so it covers the view's width (and more than its height) over
+everything. SJK draws it as a clip-space quad of those extents (`entity.wgsl` kind 6,
+the clash flare's path) in the shader's blend slot. Unscaled, `demp2/altdetonate`'s
+2048-unit flash lit the whole screen wherever a DEMP2 shock went off; drawn as a
+billboard at the shock, it was hidden by nearer walls and tinted the sky behind it up to
+a hard edge (Slash, hub report #125;
+[effect_flash.rs](../crates/sjk-viewer/src/effect_flash.rs)). A flash within 100 units
+behind the viewer now shows, as in stock. `localizedFlash` (a 2D picture at the effect's
+screen position) is not modelled; no retail effect uses it.
+
+A primitive's colour start and end are picked once when it spawns (`GetRGB_Colors`). An
+rgb `random` flag then scales the whole colour by one random number each frame
+(`CParticle::UpdateRGB`, `CLight::UpdateRGB`): SJK drew one per channel, which turned the
+DEMP2's white flash magenta, yellow and purple frame to frame (and tinted the other
+retail effects with the flag: lava, `env/powerbolt`, `mrancor/breath`, ship burners). The growing
+`gfx/effects/demp2shell` sphere `FX_DEMP2_AltDetonate` adds with that effect is not drawn.
 
 Effect particles share one pool of 4,096 slots, plus 256 kept for per-frame
 billboards (talk balloons, pickup icons, hook ropes)
@@ -1321,6 +2085,31 @@ effects carry the weapon's fire sound, which so lands on the event's own fire so
 12/10/2026 the local flash waited for the snapshot, a round trip after the shot, so every
 gun sounded twice (Creyon's report). Other players' flashes still start from the snapshot.
 
+## JA+ black sabers
+
+The compatibility policy in [black_sabers.rs](../crates/sjk-viewer/src/black_sabers.rs)
+takes server support from the session's `sjk_client::CompatProfile` (JA+ and
+TaystJK/jaPRO; no second identifier table) and reads the raw `CS_PLAYERS` colour
+indices, then applies `cg_blackSabers` and disable-mask bit 3 on supported servers
+(orange when black is off); elsewhere colour 11 keeps its ordinary fallback. The
+serverinfo/clientinfo scan, a fixed two-word hand mask over the 32 client slots, is
+redone only when configstring 0 or a player's configstring changes; the cvars are
+read each frame; held and thrown sabers consume it without
+allocating or changing runtime equipment ownership. Muted players retain their
+replacement colours. The default allows the feature, matching JoF EJK #50's
+corrected disable-bit direction.
+
+A separate blade material and alpha pass preserve the retail/RGB additive
+paths and every existing blade-skin slot. Black trails use alpha blending with
+the reference shader's two identical stages combined into one, retaining the
+existing trail lifetime and UV fade. Black blades/trails are excluded from the
+dynamic-glow image and emit no blade light. The renderer resolves installed
+`gfx/effects/sabers/blackglow`, `blackcore` and `blacktrail` images at load time,
+or generates black alpha coverage from its neutral profiles. Its smooth
+capsule presentation and generated fallback are not a claim of pixel parity
+with EJK's sprite chain or community textures. See
+[status](status.md#ja-black-sabers) for verification and limits.
+
 ## First-person saber body
 
 First-person saber mode draws the local posed body and arms instead of hiding
@@ -1349,9 +2138,18 @@ table of who wears which (filled from the hub's looks; ids and names are
 [unlockables.rs](../crates/sjk-viewer/src/unlockables.rs)'s); `BladeColor::Skin` carries
 the skin's number, trail and light wherever a blade colour is chosen (in the hand,
 thrown, first person, the menu stage). A skin whose pack is not loaded is the player's
-stock blade. A chroma ([unlockables.md](unlockables.md#chromas)) takes its saber's
-colour: `SkinColor::worn_with` sets the turn from the skin's hue to the colour's, the
-instance carries it (`chroma`, location 8), and `saber.wgsl` turns the skin's finished
+stock blade. So is a blade the local player chose to draw stock: a duel's
+(`cg_duelStockBlades`, `SaberSkins::set_plain`) or, for weak PCs, other players' or every
+blade (`cg_stockBlades` 1 or 2, `SaberSkins::set_stock`,
+[stock_blades.rs](../crates/sjk-viewer/src/stock_blades.rs)). `SaberSkins::get` then
+gives the world's blade no skin, so nothing below is drawn for it (no skinned instance,
+afterimage, glint, petal or trail and light colour of the skin), and the haze, lens,
+horizon and solid passes, which need a skinned blade in the frame, are skipped once none
+is left. The menus' preview takes the player's own skin from `SaberSkins::local` and the
+cards and pictures from the loaded skins, so they keep showing it. A chroma
+([unlockables.md](unlockables.md#chromas)) takes its saber's colour:
+`SkinColor::worn_with` sets the turn from the skin's hue to the colour's, the instance
+carries it (`chroma`, location 8), and `saber.wgsl` turns the skin's finished
 glow and core round the grey axis by it (`skin_turn_hue`); the light and trail turn on
 the CPU (`SkinColor::light_color`, `trail_color`).
 
@@ -1467,8 +2265,22 @@ the CPU (`SkinColor::light_color`, `trail_color`).
   the skin's room (the wisps' rise, the haze's reach, when on; `skin_room`, and
   `Instance::room` for the bounds), while the glow's own parts (embers, arcs, motes)
   keep fading at the glow's edge, so switching wisps or haze off changes nothing else.
-  The echo is an afterimage instance (`Instance::echo`) swaying on two slow waves
-  beside the blade, the tip more than the hilt, leaning a little. Heat haze is a
+  That room draws only the wisps, so past the glow's own reach (the capsule widened
+  `corona.reach` times, round the tip and behind the hilt) `skin_past_glow` skips the
+  glow and its parts, for a skin whose glow neither moves nor reaches further (no
+  glitch, scan, copies, glyphs or figures); and the wisps skip their noise where their
+  column cannot show (below the blade, past the top, far aside). Up close the room
+  covers much of the screen (17/10/2026, hub report 63).
+  The echo is a dimmed glow instance (`Instance::echo`) swaying on two slow waves
+  beside the blade, the tip more than the hilt, leaning a little, drawn with the whole
+  look. Afterimages (`Instance::ghost`, 17/10/2026, hub report 64) carry the
+  afterimages' own section bit (`OFF_GHOSTS`, never a section switched off since the
+  CPU makes them) with their fade below 255: the vertex stage gives them the stock
+  quad (no `corona.reach` swell, no room) and `afterimage_glow` draws the plain capsule
+  in the corona's colours at their middle heat (granulation at its middle, no flare,
+  the tongues' mean), beating, tinted and turned, with none of the noise or parts, in
+  both glow passes. Before, each of a swing's four drew the whole look over the widest
+  quad twice a frame; one fainter than 0.06 is no longer drawn (`saber_ghosts.rs`). Heat haze is a
   pipeline of its own (`vertex_haze`, `fragment_haze`, no blending, depth-tested): first
   in the effect pass (`GpuState::draw_particle_tail`), while the effect layer still
   holds the scene, each skinned glow quad with haze on (the vertex stage folds every
@@ -1529,7 +2341,12 @@ the CPU (`SkinColor::light_color`, `trail_color`).
   ([saber_ghosts.rs](../crates/sjk-viewer/src/saber_ghosts.rs)): each blade's state keeps
   up to four poses, one every `spacing` ms; a skin with `ghosts` submits the last ones
   as extra glow-only instances, dimmer each, skipping poses the blade has not moved
-  from. No allocation.
+  from. No allocation. A thrown saber leaves them too (23/10/2026, Kushina's hub report
+  127: the throw left no afterimages): its flying blade keeps its poses in the world, a
+  signature's (`GhostSpec::wearer`) as well, so they trail along its spin and flight
+  (`thrown_saber.rs` `flight_wake`). The poses and the blossoms' last tip are forgotten when
+  the blade goes from the hand to flight or back (`BladeState::fly`): kept in the wearer's
+  frame in one and in the world in the other, they would stand far off.
 - **Trail and light.** The skin's file gives its trail colour, its light colour (with
   the stock gain) and the light's flicker (an amount and up to two waves, phased per
   hilt).
@@ -1555,6 +2372,641 @@ moments, the Spectral's afterimages, the Runic spelling a name, the Banner outsi
 and in red and blue, the Chameleon in three places' light), rendered on one GPU and
 reviewed by eye; their cost not measured, not seen in a live match.
 
+## Holstered saber hilts
+
+The actor submission uses the same map-owned `HiltCatalog` meshes for held
+and holstered hilts. It creates no second Ghoul2/model instances. Actor-owned
+hip bone/back surface indices are resolved on model load, and visible holsters
+reuse the existing CPU/GPU pose matrices. Their fixed bolt cache follows rig
+retargeting and model scale. Missing left/right attachments are independent;
+a missing `*back` tag falls back to the right hip. The bolts are evaluated only
+while a stowed hilt is drawn, not while the saber is in hand; the staff handoff
+only checks that the model has a `*back` tag. With the feature off (setting,
+plugin bit or a server without the contract) an actor costs one flag test. The
+contract detected from `gamename` is cached until configstring 0 changes. Shared
+hilt object groups reserve two slots for each of 64 saber carriers (32 clients
+plus as many NPCs) on initial/dynamic model load; held and thrown hilts may grow
+them, while frame submission skips a stowed hilt past that capacity.
+
+[holstered_sabers.rs](../crates/sjk-viewer/src/holstered_sabers.rs) holds the
+named JA+ ownership/plugin contract and its player override.
+[holstered_saber_pose.rs](../crates/sjk-viewer/src/holstered_saber_pose.rs)
+implements the `rfemurX`/`lfemurX` hip bases and `*back` tag, with hip-tag
+fallbacks. [holstered_staff.rs](../crates/sjk-viewer/src/holstered_staff.rs)
+samples the installed torso override and latches each forward/reverse reach
+after crossing the handoff fraction. It does not synthesize an animation.
+Clientinfo changes invalidate the latch and give sound synchronization a new
+identity; model replacement and map teardown drop actor-owned state.
+
+[audio_holstered_staff.rs](../crates/sjk-viewer/src/audio_holstered_staff.rs)
+keeps bounded client slots with separate hilt and blade-skin sound layers,
+using the existing adapter's registered handles. Ignition waits for the
+reach (150 ms to appear, at most 2000 ms held). Shutdown at the put-away reach
+suppresses its late copy for 2000 ms. Only a staff carrier with a back reach
+reports a slot. A slot that is disabled or released (death, mount, cloak, an
+actor no longer submitted, a replaced player) plays its held ignitions and
+any shutdown the reach has not already played instead of dropping them; a
+server-time rewind and map changes discard them. Asset decoding remains outside these
+frame paths. The settings and visibility rules are in
+[client.md](client.md#holstered-saber-hilts).
+
+The reference is JoF EJK #42, #81, #95, #267 (`f21eee8`) and #300: its
+`codemp/cgame/cg_players.c` holster placement, visibility, frame latch and
+sound rules. The native cache ownership replaces its additional Ghoul2 slots.
+Mounted bodies are suppressed explicitly even though that reference's vehicle
+check was commented out. Source comparison and unit checks do not establish
+in-game visual, audible or populated-server performance parity.
+
+## Blade Lab designs
+
+Fourteen blade skins came from Creyon's Blade Lab, a three.js page in which each was
+first drawn by its own shader: Peppermint, Soap Bubble, Lava Lamp, Sketch, Hourglass,
+Comic, Quicksilver, Reactor, Obsidian Edge, Bleeding Kyber, Monarch, Phoenix, Serpent
+and Quantum. Their skin files describe them with the parts every skin shares, which
+came out far from the lab's look (Creyon's review of 17/10/2026, with videos of both).
+[blade_lab_designs.rs](../crates/sjk-viewer/src/blade_lab_designs.rs) names them in a
+table (`DESIGNS`: the skin, its number, the lab's glow reach `R`, how far its particles
+go, whether it has a solid pass, the lab's colour), and while `cg_saberLabDesigns` is on
+(archived, default 1; **Blade Lab designs** under Game options in both settings
+interfaces) each is drawn by the lab's own shader, ported to `saber.wgsl` (`lab_*`):
+
+- **Units.** The lab works in metres on a 1.08 m blade; a stock blade is 40 units, so a
+  unit is 0.027 m (`LAB_METRE`, `blade_lab_designs::METRE`). `lab_place` turns the glow
+  quad's place into the lab's: along the blade as on the blade itself (foreshortening
+  undone), across and the distance to the blade's axis as on screen. Each blade starts
+  4 cm inside its hilt (`LAB_START`), as a stock glow covers the hilt's mouth, and is
+  drawn narrower than in the lab by its `LAB_THIN` so it is a stock blade's thickness
+  and fits its hilt (Creyon's test, 18/10/2026: a gap above the hilt, blades too thick).
+- **The skin.** `LoadedSkin::shown` is the file without its sections (the design draws
+  its own parts, and the afterimages, echo, glints and pulse the CPU makes go too) and
+  with the lab's colour for its trail and light; its uniform carries the design in its
+  last lane (`design`: number, reach, room, solid). Eleven are chromas (all but Phoenix,
+  Obsidian Edge and Quicksilver): `lab_turn` turns only the parts that make sense in
+  another colour (the stripes, the wax, the sand, the plasma at rest, Bleeding Kyber's
+  pure part, Serpent's and Monarch's blade), keeping the red corruption, the snake, the
+  butterflies and the overheat. The sounds stay the file's. With `cg_saberLabDesigns 0` the files draw them
+  again; the change uploads the skins anew (`sync_saber_skins`).
+- **Glow.** `fragment_main` draws a design's glow quad with `lab_glow` (the dynamic glow,
+  `fragment_glow`, takes only `LAB_BLOOM` of it, capped, so a white core does not bloom
+  into a blob that hides the effects): the
+  lab's blade (`lab_blade`, the lab's `fx` for that design, core and all) faded out at its
+  reach, and its particles (`lab_motes`: sugar glints, bubbles that pop, wax specks,
+  doodled stars, spilled sand, vented sparks, edge sparks, pollen, flames and burning
+  feathers, green motes, the probability cloud), each a slot reborn every life at a new
+  place, never narrower than a pixel. The core line draws nothing for a design.
+- **Solid pass.** `vertex_solid` keeps a design with a solid pass, and `lab_solid` draws
+  the comic blade's cel-shaded body in its black outline and its words (VMMMM! on
+  lighting and switching off, SHWOOM!/VWOSH!/ZZAKT! on a swing, each swing of a chain its
+  own, KRAKK!/SHZAK!/BZZT! on a clash, in a five-by-six font), the quicksilver mirror column
+  with its beads and drops, the flat obsidian blade, Bleeding Kyber's drops and the
+  monarchs (Felucia's spores), which sit on the blade, lift off gently on a swing, drift
+  along it and land again once it is still. A design whose words outlast its blade
+  (`blade_lab_designs.rs` `LINGERS`: the comic blade, 1.6 seconds) keeps, from when its
+  blade begins going in, a whole-length instance with a swing lane of -1 that draws only
+  its switching-off word (`saber_submission.rs`, `lab_lingering`), so the word floats on
+  after the blade has gone and can be read. Its vertex stage stands that instance up the
+  screen (the camera's screen-up direction with the view direction taken out), so the word
+  faces the camera from every side and from above (Creyon's report of 20/10/2026: standing
+  upright in the world, it read only from in front and lay edge on seen from above).
+- **Motion.** A blade's swing, the seconds since it was lit, since it last clashed and
+  since its last swing began reach the shader per instance (`motion`, location 10;
+  [saber_motion.rs](../crates/sjk-viewer/src/saber_motion.rs)), kept with the blade's
+  trail state: the swing follows the tip's speed about the hilt as the lab's did (a full
+  swing at its 5.5 m/s; running with the blade still is no swing), a swing begins above
+  an idle stance's sway, only while its wearer's saber is in an attack (`saberMove`,
+  `in_attack` or `in_special`: a run's arm sway is none, Creyon's round 14; without a
+  snapshot the tip must have turned some 40 degrees within 0.45 seconds instead), and for
+  the designs that answer each swing (`blade_lab_designs.rs` `EACH_SWING`: the comic
+  blade's words) again every second of a chain without a pause; for the others a chain
+  counts from its first swing, a clash is one whose flare latched within 12 units of the blade
+  (`impact_spawn.rs` `note_clash`), and a blade seen growing out of its hilt is lit.
+  A thrown blade carries on the same state (`thrown_saber.rs` `flight_motion`, 23/10/2026,
+  hub report 127): its spin is its swing, measured in the world, and as no attack is known
+  in flight the tip must turn for a swing to begin. Menu blades are still.
+- **Changed from the lab** after Creyon's tests: each blade has light at its emitter
+  (`design_color`, as a stock blade's hilt sprite) so no gap shows above the hilt; the
+  hourglass's glass closes in a dome over the tip and its sand runs in 24 seconds, not 8;
+  the serpent climbs; the reactor (a mythical) heats over a 30-second cycle (calm,
+  heating over 6 seconds, a critical red with a slow strobe, a vent flash and cooling)
+  with a coloured core that reads from afar, magnetic field lines winding round it, arcs
+  between its rings while hot and a glowing emitter coil; Quantum gained a standing
+  wave, tunnelling blips and a collapse flash on each swing, and its ghost copies (an
+  option its wearer may switch off: `Ghost copies`, the `copies` section bit) show
+  whether it is held or swung; bubbles are larger and brighter; the comic words come
+  with swings and clashes only, larger and held 1.8 seconds. The Phoenix's wings,
+  which grew out of the blade, are not drawn. The lab's bloom pass is not; its halos are
+  the shader's own.
+
+An ignored GPU test (`blade_lab_designs_gpu_test.rs`) renders every design still, mid-
+swing and after a clash, checks the blade is lit and the picture's corner dark, and saves
+the pictures to the folder `SJK_LAB_PREVIEW` names.
+
+## Blade Lab signature shaders
+
+Creyon's Blade Lab grew into a collection of more than a hundred blades, each drawn by
+its own **signature shader** on top of SJK's skin shading, which the lab runs as a GLSL
+port of `saber.wgsl` (19/10/2026: the twenty-one mythicals first, then six of his reworked
+Blade Lab designs; round 8 replaced Nine Lives, World Tree and Elemental with Carbonite,
+the Uneti Tree and World Shift and added the Sith Holocron and the Exogorth: twenty-nine).
+A signature is three functions (and two more, below), each handed what the skin's file drew
+at that point and returning the blade's own: `sig_glow(g, b, r, px)` the glow's light,
+`sig_core(c, b, px)` the core line's, `sig_solid(o, b, px)` a layer blended over the glow;
+`b` is the place in units (across, along: 0 at the hilt, the blade's length at the tip),
+`r` the stock glow's radius there, `px` a pixel. They read the lab's uniforms: `uTime`,
+`uLength`, `uSwing`, `uClash`, `uIgn`, `uAge`, `uSeed`, `uFx`.
+
+- **Effects round the blade (round 8, 19/10/2026).** Built as Sol's own blades are: the
+  blade itself is the skin file's glow and core, which `sig_glow` and `sig_core` only
+  brighten, tint or mark (so it fits the hilt and fills the emitter as a stock blade
+  does), and solid parts (Carbonite's slab, the Sith Holocron's crystal, the Exogorth's
+  gullet) are drawn by `sig_solid` over it as Sol's ink and chrome are. Everything round
+  the blade is drawn by two more hooks, `sig_vol(ro, rd, px)` (added light) and
+  `sig_vol_solid(ro, rd, px)` (a blended layer), handed the view ray in the blade's own
+  frame (`sig_ray`: y along the blade from the hilt, z along a direction across it fixed
+  to the hilt, x across both): sparks, flames, bolts, rings, puffs of mist and shards are placed
+  round the blade in 3D and each is drawn as a soft piece facing the camera (the ray's
+  distance to a point or segment, `rayPt`, `raySeg`, `bolt3` in `lab.glsl`), as Sol's
+  arcs and the Void's orbiting black holes are; no volume is marched. `sig_edge` fades
+  everything out before the quad's edges, and `uFx` is 0 when the wearer turns the
+  effects off. `@solid 1` marks a signature with `sig_solid` or `sig_vol_solid`.
+- **A fixed frame and the full length (round 9, 20/10/2026).** Until round 9 the frame's x
+  pointed to the camera's side, so every effect turned round the blade with the view: in
+  Creyon's test they raced round it whenever he turned the mouse. The hand path now stamps
+  each blade instance with a direction across it that turns with the hilt (the socket's
+  direction's orthonormal turned by the weapon's rotation) and the blade's full length
+  (`Instance::with_frame`, vertex attribute 11, `frame`); the vertex stage passes the
+  direction octahedron-packed in `down.zw` and the length in `axis.w`, and `sig_ray` builds
+  the frame from it (a thrown blade or the menu stage, without one, from a fixed world
+  direction). `sig_full` places the three-dimensional effects on the full length and
+  shows them only once the blade is nearly all out (85 to 100 % of it), so nothing slides
+  up the blade while it ignites (it did, fast, with `uLength` growing).
+- **Flat as Sol's, only orbits in 3D (round 10, 20/10/2026).** Creyon: Sol's blades "only have
+  parts that are 3D". `sig_vol` and `sig_vol_solid` are now handed a flat view (`sig_flat`): a
+  ray straight through the blade's picture at its place `b`, from a little above (rings round
+  the blade read as ellipses), so everything they draw is a flat picture round the blade
+  facing the camera, as Sol's arcs, flares and wisps are, the same from every side. Only what
+  circles the blade is drawn along the true view ray in the hilt's frame, by two more hooks,
+  `sig_orbit` (light) and `sig_orbit_solid` (a layer): the Eclipse's suns, Obsidian Edge's
+  shards, Liquid Beskar's orbiting droplets, Carbonite's floating shards, the Kyber Cluster's
+  crystals and the Between Worlds duel. `tools/sig3d.py` in the Blade Lab draws the same way.
+- **Each its own, every part switchable (round 11, 20/10/2026).** Creyon: the mythicals all
+  had the same lines (the shared beams) and each effect must switch off on its own. A
+  signature now also wears Sol's lightning and prominences (`arcs`), souls, sparks and
+  starlines (`motes`) and a colour turn (`hue`) from its file, each with its own pattern, and
+  no longer shares the beams. Its options (`Signature::options`, at most six): its own parts,
+  named by `// @part` header lines and read in the shader with `part(k)` (the wearer's
+  choices ride on section bits a signature never uses, `SIG_PART_BITS`, gathered into
+  `uParts` by `sig_take`), then Sol's sections its file has (named by `// @arcs` and like
+  lines), then the swing and clash bursts (the pulse bit). A section named like a part already
+  listed joins that part's switch (#115: Holonet Feed's own flecks and its file's motes were both
+  "Data flecks" and listed twice; a test checks no signature lists a name twice). An id that
+  hashes onto a taken choice bit gets a number. The old `Effects round the blade` and `Ignition show` are gone.
+- **Nothing moves with the view (round 11).** Effects still raced when the view turned, the
+  wearer ran or the blade lit: many clocks ran at a rate that followed the swing (`uTime` times
+  `a + b × uSwing` jumps the phase by the clock times the change), and turning the view or
+  running turned the blade about its hilt in the world, which counted as a swing. The swing
+  is now measured in the wearer's own frame (`BladeMotion::record_turned`, the blade's
+  direction turned back by the body's rotation), no clock's rate follows the swing, and
+  `uLength` is the full length from the start (`sig_take`), so nothing placed along the blade
+  slides as it grows.
+- **Lower tiers and Sol's pieces (round 11).** A signature keeps its file's echo, glints
+  (`star`, `orbit`) and veins as well as its afterimages, haze, wisps and embers, offered as
+  options, and the built-in file's ones win over an older pack file (`Signature::adopt`). The
+  legendaries use them with fewer flat effects than the mythicals; `lab.glsl` adds `lvl`,
+  `recol`, `bands` and `fxFall` (rain, snow, streaks) for them.
+- **Round 12 (Creyon's test of round 11, 19/10/2026).** What a signature's glow draws past
+  the tip it has grown to waits for the blade to be out (`sig_full`; Star Dragon's coils stood
+  at full length while it lit). A signature's afterimages are kept in its wearer's own frame
+  (`GhostSpec::wearer`, `GhostTrail::instances_placed`): turning the view or running leaves
+  none, only the blade's own swing does. Sol's arcs and motes on a signature fade out at its
+  room instead of the stock glow's width, which had cut its prominences off (`faded` in the
+  arcs' block; their tip leaps keep their old reach). A signature's smoke (wisps) uses finer,
+  more curled noise with a soft edge (it looked square), and `lab.glsl` adds `fxSmoke` (soft
+  flat smoke), `fxStreams`, `fxFlakes` and `fxRingWaves`. `uKeep` is light a signature adds
+  in its own colours after a chroma's turn: Between Worlds' white and red duel and Bleeding
+  Kyber's red corruption (which is now a chroma: its pure part takes the wearer's colour) keep
+  their colours. Creyon's blades lost their clash rings, their tip glints and the rings that
+  were not their idea; the legendaries were reworked with three or four switchable effects
+  each, and Wraithlight's aura softened. A signature's swing (`uSwing`) now counts only a real swing
+  (a smoothstep from 0.45 of the measured swing): the arm's sway while running and the torso
+  following the view had stirred the effects that answer a swing.
+- **Round 12b (Creyon's second test, 19/10/2026).** Sol's lightning and prominences (`arcs`) on
+  a signature are drawn on two sheets through the blade's axis fixed to the hilt (`sig_arcs`,
+  `sig_ray`'s frame) instead of the picture facing the camera, which kept them on the same side
+  of the screen whatever the view, so they swung round the blade as he turned or ran; a sheet
+  seen edge on fades and the other carries them. The ignored GPU test's `SJK_SIGNATURE_ORBIT`
+  renders five views from a moving camera to check that effects stay with the blade. A
+  signature's echo is its blade alone, faded (it drew its own effects at full strength and cut
+  off). Smoke: `fxSmoke` and a signature's wisps (`sig_rising`) use broad, turned octaves so the
+  value noise's grid never shows, and draw none over the tip. Kyber Cluster's crystals are
+  hidden behind the blade. Star Dragon became the Ashla Radiance blade (same id), Balance was
+  redrawn as a silver blade between a ribbon of light and one of violet shadow, Ilum Aurora
+  Storm's curtains are soft sheets instead of bars, Between Worlds and Wraithlight are calmer.
+- **Sol's Sun (20/10/2026).** The Sun blade (001) became a signature of Sol's own,
+  `sun.glsl`, over its file's corona, flares and tongues. It is the first to answer the
+  blade going out: `uAge` at or past `GOING_OUT` (2000, `saber_motion.rs`) cools its
+  glow and core to a deep red sunset as the blade slides in, mirroring the sunrise it
+  lights with (deep red warming to white gold over 0.9 s, a white edge climbing at
+  `uLength × uIgn`). Its dawn flare waits in `sig_vol` until the blade is out (`sig_full`).
+  Coronal rain (`su_rain`) replaced `fxRays` (Sol: no straight spikes): three loops arch
+  off the blade with six beads each sliding down both legs. A clash draws an eclipse
+  (`su_moon`): a disc darkens glow and core where it lands, with a ring and an `fxFlare`
+  diamond at its edge near a third of the way through.
+- **Round 15 (Creyon's review of 20/10/2026).** No two blades share a look: twelve blades that
+  drew the Aurodium's wavy strands (`fxStreams`, which the Aurodium keeps) got their own effect
+  instead: Balance the scales of the Force (a beam tipping slowly, a sun of light on one end and
+  an orb of shadow on the other), the Jedi Spirits three spirits climbing round the blade in a
+  spiral (drawn in 3D, `sig_orbit`), Dathomir Blood Moon a red moon with a shadow sliding over it,
+  Force Echo a scale of time marks lit one after another, Hyperlane lane beacons in a chase,
+  Mustafar Eruption straight lava runnels, Naboo Core rising plasma globes, Royal Naboo golden
+  scrolls of embroidery, Scarif Tide waves rolling up it, Unknown Regions a far spiral galaxy,
+  the Ashla Radiance soft rays of light (`fxRays`), the Kyber Cluster and the Beskar Forge none
+  (a glint on the forge's steel). Hyperspace's coils turn slowly (two at 0.22 turns a second,
+  were four at 1.4) and its tunnel twists slower; its and the Ashla Radiance's effects take the
+  wearer's colour with the blade (`sig_vol` returns them rather than adding them to `uKeep`).
+  Between Worlds' duellists are bigger, further out and brighter. Felucia's spores each live a
+  cycle on the clock alone (grow on the blade, rest, lift off smoothly and drift away, fade),
+  so running or a chain of swings can no longer snap them back (they read `uSince`); it is no
+  longer a chroma. The Bleeding Kyber's red dots became drops that swell and fall in streaks and
+  hot embers arcing off its front. The Star Map draws a different figure each chart (a route, a
+  ring, a triangle, a spiral, a diamond, a crown, a lightning route). Other blades that looked
+  alike were parted: the Superlaser and Witchfire lost the green lightning (their file's `arcs`)
+  that made them look like the Sith Alchemy blade, the Kashyyyk Monsoon (falling leaves instead)
+  and Bespin Storm lost the lightning the storm blades shared, the Starforge's flames are a star's
+  white-gold rather than the Phoenix's orange, the Nebula Song's rings of song (the Singing Kyber
+  has rings) became clouds of rose, violet and teal, and Hyperspace lost its coils (the Reactor
+  and the Uneti Tree have coils). Fifteen blades whose glow hid their effects draw it at 60 to
+  80 % (a `sig_glow` wrapping their own): the Reactor, Hyperspace, the Dyson Sphere, the Kyber
+  Heart, the Bleeding Kyber, the Event Horizon, the Nebula Song, the Sith Holocron, the
+  Starforge, the Uneti Tree, the Witchfire, Mustafar Eruption, Hoth Avalanche, Yavin Vines and
+  Twin Suns. Legendaries richer than the rares (Creyon: each tier up must look better): the
+  Assassin Droid adds red targeting lasers that lock on and two armoured gear rings turning
+  round it (3D), Liquid Beskar waves of forge heat in its mirror, glowing edges and molten drops
+  off its tip, the Beskar Forge a quench after each strike (jets of steam, an afterglow ring)
+  and more sparks; the Superlaser's surges swell into balls of plasma and a charge gathers at
+  its focus. Of the rares only the Data Disc changed (Creyon: it looked cheap): three discs
+  turning, the middle one the other way, with hubs and written sectors, and packets of data
+  streaming up between them. Round 15b (Creyon: mythicals must not look cheap, Balance for
+  one): Balance's blade is split, white-gold on one side and violet on the other, with rays of
+  light fanning out of the light's side, tendrils of shadow off the dark's and larger scales on
+  chains; the Ashla Radiance opens two wings of light; three wraiths dart round and through the
+  Wraithlight (3D, with its mist and echoes option); the Jedi Spirits glow like a Force ghost.
+- **Round 16 (Creyon's review of 20/10/2026).** Effects round the blade are Sol's way: what circles
+  it is drawn in true 3D (`sig_orbit`), so it reads from every side. Sol's motes on a signature run
+  straight on past the tip (along and across from `blade_place`) instead of round the capsule's
+  end, whose seam cut a mote crossing the tip in half (Witchfire, Uneti Tree, Ashla Radiance,
+  Nebula Song, Kyber Heart). `Signature::adopt` takes every figure, lab and solid section from the
+  built-in file too: the hub pack's older additions for a hand-ported design (Death Star Plans'
+  pencil sketch, drawn from inside the hilt) reached the signature and ran through the hilt in
+  third person and the preview. Felucia's spores answer a new motion lane, `stir`
+  ([saber_motion.rs](../crates/sjk-viewer/src/saber_motion.rs) `BladeMotion::stir`, for the
+  designs in `blade_lab_designs.rs` `STIRRED`): how much the blade moves in the world, running as
+  much as swinging, rising in 0.3 s and falling in 1.4 s, so the spores rest on the blade while
+  idle, swarm round it in 3D following it while it moves, and settle back smoothly. Mortis's realm
+  turns every second time its ghost blades fold back into it (8 s a fold, a flash as it turns).
+  Hyperspace's coils are back, three, turning at 0.25 a second in 3D. Between Worlds follows a
+  picture of the World Between Worlds' paths: a translucent blue blade with sparkling edges and a
+  dimmed core, paths of light crossing the void, nebula clouds, the duel kept. The Holdo Maneuver
+  gains engine glows at the hilt that spool up before the ram; Wraithlight cold spirit fire;
+  the Ashla Radiance orbs of light circling it; the Bleeding Kyber lightning that crawls over the
+  bleeding part and flickers fast (fewer, forked bolts lashing out) and, on its pure part, beams
+  of light and sparks of both colours where they meet. Legendaries: Balance redone (two faces
+  turning round a grey blade, bands of light and shadow passing, a wave of each meeting in a
+  flash, a sun and an orb of shadow circling opposite each other), Twin Suns' sunset beams, Exegol
+  Rift's vortex of the dark side (3D) with bolts into the blade, Scarif Tide redone (sunlit
+  caustics, a waterspout in 3D, bubbles, spray), Royal Naboo a jewelled circlet in 3D instead of
+  the costly scrolls, Starkiller Frost at 65 %, Krayt Pearl redone (nacre, pearls in 3D), Unknown
+  Regions a hyperspace storm in 3D instead of the galaxy, Blood Moon its streams back with the moon
+  circling it in 3D, Liquid Beskar tendrils of liquid metal instead of forge heat, Beskar Forge
+  molten beskar poured down it instead of side steam. Rares: Sith Thorn (veins, a thorned vine in
+  3D), Jakku Sandstorm (a dust devil in 3D), Dac Reef (a school of fish in 3D), Puzzle Holocron
+  (a holocron cube in 3D), Christophsis Crystal (crystals all round in 3D, facets).
+- **Round 17 (Creyon's game test of round 16, 20/10/2026).** Sol's motes on a signature fade out
+  over the blade's last units, none past its tip, and stay within 3.2 units of it (they rose far
+  above the tip and went through the wearer's head: Wraithlight, Uneti Tree, Witchfire, Ashla
+  Radiance, Singing Kyber, Nebula Song, Kyber Heart, Exogorth, Event Horizon, Big Bang, Ilum
+  Aurora Storm, Abyssal Eye, Sith Alchemy). The Jedi Spirits' climbing spirits stop below the tip
+  and a spirit's trail is its own climb only (it reached back to the end of the last, which
+  stuttered at the tip). `lab.glsl` `bladeSeen` hides what circles the blade behind it (Balance's
+  orbs, Blood Moon's moon, Krayt Pearl's pearls showed through it); `fxSmoke` is drawn out to 2.7
+  widths (it was cut at 1.8, where its sides showed as straight lines: Beskar Forge's quench
+  steam, Twin Suns' heat). Twin Suns' sunbeams fade out well inside its room, without dust. Scarif
+  Tide's sparkles twinkle smoothly (they jumped 8 times a second) over one web of caustics;
+  Between Worlds' edge glitter likewise. Liquid Beskar's sparks are silver; Beskar Forge has no
+  pour (it drew a line above the tip). Royal Naboo: interlaced filigree round a crimson thread and
+  a golden silk veil in 3D. Dac Reef redone as one coral: a porous stone body over the light
+  (`sig_solid`), its pores showing the blade, polyps breathing in their rims. Puzzle Holocron
+  redone as a lattice of panels turning row by row round its core. The Deflector Shield's dome
+  closes over the tip. No figures in Creyon's blades (Dac Reef's fish, Puzzle Holocron's cube
+  and Royal Naboo's jewels are gone).
+- **Round 18 (Creyon, 21/10/2026: soften, do not remove).** The Bleeding Kyber's pure part draws its
+  light at 45 % (was 70 %), its aura, beams and front at about half, and its red corruption
+  stronger, so the pure light no longer grows over the red part. Every layer of Mustafar Eruption
+  is kept and softened (flames, drips, sparks, fountains, ash); Event Horizon's rings, Exegol Rift's
+  storm, dust and vortex bolts, Wraithlight's spirit fire and frost, Beskar Forge's flames,
+  Starkiller Frost's mist and Holdo Maneuver's engines and haze are each a little softer.
+- **Round 19 (Creyon, 21/10/2026: everything in 3D, nothing cut, mythicals more mythical).**
+  `sig_vol` and `sig_vol_solid` now take the true view ray in the hilt's frame, as `sig_orbit`
+  does (Creyon, from above: flat effects followed the camera), so every effect round the blade is
+  the same thing from every side; `sig_flat` is gone. What was laid out in the blade's flat
+  picture now stands round the blade: `fxSmoke` is a cloud marched in six steps, `fxStreams` and
+  `fxFlakes` go all round the blade, a new `turnY` turns a piece laid out in the picture to its
+  own place round the blade (Between Worlds, Data Disc, Force Echo, Hyperlane, Imperial
+  Schematics, Jedi Texts, Holdo Maneuver, Moisture Farm, Mustafar Eruption, Sith Thorn, Star
+  Dragon's wings in a shallow V, Victory Fireworks as spheres), Star Map's figures wrap round a
+  cylinder, the Deflector Shield is a true shell with a dome, Ilum Aurora Storm's curtains hang on
+  cylinders, Temple Sunbeam's and Twin Suns' shafts and Jakku's and Bespin's gusts are slabs and
+  streaks at their own depths. Nothing is cut at the quad's edge: `uReach` (set by `sig_take`) is
+  how far the quad shows an effect in full, and the lab's pieces fade (`roomFade`) or stay inside it
+  (Reactor's shock ring was cut where it left that room; it now races out to 6.5 units). Sol's
+  arcs that do not leap from the tip fade out over the blade's last units, so no prominence passes
+  the tip (Eclipse, Twin Suns, Dyson Sphere); Eclipse's own loops end below it. The ignored GPU
+  test has a cut-off check (`SJK_SIGNATURE_EDGES`: each moment drawn again without `sig_edge`, the
+  difference marked) and closer orbit views with two from high above; run over all 128 it found only
+  Kessel Spice's crystals, drawn out to the quad's edge, now kept inside its glow. Every mythical signature
+  (`SIG_MYTHICAL`, set by `Signature::module_source` from the catalogue tier) awakens when lit (a
+  surge up the blade, a flare and a ring at the tip), breathes (a slow wave of light up it) and
+  rings out on a clash, in its own light's colour (`sig_mythic`). Blades: Mortis's effects reach
+  down to the hilt (ghost blades from low on it, a second Father's ring, the Daughter's beams, the
+  Son's red smoke); Liquid Beskar's tendrils became rings of liquid beskar rippling up it (beskar
+  has none); Yavin Vines and the coils and streams of Aurodium, Blood Moon, Event Horizon and Uneti
+  Tree start at the hilt; Jakku's dust devil turns a third as fast; Bespin Storm's gas giant bands
+  swirl round it as a cloud with tibanna gas rising; Starforge draws the star down a funnel into the
+  forge (star siphon) and throws a forge nova every fourth blow. Kyber Heart and Christophsis
+  Crystal are chromas. The Clone Wars design (`lab_comic_*`) gets five parts its wearer can switch
+  off: a see-through comic panel of halftone dots and speed lines behind a swing, action bursts of
+  impact lines on the blade (no bubble behind the words, which stay as they were), clone markings
+  (212th orange and 501st blue stripes sliding up its body), a holo flicker (a second in nine as a
+  blue hologram) and cartoon smoke puffs and spark stars (with its particles). With its comic panel on, its swing
+  trail is comic speed lines instead of the blur (`saber_trail.wgsl` style 4,
+  `SkinColor::comic_trail`): tapered streaks in the blade's colour, more toward the tip, and a bold
+  line where the tip went (Creyon: comic lines instead of afterimages). A signature's three
+  pipelines are built side by side when a blade needs them now (`saber_gpu.rs`), so effects
+  come in sooner when a blade is first worn.
+- **Round 20 (Creyon, 21/10/2026: the pictures, the glow up close, the launch).** The
+  Collection's pictures look from 20 000 units away, and the effects' sums lost their precision
+  there and smeared across the blades (bars, dashes, things the blades do not have): `sig_ray` now
+  starts a far camera's ray a hundred units before the blade. The pictures are seen a little from
+  the tip's side, as before round 19, so rings read as rings, and their effects' frame is a
+  wearer's. That frame (`saber_submission.rs`) is now the wearer's forward square to the blade
+  (the hilt model's own only as the blade comes round to point forward), so what spreads to a
+  blade's sides spreads to the wearer's left and right (Ashla Radiance's wings were one at the
+  side and one elsewhere). Close up, a signature's glow round the blade (not its core) softens to
+  about half within a few metres (`near`), and a signature reaches the bloom at 55 %
+  (`SIG_BLOOM`), so its effects are not hidden behind its glow. Abyssal Eye's iris and pupil are
+  a true eyeball in three dimensions (`ae_eyeball`), watching whoever looks at it. Hyperlane,
+  Nebula Song, Deflector Shield and Quasar are chromas. Signature pipelines are built by two
+  threads from a queue (`BuildQueue` in `saber_gpu.rs`): a blade worn or in the preview first,
+  then the Collection's pictures (until 21/10/2026 also every loaded signature from launch, resting between those
+  (round 19's four at once stuttered the game at launch; with every build alike the preview's
+  waited behind the pictures and most blades seemed not to load); since 21/10/2026 a signature is
+  built only once a blade draws it). A skin's glow/core pair is likewise uploaded only once a blade
+  draws it (`Runtime::upload_drawn`): all 165 of the hub's skins up front were about 45 MiB of
+  video memory on every world (128-pixel generated glows). A signature now builds only its
+  glow pipeline and, with a solid layer, its solid one; its bloom is the shared pipeline's, its
+  blade's glow alone. The queue and the pipelines are the graphics context's
+  (`saber_gpu::Signatures`, held by `gpu_context::Context`), shared by every world built on it:
+  until 21/10/2026 each map's world started its own queue and threads (which never ended) and
+  built every loaded signature again, about 130 builds a map change.
+  Also in round 20: Abyssal Eye's reality cracks tear out and fade where they reached instead
+  of shrinking back into the blade; Puzzle Holocron's rows read (darker panels, a tone a row,
+  bolder seams, a softer core); Thermal Fuse is a braided gold cord burning down from the tip,
+  ember red and smoking behind the point, popping at the hilt; Senate Glass's blade is itself a
+  stained-glass column (`sig_solid`) with coloured light round it; a signature's veins start at
+  the hilt's mouth (`sig_from_mouth`: Cockpit Console's circuits reached below the hilt);
+  Takodana Rain gets rings rippling out where drops land and Starfighter Canopy slanting
+  streaks and landing lights, so the two no longer look alike; Victory Fireworks is a chroma whose
+  fireworks keep their colours.
+- **Round 21 (Creyon, 21/10/2026: loading, Clone Wars in 3D, fixes).** Signature modules are
+  slimmed before they are built (`slim` in `blade_signatures.rs`: the designs' glow and solid
+  pass emptied, as a signature skin is never a design, and every function its pipelines do not
+  reach left out), a signature builds only its glow pipeline and, with a solid layer, its solid one,
+  and the build queue runs two or three builders (Creyon: at launch the effects took minutes to come
+  in). A skin reload (entering a server) keeps every signature already built, whatever number it
+  loads at (Creyon's log: 233 builds for 128 blades). The Clone Wars blade's toon body, its cartoon smoke and its spark stars are drawn in three
+  dimensions along the true view ray (`comic_body3`, `comic_puffs3`); its words, panel and impact
+  lines stay as they were. Sith Thorn's petals, Otoh Gunga's bubbles, Cantina Lights' spots of
+  light, Holo-Recording's dashes and Imperial Schematics' rungs no longer lie in one flat sheet
+  (seen edge on they were slivers or hid in the blade). Puzzle Holocron's lattice is a solid shell
+  over the core with its turning row lit up; Senate Glass's panes light up row by row as a wave of
+  sunlight rises.
+- **Round 22 (Creyon, 21/10/2026: nothing seen through the blade).** The lab's `rayPt`,
+  `raySeg` and `ringD`, the signatures' own ring helpers, their rings across the blade
+  (`rayAt`), `fxSmoke` and the Clone Wars puffs, stars and mythical rings in `saber.wgsl`
+  (`ray_behind_blade`) hide whatever lies behind the blade's body along the ray (`behindBlade`);
+  what lies on the blade itself is never hidden, and bounds and the blade's own axis use the raw
+  distances (`rayPtRaw`, `raySegRaw`). Liquid Beskar's rings no longer show through the blade, and
+  the Clone Wars halftone no longer reaches below the hilt.
+- **Round 23 (players' reports after the 2026.1021.1 release: pixels at the tip, hard lines).**
+  A skin's core is sampled with the derivatives of its coordinates before the rounded tip narrows
+  them (`core_coordinates_at` with `core_breath`; the shaft's, where the two are the same): in the
+  tip the narrowing runs to a hundred times within a pixel and picked the core image's smallest
+  mip, which drew a bright rim of pixels round the end of every signature's core, in the game, the
+  Collection and the holocron cards. A signature's core fades out before its quad's sides
+  (`skin_core`): the core image's fringe is still a tenth as bright at its border, which drew a
+  straight edge along both sides of the line up close and a faint box past the narrowed tip. Round
+  22's hiding behind the blade is soft: `behindBlade` (and `ray_behind_blade`) fades in as the view
+  turns from along the blade instead of switching off at once, and ends before the tip where the
+  blade narrows; a hidden piece's distance goes through `hideD` (`hide_d`), which narrows and dims
+  it over the blade's soft edge, instead of adding a thousand times the hidden share, which cut it
+  at a hard edge and drew a box round the tip whenever a blade pointed at the camera; the
+  signatures' own ring code and `bladeSeen` do the same. `fxFlare` is skipped only where its widest
+  halo has faded (it ended at a hard ring), and Hypermatter's and the Uneti Tree's pulses fall off
+  over their fronts instead of ending at a line across the blade, as does the Starfighter
+  Canopy's. The other early-outs that cut glow at a line wait until it has faded: `fxFlakes`
+  (a dome seen along Yavin Vines), `fxCoils`, `fxRays`, `fxArcs` and `fxFall` in the lab, and
+  Balance's, Holo-Recording's and Orto Plutonia's own; `fxSmoke` takes a step at most about a
+  third of the cloud's width, up to 12 (a long path along the blade was sampled six units
+  apart). The blocky designs keep their look with edges smoothed over about a pixel (`aaStep`,
+  `cellMix` and `aaSquare` in `lab.glsl`): Code Cylinder, Canto Bight, Flimsiplast, Death Star
+  Plans, Cargo Stack, Holonet Feed and Targeting Display. Code Cylinder's and Flimsiplast's
+  stripes still alias seen right along the blade.
+  Sol's review (22/10/2026): the softened pulses are scaled back to their old peak (Hypermatter's
+  and the Starfighter Canopy's by 2.22, the Uneti Tree's second pulse 0.96 for 0.6), as their
+  fronts' fall-off had dimmed them to 45 and 63 percent. The hiding behind the blade no longer
+  ends 1.4 units before the tip (Exegol Rift's tip flare and Quasar's jet showed through it): its
+  width narrows with the rounded tip (a quarter circle over the last 1.4 units) to the point, so
+  nothing behind the tip shows and no dark round end is drawn past it. The tip fix needs the
+  core's coordinates without the tip's narrowing as well (`filter_uv`), on every skinned blade,
+  not only the signatures. Both come from one skin lookup per pixel (`core_line`, which also
+  gives the glitch's colour split): the first version ran `skin_at`, `skin_wave`, `skin_glitch`
+  and `skin_jitter` a second time for them, which the timing below counts. In
+  Creyon's game (third person and free camera, in front of a wall) Obsidian Edge still drew a box
+  round its tip: its edges' orange bloom stopped at once level with the tip (`inside` was a step;
+  it fades round the tip and into the hilt now), and its heat haze showed a stale strip cut at
+  straight edges, as the haze (and a black hole's lens) bends the effect layer's `original` image
+  up to 2 (6) percent of the screen outside the effects' rectangle, where that image keeps an
+  older frame: the rectangle (`effect_bounds`) now has that much more room on every side on a
+  frame that draws a haze or a lens (`HAZE_REACH`, `LENS_REACH`, `Bounds::bend`); other frames
+  keep the tight rectangle. Hypermatter's pulses come out of the hilt softly too.
+  The timing (Creyon's RTX 5070, Windows 11, `signature_gpu_cost_against_stock` with the 12
+  heaviest signatures, 33 blades a frame, `main` and this branch timed in turns, twice each, the
+  lower kept): the first version cost the 12 together 12 to 19 percent more than `main`, most of
+  it in the four arc blades (Sith Holocron, Quantum, Carbonite, Reactor, a fifth to a third more),
+  as `fxArcs` drew every bolt wherever its arc's glow could reach. Each of an arc's three bolts is
+  now drawn only near its own middle, its glow made to end 1.7 past it (`arcGlow`); `fxFlare` is
+  cut at 12 sizes (18 cost too much) and `fxSmoke` at 12 steps (16 cost the smoke blades a sixth
+  more seen along them). After that the 12 cost 2.0 (game), 1.8 (close) and 2.8 (along) percent
+  more than `main`, with the stock blade's own time (the stand-in) 3 to 4 percent more, so about
+  the same: Sith Holocron, Quantum and Carbonite 7 to 19 percent less, the others within a tenth.
+  Reactor still cost 13 to 17 percent more: its lightning was worked out while weighted to
+  nothing (cold and still, over half its cycle), and the arcs' outer bound used the arcs' asked
+  reach, not the reach the blade's room caps them at (`min(reach, 0.6*uReach)`). With both
+  fixed, timed again the same way: Reactor costs 3 percent less to 1 percent more than `main`,
+  Sith Holocron, Quantum and Carbonite 7 to 19 percent less; the stock blade's own time is 3 to 4
+  percent more in every run (the tip's second skin lookup and the softer hiding). The second
+  lookup was removed after this timing (`core_line`, Sol's review of 24/10/2026); not timed again.
+- **The big effects (round 9).** `lab.glsl` holds shared pieces every mythical draws its
+  own way (flat since round 10): `fxRays` (beams shooting out of the blade and fading),
+  `fxArcs` (Storm-like lightning leaving the blade, arcing out on any side and coming
+  back, with a fork), `fxSparks`, `fxCoils` (strands of light wound round it with knots
+  running along them), `fxMotes`, `fxShock` (a ring racing out), `fxFlare` (a star facing
+  the camera), `fxAura` and the ring distance `ringD`. Each mythical's round-8 effects are
+  kept (`r8_vol`) and its own layer of these added on top (`sig_vol`).
+- **Source.** The lab's GLSL is the source, kept in
+  [blade_signatures/](../crates/sjk-viewer/src/blade_signatures/) (`<name>.glsl`, the lab's
+  helpers in `lab.glsl`, which also holds the shared lightning bolt, Storm-like arc loop
+  and helix helpers) beside its WGSL, which
+  [scripts/blade_signatures.py](../scripts/blade_signatures.py) writes (`--check` fails
+  when one is out of date). The script reads the lab's GLSL subset, infers every
+  expression's type and writes readable WGSL (scalar builtin arguments splatted, `mod`
+  a floor modulo, `?:` a `select`, `out` parameters pointers, assigned parameters local
+  copies, swizzle assignments split, names `saber.wgsl` already takes renamed). Each
+  translation was checked against naga's own GLSL front end: every signature rendered
+  through both over a grid of blade places at four moments gave the same colours
+  (largest difference 0.001), on Linux with lavapipe.
+- **Drawing.** [blade_signatures.rs](../crates/sjk-viewer/src/blade_signatures.rs) names
+  the signature skins (`SIGNATURES`); a loaded skin with one carries `LAB_SIGNATURE`
+  (100) in its `design` lane, with its `@room` (units, in the lane's metres) and `@solid`
+  (`@moments own` keeps a mythical out of `sig_mythic`: the Sun draws its own sunrise and
+  eclipse),
+  and its chroma's own hue in `design_color.w` (-1 for none). A signature replaces a
+  hand-ported design of the same skin (Monarch, Obsidian Edge, Quantum, Quicksilver,
+  Reactor, Serpent, Peppermint, Soap Bubble, Lava Lamp, Sketch, Hourglass, Fiber Optic,
+  Phoenix and, since round 9, the Bleeding Kyber now draw Creyon's reworked lab shaders;
+  round 9 rebuilt the Reactor, Mortis and Bleeding Kyber Sol's way and gave Obsidian Edge
+  and Liquid Beskar their pieces in 3D). `saber.wgsl` draws it by
+  the skin's own passes, as the lab does: `skin_glow_at`, `skin_core` and
+  `fragment_solid` each hand their result to the signature (`sig_take` sets the uniforms
+  from the instance: its clock and seed, length, `motion`'s swing, the clash fading at
+  2.2 a second, the age, and the ignition over its first 0.42 s), the glow quad reaches
+  the signature's room and the past-glow shortcut is off for it, its core never runs past
+  the tip, and the file's own glow stays round the emitter as a stock blade's covers the
+  hilt's mouth. The `saber.wgsl` every other blade uses holds stand-ins that change
+  nothing between `// @signature begin` and `// @signature end`; a signature skin's own
+  module is that file with them replaced by `lab.wgsl` and its own (`module_source`).
+- **The place on the blade.** The glow quad's `blade` coordinates are measured as if the
+  quad were seen square on; under a close perspective (first person, looking along the
+  blade) they stray far from the blade itself, so the lab's blades started well above the
+  hilt and ran on in a line past the tip there (Creyon's test, 19/10/2026). The quad now
+  passes the view ray and the blade's axis (`ray`, `hilt_at`, `axis`, locations 13 to 15),
+  and `blade_place` finds the true place: the point on the axis nearest the ray (along) and
+  the ray's distance from it (across). The signatures and the hand-ported designs
+  (`lab_place`, which no longer undoes a foreshortening, and whose blades now start 1
+  unit inside the hilt, `LAB_START`, as a stock core does) use it.
+- **Colour.** A chroma signature takes its wearer's colour outright (`sig_recolour`):
+  every coloured part becomes the wearer's hue, at least well saturated, and only its
+  white-hot parts stay white; turning the hue round left the lab's many-coloured and pale
+  blades hardly changed. Most are chromas; Balance, World Shift, the Sith Holocron, the Exogorth,
+  Felucia Spores and Force Echo (round 15) keep their
+  own colours, as do Obsidian Edge, Quicksilver, Mortis (day and night) and the Bleeding
+  Kyber (its red corruption). A signature's solid layer may keep its own colours where it
+  sets `uOwn` (0 to 1; the Abyssal Eye's amber eye, round 9).
+- **Options.** Every signature skin offers its wearer `Effects round the blade` (off: only
+  the blade itself, nothing past a stock glow's width or the tip), `Swing and clash
+  bursts` (off: swings and clashes set nothing off) and `Ignition show` (off: lit at
+  once), `Heat haze`, `Smoke` (wisps) and `Embers` when its file has them, which the
+  renderer draws round it as round Sol's blades (round 9: they were stripped before, so
+  the Starforge never had the Sun's heat), and `Afterimages` (`Signature::shown`); a hand-ported
+  design offers `Particles` and `Swing and clash bursts` (and Quantum its ghost copies).
+  They ride on the section bits these skins have no other use for (arcs, motes, hue).
+- **Pipelines.** [saber_gpu.rs](../crates/sjk-viewer/src/saber_gpu.rs) builds every loaded
+  signature skin's glow, bloom and solid pipelines from its module one after another on a
+  thread of its own as soon as the skins load (`sjk-blade-signatures`), so a blade worn
+  later is ready; one a blade wears before its turn comes is built at once on a thread of
+  its own. That skin's run of instances is drawn with them once they exist; until then
+  the shared pipelines draw it from its file alone. The log names how long each took, or
+  why it failed. `cg_saberLabDesigns 0` turns the signatures off as it does the designs.
+- **Time.** A signature never speeds its clock up with the swing (`uTime` times a rate
+  that follows `uSwing` jumps the phase by the clock times the change, and the game's
+  clock runs on for minutes: Starforge's forge raced, 19/10/2026); swings change how much
+  is shown, not how fast.
+- **Files and sounds.** A signature skin whose file is in no pack is drawn from the file
+  built into the client (`<name>.bladeskin`: the lab's base colours with the signature's
+  `@palette`, and a heat `haze` for the hot ones: Starforge, Quasar, Dyson Sphere, Star
+  Dragon, Superlaser, Witchfire, World Shift and Big Bang), so they show before the hub's
+  pack carries them. Its sounds are at
+  `sound/sjk/sabers/<name>/`, synthesized by the Blade Lab's sound scripts; until a pack
+  carries them only the stock sounds play. A pack's older file of a skin that is now a
+  signature keeps its images and colours, but the sounds, haze, wisps and embers are always
+  the built-in file's (`Signature::adopt`, round 9: the Sith Alchemy still hissed with the
+  snake design's sounds from the hub's pack).
+
+Two ignored GPU tests render the signatures through their own pipelines and real glow
+and core images: `blade_signatures_gpu_test.rs` still, mid-swing, after a clash,
+igniting and green for a chroma, checking the blade is lit and the corners dark, saving
+the sheets to `SJK_SIGNATURE_PREVIEW` (`SJK_SIGNATURES` picks some); and
+`blade_views_gpu_test.rs` each signature and design beside a stock blade side on, from a
+third-person camera and from first person looking along the blade, saving to
+`SJK_VIEWS` (`SJK_VIEW_SKINS` picks some).
+
+### Falling blossoms
+
+Built 21/10/2026 for the Varykino Blossom (blade 166, Kushina's idea: "the afterimage like
+the spectral blade has, could be these falling blossoms"). A signature may shed real petals
+when it is swung, which its own quad could not hold: they are particles in the world
+([saber_petals.rs](../crates/sjk-viewer/src/saber_petals.rs)).
+
+- **Declared** by the signature's header: `// @petals {"part":3,"per_unit":0.07,"life":2.6,
+  "size":1.6,"fall":38.0,"drift":14.0}`. `part` is the signature's own part (its `// @part`
+  line, from 0) that switches them, so the wearer turns them off in the Collection like any
+  other part and every SJK player then sees none; `per_unit` petals for each unit the tip
+  travels, `life` seconds, `size` units, `fall` and `drift` units a second. A test checks
+  every `@petals` line parses, is in range and names one of its parts.
+- **Shed** in `saber_submission.rs`: each blade keeps its tip (`PetalEmitter` in its
+  `BladeState`) in its wearer's frame, as the signatures' afterimages are, so turning the
+  view or running sheds none, only the blade's own swing; the tip is the whole length's, so
+  a blade growing out or going in sheds none either. At 0.07 a unit a hard swing (its tip at
+  600 to 1000 units a second) sheds 40 to 70 a second, about 150 alive a blade. The owed share carries over
+  frames; at most 6 a blade a frame and 256 waiting (`StateSlab::petals`); a jump in time
+  or a pause of more than 200 ms forgets the tip. Each petal starts on the blade's outer two
+  thirds with a fortieth of the tip's speed (the swing's breath, at most 40 units a second),
+  sinking and drifting sideways.
+- **Spawned** by `saber_petals::frame` (after the contacts and rain steam in
+  `entity_lights.rs`) as billboard particles of the bundled petal pictures
+  (`assets/petals`, drawn by `scripts/petal_assets.py`: three tints of one cherry petal,
+  `shaders/sjk_petals.shader`, mounted below game data as Order 66's confetti), turning as
+  they sink, stopping where they land on the floor (`apply_physics`, no bounce) and fading
+  over their last third. They count against the particle pool like any effect.
+  Their three shaders are in `effect_assets::CODE_SHADERS`: the frame's effect materials load
+  only the shaders listed there or named by an effect file, and without them the petals drew
+  the stand-in sprite (yellow dots, Sol's first test, 21/10/2026). A thrown
+  saber sheds them along its spin and flight, its tip measured in the world (23/10/2026,
+  hub report 127).
+- **Embers** (`"kind": "ember"`, 26/10/2026, the Sun's Swing embers extra,
+  [unlockables.md](unlockables.md#extras)): sparks flung off along the swing (`fling`, the
+  share of the tip's speed a shed piece leaves with: 0.16 for them, a petal's 0.025 when
+  absent; at most 1600 times it, units a second), rising as hot air does and flying on
+  through the world rather than settling. One white spark picture (`ember`, drawn by the
+  same script) drawn added to what is behind it (`GL_SRC_ALPHA GL_ONE`), the particle's
+  colour cooling from white gold to deep red and its size shrinking to a third over its
+  life. An extra's `sheds` is read as a `@petals` line without its part, for a skin that
+  sheds nothing of its own.
+- **Paper cranes** (25/10/2026, the Thousand Cranes): `"kind": "crane"` on the line (the
+  default is `"blossom"`) and `"rise"`, units a second it climbs (default 0), turn the petals
+  into paper cranes that climb away from the swing instead of sinking: `// @petals
+  {"part":4,"kind":"crane","per_unit":0.035,"life":2.4,"size":2.6,"fall":0.0,"drift":12.0,
+  "rise":42.0}`. Each is one crane picture in white paper (`crane.png`, flying right, and
+  `crane_left.png`, mirrored, drawn by `scripts/petal_assets.py` from the same triangles as
+  the shader's crane) tinted a colour of paper by the particle (`rgbGen vertex`, the eight
+  of the shader's flock), kept nearly upright, and flying on through the world
+  (`apply_physics` off) until it fades. Their two shaders are in `CODE_SHADERS` with the
+  petals'.
+- **Ash** (25/10/2026, the Hearth): `"kind": "ash"` sheds flakes of ash that drift down and
+  settle as the petals do: a ragged grey flake (`ash_grey.png`) and, one in three, the same
+  flake with its edge still glowing orange (`ash_ember.png`), both drawn by
+  `scripts/petal_assets.py`, tumbling as they fall.
+
 ## Saber trails
 
 A blade grows and shrinks as it is switched on and off after
@@ -1570,11 +3022,56 @@ A slice lives `trailLen / 5` ms of the current `saberMove` (30–40 ms for most
 moves, 40 ms when the move authors none) and fades by scrolling the clamped
 blur texture, not by alpha. The short visible arc is stock behavior; frame rate
 changes the slice count, not the arc's duration. Slices split along new tip to
-old muzzle as `CTrail::Draw` does. With `cg_saberContact` on, the tip stops at
+old muzzle as `CTrail::Draw` does. A blade skin's blur trail is drawn in the skin's trail colour throughout:
+stock adds the white `blurcore` untinted, which washed every skin's trail out to white
+(Creyon's report, 17/10/2026), so for a skin the glow and the core both take the trail colour,
+deepened (normalised to its brightest channel and squared) so a pale trail colour does
+not add up to white (vertex style 3, `saber_trail::vertex_style`). Stock blades, black blades
+and the sword trail are unchanged.
+
+A skin's trail may be other than the blur (`SkinColor::trail_kind`, `blade_extras::TrailKind`):
+the Clone Wars design's comic speed lines (style 4), or what its signature's `@trail` line or
+one of its extras ([unlockables.md](unlockables.md#extras)) asks for. Built 26/10/2026 for
+the Sun blade (Sol: a sun or fire trail; 1 the default, the Solar card unlocking the others):
+
+- **Plasma** (style 5, every Sun's, `// @trail plasma`): white gold where the blade just
+  passed, cooling through the trail colour to deep red as the slice ages, brightest toward
+  the tip with a white-hot seam where the tip went, its trailing edge torn into flames by
+  two octaves of value noise laid in the world (so they run on unbroken from one slice to
+  the next) and rising with the slice's age. The colours come from the trail colour
+  normalised to its brightest channel, so another blade's plasma cools from its own.
+- **Flare** (style 6, the Sun's Flare trail extra): the plasma, and past the tip flames and
+  thin magnetic loops licking off it, as prominences off the Sun's limb: its slice reaches
+  `saber_trail::FLARE_REACH` (10 units) past the tip, the texture's V going below 0 there,
+  and each vertex carries that V at the far edge (`Vertex::past`, attribute 4).
+- **Heat wake** (`saber_trail::WAKE`, a bit beside the style, the Sun's Heat wake extra):
+  what is behind the trail shimmers, drawn by `fragment_wake` in the blades' heat-haze run
+  (`SaberGpu::draw_haze`, through the haze's bind group of the effect layer's scene image,
+  before the black holes' lenses): no blending, the scene read at an offset of up to 2.5
+  units (never more than 2 % of the screen, `HAZE_REACH`, the room the effect rectangle
+  keeps), gone at the slice's edges and as it ages, so the merge sees no seam.
+
+The plasma, flare and a wake live three times as long as the blur (`LONG_LIFE`: 90 to 120 ms
+for most moves): the cooling and the shimmer need that time to be seen. Each slice's age
+reaches the fragment shader in the colour's alpha, which the additive blend ignores. Verified
+by unit tests (the styles and the wake bit from the Sun's choices, the shader validated by
+naga) and the world shot `duel6_sun_trails` (a swing over the head as the stock blue, the
+Sun's plasma, the Flare trail, the Heat wake and all extras, `SaberSkins::shot_swings`;
+with `SJK_TEST_PACKS` naming the hub's packs): the plasma reads gold and see-through with
+a flame-torn edge, the flare's red loops lick past the tip; the wake's bend is faint in a
+still. Not yet looked at in game.
+
+With `cg_saberContact` on, the tip stops at
 the first world surface the blade enters
 ([saber_trail_edge.rs](../crates/sjk-viewer/src/saber_trail_edge.rs)); stock
 also stops it at solid brush entities, which the client does not trace yet. A flying
-primary saber trails and shares the owner's blade state, as in stock. Not yet
+primary saber trails and shares the owner's blade state, as in stock. A blade that is
+out keeps its remembered edge at the hilt without drawing (`Trail::hold`), as stock's
+`dontDraw` call does for a staff's extra blade or a second saber switched off, and
+forgets a skin's afterimages; SJK does it for the primary blade too, which stock leaves
+where it went out. Otherwise the first swing after a blade lit again within two seconds
+drew one slice, and the afterimages, from where it went out to where it was (Foshin's
+hub report 116, 21/10/2026: switching sabers with a signature shader). Not yet
 drawn: the extra trails stock adds while `PW_SPEED` is set with `cg_speedTrail`
 and during super-break win animations.
 
@@ -1616,6 +3113,21 @@ The main view's PVS source cluster is the leaf of the camera actually used for t
 the camera sits behind and above the eye, often in another cluster; taking the eye's cluster
 culled walls the camera could see. Reflection, portal and scene views already used their own
 eye.
+
+A `portal` face (sort `portal`) shows a remote camera or a mirror when a `misc_portal_surface`
+entity (`ET_PORTAL`, 8) lies within 64 units of its plane, as stock's
+`R_GetPortalOrientations` requires; the entity's `origin2` is the `misc_portal_camera`
+([scene_views.rs](../crates/sjk-viewer/src/scene_views.rs),
+[scene_portal_math.rs](../crates/sjk-viewer/src/scene_portal_math.rs)). Until 19/10/2026
+the match looked for entity type 7 (`ET_BEAM`), so no network portal was ever found and
+such faces showed only their own texture: the grey `textures/lgnd_misc/camera` screen of
+JoF's `mp/ffa3` security camera, for example. The portal view's target is made the first
+frame a face selects a view ([GPU memory](#gpu-memory)). The ignored world shot
+`scene_view_targets` ([world_shot_scene_views.rs](../crates/sjk-viewer/src/world_shot_scene_views.rs))
+renders through each secondary view (floor mirrors on ffa3, duel6's sky portal, the mirrors
+of `sjk_shaders_e`) and prints which targets a world holds; `scene_view_targets_resize`
+checks the mirror target follows `r_superSample` and a resize (with
+`SJK_SHOT_CVARS=r_superSample=1,r_renderScale=50`, the render scale).
 
 Camera-range caches also retain their PVS/area selection independently of the
 camera frustum. Turning or moving within a cluster rechecks bounds but reuses
@@ -1870,7 +3382,11 @@ for the flattened world only when a stage has maps: a tangent with handedness,
 averaged over the triangles of patch and triangle-soup vertices, and the
 light-grid direction (`R_CalcVertexLightDirs`/`R_LightDirForPoint`). They use 8
 bytes per vertex. Building them for `mp/ffa3` (114,088 vertices) took about 24 ms
-in a release test build. Maps are uploaded as linear RGBA8 with box-filtered mips.
+in a release test build. Maps are uploaded as linear RGBA8 with box-filtered mips,
+less the levels texture detail (`r_picmip`, [GPU memory](#gpu-memory)) leaves off the
+diffuse texture: since 25/10/2026 a 1024-pixel normal map at r_picmip 2 is its 256-pixel
+level, as its diffuse texture is. As in rend2 (`ParseStage`, `CollapseStagesToGLSL`),
+the maps of a `nopicmip` or `nomipmaps` shader's stage keep their full size.
 
 Shading lives in [material_maps.wgsl](../crates/sjk-viewer/src/material_maps.wgsl):
 
@@ -2232,7 +3748,8 @@ Each frame keeps at most six mirrors, the planes covering most of the screen: a 
 enters at 1% of the screen and leaves below 0.7%, so it does not flicker at the
 threshold. Every mirror re-renders the whole scene (sky, world, players, effects)
 from the reflected camera at half resolution into a shared target, cropped to the
-plane's screen rectangle; in real-time lighting it is lit in its own light-buffer
+plane's screen rectangle (the target is made the first frame a mirror is drawn and
+dropped when `r_floorReflections` is turned off, see [GPU memory](#gpu-memory)); in real-time lighting it is lit in its own light-buffer
 images, so the main view's light stays intact. The finish
 ([floor_reflection.wgsl](../crates/sjk-viewer/src/floor_reflection.wgsl)) blends the
 image over the floor with a Schlick rim from 0.12 head-on to 0.70 at grazing angles,
@@ -2265,7 +3782,13 @@ submits and presents in order while the render thread prepares the next frame.
 Only one handed-off frame can remain outstanding. With an offscreen scene target,
 swapchain acquisition happens after world recording; direct-to-surface rendering
 still acquires its image first. Resize, out-of-band submissions and teardown wait
-for the outstanding batch. `SJK_SUBMIT_THREAD=0` selects inline submission as a
+for the outstanding batch, and so does a world handing the window over to the next
+one (a map change, a graphics reload, the menu world coming back after leaving a
+server): both draw to the one surface, and configuring it while the old world's frame
+was still being presented made wgpu refuse the configure and close the game. A
+renderer's teardown also joins its submit thread, so the queue clone it holds (and
+with it the last handle to the window) is never released on that thread after the
+event loop has gone, which made winit panic on exit from exclusive fullscreen. `SJK_SUBMIT_THREAD=0` selects inline submission as a
 fallback. See [frame_queue.rs](../crates/sjk-viewer/src/frame_queue.rs),
 [frame_split.rs](../crates/sjk-viewer/src/frame_split.rs) and
 [frame_target.rs](../crates/sjk-viewer/src/frame_target.rs).
@@ -2740,7 +4263,7 @@ font, following OpenJK `codemp`:
 
 | Retail font | Drawn with | Surfaces |
 | --- | --- | --- |
-| `ergoec` (`FONT_MEDIUM`) | SJK Menu | Menus, crosshair name, centre prints, warmup text, match timer, enemy info, scoreboard names and headings |
+| `ergoec` (`FONT_MEDIUM`) | SJK Menu | Menus, crosshair name, followed player's name, centre prints, warmup text, match timer, enemy info, scoreboard names and headings |
 | `ocr_a` (`FONT_SMALL`) | SJK Chat | Chat box and typing line, weapon/Force/inventory selection names, scoreboard numbers |
 | Console character set (`gfx/2d/charsgrid_med`) | JetBrains Mono | Console and notify lines, FPS, snapshot, vote, connection interrupted |
 
@@ -2785,6 +4308,14 @@ were converted at load into signed distance fields by
 `fragment_sdf`, so magnified text kept sharp edges. That path remains for any
 atlas under 2048 texels, but every font SJK draws now rasterizes into a
 4096-texel coverage atlas, so none uses it.
+
+Every code-page atlas (Inter, the SJK UI's Rajdhani and Exo 2, SJK Menu, SJK Chat,
+SJK HUD, JetBrains Mono) and a distance field made from one hold a single value per
+texel, so they are one channel: a `GrayImage` on the CPU (the menu snapshots raster
+from it too) and an `R8Unorm` texture with its mips on the GPU, which `text.wgsl`'s
+`fragment_main` and `fragment_sdf` and the ground HUD read from `.r`; the colour
+comes from the vertices. They were white RGBA8 textures read through alpha until
+25/10/2026, four times the memory ([GPU memory](#gpu-memory)).
 
 In the Inter atlas, byte 0xAC (`¬`) is an exception: the retail `ergoec` and
 `ocr_a` fonts draw it as the boxed "WSI fonts" foundry logo, which players use in
@@ -2831,7 +4362,10 @@ character is shown, and emoji from a colour atlas beside it
 - The atlas is one 4096x2048 R8 texture with the code-page atlases' four mip levels,
   glyphs rasterized at 96 pixels per em on an 8-texel grid so every level's copy of
   a cell is whole texels, also kept on the CPU for menu snapshots. When it is full
-  it starts over and the glyphs on screen come back over the next frames.
+  it starts over and the glyphs on screen come back over the next frames. It is made
+  with its first glyph: until then the text bind groups carry a 1x1 stand-in, and they
+  are all made again when it or the emoji atlas is made (`GpuState::update_wide_text`),
+  so a world where no one writes beyond the code page never holds either.
 - Every text bind group carries it at binding 2
   ([wide_texture.rs](../crates/sjk-viewer/src/text/wide_texture.rs)); a glyph's
   vertices hold `u` offset by 2, and `text.wgsl` samples the wide atlas for those
@@ -2856,7 +4390,8 @@ one after another, 4.2 MB, and an index) and drawn by
 - An emoji is a square one em of the face wide (the em taken from its capitals),
   sitting a tenth of itself below the baseline, with a twentieth either side.
 - Its picture is decoded the first time it is shown, within the same 2 ms a frame as
-  the wide glyphs, into a 2048x1024 RGBA atlas (253 pictures, display values as every
+  the wide glyphs, into a 2048x1024 RGBA atlas (made with its first picture, 253
+  pictures, display values as every
   picture the 2D layer samples, mips averaged by alpha), bound at binding 3; its
   vertices hold `u` offset by 4. `text.wgsl` draws its own colours faded by the text's
   alpha, and black for the shadow quad (and for black text, `^0`).
@@ -2873,6 +4408,11 @@ format. A nonzero integer selects the stock text-only HUD; as in EternalJK, `0`
 is the default list and `3`/`4` name `ui/elegance_hud.txt`/`ui/jof_hud.txt`. A
 missing list falls back to the default one, as `CG_LoadMenus` does; files
 without a `lefthud` or `righthud` menu leave the engine-drawn HUD in place.
+The text HUD's strings start where retail puts them, but SJK's vector font is
+wider than retail's, so a right-hand string (the six-letter saber styles, the
+ammo count) that would pass 4 units from the screen's right edge moves left to
+end there, and the HUD's text never wraps at the screen's edge (hub reports
+75/76).
 
 When several PK3s replace `ui/hud.menu`, the one mounted last wins, and packs
 usually replace the retail pictures (`gfx/hud/hudleft` ...) under the same names
@@ -2887,7 +4427,13 @@ game-data HUD composited on the CPU at 1280x720 for a sample player (health 74,
 armor 46, Force 63, medium saber style) over a dimmed levelshot read from the
 game's own `assets*.pk3`, with the HUD's text drawn by the menu
 ([preview.rs](../crates/sjk-viewer/src/menu_hud/preview.rs)); it renders on a
-worker thread and is uploaded into a texture of its own.
+worker thread and is uploaded into a texture of its own. SJK's radial and classic
+layouts get the backdrop alone, and the picker draws them over it each frame with
+`HudOverlay::layout` for a screen the picture's size (`HudOverlay::preview_values`
+settles the same sample player): the shapes are moved onto the picture, the text is
+drawn in the menu's type, and the HUD's pictures (crosshair, icons) are left out.
+`menu_snapshot::sjk_hud_picker_snapshot` writes the card with the retail HUD and both
+layouts highlighted to `target/menu-snapshots/sjk-hud-picker*.png`.
 
 The reader ([parse.rs](../crates/sjk-viewer/src/menu_hud/parse.rs)) keeps the
 window fields HUDs use (`name`, `rect`, `visible`, `style`, `background`,
@@ -2916,11 +4462,20 @@ with `cg_classicHudFont`) rather than retail's `ergoec`. Not drawn: siege HUD
 menus, the out-of-Force flash, and item text or owner-draw fields, which the retail
 and the checked custom HUDs do not use.
 
-The pilot's vehicle HUD is SJK's own, in every `cg_hudStyle`
+The pilot's vehicle HUD, on a swoop, a walker or an animal alike, is stock's under
+`cg_hudStyle game` when the loaded menus define `swoopvehiclehud` (the retail
+`ui/hud.menu` does): its pictures (`vehicle_frame`, `vehicle_grid`, the hull, armour,
+turbo and ammunition ticks) are drawn at the menu's rectangles, kept to the middle of a
+wide screen and grown by `cg_hudScale` from the bottom like the rest of the game-data
+HUD, with the turbo bar and the weapons-linked mark in `whiteShader` white
+([menu_hud/frame.rs](../crates/sjk-viewer/src/menu_hud/frame.rs) `vehicle_hud`).
+Stock's item names are kept: `shield_tic*` show the hull and `armor_tic*` the shields.
+Under `classic` and `radial`, or with a HUD that has no vehicle menu, SJK draws its own
 ([hud/vehicle.rs](../crates/sjk-viewer/src/hud/vehicle.rs)): a vector strip at the
 bottom centre laid out on `swoopvehiclehud`'s 640x80 units (hull above, speed, shield
 and ammunition below), scaled by the window height and `cg_hudScale`, with its numbers
-in the HUD font. It follows `CG_DrawVehicleHud` (`cg_draw.c`): hull `stats[STAT_HEALTH]`
+in the HUD font. Both follow `CG_DrawVehicleHud`
+(`cg_draw.c`): hull `stats[STAT_HEALTH]`
 of `armor` in 12 tics, shield `stats[STAT_ARMOR]` of `shields` in five, `speed` of
 `speedMax` in five (red and flashing every 200 ms while the turbo burns), `ammo[0]` and
 `ammo[1]` of `weap1AmmoMax` and `weap2AmmoMax` (one row, or two of four tics for two
@@ -2963,7 +4518,8 @@ height down, below the crosshair, where TheRisqe's bars sit (their picture's mid
 height, with the numbers on it: health outside the left bars and armor inside them,
 ammunition inside the right bars and Force outside. With a saber the ammunition's bars
 become one full line in the saber style's colour (the `style_ratio` binding; Fast blue,
-Medium yellow, Strong red, Dual green, Staff magenta, as TheRisqe's style pictures are) and
+Medium yellow, Strong red, Dual green, Staff magenta, as TheRisqe's style pictures are,
+plus Desann violet and Tavion cyan) and
 the style's name replaces the number, in the same colour. The weapon-name transient rests in
 the hollow between the bars, above the pills.
 It is the layout document [radial.json](../crates/sjk-viewer/assets/hud/radial.json): the
@@ -3337,3 +4893,20 @@ an empty config, an explicit equivalent config and an existing override config.
 Fresh FFA5 and FFA1 scenes rendered successfully. See [status](status.md) for the
 image comparison result and validation limits. No personal config or assets are
 included in the repository.
+
+## Community override shader scripts
+
+The shared shader catalogue reads installed `shaders/*.oshader` files as ordinary
+Quake 3 shader syntax, following JoF EJK #138. Their definitions override `.shader`
+definitions regardless of filename ordering. Among override files the first
+normalized path wins, and the first definition in an override file wins. Normal
+`.shader` ordering remains unchanged. Strict tools and fault-isolated client loading
+share this policy; malformed override scripts still produce diagnostics.
+
+Existing source-authority and downloaded-content restrictions remain in force:
+retail-authority protection wins when enabled (`fs_protectShaders`, on by
+default; changing it requires restart), and downloaded scripts may add new
+shaders but cannot replace installed definitions. This is format support in
+the shared renderer, independent of menu style; no new setting is required.
+Rend2's separate `.omtr` companion selection is not implemented. Installed-map/GPU
+appearance with community override packs remains unverified.

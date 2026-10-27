@@ -138,6 +138,16 @@ pub enum DrawCommand {
         color: Color,
         knockout: Option<Rect>,
     },
+    /// SJK's strafe aura centred on `center`, shaded per pixel by the renderer
+    /// ([`crate::strafe_aura_shade`]).
+    StrafeAura {
+        center: [f32; 2],
+        aura: crate::StrafeAura,
+    },
+    /// A card's finish over `rect` (the card as laid out), shaded per pixel by the
+    /// renderer ([`crate::card_shine_shade`]) and cut to the card's rounded corners
+    /// itself. A clip cuts it like any rectangle, keeping its pattern in place.
+    CardShine { rect: Rect, shine: crate::CardShine },
     /// Straight stroke from `from` to `to` with square ends, anti-aliased along its
     /// sides by the renderer. `width` is the stroke thickness in pixels.
     Line {

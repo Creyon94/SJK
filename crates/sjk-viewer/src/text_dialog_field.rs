@@ -1,4 +1,7 @@
-//! The text dialog's box: how its text wraps and where every caret position sits.
+//! A wrapped text box with a caret: how its text wraps and where every caret position
+//! sits, and the keys that move the caret or delete at it ([`caret_key`]). The text
+//! dialog's box uses it, and so does the Profile page's bio (`profile_panel`, Kushina's
+//! report 22/10/2026: its lines could not be clicked or walked with the keys).
 //!
 //! Both looks draw the text as retained text runs, one per wrapped line, which the renderer
 //! sizes and spaces with the player's menu text style (`ui_textScale`, `ui_letterSpacing`,
@@ -7,16 +10,19 @@
 //! click lands on the glyph under it, whatever the style.
 //!
 //! [`FieldLayout`] keeps the wrapped lines as byte ranges of the text (so a caret index maps
-//! to a line and back), the x offset before every character, and the first line shown. The
-//! dialog rebuilds it each frame it draws; the keys that move by lines (Up, Down, Home, End)
-//! and the pointer read what the last frame left.
+//! to a line and back), the x offset before every character, and the first line shown. A
+//! line break (`\n`, which only the bio holds) always starts a new line. The box rebuilds
+//! it each frame it draws; the keys that move by lines (Up, Down, Home, End) and the pointer
+//! read what the last frame left.
 
+use crate::console::line_edit::{LineEdit, Motion};
 use crate::text::{TextFace, TextStyle, UiFont, glyph_at};
 use std::ops::Range;
+use winit::keyboard::KeyCode;
 
 /// How the field's text is drawn: the font, the player's text style, the size and the extra
 /// spacing the layout asks for, as the renderer resolves them (`TextStyle::place`).
-pub(super) struct Face<'a> {
+pub(crate) struct Face<'a> {
     font: &'a UiFont,
     /// Pixels of a glyph's advance per font unit.
     scale: f32,
@@ -28,7 +34,7 @@ pub(super) struct Face<'a> {
 
 impl<'a> Face<'a> {
     /// A run laid out `size` pixels high with `spacing` pixels between glyphs, in `style`.
-    pub(super) fn new(font: &'a UiFont, style: TextStyle, size: f32, spacing: f32) -> Self {
+    pub(crate) fn new(font: &'a UiFont, style: TextStyle, size: f32, spacing: f32) -> Self {
         let styled = size * style.scale;
         Self {
             font,
@@ -39,14 +45,14 @@ impl<'a> Face<'a> {
     }
 
     /// How far drawing `character` moves the pen.
-    pub(super) fn advance(&self, character: char) -> f32 {
+    pub(crate) fn advance(&self, character: char) -> f32 {
         let mut buffer = [0; 4];
         let (key, _) = glyph_at(character.encode_utf8(&mut buffer), 0);
         self.font.glyph_of(TextFace::Regular, key).advance * self.scale + self.pen
     }
 
     /// The width of `text` drawn on one line.
-    pub(super) fn width(&self, text: &str) -> f32 {
+    pub(crate) fn width(&self, text: &str) -> f32 {
         // Glyph by glyph, so an emoji of several characters counts once.
         let mut width = 0.0;
         let mut index = 0;
@@ -59,7 +65,7 @@ impl<'a> Face<'a> {
     }
 
     /// The styled text size, in pixels.
-    pub(super) fn size(&self) -> f32 {
+    pub(crate) fn size(&self) -> f32 {
         self.size
     }
 }
@@ -68,7 +74,7 @@ impl<'a> Face<'a> {
 /// be. A line break at a space swallows that one space; a word longer than a line is cut where
 /// the line ends. Every byte of `text` but those spaces is in a range, in order, and the last
 /// range ends at the end of `text`, so a caret at any index belongs to a line.
-pub(super) fn wrap_ranges(text: &str, fits: impl Fn(&str) -> bool, lines: &mut Vec<Range<usize>>) {
+pub(crate) fn wrap_ranges(text: &str, fits: impl Fn(&str) -> bool, lines: &mut Vec<Range<usize>>) {
     lines.clear();
     let mut start = 0;
     loop {
@@ -113,7 +119,7 @@ pub(super) fn wrap_ranges(text: &str, fits: impl Fn(&str) -> bool, lines: &mut V
 
 /// The wrapped lines of the dialog's text and where each caret position sits.
 #[derive(Debug, Default)]
-pub(super) struct FieldLayout {
+pub(crate) struct FieldLayout {
     /// The byte range of each line.
     lines: Vec<Range<usize>>,
     /// The x offset before each character of each line (and after the last), flattened;
@@ -132,21 +138,36 @@ pub(super) struct FieldLayout {
 
 impl FieldLayout {
     /// The text changed: line-based moves wait for the next frame's layout.
-    pub(super) fn touch(&mut self) {
+    pub(crate) fn touch(&mut self) {
         self.stale = true;
     }
 
     /// Back to the first line, for a new text.
-    pub(super) fn reset(&mut self) {
+    pub(crate) fn reset(&mut self) {
         self.first = 0;
         self.stale = true;
     }
 
     /// Lay `text` out for a box `width` pixels wide drawn in `face`, leaving room for the
     /// caret at the end of a line.
-    pub(super) fn lay_out(&mut self, text: &str, face: &Face<'_>, width: f32) {
+    pub(crate) fn lay_out(&mut self, text: &str, face: &Face<'_>, width: f32) {
         let room = width - face.size() * 0.5;
-        wrap_ranges(text, |line| face.width(line) <= room, &mut self.lines);
+        let fits = |line: &str| face.width(line) <= room;
+        if text.contains('\n') {
+            // Each paragraph wraps on its own; the line break between two is left out
+            // of both, as a space a line ends at is.
+            self.lines.clear();
+            let mut part = Vec::new();
+            let mut start = 0;
+            for paragraph in text.split('\n') {
+                wrap_ranges(paragraph, fits, &mut part);
+                self.lines
+                    .extend(part.iter().map(|line| start + line.start..start + line.end));
+                start += paragraph.len() + 1;
+            }
+        } else {
+            wrap_ranges(text, fits, &mut self.lines);
+        }
         self.stops.clear();
         self.starts.clear();
         for line in &self.lines {
@@ -163,7 +184,7 @@ impl FieldLayout {
 
     /// Show `rows` lines from `origin` (the top left of the first), `pitch` pixels apart, and
     /// scroll the least that keeps `line` among them.
-    pub(super) fn show(&mut self, line: usize, rows: usize, origin: [f32; 2], pitch: f32) {
+    pub(crate) fn show(&mut self, line: usize, rows: usize, origin: [f32; 2], pitch: f32) {
         self.rows = rows;
         self.origin = origin;
         self.pitch = pitch;
@@ -176,14 +197,14 @@ impl FieldLayout {
     }
 
     /// The first line shown, and the lines shown.
-    pub(super) fn visible(&self) -> (usize, &[Range<usize>]) {
+    pub(crate) fn visible(&self) -> (usize, &[Range<usize>]) {
         let end = (self.first + self.rows).min(self.lines.len());
         (self.first, &self.lines[self.first.min(end)..end])
     }
 
     /// The line a caret at byte `at` is on, and its x offset in the line. A caret between
     /// two lines cut inside a word is on the second.
-    pub(super) fn locate(&self, text: &str, at: usize) -> (usize, f32) {
+    pub(crate) fn locate(&self, text: &str, at: usize) -> (usize, f32) {
         let mut line = self.lines.len().saturating_sub(1);
         for (index, range) in self.lines.iter().enumerate() {
             let continues = self
@@ -230,7 +251,7 @@ impl FieldLayout {
 
     /// The caret position a click or tap at `point` (window pixels) lands on, if the box has
     /// been drawn.
-    pub(super) fn at_point(&self, text: &str, point: [f32; 2]) -> Option<usize> {
+    pub(crate) fn at_point(&self, text: &str, point: [f32; 2]) -> Option<usize> {
         let (first, shown) = self.visible();
         if !self.fresh(text) || shown.is_empty() || self.pitch <= 0.0 {
             return None;
@@ -242,7 +263,7 @@ impl FieldLayout {
 
     /// Where Up or Down takes a caret at byte `at`: the same x one line away; the start of
     /// the text from the first line, its end from the last.
-    pub(super) fn vertical(&self, text: &str, at: usize, down: bool) -> usize {
+    pub(crate) fn vertical(&self, text: &str, at: usize, down: bool) -> usize {
         if !self.fresh(text) {
             return at;
         }
@@ -256,13 +277,66 @@ impl FieldLayout {
     }
 
     /// The start (`home`) or end of the line a caret at byte `at` is on.
-    pub(super) fn edge(&self, text: &str, at: usize, home: bool) -> usize {
+    pub(crate) fn edge(&self, text: &str, at: usize, home: bool) -> usize {
         if !self.fresh(text) {
             return if home { 0 } else { text.len() };
         }
         let range = &self.lines[self.locate(text, at).0];
         if home { range.start } else { range.end }
     }
+}
+
+/// A key that moves `edit`'s caret in `text` or deletes at it, in a box laid out as
+/// `layout`: Left and Right (a word with Ctrl), Up and Down (a line, at the same x), Home
+/// and End (the line's ends; with Ctrl the text's), Backspace and Delete (a word with
+/// Ctrl, the selection when there is one). `None` when it is none of these, else whether
+/// the text changed.
+pub(crate) fn caret_key(
+    text: &mut String,
+    edit: &mut LineEdit,
+    layout: &mut FieldLayout,
+    key: KeyCode,
+    control: bool,
+) -> Option<bool> {
+    let (left, right) = if control {
+        (Motion::WordLeft, Motion::WordRight)
+    } else {
+        (Motion::Left, Motion::Right)
+    };
+    let at = edit.cursor(text);
+    match key {
+        KeyCode::Backspace | KeyCode::Delete => {
+            let before = text.len();
+            edit.delete(
+                text,
+                if key == KeyCode::Backspace {
+                    left
+                } else {
+                    right
+                },
+            );
+            layout.touch();
+            return Some(text.len() != before);
+        }
+        KeyCode::ArrowLeft => edit.motion(text, left, false),
+        KeyCode::ArrowRight => edit.motion(text, right, false),
+        KeyCode::ArrowUp | KeyCode::ArrowDown => {
+            let to = layout.vertical(text, at, key == KeyCode::ArrowDown);
+            edit.place(text, to, false);
+        }
+        KeyCode::Home | KeyCode::End => {
+            let home = key == KeyCode::Home;
+            // Control takes the caret to the ends of the whole text.
+            let to = match (control, home) {
+                (true, true) => 0,
+                (true, false) => text.len(),
+                _ => layout.edge(text, at, home),
+            };
+            edit.place(text, to, false);
+        }
+        _ => return None,
+    }
+    Some(false)
 }
 
 #[cfg(test)]
@@ -300,5 +374,65 @@ mod tests {
             }
             assert_eq!(lines[0].start, 0);
         }
+    }
+
+    /// A line break starts a new line, and the caret walks the lines on either side of it
+    /// (the bio's paragraphs, Kushina's report 22/10/2026).
+    #[test]
+    fn a_line_break_starts_a_line_the_caret_can_reach() {
+        let font = crate::text::test_font();
+        let face = Face::new(&font, TextStyle::NEUTRAL, 19.0, 0.0);
+        let text = "first\n\nthird line";
+        let mut layout = FieldLayout::default();
+        layout.lay_out(text, &face, 4_000.0);
+        layout.show(0, 10, [0.0, 0.0], 30.0);
+        let (_, lines) = layout.visible();
+        let lines: Vec<&str> = lines.iter().map(|line| &text[line.clone()]).collect();
+        assert_eq!(lines, ["first", "", "third line"]);
+        // The end of the first line, the empty line, the start of the third.
+        assert_eq!(layout.locate(text, 5).0, 0);
+        assert_eq!(layout.locate(text, 6).0, 1);
+        assert_eq!(layout.locate(text, 7).0, 2);
+        assert_eq!(layout.vertical(text, 2, true), 6);
+        assert_eq!(layout.vertical(text, 6, true), 7);
+        assert_eq!(layout.edge(text, 9, true), 7);
+        assert_eq!(layout.edge(text, 2, false), 5);
+        // A click on the third row lands there.
+        assert_eq!(layout.at_point(text, [0.0, 65.0]), Some(7));
+    }
+
+    /// The shared caret keys over a text of two lines.
+    #[test]
+    fn caret_keys_move_and_delete_over_lines() {
+        let font = crate::text::test_font();
+        let face = Face::new(&font, TextStyle::NEUTRAL, 19.0, 0.0);
+        let mut text = "one two\nthree".to_owned();
+        let mut edit = LineEdit::default();
+        let mut layout = FieldLayout::default();
+        let mut key = |text: &mut String, edit: &mut LineEdit, key, control| {
+            layout.lay_out(text, &face, 4_000.0);
+            layout.show(0, 10, [0.0, 0.0], 30.0);
+            caret_key(text, edit, &mut layout, key, control)
+        };
+        assert_eq!(key(&mut text, &mut edit, KeyCode::KeyA, false), None);
+        assert_eq!(key(&mut text, &mut edit, KeyCode::Home, false), Some(false));
+        assert_eq!(edit.cursor(&text), 0);
+        key(&mut text, &mut edit, KeyCode::End, false);
+        assert_eq!(edit.cursor(&text), 7, "the end of the first line");
+        key(&mut text, &mut edit, KeyCode::ArrowDown, false);
+        assert_eq!(edit.cursor(&text), text.len(), "the last line's end");
+        key(&mut text, &mut edit, KeyCode::Home, false);
+        assert_eq!(edit.cursor(&text), 8);
+        assert_eq!(
+            key(&mut text, &mut edit, KeyCode::Backspace, false),
+            Some(true)
+        );
+        assert_eq!(text, "one twothree", "Backspace takes the line break");
+        key(&mut text, &mut edit, KeyCode::ArrowLeft, true);
+        assert_eq!(edit.cursor(&text), 4, "Ctrl+Left: a word back");
+        key(&mut text, &mut edit, KeyCode::Delete, true);
+        assert_eq!(text, "one ");
+        key(&mut text, &mut edit, KeyCode::Home, true);
+        assert_eq!(edit.cursor(&text), 0);
     }
 }

@@ -202,6 +202,8 @@ pub(crate) struct ClientMenu {
     /// to the player's shot and the model stands on the stage, or shows in a preview
     /// over a match ([`Self::set_collection_stage`]).
     collection_stage: bool,
+    /// The Collection's Shaders tab shows the saber on its own, not the model holding it.
+    collection_saber: bool,
     /// The model the `modelviewer` page has chosen: it stands on the stage in place of
     /// the player's own ([`Self::follow_model_viewer`]).
     viewer_model: Option<String>,
@@ -286,6 +288,7 @@ impl ClientMenu {
             backdrop: None,
             uploaded_into: None,
             collection_stage: false,
+            collection_saber: false,
             viewer_model: None,
             viewer_prop: None,
         }
@@ -305,6 +308,16 @@ impl ClientMenu {
         self.keybinds.forget_uploads();
         self.settings.forget_hud_preview_upload();
         self.create_game.forget_levelshot_upload();
+    }
+
+    /// Stand the menus on `backdrop` (the menu world changed: [`crate::menu_pictures`]).
+    pub(crate) fn set_backdrop(&mut self, backdrop: Option<crate::menu_backdrop::Backdrop>) {
+        self.backdrop = backdrop;
+    }
+
+    /// The menu picture the backdrop shows, while it is a picture one.
+    pub(crate) fn shown_picture(&self) -> Option<usize> {
+        self.backdrop.as_ref()?.shown_picture()
     }
 
     /// Advance the live-map backdrop toward the current screen's shot and
@@ -332,10 +345,7 @@ impl ClientMenu {
         // Its Settings and Key bindings, whatever the style: the screens a
         // classic page has no classic+ panel for open them too.
         let settings = match self.state.phase() {
-            ClientPhase::Settings => {
-                self.sjk_settings_on_show() && !self.settings.hud_picker_open()
-            }
-            ClientPhase::Keybinds => self.sjk_settings_on_show(),
+            ClientPhase::Settings | ClientPhase::Keybinds => self.sjk_settings_on_show(),
             _ => false,
         };
         settings
@@ -451,10 +461,26 @@ impl ClientMenu {
     /// Nameplates). When it starts wanting it and the player screen is not open, the
     /// model and sabers are read from the cvars, so the stage shows the player's own.
     pub(crate) fn set_collection_stage(&mut self, wanted: bool, console: &ViewerConsole) {
-        if wanted && !self.collection_stage && !matches!(self.state.phase(), ClientPhase::Player) {
+        let profile = matches!(self.state.phase(), ClientPhase::Player);
+        if wanted && !self.collection_stage && !profile {
             self.player.read_for_stage(console);
+        } else if wanted && !profile {
+            // `saber kyle kyle` (or `saber1`, `saber2`) while the Collection is open.
+            self.player.follow_sabers_for_stage(console);
         }
         self.collection_stage = wanted;
+    }
+
+    /// Whether the Collection wants the player's model this frame (Shaders, Toys,
+    /// Nameplates): the backdrop camera then frames the page's 16:9 frame at every window
+    /// shape ([`crate::menu_stage::frame_fit_fov`]).
+    pub(crate) fn collection_stage(&self) -> bool {
+        self.collection_stage
+    }
+
+    /// Whether the Collection's Shaders tab shows the saber on its own.
+    pub(crate) fn set_collection_saber(&mut self, alone: bool) {
+        self.collection_saber = alone;
     }
 
     /// Follow the `modelviewer` page: show the player model it has chosen in place of the
@@ -491,16 +517,20 @@ impl ClientMenu {
         if !self.collection_stage {
             return None;
         }
+        // The Shaders tab's saber alone lies across the room above the shader's card.
+        let area = if self.collection_saber {
+            crate::console::collection_panel::SABER_AREA
+        } else {
+            crate::console::collection_panel::MODEL_AREA
+        };
         let preview = crate::player_menu::ModelPreview {
-            area: crate::player_menu::PreviewArea::Sjk(
-                crate::console::collection_panel::MODEL_AREA,
-            ),
+            area: crate::player_menu::PreviewArea::Sjk(area),
             stance: "BOTH_STAND2",
             sabers: true,
             pose: None,
             shell: None,
             effect: None,
-            showcase: false,
+            showcase: self.collection_saber,
             room: 1.35,
             angle: Some(-28.0),
         };
@@ -522,6 +552,11 @@ impl ClientMenu {
         // the screen shows the model in its own preview: the menu map's stage
         // is not the match's.
         if self.player.is_classic() || self.player.return_target() == ReturnTarget::InGame {
+            return None;
+        }
+        // Behind the Holocrons tab the holocron floats on its own: its shot looks over
+        // the stage, but no one stands there (Sol, 17/10/2026).
+        if self.holocron_shot {
             return None;
         }
         let stage = self.backdrop.as_ref()?.stage()?;
@@ -766,6 +801,11 @@ impl ClientMenu {
 
     pub(crate) fn is_visible(&self) -> bool {
         self.state.is_overlay_visible()
+    }
+
+    /// The menu's screen or connection phase.
+    pub(crate) fn phase(&self) -> &ClientPhase {
+        self.state.phase()
     }
 
     /// The main menu is up: not a settings, browser or connection screen.
@@ -1209,8 +1249,8 @@ impl ClientMenu {
             && self.keybinds.capture_wheel(up, console)
     }
 
-    pub(crate) fn joined(&mut self) {
-        self.remember_joined_server();
+    pub(crate) fn joined(&mut self, server_address: Option<&str>) {
+        self.remember_joined_server(server_address);
         self.state.entered_game();
     }
 

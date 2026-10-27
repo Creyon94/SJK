@@ -219,8 +219,9 @@ pub(crate) struct CardboardBox {
     cues: Vec<Cue>,
     /// The music this frame.
     music: Vec<Music>,
-    /// The sounds were handed to the audio.
-    sounds_registered: bool,
+    /// The audio output ([`crate::GameAudio::generation`]) its sounds were registered
+    /// with: a new output (`snd_restart`) registers them again.
+    sounds_registered: Option<u64>,
     /// Cartons to draw without a session, for the world shots: origin and yaw.
     #[cfg(test)]
     pub(crate) shot_cartons: Vec<([f32; 3], f32)>,
@@ -247,7 +248,7 @@ impl Default for CardboardBox {
             fallen: Vec::with_capacity(FALLEN_MAX),
             cues: Vec::with_capacity(8),
             music: Vec::with_capacity(8),
-            sounds_registered: false,
+            sounds_registered: None,
             #[cfg(test)]
             shot_cartons: Vec::new(),
             #[cfg(test)]
@@ -270,6 +271,12 @@ impl CardboardBox {
     /// Whether the player's own box is on.
     pub(crate) fn on(&self) -> bool {
         self.on
+    }
+
+    /// Whether the player hides in their box: on, alive and playing (Tactical
+    /// Espionage counts this time, `achievements/tracker.rs`).
+    pub(crate) fn hiding(&self) -> bool {
+        self.crouching
     }
 
     /// Hold crouch in `command` while the box is on and the player plays, as a held
@@ -567,9 +574,9 @@ impl GpuState {
         self.cardboard_box.toggle();
     }
 
-    /// The frame's toy logic, after the looks: the own life, the hub's events, a
-    /// `+use` press and the deaths in the box.
-    pub(crate) fn update_cardboard_box(&mut self, now: Instant) {
+    /// The frame's toy logic, after the looks: the own life, the hub's events (`events`,
+    /// this server's toy events), a `+use` press and the deaths in the box.
+    pub(crate) fn update_cardboard_box(&mut self, now: Instant, events: &[sjk_identity::ToyEvent]) {
         let Some(session) = self
             .live_session
             .as_ref()
@@ -598,9 +605,14 @@ impl GpuState {
         };
         let looks = &self.looks;
         let boxed = |slot: usize| Some(slot) != own.map(usize::from) && looks.toy(slot, TOY);
-        // The hub's events: a sender counts only when the game shows the name they claimed.
-        for event in crate::player_identity::take_toy_events(Some(session.server())) {
-            if event.toy != TOY || event.event != EVENT_SPOTTED || Some(event.slot) == own {
+        // The hub's events: a sender counts only when the game shows the name they claimed,
+        // and never one blocked on this PC.
+        for event in events {
+            if event.toy != TOY
+                || event.event != EVENT_SPOTTED
+                || Some(event.slot) == own
+                || self.muted_players.contains(u16::from(event.slot))
+            {
                 continue;
             }
             let shown = crate::player_identity::shown_name(game_state, usize::from(event.slot));
@@ -803,20 +815,21 @@ impl GpuState {
             self.cardboard_box.cues.clear();
             return;
         };
-        if !self.cardboard_box.sounds_registered
+        if self.cardboard_box.sounds_registered != Some(audio.generation())
             && let Some(vfs) = self.vfs.as_deref()
         {
             audio.register_effect_paths(vfs, [MUSIC, EQUIP, SPOTTED, DROP, DEATH]);
-            self.cardboard_box.sounds_registered = true;
+            self.cardboard_box.sounds_registered = Some(audio.generation());
         }
         for cue in self.cardboard_box.take_cues() {
-            let source = sjk_audio::SourceId(u32::from(cue.slot));
-            match cue.origin {
-                Some(origin) => {
-                    audio.play_on_channel(cue.path, 1.0, origin, source, crate::audio::TOY_CHANNEL)
-                }
-                None => audio.play_local(cue.path, 1.0, source, crate::audio::TOY_CHANNEL),
-            }
+            audio.play_toy(
+                crate::toy_sounds::Toy::Box,
+                cue.path,
+                1.0,
+                cue.origin,
+                sjk_audio::SourceId(u32::from(cue.slot)),
+                crate::audio::TOY_CHANNEL,
+            );
         }
     }
 }

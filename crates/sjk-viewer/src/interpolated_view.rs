@@ -7,8 +7,9 @@ use sjk_game_jka::prediction_policy::{self, Interpolation, NoPredict};
 use sjk_protocol::{GameState, PlayerState, Snapshot};
 
 /// Whether the local view is the server's rather than predicted, and how
-/// (`CG_PredictPlayerState`): following, a synchronous server, `cg_noPredict`, or a
-/// JA+ kick victim.
+/// (`CG_PredictPlayerState`): following, a synchronous server, `cg_noPredict`, a
+/// JA+ kick victim, or, while jaPRO tools are loaded, a movement style SJK's pmove
+/// does not model ([`japro_unpredicted`]).
 pub(crate) fn mode(
     console: Option<&crate::console::ViewerConsole>,
     game: &GameState,
@@ -24,6 +25,53 @@ pub(crate) fn mode(
         server_synchronous(game),
         || sjk_game_jka::pmove_japlus::JaPlusRules::from_game_state(game).enabled,
     )
+    .or_else(|| {
+        let style = japro_unpredicted(console, player);
+        announce_style(style);
+        style.map(|_| Interpolation::KeepAngles)
+    })
+}
+
+/// The jaPRO tools mod's bridge (`sjk_mod_japro::movement_styles`): the style the
+/// player moves with that SJK's pmove does not model, while the mod is loaded (a
+/// jaPRO server, `mod_japro` on) and `japro.predictMoveStyles` is off.
+#[cfg(feature = "mod-japro")]
+fn japro_unpredicted(
+    console: Option<&crate::console::ViewerConsole>,
+    player: &PlayerState,
+) -> Option<&'static str> {
+    use sjk_mod_japro::movement_styles;
+    let console = console.filter(|console| console.mods.loaded(sjk_mod_japro::ID))?;
+    let predict_anyway = console
+        .bool_cvar(movement_styles::PREDICT_ANYWAY_CVAR)
+        .unwrap_or(false);
+    movement_styles::unpredicted(player, predict_anyway)
+}
+
+/// Without jaPRO tools every style is predicted with the stock JKA movement.
+#[cfg(not(feature = "mod-japro"))]
+fn japro_unpredicted(
+    _console: Option<&crate::console::ViewerConsole>,
+    _player: &PlayerState,
+) -> Option<&'static str> {
+    None
+}
+
+/// Say in the log, once per change, that a movement style is shown unpredicted.
+fn announce_style(style: Option<&'static str>) {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    // The last style's name by address (0 for none): the names are statics.
+    static LAST: AtomicUsize = AtomicUsize::new(0);
+    let address = style.map_or(0, |name| name.as_ptr() as usize);
+    if LAST.swap(address, Ordering::Relaxed) == address {
+        return;
+    }
+    if let Some(name) = style {
+        crate::log::progress(format_args!(
+            "movement style {name}: SJK does not predict it yet, so your movement shows as \
+             the server has it (japro.predictMoveStyles 1 predicts it as JKA)",
+        ));
+    }
 }
 
 pub(crate) fn server_synchronous(game: &GameState) -> bool {

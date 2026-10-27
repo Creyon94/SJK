@@ -12,15 +12,18 @@
 //! | --- | --- |
 //! | a card drawn from shapes, its finishes' light | [`look`] |
 //! | revealed cards' faces, from the SJK packs | [`faces`] |
+//! | the Cards tab's binder: its tiles, filter and sets' progress | [`binder`] |
 //! | the credits' mark | [`mark`] |
 //! | the loot table's odds, worked out | [`loot`] |
 //! | `debug_open` | [`rehearsal`] |
 
+pub(crate) mod binder;
 pub(crate) mod faces;
 pub(crate) mod look;
 pub(crate) mod loot;
 pub(crate) mod mark;
 pub(crate) mod rehearsal;
+pub(crate) mod shard;
 
 use crate::holocrons::COUNT;
 use sjk_identity::CardStack;
@@ -43,14 +46,15 @@ pub(crate) struct Rarity {
     pub(crate) id: &'static str,
     /// What players read ("Rare").
     pub(crate) name: &'static str,
-    /// Its colour: silver for common, then the holocron tiers' green, blue and purple.
+    /// Its colour: silver for common, then the holocron tiers' colours (Uncommon's green
+    /// to Mythical's).
     pub(crate) colour: Color,
     /// Position in [`RARITIES`].
     pub(crate) index: usize,
 }
 
 /// Every rarity the client knows.
-pub(crate) const RARITIES: [Rarity; 4] = [
+pub(crate) const RARITIES: [Rarity; 5] = [
     Rarity {
         id: "common",
         name: "Common",
@@ -74,6 +78,12 @@ pub(crate) const RARITIES: [Rarity; 4] = [
         name: "Legendary",
         colour: crate::holocrons::TIERS[2].colour,
         index: 3,
+    },
+    Rarity {
+        id: "mythical",
+        name: "Mythical",
+        colour: crate::holocrons::TIERS[3].colour,
+        index: 4,
     },
 ];
 
@@ -113,13 +123,13 @@ pub(crate) const FINISHES: [Finish; 3] = [
     Finish {
         id: "holo",
         name: "Holo",
-        about: "A rainbow sheen runs over the card.",
+        about: "A rainbow foil shines across the card.",
         index: 1,
     },
     Finish {
         id: "solar",
         name: "Solar",
-        about: "The rarest finish: sunlight shimmers over the card in a warm corona.",
+        about: "The rarest finish: a living solar corona burns along the card's edge.",
         index: 2,
     },
 ];
@@ -155,33 +165,42 @@ pub(crate) struct Odds {
 /// table. The hub decides; this only says it.
 pub(crate) const ODDS: [Odds; COUNT] = [
     Odds {
-        rarity: [700, 240, 55, 5],
+        rarity: [700, 240, 55, 4, 1],
         finish: [970, 30, 0],
     },
     Odds {
-        rarity: [500, 330, 150, 20],
+        rarity: [500, 330, 150, 18, 2],
         finish: [900, 100, 0],
     },
     Odds {
-        rarity: [300, 380, 260, 60],
+        rarity: [300, 380, 260, 55, 5],
         finish: [700, 290, 10],
     },
     Odds {
-        rarity: [100, 300, 450, 150],
+        rarity: [100, 300, 450, 130, 20],
         finish: [400, 550, 50],
     },
 ];
 
 /// What a holocron of tier `index` holds, one line: "A sealed card and 30 to 50 credits,
-/// or (30% of the time) a saber shader."
+/// or a saber shader (40%) or kyber shards (10%)."; without the shards from a hub that
+/// gives none.
 pub(crate) fn inside(index: usize) -> String {
     let index = index.min(COUNT - 1);
     let odds = crate::loot_odds::current();
     let (least, most) = odds.credits[index];
-    let shader = crate::cards::loot::percent(f64::from(odds.shader[index]) / 1_000.0);
+    let percent = |per_mille: u32| crate::cards::loot::percent(f64::from(per_mille) / 1_000.0);
+    let shader = percent(odds.shader[index]);
+    if odds.shard_pile[index] == 0 {
+        return format!(
+            "Opening it gives a sealed card and {least} to {most} credits, or ({shader} of \
+             the time) a saber shader."
+        );
+    }
+    let shards = percent(odds.shard_pile[index]);
     format!(
-        "Opening it gives a sealed card and {least} to {most} credits, or ({shader} of the \
-         time) a saber shader."
+        "Opening it gives a sealed card and {least} to {most} credits, or a saber shader \
+         ({shader}) or kyber shards ({shards})."
     )
 }
 
@@ -258,11 +277,7 @@ impl Stack {
 /// How a card `card` (its id, `None` while sealed) shows its face, when the packs have it.
 pub(crate) fn shown<'a>(faces: &'a faces::Faces, card: Option<&str>) -> Option<look::Shown<'a>> {
     let (index, face) = faces.find(card?)?;
-    Some(look::Shown {
-        face,
-        index,
-        of: faces.in_set(&face.set),
-    })
+    Some(look::Shown { face, index })
 }
 
 /// How many sealed copies of `stacks` the hub could reveal now: those of a rarity the
@@ -319,7 +334,10 @@ mod tests {
     #[test]
     fn the_lists_are_the_hubs() {
         let rarities: Vec<&str> = RARITIES.iter().map(|rarity| rarity.id).collect();
-        assert_eq!(rarities, ["common", "uncommon", "rare", "legendary"]);
+        assert_eq!(
+            rarities,
+            ["common", "uncommon", "rare", "legendary", "mythical"]
+        );
         let finishes: Vec<&str> = FINISHES.iter().map(|finish| finish.id).collect();
         assert_eq!(finishes, ["normal", "holo", "solar"]);
         for (index, rarity) in RARITIES.iter().enumerate() {
@@ -329,21 +347,21 @@ mod tests {
         for (index, finish) in FINISHES.iter().enumerate() {
             assert_eq!(finish.index, index);
         }
-        assert_eq!(Rarity::from_id("mythical"), None);
+        assert_eq!(Rarity::from_id("ascendant_future"), None);
         assert_eq!(
             CREDITS,
             [(10, 20), (30, 50), (80, 120), (250, 350)],
             "the hub's ranges"
         );
-        let odds: Vec<([u16; 4], [u16; 3])> =
+        let odds: Vec<([u16; 5], [u16; 3])> =
             ODDS.iter().map(|odds| (odds.rarity, odds.finish)).collect();
         assert_eq!(
             odds,
             [
-                ([700, 240, 55, 5], [970, 30, 0]),
-                ([500, 330, 150, 20], [900, 100, 0]),
-                ([300, 380, 260, 60], [700, 290, 10]),
-                ([100, 300, 450, 150], [400, 550, 50]),
+                ([700, 240, 55, 4, 1], [970, 30, 0]),
+                ([500, 330, 150, 18, 2], [900, 100, 0]),
+                ([300, 380, 260, 55, 5], [700, 290, 10]),
+                ([100, 300, 450, 130, 20], [400, 550, 50]),
             ],
             "the hub's tables"
         );
@@ -398,9 +416,9 @@ mod tests {
         let face = look::tests::face();
         let faces = faces::Faces::of_list(vec![face]);
         let mut known = wire("legendary", "holo", "alpha", 1);
-        known.card = Some("sol_lore_001".to_owned());
+        known.card = Some("sjk_alpha_010".to_owned());
         let mut unknown = wire("rare", "normal", "alpha", 1);
-        unknown.card = Some("sol_lore_099".to_owned());
+        unknown.card = Some("sjk_alpha_099".to_owned());
         let list = [
             known,
             unknown,
@@ -410,20 +428,20 @@ mod tests {
         let stacks = stacks(&list);
         let names: Vec<String> = stacks.iter().map(|stack| stack.name_in(&faces)).collect();
         assert!(names.contains(&"Toxiee and Sol on JoF Memorial".to_owned()));
-        assert!(names.contains(&"Unknown card sol_lore_099".to_owned()));
+        assert!(names.contains(&"Unknown card sjk_alpha_099".to_owned()));
         assert!(names.contains(&"Legendary card".to_owned()));
         assert_eq!(
             revealable(&stacks, &faces),
             2,
             "the sealed Legendaries only"
         );
-        let shown = shown(&faces, Some("sol_lore_001")).unwrap();
-        assert_eq!((shown.index, shown.of), (0, 1));
+        let shown = shown(&faces, Some("sjk_alpha_010")).unwrap();
+        assert_eq!(shown.index, 0);
         assert!(shown_none(&faces));
     }
 
     fn shown_none(faces: &faces::Faces) -> bool {
-        shown(faces, None).is_none() && shown(faces, Some("sol_lore_099")).is_none()
+        shown(faces, None).is_none() && shown(faces, Some("sjk_alpha_099")).is_none()
     }
 
     #[test]
@@ -438,7 +456,7 @@ mod tests {
         assert_eq!(credits_text(1_234_567), "1 234 567");
         assert_eq!(
             inside(1),
-            "Opening it gives a sealed card and 30 to 50 credits, or (40% of the time) a saber shader."
+            "Opening it gives a sealed card and 30 to 50 credits, or a saber shader (40%) or kyber shards (10%)."
         );
         assert_eq!(inside(99), inside(COUNT - 1));
     }

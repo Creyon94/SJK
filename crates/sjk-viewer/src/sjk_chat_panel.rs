@@ -27,6 +27,8 @@ use winit::keyboard::{KeyCode, PhysicalKey};
 
 #[path = "sjk_chat_gif_picker.rs"]
 mod gif_picker;
+#[path = "sjk_chat_gif_sources.rs"]
+mod gif_sources;
 #[path = "sjk_chat_people.rs"]
 mod people;
 #[path = "sjk_chat_panel_view.rs"]
@@ -46,6 +48,8 @@ const RETRY_TOKEN: u16 = 1_308;
 /// The chosen message's Ban 24 h, and staff's Lift chat ban.
 const BAN_TOKEN: u16 = 1_309;
 const LIFT_TOKEN: u16 = 1_363;
+/// Send only in SJK, under Send while a mod says SJK chat in this server's All chat.
+const ONLY_TOKEN: u16 = 1_364;
 /// Messages on show, one token each.
 const MESSAGE_BASE: u16 = 1_310;
 const MESSAGES_SHOWN: usize = 40;
@@ -53,10 +57,14 @@ const MESSAGES_SHOWN: usize = 40;
 const CARD_TOKEN: u16 = 1_360;
 const CARD_MUTE_TOKEN: u16 = 1_361;
 const CARD_BAN_TOKEN: u16 = 1_362;
+const CARD_TRADE_TOKEN: u16 = 1_365;
 /// The names of the messages on show, one token each.
 const NAME_BASE: u16 = 1_370;
 /// The players in the who-is-online window, one token each.
 const PERSON_BASE: u16 = 1_420;
+/// Unblock beside each blocked player the side lists while no message is chosen.
+const UNBLOCK_BASE: u16 = 1_470;
+const UNBLOCK_SHOWN: usize = 6;
 const PEOPLE_SHOWN: usize = people::ONLINE_FACES + people::RECENT_FACES;
 /// Pictures' versions the page keeps for faces whose row does not carry one.
 const PICTURES_KEPT: usize = 32;
@@ -72,6 +80,8 @@ pub(crate) enum PanelAction {
     Close,
     /// Send this message to the SJK chat.
     Send(String),
+    /// Send it to the SJK chat only, never said in the server's All chat.
+    SendSjkOnly(String),
     /// Mute or unmute, on this PC, the player with this key, last seen with this name.
     Mute {
         key_id: String,
@@ -81,6 +91,9 @@ pub(crate) enum PanelAction {
     /// A click on Ban 24 h for the player with this key ([`crate::chat_ban::press`]:
     /// it arms the button, or sends the ban).
     Ban(String),
+    /// A click on Trade for the player with this key ([`crate::player_trades::ask_by_key`]):
+    /// the page closes and the trade window opens.
+    Trade(String),
     /// A staff request to the hub.
     Staff(StaffRequest),
     /// Save this as the player's GIPHY key (`cl_giphyKey`), from the key card.
@@ -93,6 +106,9 @@ pub(crate) struct Inputs<'a> {
     pub(crate) chat: Option<&'a ChatState>,
     /// The keys muted on this PC.
     pub(crate) muted: &'a [String],
+    /// Every player blocked on this PC (the mute list), in the order they were blocked:
+    /// listed with Unblock while no message is chosen.
+    pub(crate) blocked: &'a [crate::chat_mutes::Mute],
     /// Whether the player's key is SJK staff.
     pub(crate) staff: bool,
     /// Whether `cl_sjkChat` is on.
@@ -103,6 +119,9 @@ pub(crate) struct Inputs<'a> {
     pub(crate) staff_state: Option<StaffShown<'a>>,
     /// `cl_giphyKey`, the player's own GIPHY key for the picker's search (empty: none).
     pub(crate) giphy_key: &'a str,
+    /// While a mod says SJK chat in this server's All chat, its words
+    /// (`chat/server_copy.rs`): the page offers Send only in SJK.
+    pub(crate) said_in_all: Option<crate::chat::server_copy::SaidInAll>,
 }
 
 /// The part of `sjk_identity::StaffState` the page shows.
@@ -121,15 +140,20 @@ pub(crate) struct StaffShown<'a> {
 struct Shown {
     /// The messages on show, by token, as (id, sender's key), oldest first.
     messages: Vec<(u64, String)>,
+    /// What a click on each message on show opens, for the SJK team's lines.
+    officials: Vec<Option<crate::official::words::Target>>,
     /// The chosen message's id, its sender's key and name, and whether they are
     /// muted here.
     chosen: Option<(u64, String, String, bool)>,
     /// The chosen message's GIF, when it has one on show.
     chosen_gif: Option<crate::chat_gifs::GifId>,
+    chosen_source: Option<crate::chat_gifs::GifId>,
     /// How many messages there are in all.
     total: usize,
     /// Whether the sender card's player is muted here.
     card_muted: bool,
+    /// The blocked players listed with Unblock, in token order.
+    blocked: Vec<crate::chat_mutes::Mute>,
     /// Whether the chosen message offers Ban 24 h.
     chosen_bannable: bool,
     /// The keys of the players in the who-is-online window, by token.
@@ -144,6 +168,8 @@ pub(crate) struct Panel {
     owns_console: bool,
     ui: MenuCanvas,
     draft: String,
+    /// The caret in `draft` ([`crate::sjk_chat_field::caret_key`]).
+    pub(crate) caret: crate::console::line_edit::LineEdit,
     /// The last message handed to the hub, which Retry sends again.
     last_sent: String,
     /// The control the keyboard is on, by its token.
@@ -173,6 +199,10 @@ pub(crate) struct Panel {
     gifs: gif_picker::Picker,
     /// `cl_giphyKey` as the last frame had it, for the key card's Change GIPHY key.
     giphy_key: String,
+    /// Send only in SJK's hover card.
+    hover: crate::menu::sjk::hover::Hover,
+    /// The last frame offered Send only in SJK to a staff key: Shift+Enter takes it.
+    only_for_staff: bool,
     /// The chat to show in place of the live one, for a world shot.
     #[cfg(test)]
     pub(crate) preview: Option<ChatState>,
@@ -186,7 +216,15 @@ struct Hovered {
     person: crate::sender_card::Person,
     anchor: sjk_ui::Rect,
     placed: bool,
+    /// When the pointer left the name and the card, while it is off both: the card
+    /// waits [`CARD_GRACE`] for the pointer on its way across the gap to it.
+    left: Option<std::time::Instant>,
 }
+
+/// How long a sender card stays once the pointer is off its name and the card, so the
+/// way from the name (or face) to the card's buttons never loses it (as the game's
+/// chat, `chat::card::GRACE_MS`).
+const CARD_GRACE: std::time::Duration = std::time::Duration::from_millis(400);
 
 /// What a sender card on show is about.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -195,6 +233,15 @@ enum CardSource {
     Message(u64),
     /// The player with this key in the who-is-online window.
     Person(String),
+}
+
+impl Panel {
+    /// Type `draft` and show Send only in SJK's hover card in full, for a world shot.
+    #[cfg(test)]
+    pub(crate) fn only_sjk_for_shot(&mut self, draft: &str) {
+        self.draft = draft.to_owned();
+        self.hover.pin(Some(ONLY_TOKEN));
+    }
 }
 
 impl Default for Panel {
@@ -210,6 +257,7 @@ impl Panel {
             owns_console: false,
             ui: MenuCanvas::with_capacities(260, 160, 1_600),
             draft: String::new(),
+            caret: crate::console::line_edit::LineEdit::default(),
             last_sent: String::new(),
             focus: FIELD_TOKEN,
             order: Vec::with_capacity(64),
@@ -224,6 +272,8 @@ impl Panel {
             epoch: Instant::now(),
             gifs: gif_picker::Picker::new(),
             giphy_key: String::new(),
+            hover: Default::default(),
+            only_for_staff: false,
             #[cfg(test)]
             preview: None,
         }
@@ -333,7 +383,12 @@ impl Panel {
         self.gifs.choose_tab(gif_picker::Tab::ALL[tab]);
         self.gifs.typed = typed.to_owned();
         self.gifs.search_now();
-        self.focus = gif_picker::TILE_BASE + 1;
+        if self.gifs.tab == gif_picker::Tab::Sources {
+            self.gifs.sources.typed = typed.to_owned();
+            self.focus = gif_sources::FIELD;
+        } else {
+            self.focus = gif_picker::TILE_BASE + 1;
+        }
     }
 
     /// Open the GIF picker's key card with `typed` in its field, the keyboard on it,
@@ -377,6 +432,14 @@ impl Panel {
         };
         if !self.gifs.open {
             return None;
+        }
+        if self.gifs.tab == Tab::Sources && self.gifs.sources.activate(token) {
+            self.focus = if token == gif_sources::TRUST || token == gif_sources::REMOVE {
+                token
+            } else {
+                gif_sources::FIELD
+            };
+            return Some(PanelAction::None);
         }
         match token {
             KEY_ASK_TOKEN => {
@@ -428,6 +491,7 @@ impl Panel {
             match gif_picker::with_gif(&self.draft, &id) {
                 Some(draft) => {
                     self.draft = draft;
+                    self.caret.to_end(&self.draft);
                     self.gifs.close();
                     self.focus = FIELD_TOKEN;
                 }
@@ -462,6 +526,25 @@ impl Panel {
         };
         if !self.gifs.open {
             return None;
+        }
+        if self.gifs.tab == Tab::Sources
+            && key == KeyCode::ArrowDown
+            && (TAB_BASE..TAB_BASE + Tab::ALL.len() as u16).contains(&self.focus)
+        {
+            self.focus = gif_sources::FIELD;
+            return Some(PanelAction::None);
+        }
+        if self.gifs.tab == Tab::Sources && self.focus == gif_sources::FIELD {
+            match key {
+                KeyCode::Enter | KeyCode::NumpadEnter => {
+                    return self.activate_gifs(gif_sources::TRUST);
+                }
+                KeyCode::Escape | KeyCode::Tab => {}
+                _ => {
+                    self.gifs.sources.edit(key, text, shift, control);
+                    return Some(PanelAction::None);
+                }
+            }
         }
         if self.gifs.key_card.is_some() {
             // The key card has the keyboard: Escape is Not now, Enter in the field saves,
@@ -564,6 +647,15 @@ impl Panel {
         if let Some(action) = self.activate_gifs(token) {
             return action;
         }
+        if token == gif_sources::OPEN {
+            self.open_sources(
+                self.shown
+                    .chosen_source
+                    .as_ref()
+                    .map(|id| id.host().to_owned()),
+            );
+            return PanelAction::None;
+        }
         if token == GIF_TOKEN {
             self.toggle_gifs();
             return PanelAction::None;
@@ -576,6 +668,14 @@ impl Panel {
                 crate::chat_gifs::favourites::set(&id, !favourite);
             }
             return PanelAction::None;
+        }
+        if token == CARD_TRADE_TOKEN {
+            return self
+                .card
+                .as_ref()
+                .filter(|card| card.person.trade)
+                .and_then(|card| card.person.key_id.clone())
+                .map_or(PanelAction::None, PanelAction::Trade);
         }
         if token == CARD_BAN_TOKEN {
             // The card's Ban 24 h, only drawn when offered; the keyboard stays.
@@ -594,6 +694,20 @@ impl Panel {
                 key_id: card.person.key_id.clone().unwrap_or_default(),
                 name: card.person.name.clone(),
                 muted: !self.shown.card_muted,
+            };
+        }
+        if let Some(index) = token
+            .checked_sub(UNBLOCK_BASE)
+            .filter(|index| usize::from(*index) < UNBLOCK_SHOWN)
+        {
+            // Unblock a player of the list; the keyboard stays on the list.
+            let Some(blocked) = self.shown.blocked.get(usize::from(index)).cloned() else {
+                return PanelAction::None;
+            };
+            return PanelAction::Mute {
+                key_id: blocked.key_id.unwrap_or_default(),
+                name: blocked.name,
+                muted: false,
             };
         }
         if let Some(index) = token
@@ -625,15 +739,20 @@ impl Panel {
         let chosen = self.shown.chosen.clone();
         match token {
             FIELD_TOKEN => PanelAction::None,
-            SEND_TOKEN => {
+            SEND_TOKEN | ONLY_TOKEN => {
                 let text = self.draft.trim().to_owned();
-                if text.is_empty() {
+                // Send only in SJK is laid out only while it is offered.
+                if text.is_empty() || (token == ONLY_TOKEN && !self.order.contains(&ONLY_TOKEN)) {
                     return PanelAction::None;
                 }
                 self.draft.clear();
                 self.focus = FIELD_TOKEN;
                 self.last_sent.clone_from(&text);
-                PanelAction::Send(text)
+                if token == ONLY_TOKEN {
+                    PanelAction::SendSjkOnly(text)
+                } else {
+                    PanelAction::Send(text)
+                }
             }
             RETRY_TOKEN => {
                 // Only laid out while a refusal and the text are there.
@@ -671,12 +790,26 @@ impl Panel {
                 })
             }
             token if (MESSAGE_BASE..MESSAGE_BASE + MESSAGES_SHOWN as u16).contains(&token) => {
-                if let Some((id, _)) = self.shown.messages.get(usize::from(token - MESSAGE_BASE)) {
-                    self.selected = Some(*id);
+                // The SJK team's line: a click (or Enter) reads it.
+                if let Some(Some(target)) =
+                    self.shown.officials.get(usize::from(token - MESSAGE_BASE))
+                {
+                    crate::official::request(*target);
+                    return PanelAction::None;
                 }
+                self.select_message(token);
                 PanelAction::None
             }
             _ => PanelAction::None,
+        }
+    }
+
+    /// Put the keyboard on message `token` and choose it, without opening an SJK team's
+    /// line (Up and Down pass over it).
+    fn select_message(&mut self, token: u16) {
+        self.focus = token;
+        if let Some((id, _)) = self.shown.messages.get(usize::from(token - MESSAGE_BASE)) {
+            self.selected = Some(*id);
         }
     }
 
@@ -706,19 +839,19 @@ impl Panel {
                 self.scroll += 1;
                 self.selected = None;
             }
-            let _ = self.activate(MESSAGE_BASE);
+            self.select_message(MESSAGE_BASE);
             return;
         }
         if index >= count {
             if self.scroll > 0 {
                 self.scroll -= 1;
-                let _ = self.activate(MESSAGE_BASE + (count - 1) as u16);
+                self.select_message(MESSAGE_BASE + (count - 1) as u16);
             } else {
                 self.focus = FIELD_TOKEN;
             }
             return;
         }
-        let _ = self.activate(MESSAGE_BASE + index as u16);
+        self.select_message(MESSAGE_BASE + index as u16);
     }
 
     /// A key.
@@ -739,10 +872,12 @@ impl Panel {
             FIELD_TOKEN,
             gif_picker::SEARCH_TOKEN,
             gif_picker::KEY_FIELD_TOKEN,
+            gif_sources::FIELD,
         ];
         if event.repeat && !field.contains(&self.focus) {
             return PanelAction::None;
         }
+        self.hover.keyed();
         self.edit(key, event.text.as_deref(), shift, control)
     }
 
@@ -789,18 +924,34 @@ impl Panel {
             KeyCode::ArrowDown if !typing => self.step(true),
             KeyCode::ArrowUp => self.step(false),
             KeyCode::Enter | KeyCode::NumpadEnter if typing => {
-                // The keyboard stays in the field, sent or not.
-                let action = self.activate(SEND_TOKEN);
+                // The keyboard stays in the field, sent or not. Staff's Shift+Enter
+                // sends only in SJK where a mod says SJK chat in All chat.
+                let action = self.activate(if shift && self.only_for_staff {
+                    ONLY_TOKEN
+                } else {
+                    SEND_TOKEN
+                });
                 self.focus = FIELD_TOKEN;
                 return action;
             }
             KeyCode::Enter | KeyCode::NumpadEnter => return self.activate(self.focus),
             KeyCode::Space if !typing => return self.activate(self.focus),
-            KeyCode::Backspace if typing => {
-                self.draft.pop();
-            }
+            _ if typing
+                && crate::sjk_chat_field::caret_key(
+                    &mut self.draft,
+                    &mut self.caret,
+                    key,
+                    control,
+                ) => {}
             _ if typing => {
-                crate::sjk_chat_field::key_into(&mut self.draft, key, text, shift, control);
+                crate::sjk_chat_field::key_at(
+                    &mut self.draft,
+                    &mut self.caret,
+                    key,
+                    text,
+                    shift,
+                    control,
+                );
             }
             _ => {}
         }
@@ -827,6 +978,7 @@ impl Panel {
         }
         if let InputEvent::PointerMove(at) = event {
             self.pointer = Some(at);
+            self.hover.moved();
         }
         let Some(event) = self.ui.pointer(event) else {
             return PanelAction::None;
@@ -845,6 +997,36 @@ impl Panel {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Every button of the page answers to a token of its own: two sharing one would
+    /// click each other (Trade and Lift did, 22/10/2026).
+    #[test]
+    fn every_token_is_its_own() {
+        let mut tokens: Vec<u16> = vec![
+            FIELD_TOKEN,
+            SEND_TOKEN,
+            MUTE_TOKEN,
+            DELETE_TOKEN,
+            HUB_MUTE_TOKEN,
+            HUB_UNMUTE_TOKEN,
+            GIF_TOKEN,
+            FAVOURITE_TOKEN,
+            RETRY_TOKEN,
+            BAN_TOKEN,
+            LIFT_TOKEN,
+            CARD_TOKEN,
+            CARD_MUTE_TOKEN,
+            CARD_BAN_TOKEN,
+            CARD_TRADE_TOKEN,
+            ONLY_TOKEN,
+        ];
+        tokens.extend((0..MESSAGES_SHOWN as u16).map(|index| MESSAGE_BASE + index));
+        let mut sorted = tokens.clone();
+        sorted.sort_unstable();
+        sorted.dedup();
+        assert_eq!(sorted.len(), tokens.len(), "{tokens:?}");
+        assert!(tokens.iter().all(|token| *token < NAME_BASE));
+    }
     use sjk_identity::ChatMessage;
 
     pub(super) fn message(id: u64, key: &str, text: &str) -> ChatMessage {
@@ -855,10 +1037,13 @@ mod tests {
             name: format!("^{}Player {id}", id % 8),
             verified: id.is_multiple_of(3),
             staff: id.is_multiple_of(5),
+            creator: false,
             trust: None,
             emoji: String::new(),
+            client: String::new(),
             text: text.to_owned(),
             holocron: None,
+            official: None,
         }
     }
 
@@ -881,11 +1066,13 @@ mod tests {
         Inputs {
             chat: Some(chat),
             muted,
+            blocked: &[],
             staff,
             enabled: true,
             now: 1_791_400_000,
             staff_state: None,
             giphy_key: "",
+            said_in_all: None,
         }
     }
 
@@ -933,6 +1120,61 @@ mod tests {
         // Down from the newest goes back to the field.
         press(&mut panel, KeyCode::ArrowDown, None);
         assert_eq!(panel.focus, FIELD_TOKEN);
+    }
+
+    #[test]
+    fn send_only_in_sjk_is_offered_only_where_sjk_chat_is_said_in_all_chat() {
+        const WORDS: crate::chat::server_copy::SaidInAll = crate::chat::server_copy::SaidInAll {
+            note: "note",
+            only: "Send only in SJK",
+            only_title: "Only in SJK chat",
+            only_why: &["why"],
+        };
+        let chat = chat(1);
+        let type_in = |panel: &mut Panel| {
+            for c in "hi".chars() {
+                press(panel, KeyCode::KeyA, Some(&c.to_string()));
+            }
+        };
+        // Not offered: the button is not there and Shift+Enter is a plain Send.
+        let mut panel = Panel::new();
+        panel.open(true);
+        drawn(&mut panel, &inputs(&chat, &[], true));
+        type_in(&mut panel);
+        assert_eq!(panel.activate(ONLY_TOKEN), PanelAction::None);
+        // The next frame puts the keyboard back in the field.
+        drawn(&mut panel, &inputs(&chat, &[], true));
+        assert_eq!(
+            panel.edit(KeyCode::Enter, Some("\r"), true, false),
+            PanelAction::Send("hi".into())
+        );
+        // Offered to everyone: the button sends only in SJK.
+        let offered = Inputs {
+            said_in_all: Some(WORDS),
+            ..inputs(&chat, &[], false)
+        };
+        drawn(&mut panel, &offered);
+        type_in(&mut panel);
+        assert_eq!(
+            panel.activate(ONLY_TOKEN),
+            PanelAction::SendSjkOnly("hi".into())
+        );
+        // Shift+Enter is staff's only.
+        type_in(&mut panel);
+        assert_eq!(
+            panel.edit(KeyCode::Enter, Some("\r"), true, false),
+            PanelAction::Send("hi".into())
+        );
+        let staff = Inputs {
+            said_in_all: Some(WORDS),
+            ..inputs(&chat, &[], true)
+        };
+        drawn(&mut panel, &staff);
+        type_in(&mut panel);
+        assert_eq!(
+            panel.edit(KeyCode::Enter, Some("\r"), true, false),
+            PanelAction::SendSjkOnly("hi".into())
+        );
     }
 
     #[test]
@@ -991,6 +1233,71 @@ mod tests {
     }
 
     #[test]
+    fn the_blocked_players_are_listed_with_unblock_while_nothing_is_chosen() {
+        let chat = chat(2);
+        let mut panel = Panel::new();
+        panel.open(true);
+        let blocked: Vec<crate::chat_mutes::Mute> = (0..9)
+            .map(|index| crate::chat_mutes::Mute {
+                key_id: (index == 0).then(|| "0123456789abcdef".to_owned()),
+                name: format!("^1Blocked {index}"),
+            })
+            .collect();
+        let with = Inputs {
+            blocked: &blocked,
+            ..inputs(&chat, &[], false)
+        };
+        let fonts = crate::text::load_modern(1.0, None).expect("Inter");
+        for viewport in [[1920.0, 1080.0], [3840.0, 2160.0], [1024.0, 768.0]] {
+            panel.build_with(&with, &fonts.font, viewport);
+            let runs: Vec<String> = panel.ui.text_runs().map(str::to_owned).collect();
+            assert!(
+                runs.iter().any(|run| run == "Blocked on this PC (9)"),
+                "{runs:?}"
+            );
+            assert!(
+                runs.iter()
+                    .any(|run| run.contains("more: block in the console")),
+                "{runs:?}"
+            );
+            let shown = (0..UNBLOCK_SHOWN as u16)
+                .filter(|index| panel.order.contains(&(UNBLOCK_BASE + index)))
+                .count();
+            assert!(shown >= 3, "{viewport:?}: {shown}");
+            let last = panel
+                .ui
+                .rect_for(UNBLOCK_BASE + shown as u16 - 1)
+                .expect("the last Unblock");
+            assert!(
+                last.y + last.height <= viewport[1],
+                "{viewport:?}: {last:?}"
+            );
+        }
+        assert_eq!(
+            panel.activate(UNBLOCK_BASE),
+            PanelAction::Mute {
+                key_id: "0123456789abcdef".to_owned(),
+                name: "^1Blocked 0".to_owned(),
+                muted: false,
+            }
+        );
+        assert_eq!(
+            panel.activate(UNBLOCK_BASE + 1),
+            PanelAction::Mute {
+                key_id: String::new(),
+                name: "^1Blocked 1".to_owned(),
+                muted: false,
+            },
+            "by name"
+        );
+        // A chosen message takes the place: no list.
+        let _ = panel.activate(MESSAGE_BASE + 1);
+        drawn(&mut panel, &with);
+        assert!(!panel.order.contains(&UNBLOCK_BASE));
+        assert_eq!(panel.activate(UNBLOCK_BASE), PanelAction::None);
+    }
+
+    #[test]
     fn resting_on_a_name_shows_the_sender_card_with_mute() {
         use crate::sender_card::Place;
         use sjk_ui::{InputEvent, Rect, Vec2};
@@ -1044,7 +1351,7 @@ mod tests {
         );
         drawn(&mut panel, &inputs(&chat, &[], false));
         let texts: Vec<&str> = panel.ui.text_runs().collect();
-        for wanted in ["On this server, slot 5, matched by name", "Mute"] {
+        for wanted in ["On this server, slot 5 (by name)", "Block"] {
             assert!(texts.contains(&wanted), "{wanted:?} in {texts:?}");
         }
         let card = panel.ui.rect_for(CARD_TOKEN).expect("the card's target");
@@ -1065,15 +1372,68 @@ mod tests {
         let muted = [key.clone()];
         drawn(&mut panel, &inputs(&chat, &muted, false));
         assert!(panel.card.is_some(), "kept while the pointer is on it");
-        assert!(panel.ui.text_runs().any(|text| text == "Unmute"));
+        assert!(panel.ui.text_runs().any(|text| text == "Unblock"));
         assert_eq!(panel.activate(CARD_MUTE_TOKEN), mute(false));
         // A click on the name chooses its message.
         let _ = panel.activate(NAME_BASE + 1);
         assert_eq!(panel.selected, Some(2));
-        // Away from both: gone.
+        // Away from both: it waits a moment for the pointer on its way, then goes.
         let _ = panel.handle_pointer(InputEvent::PointerMove(Vec2::new(4.0, 1_070.0)));
         drawn(&mut panel, &inputs(&chat, &muted, false));
+        assert!(panel.card.is_some(), "kept on the way to the card");
+        if let Some(card) = panel.card.as_mut() {
+            card.left = card.left.map(|at| at - CARD_GRACE);
+        }
+        drawn(&mut panel, &inputs(&chat, &muted, false));
         assert!(panel.card.is_none());
+    }
+
+    /// Trade on the sender card: reached from the name, it stays under the pointer and a
+    /// click asks for a trade with that sender's key (Creyon, 22/10/2026: it vanished).
+    #[test]
+    fn trade_on_the_card_is_reached_and_clicked() {
+        use sjk_ui::{InputEvent, PointerButton, Rect, Vec2};
+        let centre = |rect: Rect| Vec2::new(rect.x + rect.width * 0.5, rect.y + rect.height * 0.5);
+        crate::player_trades::TRADING_FOR_TEST.set(true);
+        let chat = chat(3);
+        let mut panel = Panel::new();
+        panel.open(true);
+        drawn(&mut panel, &inputs(&chat, &[], false));
+        let name = panel.ui.rect_for(NAME_BASE + 1).expect("a name");
+        let _ = panel.handle_pointer(InputEvent::PointerMove(centre(name)));
+        drawn(&mut panel, &inputs(&chat, &[], false));
+        drawn(&mut panel, &inputs(&chat, &[], false));
+        let trade = panel
+            .ui
+            .rect_for(CARD_TRADE_TOKEN)
+            .expect("Trade on the card");
+        let block = panel.ui.rect_for(CARD_MUTE_TOKEN).expect("Block");
+        assert!(
+            (trade.y - block.y).abs() < 0.5,
+            "beside Block: {trade:?} {block:?}"
+        );
+        assert!((trade.width - block.width).abs() < 0.5, "as wide as Block");
+        // The pointer goes onto Trade: the card stays, and the click asks.
+        let at = centre(trade);
+        let _ = panel.handle_pointer(InputEvent::PointerMove(at));
+        drawn(&mut panel, &inputs(&chat, &[], false));
+        assert!(panel.card.is_some(), "kept under the pointer");
+        assert_eq!(
+            panel.ui.rect_for(CARD_TRADE_TOKEN),
+            Some(trade),
+            "where it was"
+        );
+        let button = PointerButton::Primary;
+        let _ = panel.handle_pointer(InputEvent::PointerPress {
+            position: at,
+            button,
+        });
+        let action = panel.handle_pointer(InputEvent::PointerRelease {
+            position: at,
+            button,
+        });
+        crate::player_trades::TRADING_FOR_TEST.set(false);
+        assert_eq!(action, PanelAction::Trade(format!("{:016x}", 2)));
     }
 
     /// Ban 24 h shows only for a player the hub vouches for, and only on a sender it

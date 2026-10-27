@@ -4,7 +4,7 @@ use crate::{
     ActorInstance, Bsp, CameraUniform, GpuState, GpuVertex, scene_flatten::FlattenedScene,
 };
 use glam::{Mat4, Quat, Vec3};
-use sjk_protocol::{GameState, Snapshot};
+use sjk_protocol::{EntityState, GameState, Snapshot};
 use sjk_shader::ShaderCatalog;
 use std::ops::Range;
 
@@ -20,6 +20,16 @@ mod reflection_capture;
 mod render;
 #[path = "scene_sky_visibility.rs"]
 mod sky_visibility;
+
+/// codemp `ET_PORTAL` (bg_public.h `entityType_t`): what `SP_misc_portal_surface` sends.
+/// Until 19/10/2026 this was 7 (`ET_BEAM`), so no camera portal ever found its
+/// marker and portal faces showed only their own texture.
+const ET_PORTAL: u8 = 8;
+
+/// Whether `entity` is a `misc_portal_surface` marker a portal face can match.
+fn is_portal_marker(entity: &EntityState) -> bool {
+    entity.entity_type() == ET_PORTAL
+}
 
 struct Face {
     indices: Range<u32>,
@@ -57,8 +67,11 @@ pub(crate) struct Runtime {
     offline_sky: Option<Vec3>,
     pub(crate) sky_only_fog: bool,
     needs_environment: bool,
-    portal_target: Option<gpu::Target>,
-    sky_target: Option<gpu::Target>,
+    /// Made the first frame a portal face selects a view ([`Runtime::provide_targets`]).
+    portal_target: gpu::Lazy,
+    /// Made the first frame the sky portal is drawn: a map's sky shaders alone, without the
+    /// server's `CS_SKYBOXORG` (a `misc_skyportal`), never draw it.
+    sky_target: gpu::Lazy,
     pipeline: wgpu::RenderPipeline,
     /// The sky portal's composite on the sky faces, pushed behind them like the sky.
     sky_pipeline: wgpu::RenderPipeline,
@@ -88,17 +101,16 @@ impl Runtime {
     pub(crate) fn has_portal_view(&self) -> bool {
         self.selection.is_some()
     }
-    /// Resolve map-authored view metadata and provision sky resources outside the frame path.
+    /// Resolve map-authored view metadata; the views' targets are made when first drawn.
     pub(crate) fn new(
         device: &wgpu::Device,
         camera_layout: &wgpu::BindGroupLayout,
-        target: (wgpu::TextureFormat, [u32; 2]),
+        format: wgpu::TextureFormat,
         scene: &FlattenedScene,
         bsp: &Bsp,
         shaders: &ShaderCatalog,
         floor_maps: &dyn Fn(usize) -> Option<crate::world_materials::material_maps::FloorMaps>,
     ) -> Self {
-        let (format, size) = target;
         let mut faces = Vec::new();
         for draw in &scene.draws {
             let Some(def) = shaders.get(&scene.materials[draw.material].shader) else {
@@ -176,12 +188,7 @@ impl Runtime {
             "sky_portal_main",
         );
         let sky_visibility = sky_visibility::SkyVisibility::new(scene, bsp, shaders);
-        let sky_target = sky_visibility
-            .has_candidates()
-            .then(|| gpu::Target::new(device, camera_layout, &sample_layout, format, size));
         let portal_enabled = std::env::var_os("SJK_MAP_PORTALS").is_none_or(|v| v != "0");
-        let portal_target = (portal_enabled && !faces.is_empty())
-            .then(|| gpu::Target::new(device, camera_layout, &sample_layout, format, size));
         let portals = Vec::with_capacity(if faces.is_empty() {
             0
         } else {
@@ -191,9 +198,7 @@ impl Runtime {
             floors: floor_reflections::Floors::new(
                 device,
                 camera_layout,
-                &sample_layout,
                 format,
-                size,
                 scene,
                 shaders,
                 floor_maps,
@@ -212,8 +217,8 @@ impl Runtime {
             sky_orientation,
             offline_sky,
             sky_only_fog,
-            portal_target,
-            sky_target,
+            portal_target: gpu::Lazy::new(gpu::MAP_PORTAL),
+            sky_target: gpu::Lazy::new(gpu::SKY_PORTAL),
             pipeline,
             sky_pipeline,
             needs_environment: scene.materials.iter().any(|m| {
@@ -232,8 +237,7 @@ impl Runtime {
         }
         use std::hash::{Hash, Hasher};
         let mut hash = std::collections::hash_map::DefaultHasher::new();
-        for e in sjk_client::legacy_scene_entities(game, snapshot).filter(|e| e.entity_type() == 7)
-        {
+        for e in sjk_client::legacy_scene_entities(game, snapshot).filter(|e| is_portal_marker(e)) {
             e.number().hash(&mut hash);
             for field in [e.trajectory_base(), e.origin2()] {
                 field.map(f32::to_bits).hash(&mut hash);
@@ -251,7 +255,7 @@ impl Runtime {
         self.portals.clear();
         self.portals.extend(
             sjk_client::legacy_scene_entities(game, snapshot)
-                .filter(|e| e.entity_type() == 7)
+                .filter(|e| is_portal_marker(e))
                 .map(math::Portal::from_entity),
         );
         for face in &mut self.faces {
@@ -389,6 +393,36 @@ impl Runtime {
         self.select_sky(bsp, origin, view, projection, area_mask);
     }
 
+    /// Make the targets of the views this frame draws, at the scene's `size`: each the
+    /// first time its view is drawn, the floor mirrors' too. A view whose target the card
+    /// has no room for is not drawn.
+    fn provide_targets(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &crate::frame_queue::FrameQueue,
+        size: [u32; 2],
+    ) {
+        let (camera, sample, format) = (&self.camera_layout, &self.sample_layout, self.format);
+        self.floors
+            .provide_target(device, queue, (camera, sample), format, size);
+        if self.selection.is_some()
+            && self
+                .portal_target
+                .make(device, camera, sample, format, size)
+                .is_none()
+        {
+            self.selection = None;
+        }
+        if self.sky_view.is_some()
+            && self
+                .sky_target
+                .make(device, camera, sample, format, size)
+                .is_none()
+        {
+            self.sky_view = None;
+        }
+    }
+
     fn select_sky(
         &mut self,
         bsp: &Bsp,
@@ -446,4 +480,64 @@ fn sphere_visible(matrix: Mat4, center: Vec3, radius: f32) -> bool {
     ]
     .iter()
     .all(|plane| plane.dot(p) >= -radius * plane.truncate().length())
+}
+
+#[cfg(test)]
+impl Runtime {
+    /// Whether the floor mirrors, the sky portal and the map portal hold a target.
+    pub(crate) fn targets(&self) -> [bool; 3] {
+        self.target_sizes().map(|size| size.is_some())
+    }
+
+    /// The sizes of the floor mirrors', the sky portal's and the map portal's targets.
+    pub(crate) fn target_sizes(&self) -> [Option<[u32; 2]>; 3] {
+        [&self.floors.target, &self.sky_target, &self.portal_target]
+            .map(|target| target.get().map(|target| target.size))
+    }
+
+    /// Whether this frame draws floor mirrors, the sky portal and a map portal.
+    pub(crate) fn drawn(&self) -> [bool; 3] {
+        [
+            self.floors.active(),
+            self.sky_view.is_some(),
+            self.selection.is_some(),
+        ]
+    }
+
+    /// Each polished plane's largest face, largest first: its centre, its radius and the
+    /// plane's normal.
+    pub(crate) fn polished_faces(&self) -> Vec<(Vec3, f32, Vec3)> {
+        self.floors.largest_faces()
+    }
+
+    /// Each portal face's centre, radius and normal.
+    pub(crate) fn portal_faces(&self) -> Vec<(Vec3, f32, Vec3)> {
+        self.faces
+            .iter()
+            .map(|face| (face.center, face.radius, face.normal))
+            .collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sjk_protocol::LEGACY_ENTITY_FIELDS;
+
+    fn entity(entity_type: u8) -> EntityState {
+        let mut state = EntityState::zero(100, &LEGACY_ENTITY_FIELDS);
+        state.set_raw_field(8, u32::from(entity_type));
+        state
+    }
+
+    #[test]
+    fn portal_surface_entity_is_a_portal_marker() {
+        assert!(is_portal_marker(&entity(8)));
+    }
+
+    #[test]
+    fn beam_entity_is_not_a_portal_marker() {
+        // ET_BEAM (target_laser), which this file mistook for ET_PORTAL.
+        assert!(!is_portal_marker(&entity(7)));
+    }
 }

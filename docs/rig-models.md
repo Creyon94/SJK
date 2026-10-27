@@ -416,8 +416,18 @@ plays its glTF's animations on its own skeleton.
   one that runs its length lets the sound finish. Another player's follows them (the
   snapshot moves their sound source); the player's own plays in both ears, as their
   own entity is not in the snapshot to move it (until 14/10/2026 it stayed where it
-  started). Settings > Sound > Emotes: Emote volume (`s_emoteVolume`, 2 by default,
-  0 to 3) multiplies it over the effects volume.
+  started). Settings > Sound > Emotes: Emote volume (`s_emoteVolume`, 1 by default,
+  0 to 3, 1 as recorded) sets its loudness apart from the effects volume: the emote
+  channel takes its own gain in the mixer, as the voices take `s_volumeVoice`. Until
+  27/10/2026 it was times `s_volume`, so a player who lowered the game's sounds could
+  not make an emote loud (Rollembones's report #163); a saved value moved once to what
+  it gave (times the saved `s_volume`; a profile that never saved one keeps the
+  default). The boombox plays on its own channel (15, protected like the emotes'
+  from voice stealing) and keeps `s_volume`. Attack ends emote
+  (`cg_emoteAttackStop`, off by default) makes an attack or alt attack stop your own
+  emote for everyone; Typing keeps emote (`cg_emoteTypingKeep`, on) keeps a typing
+  player's emote until they move after; alt-tabbing out always silences an emote's
+  sound ([hub chat](hub-chat.md#emotes-in-the-client)).
 - The mixer has 128 voices (32 until 15/10/2026, as retail) and, when they are all
   playing, gives up the oldest sound for a new one, except an emote's: voices on the
   music channel go only when nothing else is left (`MixerConfig::protected_channel`).

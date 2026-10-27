@@ -23,8 +23,6 @@ mod remaps;
 #[path = "console_restarts.rs"]
 mod restarts;
 
-pub(super) use identity::color_chat;
-
 /// Completion/help inventory for commands owned by viewer services.
 pub(super) const COMMANDS: &[(&str, &str)] = &[
     (
@@ -56,6 +54,10 @@ pub(super) const COMMANDS: &[(&str, &str)] = &[
         "s_dynamic",
         "Select dynamic music state (untimed transitions)",
     ),
+    (
+        "pmonly",
+        "Toggle private-only game chat for this map: pmonly [on|off]",
+    ),
     ("messagemode", "Compose global chat"),
     ("messagemode2", "Compose team chat"),
     (
@@ -72,10 +74,30 @@ pub(super) const COMMANDS: &[(&str, &str)] = &[
     ),
     (crate::am_color::COMMAND, crate::am_color::HELP),
     (
+        crate::chat_sounds::PREVIEW_COMMAND,
+        "Play the sound chosen for a kind of chat message: chatsoundpreview <public|team|private|sjk>",
+    ),
+    (
         "reply",
         "Whisper to the last player who whispered to you: reply <message>, or bare to open the chat on it",
     ),
-    (crate::player_ids::COMMAND, crate::player_ids::HELP),
+    (crate::player_trades::COMMAND, crate::player_trades::HELP),
+    (
+        crate::e2e_whispers::VERIFY_COMMAND,
+        "Show the safety code of your encrypted whispers with a player, to compare with them: whisper_verify <player>",
+    ),
+    (
+        crate::player_ids::CLIENT_LIST_COMMAND,
+        crate::player_ids::CLIENT_LIST_HELP,
+    ),
+    (
+        crate::player_ids::CLIENT_LIST_INFO_COMMAND,
+        crate::player_ids::CLIENT_LIST_INFO_HELP,
+    ),
+    (
+        crate::player_ids::SHOW_PLAYER_ID_COMMAND,
+        crate::player_ids::SHOW_PLAYER_ID_HELP,
+    ),
     ("toggleconsole", "Toggle the console"),
     (super::asset_browser::COMMAND, super::asset_browser::HELP),
     (
@@ -99,6 +121,26 @@ pub(super) const COMMANDS: &[(&str, &str)] = &[
     (
         crate::unlock_toast::UPDATE_COMMAND,
         crate::unlock_toast::UPDATE_HELP,
+    ),
+    (
+        crate::official::ANNOUNCEMENT_COMMAND,
+        crate::official::ANNOUNCEMENT_HELP,
+    ),
+    (
+        crate::official::REWARDS_COMMAND,
+        crate::official::REWARDS_HELP,
+    ),
+    (
+        crate::official::ANNOUNCE_COMMAND,
+        crate::official::ANNOUNCE_HELP,
+    ),
+    (
+        crate::official::DEBUG_ANNOUNCE_COMMAND,
+        crate::official::DEBUG_ANNOUNCE_HELP,
+    ),
+    (
+        crate::official::DEBUG_REWARD_COMMAND,
+        crate::official::DEBUG_REWARD_HELP,
     ),
     (
         crate::quick_wheel::OPEN_COMMAND,
@@ -153,6 +195,12 @@ pub(super) const COMMANDS: &[(&str, &str)] = &[
         crate::console::SJK_GIF_HELP,
     ),
     (crate::emotes::COMMAND, crate::emotes::HELP),
+    (crate::boombox::TRACK_COMMAND, crate::boombox::HELP),
+    (crate::block_command::COMMAND, crate::block_command::HELP),
+    (
+        crate::block_command::UNBLOCK_COMMAND,
+        crate::block_command::UNBLOCK_HELP,
+    ),
     (
         crate::saber_skin_command::COMMAND,
         crate::saber_skin_command::HELP,
@@ -213,6 +261,7 @@ pub(super) const COMMANDS: &[(&str, &str)] = &[
     ("vid_restart", "Reapply video settings (device is retained)"),
     (crate::fps_help::COMMAND, crate::fps_help::HELP),
     (crate::emote_help::COMMAND, crate::emote_help::HELP),
+    (crate::emote_picker::COMMAND, crate::emote_picker::HELP),
     (crate::whats_new_card::COMMAND, crate::whats_new_card::HELP),
     (crate::gameplay_fps::COMMAND, crate::gameplay_fps::HELP),
     (
@@ -253,22 +302,24 @@ fn jof_commands() -> &'static [(&'static str, &'static str)] {
 /// Whether `name` is one of the client's own commands. Checked before the mods,
 /// whose `<id>.` prefix a client command may share (`jof.downloads`).
 pub(crate) fn known(name: &str) -> bool {
+    all_commands().any(|(known, _)| known.eq_ignore_ascii_case(name))
+}
+
+/// Every client command with its help: the one list that registration,
+/// queueing and [`known`] share, so a command can't be registered yet never run.
+fn all_commands() -> impl Iterator<Item = &'static (&'static str, &'static str)> {
     COMMANDS
         .iter()
         .chain(crate::cosmetics::command::COMMANDS)
         .chain(crate::saber_colour_command::COMMANDS)
+        .chain(crate::saber_hilt_command::COMMANDS)
+        .chain(crate::map_edits::editor::COMMANDS)
         .chain(jof_commands())
-        .any(|(known, _)| known.eq_ignore_ascii_case(name))
 }
 
 /// Register command metadata and only the settings consumed by these services.
 pub(super) fn register(shell: &mut Shell, commands: &Commands) -> Result<(), Box<dyn Error>> {
-    for &(name, help) in COMMANDS
-        .iter()
-        .chain(crate::cosmetics::command::COMMANDS)
-        .chain(crate::saber_colour_command::COMMANDS)
-        .chain(jof_commands())
-    {
+    for &(name, help) in all_commands() {
         if !shell.commands.contains(name) && shell.cvars.get(name).is_none() {
             shell.commands.register(name, help, |_| {
                 Err(sjk_shell::CommandError::Handler(
@@ -321,7 +372,7 @@ pub(super) fn register(shell: &mut Shell, commands: &Commands) -> Result<(), Box
             crate::ghost_replay::SHOWCASE_CVAR,
             false,
             CvarFlags::ARCHIVE,
-            "Experimental: the ghost and mimic showcase commands",
+            "Showcase tools, SJK staff only",
         ),
     ] {
         shell
@@ -366,13 +417,7 @@ impl Commands {
         command: &str,
         tokens: &[String],
     ) -> Option<Result<Vec<String>, String>> {
-        if !COMMANDS
-            .iter()
-            .chain(crate::cosmetics::command::COMMANDS)
-            .chain(crate::saber_colour_command::COMMANDS)
-            .chain(jof_commands())
-            .any(|(name, _)| name.eq_ignore_ascii_case(&tokens[0]))
-        {
+        if !known(&tokens[0]) {
             return None;
         }
         if self.pending.len() == 64 {
@@ -468,8 +513,7 @@ impl crate::GpuState {
             let origin = self
                 .live_world
                 .entity(sjk_runtime::EntityId::new(u64::from(slot) + 1))
-                .map(|entity| entity.current().transform.translation)
-                .unwrap_or_default();
+                .map(|entity| entity.current().transform.translation);
             state
                 .active
                 .start(slot, &id, def.as_ref(), origin, std::time::Instant::now());
@@ -490,7 +534,7 @@ impl crate::GpuState {
     /// The other player `word` names: [`crate::emotes::TARGET`] (under the crosshair), a
     /// slot number, or part of the name the game shows (a whole name first); with
     /// that name, without colour codes.
-    fn emote_player(&self, own: Option<u8>, word: &str) -> Result<(u8, String), String> {
+    pub(crate) fn emote_player(&self, own: Option<u8>, word: &str) -> Result<(u8, String), String> {
         let Some(session) = self.live_session.as_ref() else {
             return Err("Join a server to emote".to_owned());
         };
@@ -647,7 +691,8 @@ impl crate::GpuState {
                 .entity(sjk_runtime::EntityId::new(u64::from(slot) + 1))
                 .map(|entity| entity.current().transform.translation)
         };
-        let here = position(own).unwrap_or_default();
+        let seen = position(own);
+        let here = seen.unwrap_or_default();
         let mut state = crate::emotes::lock();
         let emoting: Vec<(u8, String)> = state
             .active
@@ -713,7 +758,7 @@ impl crate::GpuState {
             leader,
             &emote,
             def.as_ref(),
-            here,
+            seen,
             std::time::Instant::now(),
         );
         drop(state);
@@ -730,12 +775,16 @@ impl crate::GpuState {
         Ok(vec![format!("In step with {name}")])
     }
 
-    /// Open stock targeted chat using authoritative damage and retained crosshair state.
+    /// Open stock targeted chat using authoritative damage and retained crosshair state;
+    /// while following a player, `messagemode3` whispers to them ([`whisper_slot`]).
     pub(crate) fn targeted_chat(&mut self, attacker: bool) {
         if let Some(session) = &self.live_session {
             let snapshot = session.latest_snapshot();
             let slot = if !attacker {
-                self.crosshair_scan.chat_client(snapshot.server_time)
+                whisper_slot(
+                    &snapshot.player,
+                    self.crosshair_scan.chat_client(snapshot.server_time),
+                )
             } else {
                 self.damage_feedback
                     .has_attacker()
@@ -792,22 +841,18 @@ impl crate::GpuState {
         ) else {
             return Ok(Vec::new());
         };
-        let command = self.console.as_ref().map_or_else(
-            || command.clone(),
-            |console| console.color_chat_command(&command),
-        );
-        self.send_chat_command(&command);
+        self.send_chat_command(&command, None);
         Ok(Vec::new())
     }
 
     /// Consume explicit service requests and nonblocking query replies each frame.
     pub(crate) fn run_client_commands(&mut self, audio: &mut Option<crate::GameAudio>) {
-        while let Some(command) = self
+        while let Some((command, mask, randomness)) = self
             .console
             .as_mut()
             .and_then(|c| c.pending_chat.pop_front())
         {
-            self.send_chat_command(&command);
+            self.send_chat_command(&command, Some((mask, randomness)));
         }
         if self.live_presentation_ready()
             && self
@@ -898,6 +943,9 @@ impl crate::GpuState {
             "blockremaps" | "unblockremaps" => {
                 return self.remap_block_command(name == "blockremaps", args);
             }
+            name if crate::map_edits::editor::is_command(name) => {
+                return self.map_edit_command(name, args);
+            }
             "speedometer" | "strafehelper" => {
                 return hud_commands::execute(
                     self.console.as_mut().ok_or("Console unavailable")?,
@@ -931,15 +979,36 @@ impl crate::GpuState {
                 let console = self.console.as_mut().ok_or("Console unavailable")?;
                 return crate::am_color::run(console, args);
             }
+            crate::chat_sounds::PREVIEW_COMMAND => return crate::chat_sounds::command(args),
+            "pmonly" => {
+                return crate::chat::pm_only::command(
+                    self.console.as_mut().ok_or("Console unavailable")?,
+                    args,
+                );
+            }
             "reply" => return self.reply_command(args),
-            crate::player_ids::COMMAND => {
+            crate::e2e_whispers::VERIFY_COMMAND => return self.whisper_verify_command(args),
+            crate::player_trades::COMMAND => return self.trade_command(args),
+            crate::player_ids::CLIENT_LIST_COMMAND | crate::player_ids::SHOW_PLAYER_ID_COMMAND => {
                 let session = self
                     .resident
                     .session
                     .as_ref()
                     .or(self.live_session.as_ref())
-                    .ok_or("showplayerid: not in a game")?;
-                return Ok(crate::player_ids::lines(session.game_state()));
+                    .ok_or("clientlist: not in a game")?;
+                return Ok(crate::player_ids::client_list_lines(session.game_state()));
+            }
+            crate::player_ids::CLIENT_LIST_INFO_COMMAND => {
+                let session = self
+                    .resident
+                    .session
+                    .as_ref()
+                    .or(self.live_session.as_ref())
+                    .ok_or("clientlistinfo: not in a game")?;
+                return Ok(crate::player_ids::client_list_info_lines(
+                    session.game_state(),
+                    session.latest_snapshot(),
+                ));
             }
             "toggleconsole" => {
                 if let Some(console) = &mut self.console {
@@ -1024,10 +1093,18 @@ impl crate::GpuState {
                 self.sync_cursor_policy();
             }
             crate::emotes::COMMAND => return self.emote_command(args),
+            crate::boombox::TRACK_COMMAND => return self.boombox_command(args),
+            crate::block_command::COMMAND => return self.block_command(args),
+            crate::block_command::UNBLOCK_COMMAND => return self.unblock_command(args),
             crate::medal_popup::rehearsal::COMMAND => return self.debug_medal_command(args),
             crate::holocrons::rehearsal::COMMAND => return self.debug_holocron_command(args),
             crate::cards::rehearsal::COMMAND => return self.debug_open_command(args),
             crate::unlock_toast::UPDATE_COMMAND => return self.debug_update_command(args),
+            crate::official::ANNOUNCEMENT_COMMAND => return self.announcement_command(args),
+            crate::official::REWARDS_COMMAND => return self.rewards_command(),
+            crate::official::ANNOUNCE_COMMAND => return self.announce_command(),
+            crate::official::DEBUG_ANNOUNCE_COMMAND => return self.debug_announce_command(args),
+            crate::official::DEBUG_REWARD_COMMAND => return self.debug_reward_command(args),
             crate::saber_skin_command::COMMAND => return self.saber_skin_command(args),
             crate::console::SJK_CHAT_COMMAND => {
                 if let Some(console) = &mut self.console {
@@ -1156,6 +1233,7 @@ impl crate::GpuState {
             crate::mimic::COMMAND => return self.mimic_command(args),
             crate::fps_help::COMMAND => return self.fps_help_command(),
             crate::emote_help::COMMAND => return self.emote_help_command(),
+            crate::emote_picker::COMMAND => return self.emote_picker_command(),
             crate::whats_new_card::COMMAND => {
                 self.preview_whats_new();
                 return Ok(Vec::new());
@@ -1165,6 +1243,7 @@ impl crate::GpuState {
             "peek" => return self.peek_command(args),
             "cosmetics" => return self.cosmetics_command(args),
             crate::saber_colour_command::COMMAND => return self.saber_colour_command(args),
+            crate::saber_hilt_command::COMMAND => return self.saber_hilt_command(args),
             "vid_restart" | "snd_restart" | "in_restart" | "modelist" => {
                 return self.restart_command(&name, audio);
             }
@@ -1199,8 +1278,34 @@ impl crate::GpuState {
     }
 }
 
+/// `PMF_FOLLOW` (`bg_public.h`): the player state is the followed player's.
+const PMF_FOLLOW: u16 = 4096;
+
+/// Who `messagemode3` whispers to: while following a player (spectating, `PMF_FOLLOW`),
+/// the player followed, as EternalJK's `Con_MessageMode3_f` sends to
+/// `cl.snap.ps.clientNum` (`cl_console.cpp:121`); else the player under the crosshair
+/// (`crosshair`). Kushina's report, 22/10/2026: the bind did nothing while spectating.
+fn whisper_slot(player: &sjk_protocol::PlayerState, crosshair: Option<u16>) -> Option<u16> {
+    if player.movement_flags() & PMF_FOLLOW != 0 {
+        Some(player.client_num())
+    } else {
+        crosshair
+    }
+}
+
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn the_whisper_bind_goes_to_the_followed_player_while_spectating() {
+        let mut player = sjk_protocol::PlayerState::default();
+        player.set_client_num(5);
+        assert_eq!(super::whisper_slot(&player, Some(2)), Some(2));
+        assert_eq!(super::whisper_slot(&player, None), None);
+        player.set_movement_flags(super::PMF_FOLLOW);
+        assert_eq!(super::whisper_slot(&player, None), Some(5));
+        assert_eq!(super::whisper_slot(&player, Some(2)), Some(5));
+    }
     use super::*;
 
     fn import_path(command: &str) -> Option<String> {
@@ -1221,5 +1326,23 @@ mod tests {
         );
         assert_eq!(import_path("firstsetup import"), None);
         assert_eq!(import_path("firstsetup"), None);
+    }
+
+    #[test]
+    fn every_registered_command_reaches_the_client() {
+        // `mapedit` was registered but never queued, so it answered "Viewer
+        // command dispatcher required".
+        for &(name, _) in all_commands() {
+            let mut commands = Commands::default();
+            let tokens = vec![name.to_owned(), "1".to_owned()];
+            assert!(
+                matches!(commands.queue(name, &tokens), Some(Ok(_))),
+                "{name} is not queued"
+            );
+            assert_eq!(commands.pending.len(), 1, "{name}");
+        }
+        let mut commands = Commands::default();
+        let tokens = vec!["MapEdit_Panel".to_owned()];
+        assert!(commands.queue("MapEdit_Panel", &tokens).is_some());
     }
 }

@@ -2,6 +2,8 @@
 use super::*;
 #[path = "world_declared_emission.rs"]
 mod declared_emission;
+#[path = "world_missing_stages.rs"]
+mod missing_stages;
 
 /// Resolve a material's stages the way `create_runtime` does for the world.
 /// `material_maps` enables the optional maps; detached and late entity materials pass
@@ -22,7 +24,26 @@ pub(in crate::world_materials) fn compile_material(
         .strip_prefix(crate::scene_flatten::flares::PREFIX);
     let source_name =
         flare_source.unwrap_or_else(|| sprite_source.map_or(key.shader.as_str(), |(name, _)| name));
-    let definition = shaders.get(source_name);
+    let scripted = shaders.get(source_name);
+    // A stage image that is not there drops the script as retail does
+    // (`world_missing_stages.rs`); generated sprites and flares are not scripts.
+    let fallback = if sprite_source.is_none() && flare_source.is_none() {
+        missing_stages::fallback(vfs, shaders, scripted, key.lightmap)?
+    } else {
+        missing_stages::Fallback::Keep
+    };
+    let truncated;
+    let definition = match fallback {
+        missing_stages::Fallback::Keep => scripted,
+        missing_stages::Fallback::Truncate(count) => {
+            truncated = scripted.map(|scripted| sjk_shader::ShaderDefinition {
+                stages: scripted.stages[..count].to_vec(),
+                ..scripted.clone()
+            });
+            truncated.as_ref()
+        }
+        missing_stages::Fallback::Default => None,
+    };
     let declared = definition.is_some_and(|d| d.surface_light > 0.);
     let (stages, sort, cull) =
         if let Some(stage) = crate::scene_flatten::sprites::stage(shaders, &key.shader) {
@@ -30,6 +51,12 @@ pub(in crate::world_materials) fn compile_material(
                 vec![stage],
                 definition.map_or(9.0, |d| d.resolved_sort()),
                 ShaderCull::TwoSided,
+            )
+        } else if fallback == missing_stages::Fallback::Default {
+            (
+                vec![crate::world_stage::default_stage()],
+                SORT_OPAQUE,
+                ShaderCull::Front,
             )
         } else {
             material_stages(definition, key.lightmap)

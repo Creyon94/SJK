@@ -14,41 +14,57 @@ pub mod ban;
 pub mod bio;
 pub mod chat;
 pub mod crash;
-pub mod donations;
 pub mod emoji;
 pub mod feed;
 pub mod hub;
 mod keys;
 pub mod logs;
+pub mod map_edits;
 pub mod name_emoji;
+pub mod news;
+pub mod relay;
 pub mod report;
 pub mod service;
 pub mod staff;
+pub mod trades;
 pub mod usage;
 pub mod vitals;
+pub mod whisper;
 pub mod wire;
 
 pub use assets::Pack;
 pub use ban::{BanOutcome, ChatBan};
 pub use crash::CrashReport;
-pub use donations::DonationGoal;
 pub use feed::{ChatState, ReceivedLooks};
 pub use hub::{HttpHub, Hub, HubError, valid_base_url};
 pub use keys::{Identity, KeyError};
 pub use logs::{LogRequest, LogUpload};
+pub use news::{
+    AnnounceError, AnnounceRequest, Announcement, ClaimAnswer, FeedAnnouncement, FeedRound,
+    Official, Reward, Rewards, Round, RoundPerson,
+};
+pub use relay::RelayHubs;
 pub use report::{
-    BugReport, Category, NoteModel, NoteModelShader, NoteRemap, PlayerReport, WorldNote,
+    BugReport, Category, NoteModel, NoteModelShader, NoteRemap, PlayerReport, ReportedWhisper,
+    WorldNote,
 };
 pub use service::{
-    HolocronProgress, HubFactory, Location, ModelCheck, OpenOutcome, ReportOutcome, RevealOutcome,
-    Service, Settings, Snapshot, Status,
+    ClaimOutcome, HolocronProgress, HubFactory, Location, ModelCheck, OpenOutcome, ReportOutcome,
+    RevealOutcome, Service, Settings, ShopState, Snapshot, Status, Trade, TradeOutcome,
+    TradesClock,
 };
-pub use staff::{OpenedText, StaffAnswer, StaffQuery, StaffRequest, StaffState};
+pub use staff::{ChatBanRow, OpenedText, StaffAnswer, StaffQuery, StaffRequest, StaffState};
+pub use trades::{
+    PlayerTrade, TradeAnswer, TradeEvent, TradeItem, TradePartner, TradeRules, TradeSide,
+    TradeStep, TradeToday, TradesAnswer,
+};
 pub use vitals::{Sharing, VitalsTable};
 pub use wire::{
-    Achievement, CardStack, ChatMessage, DropEvent, DropMark, Emote, Feed, HOLOCRONS_LISTED,
-    Holocron, HolocronCounts, HolocronState, Look, LookEvent, LootTier, Medal, OPEN_MAX,
-    OpenAnswer, Opened, OpenedCard, OpenedUnlock, People, Person, Ping, Presence, Profile,
-    RevealAnswer, Revealed, SharedVitals, ToyEvent, Trust, Unlock, Vitals, WornName, names_match,
-    normal_form,
+    Achievement, Bought, BuyAnswer, CardStack, ChatMessage, CraftAnswer, Crafted, DropEvent,
+    DropMark, EconomyTables, Emote, Feed, FindEvent, FindMark, HOLOCRONS_LISTED, Holocron,
+    HolocronBought, HolocronBuyAnswer, HolocronCounts, HolocronState, KyberPity, KyberTables,
+    KyberTier, Look, LookEvent, LootTier, MapBlock, Medal, OPEN_MAX, Offer, OpenAnswer, Opened,
+    OpenedCard, OpenedUnlock, People, Person, Ping, Presence, Profile, RelayBatch, RevealAnswer,
+    Revealed, SealedWhisper, SharedVitals, ShatterAllAnswer, ShatterAnswer, Shattered,
+    ShatteredCopies, ShopDay, ToyEvent, Trust, Unlock, Vitals, WornName, names_match, normal_form,
 };

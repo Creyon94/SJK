@@ -22,20 +22,26 @@ impl ChatOverlay {
     /// A message for the SJK channel: its name and text through the chat rules, as
     /// anything a hub sends is shown, the text without its colour codes, as it is
     /// drawn in the SJK chat's gold ([`crate::sjk_chat_look::message_text`]).
-    fn push_sjk(&mut self, message: &ChatMessage, muted: bool, now: Instant) {
+    pub(super) fn push_sjk(&mut self, message: &ChatMessage, muted: bool, now: Instant) {
         // A holocron drop is one sentence with no sender column, in its tier's colour.
         let drop = crate::holocrons::line::words(message);
+        // The SJK team's line: "SJK", then its words; the game's chat cannot be clicked,
+        // so it names the command that opens it.
+        let official = crate::official::words::game_words(message);
         let name = if drop.is_some() {
             String::new()
+        } else if official.is_some() {
+            crate::official::words::SENDER.to_owned()
         } else {
             sjk_identity::chat::name_for_display(&message.name)
         };
-        let body = match &drop {
-            Some(words) => words.text.clone(),
-            None => crate::sjk_chat_look::message_text(&message.text),
+        let body = match (&drop, &official) {
+            (Some(words), _) => words.text.clone(),
+            (None, Some(words)) => words.clone(),
+            (None, None) => crate::sjk_chat_look::message_text(&message.text),
         };
         // A message's GIPHY link reads "GIF", its GIF under it (`chat/feed_gif.rs`).
-        let (body, emojis, gif) = if drop.is_none() {
+        let (body, emojis, gif) = if drop.is_none() && official.is_none() {
             self.with_gif(body)
         } else {
             (body, Vec::new(), None)
@@ -48,6 +54,7 @@ impl ChatOverlay {
             body,
             sender: None,
             channel: Channel::Sjk,
+            server_private: false,
             received_ms: self.millis(now),
             muted,
             emojis,
@@ -57,12 +64,19 @@ impl ChatOverlay {
                 id: message.id,
                 verified: message.verified && drop.is_none(),
                 staff: message.staff,
+                creator: message.creator,
                 trust: message.trust.filter(|_| drop.is_none()),
                 emoji: sjk_identity::name_emoji::for_display(&message.emoji).to_owned(),
+                client: super::client_icons::find(&message.client),
+                in_all: false,
                 key_id: message.key_id.clone(),
                 tier: drop.map(|words| words.tier),
+                official: official.is_some(),
             }),
             gif,
+            encrypted: false,
+            verified: false,
+            recipient: None,
         });
         if self.is_typing() && self.scroll > 0 {
             self.scroll = (self.scroll + 1).min(self.lines.len().saturating_sub(1));
@@ -81,13 +95,38 @@ impl ChatOverlay {
             name: String::new(),
             verified: false,
             staff: false,
+            creator: false,
             trust: None,
             emoji: String::new(),
+            client: String::new(),
             text: String::new(),
             holocron: Some(sjk_identity::DropMark {
                 tier: tier.to_owned(),
                 own: true,
+                find: None,
             }),
+            official: None,
+        };
+        self.push_sjk(&message, false, now);
+    }
+
+    /// Put the SJK team's line `official` into the feed, for `debug_announce` and
+    /// `debug_reward`. The real lines come from the hub's feed ([`Self::sync_sjk`]).
+    pub(crate) fn rehearse_official(&mut self, official: sjk_identity::Official, now: Instant) {
+        let message = ChatMessage {
+            id: u64::MAX,
+            at: 0,
+            key_id: String::new(),
+            name: crate::official::words::SENDER.to_owned(),
+            verified: false,
+            staff: false,
+            creator: false,
+            trust: None,
+            emoji: String::new(),
+            client: String::new(),
+            text: String::new(),
+            holocron: None,
+            official: Some(official),
         };
         self.push_sjk(&message, false, now);
     }
@@ -101,7 +140,20 @@ impl ChatOverlay {
         changed
     }
 
-    /// Say in the feed why the hub refused what was sent, once per outcome.
+    /// Follow `cl_sjkChatFeed`. Turning it off removes SJK messages already in the
+    /// game chat immediately; repeated frame calls do no further history scan.
+    pub(crate) fn set_sjk_feed_visible(&mut self, visible: bool) {
+        if self.sjk_feed_visible == visible {
+            return;
+        }
+        self.sjk_feed_visible = visible;
+        if !visible {
+            self.lines.retain(|line| line.channel != Channel::Sjk);
+        }
+    }
+
+    /// Say in the feed why the hub refused what was sent, once per outcome. Shown even
+    /// with the SJK feed off: the in-game composer has no other place to say it.
     pub(crate) fn sjk_outcome(&mut self, outcome: Option<&ReportOutcome>, now: Instant) {
         let Some(outcome) = outcome else { return };
         if self.sjk_outcome == outcome.serial {
@@ -127,11 +179,25 @@ impl ChatOverlay {
     /// Returns the id the feed had seen when messages newer than it joined the feed now
     /// (those with a higher id in `state`), `None` when nothing new joined: a marked
     /// backlog is not news ([`worth_a_sound`] picks the ones worth a sound).
+    #[cfg(test)]
     pub(crate) fn sync_sjk(
         &mut self,
         state: &ChatState,
         muted: impl Fn(&str) -> bool,
         now: Instant,
+    ) -> Option<u64> {
+        self.sync_sjk_in_feed(state, muted, now, true)
+    }
+
+    /// [`Self::sync_sjk`], with live messages omitted from the game chat while
+    /// `feed` is false. Their ids are still consumed, so turning the feed back on
+    /// never replays messages received while it was hidden.
+    pub(crate) fn sync_sjk_in_feed(
+        &mut self,
+        state: &ChatState,
+        muted: impl Fn(&str) -> bool,
+        now: Instant,
+        feed: bool,
     ) -> Option<u64> {
         for line in &mut self.lines {
             if let Some(hub) = &line.hub {
@@ -179,10 +245,37 @@ impl ChatOverlay {
             if message.holocron.is_some() && (muted || crate::holocrons::line::unknown(message)) {
                 continue;
             }
-            self.push_sjk(message, muted, now);
+            if feed {
+                self.push_sjk(message, muted, now);
+            }
+            self.note_official(message);
+        }
+        // An announcement the service put at the chat's end holds the id of the message
+        // before it, which the feed had seen: it joins once, by its own number.
+        for message in messages.iter().filter(|message| message.id <= seen) {
+            if let Some(sjk_identity::Official::Announcement(shown)) = &message.official
+                && !self.sjk_officials.contains(&shown.id)
+            {
+                if feed {
+                    self.push_sjk(message, false, now);
+                }
+                self.note_official(message);
+            }
         }
         self.sjk_seen = Some(newest);
         (newest > seen).then_some(seen)
+    }
+
+    /// Remember that the feed showed `message`'s announcement, if it is one.
+    fn note_official(&mut self, message: &ChatMessage) {
+        if let Some(sjk_identity::Official::Announcement(shown)) = &message.official
+            && !self.sjk_officials.contains(&shown.id)
+        {
+            if self.sjk_officials.len() >= 64 {
+                self.sjk_officials.remove(0);
+            }
+            self.sjk_officials.push(shown.id);
+        }
     }
 
     /// Whether the SJK chat's sound may play at `now`: at most once in
@@ -211,9 +304,36 @@ pub(crate) fn worth_a_sound<'a>(
     after: u64,
     muted: impl Fn(&str) -> bool,
 ) -> bool {
+    messages.into_iter().any(|message| {
+        message.id > after
+            && message.holocron.is_none()
+            && message.official.is_none()
+            && !muted(&message.key_id)
+    })
+}
+
+/// Console text for the live SJK messages newer than `after`. The initial hub
+/// backlog never supplies an `after` ([`ChatOverlay::sync_sjk`]), and a locally
+/// muted sender stays out of the console just as they stay out of the visible feed.
+/// The console cannot draw the feed's emblem, tick, emoji or exact gold, so its
+/// plain-text substitute starts with a yellow `SJK` tag.
+pub(crate) fn console_lines<'a>(
+    messages: impl IntoIterator<Item = &'a ChatMessage>,
+    after: u64,
+    muted: impl Fn(&str) -> bool,
+) -> Vec<String> {
     messages
         .into_iter()
-        .any(|message| message.id > after && message.holocron.is_none() && !muted(&message.key_id))
+        .filter(|message| message.id > after && !muted(&message.key_id))
+        .filter_map(|message| {
+            let shown = crate::sjk_chat_look::shown(message)?;
+            Some(if shown.name.is_empty() {
+                format!("* ^3SJK^7: {}", shown.text)
+            } else {
+                format!("* ^3SJK^7 {}^7: {}", shown.name, shown.text)
+            })
+        })
+        .collect()
 }
 
 #[cfg(test)]
@@ -231,10 +351,13 @@ mod tests {
             name: "^2Sol".to_owned(),
             verified: id.is_multiple_of(2),
             staff: false,
+            creator: false,
             trust: None,
             emoji: String::new(),
+            client: String::new(),
             text: text.to_owned(),
             holocron: None,
+            official: None,
         }
     }
 
@@ -344,9 +467,11 @@ mod tests {
         let font = crate::text::test_font();
         chat.build(true, &font, [1920.0, 1080.0], 1_000);
         let runs: Vec<&str> = chat.ui.text_runs().collect();
-        assert!(
-            !runs.contains(&"SJK"),
-            "the emblem, not the letters: {runs:?}"
+        // The emblem before the name; SJK after it is the channel's label.
+        assert_eq!(
+            runs.iter().filter(|run| **run == "SJK").count(),
+            2,
+            "one label a line: {runs:?}"
         );
         assert!(!runs.contains(&"SJK VERIFIED"), "the tick alone: {runs:?}");
         let logos = chat
@@ -429,6 +554,7 @@ mod tests {
         messages[2].holocron = Some(sjk_identity::DropMark {
             tier: "legendary".to_owned(),
             own: false,
+            find: None,
         });
         let troll = message(2, "").key_id;
         let news = |after| worth_a_sound(&messages, after, |key| key == troll);
@@ -436,6 +562,25 @@ mod tests {
         assert!(!news(1), "2 is muted, 3 a holocron drop");
         assert!(!news(3), "nothing newer");
         assert!(worth_a_sound(&messages, 1, |_| false));
+    }
+
+    #[test]
+    fn console_gets_only_new_visible_sjk_lines() {
+        let mut messages: Vec<ChatMessage> = (1..=4).map(|id| message(id, "hi ^1there")).collect();
+        let muted = messages[3].key_id.clone();
+        messages[1].holocron = Some(sjk_identity::DropMark {
+            tier: "legendary".to_owned(),
+            own: false,
+            find: None,
+        });
+        assert_eq!(
+            console_lines(&messages, 1, |key| key == muted),
+            [
+                "* ^3SJK^7: Sol found a Legendary Holocron!",
+                "* ^3SJK^7 ^2Sol^7: hi there",
+            ]
+        );
+        assert!(console_lines(&messages, 4, |_| false).is_empty());
     }
 
     #[test]
@@ -533,5 +678,33 @@ mod tests {
         again.loaded = Some(2);
         chat.sync_sjk(&again, |_| false, now);
         assert_eq!(bodies(&chat), ["new"]);
+    }
+
+    #[test]
+    fn a_hidden_feed_consumes_messages_without_touching_other_chat() {
+        let mut chat = ChatOverlay::new();
+        let now = Instant::now();
+        chat.sync_sjk(&hub(&[]), |_| false, now);
+        chat.receive(ServerEventKind::Chat, "server line".to_owned(), None, now);
+        assert_eq!(
+            chat.sync_sjk_in_feed(&hub(&[(1, "hidden")]), |_| false, now, false),
+            Some(0)
+        );
+        assert_eq!(bodies(&chat), ["server line"]);
+        chat.sync_sjk_in_feed(&hub(&[(1, "hidden"), (2, "shown")]), |_| false, now, true);
+        assert_eq!(bodies(&chat), ["server line", "shown"]);
+    }
+
+    #[test]
+    fn turning_the_sjk_feed_off_removes_only_its_existing_lines() {
+        let mut chat = ChatOverlay::new();
+        let now = Instant::now();
+        chat.sync_sjk(&hub(&[]), |_| false, now);
+        chat.receive(ServerEventKind::Chat, "server line".to_owned(), None, now);
+        chat.sync_sjk(&hub(&[(1, "hub line")]), |_| false, now);
+        chat.set_sjk_feed_visible(false);
+        assert_eq!(bodies(&chat), ["server line"]);
+        chat.set_sjk_feed_visible(false);
+        assert_eq!(bodies(&chat), ["server line"]);
     }
 }

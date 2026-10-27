@@ -84,6 +84,7 @@ fn row(client: u8, name: &str, team: u8, score: i32) -> ScoreRow {
         name: name.to_owned(),
         team,
         score,
+        reported_deaths: None,
         deaths: None,
         ping: if bot {
             0
@@ -118,6 +119,14 @@ fn row(client: u8, name: &str, team: u8, score: i32) -> ScoreRow {
                 emoji: Default::default(),
                 medals: medals(&["early_tester", "bug_hunter"], 2),
             }),
+            _ => None,
+        },
+        order: 0,
+        tagged: name == "Jaden",
+        // Two players away: one seen idle, one wearing a tag.
+        away: match name {
+            "^2Vex" => Some(7),
+            "Jaden" => Some(0),
             _ => None,
         },
     }
@@ -257,6 +266,12 @@ impl Scoreboard {
                 }
             }
         };
+        // Away players below the others, as `Scoreboard::mark_away` orders them.
+        for (order, row) in self.rows.iter_mut().enumerate() {
+            row.order = order as u8;
+        }
+        self.rows
+            .sort_unstable_by_key(|row| (row.away.is_some(), row.order));
         self.shot = Some(shot);
         self.motion = super::motion::Motion::default();
     }
@@ -343,6 +358,8 @@ pub(super) fn append(gpu: &mut crate::GpuState, viewport: [f32; 2]) {
         team_scores: shot.team_scores,
         local: shot.local,
         killer: shot.killer,
+        siege_winner: None,
+        match_over: shot.local.intermission,
         duel: shot.duel,
         compact: super::style::compact(gpu.console.as_ref()),
         fps: super::style::fps(gpu.console.as_ref()).then_some(240),
@@ -441,6 +458,8 @@ mod tests {
             team_scores: shot.team_scores,
             local: shot.local,
             killer: shot.killer,
+            siege_winner: None,
+            match_over: shot.local.intermission,
             duel: shot.duel,
             compact,
             fps: Some(240),

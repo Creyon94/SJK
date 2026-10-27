@@ -101,6 +101,31 @@ pub(crate) const ACTIONS: &[BindableAction] = &[
         crate::cardboard_box::COMMAND,
         "",
     ),
+    // Order 66: the toy's switch, then the order every player with it on obeys.
+    action(Interaction, "Toy: Order 66", crate::order66::COMMAND, ""),
+    action(
+        Interaction,
+        "Execute Order 66",
+        crate::order66::EXECUTE_COMMAND,
+        "",
+    ),
+    // The Hax: the toy's switch; the hack itself is +use held on a player.
+    action(Interaction, "Toy: Hax", crate::hax::COMMAND, ""),
+    // The Ragdoll: go limp, press again to get up.
+    action(Interaction, "Toy: Ragdoll", crate::ragdoll::COMMAND, ""),
+    // The Drone: the switch that lets players peek (freecam and peek fly the drone).
+    action(Interaction, "Toy: Drone", crate::drone::COMMAND, ""),
+    // The Boombox: the stereo on the shoulder, and its next track.
+    action(Interaction, "Toy: Boombox", crate::boombox::COMMAND, ""),
+    action(Interaction, "Boombox: next track", "boombox next", ""),
+    // The Monitor: the switch (throw, and be hit), and the throw (held, it charges).
+    action(Interaction, "Toy: Monitor", crate::monitor::COMMAND, ""),
+    action(
+        Interaction,
+        "Throw monitor",
+        crate::monitor::CHARGE_COMMAND,
+        "",
+    ),
     action(Interaction, "Item: Bacta", "use_bacta", ""),
     action(Interaction, "Item: Seeker drone", "use_seeker", ""),
     action(Interaction, "Item: Sentry gun", "use_sentry", ""),
@@ -151,6 +176,13 @@ pub(crate) const ACTIONS: &[BindableAction] = &[
     action(Force, "Dash (JoF)", "force_dash", ""),
     action(Force, "Stasis (JoF, hold)", "+force_stasis", ""),
     action(Force, "Repulse (JoF)", "force_repulse", ""),
+    #[cfg(feature = "mod-jof")]
+    action(
+        Force,
+        "JoF Destruction (server granted)",
+        sjk_mod_jof::destruction::COMMAND,
+        "",
+    ),
     // OTHER
     // Server commands (`codemp/game/g_cmds.c:3402-3404`); the console forwards
     // them, but they were unbindable from this screen until now.

@@ -10,10 +10,16 @@ name = "sjk"
 path = "src/main.rs"
 
 [dependencies]
+# The graphics card's video memory, for the small-card settings (`video_memory.rs`);
+# read on Windows only (the crate answers None elsewhere).
+sjk-gpu-memory.workspace = true
 bytemuck = { version = "1.25.0", features = ["derive"] }
 glam = "0.33.0"
-image = { version = "0.25.9", default-features = false, features = ["gif", "jpeg", "png", "tga"] }
+image = { version = "0.25.9", default-features = false, features = ["gif", "jpeg", "png", "tga", "webp"] }
 half = "2.7.1"
+# Block compression of map and model textures (`r_textureCompression`,
+# `texture_compression.rs`): its CPU encoders only, pure Rust (Intel's ISPC kernels ported).
+block_compression = { version = "0.10.1", default-features = false, features = ["bc15", "bc7"] }
 fontdue = "0.9.3"
 # Glyphs beyond the code-page atlases, outlined on demand (`text/wide.rs`).
 ab_glyph = { version = "0.2.32", default-features = false, features = ["std"] }
@@ -29,6 +35,7 @@ sjk-model.workspace = true
 sjk-mod.workspace = true
 # The client mods (docs/mods.md): built in by default, each can be left out.
 sjk-mod-japlus = { workspace = true, optional = true }
+sjk-mod-japro = { workspace = true, optional = true }
 sjk-mod-jof = { workspace = true, optional = true }
 sjk-jof-content = { workspace = true, optional = true }
 sjk-network.workspace = true
@@ -51,20 +58,47 @@ serde.workspace = true
 serde_json.workspace = true
 tempfile = "3.27.0"
 zip.workspace = true
-wgpu = { version = "30.0.1", default-features = false, features = ["dx12", "gles", "std", "vulkan", "wgsl"] }
+wgpu = { version = "30.0.1", default-features = false, features = ["dx12", "gles", "metal", "std", "vulkan", "wgsl"] }
 winit = { version = "0.30.13", default-features = false, features = ["rwh_06", "wayland", "wayland-dlopen", "x11"] }
 ureq = { version = "3", default-features = false, features = ["rustls", "gzip"] }
 sha2 = "0.11.0"
+# Trusted chat media: exact URL hosts, lock-free policy snapshots and bounded HTML
+# discovery. Silent MP4 clips use the system's Media Foundation on Windows (below).
+url = "2"
+arc-swap = "1"
+scraper = { version = "0.24", default-features = false }
+
+[dev-dependencies]
+# Counts allocator calls in `assert_no_alloc` blocks: per-frame bookkeeping allocates
+# nothing (`blade_pictures.rs`, `graphics_quality.rs`).
+assert_no_alloc = { version = "1.1.2", features = ["warn_debug"] }
 
 [features]
-default = ["mod-japlus", "mod-jof"]
+default = ["mod-japlus", "mod-japro", "mod-jof"]
 mod-japlus = ["dep:sjk-mod-japlus"]
+mod-japro = ["dep:sjk-mod-japro"]
 mod-jof = ["dep:sjk-mod-jof", "dep:sjk-jof-content"]
 
 [target.'cfg(windows)'.dependencies]
 # Ctrl+V and copies read and set the clipboard directly: starting PowerShell for them
 # took about a quarter of a second, a hitch in the middle of play.
 clipboard-win = "5.4.0"
+# Chat MP4 clips (`chat_gifs/video.rs`): Windows Media Foundation, its DLLs loaded at
+# run time so Windows N editions still start.
+sjk-mediafoundation.workspace = true
+
+[target.'cfg(windows)'.dev-dependencies]
+sjk-mediafoundation = { workspace = true, features = ["test-encoder"] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+# Ctrl+V and copies talk to the X11 or Wayland clipboard in process: they used to need
+# xclip or wl-clipboard installed, and without them pasting did nothing on Linux.
+arboard = { version = "3.6.1", default-features = false, features = ["wayland-data-control"] }
+
+[target.'cfg(target_os = "macos")'.dev-dependencies]
+# Shader tests translate to SPIR-V and HLSL through `wgpu::naga`; the Vulkan and DX12
+# backends turn those writers on elsewhere, Metal does not.
+naga = { version = "30.0.1", features = ["spv-out", "hlsl-out"] }
 
 [build-dependencies]
 # Windows icon and version resource; the build script uses it only for Windows targets.

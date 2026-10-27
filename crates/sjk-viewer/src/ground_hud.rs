@@ -68,15 +68,13 @@ impl GroundHud {
 /// while the ground HUD stands in for them. `time_ms` picks the demo snapshot
 /// when no live session runs.
 pub(crate) fn frame(gpu: &mut GpuState, intermission: bool, time_ms: i32) -> HudVisibility {
-    let mut visibility = if intermission
-        || crate::menu_backdrop::hides_hud(gpu)
-        || gpu.quick_wheel.hides_hud()
-        || crate::scoreboard::hides_hud(gpu)
-    {
-        HudVisibility::HIDDEN
-    } else {
-        HudVisibility::from_console(gpu.console.as_ref())
-    };
+    let mut visibility =
+        if intermission || crate::menu_backdrop::hides_hud(gpu) || gpu.quick_wheel.hides_hud() {
+            HudVisibility::HIDDEN
+        } else {
+            HudVisibility::from_console(gpu.console.as_ref())
+        };
+    visibility = crate::scoreboard::visibility(gpu, visibility, time_ms);
     let enabled = gpu
         .console
         .as_ref()
@@ -98,10 +96,9 @@ pub(crate) fn frame(gpu: &mut GpuState, intermission: bool, time_ms: i32) -> Hud
     match (presentation, sample) {
         (Presentation::Ground, Some((_, placement, readings))) => {
             visibility.ground_hud = true;
-            let viewport = [
-                gpu.configuration.width as f32,
-                gpu.configuration.height as f32,
-            ];
+            // The scene's raster, which the HUD is drawn into and whose depth it reads:
+            // the window's size times the render scale or supersampling.
+            let viewport = gpu.scene_size().map(|n| n as f32);
             let layout = Layout::build(&gpu.ui_font, readings);
             let hud = &mut gpu.ground_hud;
             hud.active = true;

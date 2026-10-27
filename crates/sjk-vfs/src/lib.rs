@@ -5,7 +5,7 @@ mod path;
 mod pk3_directory;
 mod pk3_fingerprint;
 pub use cache_identity::AssetCacheIdentity;
-pub use pk3_directory::pk3_search_order;
+pub use pk3_directory::{pk3_search_order, pk3_search_order_merged};
 
 pub use path::{VirtualPath, VirtualPathError};
 
@@ -216,6 +216,18 @@ impl VirtualFileSystem {
         Ok(None)
     }
 
+    /// The size in bytes of `path` in the highest-priority mount that has it, without
+    /// reading it (an archive's entry says it); `None` when no mount has it.
+    pub fn size(&self, path: &str) -> Result<Option<u64>, VfsError> {
+        let path = VirtualPath::for_read(path)?;
+        for mount in self.mounts.iter().rev() {
+            if mount.source.contains(&path) {
+                return Ok(mount.source.size(&path));
+            }
+        }
+        Ok(None)
+    }
+
     pub fn contains(&self, path: &str) -> Result<bool, VfsError> {
         let path = VirtualPath::for_read(path)?;
         Ok(self
@@ -307,9 +319,15 @@ impl VirtualFileSystem {
     /// the files in it (or one directory below) ending in `extension`. The
     /// highest-priority source comes first, each source in its own order (an archive
     /// in its central directory's), and a name only the first time it is met — the
-    /// order a game reading "every file of a kind" joins them in.
+    /// order a game reading "every file of a kind" joins them in. An empty
+    /// `directory` is the root: its files, and those one directory below.
     pub fn list_files(&self, directory: &str, extension: &str) -> Vec<String> {
-        let prefix = format!("{}/", directory.trim_end_matches('/').to_ascii_lowercase());
+        let directory = directory.trim_end_matches('/').to_ascii_lowercase();
+        let prefix = if directory.is_empty() {
+            directory
+        } else {
+            format!("{directory}/")
+        };
         let extension = extension.to_ascii_lowercase();
         let mut listed: Vec<String> = Vec::new();
         let mut paths = Vec::new();
@@ -389,6 +407,8 @@ trait AssetSourceBackend: Send + Sync {
     }
     fn read(&self, path: &VirtualPath, max_bytes: u64) -> Result<Option<Vec<u8>>, VfsError>;
     fn contains(&self, path: &VirtualPath) -> bool;
+    /// The size of `path` in bytes, without reading it; `None` when it cannot be told.
+    fn size(&self, path: &VirtualPath) -> Option<u64>;
     fn entry_count(&self) -> usize;
     fn append_paths(&self, output: &mut BTreeSet<VirtualPath>);
     /// The name `path` has in this source, letter case kept.
@@ -444,6 +464,10 @@ impl AssetSourceBackend for MemorySource {
 
     fn contains(&self, path: &VirtualPath) -> bool {
         self.files.contains_key(path)
+    }
+
+    fn size(&self, path: &VirtualPath) -> Option<u64> {
+        self.files.get(path).map(|bytes| bytes.len() as u64)
     }
 
     fn entry_count(&self) -> usize {
@@ -552,6 +576,10 @@ impl AssetSourceBackend for DirectorySource {
 
     fn contains(&self, path: &VirtualPath) -> bool {
         self.files.contains_key(path)
+    }
+
+    fn size(&self, path: &VirtualPath) -> Option<u64> {
+        Some(self.files.get(path)?.metadata().ok()?.len())
     }
 
     fn entry_count(&self) -> usize {
@@ -672,6 +700,13 @@ impl AssetSourceBackend for Pk3Source {
 
     fn contains(&self, path: &VirtualPath) -> bool {
         self.entries.contains_key(path)
+    }
+
+    fn size(&self, path: &VirtualPath) -> Option<u64> {
+        let index = self.entries.get(path).copied()?;
+        let mut archive = self.archive.lock().ok()?;
+        // The raw entry: its header gives the size, nothing is inflated.
+        Some(archive.by_index_raw(index).ok()?.size())
     }
 
     fn entry_count(&self) -> usize {
@@ -849,6 +884,23 @@ mod original_name_tests {
         );
         assert_eq!(vfs.original_name("forcecfg/light/none.fcf"), None);
     }
+
+    #[test]
+    fn an_empty_directory_lists_the_root() {
+        let mut vfs = VirtualFileSystem::new();
+        vfs.mount_memory(
+            "base",
+            [
+                ("autoexec.cfg", b"".to_vec()),
+                ("cfg/a.cfg", b"".to_vec()),
+                ("a/b/c.cfg", b"".to_vec()),
+            ],
+        )
+        .unwrap();
+        let mut listed = vfs.list_files("", ".cfg");
+        listed.sort();
+        assert_eq!(listed, ["autoexec.cfg", "cfg/a.cfg"]);
+    }
 }
 
 #[cfg(test)]
@@ -973,6 +1025,38 @@ mod filtered_pk3_tests {
         assert!(!vfs.contains("cgamex86.dll").unwrap());
         assert_eq!(vfs.paths().len(), 1);
         assert_eq!(vfs.mounts().next().unwrap().entries, 1);
+    }
+
+    #[test]
+    fn sizes_come_from_the_highest_mount_without_reading() {
+        let path = std::env::temp_dir().join(format!(
+            "sjk-vfs-sizes-{}-{:?}.pk3",
+            std::process::id(),
+            std::thread::current().id()
+        ));
+        {
+            let mut zip = zip::ZipWriter::new(File::create(&path).unwrap());
+            // Deflated: the entry's size is the file's, not what it packs to.
+            zip.start_file(
+                "sound/boombox/song.mp3",
+                zip::write::SimpleFileOptions::default()
+                    .compression_method(zip::CompressionMethod::Deflated),
+            )
+            .unwrap();
+            zip.write_all(&[7_u8; 5_000]).unwrap();
+            zip.finish().unwrap();
+        }
+        let mut vfs = VirtualFileSystem::new();
+        vfs.mount_memory("lower", [("sound/boombox/song.mp3", vec![0_u8; 3])])
+            .unwrap();
+        vfs.mount_pk3(&path).unwrap();
+        vfs.mount_memory("upper", [("other.txt", vec![0_u8; 9])])
+            .unwrap();
+        assert_eq!(vfs.size("sound/boombox/song.mp3").unwrap(), Some(5_000));
+        assert_eq!(vfs.size("/other.txt").unwrap(), Some(9));
+        assert_eq!(vfs.size("missing.txt").unwrap(), None);
+        drop(vfs);
+        std::fs::remove_file(&path).unwrap();
     }
 }
 

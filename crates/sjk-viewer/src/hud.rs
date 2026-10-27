@@ -7,9 +7,14 @@ pub(crate) mod crosshair;
 pub(crate) mod enemy_info;
 mod estimate;
 pub(crate) mod family;
-mod force_estimate;
+pub(crate) mod flag_status;
+mod follow;
+pub(crate) use follow::shown as follow_shown;
 mod force_streams;
 pub(crate) mod force_wheel;
+mod hack_bar;
+mod monitor_marks;
+pub(crate) use monitor_marks::MonitorMarks;
 pub(crate) mod icons;
 pub(crate) mod identification;
 mod info;
@@ -53,7 +58,8 @@ use std::path::Path;
 const WIDGET_LIMIT: usize = 64;
 /// The HUD's draw commands: the 384 its other widgets had, and room for a full
 /// kill feed (55).
-const DRAW_LIMIT: usize = 384 + kill_feed::CAPACITY * kill_feed::ENTRY_COMMANDS;
+const DRAW_LIMIT: usize =
+    384 + kill_feed::CAPACITY * kill_feed::ENTRY_COMMANDS + movement::AURA_COMMANDS;
 const DEFAULT_LAYOUT: &str = include_str!("../assets/hud/default.json");
 /// The weapon name fades over this long at the end of its life.
 const WEAPON_FADE_MS: u64 = 600;
@@ -77,7 +83,12 @@ const RADIAL_LAYOUT: &str = include_str!("../assets/hud/radial.json");
 pub(crate) struct HudVisibility {
     pub(crate) hud: bool,
     pub(crate) status: bool,
+    /// The vehicle HUD, which `cg_drawStatus` governs too, but which stays when the
+    /// vehicle takes the player's own status HUD (`hideRider`).
+    pub(crate) vehicle: bool,
     pub(crate) weapon: bool,
+    /// Weapon, inventory and Force selection rows, independently of status cvars.
+    pub(crate) selection: bool,
     pub(crate) crosshair: bool,
     pub(crate) crosshair_names: bool,
     pub(crate) timer: bool,
@@ -101,7 +112,9 @@ impl HudVisibility {
         Self {
             hud,
             status: hud && enabled("cg_drawStatus", true),
+            vehicle: hud && enabled("cg_drawStatus", true),
             weapon: hud && enabled("cg_drawWeapon", true),
+            selection: hud,
             crosshair: hud
                 && console
                     .and_then(|c| c.integer_cvar("cg_drawCrosshair"))
@@ -119,7 +132,9 @@ impl HudVisibility {
     pub(crate) const HIDDEN: Self = Self {
         hud: false,
         status: false,
+        vehicle: false,
         weapon: false,
+        selection: false,
         crosshair: false,
         crosshair_names: false,
         timer: false,
@@ -152,6 +167,8 @@ pub(crate) struct HudOverlay {
     pub(crate) enemy_info: enemy_info::State,
     /// The pilot's vehicle HUD and the crosshair it changes.
     pub(crate) vehicle: vehicle::State,
+    /// The CTF flag icons and the team score plates.
+    pub(crate) flag_status: flag_status::State,
     score_text: String,
     snapshot_text: String,
 
@@ -161,6 +178,7 @@ pub(crate) struct HudOverlay {
     force_wheel_bar: bool,
     /// The bar's map-lifetime pictures.
     force_wheel_icons: [Option<sjk_ui::TextureId>; force_wheel::ICONS],
+    extension_icons_tried: u32,
     /// The holocron tiers' pictures in the UI atlas (`holocrons/icons.rs`), where they
     /// loaded.
     pub(crate) holocron_icons: [Option<sjk_ui::TextureId>; crate::holocrons::COUNT],
@@ -214,7 +232,16 @@ pub(crate) struct HudOverlay {
     /// `cg_drawUpperRight`, a clock to show), as JoF EJK's `CG_DrawUpperRight` puts it.
     upper_right_timer: bool,
     warmup_text: String,
+    /// The followed player's name (`CG_DrawFollow`), empty when not following.
+    followed_name: String,
     interrupted: bool,
+    /// The share of the player's hack still to go (`hack_bar`), `None` while it hacks
+    /// nothing.
+    hack_left: Option<f32>,
+    /// The Hax toy's hack still to go (`hax.rs`), drawn as a siege hack is.
+    toy_hack_left: Option<f32>,
+    /// The Monitor toy's charge ring and hit marker (`monitor.rs`).
+    monitor_marks: MonitorMarks,
     lagometer: sjk_client::LagometerSamples,
     default_document: HudLayoutDocument,
     classic_document: HudLayoutDocument,
@@ -288,6 +315,7 @@ impl HudOverlay {
             duel_pairs: duel_pairs::DuelPairs::default(),
             team_logo: team_logo::State::default(),
             team_outline: team_outline::State::default(),
+            flag_status: flag_status::State::default(),
             score_text: String::with_capacity(80),
             snapshot_text: String::with_capacity(96),
 
@@ -309,6 +337,7 @@ impl HudOverlay {
             selector: None,
             force_wheel_bar: false,
             force_wheel_icons: [None; force_wheel::ICONS],
+            extension_icons_tried: 0,
             holocron_icons: [None; crate::holocrons::COUNT],
             crosshair_pictures: [None; crosshair::PICTURES],
             rocket_lock: rocket_lock::State::default(),
@@ -334,7 +363,11 @@ impl HudOverlay {
             match_timer: String::with_capacity(16),
             upper_right_timer: false,
             warmup_text: String::with_capacity(48),
+            followed_name: String::with_capacity(64),
             interrupted: false,
+            hack_left: None,
+            toy_hack_left: None,
+            monitor_marks: MonitorMarks::default(),
             lagometer: sjk_client::LagometerSamples::new(),
             default_document: HudLayoutDocument::from_json(DEFAULT_LAYOUT)
                 .expect("bundled default HUD document is valid"),
@@ -356,6 +389,16 @@ impl HudOverlay {
             radial_document: HudLayoutDocument::from_json(RADIAL_LAYOUT)
                 .expect("bundled radial HUD document is valid"),
         }
+    }
+
+    /// The share of a Hax toy's hack still to go, while the player hacks or is hacked.
+    pub(crate) fn set_toy_hack(&mut self, left: Option<f32>) {
+        self.toy_hack_left = left;
+    }
+
+    /// The Monitor toy's marks on the crosshair this frame.
+    pub(crate) fn set_monitor_marks(&mut self, marks: MonitorMarks) {
+        self.monitor_marks = marks;
     }
 
     /// Build, lay out and retain the HUD widget draw list. `user_scale` is
@@ -501,6 +544,24 @@ impl HudOverlay {
                     viewport,
                 ),
             };
+        // Drawn by `CG_DrawCrosshair` after the crosshair, so only with it.
+        if visibility.crosshair {
+            hack_bar::emit(
+                &mut self.draw_list,
+                viewport,
+                self.hack_left.or(self.toy_hack_left),
+                crosshair::rect(crosshair_look, self.targeting.center(viewport), viewport),
+                self.icons.cell(icons::assets::HACKER),
+            );
+            // The crosshair's middle is a fraction of the screen: in pixels here.
+            let [x, y] = self.targeting.center(viewport);
+            monitor_marks::emit(
+                &mut self.draw_list,
+                viewport,
+                [x * viewport[0], y * viewport[1]],
+                self.monitor_marks,
+            );
+        }
         let mut output = HudLayout::default();
         let low_health = self.values.is_some_and(|value| value.health <= 25);
         let low_ammo = self
@@ -536,14 +597,18 @@ impl HudOverlay {
             );
         }
         if visibility.hud {
-            if visibility.status {
+            if visibility.vehicle {
                 self.vehicle
                     .emit(&mut self.draw_list, self.theme, viewport, user_scale);
             }
             self.speed.emit(&mut self.draw_list, self.theme, viewport);
-            let selector = self
-                .selector
-                .filter(|s| !s.inventory || self.family.inventory);
+            follow::emit(
+                &mut self.draw_list,
+                &self.followed_name,
+                viewport,
+                dpi_scale,
+            );
+            let selector = self.selector.filter(|_| visibility.selection);
             match selector {
                 Some(view) if !view.inventory && self.force_wheel_bar => force_wheel::emit(
                     &mut self.draw_list,
@@ -563,6 +628,7 @@ impl HudOverlay {
                 ),
             }
             top_right = top_right.max(self.emit_family(viewport));
+            self.icons.flags_in_boxes = self.flag_status.flags_in_boxes(visibility);
             top_right = top_right.max(self.icons.emit(
                 &mut self.draw_list,
                 viewport,
@@ -589,7 +655,9 @@ impl HudOverlay {
                 font,
                 self.theme,
             );
-            self.guides.emit(&mut self.draw_list, viewport);
+            self.flag_status
+                .emit(&mut self.draw_list, viewport, &self.icons, visibility);
+            self.guides.emit(&mut self.draw_list, viewport, time_ms);
         }
         // CG_DrawWeaponSelect does not follow cg_drawHud: only the row's own
         // conditions (`GpuState::sample_weapon_select`) decide.
@@ -599,9 +667,9 @@ impl HudOverlay {
         output
     }
 
-    /// Settle the status values and meters on a fixed state, for the layout snapshots,
-    /// with the weapon name showing as right after a weapon change.
-    #[cfg(test)]
+    /// Settle the status values and meters on a fixed state, for the layout snapshots
+    /// and the HUD picker's pictures, with the weapon name showing as right after a
+    /// weapon change.
     pub(crate) fn preview_values(&mut self, values: ClientHudData, ratios: [f32; 4]) {
         self.format_values(values);
         self.weapon_shown_ms = Some(0);
@@ -630,6 +698,7 @@ impl HudOverlay {
             (vertices, font),
             viewport,
             crate::text::TextStyle::NEUTRAL,
+            None,
         );
     }
 

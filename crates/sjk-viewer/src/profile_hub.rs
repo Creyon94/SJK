@@ -74,28 +74,32 @@ pub(crate) enum Tab {
     Nameplates,
     /// The player's holocrons, the loot-box drops, a 3D holocron cycled by tier.
     Holocrons,
+    /// The shop, crafting and breaking saber shaders down (21/10/2026).
+    Forge,
     /// The cards opening holocrons brought, and the credits.
     Cards,
 }
 
 const PROFILE_TABS: [Tab; 4] = [Tab::Character, Tab::Saber, Tab::Force, Tab::Profile];
-const COLLECTION_TABS: [Tab; 7] = [
+const COLLECTION_TABS: [Tab; 8] = [
     Tab::Medals,
     Tab::Achievements,
     Tab::Shaders,
     Tab::Toys,
     Tab::Nameplates,
     Tab::Holocrons,
+    Tab::Forge,
     Tab::Cards,
 ];
 const PROFILE_LABELS: [&str; 4] = ["Character", "Saber", "Force", "SJK Profile"];
-const COLLECTION_LABELS: [&str; 7] = [
+const COLLECTION_LABELS: [&str; 8] = [
     "Medals",
     "Achievements",
     "Shaders",
     "Toys",
     "Nameplates",
     HOLOCRONS,
+    FORGE,
     "Cards",
 ];
 
@@ -105,9 +109,12 @@ pub(crate) const COLLECTION: &str = "Collection";
 /// The name of the tab of the player's holocrons, the loot-box drops.
 pub(crate) const HOLOCRONS: &str = "Holocrons";
 
+/// The name of the tab of the shop, crafting and breaking shaders down.
+pub(crate) const FORGE: &str = "Forge";
+
 impl Tab {
     #[cfg(test)]
-    pub(crate) const ALL: [Self; 11] = [
+    pub(crate) const ALL: [Self; 12] = [
         Self::Character,
         Self::Saber,
         Self::Force,
@@ -118,6 +125,7 @@ impl Tab {
         Self::Toys,
         Self::Nameplates,
         Self::Holocrons,
+        Self::Forge,
         Self::Cards,
     ];
 
@@ -138,7 +146,8 @@ impl Tab {
             Self::Profile | Self::Toys => 3,
             Self::Nameplates => 4,
             Self::Holocrons => 5,
-            Self::Cards => 6,
+            Self::Forge => 6,
+            Self::Cards => 7,
         }
     }
 
@@ -182,8 +191,16 @@ pub(crate) const TOKEN: u16 = 2_000;
 /// player screen's own tabs stood.
 const ROW_X: f32 = 96.0;
 const ROW_Y: f32 = 146.0;
+/// The bottom of the area each tab answers the pointer in (frame pixels): a page keeps
+/// its own pointer areas under it, or they take the tabs' clicks, a ragged row's
+/// included, which a large text style stretches to the frame's right.
+pub(crate) const ROW_BOTTOM: f32 = ROW_Y + 42.0;
 /// The room between two tabs' names.
 const GAP: f32 = 48.0;
+/// The narrowest clear separation when large text needs more of the row.
+const MIN_GAP: f32 = 14.0;
+/// The right edge kept clear for the frame's matching margin.
+const ROW_RIGHT: f32 = 1_816.0;
 /// How far down the console's pages move what they show under their title, to leave
 /// the row its room.
 pub(crate) const SHIFT: f32 = 44.0;
@@ -215,11 +232,47 @@ fn sized_width(label: &str, size: f32, style: crate::text::TextStyle) -> f32 {
 
 /// How wide a tab's count is drawn, with the room before it; nothing without one.
 fn count_width(count: &str) -> f32 {
+    count_width_in(count, crate::text::style::current())
+}
+
+/// [`count_width`] in `style`.
+fn count_width_in(count: &str, style: crate::text::TextStyle) -> f32 {
     if count.is_empty() {
         0.0
     } else {
-        COUNT_GAP + sized_width(count, COUNT_SIZE, crate::text::style::current())
+        COUNT_GAP + sized_width(count, COUNT_SIZE, style)
     }
+}
+
+/// The tabs keep their ordinary generous separation until styled labels and counts
+/// need more room, then close the gaps evenly without touching.
+fn row_gap(labels: &[&str], counts: &[String], widen: f32) -> f32 {
+    row_gap_in(labels, counts, widen, crate::text::style::current())
+}
+
+/// [`row_gap`] in `style`.
+fn row_gap_in(
+    labels: &[&str],
+    counts: &[String],
+    widen: f32,
+    style: crate::text::TextStyle,
+) -> f32 {
+    let gaps = labels.len().saturating_sub(1);
+    if gaps == 0 {
+        return 0.0;
+    }
+    let content: f32 = labels
+        .iter()
+        .enumerate()
+        .map(|(at, label)| {
+            (styled_width(label, style)
+                + counts
+                    .get(at)
+                    .map_or(0.0, |count| count_width_in(count, style)))
+                * widen
+        })
+        .sum();
+    ((ROW_RIGHT - ROW_X - content) / gaps as f32).clamp(MIN_GAP, GAP)
 }
 
 /// Where tab `index` of `labels` starts, how wide its name is and how wide its count
@@ -228,11 +281,12 @@ fn count_width(count: &str) -> f32 {
 /// loaded).
 fn places(labels: &[&str], counts: &[String], index: usize, widen: f32) -> (f32, f32, f32) {
     let count = |at: usize| counts.get(at).map_or(0.0, |count| count_width(count)) * widen;
+    let gap = row_gap(labels, counts, widen);
     let x = labels
         .iter()
         .take(index)
         .enumerate()
-        .map(|(at, label)| label_width(label) * widen + count(at) + GAP)
+        .map(|(at, label)| label_width(label) * widen + count(at) + gap)
         .sum::<f32>();
     (
         ROW_X + x,
@@ -246,7 +300,12 @@ fn places(labels: &[&str], counts: &[String], index: usize, widen: f32) -> (f32,
 /// The area that answers the pointer for tab `index` of `labels`, frame pixels.
 fn hit_area(labels: &[&str], counts: &[String], index: usize, widen: f32) -> [f32; 4] {
     let (x, width, count) = places(labels, counts, index, widen);
-    [x - 8.0, ROW_Y - 4.0, width + count + 16.0, 46.0]
+    [
+        x - 8.0,
+        ROW_Y - 4.0,
+        width + count + 16.0,
+        ROW_BOTTOM - (ROW_Y - 4.0),
+    ]
 }
 
 /// A row of tabs under a screen's title: `labels` from the left edge of the form, the
@@ -391,10 +450,11 @@ pub(crate) fn collection_header(
     (counts, widen): (&[String], f32),
 ) {
     top_bar(canvas, frame, back, back_token, COLLECTION, None);
+    let labels = COLLECTION_LABELS.map(crate::terms::say);
     counted_tabs(
         canvas,
         frame,
-        &COLLECTION_LABELS,
+        &labels.each_ref().map(|label| &**label),
         counts,
         current.index(),
         TOKEN,
@@ -682,7 +742,8 @@ mod tests {
         assert_eq!(Tab::Character.next(false), Tab::Profile);
         assert_eq!(Tab::Medals.next(false), Tab::Cards);
         assert_eq!(Tab::Nameplates.next(true), Tab::Holocrons);
-        assert_eq!(Tab::Holocrons.next(true), Tab::Cards);
+        assert_eq!(Tab::Holocrons.next(true), Tab::Forge);
+        assert_eq!(Tab::Forge.next(true), Tab::Cards);
         assert_eq!(Tab::Cards.next(true), Tab::Medals);
         assert_eq!(Tab::Achievements.next(true), Tab::Shaders);
         for screen in [Screen::Profile, Screen::Collection] {
@@ -701,8 +762,9 @@ mod tests {
         assert_eq!(Tab::Nameplates.label(), "Nameplates");
         assert_eq!(collection_tab_of(TOKEN + 2), Some(Tab::Shaders));
         assert_eq!(collection_tab_of(TOKEN + 5), Some(Tab::Holocrons));
-        assert_eq!(collection_tab_of(TOKEN + 6), Some(Tab::Cards));
-        assert_eq!(collection_tab_of(TOKEN + 7), None);
+        assert_eq!(collection_tab_of(TOKEN + 6), Some(Tab::Forge));
+        assert_eq!(collection_tab_of(TOKEN + 7), Some(Tab::Cards));
+        assert_eq!(collection_tab_of(TOKEN + 8), None);
         assert_eq!(collection_tab_of(TOKEN - 1), None);
     }
 
@@ -724,17 +786,25 @@ mod tests {
         assert!(plain > 100.0);
         assert!((styled_width("Achievements", larger) - plain * 1.2).abs() < 0.01);
         for screen in [Screen::Profile, Screen::Collection] {
-            let row: f32 = screen
-                .labels()
+            let labels = screen.labels();
+            let counts = if screen == Screen::Collection {
+                vec!["21/21".to_owned(); labels.len()]
+            } else {
+                Vec::new()
+            };
+            let gap = row_gap_in(labels, &counts, 1.0, widest);
+            let content: f32 = labels
                 .iter()
-                .map(|label| {
+                .enumerate()
+                .map(|(at, label)| {
                     styled_width(label, widest)
-                        + COUNT_GAP
-                        + sized_width("21/21", COUNT_SIZE, widest)
-                        + GAP
+                        + counts
+                            .get(at)
+                            .map_or(0.0, |count| count_width_in(count, widest))
                 })
                 .sum();
-            assert!(ROW_X + row < 1_824.0, "{screen:?} reaches {}", ROW_X + row);
+            let right = ROW_X + content + gap * labels.len().saturating_sub(1) as f32;
+            assert!(right <= ROW_RIGHT, "{screen:?} reaches {right}");
         }
     }
 
@@ -743,7 +813,7 @@ mod tests {
     /// Collection's row, with its counts, answers its page's pointer.
     #[test]
     fn the_rows_answer_where_they_are_drawn() {
-        let counts: Vec<String> = ["2/4", "11/21", "1/5", "1/1", "", "12"]
+        let counts: Vec<String> = ["2/4", "11/21", "1/5", "1/1", "", "12", "1 250"]
             .iter()
             .map(|count| (*count).to_owned())
             .collect();

@@ -8,6 +8,13 @@ use std::error::Error;
 
 pub(crate) struct Runtime {
     pipeline: wgpu::RenderPipeline,
+    black_pipeline: wgpu::RenderPipeline,
+    any_black: bool,
+    /// The heat wake (`saber_trail.wgsl` `fragment_wake`): drawn with the blades' heat
+    /// haze, first in the effect pass, bending the scene behind the slices marked
+    /// [`crate::saber_trail::WAKE`].
+    wake_pipeline: wgpu::RenderPipeline,
+    any_wake: bool,
     material: wgpu::BindGroup,
     buffer: wgpu::Buffer,
     vertices: Vec<Vertex>,
@@ -22,6 +29,7 @@ impl Runtime {
         vfs: &VirtualFileSystem,
         shaders: &ShaderCatalog,
         camera_layout: &wgpu::BindGroupLayout,
+        scene_layout: &wgpu::BindGroupLayout,
         format: wgpu::TextureFormat,
     ) -> Result<Self, Box<dyn Error>> {
         let blur = additive_shader(shaders, "gfx/effects/sabers/saberBlur")?;
@@ -36,6 +44,7 @@ impl Runtime {
                 texture_layout_entry(0),
                 texture_layout_entry(1),
                 texture_layout_entry(2),
+                texture_layout_entry(4),
                 wgpu::BindGroupLayoutEntry {
                     binding: 3,
                     visibility: wgpu::ShaderStages::FRAGMENT,
@@ -56,10 +65,21 @@ impl Runtime {
         let glow = load_shader_texture(device, queue, vfs, shaders, glow_image)?;
         let core = load_shader_texture(device, queue, vfs, shaders, core_image)?;
         let sword = load_shader_texture(device, queue, vfs, shaders, sword_image)?;
+        let black_image = crate::saber_rgb::black::image(vfs, shaders, "trail");
+        let black = crate::gpu_texture::upload_display_image(
+            device,
+            queue,
+            "SJK black saber trail",
+            &black_image,
+        );
         let material = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("SJK stock saber trail material"),
             layout: &texture_layout,
             entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 4,
+                    resource: wgpu::BindingResource::TextureView(&black),
+                },
                 wgpu::BindGroupEntry {
                     binding: 0,
                     resource: wgpu::BindingResource::TextureView(&glow),
@@ -87,40 +107,60 @@ impl Runtime {
             label: Some("SJK saber trail shader"),
             source: wgpu::ShaderSource::Wgsl(include_str!("saber_trail.wgsl").into()),
         });
-        let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("SJK additive saber trail pipeline"),
-            layout: Some(&layout),
-            vertex: wgpu::VertexState {
-                module: &shader,
-                entry_point: Some("vertex_main"),
-                compilation_options: wgpu::PipelineCompilationOptions::default(),
-                buffers: &[Some(Vertex::layout())],
-            },
-            fragment: Some(wgpu::FragmentState {
-                module: &shader,
-                entry_point: Some("fragment_main"),
-                compilation_options: wgpu::PipelineCompilationOptions::default(),
-                targets: &[Some(wgpu::ColorTargetState {
-                    format,
-                    blend: Some(blend),
-                    write_mask: wgpu::ColorWrites::ALL,
-                })],
-            }),
-            primitive: wgpu::PrimitiveState {
-                cull_mode: None,
-                ..Default::default()
-            },
-            depth_stencil: Some(wgpu::DepthStencilState {
-                format: DepthTarget::FORMAT,
-                depth_write_enabled: Some(false),
-                depth_compare: Some(wgpu::CompareFunction::LessEqual),
-                stencil: Default::default(),
-                bias: Default::default(),
-            }),
-            multisample: wgpu::MultisampleState::default(),
-            multiview_mask: None,
-            cache: None,
+        let wake_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some("SJK saber trail wake pipeline layout"),
+            bind_group_layouts: &[
+                Some(camera_layout),
+                Some(&texture_layout),
+                Some(scene_layout),
+            ],
+            immediate_size: 0,
         });
+        let create = |entry, blend: Option<wgpu::BlendState>, layout| {
+            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: Some("SJK additive saber trail pipeline"),
+                layout: Some(layout),
+                vertex: wgpu::VertexState {
+                    module: &shader,
+                    entry_point: Some("vertex_main"),
+                    compilation_options: wgpu::PipelineCompilationOptions::default(),
+                    buffers: &[Some(Vertex::layout())],
+                },
+                fragment: Some(wgpu::FragmentState {
+                    module: &shader,
+                    entry_point: Some(entry),
+                    compilation_options: wgpu::PipelineCompilationOptions::default(),
+                    targets: &[Some(wgpu::ColorTargetState {
+                        format,
+                        blend,
+                        write_mask: wgpu::ColorWrites::ALL,
+                    })],
+                }),
+                primitive: wgpu::PrimitiveState {
+                    cull_mode: None,
+                    ..Default::default()
+                },
+                depth_stencil: Some(wgpu::DepthStencilState {
+                    format: DepthTarget::FORMAT,
+                    depth_write_enabled: Some(false),
+                    depth_compare: Some(wgpu::CompareFunction::LessEqual),
+                    stencil: Default::default(),
+                    bias: Default::default(),
+                }),
+                multisample: wgpu::MultisampleState::default(),
+                multiview_mask: None,
+                cache: None,
+            })
+        };
+        let pipeline = create("fragment_main", Some(blend), &layout);
+        let black_pipeline = create(
+            "fragment_black",
+            Some(wgpu::BlendState::ALPHA_BLENDING),
+            &layout,
+        );
+        // The wake replaces what it covers with the scene's pixels, bent (the layer still
+        // holds the scene there: nothing else has drawn yet).
+        let wake_pipeline = create("fragment_wake", None, &wake_layout);
         let buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("SJK saber trail vertices"),
             size: (MAX_SEGMENTS * 6 * std::mem::size_of::<Vertex>()) as u64,
@@ -129,6 +169,10 @@ impl Runtime {
         });
         Ok(Self {
             pipeline,
+            black_pipeline,
+            any_black: false,
+            wake_pipeline,
+            any_wake: false,
             material,
             buffer,
             vertices: Vec::with_capacity(MAX_SEGMENTS * 6),
@@ -145,6 +189,11 @@ impl Runtime {
     ) {
         self.vertices.clear();
         self.last_quads = pool.append_vertices(now, &mut self.vertices);
+        self.any_black = self.vertices.iter().any(|vertex| vertex.style == 2);
+        self.any_wake = self
+            .vertices
+            .iter()
+            .any(|vertex| vertex.style & crate::saber_trail::WAKE != 0);
         self.vertex_count = u32::try_from(self.vertices.len()).unwrap_or(u32::MAX);
         if !self.vertices.is_empty() {
             queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&self.vertices));
@@ -155,6 +204,7 @@ impl Runtime {
         &'pass self,
         pass: &mut wgpu::RenderPass<'pass>,
         camera: &'pass wgpu::BindGroup,
+        black_trails: bool,
     ) {
         if self.vertex_count == 0 {
             return;
@@ -162,6 +212,34 @@ impl Runtime {
         pass.set_pipeline(&self.pipeline);
         pass.set_bind_group(0, camera, &[]);
         pass.set_bind_group(1, &self.material, &[]);
+        pass.set_vertex_buffer(0, self.buffer.slice(..));
+        pass.draw(0..self.vertex_count, 0..1);
+        if black_trails && self.any_black {
+            pass.set_pipeline(&self.black_pipeline);
+            pass.draw(0..self.vertex_count, 0..1);
+        }
+    }
+
+    /// Whether the last prepared frame has a slice that bends what is behind it.
+    pub(crate) const fn has_wake(&self) -> bool {
+        self.any_wake
+    }
+
+    /// Draw the heat wakes into the effect layer, the scene image bound in `scene`
+    /// (`saber_gpu.rs` `draw_haze`, whose layout the pipeline was made with).
+    pub(crate) fn draw_wake(
+        &self,
+        pass: &mut wgpu::RenderPass<'_>,
+        camera: &wgpu::BindGroup,
+        scene: &wgpu::BindGroup,
+    ) {
+        if !self.any_wake || self.vertex_count == 0 {
+            return;
+        }
+        pass.set_pipeline(&self.wake_pipeline);
+        pass.set_bind_group(0, camera, &[]);
+        pass.set_bind_group(1, &self.material, &[]);
+        pass.set_bind_group(2, scene, &[]);
         pass.set_vertex_buffer(0, self.buffer.slice(..));
         pass.draw(0..self.vertex_count, 0..1);
     }

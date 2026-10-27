@@ -150,10 +150,18 @@ pub(super) fn client_name_and_team(
     game_state: &GameState,
     client_num: u16,
 ) -> (std::borrow::Cow<'_, str>, u8) {
-    game_state
+    let (name, team) = game_state
         .config_string(1_131 + usize::from(client_num))
         .and_then(parse_client_info)
-        .unwrap_or((std::borrow::Cow::Borrowed("unknown"), 3))
+        .unwrap_or((std::borrow::Cow::Borrowed("unknown"), 3));
+    // A blocked player's name reads BLOCKED here (`muted_players.rs`).
+    if crate::muted_players::shown_muted(client_num) {
+        return (
+            std::borrow::Cow::Borrowed(crate::muted_players::LABEL),
+            team,
+        );
+    }
+    (name, team)
 }
 
 /// Split one `configstring` client-info entry into a display name and team.

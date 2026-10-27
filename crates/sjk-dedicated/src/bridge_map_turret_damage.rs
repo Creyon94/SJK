@@ -14,13 +14,15 @@ impl NativeGame {
         missile: &Missile,
         level_time: i32,
     ) {
-        if self.hurt_brush(
-            number,
-            missile.damage,
-            missile.method_of_death,
-            missile.owner,
-            level_time,
-        ) || missile.damage == 0
+        // `G_MissileImpact` deals no damage at all for a missile that carries none.
+        if missile.damage == 0
+            || self.hurt_brush(
+                number,
+                missile.damage,
+                missile.method_of_death,
+                missile.owner,
+                level_time,
+            )
         {
             return;
         }

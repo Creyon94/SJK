@@ -1,3 +1,7 @@
+// A Windows release client is a windowed program: no console opens beside the game.
+// Debug builds keep theirs for `cargo run`; the log is standard error either way, so
+// a redirected start (play.bat) still writes it to a file.
+#![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 mod achievements;
 mod actor_instance;
 mod actor_load;
@@ -8,6 +12,7 @@ mod actor_world_submission;
 mod alpha_notice_card;
 mod am_color;
 mod animation_timing;
+mod anti_emote;
 mod app_launch;
 mod assets;
 mod audio;
@@ -16,7 +21,10 @@ mod audio_output;
 mod auto_switch;
 mod avatar_command;
 mod avatars;
+mod away_emote;
+mod block_command;
 mod bolt;
+mod boombox;
 mod brush_view;
 mod build_info;
 mod camera;
@@ -30,19 +38,27 @@ mod chat;
 mod chat_ban;
 mod chat_gifs;
 mod chat_mutes;
+mod chat_sounds;
 mod cinematic_roq;
 mod client_guid;
 mod client_state;
 mod clientinfo_refresh;
 mod debug_collectibles;
+mod drone;
+mod duel_blades;
 mod duel_ghost;
+mod duel_visibility;
+mod economy;
 mod editions;
 mod entity_view;
+mod kyber;
 mod loot_odds;
 
 mod saber_colour_command;
 mod shader_image;
+mod shared_textures;
 
+mod body_fade;
 mod clock_trace;
 mod combat_effects;
 mod config_import;
@@ -62,9 +78,10 @@ mod decal_marks;
 mod decal_store;
 mod decoded_image_cache;
 mod demo_playback;
+mod discord_ipc;
+mod discord_presence;
 mod disintegration;
 mod dismember;
-mod donation_goal;
 mod dust_motes;
 mod dynamic_lights;
 mod effect_assets;
@@ -74,9 +91,11 @@ mod effect_debug;
 mod effect_electricity;
 mod effect_emitter;
 mod effect_envelope;
+mod effect_flash;
 mod effect_geometry;
 mod effect_geometry_gpu;
 mod vehicle_assets;
+mod vehicle_fire;
 mod vehicle_pose;
 
 mod effect_library;
@@ -88,6 +107,7 @@ mod effect_wave;
 mod entity_instance;
 mod entity_lighting;
 mod entity_materials;
+mod fall_camera;
 mod first_person_view;
 mod first_person_weapon;
 mod fog_frame;
@@ -98,7 +118,11 @@ mod frame_queue;
 mod frame_split;
 
 mod charge_flash;
+mod e2e_whisper_card;
+mod e2e_whispers;
 mod emote_help;
+mod emote_picker;
+mod emplaced_swivel;
 mod fake_noclip;
 mod file_dialog;
 mod fps_help;
@@ -110,11 +134,14 @@ mod gameplay_fps;
 mod ghost_replay;
 mod glow_pass;
 mod gpu_context;
+mod gpu_guard;
 mod gpu_phases;
 mod gpu_texture;
 mod graphics_quality;
 mod graphics_reload;
 mod ground_hud;
+mod hax;
+mod held_view;
 mod hitch_log;
 mod holocron_popup;
 mod holocrons;
@@ -143,6 +170,7 @@ mod medals;
 mod menu;
 mod menu_backdrop;
 mod menu_hud;
+mod menu_pictures;
 #[cfg(test)]
 mod menu_snapshot;
 mod menu_stage;
@@ -150,8 +178,10 @@ mod menu_widgets;
 mod menu_world;
 mod mimic;
 mod missile_trails;
+mod mod_notice_card;
 mod model_materials;
 mod mods;
+mod monitor;
 mod movement_collision;
 mod mover_models;
 mod movers;
@@ -163,20 +193,36 @@ mod notice;
 mod npc_refresh;
 mod object_meshes;
 mod oblique_clip;
+mod official;
+mod order66;
 mod particle_atlas;
 mod particle_draw;
 mod peek;
+mod player_trades;
+mod portable_shields;
 mod portal;
 mod prediction_preview;
+mod ragdoll;
 mod scene_views;
 mod scope;
 mod sender_card;
 mod server_caps;
+mod siege_objective_notice;
+mod siege_sabers;
 mod surface_tables;
+mod team_sabers;
+mod toy_saved;
+mod toy_sounds;
+mod trade_window;
 mod trip_mine_lasers;
+mod video_memory;
 mod viewer_app;
 use object_meshes::StaticModelMesh;
 mod achievements_frame;
+mod blade_extras;
+mod blade_lab_designs;
+mod blade_pictures;
+mod blade_signatures;
 mod blade_skin_file;
 mod bug_report;
 mod electrify;
@@ -186,6 +232,7 @@ mod emotes_frame;
 mod footprints;
 mod gi_voxels;
 mod holocrons_frame;
+mod holstered_sabers;
 mod identity_command;
 mod identity_frame;
 mod illuminate;
@@ -195,6 +242,8 @@ mod jetpack;
 mod live_session;
 mod looks;
 mod looks_frame;
+mod map_blocks;
+mod map_edits;
 mod net_timing;
 mod particle_motion;
 mod particle_physics;
@@ -230,12 +279,16 @@ mod saber_clash_flare;
 mod saber_defs;
 mod saber_ghosts;
 mod saber_gpu;
+mod saber_hilt_command;
 mod saber_hilts;
+mod saber_motion;
 mod saber_persona;
+mod saber_petals;
 mod saber_rgb;
 mod saber_skin_command;
 mod saber_skin_options;
 mod saber_skins;
+mod saber_sound_choice;
 mod saber_submission;
 mod saber_trail;
 mod saber_trail_gpu;
@@ -256,13 +309,18 @@ mod sjk_chat_frame;
 mod sjk_chat_look;
 mod sjk_packs;
 mod sky_stage;
+mod small_card_notice;
 mod snapshot_presentation;
 mod static_models;
+mod stock_blades;
+mod support_links;
 mod symbols;
+mod terms;
 mod text;
 mod text_dialog;
 mod text_entry;
 mod text_select;
+mod tile_shine;
 mod ui_renderer;
 mod ui_scale;
 mod ui_target;
@@ -284,6 +342,12 @@ mod world_ping_frame;
 #[cfg(test)]
 mod world_shot;
 mod world_stage;
+
+/// Counts allocator calls inside `assert_no_alloc` blocks (tests of per-frame
+/// bookkeeping); every call goes on to the system allocator.
+#[cfg(all(test, debug_assertions))]
+#[global_allocator]
+static ALLOCATOR: assert_no_alloc::AllocDisabler = assert_no_alloc::AllocDisabler;
 use actor_instance::ActorInstance;
 use actor_mesh::ActorMesh;
 use animation_timing::animation_frame;
@@ -316,7 +380,7 @@ use sjk_vfs::VirtualFileSystem;
 
 use scene_flatten::{
     ActorDraw, DrawBatch, FlattenedScene, ViewerMaterial, append_actor_mesh, append_md3_mesh,
-    append_static_glm_mesh, preview_gpu_vertex,
+    append_static_glm_mesh, append_static_glm_surfaces, preview_gpu_vertex,
 };
 use shared_geometry::SharedGeometry;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
@@ -344,7 +408,7 @@ fn main() {
     }
     crash_report::clean_exit();
     // Keep the last achievement counts, then withdraw the identity claim on the hub.
-    achievements::sync(None, true);
+    achievements::sync(None, player_identity::hub_on(), true);
     player_identity::shutdown();
     // After the settings were saved on the way out, start an installed update.
     update::restart_if_requested();
@@ -357,6 +421,8 @@ use hud_runtime::HudUniform;
 
 struct GpuState {
     context: Arc<gpu_context::Context>,
+    /// This world's claim on the textures it shares with other worlds of its context.
+    _shared_textures: shared_textures::Holder,
     /// The context the world loading now is built on, when it is newer than this
     /// world's: a graphics reload on a server ([`graphics_reload`]).
     next_context: Option<Arc<gpu_context::Context>>,
@@ -368,16 +434,29 @@ struct GpuState {
     fps_card: fps_help::card::Card,
     /// The emote help card (`help_emotes`, [`emote_help`]).
     emote_help: emote_help::State,
+    /// The emote picker (`emotes`, [`emote_picker`]).
+    emote_picker: emote_picker::State,
+    /// End-to-end encrypted whispers and their card ([`e2e_whispers`]).
+    e2e_whispers: e2e_whispers::State,
+    /// Trades between players: the trade window and its toast ([`player_trades`]).
+    trades: player_trades::State,
     /// The alpha notice, until the player accepts it ([`alpha_notice_card`]).
     alpha_card: alpha_notice_card::Card,
     /// The SJK team's request for the player's logs ([`log_request_card`]).
     log_request_card: log_request_card::Card,
+    /// A client mod's notice, shown once on its servers ([`mod_notice_card`]).
+    mod_notice: mod_notice_card::State,
+    small_card_notice: small_card_notice::Card,
     /// What the update brought ([`whats_new_card`]).
     whats_new_card: whats_new_card::Card,
+    /// The SJK team's announcements and contributor rewards ([`official`]).
+    official: official::Official,
     window: Option<Arc<Window>>,
     post_aa: Option<frame_target::aa::Runtime>,
     render_scale: Option<frame_target::scale::Runtime>,
     screenshots: screenshot::Manager,
+    /// The menu pictures' drawing, while the menu world is a picture one.
+    menu_pictures: menu_pictures::Painter,
     /// The image frames render into without a window: only the off-screen
     /// world shots set it (`world_shot`); without one a windowless frame is
     /// skipped.
@@ -401,6 +480,8 @@ struct GpuState {
     /// Text pipeline for the retail fonts' distance-field atlases.
     sdf_text_pipeline: wgpu::RenderPipeline,
     saber_gpu: saber_gpu::Runtime,
+    /// The Collection's live blade pictures, once a swatch asked for one.
+    blade_pictures: Option<blade_pictures::Target>,
     dust_motes: dust_motes::Runtime,
     /// The quick wheel open while its key is held (`quick_wheel.rs`).
     quick_wheel: quick_wheel::QuickWheel,
@@ -412,6 +493,8 @@ struct GpuState {
     actor_meshes: Vec<ActorMesh>,
     actor_workers: actor_pose::evaluation::Pool,
     object_meshes: Vec<StaticModelMesh>,
+    /// Where each emplaced gun's top was last turned (`emplaced_swivel.rs`).
+    emplaced_turned: emplaced_swivel::Turned,
     emitter_model_catalog: effect_emitter::ModelCatalog,
     mover_catalog: movers::Catalog,
     pickup_catalog: pickups::Catalog,
@@ -432,11 +515,28 @@ struct GpuState {
     illuminate_others: illuminate::Others,
     /// The cardboard box toy (`toy_box`): the player's own and the boxes of others.
     cardboard_box: cardboard_box::CardboardBox,
+    /// The Order 66 toy (`toy_order66`, `order66`): the order and the pieces flying.
+    order66: order66::Order66,
+    /// The Hax toy (`toy_hax`): a hack under way, the player steered or steering.
+    hax: hax::Hax,
+    /// The Drone toy (`toy_drone`): its consent switch and the other players' drones.
+    drone: drone::Drone,
+    /// The Boombox toy (`toy_boombox`): the own stereo and track, and what plays here.
+    boombox: boombox::Boombox,
+    /// The Monitor toy (`toy_monitor`): its switch and the monitors thrown.
+    monitor: monitor::Monitor,
+    /// The Ragdoll toy (`toy_ragdoll`): the player's own fall and the falls of others.
+    ragdoll: ragdoll::Ragdoll,
+    /// Order 66's, the Hax's and the Drone's switches as last saved (`toy_saved`).
+    toys_saved: [toy_saved::Saved; 4],
     /// The Holocrons tab's 3D holocron ([`holocrons::stage`]).
     holocron_stage: holocrons::stage::Stage,
     /// The time its turn and bob are drawn at, instead of the clock's, for a world shot.
     #[cfg(test)]
     holocron_stage_seconds: Option<f32>,
+    /// The form it draws in place of the tab's, for a world shot (a kyber crystal).
+    #[cfg(test)]
+    holocron_stage_request: Option<holocrons::stage::Request>,
     /// What each player wears that SJK draws (blade skin, Illuminate).
     looks: looks::Looks,
     trick_fades: sjk_client::LegacyTrickFades,
@@ -445,7 +545,11 @@ struct GpuState {
     dynamic_lights: dynamic_lights::PointLightList,
     effect_aux: effect_aux::Runtime,
     muzzle_effects: sjk_client::LegacyMuzzleEffects,
+    /// Vehicle volleys waiting for their vehicle to be posed (`vehicle_fire.rs`).
+    vehicle_fires: vehicle_fire::Pending,
     force_overlays: sjk_client::LegacyForceOverlayTracker,
+    /// `EV_BODYFADE` per body (`body_fade.rs`).
+    body_fades: Box<sjk_client::LegacyBodyFadeTracker>,
     /// The jetpack model and its jet bolts.
     jetpack: jetpack::Catalog,
     /// Which entities' jets have sounded their start.
@@ -494,10 +598,18 @@ struct GpuState {
     menu_stage: menu_stage::MenuStage,
     clientinfo_watch: clientinfo_refresh::ClientInfoWatch,
     config_string_refresh: config_string_refresh::ConfigStringRefresh,
+    /// Black-blade server/clientinfo scan, redone on configstring changes.
+    black_sabers: saber_rgb::black::Cache,
+    /// Siege class saber colours, redone on configstring changes.
+    siege_sabers: siege_sabers::Cache,
+    /// Holstered-hilt contract detected from the serverinfo, redone on its change.
+    holster_server: holstered_sabers::ServerCache,
     /// Parsed shader catalogue, kept for materials compiled after map load.
     /// Shared with the workers that load players' models (`player_loads.rs`).
     shaders: Arc<ShaderCatalog>,
     decal_surfaces: decal_marks::DecalSurfaces,
+    /// SJK's edits of the loaded map ([`map_edits`]).
+    map_edits: map_edits::State,
     player_shadows: player_shadows::State,
     camera_buffer: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
@@ -511,6 +623,8 @@ struct GpuState {
     text_vertex_buffer: wgpu::Buffer,
     classic_text_vertex_buffer: wgpu::Buffer,
     text_bind_group: wgpu::BindGroup,
+    /// The Inter atlas `text_bind_group` binds, kept to bind it again with the wide atlas.
+    text_atlas: wgpu::TextureView,
     text_layout: wgpu::BindGroupLayout,
     text_sampler: wgpu::Sampler,
     /// Glyphs beyond the code-page atlases, bound with every text atlas.
@@ -518,6 +632,8 @@ struct GpuState {
     /// The retail `¬` logo spliced into the Inter atlas, kept for DPI rebuilds.
     logo_glyph: Option<text::LogoGlyph>,
     classic_text_bind_group: Option<wgpu::BindGroup>,
+    /// The classic HUD atlas `classic_text_bind_group` binds.
+    classic_text_atlas: Option<wgpu::TextureView>,
     /// The classic HUD atlas is a distance field (see `text::sdf::for_atlas`).
     classic_text_sdf: bool,
     ui_font: UiFont,
@@ -530,6 +646,8 @@ struct GpuState {
     chat: chat::ChatOverlay,
     /// Players muted on this PC who are on the server being played.
     muted_players: muted_players::MutedPlayers,
+    /// Players blocked until the map changes, by this player or by staff for everyone.
+    map_blocks: map_blocks::MapBlocks,
     game_menu: bool,
     in_game_menu: ingame_menu::InGameMenu,
     game_menu_page: GameMenuPage,
@@ -575,6 +693,8 @@ struct GpuState {
     /// Optional per-pass GPU timing printed with the frame-budget report.
     gpu_phases: Option<gpu_phases::Profiler>,
     third_person_camera: camera::State,
+    /// Where a fall to death began, while it lasts ([`fall_camera`]).
+    fall_camera: fall_camera::FallCamera,
     far_plane: f32,
     gameplay_input: input::GameplayInput,
     /// Windows Alt code being typed into a text field.
@@ -626,12 +746,17 @@ struct GpuState {
     mimic: mimic::Mimic,
 
     selected_weapon: Option<u8>,
+    weapon_selection_view: weapon_select::view::Tracker,
     weapon_selected_at: Option<Instant>,
     pending_generic_command: u8,
+    anti_emote: anti_emote::State,
     vfs: Option<Arc<VirtualFileSystem>>,
     pending_map_reload: bool,
     world_load_task: Option<session_transition::WorldLoadTask>,
     world_install_task: Option<session_transition::WorldInstallTask>,
+    /// An empty world standing in for a server's map while its next map builds
+    /// (`session_transition`): the old map is off the graphics card first.
+    map_unloaded: bool,
     world_load_state: session_transition::LoadStateMachine,
     world_load_started: Option<Instant>,
     world_load_map: String,
@@ -639,12 +764,17 @@ struct GpuState {
     remap_blocked_maps: remap_blocked_maps::Cache,
     snapshot_observations: snapshot_presentation::Counters,
     obituaries: sjk_client::ObituaryTracker,
+    /// The siege objectives' notices, read from the map's `.siege` file.
+    siege_notices: siege_objective_notice::Notices,
     /// What the player does in matches, for the achievements (`achievements.rs`).
     achievement_tracker: achievements::tracker::Tracker,
     lagometer: sjk_client::LagometerSamples,
     crosshair_scan: crosshair_scan::State,
     auto_switch: auto_switch::Tracker,
     previous_particle_events: HashMap<u16, u16>,
+    /// The presented snapshot without the players outside the duel
+    /// (`cg_duelHideOthers`), for the frame's snapshot readers.
+    duel_hidden_view: duel_visibility::HiddenView,
     particles: Vec<Particle>,
     /// Frees the old end of the effect pool for each frame's new particles.
     particle_room: particle_room::Room,
@@ -701,6 +831,9 @@ impl GpuState {
         input: GpuWorldInput,
         cancelled: Option<&std::sync::atomic::AtomicBool>,
     ) -> Result<Self, Box<dyn Error>> {
+        // Until the world is built, textures it makes on this thread are shared with
+        // the other worlds alive on the context (a map change keeps the last one).
+        let (shared_holder, _sharing) = shared_textures::building(&context.shared_textures);
         let input = assets::prepare_instances(input)?;
         let GpuWorldInput {
             scene,
@@ -814,11 +947,19 @@ impl GpuState {
         let player_animation = player_preview
             .map(|preview| GpuPlayerAnimation::append(&mut flattened, preview))
             .transpose()?;
+        let clientinfo_watch = clientinfo_refresh::ClientInfoWatch::new(&vfs);
         let mut actor_meshes = if session_active {
             let active_world = demo_session
                 .as_ref()
                 .map_or(&live_world, demo_playback::Session::world);
-            actor_load::load_actor_meshes(&vfs, active_game_state, active_world, &mut flattened)?
+            actor_load::load_actor_meshes(
+                &vfs,
+                active_game_state,
+                active_world,
+                &mut flattened,
+                &clientinfo_watch.model_policy,
+                console.as_ref(),
+            )?
         } else {
             Vec::new()
         };
@@ -963,12 +1104,11 @@ impl GpuState {
             logo_glyph.as_ref(),
         )?;
         let ui_font = modern_atlas.font;
-        let font_view = gpu_texture::create_rgba8_texture_mipmapped(
+        let font_view = gpu_texture::create_r8_texture_mipmapped(
             &device,
             &queue,
             "SJK UI font atlas",
             &modern_atlas.image,
-            true,
             text::ATLAS_MIP_LEVELS,
         );
         // The font's atlas, its sampler and the wide-glyph and emoji atlases
@@ -1014,14 +1154,13 @@ impl GpuState {
         let classic_text_sdf = classic_atlas
             .as_ref()
             .is_some_and(|atlas| atlas.distance_field);
-        let (classic_hud_font, classic_text_bind_group) =
-            classic_atlas.map_or((None, None), |atlas| {
-                let view = gpu_texture::create_rgba8_texture_mipmapped(
+        let (classic_hud_font, classic_text_bind_group, classic_text_atlas) =
+            classic_atlas.map_or((None, None, None), |atlas| {
+                let view = gpu_texture::create_r8_texture_mipmapped(
                     &device,
                     &queue,
                     "SJK classic HUD font atlas",
                     &atlas.image,
-                    true,
                     game_font::mip_levels(atlas.image.width(), atlas.image.height()),
                 );
                 let bind_group = text::wide_texture::bind_group(
@@ -1032,7 +1171,7 @@ impl GpuState {
                     &text_sampler,
                     &wide_text,
                 );
-                (Some(atlas.font), Some(bind_group))
+                (Some(atlas.font), Some(bind_group), Some(view))
             });
         let game_fonts = game_font::GameFonts::preload(
             preload_game_fonts || game_font::enabled(console.as_ref()),
@@ -1073,7 +1212,7 @@ impl GpuState {
         let scene_views = scene_views::Runtime::new(
             &device,
             &camera_layout,
-            (context.scene_format(), [size.width, size.height]),
+            context.scene_format(),
             &flattened,
             &bsp,
             &shaders,
@@ -1122,6 +1261,7 @@ impl GpuState {
             &shaders,
             &camera_layout,
             frame_target::aa::effects::FORMAT,
+            &context.blade_signatures,
         )?;
         let dust_motes = dust_motes::Runtime::new(&device, &camera_layout, context.scene_format());
         let weather = weather::Runtime::new(active_game_state, &bsp);
@@ -1269,7 +1409,7 @@ impl GpuState {
         let actor_groups = (0..actor_meshes.len())
             .map(|_| Vec::with_capacity(4))
             .collect();
-        let object_groups = object_meshes::instance_groups(&object_meshes);
+        let object_groups = object_meshes::instance_groups(&object_meshes, saber_hilts.as_ref());
         let mover_groups = movers::instance_groups(&mover_catalog.meshes);
         let effects = config_string_refresh::preload_effects(&vfs, &map_effects, &missile_effects);
         load_profile.mark("effect-graphs")?;
@@ -1283,6 +1423,7 @@ impl GpuState {
         let trace_scratch = bsp.trace_scratch();
         let entity_lighting = entity_lighting::EntityLighting::from_world(&bsp);
         Ok(Self {
+            _shared_textures: shared_holder,
             render_scale: None,
             post_aa: frame_target::aa::Runtime::for_context(
                 &context,
@@ -1300,11 +1441,18 @@ impl GpuState {
             fps_help: fps_help::State::default(),
             fps_card: fps_help::card::Card::default(),
             emote_help: emote_help::State::default(),
+            emote_picker: emote_picker::State::default(),
+            e2e_whispers: e2e_whispers::State::default(),
+            trades: player_trades::State::default(),
             alpha_card: alpha_notice_card::Card::default(),
             log_request_card: log_request_card::Card::default(),
+            mod_notice: mod_notice_card::State::default(),
+            small_card_notice: small_card_notice::Card::default(),
             whats_new_card: whats_new_card::Card::default(),
+            official: official::Official::default(),
 
             screenshots: screenshot_setup.manager,
+            menu_pictures: menu_pictures::Painter::default(),
             headless_frame: None,
             configuration,
             size,
@@ -1319,6 +1467,7 @@ impl GpuState {
             text_pipeline,
             sdf_text_pipeline,
             saber_gpu,
+            blade_pictures: None,
             dust_motes,
             quick_wheel: quick_wheel::QuickWheel::default(),
             weather,
@@ -1328,6 +1477,7 @@ impl GpuState {
             actor_meshes,
             actor_workers: actor_pose::evaluation::Pool::new(),
             object_meshes,
+            emplaced_turned: Default::default(),
             emitter_model_catalog,
             mover_catalog,
             pickup_catalog,
@@ -1344,9 +1494,18 @@ impl GpuState {
             illuminate: Default::default(),
             illuminate_others: Default::default(),
             cardboard_box: Default::default(),
+            order66: Default::default(),
+            hax: Default::default(),
+            drone: Default::default(),
+            boombox: Default::default(),
+            monitor: Default::default(),
+            ragdoll: Default::default(),
+            toys_saved: Default::default(),
             holocron_stage: Default::default(),
             #[cfg(test)]
             holocron_stage_seconds: None,
+            #[cfg(test)]
+            holocron_stage_request: None,
             looks: Default::default(),
             trick_fades: Default::default(),
             projectiles: Vec::with_capacity(sjk_protocol::MAX_LEGACY_ENTITIES),
@@ -1354,7 +1513,9 @@ impl GpuState {
             dynamic_lights: dynamic_lights::PointLightList::default(),
             effect_aux: effect_aux::Runtime::default(),
             muzzle_effects: sjk_client::LegacyMuzzleEffects::new(),
+            vehicle_fires: Default::default(),
             force_overlays: sjk_client::LegacyForceOverlayTracker::default(),
+            body_fades: Box::default(),
             jetpack,
             jetpack_sounds: Default::default(),
             force_overlays_last: 0,
@@ -1390,10 +1551,14 @@ impl GpuState {
             bug_report_serial: 0,
             entity_lighting,
             menu_stage: menu_stage::MenuStage::default(),
-            clientinfo_watch: clientinfo_refresh::ClientInfoWatch::new(),
+            clientinfo_watch,
             config_string_refresh,
+            black_sabers: Default::default(),
+            siege_sabers: Default::default(),
+            holster_server: Default::default(),
             shaders: Arc::new(shaders),
             decal_surfaces,
+            map_edits: Default::default(),
             player_shadows: player_shadows::State::default(),
             camera_buffer,
             camera_bind_group,
@@ -1404,11 +1569,13 @@ impl GpuState {
             text_vertex_buffer,
             classic_text_vertex_buffer,
             text_bind_group,
+            text_atlas: font_view,
             text_layout,
             text_sampler,
             wide_text,
             logo_glyph,
             classic_text_bind_group,
+            classic_text_atlas,
             classic_text_sdf,
             ui_font,
             classic_hud_font,
@@ -1419,6 +1586,7 @@ impl GpuState {
             scoreboard: scoreboard::Scoreboard::new(),
             chat: chat::ChatOverlay::with_emojis(emojis),
             muted_players: muted_players::MutedPlayers::default(),
+            map_blocks: map_blocks::MapBlocks::default(),
             game_menu,
             in_game_menu: ingame_menu::InGameMenu::new(),
             game_menu_page: if game_menu {
@@ -1453,6 +1621,7 @@ impl GpuState {
             hitches: hitch_log::Recorder::default(),
             gpu_phases,
             third_person_camera: camera::State::default(),
+            fall_camera: fall_camera::FallCamera::default(),
             far_plane,
             gameplay_input: input::GameplayInput::default(),
             alt_code: input::alt_code::AltCode::default(),
@@ -1489,24 +1658,29 @@ impl GpuState {
             mimic: mimic::Mimic::default(),
 
             selected_weapon: None,
+            weapon_selection_view: Default::default(),
             weapon_selected_at: None,
             pending_generic_command: 0,
+            anti_emote: anti_emote::State::default(),
             effects,
             sound_prefetch,
             vfs: Some(vfs),
             pending_map_reload: false,
             world_load_task: None,
             world_install_task: None,
+            map_unloaded: false,
             world_load_state: session_transition::LoadStateMachine::new(),
             world_load_started: None,
             world_load_map: String::with_capacity(64),
             remap_blocked_maps: Default::default(),
             snapshot_observations: snapshot_presentation::Counters::default(),
             obituaries: sjk_client::ObituaryTracker::new(),
+            siege_notices: siege_objective_notice::Notices::default(),
             achievement_tracker: achievements::tracker::Tracker::default(),
             lagometer: sjk_client::LagometerSamples::new(),
             auto_switch: auto_switch::Tracker::default(),
             previous_particle_events: HashMap::new(),
+            duel_hidden_view: Default::default(),
             particles: Vec::with_capacity(particle_types::PARTICLE_POOL),
             particle_room: particle_room::Room::default(),
             pending_particle_effects: particle_physics::PendingEffects::new(),
@@ -1539,12 +1713,11 @@ impl GpuState {
 
     fn rebuild_modern_text(&mut self, dpi_scale: f64) -> Result<(), Box<dyn Error>> {
         let atlas = text::load_modern(dpi_scale, self.logo_glyph.as_ref())?;
-        let view = gpu_texture::create_rgba8_texture_mipmapped(
+        let view = gpu_texture::create_r8_texture_mipmapped(
             &self.device,
             &self.queue,
             "SJK Inter UI font atlas",
             &atlas.image,
-            true,
             text::ATLAS_MIP_LEVELS,
         );
         self.text_bind_group = text::wide_texture::bind_group(
@@ -1555,6 +1728,7 @@ impl GpuState {
             &self.text_sampler,
             &self.wide_text,
         );
+        self.text_atlas = view;
         self.ui_font = atlas.font;
         Ok(())
     }
@@ -1588,10 +1762,15 @@ impl GpuState {
             demo_playback::Session::current_server_time,
         );
         prediction_preview::tick(self, game_audio, Instant::now(), presentation_time as i32);
+        // The Monitor's monitors, then the Ragdoll's bodies (one may strike) at this
+        // frame's time, for the camera and the actors.
+        self.step_monitors(presentation_time);
+        self.step_ragdolls(presentation_time);
         timing.mark(Phase::Config);
         self.refresh_config_strings(game_audio);
         timing.mark(Phase::View);
         menu_backdrop::drive(self, visual_now);
+        menu_pictures::prepare(self);
         // The backdrop keeps the view while a joined map loads behind it.
         let backdrop_view = menu_backdrop::standalone_menu_visible(self);
         self.world_hidden = menu_backdrop::classic_hides_world(self);
@@ -1636,8 +1815,13 @@ impl GpuState {
         let error_offset = self.local_prediction.view_offset();
         let mut view_up = Vec3::Z;
         let peek_view = (!backdrop_view && intermission_view.is_none())
-            .then(|| peek::camera(self, presentation_time))
+            .then(|| {
+                peek::camera(self, presentation_time)
+                    .or_else(|| hax::camera(self, presentation_time))
+                    .or_else(|| ragdoll::camera(self, presentation_time))
+            })
             .flatten();
+        let fall = self.update_fall_camera(presentation_time as i32);
         let detached_before_peek = self.detached_camera;
         if self.live_session.is_some() && peek_view.is_some() {
             self.detached_camera = true;
@@ -1675,7 +1859,21 @@ impl GpuState {
             let free = (self.camera_position, self.camera_position + forward * 256.0);
             (if backdrop_view { "backdrop" } else { "free" }, free)
         };
+        // A fall to death holds the player's own view where the fall began, looking
+        // down at him (`cg_view.c:3224-3233`, `fall_camera`).
+        let fall = fall.filter(|_| local_view && matches!(branch, "third-person" | "first-person"));
+        let (view_position, view_target) = match fall {
+            Some((fall, origin)) => {
+                let (position, target, up) =
+                    fall_camera::look(fall, origin, view_position, view_target);
+                view_up = up;
+                (position, target)
+            }
+            _ => (view_position, view_target),
+        };
         cut_trace::tick(self, branch, (view_position, view_target), visual_now);
+        self.effect_aux
+            .set_viewer(view_position, view_target - view_position);
         // `CG_DoCameraShake` measures from the rendered view (`cg.refdef.vieworg`),
         // so an effect's short-range shake reaches a first-person eye but not the
         // third-person camera behind the player.
@@ -1684,8 +1882,9 @@ impl GpuState {
             visual_now,
             local_view && cgame_options::screen_shake(self.console.as_ref()),
         );
-        // The third-person camera already traced from the shifted origin.
-        let error_offset = if branch == "third-person" || branch == "peek" {
+        // The third-person camera already traced from the shifted origin, and the
+        // fall camera replaces the view origin outright.
+        let error_offset = if branch == "third-person" || branch == "peek" || fall.is_some() {
             Vec3::ZERO
         } else {
             error_offset
@@ -1699,6 +1898,20 @@ impl GpuState {
         let view = look_at_mat4(view_position, view_target, view_up);
         let aspect = self.configuration.width as f32 / self.configuration.height as f32;
         let fov = self.scope_fov(presentation_time as i32, game_audio);
+        // A menu picture's camera sees what the picture shows, whatever cg_fov is.
+        let fov = self.menu_pictures.field_of_view().unwrap_or(fov);
+        // Behind the Collection's stage the page's frame sees the same view at every
+        // window shape, so the model keeps its column beside the words.
+        let fov = if branch == "backdrop"
+            && self
+                .client_menu
+                .as_ref()
+                .is_some_and(menu::ClientMenu::collection_stage)
+        {
+            menu_stage::frame_fit_fov(fov, aspect)
+        } else {
+            fov
+        };
         let projection = perspective(fov.to_radians(), aspect, 2.0, self.far_plane);
         // rd-vanilla `tr_shade.cpp:367` derives tess.shaderTime from the
         // frame/refdef time; materials apply their own remap time offsets.
@@ -1721,13 +1934,13 @@ impl GpuState {
         let mut hud_visibility =
             ground_hud::frame(self, intermission_view.is_some(), presentation_time as i32);
         brush_view::frame(self);
-        // The quick wheel's middle shows its names where the crosshair would be.
-        if self.quick_wheel.is_open()
-            || (self.scope.mode != 0 && cgame_options::scope_style(self.console.as_ref()) != 1)
-        {
-            hud_visibility.crosshair = false;
-            hud_visibility.crosshair_names = false;
-        }
+        let [crosshair, names] = scope::crosshair_visibility(
+            self.scope.mode,
+            cgame_options::scope_style(self.console.as_ref()),
+            self.quick_wheel.is_open(),
+        );
+        hud_visibility.crosshair &= crosshair;
+        hud_visibility.crosshair_names &= names;
         let viewport = [
             self.configuration.width as f32,
             self.configuration.height as f32,
@@ -1762,7 +1975,14 @@ impl GpuState {
             );
         }
         // A vehicle that hides its rider takes the player's status and weapon HUD.
-        let hud_visibility = self.hud.vehicle.apply(hud_visibility);
+        let mut hud_visibility = self.hud.vehicle.apply(hud_visibility);
+        // The game HUD draws the vehicle HUD from `swoopvehiclehud`'s pictures, as
+        // stock does; SJK's vector strip stands in for it with the other looks.
+        let stock_vehicle =
+            hud_visibility.hud && hud_visibility.vehicle && self.menu_hud.draws_vehicle();
+        if stock_vehicle {
+            hud_visibility.vehicle = false;
+        }
         let hud_style = menu_hud::HudStyle::read(self.console.as_ref());
         // The radial look is laid out for the bundled font (Inter), whatever
         // `cg_classicHudFont` says: its numbers are aligned to that font's metrics.
@@ -1852,13 +2072,23 @@ impl GpuState {
         let medal_shown = self.prepare_medal_popup(covered);
         let holocron_shown = self.prepare_holocron_popup(covered || medal_shown);
         // The graphics reload card waits for the others.
-        let reload_shown = self.prepare_reload_card(
+        let reload_card_shown = self.prepare_reload_card(
             covered
                 || medal_shown
                 || holocron_shown
                 || self.medal_popup.pending()
                 || self.holocron_popup.pending(),
         );
+        // Then the small-card notice, once a start; the cards after wait for both.
+        let small_card_shown = self.prepare_small_card_notice(
+            covered
+                || medal_shown
+                || holocron_shown
+                || reload_card_shown
+                || self.medal_popup.pending()
+                || self.holocron_popup.pending(),
+        );
+        let reload_shown = reload_card_shown || small_card_shown;
         // The low-FPS card too.
         self.update_fps_help();
         let fps_shown = self.prepare_fps_card(
@@ -1879,6 +2109,19 @@ impl GpuState {
                 || self.medal_popup.pending()
                 || self.holocron_popup.pending(),
         );
+        // The SJK team's windows: an announcement or the rounds asked for (over the
+        // console too), or a reward waiting.
+        let official_shown = self.prepare_official(
+            alpha_shown
+                || self.alpha_card.wants()
+                || medal_shown
+                || holocron_shown
+                || reload_shown
+                || fps_shown
+                || logs_shown
+                || self.medal_popup.pending()
+                || self.holocron_popup.pending(),
+        );
         // And what the update brought, last.
         let news_shown = self.prepare_whats_new_card(
             covered
@@ -1887,6 +2130,7 @@ impl GpuState {
                 || reload_shown
                 || fps_shown
                 || logs_shown
+                || official_shown
                 || self.medal_popup.pending()
                 || self.holocron_popup.pending(),
         );
@@ -1898,18 +2142,85 @@ impl GpuState {
                 || reload_shown
                 || fps_shown
                 || logs_shown
+                || official_shown
                 || news_shown
                 || self.medal_popup.pending()
                 || self.holocron_popup.pending(),
         );
+        // The emote picker, likewise, under the help card.
+        let emote_picker_shown = self.prepare_emote_picker(
+            covered
+                || medal_shown
+                || holocron_shown
+                || reload_shown
+                || fps_shown
+                || logs_shown
+                || official_shown
+                || news_shown
+                || emote_help_shown
+                || self.medal_popup.pending()
+                || self.holocron_popup.pending(),
+        );
+        // The encrypted whisper card, under the emote cards.
+        let whisper_shown = self.prepare_e2e_whisper_card(
+            covered
+                || medal_shown
+                || holocron_shown
+                || reload_shown
+                || fps_shown
+                || logs_shown
+                || official_shown
+                || news_shown
+                || emote_help_shown
+                || emote_picker_shown
+                || self.medal_popup.pending()
+                || self.holocron_popup.pending(),
+        );
+        // A mod's notice on its servers.
+        let mod_notice_shown = self.prepare_mod_notice_card(
+            covered
+                || medal_shown
+                || holocron_shown
+                || reload_shown
+                || fps_shown
+                || logs_shown
+                || official_shown
+                || news_shown
+                || emote_help_shown
+                || emote_picker_shown
+                || whisper_shown
+                || self.medal_popup.pending()
+                || self.holocron_popup.pending(),
+        );
+        // The trade window, last: it waits under every other card.
+        let trade_shown = self.prepare_trade_window(
+            covered
+                || medal_shown
+                || holocron_shown
+                || reload_shown
+                || fps_shown
+                || logs_shown
+                || news_shown
+                || emote_help_shown
+                || emote_picker_shown
+                || whisper_shown
+                || mod_notice_shown
+                || self.medal_popup.pending()
+                || self.holocron_popup.pending(),
+        );
         let medal_popup = alpha_shown
+            || official_shown
+            || mod_notice_shown
             || medal_shown
             || holocron_shown
             || reload_shown
             || fps_shown
             || logs_shown
             || news_shown
-            || emote_help_shown;
+            || emote_help_shown
+            || emote_picker_shown
+            || whisper_shown
+            || trade_shown;
         // Nor under the SJK UI's report card, as under its other cards.
         let report_card = self.text_dialog.is_open() && self.text_dialog.is_sjk();
         self.text_vertices.clear();
@@ -1932,6 +2243,10 @@ impl GpuState {
                 .is_some_and(|menu| menu.is_visible());
         let scoreboard_held = self.gameplay_input.held(input::GameButton::Scores);
         self.append_world_pings(
+            viewport,
+            information_visible && intermission_view.is_none() && !scoreboard_held,
+        );
+        self.append_drone_names(
             viewport,
             information_visible && intermission_view.is_none() && !scoreboard_held,
         );
@@ -1958,8 +2273,16 @@ impl GpuState {
         let menu_readout = (information_visible && intermission_view.is_none())
             .then(|| menu_hud::readout(self, presentation_time as i32))
             .flatten();
-        self.menu_hud
-            .prepare(&self.queue, menu_readout.as_ref(), viewport, hud_scale);
+        let vehicle_readout = (stock_vehicle && information_visible && intermission_view.is_none())
+            .then(|| self.hud.vehicle.readout())
+            .flatten();
+        self.menu_hud.prepare(
+            &self.queue,
+            menu_readout.as_ref(),
+            vehicle_readout.as_ref(),
+            viewport,
+            hud_scale,
+        );
         if classic_hud && let Some(font) = &self.classic_hud_font {
             self.menu_hud
                 .append_text(&mut self.classic_text_vertices, font, viewport, hud_scale);
@@ -2007,7 +2330,22 @@ impl GpuState {
                 staff: profile_card::with(|summary| summary.staff),
                 _frame: std::marker::PhantomData,
             };
-            if view.page == GameMenuPage::Shot && !self.in_game_menu.is_sjk() {
+            if view.page == GameMenuPage::MapEdit {
+                // The map editor's panel has only the SJK UI's look, in every menu style.
+                self.refresh_map_edit_panel();
+                let target = ingame_menu::sjk_view::text_target(
+                    &mut self.game_fonts,
+                    &mut self.text_vertices,
+                    &self.ui_font,
+                );
+                let panel = &mut self.map_edits.panel;
+                self.in_game_menu.append_own_page(
+                    GameMenuPage::MapEdit,
+                    |canvas| panel.build(canvas, viewport),
+                    target,
+                    viewport,
+                );
+            } else if view.page == GameMenuPage::Shot && !self.in_game_menu.is_sjk() {
                 // Camera control has only the SJK UI's look, in every menu style.
                 let target = ingame_menu::sjk_view::text_target(
                     &mut self.game_fonts,
@@ -2036,6 +2374,11 @@ impl GpuState {
                 self.in_game_menu.append(view, vertices, font, viewport);
             }
         }
+        // The map editor's strip while its panel is hidden to aim.
+        let map_edit_strip = information_visible
+            && !console_covers_frame
+            && !medal_popup
+            && self.append_map_edit_strip(viewport);
         if scoreboard_visible {
             scoreboard::append_overlay(self, viewport, text_scale * 1.05);
         }
@@ -2066,7 +2409,10 @@ impl GpuState {
         self.append_console_overlay(viewport, text_scale);
         self.append_version_overlay(viewport, text_scale);
         let launcher = self.game_menu
-            && self.game_menu_page != GameMenuPage::Shot
+            && !matches!(
+                self.game_menu_page,
+                GameMenuPage::Shot | GameMenuPage::MapEdit
+            )
             && !self.in_game_menu.is_sjk()
             && !console_covers_frame
             && !medal_popup
@@ -2086,17 +2432,31 @@ impl GpuState {
             self.append_medal_popup(viewport);
         } else if holocron_shown {
             self.append_holocron_popup(viewport);
-        } else if reload_shown {
+        } else if reload_card_shown {
             self.append_reload_card(viewport);
+        } else if small_card_shown {
+            self.append_small_card_notice(viewport);
         } else if fps_shown {
             self.append_fps_card(viewport);
         } else if logs_shown {
             self.append_log_request_card(viewport);
+        } else if official_shown {
+            self.append_official(viewport);
         } else if news_shown {
             self.append_whats_new_card(viewport);
         } else if emote_help_shown {
             self.append_emote_help_card(viewport);
+        } else if emote_picker_shown {
+            self.append_emote_picker(viewport);
+        } else if whisper_shown {
+            self.append_e2e_whisper_card(viewport);
+        } else if mod_notice_shown {
+            self.append_mod_notice_card(viewport);
+        } else if trade_shown {
+            self.append_trade_window(viewport);
         }
+        // A trade running while its window is closed: the toast at the top, over play.
+        let trade_toast = self.append_trade_toast(viewport, console_covers_frame || medal_popup);
         // An achievement unlocked, or a medal or holocron in a match: its card over play or
         // the menus, never input-taking.
         let unlock_toast = self.append_unlock_toast(viewport, console_covers_frame || medal_popup);
@@ -2116,6 +2476,7 @@ impl GpuState {
             self.world_notes.highlight(),
             self.entity_view.active().then(|| self.entity_view.list()),
             Some(&self.world_pings.list),
+            Some(&self.drone.list),
             information_visible.then(|| &self.hud.team_logo.list),
             information_visible.then(|| &self.hud.nameplate.list),
             information_visible.then(|| &self.hud.identification.list),
@@ -2125,6 +2486,7 @@ impl GpuState {
                 .then(|| self.quick_wheel.draw_list()),
             information_visible.then(|| self.hud.draw_list()),
             chat_visible.then(|| self.chat.draw_list()),
+            map_edit_strip.then(|| self.map_edits.strip.0.draw_list()),
             scoreboard_visible.then(|| self.scoreboard.draw_list()),
             (self.game_menu && !console_covers_frame && !medal_popup)
                 .then(|| self.in_game_menu.draw_list()),
@@ -2143,18 +2505,25 @@ impl GpuState {
                 .then(|| self.text_dialog.draw_list()),
             medal_shown.then(|| self.medal_popup.draw_list()),
             holocron_shown.then(|| self.holocron_popup.draw_list()),
-            reload_shown.then(|| self.graphics_reload.card.draw_list()),
+            reload_card_shown.then(|| self.graphics_reload.card.draw_list()),
+            small_card_shown.then(|| self.small_card_notice.draw_list()),
             fps_shown.then(|| self.fps_card.draw_list()),
             logs_shown.then(|| self.log_request_card.draw_list()),
+            official_shown.then(|| self.official.window.draw_list()),
             news_shown.then(|| self.whats_new_card.draw_list()),
             emote_help_shown.then(|| self.emote_help.card.draw_list()),
+            emote_picker_shown.then(|| self.emote_picker.card.draw_list()),
+            whisper_shown.then(|| self.e2e_whispers.card.draw_list()),
+            mod_notice_shown.then(|| self.mod_notice.card.draw_list()),
+            trade_shown.then(|| self.trades.window.draw_list()),
+            trade_toast.then(|| self.trades.toast.draw_list()),
             alpha_shown.then(|| self.alpha_card.draw_list()),
             unlock_toast.then(|| self.unlock_toast.draw_list()),
         ];
         self.ui_shapes
             .prepare_layers(&self.queue, layers.into_iter().flatten(), viewport);
         // Wide glyphs this frame asked for first draw next frame.
-        self.wide_text.update(&self.queue);
+        self.update_wide_text();
         let text_vertex_count = u32::try_from(self.text_vertices.len()).unwrap_or(0);
         if !self.text_vertices.is_empty() {
             self.queue.write_buffer(
@@ -2209,7 +2578,7 @@ impl GpuState {
         let fallback_mesh = self
             .actor_meshes
             .iter()
-            .position(|mesh| !mesh.corpse_pool && mesh.entity_id.is_none());
+            .position(|mesh| !mesh.corpse_pool && mesh.limb.is_none() && mesh.entity_id.is_none());
         self.actor_groups.iter_mut().for_each(Vec::clear);
         self.object_groups.iter_mut().for_each(Vec::clear);
         self.pickup_override_instances.clear();
@@ -2220,6 +2589,9 @@ impl GpuState {
         self.dynamic_lights.clear();
         self.submit_illuminate(presentation_time, visual_now);
         self.submit_cardboard_boxes(presentation_time, visual_now);
+        self.submit_order66(presentation_time, visual_now);
+        self.submit_drones(presentation_time, visual_now);
+        self.submit_monitors(presentation_time);
         self.submit_holocron_stage(visual_now);
         self.sync_saber_skins(game_audio, presentation_time);
         let debug_missiles = effect_debug::sync(self.console.as_ref());
@@ -2228,6 +2600,25 @@ impl GpuState {
             self.demo_session.as_ref(),
             presentation_time as i32,
         );
+        // Players outside the duel and what they bring leave every snapshot reader
+        // below (`cg_duelHideOthers`, `sjk_client::DuelHide`).
+        let active_game = self
+            .live_session
+            .as_ref()
+            .map(ClientSession::game_state)
+            .or_else(|| {
+                self.demo_session
+                    .as_ref()
+                    .map(demo_playback::Session::game_state)
+            });
+        self.duel_hidden_view.update(
+            active_snapshot.zip(active_game),
+            self.console
+                .as_ref()
+                .map(console::ViewerConsole::duel_hide)
+                .unwrap_or_default(),
+        );
+        let active_snapshot = self.duel_hidden_view.get().or(active_snapshot);
         if let Some(snapshot) = active_snapshot {
             let active_world = self
                 .demo_session
@@ -2240,12 +2631,14 @@ impl GpuState {
                     .filter(|_| self.live_session.is_some());
                 audio.observe_saber_switches(snapshot, predicted);
                 audio.set_box_music(self.cardboard_box.music());
+                audio.set_hax_loop(self.hax_loop(presentation_time));
                 audio.update_frame_loops(
                     snapshot,
                     presentation_time as i32,
                     self.camera_position.to_array(),
                     active_world,
                     &self.bsp,
+                    predicted,
                 );
             }
             self.map_effects.update(snapshot, presentation_time as i32);
@@ -2288,8 +2681,14 @@ impl GpuState {
             }
             projectiles::collect(snapshot, presentation_time as i32, &mut self.projectiles);
             movers::collect(snapshot, presentation_time as i32, &mut self.movers);
-            self.local_prediction
-                .pickups(snapshot, presentation_time as i32, &mut self.pickups);
+            self.local_prediction.pickups(
+                snapshot,
+                presentation_time as i32,
+                self.console
+                    .as_ref()
+                    .is_none_or(console::ViewerConsole::hide_pickups_in_duel),
+                &mut self.pickups,
+            );
             trip_mine_lasers::spawn(
                 &mut self.trip_mine_beams,
                 snapshot,
@@ -2305,6 +2704,13 @@ impl GpuState {
                 game_audio,
                 visual_now,
                 presentation_time as i32,
+            );
+            portable_shields::spawn(
+                snapshot,
+                &mut self.particles,
+                &mut self.effect_aux,
+                &mut self.effects,
+                visual_now,
             );
             pickups::simple::prepare(&mut self.pickups, self.console.as_ref());
             pickups::spawn_cones(
@@ -2373,6 +2779,7 @@ impl GpuState {
         self.prepare_scene_views(view, projection, presentation_time as i32);
         movers::append_frame(self, presentation_time);
         self.static_models.append_instances(&mut self.object_groups);
+        self.append_map_edit_instances();
         pickups::simple::append_frame(self, visual_now);
         // The charge glow on the view gun's muzzle (`cg_weapons.c` charge bits), after
         // this frame's sprites were cleared.
@@ -2425,6 +2832,14 @@ impl GpuState {
             phases.begin(&mut encoder);
         }
         dynamic_lights::entities::finish(self, presentation_time, visual_now, game_audio);
+        // Bright flashes (`cg_reduceFlashes`, the clash flare's settings), once a frame.
+        let clash_flare = saber_clash_flare::Options::read(self.console.as_ref());
+        effect_flash::set_reduced(
+            self.console
+                .as_ref()
+                .and_then(|console| console.bool_cvar(effect_flash::REDUCE_CVAR))
+                .unwrap_or(false),
+        );
         let detached_flight = self.free_camera_active();
         let object_groups = &mut self.object_groups;
         let mover_groups = &mut self.mover_groups;
@@ -2451,6 +2866,7 @@ impl GpuState {
             object_groups,
         );
         saber_clash_flare::append(
+            clash_flare,
             &self.saber_clash_flare,
             presentation_time as i32,
             view_position,
@@ -2553,6 +2969,8 @@ impl GpuState {
                 global_seconds: global_particle_seconds,
                 camera: self.camera_position,
                 field_of_view: self.field_of_view,
+                // A perspective projection's y scale over its x scale is the aspect.
+                aspect: projection.y_axis.y / projection.x_axis.x,
                 bsp: &self.bsp,
                 trace_scratch: &mut self.trace_scratch,
 
@@ -2637,6 +3055,7 @@ impl GpuState {
             );
         }
         self.encode_stage_preview(&mut encoder);
+        self.encode_blade_pictures(&mut encoder);
         let (output, mut encoder) = match target.finish(self, encoder, timing) {
             Ok(output) => output,
             Err(status) => {

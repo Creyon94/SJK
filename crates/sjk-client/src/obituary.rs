@@ -10,6 +10,35 @@ const CS_PLAYERS: usize = 1_131;
 
 /// `EV_OBITUARY` in `codemp/game/bg_public.h:927`.
 pub const EV_OBITUARY: u16 = 93;
+/// `EV_SIEGE_ROUNDOVER`, eight past `EV_OBITUARY` in `entity_event_t`: a siege round is
+/// won, by the team in its `eventParm` (`SiegeRoundComplete`, `g_saga.c`).
+pub const EV_SIEGE_ROUNDOVER: u16 = sjk_game_jka::siege::EV_SIEGE_ROUNDOVER as u16;
+
+/// The last siege round won that a snapshot carried.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct SiegeRoundOver {
+    /// `SIEGETEAM_TEAM1` (1, red) or `SIEGETEAM_TEAM2` (2, blue).
+    pub winner: u8,
+    /// The snapshot's server time.
+    pub server_time: i32,
+}
+/// `EV_SIEGE_OBJECTIVECOMPLETE`: a siege objective done (`SiegeBroadcast_OBJECTIVECOMPLETE`,
+/// `g_saga.c`).
+const EV_SIEGE_OBJECTIVECOMPLETE: u16 = sjk_game_jka::siege::EV_SIEGE_OBJECTIVECOMPLETE as u16;
+
+/// A siege objective a snapshot said was completed.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct SiegeObjectiveComplete {
+    /// The team whose objective it is (`eventParm`): 1 or 2.
+    pub team: u8,
+    /// Its number in that team's `.siege` group (`trickedentindex`), from 1.
+    pub objective: u16,
+}
+/// `EV_SIEGESPEC`: a siege player now waits for its respawn wave, which comes at the
+/// event's `time` (`g_siegeRespawnCheck`).
+const EV_SIEGESPEC: u16 = 191;
+/// `PM_SPECTATOR`: how a siege player waiting for its wave moves.
+use sjk_game_jka::PM_SPECTATOR;
 
 /// Gender used by the gendered self-kill strings in `CG_Obituary`.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -94,12 +123,18 @@ impl Default for KillFeed {
     }
 }
 
-/// Allocation-free entity-event observer for obituary events.
+/// Allocation-free entity-event observer for obituary events, which also keeps the last
+/// siege round won (`EV_SIEGE_ROUNDOVER`) from the same scan.
 pub struct ObituaryTracker {
     signatures: [u16; MAX_ENTITIES],
     present: [bool; MAX_ENTITIES],
     feed: KillFeed,
     decoded: u64,
+    siege_round_over: Option<SiegeRoundOver>,
+    siege_objectives: Vec<SiegeObjectiveComplete>,
+    siege_round_won: Option<u8>,
+    siege_respawn_at: i32,
+    hack: (i32, i32),
 }
 
 impl ObituaryTracker {
@@ -110,12 +145,29 @@ impl ObituaryTracker {
             present: [false; MAX_ENTITIES],
             feed: KillFeed::new(),
             decoded: 0,
+            siege_round_over: None,
+            siege_objectives: Vec::with_capacity(4),
+            siege_round_won: None,
+            siege_respawn_at: 0,
+            hack: (0, 0),
         }
     }
 
     /// Observe every entity event in one accepted snapshot exactly once.
     pub fn observe(&mut self, snapshot: &Snapshot, game: &GameState) {
         self.present.fill(false);
+        self.siege_objectives.clear();
+        self.siege_round_won = None;
+        // A wave the viewed player no longer waits for — it is back in play, or the level,
+        // round or server changed under it — is forgotten.
+        if snapshot.player.movement_type() != PM_SPECTATOR {
+            self.siege_respawn_at = 0;
+        }
+        // `ps.hackingTime` and `ps.hackingBaseTime` (netfields 91 and 124).
+        self.hack = (
+            snapshot.player.raw_field(91).unwrap_or(0) as i32,
+            snapshot.player.raw_field(124).unwrap_or(0) as i32,
+        );
         for entity in &snapshot.entities {
             let index = usize::from(entity.number());
             if index >= MAX_ENTITIES {
@@ -127,7 +179,28 @@ impl ObituaryTracker {
                 continue;
             }
             self.signatures[index] = signature;
-            if event_number(entity, signature) != EV_OBITUARY {
+            let event = event_number(entity, signature);
+            if event == EV_SIEGE_ROUNDOVER {
+                self.siege_round_over = Some(SiegeRoundOver {
+                    winner: entity.event_parameter(),
+                    server_time: snapshot.server_time,
+                });
+                self.siege_round_won = Some(entity.event_parameter());
+                continue;
+            }
+            if event == EV_SIEGE_OBJECTIVECOMPLETE {
+                self.siege_objectives.push(SiegeObjectiveComplete {
+                    team: entity.event_parameter(),
+                    objective: entity.tracked_entity_num(),
+                });
+                continue;
+            }
+            // `CG_EntityEvent`'s `EV_SIEGESPEC`: only the viewed player's own wait is kept
+            // (`cg_siegeDeathTime`).
+            if event == EV_SIEGESPEC && entity.owner() == snapshot.player.client_num() {
+                self.siege_respawn_at = entity.time();
+            }
+            if event != EV_OBITUARY {
                 continue;
             }
             let gender = client_gender(game, entity.other_entity_num());
@@ -153,9 +226,37 @@ impl ObituaryTracker {
         &self.feed
     }
 
+    /// When the viewed player's siege respawn wave comes (`cg_siegeDeathTime`), or 0
+    /// before any `EV_SIEGESPEC` named it.
+    pub const fn siege_respawn_at(&self) -> i32 {
+        self.siege_respawn_at
+    }
+
+    /// The viewed player's hack (`ps.hackingTime`, `ps.hackingBaseTime`): when it is done
+    /// and how long it takes, both 0 while it hacks nothing.
+    pub const fn hack(&self) -> (i32, i32) {
+        self.hack
+    }
+
     /// Total obituary events decoded by this tracker.
     pub const fn decoded(&self) -> u64 {
         self.decoded
+    }
+
+    /// The siege objectives the last snapshot observed said were completed.
+    pub fn siege_objectives(&self) -> &[SiegeObjectiveComplete] {
+        &self.siege_objectives
+    }
+
+    /// The team that won a siege round in the last snapshot observed (`EV_SIEGE_ROUNDOVER`).
+    pub const fn siege_round_won(&self) -> Option<u8> {
+        self.siege_round_won
+    }
+
+    /// The last siege round won that this tracker saw (`EV_SIEGE_ROUNDOVER`), the same
+    /// entity scan the obituaries take.
+    pub const fn siege_round_over(&self) -> Option<SiegeRoundOver> {
+        self.siege_round_over
     }
 }
 
@@ -336,6 +437,94 @@ mod tests {
         entity.set_raw_field(39, u32::from(client));
         entity.set_raw_field(42, u32::from(means));
         entity
+    }
+
+    /// `EV_SIEGESPEC` for `owner`, its wave at `time`.
+    fn siege_spec(number: u16, owner: u16, time: i32) -> EntityState {
+        let mut entity = EntityState::zero(number, &LEGACY_ENTITY_FIELDS);
+        entity.set_raw_field(8, u32::from(ET_EVENTS) + u32::from(EV_SIEGESPEC));
+        entity.set_raw_field(40, u32::from(owner));
+        entity.set_raw_field(65, time as u32);
+        entity
+    }
+
+    fn snapshot(entities: Vec<EntityState>) -> Snapshot {
+        Snapshot {
+            message_sequence: 0,
+            reliable_acknowledge: 0,
+            server_commands: Vec::new(),
+            server_time: 1_000,
+            delta_from: None,
+            flags: 0,
+            area_mask: Vec::new(),
+            player: sjk_protocol::PlayerState::zero(),
+            vehicle_player: None,
+            entities,
+            consumed_bits: 0,
+        }
+    }
+
+    #[test]
+    fn the_viewed_players_siege_wave_is_kept() {
+        let game = GameState::empty_local(0);
+        let mut tracker = ObituaryTracker::new();
+        // Another player's wait is not the viewed player's (client 0).
+        tracker.observe(&snapshot(vec![siege_spec(300, 5, 20_000)]), &game);
+        assert_eq!(tracker.siege_respawn_at(), 0);
+        let mut waiting = snapshot(vec![siege_spec(301, 0, 40_000)]);
+        waiting.player.set_movement_type(PM_SPECTATOR);
+        tracker.observe(&waiting, &game);
+        assert_eq!(tracker.siege_respawn_at(), 40_000);
+        waiting.entities.clear();
+        tracker.observe(&waiting, &game);
+        assert_eq!(tracker.siege_respawn_at(), 40_000);
+        // Back in play: the wave is forgotten.
+        tracker.observe(&snapshot(Vec::new()), &game);
+        assert_eq!(tracker.siege_respawn_at(), 0);
+        // A hack in progress is read from the player state, and gone once it is.
+        let mut hacking = snapshot(Vec::new());
+        hacking.player.set_raw_field(91, 11_000);
+        hacking.player.set_raw_field(124, 10_000);
+        tracker.observe(&hacking, &game);
+        assert_eq!(tracker.hack(), (11_000, 10_000));
+        tracker.observe(&snapshot(Vec::new()), &game);
+        assert_eq!(tracker.hack(), (0, 0));
+        assert_eq!(tracker.decoded(), 0);
+    }
+
+    #[test]
+    fn a_siege_round_won_is_kept_once_with_its_winner() {
+        let mut won = EntityState::zero(300, &LEGACY_ENTITY_FIELDS);
+        won.set_raw_field(8, u32::from(ET_EVENTS) + u32::from(EV_SIEGE_ROUNDOVER));
+        won.set_raw_field(42, 2);
+        let snapshot = |server_time| sjk_protocol::Snapshot {
+            message_sequence: 0,
+            reliable_acknowledge: 0,
+            server_commands: Vec::new(),
+            server_time,
+            delta_from: None,
+            flags: 0,
+            area_mask: Vec::new(),
+            player: sjk_protocol::PlayerState::zero(),
+            vehicle_player: None,
+            entities: vec![won.clone()],
+            consumed_bits: 0,
+        };
+        let (mut tracker, game) = (ObituaryTracker::new(), GameState::empty_local(1));
+        assert_eq!(tracker.siege_round_over(), None);
+        tracker.observe(&snapshot(5_000), &game);
+        assert_eq!(tracker.siege_round_won(), Some(2));
+        // The same event entity in the next snapshot is not a second round.
+        tracker.observe(&snapshot(5_050), &game);
+        assert_eq!(tracker.siege_round_won(), None);
+        assert_eq!(
+            tracker.siege_round_over(),
+            Some(SiegeRoundOver {
+                winner: 2,
+                server_time: 5_000
+            })
+        );
+        assert_eq!(tracker.decoded(), 0);
     }
 
     #[test]

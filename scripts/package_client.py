@@ -6,7 +6,10 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import shutil
+import struct
 import subprocess
+import sys
 import tempfile
 import tomllib
 import zipfile
@@ -23,7 +26,7 @@ def bin_name(source, crate):
 
 
 def command(source, *args):
-    return subprocess.check_output(args, cwd=source, text=True).strip()
+    return subprocess.check_output(args, cwd=source, text=True, encoding="utf-8").strip()
 
 
 def text_name(stem, name):
@@ -40,11 +43,71 @@ def add_file(archive, source, name, executable=False):
     archive.writestr(info, source.read_bytes())
 
 
+def icns(source):
+    """A macOS icon file holding the emblem at 512 and 1024 pixels (PNG payloads,
+    which macOS 10.7+ reads; ic09 and ic10 are their sizes' type codes)."""
+    branding = source / "assets/branding"
+    entries = b"".join(kind + struct.pack(">I", 8 + len(data)) + data
+                       for kind, data in ((b"ic09", (branding / "sjk-logo-512.png").read_bytes()),
+                                          (b"ic10", (branding / "sjk-logo.png").read_bytes())))
+    return b"icns" + struct.pack(">I", 8 + len(entries)) + entries
+
+
+def info_plist(name, client, version):
+    """The bundle's Info.plist: Finder starts the client itself (no Terminal) and
+    the Dock shows SJK's name and icon."""
+    version = version or "0.0.0"
+    return f"""<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleDevelopmentRegion</key><string>en</string>
+  <key>CFBundleDisplayName</key><string>{name}</string>
+  <key>CFBundleExecutable</key><string>{client}</string>
+  <key>CFBundleIconFile</key><string>{name}</string>
+  <key>CFBundleIdentifier</key><string>io.github.sol-vulpes.{name.lower()}</string>
+  <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
+  <key>CFBundleName</key><string>{name}</string>
+  <key>CFBundlePackageType</key><string>APPL</string>
+  <key>CFBundleShortVersionString</key><string>{version}</string>
+  <key>CFBundleVersion</key><string>{version}</string>
+  <key>LSApplicationCategoryType</key><string>public.app-category.action-games</string>
+  <key>LSMinimumSystemVersion</key><string>11.0</string>
+  <key>NSHighResolutionCapable</key><true/>
+</dict>
+</plist>
+"""
+
+
+def app_bundle(directory, binary, source, name, client, version):
+    """Build `<name>.app` in `directory` around the client binary and return its
+    files as (zip name, path, executable). On a Mac the bundle is ad-hoc signed as a
+    whole, so its signature covers Info.plist and the icon."""
+    bundle = directory / f"{name}.app"
+    (bundle / "Contents/MacOS").mkdir(parents=True)
+    (bundle / "Contents/Resources").mkdir()
+    shutil.copy2(binary, bundle / "Contents/MacOS" / client)
+    (bundle / "Contents/Info.plist").write_text(info_plist(name, client, version), encoding="utf-8")
+    (bundle / "Contents/Resources" / f"{name}.icns").write_bytes(icns(source))
+    if sys.platform == "darwin":
+        subprocess.run(["codesign", "--force", "--sign", "-", str(bundle)], check=True)
+    program = bundle / "Contents/MacOS" / client
+    return [(path.relative_to(directory).as_posix(), path, path == program)
+            for path in sorted(bundle.rglob("*")) if path.is_file()]
+
+
 # A crate that declares one of these licenses without shipping its text gets the
 # canonical text from scripts/licenses/<selected>.txt.
 CANONICAL_TEXTS = {
     "Apache-2.0": "Apache-2.0",
     "MIT OR Apache-2.0": "Apache-2.0",
+    # Older Cargo declarations use a slash for the same dual-license choice.
+    "Apache-2.0/MIT": "Apache-2.0",
+    "MIT/Apache-2.0": "Apache-2.0",
+    "MPL-2.0": "MPL-2.0",
+    # The macOS bindings (objc2, block2, dispatch...) ship no license file.
+    "MIT": "MIT",
+    "Zlib OR Apache-2.0 OR MIT": "Apache-2.0",
     "BSL-1.0": "BSL-1.0",
 }
 
@@ -68,7 +131,7 @@ def dependency_notices(source, target, name="SJK"):
             yield f"{prefix}/{path.relative_to(root).as_posix()}", path.read_bytes()
         selected_license = None
         if not files:
-            # Some crates declare Apache-2.0 (or BSL-1.0, clipboard-win) but omit its
+            # Some crates declare a license in Cargo.toml but omit its
             # text from their crate. Select that offered license and include the
             # canonical text plus the original package manifest (authors and license
             # declaration).
@@ -99,10 +162,27 @@ def license_text(entries, name="SJK"):
 def instructions(platform, revision, name="SJK", repository=DEFAULT_REPOSITORY, version=None,
                  profile="SJK", client="sjk", server="sjk-server"):
     suffix = ".exe" if platform == "windows-x64" else ""
-    requirements = ("Windows 10/11 x64 and a working graphics driver. The MSVC runtime is statically linked."
-                    if suffix else
-                    "Linux x64 with glibc 2.35+, ALSA, Wayland/X11 libraries and a Vulkan or OpenGL driver.\n"
-                    f"If your archive extractor drops permissions: chmod +x {client} {server}")
+    # On a Mac the client is the app bundle, started from Finder.
+    launch = f"{name}.app" if platform == "macos-arm64" else client + suffix
+    requirements = {
+        "windows-x64": "Windows 10/11 x64 and a working graphics driver. The MSVC runtime is statically linked.",
+        "linux-x64": "Linux x64 with glibc 2.35+, ALSA, Wayland/X11 libraries and a Vulkan or OpenGL driver.\n"
+                     f"If your archive extractor drops permissions: chmod +x {client} {server}",
+        # Not signed with an Apple Developer ID: Gatekeeper blocks the programs until
+        # the player allows them once.
+        # "Open Anyway" alone would leave the quarantine flag, and macOS would run the
+        # app from a random read-only copy, away from GameData.
+        "macos-arm64": "macOS 11+ on Apple Silicon (M1 or later); the game draws through Metal.\n"
+                       "The programs are not signed by Apple, so macOS blocks them at first. In Terminal,\n"
+                       "in the folder you extracted them to, run once:\n"
+                       f"  xattr -dr com.apple.quarantine {launch} {server}\n"
+                       f"  chmod +x {launch}/Contents/MacOS/{client} {server}\n"
+                       f"Then open {launch} from Finder (it can be kept in the Dock).\n"
+                       "SJK also looks inside the Mac edition's app bundle in Steam's library. If it is\n"
+                       "not found, extract into a GameData folder holding base/ copied from a Windows\n"
+                       "installation (assets0.pk3 through assets3.pk3).\n"
+                       "macOS builds are experimental: they have not been played on a Mac yet.",
+    }[platform]
     label = f"{name} {version}" if version else f"{name} playtest build"
     return f"""{label} - {platform}
 Source revision: {revision}
@@ -111,7 +191,7 @@ INSTALL
 Extract ALL files from this ZIP directly into Jedi Academy's GameData folder,
 beside its existing base folder. Do not put them inside base or an extra {name} folder.
 The installed game must include base/assets0.pk3 through base/assets3.pk3.
-Launch {client}{suffix}. No game-data path or environment variable is needed.
+Launch {launch}. No game-data path or environment variable is needed.
 Keep {server}{suffix} beside it for Create game and local devmap.
 An existing shortcut must point to this client, not an older named playtest binary.
 
@@ -135,8 +215,10 @@ Build metadata and SHA-256 checksums are distributed separately from this instal
 """
 
 
-def smoke_check(package, platform, source, profile="SJK", client="sjk", server="sjk-server",
-                name="SJK"):
+def smoke_check(package, platform, source, packaged, profile="SJK", client="sjk",
+                server="sjk-server", name="SJK"):
+    """`packaged` lists the ZIP's names; `client` and `server` are the programs'
+    names in it (the client may be inside the macOS bundle)."""
     # All scratch stays under the repository target directory, never system /tmp.
     scratch = source / "target/parity-reports"
     scratch.mkdir(parents=True, exist_ok=True)
@@ -146,16 +228,11 @@ def smoke_check(package, platform, source, profile="SJK", client="sjk", server="
         game.mkdir(parents=True)
         with zipfile.ZipFile(package) as archive:
             assert archive.testzip() is None
-            suffix = ".exe" if platform == "windows-x64" else ""
-            assert set(archive.namelist()) == {
-                client + suffix, server + suffix,
-                text_name("README", name), text_name("LICENSES", name),
-            }
+            assert set(archive.namelist()) == set(packaged)
             archive.extractall(game)
-        suffix = ".exe" if platform == "windows-x64" else ""
-        for name in (client, server):
-            (game / (name + suffix)).chmod(0o755)
-        started = subprocess.run([str(game / (server + suffix)),
+        for program in (client, server):
+            (game / program).chmod(0o755)
+        started = subprocess.run([str(game / server),
                                  "--bind", "127.0.0.1:0", "--quit-on-eof"],
                                 cwd=root, input="", text=True,
                                 check=True, capture_output=True, timeout=30)
@@ -168,7 +245,7 @@ def smoke_check(package, platform, source, profile="SJK", client="sjk", server="
             env.pop(name, None)
         env["XDG_CONFIG_HOME"] = str(root / "profile")
         env["APPDATA"] = str(root / "profile")
-        run = subprocess.run([str(game / (client + suffix))], cwd=root,
+        run = subprocess.run([str(game / client)], cwd=root,
                              env=env, capture_output=True, text=True, timeout=60)
         assert run.returncode == 1, run.stderr
         assert "was not found in the mounted game data" in run.stderr, run.stderr
@@ -180,7 +257,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", type=Path, required=True)
     parser.add_argument("--target", required=True)
-    parser.add_argument("--platform", choices=("linux-x64", "windows-x64"), required=True)
+    parser.add_argument("--platform", choices=("linux-x64", "macos-arm64", "windows-x64"), required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--smoke-check", action="store_true")
     # Release builds name their files after the product and version and point the
@@ -207,12 +284,27 @@ def main():
     suffix = ".exe" if args.platform == "windows-x64" else ""
     binaries = [source / "target" / args.target / "release" / (name + suffix)
                 for name in (args.client_bin, args.server_bin)]
-    with zipfile.ZipFile(package, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
-        for binary in binaries:
-            add_file(archive, binary, binary.name, executable=True)
+    # macOS disks ignore case by default: a program named `sjk` beside the `SJK`
+    # client folder takes its name, and the client falls back to per-user storage.
+    client = args.client_bin
+    if args.platform == "macos-arm64" and client.lower() == args.profile_dir.lower():
+        client += "-client"
+    with tempfile.TemporaryDirectory(prefix="bundle-", dir=output) as staging, \
+            zipfile.ZipFile(package, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
+        # On a Mac the client goes in an app bundle; elsewhere it is a bare program.
+        if args.platform == "macos-arm64":
+            programs = app_bundle(Path(staging), binaries[0], source, args.name, client,
+                                  args.version)
+        else:
+            programs = [(client + suffix, binaries[0], True)]
+        programs.append((args.server_bin + suffix, binaries[1], True))
+        for packaged, path, executable in programs:
+            add_file(archive, path, packaged, executable)
+        client_entry = programs[0][0] if args.platform != "macos-arm64" else \
+            f"{args.name}.app/Contents/MacOS/{client}"
         archive.writestr(text_name("README", args.name),
                          instructions(args.platform, revision, args.name, args.repository, args.version,
-                                      args.profile_dir, args.client_bin, args.server_bin))
+                                      args.profile_dir, client, args.server_bin))
         fonts = source / "crates/sjk-viewer/assets/fonts"
         # The copyright notice leads the file.
         notices = [(f"{args.name}/NOTICE", (source / "NOTICE").read_bytes()),
@@ -233,8 +325,10 @@ def main():
         "binaries": {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in binaries},
     }, indent=2) + "\n", encoding="utf-8")
     if args.smoke_check:
-        smoke_check(package, args.platform, source, args.profile_dir, args.client_bin, args.server_bin,
-                    args.name)
+        smoke_check(package, args.platform, source,
+                    [packaged for packaged, _, _ in programs]
+                    + [text_name("README", args.name), text_name("LICENSES", args.name)],
+                    args.profile_dir, client_entry, args.server_bin + suffix, args.name)
     source_zip = output / f"{stem}-source.zip"
     subprocess.run(["git", "-c", "core.autocrlf=false", "archive", "--format=zip", f"--prefix={stem}/",
                     f"--output={source_zip}", revision], cwd=source, check=True)

@@ -1,6 +1,7 @@
 //! Runtime projection feeding match information into the retained HUD.
 
 use super::*;
+use crate::hud::flag_status::ScoreRows;
 use bytemuck::{Pod, Zeroable};
 
 /// Append HUD text and overhead labels without duplicating the classic-font fallback.
@@ -116,19 +117,20 @@ pub(crate) fn update(
     presentation_time: i32,
     intermission: bool,
 ) {
+    gpu.refresh_force_support();
     let (view_target, view_up, vertical_fov) = view;
     hud::tints::update(gpu, view_position, presentation_time, intermission);
     hud::vehicle_feed::sample(gpu, presentation_time);
-    let scoreboard = gpu.gameplay_input.held(input::GameButton::Scores);
-    let labels_hidden = scoreboard
+    let scoreboard = crate::scoreboard::hides_crosshair(gpu, presentation_time);
+    // Plates and logos stay off any open board, classic's included (held or after death).
+    let labels_hidden = crate::scoreboard::hides_hud(gpu)
+        || gpu.gameplay_input.held(input::GameButton::Scores)
+        || scoreboard
         || intermission
         || gpu.console.as_ref().is_some_and(|c| {
             !c.bool_cvar("cg_drawhud").unwrap_or(true) || !c.bool_cvar("cg_draw2d").unwrap_or(true)
         });
     gpu.hud.identification.sample(gpu.console.as_ref());
-    if let Some(console) = gpu.console.as_mut() {
-        hud::nameplate::hold_sharing(console);
-    }
     gpu.hud.nameplate.sample(gpu.console.as_ref());
     gpu.hud.card.sample(gpu.console.as_ref());
     gpu.hud.team_logo.sample(gpu.console.as_ref());
@@ -166,6 +168,12 @@ pub(crate) fn update(
             snapshot,
             session.game_state(),
             gpu.console.as_ref(),
+        );
+        gpu.scoreboard.observe_afk(
+            snapshot,
+            session.game_state(),
+            session.scores(),
+            gpu.chat.spoken(),
         );
         // Team logos first: the overhead names and plates stand above them.
         gpu.hud.team_logo.update(
@@ -205,11 +213,7 @@ pub(crate) fn update(
         gpu.hud
             .nameplate
             .refresh_marks(i64::from(presentation_time), || {
-                let game_state = session.game_state();
-                (
-                    player_identity::slot_marks(game_state),
-                    player_identity::sjk_slots(game_state),
-                )
+                player_identity::slot_marks(session.game_state())
             });
         gpu.hud
             .nameplate
@@ -237,6 +241,10 @@ pub(crate) fn update(
             camera,
             &gpu.bsp,
             &mut gpu.trace_scratch,
+            gpu.local_prediction
+                .predicted_state()
+                .filter(|_| !detached_flight)
+                .map(|state| state.force_powers_active),
             plates_hidden,
         );
         gpu.hud.rocket_lock.update(
@@ -251,6 +259,15 @@ pub(crate) fn update(
         );
         gpu.hud
             .update_family(snapshot, session.game_state(), gpu.console.as_ref());
+        gpu.hud.update_flag_carriers(
+            snapshot,
+            session.game_state(),
+            session.team_info().entries(),
+            ScoreRows {
+                rows: session.scores(),
+                revision: session.scores_revision(),
+            },
+        );
         let ja_plus = matches!(
             session.compat_profile(),
             sjk_client::CompatProfile::JaPlus { .. }
@@ -303,17 +320,35 @@ pub(crate) fn update(
         let head_icons = &gpu.scoreboard;
         let (looks, skins) = (&gpu.looks, &*gpu.blade_skins);
         let own_slot = crate::looks::ViewSlots::of(session.game_state(), &snapshot.player).own;
+        // A player blocked on this PC gets no card, and a pinned one loses their profile.
+        let blocked = gpu.muted_players.slots();
         gpu.hud.card.update(hud::player_card::Input {
-            seen: gpu.crosshair_scan.hit_now(presentation_time),
+            seen: gpu
+                .crosshair_scan
+                .hit_now(presentation_time)
+                .filter(|&client| !blocked.contains(usize::from(client))),
+            bsp: &gpu.bsp,
+            scratch: &mut gpu.trace_scratch,
             game: session.game_state(),
+            team_sabers: crate::team_sabers::Settings::of(gpu.console.as_ref()),
+            class_sabers: gpu
+                .siege_sabers
+                .forced(Some(session.game_state()), gpu.vfs.as_deref()),
             world: &gpu.live_world,
             now: presentation_time,
             camera,
             hidden: plates_hidden,
-            hub: &player_identity::hub_info,
+            hub: &|slot, name| {
+                if blocked.contains(usize::from(slot)) {
+                    None
+                } else {
+                    player_identity::hub_info(slot, name)
+                }
+            },
             // What players share changes their card too.
             hub_revision: player_identity::revision()
-                ^ player_identity::vitals_flags(session.game_state()).rotate_left(17),
+                ^ player_identity::vitals_flags(session.game_state()).rotate_left(17)
+                ^ u64::from(blocked.muted).rotate_left(40),
             entities: &snapshot.entities,
             icon: &|slot| head_icons.head_icon(slot),
             shader: &|slot| card_shader(looks, skins, own_slot, slot),
@@ -352,6 +387,7 @@ pub(crate) fn update(
             crosshair,
             !session.is_local()
                 && sjk_client::connection_interrupted(presentation_time, snapshot.server_time),
+            hud::follow_shown(snapshot.player.movement_flags(), false),
         );
     } else if let Some(session) = &gpu.demo_session {
         let snapshot = session.snapshot_at_or_before(presentation_time);
@@ -361,6 +397,8 @@ pub(crate) fn update(
             session.game_state(),
             gpu.console.as_ref(),
         );
+        gpu.scoreboard
+            .observe_afk(snapshot, session.game_state(), &[], gpu.chat.spoken());
         gpu.hud.team_logo.update(
             snapshot,
             session.game_state(),
@@ -407,6 +445,7 @@ pub(crate) fn update(
             camera,
             &gpu.bsp,
             &mut gpu.trace_scratch,
+            None,
             plates_hidden,
         );
         gpu.hud.rocket_lock.update(
@@ -421,6 +460,9 @@ pub(crate) fn update(
         );
         gpu.hud
             .update_family(snapshot, session.game_state(), gpu.console.as_ref());
+        // A demo keeps no `tinfo` or `scores`: the carriers come from the snapshot.
+        gpu.hud
+            .update_flag_carriers(snapshot, session.game_state(), &[], ScoreRows::default());
         // Only merc mode needs the server's mod; read it from the demo's gamestate then.
         let ja_plus = snapshot.player.entity_flags() & 0x1000 != 0
             && matches!(
@@ -477,7 +519,13 @@ pub(crate) fn update(
         let own_slot = crate::looks::ViewSlots::of(session.game_state(), &snapshot.player).own;
         gpu.hud.card.update(hud::player_card::Input {
             seen: gpu.crosshair_scan.hit_now(presentation_time),
+            bsp: &gpu.bsp,
+            scratch: &mut gpu.trace_scratch,
             game: session.game_state(),
+            team_sabers: crate::team_sabers::Settings::of(gpu.console.as_ref()),
+            class_sabers: gpu
+                .siege_sabers
+                .forced(Some(session.game_state()), gpu.vfs.as_deref()),
             world: session.world(),
             now: presentation_time,
             camera,
@@ -525,6 +573,7 @@ pub(crate) fn update(
             &gpu.lagometer,
             crosshair,
             false,
+            hud::follow_shown(snapshot.player.movement_flags(), true),
         );
     }
     let game = gpu
@@ -704,17 +753,22 @@ mod tests {
     #[test]
     fn the_card_names_a_shader_only_when_it_draws_on_the_blade() {
         let loaded = loaded_sample(1);
-        let sun = sjk_identity::Look {
-            saber: "saber_sun".to_owned(),
+        let tidal = sjk_identity::Look {
+            saber: "saber_tidal".to_owned(),
             illuminate: false,
             saber_off: Vec::new(),
             toys: Vec::new(),
+            saber2: None,
+            saber2_off: Vec::new(),
+            saber_on: Vec::new(),
+            saber2_on: Vec::new(),
+            saber_sounds: String::new(),
         };
         let mut looks = Looks::default();
-        looks.replace_roster([(3, "Fox", Some(&sun))]);
+        looks.replace_roster([(3, "Fox", Some(&tidal))]);
         looks.rebuild(|slot| (slot == 3).then(|| "Fox".to_owned()));
         // Another player, worn by the looks (which the hub relays only when owned).
-        assert_eq!(card_shader(&looks, &loaded, None, 3), Some("saber_sun"));
+        assert_eq!(card_shader(&looks, &loaded, None, 3), Some("saber_tidal"));
         // Nobody's look, or one whose pack is not loaded here.
         assert_eq!(card_shader(&looks, &loaded, None, 4), None);
         assert_eq!(
@@ -722,9 +776,12 @@ mod tests {
             None
         );
         // The local player: their own look, gated by their unlocks.
-        looks.set_own(Some(1), Worn::own("saber_sun", "", |_| true, false));
-        assert_eq!(card_shader(&looks, &loaded, Some(1), 1), Some("saber_sun"));
-        looks.set_own(Some(1), Worn::own("saber_sun", "", |_| false, false));
+        looks.set_own(Some(1), Worn::own("saber_tidal", "", |_| true, false));
+        assert_eq!(
+            card_shader(&looks, &loaded, Some(1), 1),
+            Some("saber_tidal")
+        );
+        looks.set_own(Some(1), Worn::own("saber_tidal", "", |_| false, false));
         assert_eq!(card_shader(&looks, &loaded, Some(1), 1), None);
         looks.set_own(Some(1), Worn::own("", "", |_| true, false));
         assert_eq!(card_shader(&looks, &loaded, Some(1), 1), None);

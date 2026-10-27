@@ -1,14 +1,14 @@
 # Distributable packages
 
 The [GameData packages workflow](../.github/workflows/packages.yml) creates
-Windows x64 and Linux x64 ZIPs with optimized client and dedicated-server
+Windows x64, Linux x64 and macOS Apple Silicon ([below](#macos)) ZIPs with optimized client and dedicated-server
 executables at the archive root. Extract the entire platform ZIP directly into
 the installed game's `GameData` directory, beside `base/`, and launch the client.
 Keep the dedicated server beside it for Create game and local devmap. Updating
 the executables does not replace the `SJK/` user files.
 
 Each installation ZIP contains exactly four files: `sjk`, `sjk-server` (both with
-`.exe` on Windows), `README-SJK.txt` and `LICENSES-SJK.txt`; the suffix keeps them
+`.exe` on Windows; on macOS the client is the `SJK.app` bundle, [below](#macos)), `README-SJK.txt` and `LICENSES-SJK.txt`; the suffix keeps them
 from replacing another program's `README.txt` or `LICENSES.txt` in the same
 GameData folder. The licence file consolidates the complete project, font and
 dependency notices with their source labels and attribution inventory; no
@@ -26,13 +26,19 @@ contributors and is not needed in GameData.
 Once the workflow is on the default branch, run it manually with `source_ref`
 set to the exact commit or branch to package. Pull requests changing the workflow
 or packaging script also exercise it against the PR's base revision, avoiding
-unmerged game changes. Download the resulting `SJK-windows-x64` and
-`SJK-linux-x64` Actions artifacts. These are build artifacts with a 30-day
+unmerged game changes. Download the resulting `SJK-windows-x64`,
+`SJK-linux-x64` and `SJK-macos-arm64` Actions artifacts. These are build artifacts with a 30-day
 retention period, not automatically published GitHub Releases.
 
 The Linux build uses Ubuntu 22.04, requiring glibc 2.35 or newer, ALSA and the
 window-system/graphics-driver libraries. The Windows build targets MSVC with a
 static C runtime, for Windows 10/11 x64. Drivers remain a system requirement.
+The Windows release client is a windowed program (`windows_subsystem` in
+[main.rs](../crates/sjk-viewer/src/main.rs)), so no console opens beside the game;
+debug builds keep theirs. Its log is standard error, which a redirected start
+(`sjk.exe > log.txt 2>&1`) still writes to a file. The console programs it starts
+itself (the local server, PowerShell for the clipboard, `cmd` for links, `ipconfig`)
+go through `platform::hidden_command`, which gives them no window of their own.
 Source checkout and source archives preserve the repository's line endings on
 both platforms, including embedded WGSL used by exact-text shader patches.
 
@@ -55,6 +61,38 @@ python3 scripts/package_client.py --source . --target x86_64-unknown-linux-gnu -
 Build on the intended distribution baseline: packaging a binary built on a newer
 Linux distribution does not lower its glibc requirement. The workflow is the
 reference environment for the distributed Linux ZIP.
+
+## macOS
+
+The `macos-arm64` package is built on GitHub's `macos-latest` runner for
+`aarch64-apple-darwin` with `MACOSX_DEPLOYMENT_TARGET=11.0`, and passes the same smoke
+check there. The client is an app bundle, `SJK.app`, so Finder starts it without
+Terminal and the Dock shows SJK's name and icon: `Contents/MacOS/sjk-client`, an
+`Info.plist` naming it and the release's version, and `Contents/Resources/SJK.icns`,
+which [package_client.py](../scripts/package_client.py) writes from
+`assets/branding/sjk-logo-512.png` and `sjk-logo.png`. `sjk-server` stays a bare
+program beside the bundle. The client counts the folder holding `SJK.app` as its own
+(`platform::install_folder`), for the game data, the `SJK/` client folder, the server
+and updates. The program inside is named `sjk-client`, not `sjk`: macOS disks ignore
+case by default, and before the bundle a bare `sjk` took the name of the `SJK/` folder
+beside it. The client draws through wgpu's Metal backend (the
+`metal` feature of `sjk-viewer`). Intel Macs have no build.
+
+The bundle is only ad-hoc signed (`codesign --sign -` on the runner, so the signature
+covers its `Info.plist` and icon), not with an Apple Developer ID nor notarized, so
+Gatekeeper blocks a downloaded copy: the bundled README tells the player to clear the
+quarantine flag (`xattr -dr com.apple.quarantine SJK.app sjk-server`). Allowing it in
+System Settings > Privacy & Security instead keeps the flag, and macOS then runs a
+quarantined app from a random read-only copy (App Translocation), away from GameData.
+Signing and notarizing need a paid Apple Developer account and its certificate in the
+workflow's secrets.
+
+Game data: besides the drop-in folder, the client looks in Steam's macOS library for
+`Jedi Academy/GameData` and for a `base/` folder inside any `.app` bundle's
+`Contents` there (the Mac edition's layout, not checked on a real installation).
+The auto-updater fetches `SJK-<version>-macos-arm64.zip`. What the Mac build lacks,
+as on Linux: chat MP4 clips (Media Foundation), the video-memory reading for the
+small-card settings. Copy and paste go through `pbcopy`/`pbpaste`.
 
 ## SJK releases
 

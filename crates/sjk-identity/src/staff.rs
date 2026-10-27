@@ -7,6 +7,7 @@
 
 use crate::logs::{CrashDetail, CrashGroup, CrashSummary, LogRequestRow};
 use crate::wire::Profile;
+use serde::Deserialize;
 
 /// One staff request.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -107,6 +108,14 @@ pub enum StaffRequest {
         /// Vouch (true) or no longer.
         verified: bool,
     },
+    /// Make a player staff or take it away; only SJK's creator may (the hub refuses
+    /// anyone else), and never from the creator.
+    SetStaff {
+        /// The player's key.
+        key_id: String,
+        /// Staff (true) or no longer.
+        staff: bool,
+    },
     /// Merge one player into another, for good: everything `from` holds goes to the
     /// player of `key_id`, and `from`'s keys become linked keys of that player. A staff
     /// player cannot be merged away.
@@ -122,13 +131,50 @@ pub enum StaffRequest {
         /// The linked key (never a player's main key).
         key_id: String,
     },
+    /// Change a player's credits by `delta` (`PROTOCOL.md`, "Holocrons"); the hub
+    /// refuses one that would go below 0.
+    Credits {
+        /// The player's key.
+        key_id: String,
+        /// Credits given (above 0) or taken (below 0).
+        delta: i64,
+        /// Why, shown with it; may be empty.
+        note: String,
+    },
+    /// Block a player of the game server being played for every SJK player there who
+    /// follows staff blocks, until its map changes (`PROTOCOL.md`, "Map blocks"), or
+    /// lift that block.
+    MapBlock {
+        /// The game server, `ip:port`.
+        server: String,
+        /// The map, as the game names it.
+        map: String,
+        /// The server's `sv_serverid` for this map load.
+        serverid: i64,
+        /// The player's slot.
+        slot: u8,
+        /// What the game shows in that slot.
+        name: String,
+        /// Block (true) or lift the block.
+        blocked: bool,
+    },
+    /// Change a player's kyber shards by `delta` (`PROTOCOL.md`, "Shards and the
+    /// shop"), as [`Self::Credits`] does credits.
+    Shards {
+        /// The player's key.
+        key_id: String,
+        /// Shards given (above 0) or taken (below 0).
+        delta: i64,
+        /// Why, shown with it; may be empty.
+        note: String,
+    },
 }
 
 impl StaffRequest {
     /// The key the request changes, if it changes one.
     pub fn target(&self) -> Option<&str> {
         match self {
-            Self::Search(_) | Self::ChatDelete { .. } => None,
+            Self::Search(_) | Self::ChatDelete { .. } | Self::MapBlock { .. } => None,
             Self::Award { key_id, .. }
             | Self::Unaward { key_id, .. }
             | Self::Unlock { key_id, .. }
@@ -141,8 +187,11 @@ impl StaffRequest {
             | Self::HolocronGive { key_id, .. }
             | Self::HolocronRemove { key_id, .. }
             | Self::Verify { key_id, .. }
+            | Self::SetStaff { key_id, .. }
             | Self::Merge { key_id, .. }
-            | Self::Unlink { key_id } => Some(key_id),
+            | Self::Unlink { key_id }
+            | Self::Credits { key_id, .. }
+            | Self::Shards { key_id, .. } => Some(key_id),
         }
     }
 }
@@ -168,6 +217,8 @@ pub enum StaffQuery {
     Crashes(String),
     /// One whole crash report, by its number.
     Crash(i64),
+    /// The SJK chat bans in force, newest first (`PROTOCOL.md`, "Chat bans").
+    ChatBans,
 }
 
 /// What the hub answered a [`StaffQuery`].
@@ -183,6 +234,44 @@ pub enum StaffAnswer {
     Crashes(Vec<CrashSummary>),
     /// One crash report.
     Crash(Box<CrashDetail>),
+    /// The chat bans in force.
+    ChatBans(Vec<ChatBanRow>),
+}
+
+/// A chat ban in force, as the hub lists them to staff (`PROTOCOL.md`, "Chat bans",
+/// ChatBan).
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
+pub struct ChatBanRow {
+    /// The ban's number at the hub.
+    #[serde(default)]
+    pub id: i64,
+    /// The banned player's key, empty for a ban that holds only their address.
+    #[serde(default)]
+    pub key_id: String,
+    /// Their display name.
+    #[serde(default)]
+    pub name: String,
+    /// The address the hub last saw them use is banned too.
+    #[serde(default)]
+    pub address: bool,
+    /// The key of the player who banned them.
+    #[serde(default)]
+    pub by_key_id: String,
+    /// That player's display name.
+    #[serde(default)]
+    pub by_name: String,
+    /// When the ban was made, unix seconds.
+    #[serde(default)]
+    pub created: i64,
+    /// When it ends, unix seconds.
+    #[serde(default)]
+    pub until: i64,
+}
+
+/// `POST /v1/staff/chat-bans`'s answer.
+#[derive(Deserialize)]
+pub(crate) struct ChatBanRows {
+    pub(crate) bans: Vec<ChatBanRow>,
 }
 
 /// A text a staff member opened (logs or a crash report), for the page to save and show.
@@ -215,6 +304,8 @@ pub struct StaffState {
     pub crashes: Vec<CrashSummary>,
     /// That signature (empty: the newest of all).
     pub crashes_of: String,
+    /// The chat bans in force, as the hub last listed them (newest first).
+    pub chat_bans: Vec<ChatBanRow>,
     /// The logs or crash report opened last, until the viewer takes it
     /// (`Service::take_opened`).
     pub opened: Option<OpenedText>,
@@ -283,6 +374,13 @@ impl StaffState {
                 self.open(name, detail.readable());
                 format!("Opened crash report #{}", detail.summary.id)
             }
+            StaffAnswer::ChatBans(bans) => {
+                self.chat_bans = bans;
+                match self.chat_bans.len() {
+                    1 => "1 chat ban in force".to_owned(),
+                    count => format!("{count} chat bans in force"),
+                }
+            }
         };
     }
 
@@ -332,7 +430,8 @@ fn file_part(name: &str) -> String {
     }
 }
 
-/// What a request's success is called on the page.
+/// What a request's success is called on the page: never a key id, which the game never
+/// shows.
 pub(crate) fn done(request: &StaffRequest, count: usize) -> String {
     match request {
         StaffRequest::Search(query) if query.is_empty() => {
@@ -362,14 +461,42 @@ pub(crate) fn done(request: &StaffRequest, count: usize) -> String {
         StaffRequest::AvatarBlock { blocked: false, .. } => {
             "They may upload pictures again".to_owned()
         }
-        StaffRequest::HolocronGive { tier, .. } => format!("Gave a {tier} holocron"),
+        StaffRequest::HolocronGive { tier, .. } => match tier.strip_prefix("kyber_") {
+            Some(crystal) => format!("Gave {} {crystal} kyber crystal", article(crystal)),
+            None => format!("Gave {} {tier} holocron", article(tier)),
+        },
         StaffRequest::HolocronRemove { id, .. } => format!("Took back holocron #{id}"),
         StaffRequest::Verify { verified: true, .. } => "Verified".to_owned(),
         StaffRequest::Verify {
             verified: false, ..
         } => "No longer verified".to_owned(),
-        StaffRequest::Merge { from, .. } => format!("Merged {from} into this player"),
-        StaffRequest::Unlink { key_id } => format!("Unlinked {key_id}"),
+        StaffRequest::SetStaff { staff: true, .. } => "Made staff".to_owned(),
+        StaffRequest::SetStaff { staff: false, .. } => "No longer staff".to_owned(),
+        StaffRequest::Merge { .. } => "Merged the other player into this one".to_owned(),
+        StaffRequest::Unlink { .. } => "Unlinked the key: it starts afresh".to_owned(),
+        StaffRequest::Credits { delta, .. } if *delta < 0 => {
+            format!("Took {} credits", delta.unsigned_abs())
+        }
+        StaffRequest::Credits { delta, .. } => format!("Gave {delta} credits"),
+        StaffRequest::Shards { delta, .. } if *delta < 0 => {
+            format!("Took {} kyber shards", delta.unsigned_abs())
+        }
+        StaffRequest::Shards { delta, .. } => format!("Gave {delta} kyber shards"),
+        StaffRequest::MapBlock { blocked: true, .. } => {
+            "Blocked for everyone on this map".to_owned()
+        }
+        StaffRequest::MapBlock { blocked: false, .. } => {
+            "No longer blocked for everyone".to_owned()
+        }
+    }
+}
+
+/// "an" before a tier that starts with a vowel ("an uncommon"), else "a".
+fn article(word: &str) -> &'static str {
+    if word.starts_with(['a', 'e', 'i', 'o', 'u']) {
+        "an"
+    } else {
+        "a"
     }
 }
 
@@ -438,5 +565,56 @@ mod tests {
             StaffAnswer::Crashes(vec![CrashSummary::default()]),
         );
         assert_eq!(state.crashes_of, "00ff00ff00ff00ff");
+        state.answered(
+            &StaffQuery::ChatBans,
+            StaffAnswer::ChatBans(vec![ChatBanRow::default(), ChatBanRow::default()]),
+        );
+        assert_eq!(state.chat_bans.len(), 2);
+        assert_eq!(state.message, "2 chat bans in force");
+    }
+
+    #[test]
+    fn credits_and_shards_say_what_was_given_or_taken() {
+        let credits = |delta| StaffRequest::Credits {
+            key_id: "0123456789abcdef".into(),
+            delta,
+            note: String::new(),
+        };
+        assert_eq!(done(&credits(50), 1), "Gave 50 credits");
+        assert_eq!(done(&credits(-20), 1), "Took 20 credits");
+        let shards = StaffRequest::Shards {
+            key_id: "0123456789abcdef".into(),
+            delta: -5,
+            note: String::new(),
+        };
+        assert_eq!(done(&shards, 1), "Took 5 kyber shards");
+        assert_eq!(shards.target(), Some("0123456789abcdef"));
+    }
+
+    #[test]
+    fn gifts_say_what_they_were_and_no_line_names_a_key() {
+        let give = |tier: &str| StaffRequest::HolocronGive {
+            key_id: "0123456789abcdef".into(),
+            tier: tier.into(),
+            note: String::new(),
+        };
+        assert_eq!(done(&give("rare"), 1), "Gave a rare holocron");
+        assert_eq!(done(&give("uncommon"), 1), "Gave an uncommon holocron");
+        assert_eq!(
+            done(&give("kyber_legendary"), 1),
+            "Gave a legendary kyber crystal"
+        );
+        for request in [
+            StaffRequest::Merge {
+                key_id: "0123456789abcdef".into(),
+                from: "fedcba9876543210".into(),
+            },
+            StaffRequest::Unlink {
+                key_id: "fedcba9876543210".into(),
+            },
+        ] {
+            let line = done(&request, 1);
+            assert!(!line.contains("fedcba9876543210"), "{line}");
+        }
     }
 }

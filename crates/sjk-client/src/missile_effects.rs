@@ -218,6 +218,12 @@ impl LegacyMissileEffects {
         self.vehicles.as_ref()?.weapon(index)
     }
 
+    /// The `muzzleFX` that fires from muzzle `muzzle` (from 0) of the vehicle whose
+    /// model is `CS_MODELS` slot `model_index` (`CG_VehMuzzleFireFX`).
+    pub fn vehicle_muzzle_effect(&self, model_index: usize, muzzle: usize) -> Option<&str> {
+        self.vehicles.as_ref()?.muzzle_effect(model_index, muzzle)
+    }
+
     /// Rigid vehicle projectile assets to preload outside the frame loop.
     pub fn vehicle_model_paths(&self) -> impl Iterator<Item = &str> {
         self.vehicles

@@ -27,18 +27,37 @@ use std::time::Instant;
 
 #[path = "audio_assets.rs"]
 mod assets;
+#[path = "audio_boombox.rs"]
+mod boombox;
 #[path = "audio_commands.rs"]
 mod commands;
 #[path = "audio_controls.rs"]
 mod controls;
-pub(crate) use controls::{EMOTE_CHANNEL, TOY_CHANNEL};
+#[cfg(feature = "mod-jof")]
+#[path = "jof_dialogue_audio.rs"]
+mod dialogue;
+pub(crate) use controls::{
+    BOOMBOX_CHANNEL, EMOTE_CHANNEL, PROTECTED_CHANNELS, SKIN_SOUNDS_CVAR, TOY_CHANNEL,
+    VOICE_CHANNEL, VOICE_VOLUME_CVAR, interface_channel,
+};
 #[path = "audio_dynamic.rs"]
 mod dynamic;
 #[path = "audio_feedback.rs"]
 mod feedback;
+#[path = "audio_holstered_staff.rs"]
+mod holstered_staff;
+#[cfg(feature = "mod-jof")]
+#[path = "jof_force_audio.rs"]
+mod jof_force;
+#[path = "audio_music.rs"]
+pub(crate) mod music;
 #[path = "audio_transitions.rs"]
 mod transitions;
+#[path = "audio_voice_throttle.rs"]
+mod voice_throttle;
 pub(crate) use assets::SoundPrefetch;
+#[path = "flame_audio.rs"]
+mod flame;
 #[path = "audio_legacy.rs"]
 mod legacy;
 
@@ -49,31 +68,62 @@ use config_strings::{DeferredSoundChanges, SoundTableRefresh};
 
 const SOLID_BMODEL: u32 = 0x00ff_ffff; // codemp/qcommon/q_shared.h:1540
 
+/// The next [`GameAudio::generation`].
+static NEXT_GENERATION: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+
 /// Process-lifetime audio state. Only the rodio callback owns the mixer.
 pub(crate) struct GameAudio {
+    flame: flame::State,
+    #[cfg(feature = "mod-jof")]
+    dialogue: dialogue::Voice,
+    #[cfg(feature = "mod-jof")]
+    force_feedback: jof_force::State,
     output: AudioOutput,
+    /// This output's number among those the process started ([`Self::generation`]).
+    generation: u64,
     reported_underruns: u64,
     handles: HashMap<String, SoundHandle>,
+    /// Effect paths no installed file answered ([`Self::register_effect`]), until the
+    /// next gamestate brings new content.
+    missing_effects: std::collections::HashSet<String>,
     next_handle: u32,
     legacy: Option<LegacySoundAdapter>,
     legacy_load: Option<LegacyLoadTask>,
     sound_table_refresh: Option<SoundTableRefresh>,
     legacy_vfs: Option<Arc<VirtualFileSystem>>,
     map_music: Option<(SoundHandle, SoundHandle)>,
+    /// Music decoded for the current selection, outside `handles`, so it can be freed
+    /// when the music changes (`audio_assets.rs`).
+    music_tracks: Vec<assets::MusicTrack>,
     duel_music: Option<SoundHandle>,
     deferred_snapshots: VecDeque<(Instant, Snapshot, DeferredSoundChanges)>,
     music_value: Option<Vec<u8>>,
     dynamic: Option<dynamic::Level>,
     allow_dynamic: bool,
     duel_enabled: bool,
-    chat_beeps: [bool; 2],
+    music_sync: bool,
+    music_sync_pending: bool,
+    /// `cgs.musicStartTime`: server time the current `CS_MUSIC` track began.
+    music_start_time: i32,
+    /// The last observed snapshot's server time, for a `CS_MUSIC` change.
+    last_server_time: Option<i32>,
+    /// The chat sound settings (`chat_sounds.rs`), read once a frame.
+    pub(crate) chat_sounds: crate::chat_sounds::Options,
+    pm_only_chat: bool,
     deferred_starts: u64,
     maximum_deferred_start_ms: f64,
     /// `cg_footsteps`: whether the footstep event family is voiced.
     footsteps: bool,
+    /// `s_saberSkinSounds` 2: a blade skin's sounds replace the stock saber sounds.
+    pub(crate) skin_sounds_only: bool,
+    /// `s_saberSkinSounds` 0: a blade skin's sounds are not played, the stock ones are.
+    pub(crate) skin_sounds_off: bool,
     voice_policy: feedback::VoicePolicy,
+    voice_throttle: voice_throttle::VoiceThrottle,
     kill_sounds: i64,
     transitions: transitions::Transitions,
+    jetpack_sounds: sjk_client::LegacyJetpackSounds,
+    holster_sync: holstered_staff::Sync,
     /// `SJK_TRACE_AUDIO=1`: when the next level line is due.
     trace_due: Option<Instant>,
     /// Players muted on this PC, whose sounds are not played (`audio_mute.rs`).
@@ -85,6 +135,11 @@ pub(crate) struct GameAudio {
     /// The cardboard box's music on each boxed player this frame (`cardboard_box.rs`):
     /// their slot, and where they stand (`None`: the player's own, in both ears).
     box_music: Vec<(SourceId, Option<[f32; 3]>)>,
+    /// The Hax toy's hacking sound this frame (`hax.rs`): the hacker's slot, and where
+    /// they stand (`None`: the player's own, in both ears).
+    hax_loop: Option<(SourceId, Option<[f32; 3]>)>,
+    /// The toys' volume and per-toy switches (`toy_sounds.rs`), read each frame.
+    toy_sounds: crate::toy_sounds::Options,
 }
 
 impl GameAudio {
@@ -98,12 +153,25 @@ impl GameAudio {
             return;
         };
         adapter.observe_predicted_event(event, snapshot);
+        self.voice_throttle.observe_time(snapshot.server_time);
         for decision in adapter.decisions() {
             if let Some(handle) = decision.handle
-                && controls::allows_event(decision.event, self.footsteps, self.chat_beeps)
+                && let Some(handle) = controls::event_handle(
+                    decision.event,
+                    handle,
+                    self.footsteps,
+                    &self.chat_sounds,
+                    &self.handles,
+                )
                 && self
                     .voice_policy
                     .allows(*decision, snapshot.player.client_num())
+                && self.voice_throttle.allows(
+                    decision.request.source.0,
+                    decision.voice_line,
+                    snapshot.server_time,
+                    self.output.sample_length_ms(handle),
+                )
             {
                 self.output
                     .send(AudioCommand::Play(handle, decision.request));
@@ -117,8 +185,39 @@ impl GameAudio {
         clients: &[Option<u8>; sjk_client::SABER_SOUND_CLIENTS],
     ) {
         if let Some(adapter) = &mut self.legacy {
-            adapter.set_saber_sound_overrides(clients);
+            // With the skins' sounds off, nobody wears a sound set.
+            const NONE: [Option<u8>; sjk_client::SABER_SOUND_CLIENTS] =
+                [None; sjk_client::SABER_SOUND_CLIENTS];
+            adapter.set_saber_sound_overrides(if self.skin_sounds_off { &NONE } else { clients });
+            adapter.set_saber_skin_sounds_only(self.skin_sounds_only);
         }
+    }
+
+    /// Play `paths` once each, together, at full stereo on the interface's own source
+    /// (a channel each, so one does not cut another): the Saber tab's preview of a sound
+    /// set ([`crate::saber_sound_choice`]). A path not in `vfs` is left out.
+    pub(crate) fn play_preview(&mut self, vfs: &VirtualFileSystem, paths: &[&str]) {
+        for (channel, path) in paths.iter().enumerate() {
+            if let Some(handle) = self.register_vfs_async(vfs, path) {
+                self.output.send(AudioCommand::Play(
+                    handle,
+                    PlayRequest {
+                        origin: None,
+                        source: SourceId(u32::MAX - 2),
+                        channel: interface_channel(channel),
+                        volume: 0.9,
+                        attenuation: sjk_audio::Attenuation::None,
+                    },
+                ));
+            }
+        }
+    }
+
+    /// Which output this is: a new number at every start (`snd_restart` makes a new
+    /// output with an empty sample cache), so sounds registered once per output
+    /// (emotes, toys) know to register again.
+    pub(crate) fn generation(&self) -> u64 {
+        self.generation
     }
 
     /// Create the one process-lifetime output stream and its decode worker.
@@ -129,7 +228,7 @@ impl GameAudio {
             sample_rate: SAMPLE_RATE,
             loop_attenuation: sjk_client::legacy_sound_attenuation(0),
             doppler: sjk_client::legacy_doppler_config(true),
-            protected_channel: Some(EMOTE_CHANNEL),
+            protected_channels: crate::audio::PROTECTED_CHANNELS,
         })?;
         Some(Self::with_output(output))
     }
@@ -137,9 +236,16 @@ impl GameAudio {
     /// Assemble audio state around a real or test-owned null output.
     pub(super) fn with_output(output: AudioOutput) -> Self {
         let mut audio = Self {
+            flame: Default::default(),
+            #[cfg(feature = "mod-jof")]
+            dialogue: Default::default(),
+            #[cfg(feature = "mod-jof")]
+            force_feedback: Default::default(),
             output,
+            generation: NEXT_GENERATION.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
             reported_underruns: 0,
             handles: HashMap::with_capacity(2_048),
+            missing_effects: std::collections::HashSet::new(),
             next_handle: 0,
             legacy: None,
             legacy_load: None,
@@ -148,27 +254,40 @@ impl GameAudio {
             blade_skins: Arc::default(),
             saber_sets_generation: None,
             box_music: Vec::with_capacity(8),
+            hax_loop: None,
+            toy_sounds: Default::default(),
             map_music: None,
+            music_tracks: Vec::with_capacity(8),
             duel_music: None,
             deferred_snapshots: VecDeque::with_capacity(16),
             music_value: None,
             dynamic: None,
             allow_dynamic: true,
             duel_enabled: true,
-            chat_beeps: [true; 2],
+            music_sync: true,
+            music_sync_pending: false,
+            music_start_time: 0,
+            last_server_time: None,
+            chat_sounds: crate::chat_sounds::Options::default(),
+            pm_only_chat: false,
             deferred_starts: 0,
             maximum_deferred_start_ms: 0.0,
             footsteps: true,
+            skin_sounds_only: false,
+            skin_sounds_off: false,
             voice_policy: feedback::VoicePolicy::default(),
+            voice_throttle: voice_throttle::VoiceThrottle::default(),
             kill_sounds: 2,
             transitions: transitions::Transitions::default(),
+            jetpack_sounds: sjk_client::LegacyJetpackSounds::default(),
+            holster_sync: holstered_staff::Sync::default(),
             trace_due: std::env::var_os("SJK_TRACE_AUDIO").map(|_| Instant::now()),
             mute: crate::audio_mute::AudioMute::default(),
         };
-        // `s_volume`/`s_musicvolume` defaults from `S_Init` in
+        // `s_volume`/`s_musicvolume`/`s_volumeVoice` defaults from `S_Init` in
         // codemp/client/snd_dma.cpp:462-466. The console overwrites these on
         // the first frame, but the initial ring fill must use them too.
-        audio.set_gains(0.5, 0.25);
+        audio.set_gains(0.5, 0.25, 1.0, 1.0);
         audio
     }
 
@@ -200,19 +319,17 @@ impl GameAudio {
         game_state: &GameState,
         vfs: &VirtualFileSystem,
     ) {
-        // Establish the new snapshot listener before any queued starts are consumed.
+        // The listener stays where the frame put it (`finish_audio_frame`, the view's
+        // origin and axes): cgame respatializes once a frame, from `refdef.vieworg`
+        // (`cg_view.c:3245`). Moving it here to the snapshot's origin and angles, until
+        // the frame put it back, panned the sounds near the player for the mix blocks
+        // in between whenever they moved: the saber's hum crackled.
         self.transitions.race = crate::chat::combat::race(game_state, &snapshot.player);
-        let angles = snapshot.player.view_angles();
-        let (sp, cp) = angles[0].to_radians().sin_cos();
-        let (sy, cy) = angles[1].to_radians().sin_cos();
-        self.listener(
-            glam::Vec3::from_array(snapshot.player.origin()),
-            glam::Vec3::new(cp * cy, cp * sy, -sp),
-            // Quake's `AngleVectors` right axis (+Y is the listener's left).
-            glam::Vec3::new(sy, -cy, 0.0),
-            glam::Vec3::Z,
-            glam::Vec3::ZERO,
-        );
+        self.last_server_time = Some(snapshot.server_time);
+        if self.music_sync_pending {
+            self.music_sync_pending = false;
+            self.restore_map_music(snapshot, game_state);
+        }
         self.poll_legacy_load();
         self.output
             .send(AudioCommand::ListenerSource(Some(SourceId(u32::from(
@@ -260,20 +377,41 @@ impl GameAudio {
             });
             adapter.set_local_health_pain(self.transitions.old_pain);
             adapter.observe_snapshot(snapshot);
+            self.voice_throttle.observe_time(snapshot.server_time);
+            self.voice_throttle.observe_clients(game_state);
+            self.holster_sync.observe(snapshot);
             self.mute.observe(&snapshot.entities);
             let footsteps = self.footsteps;
             for decision in adapter.decisions() {
                 if let Some(handle) = self.transitions.handle(decision, snapshot.server_time)
-                    && controls::allows_event(decision.event, footsteps, self.chat_beeps)
+                    && let Some(handle) = controls::event_handle(
+                        decision.event,
+                        handle,
+                        footsteps,
+                        &self.chat_sounds,
+                        &self.handles,
+                    )
                     && self
                         .voice_policy
                         .allows(*decision, snapshot.player.client_num())
+                    && self.voice_throttle.allows(
+                        decision.request.source.0,
+                        decision.voice_line,
+                        snapshot.server_time,
+                        self.output.sample_length_ms(handle),
+                    )
                     && !self.mute.silences(decision.request.source, decision.cause)
+                    && !self.holster_sync.intercept(
+                        handle,
+                        decision.request,
+                        i64::from(snapshot.server_time),
+                    )
                 {
                     self.output
                         .send(AudioCommand::Play(handle, decision.request));
                 }
             }
+            self.holster_sync.pay_back(adapter);
             for action in adapter.maintained_actions() {
                 match action.kind {
                     LegacyMaintainedActionKind::Start => {}
@@ -292,19 +430,7 @@ impl GameAudio {
             music_action = adapter.music_actions().last().copied();
         }
         self.transition_cues(snapshot, true);
-        match music_action {
-            Some(LegacyMusicAction::StartPrivateDuel) if self.duel_enabled => {
-                if let Some(handle) = self.duel_music {
-                    self.output.start_music(handle, handle);
-                }
-            }
-            Some(LegacyMusicAction::RestoreMap) => {
-                if let Some((intro, repeating)) = self.map_music {
-                    self.output.start_music(intro, repeating);
-                }
-            }
-            _ => {}
-        }
+        self.apply_music_action(music_action, snapshot, game_state);
     }
 
     fn play_deferred_snapshots(&mut self) {
@@ -319,6 +445,8 @@ impl GameAudio {
             };
             adapter.set_local_health_pain(self.transitions.old_pain);
             adapter.observe_snapshot(&snapshot);
+            self.last_server_time = Some(snapshot.server_time);
+            self.voice_throttle.observe_time(snapshot.server_time);
             self.mute.observe(&snapshot.entities);
             let latency = queued_at.elapsed().as_secs_f64() * 1_000.0;
             // Advance all latches, but never compress loading history into one audio block.
@@ -328,10 +456,22 @@ impl GameAudio {
             }
             for decision in adapter.decisions() {
                 if let Some(handle) = self.transitions.handle(decision, snapshot.server_time)
-                    && controls::allows_event(decision.event, self.footsteps, self.chat_beeps)
+                    && let Some(handle) = controls::event_handle(
+                        decision.event,
+                        handle,
+                        self.footsteps,
+                        &self.chat_sounds,
+                        &self.handles,
+                    )
                     && self
                         .voice_policy
                         .allows(*decision, snapshot.player.client_num())
+                    && self.voice_throttle.allows(
+                        decision.request.source.0,
+                        decision.voice_line,
+                        snapshot.server_time,
+                        self.output.sample_length_ms(handle),
+                    )
                     && !self.mute.silences(decision.request.source, decision.cause)
                 {
                     self.output
@@ -370,14 +510,27 @@ impl GameAudio {
             LegacySaberView::from_movement_state,
         );
         adapter.observe_saber_switches(snapshot, view);
+        self.holster_sync.observe(snapshot);
         for decision in adapter.decisions() {
             if let Some(handle) = decision.handle
-                && controls::allows_event(decision.event, self.footsteps, self.chat_beeps)
+                && let Some(handle) = controls::event_handle(
+                    decision.event,
+                    handle,
+                    self.footsteps,
+                    &self.chat_sounds,
+                    &self.handles,
+                )
+                && !self.holster_sync.intercept(
+                    handle,
+                    decision.request,
+                    i64::from(snapshot.server_time),
+                )
             {
                 self.output
                     .send(AudioCommand::Play(handle, decision.request));
             }
         }
+        self.holster_sync.pay_back(adapter);
     }
 
     /// The client slots muted on this PC (bits), whose sounds are no longer played;
@@ -401,6 +554,11 @@ impl GameAudio {
         );
     }
 
+    /// The Hax toy's hacking sound this frame, played with the frame's loops.
+    pub(crate) fn set_hax_loop(&mut self, hacking: Option<(u8, Option<[f32; 3]>)>) {
+        self.hax_loop = hacking.map(|(slot, origin)| (SourceId(u32::from(slot)), origin));
+    }
+
     /// Rebuild all codemp loops at rendered cadence from interpolated origins.
     ///
     /// The set is bracketed by `ClearLoops`/`CommitLoops` because the audio
@@ -413,39 +571,63 @@ impl GameAudio {
         listener_origin: [f32; 3],
         world: &World,
         bsp: &Bsp,
+        predicted: Option<&sjk_client::pmove::MovementState>,
     ) {
         self.poll_legacy_load();
         self.output.send(AudioCommand::ClearLoops);
         self.send_frame_loops(snapshot, presented_time, listener_origin, world, bsp);
         self.send_box_music();
+        self.update_flame(snapshot, presented_time, world, predicted);
         self.output.send(AudioCommand::CommitLoops);
     }
 
     /// The box music joins the loop set, a loop per boxed player (none for a player
     /// muted here); it is the music of the toy, not the map's, so it ignores `s_musicVolume`.
+    /// The Hax toy's hacking sound joins it the same way.
     fn send_box_music(&mut self) {
-        let Some(handle) = self.find_handle(crate::cardboard_box::MUSIC) else {
+        use crate::toy_sounds::Toy;
+        if let Some(handle) = self.find_handle(crate::cardboard_box::MUSIC) {
+            for index in 0..self.box_music.len() {
+                let (source, origin) = self.box_music[index];
+                self.send_toy_loop(Toy::Box, handle, source, origin);
+            }
+        }
+        if let (Some(handle), Some((source, origin))) =
+            (self.find_handle(crate::hax::HACK_SOUND), self.hax_loop)
+        {
+            self.send_toy_loop(Toy::Hax, handle, source, origin);
+        }
+    }
+
+    /// A toy's loop on `source` at `origin` (`None`: in both ears), unless muted here
+    /// (the player, or the toy's sounds in the settings).
+    fn send_toy_loop(
+        &mut self,
+        toy: crate::toy_sounds::Toy,
+        handle: SoundHandle,
+        source: SourceId,
+        origin: Option<[f32; 3]>,
+    ) {
+        if self.mute.silences(source, None) {
+            return;
+        }
+        let Some(volume) = self.toy_sounds.gain(toy, 1.0) else {
             return;
         };
-        for &(source, origin) in &self.box_music {
-            if self.mute.silences(source, None) {
-                continue;
-            }
-            self.output.send(AudioCommand::SetLoop(
-                handle,
-                PlayRequest {
-                    origin,
-                    source,
-                    channel: TOY_CHANNEL,
-                    volume: 1.0,
-                    attenuation: match origin {
-                        Some(_) => sjk_client::legacy_sound_attenuation(0),
-                        None => sjk_audio::Attenuation::None,
-                    },
+        self.output.send(AudioCommand::SetLoop(
+            handle,
+            PlayRequest {
+                origin,
+                source,
+                channel: TOY_CHANNEL,
+                volume,
+                attenuation: match origin {
+                    Some(_) => sjk_client::legacy_sound_attenuation(0),
+                    None => sjk_audio::Attenuation::None,
                 },
-                [0.0; 3],
-            ));
-        }
+            },
+            [0.0; 3],
+        ));
     }
 
     fn send_frame_loops(
@@ -459,6 +641,7 @@ impl GameAudio {
         let Some(adapter) = &mut self.legacy else {
             return;
         };
+        adapter.set_jetpack_sounds(self.jetpack_sounds);
         adapter.observe_loops(snapshot, presented_time, listener_origin, |state| {
             presented_entity_origin(world, bsp, state, presented_time)
         });

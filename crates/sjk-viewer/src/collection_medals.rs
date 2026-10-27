@@ -81,10 +81,10 @@ pub(super) fn showing(inputs: &Inputs<'_>) -> ((String, &'static str), Vec<Showi
     (headline, shown)
 }
 
-/// Whether `medal` stays out of the tab until given: Supporter while donations are
-/// shelved (`crate::donation_goal::SHELVED`).
+/// Whether `medal` stays out of the tab until given: Supporter, whose offer for
+/// donations is shelved (14/10/2026; docs/sjk.md "Donations").
 fn shelved(medal: Medal) -> bool {
-    crate::donation_goal::SHELVED && medal == Medal::Supporter
+    medal == Medal::Supporter
 }
 
 /// The medals the tab lists: every one but the shelved ones not in `awards`.
@@ -112,7 +112,11 @@ impl Panel {
     /// The Medals tab.
     pub(super) fn medals(&mut self, frame: &Frame, inputs: &Inputs<'_>) {
         let ((headline, line), shown) = showing(inputs);
-        self.lead(frame, &headline, line);
+        self.lead(
+            frame,
+            &crate::terms::say(&headline),
+            &crate::terms::say(line),
+        );
         self.medals_shown = shown.len();
         self.medal = self.medal.min(shown.len().saturating_sub(1));
         let s = frame.s;
@@ -146,7 +150,10 @@ impl Panel {
         text(
             &mut self.ui,
             TextFamily::Body,
-            format_args!("More medals will hang here as the SJK team adds them."),
+            format_args!(
+                "{}",
+                crate::terms::say("More medals will hang here as the SJK team adds them.")
+            ),
             frame.rect(LEFT_X, 736.0, RAIL_WIDTH, 24.0),
             15.0 * s,
             color::QUIET,
@@ -440,21 +447,18 @@ mod tests {
             .iter()
             .map(|showing| (showing.medal, showing.award.is_some()))
             .collect();
-        let mut expected = vec![
-            (Medal::EarlyTester, true),
-            (Medal::BugHunter, true),
-            (Medal::EarlyContributor, false),
-        ];
-        if !shelved(Medal::Supporter) {
-            expected.push((Medal::Supporter, false));
-        }
-        assert_eq!(order, expected);
+        assert_eq!(
+            order,
+            [
+                (Medal::EarlyTester, true),
+                (Medal::BugHunter, true),
+                (Medal::EarlyContributor, false),
+            ]
+        );
+        // Bug Hunter is held once since 21/10/2026: an old count of 3 reads as one.
         assert_eq!(
             given(shown[1].award.as_ref()),
-            format!(
-                "Given 3 times, last on {}",
-                crate::medals::date_text(1_791_336_225)
-            )
+            format!("Given {}", crate::medals::date_text(1_791_336_225))
         );
         // Without the hub every listed medal shows, none given, and none is counted.
         for (enabled, snapshot) in [(false, Some(&shot)), (true, None)] {

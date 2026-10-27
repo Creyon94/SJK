@@ -6,36 +6,96 @@
 //! hint) closes without changing it. Left and right on the row itself step
 //! through the same list without opening it.
 //!
+//! It is the SJK UI's pop-up card over the darkened map in every menu style
+//! (`docs/sjk-ui.md`, Settings), as the resolution list is: the list on the
+//! card's left, the picture on its right, the keys under the card. A
+//! game-data HUD's picture is composited on a worker; SJK's own layouts are
+//! drawn over the same backdrop by the live HUD's code, so the picture is
+//! what a match shows. Positions are pixels of the SJK UI's 16:9 frame
+//! ([`Frame`]).
+//!
 //! The list needs the mounted files and the previews the shader catalogue
 //! too, which the menu does not hold: [`SettingsMenu::service_hud_picker`]
 //! is given both every frame the settings are up. Previews render on a
 //! worker, one at a time, and stay cached until the picker closes.
 
 use super::*;
-use crate::menu::art::{ArtPiece, ArtSet};
-use crate::menu::classic::layout::Placement;
+use crate::hud::{HudLook, HudOverlay, HudVisibility};
 use crate::menu::levelshot::LevelshotImage;
+use crate::menu::sjk::{Frame, TextTarget, color, key_hint, key_hint_width, kit, text};
 use crate::menu_hud::choices::{self, HudChoice};
 use crate::menu_hud::preview::{self, PreviewText};
 use crate::menu_hud::{FILES_CVAR, HudStyle, PACK_CVAR};
-use crate::menu_widgets::BACK_TOKEN;
+use crate::menu_widgets::{BACK_TOKEN, TextFamily};
 use sjk_ui::{Color, DrawCommand, FontWeight, InputEvent, TextAlign, UiEventKind};
 use std::sync::Arc;
 use std::sync::mpsc::{self, Receiver};
 
 /// Wheel target over the list.
 const LIST_SCROLL_TOKEN: u16 = 913;
-/// Rows the list shows at once.
-const LIST_ROWS: usize = 15;
-/// Picker geometry on the 640x480 canvas: the box, its title band, the
-/// list's first row and row height, and the preview (16:9).
-const PANEL: [f32; 4] = [20.0, 50.0, 600.0, 380.0];
-const TITLE: [f32; 4] = [20.0, 52.0, 600.0, 22.0];
-const LIST: [f32; 2] = [32.0, 84.0];
-const LIST_WIDTH: f32 = 170.0;
-const ROW_HEIGHT: f32 = 20.0;
-const PREVIEW: [f32; 4] = [214.0, 84.0, 394.0, 394.0 * 9.0 / 16.0];
-const HINT_Y: f32 = 404.0;
+/// The card, its inner margin and its text's column.
+const CARD: [f32; 4] = [240.0, 80.0, 1440.0, 780.0];
+const MARGIN: f32 = 48.0;
+const TEXT_X: f32 = CARD[0] + MARGIN;
+const TEXT_WIDTH: f32 = CARD[2] - MARGIN * 2.0;
+/// The list: its first row's top, a row's height, the rows shown at once
+/// and their width, with room for the in-use dot.
+const ROWS_TOP: f32 = CARD[1] + 150.0;
+const ROW: f32 = 48.0;
+const LIST_ROWS: usize = 12;
+const LIST_WIDTH: f32 = 420.0;
+const DOT_ROOM: f32 = 26.0;
+/// The picture (16:9), right of the list to the card's margin.
+const PREVIEW_X: f32 = TEXT_X + LIST_WIDTH + 64.0;
+const PREVIEW_WIDTH: f32 = CARD[0] + CARD[2] - MARGIN - PREVIEW_X;
+const PREVIEW: [f32; 4] = [
+    PREVIEW_X,
+    ROWS_TOP,
+    PREVIEW_WIDTH,
+    PREVIEW_WIDTH * 9.0 / 16.0,
+];
+/// The keys' line under the card, and the room between its hints.
+const KEYS: [(&[&str], &str); 3] = [
+    (&["Up", "Down"], "Choose"),
+    (&["Enter"], "Use"),
+    (&["Esc"], "Back"),
+];
+const KEY_GAP: f32 = 22.0;
+
+// The rows and the picture with its name and origin inside the card, the
+// keys under it inside the frame.
+const _: () = assert!(ROWS_TOP + LIST_ROWS as f32 * ROW <= CARD[1] + CARD[3] - MARGIN * 0.5);
+const _: () = assert!(PREVIEW[1] + PREVIEW[3] + 84.0 <= CARD[1] + CARD[3] - MARGIN * 0.5);
+const _: () = assert!(CARD[1] + CARD[3] + 28.0 + 24.0 <= 1080.0);
+
+/// The player SJK's layouts are drawn for: the game-data pictures' wounded
+/// saberist (`menu_hud::preview`), medium style.
+const SAMPLE: sjk_client::HudDataSource = sjk_client::HudDataSource {
+    health: 74,
+    armor: 46,
+    force: 63,
+    weapon: 3,
+    ammo: None,
+    saber_style: Some(2),
+};
+const SAMPLE_RATIOS: [f32; 4] = [0.74, 0.46, 0.63, 0.0];
+/// Long after the last weapon change, so the weapon's name has faded.
+const SAMPLE_TIME_MS: u64 = 60_000;
+/// The status and weapon widgets alone: no crosshair (the backdrop has one),
+/// timer, lagometer or selection rows.
+const SAMPLE_VISIBILITY: HudVisibility = HudVisibility {
+    hud: true,
+    status: true,
+    vehicle: false,
+    weapon: true,
+    selection: false,
+    crosshair: false,
+    crosshair_names: false,
+    timer: false,
+    lagometer: false,
+    ground_hud: false,
+    menu_hud: false,
+};
 
 /// A rendered preview, ready to upload.
 struct Ready {
@@ -70,6 +130,9 @@ pub(super) struct HudPicker {
     rendering: Option<(usize, Receiver<Option<Ready>>)>,
     /// The choice whose preview is in the texture.
     shown: Option<usize>,
+    /// The live HUD that draws SJK's layouts on their pictures, made on the
+    /// first one highlighted.
+    sample: Option<Box<HudOverlay>>,
 }
 
 impl HudPicker {
@@ -126,6 +189,7 @@ impl HudPicker {
 
     fn close(&mut self) {
         self.open = false;
+        self.sample = None;
         self.clear_previews();
     }
 
@@ -313,7 +377,7 @@ impl SettingsMenu {
             }
             return;
         }
-        if picker.rendering.is_some() || picker.failed[wanted] || !choice.has_preview() {
+        if picker.rendering.is_some() || picker.failed[wanted] {
             return;
         }
         let Some(plan) = preview::plan(vfs, shaders, choice) else {
@@ -340,7 +404,7 @@ impl SettingsMenu {
     fn refresh_hud_row(&mut self) {
         let label = self.hud.label();
         for (row, setting) in self.rows().iter().enumerate() {
-            if matches!(setting.kind, ValueKind::HudPicker)
+            if matches!(setting.kind(), ValueKind::HudPicker)
                 && let Some(value) = self.values.get_mut(row)
             {
                 value.clone_from(&label);
@@ -348,312 +412,485 @@ impl SettingsMenu {
         }
     }
 
-    /// Draw the open picker over the SJK UI's Settings (the classic+ panels
-    /// draw it themselves, with their art), in the theme's colours.
-    pub(crate) fn append_hud_overlay(
+    /// Draw the open picker as the SJK UI's pop-up card over the darkened
+    /// map, whatever the menu style.
+    pub(crate) fn append_hud_picker_sjk(
         &mut self,
-        vertices: &mut Vec<TextVertex>,
-        font: &UiFont,
+        target: TextTarget<'_>,
         viewport: [f32; 2],
         reveal: f32,
     ) {
         self.sjk_controls = None;
-        self.append_hud_picker(vertices, font, viewport, reveal, None);
+        self.append_hud_picker(target, viewport, reveal);
     }
 
-    /// Draw the open picker over the screen: retail colours and art with
-    /// `art` (the classic menus), the theme's otherwise.
+    /// Draw the open picker at `reveal` opacity: the list on the card's left,
+    /// the highlighted HUD's picture on its right, the keys under the card.
     pub(super) fn append_hud_picker(
         &mut self,
-        vertices: &mut Vec<TextVertex>,
-        font: &UiFont,
+        target: TextTarget<'_>,
         viewport: [f32; 2],
         reveal: f32,
-        art: Option<ArtSet>,
     ) {
-        let place = Placement::new(viewport);
-        let s = place.scale;
-        let palette = Palette::new(art, self.ui.theme());
+        // SJK's layouts are laid out by the live HUD's code, which wants a
+        // font to measure with.
+        let font = match &target {
+            TextTarget::Families(fonts, _) => fonts.body.1,
+            TextTarget::Inter(_, font) => *font,
+        };
+        let frame = Frame::new(viewport);
+        let s = frame.s;
         self.ui.begin_transparent(viewport);
         self.ui.push_opacity(reveal);
-        let [width, height] = viewport;
-        self.fill(Rect::new(0.0, 0.0, width, height), palette.scrim);
-        let panel = place.rect(PANEL);
-        self.fill(panel, palette.panel);
-        self.outline(panel, palette.border, 1.0 * s);
-        let title = place.rect(TITLE);
-        if art.is_some_and(|art| art.has(ArtPiece::BlendBox)) {
-            crate::menu::classic::view::art(&mut self.ui, ArtPiece::BlendBox, title);
-        }
-        self.line(
-            "HUD",
-            title,
-            15.0 * s,
-            palette.title,
+        kit::scrim(&mut self.ui, viewport);
+        kit::card(&mut self.ui, &frame, CARD);
+        text(
+            &mut self.ui,
+            TextFamily::Display,
+            format_args!("HUD look"),
+            frame.rect(TEXT_X, CARD[1] + 30.0, TEXT_WIDTH, 52.0),
+            40.0 * s,
+            color::TEXT,
             FontWeight::Semibold,
-            TextAlign::Center,
+            TextAlign::Start,
         );
-        self.hud_list(&place, &palette);
-        self.hud_preview(&place, &palette);
-        let hint = place.rect([PANEL[0], HINT_Y, PANEL[2], 14.0]);
-        self.line(
-            "UP / DOWN choose     ENTER use     ESC back",
-            hint,
-            11.0 * s,
-            palette.hint,
+        text(
+            &mut self.ui,
+            TextFamily::Body,
+            format_args!(
+                "How a match shows your health, armor, Force and ammunition. Hover a name to see it."
+            ),
+            frame.rect(TEXT_X, CARD[1] + 88.0, TEXT_WIDTH, 26.0),
+            18.0 * s,
+            color::MUTED,
             FontWeight::Regular,
-            TextAlign::Center,
+            TextAlign::Start,
         );
-        self.ui.hit_region(BACK_TOKEN, hint);
+        self.hud_list(&frame);
+        self.hud_preview(&frame, font);
+        self.hud_keys(&frame, CARD[1] + CARD[3] + 28.0);
         self.ui.pop_opacity();
         let focus = self.hud.highlight.saturating_sub(self.hud.first);
         self.ui.finish(focus as u16);
-        self.ui.append_text(vertices, font, viewport);
+        target.append(&self.ui, viewport);
     }
 
-    fn hud_list(&mut self, place: &Placement, palette: &Palette) {
-        let s = place.scale;
+    /// The visible rows: the highlighted one on the band, the one in use in
+    /// gold with its dot; row token `i` is list position `first + i`.
+    fn hud_list(&mut self, frame: &Frame) {
+        let s = frame.s;
         let picker = &self.hud;
         let (first, highlight, current) = (picker.first, picker.highlight, picker.current());
         let count = picker.choices.len();
-        let list = place.rect([LIST[0], LIST[1], LIST_WIDTH, ROW_HEIGHT * LIST_ROWS as f32]);
+        let list = frame.rect(
+            TEXT_X - 16.0,
+            ROWS_TOP,
+            LIST_WIDTH + 32.0,
+            ROW * LIST_ROWS as f32,
+        );
         self.ui.scroll_region(LIST_SCROLL_TOKEN, list);
         if count == 0 {
-            let row = place.rect([LIST[0], LIST[1], LIST_WIDTH, ROW_HEIGHT]);
-            self.line(
-                "Reading the HUDs...",
-                row,
-                12.0 * s,
-                palette.text,
+            text(
+                &mut self.ui,
+                TextFamily::Body,
+                format_args!("Reading the HUDs..."),
+                frame.rect(TEXT_X + 8.0, ROWS_TOP, LIST_WIDTH, ROW),
+                18.0 * s,
+                color::MUTED,
                 FontWeight::Regular,
                 TextAlign::Start,
             );
             return;
         }
+        let right = TEXT_X + LIST_WIDTH;
         for slot in 0..LIST_ROWS.min(count - first) {
             let index = first + slot;
-            let row = place.rect([
-                LIST[0],
-                LIST[1] + slot as f32 * ROW_HEIGHT,
-                LIST_WIDTH,
-                ROW_HEIGHT,
-            ]);
+            let top = ROWS_TOP + slot as f32 * ROW;
+            let middle = top + ROW * 0.5;
             let lit = index == highlight;
+            let in_use = Some(index) == current;
+            let band = [TEXT_X - 16.0, top, LIST_WIDTH + 32.0, ROW];
             if lit {
-                if palette.art.is_some_and(|art| art.has(ArtPiece::BlendBox)) {
-                    crate::menu::classic::view::art(&mut self.ui, ArtPiece::BlendBox, row);
-                } else {
-                    self.fill(row, palette.highlight);
-                }
+                kit::band(&mut self.ui, frame, band);
             }
             let label = self.hud.choices[index].label.clone();
-            let text = Rect::new(row.x + 8.0 * s, row.y, row.width - 26.0 * s, row.height);
-            self.line(
-                &label,
-                text,
-                13.0 * s,
-                if lit { palette.focus } else { palette.text },
-                if lit {
-                    FontWeight::Semibold
-                } else {
-                    FontWeight::Regular
+            text(
+                &mut self.ui,
+                TextFamily::Display,
+                format_args!("{label}"),
+                frame.rect(
+                    TEXT_X + 8.0,
+                    middle - 15.0,
+                    LIST_WIDTH - 8.0 - DOT_ROOM,
+                    30.0,
+                ),
+                23.0 * s,
+                match (lit, in_use) {
+                    (true, _) => color::TEXT,
+                    (false, true) => color::GOLD_BRIGHT,
+                    (false, false) => color::alpha(color::TEXT, 0.88),
                 },
+                FontWeight::Regular,
                 TextAlign::Start,
             );
-            if Some(index) == current {
-                let mark = Rect::new(row.right() - 18.0 * s, row.y, 14.0 * s, row.height);
-                self.line(
-                    "\u{2022}",
-                    mark,
-                    13.0 * s,
-                    palette.in_use,
-                    FontWeight::Semibold,
-                    TextAlign::Center,
+            if in_use {
+                self.hud_shape(
+                    [right - 10.0, middle - 4.0, 8.0, 8.0],
+                    color::GOLD_BRIGHT,
+                    frame,
                 );
             }
-            self.ui.hit_region(slot as u16, row);
+            let [x, y, width, height] = band;
+            self.ui
+                .hit_region(slot as u16, frame.rect(x, y, width, height));
         }
         if count > LIST_ROWS {
-            let track = Rect::new(list.right() + 2.0 * s, list.y, 2.0 * s, list.height);
-            self.ui.list_scroll_mark(track, first, LIST_ROWS, count, s);
+            // Where the view lies in the list: a track right of the rows and
+            // its thumb.
+            let track = [right + 24.0, ROWS_TOP, 4.0, LIST_ROWS as f32 * ROW];
+            let thumb = (LIST_ROWS as f32 / count as f32).clamp(0.08, 1.0) * track[3];
+            let travel = (track[3] - thumb) * first as f32 / (count - LIST_ROWS) as f32;
+            self.hud_shape(track, color::alpha(color::HOLO, 0.12), frame);
+            self.hud_shape(
+                [track[0], track[1] + travel, track[2], thumb],
+                color::alpha(color::HOLO, 0.55),
+                frame,
+            );
         }
     }
 
-    fn hud_preview(&mut self, place: &Placement, palette: &Palette) {
-        let s = place.scale;
-        let frame = place.rect(PREVIEW);
-        self.fill(frame, Color::new(0.0, 0.0, 0.0, 0.85));
+    /// The highlighted HUD's picture, its name and where it comes from. A
+    /// game-data HUD is the worker's picture with its text; SJK's layouts are
+    /// drawn over the picture's backdrop by the live HUD's code.
+    fn hud_preview(&mut self, frame: &Frame, font: &UiFont) {
+        let s = frame.s;
+        let [x, y, width, height] = PREVIEW;
+        let rect = frame.rect(x, y, width, height);
+        let radius = 12.0 * s;
+        let _ = self.ui.draw_list_mut().push(DrawCommand::RoundedRect {
+            rect,
+            radius,
+            color: color::alpha(color::SPACE, 0.92),
+        });
         let picker = &self.hud;
         let Some(choice) = picker.choices.get(picker.highlight).cloned() else {
-            self.outline(frame, palette.border, 1.0 * s);
+            self.hud_preview_edge(rect, radius, s);
             return;
         };
         let index = picker.highlight;
         let ready = picker.previews.get(index).cloned().flatten();
         let shown = ready.filter(|_| picker.shown == Some(index));
         let failed = picker.failed.get(index).copied().unwrap_or(false);
-        let note = match (&shown, choice.has_preview(), failed) {
-            (Some(ready), _, _) => {
-                let _ = self.ui.draw_list_mut().push(DrawCommand::TexturedQuad {
-                    rect: frame,
-                    texture: crate::ui_renderer::HUD_PREVIEW_TEXTURE,
-                    color: Color::new(1.0, 1.0, 1.0, 1.0),
-                });
-                // The HUD's text in the menu font, where the HUD puts it.
-                let zoom = frame.width / preview::SIZE[0] as f32;
-                for run in &ready.texts {
-                    let size = run.size * zoom;
-                    let [r, g, b, a] = run.color;
-                    let (x, align) = if run.centred {
-                        (frame.x + run.x * zoom - frame.width, TextAlign::Center)
-                    } else {
-                        (frame.x + run.x * zoom, TextAlign::Start)
-                    };
-                    let width = if run.centred {
-                        frame.width * 2.0
-                    } else {
-                        frame.right() - x
-                    };
-                    self.line(
-                        &run.text,
-                        Rect::new(x, frame.y + run.y * zoom, width, size),
-                        size * 0.8,
-                        Color::new(r, g, b, a),
-                        FontWeight::Semibold,
-                        align,
-                    );
-                }
+        let _ = self
+            .ui
+            .draw_list_mut()
+            .push(DrawCommand::PushRoundedClip { rect, radius });
+        if let Some(ready) = &shown {
+            let _ = self.ui.draw_list_mut().push(DrawCommand::TexturedQuad {
+                rect,
+                texture: crate::ui_renderer::HUD_PREVIEW_TEXTURE,
+                color: Color::new(1.0, 1.0, 1.0, 1.0),
+            });
+            // The HUD's text in the menu font, where the HUD puts it.
+            let zoom = rect.width / preview::SIZE[0] as f32;
+            self.ui.set_family(TextFamily::Display);
+            for run in &ready.texts {
+                let size = run.size * zoom;
+                let [r, g, b, a] = run.color;
+                let (x, align) = if run.centred {
+                    (rect.x + run.x * zoom - rect.width, TextAlign::Center)
+                } else {
+                    (rect.x + run.x * zoom, TextAlign::Start)
+                };
+                let width = if run.centred {
+                    rect.width * 2.0
+                } else {
+                    rect.right() - x
+                };
+                self.ui.text_aligned(
+                    &run.text,
+                    Rect::new(x, rect.y + run.y * zoom, width, size * 1.25),
+                    size * 0.8,
+                    Color::new(r, g, b, a),
+                    FontWeight::Semibold,
+                    0.0,
+                    align,
+                );
+            }
+            self.ui.set_family(TextFamily::Body);
+        }
+        let note = match choice.style {
+            HudStyle::Game => match (&shown, failed) {
+                (Some(_), _) => None,
+                (None, true) => Some("No preview: these files describe no HUD SJK can draw."),
+                (None, false) => Some("Drawing the preview..."),
+            },
+            style => {
+                self.sjk_hud_picture(font, rect, style);
                 None
             }
-            (None, false, _) => Some(match choice.style {
-                HudStyle::Classic => "SJK's classic layout: drawn by SJK, no game files needed.",
-                _ => "SJK's radial layout: drawn by SJK, no game files needed.",
-            }),
-            (None, true, true) => Some("No preview: these files describe no HUD SJK can draw."),
-            (None, true, false) => Some("Drawing the preview..."),
         };
+        let _ = self.ui.draw_list_mut().push(DrawCommand::PopClip);
         if let Some(note) = note {
-            self.line(
-                note,
-                Rect::new(
-                    frame.x,
-                    frame.y + frame.height * 0.5 - 8.0 * s,
-                    frame.width,
-                    16.0 * s,
-                ),
-                12.0 * s,
-                palette.text,
+            text(
+                &mut self.ui,
+                TextFamily::Body,
+                format_args!("{note}"),
+                frame.rect(x, y + height * 0.5 - 13.0, width, 26.0),
+                17.0 * s,
+                color::MUTED,
                 FontWeight::Regular,
                 TextAlign::Center,
             );
         }
-        self.outline(frame, palette.border, 1.0 * s);
-        let [x, y, w, h] = PREVIEW;
-        self.line(
-            &choice.label,
-            place.rect([x, y + h + 8.0, w, 16.0]),
-            15.0 * s,
-            palette.focus,
+        self.hud_preview_edge(rect, radius, s);
+        text(
+            &mut self.ui,
+            TextFamily::Display,
+            format_args!("{}", choice.label),
+            frame.rect(x, y + height + 18.0, width, 40.0),
+            30.0 * s,
+            color::TEXT,
             FontWeight::Semibold,
             TextAlign::Start,
         );
         let in_use = self.hud.current() == Some(self.hud.highlight);
-        let origin = if in_use {
-            format!("{}   \u{b7}   in use", choice.origin)
-        } else {
-            choice.origin.clone()
-        };
-        self.line(
-            &origin,
-            place.rect([x, y + h + 28.0, w, 13.0]),
-            11.0 * s,
-            palette.text,
+        text(
+            &mut self.ui,
+            TextFamily::Body,
+            format_args!(
+                "{}{}",
+                choice.origin,
+                if in_use { "   \u{b7}   In use" } else { "" }
+            ),
+            frame.rect(x, y + height + 60.0, width, 24.0),
+            17.0 * s,
+            if in_use {
+                color::GOLD_BRIGHT
+            } else {
+                color::MUTED
+            },
             FontWeight::Regular,
             TextAlign::Start,
         );
     }
 
-    fn fill(&mut self, rect: Rect, color: Color) {
-        let _ = self
-            .ui
-            .draw_list_mut()
-            .push(DrawCommand::SolidRect { rect, color });
-    }
-
-    fn outline(&mut self, rect: Rect, color: Color, width: f32) {
+    /// The picture's thin holo edge.
+    fn hud_preview_edge(&mut self, rect: Rect, radius: f32, s: f32) {
         let _ = self.ui.draw_list_mut().push(DrawCommand::Border {
             rect,
-            radius: 0.0,
-            width,
-            color,
+            radius,
+            width: 1.0 * s,
+            color: color::alpha(color::HOLO, 0.3),
         });
     }
 
-    fn line(
-        &mut self,
-        text: &str,
-        rect: Rect,
-        size: f32,
-        color: Color,
-        weight: FontWeight,
-        align: TextAlign,
-    ) {
-        let rect = Rect::new(
-            rect.x,
-            rect.y + (rect.height - size * 1.25) * 0.5,
-            rect.width,
-            size * 1.25,
+    /// SJK's layout `style` as a match draws it for the sample player: laid
+    /// out by the live HUD for a screen the picture's size, then moved onto
+    /// the picture. Its pictures (crosshair, icons) are left out: the
+    /// backdrop has its own crosshair, and the HUD's textures are not the
+    /// menu's.
+    fn sjk_hud_picture(&mut self, font: &UiFont, rect: Rect, style: HudStyle) {
+        let look = match style {
+            HudStyle::Radial => HudLook::Radial,
+            _ => HudLook::Classic,
+        };
+        let hud = self.hud.sample.get_or_insert_with(|| {
+            let mut hud = Box::new(HudOverlay::new());
+            hud.preview_values(SAMPLE, SAMPLE_RATIOS);
+            hud
+        });
+        let _ = hud.layout(
+            font,
+            look,
+            [rect.width, rect.height],
+            1.0,
+            SAMPLE_VISIBILITY,
+            SAMPLE_TIME_MS,
         );
-        self.ui
-            .text_aligned(text, rect, size, color, weight, 0.3 * size / 12.0, align);
+        let hud = &**hud;
+        self.ui.set_family(TextFamily::Display);
+        for command in hud.draw_list().commands() {
+            if let DrawCommand::Text {
+                rect: line,
+                text,
+                size,
+                color,
+                align,
+                weight,
+                letter_spacing,
+                ..
+            } = *command
+            {
+                self.ui.text_aligned(
+                    hud.resolve_text(text),
+                    Rect::new(rect.x + line.x, rect.y + line.y, line.width, line.height),
+                    size,
+                    color,
+                    weight,
+                    letter_spacing,
+                    align,
+                );
+            } else if let Some(moved) = moved(*command, [rect.x, rect.y]) {
+                let _ = self.ui.draw_list_mut().push(moved);
+            }
+        }
+        self.ui.set_family(TextFamily::Body);
+    }
+
+    /// A small rounded shape over frame rectangle `rect`: the in-use dot, the
+    /// scroll track and its thumb.
+    fn hud_shape(&mut self, rect: [f32; 4], colour: Color, frame: &Frame) {
+        let [x, y, width, height] = rect;
+        let _ = self.ui.draw_list_mut().push(DrawCommand::RoundedRect {
+            rect: frame.rect(x, y, width, height),
+            radius: width.min(height) * 0.5 * frame.s,
+            color: colour,
+        });
+    }
+
+    /// The keys' line under the card, centred, its top at `y`; Esc's cap is
+    /// the pointer's way back.
+    fn hud_keys(&mut self, frame: &Frame, y: f32) {
+        let s = frame.s;
+        let width = KEYS
+            .iter()
+            .map(|(keys, action)| key_hint_width(keys, action, s) + KEY_GAP * s)
+            .sum::<f32>()
+            - KEY_GAP * s;
+        let [centre, top] = frame.point(CARD[0] + CARD[2] * 0.5, y);
+        let mut x = centre - width * 0.5;
+        for (keys, action) in KEYS {
+            let start = x;
+            x = key_hint(&mut self.ui, keys, action, x, top, s);
+            if keys == ["Esc"] {
+                self.ui
+                    .hit_region(BACK_TOKEN, Rect::new(start, top, x - start, 24.0 * s));
+            }
+            x += KEY_GAP * s;
+        }
     }
 }
 
-/// The picker's colours: retail's option panel (`setup.menu`) on the
-/// classic menus, the theme's otherwise.
-struct Palette {
-    art: Option<ArtSet>,
-    scrim: Color,
-    panel: Color,
-    border: Color,
-    title: Color,
-    text: Color,
-    focus: Color,
-    highlight: Color,
-    in_use: Color,
-    hint: Color,
+/// A shape of the HUD's draw list moved by `offset` window pixels, or `None`
+/// for what the picture leaves out: text (drawn in the menu's type), pictures,
+/// shaded effects (the strafe aura, a card's finish) and transforms.
+fn moved(command: DrawCommand, offset: [f32; 2]) -> Option<DrawCommand> {
+    let [dx, dy] = offset;
+    let shift = |rect: Rect| Rect::new(rect.x + dx, rect.y + dy, rect.width, rect.height);
+    let point = |[x, y]: [f32; 2]| [x + dx, y + dy];
+    Some(match command {
+        DrawCommand::SolidRect { rect, color } => DrawCommand::SolidRect {
+            rect: shift(rect),
+            color,
+        },
+        DrawCommand::RoundedRect {
+            rect,
+            radius,
+            color,
+        } => DrawCommand::RoundedRect {
+            rect: shift(rect),
+            radius,
+            color,
+        },
+        DrawCommand::GradientRect {
+            rect,
+            radius,
+            gradient,
+        } => DrawCommand::GradientRect {
+            rect: shift(rect),
+            radius,
+            gradient,
+        },
+        DrawCommand::Border {
+            rect,
+            radius,
+            width,
+            color,
+        } => DrawCommand::Border {
+            rect: shift(rect),
+            radius,
+            width,
+            color,
+        },
+        DrawCommand::Arc {
+            center,
+            radius,
+            width,
+            start,
+            sweep,
+            color,
+            knockout,
+        } => DrawCommand::Arc {
+            center: point(center),
+            radius,
+            width,
+            start,
+            sweep,
+            color,
+            knockout: knockout.map(shift),
+        },
+        DrawCommand::Line {
+            from,
+            to,
+            width,
+            color,
+        } => DrawCommand::Line {
+            from: point(from),
+            to: point(to),
+            width,
+            color,
+        },
+        DrawCommand::PushClip(rect) => DrawCommand::PushClip(shift(rect)),
+        DrawCommand::PushRoundedClip { rect, radius } => DrawCommand::PushRoundedClip {
+            rect: shift(rect),
+            radius,
+        },
+        DrawCommand::PopClip => DrawCommand::PopClip,
+        DrawCommand::PushOpacity(opacity) => DrawCommand::PushOpacity(opacity),
+        DrawCommand::PopOpacity => DrawCommand::PopOpacity,
+        DrawCommand::Text { .. }
+        | DrawCommand::TexturedQuad { .. }
+        | DrawCommand::TexturedQuadUv { .. }
+        | DrawCommand::TexturedQuadTurned { .. }
+        | DrawCommand::StrafeAura { .. }
+        | DrawCommand::CardShine { .. }
+        | DrawCommand::PushTransform(_)
+        | DrawCommand::PopTransform => return None,
+    })
 }
 
-impl Palette {
-    fn new(art: Option<ArtSet>, theme: sjk_ui::Theme) -> Self {
-        use crate::menu::classic::panel::{OPTION, focus_text};
-        use crate::menu::classic::view::{GOLD, HINT, ink};
-        match art {
-            Some(_) => Self {
-                art,
-                scrim: ink(0.7),
-                panel: Color::new(0.0, 0.0, 0.25, 0.85),
-                border: Color::new(0.0, 0.0, 0.6, 1.0),
-                title: Color::new(0.549, 0.854, 1.0, 1.0),
-                text: OPTION,
-                focus: focus_text(),
-                highlight: Color::new(1.0, 1.0, 1.0, 0.12),
-                in_use: GOLD,
-                hint: HINT,
-            },
-            None => Self {
-                art,
-                scrim: Color::new(0.0, 0.0, 0.0, 0.6),
-                panel: theme.surface_strong,
-                border: Color::new(theme.accent.r, theme.accent.g, theme.accent.b, 0.45),
-                title: theme.foreground,
-                text: theme.muted,
-                focus: theme.foreground,
-                highlight: Color::new(theme.accent.r, theme.accent.g, theme.accent.b, 0.2),
-                in_use: theme.accent,
-                hint: theme.muted,
-            },
+#[cfg(test)]
+impl SettingsMenu {
+    /// Open the HUD picker with choice `label` highlighted and wait for its
+    /// picture, which it returns as the texture's pixels (snapshots).
+    pub(crate) fn hud_picker_for_shot(
+        &mut self,
+        console: &ViewerConsole,
+        vfs: &Arc<sjk_vfs::VirtualFileSystem>,
+        label: &str,
+    ) -> Option<image::RgbaImage> {
+        let shaders = sjk_shader::ShaderCatalog::default();
+        self.open_tab(console, Self::tab_index("HUD")?);
+        self.service_hud_picker(Some(vfs), &shaders, |_| {});
+        self.open_hud_picker(console);
+        self.service_hud_picker(Some(vfs), &shaders, |_| {});
+        let index = self
+            .hud
+            .choices
+            .iter()
+            .position(|choice| choice.label == label)?;
+        self.hud.highlight(index);
+        let mut picture = None;
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+        while picture.is_none() && std::time::Instant::now() < deadline {
+            self.service_hud_picker(Some(vfs), &shaders, |image| {
+                let [width, height] = image.size;
+                picture = image::RgbaImage::from_raw(width, height, image.levels[0].clone());
+            });
+            std::thread::sleep(std::time::Duration::from_millis(5));
         }
+        picture
     }
 }
 
@@ -673,7 +910,7 @@ mod tests {
         menu.open_tab(console, SettingsMenu::tab_index("HUD").unwrap());
         menu.rows()
             .iter()
-            .position(|setting| matches!(setting.kind, ValueKind::HudPicker))
+            .position(|setting| matches!(setting.kind(), ValueKind::HudPicker))
             .unwrap()
     }
 
@@ -736,10 +973,18 @@ mod tests {
         }
         menu.service_hud_picker(Some(&vfs), &shaders, |_| uploads += 1);
         assert_eq!(uploads, 1);
-        // SJK's layouts have no preview to render.
+        // SJK's layouts get the backdrop, which the live HUD draws them over.
         menu.hud_picker_key(KeyCode::End, false, &mut console);
-        menu.service_hud_picker(Some(&vfs), &shaders, |_| panic!("no preview"));
-        assert!(menu.hud.rendering.is_none());
+        let last = menu.hud.highlight;
+        assert_eq!(menu.hud.choices[last].style, HudStyle::Classic);
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(20);
+        while menu.hud.shown != Some(last) && std::time::Instant::now() < deadline {
+            menu.service_hud_picker(Some(&vfs), &shaders, |image| {
+                assert_eq!(image.size, preview::SIZE);
+            });
+            std::thread::sleep(std::time::Duration::from_millis(2));
+        }
+        assert_eq!(menu.hud.shown, Some(last));
         // Escape leaves the HUD as it was; Enter uses the highlighted one.
         menu.hud_picker_key(KeyCode::Escape, false, &mut console);
         assert!(!menu.hud.is_open());
@@ -751,5 +996,59 @@ mod tests {
         assert!(!menu.hud.is_open());
         assert_eq!(console.text_value(PACK_CVAR), Some("assets1.pk3"));
         assert_eq!(menu.values[row], "Jedi Academy");
+    }
+
+    /// Highlighting SJK's radial or classic layout draws it on the picture
+    /// with the live HUD's shapes: arcs or bars, inside the picture.
+    #[test]
+    fn sjk_layouts_are_drawn_on_their_picture() {
+        let (_directory, mut console) = console();
+        let vfs = Arc::new(installed());
+        let shaders = sjk_shader::ShaderCatalog::default();
+        let font = crate::text::test_font();
+        let viewport = [1920.0, 1080.0];
+        let mut menu = SettingsMenu::new();
+        hud_tab(&mut menu, &console);
+        menu.service_hud_picker(Some(&vfs), &shaders, |_| {});
+        menu.open_hud_picker(&console);
+        menu.service_hud_picker(Some(&vfs), &shaders, |_| {});
+        let picture = Frame::new(viewport).rect(PREVIEW[0], PREVIEW[1], PREVIEW[2], PREVIEW[3]);
+        let inside = |point: [f32; 2]| {
+            (picture.x..=picture.right()).contains(&point[0])
+                && (picture.y..=picture.bottom()).contains(&point[1])
+        };
+        for (key, style) in [
+            (KeyCode::End, HudStyle::Classic),
+            (KeyCode::ArrowUp, HudStyle::Radial),
+        ] {
+            menu.hud_picker_key(key, false, &mut console);
+            assert_eq!(menu.hud.choices[menu.hud.highlight].style, style);
+            let mut vertices = Vec::new();
+            menu.append_hud_picker(TextTarget::Inter(&mut vertices, &font), viewport, 1.0);
+            let commands = menu.ui.draw_list().commands();
+            let arcs: Vec<_> = commands
+                .iter()
+                .filter_map(|command| match command {
+                    DrawCommand::Arc { center, .. } => Some(*center),
+                    _ => None,
+                })
+                .collect();
+            match style {
+                HudStyle::Radial => {
+                    assert!(!arcs.is_empty());
+                    assert!(arcs.iter().all(|&center| inside(center)));
+                }
+                _ => {
+                    assert!(arcs.is_empty());
+                    let bars = commands.iter().filter(|command| {
+                        matches!(command, DrawCommand::RoundedRect { rect, .. }
+                            if inside([rect.x, rect.y]) && rect.width > rect.height * 4.0)
+                    });
+                    assert!(bars.count() >= 3, "health, armor and Force bars");
+                }
+            }
+        }
+        menu.hud_picker_key(KeyCode::Escape, false, &mut console);
+        assert!(menu.hud.sample.is_none());
     }
 }

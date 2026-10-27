@@ -13,6 +13,9 @@ const EV_CHANGE_WEAPON: u32 = 26;
 const EV_SABER_UNHOLSTER: u32 = 33;
 /// `CS_SOUNDS` slot of a hilt's own `soundOn`, as the server's toggle plays it.
 const SLOT_SINGLE2_ON: u8 = 1;
+/// `CS_SOUNDS` slot of the removed second slot's default ignition, which the server's
+/// toggle of a single saber plays as well (`WP_RemoveSaber`, `Cmd_ToggleSaber_f`).
+const SLOT_DEFAULT_ON: u8 = 2;
 
 /// A blade skin's sounds (an SJK unlockable), worn in place of the hilts'.
 const SKIN: SaberSoundSet<'static> = SaberSoundSet {
@@ -106,6 +109,12 @@ impl Fixture {
             .replace_config_string(
                 CS_SOUNDS + usize::from(SLOT_SINGLE2_ON),
                 b"sound/weapons/saber/single2_on.wav".to_vec(),
+            )
+            .unwrap();
+        game_state
+            .replace_config_string(
+                CS_SOUNDS + usize::from(SLOT_DEFAULT_ON),
+                b"sound/weapons/saber/enemy_saber_on.wav".to_vec(),
             )
             .unwrap();
         for (client, sabers) in [
@@ -286,6 +295,38 @@ fn general_sound(number: u16, slot: u8, origin: [f32; 3]) -> EntityState {
 }
 
 use LegacySoundEvent::{SaberSwitchOff as Off, SaberSwitchOn as On, SaberUnholster};
+
+#[test]
+fn handles_include_registered_hilt_and_skin_layers() {
+    let mut fixture = Fixture::new();
+    let plain = fixture.adapter.saber_switch_handles(STAFF);
+    assert!(plain[0][1].is_some()); // Retail's removed second slot retains its ignition.
+    assert!(plain[1][1].is_none()); // It has no model to retract.
+    assert!(
+        plain
+            .into_iter()
+            .all(|pair| pair[0].is_some() && pair[2].is_none())
+    );
+    fixture.wear(&[STAFF]);
+    let skin = fixture.adapter.saber_switch_handles(STAFF);
+    assert!(
+        skin.into_iter()
+            .all(|pair| pair[0].is_some() && pair[2].is_some())
+    );
+    assert_eq!(plain.map(|pair| pair[0]), skin.map(|pair| pair[0]));
+    for (pair, path) in skin.into_iter().zip([SKIN.on, SKIN.off]) {
+        assert_eq!(
+            pair[2],
+            fixture
+                .adapter
+                .sounds()
+                .iter()
+                .find(|sound| &*sound.path == path)
+                .unwrap()
+                .handle
+        );
+    }
+}
 
 #[test]
 fn hilts_resolve_like_cg_new_client_info() {
@@ -755,12 +796,91 @@ fn a_blade_skin_voices_the_unholster_and_toggle_once_and_the_switch_adds_nothing
             (On, "sound/sjk/skin_on")
         ]
     );
-    // A client not wearing it keeps its hilts on the same event.
+    // A client not wearing it keeps its hilts on the same event (later on, past
+    // the toggle spam cap of the four toggles above and the retraction).
     fixture.wear(&[]);
+    fixture.time += 2_000;
     let snapshot = fixture.snapshot(local, std::slice::from_ref(&unholster));
     fixture.adapter.observe_snapshot(&snapshot);
     assert_eq!(
         names(&fixture.played()),
         [(SaberUnholster, "single2_on"), (SaberUnholster, "dual2_on")]
+    );
+}
+
+#[test]
+fn toggle_spam_sounds_a_burst_then_one_toggle_per_half_second() {
+    let mut fixture = Fixture::new();
+    let local = view(WP_SABER, 0);
+    let lit = player(DUAL, WP_SABER, 0);
+    // The local view's own first-frame ignition out of the way.
+    fixture.step(local, &[lit.clone()]);
+    // The server's toggle every 50 ms for two seconds, from a bound command.
+    let mut toggles = 0;
+    for number in 100..140 {
+        let toggle = general_sound(number, SLOT_SINGLE2_ON, lit.trajectory_base());
+        let snapshot = fixture.snapshot(local, &[lit.clone(), toggle]);
+        fixture.adapter.observe_snapshot(&snapshot);
+        toggles += fixture.played().len();
+    }
+    assert_eq!(toggles, 4 + 3);
+    // A weapon switch loop is capped the same way, and the unholster with it.
+    fixture.time += 5_000;
+    let mut switches = 0;
+    for weapon in [WP_MELEE, WP_SABER].into_iter().cycle().take(40) {
+        switches += usize::from(!fixture.step(local, &[player(DUAL, weapon, 0)]).is_empty());
+    }
+    assert_eq!(switches, 4 + 3);
+    // The budget has refilled one toggle since; the next one, 50 ms on, is capped.
+    let mut played = Vec::new();
+    for event in [EV_SABER_UNHOLSTER, EV_SABER_UNHOLSTER | 0x100] {
+        let unholster = with_field(lit.clone(), 28, event);
+        let snapshot = fixture.snapshot(local, std::slice::from_ref(&unholster));
+        fixture.adapter.observe_snapshot(&snapshot);
+        played.push(fixture.played().len());
+    }
+    assert_eq!(played, [2, 0]);
+}
+
+/// The server's toggle of a single saber sounds both slots: the hilt's own `soundOn` and
+/// the removed second slot's default. A blade skin plays once over the pair, not per sound.
+#[test]
+fn a_blade_skin_plays_once_over_a_single_sabers_two_toggle_sounds() {
+    let mut fixture = Fixture::new();
+    fixture.wear(&[DUAL]);
+    let local = view(WP_SABER, 0);
+    let lit = player(DUAL, WP_SABER, 0);
+    fixture.step(local, &[lit.clone()]);
+    let toggle = |number, slot| general_sound(number, slot, lit.trajectory_base());
+    let snapshot = fixture.snapshot(
+        local,
+        &[
+            lit.clone(),
+            toggle(100, SLOT_SINGLE2_ON),
+            toggle(101, SLOT_DEFAULT_ON),
+        ],
+    );
+    fixture.adapter.observe_snapshot(&snapshot);
+    let played = fixture.played();
+    let skins = played
+        .iter()
+        .filter(|played| played.sound == "sound/sjk/skin_on")
+        .count();
+    assert_eq!(skins, 1, "{:?}", names(&played));
+    assert_eq!(played.len(), 3, "both stock sounds and the skin's");
+    // With `s_saberSkinSounds 2` the skin's one sound is the whole toggle.
+    fixture.adapter.set_saber_skin_sounds_only(true);
+    let snapshot = fixture.snapshot(
+        local,
+        &[
+            lit.clone(),
+            toggle(102, SLOT_SINGLE2_ON),
+            toggle(103, SLOT_DEFAULT_ON),
+        ],
+    );
+    fixture.adapter.observe_snapshot(&snapshot);
+    assert_eq!(
+        names(&fixture.played()),
+        [(LegacySoundEvent::General, "sound/sjk/skin_on")]
     );
 }

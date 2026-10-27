@@ -329,33 +329,51 @@ pub(super) fn load_stage_images(
         identity.push(';');
         images.push(missing_image());
     }
+    if stage.no_picmip {
+        identity.push_str(super::filtering::mips::NO_PICMIP_KEY);
+    }
     Ok((images, any, identity))
 }
 
-/// The magenta checker a stage shows for an image it cannot find.
+/// What a stage shows for an image it cannot find: retail's default image
+/// (`R_CreateDefaultImage`, `tr_image.cpp:1279-1307`), a 16x16 box of grey 32 with
+/// a white one-pixel border. A scripted shader never gets here for a missing stage
+/// image (`world_missing_stages.rs` drops it as retail does); this is the default
+/// shader's picture (`world_stage::DEFAULT_IMAGE`) and an implicit shader whose
+/// own image is missing.
 fn missing_image() -> Arc<RgbaImage> {
-    Arc::new(
-        RgbaImage::from_raw(
-            2,
-            2,
-            vec![
-                255, 0, 255, 255, 32, 32, 32, 255, 32, 32, 32, 255, 255, 0, 255, 255,
-            ],
-        )
-        .expect("fixture dimensions"),
-    )
+    static IMAGE: std::sync::OnceLock<Arc<RgbaImage>> = std::sync::OnceLock::new();
+    Arc::clone(IMAGE.get_or_init(|| Arc::new(default_image())))
 }
 
+fn default_image() -> RgbaImage {
+    const SIZE: u32 = 16;
+    RgbaImage::from_fn(SIZE, SIZE, |x, y| {
+        if x == 0 || y == 0 || x == SIZE - 1 || y == SIZE - 1 {
+            image::Rgba([255; 4])
+        } else {
+            image::Rgba([32; 4])
+        }
+    })
+}
+
+/// Upload `images` as the layers of one `label` array without mips, each fitted to the
+/// largest, less the levels `picmip` leaves off
+/// ([`skipped`](super::filtering::mips::skipped)): the size the mipmapped path gives
+/// the same texture.
 pub(crate) fn upload_array(
     device: &wgpu::Device,
     queue: &crate::frame_queue::FrameQueue,
+    label: &str,
     images: &[Arc<RgbaImage>],
+    picmip: u32,
 ) -> Result<wgpu::TextureView, Box<dyn Error>> {
-    let width = images.iter().map(|image| image.width()).max().unwrap_or(1);
-    let height = images.iter().map(|image| image.height()).max().unwrap_or(1);
+    let (width, height) = super::filtering::mips::extent(images);
+    let skip = super::filtering::mips::skipped(width, height, picmip);
+    let (width, height) = ((width >> skip).max(1), (height >> skip).max(1));
     let layers = u32::try_from(images.len().max(1))?;
     let texture = device.create_texture(&wgpu::TextureDescriptor {
-        label: Some("SJK Q3 stage animation frames"),
+        label: Some(label),
         size: wgpu::Extent3d {
             width,
             height,
@@ -447,4 +465,45 @@ pub(crate) fn upload_lightmaps(
         );
     }
     Ok(result)
+}
+
+#[cfg(test)]
+mod default_image_tests {
+    #[test]
+    fn the_missing_image_is_retails_default_box() {
+        let image = super::default_image();
+        assert_eq!(image.dimensions(), (16, 16));
+        assert_eq!(image.get_pixel(0, 7).0, [255; 4]);
+        assert_eq!(image.get_pixel(15, 15).0, [255; 4]);
+        assert_eq!(image.get_pixel(7, 7).0, [32; 4]);
+    }
+
+    #[test]
+    fn a_nopicmip_stage_keys_its_images_apart() {
+        let texture = image::RgbaImage::from_pixel(256, 256, image::Rgba([90, 60, 30, 255]));
+        let mut png = std::io::Cursor::new(Vec::new());
+        texture
+            .write_to(&mut png, image::ImageFormat::Png)
+            .expect("a png");
+        let mut vfs = sjk_vfs::VirtualFileSystem::new();
+        vfs.mount_memory("synthetic", [("textures/a/b.png", png.into_inner())])
+            .expect("mounted");
+        let shaders = sjk_shader::ShaderCatalog::default();
+        let mut stage = crate::world_stage::default_stage();
+        stage.images = vec!["textures/a/b".into()];
+        let mut cache = std::collections::HashMap::new();
+        let mut key = |stage: &sjk_shader::ShaderStage| {
+            super::load_stage_images(&vfs, &shaders, stage, "", &mut cache)
+                .expect("loaded")
+                .2
+        };
+        let plain = key(&stage);
+        stage.no_picmip = true;
+        let kept = key(&stage);
+        assert_ne!(plain, kept, "never one upload for both sizes");
+        assert_eq!(
+            crate::world_materials::filtering::mips::picmip_for(&kept),
+            0
+        );
+    }
 }

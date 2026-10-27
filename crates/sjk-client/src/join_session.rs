@@ -152,6 +152,7 @@ impl ClientSession {
             request_full_snapshot: false,
             disconnected: false,
             scores: Vec::new(),
+            scores_revision: 0,
             team_scores: [0; 2],
             team_info: TeamInfoTable::default(),
             base_command_events: VecDeque::with_capacity(64),

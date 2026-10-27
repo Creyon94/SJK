@@ -64,6 +64,8 @@ pub(super) enum SaberRow {
     Hilt,
     /// SJK UI: the stock blade or a blade skin the player owns (`cg_saberSkin`).
     Skin,
+    /// SJK UI: the saber sounds apart from the blade (`cg_saberSounds`).
+    Sounds,
     Blade,
     Red,
     Green,
@@ -82,6 +84,7 @@ impl SaberRow {
             Self::Search => "Search",
             Self::Hilt => "Hilt",
             Self::Skin => "Blade",
+            Self::Sounds => "Sounds",
             Self::Blade => "Blade colour",
             Self::Red | Self::SecondRed => "Red",
             Self::Green | Self::SecondGreen => "Green",
@@ -118,7 +121,7 @@ impl SaberRow {
     }
 }
 
-const SABER_ROW_CAPACITY: usize = 13;
+const SABER_ROW_CAPACITY: usize = 14;
 
 /// The saber page's rows for the current draft, built without allocating.
 #[derive(Clone, Copy, Debug)]
@@ -156,7 +159,10 @@ pub(super) const FORCE_RESET_ROW: usize = 19;
 pub(super) const FORCE_DISCARD_ROW: usize = 20;
 /// Row index of the action writing the draft to `forcepowers`.
 pub(super) const FORCE_APPLY_ROW: usize = 21;
-const FORCE_ROWS: usize = 22;
+/// SJK UI: selectors for retail templates, followed by community templates.
+pub(super) const FORCE_RETAIL_TEMPLATE_ROW: usize = 22;
+pub(super) const FORCE_COMMUNITY_TEMPLATE_ROW: usize = 23;
+const FORCE_ROWS: usize = 24;
 
 impl PlayerMenu {
     pub(super) fn character_rows(&self) -> &'static [CharacterRow] {
@@ -179,6 +185,7 @@ impl PlayerMenu {
         rows.push(SaberRow::Hilt);
         if self.is_sjk() {
             rows.push(SaberRow::Skin);
+            rows.push(SaberRow::Sounds);
         }
         rows.push(SaberRow::Blade);
         rows.extend([SaberRow::Red, SaberRow::Green, SaberRow::Blue]);
@@ -214,7 +221,13 @@ impl PlayerMenu {
                     && !row.is_blade()
                     && !matches!(row, SaberRow::Search | SaberRow::Skin)
             }),
-            ProfilePage::Force => self.selected < FORCE_RESET_ROW,
+            ProfilePage::Force => {
+                self.selected < FORCE_RESET_ROW
+                    || matches!(
+                        self.selected,
+                        FORCE_RETAIL_TEMPLATE_ROW | FORCE_COMMUNITY_TEMPLATE_ROW
+                    )
+            }
         }
     }
 }

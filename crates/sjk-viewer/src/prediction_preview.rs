@@ -49,13 +49,26 @@ pub(crate) fn tick(
     );
     command.buttons = sjk_game_jka::pmove_talk::command_buttons(command.buttons, gpu.talk_button());
     gpu.cardboard_box.shape_preview(&mut command);
+    let delta = gpu
+        .gameplay_input
+        .view_authority
+        .command_delta()
+        .unwrap_or(snapshot.player.delta_angles());
+    gpu.hax.shape_preview(&mut command, delta);
+    let origin = gpu
+        .local_prediction
+        .committed_state()
+        .map_or_else(|| snapshot.player.origin(), |state| state.origin);
+    gpu.ragdoll.shape_preview(&mut command, delta, origin);
     gpu.local_prediction
         .preview_command(command, &gpu.bsp, &mut gpu.trace_scratch);
     let presented_snapshot = session.snapshot_at_or_before(presentation_time);
-    if let Some(position) = gpu
-        .local_prediction
-        .present_frame(presented_snapshot, presentation_time)
-    {
+    if let Some(position) = gpu.local_prediction.present_frame(
+        presented_snapshot,
+        presentation_time,
+        &gpu.bsp,
+        &mut gpu.trace_scratch,
+    ) {
         gpu.camera_position = position;
     }
     if let Some(predicted) = gpu.local_prediction.predicted_state() {

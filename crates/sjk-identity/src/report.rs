@@ -7,8 +7,11 @@
 pub const TEXT_MIN: usize = 10;
 /// Longest report text, in characters.
 pub const TEXT_MAX: usize = 600;
-/// The punctuation a report may use besides letters, digits and spaces.
-pub const PUNCTUATION: &str = ".,!?'-:()";
+/// The punctuation a report may use besides letters, digits and spaces: sentence marks,
+/// and since 19/10/2026 what cvars, commands and paths need (`cg_fov`, `+attack`,
+/// `bind x "say hi; kill"`, `/kill`, `[90]`, `<value>`, `C:\Games`, `#2`). Hubs from
+/// before then refuse the added ones.
+pub const PUNCTUATION: &str = ".,!?'-:()_/\\+=\";[]<>#";
 const RUN_MAX: usize = 6;
 const LETTERS_MIN: usize = 5;
 const WORDS_MIN: usize = 2;
@@ -131,6 +134,22 @@ pub struct PlayerReport {
     pub level_time: Option<u32>,
     /// The in-game name the reporter wears; empty takes the one the service knows.
     pub name: String,
+    /// An encrypted whisper the player sent the reporter, which proves itself theirs
+    /// (`PROTOCOL.md`, "Player reports"): any SJK player may report with one.
+    pub whisper: Option<ReportedWhisper>,
+}
+
+/// An encrypted whisper a player report carries: what the box held and who sealed it.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ReportedWhisper {
+    /// The key that sealed it (unpadded base64url).
+    pub from: String,
+    /// When it was sealed, unix seconds.
+    pub time: i64,
+    /// The whisper's text.
+    pub text: String,
+    /// The sender's signature inside the box.
+    pub signature: [u8; 64],
 }
 
 /// A bug report: the tester's text and where they were.
@@ -276,7 +295,8 @@ pub fn field(raw: &str, max: usize) -> String {
     }
 }
 
-const CHARACTERS: &str = "only letters, digits, spaces and . , ! ? ' - : ( ) are allowed";
+const CHARACTERS: &str =
+    "only letters, digits, spaces and . , ! ? ' - : ( ) _ / \\ + = \" ; [ ] < > # are allowed";
 
 enum Refusal {
     Character,
@@ -334,11 +354,21 @@ mod tests {
             Ok("The door flickers on ffa3!")
         );
         assert!(text("Le sol brille trop, été").is_ok());
-        assert!(text("<b>bold</b> text here").is_err());
+        assert!(text("*bold* text @here").is_err());
+        // Cvars and commands (19/10/2026, as the hub).
+        let cvars = "bind x \"say hi; kill\" +attack /kill cg_fov=90 [a] <b> #2 C:\\x";
+        assert_eq!(text(cvars).as_deref(), Ok(cvars));
         assert!(text("short").is_err());
         assert!(text("aaaaaaaaaaaa bb").is_err());
         assert!(text(&"word ".repeat(200)).is_err());
-        assert!(!allowed('<') && !allowed('"') && !allowed('/') && !allowed('\u{202e}'));
+        for c in [
+            '@', '*', '&', '|', '~', '`', '$', '%', '^', '{', '}', '\u{202e}',
+        ] {
+            assert!(!allowed(c), "{c:?}");
+        }
+        for c in "_/\\+=\";[]<>#".chars() {
+            assert!(allowed(c), "{c:?}");
+        }
         assert!(allowed('é') && allowed('7') && allowed('?'));
     }
 
@@ -350,7 +380,7 @@ mod tests {
         );
         assert!(player_text("hacker").is_err());
         assert!(player_text(&"word ".repeat(70)).is_err());
-        assert!(player_text("<b>wallhack</b> obviously").is_err());
+        assert!(player_text("wallhack & aimbot @everyone").is_err());
         let codes: Vec<&str> = Category::ALL.iter().map(|c| c.code()).collect();
         // The hub's list, in its order (`PROTOCOL.md`, "Player reports").
         assert_eq!(
@@ -382,7 +412,8 @@ mod tests {
         assert!(note_text("Where video ???").is_ok());
         assert!(note_text("ok").is_err());
         assert!(note_text("1234 5678").is_err());
-        assert!(note_text("a \"quoted\" word").is_err());
+        assert!(note_text("a *starred* word").is_err());
+        assert!(note_text("r_gamma 1.2 [dark]").is_ok());
         assert_eq!(
             field(" textures/mp/s_ylight_red ", 64),
             "textures/mp/s_ylight_red"

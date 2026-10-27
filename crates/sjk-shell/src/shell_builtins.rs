@@ -37,8 +37,8 @@ impl Shell {
         Ok(vec![format!(
             "{} = \"{}\" (default \"{}\")",
             cvar.name,
-            cvar.value.as_text(),
-            cvar.default.as_text()
+            cvar.shown_value(),
+            cvar.shown_default()
         )])
     }
 
@@ -101,23 +101,29 @@ impl Shell {
         let Some(key) = arguments.first() else {
             return Err(ShellError::Usage("bind <key> [command]"));
         };
-        let key = crate::key_names::canonical_key(key)
-            .ok_or_else(|| crate::BindError::InvalidKey(key.clone()))?;
+        let key = BindTable::canonical_key(key)?;
         if arguments.len() == 1 {
-            return Ok(vec![self.binds.get(key).map_or_else(
-                || format!("{} is not bound", crate::key_names::display_key(key)),
-                |command| format!("{} = \"{command}\"", crate::key_names::display_key(key)),
+            return Ok(vec![self.binds.get(&key).map_or_else(
+                || format!("{} is not bound", crate::key_names::display_key(&key)),
+                |command| {
+                    format!(
+                        "{} = \"{}\"",
+                        crate::key_names::display_key(&key),
+                        crate::secret::input_line(command, &self.cvars)
+                    )
+                },
             )]);
         }
         let command = arguments[1..].join(" ");
         if command.is_empty() {
-            self.binds.unbind(key);
+            self.binds.unbind(&key);
             return Ok(Vec::new());
         }
-        self.binds.bind(key, command.clone())?;
+        self.binds.bind(&key, command.clone())?;
         Ok(vec![format!(
-            "{} = \"{command}\"",
-            crate::key_names::display_key(key)
+            "{} = \"{}\"",
+            crate::key_names::display_key(&key),
+            crate::secret::input_line(&command, &self.cvars)
         )])
     }
 
@@ -128,12 +134,11 @@ impl Shell {
         let [key] = arguments else {
             return Err(ShellError::Usage("unbind <key>"));
         };
-        let key = crate::key_names::canonical_key(key)
-            .ok_or_else(|| crate::BindError::InvalidKey(key.clone()))?;
-        self.binds.unbind(key);
+        let key = BindTable::canonical_key(key)?;
+        self.binds.unbind(&key);
         Ok(vec![format!(
             "{} unbound",
-            crate::key_names::display_key(key)
+            crate::key_names::display_key(&key)
         )])
     }
 

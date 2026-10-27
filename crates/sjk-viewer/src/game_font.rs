@@ -72,6 +72,8 @@ struct Layer {
     font: UiFont,
     vertices: Vec<TextVertex>,
     buffer: wgpu::Buffer,
+    /// The font's atlas, kept to bind it again with the wide atlas ([`GameFonts::rebind`]).
+    atlas: wgpu::TextureView,
     bind_group: wgpu::BindGroup,
     /// The atlas was uploaded as a distance field.
     distance_field: bool,
@@ -120,30 +122,39 @@ impl Layer {
         }
     }
 
-    fn upload(name: &str, font: UiFont, image: image::RgbaImage, gpu: &Device<'_>) -> Self {
+    fn upload(name: &str, font: UiFont, image: image::GrayImage, gpu: &Device<'_>) -> Self {
         let started = std::time::Instant::now();
         let (width, height) = image.dimensions();
-        let (field, distance_field) = text::sdf::for_atlas(image);
-        if distance_field {
-            crate::log::progress(format_args!(
-                "game font {name}: {width}x{height} atlas, {}x{} distance field in {:.1} ms",
-                field.width(),
-                field.height(),
-                started.elapsed().as_secs_f64() * 1_000.0
-            ));
-        } else {
-            crate::log::progress(format_args!(
-                "game font {name}: {width}x{height} atlas, drawn from coverage"
-            ));
-        }
-        let view = gpu_texture::create_rgba8_texture_mipmapped(
-            gpu.device,
-            gpu.queue,
-            "SJK game font atlas",
-            &field,
-            true,
-            mip_levels(field.width(), field.height()),
-        );
+        // The same atlas in every world: a map change's next world takes the last one's.
+        let key = crate::shared_textures::key(&[
+            name.as_bytes(),
+            &width.to_le_bytes(),
+            &height.to_le_bytes(),
+            image.as_raw(),
+        ]);
+        let (view, distance_field) = crate::shared_textures::share("game font", key, || {
+            let (field, distance_field) = text::sdf::for_atlas(image);
+            if distance_field {
+                crate::log::progress(format_args!(
+                    "game font {name}: {width}x{height} atlas, {}x{} distance field in {:.1} ms",
+                    field.width(),
+                    field.height(),
+                    started.elapsed().as_secs_f64() * 1_000.0
+                ));
+            } else {
+                crate::log::progress(format_args!(
+                    "game font {name}: {width}x{height} atlas, drawn from coverage"
+                ));
+            }
+            let view = gpu_texture::create_r8_texture_mipmapped(
+                gpu.device,
+                gpu.queue,
+                "SJK game font atlas",
+                &field,
+                mip_levels(field.width(), field.height()),
+            );
+            (view, distance_field)
+        });
         let bind_group = text::wide_texture::bind_group(
             gpu.device,
             "SJK game font bind group",
@@ -162,6 +173,7 @@ impl Layer {
             font,
             vertices: Vec::with_capacity(4_096),
             buffer,
+            atlas: view,
             bind_group,
             distance_field,
             count: 0,
@@ -392,6 +404,9 @@ impl GameFonts {
     /// Append one draw list's text, each command in the font `font_of` names
     /// for it when that font is on and loaded, and everything else to
     /// `fallback`. With the option off this is the single pass it replaces.
+    /// Under a card (`cover`, [`crate::menu_widgets::MenuCanvas::cover`]): the
+    /// runs before it less what the card covers, then the card's own.
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn append_routed<'s>(
         &mut self,
         draw_list: &DrawList,
@@ -400,35 +415,58 @@ impl GameFonts {
         fallback: (&mut Vec<TextVertex>, &UiFont),
         viewport: [f32; 2],
         style: text::TextStyle,
+        cover: Option<(sjk_ui::Rect, u32)>,
     ) {
         let active = RetailFont::ALL.map(|font| self.active(font));
-        for font in RetailFont::ALL {
-            if !active[font.index()] {
-                continue;
+        let (vertices, fallback_font) = fallback;
+        // Without a card one pass of everything; with one, the page's then the card's.
+        let passes: &[Option<bool>] = if cover.is_some() {
+            &[Some(false), Some(true)]
+        } else {
+            &[None]
+        };
+        for &card in passes {
+            let first = cover.map_or(0, |(_, first)| first);
+            let in_pass = |id: TextId| card.is_none_or(|card| (id.0 >= first) == card);
+            let drop_under = |vertices: &mut Vec<TextVertex>, start: usize| {
+                if let (Some(false), Some((rect, _))) = (card, cover) {
+                    text::drop_quads_under(vertices, start, rect, viewport);
+                }
+            };
+            for font in RetailFont::ALL {
+                if !active[font.index()] {
+                    continue;
+                }
+                if let Some(layer) = self.slot_mut(font) {
+                    let start = layer.vertices.len();
+                    crate::ui_renderer::append_text_commands_where(
+                        draw_list,
+                        resolve,
+                        |id, text| in_pass(id) && font_of(id, text) == Some(font),
+                        &mut layer.vertices,
+                        &layer.font,
+                        viewport,
+                        style,
+                        text::CodePalette::Game,
+                    );
+                    drop_under(&mut layer.vertices, start);
+                }
             }
-            if let Some(layer) = self.slot_mut(font) {
-                crate::ui_renderer::append_text_commands_where(
-                    draw_list,
-                    resolve,
-                    |id, text| font_of(id, text) == Some(font),
-                    &mut layer.vertices,
-                    &layer.font,
-                    viewport,
-                    style,
-                    text::CodePalette::Game,
-                );
-            }
+            let start = vertices.len();
+            crate::ui_renderer::append_text_commands_where(
+                draw_list,
+                resolve,
+                |id, text| {
+                    in_pass(id) && !font_of(id, text).is_some_and(|font| active[font.index()])
+                },
+                vertices,
+                fallback_font,
+                viewport,
+                style,
+                text::CodePalette::Game,
+            );
+            drop_under(vertices, start);
         }
-        crate::ui_renderer::append_text_commands_where(
-            draw_list,
-            resolve,
-            |id, text| !font_of(id, text).is_some_and(|font| active[font.index()]),
-            fallback.0,
-            fallback.1,
-            viewport,
-            style,
-            text::CodePalette::Game,
-        );
     }
 
     fn layers_mut(&mut self) -> impl Iterator<Item = &mut Layer> {
@@ -441,6 +479,21 @@ impl GameFonts {
             .chain(self.chat.iter_mut())
             .chain(self.console.iter_mut())
             .chain(sjk)
+    }
+
+    /// Bind every loaded font's atlas again with `gpu`'s wide and emoji atlases, after
+    /// one of those was made ([`text::wide_texture::WideTexture::update`]).
+    pub(crate) fn rebind(&mut self, gpu: &Device<'_>) {
+        for layer in self.layers_mut() {
+            layer.bind_group = text::wide_texture::bind_group(
+                gpu.device,
+                "SJK game font bind group",
+                gpu.layout,
+                &layer.atlas,
+                gpu.sampler,
+                gpu.wide,
+            );
+        }
     }
 
     /// Copy this frame's vertices to the GPU.
@@ -602,9 +655,23 @@ mod tests {
             (&mut vertices, &inter),
             [640.0, 480.0],
             text::TextStyle::NEUTRAL,
+            None,
         );
         // Three runs of two glyphs, each a shadow and a glyph quad.
         assert_eq!(vertices.len(), 3 * 2 * 2 * 6);
+        // A card from run 2 on over the first two (the chat's sender card): their
+        // glyphs under it are left out, the card's own are drawn.
+        vertices.clear();
+        fonts.append_routed(
+            &list,
+            |_| "ab",
+            |id, _| (id.0 == 1).then_some(RetailFont::Medium),
+            (&mut vertices, &inter),
+            [640.0, 480.0],
+            text::TextStyle::NEUTRAL,
+            Some((sjk_ui::Rect::new(0.0, 0.0, 200.0, 40.0), 2)),
+        );
+        assert_eq!(vertices.len(), 2 * 2 * 6);
     }
 
     #[test]

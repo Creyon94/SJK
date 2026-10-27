@@ -72,6 +72,11 @@ impl ViewerConsole {
                     );
                 }
             }
+            // The shop is the Collection's Forge (21/10/2026).
+            PanelAction::Shop => {
+                let target = self.profile_hub_return;
+                self.open_forge(super::collection_panel::forge::Section::Shop, target);
+            }
         }
     }
 
@@ -164,6 +169,18 @@ impl ViewerConsole {
         (self.open && self.holocrons_panel.is_open()).then(|| self.holocrons_panel.stage_request())
     }
 
+    /// How the opening moves the 3D holocron at `now`; `None` when no opening shows (it
+    /// floats in its place on the page).
+    pub(crate) fn holocrons_motion(
+        &self,
+        now: std::time::Instant,
+    ) -> Option<crate::holocrons::stage::Motion> {
+        if !(self.open && self.holocrons_panel.is_open()) {
+            return None;
+        }
+        self.holocrons_panel.stage_motion(now)
+    }
+
     /// Show `data` in place of the live identity's, whenever the page is read, for a world
     /// shot; the tier `index` chosen.
     #[cfg(test)]
@@ -205,6 +222,12 @@ impl ViewerConsole {
     #[cfg(test)]
     pub(crate) fn preview_loot(&mut self, show: bool) {
         self.holocrons_panel.show_loot(show);
+    }
+
+    /// Show Open all's question over the open page, for a world shot.
+    #[cfg(test)]
+    pub(crate) fn preview_ask_all(&mut self) {
+        self.holocrons_panel.ask_all_for_shot();
     }
 
     /// Show the hover card of tier row `index` on the open page, for a world shot.

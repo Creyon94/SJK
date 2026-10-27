@@ -12,7 +12,7 @@
 //! the packet entities) come from [`crate::ambient_world`] and join the same
 //! 32-entry backend frame list without cgame's per-entity ceiling. A burning
 //! jetpack's hover and fire loops follow `CG_Player` (`cg_players.c:11843-11935`,
-//! `cg_jetpackHoverSound 1`).
+//! `cg_jetpackHoverSound` choices 1 and 2).
 
 use crate::ambient_world::{CS_GLOBAL_AMBIENT_SET, LegacyAmbientShot, LegacyAmbientWorld};
 use crate::mind_trick::{legacy_entity_trick_targets, legacy_mind_tricked};
@@ -20,7 +20,7 @@ use crate::player_identity::legacy_client_saber_names;
 use crate::player_spheres::LegacyJetpack;
 use crate::presentation::legacy_evaluate_trajectory_delta;
 use crate::saber_definitions::legacy_saber_definitions;
-use crate::sound_events::{RegisteredLegacySound, intern_sound, normal_attenuation};
+use crate::sound_events::{RegisteredLegacySound, intern_sound, normal_attenuation, sound_present};
 use crate::{AmbientSetKind, AmbientSets};
 use sjk_audio::{ChannelId, DopplerConfig, PlayRequest, SoundHandle, SourceId};
 use sjk_protocol::{EntityState, GameState, Snapshot};
@@ -32,6 +32,8 @@ const MAX_SOUNDS: usize = 256;
 const MAX_CLIENTS: usize = 32; // codemp/qcommon/q_shared.h:890
 const MAX_ENTITIES: usize = 1_024;
 const MAX_CG_LOOPSOUNDS: u8 = 8; // codemp/cgame/cg_local.h:319
+/// `playerState_t::loopSound` (protocol 26 netfield 75).
+const PS_LOOP_SOUND: usize = 75;
 const MAX_LOOP_SOUNDS: usize = 32; // codemp/client/snd_dma.cpp:213
 const ET_PLAYER: u8 = 1;
 const ET_MISSILE: u8 = 3;
@@ -66,7 +68,11 @@ const WEAPON_FIRING_LOOPS: [Option<&str>; 19] = [
 ];
 const WEAPON_READY_LOOPS: [Option<&str>; 19] = [None; 19];
 /// `cgs.media.jetpackHoverSound` and the jet fire loop (`cg_main.c`, `cg_players.c`).
-const JETPACK_LOOPS: [&str; 2] = ["sound/chars/boba/jethover.wav", "sound/effects/fire_lp.wav"];
+const JETPACK_LOOPS: [&str; 3] = [
+    crate::LEGACY_JETPACK_HOVER_SOUNDS[0],
+    crate::LEGACY_JETPACK_HOVER_SOUNDS[1],
+    "sound/effects/fire_lp.wav",
+];
 
 /// Why a loop was selected by the legacy adapter.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -148,12 +154,16 @@ pub(crate) struct LegacyLoopAdapter {
     soundsets: [SoundsetStages; MAX_SOUNDS],
     weapon_firing: [Option<u16>; 19],
     weapon_ready: [Option<u16>; 19],
-    jetpack: [u16; 2],
+    jetpack: [u16; 3],
+    pub(crate) jetpack_sounds: crate::LegacyJetpackSounds,
     sabers: [SaberLoops; MAX_CLIENTS],
     /// Registered hums of the replacement saber sound sets, by set.
-    saber_hums: Vec<u16>,
+    /// Each set's hum; `None` where its file did not load, so the sabers' own hum plays.
+    saber_hums: Vec<Option<u16>>,
     /// The hum each client's blade skin plays over its sabers' own.
     hum_overrides: [Option<u16>; MAX_CLIENTS],
+    /// `s_saberSkinSounds 2`: a skin's hum replaces the sabers' own.
+    pub(crate) skin_hum_only: bool,
     client_config_hash: [u64; MAX_CLIENTS],
     decisions: Vec<LegacyLoopDecision>,
     loops_per_entity: Box<[u8]>,
@@ -230,9 +240,11 @@ impl LegacyLoopAdapter {
             weapon_firing,
             weapon_ready,
             jetpack,
+            jetpack_sounds: crate::LegacyJetpackSounds::default(),
             sabers,
             saber_hums: Vec::new(),
             hum_overrides: [None; MAX_CLIENTS],
+            skin_hum_only: false,
             client_config_hash: std::array::from_fn(|client| {
                 player_config_hash(game_state, client)
             }),
@@ -337,6 +349,21 @@ impl LegacyLoopAdapter {
                 self.add_weapon_loop(state, origin);
                 self.add_entity_saber_loops(state, origin);
             }
+        }
+        // The viewed player's own loop (`ps.loopSound`, which `BG_PlayerStateToEntityState`
+        // gives `cg.predictedPlayerEntity`): a hacker's `hacking.wav` among others. Its
+        // entity is not among the snapshot's.
+        let own_loop = snapshot.player.raw_field(PS_LOOP_SOUND).unwrap_or(0) as usize;
+        if own_loop != 0 && own_loop < MAX_SOUNDS && !snapshot.player.is_spectator() {
+            let sound = self.cs_sounds[own_loop];
+            self.push(
+                LegacyLoopKind::Entity,
+                sound,
+                Some(own_loop as u8),
+                snapshot.player.client_num(),
+                listener_origin,
+                [0.0; 3],
+            );
         }
         let own = LegacyJetpack::from_flags(snapshot.player.entity_flags());
         if own.active && !snapshot.player.is_spectator() {
@@ -500,7 +527,8 @@ impl LegacyLoopAdapter {
     /// `CG_Player`: the fire loop of a flaming jetpack (`trap->S_RegisterSound(
     /// "sound/effects/fire_lp")` inside the jet loop), then the hover.
     fn add_jetpack_loops(&mut self, jetpack: LegacyJetpack, source: u16, origin: [f32; 3]) {
-        let [hover, fire] = self.jetpack;
+        let hover = self.jetpack[self.jetpack_sounds.hover_index()];
+        let fire = self.jetpack[2];
         if jetpack.flaming {
             self.push(
                 LegacyLoopKind::JetpackFire,
@@ -557,7 +585,9 @@ impl LegacyLoopAdapter {
         let loops = self.saber_loops(client);
         let primary_active = !state.saber_in_flight();
         let secondary_active = state.saber_holstered() == 0 && loops.secondary.is_some();
-        if primary_active {
+        // With `s_saberSkinSounds 2` a blade skin's hum replaces the sabers' own.
+        let stock = !(self.skin_hum_only && self.hum_overrides[client].is_some());
+        if primary_active && stock {
             self.push(
                 LegacyLoopKind::SaberHumPrimary,
                 loops.primary,
@@ -567,7 +597,7 @@ impl LegacyLoopAdapter {
                 [0.0; 3],
             );
         }
-        if secondary_active {
+        if secondary_active && stock {
             self.push(
                 LegacyLoopKind::SaberHumSecondary,
                 loops.secondary,
@@ -598,7 +628,9 @@ impl LegacyLoopAdapter {
         let loops = self.saber_loops(client);
         let primary_active = !player.saber_in_flight();
         let secondary_active = player.saber_holstered() == 0 && loops.secondary.is_some();
-        if primary_active {
+        // With `s_saberSkinSounds 2` a blade skin's hum replaces the sabers' own.
+        let stock = !(self.skin_hum_only && self.hum_overrides[client].is_some());
+        if primary_active && stock {
             self.push(
                 LegacyLoopKind::SaberHumPrimary,
                 loops.primary,
@@ -608,7 +640,7 @@ impl LegacyLoopAdapter {
                 [0.0; 3], // CG_Player passes vec3_origin for saber hum.
             );
         }
-        if secondary_active {
+        if secondary_active && stock {
             self.push(
                 LegacyLoopKind::SaberHumSecondary,
                 loops.secondary,
@@ -633,14 +665,21 @@ impl LegacyLoopAdapter {
     ) {
         self.saber_hums = hums
             .iter()
-            .map(|path| intern_sound(&mut self.sounds, vfs, path, register))
+            .map(|path| {
+                if !sound_present(vfs, path) {
+                    return None;
+                }
+                let index = intern_sound(&mut self.sounds, vfs, path, register);
+                self.sounds[usize::from(index)].handle.map(|_| index)
+            })
             .collect();
     }
 
     /// Which set's hum each client plays (`None`: its sabers' own).
     pub(crate) fn set_saber_hum_overrides(&mut self, sets: &[Option<u8>; MAX_CLIENTS]) {
-        self.hum_overrides =
-            sets.map(|set| set.and_then(|set| self.saber_hums.get(usize::from(set)).copied()));
+        self.hum_overrides = sets.map(|set| {
+            set.and_then(|set| self.saber_hums.get(usize::from(set)).copied().flatten())
+        });
     }
 
     /// A thrown saber's hum when its owner wears a blade skin: the skin's, to play over

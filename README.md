@@ -7,9 +7,9 @@ Knight: Jedi Academy** multiplayer: the game as Sol sees it, developed by Sol in
 Rust.
 
 SJK aims to be a true JKA+: everything players expect from today's community
-clients, from the retail look and feel to mod servers such as JA+ and modern
-screens, in a client that stays clean and fast, without the bloat some clients
-have accumulated. Once the client is solid, a JoF edition of SJK will follow.
+clients, from the retail look and feel to mod servers such as JA+ and JoF and
+modern screens, in a client that stays clean and fast, without the bloat some
+clients have accumulated.
 
 SJK includes a graphical client and a dedicated server, with support for the
 legacy protocol, PK3 content, maps, models, movement and combat. The renderer
@@ -52,11 +52,12 @@ Settings have neutral engine names (`r_*`, `cg_*`), the source crates are
 
 ## Download
 
-Ready-to-run Windows x64 and Linux x64 builds are on the
+Ready-to-run Windows x64 and Linux x64 builds, and an experimental, unsigned
+build for Macs with Apple Silicon, are on the
 [releases page](https://github.com/Sol-Vulpes/SJK/releases) and the
 [SJK website](https://sol-vulpes.github.io/SJK/). Extract the ZIP for your
 platform into Jedi Academy's `GameData` folder, beside `base`, and launch
-`sjk` (`sjk.exe` on Windows).
+`sjk` (`sjk.exe` on Windows, `SJK.app` on a Mac).
 
 Releases are built by the [SJK release workflow](.github/workflows/release.yml)
 when a tag named `sjk-v<version>` (for example `sjk-v0.2.0`) is pushed. It builds

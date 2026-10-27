@@ -181,6 +181,10 @@ impl Selection {
         vfs: &VirtualFileSystem,
         path: &str,
     ) -> Result<sjk_bsp::Bsp, Box<dyn Error>> {
+        // The menu world rebuilt as a picture one (`menu_pictures`) reads no map.
+        if crate::menu_pictures::pictured(path).is_some() {
+            return Ok(crate::menu_pictures::empty_world());
+        }
         let asset = vfs
             .read(path)?
             .ok_or_else(|| format!("session map missing: {path}"))?;
@@ -230,7 +234,7 @@ fn mount_download(
 }
 
 /// codemp CM_LoadMap: XOR the four little-endian words of MD4 over the entire BSP file.
-fn checksum(bytes: &[u8]) -> i32 {
+pub(crate) fn checksum(bytes: &[u8]) -> i32 {
     Md4::digest(bytes).chunks_exact(4).fold(0u32, |sum, word| {
         sum ^ u32::from_le_bytes(word.try_into().unwrap())
     }) as i32

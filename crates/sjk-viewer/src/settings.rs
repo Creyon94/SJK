@@ -284,8 +284,8 @@ impl SettingsMenu {
         )
     }
 
-    /// The HUD picker covers the screen; it draws itself whatever the menu
-    /// style ([`Self::append_hud_overlay`]).
+    /// The HUD picker covers the screen: the SJK UI's card
+    /// ([`Self::append_hud_picker_sjk`]), whatever the menu style.
     pub(crate) fn hud_picker_open(&self) -> bool {
         self.hud.is_open()
     }
@@ -488,7 +488,7 @@ impl SettingsMenu {
         if let Some(row) = self
             .rows()
             .iter()
-            .position(|setting| matches!(setting.kind, ValueKind::WheelPages))
+            .position(|setting| matches!(setting.kind(), ValueKind::WheelPages))
         {
             self.selected = row;
             self.reveal_selected();
@@ -508,18 +508,23 @@ impl SettingsMenu {
         (self.selected, false)
     }
     /// Whether a field takes the keys: the search, a text row, a number typed or the
-    /// wheel editor's name and command fields.
+    /// wheel editor's name and command fields and its catalogue's search.
     pub(crate) fn typing(&self) -> bool {
         self.searching
             || self.editing.is_some()
             || self.numeric.is_some()
-            || self.wheel.is_open() && self.wheel.typing.is_some()
+            // The quick wheel's catalogue types into its search, so held
+            // letters and Backspace repeat there too.
+            || self.wheel.is_open() && (self.wheel.typing.is_some() || self.wheel.picker.is_some())
     }
 
     /// The text of the field that has the keys, for Ctrl+C.
     pub(crate) fn field_text(&self) -> Option<&str> {
         if self.searching {
             return Some(&self.search);
+        }
+        if self.wheel.is_open() && self.wheel.typing.is_none() && self.wheel.picker.is_some() {
+            return Some(&self.wheel.search);
         }
         self.editing.as_ref().map(|draft| draft.text.as_str())
     }
@@ -663,7 +668,7 @@ impl SettingsMenu {
             KeyCode::Space
                 if self.rows().get(self.selected).is_some_and(|setting| {
                     matches!(
-                        setting.kind,
+                        setting.kind(),
                         ValueKind::Integer { .. } | ValueKind::Float { .. }
                     )
                 }) =>
@@ -672,24 +677,26 @@ impl SettingsMenu {
             }
             KeyCode::Enter | KeyCode::NumpadEnter | KeyCode::Space => {
                 if let Some(setting) = self.rows().get(self.selected) {
-                    if matches!(setting.kind, ValueKind::Text) {
+                    if matches!(setting.kind(), ValueKind::Text) {
                         self.begin_text(console, self.selected);
-                    } else if matches!(setting.kind, ValueKind::Resolution) {
+                    } else if matches!(setting.kind(), ValueKind::Resolution) {
                         self.open_resolutions(console);
-                    } else if matches!(setting.kind, ValueKind::HudPicker) {
+                    } else if matches!(setting.kind(), ValueKind::HudPicker) {
                         self.open_hud_picker(console);
-                    } else if matches!(setting.kind, ValueKind::WheelPages) {
+                    } else if matches!(setting.kind(), ValueKind::WheelPages) {
                         return SettingsResult::OpenWheelPages;
-                    } else if matches!(setting.kind, ValueKind::IdentityPage) {
+                    } else if matches!(setting.kind(), ValueKind::IdentityPage) {
                         return SettingsResult::OpenIdentity;
-                    } else if matches!(setting.kind, ValueKind::AssetBrowser) {
+                    } else if matches!(setting.kind(), ValueKind::AssetBrowser) {
                         return SettingsResult::OpenAssets;
-                    } else if matches!(setting.kind, ValueKind::JofContent) {
+                    } else if matches!(setting.kind(), ValueKind::JofContent) {
                         return SettingsResult::OpenJofContent;
-                    } else if matches!(setting.kind, ValueKind::ImportPage) {
+                    } else if matches!(setting.kind(), ValueKind::ImportPage) {
                         return SettingsResult::OpenImport;
-                    } else if matches!(setting.kind, ValueKind::GameplayFps) {
+                    } else if matches!(setting.kind(), ValueKind::GameplayFps) {
                         return SettingsResult::OpenGameplayFps;
+                    } else if matches!(setting.kind(), ValueKind::SoundPreview) {
+                        preview_sound(setting.cvar);
                     } else if classic && self.open_dropdown(console, self.selected) {
                         // Classic+: a choice opens its list; nothing changes yet.
                     } else if !self.begin_numeric(console, self.selected) {
@@ -711,13 +718,17 @@ impl SettingsMenu {
         let Some(setting) = self.rows().get(self.selected) else {
             return;
         };
+        // A switch for what this system lacks stays off ([`PLATFORM_ROWS`]).
+        if !available_here(setting.cvar) {
+            return;
+        }
         if let Some(switch) = derived_switch(setting.cvar) {
             (switch.toggle)(console);
             self.refresh(console);
             return;
         }
         // Choices name text or integer cvars (`cg_saberTrail` is an integer).
-        if let ValueKind::Choice(values) = setting.kind {
+        if let ValueKind::Choice(values) = setting.kind() {
             let cvar = setting.cvar;
             let value = choice_value(console, cvar).unwrap_or_default();
             let index = values
@@ -729,14 +740,14 @@ impl SettingsMenu {
             self.refresh(console);
             return;
         }
-        let next = match (setting.kind, console.cvar(setting.cvar)) {
+        let next = match (setting.kind(), console.cvar(setting.cvar)) {
             (ValueKind::Bool, Some(CvarValue::Bool(value))) => (!value).to_string(),
             (ValueKind::Bool, Some(value)) => if switch_on(value) { "0" } else { "1" }.to_owned(),
             (ValueKind::Integer { min, max, step }, Some(CvarValue::Integer(value))) => {
                 step_integer(*value, direction, min, max, step).to_string()
             }
             (ValueKind::Float { .. }, Some(CvarValue::Float(value))) => {
-                match setting.kind.stepped(*value, direction) {
+                match setting.kind().stepped(*value, direction) {
                     Some(next) => next,
                     None => return,
                 }
@@ -857,7 +868,7 @@ impl SettingsMenu {
         self.usage.rows = read_for;
         self.values.clear();
         self.values
-            .extend(self.rows().iter().map(|setting| match setting.kind {
+            .extend(self.rows().iter().map(|setting| match setting.kind() {
                 ValueKind::DisplayMode => display.label().to_owned(),
                 ValueKind::HudPicker => hud.clone(),
                 ValueKind::WheelPages => wheel_pages_text(console),
@@ -866,6 +877,7 @@ impl SettingsMenu {
                 ValueKind::GameplayFps => crate::gameplay_fps::row_text(console),
                 ValueKind::AssetBrowser => "Browse packs".to_owned(),
                 ValueKind::JofContent => "Choose and download".to_owned(),
+                ValueKind::SoundPreview => PREVIEW_TEXT.to_owned(),
                 ValueKind::Quality => crate::graphics_quality::shown(console).to_owned(),
                 ValueKind::Bool if derived_switch(setting.cvar).is_some() => {
                     let on =
@@ -940,6 +952,32 @@ pub(crate) fn has_row(cvar: &str) -> bool {
         .any(|setting| setting.cvar.eq_ignore_ascii_case(cvar))
 }
 
+/// Where `cvar` sits in Settings (any case), for the command reference
+/// (`console_command_reference.rs`): the group a Settings search shows it under, the
+/// row's label and the row's help line; `None` when no row edits it.
+#[cfg(test)]
+pub(crate) fn place(cvar: &str) -> Option<(&'static str, &'static str, Option<&'static str>)> {
+    let row = search::rows()
+        .iter()
+        .position(|setting| setting.cvar.eq_ignore_ascii_case(cvar))?;
+    let label = search::rows()[row].label;
+    Some((search::group(row)?, label, help::help(cvar)))
+}
+
+/// The label of `cvar`'s on/off row (any case), `None` when Settings has no plain switch
+/// for it: the what's-new card names and switches the settings a release asks players to
+/// review (`changelog_data.rs`, `= <cvar>: <text>`) with it.
+pub(crate) fn switch_label(cvar: &str) -> Option<&'static str> {
+    search::rows()
+        .iter()
+        .find(|setting| {
+            setting.cvar.eq_ignore_ascii_case(cvar)
+                && matches!(setting.kind(), ValueKind::Bool)
+                && derived_switch(setting.cvar).is_none()
+        })
+        .map(|setting| setting.label)
+}
+
 /// Whether `cvar` has a row on a general or renderer tab that can show
 /// `value`: a switch's 0 or 1, or a number within its slider's range.
 #[cfg(test)]
@@ -958,7 +996,7 @@ pub(crate) fn row_takes(cvar: &str, value: &str) -> bool {
         return false;
     };
     let number = value.parse::<f64>();
-    match (row.kind, number) {
+    match (row.kind(), number) {
         (ValueKind::Choice(values), _) => values.contains(&value),
         (ValueKind::Bool, Ok(number)) => number == 0.0 || number == 1.0,
         (ValueKind::Integer { min, max, .. }, Ok(number)) => {
@@ -1002,9 +1040,21 @@ fn choice_value(console: &ViewerConsole, cvar: &str) -> Option<String> {
     console.cvar(cvar).map(CvarValue::as_text)
 }
 
-/// Make choice `value` of row `cvar`: set its cvar.
+/// Make choice `value` of row `cvar`: set its cvar. A chat kind's sound plays as it
+/// is chosen (`chat_sounds.rs`).
 fn set_choice(console: &mut ViewerConsole, cvar: &str, value: &str) {
     console.set_cvar(cvar, value);
+    crate::chat_sounds::choice_made(cvar);
+}
+
+/// What a chat kind's preview row shows.
+const PREVIEW_TEXT: &str = "Play";
+
+/// Play the sound of preview row `row` (`chat_sounds.rs`).
+fn preview_sound(row: &str) {
+    if let Some(kind) = crate::chat_sounds::preview_row_kind(row) {
+        crate::chat_sounds::preview(kind);
+    }
 }
 
 /// Whether `cvar` is one of the renderer's settings: the graphics preset and
@@ -1023,6 +1073,21 @@ fn renderer_setting(cvar: &str) -> bool {
 }
 
 /// The derived switch row `cvar` names, if it is one: the strafe lines.
+/// Rows that work only on some systems, each with whether this build is one: shown
+/// everywhere (their help says where they work), but elsewhere their switch stays off.
+const PLATFORM_ROWS: &[(&str, bool)] = &[
+    // Media Foundation, Windows' own decoder, plays chat MP4 clips (`chat_gifs/video.rs`).
+    (crate::chat_gifs::VIDEO_CVAR, cfg!(windows)),
+];
+
+/// Whether row `cvar` can be switched on this system ([`PLATFORM_ROWS`]).
+pub(super) fn available_here(cvar: &str) -> bool {
+    PLATFORM_ROWS
+        .iter()
+        .find(|(row, _)| row.eq_ignore_ascii_case(cvar))
+        .is_none_or(|(_, available)| *available)
+}
+
 pub(super) fn derived_switch(cvar: &str) -> Option<DerivedSwitch> {
     match cvar {
         crate::hud::movement::LINES_ROW => Some(DerivedSwitch {
@@ -1049,7 +1114,7 @@ fn step_integer(value: i64, direction: i32, min: i64, max: i64, step: i64) -> i6
 /// The value a row shows: AUTO for the one special value below a negative
 /// minimum (`com_maxfps -1`), otherwise the cvar's text.
 fn row_text(console: &ViewerConsole, setting: &Setting) -> String {
-    match (setting.kind, console.cvar(setting.cvar)) {
+    match (setting.kind(), console.cvar(setting.cvar)) {
         (ValueKind::Integer { min, .. }, Some(CvarValue::Integer(value)))
             if min < 0 && *value < 0 =>
         {
@@ -1190,18 +1255,49 @@ mod tests {
             .position(|cvar| *cvar == "cl_hubUrl")
             .unwrap();
         assert_eq!(network.get(hub + 1), Some(&"cl_sjkChat"));
-        // Its sound right under it, on by default.
+        // Its two destinations can be hidden independently, both on by default.
         assert_eq!(
             network.get(hub + 2),
-            Some(&crate::sjk_chat_frame::SOUND_CVAR)
+            Some(&crate::sjk_chat_frame::FEED_CVAR)
+        );
+        assert_eq!(
+            console.bool_cvar(crate::sjk_chat_frame::FEED_CVAR),
+            Some(true)
+        );
+        assert_eq!(
+            network.get(hub + 3),
+            Some(&crate::sjk_chat_frame::CONSOLE_CVAR)
+        );
+        assert_eq!(
+            console.bool_cvar(crate::sjk_chat_frame::CONSOLE_CVAR),
+            Some(true)
+        );
+        // Its sound is with the other chat sounds on Audio (`chat_sounds.rs`), on by
+        // default.
+        assert!(
+            AUDIO
+                .iter()
+                .any(|setting| setting.cvar == crate::sjk_chat_frame::SOUND_CVAR)
         );
         assert_eq!(
             console.bool_cvar(crate::sjk_chat_frame::SOUND_CVAR),
             Some(true)
         );
-        // Its GIFs under the sound, on by default.
-        assert_eq!(network.get(hub + 3), Some(&crate::chat_gifs::CVAR));
+        // Holocron cards default to outside private duels; the ESC-menu pop-up is
+        // independent in every mode.
+        let holocron_notifications = crate::holocron_popup::NOTIFICATIONS_CVAR;
+        assert_eq!(network.get(hub + 4), Some(&holocron_notifications));
+        assert_eq!(console.integer_cvar(holocron_notifications), Some(1));
+        assert!(rows().any(|setting| setting.cvar == holocron_notifications));
+        // Its GIFs under the holocron cards, on by default.
+        assert_eq!(network.get(hub + 5), Some(&crate::chat_gifs::CVAR));
         assert_eq!(console.bool_cvar(crate::chat_gifs::CVAR), Some(true));
+        // Video clips under the GIFs, off by default (Sol's condition), and only
+        // switchable where Windows' decoder exists.
+        assert_eq!(network.get(hub + 6), Some(&crate::chat_gifs::VIDEO_CVAR));
+        assert_eq!(console.bool_cvar(crate::chat_gifs::VIDEO_CVAR), Some(false));
+        assert_eq!(available_here(crate::chat_gifs::VIDEO_CVAR), cfg!(windows));
+        assert!(available_here("cl_sjkChat"));
     }
 
     #[test]
@@ -1214,7 +1310,7 @@ mod tests {
                 continue;
             }
             if matches!(
-                setting.kind,
+                setting.kind(),
                 ValueKind::Resolution
                     | ValueKind::DisplayMode
                     | ValueKind::HudPicker
@@ -1223,6 +1319,7 @@ mod tests {
                     | ValueKind::ImportPage
                     | ValueKind::AssetBrowser
                     | ValueKind::JofContent
+                    | ValueKind::SoundPreview
                     | ValueKind::Quality
             ) {
                 continue;
@@ -1230,7 +1327,7 @@ mod tests {
             let value = console
                 .cvar(setting.cvar)
                 .unwrap_or_else(|| panic!("{} is not registered", setting.cvar));
-            let fits = match (setting.kind, value) {
+            let fits = match (setting.kind(), value) {
                 (
                     ValueKind::Bool,
                     CvarValue::Bool(_) | CvarValue::Integer(_) | CvarValue::Float(_),
@@ -1260,14 +1357,16 @@ mod tests {
     fn the_renderer_tabs_hold_every_engine_rendering_cvar() {
         // Bookkeeping, diagnostics, the ground HUD (on the HUD tab) and exclusive
         // fullscreen (the Video tab's display-mode row) are not listed.
-        const RENDERER: [&str; 27] = [
+        const RENDERER: [&str; 29] = [
             "r_sceneHdr",
             "r_hdrExposure",
             "r_toneCurve",
             "r_sceneBloom",
             "r_fxaa",
             "r_superSample",
+            "r_renderScale",
             "r_softParticles",
+            "r_flares",
             "r_modelPixelLight",
             "r_actorSunShadows",
             "r_worldSunShadows",

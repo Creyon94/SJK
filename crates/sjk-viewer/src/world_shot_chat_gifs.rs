@@ -72,10 +72,13 @@ fn duel6_sjk_chat_gifs_page() {
                 name: (*name).to_owned(),
                 verified: *verified,
                 staff: false,
+                creator: false,
                 trust: None,
                 emoji: String::new(),
+                client: String::new(),
                 text: (*text).to_owned(),
                 holocron: None,
+                official: None,
             },
         )
         .collect();
@@ -95,7 +98,6 @@ fn duel6_sjk_chat_gifs_page() {
     ] {
         let state = state.clone();
         on_big_stack(move || {
-            let _ = gifs();
             let menu = menu::ClientMenu::new(true, String::new());
             let mut cvars = vec![
                 ("ui_menuStyle", "sjk"),
@@ -109,6 +111,7 @@ fn duel6_sjk_chat_gifs_page() {
                 return;
             };
             let _ = frame(&mut gpu, 10);
+            let _ = gifs();
             if let Some(console) = gpu.console.as_mut() {
                 console.preview_sjk_chat(state, None);
             }
@@ -135,7 +138,6 @@ fn duel6_sjk_chat_gifs_dock() {
     ];
     for (size, suffix) in [([1920, 1080], "1080p"), ([3840, 2160], "4k")] {
         on_big_stack(move || {
-            let _ = gifs();
             let menu = menu::ClientMenu::new(true, String::new());
             let cvars = [
                 ("ui_menuStyle", "sjk"),
@@ -148,6 +150,7 @@ fn duel6_sjk_chat_gifs_dock() {
             };
             gpu.ui_epoch -= std::time::Duration::from_millis(2_000);
             let _ = frame(&mut gpu, 20);
+            let _ = gifs();
             if let Some(menu) = gpu.client_menu.as_mut() {
                 menu.sjk_home_chat_for_shot(&LINES, 12, None);
             }
@@ -157,7 +160,6 @@ fn duel6_sjk_chat_gifs_dock() {
             assert!(!menu.sjk_home_overflowed(), "{name}");
         });
         on_big_stack(move || {
-            let _ = gifs();
             let menu = menu::ClientMenu::new(false, String::new());
             let cvars = [
                 ("ui_menuStyle", "sjk"),
@@ -177,6 +179,7 @@ fn duel6_sjk_chat_gifs_dock() {
                 console.close_for_connection();
             }
             let _ = frame(&mut gpu, 60);
+            let _ = gifs();
             let ffa = ShotView {
                 team: 0,
                 team_game: false,
@@ -206,10 +209,11 @@ fn duel6_sjk_chat_gifs_dock() {
 fn duel6_sjk_chat_gifs_feed() {
     for (size, suffix) in [([1920, 1080], "1080p"), ([3840, 2160], "4k")] {
         on_big_stack(move || {
-            let _ = gifs();
             let Some((mut gpu, _profile)) = open("maps/mp/duel6.bsp", size, None, &[]) else {
                 return;
             };
+            let _ = frame(&mut gpu, 1);
+            let _ = gifs();
             let shots = menu_backdrop::tour_for("Yavin Training Grounds").expect("duel6's tour");
             let shot = &shots[0];
             let (yaw, pitch) = look(shot.from, shot.at);
@@ -225,10 +229,13 @@ fn duel6_sjk_chat_gifs_feed() {
                     name: name.to_owned(),
                     verified,
                     staff: false,
+                    creator: false,
                     trust: None,
                     emoji: String::new(),
+                    client: String::new(),
                     text: text.to_owned(),
                     holocron: None,
+                    official: None,
                 };
             let state = |messages: Vec<sjk_identity::ChatMessage>| sjk_identity::ChatState {
                 messages: messages.into_iter().collect(),
@@ -303,10 +310,13 @@ fn duel6_sjk_chat_gif_picker() {
             name: format!("^{}Player {n}", n % 7 + 1),
             verified: n % 3 == 0,
             staff: false,
+            creator: false,
             trust: None,
             emoji: String::new(),
+            client: String::new(),
             text: format!("look https://giphy.com/gifs/ShotPick{:02}X", n),
             holocron: None,
+            official: None,
         })
         .collect();
     let state = sjk_identity::ChatState {
@@ -322,6 +332,7 @@ fn duel6_sjk_chat_gif_picker() {
     for (size, suffix) in [([1920, 1080], "1080p"), ([3840, 2160], "4k")] {
         for (tab, typed, key, shot) in [
             (2, "", "", "seen"),
+            (3, "", "", "sources"),
             (1, "lightsaber", "test-key", "search"),
             // Search without a key: the key card shows by itself.
             (1, "", "", "key-card"),
@@ -329,7 +340,6 @@ fn duel6_sjk_chat_gif_picker() {
         ] {
             let state = state.clone();
             on_big_stack(move || {
-                let ids = tiles();
                 let menu = menu::ClientMenu::new(true, String::new());
                 let cvars = [
                     ("ui_menuStyle", "sjk"),
@@ -341,6 +351,7 @@ fn duel6_sjk_chat_gif_picker() {
                     return;
                 };
                 let _ = frame(&mut gpu, 10);
+                let ids = tiles();
                 // After the first frames, which read the (empty) favourites file.
                 for id in [&ids[1], &ids[4]] {
                     crate::chat_gifs::favourites::set(id, true);
@@ -363,5 +374,44 @@ fn duel6_sjk_chat_gif_picker() {
                 println!("{}", shoot(&mut gpu, 8, &name).display());
             });
         }
+    }
+}
+
+/// The source approval screen with a typed link and an uncontacted CDN candidate,
+/// in the SJK look even when the surrounding menus use classic styling.
+#[test]
+#[ignore = "renders with GPU and installed JKA_GAME_DATA; no media requests"]
+fn duel6_sjk_chat_gif_sources() {
+    for (size, style, suffix) in [
+        ([1920, 1080], "classic", "1080p-classic"),
+        ([3840, 2160], "sjk", "4k"),
+    ] {
+        on_big_stack(move || {
+            let menu = menu::ClientMenu::new(true, String::new());
+            let cvars = [
+                ("ui_menuStyle", style),
+                (crate::settings::quick::HIDE_CVAR, "1"),
+            ];
+            let Some((mut gpu, _profile)) = open("maps/mp/duel6.bsp", size, Some(menu), &cvars)
+            else {
+                return;
+            };
+            let _ = frame(&mut gpu, 2);
+            crate::chat_gifs::sources::blocked("cdn.example.org");
+            if let Some(console) = gpu.console.as_mut() {
+                console.preview_sjk_chat_gifs(
+                    sjk_identity::ChatState {
+                        revision: 1,
+                        live: true,
+                        loaded: Some(1),
+                        ..Default::default()
+                    },
+                    3,
+                    "https://media.example.org/clip.mp4",
+                );
+            }
+            let name = format!("duel6-sjk-chat-gif-sources-{suffix}");
+            println!("{}", shoot(&mut gpu, 4, &name).display());
+        });
     }
 }

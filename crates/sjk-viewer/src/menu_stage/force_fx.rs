@@ -301,6 +301,9 @@ impl GpuState {
                 global_seconds: crate::menu::art::motion::seconds() as f32,
                 camera: eye,
                 field_of_view: preview::FIELD_OF_VIEW_DEGREES,
+                // Only a screen flash reads it, and preview effects have no viewer to
+                // start one ([`crate::effect_flash::visibility`]).
+                aspect: 1.0,
                 bsp: &fx.world.0,
                 trace_scratch: &mut self.trace_scratch,
                 entity_instances: &mut fx.instances,

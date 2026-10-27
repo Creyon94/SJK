@@ -3,8 +3,9 @@
     python scripts/sjk_symbols.py            write crates/sjk-viewer/assets/fonts/SJKSymbols.ttf
     python scripts/sjk_symbols.py --check    fail when the committed font is out of date
 
-The symbols mark qualities in SJK's text: the rarities (Common to Mythical) and the
-cards' finishes. They sit in Unicode's Private Use Area from U+E000, one code point
+The symbols mark qualities in SJK's text: the rarities (Common to Unique), the
+cards' finishes, the items' icons (what a thing is and where it comes from) and the
+kyber shard. They sit in Unicode's Private Use Area from U+E000, one code point
 each for good: a symbol is never moved or reused, new ones take the next free point of
 their group. The client draws them as it draws any character its fonts lack, from this
 font through the wide-glyph atlas (crates/sjk-viewer/src/text/wide.rs), in the colour of
@@ -103,6 +104,17 @@ def diamond(r, cx=0.0, cy=MIDDLE):
     return [[(cx, cy + r), (cx + r, cy), (cx, cy - r), (cx - r, cy)]]
 
 
+def four_point_star(tip, waist, cx=0.0, cy=MIDDLE):
+    """A solid four-point star, its points up, down and to the sides: `tip` from its
+    centre to a point, `waist` to the corners between them."""
+    points = []
+    for i in range(8):
+        r = tip if i % 2 == 0 else waist
+        a = math.pi / 2 + i * math.pi / 4
+        points.append((cx + r * math.cos(a), cy + r * math.sin(a)))
+    return [points[::-1]]
+
+
 def rect_round(x, y, w, h, r):
     """A rounded rectangle's points (corners as quarter circles)."""
     points = []
@@ -140,6 +152,14 @@ def rarity(rank):
             shapes.append(capsule((sx * gap, MIDDLE + sy * gap), (sx * inner, MIDDLE + sy * inner), STROKE * 0.85))
         shapes.append(diamond(R * 0.78 * 0.17))
         shapes.append(ring(octagon(R * 1.08), STROKE * 0.7))
+    if rank == 5:
+        # Unique (25/10/2026): Mythical's two frames round a solid four-point star in
+        # place of its cross, so the two read apart at text sizes (a dot against a cross).
+        shapes = [
+            ring(octagon(R * 0.78), STROKE * 0.85),
+            four_point_star(R * 0.78 * 0.60, R * 0.78 * 0.23),
+            ring(octagon(R * 1.08), STROKE * 0.7),
+        ]
     return shapes
 
 
@@ -173,6 +193,148 @@ def finish(index):
     return shapes
 
 
+# The items' icons (17/10/2026, the Shaders tab's cards): what a thing is, where it comes
+# from and what the player does with it, drawn as line pictures in the rarity marks'
+# stroke so they sit beside them in a line of text.
+ICON = BOX / 2 - STROKE / 2 - 20
+
+
+def arc(cx, cy, r, start, end, steps=14, width=STROKE):
+    """A round-ended line along a circle's arc, from angle `start` to `end` (radians)."""
+    points = [(cx + r * math.cos(start + (end - start) * i / steps), cy + r * math.sin(start + (end - start) * i / steps)) for i in range(steps + 1)]
+    return [capsule(a, b, width) for a, b in zip(points, points[1:])]
+
+
+def circle(cx, cy, r, steps=24):
+    return [(cx + r * math.cos(2 * math.pi * i / steps), cy + r * math.sin(2 * math.pi * i / steps)) for i in range(steps)]
+
+
+def holocron_icon():
+    """A cube seen from above a corner: a hexagon, its near corner's three edges."""
+    r = ICON
+    corners = [(r * math.cos(math.radians(a)), MIDDLE + r * math.sin(math.radians(a))) for a in (90, 30, -30, -90, -150, 150)]
+    shapes = [ring(corners)]
+    for a in (30, 150, -90):
+        shapes.append(capsule((0, MIDDLE), (r * math.cos(math.radians(a)), MIDDLE + r * math.sin(math.radians(a)))))
+    return shapes
+
+
+def medal_icon():
+    """A medallion hanging from a ribbon's V."""
+    r = ICON * 0.5
+    cy = MIDDLE - ICON + r
+    shapes = [ring(circle(0, cy, r))]
+    top = MIDDLE + ICON
+    shapes.append(capsule((-ICON * 0.5, top), (-r * 0.35, cy + r)))
+    shapes.append(capsule((ICON * 0.5, top), (r * 0.35, cy + r)))
+    return shapes
+
+
+def lock_icon():
+    """A padlock: a solid body, its shackle an arch over it."""
+    w, h = ICON * 1.25, ICON * 1.0
+    x, y = -w / 2, MIDDLE - ICON
+    shapes = [polygon(rect_round(x, y, w, h, w * 0.14))]
+    r = w * 0.3
+    leg = y + h + ICON * 0.18
+    shapes.append(capsule((-r, y + h - 10), (-r, leg)))
+    shapes.append(capsule((r, y + h - 10), (r, leg)))
+    shapes.extend(arc(0, leg, r, math.pi, 0.0))
+    return shapes
+
+
+def tick_icon():
+    """A tick: the thing is yours."""
+    width = STROKE * 1.25
+    low = (-ICON * 0.25, MIDDLE - ICON * 0.55)
+    return [capsule((-ICON * 0.8, MIDDLE), low, width), capsule(low, (ICON * 0.85, MIDDLE + ICON * 0.75), width)]
+
+
+def stack_icon():
+    """Two copies: a card in front, the edge of a second behind it."""
+    w, h = ICON * 1.15, ICON * 1.5
+    x, y = -ICON, MIDDLE - ICON
+    shapes = [ring(rect_round(x, y, w, h, w * 0.16)[::-1])]
+    off = ICON * 0.42
+    shapes.append(capsule((x + off, y + h + off * 0.75), (x + w + off, y + h + off * 0.75)))
+    shapes.append(capsule((x + w + off, y + h + off * 0.75), (x + w + off, y + off)))
+    return shapes
+
+
+def hammer_icon():
+    """A smith's hammer: a handle slanting up to the right, its head across it."""
+    shapes = [capsule((-ICON * 0.8, MIDDLE - ICON * 0.8), (ICON * 0.3, MIDDLE + ICON * 0.3), STROKE * 1.1)]
+    c = (ICON * 0.35, MIDDLE + ICON * 0.35)
+    u = (-math.sqrt(0.5), math.sqrt(0.5))
+    v = (math.sqrt(0.5), math.sqrt(0.5))
+    a, b = ICON * 0.68, ICON * 0.26
+    head = [(c[0] + su * u[0] * a + sv * v[0] * b, c[1] + su * u[1] * a + sv * v[1] * b) for su, sv in ((1, 1), (-1, 1), (-1, -1), (1, -1))]
+    shapes.append(polygon(head))
+    return shapes
+
+
+def turn_icon():
+    """A turning arrow: most of a circle, its head at the end."""
+    r = ICON * 0.82
+    start, end = math.radians(60), math.radians(330)
+    shapes = arc(0, MIDDLE, r, start, end, 18)
+    tip = (r * math.cos(end), MIDDLE + r * math.sin(end))
+    # The head points on round the circle (clockwise in the font's upward y).
+    along = (math.sin(end), -math.cos(end))
+    out = (math.cos(end), math.sin(end))
+    size = ICON * 0.62
+    shapes.append(polygon([
+        (tip[0] - along[0] * size * 0.2 + out[0] * size * 0.75, tip[1] - along[1] * size * 0.2 + out[1] * size * 0.75),
+        (tip[0] + along[0] * size, tip[1] + along[1] * size),
+        (tip[0] - along[0] * size * 0.2 - out[0] * size * 0.75, tip[1] - along[1] * size * 0.2 - out[1] * size * 0.75),
+    ]))
+    return shapes
+
+
+def saber_icon():
+    """A lightsaber held up to the right: a thick hilt, a guard and a long blade."""
+    d = math.sqrt(0.5)
+    base = (-ICON * 0.85, MIDDLE - ICON * 0.85)
+    guard = (base[0] + ICON * 0.55, base[1] + ICON * 0.55)
+    shapes = [capsule(base, guard, STROKE * 1.7)]
+    shapes.append(capsule((guard[0] - d * ICON * 0.24, guard[1] + d * ICON * 0.24), (guard[0] + d * ICON * 0.24, guard[1] - d * ICON * 0.24), STROKE * 0.9))
+    shapes.append(capsule((guard[0] + ICON * 0.12, guard[1] + ICON * 0.12), (ICON * 0.9, MIDDLE + ICON * 0.9), STROKE * 1.05))
+    return shapes
+
+
+def gift_icon():
+    """A gift: a box, its lid, the ribbon down the middle and a bow on top."""
+    w = ICON * 1.5
+    lid_y = MIDDLE + ICON * 0.15
+    shapes = [ring(rect_round(-w / 2 + 30, MIDDLE - ICON, w - 60, lid_y - (MIDDLE - ICON), 40)[::-1], STROKE * 0.9)]
+    shapes.append(ring(rect_round(-w / 2, lid_y, w, ICON * 0.38, 30)[::-1], STROKE * 0.9))
+    shapes.append(capsule((0, MIDDLE - ICON), (0, lid_y + ICON * 0.38), STROKE * 0.9))
+    top = lid_y + ICON * 0.38
+    shapes.append(capsule((0, top), (-ICON * 0.45, top + ICON * 0.45), STROKE * 0.9))
+    shapes.append(capsule((0, top), (ICON * 0.45, top + ICON * 0.45), STROKE * 0.9))
+    return shapes
+
+
+def star_icon():
+    """A five-pointed star, solid: an edition's seal."""
+    points = []
+    for i in range(10):
+        r = ICON if i % 2 == 0 else ICON * 0.42
+        a = math.pi / 2 + i * math.pi / 5
+        points.append((r * math.cos(a), MIDDLE - ICON * 0.05 + r * math.sin(a)))
+    return [polygon(points[::-1])]
+# The kyber shard (17/10/2026): a long crystal with a point at each end and a ridge down
+# its middle. The credits' sign, Lucasfilm's, stays out of this font (the client draws it
+# from shapes, crates/sjk-viewer/src/cards/mark.rs).
+def kyber_shard():
+    half, top, shoulder = BOX * 0.2, BOX / 2 - 10, BOX * 0.2
+    crystal = [
+        (0, MIDDLE + top), (half, MIDDLE + shoulder), (half, MIDDLE - shoulder),
+        (0, MIDDLE - top), (-half, MIDDLE - shoulder), (-half, MIDDLE + shoulder),
+    ]
+    return [ring(crystal[::-1]), capsule((0, MIDDLE + top * 0.62), (0, MIDDLE - top * 0.62), STROKE * 0.8)]
+
+
 # Every symbol: (code point, glyph name, shapes). Code points never move.
 SYMBOLS = [
     (0xE000, "rarityCommon", rarity(0)),
@@ -180,9 +342,21 @@ SYMBOLS = [
     (0xE002, "rarityRare", rarity(2)),
     (0xE003, "rarityLegendary", rarity(3)),
     (0xE004, "rarityMythical", rarity(4)),
+    (0xE005, "rarityUnique", rarity(5)),
     (0xE010, "finishNormal", finish(0)),
     (0xE011, "finishHolo", finish(1)),
     (0xE012, "finishSolar", finish(2)),
+    (0xE020, "iconHolocron", holocron_icon()),
+    (0xE021, "iconMedal", medal_icon()),
+    (0xE022, "iconLock", lock_icon()),
+    (0xE023, "iconTick", tick_icon()),
+    (0xE024, "iconStack", stack_icon()),
+    (0xE025, "iconSmith", hammer_icon()),
+    (0xE026, "iconTurn", turn_icon()),
+    (0xE027, "iconSaber", saber_icon()),
+    (0xE028, "iconGift", gift_icon()),
+    (0xE029, "iconEdition", star_icon()),
+    (0xE030, "kyberShard", kyber_shard()),
 ]
 
 

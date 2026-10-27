@@ -331,10 +331,10 @@ impl SettingsMenu {
         let Some(setting) = self.rows().get(row).copied() else {
             return false;
         };
-        if segment_choices(setting.kind).is_some() {
+        if segment_choices(setting.kind()).is_some() {
             return false;
         }
-        let picks: Vec<Pick> = match setting.kind {
+        let picks: Vec<Pick> = match setting.kind() {
             ValueKind::Choice(values) => values.iter().map(|value| Pick::Value(value)).collect(),
             ValueKind::DisplayMode => {
                 let exclusive = self.exclusive_available();
@@ -348,7 +348,7 @@ impl SettingsMenu {
 
             _ => return false,
         };
-        let current = match setting.kind {
+        let current = match setting.kind() {
             ValueKind::Choice(values) => {
                 let value = super::choice_value(console, setting.cvar);
                 values
@@ -446,7 +446,7 @@ impl SettingsMenu {
                     return;
                 };
                 if let Some(value) =
-                    segment_choices(setting.kind).and_then(|values| values.get(index))
+                    segment_choices(setting.kind()).and_then(|values| values.get(index))
                 {
                     super::set_choice(console, setting.cvar, value);
                     self.refresh(console);
@@ -464,10 +464,13 @@ impl SettingsMenu {
         let Some(setting) = self.rows().get(row) else {
             return;
         };
-        if matches!(setting.kind, ValueKind::Resolution | ValueKind::DisplayMode) {
+        if matches!(
+            setting.kind(),
+            ValueKind::Resolution | ValueKind::DisplayMode
+        ) {
             return;
         }
-        if matches!(setting.kind, ValueKind::Quality) {
+        if matches!(setting.kind(), ValueKind::Quality) {
             Level::DEFAULT.apply(console);
         } else if let Some(default) = crate::graphics_quality::row_default(console, setting.cvar) {
             console.set_cvar(setting.cvar, default);
@@ -497,11 +500,13 @@ impl SettingsMenu {
             self.append_wheel_overlay(vertices, font, viewport, reveal);
             return;
         }
+        // The HUD picker and the resolution list are the SJK UI's cards in
+        // every style.
         if self.hud.is_open() {
-            self.append_hud_picker(vertices, font, viewport, reveal, Some(frame.art));
+            let target = crate::menu::sjk::TextTarget::Inter(vertices, font);
+            self.append_hud_picker(target, viewport, reveal);
             return;
         }
-        // The resolution list is the SJK UI's card in every style.
         if self.picker.is_open() {
             let target = crate::menu::sjk::TextTarget::Inter(vertices, font);
             self.append_resolutions(target, viewport, reveal);
@@ -587,7 +592,8 @@ impl SettingsMenu {
             // label in steady white over its band.
             let label_color = if focused { FOCUS } else { OPTION };
             let value_color = if focused { FOCUS } else { VALUE };
-            let (label, timing) = help::classic_label(setting.cvar, setting.label);
+            let (label, timing) =
+                help::classic_label(setting.cvar, crate::terms::say_static(setting.label));
             place.label_marked(
                 &mut self.ui,
                 slot,
@@ -607,7 +613,7 @@ impl SettingsMenu {
                 continue;
             }
             let value = self.values.get(row).map_or("?", String::as_str);
-            match setting.kind {
+            match setting.kind() {
                 ValueKind::Bool => {
                     place.switch(&mut self.ui, slot, switch_text_on(value), focused);
                 }
@@ -639,6 +645,7 @@ impl SettingsMenu {
                     place.segments(&mut self.ui, slot, labels, current, focused, base);
                 }
                 ValueKind::Choice(_)
+                | ValueKind::Live(_)
                 | ValueKind::Resolution
                 | ValueKind::DisplayMode
                 | ValueKind::HudPicker
@@ -647,6 +654,7 @@ impl SettingsMenu {
                 | ValueKind::ImportPage
                 | ValueKind::AssetBrowser
                 | ValueKind::JofContent
+                | ValueKind::SoundPreview
                 | ValueKind::GameplayFps
                 | ValueKind::Quality => {
                     let open = self.dropdown.as_ref().is_some_and(|open| open.row == row);
@@ -694,7 +702,7 @@ impl SettingsMenu {
                 .values
                 .get(row)
                 .and_then(|value| value.parse::<f64>().ok());
-            let ratio = match (setting.kind, value) {
+            let ratio = match (setting.kind(), value) {
                 (ValueKind::Integer { min, max, .. }, Some(value)) if max > min => {
                     ((value - min as f64) / (max - min) as f64) as f32
                 }
@@ -787,7 +795,7 @@ impl SettingsMenu {
         {
             part(facts, format_args!("Default {default}"));
         }
-        match setting.kind {
+        match setting.kind() {
             ValueKind::Integer { min, max, .. } if min < 0 => {
                 part(facts, format_args!("AUTO, 0 to {max}"));
             }
@@ -851,12 +859,13 @@ impl SettingsMenu {
         let Some(setting) = section_settings(self.section, self.tab).get(self.selected) else {
             return;
         };
-        hint.push_str(match setting.kind {
+        hint.push_str(match setting.kind() {
             ValueKind::Bool => "ENTER or a click to switch it, LEFT or RIGHT too",
             kind if segment_choices(kind).is_some() => "Click a choice, or LEFT or RIGHT to step",
-            ValueKind::Choice(_) | ValueKind::DisplayMode | ValueKind::Quality => {
-                "ENTER or a click for the choices, LEFT or RIGHT to step"
-            }
+            ValueKind::Choice(_)
+            | ValueKind::Live(_)
+            | ValueKind::DisplayMode
+            | ValueKind::Quality => "ENTER or a click for the choices, LEFT or RIGHT to step",
             ValueKind::Integer { .. } | ValueKind::Float { .. } => {
                 "LEFT or RIGHT to change it, or type a number"
             }
@@ -873,6 +882,7 @@ impl SettingsMenu {
                 "ENTER to enable or disable installed PK3 packs for the next start"
             }
             ValueKind::JofContent => "ENTER to choose and download JoF's content",
+            ValueKind::SoundPreview => "ENTER or a click to hear the sound chosen above",
         });
         if self
             .defaults
@@ -941,8 +951,8 @@ fn detail_of<'a>(
     };
     let value = values.get(row).map_or("", String::as_str);
     Detail {
-        title: help::timing(setting.label).0,
-        value: match setting.kind {
+        title: help::timing(crate::terms::say_static(setting.label)).0,
+        value: match setting.kind() {
             ValueKind::Bool => on_off(value),
             _ => value,
         },
@@ -962,11 +972,12 @@ pub(super) fn choice_label<'a>(cvar: &str, value: &'a str) -> &'a str {
     if let Some(name) = help::choice_name(cvar, value) {
         return name;
     }
-    // Client names stay in capitals: the menu style's "sjk", the camera style's.
-    ["SJK", "EJK"]
-        .into_iter()
-        .find(|name| value.eq_ignore_ascii_case(name))
-        .unwrap_or(value)
+    // Client names stay in capitals: the menu style's "sjk".
+    if value.eq_ignore_ascii_case("SJK") {
+        "SJK"
+    } else {
+        value
+    }
 }
 
 /// Whether a switch row's value text (`ON` or `OFF`) is on.
@@ -993,7 +1004,7 @@ impl std::fmt::Display for Number {
 /// What row `setting` shows for its default, and whether `console`'s value
 /// differs from it. Rows whose value is not one cvar's have neither.
 pub(super) fn row_default(console: &ViewerConsole, setting: &Setting) -> RowDefault {
-    if matches!(setting.kind, ValueKind::Quality) {
+    if matches!(setting.kind(), ValueKind::Quality) {
         return RowDefault {
             text: Some(Level::DEFAULT.label().to_owned()),
             changed: Level::current(console) != Some(Level::DEFAULT),
@@ -1003,7 +1014,7 @@ pub(super) fn row_default(console: &ViewerConsole, setting: &Setting) -> RowDefa
         crate::graphics_quality::row_default(console, setting.cvar),
         console.cvar(setting.cvar),
     ) {
-        let text = match setting.kind {
+        let text = match setting.kind() {
             ValueKind::Bool => if default == "0" { "Off" } else { "On" }.to_owned(),
             _ => default.to_owned(),
         };
@@ -1026,7 +1037,7 @@ pub(super) fn row_default(console: &ViewerConsole, setting: &Setting) -> RowDefa
     // The HUD row names a HUD that two cvars select together; the quick
     // wheel's pages are a file, restored to the defaults in their editor.
     if matches!(
-        setting.kind,
+        setting.kind(),
         ValueKind::Resolution
             | ValueKind::DisplayMode
             | ValueKind::HudPicker
@@ -1035,6 +1046,7 @@ pub(super) fn row_default(console: &ViewerConsole, setting: &Setting) -> RowDefa
             | ValueKind::ImportPage
             | ValueKind::AssetBrowser
             | ValueKind::JofContent
+            | ValueKind::SoundPreview
     ) {
         return RowDefault::default();
     }
@@ -1044,7 +1056,7 @@ pub(super) fn row_default(console: &ViewerConsole, setting: &Setting) -> RowDefa
     ) else {
         return RowDefault::default();
     };
-    let text = match (setting.kind, default) {
+    let text = match (setting.kind(), default) {
         (ValueKind::Bool, value) => if switch_on(value) { "On" } else { "Off" }.to_owned(),
         (ValueKind::Integer { min, .. }, CvarValue::Integer(value)) if min < 0 && *value < 0 => {
             "AUTO".to_owned()
@@ -1052,7 +1064,7 @@ pub(super) fn row_default(console: &ViewerConsole, setting: &Setting) -> RowDefa
         (ValueKind::Float { .. }, CvarValue::Float(value)) => Number(*value).to_string(),
         (_, value) => value.as_text(),
     };
-    let changed = match (setting.kind, default, value) {
+    let changed = match (setting.kind(), default, value) {
         (ValueKind::Bool, default, value) => switch_on(default) != switch_on(value),
         (_, CvarValue::Float(default), CvarValue::Float(value)) => (default - value).abs() > 1e-6,
         (_, default, value) => !default

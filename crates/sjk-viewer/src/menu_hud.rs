@@ -11,7 +11,9 @@
 //! `cg_hudStyle` chooses between the client's own classic and radial layouts and
 //! this game-data HUD (`game`, SJK's default). In `game` mode the built-in status
 //! widgets hide ([`crate::hud::HudVisibility::menu_hud`]) and everything else
-//! the built-in HUD shows (crosshair, obituaries, timers, chat) stays. Files that
+//! the built-in HUD shows (crosshair, obituaries, timers, chat) stays. A menu named
+//! `swoopvehiclehud` gives the vehicle HUD (`CG_DrawVehicleHud`) too, in place of
+//! SJK's vector vehicle strip. Files that
 //! cannot be read, or that define no HUD menus, leave the built-in HUD in place.
 //!
 //! Several installed HUD packs replace the same `ui/hud.menu` (and often the
@@ -34,7 +36,7 @@ mod parse;
 pub(crate) mod preview;
 
 use crate::GpuState;
-use frame::{Frame, Readout, Timers};
+use frame::{Frame, Readout, Timers, VehicleReadout};
 use layout::{Layout, Side};
 use sjk_shell::{CvarDefinition, CvarFlags, CvarRegistry};
 use sjk_vfs::{MountId, MountSummary, VirtualFileSystem};
@@ -231,6 +233,13 @@ impl MenuHud {
         self.active
     }
 
+    /// Whether the game HUD draws the vehicle HUD from its own
+    /// `swoopvehiclehud` pictures, in place of SJK's vector vehicle strip.
+    pub(crate) fn draws_vehicle(&self) -> bool {
+        self.active
+            && matches!(&self.loaded, Loaded::Menus { layout, .. } if layout.vehicle.is_some())
+    }
+
     /// Follow `cg_hudStyle`, `cg_hudFiles` and `cg_hudPack`, loading on first
     /// use or change.
     pub(crate) fn sync(gpu: &mut GpuState) {
@@ -341,37 +350,42 @@ impl MenuHud {
         };
     }
 
-    /// Build and upload this frame. `visible` is retail's condition for
-    /// `CG_DrawStats`: a living, non-spectating player with the status HUD
-    /// on and no scoreboard.
+    /// Build and upload this frame. `readout` is the status HUD's values,
+    /// present under retail's condition for `CG_DrawStats` (a living,
+    /// non-spectating player with the status HUD on and no scoreboard) unless
+    /// the vehicle hides its rider; `vehicle` is the vehicle HUD's, present
+    /// while it shows and [`Self::draws_vehicle`].
     pub(crate) fn prepare(
         &mut self,
         queue: &crate::frame_queue::FrameQueue,
         readout: Option<&Readout>,
+        vehicle: Option<&VehicleReadout>,
         viewport: [f32; 2],
         scale: f32,
     ) {
         self.drawn = false;
         let readout = readout.filter(|_| self.active);
-        let Some(readout) = readout else {
-            self.gpu.prepare(queue, None, viewport, scale);
-            return;
-        };
+        let vehicle = vehicle.filter(|_| self.active);
         match &self.loaded {
             Loaded::None => {}
             Loaded::Text => {
-                self.frame.simple_hud(readout, &mut self.timers);
-                self.drawn = true;
+                if let Some(readout) = readout {
+                    self.frame.simple_hud(readout, &mut self.timers);
+                    self.drawn = true;
+                }
             }
             Loaded::Menus { layout, digits } => {
-                self.frame.menu_hud(
-                    layout,
-                    readout,
-                    &mut self.timers,
-                    *digits,
-                    &self.score_label,
-                );
-                self.drawn = true;
+                if readout.is_some() || (vehicle.is_some() && layout.vehicle.is_some()) {
+                    self.frame.stats(
+                        layout,
+                        readout,
+                        vehicle,
+                        &mut self.timers,
+                        *digits,
+                        &self.score_label,
+                    );
+                    self.drawn = true;
+                }
             }
         }
         self.gpu
@@ -391,28 +405,16 @@ impl MenuHud {
             return;
         }
         for run in &self.frame.texts[..self.frame.text_count] {
-            let [x, y, _, size] = gpu::to_pixels(
-                [run.x, run.y, 0.0, run.size],
-                run.side.unwrap_or(Side::Left),
-                viewport,
-                scale,
-            );
-            let glyph_scale = size / font.height.max(1.0);
-            let face = crate::text::TextFace::Regular;
-            let x = if run.centred {
-                x - crate::text::visible_text_width_style(font, &run.text, glyph_scale, face, 0.0)
-                    * 0.5
-            } else {
-                x
-            };
-            crate::text::append_text_style(
+            let (origin, glyph_scale) = run_origin(run, font, viewport, scale);
+            // Placed runs never wrap at the screen's edge (hub reports 75/76).
+            crate::text::append_text_unwrapped(
                 vertices,
                 font,
                 &run.text,
-                [x, y],
+                origin,
                 glyph_scale,
                 viewport,
-                face,
+                crate::text::TextFace::Regular,
                 run.color,
                 0.0,
             );
@@ -425,6 +427,27 @@ impl MenuHud {
             self.gpu.draw(pass);
         }
     }
+}
+
+/// Where `run` starts in pixels and its glyph scale: centred on its x, or
+/// starting there, moved left when it would pass its `end_limit`.
+fn run_origin(
+    run: &frame::TextRun,
+    font: &crate::text::UiFont,
+    viewport: [f32; 2],
+    scale: f32,
+) -> ([f32; 2], f32) {
+    let side = run.side.unwrap_or(Side::Left);
+    let [x, y, _, size] = gpu::to_pixels([run.x, run.y, 0.0, run.size], side, viewport, scale);
+    let glyph_scale = size / font.height.max(1.0);
+    let face = crate::text::TextFace::Regular;
+    let width = || crate::text::visible_text_width_style(font, &run.text, glyph_scale, face, 0.0);
+    let mut x = if run.centred { x - width() * 0.5 } else { x };
+    if let Some(limit) = run.end_limit {
+        let [edge, ..] = gpu::to_pixels([limit, 0.0, 0.0, 0.0], side, viewport, scale);
+        x = x.min(edge - width());
+    }
+    ([x, y], glyph_scale)
 }
 
 /// The values the HUD shows, or `None` when retail would not draw it.
@@ -520,6 +543,81 @@ fn read_file(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn simple_hud_styles_stay_on_one_line_on_screen() {
+        let font = crate::text::test_font();
+        for (viewport, scale) in [
+            ([640.0, 480.0], 1.0),
+            ([1920.0, 1080.0], 1.0),
+            ([3840.0, 1600.0], 1.3),
+        ] {
+            for (name, offset) in [
+                ("FAST", 0.0),
+                ("MEDIUM", 16.0),
+                ("STRONG", 16.0),
+                ("DESANN", 16.0),
+                ("TAVION", 16.0),
+                ("AKIMBO", 16.0),
+                ("STAFF", 16.0),
+            ] {
+                let run = frame::TextRun {
+                    text: name.to_owned(),
+                    x: 640.0 - (offset + 48.0),
+                    y: 440.0,
+                    size: 18.0,
+                    color: [1.0; 4],
+                    centred: false,
+                    side: Some(Side::Right),
+                    end_limit: Some(640.0 - frame::SIMPLE_MARGIN),
+                };
+                let (origin, glyph_scale) = run_origin(&run, &font, viewport, scale);
+                let width = crate::text::visible_text_width_style(
+                    &font,
+                    name,
+                    glyph_scale,
+                    crate::text::TextFace::Regular,
+                    0.0,
+                );
+                let margin = frame::SIMPLE_MARGIN * viewport[1] / 480.0 * scale;
+                assert!(
+                    origin[0] + width <= viewport[0] - margin + 0.01,
+                    "{name} ends at {} of {viewport:?}",
+                    origin[0] + width
+                );
+                let mut vertices = Vec::new();
+                let lines = crate::text::append_text_unwrapped(
+                    &mut vertices,
+                    &font,
+                    name,
+                    origin,
+                    glyph_scale,
+                    viewport,
+                    crate::text::TextFace::Regular,
+                    run.color,
+                    0.0,
+                );
+                assert_eq!(lines, 1, "{name}");
+            }
+        }
+    }
+
+    #[test]
+    fn short_simple_hud_runs_keep_the_retail_position() {
+        let font = crate::text::test_font();
+        let run = frame::TextRun {
+            text: "80".to_owned(),
+            x: 576.0,
+            y: 454.0,
+            size: 18.0,
+            color: [1.0; 4],
+            centred: false,
+            side: Some(Side::Right),
+            end_limit: Some(640.0 - frame::SIMPLE_MARGIN),
+        };
+        let (origin, _) = run_origin(&run, &font, [640.0, 480.0], 1.0);
+        assert_eq!(origin, [576.0, 454.0]);
+    }
 
     #[test]
     fn hud_files_values_follow_retail_and_eternaljk() {

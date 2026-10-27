@@ -1,13 +1,24 @@
 //! The Staff page's drawing, in the SJK UI's look: the search pill in the top bar,
-//! the players found down the left, the chosen player's picture and name (with Take
-//! picture down) over their medals with Give and Take back and their unlockables with
-//! Unlock and Relock in the middle, and their
-//! achievements with Clear on the right. Under the players, the holocrons: a tier to
-//! choose, Give holocron (with the note) and the chosen player's recent holocrons with
-//! Remove. Verify sits beside Take picture down; the right column's Keys and merge tab
-//! lists the player's keys with Unlink and merges another player into them, its Logs
-//! tab asks the player for their game's logs and lists the requests with Open, and its
-//! Crashes tab lists every player's crash reports by kind, then one kind's with Open.
+//! the players found down the left, and on the right the chosen player's picture and
+//! name beside the note sent with the next gift, over a row of tabs:
+//!
+//! Key ids never show (nor anywhere in the game): players go by name, a key id typed or
+//! pasted into the search or the merge field shows as dots, linked keys are numbered.
+//!
+//! - Overview: their account (flags, trust, when last seen, what they hold, the names
+//!   they wore)
+//!   with Verify, and moderation: their picture (Take down, Block pictures, Allow
+//!   pictures) and the SJK chat (Mute at the hub, Unmute, Lift chat bans);
+//! - Medals and unlocks: the medals with Give and Take back, the unlockables with
+//!   Unlock and Relock;
+//! - Holocrons and credits: a holocron or kyber crystal tier to choose, Give, and their
+//!   holocrons and crystals with Remove;
+//!   their credits and kyber shards with an amount, Give and Take;
+//! - Achievements with Clear (and Clear all), in two columns;
+//! - Keys: their keys with Unlink and merging another player into them;
+//! - Logs: asking the player for their game's logs, the requests with Open;
+//! - Crashes and Chat bans, of every player: the crash reports by kind, then one
+//!   kind's with Open; the SJK chat bans in force, each with Lift.
 
 use super::*;
 use crate::achievements;
@@ -27,23 +38,30 @@ const MIDDLE_WIDTH: f32 = 520.0;
 const RIGHT_X: f32 = 1_300.0;
 const RIGHT_WIDTH: f32 = 524.0;
 const TOP: f32 = 170.0;
+/// The tabs' row under the chosen player's name.
+const TABS_Y: f32 = 250.0;
+/// The width the one-column views (Keys, Logs, Crashes, Chat bans) take from
+/// [`MIDDLE_X`].
+const PANE_WIDTH: f32 = 760.0;
 /// The players' rows.
 const PLAYERS_TOP: f32 = 236.0;
 const PLAYER_ROW: f32 = 46.0;
 /// The medals' rows and the achievements' rows.
-const SECTION_TOP: f32 = 330.0;
+const SECTION_TOP: f32 = 342.0;
 const MEDAL_ROW: f32 = 64.0;
 /// An unlockable's cell, two to a row: compact, so the whole catalogue (fourteen blade
 /// skins since 10/10/2026) fits above the keys.
 const UNLOCK_ROW: f32 = 36.0;
 const UNLOCK_GAP: f32 = 14.0;
 const ACHIEVEMENT_ROW: f32 = 34.0;
-const ACHIEVEMENTS_SHOWN: usize = 16;
+/// Two columns of achievements.
+const ACHIEVEMENTS_PER_COLUMN: usize = 16;
+const ACHIEVEMENTS_SHOWN: usize = ACHIEVEMENTS_PER_COLUMN * 2;
 /// The Logs and Crashes views' rows.
 const LOG_ROW: f32 = 36.0;
 const CRASH_GROUP_ROW: f32 = 52.0;
 /// The holocrons' section under the players: its heading, the tier chips, and its rows.
-const HOLOCRONS_TOP: f32 = 770.0;
+const HOLOCRONS_TOP: f32 = SECTION_TOP + 16.0;
 const TIER_CHIP: [f32; 2] = [104.0, 42.0];
 const HOLOCRON_ROW: f32 = 34.0;
 /// The Keys and merge view: the linked keys' rows, then the merge section.
@@ -51,6 +69,39 @@ const LINKED_ROW: f32 = 36.0;
 const MERGE_TOP: f32 = 640.0;
 /// The keys' line.
 const KEYS_Y: f32 = 1_010.0;
+
+/// `text` as a field shows it: a key id (8 hex digits or more, nothing else) as dots,
+/// since key ids never show in the game; anything else as it is.
+fn hide_key(text: &str) -> String {
+    let trimmed = text.trim();
+    if trimmed.len() >= 8 && trimmed.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        format!("{} (key id)", "\u{2022}".repeat(trimmed.len().min(16)))
+    } else {
+        text.to_owned()
+    }
+}
+
+/// When the hub last saw `profile` wear a name in a game, unix seconds; 0 when never.
+fn last_seen(profile: &Profile) -> i64 {
+    profile
+        .names
+        .iter()
+        .map(|worn| worn.last_seen)
+        .max()
+        .unwrap_or(0)
+}
+
+/// How many kyber crystals of each tier `profile` holds unopened, as its list shows
+/// them (in `crate::kyber::TIERS` order).
+fn crystal_counts(profile: &Profile) -> [u32; crate::kyber::COUNT] {
+    let mut counts = [0; crate::kyber::COUNT];
+    for holocron in profile.holocrons.iter().filter(|h| h.opened.is_none()) {
+        if let Some(tier) = crate::kyber::from_id(&holocron.tier) {
+            counts[tier.index] += 1;
+        }
+    }
+    counts
+}
 
 /// `text` cut to `chars` characters with an ellipsis.
 fn cut(text: &str, chars: usize) -> String {
@@ -85,9 +136,9 @@ impl Panel {
         crate::settings::sjk_view::backdrop(&mut self.ui, viewport);
         let caret = (self.epoch.elapsed().as_millis() / 500).is_multiple_of(2);
         let query = if self.focus == SEARCH_TOKEN && caret {
-            format!("{}|", self.query)
+            format!("{}|", hide_key(&self.query))
         } else {
-            self.query.clone()
+            hide_key(&self.query)
         };
         top_bar(
             &mut self.ui,
@@ -115,10 +166,13 @@ impl Panel {
         self.shown.unlocks = vec![false; crate::unlockables::ALL.len()];
         self.shown.holocron_rows = 0;
         self.shown.verified = target.as_ref().is_some_and(|profile| profile.verified);
+        self.shown.staff = target.as_ref().is_some_and(|profile| profile.staff);
+        self.shown.creator = inputs.me.is_some_and(|me| me.creator);
         self.shown.linked.clear();
         self.shown.log_rows.clear();
         self.shown.crash_groups.clear();
         self.shown.crash_rows.clear();
+        self.shown.ban_rows.clear();
         if let Some(profile) = &target {
             self.shown
                 .linked
@@ -151,16 +205,26 @@ impl Panel {
             }
             let mine = self.shown.me.as_deref() == Some(profile.key_id.as_str());
             self.header(&frame, profile, mine);
-            self.medals(&frame, profile);
-            self.unlockables(&frame, profile);
-            self.holocrons(&frame, profile);
-            self.right_tabs(&frame);
-            match self.right {
-                RightView::Achievements => self.achievements(&frame, profile, mine),
-                RightView::Keys => self.keys_and_merge(&frame, profile, &inputs.staff.players),
-                RightView::Logs => self.logs(&frame, profile, inputs.staff),
-                RightView::Crashes => self.crashes(&frame, inputs.staff),
+            self.tabs(&frame);
+            match self.view {
+                View::Overview => self.overview(&frame, profile, mine),
+                View::Rewards => {
+                    self.medals(&frame, profile);
+                    self.unlockables(&frame, profile);
+                }
+                View::Economy => {
+                    self.holocrons(&frame, profile);
+                    self.wallet(&frame, profile);
+                }
+                View::Achievements => self.achievements(&frame, profile, mine),
+                View::Keys => self.keys_and_merge(&frame, profile, &inputs.staff.players),
+                View::Logs => self.logs(&frame, profile, inputs.staff),
+                View::Crashes => self.crashes(&frame, inputs.staff),
+                View::ChatBans => self.chat_bans(&frame, inputs.staff),
             }
+        }
+        if !self.shown.creator {
+            self.order.retain(|token| !super::owner_only(*token));
         }
         self.status(&frame, inputs.staff);
         self.keys(&frame);
@@ -215,17 +279,26 @@ impl Panel {
                 FontWeight::Regular,
                 TextAlign::Start,
             );
+            // When the hub last saw them in a game, never their key id.
+            let seen = crate::medals::date_text(last_seen(player));
+            let you = self.shown.me.as_deref() == Some(player.key_id.as_str());
+            let about = match (you, seen.is_empty()) {
+                (true, _) => "you".to_owned(),
+                (false, true) => "not seen in a game yet".to_owned(),
+                (false, false) => format!("seen {seen}"),
+            };
             text(
                 &mut self.ui,
                 TextFamily::Body,
-                format_args!("{}", player.key_id),
-                frame.rect(LEFT_X + 18.0, y + 26.0, 220.0, 18.0),
+                format_args!("{about}"),
+                frame.rect(LEFT_X + 18.0, y + 26.0, 260.0, 18.0),
                 13.0 * s,
                 color::QUIET,
                 FontWeight::Regular,
                 TextAlign::Start,
             );
             let tags = match (player.staff, player.verified) {
+                _ if player.creator => "Creator",
                 (true, true) => "Staff, verified",
                 (true, false) => "Staff",
                 (false, true) => "Verified",
@@ -275,14 +348,14 @@ impl Panel {
             .or_else(|| inputs.me.map(|me| me.key_id.clone()))
     }
 
-    /// The chosen player's picture, name and facts over the middle and right columns,
-    /// and Take picture down at the right.
+    /// The chosen player's picture, name and facts over the middle column, and the
+    /// note sent with the next gift at the right.
     fn header(&mut self, frame: &Frame, profile: &Profile, mine: bool) {
         let s = frame.s;
         let name = if profile.name.is_empty() {
             "(no name yet)".to_owned()
         } else {
-            cut(&profile.name, 40)
+            cut(&profile.name, 24)
         };
         let radius = 32.0;
         crate::profile_card::avatar(
@@ -304,66 +377,41 @@ impl Panel {
             &mut self.ui,
             TextFamily::Display,
             format_args!("{name}"),
-            frame.rect(name_x, TOP - 6.0, 600.0, 48.0),
+            frame.rect(name_x, TOP - 6.0, RIGHT_X - 24.0 - name_x, 48.0),
             38.0 * s,
             color::TEXT,
             FontWeight::Semibold,
             TextAlign::Start,
         );
-        // Verify shows what pressing it does: Unverify while the player is verified.
-        kit::button(
-            &mut self.ui,
-            frame,
-            [1_824.0 - 240.0 - 12.0 - 150.0, TOP, 150.0, 42.0],
-            if profile.verified {
-                "Unverify"
-            } else {
-                "Verify"
-            },
-            !profile.verified,
-            true,
-            self.focus == VERIFY_TOKEN,
-            VERIFY_TOKEN,
-        );
-        self.order.push(VERIFY_TOKEN);
-        kit::button(
-            &mut self.ui,
-            frame,
-            [1_824.0 - 240.0, TOP, 240.0, 42.0],
-            "Take picture down",
-            false,
-            self.shown.picture,
-            self.focus == PICTURE_DOWN_TOKEN,
-            PICTURE_DOWN_TOKEN,
-        );
-        self.order.push(PICTURE_DOWN_TOKEN);
-        let mut facts = vec![format!("Key id {}", profile.key_id)];
+        self.note_field(frame);
+        let mut facts = Vec::new();
+        if profile.creator {
+            facts.push("creator".to_owned());
+        }
         if profile.verified {
             facts.push("verified".to_owned());
         }
-        if profile.staff {
+        if profile.staff && !profile.creator {
             facts.push("staff".to_owned());
         }
-        match profile.linked_keys().count() {
-            0 => {}
-            1 => facts.push("1 linked key".to_owned()),
-            count => facts.push(format!("{count} linked keys")),
-        }
-        let since = crate::medals::date_text(profile.created);
-        if !since.is_empty() {
-            facts.push(format!("member since {since}"));
+        let keys = profile.keys.len().max(1);
+        facts.push(if keys == 1 {
+            "1 key".to_owned()
+        } else {
+            format!("{keys} keys")
+        });
+        let seen = crate::medals::date_text(last_seen(profile));
+        if !seen.is_empty() {
+            facts.push(format!("seen {seen}"));
         }
         if mine {
             facts.push("this is you".to_owned());
-        }
-        if !profile.avatar.is_empty() {
-            facts.push("has a picture".to_owned());
         }
         text(
             &mut self.ui,
             TextFamily::Body,
             format_args!("{}", facts.join(", ")),
-            frame.rect(name_x, TOP + 46.0, 760.0, 24.0),
+            frame.rect(name_x, TOP + 46.0, RIGHT_X - 24.0 - name_x, 24.0),
             16.0 * s,
             color::MUTED,
             FontWeight::Regular,
@@ -371,8 +419,50 @@ impl Panel {
         );
     }
 
-    /// Every medal of the catalogue with what the player holds, Give and Take back,
-    /// then the note sent with the next one.
+    /// The note sent with the next medal, unlock, holocron, credits or shards, and with
+    /// a log request: at the right of the chosen player's name, whatever the tab.
+    fn note_field(&mut self, frame: &Frame) {
+        let s = frame.s;
+        let y = TOP - 14.0;
+        text(
+            &mut self.ui,
+            TextFamily::Body,
+            format_args!("Note with the next gift (optional, everyone reads it)"),
+            frame.rect(RIGHT_X, y, RIGHT_WIDTH, 22.0),
+            15.0 * s,
+            color::MUTED,
+            FontWeight::Regular,
+            TextAlign::Start,
+        );
+        let field = [RIGHT_X, y + 26.0, RIGHT_WIDTH, 44.0];
+        let focused = self.focus == NOTE_TOKEN;
+        let caret = focused && (self.epoch.elapsed().as_millis() / 500).is_multiple_of(2);
+        let shown = if self.note.chars().count() > 56 {
+            let tail: String = self
+                .note
+                .chars()
+                .skip(self.note.chars().count() - 53)
+                .collect();
+            format!("...{tail}")
+        } else {
+            self.note.clone()
+        };
+        kit::field(
+            &mut self.ui,
+            frame,
+            field,
+            format_args!("{shown}{}", if caret { "|" } else { "" }),
+            focused,
+            false,
+        );
+        self.ui.hit_region(
+            NOTE_TOKEN,
+            frame.rect(field[0], field[1], field[2], field[3]),
+        );
+        self.order.push(NOTE_TOKEN);
+    }
+
+    /// Every medal of the catalogue with what the player holds, Give and Take back.
     fn medals(&mut self, frame: &Frame, profile: &Profile) {
         let s = frame.s;
         kit::heading(
@@ -381,7 +471,7 @@ impl Panel {
             MIDDLE_X,
             SECTION_TOP - 20.0,
             MIDDLE_WIDTH,
-            "Medals",
+            &crate::terms::say("Medals"),
         );
         for medal in Medal::ALL {
             let y = SECTION_TOP + medal.index() as f32 * MEDAL_ROW;
@@ -440,7 +530,7 @@ impl Panel {
                     "Give"
                 },
                 true,
-                can_give,
+                can_give && self.shown.creator,
                 self.focus == give,
                 give,
             );
@@ -450,7 +540,7 @@ impl Panel {
                 [right - 128.0, y + 10.0, 128.0, 40.0],
                 "Take back",
                 false,
-                held > 0,
+                held > 0 && self.shown.creator,
                 self.focus == take,
                 take,
             );
@@ -461,61 +551,22 @@ impl Panel {
                 self.order.push(take);
             }
         }
-        let y = SECTION_TOP + Medal::COUNT as f32 * MEDAL_ROW + 14.0;
-        text(
-            &mut self.ui,
-            TextFamily::Body,
-            format_args!(
-                "Note with the next medal, unlock or holocron (optional, everyone reads it)"
-            ),
-            frame.rect(MIDDLE_X, y, MIDDLE_WIDTH, 22.0),
-            15.0 * s,
-            color::MUTED,
-            FontWeight::Regular,
-            TextAlign::Start,
-        );
-        let field = [MIDDLE_X, y + 28.0, MIDDLE_WIDTH, 44.0];
-        let focused = self.focus == NOTE_TOKEN;
-        let caret = focused && (self.epoch.elapsed().as_millis() / 500).is_multiple_of(2);
-        let shown = if self.note.chars().count() > 56 {
-            let tail: String = self
-                .note
-                .chars()
-                .skip(self.note.chars().count() - 53)
-                .collect();
-            format!("...{tail}")
-        } else {
-            self.note.clone()
-        };
-        kit::field(
-            &mut self.ui,
-            frame,
-            field,
-            format_args!("{shown}{}", if caret { "|" } else { "" }),
-            focused,
-            false,
-        );
-        self.ui.hit_region(
-            NOTE_TOKEN,
-            frame.rect(field[0], field[1], field[2], field[3]),
-        );
-        self.order.push(NOTE_TOKEN);
     }
 
-    /// Every unlockable of the catalogue, held or not, with Unlock and Relock, under the
-    /// note's field.
+    /// Every unlockable of the catalogue, held or not, with Unlock and Relock, beside the
+    /// medals.
     fn unlockables(&mut self, frame: &Frame, profile: &Profile) {
         let s = frame.s;
-        let top = SECTION_TOP + Medal::COUNT as f32 * MEDAL_ROW + 128.0;
+        let top = SECTION_TOP - 20.0;
         kit::heading(
             &mut self.ui,
             frame,
-            MIDDLE_X,
+            RIGHT_X,
             top,
-            MIDDLE_WIDTH,
+            RIGHT_WIDTH,
             "Unlockables",
         );
-        let cell = (MIDDLE_WIDTH - UNLOCK_GAP) * 0.5;
+        let cell = (RIGHT_WIDTH - UNLOCK_GAP) * 0.5;
         let rows = ((KEYS_Y - 16.0 - (top + 18.0)) / UNLOCK_ROW).floor() as usize;
         let per_page = (rows * 2).max(2);
         self.shown.unlock_per_page = per_page;
@@ -527,13 +578,13 @@ impl Panel {
                 (
                     UNLOCK_PREV_TOKEN,
                     "<",
-                    MIDDLE_X + MIDDLE_WIDTH - 148.0,
+                    RIGHT_X + RIGHT_WIDTH - 148.0,
                     page > 0,
                 ),
                 (
                     UNLOCK_NEXT_TOKEN,
                     ">",
-                    MIDDLE_X + MIDDLE_WIDTH - 40.0,
+                    RIGHT_X + RIGHT_WIDTH - 40.0,
                     page + 1 < pages,
                 ),
             ];
@@ -556,7 +607,7 @@ impl Panel {
                 &mut self.ui,
                 TextFamily::Body,
                 format_args!("{} / {pages}", page + 1),
-                frame.rect(MIDDLE_X + MIDDLE_WIDTH - 104.0, top, 60.0, 20.0),
+                frame.rect(RIGHT_X + RIGHT_WIDTH - 104.0, top, 60.0, 20.0),
                 13.0 * s,
                 color::QUIET,
                 FontWeight::Regular,
@@ -572,7 +623,7 @@ impl Panel {
             .skip(first)
         {
             let slot = index - first;
-            let x = MIDDLE_X + (slot % 2) as f32 * (cell + UNLOCK_GAP);
+            let x = RIGHT_X + (slot % 2) as f32 * (cell + UNLOCK_GAP);
             let y = top + 18.0 + (slot / 2) as f32 * UNLOCK_ROW;
             let held = self.shown.unlocks.get(index).copied().unwrap_or(false);
             // Held: gold, with the day it was given; not held: muted.
@@ -623,7 +674,7 @@ impl Panel {
                 [x + cell - 88.0, y + 3.0, 88.0, 30.0],
                 if held { "Relock" } else { "Unlock" },
                 !held,
-                true,
+                self.shown.creator,
                 self.focus == token,
                 token,
             );
@@ -632,41 +683,58 @@ impl Panel {
     }
 
     /// What the chosen player holds of holocrons, the tier Give holocron gives and the
-    /// recent ones with Remove, under the players.
+    /// recent ones with Remove.
     fn holocrons(&mut self, frame: &Frame, profile: &Profile) {
-        use crate::holocrons::{self, TIERS};
+        use crate::holocrons::{self, SLOTS, TIERS, slot};
         let s = frame.s;
         kit::heading(
             &mut self.ui,
             frame,
-            LEFT_X,
+            MIDDLE_X,
             HOLOCRONS_TOP - 36.0,
-            LEFT_WIDTH,
-            "Holocrons",
+            MIDDLE_WIDTH,
+            &crate::terms::say("Holocrons and kyber crystals"),
         );
         let counts = holocrons::counts_of(&profile.holocron_counts);
-        text(
-            &mut self.ui,
-            TextFamily::Body,
-            format_args!(
-                "Holds {} uncommon, {} rare, {} legendary, {} mythical",
-                counts[0], counts[1], counts[2], counts[3]
-            ),
-            frame.rect(LEFT_X, HOLOCRONS_TOP - 30.0 + 22.0, LEFT_WIDTH, 20.0),
-            14.0 * s,
-            color::MUTED,
-            FontWeight::Regular,
-            TextAlign::Start,
-        );
-        // The tier chips: its gem and name, the chosen tier ringed in its colour.
-        let chips_y = HOLOCRONS_TOP + 16.0;
-        for (index, tier) in TIERS.iter().enumerate() {
+        let crystals = crystal_counts(profile);
+        let holocrons_word = crate::terms::say("Holocrons");
+        for (line, (what, held)) in [(&*holocrons_word, counts), ("Crystals", crystals)]
+            .into_iter()
+            .enumerate()
+        {
+            text(
+                &mut self.ui,
+                TextFamily::Body,
+                format_args!(
+                    "{what}: {} uncommon, {} rare, {} legendary, {} mythical unopened",
+                    held[0], held[1], held[2], held[3]
+                ),
+                frame.rect(
+                    MIDDLE_X,
+                    HOLOCRONS_TOP - 8.0 + line as f32 * 20.0,
+                    MIDDLE_WIDTH,
+                    20.0,
+                ),
+                14.0 * s,
+                color::MUTED,
+                FontWeight::Regular,
+                TextAlign::Start,
+            );
+        }
+        // The tier chips, holocrons on the first row and kyber crystals on the second:
+        // its gem and name, the chosen one ringed in its colour.
+        let chips_y = HOLOCRONS_TOP + 40.0;
+        let row_step = TIER_CHIP[1] + 8.0;
+        for index in 0..SLOTS {
+            let tier = slot(index);
             let token = HOLOCRON_TIER_BASE + index as u16;
-            let x = LEFT_X + index as f32 * (TIER_CHIP[0] + 8.0);
+            let column = index % TIERS.len();
+            let x = MIDDLE_X + column as f32 * (TIER_CHIP[0] + 8.0);
+            let y = chips_y + (index / TIERS.len()) as f32 * row_step;
             kit::button(
                 &mut self.ui,
                 frame,
-                [x, chips_y, TIER_CHIP[0], TIER_CHIP[1]],
+                [x, y, TIER_CHIP[0], TIER_CHIP[1]],
                 "",
                 false,
                 true,
@@ -676,17 +744,17 @@ impl Panel {
             let chosen = self.holocron_tier == index;
             if chosen {
                 let _ = self.ui.draw_list_mut().push(DrawCommand::Border {
-                    rect: frame.rect(x, chips_y, TIER_CHIP[0], TIER_CHIP[1]),
+                    rect: frame.rect(x, y, TIER_CHIP[0], TIER_CHIP[1]),
                     radius: TIER_CHIP[1] * 0.5 * s,
                     width: 2.0 * s,
                     color: tier.colour,
                 });
             }
-            let [gem_x, gem_y] = frame.point(x + 24.0, chips_y + TIER_CHIP[1] * 0.5);
+            let [gem_x, gem_y] = frame.point(x + 24.0, y + TIER_CHIP[1] * 0.5);
             holocrons::gem::draw(
                 self.ui.draw_list_mut(),
                 [gem_x, gem_y],
-                9.0 * s,
+                if tier.is_kyber() { 7.0 } else { 9.0 } * s,
                 tier.colour,
                 if chosen { 1.0 } else { 0.7 },
                 holocrons::gem::MARK_ROWS,
@@ -695,7 +763,7 @@ impl Panel {
                 &mut self.ui,
                 TextFamily::Display,
                 format_args!("{}", tier.label),
-                frame.rect(x + 38.0, chips_y + 6.0, TIER_CHIP[0] - 42.0, 30.0),
+                frame.rect(x + 38.0, y + 6.0, TIER_CHIP[0] - 42.0, 30.0),
                 16.0 * s,
                 if chosen { color::TEXT } else { color::MUTED },
                 FontWeight::Semibold,
@@ -703,81 +771,121 @@ impl Panel {
             );
             self.order.push(token);
         }
+        // Give, as tall as both rows, gives the chosen one.
+        let give_x = MIDDLE_X + TIERS.len() as f32 * (TIER_CHIP[0] + 8.0) + 4.0;
         kit::button(
             &mut self.ui,
             frame,
             [
-                LEFT_X + 4.0 * (TIER_CHIP[0] + 8.0) + 4.0,
+                give_x,
                 chips_y,
-                LEFT_WIDTH - 4.0 * (TIER_CHIP[0] + 8.0) - 4.0,
-                TIER_CHIP[1],
+                MIDDLE_X + MIDDLE_WIDTH - give_x,
+                row_step + TIER_CHIP[1],
             ],
             "Give",
             true,
-            true,
+            self.shown.creator,
             self.focus == HOLOCRON_GIVE_TOKEN,
             HOLOCRON_GIVE_TOKEN,
         );
         self.order.push(HOLOCRON_GIVE_TOKEN);
-        // The recent ones, newest first.
-        let entries = holocrons::entries(&profile.holocrons);
-        let rows_y = chips_y + TIER_CHIP[1] + 14.0;
+        let chosen = slot(self.holocron_tier);
+        let gives = if chosen.is_kyber() {
+            format!(
+                "Give: {} {}, opened to a saber shader",
+                chosen.article(),
+                chosen.name
+            )
+        } else {
+            format!("Give: {} {}", chosen.article(), chosen.name)
+        };
+        let rows_y = chips_y + row_step + TIER_CHIP[1] + 8.0;
+        text(
+            &mut self.ui,
+            TextFamily::Body,
+            format_args!("{gives}"),
+            frame.rect(MIDDLE_X, rows_y, MIDDLE_WIDTH, 20.0),
+            14.0 * s,
+            chosen.colour,
+            FontWeight::Regular,
+            TextAlign::Start,
+        );
+        // The recent ones, holocrons and crystals, newest first.
+        let entries: Vec<(holocrons::Entry, bool)> = profile
+            .holocrons
+            .iter()
+            .filter_map(|wire| {
+                holocrons::Entry::from_wire(wire).map(|entry| (entry, wire.opened.is_some()))
+            })
+            .collect();
+        let rows_y = rows_y + 28.0;
         if entries.is_empty() {
             text(
                 &mut self.ui,
                 TextFamily::Body,
-                format_args!("No holocrons yet."),
-                frame.rect(LEFT_X, rows_y, LEFT_WIDTH, 24.0),
+                format_args!("{}", crate::terms::say("No holocrons or crystals yet.")),
+                frame.rect(MIDDLE_X, rows_y, MIDDLE_WIDTH, 24.0),
                 16.0 * s,
                 color::MUTED,
                 FontWeight::Regular,
                 TextAlign::Start,
             );
         }
-        for (row, entry) in entries.iter().take(HOLOCRONS_SHOWN).enumerate() {
+        for (row, (entry, opened)) in entries.iter().take(HOLOCRONS_SHOWN).enumerate() {
             let y = rows_y + row as f32 * HOLOCRON_ROW;
             let token = HOLOCRON_REMOVE_BASE + row as u16;
-            let [gem_x, gem_y] = frame.point(LEFT_X + 14.0, y + HOLOCRON_ROW * 0.5 - 2.0);
+            let [gem_x, gem_y] = frame.point(MIDDLE_X + 14.0, y + HOLOCRON_ROW * 0.5 - 2.0);
             holocrons::gem::draw(
                 self.ui.draw_list_mut(),
                 [gem_x, gem_y],
-                10.0 * s,
+                if entry.tier.is_kyber() { 8.0 } else { 10.0 } * s,
                 entry.tier.colour,
-                1.0,
+                if *opened { 0.45 } else { 1.0 },
                 holocrons::gem::MARK_ROWS,
             );
             text(
                 &mut self.ui,
                 TextFamily::Display,
-                format_args!("{}", entry.tier.name),
-                frame.rect(LEFT_X + 34.0, y, 200.0, 28.0),
-                18.0 * s,
+                format_args!("{}", entry.tier.title()),
+                frame.rect(MIDDLE_X + 34.0, y, 190.0, 28.0),
+                17.0 * s,
                 entry.tier.colour,
                 FontWeight::Semibold,
                 TextAlign::Start,
             );
-            let kind = if entry.gift { "gift" } else { "play" };
+            let kind = match (entry.earned, entry.gift, entry.traded.is_some()) {
+                (true, ..) => "earned",
+                (_, true, _) => "gift",
+                (.., true) => "trade",
+                _ => "play",
+            };
             text(
                 &mut self.ui,
                 TextFamily::Body,
                 format_args!(
-                    "#{} {} {kind}",
+                    "#{} {} {kind}{}",
                     entry.id,
-                    holocrons::when_text(entry.dropped)
+                    holocrons::when_text(entry.dropped),
+                    if *opened { ", opened" } else { "" }
                 ),
-                frame.rect(LEFT_X + 236.0, y + 2.0, 210.0, 24.0),
-                13.0 * s,
+                frame.rect(MIDDLE_X + 196.0, y + 3.0, MIDDLE_WIDTH - 332.0, 24.0),
+                12.5 * s,
                 color::QUIET,
                 FontWeight::Regular,
                 TextAlign::End,
             );
+            let remove = if self.confirming(token) {
+                "Press again"
+            } else {
+                "Remove"
+            };
             kit::button(
                 &mut self.ui,
                 frame,
-                [LEFT_X + LEFT_WIDTH - 100.0, y - 1.0, 100.0, 30.0],
-                "Remove",
+                [MIDDLE_X + MIDDLE_WIDTH - 124.0, y - 1.0, 124.0, 30.0],
+                remove,
                 false,
-                true,
+                self.shown.creator,
                 self.focus == token,
                 token,
             );
@@ -791,9 +899,9 @@ impl Panel {
                 TextFamily::Body,
                 format_args!("and {} more", entries.len() - HOLOCRONS_SHOWN),
                 frame.rect(
-                    LEFT_X,
+                    MIDDLE_X,
                     rows_y + HOLOCRONS_SHOWN as f32 * HOLOCRON_ROW,
-                    LEFT_WIDTH,
+                    MIDDLE_WIDTH,
                     20.0,
                 ),
                 13.0 * s,
@@ -813,7 +921,7 @@ impl Panel {
             frame,
             [
                 RIGHT_X + RIGHT_WIDTH - 140.0,
-                SECTION_TOP + 4.0,
+                SECTION_TOP - 26.0,
                 140.0,
                 34.0,
             ],
@@ -823,14 +931,14 @@ impl Panel {
                 "Clear all"
             },
             false,
-            !profile.achievements.is_empty(),
+            !profile.achievements.is_empty() && self.shown.creator,
             self.focus == CLEAR_ALL_TOKEN,
             CLEAR_ALL_TOKEN,
         );
         if !profile.achievements.is_empty() {
             self.order.push(CLEAR_ALL_TOKEN);
         }
-        let mut y = SECTION_TOP + 54.0;
+        let top = SECTION_TOP + 24.0;
         let listed: Vec<(usize, &sjk_identity::Achievement)> = achievements::ALL
             .iter()
             .enumerate()
@@ -847,22 +955,27 @@ impl Panel {
                 &mut self.ui,
                 TextFamily::Body,
                 format_args!("No achievements at the hub yet."),
-                frame.rect(RIGHT_X, y, RIGHT_WIDTH, 24.0),
+                frame.rect(MIDDLE_X, top, MIDDLE_WIDTH, 24.0),
                 16.0 * s,
                 color::MUTED,
                 FontWeight::Regular,
                 TextAlign::Start,
             );
-            y += 34.0;
         }
-        for (index, held) in listed.iter().take(ACHIEVEMENTS_SHOWN) {
+        for (row, (index, held)) in listed.iter().take(ACHIEVEMENTS_SHOWN).enumerate() {
             let kind = &achievements::ALL[*index];
+            let (x, width) = if row < ACHIEVEMENTS_PER_COLUMN {
+                (MIDDLE_X, MIDDLE_WIDTH)
+            } else {
+                (RIGHT_X, RIGHT_WIDTH)
+            };
+            let y = top + (row % ACHIEVEMENTS_PER_COLUMN) as f32 * ACHIEVEMENT_ROW;
             let token = CLEAR_BASE + *index as u16;
             text(
                 &mut self.ui,
                 TextFamily::Display,
-                format_args!("{}", kind.name),
-                frame.rect(RIGHT_X, y, 230.0, 28.0),
+                format_args!("{}", crate::terms::say(kind.name)),
+                frame.rect(x, y, 230.0, 28.0),
                 19.0 * s,
                 if held.unlocked > 0 {
                     color::GOLD_BRIGHT
@@ -885,7 +998,7 @@ impl Panel {
                 &mut self.ui,
                 TextFamily::Body,
                 format_args!("{status}"),
-                frame.rect(RIGHT_X + 236.0, y + 2.0, 170.0, 24.0),
+                frame.rect(x + 236.0, y + 2.0, width - 350.0, 24.0),
                 14.0 * s,
                 color::QUIET,
                 FontWeight::Regular,
@@ -894,22 +1007,22 @@ impl Panel {
             kit::button(
                 &mut self.ui,
                 frame,
-                [RIGHT_X + RIGHT_WIDTH - 96.0, y - 2.0, 96.0, 30.0],
+                [x + width - 96.0, y - 2.0, 96.0, 30.0],
                 "Clear",
                 false,
-                true,
+                self.shown.creator,
                 self.focus == token,
                 token,
             );
             self.order.push(token);
-            y += ACHIEVEMENT_ROW;
         }
+        let mut y = top + listed.len().clamp(1, ACHIEVEMENTS_PER_COLUMN) as f32 * ACHIEVEMENT_ROW;
         if listed.len() > ACHIEVEMENTS_SHOWN {
             text(
                 &mut self.ui,
                 TextFamily::Body,
                 format_args!("and {} more", listed.len() - ACHIEVEMENTS_SHOWN),
-                frame.rect(RIGHT_X, y, RIGHT_WIDTH, 22.0),
+                frame.rect(MIDDLE_X, y, MIDDLE_WIDTH, 22.0),
                 14.0 * s,
                 color::QUIET,
                 FontWeight::Regular,
@@ -922,12 +1035,12 @@ impl Panel {
         } else {
             "Their game sends its own counts again: only what the hub counts stays cleared."
         };
-        for part in wrap(note, 72) {
+        for part in wrap(note, 110) {
             text(
                 &mut self.ui,
                 TextFamily::Body,
                 format_args!("{part}"),
-                frame.rect(RIGHT_X, y + 6.0, RIGHT_WIDTH, 22.0),
+                frame.rect(MIDDLE_X, y + 6.0, PANE_WIDTH, 22.0),
                 14.0 * s,
                 color::QUIET,
                 FontWeight::Regular,
@@ -937,26 +1050,575 @@ impl Panel {
         }
     }
 
-    /// The right column's four tabs, the one shown filled gold.
-    fn right_tabs(&mut self, frame: &Frame) {
-        let mut x = RIGHT_X;
-        for (label, width, view, token) in [
+    /// The Overview tab: the chosen player's account with Verify in the middle column,
+    /// and on the right the moderation of their picture and of the SJK chat.
+    fn overview(&mut self, frame: &Frame, profile: &Profile, mine: bool) {
+        let s = frame.s;
+        kit::heading(
+            &mut self.ui,
+            frame,
+            MIDDLE_X,
+            SECTION_TOP - 20.0,
+            MIDDLE_WIDTH,
+            "Account",
+        );
+        let trust = match profile.trust {
+            Some(sjk_identity::Trust::New) => "new",
+            Some(sjk_identity::Trust::Trusted) => "trusted",
+            Some(sjk_identity::Trust::Banned) => "banned from the chat now",
+            _ => "not said",
+        };
+        let since = crate::medals::date_text(profile.created);
+        let counts = crate::holocrons::counts_of(&profile.holocron_counts);
+        let unlocked = profile
+            .achievements
+            .iter()
+            .filter(|held| held.unlocked > 0)
+            .count();
+        let seen = crate::medals::date_text(last_seen(profile));
+        let crystals = crystal_counts(profile);
+        let mut rows = vec![
+            (
+                "Flags",
+                match (profile.staff, profile.verified) {
+                    _ if profile.creator && profile.verified => "creator, verified".to_owned(),
+                    _ if profile.creator => "creator".to_owned(),
+                    (true, true) => "staff, verified".to_owned(),
+                    (true, false) => "staff".to_owned(),
+                    (false, true) => "verified".to_owned(),
+                    (false, false) => "none".to_owned(),
+                },
+            ),
+            ("Trust", trust.to_owned()),
+            (
+                "Member since",
+                if since.is_empty() {
+                    "?".to_owned()
+                } else {
+                    since
+                },
+            ),
+            (
+                "Last seen",
+                if seen.is_empty() {
+                    "not in a game yet".to_owned()
+                } else {
+                    seen
+                },
+            ),
+            (
+                "Keys",
+                format!(
+                    "1 main, {} linked (never shown)",
+                    profile.linked_keys().count()
+                ),
+            ),
+            (
+                "Medals",
+                format!(
+                    "{} held, {} unlockables",
+                    profile.medals.len(),
+                    profile.unlocks.len()
+                ),
+            ),
             (
                 "Achievements",
-                156.0,
-                RightView::Achievements,
-                ACHIEVEMENTS_TAB_TOKEN,
+                format!(
+                    "{unlocked} unlocked, {} counted",
+                    profile.achievements.len()
+                ),
             ),
-            ("Keys and merge", 176.0, RightView::Keys, KEYS_TAB_TOKEN),
-            ("Logs", 72.0, RightView::Logs, LOGS_TAB_TOKEN),
-            ("Crashes", 96.0, RightView::Crashes, CRASHES_TAB_TOKEN),
-        ] {
+            (
+                "Holocrons",
+                format!(
+                    "{} uncommon, {} rare, {} legendary, {} mythical unopened",
+                    counts[0], counts[1], counts[2], counts[3]
+                ),
+            ),
+            (
+                "Kyber crystals",
+                format!(
+                    "{} uncommon, {} rare, {} legendary, {} mythical unopened",
+                    crystals[0], crystals[1], crystals[2], crystals[3]
+                ),
+            ),
+            (
+                "Wallet",
+                format!(
+                    "{} credits, {} kyber shards, {} kinds of card",
+                    profile.credits,
+                    profile.shards,
+                    profile.cards.len()
+                ),
+            ),
+        ];
+        if mine {
+            rows.push(("You", "this is your own player".to_owned()));
+        }
+        let mut y = SECTION_TOP + 4.0;
+        for (label, value) in &rows {
+            text(
+                &mut self.ui,
+                TextFamily::Body,
+                format_args!("{}", crate::terms::say(label)),
+                frame.rect(MIDDLE_X, y, 140.0, 24.0),
+                15.0 * s,
+                color::QUIET,
+                FontWeight::Regular,
+                TextAlign::Start,
+            );
+            text(
+                &mut self.ui,
+                TextFamily::Body,
+                format_args!("{}", cut(value, 52)),
+                frame.rect(MIDDLE_X + 150.0, y, MIDDLE_WIDTH - 150.0, 24.0),
+                15.0 * s,
+                color::TEXT,
+                FontWeight::Regular,
+                TextAlign::Start,
+            );
+            y += 30.0;
+        }
+        // Verify shows what pressing it does: Unverify while the player is verified.
+        kit::button(
+            &mut self.ui,
+            frame,
+            [MIDDLE_X, y + 6.0, 170.0, 40.0],
+            if profile.verified {
+                "Unverify"
+            } else {
+                "Verify"
+            },
+            !profile.verified,
+            true,
+            self.focus == VERIFY_TOKEN,
+            VERIFY_TOKEN,
+        );
+        self.order.push(VERIFY_TOKEN);
+        // The creator's own: make the player staff or take it away, on a second press.
+        // Never shown on the creator, who is always staff.
+        if self.shown.creator && !profile.creator {
+            let confirming = self.confirming(SET_STAFF_TOKEN);
             kit::button(
                 &mut self.ui,
                 frame,
-                [x, SECTION_TOP - 40.0, width, 38.0],
+                [MIDDLE_X + 182.0, y + 6.0, 170.0, 40.0],
+                match (confirming, profile.staff) {
+                    (true, _) => "Press again",
+                    (false, true) => "Remove staff",
+                    (false, false) => "Make staff",
+                },
+                false,
+                true,
+                self.focus == SET_STAFF_TOKEN,
+                SET_STAFF_TOKEN,
+            );
+            self.order.push(SET_STAFF_TOKEN);
+        }
+        y += 66.0;
+        kit::heading(&mut self.ui, frame, MIDDLE_X, y, MIDDLE_WIDTH, "Names worn");
+        y += 20.0;
+        if profile.names.is_empty() {
+            self.column_line(frame, MIDDLE_X, y, "None the hub kept.");
+        }
+        for worn in profile.names.iter().take(6) {
+            let seen = crate::medals::date_text(worn.last_seen);
+            text(
+                &mut self.ui,
+                TextFamily::Display,
+                format_args!("{}", cut(&worn.name, 30)),
+                frame.rect(MIDDLE_X, y, 340.0, 26.0),
+                17.0 * s,
+                color::TEXT,
+                FontWeight::Regular,
+                TextAlign::Start,
+            );
+            text(
+                &mut self.ui,
+                TextFamily::Body,
+                format_args!("last {seen}"),
+                frame.rect(MIDDLE_X + 340.0, y + 2.0, MIDDLE_WIDTH - 340.0, 24.0),
+                13.0 * s,
+                color::QUIET,
+                FontWeight::Regular,
+                TextAlign::End,
+            );
+            y += 28.0;
+        }
+        self.moderation(frame, profile);
+    }
+
+    /// The Overview's right column: the player's picture and their SJK chat.
+    fn moderation(&mut self, frame: &Frame, profile: &Profile) {
+        kit::heading(
+            &mut self.ui,
+            frame,
+            RIGHT_X,
+            SECTION_TOP - 20.0,
+            RIGHT_WIDTH,
+            "Picture",
+        );
+        let y = SECTION_TOP + 4.0;
+        self.column_line(
+            frame,
+            RIGHT_X,
+            y,
+            if profile.avatar.is_empty() {
+                "No picture up now."
+            } else {
+                "A picture is up."
+            },
+        );
+        let third = (RIGHT_WIDTH - 16.0) / 3.0;
+        for (column, (label, enabled, token)) in [
+            (
+                "Take down",
+                self.shown.picture && self.shown.creator,
+                PICTURE_DOWN_TOKEN,
+            ),
+            ("Block pictures", true, AVATAR_BLOCK_TOKEN),
+            ("Allow pictures", true, AVATAR_ALLOW_TOKEN),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            kit::button(
+                &mut self.ui,
+                frame,
+                [
+                    RIGHT_X + column as f32 * (third + 8.0),
+                    y + 32.0,
+                    third,
+                    40.0,
+                ],
                 label,
-                self.right == view,
+                false,
+                enabled,
+                self.focus == token,
+                token,
+            );
+            self.order.push(token);
+        }
+        self.column_wrapped(
+            frame,
+            RIGHT_X,
+            y + 84.0,
+            "Block pictures takes theirs down and stops new ones until Allow pictures; \
+             the hub does not say which holds now.",
+        );
+        let y = y + 170.0;
+        kit::heading(&mut self.ui, frame, RIGHT_X, y, RIGHT_WIDTH, "SJK chat");
+        for (column, (label, token)) in [
+            ("Mute at the hub", HUB_MUTE_TOKEN),
+            ("Unmute", HUB_UNMUTE_TOKEN),
+            ("Lift chat bans", CHAT_UNBAN_TOKEN),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            kit::button(
+                &mut self.ui,
+                frame,
+                [
+                    RIGHT_X + column as f32 * (third + 8.0),
+                    y + 24.0,
+                    third,
+                    40.0,
+                ],
+                label,
+                false,
+                true,
+                self.focus == token,
+                token,
+            );
+            self.order.push(token);
+        }
+        self.column_wrapped(
+            frame,
+            RIGHT_X,
+            y + 76.0,
+            "Muted at the hub, nobody reads their SJK chat until Unmute. Lift chat bans \
+             frees them of every 24-hour ban verified players gave (Chat bans lists them).",
+        );
+    }
+
+    /// The Holocrons and credits tab's right column: the player's credits and kyber
+    /// shards, the amount, and Give and Take for each.
+    fn wallet(&mut self, frame: &Frame, profile: &Profile) {
+        let s = frame.s;
+        kit::heading(
+            &mut self.ui,
+            frame,
+            RIGHT_X,
+            SECTION_TOP - 20.0,
+            RIGHT_WIDTH,
+            "Credits and kyber shards",
+        );
+        let mut y = SECTION_TOP + 4.0;
+        for (label, value) in [
+            ("Credits", profile.credits),
+            ("Kyber shards", profile.shards),
+        ] {
+            text(
+                &mut self.ui,
+                TextFamily::Display,
+                format_args!("{label}"),
+                frame.rect(RIGHT_X, y, 240.0, 30.0),
+                20.0 * s,
+                color::TEXT,
+                FontWeight::Semibold,
+                TextAlign::Start,
+            );
+            text(
+                &mut self.ui,
+                TextFamily::Display,
+                format_args!("{value}"),
+                frame.rect(RIGHT_X + 240.0, y, RIGHT_WIDTH - 240.0, 30.0),
+                20.0 * s,
+                color::GOLD_BRIGHT,
+                FontWeight::Semibold,
+                TextAlign::End,
+            );
+            y += 36.0;
+        }
+        y += 8.0;
+        self.column_line(frame, RIGHT_X, y, "Amount");
+        let field = [RIGHT_X, y + 26.0, 200.0, 44.0];
+        let focused = self.focus == AMOUNT_TOKEN;
+        let caret = focused && (self.epoch.elapsed().as_millis() / 500).is_multiple_of(2);
+        kit::field(
+            &mut self.ui,
+            frame,
+            field,
+            format_args!("{}{}", self.amount, if caret { "|" } else { "" }),
+            focused,
+            false,
+        );
+        self.ui.hit_region(
+            AMOUNT_TOKEN,
+            frame.rect(field[0], field[1], field[2], field[3]),
+        );
+        self.order.push(AMOUNT_TOKEN);
+        let ready = self.amount().is_some();
+        let half = (RIGHT_WIDTH - 8.0) * 0.5;
+        y += 84.0;
+        for (row, (give, take, give_token, take_token)) in [
+            (
+                "Give credits",
+                "Take credits",
+                CREDITS_GIVE_TOKEN,
+                CREDITS_TAKE_TOKEN,
+            ),
+            (
+                "Give shards",
+                "Take shards",
+                SHARDS_GIVE_TOKEN,
+                SHARDS_TAKE_TOKEN,
+            ),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let row_y = y + row as f32 * 50.0;
+            kit::button(
+                &mut self.ui,
+                frame,
+                [RIGHT_X, row_y, half, 40.0],
+                give,
+                true,
+                ready && self.shown.creator,
+                self.focus == give_token,
+                give_token,
+            );
+            let take = if self.confirming(take_token) {
+                "Press again"
+            } else {
+                take
+            };
+            kit::button(
+                &mut self.ui,
+                frame,
+                [RIGHT_X + half + 8.0, row_y, half, 40.0],
+                take,
+                false,
+                ready && self.shown.creator,
+                self.focus == take_token,
+                take_token,
+            );
+            if ready {
+                self.order.push(give_token);
+                self.order.push(take_token);
+            }
+        }
+        self.column_wrapped(
+            frame,
+            RIGHT_X,
+            y + 110.0,
+            "The note goes with it. Taking waits for a second press; the hub refuses \
+             taking more than they have.",
+        );
+    }
+
+    /// The Chat bans tab: every SJK chat ban in force, newest first, each with Lift.
+    fn chat_bans(&mut self, frame: &Frame, staff: &StaffState) {
+        let s = frame.s;
+        let mut y = SECTION_TOP + 6.0;
+        kit::button(
+            &mut self.ui,
+            frame,
+            [MIDDLE_X + PANE_WIDTH - 140.0, y, 140.0, 38.0],
+            "Refresh",
+            false,
+            true,
+            self.focus == CHAT_BANS_REFRESH_TOKEN,
+            CHAT_BANS_REFRESH_TOKEN,
+        );
+        self.order.push(CHAT_BANS_REFRESH_TOKEN);
+        text(
+            &mut self.ui,
+            TextFamily::Display,
+            format_args!("Chat bans in force, newest first"),
+            frame.rect(MIDDLE_X, y + 4.0, PANE_WIDTH - 150.0, 30.0),
+            20.0 * s,
+            color::TEXT,
+            FontWeight::Semibold,
+            TextAlign::Start,
+        );
+        y += 54.0;
+        if staff.chat_bans.is_empty() {
+            self.right_line(frame, y, "No chat ban in force.", color::MUTED);
+        }
+        for (row, ban) in staff.chat_bans.iter().take(BAN_ROWS_SHOWN).enumerate() {
+            let token = BAN_LIFT_BASE + row as u16;
+            let row_y = y + row as f32 * LOG_ROW;
+            self.shown.ban_rows.push(ban.key_id.clone());
+            let name = if ban.name.is_empty() {
+                "(an address)".to_owned()
+            } else {
+                cut(&ban.name, 22)
+            };
+            text(
+                &mut self.ui,
+                TextFamily::Display,
+                format_args!("{name}"),
+                frame.rect(MIDDLE_X, row_y + 2.0, 230.0, 26.0),
+                18.0 * s,
+                color::TEXT,
+                FontWeight::Regular,
+                TextAlign::Start,
+            );
+            let by = if ban.by_name.is_empty() {
+                "a player".to_owned()
+            } else {
+                cut(&crate::medals::plain_note(&ban.by_name), 16)
+            };
+            text(
+                &mut self.ui,
+                TextFamily::Body,
+                format_args!(
+                    "by {by}, until {}{}",
+                    sjk_identity::ban::local_day_time(ban.until),
+                    if ban.address { ", address too" } else { "" }
+                ),
+                frame.rect(MIDDLE_X + 236.0, row_y + 4.0, PANE_WIDTH - 350.0, 24.0),
+                14.0 * s,
+                color::QUIET,
+                FontWeight::Regular,
+                TextAlign::Start,
+            );
+            let liftable = !ban.key_id.is_empty();
+            kit::button(
+                &mut self.ui,
+                frame,
+                [MIDDLE_X + PANE_WIDTH - 100.0, row_y - 1.0, 100.0, 30.0],
+                "Lift",
+                false,
+                liftable,
+                self.focus == token,
+                token,
+            );
+            if liftable {
+                self.order.push(token);
+            }
+        }
+        if staff.chat_bans.len() > BAN_ROWS_SHOWN {
+            self.right_line(
+                frame,
+                y + BAN_ROWS_SHOWN as f32 * LOG_ROW,
+                &format!("and {} more", staff.chat_bans.len() - BAN_ROWS_SHOWN),
+                color::QUIET,
+            );
+        }
+    }
+
+    /// One line of quiet text in a column at `x`, `y`.
+    fn column_line(&mut self, frame: &Frame, x: f32, y: f32, line: &str) {
+        text(
+            &mut self.ui,
+            TextFamily::Body,
+            format_args!("{line}"),
+            frame.rect(x, y, RIGHT_WIDTH, 22.0),
+            15.0 * frame.s,
+            color::MUTED,
+            FontWeight::Regular,
+            TextAlign::Start,
+        );
+    }
+
+    /// Quiet text wrapped to a column at `x`, from `y`.
+    fn column_wrapped(&mut self, frame: &Frame, x: f32, y: f32, note: &str) {
+        for (row, part) in wrap(note, 66).enumerate() {
+            text(
+                &mut self.ui,
+                TextFamily::Body,
+                format_args!("{part}"),
+                frame.rect(x, y + row as f32 * 21.0, RIGHT_WIDTH, 21.0),
+                14.0 * frame.s,
+                color::QUIET,
+                FontWeight::Regular,
+                TextAlign::Start,
+            );
+        }
+    }
+
+    /// The tabs, the one shown filled gold: the chosen player's, then every player's.
+    fn tabs(&mut self, frame: &Frame) {
+        let mut x = MIDDLE_X;
+        for (label, width, view, token) in [
+            ("Overview", 116.0, View::Overview, OVERVIEW_TAB_TOKEN),
+            (
+                "Medals and unlocks",
+                186.0,
+                View::Rewards,
+                REWARDS_TAB_TOKEN,
+            ),
+            (
+                "Holocrons and credits",
+                200.0,
+                View::Economy,
+                ECONOMY_TAB_TOKEN,
+            ),
+            (
+                "Achievements",
+                140.0,
+                View::Achievements,
+                ACHIEVEMENTS_TAB_TOKEN,
+            ),
+            ("Keys", 74.0, View::Keys, KEYS_TAB_TOKEN),
+            ("Logs", 72.0, View::Logs, LOGS_TAB_TOKEN),
+            ("Crashes", 104.0, View::Crashes, CRASHES_TAB_TOKEN),
+            ("Chat bans", 112.0, View::ChatBans, CHAT_BANS_TAB_TOKEN),
+        ] {
+            // Crashes and Chat bans are every player's: a gap sets them apart.
+            if token == CRASHES_TAB_TOKEN {
+                x += 14.0;
+            }
+            kit::button(
+                &mut self.ui,
+                frame,
+                [x, TABS_Y, width, 38.0],
+                &crate::terms::say(label),
+                self.view == view,
                 true,
                 self.focus == token,
                 token,
@@ -966,13 +1628,13 @@ impl Panel {
         }
     }
 
-    /// One line of quiet text in the right column at `y`.
+    /// One line of quiet text across a one-column view at `y`.
     fn right_line(&mut self, frame: &Frame, y: f32, line: &str, colour: Color) {
         text(
             &mut self.ui,
             TextFamily::Body,
             format_args!("{line}"),
-            frame.rect(RIGHT_X, y, RIGHT_WIDTH, 22.0),
+            frame.rect(MIDDLE_X, y, PANE_WIDTH, 22.0),
             14.0 * frame.s,
             colour,
             FontWeight::Regular,
@@ -997,7 +1659,7 @@ impl Panel {
         kit::button(
             &mut self.ui,
             frame,
-            [RIGHT_X, y, 200.0, 38.0],
+            [MIDDLE_X, y, 200.0, 38.0],
             "Request logs",
             true,
             !open,
@@ -1010,7 +1672,7 @@ impl Panel {
         kit::button(
             &mut self.ui,
             frame,
-            [RIGHT_X + RIGHT_WIDTH - 120.0, y, 120.0, 38.0],
+            [MIDDLE_X + PANE_WIDTH - 120.0, y, 120.0, 38.0],
             "Refresh",
             false,
             true,
@@ -1023,8 +1685,11 @@ impl Panel {
             format!("{name} has a request open; their game asks them when they are in the menu.")
         } else {
             format!(
-                "Asks {name} for their game's logs, with the note under the medals. Their \
-                 game asks them first; nothing comes without their yes."
+                "Asks {name} {}",
+                crate::terms::say(
+                    "for their game's logs, with the note under the medals. Their game asks \
+                     them first; nothing comes without their yes."
+                )
             )
         };
         for part in wrap(&explain, 72).take(2) {
@@ -1032,7 +1697,7 @@ impl Panel {
             y += 22.0;
         }
         y += 18.0;
-        kit::heading(&mut self.ui, frame, RIGHT_X, y, RIGHT_WIDTH, "Log requests");
+        kit::heading(&mut self.ui, frame, MIDDLE_X, y, PANE_WIDTH, "Log requests");
         y += 26.0;
         if staff.log_requests.is_empty() {
             self.right_line(
@@ -1051,7 +1716,7 @@ impl Panel {
                 &mut self.ui,
                 TextFamily::Display,
                 format_args!("{}", cut(&crate::medals::plain_note(&request.name), 18)),
-                frame.rect(RIGHT_X, row_y + 2.0, 190.0, 26.0),
+                frame.rect(MIDDLE_X, row_y + 2.0, 190.0, 26.0),
                 18.0 * s,
                 color::TEXT,
                 FontWeight::Regular,
@@ -1076,7 +1741,7 @@ impl Panel {
                 &mut self.ui,
                 TextFamily::Body,
                 format_args!("{state}"),
-                frame.rect(RIGHT_X + 196.0, row_y + 4.0, 230.0, 24.0),
+                frame.rect(MIDDLE_X + 196.0, row_y + 4.0, 230.0, 24.0),
                 14.0 * s,
                 if sent {
                     color::GOLD_BRIGHT
@@ -1090,7 +1755,7 @@ impl Panel {
                 kit::button(
                     &mut self.ui,
                     frame,
-                    [RIGHT_X + RIGHT_WIDTH - 84.0, row_y - 1.0, 84.0, 30.0],
+                    [MIDDLE_X + PANE_WIDTH - 84.0, row_y - 1.0, 84.0, 30.0],
                     "Open",
                     false,
                     true,
@@ -1119,7 +1784,7 @@ impl Panel {
         kit::button(
             &mut self.ui,
             frame,
-            [RIGHT_X + RIGHT_WIDTH - 140.0, y, 140.0, 38.0],
+            [MIDDLE_X + PANE_WIDTH - 140.0, y, 140.0, 38.0],
             label,
             false,
             true,
@@ -1136,7 +1801,7 @@ impl Panel {
             &mut self.ui,
             TextFamily::Display,
             format_args!("{title}"),
-            frame.rect(RIGHT_X, y + 4.0, RIGHT_WIDTH - 150.0, 30.0),
+            frame.rect(MIDDLE_X, y + 4.0, PANE_WIDTH - 150.0, 30.0),
             20.0 * s,
             color::TEXT,
             FontWeight::Semibold,
@@ -1156,7 +1821,7 @@ impl Panel {
                         &mut self.ui,
                         TextFamily::Display,
                         format_args!("{}", cut(&crate::medals::plain_note(&crash.name), 16)),
-                        frame.rect(RIGHT_X, row_y + 2.0, 170.0, 26.0),
+                        frame.rect(MIDDLE_X, row_y + 2.0, 170.0, 26.0),
                         18.0 * s,
                         color::TEXT,
                         FontWeight::Regular,
@@ -1170,7 +1835,7 @@ impl Panel {
                             crate::medals::date_text(crash.created),
                             cut(&crash.build, 14)
                         ),
-                        frame.rect(RIGHT_X + 176.0, row_y + 4.0, 250.0, 24.0),
+                        frame.rect(MIDDLE_X + 176.0, row_y + 4.0, 250.0, 24.0),
                         14.0 * s,
                         color::QUIET,
                         FontWeight::Regular,
@@ -1179,7 +1844,7 @@ impl Panel {
                     kit::button(
                         &mut self.ui,
                         frame,
-                        [RIGHT_X + RIGHT_WIDTH - 84.0, row_y - 1.0, 84.0, 30.0],
+                        [MIDDLE_X + PANE_WIDTH - 84.0, row_y - 1.0, 84.0, 30.0],
                         "Open",
                         false,
                         true,
@@ -1214,7 +1879,7 @@ impl Panel {
                     kit::button(
                         &mut self.ui,
                         frame,
-                        [RIGHT_X, row_y - 2.0, RIGHT_WIDTH, CRASH_GROUP_ROW - 6.0],
+                        [MIDDLE_X, row_y - 2.0, PANE_WIDTH, CRASH_GROUP_ROW - 6.0],
                         "",
                         false,
                         true,
@@ -1236,7 +1901,7 @@ impl Panel {
                             if kind.keys == 1 { "" } else { "s" },
                             crate::medals::date_text(kind.last)
                         ),
-                        frame.rect(RIGHT_X + 12.0, row_y + 1.0, RIGHT_WIDTH - 24.0, 22.0),
+                        frame.rect(MIDDLE_X + 12.0, row_y + 1.0, PANE_WIDTH - 24.0, 22.0),
                         15.0 * s,
                         color::TEXT,
                         FontWeight::Regular,
@@ -1246,7 +1911,7 @@ impl Panel {
                         &mut self.ui,
                         TextFamily::Body,
                         format_args!("{}", cut(&kind.message, 62)),
-                        frame.rect(RIGHT_X + 12.0, row_y + 22.0, RIGHT_WIDTH - 24.0, 20.0),
+                        frame.rect(MIDDLE_X + 12.0, row_y + 22.0, PANE_WIDTH - 24.0, 20.0),
                         13.0 * s,
                         color::QUIET,
                         FontWeight::Regular,
@@ -1266,8 +1931,8 @@ impl Panel {
         text(
             &mut self.ui,
             TextFamily::Body,
-            format_args!("Main key {}", profile.key_id),
-            frame.rect(RIGHT_X, y, RIGHT_WIDTH, 24.0),
+            format_args!("Main key: the one this player started with (key ids never show)"),
+            frame.rect(MIDDLE_X, y, PANE_WIDTH, 24.0),
             16.0 * s,
             color::MUTED,
             FontWeight::Regular,
@@ -1284,7 +1949,7 @@ impl Panel {
                     &mut self.ui,
                     TextFamily::Body,
                     format_args!("{part}"),
-                    frame.rect(RIGHT_X, y, RIGHT_WIDTH, 22.0),
+                    frame.rect(MIDDLE_X, y, PANE_WIDTH, 22.0),
                     14.0 * s,
                     color::QUIET,
                     FontWeight::Regular,
@@ -1293,14 +1958,14 @@ impl Panel {
                 y += 22.0;
             }
         }
-        for (row, key) in linked.iter().take(LINKED_SHOWN).enumerate() {
+        for row in 0..linked.len().min(LINKED_SHOWN) {
             let token = UNLINK_BASE + row as u16;
             let row_y = y + row as f32 * LINKED_ROW;
             text(
                 &mut self.ui,
                 TextFamily::Display,
-                format_args!("Linked {key}"),
-                frame.rect(RIGHT_X, row_y + 2.0, RIGHT_WIDTH - 150.0, 26.0),
+                format_args!("Linked key {}", row + 1),
+                frame.rect(MIDDLE_X, row_y + 2.0, PANE_WIDTH - 150.0, 26.0),
                 18.0 * s,
                 color::TEXT,
                 FontWeight::Regular,
@@ -1314,10 +1979,10 @@ impl Panel {
             kit::button(
                 &mut self.ui,
                 frame,
-                [RIGHT_X + RIGHT_WIDTH - 140.0, row_y - 1.0, 140.0, 30.0],
+                [MIDDLE_X + PANE_WIDTH - 140.0, row_y - 1.0, 140.0, 30.0],
                 label,
                 false,
-                true,
+                self.shown.creator,
                 self.focus == token,
                 token,
             );
@@ -1329,9 +1994,9 @@ impl Panel {
                 TextFamily::Body,
                 format_args!("and {} more", linked.len() - LINKED_SHOWN),
                 frame.rect(
-                    RIGHT_X,
+                    MIDDLE_X,
                     y + LINKED_SHOWN as f32 * LINKED_ROW,
-                    RIGHT_WIDTH,
+                    PANE_WIDTH,
                     20.0,
                 ),
                 13.0 * s,
@@ -1351,7 +2016,7 @@ impl Panel {
                 &mut self.ui,
                 TextFamily::Body,
                 format_args!("An unlinked key starts afresh; nothing moves back."),
-                frame.rect(RIGHT_X, y + rows + more + 4.0, RIGHT_WIDTH, 20.0),
+                frame.rect(MIDDLE_X, y + rows + more + 4.0, PANE_WIDTH, 20.0),
                 13.0 * s,
                 color::QUIET,
                 FontWeight::Regular,
@@ -1361,30 +2026,32 @@ impl Panel {
         kit::heading(
             &mut self.ui,
             frame,
-            RIGHT_X,
+            MIDDLE_X,
             MERGE_TOP,
-            RIGHT_WIDTH,
+            PANE_WIDTH,
             "Merge another key into this player",
         );
         match self.pending_merge.clone() {
             Some(merge) => self.merge_confirmation(frame, profile, &merge, players),
-            None => self.merge_entry(frame),
+            None => self.merge_entry(frame, players),
         }
     }
 
     /// The merge field with Pick in list, what is wrong with it, and Merge.
-    fn merge_entry(&mut self, frame: &Frame) {
+    fn merge_entry(&mut self, frame: &Frame, players: &[Profile]) {
         let s = frame.s;
         let mut y = MERGE_TOP + 30.0;
         for part in wrap(
-            "For a player who reset their key: this player is kept, the other one's medals, unlocks, achievements, holocrons and names move here and their keys become linked keys.",
+            &crate::terms::say(
+                "For a player who reset their key: this player is kept, the other one's medals, unlocks, achievements, holocrons and names move here and their keys become linked keys.",
+            ),
             72,
         ) {
             text(
                 &mut self.ui,
                 TextFamily::Body,
                 format_args!("{part}"),
-                frame.rect(RIGHT_X, y, RIGHT_WIDTH, 22.0),
+                frame.rect(MIDDLE_X, y, PANE_WIDTH, 22.0),
                 14.0 * s,
                 color::QUIET,
                 FontWeight::Regular,
@@ -1394,18 +2061,24 @@ impl Panel {
         }
         let y = MERGE_TOP + 104.0;
         let pick_width = 150.0;
-        let field = [RIGHT_X, y, RIGHT_WIDTH - pick_width - 10.0, 44.0];
+        let field = [MIDDLE_X, y, PANE_WIDTH - pick_width - 10.0, 44.0];
         let focused = self.focus == MERGE_FIELD_TOKEN;
         let caret = focused && (self.epoch.elapsed().as_millis() / 500).is_multiple_of(2);
+        // The key never shows: dots, and the player it names when the list has them.
+        let from = merge_key(&self.merge_from);
+        let shown = match players.iter().find(|player| player.has_key(&from)) {
+            Some(player) if !from.is_empty() => format!(
+                "{} {}",
+                hide_key(&from),
+                crate::medals::plain_note(&player.name)
+            ),
+            _ => hide_key(&self.merge_from),
+        };
         kit::field(
             &mut self.ui,
             frame,
             field,
-            format_args!(
-                "{}{}",
-                cut(&self.merge_from, 28),
-                if caret { "|" } else { "" }
-            ),
+            format_args!("{}{}", cut(&shown, 44), if caret { "|" } else { "" }),
             focused,
             false,
         );
@@ -1418,7 +2091,7 @@ impl Panel {
             &mut self.ui,
             frame,
             [
-                RIGHT_X + RIGHT_WIDTH - pick_width,
+                MIDDLE_X + PANE_WIDTH - pick_width,
                 y + 1.0,
                 pick_width,
                 42.0,
@@ -1453,7 +2126,7 @@ impl Panel {
             &mut self.ui,
             TextFamily::Body,
             format_args!("{line}"),
-            frame.rect(RIGHT_X, y + 54.0, RIGHT_WIDTH, 22.0),
+            frame.rect(MIDDLE_X, y + 54.0, PANE_WIDTH, 22.0),
             14.0 * s,
             colour,
             FontWeight::Regular,
@@ -1463,10 +2136,10 @@ impl Panel {
         kit::button(
             &mut self.ui,
             frame,
-            [RIGHT_X, y + 88.0, 180.0, 42.0],
+            [MIDDLE_X, y + 88.0, 180.0, 42.0],
             "Merge...",
             ready,
-            ready,
+            ready && self.shown.creator,
             self.focus == MERGE_TOKEN,
             MERGE_TOKEN,
         );
@@ -1485,7 +2158,7 @@ impl Panel {
         players: &[Profile],
     ) {
         let s = frame.s;
-        let card = [RIGHT_X - 12.0, MERGE_TOP + 26.0, RIGHT_WIDTH + 24.0, 316.0];
+        let card = [MIDDLE_X - 12.0, MERGE_TOP + 26.0, PANE_WIDTH + 24.0, 316.0];
         kit::card(&mut self.ui, frame, card);
         let named = |name: &str| {
             if name.is_empty() {
@@ -1499,20 +2172,29 @@ impl Panel {
             .find(|player| player.has_key(&merge.from))
             .map_or_else(|| "a player not in the list".to_owned(), |p| named(&p.name));
         let mut y = MERGE_TOP + 42.0;
-        for (label, who, key, colour) in [
+        // Who goes and who stays by name and when they were seen, never by key.
+        let seen_of = |profile: Option<&Profile>| {
+            let seen = profile.map_or(0, last_seen);
+            match crate::medals::date_text(seen) {
+                date if date.is_empty() => "not seen in a game yet".to_owned(),
+                date => format!("last seen {date}"),
+            }
+        };
+        let gone_profile = players.iter().find(|player| player.has_key(&merge.from));
+        for (label, who, about, colour) in [
             (
                 "Kept",
                 named(&kept.name),
-                merge.kept.as_str(),
+                seen_of(Some(kept)),
                 color::GOLD_BRIGHT,
             ),
-            ("Merged away", gone, merge.from.as_str(), color::EMBER),
+            ("Merged away", gone, seen_of(gone_profile), color::EMBER),
         ] {
             text(
                 &mut self.ui,
                 TextFamily::Display,
                 format_args!("{label}: {who}"),
-                frame.rect(RIGHT_X, y, RIGHT_WIDTH, 28.0),
+                frame.rect(MIDDLE_X, y, PANE_WIDTH, 28.0),
                 20.0 * s,
                 colour,
                 FontWeight::Semibold,
@@ -1521,8 +2203,8 @@ impl Panel {
             text(
                 &mut self.ui,
                 TextFamily::Body,
-                format_args!("Key id {key}"),
-                frame.rect(RIGHT_X, y + 28.0, RIGHT_WIDTH, 20.0),
+                format_args!("{about}"),
+                frame.rect(MIDDLE_X, y + 28.0, PANE_WIDTH, 20.0),
                 14.0 * s,
                 color::MUTED,
                 FontWeight::Regular,
@@ -1538,7 +2220,7 @@ impl Panel {
                 &mut self.ui,
                 TextFamily::Body,
                 format_args!("{part}"),
-                frame.rect(RIGHT_X, y, RIGHT_WIDTH, 22.0),
+                frame.rect(MIDDLE_X, y, PANE_WIDTH, 22.0),
                 14.0 * s,
                 color::TEXT,
                 FontWeight::Regular,
@@ -1550,7 +2232,7 @@ impl Panel {
         kit::button(
             &mut self.ui,
             frame,
-            [RIGHT_X, buttons_y, 200.0, 42.0],
+            [MIDDLE_X, buttons_y, 200.0, 42.0],
             "Merge for good",
             true,
             true,
@@ -1560,7 +2242,7 @@ impl Panel {
         kit::button(
             &mut self.ui,
             frame,
-            [RIGHT_X + 212.0, buttons_y, 130.0, 42.0],
+            [MIDDLE_X + 212.0, buttons_y, 130.0, 42.0],
             "Cancel",
             false,
             true,
@@ -1577,9 +2259,24 @@ impl Panel {
         let (line, colour) = if staff.busy {
             ("Working...".to_owned(), color::MUTED)
         } else if staff.failed {
-            (cut(&staff.message, 90), color::EMBER)
+            (cut(&crate::terms::say(&staff.message), 90), color::EMBER)
+        } else if staff.message.is_empty()
+            && !self.shown.creator
+            && matches!(
+                self.view,
+                View::Rewards | View::Economy | View::Achievements | View::Keys
+            )
+        {
+            (
+                "Only the owner gives, takes back, clears or merges; this tab is to read."
+                    .to_owned(),
+                color::MUTED,
+            )
         } else {
-            (cut(&staff.message, 90), color::GOLD_BRIGHT)
+            (
+                cut(&crate::terms::say(&staff.message), 90),
+                color::GOLD_BRIGHT,
+            )
         };
         text(
             &mut self.ui,
@@ -1598,7 +2295,7 @@ impl Panel {
         let s = frame.s;
         let enter = match self.focus {
             SEARCH_TOKEN => "search",
-            NOTE_TOKEN | MERGE_FIELD_TOKEN => "",
+            NOTE_TOKEN | MERGE_FIELD_TOKEN | AMOUNT_TOKEN => "",
             _ => "do",
         };
         let mut keys: Vec<(&[&str], &str)> = vec![(&["Tab"], "next")];
@@ -1634,6 +2331,7 @@ mod tests {
     fn crowded() -> Profile {
         Profile {
             staff: true,
+            creator: true,
             verified: true,
             name: "^1Sol^7Vulpes the Very Long Named One^5!".into(),
             medals: Medal::ALL
@@ -1652,6 +2350,7 @@ mod tests {
                     progress: kind.goal / 2 + 1,
                     goal: kind.goal,
                     unlocked: 0,
+                    reward: None,
                 })
                 .collect(),
             unlocks: crate::unlockables::ALL
@@ -1662,6 +2361,7 @@ mod tests {
                     note: "n".repeat(200),
                     count: 1,
                     medal: None,
+                    card: None,
                 })
                 .collect(),
             holocron_counts: sjk_identity::HolocronCounts {
@@ -1673,6 +2373,9 @@ mod tests {
             holocrons: (0..30)
                 .map(|id| sjk_identity::Holocron {
                     opened: None,
+                    traded: None,
+                    traded_from_key: None,
+                    traded_from: None,
                     id: 1_000 - id,
                     tier: crate::holocrons::TIERS[id as usize % crate::holocrons::COUNT]
                         .id
@@ -1696,6 +2399,7 @@ mod tests {
         let mut me = crowded();
         let mut panel = Panel::new();
         panel.open(true);
+        panel.activate(REWARDS_TAB_TOKEN);
         panel.build(
             &Inputs {
                 me: Some(&me),
@@ -1756,8 +2460,8 @@ mod tests {
     }
 
     /// Every focus, a full list and a crowded player fit the canvas at 1080p, 4K, 4:3
-    /// and 21:9, in the families and in Inter, in both right-hand views and with a
-    /// merge waiting for its confirmation.
+    /// and 21:9, in the families and in Inter, on every tab and with a merge waiting
+    /// for its confirmation.
     #[test]
     fn every_state_fits_the_canvas() {
         let load = |family| crate::text::load_family(family, 1.0, None).expect("a family");
@@ -1818,16 +2522,36 @@ mod tests {
             crash_groups,
             crashes,
             crashes_of: "0000000000000001".to_owned(),
+            chat_bans: (0..40)
+                .map(|index| sjk_identity::ChatBanRow {
+                    id: index,
+                    key_id: if index % 5 == 0 {
+                        String::new()
+                    } else {
+                        format!("{index:016x}")
+                    },
+                    name: long.clone(),
+                    address: index % 2 == 0,
+                    by_key_id: format!("{index:016x}"),
+                    by_name: long.clone(),
+                    created: 1_791_720_000,
+                    until: 1_791_806_400,
+                })
+                .collect(),
             ..StaffState::default()
         };
         for staff in [full, StaffState::default()].into_iter().flat_map(|staff| {
             [
-                (staff.clone(), RightView::Achievements, false),
-                (staff.clone(), RightView::Keys, false),
-                (staff.clone(), RightView::Keys, true),
-                (staff.clone(), RightView::Logs, false),
-                (staff.clone(), RightView::Crashes, false),
-                (staff, RightView::Crashes, true),
+                (staff.clone(), View::Overview, false),
+                (staff.clone(), View::Rewards, false),
+                (staff.clone(), View::Economy, false),
+                (staff.clone(), View::ChatBans, false),
+                (staff.clone(), View::Achievements, false),
+                (staff.clone(), View::Keys, false),
+                (staff.clone(), View::Keys, true),
+                (staff.clone(), View::Logs, false),
+                (staff.clone(), View::Crashes, false),
+                (staff, View::Crashes, true),
             ]
         }) {
             let (staff, right, pending) = staff;
@@ -1835,10 +2559,11 @@ mod tests {
             panel.open(true);
             panel.note = "n".repeat(200);
             panel.query = "q".repeat(64);
-            panel.right = right;
+            panel.view = right;
+            panel.amount = "9".repeat(AMOUNT_MAX);
             panel.merge_from = "m".repeat(MERGE_FIELD_MAX);
             // In the Crashes view, `pending` shows one kind's reports.
-            if pending && right == RightView::Crashes {
+            if pending && right == View::Crashes {
                 panel.crash_group = Some("0000000000000001".into());
             } else if pending {
                 panel.merge_from = "0000000000000003".into();

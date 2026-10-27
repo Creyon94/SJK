@@ -1,9 +1,13 @@
 //! The Staff page: for a player the hub's operator made staff, the SJK team's tools
-//! in the game (`docs/identity.md`, "Staff"): find a player, verify them, give or take
-//! back their medals, unlock or relock their unlockables, give or take back their
-//! holocrons, clear their achievements, list their keys and unlink one, merge
-//! another player into them (a player who reset their key), ask them for their game's
-//! logs and read the logs players sent and their crash reports. Every action is a
+//! in the game (`docs/identity.md`, "Staff"): find a player, then, on the chosen
+//! player's tabs, verify them and moderate their picture and SJK chat (Overview), give
+//! or take back their medals and unlockables (Medals and unlocks), their holocrons,
+//! credits and kyber shards (Holocrons and credits), clear their achievements, list
+//! their keys and unlink one or merge another player into them (a player who reset
+//! their key), and ask them for their game's logs; two more tabs read every player's
+//! crash reports and the SJK chat bans in force, with Lift. Key ids never show on the
+//! page (nor anywhere in the game): players go by name, a pasted key id shows as dots,
+//! and linked keys are numbered. Every action is a
 //! request signed by the player's own key (`sjk_identity::StaffRequest`,
 //! `sjk_identity::StaffQuery`); the hub refuses it from any other key, and the page
 //! only opens for a key whose profile says staff.
@@ -32,7 +36,7 @@ const CLEAR_ALL_TOKEN: u16 = 1_104;
 const PICTURE_DOWN_TOKEN: u16 = 1_105;
 /// Players found, one token each.
 const PLAYER_BASE: u16 = 1_110;
-const PLAYERS_SHOWN: usize = 10;
+const PLAYERS_SHOWN: usize = 15;
 /// Give and Take back, one token per medal of the catalogue.
 const GIVE_BASE: u16 = 1_150;
 const TAKE_BASE: u16 = 1_160;
@@ -44,16 +48,19 @@ const UNLOCK_PREV_TOKEN: u16 = 7_590;
 const UNLOCK_NEXT_TOKEN: u16 = 7_591;
 const UNLOCK_BASE: u16 = 7_600;
 const RELOCK_BASE: u16 = 7_900;
-/// The holocron tier chips (one token per tier), Give holocron, and Remove (one token
-/// per holocron row).
+/// The tier chips (one token per holocron tier, then one per kyber crystal tier, as
+/// `crate::holocrons::slot` counts them), Give, and Remove (one token per row).
 const HOLOCRON_TIER_BASE: u16 = 1_300;
 const HOLOCRON_GIVE_TOKEN: u16 = 1_310;
 const HOLOCRON_REMOVE_BASE: u16 = 1_320;
-/// The chosen player's recent holocrons listed with Remove.
-const HOLOCRONS_SHOWN: usize = 4;
+/// The chosen player's recent holocrons and kyber crystals listed with Remove.
+const HOLOCRONS_SHOWN: usize = 12;
 /// Verify or Unverify the chosen player.
 const VERIFY_TOKEN: u16 = 1_400;
-/// The right column's two views: the achievements, or the keys and merging.
+/// Make staff or Remove staff, the creator's own button (`PROTOCOL.md` of the hub,
+/// "Creator").
+const SET_STAFF_TOKEN: u16 = 1_408;
+/// The tabs: the chosen player's views, then every player's crashes and chat bans.
 const ACHIEVEMENTS_TAB_TOKEN: u16 = 1_401;
 const KEYS_TAB_TOKEN: u16 = 1_402;
 /// The key id of the player to merge away, Pick in list, Merge, and the confirmation's
@@ -83,14 +90,68 @@ const CRASH_GROUP_BASE: u16 = 1_460;
 const CRASH_GROUPS_SHOWN: usize = 9;
 const CRASH_OPEN_BASE: u16 = 1_480;
 const CRASH_ROWS_SHOWN: usize = 12;
+/// The Overview, Medals and unlocks, Holocrons and credits, and Chat bans tabs.
+const OVERVIEW_TAB_TOKEN: u16 = 1_500;
+const REWARDS_TAB_TOKEN: u16 = 1_501;
+const ECONOMY_TAB_TOKEN: u16 = 1_502;
+const CHAT_BANS_TAB_TOKEN: u16 = 1_503;
+/// The Overview's moderation: stop or let again the player's pictures, mute or unmute
+/// them in the SJK chat, lift their chat bans.
+const AVATAR_BLOCK_TOKEN: u16 = 1_504;
+const AVATAR_ALLOW_TOKEN: u16 = 1_505;
+const HUB_MUTE_TOKEN: u16 = 1_506;
+const HUB_UNMUTE_TOKEN: u16 = 1_507;
+const CHAT_UNBAN_TOKEN: u16 = 1_508;
+/// The amount field, then Give and Take for credits and for kyber shards.
+const AMOUNT_TOKEN: u16 = 1_509;
+const CREDITS_GIVE_TOKEN: u16 = 1_510;
+const CREDITS_TAKE_TOKEN: u16 = 1_511;
+const SHARDS_GIVE_TOKEN: u16 = 1_512;
+const SHARDS_TAKE_TOKEN: u16 = 1_513;
+/// The chat bans read again, and Lift, one token per ban listed.
+const CHAT_BANS_REFRESH_TOKEN: u16 = 1_514;
+const BAN_LIFT_BASE: u16 = 1_520;
+const BAN_ROWS_SHOWN: usize = 14;
+/// Longest amount of credits or shards, in digits.
+const AMOUNT_MAX: usize = 6;
 /// Longest text the merge field takes (a pasted key id with spaces round it).
 const MERGE_FIELD_MAX: usize = 40;
 /// Longest search, as the hub takes it.
 const QUERY_MAX: usize = 64;
 /// Longest note with a medal or an unlock, as the hub takes it.
 const NOTE_MAX: usize = 200;
-/// How long Clear all and Unlink wait for their second press.
+/// How long the buttons that take something away (Clear all, Unlink, Remove, Take
+/// credits, Take shards, Make or Remove staff) wait for their second press.
 const CONFIRM_FOR: Duration = Duration::from_secs(3);
+
+/// Whether `token` is one of the buttons only SJK's creator may use (the hub's
+/// `PROTOCOL.md`, "Creator", since 23/10/2026): what gives, takes back, clears or merges.
+/// Other staff see them dimmed; Tab skips them and a press does nothing.
+fn owner_only(token: u16) -> bool {
+    let within = |base: u16, count: usize| (base..base + count as u16).contains(&token);
+    matches!(
+        token,
+        PICTURE_DOWN_TOKEN
+            | CLEAR_ALL_TOKEN
+            | HOLOCRON_GIVE_TOKEN
+            | AMOUNT_TOKEN
+            | CREDITS_GIVE_TOKEN
+            | CREDITS_TAKE_TOKEN
+            | SHARDS_GIVE_TOKEN
+            | SHARDS_TAKE_TOKEN
+            | MERGE_FIELD_TOKEN
+            | MERGE_PICK_TOKEN
+            | MERGE_TOKEN
+            | MERGE_CONFIRM_TOKEN
+    ) || within(GIVE_BASE, crate::medals::Medal::COUNT)
+        || within(TAKE_BASE, crate::medals::Medal::COUNT)
+        || within(UNLOCK_BASE, crate::unlockables::ALL.len())
+        || within(RELOCK_BASE, crate::unlockables::ALL.len())
+        || within(HOLOCRON_TIER_BASE, crate::holocrons::SLOTS)
+        || within(HOLOCRON_REMOVE_BASE, HOLOCRONS_SHOWN)
+        || within(CLEAR_BASE, crate::achievements::ALL.len())
+        || within(UNLINK_BASE, LINKED_SHOWN)
+}
 
 /// What the console does after the page handled an event.
 #[derive(Debug, Eq, PartialEq)]
@@ -103,6 +164,17 @@ pub(crate) enum PanelAction {
     Query(StaffQuery),
 }
 
+/// A tab a world shot shows.
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum ShotTab {
+    Overview,
+    Rewards,
+    Economy,
+    Achievements,
+    ChatBans,
+}
+
 /// What the page knows this frame.
 pub(crate) struct Inputs<'a> {
     /// The player's own profile, once the hub sent it.
@@ -110,16 +182,24 @@ pub(crate) struct Inputs<'a> {
     pub(crate) staff: &'a StaffState,
 }
 
-/// What the right column shows.
+/// What the tabs show.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-enum RightView {
+enum View {
+    /// The chosen player's account, flags and moderation.
     #[default]
+    Overview,
+    /// Their medals and unlockables.
+    Rewards,
+    /// Their holocrons, credits and kyber shards.
+    Economy,
     Achievements,
     Keys,
     /// The log requests, with Request logs for the chosen player.
     Logs,
     /// The crash reports of every player: the groups, or one group's reports.
     Crashes,
+    /// The SJK chat bans in force, of every player, with Lift.
+    ChatBans,
 }
 
 /// A merge waiting for its confirmation: who is kept and who goes.
@@ -145,7 +225,7 @@ enum MergeProblem {
 impl MergeProblem {
     fn words(self) -> &'static str {
         match self {
-            Self::Empty => "Type or paste the other player's key id, or pick them in the list",
+            Self::Empty => "Pick the other player in the list, or paste their key id",
             Self::NotKey => "A key id is 16 hex digits",
             Self::Same => "That key is already this player's",
             Self::Staff => "A staff player cannot be merged away",
@@ -179,6 +259,11 @@ struct Shown {
     holocron_rows: usize,
     /// The chosen player is verified.
     verified: bool,
+    /// The chosen player is staff.
+    staff: bool,
+    /// The player's own is SJK's creator, who alone makes staff and uses the
+    /// [`owner_only`] buttons.
+    creator: bool,
     /// The chosen player's linked keys listed with Unlink.
     linked: Vec<String>,
     /// Why the merge field's key cannot be merged in, or `None` when it can.
@@ -188,6 +273,9 @@ struct Shown {
     /// The crash groups listed, by signature, and one group's reports, by number.
     crash_groups: Vec<String>,
     crash_rows: Vec<i64>,
+    /// The chat bans listed with Lift, by the banned player's key (empty: the ban holds
+    /// only an address, which Lift cannot name).
+    ban_rows: Vec<String>,
 }
 
 pub(crate) struct Panel {
@@ -196,9 +284,12 @@ pub(crate) struct Panel {
     ui: MenuCanvas,
     query: String,
     note: String,
+    /// The credits or shards Give and Take change, as typed (digits only).
+    amount: String,
     /// The chosen player's key; the player's own until another is chosen.
     selected: Option<String>,
-    /// The holocron tier Give holocron gives (its index in the catalogue).
+    /// What Give gives: a holocron tier or a kyber crystal tier, as
+    /// `crate::holocrons::slot` counts them.
     holocron_tier: usize,
     /// The unlockables list's page, from 0.
     unlock_page: usize,
@@ -209,8 +300,8 @@ pub(crate) struct Panel {
     /// The button pressed once (Clear all, an Unlink) waiting for its second press,
     /// and when.
     confirm: Option<(u16, Instant)>,
-    /// What the right column shows.
-    right: RightView,
+    /// The tab shown.
+    view: View,
     /// The merge field: the key id of the player to merge away.
     merge_from: String,
     /// The next player chosen in the list fills the merge field instead.
@@ -254,13 +345,14 @@ impl Panel {
             ui: MenuCanvas::with_capacities(260, 160, 1_200),
             query: String::new(),
             note: String::new(),
+            amount: String::new(),
             selected: None,
             holocron_tier: 0,
             unlock_page: 0,
             focus: SEARCH_TOKEN,
             order: Vec::with_capacity(64),
             confirm: None,
-            right: RightView::Achievements,
+            view: View::Overview,
             merge_from: String::new(),
             picking: false,
             pending_merge: None,
@@ -318,6 +410,11 @@ impl Panel {
             .or(me.filter(|me| me.key_id == key))
     }
 
+    /// The amount field's number, when it is one above 0.
+    fn amount(&self) -> Option<i64> {
+        self.amount.parse::<i64>().ok().filter(|amount| *amount > 0)
+    }
+
     /// Whether the button `token` is waiting for its second press.
     fn confirming(&self, token: u16) -> bool {
         self.confirm
@@ -362,6 +459,9 @@ impl Panel {
 
     /// What Enter (or a click) on `token` does.
     fn activate(&mut self, token: u16) -> PanelAction {
+        if owner_only(token) && !self.shown.creator {
+            return PanelAction::None;
+        }
         self.focus = token;
         if self.confirm.is_some_and(|(pressed, _)| pressed != token) {
             self.confirm = None;
@@ -387,21 +487,102 @@ impl Panel {
                 }),
                 None => PanelAction::None,
             },
+            SET_STAFF_TOKEN => match target {
+                Some(key_id) if self.shown.creator && self.second_press(SET_STAFF_TOKEN) => {
+                    PanelAction::Request(StaffRequest::SetStaff {
+                        key_id,
+                        staff: !self.shown.staff,
+                    })
+                }
+                _ => PanelAction::None,
+            },
+            OVERVIEW_TAB_TOKEN => {
+                self.view = View::Overview;
+                PanelAction::None
+            }
+            REWARDS_TAB_TOKEN => {
+                self.view = View::Rewards;
+                PanelAction::None
+            }
+            ECONOMY_TAB_TOKEN => {
+                self.view = View::Economy;
+                PanelAction::None
+            }
+            CHAT_BANS_TAB_TOKEN | CHAT_BANS_REFRESH_TOKEN => {
+                self.view = View::ChatBans;
+                PanelAction::Query(StaffQuery::ChatBans)
+            }
+            token if (BAN_LIFT_BASE..BAN_LIFT_BASE + BAN_ROWS_SHOWN as u16).contains(&token) => {
+                match self.shown.ban_rows.get(usize::from(token - BAN_LIFT_BASE)) {
+                    Some(key_id) if !key_id.is_empty() => {
+                        PanelAction::Request(StaffRequest::ChatUnban {
+                            key_id: key_id.clone(),
+                        })
+                    }
+                    _ => PanelAction::None,
+                }
+            }
+            AVATAR_BLOCK_TOKEN | AVATAR_ALLOW_TOKEN => match target {
+                Some(key_id) => PanelAction::Request(StaffRequest::AvatarBlock {
+                    key_id,
+                    blocked: token == AVATAR_BLOCK_TOKEN,
+                }),
+                None => PanelAction::None,
+            },
+            HUB_MUTE_TOKEN | HUB_UNMUTE_TOKEN => match target {
+                Some(key_id) => PanelAction::Request(StaffRequest::ChatMute {
+                    key_id,
+                    muted: token == HUB_MUTE_TOKEN,
+                }),
+                None => PanelAction::None,
+            },
+            CHAT_UNBAN_TOKEN => match target {
+                Some(key_id) => PanelAction::Request(StaffRequest::ChatUnban { key_id }),
+                None => PanelAction::None,
+            },
+            AMOUNT_TOKEN => PanelAction::None,
+            CREDITS_GIVE_TOKEN | CREDITS_TAKE_TOKEN | SHARDS_GIVE_TOKEN | SHARDS_TAKE_TOKEN => {
+                let (Some(key_id), Some(amount)) = (target, self.amount()) else {
+                    return PanelAction::None;
+                };
+                let take = matches!(token, CREDITS_TAKE_TOKEN | SHARDS_TAKE_TOKEN);
+                // Taking away waits for a second press.
+                if take && !self.second_press(token) {
+                    return PanelAction::None;
+                }
+                let delta = if take { -amount } else { amount };
+                let note = self.note.trim().to_owned();
+                PanelAction::Request(
+                    if matches!(token, CREDITS_GIVE_TOKEN | CREDITS_TAKE_TOKEN) {
+                        StaffRequest::Credits {
+                            key_id,
+                            delta,
+                            note,
+                        }
+                    } else {
+                        StaffRequest::Shards {
+                            key_id,
+                            delta,
+                            note,
+                        }
+                    },
+                )
+            }
             ACHIEVEMENTS_TAB_TOKEN => {
-                self.right = RightView::Achievements;
+                self.view = View::Achievements;
                 PanelAction::None
             }
             KEYS_TAB_TOKEN => {
-                self.right = RightView::Keys;
+                self.view = View::Keys;
                 PanelAction::None
             }
             // The Logs and Crashes views read their lists from the hub as they open.
             LOGS_TAB_TOKEN | LOGS_REFRESH_TOKEN => {
-                self.right = RightView::Logs;
+                self.view = View::Logs;
                 PanelAction::Query(StaffQuery::LogRequests)
             }
             CRASHES_TAB_TOKEN | CRASHES_REFRESH_TOKEN | CRASHES_BACK_TOKEN => {
-                self.right = RightView::Crashes;
+                self.view = View::Crashes;
                 self.crash_group = None;
                 PanelAction::Query(StaffQuery::CrashGroups)
             }
@@ -606,7 +787,7 @@ impl Panel {
                 }
             }
             token
-                if (HOLOCRON_TIER_BASE..HOLOCRON_TIER_BASE + crate::holocrons::COUNT as u16)
+                if (HOLOCRON_TIER_BASE..HOLOCRON_TIER_BASE + crate::holocrons::SLOTS as u16)
                     .contains(&token) =>
             {
                 self.holocron_tier = usize::from(token - HOLOCRON_TIER_BASE);
@@ -615,7 +796,7 @@ impl Panel {
             HOLOCRON_GIVE_TOKEN => match target {
                 Some(key_id) => PanelAction::Request(StaffRequest::HolocronGive {
                     key_id,
-                    tier: crate::holocrons::TIERS[self.holocron_tier].id.to_owned(),
+                    tier: crate::holocrons::slot(self.holocron_tier).id.to_owned(),
                     note: self.note.trim().to_owned(),
                 }),
                 None => PanelAction::None,
@@ -626,7 +807,7 @@ impl Panel {
             {
                 let row = usize::from(token - HOLOCRON_REMOVE_BASE);
                 match target {
-                    Some(key_id) if row < self.shown.holocron_rows => {
+                    Some(key_id) if row < self.shown.holocron_rows && self.second_press(token) => {
                         PanelAction::Request(StaffRequest::HolocronRemove {
                             key_id,
                             id: self.shown.holocrons[row],
@@ -652,6 +833,23 @@ impl Panel {
         }
     }
 
+    /// Show `tab`, for a world shot.
+    #[cfg(test)]
+    pub(crate) fn tab_for_shot(&mut self, tab: ShotTab) {
+        self.view = match tab {
+            ShotTab::Overview => View::Overview,
+            ShotTab::Rewards => View::Rewards,
+            ShotTab::Economy => View::Economy,
+            ShotTab::Achievements => View::Achievements,
+            ShotTab::ChatBans => View::ChatBans,
+        };
+        if tab == ShotTab::Economy {
+            self.amount = "50".to_owned();
+            // A rare kyber crystal chosen, from the chips' second row.
+            self.holocron_tier = crate::holocrons::COUNT + 1;
+        }
+    }
+
     /// Choose the player with `key_id`, for a world shot.
     #[cfg(test)]
     pub(crate) fn choose_for_shot(&mut self, key_id: &str) {
@@ -662,7 +860,7 @@ impl Panel {
     /// for the chosen player when `confirm`, for a world shot.
     #[cfg(test)]
     pub(crate) fn merge_for_shot(&mut self, from: &str, confirm: bool) {
-        self.right = RightView::Keys;
+        self.view = View::Keys;
         self.merge_from = from.to_owned();
         self.pending_merge = None;
         if confirm && let Some(kept) = self.shown.target.clone() {
@@ -678,11 +876,7 @@ impl Panel {
     /// world shot.
     #[cfg(test)]
     pub(crate) fn view_for_shot(&mut self, logs: bool, group: Option<&str>) {
-        self.right = if logs {
-            RightView::Logs
-        } else {
-            RightView::Crashes
-        };
+        self.view = if logs { View::Logs } else { View::Crashes };
         self.crash_group = group.map(str::to_owned);
     }
 
@@ -713,12 +907,16 @@ impl Panel {
         let PhysicalKey::Code(key) = event.physical_key else {
             return PanelAction::None;
         };
-        let typing = matches!(self.focus, SEARCH_TOKEN | NOTE_TOKEN | MERGE_FIELD_TOKEN);
+        let typing = matches!(
+            self.focus,
+            SEARCH_TOKEN | NOTE_TOKEN | MERGE_FIELD_TOKEN | AMOUNT_TOKEN
+        );
         let in_list = (PLAYER_BASE..PLAYER_BASE + PLAYERS_SHOWN as u16).contains(&self.focus);
         if typing && !event.repeat {
             let field = match self.focus {
                 SEARCH_TOKEN => &mut self.query,
                 MERGE_FIELD_TOKEN => &mut self.merge_from,
+                AMOUNT_TOKEN => &mut self.amount,
                 _ => &mut self.note,
             };
             if crate::text_entry::before_edit(field, key, event.text.as_deref(), shift, control) {
@@ -753,6 +951,7 @@ impl Panel {
                 let field = match self.focus {
                     SEARCH_TOKEN => &mut self.query,
                     MERGE_FIELD_TOKEN => &mut self.merge_from,
+                    AMOUNT_TOKEN => &mut self.amount,
                     _ => &mut self.note,
                 };
                 field.pop();
@@ -771,6 +970,10 @@ impl Panel {
                 match self.focus {
                     SEARCH_TOKEN => type_into(&mut self.query, text, QUERY_MAX),
                     MERGE_FIELD_TOKEN => type_into(&mut self.merge_from, text, MERGE_FIELD_MAX),
+                    AMOUNT_TOKEN => {
+                        let digits: String = text.chars().filter(char::is_ascii_digit).collect();
+                        type_into(&mut self.amount, &digits, AMOUNT_MAX)
+                    }
                     _ => type_into(&mut self.note, text, NOTE_MAX),
                 };
             }
@@ -790,7 +993,7 @@ impl Panel {
         match event.token {
             Some(BACK_TOKEN) => PanelAction::Close,
             // A click in a field puts the keyboard there; it searches on Enter.
-            Some(token @ (SEARCH_TOKEN | NOTE_TOKEN | MERGE_FIELD_TOKEN)) => {
+            Some(token @ (SEARCH_TOKEN | NOTE_TOKEN | MERGE_FIELD_TOKEN | AMOUNT_TOKEN)) => {
                 self.focus = token;
                 PanelAction::None
             }
@@ -816,6 +1019,8 @@ mod tests {
             bio: String::new(),
             verified: false,
             staff: false,
+            creator: false,
+            jkr_creator: false,
             trust: None,
             emoji: String::new(),
             created: 1_791_250_000,
@@ -826,12 +1031,15 @@ mod tests {
             unlocks: Vec::new(),
             holocron_counts: sjk_identity::HolocronCounts::default(),
             holocrons: Vec::new(),
+            shards: 0,
         }
     }
 
+    /// The player's own: SJK's creator, who may use every button.
     fn me() -> Profile {
         Profile {
             staff: true,
+            creator: true,
             medals: vec![Medal {
                 id: "early_tester".into(),
                 count: 1,
@@ -843,6 +1051,7 @@ mod tests {
                 progress: 1,
                 goal: 1,
                 unlocked: 5,
+                reward: None,
             }],
             ..profile("aaaaaaaaaaaaaaaa", "^1Sol")
         }
@@ -1023,6 +1232,8 @@ mod tests {
     #[test]
     fn unlockables_are_unlocked_and_relocked_as_held() {
         let (mut panel, me, _) = drawn(Vec::new());
+        let _ = panel.activate(REWARDS_TAB_TOKEN);
+        redraw(&mut panel, &me, Vec::new());
         assert!(panel.order.contains(&UNLOCK_BASE), "Unlock is offered");
         assert!(!panel.order.contains(&RELOCK_BASE), "nothing to relock");
         panel.note = " for testing ".into();
@@ -1043,6 +1254,7 @@ mod tests {
                 note: String::new(),
                 count: 1,
                 medal: None,
+                card: None,
             }],
             ..me.clone()
         };
@@ -1071,6 +1283,9 @@ mod tests {
     fn wire_holocron(id: u64, tier: &str) -> sjk_identity::Holocron {
         sjk_identity::Holocron {
             opened: None,
+            traded: None,
+            traded_from_key: None,
+            traded_from: None,
             id,
             tier: tier.to_owned(),
             dropped: 1_791_641_100,
@@ -1082,6 +1297,8 @@ mod tests {
     #[test]
     fn a_holocron_is_given_in_the_chosen_tier_with_the_note() {
         let (mut panel, me, _) = drawn(Vec::new());
+        let _ = panel.activate(ECONOMY_TAB_TOKEN);
+        redraw(&mut panel, &me, Vec::new());
         panel.note = "  for the fog bug ".into();
         // Uncommon is chosen to begin with.
         assert_eq!(
@@ -1106,20 +1323,43 @@ mod tests {
             })
         );
         assert!(panel.order.contains(&HOLOCRON_GIVE_TOKEN));
-        for tier in 0..crate::holocrons::COUNT as u16 {
+        for tier in 0..crate::holocrons::SLOTS as u16 {
             assert!(panel.order.contains(&(HOLOCRON_TIER_BASE + tier)));
         }
     }
 
     #[test]
+    fn a_kyber_crystal_is_given_from_the_second_row_of_chips() {
+        let (mut panel, me, _) = drawn(Vec::new());
+        let _ = panel.activate(ECONOMY_TAB_TOKEN);
+        redraw(&mut panel, &me, Vec::new());
+        for (slot, tier) in crate::kyber::TIERS.iter().enumerate() {
+            let chip = HOLOCRON_TIER_BASE + (crate::holocrons::COUNT + slot) as u16;
+            assert_eq!(panel.activate(chip), PanelAction::None);
+            assert_eq!(
+                panel.activate(HOLOCRON_GIVE_TOKEN),
+                PanelAction::Request(StaffRequest::HolocronGive {
+                    key_id: me.key_id.clone(),
+                    tier: tier.id.into(),
+                    note: String::new(),
+                })
+            );
+        }
+    }
+
+    #[test]
     fn a_holocron_the_player_holds_is_taken_back_by_its_number() {
-        let (mut panel, _, staff) = drawn(Vec::new());
+        let (mut panel, me, staff) = drawn(Vec::new());
+        let _ = panel.activate(ECONOMY_TAB_TOKEN);
+        redraw(&mut panel, &me, Vec::new());
         // Nothing listed yet: nothing to remove.
         assert_eq!(panel.activate(HOLOCRON_REMOVE_BASE), PanelAction::None);
         assert!(!panel.order.contains(&HOLOCRON_REMOVE_BASE));
         let held = Profile {
             staff: true,
+            creator: true,
             holocrons: vec![
+                wire_holocron(42, "kyber_rare"),
                 wire_holocron(41, "legendary"),
                 wire_holocron(40, "from_the_future"),
                 wire_holocron(39, "rare"),
@@ -1135,24 +1375,26 @@ mod tests {
             &fonts.font,
             [1920.0, 1080.0],
         );
-        // Rows are the known tiers, newest first.
-        assert_eq!(
-            panel.activate(HOLOCRON_REMOVE_BASE),
-            PanelAction::Request(StaffRequest::HolocronRemove {
-                key_id: "aaaaaaaaaaaaaaaa".into(),
-                id: 41
-            })
-        );
-        assert_eq!(
-            panel.activate(HOLOCRON_REMOVE_BASE + 1),
-            PanelAction::Request(StaffRequest::HolocronRemove {
-                key_id: "aaaaaaaaaaaaaaaa".into(),
-                id: 39
-            })
-        );
-        assert_eq!(panel.activate(HOLOCRON_REMOVE_BASE + 2), PanelAction::None);
-        assert!(panel.order.contains(&(HOLOCRON_REMOVE_BASE + 1)));
-        assert!(!panel.order.contains(&(HOLOCRON_REMOVE_BASE + 2)));
+        // Rows are the known tiers, kyber crystals too, newest first; each Remove
+        // waits for a second press.
+        for (row, id) in [42, 41, 39].into_iter().enumerate() {
+            let token = HOLOCRON_REMOVE_BASE + row as u16;
+            assert_eq!(panel.activate(token), PanelAction::None, "first press");
+            assert_eq!(
+                panel.activate(token),
+                PanelAction::Request(StaffRequest::HolocronRemove {
+                    key_id: "aaaaaaaaaaaaaaaa".into(),
+                    id
+                })
+            );
+        }
+        // A first press elsewhere lets go of the one waiting.
+        let _ = panel.activate(HOLOCRON_REMOVE_BASE);
+        let _ = panel.activate(HOLOCRON_REMOVE_BASE + 1);
+        assert_eq!(panel.activate(HOLOCRON_REMOVE_BASE), PanelAction::None);
+        assert_eq!(panel.activate(HOLOCRON_REMOVE_BASE + 3), PanelAction::None);
+        assert!(panel.order.contains(&(HOLOCRON_REMOVE_BASE + 2)));
+        assert!(!panel.order.contains(&(HOLOCRON_REMOVE_BASE + 3)));
     }
 
     #[test]
@@ -1218,6 +1460,98 @@ mod tests {
             PanelAction::Request(StaffRequest::Verify {
                 key_id: me.key_id,
                 verified: false
+            })
+        );
+    }
+
+    #[test]
+    fn only_the_creator_makes_staff_on_a_second_press_and_never_unstaffs_themselves() {
+        let other = profile("bbbbbbbbbbbbbbbb", "Fox");
+        let (mut panel, me, _) = drawn(vec![other.clone()]);
+        let me = Profile {
+            creator: false,
+            ..me
+        };
+        let _ = panel.activate(PLAYER_BASE);
+        redraw(&mut panel, &me, vec![other.clone()]);
+        assert!(
+            !panel.order.contains(&SET_STAFF_TOKEN),
+            "staff do not get it"
+        );
+        assert_eq!(panel.activate(SET_STAFF_TOKEN), PanelAction::None);
+        let creator = Profile {
+            staff: true,
+            creator: true,
+            ..me.clone()
+        };
+        redraw(&mut panel, &creator, vec![other.clone()]);
+        assert!(panel.order.contains(&SET_STAFF_TOKEN));
+        assert_eq!(panel.activate(SET_STAFF_TOKEN), PanelAction::None);
+        assert!(panel.confirming(SET_STAFF_TOKEN));
+        assert_eq!(
+            panel.activate(SET_STAFF_TOKEN),
+            PanelAction::Request(StaffRequest::SetStaff {
+                key_id: other.key_id.clone(),
+                staff: true
+            })
+        );
+        let staffed = Profile {
+            staff: true,
+            ..other.clone()
+        };
+        redraw(&mut panel, &creator, vec![staffed]);
+        let _ = panel.activate(SET_STAFF_TOKEN);
+        assert_eq!(
+            panel.activate(SET_STAFF_TOKEN),
+            PanelAction::Request(StaffRequest::SetStaff {
+                key_id: other.key_id,
+                staff: false
+            })
+        );
+        // On their own player the creator has no such button.
+        let _ = panel.activate(ME_TOKEN);
+        redraw(&mut panel, &creator, Vec::new());
+        assert!(!panel.order.contains(&SET_STAFF_TOKEN));
+    }
+
+    #[test]
+    fn staff_read_what_only_the_creator_gives_takes_back_or_merges() {
+        let other = profile("bbbbbbbbbbbbbbbb", "Fox");
+        let (mut panel, me, _) = drawn(vec![other.clone()]);
+        let me = Profile {
+            creator: false,
+            ..me
+        };
+        let _ = panel.activate(PLAYER_BASE);
+        panel.amount = "50".to_owned();
+        let _ = panel.activate(ECONOMY_TAB_TOKEN);
+        redraw(&mut panel, &me, vec![other.clone()]);
+        assert!(!panel.order.iter().any(|token| owner_only(*token)));
+        assert_eq!(panel.activate(CREDITS_GIVE_TOKEN), PanelAction::None);
+        assert_eq!(panel.activate(HOLOCRON_GIVE_TOKEN), PanelAction::None);
+        assert_eq!(panel.activate(GIVE_BASE), PanelAction::None);
+        // The day-to-day moderation stays theirs.
+        assert_eq!(
+            panel.activate(HUB_MUTE_TOKEN),
+            PanelAction::Request(StaffRequest::ChatMute {
+                key_id: other.key_id.clone(),
+                muted: true
+            })
+        );
+        let creator = Profile {
+            staff: true,
+            creator: true,
+            ..me
+        };
+        let _ = panel.activate(ECONOMY_TAB_TOKEN);
+        redraw(&mut panel, &creator, vec![other.clone()]);
+        assert!(panel.order.contains(&CREDITS_GIVE_TOKEN));
+        assert_eq!(
+            panel.activate(CREDITS_GIVE_TOKEN),
+            PanelAction::Request(StaffRequest::Credits {
+                key_id: other.key_id,
+                delta: 50,
+                note: String::new()
             })
         );
     }
@@ -1326,8 +1660,146 @@ mod tests {
     }
 
     #[test]
+    fn credits_and_shards_need_an_amount_and_carry_the_note() {
+        let (mut panel, me, _) = drawn(Vec::new());
+        let _ = panel.activate(ECONOMY_TAB_TOKEN);
+        redraw(&mut panel, &me, Vec::new());
+        assert!(panel.order.contains(&AMOUNT_TOKEN));
+        assert!(!panel.order.contains(&CREDITS_GIVE_TOKEN), "no amount yet");
+        assert_eq!(panel.activate(CREDITS_GIVE_TOKEN), PanelAction::None);
+        // The field takes digits only.
+        panel.focus = AMOUNT_TOKEN;
+        let _ = type_into(&mut panel.amount, "4x2", AMOUNT_MAX);
+        assert_eq!(
+            panel.amount, "4x2",
+            "type_into itself keeps what it is given"
+        );
+        panel.amount.clear();
+        let digits: String = "4x2".chars().filter(char::is_ascii_digit).collect();
+        let _ = type_into(&mut panel.amount, &digits, AMOUNT_MAX);
+        assert_eq!(panel.amount, "42");
+        panel.note = " refund ".into();
+        redraw(&mut panel, &me, Vec::new());
+        for token in [
+            CREDITS_GIVE_TOKEN,
+            CREDITS_TAKE_TOKEN,
+            SHARDS_GIVE_TOKEN,
+            SHARDS_TAKE_TOKEN,
+        ] {
+            assert!(panel.order.contains(&token), "{token}");
+        }
+        assert_eq!(
+            panel.activate(CREDITS_TAKE_TOKEN),
+            PanelAction::None,
+            "taking waits for a second press"
+        );
+        assert_eq!(
+            panel.activate(CREDITS_TAKE_TOKEN),
+            PanelAction::Request(StaffRequest::Credits {
+                key_id: me.key_id.clone(),
+                delta: -42,
+                note: "refund".into(),
+            })
+        );
+        assert_eq!(
+            panel.activate(SHARDS_GIVE_TOKEN),
+            PanelAction::Request(StaffRequest::Shards {
+                key_id: me.key_id.clone(),
+                delta: 42,
+                note: "refund".into(),
+            })
+        );
+        panel.amount = "0".into();
+        assert_eq!(
+            panel.activate(SHARDS_GIVE_TOKEN),
+            PanelAction::None,
+            "0 is no amount"
+        );
+    }
+
+    #[test]
+    fn the_overview_moderates_pictures_and_the_chat() {
+        let (mut panel, me, _) = drawn(Vec::new());
+        assert_eq!(panel.view, View::Overview, "the page opens on the Overview");
+        let key_id = me.key_id.clone();
+        assert_eq!(
+            panel.activate(AVATAR_BLOCK_TOKEN),
+            PanelAction::Request(StaffRequest::AvatarBlock {
+                key_id: key_id.clone(),
+                blocked: true,
+            })
+        );
+        assert_eq!(
+            panel.activate(AVATAR_ALLOW_TOKEN),
+            PanelAction::Request(StaffRequest::AvatarBlock {
+                key_id: key_id.clone(),
+                blocked: false,
+            })
+        );
+        assert_eq!(
+            panel.activate(HUB_MUTE_TOKEN),
+            PanelAction::Request(StaffRequest::ChatMute {
+                key_id: key_id.clone(),
+                muted: true,
+            })
+        );
+        assert_eq!(
+            panel.activate(HUB_UNMUTE_TOKEN),
+            PanelAction::Request(StaffRequest::ChatMute {
+                key_id: key_id.clone(),
+                muted: false,
+            })
+        );
+        assert_eq!(
+            panel.activate(CHAT_UNBAN_TOKEN),
+            PanelAction::Request(StaffRequest::ChatUnban { key_id })
+        );
+    }
+
+    #[test]
+    fn chat_bans_are_listed_and_lifted_by_key() {
+        let (mut panel, me, _) = drawn(Vec::new());
+        assert_eq!(
+            panel.activate(CHAT_BANS_TAB_TOKEN),
+            PanelAction::Query(StaffQuery::ChatBans)
+        );
+        let staff = StaffState {
+            chat_bans: vec![
+                sjk_identity::ChatBanRow {
+                    key_id: "bbbbbbbbbbbbbbbb".into(),
+                    name: "Fox".into(),
+                    ..Default::default()
+                },
+                // Only an address: nothing Lift can name.
+                sjk_identity::ChatBanRow::default(),
+            ],
+            ..StaffState::default()
+        };
+        let fonts = crate::text::load_modern(1.0, None).expect("Inter");
+        panel.build(
+            &Inputs {
+                me: Some(&me),
+                staff: &staff,
+            },
+            &fonts.font,
+            [1920.0, 1080.0],
+        );
+        assert!(panel.order.contains(&BAN_LIFT_BASE));
+        assert!(!panel.order.contains(&(BAN_LIFT_BASE + 1)));
+        assert_eq!(
+            panel.activate(BAN_LIFT_BASE),
+            PanelAction::Request(StaffRequest::ChatUnban {
+                key_id: "bbbbbbbbbbbbbbbb".into(),
+            })
+        );
+        assert_eq!(panel.activate(BAN_LIFT_BASE + 1), PanelAction::None);
+    }
+
+    #[test]
     fn tab_walks_every_control_and_typing_goes_to_the_field() {
-        let (mut panel, _, _) = drawn(vec![profile("bbbbbbbbbbbbbbbb", "Fox")]);
+        let (mut panel, me, _) = drawn(vec![profile("bbbbbbbbbbbbbbbb", "Fox")]);
+        let _ = panel.activate(ACHIEVEMENTS_TAB_TOKEN);
+        redraw(&mut panel, &me, vec![profile("bbbbbbbbbbbbbbbb", "Fox")]);
         assert!(panel.order.contains(&SEARCH_TOKEN));
         assert!(panel.order.contains(&PLAYER_BASE));
         assert!(panel.order.contains(&NOTE_TOKEN));

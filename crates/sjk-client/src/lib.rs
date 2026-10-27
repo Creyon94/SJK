@@ -9,7 +9,18 @@ mod animation_selection;
 mod asset_catalog;
 mod base_server_commands;
 mod body_animation;
+mod body_fade;
+pub use body_fade::{BodyFadeFrame, LegacyBodyFadeTracker, legacy_body_fade};
+/// The constants of a body's fade (`EV_BODYFADE`).
+pub mod body_fade_assets {
+    pub use crate::body_fade::{
+        BURN_START_MILLIS, CRACKLE_SOUND, DARK_SHADER, DARK_START_SOUND, ELECTRIC_SHADERS,
+        EV_BODYFADE, HUM_PERIOD_MILLIS, HUM_SOUND, LIGHT_SHADER, LIGHT_START_SOUND,
+    };
+}
+mod idle_stances;
 mod shader_remaps;
+mod siege_result;
 pub use shader_remaps::{
     SHADER_STATE_CONFIG, ShaderRemapTable, ShaderRemaps, next_remap_order, shader_name,
 };
@@ -27,11 +38,19 @@ mod demo_recorder;
 pub mod download;
 mod download_session;
 mod duel_isolation;
+pub mod player_model_eligibility;
 pub use duel_isolation::duel_passes_through;
+mod duel_hide;
+pub use duel_hide::{
+    DUEL_HIDE_SERVERS, DUEL_SEE_OTHERS, DuelHide, DuelHideMode, DuelHidePolicy, DuelHideRule,
+    DuelHideServer, DuelHideSettings, EVENT_ACTORS, EventActor, duel_hidden_snapshot,
+};
 mod duel_look;
 pub use duel_look::{DuelActor, DuelViewer, legacy_duel_ghost, legacy_duel_tint};
 mod entity_models;
+mod force_anim_fx;
 mod force_overlay_events;
+pub use force_anim_fx::{LegacyForceAnimFx, LegacyForceAnimFxTimers};
 mod force_overlays;
 mod force_profile;
 mod force_profile_negotiation;
@@ -47,13 +66,19 @@ mod join_bootstrap;
 mod join_session;
 mod lagometer;
 use sjk_game_jka::legacy_animation;
+mod jetpack_sounds;
 mod legacy_text;
 mod local_sounds;
 mod loop_sounds;
+pub use jetpack_sounds::{
+    LEGACY_JETPACK_HOVER_SOUNDS, LEGACY_JETPACK_SWITCH_SOUNDS, LegacyJetpackSounds,
+};
 mod maintained_sounds;
 mod map_effects;
 mod match_info;
 mod mind_trick;
+mod npc_health;
+pub use npc_health::LegacyNpcHealthView;
 mod missile_effects;
 mod muzzle_effects;
 mod npc_identity;
@@ -83,6 +108,7 @@ pub mod string_table;
 pub use permanent_entities::{legacy_permanent_visible, legacy_scene_entities};
 mod presentation_equipment;
 mod reliable_pacing;
+pub use reliable_pacing::{INPUT_COMMAND_TTL, ReliableCommandOrigin};
 mod retail_assets;
 mod saber_clash_flare;
 mod saber_command;
@@ -107,7 +133,10 @@ mod vote_state;
 use sjk_game_jka::weapon_data;
 mod weapon_selection;
 
-pub use actor_color::{TeamColorPolicy, legacy_body_color, legacy_player_color};
+pub use actor_color::{
+    TeamColorPolicy, legacy_body_color, legacy_player_color, legacy_saber_team_colors,
+    legacy_siege_class_blades, legacy_team_blade, legacy_team_sabers,
+};
 pub use ambient_sets::{AmbientSet, AmbientSetKind, AmbientSets};
 pub use ambient_world::{CS_GLOBAL_AMBIENT_SET, LegacyAmbientShot, LegacyRandom};
 pub use animation_selection::legacy_predicted_animation_inputs;
@@ -130,7 +159,7 @@ pub fn legacy_death_animation(clip: usize) -> bool {
 }
 pub use asset_catalog::{
     LEGACY_SABER_COLORS, LegacyAssetCatalog, LegacyAssetCatalogLoader, LegacyCatalogStatus,
-    legacy_asset_catalog,
+    legacy_asset_catalog, legacy_asset_catalog_with_model_policy,
 };
 pub use base_server_commands::{
     BaseServerCommandEvent, BodyIdentity, ForceRankUpdate, Ghoul2Restore, ImmediateBodyCopy,
@@ -138,11 +167,12 @@ pub use base_server_commands::{
 };
 pub use character_catalog::{
     LegacyCharacter, LegacyCharacterCatalog, LegacySpecies, LegacySpeciesColor,
-    legacy_character_catalog,
+    legacy_character_catalog, legacy_character_catalog_with_policy,
 };
 pub use chat::{
-    CHAT_INPUT_BYTES, ChatDestination, ChatRoster, ChatTarget, chat_body, chat_command,
-    chat_display_text, chat_input_fits, chat_name_key, chat_plain_text, chat_unescape,
+    CHAT_INPUT_BYTES, ChatDestination, ChatRoster, ChatTarget, SJK_COPY_TAG, chat_body,
+    chat_command, chat_display_text, chat_input_fits, chat_name_key, chat_plain_text,
+    chat_unescape, sjk_copy_id, sjk_copy_marker,
 };
 pub use client_commands::{CompatConsoleCommand, console_commands as compat_console_commands};
 pub use compat_profile::{CompatProfile, PLUGIN_DISABLE_DEFAULT, PLUGIN_IDENTITY_KEY};
@@ -208,19 +238,21 @@ pub use muzzle_effects::{
     legacy_muzzle_effect, legacy_muzzle_window,
 };
 pub use npc_identity::{
-    legacy_npc_appearance, legacy_npc_body_model, legacy_npc_saber_names,
+    legacy_npc_appearance, legacy_npc_body_model, legacy_npc_definition_rgb,
+    legacy_npc_primary_saber_missing, legacy_npc_saber_color_overrides, legacy_npc_saber_names,
     legacy_npc_saber_names_borrowed, legacy_npc_state, legacy_vehicle_name,
 };
 pub use obituary::{
-    EV_OBITUARY, Gender, KillFeed, ObituaryEvent, ObituaryTracker, legacy_obituary, obituary_name,
+    EV_OBITUARY, EV_SIEGE_ROUNDOVER, Gender, KillFeed, ObituaryEvent, ObituaryTracker,
+    SiegeObjectiveComplete, SiegeRoundOver, legacy_obituary, obituary_name,
 };
 pub use player_angle_rules::{PredictedPoseFields, legacy_predicted_pose};
 pub use player_angles::{
     LegacyPlayerAngleController, LegacyPlayerAngleInputs, LegacyPlayerAngleSample,
 };
 pub use player_identity::{
-    legacy_client_appearance, legacy_client_appearance_forced, legacy_client_saber_name,
-    legacy_client_saber_names,
+    legacy_client_appearance, legacy_client_appearance_forced,
+    legacy_client_appearance_with_policy, legacy_client_saber_name, legacy_client_saber_names,
 };
 pub use player_lookup::{PlayerLookup, lookup_player};
 pub use player_profile::{
@@ -259,6 +291,7 @@ pub use saber_move::legacy_saber_trail_length;
 pub use server_address::{LegacyAddressError, LegacyServerAddress};
 pub use server_clock::ServerClock;
 pub use session_transition::{SessionTransition, SessionTransitionKind};
+pub use siege_result::siege_round_winner;
 pub use sound_events::{
     LegacyMusicAction, LegacySaberView, LegacySoundAdapter, LegacySoundDecision, LegacySoundEvent,
     LegacySoundLedger, RegisteredLegacySound, SABER_SOUND_CLIENTS, SaberSoundSet, TOGGLE_REACH,
@@ -333,6 +366,8 @@ pub struct ServerEvent {
     pub text: String,
     /// Sender slot emitted by codemp's G_SayTo, absent for system/older-mod text.
     pub sender: Option<u16>,
+    /// Stock tell marker on a non-localized `chat` command, before display cleanup.
+    pub is_private: bool,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -350,6 +385,8 @@ pub struct ScoreEntry {
     pub assists: i32,
     /// CTF flag captures (`captures`).
     pub captures: i32,
+    /// Deaths appended by JA+/jaPRO for clients using their plugin protocol.
+    pub deaths: Option<i32>,
 }
 
 mod local_session;
@@ -384,6 +421,8 @@ pub struct ClientSession {
     request_full_snapshot: bool,
     disconnected: bool,
     scores: Vec<ScoreEntry>,
+    /// Counts the `scores` commands applied ([`ClientSession::scores_revision`]).
+    scores_revision: u32,
     team_scores: [i32; 2],
     team_info: TeamInfoTable,
     base_command_events: VecDeque<BaseServerCommandEvent>,
@@ -627,6 +666,12 @@ impl ClientSession {
         &self.scores
     }
 
+    /// Grows (wrapping) with every `scores` command applied, so a reader can tell
+    /// rows that arrived after a moment it noted from older ones.
+    pub fn scores_revision(&self) -> u32 {
+        self.scores_revision
+    }
+
     /// Discard cached rows when a legacy client first opens a stale scoreboard.
     /// Team totals remain available until the next authoritative `scores` command.
     pub fn clear_scores(&mut self) {
@@ -748,15 +793,29 @@ impl ClientSession {
     /// Windows-1252 when every character has a byte there, as UTF-8 otherwise
     /// ([`sjk_protocol::encode_legacy_text`]). Other bytes pass unchanged.
     pub fn send_reliable_command(&mut self, command: &[u8]) -> Result<(), ClientError> {
+        self.send_reliable_command_from(command, ReliableCommandOrigin::System)
+    }
+
+    /// [`Self::send_reliable_command`] for a command whose origin changes how
+    /// it waits: a player's bind, console command or chat is not queued again
+    /// while an identical one waits, and a bind or console command that cannot
+    /// leave within [`INPUT_COMMAND_TTL`] is dropped rather
+    /// than sent late ([`ReliableCommandOrigin`]).
+    pub fn send_reliable_command_from(
+        &mut self,
+        command: &[u8],
+        origin: ReliableCommandOrigin,
+    ) -> Result<(), ClientError> {
         let command = legacy_text::legacy_command(command);
         if let Some(local) = &mut self.local {
             local.reliable(&command);
             return Ok(());
         }
-        if !self.command_pacer.push(command.into_owned()) {
+        let now = Instant::now();
+        if !self.command_pacer.push(command.into_owned(), origin, now) {
             return Err(ClientError::ReliableCommandOverflow);
         }
-        self.pump_reliable_commands(Instant::now())
+        self.pump_reliable_commands(now)
     }
 
     /// Release the next paced reliable command if its window has opened.
@@ -1138,15 +1197,23 @@ impl ClientSession {
         }
         let event_kind = match name {
             b"print" => Some(ServerEventKind::Print),
-            b"cp" => Some(ServerEventKind::CenterPrint),
+            b"cp" | b"cps" => Some(ServerEventKind::CenterPrint),
             _ => None,
         };
         if let Some(kind) = event_kind {
-            let text = server_text(arguments.get(1..).unwrap_or_default());
+            let mut text = server_text(arguments.get(1..).unwrap_or_default());
+            if name == b"cps" {
+                text = cps_key(&text);
+            } else if kind == ServerEventKind::Print
+                && text.contains(userinfo_update::INFO_CHANGE_REFUSED)
+            {
+                self.userinfo_updates.refuse();
+            }
             self.events.push_back(ServerEvent {
                 kind,
                 text,
                 sender: None,
+                is_private: false,
             });
             return Ok(());
         }
@@ -1216,16 +1283,18 @@ impl ClientSession {
             if index == 0 {
                 self.compat_profile = CompatProfile::from_game_state(&self.game_state);
             }
-        } else if !matches!(name, b"cs" | b"bcs0" | b"bcs1" | b"bcs2")
-            && self.unknown_command_names.len() < 64
-            && name.len() <= 64
-            && !self.unknown_command_names.iter().any(|known| known == name)
-        {
-            self.unknown_command_names.push(name.to_vec());
+        } else if !matches!(name, b"cs" | b"bcs0" | b"bcs1" | b"bcs2") {
+            let first_observation = self.unknown_command_names.len() < 64
+                && name.len() <= 64
+                && !self.unknown_command_names.iter().any(|known| known == name);
+            if first_observation {
+                self.unknown_command_names.push(name.to_vec());
+            }
             self.base_command_events
-                .push_back(BaseServerCommandEvent::UnknownCommand(
-                    String::from_utf8_lossy(name).into_owned(),
-                ));
+                .push_back(BaseServerCommandEvent::UnhandledCommand {
+                    arguments,
+                    first_observation,
+                });
         }
         Ok(())
     }
@@ -1290,6 +1359,7 @@ impl ClientSession {
         };
         self.team_scores = team_scores;
         self.scores = scores;
+        self.scores_revision = self.scores_revision.wrapping_add(1);
     }
 }
 
@@ -1368,6 +1438,7 @@ fn parse_scores(arguments: &[Vec<u8>]) -> Option<([i32; 2], Vec<ScoreEntry>)> {
             defends: integer(base + 10).unwrap_or(0),
             assists: integer(base + 11).unwrap_or(0),
             captures: integer(base + 13).unwrap_or(0),
+            deaths: (row_fields == WITH_DEATHS_FIELDS).then(|| integer(base + 14).unwrap_or(0)),
         });
     }
     Some((team_scores, scores))
@@ -1563,12 +1634,12 @@ pub use thrown_sabers::{LegacyThrownSaber, LegacyThrownSabers, legacy_thrown_sab
 mod score_tests {
     use super::{parse_scores, tokenize_command};
 
-    fn rows(command: &str) -> Vec<(u8, i32, i32)> {
+    fn rows(command: &str) -> Vec<(u8, i32, i32, Option<i32>)> {
         parse_scores(&tokenize_command(command.as_bytes()))
             .unwrap()
             .1
             .iter()
-            .map(|row| (row.client_num, row.score, row.ping))
+            .map(|row| (row.client_num, row.score, row.ping, row.deaths))
             .collect()
     }
 
@@ -1577,7 +1648,7 @@ mod score_tests {
         let command = "scores 2 0 0 \
             0 5 40 1 0 0 0 0 0 0 0 0 0 0 \
             1 3 60 2 0 0 0 0 0 0 0 0 0 0";
-        assert_eq!(rows(command), [(0, 5, 40), (1, 3, 60)]);
+        assert_eq!(rows(command), [(0, 5, 40, None), (1, 3, 60, None)]);
     }
 
     #[test]
@@ -1585,12 +1656,12 @@ mod score_tests {
         // As a JA+ 2.4B7 server sends them to a client-plugin user.
         assert_eq!(
             rows("scores 1 0 0 1 0 999 0 0 0 0 0 0 0 0 0 1 0 0"),
-            [(1, 0, 999)]
+            [(1, 0, 999, Some(0))]
         );
         let command = "scores 2 0 0 \
             0 5 40 1 0 0 0 0 0 0 0 0 0 0 7 \
-            1 3 60 2 0 0 0 0 0 0 0 0 0 0 9";
-        assert_eq!(rows(command), [(0, 5, 40), (1, 3, 60)]);
+            1 3 60 2 0 0 0 0 0 0 0 0 0 0 -2";
+        assert_eq!(rows(command), [(0, 5, 40, Some(7)), (1, 3, 60, Some(-2))]);
     }
 
     /// A full server: the count is every connected client, but only 20 rows follow.
@@ -1614,8 +1685,8 @@ mod score_tests {
     fn full_japro_server_rows_are_read_whole() {
         let read = rows(&full_server(15));
         assert_eq!(read.len(), 20);
-        assert_eq!(read[0], (27, 40, 50));
-        assert_eq!(read[19], (8, 21, 69));
+        assert_eq!(read[0], (27, 40, 50, Some(2)));
+        assert_eq!(read[19], (8, 21, 69, Some(2)));
         let mut clients = read.iter().map(|row| row.0).collect::<Vec<_>>();
         clients.dedup();
         assert_eq!(clients.len(), 20, "every row is a different player");
@@ -1625,8 +1696,8 @@ mod score_tests {
     fn full_stock_server_rows_are_read_whole() {
         let read = rows(&full_server(14));
         assert_eq!(read.len(), 20);
-        assert_eq!(read[0], (27, 40, 50));
-        assert_eq!(read[19], (8, 21, 69));
+        assert_eq!(read[0], (27, 40, 50, None));
+        assert_eq!(read[19], (8, 21, 69, None));
     }
 
     /// 210 values are 15 stock rows or 14 rows with deaths; only one reads as players.
@@ -1639,6 +1710,38 @@ mod score_tests {
         let read = rows(&command);
         assert_eq!(read.len(), 14);
         assert!(read.iter().all(|row| row.1 == 9 && row.2 == 30));
+    }
+
+    /// Team FFA on a JA+ server (report #94): the team scores come first, as in
+    /// every gametype, and each row's 15th field is `PERS_KILLED`, read as given.
+    /// Negative scores (team kills, suicides) and a connecting player stay in place.
+    #[test]
+    fn team_ffa_plugin_rows_keep_score_and_deaths_apart() {
+        let command = "scores 6 23 17 \
+            3 12 48 9 0 0 31 0 0 0 0 0 0 0 5 \
+            0 9 62 14 0 0 22 0 0 0 0 0 0 0 11 \
+            5 7 35 6 0 0 18 0 0 0 0 0 0 0 7 \
+            1 4 80 12 0 0 15 0 0 0 0 0 0 0 9 \
+            4 -2 55 3 0 0 0 0 0 0 0 0 0 0 6 \
+            2 0 -1 0 0 0 0 0 0 0 0 0 1 0 0";
+        let (teams, scores) = parse_scores(&tokenize_command(command.as_bytes())).unwrap();
+        assert_eq!(teams, [23, 17]);
+        let read = scores
+            .iter()
+            .map(|row| (row.client_num, row.score, row.ping, row.deaths))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            read,
+            [
+                (3, 12, 48, Some(5)),
+                (0, 9, 62, Some(11)),
+                (5, 7, 35, Some(7)),
+                (1, 4, 80, Some(9)),
+                (4, -2, 55, Some(6)),
+                (2, 0, -1, Some(0)),
+            ]
+        );
+        assert_eq!(scores[0].time_minutes, 9);
     }
 }
 
@@ -1683,5 +1786,30 @@ mod server_text_tests {
     fn server_text_keeps_utf8_and_joins_arguments() {
         let arguments = [b"gg".to_vec(), "ø".as_bytes().to_vec()];
         assert_eq!(server_text(&arguments), "gg ø");
+    }
+}
+
+mod voice_lines;
+pub use voice_lines::LegacyVoiceLine;
+
+/// `cps` (`cg_servercmds.c`): a centre print naming a string-table entry, `@FILE_KEY`
+/// as `target_print` sends it, turned into the `@@@` reference the viewer resolves.
+fn cps_key(text: &str) -> String {
+    let key = text.trim();
+    format!(
+        "@@@{}",
+        key.strip_prefix('@').unwrap_or(key).to_ascii_uppercase()
+    )
+}
+
+#[cfg(test)]
+mod cps_tests {
+    use super::cps_key;
+
+    #[test]
+    fn a_cps_key_becomes_an_upper_case_string_reference() {
+        assert_eq!(cps_key("@siege_korr_print_1"), "@@@SIEGE_KORR_PRINT_1");
+        assert_eq!(cps_key(" @Siege_Gate "), "@@@SIEGE_GATE");
+        assert_eq!(cps_key("SIEGE_GATE"), "@@@SIEGE_GATE");
     }
 }

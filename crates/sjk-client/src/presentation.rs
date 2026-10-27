@@ -30,7 +30,10 @@ const EF_DEAD: u32 = 1 << 1;
 /// `PW_CLOAKED` (`bg_public.h` powerup enum).
 const PW_CLOAKED: usize = 11;
 const ET_GENERAL: u8 = 0; // codemp/game/bg_public.h
+const ET_ITEM: u8 = 2; // codemp/game/bg_public.h
+const ET_HOLOCRON: u8 = 5; // codemp/game/bg_public.h
 const ET_MOVER: u8 = 6; // codemp/game/bg_public.h:1251
+const ET_BODY: u8 = 15; // codemp/game/bg_public.h
 const EF_NODRAW: u32 = 1 << 8; // codemp/game/bg_public.h:645
 const SOLID_BMODEL: u32 = 0x00ff_ffff; // codemp/game/q_shared.h:371
 
@@ -96,6 +99,9 @@ pub struct LegacyWorldAdapter {
     entity_flags: BTreeMap<EntityId, u32>,
     player_identities: LegacyPlayerIdentities,
     smooth_clients: bool,
+    hide_corpses_in_duel: bool,
+    hide_pickups_in_duel: bool,
+    duel_hide: crate::DuelHideSettings,
 }
 
 impl LegacyWorldAdapter {
@@ -106,7 +112,36 @@ impl LegacyWorldAdapter {
             entity_flags: BTreeMap::new(),
             player_identities: LegacyPlayerIdentities::default(),
             smooth_clients: false,
+            hide_corpses_in_duel: true,
+            hide_pickups_in_duel: true,
+            duel_hide: crate::DuelHideSettings::default(),
         }
+    }
+
+    /// Choose whether `ET_BODY` entities enter the presentation world while
+    /// the local player is in a private duel. Returns whether the policy changed.
+    pub fn set_hide_corpses_in_duel(&mut self, enabled: bool) -> bool {
+        let changed = self.hide_corpses_in_duel != enabled;
+        self.hide_corpses_in_duel = enabled;
+        changed
+    }
+
+    /// Choose whether `ET_ITEM` and `ET_HOLOCRON` entities enter the
+    /// presentation world while the local player is in a private duel. Returns
+    /// whether the policy changed.
+    pub fn set_hide_pickups_in_duel(&mut self, enabled: bool) -> bool {
+        let changed = self.hide_pickups_in_duel != enabled;
+        self.hide_pickups_in_duel = enabled;
+        changed
+    }
+
+    /// Choose whether players outside the local player's private duel, and what they
+    /// bring, enter the presentation world ([`crate::DuelHide`]). Returns whether the
+    /// choice changed.
+    pub fn set_duel_hide(&mut self, settings: crate::DuelHideSettings) -> bool {
+        let changed = self.duel_hide != settings;
+        self.duel_hide = settings;
+        changed
     }
 
     pub fn apply_snapshot(
@@ -124,7 +159,18 @@ impl LegacyWorldAdapter {
         let mut next_corpses = BTreeSet::new();
         let color_policy = TeamColorPolicy::from_game_state(game_state);
         let intermission = snapshot.player.movement_type() == crate::PM_INTERMISSION;
+        let private_duel = snapshot.player.duel_in_progress();
+        let hide_corpses = self.hide_corpses_in_duel && private_duel;
+        let hide_pickups = self.hide_pickups_in_duel && private_duel;
+        let duel_hide = crate::DuelHide::for_snapshot(snapshot, game_state, self.duel_hide);
         for state in crate::legacy_scene_entities(game_state, snapshot) {
+            let entity_type = state.entity_type();
+            if (hide_corpses && entity_type == ET_BODY)
+                || (hide_pickups && matches!(entity_type, ET_ITEM | ET_HOLOCRON))
+                || duel_hide.is_some_and(|hide| hide.hides(state))
+            {
+                continue;
+            }
             // codemp CG_Player: hide players, corpses and vehicles at match end;
             // ordinary NPCs remain available for scripted intermission scenes.
             if intermission
@@ -542,7 +588,7 @@ fn legacy_general_scale(state: &EntityState) -> [f32; 3] {
 fn legacy_entity_kind(entity_type: u8) -> EntityKind {
     match entity_type {
         1 | 13 => EntityKind::Actor,
-        15 => EntityKind::Corpse,
+        ET_BODY => EntityKind::Corpse,
         2 | 5 => EntityKind::Item,
         3 => EntityKind::Projectile,
         7 => EntityKind::Other,
@@ -552,6 +598,113 @@ fn legacy_entity_kind(entity_type: u8) -> EntityKind {
         // one-shot carriers rejected before this point.
         17 => EntityKind::Effect,
         _ => EntityKind::Other,
+    }
+}
+
+#[cfg(test)]
+mod duel_visibility_tests {
+    use super::*;
+    use sjk_protocol::{LEGACY_ENTITY_FIELDS, PlayerState};
+
+    fn snapshot(duelling: bool) -> Snapshot {
+        let mut player = PlayerState::default();
+        player.set_client_num(0);
+        player.set_raw_field(119, u32::from(duelling));
+        let entity = |number, entity_type, model_index| {
+            let mut entity = EntityState::zero(number, &LEGACY_ENTITY_FIELDS);
+            entity.set_raw_field(8, entity_type);
+            entity.set_raw_field(46, model_index);
+            entity
+        };
+        Snapshot {
+            message_sequence: 1,
+            reliable_acknowledge: 0,
+            server_commands: Vec::new(),
+            server_time: 1_000,
+            delta_from: None,
+            flags: 0,
+            area_mask: Vec::new(),
+            player,
+            vehicle_player: None,
+            entities: vec![
+                entity(100, ET_BODY as u32, 0),
+                entity(101, ET_ITEM as u32, 3),
+                entity(102, ET_ITEM as u32, 5),
+                entity(103, ET_HOLOCRON as u32, 0),
+            ],
+            consumed_bits: 0,
+        }
+    }
+
+    fn count(world: &World, kind: EntityKind) -> usize {
+        world
+            .entities()
+            .filter(|entity| entity.kind == kind)
+            .count()
+    }
+
+    #[test]
+    fn bodies_and_pickups_hide_only_during_a_duel_and_each_policy_can_be_disabled() {
+        let game = GameState::empty_local(0);
+        let mut world = World::new(WorldId::new(1));
+        let mut adapter = LegacyWorldAdapter::new(world.id());
+
+        assert!(adapter.apply_snapshot(&snapshot(false), &game, &mut world));
+        assert_eq!(count(&world, EntityKind::Corpse), 1);
+        assert_eq!(count(&world, EntityKind::Item), 3);
+
+        assert!(adapter.apply_snapshot(&snapshot(true), &game, &mut world));
+        assert_eq!(count(&world, EntityKind::Corpse), 0);
+        assert_eq!(count(&world, EntityKind::Item), 0);
+
+        assert!(adapter.set_hide_corpses_in_duel(false));
+        assert!(adapter.apply_snapshot(&snapshot(true), &game, &mut world));
+        assert_eq!(count(&world, EntityKind::Corpse), 1);
+        assert_eq!(count(&world, EntityKind::Item), 0);
+
+        assert!(adapter.set_hide_pickups_in_duel(false));
+        assert!(adapter.apply_snapshot(&snapshot(true), &game, &mut world));
+        assert_eq!(count(&world, EntityKind::Corpse), 1);
+        assert_eq!(count(&world, EntityKind::Item), 3);
+
+        assert!(adapter.set_hide_corpses_in_duel(true));
+        assert!(adapter.set_hide_pickups_in_duel(true));
+        assert!(adapter.apply_snapshot(&snapshot(false), &game, &mut world));
+        assert_eq!(count(&world, EntityKind::Corpse), 1);
+        assert_eq!(count(&world, EntityKind::Item), 3);
+    }
+
+    #[test]
+    fn players_outside_the_duel_leave_the_world_while_hiding() {
+        let game = GameState::empty_local(0);
+        let mut duel = snapshot(true);
+        duel.player.set_raw_field(44, 1);
+        for number in [1, 2] {
+            let mut player = EntityState::zero(number, &LEGACY_ENTITY_FIELDS);
+            player.set_raw_field(8, 1);
+            player.set_raw_field(32, u32::from(number));
+            duel.entities.insert(usize::from(number) - 1, player);
+        }
+        let present =
+            |world: &World, number: u64| world.entity(EntityId::new(number + 1)).is_some();
+        let mut world = World::new(WorldId::new(1));
+        let mut adapter = LegacyWorldAdapter::new(world.id());
+        // Auto on a server no family lists: both stay.
+        assert!(adapter.apply_snapshot(&duel, &game, &mut world));
+        assert!(present(&world, 1) && present(&world, 2));
+        assert!(adapter.set_duel_hide(crate::DuelHideSettings {
+            mode: crate::DuelHideMode::Always,
+            plugin_disable: 0,
+        }));
+        assert!(adapter.apply_snapshot(&duel, &game, &mut world));
+        assert!(present(&world, 1), "the partner stays");
+        assert!(!present(&world, 2), "the bystander goes");
+        assert!(adapter.set_duel_hide(crate::DuelHideSettings {
+            mode: crate::DuelHideMode::Off,
+            plugin_disable: 0,
+        }));
+        assert!(adapter.apply_snapshot(&duel, &game, &mut world));
+        assert!(present(&world, 2));
     }
 }
 

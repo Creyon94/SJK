@@ -54,6 +54,10 @@ pub(crate) const STOCK_EFFECTS: &[&str] = &[
     "rocket/explosion",
     "thermal/explosion",
     "thermal/shockwave",
+    // Order 66's confetti (`order66.rs`), bundled with the client.
+    "sjk/order66_confetti",
+    // The Hax's digital rain round a hacked player (`hax.rs`), bundled with the client.
+    "sjk/hax_glyphs",
     "concussion/explosion",
     "sparks/spark_nosnd",
     "bryar/shot",
@@ -84,6 +88,8 @@ pub(crate) const STOCK_EFFECTS: &[&str] = &[
     "saber/blood_sparks_25_mp",
     "saber/blood_sparks_50_mp",
     "mp/itemcone",
+    // `CG_RegisterGraphics`: the worn pack's graph may be replaced by a PK3.
+    crate::jetpack::EFFECT,
     "force/lightning",
     "force/lightningwide",
     "force/confusion_old",
@@ -95,6 +101,15 @@ pub(crate) const STOCK_EFFECTS: &[&str] = &[
     "mp/jedispawn",
     "chunks/grateexplode",
 ];
+
+/// Code-selected graphs, including every documented compatibility contract.
+pub(crate) fn code_effects() -> impl Iterator<Item = &'static str> {
+    STOCK_EFFECTS.iter().copied().chain(
+        crate::actor_world_submission::force_powers::flame::CONTRACTS
+            .iter()
+            .flat_map(|rule| [rule.stream, rule.fallback_stream, rule.hit]),
+    )
+}
 
 /// Shaders referenced from code rather than from EFX graphs: the saber clash
 /// flare (`cg_draw.c`), the disruptor beam lines (`fx_disruptor.c`), the
@@ -121,16 +136,28 @@ pub(crate) const CODE_SHADERS: &[&str] = &[
     "footstep_l",
     "footstep_heavy_r",
     "footstep_heavy_l",
+    // The blossoms and paper cranes a swung blade sheds (`saber_petals.rs`): without these
+    // the particles drew the stand-in sprite, yellow dots.
+    crate::saber_petals::SHADERS[0],
+    crate::saber_petals::SHADERS[1],
+    crate::saber_petals::SHADERS[2],
+    crate::saber_petals::SHADERS[3],
+    crate::saber_petals::SHADERS[4],
+    crate::saber_petals::SHADERS[5],
+    crate::saber_petals::SHADERS[6],
+    crate::saber_petals::SHADERS[7],
+    // The portable shield's looks (`portable_shields.rs`).
+    crate::portable_shields::SHADERS[0],
+    crate::portable_shields::SHADERS[1],
+    crate::portable_shields::SHADERS[2],
+    crate::portable_shields::SHADERS[3],
 ];
 
 pub(crate) fn required_shaders<'a>(
     vfs: &VirtualFileSystem,
     configured_effects: impl IntoIterator<Item = &'a str>,
 ) -> BTreeSet<String> {
-    let mut pending = STOCK_EFFECTS
-        .iter()
-        .map(|effect| (*effect).to_owned())
-        .collect::<Vec<_>>();
+    let mut pending = code_effects().map(str::to_owned).collect::<Vec<_>>();
     pending.extend(configured_effects.into_iter().map(str::to_owned));
     let mut visited = HashSet::new();
     let mut shaders = BTreeSet::new();
@@ -164,10 +191,7 @@ pub(crate) fn required_models<'a>(
     vfs: &VirtualFileSystem,
     configured_effects: impl IntoIterator<Item = &'a str>,
 ) -> BTreeSet<String> {
-    let mut pending = STOCK_EFFECTS
-        .iter()
-        .map(|effect| (*effect).to_owned())
-        .collect::<Vec<_>>();
+    let mut pending = code_effects().map(str::to_owned).collect::<Vec<_>>();
     pending.extend(configured_effects.into_iter().map(str::to_owned));
     let mut visited = HashSet::new();
     let mut models = BTreeSet::new();
@@ -187,4 +211,22 @@ pub(crate) fn required_models<'a>(
         }
     }
     models
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn installed_jetpack_graph_dependencies_are_registered_before_flight() {
+        let mut vfs = VirtualFileSystem::new();
+        vfs.mount_memory(
+            "replacement-pack",
+            [(
+                "effects/boba/jet.efx",
+                "Particle { shaders [ gfx/test/custom_exhaust ] }",
+            )],
+        )
+        .unwrap();
+        assert!(required_shaders(&vfs, []).contains("gfx/test/custom_exhaust"));
+    }
 }

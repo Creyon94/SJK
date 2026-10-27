@@ -11,6 +11,7 @@
 mod cosmetics;
 mod force_fx;
 mod force_motion;
+mod lone;
 pub(crate) mod preview;
 mod prop;
 mod sabers;
@@ -52,7 +53,7 @@ pub(crate) struct MenuStage {
     /// Model cvar whose load failed; not retried until the value changes.
     failed: Option<String>,
     /// `.sab` definitions, read once the first hilt is needed.
-    saber_definitions: Option<BTreeMap<String, crate::saber_defs::Definition>>,
+    pub(crate) saber_definitions: Option<BTreeMap<String, crate::saber_defs::Definition>>,
     /// The rigid model the model viewer shows in place of the player, and the path whose
     /// load failed (not retried until another is chosen).
     prop: Option<prop::StageProp>,
@@ -80,6 +81,13 @@ pub(crate) struct MenuStage {
     /// The blade the Collection's Shaders tab has the model hold instead of the one
     /// worn (only drawn here, never sent); `None` outside it.
     skin_override: Option<crate::console::collection_panel::PreviewSkin>,
+    /// The sides [`Self::skin_override`] goes on (the first saber, the second or the
+    /// staff's other half), a side not named keeping what it wears (the Collection's target
+    /// switch and its "Both" box).
+    override_dressed: [bool; 2],
+    /// The Collection's Shaders tab: the saber on its own, turned so, before the
+    /// backdrop camera (or on the live preview's showcase), and no model drawn.
+    lone: Option<crate::console::collection_panel::SaberTurn>,
     /// The Collection's Toys tab: the Illuminate holocron floats by the model.
     holocron_wanted: bool,
     /// The Force shell the preview's model wears (the Force page's power).
@@ -185,6 +193,21 @@ impl GpuState {
             menu.follow_model_viewer(console);
         }
         self.menu_stage.skin_override = wish.map(|wish| wish.skin);
+        self.menu_stage.override_dressed = wish.map_or([true, false], |wish| {
+            [
+                wish.on_both || !wish.on_second,
+                wish.on_both || wish.on_second,
+            ]
+        });
+        let lone = wish.and_then(|wish| wish.saber);
+        if lone.is_some() != self.menu_stage.lone.is_some() {
+            // Into or out of the lone saber: the hilts' places are written again.
+            self.menu_stage.sabers_dirty = true;
+        }
+        self.menu_stage.lone = lone;
+        if let Some(menu) = &mut self.client_menu {
+            menu.set_collection_saber(self.menu_stage.lone.is_some());
+        }
         self.menu_stage.holocron_wanted = wish.is_some_and(|wish| wish.holocron);
         let staged = menu_backdrop::standalone_menu_visible(self)
             .then(|| {
@@ -387,13 +410,26 @@ impl GpuState {
                 return;
             }
             let model = model.to_owned();
-            match self.build_stage_actor(stage, &model, now) {
+            // A card out of video memory loses this model, not the game (a 3 GB card
+            // browsing the creator's legs, 21/10/2026); the textures it uploaded go
+            // with it.
+            let kept = self.world_materials.texture_keys();
+            let device = self.device.clone();
+            let built =
+                crate::gpu_guard::capture(&device, || self.build_stage_actor(stage, &model, now))
+                    .unwrap_or_else(|error| {
+                        self.world_materials.forget_textures_since(&kept);
+                        Err(format!("the graphics card: {error}").into())
+                    });
+            match built {
                 Ok(actor) => {
                     self.menu_stage.actor = Some(actor);
                     self.menu_stage.cosmetics_dirty = true;
                 }
                 Err(error) => {
-                    eprintln!("player stage could not load {model}: {error}");
+                    crate::log::progress(format_args!(
+                        "player stage could not load {model}: {error}"
+                    ));
                     self.menu_stage.failed = Some(model);
                     return;
                 }
@@ -447,8 +483,9 @@ impl GpuState {
         self.sync_stage_shell(shell.filter(|_| shell_on));
         self.advance_force_fx(preview.and_then(|preview| preview.effect), emitting, now);
         self.sync_force_trail(emitting);
-        // The showcase draws no actor: its pose and what it wears can wait.
-        if self.menu_stage.showcase {
+        // The showcase and the lone saber draw no actor: its pose and what it wears can
+        // wait.
+        if self.menu_stage.showcase || self.menu_stage.lone.is_some() {
             return;
         }
         if let Err(error) = self.animate_stage_actor(now) {
@@ -800,7 +837,7 @@ impl MenuStage {
             prop.draw(pass, world_materials, camera, blended);
             return;
         }
-        if self.showcase {
+        if self.showcase || self.lone.is_some() {
             for saber in self.sabers.iter().flatten() {
                 saber.draw(pass, world_materials, camera, blended);
             }
@@ -829,9 +866,41 @@ impl MenuStage {
     }
 }
 
+/// The vertical field of view (degrees) that shows a window of `aspect` (width over
+/// height) what `fov` shows a 16:9 one in the page's frame: the SJK UI lays its pages out
+/// in a 16:9 frame scaled to fit the window, so a narrower window letterboxes it, and a
+/// camera kept at `fov` would set the model larger and further from the middle in frame
+/// pixels (at 4:3 under the Collection's words and keys, Sol's fit map of 25/10/2026). A
+/// window as wide as 16:9 or wider keeps `fov`.
+pub(crate) fn frame_fit_fov(fov: f32, aspect: f32) -> f32 {
+    const FRAME_ASPECT: f32 = 16.0 / 9.0;
+    if aspect.is_nan() || aspect <= 0.0 || aspect >= FRAME_ASPECT {
+        return fov;
+    }
+    let half = (fov.to_radians() * 0.5).tan() * FRAME_ASPECT / aspect;
+    (2.0 * half.atan()).to_degrees().min(170.0)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A window narrower than 16:9 widens the view so the frame sees what a 16:9 window
+    /// shows; 16:9 and wider keep it.
+    #[test]
+    fn a_narrow_window_widens_the_view_to_the_frame() {
+        assert_eq!(frame_fit_fov(70.0, 16.0 / 9.0), 70.0);
+        assert_eq!(frame_fit_fov(70.0, 21.0 / 9.0), 70.0);
+        let fitted = frame_fit_fov(70.0, 4.0 / 3.0);
+        // The frame's height in a 4:3 window is three quarters of the window's: across
+        // that height the widened view spans what 70 degrees spans at 16:9.
+        let frame_half = (fitted.to_radians() * 0.5).tan() * 0.75;
+        assert!(
+            (frame_half - (35.0f32).to_radians().tan()).abs() < 1e-5,
+            "{fitted}"
+        );
+        assert!(fitted > 70.0 && fitted < 170.0);
+    }
 
     fn sequence(loop_frame: i32) -> sjk_model::AnimationSequence {
         sjk_model::AnimationSequence {

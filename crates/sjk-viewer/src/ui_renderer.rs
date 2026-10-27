@@ -33,8 +33,15 @@ pub(crate) const PREVIEW_TEXTURE: sjk_ui::TextureId = sjk_ui::TextureId(u32::MAX
 /// `TexturedQuad` texture naming the settings' HUD picker preview, uploaded by
 /// [`ShapeRenderer::upload_hud_preview`].
 pub(crate) const HUD_PREVIEW_TEXTURE: sjk_ui::TextureId = sjk_ui::TextureId(u32::MAX - 3);
+/// `TexturedQuad` texture naming the Collection's live blade pictures
+/// ([`crate::blade_pictures`]), bound by [`ShapeRenderer::set_blade_pictures`] and added
+/// over what is below (the blades' light, in display values).
+pub(crate) const BLADE_PICTURES_TEXTURE: sjk_ui::TextureId = sjk_ui::TextureId(u32::MAX - 4);
 /// `TexturedQuad` texture naming SJK's emblem, uploaded once at start.
 pub(crate) const LOGO_TEXTURE: sjk_ui::TextureId = sjk_ui::TextureId(LOGO_ICON);
+/// `TexturedQuad` texture naming JoF EternalJK's icon, which SJK chat messages sent from
+/// it start with in place of SJK's emblem, uploaded once at start.
+pub(crate) const EJK_TEXTURE: sjk_ui::TextureId = sjk_ui::TextureId(icons::EJK_ICON);
 /// `TexturedQuad` texture naming the gold verified badge, drawn once at start.
 pub(crate) const VERIFIED_TEXTURE: sjk_ui::TextureId = sjk_ui::TextureId(icons::VERIFIED_ICON);
 /// `TexturedQuad` texture naming the trust mark for `trust` (`trust_badge`), drawn once
@@ -132,15 +139,25 @@ use levelshot::LevelshotTexture;
 
 /// SJK's emblem, scaled into one icon cell at start.
 const SJK_EMBLEM: &[u8] = include_bytes!("../../../assets/branding/sjk-logo-512.png");
+/// JoF EternalJK's icon, scaled into one icon cell at start.
+const EJK_ICON: &[u8] = include_bytes!("../../../assets/branding/jof-ejk-icon.png");
 
-/// Shape vertices one frame may draw (six per quad), across every layer.
-const MAX_SHAPE_VERTICES: usize = 16_384;
+/// Shape vertices one frame may draw (six per quad), across every layer: the Collection alone
+/// may fill its [`crate::console::collection_panel::DRAW_COMMANDS`] (#117: its Forge reached
+/// about 11 600 vertices with its swatches drawn, under the 16 384 of before by little).
+const MAX_SHAPE_VERTICES: usize = 32_768;
 
 /// `parameters.y` value that selects the arc shader path (`ui_shapes.wgsl`).
 const ARC_MODE: f32 = 3.0;
 
 /// `parameters.y` value that selects the line shader path (`ui_shapes.wgsl`).
 const LINE_MODE: f32 = 4.0;
+
+/// `parameters.y` value that selects the strafe aura shader path (`ui_shapes.wgsl`).
+const AURA_MODE: f32 = 5.0;
+
+/// `parameters.y` value that selects the card finish shader path (`ui_shapes.wgsl`).
+const SHINE_MODE: f32 = 6.0;
 
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
@@ -223,6 +240,7 @@ pub(crate) fn texture_switches(lists: &[&DrawList]) -> usize {
             None if texture == LEVELSHOT_TEXTURE => Source::Levelshot,
             None if texture == HUD_PREVIEW_TEXTURE => Source::HudPreview,
             None if texture == PREVIEW_TEXTURE => Source::Preview,
+            None if texture == BLADE_PICTURES_TEXTURE => Source::BladePictures,
             None if crate::chat_gifs::slot_of(texture).is_some() => {
                 Source::Gif(crate::chat_gifs::slot_of(texture).unwrap_or_default() as u8)
             }
@@ -277,6 +295,7 @@ pub(crate) struct ShapeRenderer {
     hud_preview: LevelshotTexture,
     /// The model preview's display texture, once one exists.
     preview: Option<wgpu::BindGroup>,
+    blade_pictures: Option<wgpu::BindGroup>,
     preview_sampler: wgpu::Sampler,
     /// Whether a frame past the vertex or run storage has been logged: shapes
     /// past it are dropped, so the log names the cause of a missing picture.
@@ -365,17 +384,22 @@ impl ShapeRenderer {
         let icons = IconAtlas::new(device, &texture_layout);
         let levelshot = LevelshotTexture::new(device, &texture_layout);
         let hud_preview = LevelshotTexture::new(device, &texture_layout);
-        match image::load_from_memory(SJK_EMBLEM) {
-            Ok(emblem) => {
-                let cell = image::imageops::resize(
-                    &emblem.into_rgba8(),
-                    icons::ICON_SIZE,
-                    icons::ICON_SIZE,
-                    image::imageops::FilterType::Lanczos3,
-                );
-                icons.upload(queue, LOGO_TEXTURE, cell.as_raw());
+        for (name, bytes, texture) in [
+            ("SJK emblem", SJK_EMBLEM, LOGO_TEXTURE),
+            ("JoF EternalJK icon", EJK_ICON, EJK_TEXTURE),
+        ] {
+            match image::load_from_memory(bytes) {
+                Ok(emblem) => {
+                    let cell = image::imageops::resize(
+                        &emblem.into_rgba8(),
+                        icons::ICON_SIZE,
+                        icons::ICON_SIZE,
+                        image::imageops::FilterType::Lanczos3,
+                    );
+                    icons.upload(queue, texture, cell.as_raw());
+                }
+                Err(error) => eprintln!("{name}: {error}"),
             }
-            Err(error) => eprintln!("SJK emblem: {error}"),
         }
         icons.upload(
             queue,
@@ -452,6 +476,7 @@ impl ShapeRenderer {
             levelshot,
             hud_preview,
             preview: None,
+            blade_pictures: None,
             preview_sampler: device.create_sampler(&wgpu::SamplerDescriptor {
                 label: Some("SJK model preview sampler"),
                 mag_filter: wgpu::FilterMode::Linear,
@@ -707,6 +732,7 @@ impl ShapeRenderer {
                         | Source::Gif(_)
                         | Source::Levelshot
                         | Source::HudPreview
+                        | Source::BladePictures
                         | Source::Preview => ([0.0, 0.0], [1.0, 1.0]),
                         Source::Atlas => icons::uv_range(texture),
                     };
@@ -766,6 +792,39 @@ impl ShapeRenderer {
                         | Source::Levelshot
                         | Source::HudPreview
                         | Source::Preview => uv,
+                        // A blade picture is clipped as other shapes are (it scrolls in
+                        // the Collection's list): its coordinates are an upright
+                        // rectangle, cut with it.
+                        Source::BladePictures => {
+                            let clip = clipped(rect, clips[clip_depth]);
+                            if clip.width <= 0.0 || clip.height <= 0.0 {
+                                continue;
+                            }
+                            let [s0, t0] = uv[0];
+                            let [s1, t1] = uv[2];
+                            let at = |x: f32, y: f32| {
+                                [
+                                    s0 + (s1 - s0) * (x - rect.x) / rect.width.max(1e-6),
+                                    t0 + (t1 - t0) * (y - rect.y) / rect.height.max(1e-6),
+                                ]
+                            };
+                            let corners = [
+                                at(clip.x, clip.y),
+                                at(clip.right(), clip.y),
+                                at(clip.right(), clip.bottom()),
+                                at(clip.x, clip.bottom()),
+                            ];
+                            icons::push_quad_corners(
+                                &mut self.vertices,
+                                clip,
+                                corners,
+                                color,
+                                opacity[opacity_depth],
+                                viewport,
+                                MAX_SHAPE_VERTICES,
+                            );
+                            continue;
+                        }
                         Source::Atlas => {
                             let (low, high) = icons::uv_range(texture);
                             uv.map(|[s, t]| {
@@ -803,6 +862,18 @@ impl ShapeRenderer {
                         sweep,
                         color,
                         knockout,
+                        opacity[opacity_depth],
+                        viewport,
+                    );
+                }
+                DrawCommand::StrafeAura { center, aura } => {
+                    self.push_aura(center, aura, opacity[opacity_depth], viewport);
+                }
+                DrawCommand::CardShine { rect, shine } => {
+                    self.push_shine(
+                        rect,
+                        clipped(rect, clips[clip_depth]),
+                        shine,
                         opacity[opacity_depth],
                         viewport,
                     );
@@ -875,6 +946,10 @@ impl ShapeRenderer {
                 Some(_) => Source::Preview,
                 None => return None,
             },
+            None if texture == BLADE_PICTURES_TEXTURE => match self.blade_pictures {
+                Some(_) => Source::BladePictures,
+                None => return None,
+            },
             None if gif.is_some() => {
                 let slot = gif.unwrap_or_default();
                 self.gifs.group(slot)?;
@@ -882,8 +957,10 @@ impl ShapeRenderer {
             }
             None if crate::cards::faces::index_of(texture).is_some() => {
                 let index = crate::cards::faces::index_of(texture).unwrap_or_default();
-                // Not uploaded yet: the window stays dark until it is.
-                self.cards.group(index)?;
+                // Not uploaded yet: asked for, and the window stays dark until it is.
+                if !self.cards.draw(index) {
+                    return None;
+                }
                 Source::Card(index as u16)
             }
             None => match crate::menu::emblem::EmblemLayer::from_texture(texture) {
@@ -939,6 +1016,7 @@ impl ShapeRenderer {
                 Source::Levelshot => Some(self.levelshot.bind_group()),
                 Source::HudPreview => Some(self.hud_preview.bind_group()),
                 Source::Preview => self.preview.as_ref(),
+                Source::BladePictures => self.blade_pictures.as_ref(),
                 Source::Atlas => None,
             };
             pass.set_bind_group(0, group.unwrap_or(self.icons.bind_group()), &[]);
@@ -1108,6 +1186,110 @@ impl ShapeRenderer {
         }
     }
 
+    /// One quad over the aura's shown part; `ui_shapes.wgsl` shades it per pixel as
+    /// [`sjk_ui::strafe_aura_shade`] does, from the aura packed in the colours.
+    fn push_aura(
+        &mut self,
+        center: [f32; 2],
+        aura: sjk_ui::StrafeAura,
+        opacity: f32,
+        viewport: [f32; 2],
+    ) {
+        // The shader draws up to 1.6 half widths off the centre line, within the span.
+        let outer = aura.radius + aura.width * 0.8 + 1.0;
+        let inner = (aura.radius - aura.width * 0.8).max(0.0);
+        let span = aura.span.clamp(0.0, std::f32::consts::PI);
+        let bottom = if span < std::f32::consts::FRAC_PI_2 {
+            -inner * span.cos()
+        } else {
+            -outer * span.cos()
+        };
+        let side = if span < std::f32::consts::FRAC_PI_2 {
+            outer * span.sin()
+        } else {
+            outer
+        };
+        let rect = Rect::new(
+            center[0] - side,
+            center[1] - outer,
+            side * 2.0,
+            outer + bottom.min(outer),
+        );
+        if aura.radius <= 0.0
+            || aura.width <= 0.0
+            || rect.height <= 0.0
+            || self.vertices.len() + 6 > MAX_SHAPE_VERTICES
+        {
+            return;
+        }
+        art::untextured(&mut self.runs, self.vertices.len());
+        let position = |x: f32, y: f32| [x / viewport[0] * 2.0 - 1.0, 1.0 - y / viewport[1] * 2.0];
+        let points = [
+            ([rect.x, rect.y], [0.0, 0.0]),
+            ([rect.right(), rect.y], [1.0, 0.0]),
+            ([rect.right(), rect.bottom()], [1.0, 1.0]),
+            ([rect.x, rect.y], [0.0, 0.0]),
+            ([rect.right(), rect.bottom()], [1.0, 1.0]),
+            ([rect.x, rect.bottom()], [0.0, 1.0]),
+        ];
+        self.vertices
+            .extend(points.map(|(pixel, local)| ShapeVertex {
+                position: position(pixel[0], pixel[1]),
+                local,
+                size: [rect.width, rect.height],
+                start_color: [aura.speed, aura.acceleration, aura.wishspeed, aura.base],
+                end_color: [aura.radius, aura.width, aura.span, aura.time],
+                parameters: [aura.alpha * opacity, AURA_MODE],
+                // The quad's top-left corner relative to the aura's centre.
+                uv: [rect.x - center[0], rect.y - center[1]],
+            }));
+    }
+
+    /// One quad over `shown` (the part of the card at `rect` left by the clip);
+    /// `ui_shapes.wgsl` shades it per pixel as [`sjk_ui::card_shine_shade`] does, from the
+    /// finish packed in the colours, its pattern held to the whole card.
+    fn push_shine(
+        &mut self,
+        rect: Rect,
+        shown: Rect,
+        shine: sjk_ui::CardShine,
+        opacity: f32,
+        viewport: [f32; 2],
+    ) {
+        if shown.width <= 0.0
+            || shown.height <= 0.0
+            || shine.alpha * opacity <= 0.0
+            || self.vertices.len() + 6 > MAX_SHAPE_VERTICES
+        {
+            return;
+        }
+        art::untextured(&mut self.runs, self.vertices.len());
+        let position = |x: f32, y: f32| [x / viewport[0] * 2.0 - 1.0, 1.0 - y / viewport[1] * 2.0];
+        let kind = match shine.kind {
+            sjk_ui::ShineKind::Holo => 0.0,
+            sjk_ui::ShineKind::Solar => 1.0,
+            sjk_ui::ShineKind::Glare => 2.0,
+        };
+        let points = [
+            ([shown.x, shown.y], [0.0, 0.0]),
+            ([shown.right(), shown.y], [1.0, 0.0]),
+            ([shown.right(), shown.bottom()], [1.0, 1.0]),
+            ([shown.x, shown.y], [0.0, 0.0]),
+            ([shown.right(), shown.bottom()], [1.0, 1.0]),
+            ([shown.x, shown.bottom()], [0.0, 1.0]),
+        ];
+        self.vertices
+            .extend(points.map(|(pixel, local)| ShapeVertex {
+                position: position(pixel[0], pixel[1]),
+                local,
+                size: [shown.width, shown.height],
+                start_color: [kind, shine.time, shine.light[0], shine.light[1]],
+                end_color: [shine.size[0], shine.size[1], shine.radius, shine.hold],
+                parameters: [shine.alpha * opacity, SHINE_MODE],
+                uv: [shown.x - rect.x, shown.y - rect.y],
+            }));
+    }
+
     fn push_shape(
         &mut self,
         rect: Rect,
@@ -1182,6 +1364,30 @@ impl ShapeRenderer {
     pub(crate) fn set_preview(&mut self, device: &wgpu::Device, view: &wgpu::TextureView) {
         self.preview = Some(device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("SJK model preview UI binding"),
+            layout: &self.texture_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Sampler(&self.preview_sampler),
+                },
+            ],
+        }));
+    }
+
+    /// Sample `view` for `TexturedQuad` commands naming [`BLADE_PICTURES_TEXTURE`]
+    /// (the Collection's blade pictures, once made).
+    /// Let go of the blade pictures' binding, so their target can be freed.
+    pub(crate) fn clear_blade_pictures(&mut self) {
+        self.blade_pictures = None;
+    }
+
+    pub(crate) fn set_blade_pictures(&mut self, device: &wgpu::Device, view: &wgpu::TextureView) {
+        self.blade_pictures = Some(device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("SJK blade pictures UI binding"),
             layout: &self.texture_layout,
             entries: &[
                 wgpu::BindGroupEntry {
@@ -1592,5 +1798,22 @@ mod line_clip_tests {
         assert_eq!(top, 0.0);
         // Wholly in the corner, outside the arc: nothing.
         assert_eq!(clip_polygon(quad(0.0, 0.0, 3.0, 3.0), clip, round).1, 0);
+    }
+}
+
+#[cfg(test)]
+mod shape_shader_tests {
+    #[test]
+    fn the_shape_shader_validates() {
+        use wgpu::naga;
+        let source = include_str!("ui_shapes.wgsl");
+        let module = naga::front::wgsl::parse_str(source)
+            .unwrap_or_else(|error| panic!("{}", error.emit_to_string(source)));
+        naga::valid::Validator::new(
+            naga::valid::ValidationFlags::all(),
+            naga::valid::Capabilities::all(),
+        )
+        .validate(&module)
+        .unwrap_or_else(|error| panic!("{}", error.emit_to_string(source)));
     }
 }

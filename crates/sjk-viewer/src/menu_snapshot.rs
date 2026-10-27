@@ -24,7 +24,7 @@ use crate::menu::art::{ArtPiece, ArtSet};
 use crate::menu::classic::layout::{Entry, Page, Panel, Span};
 use crate::menu::classic::panel::{Frame, PanelFrame};
 use crate::settings::SettingsMenu;
-use image::{Rgba, RgbaImage};
+use image::{GrayImage, Rgba, RgbaImage};
 use sjk_ui::{DrawCommand, DrawList, Rect};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -225,7 +225,7 @@ fn raster(
     image: &mut RgbaImage,
     list: &DrawList,
     vertices: &[crate::text::TextVertex],
-    atlas: &RgbaImage,
+    atlas: &GrayImage,
     icons: &HashMap<u32, RgbaImage>,
 ) {
     let decoded = crate::menu::art::decoded();
@@ -372,6 +372,37 @@ fn raster(
                     }
                 }
             }
+            DrawCommand::StrafeAura { center, aura } => {
+                let outer = aura.radius + aura.width * 0.8 + 1.0;
+                let area = Rect::new(
+                    center[0] - outer,
+                    center[1] - outer,
+                    outer * 2.0,
+                    outer * 2.0,
+                );
+                let (xs, ys) = span(area, clip);
+                for y in ys {
+                    for x in xs.clone() {
+                        let point = [x as f32 + 0.5 - center[0], y as f32 + 0.5 - center[1]];
+                        let [r, g, b, a] = sjk_ui::strafe_aura_shade(point, aura);
+                        if a > 0.0 {
+                            blend(image, x, y, [r, g, b, a * o]);
+                        }
+                    }
+                }
+            }
+            DrawCommand::CardShine { rect, shine } => {
+                let (xs, ys) = span(*rect, clip);
+                for y in ys {
+                    for x in xs.clone() {
+                        let point = [x as f32 + 0.5 - rect.x, y as f32 + 0.5 - rect.y];
+                        let [r, g, b, a] = sjk_ui::card_shine_shade(point, shine);
+                        if a > 0.0 {
+                            blend(image, x, y, [r, g, b, a * o]);
+                        }
+                    }
+                }
+            }
             DrawCommand::Line {
                 from,
                 to,
@@ -437,10 +468,10 @@ fn raster(
 }
 
 /// Draw text `vertices` from `atlas` over `image`.
-fn raster_text(image: &mut RgbaImage, vertices: &[crate::text::TextVertex], atlas: &RgbaImage) {
+fn raster_text(image: &mut RgbaImage, vertices: &[crate::text::TextVertex], atlas: &GrayImage) {
     // Each glyph is six vertices `[x, y, u, v, r, g, b, a]` in clip space,
-    // top-left first and bottom-right third; its coverage is the atlas
-    // alpha averaged over each pixel's footprint. A wide glyph's coverage is the
+    // top-left first and bottom-right third; its coverage is the atlas's
+    // averaged over each pixel's footprint. A wide glyph's coverage is the
     // wide atlas's (`text::wide`), and an emoji draws its own colours from the emoji
     // atlas (`text::emoji`; black for a shadow), as `text.wgsl` picks them.
     use crate::text::{emoji, wide};
@@ -486,7 +517,7 @@ fn raster_text(image: &mut RgbaImage, vertices: &[crate::text::TextVertex], atla
                     .unwrap_or(0);
                 ([tint[0], tint[1], tint[2]], f32::from(coverage) / 255.0)
             } else {
-                let coverage = atlas.get_pixel(tx, ty).0[3];
+                let coverage = atlas.get_pixel(tx, ty).0[0];
                 ([tint[0], tint[1], tint[2]], f32::from(coverage) / 255.0)
             }
         };
@@ -1243,6 +1274,7 @@ fn identity_page(shots: &Snapshot, art: ArtSet) {
     use sjk_identity::{Presence, Profile, Snapshot as Hub, Status, WornName};
     let hub = |status: Status, name: &str, earlier: &[&str]| Hub {
         loot: Vec::new(),
+        min_client: None,
         opening: None,
         reveal: None,
         local_key_id: "44f3d0b36c9b2510".to_owned(),
@@ -1258,6 +1290,8 @@ fn identity_page(shots: &Snapshot, art: ArtSet) {
             bio: String::new(),
             verified: false,
             staff: false,
+            creator: false,
+            jkr_creator: false,
             trust: None,
             emoji: String::new(),
             created: 0,
@@ -1275,8 +1309,10 @@ fn identity_page(shots: &Snapshot, art: ArtSet) {
             unlocks: Vec::new(),
             holocron_counts: Default::default(),
             holocrons: Vec::new(),
+            shards: 0,
         }),
         server: None,
+        map_blocks: Vec::new(),
         players: vec![
             Presence {
                 slot: 3,
@@ -1289,6 +1325,7 @@ fn identity_page(shots: &Snapshot, art: ArtSet) {
                 medals: Vec::new(),
                 avatar: String::new(),
                 look: None,
+                whisper_key: None,
             },
             Presence {
                 slot: 7,
@@ -1301,11 +1338,13 @@ fn identity_page(shots: &Snapshot, art: ArtSet) {
                 medals: Vec::new(),
                 avatar: String::new(),
                 look: None,
+                whisper_key: None,
             },
         ],
         profiles: std::collections::HashMap::new(),
         model_checks: std::collections::HashMap::new(),
         profiles_revision: 0,
+        me_revision: 0,
         notice: Some("saved".to_owned()),
         revision: 0,
         report: None,
@@ -1314,12 +1353,26 @@ fn identity_page(shots: &Snapshot, art: ArtSet) {
         avatar: None,
         look_outcome: None,
         packs_revision: 0,
+        map_edits_revision: 0,
+        map_edits_published: None,
         assets_note: None,
         crashes_sent: 0,
         crash_note: None,
         holocrons: None,
         log_requests: Vec::new(),
         log_answer: None,
+        economy: None,
+        kyber: None,
+        shop: None,
+        trade: None,
+        trades: None,
+        announcements: Vec::new(),
+        announcements_revision: 0,
+        rewards: None,
+        rewards_revision: 0,
+        claim: None,
+        announce: None,
+        public_key: String::new(),
     };
     let online = hub(Status::Online, "^1Sol", &["^4Vulpes", "Padawan"]);
     let fresh = hub(Status::Online, "Padawan", &[]);
@@ -1535,6 +1588,7 @@ fn player_card_profile(shots: &mut Snapshot) {
         progress: 1,
         goal: 1,
         unlocked,
+        reward: None,
     };
     let profile = sjk_identity::Profile {
         credits: 0,
@@ -1546,6 +1600,8 @@ fn player_card_profile(shots: &mut Snapshot) {
         bio: "Fox of the JoF and maker of SJK, the fast clean JKA client.".to_owned(),
         verified: true,
         staff: true,
+        creator: false,
+        jkr_creator: false,
         trust: None,
         emoji: String::new(),
         created: 1_790_812_800,
@@ -1571,6 +1627,7 @@ fn player_card_profile(shots: &mut Snapshot) {
             mythical: 0,
         },
         holocrons: Vec::new(),
+        shards: 0,
     };
     let medal = sjk_identity::Medal {
         id: "bug_hunter".to_owned(),
@@ -1578,10 +1635,16 @@ fn player_card_profile(shots: &mut Snapshot) {
         awarded: 0,
         note: String::new(),
     };
-    for (name, pinned) in [
-        ("player-card-profile", false),
-        ("player-card-profile-pinned", true),
+    for (name, pinned, jkr_creator) in [
+        ("player-card-profile", false, false),
+        ("player-card-profile-pinned", true, false),
+        ("player-card-jkr-creator", true, true),
     ] {
+        let profile = sjk_identity::Profile {
+            staff: !jkr_creator,
+            jkr_creator,
+            ..profile.clone()
+        };
         let card = card_from(
             &info("n|^1Sol^7 the Fox|t|1|model|kyle/default|st|single_1|st2|none|c1|4|c2|0|"),
             Some(HubInfo {
@@ -1660,33 +1723,39 @@ fn sjk_home_snapshot() {
             text: "anyone up for duels on ffa3?",
             verified: true,
             staff: false,
+            creator: false,
             trust: None,
             emoji: "",
             key_id: "0123456789abcdef",
             tier: None,
             gif: None,
+            official: None,
         },
         DockLine {
             name: "^1Fox",
             text: "in 5 min, finishing a CTF",
             verified: false,
             staff: false,
+            creator: false,
             trust: None,
             emoji: "",
             key_id: "fedcba9876543210",
             tier: None,
             gif: None,
+            official: None,
         },
         DockLine {
             name: "Kyle",
             text: "the new HUD looks great, but the force bar in the corner feels a bit too small at 4K",
             verified: false,
             staff: false,
+            creator: false,
             trust: None,
             emoji: "",
             key_id: "00000000000000ff",
             tier: None,
             gif: None,
+            official: None,
         },
     ];
     // Name, window, page, chosen entry, focused server, servers.
@@ -1729,7 +1798,7 @@ fn sjk_home_snapshot() {
             blade_name: "blue",
             servers,
             version: "2026.1007.1",
-            update: Some("2026.1008.1"),
+            update: crate::update::Version::new("2026.1008.1").map(crate::update::Notice::Ready),
             seconds: 12.0,
             chat: Some(ChatDock {
                 lines: &chat,
@@ -1742,14 +1811,7 @@ fn sjk_home_snapshot() {
                 )),
             }),
             summary: &crate::profile_card::NOBODY,
-            donation: Some(crate::donation_goal::Card {
-                numbers: Some(crate::donation_goal::Numbers {
-                    raised_cents: 8_000,
-                    goal_cents: 20_000,
-                    monthly: true,
-                    euros: true,
-                }),
-            }),
+            support: true,
         };
         home::build(&mut canvas, viewport, &mut home, &view, 1.0);
         let (mut display_text, mut body_text) = (Vec::new(), Vec::new());
@@ -1779,8 +1841,8 @@ fn sjk_home_snapshot() {
 
 /// The text of an SJK UI snapshot, each family's vertices with its atlas.
 struct SjkShotFonts<'a> {
-    display: (&'a [crate::text::TextVertex], &'a RgbaImage),
-    body: (&'a [crate::text::TextVertex], &'a RgbaImage),
+    display: (&'a [crate::text::TextVertex], &'a GrayImage),
+    body: (&'a [crate::text::TextVertex], &'a GrayImage),
 }
 
 /// Save SJK UI snapshot `name`: `backdrop` covering the window (cropped at
@@ -1817,7 +1879,9 @@ fn save_sjk_shot(
 
 /// The SJK UI's Settings over the duel6 levelshot: Interface with a changed
 /// slider focused (its dot and reset arrow), Display with a list open, a
-/// search's results, Graphics scrolled to its weather, and at 4:3.
+/// search's results, Graphics scrolled to its weather, at 4:3, the weak-PC
+/// rows (Gameplay's stock blades, Display's menu FPS cap, Graphics' render scale)
+/// and Graphics' texture compression.
 #[test]
 #[ignore = "reads the installed game data named by JKA_GAME_DATA"]
 fn sjk_settings_snapshot() {
@@ -1854,7 +1918,7 @@ fn sjk_settings_snapshot() {
         bool,
         Option<&'a str>,
     );
-    let cases: [Case; 7] = [
+    let cases: [Case; 11] = [
         (
             "sjk-settings",
             VIEWPORT_WIDE,
@@ -1908,6 +1972,38 @@ fn sjk_settings_snapshot() {
             VIEWPORT_WIDE,
             2,
             Some("r_drawfog"),
+            false,
+            None,
+        ),
+        (
+            "sjk-settings-stock-blades",
+            VIEWPORT_WIDE,
+            6,
+            Some(crate::stock_blades::CVAR),
+            false,
+            None,
+        ),
+        (
+            "sjk-settings-menu-fps",
+            VIEWPORT_WIDE,
+            1,
+            Some(crate::runtime_settings::MENU_CAP_CVAR),
+            false,
+            None,
+        ),
+        (
+            "sjk-settings-render-scale",
+            VIEWPORT_WIDE,
+            2,
+            Some(crate::frame_target::scale::CVAR),
+            false,
+            None,
+        ),
+        (
+            "sjk-settings-texture-compression",
+            VIEWPORT_WIDE,
+            2,
+            Some(crate::world_materials::filtering::mips::compress::CVAR),
             false,
             None,
         ),
@@ -1991,6 +2087,57 @@ fn sjk_settings_snapshot() {
     }
 }
 
+/// The HUD picker's card over the duel6 levelshot, with the retail HUD, SJK
+/// radial and SJK classic highlighted.
+#[test]
+#[ignore = "reads the installed game data named by JKA_GAME_DATA"]
+fn sjk_hud_picker_snapshot() {
+    use crate::game_font::SjkFonts;
+    use crate::menu::sjk::TextTarget;
+    let (_, vfs) = art();
+    let display = crate::text::load_family(&crate::text::DISPLAY, 1.0, None).expect("Rajdhani");
+    let body = crate::text::load_family(&crate::text::BODY, 1.0, None).expect("Exo 2");
+    let backdrop = decode(&vfs, "levelshots/mp/duel6.jpg").expect("the duel6 levelshot");
+    let directory = tempfile::tempdir().unwrap();
+    let console = crate::console::ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
+    for (name, label) in [
+        ("sjk-hud-picker", "Jedi Academy"),
+        ("sjk-hud-picker-radial", "SJK radial"),
+        ("sjk-hud-picker-classic", "SJK classic"),
+    ] {
+        let mut settings = crate::settings::SettingsMenu::new();
+        let picture = settings
+            .hud_picker_for_shot(&console, &vfs, label)
+            .expect("the HUD's picture");
+        let icons = HashMap::from([(crate::ui_renderer::HUD_PREVIEW_TEXTURE.0, picture)]);
+        let (mut display_text, mut body_text) = (Vec::new(), Vec::new());
+        settings.append_hud_picker_sjk(
+            TextTarget::Families(
+                SjkFonts {
+                    display: (&mut display_text, &display.font),
+                    body: (&mut body_text, &body.font),
+                    code: None,
+                },
+                crate::text::TextStyle::NEUTRAL,
+            ),
+            VIEWPORT_WIDE,
+            1.0,
+        );
+        let fonts = SjkShotFonts {
+            display: (&display_text, &display.image),
+            body: (&body_text, &body.image),
+        };
+        save_sjk_shot(
+            name,
+            VIEWPORT_WIDE,
+            &backdrop,
+            settings.draw_list(),
+            &icons,
+            fonts,
+        );
+    }
+}
+
 /// A 16:9 window, the shape most players have.
 const VIEWPORT_WIDE: [f32; 2] = [1920.0, 1080.0];
 
@@ -2024,7 +2171,7 @@ fn settings_panel_snapshot() {
             crate::text::retail_font::load(&crate::text::retail_font::MENU).expect("SJK Menu"),
         ),
     ];
-    let cases: [(&str, Page, Entry, Frame, &str); 5] = [
+    let cases: [(&str, Page, Entry, Frame, &str); 9] = [
         (
             "panel-interface",
             Page::Gameplay,
@@ -2059,6 +2206,34 @@ fn settings_panel_snapshot() {
             Entry::GameOptions,
             Frame::InGame,
             "cg_auraShell",
+        ),
+        (
+            "panel-stock-blades",
+            Page::Gameplay,
+            Entry::GameOptions,
+            Frame::Main,
+            crate::stock_blades::CVAR,
+        ),
+        (
+            "panel-menu-fps",
+            Page::Graphics,
+            Entry::Video,
+            Frame::Main,
+            crate::runtime_settings::MENU_CAP_CVAR,
+        ),
+        (
+            "panel-render-scale",
+            Page::Graphics,
+            Entry::RenderImage,
+            Frame::Main,
+            crate::frame_target::scale::CVAR,
+        ),
+        (
+            "panel-texture-compression",
+            Page::Graphics,
+            Entry::RenderImage,
+            Frame::Main,
+            crate::world_materials::filtering::mips::compress::CVAR,
         ),
     ];
     for (suffix, font) in fonts {
@@ -2182,7 +2357,9 @@ fn radial_hud(shots: &mut Snapshot) {
     let visibility = HudVisibility {
         hud: true,
         status: true,
+        vehicle: true,
         weapon: true,
+        selection: true,
         crosshair: true,
         crosshair_names: false,
         timer: false,
@@ -2281,6 +2458,7 @@ fn force_wheel(shots: &mut Snapshot, vfs: &sjk_vfs::VirtualFileSystem) {
         ("hud-force-wheel-merc", 7, true),
     ] {
         let view = sjk_client::selection::SelectionView {
+            extensions: &[],
             inventory: false,
             available: powers | jof,
             selected,
@@ -2502,6 +2680,7 @@ fn medals_snapshot() {
     // The Identity page.
     let hub = |medals: Vec<sjk_identity::Medal>| Hub {
         loot: Vec::new(),
+        min_client: None,
         opening: None,
         reveal: None,
         local_key_id: "44f3d0b36c9b2510".to_owned(),
@@ -2517,6 +2696,8 @@ fn medals_snapshot() {
             bio: String::new(),
             verified: true,
             staff: false,
+            creator: false,
+            jkr_creator: false,
             trust: None,
             emoji: String::new(),
             created: 0,
@@ -2527,12 +2708,15 @@ fn medals_snapshot() {
             unlocks: Vec::new(),
             holocron_counts: Default::default(),
             holocrons: Vec::new(),
+            shards: 0,
         }),
         server: None,
+        map_blocks: Vec::new(),
         players: Vec::new(),
         profiles: HashMap::new(),
         model_checks: HashMap::new(),
         profiles_revision: 0,
+        me_revision: 0,
         notice: None,
         revision: 0,
         report: None,
@@ -2541,12 +2725,26 @@ fn medals_snapshot() {
         avatar: None,
         look_outcome: None,
         packs_revision: 0,
+        map_edits_revision: 0,
+        map_edits_published: None,
         assets_note: None,
         crashes_sent: 0,
         crash_note: None,
         holocrons: None,
         log_requests: Vec::new(),
         log_answer: None,
+        economy: None,
+        kyber: None,
+        shop: None,
+        trade: None,
+        trades: None,
+        announcements: Vec::new(),
+        announcements_revision: 0,
+        rewards: None,
+        rewards_revision: 0,
+        claim: None,
+        announce: None,
+        public_key: String::new(),
     };
     let with = hub(shot_medals());
     let without = hub(Vec::new());
@@ -2705,5 +2903,65 @@ fn medals_snapshot() {
             std::time::Instant::now(),
         );
         shots.save_at(name, popup.draw_list(), &vertices, true, VIEWPORT);
+    }
+}
+
+/// The strafe aura at three moments of a W+A strafe jump at 520 ups (short of the best
+/// heading, on it, too far), over a dark backdrop with a crosshair; needs no game data.
+#[test]
+#[ignore = "writes preview pictures to target/menu-snapshots"]
+fn strafe_aura_snapshot() {
+    let size = [480.0, 300.0];
+    let center = [size[0] * 0.5, size[1] * 0.62];
+    let best = sjk_ui::strafe_peak(520.0, 2.0, 250.0);
+    for (name, base, time) in [
+        ("strafe-aura-short", 45f32.to_radians(), 0.0),
+        ("strafe-aura-on", best + 0.004, 0.4),
+        ("strafe-aura-far", best + 40f32.to_radians(), 0.8),
+    ] {
+        let mut list = DrawList::new(8);
+        let _ = list.push(DrawCommand::StrafeAura {
+            center,
+            aura: sjk_ui::StrafeAura {
+                radius: 110.0,
+                width: 110.0 * 0.45,
+                span: 60f32.to_radians(),
+                speed: 520.0,
+                acceleration: 2.0,
+                wishspeed: 250.0,
+                base,
+                time,
+                alpha: 1.0,
+            },
+        });
+        for (from, to) in [
+            ([center[0] - 8.0, center[1]], [center[0] + 8.0, center[1]]),
+            ([center[0], center[1] - 8.0], [center[0], center[1] + 8.0]),
+            (
+                [center[0], center[1] - 126.0],
+                [center[0], center[1] - 94.0],
+            ),
+        ] {
+            let _ = list.push(DrawCommand::Line {
+                from,
+                to,
+                width: 2.0,
+                color: sjk_ui::Color::new(1.0, 1.0, 1.0, 0.7),
+            });
+        }
+        let mut image =
+            RgbaImage::from_pixel(size[0] as u32, size[1] as u32, Rgba([24, 26, 34, 255]));
+        raster(
+            &mut image,
+            &list,
+            &[],
+            &GrayImage::new(1, 1),
+            &HashMap::new(),
+        );
+        let directory = workspace_root().join("target/menu-snapshots");
+        std::fs::create_dir_all(&directory).expect("create the snapshot directory");
+        let path = directory.join(format!("{name}.png"));
+        image.save(&path).expect("write the snapshot");
+        println!("{}", path.display());
     }
 }

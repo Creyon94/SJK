@@ -19,6 +19,44 @@ impl<'a> Resolver<'a> {
             vfs,
         }
     }
+
+    /// Names of the files ending in `.extension` at the top of the roots `exec`
+    /// reads from, in the order it searches them: the config folder, then the VFS.
+    /// For tab completion of a file argument (`Cmd_CompleteCfgName`).
+    pub(super) fn root_files(&self, extension: &str) -> Vec<String> {
+        let suffix = format!(".{}", extension.to_ascii_lowercase());
+        let mut names = Vec::new();
+        if let Ok(entries) = fs::read_dir(self.config_directory) {
+            for entry in entries.flatten() {
+                if entry.file_type().is_ok_and(|kind| kind.is_file())
+                    && let Some(name) = entry.file_name().to_str()
+                    && name.to_ascii_lowercase().ends_with(&suffix)
+                {
+                    names.push(name.to_owned());
+                }
+            }
+        }
+        if let Some(vfs) = self.vfs {
+            for name in vfs.list_files("", &suffix) {
+                if !name.contains('/') {
+                    names.push(vfs.original_name(&name).unwrap_or(name));
+                }
+            }
+        }
+        names
+    }
+
+    /// The maps `devmap` can load, named as it takes them: each `maps/**.bsp` of the
+    /// VFS, one folder deep, without `maps/` or the extension (`mp/ffa3`).
+    pub(super) fn map_names(&self) -> Vec<String> {
+        let Some(vfs) = self.vfs else {
+            return Vec::new();
+        };
+        vfs.list_files("maps", ".bsp")
+            .into_iter()
+            .filter_map(|name| name.strip_suffix(".bsp").map(str::to_owned))
+            .collect()
+    }
 }
 
 impl CommandFileResolver for Resolver<'_> {
@@ -60,3 +98,52 @@ fn validate_relative_path(path: &str) -> Result<(), String> {
 
 #[path = "console_files.rs"]
 mod files;
+
+#[cfg(test)]
+mod tests {
+    use super::Resolver;
+
+    #[test]
+    fn root_files_list_the_config_folder_then_the_vfs_root() {
+        let directory = tempfile::tempdir().unwrap();
+        std::fs::write(directory.path().join("Moj.cfg"), "").unwrap();
+        std::fs::write(directory.path().join("notes.txt"), "").unwrap();
+        std::fs::create_dir(directory.path().join("sub")).unwrap();
+        std::fs::write(directory.path().join("sub/deep.cfg"), "").unwrap();
+        let mut vfs = sjk_vfs::VirtualFileSystem::new();
+        vfs.mount_memory(
+            "base",
+            [
+                ("AutoExec.CFG", b"".to_vec()),
+                ("cfg/nested.cfg", b"".to_vec()),
+            ],
+        )
+        .unwrap();
+        let resolver = Resolver::new(directory.path(), Some(&vfs));
+        assert_eq!(resolver.root_files("cfg"), ["Moj.cfg", "AutoExec.CFG"]);
+        assert_eq!(
+            Resolver::new(directory.path(), None).root_files("cfg"),
+            ["Moj.cfg"]
+        );
+    }
+
+    #[test]
+    fn map_names_are_the_bsps_under_maps_without_the_extension() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut vfs = sjk_vfs::VirtualFileSystem::new();
+        vfs.mount_memory(
+            "base",
+            [
+                ("maps/mp/Siege_Hoth.bsp", b"".to_vec()),
+                ("maps/sjk_arena1.bsp", b"".to_vec()),
+                ("maps/mp/ffa3.aas", b"".to_vec()),
+                ("levelshots/mp/ffa3.jpg", b"".to_vec()),
+            ],
+        )
+        .unwrap();
+        let mut names = Resolver::new(directory.path(), Some(&vfs)).map_names();
+        names.sort();
+        assert_eq!(names, ["mp/siege_hoth", "sjk_arena1"]);
+        assert!(Resolver::new(directory.path(), None).map_names().is_empty());
+    }
+}

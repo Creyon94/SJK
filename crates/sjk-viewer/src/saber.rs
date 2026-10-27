@@ -33,11 +33,35 @@ pub(crate) struct Attachment {
     pub(crate) rotation: [f32; 4],
 }
 
+impl Attachment {
+    /// The bolt of a model drawn at `scale` (`iModelScale`): `G2API_GetBoltMatrix`
+    /// scales the bolt's position by the model scale and keeps its axes unit length
+    /// (`G2_API.cpp`), so what a scaled player holds stays in its hand.
+    pub(crate) fn scaled(self, scale: [f32; 3]) -> Self {
+        Self {
+            grip: (Vec3::from_array(self.grip) * Vec3::from_array(scale)).to_array(),
+            ..self
+        }
+    }
+}
+
 /// Saber-model-space blade origin and codemp forward direction.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct BladeSocket {
     pub(crate) origin: [f32; 3],
     pub(crate) direction: [f32; 3],
+}
+
+impl BladeSocket {
+    /// The socket of a hilt drawn at `scale`: `CG_AddSaberBlade` reads `*blade1`
+    /// through `G2API_GetBoltMatrix` with the wearer's model scale, so the blade
+    /// starts on the scaled hilt; its length stays the saber's (`cg_players.c`).
+    pub(crate) fn scaled(self, scale: [f32; 3]) -> Self {
+        Self {
+            origin: (Vec3::from_array(self.origin) * Vec3::from_array(scale)).to_array(),
+            ..self
+        }
+    }
 }
 
 /// Fully transformed blade submitted to the saber renderer.
@@ -141,6 +165,13 @@ pub(crate) struct Instance {
     /// The sections of a skin its wearer switched off
     /// ([`crate::saber_skins::SkinColor::off`]); 0 for every other blade.
     off: u32,
+    /// The blade's motion for the Blade Lab designs ([`crate::saber_motion`]): swing,
+    /// seconds since its last clash, since it was lit and since its last swing began.
+    motion: [f32; 4],
+    /// A direction across the blade fixed to its hilt (world, unit) and the blade's full
+    /// length, for the signatures' three-dimensional frame ([`Self::with_frame`]); zeros
+    /// when unknown (a thrown blade, the menu stage).
+    frame: [f32; 4],
     contact: u32,
     no_light: u32,
     /// The blade's configured radius, for contacts; not a GPU attribute.
@@ -153,6 +184,11 @@ pub(crate) struct Instance {
     /// out it circles; for the bounds, not a GPU attribute.
     glint: [f32; 2],
 }
+
+/// The afterimages' section bit, on an afterimage's own instance (`OFF_GHOSTS` in
+/// `saber.wgsl`): the CPU makes the afterimages, so the shader never reads the bit as a
+/// section switched off, and a dimmed instance with it is an afterimage.
+const AFTERIMAGE: u32 = crate::blade_skin_file::extras::Section::Ghosts.bit();
 
 /// Colour alpha marking a skin's first glint ([`Instance::stars`]): neither a glow (a hilt
 /// sprite's radius) nor a core (zero). Glint `n` of an orbit is `STAR - n`.
@@ -190,9 +226,10 @@ impl Flicker {
 }
 
 impl Instance {
-    const ATTRIBUTES: [wgpu::VertexAttribute; 10] = wgpu::vertex_attr_array![
+    const ATTRIBUTES: [wgpu::VertexAttribute; 12] = wgpu::vertex_attr_array![
         0 => Float32x3, 1 => Float32, 2 => Float32x3, 3 => Float32, 4 => Float32x4, 5 => Uint32,
-        6 => Float32x2, 7 => Uint32x4, 8 => Float32, 9 => Uint32];
+        6 => Float32x2, 7 => Uint32x4, 8 => Float32, 9 => Uint32, 10 => Float32x4,
+        11 => Float32x4];
 
     pub(crate) fn layout() -> wgpu::VertexBufferLayout<'static> {
         wgpu::VertexBufferLayout {
@@ -247,6 +284,8 @@ impl Instance {
             persona,
             chroma,
             off,
+            motion: crate::saber_motion::STILL,
+            frame: [0.0; 4],
             contact: 0,
             no_light: 0,
             nominal_radius: blade.radius,
@@ -264,8 +303,19 @@ impl Instance {
     }
 
     /// An afterimage of a skinned blade ([`crate::saber_ghosts`]): its glow alone at
-    /// `blade`'s pose, `fade` as bright.
+    /// `blade`'s pose, `fade` as bright, marked with [`AFTERIMAGE`] so `saber.wgsl`
+    /// draws it as the plain capsule in the skin's colours (`afterimage_glow`).
     pub(crate) fn ghost(blade: Blade, color: BladeColor, fade: f32) -> Self {
+        let faded = Self::faded(blade, color, fade);
+        Self {
+            off: faded.off | AFTERIMAGE,
+            ..faded
+        }
+    }
+
+    /// `blade`'s glow alone, `fade` as bright, not marked as an afterimage (the echo is
+    /// drawn with the whole look).
+    fn faded(blade: Blade, color: BladeColor, fade: f32) -> Self {
         let [glow, _core] = Self::pair(blade, color);
         let byte = (fade.clamp(0.0, 1.0) * 255.0).round() as u32;
         Self {
@@ -275,8 +325,15 @@ impl Instance {
                 glow.persona[2],
                 glow.persona[3],
             ],
+            off: glow.off & !AFTERIMAGE,
             ..glow
         }
+    }
+
+    /// Whether this is an afterimage ([`Self::ghost`]), as `saber.wgsl` tells it.
+    #[cfg(test)]
+    pub(crate) fn is_afterimage(&self) -> bool {
+        self.persona[0] >> 24 != 255 && self.off & AFTERIMAGE != 0
     }
 
     /// A skin's glints, when its skin has them switched on: the one at `blade`'s tip, or
@@ -336,7 +393,7 @@ impl Instance {
             length: (tip - base).length(),
             radius: blade.radius,
         };
-        Some(Self::ghost(swayed, color, echo.fade))
+        Some(Self::faded(swayed, color, echo.fade))
     }
 
     /// Whether this is a glint ([`Self::stars`]).
@@ -390,6 +447,21 @@ impl Instance {
             seconds.rem_euclid(Self::ANIMATION_PERIOD) as f32,
             (hash >> 8) as f32 / (1u32 << 24) as f32,
         ];
+        self
+    }
+
+    /// Stamp the blade's frame: `across`, a direction across it that turns with its hilt
+    /// (world), and its `full` length. A signature places its three-dimensional effects
+    /// in that frame on that length (`saber.wgsl` `sig_ray`, `sig_full`), so they keep
+    /// still while the camera turns and do not slide as the blade grows.
+    pub(crate) fn with_frame(mut self, across: [f32; 3], full: f32) -> Self {
+        self.frame = [across[0], across[1], across[2], full];
+        self
+    }
+
+    /// Stamp the blade's motion ([`crate::saber_motion::BladeMotion::record`]).
+    pub(crate) fn with_motion(mut self, motion: [f32; 4]) -> Self {
+        self.motion = motion;
         self
     }
 
@@ -663,6 +735,14 @@ pub(crate) fn create_materials(
         ));
     }
     materials.resize(MATERIAL_COUNT, neutral);
+    materials[crate::saber_rgb::BLACK_MATERIAL as usize] = material(
+        device,
+        queue,
+        layout,
+        samplers,
+        &crate::saber_rgb::black::image(vfs, shaders, "glow"),
+        &crate::saber_rgb::black::image(vfs, shaders, "core"),
+    );
     Ok(materials)
 }
 
@@ -676,10 +756,33 @@ pub(crate) fn material(
     glow: &image::RgbaImage,
     core: &image::RgbaImage,
 ) -> wgpu::BindGroup {
-    let integral = crate::saber_gpu::glow_integral::upload(device, queue, glow);
-    let glow = crate::gpu_texture::upload_display_image(device, queue, "SJK saber glow", glow);
-    let core =
-        crate::gpu_texture::upload_display_image_mipmapped(device, queue, "SJK saber core", core);
+    // Texture detail shrinks them too: eight pairs of 2048-pixel glows and their
+    // half-float integrals held 300 MiB, in the menu as well (Vin's 3 GB card, 21/10/2026).
+    let mips = crate::world_materials::filtering::mips::shrunk;
+    let (glow_shrunk, core_shrunk) = (mips(glow), mips(core));
+    let glow = glow_shrunk.as_ref().unwrap_or(glow);
+    let core = core_shrunk.as_ref().unwrap_or(core);
+    // The same images on every map: a map change's next world takes the last one's.
+    let key = crate::shared_textures::key(&[
+        &glow.width().to_le_bytes(),
+        &glow.height().to_le_bytes(),
+        glow.as_raw(),
+        &core.width().to_le_bytes(),
+        &core.height().to_le_bytes(),
+        core.as_raw(),
+    ]);
+    let (integral, glow, core) = crate::shared_textures::share("saber pair", key, || {
+        (
+            crate::saber_gpu::glow_integral::upload(device, queue, glow),
+            crate::gpu_texture::upload_display_image(device, queue, "SJK saber glow", glow),
+            crate::gpu_texture::upload_display_image_mipmapped(
+                device,
+                queue,
+                "SJK saber core",
+                core,
+            ),
+        )
+    });
     let view = |binding, view| wgpu::BindGroupEntry {
         binding,
         resource: wgpu::BindingResource::TextureView(view),
@@ -813,15 +916,15 @@ mod cutoff_tests {
             crate::saber_skins::MAX_SKINS
         )));
         assert!(shader.contains("var<storage, read> skins: array<Skin, MAX_SKINS>;"));
-        // `Skin` is 95 vec4s, as `SkinUniform`, and the array fits a storage binding.
+        // `Skin` is 97 vec4s, as `SkinUniform`, and the array fits a storage binding.
         assert_eq!(
             std::mem::size_of::<crate::saber_skins::SkinUniform>(),
-            95 * 16
+            97 * 16
         );
-        const { assert!(95 * 16 * crate::saber_skins::MAX_SKINS <= 128 * 1024 * 1024) };
+        const { assert!(97 * 16 * crate::saber_skins::MAX_SKINS <= 128 * 1024 * 1024) };
         let skin = &shader[shader.find("struct Skin {").unwrap()..];
         let skin = &skin[..skin.find('}').unwrap()];
-        assert_eq!(skin.matches(": vec4<f32>,").count(), 95);
+        assert_eq!(skin.matches(": vec4<f32>,").count(), 97);
         // In `SkinUniform`'s order (its lanes are pinned by `saber_skins`' tests).
         let lanes: Vec<&str> = skin
             .lines()
@@ -925,6 +1028,8 @@ mod cutoff_tests {
                 "ink_more",
                 "chrome_color",
                 "chrome_shape",
+                "design",
+                "design_color",
             ]
         );
         assert!(shader.contains(&format!(
@@ -1204,5 +1309,34 @@ mod skin_extras_tests {
             assert!(away <= 2.0 * 1.2 + 0.05 * 40.0 + 0.01, "{away}");
         }
         assert!(Instance::echo(blade(), skin(None, None), 1.0, 7).is_none());
+    }
+}
+
+#[cfg(test)]
+mod scale_tests {
+    use super::*;
+
+    #[test]
+    fn a_scaled_model_keeps_its_saber_in_its_hand() {
+        // A player drawn at 60 % (`iModelScale 60`): the hand is 60 % as far from the
+        // origin, so the hilt goes there, turned as before; the blade starts on the
+        // smaller hilt.
+        let hand = Attachment {
+            grip: [-20.0, 0.0, 37.0],
+            rotation: Quat::from_rotation_z(0.5).to_array(),
+        };
+        let scaled = hand.scaled([0.6; 3]);
+        let (grip, rotation) = world_attachment(Vec3::ZERO, Quat::IDENTITY, scaled);
+        assert!(grip.abs_diff_eq(Vec3::new(-12.0, 0.0, 22.2), 1e-4));
+        assert_eq!(rotation.to_array(), hand.rotation);
+        let socket = BladeSocket {
+            origin: [0.0, 0.0, 10.0],
+            direction: [0.0, 0.0, 1.0],
+        }
+        .scaled([0.6; 3]);
+        assert_eq!(socket.origin, [0.0, 0.0, 6.0]);
+        assert_eq!(socket.direction, [0.0, 0.0, 1.0]);
+        // Unscaled models are untouched.
+        assert_eq!(hand.scaled([1.0; 3]).grip, hand.grip);
     }
 }

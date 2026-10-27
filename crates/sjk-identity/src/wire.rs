@@ -43,6 +43,14 @@ pub struct Profile {
     /// Whether the hub's operator made this key staff (absent from older hubs).
     #[serde(default)]
     pub staff: bool,
+    /// Whether this is SJK's creator: staff too, with their own mark (the hub's
+    /// `PROTOCOL.md`, "Creator"; absent when false and from older hubs).
+    #[serde(default)]
+    pub creator: bool,
+    /// Whether this is JKR's creator: a mark of their own and no staff rights (the
+    /// hub's `PROTOCOL.md`, "JKR creator"; absent when false and from older hubs).
+    #[serde(default)]
+    pub jkr_creator: bool,
     /// The player's trust, `None` when verified or staff (and from older hubs).
     #[serde(default)]
     pub trust: Option<Trust>,
@@ -85,6 +93,11 @@ pub struct Profile {
     /// holocrons brought, never below 0 (absent from hubs older than opening).
     #[serde(default)]
     pub credits: u64,
+    /// The person's kyber shards (`PROTOCOL.md`, "Shards and the shop", 17/10/2026): what
+    /// shattering duplicates and holocrons' shard piles brought, never below 0 (absent from
+    /// hubs older than them).
+    #[serde(default)]
+    pub shards: u64,
     /// The person's cards, one entry per kind of copy held, the best first (absent from
     /// hubs older than opening).
     #[serde(default)]
@@ -179,6 +192,18 @@ pub struct Holocron {
     /// hubs older than opening).
     #[serde(default)]
     pub opened: Option<i64>,
+    /// When it last changed hands in a trade between players, unix seconds; `None` when
+    /// it never did (and from hubs before 22/10/2026). A traded holocron waits the hub's
+    /// resale lock before it trades again (`crate::trades`).
+    #[serde(default)]
+    pub traded: Option<i64>,
+    /// The person it came from in that trade, by key; `None` when never traded.
+    #[serde(default)]
+    pub traded_from_key: Option<String>,
+    /// Their name (colour codes kept; show it only through [`crate::chat::for_display`]),
+    /// when the hub knows it.
+    #[serde(default)]
+    pub traded_from: Option<String>,
 }
 
 impl Holocron {
@@ -199,7 +224,8 @@ pub struct CardStack {
     /// when it is revealed.
     #[serde(default)]
     pub card: Option<String>,
-    /// `common`, `uncommon`, `rare` or `legendary`; a client shows only the ids it knows.
+    /// `common`, `uncommon`, `rare`, `legendary` or `mythical` (19/10/2026); a client
+    /// shows only the ids it knows.
     pub rarity: String,
     /// `normal`, `holo` or `solar`.
     pub finish: String,
@@ -242,15 +268,21 @@ pub struct Opened {
     pub holocron: u64,
     /// Its tier's wire id.
     pub tier: String,
-    /// The (sealed) card it held; `None` when it held a shader instead.
+    /// The (sealed) card it held; `None` when it held a shader or a pile of shards
+    /// instead.
     #[serde(default)]
     pub card: Option<OpenedCard>,
     /// The credits it held.
     #[serde(default)]
     pub credits: u64,
-    /// The shader it held instead of a card (14/10/2026).
+    /// The shader it held instead of a card (14/10/2026), or beside its card: a Solar
+    /// copy of a blade card drops its blade too (20/10/2026), and then both are set.
     #[serde(default)]
     pub unlock: Option<OpenedUnlock>,
+    /// The kyber shards it held instead of a card (17/10/2026); 0 for a card or a shader
+    /// (the hub leaves the field out then).
+    #[serde(default)]
+    pub shards: u64,
 }
 
 /// A shader an opening brought.
@@ -280,6 +312,10 @@ pub struct Revealed {
     /// Its edition, as it was sealed.
     #[serde(default)]
     pub edition: String,
+    /// The shader it dropped as it was revealed: a Solar copy of a blade card drops its
+    /// blade (20/10/2026); `None` otherwise, and from older hubs.
+    #[serde(default)]
+    pub unlock: Option<OpenedUnlock>,
 }
 
 /// The hub's answer to `POST /v1/cards/reveal`: the copies revealed (none when no sealed
@@ -323,10 +359,285 @@ pub struct HolocronState {
     /// Hubs before it leave it out, read as `false`.
     #[serde(default)]
     pub can_open: bool,
+    /// The oldest SJK release the hub lets open holocrons and trade (21/10/2026; the hub's
+    /// `PROTOCOL.md`, "Minimum client"); `None` when it wants none, and from hubs before.
+    #[serde(default)]
+    pub min_client: Option<String>,
     /// Every odds table the hub rolls with, one per holocron tier in the tiers' order
     /// (14/10/2026); empty from hubs before.
     #[serde(default)]
     pub loot: Vec<LootTier>,
+    /// The kyber shards' and the shop's tables (17/10/2026); `None` from hubs before.
+    #[serde(default)]
+    pub economy: Option<EconomyTables>,
+    /// The kyber crystals' odds and the person's pity counter (21/10/2026; the hub's
+    /// `PROTOCOL.md`, "Kyber crystals"); `None` from hubs before.
+    #[serde(default)]
+    pub kyber: Option<KyberTables>,
+}
+
+/// The kyber crystals' tables as the hub sends them with the progress (`PROTOCOL.md`,
+/// "Kyber crystals", 21/10/2026). A crystal is a holocron row of tier `kyber_uncommon` to
+/// `kyber_mythical`, earned from achievements; opening one always gives a saber shader.
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
+pub struct KyberTables {
+    /// Each crystal tier's odds, the commonest first.
+    #[serde(default)]
+    pub tiers: Vec<KyberTier>,
+    /// The person's pity counter; `None` when the hub keeps none.
+    #[serde(default)]
+    pub pity: Option<KyberPity>,
+}
+
+/// One crystal tier's odds.
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
+pub struct KyberTier {
+    /// The tier's wire id (`kyber_rare`).
+    pub tier: String,
+    /// The shader's tier per mille, common to mythical (summing to 1000).
+    #[serde(default)]
+    pub shader_tier: Vec<u32>,
+}
+
+/// The person's pity counter: the `every`-th crystal in a row without a Legendary or
+/// better shader gives one.
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq)]
+pub struct KyberPity {
+    /// How many crystals in a row make a Legendary or better sure.
+    #[serde(default)]
+    pub every: u32,
+    /// Crystals opened since the last that gave Legendary or better (0 to `every - 1`).
+    #[serde(default)]
+    pub since: u32,
+}
+
+/// The economy's tables as the hub sends them with the progress (`PROTOCOL.md`, "Shards
+/// and the shop", 17/10/2026), each by saber shader tier, common to mythical.
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
+pub struct EconomyTables {
+    /// The shards shattering one duplicate gives.
+    #[serde(default)]
+    pub shatter: Vec<u64>,
+    /// The shards crafting one costs.
+    #[serde(default)]
+    pub craft: Vec<u64>,
+    /// What one costs in the shop, in [`EconomyTables::shop_currency`].
+    #[serde(default)]
+    pub shop: Vec<u64>,
+    /// What the shop's prices are in: `shards` (since 17/10/2026); empty from hubs before,
+    /// which sold for credits.
+    #[serde(default)]
+    pub shop_currency: String,
+    /// What a holocron costs in credits, by tier id (`uncommon`, `rare`); a tier left out
+    /// is not for sale. Empty from hubs before.
+    #[serde(default)]
+    pub holocrons: std::collections::BTreeMap<String, u64>,
+    /// What crafting a shader costs while the person holds a copy of its blade card, in
+    /// per cent of the craft cost, by the best copy's finish id (`normal`, `holo`,
+    /// `solar`; 21/10/2026). Empty from hubs before, which take the full cost.
+    #[serde(default)]
+    pub blade_card_craft: std::collections::BTreeMap<String, u64>,
+    /// What the hub's trade can do beyond its first form (21/10/2026): `shatter_last`
+    /// (the last copy shatters when asked, [`crate::Service::shatter_last`]) and
+    /// `shatter_duplicates` ([`crate::Service::shatter_duplicates`]). Empty from hubs
+    /// before.
+    #[serde(default)]
+    pub abilities: Vec<String>,
+}
+
+impl EconomyTables {
+    /// Whether the hub's trade can do `ability` (`shatter_last`, `shatter_duplicates`).
+    pub fn can(&self, ability: &str) -> bool {
+        self.abilities.iter().any(|known| known == ability)
+    }
+}
+
+/// A duplicate the hub shattered (`POST /v1/unlocks/shatter`).
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+pub struct Shattered {
+    /// The shader's id.
+    pub id: String,
+    /// How many of it the person holds now.
+    #[serde(default)]
+    pub count: u32,
+    /// The shards it gave.
+    #[serde(default)]
+    pub shards: u64,
+    /// The person's shards after.
+    #[serde(default)]
+    pub balance: u64,
+}
+
+/// The hub's answer to `POST /v1/unlocks/shatter`.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+pub struct ShatterAnswer {
+    /// What the shatter gave.
+    pub shattered: Shattered,
+    /// The person's profile after.
+    pub profile: Profile,
+}
+
+/// The copies of one shader the hub shattered at once (`POST
+/// /v1/unlocks/shatter-duplicates`, 21/10/2026).
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+pub struct ShatteredCopies {
+    /// The shader's id.
+    pub id: String,
+    /// How many copies it gave up (one is kept).
+    #[serde(default)]
+    pub copies: u32,
+    /// The shards they gave.
+    #[serde(default)]
+    pub shards: u64,
+}
+
+/// The hub's answer to `POST /v1/unlocks/shatter-duplicates`: every duplicate shattered,
+/// one copy of each kept.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+pub struct ShatterAllAnswer {
+    /// Each shader that gave up copies.
+    #[serde(default)]
+    pub shattered: Vec<ShatteredCopies>,
+    /// The copies shattered in all.
+    #[serde(default)]
+    pub copies: u32,
+    /// The shards they gave in all.
+    #[serde(default)]
+    pub shards: u64,
+    /// The person's shards after.
+    #[serde(default)]
+    pub balance: u64,
+    /// The person's profile after.
+    pub profile: Profile,
+}
+
+/// A shader the hub crafted with the person's shards (`POST /v1/unlocks/craft`).
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+pub struct Crafted {
+    /// The shader's id.
+    pub id: String,
+    /// Its name ("Circuit blade").
+    #[serde(default)]
+    pub name: String,
+    /// How many of it the person holds now.
+    #[serde(default = "one")]
+    pub count: u32,
+    /// The shards it cost.
+    #[serde(default)]
+    pub cost: u64,
+    /// The person's shards after.
+    #[serde(default)]
+    pub balance: u64,
+}
+
+/// The hub's answer to `POST /v1/unlocks/craft`.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+pub struct CraftAnswer {
+    /// What was made.
+    pub crafted: Crafted,
+    /// The person's profile after.
+    pub profile: Profile,
+}
+
+/// One of the shop's offers of the day, as the person asking sees it.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+pub struct Offer {
+    /// The shader's id.
+    pub id: String,
+    /// Its name ("Aurora blade").
+    #[serde(default)]
+    pub name: String,
+    /// Its tier's id (`common` to `mythical`).
+    #[serde(default)]
+    pub tier: String,
+    /// Its price, in the shop's currency ([`EconomyTables::shop_currency`]).
+    #[serde(default)]
+    pub price: u64,
+    /// Whether the person bought it today.
+    #[serde(default)]
+    pub bought: bool,
+    /// Whether the person holds it already (then the hub will not sell it).
+    #[serde(default)]
+    pub owned: bool,
+}
+
+/// The hub's answer to `GET /v1/shop` (`PROTOCOL.md`, "Shards and the shop"): the day's
+/// offers (each person's own since 21/10/2026, the same for everyone before), and when
+/// the next day's come.
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
+pub struct ShopDay {
+    /// The day in Paris, `YYYY-MM-DD`.
+    #[serde(default)]
+    pub day: String,
+    /// The offers, one Common, one Uncommon, one Rare and one Legendary or Mythical.
+    #[serde(default)]
+    pub offers: Vec<Offer>,
+    /// When the offers change, unix seconds.
+    #[serde(default)]
+    pub next: i64,
+    /// The hub's clock when it answered.
+    #[serde(default)]
+    pub server_time: i64,
+    /// The person's credits then.
+    #[serde(default)]
+    pub credits: u64,
+    /// The person's kyber shards then.
+    #[serde(default)]
+    pub shards: u64,
+}
+
+/// A shader the person bought in the shop (`POST /v1/shop/buy`).
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+pub struct Bought {
+    /// The shader's id.
+    pub id: String,
+    /// Its name.
+    #[serde(default)]
+    pub name: String,
+    /// How many of it the person holds now.
+    #[serde(default = "one")]
+    pub count: u32,
+    /// What it cost, in the shop's currency.
+    #[serde(default)]
+    pub price: u64,
+    /// The person's balance of that currency after.
+    #[serde(default)]
+    pub balance: u64,
+}
+
+/// The hub's answer to `POST /v1/shop/buy`.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+pub struct BuyAnswer {
+    /// What was bought.
+    pub bought: Bought,
+    /// The person's profile after.
+    pub profile: Profile,
+}
+
+/// A holocron the person bought with credits (`POST /v1/holocrons/buy`, 17/10/2026).
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+pub struct HolocronBought {
+    /// The new holocron's id.
+    #[serde(default)]
+    pub holocron: i64,
+    /// Its tier's id.
+    #[serde(default)]
+    pub tier: String,
+    /// The credits it cost.
+    #[serde(default)]
+    pub price: u64,
+    /// The person's credits after.
+    #[serde(default)]
+    pub balance: u64,
+}
+
+/// The hub's answer to `POST /v1/holocrons/buy`.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+pub struct HolocronBuyAnswer {
+    /// What was bought.
+    pub bought: HolocronBought,
+    /// The person's profile after.
+    pub profile: Profile,
 }
 
 /// One holocron tier's odds as the hub rolls them (`PROTOCOL.md`, "Holocrons"), every
@@ -337,7 +648,7 @@ pub struct LootTier {
     pub tier: String,
     /// How often a drop is this tier.
     pub drop: u32,
-    /// The card's rarity (common to legendary).
+    /// The card's rarity (common to mythical; common to legendary before 19/10/2026).
     pub rarity: Vec<u32>,
     /// The card's finish (normal, holo, solar).
     pub finish: Vec<u32>,
@@ -349,6 +660,17 @@ pub struct LootTier {
     /// The shader's tier then (common to mythical).
     #[serde(default)]
     pub shader_tier: Vec<u32>,
+    /// How often an opening brings a pile of kyber shards instead of the card and credits
+    /// (17/10/2026; 0 from hubs before).
+    #[serde(default)]
+    pub shard_pile: u32,
+    /// The shards a pile holds: the least and the most.
+    #[serde(default)]
+    pub shards: [u64; 2],
+    /// The shards a card brings beside its credits, the card pack: the least and the most
+    /// (17/10/2026; none from hubs before).
+    #[serde(default)]
+    pub card_shards: [u64; 2],
 }
 
 /// A holocron dropping for a key, as the feed relays it (`PROTOCOL.md`, "The feed").
@@ -373,7 +695,7 @@ pub struct DropEvent {
 }
 
 /// One unlockable a key holds (`PROTOCOL.md`, "Unlocks"): granted by the hub's
-/// operator or staff, or brought by a medal the key holds. A client shows and wears only the ids it knows.
+/// operator or staff, or brought by a medal or a card the key holds. A client shows and wears only the ids it knows.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
 pub struct Unlock {
     /// The unlockable's id (`saber_sun`).
@@ -393,6 +715,11 @@ pub struct Unlock {
     /// 10/10/2026.
     #[serde(default)]
     pub medal: Option<String>,
+    /// The card that brings it (`sjk_alpha_000`), when the key holds it only through a
+    /// copy of that card: it goes with the last copy, as a medal's blade goes with the
+    /// medal. `None` otherwise, and from hubs before 20/10/2026.
+    #[serde(default)]
+    pub card: Option<String>,
 }
 
 /// What a player wears that others draw (`PROTOCOL.md`, "Looks"). The default is
@@ -414,6 +741,27 @@ pub struct Look {
     /// 16/10/2026; absent, and empty, from older hubs and from players with none out).
     #[serde(default)]
     pub toys: Vec<String>,
+    /// The second saber's blade skin (since 21/10/2026): `None` (absent) when both sabers
+    /// wear `saber`, else a blade-skin unlock id or empty for the stock blade.
+    #[serde(default)]
+    pub saber2: Option<String>,
+    /// The second saber's skin's options its wearer switched off; empty when absent.
+    #[serde(default)]
+    pub saber2_off: Vec<String>,
+    /// The blade skin's extras its wearer switched on (since 26/10/2026): parts that are
+    /// off until switched on and that only a holder of the skin's card in its finish may
+    /// switch on (the Sun's: a Solar copy of SJK Alpha 000). The hub relays only those
+    /// the wearer may wear; absent, and empty, from older hubs and wearers with none on.
+    #[serde(default)]
+    pub saber_on: Vec<String>,
+    /// The second saber's skin's extras switched on; empty when absent.
+    #[serde(default)]
+    pub saber2_on: Vec<String>,
+    /// The saber sounds the player chose apart from their blade (since 23/10/2026):
+    /// empty to follow the blade skin (absent from older hubs and clients), `stock` for
+    /// the retail sounds, or a blade-skin unlock id whose sounds they hear.
+    #[serde(default)]
+    pub saber_sounds: String,
 }
 
 /// A look worn on a game server, as the feed relays it when it changes: the slot and
@@ -442,6 +790,21 @@ pub struct LookEvent {
     /// The toys the wearer has out; empty when absent.
     #[serde(default)]
     pub toys: Vec<String>,
+    /// The second saber's blade skin; `None` when both wear `saber`.
+    #[serde(default)]
+    pub saber2: Option<String>,
+    /// The second saber's skin's options switched off; empty when absent.
+    #[serde(default)]
+    pub saber2_off: Vec<String>,
+    /// The blade skin's extras switched on; empty when absent.
+    #[serde(default)]
+    pub saber_on: Vec<String>,
+    /// The second saber's skin's extras switched on; empty when absent.
+    #[serde(default)]
+    pub saber2_on: Vec<String>,
+    /// The saber sounds the wearer chose; empty (follow the blade) when absent.
+    #[serde(default)]
+    pub saber_sounds: String,
 }
 
 impl LookEvent {
@@ -452,6 +815,11 @@ impl LookEvent {
             illuminate: self.illuminate,
             saber_off: self.saber_off.clone(),
             toys: self.toys.clone(),
+            saber2: self.saber2.clone(),
+            saber2_off: self.saber2_off.clone(),
+            saber_on: self.saber_on.clone(),
+            saber2_on: self.saber2_on.clone(),
+            saber_sounds: self.saber_sounds.clone(),
         }
     }
 }
@@ -480,6 +848,41 @@ pub struct ToyEvent {
     pub target: u8,
 }
 
+/// An answer of the toy relay (`PROTOCOL.md`, "Toy relay"): the events for the
+/// reader's own slot, and the id to read after next.
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
+pub struct RelayBatch {
+    /// The events, oldest first.
+    pub events: Vec<ToyEvent>,
+    /// The encrypted whispers sealed to the reading key, oldest first, when asked for
+    /// (`PROTOCOL.md`, "Whispers").
+    #[serde(default)]
+    pub whispers: Vec<SealedWhisper>,
+    /// The id the next read starts after.
+    pub next: u64,
+}
+
+/// An encrypted whisper as the hub hands it to its reader (`PROTOCOL.md`, "Whispers"):
+/// open it with [`crate::whisper::open`].
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+pub struct SealedWhisper {
+    /// Its id in the relay's sequence.
+    pub id: u64,
+    /// When the hub took it, unix seconds.
+    pub at: i64,
+    /// The sender's slot and the name they claimed it under.
+    pub slot: u8,
+    /// The name the sender's claim was made under.
+    pub claimed_name: String,
+    /// The sender's key id (their person's).
+    pub key_id: String,
+    /// The key that sealed it (unpadded base64url).
+    pub from: String,
+    /// The sealed whisper.
+    #[serde(rename = "box")]
+    pub boxed: String,
+}
+
 /// A milestone of the player's own play (`PROTOCOL.md`, "Achievements"): how far its
 /// count is and when it was unlocked. Recognition only, it grants nothing.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
@@ -494,6 +897,10 @@ pub struct Achievement {
     /// When the count first reached the goal, unix seconds; 0 while it has not.
     #[serde(default)]
     pub unlocked: i64,
+    /// The kyber crystal tier it brings once (`kyber_rare`; 21/10/2026); `None` from hubs
+    /// before, whose players read the client's own table.
+    #[serde(default)]
+    pub reward: Option<String>,
 }
 
 /// The hub's answer to `POST /v1/staff/search`.
@@ -545,6 +952,23 @@ pub struct WornName {
     pub last_seen: i64,
 }
 
+/// A player SJK staff blocked for everyone on a game server until its map changes
+/// (`PROTOCOL.md`, "Map blocks"), as presence gives it.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+pub struct MapBlock {
+    /// The map, as the game names it.
+    pub map: String,
+    /// The server's `sv_serverid` for that map load.
+    pub serverid: i64,
+    /// The blocked player's slot.
+    pub slot: u8,
+    /// The name the game showed in `slot` when they were blocked.
+    pub name: String,
+    /// When, in Unix seconds.
+    #[serde(default)]
+    pub at: i64,
+}
+
 /// One live claim on a game server and who made it.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
 pub struct Presence {
@@ -576,6 +1000,10 @@ pub struct Presence {
     /// from hubs older than looks).
     #[serde(default)]
     pub look: Option<Look>,
+    /// The key the claimant takes encrypted whispers with (unpadded base64url), while
+    /// they do (`PROTOCOL.md`, "Whispers"); absent otherwise, and from older hubs.
+    #[serde(default)]
+    pub whisper_key: Option<String>,
 }
 
 /// One SJK chat message (`PROTOCOL.md`, "Chat"), as the feed carries it. Show its
@@ -596,27 +1024,89 @@ pub struct ChatMessage {
     /// Whether the sender is SJK staff.
     #[serde(default)]
     pub staff: bool,
+    /// Whether the sender is SJK's creator.
+    #[serde(default)]
+    pub creator: bool,
     /// The sender's trust when they sent it, `None` when verified or staff.
     #[serde(default)]
     pub trust: Option<Trust>,
     /// The sender's name emoji when they sent it, empty for none.
     #[serde(default)]
     pub emoji: String,
+    /// The client it was sent from, as the hub read it from the sender's User-Agent:
+    /// `sjk`, `ejk` (JoF EternalJK), empty for another or from hubs before it.
+    #[serde(default)]
+    pub client: String,
     /// What they said.
     pub text: String,
     /// Set when this "message" is a holocron drop the feed relayed (never read from
     /// the wire): `text` is empty and the viewer words the line.
     #[serde(skip)]
     pub holocron: Option<DropMark>,
+    /// Set when this "message" is the SJK team's (an announcement or a reward round,
+    /// [`crate::news`]; never read from the wire): `text` is empty and the viewer words
+    /// the line.
+    #[serde(skip)]
+    pub official: Option<crate::news::Official>,
 }
 
-/// What marks a [`ChatMessage`] as a holocron drop.
+/// What marks a [`ChatMessage`] as a holocron drop, or a grand find of one opened.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DropMark {
     /// The tier's wire id.
     pub tier: String,
     /// The drop is the reader's own.
     pub own: bool,
+    /// Set when the line is a grand find ([`FindEvent`]): what the holocron gave.
+    pub find: Option<FindMark>,
+}
+
+/// What a holocron someone opened gave, for a grand find's line ([`FindEvent`]).
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct FindMark {
+    /// A shader (`true`) or a card.
+    pub shader: bool,
+    /// The shader's name (empty for a card).
+    pub name: String,
+    /// The card's rarity or the shader's tier, as a wire id.
+    pub rarity: String,
+    /// The card's finish as a wire id (empty for a shader).
+    pub finish: String,
+}
+
+/// A grand find (`PROTOCOL.md`, "The feed", `finds`; since 17/10/2026): a holocron someone
+/// opened gave a Legendary, Mythical or Solar card, or a Legendary or Mythical shader.
+/// Every reader is told of it.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+pub struct FindEvent {
+    /// Its id in the feed's sequence.
+    pub id: u64,
+    /// When it was opened, unix seconds.
+    pub at: i64,
+    /// The opener's key.
+    pub key_id: String,
+    /// The opener's hub display name, with colour codes. Show it only through
+    /// [`crate::chat::for_display`].
+    pub name: String,
+    /// Whether the hub's operator vouches for the opener's key.
+    #[serde(default)]
+    pub verified: bool,
+    /// The holocron's tier.
+    pub tier: String,
+    /// `card` or `shader`.
+    pub prize: String,
+    /// The shader's unlock id, or the card's id (empty while sealed).
+    #[serde(default)]
+    pub item: String,
+    /// The shader's name (empty for a card).
+    #[serde(default)]
+    pub item_name: String,
+    /// The card's rarity or the shader's tier.
+    #[serde(default)]
+    pub rarity: String,
+    /// The card's finish (empty for a shader).
+    #[serde(default)]
+    pub finish: String,
 }
 
 /// One emote on a game server (`PROTOCOL.md`, "Emotes"): the slot and name come from
@@ -639,6 +1129,10 @@ pub struct Emote {
     /// absent from hubs before 15/10/2026.
     #[serde(default)]
     pub sync: Option<u8>,
+    /// Played without its sound: the sender is away from the game; absent (false)
+    /// from hubs before 19/10/2026.
+    #[serde(default)]
+    pub quiet: bool,
 }
 
 /// One ping on a game server (`PROTOCOL.md`, "Pings"): a point a player marked in the
@@ -725,6 +1219,21 @@ pub struct Feed {
     /// holocrons).
     #[serde(default)]
     pub drops: Vec<DropEvent>,
+    /// New grand finds (absent from hubs before 17/10/2026, and when none).
+    #[serde(default)]
+    pub finds: Vec<FindEvent>,
+    /// Changes to the reader's own trades (absent from hubs before 22/10/2026, and when
+    /// none).
+    #[serde(default)]
+    pub trades: Vec<crate::trades::TradeEvent>,
+    /// New announcements, oldest first (absent from hubs before 25/10/2026, and when
+    /// none).
+    #[serde(default)]
+    pub announcements: Vec<crate::news::FeedAnnouncement>,
+    /// New reward rounds, oldest first (absent from hubs before 25/10/2026, and when
+    /// none).
+    #[serde(default)]
+    pub rounds: Vec<crate::news::FeedRound>,
     /// Messages staff deleted.
     #[serde(default)]
     pub deleted: Vec<u64>,
@@ -763,6 +1272,9 @@ pub struct Person {
     /// Whether they are SJK staff.
     #[serde(default)]
     pub staff: bool,
+    /// Whether they are SJK's creator.
+    #[serde(default)]
+    pub creator: bool,
     /// Their trust, `None` when verified or staff.
     #[serde(default)]
     pub trust: Option<Trust>,
@@ -869,6 +1381,42 @@ mod tests {
         assert_eq!(unlock.count, 1);
     }
 
+    /// A Solar blade card brings its card and its blade together (20/10/2026), in an
+    /// opening and in a reveal; a reveal from an older hub carries no shader.
+    #[test]
+    fn a_solar_blade_card_brings_its_blade_beside_it() {
+        let opened: Opened = serde_json::from_str(
+            r#"{"holocron":10,"tier":"mythical","credits":300,
+                "card":{"id":4,"card":"sjk_blades_007","rarity":"rare","finish":"solar",
+                        "edition":"alpha"},
+                "unlock":{"id":"saber_sun","name":"Sun blade","count":1}}"#,
+        )
+        .unwrap();
+        assert_eq!(
+            opened.card.as_ref().and_then(|card| card.card.as_deref()),
+            Some("sjk_blades_007")
+        );
+        assert_eq!(
+            opened.unlock.as_ref().map(|unlock| unlock.id.as_str()),
+            Some("saber_sun")
+        );
+        let revealed: Vec<Revealed> = serde_json::from_str(
+            r#"[{"id":5,"card":"sjk_blades_007","rarity":"rare","finish":"solar",
+                 "edition":"alpha","unlock":{"id":"saber_sun","name":"Sun blade","count":2}},
+                {"id":6,"card":"sjk_alpha_010","rarity":"legendary","finish":"normal"}]"#,
+        )
+        .unwrap();
+        assert_eq!(
+            revealed[0].unlock,
+            Some(OpenedUnlock {
+                id: "saber_sun".into(),
+                name: "Sun blade".into(),
+                count: 2
+            })
+        );
+        assert_eq!(revealed[1].unlock, None);
+    }
+
     use super::*;
 
     /// A request every implementation of `PROTOCOL.md` must sign to this exact
@@ -942,7 +1490,8 @@ mod tests {
             r#"{"key_id":"aa","key":"bb","name":"Sol","bio":"","verified":true,"created":5,
                 "unlocks":[{"id":"saber_sun","granted":1791000000,"note":"Thanks"},
                            {"id":"from_the_future","granted":7},
-                           {"id":"saber_glitch","granted":8,"note":"","medal":"bug_hunter"}]}"#,
+                           {"id":"saber_glitch","granted":8,"note":"","medal":"bug_hunter"},
+                           {"id":"saber_sun","granted":9,"card":"sjk_alpha_000"}]}"#,
         )
         .unwrap();
         assert_eq!(
@@ -954,6 +1503,7 @@ mod tests {
                     note: "Thanks".to_owned(),
                     count: 1,
                     medal: None,
+                    card: None,
                 },
                 Unlock {
                     id: "from_the_future".to_owned(),
@@ -961,6 +1511,7 @@ mod tests {
                     note: String::new(),
                     count: 1,
                     medal: None,
+                    card: None,
                 },
                 Unlock {
                     id: "saber_glitch".to_owned(),
@@ -968,6 +1519,15 @@ mod tests {
                     note: String::new(),
                     count: 1,
                     medal: Some("bug_hunter".to_owned()),
+                    card: None,
+                },
+                Unlock {
+                    id: "saber_sun".to_owned(),
+                    granted: 9,
+                    note: String::new(),
+                    count: 1,
+                    medal: None,
+                    card: Some("sjk_alpha_000".to_owned()),
                 },
             ]
         );
@@ -988,6 +1548,11 @@ mod tests {
                 illuminate: true,
                 saber_off: Vec::new(),
                 toys: Vec::new(),
+                saber2: None,
+                saber2_off: Vec::new(),
+                saber_on: Vec::new(),
+                saber2_on: Vec::new(),
+                saber_sounds: String::new(),
             })
         );
         let options: Presence = serde_json::from_str(
@@ -1020,6 +1585,11 @@ mod tests {
                 illuminate: true,
                 saber_off: Vec::new(),
                 toys: Vec::new(),
+                saber2: None,
+                saber2_off: Vec::new(),
+                saber_on: Vec::new(),
+                saber2_on: Vec::new(),
+                saber_sounds: String::new(),
             }
         );
         let options: Feed = serde_json::from_str(
@@ -1028,6 +1598,13 @@ mod tests {
         )
         .unwrap();
         assert_eq!(options.looks[0].look().saber_off, ["wisps"]);
+        // The sounds chosen apart from the blade (23/10/2026); absent above: follow it.
+        let sounds: Feed = serde_json::from_str(
+            r#"{"next":17,"looks":[{"id":17,"at":9,"slot":3,"claimed_name":"^2Sol",
+                "key_id":"aa","saber":"saber_sun","illuminate":false,"saber_sounds":"stock"}]}"#,
+        )
+        .unwrap();
+        assert_eq!(sounds.looks[0].look().saber_sounds, "stock");
         let quiet: Feed = serde_json::from_str(r#"{"next":3,"emotes":[]}"#).unwrap();
         assert!(quiet.looks.is_empty(), "an older hub sends no looks");
     }
@@ -1122,7 +1699,10 @@ mod tests {
                 daily_cap: 8,
                 server_time: 1_791_000_000,
                 can_open: false,
+                min_client: None,
                 loot: Vec::new(),
+                economy: None,
+                kyber: None,
             }
         );
         let odds: HolocronState = serde_json::from_str(
@@ -1133,11 +1713,101 @@ mod tests {
         .unwrap();
         assert_eq!(odds.loot[0].tier, "uncommon");
         assert_eq!((odds.loot[0].credits, odds.loot[0].shader), ([10, 20], 300));
+        // Hubs before shard piles leave them out.
+        assert_eq!((odds.loot[0].shard_pile, odds.loot[0].shards), (0, [0, 0]));
+        let economy: HolocronState = serde_json::from_str(
+            r#"{"progress_secs":0,"every_secs":1800,"server_time":1,"loot":[{"tier":"uncommon",
+                "drop":600,"rarity":[700,240,55,5],"finish":[970,30,0],"credits":[10,20],
+                "shader":300,"shader_tier":[750,220,30,0,0],"shard_pile":100,"shards":[5,15]}],
+                "economy":{"shatter":[5,10,25,60,150],"craft":[40,100,300,800,2000],
+                "shop":[250,600,1500,4000,10000]}}"#,
+        )
+        .unwrap();
+        assert_eq!(
+            (economy.loot[0].shard_pile, economy.loot[0].shards),
+            (100, [5, 15])
+        );
+        let tables = economy.economy.unwrap();
+        assert_eq!(
+            (tables.shatter[0], tables.craft[4], tables.shop[2]),
+            (5, 2_000, 1_500)
+        );
+        // A hub before the shop sold for shards says neither its currency nor holocrons.
+        assert!(tables.shop_currency.is_empty() && tables.holocrons.is_empty());
+        let shards: EconomyTables = serde_json::from_str(
+            r#"{"shatter":[5,10,25,60,150],"craft":[40,100,300,800,2000],
+                "shop":[30,75,225,600,1500],"shop_currency":"shards",
+                "holocrons":{"uncommon":150,"rare":400}}"#,
+        )
+        .unwrap();
+        assert_eq!(shards.shop_currency, "shards");
+        assert!(shards.blade_card_craft.is_empty());
+        let cards: EconomyTables =
+            serde_json::from_str(r#"{"blade_card_craft":{"normal":75,"holo":50,"solar":50}}"#)
+                .unwrap();
+        assert_eq!(cards.blade_card_craft["holo"], 50);
+        assert_eq!(
+            (shards.holocrons["uncommon"], shards.holocrons["rare"]),
+            (150, 400)
+        );
+        // Hubs before 21/10/2026 say no abilities; later ones name theirs.
+        assert!(!shards.can("shatter_last") && !shards.can("shatter_duplicates"));
+        let forge: EconomyTables = serde_json::from_str(
+            r#"{"shatter":[5,10,25,60,150],"abilities":["shatter_last","shatter_duplicates"]}"#,
+        )
+        .unwrap();
+        assert!(forge.can("shatter_last") && forge.can("shatter_duplicates"));
+        let all: ShatterAllAnswer = serde_json::from_str(
+            r#"{"shattered":[{"id":"saber_tidal","copies":2,"shards":10}],"copies":2,
+                "shards":10,"balance":45,
+                "profile":{"key_id":"aa","key":"bb","name":"Sol","bio":"","verified":true,"created":5}}"#,
+        )
+        .unwrap();
+        assert_eq!((all.copies, all.shards, all.balance), (2, 10, 45));
+        assert_eq!(all.shattered[0].id, "saber_tidal");
+        let bought: HolocronBuyAnswer = serde_json::from_str(
+            r#"{"bought":{"holocron":42,"tier":"rare","price":400,"balance":100},
+                "profile":{"key_id":"aa","key":"bb","name":"Sol","bio":"","verified":true,"created":5}}"#,
+        )
+        .unwrap();
+        assert_eq!((bought.bought.holocron, bought.bought.price), (42, 400));
         let staff: HolocronState = serde_json::from_str(
             r#"{"progress_secs":0,"every_secs":1800,"today":0,"daily_cap":8,"server_time":1,"can_open":true}"#,
         )
         .unwrap();
         assert!(staff.can_open);
+        let gated: HolocronState = serde_json::from_str(
+            r#"{"progress_secs":0,"every_secs":1800,"server_time":1,"can_open":true,"min_client":"2026.1022.1"}"#,
+        )
+        .unwrap();
+        assert_eq!(gated.min_client.as_deref(), Some("2026.1022.1"));
+        // Kyber crystals (21/10/2026): their odds and the person's pity, beside `loot`.
+        let kyber: HolocronState = serde_json::from_str(
+            r#"{"progress_secs":0,"every_secs":1800,"server_time":1,
+                "kyber":{"tiers":[{"tier":"kyber_uncommon","shader_tier":[450,400,120,25,5]},
+                {"tier":"kyber_rare","shader_tier":[200,400,300,85,15]}],
+                "pity":{"every":10,"since":3}}}"#,
+        )
+        .unwrap();
+        let tables = kyber.kyber.unwrap();
+        assert_eq!(tables.tiers[1].tier, "kyber_rare");
+        assert_eq!(tables.tiers[0].shader_tier, [450, 400, 120, 25, 5]);
+        assert_eq!(
+            tables.pity,
+            Some(KyberPity {
+                every: 10,
+                since: 3
+            })
+        );
+        assert!(kyber.loot.is_empty(), "the holocrons' loot is untouched");
+        let achievement: Achievement = serde_json::from_str(
+            r#"{"id":"kills_100","progress":100,"goal":100,"unlocked":5,"reward":"kyber_rare"}"#,
+        )
+        .unwrap();
+        assert_eq!(achievement.reward.as_deref(), Some("kyber_rare"));
+        let older: Achievement =
+            serde_json::from_str(r#"{"id":"kills_100","progress":3,"goal":100}"#).unwrap();
+        assert_eq!(older.reward, None, "hubs before crystals say no reward");
         let feed: Feed = serde_json::from_str(
             r#"{"next":21,"drops":[{"id":20,"at":1791000001,"key_id":"aa","name":"^2Sol",
                 "tier":"legendary","verified":true},

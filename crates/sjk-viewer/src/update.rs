@@ -11,7 +11,8 @@
 //!
 //! A release is the ZIP `SJK-<version>-<platform>.zip` that `release.yml`
 //! publishes with `SJK-<version>-SHA256SUMS-<platform>.txt`. Only flat file
-//! names are taken from the ZIP, beside the running program.
+//! names and macOS app bundles (`SJK.app/...`) are taken from the ZIP, beside the
+//! running program (or its bundle).
 
 use sha2::{Digest, Sha256};
 use std::io::{Read, Write};
@@ -27,6 +28,8 @@ const PLATFORM: Option<&str> = if cfg!(all(target_os = "windows", target_arch = 
     Some("windows-x64")
 } else if cfg!(all(target_os = "linux", target_arch = "x86_64")) {
     Some("linux-x64")
+} else if cfg!(all(target_os = "macos", target_arch = "aarch64")) {
+    Some("macos-arm64")
 } else {
     None
 };
@@ -143,11 +146,80 @@ pub(crate) fn available() -> Option<(String, bool)> {
     }
 }
 
-/// The newer version waiting to be installed, if any.
-pub(crate) fn available_version() -> Option<String> {
-    match &*lock() {
-        State::Available(release) | State::Manual(release, _) => Some(release.version.clone()),
-        _ => None,
+/// What the main menus' update line says, kept `Copy` so a frame carries it without
+/// allocating. The line is a button where a click does something ([`Notice::clickable`]).
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum Notice {
+    /// A newer release waits; a click downloads and installs it.
+    Ready(Version),
+    /// A newer release this folder cannot install itself; a click opens its page.
+    Manual(Version),
+    /// Downloading: the share done in percent, when the size is known.
+    Downloading(Option<u8>),
+    /// Checked and unpacking.
+    Installing,
+    /// Installed; a click restarts into the new version.
+    Installed,
+    /// The install the player started failed; a click opens the Update page.
+    Failed,
+}
+
+impl Notice {
+    /// Whether a click on the line does something.
+    pub(crate) fn clickable(self) -> bool {
+        !matches!(self, Self::Downloading(_) | Self::Installing)
+    }
+}
+
+/// What a click on the update line asks of the menu ([`click_notice`]).
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum NoticeClick {
+    /// Done here (the download started, or the release page opened).
+    Done,
+    /// Exit, so the installed version starts ([`restart_if_requested`]).
+    Restart,
+    /// Open the Update page, which says what went wrong.
+    OpenPage,
+}
+
+/// Whether the player started an install this session: only then does a failure show
+/// on the menus' update line (a check that could not reach GitHub stays quiet).
+static INSTALL_STARTED: AtomicBool = AtomicBool::new(false);
+
+/// What the main menus' update line says now, `None` while there is nothing to say.
+pub(crate) fn notice() -> Option<Notice> {
+    notice_for(&lock(), INSTALL_STARTED.load(Ordering::Relaxed))
+}
+
+fn notice_for(state: &State, install_started: bool) -> Option<Notice> {
+    Some(match state {
+        State::Available(release) => Notice::Ready(Version::new(&release.version)?),
+        State::Manual(release, _) => Notice::Manual(Version::new(&release.version)?),
+        State::Downloading { done, total } => Notice::Downloading(
+            (*total > 0).then(|| (done.saturating_mul(100) / total).min(100) as u8),
+        ),
+        State::Installing => Notice::Installing,
+        State::Installed => Notice::Installed,
+        State::Failed(_) if install_started => Notice::Failed,
+        _ => return None,
+    })
+}
+
+/// A click on the main menus' update line: download and install a release waiting,
+/// open the page of one this folder cannot install, or say what the menu should do.
+pub(crate) fn click_notice() -> NoticeClick {
+    match state() {
+        State::Available(_) => {
+            install();
+            NoticeClick::Done
+        }
+        State::Manual(release, _) => {
+            open_page(&release.page);
+            NoticeClick::Done
+        }
+        State::Installed => NoticeClick::Restart,
+        State::Failed(_) => NoticeClick::OpenPage,
+        _ => NoticeClick::Done,
     }
 }
 
@@ -358,10 +430,10 @@ fn installed_name(exe: &Path) -> PathBuf {
     }
 }
 
-/// The folder of the running program, where the update's files go.
+/// The folder of the running program (or of its macOS bundle), where the update's
+/// files go.
 fn install_directory() -> Result<PathBuf, String> {
-    program()?
-        .parent()
+    crate::platform::install_folder(&program()?)
         .map(Path::to_path_buf)
         .ok_or_else(|| "no program folder".to_owned())
 }
@@ -389,6 +461,7 @@ pub(crate) fn install() {
         };
         release
     };
+    INSTALL_STARTED.store(true, Ordering::Relaxed);
     changed();
     std::thread::spawn(move || {
         set(match install_now(&release) {
@@ -474,10 +547,35 @@ fn flat_name(name: &str) -> Option<&str> {
     plain.then_some(name)
 }
 
-/// Put the ZIP's files in `directory`. Each is written as `<name>.new` first;
-/// then the running files are renamed to `<name>.old` (a program cannot be
-/// overwritten while it runs on Windows, but it can be renamed) and the new ones
-/// renamed into place. A failure puts the old files back.
+/// Where a ZIP entry goes: a plain file name ([`flat_name`]), or a file inside a
+/// macOS app bundle (`SJK.app/Contents/MacOS/sjk-client`), given as the bundle's
+/// name and the path inside it. Every part of that path is a plain name.
+fn entry_place(name: &str) -> Option<(&str, Option<&str>)> {
+    match name.split_once('/') {
+        None => flat_name(name).map(|name| (name, None)),
+        Some((bundle, inside)) => {
+            let bundle = flat_name(bundle).filter(|bundle| bundle.ends_with(".app"))?;
+            let plain = inside.split('/').all(|part| {
+                !part.is_empty() && part != "." && part != ".." && !part.contains(['\\', ':'])
+            });
+            plain.then_some((bundle, Some(inside)))
+        }
+    }
+}
+
+/// Remove a file, or a folder (an app bundle) with what it holds.
+fn remove_entry(path: &Path) {
+    if path.is_dir() {
+        let _ = std::fs::remove_dir_all(path);
+    } else {
+        let _ = std::fs::remove_file(path);
+    }
+}
+
+/// Put the ZIP's files in `directory`. Each (or each app bundle) is written as
+/// `<name>.new` first; then the running files are renamed to `<name>.old` (a
+/// program cannot be overwritten while it runs on Windows, but it can be renamed)
+/// and the new ones renamed into place. A failure puts the old files back.
 fn install_zip(zip: &Path, directory: &Path) -> Result<(), String> {
     let file = std::fs::File::open(zip).map_err(|error| format!("cannot open the ZIP: {error}"))?;
     let mut archive =
@@ -490,10 +588,21 @@ fn install_zip(zip: &Path, directory: &Path) -> Result<(), String> {
         if entry.is_dir() {
             continue;
         }
-        let name = flat_name(entry.name())
-            .ok_or_else(|| format!("unexpected file in the ZIP: {}", entry.name()))?
-            .to_owned();
-        let target = directory.join(format!("{name}.new"));
+        let (name, inside) = entry_place(entry.name())
+            .ok_or_else(|| format!("unexpected file in the ZIP: {}", entry.name()))?;
+        let name = name.to_owned();
+        let mut target = directory.join(format!("{name}.new"));
+        if let Some(inside) = inside {
+            if !names.contains(&name) {
+                // A bundle left half written by a failed install.
+                remove_entry(&target);
+            }
+            target.push(inside);
+            if let Some(folder) = target.parent() {
+                std::fs::create_dir_all(folder)
+                    .map_err(|error| format!("cannot write {name}: {error}"))?;
+            }
+        }
         let mut out = std::fs::File::create(&target)
             .map_err(|error| format!("cannot write {name}: {error}"))?;
         std::io::copy(&mut entry, &mut out)
@@ -504,7 +613,9 @@ fn install_zip(zip: &Path, directory: &Path) -> Result<(), String> {
             let mode = entry.unix_mode().unwrap_or(0o644) & 0o777;
             let _ = std::fs::set_permissions(&target, std::fs::Permissions::from_mode(mode));
         }
-        names.push(name);
+        if !names.contains(&name) {
+            names.push(name);
+        }
     }
     if names.is_empty() {
         return Err("the ZIP is empty".to_owned());
@@ -514,7 +625,7 @@ fn install_zip(zip: &Path, directory: &Path) -> Result<(), String> {
     for name in &names {
         let current = directory.join(name);
         let old = directory.join(format!("{name}.old"));
-        let _ = std::fs::remove_file(&old);
+        remove_entry(&old);
         let swapped = (!current.exists() || std::fs::rename(&current, &old).is_ok())
             && std::fs::rename(directory.join(format!("{name}.new")), &current).is_ok();
         if swapped {
@@ -531,11 +642,11 @@ fn install_zip(zip: &Path, directory: &Path) -> Result<(), String> {
     if let Some(error) = failure {
         for name in moved {
             let current = directory.join(name);
-            let _ = std::fs::remove_file(&current);
+            remove_entry(&current);
             let _ = std::fs::rename(directory.join(format!("{name}.old")), &current);
         }
         for name in &names {
-            let _ = std::fs::remove_file(directory.join(format!("{name}.new")));
+            remove_entry(&directory.join(format!("{name}.new")));
         }
         return Err(error);
     }
@@ -554,7 +665,7 @@ pub(crate) fn clean_up_old_files() {
         let name = entry.file_name();
         let name = name.to_string_lossy();
         if name.ends_with(".old") && name.to_ascii_lowercase().contains("sjk") {
-            let _ = std::fs::remove_file(entry.path());
+            remove_entry(&entry.path());
         }
     }
     // A staging folder left by a crash.
@@ -592,9 +703,11 @@ pub(crate) fn open_page(url: &str) {
     }
     let _ = if cfg!(target_os = "windows") {
         // `start` reads its first quoted argument as a window title.
-        std::process::Command::new("cmd")
+        crate::platform::hidden_command("cmd")
             .args(["/C", "start", "", url])
             .spawn()
+    } else if cfg!(target_os = "macos") {
+        std::process::Command::new("open").arg(url).spawn()
     } else {
         std::process::Command::new("xdg-open").arg(url).spawn()
     };
@@ -645,6 +758,50 @@ mod tests {
         assert!(parse_version("2026.1010.1") > parse_version("2026.1005.9"));
         assert!(parse_version("2026.1005.10") > parse_version("2026.1005.9"));
         assert!(parse_version("2027.0101.1") > parse_version("2026.1231.3"));
+    }
+
+    #[test]
+    fn the_update_line_follows_the_install_and_hides_a_failed_check() {
+        let asset = || Asset {
+            name: String::new(),
+            url: String::new(),
+            size: 0,
+        };
+        let release = Release {
+            version: "2026.1020.1".to_owned(),
+            page: String::new(),
+            zip: asset(),
+            sums: asset(),
+        };
+        let version = Version::new("2026.1020.1").unwrap();
+        let ready = notice_for(&State::Available(release.clone()), false);
+        assert_eq!(ready, Some(Notice::Ready(version)));
+        assert!(ready.unwrap().clickable());
+        assert_eq!(
+            notice_for(&State::Manual(release, String::new()), false),
+            Some(Notice::Manual(version))
+        );
+        let downloading = notice_for(
+            &State::Downloading {
+                done: 25,
+                total: 100,
+            },
+            true,
+        );
+        assert_eq!(downloading, Some(Notice::Downloading(Some(25))));
+        assert!(!downloading.unwrap().clickable());
+        assert_eq!(
+            notice_for(&State::Downloading { done: 7, total: 0 }, true),
+            Some(Notice::Downloading(None))
+        );
+        assert_eq!(notice_for(&State::Installed, true), Some(Notice::Installed));
+        // A check that failed says nothing; an install the player started does.
+        assert_eq!(notice_for(&State::Failed("x".to_owned()), false), None);
+        assert_eq!(
+            notice_for(&State::Failed("x".to_owned()), true),
+            Some(Notice::Failed)
+        );
+        assert_eq!(notice_for(&State::UpToDate, true), None);
     }
 
     #[test]
@@ -748,6 +905,57 @@ mod tests {
             b"readme"
         );
         assert!(!root.join("sjk.exe.new").exists());
+    }
+
+    #[test]
+    fn a_mac_app_bundle_is_taken_whole_from_the_zip() {
+        assert_eq!(
+            entry_place("SJK.app/Contents/MacOS/sjk-client"),
+            Some(("SJK.app", Some("Contents/MacOS/sjk-client")))
+        );
+        assert_eq!(entry_place("sjk-server"), Some(("sjk-server", None)));
+        for bad in [
+            "base/x.pk3",
+            "SJK.app/../evil",
+            "SJK.app//x",
+            "SJK.app/Contents/a\\b",
+            "../SJK.app/x",
+            ".app/x",
+        ] {
+            assert_eq!(entry_place(bad), None, "{bad}");
+        }
+        let directory = tempfile::tempdir().unwrap();
+        let root = directory.path();
+        let program = root.join("SJK.app/Contents/MacOS/sjk-client");
+        std::fs::create_dir_all(program.parent().unwrap()).unwrap();
+        std::fs::write(&program, b"old").unwrap();
+        std::fs::write(root.join("SJK.app/Contents/stale.txt"), b"x").unwrap();
+        let zip_path = root.join("update.zip");
+        {
+            let mut writer = zip::ZipWriter::new(std::fs::File::create(&zip_path).unwrap());
+            let options = zip::write::SimpleFileOptions::default();
+            writer
+                .start_file("SJK.app/Contents/MacOS/sjk-client", options)
+                .unwrap();
+            writer.write_all(b"new").unwrap();
+            writer
+                .start_file("SJK.app/Contents/Info.plist", options)
+                .unwrap();
+            writer.write_all(b"plist").unwrap();
+            writer.start_file("sjk-server", options).unwrap();
+            writer.write_all(b"server").unwrap();
+            writer.finish().unwrap();
+        }
+        install_zip(&zip_path, root).unwrap();
+        assert_eq!(std::fs::read(&program).unwrap(), b"new");
+        assert!(root.join("SJK.app/Contents/Info.plist").is_file());
+        // The whole bundle was swapped: nothing of the old one stays inside.
+        assert!(!root.join("SJK.app/Contents/stale.txt").exists());
+        assert_eq!(
+            std::fs::read(root.join("SJK.app.old/Contents/MacOS/sjk-client")).unwrap(),
+            b"old"
+        );
+        assert!(!root.join("SJK.app.new").exists());
     }
 
     #[test]

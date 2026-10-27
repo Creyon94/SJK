@@ -50,7 +50,9 @@ pub(crate) fn open(
 }
 
 /// What [`open`] builds a client from: `map` loaded from `JKA_GAME_DATA`, a throwaway
-/// profile (kept alive by the returned directory) with `cvars` set, and `menu`.
+/// profile (kept alive by the returned directory) with `cvars` set, then those of
+/// `SJK_SHOT_CVARS` (`name=value`, comma separated, e.g. `r_renderScale=50`, to run any
+/// shot under other settings), and `menu`.
 pub(crate) fn world_input(
     map: &str,
     menu: Option<menu::ClientMenu>,
@@ -77,6 +79,13 @@ pub(crate) fn world_input(
     }
     for (name, value) in cvars {
         console.set_cvar(name, value);
+    }
+    for (name, value) in std::env::var("SJK_SHOT_CVARS")
+        .unwrap_or_default()
+        .split(',')
+        .filter_map(|pair| pair.split_once('='))
+    {
+        console.set_cvar(name.trim(), value.trim());
     }
     let (bsp, vfs) = assets::load_bsp(&game_data, map).expect("the map");
     let scene = StaticWorld::build(&bsp, MeshBuildOptions::default().with_sky_surfaces())
@@ -279,6 +288,30 @@ mod holocron;
 #[path = "world_shot_cardboard_box.rs"]
 mod cardboard_box;
 
+#[path = "world_shot_map_edits.rs"]
+mod map_edit_shots;
+
+#[path = "world_shot_body_fade.rs"]
+mod body_fade_shots;
+#[path = "world_shot_boombox.rs"]
+mod boombox_shots;
+#[path = "world_shot_drone.rs"]
+mod drone_shots;
+#[path = "world_shot_hax.rs"]
+mod hax_shots;
+#[path = "world_shot_monitor.rs"]
+mod monitor_shots;
+#[path = "world_shot_order66.rs"]
+mod order66_shots;
+#[path = "world_shot_petals.rs"]
+mod petals;
+#[path = "world_shot_ragdoll.rs"]
+mod ragdoll_shots;
+
+#[path = "world_shot_blade_cards.rs"]
+mod blade_cards;
+#[path = "world_shot_saber_cost.rs"]
+mod saber_cost;
 #[path = "world_shot_saber_skins.rs"]
 mod saber_skins;
 
@@ -286,6 +319,8 @@ mod saber_skins;
 mod animation_profile;
 #[path = "world_shot_card_outline.rs"]
 mod card_outline_shots;
+#[path = "world_shot_ctf_flags.rs"]
+mod ctf_flags_shots;
 #[path = "world_shot_rig_model.rs"]
 mod rig_model_shots;
 #[path = "world_shot_team_outline.rs"]
@@ -300,6 +335,12 @@ mod holocrons_tab;
 #[path = "world_shot_cards.rs"]
 mod cards_shots;
 
+#[path = "world_shot_economy.rs"]
+mod economy_shots;
+
+#[path = "world_shot_forge.rs"]
+mod forge_shots;
+
 #[path = "world_shot_create_game.rs"]
 mod create_game;
 
@@ -308,18 +349,39 @@ mod graphics_reload;
 
 #[path = "world_shot_fps_help.rs"]
 mod fps_help_shots;
+#[path = "world_shot_small_card.rs"]
+mod small_card;
 
 #[path = "world_shot_emote_help.rs"]
 mod emote_help_shots;
+#[path = "world_shot_emote_picker.rs"]
+mod emote_picker_shots;
 
 #[path = "world_shot_alpha_notice.rs"]
 mod alpha_notice_shots;
 
+#[path = "world_shot_official.rs"]
+mod official_shots;
+
 #[path = "world_shot_chat_gifs.rs"]
 mod chat_gifs_shots;
 
+#[cfg(feature = "mod-jof")]
+#[path = "world_shot_jof_sjk_chat.rs"]
+mod jof_sjk_chat_shots;
+
+#[path = "world_shot_text_sizes.rs"]
+mod text_sizes_shots;
+
 #[path = "world_shot_map_change.rs"]
 mod map_change;
+
+#[path = "world_shot_menu_pictures.rs"]
+mod menu_pictures_shots;
+#[path = "world_shot_texture_compression.rs"]
+mod texture_compression_shots;
+#[path = "world_shot_vram.rs"]
+mod vram;
 
 #[path = "world_shot_brushes.rs"]
 mod brushes;
@@ -330,6 +392,8 @@ mod log_requests;
 #[path = "world_shot_whats_new.rs"]
 mod whats_new;
 
+#[path = "world_shot_chat_sounds.rs"]
+mod chat_sounds_shots;
 #[cfg(test)]
 #[path = "world_shot_footprints.rs"]
 mod footprints_shots;
@@ -338,6 +402,13 @@ mod footprints_shots;
 mod mover_models_shots;
 #[path = "world_shot_pings.rs"]
 mod pings;
+#[cfg(test)]
+#[path = "world_shot_portable_shield.rs"]
+mod portable_shield_shots;
+#[path = "world_shot_render_scale.rs"]
+mod render_scale_shots;
+#[path = "world_shot_scene_views.rs"]
+mod scene_views_shots;
 
 #[cfg(test)]
 mod tests {
@@ -676,14 +747,6 @@ mod tests {
             else {
                 return;
             };
-            // The donation goal as the hub would answer it: 80 of 200 euros this month.
-            crate::donation_goal::set_for_shot(Some(sjk_identity::DonationGoal {
-                url: sjk_identity::donations::DEFAULT_URL.to_owned(),
-                currency: "EUR".to_owned(),
-                goal_cents: 20_000,
-                raised_cents: 8_000,
-                monthly: true,
-            }));
             // Past the first shot's fade-in.
             let _ = frame(&mut gpu, 20);
             gpu.ui_epoch -= std::time::Duration::from_millis(2_000);
@@ -901,8 +964,8 @@ mod tests {
         }
     }
 
-    /// The settings in the SJK UI's look, at 1080p and 4K with Sol's
-    /// larger menu text (`ui_textScale 1.2`): the resolution list as the SJK
+    /// The settings in the SJK UI's look, at 1080p and 4K with the largest
+    /// menu text (`ui_textScale 1.4`): the resolution list as the SJK
     /// UI's card over its Settings and over a classic+ panel, then the
     /// classic Graphics page's renderer route, which opens the SJK UI's
     /// Settings on Graphics.
@@ -915,7 +978,7 @@ mod tests {
                 let cvars = [
                     ("ui_menuStyle", "sjk"),
                     (crate::settings::quick::HIDE_CVAR, "1"),
-                    (crate::text::style::SCALE_CVAR, "1.2"),
+                    (crate::text::style::SCALE_CVAR, "1.4"),
                 ];
                 let Some((mut gpu, _profile)) = open("maps/mp/duel6.bsp", size, Some(menu), &cvars)
                 else {
@@ -1165,6 +1228,8 @@ Found the fog bug, ask me about it!"
                 .to_owned(),
             verified: true,
             staff: false,
+            creator: false,
+            jkr_creator: false,
             trust: None,
             emoji: "🦊".to_owned(),
             created: 1_791_250_000,
@@ -1192,12 +1257,15 @@ Found the fog bug, ask me about it!"
                 note: String::new(),
                 count: 1,
                 medal: None,
+                card: None,
             }],
             holocron_counts: Default::default(),
             holocrons: Vec::new(),
+            shards: 0,
         };
         let snapshot = sjk_identity::Snapshot {
             loot: Vec::new(),
+            min_client: None,
             opening: None,
             reveal: None,
             status: sjk_identity::Status::Online,
@@ -1205,10 +1273,12 @@ Found the fog bug, ask me about it!"
             local_key_id: me.key_id.clone(),
             me: Some(me),
             server: None,
+            map_blocks: Vec::new(),
             players: Vec::new(),
             profiles: std::collections::HashMap::new(),
             model_checks: std::collections::HashMap::new(),
             profiles_revision: 0,
+            me_revision: 0,
             notice: None,
             revision: 0,
             report: None,
@@ -1217,12 +1287,26 @@ Found the fog bug, ask me about it!"
             avatar: None,
             look_outcome: None,
             packs_revision: 0,
+            map_edits_revision: 0,
+            map_edits_published: None,
             assets_note: None,
             crashes_sent: 0,
             crash_note: None,
             holocrons: None,
             log_requests: Vec::new(),
             log_answer: None,
+            economy: None,
+            kyber: None,
+            shop: None,
+            trade: None,
+            trades: None,
+            announcements: Vec::new(),
+            announcements_revision: 0,
+            rewards: None,
+            rewards_revision: 0,
+            claim: None,
+            announce: None,
+            public_key: String::new(),
         };
         let standings = crate::achievements::ALL
             .iter()
@@ -1235,6 +1319,7 @@ Found the fog bug, ask me about it!"
                     _ => 0,
                 },
                 unlocked: (index % 3 == 0).then_some(1_791_336_225 + index as i64 * 3_600),
+                waiting: false,
             })
             .collect();
         let record = vec![
@@ -1323,8 +1408,9 @@ like this one.",
         });
     }
 
-    /// The Staff page over the live duel6: players found, the player's own medals and
-    /// achievements, another player chosen, and Clear all waiting for its second press.
+    /// The Staff page over the live duel6: players found, the player's own Overview,
+    /// holocrons and credits, achievements and the chat bans, then another player's
+    /// medals and unlocks, keys and a merge waiting for its confirmation.
     #[test]
     #[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
     fn duel6_sjk_staff() {
@@ -1338,6 +1424,8 @@ like this one.",
             bio: String::new(),
             verified: false,
             staff: false,
+            creator: false,
+            jkr_creator: false,
             trust: None,
             emoji: String::new(),
             created: 1_791_250_000,
@@ -1348,6 +1436,7 @@ like this one.",
             unlocks: Vec::new(),
             holocron_counts: Default::default(),
             holocrons: Vec::new(),
+            shards: 0,
         };
         let medal = |id: &str, count, note: &str| sjk_identity::Medal {
             id: id.to_owned(),
@@ -1374,8 +1463,74 @@ like this one.",
                     progress: kind.goal,
                     goal: kind.goal,
                     unlocked: 1_791_336_225,
+                    reward: None,
                 })
                 .collect(),
+            names: vec![
+                sjk_identity::WornName {
+                    name: "^1Sol^7Vulpes".to_owned(),
+                    first_seen: 1_791_250_000,
+                    last_seen: 1_791_336_225,
+                },
+                sjk_identity::WornName {
+                    name: "^3Padawan".to_owned(),
+                    first_seen: 1_791_250_000,
+                    last_seen: 1_791_260_000,
+                },
+            ],
+            credits: 420,
+            shards: 45,
+            holocron_counts: sjk_identity::HolocronCounts {
+                rare: 1,
+                legendary: 1,
+                ..Default::default()
+            },
+            holocrons: vec![
+                sjk_identity::Holocron {
+                    id: 43,
+                    tier: "kyber_rare".to_owned(),
+                    dropped: 1_791_700_000,
+                    source: "achievement".to_owned(),
+                    note: String::new(),
+                    opened: None,
+                    traded: None,
+                    traded_from_key: None,
+                    traded_from: None,
+                },
+                sjk_identity::Holocron {
+                    id: 42,
+                    tier: "kyber_mythical".to_owned(),
+                    dropped: 1_791_690_000,
+                    source: "staff".to_owned(),
+                    note: String::new(),
+                    opened: Some(1_791_695_000),
+                    traded: None,
+                    traded_from_key: None,
+                    traded_from: None,
+                },
+                sjk_identity::Holocron {
+                    id: 41,
+                    tier: "legendary".to_owned(),
+                    dropped: 1_791_641_100,
+                    source: "staff".to_owned(),
+                    note: String::new(),
+                    opened: None,
+                    traded: None,
+                    traded_from_key: None,
+                    traded_from: None,
+                },
+                sjk_identity::Holocron {
+                    id: 39,
+                    tier: "rare".to_owned(),
+                    dropped: 1_791_600_000,
+                    source: "play".to_owned(),
+                    note: String::new(),
+                    opened: None,
+                    traded: None,
+                    traded_from_key: None,
+                    traded_from: None,
+                },
+            ],
             ..profile("44f3d0b36c9b2510", "^1Sol^7Vulpes")
         };
         let players = vec![
@@ -1389,6 +1544,7 @@ like this one.",
                     note: String::new(),
                     count: 1,
                     medal: None,
+                    card: None,
                 }],
                 keys: vec!["9a0c51e2b7d34f80".to_owned(), "5d4c3b2a19087f6e".to_owned()],
                 ..profile("9a0c51e2b7d34f80", "^5Creyon")
@@ -1402,6 +1558,16 @@ like this one.",
             message: "4 players seen lately".to_owned(),
             failed: false,
             busy: false,
+            chat_bans: vec![sjk_identity::ChatBanRow {
+                id: 3,
+                key_id: "0b1c2d3e4f5a6b7c".to_owned(),
+                name: "Padawan^1Fox".to_owned(),
+                address: true,
+                by_key_id: "9a0c51e2b7d34f80".to_owned(),
+                by_name: "^5Creyon".to_owned(),
+                created: 1_791_720_000,
+                until: 1_791_806_400,
+            }],
             ..sjk_identity::StaffState::default()
         };
         on_big_stack(move || {
@@ -1426,9 +1592,31 @@ like this one.",
                 }
             }
             println!("{}", shoot(&mut gpu, 6, "duel6-staff").display());
+            if let Some(console) = gpu.console.as_mut() {
+                console.staff_tab(crate::console::staff_panel::ShotTab::Overview);
+            }
+            // The player's own holocrons, credits and shards, an amount typed.
+            if let Some(console) = gpu.console.as_mut() {
+                console.staff_tab(crate::console::staff_panel::ShotTab::Economy);
+            }
+            println!("{}", shoot(&mut gpu, 6, "duel6-staff-economy").display());
+            // Their achievements in two columns.
+            if let Some(console) = gpu.console.as_mut() {
+                console.staff_tab(crate::console::staff_panel::ShotTab::Achievements);
+            }
+            println!(
+                "{}",
+                shoot(&mut gpu, 6, "duel6-staff-achievements").display()
+            );
+            // Every chat ban in force.
+            if let Some(console) = gpu.console.as_mut() {
+                console.staff_tab(crate::console::staff_panel::ShotTab::ChatBans);
+            }
+            println!("{}", shoot(&mut gpu, 6, "duel6-staff-bans").display());
             // Another player, holding the Sun blade: Relock offered, Unlock not.
             if let Some(console) = gpu.console.as_mut() {
                 console.staff_choose("9a0c51e2b7d34f80");
+                console.staff_tab(crate::console::staff_panel::ShotTab::Rewards);
             }
             println!("{}", shoot(&mut gpu, 6, "duel6-staff-other").display());
             // Their keys, one linked, and Fox's key ready to merge in.
@@ -1679,11 +1867,14 @@ like this one.",
     fn duel6_unlock_toast() {
         use crate::unlock_toast::{ENTER, HOLD, LEAVE, Unlock, UnlockToast};
         on_big_stack(|| {
-            let streak =
-                Unlock::Achievement(crate::achievements::find("streak_5").expect("Rampage"));
-            let lightning = Unlock::Achievement(
-                crate::achievements::find("dark_side_25").expect("Unlimited Power"),
-            );
+            let streak = Unlock::Achievement {
+                kind: crate::achievements::find("streak_5").expect("Rampage"),
+                crystal: true,
+            };
+            let lightning = Unlock::Achievement {
+                kind: crate::achievements::find("dark_side_25").expect("Unlimited Power"),
+                crystal: true,
+            };
             let mut others = vec![Unlock::Medal {
                 medal: crate::medals::Medal::BugHunter,
                 count: 2,
@@ -1693,8 +1884,16 @@ like this one.",
                     tier,
                     id: index as u64,
                     gift: index == 0,
+                    earned: None,
                 });
             }
+            // A kyber crystal an achievement earned.
+            others.push(Unlock::Holocron {
+                tier: &crate::kyber::TIERS[1],
+                id: 9,
+                gift: false,
+                earned: Some(crate::kyber::Earned::of("kills_100")),
+            });
             others.push(Unlock::Update {
                 version: crate::update::Version::new("2026.1011.1").expect("a version"),
                 manual: false,
@@ -1941,8 +2140,8 @@ like this one.",
         });
     }
 
-    /// The Profile screen's tabs and the main page at Sol's text style
-    /// (`ui_textScale 1.2`): every tab's name whole, on Character and on
+    /// The Profile screen's tabs and the main page at the largest text style
+    /// (`ui_textScale 1.4`): every tab's name whole, on Character and on
     /// Achievements, and the main page's Profile line clear of the servers.
     #[test]
     #[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
@@ -1953,7 +2152,7 @@ like this one.",
                 ("ui_menuStyle", "sjk"),
                 (crate::settings::quick::HIDE_CVAR, "1"),
                 ("name", "^1Sol^7Vulpes"),
-                (crate::text::style::SCALE_CVAR, "1.2"),
+                (crate::text::style::SCALE_CVAR, "1.4"),
             ];
             let menu = menu::ClientMenu::new(true, String::new());
             let Some((mut gpu, _profile)) =
@@ -2058,6 +2257,7 @@ like this one.",
                 note: "Thanks for testing the blades with us".to_owned(),
                 count: 1,
                 medal: None,
+                card: None,
             };
             let overflowed = |gpu: &GpuState| {
                 gpu.console
@@ -2859,7 +3059,9 @@ like this one.",
 
     /// The quick wheel over duel6 with a page of the installed emotes (`emotes/` of
     /// the game data) and Stop emote: each emote wears its picture when its file
-    /// names one (`emote_icons`), the plain emote icon otherwise.
+    /// names one (`emote_icons`), the plain emote icon otherwise; then the same from a
+    /// second client, as the next world after a map change has its own renderer (in
+    /// 2026.1018 that one showed no pictures).
     #[test]
     #[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
     fn duel6_quick_wheel_emotes() {
@@ -2867,59 +3069,62 @@ like this one.",
         use crate::quick_wheel::{ShownChoice, ShownPage, catalog};
         use std::time::{Duration, Instant};
         on_big_stack(|| {
-            let cvars = [
-                ("ui_menuStyle", "sjk"),
-                (crate::settings::quick::HIDE_CVAR, "1"),
-            ];
-            let Some((mut gpu, _profile)) = open("maps/mp/duel6.bsp", [1920, 1080], None, &cvars)
-            else {
-                return;
-            };
-            let shots = menu_backdrop::tour_for("Yavin Training Grounds").expect("the tour");
-            let (yaw, pitch) = look(shots[0].from, shots[0].at);
-            aim(&mut gpu, shots[0].from, yaw, pitch);
-            if let Some(console) = gpu.console.as_mut() {
-                console.close_for_connection();
-            }
-            gpu.quick_wheel.shot = true;
-            // The frames load the catalogue and put its pictures into the atlas.
-            let _ = frame(&mut gpu, 30);
-            let installed: Vec<Slot> = crate::emotes::lock()
-                .catalogue
-                .iter()
-                .flatten()
-                .take(9)
-                .map(|def| Slot::Custom {
-                    label: def.name.clone(),
-                    command: format!("{} {}", crate::emotes::COMMAND, def.id),
-                })
-                .collect();
-            println!("installed emotes: {}", installed.len());
-            let slots = installed
-                .into_iter()
-                .chain(catalog::action_index("emote_stop").map(Slot::Action));
-            let page = ShownPage {
-                id: "emotes".to_owned(),
-                name: "Emotes".to_owned(),
-                choices: slots
-                    .map(|slot| {
-                        println!("{} -> {:?}", slot.command(), slot.texture());
-                        ShownChoice {
-                            label: slot.label().to_owned(),
-                            command: slot.command().to_owned(),
-                            icon: slot.texture(),
-                            on: false,
-                            gif: None,
-                        }
+            for name in ["duel6-wheel-emotes", "duel6-wheel-emotes-next-world"] {
+                let cvars = [
+                    ("ui_menuStyle", "sjk"),
+                    (crate::settings::quick::HIDE_CVAR, "1"),
+                ];
+                let Some((mut gpu, _profile)) =
+                    open("maps/mp/duel6.bsp", [1920, 1080], None, &cvars)
+                else {
+                    return;
+                };
+                let shots = menu_backdrop::tour_for("Yavin Training Grounds").expect("the tour");
+                let (yaw, pitch) = look(shots[0].from, shots[0].at);
+                aim(&mut gpu, shots[0].from, yaw, pitch);
+                if let Some(console) = gpu.console.as_mut() {
+                    console.close_for_connection();
+                }
+                gpu.quick_wheel.shot = true;
+                // The frames load the catalogue and put its pictures into the atlas.
+                let _ = frame(&mut gpu, 30);
+                let installed: Vec<Slot> = crate::emotes::lock()
+                    .catalogue
+                    .iter()
+                    .flatten()
+                    .take(9)
+                    .map(|def| Slot::Custom {
+                        label: def.name.clone(),
+                        command: format!("{} {}", crate::emotes::COMMAND, def.id),
                     })
-                    .collect(),
-                force: false,
-                gifs: false,
-            };
-            let settled = Instant::now() - Duration::from_secs(1);
-            gpu.quick_wheel.open(vec![page], 0, settled);
-            gpu.quick_wheel.moved([60.0, -60.0]);
-            println!("{}", shoot(&mut gpu, 4, "duel6-wheel-emotes").display());
+                    .collect();
+                println!("installed emotes: {}", installed.len());
+                let slots = installed
+                    .into_iter()
+                    .chain(catalog::action_index("emote_stop").map(Slot::Action));
+                let page = ShownPage {
+                    id: "emotes".to_owned(),
+                    name: "Emotes".to_owned(),
+                    choices: slots
+                        .map(|slot| {
+                            println!("{} -> {:?}", slot.command(), slot.texture());
+                            ShownChoice {
+                                label: slot.label().to_owned(),
+                                command: slot.command().to_owned(),
+                                icon: slot.texture(),
+                                on: false,
+                                gif: None,
+                            }
+                        })
+                        .collect(),
+                    force: false,
+                    gifs: false,
+                };
+                let settled = Instant::now() - Duration::from_secs(1);
+                gpu.quick_wheel.open(vec![page], 0, settled);
+                gpu.quick_wheel.moved([60.0, -60.0]);
+                println!("{}", shoot(&mut gpu, 4, name).display());
+            }
         });
     }
 
@@ -2947,7 +3152,7 @@ like this one.",
             };
             let _ = frame(&mut gpu, 20);
             gpu.ui_epoch -= std::time::Duration::from_millis(2_000);
-            let steps: [(&str, Keys); 8] = [
+            let steps: [(&str, Keys); 9] = [
                 // The Force page, the first: a note instead of choices, an
                 // example ring.
                 ("duel6-wheel-settings", &[]),
@@ -2980,6 +3185,7 @@ like this one.",
                     ],
                 ),
                 ("duel6-wheel-settings-catalogue", &[(Enter, None)]),
+                ("duel6-wheel-settings-search", &[(KeyA, Some("cam"))]),
                 (
                     "duel6-wheel-settings-custom",
                     &[
@@ -3083,8 +3289,10 @@ like this one.",
                     gpu.in_game_menu
                         .sjk_for_shot(Card::for_shot(true, false), ctf);
                 }
-                let pages: [(&str, Gate, Page, usize); 4] = [
+                let pages: [(&str, Gate, Page, usize); 5] = [
                     ("players", Gate::Open, Page::Players, 3),
+                    // Trading open on the hub: Trade on the player's card.
+                    ("players-trade", Gate::Open, Page::Players, 3),
                     ("players-unverified", Gate::NotVerified, Page::Players, 0),
                     ("report", Gate::Open, Page::ReportPlayer, 1),
                     (
@@ -3096,6 +3304,7 @@ like this one.",
                 ];
                 for (name, gate, page, row) in pages {
                     let mut roster = State::for_shot(12, true, gate);
+                    roster.set_trading(name.ends_with("-trade"), true);
                     roster.choose(3);
                     gpu.in_game_menu.players = roster;
                     gpu.game_menu_page = page;
@@ -3122,6 +3331,77 @@ like this one.",
                 );
                 let name = format!("duel6-ingame-{style}-report-dialog");
                 println!("{}", shoot(&mut gpu, 8, &name).display());
+            }
+        });
+    }
+
+    /// The game menu's Siege page in the SJK UI and the classic menus, on a made-up
+    /// Siege over duel6 (it has no Siege data): the side step for a red player and for
+    /// a spectator (Spectate dimmed), then the red side's classes, long stock names
+    /// included.
+    #[test]
+    #[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+    fn duel6_ingame_siege() {
+        use crate::ingame_menu::{Page, ShotView, sjk_view::Card};
+        const RED: &[&str] = &[
+            "Imperial Infantry",
+            "Imperial Light Demolitionist",
+            "Imperial Heavy Weapons",
+            "Imperial Tech",
+            "Imperial Commander",
+            "Imperial Sith Lord",
+        ];
+        const BLUE: &[&str] = &["Rebel Assault", "Rebel Demolitions", "Rebel Jedi"];
+        on_big_stack(|| {
+            for style in ["sjk", "classic"] {
+                let menu = menu::ClientMenu::new(false, String::new());
+                let cvars = [
+                    ("ui_menuStyle", style),
+                    (crate::settings::quick::HIDE_CVAR, "1"),
+                ];
+                let Some((mut gpu, _profile)) =
+                    open("maps/mp/duel6.bsp", [1920, 1080], Some(menu), &cvars)
+                else {
+                    return;
+                };
+                let shots =
+                    menu_backdrop::tour_for("Yavin Training Grounds").expect("duel6's tour");
+                let (yaw, pitch) = look(shots[0].from, shots[0].at);
+                aim(&mut gpu, shots[0].from, yaw, pitch);
+                gpu.game_menu = true;
+                if let Some(console) = gpu.console.as_mut() {
+                    console.close_for_connection();
+                }
+                let _ = frame(&mut gpu, 60);
+                let red = ShotView {
+                    team: 1,
+                    team_game: true,
+                    red_players: 6,
+                    blue_players: 5,
+                    vote_active: false,
+                    staff: false,
+                    siege: true,
+                };
+                let watching = ShotView { team: 3, ..red };
+                for (name, view, side, row) in [
+                    ("sides", red, None, 1),
+                    ("sides-watching", watching, None, 0),
+                    ("classes", red, Some(1), 1),
+                ] {
+                    if style == "sjk" {
+                        gpu.in_game_menu.sjk_for_shot(Card::for_siege_shot(), view);
+                    } else {
+                        gpu.in_game_menu.view_for_shot(view);
+                    }
+                    gpu.in_game_menu.siege_for_shot([RED, BLUE], view.team);
+                    if let Some(side) = side {
+                        let _ = gpu.in_game_menu.siege_action(side);
+                    }
+                    gpu.game_menu_page = Page::Siege;
+                    gpu.game_menu_row = row;
+                    let name = format!("duel6-ingame-{style}-siege-{name}");
+                    println!("{}", shoot(&mut gpu, 16, &name).display());
+                }
             }
         });
     }
@@ -3213,10 +3493,13 @@ like this one.",
                     name: (*name).to_owned(),
                     verified: *verified,
                     staff: index == 3,
+                    creator: false,
                     trust: None,
                     emoji: String::new(),
+                    client: String::new(),
                     text: (*text).to_owned(),
                     holocron: None,
+                    official: None,
                 },
             )
             .collect();
@@ -3381,6 +3664,16 @@ like this one.",
                 }
                 let name = format!("duel6-sjk-chat-online-card-{suffix}");
                 println!("{}", shoot(&mut gpu, 6, &name).display());
+                // A card while the hub lets players trade: Trade beside Block. Another
+                // player's (the second face), so the card is built anew; going back to
+                // Creyon's kept the card already built without Trade.
+                crate::player_trades::TRADING_FOR_TEST.set(true);
+                if let Some(console) = gpu.console.as_mut() {
+                    console.sjk_chat_hover_person(Some(1));
+                }
+                let name = format!("duel6-sjk-chat-online-card-trade-{suffix}");
+                println!("{}", shoot(&mut gpu, 6, &name).display());
+                crate::player_trades::TRADING_FOR_TEST.set(false);
                 // Lumaya's, the first recent face: when she was seen.
                 if let Some(console) = gpu.console.as_mut() {
                     console.sjk_chat_hover_person(Some(7));

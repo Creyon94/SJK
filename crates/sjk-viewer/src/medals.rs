@@ -174,9 +174,13 @@ impl Medal {
         }
     }
 
-    /// Whether the SJK team may give it again, so its count can pass 1.
+    /// Whether the SJK team may give it again, so its count can pass 1. None is since
+    /// 21/10/2026: Bug Hunter is held once (bug hunting earns holocrons instead). The
+    /// counting stays for a future repeatable medal; a new one must choose here.
     pub(crate) const fn repeatable(self) -> bool {
-        matches!(self, Self::BugHunter)
+        match self {
+            Self::EarlyTester | Self::EarlyContributor | Self::BugHunter | Self::Supporter => false,
+        }
     }
 
     /// The ribbon bar's colours.
@@ -415,7 +419,7 @@ mod tests {
         assert_eq!(Medal::from_id("from_the_future"), None);
         assert_eq!(Medal::from_id("supporter"), Some(Medal::Supporter));
         assert_eq!(Medal::Supporter.blade(), None);
-        assert!(!Medal::Supporter.repeatable());
+        assert!(Medal::ALL.iter().all(|medal| !medal.repeatable()));
         // The JoF Clan medal is gone (the clan's emblem now follows its tag,
         // `jof_tag`): an old award is an unknown id.
         let medals = Medals::from_wire(&[
@@ -429,7 +433,8 @@ mod tests {
     }
 
     #[test]
-    fn only_a_repeatable_medal_counts_past_one_and_order_is_the_catalogues() {
+    fn no_medal_counts_past_one_and_order_is_the_catalogues() {
+        // Bug Hunter was repeatable until 21/10/2026: an old count above 1 reads as 1.
         let medals = Medals::from_wire(&[
             wire("bug_hunter", 3),
             wire("early_tester", 4),
@@ -440,7 +445,7 @@ mod tests {
             [
                 (Medal::EarlyTester, 1),
                 (Medal::EarlyContributor, 1),
-                (Medal::BugHunter, 3)
+                (Medal::BugHunter, 1)
             ]
         );
         assert_eq!(Medal::BugHunter.label(3), "Bug Hunter x3");
@@ -490,7 +495,8 @@ mod tests {
         assert_eq!(awards.len(), 2);
         assert_eq!(awards[0].medal, Medal::EarlyTester);
         assert_eq!(awards[0].given(), "");
-        assert_eq!(awards[1].label(), "Bug Hunter x2");
+        assert_eq!(awards[1].count, 1);
+        assert_eq!(awards[1].label(), "Bug Hunter");
         assert_eq!(awards[1].given(), "Given 07/10/2026");
         assert_eq!(awards[1].note, "Fog");
     }

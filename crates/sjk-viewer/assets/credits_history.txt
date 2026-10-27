@@ -9,6 +9,803 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 26/10/2026 | - | No hit while typing or away
+- a57a00f |  | Monitor: no hit on a player typing or away
++ 26/10/2026 | - | JoF names: Honors for medals, Echoes for holocrons, jof.honorNames
+- 3912108 |  | JoF names: medals read Honors and holocrons Echoes while JoF tools are on
++ 26/10/2026 | - | The Sun blade's coronal rain worked out only near its loops, about 40 % less to draw
+- 2280fba |  | Sun blade: work out its coronal rain only near its loops, about 40 % less to draw
++ 26/10/2026 | - | Monitor hits foreseen, thrower told first
+- d21e8ba |  | Monitor hits foreseen on every client, and the thrower told first
++ 26/10/2026 | - | Achievement crystals announced once the SJK hub confirms, Tactical Espionage range 1024, clearer Master Craftsman and Full Set
+- 65e8378 |  | Achievements SJK counts wait for the hub before their card and crystal
++ 26/10/2026 | - | Charge ring and hit marker centred
+- 51656fc |  | Monitor: the charge ring and hit marker stand round the crosshair, not in the top left corner
++ 26/10/2026 | - | Release 2026.1026.4
+- d9f8c65 |  | Release 2026.1026.4
++ 26/10/2026 | - | Block for this map, staff Block for all, BLOCKED names
+- 8f59376 |  | Block a player for this map, staff Block for all, BLOCKED names
++ 26/10/2026 | - | Credits history: names follow ragdolls
+- 97a7504 |  | Credits history: names follow ragdolls
++ 26/10/2026 | - | Names follow ragdolls
+- 888b8c2 |  | Nameplates and overhead names follow a ragdolling player's body
++ 26/10/2026 | - | Faster hub ticks, game menu refresh
+- 763921b |  | Faster hub ticks in game, and the game menu reads its hub pages as it opens
++ 26/10/2026 | - | Monitors unseen in duels, Show monitors setting
+- 691e185 |  | Monitor toy: unseen in duels, and a Show monitors setting (cg_toyMonitorShow)
++ 26/10/2026 | - | Blade skin toggle sound once
+- f62f2c3 |  | Blade skin toggle sound plays once per toggle, not once per hilt sound
++ 26/10/2026 | - | Monitor charged throw and hit marker
+- eb8a407 |  | Monitor toy: hold the throw to charge it, and a hit marker with a hit sound
++ 26/10/2026 | - | Changelog: the staff toggle cap goes under Unreleased, 2026.1026.3's line as shipped
+- 131c68f |  | Changelog: the staff toggle cap goes under Unreleased, 2026.1026.3's line as shipped
++ 26/10/2026 | - | Staff put-away under the saber toggle cap
+- 73c1792 |  | Saber toggle cap: a staff put away over a JA+ back pays once, and is capped too
++ 26/10/2026 | - | Release 2026.1026.3
+- 1c2e692 |  | Release 2026.1026.3
++ 26/10/2026 | - | test-only extras checks
+- 01da4a7 |  | Blade extras: test-only checks are cfg(test), so the release build has no dead code
++ 26/10/2026 | - | Free look when held on by default
+- b530bde |  | Free look when held on by default: the mouse turns the view while down again
++ 26/10/2026 | - | Sun blade trails and blade extras
+- e4e744f |  | Sun blade trails: plasma for every wearer, Solar card 000 unlocks Flare, Embers, Heat wake
++ 26/10/2026 | - | Claim a fix before starting it
+- bc007ec |  | AGENTS.md: claim a fix before starting it
++ 26/10/2026 | - | Monitor toy and better ragdoll physics
+- e4fca04 |  | Monitor toy: throw an old CRT that sends opted-in players flying as ragdolls
++ 26/10/2026 | - | Encrypted whispers ending with a backslash
+- cf823be |  | Encrypted whispers: a whisper ending with a backslash stays encrypted
++ 26/10/2026 | - | Staff tools: kyber crystal gifts, no key id in game
+- abbde4a |  | Staff tools: kyber crystal gifts, second presses, and no key id anywhere in game
++ 26/10/2026 | - | Saber on/off sound spam cap
+- 6ea3605 |  | Saber toggle spam: cap each player's on/off sounds at 4, then one per 500 ms
++ 26/10/2026 | - | MP/SP camera names, Vanilla style as EternalJK
+- 9d379eb |  | MP camera and SP camera; Vanilla style follows EternalJK's defaults (light flares off)
++ 26/10/2026 | - | Support SJK links on the main page
+- adf78ba |  | Support SJK on the main page: GitHub Sponsors and Ko-fi links, x hides it for good
++ 26/10/2026 | - | Free look when held option
+- 041d10b |  | Free look when held: a Settings row for cg_heldViewLook, offered on the what's-new card
++ 26/10/2026 | - | Release 2026.1026.2
+- d62c799 |  | Release 2026.1026.2
++ 26/10/2026 | - | Changelog: the Reduce bright flashes setting line before the Unreleased changes
+- 897501e |  | Changelog: the Reduce bright flashes setting line before the Unreleased changes
++ 26/10/2026 | - | Changelog and test list layout after the 26/10 hub report merges
+- 4985bd4 |  | Changelog and test list layout after the 26/10 hub report merges
++ 26/10/2026 | - | Hub reports #133 #144 #148: Merc force field, scaled held items, skin last line
+- 4193fe5 |  | Draw the portable shield as FX_DrawPortableShield does (blec-bee #133)
+- 41fa097 |  | Skins: a surface's last entry shows or hides it, as retail (Rollembones #148)
+- 9e06014 |  | Scale held sabers and guns with iModelScale (g0dchris #144)
+- 9fcbb97 |  | Docs, changelog and test list for hub reports #133 #144 #148
++ 26/10/2026 | - | Hub reports #149 #150 #151: kyber crystals shown sooner and with their picture
+- 7eb8d54 |  | Achievements reach the hub at the minute after a hold; crystal pictures
++ 26/10/2026 | - | Hub reports #138 #141 #147: reduce bright flashes, voice volume, blocked chat beep
+- 7e63d02 |  | Hub reports 26/10: reduce bright flashes (#138), voice volume (#141), no beep for blocked players (#147)
++ 26/10/2026 | - | Hub reports #134 #136 #145: chat kept over map change, Call Vote maps by arena, drones hidden in duels
+- b009cd2 |  | Hub reports: call-vote maps by game type, chat open over a map change, drones hidden in a duel
++ 26/10/2026 | - | Hub reports #132 #135 #139 #140 #146: saber re-sent, ragdoll wakes on hits, held view
+- 83dae52 |  | Saber command asks again, Ragdoll wakes on hits, held views stop toys and mouse (#132 #135 #139 #140 #146)
++ 26/10/2026 | - | Format console_command.rs (CI's cargo fmt check)
+- 8bb967a |  | Format console_command.rs (CI's cargo fmt check)
++ 26/10/2026 | - | Release 2026.1026.1
+- aaae96f |  | Release 2026.1026.1
++ 26/10/2026 | - | 14 new achievements with kyber crystal rewards, Surveyor retired
+- c4f0507 |  | Achievements: 14 new ones, a secret one, Surveyor retired
++ 26/10/2026 | - | Debug panel line
+- 01cc2cb |  | Debug panel: the Shaders wall reopens from the top
++ 26/10/2026 | - | Shaders reopens from the top
+- 2c0027c |  | Collection: Shaders reopens from the top, the chosen shader kept
++ 26/10/2026 | - | Ragdoll: a 15 s gap between a player's flatlines
+- b89b92c |  | Ragdoll: a player's flatline is heard at most once every 15 seconds
++ 25/10/2026 | - | Boombox toy: an 80s stereo playing your own tracks to players close by
+- 6154c84 |  | Boombox toy: an 80s stereo playing your own tracks to players close by
++ 25/10/2026 | - | Collection revamp: Shaders wall and list, Toys rows, backdrops that fit
+- 9cdbefd |  | Collection revamp: Shaders wall and list, Toys rows, backdrops that fit
++ 25/10/2026 | - | Mac: fullscreen always borderless
+- 72b0569 |  | Mac: fullscreen is always borderless
++ 25/10/2026 | - | Credits history after release 2026.1025.4
+- 037bbfb |  | Credits history after release 2026.1025.4
++ 25/10/2026 | - | Release 2026.1025.4
+- 6452958 |  | Console: settings under a mod's prefix are set again
+- 1563456 |  | Release 2026.1025.4
++ 25/10/2026 | - | Mod settings set from the console again
+- b39f87d |  | Mod settings can be set from the console again
++ 25/10/2026 | - | Credits history after release 2026.1025.3
+- fab91ff |  | Credits history after release 2026.1025.3
++ 25/10/2026 | - | Reapply kyber crystals on main after release 2026.1025.3
+- a3ecc84 |  | Reapply kyber crystals on main after release 2026.1025.3
++ 25/10/2026 | - | Release 2026.1025.3
+- 6219867 |  | Hold kyber crystals out of release 2026.1025.3
+- 13d6093 |  | Release 2026.1025.3
+- f0a000b |  | Release: trading counts holocron tiers by index without kyber crystals
++ 25/10/2026 | - | Credits history after #197 (trading)
+- 748b35f |  | Credits history after #197 (trading)
++ 25/10/2026 | - | Credits history: Slash's commits under his git name, and #207
+- b352b79 |  | Credits history: Slash's commits under his git name, and #207
++ 25/10/2026 | - | Encrypted whispers for verified players, JoF keeps whispers, signed whisper reports
+- 115d92c |  | Encrypted whispers for verified players; JoF keeps whispers; signed whisper reports
++ 25/10/2026 | - | Drone at the game's size; hidden from the watched player, who reads who spectates
+- cb5dd2b |  | Drone: game-size remote, hidden from the player it watches
++ 25/10/2026 | - | Toy volume and a mute switch per toy, Settings > Sound > Toys
+- 37f4008 |  | Toy sounds: a toy volume and a switch per toy in Settings > Sound > Toys
++ 25/10/2026 | - | Console socket test: hand the output over once the password has arrived
+- eaf24fb |  | Console socket test: hand the output over once the password has arrived
++ 25/10/2026 | - | No console window on Windows; SJK.app bundle on macOS
+- 13beb79 |  | One window: no console on Windows, SJK.app on macOS
++ 25/10/2026 | - | Credits history: a review branch's "Merge PR #N (Author: title)" counts as SJK #N
+- a6ad529 |  | Credits history: a review branch's "Merge PR #N (Author: title)" counts as SJK #N
++ 25/10/2026 | - | A card picture that crashes its decoder fails alone; card and medal art labelled; the prize asked for at the opening's start
+- 8a9e108 |  | Card pictures: decoder guard, own memory labels, found card asked early (after Slash's #206)
++ 25/10/2026 | - | Format: announcement world shot and the body fade shot's module
+- 206f17a |  | Format: announcement world shot and the body fade shot's module
++ 25/10/2026 | - | Announcement commands close the console, the window frees the cursor
+- 7028074 |  | Announcements: commands close the console, the window frees the cursor
++ 25/10/2026 | - | Ragdoll knocks and scrapes heard in release builds
+- a965bd3 |  | Ragdoll: hear the knocks and scrapes (gap since "never" wrapped round)
++ 25/10/2026 | - | The site's new layout, changelog recap, Mac download, live credits
+- 30efd22 |  | Site refresh: release recap from the changelog, Mac download, live credits
++ 25/10/2026 | - | Credits history after release 2026.1025.2
+- eb8cb38 |  | Credits history after release 2026.1025.2
++ 25/10/2026 | - | Reapply kyber crystals on main after release 2026.1025.2
+- f748baf |  | Reapply kyber crystals on main after release 2026.1025.2
++ 25/10/2026 | - | Release 2026.1025.2
+- 291a4dd |  | Revert "Reapply kyber crystals on main after release 2026.1025.1"
+- 285443e |  | Release 2026.1025.2 (Alpha)
++ 25/10/2026 | - | Credits history can leave topics out
+- 03cf654 |  | Credits history: topics it leaves out (QUIET)
++ 25/10/2026 | - | opt-in BC1/BC3 texture compression, r_textureCompression
+- d42a168 |  | Texture compression: opt-in BC1/BC3 map and model textures (r_textureCompression)
+- 4bdcb7d |  | Texture compression: debug panel entry and credits
++ 25/10/2026 | - | Lighter menus: blade pictures throttled, no per-frame setting allocations
+- efdcea6 |  | Cut per-frame menu work: blade pictures, cvar reads, FPS help
+- 446690e |  | Lighter menus: debug panel entry and credits
++ 25/10/2026 | - | Experimental preset: lamp data packed, lamp cache sized to the card
+- 6d177f0 |  | Experimental: less video memory for lamp visibility, lists and cache
+- 94a82a1 |  | Experimental lamp memory: debug panel entry and credits
++ 25/10/2026 | - | Small graphics cards start once on lighter graphics, Keep / Back card
+- 5d72419 |  | Small graphics cards start once on lighter graphics, with a Keep / Back card
++ 25/10/2026 | - | r_renderScale: the world drawn below native for weak GPUs
+- c511350 |  | Render scale: draw the world below the window's resolution for weak GPUs
+- 146d7ab |  | Render scale: debug panel entry and credits
++ 25/10/2026 | - | Decoded textures of maps you left are freed
+- 8d8d9df |  | Decoded image cache: sweep out images nothing else holds
++ 25/10/2026 | - | Mirror, portal and glyph atlas targets made only when drawn
+- ea7b532 |  | Make secondary view targets and text atlases when first drawn
+- d1d561e |  | Lazy scene targets: debug panel entry and credits
++ 25/10/2026 | - | Font atlases in one channel: 120 MiB less video memory
+- 8c9174d |  | Store the font atlases as single-channel R8 textures
+- b281c84 |  | Font atlases in one channel: debug panel entry and credits
++ 25/10/2026 | - | Music memory test race fixed
+- 4689027 |  | Music memory test: wait for the music to start, a mix block after its registration
++ 25/10/2026 | - | Sounds at 16 bits, old map music freed
+- 7a9c4e3 |  | Audio memory: 16-bit sound bank, release a map's music when it changes
+- cc17b46 |  | Sound memory: debug panel entry and credits
++ 25/10/2026 | - | Texture detail shrinks skies, material maps and unmipped textures; nopicmip honoured
+- 514a1f3 |  | Texture detail for skies, material maps and linear filtering
+- a64475a |  | Texture detail everywhere: debug panel entry and credits
++ 25/10/2026 | - | Stock blades and a menu frame cap for weak PCs
+- 1b4b75a |  | Add stock blades and a menu FPS cap for weak PCs
+- 85b0ae8 |  | Stock blades and menu cap: debug panel entry and credits
++ 25/10/2026 | - | Card pictures only when drawn: 1.8 GB less video memory
+- dd6a1c6 |  | Card pictures decoded and uploaded only when a screen draws them
++ 25/10/2026 | - | GitHub Sponsors button
+- 01d2335 |  | GitHub Sponsors button for the repository
++ 25/10/2026 | - | VRAM measurements per preset and with the SJK packs
+- 7ee65e7 |  | VRAM audit: per-preset world shots, DXGI usage, card faces measured
++ 25/10/2026 | - | Credits history after release 2026.1025.1
+- bf80476 |  | Credits history after release 2026.1025.1
++ 25/10/2026 | - | Reapply kyber crystals on main after release 2026.1025.1
+- d45aae0 |  | Reapply kyber crystals on main after release 2026.1025.1
++ 25/10/2026 | - | Release 2026.1025.1
+- 532695e |  | Revert "Reapply kyber crystals on main after release 2026.1024.1"
+- f771466 |  | Reward window: holocron icons by the tier's index, which works with or without kyber crystals
+- f4badc7 |  | Release 2026.1025.1 (Alpha)
++ 25/10/2026 | - | SJK team announcements in SJK chat and contributor reward rounds with Claim
+- 0f35492 |  | Announcements and contributor reward rounds (client)
+- 05f68f8 |  | Announcements: credits, test panel entry, and every release announced in SJK chat
++ 25/10/2026 | - | hub-chat docs: client field date
+- fdbb4b7 |  | SJK chat docs: the hub names a message's client since 25/10, not 21/10
++ 25/10/2026 | - | Ragdoll: movers carry the body, every part heard on what it hits
+- b205670 |  | Ragdoll: movers carry and push the body, every part heard on what it hits
++ 25/10/2026 | - | JA+ settings under japlus.*, old names kept as aliases
+- 256fb04 |  | JA+ names: every JA+-only setting under japlus.*
++ 24/10/2026 | - | macOS build: Metal backend and an Apple Silicon package from GitHub
+- b1c1c8a |  | macOS build: Metal backend and an Apple Silicon package from GitHub
+- 0d0102e |  | package_client.py: accept the macos-arm64 platform
+- 7879742 |  | macOS tests: turn on naga's SPIR-V and HLSL writers
+- 4907430 |  | package_client.py: license texts for the macOS bindings
+- 9e98105 |  | macOS package: ship the client as sjk-client
+- 8811a1b |  | status: macOS build verified on GitHub runners
++ 24/10/2026 | - | Drone toy: freecam and peek fly a remote others see; peek needs consent
+- cdf1588 |  | Drone toy: freecam and peek fly a remote others see; peek needs consent
++ 24/10/2026 | - | Reapply kyber crystals on main after release 2026.1024.1
+- e343aef |  | Reapply kyber crystals on main after release 2026.1024.1
++ 24/10/2026 | - | Release 2026.1024.1
+- 55b4829 |  | Revert "Reapply kyber crystals on main after release 2026.1023.3"
+- 37323f5 |  | Release 2026.1024.1 (Alpha)
++ 24/10/2026 | - | Saber sounds docs: the hub takes saber_sounds since 24/10
+- dcbf796 |  | Saber sounds docs: the hub takes saber_sounds since 24/10
++ 24/10/2026 | - | Credits history: #200 safety codes
+- 72c885d |  | Credits history: #200 safety codes
++ 24/10/2026 | - | Ragdoll toy: go limp and fall, sandbox style, the same fall on every SJK client
+- b010c18 |  | Ragdoll toy: go limp and fall, sandbox style, the same fall on every SJK client
++ 24/10/2026 | - | Credits for 23/10's features; history links merges named "Merge pull request #N (...)"
+- 5bb5e46 |  | Credits for 23/10's features; history links merges named "Merge pull request #N (...)"
++ 24/10/2026 | - | Chat sounds by kind + private message taskbar flash, Turin's and Nib's ideas
+- 23ce007 |  | Chat sounds by kind and a taskbar flash for private messages (Turin, Nib)
++ 23/10/2026 | - | Staff page: only the creator gives, takes back, clears or merges
+- 25dbbc6 |  | Staff page: only the creator gives, takes back, clears or merges
++ 23/10/2026 | - | Saber sounds chosen apart from the shader, Nib's idea
+- a4944f8 |  | Saber sounds chosen apart from the saber shader (after Nib's idea)
++ 23/10/2026 | - | Click a chat name: pinned sender card with Whisper
+- 4a80439 |  | Click a chat name to pin its sender card, with Whisper
++ 23/10/2026 | - | Typing keeps your emote, alt-tab always quiets an emote
+- a653311 |  | Keep emotes while typing, always silence them when alt-tabbed
++ 23/10/2026 | - | Reapply kyber crystals on main after release 2026.1023.3
+- 62a5ac4 |  | Reapply kyber crystals on main after release 2026.1023.3
++ 23/10/2026 | - | Release 2026.1023.3
+- 8144beb |  | Revert "Reapply kyber crystals on main after release 2026.1023.2"
+- 263d1cb |  | Release 2026.1023.3 (Alpha)
++ 23/10/2026 | - | Server clock adjusted once a frame on the newest snapshot, as stock: no commands a second late after a hitch, Slash's Heimdall kicks
+- cf21449 |  | Adjust the command clock once a frame, on the newest snapshot (Slash, Heimdall kicks)
++ 23/10/2026 | - | DEMP2 flash over the whole view, random effect colours keep their hue, Slash #125
+- f019c80 |  | Draw effect Flash primitives over the view as CFlash::Draw does (Slash #125)
++ 23/10/2026 | - | Tauntaun swing #123, AT-ST seat camera, DEMP2 flash #125
+- 40cb455 |  | Restart a torso's own clip from its first frame (Slash #123)
+- 36523a1 |  | Pose the AT-ST pilot's seat as the cgame poses the walker (Kushina)
+- 31b84bf |  | Scale effect Flash primitives by the viewer as CFlash does (Slash #125)
++ 23/10/2026 | - | cg_chatBoxLines up to 24 #129, a caret in the Profile bio
+- 7883722 |  | Hub reports: cg_chatBoxLines up to 24, a caret in the Profile bio
++ 23/10/2026 | - | Saber command sets the menu's sabers #126, card no longer covers the Forge tab #124
+- e848ad7 |  | Keep wheel saber picks, free the Forge tab (Kushina #126, #124)
++ 23/10/2026 | - | Thrown saber keeps afterimages, blossoms and swing motion, Kushina #127
+- 4695c56 |  | Keep a skin's afterimages and swing parts on a thrown saber (Kushina #127)
++ 23/10/2026 | - | Reapply kyber crystals on main after release 2026.1023.2
+- 7bc8bc8 |  | Reapply kyber crystals on main after release 2026.1023.2
++ 23/10/2026 | - | Release 2026.1023.2
+- 93dc749 |  | Revert "Reapply kyber crystals on main after release 2026.1023.1"
+- e1b4967 |  | Release 2026.1023.2 (Alpha)
++ 23/10/2026 | - | Hax trap: both blow up; hackable while away
+- 3907c5e |  | Hax trap: hacking a trapped player blows you both up
++ 23/10/2026 | - | Reapply kyber crystals on main after release 2026.1023.1
+- 115c966 |  | Reapply kyber crystals on main after release 2026.1023.1
++ 23/10/2026 | - | Release 2026.1023.1
+- 4009edc |  | Revert "Reapply kyber crystals on main after release 2026.1022.3"
+- eefe806 |  | Release 2026.1023.1 (Alpha)
++ 23/10/2026 | - | Hub reports 22/10: view yaw wrapped after long turns, vehicle gunfire muzzle effects and sounds
+- 430247b |  | Keep the camera yaw within one turn (Yernow #121)
+- 12d8c29 |  | Play vehicle guns' muzzleFX on EV_VEH_FIRE, effect sounds at full volume
++ 22/10/2026 | - | Red note on whispers that are not encrypted, JoF note centred
+- b925339 |  | Whispers: red note when a whisper is not encrypted; JoF note centred
++ 22/10/2026 | - | Media Foundation no longer deadlocks at a thread's exit
+- eb40b6f |  | Media Foundation: start once, never shut down at a thread's exit
++ 22/10/2026 | - | {{S}} clan emblem, green JoF logo, JAWA only as (JAWA) first
+- 86e9fca |  | Clan emblems: {{S}} clan, green JoF logo, JAWA only as (JAWA) first
++ 22/10/2026 | - | Send only in SJK under Send
+- 70e422f |  | SJK chat page: Send only in SJK under Send, as big; Retry beside it
++ 22/10/2026 | - | Hax: not on a player typing or away; softer rain
+- ad3e8f7 |  | Hax: not on a player typing or away; a softer rain
++ 22/10/2026 | - | Old map unloaded before the next one loads
+- 6192bfb |  | Unload the old map before building the next one on a server
++ 22/10/2026 | - | JoF servers: GIFs, Send only in SJK, staff Shift stay out of All chat
+- c71ea73 |  | JoF servers: GIFs, Send only in SJK and staff's Shift stay out of All chat
++ 22/10/2026 | - | Milamber's #194: SJK chat said in All chat on JoF servers only, notice, ALL/SJK labels
+- 4dab31f |  | SJK chat said in All chat on JoF servers only, with a notice and labels
++ 22/10/2026 | - | Encrypted whispers: sound on send, recipient's marks
+- ff9045c |  | Encrypted whispers: sound on send, recipient's marks on our line
++ 22/10/2026 | - | Reapply kyber crystals on main after release 2026.1022.3
+- 3ad5acd |  | Reapply kyber crystals on main after release 2026.1022.3
++ 22/10/2026 | - | Release 2026.1022.3
+- 7993d0f |  | Revert "Reapply kyber crystals on main after release 2026.1022.2"
+- 7b56535 |  | Release 2026.1022.3 (Alpha)
++ 22/10/2026 | - | Green digital rain round a hacked player
+- 2def2bd |  | Hax: a green digital rain round a hacked player
++ 22/10/2026 | - | Encrypted whispers: optional safety codes
+- b63cec0 |  | Encrypted whispers: optional safety codes
++ 22/10/2026 | - | Hub reports 22/10: Forge Craft draw list overflow, Data flecks listed once
+- a2c1468 |  | Collection: a signature's part and section of one name are one switch (#115)
+- f254438 |  | Forge: Craft no longer flickers on its last lines (#117)
++ 22/10/2026 | - | Hub reports 22/10: saber trail held while a blade is out, corpse disintegration documented
+- d3aff33 |  | Saber trail: no streak from where a blade went out (hub report 116)
++ 22/10/2026 | - | Hub reports 22/10: SJK chat caret, cg_thirdPersonRange after Camera control, whisper to the followed player
+- 822e42b |  | Hub reports: SJK chat caret, third-person cvars after Camera control, whisper to the followed player
++ 22/10/2026 | - | End-to-end encrypted whispers between SJK players
+- 5649cc2 |  | End-to-end encrypted whispers between SJK players
++ 22/10/2026 | - | Hax after a teleport, respawn or map change
+- 25f31b9 |  | Hax: hackable after a teleport or respawn, and after a map change
++ 22/10/2026 | - | Reapply kyber crystals on main after release 2026.1022.2
+- 0279b8f |  | Reapply kyber crystals on main after release 2026.1022.2
++ 22/10/2026 | - | Release 2026.1022.2
+- b9d6806 |  | Revert "Reapply "Reapply "Merge personal/kyber-crystals (Kyber crystals: achievement rewards that always give a saber shader) into main"""
+- 16e20f9 |  | Release 2026.1022.2 (Alpha)
++ 22/10/2026 | - | Debug panel: JKR CREATOR mark and centred card labels
+- 39eb7f9 |  | Debug panel: JKR CREATOR mark and centred card labels
++ 22/10/2026 | - | JKR CREATOR mark, centred card labels
+- 08ad4bd |  | Player card: JKR CREATOR mark, centred pill and achievement labels
++ 22/10/2026 | - | Order 66 and the Hax stay on until turned off
+- 6469c5a |  | Order 66 and the Hax stay on until turned off
++ 22/10/2026 | - | Reapply "Reapply "Merge personal/kyber-crystals (Kyber crystals: achievement rewards that always give a saber shader) into main""
+- f4c2145 |  | Reapply "Reapply "Merge personal/kyber-crystals (Kyber crystals: achievement rewards that always give a saber shader) into main""
++ 22/10/2026 | - | Release 2026.1022.1
+- a16e642 |  | Revert "Reapply "Merge personal/kyber-crystals (Kyber crystals: achievement rewards that always give a saber shader) into main""
+- d296154 |  | Release 2026.1022.1 (Alpha)
++ 22/10/2026 | - | The Hax's hub side is deployed
+- b52a41e |  | Hax: the hub's toy relay is deployed
++ 22/10/2026 | - | The Hax toy: hack a player, then steer them
+- d572294 |  | The Hax toy: hack a player with the siege bar, then steer them
++ 21/10/2026 | - | Reapply "Merge personal/kyber-crystals (Kyber crystals: achievement rewards that always give a saber shader) into main"
+- 9bd8772 |  | Reapply "Merge personal/kyber-crystals (Kyber crystals: achievement rewards that always give a saber shader) into main"
++ 21/10/2026 | - | Release 2026.1021.3
+- c19854e |  | Revert "Merge personal/kyber-crystals (Kyber crystals: achievement rewards that always give a saber shader) into main"
+- baa3282 |  | Release 2026.1021.3 (Alpha)
++ 21/10/2026 | - | Falling blossoms draw as petals
+- a5e6952 |  | Falling blossoms draw as petals, not yellow dots
++ 21/10/2026 | - | Debug panel: sky with every box face missing
+- 9430f3e |  | Debug panel: sky with every box face missing
++ 21/10/2026 | - | No crash on a sky with every box face missing
+- df70974 |  | Skip a sky box with every face missing instead of crashing
++ 21/10/2026 | - | Kyber crystals: achievement rewards that always give a saber shader
+- 1ae3e32 |  | Kyber crystals in the client: tiers, odds, pity, the tab and rewards
++ 21/10/2026 | - | Mythical holocron engram, kyber crystal models
+- c735535 |  | Mythical holocron becomes the engram; the kyber prism becomes the kyber crystals
++ 21/10/2026 | - | JA+ black blades lost their textures when skins reloaded
+- 77d804f |  | Keep the black blade pair when blade skins reload
++ 21/10/2026 | - | The Sakura droplet at the Varykino Blossom's tip
+- 1f0fbff |  | Varykino Blossom: a pearl of nacre at its tip, after Sekiro's Sakura Droplet
++ 21/10/2026 | - | Texture detail shrinks the saber glows too
+- 43c52ec |  | Texture detail shrinks the saber glows too
++ 21/10/2026 | - | GPU errors nothing captures name what failed
+- 89372ae |  | GPU errors nothing captures name what failed
++ 21/10/2026 | - | Log requests keep the head of the last crash report
+- 9a8e811 |  | Log requests keep the head of the last crash report
++ 21/10/2026 | - | The Varykino Blossom, a Mythical blade that sheds blossoms
+- 668ad99 |  | Add the Varykino Blossom, a Mythical blade that sheds blossoms (Kushina's idea)
++ 21/10/2026 | - | Perk marks on cards
+- 9e6b5e5 |  | Perk marks on cards: a badge per perk on the Cards tab, marks up close and on the hover card
++ 21/10/2026 | - | Linux builds again
+- 5a1ab24 |  | Linux builds again: sjk-gpu-memory is a dependency on every platform
++ 21/10/2026 | - | Release 2026.1021.2
+- 80609a1 |  | Release 2026.1021.2 (Alpha)
++ 21/10/2026 | - | The Forge: a Collection tab for the shop, crafting and breaking shaders down
+- 1e9198d |  | The Forge: a Collection tab for the shop, crafting and breaking shaders down
++ 21/10/2026 | - | Debug panel: report-chars entry in a known area, lines within 96 characters
+- 7a03d2a |  | Debug panel: report-chars entry in a known area, lines within 96 characters
++ 21/10/2026 | - | Reports take _ / \ + = " ; [ ] < > #
+- 74ba257 |  | Bug reports, notes and player reports take _ / \ + = " ; [ ] < > #
+- 62d7260 |  | Changelog and debug panel for report characters
++ 21/10/2026 | - | Movement binds on the mouse wheel move a whole command
+- 7950a0b |  | Movement binds on the mouse wheel: a notch moves a whole command
++ 21/10/2026 | - | Credits history: blade card link
+- 94c65db |  | Credits history: blade card link
++ 21/10/2026 | - | A held blade card leads to its shader
+- d4a8640 |  | Cards tab: a held blade card's button opens its shader on the Shaders tab
++ 21/10/2026 | - | Bug Hunter is held once
+- f6970e7 |  | Bug Hunter is held once (no medal is repeatable)
+- 1ee08af |  | Debug panel and changelog for Bug Hunter held once
++ 21/10/2026 | - | A GPU test timing every signature blade against the stock blade
+- 44fc122 |  | Measure the signature blades' GPU cost against the stock blade
++ 21/10/2026 | - | Blade skins and signature shaders load only when a blade draws them
+- 557268c |  | Blade skins and signature shaders load only when a blade draws them
++ 21/10/2026 | - | Small graphics cards found at start, drawn saber shaders with menu pictures
+- b86d1be |  | Small graphics cards found at start; drawn saber shaders with menu pictures
++ 21/10/2026 | - | Credits history: blade cards craft for less
+- 058dfad |  | Credits history: blade cards craft for less
++ 21/10/2026 | - | Blade cards craft their saber shader for less
+- 04e55ab |  | Blade cards craft their saber shader for less: Normal at the shop price, Holo or Solar at half
++ 21/10/2026 | - | Map changes keep the blade signatures; vsync with supersampling no longer crashes
+- c75faee |  | Map changes keep the blade signatures; vsync with supersampling no longer crashes
++ 21/10/2026 | - | Texture detail r_picmip, no crash when a small card runs out of video memory
+- 503dcef |  | Texture detail (r_picmip) and video memory guards for small cards
++ 21/10/2026 | - | Release 2026.1021.1
+- 1c950c2 |  | Release 2026.1021.1 (Alpha)
++ 21/10/2026 | - | The hub's update refusal is a 403
+- 5739f63 |  | Identity test: the hub refuses an old SJK with 403
++ 21/10/2026 | - | The Holocrons tab says to update when the hub needs a newer SJK
+- 5ec1ad4 |  | Holocrons: say to update when the hub needs a newer SJK
++ 21/10/2026 | - | Open all asks first when more than one holocron would open
+- a22d224 |  | Holocrons: Open all asks first when more than one would open
++ 21/10/2026 | - | Creyon's later rounds count under SJK #188 in the credits
+- dc6400f |  | Credits history: rounds pushed after a PR was merged belong to that PR
++ 21/10/2026 | - | Blade numbers only with debug_collectibles
+- 3f531e7 |  | Blade numbers show in the Collection only with debug_collectibles on
++ 21/10/2026 | - | The shop says its four shaders are each player's own
+- 635bfdb |  | Shop: say the day's four shaders are picked for each player, past those they hold
++ 21/10/2026 | - | 38 blades change tier, Sol's last adjustments
+- f5cd6bd |  | Blade tiers adjusted again: 38 blades change tier (Sol, 21/10/2026)
++ 21/10/2026 | - | SJK pull request #179 holocron notification modes, cards after a duel; Settings row for cg_chatCardScale, SJK #189
+- 2770758 |  | Settings row for cg_chatCardScale (SJK #189)
+- 2dcea79 |  | Fix review findings for SJK #179: mode 1 is the duel wait, cards show after the duel
++ 21/10/2026 | - | One bar a tab under the Collection's collected count
+- b7edf63 |  | Collection: one bar a tab under the collected count, not a tick a thing
++ 21/10/2026 | - | Cargo fmt for staff_panel.rs, CI
+- d77e178 |  | Format staff_panel.rs (cargo fmt, CI)
++ 20/10/2026 | - | JA+ passwords masked from the JA+ mod, SJK #178; SJK pull request #190 JA+ anti-kiss, moved into the JA+ mod
+- bfeb442 |  | Move JA+ password and chat entries into the JA+ mod (SJK #178)
+- d2cf80a |  | Move JA+ anti-kiss into the JA+ mod (SJK #190)
++ 20/10/2026 | - | Missing stage images dropped as retail does, retail's default image instead of magenta
+- a6a77fe |  | Drop a shader with a missing stage image as retail does, and draw retail's default image
++ 20/10/2026 | - | The creator's Make staff / Remove staff on the Staff page
+- cfc7c32 |  | Staff page: the creator's Make staff / Remove staff
++ 20/10/2026 | - | The Sun's aura halved
+- b87c8e7 |  | Sun blade: halve its aura, the bloom was too strong (Sol)
++ 20/10/2026 | - | SJK pull requests #170 #178 #180 #181 #182 #183 #184 #185 #186 #187 #189: vehicle HUD, password masking, CTF carrier icon, chat key on All, wheel search, siege auto-join, HUD picker card, team match end, one-click update, emplaced guns, chat sender card
+- 10cf76b |  | Fix review findings for SJK #170: changelog line, status heading spacing
+- 30a76cc |  | Fix review findings for SJK #182: changelog line under Unreleased
+- cf16e26 |  | Fix review findings for SJK #185: a map_restart no longer keeps the match over
+- 5ff6854 |  | Fix review findings for SJK #170: Frame::menu_hud only for the tests
+- b583cdb |  | Fix review findings for SJK #182: clippy manual_contains in the search test
+- 4e7eca5 |  | Credits for SJK pull requests #170 #178 #180 #181 #182 #183 #184 #185 #186 #187 #189
++ 20/10/2026 | - | Fix review findings for SJK #187: look the emplaced gun's state up by binary search
+- 902e530 |  | Fix review findings for SJK #187: look the emplaced gun's state up by binary search
++ 20/10/2026 | - | Fix review findings for SJK #178: add its changelog line
+- 4efee0e |  | Fix review findings for SJK #178: add its changelog line
++ 20/10/2026 | - | Keep cg_chatRememberChannel as an option, off by default (SJK #181 follow-up)
+- b4faa24 |  | Keep cg_chatRememberChannel as an option, off by default (SJK #181 follow-up)
++ 20/10/2026 | - | jaPRO tools: a client mod that owns jaPRO's movement styles
+- 3cbdb81 |  | jaPRO tools: a client mod that owns jaPRO's movement styles
++ 20/10/2026 | - | Hub reports 20/10: toys count, drop-down overlap, snd_restart emotes, RGB userinfo window, prediction miss log, duel pop-ups, dance music
+- 1544632 |  | Collection: the Toys tab counts every toy, not 1 of 1
+- 6601482 |  | Settings: an open list pushed over its own row hides that row's value
+- c2b02f5 |  | snd_restart brings emote, cardboard box and Order 66 sounds back
+- 2dd74bd |  | Userinfo keeps to the server's window of three changes in six seconds
+- d1f6e59 |  | Prediction misses go to the log only with cg_showMiss
+- ceb96a2 |  | Rewards wait for the end of a private duel
+- 5e10e3b |  | Dances keep their music: idle is not away, a moment unseen is not gone
+- e46057b |  | Changelog and debug panel for the 20/10 hub bug report fixes
++ 20/10/2026 | - | A texture with a leading slash no longer fails the map load, Mae
+- f8b8842 |  | Format world_shot.rs's module list
+- eade96f |  | A texture named with a leading slash no longer fails the map load
++ 20/10/2026 | - | Hub reports 20/10: own model scale, jetpack strafe aura, scoped crosshair names
+- eb79c55 |  | Own model scale: the local player takes playerState iModelScale
+- 09fbf4a |  | Strafe aura and guides: show during jetpack flight
+- 566f9f5 |  | Crosshair names: hidden by the binoculars only, not the disruptor scope
++ 20/10/2026 | - | JoF content sorts among your own packs, hub #100
+- 1460283 |  | Format world_shot.rs's module list
+- 9e6ccc9 |  | JoF content sorts by name among the installation's packs
++ 20/10/2026 | - | jaPRO movement styles SJK does not model shown from the server, hub #97/#98
+- 75e3433 |  | jaPRO movement styles SJK does not model are shown from the server
++ 20/10/2026 | - | SJK CREATOR mark above staff
+- b8de526 |  | SJK CREATOR: the creator's own mark above staff's
++ 20/10/2026 | - | Named tiles, a closer look, lore that fills its box, no card numbers
+- 9162e95 |  | Cards: larger named tiles, a closer look, lore that fills its box, no numbers
+- ed259a6 |  | Card lore grows to 1.25 times at most, not 1.4
++ 20/10/2026 | - | The away emote in Simple settings
+- 7dfb23d |  | Settings: Simple's Gameplay offers the away emote and the JA+ away emote
++ 20/10/2026 | - | The blade card pictures' render test
+- d20a7ab |  | Blade card art: a world shot drawing every droppable shader as a card picture
++ 20/10/2026 | - | SJK Blades: blade cards, a Solar copy drops its blade
+- 595e206 |  | SJK Blades: blade cards, and a Solar copy drops its blade
+- 4da5aad |  | Blade cards show their blade's number alone (#042)
++ 20/10/2026 | - | An Away emote line in the What's new recap
+- 03a9bb9 |  | What's new: an Away emote line in the coming release's recap
++ 20/10/2026 | - | The Sun's coronal rain and diamond ring
+- faffe7b |  | Sun blade: coronal rain and an eclipse's diamond ring replace the spikes and the plasma loop
++ 20/10/2026 | - | Credits cards are all Mythical and show no number
+- 9f125dd |  | Credits cards show no number, as none outranks another
++ 20/10/2026 | - | Hub requests name the build's commit
+- 4970f5b |  | Hub requests name the build's commit: SJK/<version> (<commit>)
++ 20/10/2026 | - | The Sun blade becomes a signature and drops again
+- 16ae9c8 |  | The Sun blade drops from holocrons again; Sol's card is a second way
+- 642cb75 |  | The Sun blade becomes a signature: sunrise, sunset, sunspots, a CME
++ 20/10/2026 | - | The Sun blade comes only with Sol's card SJK Alpha 000
+- 731fe55 |  | Cards may bring a blade: the Sun blade comes only with Sol's card
++ 20/10/2026 | - | Every Blade Lab blade drops from holocrons
+- 3ae9a79 |  | Every Blade Lab blade drops from holocrons
++ 20/10/2026 | - | 26 blades change tier after Sol's review
+- 98b576e |  | Blade tiers: 26 blades change tier after Sol's review
++ 20/10/2026 | - | Cards answer the pointer smoothly; finishes reusable on any tile
+- 26d5111 |  | Cards: smooth hover, and the finishes as a reusable tile effect
++ 20/10/2026 | - | Every blade has a number, as cards do
+- 7c0afa1 |  | Blade numbers: every blade has a number, as cards do
++ 19/10/2026 | - | Release 2026.1019.2 (Alpha)
+- b79186b |  | Release 2026.1019.2 (Alpha)
++ 19/10/2026 | - | Changelog: recap for the next release, Discord apps and duel nameplate lines
+- 8442c03 |  | Changelog: recap for the next release, Discord apps and duel nameplate lines
++ 19/10/2026 | - | Solar finish after the Sun blade, smooth Holo, GPU card shine, binder paging
+- ef1ba08 |  | Card finishes shaded per pixel: Solar burns like the Sun blade, Holo is a smooth foil; binder paging
++ 19/10/2026 | - | Vague showcase tools wording
+- d54e7f2 |  | Showcase tools: vague wording wherever players can see it
++ 19/10/2026 | - | Keep the staff-only gates out of the changelog and credits
+- 2b58986 |  | Keep the staff-only gates out of the changelog and credits
++ 19/10/2026 | - | Cards tab as a binder: every card, missing ones greyed, stacks, hover breakdown, filters
+- ff58c0c |  | Cards tab as a binder: every card, found or greyed, filters, hover
++ 19/10/2026 | - | Debug panel: staff-only cjp_client, ghost and mimic
+- d840787 |  | Debug panel: staff-only cjp_client, ghost and mimic
++ 19/10/2026 | - | cjp_client, ghost and mimic for SJK staff only
+- 5f289f4 |  | cjp_client and the showcase tools (ghost, mimic) are for SJK staff only
++ 19/10/2026 | - | Server remaps and Map edits switches work
+- a1355ab |  | Server remaps and Map edits switches work
++ 19/10/2026 | - | Cards numbered 0: SJK Alpha's card 000 is Sol's
+- a1d8513 |  | Cards: a set's numbers start at 0 (SJK Alpha's card 000 is Sol's)
++ 19/10/2026 | - | Emotes: a window of every emote, search, click to play
+- d6afbc3 |  | Emote picker: emotes opens a window of every emote to search and click to play
++ 19/10/2026 | - | Strafe aura drawn by its own shader, airborne only unless cg_strafeAuraGround
+- 8fd25f5 |  | Strafe aura: its own shader, and only while jumping or falling
++ 19/10/2026 | - | Map editor console commands reach the client
+- b2f36f4 |  | Map editor: its console commands reach the client
++ 19/10/2026 | - | Discord status reaches every Discord app running
+- 642331a |  | Discord status: tell every Discord app running, not only the first
++ 19/10/2026 | - | SJK Alpha collection: Mythical card rarity, Credits and Meme kinds, Bishop card
+- b56e9d0 |  | Cards: the Mythical rarity, Credits and Meme kinds, the SJK Alpha set
++ 19/10/2026 | - | Strafe aura: cg_strafeAura glow over the crosshair showing where turning gains speed
+- 9ea9537 |  | Strafe aura: a glow over the crosshair showing where turning gains speed
++ 19/10/2026 | - | Get up from a JA+ away emote by crouching
+- fa94c17 |  | Away emote: get up from a JA+ emote by crouching, not by sending it again
++ 19/10/2026 | - | Away emote while alt-tabbed out or idle, emotes go quiet then
+- 6c91cc6 |  | Away emote: an emote while alt-tabbed out or idle, and emotes go quiet then
++ 19/10/2026 | - | Nameplates drop the weapon icon while the duel badge shows
+- 668aa70 |  | Nameplates leave out the weapon icon while the duel badge shows
+- f9dc13d |  | Credits for the duel nameplate weapon icon fix
++ 19/10/2026 | - | Chat text default 0.85, chat line spacing setting cg_chatBoxLineSpacing, default 2
+- d7f3ad6 |  | Chat text default 0.85 and a chat line spacing setting
+- a6dea5f |  | Credits for the chat size and line spacing changes
++ 19/10/2026 | - | Chat typing field grows with the chat's EternalJK text size
+- 003d1d5 |  | Chat composer grows with the chat's EternalJK text size
++ 19/10/2026 | - | Test packs shelved: Sol keeps test content off the hub
+- e3b224e |  | Shelve test packs: revert the test-packs merge (bbff67e4)
++ 19/10/2026 | - | SJK pull request #176, Siege hack bar with retail's hacker icon; HACKING text dropped
+- dbbf46b |  | Hack bar from the drawn crosshair with retail's hacker icon; drop HACKING text
++ 19/10/2026 | - | Duel bystanders hidden as in JoF EJK; chat and centre prints at EJK's size
+- 2cfb97e |  | Changelog and debug panel for duel hiding and EJK text sizes
++ 19/10/2026 | - | Hide players outside a private duel, as JoF EJK does (cg_duelHideOthers)
+- 4eb63ef |  | Hide players outside a private duel, as JoF EJK does (cg_duelHideOthers)
++ 19/10/2026 | - | Chat and centre-print sizes at EternalJK's scale
+- ee2850c |  | Chat and centre-print sizes at EternalJK's scale
++ 19/10/2026 | - | Attack ends emote setting, off by default
+- f47c47b |  | Emotes: attack ending your own emote is a setting, off by default
+- cfe2e58 |  | Changelog and debug panel for the Attack ends emote setting
++ 19/10/2026 | - | SJK pull request #166, Shift console heights as the option con_shiftHeight
+- e7f3d40 |  | Shift console heights: SJK pull request #166 made an option, con_shiftHeight
++ 19/10/2026 | - | No pause when models load, hub report 86; no crash leaving a server or quitting from fullscreen
+- b7c566e |  | Changelog and debug panel for the model load and leave crash fixes
++ 19/10/2026 | - | Leaving a server: the old world's frame is presented before the next world takes the window
+- 7519b72 |  | Leaving a server: the old world's frame is presented before the next world takes the window
++ 19/10/2026 | - | Quitting: a renderer joins its submit thread when it goes
+- 71d093c |  | Quitting: a renderer joins its submit thread when it goes
++ 19/10/2026 | - | NPCs and vehicles load off the render thread; map models upload a texture a frame
+- b5ed69c |  | NPCs and vehicles load off the render thread; map models upload a texture a frame
++ 19/10/2026 | - | Map editor panel: the staff editor in an SJK UI column
+- 8b89e61 |  | Map editor panel: the staff editor's commands in an SJK UI column
++ 19/10/2026 | - | Fixes for hub bug reports 77, 78, 80, 84, 88, 92, 94, 95
+- 1af4f3f |  | Changelog and debug panel for the 19/10 hub bug report fixes
++ 19/10/2026 | - | Fall to death: the camera stays where the fall began, as EternalJK
+- f822e97 |  | Fall to death: the camera stays where the fall began, as EternalJK
++ 19/10/2026 | - | Emotes: an attack or alt attack ends the player's own emote
+- 71af840 |  | Emotes: an attack or alt attack ends the player's own emote
++ 19/10/2026 | - | Audio: a snapshot no longer moves the listener for part of the frame
+- 61eb2b4 |  | Audio: a snapshot no longer moves the listener for part of the frame
++ 19/10/2026 | - | Holocrons: the cap is the hub's rolling 24 hours, and the page says when it lifts
+- edc1ee0 |  | Holocrons: the cap is the hub's rolling 24 hours, and the page says when it lifts
++ 19/10/2026 | - | Match camera portals to ET_PORTAL entities, not ET_BEAM
+- d55123e |  | Match camera portals to ET_PORTAL entities, not ET_BEAM
++ 19/10/2026 | - | Drop any image extension, as COM_StripExtension does
+- 65da0bf |  | Drop any image extension, as COM_StripExtension does
++ 19/10/2026 | - | Scores: team FFA parse test for JA+ rows with deaths (report #94)
+- b117930 |  | Scores: team FFA parse test for JA+ rows with deaths (report #94)
++ 19/10/2026 | - | Scoreboard deaths: EJK's local-counter resets, hidden in duel and CTF
+- cf4cd20 |  | Scoreboard deaths: EJK's local-counter resets, hidden in duel and CTF
++ 19/10/2026 | - | Death camera: fixed pitch and always third person, as EternalJK
+- 9b56643 |  | Death camera: fixed pitch and always third person, as EternalJK
++ 19/10/2026 | - | SJK pull requests #167 #169 #171 #173 #174 #177: speedometer, string table line breaks, whisper hover, SJK chat switches, siege announcements, console copy colours
+- de19721 |  | Review fixes and credits for SJK pull requests #167 #169 #171 #173 #174 #177
++ 19/10/2026 | - | Release 2026.1019.1 (Alpha)
+- c398beb |  | Release 2026.1019.1 (Alpha)
++ 19/10/2026 | - | Discord status logs whether Discord was found
+- 56f9f17 |  | Discord status: log turning on, finding Discord or not, and the first status shown
++ 19/10/2026 | - | Bishop's section titled Origins, still last
+- 989e93a |  | Credits: Bishop's section is Origins again, still last
++ 19/10/2026 | - | JAWA clan emblem, the clan's Jawa hood
+- 6a7d431 |  | Clan emblems: add JAWA with the clan's Jawa hood icon
++ 19/10/2026 | - | Test packs: PK3s sealed to chosen testers, kept encrypted on their disks; the hub cannot open them
+- 5512a91 |  | Test packs: PK3s sealed to chosen testers, encrypted on their disks
++ 19/10/2026 | - | SJK map edits: staff editor, hub sync, cg_mapEdits
+- a70c5e2 |  | Map edits: SJK's own map fixes, edited in game by staff and synced through the hub
++ 18/10/2026 | - | Server shader remaps off by default, asked on the what's-new card
+- 4f759b3 |  | Server shader remaps off by default (cg_serverRemaps)
++ 18/10/2026 | - | Emote pictures stay on the quick wheel after a map change or a connection
+- f1d56dc |  | Emote pictures go into every world's atlas, not only the first
++ 18/10/2026 | - | The Sol JK Discord application id
+- 016f162 |  | Discord status: the Sol JK application's id
++ 18/10/2026 | - | Map objects first seen mid-match decode their textures off the render thread, no 2 s freeze
+- 77c7414 |  | Demanded map models decode their textures on the worker
+- 2fd5f63 |  | Changelog and debug panel: demanded model textures off the render thread
++ 18/10/2026 | - | Discord status: menus, server, map, mode, players on the Discord profile
+- c9eb811 |  | Discord status: show what the player does in SJK on their Discord profile
++ 18/10/2026 | - | Release 2026.1018.2 (Alpha)
+- 046ef86 |  | Release 2026.1018.2 (Alpha)
++ 18/10/2026 | - | Map changes share textures between the old and new map, ~730 MiB less peak
+- c74c9c1 |  | Measure GPU memory across map changes (no leak; the two-worlds peak)
+- 7281775 |  | Share map-independent textures between worlds alive at once
+- 560a9f2 |  | Share map textures from the same files between worlds alive at once
++ 18/10/2026 | - | Picture menu backdrop to save video memory, readable world install errors
+- d390f32 |  | Menu pictures: stand the menus on pictures to save video memory
++ 18/10/2026 | - | Chat media download cap 8 MiB, for Tenor
+- c0771b2 |  | Raise the chat media download cap to 8 MiB
++ 18/10/2026 | - | Chat name dropdown removed, sender card over the feed's text
+- b5e3b52 |  | Remove the chat's name dropdown; draw the sender card over the feed's text
++ 18/10/2026 | - | The log names the untrusted media host
+- bb392bf |  | Name the untrusted media host a page or redirect led to
++ 18/10/2026 | - | Tenor GIFs: a page's media is asked without accepting HTML
+- 2806406 |  | Ask a page's media without accepting HTML
++ 18/10/2026 | - | Every command and cvar exported as one page, for SolBot
+- 560efb1 |  | Export the console commands and cvars as a Markdown reference
++ 18/10/2026 | - | Pull requests with a visible change carry screenshots
+- 88f2732 |  | Pull requests with a visible change carry screenshots
++ 18/10/2026 | - | Release 2026.1018.1 (Alpha)
+- 638a391 |  | Release 2026.1018.1 (Alpha)
++ 18/10/2026 | - | SJK pull request #165, trusted chat media sources; WebP, opt-in MP4 via Windows Media Foundation
+- f73cef4 |  | Chat clips: decode MP4 through Windows Media Foundation, not OpenH264
+- ac489b6 |  | Chat media: animated and still WebP from trusted sources
+- 1da3048 |  | Chat media: sources_changed before the test module (clippy items_after_test_module)
+- 543546d |  | Docs and notices for Media Foundation MP4 and WebP chat media
+- 1c62d14 |  | Chat video clips are a player opt-in, off by default (cl_sjkChatVideo)
+- 9e5cfb2 |  | Docs: chat video clips are opt-in, off by default, and why
+- f0c9fd6 |  | Credits for SJK pull request #165 (Lumaya)
++ 18/10/2026 | - | credits_data.rs formatted
+- b25e3d4 |  | Format credits_data.rs (cargo fmt --check failed on main)
++ 18/10/2026 | - | A card on the holocron strip shows as its credits, the card tucked in a corner
+- caa83be |  | Holocron strip: a card shows as its credits, the card tucked in a corner
++ 18/10/2026 | - | REVIEWED & MERGED chip on Sol's credits card
+- d9501d3 |  | Credits: Sol's reviewed and merged pull requests as a chip beside pull requests and commits
++ 18/10/2026 | - | SJK pull request #164, server-reported scoreboard deaths
+- f74163e |  | Credits for SJK pull request #164 (Lukas); its changelog line
++ 18/10/2026 | - | am* commands moved from JoF tools to JA+ tools
+- b1fa179 |  | Complete the am* player commands and emotes as JA+ ones, and JoF's own am* commands in JoF tools
++ 18/10/2026 | - | SJK pull requests #147 #148 #149: Destruction, server dialogue, EJK opt-in in the JoF client mod
+- a7f3151 |  | Build without mod-jof free of warnings again
+- a2f46ae |  | Forward force_destruction to the server where Destruction is not active
+- 0f94832 |  | Clear the new Clippy warnings from the JoF mod pull requests
+- 2da35c4 |  | Mods docs: jofejk turns on the JoF server's abilities and server-side quirks (Sol)
+- af9a72d |  | Credits for SJK pull requests #147 #148 #149 (Lumaya, JoF client mod)
+- 8ed80b4 |  | Changelog: the JoF settings by their Settings names
++ 18/10/2026 | - | SJK pull requests #157 #158 #159 #160 #161 #162 #163: Siege doors, HUD, triggers, vehicles, bots; jetpack exhaust; missing remap targets
+- b96453f |  | Credits for SJK pull requests #159 #161 #162 (Slash) and #163 (Milamber)
+- 86a0dfc |  | Use key: drop the stale button comment above the PLAYER_USE door one
+- af25696 |  | Credits for SJK pull requests #157 #160 (Slash) and #158 (Lumaya); #157's changelog line credited to Slash
+- d6778d1 |  | Jetpack test: no needless borrow of the game data
++ 18/10/2026 | - | Open siege doors for their teamallow team; vehopen for riders
+- c6c6da8 |  | Open siege doors for their teamallow team; vehopen for riders
++ 18/10/2026 | - | Review fixes: relock after the targets fire; NPC and rider checks
+- 76a0a57 |  | Review fixes: relock after the targets fire; NPC and rider checks
++ 18/10/2026 | - | SJK pull request #156, See & share nameplates, settings to review, Power Duel sides
+- 527dfb4 |  | Power Duel side from "dt", not "ds" (the player's sex)
+- cf99ef1 |  | What's new: a setting to review resets once per version
+- dcae4e4 |  | What's new: lowercase the review cvars once
+- 1258e1f |  | Debug panel: nameplate-share describes See & share nameplates
+- db28990 |  | Credits for SJK pull request #156 (Milamber, new contributor); Power Duel sides in the changelog
++ 18/10/2026 | - | SJK pull request #142 Siege menu, Siege class saber colours
+- bae7b31 |  | Drop PR #142's Siege team saber colours (cg_siegeTeamSabers)
+- 6107f5d |  | Siege menu: classic side step with flags and counts, class names alone, Spectate dimmed while watching
+- 2d199ee |  | Siege menu: simpler Spectate check (clippy nonminimal_bool)
+- 2a70ffb |  | Siege class saber colours, as stock cgame forces them
+- ba3c89e |  | Credits for SJK pull request #142 (Slash)
++ 18/10/2026 | - | SJK pull requests #110 #122 #131 #132 #135 #136 #139 #141 #150 #152 #154
+- 8d44269 |  | Credits and changelog for SJK pull requests #110 #131 #132 #135 #136 #139 #141 #150 #152 #154; two clippy fixes
++ 18/10/2026 | - | Flag carriers: drop the duplicate carrier light from #110
+- 2b22739 |  | Flag carriers: drop the duplicate carrier light from #110
++ 18/10/2026 | - | Chat: a marked lchat is a private message too
+- ceb1ca2 |  | Chat: a marked lchat is a private message too
++ 18/10/2026 | - | Corpses: a restricted player model's body falls back to Kyle
+- 49aba56 |  | Corpses: a restricted player model's body falls back to Kyle
++ 18/10/2026 | - | Siege movers: Force traces meet func_usable walls, plats never shootable, breaker activates
+- 364067d |  | Siege movers: Force traces meet func_usable walls, plats never shootable, breaker activates
++ 18/10/2026 | - | Siege: no follow buttons while waiting for the wave, as SpectatorThink
+- 1093665 |  | Siege: no follow buttons while waiting for the wave, as SpectatorThink
++ 18/10/2026 | - | Corpses: format the eligibility test
+- ef35102 |  | Corpses: format the eligibility test
++ 18/10/2026 | - | Voice anti-spam: a reused player slot drops the previous holds
+- 4874a93 |  | Voice anti-spam: a reused player slot drops the previous holds
++ 18/10/2026 | - | Music sync: time a resumed track from its own start
+- f716cad |  | Music sync: time a resumed track from its own start
++ 18/10/2026 | - | SJK pull request #134, NPC health with Force Sense 3
+- 0d81601 |  | Credits for SJK pull request #134 (Lumaya)
++ 18/10/2026 | - | Away players faint at the bottom of the scoreboard
+- 4138ab0 |  | Scoreboard: away players faint at the bottom of their list
++ 18/10/2026 | - | SJK pull requests #133 #137 #138 #140 #143-#146 #153 #155
+- a9b6650 |  | Review fixes: follow switch seeds the event ring, unblocked chat wording, .oshader mount note
+- 77c626a |  | Credits and changelog for SJK pull requests #133 #137 #138 #140 #143-#146 #153 #155
++ 18/10/2026 | - | JKR as a footnote, Sol's reviewed pull requests counted
+- 0a7e03a |  | Credits: JKR moves to a footnote; Sol's card counts the reviewed and merged pull requests
++ 18/10/2026 | - | Bug report limits in the docs
+- 32f12be |  | Identity docs: the hub's higher bug report limits for verified and staff keys
++ 18/10/2026 | - | Staff page in tabs with credits, moderation, chat bans
+- d0040c5 |  | Staff page in tabs, with credits, shards, moderation and chat bans
++ 18/10/2026 | - | Mute becomes Block: emotes, toys, cards; block/unblock
+- 73afc96 |  | Block a player: Mute becomes Block and covers emotes, toys and player cards
++ 17/10/2026 | - | Discord link on the site
+- cfcae72 |  | Site: link the SJK Discord (permanent #welcome invite)
++ 17/10/2026 | - | Supporter medal art cleaned up
+- 7eca874 |  | Supporter medal: clean V ribbon end, unbroken bail, small medallion without the top line
++ 17/10/2026 | - | The shop in kyber shards, holocrons for credits
+- 2223e7f |  | Shop in kyber shards, a Mythical one day in four, credits buy holocrons (prepared)
++ 17/10/2026 | - | A holocron's card with its credits and a few kyber shards
+- d40704f |  | Card pack: a card comes with its credits and a few kyber shards beside it
++ 17/10/2026 | - | Release 2026.1017.2 (Alpha)
+- bb83eb2 |  | Release 2026.1017.2 (Alpha)
++ 17/10/2026 | - | private_interfaces warning on the Grip victim submit
+- 04744f8 |  | Grip victim: submit visible only to the actor world submission (private_interfaces warning)
++ 17/10/2026 | - | Sol's faces on the Great Holocron, Sith pyramid and kyber crystal
+- c949f9d |  | Holocrons: Sol's faces for the Great Holocron, the Sith pyramid and the kyber crystal
++ 17/10/2026 | - | Cheaper saber shaders up close and when swinging, hub reports 63, 64
+- 7422364 |  | Add a world shot timing skinned blades up close
+- cd04564 |  | Draw saber skin afterimages as the plain capsule
+- 573fd59 |  | Skip saber skin glow work outside the glow's reach
+- f170a4f |  | Changelog and debug panel for the saber shader cost fix
++ 17/10/2026 | - | Fixes for hub bug reports 57, 62, 68, 69, 70, 73, 75, 76
+- 396421d |  | Changelog and debug panel for the 17/10 hub bug report fixes
++ 17/10/2026 | - | Force team saber colours in team games (cg_saberTeamColors)
+- 62db1a0 |  | Force team saber colours in team games (cg_saberTeamColors)
++ 17/10/2026 | - | Name the followed player in the top left while spectating
+- 75e20ad |  | Name the followed player in the top left while spectating
++ 17/10/2026 | - | Keep the text HUD's saber style on one line
+- 6aed9b6 |  | Keep the text HUD's saber style on one line
++ 17/10/2026 | - | Free camera flies when the server has stopped the body
+- 11631c7 |  | Free camera flies when the server has stopped the body
++ 17/10/2026 | - | Draw NPCs' thrown sabers
+- b80a339 |  | Draw NPCs' thrown sabers
++ 17/10/2026 | - | Give NPCs their own custom sound voices
+- 6414300 |  | Give NPCs their own custom sound voices
++ 17/10/2026 | - | Use .sab colours and saberEntityNum for NPC sabers
+- 6c096f9 |  | Use .sab colours and saberEntityNum for NPC sabers
++ 17/10/2026 | - | Drop repeated and stale player commands from the reliable pacer
+- a1cf16b |  | Drop repeated and stale player commands from the reliable pacer
++ 17/10/2026 | - | Collapse the pacer's window check (clippy)
+- 616c1b3 |  | Collapse the pacer's window check (clippy)
++ 17/10/2026 | - | SJK pull requests #113, #122, #124, #127, #129, #130
+- ea37cfd |  | Leave SJK #124's documentation out of this batch
+- 2d97b1e |  | SJK #113's team saber colours become an option, off by default
+- 7286c3c |  | Review fixes for SJK #122 (JA+ flamethrower)
+- 9f355ea |  | Format SJK #113's team saber adaptation
+- 0bafd11 |  | Review fixes for SJK #130 (JA+ black sabers)
+- 579b887 |  | Review fixes for SJK #127 (holstered saber hilts)
+- 034e796 |  | Holstered hilts: JA+ proper only, as the flamethrower
+- e795a95 |  | Review fixes for SJK #124 (classic scoreboard)
+- 7dcff9c |  | Credits and changelog for SJK #113, #122, #124, #127, #129 and #130
++ 17/10/2026 | - | SJK pull requests #107, #111, #119, #123, #126, #128
+- 2e9a998 |  | Review fixes for SJK #107, #111, #123 and #128
+- e3d21bb |  | Credits and changelog for SJK #107, #111, #119, #123, #126 and #128
++ 17/10/2026 | - | SJK pull request #116, EJK chat substitutions
+- 0d4a423 |  | Credits and changelog for SJK #116
++ 17/10/2026 | - | SJK pull requests #108, #109, #114, #118
+- e7dff9d |  | Credits and changelog for SJK #108, #109, #114 and #118
++ 17/10/2026 | - | SJK pull requests #115, #117, #120, #121, #125
+- 61ed260 |  | Credits and changelog for SJK #115, #117, #120, #121 and #125
++ 17/10/2026 | - | Release 2026.1017.1 (Alpha)
+- 94b1d1c |  | Release 2026.1017.1 (Alpha)
++ 17/10/2026 | - | The four holocrons, each its own object
+- 9e0ef34 |  | Holocrons: four forms of their own, with moving parts (Sol's pick, set B)
++ 17/10/2026 | - | Shatter and Craft on the shader card
+- 1dccdf1 |  | Shader cards: Shatter and Craft, asked twice, while the hub lets players trade
++ 17/10/2026 | - | Kyber shards and the shop, prepared
+- f41dfe6 |  | Economy: kyber shards, a shard prize, the daily shop (client, prepared)
++ 17/10/2026 | - | Debug panel entry within three change lines
+- c09a68a |  | Debug panel: the shader-cards entry in three change lines
++ 17/10/2026 | - | The saber alone to turn, a card for each shader
+- 22be64d |  | Shaders tab: the saber alone, turned by a drag, and a card for each shader
++ 17/10/2026 | - | Every shader drops but the medal ones
+- bc3b75d |  | Proposal: seven team shaders drop from holocrons (Rare 3 to 6, Legendary 4 to 8)
+- 2a256a1 |  | Every shader but the medals' drops from holocrons (Mythical 7 to 11)
++ 17/10/2026 | - | Opening title placement, window-shape shots
+- 84ec2cb |  | Holocron opening: the title clears the swelling holocron; world shots at 4:3 and 21:9
++ 17/10/2026 | - | Grand finds told in SJK chat
+- fec4367 |  | Grand finds in SJK chat: who opened a holocron and got a grand prize
++ 17/10/2026 | - | Holocrons open like a loot crate
+- 9be42f5 |  | Holocrons open like a loot crate: the holocron cracks open, strips run to the prize
++ 17/10/2026 | - | one-letter Russian chat messages go out and read back in Windows-1251
+- 6b98694 |  | Chat: one Russian letter (or two capitals) is sent and read as Windows-1251
++ 17/10/2026 | - | Player card only in sight, grey bars on every non-sharer
+- fb57ae5 |  | Player card only in sight; grey bars on every player who does not share
++ 17/10/2026 | - | Shader blades keep pale custom colours
+- cc1ad92 |  | Chroma blades keep pale custom colours: grey threshold 0.2 -> 0.03
+- 9e450d8 |  | Debug panel: reword the chroma-pastel note
++ 17/10/2026 | - | Order 66 toy: synced deaths that blow everyone with it on apart, or confetti
+- 371906d |  | Order 66 toy: synced deaths that blow everyone with it on apart
++ 17/10/2026 | - | CTF: flag status, carrier plate and team scores on every HUD; carriers on the scoreboard from the snapshot
+- ee8a97c |  | CTF HUD: flag icons, carrying note and team scores in every HUD style
++ 17/10/2026 | - | Linux: clipboard in process, Ctrl+V without xclip or wl-clipboard
+- 05ac7a1 |  | Linux: read and set the clipboard in process so Ctrl+V works without xclip or wl-clipboard
++ 17/10/2026 | - | Free camera flies during emotes and held animations
+- 3e98fca |  | Free camera flies freely while the body is held in an emote
+- 1f1f820 |  | Debug panel: free camera during emotes
 + 17/10/2026 | - | Cargo fmt fix for CI
 - 9f8444b |  | Format world_shot_emote_help.rs (CI formatting check)
 + 16/10/2026 | - | Release 2026.1016.3 (Alpha)
@@ -1457,6 +2254,73 @@
 - 0d215f1 |  | Initial JKR source
 
 = Creyon
++ 26/10/2026 | SJK #193 | A blade skin for each saber and each staff half
+- 0d4b8f2 |  | Let a second saber wear its own blade skin
+- 54177be |  | Dress a staff's other half and pick the saber in the Collection
+- 6566a6a |  | Say how to show the second blade while one saber is held
+- 74711f7 |  | Add the saber command and dress a side with one click
+- 160ca7e |  | Wear a shader with one click and show the chosen side's own
+- 6af6e50 |  | Make the switch clickable, wear with Equip and keep sides apart
+- a9141d6 |  | Add a Both sabers box that dresses both sides at once
+- 98bc64c |  | Preview a shader only over its blade and show the Both label whole
+- 9dc9cb0 | Sol | Second saber: follow the first until dressed, retry saber2 after bad_body
+- 806d1b2 |  | Answer the second saber review: sides, stock, staffs, clicks, hilts
+- f574281 |  | Keep the second saber's skin by value despite its size lint
+- 0fcb351 |  | Leave the Both box alone when a lone saber is clicked
+- 05d0431 |  | Bring the second saber's status entry up to date
+- aa58c39 | Sol | saberskin second: an unheld skin is the stock blade until held, not the first's
+- 4ac621d | Sol | Changelog: the saber command line names what this branch adds
++ 25/10/2026 | SJK #197 | Add trading between players
+- a3ac938 |  | Add trading between players
+- 05a83c8 |  | Answer Sol's review of the trades
+- e6bd7d5 |  | Fit the Trade button's words on one line on the player card
+- b9b209e |  | Read the trade window size setting as a number
+- a781f9a |  | Shoot the trade card from a card built with trading open
+- d4fd04e |  | Let Trade on the chat card take its click
+- e1eac0b |  | Credit trading as #197, without the hub's numbers
+- c2c993d |  | Read the trade list every 30 minutes while trading is off
+- 6a80efd |  | Keep requests closed over the main menu; no trade with the blocked
+- 41ae856 |  | Record Sol's re-review of the trades in the status page
+- a1e7f1b |  | Word the hub's answers to request spam and closed requests
+- 0c41b37 |  | Refuse a blocked player's trade by key too
+- 88c3746 |  | Note the merge of main and its format fix in the status page
++ 25/10/2026 | SJK #208 | Format launch.rs, platform.rs and update.rs
+- fe7effc |  | Format launch.rs, platform.rs and update.rs
++ 25/10/2026 | SJK #202 | Fade bodies away on EV_BODYFADE as EternalJK does
+- c6297c3 |  | Fade bodies away on EV_BODYFADE as EternalJK does
+- 8839c5d | Sol | Body fade: every reused slot fades, crackle once per 100 ms, body gone 4 s after
++ 24/10/2026 | SJK #191 | Fix blade tip pixels and hard edges on signature blades
+- b3f7f38 |  | Fix blade tip pixels and hard edges on signature blades
+- f43f320 |  | Add round 23 status entry and complete its rendering notes
+- 0f480ab |  | Time a near blade across and along the view in the cost test
+- 9964eeb |  | Keep the pulses' peaks and hide what passes behind the tip
+- 5975432 |  | Fade Obsidian Edge round its tip and give the haze room to bend
+- dab1823 |  | Trim round 23's flare, arc and smoke costs back
+- c6c5568 |  | Draw each arc bolt only near its own middle
+- 0ffb4da |  | Skip Reactor's unseen lightning and bound the arcs by their real reach
+- e82e90e |  | Write down Reactor's timing after its fix
+- 3da079d |  | Bring the round 23 status entry up to date
+- 98fc144 | Sol | Leave room for the bent picture only on frames that draw a haze or a lens
+- 491aac8 | Sol | Take the core's coordinates with and without the tip from one skin lookup
++ 22/10/2026 | SJK #192 | Add cg_duelStockBlades: normal blades in duels
+- 4e0daf9 |  | Add a setting for stock blades in duels
++ 21/10/2026 | SJK #188 | Add Creyon's Blade Lab signature blades
+- dee6594 |  | Add Creyon's Blade Lab signature blades
+- 6e59999 |  | Polish Creyon's blades after his round 13 test
+- 7569fb8 |  | Answer only real attacks and fix Creyon's round 14 test notes
+- 835cc2d |  | Give Bleeding Kyber forked Sith lightning
+- ec6fad8 |  | Rework Creyon's blades after his round 15 review
+- 36804d4 |  | Make Balance and plain mythicals richer (round 15b)
+- 0c221d5 |  | Rework Creyon's blades after his round 16 review
+- 3b73ff4 |  | Fix Creyon's blades after his round 17 test; apply Sol's tiers
+- a869825 |  | Soften Bleeding Kyber's pure light and the busiest blades
+- 2d463a7 |  | Draw every signature effect in 3D, stop cut-offs, richer mythicals (round 19)
+- bf84d69 |  | Give the Clone Wars blade comic speed lines for its swing trail
+- 827e253 |  | Fix the Collection pictures, soften glow up close, Creyon's round 20 blades
+- 0d7d9cf |  | Keep Kessel Spice's crystals inside its glow
+- eefe734 |  | Load blade effects faster, Clone Wars in 3D, Creyon's round 21 fixes
+- a3c68e1 |  | Keep built blade effects when the skins reload
+- 19c7df7 |  | Hide effects behind the blade; Clone Wars halftone stops at the hilt
 + 16/10/2026 | SJK #105 | Show duels as JoF EJK does, with paired duel badges on nameplates
 - 6d7ccca |  | Show duels as JoF EJK does, with paired duel badges on nameplates
 + 15/10/2026 | SJK #103 | Play rig model emotes on stock JKA models
@@ -1606,7 +2470,133 @@
 - 8db7327 |  | Wrap centre prints at 50 characters, not UTF-8 bytes
 - 0874042 |  | Decode print and cp text as legacy bytes
 
+= Lukas
++ 24/10/2026 | SJK #198 | Release stale profile VFS generations
+- 69c6da4 |  | Release stale profile VFS generations
++ 21/10/2026 | SJK #179 | Add holocron notification modes
+- d7ae6dc |  | Add holocron notification modes
++ 20/10/2026 | SJK #190 | Add JA+ anti-kiss protection
+- 947f26a |  | Add JA+ anti-kiss protection
++ 20/10/2026 | SJK #181 | Keep messagemode on global chat
+- 13036b6 |  | Keep messagemode on global chat
++ 19/10/2026 | SJK #167 | Align the speedometer with JoF HUDs
+- aa6f759 |  | Align the speedometer with JoF HUDs
++ 19/10/2026 | SJK #173 | Add separate SJK chat output switches
+- 2a7581d |  | Add separate SJK chat output switches
++ 19/10/2026 | SJK #171 | Show whisper recipients on console hover
+- 97efe25 |  | Show whisper recipients on console hover
++ 19/10/2026 | SJK #177 | Preserve console colours when copying
+- 68d342d |  | Preserve console colours when copying
++ 18/10/2026 | SJK #164 | Show server-reported scoreboard deaths
+- a29c616 |  | Show server-reported scoreboard deaths
++ 18/10/2026 | SJK #154 | Hide corpses and pickups during private duels
+- af1b6be |  | Hide duel corpses and pickups by preference
++ 18/10/2026 | SJK #133 | Show SJK chat in the console
+- 9698a68 |  | feat: show SJK chat in console
++ 18/10/2026 | SJK #144 | Fix recent servers across map changes
+- d0e4878 |  | Fix recent servers across map changes
++ 18/10/2026 | SJK #155 | Fix reply chords after opening chat
+- 2142222 |  | Fix reply chords after opening chat
++ 17/10/2026 | SJK #111 | Expose JoF EJK camera settings
+- 7ca8f29 |  | feat: expose JoF EJK camera settings
+- 9ac938b |  | docs: cite current JoF alpha camera menu
++ 17/10/2026 | SJK #107 | Expose chat size and allow larger menu text
+- a24a618 |  | Expose chat text size in settings
+- b9a6a72 |  | Allow larger menu text
+- 9b82892 |  | Increase the default console text size
+- 6e1e7ca |  | Address text size review findings
+- 5646ac2 |  | Keep the existing console text settings
++ 17/10/2026 | SJK #109 | Add JoF-style two-key combo binds
+- 471ed6f |  | feat: add two-key combo binds
+- 28f7fba |  | fix: match JoF combo table behavior
++ 17/10/2026 | SJK #108 | Add JoF client list console commands
+- d2968bc |  | Add JoF client list console commands
++ 17/10/2026 | SJK #115 | Fix Linux clipboard integration
+- ddfe116 |  | Fix Linux clipboard integration
+
 = Lumaya
++ 24/10/2026 | SJK #195 | Respect wall-grab free look and add an opt-in camera lock
+- f71bf25 |  | Hold the camera throughout wall grabs
+- c03b6a5 |  | Fold wall-normal camera alignment into the wall-grab fix
+- fa4ac03 |  | Preserve profile free look and make wall-grab locking optional
+- a6c6f8d | Sol | Wall grab: re-aim the camera at the wall only with cg_wallGrabLock on
+- ea38f1a | Sol | Changelog line for the wall-grab camera fix and option (Lumaya)
++ 19/10/2026 | SJK #166 | Swap Shift console height shortcuts
+- 6746cfc |  | Swap Shift console height shortcuts
++ 18/10/2026 | SJK #165 | Add trusted chat media sources and silent MP4 playback
+- 8094630 |  | Add player-approved chat media sources and silent video
++ 18/10/2026 | SJK #149 | Move firing confirmations and EJK opt-in into the JoF mod
+- aec5ec9 |  | Play server-confirmed Stasis and Repulse sounds
+- 6b25434 |  | Move firing confirmations and EJK opt-in into the JoF mod
++ 18/10/2026 | SJK #148 | Move server dialogue into the JoF client mod
+- f518d79 |  | Add server-authored dialogue client presentation
+- c4329dd |  | Move server dialogue into the JoF client mod
++ 18/10/2026 | SJK #147 | Move Destruction controls into the JoF client mod
+- adf4aa0 |  | Add server-granted Destruction client controls
+- 7b8b218 |  | Move Destruction controls into the JoF client mod
++ 18/10/2026 | SJK #158 | Fix jetpack effect loading and hidden exhaust layers
+- 9f40ecf |  | Fix jetpack effect loading and hidden exhaust layers
++ 18/10/2026 | SJK #131 | Resolve NPC voices from their advertised sound banks
+- 5931480 |  | Resolve NPC voices from their advertised sound banks
++ 18/10/2026 | SJK #139 | Resume map music from the level clock and honor silence
+- 76ecc78 |  | Resume map music from the level clock and honor silence
++ 18/10/2026 | SJK #135 | Limit repeated player model voices by sample duration
+- 438a752 |  | Limit repeated player model voices by sample duration
+- 15cda87 |  | Keep voice anti-spam notes in Unreleased
++ 18/10/2026 | SJK #141 | Respect player model eligibility and local blacklists
+- 4ef5688 |  | Honor player model eligibility metadata and local restrictions
++ 18/10/2026 | SJK #132 | Add live Force effects and presentation controls
+- d07a6c4 |  | Add live animation-driven Force effects
+- e0d879a |  | Honor Force effect visibility and presentation controls
++ 18/10/2026 | SJK #136 | Add current-map PM-only game chat
+- b1686a3 |  | Add current-map PM-only game chat
+- 6e0b954 |  | Keep PM-only chat notes in Unreleased
+- 8d0cba5 |  | Read PM-only chat options without allocating each frame
++ 18/10/2026 | SJK #122 | Add JA+ flamethrower effects, pose and sound
+- 9fadf99 |  | Add JA+ flamethrower client presentation
+- 36a0727 |  | Add retail flame fallback and presentation-timed impacts
++ 18/10/2026 | SJK #134 | Require active Sense 3 for NPC health bars
+- 0e0c11a |  | Require active Sense 3 for NPC health bars
++ 18/10/2026 | SJK #143 | Expand custom Siege catalogues and align selector limits
+- bde4bbf |  | Expand Siege catalogues and bound theme class slots
++ 18/10/2026 | SJK #137 | Support community override shader scripts
+- 45f79e3 |  | Support community override shader scripts
++ 18/10/2026 | SJK #145 | Hide cosmetics on held and cloaked players
+- e361429 |  | Hide cosmetics in held and cloaked player states
++ 18/10/2026 | SJK #146 | Honor Not players mode for reliable shader remaps
+- 22b8500 |  | Filter reliable player remaps in Not players mode
++ 18/10/2026 | SJK #140 | Fix cosmetic colour writes in scripts
+- ed93155 |  | Preserve cosmetic colour writes in command-buffer order
++ 18/10/2026 | SJK #138 | Avoid replaying external sounds when switching followed players
+- 18a4907 |  | Seed pending external sounds when switching followed players
++ 17/10/2026 | SJK #124 | Align classic scoreboard behavior with JoF EJK
+- 6dc514d |  | Align classic scoreboard behavior with JoF EJK
++ 17/10/2026 | SJK #130 | Render JA+ black sabers with the correct plugin toggle
+- d5d3d4b |  | Render JA+ black sabers with the correct plugin toggle
++ 17/10/2026 | SJK #129 | Show distinct Tavion and Desann idle poses by default
+- 7ff9731 |  | Show distinct Tavion and Desann idle poses by default
++ 17/10/2026 | SJK #127 | Add holstered saber hilts and staff handoff
+- 8725346 |  | Add holstered saber hilts and staff handoff
++ 17/10/2026 | SJK #128 | Match JoF EJK jetpack sound choices and channels
+- 6f6ca44 |  | Match JoF EJK jetpack sound choices and channels
++ 17/10/2026 | SJK #119 | Add JoF Force presets in both menu styles
+- 192beda |  | Add JoF Force presets and selectors in both menu styles
++ 17/10/2026 | SJK #123 | Add default-on Grip victim effects
+- c643c53 |  | Add default-on Grip victim effects
++ 17/10/2026 | SJK #126 | Hide the permanent inventory list by default and keep its selector
+- d66e599 |  | Separate inventory list visibility from item selection
++ 17/10/2026 | SJK #116 | Add EJK chat substitutions to game messages
+- 92f59b9 |  | Add EJK chat substitutions to outgoing game messages
++ 17/10/2026 | SJK #118 | Add an option to hide private-duel nameplates
+- b4a3d20 |  | Add an option to hide private-duel nameplates
++ 17/10/2026 | SJK #121 | Distinguish Desann and Tavion in native HUD colours
+- 976dc5e |  | Distinguish Desann and Tavion in native HUD colours
++ 17/10/2026 | SJK #117 | Preserve team powers in outgoing Force profiles
+- f8109d5 |  | Preserve team powers in outgoing Force profiles
++ 17/10/2026 | SJK #120 | Fix native NPC definition filename truncation
+- 488d8eb |  | Remove native NPC definition filename truncation
++ 17/10/2026 | SJK #125 | Reset weapon selection across follow and player transitions
+- 8f6f753 |  | Reset weapon selection when the viewed player changes
 + 11/10/2026 | SJK #77 | Fix equipped jetpack attachment and movement prediction
 - 45fccac |  | Fix equipped jetpack attachment and movement prediction
 + 11/10/2026 | SJK #75 | Add an independent lagometer scale setting
@@ -1655,3 +2645,120 @@
 - 5bc6805 |  | Record isolated release GPU review checks
 + 07/10/2026 | SJK #24 | Clip visible saber blades at world walls
 - 8d21001 |  | Clip visible saber blades at world walls
+
+= Milamber
++ 22/10/2026 | SJK #194 | Show JoF EternalJK's icon and say SJK chat lines on the server
+- 21efba7 |  | Show JoF EternalJK's icon and say SJK chat lines on the server
++ 18/10/2026 | SJK #163 | Look up a missing remap target once a map
+- 83f99d0 |  | Look up a missing remap target once a map
++ 18/10/2026 | SJK #156 | Feat/nameplates cleanup and review popup
+- 417e95f |  | Merge nameplates and bar sharing into See & share nameplates
+- 10740fb |  | Ask players to review changed settings on the what's-new card
+- e67b3a2 |  | Show the shared Force on nameplates instead of estimating it
+- fed9acd |  | Hide duel opponents' bars and send nothing while duelling
+
+= Slash
++ 27/10/2026 | SJK #216 | Give emotes their own volume, apart from s_volume (#163)
+- 091168d |  | Give emotes their own volume, apart from s_volume (#163)
++ 27/10/2026 | SJK #213 | Keep a player in a vehicle from going limp (168)
+- a82916a |  | Keep a player in a vehicle from going limp (#168)
++ 27/10/2026 | SJK #214 | Get a limp player up when a hack starts (#167)
+- f81334e |  | Get a limp player up when a hack starts (#167)
++ 27/10/2026 | SJK #215 | Main menu: drop the small sub-page title over the arc
+- 1aea589 |  | Main menu: drop the small sub-page title over the arc
++ 27/10/2026 | SJK #212 | Count nothing on a server on this machine (#165)
+- 33aa1f3 |  | Count nothing on a server on this machine (#165)
++ 26/10/2026 | SJK #209 | Complete devmap's map name on Tab
+- 027bdba |  | Complete devmap's map name on Tab
+- 0bf3b86 | Sol | devmap completion: no copy per map name, a test for matches in several folders
++ 25/10/2026 | SJK #207 | Count site visits with GoatCounter
+- 420c449 |  | Count site visits with GoatCounter
+- eb13752 |  | Update GoatCounter script source URL
++ 25/10/2026 | SJK #205 | Stage player model installs and pool body copies ahead of deaths
+- a77107c |  | Stage player model installs and pool body copies ahead of deaths
+- 4468c35 |  | Drop the all-at-once prepared texture upload, unused since players upload one a frame
+- 68b9fc2 |  | Restore main's earlier changelog line the merge had dropped; separate the status entry
+- fc0bb20 | Sol | Model installs: wait for a reused model's pipelines; pool only bodies the player will leave
+- 462c1e2 | Sol | PR #205: credits and debug panel entry
+- 4203548 | Sol | PR #205 status: the checks run at the merge, against main
++ 25/10/2026 | SJK #201 | CTF HUD: team scores in SJK team boxes with each flag's state
+- 2f50b04 |  | CTF HUD: team scores in SJK team boxes with each flag's state (work in progress)
+- 5ac4fc1 |  | CTF HUD: cg_teamScoresBoxes brings back the classic plates; Windows test build workflow
+- 72498b8 |  | CTF HUD: compact boxes, carrier named at once, no duplicate flag pictures
+- 139d881 |  | CTF HUD: larger score, cg_teamScoresScale sizes the team boxes
+- 48be58d |  | CTF HUD: no gold rule over your team's box
+- 19dcd92 |  | Drop the test build workflow: GameData packages builds any branch on demand
+- 02c988a |  | Settings help: the team score rows fit two lines
+- 51b7e4b |  | CTF HUD: clippy (iterate the drop timers, no same-type cast)
+- daff47b |  | Changelog: keep the CTF team boxes entry after the rebase
+- 81ea659 | Sol | CTF team boxes: long scores fit, followed carriers named, drops forgotten per game
++ 24/10/2026 | SJK #200 | Encrypted whispers: per-key safety code fingerprints (v2)
+- bf04bc1 |  | Encrypted whispers: per-key safety code fingerprints (v2)
++ 20/10/2026 | SJK #186 | Make the update notice clickable to start the download
+- 367fb72 |  | Make the update notice clickable to start the download
++ 20/10/2026 | SJK #184 | Draw the HUD picker as an SJK card, added different pics
+- 12d22cb |  | Draw the HUD picker as an SJK card with SJK layout pictures
++ 20/10/2026 | SJK #185 | Tell a team match's end as a siege round's on the SJK scoreboard
+- d702eb8 |  | Tell a team match's end as a siege round's on the SJK scoreboard
++ 20/10/2026 | SJK #178 | Mask passwords everywhere the console prints
+- 1eaa87a |  | Mask passwords everywhere the console prints
+- b58a268 |  | Fix review findings in password masking
+- 26488fe |  | Keep typed chat out of crash reports; mask clan and account passwords
++ 20/10/2026 | SJK #183 | Siege team choice: Auto-join, as in CTF
+- 8a4bf71 |  | Siege team choice: Auto-join, as the other team games
++ 20/10/2026 | SJK #187 | fix/Emplaced gun turns with its gunner's view
+- 7c0cfc6 |  | Emplaced gun turns with its gunner's view
+- fc152ec |  | Emplaced swivel: tidy the turned-gun drawing
++ 20/10/2026 | SJK #182 | Search the quick wheel's catalogue from a field beside its title
+- 6fff4df |  | Search the quick wheel's catalogue from a field beside its title
++ 20/10/2026 | SJK #189 | Smaller chat sender card that waits for the pointer, cg_chatCardScale added
+- f30e9df |  | Smaller chat sender card that waits for the pointer, cg_chatCardScale
++ 20/10/2026 | SJK #180 | Fix / CTF HUD names an enemy flag carrier the scoreboard already knows
+- a27b787 |  | CTF HUD: name an enemy carrier out of sight from scores sent after the take
++ 20/10/2026 | SJK #170 | Vehicle HUD: the original Jedi Academy HUD
+- 2f3d601 |  | Keep the vehicle HUD of a vehicle that hides its rider
+- 9d5a3d4 |  | Draw the stock vehicle HUD in the game HUD
++ 19/10/2026 | SJK #176 | Draw the siege hack bar under the crosshair
+- 7c47706 |  | Draw the siege hack bar under the crosshair
++ 19/10/2026 | SJK #174 | Feat/siege objective sounds
+- 4240677 |  | Announce completed siege objectives from the map's .siege file
+- 72cc3da |  | Announce a siege round's end from the map's .siege file
+- 90f0499 |  | Count siege rounds in and voice the round's end
+- dd996b5 |  | Tighten the siege count-in and round-over fallback after review
++ 19/10/2026 | SJK #169 | Read a written \n in the string tables as a line break
+- 7a6f8be |  | Read a written \n in the string tables as a line break
++ 18/10/2026 | SJK #160 | Siege HUD: round state, respawn countdown, hack progress and sound
+- 7582183 |  | Siege HUD: round state, respawn countdown, hack progress and sound
++ 18/10/2026 | SJK #157 | Fix/siege door use lights
+- 5a60ca3 |  | Siege doors: use key on PLAYER_USE doors, lock lights, trigger teams
++ 18/10/2026 | SJK #162 | Siege: bots take both sides before the round
+- 61ea754 |  | Siege: bots take both sides before the round
++ 18/10/2026 | SJK #161 | Vehicles: board a team vehicle with the player's own team
+- c756e35 |  | Vehicles: board a team vehicle with the player's own team
++ 18/10/2026 | SJK #159 | Triggers: a trigger_once that fired is never touched again
+- 62b883f |  | Triggers: a trigger_once that fired is never touched again
++ 18/10/2026 | SJK #142 | Siege menu changed to match ctf menu . colours of sabers fixed for red/blue team
+- 4f6f68b |  | Siege menu: team first, then that team's classes; Siege team saber colours
++ 18/10/2026 | SJK #150 | Siege: no more stuck players after a death; map messages show their text - #1
+- a66aca7 |  | Siege: keep a waiting player on its side, clear stale waits; target_print team/cps messages
+- d58e9f7 |  | Review fixes: siege waits, follow and target_print routing
++ 18/10/2026 | SJK #152 | Siege Korriban: Force on doors, func_usable walls, breakables used by name
+- 08e0da7 |  | Force push and pull move Force-usable doors and press buttons
+- 5f716a8 |  | func_usable toggles when used by name or by the use key
+- ec74352 |  | Break breakables used by name and after their delay; sabers hit objectives
+- a5c6286 |  | Review fixes: breakable targets, missile damage, door teams, usables
+- cd17b5d |  | Show the Siege round's winner on the SJK scoreboard
+- a9e9950 |  | Revert "Show the Siege round's winner on the SJK scoreboard"
++ 18/10/2026 | SJK #110 | Show CTF flag carriers and team scores on screen
+- 0fe872a |  | CTF: live flag carriers on the scoreboard and HUD, carrier glow
++ 18/10/2026 | SJK #153 | Show the Siege round's winner on the SJK scoreboard
+- 515331d |  | Show the Siege round's winner on the SJK scoreboard
+- 6358f36 |  | Siege scoreboard: winner large in the middle, no team scores
+- d8bc828 |  | Review fixes: siege result in sjk-client, no stale or overflowing round
+- 01e1c96 |  | Team games tell their result on the SJK scoreboard at the intermission
++ 17/10/2026 | SJK #113 | Fix/ctf team saber colors
+- 8dd27a5 |  | Draw only red or blue sabers in capture the flag
+- f9ad921 |  | Show team saber colours on the player card in capture the flag
+- fc623b3 |  | Draw team saber colours in siege too
++ 17/10/2026 | SJK #114 | Complete cfg file names after exec with Tab
+- fb81e7a |  | Complete cfg file names after exec with Tab

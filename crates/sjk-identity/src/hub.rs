@@ -9,11 +9,11 @@ use crate::logs::{
     LogRequests, LogUpload,
 };
 use crate::report::{BugReport, PlayerReport, WorldNote};
-use crate::staff::{StaffAnswer, StaffQuery, StaffRequest};
+use crate::staff::{ChatBanRows, StaffAnswer, StaffQuery, StaffRequest};
 use crate::vitals::Sharing;
 use crate::wire::{
     Achievement, Achievements, Feed, HolocronState, Look, OpenAnswer, Players, Presence, Profile,
-    SharedVitals, authorization,
+    RelayBatch, SharedVitals, authorization,
 };
 use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
@@ -94,6 +94,39 @@ pub trait Hub: Send {
             "this hub client does not send staff requests".to_owned(),
         ))
     }
+    /// The maps the hub keeps edits for (`PROTOCOL.md`, "Map edits").
+    fn map_edits(
+        &mut self,
+        _identity: &Identity,
+    ) -> Result<Vec<crate::map_edits::Entry>, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not read map edits".to_owned(),
+        ))
+    }
+    /// One map's edits for one BSP checksum, as the hub answers them.
+    fn map_edits_doc(
+        &mut self,
+        _identity: &Identity,
+        _map: &str,
+        _checksum: i32,
+    ) -> Result<Value, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not read map edits".to_owned(),
+        ))
+    }
+    /// Staff: keep `edits` for `map` and `checksum` (none deletes them), answering the
+    /// hub's new revision (0 when deleted).
+    fn publish_map_edits(
+        &mut self,
+        _identity: &Identity,
+        _map: &str,
+        _checksum: i32,
+        _edits: &Value,
+    ) -> Result<u64, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not send map edits".to_owned(),
+        ))
+    }
     /// A staff query signed by the identity (`PROTOCOL.md`, "Log requests"): asking a
     /// player for their logs, reading the requests and their logs, and crash reports.
     fn staff_query(
@@ -145,13 +178,14 @@ pub trait Hub: Send {
         ))
     }
     /// Play `emote` for the slot the identity claims on `server`, in step with the
-    /// player in slot `sync` when it is set.
+    /// player in slot `sync` when it is set, without its sound when `quiet`.
     fn emote(
         &mut self,
         _identity: &Identity,
         _server: &str,
         _emote: &str,
         _sync: Option<u8>,
+        _quiet: bool,
     ) -> Result<u64, HubError> {
         Err(HubError::Protocol(
             "this hub client does not send emotes".to_owned(),
@@ -183,6 +217,49 @@ pub trait Hub: Send {
     ) -> Result<u64, HubError> {
         Err(HubError::Protocol(
             "this hub client does not send toy events".to_owned(),
+        ))
+    }
+    /// Relay `event` of the identity's toy `toy` to the player in slot `target` of
+    /// `server` at once (`PROTOCOL.md`, "Toy relay"); the hub answers with its relay id.
+    fn relay_send(
+        &mut self,
+        _identity: &Identity,
+        _server: &str,
+        _toy: &str,
+        _event: &str,
+        _target: u8,
+    ) -> Result<u64, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not relay toy events".to_owned(),
+        ))
+    }
+    /// The relayed toy events after `after` for the identity's own slot on `server`,
+    /// waiting up to `wait` seconds for one (`PROTOCOL.md`, "Toy relay"); with
+    /// `whispers`, also the encrypted whispers sealed to the identity ("Whispers").
+    fn relay_read(
+        &mut self,
+        _identity: &Identity,
+        _server: &str,
+        _after: u64,
+        _wait: u64,
+        _whispers: bool,
+    ) -> Result<RelayBatch, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not read the toy relay".to_owned(),
+        ))
+    }
+    /// Send the encrypted whisper `boxed`, sealed to the key `to`, to the player in slot
+    /// `target` of `server` (`PROTOCOL.md`, "Whispers"); the hub answers with its id.
+    fn whisper_send(
+        &mut self,
+        _identity: &Identity,
+        _server: &str,
+        _target: u8,
+        _to: &str,
+        _boxed: &str,
+    ) -> Result<u64, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not send whispers".to_owned(),
         ))
     }
     /// Tell the hub which player models the game has (`PROTOCOL.md`, "Models"); the
@@ -234,6 +311,44 @@ pub trait Hub: Send {
     ) -> Result<Feed, HubError> {
         Err(HubError::Protocol(
             "this hub client does not read the feed".to_owned(),
+        ))
+    }
+    /// The SJK team's newest announcements (`GET /v1/announcements`, 25/10/2026), newest
+    /// first.
+    fn announcements(
+        &mut self,
+        _identity: &Identity,
+    ) -> Result<Vec<crate::news::Announcement>, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not read announcements".to_owned(),
+        ))
+    }
+    /// The person's rewards and the newest reward rounds (`GET /v1/rewards`, 25/10/2026).
+    fn rewards(&mut self, _identity: &Identity) -> Result<crate::news::Rewards, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not read rewards".to_owned(),
+        ))
+    }
+    /// Claim reward `id` (`POST /v1/rewards/claim`, 25/10/2026): the hub grants it and
+    /// answers the person's profile and rewards after it.
+    fn claim_reward(
+        &mut self,
+        _identity: &Identity,
+        _id: u64,
+    ) -> Result<crate::news::ClaimAnswer, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not claim rewards".to_owned(),
+        ))
+    }
+    /// The creator's announcement (`POST /v1/creator/announce`, 25/10/2026), checked by
+    /// [`crate::news::check`] first; the hub answers it as stored.
+    fn announce(
+        &mut self,
+        _identity: &Identity,
+        _request: &crate::news::AnnounceRequest,
+    ) -> Result<crate::news::Announcement, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not announce".to_owned(),
         ))
     }
     /// Make `png` (already cropped and scaled, `crate::avatar`) the identity's picture;
@@ -319,10 +434,114 @@ pub trait Hub: Send {
             "this hub client does not reveal cards".to_owned(),
         ))
     }
+
+    /// Shatter one copy of shader `id` into kyber shards (`POST /v1/unlocks/shatter`,
+    /// 17/10/2026): never the last copy unless `last` (21/10/2026, hubs whose economy says
+    /// `shatter_last`).
+    fn shatter_unlock(
+        &mut self,
+        _identity: &Identity,
+        _id: &str,
+        _last: bool,
+    ) -> Result<crate::wire::ShatterAnswer, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not shatter shaders".to_owned(),
+        ))
+    }
+
+    /// Shatter every duplicate, one copy of each kept (`POST
+    /// /v1/unlocks/shatter-duplicates`, 21/10/2026).
+    fn shatter_duplicates(
+        &mut self,
+        _identity: &Identity,
+    ) -> Result<crate::wire::ShatterAllAnswer, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not shatter shaders".to_owned(),
+        ))
+    }
+
+    /// Craft shader `id` with kyber shards (`POST /v1/unlocks/craft`, 17/10/2026).
+    fn craft_unlock(
+        &mut self,
+        _identity: &Identity,
+        _id: &str,
+    ) -> Result<crate::wire::CraftAnswer, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not craft shaders".to_owned(),
+        ))
+    }
+
+    /// The shop's offers of the day (`GET /v1/shop`, 17/10/2026).
+    fn shop(&mut self, _identity: &Identity) -> Result<crate::wire::ShopDay, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not read the shop".to_owned(),
+        ))
+    }
+
+    /// Buy today's offer `id` (`POST /v1/shop/buy`, 17/10/2026).
+    fn buy_offer(
+        &mut self,
+        _identity: &Identity,
+        _id: &str,
+    ) -> Result<crate::wire::BuyAnswer, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not buy".to_owned(),
+        ))
+    }
+
+    /// Buy a holocron of tier `tier` with credits (`POST /v1/holocrons/buy`, 17/10/2026).
+    fn buy_holocron(
+        &mut self,
+        _identity: &Identity,
+        _tier: &str,
+    ) -> Result<crate::wire::HolocronBuyAnswer, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not buy holocrons".to_owned(),
+        ))
+    }
+
+    /// The player's trades, what they traded today and the rules (`GET /v1/trades`,
+    /// 22/10/2026).
+    fn trades(&mut self, _identity: &Identity) -> Result<crate::trades::TradesAnswer, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not trade".to_owned(),
+        ))
+    }
+
+    /// Ask the player whose hub id is `to` to trade (`POST /v1/trades`, 22/10/2026).
+    fn trade_ask(
+        &mut self,
+        _identity: &Identity,
+        _to: &str,
+    ) -> Result<crate::trades::TradeAnswer, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not trade".to_owned(),
+        ))
+    }
+
+    /// Take step `step` in trade `id` (`POST /v1/trades/<id>/<action>`, 22/10/2026).
+    fn trade_step(
+        &mut self,
+        _identity: &Identity,
+        _id: i64,
+        _step: &crate::trades::TradeStep,
+    ) -> Result<crate::trades::TradeAnswer, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not trade".to_owned(),
+        ))
+    }
     /// Withdraw the identity's claim on `server`.
     fn release(&mut self, identity: &Identity, server: &str) -> Result<(), HubError>;
     /// The live claims on `server`.
     fn presence(&mut self, server: &str) -> Result<Vec<Presence>, HubError>;
+    /// The live claims on `server` and the players staff blocked there for everyone
+    /// (`PROTOCOL.md`, "Map blocks"); hubs before map blocks give none.
+    fn presence_with_blocks(
+        &mut self,
+        server: &str,
+    ) -> Result<(Vec<Presence>, Vec<crate::MapBlock>), HubError> {
+        self.presence(server).map(|players| (players, Vec::new()))
+    }
     /// Send a world note signed by the identity; the hub answers with its number.
     fn note(&mut self, _identity: &Identity, _note: &WorldNote) -> Result<i64, HubError> {
         Err(HubError::Protocol(
@@ -346,12 +565,6 @@ pub trait Hub: Send {
     fn settings_usage(&mut self, _body: &Value) -> Result<u64, HubError> {
         Err(HubError::Protocol(
             "this hub client does not send settings usage".to_owned(),
-        ))
-    }
-    /// The donation goal (`PROTOCOL.md`, "Donations"), asked without a signature.
-    fn donation_goal(&mut self) -> Result<crate::DonationGoal, HubError> {
-        Err(HubError::Protocol(
-            "this hub client does not read the donation goal".to_owned(),
         ))
     }
     /// Send a crash report (already [`CrashReport::fitted`]) signed by the identity;
@@ -759,6 +972,16 @@ fn player_report_body(report: &PlayerReport) -> Value {
     if let Some(time) = report.level_time {
         body["level_time"] = json!(time);
     }
+    if let Some(whisper) = &report.whisper {
+        use base64::Engine;
+        body["whisper"] = json!({
+            "from": whisper.from,
+            "time": whisper.time,
+            "text": whisper.text,
+            "signature": base64::engine::general_purpose::URL_SAFE_NO_PAD
+                .encode(whisper.signature),
+        });
+    }
     body
 }
 
@@ -801,14 +1024,35 @@ fn feed_path(after: u64, server: Option<&str>, wait: u64) -> String {
 /// `POST /v1/look`'s body: exactly the server and the look's fields. `saber_off` goes only
 /// when it names an option (and with a blade skin): a hub from before 11/10/2026 refuses
 /// the field, so a look with every part on stays as it was. `toys` goes only when a toy
-/// is out, for the same reason (hubs before 16/10/2026).
+/// is out, for the same reason (hubs before 16/10/2026). `saber2` goes only when the
+/// second saber wears another skin than the first, and `saber2_off` only when it names an
+/// option of that skin (hubs before 21/10/2026). `saber_sounds` goes only when the player
+/// chose sounds apart from their blade (hubs before it refuse the field, and the service
+/// then sends the look without it). `saber_on` and `saber2_on` go only when they name an
+/// extra of their saber's skin (hubs before 26/10/2026 refuse them, and the service then
+/// sends the look without them).
 fn look_body(server: &str, look: &Look) -> Value {
     let mut body = json!({ "server": server, "saber": look.saber, "illuminate": look.illuminate });
     if !look.saber.is_empty() && !look.saber_off.is_empty() {
         body["saber_off"] = json!(look.saber_off);
     }
+    if !look.saber.is_empty() && !look.saber_on.is_empty() {
+        body["saber_on"] = json!(look.saber_on);
+    }
     if !look.toys.is_empty() {
         body["toys"] = json!(look.toys);
+    }
+    if let Some(saber2) = look.saber2.as_ref() {
+        body["saber2"] = json!(saber2);
+        if !saber2.is_empty() && !look.saber2_off.is_empty() {
+            body["saber2_off"] = json!(look.saber2_off);
+        }
+        if !saber2.is_empty() && !look.saber2_on.is_empty() {
+            body["saber2_on"] = json!(look.saber2_on);
+        }
+    }
+    if !look.saber_sounds.is_empty() {
+        body["saber_sounds"] = json!(look.saber_sounds);
     }
     body
 }
@@ -824,6 +1068,21 @@ fn claim_body(server: &str, slot: u8, name: &str, active: bool) -> Value {
 }
 
 /// `POST /v1/holocrons/open`'s path and body.
+/// The body of a creator's announcement (`PROTOCOL.md`, "Announcements"): `version` only
+/// with a release.
+fn announce_body(request: &crate::news::AnnounceRequest) -> Value {
+    if request.release {
+        json!({
+            "kind": "release",
+            "title": request.title,
+            "text": request.text,
+            "version": request.version,
+        })
+    } else {
+        json!({ "kind": "news", "title": request.title, "text": request.text })
+    }
+}
+
 fn open_call(ids: &[u64]) -> (&'static str, Value) {
     ("/v1/holocrons/open", json!({ "ids": ids }))
 }
@@ -866,6 +1125,20 @@ fn staff_call(request: &StaffRequest) -> (&'static str, Value) {
             json!({ "key_id": key_id, "muted": muted }),
         ),
         StaffRequest::ChatUnban { key_id } => ("/v1/staff/chat-unban", json!({ "key_id": key_id })),
+        StaffRequest::MapBlock {
+            server,
+            map,
+            serverid,
+            slot,
+            name,
+            blocked,
+        } => (
+            "/v1/staff/map-block",
+            json!({
+                "server": server, "map": map, "serverid": serverid,
+                "slot": slot, "name": name, "blocked": blocked
+            }),
+        ),
         StaffRequest::AvatarRemove { key_id } => {
             ("/v1/staff/avatar-remove", json!({ "key_id": key_id }))
         }
@@ -885,10 +1158,30 @@ fn staff_call(request: &StaffRequest) -> (&'static str, Value) {
             "/v1/staff/verify",
             json!({ "key_id": key_id, "verified": verified }),
         ),
+        StaffRequest::SetStaff { key_id, staff } => (
+            "/v1/staff/staff",
+            json!({ "key_id": key_id, "staff": staff }),
+        ),
         StaffRequest::Merge { key_id, from } => {
             ("/v1/staff/merge", json!({ "key_id": key_id, "from": from }))
         }
         StaffRequest::Unlink { key_id } => ("/v1/staff/unlink", json!({ "key_id": key_id })),
+        StaffRequest::Credits {
+            key_id,
+            delta,
+            note,
+        } => (
+            "/v1/staff/credits",
+            json!({ "key_id": key_id, "delta": delta, "note": note }),
+        ),
+        StaffRequest::Shards {
+            key_id,
+            delta,
+            note,
+        } => (
+            "/v1/staff/shards",
+            json!({ "key_id": key_id, "delta": delta, "note": note }),
+        ),
     }
 }
 
@@ -904,6 +1197,7 @@ fn staff_query_call(query: &StaffQuery) -> (&'static str, Value) {
         StaffQuery::CrashGroups => ("/v1/staff/crash-groups", json!({})),
         StaffQuery::Crashes(signature) => ("/v1/staff/crashes", json!({ "signature": signature })),
         StaffQuery::Crash(id) => ("/v1/staff/crash", json!({ "id": id })),
+        StaffQuery::ChatBans => ("/v1/staff/chat-bans", json!({})),
     }
 }
 
@@ -940,12 +1234,6 @@ impl Hub for HttpHub {
     fn settings_usage(&mut self, body: &Value) -> Result<u64, HubError> {
         let answer = self.send(None, "POST", "/v1/usage/settings", Some(body.clone()))?;
         Ok(answer["stored"].as_u64().unwrap_or(0))
-    }
-
-    fn donation_goal(&mut self) -> Result<crate::DonationGoal, HubError> {
-        let answer = self.send(None, "GET", "/v1/donations/goal", None)?;
-        crate::DonationGoal::parse(&answer)
-            .ok_or_else(|| HubError::Protocol("the donation goal answer has no goal".to_owned()))
     }
 
     fn crash(&mut self, identity: &Identity, report: &CrashReport) -> Result<i64, HubError> {
@@ -1041,7 +1329,8 @@ impl Hub for HttpHub {
             // The chat's moderation answers `{}`.
             StaffRequest::ChatDelete { .. }
             | StaffRequest::ChatMute { .. }
-            | StaffRequest::ChatUnban { .. } => Ok(Vec::new()),
+            | StaffRequest::ChatUnban { .. }
+            | StaffRequest::MapBlock { .. } => Ok(Vec::new()),
             _ => Ok(vec![parse(answer)?]),
         }
     }
@@ -1076,6 +1365,7 @@ impl Hub for HttpHub {
                 StaffAnswer::Crashes(parse::<CrashSummaries>(answer)?.crashes)
             }
             StaffQuery::Crash(_) => StaffAnswer::Crash(Box::new(parse::<CrashDetail>(answer)?)),
+            StaffQuery::ChatBans => StaffAnswer::ChatBans(parse::<ChatBanRows>(answer)?.bans),
         })
     }
 
@@ -1171,6 +1461,143 @@ impl Hub for HttpHub {
         parse(self.send(Some(identity), "POST", "/v1/cards/reveal", Some(json!({})))?)
     }
 
+    fn shatter_unlock(
+        &mut self,
+        identity: &Identity,
+        id: &str,
+        last: bool,
+    ) -> Result<crate::wire::ShatterAnswer, HubError> {
+        // `last` only when asked: hubs before 21/10/2026 refuse a field they do not know.
+        let body = if last {
+            json!({ "id": id, "last": true })
+        } else {
+            json!({ "id": id })
+        };
+        parse(self.send(Some(identity), "POST", "/v1/unlocks/shatter", Some(body))?)
+    }
+
+    fn shatter_duplicates(
+        &mut self,
+        identity: &Identity,
+    ) -> Result<crate::wire::ShatterAllAnswer, HubError> {
+        parse(self.send(
+            Some(identity),
+            "POST",
+            "/v1/unlocks/shatter-duplicates",
+            Some(json!({})),
+        )?)
+    }
+
+    fn craft_unlock(
+        &mut self,
+        identity: &Identity,
+        id: &str,
+    ) -> Result<crate::wire::CraftAnswer, HubError> {
+        parse(self.send(
+            Some(identity),
+            "POST",
+            "/v1/unlocks/craft",
+            Some(json!({ "id": id })),
+        )?)
+    }
+
+    fn shop(&mut self, identity: &Identity) -> Result<crate::wire::ShopDay, HubError> {
+        parse(self.send(Some(identity), "GET", "/v1/shop", None)?)
+    }
+
+    fn announcements(
+        &mut self,
+        identity: &Identity,
+    ) -> Result<Vec<crate::news::Announcement>, HubError> {
+        let answer: crate::news::Announcements =
+            parse(self.send(Some(identity), "GET", "/v1/announcements", None)?)?;
+        Ok(answer.announcements)
+    }
+
+    fn rewards(&mut self, identity: &Identity) -> Result<crate::news::Rewards, HubError> {
+        parse(self.send(Some(identity), "GET", "/v1/rewards", None)?)
+    }
+
+    fn claim_reward(
+        &mut self,
+        identity: &Identity,
+        id: u64,
+    ) -> Result<crate::news::ClaimAnswer, HubError> {
+        parse(self.send(
+            Some(identity),
+            "POST",
+            "/v1/rewards/claim",
+            Some(json!({ "id": id })),
+        )?)
+    }
+
+    fn announce(
+        &mut self,
+        identity: &Identity,
+        request: &crate::news::AnnounceRequest,
+    ) -> Result<crate::news::Announcement, HubError> {
+        parse(self.send(
+            Some(identity),
+            "POST",
+            "/v1/creator/announce",
+            Some(announce_body(request)),
+        )?)
+    }
+
+    fn buy_offer(
+        &mut self,
+        identity: &Identity,
+        id: &str,
+    ) -> Result<crate::wire::BuyAnswer, HubError> {
+        parse(self.send(
+            Some(identity),
+            "POST",
+            "/v1/shop/buy",
+            Some(json!({ "id": id })),
+        )?)
+    }
+
+    fn buy_holocron(
+        &mut self,
+        identity: &Identity,
+        tier: &str,
+    ) -> Result<crate::wire::HolocronBuyAnswer, HubError> {
+        parse(self.send(
+            Some(identity),
+            "POST",
+            "/v1/holocrons/buy",
+            Some(json!({ "tier": tier })),
+        )?)
+    }
+
+    fn trades(&mut self, identity: &Identity) -> Result<crate::trades::TradesAnswer, HubError> {
+        parse(self.send(Some(identity), "GET", "/v1/trades", None)?)
+    }
+
+    fn trade_ask(
+        &mut self,
+        identity: &Identity,
+        to: &str,
+    ) -> Result<crate::trades::TradeAnswer, HubError> {
+        parse(self.send(
+            Some(identity),
+            "POST",
+            "/v1/trades",
+            Some(json!({ "to": to })),
+        )?)
+    }
+
+    fn trade_step(
+        &mut self,
+        identity: &Identity,
+        id: i64,
+        step: &crate::trades::TradeStep,
+    ) -> Result<crate::trades::TradeAnswer, HubError> {
+        let (action, body) = step.call();
+        let path = format!("/v1/trades/{id}/{action}");
+        parse(self.send(Some(identity), "POST", &path, Some(body))?)
+    }
+
     fn release(&mut self, identity: &Identity, server: &str) -> Result<(), HubError> {
         self.send(
             Some(identity),
@@ -1185,6 +1612,18 @@ impl Hub for HttpHub {
         let query = encode_server(server);
         let answer = self.send(None, "GET", &format!("/v1/presence?server={query}"), None)?;
         parse(answer["players"].clone())
+    }
+
+    fn presence_with_blocks(
+        &mut self,
+        server: &str,
+    ) -> Result<(Vec<Presence>, Vec<crate::MapBlock>), HubError> {
+        let query = encode_server(server);
+        let answer = self.send(None, "GET", &format!("/v1/presence?server={query}"), None)?;
+        let players = parse(answer["players"].clone())?;
+        // A hub from before map blocks leaves them out; a malformed list is none.
+        let blocks = serde_json::from_value(answer["blocks"].clone()).unwrap_or_default();
+        Ok((players, blocks))
     }
 
     fn set_models(&mut self, identity: &Identity, models: &[String]) -> Result<u64, HubError> {
@@ -1242,10 +1681,14 @@ impl Hub for HttpHub {
         server: &str,
         emote: &str,
         sync: Option<u8>,
+        quiet: bool,
     ) -> Result<u64, HubError> {
         let mut body = json!({ "server": server, "emote": emote });
         if let Some(sync) = sync {
             body["sync"] = json!(sync);
+        }
+        if quiet {
+            body["quiet"] = json!(true);
         }
         let answer = self.send(Some(identity), "POST", "/v1/emote", Some(body))?;
         answer["id"]
@@ -1282,6 +1725,52 @@ impl Hub for HttpHub {
             .ok_or_else(|| HubError::Protocol("the toy event answer has no id".to_owned()))
     }
 
+    fn relay_send(
+        &mut self,
+        identity: &Identity,
+        server: &str,
+        toy: &str,
+        event: &str,
+        target: u8,
+    ) -> Result<u64, HubError> {
+        let body = json!({ "server": server, "toy": toy, "event": event, "target": target });
+        let answer = self.send(Some(identity), "POST", "/v1/relay", Some(body))?;
+        answer["id"]
+            .as_u64()
+            .ok_or_else(|| HubError::Protocol("the relay answer has no id".to_owned()))
+    }
+
+    fn relay_read(
+        &mut self,
+        identity: &Identity,
+        server: &str,
+        after: u64,
+        wait: u64,
+        whispers: bool,
+    ) -> Result<RelayBatch, HubError> {
+        let path = format!(
+            "/v1/relay?after={after}&wait={wait}&server={}{}",
+            encode_server(server),
+            if whispers { "&whispers=1" } else { "" }
+        );
+        parse(self.send(Some(identity), "GET", &path, None)?)
+    }
+
+    fn whisper_send(
+        &mut self,
+        identity: &Identity,
+        server: &str,
+        target: u8,
+        to: &str,
+        boxed: &str,
+    ) -> Result<u64, HubError> {
+        let body = json!({ "server": server, "target": target, "to": to, "box": boxed });
+        let answer = self.send(Some(identity), "POST", "/v1/whisper", Some(body))?;
+        answer["id"]
+            .as_u64()
+            .ok_or_else(|| HubError::Protocol("the whisper answer has no id".to_owned()))
+    }
+
     fn vitals(
         &mut self,
         identity: &Identity,
@@ -1311,6 +1800,42 @@ impl Hub for HttpHub {
 
     fn assets(&mut self, identity: &Identity) -> Result<Vec<Pack>, HubError> {
         crate::assets::manifest(self.send(Some(identity), "GET", "/v1/assets", None)?)
+    }
+
+    fn map_edits(&mut self, identity: &Identity) -> Result<Vec<crate::map_edits::Entry>, HubError> {
+        crate::map_edits::list(self.send(Some(identity), "GET", "/v1/map-edits", None)?)
+    }
+
+    fn map_edits_doc(
+        &mut self,
+        identity: &Identity,
+        map: &str,
+        checksum: i32,
+    ) -> Result<Value, HubError> {
+        if !crate::map_edits::valid_map(map) {
+            return Err(HubError::Protocol(format!("not a map name: {map}")));
+        }
+        let path = format!("/v1/map-edits/doc?map={map}&checksum={checksum}");
+        self.send(Some(identity), "GET", &path, None)
+    }
+
+    fn publish_map_edits(
+        &mut self,
+        identity: &Identity,
+        map: &str,
+        checksum: i32,
+        edits: &Value,
+    ) -> Result<u64, HubError> {
+        let answer = self.send(
+            Some(identity),
+            "POST",
+            "/v1/staff/map-edits",
+            Some(json!({ "map": map, "checksum": checksum, "edits": edits })),
+        )?;
+        answer
+            .get("revision")
+            .and_then(Value::as_u64)
+            .ok_or_else(|| HubError::Protocol("the map edits answer has no revision".to_owned()))
     }
 
     fn asset(&mut self, identity: &Identity, name: &str) -> Result<Vec<u8>, HubError> {
@@ -1391,6 +1916,21 @@ mod tests {
         assert_eq!(body["target_key_id"], "0123456789abcdef");
         assert_eq!(body["server_name"], "^4JoF");
         assert_eq!(body["name"], "^2Sol");
+        let whispered = PlayerReport {
+            whisper: Some(crate::ReportedWhisper {
+                from: "a2V5".to_owned(),
+                time: 1_000,
+                text: "buy credits".to_owned(),
+                signature: [0xff; 64],
+            }),
+            ..named
+        };
+        let body = player_report_body(&whispered);
+        assert_eq!(
+            body["whisper"],
+            json!({"from": "a2V5", "time": 1_000, "text": "buy credits",
+                   "signature": "_".repeat(85) + "w"})
+        );
     }
 
     #[test]
@@ -1476,6 +2016,33 @@ mod tests {
     }
 
     #[test]
+    fn a_staff_map_block_sends_the_protocols_fields() {
+        assert_eq!(
+            staff_call(&StaffRequest::MapBlock {
+                server: "1.2.3.4:29070".into(),
+                map: "mp/ffa3".into(),
+                serverid: 77,
+                slot: 5,
+                name: "^1Troll".into(),
+                blocked: true,
+            }),
+            (
+                "/v1/staff/map-block",
+                json!({"server": "1.2.3.4:29070", "map": "mp/ffa3", "serverid": 77,
+                       "slot": 5, "name": "^1Troll", "blocked": true})
+            )
+        );
+        let block: crate::MapBlock = serde_json::from_value(
+            json!({"map": "mp/ffa3", "serverid": 77, "slot": 5, "name": "^1Troll", "at": 9}),
+        )
+        .unwrap();
+        assert_eq!(
+            (block.slot, block.serverid, block.name.as_str()),
+            (5, 77, "^1Troll")
+        );
+    }
+
+    #[test]
     fn staff_chat_requests_send_the_protocols_fields() {
         assert_eq!(
             staff_call(&StaffRequest::ChatDelete { id: 12 }),
@@ -1532,6 +2099,11 @@ mod tests {
             illuminate: true,
             saber_off: Vec::new(),
             toys: Vec::new(),
+            saber2: None,
+            saber2_off: Vec::new(),
+            saber_on: Vec::new(),
+            saber2_on: Vec::new(),
+            saber_sounds: String::new(),
         };
         assert_eq!(
             look_body("1.2.3.4:29070", &look),
@@ -1569,6 +2141,87 @@ mod tests {
             look_body("1.2.3.4:29070", &boxed),
             json!({"server": "1.2.3.4:29070", "saber": "", "illuminate": false,
                 "toys": ["cardboard_box"]})
+        );
+        // The extras switched on go only when there are some, each with its saber's skin.
+        let extras = Look {
+            saber_on: vec!["flare_trail".to_owned()],
+            saber2: Some(String::new()),
+            saber2_on: vec!["heat_wake".to_owned()],
+            ..look.clone()
+        };
+        assert_eq!(
+            look_body("1.2.3.4:29070", &extras),
+            json!({"server": "1.2.3.4:29070", "saber": "saber_sun", "illuminate": true,
+                "saber_on": ["flare_trail"], "saber2": ""})
+        );
+        assert!(
+            look_body(
+                "1.2.3.4:29070",
+                &Look {
+                    saber: String::new(),
+                    ..extras
+                }
+            )
+            .get("saber_on")
+            .is_none()
+        );
+        // The second saber's skin goes only when it differs, its options only with a skin.
+        let dual = Look {
+            saber2: Some("saber_glitch".to_owned()),
+            saber2_off: vec!["haze".to_owned()],
+            saber_on: Vec::new(),
+            saber2_on: Vec::new(),
+            ..look.clone()
+        };
+        assert_eq!(
+            look_body("1.2.3.4:29070", &dual),
+            json!({"server": "1.2.3.4:29070", "saber": "saber_sun", "illuminate": true,
+                "saber2": "saber_glitch", "saber2_off": ["haze"]})
+        );
+        let stock_second = Look {
+            saber2: Some(String::new()),
+            ..dual
+        };
+        assert_eq!(
+            look_body("1.2.3.4:29070", &stock_second),
+            json!({"server": "1.2.3.4:29070", "saber": "saber_sun", "illuminate": true,
+                "saber2": ""})
+        );
+        // The sounds chosen apart from the blade go only when chosen, stock or a skin's.
+        for sounds in ["stock", "saber_void"] {
+            let chosen = Look {
+                saber_sounds: sounds.to_owned(),
+                ..look.clone()
+            };
+            assert_eq!(
+                look_body("1.2.3.4:29070", &chosen),
+                json!({"server": "1.2.3.4:29070", "saber": "saber_sun", "illuminate": true,
+                    "saber_sounds": sounds})
+            );
+        }
+    }
+
+    #[test]
+    fn an_announcement_sends_the_protocols_fields() {
+        let news = crate::news::AnnounceRequest {
+            release: false,
+            title: "Hello".into(),
+            text: "Line\n\n- point".into(),
+            version: String::new(),
+        };
+        assert_eq!(
+            announce_body(&news),
+            json!({"kind": "news", "title": "Hello", "text": "Line\n\n- point"})
+        );
+        let release = crate::news::AnnounceRequest {
+            release: true,
+            version: "2026.1025.1".into(),
+            ..news
+        };
+        assert_eq!(
+            announce_body(&release),
+            json!({"kind": "release", "title": "Hello", "text": "Line\n\n- point",
+                "version": "2026.1025.1"})
         );
     }
 
@@ -1695,10 +2348,46 @@ mod tests {
             )
         );
         assert_eq!(
+            staff_call(&StaffRequest::SetStaff {
+                key_id: "0123456789abcdef".into(),
+                staff: false,
+            }),
+            (
+                "/v1/staff/staff",
+                json!({"key_id": "0123456789abcdef", "staff": false})
+            )
+        );
+        assert_eq!(
             staff_call(&StaffRequest::Unlink {
                 key_id: "fedcba9876543210".into(),
             }),
             ("/v1/staff/unlink", json!({"key_id": "fedcba9876543210"}))
+        );
+        assert_eq!(
+            staff_call(&StaffRequest::Credits {
+                key_id: "0123456789abcdef".into(),
+                delta: -20,
+                note: "refund".into(),
+            }),
+            (
+                "/v1/staff/credits",
+                json!({"key_id": "0123456789abcdef", "delta": -20, "note": "refund"})
+            )
+        );
+        assert_eq!(
+            staff_call(&StaffRequest::Shards {
+                key_id: "0123456789abcdef".into(),
+                delta: 15,
+                note: String::new(),
+            }),
+            (
+                "/v1/staff/shards",
+                json!({"key_id": "0123456789abcdef", "delta": 15, "note": ""})
+            )
+        );
+        assert_eq!(
+            staff_query_call(&StaffQuery::ChatBans),
+            ("/v1/staff/chat-bans", json!({}))
         );
     }
 

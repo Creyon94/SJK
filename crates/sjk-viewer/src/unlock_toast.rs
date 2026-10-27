@@ -11,11 +11,13 @@
 //!   came from, and where to see it: the large pop-up still waits for the game menu, and
 //!   takes the cards of what it shows away as it opens ([`UnlockToast::withdraw`]);
 //! - a newer SJK release the update check found (`update.rs`), once a session, with
-//!   SJK's emblem, "Update available", the version and where to install it, in the SJK
+//!   SJK's emblem, "Update available", the version and "Click to install", in the SJK
 //!   UI's holo blue and without the sound; the Update page opening takes it away.
 //!
-//! Unlike the large pop-ups it is not modal: it takes no input and pauses nothing, over
-//! play as over the menus. It enters in [`ENTER`] seconds, sliding down and growing to
+//! Unlike the large pop-ups it is not modal: it pauses nothing, over play as over the
+//! menus, and takes no keys. The one input it takes is a click on an update's card while
+//! the pointer is free ([`crate::GpuState::update_card_pointer`]), which starts the
+//! download and opens the Update page. It enters in [`ENTER`] seconds, sliding down and growing to
 //! its size while a ring sweeps round the medallion, light bursts from it (a glow, a
 //! ring of light, sparks) and a glint crosses the card; it holds [`HOLD`] seconds and
 //! fades out in [`LEAVE`]. The light is gold, a holocron's in its tier's colour. Several
@@ -39,7 +41,7 @@ use crate::menu::sjk::{DISPLAY_CENTRE, color, text};
 use crate::menu_widgets::{MenuCanvas, TextFamily};
 use crate::text::{TextStyle, TextVertex, UiFont};
 use crate::update::Version;
-use sjk_ui::{Color, DrawCommand, FontWeight, Gradient, Rect, TextAlign};
+use sjk_ui::{Color, DrawCommand, FontWeight, Gradient, InputEvent, Rect, TextAlign, Vec2};
 use std::collections::VecDeque;
 use std::f32::consts::{FRAC_PI_2, PI, TAU};
 use std::fmt;
@@ -53,8 +55,10 @@ pub(crate) const SOUND_CVAR: &str = "cg_achievementSound";
 pub(crate) const AT_ONCE: usize = 3;
 /// Where a medal's or a holocron's card says it is shown.
 pub(crate) const MENU_HINT: &str = "Open the game menu to see it";
-/// Where the update card says the update is installed.
-pub(crate) const UPDATE_HINT: &str = "Main menu > Update";
+/// What a click on the update card does ([`UnlockToast::update_card_at`]).
+pub(crate) const UPDATE_HINT: &str = "Click to install";
+/// The same for a folder that cannot update itself: the click opens the release page.
+pub(crate) const UPDATE_MANUAL_HINT: &str = "Click for its page";
 /// The console command that shows the update card for a made-up release.
 pub(crate) const UPDATE_COMMAND: &str = "debug_update";
 /// Its line in the command list and browser.
@@ -189,26 +193,32 @@ fn ease_out_back(x: f32) -> f32 {
 /// What a card announces.
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum Unlock {
-    /// An achievement reached its goal.
-    Achievement(&'static Kind),
+    /// An achievement unlocked; `crystal` when the hub unlocked it, so its kyber crystal
+    /// comes (without a hub it unlocks on this client and brings none).
+    Achievement { kind: &'static Kind, crystal: bool },
     /// The SJK team gave a medal, `count` times in all for a repeatable one.
     Medal { medal: Medal, count: u32 },
-    /// A holocron dropped, numbered `id` at the hub; `gift` when staff gave it.
+    /// A holocron dropped, numbered `id` at the hub; `gift` when staff gave it. A kyber
+    /// crystal ([`crate::kyber`]) arrives the same way, `earned` saying from what.
     Holocron {
         tier: &'static Tier,
         id: u64,
         gift: bool,
+        earned: Option<crate::kyber::Earned>,
     },
     /// A newer SJK release is out; `manual` when this folder cannot install it itself
     /// (the Update page then offers the release page).
     Update { version: Version, manual: bool },
+    /// A contributor reward (`official.rs`) waits for the player, numbered `id` at the
+    /// hub: the claim window waits for the game menu.
+    Reward { id: u64 },
 }
 
 impl Unlock {
     /// The same arrival: the same achievement, medal and count, or holocron.
     fn same(self, other: Self) -> bool {
         match (self, other) {
-            (Self::Achievement(a), Self::Achievement(b)) => a.id == b.id,
+            (Self::Achievement { kind: a, .. }, Self::Achievement { kind: b, .. }) => a.id == b.id,
             (
                 Self::Medal { medal, count },
                 Self::Medal {
@@ -218,6 +228,7 @@ impl Unlock {
             ) => medal == other && count == other_count,
             (Self::Holocron { id, .. }, Self::Holocron { id: other, .. }) => id == other,
             (Self::Update { version, .. }, Self::Update { version: other, .. }) => version == other,
+            (Self::Reward { id }, Self::Reward { id: other }) => id == other,
             _ => false,
         }
     }
@@ -225,10 +236,12 @@ impl Unlock {
     /// The capitals over the name.
     pub(crate) const fn kicker(self) -> &'static str {
         match self {
-            Self::Achievement(_) => "ACHIEVEMENT UNLOCKED",
+            Self::Achievement { .. } => "ACHIEVEMENT UNLOCKED",
             Self::Medal { .. } => "NEW MEDAL",
+            Self::Holocron { tier, .. } if tier.is_kyber() => "NEW KYBER CRYSTAL",
             Self::Holocron { .. } => "NEW HOLOCRON",
             Self::Update { .. } => "UPDATE AVAILABLE",
+            Self::Reward { .. } => "CONTRIBUTOR REWARD",
         }
     }
 
@@ -238,21 +251,29 @@ impl Unlock {
         !matches!(self, Self::Update { .. })
     }
 
-    /// The words at the kicker's line's end: an achievement's category, else where the
-    /// large pop-up or the Update page shows it.
-    pub(crate) const fn tag(self) -> &'static str {
+    /// The words at the kicker's line's end: the kyber crystal an achievement brings when
+    /// the hub unlocked it, else its category; else where the large pop-up or the Update
+    /// page shows it.
+    pub(crate) fn tag(self) -> &'static str {
         match self {
-            Self::Achievement(kind) => kind.category.name(),
+            Self::Achievement {
+                kind,
+                crystal: true,
+            } => crate::kyber::reward(kind.id)
+                .map_or(kind.category.name(), crate::kyber::reward_line),
+            Self::Achievement { kind, .. } => kind.category.name(),
             Self::Medal { .. } | Self::Holocron { .. } => MENU_HINT,
-            Self::Update { .. } => UPDATE_HINT,
+            Self::Update { manual: false, .. } => UPDATE_HINT,
+            Self::Update { manual: true, .. } => UPDATE_MANUAL_HINT,
+            Self::Reward { .. } => "From the SJK team",
         }
     }
 
     /// The colour the card is washed with from the left.
     fn hue(self) -> Color {
         match self {
-            Self::Achievement(kind) => tint(kind.category),
-            Self::Medal { .. } => color::GOLD,
+            Self::Achievement { kind, .. } => tint(kind.category),
+            Self::Medal { .. } | Self::Reward { .. } => color::GOLD,
             Self::Holocron { tier, .. } => tier.colour,
             Self::Update { .. } => color::HOLO,
         }
@@ -299,13 +320,14 @@ pub(crate) struct Name(Unlock);
 impl fmt::Display for Name {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.0 {
-            Unlock::Achievement(kind) => formatter.write_str(kind.name),
+            Unlock::Achievement { kind, .. } => formatter.write_str(&crate::terms::say(kind.name)),
             Unlock::Medal { medal, count } if count > 1 => {
                 write!(formatter, "{} x{count}", medal.name())
             }
             Unlock::Medal { medal, .. } => formatter.write_str(medal.name()),
-            Unlock::Holocron { tier, .. } => formatter.write_str(tier.name),
+            Unlock::Holocron { tier, .. } => formatter.write_str(&tier.title()),
             Unlock::Update { version, .. } => write!(formatter, "SJK {}", version.as_str()),
+            Unlock::Reward { .. } => formatter.write_str("Contributor reward waiting"),
         }
     }
 }
@@ -317,9 +339,18 @@ pub(crate) struct Description(Unlock);
 impl fmt::Display for Description {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.0 {
-            Unlock::Achievement(kind) => formatter.write_str(kind.description),
+            Unlock::Achievement { kind, .. } => {
+                formatter.write_str(&crate::terms::say(kind.description))
+            }
             Unlock::Medal { medal, .. } => formatter.write_str(medal.description()),
             Unlock::Holocron { gift: true, .. } => formatter.write_str("A gift from the SJK team"),
+            Unlock::Holocron {
+                earned: Some(earned),
+                ..
+            } => write!(formatter, "{earned}"),
+            Unlock::Holocron { tier, .. } if tier.is_kyber() => {
+                formatter.write_str(crate::kyber::ABOUT)
+            }
             Unlock::Holocron { tier, .. } => write!(
                 formatter,
                 "Found while playing: {} of drops are {}",
@@ -327,11 +358,12 @@ impl fmt::Display for Description {
                 tier.label
             ),
             Unlock::Update { manual: false, .. } => {
-                formatter.write_str("Install it there; it starts when SJK restarts")
+                formatter.write_str("Downloads now; it starts when SJK restarts")
             }
             Unlock::Update { manual: true, .. } => {
                 formatter.write_str("This folder cannot update itself: see its page")
             }
+            Unlock::Reward { .. } => formatter.write_str("Open the game menu to claim it"),
         }
     }
 }
@@ -357,6 +389,9 @@ pub(crate) struct UnlockToast {
     /// whose card was given this session.
     update_seen: u32,
     update_given: Option<Version>,
+    /// Where the card showing was laid out this frame, for a click on an update's card;
+    /// `None` while none draws.
+    card: Option<Rect>,
     /// A moment held still (seconds after the start), for the off-screen shots.
     #[cfg(test)]
     held: Option<f32>,
@@ -372,6 +407,7 @@ impl Default for UnlockToast {
             ended: None,
             update_seen: 0,
             update_given: None,
+            card: None,
             #[cfg(test)]
             held: None,
         }
@@ -445,19 +481,33 @@ impl UnlockToast {
         showing.shown
     }
 
+    /// [`Self::update_holding`] with no card held, for the tests and off-screen shots.
+    #[cfg(test)]
+    pub(crate) fn update(&mut self, now: Instant, may_show: bool, sound: bool) -> bool {
+        self.update_holding(now, may_show, |_| false, sound)
+    }
+
     /// Move the pop-ups on to `now`: the one showing by the frame's time while it
     /// `may_show` (not under the console or a large pop-up, the window not away), at most
     /// [`MAX_STEP`]; end it once its time is up, and start the next one waiting when it
     /// may show, with its `sound` where it chimes. Returns whether a pop-up draws this
-    /// frame.
-    pub(crate) fn update(&mut self, now: Instant, may_show: bool, sound: bool) -> bool {
+    /// frame. The cards `held` picks also wait (a private duel's, [`held_in_duel`]): one
+    /// showing stands still unseen, and the first waiting card not held starts before
+    /// those held ahead of it, which keep their place.
+    pub(crate) fn update_holding(
+        &mut self,
+        now: Instant,
+        may_show: bool,
+        held: impl Fn(Unlock) -> bool,
+        sound: bool,
+    ) -> bool {
         if let Some(showing) = &mut self.current {
             let step = now
                 .saturating_duration_since(showing.last)
                 .as_secs_f32()
                 .min(MAX_STEP);
             showing.last = now;
-            if may_show {
+            if may_show && !held(showing.unlock) {
                 showing.shown += step;
             }
         }
@@ -467,11 +517,14 @@ impl UnlockToast {
             self.current = None;
             self.ended = Some(now);
         }
-        if self.current.is_none() && may_show && !self.queue.is_empty() {
+        if self.current.is_none()
+            && may_show
+            && let Some(next) = self.queue.iter().position(|waiting| !held(*waiting))
+        {
             let rested = self
                 .ended
                 .is_none_or(|ended| now.saturating_duration_since(ended) >= GAP);
-            if rested && let Some(unlock) = self.queue.pop_front() {
+            if rested && let Some(unlock) = self.queue.remove(next) {
                 self.current = Some(Showing {
                     unlock,
                     shown: 0.0,
@@ -482,7 +535,29 @@ impl UnlockToast {
                 }
             }
         }
-        may_show && self.current.is_some()
+        let draws = may_show && self.current.is_some_and(|showing| !held(showing.unlock));
+        if !draws {
+            self.card = None;
+        }
+        draws
+    }
+
+    /// The update card under `position` (window pixels) as last laid out: whether this
+    /// folder must take the release from its page. `None` off the card, while it fades
+    /// out, or while no update card draws.
+    pub(crate) fn update_card_at(&self, position: Vec2) -> Option<bool> {
+        let showing = self.current?;
+        let Unlock::Update { manual, .. } = showing.unlock else {
+            return None;
+        };
+        let leaving = Phase::at(self.elapsed(showing)) == Phase::Leaving;
+        (!leaving && self.card?.contains(position)).then_some(manual)
+    }
+
+    /// Take the update's card away at `now`: it was clicked.
+    pub(crate) fn dismiss_update(&mut self, now: Instant) {
+        self.withdraw(now, |unlock| matches!(unlock, Unlock::Update { .. }));
+        self.card = None;
     }
 
     pub(crate) fn draw_list(&self) -> &sjk_ui::DrawList {
@@ -495,6 +570,7 @@ impl UnlockToast {
             return;
         };
         let t = self.elapsed(showing);
+        self.card = Some(card_rect(viewport, t));
         draw(&mut self.canvas, showing.unlock, t, viewport);
     }
 
@@ -760,7 +836,7 @@ fn draw(canvas: &mut MenuCanvas, unlock: Unlock, t: f32, viewport: [f32; 2]) {
     };
     spaced(
         canvas,
-        format_args!("{}", unlock.kicker()),
+        format_args!("{}", crate::terms::say(unlock.kicker())),
         column(12.0, 24.0),
         KICKER_SIZE * k,
         color::GOLD,
@@ -773,7 +849,10 @@ fn draw(canvas: &mut MenuCanvas, unlock: Unlock, t: f32, viewport: [f32; 2]) {
         column(12.0, 24.0),
         TAG_SIZE * k,
         match unlock {
-            Unlock::Achievement(_) => color::alpha(hue, 0.9),
+            // The crystal it brings, in the crystal's colour.
+            Unlock::Achievement { kind, .. } => {
+                crate::kyber::reward(kind.id).map_or(color::alpha(hue, 0.9), |tier| tier.colour)
+            }
             _ => color::MUTED,
         },
         FontWeight::Regular,
@@ -812,7 +891,7 @@ fn draw(canvas: &mut MenuCanvas, unlock: Unlock, t: f32, viewport: [f32; 2]) {
 /// disc.
 fn emblem(canvas: &mut MenuCanvas, unlock: Unlock, centre: [f32; 2], radius: f32, sweep: f32) {
     let (picture, gem_colour) = match unlock {
-        Unlock::Achievement(kind) => {
+        Unlock::Achievement { kind, .. } => {
             medallion::draw(
                 canvas,
                 Medallion {
@@ -827,13 +906,15 @@ fn emblem(canvas: &mut MenuCanvas, unlock: Unlock, centre: [f32; 2], radius: f32
         }
         Unlock::Medal { medal, .. } => (Some((medal.icon(), 0.94)), None),
         Unlock::Holocron { tier, .. } => {
-            if icons::is_loaded(tier.index) {
-                (Some((icons::texture(tier.index), 1.12)), None)
+            if icons::is_loaded(tier.slot) {
+                (Some((icons::texture(tier.slot), 1.12)), None)
             } else {
                 (None, Some(tier.colour))
             }
         }
-        Unlock::Update { .. } => (Some((crate::ui_renderer::LOGO_TEXTURE, 0.86)), None),
+        Unlock::Update { .. } | Unlock::Reward { .. } => {
+            (Some((crate::ui_renderer::LOGO_TEXTURE, 0.86)), None)
+        }
     };
     // The medallion's line widths at this size.
     let k = radius / MEDAL_RADIUS;
@@ -969,7 +1050,48 @@ impl UnlockToast {
     }
 }
 
+/// Whether a pop-up may show: not under the console or a large pop-up (`covered`) and
+/// the window not away.
+fn may_show(covered: bool, console_open: bool, away: bool) -> bool {
+    !covered && !console_open && !away
+}
+
+/// Whether a private duel (`in_duel`) holds `unlock` back: a reward there is a
+/// distraction (hub report #81, Milamber), so the card waits and plays once the duel
+/// ends. Holocron cards show anyway when `holocrons_in_duel` (`cl_holocronNotifications`
+/// 2, [`crate::holocron_popup::NOTIFICATIONS_CVAR`]).
+fn held_in_duel(unlock: Unlock, in_duel: bool, holocrons_in_duel: bool) -> bool {
+    in_duel && !(holocrons_in_duel && matches!(unlock, Unlock::Holocron { .. }))
+}
+
 impl crate::GpuState {
+    /// A click on the update card while the pointer is free (over the menus): it starts
+    /// the download, as Install does, and opens the Update page with its progress; for a
+    /// folder that cannot update itself it opens the release page. Returns whether the
+    /// card took the event.
+    pub(crate) fn update_card_pointer(&mut self, event: InputEvent) -> bool {
+        let InputEvent::PointerPress {
+            position,
+            button: sjk_ui::PointerButton::Primary,
+        } = event
+        else {
+            return false;
+        };
+        if self.pointer_captured {
+            return false;
+        }
+        let Some(manual) = self.unlock_toast.update_card_at(position) else {
+            return false;
+        };
+        self.unlock_toast.dismiss_update(Instant::now());
+        let _ = crate::update::click_notice();
+        if !manual && let Some(console) = &mut self.console {
+            console.open_update_panel();
+        }
+        self.sync_cursor_policy();
+        true
+    }
+
     /// Move the unlock pop-up on and lay it out over the frame unless `covered` (the
     /// console over the frame, a large pop-up) or the window is away; returns whether it
     /// draws this frame. A newer release the update check found gets its card here.
@@ -994,10 +1116,18 @@ impl crate::GpuState {
         let sound = console
             .and_then(|console| console.bool_cvar(SOUND_CVAR))
             .unwrap_or(true);
-        if !self
-            .unlock_toast
-            .update(now, !covered && !console_open && !away, sound)
-        {
+        let in_duel = self
+            .live_session
+            .as_ref()
+            .is_some_and(|session| session.latest_snapshot().player.duel_in_progress());
+        let holocrons_in_duel =
+            crate::holocron_popup::notification_mode(console) == crate::holocron_popup::ALWAYS;
+        if !self.unlock_toast.update_holding(
+            now,
+            may_show(covered, console_open, away),
+            |unlock| held_in_duel(unlock, in_duel, holocrons_in_duel),
+            sound,
+        ) {
             return false;
         }
         self.unlock_toast.build(viewport);
@@ -1014,11 +1144,73 @@ impl crate::GpuState {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Hub report #81: a private duel holds the rewards back, like the console does;
+    /// `cl_holocronNotifications` 2 lets the holocron cards through.
+    #[test]
+    fn a_private_duel_holds_the_rewards_back() {
+        assert!(may_show(false, false, false));
+        assert!(!may_show(true, false, false));
+        assert!(!may_show(false, true, false));
+        assert!(!may_show(false, false, true));
+        for unlock in [kind("first_blood"), medal(Medal::BugHunter, 1)] {
+            assert!(!held_in_duel(unlock, false, false));
+            assert!(held_in_duel(unlock, true, false));
+            assert!(held_in_duel(unlock, true, true));
+        }
+        assert!(!held_in_duel(holocron(1, 0), false, false));
+        assert!(held_in_duel(holocron(1, 0), true, false));
+        assert!(!held_in_duel(holocron(1, 0), true, true));
+    }
+
+    /// `cl_holocronNotifications` 1: a holocron card that comes during a private duel
+    /// waits unseen, its clock still, and plays in full once the duel ends.
+    #[test]
+    fn a_holocron_card_withheld_during_a_duel_shows_after_it() {
+        let mut toast = UnlockToast::default();
+        toast.push(holocron(9, 1));
+        let duel = |unlock| held_in_duel(unlock, true, false);
+        let mut now = Instant::now();
+        for _ in 0..200 {
+            now += Duration::from_millis(50);
+            assert!(!toast.update_holding(now, true, duel, true));
+        }
+        assert!(toast.current.is_none());
+        assert_eq!(toast.pending(), 1, "it waits through the duel");
+        // The duel ends: it shows from its start.
+        assert!(toast.update_holding(now, true, |unlock| held_in_duel(unlock, false, false), true));
+        assert_eq!(shown(&toast), Some(holocron(9, 1).name().to_string()));
+        assert_eq!(toast.current.map(|showing| showing.shown), Some(0.0));
+    }
+
+    /// `cl_holocronNotifications` 2: a holocron card shows during a duel ahead of the
+    /// rewards held before it, which play once the duel ends.
+    #[test]
+    fn a_holocron_card_may_pass_the_held_rewards_during_a_duel() {
+        let mut toast = UnlockToast::default();
+        toast.push(kind("first_blood"));
+        toast.push(holocron(9, 1));
+        let duel = |unlock| held_in_duel(unlock, true, true);
+        let mut now = Instant::now();
+        assert!(toast.update_holding(now, true, duel, false));
+        assert_eq!(shown(&toast), Some(holocron(9, 1).name().to_string()));
+        for _ in 0..((LIFETIME + GAP.as_secs_f32()) / 0.05).ceil() as usize + 2 {
+            now += Duration::from_millis(50);
+            toast.update_holding(now, true, duel, false);
+        }
+        assert!(toast.current.is_none(), "the holocron card ended");
+        assert_eq!(toast.pending(), 1, "the achievement waits");
+        assert!(toast.update_holding(now, true, |unlock| held_in_duel(unlock, false, true), false));
+        assert_eq!(shown(&toast), Some(kind("first_blood").name().to_string()));
+    }
     use crate::achievements::{self, ALL};
     use crate::holocrons::TIERS;
 
     fn kind(id: &str) -> Unlock {
-        Unlock::Achievement(achievements::find(id).expect("an achievement"))
+        Unlock::Achievement {
+            kind: achievements::find(id).expect("an achievement"),
+            crystal: true,
+        }
     }
 
     fn medal(medal: Medal, count: u32) -> Unlock {
@@ -1030,6 +1222,7 @@ mod tests {
             tier: &TIERS[tier],
             id,
             gift: false,
+            earned: None,
         }
     }
 
@@ -1061,7 +1254,10 @@ mod tests {
     /// Every unlock a card can show: each achievement, each medal once and given many
     /// times, each tier dropped and given.
     fn every_unlock() -> Vec<Unlock> {
-        let mut unlocks: Vec<Unlock> = ALL.iter().map(Unlock::Achievement).collect();
+        let mut unlocks: Vec<Unlock> = ALL
+            .iter()
+            .flat_map(|kind| [true, false].map(|crystal| Unlock::Achievement { kind, crystal }))
+            .collect();
         for each in Medal::ALL {
             unlocks.push(medal(each, 1));
             if each.repeatable() {
@@ -1074,7 +1270,22 @@ mod tests {
                 tier,
                 id: 100 + index as u64,
                 gift: true,
+                earned: None,
             });
+        }
+        // Each kyber crystal, earned from a named achievement and from an unnamed one.
+        for (index, tier) in crate::kyber::TIERS.iter().enumerate() {
+            for earned in [
+                crate::kyber::Earned::of("kills_1000"),
+                crate::kyber::Earned::of(""),
+            ] {
+                unlocks.push(Unlock::Holocron {
+                    tier,
+                    id: 200 + index as u64,
+                    gift: false,
+                    earned: Some(earned),
+                });
+            }
         }
         for manual in [false, true] {
             unlocks.push(Unlock::Update {
@@ -1237,6 +1448,36 @@ mod tests {
         assert_eq!(shown(&toast), Some(kind("first_blood").name().to_string()));
     }
 
+    /// A click lands on the update's card while it shows, not on another card, before
+    /// it is laid out, nor once it fades.
+    #[test]
+    fn the_update_card_answers_a_click_on_itself() {
+        let viewport = [1920.0, 1080.0];
+        let version = Version::new("2026.1020.1").unwrap();
+        let mut toast = UnlockToast::default();
+        toast.push(Unlock::Update {
+            version,
+            manual: false,
+        });
+        let now = Instant::now();
+        assert!(toast.update(now, true, false));
+        let middle = Vec2::new(960.0, (TOP + HEIGHT * 0.5) * viewport[1] / 1080.0);
+        assert_eq!(toast.update_card_at(middle), None, "not laid out yet");
+        toast.build(viewport);
+        assert_eq!(toast.update_card_at(middle), Some(false));
+        assert_eq!(toast.update_card_at(Vec2::new(4.0, 4.0)), None);
+        toast.held = Some(ENTER + HOLD + 0.1);
+        assert_eq!(toast.update_card_at(middle), None, "fading");
+        toast.held = None;
+        toast.dismiss_update(now);
+        assert_eq!(toast.pending(), 0);
+        assert_eq!(toast.update_card_at(middle), None);
+
+        let mut medal_card = UnlockToast::preview(&[medal(Medal::BugHunter, 1)], 1.0);
+        medal_card.build(viewport);
+        assert_eq!(medal_card.update_card_at(middle), None);
+    }
+
     #[test]
     fn the_words_of_medals_and_holocrons() {
         let update = Unlock::Update {
@@ -1265,9 +1506,37 @@ mod tests {
             tier: &TIERS[0],
             id: 1,
             gift: true,
+            earned: None,
         };
         assert_eq!(gift.description().to_string(), "A gift from the SJK team");
-        assert_eq!(kind("streak_5").tag(), "Combat");
+        // An achievement's tag is the kyber crystal it brings (21/10/2026).
+        assert_eq!(kind("streak_5").tag(), "Reward: Uncommon Kyber Crystal");
+        assert_eq!(kind("kills_1000").tag(), "Reward: Mythical Kyber Crystal");
+        // Unlocked without a hub (identity off), it brings no crystal: its category.
+        let local = Unlock::Achievement {
+            kind: achievements::find("streak_5").expect("Rampage"),
+            crystal: false,
+        };
+        assert_eq!(local.tag(), "Combat");
+        let crystal = Unlock::Holocron {
+            tier: &crate::kyber::TIERS[1],
+            id: 2,
+            gift: false,
+            earned: Some(crate::kyber::Earned::of("")),
+        };
+        assert_eq!(crystal.kicker(), "NEW KYBER CRYSTAL");
+        assert_eq!(crystal.name().to_string(), "Rare Kyber Crystal");
+        assert_eq!(
+            crystal.description().to_string(),
+            "Earned from an achievement"
+        );
+        let named = Unlock::Holocron {
+            tier: &crate::kyber::TIERS[1],
+            id: 3,
+            gift: false,
+            earned: Some(crate::kyber::Earned::of("kills_100")),
+        };
+        assert_eq!(named.description().to_string(), "Earned: Centurion");
     }
 
     #[test]

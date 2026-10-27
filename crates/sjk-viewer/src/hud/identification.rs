@@ -148,11 +148,16 @@ impl State {
             else {
                 continue;
             };
-            let origin = Vec3::from_array(presented.sample(now).translation);
+            // A limp player's name hangs over their ragdoll, as high over its top as over
+            // a standing player's head (the box top, 40, under 64).
+            let (origin, above) = crate::ragdoll::shown_top(slot as u8).map_or(
+                (Vec3::from_array(presented.sample(now).translation), 64.0),
+                |(pelvis, head)| (pelvis, head + 24.0),
+            );
             if origin.distance_squared(Vec3::from_array(snapshot.player.origin())) >= 9_000_000.0 {
                 continue;
             }
-            let Some(screen) = camera.project(origin + Vec3::Z * 64.0) else {
+            let Some(screen) = camera.project(origin + Vec3::Z * above) else {
                 continue;
             };
             let trace = bsp.trace_box_with(

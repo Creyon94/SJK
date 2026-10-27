@@ -75,6 +75,47 @@ pub fn japlus_view_locked(player: &PlayerState) -> bool {
     in_knockdown_state(player)
 }
 
+/// `HANDEXTEND_PRETHROWN` and `HANDEXTEND_POSTTHROWN`: the victim of a melee throw, whose
+/// view the server turns to the thrower every think (`g_active.c` `ClientThink_real`,
+/// `SetClientViewAngle( ent, otherAngles )`).
+const THROWN_HAND_EXTENDS: [u8; 2] = [13, 14];
+
+/// `BG_InGrappleMove` (`bg_panimate.c`): grabbing, beating or beaten in a melee grapple,
+/// which `PmoveSingle` holds the view through (`PM_SetPMViewAngle`).
+const GRAPPLE_ANIMS: [&str; 9] = [
+    "BOTH_KYLE_GRAB",
+    "BOTH_KYLE_MISS",
+    "BOTH_KYLE_PA_1",
+    "BOTH_KYLE_PA_2",
+    "BOTH_KYLE_PA_3",
+    "BOTH_PLAYER_PA_1",
+    "BOTH_PLAYER_PA_2",
+    "BOTH_PLAYER_PA_FLY",
+    "BOTH_PLAYER_PA_3",
+];
+
+/// Whether the server holds the player's view this snapshot: a melee grapple or throw, a
+/// saber lock (`PM_SetPMViewAngle` while `saberLockTime` runs) and, on a JA+ server
+/// (`japlus`, asked only when it matters), [`japlus_view_locked`]'s kisses, kicks,
+/// knockdowns, get-ups and ledges. The server rewrites `delta_angles` every frame then, so
+/// a view turned by the mouse, or commands whose angles a toy sets, fight it: the camera
+/// shakes or spins (hub reports #139, #140, #146).
+pub fn server_holds_view(player: &PlayerState, japlus: impl FnOnce() -> bool) -> bool {
+    // By name (one lookup each), as this is asked every frame.
+    let grapple = |animation: u16| {
+        crate::legacy_animation_name(usize::from(animation))
+            .is_some_and(|name| GRAPPLE_ANIMS.contains(&name))
+    };
+    if THROWN_HAND_EXTENDS.contains(&player.force_hand_extend())
+        || grapple(player.leg_animation())
+        || grapple(player.torso_animation())
+        || player.saber_lock_time() >= player.command_time() && player.saber_lock_time() > 0
+    {
+        return true;
+    }
+    japlus_view_locked(player) && japlus()
+}
+
 /// `CG_InJAPlusSpecialKickState`: the victim of JA+'s added side and back kicks.
 pub fn japlus_special_kick(player: &PlayerState) -> bool {
     const KICK_ANIMS: [&str; 5] = [
@@ -233,5 +274,27 @@ mod tests {
         assert!(fake_noclip_allowed(&PlayerState::default(), false));
         assert!(!fake_noclip_allowed(&PlayerState::default(), true));
         assert!(!fake_noclip_allowed(&player_with(&[(84, 7)]), false));
+    }
+
+    #[test]
+    fn the_server_holds_the_view_in_grapples_throws_locks_and_japlus_locks() {
+        let free = PlayerState::default();
+        assert!(!server_holds_view(&free, || true));
+        // A melee grapple, either side of it, on any server.
+        let beaten = player_with(&[(15, animation("BOTH_PLAYER_PA_1"))]);
+        assert!(server_holds_view(&beaten, || false));
+        let grabbing = player_with(&[(13, animation("BOTH_KYLE_GRAB"))]);
+        assert!(server_holds_view(&grabbing, || false));
+        // Thrown: `HANDEXTEND_PRETHROWN`.
+        assert!(server_holds_view(&player_with(&[(80, 13)]), || false));
+        // A saber lock running at the command's time, not one long over.
+        let locked = player_with(&[(0, 5_000), (107, 5_200)]);
+        assert!(server_holds_view(&locked, || false));
+        let over = player_with(&[(0, 5_000), (107, 4_000)]);
+        assert!(!server_holds_view(&over, || false));
+        // A JA+ kiss only on a JA+ server.
+        let kiss = player_with(&[(13, animation("BOTH_KISSEE"))]);
+        assert!(server_holds_view(&kiss, || true));
+        assert!(!server_holds_view(&kiss, || false));
     }
 }

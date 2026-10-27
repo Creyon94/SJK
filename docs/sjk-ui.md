@@ -12,7 +12,7 @@ fixes. A profile saved with the old default `classic` moves to `sjk` once
 Status (08/10/2026): the main page, Settings (with the key bindings),
 Character, What's new, Update, Identity, Credits, Servers (the server browser),
 the loading screen, the scoreboard, the in-game menu (reworked 09/10/2026), the
-Profile screen, the Collection (10/10/2026), Camera control, the report and note
+Profile screen, the Collection (10/10/2026), Camera control, the map editor's panel (19/10/2026), the report and note
 dialog (Report a bug), the new medal pop-up and Create game with its map list
 (10/10/2026, in every menu style) are done. Every other
 screen opens in its classic+ version, which
@@ -30,6 +30,12 @@ one of the SJK Settings categories; a new page is drawn with the kit
 (`menu::sjk::kit`). A contribution that arrives with only a classic+ view gets
 its SJK UI before it is merged. Fixes to an existing classic+ screen alone are
 fine.
+
+Loaded JoF tools can show a server-authored conversation in an SJK modal in every
+menu style, only on a recognized JoF server: speaker and
+body above five scrolling response rows, gold selection, a Leave conversation
+control and keyboard hints. [JoF dialogue support](mods.md#dialogue-window-and-node-audio)
+describes the server-owned quest boundary and voice lifecycle.
 
 ## Design
 
@@ -90,7 +96,8 @@ Sizes are in pixels of a 1080-line screen and scale with the window's height:
 the main page's entries 44 (chosen 68), server names 27, the player's name 26,
 details 16 to 18, key hints 15 to 17; on Settings, its name 48, the categories
 26, sub-headings 22, row names and descriptions 19, the detail's title 32 and
-its facts 17.
+its facts 17. `ui_textScale` multiplies them from 0.8 to 1.4; Settings > General
+in Simple or Interface in Advanced exposes it as **Menu text size**.
 
 Names keep their colour codes (`^1`...), drawn in a palette lifted to read on
 the navy ground (`text::CodePalette::Legible`, which every text in the UI's
@@ -123,6 +130,16 @@ a new medal arrives in its ceremony and, the screen's one memorable thing, breat
 gently while it waits ([New medal](#new-medal)). Nothing else moves on its own.
 
 ## The map behind
+
+With Menu pictures on (Settings > Interface, `ui_menuPictures`, to save video
+memory; on by itself after a map runs out of it) the map behind is pictures of it
+instead: one per tour shot, halfway through its glide, and one per shot the camera
+flies to, crossfading in 0.9 s where the camera would cut or fly
+([pictures.rs](../crates/sjk-viewer/src/menu_backdrop/pictures.rs)). The player on
+the stage, the thrown saber and the holocron are still drawn in 3D, from the
+picture's camera. Rerun `menu_pictures_generate`
+([world_shot_menu_pictures.rs](../crates/sjk-viewer/src/world_shot_menu_pictures.rs))
+after a shot or the look changes.
 
 Behind the SJK UI the camera tours mp/duel6: ten authored shots
 (`YAVIN_TRAINING_TOUR` in
@@ -175,12 +192,14 @@ one (4:3, 5:4) scales the frame down to its width.
     the main page's Profile, and its profile card). The arc holds six entries (a
     seventh curls back into the ring); the identity's key is in Settings, Network.
   - Quit: Quit to desktop (ember when chosen), Stay. It opens on Stay.
-  A page's name stands small over its first entry.
+  Sub-pages have no title over the arc; their entries say where the player is.
 - **Recent servers:** a column on the right (its rule at x 1470) of the servers
   the player joined last, newest first, up to four, kept in
   `recent_servers.json` beside `favorites.json` ([recent.rs](../crates/sjk-viewer/src/menu/sjk/recent.rs)):
   a server is recorded when a join reaches the game, with its name and map,
-  except a game this client hosts. Each shows its name (live from the server
+  except a game this client hosts. A map change updates that server's one row;
+  the loading screen's map name is never treated as another server, and invalid
+  rows written by older builds are ignored. Each shows its name (live from the server
   list, or as last seen), its players, map and ping while the server list has
   it, and when it was last played ("2 hours ago", "yesterday": relative, so no
   time zone is needed). Before any join, the column offers the JoF server
@@ -194,8 +213,8 @@ one (4:3, 5:4) scales the frame down to its width.
   it, which opens the SJK chat page. The same dock, drawn by the same code
   ([chat_dock.rs](../crates/sjk-viewer/src/menu/sjk/chat_dock.rs)), sits in the
   [in-game menu](#in-game-menu). Resting the pointer on a name shows the sender's
-  [sender card](#sjks-pages) with Mute
-  ([hub-chat.md](hub-chat.md#muting-a-player)), left of the dock, level with the name
+  [sender card](#sjks-pages) with Block
+  ([hub-chat.md](hub-chat.md#blocking-a-player)), left of the dock, level with the name
   and above the keys (shapes never cover text: beside the name it lay over the message
   and the lines under it). It keeps clear of the dock, the keys, the arc's labels and
   the profile card bottom left in every window
@@ -204,20 +223,16 @@ one (4:3, 5:4) scales the frame down to its width.
   Down past the last server reaches the field
   (the gold arc turns to it); Enter types and every key goes to the field until Enter
   sends or Escape stops. Not shown with `cl_sjkChat 0`.
-- **Donation goal** (shelved since 14/10/2026, never shown; [sjk.md](sjk.md#donations)): top left, clear of the ring (x 96 to 516, from y 58;
-  [donation_goal.rs](../crates/sjk-viewer/src/donation_goal.rs), since 13/10/2026,
-  Sol's request): "Support SJK" with a gold Donate pill at its right, then "80 € of
-  200 € this month" and a gold bar on a holo track, then "More than 1 € brings the
-  Supporter medal" in quiet print. Donate opens SJK's Ko-fi page in the browser (the
-  address the SJK hub gives, if it is a plain https one, else
-  `https://ko-fi.com/soljk`). The numbers come from the hub's `GET /v1/donations/goal`
-  ([sjk.md](sjk.md#donations)), asked without the identity key on a thread of its own
-  when the page shows and again after ten minutes (five after a failure), kept in
-  memory: the page never waits. Until the hub answers (or with no hub) the card shows
-  "Help fund SJK's development on Ko-fi" and Donate, without a bar.
-  `ui_donationGoal 0` (Settings, Interface, "Donation goal") hides it and asks the
-  hub nothing. Pointer only: its target is the page's 80. World shot: `duel6-menu`
-  (`world_shot::duel6_sjk_menu`, 80 of 200 euros).
+- **Support SJK:** top left, clear of the ring (x 96 to 526, from y 58;
+  [support_links.rs](../crates/sjk-viewer/src/support_links.rs), since 26/10/2026, Sol's
+  request; it took the place of the donation goal shelved on 14/10/2026,
+  [sjk.md](sjk.md#donations)): "Support SJK" in muted print, then two outlined pills,
+  GitHub Sponsors and Ko-fi, each opening that page in the browser, and a round × that
+  hides the line for good (`ui_supportLinks 0`). While × is under the pointer, a quiet
+  line under them says that Settings, Interface, "Support SJK" brings it back. It asks
+  no server anything. Pointer only: its targets are the page's 80 and 81 (the links)
+  and 82 (×). Snapshot `sjk-home` (`menu_snapshot::sjk_home_snapshot`) and world shot
+  `duel6-menu` (`world_shot::duel6_sjk_menu`).
 - **Corners:** the player's [profile card](#profile-card), bottom left; the keys
   of the page, bottom centre; the version and a newer release found, bottom right.
 
@@ -243,8 +258,8 @@ open it). Bottom left on the 16:9 frame, from (84, 932), 474 by 96:
   ([identity.md](identity.md#pictures));
 - their name with its colours (Exo 2 at 27);
 - a line of what the SJK hub says: "Verified" (gold) or "SJK player", the medals
-  given ("2 medals", left out with none) and the achievements unlocked ("12/21
-  achievements"); without the hub it says "SJK identity off", "Connecting to the hub"
+  given ("2 medals", left out with none) and the achievements unlocked ("12/34
+  achievements", of the obtainable ones and the retired ones held); without the hub it says "SJK identity off", "Connecting to the hub"
   or "SJK hub out of reach", still with this PC's achievements;
 - their model and blade ("Kyle, blue saber", or "Kyle, Sun blade" while they wear a
   blade skin their profile holds, [unlockables.md](unlockables.md)); when the card is
@@ -315,7 +330,7 @@ on the 16:9 frame, dark behind the form on the left and clear over the model.
   under a sub-heading (Hilt, or Staff), in two columns, six lines on show,
   scrolled by the wheel or its bar, the chosen one gold with a dot and kept in
   view (in the middle when the list first shows); for Dual two lists side by
-  side, Right hand and Left hand, four lines each. The hilts come in the game's
+  side, Right hand and Left hand, three lines each (four until 23/10/2026). The hilts come in the game's
   load order, as JoF EJK lists them (`legacy_saber_load_order`), the retail game's
   first under a "Jedi Academy" line with their count and the community's after them
   under "Community" (`HiltLines`; the rule in [AGENTS.md](../AGENTS.md)). The hilt search
@@ -335,16 +350,25 @@ on the 16:9 frame, dark behind the form on the left and clear over the model.
   the one worn ringed gold, and under the row's name the name of the one under
   the pointer or worn; six show at a time (10/10/2026), scrolled so the worn one
   stands third where it can, with a gold chevron at a side that has more; with no skin owned, or the identity off, only the stock
-  blade and a line saying why. Then the blade's colour as seven chips (the six
+  blade and a line saying why. Under it the Sounds row (23/10/2026, after Nib's idea): a
+  Preview button, then a ‹ › control with the saber sounds chosen apart from the blade,
+  "Follow shader (<the blade worn>)", "Stock sounds" or an owned shader's name
+  (`cg_saberSounds`, [unlockables.md](unlockables.md#saber-sounds)); Preview, or Enter on
+  the row (the keys line then says "Enter preview"), plays the choice's ignition and hum.
+  Then the blade's colour as seven chips (the six
   stock colours and the custom one, ringed gold when chosen), its red, green
   and blue sliders (a digit types the number), and the second blade's for Dual.
   The camera cuts to the saber shot, where the model throws the saber to float
   and turn before it. World shot: `world_shot::saber_skins::duel6_sjk_saber_page`
-  (the search typed, a search finding nothing with no skin owned, Dual; at 1080p,
+  (the search typed, a search finding nothing with no skin owned, the Sounds row, Dual; at 1080p,
   with `ui_textScale` 1.2, and at 4K with it).
-- **Force:** the mastery ("Jedi Master") and the points left of the rank's
+- **Force:** the **Force templates** panel at the right offers separate
+  **Jedi Academy** and **Community** selectors, retail first. Left/Right or
+  either half of a selector loads that group's previous/next preset into the
+  draft; Apply sends it. The community group includes the bundled JoF presets
+  ([client.md](client.md#menu-style)). The mastery ("Jedi Master") and points left
   ("18 of 100 points left", and "not applied yet" while the draft differs)
-  over a gold bar of the points left; the Light and Dark sides as two cards
+  sit over a gold bar of the points left; the Light and Dark sides appear as two cards
   with their emblems; the powers in classic+'s groups under sub-headings,
   Neutral and Lightsaber down the left, the side's five on the right (the
   other side's left out, as on classic+): each its holocron, its name and its
@@ -504,7 +528,7 @@ on the 16:9 frame, dark behind the form on the left and clear over the model.
 
 The keys are the player screen's shared ones: Up and Down choose a row (on the Saber and
 Force pages in the order they show them: the hilt search, both hilt lists, the
-Blade row and the blades' colours,
+Blade row, the Sounds row and the blades' colours,
 the Force groups' powers in their order, the other side's skipped), Left and
 Right change it (a hilt list's choice moves one hilt, the Blade row's one
 blade; the wheel over the Blade row and its ‹ › arrows browse it six blades at a time
@@ -517,7 +541,7 @@ it, a slider follows, a style button, a hilt, a blade, a level, the search
 field types), a click elsewhere on a
 row (a Force power's holocron or name too) only chooses it, a click on a tile
 picks that model. The SJK view's own targets (levels, the Blade row's
-blades, style buttons, hilts and the lists' wheel areas, tokens from 1000) go to
+blades, the Sounds row's Preview, style buttons, hilts and the lists' wheel areas, tokens from 1000) go to
 `PlayerMenu::sjk_pointer` before the screen's shared pointer handling.
 
 It is the player screen's shared state and controller with a view of its own:
@@ -579,10 +603,10 @@ overlay routes their text to the UI's families (`console_sjk_pages.rs`).
 - **Identity** ([identity_panel_sjk.rs](../crates/sjk-viewer/src/identity_panel_sjk.rs)):
   the identity's state as a headline (the name the hub knows, or "Identity is
   off") over its lines, the switch sharing it with the hub, then while it is on
-  the bio's field and Save (gold), Copy my key id, Show key (Hide key once shown)
+  the bio's field and Save (gold), Copy my key id, Show file (Hide file once shown)
   and Use the official hub, and the known players here under a sub-heading,
-  verified ones marked gold. The key's id and file are bullets with "(hidden)" until
-  Show key, every time the page opens ([identity.md](identity.md#settings-and-commands)). A Medals
+  verified ones marked gold. The key id is always bullets with "(hidden)", the key file
+  until Show file, every time the page opens ([identity.md](identity.md#settings-and-commands)). A Medals
   column right of the page's lists the player's own medals once the hub answered
   (picture, name in gold, description, date given, the team's note), or says how
   medals come ([identity.md](identity.md#medals)).
@@ -639,11 +663,12 @@ overlay routes their text to the UI's families (`console_sjk_pages.rs`).
   line ([hub-chat.md](hub-chat.md#how-a-line-looks)): its name in its colours, the
   verified tick for a verified sender, and its text in the SJK chat's gold going on
   after them and wrapping when too long, with Staff and how long ago on the right of
-  its first row; a chosen one is banded and shown on the right with Mute on this PC and, for
+  its first row; a chosen one is banded and shown on the right with Block on this PC and, for
   staff, Delete for everyone, Mute and Unmute at the hub. "N older: Page Up" and "N
   newer: Page Down" mark the ends when it scrolls. Resting the pointer on a name shows
-  the sender's sender card over the page, beside the name, with Mute or Unmute
-  ([hub-chat.md](hub-chat.md#muting-a-player)).
+  the sender's sender card over the page, beside the name, with Block or Unblock
+  ([hub-chat.md](hub-chat.md#blocking-a-player)). With no message chosen, the right
+  column lists the players blocked on this PC, each with Unblock.
 - **Sender card** ([sender_card.rs](../crates/sjk-viewer/src/sender_card.rs),
   08/10/2026, Sol's request): a name under the pointer in the game's chat (composer
   open), on the main page's dock and on the SJK chat page. A 340-wide navy card with a
@@ -651,8 +676,14 @@ overlay routes their text to the UI's families (`console_sjk_pages.rs`).
   initial on their colour until it loads or when they have none), the name and the
   verified tick alone, "SJK player" (gold, with "SJK staff")
   or "Not known to the SJK hub", the hub name when it differs, the key, where they are
-  on the server being played, their medals' medallions, Mute or Unmute (gold edged) and
-  what that does. It sits right of the name, or left of it at the screen's edge.
+  on the server being played, their medals' medallions, Block or Unblock (gold edged) and
+  what that does. It sits right of the name, or left of it at the screen's edge. In the
+  game's chat a click on the name pins it (23/10/2026, after Bishop's and Sanjisan's
+  ideas): it stays until the name is clicked again, a click lands off it, Escape or the
+  composer closes; for a player on the server other than the player themselves it then
+  heads its buttons with Whisper, the whole row in holo blue, above Block
+  ([client.md](client.md), [chat/card.rs](../crates/sjk-viewer/src/chat/card.rs)). World
+  shot: `chat::card::shots::chat_name_actions_shot` (1080p and 4K).
 - **Test list** ([debug_panel_view.rs](../crates/sjk-viewer/src/debug_panel_view.rs),
   10/10/2026, Sol asked for every trace of the old hero look to go): the `debug_panel`
   command's personal test list ([sjk.md](sjk.md#debug-panel)), drawn in this look in
@@ -724,6 +755,11 @@ horizon (no panel edge, the navy fading out under a gold line) and a dock (an
 outlined card with tabs), were offered beside it; Sol chose the deck
 (08/10/2026), which reads best over a bright map and keeps the classic
 console's full-width rows, and the other two were removed.
+Outgoing whisper echoes use those same rows in both console looks: hovering one
+shows the recipient name and client slot retained when the `tell` was sent. The
+server echo is matched before the hover note is attached, so an incoming or
+unmatched private line receives no recipient card
+([client.md](client.md#console-styles)).
 
 ## Settings
 
@@ -757,17 +793,18 @@ that mode for the visit and leaves the player's choice as it was.
 - **Rail:** the mode's categories down a lit holo line on the left, each with its
   settings icon. The one on show is gold with a gold bar on the line; none is lit
   while a search shows its results.
-  - Simple: Display (resolution, display mode, vertical sync, FPS cap, field of
+  - Simple: Display (resolution, render scale since 25/10/2026, display mode, vertical sync, FPS cap, field of
     view, brightness), Graphics (under Preset: the graphics preset dropdown;
     under Effects: weather, dynamic glow, impact marks, player shadows), Sound
     (effects and music volume, mute in background), Controls (sensitivity,
     invert mouse, always run), Key bindings, Gameplay (camera style, gameplay
     FPS, first-person weapon, saber trail, everyone as my model, Force Seeing
-    aura), HUD (under HUD: HUD look and scale; Crosshair: crosshair, its size,
+    aura, away emote and JA+ away emote, since 20/10/2026), HUD (under HUD: HUD look and scale; Crosshair: crosshair, its size,
     damage hitmarker; Over the game: nameplates, FPS readout, speedometer, kill
-    feed, chat) and General (Menus: menu style and text size; From another
-    client: import; JoF content: its card, since 16/10/2026; SJK online: check for
-    updates, SJK chat, crash reports, settings usage, SJK identity key). They are `settings::Group::Simple`.
+    feed, chat and its text size) and General (Menus: menu style and text size;
+    From another client: import; JoF content: its card, since 16/10/2026; SJK
+    online: check for updates, SJK chat, crash reports, settings usage, SJK
+    identity key). They are `settings::Group::Simple`.
   - Advanced: First setup, Display, Graphics, Sound, Controls (Mouse until
     12/10/2026: it holds keyboard rows too), Key bindings, Gameplay, Interface,
     HUD, Chat, Quick wheel, Mods, Network (Chat and Mods since 12/10/2026, when
@@ -786,18 +823,29 @@ that mode for the visit and leaves the player's choice as it was.
     to the classic style. Graphics leads with a Quality heading (the graphics
     preset, impact marks and player shadows, out of Video) and then
     gathers the renderer's four tabs (image, lighting, shadows, weather) under
-    their names; Display is Video's other rows under Screen, Frame rate and
+    their names; Display is Video's other rows under Screen, Frame rate (with
+    the menus' own cap, Menu FPS cap, `com_maxfpsMenu`, since 25/10/2026) and
     View; Sound holds every sound, the game's under Game, then the unlock
-    sound, the SJK chat sound and the quick wheel's sounds under
-    Notifications; Gameplay is Game options without the packs and mods;
+    sound, the world ping's and the quick wheel's sounds under
+    Notifications, and Chat sounds last (since 23/10/2026: the master switch, then
+    for public chat, team chat, private messages and the SJK chat a switch, a sound
+    list and a Play button, then the private message flash;
+    [client.md](client.md#chat-sounds)); Gameplay is Game options without the packs and mods, with
+    JoF EJK's camera framing and damping rows under Camera and prediction and,
+    under Effects, Stock blades (`cg_stockBlades`, segments Off, Others, All,
+    since 25/10/2026; [client.md](client.md#nameplates));
     Interface the menus and the console (the quick wheel's rows are its
     category's and Sound's); HUD its classic rows without the chat box, the FPS
     readout opening its Readouts (moved there from Video, as the first-person
     weapon moved to Gameplay's camera rows), and the scoreboard's rows under a
-    Scoreboard heading; Chat the chat box (Chat box) and the SJK chat (SJK
-    chat, its GIFs and the GIPHY key); Mods the asset browser (Packs), JA+ and
+    Scoreboard heading; Chat the chat box (Chat box: visibility, text size,
+    emojis, remembered channel, letter spacing and sender card size) and the SJK chat (SJK
+    chat, its game-feed and console visibility, its GIFs, its video clips opt-in and
+    the GIPHY key); Mods the asset browser (Packs), JA+ and
     JoF tools (Server mods), JoF content's card and host (JoF content),
-    invisible brushes (Map tools) and the showcase tools (Experimental); Network SJK online and Connection. A test checks that
+    invisible brushes (Map tools) and the showcase tools (Experimental); Interface's
+    Console rows include retaining colour codes when console scrollback is copied;
+    Network SJK online and Connection. A test checks that
     every setting is on exactly one of Advanced's categories. The classic+
     panels keep their groups as they were.
   - Key bindings shows every action under its group's sub-heading (Movement,
@@ -818,7 +866,8 @@ that mode for the visit and leaves the player's choice as it was.
     Off after it); a slider (a gold-filled track and its number, which a click
     or a typed digit opens for typing); segments for a choice of up to three; a
     field with a caret for a longer list, the display mode, the resolution and
-    the HUD (the last two open their pickers); a field for text.
+    the HUD (the last two open their pickers); a field for text; a Play button (a chat
+    sound's preview: Enter or a click plays it).
   - A choice whose values are numbers or codes shows names on its segments, list,
     field and detail (`settings::help::CHOICE_NAMES`): Shader remaps Never, Not
     players, Always; Dynamic glow Off, On, Sabers; Light shafts Off to High;
@@ -834,6 +883,14 @@ that mode for the visit and leaves the player's choice as it was.
     more; the keys' line under the card (Up/Down, PgUp/PgDn, Enter, Esc, whose
     cap is the pointer's way back). Home/End and the wheel move too; Enter or a
     click picks, Esc returns to the rows.
+  - The HUD picker (HUD look's Enter) is a pop-up card the same way, in every
+    menu style since 19/10/2026 (`settings/hud_picker.rs`; x 240, 1440 wide):
+    HUD look and what it is, the HUDs' names on the left (up to 12 rows, the
+    highlighted one on the band, the one in use in gold with its dot), the
+    highlighted HUD's picture on the right (16:9, rounded, a thin holo edge)
+    with its name and origin under it, and the keys' line under the card.
+    Hovering a name shows its picture; SJK's radial and classic layouts are
+    drawn on it by the live HUD ([client.md](client.md#hud-style)).
   - The focused row has a soft band and a gold bar at its left; a row changed
     from its default a gold dot after its name, and when focused the reset arrow.
     The dot is placed from the name's width as the body font draws it (the
@@ -1165,7 +1222,23 @@ and out as the classic board does, settling into place as it opens.
   played") and your place,
   the screen's one memorable thing, in gold ("3rd", "of 14" after it, "of 14,
   tied" on a tie; "Spectating" when you watch). Team games say "Your team leads
-  by 2", "trails by", "Tied at 5" (or which team leads, for a spectator). Under
+  by 2", "trails by", "Tied at 5" (or which team leads, for a spectator). Siege,
+  which scores no team, says nothing there, and its team heads carry no score
+  (the zeros meant nothing); once a round is over "Red team won" or "Blue team
+  won" stands large (Rajdhani 56) in the winner's colour, centred over both
+  teams, "Winner" in gold at the end of that team's head, and the whole window
+  washed faintly in that colour, deeper towards the top (JoF's request of
+  17/10/2026): the winner of the `EV_SIEGE_ROUNDOVER` seen when
+  `CS_SIEGE_STATE` turned "3|time" (`sjk_client::siege_round_winner`), else,
+  after the second round of a match whose teams switch, `CS_SIEGE_WINTEAM`; one
+  who joined after another round's event sees no winner. A team game at its
+  intermission tells its result as a siege round does (Slash's request of
+  19/10/2026), from the moment the server sets `CS_INTERMISSION` (or this
+  client's own `PM_INTERMISSION`; as cgame's `cg.intermissionStarted`, only a
+  change of the string counts, and a new level start ends it, since a `map_restart`
+  keeps the "1"): "Blue team won" over the blue wash and "Winner" at the end of that
+  team's head, or "Teams tied" in white; the scores stay in the team heads, and
+  the line on the right says nothing then. Under
   the map, "Killed by" and the name while you are dead.
 - **Where:** the columns start at x 680 of the frame, right of the chat column
   the scoreboard keeps for messages and the composer (`scoreboard::layout`, 640
@@ -1175,8 +1248,8 @@ and out as the classic board does, settling into place as it opens.
   52 tall at most, with a hairline under it: the place (Rajdhani; ties share
   it), the name with its colours (Exo 2), SJK's emblem right after it for a
   player the hub knows (gold when vouched for, as elsewhere), at intermission a
-  gold "Ready", then the score, the deaths when `cg_scoredeaths` counts them,
-  the minutes played, and the ping as the browser's signal bars and the number.
+  gold "Ready", then the score (as `score/deaths` when `cg_scoreDeaths` provides
+  deaths), the minutes played, and the ping as the browser's signal bars and the number.
   Your row has the UI's band with its gold bar, and its place, score, bars and
   ping in gold. Bots and players still joining are muted, with "Bot", "Joining"
   or "Connecting" for their ping.
@@ -1196,12 +1269,13 @@ and out as the classic board does, settling into place as it opens.
   or, where that would put it over the chat column, stands 40 right of the
   column (as near the middle as the chat allows); it never ends past 1824 or
   grows wider than the full board, the name column giving way (to 100 at the
-  least). A duel's cards keep their size about that middle, the players
+  least). Deaths share the score column rather than adding another column. A duel's
+  cards keep their size about that middle, the players
   waiting centred under them. The dim behind the columns follows the board,
   fading out on both sides, and "Watching" starts at its left edge. In the UI's
   families at 1080 lines (`scoreboard::shot` tests, on the world shot's made-up
-  names), a free for all of 8 is 440 frame pixels wide (500 with deaths
-  counted) and of 32, 411 (471), centred; a Team FFA of 6 a side is 835 and
+  names), a free for all of 8 is 440 frame pixels wide and of 32 is 411,
+  centred; a Team FFA of 6 a side is 835 and
   capture the flag of 6 a side 1142, both from 680 beside the chat column
   (four number columns and a player's three medal bars leave capture little to
   gain), against 1144 for the full board in every mode. Off, the sizes below
@@ -1226,6 +1300,10 @@ and out as the classic board does, settling into place as it opens.
   (compact: one list up to 21, then two).
 - **Spectators:** one line at the bottom, "Watching" then their names without
   colours.
+- **Away players** ([client.md](client.md#away-players), `cg_scoreboardAfk`):
+  below the others of their list, without a place, the name faint with its
+  colours at 40%, numbers muted and "AFK 7m" (or "AFK") in the ping column. The
+  places above count them, so ties and the header's place still agree.
 
 A full server fits the board's canvas (320 text runs, 1024 draw commands) in
 every mode, at 1080 lines and 4K, 5:4, 4:3, 21:9 and 32:9 (unit tests, which
@@ -1280,8 +1358,17 @@ entry of its own under Profile, making seven.
   - Team (the J key's, `teammenu`): Join the game and Spectate, or in a team game
     Auto-join, Red team, Blue team (each with its colour and players) and Spectate;
     the side the player is on is quiet ("Your team", "You are watching") and passed
-    over by the keys. In Siege the card's Class and side opens the class list (the
-    shared rows, a row's detail after its label).
+    over by the keys. In Siege the card's Class and side opens the class page in two
+    steps, as the team page: "Choose your team" with Auto-join (`team free`: the
+    side with fewer players, in the class the server settles; the cursor on it
+    while the player watches), Red team and Blue team (each
+    with its colour mark and players, "Your team" on the player's own, the cursor
+    on it), Spectate (dimmed and passed over while the player watches) and Back; a
+    side then lists its classes by name alone ("Red team classes", Next page past
+    eight, Back to the team choice, where Escape also goes). The classic look draws
+    the same two steps in its pop-up: the side step centred with the Team page's
+    flags and player counts, the classes as a list. The shared rows, a row's detail
+    after its label ([ingame_menu/siege.rs](../crates/sjk-viewer/src/ingame_menu/siege.rs)).
   - Call a vote (the card's link): its lists (map, game type, kick, warmup, limits)
     are the shared call-vote lists. Calling a vote returns to the match, as
     retail's pop-ups do.
@@ -1334,7 +1421,7 @@ entry of its own under Profile, making seven.
     or Blue team in its colour, Playing, or Watching), then the kit's buttons, three
     to the card's width: Join red and Join blue (a mark of the side's colour on each)
     and Spectate in a team game, Join and Spectate otherwise, Class and side (200
-    wide, Siege's class list) and Spectate in Siege. The side the player is on is
+    wide, Siege's class page) and Spectate in Siege. The side the player is on is
     dimmed and passed over. A side sends `team red`, `team blue`, `team free` or
     `team s` and returns to the match, as the Team page does.
   - **Call a vote**, quiet at the card's foot while no vote is on (muted Rajdhani 21,
@@ -1421,13 +1508,14 @@ grown to four. The same module serves the Collection screen's row
 [collection_panel.rs](../crates/sjk-viewer/src/collection_panel.rs) and its views
 (`collection_view.rs`, `collection_medals.rs`, `collection_achievements.rs`,
 `collection_shaders.rs`, `collection_toys.rs`, `collection_nameplates.rs`,
-`collection_cards.rs`), 10/10/2026,
+`collection_cards.rs`, `collection_forge.rs`), 10/10/2026,
 Sol's request: take the achievements, medals and unlockables out of the Profile screen
 into a screen of their own, "a real collection, things players can collect in the
 future", with tabs Medals, Achievements, Shaders (the blade skins, renamed: saber now,
 body later), Toys and Nameplates (ornaments for the nameplate), then Holocrons (the
-loot-box drops, built the same day as a Profile tab and moved here) and, since
-12/10/2026, Cards (what opening holocrons brings, [cards.md](cards.md)). Sol picked the
+loot-box drops, built the same day as a Profile tab and moved here), since 21/10/2026
+the Forge (the shop, crafting and breaking shaders down) and, since 12/10/2026, Cards
+(what opening holocrons brings, [cards.md](cards.md)). Sol picked the
 direction from a design canvas (`the vault`): every thing has its place from the
 start, the ones the player lacks dimmed; each tab shows its things on the left and
 the one chosen up close on the right.
@@ -1440,12 +1528,26 @@ commands open it on its own ("Back"); the `holocrons` command opens its Holocron
 for the run.
 
 - **Top:** the way back and "Collection" as the title; at the top right how many of
-  all things the player holds ("15 of 30 collected") over a tick for each thing,
-  grouped by tab, lit gold for the ones held. Under the title the row of tabs
+  all things the player holds ("15 of 30 collected") over a thin bar as wide as
+  those words, a stretch to each tab in the tabs' order, filled gold as far as that
+  tab's share held (one tick a thing until 21/10/2026, a barcode at two hundred things). Under the title the row of tabs
   (`profile_hub::collection_header`), each name with its count after it in small
-  Rajdhani ("2/3", "11/21", how many holocrons for Holocrons; nothing while unknown or empty), the one on show gold and
+  Rajdhani ("2/3", "11/34", how many holocrons for Holocrons; nothing while unknown or empty), the one on show gold and
   underlined. Drawn in Inter (the families not loaded, the classic menus), the row
-  makes room for the wider face.
+  makes room for the wider face. Over the map (Shaders, Toys, Nameplates) a band of
+  the page's dark stands behind the title, the tally and the tabs, solid to y 200 and
+  fading out by 290, as on the Holocrons page (25/10/2026, Sol: the tabs must read over
+  any map, the bright pillar of duel6 included).
+- **Fit (25/10/2026, Sol's pick from the Collection revamp's design canvas):** every tab
+  keeps to one frame: its things at x 96 to 960 (they grow down and scroll, never
+  sideways into the stage), the stage's column x 1000 to 1320 (the model, the lone
+  saber or the 3D holocron), the one chosen at x 1360 to 1824 (from 1000 on Shaders,
+  with no model) on a dark card, and the keys' line kept clear. A card's words are never
+  cut: it grows upward to hold them, wrapped for the menu text size. Behind the stage
+  the backdrop camera widens its field in a window narrower than 16:9
+  (`menu_stage::frame_fit_fov`), so the frame sees what a 16:9 window does and the model
+  stands in its column at 4:3 too (it used to drift to x 1200 to 1420 in frame pixels,
+  under the words and the keys).
 - **Medals:** "2 of 4 medals" (or why they are not known) over a line; every medal
   the client knows hangs by its ribbon from a lit holo rail (x 96 to 1000, y 336, a
   bead at each end), up to 226 apart, the ones given first in colour on a soft gold
@@ -1468,55 +1570,107 @@ for the run.
   unlocking with their medallion, bar and count; and how the counts are kept. It opens
   on the locked one nearest to unlocking. The arrows choose (Up and Down to the next
   category's, near the column).
-- **Shaders:** "1 of 5 owned" (or why that is not known) over a line, beside the kinds
-  as pills: Saber with its count, and Body ("soon", not offered yet). Then the rack, a
-  row of 106 to each: the stock blade first (its swatch in the player's `color1`), then
-  every blade skin, the rarest tier first (10/10/2026: Mythical, Legendary, Rare, then
-  Uncommon, the holocrons' tiers and colours), each with its live swatch
-  ([unlockables.md](unlockables.md#tiers)) framed in its tier's colour, alive
-  when owned, grey and still under a padlock when not, its name at 28 and its state
-  (Worn, Yours, Locked, "In your colour") with the tier's name at the line's right in
-  its colour; the one chosen banded with a gold mark. Or, switched by the two marks
-  left of the kinds (three bars, four squares) or V and kept in `ui_shaderView`, a grid
-  of cards five to a line, three lines shown (each card: a tier band and frame, the
-  swatch, the name without "blade", the tier and the state; the chosen card lifted
-  over a shadow with a white outline), the arrows moving in two directions; from Rare up
-  the cards, the rack's swatch frames and the tier pill carry the tier's animated
-  effects ([unlockables.md](unlockables.md#rarity-effects), `ui_rarityEffects`) ([unlockables.md](unlockables.md#shaders-tab)). Six
-  rows show at a time (10/10/2026, fifteen no longer fit): the rack scrolls just enough
-  to keep the chosen row in view (a pointer over the rows never scrolls it), the wheel
-  scrolls it a row a notch, the chosen row kept in view, and a thin bar at its right
-  shows where it is. The
+- **Shaders** (the wall and the list since 25/10/2026,
+  [collection_shaders.rs](../crates/sjk-viewer/src/collection_shaders.rs)): "14 of 166
+  owned" (or why that is not known) over a line, beside the view switches (three bars:
+  the list; four squares: the wall) and the kinds as pills: Saber with its count, and
+  Body ("soon", not offered yet). Under the line Owned (O), Chroma (C, the shaders that
+  take the wearer's colour) and the search field (`/`, Ctrl+F) to the list's right
+  edge; under them the tiers' strip: All, then each tier the player may see, the rarest
+  first (Unique's first of all, only for a player who holds one), each its mark and name
+  in its colour, "2/12" held and a bar of that share; a click or T (Shift+T back) shows
+  that tier alone, the one shown lit gold. The stock blade is always the first thing
+  (its strip in the player's `color1`), then every blade skin, the rarest tier first
+  (Mythical, Legendary, Rare, Uncommon, Common, the holocrons' tiers and colours; a
+  Unique shader is never listed, found by the search, counted in "N of M owned", the
+  Saber pill, the tab's count or the tally for a player who does not hold one,
+  [unlockables.md](unlockables.md#unique-shaders)). Two views, V or the switches, kept
+  in `ui_shaderList` (0 the wall, everyone's start; 1 the list; it replaced
+  `ui_shaderView`, whose 0 was the old rack, dropped from saved profiles):
+  - **The wall** (from y 400): a heading to each tier ("Mythical" in its colour, "2 of
+    12", a line in its colour; the stock blade's "Stock") and its tiles six to a line
+    (135 wide, 100 tall at the ordinary text size, taller at a larger one), up to thirty
+    shown. A tile: its tier's band along the top and frame, the blade as a strip
+    (`swatch::strip`: the live picture when owned, else a still blade in the skin's own
+    colours, dimmed when not held, so locked ones are told apart; grey while its pack
+    has not come), the name without "blade" on two lines at most, its state (Worn,
+    Yours, "Yours x3", Locked) and the chroma's wheel; the chosen tile lifted over a
+    shadow in a white outline. Left and Right step a tile (on into the next tier's), Up
+    and Down a line of tiles, to the same column or the nearest, past the headings.
+  - **The list** (from y 400): column heads (Shader, Tier and Yours sort it; "#", the
+    blade's number, only while `debug_collectibles` shows numbers; Look, Smith and,
+    while the hub's economy is known, Forge), then a row of 40 to each: the strip, the
+    chroma's wheel and the name, the tier's mark and name in its colour, the smith, what
+    the player holds and the Forge's word (what a copy breaks down for, or what crafting
+    costs, a blade card's lower price, quiet past the player's kyber shards). By tier a
+    heading leads each tier's rows; by name or by what is held, none. S steps the order
+    (Tier, Name, Yours, then Number while numbers show), a click on a head sets it, the
+    order on show gold with three bars; the shader chosen stays chosen whatever the
+    order or the view.
+  Both scroll a line at a time just enough to keep the chosen one in view (a pointer
+  over them never scrolls them), the wheel a line a notch, the chosen one kept in view
+  in its column, a thin bar at the right saying where; from Rare up the tiles and the
+  card carry the tier's animated effects ([unlockables.md](unlockables.md#rarity-effects),
+  `ui_rarityEffects`). The
   model holds the chosen blade, a locked one too ("Preview on your saber: not yours
   yet" over the stage): the preview is drawn by this screen only and never sent
-  (`collection_panel::PreviewSkin`, `menu_stage`'s `skin_override`). Beside the model
-  (x 1300 to 1824, from y 618): the tier as a pill in its colour (over the line), "Saber shader" or "Your saber", the name at 56 (gold
-  when owned) with its state as a tag, what it is, "Yours since dd/mm/yyyy, from the
-  SJK team" with the note (", with your Bug Hunter medal" when a medal brings it), or "How to get it: ...", and Equip (gold), Unequip or "Wear
-  the stock blade". It opens on what is worn. Up and Down choose, Enter equips or
-  unequips (`cg_saberSkin`). Under an owned skin whose file offers parts (11/10/2026,
-  the Sun and the Spectral): "Parts" and a tick for each in two columns (three past
-  four), its name after it, closing up its rows so it never runs under the keys' line;
-  a click or the number keys 1 to 6 switch one (`cg_saberSkinOptions`), the model's
-  blade following at once and, worn, every SJK player's view of it
+  (`collection_panel::PreviewSkin`, `menu_stage`'s `skin_override`). Its card at the
+  foot of the right (x 1000 to 1824, its foot at y 990, as tall as its words, its top
+  no higher than 436, the lone saber's room above it and "Drag to turn" just over it):
+  the tier's mark and name, the edition, the name (gold when owned) with its state as
+  a tag, its facts, what it is in full, "Yours since dd/mm/yyyy, from the SJK team"
+  with the note (", with your Bug Hunter medal" when a medal brings it) or "How to get
+  it: ...", and Equip (gold), Unequip or "Wear the stock blade". It opens on what is
+  worn; Enter equips or unequips (`cg_saberSkin`). Under an owned skin whose file
+  offers parts (11/10/2026): "Parts" and a tick for each in two columns (three past
+  four); a click or the number keys 1 to 6 switch one (`cg_saberSkinOptions`), the
+  model's blade following at once and, worn, every SJK player's view of it
   ([unlockables.md](unlockables.md#options)).
-- **Toys:** "2 toys", things to use in a match. Illuminate's holocron and the
-  cardboard box (since 16/10/2026), each its icon in its niche, "Everyone's"; the
-  chosen one ringed gold on a full glow, the other dimmed; a dotted line for the toys
-  to come. The arrows and Tab choose; a click on a niche chooses it, a click on the
-  chosen one runs it. With Illuminate chosen the holocron floats lit by the model on
-  the stage (`illuminate::submit_stage_holocron`); the box has no 3D stand-in on the
-  stage. Beside the model the chosen toy's name, what it is, how to use it and its
-  switch, "Holocron lit" or "In the box": on while the toy is on, and Enter or a click
-  runs it (the `toy_illuminate` or `toy_box` toggle, set to the state wanted; the
-  viewer owns the state, the console mirrors it each frame). The keys line says
-  "Enter: light" or "Enter: put out", "Enter: hide" or "Enter: come out".
+- **Toys** (rows since 25/10/2026,
+  [collection_toys.rs](../crates/sjk-viewer/src/collection_toys.rs)): "8 toys", things
+  to use in a match, and how many are on now. Illuminate's holocron, the cardboard box
+  (since 16/10/2026), Order 66 (since 17/10/2026), the Hax (since 21/10/2026), the
+  Ragdoll (since 23/10/2026), the Drone (since 24/10/2026), the Boombox (since
+  25/10/2026, verified players) and the Monitor (since 26/10/2026), a row of 76 to each
+  under column heads (Toy, Your key, On; eight rows fit over the keys): its icon, its
+  name and a line of what it does, the key bound to its command ("Not bound" when none)
+  and its own switch, which runs that toy in place and chooses it; the chosen row framed
+  gold on a soft gold ground. The arrows and Tab choose; a click on a row chooses it.
+  With Illuminate chosen the holocron floats lit by the model on the stage
+  (`illuminate::submit_stage_holocron`); the box has no 3D stand-in on the stage, nor
+  have Order 66, the Hax, the Ragdoll, the Drone, the Boombox and the Monitor. On a dark
+  card beside
+  the model (x
+  1360 to 1824, its foot at y 990, as tall as its words): "Toy · everyone's", its name,
+  what it is in full, its keys (Order 66 two: the join key, `toy_order66`, and the order
+  key, `order66`; the Monitor two: its key, `toy_monitor`, and the throw key,
+  `+monitor_throw`, held to charge), each a button: a click (or K for the first) waits for a key ("Press
+  a key...", Escape lets go, Backspace clears), which binds it to the command in place
+  of its first key as the key-binding editor does (`rebind_action`, never a locked key);
+  "Quick wheel: On its Toys page", a line more for some (the Hax: hold Use on a player
+  who has it on; the Ragdoll: its key again gets up), then its switch, "Holocron lit",
+  "In the box", "In the order", "Hacker", "Limp", "Peek me", "Play" or "Hit me": on while
+  the toy is on, Enter or a click runs it (the `toy_illuminate`, `toy_box`,
+  `toy_order66`, `toy_hax`, `toy_ragdoll`, `toy_drone`, `toy_boombox` or `toy_monitor`
+  toggle, set to the state wanted;
+  the viewer owns the state, the console mirrors it each frame). The keys line says
+  "Enter: light" or "Enter: put out", "Enter: hide" or "Enter: come out", "Enter: turn
+  on" or "Enter: turn off", "Enter: play" or "Enter: put away", and "K: bind a key" (while a key waits: "Esc: cancel", "Backspace: clear the
+  key"). Hovering Order 66's row shows how to turn it on and that `order66` executes it;
+  the Hax's, how to turn it on and that `+use` held on a holder hacks them.
 - **Nameplates:** none exist yet. "No nameplates yet"; three empty places, dashed, each
   with a drawing of where its kind will go: Crest (before the name), Frame (round the
   plate), Trail (under the plate). Over the model's head (projected from the stage
   model's head with the last frame's view, `GpuState::frame_view`; over the preview's
   head without a stage) the player's nameplate as a match draws it near: the name in
   its colours, the shield, health and Force bars, with dashed marks at the three places.
+  Its words stand on a dark card beside the model (x 1360 to 1824, its foot at y 990,
+  as tall as they need, since 25/10/2026). Under them, **See & share nameplates** (a switch; a click or Enter flips
+  it, its row pulsing gold every 1.2 s, a ring round it and a glow behind the switch)
+  puts `cg_nameplate` in plain view: the one setting for seeing other players'
+  nameplates and sharing your health, shield and Force
+  ([client.md](client.md#sharing-and-estimates)). A quiet line under it says what on or
+  off means (or, with the identity off, that sharing needs it).
 - **Holocrons** ([holocrons_panel.rs](../crates/sjk-viewer/src/holocrons_panel.rs),
   [holocrons_panel_view.rs](../crates/sjk-viewer/src/holocrons_panel_view.rs),
   [holocrons.md](holocrons.md#the-holocrons-tab), 10/10/2026, Sol's holocron drops): a
@@ -1534,7 +1688,7 @@ for the run.
   tinted in its colour with a white ring; the counts are the holocrons not opened yet),
   the player's credits at the panel's top right (the credits' mark and the sum, "credits"
   under), the chosen tier's description and in gold what opening one gives ("Opening it
-  gives a sealed card and 30 to 50 credits."), "Next holocron in about 20 minutes of play" with "3 of 8 today" and
+  gives a sealed card and 30 to 50 credits."), "Next holocron in about 20 minutes of play" with "3 of 8 in 24 h" and
   a gold bar, and "Recent holocrons" (times in UTC): the newest ten in two columns, each a
   small picture, the tier's name, `dd/mm/yyyy HH:MM` and, for a gift, "Gift from the SJK
   team" with the note; an opened one dimmed with "Opened". Under the caption, centred on
@@ -1544,8 +1698,10 @@ for the run.
   tier holds; L) shows every chance over the whole window, Back or Escape returns
   ([holocrons.md](holocrons.md#loot-table)). Keys: Up and Down (Left and Right, Tab, the wheel,
   1 to 4, Home, End) choose the tier, which swaps the 3D holocron at once (it shrinks away
-  and the new look grows in); Enter opens one, A opens all, L shows the loot table; a click on a row chooses it;
-  Ctrl+Tab goes on to Cards; Escape leaves. The `holocrons` command opens it as the
+  and the new look grows in); Enter opens one, A opens all (a card asks "Open all 7 holocrons?" first, Open all or
+  Cancel, [cards.md](cards.md#in-the-client)), L shows the loot table; a click on a row chooses it;
+  Ctrl+Tab goes on to the Forge; Escape leaves. Shop (or S) shows the Forge on its Shop
+  (the shop was an overlay of this tab until 21/10/2026). The `holocrons` command opens it as the
   Collection's tab (again to close); the SJK Profile tab's Holocrons block has See holocrons
   (the classic menus' Profile page too, opening the page on its own). Until the
   Collection (10/10/2026, the same day) it was the Profile screen's eighth tab. The classic Profile
@@ -1553,17 +1709,87 @@ for the run.
   `world_shot::holocrons_tab` (`duel6_sjk_holocrons`: each tier, one held none of, the
   identity off, waiting; `duel6_sjk_holocrons_windows`: 4:3, 21:9, 4K, `ui_textScale 1.2`,
   the classic style). Not tried in a game.
+- **The Forge** (21/10/2026, Sol's request: "a better interface for the shop, for crafting
+  sabers and for disassembling them", a tab of its own;
+  [collection_forge.rs](../crates/sjk-viewer/src/collection_forge.rs) for the state, keys
+  and requests, [collection_forge_view.rs](../crates/sjk-viewer/src/collection_forge_view.rs)
+  for the look): the Collection's tab between Holocrons and Cards, its count the player's
+  kyber shards. Under the row, three section chips, **Shop**, **Craft** and **Break down**
+  (the last with how many duplicate copies wait), the one on show gold; at the top right
+  the player's kyber shards and credits large, each mark and sum over its word, with how
+  each is earned in its hover card. Tab and Shift+Tab (or 1, 2, 3) change section, the
+  arrows choose, Enter or Space presses the chosen thing's button, the pointer chooses by
+  resting and acts by a click; Ctrl+Tab and Escape as on every tab.
+  - **Shop:** "Your offers of 21/10/2026" and "New offers in 5 h 12 min, at midnight in
+    Paris" (counting down; once due the Forge reads the hub again, once a day), the four
+    offers as large cards (408 by 444) across the page: the tier's frame, wash and
+    effects, the tier, the live blade, its name, its price beside the kyber shards' mark,
+    its state ("Bought today: it is yours", "You hold it already", "1 200 kyber shards
+    more needed") and Buy. Under them **Holocrons for credits**, a wide card each: the
+    holocron's picture on its tier's glow, its name in its colour, what it holds (or how
+    many credits are missing), its price and Buy. Showing the Shop reads the hub's day
+    ("Reading the shop..." until it answers).
+  - **Craft:** every saber shader of the trade the player does not hold at all (a card's
+    or a medal's copy counts as held), the commonest first so what the shards reach leads,
+    as a grid of cards (five by three) or a list (six rows), switched by V or the two marks
+    at the chips' right (`ui_shaderList`, as on Shaders: the grid first); chips for All and each tier (T
+    steps them), Affordable (A) and a search field ("Search shaders", `/` or Ctrl+F; Ctrl+A,
+    Ctrl+C, Ctrl+V and a held Backspace, `text_entry.rs`). Each card: the live blade, the
+    name, the tier and the cost beside the shard's mark (quiet when out of reach). On the
+    right the one chosen big: its tier and edition, its live blade 150 high, its name at
+    46, its facts (takes your colour, its smith), what it is, its parts, then "Crafting
+    costs" and "You hold" side by side, the shards left after or how many more are needed,
+    and Craft. A copy of the shader's blade card lowers the cost everywhere it shows, and
+    "Crafting costs (Holo card -50 %)" and the button ("Craft  (shard)  150  Holo card
+    -50 %") name the card ([cards.md](cards.md#sjk-blades)). The swatches here and on Shop
+    and Break down are the Collection's (`collection_swatch.rs`): with the menu pictures on
+    they show each shader's drawing instead of the live blade.
+  - **Break down:** the player's own copies of shaders of the trade (by grant, drops,
+    crafts or purchases; a medal's or a card's copy is never listed), duplicates first with
+    an "x3" badge, last copies after with a "Last" one; chips, Duplicates (D) and the search
+    as on Craft. On the right the one chosen: its copies ("3 copies", "Your only copy",
+    Worn), "A copy gives" and "You will hold", and **Break down a copy +10**; beside it
+    **Break down all duplicates (7) +100** (B), keeping one of each. A hub that says
+    `shatter_last` (21/10/2026) lists last copies too: their button reads "Break down your
+    last copy" and opens a card in ember, "This is your only copy", the blade, what it
+    gives, that it leaves the collection (and the saber, when worn: the client sets
+    `cg_saberSkin` back to the stock blade once the hub answers) and what crafting it back
+    would cost, Keep it (focused) and Break it down. All duplicates ask with a card too,
+    "Break down all duplicates?", the shaders that give copies up with how many, the total,
+    Cancel and Break them down (focused). A hub without the abilities lists duplicates
+    only and offers no Break down all.
+  - **Asking twice:** Buy, Craft and Break down a copy turn into "Confirm: ..." on the
+    first press; a second within five seconds sends it ("Buying...", "Crafting...",
+    "Breaking down..." until the hub answers), and the hub's answer reads beside the button
+    ("Kamino blade broken down: +5 kyber shards.") or under the offer.
+  - **When it cannot trade:** the identity off, no hub or no answer yet, or a hub with no
+    economy ("The Forge comes with the hub's shop") show a quiet place with the reason in
+    place of the section; while the hub keeps opening to staff or this build is older than
+    its minimum client, the lists still show and their buttons are dimmed with the reason.
+  - The Holocrons tab's Shop (or S) shows the Forge on its Shop, and the Shaders tab's card
+    leads to it: "Craft in the Forge" for a shader of the trade not held, "Break down in the
+    Forge" for one of the player's own copies, the shader chosen there. A held blade card's
+    "Craft the ... in the Forge" on the Cards tab does the same for its shader. World shots:
+    `world_shot::forge_shots` (`duel6_sjk_forge_shots`: every section and state, the cards
+    asking; `duel6_sjk_forge_windows`: 4:3 and 4K).
 - **Cards** ([collection_cards.rs](../crates/sjk-viewer/src/collection_cards.rs),
-  [cards.md](cards.md#in-the-client), 12/10/2026): "N cards" (or why they are not known)
-  with "Sealed until the first set of cards is out" under it, the player's credits at the
-  right of the headline (x up to 1080), up to twelve kinds of card on the left (128 wide,
-  six by two from y 330, the best first, each drawn card with "x3" and its finish under
-  it; more counted under them; none: a dark outline where the first will lie and "Open a
-  holocron on the Holocrons tab"), and the kind chosen up close on the right (290 wide
-  from y 200) in its finish's light, with its title in its rarity's colour (gold for
-  Solar), edition, how many and when the first was found, what the finish is and that it
-  is sealed. Left and Right (Tab, the pointer) choose; Ctrl+Tab goes on to Medals. The
-  row's count is the cards held. World shots: `world_shot::cards_shots`.
+  [cards.md](cards.md#in-the-client), 12/10/2026; a binder since 19/10/2026): "5 of 13
+  cards found" with each set's progress under it ("SJK Alpha 5 / 13"), the kyber shards
+  and credits at the right of the headline (x up to 1080); the filter's chips at y 300
+  (All, Owned, Missing; "Rarity: Any", "Kind: Any", "Finish: Any", a click each on to the
+  next; O, T, K, F) with "N of M cards" at the grid's right; every card of the packs as a
+  tile (140 wide, six by three from y 340, scrolling a line a wheel notch, a bar at the
+  right, each naming its card under its picture with its rarity at its foot): sealed
+  copies first, a tile per rarity, then the cards by set and number in their best
+  finish's light with an "x3" pill, the ones not found yet greyed; Reveal under the grid
+  at y 958 with its outcome beside it; and the tile chosen up close on the right (470
+  wide from y 150) with its name, the copies by finish and edition (or "Not found yet"),
+  its rarity, kind and set (no card shows its number), and when the first was found (or
+  its odds). The arrows (Up and Down a line), Tab and the pointer choose; Ctrl+Tab goes
+  on to Medals. Enter, Space, I or a click on a tile or on the card up close looks
+  closer: the card 660 wide over the darkened tab with its words at its right, the
+  arrows or the wheel to the previous or next tile, Escape or a click to put it back. The row's count is the copies held. World shots: `world_shot::cards_shots`
+  (`duel6_sjk_card_binder` with the hub's card pack).
 - **The model:** behind Shaders, Toys and Nameplates the page darkens only the left
   and the bottom. From the main page the backdrop camera goes to the player's shot
   (`ClientMenu::set_collection_stage`, which first reads the model, sabers and
@@ -1571,8 +1797,8 @@ for the run.
   the stage (`Backstage::World`); over a match, and in the classic menus, it shows in
   the page's live preview at (760, 110, 820, 840) (`Backstage::Preview`, as the
   in-game Character tab's). Without either the page draws the swatch or the picture
-  itself. In a window narrower than 16:9 the words beside the model keep a soft dark
-  pad.
+  itself. The words beside the model stand on cards of their own at every window shape,
+  and the backdrop camera keeps the model in the stage's column (Fit, above).
 - **Keys and pointer:** the keys line names what the arrows and Enter do on the tab,
   Ctrl+Tab and the next tab, Esc back. Ctrl+Tab (Ctrl+Shift+Tab back) changes tab, as
   on the Profile screen; a click on a tab shows it; hovering a thing chooses it; a
@@ -1593,9 +1819,9 @@ takes no input.
 | --- | --- | --- |
 | Medal | `Medal::how_to_get` (given by the SJK team, and for what) | the blade it brings while held; "Yours: given dd/mm/yyyy" or "Not given to you yet" |
 | Achievement | its goal | who counts it (SJK in matches, or the hub); "Unlocked dd/mm/yyyy" or "n of goal so far" |
-| Shader | the stock blade is everyone's; a blade skin's `how_to_get` | its tier; "Yours since dd/mm/yyyy", or locked (try it on here), or why holdings are not known |
+| Shader | the stock blade is everyone's; a blade skin's `how_to_get` | its tier; "Yours since dd/mm/yyyy", or locked (try it on here), or why holdings are not known (never a Unique one the player lacks) |
 | Toy | everyone's, and where to light it | "Yours" |
-| Card | from opening holocrons | how many holocrons found hold that kind ([loot table](holocrons.md#loot-table)); sealed; how many the player holds |
+| Card (a binder tile) | from opening holocrons: how many holocrons found hold a card of its rarity ([loot table](holocrons.md#loot-table)), one of how many of that rarity | its rarity, kind and set, no number (a sealed tile: picked when revealed); the copies by finish and edition and when the first was found, or "Not found yet" |
 | Holocron tier (Holocrons tab) | found by playing, the pace and the daily cap | the tier's share of drops and staff gifts; how many held |
 
 Nameplates have no things yet, so no cards. Text draws over every shape, so the card
@@ -1654,6 +1880,39 @@ or a button's white edge. It is the panel's state, tokens, keys and pointer
 the page is `Page::Shot`, in every menu style (the classic menus' right-edge
 panel was removed on 10/10/2026).
 
+## Map editor
+
+[panel_view.rs](../crates/sjk-viewer/src/map_edits/panel_view.rs): the staff map editor's
+panel ([map-edits.md](map-edits.md#the-panel) has what it does), opened by the world-note
+key while `mapedit` is on, in every menu style (19/10/2026, Sol's request). It is Camera
+control's column: the 1080-line frame on the window's right edge, the column at x 1440,
+416 wide, over the same navy fade, the scene left of x 1400 undimmed, where a click
+selects (the selection's green outline is the screen's one memorable thing).
+
+- **Top:** "Map editor" (Rajdhani 42), the map and its state (no edits yet, N edits not
+  published, or published with the hub's revision), then the pages as tabs: Selected,
+  Place, Edits (Camera control's tabs).
+- **Selected:** what it is (Rajdhani 26), its model or shader and its detail (Exo 2 16,
+  muted, two lines), a row of two kit buttons, then Draw another shader: a kit field and
+  Remap and Remove remap. With nothing selected, how to select.
+- **Place:** the kit's search pill, a list of seven rows (34 each, the chosen one gold with
+  a gold tick at its left, paths without `models/`), Place where you aimed across the
+  column, then Placed model: its line and two rows of four buttons.
+- **Edits:** a list of twelve rows, an edit for another server in quiet print; Delete and
+  Undo newest.
+- **Foot:** New edits for and the kit's segments (All servers, This server) at y 800, the
+  last answer (ember when refused) at 840, Publish (gold), Aim and Editor off at 898, and
+  two lines of keys from 964 as Camera control's. A page's controls end above it (a test
+  checks every page at four window shapes).
+- **Strip:** while the editor is on and the panel hidden, a navy card 600 wide at the top
+  centre of the 16:9 frame: "Map editor" in gold, what to aim at (or that the grabbed model
+  follows the aim), and the world-note key's cap with "edit" (or "put it down").
+
+It is a page of the in-game menu (`Page::MapEdit`), drawn by `InGameMenu::append_own_page`
+from the panel's state, which lives with the map's edits; its keys come before the game
+menu's (`GpuState::map_edit_key`), its pointer through `map_edit_pointer`. World shot:
+`duel6_map_editor_panel` (`world_shot_map_edits.rs`).
+
 ## Report a bug and its dialogs
 
 [text_dialog_sjk.rs](../crates/sjk-viewer/src/text_dialog_sjk.rs) draws the
@@ -1677,7 +1936,8 @@ menus ([identity.md](identity.md#bug-reports)).
   guidance (for a note, the surface it is about).
 - **Field:** six lines of the text (Exo 2 19) wrapped by the font's width in the
   player's text style (`ui_textScale`, `ui_letterSpacing`; the wrap, the caret
-  and the clicks measure as the renderer draws, `text_dialog_field.rs`); the
+  and the clicks measure as the renderer draws, `text_dialog_field.rs`, which the
+  Profile page's bio shares, its line breaks starting new lines); the
   lines scroll to keep the caret in view; a gold caret bar at the insertion
   point while it has the keyboard, lit steadily while typing; "Type here" while
   empty (held clear of the caret); outlined white while focused.
@@ -1686,8 +1946,8 @@ menus ([identity.md](identity.md#bug-reports)).
   Clear model at the right, or, without one, says a click on the scene round the
   card notes what is there; the field shows ten lines (13/10/2026). A press on the
   scene round the card selects what is under the pointer for the note.
-- **Under it:** the rules ("Letters, digits, spaces and . , ! ? ' - : ( )
-  only") and the count against the limit (600, 300 for a player report, 4000 for
+- **Under it:** the rules ("Letters, digits, spaces and . , ! ? ' - : ( ) _ / \ + = " ;
+  [ ] < > # only") and the count against the limit (600, 300 for a player report, 4000 for
   a note; gold at the limit), then why a Send is refused in a warm red band just
   above the buttons: after a Send was refused, and already while Send has the
   keyboard or the pointer and the text would not pass.
@@ -1785,6 +2045,30 @@ not drawn and take no input. The same look in every menu style, on the 16:9 fram
   without its buttons: "Reloading the graphics..." and that it takes a few seconds.
   On a server the loading screen shows instead.
 
+## Small graphics cards
+
+[small_card_notice.rs](../crates/sjk-viewer/src/small_card_notice.rs): the pop-up that
+tells a player on a card under 3.5 GiB (integrated GPUs included) what SJK lightened at
+start (Sol's choice, 25/10/2026, after the low-end audit): Vanilla style instead of the
+untouched SJK (recommended) preset, other players' blades stock (`cg_stockBlades 1`) and
+a 60 FPS menu cap (`com_maxfpsMenu 60`), each only from its default and once a card
+(`r_smallCardPreset` keeps the MiB it was considered for;
+[rendering.md](rendering.md#gpu-memory)). It shows once a start on the main page, after
+the medal, holocron and reload cards and before the low-FPS card; the menus under it are
+not drawn and take no input. The same look in every menu style, on the 16:9 frame:
+
+- **Card:** the kit's card over its scrim, 800 wide from x 560, y 340, as tall as its
+  words.
+- **Words:** "Graphics" in gold (Rajdhani 22), "Lighter graphics for your card"
+  (Rajdhani 36), then up to five lines of Exo 2 18 (muted): the card's video memory,
+  what changed (and "with smaller textures" when the texture detail is lowered), and
+  that each can be changed in Settings.
+- **Buttons:** Back to SJK graphics (outlined, 270) and Keep (gold, 150),
+  right-aligned along the foot; keys bottom right: Enter keep, Backspace back to SJK
+  graphics (Escape and Space keep too). Back to SJK graphics puts the preset back with
+  the player's kept values (as the renderer command does) and turns the stock blades and
+  the menu cap off where SJK set them; the reload card then offers to apply the preset.
+
 ## Low FPS help
 
 [fps_help_card.rs](../crates/sjk-viewer/src/fps_help_card.rs): the pop-up of the
@@ -1865,6 +2149,180 @@ under it are not drawn and take no input. The same look in every menu style, on 
   the foot; focus starts on Don't send. Keys bottom right: Enter send logs, Esc don't
   send; Space does nothing, so sending takes a deliberate key.
 
+## Announcements and reward rounds
+
+[official/window.rs](../crates/sjk-viewer/src/official/window.rs), 25/10/2026: the SJK
+team's windows ([hub-chat.md](hub-chat.md#announcements-and-reward-rounds)). One SJK
+pop-up card over the darkened screen at a time, the same look in every menu style, on the
+16:9 frame; the menus under it are not drawn and take no input. A window the player opened
+(a click on a line, `announcement`, `rewards`, `announce`) shows at once, in the middle of
+play too; a command closes the console first, while a line clicked on the chat page opens
+its window over the page, which is back once the window closes. While a window shows the
+cursor is free and the window takes every key and click (held keys are let go); the claim
+window opens on the main menu or over the game menu, after the medal,
+holocron, reload, FPS and log request cards and before the what's-new card, never in the
+middle of play. Every card is 920 wide from x 500, as tall as what it holds, centred; its
+head is the mark (SJK's logo, or the gift box U+E028 in gold for rewards, 52), a kicker in
+gold (Rajdhani 19) and on the right the date (`dd/mm/yyyy HH:MM`, UTC) or the round; then
+the title (Rajdhani 32, two lines at most). A click outside the card closes the
+announcement and the round list.
+
+- **Announcement:** "FROM THE SJK TEAM" (or "SJK RELEASE"), the title, then the text in
+  Exo 2 18: paragraphs with a gap between them, `- ` lines as gold bullets whose wrapped
+  lines stay indented; 16 lines at once, Up, Down and the wheel scroll the rest. Close
+  (gold for news; Esc, Enter, Space). A release adds Update (gold, U) while this build is
+  older than its version (the main menu's update action: install a release waiting, else
+  the Update page), else See what's new (W, the what's-new card's newest recap).
+- **Round list:** "REWARD ROUND 1 OF 3", the round's title and note, then each person
+  rewarded on a row of 34, alternate rows banded: the clan emblem for a known tag, the
+  name with its colour codes ("Someone" when the hub has none) and the verified seal in a
+  column of 290, the reason (muted, cut at 64 characters) beside it. Eleven rows at once,
+  Up, Down and the wheel scroll; Older and Newer (Left, Right) change the round. No
+  amounts.
+- **Claim:** "CONTRIBUTOR REWARD" with the round's title, "You received", "From the SJK
+  team, thank you.", then a row of 46 per item: each holocron tier's icon (its gem without
+  one) and "2 Rare Holocrons" in the tier's colour, in the tiers' order; the credits' sign
+  and "500 credits"; the kyber shard and "25 kyber shards"; then "Why: <reason>". Claim
+  (gold, Enter; "Claiming..." while the hub answers) and Later (Esc). The hub's refusal
+  shows over the buttons in ember.
+- **Composer** (the creator's `announce`): Kind (News, Release), Version (a release's),
+  Title and Text fields, Tab between them; the fields take Ctrl+A, Ctrl+C, Ctrl+V and a held
+  Backspace ([text_entry.rs](../crates/sjk-viewer/src/text_entry.rs)); Enter in the text
+  makes a new line (a paste keeps its lines), with a count of characters and lines under
+  it. Under them the chat line as players will read it (SJK's logo, "SJK" in gold, the
+  words). Send (or Ctrl+Enter) checks the hub's rules and asks to confirm; Send now
+  (Enter) sends, Back (Esc) returns; the hub's words show if it refuses, and the window
+  closes once it took it.
+
+## Encrypted whisper
+
+[e2e_whisper_card.rs](../crates/sjk-viewer/src/e2e_whisper_card.rs): the pop-up a
+player gets when an [encrypted whisper](hub-chat.md#encrypted-whispers) could not go
+encrypted (Sol's decision, 22/10/2026: ask, never send it unencrypted silently), and
+the one that shows a safety code. It opens the game menu when play is under way (the
+composer closes) and shows over it, after the other cards; closing the last one closes
+the menu it opened. What waits shows oldest first, and what belongs to a server the
+player has left is dropped. The same look in every menu style, on the 16:9 frame:
+
+- **Card:** the kit's card over its scrim, 800 wide from x 560, y 330, as tall as its
+  words.
+- **Words:** "Encrypted whisper" in gold (Rajdhani 22), "Send it unencrypted?"
+  (Rajdhani 36), then up to seven lines of Exo 2 18 (muted): to whom, why the hub did
+  not take it, the whisper in quotes (its first 120 characters), and that the game
+  server and whoever runs it can read it if sent unencrypted.
+- **Buttons:** Don't send (outlined, 170) and Send unencrypted (gold, 250),
+  right-aligned along the foot; focus starts on Don't send. Keys bottom right: Enter
+  send unencrypted, Esc don't send; Space does nothing.
+- **Safety code:** "Encrypted whispers", then "Safety code with <name>" (or "<name>'s
+  key changed"), the code's twelve groups of five digits in three rows of four (Rajdhani
+  40, rows 46 apart; gold once verified), and the words: compare it
+  outside the game, then mark them verified; once verified, that SJK warns if their key
+  changes; for a changed key, that whispers to them wait for a new check. Buttons Close
+  and Mark verified (gold, Enter); once verified, Close is gold (Enter and Esc) and
+  Remove the check is outlined, by click only. The chat's player card offers it with a
+  full-width Safety code button in the whispers' pink, under Block.
+
+## Trading
+
+[trade_window.rs](../crates/sjk-viewer/src/trade_window.rs) and
+[player_trades.rs](../crates/sjk-viewer/src/player_trades.rs) (prepared 22/10/2026, off
+until the hub turns trading on): two SJK players swap unopened holocrons and duplicate
+saber shaders through the SJK hub, which checks both sides twice and holds every limit
+(the hub's PROTOCOL.md, "Trades between players"). Every number the window shows comes
+from the hub: its rules, today's counts and what each item is worth. The same look in
+every menu style, on the 16:9 frame:
+
+- **Starting:** a gold Trade button (140 wide) on the game menu's Players page, on the
+  player card of the player chosen in the table, with what it does beside it on one line
+  ("Swap holocrons and duplicate shaders", or "Swap duplicate shaders" while holocrons do
+  not trade; a test measures every such line in the UI's fonts), dimmed with why when it
+  cannot be (trading closed, an offline server), Trade on a player's card in the game's chat and the SJK chat page (beside
+  Block, the two even halves; Ban 24 h then takes a row of its own; only while the hub
+  lets the player trade), Trade on the game menu's Players page after the report reasons (with
+  why not when it cannot be: yourself, a bot, a player the hub does not know, trading
+  closed), or `trade <player>`.
+- **The toast:** while a trade runs and the window is closed, a card 660 wide at the top
+  centre (y 64) over play, which takes no input: the other player's picture (or initial)
+  in a gold ring, their name in its colours, "Nib wants to trade" (Rajdhani 24) with the request's seconds in gold, a muted
+  line, a thin gold bar running down smoothly (to the fraction of a second, not in steps),
+  and the key: Esc answer (or Esc open), 40 above the card's foot, clear of the bar. It also tells
+  for six seconds how a trade ended, or why a request was refused.
+- **Reaching it in game:** the pointer is free only in the menus, so the window shows
+  over the game menu: Esc in play opens it while a trade runs; Esc in it shows the game
+  menu under it (the trade goes on, the toast at the top says so) and Esc there goes back
+  to play. Whenever the pointer is free (the game menu, or the chat's composer, open) the
+  toast is a button: Open trade (gold) and a click anywhere on it bring the window back.
+  Asking from a card or the command opens it at once. A request from another player
+  never opens it by itself, in game or in the main menu: only the toast shows until its
+  Open trade, or Esc in play (Sol's review, 24/10/2026: it took every key over the menus,
+  and Enter accepted). Esc in play means the game menu opening from play, so a request
+  that came during play stays a toast when the player leaves for the main menu (Sol's
+  review, 25/10/2026). The other cards come first.
+- **From the main menu:** no game is needed: the toast and the window show over the main
+  menu too (the pointer is free there, so the toast is always a button), and Close keeps
+  the window closed until the toast's Open trade.
+- **Blocked players** (Sol's decision, 24/10/2026): a request from a player blocked on
+  this PC is declined without a word (no toast, no window), and no card offers Trade
+  with them (the Players page says "You blocked this player"); `trade <player>` and a
+  request by key refuse them too ("you blocked this player", Sol's review, 25/10/2026).
+- **The SJK chat page:** its sender card offers Trade too (by the player's SJK key); the
+  page closes and the window opens over the game or the main menu.
+- **Request:** the kit's card, 800 wide from x 560, y 300, over a light shade (the match
+  shows round it): the SJK logo, "Trade request" in gold, "Nib wants to trade"
+  (Rajdhani 36, their name in its colours) with the seconds left, what a trade is, the bar, Decline (outlined) and Accept (gold, Enter).
+  The asker's reads "Waiting for Nib" with Cancel request. A request waiting for a player
+  does not hold them at the hub (its review of 24/10/2026): they may be asked by others
+  and ask someone themselves, and taking one trade closes the rest, which say so ("Nib is
+  trading with someone else."). Asking a player again soon after they said no, or sending
+  many requests, gets the hub's answer to wait (`asked_recently`, `asking_too_often`), in
+  words that name no number.
+- **Open trade:** a card 1160 by 780 (its design size; the player's Trade window size
+  setting, `cl_tradeWindowSize`, draws it at 80, 90 (the default) or 100 percent about the
+  frame's middle). Its head: the SJK logo on its own (64 wide), "Trading with" in gold, and
+  the other player's picture (or initial) and name as they wear it, colours and all; when
+  it closes without a change on the right. Two columns, You give and Nib gives (their name
+  in its colours), each with what it is worth on average in kyber shards, six tile slots
+  (78 square: the holocron's picture and tier, or the blade in its tier's colour and its
+  name, ringed in that colour) and its state (Choosing..., Ready, Confirmed), a gold swap
+  badge between them. Under a hairline, "Your holocrons and duplicates" ("Your duplicates"
+  while the hub trades no holocrons yet, `rules.holocrons` false: duplicates come first, and
+  the toast then says "Duplicate shaders."): up to 18 tiles,
+  those that may go in first, most worth first (a click puts one in; a click on an offered
+  one takes it out). A holocron received in a trade within the hub's resale lock is shown
+  dimmed with a gold timer pill in place of its name, counting down ("6d 23h", "5h 12m"),
+  and a gold warning card under the items says "Holocrons received in a trade wait before
+  they can be traded again: each shows how long."; one the day's limits hold back is
+  dimmed too, a gold line saying why. Neither answers a click; the gold line names the
+  tiers given ("You have given today's Rare and Mythical holocrons. More tomorrow."). No
+  text names one of the hub's numbers (a limit, the lock, the idle time, the trust rule):
+  the hub tunes them without a client update (Sol's review). Beside them, Daily
+  limits: Holocrons (no row while holocrons do not trade) and Duplicates, each Received and
+  Given as done / most (ember once reached); one of each tier a day each way (the hub's
+  `holocron_tier_day`) shows only in that gold line. The
+  limits run for a trading day of 24 hours from the player's first completed trade (the
+  same for every time zone), so under them, while one runs, "Daily reset in" with a gold
+  clock ticking down ("14:07:33", the hub's `resets_at`); then every count resets. Then
+  the hub's refusal in ember, "Nib is giving this as a gift: nothing is asked in return."
+  in green, or an uneven warning in gold, and Cancel trade, Not ready and the gold button:
+  Ready, then Confirm in 3, 2, 1 and Confirm trade once both are ready. Keys bottom right:
+  Enter main button, Esc close.
+- **A gift:** one side may give nothing. Ready on a gift the player gives asks once more:
+  a gold-ringed card in the items' place, "Give it as a gift?", what they give, that
+  nothing comes back and that it cannot be undone, with Go back and Yes, give it (gold).
+  A change of the offers drops the question.
+- **Recent holocrons:** on the Profile screen's Holocrons tab, a holocron received in a
+  trade says so under its name: "Received from Nib in a trade", and while the hub's lock
+  runs "- tradable again in 6d 23h" (no countdown before the hub said how long).
+- **Ended:** "Traded with Nib" (or ended) and how, with Close, while the window was open.
+- **Cost:** the views are built only when what they show changes (a new list or step from
+  the hub, the own profile, the players known) and the window's parts (the player's items,
+  the limits) only while the window can show, under one short identity lock; between, only
+  their clocks run on, and the window keeps its copy. With trading off for the player, the
+  client reads the trade list only every 30 minutes, not every ten (Sol's review,
+  24/10/2026), so trading switched on at the hub reaches running clients without a
+  restart (Sol's review, 25/10/2026); registering again or the feed's word of a trade
+  reads it at once.
+
 ## What's new card
 
 [whats_new_card.rs](../crates/sjk-viewer/src/whats_new_card.rs): the pop-up a player
@@ -1884,6 +2342,23 @@ same look in every menu style, on the 16:9 frame:
   release lists shows nothing. Closing writes the marker; quitting with the card up
   shows it again next time. `whatsnew` shows the newest recap again, "Unreleased"
   included, as a preview that writes nothing.
+- **Settings to review** (17/10/2026): when the releases since the seen one name
+  settings to choose again (`= <cvar>[ reset]: <sentence>` in the changelog,
+  [sjk.md](sjk.md#changelog); `changelog::reviews`, every release since the seen one,
+  past the five recap pages), the card opens on a page of them before the recaps:
+  "Settings to review" as its headline, "Changed by this update: choose again" on the
+  right, and a row each with the heading's icon, "1." and the setting's Settings name
+  (`settings::switch_label`) in gold, its switch at the right and the sentence under
+  them. A click on the switch or the row's number key (1 to 9) flips the setting and
+  leaves the card up; the switches read the console each frame. A `reset` setting is
+  put back to its default when the card is offered, not in a preview (`whatsnew` shows
+  "Unreleased"'s with working switches), once per version: `cl_whatsNewReset` records
+  the version whose resets were applied as soon as they are, so a player who joins with
+  `+connect` or quits with the card up, then turns the setting on in game, keeps it at
+  the next start, while the card is still offered (`changelog::resets`; an update past
+  it resets only the newer releases' settings). That one generic marker serves every
+  release; no setting has a migration cvar of its own, and `cl_whatsNewSeen` still says
+  what the player has not seen.
 - **Card:** the kit's card over its scrim, 920 wide from x 500, centred vertically, as
   tall as its tallest page, so the buttons stay put while the pages turn.
 - **Words:** "SJK updated" (or "Preview") in gold (Rajdhani 22) and, right-aligned on
@@ -1942,9 +2417,21 @@ group in the script (`SYMBOLS`) and gets its name in `symbols.rs`.
 | U+E002 | octagon with one upright bar | Rare |
 | U+E003 | octagon with a cross round a core | Legendary |
 | U+E004 | the Legendary mark in a second, outer octagon | Mythical |
+| U+E005 | Mythical's two octagons round a solid four-point star | Unique (25/10/2026) |
 | U+E010 | a card's outline | Normal finish |
 | U+E011 | a card with two slanting bands | Holo finish |
 | U+E012 | a card with a sun at its heart | Solar finish |
+| U+E020 | a cube seen from above a corner | a holocron: found in one |
+| U+E021 | a medallion on a ribbon's V | a medal: comes with one |
+| U+E022 | a padlock | locked |
+| U+E023 | a tick | yours |
+| U+E024 | a card with a second behind it | held more than once |
+| U+E025 | a smith's hammer | its saber smith |
+| U+E026 | a turning arrow | drag to turn |
+| U+E027 | a lightsaber held up | worn |
+| U+E028 | a gift box with a bow | from the SJK team (also a reward round's chat line and the claim window, 25/10/2026) |
+| U+E029 | a five-pointed star | its edition |
+| U+E030 | a long crystal, a ridge down its middle | Kyber shards (17/10/2026) |
 
 - **Drawn from strokes:** the script draws every symbol from lines with round ends,
   polygon rings and diamonds in font units (1000 to the em, capitals 700 high, the
@@ -1954,7 +2441,7 @@ group in the script (`SYMBOLS`) and gets its name in `symbols.rs`.
   date, and a test checks every symbol `symbols.rs` names is in it. The strokes are
   about two pixels thick in 16 to 20 pixel text.
 - **Where they show:** a card's corner and its footer's rarity (the face), the sealed
-  back's rarity, the loot table's rarity and finish headings and its cards' rows, the
+  back's rarity, the loot table's rarity and finish headings, its kyber shards' heading and its cards' rows, the
   Shaders tab's tier on each row. The rarity's word and colour stay beside the symbol:
   it is never the only sign.
 - **Not in it:** the credits' sign, Lucasfilm's, stays drawn from shapes
@@ -2123,6 +2610,17 @@ group in the script (`SYMBOLS`) and gets its name in `symbols.rs`.
   is drawn on the HUD's layer with a canvas of its own, its text routed to the
   families when they are loaded (`quick_wheel::append`), else to Inter; it does
   not load them itself.
+
+## Chat media sources
+
+SJK chat's GIF picker includes a Sources tab in every menu style. It edits the
+profile's exact-host trust list, keeps GIPHY by default, and requires an explicit
+Trust source action after typing or selecting a host. A selected message's Manage
+GIF source action opens the same editor. Discovered media CDN hosts are listed for
+separate approval; removing a source stops cached playback. See
+[trusted media sources](hub-chat.md#trusted-media-sources) for formats and privacy.
+The field uses the shared text-entry handler, including selection, clipboard and
+held-key editing.
 
 ## Plan
 

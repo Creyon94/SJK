@@ -12,6 +12,17 @@ const DEFAULT_HILT_MODEL: &str = "models/weapons2/saber_1/saber_1.glm";
 const DEFAULT_BLADE_LENGTH: f32 = 40.0;
 const DEFAULT_BLADE_RADIUS: f32 = 3.0;
 
+/// Saber carriers one hilt mesh is sized for: every client slot plus as many
+/// saber NPCs (`LEGACY_MAX_CLIENTS` each way), not every entity number.
+const HILT_ACTORS: usize = 2 * sjk_protocol::LEGACY_MAX_CLIENTS;
+
+/// Two hilts per saber carrier, reserved at load rather than on a frame (about
+/// 16 KB per hilt mesh). Held and thrown hilts may still grow it; only stowed
+/// hilts past this many are skipped rather than growing it in the frame loop.
+pub(crate) fn instance_group() -> Vec<crate::actor_instance::ActorInstance> {
+    Vec::with_capacity(2 * HILT_ACTORS)
+}
+
 /// One numbered blade socket and its `.sab` presentation parameters.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct HiltBlade {
@@ -27,10 +38,13 @@ pub(crate) struct Hilt {
     pub(crate) mesh_index: usize,
     blades: [Option<HiltBlade>; 8],
     pub(crate) num_blades: u8,
+    pub(crate) is_staff: bool,
     /// Suppress scene lights for this hilt without suppressing its visible blade.
     pub(crate) no_dlight: bool,
     /// Authored contact-effect suppression.
     pub(crate) no_wall_marks: bool,
+    /// The `.sab` `saberColor` an NPC's blade wears without an override.
+    pub(crate) default_color: sjk_client::LegacySaberColor,
 }
 
 impl Hilt {
@@ -39,6 +53,34 @@ impl Hilt {
             .then(|| self.blades[index])
             .flatten()
     }
+
+    /// Whether blade `index` is this hilt's other half ([`other_half`]).
+    pub(crate) fn is_other_half(self, index: usize) -> bool {
+        other_half(&self.blades, self.num_blades, index)
+    }
+}
+
+/// Whether blade `index` of the first `used` of `blades` is a staff's other half: it points
+/// away from the first blade (more than 120 degrees from it), as a staff's second blade
+/// does. A crossguard's side blades stand across the first and belong to its half, so a
+/// one-handed saber with three blades is no staff (review of 22/10/2026: counting blades
+/// took it for one).
+pub(crate) fn other_half(blades: &[Option<HiltBlade>; 8], used: u8, index: usize) -> bool {
+    let used = usize::from(used).min(blades.len());
+    let Some(first) = blades[..used].iter().flatten().next() else {
+        return false;
+    };
+    let Some(blade) = blades[..used].get(index).copied().flatten() else {
+        return false;
+    };
+    let along =
+        |blade: &HiltBlade| glam::Vec3::from_array(blade.socket.direction).normalize_or_zero();
+    along(first).dot(along(&blade)) < -0.5
+}
+
+/// Whether any of the first `used` of `blades` is a staff's other half ([`other_half`]).
+pub(crate) fn has_other_half(blades: &[Option<HiltBlade>; 8], used: u8) -> bool {
+    (0..usize::from(used)).any(|index| other_half(blades, used, index))
 }
 
 /// Hilts required by current clientinfo, with `single_1` as a safe fallback.
@@ -53,6 +95,10 @@ pub(crate) struct HiltCatalog {
 }
 
 impl HiltCatalog {
+    /// Recognize shared hilt meshes by catalog ownership, never by asset path.
+    pub(crate) fn uses_mesh(&self, index: usize) -> bool {
+        self.model_cache.values().any(|(mesh, _)| *mesh == index)
+    }
     /// Animation-event overrides from the same catalog as the visible hilt.
     pub(crate) fn animation_sound(&self, name: &str, path: &str, variant: usize) -> Option<&str> {
         let definition = self.definitions.get(name)?;
@@ -71,8 +117,30 @@ impl HiltCatalog {
         self.hilts.get(name).copied().unwrap_or(self.fallback)
     }
 
+    /// [`Self::get`] for a name as the server wrote it (an NPC's `npcSaber1`
+    /// keeps its `.sab` case), lower-cased on the stack without allocating.
+    pub(crate) fn get_any_case(&self, name: &str) -> Hilt {
+        let mut buffer = [0u8; 64];
+        if !name.bytes().any(|byte| byte.is_ascii_uppercase()) || name.len() > buffer.len() {
+            return self.get(name);
+        }
+        let lower = &mut buffer[..name.len()];
+        lower.copy_from_slice(name.as_bytes());
+        lower.make_ascii_lowercase();
+        std::str::from_utf8(lower).map_or(self.fallback, |lower| self.get(lower))
+    }
+
     /// Whether `name` is loaded, unknown to the `.sab` files, or failed —
     /// in every case [`Self::get`] has an answer without loading anything.
+    /// Whether the saber `name` is a staff (or any one hilt with more blades), as its
+    /// definition says; an unknown saber is not.
+    pub(crate) fn is_staff(&self, name: &str) -> bool {
+        self.definitions
+            .get(name)
+            .or_else(|| self.definitions.get(&name.to_ascii_lowercase()))
+            .is_some_and(|definition| definition.is_staff)
+    }
+
     pub(crate) fn is_resolved(&self, name: &str) -> bool {
         name.eq_ignore_ascii_case("none")
             || self.hilts.contains_key(name)
@@ -164,6 +232,7 @@ fn default_definition() -> crate::saber_defs::Definition {
         sound_swing: [None, None, None],
         model: DEFAULT_HILT_MODEL.to_owned(),
         num_blades: 1,
+        is_staff: false,
         blade_lengths: [DEFAULT_BLADE_LENGTH; 8],
         blade_radii: [DEFAULT_BLADE_RADIUS; 8],
         blade_style2_start: 0,
@@ -171,6 +240,7 @@ fn default_definition() -> crate::saber_defs::Definition {
         trail_style2: 0,
         no_dlight: false,
         no_wall_marks: false,
+        default_color: sjk_client::LegacySaberColor::Fixed(sjk_client::SaberColor::Red),
     }
 }
 
@@ -192,8 +262,10 @@ fn append_hilt(
         mesh_index,
         blades: hilt_blades(definition, &sockets),
         num_blades: definition.num_blades,
+        is_staff: definition.is_staff,
         no_dlight: definition.no_dlight,
         no_wall_marks: definition.no_wall_marks,
+        default_color: definition.default_color,
     })
 }
 
@@ -270,8 +342,105 @@ fn load_hilt_model(
         draws,
         center: [0.0; 3],
         flash_bolt: None,
+        turning_bone: None,
     });
     let cached = (mesh_index, sockets);
     model_cache.insert(definition.model.clone(), cached);
     Ok(cached)
+}
+
+#[cfg(test)]
+mod capacity_tests {
+    use super::*;
+
+    #[test]
+    fn dual_holstered_hilts_fit_every_carrier_without_growing_the_group() {
+        let mut group = instance_group();
+        let storage = group.as_ptr();
+        for _ in 0..HILT_ACTORS {
+            for _ in 0..2 {
+                assert!(group.len() < group.capacity());
+                group.push(crate::actor_instance::ActorInstance::new(
+                    [0.; 3],
+                    [0., 0., 0., 1.],
+                    [1.; 3],
+                ));
+            }
+        }
+        assert_eq!(group.as_ptr(), storage);
+    }
+}
+
+#[cfg(test)]
+mod lookup_tests {
+    use super::*;
+
+    fn pointing(direction: [f32; 3]) -> Option<HiltBlade> {
+        Some(HiltBlade {
+            socket: BladeSocket {
+                origin: [0.0; 3],
+                direction,
+            },
+            length: 40.0,
+            radius: 3.0,
+            trail_style: 0,
+        })
+    }
+
+    #[test]
+    fn a_staff_has_another_half_and_a_crossguard_has_none() {
+        let mut staff = [None; 8];
+        staff[0] = pointing([0.0, 0.0, 1.0]);
+        staff[1] = pointing([0.0, 0.0, -1.0]);
+        assert!(!other_half(&staff, 2, 0));
+        assert!(other_half(&staff, 2, 1));
+        assert!(has_other_half(&staff, 2));
+        // A main blade and two short ones across it at the guard.
+        let mut crossguard = [None; 8];
+        crossguard[0] = pointing([0.0, 0.0, 1.0]);
+        crossguard[1] = pointing([1.0, 0.0, 0.0]);
+        crossguard[2] = pointing([-1.0, 0.0, 0.1]);
+        assert!(!has_other_half(&crossguard, 3));
+        // One blade, or a blade past the ones in use.
+        assert!(!has_other_half(&staff, 1));
+        assert!(!other_half(&staff, 1, 1));
+    }
+
+    fn hilt(mesh_index: usize, default_color: sjk_client::LegacySaberColor) -> Hilt {
+        Hilt {
+            mesh_index,
+            blades: [None; 8],
+            num_blades: 1,
+            is_staff: false,
+            no_dlight: false,
+            no_wall_marks: false,
+            default_color,
+        }
+    }
+
+    #[test]
+    fn an_npc_saber_name_finds_its_hilt_in_any_case() {
+        let fallback = hilt(
+            0,
+            sjk_client::LegacySaberColor::Fixed(sjk_client::SaberColor::Red),
+        );
+        let desann = hilt(
+            7,
+            sjk_client::LegacySaberColor::Fixed(sjk_client::SaberColor::Purple),
+        );
+        let catalog = HiltCatalog {
+            hilts: BTreeMap::from([("desann".to_owned(), desann)]),
+            fallback,
+            definitions: BTreeMap::new(),
+            model_cache: BTreeMap::new(),
+            failed: BTreeSet::new(),
+        };
+        for name in ["desann", "Desann", "DESANN"] {
+            let found = catalog.get_any_case(name);
+            assert_eq!(found.mesh_index, 7, "{name}");
+            assert_eq!(found.default_color, desann.default_color);
+        }
+        assert_eq!(catalog.get_any_case("Kyle").mesh_index, 0);
+        assert_eq!(catalog.get_any_case(&"X".repeat(80)).mesh_index, 0);
+    }
 }

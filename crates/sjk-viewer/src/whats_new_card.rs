@@ -12,6 +12,17 @@
 //! it on the console's input line. Under the recap, who made the release's changes and
 //! the clients they follow, from the changes' credits.
 //!
+//! A release can ask players to look at settings it changed again (`= <cvar>[ reset]:
+//! <text>` in `CHANGELOG.md`): the card then opens on a "Settings to review" page, a row
+//! each with the setting's Settings name, why it is asked and its switch, for every
+//! release since the one seen (`changelog::reviews`). A `reset` setting goes back to its
+//! default when the card is offered, so a value saved before the change does not carry
+//! over unchosen; the player switches it on again if they want it. The reset applies
+//! once per version ([`RESET_CVAR`], written as it is applied), though the card stays
+//! offered until answered. Switching a row keeps the card open; no setting needs a
+//! migration marker of its own, since `cl_whatsNewSeen` already says which releases the
+//! player has not seen.
+//!
 //! `cl_whatsNewSeen` holds the version whose recap the player closed. The card shows on
 //! the main menu or over the game menu, never in the middle of play. A new installation
 //! (no marker and First setup still to do) writes the marker without showing the card;
@@ -20,7 +31,7 @@
 //! UI's look in every menu style, and the menus under it are not drawn and take no input,
 //! as under the other cards.
 
-use crate::console::changelog::Digest;
+use crate::console::changelog::{Digest, Review};
 use crate::inline_code::{self, Look, Measures, Place, Row};
 use crate::menu::sjk::{Frame, TextTarget, color, key_hint, key_hint_width, kit, text};
 use crate::menu_widgets::{MenuCanvas, TextFamily};
@@ -30,6 +41,9 @@ use winit::keyboard::{KeyCode, PhysicalKey};
 
 /// The version whose recap the player closed.
 pub(crate) const SEEN_CVAR: &str = "cl_whatsNewSeen";
+/// The version whose settings to reset (`= <cvar> reset:`) were put back to their
+/// default, so they are reset once, though the card stays unanswered over several runs.
+pub(crate) const RESET_CVAR: &str = "cl_whatsNewReset";
 /// Console command that shows the newest recap again.
 pub(crate) const COMMAND: &str = "whatsnew";
 /// Help text for completion and `cmdlist`.
@@ -41,7 +55,11 @@ const CLOSE_TOKEN: u16 = 1;
 const CHANGELOG_TOKEN: u16 = 2;
 const PREVIOUS_TOKEN: u16 = 3;
 const NEXT_TOKEN: u16 = 4;
+/// The settings to review's switches, `SWITCH_BASE + n` (at most [`SWITCH_LIMIT`]).
+const SWITCH_BASE: u16 = 50;
+const SWITCH_LIMIT: usize = 40;
 const CHIP_BASE: u16 = 100;
+const _: () = assert!(SWITCH_BASE as usize + SWITCH_LIMIT <= CHIP_BASE as usize);
 
 /// The card's left edge, width and the room above and below it; it is as tall as its
 /// tallest page and sits in the middle of the frame.
@@ -93,6 +111,19 @@ const DOT_STEP: f32 = 20.0;
 /// The keys' line, as on the other screens.
 const KEYS_Y: f32 = 992.0;
 const KEYS_RIGHT: f32 = 1824.0;
+
+/// The keys that flip the settings to review, the first nine.
+const DIGITS: [KeyCode; 9] = [
+    KeyCode::Digit1,
+    KeyCode::Digit2,
+    KeyCode::Digit3,
+    KeyCode::Digit4,
+    KeyCode::Digit5,
+    KeyCode::Digit6,
+    KeyCode::Digit7,
+    KeyCode::Digit8,
+    KeyCode::Digit9,
+];
 
 /// The icon a recap heading wears: the first entry with a word that starts a word of
 /// the heading (any case), else [`HEADING_ICON`]. Settings and quick wheel icons
@@ -167,6 +198,8 @@ pub(crate) enum Choice {
     Changelog,
     /// A chip: its text (`ViewerConsole::follow_chip`); the card closes.
     Chip(String),
+    /// Flip a setting to review: its cvar. The card stays open.
+    Switch(String),
 }
 
 /// One release on the card.
@@ -178,6 +211,8 @@ struct Page {
     blocks: Vec<Block>,
     /// "By Sol and Creyon, after JoF EJK", or empty.
     credit: String,
+    /// The settings to review, not a release.
+    review: bool,
 }
 
 /// One block of a page as offered, before it is wrapped to the card's width.
@@ -187,6 +222,8 @@ enum Block {
     Line(String, String),
     /// A release's introduction, standing in for a recap it lacks.
     Intro(String),
+    /// A setting to review: its Settings name and why it is asked.
+    Setting(String, String),
 }
 
 /// One block of a page, wrapped.
@@ -196,6 +233,8 @@ enum Item {
     Line(&'static str, String, Vec<Row>),
     /// An introduction's rows, in muted text.
     Intro(Vec<Row>),
+    /// A setting to review: its icon, its name, the reason's rows and its switch's index.
+    Setting(&'static str, String, Vec<Row>, usize),
     /// What did not fit.
     More,
 }
@@ -203,7 +242,9 @@ enum Item {
 impl Item {
     fn height(&self) -> f32 {
         match self {
-            Self::Line(_, _, rows) => HEADING_HEIGHT + rows.len() as f32 * LOOK.line + ROW_GAP,
+            Self::Line(_, _, rows) | Self::Setting(_, _, rows, _) => {
+                HEADING_HEIGHT + rows.len() as f32 * LOOK.line + ROW_GAP
+            }
             Self::Intro(rows) => rows.len() as f32 * LOOK.line + ROW_GAP,
             Self::More => LOOK.line + ROW_GAP,
         }
@@ -238,6 +279,9 @@ pub(crate) struct Card {
     pages: Vec<Page>,
     /// The page on show.
     page: usize,
+    /// The settings to review: their cvars and whether each is on, as the console said
+    /// this frame ([`Card::sync_switches`]).
+    switches: Vec<(String, bool)>,
     /// The pages wrapped, and the measures they were wrapped with ([`Card::lay_out`]).
     laid: Vec<Laid>,
     laid_for: Option<u32>,
@@ -254,6 +298,7 @@ impl Default for Card {
             kicker: "SJK updated",
             pages: Vec::new(),
             page: 0,
+            switches: Vec::new(),
             laid: Vec::new(),
             laid_for: None,
             open: false,
@@ -293,8 +338,69 @@ impl Card {
                 date: digest.date.clone(),
                 blocks,
                 credit: credit_line(&digest.people, &digest.after),
+                review: false,
             });
         }
+    }
+
+    /// Open the card on a page of the settings `reviews` asks to look at again, before
+    /// the recaps; one Settings has no switch for is left out. Nothing without a recap
+    /// to show with it.
+    pub(crate) fn offer_reviews(&mut self, reviews: &[Review]) {
+        if self.pages.is_empty() {
+            return;
+        }
+        let rows: Vec<(String, &'static str, String)> = reviews
+            .iter()
+            .filter_map(|review| {
+                crate::settings::switch_label(&review.cvar)
+                    .map(|label| (review.cvar.clone(), label, review.text.clone()))
+            })
+            .take(SWITCH_LIMIT)
+            .collect();
+        if rows.is_empty() {
+            return;
+        }
+        // Lowercase once: the cvar table looks a lowercase name up without allocating,
+        // and the switches are read every frame.
+        self.switches = rows
+            .iter()
+            .map(|(cvar, _, _)| (cvar.to_ascii_lowercase(), false))
+            .collect();
+        let blocks = rows
+            .into_iter()
+            .map(|(_, label, text)| Block::Setting(label.to_owned(), text))
+            .collect();
+        self.pages.insert(
+            0,
+            Page {
+                title: String::new(),
+                date: String::new(),
+                blocks,
+                credit: String::new(),
+                review: true,
+            },
+        );
+        self.laid.clear();
+        self.laid_for = None;
+    }
+
+    /// Read whether each setting to review is on, with `on`, for this frame's switches.
+    pub(crate) fn sync_switches(&mut self, on: impl Fn(&str) -> bool) {
+        for (cvar, state) in &mut self.switches {
+            *state = on(cvar);
+        }
+    }
+
+    /// The cvar of the setting to review `index` on the page on show.
+    fn switch_on_page(&self, index: usize) -> Option<Choice> {
+        let page = self.pages.get(self.page)?;
+        if !page.review {
+            return None;
+        }
+        self.switches
+            .get(index)
+            .map(|(cvar, _)| Choice::Switch(cvar.clone()))
     }
 
     /// Whether the card has something to show.
@@ -305,6 +411,7 @@ impl Card {
     /// The card is answered: it puts the recap away.
     fn put_away(&mut self) {
         self.pages.clear();
+        self.switches.clear();
         self.laid.clear();
         self.laid_for = None;
         self.page = 0;
@@ -325,7 +432,8 @@ impl Card {
     }
 
     /// Enter, Space, Escape or Backspace close the card, C opens the changelog, Left and
-    /// Right turn its pages; every other key is swallowed while the card shows.
+    /// Right turn its pages, 1 to 9 flip the settings to review on their page; every
+    /// other key is swallowed while the card shows.
     pub(crate) fn handle_key(&mut self, event: &KeyEvent) -> Option<Choice> {
         if event.state != ElementState::Pressed {
             return None;
@@ -353,7 +461,10 @@ impl Card {
                 self.turn(1);
                 return None;
             }
-            _ => return None,
+            _ => {
+                let digit = DIGITS.iter().position(|digit| *digit == code)?;
+                return self.switch_on_page(digit);
+            }
         };
         self.put_away();
         Some(choice)
@@ -374,6 +485,9 @@ impl Card {
             NEXT_TOKEN => {
                 self.turn(1);
                 return None;
+            }
+            token if (SWITCH_BASE..CHIP_BASE).contains(&token) => {
+                return self.switch_on_page(usize::from(token - SWITCH_BASE));
             }
             token if token >= CHIP_BASE => {
                 let chip = self
@@ -420,11 +534,14 @@ impl Card {
         let (Some(page), Some(laid)) = (self.pages.get(self.page), self.laid.get(self.page)) else {
             return;
         };
-        let headline = if page.title == "Unreleased" {
+        let headline = if page.review {
+            "Settings to review".to_owned()
+        } else if page.title == "Unreleased" {
             "What's coming next".to_owned()
         } else {
             format!("What's new in {}", page.title)
         };
+        let review = page.review;
         let ui = &mut self.ui;
         ui.begin_transparent(viewport);
         kit::scrim(ui, viewport);
@@ -439,11 +556,15 @@ impl Card {
             FontWeight::Semibold,
             TextAlign::Start,
         );
-        let when = if self.pages.len() > 1 {
+        let releases = self.pages.iter().filter(|page| !page.review).count();
+        let when = if review {
+            "Changed by this update: choose again".to_owned()
+        } else if releases > 1 {
+            let first = usize::from(self.pages.first().is_some_and(|page| page.review));
             format!(
                 "Release {} of {}   /   {}",
-                self.page + 1,
-                self.pages.len(),
+                self.page + 1 - first,
+                releases,
                 page.date
             )
         } else {
@@ -490,6 +611,55 @@ impl Card {
                         color::GOLD_BRIGHT,
                         FontWeight::Semibold,
                         TextAlign::Start,
+                    );
+                    inline_code::draw_rows(
+                        ui,
+                        &frame,
+                        rows,
+                        &LOOK,
+                        &Place {
+                            x: TEXT_X + INDENT,
+                            y: y + HEADING_HEIGHT,
+                            colour: color::TEXT,
+                            code_family: TextFamily::Code,
+                        },
+                        Some(&mut chip_token),
+                    );
+                }
+                Item::Setting(icon, label, rows, index) => {
+                    if let Some(texture) = crate::settings_icons::texture(icon) {
+                        let _ = ui.draw_list_mut().push(DrawCommand::TexturedQuad {
+                            rect: frame.rect(TEXT_X, y + (HEADING_HEIGHT - ICON) * 0.5, ICON, ICON),
+                            texture,
+                            color: Color::new(1.0, 1.0, 1.0, 0.9),
+                        });
+                    }
+                    let on = self.switches.get(*index).is_some_and(|(_, on)| *on);
+                    text(
+                        ui,
+                        TextFamily::Display,
+                        format_args!("{}. {label}", index + 1),
+                        frame.rect(
+                            TEXT_X + INDENT,
+                            y,
+                            TEXT_WIDTH - INDENT - 120.0,
+                            HEADING_HEIGHT,
+                        ),
+                        HEADING_SIZE * s,
+                        color::GOLD_BRIGHT,
+                        FontWeight::Semibold,
+                        TextAlign::Start,
+                    );
+                    let right = TEXT_X + TEXT_WIDTH;
+                    let left = kit::switch(ui, &frame, right, y + HEADING_HEIGHT * 0.5, on, false);
+                    ui.hit_region(
+                        SWITCH_BASE + *index as u16,
+                        frame.rect(
+                            left - 6.0,
+                            y - 4.0,
+                            right - left + 12.0,
+                            HEADING_HEIGHT + 8.0,
+                        ),
                     );
                     inline_code::draw_rows(
                         ui,
@@ -580,9 +750,12 @@ impl Card {
             pager(ui, &frame, buttons_y, self.page, pages);
         }
         let [right, keys_y] = frame.point(KEYS_RIGHT, KEYS_Y);
-        let mut hints: Vec<(&[&str], &str)> = Vec::with_capacity(3);
+        let mut hints: Vec<(&[&str], &str)> = Vec::with_capacity(4);
+        if review {
+            hints.push((&["1-9"], "switch"));
+        }
         if pages > 1 {
-            hints.push((&["Left", "Right"], "release"));
+            hints.push((&["Left", "Right"], "page"));
         }
         hints.push((&["C"], "full changelog"));
         hints.push((&["Enter"], "close"));
@@ -667,6 +840,12 @@ fn lay_out_page(page: &Page, measures: &Measures<'_>) -> Laid {
                 inline_code::flow(sentence, TEXT_WIDTH - INDENT, measures, &LOOK),
             ),
             Block::Intro(intro) => Item::Intro(intro_rows(intro, measures)),
+            Block::Setting(label, sentence) => Item::Setting(
+                heading_icon(label),
+                label.clone(),
+                inline_code::flow(sentence, TEXT_WIDTH - INDENT, measures, &LOOK),
+                laid.items.len(),
+            ),
         };
         if height + item.height() > room {
             laid.items.push(Item::More);
@@ -676,7 +855,7 @@ fn lay_out_page(page: &Page, measures: &Measures<'_>) -> Laid {
         laid.items.push(item);
     }
     for item in &laid.items {
-        if let Item::Line(_, _, rows) | Item::Intro(rows) = item {
+        if let Item::Line(_, _, rows) | Item::Intro(rows) | Item::Setting(_, _, rows, _) = item {
             laid.chips
                 .extend(inline_code::chips(rows).map(str::to_owned));
         }
@@ -735,6 +914,34 @@ fn and_list(names: &[String]) -> String {
     }
 }
 
+/// Put each setting `reviews` marks `reset` back to its default, before the card asks
+/// the player to choose it again: a value saved before the change does not carry over.
+fn reset_reviewed(console: &mut crate::console::ViewerConsole, reviews: &[Review]) {
+    for review in reviews.iter().filter(|review| review.reset) {
+        if let Some(default) = console
+            .cvar_default(&review.cvar)
+            .map(sjk_shell::CvarValue::as_text)
+        {
+            console.set_cvar(&review.cvar, &default);
+        }
+    }
+}
+
+/// Reset the settings `resets` names for reaching `installed` from `seen` (given the
+/// version whose resets were applied), and record at once that `installed`'s were: a
+/// player who joins a server from the command line, or quits before answering the
+/// card, keeps what they chose since at the next start.
+fn reset_once(
+    console: &mut crate::console::ViewerConsole,
+    installed: &str,
+    seen: &str,
+    resets: impl FnOnce(&str, &str, &str) -> Vec<Review>,
+) {
+    let applied = console.text_cvar(RESET_CVAR).unwrap_or_default().to_owned();
+    reset_reviewed(console, &resets(installed, seen, &applied));
+    console.set_cvar(RESET_CVAR, installed);
+}
+
 impl crate::GpuState {
     /// Read the marker once and put the recap of an update on the card; a new
     /// installation, and a build no release lists, show nothing. Then say whether the
@@ -791,7 +998,12 @@ impl crate::GpuState {
             return;
         }
         let digests = crate::console::changelog::digests(installed, &seen);
+        let reviews = crate::console::changelog::reviews(installed, &seen);
+        if !digests.is_empty() {
+            reset_once(console, installed, &seen, crate::console::changelog::resets);
+        }
         self.whats_new_card.offer(installed, &digests, false);
+        self.whats_new_card.offer_reviews(&reviews);
     }
 
     /// `whatsnew`: put the newest recap on the card, the unreleased one included.
@@ -800,6 +1012,9 @@ impl crate::GpuState {
             .into_iter()
             .collect();
         self.whats_new_card.offer("", &digests, true);
+        // A preview resets nothing; its switches still work.
+        self.whats_new_card
+            .offer_reviews(&crate::console::changelog::newest_reviews());
     }
 
     /// Draw the card. It darkens everything, so every font batch appended before it is
@@ -813,6 +1028,10 @@ impl crate::GpuState {
             &mut self.text_vertices,
             &self.ui_font,
         );
+        if let Some(console) = self.console.as_ref() {
+            self.whats_new_card
+                .sync_switches(|cvar| console.bool_cvar(cvar) == Some(true));
+        }
         self.whats_new_card.append(target, viewport);
     }
 
@@ -822,6 +1041,14 @@ impl crate::GpuState {
         let Some(choice) = choice else {
             return;
         };
+        if let Choice::Switch(cvar) = &choice {
+            // A setting to review flips; the card stays, and the update is not yet seen.
+            if let Some(console) = self.console.as_mut() {
+                let on = console.bool_cvar(cvar) == Some(true);
+                console.set_cvar(cvar, if on { "0" } else { "1" });
+            }
+            return;
+        }
         let version = self.whats_new_card.version.clone();
         if let Some(console) = self.console.as_mut() {
             if !version.is_empty() {
@@ -831,6 +1058,7 @@ impl crate::GpuState {
                 Choice::Close => {}
                 Choice::Changelog => console.open_changelog(),
                 Choice::Chip(text) => console.follow_chip(text),
+                Choice::Switch(_) => {}
             }
         }
         self.sync_cursor_policy();
@@ -910,6 +1138,110 @@ mod tests {
         assert_eq!(card.key(KeyCode::Escape), Some(Choice::Close));
         card.offer("2.0", &[], false);
         assert!(!card.wants());
+    }
+
+    /// A reset setting goes back to its default; one only asked about keeps its value.
+    #[test]
+    fn reset_settings_go_back_to_their_default_and_the_others_stay() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut console =
+            crate::console::ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
+        console.set_cvar("cg_nameplate", "1");
+        console.set_cvar("cg_nameplateWeapon", "0");
+        reset_reviewed(
+            &mut console,
+            &[
+                review("cg_nameplate", true),
+                review("cg_nameplateWeapon", false),
+                review("not_a_setting", true),
+            ],
+        );
+        assert_eq!(console.bool_cvar("cg_nameplate"), Some(false));
+        assert_eq!(console.bool_cvar("cg_nameplateWeapon"), Some(false));
+    }
+
+    /// The reset applies once per version: a later start with the card still unanswered,
+    /// after the player turned the setting on again, keeps it on.
+    #[test]
+    fn a_reset_applies_once_per_version() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut console =
+            crate::console::ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
+        let resets = |installed: &str, _: &str, applied: &str| {
+            if applied == installed {
+                Vec::new()
+            } else {
+                vec![review("cg_nameplate", true)]
+            }
+        };
+        console.set_cvar("cg_nameplate", "1");
+        reset_once(&mut console, "2.0", "1.0", resets);
+        assert_eq!(console.bool_cvar("cg_nameplate"), Some(false));
+        assert_eq!(console.text_cvar(RESET_CVAR).ok(), Some("2.0"));
+        console.set_cvar("cg_nameplate", "1");
+        reset_once(&mut console, "2.0", "1.0", resets);
+        assert_eq!(
+            console.bool_cvar("cg_nameplate"),
+            Some(true),
+            "not reset again"
+        );
+    }
+
+    /// A setting to review is looked up by its lowercase name, which reads without
+    /// allocating each frame, however the changelog spells it.
+    #[test]
+    fn switches_keep_the_lowercase_name() {
+        let mut card = Card::default();
+        card.offer("2.0", &[digest("2.0", &[("Servers", "x")])], false);
+        card.offer_reviews(&[review("CG_Nameplate", true)]);
+        assert_eq!(card.switches, [("cg_nameplate".to_owned(), false)]);
+    }
+
+    fn review(cvar: &str, reset: bool) -> Review {
+        Review {
+            cvar: cvar.to_owned(),
+            reset,
+            text: "Why it is asked.".to_owned(),
+        }
+    }
+
+    /// Settings to review open the card on a page of their own, named as Settings names
+    /// them; a number or a click flips one and leaves the card up, and one Settings has
+    /// no switch for is left out.
+    #[test]
+    fn settings_to_review_come_first_and_switch_without_closing() {
+        let mut card = Card::default();
+        card.offer_reviews(&[review("cg_nameplate", true)]);
+        assert!(!card.wants(), "no review without a recap");
+        card.offer("2.0", &[digest("2.0", &[("Servers", "x")])], false);
+        card.offer_reviews(&[review("cg_nameplate", true), review("not_a_setting", false)]);
+        assert_eq!(card.pages.len(), 2);
+        assert!(card.pages[0].review);
+        assert_eq!(
+            card.pages[0].blocks,
+            [Block::Setting(
+                "See & share nameplates".to_owned(),
+                "Why it is asked.".to_owned()
+            )]
+        );
+        card.sync_switches(|cvar| cvar == "cg_nameplate");
+        assert_eq!(card.switches, [("cg_nameplate".to_owned(), true)]);
+        assert_eq!(
+            card.key(KeyCode::Digit1),
+            Some(Choice::Switch("cg_nameplate".to_owned()))
+        );
+        assert_eq!(card.key(KeyCode::Digit2), None, "only the rows shown");
+        assert!(card.wants(), "switching keeps the card");
+        laid_out(&mut card);
+        assert!(matches!(
+            card.laid[0].items[..],
+            [Item::Setting(_, _, _, 0)]
+        ));
+        // The numbers flip nothing on a release's page.
+        card.turn(1);
+        assert_eq!(card.key(KeyCode::Digit1), None);
+        assert_eq!(card.key(KeyCode::Enter), Some(Choice::Close));
+        assert!(card.switches.is_empty());
     }
 
     #[test]

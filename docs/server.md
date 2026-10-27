@@ -26,6 +26,18 @@ address and open the chosen UDP port.
 Always supply `--game-data` for a playable map. Without it the process can
 advertise a map name but does not load that map's content.
 
+## Siege class catalogues
+
+Installed Siege content follows JoF EJK #253's expanded catalogue capacities:
+the first 1024 `.scl` files and 256 `.team` files in load order are considered.
+A theme has up to 16 sequential `classN` slots (`class1` through `class16`),
+stopping at the first missing key; missing class references retain their slot.
+Oversized/refused files still occupy a global listing slot. The named limits
+live in the `sjk-game-jka` Siege compatibility parser; owned registries remain
+vectors. The client class selector uses the same capacities in both UI styles,
+so it does not exceed those catalogue capacities. These content limits
+change no protocol-26 field, class loadout, movement or combat timing.
+
 ## Options and configuration
 
 The authoritative option parser and usage text are in
@@ -114,6 +126,19 @@ vertical input alone does not accelerate without forward/sideways input.
 See [bridge_cheats.rs](../crates/sjk-dedicated/src/bridge_cheats.rs) and
 [noclip.rs](../crates/sjk-game-jka/src/noclip.rs).
 
+## NPC definition packs
+
+With `g_stockRules 0` (the default), native NPC loading reads every listed
+`ext_data/npcs/*.npc` file without the stock filename-list or aggregate-text
+limits. This allows larger collections of community definitions; it does not
+raise the number of NPCs alive at once or change protocol 26 limits.
+
+`g_stockRules 1` keeps the reference's 2,048-byte filename listing and 256 KiB
+aggregate-text bound, including the existing empty-definition fallback on a
+text-size load error. Both profiles preserve VFS listing order and installed
+content precedence. Reload the map after changing the installed definitions.
+See [map.rs](../crates/sjk-dedicated/src/map.rs).
+
 ## Vehicle boarding and sand creatures
 
 Landing on an empty animal or speeder requests boarding using the multiplayer
@@ -139,3 +164,15 @@ bait, victim attachment/swallowing, and single-player camera effects are not
 implemented. Pursuit uses local steering and ordinary NPC movement; complex
 obstacles still need broader map playtesting. No new protocol fields or SP entity
 flags are sent, and no new assets are required for the retail sand creature.
+
+## Siege doors
+
+The use key reaches a `PLAYER_USE` door (`ValidUseTarget`, `GlobalUse`). In siege,
+`TryUse`'s `alliedTeam` rule keeps the door's `teamallow` team from using it unless
+`g_ff_objectives` is set. Before the round begins, the use key does nothing.
+
+A door that spawns locked carries `EF_SHADER_ANIM`. Its `s.frame` is 0 while locked and 1
+once unlocked (`LockDoors`, `UnLockDoors`), so the client draws the lock lights by state.
+
+`trigger_multiple` and `trigger_once` take their team from `team`, or else from the generic
+`teamuser`/`alliedteam` spawn fields.

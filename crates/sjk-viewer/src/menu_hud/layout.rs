@@ -11,11 +11,20 @@ use super::parse::{MenuDef, Window};
 /// Tics per meter (`MAX_HUD_TICS`).
 pub(crate) const TICS: usize = 4;
 
+/// `MAX_VHUD_SHIELD_TICS`: the vehicle hull's tics (`shield_tic1..12`).
+pub(crate) const HULL_TICS: usize = 12;
+/// `MAX_VHUD_ARMOR_TICS`, `MAX_VHUD_SPEED_TICS`, `MAX_VHUD_AMMO_TICS`.
+pub(crate) const VEHICLE_TICS: usize = 5;
+/// The picture `cgs.media.whiteShader` stands for.
+pub(crate) const WHITE_PICTURE: &str = "*white";
+
 /// Which screen edge a menu keeps to when the screen is wider than 4:3.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum Side {
     Left,
     Right,
+    /// The middle of the screen: the vehicle HUD at the bottom centre.
+    Centre,
 }
 
 /// One drawable piece: a rectangle in the 640x480 screen, the edge it keeps
@@ -38,6 +47,62 @@ pub(crate) struct MenuPieces {
     pub(crate) frame: Option<Piece>,
 }
 
+/// A vehicle meter: its background picture and its tics, in order.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct Meter<const N: usize> {
+    pub(crate) background: Option<Piece>,
+    pub(crate) tics: [Option<Piece>; N],
+}
+
+impl<const N: usize> Default for Meter<N> {
+    fn default() -> Self {
+        Self {
+            background: None,
+            tics: [None; N],
+        }
+    }
+}
+
+/// `swoopvehiclehud` as OpenJK codemp `CG_DrawVehicleHud` uses it. The names
+/// are stock's: `shield_tic*` show the hull (`STAT_HEALTH`) and `armor_tic*`
+/// the shields (`STAT_ARMOR`).
+#[derive(Clone, Debug, Default, PartialEq)]
+pub(crate) struct VehiclePieces {
+    /// `leftframe`, `rightframe`.
+    pub(crate) frames: [Option<Piece>; 2],
+    /// `shieldbackground`, `shield_tic1..12`.
+    pub(crate) hull: Meter<HULL_TICS>,
+    /// `armorbackground`, `armor_tic1..5`.
+    pub(crate) shields: Meter<VEHICLE_TICS>,
+    /// `speedbackground`, `speed_tic1..5`.
+    pub(crate) speed: Meter<VEHICLE_TICS>,
+    /// `ammobackground`, `ammo_tic1..5`: one weapon.
+    pub(crate) ammo: Meter<VEHICLE_TICS>,
+    /// `ammoupper*` and `ammolower*`: two weapons.
+    pub(crate) ammo_upper: Meter<VEHICLE_TICS>,
+    pub(crate) ammo_lower: Meter<VEHICLE_TICS>,
+    /// `turborecharge` (a negative height fills upwards), drawn white.
+    pub(crate) turbo: Option<Piece>,
+    /// `weaponslinked`, drawn white.
+    pub(crate) linked: Option<Piece>,
+    /// Picture index of [`WHITE_PICTURE`].
+    pub(crate) white: u16,
+}
+
+impl VehiclePieces {
+    fn meters(&self) -> impl Iterator<Item = (&Option<Piece>, &[Option<Piece>])> {
+        [
+            (&self.hull.background, &self.hull.tics[..]),
+            (&self.shields.background, &self.shields.tics[..]),
+            (&self.speed.background, &self.speed.tics[..]),
+            (&self.ammo.background, &self.ammo.tics[..]),
+            (&self.ammo_upper.background, &self.ammo_upper.tics[..]),
+            (&self.ammo_lower.background, &self.ammo_lower.tics[..]),
+        ]
+        .into_iter()
+    }
+}
+
 /// Every item the retail status HUD draws, from the loaded menus.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub(crate) struct Layout {
@@ -55,6 +120,8 @@ pub(crate) struct Layout {
     pub(crate) score_line: Option<Piece>,
     /// `saberstyle_*` by `saber_styles_t` (1 fast ... 7 staff; 0 unused).
     pub(crate) saber_styles: [Option<Piece>; 8],
+    /// `swoopvehiclehud`, the vehicle HUD.
+    pub(crate) vehicle: Option<VehiclePieces>,
     /// Shader names, indexed by [`Piece::picture`].
     pub(crate) pictures: Vec<String>,
 }
@@ -107,7 +174,40 @@ impl Layout {
                     .flatten()
             });
         }
+        if let Some(menu) = find("swoopvehiclehud") {
+            layout.vehicle = Some(layout.vehicle(menu));
+        }
         layout
+    }
+
+    /// The vehicle HUD's items. Unlike the status HUD's menus it is not painted
+    /// (`CG_DrawVehicleHud` draws named items only).
+    fn vehicle(&mut self, menu: &MenuDef) -> VehiclePieces {
+        let mut pieces = VehiclePieces {
+            frames: [self.item(menu, "leftframe"), self.item(menu, "rightframe")],
+            hull: self.meter(menu, "shieldbackground", "shield_tic"),
+            shields: self.meter(menu, "armorbackground", "armor_tic"),
+            speed: self.meter(menu, "speedbackground", "speed_tic"),
+            ammo: self.meter(menu, "ammobackground", "ammo_tic"),
+            ammo_upper: self.meter(menu, "ammoupperbackground", "ammoupper_tic"),
+            ammo_lower: self.meter(menu, "ammolowerbackground", "ammolower_tic"),
+            turbo: self.item(menu, "turborecharge"),
+            linked: self.item(menu, "weaponslinked"),
+            white: self.picture(WHITE_PICTURE),
+        };
+        // The turbo and linked marks draw `whiteShader`, not their background.
+        for piece in pieces.turbo.iter_mut().chain(&mut pieces.linked) {
+            piece.picture = Some(pieces.white);
+        }
+        pieces
+    }
+
+    /// `background` and the tics `{tic}1..N` of `menu`.
+    fn meter<const N: usize>(&mut self, menu: &MenuDef, background: &str, tic: &str) -> Meter<N> {
+        Meter {
+            background: self.item(menu, background),
+            tics: std::array::from_fn(|index| self.item(menu, &format!("{tic}{}", index + 1))),
+        }
     }
 
     /// Visit every resolved piece once.
@@ -132,7 +232,21 @@ impl Layout {
             .chain(&self.ammo_tics)
             .chain(&self.saber_styles)
             .flatten()
-            .for_each(visit);
+            .for_each(&mut visit);
+        if let Some(vehicle) = &self.vehicle {
+            vehicle
+                .frames
+                .iter()
+                .chain([&vehicle.turbo, &vehicle.linked])
+                .flatten()
+                .for_each(&mut visit);
+            for (background, tics) in vehicle.meters() {
+                background
+                    .iter()
+                    .chain(tics.iter().flatten())
+                    .for_each(&mut visit);
+            }
+        }
     }
 
     /// Whether the files describe a HUD at all.
@@ -222,10 +336,13 @@ fn absolute(window: &Window, origin: [f32; 2]) -> [f32; 4] {
 /// The edge a menu keeps to: `righthud` the right one, every other menu the
 /// left, as EternalJK's widescreen correction places `CG_DrawHUD`'s items
 /// (left-HUD items scale from the left edge, right-HUD items from the right,
-/// wherever a HUD pack puts them).
+/// wherever a HUD pack puts them). The vehicle HUD, laid out across the
+/// whole 640 units, keeps to the middle.
 fn edge(window: &Window) -> Side {
     if window.name.eq_ignore_ascii_case("righthud") {
         Side::Right
+    } else if window.name.eq_ignore_ascii_case("swoopvehiclehud") {
+        Side::Centre
     } else {
         Side::Left
     }
@@ -290,6 +407,38 @@ menuDef { name "lefthud" rect 0 0 10 10 }
                 "gfx/hud/saber_staff"
             ]
         );
+    }
+
+    #[test]
+    fn resolves_the_vehicle_hud_in_the_middle() {
+        let source = r#"
+menuDef { name lefthud rect 0 368 112 112 }
+menuDef { name "swoopvehiclehud" rect 0 400 640 80
+  itemDef { name "leftframe" background "gfx/hud/vehicle_frame" rect 200 30 16 64 }
+  itemDef { name "shieldbackground" background "gfx/hud/vehicle_grid" rect 190 32 256 16 }
+  itemDef { name "shield_tic1" background "gfx/hud/vehicle_health_tick" rect 203 32 31 16 }
+  itemDef { name "shield_tic12" background "gfx/hud/vehicle_health_tick" rect 401 32 31 16 }
+  itemDef { name "armor_tic2" background "gfx/hud/vehicle_armor_tick" rect 299 55 14 16 }
+  itemDef { name "turborecharge" background "gfx/hud/vehicle_grid2" rect 207 70 3 -14 }
+}"#;
+        let layout = Layout::resolve(&parse(source).menus);
+        let vehicle = layout.vehicle.as_ref().unwrap();
+        let frame = vehicle.frames[0].unwrap();
+        assert_eq!(frame.rect, [200.0, 430.0, 16.0, 64.0]);
+        assert_eq!(frame.side, Side::Centre);
+        assert!(vehicle.frames[1].is_none());
+        assert!(vehicle.hull.background.is_some());
+        assert!(vehicle.hull.tics[0].is_some() && vehicle.hull.tics[11].is_some());
+        assert!(vehicle.hull.tics[1].is_none());
+        assert!(vehicle.shields.tics[1].is_some() && vehicle.shields.tics[0].is_none());
+        // The turbo draws white, keeping its rectangle (negative height: upwards).
+        let turbo = vehicle.turbo.unwrap();
+        assert_eq!(turbo.rect, [207.0, 470.0, 3.0, -14.0]);
+        assert_eq!(turbo.picture, Some(vehicle.white));
+        assert_eq!(layout.pictures[usize::from(vehicle.white)], WHITE_PICTURE);
+        assert!(vehicle.linked.is_none());
+        // The status HUD without a vehicle menu has none.
+        assert!(Layout::resolve(&parse(FILE).menus).vehicle.is_none());
     }
 
     #[test]

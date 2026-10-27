@@ -18,6 +18,9 @@ pub(crate) mod clipboard;
 mod console_asset_browser;
 #[path = "console_changelog.rs"]
 mod console_changelog;
+#[cfg(test)]
+#[path = "console_command_reference.rs"]
+mod console_command_reference;
 #[path = "console_connect.rs"]
 mod console_connect;
 #[path = "console_credits.rs"]
@@ -27,7 +30,7 @@ mod console_cvars;
 #[cfg(feature = "mod-jof")]
 #[path = "console_jof_content.rs"]
 mod console_jof_content;
-pub(crate) use console_cvars::DEFAULT_MAX_PACKETS;
+pub(crate) use console_cvars::{DEFAULT_MAX_PACKETS, saved_number};
 #[path = "console_collection_page.rs"]
 mod collection_page;
 #[path = "collection_panel.rs"]
@@ -50,6 +53,9 @@ mod console_update;
 pub(crate) mod credits;
 #[path = "debug_panel.rs"]
 pub(crate) mod debug_panel;
+#[cfg(feature = "mod-jof")]
+#[path = "jof_dialogue_panel.rs"]
+pub(crate) mod dialogue_panel;
 #[path = "demo_director.rs"]
 pub(crate) mod director;
 #[path = "console_holocrons_page.rs"]
@@ -58,6 +64,8 @@ mod holocrons_page;
 pub(crate) mod holocrons_panel;
 #[path = "identity_panel.rs"]
 pub(crate) mod identity_panel;
+#[path = "console_mod_dialogue.rs"]
+mod mod_dialogue;
 #[path = "model_viewer.rs"]
 pub(crate) mod model_viewer;
 #[path = "model_viewer_scan.rs"]
@@ -143,6 +151,8 @@ mod console_session;
 mod console_tell;
 #[path = "console_view.rs"]
 mod console_view;
+#[path = "console_whisper_hover.rs"]
+mod console_whisper_hover;
 use console_cvars::register_daily_cvars;
 use console_forward::{ForwardAction, forward_payload};
 use console_view::ConsolePresentation;
@@ -171,6 +181,8 @@ pub(crate) struct ViewerConsole {
     shift: bool,
     /// Bind names that held keys were pressed under.
     held_keys: crate::input::keys::HeldKeys,
+    /// Held bind names and active two-key chords.
+    bind_state: sjk_shell::BindState,
     /// Held keys whose bind repeats push or pull (`cl_forceRepeat`).
     force_repeat: crate::input::force_repeat::ForceRepeat,
     input: String,
@@ -199,6 +211,8 @@ pub(crate) struct ViewerConsole {
     identity_panel: identity_panel::Panel,
     profile_panel: profile_panel::Panel,
     staff_panel: staff_panel::Panel,
+    #[cfg(feature = "mod-jof")]
+    dialogue: dialogue_panel::Panel,
     collection_panel: collection_panel::Panel,
     /// The Holocrons page, the Profile screen's Holocrons tab in the SJK UI.
     holocrons_panel: holocrons_panel::Panel,
@@ -218,6 +232,31 @@ pub(crate) struct ViewerConsole {
     cardboard_box_on: bool,
     /// The Toys tab asked to get in the box (`true`) or out, not yet taken.
     pending_cardboard_box: Option<bool>,
+    /// The Order 66 toy is on: the viewer's state, mirrored as
+    /// [`Self::illuminate_lit`] is.
+    order66_on: bool,
+    /// The Toys tab asked to turn Order 66 on (`true`) or off, not yet taken.
+    pending_order66: Option<bool>,
+    /// The Hax toy is on, mirrored as [`Self::order66_on`] is.
+    hax_on: bool,
+    /// The Toys tab asked to turn the Hax on (`true`) or off, not yet taken.
+    pending_hax: Option<bool>,
+    /// The player is limp (the Ragdoll), mirrored as [`Self::order66_on`] is.
+    ragdoll_on: bool,
+    /// The Toys tab asked to go limp (`true`) or get up, not yet taken.
+    pending_ragdoll: Option<bool>,
+    /// The Drone is on, mirrored as [`Self::order66_on`] is.
+    drone_on: bool,
+    /// The Toys tab asked to turn the Drone on (`true`) or off, not yet taken.
+    pending_drone: Option<bool>,
+    /// The Boombox is carried, mirrored as [`Self::order66_on`] is.
+    boombox_on: bool,
+    /// The Toys tab asked to carry the Boombox (`true`) or put it away, not yet taken.
+    pending_boombox: Option<bool>,
+    /// The Monitor toy is on, mirrored as [`Self::order66_on`] is.
+    monitor_on: bool,
+    /// The Toys tab asked to turn the Monitor on (`true`) or off, not yet taken.
+    pending_monitor: Option<bool>,
     /// A chip naming a setting was clicked (`console_changelog.rs`): the cvar to search
     /// Settings for, not yet taken.
     pending_settings_search: Option<String>,
@@ -231,8 +270,18 @@ pub(crate) struct ViewerConsole {
     show_timedelta: crate::net_timing::CvarSetting,
     time_nudge: crate::presentation_clock::CvarSetting,
     smooth_clients: console_cvars::IntegerSetting,
+    hide_corpses_in_duel: console_cvars::IntegerSetting,
+    hide_pickups_in_duel: console_cvars::IntegerSetting,
+    /// `cg_duelHideOthers`.
+    duel_hide_others: console_cvars::IntegerSetting,
+    /// `cp_pluginDisable`, read by `cg_duelHideOthers`'s Auto on JA+.
+    plugin_disable: console_cvars::IntegerSetting,
     draw_fog: console_cvars::IntegerSetting,
     remaps: console_cvars::IntegerSetting,
+    /// `cg_serverRemaps`: whether server remaps apply at all.
+    server_remaps: console_cvars::IntegerSetting,
+    /// `cg_mapEdits`: whether SJK's map edits are drawn.
+    map_edits: console_cvars::IntegerSetting,
     /// Changes of `cg_remapsBlockedMaps`, for [`crate::remap_blocked_maps`].
     remap_blocked_maps: console_cvars::RevisionSetting,
     packet_dup: console_cvars::IntegerSetting,
@@ -245,6 +294,8 @@ pub(crate) struct ViewerConsole {
     /// The server's known command cap (JoF's 8 ms), from its serverinfo
     /// ([`crate::server_caps`]).
     server_cap: Option<&'static crate::server_caps::ServerCap>,
+    /// The server's family, when SJK knows it (`sjk_mod::known_servers`).
+    server_family: Option<&'static sjk_mod::KnownServer>,
     /// `gameplay_fps_nocap`: 1 lifts the known caps.
     caps_lifted: console_cvars::IntegerSetting,
     /// Whether the server takes the inputs at that step ([`crate::input_health`]).
@@ -282,7 +333,9 @@ pub(crate) struct ViewerConsole {
     copied: String,
     pending_quit: bool,
     pending_input: Vec<String>,
-    pending_chat: std::collections::VecDeque<String>,
+    pending_chat: std::collections::VecDeque<(String, u16, u32)>,
+    /// Sent whisper recipients paired with their eventual console echo.
+    whisper_hover: console_whisper_hover::State,
 
     client_commands: console_client::Commands,
     /// The client mods and their switches (`docs/mods.md`).
@@ -308,7 +361,8 @@ pub(crate) struct ViewerConsole {
     selection: selection::Selection,
     /// Rows and clocks of the classic console.
     classic: classic::State,
-    /// Explicit height override chosen with Ctrl (full) or Shift (a quarter).
+    /// Explicit height override: Ctrl+console (full) or Shift+console (a quarter;
+    /// Shift+Escape instead with `con_shiftHeight`).
     /// `None` follows live `con_height` in both console styles.
     open_height: Option<f32>,
     /// Insert toggled overstrike: typing replaces the character after the caret
@@ -320,6 +374,26 @@ impl ViewerConsole {
     /// Cached `cg_smoothClients` for live and demo snapshot translation.
     pub(crate) fn smooth_clients(&self) -> bool {
         self.smooth_clients.enabled()
+    }
+
+    /// Cached local corpse-visibility policy for snapshot presentation.
+    pub(crate) fn hide_corpses_in_duel(&self) -> bool {
+        self.hide_corpses_in_duel.enabled()
+    }
+
+    /// Cached local pickup-visibility policy for snapshot presentation.
+    pub(crate) fn hide_pickups_in_duel(&self) -> bool {
+        self.hide_pickups_in_duel.enabled()
+    }
+
+    /// Cached `cg_duelHideOthers` and the `cp_pluginDisable` bits it reads, for
+    /// snapshot presentation.
+    pub(crate) fn duel_hide(&self) -> sjk_client::DuelHideSettings {
+        sjk_client::DuelHideSettings {
+            mode: sjk_client::DuelHideMode::from_cvar(self.duel_hide_others.value()),
+            plugin_disable: u32::try_from(self.plugin_disable.value())
+                .unwrap_or(sjk_client::PLUGIN_DISABLE_DEFAULT),
+        }
     }
 
     /// Cached `cl_showtimedelta` state for the allocation-free runtime read.
@@ -380,6 +454,11 @@ impl ViewerConsole {
     /// The server's known command cap ([`crate::server_caps`]), lifted or not.
     pub(crate) fn server_cap(&self) -> Option<&'static crate::server_caps::ServerCap> {
         self.server_cap
+    }
+
+    /// The server's family, when SJK knows it (`sjk_mod::known_servers`).
+    pub(crate) fn server_family(&self) -> Option<&'static sjk_mod::KnownServer> {
+        self.server_family
     }
 
     /// Whether `gameplay_fps_nocap` lifts the known caps.
@@ -477,6 +556,7 @@ impl ViewerConsole {
                 || self.update_panel.is_open()
                 || self.identity_panel.is_open()
                 || self.profile_panel.is_open()
+                || self.server_dialogue_active()
                 || self.staff_panel.is_open()
                 || self.collection_panel.is_open()
                 || self.holocrons_panel.is_open()
@@ -487,6 +567,11 @@ impl ViewerConsole {
     /// Add an application diagnostic to the visible bounded scrollback.
     pub(crate) fn push_log(&mut self, text: impl Into<String>) {
         self.shell.push_log(text);
+    }
+
+    /// Remember a sent `tell` until its reliable server echo enters scrollback.
+    pub(crate) fn note_sent_whisper(&mut self, command: &str, recipient: String) {
+        self.whisper_hover.note_sent(command, recipient);
     }
 
     /// Queue the script bound to a key event. A release runs under the name
@@ -510,18 +595,6 @@ impl ViewerConsole {
         }
     }
 
-    /// A key went up, wherever the release was routed: a held push or pull key stops
-    /// repeating even when a menu or the chat took the release.
-    pub(crate) fn force_repeat_key_up(
-        &mut self,
-        code: KeyCode,
-        name: Option<crate::input::keys::KeyName>,
-    ) {
-        if let Some(name) = self.held_keys.name(code).or(name) {
-            self.force_repeat.release(name.as_str());
-        }
-    }
-
     /// A mouse button bound under `key` went up, wherever the release was routed.
     pub(crate) fn force_repeat_button_up(&mut self, key: &str) {
         self.force_repeat.release(key);
@@ -530,6 +603,7 @@ impl ViewerConsole {
     /// Every key was let go of: the window lost the keyboard.
     pub(crate) fn clear_force_repeat(&mut self) {
         self.force_repeat.clear();
+        self.bind_state.clear();
     }
 
     /// The `generic_cmd` a held push or pull key repeats in the next user command.
@@ -559,7 +633,11 @@ impl ViewerConsole {
             self.force_repeat.release(key);
         }
         let repeat = pressed && self.bool_cvar(crate::input::force_repeat::CVAR) != Some(false);
-        match self.shell.binds.commands_for_event(key, pressed) {
+        match self
+            .shell
+            .binds
+            .commands_for_chord_event(&mut self.bind_state, key, pressed)
+        {
             Ok(commands) => {
                 for command in commands {
                     if repeat && let Some(value) = crate::input::force_repeat::repeated(&command) {
@@ -581,6 +659,13 @@ impl ViewerConsole {
 
     pub(crate) fn cvar(&self, name: &str) -> Option<&CvarValue> {
         self.shell.cvars.get(name).map(|cvar| &cvar.value)
+    }
+
+    /// A stamp of the archived cvars' values ([`CvarRegistry::archive_revision`]): it
+    /// changes whenever one of them does, so a reading of archived cvars can be kept
+    /// until it changes.
+    pub(crate) fn archive_revision(&self) -> u64 {
+        self.shell.cvars.archive_revision()
     }
 
     /// The value a cvar starts with in a fresh profile.
@@ -690,9 +775,12 @@ impl ViewerConsole {
                 let result = self.apply_cvar(&name, &value);
                 self.browser.refresh(&self.shell);
                 match result {
-                    Ok(()) => self
-                        .browser
-                        .set_status(format!("{name} = \"{value}\""), false),
+                    Ok(()) => {
+                        let shown =
+                            sjk_shell::secret::shown(self.shell.cvars.is_secret(&name), &value);
+                        self.browser
+                            .set_status(format!("{name} = \"{shown}\""), false)
+                    }
                     Err(error) => self.browser.set_status(error.to_string(), true),
                 }
             }
@@ -906,6 +994,9 @@ impl ViewerConsole {
     }
 
     pub(crate) fn draw_list(&self) -> &sjk_ui::DrawList {
+        if let Some(draw_list) = self.dialogue_draw_list() {
+            return draw_list;
+        }
         if self.open && self.asset_browser.open {
             return self.asset_browser.draw_list();
         }
@@ -1000,6 +1091,7 @@ impl ViewerConsole {
         self.open = open;
         self.history_index = None;
         if !open {
+            self.dialogue_closed();
             self.asset_browser.open = false;
             #[cfg(feature = "mod-jof")]
             {
@@ -1040,7 +1132,16 @@ impl ViewerConsole {
     }
 
     fn complete_command(&mut self, key: CompletionKey) {
-        if let Some(line) = self.shell.complete_line(&self.input, key) {
+        let resolver =
+            console_scripting::Resolver::new(&self.config_directory, self.script_vfs.as_deref());
+        let files = |extension: &str| {
+            if extension == sjk_shell::MAP_EXTENSION {
+                resolver.map_names()
+            } else {
+                resolver.root_files(extension)
+            }
+        };
+        if let Some(line) = self.shell.complete_line_with_files(&self.input, key, files) {
             self.input = line;
             self.rebuild_prompt();
         }
@@ -1100,8 +1201,21 @@ fn invalid_cvar(name: &str, requirement: &str) -> IoError {
 }
 
 impl ViewerConsole {
+    /// The server remaps to apply: `cg_remaps`, or 0 while `cg_serverRemaps` is off.
     pub(crate) fn remap_mode(&self) -> i64 {
-        self.remaps.value()
+        if self.server_remaps_on() {
+            self.remaps.value()
+        } else {
+            0
+        }
+    }
+
+    pub(crate) fn server_remaps_on(&self) -> bool {
+        self.server_remaps.value() != 0
+    }
+
+    pub(crate) fn map_edits_on(&self) -> bool {
+        self.map_edits.value() != 0
     }
 
     /// How often `cg_remapsBlockedMaps` has changed, read without a name lookup.

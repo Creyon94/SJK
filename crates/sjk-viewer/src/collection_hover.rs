@@ -14,6 +14,10 @@ impl Panel {
     /// Follow the pointer and draw the card of the thing it has rested on, over the
     /// page: the page's last drawing.
     pub(super) fn hover_card(&mut self, frame: &crate::menu::sjk::Frame, inputs: &Inputs<'_>) {
+        if self.tab == Tab::Forge && self.forge.ask.is_some() {
+            // The card asking covers the page: nothing under it answers the pointer.
+            return;
+        }
         let now = Instant::now();
         self.hover.follow(self.ui.hovered(), now);
         let Some((token, alpha)) = self.hover.showing(now) else {
@@ -35,6 +39,9 @@ impl Panel {
                 .map(usize::from)
                 .filter(|index| *index < count)
         };
+        if self.tab == Tab::Forge {
+            return self.forge_card(token, inputs);
+        }
         if let Some(index) = within(MEDAL_BASE, self.medals_shown) {
             let (_, shown) = medals::showing(inputs);
             return shown.get(index).map(medal_card);
@@ -45,10 +52,20 @@ impl Panel {
                 .standings
                 .iter()
                 .find(|standing| standing.kind.id == kind.id);
+            // A retired one not held has no card (nor a place on the wall).
+            if kind.retired && standing.is_none_or(|standing| !standing.listed()) {
+                return None;
+            }
             return Some(achievement_card(kind, standing));
         }
         if let Some(row) = within(SHADER_BASE, self.shader_count) {
-            return Some(shader_card(self.skin_at(row), &inputs.holdings));
+            let skin = self.skin_at(row);
+            // Never the card of a shader the player may not see (an unheld Unique one; the
+            // list leaves it out already).
+            if skin.is_some_and(|skin| !inputs.holdings.shows(skin)) {
+                return None;
+            }
+            return Some(shader_card(skin, &inputs.holdings));
         }
         if token == TOY_TOKEN {
             return Some(Card {
@@ -78,9 +95,94 @@ impl Panel {
                 ],
             });
         }
+        if token == RAGDOLL_TOKEN {
+            return Some(Card {
+                title: "Ragdoll".to_owned(),
+                colour: color::GOLD_BRIGHT,
+                lines: vec![
+                    Line::how(
+                        "Every SJK player has it. Go limp here, from the quick wheel's Toys \
+                         page or with a key bound to toy_ragdoll; press it again to get up.",
+                    ),
+                    Line::status(crate::editions::name(crate::editions::ALPHA)),
+                    Line::held("Yours"),
+                ],
+            });
+        }
+        if token == DRONE_TOKEN {
+            return Some(Card {
+                title: "Drone".to_owned(),
+                colour: color::GOLD_BRIGHT,
+                lines: vec![
+                    Line::how(
+                        "Every SJK player has it: freecam and peek fly it. Turn it on here, \
+                         from the quick wheel's Toys page or with a key bound to toy_drone, \
+                         to let others peek at you.",
+                    ),
+                    Line::status(crate::editions::name(crate::editions::ALPHA)),
+                    Line::held("Yours"),
+                ],
+            });
+        }
+        if token == BOOMBOX_TOKEN {
+            return Some(Card {
+                title: "Boombox".to_owned(),
+                colour: color::GOLD_BRIGHT,
+                lines: vec![
+                    Line::how(
+                        "Every verified SJK player has it. Carry it here, from the quick \
+                         wheel's Toys page or with a key bound to toy_boombox; the music is \
+                         yours, sound/boombox/<name>.mp3 in a pk3.",
+                    ),
+                    Line::status(crate::editions::name(crate::editions::ALPHA)),
+                    Line::held("Yours"),
+                ],
+            });
+        }
+        if token == MONITOR_TOKEN {
+            return Some(Card {
+                title: "Monitor".to_owned(),
+                colour: color::GOLD_BRIGHT,
+                lines: vec![
+                    Line::how(
+                        "Every SJK player has it. Turn it on here, from the quick wheel's Toys                          page or with a key bound to toy_monitor, then throw (hold the throw key to charge)                          at players who have it on too.",
+                    ),
+                    Line::status(crate::editions::name(crate::editions::ALPHA)),
+                    Line::held("Yours"),
+                ],
+            });
+        }
+        if token == HAX_TOKEN {
+            return Some(Card {
+                title: "The Hax".to_owned(),
+                colour: color::GOLD_BRIGHT,
+                lines: vec![
+                    Line::how(
+                        "Every SJK player has it. Turn it on here, from the quick wheel's Toys \
+                         page or with a key bound to toy_hax; hold Use on a player who has it \
+                         on to hack them.",
+                    ),
+                    Line::status(crate::editions::name(crate::editions::ALPHA)),
+                    Line::held("Yours"),
+                ],
+            });
+        }
+        if token == ORDER_TOKEN {
+            return Some(Card {
+                title: "Order 66".to_owned(),
+                colour: color::GOLD_BRIGHT,
+                lines: vec![
+                    Line::how(
+                        "Every SJK player has it. Turn it on here, from the quick wheel's Toys \
+                         page or with a key bound to toy_order66; order66 executes it.",
+                    ),
+                    Line::status(crate::editions::name(crate::editions::ALPHA)),
+                    Line::held("Yours"),
+                ],
+            });
+        }
         if let Some(index) = within(CARD_BASE, self.cards_shown) {
-            let (stacks, _) = self.holdings(inputs);
-            return stacks?.get(index).map(card_card);
+            return self.card_tiles.get(index).map(tile_card);
         }
         None
     }
@@ -90,7 +192,7 @@ impl Panel {
 /// player holds it.
 fn medal_card(showing: &medals::Showing) -> Card {
     let medal = showing.medal;
-    let mut lines = vec![Line::how(medal.how_to_get())];
+    let mut lines = vec![Line::how(crate::terms::say(medal.how_to_get()))];
     if let Some(blade) = medal.blade().and_then(crate::unlockables::find) {
         lines.push(Line::status(format!(
             "Brings the {} while you hold it.",
@@ -110,12 +212,19 @@ fn medal_card(showing: &medals::Showing) -> Card {
     }
 }
 
-/// An achievement's card: what to do, who counts it, and how far the player is.
+/// An achievement's card: what to do, who counts it, how far the player is, and the kyber
+/// crystal it brings, in the crystal's colour ([`crate::kyber::reward`]). A secret not
+/// unlocked yet keeps its name, what it asks and the count to itself; a retired one says
+/// it is no longer obtainable; one reached here says it waits for the SJK hub
+/// ([`crate::achievements::Standing::waiting`]).
 fn achievement_card(
     kind: &'static crate::achievements::Kind,
     standing: Option<&crate::achievements::Standing>,
 ) -> Card {
+    let done = standing.is_some_and(|standing| standing.unlocked.is_some());
+    let secret = kind.hidden && !done;
     let counted = match kind.source {
+        _ if kind.retired => crate::achievements::RETIRED_NOTE,
         Source::Client(_) => "Counted by SJK in your matches on servers.",
         Source::Hub => "Counted by the SJK hub.",
     };
@@ -124,7 +233,8 @@ fn achievement_card(
         Some(standing) => match standing.unlocked {
             Some(at) if at > 0 => Line::held(format!("Unlocked {}", crate::medals::date_text(at))),
             Some(_) => Line::held("Unlocked"),
-            None if kind.goal > 1 => Line::status(format!(
+            None if standing.waiting => Line::status(crate::achievements::WAITING_NOTE),
+            None if kind.goal > 1 && !secret => Line::status(format!(
                 "{} of {} so far",
                 kind.amount(standing.progress.min(kind.goal)),
                 kind.amount(kind.goal)
@@ -133,15 +243,29 @@ fn achievement_card(
         },
         None => Line::status("Not unlocked yet"),
     };
-    let done = standing.is_some_and(|standing| standing.unlocked.is_some());
+    let (title, how) = if secret {
+        (
+            crate::achievements::SECRET_NAME,
+            crate::achievements::SECRET_DESCRIPTION,
+        )
+    } else {
+        (kind.name, kind.description)
+    };
+    let (title, how) = (crate::terms::say(title), crate::terms::say(how));
     Card {
-        title: kind.name.to_owned(),
+        title: title.into_owned(),
         colour: if done {
             color::GOLD_BRIGHT
         } else {
             crate::achievements::medallion::tint(kind.category)
         },
-        lines: vec![Line::how(kind.description), Line::status(counted), status],
+        lines: [Line::how(how), Line::status(counted), status]
+            .into_iter()
+            .chain(crate::kyber::reward(kind.id).map(|tier| Line {
+                words: crate::kyber::reward_line(tier).to_owned(),
+                colour: tier.colour,
+            }))
+            .collect(),
     }
 }
 
@@ -156,7 +280,7 @@ fn held_count(words: &str, count: u32) -> String {
 
 /// A shader's card: the stock blade (`None`) or a blade skin, how it is obtained, and
 /// whether the player holds it.
-fn shader_card(
+pub(super) fn shader_card(
     skin: Option<&'static crate::unlockables::Unlockable>,
     holdings: &crate::unlockables::Holdings<'_>,
 ) -> Card {
@@ -185,68 +309,78 @@ fn shader_card(
         title: skin.name.to_owned(),
         colour: skin.tier.colour(),
         lines: vec![
-            Line::how(skin.how_to_get),
-            Line::status(format!(
-                "{} blade skin. {}.",
-                skin.tier.label(),
-                crate::editions::name(skin.edition)
-            )),
+            Line::how(crate::terms::say(skin.how_to_get)),
+            // The blade number only while `debug_collectibles` is on (Sol, 21/10/2026).
+            Line::status(if holdings.debug() {
+                format!(
+                    "Blade {}. {} blade skin. {}.",
+                    skin.number_text(),
+                    skin.tier.label(),
+                    crate::editions::name(skin.edition)
+                )
+            } else {
+                format!(
+                    "{} blade skin. {}.",
+                    skin.tier.label(),
+                    crate::editions::name(skin.edition)
+                )
+            }),
             Line::status(format!("Saber smith: {}", skin.smith)),
             status,
         ],
     }
 }
 
-/// A kind of card's card: where cards come from, how likely this kind is, and how many
-/// the player holds.
-fn card_card(stack: &crate::cards::Stack) -> Card {
-    use crate::cards::loot;
-    let chance = loot::kind_any(stack.rarity.index, stack.finish.index);
-    let name = if stack.finish.index == 0 {
-        stack.rarity.name.to_owned()
-    } else {
-        format!("{} {}", stack.rarity.name, stack.finish.name)
-    };
-    let odds = match loot::one_in(chance) {
-        rare if rare.is_empty() => format!(
-            "{} of holocrons found hold a {name} card.",
-            loot::percent(chance)
-        ),
-        rare => format!(
-            "About {rare} holocrons found holds a {name} card ({}).",
-            loot::percent(chance)
-        ),
-    };
+/// A tile's card on the Cards tab: what the card is, how it is obtained and the odds,
+/// then the copies held by finish and edition and when the first was found, or that it
+/// is not found yet.
+fn tile_card(tile: &crate::cards::binder::Tile) -> Card {
+    use crate::cards::binder::Slot;
     let faces = crate::cards::faces::current();
-    let mut lines = vec![
-        Line::how("Opening a holocron gives one card and some credits, or a saber shader instead."),
-        Line::status(odds),
-    ];
-    match crate::cards::shown(&faces, stack.card.as_deref()) {
-        Some(shown) => lines.push(Line::status(format!(
-            "{}, {}: card {} of {}.",
-            shown.face.kind.name(),
-            shown.face.set_name,
-            shown.face.number,
-            shown.of
-        ))),
-        None if stack.sealed() => {
-            lines.push(Line::status(
-                "Sealed: its card is picked when it is revealed.",
-            ));
+    let odds = cards::rarity_odds(tile.rarity, &faces);
+    let mut lines = Vec::with_capacity(4);
+    match (&tile.slot, tile.face(&faces)) {
+        (_, Some(face)) => {
+            lines.push(Line::how(odds));
+            // Each perk after its mark, as the tile's badges show it.
+            for perk in face.perks() {
+                lines.push(Line::status(format!("{}  {}", perk.mark, perk.words)));
+            }
+            // No number, whatever the kind (Sol, 20/10/2026): it stays the card's id.
+            lines.push(Line::status(format!(
+                "{} card. {}, {}.",
+                tile.rarity.name,
+                face.kind.name(),
+                face.set_name
+            )));
         }
-        None => lines.push(Line::status("Its face is not in your card pack yet.")),
+        (Slot::Sealed, _) => {
+            lines.push(Line::how(
+                "Sealed: a card of this rarity whose face is picked when it is revealed,                  into the first set that has cards of it.",
+            ));
+            lines.push(Line::status(odds));
+        }
+        _ => {
+            lines.push(Line::how("Its face is not in your card pack yet."));
+            lines.push(Line::status(format!("{} card.", tile.rarity.name)));
+        }
     }
-    let date = crate::medals::date_text(stack.first);
-    lines.push(Line::held(match (stack.count, date.is_empty()) {
-        (1, true) => "You hold 1".to_owned(),
-        (1, false) => format!("You hold 1, since {date}"),
-        (count, true) => format!("You hold {count}"),
-        (count, false) => format!("You hold {count}, the first since {date}"),
-    }));
+    if tile.owned() {
+        lines.push(Line::held(tile.breakdown()));
+        let date = crate::medals::date_text(tile.first());
+        if !date.is_empty() {
+            lines.push(Line::status(format!("First found {date}")));
+        }
+    } else {
+        lines.push(Line::status("Not found yet"));
+    }
     Card {
-        title: stack.name_in(&faces),
-        colour: stack.rarity.colour,
+        title: tile.name(&faces),
+        colour: if tile.owned() {
+            tile.rarity.colour
+        } else {
+            color::MUTED
+        },
         lines,
     }
 }
@@ -266,12 +400,60 @@ mod tests {
         }
     }
 
+    /// A secret's card keeps its name, what it asks and its count until it is unlocked;
+    /// a retired one held says it is no longer obtainable.
+    #[test]
+    fn a_secret_card_says_nothing_until_unlocked_and_a_retired_one_says_so() {
+        let kind = crate::achievements::find("mythical_find").unwrap();
+        let locked = crate::achievements::Standing {
+            kind,
+            progress: 0,
+            unlocked: None,
+            waiting: false,
+        };
+        let card = achievement_card(kind, Some(&locked));
+        assert_eq!(card.title, crate::achievements::SECRET_NAME);
+        assert_eq!(card.lines[0].words, crate::achievements::SECRET_DESCRIPTION);
+        assert_eq!(card.lines[2].words, "Not unlocked yet");
+        assert!(
+            card.lines
+                .iter()
+                .all(|line| !line.words.contains("Mythical in"))
+        );
+        let open = crate::achievements::Standing {
+            unlocked: Some(1_791_641_100),
+            ..locked
+        };
+        let card = achievement_card(kind, Some(&open));
+        assert_eq!(card.title, "Touched by the Force");
+        assert_eq!(card.lines[0].words, kind.description);
+        let surveyor = crate::achievements::find("surveyor").unwrap();
+        let held = crate::achievements::Standing {
+            kind: surveyor,
+            progress: 5,
+            unlocked: Some(1_791_641_100),
+            waiting: false,
+        };
+        let card = achievement_card(surveyor, Some(&held));
+        assert_eq!(card.title, "Surveyor");
+        assert!(card.lines[1].words.starts_with("No longer obtainable."));
+        assert_eq!(card.lines[2].words, "Unlocked 10/10/2026");
+    }
+
     #[test]
     fn every_achievement_says_what_to_do_and_how_far() {
         for kind in &crate::achievements::ALL {
             let card = achievement_card(kind, None);
-            assert_eq!(card.lines[0].words, kind.description);
-            assert_eq!(card.lines.len(), 3);
+            let how = if kind.hidden {
+                crate::achievements::SECRET_DESCRIPTION
+            } else {
+                kind.description
+            };
+            assert_eq!(card.lines[0].words, how);
+            assert_eq!(card.lines.len(), 4);
+            let reward = crate::kyber::reward(kind.id).expect("every achievement brings one");
+            assert_eq!(card.lines[3].words, format!("Reward: {}", reward.name));
+            assert_eq!(card.lines[3].colour, reward.colour);
         }
         let kind = crate::achievements::ALL
             .iter()
@@ -281,6 +463,7 @@ mod tests {
             kind,
             progress: 37,
             unlocked: None,
+            waiting: false,
         };
         let card = achievement_card(kind, Some(&standing));
         assert_eq!(card.lines[2].words, "37 of 100 so far");
@@ -309,32 +492,58 @@ mod tests {
             note: String::new(),
             count: 1,
             medal: None,
+            card: None,
         }];
         let sun = crate::unlockables::find("saber_sun").unwrap();
         let card = shader_card(Some(sun), &crate::unlockables::Holdings::Known(&held));
         assert!(card.lines[3].words.starts_with("Yours since "), "{card:?}");
+        assert_eq!(card.lines[1].words, "Mythical blade skin. Alpha Edition.");
+        // Debug collectibles on: the blade number shows as well.
+        let held = [sjk_identity::Unlock {
+            note: crate::debug_collectibles::NOTE.to_owned(),
+            ..held[0].clone()
+        }];
+        let card = shader_card(Some(sun), &crate::unlockables::Holdings::Known(&held));
+        assert_eq!(
+            card.lines[1].words,
+            "Blade 001. Mythical blade skin. Alpha Edition."
+        );
     }
 
     #[test]
-    fn a_card_says_where_it_comes_from_and_its_odds() {
-        let stacks = crate::cards::stacks(&[sjk_identity::CardStack {
-            card: None,
-            rarity: "legendary".to_owned(),
-            finish: "solar".to_owned(),
-            edition: "alpha".to_owned(),
-            count: 2,
-            first: 1_791_641_100,
-            last: 1_791_641_100,
-        }]);
-        let card = card_card(&stacks[0]);
-        assert_eq!(card.title, "Legendary card, Solar");
+    fn a_tile_says_where_it_comes_from_and_what_is_held() {
+        let stacks = crate::cards::stacks(&[
+            sjk_identity::CardStack {
+                card: None,
+                rarity: "mythical".to_owned(),
+                finish: "solar".to_owned(),
+                edition: "alpha".to_owned(),
+                count: 1,
+                first: 1_791_641_100,
+                last: 1_791_641_100,
+            },
+            sjk_identity::CardStack {
+                card: None,
+                rarity: "mythical".to_owned(),
+                finish: "normal".to_owned(),
+                edition: "alpha".to_owned(),
+                count: 2,
+                first: 1_791_700_000,
+                last: 1_791_700_000,
+            },
+        ]);
+        let faces = crate::cards::faces::Faces::of_list(Vec::new());
+        let tiles = crate::cards::binder::tiles(&stacks, &faces);
+        let card = tile_card(&tiles[0]);
+        assert_eq!(card.title, "Sealed Mythical cards");
         assert_eq!(
             card.lines[1].words,
-            "About 1 in 11 001 holocrons found holds a Legendary Solar card (0.0091%)."
+            "From holocrons: about 1 in 1 004 holocrons found holds a Mythical card (0.0996%)."
         );
         assert_eq!(
-            card.lines.last().unwrap().words,
-            "You hold 2, the first since 10/10/2026"
+            card.lines[2].words,
+            "3 copies: 1 Solar, 2 Normal · Alpha Edition"
         );
+        assert_eq!(card.lines[3].words, "First found 10/10/2026");
     }
 }

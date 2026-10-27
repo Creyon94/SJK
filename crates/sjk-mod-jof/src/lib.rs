@@ -7,7 +7,67 @@
 //! (`gcmds[]`, `cgame/cg_consolecmds.c:3262-3303`) and lists them with
 //! `jof.commands`.
 
-use sjk_mod::{ClientMod, Command, Host, Server, command};
+use sjk_mod::{ClientMod, Command, Host, Server, Setting, UserinfoField, command};
+/// Destruction's community-owned capability and wheel metadata.
+pub mod destruction;
+/// Bounded JoF dialogue command/state/response contract.
+pub mod dialogue;
+/// JoF server firing-confirmation contracts and repeat policy.
+pub mod feedback;
+/// SJK chat said in All chat on JoF servers, and the notice that tells the player.
+pub mod sjk_chat;
+/// Player opt-in to the JoF EJK server extension, separate from client identity.
+pub const EJK_OPT_IN: &str = "jof.ejkOptIn";
+/// Local confirmation sound preference, kept while the mod is unloaded.
+pub const ABILITY_SOUNDS: &str = "jof.abilitySounds";
+/// Encrypted whispers on JoF servers, off by default: JoF moderates whispers there
+/// (the client's `e2e_whispers::PLAIN_FAMILIES` reads it, whatever the mod's switch).
+pub const E2E_WHISPERS: &str = "jof.e2eWhispers";
+/// Medals called "Honors" and holocrons "Echoes" everywhere while the mod is on, on by
+/// default (JoF's request; the client's `terms` module reads it).
+pub const HONOR_NAMES: &str = "jof.honorNames";
+const SETTINGS: &[Setting] = &[
+    Setting {
+        name: destruction::CVAR,
+        default: sjk_mod::SettingValue::Integer(-1),
+        help: "JoF Destruction support: -1 server flag, 0 off, 1 grant without flag; requires loaded JoF tools",
+    },
+    Setting {
+        name: dialogue::CVAR,
+        default: sjk_mod::SettingValue::Bool(true),
+        help: "Show JoF server dialogue and installed node voices while JoF tools are loaded",
+    },
+    Setting {
+        name: EJK_OPT_IN,
+        default: sjk_mod::SettingValue::Bool(true),
+        help: "Advertise jofejk on JoF servers while JoF tools are enabled; enables server EJK extensions",
+    },
+    Setting {
+        name: ABILITY_SOUNDS,
+        default: sjk_mod::SettingValue::Bool(true),
+        help: "Play installed Stasis/Repulse confirmation sounds from a JoF server",
+    },
+    Setting {
+        name: E2E_WHISPERS,
+        default: sjk_mod::SettingValue::Bool(false),
+        help: "Send and take encrypted whispers on JoF servers, where JoF asks that whispers go through their server so they can moderate them",
+    },
+    Setting {
+        name: HONOR_NAMES,
+        default: sjk_mod::SettingValue::Bool(true),
+        help: "Call medals \"Honors\" and holocrons \"Echoes\" in every menu and message while JoF tools are on",
+    },
+    Setting {
+        name: sjk_chat::NOTICE,
+        default: sjk_mod::SettingValue::Bool(true),
+        help: "Show the card saying SJK chat is said in All chat on the next JoF server",
+    },
+];
+const USERINFO: &[UserinfoField] = &[UserinfoField {
+    key: "jofejk",
+    value: "1",
+    enabled_by: EJK_OPT_IN,
+}];
 
 /// The mod's id and prefix.
 pub const ID: &str = "jof";
@@ -18,6 +78,7 @@ const COMMANDS: &[Command] = &[command(
 )];
 
 const SERVER_COMMANDS: &[Command] = &[
+    command(destruction::COMMAND, "JoF: use granted Force Destruction"),
     command(
         "gunorigin",
         "JoF admin: print the position of the player you aim at",
@@ -54,28 +115,15 @@ const SERVER_COMMANDS: &[Command] = &[
     command("amorigin", "JoF admin: print a player's position"),
     command("amunsilence", "JoF admin: let a silenced player chat again"),
     command("jetpack", "JoF: jetpack"),
-    command("amknockmedown", "JoF: knock yourself down"),
-    command("amdropsaber", "JoF: drop your saber"),
     command("toggleflame", "JoF: flame effect"),
     command("refusetele", "JoF: refuse admin teleports"),
     command("immortal", "JoF: immortal mode"),
     command("sleep", "JoF: sleep"),
-    command("amatease", "JoF emote: at ease"),
-    command("amcomeon", "JoF emote: come on"),
-    command("amdie", "JoF emote: die"),
-    command("amdie2", "JoF emote: die (2)"),
-    command("amfinishinghim", "JoF emote: finishing him"),
-    command("amhello", "JoF emote: hello"),
-    command("amhiltthrow1", "JoF emote: hilt throw"),
-    command("amhiltthrow2", "JoF emote: hilt throw (2)"),
-    command("amhips", "JoF emote: hands on hips"),
-    command("amkiss", "JoF emote: kiss"),
-    command("amkneel", "JoF emote: kneel"),
-    command("amneo", "JoF emote: Neo"),
-    command("amnod", "JoF emote: nod"),
-    command("ampower", "JoF emote: power"),
-    command("amshake", "JoF emote: shake"),
-    command("amwon", "JoF emote: won"),
+    command("amhelp", "JoF: the JoF guide"),
+    command("amtips", "JoF: tips"),
+    command("amemotes", "JoF: list the emotes"),
+    command("amshop", "JoF: the in-game shop"),
+    command("amcredits", "JoF: the credits leaderboard"),
 ];
 
 /// The family in `sjk_mod::known_servers` this mod is made for.
@@ -133,6 +181,14 @@ impl ClientMod for JoF {
 
     fn commands(&self) -> &'static [Command] {
         COMMANDS
+    }
+
+    fn settings(&self) -> &'static [Setting] {
+        SETTINGS
+    }
+
+    fn userinfo_fields(&self) -> &'static [UserinfoField] {
+        USERINFO
     }
 
     fn server_commands(&self, server: &Server) -> &'static [Command] {

@@ -6,10 +6,35 @@
 use super::*;
 use sjk_runtime::EntityId;
 
+/// The players typing in `snapshot` ([`emotes::typing_slots`]): the own player by
+/// `own_typing` (their open chat, console or menu, known here at once), else by their
+/// talk balloon as the others.
+fn typing(enabled: bool, snapshot: &sjk_protocol::Snapshot, own_typing: Option<bool>) -> u64 {
+    let player = &snapshot.player;
+    let own = u8::try_from(player.client_num()).ok().map(|slot| {
+        let balloon = player.entity_flags() & sjk_game_jka::pmove_talk::EF_TALK != 0;
+        (slot, own_typing.unwrap_or(balloon))
+    });
+    emotes::typing_slots(
+        enabled,
+        own,
+        snapshot
+            .entities
+            .iter()
+            .map(|entity| (entity.number(), entity.e_flags())),
+    )
+}
+
 impl GpuState {
     /// Start the emotes received, end those that are over.
     pub(crate) fn update_emotes(&mut self) {
         let received = player_identity::take_emotes();
+        let keep_typing = self
+            .console
+            .as_ref()
+            .and_then(|console| console.bool_cvar(emotes::TYPING_KEEP_CVAR))
+            .unwrap_or(emotes::DEFAULT_TYPING_KEEP);
+        let own_typing = self.talk_button();
         if let Some(vfs) = self.vfs.as_deref() {
             {
                 let mut state = emotes::lock();
@@ -26,6 +51,9 @@ impl GpuState {
                 // until they end or their player moves; none arrive from the hub.
                 Some(demo) => {
                     let world = demo.world();
+                    state
+                        .active
+                        .hold(typing(keep_typing, demo.latest_snapshot(), None));
                     state.active.update(Instant::now(), |slot: u8| {
                         world
                             .entity(EntityId::new(u64::from(slot) + 1))
@@ -64,8 +92,10 @@ impl GpuState {
             if !emotes::trusted(&emote, shown.as_deref()) {
                 continue;
             }
-            // Hidden here (`sjkemote mute`).
-            if state.muted.contains_key(&emote.key_id) {
+            // Hidden here (`sjkemote mute`), or the player is blocked on this PC.
+            if state.muted.contains_key(&emote.key_id)
+                || self.muted_players.contains(u16::from(emote.slot))
+            {
                 continue;
             }
             if emote.emote == emotes::STOP {
@@ -75,12 +105,29 @@ impl GpuState {
             if emote.emote == emotes::SYNC {
                 continue;
             }
+            // Its player went away, or came back (`away_emote.rs`).
+            if emote.emote == emotes::QUIET || emote.emote == emotes::LOUD {
+                let def = state.active.get(emote.slot).and_then(|active| {
+                    state
+                        .catalogue
+                        .as_ref()?
+                        .iter()
+                        .find(|def| def.id == active.emote)
+                        .cloned()
+                });
+                state
+                    .active
+                    .set_quiet(emote.slot, emote.emote == emotes::QUIET, def.as_ref(), now);
+                continue;
+            }
             let def = state
                 .catalogue
                 .as_ref()
                 .and_then(|catalogue| catalogue.iter().find(|def| def.id == emote.emote))
                 .cloned();
-            let origin = position(emote.slot).unwrap_or_default();
+            // None while the player is not in the snapshot: the first position seen
+            // becomes the origin, rather than the map's centre (hub report #107).
+            let origin = position(emote.slot);
             // In step with the leader as this client saw them start; a leader not
             // playing it here (gone, or its own echo still on the way) starts it anew.
             let synced = emote.sync.is_some_and(|leader| {
@@ -93,6 +140,9 @@ impl GpuState {
                     .active
                     .start(emote.slot, &emote.emote, def.as_ref(), origin, now);
             }
+            if emote.quiet {
+                state.active.set_quiet(emote.slot, true, def.as_ref(), now);
+            }
             // Until the animations exist, the console says it.
             if let Some(console) = &mut self.console {
                 let name = def
@@ -101,6 +151,19 @@ impl GpuState {
                 console.push_log(format!("* {}^7: {name}", shown.unwrap_or_default()));
             }
         }
+        // A player blocked while an emote of theirs plays: it ends here.
+        let mut blocked = self.muted_players.slots().muted;
+        while blocked != 0 {
+            let slot = blocked.trailing_zeros() as u8;
+            blocked &= blocked - 1;
+            state.active.stop(slot);
+        }
+        // A player typing keeps their emote until they move after (`cg_emoteTypingKeep`).
+        state.active.hold(typing(
+            keep_typing,
+            session.latest_snapshot(),
+            Some(own_typing),
+        ));
         state.active.update(now, position);
     }
 
@@ -112,7 +175,7 @@ impl GpuState {
         let Some(audio) = audio.as_mut() else {
             return;
         };
-        if !state.sounds_loaded
+        if state.sounds_loaded != Some(audio.generation())
             && let (Some(catalogue), Some(vfs)) = (state.catalogue.as_ref(), self.vfs.as_deref())
         {
             audio.register_effect_paths(
@@ -122,7 +185,7 @@ impl GpuState {
                     .flat_map(|def| [def.sound.as_str(), def.sound_loop.as_str()])
                     .filter(|sound| !sound.is_empty()),
             );
-            state.sounds_loaded = true;
+            state.sounds_loaded = Some(audio.generation());
         }
         drop(state);
         let world = self
@@ -140,7 +203,7 @@ impl GpuState {
             .as_ref()
             .and_then(|console| console.float_cvar(emotes::VOLUME_CVAR))
             .unwrap_or(emotes::DEFAULT_VOLUME)
-            .clamp(0.0, 4.0) as f32;
+            .clamp(0.0, emotes::MAX_VOLUME) as f32;
         for cue in cues {
             match cue {
                 emotes::Cue::Start {

@@ -96,6 +96,8 @@ pub(crate) fn latch_clash_flare(
     let latches = sjk_client::legacy_impact_latches_saber_flare(impact);
     if latches {
         clash_flare.observe(impact.origin, server_time);
+        // The blades near it clash too (the Blade Lab designs answer it).
+        crate::saber_motion::note_clash(impact.origin);
     }
     latches
 }
@@ -187,8 +189,7 @@ pub(crate) fn spawn_line(
             0.0,
             linear,
         ),
-        start_length: 1.0,
-        end_length: 1.0,
+        length: None,
         streak: Some(Vec3::from_array(line.end) - start),
         trace_streak: false,
         normal: None,

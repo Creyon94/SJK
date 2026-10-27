@@ -144,9 +144,62 @@ impl Batch {
 
 /// The submit thread's ends of the hand-off.
 struct Submitter {
-    frames: SyncSender<Batch>,
+    frames: Fed<Batch>,
     returned: Receiver<Option<Batch>>,
     in_flight: Cell<bool>,
+}
+
+/// A named thread fed through a bounded channel. Dropping it closes the channel and
+/// joins the thread, so whatever the thread owns is dropped on it before the owner
+/// goes on. The submit thread owns a queue clone, which keeps the whole wgpu context
+/// alive, window handle included: left to finish on its own while the game closed, it
+/// could drop the last handle to the window after the event loop was gone, and winit
+/// then panicked leaving exclusive fullscreen ("PostMessage failed; is the messages
+/// queue full?").
+struct Fed<J> {
+    jobs: Option<SyncSender<J>>,
+    thread: Option<std::thread::JoinHandle<()>>,
+}
+
+impl<J: Send + 'static> Fed<J> {
+    /// Start `name`, which runs `each` on every job until it returns false or the
+    /// channel closes.
+    fn spawn(
+        name: &str,
+        capacity: usize,
+        mut each: impl FnMut(J) -> bool + Send + 'static,
+    ) -> std::io::Result<Self> {
+        let (jobs, take) = sync_channel::<J>(capacity);
+        let thread = std::thread::Builder::new()
+            .name(name.into())
+            .spawn(move || {
+                for job in take {
+                    if !each(job) {
+                        return;
+                    }
+                }
+            })?;
+        Ok(Self {
+            jobs: Some(jobs),
+            thread: Some(thread),
+        })
+    }
+
+    fn send(&self, job: J) -> Result<(), std::sync::mpsc::SendError<J>> {
+        match &self.jobs {
+            Some(jobs) => jobs.send(job),
+            None => Err(std::sync::mpsc::SendError(job)),
+        }
+    }
+}
+
+impl<J> Drop for Fed<J> {
+    fn drop(&mut self) {
+        self.jobs = None;
+        if let Some(thread) = self.thread.take() {
+            let _ = thread.join();
+        }
+    }
 }
 
 impl Submitter {
@@ -155,24 +208,17 @@ impl Submitter {
         if std::env::var("SJK_SUBMIT_THREAD").is_ok_and(|value| value == "0") {
             return None;
         }
-        let (frames, take) = sync_channel::<Batch>(1);
         let (give, returned) = sync_channel(2);
         let queue = queue.clone();
-        std::thread::Builder::new()
-            .name("sjk-submit".into())
-            .spawn(move || {
-                for mut batch in take {
-                    let submitted = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                        batch.submit(queue.raw())
-                    }))
-                    .is_ok();
-                    queue.end_flight();
-                    if give.send(submitted.then_some(batch)).is_err() {
-                        return;
-                    }
-                }
-            })
-            .ok()?;
+        let frames = Fed::spawn("sjk-submit", 1, move |mut batch: Batch| {
+            let submitted = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                batch.submit(queue.raw())
+            }))
+            .is_ok();
+            queue.end_flight();
+            give.send(submitted.then_some(batch)).is_ok()
+        })
+        .ok()?;
         Some(Self {
             frames,
             returned,
@@ -284,5 +330,37 @@ impl Drop for Splitter {
         {
             let _ = submitter.returned.recv();
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Fed;
+    use std::sync::Arc;
+
+    #[test]
+    fn a_fed_thread_drops_what_it_owns_before_its_owner_goes_on() {
+        // Stands for the window handle the submit thread's queue clone keeps alive.
+        let window = Arc::new(());
+        let held = Arc::clone(&window);
+        let fed = Fed::spawn("sjk-fed-test", 1, move |job: u32| {
+            let _ = &held;
+            job < 3
+        })
+        .expect("thread starts");
+        fed.send(1).expect("thread takes jobs");
+        drop(fed);
+        assert_eq!(Arc::strong_count(&window), 1);
+    }
+
+    #[test]
+    fn a_fed_thread_that_stopped_refuses_jobs_and_still_joins() {
+        let fed = Fed::spawn("sjk-fed-test", 1, |_: u32| false).expect("thread starts");
+        fed.send(1).expect("first job taken");
+        // The thread stops after its first job; later sends fail instead of blocking.
+        while fed.send(2).is_ok() {
+            std::thread::yield_now();
+        }
+        drop(fed);
     }
 }

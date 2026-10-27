@@ -25,15 +25,16 @@ pub(super) const SHOWCASE_WIDTH: f32 = RIGHT_X - SHOWCASE_X;
 /// Where the live preview of the player's model shows over a match (frame pixels):
 /// where the model stands on the menu map's stage.
 pub(crate) const MODEL_AREA: [f32; 4] = [760.0, 110.0, 820.0, 840.0];
-/// Under Shaders, Toys and Nameplates, the column that says what is chosen, over the
-/// clear right of the screen beside the model.
-pub(super) const STAGE_TEXT_X: f32 = 1_300.0;
-pub(super) const STAGE_TEXT_WIDTH: f32 = RIGHT_X - STAGE_TEXT_X;
+/// Where the Shaders tab's saber lies on its own (frame pixels), over the clear right of
+/// the screen above the shader's card: on the menu map's stage before the backdrop
+/// camera, and over a match in the live preview drawn there.
+pub(crate) const SABER_AREA: [f32; 4] = [1_000.0, 196.0, RIGHT_X - 1_000.0, 300.0];
 
 /// The tick bar at the top right: a tick's size, the gaps between ticks and groups.
-const TICK: [f32; 2] = [5.0, 16.0];
-const TICK_GAP: f32 = 4.0;
-const GROUP_GAP: f32 = 14.0;
+/// The tally's bar at the top right: as wide as its words, a stretch to a tab.
+const TALLY_WIDTH: f32 = 500.0;
+const TALLY_HEIGHT: f32 = 6.0;
+const GROUP_GAP: f32 = 10.0;
 
 /// How many of a tab's things the player holds, and how many there are; `None` while
 /// that is not known (no identity, no answer from the hub).
@@ -49,26 +50,25 @@ impl Count {
     fn label(self) -> String {
         match self.held {
             Some(held) if self.total > 0 => format!("{held}/{}", self.total),
-            Some(held) if held > 0 => held.to_string(),
+            Some(held) if held > 0 => crate::cards::grouped(held as u64),
             _ => String::new(),
         }
     }
 }
 
 /// Each tab's count, in the row's order.
-pub(super) fn counts(inputs: &Inputs<'_>) -> [Count; 7] {
+pub(super) fn counts(inputs: &Inputs<'_>) -> [Count; 8] {
     let medals = medals::held(inputs);
-    let achievements = inputs
-        .standings
-        .iter()
-        .filter(|standing| standing.unlocked.is_some())
-        .count();
+    // Out of the ones the player sees: a retired one not held is not counted.
+    let (achievements, achievements_total) = crate::achievements::tally(inputs.standings);
     let shaders = (inputs.holdings.reason().is_none()).then(|| {
         unlockables::ALL
             .iter()
             .filter(|skin| inputs.holdings.unlock(skin.id).is_some())
             .count()
     });
+    // Out of the shaders the player sees: an unheld Unique one is not counted.
+    let shaders_shown = inputs.holdings.listed_count();
     [
         Count {
             held: medals,
@@ -76,16 +76,16 @@ pub(super) fn counts(inputs: &Inputs<'_>) -> [Count; 7] {
         },
         Count {
             held: Some(achievements),
-            total: inputs.standings.len(),
+            total: achievements_total,
         },
         Count {
             held: shaders,
-            total: unlockables::ALL.len(),
+            total: shaders_shown,
         },
-        // Illuminate is everyone's.
+        // Every toy is everyone's (Illuminate, the cardboard box, Order 66).
         Count {
-            held: Some(1),
-            total: 1,
+            held: Some(TOY_COUNT),
+            total: TOY_COUNT,
         },
         Count {
             held: Some(0),
@@ -102,6 +102,16 @@ pub(super) fn counts(inputs: &Inputs<'_>) -> [Count; 7] {
                         .iter()
                         .sum::<u32>() as usize
                 }),
+            total: 0,
+        },
+        // The Forge: the kyber shards the player holds, what it trades with.
+        Count {
+            held: inputs
+                .snapshot
+                .filter(|_| inputs.enabled)
+                .and_then(|snapshot| snapshot.me.as_ref())
+                .filter(|me| me.shards > 0)
+                .map(|me| me.shards as usize),
             total: 0,
         },
         // The cards held, and no total until a set is out.
@@ -127,10 +137,20 @@ pub(crate) fn row_labels(
         standings,
         illuminate: true,
         cardboard_box: false,
+        order66: false,
+        hax: false,
+        ragdoll: false,
+        drone: false,
+        boombox: false,
+        monitor: false,
         name: "",
         stock: color::HOLO,
         grid: false,
         options: "",
+        second: "",
+        pair: crate::saber_skins::Pair::None,
+        share: false,
+        toy_keys: &[],
     };
     counts(&inputs).iter().map(|count| count.label()).collect()
 }
@@ -241,6 +261,13 @@ impl Panel {
     pub(super) fn build(&mut self, inputs: &Inputs<'_>, _body: &UiFont, viewport: [f32; 2]) {
         let frame = Frame::new(viewport);
         self.box_on = inputs.cardboard_box;
+        self.order66_on = inputs.order66;
+        self.hax_on = inputs.hax;
+        self.ragdoll_on = inputs.ragdoll;
+        self.drone_on = inputs.drone;
+        self.boombox_on = inputs.boombox;
+        self.monitor_on = inputs.monitor;
+        self.share_on = inputs.share;
         let seconds = self.epoch.elapsed().as_secs_f32();
         #[cfg(test)]
         let seconds = self.shot_seconds.unwrap_or(seconds);
@@ -254,7 +281,12 @@ impl Panel {
         if let Backstage::Preview { ready: true } = self.backstage
             && kit
         {
-            let [x, y, width, height] = MODEL_AREA;
+            // The Shaders tab's preview is its saber on its own.
+            let [x, y, width, height] = if self.tab == Tab::Shaders {
+                SABER_AREA
+            } else {
+                MODEL_AREA
+            };
             let _ = self.ui.draw_list_mut().push(DrawCommand::TexturedQuad {
                 rect: frame.rect(x, y, width, height),
                 texture: crate::ui_renderer::PREVIEW_TEXTURE,
@@ -262,39 +294,28 @@ impl Panel {
             });
         }
         let counts = counts(inputs);
-        let labels: Vec<String> = counts.iter().map(|count| count.label()).collect();
+        let mut labels: Vec<String> = counts.iter().map(|count| count.label()).collect();
+        // The Forge says the shards it trades with, as it read them this frame.
+        if let Some(shards) = self.forge.data.shards.filter(|shards| *shards > 0) {
+            labels[Tab::Forge.index()] = crate::cards::grouped(shards);
+        }
+        let asking = self.tab == Tab::Forge && self.forge.ask.is_some();
         let back = if self.hub {
             crate::profile_hub::back_words(self.back)
         } else {
             "Back"
         };
-        crate::profile_hub::collection_header(
-            &mut self.ui,
-            &frame,
-            back,
-            BACK_TOKEN,
-            self.tab,
-            (&labels, self.widen),
-        );
-        self.tally(&frame, &counts);
-        // A window narrower than 16:9 shows the model nearer the words beside it: they
-        // keep a dark ground of their own.
-        if kit && self.backstage != Backstage::None && viewport[0] / viewport[1] < 1.7 {
-            // A soft dark pad: rounded layers stacked from the rim inwards.
-            const LAYERS: usize = 6;
-            for layer in 0..LAYERS {
-                let inset = layer as f32 * 14.0;
-                let _ = self.ui.draw_list_mut().push(DrawCommand::RoundedRect {
-                    rect: frame.rect(
-                        STAGE_TEXT_X - 90.0 + inset,
-                        590.0 + inset,
-                        RIGHT_X - STAGE_TEXT_X + 150.0 - inset * 2.0,
-                        360.0 - inset * 2.0,
-                    ),
-                    radius: (80.0 - inset) * frame.s,
-                    color: color::alpha(color::SPACE, 0.14),
-                });
-            }
+        // A card asking on the Forge covers the page: the header is left out under it.
+        if !asking {
+            crate::profile_hub::collection_header(
+                &mut self.ui,
+                &frame,
+                back,
+                BACK_TOKEN,
+                self.tab,
+                (&labels, self.widen),
+            );
+            self.tally(&frame, &counts);
         }
         match self.tab {
             Tab::Medals => self.medals(&frame, inputs),
@@ -302,6 +323,10 @@ impl Panel {
             Tab::Shaders => self.shaders(&frame, inputs, seconds),
             Tab::Toys => self.toys(&frame, inputs),
             Tab::Cards => self.cards(&frame, inputs, seconds),
+            Tab::Forge => {
+                self.grid = inputs.grid;
+                self.forge(&frame, inputs, seconds, viewport);
+            }
             _ => self.nameplates(&frame, inputs),
         }
         self.keys(&frame, inputs);
@@ -310,8 +335,9 @@ impl Panel {
     }
 
     /// How many of all the things the player holds, at the top right: the words, and a
-    /// tick for each thing, lit for the ones held, a group to a tab.
-    fn tally(&mut self, frame: &Frame, counts: &[Count; 7]) {
+    /// bar under them, a stretch to a tab in the tabs' order, each filled as far as its
+    /// share held (one tick a thing no longer fits two hundred things, 21/10/2026).
+    fn tally(&mut self, frame: &Frame, counts: &[Count; 8]) {
         let s = frame.s;
         // Only the things with a set total: the holocrons are opened, not collected.
         let total: usize = counts.iter().map(|count| count.total).sum();
@@ -324,34 +350,34 @@ impl Panel {
             &mut self.ui,
             TextFamily::Display,
             format_args!("{held} of {total} collected"),
-            frame.rect(RIGHT_X - 500.0, 58.0, 500.0, 30.0),
+            frame.rect(RIGHT_X - TALLY_WIDTH, 58.0, TALLY_WIDTH, 30.0),
             22.0 * s,
             color::TEXT,
             FontWeight::Semibold,
             TextAlign::End,
         );
         let groups: Vec<Count> = counts.iter().copied().filter(|c| c.total > 0).collect();
-        let width: f32 = groups
-            .iter()
-            .map(|count| count.total as f32 * (TICK[0] + TICK_GAP) - TICK_GAP)
-            .sum::<f32>()
-            + GROUP_GAP * groups.len().saturating_sub(1) as f32;
-        let mut x = RIGHT_X - width;
+        if groups.is_empty() {
+            return;
+        }
+        let stretch = (TALLY_WIDTH - GROUP_GAP * (groups.len() - 1) as f32) / groups.len() as f32;
+        let radius = TALLY_HEIGHT / 2.0 * s;
+        let mut x = RIGHT_X - TALLY_WIDTH;
         for count in groups {
-            let held = count.held.unwrap_or(0);
-            for index in 0..count.total {
+            let share = count.held.unwrap_or(0).min(count.total) as f32 / count.total as f32;
+            let _ = self.ui.draw_list_mut().push(DrawCommand::RoundedRect {
+                rect: frame.rect(x, 98.0, stretch, TALLY_HEIGHT),
+                radius,
+                color: color::alpha(color::HOLO, 0.24),
+            });
+            if share > 0.0 {
                 let _ = self.ui.draw_list_mut().push(DrawCommand::RoundedRect {
-                    rect: frame.rect(x, 96.0, TICK[0], TICK[1]),
-                    radius: 1.0 * s,
-                    color: if index < held {
-                        color::GOLD_BRIGHT
-                    } else {
-                        color::alpha(color::HOLO, 0.24)
-                    },
+                    rect: frame.rect(x, 98.0, (stretch * share).max(TALLY_HEIGHT), TALLY_HEIGHT),
+                    radius,
+                    color: color::GOLD_BRIGHT,
                 });
-                x += TICK[0] + TICK_GAP;
             }
-            x += GROUP_GAP - TICK_GAP;
+            x += stretch + GROUP_GAP;
         }
     }
 
@@ -385,19 +411,72 @@ impl Panel {
     /// The keys of the tab on show, right-aligned at the bottom.
     fn keys(&mut self, frame: &Frame, inputs: &Inputs<'_>) {
         let s = frame.s;
+        let next_tab = crate::terms::say(self.tab.next(true).label());
         let mut keys: Vec<(&[&str], &str)> = Vec::with_capacity(6);
         match self.tab {
             Tab::Medals => keys.push((&["Left", "Right"], "choose")),
-            Tab::Cards if self.cards_shown > 1 => keys.push((&["Left", "Right"], "choose")),
+            Tab::Cards if self.card_inspect => {
+                if self.cards_shown > 1 {
+                    keys.push((&["Left", "Right"], "previous, next"));
+                }
+                keys.push((&["Esc"], "put back"));
+            }
+            Tab::Cards => {
+                if self.cards_shown > 0 {
+                    keys.push((&["Enter"], "look closer"));
+                }
+                if self.cards_shown > 1 {
+                    keys.push((&["Arrows"], "choose"));
+                }
+                if self.cards_shown > cards::COLUMNS * cards::LINES {
+                    keys.push((&["PgUp", "PgDn"], "page"));
+                }
+                keys.push((&["O", "T", "K", "F"], "filter"));
+                if self.revealable > 0 {
+                    keys.push((&["R"], "reveal"));
+                }
+            }
             Tab::Achievements => keys.push((&["Arrows"], "choose")),
+            Tab::Forge if self.forge.ask.is_some() => {
+                keys.push((&["Tab"], "switch"));
+                keys.push((&["Enter"], "answer"));
+                keys.push((&["Esc"], "cancel"));
+            }
+            Tab::Forge => {
+                keys.push((&["Tab"], self.forge.section.next(true).label()));
+                match self.forge.section {
+                    forge::Section::Shop => {
+                        keys.push((&["Arrows"], "choose"));
+                        keys.push((&["Enter"], "buy"));
+                    }
+                    section => {
+                        keys.push((&["Arrows"], "choose"));
+                        keys.push((&["V"], if self.grid { "list" } else { "grid" }));
+                        keys.push((&["/"], "search"));
+                        if section == forge::Section::Break && self.forge.data.all {
+                            keys.push((&["B"], "all duplicates"));
+                        }
+                        keys.push((
+                            &["Enter"],
+                            if section == forge::Section::Craft {
+                                "craft"
+                            } else {
+                                "break down"
+                            },
+                        ));
+                    }
+                }
+            }
             Tab::Shaders => {
                 if self.grid {
                     keys.push((&["Arrows"], "choose"));
                     keys.push((&["V"], "list"));
                 } else {
                     keys.push((&["Up", "Down"], "choose"));
-                    keys.push((&["V"], "grid"));
+                    keys.push((&["S"], "sort"));
+                    keys.push((&["V"], "tiles"));
                 }
+                keys.push((&["T"], "tier"));
                 keys.push((&["/"], "search"));
                 let worn = self.shader_rows.get(self.shader).and_then(|row| row.wear);
                 match worn {
@@ -406,19 +485,43 @@ impl Panel {
                     None => {}
                 }
             }
+            Tab::Toys if self.bind_wait.is_some() => {
+                keys.push((&["Esc"], "cancel"));
+                keys.push((&["Backspace"], "clear the key"));
+            }
             Tab::Toys => keys.push((
                 &["Enter"],
                 match (self.toy, inputs.illuminate, inputs.cardboard_box) {
                     (1, _, true) => "come out",
                     (1, _, false) => "hide",
+                    (2, _, _) if inputs.order66 => "turn off",
+                    (2, _, _) => "turn on",
+                    (3, _, _) if inputs.hax => "turn off",
+                    (3, _, _) => "turn on",
+                    (4, _, _) if inputs.ragdoll => "get up",
+                    (4, _, _) => "go limp",
+                    (5, _, _) if inputs.drone => "turn off",
+                    (5, _, _) => "turn on",
+                    (6, _, _) if inputs.boombox => "put away",
+                    (6, _, _) => "play",
+                    (7, _, _) if inputs.monitor => "turn off",
+                    (7, _, _) => "turn on",
                     (_, true, _) => "put out",
                     _ => "light",
                 },
             )),
             _ => {}
         }
-        keys.push((&["Ctrl", "Tab"], self.tab.next(true).label()));
-        keys.push((&["Esc"], "back"));
+        if self.tab == Tab::Toys && self.bind_wait.is_none() {
+            keys.push((&["K"], "bind a key"));
+        }
+        let covered = (self.tab == Tab::Cards && self.card_inspect)
+            || (self.tab == Tab::Forge && self.forge.ask.is_some())
+            || (self.tab == Tab::Toys && self.bind_wait.is_some());
+        if !covered {
+            keys.push((&["Ctrl", "Tab"], &*next_tab));
+            keys.push((&["Esc"], "back"));
+        }
         let gap = 30.0 * s;
         let width: f32 = keys
             .iter()
@@ -433,8 +536,15 @@ impl Panel {
     }
 }
 
-/// Dark behind the things on the left, fading out before the model; light fades at the
-/// top behind the title and at the bottom behind the showcase's words and the keys.
+/// Where the band behind the title and the tabs holds solid, and where it has faded out,
+/// in frame pixels (25/10/2026, Sol: the tabs on top must read over any map).
+const HEADER_SOLID: f32 = 200.0;
+const HEADER_CLEAR: f32 = 290.0;
+
+/// Dark behind the things on the left, fading out at the stage before the model; a band
+/// behind the title and the tabs, solid under them and fading out above the stage, as
+/// the Holocrons page's; dark at the bottom behind the keys. The words beside the model
+/// stand on cards of their own.
 fn stage_scrims(canvas: &mut crate::menu_widgets::MenuCanvas, viewport: [f32; 2], frame: &Frame) {
     let [width, height] = viewport;
     let space = |alpha| color::alpha(color::SPACE, alpha);
@@ -442,25 +552,36 @@ fn stage_scrims(canvas: &mut crate::menu_widgets::MenuCanvas, viewport: [f32; 2]
     let y = |frame_y: f32| frame.point(0.0, frame_y)[1];
     fade_across(
         canvas,
-        sjk_ui::Rect::new(0.0, 0.0, x(780.0), height),
+        sjk_ui::Rect::new(0.0, 0.0, x(900.0), height),
         space(0.94),
-        space(0.86),
+        space(0.88),
     );
     fade_across(
         canvas,
-        sjk_ui::Rect::new(x(780.0), 0.0, x(1_060.0) - x(780.0), height),
+        sjk_ui::Rect::new(x(900.0), 0.0, x(1_060.0) - x(900.0), height),
+        space(0.88),
+        space(0.0),
+    );
+    fade(
+        canvas,
+        sjk_ui::Rect::new(0.0, 0.0, width, y(HEADER_SOLID)),
+        space(0.86),
+        space(0.86),
+    );
+    fade(
+        canvas,
+        sjk_ui::Rect::new(
+            0.0,
+            y(HEADER_SOLID),
+            width,
+            y(HEADER_CLEAR) - y(HEADER_SOLID),
+        ),
         space(0.86),
         space(0.0),
     );
     fade(
         canvas,
-        sjk_ui::Rect::new(0.0, 0.0, width, y(250.0)),
-        space(0.7),
-        space(0.0),
-    );
-    fade(
-        canvas,
-        sjk_ui::Rect::new(0.0, y(560.0), width, height - y(560.0)),
+        sjk_ui::Rect::new(0.0, y(860.0), width, height - y(860.0)),
         space(0.0),
         space(0.86),
     );

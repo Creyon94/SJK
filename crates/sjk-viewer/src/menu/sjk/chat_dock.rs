@@ -67,6 +67,7 @@ pub(crate) struct DockLine<'a> {
     pub(crate) text: &'a str,
     pub(crate) verified: bool,
     pub(crate) staff: bool,
+    pub(crate) creator: bool,
     /// The sender's trust (`ui_renderer::mark_texture`).
     pub(crate) trust: Option<sjk_identity::Trust>,
     /// The sender's name emoji, right after the name; empty for none.
@@ -77,6 +78,9 @@ pub(crate) struct DockLine<'a> {
     pub(crate) tier: Option<&'static crate::holocrons::Tier>,
     /// The GIF the message links to, shown under it ([`crate::chat_gifs`]).
     pub(crate) gif: Option<&'a crate::chat_gifs::GifId>,
+    /// The SJK team's line (`official.rs`): "SJK" in gold, its mark, the title in bold;
+    /// a click on it opens it.
+    pub(crate) official: Option<crate::official::words::Look>,
 }
 
 /// A blank line for the dock's array.
@@ -85,11 +89,13 @@ pub(crate) const BLANK: DockLine<'static> = DockLine {
     text: "",
     verified: false,
     staff: false,
+    creator: false,
     trust: None,
     emoji: "",
     key_id: "",
     tier: None,
     gif: None,
+    official: None,
 };
 
 /// Where a page docks the chat, in frame pixels: the left edge of its text, its top
@@ -173,6 +179,8 @@ const CARD_GRACE: std::time::Duration = std::time::Duration::from_millis(600);
 pub(crate) struct Dock {
     /// What is typed in the field, while typing.
     pub(super) draft: Option<String>,
+    /// The caret in `draft` ([`crate::sjk_chat_field::caret_key`]).
+    caret: crate::console::line_edit::LineEdit,
     /// What Enter sent from the field, until the page takes it.
     sent: Option<String>,
     /// The sender card on show.
@@ -181,6 +189,8 @@ pub(crate) struct Dock {
     muting: Option<(String, String)>,
     /// The view's messages the last frame showed: the first one's index and how many.
     shown: (usize, usize),
+    /// What a click on each message shown opens, for the SJK team's lines.
+    targets: [Option<crate::official::words::Target>; LINES],
 }
 
 impl Dock {
@@ -253,9 +263,10 @@ impl Dock {
     }
 
     /// A key while typing in the field, with Shift and Ctrl held or not: text goes into
-    /// it (Ctrl+V and Shift+Insert paste, [`crate::sjk_chat_field`]), Backspace takes a
-    /// character back, Enter sends, Escape stops; every other key is swallowed, so no
-    /// menu key or game binding acts.
+    /// it at the caret (Ctrl+V and Shift+Insert paste, [`crate::sjk_chat_field`]), the
+    /// arrows, Home and End move the caret, Backspace and Delete take a character back,
+    /// Enter sends, Escape stops; every other key is swallowed, so no menu key or game
+    /// binding acts.
     pub(crate) fn typing_key(
         &mut self,
         key: KeyCode,
@@ -280,10 +291,8 @@ impl Dock {
                     return Some(DockAction::Send);
                 }
             }
-            KeyCode::Backspace => {
-                draft.pop();
-            }
-            _ => crate::sjk_chat_field::key_into(draft, key, text, shift, control),
+            _ if crate::sjk_chat_field::caret_key(draft, &mut self.caret, key, control) => {}
+            _ => crate::sjk_chat_field::key_at(draft, &mut self.caret, key, text, shift, control),
         }
         None
     }
@@ -336,6 +345,14 @@ impl Dock {
             }
             return Some(None);
         }
+        if tokens.is_name(token)
+            && activate
+            && let Some(target) = self.targets[usize::from(token - tokens.names)]
+        {
+            // The SJK team's line: a click reads it.
+            crate::official::request(target);
+            return Some(None);
+        }
         (token == tokens.card || tokens.is_name(token)).then_some(None)
     }
 
@@ -343,6 +360,7 @@ impl Dock {
     #[cfg(test)]
     pub(crate) fn type_for_shot(&mut self, text: &str) {
         self.draft = Some(text.to_owned());
+        self.caret.to_end(text);
     }
 }
 
@@ -361,18 +379,20 @@ struct Line {
     text: String,
     verified: bool,
     staff: bool,
+    creator: bool,
     trust: Option<sjk_identity::Trust>,
     emoji: String,
     key_id: String,
     tier: Option<&'static crate::holocrons::Tier>,
     gif: Option<crate::chat_gifs::GifId>,
+    official: Option<crate::official::words::Look>,
 }
 
 impl Line {
     /// The message with its text `text` (as a line shows it), which may link to a GIF:
     /// the link worded "GIF" and the GIF kept, unless GIFs are off.
     fn with_gif(mut self, text: &str) -> Self {
-        if self.tier.is_none() {
+        if self.tier.is_none() && self.official.is_none() {
             (self.text, self.gif) = crate::chat_gifs::for_message(text, false);
         } else {
             text.clone_into(&mut self.text);
@@ -389,6 +409,7 @@ pub(crate) struct DockCache {
     mark: Option<Option<(u64, u64, u64)>>,
     /// Whether GIFs were on when the lines were read (`cl_sjkChatGifs`).
     gifs: bool,
+    sources: u64,
     /// The last messages, oldest first.
     lines: Vec<Line>,
     online: u32,
@@ -418,11 +439,13 @@ impl DockCache {
             )
         });
         let gifs = crate::chat_gifs::enabled();
-        if self.mark == Some(mark) && self.gifs == gifs {
+        let sources = crate::chat_gifs::sources::revision();
+        if self.mark == Some(mark) && self.gifs == gifs && self.sources == sources {
             return;
         }
         self.mark = Some(mark);
         self.gifs = gifs;
+        self.sources = sources;
         self.lines.clear();
         self.refused.clear();
         let muted = player_mutes::muted_keys();
@@ -440,11 +463,13 @@ impl DockCache {
                     text: String::new(),
                     verified: message.verified && shown.tier.is_none(),
                     staff: message.staff,
+                    creator: message.creator,
                     trust: message.trust.filter(|_| shown.tier.is_none()),
                     emoji: sjk_identity::name_emoji::for_display(&message.emoji).to_owned(),
                     key_id: message.key_id.clone(),
                     tier: shown.tier,
                     gif: None,
+                    official: shown.official,
                 };
                 self.lines.push(line.with_gif(&shown.text));
             }
@@ -479,11 +504,13 @@ impl DockCache {
                 text: &line.text,
                 verified: line.verified,
                 staff: line.staff,
+                creator: line.creator,
                 trust: line.trust,
                 emoji: &line.emoji,
                 key_id: &line.key_id,
                 tier: line.tier,
                 gif: line.gif.as_ref(),
+                official: line.official,
             };
         }
         let notice = if !self.local.is_empty() {
@@ -517,11 +544,13 @@ impl DockCache {
                     text: String::new(),
                     verified: *verified,
                     staff: false,
+                    creator: false,
                     trust: None,
                     emoji: String::new(),
                     key_id: format!("{:016x}", index + 1),
                     tier: None,
                     gif: None,
+                    official: None,
                 }
                 .with_gif(text)
             })
@@ -584,6 +613,7 @@ impl Lay<'_> {
     fn indent(&self, line: &DockLine<'_>) -> f32 {
         let tick = if crate::ui_renderer::mark_texture(line.verified, line.trust).is_some()
             || line.tier.is_some()
+            || line.official.is_some()
         {
             sjk_chat_look::tick_room(self.size)
         } else {
@@ -710,29 +740,45 @@ pub(crate) fn draw(
     }
     let inside = frame.rect(x, field_top + 5.0, width - 4.0, 24.0);
     match dock.draft.as_deref() {
-        // The end of a long draft shows, as in a field that scrolls.
+        // The end of a long draft shows, as in a field that scrolls, or the part from the
+        // caret on when it is further back. The caret is `_` at the end, `|` inside.
         Some(draft) => {
             let lay = Lay {
                 measure: view.measure,
                 size: TEXT_SIZE * s,
                 width: inside.width,
             };
+            let caret = dock.caret.cursor(draft);
             let room = inside.width - lay.width("_", TextFace::Regular);
+            let width =
+                |at: usize, c: char| lay.width(&draft[at..at + c.len_utf8()], TextFace::Regular);
             let mut used = 0.0;
             let mut start = draft.len();
             for (at, c) in draft.char_indices().rev() {
-                used += lay.width(&draft[at..at + c.len_utf8()], TextFace::Regular);
+                used += width(at, c);
                 if used > room {
                     break;
                 }
                 start = at;
             }
+            let mut end = draft.len();
+            if caret < start {
+                (start, end, used) = (caret, caret, 0.0);
+                for (at, c) in draft[caret..].char_indices() {
+                    used += width(caret + at, c);
+                    if used > room {
+                        break;
+                    }
+                    end = caret + at + c.len_utf8();
+                }
+            }
+            let mark = if caret == draft.len() { "_" } else { "|" };
             body(
                 canvas,
                 inside,
                 color::TEXT,
                 TextAlign::Start,
-                format_args!("{}_", &draft[start..]),
+                format_args!("{}{mark}{}", &draft[start..caret], &draft[caret..end]),
             );
         }
         None if lit => body(
@@ -846,6 +892,10 @@ fn messages(
     }
     let first = view.lines.len() - count;
     dock.shown = (first, count);
+    dock.targets = [None; LINES];
+    for (slot, line) in dock.targets.iter_mut().zip(&view.lines[first..]) {
+        *slot = line.official.map(|look| look.target);
+    }
     let bottom = place.top + BOX_TOP + BOX;
     if count == 0 {
         text(
@@ -864,8 +914,21 @@ fn messages(
     for (index, line) in view.lines[first..].iter().enumerate() {
         let rows = taken[count - 1 - index];
         let name = message(canvas, frame, &lay, line, [place.x, y], pitch, rows);
-        // Resting the pointer on the name shows the sender's sender card.
-        canvas.hit_region(tokens.name(index), name);
+        if line.official.is_some() {
+            // The SJK team's line is clicked anywhere on it, and lit under the pointer.
+            let whole = frame.rect(place.x, y, place.width, pitch.height(rows));
+            if canvas.token_hovered(tokens.name(index)) {
+                let _ = canvas.draw_list_mut().push(DrawCommand::RoundedRect {
+                    rect: whole,
+                    radius: 6.0 * s,
+                    color: color::alpha(color::HOLO, 0.08),
+                });
+            }
+            canvas.hit_region(tokens.name(index), whole);
+        } else {
+            // Resting the pointer on the name shows the sender's sender card.
+            canvas.hit_region(tokens.name(index), name);
+        }
         y += pitch.height(rows);
         let gif = gifs[count - 1 - index];
         if let Some(shown) = gif {
@@ -926,7 +989,12 @@ fn message(
     let name_width = lay.name_width(line);
     let name = Rect::new(first.x + jof, first.y, name_width + 1.0, first.height);
     if !line.name.is_empty() {
-        run(canvas, name, color::TEXT, format_args!("{}", line.name));
+        let colour = if line.official.is_some() {
+            sjk_chat_look::ACCENT
+        } else {
+            color::TEXT
+        };
+        run(canvas, name, colour, format_args!("{}", line.name));
     }
     let mut x = first.x + jof + name_width;
     if !line.emoji.is_empty() {
@@ -940,7 +1008,31 @@ fn message(
         );
         x += room;
     }
-    if let Some(tier) = line.tier {
+    if let Some(look) = line.official {
+        let mut gift = None;
+        sjk_chat_look::official_mark(
+            canvas.draw_list_mut(),
+            look,
+            x,
+            first.y + first.height * 0.5,
+            lay.size,
+            1.0,
+            |c, rect, colour| gift = Some((c, rect, colour)),
+        );
+        if let Some((c, rect, colour)) = gift {
+            text(
+                canvas,
+                TextFamily::Body,
+                format_args!("{c}"),
+                rect,
+                lay.size * 1.1,
+                colour,
+                FontWeight::Regular,
+                TextAlign::Start,
+            );
+        }
+        x += sjk_chat_look::tick_room(lay.size);
+    } else if let Some(tier) = line.tier {
         sjk_chat_look::gem_mark(
             canvas.draw_list_mut(),
             x,
@@ -991,14 +1083,38 @@ fn message(
         let shown = if cut && index + 1 == rows {
             &line.text[range.start..]
         } else {
-            &line.text[range]
+            &line.text[range.clone()]
         };
-        run(
-            canvas,
-            rect,
-            sjk_chat_look::text_colour(line.tier),
-            format_args!("{shown}"),
-        );
+        // The SJK team's title, in bold where it starts the first row.
+        let bold = line
+            .official
+            .map_or(0, |look| look.bold)
+            .saturating_sub(range.start)
+            .min(shown.len());
+        let colour = sjk_chat_look::text_colour(line.tier);
+        if bold > 0 && shown.is_char_boundary(bold) {
+            let (title, rest) = shown.split_at(bold);
+            text(
+                canvas,
+                TextFamily::Body,
+                format_args!("{title}"),
+                rect,
+                lay.size,
+                colour,
+                FontWeight::Semibold,
+                TextAlign::Start,
+            );
+            let after = lay.width(title, TextFace::Semibold);
+            let rest_rect = Rect::new(
+                rect.x + after,
+                rect.y,
+                (rect.width - after).max(1.0),
+                rect.height,
+            );
+            run(canvas, rest_rect, colour, format_args!("{rest}"));
+        } else {
+            run(canvas, rect, colour, format_args!("{shown}"));
+        }
     });
     name
 }
@@ -1016,7 +1132,14 @@ pub(crate) fn sender_card(
     tokens: Tokens,
 ) {
     let (first, shown) = dock.shown;
-    let hovered = (0..shown).find(|index| canvas.token_hovered(tokens.name(*index)));
+    // The SJK team's lines have no sender to show.
+    let hovered = (0..shown).find(|index| {
+        canvas.token_hovered(tokens.name(*index))
+            && view
+                .lines
+                .get(first + index)
+                .is_some_and(|line| line.official.is_none())
+    });
     match hovered.and_then(|index| Some((index, view.lines.get(first + index)?))) {
         Some((index, line)) => {
             let anchor = canvas.rect_for(tokens.name(index)).unwrap_or_default();
@@ -1060,7 +1183,7 @@ pub(crate) fn sender_card(
     let Some(card) = dock.sender_card.as_ref() else {
         return;
     };
-    let size = crate::sender_card::size(&card.person, frame.s);
+    let size = crate::sender_card::size(&card.person, false, frame.s);
     let gap = 12.0 * frame.s;
     // Left of the field, which reaches a little past the dock's text.
     let [left, floor] = frame.point(place.x - FIELD_OVERHANG, place.card_floor);
@@ -1081,6 +1204,13 @@ pub(crate) fn sender_card(
             card: tokens.card,
             mute: tokens.mute,
             ban: tokens.ban,
+            // The safety code, Report and Whisper are only offered in the game's chat.
+            safety: tokens.card,
+            report: tokens.card,
+            whisper: None,
+            trade: tokens.card,
+            map_block: tokens.card,
+            staff_block: tokens.card,
         },
     );
 }
@@ -1094,12 +1224,17 @@ fn person(line: &DockLine<'_>) -> crate::sender_card::Person {
         hub_name: None,
         verified: line.verified,
         staff: line.staff,
+        creator: line.creator,
         trust: line.trust,
         emoji: line.emoji.to_owned(),
         medals: crate::medals::Medals::default(),
         place: crate::sender_card::Place::Unknown,
         avatar: None,
         note: None,
+        safety: false,
+        report: false,
+        trade: false,
+        map_block: None,
     }
 }
 
@@ -1130,11 +1265,13 @@ mod tests {
             text,
             verified: false,
             staff: false,
+            creator: false,
             trust: None,
             emoji: "",
             key_id: "0123456789abcdef",
             tier: None,
             gif: None,
+            official: None,
         }
     }
 

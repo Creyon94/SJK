@@ -17,31 +17,69 @@ impl GpuState {
         if let Some(request) = self.chat.take_mute_request() {
             player_mutes::set_muted(request.key_id.as_deref(), &request.name, request.muted);
         }
+        if let Some(request) = self.chat.take_map_block_request() {
+            let slot = usize::from(request.slot);
+            let done = match (request.everyone, request.blocked) {
+                (true, blocked) => self.staff_map_block(request.slot, &request.name, blocked),
+                (false, true) => {
+                    self.map_blocks.block(slot, &request.name);
+                    Ok(())
+                }
+                (false, false) => {
+                    self.map_blocks.unblock(slot);
+                    Ok(())
+                }
+            };
+            if let Err(error) = done {
+                log::progress(format_args!("block: {error}"));
+            }
+        }
+        let follow = self
+            .console
+            .as_ref()
+            .is_none_or(|console| console.bool_cvar(map_blocks::CVAR) != Some(false));
         let Some(session) = self.live_session.as_ref() else {
+            self.map_blocks.enter(None, follow);
             if self.muted_players.clear() {
                 player_mutes::set_roster(std::iter::empty(), None);
             }
             self.chat.set_muted_slots(0);
             self.looks.set_muted(0);
+            muted_players::set_shown(0);
             return;
         };
+        // A new map load (`sv_serverid`) ends the blocks for the map.
+        self.map_blocks.enter(Some(session.server_id()), follow);
         let own = session.game_state().client_num;
         let roster = self.chat.roster_targets();
         let chat = &self.chat;
+        let map_blocks = &mut self.map_blocks;
         self.muted_players.refresh(
             player_mutes::revision(),
             player_identity::revision(),
+            map_blocks.revision(),
             roster,
             own,
             || {
+                let own = usize::try_from(own).ok();
                 player_mutes::set_roster(
                     (0..muted_players::SLOTS as u16).map(|slot| chat.player_label(slot)),
-                    usize::try_from(own).ok(),
+                    own,
                 );
-                player_mutes::slots()
+                let shown: [&str; muted_players::SLOTS] =
+                    std::array::from_fn(|slot| chat.player_label(slot as u16));
+                let mut slots = player_mutes::slots();
+                slots.muted |= map_blocks.resolve(&shown, own, &player_identity::map_blocks());
+                slots
             },
         );
         let muted = self.muted_players.slots().muted;
+        muted_players::set_shown(muted);
+        self.chat.set_map_blocks(
+            self.map_blocks.own_slots(),
+            self.map_blocks.shared_slots(),
+            player_identity::is_staff(),
+        );
         self.chat.set_muted_slots(muted);
         // Their look too: the stock blade and its sounds, no holocron (`looks.rs`).
         self.looks.set_muted(muted);

@@ -110,15 +110,27 @@ impl LegacyLoadTask {
 impl GameAudio {
     /// Stop old-map audio before new snapshots can reach the old configstring resolver.
     pub(crate) fn begin_map_change(&mut self) {
+        let flame_override = self.flame.override_value;
+        self.flame = Default::default();
+        self.flame.override_value = flame_override;
         self.transitions.reset();
+        #[cfg(feature = "mod-jof")]
+        {
+            self.force_feedback = Default::default();
+        }
+        self.voice_throttle.reset();
         self.output.send(AudioCommand::StopEffects);
         self.output.stop_music();
         self.legacy = None;
+        self.holster_sync = Default::default();
         self.saber_sets_generation = None;
         self.legacy_load = None;
         self.sound_table_refresh = None;
         self.deferred_snapshots.clear();
+        // Stopped, not freed: the next map's prefetch may already hold the same
+        // tracks. The next selection (`start_music`, `clear_music`) frees the rest.
         self.map_music = None;
+        self.music_sync_pending = false;
         self.music_value = None;
         self.dynamic = None;
     }
@@ -132,6 +144,13 @@ impl GameAudio {
         bsp: &Bsp,
     ) {
         self.begin_map_change();
+        self.missing_effects.clear();
+        self.music_sync_pending = true;
+        // A map's own track is set before anyone connects: it began with the level.
+        self.music_start_time = super::music::level_start_time(game_state);
+        self.last_server_time = None;
+        self.flame.detected =
+            crate::actor_world_submission::force_powers::flame::detect(Some(game_state));
         self.sound_table_refresh = Some(SoundTableRefresh::new(game_state));
         self.legacy_vfs = Some(Arc::clone(&vfs));
         self.deferred_snapshots.clear();
@@ -172,6 +191,8 @@ impl GameAudio {
                     .remap_sound_handles(|handle| remap[handle.0 as usize]);
                 self.transitions.handles =
                     prepared.cue_handles.map(|h| h.map(|h| remap[h.0 as usize]));
+                // Apply the current filter before replaying even the first deferred chat.
+                prepared.adapter.set_pm_only_chat(self.pm_only_chat);
                 self.legacy = Some(prepared.adapter);
                 self.saber_sets_generation = Some(prepared.skins_generation);
                 // Skins loaded while the tables were built: their sounds now.

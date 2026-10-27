@@ -2,17 +2,53 @@
 use super::*;
 use crate::{cgame_options::scalar, console::ViewerConsole};
 
+/// Range of `cg_chatBoxFontSize`. 1 is EternalJK's size ([`super::layout::FONT_1080`]);
+/// the ends hold every value saved under the smaller pre-19/10/2026 scale (0.25 to 3,
+/// [`super::text_sizes`]).
+pub(crate) const CHAT_SIZE: (f64, f64) = (0.15, 2.0);
+/// Default `cg_chatBoxFontSize`: 0.85 of EternalJK's size, a 26 px line at 1080p,
+/// about 1.45 on the pre-19/10/2026 scale (Sol's choice, 19/10/2026).
+pub(crate) const CHAT_SIZE_DEFAULT: f64 = 0.85;
+/// `cg_chatBoxLineSpacing`: room between chat messages in 1080p pixels at text size
+/// 1, its range and default (8 before 19/10/2026).
+pub(crate) const LINE_SPACING_CVAR: &str = "cg_chatBoxLineSpacing";
+pub(crate) const LINE_SPACING: (f64, f64) = (0.0, 16.0);
+pub(crate) const LINE_SPACING_DEFAULT: f64 = 2.0;
+/// Largest `cg_centerSize`: EternalJK stops at 1; SJK allows twice its size, which
+/// holds the old scale's largest value (4).
+pub(crate) const CENTER_SIZE_MAX: f32 = 2.0;
+/// The size of the sender card a chat name shows ([`super::card`]), over the chat's
+/// own scale.
+pub(crate) const CARD_SCALE_CVAR: &str = "cg_chatCardScale";
+/// Range of [`CARD_SCALE_CVAR`].
+pub(crate) const CARD_SCALE: (f32, f32) = (0.5, 2.0);
+
+/// `cg_centerSize` as drawn: zero, which would hide the text, is 1 as in
+/// EternalJK's `CG_DrawCenterString`.
+fn center_size(value: f32) -> f32 {
+    if value == 0.0 {
+        1.0
+    } else {
+        value.clamp(0.0, CENTER_SIZE_MAX)
+    }
+}
+
 #[derive(Clone, Copy, PartialEq)]
 /// Bounded presentation settings read from the archived cvars.
 pub(super) struct Options {
+    pub(super) pm_only: bool,
     /// Milliseconds before a message expires.
     pub(super) lifetime: u64,
     /// Maximum retained conversation entries displayed together.
     pub(super) lines: usize,
     /// Multiplier for the modern conversation font.
     pub(super) font: f32,
+    /// Multiplier for the sender card, over the chat's scale ([`CARD_SCALE_CVAR`]).
+    pub(super) card: f32,
     /// Extra room after each message character, in 1080p pixels at font scale 1.
     pub(super) spacing: f32,
+    /// Room between messages, in 1080p pixels at font scale 1.
+    pub(super) gap: f32,
     /// Left edge in virtual 640-wide coordinates.
     pub(super) x: f32,
     /// Bottom edge in virtual 480-high coordinates.
@@ -51,10 +87,17 @@ impl Options {
                 .unwrap_or(default)
         };
         Self {
+            pm_only: console
+                .and_then(|c| c.bool_cvar("cg_pmonlychat"))
+                .unwrap_or(false),
             lifetime: integer("cg_chatbox", 10000).max(0) as u64,
             lines: integer("cg_chatboxlines", 5).clamp(1, MAX_VISIBLE as i64) as usize,
-            font: scalar(console, "cg_chatboxfontsize", 1.0).clamp(0.25, 3.0),
+            font: scalar(console, "cg_chatboxfontsize", CHAT_SIZE_DEFAULT)
+                .clamp(CHAT_SIZE.0 as f32, CHAT_SIZE.1 as f32),
+            card: scalar(console, CARD_SCALE_CVAR, 1.0).clamp(CARD_SCALE.0, CARD_SCALE.1),
             spacing: scalar(console, "cg_chatboxletterspacing", -0.5).clamp(-2.0, 8.0),
+            gap: scalar(console, LINE_SPACING_CVAR, LINE_SPACING_DEFAULT)
+                .clamp(LINE_SPACING.0 as f32, LINE_SPACING.1 as f32),
             x: scalar(console, "cg_chatboxx", 30.0).clamp(0.0, 600.0),
             height: scalar(console, "cg_chatboxheight", 350.0).clamp(0.0, 480.0),
             width: scalar(console, "cg_chatboxcutofflength", 350.0).clamp(60.0, 640.0),
@@ -62,13 +105,13 @@ impl Options {
                 && console.is_some_and(ViewerConsole::is_open),
             clean: integer("cg_cleanchatbox", 0),
             center_time: (scalar(console, "cg_centertime", 3.0).clamp(0.0, 3600.0) * 1000.0) as u64,
-            center_size: scalar(console, "cg_centersize", 1.0).clamp(0.0, 4.0),
+            center_size: center_size(scalar(console, "cg_centersize", 1.0)),
             center_height: scalar(console, "cg_centerheight", 0.0).clamp(0.0, 480.0),
             emojis: integer("cg_chatboxemojis", 0) != 0,
             gifs: console.is_none_or(|c| c.bool_cvar(crate::chat_gifs::CVAR) != Some(false)),
             // An integer cvar (`cgame_options`): read as a switch it was never off, so
             // turning it off kept the last channel (a player's bug report, 12/10/2026).
-            remember: integer(super::reply::REMEMBER_CVAR, 1) != 0,
+            remember: integer(super::reply::REMEMBER_CVAR, 0) != 0,
         }
     }
 
@@ -85,6 +128,7 @@ impl Options {
         g.row *= self.font;
         g.scale *= self.font;
         g.spacing = self.spacing * g.scale;
+        g.gap = self.gap * g.scale;
         g
     }
 }
@@ -94,12 +138,62 @@ mod remember_tests {
     use super::*;
 
     #[test]
-    fn remember_channel_off_in_the_console_is_off() {
+    fn remember_channel_is_off_by_default_and_follows_the_console() {
         let directory = tempfile::tempdir().unwrap();
         let mut console = ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
-        assert!(Options::read(Some(&console)).remember, "on by default");
+        assert!(!Options::read(Some(&console)).remember, "off by default");
+        assert!(!Options::default().remember, "off without a console");
+        assert!(console.set_cvar(super::super::reply::REMEMBER_CVAR, "1"));
+        assert!(Options::read(Some(&console)).remember);
         assert!(console.set_cvar(super::super::reply::REMEMBER_CVAR, "0"));
         assert!(!Options::read(Some(&console)).remember);
+    }
+}
+
+/// Creyon's report #129: `cg_chatBoxLines` above 8 did not show more messages.
+#[cfg(test)]
+mod lines_tests {
+    use super::*;
+
+    fn shown(console: &ViewerConsole, sent: usize) -> usize {
+        let mut chat = ChatOverlay::new();
+        chat.configure(Some(console));
+        let now = Instant::now();
+        for n in 0..sent {
+            chat.receive_classified(
+                sjk_client::ServerEventKind::Chat,
+                format!("Fox: line{n:02}"),
+                None,
+                false,
+                now,
+            );
+        }
+        chat.build(true, &crate::text::test_font(), [1920.0, 1080.0], 1_000);
+        (0..sent)
+            .filter(|n| {
+                let wanted = format!("line{n:02}");
+                chat.ui.text_runs().any(|text| text.contains(&wanted))
+            })
+            .count()
+    }
+
+    #[test]
+    fn chat_box_lines_reach_eternaljks_twenty_four() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut console = ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
+        assert_eq!(
+            Options::read(Some(&console)).lines,
+            5,
+            "EternalJK's default"
+        );
+        for (value, lines) in [("0", 1), ("3", 3), ("12", 12), ("24", 24), ("100", 24)] {
+            assert!(console.set_cvar("cg_chatBoxLines", value));
+            assert_eq!(Options::read(Some(&console)).lines, lines, "{value}");
+        }
+        assert!(console.set_cvar("cg_chatBoxLines", "12"));
+        assert_eq!(shown(&console, 20), 12);
+        assert!(console.set_cvar("cg_chatBoxLines", "5"));
+        assert_eq!(shown(&console, 20), 5);
     }
 }
 
@@ -139,11 +233,12 @@ impl ChatOverlay {
     }
     /// Apply cvars without allocating; wrapping invalidates through width/font keys.
     pub(crate) fn configure(&mut self, console: Option<&ViewerConsole>) {
-        if let Some(console) = console {
-            self.friends.initialize(console.config_directory());
-        }
         let options = Options::read(console);
         if self.options != options {
+            if self.options.pm_only != options.pm_only {
+                self.scroll = 0;
+                self.unread = 0;
+            }
             for line in &mut self.lines {
                 line.y = None;
             }

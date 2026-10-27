@@ -36,8 +36,19 @@ pub const fn command(name: &'static str, help: &'static str) -> Command {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Setting {
     pub name: &'static str,
-    pub default: &'static str,
+    pub default: SettingValue,
     pub help: &'static str,
+}
+
+/// Typed mod defaults, so switches and choices use the same settings widgets as core.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SettingValue {
+    /// A text field, including empty passwords and addresses.
+    Text(&'static str),
+    /// An archived on/off preference.
+    Bool(bool),
+    /// An integer choice.
+    Integer(i64),
 }
 
 /// The game module a server runs, as far as mods care.
@@ -112,6 +123,37 @@ pub trait Host {
     fn set_cvar(&mut self, name: &str, value: &str) -> Result<(), String>;
 }
 
+/// A validated field a loaded mod asks the existing userinfo adapter to send.
+#[derive(Clone, Copy, Debug)]
+pub struct UserinfoField {
+    /// Server's existing userinfo key (not a new protocol field).
+    pub key: &'static str,
+    /// Nonempty opt-in value.
+    pub value: &'static str,
+    /// Archived mod setting that enables this opt-in.
+    pub enabled_by: &'static str,
+}
+
+/// What a mod's servers take that must stay out of logs: passwords, which the
+/// console masks in every line it prints or keeps (scrollback, `qconsole.log`, the
+/// session log, crash reports and log uploads), and chat commands, whose typed lines
+/// stay out of the session log, crash reports and log uploads as received chat does.
+/// Every word is lowercase.
+///
+/// Unlike a mod's commands, a mod's secrets do not wait for its servers: the
+/// client applies them from startup for every mod the build carries, whatever its
+/// switch and the server, so a password typed offline or held in a bind is never
+/// printed.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct Secrets {
+    /// Commands whose arguments are a password (`amlogin`).
+    pub commands: &'static [&'static str],
+    /// Parts of a cvar name that make its value secret (`loginpass`).
+    pub cvar_parts: &'static [&'static str],
+    /// Commands whose arguments are a chat message (`amsay`).
+    pub chat_commands: &'static [&'static str],
+}
+
 /// A client mod.
 pub trait ClientMod: Send {
     /// Lower-case id: the prefix of its names and of its switch, `mod_<id>`.
@@ -129,6 +171,21 @@ pub trait ClientMod: Send {
     /// Its saved settings, kept whether it is on or not.
     fn settings(&self) -> &'static [Setting] {
         &[]
+    }
+    /// Earlier or other clients' names of its settings, as `(old, current)`: the
+    /// host accepts them as aliases, so saved profiles and configs keep working
+    /// and the value is saved under the current name.
+    fn old_setting_names(&self) -> &'static [(&'static str, &'static str)] {
+        &[]
+    }
+    /// Userinfo opt-ins, applied only while this mod is loaded and the setting
+    /// permits them. The host removes them on disable, leave or another server.
+    fn userinfo_fields(&self) -> &'static [UserinfoField] {
+        &[]
+    }
+    /// The passwords its servers take ([`Secrets`]), masked from startup.
+    fn secrets(&self) -> Secrets {
+        Secrets::default()
     }
     /// Server commands it completes on `server` while loaded (none by default).
     fn server_commands(&self, _server: &Server) -> &'static [Command] {

@@ -16,7 +16,7 @@ mod animation_config_tests;
 #[cfg(test)]
 mod glm_tolerance_tests;
 
-pub use bone_angles::{BoneAngleCommand, BoneAngleMode, BoneAxis};
+pub use bone_angles::{BoneAngleCommand, BoneAngleMode, BoneAxis, replace_bone_matrix};
 pub use bone_override::{
     BoneAnimationCommand, BoneFrameSample, BoneOverridePose, OverrideEndBehavior,
 };
@@ -1142,6 +1142,23 @@ impl Glm {
         else {
             return Ok(None);
         };
+        self.surface_bolt_matrix_at(surface_index, lod, matrices)
+    }
+
+    /// Evaluate a bolt whose surface index was resolved when its model loaded.
+    /// Indices belong to this mesh; malformed or unavailable surfaces return an error.
+    pub fn surface_bolt_matrix_at(
+        &self,
+        surface_index: usize,
+        lod: usize,
+        matrices: &[[[f32; 4]; 3]],
+    ) -> Result<Option<[[f32; 4]; 3]>, ModelError> {
+        if matrices.len() != self.bone_count {
+            return Err(ModelError::invalid(
+                matrices.len(),
+                "pose matrix count differs from GLM bone count",
+            ));
+        }
         let source = self
             .lods
             .get(lod)
@@ -1241,18 +1258,19 @@ impl Glm {
                 .iter()
                 .map(|vertex| reskin::vertex(surface, vertex, matrices))
                 .collect();
-            // A skin entry of `*off` hides the surface (species variants
-            // switch heads, torsos and legs this way); no entry keeps the
-            // model's own shader. A bolt surface (a tag: `*r_hand`, `*hip_l`)
-            // is never drawn, whatever the skin says: Ghoul2 draws a surface
-            // only while all its flags are clear (`RenderSurfaces`, rd-vanilla
-            // tr_ghoul2.cpp), and a tag carries the bolt flag. Its shader is
-            // often `[nomaterial]`, which would draw as a missing image.
-            let shader = if hierarchy.flags & GLM_SURFACE_BOLT != 0 {
+            // A skin whose last entry for the surface is `*off` hides it
+            // (species variants switch heads, torsos and legs this way); a
+            // shown surface takes its first entry's shader ([`Skin::hides`]);
+            // no entry keeps the model's own shader. A bolt surface (a tag:
+            // `*r_hand`, `*hip_l`) is never drawn, whatever the skin says:
+            // Ghoul2 draws a surface only while all its flags are clear
+            // (`RenderSurfaces`, rd-vanilla tr_ghoul2.cpp), and a tag carries
+            // the bolt flag. Its shader is often `[nomaterial]`, which would
+            // draw as a missing image.
+            let shader = if hierarchy.flags & GLM_SURFACE_BOLT != 0 || skin.hides(&hierarchy.name) {
                 None
             } else {
                 match skin.shader(&hierarchy.name) {
-                    Some(SKIN_SHADER_OFF) => None,
                     Some(shader) => Some(shader.to_owned()),
                     None => (!hierarchy.shader.is_empty()).then(|| hierarchy.shader.clone()),
                 }

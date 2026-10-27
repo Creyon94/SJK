@@ -14,7 +14,12 @@
 //!
 //! [`SaberChangeNotifier`] watches the two cvars each frame, so the menu and a
 //! console `set saber1 ...` take the same path, and sends the command once per
-//! changed selection, no faster than [`MIN_INTERVAL`].
+//! changed selection, no faster than [`MIN_INTERVAL`]. The console's `saber`
+//! command also [`request`](SaberChangeNotifier::request)s it when the selection
+//! did not change, as `CG_Saber_f` sends it on every run: the server may refuse a
+//! switch (moving, in a duel, not idle), and the cvars then already hold the
+//! choice, so without the request trying the same pick again sent nothing
+//! (Kushina's report #132).
 
 use crate::CompatProfile;
 use std::time::{Duration, Instant};
@@ -59,6 +64,8 @@ pub struct SaberChangeNotifier {
     /// The selection the connection started with, or the last one sent.
     known: Option<(String, String)>,
     last_sent: Option<Instant>,
+    /// The `saber` console command ran: send even an unchanged selection.
+    requested: bool,
 }
 
 impl SaberChangeNotifier {
@@ -68,6 +75,14 @@ impl SaberChangeNotifier {
     /// [`poll`]: Self::poll
     pub fn reset(&mut self) {
         *self = Self::default();
+    }
+
+    /// Send the selection on the next [`poll`] even if it did not change (the
+    /// player ran the `saber` command, which asks the server again).
+    ///
+    /// [`poll`]: Self::poll
+    pub fn request(&mut self) {
+        self.requested = true;
     }
 
     /// The `saber` command due now, if any. Call it every frame while
@@ -82,14 +97,16 @@ impl SaberChangeNotifier {
         now: Instant,
     ) -> Option<Vec<u8>> {
         if !profile_accepts_saber_command(profile) {
+            self.requested = false;
             return None;
         }
         let current = (saber1.to_owned(), saber2.to_owned());
         let Some(known) = &self.known else {
             self.known = Some(current);
+            self.requested = false;
             return None;
         };
-        if *known == current || !userinfo_settled {
+        if (*known == current && !self.requested) || !userinfo_settled {
             return None;
         }
         if self
@@ -99,6 +116,7 @@ impl SaberChangeNotifier {
             return None;
         }
         self.known = Some(current);
+        self.requested = false;
         let command = saber_command(saber1, saber2)?;
         self.last_sent = Some(now);
         Some(command.into_bytes())
@@ -198,5 +216,35 @@ mod tests {
         notifier.reset();
         // The next connection adopts whatever is set, without a command.
         assert_eq!(notifier.poll(&p, "x", "none", true, t0), None);
+    }
+
+    #[test]
+    fn the_saber_command_asks_again_for_an_unchanged_selection() {
+        // #132: a switch the server refused (moving) left the cvars on the pick,
+        // so running the same `saber` again must still send it.
+        let mut notifier = SaberChangeNotifier::default();
+        let t0 = Instant::now();
+        let p = japlus();
+        notifier.poll(&p, "single_1", "none", true, t0);
+        let t1 = t0 + MIN_INTERVAL * 2;
+        assert_eq!(
+            notifier.poll(&p, "single_1", "single_1", true, t1).unwrap(),
+            b"saber single_1 single_1"
+        );
+        let t2 = t1 + MIN_INTERVAL * 2;
+        assert_eq!(notifier.poll(&p, "single_1", "single_1", true, t2), None);
+        notifier.request();
+        assert_eq!(
+            notifier.poll(&p, "single_1", "single_1", true, t2).unwrap(),
+            b"saber single_1 single_1"
+        );
+        // Once only, and never to a server without the command.
+        assert_eq!(notifier.poll(&p, "single_1", "single_1", true, t2), None);
+        notifier.request();
+        assert_eq!(
+            notifier.poll(&CompatProfile::BaseJka, "single_1", "single_1", true, t2),
+            None
+        );
+        assert_eq!(notifier.poll(&p, "single_1", "single_1", true, t2), None);
     }
 }

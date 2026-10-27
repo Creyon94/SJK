@@ -13,7 +13,7 @@ const COLUMNS: u32 = ATLAS_SIZE / ICON_SIZE;
 /// menu capacity.
 pub(crate) const ICON_CELLS: u32 = COLUMNS * 13;
 /// HUD icon cells, right after the menu cells (`hud::icons::assets::COUNT`).
-const HUD_CELLS: u32 = 120;
+const HUD_CELLS: u32 = 123;
 /// First of the player screen's Force page cells, after the HUD cells, so the
 /// Force art never takes cells from the character grid.
 pub(crate) const FORCE_ICON_FIRST: u32 = ICON_CELLS + HUD_CELLS;
@@ -51,9 +51,9 @@ pub(crate) const VERIFIED_ICON: u32 = CROSSHAIR_ICON_FIRST + CROSSHAIR_ICON_CELL
 /// First of the quick wheels' icon cells (`quick_wheel::ICONS`), after the verified
 /// badge's.
 pub(crate) const WHEEL_ICON_FIRST: u32 = VERIFIED_ICON + 1;
-/// Quick wheel cells: three rows (the 44 icons of two boards, with room for four
-/// more).
-pub(crate) const WHEEL_ICON_CELLS: u32 = 3 * COLUMNS;
+/// Quick wheel cells: four rows (the 44 icons of two boards and the toys', with room
+/// for more).
+pub(crate) const WHEEL_ICON_CELLS: u32 = 4 * COLUMNS;
 /// First of the settings menu's icon cells (`settings_icons::ICONS`), after the
 /// quick wheels'.
 pub(crate) const SETTINGS_ICON_FIRST: u32 = WHEEL_ICON_FIRST + WHEEL_ICON_CELLS;
@@ -92,8 +92,8 @@ pub(crate) const ROCKET_LOCK_ICON_FIRST: u32 = HOLOCRON_ICON_FIRST + HOLOCRON_IC
 pub(crate) const ROCKET_LOCK_ICON_CELLS: u32 = 2;
 /// First of the emotes' picture cells (`emote_icons`), after the rocket lock-on's.
 pub(crate) const EMOTE_ICON_FIRST: u32 = ROCKET_LOCK_ICON_FIRST + ROCKET_LOCK_ICON_CELLS;
-/// Emote picture cells: two rows.
-pub(crate) const EMOTE_ICON_CELLS: u32 = 2 * COLUMNS;
+/// Emote picture cells: eight rows, so the emote picker shows a large pack whole.
+pub(crate) const EMOTE_ICON_CELLS: u32 = 8 * COLUMNS;
 /// First of the duel badges' cells (`ui_renderer::duel_texture`), one per duel colour,
 /// after the emotes'.
 pub(crate) const DUEL_ICON_FIRST: u32 = EMOTE_ICON_FIRST + EMOTE_ICON_CELLS;
@@ -104,8 +104,11 @@ pub(crate) const DUEL_ICON_CELLS: u32 = 8;
 pub(crate) const TRUST_ICON_FIRST: u32 = DUEL_ICON_FIRST + DUEL_ICON_CELLS;
 /// Trust mark cells: one per mark.
 pub(crate) const TRUST_ICON_CELLS: u32 = 3;
+/// The cell holding JoF EternalJK's icon (`ui_renderer::EJK_TEXTURE`), after the trust
+/// marks'.
+pub(crate) const EJK_ICON: u32 = TRUST_ICON_FIRST + TRUST_ICON_CELLS;
 /// Every icon cell.
-pub(crate) const ATLAS_CELLS: u32 = TRUST_ICON_FIRST + TRUST_ICON_CELLS;
+pub(crate) const ATLAS_CELLS: u32 = EJK_ICON + 1;
 const TOTAL_CELLS: u32 = ATLAS_CELLS;
 const ATLAS_HEIGHT: u32 = TOTAL_CELLS.div_ceil(COLUMNS) * ICON_SIZE;
 

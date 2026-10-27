@@ -113,6 +113,9 @@ pub(crate) struct SkinColor {
     pub(crate) hue: [f32; 2],
     /// The skin's afterimages (`ghosts` in its file); none when absent.
     pub(crate) ghosts: Option<crate::saber_ghosts::GhostSpec>,
+    /// The blossoms its swing sheds (its signature's `@petals`, or an extra's sheds,
+    /// `blade_extras.rs`); none when absent or off.
+    pub(crate) petals: Option<crate::saber_petals::PetalSpec>,
     /// Who wears it (team, name), for the skins drawn from that; the default with no
     /// wearer known.
     pub(crate) persona: crate::saber_persona::Persona,
@@ -130,6 +133,22 @@ pub(crate) struct SkinColor {
     pub(crate) star: Option<Glint>,
     /// The echo beside the blade; none when absent or off.
     pub(crate) echo: Option<crate::blade_skin_file::extras::Echo>,
+    /// Seconds its words float on after its blade has gone in
+    /// ([`crate::blade_lab_designs::linger`]); 0 for most.
+    pub(crate) linger: f32,
+    /// Whether it answers each swing of a chain on its own
+    /// ([`crate::blade_lab_designs::each_swing`]).
+    pub(crate) each_swing: bool,
+    /// Whether its motion's last lane carries how stirred the blade is
+    /// ([`crate::blade_lab_designs::stirred`]).
+    pub(crate) stirred: bool,
+    /// How its swing trail is drawn: the blur's afterimage, comic speed lines (the Clone
+    /// Wars blade, round 19), or its signature's `@trail` or an extra's (the Sun's plasma
+    /// and flare, 26/10/2026; `saber_trail.wgsl` styles 3 to 6).
+    pub(crate) trail_kind: crate::blade_extras::TrailKind,
+    /// Whether its trail bends what is behind it, as heat does (an extra's, the Sun's
+    /// Heat wake; `saber_trail.wgsl` `fragment_wake`).
+    pub(crate) wake: bool,
 }
 
 /// Where a skin's glints (or black holes) are, for their quads
@@ -159,8 +178,10 @@ pub(crate) struct Chroma {
     pub(crate) turn: f32,
 }
 
-/// Below this saturation (`(max − min) / max` of a colour) a colour has no hue to take.
-const CHROMA_GREY: f32 = 0.2;
+/// Below this saturation (`(max − min) / max` of a colour) a colour has no hue to take. Kept
+/// small: a pastel (207, 190, 234 is 0.19) still has one, and a cliff higher up flipped a
+/// chroma blade from violet to its own cyan between two slider steps (Kushina's report).
+const CHROMA_GREY: f32 = 0.03;
 
 /// `rgb`'s hue in turns [0, 1): its angle round the grey axis from pure red, in the
 /// direction [`turn_hue`] turns; `None` for a colour too grey to have one.
@@ -186,7 +207,7 @@ impl SkinColor {
         let rgb = match stock {
             BladeColor::Retail(color) => color.blade_rgb(),
             BladeColor::Rgb(rgb) => rgb,
-            BladeColor::Skin(_) => return self,
+            BladeColor::Skin(_) | BladeColor::Black => return self,
         };
         let turn = hue_of(rgb.map(|channel| f32::from(channel) / 255.0))
             .map_or(0.0, |hue| (hue - base).rem_euclid(1.0));
@@ -246,8 +267,8 @@ pub(crate) fn turn_hue(rgb: [f32; 3], turns: f32) -> [f32; 3] {
     std::array::from_fn(|i| (rgb[i] * c + cross[i] * s + along_axis).max(0.0))
 }
 
-/// One skin's parameters as `saber.wgsl`'s `Skin` holds them: 95 `vec4`s (1520 bytes, so
-/// the [`MAX_SKINS`] array is 389120 bytes, a read-only storage binding). The layout is the shader's; see there for what each lane is. A section
+/// One skin's parameters as `saber.wgsl`'s `Skin` holds them: 97 `vec4`s (1552 bytes, so
+/// the [`MAX_SKINS`] array is 397312 bytes, a read-only storage binding). The layout is the shader's; see there for what each lane is. A section
 /// the skin's file leaves out (arcs, motes, hue and the later ones) is zeros, which the
 /// shader draws as nothing.
 #[repr(C)]
@@ -348,6 +369,11 @@ pub(crate) struct SkinUniform {
     ink_more: [f32; 4],
     chrome_color: [f32; 4],
     chrome_shape: [f32; 4],
+    /// The Blade Lab design it is drawn as ([`crate::blade_lab_designs::Design::lane`]);
+    /// zeros for every other skin.
+    design: [f32; 4],
+    /// The design's colour (the lab's), for the light at its emitter.
+    design_color: [f32; 4],
 }
 
 impl SkinUniform {
@@ -609,6 +635,12 @@ pub(crate) struct LoadedSkin {
     /// The catalogue's id of the unlock it is.
     pub(crate) id: &'static str,
     pub(crate) def: BladeSkinDef,
+    /// Its Blade Lab design, if it has one, and `def` as the design draws it
+    /// ([`crate::blade_lab_designs`]).
+    pub(crate) design: Option<&'static crate::blade_lab_designs::Design>,
+    designed: Option<Box<BladeSkinDef>>,
+    /// Its Blade Lab signature shader, if it has one ([`crate::blade_signatures`]).
+    pub(crate) signature: Option<&'static crate::blade_signatures::Signature>,
     /// Its glow and core images, RGBA.
     pub(crate) glow: image::RgbaImage,
     pub(crate) core: image::RgbaImage,
@@ -618,9 +650,15 @@ impl LoadedSkin {
     /// Read `def` (the file of unlock `id`), taking its images from `packs`.
     pub(crate) fn new(
         id: &'static str,
-        def: BladeSkinDef,
+        mut def: BladeSkinDef,
         packs: &VirtualFileSystem,
     ) -> Result<Self, String> {
+        // A signature skin keeps its own sounds and heat from its built-in file, whatever an
+        // older pack file of the same skin says (Creyon's round 9: the Sith Alchemy still
+        // hissed with the snake design's sounds).
+        if let Some(signature) = crate::blade_signatures::of(id) {
+            signature.adopt(&mut def);
+        }
         let image =
             |path: &Option<String>, size: [u32; 2], generated: fn(&BladeSkinDef) -> Vec<u8>| {
                 match path {
@@ -635,12 +673,40 @@ impl LoadedSkin {
         let core = image(&def.core_image, crate::saber_rgb::core_size(), |def| {
             crate::saber_rgb::generated_core(def.core_profile)
         })?;
+        let design = crate::blade_lab_designs::of(id);
+        let signature = crate::blade_signatures::of(id);
         Ok(Self {
             id,
+            // A signature replaces a hand-ported design of the same skin.
+            designed: match signature {
+                Some(signature) => Some(Box::new(signature.shown(&def))),
+                None => design.map(|design| Box::new(design.shown(&def))),
+            },
+            design: design.filter(|_| signature.is_none()),
+            signature,
             def,
             glow,
             core,
         })
+    }
+
+    /// Its design, while `cg_saberLabDesigns` draws the designs.
+    pub(crate) fn design_shown(&self) -> Option<&'static crate::blade_lab_designs::Design> {
+        self.design.filter(|_| crate::blade_lab_designs::enabled())
+    }
+
+    /// Its signature shader, while `cg_saberLabDesigns` draws the designs.
+    pub(crate) fn signature_shown(&self) -> Option<&'static crate::blade_signatures::Signature> {
+        self.signature
+            .filter(|_| crate::blade_lab_designs::enabled())
+    }
+
+    /// Its file as drawn: as its design draws it while the designs are drawn.
+    pub(crate) fn shown(&self) -> &BladeSkinDef {
+        match &self.designed {
+            Some(designed) if crate::blade_lab_designs::enabled() => designed,
+            _ => &self.def,
+        }
     }
 
     /// How far a blade whose stock colour is `stock` turns its colours: a chroma's turn
@@ -650,20 +716,26 @@ impl LoadedSkin {
     }
 
     /// What its blades are drawn with, as the loaded skin numbered `index`, worn with
-    /// the options in `off` switched off.
+    /// the options in `off` switched from their default (its parts off, its extras on).
     fn color(&self, index: u8, off: crate::saber_skin_options::OptionsOff) -> SkinColor {
+        use crate::blade_extras::TrailKind;
         use crate::blade_skin_file::extras::Section;
-        let off = self.def.off_mask(off);
+        // The extras are a signature's, drawn while the designs are.
+        let extras = self.signature_shown().map_or_else(Default::default, |_| {
+            crate::blade_extras::worn(self.id, off)
+        });
+        let def = self.shown();
+        let off = def.off_mask(off);
         let on = |section: Section| off & section.bit() == 0;
-        let flicker = &self.def.light.flicker;
+        let flicker = &def.light.flicker;
         let mut waves = [[0.0; 3]; 2];
         for (slot, wave) in waves.iter_mut().zip(&flicker.waves) {
             *slot = [wave.rate, wave.weight, wave.phase];
         }
         SkinColor {
             index,
-            trail: self.def.trail,
-            light: self.def.light.color,
+            trail: def.trail,
+            light: def.light.color,
             flicker: LightFlicker {
                 amount: flicker.amount,
                 waves,
@@ -692,18 +764,62 @@ impl LoadedSkin {
                     count: ghosts.count as u8,
                     spacing_millis: ghosts.spacing,
                     fade: ghosts.fade,
+                    wearer: crate::blade_signatures::of(self.id).is_some(),
                 }),
+            petals: self
+                .signature_shown()
+                .and_then(|signature| signature.petals())
+                .filter(|petals| {
+                    crate::blade_signatures::part_section(petals.part)
+                        .is_some_and(|section| on(section))
+                })
+                .or(extras.sheds),
             persona: crate::saber_persona::Persona::default(),
+            linger: crate::blade_lab_designs::linger(self.id),
+            each_swing: crate::blade_lab_designs::each_swing(self.id),
+            stirred: crate::blade_lab_designs::stirred(self.id),
+            // An extra's trail, else its signature's; the comic lines with the Clone Wars
+            // design's comic panel (the sputter bit of its options), while the designs draw.
+            trail_kind: extras
+                .trail
+                .or_else(|| {
+                    self.signature_shown()
+                        .and_then(|signature| signature.trail())
+                })
+                .unwrap_or(
+                    if self
+                        .design_shown()
+                        .is_some_and(|design| crate::blade_lab_designs::comic_trail(design.id))
+                        && on(Section::Sputter)
+                    {
+                        TrailKind::Comic
+                    } else {
+                        TrailKind::Blur
+                    },
+                ),
+            wake: extras.wake,
             chroma: Chroma {
                 base: crate::unlockables::is_chroma(self.id)
-                    .then(|| {
-                        hue_of(self.def.corona.rim_cool).or_else(|| hue_of(self.def.light.color))
+                    .then(|| match self.design_shown() {
+                        // The design's colour is what the shader turns.
+                        Some(design) => hue_of(design.color),
+                        None => hue_of(def.corona.rim_cool).or_else(|| hue_of(def.light.color)),
                     })
                     .flatten(),
                 turn: 0.0,
             },
             off,
-            room: self.def.room(off),
+            // A design's quad reaches its glow's reach and its particles' room
+            // (`saber.wgsl` `blade_vertex`).
+            room: self
+                .design_shown()
+                .map_or(def.room(off), |design| {
+                    design.reach.max(design.room) / crate::blade_lab_designs::METRE
+                })
+                .max(
+                    self.signature_shown()
+                        .map_or(0.0, |signature| signature.room()),
+                ),
             star: self
                 .def
                 .star
@@ -715,7 +831,7 @@ impl LoadedSkin {
                         .filter(|_| on(Section::Holes))
                         .map(|holes| holes.reach())
                 })
-                .map(|length| match self.def.orbit {
+                .map(|length| match def.orbit {
                     Some(orbit) => Glint {
                         length,
                         at: orbit.at,
@@ -729,13 +845,13 @@ impl LoadedSkin {
                         reach: 0.0,
                     },
                 }),
-            echo: self.def.echo.filter(|_| on(Section::Echo)),
+            echo: def.echo.filter(|_| on(Section::Echo)),
         }
     }
 
     /// The options its file offers.
     pub(crate) fn options(&self) -> &[crate::blade_skin_file::extras::SkinOption] {
-        &self.def.options
+        &self.shown().options
     }
 }
 
@@ -806,6 +922,28 @@ impl LoadedSkins {
                 Err(why) => crate::log::progress(format_args!("blade skins: {path}: {why}")),
             }
         }
+        // The signature skins no pack carries yet, from the lab's files built in.
+        for signature in &crate::blade_signatures::SIGNATURES {
+            if skins
+                .iter()
+                .any(|skin: &LoadedSkin| skin.id == signature.id)
+                || skins.len() == MAX_SKINS
+            {
+                continue;
+            }
+            let Some(known) = crate::unlockables::blade_skin(signature.id) else {
+                continue;
+            };
+            let loaded = crate::blade_skin_file::parse(known.id, signature.default_file())
+                .and_then(|def| LoadedSkin::new(known.id, def, &packs));
+            match loaded {
+                Ok(skin) => skins.push(skin),
+                Err(why) => crate::log::progress(format_args!(
+                    "blade skins: {}'s built-in file: {why}",
+                    known.id
+                )),
+            }
+        }
         Self {
             skins,
             packs: Arc::new(packs),
@@ -861,6 +999,15 @@ impl LoadedSkins {
             .map(|index| self.skins[index].color(index as u8, off))
     }
 
+    /// The number of the loaded skin of unlock `id` (its sound set's in the audio
+    /// adapter's table), if its pack is loaded.
+    pub(crate) fn index_of(&self, id: &str) -> Option<u8> {
+        self.skins
+            .iter()
+            .position(|skin| skin.id == id)
+            .map(|index| index as u8)
+    }
+
     /// The loaded skins with their numbers.
     pub(crate) fn iter(&self) -> impl Iterator<Item = (u8, &LoadedSkin)> {
         self.skins
@@ -873,7 +1020,24 @@ impl LoadedSkins {
     pub(crate) fn uniforms(&self) -> Vec<SkinUniform> {
         let mut uniforms = vec![SkinUniform::default(); MAX_SKINS];
         for (uniform, skin) in uniforms.iter_mut().zip(&self.skins) {
-            *uniform = SkinUniform::of(&skin.def);
+            *uniform = SkinUniform::of(skin.shown());
+            if let Some(design) = skin.design_shown() {
+                uniform.design = design.lane();
+                let [r, g, b] = design.color;
+                uniform.design_color = [r, g, b, 1.0];
+            }
+            if let Some(signature) = skin.signature_shown() {
+                uniform.design = signature.lane();
+                // The light's colour, and a chroma's own hue (turns; -1 for none), which
+                // the shader turns to its wearer's.
+                let [r, g, b] = skin.def.light.color;
+                let hue = crate::unlockables::is_chroma(skin.id)
+                    .then(|| {
+                        hue_of(skin.def.corona.rim_cool).or_else(|| hue_of(skin.def.light.color))
+                    })
+                    .flatten();
+                uniform.design_color = [r, g, b, hue.unwrap_or(-1.0)];
+            }
         }
         uniforms
     }
@@ -884,7 +1048,7 @@ impl LoadedSkins {
     pub(crate) fn takes_ambient(&self, index: u8) -> bool {
         self.skins
             .get(usize::from(index))
-            .is_some_and(|skin| skin.def.ambient.is_some())
+            .is_some_and(|skin| skin.shown().ambient.is_some())
     }
 
     /// The skins' sound sets in their numbers' order, for the audio adapter.
@@ -917,18 +1081,37 @@ impl LoadedSkins {
 pub(crate) struct SaberSkins {
     /// What each slot is drawn wearing: `others`, with the local player's own in its slot.
     clients: [Option<SkinColor>; MAX_CLIENTS],
+    /// What each slot's second saber wears ([`Second`]), as `clients`.
+    seconds: [Second; MAX_CLIENTS],
     /// What the hub's looks say each slot wears.
     others: [Option<SkinColor>; MAX_CLIENTS],
+    /// What the hub's looks say each slot's second saber wears.
+    other_seconds: [Second; MAX_CLIENTS],
     /// The local player's skin, also shown with no session (the Character preview).
     local: Option<SkinColor>,
+    /// The local player's second saber's.
+    local_second: Second,
     /// The local player's client slot, in a session.
     local_client: Option<usize>,
+    /// Which skin's sound set each slot is heard with (its number): `sound_others`, with
+    /// the local player's own in its slot. The blade's unless the player chose other
+    /// saber sounds (`crate::saber_sound_choice`).
+    sounds: [Option<u8>; MAX_CLIENTS],
+    /// What the hub's looks say each slot is heard with.
+    sound_others: [Option<u8>; MAX_CLIENTS],
+    /// The local player's own sound set.
+    sound_local: Option<u8>,
     /// Who sits in each slot (team, name), for the skins drawn from that.
     personas: [crate::saber_persona::Persona; MAX_CLIENTS],
     /// The local player's own, also with no session (its `name`).
     local_persona: crate::saber_persona::Persona,
     /// The looks' revision and the loaded skins' generation `others` was last taken at.
     taken_at: Option<(u64, u64)>,
+    /// Whether every player's blade is the stock one this frame, in a duel
+    /// ([`crate::duel_blades`]).
+    plain: bool,
+    /// Whose blades the player draws stock to save GPU time ([`crate::stock_blades`]).
+    stock: crate::stock_blades::StockBlades,
     /// Blades the world shots add every frame, without a session (blade, unlock id or
     /// a stock colour, seed).
     #[cfg(test)]
@@ -942,6 +1125,134 @@ pub(crate) struct SaberSkins {
     /// Who the world shots' skinned blades are worn by (team, name).
     #[cfg(test)]
     pub(crate) shot_persona: crate::saber_persona::Persona,
+    /// Swings the world shots trail every frame: the poses a blade passed, oldest first,
+    /// 8 ms apart, the last at the frame's time, and what it wears (`saber_trail.rs`).
+    #[cfg(test)]
+    pub(crate) shot_swings: Vec<(Vec<crate::saber::Blade>, ShotColor)>,
+}
+
+/// What a player's second saber wears: the first saber's skin (players with one skin, and
+/// every look from before 21/10/2026), or its own (`None`: the stock blade).
+// Kept by value in fixed per-slot arrays read every frame: boxing `Own` (clippy's advice)
+// would allocate there, which the per-frame paths avoid.
+#[allow(clippy::large_enum_variant)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub(crate) enum Second {
+    #[default]
+    Same,
+    Own(Option<SkinColor>),
+}
+
+/// What the local player holds that a second skin can go on ([`pair`]): nothing, two
+/// sabers, or one saber with more than one blade (a staff's other half).
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub(crate) enum Pair {
+    #[default]
+    None,
+    TwoSabers,
+    Staff,
+}
+
+/// [`Pair`] as last seen on the local player's model (`menu_stage`), for the Collection.
+static LOCAL_PAIR: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(0);
+
+/// What the local player's model held when last drawn.
+pub(crate) fn local_pair() -> Pair {
+    match LOCAL_PAIR.load(std::sync::atomic::Ordering::Relaxed) {
+        1 => Pair::TwoSabers,
+        2 => Pair::Staff,
+        _ => Pair::None,
+    }
+}
+
+/// Where the Collection's lone staff draws the middle of its first half and of its other
+/// half, in window pixels, each packed as two `f32` (`u64::MAX`: not drawn), so a click on
+/// the staff goes to the half it lands on.
+static STAFF_HALVES: [std::sync::atomic::AtomicU64; 2] = [
+    std::sync::atomic::AtomicU64::new(u64::MAX),
+    std::sync::atomic::AtomicU64::new(u64::MAX),
+];
+
+/// Keep where the lone staff's halves were drawn (`None`: no staff drawn whole).
+pub(crate) fn set_staff_halves(halves: Option<[[f32; 2]; 2]>) {
+    for (index, cell) in STAFF_HALVES.iter().enumerate() {
+        let packed = halves.map_or(u64::MAX, |halves| {
+            let [x, y] = halves[index];
+            (u64::from(x.to_bits()) << 32) | u64::from(y.to_bits())
+        });
+        cell.store(packed, std::sync::atomic::Ordering::Relaxed);
+    }
+}
+
+/// Whether a click at `at` (window pixels) lands on the lone staff's other half (nearer its
+/// middle than the first half's); `None` when no staff was drawn whole.
+pub(crate) fn staff_half_at(at: [f32; 2]) -> Option<bool> {
+    let [first, other] = STAFF_HALVES.each_ref().map(|cell| {
+        let packed = cell.load(std::sync::atomic::Ordering::Relaxed);
+        (packed != u64::MAX).then(|| {
+            [
+                f32::from_bits((packed >> 32) as u32),
+                f32::from_bits(packed as u32),
+            ]
+        })
+    });
+    let distance = |point: [f32; 2]| (point[0] - at[0]).hypot(point[1] - at[1]);
+    Some(distance(other?) < distance(first?))
+}
+
+/// Keep what the local player's model holds: on each hand, whether it holds a saber and
+/// whether that saber has another half ([`crate::saber_hilts::other_half`]: a staff's
+/// second blade, not a crossguard's side blades).
+pub(crate) fn set_local_pair(held: [Option<bool>; 2]) {
+    let pair = match held {
+        [_, Some(_)] => 1,
+        [Some(true), None] => 2,
+        _ => 0,
+    };
+    LOCAL_PAIR.store(pair, std::sync::atomic::Ordering::Relaxed);
+}
+
+/// What the local player's two sabers (or a staff's halves) show on the Collection's
+/// stage: what they wear (`worn`), with `shown` (the shader the page shows, `Some(None)` the
+/// stock blade) on the sides being dressed (`dressed`: the first, the second; both with the
+/// Collection's "Both" box ticked). A side not dressed keeps what it wears now, so the
+/// pair looks as Equip will leave it.
+pub(crate) fn previewed(
+    worn: [Option<SkinColor>; 2],
+    shown: Option<Option<SkinColor>>,
+    dressed: [bool; 2],
+) -> [Option<SkinColor>; 2] {
+    match shown {
+        None => worn,
+        Some(shown) => [0, 1].map(|side| if dressed[side] { shown } else { worn[side] }),
+    }
+}
+
+/// The skin a blade of saber `saber_index` wears, of `skins` (the first's and the
+/// second's): the second saber wears the second, and with one saber, the blades of its other
+/// half (`other_half`, [`crate::saber_hilts::other_half`]) do (a staff's, Sol's request of
+/// 21/10/2026; a crossguard's side blades wear the first's with its main blade).
+pub(crate) fn skin_of_blade(
+    skins: [Option<SkinColor>; 2],
+    two_sabers: bool,
+    saber_index: usize,
+    other_half: bool,
+) -> Option<SkinColor> {
+    if saber_index >= 1 || (!two_sabers && other_half) {
+        skins[1]
+    } else {
+        skins[0]
+    }
+}
+
+impl Second {
+    /// The second saber's skin when the first wears `first`.
+    pub(crate) fn resolve(self, first: Option<SkinColor>) -> Option<SkinColor> {
+        match self {
+            Self::Same => first,
+            Self::Own(skin) => skin,
+        }
+    }
 }
 
 /// A world shot's blade colour: stock, or the loaded skin of an unlock id.
@@ -952,7 +1263,8 @@ pub(crate) enum ShotColor {
     Skin(&'static str),
     /// A skin on a saber of that stock colour (a chroma takes it).
     Worn(&'static str, BladeColor),
-    /// A skin with these options switched off (`crate::saber_skin_options`).
+    /// A skin with these options switched from their default: parts off, extras on
+    /// (`crate::saber_skin_options`).
     Parts(&'static str, crate::saber_skin_options::OptionsOff),
 }
 
@@ -963,6 +1275,7 @@ impl SaberSkins {
     pub(crate) fn set(&mut self, client: usize, skin: Option<SkinColor>) {
         if let Some(slot) = self.others.get_mut(client) {
             *slot = skin;
+            self.sound_others[client] = skin.map(|skin| skin.index);
             self.merge();
         }
     }
@@ -970,43 +1283,103 @@ impl SaberSkins {
     /// Take every other slot's skin from the looks (`skin_of` a client slot) when their
     /// `revision` or the loaded skins' `generation` is not the one last taken; no
     /// allocation, 32 lookups when it changed.
+    /// Each slot is heard with its blade's sound set, and both sabers wear the first's.
+    #[cfg(test)]
     pub(crate) fn follow_looks(
         &mut self,
         revision: u64,
         generation: u64,
         skin_of: impl Fn(usize) -> Option<SkinColor>,
     ) {
+        self.follow_looks_each(revision, generation, |client| {
+            let skin = skin_of(client);
+            (skin, Second::Same, skin.map(|skin| skin.index))
+        });
+    }
+
+    /// Take every other slot's skins and sound set from the looks when their `revision`
+    /// or the loaded skins' `generation` is not the one last taken: `of` a client slot
+    /// gives its first saber's skin, its second's, and its sound set (a loaded skin's
+    /// number, `None` the stock sounds) taken apart from its blade. No allocation, 32
+    /// lookups when it changed.
+    pub(crate) fn follow_looks_each(
+        &mut self,
+        revision: u64,
+        generation: u64,
+        of: impl Fn(usize) -> (Option<SkinColor>, Second, Option<u8>),
+    ) {
         if self.taken_at == Some((revision, generation)) {
             return;
         }
         self.taken_at = Some((revision, generation));
-        for (client, skin) in self.others.iter_mut().enumerate() {
-            *skin = skin_of(client);
+        for (client, ((skin, second), sound)) in self
+            .others
+            .iter_mut()
+            .zip(self.other_seconds.iter_mut())
+            .zip(self.sound_others.iter_mut())
+            .enumerate()
+        {
+            (*skin, *second, *sound) = of(client);
         }
         self.merge();
     }
 
-    /// Draw `others`, with the local player's own skin in its slot.
+    /// Draw `others`, with the local player's own skins in its slot, and hear
+    /// `sound_others` so.
     fn merge(&mut self) {
         self.clients = self.others;
-        if let Some(slot) = self
-            .local_client
-            .and_then(|client| self.clients.get_mut(client))
-        {
-            *slot = self.local;
+        self.seconds = self.other_seconds;
+        self.sounds = self.sound_others;
+        if let Some(client) = self.local_client.filter(|client| *client < MAX_CLIENTS) {
+            self.clients[client] = self.local;
+            self.seconds[client] = self.local_second;
+            self.sounds[client] = self.sound_local;
         }
     }
 
-    /// The skin worn by the player whose body is entity `entity_id` (client + 1).
+    /// The skin worn by the player whose body is entity `entity_id` (client + 1); none
+    /// while their blade is drawn stock (a duel's [`Self::set_plain`], the player's
+    /// [`Self::set_stock`]).
     pub(crate) fn get(&self, entity_id: u64) -> Option<SkinColor> {
-        let client = usize::try_from(entity_id.checked_sub(1)?).ok()?;
+        self.get_both(entity_id)[0]
+    }
+
+    /// The skins worn on the first and the second saber by the player whose body is entity
+    /// `entity_id` (client + 1).
+    pub(crate) fn get_both(&self, entity_id: u64) -> [Option<SkinColor>; 2] {
+        let Some(client) = entity_id
+            .checked_sub(1)
+            .and_then(|client| usize::try_from(client).ok())
+            .filter(|client| *client < MAX_CLIENTS)
+        else {
+            return [None, None];
+        };
         let persona = if Some(client) == self.local_client {
             self.local_persona.in_team(self.personas[client].team)
         } else {
-            self.personas.get(client).copied()?
+            self.personas[client]
         };
-        let skin = self.clients.get(client).copied().flatten()?;
-        Some(SkinColor { persona, ..skin })
+        // A duel's stock blades ([`Self::set_plain`]) and the player's own choice of
+        // stock blades ([`Self::set_stock`]) are stock on both sabers.
+        if self.plain || self.stock.plain(Some(client) == self.local_client) {
+            return [None, None];
+        }
+        let wear = |skin: Option<SkinColor>| skin.map(|skin| SkinColor { persona, ..skin });
+        let first = self.clients[client];
+        [wear(first), wear(self.seconds[client].resolve(first))]
+    }
+
+    /// Draw every player's blade as the stock one in its own colour (in a duel,
+    /// [`crate::duel_blades`]) or with the skin they wear.
+    pub(crate) fn set_plain(&mut self, plain: bool) {
+        self.plain = plain;
+    }
+
+    /// Draw the blades `stock` names as stock ones in their own colour, the others with
+    /// their skin ([`crate::stock_blades`]). Only the world's blades: the menus' preview
+    /// takes [`Self::local`], and the sounds are unchanged.
+    pub(crate) fn set_stock(&mut self, stock: crate::stock_blades::StockBlades) {
+        self.stock = stock;
     }
 
     /// Who sits in each client slot, and the local player's own name (`name`), for
@@ -1032,6 +1405,23 @@ impl SaberSkins {
             .map_or(color, |skin| BladeColor::Skin(skin.worn_with(color)))
     }
 
+    /// The local player's skins on its first and second saber (or a staff's halves), worn
+    /// with its own persona.
+    pub(crate) fn local_both(&self) -> [Option<SkinColor>; 2] {
+        let first = self.local();
+        [first, self.local_second_with(first)]
+    }
+
+    /// What the local player's second saber (or a staff's other half) wears when the first
+    /// wears `first`: its own choice, else `first` (the Collection previews a shader on the
+    /// first and shows the second as it is).
+    pub(crate) fn local_second_with(&self, first: Option<SkinColor>) -> Option<SkinColor> {
+        self.local_second.resolve(first).map(|skin| SkinColor {
+            persona: self.local_persona,
+            ..skin
+        })
+    }
+
     /// The local player's skin, worn with its own persona.
     pub(crate) fn local(&self) -> Option<SkinColor> {
         self.local.map(|skin| SkinColor {
@@ -1040,19 +1430,57 @@ impl SaberSkins {
         })
     }
 
-    /// The local player wears `skin` and, in a session, sits in slot `client`.
+    /// The local player wears `skin`, heard with its own sound set, and, in a session,
+    /// sits in slot `client`.
+    #[cfg(test)]
     pub(crate) fn set_local(&mut self, client: Option<usize>, skin: Option<SkinColor>) {
-        if (client, skin) == (self.local_client, self.local) {
+        self.set_local_each(client, skin, self.local_second, skin.map(|skin| skin.index));
+    }
+
+    /// The local player wears `skin`, and `second` on its second saber, heard with sound
+    /// set `sound` (a loaded skin's number, `None` the stock sounds) whatever the blade,
+    /// and, in a session, sits in slot `client`.
+    pub(crate) fn set_local_each(
+        &mut self,
+        client: Option<usize>,
+        skin: Option<SkinColor>,
+        second: Second,
+        sound: Option<u8>,
+    ) {
+        if (client, skin, second, sound)
+            == (
+                self.local_client,
+                self.local,
+                self.local_second,
+                self.sound_local,
+            )
+        {
             return;
         }
         self.local = skin;
+        self.local_second = second;
+        self.sound_local = sound;
         self.local_client = client;
         self.merge();
     }
 
-    /// Each client slot's sound set (its skin's number) for the audio adapter.
+    /// Each client slot's sound set (a loaded skin's number) for the audio adapter:
+    /// the blade's, or the one the player chose apart from it.
     pub(crate) fn sound_sets(&self) -> [Option<u8>; MAX_CLIENTS] {
-        self.clients.map(|skin| skin.map(|skin| skin.index))
+        if self.plain {
+            return [None; MAX_CLIENTS];
+        }
+        self.sounds
+    }
+
+    /// The sound set the player whose body is entity `entity_id` (client + 1) is heard
+    /// with, for the animation's swing cues.
+    pub(crate) fn sound_of(&self, entity_id: u64) -> Option<u8> {
+        let client = usize::try_from(entity_id.checked_sub(1)?).ok()?;
+        if self.plain {
+            return None;
+        }
+        self.sounds.get(client).copied().flatten()
     }
 }
 
@@ -1079,10 +1507,11 @@ impl GpuState {
         game_audio: &mut Option<GameAudio>,
         presentation_time: i64,
     ) {
-        if crate::sjk_packs::generation() != self.blade_skins.generation() {
+        // `cg_saberLabDesigns` changes what the loaded skins draw: upload them again.
+        let designs = crate::blade_lab_designs::set_enabled(self.console.as_ref());
+        if designs || crate::sjk_packs::generation() != self.blade_skins.generation() {
             self.blade_skins = crate::sjk_packs::skins();
-            self.saber_gpu
-                .upload_skins(&self.device, &self.queue, &self.blade_skins);
+            self.saber_gpu.upload_skins(&self.queue, &self.blade_skins);
         }
         let client = self
             .live_session
@@ -1096,15 +1525,54 @@ impl GpuState {
             .and_then(|(game_state, snapshot)| {
                 crate::looks::ViewSlots::of(game_state, &snapshot.player).own
             });
+        let duel = self
+            .live_session
+            .as_ref()
+            .map(|session| (session.game_state(), session.latest_snapshot()))
+            .or_else(|| {
+                self.demo_session
+                    .as_ref()
+                    .map(|session| (session.game_state(), session.latest_snapshot()))
+            });
+        self.saber_skins.set_plain(crate::duel_blades::plain(
+            self.console.as_ref(),
+            duel.map(|(game, _)| game),
+            duel.map(|(_, snapshot)| &snapshot.player),
+        ));
+        let stock = crate::stock_blades::StockBlades::read(self.console.as_ref());
+        self.saber_skins.set_stock(stock);
         let (looks, skins) = (&self.looks, &self.blade_skins);
+        let second = |second: crate::looks::SecondSkin, off| match second {
+            crate::looks::SecondSkin::Same => Second::Same,
+            crate::looks::SecondSkin::Own(id) => {
+                Second::Own(id.and_then(|id| skins.color_with(id, off)))
+            }
+        };
         self.saber_skins
-            .follow_looks(looks.revision(), skins.generation(), |client| {
-                looks
+            .follow_looks_each(looks.revision(), skins.generation(), |client| {
+                let skin = looks
                     .saber_skin_id(client)
-                    .and_then(|id| skins.color_with(id, looks.options_off(client)))
+                    .and_then(|id| skins.color_with(id, looks.options_off(client)));
+                let sound = looks
+                    .sound_skin_id(client)
+                    .and_then(|id| skins.index_of(id));
+                (
+                    skin,
+                    second(looks.second_skin(client), looks.options_off2(client)),
+                    sound,
+                )
             });
         let skin = self.local_saber_skin();
-        self.saber_skins.set_local(client, skin);
+        let own = self.looks.own();
+        let own_second = second(own.second, own.options_off2);
+        let sound = own
+            .sound_skin()
+            .and_then(|id| self.blade_skins.index_of(id));
+        self.saber_skins
+            .set_local_each(client, skin, own_second, sound);
+        if let Some(preview) = crate::saber_sound_choice::take_preview() {
+            self.play_sound_preview(game_audio, preview);
+        }
         if let Some(audio) = game_audio {
             audio.follow_blade_skins(&self.blade_skins);
             audio.set_saber_sound_overrides(&self.saber_skins.sound_sets());
@@ -1164,6 +1632,35 @@ impl GpuState {
                 millis,
                 u64::from(seed),
             );
+        }
+        // Each swing's trail, laid again every frame ending at the frame's time.
+        if !self.saber_skins.shot_swings.is_empty() {
+            self.saber_trail_segments = Default::default();
+        }
+        for (poses, color) in self.saber_skins.shot_swings.clone() {
+            let color = match color {
+                ShotColor::Skin(id) => self.blade_skins.color_of(id),
+                ShotColor::Parts(id, off) => self.blade_skins.color_with(id, off),
+                _ => None,
+            }
+            .map_or(
+                BladeColor::Retail(crate::saber::Color::Blue),
+                BladeColor::Skin,
+            );
+            let mut trail = crate::saber_trail::Trail::default();
+            let last = poses.len() as i64 - 1;
+            for (index, blade) in poses.iter().enumerate() {
+                let at = presentation_time - (last - index as i64) * 8;
+                let base = glam::Vec3::from_array(blade.base);
+                let tip = base + glam::Vec3::from_array(blade.direction) * blade.length;
+                let edge = crate::saber_trail::Edge {
+                    base: blade.base,
+                    tip: tip.to_array(),
+                };
+                if let Some(quad) = trail.update(edge, at, 200, 0, color, true) {
+                    self.saber_trail_segments.insert(quad, at);
+                }
+            }
         }
         let persona = self.saber_skins.shot_persona;
         for (blade, id, fade) in self.saber_skins.shot_ghosts.clone() {

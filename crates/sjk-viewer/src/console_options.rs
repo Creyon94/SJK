@@ -9,6 +9,12 @@ pub(crate) const STYLE_VERSION_CVAR: &str = "con_styleDefaultVersion";
 /// Archived switch for the console feed, the notify lines at the top left
 /// while the console is closed; off by default. Chat never goes through them.
 pub(crate) const DRAW_NOTIFY_CVAR: &str = "con_drawNotify";
+/// Archived switch for retaining Quake `^<digit>` colour codes when copying
+/// selected console scrollback.
+pub(crate) const COPY_COLORS_CVAR: &str = "con_copyColors";
+/// Archived switch: Shift plus the console key opens to `con_height` and
+/// Shift+Escape a quarter screen; off, EternalJK's way round.
+pub(crate) const SHIFT_HEIGHT_CVAR: &str = "con_shiftHeight";
 
 /// How the console looks and behaves (`con_style`).
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -129,6 +135,19 @@ pub(super) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
         false,
         CvarFlags::ARCHIVE,
         "Console feed: show the newest console lines at the top left while playing (chat          keeps its own box)",
+    ))?;
+    cvars.register(CvarDefinition::new(
+        COPY_COLORS_CVAR,
+        false,
+        CvarFlags::ARCHIVE,
+        "Keep ^0-^9 colour codes when copying selected console scrollback",
+    ))?;
+    cvars.register(CvarDefinition::new(
+        SHIFT_HEIGHT_CVAR,
+        false,
+        CvarFlags::ARCHIVE,
+        "Shift+console opens to con_height and Shift+Escape a quarter screen (off: the \
+         other way round, after EternalJK)",
     ))?;
     for (name, value, help) in [
         ("con_notifylines", 3_i64, "Maximum visible notify lines"),
@@ -260,6 +279,30 @@ mod tests {
         drop(console);
         let console = ViewerConsole::new(path).unwrap();
         assert!(console.options().draw_notify);
+    }
+
+    #[test]
+    fn copied_console_colours_are_off_by_default_and_saved() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("config.cfg");
+        let mut console = ViewerConsole::new(path.clone()).unwrap();
+        assert_eq!(console.bool_cvar(COPY_COLORS_CVAR), Some(false));
+        assert!(console.set_cvar(COPY_COLORS_CVAR, "1"));
+        drop(console);
+        let console = ViewerConsole::new(path).unwrap();
+        assert_eq!(console.bool_cvar(COPY_COLORS_CVAR), Some(true));
+    }
+
+    #[test]
+    fn shift_console_height_is_off_by_default_and_saved() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("config.cfg");
+        let mut console = ViewerConsole::new(path.clone()).unwrap();
+        assert_eq!(console.bool_cvar(SHIFT_HEIGHT_CVAR), Some(false));
+        assert!(console.set_cvar(SHIFT_HEIGHT_CVAR, "1"));
+        drop(console);
+        let console = ViewerConsole::new(path).unwrap();
+        assert_eq!(console.bool_cvar(SHIFT_HEIGHT_CVAR), Some(true));
     }
 
     /// The registered default, a saved `classic` from before `auto` existed and

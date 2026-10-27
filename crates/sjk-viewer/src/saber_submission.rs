@@ -12,16 +12,20 @@ use sjk_runtime::{HeldEquipment, HeldItemKind};
 pub(crate) mod lights;
 
 /// Submit both hilts and every numbered blade for one actor. `trails` is
-/// `None` with `cg_saberTrail 0`; `skin` is the blade skin the actor wears, which
-/// replaces both sabers' colours.
+/// `None` with `cg_saberTrail 0`; `skins` are the blade skins the actor wears on its first
+/// and second saber, which replace those sabers' colours. `hands` are the bolts already at
+/// the actor's `scale` ([`saber::Attachment::scaled`]); the hilts are drawn at it too, as
+/// stock draws the bolted saber model with the wearer's `modelScale`.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn submit(
     entity_id: u64,
-    skin: Option<crate::saber_skins::SkinColor>,
+    skins: [Option<crate::saber_skins::SkinColor>; 2],
+    black_sabers: crate::saber_rgb::black::Policy,
     hands: [Option<(&str, saber::Attachment)>; 2],
     equipment: HeldEquipment,
     actor_origin: Vec3,
     actor_rotation: Quat,
+    scale: [f32; 3],
     catalog: Option<&HiltCatalog>,
     states: &mut StateSlab,
     segments: &mut SegmentPool,
@@ -30,6 +34,7 @@ pub(crate) fn submit(
     presentation_time: i64,
     mut trails: Option<&mut Edges<'_>>,
     lights: &mut crate::dynamic_lights::PointLightList,
+    attacking: Option<bool>,
 ) -> bool {
     if equipment.kind != HeldItemKind::EnergyBlade {
         return false;
@@ -54,34 +59,99 @@ pub(crate) fn submit(
         let Some((name, attachment)) = hand else {
             continue;
         };
+        let two_sabers = hands[1].is_some();
         let hilt = catalog.get(name);
         let (grip, weapon_rotation) =
             saber::world_attachment(actor_origin, actor_rotation, attachment);
         object_groups[hilt.mesh_index].push(ActorInstance::new(
             grip.to_array(),
             weapon_rotation.to_array(),
-            [1.0; 3],
+            scale,
         ));
-        let stock = BladeColor::from_rgb(if saber_index == 0 {
-            equipment.color
-        } else {
-            equipment.secondary_color
-        });
+        let stock = black_sabers.color(
+            entity_id,
+            saber_index,
+            BladeColor::from_rgb(if saber_index == 0 {
+                equipment.color
+            } else {
+                equipment.secondary_color
+            }),
+        );
         // A chroma skin takes this saber's colour.
-        let color = skin.map_or(stock, |skin| BladeColor::Skin(skin.worn_with(stock)));
-        let mut light_blades = [None; 8];
+        let worn = |skin: Option<crate::saber_skins::SkinColor>| {
+            skin.map_or(stock, |skin| BladeColor::Skin(skin.worn_with(stock)))
+        };
+        // The blades lit by each skin this saber wears: a staff's other half may wear the
+        // second (Sol's request of 21/10/2026), so its light is its own.
+        let mut light_blades = [[None; 8]; 2];
+        let mut light_colors = [stock; 2];
         for blade_index in 0..usize::from(hilt.num_blades) {
-            let Some(hilt_blade) = hilt.blade(blade_index) else {
+            // The second skin on the second saber, or on a staff's other half (a blade
+            // pointing away from the first; a crossguard's side blades keep the first's).
+            // (Only when the two differ: otherwise one light as before.)
+            let other_half = hilt.is_other_half(blade_index);
+            let half = usize::from(!two_sabers && other_half && skins[0] != skins[1]);
+            let skin =
+                crate::saber_skins::skin_of_blade(skins, two_sabers, saber_index, other_half);
+            let color = worn(skin);
+            light_colors[half] = color;
+            let Some(mut hilt_blade) = hilt.blade(blade_index) else {
                 continue;
             };
+            hilt_blade.socket = hilt_blade.socket.scaled(scale);
             let active = blade_is_active(&equipment, saber_index, blade_index);
-            let Some(state) = states.blade_mut(entity_id, saber_index, blade_index) else {
+            let Some((state, petal_queue)) =
+                states.blade_and_petals(entity_id, saber_index, blade_index)
+            else {
                 continue;
             };
+            state.fly(false);
             let length = state
                 .extension
                 .update(active, hilt_blade.length, presentation_time);
+            // A design whose words outlast its blade (`SkinColor::linger`): from when the
+            // blade begins going in, a whole-length blade that draws only its words, so they
+            // float on and can be read (Creyon's round 14). No contact, light or trail.
+            if let Some(motion) = skin
+                .filter(|skin| skin.linger > 0.0)
+                .and_then(|skin| state.motion.lingering(presentation_time, skin.linger))
+            {
+                // Set upright from the hilt here; the vertex stage then stands it up the
+                // screen, so the word faces the camera from every side (round 14: lying along
+                // a holstered hilt, it was seen flat; round 15: upright in the world, it was
+                // read only from in front).
+                let held = saber::world_blade(
+                    grip,
+                    weapon_rotation,
+                    hilt_blade.socket,
+                    hilt_blade.length,
+                    hilt_blade.radius,
+                );
+                let whole = saber::Blade {
+                    direction: [0.0, 0.0, 1.0],
+                    ..held
+                };
+                let key = entity_id.wrapping_mul(24) + (saber_index * 8 + blade_index) as u64;
+                saber_instances.extend(Instance::pair(whole, color).map(|i| {
+                    i.with_animation(presentation_time as f64 * 0.001, key as u32)
+                        .with_motion(motion)
+                }));
+            }
             if length < 0.5 {
+                // Out: no history kept from where it went out, for when it lights again
+                // (hub report 116: switching sabers, a swing drew a trail slice, and a
+                // skin its afterimages, from the old place to the new).
+                state.trail.hold(
+                    saber::world_blade(
+                        grip,
+                        weapon_rotation,
+                        hilt_blade.socket,
+                        0.0,
+                        hilt_blade.radius,
+                    ),
+                    presentation_time,
+                );
+                state.ghosts = Default::default();
                 continue;
             }
             let blade = saber::world_blade(
@@ -93,6 +163,35 @@ pub(crate) fn submit(
             );
             let key = entity_id.wrapping_mul(24) + (saber_index * 8 + blade_index) as u64;
             let flicker = saber::Flicker::sample(key, presentation_time);
+            // The swing is measured in the wearer's own frame (Creyon's round 11): turning the
+            // view or running turns the whole body, which is no swing, and the effects that
+            // answer a swing must not stir then.
+            let body = (actor_rotation.inverse() * Vec3::from_array(blade.direction)).to_array();
+            let mut motion = state.motion.record_turned(
+                blade,
+                body,
+                presentation_time,
+                length < hilt_blade.length,
+                attacking,
+                skin.is_some_and(|skin| skin.each_swing),
+            );
+            if skin.is_some_and(|skin| skin.stirred) {
+                motion[3] = state.motion.stir();
+            }
+            // A direction across the blade for the signatures' three-dimensional effects
+            // (`Instance::with_frame`): the wearer's forward, square to the blade, so what spreads
+            // to the blade's sides (Ashla Radiance's wings) spreads to the wearer's left and right
+            // (Creyon's round 20: one wing was at the side and the other somewhere else, the frame
+            // having been any square to the hilt model's axis).
+            let along = Vec3::from_array(blade.direction).normalize_or_zero();
+            let forward = actor_rotation * Vec3::X;
+            let square = forward - along * forward.dot(along);
+            let own = weapon_rotation
+                * Vec3::from_array(hilt_blade.socket.direction)
+                    .normalize_or_zero()
+                    .any_orthonormal_vector();
+            // The hilt's own leans in smoothly as the blade comes round to point forward.
+            let across = (square + own * 0.15).normalize_or(own).to_array();
             saber_instances.extend(
                 Instance::pair_flickering(blade, color, hilt_blade.length, flicker).map(|i| {
                     i.with_contact(
@@ -103,6 +202,8 @@ pub(crate) fn submit(
                         hilt.no_dlight,
                     )
                     .with_animation(presentation_time as f64 * 0.001, key as u32)
+                    .with_motion(motion)
+                    .with_frame(across, hilt_blade.length)
                 }),
             );
             saber_instances.extend(saber::skin_extras(
@@ -114,15 +215,55 @@ pub(crate) fn submit(
             if let BladeColor::Skin(skin) = color
                 && let Some(spec) = skin.ghosts
             {
-                state.ghosts.record(blade, presentation_time, spec);
-                saber_instances.extend(
-                    state
-                        .ghosts
-                        .instances(blade, color, spec)
-                        .map(|i| i.with_animation(presentation_time as f64 * 0.001, key as u32)),
+                let animate =
+                    |i: Instance| i.with_animation(presentation_time as f64 * 0.001, key as u32);
+                if spec.wearer {
+                    // Kept in the wearer's own frame: turning or running leaves none behind.
+                    let origin = actor_origin;
+                    let to_body = |b: saber::Blade| saber::Blade {
+                        base: (actor_rotation.inverse() * (Vec3::from_array(b.base) - origin))
+                            .to_array(),
+                        direction: (actor_rotation.inverse() * Vec3::from_array(b.direction))
+                            .to_array(),
+                        ..b
+                    };
+                    let to_world = move |b: saber::Blade| saber::Blade {
+                        base: (actor_rotation * Vec3::from_array(b.base) + origin).to_array(),
+                        direction: (actor_rotation * Vec3::from_array(b.direction)).to_array(),
+                        ..b
+                    };
+                    state.ghosts.record(to_body(blade), presentation_time, spec);
+                    saber_instances.extend(
+                        state
+                            .ghosts
+                            .instances_placed(to_body(blade), color, spec, to_world)
+                            .map(animate),
+                    );
+                } else {
+                    state.ghosts.record(blade, presentation_time, spec);
+                    saber_instances.extend(state.ghosts.instances(blade, color, spec).map(animate));
+                }
+            }
+            // Blossoms shed by its swing, measured in its wearer's frame as the afterimages are.
+            if let BladeColor::Skin(skin) = color
+                && let Some(spec) = skin.petals
+            {
+                let base = Vec3::from_array(blade.base);
+                let along = Vec3::from_array(blade.direction);
+                // Its whole length's tip, so a blade growing out (or going in) sheds none.
+                let whole = base + along * hilt_blade.length;
+                state.petals.shed(
+                    base,
+                    along,
+                    blade.length,
+                    actor_rotation.inverse() * (whole - actor_origin),
+                    presentation_time,
+                    key as u32,
+                    spec,
+                    petal_queue,
                 );
             }
-            light_blades[blade_index] = Some(blade);
+            light_blades[half][blade_index] = Some(blade);
             if let Some(edges) = trails.as_deref_mut()
                 && let Some(quad) = state.trail.update(
                     edges.edge(blade),
@@ -136,15 +277,19 @@ pub(crate) fn submit(
                 segments.insert(quad, presentation_time);
             }
         }
-        self::lights::append(
-            lights,
-            &light_blades,
-            color,
-            hilt.num_blades,
-            hilt.no_dlight,
-            presentation_time,
-            entity_id.wrapping_add(saber_index as u64),
-        );
+        for (half, (blades, color)) in light_blades.iter().zip(light_colors).enumerate() {
+            if blades.iter().any(Option::is_some) {
+                self::lights::append(
+                    lights,
+                    blades,
+                    color,
+                    hilt.num_blades,
+                    hilt.no_dlight,
+                    presentation_time,
+                    entity_id.wrapping_add((saber_index + half * 8) as u64),
+                );
+            }
+        }
     }
     true
 }

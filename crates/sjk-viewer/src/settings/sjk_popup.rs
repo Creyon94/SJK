@@ -156,7 +156,7 @@ impl SettingsMenu {
                 .get(row)
                 .is_some_and(|value| switch_text_on(value));
             let label = self.rows().get(row).map_or("", |setting| {
-                help::classic_label(setting.cvar, setting.label).0
+                help::classic_label(setting.cvar, crate::terms::say_static(setting.label)).0
             });
             let band = [CARD[0] + 24.0, FOOT_MIDDLE - 26.0, 400.0, 52.0];
             if focused {

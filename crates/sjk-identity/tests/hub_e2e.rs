@@ -204,6 +204,7 @@ fn only_a_verified_player_on_the_server_reports_another() {
         build: "e2e".to_owned(),
         level_time: Some(754),
         name: "^2Reporter".to_owned(),
+        whisper: None,
     };
     let refused = hub.player_report(&me, &report).unwrap_err();
     assert!(
@@ -486,13 +487,13 @@ fn chat_and_emotes_reach_other_players_through_the_long_poll() {
         "10.97.0.{}:29070",
         u8::from_str_radix(&me.key_id()[..2], 16).unwrap()
     );
-    let nowhere = hub.emote(&me, &server, "wave", None).unwrap_err();
+    let nowhere = hub.emote(&me, &server, "wave", None, false).unwrap_err();
     assert!(
         matches!(nowhere, HubError::Rejected { ref code, .. } if code == "not_on_server"),
         "{nowhere:?}"
     );
     hub.claim(&me, &server, 4, "^2Chatty", false).unwrap();
-    hub.emote(&me, &server, "wave", None).unwrap();
+    hub.emote(&me, &server, "wave", None, false).unwrap();
     let here = reader.feed(&other, feed.next, Some(&server), 0).unwrap();
     assert_eq!(here.emotes.len(), 1);
     assert_eq!(
@@ -503,7 +504,7 @@ fn chat_and_emotes_reach_other_players_through_the_long_poll() {
     assert_eq!(here.emotes[0].sync, None);
     // One in step with slot 7's carries it (after the emote quota's gap).
     std::thread::sleep(std::time::Duration::from_millis(2_100));
-    hub.emote(&me, &server, "wave", Some(7)).unwrap();
+    hub.emote(&me, &server, "wave", Some(7), false).unwrap();
     let synced = reader.feed(&other, here.next, Some(&server), 0).unwrap();
     assert_eq!(synced.emotes.last().map(|emote| emote.sync), Some(Some(7)));
     hub.release(&me, &server).unwrap();
@@ -1140,4 +1141,74 @@ fn a_staff_key_asks_for_logs_and_reads_them_and_crash_reports() {
     };
     assert_eq!(detail.log, "the last lines");
     assert!(detail.readable().contains(&unique));
+}
+
+/// Map edits (`PROTOCOL.md`, "Map edits"): staff publish a map's edits, every key reads
+/// them back as sent, a key that is not staff is refused, and none deletes them. Needs
+/// the seeds of the staff test above.
+#[test]
+#[ignore = "needs a running hub (SJK_HUB_TEST_URL) and its staff key (SJK_HUB_TEST_STAFF_SEED)"]
+fn staff_publish_map_edits_that_every_key_reads() {
+    let mut hub = hub();
+    let seed = |name: &str| {
+        let hex = std::env::var(name).expect(name);
+        let mut seed = [0_u8; 32];
+        for (index, byte) in seed.iter_mut().enumerate() {
+            *byte = u8::from_str_radix(&hex[index * 2..index * 2 + 2], 16).unwrap();
+        }
+        Identity::from_seed(seed)
+    };
+    let staff = seed("SJK_HUB_TEST_STAFF_SEED");
+    let plain = seed("SJK_HUB_TEST_PLAIN_SEED");
+    hub.register(&staff, Some("^1Staffer")).unwrap();
+    hub.register(&plain, Some("Plain")).unwrap();
+    let map = format!("mp/e2e_{}", &plain.key_id()[..6]);
+    let edits = serde_json::json!([
+        {"id": 1, "kind": "hide_prop", "entity": 12, "model": "models/a.md3"},
+        {"id": 2, "server": "1.2.3.4:29070", "kind": "remap", "from": "textures/a", "to": "textures/b"},
+    ]);
+    let refused = hub.publish_map_edits(&plain, &map, -7, &edits).unwrap_err();
+    assert!(
+        matches!(&refused, HubError::Rejected { code, .. } if code == "not_staff"),
+        "{refused:?}"
+    );
+    let first = hub.publish_map_edits(&staff, &map, -7, &edits).unwrap();
+    assert!(first >= 1);
+    let second = hub.publish_map_edits(&staff, &map, -7, &edits).unwrap();
+    assert_eq!(second, first + 1, "a replace counts up");
+    let listed = hub.map_edits(&plain).unwrap();
+    let entry = listed
+        .iter()
+        .find(|entry| entry.map == map)
+        .expect("listed");
+    assert_eq!((entry.checksum, entry.revision), (-7, second));
+    let document = hub.map_edits_doc(&plain, &map, -7).unwrap();
+    assert_eq!(document["edits"], edits, "kept as sent");
+    assert_eq!(
+        hub.publish_map_edits(&staff, &map, -7, &serde_json::json!([]))
+            .unwrap(),
+        0
+    );
+    assert!(!hub.map_edits(&plain).unwrap().iter().any(|e| e.map == map));
+    let gone = hub.map_edits_doc(&plain, &map, -7).unwrap_err();
+    assert!(
+        matches!(&gone, HubError::Rejected { status: 404, .. }),
+        "{gone:?}"
+    );
+
+    // The worker's folder follows the list.
+    let dir = std::env::temp_dir().join(format!("sjk-e2e-map-edits-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    hub.publish_map_edits(&staff, &map, -7, &edits).unwrap();
+    let refresh = sjk_identity::map_edits::refresh(&mut hub, &plain, &dir);
+    assert_eq!(refresh.problem, None);
+    let file = dir.join(sjk_identity::map_edits::file_name(&map, -7));
+    let copy: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&file).unwrap()).unwrap();
+    assert_eq!(copy["edits"], edits);
+    hub.publish_map_edits(&staff, &map, -7, &serde_json::json!([]))
+        .unwrap();
+    sjk_identity::map_edits::refresh(&mut hub, &plain, &dir);
+    assert!(!file.exists(), "deleted on the hub, removed here");
+    std::fs::remove_dir_all(&dir).unwrap();
 }

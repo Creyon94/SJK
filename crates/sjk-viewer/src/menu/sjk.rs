@@ -172,7 +172,7 @@ impl ClientMenu {
             .and_then(|model| model.split('/').next())
             .filter(|model| !model.is_empty())
             .unwrap_or("kyle");
-        let update = crate::update::available_version();
+        let update = crate::update::notice();
         let now = recent::now();
         let entries = self.browser.entries();
         let blank = home::ServerItem {
@@ -210,11 +210,11 @@ impl ClientMenu {
                 blade_name: console.map_or("blue", blade_name),
                 servers: &servers[..count],
                 version: env!("SJK_BUILD_VERSION"),
-                update: update.as_deref(),
+                update,
                 seconds: super::art::motion::seconds(),
                 chat,
                 summary,
-                donation: crate::donation_goal::card(console),
+                support: crate::support_links::shown(console),
             };
             home::build(&mut self.ui, viewport, &mut self.home, &view, reveal);
         });
@@ -301,10 +301,15 @@ impl ClientMenu {
             }
             home::Action::Open(destination) => self.open_main_destination(destination, console),
             home::Action::Quit => MenuAction::Quit,
-            home::Action::Donate => {
-                crate::donation_goal::open();
+            home::Action::Support(link) => {
+                crate::support_links::open(link);
                 MenuAction::None
             }
+            home::Action::HideSupport => {
+                crate::support_links::hide(console);
+                MenuAction::None
+            }
+            home::Action::Update => self.follow_update_notice(console),
             home::Action::SendChat => {
                 let text = self.home.take_draft();
                 self.chat_dock
@@ -348,14 +353,19 @@ impl ClientMenu {
     /// A join just reached the game: the server goes to the top of the recent
     /// list, with its name and map as the server list (or the loading screen)
     /// knows them. A game this client hosts is not a server to come back to.
-    pub(super) fn remember_joined_server(&mut self) {
-        let super::ClientPhase::Connecting(address) = self.state.phase() else {
+    pub(super) fn remember_joined_server(&mut self, server_address: Option<&str>) {
+        if !matches!(self.state.phase(), super::ClientPhase::Connecting(_)) {
             return;
-        };
+        }
         if self.hosting_local() {
             return;
         }
-        let address = address.clone();
+        // The connecting phase's text becomes the map name or download progress
+        // during a live map change. The connection owner retains the canonical
+        // address independently, so only that is a recent-server identity.
+        let Some(address) = server_address else {
+            return;
+        };
         let entry = address
             .parse::<std::net::SocketAddr>()
             .ok()
@@ -371,7 +381,7 @@ impl ClientMenu {
             .filter(|map| !map.is_empty())
             .unwrap_or(self.loading.map())
             .to_owned();
-        self.recent.record(&address, &name, &map, recent::now());
+        self.recent.record(address, &name, &map, recent::now());
     }
 
     /// Join `address` from the main page: through the password prompt when the
@@ -421,6 +431,11 @@ pub(crate) mod color {
     pub(crate) const QUIET: Color = Color::new(0.53, 0.573, 0.675, 1.0);
     /// Only for leaving: Quit.
     pub(crate) const EMBER: Color = Color::new(1.0, 0.478, 0.239, 1.0);
+    /// The red team, muted: the SJK scoreboard's team rules and names, the CTF HUD's
+    /// team boxes.
+    pub(crate) const RED_TEAM: Color = Color::new(0.88, 0.38, 0.38, 1.0);
+    /// The blue team, muted as [`RED_TEAM`].
+    pub(crate) const BLUE_TEAM: Color = Color::new(0.44, 0.64, 0.98, 1.0);
 
     /// `color` at `alpha`.
     pub(crate) const fn alpha(color: Color, alpha: f32) -> Color {
@@ -513,10 +528,12 @@ pub(crate) fn key_hint(
     s: f32,
 ) -> f32 {
     let height = 24.0 * s;
+    // The characters' room grows with the menu text size (`ui_textScale`).
+    let k = crate::text::style::current().scale.max(0.5);
     let mut x = x;
     for key in keys {
         // Rajdhani Bold at 15 is about 8 pixels a character.
-        let width = (18.0 + 8.2 * key.len() as f32) * s;
+        let width = (18.0 + 8.2 * k * key.len() as f32) * s;
         let cap = Rect::new(x, y, width, height);
         let _ = canvas.draw_list_mut().push(DrawCommand::Border {
             rect: cap,
@@ -536,7 +553,7 @@ pub(crate) fn key_hint(
         );
         x += width + 6.0 * s;
     }
-    let action_width = (12.0 + 7.6 * action.len() as f32) * s;
+    let action_width = (12.0 + 7.6 * k * action.len() as f32) * s;
     text(
         canvas,
         TextFamily::Body,
@@ -552,11 +569,12 @@ pub(crate) fn key_hint(
 
 /// Width [`key_hint`] takes for `keys` and `action`, to right-align a row.
 pub(crate) fn key_hint_width(keys: &[&str], action: &str, s: f32) -> f32 {
+    let k = crate::text::style::current().scale.max(0.5);
     let caps: f32 = keys
         .iter()
-        .map(|key| (18.0 + 8.2 * key.len() as f32 + 6.0) * s)
+        .map(|key| (18.0 + 8.2 * k * key.len() as f32 + 6.0) * s)
         .sum();
-    caps + 4.0 * s + (12.0 + 7.6 * action.len() as f32) * s
+    caps + 4.0 * s + (12.0 + 7.6 * k * action.len() as f32) * s
 }
 
 /// Where the top bar's way back starts and its middle line, in frame pixels.
@@ -712,6 +730,24 @@ pub(crate) fn blade_name(console: &crate::console::ViewerConsole) -> &'static st
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn map_changes_update_one_recent_server_instead_of_recording_the_map() {
+        let address = "135.125.145.49:29070";
+        let mut menu = ClientMenu::new(true, String::new());
+        menu.state_connecting(address.to_owned());
+        menu.loading.set_map("mp/ffa3");
+        menu.joined(Some(address));
+
+        // Loading replaces the connecting phase's display text with the map,
+        // but the session still belongs to the same remote endpoint.
+        menu.state_loading("mp/duel6");
+        menu.joined(Some(address));
+
+        assert_eq!(menu.recent.servers().len(), 1);
+        assert_eq!(menu.recent.servers()[0].address, address);
+        assert_eq!(menu.recent.servers()[0].map, "mp/duel6");
+    }
 
     #[test]
     fn key_hints_measure_what_they_draw() {

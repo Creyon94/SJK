@@ -173,8 +173,7 @@ pub(crate) fn flush(console: &crate::console::ViewerConsole) {
 }
 
 fn send(url: &str, session: &str, events: &[Event]) {
-    let agent = format!("SJK/{}", crate::build_info::VERSION);
-    let mut hub = match sjk_identity::HttpHub::new(url, &agent) {
+    let mut hub = match sjk_identity::HttpHub::new(url, crate::build_info::hub_agent()) {
         Ok(hub) => hub,
         Err(error) => {
             crate::log::progress(format_args!("settings usage: not sent ({error})"));

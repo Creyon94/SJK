@@ -158,7 +158,8 @@ pub(crate) struct Panel {
     open: bool,
     /// The page opened the console, so closing the page closes it too.
     owns_console: bool,
-    /// The key's id and file show: Show was pressed since the page opened.
+    /// The key file's place shows: Show was pressed since the page opened. The key id
+    /// never shows (key ids never show in the game); Copy my key id copies it.
     revealed: bool,
     ui: MenuCanvas,
     focus: Focus,
@@ -225,7 +226,8 @@ fn plain(headline: &str, lines: &[&str]) -> View {
     }
 }
 
-/// What the page says; the key's id and file are [`HIDDEN`] unless `revealed`.
+/// What the page says; the key id is always [`HIDDEN`] (key ids never show in the game),
+/// the key file too unless `revealed`.
 fn view(inputs: &Inputs<'_>, revealed: bool) -> View {
     if let Some(error) = inputs.key_error {
         return View {
@@ -249,15 +251,12 @@ fn view(inputs: &Inputs<'_>, revealed: bool) -> View {
     let Some(snapshot) = inputs.snapshot else {
         return plain("Starting...", &["Preparing the identity key."]);
     };
-    let (key_id, key_file) = if revealed {
-        (
-            snapshot.local_key_id.as_str(),
-            fit_tail(inputs.key_file, 90),
-        )
+    let key_file = if revealed {
+        fit_tail(inputs.key_file, 90)
     } else {
-        (HIDDEN, HIDDEN.to_owned())
+        HIDDEN.to_owned()
     };
-    let key = format!("Key id: {key_id}");
+    let key = format!("Key id: {HIDDEN}");
     // Two lines: the path can be long.
     let backup = [
         format!("Key file: {key_file}"),
@@ -659,6 +658,7 @@ mod tests {
     fn snapshot(status: Status) -> Snapshot {
         Snapshot {
             loot: Vec::new(),
+            min_client: None,
             opening: None,
             reveal: None,
             local_key_id: "0123456789abcdef".to_owned(),
@@ -666,10 +666,12 @@ mod tests {
             key_id: "0123456789abcdef".to_owned(),
             me: None,
             server: None,
+            map_blocks: Vec::new(),
             players: Vec::new(),
             profiles: HashMap::new(),
             model_checks: HashMap::new(),
             profiles_revision: 0,
+            me_revision: 0,
             notice: None,
             revision: 0,
             report: None,
@@ -678,12 +680,26 @@ mod tests {
             avatar: None,
             look_outcome: None,
             packs_revision: 0,
+            map_edits_revision: 0,
+            map_edits_published: None,
             assets_note: None,
             crashes_sent: 0,
             crash_note: None,
             holocrons: None,
             log_requests: Vec::new(),
             log_answer: None,
+            economy: None,
+            kyber: None,
+            shop: None,
+            trade: None,
+            trades: None,
+            announcements: Vec::new(),
+            announcements_revision: 0,
+            rewards: None,
+            rewards_revision: 0,
+            claim: None,
+            announce: None,
+            public_key: String::new(),
         }
     }
 
@@ -708,6 +724,8 @@ mod tests {
             bio: bio.to_owned(),
             verified: false,
             staff: false,
+            creator: false,
+            jkr_creator: false,
             trust: None,
             emoji: String::new(),
             created: 0,
@@ -718,6 +736,7 @@ mod tests {
             unlocks: Vec::new(),
             holocron_counts: Default::default(),
             holocrons: Vec::new(),
+            shards: 0,
         }
     }
 
@@ -766,7 +785,10 @@ mod tests {
                 .iter()
                 .any(|line| line.contains("GameData/SJK/identity.key"))
         );
-        assert!(shown.lines[0].contains("0123456789abcdef"));
+        assert!(
+            !shown.lines[0].contains("0123456789abcdef"),
+            "the key id never shows, even shown"
+        );
     }
 
     #[test]
@@ -788,6 +810,7 @@ mod tests {
             medals: Vec::new(),
             avatar: String::new(),
             look: None,
+            whisper_key: None,
         }];
         let shown = view(&inputs(Some(&state)), true);
         assert_eq!(shown.headline, "Sol");
@@ -861,15 +884,16 @@ mod tests {
         });
         let medals = view(&inputs(Some(&state)), true).medals.expect("medals");
         assert_eq!(medals.len(), 1);
-        assert_eq!(medals[0].label(), "Bug Hunter x2");
+        // Held once since 21/10/2026: an old count of 2 shows no count.
+        assert_eq!(medals[0].label(), "Bug Hunter");
         assert_eq!(medals[0].note, "Thanks");
         assert_eq!(view(&inputs(None), true).medals, None);
     }
 
-    /// Until Show is pressed the key's id and file are dots in every state, so the page
-    /// can be opened on a stream; opening the page hides them again.
+    /// The key id is dots in every state, shown or not, and the key file until Show is
+    /// pressed, so the page can be opened on a stream; opening the page hides it again.
     #[test]
-    fn the_key_id_and_file_stay_hidden_until_shown() {
+    fn the_key_id_never_shows_and_the_file_stays_hidden_until_shown() {
         let mut state = snapshot(Status::Online);
         state.me = Some(me("Sol", ""));
         for status in [
@@ -902,6 +926,22 @@ mod tests {
         panel.close();
         panel.open(false);
         assert!(!panel.revealed(), "hidden again each time the page opens");
+        // Shown, the file's place shows and the key id still does not.
+        state.status = Status::NoHub;
+        let shown = view(
+            &Inputs {
+                key_file: "C:/Users/Streamer/GameData/SJK/identity.key",
+                ..inputs(Some(&state))
+            },
+            true,
+        );
+        assert!(shown.lines.iter().any(|line| line.contains("Streamer")));
+        assert!(
+            shown
+                .lines
+                .iter()
+                .all(|line| !line.contains("0123456789abcdef"))
+        );
         // Show is a stop of Tab once the fields show.
         assert_eq!(step(Focus::Copy, true, true, false), Focus::Reveal);
     }
@@ -930,6 +970,7 @@ mod tests {
                 medals: Vec::new(),
                 avatar: String::new(),
                 look: None,
+                whisper_key: None,
             })
             .collect();
         assert_eq!(

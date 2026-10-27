@@ -35,6 +35,11 @@ const DETAIL_X: f32 = 1360.0;
 const DETAIL_WIDTH: f32 = 464.0;
 const PREVIEW: [f32; 2] = [DETAIL_X + DETAIL_WIDTH * 0.5, 410.0];
 const PREVIEW_SCALE: f32 = 0.78;
+/// The catalogue's search field, on its title's line right of the title (as
+/// wide as `SEARCH_TITLE_MOST` at most), and its first line's top.
+const SEARCH_TOP: f32 = 186.0;
+const SEARCH_HEIGHT: f32 = 40.0;
+const SEARCH_TITLE_MOST: f32 = 220.0;
 const PICK_TOP: f32 = 262.0;
 const PICK_LINE: f32 = 40.0;
 /// The keys' line.
@@ -54,6 +59,9 @@ const _: () = assert!(TOP + (MAX_CHOICES + 2) as f32 * LINE < KEYS_Y - 20.0);
 // the Sound heading and its switch.
 const _: () = assert!(TOP + (MAX_PAGES + 6) as f32 * LINE < KEYS_Y - 20.0);
 const _: () = assert!(PICK_TOP + PICK_LINES as f32 * PICK_LINE < KEYS_Y - 20.0);
+const _: () = assert!(SEARCH_TOP + SEARCH_HEIGHT < PICK_TOP);
+// The search field keeps at least 120 pixels between the title and Cancel.
+const _: () = assert!(DETAIL_WIDTH - SEARCH_TITLE_MOST - 16.0 - 108.0 >= 120.0);
 
 impl SettingsMenu {
     /// Draw the editor as the SJK UI's Settings category, beside `rail`.
@@ -756,11 +764,14 @@ impl WheelEditor {
                     .map_or("", |page| page.name.as_str())
             ),
         };
+        // The title's width as the display face sets it, about 10 pixels a
+        // character at this size, with room kept for the search field.
+        let title_width = (title.chars().count() as f32 * 11.0).min(SEARCH_TITLE_MOST);
         text(
             &mut self.ui,
             TextFamily::Display,
             format_args!("{title}"),
-            frame.rect(DETAIL_X, 186.0, DETAIL_WIDTH - 110.0, 40.0),
+            frame.rect(DETAIL_X, 186.0, title_width, 40.0),
             30.0 * s,
             color::TEXT,
             FontWeight::Regular,
@@ -776,7 +787,46 @@ impl WheelEditor {
             false,
             PICK_CLOSE,
         );
-        let lines = pick_lines();
+        // The search field, right of the title up to Cancel, which has the
+        // keyboard while the catalogue is open.
+        let search_x = DETAIL_X + title_width + 16.0;
+        let search = [
+            search_x,
+            SEARCH_TOP,
+            DETAIL_X + DETAIL_WIDTH - 108.0 - search_x,
+            SEARCH_HEIGHT,
+        ];
+        let [_, _, search_width, _] = search;
+        kit::field(
+            &mut self.ui,
+            frame,
+            search,
+            format_args!("{}_", self.search),
+            true,
+            false,
+        );
+        if self.search.is_empty() {
+            text(
+                &mut self.ui,
+                TextFamily::Body,
+                format_args!("Search"),
+                frame.rect(
+                    search_x + 32.0,
+                    SEARCH_TOP + (SEARCH_HEIGHT - 24.0) * 0.5,
+                    search_width - 48.0,
+                    24.0,
+                ),
+                17.0 * s,
+                color::MUTED,
+                FontWeight::Regular,
+                TextAlign::Start,
+            );
+        }
+        self.ui.hit_region(
+            PICK_SEARCH,
+            frame.rect(search_x, SEARCH_TOP, search_width, SEARCH_HEIGHT),
+        );
+        let lines = self.pick_shown();
         let shown = picker.first..lines.len().min(picker.first + PICK_LINES);
         self.ui.scroll_region(
             PICK_SCROLL,
@@ -996,6 +1046,7 @@ impl WheelEditor {
             }
             (None, Some(_), _) => {
                 keys.extend([
+                    (&["Type"][..], "search"),
                     (&["Up", "Down"][..], "choose"),
                     (&["Enter"][..], "pick"),
                     (&["Esc"][..], "cancel"),
@@ -1069,6 +1120,7 @@ fn force_example() -> Vec<crate::quick_wheel::ShownChoice> {
     const LIGHT: [u8; 9] = [3, 4, 2, 14, 0, 9, 10, 5, 11];
     let known = LIGHT.iter().fold(0, |known, slot| known | 1 << slot);
     force_page::choices(&force_page::Powers {
+        extensions: &[],
         known,
         selected: 9,
         flamethrower: false,

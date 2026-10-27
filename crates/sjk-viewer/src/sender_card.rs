@@ -7,7 +7,9 @@
 //! where they are on this server and how they were matched), and Mute or Unmute, which
 //! hides their chat, draws them as Kyle with the default saber and silences them on this
 //! PC only. For a player the hub vouches for, a sender it does not vouch for also gets
-//! Ban 24 h beside it ([`crate::chat_ban`]).
+//! Ban 24 h beside it ([`crate::chat_ban`]). In the game's chat, where a click pins the
+//! card, a player on the server also gets Whisper at the head of the buttons
+//! ([`Tokens::whisper`], `chat/card.rs`).
 //!
 //! The card is built when the name under the pointer changes and drawn every frame
 //! without allocating; each place that shows it keeps it up while the pointer moves
@@ -43,6 +45,8 @@ pub(crate) struct Person {
     pub(crate) hub_name: Option<String>,
     pub(crate) verified: bool,
     pub(crate) staff: bool,
+    /// SJK's creator (staff too).
+    pub(crate) creator: bool,
     /// Their trust (`ui_renderer::mark_texture`), none when verified or staff or unknown.
     pub(crate) trust: Option<sjk_identity::Trust>,
     /// Their name emoji, after the name; empty for none.
@@ -55,13 +59,39 @@ pub(crate) struct Person {
     /// A line on when they were about, from the place that shows the card ("Online
     /// now, in a match", "Seen 3 minutes ago"), or none.
     pub(crate) note: Option<String>,
+    /// They take encrypted whispers here: the card offers their safety code
+    /// (`e2e_whisper_card.rs`).
+    pub(crate) safety: bool,
+    /// Their last encrypted whisper to the player can be reported: the card offers
+    /// Report (`player_report.rs`).
+    pub(crate) report: bool,
+    /// They can be asked to trade from here (`crate::player_trades`): the card offers
+    /// Trade.
+    pub(crate) trade: bool,
+    /// They are on the server being played: the card offers blocking them for this map
+    /// (`crate::map_blocks`), and for everyone to staff.
+    pub(crate) map_block: Option<MapBlockRow>,
+}
+
+/// The card's row of blocks for this map: whether the player blocked them for the map,
+/// and, for an SJK staff player, whether staff blocked them for everyone (`None` for
+/// the others, who are not offered it).
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub(crate) struct MapBlockRow {
+    pub(crate) own: bool,
+    pub(crate) staff: Option<bool>,
 }
 
 impl Person {
     /// The card's status line: whether the hub knows them.
     fn status(&self) -> &'static str {
         use sjk_identity::Trust;
-        match (self.key_id.is_some(), self.staff, self.trust) {
+        match (
+            self.key_id.is_some(),
+            self.staff || self.creator,
+            self.trust,
+        ) {
+            (true, true, _) if self.creator => "SJK player, SJK creator",
             (true, true, _) => "SJK player, SJK staff",
             (true, false, Some(Trust::New)) => "SJK player, new",
             (true, false, Some(Trust::Trusted)) => "SJK player, trusted",
@@ -69,12 +99,6 @@ impl Person {
             (true, false, _) => "SJK player",
             (false, ..) => "Not known to the SJK hub",
         }
-    }
-    /// The key id the card prints: none for the player's own.
-    fn printed_key(&self) -> Option<&str> {
-        self.key_id
-            .as_deref()
-            .and_then(crate::player_identity::printable_key_id)
     }
 }
 
@@ -98,37 +122,69 @@ pub(crate) struct Tokens {
     pub(crate) mute: u16,
     /// Ban 24 h, when offered ([`crate::chat_ban::offered`]).
     pub(crate) ban: u16,
+    /// Safety code, when [`Person::safety`].
+    pub(crate) safety: u16,
+    /// Report, when [`Person::report`].
+    pub(crate) report: u16,
+    /// Whisper, at the head of the card's buttons: only where the card can open a
+    /// whisper to them (the game's chat, for a player on the server), else `None`.
+    pub(crate) whisper: Option<u16>,
+    /// Trade, when [`Person::trade`].
+    pub(crate) trade: u16,
+    /// Block for this map and, for staff, block for everyone, when [`Person::map_block`].
+    pub(crate) map_block: u16,
+    pub(crate) staff_block: u16,
 }
 
-/// The card's width in 1080p pixels.
-const WIDTH: f32 = 340.0;
-const PAD: f32 = 16.0;
+/// The card's width in 1080p pixels: compact, so it sits beside the chat without
+/// covering the game (Sol, 19/10/2026).
+const WIDTH: f32 = 272.0;
+const PAD: f32 = 12.0;
 /// Medallions a card shows at most.
 const MEDALS: usize = 6;
 /// The picture's radius, beside the name and the status line (1080p pixels).
-const PICTURE_RADIUS: f32 = 24.0;
+const PICTURE_RADIUS: f32 = 17.0;
+/// The picture, the name and the status line.
+const HEAD: f32 = 36.0;
+/// The hairline under the head, with its room above and below.
+const RULE: f32 = 13.0;
+/// One line of what is known of them.
+const LINE: f32 = 17.0;
+const MEDAL_ROW: f32 = 26.0;
+const BUTTON: f32 = 28.0;
+/// Between the buttons and the quiet line under them, and that line's own height.
+const QUIET_GAP: f32 = 5.0;
+const QUIET_ROW: f32 = 14.0;
 
-/// The card's size for `person`, at the scale `u` (1 at 1080 lines).
-pub(crate) fn size(person: &Person, u: f32) -> [f32; 2] {
-    let mut height = PAD + 30.0 + 22.0;
-    if person.hub_name.is_some() {
-        height += 20.0;
+/// The card's size for `person`, at the scale `u` (1 at 1080 lines); `whisper` when it
+/// offers Whisper ([`Tokens::whisper`]).
+pub(crate) fn size(person: &Person, whisper: bool, u: f32) -> [f32; 2] {
+    let mut height = PAD + HEAD + RULE;
+    if whisper {
+        height += BUTTON + 6.0;
     }
-    if person.printed_key().is_some() {
-        height += 20.0;
+    if person.map_block.is_some() {
+        height += BUTTON + 6.0;
     }
-    if person.place != Place::Unknown {
-        height += 20.0;
-    }
-    if person.note.is_some() {
-        height += 20.0;
-    }
+    let lines = [
+        person.hub_name.is_some(),
+        person.place != Place::Unknown,
+        person.note.is_some(),
+    ];
+    height += lines.into_iter().filter(|shown| *shown).count() as f32 * LINE;
     if !person.medals.is_empty() {
-        height += 32.0;
+        height += MEDAL_ROW;
     }
-    height += 12.0 + 38.0 + 22.0 + PAD;
+    height += 6.0 + BUTTON + QUIET_GAP + QUIET_ROW + PAD;
+    if person.safety || person.report {
+        height += BUTTON + 6.0;
+    }
+    if person.trade && ban_offered(person).is_some() {
+        // Trade takes Ban's place beside Block: Ban gets a row of its own.
+        height += BUTTON + 6.0;
+    }
     if person.key_id.is_none() {
-        height += 18.0;
+        height += QUIET_ROW;
     }
     [WIDTH * u, height * u]
 }
@@ -161,19 +217,37 @@ pub(crate) fn draw(
         muted,
         measure,
     } = *card;
-    let [width, height] = size(person, u);
+    let [width, height] = size(person, tokens.whisper.is_some(), u);
     let card = Rect::new(origin[0], origin[1], width, height);
     let list = canvas.draw_list_mut();
+    // A soft shadow, the panel, its hairline edge and a thin accent along the top.
+    let _ = list.push(DrawCommand::RoundedRect {
+        rect: Rect::new(card.x + 2.0 * u, card.y + 4.0 * u, width, height),
+        radius: 9.0 * u,
+        color: Color::new(0.0, 0.0, 0.0, 0.35),
+    });
     let _ = list.push(DrawCommand::RoundedRect {
         rect: card,
-        radius: 10.0 * u,
-        color: color::alpha(color::SPACE, 0.96),
+        radius: 9.0 * u,
+        color: color::alpha(color::SPACE, 0.97),
     });
     let _ = list.push(DrawCommand::Border {
         rect: card,
-        radius: 10.0 * u,
-        width: 1.5 * u,
-        color: color::alpha(color::HOLO, 0.45),
+        radius: 9.0 * u,
+        width: 1.0 * u,
+        color: color::alpha(color::HOLO, 0.28),
+    });
+    let _ = list.push(DrawCommand::RoundedRect {
+        rect: Rect::new(card.x + 14.0 * u, card.y, width - 28.0 * u, 2.0 * u),
+        radius: 1.0 * u,
+        color: color::alpha(
+            if person.key_id.is_some() {
+                color::GOLD
+            } else {
+                color::HOLO
+            },
+            0.7,
+        ),
     });
     let x = card.x + PAD * u;
     let inner = width - 2.0 * PAD * u;
@@ -198,7 +272,7 @@ pub(crate) fn draw(
     let radius = PICTURE_RADIUS * u;
     crate::profile_card::avatar(
         canvas,
-        [x + radius, y + 26.0 * u],
+        [x + radius, y + HEAD * 0.5 * u],
         radius,
         &crate::profile_card::Avatar {
             key_id: person.key_id.as_deref().unwrap_or(""),
@@ -210,12 +284,13 @@ pub(crate) fn draw(
             lit: false,
         },
     );
-    let head_x = x + radius * 2.0 + 12.0 * u;
+    let head_x = x + radius * 2.0 + 10.0 * u;
     let head_width = (inner - (head_x - x)).max(1.0);
     // The name and its mark alone: the verified seal or the trust mark.
+    let name_size = 16.0 * u;
     let mark = crate::ui_renderer::mark_texture(person.verified, person.trust);
     let tick_room = if mark.is_some() {
-        crate::sjk_chat_look::tick_room(20.0 * u)
+        crate::sjk_chat_look::tick_room(name_size)
     } else {
         0.0
     };
@@ -227,8 +302,8 @@ pub(crate) fn draw(
     };
     canvas.text_fmt_aligned(
         format_args!("{shown}"),
-        Rect::new(head_x, y, head_width - tick_room, 28.0 * u),
-        20.0 * u,
+        Rect::new(head_x, y, head_width - tick_room, 22.0 * u),
+        name_size,
         color::TEXT,
         FontWeight::Semibold,
         0.0,
@@ -236,24 +311,23 @@ pub(crate) fn draw(
     );
     if let Some(mark) = mark {
         let name = match measure {
-            Some(measure) => measure.width(&shown, 20.0 * u, crate::text::TextFace::Semibold),
-            None => estimated_width(&shown, 20.0 * u),
+            Some(measure) => measure.width(&shown, name_size, crate::text::TextFace::Semibold),
+            None => estimated_width(&shown, name_size),
         };
         let end = head_x + (head_width - tick_room).min(name);
         crate::sjk_chat_look::tick(
             canvas.draw_list_mut(),
             mark,
             end,
-            y + 13.0 * u,
-            20.0 * u,
+            y + 10.5 * u,
+            name_size,
             1.0,
         );
     }
-    y += 30.0 * u;
     canvas.text_fmt_aligned(
         format_args!("{}", person.status()),
-        Rect::new(head_x, y, head_width, 15.0 * u * 1.35),
-        15.0 * u,
+        Rect::new(head_x, y + 21.0 * u, head_width, 12.5 * u * 1.35),
+        12.5 * u,
         if person.key_id.is_some() {
             color::GOLD_BRIGHT
         } else {
@@ -263,92 +337,149 @@ pub(crate) fn draw(
         0.0,
         TextAlign::Start,
     );
-    y += 22.0 * u;
+    y += HEAD * u;
+    let _ = canvas.draw_list_mut().push(DrawCommand::SolidRect {
+        rect: Rect::new(x, y + 6.0 * u, inner, 1.0 * u),
+        color: color::alpha(color::HOLO, 0.14),
+    });
+    y += RULE * u;
+    let info = 12.0 * u;
     if let Some(hub) = &person.hub_name {
         line(
             canvas,
             y,
-            14.0 * u,
+            info,
             color::MUTED,
             format_args!("Known as {hub}"),
         );
-        y += 20.0 * u;
+        y += LINE * u;
     }
-    if let Some(key) = person.printed_key() {
-        line(canvas, y, 14.0 * u, color::QUIET, format_args!("Key {key}"));
-        y += 20.0 * u;
+    let (slot, how) = match person.place {
+        Place::Unknown => (None, ""),
+        Place::Away => (None, "Not on this server"),
+        Place::Slot(slot) => (Some(slot), ""),
+        Place::SlotByName(slot) => (Some(slot), " (by name)"),
+    };
+    match slot {
+        Some(slot) => line(
+            canvas,
+            y,
+            info,
+            color::MUTED,
+            format_args!("On this server, slot {slot}{how}"),
+        ),
+        None if !how.is_empty() => line(canvas, y, info, color::QUIET, format_args!("{how}")),
+        None => {}
     }
-    match person.place {
-        Place::Unknown => {}
-        Place::Away => {
-            line(
-                canvas,
-                y,
-                14.0 * u,
-                color::QUIET,
-                format_args!("Not on this server"),
-            );
-            y += 20.0 * u;
-        }
-        Place::Slot(slot) => {
-            line(
-                canvas,
-                y,
-                14.0 * u,
-                color::MUTED,
-                format_args!("On this server, slot {slot}"),
-            );
-            y += 20.0 * u;
-        }
-        Place::SlotByName(slot) => {
-            line(
-                canvas,
-                y,
-                14.0 * u,
-                color::MUTED,
-                format_args!("On this server, slot {slot}, matched by name"),
-            );
-            y += 20.0 * u;
-        }
+    if person.place != Place::Unknown {
+        y += LINE * u;
     }
     if let Some(note) = &person.note {
-        line(canvas, y, 14.0 * u, color::MUTED, format_args!("{note}"));
-        y += 20.0 * u;
+        line(canvas, y, info, color::MUTED, format_args!("{note}"));
+        y += LINE * u;
     }
     if !person.medals.is_empty() {
         for (index, (medal, _)) in person.medals.iter().take(MEDALS).enumerate() {
             let _ = canvas.draw_list_mut().push(DrawCommand::TexturedQuad {
-                rect: Rect::new(x + index as f32 * 30.0 * u, y + 2.0 * u, 26.0 * u, 26.0 * u),
+                rect: Rect::new(x + index as f32 * 26.0 * u, y + 2.0 * u, 22.0 * u, 22.0 * u),
                 texture: medal.icon(),
                 color: Color::new(1.0, 1.0, 1.0, 1.0),
             });
         }
-        y += 32.0 * u;
+        y += MEDAL_ROW * u;
     }
-    y += 12.0 * u;
-    let button = Rect::new(x, y, 150.0 * u, 38.0 * u);
+    y += 6.0 * u;
+    // Whisper first, the whole row: what a click on a name is most often for.
+    let whisper_button = Rect::new(x, y, inner, BUTTON * u);
+    if let Some(token) = tokens.whisper {
+        card_button(canvas, whisper_button, u, token, "Whisper", color::HOLO);
+        y += (BUTTON + 6.0) * u;
+    }
+    let half = (inner - 8.0 * u) * 0.5;
+    // Blocks for this map: the whole row, or two halves for staff, the right one for
+    // everyone on the server.
+    let map_button = Rect::new(
+        x,
+        y,
+        if person.map_block.is_some_and(|row| row.staff.is_some()) {
+            half
+        } else {
+            inner
+        },
+        BUTTON * u,
+    );
+    let staff_button = Rect::new(x + inner - half, y, half, BUTTON * u);
+    if let Some(row) = person.map_block {
+        let own = match (row.own, row.staff.is_some()) {
+            (false, false) => "Block for this map",
+            (true, false) => "Unblock this map",
+            (false, true) => "Block this map",
+            (true, true) => "Unblock map",
+        };
+        card_button(canvas, map_button, u, tokens.map_block, own, color::GOLD);
+        if let Some(staff) = row.staff {
+            let label = if staff {
+                "Unblock all"
+            } else {
+                "Block for all"
+            };
+            card_button(
+                canvas,
+                staff_button,
+                u,
+                tokens.staff_block,
+                label,
+                color::EMBER,
+            );
+        }
+        y += (BUTTON + 6.0) * u;
+    }
+    // The first row: Block on the left, and on the right Trade (when they can be asked)
+    // or Ban 24 h: two even halves.
+    let button = Rect::new(x, y, half, BUTTON * u);
+    let right = Rect::new(x + inner - half, y, half, BUTTON * u);
     card_button(
         canvas,
         button,
         u,
         tokens.mute,
-        if muted { "Unmute" } else { "Mute" },
+        if muted { "Unblock" } else { "Block" },
         color::GOLD,
     );
-    let ban_button = Rect::new(x + inner - 150.0 * u, y, 150.0 * u, 38.0 * u);
+    if person.trade {
+        card_button(canvas, right, u, tokens.trade, "Trade", color::GOLD);
+    }
     let quiet = |muted: bool| {
         if muted {
-            "Muted on this PC: no chat, Kyle, no sounds"
+            "Blocked here: no chat, Kyle, no sounds"
         } else {
-            "Hides their chat, model, sabers and sounds here"
+            "Hides their chat, model, sounds and emotes"
         }
     };
-    let under = y + 38.0 * u + 4.0 * u;
+    let under = y + (BUTTON + QUIET_GAP) * u;
+    let small = 10.5 * u;
     // Ban 24 h for a sender the hub does not vouch for, when it vouches for the
-    // player; what it came to (or the armed button's warning) takes the quiet line.
-    let ban_key = person.key_id.as_deref().filter(|key| {
-        crate::chat_ban::offered(Some(key), person.verified, person.staff, person.trust)
-    });
+    // player: beside Block, or on a row of its own under the quiet lines when Trade
+    // takes that place. What it came to (or the armed button's warning) takes the quiet
+    // line.
+    let ban_key = ban_offered(person);
+    let mut below = under
+        + (QUIET_ROW
+            + if person.key_id.is_none() {
+                QUIET_ROW
+            } else {
+                0.0
+            })
+            * u;
+    let ban_button = if person.trade {
+        let row = Rect::new(x, below, inner, BUTTON * u);
+        if ban_key.is_some() {
+            below += (BUTTON + 6.0) * u;
+        }
+        row
+    } else {
+        right
+    };
     match ban_key {
         Some(key) => crate::chat_ban::with_shown(key, |shown| {
             card_button(
@@ -368,33 +499,85 @@ pub(crate) fn draw(
                 Some((said, false)) => (said, color::EMBER),
                 None => (quiet(muted), color::QUIET),
             };
-            line(canvas, under, 13.0 * u, colour, format_args!("{said}"));
+            line(canvas, under, small, colour, format_args!("{said}"));
         }),
         None => line(
             canvas,
             under,
-            13.0 * u,
+            small,
             color::QUIET,
             format_args!("{}", quiet(muted)),
         ),
     }
-    y = under;
     if person.key_id.is_none() {
         // Without a key, the mute can only follow the name.
         line(
             canvas,
-            y + 18.0 * u,
-            13.0 * u,
+            under + QUIET_ROW * u,
+            small,
             color::QUIET,
             format_args!("By name, colours aside: anyone wearing it"),
         );
     }
+    // Safety code and Report share the last row, each the whole of it when alone.
+    let (safety_width, report_x) = if person.safety && person.report {
+        (half, x + inner - half)
+    } else {
+        (inner, x)
+    };
+    let safety_button = Rect::new(x, below, safety_width, BUTTON * u);
+    let report_button = Rect::new(report_x, below, safety_width, BUTTON * u);
+    if person.report {
+        card_button(
+            canvas,
+            report_button,
+            u,
+            tokens.report,
+            "Report",
+            color::EMBER,
+        );
+    }
+    if person.safety {
+        card_button(
+            canvas,
+            safety_button,
+            u,
+            tokens.safety,
+            "Safety code",
+            crate::chat::encrypted_pink(1.0),
+        );
+    }
     canvas.hit_region(tokens.card, card);
+    if let Some(token) = tokens.whisper {
+        canvas.hit_region(token, whisper_button);
+    }
     canvas.hit_region(tokens.mute, button);
+    if let Some(row) = person.map_block {
+        canvas.hit_region(tokens.map_block, map_button);
+        if row.staff.is_some() {
+            canvas.hit_region(tokens.staff_block, staff_button);
+        }
+    }
+    if person.trade {
+        canvas.hit_region(tokens.trade, right);
+    }
     if ban_key.is_some() {
         canvas.hit_region(tokens.ban, ban_button);
     }
+    if person.safety {
+        canvas.hit_region(tokens.safety, safety_button);
+    }
+    if person.report {
+        canvas.hit_region(tokens.report, report_button);
+    }
     card
+}
+
+/// The key Ban 24 h is offered on, when it is ([`crate::chat_ban::offered`]).
+fn ban_offered(person: &Person) -> Option<&str> {
+    person.key_id.as_deref().filter(|key| {
+        crate::chat_ban::offered(Some(key), person.verified, person.staff, person.trust)
+    })
 }
 
 /// One of the card's buttons, outlined in `edge`, its fill lit under the pointer.
@@ -409,23 +592,19 @@ fn card_button(
     let lit = canvas.token_hovered(token);
     let _ = canvas.draw_list_mut().push(DrawCommand::RoundedRect {
         rect: button,
-        radius: 8.0 * u,
-        color: if lit {
-            color::alpha(edge, 0.3)
-        } else {
-            color::alpha(edge, 0.14)
-        },
+        radius: 6.0 * u,
+        color: color::alpha(edge, if lit { 0.28 } else { 0.1 }),
     });
     let _ = canvas.draw_list_mut().push(DrawCommand::Border {
         rect: button,
-        radius: 8.0 * u,
-        width: 1.5 * u,
-        color: edge,
+        radius: 6.0 * u,
+        width: 1.0 * u,
+        color: color::alpha(edge, if lit { 1.0 } else { 0.7 }),
     });
     canvas.text_fmt_aligned(
         format_args!("{label}"),
-        Rect::new(button.x, button.y + 9.0 * u, button.width, 22.0 * u),
-        17.0 * u,
+        Rect::new(button.x, button.y + 6.5 * u, button.width, 17.0 * u),
+        13.5 * u,
         if lit { color::GOLD_BRIGHT } else { color::TEXT },
         FontWeight::Semibold,
         0.0,
@@ -453,7 +632,96 @@ mod tests {
         card: 7,
         mute: 8,
         ban: 9,
+        safety: 10,
+        report: 11,
+        whisper: None,
+        trade: 12,
+        map_block: 13,
+        staff_block: 14,
     };
+
+    #[test]
+    fn a_player_taking_encrypted_whispers_offers_the_safety_code() {
+        let (canvas, _, texts, _) = drawn(&sol(), false);
+        assert!(!texts.contains(&"Safety code".to_owned()), "{texts:?}");
+        assert_eq!(canvas.rect_for(TOKENS.safety), None);
+        let encrypted = Person {
+            safety: true,
+            ..sol()
+        };
+        let (canvas, rect, texts, _) = drawn(&encrypted, false);
+        assert!(texts.contains(&"Safety code".to_owned()), "{texts:?}");
+        let button = canvas.rect_for(TOKENS.safety).expect("the button");
+        let block = canvas.rect_for(TOKENS.mute).expect("Block");
+        assert!(button.y > block.bottom(), "under the other buttons");
+        assert!(button.bottom() <= rect.bottom(), "inside the card");
+    }
+
+    #[test]
+    fn a_whisper_that_came_can_be_reported_beside_the_safety_code() {
+        let report = Person {
+            report: true,
+            ..sol()
+        };
+        let (canvas, rect, texts, _) = drawn(&report, false);
+        assert!(texts.contains(&"Report".to_owned()), "{texts:?}");
+        let alone = canvas.rect_for(TOKENS.report).expect("Report");
+        assert!(alone.bottom() <= rect.bottom(), "inside the card");
+        let both = Person {
+            safety: true,
+            ..report
+        };
+        let (canvas, rect, _, _) = drawn(&both, false);
+        let safety = canvas.rect_for(TOKENS.safety).expect("Safety code");
+        let report = canvas.rect_for(TOKENS.report).expect("Report");
+        assert_eq!(safety.y, report.y, "one row");
+        assert!(safety.right() < report.x, "side by side");
+        assert!(report.width < alone.width && report.bottom() <= rect.bottom());
+    }
+
+    #[test]
+    fn a_player_who_can_trade_is_offered_trade_beside_block() {
+        let (canvas, ..) = drawn(&sol(), false);
+        assert_eq!(canvas.rect_for(TOKENS.trade), None);
+        for safety in [false, true] {
+            let trader = Person {
+                trade: true,
+                safety,
+                ..sol()
+            };
+            let (canvas, rect, texts, _) = drawn(&trader, false);
+            assert!(texts.contains(&"Trade".to_owned()), "{texts:?}");
+            let trade = canvas.rect_for(TOKENS.trade).expect("Trade");
+            let block = canvas.rect_for(TOKENS.mute).expect("Block");
+            // Beside Block, as wide, the gap between them centred in the card.
+            assert_eq!(
+                (trade.y, trade.width, trade.height),
+                (block.y, block.width, block.height)
+            );
+            let gap = trade.x - block.right();
+            assert!(gap > 0.0 && (block.x - rect.x - (rect.right() - trade.right())).abs() < 0.5);
+            assert!(trade.bottom() <= rect.bottom());
+            if let Some(code) = canvas.rect_for(TOKENS.safety) {
+                assert!(code.y >= trade.bottom() && code.bottom() <= rect.bottom());
+            }
+        }
+    }
+
+    #[test]
+    fn the_status_line_names_staff_and_the_creator() {
+        let staff = Person {
+            staff: true,
+            ..sol()
+        };
+        assert_eq!(staff.status(), "SJK player, SJK staff");
+        let creator = Person {
+            staff: true,
+            creator: true,
+            ..sol()
+        };
+        assert_eq!(creator.status(), "SJK player, SJK creator");
+        assert_eq!(sol().status(), "SJK player");
+    }
 
     fn sol() -> Person {
         Person {
@@ -462,13 +730,57 @@ mod tests {
             hub_name: None,
             verified: true,
             staff: false,
+            creator: false,
             trust: None,
             emoji: String::new(),
             medals: crate::medals::Medals::default(),
             place: Place::SlotByName(5),
             avatar: Some(String::new()),
             note: None,
+            safety: false,
+            report: false,
+            trade: false,
+            map_block: None,
         }
+    }
+
+    #[test]
+    fn a_player_on_the_server_can_be_blocked_for_the_map_and_by_staff_for_all() {
+        let (canvas, _, texts, _) = drawn(&sol(), false);
+        assert!(
+            canvas.rect_for(TOKENS.map_block).is_none(),
+            "not on the server"
+        );
+        assert!(!texts.iter().any(|text| text.contains("this map")));
+        let player = Person {
+            map_block: Some(MapBlockRow::default()),
+            ..sol()
+        };
+        let (canvas, rect, texts, _) = drawn(&player, false);
+        let map = canvas
+            .rect_for(TOKENS.map_block)
+            .expect("Block for this map");
+        assert!(texts.iter().any(|text| text == "Block for this map"));
+        assert!(canvas.rect_for(TOKENS.staff_block).is_none(), "staff only");
+        assert!(map.right() <= rect.right());
+        let staff = Person {
+            map_block: Some(MapBlockRow {
+                own: true,
+                staff: Some(false),
+            }),
+            ..sol()
+        };
+        let (canvas, rect, texts, _) = drawn(&staff, false);
+        for wanted in ["Unblock map", "Block for all"] {
+            assert!(texts.iter().any(|text| text == wanted), "{wanted}");
+        }
+        let (map, all) = (
+            canvas.rect_for(TOKENS.map_block).unwrap(),
+            canvas.rect_for(TOKENS.staff_block).unwrap(),
+        );
+        assert!(map.right() <= all.x && all.right() <= rect.right() && map.y == all.y);
+        let block = canvas.rect_for(TOKENS.mute).expect("Block");
+        assert!(map.bottom() <= block.y, "above Block");
     }
 
     /// The card drawn at (100, 100) on a 1080p canvas: its texts and whether it has
@@ -508,14 +820,14 @@ mod tests {
         assert!(texts.contains(&"^2Sol".to_owned()), "{texts:?}");
         assert!(texts.contains(&"SJK player".to_owned()), "{texts:?}");
         assert!(
-            texts.contains(&"Key 0123456789abcdef".to_owned()),
-            "{texts:?}"
+            !texts.iter().any(|text| text.contains("0123456789abcdef")),
+            "key ids never show: {texts:?}"
         );
         assert!(
-            texts.contains(&"On this server, slot 5, matched by name".to_owned()),
+            texts.contains(&"On this server, slot 5 (by name)".to_owned()),
             "{texts:?}"
         );
-        assert!(texts.contains(&"Mute".to_owned()), "{texts:?}");
+        assert!(texts.contains(&"Block".to_owned()), "{texts:?}");
         assert_eq!(ticks, 1, "the tick alone says verified");
         assert!(
             !texts.iter().any(|text| text.contains("erified")),
@@ -558,8 +870,11 @@ mod tests {
             texts.contains(&"Seen 3 minutes ago".to_owned()),
             "{texts:?}"
         );
-        assert_eq!(size(&noted, 1.0)[1], size(&plain, 1.0)[1] + 20.0);
-        assert_eq!(rect.height, size(&noted, 1.0)[1]);
+        assert_eq!(
+            size(&noted, false, 1.0)[1],
+            size(&plain, false, 1.0)[1] + LINE
+        );
+        assert_eq!(rect.height, size(&noted, false, 1.0)[1]);
         let (_, _, texts, _) = drawn(&plain, false);
         assert!(!texts.iter().any(|text| text.starts_with("Seen")));
     }
@@ -572,7 +887,7 @@ mod tests {
             ..Person::default()
         };
         let (_, _, texts, ticks) = drawn(&stranger, true);
-        assert!(texts.contains(&"Unmute".to_owned()), "{texts:?}");
+        assert!(texts.contains(&"Unblock".to_owned()), "{texts:?}");
         assert!(texts.contains(&"F".to_owned()), "their initial: {texts:?}");
         assert!(
             texts.contains(&"Not known to the SJK hub".to_owned()),
@@ -633,7 +948,7 @@ mod tests {
     #[test]
     fn the_card_goes_beside_the_name_and_stays_on_screen() {
         let viewport = [1920.0, 1080.0];
-        let size = size(&sol(), 1.0);
+        let size = size(&sol(), false, 1.0);
         let left_name = Rect::new(100.0, 500.0, 80.0, 20.0);
         assert_eq!(beside(left_name, size, viewport, 10.0), [190.0, 500.0]);
         // At the right edge it goes to the name's left.

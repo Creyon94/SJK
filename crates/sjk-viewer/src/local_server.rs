@@ -13,7 +13,7 @@ use std::fs::{File, OpenOptions};
 use std::io::{BufRead, BufReader, Write};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr, UdpSocket};
 use std::path::{Path, PathBuf};
-use std::process::{Child, ChildStdin, Command, Stdio};
+use std::process::{Child, ChildStdin, Stdio};
 use std::sync::mpsc::{self, Receiver, Sender, TryRecvError};
 use std::time::{Duration, Instant};
 
@@ -162,7 +162,7 @@ pub(crate) fn find_server_binary(
     }
     let file = |name: &str| format!("{name}{}", std::env::consts::EXE_SUFFIX);
     let mut candidates = Vec::with_capacity(4);
-    if let Some(directory) = client.parent() {
+    if let Some(directory) = crate::platform::install_folder(client) {
         let stem = client
             .file_stem()
             .and_then(|stem| stem.to_str())
@@ -278,7 +278,7 @@ impl LocalServer {
             .write(true)
             .truncate(true)
             .open(log_path)?;
-        let mut child = Command::new(program)
+        let mut child = crate::platform::hidden_command(program)
             .args(arguments)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())

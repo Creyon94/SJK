@@ -222,6 +222,8 @@ impl GpuState {
     pub(crate) fn key_catcher_active(&self) -> bool {
         self.game_menu
             || self.text_dialog.is_open()
+            // The SJK team's window, which may show in the middle of play.
+            || self.official.window.is_open()
             || self.chat.is_typing()
             || self
                 .console
@@ -286,6 +288,11 @@ impl GpuState {
         if !self.text_dialog.is_open() && self.profile_hub_pointer(event) {
             return true;
         }
+        // The SJK team's window, over the console too.
+        if self.official.window.is_open() {
+            self.official_pointer(event);
+            return true;
+        }
         if self
             .console
             .as_ref()
@@ -320,9 +327,38 @@ impl GpuState {
             self.reload_card_choice(choice);
             return true;
         }
+        if self.small_card_notice.is_open() {
+            let choice = self.small_card_notice.handle_pointer(event);
+            self.small_card_notice_choice(choice);
+            return true;
+        }
         if self.emote_help.card.is_open() {
             let choice = self.emote_help.card.handle_pointer(event);
             self.emote_help_choice(choice);
+            return true;
+        }
+        if self.emote_picker.card.is_open() {
+            let choice = self.emote_picker.card.handle_pointer(event);
+            self.emote_picker_choice(choice);
+            return true;
+        }
+        if self.e2e_whispers.card.is_open() {
+            let choice = self.e2e_whispers.card.handle_pointer(event);
+            self.e2e_whisper_card_choice(choice);
+            return true;
+        }
+        if self.mod_notice.card.is_open() {
+            let choice = self.mod_notice.card.handle_pointer(event);
+            self.mod_notice_choice(choice);
+            return true;
+        }
+        if self.trades.window.is_open() {
+            let choice = self.trades.window.handle_pointer(event);
+            self.trade_window_choice(choice);
+            return true;
+        }
+        // The trade toast, over the game menu or the chat, when the pointer is free.
+        if self.trade_toast_pointer(event) {
             return true;
         }
         if self.fps_card.is_open() {
@@ -340,6 +376,10 @@ impl GpuState {
             self.whats_new_card_choice(choice);
             return true;
         }
+        // The update card, over the menus: a click on it installs the update.
+        if self.update_card_pointer(event) {
+            return true;
+        }
         if self
             .client_menu
             .as_ref()
@@ -354,8 +394,10 @@ impl GpuState {
         }
         if self.game_menu {
             // The SJK UI has no Report a bug button: it is on its SJK page.
-            if self.game_menu_page != GameMenuPage::Shot
-                && !self.in_game_menu.is_sjk()
+            if !matches!(
+                self.game_menu_page,
+                GameMenuPage::Shot | GameMenuPage::MapEdit
+            ) && !self.in_game_menu.is_sjk()
                 && self.text_dialog.launcher_pointer(event)
             {
                 self.open_bug_report();
@@ -365,6 +407,10 @@ impl GpuState {
                 self.shot_pointer(event);
                 return true;
             }
+            if self.game_menu_page == GameMenuPage::MapEdit {
+                self.map_edit_pointer(event);
+                return true;
+            }
             if let Some((kind, row)) = self.in_game_menu.pointer(event) {
                 // The SJK UI's profile card opens the Profile screen on its Profile tab.
                 if row == usize::from(crate::ingame_menu::sjk_view::CARD_TOKEN)
@@ -372,6 +418,15 @@ impl GpuState {
                 {
                     if kind == UiEventKind::Activate {
                         self.open_profile_hub_from_game(Some(crate::profile_hub::Tab::Profile));
+                    }
+                    return true;
+                }
+                // Trade on the Players page's player card.
+                if row == usize::from(crate::ingame_menu::sjk_view::TRADE_TOKEN)
+                    && self.in_game_menu.is_sjk()
+                {
+                    if kind == UiEventKind::Activate {
+                        self.trade_with_menu_player();
                     }
                     return true;
                 }

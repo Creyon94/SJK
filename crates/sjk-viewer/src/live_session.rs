@@ -6,13 +6,19 @@ use std::time::{Duration, Instant};
 #[path = "emplaced_view.rs"]
 mod emplaced_view;
 
-/// Consume queued snapshots in order, stopping on timeout/failure or after eight.
-pub(crate) fn drain_snapshots(mut receive_and_present: impl FnMut() -> bool) {
-    for _ in 0..8 {
+/// Most snapshots one frame reads; the rest wait for the next frames.
+pub(crate) const SNAPSHOTS_PER_FRAME: usize = 8;
+
+/// Consume queued snapshots in order, stopping on timeout/failure or after
+/// [`SNAPSHOTS_PER_FRAME`]. True when it stopped before that (the queue ran dry
+/// or a snapshot ended the loop), false when packets may still be waiting.
+pub(crate) fn drain_snapshots(mut receive_and_present: impl FnMut() -> bool) -> bool {
+    for _ in 0..SNAPSHOTS_PER_FRAME {
         if !receive_and_present() {
-            break;
+            return true;
         }
     }
+    false
 }
 
 impl GpuState {
@@ -42,7 +48,7 @@ impl GpuState {
     ) {
         use crate::frame_pacing::budget::Phase;
         timing.mark(Phase::Snapshot);
-        drain_snapshots(|| {
+        let caught_up = drain_snapshots(|| {
             let Some(session) = &mut self.live_session else {
                 return false;
             };
@@ -66,6 +72,9 @@ impl GpuState {
                 );
             }
             if reactions.reload_world {
+                if let Some(console) = &mut self.console {
+                    console.reset_dialogue();
+                }
                 if let Some(audio) = game_audio.as_mut() {
                     audio.begin_map_change();
                 }
@@ -114,6 +123,16 @@ impl GpuState {
             self.present_live_snapshot(&snapshot, true, game_audio, visual_now);
             true
         });
+        // Stock adjusts the command clock once a frame, on the newest snapshot,
+        // after reading every queued packet (`CL_SetCGameTime`). After a hitch the
+        // queue holds a second of snapshots that this frame's eight do not empty:
+        // their times are as old as the hitch, and adjusting on them put the
+        // commands a second behind the server, read as a huge `cl_timeNudge`
+        // (JoF's Heimdall kicks for it). The clock keeps its delta until the queue
+        // is read ([`sjk_client::ServerClock::adjust`]).
+        if caught_up {
+            self.server_clock.adjust(Instant::now());
+        }
         timing.mark(Phase::Commands);
         self.ghost_frame();
         let talking = self.talk_button();
@@ -128,6 +147,8 @@ impl GpuState {
                 .as_ref()
                 .and_then(crate::console::ViewerConsole::force_repeat_command)
         };
+        self.refresh_force_support();
+        self.apply_anti_emote();
         let Some(session) = &mut self.live_session else {
             return;
         };
@@ -152,6 +173,10 @@ impl GpuState {
                 rejected.as_deref().unwrap_or("none"),
             ));
         }
+        let dialogue_was_active = self
+            .console
+            .as_ref()
+            .is_some_and(|c| c.server_dialogue_active());
         server_commands::consume(
             session,
             &self.localization,
@@ -160,7 +185,19 @@ impl GpuState {
             self.legacy_world_adapter.as_mut(),
             &mut self.clientinfo_watch,
             &mut self.hud.duel_pairs,
+            game_audio.as_mut(),
         );
+
+        let dialogue_active = self
+            .console
+            .as_ref()
+            .is_some_and(|c| c.server_dialogue_active());
+        if dialogue_active && !dialogue_was_active {
+            self.gameplay_input.release_keys();
+            self.pending_generic_command = 0;
+        }
+        let talking = talking || dialogue_active;
+        let force_repeat = if dialogue_active { None } else { force_repeat };
 
         // User commands are made on the gameplay FPS's grid and wait for the next
         // `cl_maxpackets` packet (`command_rate`).
@@ -194,6 +231,7 @@ impl GpuState {
             eprintln!("failed to request intermission scoreboard: {error}");
         }
         let snapshot = session.latest_snapshot();
+        let snapshot_origin = snapshot.player.origin();
         let delta_angles = self
             .gameplay_input
             .view_authority
@@ -212,6 +250,12 @@ impl GpuState {
             .unwrap_or_else(|| snapshot.player.weapon());
         let force_power = snapshot.player.selected_force_power();
         let known = self.gameplay_input.selection.known(&snapshot.player);
+        let own_slot = u8::try_from(snapshot.player.client_num()).ok();
+        let attack_stops_emote = self
+            .console
+            .as_ref()
+            .and_then(|console| console.bool_cvar(crate::emotes::ATTACK_STOP_CVAR))
+            .unwrap_or(crate::emotes::DEFAULT_ATTACK_STOP);
         let flip_kick = self
             .console
             .as_ref()
@@ -238,6 +282,10 @@ impl GpuState {
             self.gameplay_input.apply_flip_kick(&mut command, flip_kick);
             // In the cardboard box the player crouches (`cardboard_box`).
             self.cardboard_box.shape_command(&mut command);
+            // A Hax hack starts and holds on `+use` (`hax`).
+            self.hax.observe_use(&command);
+            // Getting up from a JA+ away emote crouches (`away_emote`).
+            crate::away_emote::shape_command(&mut command);
             command.buttons = sjk_game_jka::pmove_talk::command_buttons(command.buttons, talking);
             // JoF EJK's Force wheel: a selected Stasis, Repulse or Dash takes
             // `+useforce`.
@@ -254,7 +302,17 @@ impl GpuState {
                 .local_prediction
                 .committed_state()
                 .map(crate::ghost_replay::Pose::of);
-            let replay = pose.and_then(|pose| self.ghost.drive(&command, &pose));
+            // The Hax toy steers, or stands still while steering another (`hax`); a
+            // limp player's real body walks to their ragdoll (`ragdoll`).
+            let origin = self
+                .local_prediction
+                .committed_state()
+                .map_or(snapshot_origin, |state| state.origin);
+            let replay = self
+                .hax
+                .drive(&command, delta_angles, (self.camera_pitch, self.camera_yaw))
+                .or_else(|| self.ragdoll.drive(&command, delta_angles, origin))
+                .or_else(|| pose.and_then(|pose| self.ghost.drive(&command, &pose)));
             // Or the mimic copies another player (`mimic`).
             let replay = replay.or_else(|| {
                 let state = self.local_prediction.committed_state()?;
@@ -276,6 +334,16 @@ impl GpuState {
             }
             let sent = self.local_prediction.command_for_server(command);
             session.queue_command(&sent);
+            // With `cg_emoteAttackStop`, an attack or alt attack ends the player's
+            // own emote, here and, as `sjkemote stop` does, for the other SJK
+            // players: the server attacks whatever the emote shows.
+            if let Some(own) = own_slot
+                && crate::emotes::lock()
+                    .active
+                    .end_on_attack(own, sent.buttons, attack_stops_emote)
+            {
+                let _ = crate::player_identity::emote(crate::emotes::STOP.to_owned(), None);
+            }
             self.gameplay_input.finish_command();
             if !intermission
                 && let Some(position) = self.local_prediction.apply_command(
@@ -295,6 +363,7 @@ impl GpuState {
         }
         self.gameplay_input.set_command_age(0);
         self.send_due_packet(now);
+        self.sync_cursor_policy();
     }
 
     /// Send the queued user commands once `cl_maxpackets` allows a packet.

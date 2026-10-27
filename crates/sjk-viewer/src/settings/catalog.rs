@@ -41,6 +41,9 @@ pub(super) enum ValueKind {
         step: f64,
     },
     Choice(&'static [&'static str]),
+    /// A [`ValueKind::Choice`] whose choices are known only while the game runs (the
+    /// installed emotes); [`Setting::kind`] hands it on as one.
+    Live(fn() -> &'static [&'static str]),
     Text,
     /// `r_resolution`: steps within the aspect group, Enter opens the list.
     Resolution,
@@ -63,6 +66,9 @@ pub(super) enum ValueKind {
     ImportPage,
     /// Open the installed PK3 pack browser.
     AssetBrowser,
+    /// A chat kind's preview (not a cvar; its name is the console command that plays
+    /// the same, `chat_sounds.rs`): Enter or a click plays the kind's chosen sound.
+    SoundPreview,
     /// Open the JoF content card (`jof.downloads`, `crate::jof_content`).
     #[cfg_attr(not(feature = "mod-jof"), allow(dead_code))]
     JofContent,
@@ -92,6 +98,16 @@ pub(super) struct Setting {
     pub(super) label: &'static str,
     pub(super) cvar: &'static str,
     pub(super) kind: ValueKind,
+}
+
+impl Setting {
+    /// How the row edits its value: a [`ValueKind::Live`] row as the choice it is now.
+    pub(super) fn kind(&self) -> ValueKind {
+        match self.kind {
+            ValueKind::Live(choices) => ValueKind::Choice(choices()),
+            kind => kind,
+        }
+    }
 }
 
 pub(crate) const RESOLUTIONS: &[&str] = &[
@@ -130,6 +146,17 @@ pub(super) const VIDEO: &[Setting] = &[
             min: -1,
             max: 2000,
             step: 25,
+        },
+    },
+    Setting {
+        label: "Menu FPS cap (0 = game)",
+        cvar: crate::runtime_settings::MENU_CAP_CVAR,
+        // A cap to lower the menus' rate: past 300 it would rarely lower anything, and the
+        // usual 30 to 144 keep room on the slider.
+        kind: ValueKind::Integer {
+            min: 0,
+            max: 300,
+            step: 10,
         },
     },
     GAMEPLAY_FPS_ROW,
@@ -192,8 +219,42 @@ pub(super) const AUDIO: &[Setting] = &[
         },
     },
     Setting {
+        label: "Voice volume",
+        cvar: crate::audio::VOICE_VOLUME_CVAR,
+        kind: ValueKind::Float {
+            min: 0.0,
+            max: 1.0,
+            step: 0.05,
+        },
+    },
+    Setting {
+        label: "Map music sync",
+        cvar: crate::audio::music::CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Doppler",
         cvar: "s_doppler",
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Blade skin sounds",
+        cvar: crate::audio::SKIN_SOUNDS_CVAR,
+        kind: ValueKind::Choice(&["0", "1", "2"]),
+    },
+    Setting {
+        label: "Jetpack ignition sound",
+        cvar: crate::jetpack::ON_SOUND_CVAR,
+        kind: ValueKind::Choice(&["1", "2"]),
+    },
+    Setting {
+        label: "Jetpack hover sound",
+        cvar: crate::jetpack::HOVER_SOUND_CVAR,
+        kind: ValueKind::Choice(&["1", "2"]),
+    },
+    Setting {
+        label: "Taunt anti-spam",
+        cvar: "cg_tauntAntiSpam",
         kind: ValueKind::Bool,
     },
     Setting {
@@ -226,13 +287,161 @@ pub(super) const AUDIO: &[Setting] = &[
         cvar: crate::emotes::VOLUME_CVAR,
         kind: ValueKind::Float {
             min: 0.0,
-            max: 3.0,
+            max: crate::emotes::MAX_VOLUME,
             step: 0.1,
         },
     },
     Setting {
+        label: "Attack ends emote",
+        cvar: crate::emotes::ATTACK_STOP_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Typing keeps emote",
+        cvar: crate::emotes::TYPING_KEEP_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Away emote",
+        cvar: crate::away_emote::SJK_CVAR,
+        kind: ValueKind::Live(crate::away_emote::sjk_choices),
+    },
+    Setting {
+        label: "JA+ away emote",
+        cvar: crate::away_emote::JAPLUS_CVAR,
+        kind: ValueKind::Choice(&crate::away_emote::JAPLUS_EMOTES),
+    },
+    Setting {
+        label: "Away when alt-tabbed",
+        cvar: crate::away_emote::ALT_TAB_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Away after (seconds)",
+        cvar: crate::away_emote::IDLE_CVAR,
+        kind: ValueKind::Integer {
+            min: 0,
+            max: 1800,
+            step: 30,
+        },
+    },
+    Setting {
+        label: "Toy volume",
+        cvar: crate::toy_sounds::VOLUME_CVAR,
+        kind: ValueKind::Float {
+            min: 0.0,
+            max: crate::toy_sounds::MAX_VOLUME,
+            step: 0.1,
+        },
+    },
+    Setting {
+        label: "Cardboard box sounds",
+        cvar: crate::toy_sounds::Toy::Box.cvar(),
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Order 66 sounds",
+        cvar: crate::toy_sounds::Toy::Order66.cvar(),
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Hax sounds",
+        cvar: crate::toy_sounds::Toy::Hax.cvar(),
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Ragdoll sounds",
+        cvar: crate::toy_sounds::Toy::Ragdoll.cvar(),
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Drone sounds",
+        cvar: crate::toy_sounds::Toy::Drone.cvar(),
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Boombox music",
+        cvar: crate::toy_sounds::Toy::Boombox.cvar(),
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Monitor sounds",
+        cvar: crate::toy_sounds::Toy::Monitor.cvar(),
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Unlock sound",
         cvar: crate::unlock_toast::SOUND_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Chat sounds",
+        cvar: crate::chat_sounds::MASTER_CVAR,
+        kind: ValueKind::Choice(&["0", "1", "2"]),
+    },
+    Setting {
+        label: "Public chat",
+        cvar: crate::chat_sounds::Kind::Public.switch_cvar(),
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Public chat sound",
+        cvar: crate::chat_sounds::Kind::Public.sound_cvar(),
+        kind: ValueKind::Choice(&crate::chat_sounds::SOUND_IDS),
+    },
+    Setting {
+        label: "Preview public chat",
+        cvar: crate::chat_sounds::Kind::Public.preview_row(),
+        kind: ValueKind::SoundPreview,
+    },
+    Setting {
+        label: "Team chat",
+        cvar: crate::chat_sounds::Kind::Team.switch_cvar(),
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Team chat sound",
+        cvar: crate::chat_sounds::Kind::Team.sound_cvar(),
+        kind: ValueKind::Choice(&crate::chat_sounds::SOUND_IDS),
+    },
+    Setting {
+        label: "Preview team chat",
+        cvar: crate::chat_sounds::Kind::Team.preview_row(),
+        kind: ValueKind::SoundPreview,
+    },
+    Setting {
+        label: "Private messages",
+        cvar: crate::chat_sounds::Kind::Private.switch_cvar(),
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Private message sound",
+        cvar: crate::chat_sounds::Kind::Private.sound_cvar(),
+        kind: ValueKind::Choice(&crate::chat_sounds::SOUND_IDS),
+    },
+    Setting {
+        label: "Preview private message",
+        cvar: crate::chat_sounds::Kind::Private.preview_row(),
+        kind: ValueKind::SoundPreview,
+    },
+    Setting {
+        label: "SJK chat messages",
+        cvar: crate::chat_sounds::Kind::Sjk.switch_cvar(),
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "SJK chat sound",
+        cvar: crate::chat_sounds::Kind::Sjk.sound_cvar(),
+        kind: ValueKind::Choice(&crate::chat_sounds::SOUND_IDS),
+    },
+    Setting {
+        label: "Preview SJK chat",
+        cvar: crate::chat_sounds::Kind::Sjk.preview_row(),
+        kind: ValueKind::SoundPreview,
+    },
+    Setting {
+        label: "Private message flash",
+        cvar: crate::chat_sounds::FLASH_CVAR,
         kind: ValueKind::Bool,
     },
 ];
@@ -257,6 +466,16 @@ pub(super) const HUD_OPTIONS: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Strafe aura",
+        cvar: crate::hud::movement::AURA_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Aura on the ground",
+        cvar: crate::hud::movement::AURA_GROUND_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Scoreboard style",
         cvar: crate::scoreboard::style::CVAR,
         kind: ValueKind::Choice(&crate::scoreboard::style::ScoreboardStyle::NAMES),
@@ -269,6 +488,11 @@ pub(super) const HUD_OPTIONS: &[Setting] = &[
     Setting {
         label: "Scoreboard frame rate",
         cvar: crate::scoreboard::style::FPS_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Away players apart",
+        cvar: crate::scoreboard::AFK_CVAR,
         kind: ValueKind::Bool,
     },
     Setting {
@@ -316,6 +540,11 @@ pub(super) const HUD: &[Setting] = &[
     Setting {
         label: "Weapon bar",
         cvar: "cg_drawWeapon",
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Inventory list",
+        cvar: "cg_drawInventory",
         kind: ValueKind::Bool,
     },
     Setting {
@@ -385,7 +614,7 @@ pub(super) const HUD: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
-        label: "Nameplates",
+        label: "See & share nameplates",
         cvar: "cg_nameplate",
         kind: ValueKind::Bool,
     },
@@ -436,21 +665,6 @@ pub(super) const HUD: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
-        label: "Force bar (estimated)",
-        cvar: "cg_nameplateForce",
-        kind: ValueKind::Bool,
-    },
-    Setting {
-        label: "Share my bars",
-        cvar: "cg_nameplateShare",
-        kind: ValueKind::Bool,
-    },
-    Setting {
-        label: "Bars on everyone",
-        cvar: "cg_nameplateEstimate",
-        kind: ValueKind::Bool,
-    },
-    Setting {
         label: "Weapon icon",
         cvar: "cg_nameplateWeapon",
         kind: ValueKind::Bool,
@@ -458,6 +672,11 @@ pub(super) const HUD: &[Setting] = &[
     Setting {
         label: "My own nameplate",
         cvar: "cg_nameplateSelf",
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Hide duellers",
+        cvar: "cg_nameplateHideDuelers",
         kind: ValueKind::Bool,
     },
     Setting {
@@ -496,6 +715,30 @@ pub(super) const HUD: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Team scores",
+        cvar: "cg_drawTeamScores",
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "SJK team score boxes",
+        cvar: "cg_teamScoresBoxes",
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Team score box size",
+        cvar: "cg_teamScoresScale",
+        kind: ValueKind::Float {
+            min: 0.5,
+            max: 2.0,
+            step: 0.1,
+        },
+    },
+    Setting {
+        label: "Flag status (capture the flag)",
+        cvar: "cg_drawFlagStatus",
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Version and date",
         cvar: crate::version_overlay::CVAR,
         kind: ValueKind::Bool,
@@ -525,6 +768,20 @@ pub(super) const HUD: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Game PM-only chat",
+        cvar: crate::chat::pm_only::CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Chat text size",
+        cvar: "cg_chatBoxFontSize",
+        kind: ValueKind::Float {
+            min: crate::chat::options::CHAT_SIZE.0,
+            max: crate::chat::options::CHAT_SIZE.1,
+            step: 0.05,
+        },
+    },
+    Setting {
         label: "Chat emojis",
         cvar: crate::chat::emoji::CVAR,
         kind: ValueKind::Bool,
@@ -535,12 +792,30 @@ pub(super) const HUD: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Chat line spacing",
+        cvar: crate::chat::options::LINE_SPACING_CVAR,
+        kind: ValueKind::Float {
+            min: crate::chat::options::LINE_SPACING.0,
+            max: crate::chat::options::LINE_SPACING.1,
+            step: 1.0,
+        },
+    },
+    Setting {
         label: "Chat letter spacing",
         cvar: "cg_chatBoxLetterSpacing",
         kind: ValueKind::Float {
             min: -2.0,
             max: 8.0,
             step: 0.5,
+        },
+    },
+    Setting {
+        label: "Chat card size",
+        cvar: crate::chat::options::CARD_SCALE_CVAR,
+        kind: ValueKind::Float {
+            min: crate::chat::options::CARD_SCALE.0 as f64,
+            max: crate::chat::options::CARD_SCALE.1 as f64,
+            step: 0.1,
         },
     },
     Setting {
@@ -626,9 +901,92 @@ pub(super) const GAME: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Respect model metadata",
+        cvar: sjk_client::player_model_eligibility::METADATA_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Player model blacklist",
+        cvar: sjk_client::player_model_eligibility::BLACKLIST_CVAR,
+        kind: ValueKind::Text,
+    },
+    Setting {
         label: "Saber trail",
         cvar: "cg_saberTrail",
         kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Reduce bright flashes",
+        cvar: crate::effect_flash::REDUCE_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Saber clash flare",
+        cvar: crate::saber_clash_flare::CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Clash flare size",
+        cvar: crate::saber_clash_flare::SIZE_CVAR,
+        kind: ValueKind::Float {
+            min: 0.0,
+            max: 2.0,
+            step: 0.1,
+        },
+    },
+    Setting {
+        label: "Team saber colours",
+        cvar: crate::team_sabers::TEAM_COLORS_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "CTF team saber colours",
+        cvar: crate::team_sabers::CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "JA+ black sabers",
+        cvar: crate::saber_rgb::black::CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Blade Lab designs",
+        cvar: crate::blade_lab_designs::CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Hax trap",
+        cvar: crate::hax::TRAP_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Hax trap while away",
+        cvar: crate::hax::AWAY_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Show monitors",
+        cvar: crate::monitor::SHOW_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Boombox range",
+        cvar: crate::boombox::RANGE_CVAR,
+        kind: ValueKind::Integer {
+            min: crate::boombox::MIN_RANGE,
+            max: crate::boombox::MAX_RANGE,
+            step: 32,
+        },
+    },
+    Setting {
+        label: "Normal blades in duels",
+        cvar: crate::duel_blades::CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Stock blades (faster)",
+        cvar: crate::stock_blades::CVAR,
+        kind: ValueKind::Choice(&["0", "1", "2"]),
     },
     Setting {
         label: "Saber rain steam",
@@ -638,6 +996,70 @@ pub(super) const GAME: &[Setting] = &[
     Setting {
         label: "Force Speed trail",
         cvar: "cg_speedTrail",
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Grip victim effects",
+        cvar: crate::actor_world_submission::force_powers::victim::CVAR,
+        kind: ValueKind::Bool,
+    },
+    #[cfg(feature = "mod-jof")]
+    Setting {
+        label: "JoF Destruction support",
+        cvar: sjk_mod_jof::destruction::CVAR,
+        kind: ValueKind::Choice(&["-1", "0", "1"]),
+    },
+    #[cfg(feature = "mod-jof")]
+    Setting {
+        label: "JoF dialogue",
+        cvar: sjk_mod_jof::dialogue::CVAR,
+        kind: ValueKind::Bool,
+    },
+    #[cfg(feature = "mod-jof")]
+    Setting {
+        label: "JoF EJK server opt-in",
+        cvar: sjk_mod_jof::EJK_OPT_IN,
+        kind: ValueKind::Bool,
+    },
+    #[cfg(feature = "mod-jof")]
+    Setting {
+        label: "JoF ability sounds",
+        cvar: sjk_mod_jof::ABILITY_SOUNDS,
+        kind: ValueKind::Bool,
+    },
+    #[cfg(feature = "mod-jof")]
+    Setting {
+        label: "JoF names (Honors, Echoes)",
+        cvar: sjk_mod_jof::HONOR_NAMES,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Flamethrower effects",
+        cvar: crate::actor_world_submission::force_powers::flame::CVAR,
+        kind: ValueKind::Choice(&["-1", "0", "1"]),
+    },
+    Setting {
+        label: "Holstered saber hilts",
+        cvar: crate::holstered_sabers::CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Holster server support",
+        cvar: crate::holstered_sabers::SUPPORT_CVAR,
+        kind: ValueKind::Choice(&["0", "1", "2"]),
+    },
+    Setting {
+        label: "Staff handoff point",
+        cvar: crate::holstered_sabers::SWAP_CVAR,
+        kind: ValueKind::Float {
+            min: 0.0,
+            max: 1.0,
+            step: 0.05,
+        },
+    },
+    Setting {
+        label: "Staff handoff sounds",
+        cvar: "cg_holsteredStaffSound",
         kind: ValueKind::Bool,
     },
     Setting {
@@ -660,13 +1082,58 @@ pub(super) const GAME: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Hide others in duel",
+        cvar: crate::duel_visibility::HIDE_OTHERS_CVAR,
+        kind: ValueKind::Choice(&["0", "1", "2"]),
+    },
+    Setting {
+        label: "Hide corpses in duel",
+        cvar: crate::duel_visibility::CORPSES_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Hide pickups in duel",
+        cvar: crate::duel_visibility::PICKUPS_CVAR,
+        kind: ValueKind::Bool,
+    },
+    #[cfg(feature = "mod-japlus")]
+    Setting {
+        label: "Push away kiss attempts (JA+)",
+        cvar: sjk_mod_japlus::anti_kiss::CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Force Seeing aura",
         cvar: "cg_auraShell",
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Force animation effects",
+        cvar: crate::actor_world_submission::force_powers::policy::ANIMATION_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Empower glow (-1 server)",
+        cvar: crate::actor_world_submission::force_powers::policy::EMPOWER_CVAR,
+        kind: ValueKind::Integer {
+            min: -1,
+            max: crate::actor_world_submission::force_powers::policy::MAX_SCOPE,
+            step: 1,
+        },
+    },
+    Setting {
         label: "Protect+Absorb combo",
         cvar: "cg_spProtAbsColor",
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "SJK map edits",
+        cvar: crate::map_edits::CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Server remaps",
+        cvar: crate::remap_blocked_maps::SERVER_CVAR,
         kind: ValueKind::Bool,
     },
     Setting {
@@ -686,6 +1153,67 @@ pub(super) const GAME: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "First-person weapon FOV",
+        cvar: "cg_fovViewmodel",
+        kind: ValueKind::Float {
+            min: 0.0,
+            max: 120.0,
+            step: 5.0,
+        },
+    },
+    Setting {
+        label: "Camera damping style",
+        cvar: "cg_cameraFPS",
+        // `cg_cameraFPS` is a float so console values such as 60.5 still work;
+        // choices use its canonical text representation.
+        kind: ValueKind::Choice(&["125.0", "30.0", "0.0"]),
+    },
+    Setting {
+        label: "Third-person distance",
+        cvar: "cg_thirdPersonRange",
+        kind: ValueKind::Float {
+            min: 40.0,
+            max: 500.0,
+            step: 5.0,
+        },
+    },
+    Setting {
+        label: "Third-person angle",
+        cvar: "cg_thirdPersonAngle",
+        kind: ValueKind::Float {
+            min: -180.0,
+            max: 180.0,
+            step: 5.0,
+        },
+    },
+    Setting {
+        label: "Third-person pitch",
+        cvar: "cg_thirdPersonPitchOffset",
+        kind: ValueKind::Float {
+            min: -129.0,
+            max: 50.0,
+            step: 1.0,
+        },
+    },
+    Setting {
+        label: "Third-person height",
+        cvar: "cg_thirdPersonVertOffset",
+        kind: ValueKind::Float {
+            min: -58.0,
+            max: 80.0,
+            step: 1.0,
+        },
+    },
+    Setting {
+        label: "Third-person horizontal offset",
+        cvar: "cg_thirdPersonHorzOffset",
+        kind: ValueKind::Float {
+            min: -64.0,
+            max: 64.0,
+            step: 1.0,
+        },
+    },
+    Setting {
         label: "Third-person camera damping",
         cvar: "cg_thirdPersonCameraDamp",
         kind: ValueKind::Float {
@@ -702,6 +1230,16 @@ pub(super) const GAME: &[Setting] = &[
             max: 1.0,
             step: 0.05,
         },
+    },
+    Setting {
+        label: "Lock wall-grab camera",
+        cvar: "cg_wallGrabLock",
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Free look when held",
+        cvar: crate::held_view::LOOK_CVAR,
+        kind: ValueKind::Bool,
     },
     Setting {
         label: "Prediction error smoothing (ms)",
@@ -723,6 +1261,16 @@ pub(super) const GAME: &[Setting] = &[
         kind: ValueKind::Choice(&crate::menu::style::MenuStyle::NAMES),
     },
     Setting {
+        label: "Support SJK",
+        cvar: crate::support_links::CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Menu pictures (saves video memory)",
+        cvar: crate::menu_pictures::CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Quick wheel pages",
         cvar: crate::quick_wheel::pages::FILE,
         kind: ValueKind::WheelPages,
@@ -732,10 +1280,26 @@ pub(super) const GAME: &[Setting] = &[
         cvar: crate::quick_wheel::SOUNDS_CVAR,
         kind: ValueKind::Bool,
     },
+    Setting {
+        label: "Trade window size",
+        cvar: crate::player_trades::SIZE_CVAR,
+        kind: ValueKind::Choice(&["0", "1", "2"]),
+    },
     // The client mods (`docs/mods.md`): on, each loading on its servers only.
     Setting {
         label: "JA+ tools",
         cvar: "mod_japlus",
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "jaPRO tools",
+        cvar: "mod_japro",
+        kind: ValueKind::Bool,
+    },
+    #[cfg(feature = "mod-japro")]
+    Setting {
+        label: "Predict all styles",
+        cvar: sjk_mod_japro::movement_styles::PREDICT_ANYWAY_CVAR,
         kind: ValueKind::Bool,
     },
     Setting {
@@ -768,7 +1332,7 @@ pub(super) const GAME: &[Setting] = &[
     },
     // Experimental features, off by default.
     Setting {
-        label: "Experimental: showcase tools (ghost, mimic)",
+        label: "Showcase tools (SJK staff)",
         cvar: crate::ghost_replay::SHOWCASE_CVAR,
         kind: ValueKind::Bool,
     },
@@ -810,9 +1374,19 @@ pub(super) const NETWORK: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
-        label: "SJK chat sound",
-        cvar: crate::sjk_chat_frame::SOUND_CVAR,
+        label: "SJK chat in game feed",
+        cvar: crate::sjk_chat_frame::FEED_CVAR,
         kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "SJK chat in console",
+        cvar: crate::sjk_chat_frame::CONSOLE_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Holocron notifications",
+        cvar: crate::holocron_popup::NOTIFICATIONS_CVAR,
+        kind: ValueKind::Choice(&["0", "1", "2"]),
     },
     Setting {
         label: "SJK chat GIFs",
@@ -820,9 +1394,29 @@ pub(super) const NETWORK: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Play chat video clips (Windows)",
+        cvar: crate::chat_gifs::VIDEO_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Other clients' icons",
+        cvar: crate::chat::client_icons::CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "GIPHY key",
         cvar: crate::chat_gifs::search::KEY_CVAR,
         kind: ValueKind::Text,
+    },
+    Setting {
+        label: "Encrypted whispers",
+        cvar: crate::e2e_whispers::CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Follow SJK staff blocks",
+        cvar: crate::map_blocks::CVAR,
+        kind: ValueKind::Bool,
     },
     Setting {
         label: "Send crash reports",
@@ -833,6 +1427,11 @@ pub(super) const NETWORK: &[Setting] = &[
         label: "Share settings usage",
         cvar: crate::settings_usage::CVAR,
         kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Discord status",
+        cvar: crate::discord_presence::CVAR,
+        kind: ValueKind::Choice(&["0", "1", "2"]),
     },
     Setting {
         label: "SJK identity key",
@@ -870,7 +1469,7 @@ pub(super) const TEXT: &[Setting] = &[
         cvar: crate::text::style::SCALE_CVAR,
         kind: ValueKind::Float {
             min: 0.8,
-            max: 1.2,
+            max: 1.4,
             step: 0.05,
         },
     },
@@ -895,6 +1494,16 @@ pub(super) const TEXT: &[Setting] = &[
     Setting {
         label: "Console feed (top left)",
         cvar: crate::console::console_options::DRAW_NOTIFY_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Copy console colours",
+        cvar: crate::console::console_options::COPY_COLORS_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Swap Shift console size",
+        cvar: crate::console::console_options::SHIFT_HEIGHT_CVAR,
         kind: ValueKind::Bool,
     },
     Setting {
@@ -982,8 +1591,36 @@ pub(super) const RENDER_IMAGE: &[Setting] = &[
         },
     },
     Setting {
+        label: "Render scale (%) (reload)",
+        cvar: crate::frame_target::scale::CVAR,
+        kind: ValueKind::Integer {
+            min: crate::frame_target::scale::MIN_PERCENT as i64,
+            max: crate::frame_target::scale::NATIVE as i64,
+            step: 5,
+        },
+    },
+    Setting {
+        label: "Texture detail, 0 full (next map)",
+        cvar: crate::world_materials::filtering::mips::PICMIP_CVAR,
+        kind: ValueKind::Integer {
+            min: 0,
+            max: crate::world_materials::filtering::mips::PICMIP_MAX as i64,
+            step: 1,
+        },
+    },
+    Setting {
+        label: "Texture compression (next map)",
+        cvar: crate::world_materials::filtering::mips::compress::CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Soft particles",
         cvar: "r_softParticles",
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Light flares",
+        cvar: "r_flares",
         kind: ValueKind::Bool,
     },
     Setting {

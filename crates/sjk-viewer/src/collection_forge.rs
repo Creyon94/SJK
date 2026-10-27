@@ -1,0 +1,1510 @@
+//! The Collection's Forge tab (`docs/sjk-ui.md`, Collection; `docs/cards.md`, "The
+//! Forge"; Sol's request of 21/10/2026: "a better interface for the shop, for crafting
+//! sabers and for disassembling them", a tab of its own). Everything the holocron economy
+//! trades, in three sections switched by the chips under the headline:
+//!
+//! - **Shop:** the player's four offers of the day as large cards with their live blades,
+//!   price and state, the countdown to midnight in Paris, and the holocrons credits buy.
+//! - **Craft:** every saber shader of the trade the player does not hold, as a grid or a
+//!   list (V, `ui_shaderList` as on Shaders), with the tier chips, an Affordable chip and a
+//!   search; the one chosen big on the right with its blade, its parts, its cost against
+//!   the player's kyber shards, and Craft.
+//! - **Break down:** the player's own copies of shaders of the trade, the duplicates first
+//!   with their count; the one chosen big on the right with what breaking a copy gives, and
+//!   Break down a copy; Break down all duplicates keeps one of each. The last copy breaks
+//!   down too on a hub that says so (`shatter_last`, 21/10/2026: Sol's promise of breaking
+//!   down any saber shader a player owns, never a card's or a medal's), after a stronger
+//!   warning; against an older hub only duplicates are listed.
+//!
+//! Every purchase, craft and break down asks twice, as the shop always did: the first
+//! press arms the button ("Confirm: ..."), a second within five seconds sends it. The
+//! last copy and all duplicates ask with a card over the page instead. The balances stand
+//! at the top right, with how each is earned in their hover cards.
+//!
+//! Keys: Tab and Shift+Tab (or 1, 2, 3) change section; the arrows choose; Enter or Space
+//! presses the chosen thing's button; V switches the grid and the list, `/` (or Ctrl+F)
+//! types in the search, T steps the tier, A shows the affordable only (Craft), D the
+//! duplicates only and B breaks down all duplicates (Break down); Ctrl+Tab changes tab
+//! and Escape leaves, as on every tab.
+
+use super::*;
+use crate::audio::ui_cues::{self, Cue};
+use crate::unlockables::{Rarity, Unlockable};
+use std::time::Duration;
+
+/// The Forge's tokens on the Collection page's canvas, clear of the page's others (to
+/// 8 007) and of the row of tabs (2 000 on).
+pub(super) const SECTION_BASE: u16 = 9_000;
+pub(crate) const SHARDS_TOKEN: u16 = 9_005;
+pub(super) const CREDITS_TOKEN: u16 = 9_006;
+pub(super) const OFFER_BASE: u16 = 9_010;
+pub(super) const OFFER_BUY_BASE: u16 = 9_020;
+pub(super) const HOLOCRON_BASE: u16 = 9_030;
+pub(super) const HOLOCRON_BUY_BASE: u16 = 9_035;
+pub(super) const TIER_BASE: u16 = 9_040;
+pub(super) const ONLY_TOKEN: u16 = 9_046;
+pub(super) const SEARCH_TOKEN: u16 = 9_047;
+pub(super) const LIST_TOKEN: u16 = 9_048;
+pub(super) const GRID_TOKEN: u16 = 9_049;
+pub(super) const ACTION_TOKEN: u16 = 9_050;
+pub(super) const ALL_TOKEN: u16 = 9_051;
+pub(super) const ASK_YES_TOKEN: u16 = 9_052;
+pub(super) const ASK_NO_TOKEN: u16 = 9_053;
+pub(super) const TILE_BASE: u16 = 9_100;
+/// The most things a section lists (every blade skin fits).
+pub(super) const TILES_MAX: usize = 400;
+const _: () = assert!(TILE_BASE as usize + TILES_MAX <= u16::MAX as usize);
+const _: () = assert!(unlockables::ALL.len() <= TILES_MAX);
+
+/// Whether `token` is one of the Forge's.
+pub(super) fn forge_token(token: u16) -> bool {
+    (SECTION_BASE..TILE_BASE + TILES_MAX as u16).contains(&token)
+}
+
+/// How long an armed button waits for its second press.
+pub(super) const CONFIRM: Duration = Duration::from_secs(5);
+/// The grid's columns and the lines it shows; the list's rows shown.
+pub(super) const COLUMNS: usize = 5;
+pub(super) const LINES: usize = 3;
+pub(super) const ROWS: usize = 6;
+
+/// The Forge's sections, in the chips' order.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub(crate) enum Section {
+    /// The day's offers and the holocrons for credits.
+    #[default]
+    Shop,
+    /// Shaders made with kyber shards.
+    Craft,
+    /// Shaders turned into kyber shards.
+    Break,
+}
+
+impl Section {
+    pub(crate) const ALL: [Self; 3] = [Self::Shop, Self::Craft, Self::Break];
+
+    /// The chip's name.
+    pub(crate) const fn label(self) -> &'static str {
+        match self {
+            Self::Shop => "Shop",
+            Self::Craft => "Craft",
+            Self::Break => "Break down",
+        }
+    }
+
+    const fn index(self) -> usize {
+        match self {
+            Self::Shop => 0,
+            Self::Craft => 1,
+            Self::Break => 2,
+        }
+    }
+
+    /// The section after this one (`forward`) or before it, wrapping.
+    pub(crate) fn next(self, forward: bool) -> Self {
+        let count = Self::ALL.len();
+        let index = if forward {
+            (self.index() + 1) % count
+        } else {
+            (self.index() + count - 1) % count
+        };
+        Self::ALL[index]
+    }
+}
+
+/// Why the Forge cannot show what the player holds, or `None` when it can.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub(crate) enum Closed {
+    /// It shows: the hub sent the player's profile and its economy.
+    #[default]
+    Open,
+    /// `cl_identity` is off.
+    IdentityOff,
+    /// No hub is set, or it has not answered yet.
+    Waiting,
+    /// The hub has no economy (a hub before 17/10/2026).
+    NoEconomy,
+}
+
+/// What the Forge knows of the identity and the hub this frame ([`ForgeData::of`]).
+#[derive(Clone, Debug, Default, PartialEq)]
+pub(crate) struct ForgeData {
+    pub(crate) closed: Closed,
+    /// The player's credits and kyber shards, once known.
+    pub(crate) credits: Option<u64>,
+    pub(crate) shards: Option<u64>,
+    /// Whether the hub lets the player trade now (`economy::may_act`).
+    pub(crate) can_trade: bool,
+    /// Why not, in a line, while the hub said so (opening for staff, an old build).
+    pub(crate) why_not: Option<String>,
+    /// The hub's trade abilities: the last copy breaks down, every duplicate at once.
+    pub(crate) last: bool,
+    pub(crate) all: bool,
+    /// The shop's day as the hub last answered it, once asked.
+    pub(crate) shop: Option<sjk_identity::ShopState>,
+    /// What became of the last trade.
+    pub(crate) trade: Option<sjk_identity::TradeOutcome>,
+}
+
+impl ForgeData {
+    /// From `cl_identity` (`enabled`) and the identity service's snapshot.
+    pub(crate) fn of(enabled: bool, snapshot: &sjk_identity::Snapshot) -> Self {
+        if !enabled {
+            return Self {
+                closed: Closed::IdentityOff,
+                ..Self::default()
+            };
+        }
+        let Some(me) = snapshot.me.as_ref() else {
+            return Self {
+                closed: Closed::Waiting,
+                ..Self::default()
+            };
+        };
+        let progress = snapshot.holocrons.as_ref();
+        let economy = snapshot.economy.as_ref();
+        let closed = match (progress, economy) {
+            (None, _) => Closed::Waiting,
+            (Some(_), None) => Closed::NoEconomy,
+            (Some(_), Some(_)) => Closed::Open,
+        };
+        let can_trade = crate::economy::may_act(snapshot);
+        let why_not = if can_trade || closed != Closed::Open {
+            None
+        } else if let Some(min) = crate::economy::update_to(snapshot) {
+            Some(format!(
+                "Update SJK to trade: the Forge needs SJK {min} or newer."
+            ))
+        } else {
+            Some(crate::terms::say("The Forge opens with holocrons: soon.").into_owned())
+        };
+        Self {
+            closed,
+            credits: Some(me.credits),
+            shards: Some(me.shards),
+            can_trade,
+            why_not,
+            last: economy.is_some_and(|tables| tables.can("shatter_last")),
+            all: economy.is_some_and(|tables| tables.can("shatter_duplicates")),
+            shop: snapshot.shop.clone(),
+            trade: snapshot.trade.clone(),
+        }
+    }
+
+    /// The live identity's: `enabled` is `cl_identity`.
+    pub(crate) fn read(enabled: bool) -> Self {
+        crate::player_identity::with_snapshot(|snapshot| Self::of(enabled, snapshot)).unwrap_or(
+            Self {
+                closed: Closed::IdentityOff,
+                ..Self::default()
+            },
+        )
+    }
+}
+
+/// What a section's list shows: a tier, a section's own chip (Affordable on Craft,
+/// Duplicates on Break down) and the words searched.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub(super) struct ForgeFilter {
+    pub(super) shaders: ShaderFilter,
+    pub(super) only: bool,
+}
+
+/// A shader the Craft section lists: not held, of the trade.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) struct Craftable {
+    pub(super) skin: &'static Unlockable,
+    /// What crafting it costs, lowered by a copy of its blade card the player holds.
+    pub(super) cost: u64,
+    /// That copy's finish and how much it took off, in per cent (`None`: the full cost).
+    pub(super) off: Option<(&'static crate::cards::Finish, u64)>,
+}
+
+/// A shader the Break down section lists: the player's own copies of one of the trade.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) struct Owned {
+    pub(super) skin: &'static Unlockable,
+    /// Copies held by grant, drops, crafts and purchases (a medal's or a card's is not).
+    pub(super) count: u32,
+    /// The kyber shards breaking one copy down gives.
+    pub(super) gives: u64,
+}
+
+impl Owned {
+    /// Whether it is the player's only copy.
+    pub(super) fn last(self) -> bool {
+        self.count <= 1
+    }
+}
+
+/// Every shader the Craft section may list for `holdings`, before the filter: of the trade
+/// and not held at all (a card's or a medal's copy counts as held), the commonest tier
+/// first, so what the player's shards reach comes first (costs rise with the tier). A
+/// copy among `cards` (the player's) of a shader's blade card crafts it for less
+/// ([`crate::economy::craft_price`], 21/10/2026).
+pub(super) fn craftable(
+    holdings: &Holdings<'_>,
+    cards: &[sjk_identity::CardStack],
+) -> Vec<Craftable> {
+    let blade_cards = if cards.is_empty() {
+        Vec::new()
+    } else {
+        crate::economy::blade_cards(cards, &crate::cards::faces::current())
+    };
+    unlockables::blade_skins_by_tier()
+        .iter()
+        .rev()
+        .copied()
+        .filter(|skin| crate::economy::in_trade(skin) && holdings.unlock(skin.id).is_none())
+        .map(|skin| {
+            let card = blade_cards
+                .iter()
+                .find(|(id, _)| *id == skin.id)
+                .map(|(_, finish)| *finish);
+            let (cost, off) = crate::economy::craft_price(skin, card);
+            Craftable { skin, cost, off }
+        })
+        .collect()
+}
+
+impl Panel {
+    /// The player's card copies in `inputs`, while the identity is on (empty before the
+    /// hub sent their profile; a world shot's made-up ones in tests).
+    pub(super) fn held_cards<'s>(
+        &'s self,
+        inputs: &'s Inputs<'_>,
+    ) -> &'s [sjk_identity::CardStack] {
+        #[cfg(test)]
+        if let Some((list, _, _)) = &self.preview_cards {
+            return list;
+        }
+        inputs
+            .snapshot
+            .filter(|_| inputs.enabled)
+            .and_then(|snapshot| snapshot.me.as_ref())
+            .map_or(&[], |me| me.cards.as_slice())
+    }
+}
+
+/// Every shader the Break down section may list for `holdings`, the duplicates first
+/// (each group the rarest first): the player's own copies of shaders of the trade, the
+/// last ones only when the hub breaks them down (`last`).
+pub(super) fn owned(holdings: &Holdings<'_>, last: bool) -> Vec<Owned> {
+    let mut list: Vec<Owned> = unlockables::blade_skins_by_tier()
+        .iter()
+        .copied()
+        .filter(|skin| crate::economy::in_trade(skin))
+        .filter_map(|skin| {
+            let unlock = holdings
+                .unlock(skin.id)
+                .filter(|unlock| unlock.medal.is_none() && unlock.card.is_none())?;
+            (unlock.count > 1 || (last && unlock.count == 1)).then(|| Owned {
+                skin,
+                count: unlock.count,
+                gives: crate::economy::shatter_yield(skin.tier),
+            })
+        })
+        .collect();
+    list.sort_by_key(|owned| owned.last());
+    list
+}
+
+/// The duplicates `list` holds: how many copies would go (one of each kept), of how many
+/// shaders, for how many kyber shards.
+pub(super) fn duplicates(list: &[Owned]) -> (u32, usize, u64) {
+    list.iter().filter(|owned| owned.count > 1).fold(
+        (0, 0, 0),
+        |(copies, shaders, shards), owned| {
+            let spare = owned.count - 1;
+            (
+                copies + spare,
+                shaders + 1,
+                shards + u64::from(spare) * owned.gives,
+            )
+        },
+    )
+}
+
+/// What a button pressed once waits to send.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum Press {
+    /// Offer `n` of the day.
+    Offer(usize),
+    /// Holocron `n` of [`crate::economy::holocrons_for_sale`].
+    Holocron(usize),
+    /// Craft this shader.
+    Craft(&'static str),
+    /// Break a copy of this shader down.
+    Break(&'static str),
+}
+
+/// The card over the page that asks before a trade that cannot be pressed twice.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum Ask {
+    /// Break down the player's only copy of this shader; `yes` has the focus.
+    Last {
+        skin: &'static Unlockable,
+        yes: bool,
+    },
+    /// Break down every duplicate; `yes` has the focus.
+    All { yes: bool },
+}
+
+impl Ask {
+    fn yes(self) -> bool {
+        match self {
+            Self::Last { yes, .. } | Self::All { yes } => yes,
+        }
+    }
+
+    fn with_focus(self, yes: bool) -> Self {
+        match self {
+            Self::Last { skin, .. } => Self::Last { skin, yes },
+            Self::All { .. } => Self::All { yes },
+        }
+    }
+}
+
+/// What can an offer's button do for the player now.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum Can {
+    /// Buy it (it asks to confirm first).
+    Buy,
+    /// Bought today already.
+    Bought,
+    /// Held already: the hub sells no duplicate.
+    Owned,
+    /// Less than its price.
+    Short(u64),
+}
+
+/// What `offer` allows a player holding `purse` of the shop's currency.
+pub(super) fn can(offer: &sjk_identity::Offer, purse: u64) -> Can {
+    if offer.bought {
+        Can::Bought
+    } else if offer.owned {
+        Can::Owned
+    } else if purse < offer.price {
+        Can::Short(offer.price - purse)
+    } else {
+        Can::Buy
+    }
+}
+
+/// The shader tiers by the hub's ids, Common to Mythical.
+const TIER_IDS: [(&str, Rarity); 5] = [
+    ("common", Rarity::Common),
+    ("uncommon", Rarity::Uncommon),
+    ("rare", Rarity::Rare),
+    ("legendary", Rarity::Legendary),
+    ("mythical", Rarity::Mythical),
+];
+
+/// The tier of an offer: the catalogue's for a shader this client knows, else the hub's
+/// word, else Common.
+pub(super) fn tier_of(offer: &sjk_identity::Offer) -> Rarity {
+    unlockables::find(&offer.id).map_or_else(
+        || {
+            TIER_IDS
+                .iter()
+                .find(|(id, _)| *id == offer.tier)
+                .map_or(Rarity::Common, |(_, tier)| *tier)
+        },
+        |skin| skin.tier,
+    )
+}
+
+/// "17/10/2026" from the hub's "2026-10-17"; the hub's words when they are not a date.
+pub(super) fn day_text(day: &str) -> String {
+    let mut parts = day.split('-');
+    match (parts.next(), parts.next(), parts.next(), parts.next()) {
+        (Some(year), Some(month), Some(day), None)
+            if year.len() == 4 && month.len() == 2 && day.len() == 2 =>
+        {
+            format!("{day}/{month}/{year}")
+        }
+        _ => day.to_owned(),
+    }
+}
+
+/// How long until the next offers, as players read it: "5 h 12 min", "12 min", "less
+/// than a minute".
+pub(super) fn countdown_text(seconds: u64) -> String {
+    let minutes = seconds.div_ceil(60);
+    match (minutes / 60, minutes % 60) {
+        (0, 0) | (0, 1) if seconds < 60 => "less than a minute".to_owned(),
+        (0, minutes) => format!("{minutes} min"),
+        (hours, 0) => format!("{hours} h"),
+        (hours, minutes) => format!("{hours} h {minutes} min"),
+    }
+}
+
+/// `amount` of the shop's currency in words: "75 kyber shards", "250 credits".
+pub(super) fn priced(amount: u64) -> String {
+    if crate::economy::shop_in_shards() {
+        format!("{} kyber shards", crate::economy::shards_text(amount))
+    } else {
+        format!("{} credits", crate::cards::credits_text(amount))
+    }
+}
+
+/// The holocron tier called `id` (this client's list), if it knows it.
+pub(super) fn holocron_tier(id: &str) -> Option<&'static crate::holocrons::Tier> {
+    crate::holocrons::TIERS.iter().find(|tier| tier.id == id)
+}
+
+/// The Forge's state on the Collection page.
+#[derive(Debug, Default)]
+pub(super) struct Forge {
+    pub(super) section: Section,
+    pub(super) data: ForgeData,
+    /// The shop's choice: an offer, then the holocrons for credits.
+    pub(super) shop_selected: usize,
+    /// The thing chosen on Craft and on Break down (in the list the filter shows), and the
+    /// first line (grid) or row (list) each shows.
+    pub(super) craft: usize,
+    pub(super) craft_first: usize,
+    pub(super) breaks: usize,
+    pub(super) break_first: usize,
+    /// What the last frame listed, for keys and clicks.
+    pub(super) craft_list: Vec<Craftable>,
+    pub(super) break_list: Vec<Owned>,
+    /// Every duplicate the player holds, past the filter: copies, shaders, shards.
+    pub(super) spare: (u32, usize, u64),
+    pub(super) craft_filter: ForgeFilter,
+    pub(super) break_filter: ForgeFilter,
+    /// The search field of the section on show takes the typing.
+    pub(super) search_focus: bool,
+    /// A button pressed once, waiting for its second press, and since when.
+    pub(super) armed: Option<(Press, Instant)>,
+    /// The last trade sent from the Forge: the outcome's serial before it, and what.
+    pub(super) sent: Option<(u64, Press)>,
+    /// All duplicates sent (their outcome has no shader).
+    pub(super) sent_all: Option<u64>,
+    /// The card asking before the last copy or all duplicates.
+    pub(super) ask: Option<Ask>,
+    /// The shop was asked for since the Shop section showed, and the day read again.
+    pub(super) shop_asked: bool,
+    pub(super) shop_reread: Option<u64>,
+    /// A last copy just broken down, for the console to take off the saber if worn.
+    pub(super) unequip: Option<&'static str>,
+    /// A shader to choose once the section lists it (the Shaders tab's pointers).
+    pub(super) want: Option<String>,
+    /// The outcome serial a last copy's answer was looked for at.
+    pub(super) unequip_seen: u64,
+}
+
+impl Forge {
+    /// The filter of the section on show (Shop has none).
+    pub(super) fn filter_mut(&mut self) -> &mut ForgeFilter {
+        match self.section {
+            Section::Break => &mut self.break_filter,
+            _ => &mut self.craft_filter,
+        }
+    }
+
+    pub(super) fn filter(&self) -> &ForgeFilter {
+        match self.section {
+            Section::Break => &self.break_filter,
+            _ => &self.craft_filter,
+        }
+    }
+
+    /// How many things the section on show lists.
+    pub(super) fn listed(&self) -> usize {
+        match self.section {
+            Section::Shop => self.shop_choices(),
+            Section::Craft => self.craft_list.len(),
+            Section::Break => self.break_list.len(),
+        }
+    }
+
+    /// The chosen thing of the section on show.
+    fn chosen_mut(&mut self) -> &mut usize {
+        match self.section {
+            Section::Shop => &mut self.shop_selected,
+            Section::Craft => &mut self.craft,
+            Section::Break => &mut self.breaks,
+        }
+    }
+
+    /// The day's offers, once read.
+    pub(super) fn offers(&self) -> &[sjk_identity::Offer] {
+        self.data
+            .shop
+            .as_ref()
+            .map_or(&[], |state| state.day.offers.as_slice())
+    }
+
+    /// Whether the shop's day was read.
+    pub(super) fn shop_read(&self) -> bool {
+        self.data
+            .shop
+            .as_ref()
+            .is_some_and(|state| state.message.is_empty())
+    }
+
+    /// How many things the shop offers to choose: the offers, then the holocrons for
+    /// credits once the day is read.
+    pub(super) fn shop_choices(&self) -> usize {
+        let offers = self.offers().len().min(4);
+        if self.shop_read() {
+            offers + crate::economy::holocrons_for_sale().len()
+        } else {
+            offers
+        }
+    }
+
+    /// What the player holds of the shop's currency: kyber shards (credits on hubs before
+    /// 17/10/2026).
+    pub(super) fn purse(&self) -> u64 {
+        if crate::economy::shop_in_shards() {
+            self.data.shards.unwrap_or(0)
+        } else {
+            self.data.credits.unwrap_or(0)
+        }
+    }
+
+    /// Whether a trade sent from the Forge waits for the hub's answer.
+    pub(super) fn waiting(&self) -> bool {
+        let serial = self.data.trade.as_ref().map_or(0, |trade| trade.serial);
+        self.sent.is_some_and(|(asked, _)| asked == serial)
+            || self.sent_all.is_some_and(|asked| asked == serial)
+    }
+
+    /// Whether `press` is armed at `now`.
+    pub(super) fn is_armed(&self, press: Press, now: Instant) -> bool {
+        self.armed.is_some_and(|(armed, at)| {
+            armed == press && now.saturating_duration_since(at) < CONFIRM
+        })
+    }
+
+    /// The hub's answer to the last trade sent from the Forge, once it came: the trade
+    /// and what was asked.
+    pub(super) fn answer(&self) -> Option<(&sjk_identity::TradeOutcome, Option<Press>)> {
+        let outcome = self.data.trade.as_ref()?;
+        if let Some((asked, press)) = self.sent
+            && outcome.serial > asked
+            && outcome.trade != sjk_identity::Trade::ShatterAll
+        {
+            return Some((outcome, Some(press)));
+        }
+        if let Some(asked) = self.sent_all
+            && outcome.serial > asked
+            && outcome.trade == sjk_identity::Trade::ShatterAll
+        {
+            return Some((outcome, None));
+        }
+        None
+    }
+
+    /// The serial of the last outcome, 0 before any.
+    fn serial(&self) -> u64 {
+        self.data.trade.as_ref().map_or(0, |trade| trade.serial)
+    }
+
+    /// Press `press` at `now`: the first press arms it, a second within [`CONFIRM`] sends
+    /// it. Nothing while another trade waits for the hub.
+    pub(super) fn press(&mut self, press: Press, now: Instant) -> PanelAction {
+        if self.waiting() || !self.data.can_trade {
+            return PanelAction::None;
+        }
+        if !self.is_armed(press, now) {
+            self.armed = Some((press, now));
+            ui_cues::post(Cue::Click);
+            return PanelAction::None;
+        }
+        self.armed = None;
+        ui_cues::post(Cue::Click);
+        self.send(press)
+    }
+
+    /// Send `press` to the hub.
+    fn send(&mut self, press: Press) -> PanelAction {
+        self.sent = Some((self.serial(), press));
+        match press {
+            Press::Offer(index) => self.offers().get(index).map_or(PanelAction::None, |offer| {
+                PanelAction::Buy(offer.id.clone())
+            }),
+            Press::Holocron(index) => crate::economy::holocrons_for_sale()
+                .get(index)
+                .map_or(PanelAction::None, |(tier, _)| {
+                    PanelAction::BuyHolocron((*tier).to_owned())
+                }),
+            Press::Craft(id) => PanelAction::Craft(id),
+            Press::Break(id) => PanelAction::Shatter(id),
+        }
+    }
+
+    /// The chosen shop thing's button.
+    fn press_shop(&mut self, index: usize, now: Instant) -> PanelAction {
+        self.shop_selected = index;
+        let offers = self.offers().len().min(4);
+        if index < offers {
+            let Some(offer) = self.offers().get(index) else {
+                return PanelAction::None;
+            };
+            if can(offer, self.purse()) != Can::Buy {
+                return PanelAction::None;
+            }
+            return self.press(Press::Offer(index), now);
+        }
+        let holocron = index - offers;
+        let Some((_, price)) = crate::economy::holocrons_for_sale().get(holocron).copied() else {
+            return PanelAction::None;
+        };
+        if self.data.credits.unwrap_or(0) < price || !self.shop_read() {
+            return PanelAction::None;
+        }
+        self.press(Press::Holocron(holocron), now)
+    }
+
+    /// The chosen Craft shader's Craft.
+    fn press_craft(&mut self, now: Instant) -> PanelAction {
+        let Some(chosen) = self.craft_list.get(self.craft).copied() else {
+            return PanelAction::None;
+        };
+        if self.data.shards.unwrap_or(0) < chosen.cost {
+            return PanelAction::None;
+        }
+        self.press(Press::Craft(chosen.skin.id), now)
+    }
+
+    /// The chosen Break down shader's button: a duplicate asks twice; the last copy asks
+    /// with the card.
+    fn press_break(&mut self, now: Instant) -> PanelAction {
+        let Some(chosen) = self.break_list.get(self.breaks).copied() else {
+            return PanelAction::None;
+        };
+        if chosen.last() {
+            if self.data.last && self.data.can_trade && !self.waiting() {
+                self.armed = None;
+                self.ask = Some(Ask::Last {
+                    skin: chosen.skin,
+                    yes: false,
+                });
+                ui_cues::post(Cue::Click);
+            }
+            return PanelAction::None;
+        }
+        self.press(Press::Break(chosen.skin.id), now)
+    }
+
+    /// Break down all duplicates: asks with the card first.
+    pub(super) fn ask_all(&mut self) -> PanelAction {
+        if self.data.all && self.data.can_trade && !self.waiting() && self.spare.0 > 0 {
+            self.armed = None;
+            self.ask = Some(Ask::All { yes: true });
+            ui_cues::post(Cue::Click);
+        }
+        PanelAction::None
+    }
+
+    /// The card answered: yes sends it.
+    fn answer_ask(&mut self, yes: bool) -> PanelAction {
+        let Some(ask) = self.ask.take() else {
+            return PanelAction::None;
+        };
+        ui_cues::post(if yes { Cue::Click } else { Cue::Back });
+        if !yes || self.waiting() {
+            return PanelAction::None;
+        }
+        match ask {
+            Ask::Last { skin, .. } => {
+                self.sent = Some((self.serial(), Press::Break(skin.id)));
+                PanelAction::ShatterLast(skin.id)
+            }
+            Ask::All { .. } => {
+                self.sent_all = Some(self.serial());
+                PanelAction::ShatterAll
+            }
+        }
+    }
+
+    /// The press of the section's main button (Enter).
+    fn activate(&mut self, now: Instant) -> PanelAction {
+        match self.section {
+            Section::Shop => self.press_shop(self.shop_selected, now),
+            Section::Craft => self.press_craft(now),
+            Section::Break => self.press_break(now),
+        }
+    }
+
+    /// Show `section`: its choice and search kept, the shop read on its first showing.
+    pub(super) fn show(&mut self, section: Section) {
+        if self.section != section {
+            self.leave_search();
+            self.armed = None;
+            ui_cues::post(Cue::Click);
+        }
+        self.section = section;
+        if section != Section::Shop {
+            self.shop_asked = false;
+        }
+    }
+
+    /// Whether the shop should be read now: the Shop section shows and has not asked
+    /// since it showed, or its day has turned (once a day).
+    pub(super) fn shop_due(&mut self, now: Instant) -> bool {
+        if self.section != Section::Shop || !self.data.can_trade {
+            return false;
+        }
+        if !self.shop_asked {
+            self.shop_asked = true;
+            return true;
+        }
+        let Some(state) = &self.data.shop else {
+            return false;
+        };
+        if !state.message.is_empty() || state.seconds_left(now) > 0 {
+            return false;
+        }
+        if self.shop_reread == Some(state.serial) {
+            return false;
+        }
+        self.shop_reread = Some(state.serial);
+        true
+    }
+
+    /// The search field lets go of the typing.
+    pub(super) fn leave_search(&mut self) {
+        if self.search_focus {
+            self.search_focus = false;
+            crate::text_entry::deselect();
+        }
+    }
+
+    /// Put the typing in the section's search field.
+    fn focus_search(&mut self) -> PanelAction {
+        if self.section == Section::Shop {
+            return PanelAction::None;
+        }
+        self.search_focus = true;
+        let query = &self.filter().shaders.query;
+        crate::text_entry::select_all(query);
+        PanelAction::None
+    }
+
+    /// The list changed: back to its top.
+    fn filter_changed(&mut self) -> PanelAction {
+        *self.chosen_mut() = 0;
+        match self.section {
+            Section::Break => self.break_first = 0,
+            _ => self.craft_first = 0,
+        }
+        self.armed = None;
+        PanelAction::None
+    }
+
+    /// Show one tier: the next (the previous with `back`), All after the last.
+    fn cycle_tier(&mut self, back: bool) -> PanelAction {
+        let filter = &mut self.filter_mut().shaders;
+        let at = filter
+            .tier
+            .and_then(|tier| FILTER_TIERS.iter().position(|&t| t == tier))
+            .map_or(0, |index| index + 1);
+        let count = FILTER_TIERS.len() + 1;
+        let next = if back {
+            (at + count - 1) % count
+        } else {
+            (at + 1) % count
+        };
+        filter.tier = next.checked_sub(1).map(|index| FILTER_TIERS[index]);
+        self.filter_changed()
+    }
+
+    /// Show tier chip `index` (0 All).
+    pub(super) fn set_tier(&mut self, index: usize) -> PanelAction {
+        self.filter_mut().shaders.tier = index.checked_sub(1).map(|index| FILTER_TIERS[index]);
+        self.filter_changed()
+    }
+
+    /// The section's own chip: Affordable or Duplicates.
+    fn toggle_only(&mut self) -> PanelAction {
+        let filter = self.filter_mut();
+        filter.only = !filter.only;
+        self.filter_changed()
+    }
+
+    /// Move the choice `by` things in a list of `count`, stopping at the ends.
+    fn step(&mut self, by: isize, count: usize) {
+        if count == 0 {
+            return;
+        }
+        let chosen = self.chosen_mut();
+        let at = (*chosen).min(count - 1) as isize;
+        *chosen = (at + by).clamp(0, count as isize - 1) as usize;
+        self.armed = None;
+    }
+
+    /// An arrow in the section on show; `grid` whether Craft and Break down show the grid.
+    fn arrow(&mut self, key: KeyCode, grid: bool) {
+        let count = self.listed();
+        let line = if grid && self.section != Section::Shop {
+            COLUMNS as isize
+        } else {
+            1
+        };
+        match (self.section, key) {
+            (Section::Shop, KeyCode::ArrowLeft | KeyCode::ArrowUp) => self.step(-1, count),
+            (Section::Shop, _) => self.step(1, count),
+            (_, KeyCode::ArrowLeft) if grid => self.step(-1, count),
+            (_, KeyCode::ArrowRight) if grid => self.step(1, count),
+            (_, KeyCode::ArrowUp) => self.step(-line, count),
+            (_, KeyCode::ArrowDown) => {
+                // A short last line takes Down to its last thing.
+                let at = *self.chosen_mut();
+                let lines = |index: usize| index / line as usize;
+                if count > 0 && lines(at) < lines(count - 1) {
+                    self.step(line, count);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    /// A key while the Forge shows; `grid` whether Craft and Break down show the grid.
+    pub(super) fn key(
+        &mut self,
+        text: Option<&str>,
+        key: KeyCode,
+        shift: bool,
+        control: bool,
+        grid: bool,
+    ) -> PanelAction {
+        let now = Instant::now();
+        if let Some(ask) = self.ask {
+            return match key {
+                KeyCode::Escape => self.answer_ask(false),
+                KeyCode::Enter | KeyCode::NumpadEnter | KeyCode::Space => {
+                    self.answer_ask(ask.yes())
+                }
+                KeyCode::Tab | KeyCode::ArrowLeft | KeyCode::ArrowRight => {
+                    self.ask = Some(ask.with_focus(!ask.yes()));
+                    PanelAction::None
+                }
+                _ => PanelAction::None,
+            };
+        }
+        if self.search_focus {
+            match key {
+                KeyCode::Escape => {
+                    self.leave_search();
+                    if !self.filter().shaders.query.is_empty() {
+                        self.filter_mut().shaders.query.clear();
+                        return self.filter_changed();
+                    }
+                }
+                KeyCode::Enter | KeyCode::NumpadEnter | KeyCode::Tab => self.leave_search(),
+                KeyCode::ArrowUp | KeyCode::ArrowDown => self.arrow(key, grid),
+                _ => {
+                    let query = &mut self.filter_mut().shaders.query;
+                    if crate::text_entry::edit(query, key, text, shift, control, SEARCH_MAX, true) {
+                        return self.filter_changed();
+                    }
+                }
+            }
+            return PanelAction::None;
+        }
+        let listing = self.section != Section::Shop;
+        match key {
+            KeyCode::Escape => PanelAction::Close,
+            KeyCode::Tab => {
+                self.show(self.section.next(!shift));
+                PanelAction::None
+            }
+            KeyCode::Digit1 | KeyCode::Digit2 | KeyCode::Digit3 => {
+                self.show(match key {
+                    KeyCode::Digit1 => Section::Shop,
+                    KeyCode::Digit2 => Section::Craft,
+                    _ => Section::Break,
+                });
+                PanelAction::None
+            }
+            KeyCode::ArrowLeft | KeyCode::ArrowRight | KeyCode::ArrowUp | KeyCode::ArrowDown => {
+                self.arrow(key, grid);
+                PanelAction::None
+            }
+            KeyCode::Home => {
+                *self.chosen_mut() = 0;
+                PanelAction::None
+            }
+            KeyCode::End => {
+                *self.chosen_mut() = self.listed().saturating_sub(1);
+                PanelAction::None
+            }
+            KeyCode::Enter | KeyCode::NumpadEnter | KeyCode::Space => self.activate(now),
+            KeyCode::KeyV if listing => PanelAction::ShaderView(!grid),
+            KeyCode::Slash if listing => self.focus_search(),
+            KeyCode::KeyF if listing && control => self.focus_search(),
+            KeyCode::KeyT if listing => self.cycle_tier(shift),
+            KeyCode::KeyA if self.section == Section::Craft => self.toggle_only(),
+            KeyCode::KeyD if self.section == Section::Break => self.toggle_only(),
+            KeyCode::KeyB if self.section == Section::Break => self.ask_all(),
+            _ => PanelAction::None,
+        }
+    }
+
+    /// A click on (or the pointer resting on) the Forge's `token`; whether it was one of
+    /// the Forge's. `activate` for a click.
+    pub(super) fn token(
+        &mut self,
+        token: u16,
+        activate: bool,
+        now: Instant,
+    ) -> Option<PanelAction> {
+        let within = |base: u16, count: usize| {
+            token
+                .checked_sub(base)
+                .map(usize::from)
+                .filter(|index| *index < count)
+        };
+        if let Some(ask) = self.ask {
+            // Only the card's buttons answer while it asks.
+            return Some(match token {
+                ASK_YES_TOKEN if activate => self.answer_ask(true),
+                ASK_NO_TOKEN if activate => self.answer_ask(false),
+                ASK_YES_TOKEN | ASK_NO_TOKEN => {
+                    self.ask = Some(ask.with_focus(token == ASK_YES_TOKEN));
+                    PanelAction::None
+                }
+                _ => PanelAction::None,
+            });
+        }
+        // Resting on a thing chooses it, as on every tab.
+        let offers = self.offers().len().min(4);
+        if let Some(index) = within(OFFER_BASE, offers)
+            .or_else(|| within(HOLOCRON_BASE, 2).map(|index| index + offers))
+            .filter(|_| self.section == Section::Shop)
+        {
+            if self.shop_selected != index {
+                self.armed = None;
+            }
+            self.shop_selected = index.min(self.shop_choices().saturating_sub(1));
+            return Some(PanelAction::None);
+        }
+        if let Some(index) =
+            within(TILE_BASE, self.listed()).filter(|_| self.section != Section::Shop)
+        {
+            if *self.chosen_mut() != index {
+                self.armed = None;
+            }
+            *self.chosen_mut() = index;
+            return Some(PanelAction::None);
+        }
+        if !activate {
+            return forge_token(token).then_some(PanelAction::None);
+        }
+        if token != SEARCH_TOKEN {
+            self.leave_search();
+        }
+        if let Some(index) = within(SECTION_BASE, 3) {
+            self.show(Section::ALL[index]);
+            return Some(PanelAction::None);
+        }
+        if let Some(index) = within(OFFER_BUY_BASE, offers) {
+            return Some(self.press_shop(index, now));
+        }
+        if let Some(index) = within(HOLOCRON_BUY_BASE, 2) {
+            return Some(self.press_shop(offers + index, now));
+        }
+        if let Some(index) = within(TIER_BASE, 6) {
+            return Some(self.set_tier(index));
+        }
+        Some(match token {
+            ONLY_TOKEN => self.toggle_only(),
+            SEARCH_TOKEN => self.focus_search(),
+            LIST_TOKEN => PanelAction::ShaderView(false),
+            GRID_TOKEN => PanelAction::ShaderView(true),
+            ACTION_TOKEN => self.activate(now),
+            ALL_TOKEN => self.ask_all(),
+            SHARDS_TOKEN | CREDITS_TOKEN => PanelAction::None,
+            _ => return None,
+        })
+    }
+
+    /// The wheel over the section's list: a line (grid) or a row a notch, the chosen thing
+    /// kept in view.
+    pub(super) fn wheel(&mut self, up: bool, grid: bool) {
+        let count = self.listed();
+        let (per, shown) = if grid { (COLUMNS, LINES) } else { (1, ROWS) };
+        let lines = count.div_ceil(per);
+        let last = lines.saturating_sub(shown);
+        let first = match self.section {
+            Section::Shop => return,
+            Section::Craft => &mut self.craft_first,
+            Section::Break => &mut self.break_first,
+        };
+        *first = if up {
+            first.saturating_sub(1)
+        } else {
+            (*first + 1).min(last)
+        };
+        let first = *first;
+        let chosen = self.chosen_mut();
+        let line = (*chosen / per).clamp(first, first + shown - 1);
+        *chosen = (line * per + *chosen % per).min(count.saturating_sub(1));
+    }
+
+    /// Follow the hub's answers: a last copy broken down is noted for the console, which
+    /// takes it off the saber when worn ([`Forge::take_unequip`]).
+    pub(super) fn follow(&mut self) {
+        let Some(outcome) = self.data.trade.as_ref() else {
+            return;
+        };
+        if outcome.serial <= self.unequip_seen {
+            return;
+        }
+        self.unequip_seen = outcome.serial;
+        if outcome.done() && outcome.trade == sjk_identity::Trade::ShatterLast {
+            self.unequip = unlockables::find(&outcome.id).map(|skin| skin.id);
+        }
+    }
+
+    /// The shader whose last copy the hub just broke down, once.
+    pub(super) fn take_unequip(&mut self) -> Option<&'static str> {
+        self.unequip.take()
+    }
+}
+
+impl Panel {
+    /// The Forge's data this frame (the console's, [`ForgeData::read`]).
+    pub(crate) fn set_forge(&mut self, data: ForgeData) {
+        #[cfg(test)]
+        if let Some(pinned) = &self.preview_forge {
+            self.forge.data = pinned.clone();
+            self.forge.follow();
+            return;
+        }
+        self.forge.data = data;
+        self.forge.follow();
+    }
+
+    /// Show the Forge's `section` when the Forge is next on show (the Holocrons tab's
+    /// Shop, the Shaders tab's pointers).
+    pub(crate) fn show_forge(&mut self, section: Section) {
+        self.forge.show(section);
+    }
+
+    /// Choose `id` in the Forge's `section` (Craft or Break down) and show it: the Shaders
+    /// tab's "Craft in the Forge". The filter is cleared so it is listed.
+    pub(super) fn forge_on(&mut self, section: Section, id: &str) {
+        self.forge.show(section);
+        let filter = self.forge.filter_mut();
+        *filter = ForgeFilter::default();
+        self.forge.want = Some(id.to_owned());
+        self.tab = Tab::Forge;
+    }
+
+    /// Whether the Forge wants the shop read now.
+    pub(crate) fn forge_shop_due(&mut self, now: Instant) -> bool {
+        self.open && self.tab == Tab::Forge && self.forge.shop_due(now)
+    }
+
+    /// The shader whose last copy the hub just broke down, once.
+    pub(crate) fn take_forge_unequip(&mut self) -> Option<&'static str> {
+        self.forge.take_unequip()
+    }
+
+    /// The Forge's section on show.
+    #[cfg(test)]
+    pub(crate) fn forge_section(&self) -> Section {
+        self.forge.section
+    }
+
+    /// Show `data` in place of the live identity's on the Forge (`None` lets go), for a
+    /// world shot.
+    #[cfg(test)]
+    pub(crate) fn preview_forge(&mut self, data: Option<ForgeData>) {
+        self.preview_forge = data;
+    }
+
+    /// Put the Forge in the state a world shot wants: the thing `chosen`, `armed`'s button
+    /// waiting for its second press, `ask` asking, a trade asked so its answer shows.
+    #[cfg(test)]
+    pub(crate) fn forge_for_shot(&mut self, chosen: usize, armed: bool, ask: bool, asked: bool) {
+        let forge = &mut self.forge;
+        *forge.chosen_mut() = chosen;
+        forge.armed = None;
+        forge.ask = None;
+        let press = match forge.section {
+            Section::Shop => {
+                let offers = forge.offers().len().min(4);
+                if chosen < offers {
+                    Press::Offer(chosen)
+                } else {
+                    Press::Holocron(chosen - offers)
+                }
+            }
+            Section::Craft => forge
+                .craft_list
+                .get(chosen)
+                .map_or(Press::Offer(0), |item| Press::Craft(item.skin.id)),
+            Section::Break => forge
+                .break_list
+                .get(chosen)
+                .map_or(Press::Offer(0), |item| Press::Break(item.skin.id)),
+        };
+        if armed {
+            forge.armed = Some((press, Instant::now()));
+        }
+        if ask {
+            forge.ask = match forge.break_list.get(chosen) {
+                Some(item) if item.last() => Some(Ask::Last {
+                    skin: item.skin,
+                    yes: false,
+                }),
+                _ => Some(Ask::All { yes: true }),
+            };
+        }
+        forge.sent = None;
+        forge.sent_all = None;
+        if asked && let Some(trade) = &forge.data.trade {
+            if trade.trade == sjk_identity::Trade::ShatterAll {
+                forge.sent_all = Some(trade.serial - 1);
+            } else {
+                forge.sent = Some((trade.serial - 1, press));
+            }
+        }
+    }
+
+    /// Choose shader `id` in the Forge's section on its next frame, for a world shot.
+    #[cfg(test)]
+    pub(crate) fn forge_want_for_shot(&mut self, id: &str) {
+        self.forge.want = Some(id.to_owned());
+    }
+
+    /// Type `query` in the Forge's search (and its own chip), for a world shot.
+    #[cfg(test)]
+    pub(crate) fn forge_search_for_shot(&mut self, query: &str, only: bool) {
+        let filter = self.forge.filter_mut();
+        filter.shaders.query = query.to_owned();
+        filter.only = only;
+    }
+}
+
+#[cfg(test)]
+fn offer(id: &str, tier: &str, price: u64) -> sjk_identity::Offer {
+    sjk_identity::Offer {
+        id: id.to_owned(),
+        name: unlockables::find(id).map_or(String::new(), |skin| skin.name.to_owned()),
+        tier: tier.to_owned(),
+        price,
+        bought: false,
+        owned: false,
+    }
+}
+
+/// The day the shop shows in a world shot and the tests: four offers, one of each slot,
+/// the next day `left` seconds away.
+#[cfg(test)]
+pub(crate) fn sample_day(left: i64) -> sjk_identity::ShopState {
+    sjk_identity::ShopState {
+        serial: 1,
+        day: sjk_identity::ShopDay {
+            day: "2026-10-21".to_owned(),
+            offers: vec![
+                offer("saber_aurora", "common", 30),
+                offer("saber_sakura", "uncommon", 75),
+                offer("saber_lavalamp", "rare", 225),
+                offer("saber_phoenix", "mythical", 1_500),
+            ],
+            next: 1_791_000_000 + left,
+            server_time: 1_791_000_000,
+            credits: 300,
+            shards: 300,
+        },
+        message: String::new(),
+        read_at: Instant::now(),
+    }
+}
+
+/// The Forge's data in a world shot and the tests: the hub open to the player, its
+/// abilities as `last` and `all`, the day `left` seconds from turning.
+#[cfg(test)]
+pub(crate) fn sample_data(shards: u64, credits: u64, left: i64, abilities: bool) -> ForgeData {
+    ForgeData {
+        closed: Closed::Open,
+        credits: Some(credits),
+        shards: Some(shards),
+        can_trade: true,
+        why_not: None,
+        last: abilities,
+        all: abilities,
+        shop: Some(sample_day(left)),
+        trade: None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::console::collection_panel::tests::inputs;
+
+    fn copy(id: &str, count: u32) -> sjk_identity::Unlock {
+        sjk_identity::Unlock {
+            id: id.to_owned(),
+            granted: 1,
+            note: String::new(),
+            count,
+            medal: None,
+            card: None,
+        }
+    }
+
+    fn fonts() -> crate::text::FontAtlas {
+        crate::text::load_modern(1.0, None).expect("Inter")
+    }
+
+    /// Draw `panel` once with `held` in a window of `viewport`.
+    fn build(panel: &mut Panel, held: &[sjk_identity::Unlock], viewport: [f32; 2]) {
+        let fonts = fonts();
+        panel.build(&inputs(Holdings::Known(held), ""), &fonts.font, viewport);
+        assert!(!panel.overflowed(), "{viewport:?}");
+    }
+
+    /// The Forge drawn once on `section` with `held` and `data`, so its lists are known.
+    fn forge(section: Section, held: &[sjk_identity::Unlock], data: ForgeData) -> Panel {
+        let mut panel = Panel::new();
+        panel.open(Tab::Forge, true, true, ReturnTarget::MainMenu);
+        panel.show_forge(section);
+        panel.preview_forge(Some(data));
+        panel.set_forge(ForgeData::default());
+        build(&mut panel, held, [1920.0, 1080.0]);
+        panel
+    }
+
+    fn key(panel: &mut Panel, key: KeyCode) -> PanelAction {
+        panel.forge.key(None, key, false, false, false)
+    }
+
+    #[test]
+    fn sections_cycle_and_the_texts_read_as_players_read_them() {
+        assert_eq!(Section::Shop.next(true), Section::Craft);
+        assert_eq!(Section::Break.next(true), Section::Shop);
+        assert_eq!(Section::Shop.next(false), Section::Break);
+        assert_eq!(day_text("2026-10-21"), "21/10/2026");
+        assert_eq!(day_text("soon"), "soon");
+        assert_eq!(countdown_text(30), "less than a minute");
+        assert_eq!(countdown_text(61), "2 min");
+        assert_eq!(countdown_text(5 * 3_600 + 12 * 60), "5 h 12 min");
+        let mut lava = offer("saber_lavalamp", "rare", 225);
+        assert_eq!(can(&lava, 200), Can::Short(25));
+        lava.owned = true;
+        assert_eq!(can(&lava, 9_999), Can::Owned);
+        assert_eq!(tier_of(&offer("saber_sun", "common", 1)), Rarity::Mythical);
+    }
+
+    /// Craft lists only shaders of the trade not held at all, the commonest first; Break
+    /// down lists the player's own copies, duplicates first, and the last ones only on a
+    /// hub that breaks them down; a medal's or a card's copy never.
+    #[test]
+    fn the_lists_follow_what_is_held_and_what_the_hub_can_do() {
+        let held = [
+            copy("saber_aurora", 1),
+            copy("saber_tidal", 3),
+            sjk_identity::Unlock {
+                medal: Some("bug_hunter".to_owned()),
+                ..copy("saber_glitch", 2)
+            },
+            sjk_identity::Unlock {
+                card: Some("sjk_alpha_000".to_owned()),
+                ..copy("saber_sun", 1)
+            },
+        ];
+        let holdings = Holdings::Known(&held);
+        let craft = craftable(&holdings, &[]);
+        assert!(craft.iter().all(|item| crate::economy::in_trade(item.skin)));
+        for id in ["saber_aurora", "saber_tidal", "saber_glitch", "saber_sun"] {
+            assert!(craft.iter().all(|item| item.skin.id != id), "{id}");
+        }
+        assert!(
+            craft
+                .windows(2)
+                .all(|pair| pair[0].skin.tier <= pair[1].skin.tier)
+        );
+        let ids = |list: Vec<Owned>| list.iter().map(|item| item.skin.id).collect::<Vec<_>>();
+        assert_eq!(ids(owned(&holdings, true)), ["saber_tidal", "saber_aurora"]);
+        assert_eq!(ids(owned(&holdings, false)), ["saber_tidal"]);
+        assert_eq!(duplicates(&owned(&holdings, true)), (2, 1, 10));
+    }
+
+    /// A purchase, a craft and a duplicate's break down ask twice and wait for the hub; a
+    /// press is refused while the hub keeps the Forge closed or the purse falls short.
+    #[test]
+    fn trades_ask_twice_and_wait_for_the_hub() {
+        let held = [copy("saber_tidal", 3)];
+        let mut panel = forge(Section::Shop, &held, sample_data(300, 300, 3_600, true));
+        assert!(panel.forge_shop_due(Instant::now()), "read once shown");
+        assert!(!panel.forge_shop_due(Instant::now()));
+        assert_eq!(key(&mut panel, KeyCode::Enter), PanelAction::None);
+        assert_eq!(
+            key(&mut panel, KeyCode::Enter),
+            PanelAction::Buy("saber_aurora".to_owned())
+        );
+        assert!(panel.forge.waiting());
+        assert_eq!(key(&mut panel, KeyCode::Enter), PanelAction::None);
+        assert_eq!(
+            key(&mut panel, KeyCode::Enter),
+            PanelAction::None,
+            "on its way"
+        );
+        // The Mythical is too dear: nothing to arm.
+        panel.forge.sent = None;
+        for _ in 0..3 {
+            let _ = key(&mut panel, KeyCode::ArrowRight);
+        }
+        assert_eq!(panel.forge.shop_selected, 3);
+        assert_eq!(key(&mut panel, KeyCode::Enter), PanelAction::None);
+        assert_eq!(panel.forge.armed, None);
+        // The Uncommon holocron for credits, past the offers.
+        let _ = key(&mut panel, KeyCode::ArrowRight);
+        let _ = key(&mut panel, KeyCode::Enter);
+        assert_eq!(
+            key(&mut panel, KeyCode::Enter),
+            PanelAction::BuyHolocron("uncommon".to_owned())
+        );
+        // Craft: the commonest first, crafted on the second press.
+        let mut panel = forge(Section::Craft, &held, sample_data(300, 300, 3_600, true));
+        let first = panel.forge.craft_list[0].skin.id;
+        assert_eq!(key(&mut panel, KeyCode::Enter), PanelAction::None);
+        assert_eq!(key(&mut panel, KeyCode::Enter), PanelAction::Craft(first));
+        let mut poor = forge(Section::Craft, &held, sample_data(0, 0, 3_600, true));
+        assert_eq!(key(&mut poor, KeyCode::Enter), PanelAction::None);
+        assert_eq!(poor.forge.armed, None, "too dear to arm");
+        // Break down a duplicate twice; closed by the hub, nothing arms.
+        let mut panel = forge(Section::Break, &held, sample_data(0, 0, 3_600, true));
+        assert_eq!(key(&mut panel, KeyCode::Enter), PanelAction::None);
+        assert_eq!(
+            key(&mut panel, KeyCode::Enter),
+            PanelAction::Shatter("saber_tidal")
+        );
+        let closed = ForgeData {
+            can_trade: false,
+            ..sample_data(0, 0, 3_600, true)
+        };
+        let mut panel = forge(Section::Break, &held, closed);
+        assert_eq!(key(&mut panel, KeyCode::Enter), PanelAction::None);
+        assert_eq!(panel.forge.armed, None);
+        assert!(!panel.forge_shop_due(Instant::now()));
+    }
+
+    /// The last copy and every duplicate ask with a card: the quieter choice has the focus
+    /// for the last copy, Escape keeps it, the stronger choice sends it; a hub without the
+    /// abilities lists no last copy and offers no Break down all.
+    #[test]
+    fn the_last_copy_and_all_duplicates_ask_with_a_card() {
+        let held = [copy("saber_tidal", 3), copy("saber_aurora", 1)];
+        let mut panel = forge(Section::Break, &held, sample_data(0, 0, 3_600, true));
+        assert_eq!(panel.forge.break_list.len(), 2);
+        let _ = key(&mut panel, KeyCode::ArrowDown);
+        assert!(panel.forge.break_list[panel.forge.breaks].last());
+        assert_eq!(key(&mut panel, KeyCode::Enter), PanelAction::None);
+        assert!(matches!(
+            panel.forge.ask,
+            Some(Ask::Last { yes: false, .. })
+        ));
+        assert_eq!(
+            key(&mut panel, KeyCode::Enter),
+            PanelAction::None,
+            "Keep it"
+        );
+        assert_eq!(panel.forge.ask, None);
+        let _ = key(&mut panel, KeyCode::Enter);
+        let _ = key(&mut panel, KeyCode::Tab);
+        assert_eq!(
+            key(&mut panel, KeyCode::Enter),
+            PanelAction::ShatterLast("saber_aurora")
+        );
+        // The hub's answer takes the blade off the saber, once.
+        let mut done = sample_data(5, 0, 3_600, true);
+        done.trade = Some(sjk_identity::TradeOutcome {
+            serial: 1,
+            trade: sjk_identity::Trade::ShatterLast,
+            id: "saber_aurora".to_owned(),
+            amount: 5,
+            copies: 1,
+            message: String::new(),
+        });
+        panel.preview_forge(Some(done));
+        panel.set_forge(ForgeData::default());
+        assert_eq!(panel.take_forge_unequip(), Some("saber_aurora"));
+        assert_eq!(panel.take_forge_unequip(), None);
+        panel.set_forge(ForgeData::default());
+        assert_eq!(panel.take_forge_unequip(), None, "once a trade");
+        // Every duplicate: B asks, Escape cancels, Enter (the focus on yes) sends.
+        let mut panel = forge(Section::Break, &held, sample_data(0, 0, 3_600, true));
+        let _ = key(&mut panel, KeyCode::KeyB);
+        assert_eq!(panel.forge.ask, Some(Ask::All { yes: true }));
+        assert_eq!(key(&mut panel, KeyCode::Escape), PanelAction::None);
+        assert_eq!(panel.forge.ask, None);
+        let _ = key(&mut panel, KeyCode::KeyB);
+        assert_eq!(key(&mut panel, KeyCode::Enter), PanelAction::ShatterAll);
+        // An older hub: duplicates only, no card.
+        let mut panel = forge(Section::Break, &held, sample_data(0, 0, 3_600, false));
+        assert_eq!(panel.forge.break_list.len(), 1);
+        let _ = key(&mut panel, KeyCode::KeyB);
+        assert_eq!(panel.forge.ask, None);
+    }
+
+    /// Tab and the digits change section; the filter's chips and the search narrow the
+    /// list.
+    #[test]
+    fn sections_filters_and_search() {
+        let held = [copy("saber_tidal", 3)];
+        let mut panel = forge(Section::Shop, &held, sample_data(40, 0, 3_600, true));
+        let _ = key(&mut panel, KeyCode::Tab);
+        assert_eq!(panel.forge_section(), Section::Craft);
+        let _ = key(&mut panel, KeyCode::Digit3);
+        assert_eq!(panel.forge_section(), Section::Break);
+        let _ = key(&mut panel, KeyCode::Digit2);
+        let _ = key(&mut panel, KeyCode::KeyA);
+        assert!(panel.forge.craft_filter.only);
+        build(&mut panel, &held, [1920.0, 1080.0]);
+        assert!(!panel.forge.craft_list.is_empty());
+        assert!(panel.forge.craft_list.iter().all(|item| item.cost <= 40));
+        let _ = key(&mut panel, KeyCode::Slash);
+        assert!(panel.forge.search_focus);
+        for _ in 0..3 {
+            let _ = panel
+                .forge
+                .key(Some("z"), KeyCode::KeyZ, false, false, false);
+        }
+        assert_eq!(panel.forge.craft_filter.shaders.query, "zzz");
+        build(&mut panel, &held, [1920.0, 1080.0]);
+        assert!(panel.forge.craft_list.is_empty());
+        let _ = key(&mut panel, KeyCode::Escape);
+        assert!(!panel.forge.search_focus);
+        assert!(panel.forge.craft_filter.shaders.query.is_empty());
+        assert_eq!(key(&mut panel, KeyCode::Escape), PanelAction::Close);
+    }
+
+    /// Every section and state fits the canvas in every window shape.
+    #[test]
+    fn every_section_fits() {
+        let held = [copy("saber_tidal", 3), copy("saber_aurora", 1)];
+        for viewport in [
+            [1920.0, 1080.0],
+            [3840.0, 2160.0],
+            [1440.0, 1080.0],
+            [2560.0, 1080.0],
+        ] {
+            for section in Section::ALL {
+                for data in [
+                    sample_data(300, 300, 3_600, true),
+                    ForgeData {
+                        closed: Closed::NoEconomy,
+                        ..ForgeData::default()
+                    },
+                    ForgeData {
+                        shop: None,
+                        ..sample_data(0, 0, 0, false)
+                    },
+                ] {
+                    let mut panel = forge(section, &held, data);
+                    build(&mut panel, &held, viewport);
+                }
+            }
+        }
+    }
+}

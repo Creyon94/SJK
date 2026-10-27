@@ -167,7 +167,7 @@ pub(crate) fn scope_in(game: &sjk_protocol::GameState, slot: usize) -> Option<Sc
     Scope::of(
         gametype,
         number(Some(player), "t"),
-        number(Some(player), "ds"),
+        number(Some(player), "dt"),
     )
 }
 
@@ -518,6 +518,21 @@ mod tests {
             assert!(scope.name().bytes().all(|byte| byte.is_ascii_lowercase()));
         }
         assert_eq!(Scope::parse("purple"), None);
+    }
+
+    /// A Power Duel side is the duel team (`dt`), not `ds`, the player's sex.
+    #[test]
+    fn a_power_duel_side_is_the_duel_team() {
+        let mut game = sjk_protocol::GameState::empty_local(0);
+        game.replace_config_string(0, br"\g_gametype\4".to_vec())
+            .unwrap();
+        let player = crate::player_identity::CS_PLAYERS + 2;
+        game.replace_config_string(player, br"\n\Lone\t\0\ds\f\dt\1".to_vec())
+            .unwrap();
+        assert_eq!(scope_in(&game, 2), Some(Scope::Lone));
+        game.replace_config_string(player, br"\n\Pair\t\0\ds\m\dt\2".to_vec())
+            .unwrap();
+        assert_eq!(scope_in(&game, 2), Some(Scope::Double));
     }
 
     #[test]

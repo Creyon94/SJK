@@ -39,6 +39,8 @@ pub(super) fn run() -> Result<(), Box<dyn Error>> {
     if console.new_profile() {
         crate::graphics_quality::apply_new_profile(&mut console);
     }
+    // A card of 4 GB or less starts on smaller textures and the menu pictures.
+    crate::video_memory::at_start(&mut console);
     for line in notice::LINES {
         log::progress(format_args!("{line}"));
         console.push_log_quiet(line);
@@ -67,9 +69,11 @@ pub(super) fn run() -> Result<(), Box<dyn Error>> {
     } else if let Some(session) = &demo_session {
         map_path_from_gamestate(session.game_state())?
     } else {
-        menu::style::MenuStyle::from_cvar(console.text_value(menu::style::CVAR))
-            .boot_map()
-            .to_owned()
+        // Pictures of the map instead, when the player saves video memory.
+        crate::menu_pictures::menu_map(
+            menu::style::MenuStyle::from_cvar(console.text_value(menu::style::CVAR)).boot_map(),
+            crate::menu_pictures::enabled(Some(&console)),
+        )
     };
     let (bsp, vfs) = if let Some(session) = &demo_session {
         let selection = assets::session_content::Selection::from_game(session.game_state())?;

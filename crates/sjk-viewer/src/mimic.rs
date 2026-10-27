@@ -34,8 +34,7 @@ mod frame;
 mod saber;
 
 pub(crate) const COMMAND: &str = "mimic";
-pub(crate) const HELP: &str = "Experimental (cl_experimentalShowcase): copy a player's moves \
-     while facing them: mimic <player> \
+pub(crate) const HELP: &str = "Showcase tools, SJK staff only: mimic <player> \
      [delay seconds] [mirror|copy] [walk], mimic off";
 
 /// No ground entity (`ENTITYNUM_NONE`).

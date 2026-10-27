@@ -1,16 +1,17 @@
 //! Interface sound cues: hover, click and back posted by every menu canvas as
 //! it routes input, the stage model's saber throw and catch posted by the
 //! menu stage, the quick wheel's page, move and run cues, the unlock
-//! pop-up's chime, the new medal's fanfare and the SJK chat's sound for a new
-//! message, all played once per frame by the audio owner.
+//! pop-up's chime, the new medal's fanfare, the SJK chat's sound for a new
+//! message and a holocron's opening, all played once per frame by the audio owner.
 //!
 //! The posters live inside screens that have no audio access, so cues go
 //! through one process-wide atomic mailbox. A cue is a bit, not a queue:
 //! ten hovers in one frame play one tick, which is what a menu wants.
 
 use super::GameAudio;
-use sjk_audio::{ChannelId, SourceId};
-use std::sync::atomic::{AtomicU16, Ordering};
+use crate::audio::interface_channel;
+use sjk_audio::SourceId;
+use std::sync::atomic::{AtomicU32, Ordering};
 
 /// One interface sound; each maps to a sound file below.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -41,6 +42,17 @@ pub(crate) enum Cue {
     SjkChat = 1024,
     /// A world ping appeared (`world_ping_frame.rs`), the player's own or another's.
     WorldPing = 2048,
+    /// A holocron's opening began to build (`holocrons_panel_unseal.rs`).
+    HolocronCharge = 4096,
+    /// The holocron cracked open in its flash.
+    HolocronOpen = 8192,
+    /// The opening's strip of tiles passed a tile under its marker.
+    CrateTick = 16384,
+    /// The strip came to rest on the prize.
+    CrateLand = 32768,
+    /// An end-to-end encrypted whisper from another player (`e2e_whispers.rs`); its
+    /// sound is made in memory, as [`Cue::SjkChat`]'s (`sjk_chat_sound.rs`).
+    EncryptedWhisper = 65536,
 }
 
 /// `(cue, sound path, volume)` — the game's own sounds, looked up through
@@ -69,7 +81,12 @@ pub(crate) enum Cue {
 ///
 /// A world ping plays `update`, a short interface blip (a third of a second, in the
 /// shared `assets0.pk3`), so a ping is heard without covering the game.
-pub(crate) const CUE_SOUNDS: [(Cue, &str, f32); 11] = [
+///
+/// A holocron's opening (`docs/cards.md`, "The ceremony") builds on `jumpbuild`, the
+/// Force jump's charge, cracks open on `holocron.wav`, the sound the multiplayer game
+/// plays when a holocron is picked up (`cgs.media.holocronPickup`), ticks a tile with
+/// `menuroam`, quieter than a hover, and comes to rest on `sub_select`.
+pub(crate) const CUE_SOUNDS: [(Cue, &str, f32); 15] = [
     (Cue::Hover, "sound/interface/menuroam.mp3", 0.6),
     (Cue::Click, "sound/interface/button1.mp3", 0.9),
     (Cue::Back, "sound/interface/esc.mp3", 0.9),
@@ -81,12 +98,20 @@ pub(crate) const CUE_SOUNDS: [(Cue, &str, f32); 11] = [
     (Cue::Achievement, "sound/interface/secret_area.mp3", 0.8),
     (Cue::Medal, "music/goodsmall.mp3", 0.75),
     (Cue::WorldPing, "sound/interface/update.mp3", 0.8),
+    (
+        Cue::HolocronCharge,
+        "sound/weapons/force/jumpbuild.mp3",
+        0.8,
+    ),
+    (Cue::HolocronOpen, "sound/player/holocron.wav", 0.9),
+    (Cue::CrateTick, "sound/interface/menuroam.mp3", 0.45),
+    (Cue::CrateLand, "sound/interface/sub_select.mp3", 0.8),
 ];
 
 /// Interface cues never share a channel with world sounds.
 const UI_SOURCE: SourceId = SourceId(u32::MAX);
 
-static PENDING: AtomicU16 = AtomicU16::new(0);
+static PENDING: AtomicU32 = AtomicU32::new(0);
 
 #[cfg(test)]
 thread_local! {
@@ -97,7 +122,7 @@ thread_local! {
 
 /// Post `cue` for the next frame's playback.
 pub(crate) fn post(cue: Cue) {
-    PENDING.fetch_or(cue as u16, Ordering::Relaxed);
+    PENDING.fetch_or(cue as u32, Ordering::Relaxed);
     #[cfg(test)]
     POSTED.with(|posted| posted.borrow_mut().push(cue));
 }
@@ -110,17 +135,26 @@ pub(crate) fn take_posted() -> Vec<Cue> {
 
 /// Play every cue posted since the last call.
 pub(crate) fn play_pending(audio: &mut GameAudio) {
+    // A chat kind's preview (`chat_sounds.rs`): its chosen sound, on a channel of its
+    // own after the cues'.
+    for kind in crate::chat_sounds::take_previews() {
+        let key = audio.chat_sounds.preview(kind);
+        audio.play_local(key, 1.0, UI_SOURCE, interface_channel(CUE_SOUNDS.len() + 2));
+    }
     let pending = PENDING.swap(0, Ordering::Relaxed);
     if pending == 0 {
         return;
     }
     for (index, (cue, path, volume)) in CUE_SOUNDS.iter().enumerate() {
-        if pending & *cue as u16 != 0 {
-            audio.play_local(path, *volume, UI_SOURCE, ChannelId(index as u32));
+        if pending & *cue as u32 != 0 {
+            audio.play_local(path, *volume, UI_SOURCE, interface_channel(index));
         }
     }
-    if pending & Cue::SjkChat as u16 != 0 {
-        audio.play_sjk_chat(UI_SOURCE, ChannelId(CUE_SOUNDS.len() as u32));
+    if pending & Cue::SjkChat as u32 != 0 {
+        audio.play_sjk_chat(UI_SOURCE, interface_channel(CUE_SOUNDS.len()));
+    }
+    if pending & Cue::EncryptedWhisper as u32 != 0 {
+        audio.play_encrypted_whisper(UI_SOURCE, interface_channel(CUE_SOUNDS.len() + 1));
     }
 }
 
@@ -130,12 +164,13 @@ mod tests {
 
     #[test]
     fn every_cue_has_its_own_bit_and_one_sound() {
-        let mut bits = 0_u16;
+        let mut bits = 0_u32;
         for (cue, path, volume) in CUE_SOUNDS {
-            let bit = cue as u16;
+            let bit = cue as u32;
             assert_eq!(bit.count_ones(), 1, "{cue:?}");
             assert_eq!(bits & bit, 0, "{cue:?} twice");
             assert_ne!(cue, Cue::SjkChat, "made in memory, never a file");
+            assert_ne!(cue, Cue::EncryptedWhisper, "made in memory, never a file");
             bits |= bit;
             // The game's sounds, or its short music stingers (the medal's fanfare).
             assert!(
@@ -154,7 +189,9 @@ mod tests {
         assert!(volume(Cue::WheelMove) < volume(Cue::Hover));
         assert!(volume(Cue::WheelRun) < volume(Cue::Click));
         assert!(volume(Cue::WheelPage) < 1.0);
-        assert_eq!(bits & Cue::SjkChat as u16, 0);
-        assert_eq!((Cue::SjkChat as u16).count_ones(), 1);
+        assert_eq!(bits & Cue::SjkChat as u32, 0);
+        assert_eq!((Cue::SjkChat as u32).count_ones(), 1);
+        assert_eq!(bits & Cue::EncryptedWhisper as u32, 0);
+        assert_eq!((Cue::EncryptedWhisper as u32).count_ones(), 1);
     }
 }

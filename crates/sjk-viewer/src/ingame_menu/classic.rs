@@ -114,7 +114,7 @@ impl Tab {
     /// The bar button whose pop-up `page` is, if it has one.
     pub(crate) fn of_page(page: Page) -> Option<Self> {
         match page {
-            Page::Main | Page::Shot => None,
+            Page::Main | Page::Shot | Page::MapEdit => None,
             Page::Sjk | Page::Players | Page::ReportPlayer => Some(Self::Sjk),
             Page::About => Some(Self::About),
             Page::Team | Page::Siege => Some(Self::Join),
@@ -204,7 +204,8 @@ pub(crate) fn note(page: Page, row: usize, siege: bool) -> Option<&'static str> 
     match page {
         Page::Main => Tab::at(row)?.unavailable(siege),
         Page::Leave if row == leave::RESTART => Some(RESTART_NOTE),
-        Page::Team => Some("You are already here"),
+        // Siege's side step dims only Spectate, while the player watches.
+        Page::Team | Page::Siege => Some("You are already here"),
         _ => None,
     }
 }

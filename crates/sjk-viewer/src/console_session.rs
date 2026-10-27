@@ -21,6 +21,8 @@ impl ViewerConsole {
     }
 
     pub(crate) fn new(config_path: PathBuf) -> Result<Self, Box<dyn Error>> {
+        // First: it masks the mods' secrets before any cvar or line exists.
+        let mods = crate::mods::Mods::new();
         let mut cvars = CvarRegistry::new();
         let user = CvarFlags::ARCHIVE | CvarFlags::USER_INFO;
         for definition in [
@@ -31,6 +33,12 @@ impl ViewerConsole {
                 "Fog: 0 off, 1 volume, 2 global EXP2",
             ),
             CvarDefinition::new("name", "Padawan", user, "Multiplayer player name"),
+            CvarDefinition::new(
+                crate::saber_rgb::black::CVAR,
+                true,
+                CvarFlags::ARCHIVE,
+                "Show JA+/jaPRO black sabers when plugin feature 3 is allowed",
+            ),
             CvarDefinition::new(
                 "model",
                 "kyle/default",
@@ -49,7 +57,7 @@ impl ViewerConsole {
                 sjk_client::PLUGIN_IDENTITY_KEY,
                 "",
                 CvarFlags::ARCHIVE,
-                "The client plugin name sent to JA+ and jaPRO servers (what admins' amstatus shows); empty sends SJK's default for the server",
+                "SJK staff only: the client plugin name sent to JA+ and jaPRO servers (what admins' amstatus shows); empty, or a key that is not staff, sends SJK's default for the server",
             ),
             CvarDefinition::new(
                 "forcepowers",
@@ -163,7 +171,33 @@ impl ViewerConsole {
         let time_nudge = crate::presentation_clock::CvarSetting::bind(&mut cvars)?;
         let smooth_clients =
             console_cvars::IntegerSetting::bind(&mut cvars, "cg_smoothClients", 0)?;
+        let hide_corpses_in_duel = console_cvars::IntegerSetting::bind(
+            &mut cvars,
+            crate::duel_visibility::CORPSES_CVAR,
+            1,
+        )?;
+        let hide_pickups_in_duel = console_cvars::IntegerSetting::bind(
+            &mut cvars,
+            crate::duel_visibility::PICKUPS_CVAR,
+            1,
+        )?;
+        let duel_hide_others = console_cvars::IntegerSetting::bind(
+            &mut cvars,
+            crate::duel_visibility::HIDE_OTHERS_CVAR,
+            1,
+        )?;
+        let plugin_disable = console_cvars::IntegerSetting::bind(
+            &mut cvars,
+            "cp_pluginDisable",
+            i64::from(sjk_client::PLUGIN_DISABLE_DEFAULT),
+        )?;
         let remaps = console_cvars::IntegerSetting::bind(&mut cvars, "cg_remaps", 2)?;
+        let map_edits = console_cvars::IntegerSetting::bind(&mut cvars, crate::map_edits::CVAR, 1)?;
+        let server_remaps = console_cvars::IntegerSetting::bind(
+            &mut cvars,
+            crate::remap_blocked_maps::SERVER_CVAR,
+            0,
+        )?;
         let remap_blocked_maps =
             console_cvars::RevisionSetting::bind(&mut cvars, crate::remap_blocked_maps::CVAR)?;
         let draw_fog = console_cvars::IntegerSetting::bind(&mut cvars, "r_drawfog", 2)?;
@@ -216,8 +250,13 @@ impl ViewerConsole {
         super::socket::register_command(&mut shell, &socket)?;
         let client_commands = console_client::Commands::default();
         console_client::register(&mut shell, &client_commands)?;
-        let mods = crate::mods::Mods::new();
         mods.register(&mut shell)?;
+        for name in mods.userinfo_settings() {
+            let dirty = Arc::clone(&userinfo_dirty);
+            shell
+                .cvars
+                .on_change(&name, move |_| dirty.store(true, Ordering::Release))?;
+        }
         shell.set_command_frame(0);
         let server_status = Arc::new(RwLock::new("Not connected".to_owned()));
         for command in ["serverinfo", "status"] {
@@ -277,6 +316,8 @@ impl ViewerConsole {
         // no migration below should touch (sensitivity's rescale turned a new
         // profile's 5 into 13.022).
         let new_profile = !config_path.exists();
+        let emote_volume_saved = std::fs::read_to_string(&config_path)
+            .is_ok_and(|config| saves(&config, crate::emotes::VOLUME_CVAR));
         shell.set_config_path(config_path);
         shell.set_log_path(config_directory.join("qconsole.log"));
         shell.set_line_tap(crate::crash_report::trail);
@@ -518,6 +559,7 @@ impl ViewerConsole {
             let _ = shell.cvars.set_text("cg_killfeedDefaultVersion", "1");
         }
         retire_modern_ui(&mut shell.cvars);
+        crate::chat::text_sizes::migrate(&mut shell.cvars, new_profile);
         // Older profiles archived an earlier default (four passes, then one).
         // Move those values once to two; other strengths, and choices made
         // after migration, remain deliberate.
@@ -545,6 +587,8 @@ impl ViewerConsole {
                 .set_text("cg_shieldBrightnessDefaultVersion", "2");
         }
         retire_force_illuminate(&mut shell);
+        hold_monitor_throw(&mut shell);
+        emote_volume_on_its_own(&mut shell.cvars, emote_volume_saved);
         shell.push_log("^5SJK console ready. ^7Type cmdlist for commands.");
         mods.migrate_defaults(&mut shell);
         Ok(Self {
@@ -553,6 +597,7 @@ impl ViewerConsole {
             open: false,
             shift: false,
             held_keys: Default::default(),
+            bind_state: Default::default(),
             force_repeat: Default::default(),
             input: String::with_capacity(INPUT_LIMIT),
             history: Vec::new(),
@@ -573,6 +618,8 @@ impl ViewerConsole {
             identity_panel: super::identity_panel::Panel::new(),
             profile_panel: super::profile_panel::Panel::new(),
             staff_panel: super::staff_panel::Panel::new(),
+            #[cfg(feature = "mod-jof")]
+            dialogue: super::dialogue_panel::Panel::new(),
             collection_panel: super::collection_panel::Panel::new(),
             holocrons_panel: super::holocrons_panel::Panel::new(),
             profile_hub_return: crate::player_menu::ReturnTarget::MainMenu,
@@ -581,6 +628,18 @@ impl ViewerConsole {
             pending_illuminate: None,
             cardboard_box_on: false,
             pending_cardboard_box: None,
+            order66_on: false,
+            pending_order66: None,
+            hax_on: false,
+            pending_hax: None,
+            ragdoll_on: false,
+            pending_ragdoll: None,
+            drone_on: false,
+            pending_drone: None,
+            boombox_on: false,
+            pending_boombox: None,
+            monitor_on: false,
+            pending_monitor: None,
             pending_settings_search: None,
             sjk_chat_panel: super::sjk_chat_panel::Panel::new(),
             config_import: super::config_import_panel::Panel::new(),
@@ -589,14 +648,21 @@ impl ViewerConsole {
             show_timedelta,
             time_nudge,
             smooth_clients,
+            hide_corpses_in_duel,
+            hide_pickups_in_duel,
+            duel_hide_others,
+            plugin_disable,
             draw_fog,
             remaps,
+            server_remaps,
+            map_edits,
             remap_blocked_maps,
             packet_dup,
             max_packets,
             gameplay_fps,
             frame_cap: crate::runtime_settings::STOCK_FPS_CAP,
             server_cap: None,
+            server_family: None,
             caps_lifted,
             input_health: Default::default(),
             pmove_fixed,
@@ -621,6 +687,7 @@ impl ViewerConsole {
             pending_quit: false,
             pending_input: Vec::with_capacity(64),
             pending_chat: std::collections::VecDeque::with_capacity(16),
+            whisper_hover: Default::default(),
 
             client_commands,
             mods,
@@ -646,7 +713,9 @@ impl ViewerConsole {
     /// Flush an effective profile change through OpenJK's reliable userinfo
     /// command, then send what the Force profile exchange has due.
     pub(crate) fn flush_userinfo(&mut self, session: &mut ClientSession, now: Instant) {
-        if self.userinfo_dirty.load(Ordering::Acquire) {
+        self.flush_dialogue(session);
+        // A change the server ignored (too many in its window) goes again.
+        if self.userinfo_dirty.load(Ordering::Acquire) || session.userinfo_refused() {
             self.send_userinfo(session, now);
         }
         self.note_forcepowers_change();
@@ -662,12 +731,13 @@ impl ViewerConsole {
             .map_err(|error| error.to_string())
             .and_then(|userinfo| {
                 session
-                    .update_userinfo_options(
+                    .update_userinfo_with_mod_fields(
                         &userinfo,
                         Some(
                             self.bool_cvar("cg_nameplate").unwrap_or(false)
                                 && self.integer_cvar("cg_nameplateBars").unwrap_or(0) > 0,
                         ),
+                        &self.mods.userinfo_fields(&self.shell),
                         now,
                     )
                     .map_err(|error| error.to_string())
@@ -700,6 +770,12 @@ impl ViewerConsole {
         if let Some(notice) = output.notice {
             self.shell.push_log(notice);
         }
+    }
+
+    /// Send the sabers to a JA+ or jaPRO-lineage server on the next frame even if
+    /// they did not change (the `saber` command, #132).
+    pub(crate) fn request_saber_command(&mut self) {
+        self.saber_change.request();
     }
 
     /// Tell a JA+ or jaPRO-lineage server about a saber changed since the last
@@ -809,6 +885,7 @@ impl ViewerConsole {
 
     /// Refresh `serverinfo` and profile-specific completion from the active session.
     pub(crate) fn set_server_info(&mut self, session: &ClientSession) {
+        self.reset_dialogue();
         // A change from before this connection is sent by its join.
         self.forcepowers_changed.store(false, Ordering::Release);
         // Each connection starts with the base userinfo payload, without teamoverlay.
@@ -824,6 +901,7 @@ impl ViewerConsole {
 
     /// Refresh demo serverinfo through the same status and completion path as live play.
     pub(crate) fn set_demo_server_info(&mut self, game: &GameState) {
+        self.reset_dialogue();
         self.update_server_info(
             game,
             &sjk_client::CompatProfile::from_game_state(game),
@@ -892,6 +970,7 @@ impl ViewerConsole {
             info: raw.clone().into_owned(),
         };
         self.server_cap = crate::server_caps::find(&server_info);
+        self.server_family = server_info.family();
         if let Some(cap) = self.server_cap {
             self.shell.push_log(format!(
                 "gameplay FPS: {} servers take {} commands a second at most{}",
@@ -1010,6 +1089,9 @@ fn retire_modern_ui(cvars: &mut CvarRegistry) {
         "con_datetime",
         // Darkened the backdrop of the old form screens, removed on 10/10/2026.
         "ui_menuContrast",
+        // The Shaders tab's rack or grid (0 the rack), replaced on 25/10/2026 by
+        // `ui_shaderList`, whose 0 is the new wall of tiles, so every player starts on it.
+        "ui_shaderView",
     ] {
         let _ = cvars.unset(retired);
     }
@@ -1060,9 +1142,125 @@ fn renamed_illuminate_command(command: &str) -> Option<String> {
     changed.then(|| parts.join(";"))
 }
 
+/// The Monitor's throw charges while held since 26/10/2026 (`+monitor_throw`): a key
+/// bound to the plain `monitor_throw` alone (as the key bindings and the Collection
+/// bound it before) is bound to the held one, which throws on the release. A bind that
+/// runs it among other commands stays, still throwing at once.
+fn hold_monitor_throw(shell: &mut sjk_shell::Shell) {
+    let plain: Vec<String> = shell
+        .binds
+        .iter()
+        .filter(|(_, command)| {
+            command
+                .trim()
+                .eq_ignore_ascii_case(crate::monitor::THROW_COMMAND)
+        })
+        .map(|(key, _)| key.to_owned())
+        .collect();
+    for key in plain {
+        let _ = shell.binds.bind(&key, crate::monitor::CHARGE_COMMAND);
+    }
+}
+
+/// `s_emoteVolume` was times `s_volume` until 27/10/2026 (#163) and every profile saved
+/// it: a saved value moves once to what the player heard, itself times the saved
+/// `s_volume` (the old default 2 at the default 0.5 is the new default 1). `saved`:
+/// the config holds an `s_emoteVolume` line; a profile without one (a new one, or one
+/// saved before the emote volume) keeps the new default and only takes the marker.
+fn emote_volume_on_its_own(cvars: &mut sjk_shell::CvarRegistry, saved: bool) {
+    let version = crate::emotes::VOLUME_VERSION_CVAR;
+    if !matches!(
+        cvars.get(version).map(|cvar| &cvar.value),
+        Some(CvarValue::Integer(0))
+    ) {
+        return;
+    }
+    let number = crate::console::saved_number;
+    if saved
+        && let (Some(emotes), Some(effects)) = (
+            number(cvars, crate::emotes::VOLUME_CVAR),
+            number(cvars, "s_volume"),
+        )
+    {
+        let heard = (emotes * effects.clamp(0.0, 1.0)).clamp(0.0, crate::emotes::MAX_VOLUME);
+        let _ = cvars.set_text(crate::emotes::VOLUME_CVAR, &format!("{heard:.2}"));
+    }
+    let _ = cvars.set_text(version, "1");
+}
+
+/// Whether `config` sets cvar `name` (`seta name "value"`, any case).
+fn saves(config: &str, name: &str) -> bool {
+    config.lines().any(|line| {
+        let mut words = line.split_whitespace();
+        words.next().is_some_and(|command| {
+            command.eq_ignore_ascii_case("seta") || command.eq_ignore_ascii_case("set")
+        }) && words
+            .next()
+            .is_some_and(|cvar| cvar.eq_ignore_ascii_case(name))
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use crate::console::ViewerConsole;
+
+    /// Hub report #163: a saved emote volume moves once to what was heard (times the
+    /// saved effects volume); a new profile keeps the default 1, and a value set
+    /// afterwards stays.
+    #[test]
+    fn a_saved_emote_volume_moves_once_to_what_was_heard() {
+        let directory = tempfile::tempdir().unwrap();
+        let fresh = ViewerConsole::new(directory.path().join("new.cfg")).unwrap();
+        assert_eq!(fresh.float_cvar(crate::emotes::VOLUME_CVAR), Some(1.0));
+        drop(fresh);
+        for (emotes, effects, after) in [("2", "0.5", 1.0), ("3", "0.2", 0.6), ("4", "1", 3.0)] {
+            let path = directory.path().join(format!("old-{emotes}-{effects}.cfg"));
+            std::fs::write(
+                &path,
+                format!("seta s_emoteVolume \"{emotes}\"\nseta s_volume \"{effects}\"\n"),
+            )
+            .unwrap();
+            let mut console = ViewerConsole::new(path.clone()).unwrap();
+            let volume = console.float_cvar(crate::emotes::VOLUME_CVAR).unwrap();
+            assert!(
+                (volume - after).abs() < 1e-9,
+                "{emotes} at {effects}: {volume}"
+            );
+            assert!(console.set_cvar(crate::emotes::VOLUME_CVAR, "2"));
+            drop(console);
+            let console = ViewerConsole::new(path).unwrap();
+            assert_eq!(console.float_cvar(crate::emotes::VOLUME_CVAR), Some(2.0));
+        }
+        // An old profile that never saved the emote volume keeps the new default, not
+        // the default times its s_volume.
+        let path = directory.path().join("old-without.cfg");
+        std::fs::write(
+            &path,
+            "seta s_volume \"0.5\"\nseta s_emoteVolumeVersion \"0\"\n",
+        )
+        .unwrap();
+        let console = ViewerConsole::new(path).unwrap();
+        assert_eq!(console.float_cvar(crate::emotes::VOLUME_CVAR), Some(1.0));
+        assert!(!super::saves(
+            "seta s_emoteVolumeVersion \"0\"",
+            "s_emoteVolume"
+        ));
+        assert!(super::saves("SETA S_EMOTEVOLUME \"2\"", "s_emoteVolume"));
+    }
+
+    #[cfg(feature = "mod-jof")]
+    #[test]
+    fn mod_switch_and_server_opt_in_mark_userinfo_dirty_without_global_key() {
+        use std::sync::atomic::Ordering;
+        let dir = tempfile::tempdir().unwrap();
+        let mut console = super::ViewerConsole::new(dir.path().join("config.cfg")).unwrap();
+        for (name, value) in [("mod_jof", "0"), (sjk_mod_jof::EJK_OPT_IN, "0")] {
+            console.userinfo_dirty.store(false, Ordering::Release);
+            console.set_cvar(name, value);
+            assert!(console.userinfo_dirty.load(Ordering::Acquire), "{name}");
+        }
+        assert!(console.shell.cvars.get("jofejk").is_none());
+    }
 
     /// A new profile keeps the default 5; a profile saved before the stock units
     /// is rescaled once, and only once.
@@ -1174,7 +1372,7 @@ mod tests {
         assert_eq!(console.force_repeat_command(), Some(6), "the last pressed");
         console.queue_bound_script("MOUSE4", false);
         assert_eq!(console.force_repeat_command(), Some(6));
-        console.force_repeat_key_up(KeyCode::KeyF, None);
+        console.queue_bound_key(KeyCode::KeyF, None, false);
         assert_eq!(
             console.force_repeat_command(),
             None,
@@ -1188,6 +1386,24 @@ mod tests {
         assert!(console.set_cvar(crate::input::force_repeat::CVAR, "0"));
         console.queue_bound_script("MOUSE4", true);
         assert_eq!(console.force_repeat_command(), None, "turned off");
+    }
+
+    #[test]
+    fn second_held_key_queues_the_chord_instead_of_its_own_bind() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut console = ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
+        console.execute_console_line("bind k echo first", None);
+        console.execute_console_line("bind l echo ordinary", None);
+        console.execute_console_line("bind k+l kill", None);
+
+        console.queue_bound_script("K", true);
+        console.queue_bound_script("L", true);
+        let mut seen = Vec::new();
+        console.execute_buffered_frame(None, |command, _| {
+            seen.push(command.to_owned());
+            true
+        });
+        assert_eq!(seen, ["echo first", "kill"]);
     }
 
     /// The nameplate's own powers are what the server grants the profile that is
@@ -1303,6 +1519,24 @@ mod tests {
         .unwrap();
         let console = ViewerConsole::new(chosen).unwrap();
         assert_eq!(console.shell.binds.get("q"), Some("+wheel general"));
+    }
+
+    #[test]
+    fn a_key_bound_to_the_monitor_throw_holds_it_to_charge() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("monitor.cfg");
+        std::fs::write(
+            &path,
+            "bind t \"monitor_throw\"
+bind y \"say hi; monitor_throw\"
+bind u \"+monitor_throw\"
+",
+        )
+        .unwrap();
+        let console = ViewerConsole::new(path).unwrap();
+        assert_eq!(console.shell.binds.get("t"), Some("+monitor_throw"));
+        assert_eq!(console.shell.binds.get("y"), Some("say hi; monitor_throw"));
+        assert_eq!(console.shell.binds.get("u"), Some("+monitor_throw"));
     }
 
     /// Illuminate left the Force wheel: a saved `cg_illuminate` (the old on-the-wheel

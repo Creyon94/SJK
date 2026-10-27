@@ -16,6 +16,13 @@
 //! player's own key also tells the identity worker ([`OwnDrop`]), which reads the own
 //! profile and holocron progress again soon.
 //!
+//! An announcement or a reward round (`PROTOCOL.md`, "Announcements", "Reward rounds")
+//! joins the messages the same way, as a [`ChatMessage`] whose [`ChatMessage::official`]
+//! is set, and the worker is told of it ([`FeedNews`]): it keeps the announcements for
+//! the viewer and reads the rewards again. Announcements read from the hub rather than
+//! the feed (made while the player was away) join the chat through
+//! [`post_announcements`].
+//!
 //! Another game server starts the reading again from `after` 0, whose answer carries
 //! that server's looks of the last minute. The looks queued for the viewer carry the
 //! server they were read for and the reading's generation ([`FeedShared::generation`],
@@ -23,11 +30,13 @@
 //! [`take_looks`] hands over only those of the current generation and the viewer's
 //! server, so a poll still under way when either changed cannot bring old looks back.
 
-use crate::hub::Hub;
+use crate::hub::{Hub, HubError};
 use crate::keys::Identity;
+use crate::news::{Announcement, Official};
 use crate::service::{HubFactory, ReportOutcome};
 use crate::wire::{
-    ChatMessage, DropEvent, DropMark, Emote, Feed, LookEvent, People, Ping, ToyEvent,
+    ChatMessage, DropEvent, DropMark, Emote, Feed, FindEvent, FindMark, LookEvent, People, Ping,
+    ToyEvent,
 };
 use std::collections::VecDeque;
 use std::net::SocketAddr;
@@ -40,8 +49,12 @@ pub const MESSAGES_KEPT: usize = 200;
 pub const WAIT: u64 = 25;
 /// The feed's HTTP timeout: the hub's wait and room for a slow answer.
 pub const TIMEOUT: Duration = Duration::from_secs(40);
-/// Shortest time between the starts of two polls.
-const POLL_GAP: Duration = Duration::from_secs(2);
+/// Shortest time between the starts of two polls: a ping, emote or toy event that comes
+/// just after another answer waits at most this long (2 seconds before 27/10/2026).
+const POLL_GAP: Duration = Duration::from_millis(500);
+/// The gap a hub from before 27/10/2026 wants: it takes 40 polls a minute from a key and
+/// answers more with 429 `feed_quota`, after which the feed keeps to this.
+const OLD_POLL_GAP: Duration = Duration::from_secs(2);
 /// First wait after a failure, doubled up to [`RETRY_MAX`].
 const RETRY_MIN: Duration = Duration::from_secs(2);
 const RETRY_MAX: Duration = Duration::from_secs(60);
@@ -56,6 +69,18 @@ const PINGS_WAITING: usize = 64;
 
 /// What the feed thread calls when a holocron dropped for the player's own key.
 pub(crate) type OwnDrop = Box<dyn Fn() + Send>;
+
+/// What the feed tells the identity worker of the SJK team's news.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum FeedNews {
+    /// Announcements relayed, oldest first.
+    Announcements(Vec<Announcement>),
+    /// A reward round was made: the rewards are read again.
+    Round,
+}
+
+/// What the feed thread calls with the SJK team's news.
+pub(crate) type NewsSink = Box<dyn Fn(FeedNews) + Send>;
 
 /// What the chat shows.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
@@ -151,6 +176,13 @@ pub(crate) struct ForServer<T> {
     item: T,
 }
 
+impl<T> ForServer<T> {
+    /// `item`, read for `server`.
+    pub(crate) fn new(server: Option<SocketAddr>, item: T) -> Self {
+        Self { server, item }
+    }
+}
+
 /// A ping queued for the viewer.
 pub(crate) type QueuedPing = ForServer<Ping>;
 /// A toy event queued for the viewer.
@@ -173,7 +205,10 @@ pub(crate) fn take_toy_events(
     take_for_server(queue, server)
 }
 
-fn take_for_server<T>(queue: &Mutex<VecDeque<ForServer<T>>>, server: Option<SocketAddr>) -> Vec<T> {
+pub(crate) fn take_for_server<T>(
+    queue: &Mutex<VecDeque<ForServer<T>>>,
+    server: Option<SocketAddr>,
+) -> Vec<T> {
     let mut queue = lock(queue);
     if server.is_none() {
         queue.clear();
@@ -215,6 +250,12 @@ pub(crate) struct FeedWorker {
     own_drop: OwnDrop,
     /// The newest own drop told of, so a replay of the feed's last minute is not news.
     own_drop_told: u64,
+    /// Called when one of the player's trades changed ([`FeedWorker::on_trade`]).
+    own_trade: OwnDrop,
+    /// Where the SJK team's news goes ([`FeedNews`]), and the newest feed ids of
+    /// announcements and rounds told of.
+    news: Option<NewsSink>,
+    news_told: (u64, u64),
     /// The game server read for, as last told.
     server: Option<String>,
     /// Whether the chat shows, as last told.
@@ -222,6 +263,8 @@ pub(crate) struct FeedWorker {
     after: u64,
     due: Instant,
     backoff: Duration,
+    /// [`POLL_GAP`], or [`OLD_POLL_GAP`] once this hub refused a poll as too soon.
+    gap: Duration,
     /// Counts the hubs read (`ChatState::loaded`).
     epoch: u64,
 }
@@ -243,6 +286,9 @@ impl FeedWorker {
             local_key_id: identity.key_id(),
             own_drop,
             own_drop_told: 0,
+            own_trade: Box::new(|| {}),
+            news: None,
+            news_told: (0, 0),
             identity,
             make_hub,
             shared,
@@ -258,8 +304,20 @@ impl FeedWorker {
             after: 0,
             due: now,
             backoff: RETRY_MIN,
+            gap: POLL_GAP,
             epoch: 0,
         }
+    }
+
+    /// Call `told` whenever the feed tells of a change to one of the player's trades.
+    pub(crate) fn on_trade(mut self, told: OwnDrop) -> Self {
+        self.own_trade = told;
+        self
+    }
+
+    /// Tell `sink` of the announcements and reward rounds the feed relays.
+    pub(crate) fn set_news(&mut self, sink: NewsSink) {
+        self.news = Some(sink);
     }
 
     /// The queue the pings received go to ([`take_pings`]).
@@ -309,7 +367,14 @@ impl FeedWorker {
             Ok(feed) => {
                 self.apply(feed, &shared);
                 self.backoff = RETRY_MIN;
-                self.due = now + POLL_GAP;
+                self.due = now + self.gap;
+            }
+            // An older hub's quota: the poll did not count, the feed is still live.
+            Err(HubError::Rejected {
+                status: 429, code, ..
+            }) if code == "feed_quota" => {
+                self.gap = OLD_POLL_GAP;
+                self.due = now + OLD_POLL_GAP;
             }
             Err(_) => {
                 self.set_live(false);
@@ -326,8 +391,10 @@ impl FeedWorker {
         self.url = url;
         self.after = 0;
         self.own_drop_told = 0;
+        self.news_told = (0, 0);
         self.due = now;
         self.backoff = RETRY_MIN;
+        self.gap = POLL_GAP;
         self.clear_chat();
     }
 
@@ -370,6 +437,12 @@ impl FeedWorker {
     /// only while the chat shows, its looks marked with the reading they belong to.
     fn apply(&mut self, mut feed: Feed, polled: &FeedShared) {
         self.tell_own_drops(&feed.drops);
+        // Only the trade's two players are told; a replay after `after` 0 reads the list
+        // once more, which is harmless.
+        if !feed.trades.is_empty() {
+            (self.own_trade)();
+        }
+        self.tell_news(&feed);
         if self.chat {
             self.apply_chat(&mut feed);
         }
@@ -410,6 +483,32 @@ impl FeedWorker {
         }
     }
 
+    /// Tell the worker of the announcements and rounds not told of yet.
+    fn tell_news(&mut self, feed: &Feed) {
+        let Some(sink) = &self.news else {
+            return;
+        };
+        let (announced, rounds) = self.news_told;
+        let new: Vec<Announcement> = feed
+            .announcements
+            .iter()
+            .filter(|relayed| relayed.id > announced)
+            .map(|relayed| relayed.announcement.clone())
+            .collect();
+        if let Some(newest) = feed.announcements.iter().map(|relayed| relayed.id).max() {
+            self.news_told.0 = announced.max(newest);
+        }
+        if !new.is_empty() {
+            sink(FeedNews::Announcements(new));
+        }
+        if let Some(newest) = feed.rounds.iter().map(|round| round.id).max()
+            && newest > rounds
+        {
+            self.news_told.1 = newest;
+            sink(FeedNews::Round);
+        }
+    }
+
     /// Take an answer's messages, deletions, online count and people into the chat.
     fn apply_chat(&self, feed: &mut Feed) {
         let mut state = lock(&self.state);
@@ -431,16 +530,32 @@ impl FeedWorker {
         }
         if !feed.deleted.is_empty() {
             let before = state.messages.len();
-            state
-                .messages
-                .retain(|message| !feed.deleted.contains(&message.id));
+            // The SJK team's lines are not the hub's messages, whatever id they hold.
+            state.messages.retain(|message| {
+                message.official.is_some() || !feed.deleted.contains(&message.id)
+            });
             changed |= state.messages.len() != before;
         }
-        // Drops share the messages' ids: merged, the chat keeps the order they came in.
+        // Drops, finds, announcements and rounds share the messages' ids: merged, the
+        // chat keeps the order they came in.
         let mut incoming = std::mem::take(&mut feed.chat);
-        if !feed.drops.is_empty() {
+        if !feed.drops.is_empty()
+            || !feed.finds.is_empty()
+            || !feed.announcements.is_empty()
+            || !feed.rounds.is_empty()
+        {
             let own = &self.key_id;
             incoming.extend(feed.drops.drain(..).map(|drop| drop_message(drop, own)));
+            incoming.extend(feed.finds.drain(..).map(|find| find_message(find, own)));
+            incoming.extend(feed.announcements.drain(..).map(|relayed| {
+                let at = relayed.announcement.at;
+                official_message(relayed.id, at, Official::Announcement(relayed.announcement))
+            }));
+            incoming.extend(
+                feed.rounds
+                    .drain(..)
+                    .map(|round| official_message(round.id, round.at, Official::Round(round))),
+            );
             incoming.sort_by_key(|message| message.id);
         }
         for message in incoming {
@@ -473,15 +588,114 @@ fn drop_message(drop: DropEvent, own: &str) -> ChatMessage {
         holocron: Some(DropMark {
             own: drop.key_id == own,
             tier: drop.tier,
+            find: None,
         }),
+        official: None,
         key_id: drop.key_id,
         name: drop.name,
         verified: drop.verified,
         staff: false,
+        creator: false,
         trust: None,
         emoji: String::new(),
+        client: String::new(),
         text: String::new(),
     }
+}
+
+/// The chat entry for the grand find `find`, as `own` (the player's key id) sees it: a
+/// drop line marked with what the holocron gave, worded by the viewer.
+fn find_message(find: FindEvent, own: &str) -> ChatMessage {
+    ChatMessage {
+        id: find.id,
+        at: find.at,
+        holocron: Some(DropMark {
+            own: find.key_id == own,
+            tier: find.tier,
+            find: Some(FindMark {
+                shader: find.prize == "shader",
+                name: find.item_name,
+                rarity: find.rarity,
+                finish: find.finish,
+            }),
+        }),
+        official: None,
+        key_id: find.key_id,
+        name: find.name,
+        verified: find.verified,
+        staff: false,
+        creator: false,
+        trust: None,
+        emoji: String::new(),
+        client: String::new(),
+        text: String::new(),
+    }
+}
+
+/// The chat line of the SJK team's `official` news, `id` in the feed's sequence. Its
+/// text is left empty: the viewer words the line.
+fn official_message(id: u64, at: i64, official: Official) -> ChatMessage {
+    ChatMessage {
+        id,
+        at,
+        key_id: String::new(),
+        name: "SJK".to_owned(),
+        verified: false,
+        staff: false,
+        creator: false,
+        trust: None,
+        emoji: String::new(),
+        client: String::new(),
+        text: String::new(),
+        holocron: None,
+        official: Some(official),
+    }
+}
+
+/// Whether `state`'s messages hold announcement `id`.
+fn holds_announcement(state: &ChatState, id: u64) -> bool {
+    state.messages.iter().any(|message| {
+        matches!(&message.official, Some(Official::Announcement(shown)) if shown.id == id)
+    })
+}
+
+/// Put `announcements` (oldest first) at the end of the chat, read from the hub rather
+/// than the feed (made while the player was away), each once: one the chat holds already
+/// (the feed relayed it) is not added again. Only once the hub being read has answered
+/// (`loaded`): before, its backlog is still to come. Each takes the id of the newest
+/// message (0 in an empty chat), so the feed's next message still follows it; the viewer
+/// tells these lines by their announcement. Returns the ids of the announcements given
+/// that the chat now holds; empty when it could not take them (not loaded: the chat off,
+/// or its first answer still to come).
+pub(crate) fn post_announcements(
+    state: &Mutex<ChatState>,
+    announcements: &[Announcement],
+) -> Vec<u64> {
+    let mut state = lock(state);
+    if state.loaded.is_none() {
+        return Vec::new();
+    }
+    let mut held = Vec::with_capacity(announcements.len());
+    let mut changed = false;
+    for announcement in announcements {
+        if !holds_announcement(&state, announcement.id) {
+            let id = state.messages.back().map_or(0, |last| last.id);
+            if state.messages.len() == MESSAGES_KEPT {
+                state.messages.pop_front();
+            }
+            state.messages.push_back(official_message(
+                id,
+                announcement.at,
+                Official::Announcement(announcement.clone()),
+            ));
+            changed = true;
+        }
+        held.push(announcement.id);
+    }
+    if changed {
+        state.revision += 1;
+    }
+    held
 }
 
 /// Add `received` to `waiting`, keeping the newest `kept`.
@@ -587,10 +801,13 @@ mod tests {
             name: "Sol".to_owned(),
             verified: false,
             staff: false,
+            creator: false,
             trust: None,
             emoji: String::new(),
+            client: String::new(),
             text: text.to_owned(),
             holocron: None,
+            official: None,
         }
     }
 
@@ -739,6 +956,146 @@ mod tests {
         }));
         rig.worker.step(t0 + POLL_GAP);
         assert_eq!(lock(&rig.state).messages.len(), 4);
+    }
+
+    fn announcement(id: u64, title: &str) -> Announcement {
+        Announcement {
+            id,
+            at: 100 + id as i64,
+            kind: "news".to_owned(),
+            title: title.to_owned(),
+            text: "Hello all".to_owned(),
+            version: String::new(),
+        }
+    }
+
+    /// Announcements and rounds join the chat in the feed's order as the SJK team's
+    /// lines, the worker is told of each once (a replay of the last minute is not news),
+    /// and older hubs send neither.
+    #[test]
+    fn announcements_and_rounds_join_the_chat_and_tell_the_worker() {
+        let parsed: Feed = serde_json::from_str(
+            r#"{"next":9,"announcements":[{"id":8,"announcement":{"id":3,"at":5,
+                "kind":"news","title":"Hi","text":"Line"}}],
+                "rounds":[{"id":9,"round":2,"at":6,"title":"Contributor rewards #1","count":7}]}"#,
+        )
+        .unwrap();
+        let old: Feed = serde_json::from_str(r#"{"next":7}"#).unwrap();
+        assert!(old.announcements.is_empty() && old.rounds.is_empty());
+        let t0 = Instant::now();
+        let mut rig = rig(t0);
+        let told = Arc::new(Mutex::new(Vec::new()));
+        let sink = Arc::clone(&told);
+        rig.worker
+            .set_news(Box::new(move |news| sink.lock().unwrap().push(news)));
+        rig.read("https://hub", None);
+        rig.script(Ok(Feed {
+            chat: vec![message(7, "gg")],
+            ..parsed.clone()
+        }));
+        rig.worker.step(t0);
+        let state = lock(&rig.state).clone();
+        let ids: Vec<u64> = state.messages.iter().map(|m| m.id).collect();
+        assert_eq!(ids, [7, 8, 9]);
+        match &state.messages[1].official {
+            Some(Official::Announcement(shown)) => assert_eq!(shown.title, "Hi"),
+            other => panic!("an announcement line, not {other:?}"),
+        }
+        match &state.messages[2].official {
+            Some(Official::Round(round)) => assert_eq!((round.round, round.count), (2, 7)),
+            other => panic!("a round line, not {other:?}"),
+        }
+        assert!(state.messages[1].holocron.is_none());
+        assert_eq!(
+            *told.lock().unwrap(),
+            [
+                FeedNews::Announcements(vec![announcement_of(&parsed)]),
+                FeedNews::Round
+            ]
+        );
+        // The same again (a backlog read anew): the chat skips it, the worker hears nothing.
+        rig.script(Ok(parsed));
+        rig.worker.step(t0 + POLL_GAP);
+        assert_eq!(lock(&rig.state).messages.len(), 3);
+        assert_eq!(told.lock().unwrap().len(), 2);
+        // A deletion of the id an SJK line holds leaves the line.
+        rig.script(Ok(Feed {
+            next: 9,
+            deleted: vec![8],
+            ..Feed::default()
+        }));
+        rig.worker.step(t0 + POLL_GAP * 2);
+        assert_eq!(lock(&rig.state).messages.len(), 3);
+    }
+
+    fn announcement_of(feed: &Feed) -> Announcement {
+        feed.announcements[0].announcement.clone()
+    }
+
+    /// Announcements read from the hub join the end of a loaded chat once each, after the
+    /// newest message's id, so the feed's next message still follows them; before the
+    /// first answer they wait.
+    #[test]
+    fn posted_announcements_join_a_loaded_chat_once() {
+        let t0 = Instant::now();
+        let mut rig = rig(t0);
+        rig.read("https://hub", None);
+        let list = [announcement(1, "Old"), announcement(2, "New")];
+        assert!(
+            post_announcements(&rig.state, &list).is_empty(),
+            "not loaded"
+        );
+        rig.script(answer(5, vec![message(4, "a"), message(5, "b")]));
+        rig.worker.step(t0);
+        assert_eq!(post_announcements(&rig.state, &list), [1, 2]);
+        let state = lock(&rig.state).clone();
+        let ids: Vec<u64> = state.messages.iter().map(|m| m.id).collect();
+        assert_eq!(ids, [4, 5, 5, 5]);
+        assert!(state.messages[2].official.is_some());
+        // Again: nothing added, both still held.
+        let revision = state.revision;
+        assert_eq!(post_announcements(&rig.state, &list), [1, 2]);
+        assert_eq!(lock(&rig.state).revision, revision);
+        // The feed's next message follows them.
+        rig.script(answer(6, vec![message(6, "c")]));
+        rig.worker.step(t0 + POLL_GAP);
+        assert_eq!(rig.texts().last().map(String::as_str), Some("c"));
+        assert_eq!(lock(&rig.state).messages.len(), 5);
+    }
+
+    /// A grand find joins the chat in the feed's order as a drop line marked with what
+    /// the holocron gave; the wire's field is parsed, and absent from older hubs.
+    #[test]
+    fn grand_finds_join_the_chat_marked_with_their_prize() {
+        let parsed: Feed = serde_json::from_str(
+            r#"{"next":7,"finds":[{"id":7,"at":9,"key_id":"ff","name":"Fox","verified":true,
+                "tier":"mythical","prize":"shader","item":"saber_phoenix",
+                "item_name":"Phoenix blade","rarity":"mythical","finish":""}]}"#,
+        )
+        .unwrap();
+        assert_eq!(parsed.finds.len(), 1);
+        let old: Feed = serde_json::from_str(r#"{"next":7}"#).unwrap();
+        assert!(old.finds.is_empty(), "an older hub sends no finds");
+        let t0 = Instant::now();
+        let mut rig = rig(t0);
+        rig.read("https://hub", None);
+        rig.script(Ok(Feed {
+            chat: vec![message(6, "gg")],
+            ..parsed
+        }));
+        rig.worker.step(t0);
+        let state = lock(&rig.state).clone();
+        let ids: Vec<u64> = state.messages.iter().map(|m| m.id).collect();
+        assert_eq!(ids, [6, 7]);
+        let mark = state.messages[1].holocron.as_ref().expect("a find line");
+        assert_eq!((mark.tier.as_str(), mark.own), ("mythical", false));
+        let find = mark.find.as_ref().expect("its prize");
+        assert!(find.shader);
+        assert_eq!(
+            (find.name.as_str(), find.rarity.as_str()),
+            ("Phoenix blade", "mythical")
+        );
+        assert_eq!(state.messages[1].name, "Fox");
     }
 
     #[test]
@@ -984,6 +1341,7 @@ mod tests {
             key_id: "aa".to_owned(),
             emote: "wave".to_owned(),
             sync: None,
+            quiet: false,
         };
         rig.script(Ok(Feed {
             next: 4,
@@ -1008,6 +1366,11 @@ mod tests {
             illuminate,
             saber_off: Vec::new(),
             toys: Vec::new(),
+            saber2: None,
+            saber2_off: Vec::new(),
+            saber_on: Vec::new(),
+            saber2_on: Vec::new(),
+            saber_sounds: String::new(),
         }
     }
 
@@ -1258,18 +1621,41 @@ mod tests {
     }
 
     #[test]
-    fn polls_are_two_seconds_apart() {
+    fn polls_are_half_a_second_apart() {
         let t0 = Instant::now();
         let mut rig = rig(t0);
         rig.read("https://hub", None);
         assert_eq!(rig.worker.step(t0), POLL_GAP);
         assert_eq!(
-            rig.worker.step(t0 + Duration::from_millis(500)),
-            Duration::from_millis(1_500)
+            rig.worker.step(t0 + Duration::from_millis(200)),
+            Duration::from_millis(300)
         );
         assert_eq!(rig.asked().len(), 1);
         rig.worker.step(t0 + POLL_GAP);
         assert_eq!(rig.asked().len(), 2);
+    }
+
+    /// A hub from before 27/10/2026 takes a poll every 2 seconds: its `feed_quota`
+    /// slows the feed to that, without counting as a failure, until another hub is read.
+    #[test]
+    fn an_older_hubs_feed_quota_slows_polls_to_two_seconds() {
+        let t0 = Instant::now();
+        let mut rig = rig(t0);
+        rig.read("https://hub", None);
+        rig.worker.step(t0);
+        assert!(lock(&rig.state).live);
+        rig.script(Err(HubError::Rejected {
+            status: 429,
+            code: "feed_quota".to_owned(),
+            message: "slow down".to_owned(),
+        }));
+        assert_eq!(rig.worker.step(t0 + POLL_GAP), OLD_POLL_GAP);
+        assert!(lock(&rig.state).live);
+        let later = t0 + POLL_GAP + OLD_POLL_GAP;
+        assert_eq!(rig.worker.step(later), OLD_POLL_GAP);
+        assert_eq!(rig.asked().len(), 3);
+        rig.read("https://other", None);
+        assert_eq!(rig.worker.step(later + OLD_POLL_GAP), POLL_GAP);
     }
 
     #[test]

@@ -25,10 +25,98 @@ pub const STASIS: u8 = 18;
 pub const REPULSE: u8 = 19;
 /// Force Dash (JoF JA+ V69): its known bit and wheel pseudo-slot.
 pub const DASH: u8 = 20;
-/// Most entries a wheel can hold: every real power and the three pseudo-slots.
-pub const MAX_SLOTS: usize = 21;
-/// Known bits of the three pseudo-slots a server grants.
+/// Fixed adapter storage for real powers and optional extension entries.
+pub const MAX_SLOTS: usize = 22;
+/// Known bits of the original three pseudo-slots a server grants.
 pub const PSEUDO_MASK: u32 = (1 << STASIS) | (1 << REPULSE) | (1 << DASH);
+
+/// A server-granted pseudo-power's command and position in the stock wheel.
+/// Evidence: EJK #110/#112/#117 and #338 `CG_BuildForceWheel`/`CL_CmdButtons`.
+#[derive(Debug)]
+pub struct Ability {
+    /// Local wheel slot, never a protocol force selection.
+    pub slot: u8,
+    /// Real power whose position anchors this ability, even when unknown.
+    pub anchor: u8,
+    /// Insert before the anchor rather than after it.
+    pub before: bool,
+    /// Reliable command for an instant ability; Stasis uses its held button.
+    pub command: Option<&'static str>,
+    /// Optional serverinfo flag required in addition to the known bit.
+    pub server_flag: Option<&'static str>,
+    /// Require a living player outside spectator/follow states.
+    pub live_only: bool,
+    /// Host label for this optional entry.
+    pub label: &'static str,
+    /// Installed image requested only while this extension is active.
+    pub icon: Option<&'static str>,
+    /// Stock icon index used when the optional image is absent.
+    pub fallback: u8,
+}
+
+/// Compatibility contracts; adding a pseudo-power adds a row, not a server-name check.
+pub const ABILITIES: &[Ability] = &[
+    Ability {
+        slot: DASH,
+        label: "Dash",
+        icon: None,
+        fallback: 2,
+        anchor: 2,
+        before: true,
+        command: Some("force_dash"),
+        server_flag: None,
+        live_only: false,
+    },
+    Ability {
+        slot: STASIS,
+        label: "Stasis",
+        icon: None,
+        fallback: 1,
+        anchor: 14,
+        before: false,
+        command: None,
+        server_flag: None,
+        live_only: false,
+    },
+    Ability {
+        slot: REPULSE,
+        label: "Repulse",
+        icon: None,
+        fallback: 3,
+        anchor: 14,
+        before: false,
+        command: Some("force_repulse"),
+        server_flag: None,
+        live_only: false,
+    },
+];
+
+/// Known-bit mask contributed by optional extension metadata.
+pub fn extension_mask(extensions: &[Ability]) -> u32 {
+    extensions
+        .iter()
+        .filter(|entry| entry.slot < 32)
+        .fold(0, |mask, entry| mask | (1 << entry.slot))
+}
+
+/// Filter raw grants by the host's active extension metadata. No mod's server
+/// identification or feature flags are interpreted in base SJK.
+pub fn known(player: &PlayerState, extensions: &[Ability]) -> u32 {
+    let mut known = player.raw_field(51).unwrap_or(0)
+        & (((1 << REAL_POWERS) - 1) | PSEUDO_MASK | extension_mask(extensions));
+    if player.health() <= 0
+        || matches!(player.movement_type(), 3 | 4)
+        || player.movement_flags() & 4096 != 0
+    {
+        for entry in extensions
+            .iter()
+            .filter(|entry| entry.live_only && entry.slot < 32)
+        {
+            known &= !(1 << entry.slot);
+        }
+    }
+    known
+}
 
 /// `BUTTON_FORCEPOWER`, the `+useforce` bit (`bg_public.h`).
 const FORCE_POWER_BUTTON: u16 = 1 << 9;
@@ -119,11 +207,58 @@ pub fn build(known: u32) -> ([u8; MAX_SLOTS], usize) {
     (slots, count)
 }
 
+/// Extension-aware validation; base callers retain the original three slots.
+pub fn valid_with(known: u32, slot: u8, extensions: &[Ability]) -> bool {
+    valid(known, slot)
+        || (slot < 32
+            && known & (1 << slot) != 0
+            && extensions.iter().any(|entry| entry.slot == slot))
+}
+
+/// Build an extended wheel using documented insertion metadata. With no loaded
+/// extension, the original base order (including orphan placement) is retained.
+pub fn build_with(known: u32, extensions: &[Ability]) -> ([u8; MAX_SLOTS], usize) {
+    if extensions.is_empty() {
+        return build(known);
+    }
+    let mut slots = [0; MAX_SLOTS];
+    let mut count = 0;
+    let mut push = |slot| {
+        if count < MAX_SLOTS && valid_with(known, slot, extensions) {
+            slots[count] = slot;
+            count += 1;
+        }
+    };
+    for power in FORCE_ORDER {
+        for entry in ABILITIES
+            .iter()
+            .chain(extensions)
+            .filter(|entry| entry.anchor == power && entry.before)
+        {
+            push(entry.slot);
+        }
+        push(power);
+        for entry in ABILITIES
+            .iter()
+            .chain(extensions)
+            .filter(|entry| entry.anchor == power && !entry.before)
+        {
+            push(entry.slot);
+        }
+    }
+    (slots, count)
+}
+
 /// The wheel entry `direction` steps away from `current`, as
 /// `CG_NextForcePower_f` and `CG_PrevForcePower_f` walk the wheel; `None` when
 /// `current` is not on the wheel or the wheel is empty.
 pub fn step(known: u32, current: u8, direction: i8) -> Option<u8> {
-    let (slots, count) = build(known);
+    step_with(known, current, direction, &[])
+}
+
+/// Step a host-selected extended wheel, without changing real Force selection.
+pub fn step_with(known: u32, current: u8, direction: i8, extensions: &[Ability]) -> Option<u8> {
+    let (slots, count) = build_with(known, extensions);
     let index = slots[..count].iter().position(|&slot| slot == current)?;
     let next = if direction > 0 {
         (index + 1) % count
@@ -137,8 +272,7 @@ pub fn step(known: u32, current: u8, direction: i8) -> Option<u8> {
 /// the press edges it needs to send Repulse and Dash once per press.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct UseRemap {
-    repulse_down: bool,
-    dash_down: bool,
+    command_down: Option<u8>,
 }
 
 impl UseRemap {
@@ -151,39 +285,46 @@ impl UseRemap {
         known: u32,
         stasis_held: bool,
     ) -> (u16, Option<&'static str>) {
+        self.apply_with(buttons, selected, known, stasis_held, &[])
+    }
+
+    /// Apply optional loaded-mod metadata to the same press latch.
+    pub fn apply_with(
+        &mut self,
+        buttons: u16,
+        selected: Option<u8>,
+        known: u32,
+        stasis_held: bool,
+        extensions: &[Ability],
+    ) -> (u16, Option<&'static str>) {
         let mut buttons = buttons;
         // The dedicated bind engages Stasis only where the server granted it.
         if stasis_held && valid(known, STASIS) {
             buttons |= STASIS_BUTTON;
         }
-        let selected = selected.filter(|&slot| is_pseudo(slot) && valid(known, slot));
+        let selected =
+            selected.filter(|&slot| is_pseudo(slot) && valid_with(known, slot, extensions));
         let down = buttons & FORCE_POWER_BUTTON != 0;
         let mut command = None;
-        let (mut repulse_down, mut dash_down) = (false, false);
-        match selected {
-            Some(STASIS) => {
-                if down {
-                    buttons = (buttons & !FORCE_POWER_BUTTON) | STASIS_BUTTON;
-                }
+        let mut command_down = None;
+        if selected == Some(STASIS) {
+            if down {
+                buttons = (buttons & !FORCE_POWER_BUTTON) | STASIS_BUTTON;
             }
-            Some(REPULSE) => {
-                buttons &= !FORCE_POWER_BUTTON;
-                if down && !self.repulse_down {
-                    command = Some("force_repulse");
+        } else if let Some(ability) = ABILITIES
+            .iter()
+            .chain(extensions)
+            .find(|a| Some(a.slot) == selected && a.command.is_some())
+        {
+            buttons &= !FORCE_POWER_BUTTON;
+            if down {
+                if self.command_down != Some(ability.slot) {
+                    command = ability.command;
                 }
-                repulse_down = down;
+                command_down = Some(ability.slot);
             }
-            Some(DASH) => {
-                buttons &= !FORCE_POWER_BUTTON;
-                if down && !self.dash_down {
-                    command = Some("force_dash");
-                }
-                dash_down = down;
-            }
-            _ => {}
         }
-        self.repulse_down = repulse_down;
-        self.dash_down = dash_down;
+        self.command_down = command_down;
         (buttons, command)
     }
 }

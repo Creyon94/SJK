@@ -87,7 +87,7 @@ pub(crate) static NOBODY: Summary = Summary {
     emoji: String::new(),
     medals: 0,
     unlocked: 0,
-    achievements: 21,
+    achievements: crate::achievements::OBTAINABLE,
 };
 
 fn lock() -> MutexGuard<'static, Summary> {
@@ -195,11 +195,8 @@ pub(crate) fn summarise(
         medals: me
             .filter(|_| online)
             .map_or(0, |me| crate::medals::Medals::from_wire(&me.medals).len()),
-        unlocked: standings
-            .iter()
-            .filter(|standing| standing.unlocked.is_some())
-            .count(),
-        achievements: standings.len(),
+        unlocked: crate::achievements::tally(standings).0,
+        achievements: crate::achievements::tally(standings).1,
     }
 }
 
@@ -218,8 +215,8 @@ impl std::fmt::Display for HubLine<'_> {
         }
         match summary.medals {
             0 => {}
-            1 => f.write_str(" \u{b7} 1 medal")?,
-            count => write!(f, " \u{b7} {count} medals")?,
+            1 => write!(f, " \u{b7} 1 {}", crate::terms::say("medal"))?,
+            count => write!(f, " \u{b7} {count} {}", crate::terms::say("medals"))?,
         }
         write!(
             f,
@@ -516,6 +513,8 @@ mod tests {
             bio: String::new(),
             verified: true,
             staff: false,
+            creator: false,
+            jkr_creator: false,
             trust: None,
             emoji: String::new(),
             created: 0,
@@ -534,12 +533,14 @@ mod tests {
             avatar: "fedcba9876543210".to_owned(),
             holocron_counts: Default::default(),
             holocrons: Vec::new(),
+            shards: 0,
         }
     }
 
     fn snapshot(status: Status, me: Option<Profile>) -> Snapshot {
         Snapshot {
             loot: Vec::new(),
+            min_client: None,
             opening: None,
             reveal: None,
             local_key_id: "0123456789abcdef".to_owned(),
@@ -547,10 +548,12 @@ mod tests {
             key_id: "0123456789abcdef".to_owned(),
             me,
             server: None,
+            map_blocks: Vec::new(),
             players: Vec::new(),
             profiles: std::collections::HashMap::new(),
             model_checks: std::collections::HashMap::new(),
             profiles_revision: 0,
+            me_revision: 0,
             notice: None,
             revision: 0,
             report: None,
@@ -559,12 +562,26 @@ mod tests {
             avatar: None,
             look_outcome: None,
             packs_revision: 0,
+            map_edits_revision: 0,
+            map_edits_published: None,
             assets_note: None,
             crashes_sent: 0,
             crash_note: None,
             holocrons: None,
             log_requests: Vec::new(),
             log_answer: None,
+            economy: None,
+            kyber: None,
+            shop: None,
+            trade: None,
+            trades: None,
+            announcements: Vec::new(),
+            announcements_revision: 0,
+            rewards: None,
+            rewards_revision: 0,
+            claim: None,
+            announce: None,
+            public_key: String::new(),
         }
     }
 
@@ -576,6 +593,7 @@ mod tests {
                 kind,
                 progress: 0,
                 unlocked: (index < 3).then_some(1),
+                waiting: false,
             })
             .collect()
     }
@@ -583,7 +601,8 @@ mod tests {
     #[test]
     fn the_line_says_what_the_hub_knows() {
         let standings = standings();
-        let total = standings.len();
+        // The retired Surveyor, not held, is not counted.
+        let total = standings.len() - 1;
         let online = snapshot(Status::Online, Some(me()));
         let summary = summarise(
             "^1Sol",
@@ -671,6 +690,7 @@ mod tests {
                 note: String::new(),
                 count: 1,
                 medal: None,
+                card: None,
             }],
             ..me()
         };

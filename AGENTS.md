@@ -50,6 +50,14 @@ multiplayer. Read [docs/status.md](docs/status.md),
   the client's what's-new card shows after an update. Write it in the commit that
   renames "Unreleased" to the version; the tests reject a release without one. See
   [the rule in sjk.md](docs/sjk.md#changelog).
+- When a change gives an on/off setting a new default or a new meaning, or adds one
+  players should decide on, put a `= <cvar>: <sentence>` line under "Unreleased" in
+  `CHANGELOG.md` in the same change, rather than a migration marker cvar: after the
+  update the what's-new card opens on it with its switch. Add `reset`
+  (`= <cvar> reset: ...`) when values saved under the old default or meaning must not
+  carry over unchosen. The cvar must be an on/off Settings row (the tests check);
+  other settings still migrate in `console_session.rs`. See
+  [the rule in sjk.md](docs/sjk.md#changelog).
 - Avoid new allocation, locking and quadratic work in per-frame paths. Measure
   performance-sensitive changes in release builds; 500+ FPS is a target, not a
   blanket claim about current performance.
@@ -86,9 +94,20 @@ multiplayer. Read [docs/status.md](docs/status.md),
 - Respect the requested scope and existing work. Do not discard unrelated changes,
   rewrite history or publish without authorization. A status page is context, not
   permission to start a new task.
+- Claim before you fix (Sol's rule, 26/10/2026), so two people (or their assistants)
+  never fix the same thing. Before starting on a bug, report or feature, look for an
+  open pull request on this repository, drafts included, that covers it, and, for a
+  player's bug report, for a claim on it in the hub (staff see and set claims there).
+  If someone has it, leave it to them or comment on their pull request instead. Once
+  you start, open a draft pull request early, one commit is enough, naming the report
+  or issue it fixes, and claim the hub report if you can. A claim lapses after two
+  days without being renewed; a draft pull request holds until it is closed.
 - Follow the [branch, commit and pull request
   rules](docs/development.md#branches-commits-and-pull-requests): one topic per
   branch and pull request, never commit to `main`.
+- Attach screenshots to a pull request whose change players can see, whenever you
+  can take them ([the rule](docs/development.md#branches-commits-and-pull-requests)):
+  the project posts them in its Discord `#screenshots` channel.
 
 ## Documentation is part of the change
 

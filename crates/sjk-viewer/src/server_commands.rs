@@ -7,6 +7,7 @@ use sjk_client::{BaseServerCommandEvent, ClientSession, LegacyWorldAdapter};
 use std::time::Instant;
 
 /// Drain reliable text/UI/presentation actions without retaining frame state.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn consume(
     session: &mut ClientSession,
     localization: &Localization,
@@ -15,6 +16,9 @@ pub(super) fn consume(
     mut adapter: Option<&mut LegacyWorldAdapter>,
     watch: &mut crate::clientinfo_refresh::ClientInfoWatch,
     duels: &mut crate::hud::duel_pairs::DuelPairs,
+    #[cfg_attr(not(feature = "mod-jof"), allow(unused_mut, unused_variables))] mut audio: Option<
+        &mut crate::GameAudio,
+    >,
 ) {
     if let Some(chat) = chat {
         consume_messages(session, localization, chat, console.as_deref_mut(), duels);
@@ -24,12 +28,44 @@ pub(super) fn consume(
 
     while let Some(event) = session.pop_base_command_event() {
         match event {
-            BaseServerCommandEvent::UnknownCommand(name) => {
-                if console
-                    .as_ref()
-                    .is_some_and(|c| c.integer_cvar("developer").unwrap_or(0) != 0)
+            BaseServerCommandEvent::UnhandledCommand {
+                arguments,
+                first_observation,
+            } => {
+                #[allow(unused_mut)]
+                let mut handled = false;
+                #[cfg(feature = "mod-jof")]
+                if let Some(console) = &mut console
+                    && console.mods.loaded(sjk_mod_jof::ID)
+                    && console.bool_cvar("mod_jof").unwrap_or(false)
+                    && arguments
+                        .first()
+                        .is_some_and(|name| name == sjk_mod_jof::dialogue::COMMAND)
                 {
-                    crate::log::progress(format_args!("debug: unhandled server command {name}"));
+                    handled = true;
+                    if let Some(event) = sjk_mod_jof::dialogue::parse(&arguments) {
+                        console.dialogue_event(event);
+                    }
+                }
+                #[cfg(feature = "mod-jof")]
+                if !handled {
+                    handled = crate::mods::force_feedback::dispatch(
+                        &arguments,
+                        console.as_deref(),
+                        audio.as_deref_mut(),
+                        session.latest_snapshot(),
+                    );
+                }
+                if !handled
+                    && first_observation
+                    && let Some(console) = &mut console
+                    && console.integer_cvar("developer").unwrap_or(0) != 0
+                {
+                    let name = arguments.first().map(|name| String::from_utf8_lossy(name));
+                    console.push_log(format!(
+                        "^3Unknown server command: {}",
+                        name.as_deref().unwrap_or("")
+                    ));
                 }
             }
             BaseServerCommandEvent::ForceRank(update) => {
@@ -89,7 +125,19 @@ pub(crate) fn consume_messages(
     chat.configure(console.as_deref());
     // Duel starts, read once the events are drained (they borrow the session).
     let mut duel_starts = Vec::new();
+    // The server's copy of an SJK chat message waits for the message while the SJK chat
+    // reads (`chat/server_copy.rs`); one whose message did not come shows as it came.
+    let now = Instant::now();
+    let sjk_chat = console
+        .as_deref()
+        .is_some_and(|console| console.bool_cvar("cl_sjkChat") != Some(false));
+    let mut events = chat.released_server_copies(now);
     for event in session.drain_events() {
+        if !(sjk_chat && chat.hold_server_copy(&event, now)) {
+            events.push(event);
+        }
+    }
+    for event in events {
         if let Some(console) = &mut console {
             console.notify_server_text(&event.kind, &event.text);
         }
@@ -125,13 +173,40 @@ pub(crate) fn consume_messages(
             // console keeps every chat line while the notify lines leave it to
             // the chat box.
             sjk_client::ServerEventKind::Chat | sjk_client::ServerEventKind::TeamChat => {
+                let own_whisper = chat.own_whisper_body(&event.kind, &text, event.sender);
+                let private = event.is_private;
                 if let Some(console) = &mut console {
-                    console.push_chat_line(sjk_client::chat_display_text(&text), &text);
+                    console.push_chat_line(
+                        sjk_client::chat_display_text(&text),
+                        &text,
+                        own_whisper.as_deref(),
+                    );
                 }
-                chat.receive(event.kind, text, event.sender, Instant::now());
+                chat.receive_classified(
+                    event.kind,
+                    text,
+                    event.sender,
+                    event.is_private,
+                    Instant::now(),
+                );
+                // A tell, not the server's echo of the player's own: the taskbar
+                // flashes while the window is away (`chat_sounds.rs`).
+                if private
+                    && own_whisper.is_none()
+                    && chat.newest_is_open_private()
+                    && let Some(console) = &mut console
+                {
+                    console.note_private_message();
+                }
             }
             sjk_client::ServerEventKind::CenterPrint => {
-                chat.receive(event.kind, text, event.sender, Instant::now());
+                chat.receive_classified(
+                    event.kind,
+                    text,
+                    event.sender,
+                    event.is_private,
+                    Instant::now(),
+                );
             }
         }
     }

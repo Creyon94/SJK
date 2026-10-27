@@ -3,10 +3,9 @@
 mod composer;
 mod draft;
 mod name;
-mod player_menu;
 mod sjk_line;
 
-/// The friend's star, also the GIF picker's favourite mark.
+/// The GIF picker's favourite mark.
 pub(crate) use name::star;
 
 use super::*;
@@ -25,6 +24,12 @@ pub(super) fn tint(channel: Channel, alpha: f32) -> Color {
     }
 }
 
+/// An end-to-end encrypted whisper's pink (`#F5ADD1`): softer on the eye than the
+/// game's whisper magenta, and apart from the plain whisper's lilac.
+pub(crate) fn encrypted_pink(alpha: f32) -> Color {
+    Color::new(0.96, 0.68, 0.82, alpha)
+}
+
 pub(super) fn visibility(age: u64, active: bool) -> f32 {
     let entering = Tween::new(0.0, 1.0, 0, ENTER_MS, Easing::EaseOutCubic).sample(age);
     let leaving = if active {
@@ -33,6 +38,20 @@ pub(super) fn visibility(age: u64, active: bool) -> f32 {
         Tween::new(1.0, 0.0, HOLD_MS, FADE_MS as u32, Easing::SmoothStep).sample(age)
     };
     entering * leaving
+}
+
+/// Put chat beside the SJK scoreboard while preserving the player's full chat
+/// text scale. The column gets narrower than the normal feed, so larger text
+/// wraps sooner and its rows grow just as they do outside the scoreboard.
+fn place_beside_scoreboard(g: &mut Geometry, viewport: [f32; 2], font_scale: f32) {
+    let layout = crate::scoreboard::layout::Layout::new(viewport);
+    g.scale = layout.scale * font_scale;
+    g.left = layout.chat_left;
+    g.width = layout.chat_width;
+    g.top = 150.0 * layout.scale;
+    g.bottom = viewport[1] - 200.0 * g.scale;
+    g.font = layout::FONT_1080 * g.scale;
+    g.row = g.font * layout::ROW_PITCH;
 }
 
 impl ChatOverlay {
@@ -45,18 +64,10 @@ impl ChatOverlay {
             self.pressed_action = None;
         }
         self.ui.begin_transparent(viewport);
-        self.visible_targets.fill(None);
         self.visible_people.fill(None);
         let mut g = self.options.geometry(viewport);
         if self.scoreboard_layout == crate::scoreboard::behavior::ChatLayout::SideColumn {
-            let layout = crate::scoreboard::layout::Layout::new(viewport);
-            g.scale = layout.scale * self.options.font.min(1.5);
-            g.left = layout.chat_left;
-            g.width = layout.chat_width;
-            g.top = 150.0 * layout.scale;
-            g.bottom = viewport[1] - 200.0 * g.scale;
-            g.font = 18.0 * g.scale;
-            g.row = g.font * layout::ROW_PITCH;
+            place_beside_scoreboard(&mut g, viewport, self.options.font);
         }
         if let crate::scoreboard::behavior::ChatLayout::Classic { .. } = self.scoreboard_layout {
             // CG_ChatBox_DrawStrings overrides only x/y; retain the player's
@@ -82,7 +93,7 @@ impl ChatOverlay {
                 let color = Color::new(base.r, base.g, base.b, base.a * fade);
                 let size = self.options.center_size;
                 let center_scale = crate::ui_scale::height_scale(viewport[1]);
-                let row = 30.0 * center_scale * size;
+                let row = center_row(size) * center_scale;
                 let rows = center_rows(text).count() as f32;
                 let height = if self.options.center_height == 0.0 {
                     self.combat.height.unwrap_or(0.0)
@@ -95,7 +106,7 @@ impl ChatOverlay {
                     self.ui.text_aligned(
                         line,
                         Rect::new(32.0, y, viewport[0] - 64.0, row),
-                        22.0 * center_scale * size,
+                        CENTER_FONT_1080 * center_scale * size,
                         color,
                         FontWeight::Semibold,
                         0.0,
@@ -115,23 +126,23 @@ impl ChatOverlay {
         if self.is_typing() {
             // JoF's message input is independent of its chat feed. Keep SJK's
             // composer inside the window when the feed sits at virtual y=475.
+            // The composer keeps its pre-19/10/2026 proportion to the feed's text,
+            // which grew to EternalJK's size then.
+            let composer_scale = g.scale * crate::chat::text_sizes::CHAT_FACTOR;
             if matches!(
                 self.scoreboard_layout,
                 crate::scoreboard::behavior::ChatLayout::Classic { .. }
             ) {
-                g.bottom = g.bottom.min(viewport[1] - 200.0 * g.scale);
+                g.bottom = g.bottom.min(viewport[1] - 200.0 * composer_scale);
             }
+            let feed_scale = std::mem::replace(&mut g.scale, composer_scale);
             self.build_composer(font, &g, ms);
-            self.build_player_menu(&g, viewport);
+            g.scale = feed_scale;
         }
         // A name under the pointer shows its profile card, over everything.
-        self.follow_card(self.is_typing());
+        self.follow_card(self.is_typing(), ms);
         self.build_card(font, &g, viewport);
-        self.ui.finish(
-            self.player_menu
-                .and_then(|menu| menu.selected)
-                .unwrap_or(u16::MAX),
-        );
+        self.ui.finish(u16::MAX);
     }
 
     fn build_feed(&mut self, font: &UiFont, g: &Geometry, ms: u64) {
@@ -141,8 +152,16 @@ impl ChatOverlay {
         let mut visible = [(0_usize, 0.0_f32, 0.0_f32, None); MAX_VISIBLE];
         let mut count = 0;
         let mut bottom = g.bottom;
-        for index in (0..self.lines.len()).rev().skip(self.scroll) {
+        let mut skipped = 0;
+        for index in (0..self.lines.len()).rev() {
             let line = &self.lines[index];
+            if !self.pm_visible(line) {
+                continue;
+            }
+            if skipped < self.scroll {
+                skipped += 1;
+                continue;
+            }
             let age = ms.saturating_sub(line.received_ms);
             let alpha = if active {
                 visibility(age, true)
@@ -154,10 +173,9 @@ impl ChatOverlay {
                 continue;
             }
             // A line with a sender flows from its name's row ([`sjk_line`]).
-            let indent = line_marks(line, &self.slot_marks, &self.roster, &self.friends)
-                .map_or(0.0, |(name, marks)| {
-                    sjk_line::Prefix::new(name, marks, font, g).width()
-                });
+            let indent = line_marks(line, &self.slot_marks).map_or(0.0, |(name, marks)| {
+                sjk_line::Prefix::new(name, marks, font, g).width()
+            });
             let wrap_width = g.width - 12.0 * g.scale;
             // An SJK line's GIF under its text takes room of its own (`feed_gif.rs`).
             let gif = self.gif_shown(index);
@@ -165,7 +183,7 @@ impl ChatOverlay {
             line.wrap
                 .update_spaced(&line.body, font, wrap_width, g.font, indent, g.spacing);
             let rows = if line.muted { 1 } else { line.wrap.len };
-            let text_height = rows as f32 * g.row + layout::MESSAGE_GAP * g.scale;
+            let text_height = rows as f32 * g.row + g.gap;
             let mut gif = gif;
             let mut top = bottom - text_height - feed_gif::room(g, gif);
             if top < g.top && count == 0 && gif.is_some() {
@@ -193,9 +211,7 @@ impl ChatOverlay {
                 Tween::new(14.0 * g.scale, 0.0, 0, ENTER_MS, Easing::EaseOutCubic).sample(age);
             let x = g.left + slide;
             let line = &self.lines[index];
-            let Some((name, marks)) =
-                line_marks(line, &self.slot_marks, &self.roster, &self.friends)
-            else {
+            let Some((name, marks)) = line_marks(line, &self.slot_marks) else {
                 // No sender: the server's own words, as one text.
                 for (row, range) in line.wrap.rows[..line.wrap.len].iter().enumerate() {
                     let truncated = row + 1 == line.wrap.len && range.end < line.body.len();
@@ -226,6 +242,7 @@ impl ChatOverlay {
                     || crate::sjk_chat_look::gold(alpha),
                     |tier| tier.colour_alpha(alpha),
                 ),
+                None if line.encrypted => encrypted_pink(alpha),
                 None => Color::new(0.982, 0.987, 0.996, alpha),
             };
             let name = sjk_line::draw(
@@ -239,7 +256,11 @@ impl ChatOverlay {
                     emojis: self.options.emojis.then_some(&self.emojis),
                     hovered,
                     colour,
-                    label_colour: tint(line.channel, alpha * 0.75),
+                    label_colour: if line.encrypted {
+                        encrypted_pink(alpha * 0.85)
+                    } else {
+                        tint(line.channel, alpha * 0.75)
+                    },
                 },
                 &prefix,
                 font,
@@ -255,7 +276,7 @@ impl ChatOverlay {
                     shown,
                     [x, y + rows as f32 * g.row],
                     g.width - 12.0 * g.scale,
-                    g.scale,
+                    feed_gif::scale(g),
                     alpha,
                 );
             }
@@ -270,7 +291,6 @@ impl ChatOverlay {
                 .sender
                 .filter(|target| self.roster.name(*target).is_some())
             {
-                self.visible_targets[token] = Some(target);
                 self.visible_people[token] = Some(card::Who::Player(target));
                 self.ui.hit_region(token as u16, name);
             }
@@ -285,21 +305,48 @@ impl ChatOverlay {
 fn line_marks<'a>(
     line: &'a ChatLine,
     slots: &'a [super::marks::SlotMark],
-    roster: &ChatRoster,
-    friends: &social::Friends,
 ) -> Option<(&'a str, sjk_line::Marks<'a>)> {
     if let Some(hub) = &line.hub {
         let marks = sjk_line::Marks {
             sjk: true,
+            icon: hub.client,
             mark: crate::ui_renderer::mark_texture(hub.verified, hub.trust),
             tier: hub.tier,
+            // Which chats it was said in; a holocron drop and the SJK team's lines are
+            // the hub's news, unlabelled.
+            label: match hub.tier {
+                _ if hub.official => "",
+                Some(_) => "",
+                None if hub.in_all => "ALL/SJK",
+                None => "SJK",
+            },
             emoji: &hub.emoji,
-            ..sjk_line::Marks::default()
+            accent: hub.official,
         };
         return Some((&line.name, marks));
     }
     if line.name.is_empty() {
         return None;
+    }
+    // The player's own encrypted whisper: "To <recipient>", no sender, with the
+    // recipient's marks as the SJK chat shows a sender's.
+    if line.encrypted && line.sender.is_none() {
+        let mark = line
+            .recipient
+            .and_then(|slot| slots.get(usize::from(slot)))
+            .filter(|mark| mark.sjk);
+        let marks = sjk_line::Marks {
+            sjk: true,
+            mark: mark.and_then(|mark| crate::ui_renderer::mark_texture(mark.verified, mark.trust)),
+            label: if line.verified {
+                "VERIFIED"
+            } else {
+                "ENCRYPTED"
+            },
+            emoji: mark.map_or("", |mark| mark.emoji.as_str()),
+            ..sjk_line::Marks::default()
+        };
+        return Some((&line.name, marks));
     }
     let target = line.sender?;
     let mark = slots
@@ -307,18 +354,19 @@ fn line_marks<'a>(
         .filter(|mark| mark.sjk);
     let marks = sjk_line::Marks {
         sjk: mark.is_some(),
+        icon: None,
         mark: mark.and_then(|mark| crate::ui_renderer::mark_texture(mark.verified, mark.trust)),
         tier: None,
-        friend: roster
-            .name(target)
-            .is_some_and(|name| friends.contains(name)),
         label: match line.channel {
             _ if line.muted => "",
+            _ if line.verified => "VERIFIED",
+            _ if line.encrypted => "ENCRYPTED",
             Channel::Team => "TEAM",
             Channel::Whisper => "WHISPER",
             Channel::Global | Channel::Sjk => "",
         },
         emoji: mark.map_or("", |mark| mark.emoji.as_str()),
+        accent: false,
     };
     let name = mark
         .and_then(|mark| mark.name.as_deref())
@@ -419,6 +467,19 @@ fn row_box(g: &Geometry) -> f32 {
     g.row.max(g.font + 1.0)
 }
 
+/// Line box of centre-print text in 1080p pixels at `cg_centerSize` 1, the size
+/// EternalJK draws it: `CG_DrawCenterString` (JoF EJK `cg_draw.c:6985`) draws
+/// `ergoec` (`FONT_MEDIUM`) at scale `cg_centerSize`, and `ergoec`'s line is 22
+/// retail pixels (`mHeight`), which SJK Menu keeps (`text::retail_font::MENU`): 49.5
+/// px at 1080 lines, capitals about 29 px. Before 19/10/2026 it was 22 px.
+pub(super) const CENTER_FONT_1080: f32 = 22.0 * 1080.0 / 480.0;
+
+/// Pitch of centre-print rows in 1080p pixels for `size`: EternalJK advances
+/// `CG_Text_Height` (`ergoec`'s point size 20 times the scale) plus 6 virtual pixels.
+pub(super) fn center_row(size: f32) -> f32 {
+    (20.0 * size + 6.0) * 1080.0 / 480.0
+}
+
 /// CG_DrawCenterString wraps rows longer than this at their last space ([BugFix19];
 /// `BG_IsWhiteSpace` counts only the space, so a tab or vertical tab in a name
 /// does not break the row).
@@ -471,6 +532,16 @@ mod tests {
     use sjk_client::ServerEventKind;
     use sjk_ui::{Color, DrawCommand, Rect};
     use std::time::Instant;
+
+    #[test]
+    fn scoreboard_chat_keeps_the_full_font_scale() {
+        let viewport = [1920.0, 1080.0];
+        let mut geometry = crate::chat::options::Options::default().geometry(viewport);
+        super::place_beside_scoreboard(&mut geometry, viewport, 3.0);
+        assert_eq!(geometry.scale, 3.0);
+        assert_eq!(geometry.font, 3.0 * crate::chat::layout::FONT_1080);
+        assert_eq!(geometry.row, geometry.font * crate::chat::layout::ROW_PITCH);
+    }
 
     /// The texts and emoji rectangles drawn for `body` with `names` loaded.
     fn drawn(names: &[&str], body: &str, truncated: bool) -> (Vec<(f32, String)>, Vec<Rect>) {
@@ -679,5 +750,55 @@ mod tests {
             center_rows(&longer).collect::<Vec<_>>(),
             ["é".repeat(50), "é".to_owned()]
         );
+    }
+
+    #[test]
+    fn a_whisper_that_is_not_encrypted_says_so_under_the_field() {
+        use super::composer::PLAIN_WHISPER_NOTE;
+        let mut chat = ChatOverlay::new();
+        let mut game = sjk_protocol::GameState::empty_local(0);
+        for slot in [3_usize, 4] {
+            game.replace_config_string(1_131 + slot, format!("n\\P{slot}\\t\\0").into_bytes())
+                .expect("a player");
+        }
+        chat.update_roster(&game);
+        chat.set_encrypted_slots(1 << 4);
+        let shown = |chat: &mut ChatOverlay| {
+            chat.build(true, &crate::text::test_font(), [1920.0, 1080.0], 1_000);
+            chat.ui.text_runs().any(|text| text == PLAIN_WHISPER_NOTE)
+        };
+        assert!(chat.whisper_to(Some(3)));
+        assert!(shown(&mut chat), "to a player without encrypted whispers");
+        chat.close_composer();
+        assert!(chat.whisper_to(Some(4)));
+        assert!(!shown(&mut chat), "encrypted");
+        chat.close_composer();
+        chat.open(false);
+        assert!(!shown(&mut chat), "not a whisper");
+    }
+
+    #[test]
+    fn our_encrypted_whisper_wears_the_recipients_marks() {
+        use crate::chat::marks::SlotMark;
+        let mut chat = ChatOverlay::new();
+        let now = std::time::Instant::now();
+        assert!(chat.receive_encrypted(None, (4, "Creyon"), "hi", false, now));
+        let mut slots = vec![SlotMark::default(); crate::chat_mutes::SLOTS];
+        let line = chat.lines.back().expect("the line");
+        let (name, marks) = super::line_marks(line, &slots).expect("marks");
+        assert_eq!((name, marks.label), ("To Creyon", "ENCRYPTED"));
+        assert!(
+            marks.mark.is_none() && marks.emoji.is_empty(),
+            "not known yet"
+        );
+        slots[4] = SlotMark {
+            sjk: true,
+            verified: true,
+            emoji: "x".to_owned(),
+            ..Default::default()
+        };
+        let (_, marks) = super::line_marks(line, &slots).expect("marks");
+        assert!(marks.sjk && marks.mark.is_some());
+        assert_eq!(marks.emoji, "x");
     }
 }

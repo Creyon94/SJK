@@ -4,12 +4,15 @@ use crate::*;
 
 impl GpuState {
     pub(crate) fn keyboard(&mut self, event: KeyEvent) {
-        // Whoever takes the release, a held push or pull key stops repeating.
+        // Whoever takes the release, retire it from the binding stream before
+        // routing. A chord such as `SHIFT+U reply` can open the chat composer on
+        // its press; the composer then owns both releases, but they must still
+        // clear the chord or either key would trigger it alone next time.
         if event.state == ElementState::Released
             && let PhysicalKey::Code(code) = event.physical_key
             && let Some(console) = &mut self.console
         {
-            console.force_repeat_key_up(code, crate::input::keys::key_name(&event));
+            console.queue_bound_key(code, crate::input::keys::key_name(&event), false);
         }
         let typing = self.text_has_keyboard();
         match self.alt_code.key(&event, typing) {
@@ -54,6 +57,12 @@ impl GpuState {
             .as_ref()
             .is_some_and(console::ViewerConsole::is_open);
         let typed = matches!(event.physical_key, PhysicalKey::Code(_));
+        // The SJK team's window takes every key while it shows, over the console too (an
+        // announcement read from the chat page or a command).
+        if self.official.window.is_open() {
+            self.official_key(&event);
+            return;
+        }
         if !console_open && self.text_dialog.is_open() {
             let action = self.text_dialog.handle_key(&event);
             self.apply_dialog_action(action);
@@ -81,10 +90,39 @@ impl GpuState {
             self.reload_card_choice(choice);
             return;
         }
+        // And the small-card notice.
+        if !console_open && self.small_card_notice.is_open() {
+            let choice = self.small_card_notice.handle_key(&event);
+            self.small_card_notice_choice(choice);
+            return;
+        }
         // And the emote help card.
         if !console_open && self.emote_help.card.is_open() {
             let choice = self.emote_help.card.handle_key(&event);
             self.emote_help_choice(choice);
+            return;
+        }
+        // And the emote picker, which takes the typing for its search.
+        if !console_open && self.emote_picker.card.is_open() {
+            self.emote_picker_key(&event);
+            return;
+        }
+        // And the encrypted whisper card.
+        if !console_open && self.e2e_whispers.card.is_open() {
+            let choice = self.e2e_whispers.card.handle_key(&event);
+            self.e2e_whisper_card_choice(choice);
+            return;
+        }
+        // And a mod's notice.
+        if !console_open && self.mod_notice.card.is_open() {
+            let choice = self.mod_notice.card.handle_key(&event);
+            self.mod_notice_choice(choice);
+            return;
+        }
+        // And the trade window.
+        if !console_open && self.trades.window.is_open() {
+            let choice = self.trades.window.handle_key(&event);
+            self.trade_window_choice(choice);
             return;
         }
         // And the low-FPS card.
@@ -140,7 +178,7 @@ impl GpuState {
             self.chat_key(&event);
             return;
         }
-        if self.shot_key(&event) {
+        if self.shot_key(&event) || self.map_edit_key(&event) {
             return;
         }
         if self.game_menu {
@@ -227,9 +265,13 @@ impl GpuState {
         if event.repeat {
             return;
         }
-        if let Some(console) = &mut self.console {
+        // Releases were handled before routing, including the ones swallowed by
+        // a menu or text field. Only presses reach this gameplay-binding path.
+        if event.state == ElementState::Pressed
+            && let Some(console) = &mut self.console
+        {
             let name = crate::input::keys::key_name(&event);
-            console.queue_bound_key(key, name, event.state == ElementState::Pressed);
+            console.queue_bound_key(key, name, true);
         }
     }
 }

@@ -10,7 +10,9 @@
 //! `inspect` is pressed again or Escape is. A pinned card adds what takes reading:
 //! the medals' names in small print, the achievements unlocked out of the catalogue
 //! with the three rarest as medallions, the first line of their bio and since when
-//! they are in SJK. While the card is up, a ring in the card's accent colour runs
+//! they are in SJK. The card needs the player in sight and near: within
+//! [`SIGHT_RANGE`] of the camera with no wall between it and their head or hips; a
+//! pinned card hides while they are out of sight and unpins after [`LOST_MS`]. While the card is up, a ring in the card's accent colour runs
 //! around the outside of the player's body (`cg_playerCardOutline`,
 //! [`crate::card_outline`]).
 //!
@@ -27,6 +29,7 @@
 use super::identification::Camera;
 use crate::{TextVertex, UiFont};
 use glam::Vec3;
+use sjk_bsp::{Aabb, Bsp, TraceScratch};
 use sjk_client::{LegacyClientInfo, decode_legacy};
 use sjk_protocol::GameState;
 use sjk_shell::{CvarDefinition, CvarFlags, CvarRegistry};
@@ -57,6 +60,11 @@ const REACH_BELOW: f32 = -30.0;
 const REACH_ABOVE: f32 = 24.0;
 /// How far off screen (in half screens) a pinned player may be and still be followed.
 const PINNED_LIMIT: f32 = 40.0;
+/// World units from the camera beyond which no card shows, dwelled or pinned.
+const SIGHT_RANGE: f32 = 1_200.0;
+/// How long a pinned player may stay out of sight (behind a wall or beyond
+/// [`SIGHT_RANGE`]) before the pin drops; the card is hidden meanwhile.
+const LOST_MS: i32 = 3_000;
 /// Colour index of a saber's blade in `c1`/`c2`: only the six retail colours have
 /// a swatch.
 const RETAIL_COLOURS: i32 = 6;
@@ -170,6 +178,65 @@ impl Pin {
     }
 }
 
+/// How long the pinned player has been out of sight.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub(crate) struct Sight {
+    lost_since: Option<i32>,
+}
+
+impl Sight {
+    /// Feed whether the pinned player is in sight this frame (`None`: nothing pinned).
+    /// True once they have been out of sight longer than [`LOST_MS`].
+    pub(crate) fn observe(&mut self, in_sight: Option<bool>, now: i32) -> bool {
+        if in_sight == Some(false) {
+            now - *self.lost_since.get_or_insert(now) > LOST_MS
+        } else {
+            self.lost_since = None;
+            false
+        }
+    }
+
+    /// The pinned player is out of sight now: their card is hidden.
+    pub(crate) fn hidden(self) -> bool {
+        self.lost_since.is_some()
+    }
+}
+
+/// Whether `client` is within [`SIGHT_RANGE`] of the camera with no wall between it and
+/// their head or their hips.
+fn in_sight(input: &mut Input<'_>, client: u16) -> bool {
+    let Some(presented) = input
+        .world
+        .entity(sjk_runtime::EntityId::new(u64::from(client) + 1))
+    else {
+        return false;
+    };
+    let origin = Vec3::from_array(presented.sample(i64::from(input.now)).translation);
+    let eye = input.camera.eye;
+    if eye.distance(origin) > SIGHT_RANGE {
+        return false;
+    }
+    let top = input
+        .entities
+        .iter()
+        .find(|entity| entity.number() == client)
+        .map_or(super::nameplate_math::head_height(0), |entity| {
+            super::nameplate_math::head_height(entity.solid())
+        });
+    [origin + Vec3::Z * top, origin + Vec3::Z * HIP_HEIGHT]
+        .into_iter()
+        .any(|point| {
+            let trace = input.bsp.trace_box_with(
+                input.scratch,
+                eye.to_array(),
+                point.to_array(),
+                Aabb::new([0.0; 3], [0.0; 3]).expect("point bounds are valid"),
+                1 | 0x0200_0000,
+            );
+            super::identification::unoccluded(trace.fraction, trace.start_solid, trace.all_solid)
+        })
+}
+
 /// What [`Pin::resolve`] decided.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub(crate) struct PinStep {
@@ -258,9 +325,11 @@ pub(crate) enum Vitals {
     /// Nothing, or the hub did not say.
     #[default]
     Private,
-    /// Their health, shield and Force (`cg_nameplateShare`).
+    /// Their health, shield and Force (`cg_nameplate`, See and share nameplates; before
+    /// 17/10/2026 `cg_nameplateShare`).
     Shared,
-    /// They see everyone's estimated bars (`cg_nameplateEstimate`), which shares theirs.
+    /// They see everyone's estimated bars (`cg_nameplateEstimate` of clients before
+    /// 17/10/2026), which shares theirs.
     SeesAll,
 }
 
@@ -283,10 +352,17 @@ const RAREST: usize = 3;
 pub(crate) struct ProfileFacts {
     /// The SJK team's own (`staff`).
     pub(crate) staff: bool,
+    /// SJK's creator (`creator`): SJK CREATOR in place of SJK TEAM.
+    pub(crate) creator: bool,
+    /// JKR's creator (`jkr_creator`): a JKR CREATOR mark of its own, no staff rights.
+    pub(crate) jkr_creator: bool,
     /// The bio's first line, empty for none.
     pub(crate) bio: String,
     /// Achievements unlocked, of those the client knows.
     pub(crate) unlocked: usize,
+    /// Of how many: every obtainable one and the retired ones they hold
+    /// ([`crate::achievements::total_for`]).
+    pub(crate) total: usize,
     /// The rarest unlocked ones: the highest step of their ladder first (Legend of the
     /// Arena before Centurion), the latest first among equals.
     pub(crate) rarest: Vec<&'static crate::achievements::Kind>,
@@ -332,6 +408,8 @@ impl ProfileFacts {
         let holocron = held.max(listed);
         Self {
             staff: profile.staff,
+            creator: profile.creator,
+            jkr_creator: profile.jkr_creator,
             bio: profile
                 .bio
                 .lines()
@@ -340,6 +418,9 @@ impl ProfileFacts {
                 .unwrap_or_default()
                 .to_owned(),
             unlocked: done.len(),
+            total: crate::achievements::total_for(|kind| {
+                done.iter().any(|(held, _)| held.id == kind.id)
+            }),
             rarest: done.iter().take(RAREST).map(|(kind, _)| *kind).collect(),
             holocron,
             created: profile.created,
@@ -369,7 +450,9 @@ const T_GOAL: usize = 15;
 const T_VITALS: usize = T_GOAL + RAREST;
 /// Whether they see the model the local player wears.
 const T_SIGHT: usize = T_VITALS + 1;
-const TEXTS: usize = T_SIGHT + 1;
+/// The JKR CREATOR mark, beside or in place of SJK TEAM.
+const T_JKR: usize = T_SIGHT + 1;
+const TEXTS: usize = T_JKR + 1;
 /// Draw commands a card holds: its own shapes and a shader's swatch.
 const LIST_CAPACITY: usize = 640;
 /// The saber shader's swatch on the card, in card units.
@@ -379,6 +462,11 @@ const SWATCH_HEIGHT: f32 = 18.0;
 const CHROMA_MARK: f32 = 14.0;
 /// The SJK TEAM mark's colour: a teal of its own, apart from the verified gold.
 const STAFF_COLOUR: [f32; 3] = [0.22, 0.86, 0.78];
+/// The SJK CREATOR mark's colour: a sun orange, apart from staff's teal and the gold.
+const CREATOR_COLOUR: [f32; 3] = [1.0, 0.6, 0.22];
+/// The JKR CREATOR mark's colour: rust (JKR is written in it), darker and redder than
+/// the creator's orange.
+const JKR_CREATOR_COLOUR: [f32; 3] = [0.84, 0.38, 0.2];
 /// Characters a line of medal names holds on the card (Inter at 11).
 const MEDAL_LINE_CHARS: usize = 52;
 /// Height of a line of medal names: small print under the medallions.
@@ -420,7 +508,9 @@ impl Card {
 
     /// The SJK TEAM mark or a holocron gem: their row under the hub name.
     fn has_marks(&self) -> bool {
-        !self.texts[T_STAFF].is_empty() || !self.texts[T_HOLOCRON].is_empty()
+        [T_STAFF, T_JKR, T_HOLOCRON]
+            .iter()
+            .any(|id| !self.texts[*id].is_empty())
     }
 
     fn facts(&self) -> Option<&ProfileFacts> {
@@ -456,6 +546,23 @@ fn blade(info: LegacyClientInfo<'_>, key: &str) -> Option<[u8; 3]> {
     (0..RETAIL_COLOURS)
         .contains(&index)
         .then(|| crate::saber::Color::ALL[index as usize].blade_rgb())
+}
+
+/// The swatches of a player whose blades take their team's `forced` colours over
+/// their own `swatches`: one per saber held, including a custom colour's, which has
+/// no stock swatch of its own.
+fn team_swatches(
+    info: &[u8],
+    swatches: [Option<[u8; 3]>; 2],
+    forced: [Option<[u8; 3]>; 2],
+) -> [Option<[u8; 3]>; 2] {
+    let dual = LegacyClientInfo::new(info)
+        .text("st2")
+        .is_some_and(|second| !second.is_empty() && !second.eq_ignore_ascii_case("none"));
+    [
+        forced[0].or(swatches[0]),
+        dual.then(|| forced[1].or(swatches[1])).flatten(),
+    ]
 }
 
 /// The cosmetic named in a `c1`/`c2` value (JoF EJK appends it after the colour digits).
@@ -538,21 +645,23 @@ pub(crate) fn card_from(info: &[u8], hub: Option<HubInfo>, shader: Option<&'stat
             card.texts[line].push_str(&label);
         }
         if let Some(facts) = &hub.profile {
-            if facts.staff {
+            if facts.creator {
+                card.texts[T_STAFF] = "SJK CREATOR".to_owned();
+            } else if facts.staff {
                 card.texts[T_STAFF] = "SJK TEAM".to_owned();
+            }
+            if facts.jkr_creator {
+                card.texts[T_JKR] = "JKR CREATOR".to_owned();
             }
             if let Some(tier) = facts
                 .holocron
                 .and_then(|index| crate::holocrons::TIERS.get(index))
             {
-                card.texts[T_HOLOCRON] = tier.name.to_owned();
+                card.texts[T_HOLOCRON] = tier.title().into_owned();
             }
             if facts.unlocked > 0 {
-                card.texts[T_ACHIEVEMENTS] = format!(
-                    "Achievements  {} / {}",
-                    facts.unlocked,
-                    crate::achievements::ALL.len()
-                );
+                card.texts[T_ACHIEVEMENTS] =
+                    format!("Achievements  {} / {}", facts.unlocked, facts.total);
             }
             card.texts[T_BIO] = facts.bio.clone();
             let date = crate::medals::date_text(facts.created);
@@ -675,7 +784,14 @@ fn put_text(
 pub(crate) struct Input<'a> {
     /// The player under the crosshair this frame.
     pub(crate) seen: Option<u16>,
+    /// The map and a trace scratch, for the walls between the camera and a player.
+    pub(crate) bsp: &'a Bsp,
+    pub(crate) scratch: &'a mut TraceScratch,
     pub(crate) game: &'a GameState,
+    /// `cg_saberTeamColors` and `cg_ctfTeamSabers` (`team_sabers.rs`).
+    pub(crate) team_sabers: crate::team_sabers::Settings,
+    /// Siege's class-forced blade colours (`siege_sabers.rs`).
+    pub(crate) class_sabers: &'a crate::siege_sabers::Forced,
     pub(crate) world: &'a sjk_runtime::World,
     pub(crate) now: i32,
     pub(crate) camera: Camera,
@@ -707,6 +823,7 @@ pub(crate) struct State {
     delay_ms: i32,
     dwell: Dwell,
     pin: Pin,
+    sight: Sight,
     /// The player whose card an `inspect` press just hid; their dwell is ignored until
     /// the crosshair leaves them, so the card does not come straight back.
     suppressed: Option<u16>,
@@ -730,6 +847,7 @@ impl Default for State {
             delay_ms: 1_500,
             dwell: Dwell::default(),
             pin: Pin::default(),
+            sight: Sight::default(),
             suppressed: None,
             shown: None,
             key: (0, 0, 0, 0),
@@ -801,13 +919,14 @@ impl State {
         self.list.clear();
         self.dwell = Dwell::default();
         self.pin = Pin::default();
+        self.sight = Sight::default();
         self.suppressed = None;
         self.shown = None;
         self.alpha = 0.0;
     }
 
     /// Advance the dwell and the fade and rebuild the draw list.
-    pub(crate) fn update(&mut self, input: Input<'_>) {
+    pub(crate) fn update(&mut self, mut input: Input<'_>) {
         self.list.clear();
         let [width, height] = input.camera.viewport;
         self.area = [0.0, 0.0, width, height];
@@ -820,26 +939,37 @@ impl State {
             self.alpha = 0.0;
             self.suppressed = None;
         }
-        let alive = self.pin.target().is_none_or(|client| {
-            input
-                .world
-                .entity(sjk_runtime::EntityId::new(u64::from(client) + 1))
-                .is_some()
+        // No card through a wall or from afar: the crosshair's player counts only in
+        // sight, and a pinned one hides out of sight and drops after a while.
+        let aimed = input.seen;
+        let aimed = aimed.filter(|&client| in_sight(&mut input, client));
+        let before = self.pin.target();
+        let pinned_in_sight = before.map(|client| in_sight(&mut input, client));
+        let lost = self.sight.observe(pinned_in_sight, now);
+        let alive = before.is_none_or(|client| {
+            !lost
+                && input
+                    .world
+                    .entity(sjk_runtime::EntityId::new(u64::from(client) + 1))
+                    .is_some()
                 && input
                     .game
                     .config_string(CS_PLAYERS + usize::from(client))
                     .is_some_and(|info| !info.is_empty())
         });
-        let step = self.pin.resolve(input.seen, alive, restarted);
+        let step = self.pin.resolve(aimed, alive, restarted);
+        if step.target != before {
+            self.sight = Sight::default();
+        }
         if let Some(released) = step.released {
             self.suppressed = Some(released);
             self.dwell = Dwell::default();
         }
-        if self.suppressed.is_some() && self.suppressed != input.seen {
+        if self.suppressed.is_some() && self.suppressed != aimed {
             self.suppressed = None;
         }
         let seen = if self.enabled && !input.hidden && self.suppressed.is_none() {
-            input.seen
+            aimed
         } else {
             None
         };
@@ -848,7 +978,7 @@ impl State {
         let want = if input.hidden {
             None
         } else if pinned.is_some() {
-            pinned
+            pinned.filter(|_| !self.sight.hidden())
         } else if self.enabled {
             self.dwell.ready(now, self.delay_ms)
         } else {
@@ -934,10 +1064,26 @@ impl State {
         let hub = u8::try_from(client)
             .ok()
             .and_then(|slot| (input.hub)(slot, &name));
+        // In team games the card shows the blades as the world draws them: the team's
+        // colour, with no shader over it under CTF team sabers (`team_sabers.rs`), and
+        // in Siege the class's forced colour.
+        let team_blade = crate::team_sabers::Rules::new(input.team_sabers, input.game)
+            .of_client(input.game, client)
+            .over_class(
+                input
+                    .class_sabers
+                    .get(usize::from(client))
+                    .copied()
+                    .unwrap_or_default(),
+            );
         let shader = u8::try_from(client)
             .ok()
-            .and_then(|slot| (input.shader)(slot));
+            .and_then(|slot| (input.shader)(slot))
+            .filter(|_| !team_blade.plain);
         self.card = card_from(info, hub, shader);
+        if team_blade.any() {
+            self.card.swatches = team_swatches(info, self.card.swatches, team_blade.colors);
+        }
     }
 
     /// The card's height in pixels at `unit`; a `pinned` card adds the medals' names
@@ -1334,13 +1480,25 @@ impl State {
                 );
             }
             y += row(26.0);
-            // The SJK TEAM mark, a teal pill drawn as VERIFIED is written, and a gem of
-            // the rarest holocron tier they hold, with its name.
+            // The SJK TEAM mark, a teal pill drawn as VERIFIED is written (SJK CREATOR,
+            // wider and orange, for the creator), JKR CREATOR's rust pill, and a gem of the rarest holocron tier
+            // they hold, with its name.
             if card.has_marks() {
                 let mut x = left;
-                if !card.texts[T_STAFF].is_empty() {
-                    let [r, g, b] = STAFF_COLOUR;
-                    let pill = Rect::new(x, y + row(3.0), 78.0 * unit, row(18.0));
+                let creator = card.facts().is_some_and(|facts| facts.creator);
+                let marks = [
+                    if creator {
+                        (T_STAFF, CREATOR_COLOUR, 106.0)
+                    } else {
+                        (T_STAFF, STAFF_COLOUR, 78.0)
+                    },
+                    (T_JKR, JKR_CREATOR_COLOUR, 106.0),
+                ];
+                for (id, [r, g, b], width) in marks {
+                    if card.texts[id].is_empty() {
+                        continue;
+                    }
+                    let pill = Rect::new(x, y + row(3.0), width * unit, row(18.0));
                     let _ = self.list.push(DrawCommand::RoundedRect {
                         rect: pill,
                         radius: pill.height * 0.5,
@@ -1354,8 +1512,8 @@ impl State {
                     });
                     put_text(
                         &mut self.list,
-                        T_STAFF,
-                        Rect::new(pill.x, pill.y + row(1.0), pill.width, pill.height),
+                        id,
+                        Rect::new(pill.x, pill.y + row(3.5), pill.width, pill.height),
                         11.0 * unit,
                         Color::new(r, g, b, a),
                         FontWeight::Semibold,
@@ -1381,7 +1539,7 @@ impl State {
                     put_text(
                         &mut self.list,
                         T_HOLOCRON,
-                        Rect::new(text_x, y + row(2.0), left + inner - text_x, row(22.0)),
+                        Rect::new(text_x, y + row(5.0), left + inner - text_x, row(22.0)),
                         13.0 * unit,
                         tier.colour_alpha(a),
                         FontWeight::Regular,
@@ -1476,7 +1634,7 @@ impl State {
                     put_text(
                         &mut self.list,
                         T_ACHIEVEMENTS,
-                        Rect::new(left, y + row(3.0), inner, row(24.0)),
+                        Rect::new(left, y + row(8.5), inner, row(24.0)),
                         14.0 * unit,
                         white(0.9),
                         FontWeight::Semibold,
@@ -1514,7 +1672,7 @@ impl State {
                             T_GOAL + index,
                             Rect::new(
                                 centre[0] - radius,
-                                centre[1] - row(7.0),
+                                centre[1] - row(5.0),
                                 radius * 2.0,
                                 row(14.0),
                             ),
@@ -1717,6 +1875,25 @@ mod tests {
     }
 
     #[test]
+    fn a_team_blade_fills_one_swatch_per_saber_held() {
+        const RED: [u8; 3] = [255, 51, 51];
+        const GREEN: [u8; 3] = [51, 255, 51];
+        let both = [Some(RED); 2];
+        let custom = info("n|Sol|t|1|st|single_1|c1|9|");
+        assert_eq!(team_swatches(&custom, [None; 2], both), [Some(RED), None]);
+        let dual = info("n|Fox|t|1|st|dual_1|st2|dual_2|c1|2|c2|3|");
+        let own = [Some([255, 255, 51]), Some(GREEN)];
+        assert_eq!(team_swatches(&dual, own, both), [Some(RED), Some(RED)]);
+        // `cg_saberTeamColors 0` replaces only one of them.
+        assert_eq!(
+            team_swatches(&dual, own, [Some(RED), None]),
+            [Some(RED), Some(GREEN)]
+        );
+        let staff_none = info("n|Kyle|t|1|st|staff_1|st2|none|c1|2|");
+        assert_eq!(team_swatches(&staff_none, own, both), [Some(RED), None]);
+    }
+
+    #[test]
     fn a_cosmetic_after_the_colour_digit_is_still_a_colour() {
         let card = card_from(&info("n|Sol|st|single_1|c1|4santahat|"), None, None);
         assert_eq!(card.swatches[0], Some([51, 102, 255]));
@@ -1809,7 +1986,8 @@ mod tests {
             }),
             None,
         );
-        assert_eq!(card.texts[T_MEDALS], "Early Tester, Bug Hunter x2");
+        // Bug Hunter is held once since 21/10/2026: an old count of 2 shows no count.
+        assert_eq!(card.texts[T_MEDALS], "Early Tester, Bug Hunter");
         assert!(card.texts[T_MEDALS_MORE].is_empty());
         let icons = |state: &State| {
             state
@@ -1844,6 +2022,7 @@ mod tests {
             progress,
             goal,
             unlocked,
+            reward: None,
         };
         sjk_identity::Profile {
             credits: 0,
@@ -1855,6 +2034,8 @@ mod tests {
             bio: "\n  Fox of the JoF, maker of SJK.  \nSecond line".to_owned(),
             verified: true,
             staff: true,
+            creator: false,
+            jkr_creator: false,
             trust: None,
             emoji: String::new(),
             created: 1_791_000_000,
@@ -1877,6 +2058,7 @@ mod tests {
                 mythical: 0,
             },
             holocrons: Vec::new(),
+            shards: 0,
         }
     }
 
@@ -1904,6 +2086,76 @@ mod tests {
     }
 
     #[test]
+    fn the_creator_wears_sjk_creator_in_place_of_sjk_team() {
+        let facts = ProfileFacts::of(&sjk_identity::Profile {
+            creator: true,
+            ..full_profile()
+        });
+        assert!(facts.creator && facts.staff);
+        let card = card_from(
+            &info("n|Sol|"),
+            Some(HubInfo {
+                profile: Some(facts),
+                ..HubInfo::default()
+            }),
+            None,
+        );
+        assert_eq!(card.texts[T_STAFF], "SJK CREATOR");
+    }
+
+    #[test]
+    fn the_jkr_creator_wears_jkr_creator_without_staff() {
+        let facts = ProfileFacts::of(&sjk_identity::Profile {
+            staff: false,
+            jkr_creator: true,
+            ..full_profile()
+        });
+        assert!(facts.jkr_creator && !facts.staff);
+        let card = card_from(
+            &info("n|Bishop|"),
+            Some(HubInfo {
+                profile: Some(facts),
+                ..HubInfo::default()
+            }),
+            None,
+        );
+        assert_eq!(card.texts[T_JKR], "JKR CREATOR");
+        assert!(card.texts[T_STAFF].is_empty());
+        assert!(card.has_marks());
+    }
+
+    /// A retired achievement counts in a player's total only when they hold it, and a
+    /// secret one held shows by its goal like any other.
+    #[test]
+    fn a_retired_achievement_counts_only_for_its_holders() {
+        let mut profile = full_profile();
+        let total = crate::achievements::ALL.len();
+        assert_eq!(ProfileFacts::of(&profile).total, total - 1);
+        for id in ["surveyor", "mythical_find"] {
+            profile.achievements.push(sjk_identity::Achievement {
+                id: id.to_owned(),
+                progress: 5,
+                goal: 5,
+                unlocked: 1_791_336_225,
+                reward: None,
+            });
+        }
+        let facts = ProfileFacts::of(&profile);
+        assert_eq!((facts.unlocked, facts.total), (6, total));
+        // Surveyor's unfinished progress, not unlocked, counts nothing.
+        let mut unfinished = full_profile();
+        unfinished.achievements.push(sjk_identity::Achievement {
+            id: "surveyor".to_owned(),
+            progress: 3,
+            goal: 5,
+            unlocked: 0,
+            reward: None,
+        });
+        let facts = ProfileFacts::of(&unfinished);
+        assert_eq!((facts.unlocked, facts.total), (4, total - 1));
+    }
+
+    #[test]
     fn the_profile_gives_the_marks_and_the_pinned_lines() {
         let facts = ProfileFacts::of(&full_profile());
         assert!(facts.staff);
@@ -1916,7 +2168,8 @@ mod tests {
         let card = full_card(None);
         assert_eq!(card.texts[T_STAFF], "SJK TEAM");
         assert_eq!(card.texts[T_HOLOCRON], "Legendary Holocron");
-        assert_eq!(card.texts[T_ACHIEVEMENTS], "Achievements  4 / 21");
+        // Out of the obtainable ones: they do not hold the retired Surveyor.
+        assert_eq!(card.texts[T_ACHIEVEMENTS], "Achievements  4 / 34");
         assert_eq!(card.texts[T_BIO], "Fox of the JoF, maker of SJK.");
         assert!(card.texts[T_SINCE].starts_with("In SJK since "));
         assert_eq!(card.texts[T_GOAL], "1K");
@@ -1930,7 +2183,13 @@ mod tests {
             holocron_counts: sjk_identity::HolocronCounts::default(),
             ..full_profile()
         });
-        assert_eq!(bare, ProfileFacts::default());
+        assert_eq!(
+            bare,
+            ProfileFacts {
+                total: crate::achievements::OBTAINABLE,
+                ..ProfileFacts::default()
+            }
+        );
         let plain = card_from(
             &info("n|Sol|"),
             Some(HubInfo {
@@ -2111,6 +2370,23 @@ mod tests {
         pin.request();
         let step = pin.resolve(Some(9), true, false);
         assert_eq!((step.target, step.released), (None, Some(4)));
+    }
+
+    #[test]
+    fn a_pinned_player_out_of_sight_hides_then_drops() {
+        let mut sight = Sight::default();
+        assert!(!sight.observe(None, 0) && !sight.hidden(), "nothing pinned");
+        assert!(!sight.observe(Some(true), 100) && !sight.hidden());
+        // Behind a wall: hidden at once, still pinned until LOST_MS passes.
+        assert!(!sight.observe(Some(false), 1_000) && sight.hidden());
+        assert!(!sight.observe(Some(false), 1_000 + LOST_MS));
+        // Back in sight before then: shown again, and the wait starts over.
+        assert!(!sight.observe(Some(true), 2_000) && !sight.hidden());
+        assert!(!sight.observe(Some(false), 3_000));
+        assert!(
+            sight.observe(Some(false), 3_001 + LOST_MS),
+            "out of sight too long"
+        );
     }
 
     #[test]

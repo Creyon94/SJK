@@ -8,6 +8,16 @@ const MAX_ENTITIES: usize = 1_024;
 const SABERS_PER_ENTITY: usize = 2;
 const BLADES_PER_SABER: usize = 8;
 pub(crate) const MAX_SEGMENTS: usize = 4_096;
+/// A vertex style's bit for a trail that bends what is behind it (`saber_trail.wgsl`
+/// `fragment_wake`, a skin's Heat wake), beside the style in its low byte.
+pub(crate) const WAKE: u32 = 0x100;
+/// The vertex style's low byte: the style itself.
+pub(crate) const STYLE: u32 = 0xff;
+/// How many times longer a plasma, flare or wake trail lives than the blur: the plasma's
+/// cooling and the heat's shimmer need time to be seen.
+const LONG_LIFE: u16 = 3;
+/// How far (units) the flare trail's flames reach past the tip.
+pub(crate) const FLARE_REACH: f32 = 10.0;
 
 #[path = "thrown_saber_tilt.rs"]
 pub(crate) mod tilt;
@@ -24,16 +34,19 @@ pub(crate) struct Vertex {
     pub(crate) uv: [f32; 2],
     pub(crate) color: [f32; 4],
     pub(crate) style: u32,
-    pub(crate) _padding: u32,
+    /// The flare's V at its slice's far edge, past the tip (below 0, see [`FLARE_REACH`]);
+    /// 0 for the other styles.
+    pub(crate) past: f32,
 }
 
 impl Vertex {
     pub(crate) fn layout() -> wgpu::VertexBufferLayout<'static> {
-        const ATTRIBUTES: [wgpu::VertexAttribute; 4] = wgpu::vertex_attr_array![
+        const ATTRIBUTES: [wgpu::VertexAttribute; 5] = wgpu::vertex_attr_array![
             0 => Float32x3,
             1 => Float32x2,
             2 => Float32x4,
-            3 => Uint32
+            3 => Uint32,
+            4 => Float32
         ];
         wgpu::VertexBufferLayout {
             array_stride: std::mem::size_of::<Self>() as wgpu::BufferAddress,
@@ -98,6 +111,24 @@ impl Trail {
         self.initialized = true;
         quad
     }
+
+    /// Keep the edge of a blade that is out (`blade`, its length zero) without drawing,
+    /// as `CG_AddSaberBlade` does with `dontDraw` for a staff's extra blade or a second
+    /// saber switched off (`codemp/cgame/cg_players.c:14278-14293`, `8292-8556`): the
+    /// edge stays where the hilt is, so the first slice after the blade lights again
+    /// sweeps from there. Kept from where the blade went out instead, a swing within two
+    /// seconds drew one slice from that old place to the new one (hub report 116). SJK
+    /// does this for every blade, the primary too, which stock leaves stale.
+    pub(crate) fn hold(&mut self, blade: crate::saber::Blade, now: i64) {
+        if now <= self.last_time + 2 {
+            return;
+        }
+        let Edge { base, tip } = Edge::from_end(blade, edge::blade_end(blade));
+        self.base = base;
+        self.tip = tip;
+        self.last_time = now;
+        self.initialized = true;
+    }
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -106,6 +137,32 @@ pub(crate) struct BladeState {
     pub(crate) trail: Trail,
     /// Its afterimages' poses, for a skin leaving them (`saber_ghosts.rs`).
     pub(crate) ghosts: crate::saber_ghosts::GhostTrail,
+    /// Its swing, ignition and clashes, for the Blade Lab designs (`saber_motion.rs`).
+    pub(crate) motion: crate::saber_motion::BladeMotion,
+    /// Where its tip was, for a skin shedding blossoms (`saber_petals.rs`).
+    pub(crate) petals: crate::saber_petals::PetalEmitter,
+    /// Whether it was last drawn thrown ([`Self::fly`]).
+    flying: bool,
+}
+
+impl BladeState {
+    /// Note whether the blade is drawn thrown (`flying`) or in the hand. Its afterimages
+    /// and blossoms are kept in its wearer's frame in the hand and in the world in flight
+    /// (`thrown_saber.rs`), so going from one to the other forgets them: a pose kept in one
+    /// frame drawn in the other would stand far off, and the tip's jump would shed a burst.
+    pub(crate) fn fly(&mut self, flying: bool) {
+        if self.flying != flying {
+            self.ghosts = Default::default();
+            self.petals = Default::default();
+            self.flying = flying;
+        }
+    }
+
+    /// Stow a staff blade immediately; its next ignition still grows from zero.
+    pub(crate) fn stow(&mut self, time: i64) {
+        *self = Self::default();
+        self.extension.update(false, 0.0, time);
+    }
 }
 
 /// O(1) per-entity/per-saber/per-blade state with one load-time allocation,
@@ -113,6 +170,8 @@ pub(crate) struct BladeState {
 pub(crate) struct StateSlab {
     states: Box<[BladeState]>,
     tilts: Box<[tilt::ThrowTilt]>,
+    /// The blossoms the blades shed this frame, for `saber_petals::frame` to spawn.
+    petals: Vec<crate::saber_petals::PetalSpawn>,
 }
 
 impl Default for StateSlab {
@@ -124,6 +183,7 @@ impl Default for StateSlab {
             ]
             .into_boxed_slice(),
             tilts: vec![tilt::ThrowTilt::default(); MAX_ENTITIES].into_boxed_slice(),
+            petals: Vec::with_capacity(crate::saber_petals::MOST_QUEUED),
         }
     }
 }
@@ -141,6 +201,26 @@ impl StateSlab {
             .checked_add(saber.checked_mul(BLADES_PER_SABER)?)?
             .checked_add(blade)?;
         self.states.get_mut(index)
+    }
+
+    /// A blade's state and the queue of blossoms it may shed into.
+    pub(crate) fn blade_and_petals(
+        &mut self,
+        entity: u64,
+        saber: usize,
+        blade: usize,
+    ) -> Option<(&mut BladeState, &mut Vec<crate::saber_petals::PetalSpawn>)> {
+        let entity = usize::try_from(entity.checked_sub(1)?).ok()?;
+        let index = entity
+            .checked_mul(SABERS_PER_ENTITY * BLADES_PER_SABER)?
+            .checked_add(saber.checked_mul(BLADES_PER_SABER)?)?
+            .checked_add(blade)?;
+        Some((self.states.get_mut(index)?, &mut self.petals))
+    }
+
+    /// The blossoms queued since the last frame.
+    pub(crate) fn petals(&mut self) -> &mut Vec<crate::saber_petals::PetalSpawn> {
+        &mut self.petals
     }
 
     /// The thrown-saber tilt kept on the owner's entity (`centity_t::bolt3`).
@@ -254,6 +334,21 @@ pub(crate) fn trail_duration(authored_duration: u16) -> u16 {
     if duration == 0 { 40 } else { duration }
 }
 
+/// The vertex style a slice is drawn with: the hilt's stock `trailStyle` (0 the blur
+/// trail, 1 the sword trail), except a black blade's blur trail (2, alpha-blended) and a
+/// blade skin's (`SkinColor::trail_kind`: 3, the blur trail whose white core takes the
+/// skin's trail colour too, so the trail reads as the blade's colour rather than white; 4
+/// comic speed lines; 5 plasma; 6 the flare), with [`WAKE`] when the skin's trail bends
+/// what is behind it.
+pub(crate) fn vertex_style(style: u8, color: BladeColor) -> u32 {
+    match (style, color) {
+        (1, _) => 1,
+        (_, BladeColor::Black) => 2,
+        (0, BladeColor::Skin(skin)) => skin.trail_kind.style() | if skin.wake { WAKE } else { 0 },
+        _ => u32::from(style),
+    }
+}
+
 fn build_quad(
     new_base: [f32; 3],
     new_tip: [f32; 3],
@@ -267,25 +362,49 @@ fn build_quad(
     if diff > 10_000 {
         return None;
     }
-    let lifetime_millis = trail_duration(authored_duration);
+    let vertex_style = vertex_style(style, color);
+    let kind = vertex_style & STYLE;
+    // The plasma and flare, and a wake, live longer (`LONG_LIFE`).
+    let lifetime_millis = if kind >= 5 || vertex_style & WAKE != 0 {
+        trail_duration(authored_duration).saturating_mul(LONG_LIFE)
+    } else {
+        trail_duration(authored_duration)
+    };
     let old_alpha = 1.0 - diff as f32 / f32::from(lifetime_millis);
     let rgb = if style == 1 {
         [32.0 / 255.0; 3]
     } else {
         color.trail_rgb()
     };
+    // The flare's flames lick off past the tip: its slice reaches `FLARE_REACH` further,
+    // the texture's V going below 0 there (the tip stays at 0).
+    let (new_tip, old_tip, tip_v) = if kind == 6 {
+        let past = |base: [f32; 3], tip: [f32; 3]| {
+            let base = glam::Vec3::from_array(base);
+            let tip = glam::Vec3::from_array(tip);
+            (tip + (tip - base).normalize_or_zero() * FLARE_REACH).to_array()
+        };
+        let length = glam::Vec3::from_array(new_tip).distance(glam::Vec3::from_array(new_base));
+        (
+            past(new_base, new_tip),
+            past(old_base, old_tip),
+            -FLARE_REACH / length.max(1.0),
+        )
+    } else {
+        (new_tip, old_tip, 0.0)
+    };
     let vertex = |position, uv| Vertex {
         position,
         uv,
         color: [rgb[0], rgb[1], rgb[2], 1.0],
-        style: u32::from(style),
-        _padding: 0,
+        style: vertex_style,
+        past: tip_v,
     };
     Some(Quad {
         vertices: [
             vertex(new_base, [0.0, 1.0]),
-            vertex(new_tip, [0.0, 0.0]),
-            vertex(old_tip, [1.0 - old_alpha, 0.0]),
+            vertex(new_tip, [0.0, tip_v]),
+            vertex(old_tip, [1.0 - old_alpha, tip_v]),
             vertex(old_base, [1.0 - old_alpha, 1.0]),
         ],
         lifetime_millis: if style == 1 {
@@ -310,6 +429,38 @@ mod tests {
 
     fn color() -> BladeColor {
         BladeColor::Retail(Color::Yellow)
+    }
+
+    #[test]
+    fn black_blades_select_alpha_trails_without_changing_slice_timing() {
+        let make = |color, style| {
+            build_quad(
+                [0.; 3],
+                [0., 0., 40.],
+                [1., 0., 0.],
+                [1., 0., 40.],
+                8,
+                200,
+                style,
+                color,
+            )
+            .unwrap()
+        };
+        let black = make(BladeColor::Black, 0);
+        let ordinary = make(color(), 0);
+        assert_eq!(black.lifetime_millis, ordinary.lifetime_millis);
+        assert_eq!(
+            black.vertices.map(|v| v.position),
+            ordinary.vertices.map(|v| v.position)
+        );
+        assert!(black.vertices.iter().all(|v| v.style == 2));
+        assert!(ordinary.vertices.iter().all(|v| v.style == 0));
+        assert!(
+            make(BladeColor::Black, 1)
+                .vertices
+                .iter()
+                .all(|v| v.style == 1)
+        );
     }
 
     #[test]
@@ -359,6 +510,30 @@ mod tests {
             .expect("the first attack frame bridges from the remembered edge");
         assert_eq!(quad.vertices[3].position, [1.0, 0.0, 0.0]);
         assert_eq!(quad.lifetime_millis, 30);
+    }
+
+    #[test]
+    fn a_blade_lit_again_sweeps_from_its_hilt_not_from_where_it_went_out() {
+        let mut trail = Trail::default();
+        trail.update(edge(0.0), 1_000, 200, 0, color(), true);
+        // Out, while the wearer runs on: the edge follows the hilt.
+        for (step, at) in [(1_100, 50.0), (1_200, 100.0)] {
+            trail.hold(
+                crate::saber::Blade {
+                    base: [at, 0.0, 0.0],
+                    direction: [0.0, 0.0, 1.0],
+                    length: 0.0,
+                    radius: 1.0,
+                },
+                step,
+            );
+        }
+        let quad = trail
+            .update(edge(101.0), 1_210, 200, 0, color(), true)
+            .expect("a fresh slice");
+        let [_, _, old_tip, old_muzzle] = quad.vertices.map(|v| v.position);
+        assert_eq!(old_muzzle, [100.0, 0.0, 0.0]);
+        assert_eq!(old_tip, [100.0, 0.0, 4.0]);
     }
 
     #[test]

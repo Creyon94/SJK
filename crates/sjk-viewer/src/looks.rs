@@ -62,7 +62,16 @@ fn blade_skin(id: &str) -> Option<&'static str> {
 /// The toys a look can have out that this client draws, by id (`PROTOCOL.md`, "Looks"):
 /// a toy's bit in [`Worn::toys`] is its place here. A look naming another id (a newer
 /// client's toy) draws nothing more.
-pub(crate) const TOYS: [&str; 1] = [crate::cardboard_box::TOY];
+pub(crate) const TOYS: [&str; 7] = [
+    crate::cardboard_box::TOY,
+    crate::order66::TOY,
+    crate::hax::TOY,
+    crate::hax::AWAY_TOY,
+    crate::drone::TOY,
+    crate::boombox::TOY,
+    // The Monitor's switch: others foresee its monitors striking this player.
+    crate::monitor::TOY,
+];
 
 /// The bit of toy `id` in [`Worn::toys`], if this client knows it.
 fn toy_bit(id: &str) -> Option<u8> {
@@ -82,6 +91,51 @@ pub(crate) struct Worn {
     pub(crate) options_off: crate::saber_skin_options::OptionsOff,
     /// The toys out, a bit per [`TOYS`] entry.
     pub(crate) toys: u8,
+    /// What the second saber wears (since 21/10/2026: `saber2`).
+    pub(crate) second: SecondSkin,
+    /// The second saber's skin's options its wearer switched off.
+    pub(crate) options_off2: crate::saber_skin_options::OptionsOff,
+    /// The saber sounds chosen apart from the blade (`crate::saber_sound_choice`).
+    pub(crate) sounds: crate::saber_sound_choice::SoundChoice,
+}
+
+/// Archived: the local player's second saber's blade skin, for two sabers: empty for the
+/// first saber's (`cg_saberSkin`), [`STOCK_SECOND`] for the stock blade, else a blade
+/// skin's id, worn only while the profile lists it (else the stock blade, as the first
+/// saber's skin and as the hub makes a second saber whose skin is taken back).
+pub(crate) const SECOND_CVAR: &str = "cg_saberSkin2";
+/// [`SECOND_CVAR`]'s value for a stock second blade.
+pub(crate) const STOCK_SECOND: &str = "stock";
+
+/// What a player's second saber wears: the first saber's skin, or its own (`None`: the
+/// stock blade), a catalogue id.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub(crate) enum SecondSkin {
+    #[default]
+    Same,
+    Own(Option<&'static str>),
+}
+
+impl SecondSkin {
+    /// From a look's `saber2`: absent is the first's skin, `""` (or a skin this client does
+    /// not know) the stock blade.
+    fn of(saber2: Option<&str>) -> Self {
+        saber2.map_or(Self::Same, |id| Self::Own(blade_skin(id)))
+    }
+
+    /// The local choice in [`SECOND_CVAR`], with `owned` saying which skins the profile
+    /// lists. The first saber's skin chosen for the second stays the second's own, so it
+    /// does not change when the first does. A skin the profile does not list (taken back,
+    /// or never held) is the stock blade, as the first saber's is and as the hub makes a
+    /// second saber's skin taken back (`saber2` `""`), so the player sees what others see
+    /// (review of 22/10/2026: it followed the first here and was stock for the others).
+    fn own(setting: &str, owned: impl Fn(&str) -> bool) -> Self {
+        match setting.trim() {
+            "" => Self::Same,
+            STOCK_SECOND => Self::Own(None),
+            id => Self::Own(blade_skin(id).filter(|id| owned(id))),
+        }
+    }
 }
 
 impl Worn {
@@ -92,15 +146,39 @@ impl Worn {
         Self {
             saber_skin,
             illuminate: look.illuminate,
-            options_off: saber_skin.map_or(0, |_| {
-                crate::saber_skin_options::bits(look.saber_off.iter().map(String::as_str))
+            options_off: saber_skin.map_or(0, |skin| {
+                crate::saber_skin_options::look_bits(
+                    skin,
+                    look.saber_off.iter().map(String::as_str),
+                    look.saber_on.iter().map(String::as_str),
+                )
             }),
+            second: SecondSkin::of(look.saber2.as_deref()),
+            options_off2: crate::saber_skin_options::look_bits(
+                look.saber2.as_deref().unwrap_or(&look.saber),
+                look.saber2_off.iter().map(String::as_str),
+                look.saber2_on.iter().map(String::as_str),
+            ),
             toys: look
                 .toys
                 .iter()
                 .filter_map(|id| toy_bit(id))
                 .fold(0, |toys, bit| toys | bit),
+            sounds: crate::saber_sound_choice::SoundChoice::parse(&look.saber_sounds),
         }
+    }
+
+    /// The blade skin whose sounds play for this player's sabers (`None` the stock
+    /// sounds): the blade's, unless they chose others.
+    pub(crate) fn sound_skin(&self) -> Option<&'static str> {
+        self.sounds.sound_skin(self.saber_skin)
+    }
+
+    /// The same look with the saber sounds `setting` (`cg_saberSounds`) chooses, a
+    /// shader's only while the own profile lists it (`owned`).
+    pub(crate) fn with_sounds(mut self, setting: &str, owned: impl Fn(&str) -> bool) -> Self {
+        self.sounds = crate::saber_sound_choice::SoundChoice::own(setting, owned);
+        self
     }
 
     /// Whether toy `id` is out.
@@ -136,11 +214,34 @@ impl Worn {
             options_off: saber_skin
                 .map_or(0, |skin| crate::saber_skin_options::off_bits(options, skin)),
             toys: 0,
+            second: SecondSkin::Same,
+            options_off2: 0,
+            sounds: Default::default(),
         }
     }
 
-    /// The wire form, for `Service::set_look`, with the options `options` switches off
-    /// for its skin.
+    /// The same look with the second saber wearing what `setting` ([`SECOND_CVAR`]) says,
+    /// when the profile lists it (`owned`), with the options `options` switches off for it.
+    pub(crate) fn with_second(
+        self,
+        setting: &str,
+        options: &str,
+        owned: impl Fn(&str) -> bool,
+    ) -> Self {
+        let second = SecondSkin::own(setting, owned);
+        let options_off2 = match second {
+            SecondSkin::Own(Some(skin)) => crate::saber_skin_options::off_bits(options, skin),
+            _ => 0,
+        };
+        Self {
+            second,
+            options_off2,
+            ..self
+        }
+    }
+
+    /// The wire form, for `Service::set_look`, with the options `options` switches from
+    /// their default for its skin (its parts off, its extras on).
     pub(crate) fn to_look(self, options: &str) -> Look {
         let saber = self.saber_skin.unwrap_or_default();
         Look {
@@ -151,11 +252,37 @@ impl Worn {
             } else {
                 crate::saber_skin_options::off_list(options, saber)
             },
+            saber_on: if saber.is_empty() {
+                Vec::new()
+            } else {
+                crate::saber_skin_options::on_list(options, saber)
+            },
             toys: TOYS
                 .iter()
                 .filter(|toy| self.has_toy(toy))
                 .map(|toy| (*toy).to_owned())
                 .collect(),
+            // Sent only when the second differs from the first: the first's skin chosen for
+            // the second draws the same as no `saber2`.
+            saber2: match self.second {
+                SecondSkin::Own(skin) if skin != self.saber_skin => {
+                    Some(skin.unwrap_or_default().to_owned())
+                }
+                _ => None,
+            },
+            saber2_off: match self.second {
+                SecondSkin::Own(Some(skin)) if Some(skin) != self.saber_skin => {
+                    crate::saber_skin_options::off_list(options, skin)
+                }
+                _ => Vec::new(),
+            },
+            saber2_on: match self.second {
+                SecondSkin::Own(Some(skin)) if Some(skin) != self.saber_skin => {
+                    crate::saber_skin_options::on_list(options, skin)
+                }
+                _ => Vec::new(),
+            },
+            saber_sounds: self.sounds.wire().to_owned(),
         }
     }
 }
@@ -176,6 +303,9 @@ pub(crate) struct Looks {
     worn: [Worn; SLOTS],
     /// The local player's slot on the server, if in a game.
     own_slot: Option<u8>,
+    /// The slots whose hub look's claimed name the game shows there (bits): the SJK
+    /// players on the server, as far as the hub has said.
+    matched: u64,
     /// The local player's own look, gated.
     own: Worn,
     /// The roster's revision last taken, so it is read again only when it changes.
@@ -193,6 +323,9 @@ pub(crate) struct Looks {
     /// `cg_saberSkinOptions` as last read (twice a second), for the skins the
     /// Collection shows on the model.
     own_options: String,
+    /// `cg_saberSkin` and `cg_saberSkin2` as last seen, so a change (Equip in the
+    /// Collection) is taken at once rather than at the next half second.
+    own_settings: (String, String),
     /// World shots own every unlock, having no hub.
     #[cfg(test)]
     pub(crate) shot_owns_unlocks: bool,
@@ -204,6 +337,7 @@ impl Default for Looks {
             claimed: std::array::from_fn(|_| None),
             worn: [Worn::default(); SLOTS],
             own_slot: None,
+            matched: 0,
             own: Worn::default(),
             roster_revision: None,
             server: None,
@@ -211,6 +345,7 @@ impl Default for Looks {
             revision: 0,
             muted: 0,
             own_options: String::new(),
+            own_settings: (String::new(), String::new()),
             #[cfg(test)]
             shot_owns_unlocks: false,
         }
@@ -222,6 +357,24 @@ impl Looks {
     /// stock blade (and for a slot out of range or muted on this PC).
     pub(crate) fn saber_skin_id(&self, client: usize) -> Option<&'static str> {
         self.shown(client)?.saber_skin
+    }
+
+    /// What the second saber of the player in `client` wears.
+    pub(crate) fn second_skin(&self, client: usize) -> SecondSkin {
+        self.shown(client)
+            .map_or(SecondSkin::Same, |worn| worn.second)
+    }
+
+    /// The options the player in `client` switched off on their second saber's skin.
+    pub(crate) fn options_off2(&self, client: usize) -> crate::saber_skin_options::OptionsOff {
+        self.shown(client).map_or(0, |worn| worn.options_off2)
+    }
+
+    /// The blade skin whose sounds play for the player in `client` (`None` the stock
+    /// sounds, and for a slot out of range or muted on this PC): their blade's, unless
+    /// they chose others ([`Worn::sound_skin`]).
+    pub(crate) fn sound_skin_id(&self, client: usize) -> Option<&'static str> {
+        self.shown(client)?.sound_skin()
     }
 
     /// The options the player in `client` switched off on their blade skin.
@@ -284,6 +437,16 @@ impl Looks {
         crate::saber_skin_options::off_bits(&self.own_options, skin)
     }
 
+    /// Whether `cg_saberSkin` or `cg_saberSkin2` now say other than when last asked; no
+    /// allocation unless they changed.
+    pub(crate) fn own_settings_changed(&mut self, first: &str, second: &str) -> bool {
+        if self.own_settings.0 == first && self.own_settings.1 == second {
+            return false;
+        }
+        self.own_settings = (first.to_owned(), second.to_owned());
+        true
+    }
+
     /// Changes whenever what a slot is drawn wearing (or the own look) changes.
     pub(crate) fn revision(&self) -> u64 {
         self.revision
@@ -339,6 +502,12 @@ impl Looks {
         }
     }
 
+    /// The SJK players on the server (bits by slot): those whose hub look's claimed name
+    /// the game shows, the local player's own slot included.
+    pub(crate) fn sjk_slots(&self) -> u64 {
+        self.matched | self.own_slot.map_or(0, |slot| 1 << slot)
+    }
+
     /// The local player's slot on the server, if in a game.
     pub(crate) fn own_slot(&self) -> Option<u8> {
         self.own_slot
@@ -368,18 +537,18 @@ impl Looks {
     /// a slot. Only slots with a hub look ask for it.
     pub(crate) fn rebuild(&mut self, shown: impl Fn(u8) -> Option<String>) {
         let before = self.worn;
+        self.matched = 0;
         for (slot, (worn, claimed)) in self.worn.iter_mut().zip(&self.claimed).enumerate() {
-            *worn = claimed
-                .as_ref()
-                .filter(|claimed| {
-                    u8::try_from(slot)
-                        .ok()
-                        .and_then(&shown)
-                        .is_some_and(|shown| {
-                            sjk_identity::names_match(&claimed.claimed_name, &shown)
-                        })
-                })
-                .map_or_else(Worn::default, |claimed| claimed.worn);
+            let matched = claimed.as_ref().filter(|claimed| {
+                u8::try_from(slot)
+                    .ok()
+                    .and_then(&shown)
+                    .is_some_and(|shown| sjk_identity::names_match(&claimed.claimed_name, &shown))
+            });
+            if matched.is_some() {
+                self.matched |= 1 << slot;
+            }
+            *worn = matched.map_or_else(Worn::default, |claimed| claimed.worn);
         }
         let (slot, own) = (self.own_slot, self.own);
         self.set_own(slot, own);
@@ -399,6 +568,11 @@ mod tests {
             illuminate,
             saber_off: Vec::new(),
             toys: Vec::new(),
+            saber2: None,
+            saber2_off: Vec::new(),
+            saber_on: Vec::new(),
+            saber2_on: Vec::new(),
+            saber_sounds: String::new(),
         }
     }
 
@@ -500,6 +674,61 @@ mod tests {
     }
 
     #[test]
+    fn a_second_saber_wears_its_own_skin_both_ways() {
+        let owned = |id: &str| id == "saber_sun" || id == "saber_glitch";
+        let own = |second: &str| {
+            Worn::own("saber_sun", "saber_glitch.haze", owned, false).with_second(
+                second,
+                "saber_glitch.haze",
+                owned,
+            )
+        };
+        // Its own skin, with its options; the stock blade; the first's.
+        let glitch = own("saber_glitch");
+        assert_eq!(glitch.second, SecondSkin::Own(Some("saber_glitch")));
+        let sent = glitch.to_look("saber_glitch.haze");
+        assert_eq!(sent.saber2.as_deref(), Some("saber_glitch"));
+        assert_eq!(sent.saber2_off, ["haze"]);
+        assert_eq!(own(STOCK_SECOND).to_look("").saber2.as_deref(), Some(""));
+        // The first's skin chosen for the second stays its own, but is sent as no `saber2`;
+        // an empty setting sends none either.
+        assert_eq!(own("saber_sun").second, SecondSkin::Own(Some("saber_sun")));
+        assert_eq!(own("saber_sun").to_look("").saber2, None);
+        assert_eq!(own("").second, SecondSkin::Same);
+        assert_eq!(own("").to_look("").saber2, None);
+        // A skin not held (taken back) or unknown is the stock blade, here as at the hub.
+        for stock in ["saber_tidal", "saber_moon"] {
+            assert_eq!(own(stock).second, SecondSkin::Own(None), "{stock}");
+            assert_eq!(
+                own(stock).to_look("").saber2.as_deref(),
+                Some(""),
+                "{stock}"
+            );
+        }
+        // What another player's look says.
+        let mut looks = Looks::default();
+        let dual = Look {
+            saber2: Some("saber_glitch".to_owned()),
+            saber2_off: vec!["haze".to_owned()],
+            saber_on: Vec::new(),
+            saber2_on: Vec::new(),
+            ..look("saber_sun", false)
+        };
+        let stock_second = Look {
+            saber2: Some(String::new()),
+            ..look("saber_sun", false)
+        };
+        looks.replace_roster([(3, "^2Sol", Some(&dual)), (5, "Fox", Some(&stock_second))]);
+        looks.rebuild(shown);
+        assert_eq!(looks.second_skin(3), SecondSkin::Own(Some("saber_glitch")));
+        assert_ne!(looks.options_off2(3), 0);
+        assert_eq!(looks.second_skin(5), SecondSkin::Own(None));
+        looks.apply_event(5, "Fox", &look("saber_sun", false));
+        looks.rebuild(shown);
+        assert_eq!(looks.second_skin(5), SecondSkin::Same);
+    }
+
+    #[test]
     fn another_server_clears_the_hub_looks_but_not_the_own_one() {
         let mut looks = Looks::default();
         looks.apply_event(3, "Sol", &look("saber_sun", true));
@@ -507,8 +736,7 @@ mod tests {
         let own = Worn {
             saber_skin: Some("saber_sun"),
             illuminate: true,
-            options_off: 0,
-            toys: 0,
+            ..Worn::default()
         };
         looks.set_own(Some(1), own);
         looks.rebuild(shown);
@@ -602,6 +830,55 @@ mod tests {
         assert_eq!(looks.revision(), own);
     }
 
+    /// Other players' saber sounds from their looks: the blade's when the look has no
+    /// choice (an older client), stock or another shader's when it has, none while muted
+    /// here; the own choice goes in the look sent and comes back the same.
+    #[test]
+    fn saber_sounds_come_with_the_look_and_an_older_one_follows_the_blade() {
+        let shown = |_| Some("Sol".to_owned());
+        let mut looks = Looks::default();
+        let with_sounds = |sounds: &str| Look {
+            saber_sounds: sounds.to_owned(),
+            ..look("saber_sun", false)
+        };
+        looks.apply_event(2, "Sol", &look("saber_sun", false));
+        looks.apply_event(3, "Sol", &with_sounds("stock"));
+        looks.apply_event(4, "Sol", &with_sounds("saber_void"));
+        looks.apply_event(
+            5,
+            "Sol",
+            &Look {
+                saber_sounds: "saber_void".to_owned(),
+                ..look("", false)
+            },
+        );
+        looks.rebuild(shown);
+        assert_eq!(looks.sound_skin_id(2), Some("saber_sun"), "an older look");
+        assert_eq!(looks.sound_skin_id(3), None, "stock");
+        assert_eq!(looks.sound_skin_id(4), Some("saber_void"));
+        assert_eq!(looks.saber_skin_id(4), Some("saber_sun"), "the blade stays");
+        assert_eq!(
+            looks.sound_skin_id(5),
+            Some("saber_void"),
+            "on the stock blade"
+        );
+        looks.set_muted(1 << 4);
+        assert_eq!(looks.sound_skin_id(4), None, "muted here");
+        // The own choice: sent in the look, a shader's only while owned.
+        let owned = |id: &str| id == "saber_sun" || id == "saber_void";
+        let own = Worn::own("saber_sun", "", owned, false).with_sounds("saber_void", owned);
+        assert_eq!(own.sound_skin(), Some("saber_void"));
+        assert_eq!(own.to_look("").saber_sounds, "saber_void");
+        assert_eq!(Worn::of(&own.to_look("")), own);
+        let lacking = Worn::own("saber_sun", "", owned, false).with_sounds("saber_storm", owned);
+        assert_eq!(
+            lacking.sound_skin(),
+            Some("saber_sun"),
+            "not owned: follows"
+        );
+        assert_eq!(lacking.to_look("").saber_sounds, "", "and is not sent");
+    }
+
     #[test]
     fn the_own_blade_skin_needs_the_unlock_and_a_known_id() {
         let owned = |id: &str| id == "saber_sun";
@@ -610,8 +887,7 @@ mod tests {
             Worn {
                 saber_skin: Some("saber_sun"),
                 illuminate: true,
-                options_off: 0,
-                toys: 0,
+                ..Worn::default()
             }
         );
         assert_eq!(
@@ -627,6 +903,28 @@ mod tests {
             Worn::own("saber_sun", "", owned, false).to_look(""),
             look("saber_sun", false)
         );
+    }
+
+    #[test]
+    fn the_own_look_carries_the_worn_skins_extras_switched_on() {
+        let options = "saber_sun.flare_trail saber_sun.haze";
+        let own = Worn::own("saber_sun", options, |_| true, false);
+        let sent = own.to_look(options);
+        assert_eq!(sent.saber_off, ["haze"]);
+        assert_eq!(sent.saber_on, ["flare_trail"]);
+        assert_eq!(
+            Worn::of(&sent),
+            own,
+            "read back from the hub, the same choice"
+        );
+        // An extra named among the parts switched off (which the hub does not check) turns
+        // nothing on, nor does a part named among the extras switched on.
+        let sneaky = Look {
+            saber_off: vec!["flare_trail".to_owned()],
+            saber_on: vec!["haze".to_owned()],
+            ..sent.clone()
+        };
+        assert_eq!(Worn::of(&sneaky).options_off, 0);
     }
 
     #[test]

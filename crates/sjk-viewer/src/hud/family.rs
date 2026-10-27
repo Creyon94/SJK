@@ -12,6 +12,21 @@ pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
             2,
             "Local score: 0 hidden, 1 personal, 2 includes team scores",
         ),
+        (
+            "cg_drawFlagStatus",
+            1,
+            "Capture the flag: the flag icons at the left and a note while you carry one",
+        ),
+        (
+            "cg_drawTeamScores",
+            1,
+            "Team games: the red and blue scores at the top centre",
+        ),
+        (
+            "cg_teamScoresBoxes",
+            1,
+            "Team scores as SJK team boxes with each flag's state; 0 the classic plates and flag icons",
+        ),
         ("cg_drawSnapshot", 0, "Snapshot time and message number"),
         ("cg_drawUpperRight", 1, "Show upper-right match information"),
         ("cg_drawVote", 1, "Show vote information"),
@@ -19,8 +34,8 @@ pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
         ("cg_drawTimerMsec", 0, "Show timer milliseconds"),
         (
             "cg_drawInventory",
-            1,
-            "Show owned inventory and the inventory selector",
+            0,
+            "Show the permanent owned-inventory list; item selection stays visible when cycling",
         ),
         ("cg_drawCrosshairNamesColours", 1, "Colored target names"),
     ] {
@@ -38,6 +53,11 @@ pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
         ("cg_gunX", 0.0, "View weapon forward offset"),
         ("cg_gunY", 0.0, "View weapon left offset"),
         ("cg_gunZ", 0.0, "View weapon upward offset"),
+        (
+            "cg_teamScoresScale",
+            1.0,
+            "Size of the SJK team score boxes, 0.5 to 2",
+        ),
     ] {
         cvars.register(CvarDefinition::new(name, value, CvarFlags::ARCHIVE, help))?;
     }
@@ -72,8 +92,8 @@ pub(super) struct Policy {
     pub(super) snapshot: bool,
     /// Vote visibility.
     pub(super) vote: bool,
-    /// Inventory selector visibility.
-    pub(super) inventory: bool,
+    /// Permanent inventory list visibility, independent of the transient selector.
+    pub(super) inventory_list: bool,
     /// Match clock direction and precision.
     pub(super) timer: [bool; 2],
     /// The match clock stands in the upper right under the frame rate
@@ -102,7 +122,7 @@ impl Policy {
             upper: i("cg_drawupperright", 1) != 0,
             snapshot: i("cg_drawsnapshot", 0) != 0,
             vote: i("cg_drawvote", 1) != 0,
-            inventory: i("cg_drawinventory", 1) != 0,
+            inventory_list: i("cg_drawinventory", 0) != 0,
             timer: [
                 i("cg_drawtimercountdown", 0) != 0,
                 i("cg_drawtimermsec", 0) != 0,
@@ -137,6 +157,7 @@ impl HudOverlay {
         self.family = Policy::read(console);
         self.kill_feed.sample(console);
         self.icons.update(snapshot, game, console);
+        self.flag_status.update(snapshot, game, console);
         self.targeting.update(console, &snapshot.player);
         self.inventory_bits = if snapshot.player.health() > 0
             && snapshot.player.movement_type() != 4
@@ -152,7 +173,10 @@ impl HudOverlay {
             "SCORE {}",
             snapshot.player.persistent[0] as i32
         );
-        if self.family.score > 1 && matches!(snapshot.player.team(), 1 | 2) {
+        if self.family.score > 1
+            && matches!(snapshot.player.team(), 1 | 2)
+            && !self.flag_status.scores_shown()
+        {
             for index in [6, 7] {
                 let value = config_number(game, index);
                 let _ = write!(self.score_text, " / {value}");
@@ -166,11 +190,21 @@ impl HudOverlay {
         );
     }
 
-    /// Optional right-side readouts follow the leader block: the snapshot line's and
-    /// the inventory's tops.
-    pub(super) fn upper_right_stack(&self) -> [f32; 2] {
+    /// Optional right-side readouts follow the leader block and the frame rate and
+    /// clock above them (`console_overlay`, drawn apart from the HUD, which wrote
+    /// over the snapshot line): the snapshot line's and the inventory's tops, in
+    /// 1080-line pixels for a window `viewport_height` tall.
+    pub(super) fn upper_right_stack(&self, viewport_height: f32) -> [f32; 2] {
         let bottom = self.enemy_info.bottom();
-        let snapshot = if bottom > 0.0 { bottom + 16.0 } else { 50.0 };
+        let fps = self.kill_feed.options().fps;
+        let readouts = if fps || self.upper_right_timer {
+            crate::console_overlay::upper_right_bottom(viewport_height, fps, self.upper_right_timer)
+                / crate::ui_scale::height_scale(viewport_height)
+                + 6.0
+        } else {
+            0.0
+        };
+        let snapshot = if bottom > 0.0 { bottom + 16.0 } else { 50.0 }.max(readouts);
         let after_snapshot = snapshot + if self.family.snapshot { 28.0 } else { 0.0 };
         let inventory = 100.0_f32.max(after_snapshot);
         [snapshot, inventory]
@@ -185,12 +219,12 @@ impl HudOverlay {
         self.enemy_info
             .emit(&mut self.draw_list, viewport, self.theme);
         let s = crate::ui_scale::height_scale(viewport[1]);
-        let [snapshot_top, inventory_top] = self.upper_right_stack();
+        let [snapshot_top, inventory_top] = self.upper_right_stack(viewport[1]);
         let mut bottom = self.enemy_info.bottom() * s;
         if self.family.upper && self.family.snapshot {
             bottom = bottom.max((snapshot_top + 28.0) * s);
         }
-        if self.family.upper && self.family.inventory {
+        if self.family.upper && self.family.inventory_list {
             let mut row = 0;
             for tag in 1..12 {
                 if self.inventory_bits & (1 << tag) == 0 {
@@ -303,6 +337,57 @@ pub(super) fn name(text: &mut String, value: &str, colors: bool) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn inventory_list_toggle_keeps_selector_visible_in_every_hud() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut console = ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
+        assert_eq!(console.integer_cvar("cg_drawInventory"), Some(0));
+        assert!(!Policy::default().inventory_list);
+        let font = crate::text::load_modern(1.0, None).unwrap().font;
+        for look in [HudLook::Game, HudLook::Classic, HudLook::Radial] {
+            for list in [0, 1] {
+                console.set_cvar("cg_drawInventory", &list.to_string());
+                let mut hud = HudOverlay::new();
+                hud.family = Policy::read(Some(&console));
+                hud.inventory_bits = 1 << 2;
+                hud.selector = Some(sjk_client::selection::SelectionView {
+                    extensions: &[],
+                    inventory: true,
+                    available: 1 << 2,
+                    selected: 2,
+                    alpha: 1.0,
+                });
+                hud.layout(
+                    &font,
+                    look,
+                    [1920.0, 1080.0],
+                    1.0,
+                    HudVisibility::from_console(Some(&console)),
+                    0,
+                );
+                let commands = hud.draw_list().commands();
+                assert!(
+                    commands.iter().any(|command| matches!(
+                        command,
+                        DrawCommand::Text {
+                            text: TextId(1201),
+                            ..
+                        }
+                    )),
+                    "cycling still shows INVENTORY with list={list}"
+                );
+                let permanent = commands
+                    .iter()
+                    .filter(|command| {
+                        matches!(command,
+                    DrawCommand::Text { text: TextId(1102), rect, .. } if rect.x > 1000.0)
+                    })
+                    .count();
+                assert_eq!(permanent, list as usize);
+            }
+        }
+    }
 
     /// The layouts keep their own match clock unless `cg_drawTimerUpperRight` moves it to
     /// the upper right (Sol, 12/10/2026: the clock stays in the layout by default).

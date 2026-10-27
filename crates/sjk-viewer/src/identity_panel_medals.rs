@@ -84,20 +84,31 @@ impl Laid<'_> {
 pub(super) fn classic_line(medals: Option<&[Award]>) -> Option<String> {
     let medals = medals?;
     if medals.is_empty() {
-        return Some(NONE_YET.to_owned());
+        return Some(crate::terms::say(NONE_YET).into_owned());
     }
     let names: Vec<String> = medals.iter().map(Award::label).collect();
-    Some(format!("Medals: {}", names.join(", ")))
+    Some(format!(
+        "{}: {}",
+        crate::terms::say("Medals"),
+        names.join(", ")
+    ))
 }
 
 impl Panel {
     /// The SJK UI's Medals column, right of the page's, down to `bottom`.
     pub(super) fn sjk_medals(&mut self, frame: &Frame, medals: &[Award], top: f32, bottom: f32) {
         let s = frame.s;
-        kit::heading(&mut self.ui, frame, SJK_X, top + 20.0, SJK_WIDTH, "Medals");
+        kit::heading(
+            &mut self.ui,
+            frame,
+            SJK_X,
+            top + 20.0,
+            SJK_WIDTH,
+            &crate::terms::say("Medals"),
+        );
         let mut y = top + 48.0;
         if medals.is_empty() {
-            for part in wrap(NONE_YET, 40) {
+            for part in wrap(&crate::terms::say(NONE_YET), 40) {
                 text(
                     &mut self.ui,
                     TextFamily::Body,

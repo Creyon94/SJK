@@ -44,7 +44,7 @@ pub(crate) const FORCE_LEVITATION_BIT: u32 = 1 << 1;
 /// `EF_JETPACK_FLAMING`. Every other bit is the game's.
 const PMOVE_ENTITY_FLAGS: u32 = (1 << 13) | (1 << 9) | (1 << 10) | (1 << 30);
 /// `PMF_STUCK_TO_WALL`: grabbing a wall.
-const PMF_STUCK_TO_WALL: u16 = 16_384;
+pub const PMF_STUCK_TO_WALL: u16 = 16_384;
 /// `MAX_CLIENTS`: entity numbers below it are players, to whom `g_stepSlideFix` applies.
 const MAX_CLIENTS: u16 = 32;
 
@@ -426,8 +426,9 @@ pub struct MovementState {
     pub saber_special_deferred: u32,
     /// Whether the last command lost nonzero movement to the input-freeze rules.
     pub input_freeze_active: bool,
-    /// Whether the last simulated slice held the view in a wall move. Presentation
-    /// must keep this view even on frames that cannot advance prediction. Local only.
+    /// Whether the last simulated slice held the view in a wall move, or a snapshot
+    /// seeds a held wall grab. Presentation keeps this view even without a new slice.
+    /// Local only; JA+'s free wall look does not hold it.
     pub wall_view_locked: bool,
     /// Whether the last command encountered a deferred saber weapon slice.
     pub saber_deferred_active: bool,
@@ -770,6 +771,11 @@ impl Predictor {
     pub fn from_player_state(player: &PlayerState, config: MovementConfig) -> Self {
         let mut state = MovementState::from_player_state(player);
         state.saber_anim_speed_scales = HiltSpeedScales(config.saber_anim_speed_scales);
+        // A fully acknowledged queue may render this seed without running Pmove.
+        // OpenJK renders the seed's viewangles too (cg_predict.c:1043-1051,1401;
+        // cg_view.c:1586). Do not reopen mouse-look on a still-grabbed wall.
+        state.wall_view_locked =
+            state.movement_flags & PMF_STUCK_TO_WALL != 0 && !config.debug_melee.free_wall_look;
         Self {
             state,
             events: Default::default(),
@@ -1272,14 +1278,19 @@ impl Predictor {
         self.touched.clear();
         let previous_command_time = self.state.command_time;
         self.state.command_time = command.server_time;
-        crate::pmove_input_freeze::apply(
-            &mut self.state,
-            &mut command,
-            millis,
-            collision,
-            self.animation_lengths.as_deref(),
-            self.config.ja_plus,
-        );
+        // A fake noclip flies a camera, not the body: the animations that hold the body
+        // still (a taunt or a JA+ emote, a kick, a saber lock) must not hold it, and
+        // the server is sent a standing still command in any case.
+        if !(self.fake_noclip && !self.config.authoritative) {
+            crate::pmove_input_freeze::apply(
+                &mut self.state,
+                &mut command,
+                millis,
+                collision,
+                self.animation_lengths.as_deref(),
+                self.config.ja_plus,
+            );
+        }
         // A rider facing its vehicle's hyperspace point (`bg_pmove.c:10579-10595`).
         self.face_hyperspace(&mut command, millis);
         // The view the last command left, which the wall moves read (they run before

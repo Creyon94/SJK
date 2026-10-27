@@ -13,6 +13,8 @@ use std::error::Error;
 #[path = "force_bones.rs"]
 mod force_bones;
 pub(crate) use force_bones::ForceBones;
+#[cfg(test)]
+pub(crate) use force_bones::PUSH_BONE_NAMES;
 
 #[path = "actor_pose_retained.rs"]
 pub(crate) mod retained;
@@ -113,6 +115,10 @@ pub(crate) fn update(gpu: &mut GpuState, presentation_time: i64) -> Result<(), B
         mesh.animator.requested = None;
     }
     let frame = steps::Frame {
+        flame: crate::actor_world_submission::force_powers::flame::policy(
+            game_state,
+            gpu.console.as_ref(),
+        ),
         world,
         local_entity,
         local_animation,
@@ -151,6 +157,13 @@ impl GpuState {
         sounds::update(self, presentation_time, audio);
         self.play_emote_sounds(audio);
         self.play_cardboard_box_sounds(audio);
+        self.play_order66_sounds(audio);
+        self.play_hax_sounds(audio);
+        self.play_ragdoll_sounds(audio);
+        self.play_drone_sounds(audio);
+        self.play_monitor_sounds(audio);
+        self.play_boombox_sounds(audio);
+        self.spawn_hax_glyphs(audio, presentation_time);
         Ok(())
     }
 
@@ -187,6 +200,7 @@ impl GpuState {
                 mesh.entity_id = Some(corpse.id);
             }
         }
+        self.track_body_fades();
     }
 }
 

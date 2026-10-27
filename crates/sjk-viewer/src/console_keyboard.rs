@@ -137,9 +137,16 @@ impl ViewerConsole {
                 && self.toggles_console(event, key)
             {
                 // `CL_KeyDownEvent`: Ctrl opens the console full screen, Shift a
-                // quarter of it (classic console).
-                self.open_height =
-                    super::classic::open_height(key == KeyCode::Escape, self.control, self.shift);
+                // quarter of it; `con_shiftHeight` moves the quarter to Shift+Escape.
+                let shift_height = self
+                    .bool_cvar(super::console_options::SHIFT_HEIGHT_CVAR)
+                    .unwrap_or(false);
+                self.open_height = super::classic::open_height(
+                    key == KeyCode::Escape,
+                    self.control,
+                    self.shift,
+                    shift_height,
+                );
                 self.set_open(true);
                 return true;
             }
@@ -171,6 +178,9 @@ impl ViewerConsole {
         }
 
         if event.state != ElementState::Pressed {
+            return true;
+        }
+        if self.dialogue_key(event) {
             return true;
         }
         let printable = matches!(

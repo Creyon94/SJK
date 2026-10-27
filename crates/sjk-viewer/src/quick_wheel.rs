@@ -491,6 +491,18 @@ pub(crate) struct Toys {
     pub(crate) illuminate: bool,
     /// The player is in the cardboard box.
     pub(crate) cardboard_box: bool,
+    /// The Order 66 toy is on.
+    pub(crate) order66: bool,
+    /// The Hax toy is on.
+    pub(crate) hax: bool,
+    /// The player is limp (the Ragdoll toy).
+    pub(crate) ragdoll: bool,
+    /// The Drone toy is on.
+    pub(crate) drone: bool,
+    /// The Boombox is carried.
+    pub(crate) boombox: bool,
+    /// The Monitor toy is on.
+    pub(crate) monitor: bool,
 }
 
 /// Whether a choice in `state` is in effect in `console` now; `toys` says which toys
@@ -505,6 +517,12 @@ fn in_effect(console: &crate::console::ViewerConsole, state: State, toys: Toys) 
         State::None => false,
         State::Illuminate => toys.illuminate,
         State::CardboardBox => toys.cardboard_box,
+        State::Order66 => toys.order66,
+        State::Hax => toys.hax,
+        State::Ragdoll => toys.ragdoll,
+        State::Drone => toys.drone,
+        State::Boombox => toys.boombox,
+        State::Monitor => toys.monitor,
         State::Equals(name, value) => integer(name) == Some(value),
         State::On(name) => integer(name).is_some_and(|value| value != 0),
         State::Near(name, value) => console
@@ -630,6 +648,7 @@ impl crate::GpuState {
             if let Some((known, selected)) = self.quick_wheel.force_for_shot {
                 return Some(force_page::Powers {
                     known,
+                    extensions: &[],
                     selected,
                     flamethrower: false,
                     icons: self.hud.power_icons(),
@@ -641,9 +660,14 @@ impl crate::GpuState {
         if player.movement_type() == 4 || player.movement_flags() & 4096 != 0 {
             return None;
         }
-        let selection = &self.gameplay_input.selection;
+        let mut selection = self.gameplay_input.selection;
+        selection.set_extensions(crate::input::force_abilities::extensions(
+            Some(session.game_state()),
+            self.console.as_ref(),
+        ));
         Some(force_page::Powers {
             known: selection.known(player),
+            extensions: selection.extensions(),
             selected: selection.selected_force(player),
             flamethrower: self.hud.flamethrower_shown(),
             icons: self.hud.power_icons(),
@@ -658,6 +682,12 @@ impl crate::GpuState {
         let toys = Toys {
             illuminate: self.illuminate.lit(),
             cardboard_box: self.cardboard_box.on(),
+            order66: self.order66.on(),
+            hax: self.hax.on(),
+            ragdoll: self.ragdoll.on(),
+            drone: self.drone.on(),
+            boombox: self.boombox.on(),
+            monitor: self.monitor.on(),
         };
         let pages = shown_pages(console, force.as_ref(), toys);
         let last = shown_index(&pages, self.quick_wheel.last_page()).unwrap_or(0);
@@ -979,6 +1009,7 @@ mod tests {
         let console =
             crate::console::ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
         let powers = force_page::Powers {
+            extensions: &[],
             known: u32::MAX,
             selected: 3,
             flamethrower: false,
@@ -1044,9 +1075,17 @@ mod tests {
         let toys = &pages[TOYS];
         assert_eq!((toys.id.as_str(), toys.name.as_str()), ("toys", "Toys"));
         assert!(!toys.force);
-        assert_eq!(toys.choices.len(), 2);
+        assert_eq!(toys.choices.len(), 10);
         assert_eq!(toys.choices[0].label, "Illuminate");
         assert_eq!(toys.choices[1].command, "toy_box");
+        assert_eq!(toys.choices[2].command, "toy_order66");
+        assert_eq!(toys.choices[3].command, "order66");
+        assert_eq!(toys.choices[4].command, "toy_hax");
+        assert_eq!(toys.choices[5].command, "toy_ragdoll");
+        assert_eq!(toys.choices[6].command, "toy_drone");
+        assert_eq!(toys.choices[7].command, "toy_boombox");
+        assert_eq!(toys.choices[8].command, "toy_monitor");
+        assert_eq!(toys.choices[9].command, "monitor_throw");
         assert_eq!(toys.choices[0].command, "toy_illuminate");
         assert!(toys.choices[0].icon.is_some(), "the holocron's picture");
         // The gold dot follows the holocron: out, then lit.

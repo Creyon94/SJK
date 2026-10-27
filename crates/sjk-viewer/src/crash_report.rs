@@ -138,6 +138,35 @@ pub(crate) fn trail(line: &str) {
     }
 }
 
+/// Commands (lowercase) whose arguments are a chat message, so a line typed with
+/// one stays out of the trail as received chat does ([`typed_chat`]): `say`,
+/// `say_team`, `tell`, the game's chat (OpenJK `g_cmds.c`). A server family's chat
+/// commands (JA+'s `amsay`) come with its client mod's
+/// [`sjk_mod::Secrets::chat_commands`], applied whatever the server.
+///
+/// The line stays in the scrollback; it is left out of crash reports, log uploads
+/// and the session log only.
+pub(crate) const CHAT_COMMANDS: &[&str] = &["say", "say_team", "tell"];
+
+/// Whether a typed console line sends a chat message ([`CHAT_COMMANDS`] or one of
+/// `mods`) in any of its commands; a line the tokenizer refuses counts by its first
+/// word.
+pub(crate) fn typed_chat(line: &str, mods: &[&str]) -> bool {
+    let chat = |name: &str| {
+        let name = name.trim_start_matches(['/', '\\']).to_ascii_lowercase();
+        CHAT_COMMANDS.contains(&name.as_str()) || mods.contains(&name.as_str())
+    };
+    match sjk_shell::split_commands(line) {
+        Ok(commands) => commands.iter().any(|command| {
+            sjk_shell::tokenize(command)
+                .ok()
+                .and_then(|tokens| tokens.into_iter().next())
+                .is_some_and(|name| chat(&name))
+        }),
+        Err(_) => line.split_whitespace().next().is_some_and(chat),
+    }
+}
+
 /// Run `keep` (which keeps a chat line) without the trail seeing what it keeps.
 pub(crate) fn privately<R>(keep: impl FnOnce() -> R) -> R {
     PRIVATE.with(|private| private.set(true));
@@ -201,6 +230,10 @@ pub(crate) fn set_gpu(info: &wgpu::AdapterInfo) {
             gpu.push_str(", ");
             gpu.push_str(part);
         }
+    }
+    if let Some(memory) = crate::video_memory::summary() {
+        gpu.push_str(", ");
+        gpu.push_str(memory);
     }
     gpu.push(')');
     lock(&STATE).gpu = gpu;
@@ -517,6 +550,45 @@ impl crate::GpuState {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn typed_chat_is_told_from_other_lines() {
+        for line in [
+            "say hi",
+            "/say_team plan",
+            "tell 3 meet at the bridge",
+            "TELL 3 hi",
+            "modsay hi",
+            "cg_fov 110; say_team plan",
+            "say \"open quote",
+        ] {
+            assert!(typed_chat(line, &["modsay"]), "{line}");
+        }
+        assert!(!typed_chat("modsay hi", &[]));
+        for line in [
+            "cg_fov 110",
+            "echo say hi",
+            "bind t say_team",
+            "sayings",
+            "",
+        ] {
+            assert!(!typed_chat(line, &["modsay"]), "{line}");
+        }
+    }
+
+    #[test]
+    fn a_chat_line_typed_in_the_console_stays_out_of_the_trail() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut console =
+            crate::console::ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
+        console.execute_console_line("say_team typedchat7321 plan", None);
+        console.execute_console_line("tell 3 typedchat7321 whisper", None);
+        console.execute_console_line("echo typedother7321", None);
+        let trail = try_lock(&TRAIL).map(|trail| trail.iter().cloned().collect::<Vec<_>>());
+        let trail = trail.unwrap_or_default();
+        assert!(trail.iter().any(|line| line.contains("typedother7321")));
+        assert!(!trail.iter().any(|line| line.contains("typedchat7321")));
+    }
 
     #[test]
     fn colour_codes_leave_the_trail() {

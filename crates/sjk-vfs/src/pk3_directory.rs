@@ -52,6 +52,22 @@ pub fn pk3_search_order(directory: impl AsRef<Path>) -> Result<Vec<PathBuf>, Vfs
     pk3_archives(directory.as_ref())
 }
 
+/// The `*.pk3` files of several directories in the order one folder holding them
+/// all would mount them ([`pk3_search_order`]): content kept in a folder of its own
+/// that stands in for files installed beside the game's. Equal names keep the
+/// directories' order, so the later directory's copy wins.
+pub fn pk3_search_order_merged<P: AsRef<Path>>(
+    directories: &[P],
+) -> Result<Vec<PathBuf>, VfsError> {
+    let mut archives = Vec::new();
+    for directory in directories {
+        archives.extend(pk3_archives(directory.as_ref())?);
+    }
+    // A stable sort: equal names stay in directory order.
+    archives.sort_by_cached_key(|archive| pak_order(archive));
+    Ok(archives)
+}
+
 /// Direct child PK3s (case-insensitive extension), in legacy search order.
 fn pk3_archives(directory: &Path) -> Result<Vec<PathBuf>, VfsError> {
     let io_error = |source| VfsError::Io {

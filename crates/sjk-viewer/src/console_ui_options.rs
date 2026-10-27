@@ -16,9 +16,9 @@ pub(super) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
         ),
         ("ui_browserShowFull", 1, "Show full servers"),
         (
-            "ui_shaderView",
+            "ui_shaderList",
             0,
-            "Collection, Shaders: 0 lists the shaders, 1 shows them as a grid of cards",
+            "Collection, Shaders and the Forge: 0 shows the shaders as tiles, 1 as a list",
         ),
         (
             "ui_browserShowPasswordProtected",
@@ -44,6 +44,7 @@ pub(super) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
         cvars.register(CvarDefinition::new(name, value, CvarFlags::ARCHIVE, help))?;
     }
     crate::rarity_fx::register(cvars)?;
+    crate::menu_pictures::register(cvars)?;
     // Create game's last choices.
     for (name, value, help) in crate::menu::create_game::INTEGER_CVARS {
         cvars.register(CvarDefinition::new(name, value, CvarFlags::ARCHIVE, help))?;

@@ -21,8 +21,8 @@ pub(crate) struct Particle {
     pub(crate) delay: Duration,
     pub(crate) lifetime: Duration,
     pub(crate) size: crate::effect_envelope::Envelope,
-    pub(crate) start_length: f32,
-    pub(crate) end_length: f32,
+    /// Tail length follows its authored flags; lines retain their full endpoint vector.
+    pub(crate) length: Option<crate::effect_envelope::Envelope>,
     pub(crate) streak: Option<Vec3>,
     /// `streak` still points at an `org2fromTrace` line's untraced end
     /// ([`crate::effect_shapes::origin2_trace_target`]); the first draw traces it
@@ -44,12 +44,22 @@ pub(crate) enum PrimitiveShape {
     Billboard,
     /// A retained-world sprite replaced each frame rather than simulated over its lifetime.
     FrameBillboard,
+    /// An effect `Flash` primitive, drawn over the whole view (`CFlash::Draw`,
+    /// [`crate::effect_flash`]) rather than where it went off.
+    ScreenFlash,
     Cylinder {
         axis: Vec3,
         size2: crate::effect_envelope::Envelope,
         length: crate::effect_envelope::Envelope,
         trace_end: bool,
         depth_hack: bool,
+    },
+    /// An upright quad from the particle's origin to `end`, `size` across along `up`:
+    /// codemp's `RT_ORIENTEDLINE` (`RB_SurfaceOrientedLine`), which draws the portable
+    /// shield ([`crate::portable_shields`]).
+    OrientedLine {
+        end: Vec3,
+        up: Vec3,
     },
     Electricity {
         end: Vec3,
@@ -71,12 +81,11 @@ impl Particle {
                 .sample(elapsed_millis, lifetime_millis, self.seed.wrapping_add(31)),
             self.alpha
                 .sample(elapsed_millis, lifetime_millis, self.seed.wrapping_add(32)),
-            std::array::from_fn(|axis| {
-                self.rgb[axis].sample(
-                    elapsed_millis,
-                    lifetime_millis,
-                    self.seed.wrapping_add(33 + axis as u32),
-                )
+            // One seed for the three channels: `CParticle::UpdateRGB`'s `FX_RGB_RAND` draws
+            // a single `flrand` a frame and scales the whole colour by it, so a white
+            // flash dims and brightens but never turns magenta or yellow.
+            self.rgb.map(|channel| {
+                channel.sample(elapsed_millis, lifetime_millis, self.seed.wrapping_add(33))
             }),
         )
     }
@@ -123,10 +132,10 @@ pub(crate) fn frame_billboard_fits(len: usize) -> bool {
 const MAX_PARTICLE_SHADER_STAGES: usize = 8;
 
 /// Borrowed stage selection; iteration evaluates at most eight original stages.
-/// Empty or unknown shaders yield the same single fallback layer.
+/// Unknown shaders get a fallback; known empty shaders deliberately draw nothing.
 pub(crate) struct ParticleLayerSamples<'a> {
     atlas: &'a ParticleAtlas,
-    animations: &'a [ParticleAtlasAnimation],
+    animations: Option<&'a [ParticleAtlasAnimation]>,
     seconds: f32,
 }
 
@@ -134,21 +143,22 @@ impl<'a> ParticleLayerSamples<'a> {
     /// Bound the selection to the renderer's existing eight-stage capacity.
     pub(crate) fn new(
         atlas: &'a ParticleAtlas,
-        animations: &'a [ParticleAtlasAnimation],
+        animations: Option<&'a [ParticleAtlasAnimation]>,
         seconds: f32,
     ) -> Self {
         Self {
             atlas,
-            animations: &animations[..animations.len().min(MAX_PARTICLE_SHADER_STAGES)],
+            animations: animations
+                .map(|stages| &stages[..stages.len().min(MAX_PARTICLE_SHADER_STAGES)]),
             seconds,
         }
     }
 
     /// Evaluate stages on demand, retaining order and the single-layer fallback.
     pub(crate) fn iter(&self) -> impl Iterator<Item = ParticleLayerSample> + '_ {
-        (0..self.animations.len().max(1)).map(|index| {
+        (0..self.animations.map_or(1, |stages| stages.len())).map(|index| {
             self.animations
-                .get(index)
+                .and_then(|stages| stages.get(index))
                 .map(|animation| self.atlas.sample_animation(animation, self.seconds))
                 .unwrap_or(ParticleLayerSample {
                     uv_rect: self.atlas.fallback,

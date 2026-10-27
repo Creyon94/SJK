@@ -1,8 +1,10 @@
-//! The Collection's Achievements tab: a wall of medallions, a row to each category
-//! under its name and count, each medallion ringed by the count in the category's
-//! colour, filled and gold once unlocked, the goal inside and the name under it; the
-//! one chosen is shown up close on the right with what to do and how far the player
-//! is, and under it the three nearest to unlocking.
+//! The Collection's Achievements tab: a wall of medallions in bands, each category's
+//! run under its name and count (two short categories share a band), each medallion
+//! ringed by the count in the category's colour, filled and gold once unlocked, the
+//! goal inside and the name under it; the one chosen is shown up close on the right with
+//! what to do and how far the player is, and under it the three nearest to unlocking.
+//! A hidden achievement not unlocked yet stands as a secret (`?`, no count); a retired
+//! one stands only once held, with "No longer obtainable".
 
 use super::view::{LEAD_Y, LEFT_X, SHOWCASE_WIDTH, SHOWCASE_X, centred_lines, glow};
 use super::*;
@@ -12,67 +14,151 @@ use crate::menu::sjk::{Frame, color, kit, text, wrap};
 use crate::menu_widgets::TextFamily;
 use sjk_ui::{DrawCommand, FontWeight, TextAlign};
 
-/// The wall: where its first category starts, the room a category takes, a medallion's
-/// cell and its radius.
+/// The wall: where its first band starts, the room a band takes, the medallions a band
+/// holds, a medallion's cell and its radius, and how many characters a line of a name
+/// under one holds.
 const WALL_TOP: f32 = 286.0;
-const GROUP_STEP: f32 = 172.0;
-const CELL: f32 = 104.0;
-const RADIUS: f32 = 33.0;
+const BAND_STEP: f32 = 172.0;
+const COLUMNS: usize = 12;
+const CELL: f32 = 85.0;
+const RADIUS: f32 = 28.0;
+const NAME_CHARS: usize = 13;
 /// The medallion up close.
 const BIG_RADIUS: f32 = 104.0;
 /// How many the Next up list shows.
 const NEXT_UP: usize = 3;
 
-/// The categories in the catalogue's order, each with its achievements' indices.
-fn groups() -> Vec<(Category, Vec<usize>)> {
-    let mut groups: Vec<(Category, Vec<usize>)> = Vec::with_capacity(4);
-    for (index, kind) in crate::achievements::ALL.iter().enumerate() {
-        match groups
-            .iter_mut()
-            .find(|(category, _)| *category == kind.category)
-        {
+/// One category's run of medallions on a band of the wall: the achievements' indices,
+/// the band, its first column, and whether it is the category's first run (a category
+/// longer than a band goes on in the next).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct Group {
+    pub(super) category: Category,
+    pub(super) members: Vec<usize>,
+    pub(super) band: usize,
+    pub(super) column: usize,
+    pub(super) first: bool,
+}
+
+/// A medallion's place on the wall: its achievement's index, band and column.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) struct Slot {
+    pub(super) index: usize,
+    pub(super) band: usize,
+    pub(super) column: usize,
+}
+
+/// The wall's runs, of the achievements listed ([`Standing::listed`]): the categories in
+/// the catalogue's order, each after the one before on its band when it fits there with
+/// a column between them, else on the next band.
+pub(super) fn groups(standings: &[Standing]) -> Vec<Group> {
+    let mut categories: Vec<(Category, Vec<usize>)> = Vec::with_capacity(8);
+    for (index, standing) in standings.iter().enumerate() {
+        if !standing.listed() {
+            continue;
+        }
+        let category = standing.kind.category;
+        match categories.iter_mut().find(|(other, _)| *other == category) {
             Some((_, members)) => members.push(index),
-            None => groups.push((kind.category, vec![index])),
+            None => categories.push((category, vec![index])),
+        }
+    }
+    let mut groups = Vec::with_capacity(categories.len() + 1);
+    let (mut band, mut column) = (0, 0);
+    for (category, members) in categories {
+        for (run, chunk) in members.chunks(COLUMNS).enumerate() {
+            let mut start = if column == 0 { 0 } else { column + 1 };
+            if start + chunk.len() > COLUMNS {
+                band += 1;
+                start = 0;
+            }
+            groups.push(Group {
+                category,
+                members: chunk.to_vec(),
+                band,
+                column: start,
+                first: run == 0,
+            });
+            column = start + chunk.len();
         }
     }
     groups
 }
 
-/// The achievement Up (`down` false) or Down from `index` lands on: the next
-/// category's, as near its column as it has.
-pub(super) fn vertical(index: usize, down: bool) -> usize {
-    let groups = groups();
-    let Some((row, column)) = groups.iter().enumerate().find_map(|(row, (_, members))| {
-        members
+/// Every medallion's place, in reading order.
+pub(super) fn slots(groups: &[Group]) -> impl Iterator<Item = Slot> + '_ {
+    groups.iter().flat_map(|group| {
+        group
+            .members
             .iter()
-            .position(|member| *member == index)
-            .map(|column| (row, column))
-    }) else {
-        return index.min(crate::achievements::ALL.len().saturating_sub(1));
-    };
-    let next = if down {
-        (row + 1).min(groups.len() - 1)
-    } else {
-        row.saturating_sub(1)
-    };
-    let members = &groups[next].1;
-    members[column.min(members.len() - 1)]
+            .enumerate()
+            .map(|(offset, index)| Slot {
+                index: *index,
+                band: group.band,
+                column: group.column + offset,
+            })
+    })
 }
 
-/// The one to show first: the locked one nearest to unlocking, else the first.
+/// The achievement Up (`down` false) or Down from `index` lands on: the next band's, as
+/// near its column as it has. An index not on the wall goes to its first.
+pub(super) fn vertical(slots: &[Slot], index: usize, down: bool) -> usize {
+    let Some(at) = slots.iter().find(|slot| slot.index == index) else {
+        return slots.first().map_or(index, |slot| slot.index);
+    };
+    let band = if down {
+        at.band + 1
+    } else {
+        at.band.saturating_sub(1)
+    };
+    slots
+        .iter()
+        .filter(|slot| slot.band == band)
+        .min_by_key(|slot| slot.column.abs_diff(at.column))
+        .map_or(index, |slot| slot.index)
+}
+
+/// The achievement `by` medallions on from `index` in reading order: wrapping round when
+/// `wrap`, else stopping at the ends. An index not on the wall goes to its first.
+pub(super) fn sideways(slots: &[Slot], index: usize, by: isize, wrap: bool) -> usize {
+    let Some(at) = slots.iter().position(|slot| slot.index == index) else {
+        return slots.first().map_or(index, |slot| slot.index);
+    };
+    let count = slots.len() as isize;
+    let next = if wrap {
+        (at as isize + by).rem_euclid(count)
+    } else {
+        (at as isize + by).clamp(0, count - 1)
+    };
+    slots[next as usize].index
+}
+
+/// Whether the board may offer `standing` as one to work towards: listed, locked, and
+/// no secret (a secret says nothing of how far it is).
+fn open(standing: &Standing) -> bool {
+    standing.listed() && standing.unlocked.is_none() && !standing.secret()
+}
+
+/// The one to show first: the open one nearest to unlocking, else the first listed.
 fn first_choice(standings: &[Standing]) -> usize {
     standings
         .iter()
         .enumerate()
-        .filter(|(_, standing)| standing.unlocked.is_none())
+        .filter(|(_, standing)| open(standing))
         .max_by(|a, b| a.1.fraction().total_cmp(&b.1.fraction()))
+        .or_else(|| {
+            standings
+                .iter()
+                .enumerate()
+                .find(|(_, standing)| standing.listed())
+        })
         .map_or(0, |(index, _)| index)
 }
 
-/// The locked ones nearest to unlocking but `chosen`, nearest first.
+/// The open ones nearest to unlocking but `chosen`, nearest first.
 fn next_up(standings: &[Standing], chosen: usize) -> Vec<usize> {
     let mut locked: Vec<usize> = (0..standings.len())
-        .filter(|index| *index != chosen && standings[*index].unlocked.is_none())
+        .filter(|index| *index != chosen && open(&standings[*index]))
         .collect();
     locked.sort_by(|a, b| {
         standings[*b]
@@ -91,20 +177,20 @@ impl Panel {
             self.lead(frame, "No achievements", "");
             return;
         }
-        if self.achievement >= standings.len() {
+        let groups = groups(standings);
+        self.achievement_slots.clear();
+        self.achievement_slots.extend(slots(&groups));
+        if !self
+            .achievement_slots
+            .iter()
+            .any(|slot| slot.index == self.achievement)
+        {
             self.achievement = first_choice(standings);
         }
         let s = frame.s;
-        let unlocked = standings
-            .iter()
-            .filter(|standing| standing.unlocked.is_some())
-            .count();
-        self.lead(
-            frame,
-            &format!("{unlocked} of {} unlocked", standings.len()),
-            "",
-        );
-        let fraction = unlocked as f32 / standings.len() as f32;
+        let (unlocked, total) = crate::achievements::tally(standings);
+        self.lead(frame, &format!("{unlocked} of {total} unlocked"), "");
+        let fraction = unlocked as f32 / total.max(1) as f32;
         bar(
             &mut self.ui,
             frame,
@@ -112,42 +198,52 @@ impl Panel {
             fraction,
             color::GOLD,
         );
-        for (row, (category, members)) in groups().into_iter().enumerate() {
-            let top = WALL_TOP + row as f32 * GROUP_STEP;
-            let hue = tint(category);
-            let held = members
-                .iter()
-                .filter(|index| standings.get(**index).is_some_and(|s| s.unlocked.is_some()))
-                .count();
-            text(
-                &mut self.ui,
-                TextFamily::Display,
-                format_args!("{}", category.name()),
-                frame.rect(LEFT_X, top, 300.0, 28.0),
-                22.0 * s,
-                hue,
-                FontWeight::Semibold,
-                TextAlign::Start,
-            );
-            let name_width = crate::text::display_width(category.name(), 22.0);
-            text(
-                &mut self.ui,
-                TextFamily::Body,
-                format_args!("{held} of {}", members.len()),
-                frame.rect(LEFT_X + name_width + 14.0, top + 2.0, 120.0, 24.0),
-                15.0 * s,
-                color::MUTED,
-                FontWeight::Regular,
-                TextAlign::Start,
-            );
-            let rule_x = LEFT_X + name_width + 90.0;
-            let _ = self.ui.draw_list_mut().push(DrawCommand::SolidRect {
-                rect: frame.rect(rule_x, top + 14.0, LEFT_X + 9.0 * CELL - rule_x, 1.0),
-                color: color::alpha(hue, 0.3),
-            });
-            for (column, index) in members.iter().enumerate() {
+        for group in &groups {
+            let top = WALL_TOP + group.band as f32 * BAND_STEP;
+            let left = LEFT_X + group.column as f32 * CELL;
+            let right = left + group.members.len() as f32 * CELL - 8.0;
+            let hue = tint(group.category);
+            if group.first {
+                let members: Vec<&Standing> = groups
+                    .iter()
+                    .filter(|other| other.category == group.category)
+                    .flat_map(|other| other.members.iter())
+                    .filter_map(|index| standings.get(*index))
+                    .collect();
+                let held = members.iter().filter(|s| s.unlocked.is_some()).count();
+                text(
+                    &mut self.ui,
+                    TextFamily::Display,
+                    format_args!("{}", group.category.name()),
+                    frame.rect(left, top, right - left, 28.0),
+                    22.0 * s,
+                    hue,
+                    FontWeight::Semibold,
+                    TextAlign::Start,
+                );
+                let name_width = crate::text::display_width(group.category.name(), 22.0);
+                let count = format!("{held} of {}", members.len());
+                text(
+                    &mut self.ui,
+                    TextFamily::Body,
+                    format_args!("{count}"),
+                    frame.rect(left + name_width + 12.0, top + 2.0, 90.0, 24.0),
+                    15.0 * s,
+                    color::MUTED,
+                    FontWeight::Regular,
+                    TextAlign::Start,
+                );
+                let rule_x = left + name_width + 24.0 + crate::text::display_width(&count, 15.0);
+                if right - rule_x > 12.0 {
+                    let _ = self.ui.draw_list_mut().push(DrawCommand::SolidRect {
+                        rect: frame.rect(rule_x, top + 14.0, right - rule_x, 1.0),
+                        color: color::alpha(hue, 0.3),
+                    });
+                }
+            }
+            for (offset, index) in group.members.iter().enumerate() {
                 if let Some(standing) = standings.get(*index) {
-                    let x = LEFT_X + column as f32 * CELL;
+                    let x = left + offset as f32 * CELL;
                     self.wall_medallion(frame, standing, *index, x, top + 40.0);
                 }
             }
@@ -206,13 +302,18 @@ impl Panel {
             });
         }
         let mut y = top + RADIUS * 2.0 + 14.0;
-        for part in wrap(standing.kind.name, 13).take(2) {
+        let name = if standing.secret() {
+            std::borrow::Cow::Borrowed("Secret")
+        } else {
+            crate::terms::say(standing.kind.name)
+        };
+        for part in wrap(&name, NAME_CHARS).take(2) {
             text(
                 &mut self.ui,
                 TextFamily::Body,
                 format_args!("{part}"),
-                frame.rect(centre[0] - CELL * 0.5, y, CELL, 20.0),
-                15.0 * s,
+                frame.rect(centre[0] - CELL * 0.5 - 6.0, y, CELL + 12.0, 20.0),
+                14.0 * s,
                 match (chosen, done) {
                     (true, _) => color::GOLD_BRIGHT,
                     (false, true) => color::TEXT,
@@ -221,7 +322,7 @@ impl Panel {
                 FontWeight::Regular,
                 TextAlign::Center,
             );
-            y += 18.0;
+            y += 17.0;
         }
         self.ui.hit_region(
             ACHIEVEMENT_BASE + index as u16,
@@ -259,7 +360,7 @@ impl Panel {
         text(
             &mut self.ui,
             TextFamily::Display,
-            format_args!("{}", kind.name),
+            format_args!("{}", standing.name()),
             frame.rect(SHOWCASE_X, y, SHOWCASE_WIDTH, 56.0),
             50.0 * s,
             if done {
@@ -271,10 +372,16 @@ impl Panel {
             TextAlign::Center,
         );
         y += 60.0;
+        let retired = if kind.retired {
+            crate::achievements::RETIRED_NOTE.trim_end_matches('.')
+        } else {
+            ""
+        };
+        let dot = if kind.retired { " \u{b7} " } else { "" };
         text(
             &mut self.ui,
             TextFamily::Body,
-            format_args!("{}", kind.category.name()),
+            format_args!("{}{dot}{retired}", kind.category.name()),
             frame.rect(SHOWCASE_X, y, SHOWCASE_WIDTH, 22.0),
             16.0 * s,
             hue,
@@ -285,7 +392,7 @@ impl Panel {
         y = centred_lines(
             &mut self.ui,
             frame,
-            kind.description,
+            &standing.description(),
             [SHOWCASE_X, y, SHOWCASE_WIDTH],
             56,
             2,
@@ -301,14 +408,21 @@ impl Panel {
             standing.fraction(),
             if done { color::GOLD } else { hue },
         );
-        let progress = format!(
-            "{} / {}",
-            kind.amount(standing.progress.min(kind.goal)),
-            kind.amount(kind.goal)
-        );
+        // A secret says nothing of its goal or how far the player is.
+        let progress = if standing.secret() {
+            String::new()
+        } else {
+            format!(
+                "{} / {}",
+                kind.amount(standing.progress.min(kind.goal)),
+                kind.amount(kind.goal)
+            )
+        };
         let status = match standing.unlocked {
             Some(at) if at > 0 => format!("Unlocked {}", crate::medals::date_text(at)),
             Some(_) => "Unlocked".to_owned(),
+            None if standing.secret() => "Not unlocked yet".to_owned(),
+            None if standing.waiting => crate::achievements::WAITING_NOTE.to_owned(),
             None => {
                 let left = kind.goal.saturating_sub(standing.progress);
                 format!("{} more to go", kind.amount(left))
@@ -337,7 +451,33 @@ impl Panel {
             },
             FontWeight::Regular,
             TextAlign::End,
-        );
+        ); // The kyber crystal it brings (21/10/2026), its gem before it in its colour.
+        if let Some(tier) = crate::kyber::reward(kind.id) {
+            let words = crate::kyber::reward_line(tier);
+            let size = 20.0;
+            let wide =
+                crate::text::display_width(words, size) * crate::text::style::current().scale;
+            let left = middle - (wide + 26.0) * 0.5;
+            let [gx, gy] = frame.point(left + 9.0, y + 56.0);
+            crate::holocrons::gem::draw(
+                self.ui.draw_list_mut(),
+                [gx, gy],
+                9.0 * s,
+                tier.colour,
+                if done { 1.0 } else { 0.8 },
+                crate::holocrons::gem::ROWS,
+            );
+            text(
+                &mut self.ui,
+                TextFamily::Display,
+                format_args!("{words}"),
+                frame.rect(left + 26.0, y + 43.0, wide + 20.0, 26.0),
+                size * s,
+                tier.colour_alpha(if done { 1.0 } else { 0.85 }),
+                FontWeight::Semibold,
+                TextAlign::Start,
+            );
+        }
     }
 
     /// The locked achievements nearest to unlocking, under the one up close.
@@ -369,7 +509,7 @@ impl Panel {
             text(
                 &mut self.ui,
                 TextFamily::Display,
-                format_args!("{}", kind.name),
+                format_args!("{}", crate::terms::say(kind.name)),
                 frame.rect(x + 54.0, y + 6.0, 260.0, 28.0),
                 22.0 * s,
                 color::TEXT,
@@ -430,21 +570,105 @@ fn bar(
 mod tests {
     use super::*;
 
+    fn index_of(id: &str) -> usize {
+        crate::achievements::ALL
+            .iter()
+            .position(|kind| kind.id == id)
+            .expect("an achievement")
+    }
+
+    /// Standings with `held` unlocked and nothing else.
+    fn standings_holding(held: &[&str]) -> Vec<Standing> {
+        let held: Vec<sjk_identity::Achievement> = held
+            .iter()
+            .map(|id| sjk_identity::Achievement {
+                id: (*id).to_owned(),
+                progress: 1,
+                goal: 1,
+                unlocked: 1_791_336_225,
+                reward: None,
+            })
+            .collect();
+        crate::achievements::Record::default().standings(&held)
+    }
+
+    /// The six categories fit four bands of twelve: Combat alone, Duels and flags beside
+    /// Journeys, Community beside Collection, Toys; a retired achievement not held is left
+    /// out and one held takes its place.
     #[test]
-    fn up_and_down_move_between_the_categories_near_the_column() {
-        let groups = groups();
-        assert_eq!(groups.len(), 4);
-        let total: usize = groups.iter().map(|(_, members)| members.len()).sum();
-        assert_eq!(total, crate::achievements::ALL.len());
-        let (first, second) = (&groups[0].1, &groups[1].1);
-        // Down from a far column lands on the next category's last.
-        let far = *first.last().unwrap();
-        assert_eq!(vertical(far, true), *second.last().unwrap());
-        assert_eq!(vertical(second[0], false), first[0]);
-        // Up from the first category and Down from the last stay.
-        assert_eq!(vertical(first[2], false), first[2]);
-        let last = &groups[3].1;
-        assert_eq!(vertical(last[1], true), last[1]);
+    fn the_wall_packs_the_categories_into_bands() {
+        let standings = standings_holding(&[]);
+        let groups = groups(&standings);
+        let layout: Vec<(&str, usize, usize, usize)> = groups
+            .iter()
+            .map(|g| (g.category.name(), g.band, g.column, g.members.len()))
+            .collect();
+        assert_eq!(
+            layout,
+            [
+                ("Combat", 0, 0, 11),
+                ("Duels and flags", 1, 0, 6),
+                ("Journeys", 1, 7, 5),
+                ("Community", 2, 0, 3),
+                ("Collection", 2, 4, 7),
+                ("Toys", 3, 0, 2),
+            ]
+        );
+        let slots: Vec<Slot> = slots(&groups).collect();
+        assert_eq!(slots.len(), crate::achievements::ALL.len() - 1);
+        assert!(!slots.iter().any(|slot| slot.index == index_of("surveyor")));
+        assert!(slots.iter().all(|slot| slot.column < COLUMNS));
+        let holder = standings_holding(&["surveyor"]);
+        let slots: Vec<Slot> = slots_of(&holder);
+        assert_eq!(slots.len(), crate::achievements::ALL.len());
+        assert!(slots.iter().any(|slot| slot.index == index_of("surveyor")));
+    }
+
+    fn slots_of(standings: &[Standing]) -> Vec<Slot> {
+        slots(&groups(standings)).collect()
+    }
+
+    #[test]
+    fn up_and_down_move_between_the_bands_near_the_column() {
+        let slots = slots_of(&standings_holding(&[]));
+        let at = |index: usize| *slots.iter().find(|slot| slot.index == index).unwrap();
+        // Down from Arsenal (Combat's ninth) lands on Journeys's below it.
+        let arsenal = at(index_of("arsenal"));
+        let below = at(vertical(&slots, arsenal.index, true));
+        assert_eq!((below.band, below.column), (1, arsenal.column));
+        assert_eq!(vertical(&slots, below.index, false), arsenal.index);
+        // Up from the first band and Down from the last stay.
+        assert_eq!(vertical(&slots, arsenal.index, false), arsenal.index);
+        let toys = index_of("box_minutes_10");
+        assert_eq!(vertical(&slots, toys, true), toys);
+        // Left and right read the wall in order, Tab wraps round.
+        let first = slots[0].index;
+        let last = slots.last().unwrap().index;
+        assert_eq!(sideways(&slots, first, -1, false), first);
+        assert_eq!(sideways(&slots, first, -1, true), last);
+        assert_eq!(sideways(&slots, last, 1, true), first);
+        assert_eq!(
+            sideways(&slots, index_of("arsenal"), 1, false),
+            index_of("saber_throw_far"),
+            "Combat's newest follow on its band"
+        );
+        // An index not on the wall (a retired one) goes to the first.
+        assert_eq!(vertical(&slots, index_of("surveyor"), true), first);
+        assert_eq!(sideways(&slots, index_of("surveyor"), 1, false), first);
+    }
+
+    /// A secret is never offered as the next to work towards, nor a retired one.
+    #[test]
+    fn secrets_and_retired_ones_are_not_next_up() {
+        let standings = standings_holding(&[]);
+        let secret = index_of("mythical_find");
+        assert!(standings[secret].secret());
+        assert_ne!(first_choice(&standings), secret);
+        for chosen in 0..standings.len() {
+            let near = next_up(&standings, chosen);
+            assert!(!near.contains(&secret));
+            assert!(!near.contains(&index_of("surveyor")));
+        }
     }
 
     #[test]
@@ -454,6 +678,7 @@ mod tests {
             progress: 1,
             goal: 1,
             unlocked: 1_791_336_225,
+            reward: None,
         }];
         let standings = crate::achievements::standings(&held);
         let chosen = first_choice(&standings);
@@ -466,8 +691,8 @@ mod tests {
         );
     }
 
-    /// Every medallion stands in the canvas over the keys and answers the pointer, at
-    /// 1080 lines, 4K, 4:3 and 21:9.
+    /// Every medallion listed stands in the canvas over the keys and answers the pointer,
+    /// at 1080 lines, 4K, 4:3 and 21:9, and a retired one not held has no place.
     #[test]
     fn the_wall_fits_and_answers_the_pointer() {
         let standings = crate::achievements::standings(&[]);
@@ -488,7 +713,7 @@ mod tests {
             assert!(!panel.ui.overflowed(), "{viewport:?}");
             let frame = Frame::new(viewport);
             let keys = frame.point(0.0, super::super::view::KEYS_Y)[1];
-            for index in 0..standings.len() {
+            for index in (0..standings.len()).filter(|index| standings[*index].listed()) {
                 let rect = panel
                     .ui
                     .rect_for(ACHIEVEMENT_BASE + index as u16)
@@ -496,6 +721,8 @@ mod tests {
                 assert!(rect.bottom() <= keys, "{index} {viewport:?}");
                 assert!(rect.right() <= frame.point(SHOWCASE_X, 0.0)[0]);
             }
+            let surveyor = index_of("surveyor") as u16;
+            assert!(panel.ui.rect_for(ACHIEVEMENT_BASE + surveyor).is_none());
             for command in panel.ui.draw_list().commands() {
                 if let DrawCommand::Text { rect, .. } = command {
                     assert!(rect.bottom() <= keys || rect.y >= keys, "{rect:?}");

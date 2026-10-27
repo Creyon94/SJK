@@ -19,11 +19,26 @@ use std::cell::Cell;
 pub(crate) const MODEL: &str = "models/weapons2/jetpack/model.glm";
 /// `cgs.effects.mBobaJet`.
 pub(crate) const EFFECT: &str = "boba/jet";
-/// `cgs.media.jetpackOnSound` (`cg_jetpackOnSound 1`) and `jetpackOffSound`.
-pub(crate) const SOUNDS: [&str; 2] = [
-    "sound/chars/boba/bf_land.mp3",
-    "sound/chars/boba/bf_blast-off.mp3",
-];
+/// Both `cg_jetpackOnSound` choices and the fixed `jetpackOffSound`.
+pub(crate) const SOUNDS: [&str; 3] = sjk_client::LEGACY_JETPACK_SWITCH_SOUNDS;
+// Lower case, so the per-frame lookups need no allocation; registered as
+// `cg_jetpackOnSound` and `cg_jetpackHoverSound` (console_cvars.rs).
+pub(crate) const ON_SOUND_CVAR: &str = "cg_jetpackonsound";
+pub(crate) const HOVER_SOUND_CVAR: &str = "cg_jetpackhoversound";
+
+/// Read the shared archived choices once per audio frame, without allocating.
+pub(crate) fn sound_options(
+    console: Option<&crate::console::ViewerConsole>,
+) -> sjk_client::LegacyJetpackSounds {
+    sjk_client::LegacyJetpackSounds::from_cvars(
+        console
+            .and_then(|c| c.integer_cvar(ON_SOUND_CVAR))
+            .unwrap_or(1),
+        console
+            .and_then(|c| c.integer_cvar(HOVER_SOUND_CVAR))
+            .unwrap_or(1),
+    )
+}
 /// The body bolt the pack hangs on.
 const CHEST_BOLT: &str = "*chestg";
 /// The pack's jet bolts, in `G2API_AddBolt` order.
@@ -147,15 +162,6 @@ pub(crate) enum Cue {
     Off,
 }
 
-impl Cue {
-    pub(crate) const fn path(self) -> &'static str {
-        match self {
-            Self::On => SOUNDS[0],
-            Self::Off => SOUNDS[1],
-        }
-    }
-}
-
 impl Sounds {
     /// Advance one entity's pack for a drawn frame: the on sound the first frame its
     /// jets burn, the off sound the first frame after. A pack hidden by a mind trick
@@ -175,6 +181,39 @@ impl Sounds {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn sound_choices_are_archived_without_restarting_active_jets() {
+        let root =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/parity-reports");
+        std::fs::create_dir_all(&root).unwrap();
+        let profile = tempfile::Builder::new()
+            .prefix("jetpack-sounds-")
+            .tempdir_in(root)
+            .unwrap();
+        let path = profile.path().join("config.cfg");
+        let mut console = crate::console::ViewerConsole::new(path.clone()).unwrap();
+        assert_eq!(
+            sound_options(Some(&console)),
+            sjk_client::LegacyJetpackSounds::from_cvars(1, 1)
+        );
+        let mut played = Sounds::default();
+        assert_eq!(played.advance(7, true, true), Some(Cue::On));
+        console.try_set_cvar(ON_SOUND_CVAR, "2").unwrap();
+        console.try_set_cvar(HOVER_SOUND_CVAR, "2").unwrap();
+        assert_eq!(
+            sound_options(Some(&console)),
+            sjk_client::LegacyJetpackSounds::from_cvars(2, 2)
+        );
+        assert_eq!(played.advance(7, true, true), None);
+        console.flush_config();
+        let console = crate::console::ViewerConsole::new(path).unwrap();
+        assert_eq!(
+            sound_options(Some(&console)),
+            sjk_client::LegacyJetpackSounds::from_cvars(2, 2)
+        );
+        assert_eq!(played.advance(7, false, true), Some(Cue::Off));
+    }
 
     #[test]
     fn equip_resolves_the_current_pose_without_waiting_for_upload() {
@@ -304,6 +343,94 @@ mod tests {
                     > 100
             );
             after.save(directory.join("jetpack-equipped.png")).unwrap();
+            let definition = gpu
+                .effects
+                .definition(gpu.vfs.as_ref().unwrap(), EFFECT)
+                .unwrap();
+            let missing: Vec<_> = definition
+                .components
+                .iter()
+                .flat_map(|component| component.shaders.iter())
+                .filter(|name| {
+                    !gpu.particle_atlas
+                        .animations
+                        .contains_key(&name.to_ascii_lowercase())
+                })
+                .collect();
+            assert!(
+                missing.is_empty(),
+                "jetpack shaders fell back instead of being loaded: {missing:?}"
+            );
+            let now = std::time::Instant::now();
+            for millis in (0..=200).step_by(8) {
+                for (jet, flame) in gpu
+                    .jetpack
+                    .flames(pack_origin, pack_rotation)
+                    .into_iter()
+                    .enumerate()
+                {
+                    let (position, direction) = flame.unwrap();
+                    for copy in 0..2 {
+                        crate::effect_runtime::spawn_effect(
+                            &mut gpu.particles,
+                            &mut gpu.effect_aux,
+                            &mut gpu.effects,
+                            gpu.vfs.as_ref().unwrap(),
+                            EFFECT,
+                            position,
+                            now - std::time::Duration::from_millis(200 - millis),
+                            (millis as u32).wrapping_mul(7) + jet as u32 * 2 + copy,
+                            0,
+                            &mut None,
+                            crate::combat_effects::rotation_from_direction(direction.to_array()),
+                        );
+                    }
+                }
+            }
+            let exhaust = crate::world_shot::frame(&mut gpu, 1);
+            assert!(
+                gpu.particles.iter().any(|p| p.length.is_some()),
+                "exhaust tails reached the effect pass"
+            );
+            exhaust.save(directory.join("jetpack-exhaust.png")).unwrap();
+            let atlas = &mut gpu.particle_atlas;
+            atlas
+                .refresh_remaps(
+                    &gpu.device,
+                    &gpu.queue,
+                    gpu.vfs.as_ref().unwrap(),
+                    &gpu.shaders,
+                    u64::MAX,
+                    |name| {
+                        (
+                            if name == "gfx/effects/flamejet" {
+                                "clear"
+                            } else {
+                                name
+                            }
+                            .to_owned(),
+                            0.0,
+                        )
+                    },
+                )
+                .unwrap();
+            assert!(
+                atlas
+                    .animations
+                    .get("gfx/effects/flamejet")
+                    .is_some_and(Vec::is_empty)
+            );
+            assert_eq!(
+                atlas.layers_for("gfx/effects/flamejet", 0.0).iter().count(),
+                0,
+                "a suppressed exhaust shader must not become a fallback spark"
+            );
+            assert!(atlas.first_layer("gfx/effects/flamejet", 0.0).is_none());
+            assert_eq!(
+                atlas.layers_for("gfx/test/missing", 0.0).iter().count(),
+                1,
+                "a genuinely missing shader retains its fallback"
+            );
         });
     }
 

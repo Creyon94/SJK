@@ -193,7 +193,7 @@ impl State {
         }
         let mode = info_number(game.config_string(0), "g_gametype");
         let local = snapshot.player.client_num();
-        let local_duel = info_number(game.config_string(CS_PLAYERS + usize::from(local)), "ds");
+        let local_duel = info_number(game.config_string(CS_PLAYERS + usize::from(local)), "dt");
         let master = snapshot
             .entities
             .iter()
@@ -221,7 +221,7 @@ impl State {
                 local_team,
                 team,
                 local_duel,
-                info_number(info, "ds"),
+                info_number(info, "dt"),
                 master,
                 local_master,
                 entity.is_jedi_master(),

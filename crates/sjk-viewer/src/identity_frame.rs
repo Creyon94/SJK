@@ -6,14 +6,18 @@
 //! (`profile_card.rs`), and the hub whether the player is actively playing
 //! (`holocrons_frame.rs`), and the holocron odds the hub's (`loot_odds.rs`). Each frame it also lets the chat feed follow the SJK chat
 //! (`sjk_chat_frame.rs`), keeps crash reports up to date and sent
-//! (`crash_report.rs`), starts and ends emotes (`emotes_frame.rs`), shows the pings
+//! (`crash_report.rs`), tells Discord what the player is doing
+//! (`discord_presence.rs`), starts and ends emotes (`emotes_frame.rs`) and the away emote
+//! (`away_emote.rs`), shows the pings
 //! relayed for this server (`world_ping_frame.rs`), keeps the
 //! players' looks (`looks_frame.rs`), follows the players muted on this PC
 //! (`muted_players_frame.rs`) and what SJK knows of each slot's player for the game
 //! chat (`chat/marks.rs`), notes the Profile screen's tab on show
 //! (`profile_hub.rs`), hands the hub the player models the game has
-//! (`installed_models.rs`), puts the pictures that finished loading into the UI's atlas and
-//! gives the UI the frames of the SJK chat's GIFs on screen (`chat_gifs.rs`).
+//! (`installed_models.rs`), tells the hub's service when the game menu opens, so its
+//! pages read the hub again, puts the pictures that finished loading into the UI's atlas and
+//! gives the UI the frames of the SJK chat's GIFs on screen (`chat_gifs.rs`), and
+//! carries the encrypted whispers (`e2e_whispers.rs`).
 
 use super::*;
 use sjk_identity::Settings;
@@ -22,22 +26,69 @@ impl GpuState {
     /// Tell the identity service about the settings and the live session. Does
     /// nothing between its twice-a-second turns.
     pub(crate) fn update_identity(&mut self) {
+        player_identity::follow_game_menu(self.game_menu);
         self.remember_profile_hub_tab();
         self.update_sjk_chat();
         self.update_emotes();
+        self.update_away_emote();
         self.update_world_pings();
         self.update_muted_players();
         self.update_chat_marks();
         avatars::service(&self.ui_shapes, &self.queue);
         if let Some(console) = self.console.as_ref() {
             chat_gifs::set_enabled(console.bool_cvar(chat_gifs::CVAR) != Some(false));
+            chat_gifs::set_video(console.bool_cvar(chat_gifs::VIDEO_CVAR) == Some(true));
             chat_gifs::favourites::load(console.config_directory());
+            chat_gifs::sources::load(console.config_directory());
             crate::jof_tag::set_shown(console.bool_cvar(crate::jof_tag::CVAR) != Some(false));
+            crate::chat::client_icons::set_shown(
+                console.bool_cvar(crate::chat::client_icons::CVAR) != Some(false),
+            );
+            crate::terms::set_renamed(
+                console.bool_cvar(&crate::mods::switch("jof")) == Some(true)
+                    && console.bool_cvar(crate::terms::CVAR) == Some(true),
+            );
         }
         chat_gifs::service(&mut self.ui_shapes, &self.device, &self.queue);
-        let due = player_identity::due();
+        // The own look is read twice a second, and at once when the worn skins change (the
+        // Collection's Equip), so the preview never shows the side before it.
+        let skins_changed = self.console.as_ref().is_some_and(|console| {
+            let text = |name| console.text_cvar(name).unwrap_or_default();
+            let (first, second) = (
+                text(crate::unlockables::SABER_SKIN_CVAR),
+                text(crate::looks::SECOND_CVAR),
+            );
+            self.looks.own_settings_changed(first, second)
+        });
+        let due = player_identity::due() || skins_changed;
         self.update_looks(due);
-        self.update_cardboard_box(Instant::now());
+        // The hub's toy events for this server, taken once for every toy.
+        let toy_events = self
+            .live_session
+            .as_ref()
+            .filter(|session| !session.is_local())
+            .map(|session| player_identity::take_toy_events(Some(session.server())))
+            .unwrap_or_default();
+        // The relay's, the same: on a game server the relay is read all the while, for
+        // the falls of the Ragdoll anyone may show.
+        let server = self
+            .live_session
+            .as_ref()
+            .filter(|session| !session.is_local())
+            .map(ClientSession::server);
+        player_identity::set_relay_listen(server.is_some());
+        let relay_events = server
+            .map(|server| player_identity::take_relay_events(Some(server)))
+            .unwrap_or_default();
+        self.update_cardboard_box(Instant::now(), &toy_events);
+        self.update_order66(&toy_events);
+        self.update_hax(&toy_events, &relay_events);
+        self.update_ragdoll(&relay_events);
+        self.update_monitor(&relay_events);
+        self.update_drone(&relay_events);
+        self.update_boombox(&relay_events);
+        self.update_e2e_whispers();
+        self.update_player_trades();
         if !due {
             return;
         }
@@ -80,10 +131,19 @@ impl GpuState {
         profile_card::refresh(console);
         self.offer_medals();
         self.offer_holocrons();
-        let _ = player_identity::with_snapshot(|snapshot| crate::loot_odds::follow(&snapshot.loot));
+        self.follow_official();
+        let _ = player_identity::with_snapshot(|snapshot| {
+            crate::loot_odds::follow(&snapshot.loot);
+            crate::economy::follow(snapshot.economy.as_ref());
+            crate::kyber::follow(snapshot.kyber.as_ref());
+            if let Some(me) = &snapshot.me {
+                crate::kyber::follow_rewards(&me.achievements);
+            }
+        });
         self.update_achievements();
         self.update_holocron_activity();
         self.follow_crash_reports();
+        self.follow_discord_presence();
     }
 
     /// Keep what the game chat shows of each slot's player (SJK's emblem, the verified

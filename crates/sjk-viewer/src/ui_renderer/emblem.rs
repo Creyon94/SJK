@@ -75,8 +75,19 @@ pub(super) fn upload(
     queue: &crate::frame_queue::FrameQueue,
     chain: &MipChain,
 ) -> wgpu::TextureView {
+    upload_labelled(device, queue, chain, "SJK menu emblem")
+}
+
+/// [`upload`] under `label`, the name `vram` and out-of-memory crash reports give the
+/// texture (card and medal pictures have their own, after Slash's #206).
+pub(super) fn upload_labelled(
+    device: &wgpu::Device,
+    queue: &crate::frame_queue::FrameQueue,
+    chain: &MipChain,
+    label: &str,
+) -> wgpu::TextureView {
     let texture = device.create_texture(&wgpu::TextureDescriptor {
-        label: Some("SJK menu emblem"),
+        label: Some(label),
         size: wgpu::Extent3d {
             width: chain.size,
             height: chain.size,

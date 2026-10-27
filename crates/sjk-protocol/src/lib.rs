@@ -51,8 +51,9 @@ pub use legacy_entity_numbers::{
     LEGACY_FIRST_GAME_ENTITY, LEGACY_GAME_ENTITIES, LEGACY_GAME_ENTITY_CEILING, LegacyEntityNumbers,
 };
 pub use legacy_text::{
-    LegacyCharset, decode_legacy_text, encode_legacy_text, legacy_charset, looks_cyrillic,
-    set_legacy_charset, windows_1251_byte, windows_1251_char, windows_1252_byte, windows_1252_char,
+    LegacyCharset, decode_legacy_message, decode_legacy_text, encode_legacy_text, legacy_charset,
+    looks_cyrillic, looks_cyrillic_message, set_legacy_charset, windows_1251_byte,
+    windows_1251_char, windows_1252_byte, windows_1252_char,
 };
 pub use message::{MessageError, MessageReader, MessageWriter, ServiceCommand};
 pub use snapshot::write::{

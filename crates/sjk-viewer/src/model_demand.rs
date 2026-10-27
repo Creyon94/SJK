@@ -1,8 +1,23 @@
 //! World-owned first-use rigid-model loading. Parse on a worker, install on the GPU owner.
+//! The worker also decodes the model's textures and builds their mip chains
+//! ([`crate::world_materials::warm_entity_materials`]), as for players' models: decoded
+//! at install, HD texture packs' 15 MB JPEGs for `falcon2.md3` stalled a frame 2.1 s.
+//! Its textures then go up one a frame: an HD pack's texture with its mips is near 90 MB
+//! to copy, and the falcon's all at once still held a frame 208 ms. The pipelines its
+//! materials need and the map lacks compile on another worker (`world_pipeline_jobs.rs`)
+//! before the model is drawn, as for players' models.
 use super::*;
+use crate::world_materials::pipeline_jobs::Compiled;
 use std::sync::mpsc::{Receiver, TryRecvError};
 
-type Prepared = Result<(StaticModelMesh, FlattenedScene), String>;
+type Prepared = Result<
+    (
+        StaticModelMesh,
+        FlattenedScene,
+        Vec<crate::world_materials::PreparedTexture>,
+    ),
+    String,
+>;
 
 #[derive(Default)]
 pub(super) struct Demand {
@@ -10,6 +25,14 @@ pub(super) struct Demand {
     /// Includes attempted failures so a broken community model is not retried every frame.
     attempted: BTreeSet<Appearance>,
     task: Option<(Appearance, Receiver<Prepared>)>,
+    /// A model read, its textures going up one a frame.
+    uploading: Option<(
+        StaticModelMesh,
+        FlattenedScene,
+        Vec<crate::world_materials::PreparedTexture>,
+    )>,
+    /// A model uploaded, drawn once its pipelines are compiled.
+    compiling: Option<(StaticModelMesh, Receiver<Compiled>)>,
 }
 
 fn rigid(appearance: &Appearance) -> bool {
@@ -28,25 +51,7 @@ impl GpuState {
             );
             self.config_string_refresh.models.initialized = true;
         }
-        let result =
-            self.config_string_refresh.models.task.as_ref().and_then(
-                |(_, receiver)| match receiver.try_recv() {
-                    Ok(result) => Some(result),
-                    Err(TryRecvError::Empty) => None,
-                    Err(TryRecvError::Disconnected) => Some(Err("model loader stopped".to_owned())),
-                },
-            );
-        if let Some(result) = result {
-            let (appearance, _) = self.config_string_refresh.models.task.take().unwrap();
-            let installed = result.and_then(|(mesh, scene)| {
-                self.install_config_model(mesh, scene)
-                    .map_err(|error| error.to_string())
-            });
-            if let Err(error) = installed {
-                log::progress(format_args!("model {}: {error}", appearance.model));
-            }
-        }
-        if self.config_string_refresh.models.task.is_some() {
+        if self.advance_demand_model() {
             return;
         }
         let world = self
@@ -78,6 +83,29 @@ impl GpuState {
                 crate::mover_models::wanted(game, snapshot, |appearance| {
                     attempted.contains(appearance)
                 })
+            })
+            .or_else(|| {
+                // The two parts of an emplaced gun being worked (`emplaced_swivel`).
+                let snapshot = match (&self.live_session, &self.demo_session) {
+                    (Some(live), _) => live.latest_snapshot(),
+                    (None, Some(demo)) => demo.latest_snapshot(),
+                    (None, None) => return None,
+                };
+                let attempted = &self.config_string_refresh.models.attempted;
+                crate::emplaced_swivel::wanted(snapshot, world, |appearance| {
+                    attempted.contains(appearance)
+                })
+            })
+            .or_else(|| {
+                // A model a map edit places (`map_edits`).
+                let attempted = &self.config_string_refresh.models.attempted;
+                self.map_edits
+                    .wanted_models()
+                    .map(|model| Appearance {
+                        model: model.to_owned(),
+                        variant: String::new(),
+                    })
+                    .find(|appearance| !attempted.contains(appearance))
             });
         let (Some(appearance), Some(vfs)) = (wanted, self.vfs.clone()) else {
             return;
@@ -96,18 +124,101 @@ impl GpuState {
         }
         let (sender, receiver) = std::sync::mpsc::sync_channel(1);
         let requested = appearance.clone();
+        let shaders = Arc::clone(&self.shaders);
+        let lightmap = self.world_materials.entity_lightmap();
+        let mipmapped = self.world_materials.mipmapped();
         match std::thread::Builder::new()
             .name("sjk-model-demand".into())
             .spawn(move || {
                 let mut scene = FlattenedScene::default();
                 let result = object_meshes::load_one(&vfs, &requested, &mut scene)
-                    .map(|mesh| (mesh, scene))
+                    .map(|mesh| {
+                        let textures = crate::world_materials::warm_entity_materials(
+                            &vfs,
+                            &shaders,
+                            &lightmap,
+                            &scene.materials,
+                            mipmapped,
+                        );
+                        (mesh, scene, textures)
+                    })
                     .map_err(|error| error.to_string());
                 // Dropping the owning world discards old results, never installs them in another map.
                 let _ = sender.send(result);
             }) {
             Ok(_) => self.config_string_refresh.models.task = Some((appearance, receiver)),
             Err(error) => log::progress(format_args!("could not start model loader: {error}")),
+        }
+    }
+
+    /// Take the model on its way one step further: its read, one texture, its upload
+    /// or its pipelines. `true` while it is still on its way: no other starts.
+    fn advance_demand_model(&mut self) -> bool {
+        let models = &mut self.config_string_refresh.models;
+        if let Some((mesh, receiver)) = models.compiling.take() {
+            match receiver.try_recv() {
+                Ok(compiled) => self.world_materials.install_pipelines(compiled),
+                Err(TryRecvError::Empty) => {
+                    models.compiling = Some((mesh, receiver));
+                    return true;
+                }
+                // The pipelines compile on the model's first draw instead.
+                Err(TryRecvError::Disconnected) => {}
+            }
+            self.push_config_model(mesh);
+            return false;
+        }
+        if let Some((mesh, scene, mut textures)) = models.uploading.take() {
+            if let Some(texture) = textures.pop() {
+                self.world_materials
+                    .upload_prepared_texture(&self.device, &self.queue, texture);
+                self.config_string_refresh.models.uploading = Some((mesh, scene, textures));
+                return true;
+            }
+            let appearance = mesh.appearance.model.clone();
+            match self.upload_config_model(mesh, scene) {
+                Ok(Some((mesh, jobs))) if jobs.is_empty() => self.push_config_model(mesh),
+                Ok(Some((mesh, jobs))) => {
+                    let (sender, receiver) = std::sync::mpsc::channel();
+                    let spawned = std::thread::Builder::new()
+                        .name("sjk-model-pipelines".into())
+                        .spawn(move || {
+                            let _ = sender.send(jobs.compile());
+                        });
+                    match spawned {
+                        Ok(_) => {
+                            self.config_string_refresh.models.compiling = Some((mesh, receiver));
+                            return true;
+                        }
+                        // The pipelines compile on the model's first draw instead.
+                        Err(_) => self.push_config_model(mesh),
+                    }
+                }
+                Ok(None) => {}
+                Err(error) => log::progress(format_args!("model {appearance}: {error}")),
+            }
+            return false;
+        }
+        let Some((appearance, receiver)) = models.task.take() else {
+            return false;
+        };
+        let result = match receiver.try_recv() {
+            Ok(result) => result,
+            Err(TryRecvError::Empty) => {
+                models.task = Some((appearance, receiver));
+                return true;
+            }
+            Err(TryRecvError::Disconnected) => Err("model loader stopped".to_owned()),
+        };
+        match result {
+            Ok(read) => {
+                models.uploading = Some(read);
+                true
+            }
+            Err(error) => {
+                log::progress(format_args!("model {}: {error}", appearance.model));
+                false
+            }
         }
     }
 }
@@ -143,7 +254,8 @@ mod tests {
             )
             .expect("a GPU adapter");
             let model = Appearance {
-                model: "models/map_objects/imperial/antenna.md3".into(),
+                model: std::env::var("SJK_TEST_MODEL")
+                    .unwrap_or_else(|_| "models/map_objects/imperial/antenna.md3".into()),
                 variant: String::new(),
             };
             assert!(
@@ -164,8 +276,12 @@ mod tests {
             gpu.live_world.set_appearance(entity, Some(model.clone()));
             let loading = std::time::Instant::now();
             let deadline = loading + std::time::Duration::from_secs(30);
+            // The longest call is the frame a player feels.
+            let mut worst = std::time::Duration::ZERO;
             loop {
+                let call = std::time::Instant::now();
                 gpu.refresh_demand_models();
+                worst = worst.max(call.elapsed());
                 if gpu
                     .object_meshes
                     .iter()
@@ -186,9 +302,10 @@ mod tests {
                 crate::gpu_context::FrameStatus::Rendered
             ));
             println!(
-                "duel6 startup {:.1} ms; demanded model {:.1} ms; {} initial rigid models",
+                "duel6 startup {:.1} ms; demanded model {:.1} ms, worst frame {:.1} ms; {} initial rigid models",
                 (loading - started).as_secs_f64() * 1000.0,
                 loading.elapsed().as_secs_f64() * 1000.0,
+                worst.as_secs_f64() * 1000.0,
                 count
             );
         });

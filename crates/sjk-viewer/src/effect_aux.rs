@@ -68,6 +68,9 @@ pub(crate) struct Runtime {
     lights: Vec<ActiveLight>,
     pending_shakes: Vec<ShakeRequest>,
     active_shake: Option<ActiveShake>,
+    /// The rendered view's eye and unit forward axis, which `Flash` primitives are scaled
+    /// against as they spawn ([`crate::effect_flash`]); `None` until a view is drawn.
+    viewer: Option<(Vec3, Vec3)>,
     last_camera_offset: CameraOffset,
     dropped_primitives: usize,
     pub(crate) emitters: crate::effect_emitter::Runtime,
@@ -77,6 +80,9 @@ pub(crate) struct Runtime {
     pub(crate) saber_rain_steam: saber_rain_steam::Runtime,
     /// Paces effects that stock re-plays every rendered frame (`effect_cadence.rs`).
     pub(crate) continuous: cadence::Cadence,
+    /// JoF animation-driven chest/hand effects, owned by this rendered world.
+    pub(crate) force_anim: sjk_client::LegacyForceAnimFxTimers,
+    pub(crate) flame_hits: crate::actor_world_submission::force_powers::flame::Hits,
     /// Lights a world shot holds in place every frame (`world_shot_notes.rs`).
     #[cfg(test)]
     pub(crate) held_lights: Vec<PointLight>,
@@ -88,6 +94,7 @@ impl Default for Runtime {
             lights: Vec::with_capacity(MAX_EFFECT_PRIMITIVES),
             pending_shakes: Vec::with_capacity(MAX_PENDING_SHAKES),
             active_shake: None,
+            viewer: None,
             last_camera_offset: CameraOffset::default(),
             dropped_primitives: 0,
             emitters: crate::effect_emitter::Runtime::default(),
@@ -95,6 +102,8 @@ impl Default for Runtime {
             saber_contacts: saber_contacts::Runtime::default(),
             saber_rain_steam: saber_rain_steam::Runtime::default(),
             continuous: cadence::Cadence::default(),
+            force_anim: sjk_client::LegacyForceAnimFxTimers::default(),
+            flame_hits: Default::default(),
             #[cfg(test)]
             held_lights: Vec::new(),
         }
@@ -187,6 +196,16 @@ impl Runtime {
         });
     }
 
+    /// Set the rendered view (`theFxHelper.refdef`'s `vieworg` and `viewaxis[0]`).
+    pub(crate) fn set_viewer(&mut self, eye: Vec3, forward: Vec3) {
+        self.viewer = Some((eye, forward.normalize_or_zero()));
+    }
+
+    /// The rendered view [`Self::set_viewer`] gave.
+    pub(crate) fn viewer(&self) -> Option<(Vec3, Vec3)> {
+        self.viewer
+    }
+
     /// Pending shake requests, for [`Self::drop_shakes_since`].
     pub(crate) fn pending_shakes(&self) -> usize {
         self.pending_shakes.len()
@@ -274,13 +293,10 @@ impl Runtime {
                 radius: light
                     .size
                     .sample(elapsed, lifetime, light.seed.wrapping_add(31)),
-                color: std::array::from_fn(|axis| {
-                    light.rgb[axis].sample(
-                        elapsed,
-                        lifetime,
-                        light.seed.wrapping_add(40 + axis as u32),
-                    )
-                }),
+                // `CLight::UpdateRGB`: one `FX_RGB_RAND` draw for the whole colour.
+                color: light
+                    .rgb
+                    .map(|channel| channel.sample(elapsed, lifetime, light.seed.wrapping_add(40))),
             });
         }
     }

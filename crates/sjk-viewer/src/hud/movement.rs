@@ -1,5 +1,5 @@
-//! JKA strafe guides (JoF EJK's lines, CGAZ markers) and snap zones; no simulation or
-//! wire changes.
+//! JKA strafe guides (JoF EJK's lines, CGAZ markers, SJK's strafe aura) and snap zones;
+//! no simulation or wire changes.
 use super::*;
 use sjk_ui::{Color, DrawCommand, Rect};
 
@@ -7,7 +7,19 @@ use sjk_ui::{Color, DrawCommand, Rect};
 pub(crate) mod math;
 #[path = "movement_settings.rs"]
 mod settings;
-pub(crate) use settings::{LINES_ROW, lines_on, register, toggle_lines};
+pub(crate) use settings::{
+    AURA_CVAR, AURA_GROUND_CVAR, LINES_ROW, lines_on, register, toggle_lines,
+};
+
+/// Degrees of turn the strafe aura shows each side of the view.
+const AURA_SPAN: f32 = 60.0;
+/// The strafe aura's glow thickness, as a share of its radius.
+const AURA_WIDTH: f32 = 0.45;
+/// Draw commands the strafe aura pushes in a frame: the aura and the view tick.
+pub(crate) const AURA_COMMANDS: usize = 2;
+/// The wish direction of each movement direction (numbered as in [`math::direction`]),
+/// in degrees left of the view: W, WA, A, SA, S, SD, D, WD.
+const WISH: [f32; 8] = [0.0, 45.0, 90.0, 135.0, 180.0, -135.0, -90.0, -45.0];
 
 /// Retained guide input and settings, populated from the existing prediction/snapshot projection.
 pub(super) struct Guides {
@@ -24,6 +36,17 @@ pub(super) struct Guides {
     reported_helper: Option<i64>,
     projection: Option<([f32; 3], [f32; 3], f32)>,
     full_input: bool,
+}
+
+/// Whether the guides and the strafe aura follow a player in this `pm_type`:
+/// `PM_NORMAL` (0) and `PM_JETPACK` (1, `bg_public.h`), which the server sets for
+/// the whole of a jetpack flight (`g_active.c` `ClientThink_real`) while the air
+/// movement stays `PM_AirMove`'s, its push scaled 0.8 unless thrusting
+/// (`bg_pmove.c`); the guides were blank there (hub #102, Rollembones).
+fn guided_movement_type(movement_type: u8) -> bool {
+    const PM_NORMAL: u8 = 0;
+    const PM_JETPACK: u8 = 1;
+    matches!(movement_type, PM_NORMAL | PM_JETPACK)
 }
 
 impl Default for Guides {
@@ -75,7 +98,7 @@ impl Guides {
         }
         self.airborne =
             predicted.map_or(player.ground_entity_num(), |p| p.ground_entity_number) == 1023;
-        self.allowed = player.movement_type() == 0
+        self.allowed = guided_movement_type(player.movement_type())
             && player.vehicle_entity_num() == 0
             && player.zoom_mode() == 0;
     }
@@ -86,7 +109,7 @@ impl Guides {
     }
 
     /// Emit fixed-capacity rects; CGAZ markers and snap zones are informational, not backplates.
-    pub(super) fn emit(&mut self, draw: &mut DrawList, viewport: [f32; 2]) {
+    pub(super) fn emit(&mut self, draw: &mut DrawList, viewport: [f32; 2], time_ms: u64) {
         if !self.allowed {
             return;
         }
@@ -100,6 +123,9 @@ impl Guides {
         };
         if s.helper & 2 != 0 {
             self.emit_lines(draw, viewport, fov);
+        }
+        if s.aura {
+            self.emit_aura(draw, viewport, time_ms);
         }
         if s.helper & 4 != 0 && self.airborne {
             let speed = self.velocity[0].hypot(self.velocity[1]);
@@ -248,6 +274,74 @@ impl Guides {
     }
 }
 
+impl Guides {
+    /// SJK's strafe aura: an arc over the crosshair, its top the current view and each
+    /// point a turn of that many degrees (left is left), glowing with the speed the keys
+    /// held would gain there, shaded per pixel by the renderer
+    /// ([`sjk_ui::strafe_aura_shade`]). The best heading is a white-hot seam: short of
+    /// it nothing is gained, past it the glow thins and fades, and red marks headings
+    /// that slow you down. The view tick turns blue once you are on it. Airborne only
+    /// unless `cg_strafeAuraGround`; otherwise the lines' physics and gates.
+    fn emit_aura(&self, draw: &mut DrawList, viewport: [f32; 2], time_ms: u64) {
+        let s = &self.settings;
+        let Some(&wish) = WISH.get(self.direction) else {
+            return;
+        };
+        let speed = self.velocity[0].hypot(self.velocity[1]);
+        let base = self.speed;
+        if speed < base - 1.0 || s.aura_alpha <= 0.0 || !(self.airborne || s.aura_ground) {
+            return;
+        }
+        let frame = 1.0 / s.helper_fps;
+        let (vf, acceleration) = if self.airborne {
+            (speed, base * frame)
+        } else {
+            (speed * (1.0 - 6.0 * frame), 10.0 * base * frame)
+        };
+        let best = math::peak(vf, acceleration, base);
+        let top = math::gain(vf, acceleration, base, best);
+        if top <= 0.0 {
+            return;
+        }
+        let velocity_yaw = self.velocity[1].atan2(self.velocity[0]).to_degrees();
+        // The wish angle off the velocity at the top, the view.
+        let base_angle = (self.angles[1] + wish - velocity_yaw + 180.0).rem_euclid(360.0) - 180.0;
+        let unit = viewport[1] / 480.0;
+        let center = [viewport[0] * 0.5, viewport[1] * 0.5];
+        let radius = s.aura_radius * unit;
+        let alpha = s.aura_alpha;
+        let _ = draw.push(DrawCommand::StrafeAura {
+            center,
+            aura: sjk_ui::StrafeAura {
+                radius,
+                width: radius * AURA_WIDTH,
+                span: AURA_SPAN.to_radians(),
+                speed: vf,
+                acceleration,
+                wishspeed: base,
+                base: base_angle.to_radians(),
+                time: (time_ms % 1_000_000) as f32 * 0.001,
+                alpha,
+            },
+        });
+        // The view tick: where the crosshair sits on the arc.
+        let current = math::gain(vf, acceleration, base, base_angle) / top;
+        let tick = if current > 0.9 {
+            Color::new(0.55, 0.85, 1.0, alpha)
+        } else if current < -0.02 {
+            Color::new(1.0, 0.35, 0.3, 0.8 * alpha)
+        } else {
+            Color::new(1.0, 1.0, 1.0, 0.5 * alpha)
+        };
+        let _ = draw.push(DrawCommand::Line {
+            from: [center[0], center[1] - radius - 6.0 * unit],
+            to: [center[0], center[1] - radius + 6.0 * unit],
+            width: 1.5 * unit,
+            color: tick,
+        });
+    }
+}
+
 impl HudOverlay {
     /// Apply the camera/physics safety gate and real keyboard direction after projection.
     pub(crate) fn restrict_guides(&mut self, supported: bool, keys: Option<[i8; 2]>) {
@@ -326,7 +420,7 @@ mod tests {
         };
         guides.settings.helper = 2242;
         let mut draw = DrawList::new(16);
-        guides.emit(&mut draw, [640.0, 480.0]);
+        guides.emit(&mut draw, [640.0, 480.0], 0);
         let lines: Vec<_> = draw
             .commands()
             .iter()
@@ -351,6 +445,89 @@ mod tests {
     }
 
     #[test]
+    fn the_gain_peaks_at_the_best_angle() {
+        let (v, a, w) = (400.0, 2.0, 250.0);
+        let best = math::peak(v, a, w);
+        assert!((best - (248.0f32 / 400.0).acos().to_degrees()).abs() < 1e-3);
+        let top = math::gain(v, a, w, best);
+        assert!(top > 0.0);
+        assert!(math::gain(v, a, w, best - 1.0) < top);
+        assert!(math::gain(v, a, w, best + 1.0) < top);
+        // Short of the edge the push adds nothing; far past it, it slows you down.
+        assert_eq!(math::gain(v, a, w, best - 2.0), 0.0);
+        assert!(math::gain(v, a, w, 120.0) < 0.0);
+    }
+
+    #[test]
+    fn the_aura_puts_the_best_heading_where_to_turn() {
+        // Holding W+A, looking along the velocity: WA wishes 45 degrees left, the best
+        // angle at 400 ups is about 51.7, so the white seam is about 6.7 degrees left.
+        let mut guides = Guides {
+            velocity: [400.0, 0.0, 0.0],
+            speed: 250.0,
+            airborne: true,
+            allowed: true,
+            direction: 1,
+            ..Guides::default()
+        };
+        guides.settings.helper = 0;
+        guides.settings.helper_fps = 125.0;
+        let mut draw = DrawList::new(super::AURA_COMMANDS);
+        guides.emit(&mut draw, [640.0, 480.0], 0);
+        assert!(draw.is_empty(), "drawn while cg_strafeAura is off");
+        guides.settings.aura = true;
+        guides.emit(&mut draw, [640.0, 480.0], 0);
+        let Some(&DrawCommand::StrafeAura { center, aura }) = draw.commands().first() else {
+            panic!("no aura: {:?}", draw.commands());
+        };
+        assert_eq!(center, [320.0, 240.0]);
+        assert!((aura.base.to_degrees() - 45.0).abs() < 1e-3);
+        let best = (math::peak(400.0, 2.0, 250.0) - 45.0).to_radians();
+        let point = |turn: f32| {
+            let angle = -std::f32::consts::FRAC_PI_2 - turn;
+            [aura.radius * angle.cos(), aura.radius * angle.sin()]
+        };
+        // White-hot left of the top, dark at the top (short of the best heading).
+        assert!(sjk_ui::strafe_aura_shade(point(best), &aura)[3] > 0.9);
+        assert!(sjk_ui::strafe_aura_shade(point(0.0), &aura)[3] < 0.01);
+        assert!(sjk_ui::strafe_aura_shade(point(-best), &aura)[3] < 0.01);
+        assert_eq!(draw.len(), super::AURA_COMMANDS);
+    }
+
+    #[test]
+    fn the_aura_waits_for_a_jump_unless_asked_on_the_ground() {
+        let mut guides = Guides {
+            velocity: [400.0, 0.0, 0.0],
+            speed: 250.0,
+            airborne: false,
+            allowed: true,
+            direction: 1,
+            ..Guides::default()
+        };
+        guides.settings.helper = 0;
+        guides.settings.aura = true;
+        let mut draw = DrawList::new(super::AURA_COMMANDS);
+        guides.emit(&mut draw, [640.0, 480.0], 0);
+        assert!(draw.is_empty(), "drawn while walking");
+        guides.settings.aura_ground = true;
+        guides.emit(&mut draw, [640.0, 480.0], 0);
+        assert_eq!(draw.len(), super::AURA_COMMANDS);
+    }
+
+    #[test]
+    fn the_guides_follow_a_jetpack_flight() {
+        let mut player = PlayerState::default();
+        let mut guides = Guides::default();
+        player.set_movement_type(1);
+        guides.update(&player, None, None);
+        assert!(guides.allowed, "PM_JETPACK");
+        // Spectating (PM_SPECTATOR, 2) and the like stay without guides.
+        player.set_movement_type(2);
+        guides.update(&player, None, None);
+        assert!(!guides.allowed);
+    }
+
+    #[test]
     fn jof_lines_wait_for_running_speed() {
         let mut guides = Guides {
             velocity: [200.0, 0.0, 0.0],
@@ -360,7 +537,7 @@ mod tests {
         };
         guides.settings.helper = 2242;
         let mut draw = DrawList::new(16);
-        guides.emit(&mut draw, [640.0, 480.0]);
+        guides.emit(&mut draw, [640.0, 480.0], 0);
         assert!(draw.is_empty());
     }
 }

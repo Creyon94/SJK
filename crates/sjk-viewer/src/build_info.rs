@@ -20,6 +20,58 @@ pub(crate) fn label() -> &'static str {
     LABEL.get_or_init(|| format_label(VERSION, COMMIT_TIME, COMMIT))
 }
 
+/// The `User-Agent` of SJK's requests to the hub: `SJK/<version> (<commit>)`, or
+/// `SJK/<version>` when the build did not know its commit. The hub records it so staff
+/// see which build a key plays with (the hub's `PROTOCOL.md`, "Client").
+pub(crate) fn hub_agent() -> &'static str {
+    static AGENT: OnceLock<String> = OnceLock::new();
+    AGENT.get_or_init(|| format_agent(VERSION, COMMIT))
+}
+
+/// Whether this build is SJK `min` or newer, as the hub's minimum client counts it (the
+/// hub's `PROTOCOL.md`, "Minimum client"): a dev build always is.
+pub(crate) fn meets_min(min: &str) -> bool {
+    version_meets(VERSION, min)
+}
+
+/// Whether `version` is `min` or newer: a dev build (`dev`, `-dev`) always is; release
+/// versions compare number by number (`2026.1021.10` after `2026.1021.9`), trailing zeros
+/// left out. A `min` that is no release version wants nothing; a `version` that is none
+/// meets nothing, as the hub reads them.
+fn version_meets(version: &str, min: &str) -> bool {
+    fn numbers(text: &str) -> Option<Vec<u64>> {
+        let mut numbers = text
+            .trim()
+            .split('.')
+            .map(|part| {
+                if part.is_empty() || !part.bytes().all(|byte| byte.is_ascii_digit()) {
+                    return None;
+                }
+                part.parse().ok()
+            })
+            .collect::<Option<Vec<u64>>>()?;
+        while numbers.last() == Some(&0) {
+            numbers.pop();
+        }
+        Some(numbers)
+    }
+    if version == "dev" || version.ends_with("-dev") {
+        return true;
+    }
+    let Some(min) = numbers(min) else {
+        return true;
+    };
+    numbers(version).is_some_and(|version| version >= min)
+}
+
+fn format_agent(version: &str, commit: &str) -> String {
+    if commit.is_empty() {
+        format!("SJK/{version}")
+    } else {
+        format!("SJK/{version} ({commit})")
+    }
+}
+
 /// The label of a build, leaving out a time or commit the build did not know.
 fn format_label(version: &str, time: &str, commit: &str) -> String {
     let mut label = format!("SJK {version}");
@@ -57,6 +109,29 @@ fn eu_date_time(iso: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_hub_agent_names_the_commit_when_known() {
+        assert_eq!(
+            format_agent("2026.1017.2", "9dbbdf19"),
+            "SJK/2026.1017.2 (9dbbdf19)"
+        );
+        assert_eq!(format_agent("0.1.0-dev", ""), "SJK/0.1.0-dev");
+    }
+
+    #[test]
+    fn versions_meet_the_minimum_number_by_number() {
+        assert!(version_meets("2026.1021.10", "2026.1021.9"));
+        assert!(!version_meets("2026.1021.9", "2026.1021.10"));
+        assert!(version_meets("2026.1022.1", "2026.1022.1"));
+        assert!(version_meets("2026.1101.1", "2026.1031.3"));
+        assert!(version_meets("2026.0901.1", "2026.901.1"));
+        assert!(!version_meets("2026.1019.2", "2026.1022.1"));
+        assert!(version_meets("dev", "2026.1022.1"));
+        assert!(version_meets("0.1.0-dev", "2026.1022.1"));
+        assert!(!version_meets("custom", "2026.1022.1"));
+        assert!(version_meets("2026.1019.2", "soon"));
+    }
 
     #[test]
     fn commit_time_reads_day_first_on_the_24_hour_clock() {

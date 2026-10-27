@@ -7,6 +7,7 @@
 //! shot (settings) fly there along a per-map authored route and back again.
 
 mod flight;
+pub(crate) mod pictures;
 mod routes;
 mod tour;
 
@@ -94,12 +95,63 @@ pub(crate) struct Backdrop {
     cut: Option<(Option<usize>, u64)>,
     /// How dark the tour's fades and cuts make the world this frame.
     darkness: f32,
+    /// Picture mode ([`pictures`]): pictures stand in for the map, which is empty.
+    pictures: Option<pictures::Pictures>,
 }
 
 impl Backdrop {
     pub(crate) fn from_bsp(bsp: &Bsp) -> Option<Self> {
         let main = Vantage::from_bsp(bsp)?;
-        let message = worldspawn_message(bsp);
+        Some(Self::for_map(main, worldspawn_message(bsp).as_deref()))
+    }
+
+    /// The backdrop of a picture set ([`crate::menu_pictures`]): the map whose
+    /// worldspawn message is `message`, seen only through the pictures taken from
+    /// `views`. Needs a main view or a tour.
+    pub(crate) fn from_pictures(
+        message: &str,
+        views: Vec<(pictures::View, Vantage)>,
+    ) -> Option<Self> {
+        let main = views
+            .iter()
+            .find(|(view, _)| matches!(view, pictures::View::Main | pictures::View::Tour(0)))?
+            .1;
+        let mut backdrop = Self::for_map(main, Some(message));
+        // Pictures play the tour; its glides and cuts do not.
+        backdrop.tour = None;
+        backdrop.pictures = Some(pictures::Pictures::new(views));
+        Some(backdrop)
+    }
+
+    #[cfg(test)]
+    /// Every view a picture set of this map is taken from: each tour shot (the main
+    /// vantage instead, without a tour) and the end of each flight.
+    pub(crate) fn picture_views(&self) -> Vec<(pictures::View, Vantage)> {
+        let mut views = Vec::new();
+        if self.tour.is_none() {
+            views.push((pictures::View::Main, self.main));
+        }
+        if let Some(tour) = &self.tour {
+            views.extend(
+                tour.shots().iter().enumerate().map(|(index, shot)| {
+                    (pictures::View::Tour(index), pictures::tour_vantage(shot))
+                }),
+            );
+        }
+        views.extend(
+            self.flights
+                .iter()
+                .map(|flight| (pictures::View::Shot(flight.shot), flight.path.destination())),
+        );
+        views
+    }
+
+    /// The picture on show (its index in the set), in picture mode.
+    pub(crate) fn shown_picture(&self) -> Option<usize> {
+        self.pictures.as_ref()?.shown()
+    }
+
+    fn for_map(main: Vantage, message: Option<&str>) -> Self {
         let routes = [
             Shot::Browser,
             Shot::Settings,
@@ -108,17 +160,17 @@ impl Backdrop {
             Shot::Holocrons,
         ]
         .into_iter()
-        .filter_map(|shot| routes::route_for(message.as_deref()?, shot))
+        .filter_map(|shot| routes::route_for(message?, shot))
         .collect::<Vec<_>>();
         let mut backdrop = Self::new(main, &routes);
-        if let Some(shots) = message.as_deref().and_then(routes::tour_for) {
+        if let Some(shots) = message.and_then(routes::tour_for) {
             // Each start shuffles the tour differently.
             let seed = std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .map_or(1, |time| time.as_nanos() as u64);
             backdrop.tour = Some(tour::Tour::new(shots, seed));
         }
-        Some(backdrop)
+        backdrop
     }
 
     /// Routes chained onto another shot must follow that shot's route; a
@@ -152,6 +204,7 @@ impl Backdrop {
             tour: None,
             cut: None,
             darkness: 0.0,
+            pictures: None,
         }
     }
 
@@ -239,6 +292,12 @@ impl Backdrop {
     /// chained shot is reached through its parent's shot.
     pub(crate) fn drive(&mut self, shot: Shot, millis: u64) -> Sample {
         let wanted = self.flight_for(shot);
+        if let Some(pictures) = &mut self.pictures {
+            let view = wanted.map_or(pictures::View::Main, |_| pictures::View::Shot(shot));
+            return pictures
+                .drive(view, millis)
+                .unwrap_or_else(|| self.main.sample(0.0));
+        }
         if self.tour.is_some() {
             return self.drive_tour(wanted, millis);
         }
@@ -302,7 +361,8 @@ impl Backdrop {
     /// it (the saber flying back to the player screen).
     pub(crate) fn reveal(&self, shot: Shot) -> f32 {
         // On a toured map every screen is up at once; the world cuts behind it.
-        if self.tour.is_some() {
+        // Pictures cut too, so their screens are up at once as well.
+        if self.tour.is_some() || self.pictures.is_some() {
             return 1.0;
         }
         let wanted = self.flight_for(shot);
@@ -376,6 +436,11 @@ pub(crate) fn worldspawn_message(bsp: &Bsp) -> Option<String> {
 }
 
 impl Vantage {
+    /// A vantage at `origin`, turned `yaw` and `pitch` radians.
+    pub(crate) fn new(origin: Vec3, yaw: f32, pitch: f32) -> Self {
+        Self { origin, yaw, pitch }
+    }
+
     /// The intermission view (looking at its `target` when it has one), else
     /// the same spawn the free camera starts from.
     pub(crate) fn from_bsp(bsp: &Bsp) -> Option<Self> {
@@ -411,6 +476,12 @@ impl Vantage {
             yaw,
             pitch: 0.0,
         })
+    }
+
+    /// The pitch, radians up.
+    #[cfg(test)]
+    pub(crate) fn pitch(self) -> f32 {
+        self.pitch
     }
 
     /// Slow cinematic drift: a gentle yaw sweep, a slower pitch breath, and a

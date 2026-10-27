@@ -3,7 +3,9 @@
 //! 16/10/2026, in place of the Renderer row and the SJK renderer's four levels).
 //!
 //! Vanilla style is the original game's look at the least cost, every SJK extra
-//! off (the EJK level until 12/10/2026, then Vanilla). SJK (recommended) is
+//! off: EternalJK's defaults on its own renderer (rd-eternaljk, rd-vanilla's
+//! code: no dynamic glow, no light flares; the EJK level until 12/10/2026, then
+//! Vanilla). SJK (recommended) is
 //! Sol's own setup: SJK's image (HDR, bloom, glow, FXAA, ambient occlusion, lit
 //! models, emission maps) over the maps' baked lighting, without the sun,
 //! shadows, reflections, material maps or weather extras still in alpha. A new
@@ -63,6 +65,8 @@ const VALUES: &[(&str, [&str; 3])] = &[
     ("r_DynamicGlow", ["0", "1", "1"]),
     ("r_fxaa", ["0", "1", "1"]),
     ("r_softParticles", ["0", "0", "1"]),
+    // EternalJK's rd-vanilla registers `r_flares` 0; SJK draws them by default.
+    ("r_flares", ["0", "1", "1"]),
     ("r_ssao", ["0", "1", "1"]),
     // Dust shows only in light shafts.
     (crate::dust_motes::CVAR, ["0", "0", "1"]),
@@ -173,9 +177,13 @@ impl Level {
     }
 }
 
-/// Whether the renderer is Vanilla: the settings are Vanilla style's.
+/// Whether the renderer is Vanilla: the settings are Vanilla style's (the first preset
+/// [`Level::current`] tries), read up to the first value that differs.
 pub(crate) fn vanilla(console: &ViewerConsole) -> bool {
-    Level::current(console) == Some(Level::Vanilla)
+    let vanilla = Level::Vanilla.index();
+    VALUES
+        .iter()
+        .all(|(cvar, values)| holds(console, cvar, values[vanilla]))
 }
 
 /// Set the renderer to `value` ([`VANILLA`] or [`SJK`], any case), as the
@@ -278,14 +286,25 @@ pub(crate) fn renderer_command(
     }
 }
 
-/// Whether `cvar` holds `value`: numbers compare as numbers ("1.0" holds "1").
+/// Whether `cvar` holds `value`: numbers compare as numbers ("1.0" holds "1"), a typed
+/// cvar by its own value, without writing it out as text (the low-FPS help asks
+/// while a map plays).
 fn holds(console: &ViewerConsole, cvar: &str, value: &str) -> bool {
-    let Some(current) = console.cvar(cvar).map(sjk_shell::CvarValue::as_text) else {
-        return false;
-    };
-    match (current.trim().parse::<f64>(), value.parse::<f64>()) {
-        (Ok(current), Ok(value)) => (current - value).abs() < 1e-6,
-        _ => current.trim().eq_ignore_ascii_case(value),
+    use sjk_shell::CvarValue;
+    let wanted = value.parse::<f64>().ok();
+    let near = |current: f64| wanted.is_some_and(|value| (current - value).abs() < 1e-6);
+    match console.cvar(cvar) {
+        None => false,
+        Some(CvarValue::Bool(on)) => near(if *on { 1.0 } else { 0.0 }),
+        Some(CvarValue::Integer(current)) => near(*current as f64),
+        Some(CvarValue::Float(current)) => near(*current),
+        Some(CvarValue::Text(current)) => {
+            let current = current.trim();
+            match current.parse::<f64>() {
+                Ok(current) if wanted.is_some() => near(current),
+                _ => current.eq_ignore_ascii_case(value),
+            }
+        }
     }
 }
 
@@ -311,6 +330,15 @@ pub(crate) fn command(console: &mut ViewerConsole, args: &[String]) -> Result<Ve
         }
         _ => Err(format!("usage: {COMMAND} [{}]", names())),
     }
+}
+
+/// The cvars `level` sets, for measurements that build a client at a preset.
+#[cfg(test)]
+pub(crate) fn preset_cvars(level: Level) -> Vec<(&'static str, &'static str)> {
+    VALUES
+        .iter()
+        .map(|(cvar, values)| (*cvar, values[level.index()]))
+        .collect()
 }
 
 #[cfg(test)]
@@ -456,6 +484,10 @@ mod tests {
         ] {
             assert!(holds(&console, cvar, "0"), "{cvar}");
         }
+        // EternalJK's own renderer defaults (rd-vanilla `tr_init.cpp`).
+        for cvar in ["r_DynamicGlow", "r_flares"] {
+            assert!(holds(&console, cvar, "0"), "{cvar}");
+        }
     }
 
     #[test]
@@ -482,6 +514,88 @@ mod tests {
         Level::Vanilla.apply(&mut console);
         toggle_vanilla(&mut console);
         assert_eq!(Level::current(&console), Some(Level::Sjk));
+    }
+
+    /// `holds` as it was, through the value's text.
+    fn holds_by_text(console: &ViewerConsole, cvar: &str, value: &str) -> bool {
+        let Some(current) = console.cvar(cvar).map(sjk_shell::CvarValue::as_text) else {
+            return false;
+        };
+        match (current.trim().parse::<f64>(), value.parse::<f64>()) {
+            (Ok(current), Ok(value)) => (current - value).abs() < 1e-6,
+            _ => current.trim().eq_ignore_ascii_case(value),
+        }
+    }
+
+    /// Typed values compare as their text did, every preset value of every preset and a
+    /// text cvar holding numbers, words and spaces; and Vanilla is still the preset
+    /// `Level::current` finds first.
+    #[test]
+    fn typed_values_hold_what_their_text_held() {
+        let (_directory, mut console) = console();
+        let values = [
+            "0", "1", "1.0", "0.5", "2", "3", "8", "12", "16", "1024", "2048", "", "abc", " 1",
+        ];
+        let check = |console: &ViewerConsole| {
+            for (cvar, _) in VALUES.iter().chain([&(RESTORE_CVAR, ["", "", ""])]) {
+                for value in values {
+                    assert_eq!(
+                        holds(console, cvar, value),
+                        holds_by_text(console, cvar, value),
+                        "{cvar} = {:?} holds {value:?}",
+                        console.cvar(cvar)
+                    );
+                }
+            }
+            assert_eq!(
+                vanilla(console),
+                Level::current(console) == Some(Level::Vanilla)
+            );
+        };
+        for level in Level::ALL {
+            level.apply(&mut console);
+            check(&console);
+        }
+        console.set_cvar("r_sunShadowTaps", "12");
+        check(&console);
+        Level::Vanilla.apply(&mut console);
+        console.set_cvar("r_sceneHdr", "1");
+        check(&console);
+        for text in [" 1.0 ", "ABC", "abc", "", "2048", "r_sceneHdr=0"] {
+            console.set_cvar(RESTORE_CVAR, text);
+            check(&console);
+        }
+        console.set_cvar(RESTORE_CVAR, " 1.0 ");
+        assert!(holds(&console, RESTORE_CVAR, "1"));
+        assert!(!holds(&console, "no_such_cvar", "0"));
+    }
+
+    /// Reading the preset takes no allocation, all of Vanilla's values read included.
+    #[cfg(debug_assertions)]
+    #[test]
+    fn reading_vanilla_allocates_nothing() {
+        let (_directory, mut console) = console();
+        for level in Level::ALL {
+            level.apply(&mut console);
+            let before = assert_no_alloc::violation_count();
+            let vanilla = assert_no_alloc::assert_no_alloc(|| vanilla(&console));
+            assert_eq!(assert_no_alloc::violation_count(), before, "{level:?}");
+            assert_eq!(vanilla, level == Level::Vanilla);
+        }
+    }
+
+    /// Every preset value is an archived cvar: a change of one changes the stamp the
+    /// low-FPS help keeps its Vanilla reading by (`fps_help.rs`).
+    #[test]
+    fn every_preset_value_changes_the_archive_stamp() {
+        let (_directory, mut console) = console();
+        Level::Experimental.apply(&mut console);
+        for (cvar, values) in VALUES {
+            let before = console.archive_revision();
+            console.set_cvar(cvar, values[Level::Vanilla.index()]);
+            assert_ne!(console.archive_revision(), before, "{cvar}");
+        }
+        assert!(vanilla(&console));
     }
 
     #[test]

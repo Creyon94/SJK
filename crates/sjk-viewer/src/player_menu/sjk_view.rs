@@ -100,11 +100,11 @@ const HILT_STRIDE: u16 = 300;
 const HILT_HEAD: f32 = 32.0;
 const HILT_ROW: f32 = 34.0;
 const HILT_ROWS: usize = 6;
-const DUAL_HILT_ROWS: usize = 4;
+const DUAL_HILT_ROWS: usize = 3;
 /// The hilt search's field, at the right of the lists' heading line: beside one
 /// list's heading, and beside Dual's "Left hand".
 const SEARCH_WIDTH: f32 = 240.0;
-const DUAL_SEARCH_WIDTH: f32 = 170.0;
+const DUAL_SEARCH_WIDTH: f32 = 160.0;
 /// The blade choice's swatches (the Collection's, shrunk) and the gap between
 /// them, from `SKIN_X` so that the ones shown (at most `SKIN_SHOWN` of the stock
 /// blade and every blade skin owned, scrolled to keep the chosen one in view)
@@ -121,6 +121,10 @@ const SKIN_X: f32 =
 const SKIN_BASE: u16 = 7_300;
 /// The blade row's wheel area and its arrows, which browse it a row's width at a time.
 const SKIN_SCROLL: u16 = 7_597;
+/// The Sounds row's Preview button.
+const SOUND_PREVIEW: u16 = 7_590;
+/// Its width, left of the row's ‹ › control.
+const PREVIEW_WIDTH: f32 = 118.0;
 const SKIN_PREV: u16 = 7_598;
 const SKIN_NEXT: u16 = 7_599;
 
@@ -346,7 +350,13 @@ pub(super) fn force_key_order(side: ForceSide) -> Vec<usize> {
                 .map(|power| FORCE_POWER_ROW + usize::from(*power)),
         );
     }
-    order.extend([FORCE_RESET_ROW, FORCE_DISCARD_ROW, FORCE_APPLY_ROW]);
+    order.extend([
+        super::rows::FORCE_RETAIL_TEMPLATE_ROW,
+        super::rows::FORCE_COMMUNITY_TEMPLATE_ROW,
+        FORCE_RESET_ROW,
+        FORCE_DISCARD_ROW,
+        FORCE_APPLY_ROW,
+    ]);
     order
 }
 
@@ -442,6 +452,18 @@ impl PlayerMenu {
                         SaberRow::Hilt
                     })
                 };
+                if token == SOUND_PREVIEW {
+                    let row = self.saber_row(SaberRow::Sounds)?;
+                    if hover {
+                        self.selected = row;
+                    } else if activate {
+                        self.selected = row;
+                        self.preview_sounds();
+                    } else {
+                        return None;
+                    }
+                    return Some(PlayerMenuResult::None);
+                }
                 let skin_row = self.saber_row(SaberRow::Skin);
                 let browse = match token {
                     SKIN_PREV if activate => -(SKIN_SHOWN as isize),
@@ -909,6 +931,11 @@ impl PlayerMenu {
                 top += ROW;
                 continue;
             }
+            if *row == SaberRow::Sounds {
+                self.sjk_sound_choice(frame, index, top);
+                top += ROW;
+                continue;
+            }
             let area = [COLUMN_X, top, COLUMN_WIDTH, ROW];
             let focused = self.sjk_row(frame, index, area, row.label());
             let middle = top + ROW * 0.5;
@@ -1298,6 +1325,9 @@ impl PlayerMenu {
             match self.blade_choice.get(choice).flatten() {
                 None => swatch::small_stock(self.canvas.draw_list_mut(), frame, rect, colour),
                 Some(skin) => {
+                    if hovered || choice == chosen {
+                        crate::blade_pictures::focus(skin.id);
+                    }
                     let look = self.blade_choice.look(skin.id);
                     let _ = swatch::small_blade(
                         self.canvas.draw_list_mut(),
@@ -1396,11 +1426,57 @@ impl PlayerMenu {
         }
     }
 
+    /// The Sounds row at `top`: Preview, then the saber sounds chosen apart from the
+    /// blade as a ‹ › control (following the shader names the one heard).
+    fn sjk_sound_choice(&mut self, frame: &Frame, index: usize, top: f32) {
+        let area = [COLUMN_X, top, COLUMN_WIDTH, ROW];
+        let focused = self.sjk_row(frame, index, area, SaberRow::Sounds.label());
+        let middle = top + ROW * 0.5;
+        let control = [
+            CONTROL_RIGHT - CONTROL_WIDTH,
+            middle - CONTROL * 0.5,
+            CONTROL_WIDTH,
+            CONTROL,
+        ];
+        let label = self.sound_choice.label(self.blade_choice.worn());
+        kit::cycler(
+            &mut self.canvas,
+            frame,
+            control,
+            format_args!("{label}"),
+            None,
+            focused,
+        );
+        self.sjk_targets(frame, index, control, area);
+        kit::button(
+            &mut self.canvas,
+            frame,
+            [
+                control[0] - 12.0 - PREVIEW_WIDTH,
+                control[1],
+                PREVIEW_WIDTH,
+                CONTROL,
+            ],
+            "Preview",
+            false,
+            true,
+            false,
+            SOUND_PREVIEW,
+        );
+    }
+
+    /// Play the Sounds row's choice as the blade worn would be heard with it.
+    pub(super) fn preview_sounds(&self) {
+        self.sound_choice
+            .preview(self.blade_choice.worn().map(|skin| skin.id));
+    }
+
     /// The Force page: mastery and points over their meter, the two sides,
     /// the powers grouped as classic+ groups them (Neutral and Lightsaber on
     /// the left, the side's five on the right), each with its three levels
     /// priced, then Start over, Discard and Apply.
     fn sjk_force(&mut self, frame: &Frame) {
+        self.sjk_force_templates(frame);
         let s = frame.s;
         let remaining = self.force.remaining_points();
         let total = self.force.total_points();
@@ -1656,7 +1732,7 @@ impl PlayerMenu {
             0 => line(
                 &mut self.canvas,
                 &mut y,
-                "Every power is allowed",
+                "No powers explicitly disabled",
                 color::TEXT,
             ),
             // A long list would run past the page: the rows say which.
@@ -1677,7 +1753,7 @@ impl PlayerMenu {
             line(
                 &mut self.canvas,
                 &mut y,
-                "Team powers: team games only",
+                "Team powers outside team games: server decides",
                 color::MUTED,
             );
         }
@@ -2245,6 +2321,11 @@ impl PlayerMenu {
             } else {
                 TABS[(self.page.index() + 1) % TABS.len()]
             };
+            if self.page == ProfilePage::Saber
+                && self.saber_rows().get(self.selected) == Some(&SaberRow::Sounds)
+            {
+                keys.push((&["Enter"][..], "preview"));
+            }
             keys.push((&["Tab"][..], next));
         }
         let gap = 30.0 * s;
@@ -2273,7 +2354,9 @@ impl PlayerMenu {
                 Some(SaberRow::Search) => RowKind::Type,
                 _ => RowKind::Step,
             },
-            ProfilePage::Force if self.selected >= FORCE_RESET_ROW => RowKind::Act,
+            ProfilePage::Force if (FORCE_RESET_ROW..=FORCE_APPLY_ROW).contains(&self.selected) => {
+                RowKind::Act
+            }
             ProfilePage::Force => RowKind::Step,
         }
     }
@@ -2383,17 +2466,19 @@ mod tests {
             + DUAL_HILT_ROWS as f32 * HILT_ROW
             + 12.0
             + 10.0
-            + 9.0 * ROW
+            + 10.0 * ROW
             < BOTTOM
     );
     const _: () = assert!(
-        ROWS_TOP + ROW + 8.0 + HILT_HEAD + HILT_ROWS as f32 * HILT_ROW + 12.0 + 10.0 + 5.0 * ROW
+        ROWS_TOP + ROW + 8.0 + HILT_HEAD + HILT_ROWS as f32 * HILT_ROW + 12.0 + 10.0 + 6.0 * ROW
             < BOTTOM
     );
+    // The Sounds row's Preview leaves its name room.
+    const _: () = assert!(CONTROL_RIGHT - CONTROL_WIDTH - 12.0 - PREVIEW_WIDTH - LABEL_X > 110.0);
     // Dual's search field leaves "Left hand" room at the largest text
-    // (`ui_textScale` 1.2; Rajdhani SemiBold at 22 is 8.5 pixels a character).
+    // (`ui_textScale` 1.5; Rajdhani SemiBold at 22 is 8.5 pixels a character).
     const _: () = assert!(
-        (COLUMN_WIDTH - GUTTER) * 0.5 - 12.0 - DUAL_SEARCH_WIDTH - 22.0 > 1.2 * 8.5 * 9.0 + 8.0
+        (COLUMN_WIDTH - GUTTER) * 0.5 - 12.0 - DUAL_SEARCH_WIDTH - 22.0 > 1.5 * 8.5 * 9.0 + 8.0
     );
     // The blade choice's swatches leave the row's name room.
     const _: () = assert!(SKIN_X - LABEL_X > 110.0);
@@ -2435,6 +2520,8 @@ mod tests {
     // buttons, the lists' wheel areas, then the hilts.
     const _: () = assert!(LEVEL_BASE + 18 * 3 <= SKIN_BASE);
     const _: () = assert!(SKIN_BASE + (crate::unlockables::ALL.len() + 1) as u16 <= SKIN_SCROLL);
+    const _: () = assert!(SKIN_BASE + (crate::unlockables::ALL.len() + 1) as u16 <= SOUND_PREVIEW);
+    const _: () = assert!(SOUND_PREVIEW < SKIN_SCROLL);
     const _: () = assert!(STYLE_BASE + 3 <= HILT_SCROLL);
     const _: () = assert!(HILT_SCROLL + 2 <= HILT_BASE);
 
@@ -2617,11 +2704,65 @@ mod tests {
     }
 
     #[test]
+    fn force_template_selectors_load_the_draft_by_group() {
+        use super::super::rows::{FORCE_COMMUNITY_TEMPLATE_ROW, FORCE_RETAIL_TEMPLATE_ROW};
+        let directory = tempfile::tempdir().unwrap();
+        let mut console = ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
+        let applied = console.cvar("forcepowers").cloned();
+        let mut menu = drawn(ProfilePage::Force, false);
+        let mut vfs = sjk_vfs::VirtualFileSystem::new();
+        crate::assets::force_presets::mount(&mut vfs).unwrap();
+        vfs.mount_memory(
+            "GameData/base/assets0.pk3",
+            [(
+                "forcecfg/light/Zed.fcf",
+                b"7-1-100000000000000000".as_slice(),
+            )],
+        )
+        .unwrap();
+        let vfs = std::sync::Arc::new(vfs);
+        menu.force_templates.list =
+            super::super::force_templates::Templates::from_test_vfs(std::sync::Arc::clone(&vfs));
+        menu.icon_vfs = Some(vfs);
+        draw(&mut menu);
+        for (row, retail) in [
+            (FORCE_RETAIL_TEMPLATE_ROW, true),
+            (FORCE_COMMUNITY_TEMPLATE_ROW, false),
+        ] {
+            let rect = menu.canvas.rect_for(row as u16).expect("selector");
+            click(
+                &mut menu,
+                &mut console,
+                sjk_ui::Vec2::new(rect.x + rect.width * 0.75, rect.y + rect.height * 0.5),
+            );
+            assert_eq!(menu.selected, row);
+            let index = menu.template_row().expect("loaded into draft");
+            assert_eq!(
+                menu.force_templates.list.of(ForceSide::Light)[index].retail,
+                retail
+            );
+            assert_eq!(
+                console.cvar("forcepowers").cloned(),
+                applied,
+                "selection must wait for Apply"
+            );
+            menu.adjust(&mut console, -1);
+            let previous = menu.template_row().unwrap();
+            assert_eq!(
+                menu.force_templates.list.of(ForceSide::Light)[previous].retail,
+                retail
+            );
+            draw(&mut menu);
+        }
+        assert!(!menu.canvas.overflowed());
+    }
+
+    #[test]
     fn the_force_page_groups_powers_as_classic_plus_and_skips_the_other_side() {
         use super::super::classic::layout::{DARK_POWERS, LIGHT_POWERS};
         let light = force_key_order(ForceSide::Light);
         // The sides, thirteen powers, the three actions.
-        assert_eq!(light.len(), 1 + 13 + 3);
+        assert_eq!(light.len(), 1 + 13 + 2 + 3);
         assert_eq!(light[0], FORCE_SIDE_ROW);
         assert_eq!(
             &light[light.len() - 3..],
@@ -2733,13 +2874,14 @@ mod tests {
             .map(|index| rows[index])
             .collect();
         assert_eq!(
-            order[..6],
+            order[..7],
             [
                 SaberRow::Style,
                 SaberRow::Search,
                 SaberRow::Hilt,
                 SaberRow::SecondHilt,
                 SaberRow::Skin,
+                SaberRow::Sounds,
                 SaberRow::Blade
             ]
         );
@@ -2906,6 +3048,7 @@ mod tests {
                         note: String::new(),
                         count: 1,
                         medal: None,
+                        card: None,
                     })
                     .collect(),
             );
@@ -2949,6 +3092,68 @@ mod tests {
                 console.text_value(crate::unlockables::SABER_SKIN_CVAR),
                 Some("")
             );
+        }
+    }
+
+    /// The Sounds row under the blade, Single and Dual within the canvas: a click on
+    /// its control's right half steps the sounds on (writing `cg_saberSounds`), and
+    /// Preview (or Enter on the row) asks for the choice as the worn blade is heard.
+    #[test]
+    fn the_sounds_row_steps_the_choice_and_previews_it() {
+        for dual in [false, true] {
+            let directory = tempfile::tempdir().unwrap();
+            let mut console = ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
+            let mut menu = drawn(ProfilePage::Saber, dual);
+            assert!(!menu.canvas.overflowed(), "dual {dual}");
+            let row = menu.saber_row(SaberRow::Sounds).expect("a sounds row");
+            assert_eq!(menu.saber_row(SaberRow::Skin), Some(row - 1));
+            let control = menu.canvas.rect_for(row as u16).unwrap();
+            click(
+                &mut menu,
+                &mut console,
+                sjk_ui::Vec2::new(
+                    control.x + control.width * 0.8,
+                    control.y + control.height * 0.5,
+                ),
+            );
+            assert_eq!(menu.selected, row);
+            assert_eq!(
+                console.text_value(crate::saber_sound_choice::CVAR),
+                Some("stock"),
+                "dual {dual}"
+            );
+            let _ = crate::saber_sound_choice::take_preview();
+            let preview = menu
+                .canvas
+                .rect_for(SOUND_PREVIEW)
+                .expect("a preview button");
+            assert!(preview.right() < control.x);
+            click(
+                &mut menu,
+                &mut console,
+                sjk_ui::Vec2::new(
+                    preview.x + preview.width * 0.5,
+                    preview.y + preview.height * 0.5,
+                ),
+            );
+            assert_eq!(
+                crate::saber_sound_choice::take_preview(),
+                Some(None),
+                "the stock sounds"
+            );
+            menu.adjust(&mut console, -1);
+            assert_eq!(
+                console.text_value(crate::saber_sound_choice::CVAR),
+                Some("")
+            );
+            menu.activate(&mut console);
+            assert_eq!(
+                crate::saber_sound_choice::take_preview(),
+                Some(None),
+                "following the stock blade"
+            );
+            draw(&mut menu);
+            assert!(!menu.canvas.overflowed(), "dual {dual}");
         }
     }
 

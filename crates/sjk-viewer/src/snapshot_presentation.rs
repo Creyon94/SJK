@@ -28,11 +28,15 @@ pub(crate) struct Sinks<'a> {
     pub(crate) damage_feedback: &'a mut damage_feedback::Feedback,
     pub(crate) first_person_view: &'a mut first_person_view::Tracker,
     pub(crate) previous_particle_events: &'a mut HashMap<u16, u16>,
+    pub(crate) vehicle_fires: &'a mut vehicle_fire::Pending,
     pub(crate) muzzle_effects: &'a mut sjk_client::LegacyMuzzleEffects,
     pub(crate) force_overlays: &'a mut sjk_client::LegacyForceOverlayTracker,
+    pub(crate) body_fades: &'a mut sjk_client::LegacyBodyFadeTracker,
     /// The nameplates' Force, health and shield estimates.
     pub(crate) nameplate: &'a mut hud::nameplate::State,
     pub(crate) obituaries: &'a mut sjk_client::ObituaryTracker,
+    pub(crate) siege_notices: &'a mut siege_objective_notice::Notices,
+    pub(crate) chat: &'a mut chat::ChatOverlay,
     pub(crate) lagometer: &'a mut sjk_client::LagometerSamples,
     pub(crate) console: &'a mut Option<console::ViewerConsole>,
     pub(crate) localization: &'a Localization,
@@ -78,6 +82,7 @@ pub(crate) fn observe(
         sinks.particles,
         sinks.auxiliary,
         sinks.previous_particle_events,
+        sinks.vehicle_fires,
         snapshot,
         game_state,
         sinks.vfs,
@@ -89,6 +94,7 @@ pub(crate) fn observe(
     );
     sinks.muzzle_effects.observe(snapshot);
     sinks.force_overlays.observe_snapshot(snapshot);
+    sinks.body_fades.observe_snapshot(snapshot);
     sinks
         .nameplate
         .observe_snapshot(snapshot, game_state, sinks.bsp, sinks.trace_scratch);
@@ -109,6 +115,16 @@ pub(crate) fn observe(
             }
         }
     }
+    sinks.siege_notices.announce(
+        sinks.obituaries,
+        snapshot.player.client_num(),
+        snapshot.player.team(),
+        game_state,
+        sinks.vfs,
+        sinks.localization,
+        sinks.chat,
+        sinks.audio.as_mut(),
+    );
     let ping = snapshot
         .server_time
         .wrapping_sub(snapshot.player.command_time())
@@ -120,6 +136,20 @@ pub(crate) fn observe(
     sinks.counters.impact_events += impact.events as u64;
     sinks.counters.impact_visual_requests += impact.visual_requests as u64;
     sinks.counters.saber_flare_latches += impact.flare_latches as u64;
+}
+
+/// `snapshot` without the players outside the duel and their events, for the event
+/// observers, when `cg_duelHideOthers` hides some (`sjk_client::DuelHide`).
+fn duel_hidden(
+    console: Option<&console::ViewerConsole>,
+    snapshot: &Snapshot,
+    game_state: &GameState,
+) -> Option<Snapshot> {
+    sjk_client::duel_hidden_snapshot(
+        snapshot,
+        game_state,
+        console.map(console::ViewerConsole::duel_hide)?,
+    )
 }
 
 /// The console line `CG_Obituary` prints (`cg_event.c:124-454`): each name ends
@@ -152,10 +182,17 @@ impl GpuState {
         let Some(session) = &self.live_session else {
             return;
         };
+        self.selected_weapon = None;
+        self.weapon_selected_at = None;
+        self.weapon_selection_view = Default::default();
+        self.auto_switch = Default::default();
         self.live_world = sjk_runtime::World::new(self.live_world.id());
         self.legacy_world_adapter = Some(LegacyWorldAdapter::new(self.live_world.id()));
         if let (Some(adapter), Some(console)) = (&mut self.legacy_world_adapter, &self.console) {
             adapter.set_smooth_clients(console.smooth_clients());
+            adapter.set_hide_corpses_in_duel(console.hide_corpses_in_duel());
+            adapter.set_hide_pickups_in_duel(console.hide_pickups_in_duel());
+            adapter.set_duel_hide(console.duel_hide());
         }
         self.presentation_clock = presentation_clock::SnapshotPresentationClock::new(
             session.latest_snapshot().server_time,
@@ -184,6 +221,7 @@ impl GpuState {
             )
         });
         let advance = session.advance_with_config(relative, |snapshot, game_state, changes| {
+            self.sync_weapon_selection_view(snapshot);
             if let (Some(audio), Some(vfs)) = (game_audio.as_mut(), &self.vfs) {
                 audio.prepare_config_strings(changes, game_state, vfs);
             }
@@ -192,8 +230,9 @@ impl GpuState {
                 third_person: self.third_person,
                 flash_point: self.last_first_person_flash,
             };
+            let hidden = duel_hidden(self.console.as_ref(), snapshot, game_state);
             observe(
-                snapshot,
+                hidden.as_ref().unwrap_or(snapshot),
                 game_state,
                 local,
                 false,
@@ -212,10 +251,14 @@ impl GpuState {
                     damage_feedback: &mut self.damage_feedback,
                     first_person_view: &mut self.first_person_view,
                     previous_particle_events: &mut self.previous_particle_events,
+                    vehicle_fires: &mut self.vehicle_fires,
                     muzzle_effects: &mut self.muzzle_effects,
                     force_overlays: &mut self.force_overlays,
+                    body_fades: &mut self.body_fades,
                     nameplate: &mut self.hud.nameplate,
                     obituaries: &mut self.obituaries,
+                    siege_notices: &mut self.siege_notices,
+                    chat: &mut self.chat,
                     lagometer: &mut self.lagometer,
                     console: &mut self.console,
                     localization: &self.localization,
@@ -255,6 +298,7 @@ impl GpuState {
         if !self.live_presentation_ready() || !crate::live_session::active_snapshot(snapshot) {
             return;
         }
+        self.sync_weapon_selection_view(snapshot);
         self.sync_fake_noclip(&snapshot.player);
         self.ghost.snapshot(&snapshot.player);
         self.mimic_observe(snapshot);
@@ -284,8 +328,9 @@ impl GpuState {
         }
         let obituaries_before = self.obituaries.decoded();
         if observe_events {
+            let hidden = duel_hidden(self.console.as_ref(), snapshot, session.game_state());
             observe(
-                snapshot,
+                hidden.as_ref().unwrap_or(snapshot),
                 session.game_state(),
                 impact_spawn::LocalView {
                     client_num: snapshot.player.client_num(),
@@ -308,10 +353,14 @@ impl GpuState {
                     damage_feedback: &mut self.damage_feedback,
                     first_person_view: &mut self.first_person_view,
                     previous_particle_events: &mut self.previous_particle_events,
+                    vehicle_fires: &mut self.vehicle_fires,
                     muzzle_effects: &mut self.muzzle_effects,
                     force_overlays: &mut self.force_overlays,
+                    body_fades: &mut self.body_fades,
                     nameplate: &mut self.hud.nameplate,
                     obituaries: &mut self.obituaries,
+                    siege_notices: &mut self.siege_notices,
+                    chat: &mut self.chat,
                     lagometer: &mut self.lagometer,
                     console: &mut self.console,
                     localization: &self.localization,
@@ -326,6 +375,7 @@ impl GpuState {
                 session,
                 snapshot,
                 obituaries_before,
+                self.cardboard_box.hiding(),
                 visual_now,
             );
         }
@@ -338,6 +388,9 @@ impl GpuState {
                 *adapter = LegacyWorldAdapter::new(self.live_world.id());
                 if let Some(console) = &self.console {
                     adapter.set_smooth_clients(console.smooth_clients());
+                    adapter.set_hide_corpses_in_duel(console.hide_corpses_in_duel());
+                    adapter.set_hide_pickups_in_duel(console.hide_pickups_in_duel());
+                    adapter.set_duel_hide(console.duel_hide());
                 }
                 self.local_actor_state = Default::default();
                 for mesh in &mut self.actor_meshes {
@@ -355,9 +408,10 @@ impl GpuState {
                 self.net_timing.adjustment(event);
             }
         }
+        // The command clock adjusts once the frame has read every queued
+        // snapshot (`ServerClock::adjust`, `live_session`).
         if !session.is_local() {
-            self.server_clock
-                .observe_snapshot(snapshot.server_time, Instant::now());
+            self.server_clock.receive_snapshot(snapshot.server_time);
         }
         if let Some(view) = intermission {
             self.local_prediction.stop(0.0);
@@ -420,6 +474,7 @@ impl GpuState {
             return;
         };
         self.present_live_snapshot(&snapshot, false, game_audio, Instant::now());
+        self.server_clock.adjust(Instant::now());
     }
 }
 

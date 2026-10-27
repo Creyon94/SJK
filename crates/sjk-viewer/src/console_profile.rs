@@ -13,6 +13,13 @@ const MAX_SNAPS: i64 = 1000;
 impl ViewerConsole {
     /// Return the legacy connection settings backed by typed cvars.
     pub(crate) fn userinfo(&self) -> Result<LegacyUserInfo, Box<dyn Error>> {
+        self.userinfo_as(crate::player_identity::is_staff())
+    }
+
+    /// [`Self::userinfo`] for a key that is SJK staff or not: only staff may
+    /// change the plugin name (`cjp_client`), so another key always sends the
+    /// server profile's default.
+    fn userinfo_as(&self, staff: bool) -> Result<LegacyUserInfo, Box<dyn Error>> {
         let profile = self.player_profile()?;
         let (rate, snaps) = self.rate_and_snaps();
         let password = self
@@ -36,7 +43,7 @@ impl ViewerConsole {
         if let Some(value) = self
             .text_value(identity)
             .map(str::trim)
-            .filter(|value| !value.is_empty())
+            .filter(|value| staff && !value.is_empty())
         {
             userinfo
                 .extension_overrides
@@ -102,15 +109,30 @@ mod tests {
     }
 
     #[test]
-    fn the_plugin_name_setting_goes_into_the_userinfo_only_when_set() {
+    fn the_plugin_name_setting_goes_into_the_userinfo_only_when_set_by_staff() {
         let directory = tempfile::tempdir().unwrap();
         let mut console = ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
-        assert!(console.userinfo().unwrap().extension_overrides.is_empty());
+        assert!(
+            console
+                .userinfo_as(true)
+                .unwrap()
+                .extension_overrides
+                .is_empty()
+        );
         assert!(console.set_cvar(sjk_client::PLUGIN_IDENTITY_KEY, "1.6.5 JoF"));
         assert_eq!(
-            console.userinfo().unwrap().extension_overrides,
+            console.userinfo_as(true).unwrap().extension_overrides,
             [("cjp_client".to_owned(), "1.6.5 JoF".to_owned())]
         );
+        // Another key sends the server profile's default.
+        assert!(
+            console
+                .userinfo_as(false)
+                .unwrap()
+                .extension_overrides
+                .is_empty()
+        );
+        assert!(console.userinfo().unwrap().extension_overrides.is_empty());
     }
 
     #[test]

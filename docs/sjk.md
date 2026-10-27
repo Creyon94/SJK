@@ -21,10 +21,14 @@ general contributor rules.
 - A client mod's commands and settings start with its id and a dot
   (`japlus.guntele`, `jof.commands`), and its switch is `mod_<id>`
   ([mods.md](mods.md)).
-- Every toy is a `toy_<name>` command (`toy_illuminate`, `toy_box`); a toy has no Force
-  wheel entry, and one with a setting names it `cg_toy<Name>...`. Illuminate and the
-  cardboard box have none: they are always available and on only for the client's run.
-  A toy others see has an id in the look's `toys` (`cardboard_box`).
+- Every toy is a `toy_<name>` command (`toy_illuminate`, `toy_box`, `toy_order66`,
+  `toy_hax`, `toy_ragdoll`, `toy_drone`, `toy_boombox`, `toy_monitor`); a
+  toy has no Force wheel entry, and one with a setting names it `cg_toy<Name>...`.
+  Illuminate, the cardboard box and Order 66 have none: they are always available and
+  on only for the client's run. A toy others see has an id in the look's `toys`
+  (`cardboard_box`, `order66`). A toy may have a command of its own besides
+  (`order66`, which gives the order; `monitor_throw`, which throws a monitor, and
+  `+monitor_throw`, its held bind, which charges the throw).
 - The crates are SJK's too: `crates/sjk-*`, packages `sjk-*` (`cargo build -p
   sjk-viewer -p sjk-dedicated`) and Rust paths `sjk_*`. Environment variables for
   diagnostics are `SJK_*`; the game-data and server paths keep the neutral
@@ -38,7 +42,7 @@ general contributor rules.
   presents SJK as Sol's: Sol develops it and sets its direction, and Sol comes
   first (Sol's rule, 06/10/2026). SJK stands on its own (Sol's decision,
   08/10/2026): JKR, the engine SJK began from, and Bishop, its creator, appear only
-  in the credits (CREDITS.md's "Origins", the credits page's Origins card), the
+  in the credits (the Origins section, last in CREDITS.md and on the credits page), the
   copyright notice and one footnote in the README and on the site. Code, wiki
   pages and in-game text describe SJK without comparing it to JKR. Keep CREDITS.md
   current when SJK gains notable work.
@@ -55,12 +59,16 @@ migrated, except where the table says so. Where each is documented:
 | `ui_gameFont` | on | [UI ownership](rendering.md#ui-ownership) |
 | `cg_scoreboardStyle` | `auto` (SJK UI's with its menus, else `classic`), saved `modern` reset | [Scoreboard styles](client.md#scoreboard-styles) |
 | `cg_compactScoreboard` | on (SJK UI's scoreboard in one column, as wide as its names, centred) | [SJK UI scoreboard](sjk-ui.md#scoreboard) |
+| `cg_scoreboardAfk` | on (away players faint below the others on both scoreboards) | [Away players](client.md#away-players) |
 | `cg_drawTimer` | on | [status.md](status.md#gameplay-and-interface-defaults) |
 | `cg_teamOutline` | on (red rings on enemies, green on teammates, in team games) | [Team outlines and logos](client.md#team-outlines-and-logos) |
 | `cg_killfeed` | on, saved 0 moved to 1 once | [Kill feed](client.md#kill-feed) |
+| `cg_mapEdits` | on (SJK's own map fixes from the hub) | [Map edits](map-edits.md) |
+| `cg_serverRemaps` | off (servers' shader remaps; the map's own apply), asked on the 18/10 what's-new card | [Shader remap controls](client.md#shader-remap-controls) |
 | `cg_hitMarker` | off (red damage-direction indicator) | [Client](client.md#launch) |
 | `cg_shieldBrightness` | 2 passes, old defaults 1 and 4 moved to 2 once | [Client](client.md#launch) |
 | `cg_duelGhost` | on: duellists as JoF EJK's blue figures (off: dark under the bubble) | [Rendering](rendering.md#entity-render-effects) |
+| `cg_duelHideOthers` | 1, Auto: in a private duel, players outside it hidden on JA+ (unless `cp_pluginDisable` bit 1) and jaPRO, as JoF EJK | [Client](client.md#nameplates) |
 | `cg_dismember` | 2 | [Dismemberment](client.md#dismemberment-and-disintegration) |
 | `snaps` | 120 (slider to 125) | [status.md](status.md#gameplay-and-interface-defaults) |
 | `com_maxfpsUnfocused` | 30 | [Configuration](client.md#configuration-and-content) |
@@ -68,14 +76,14 @@ migrated, except where the table says so. Where each is documented:
 | `cl_maxpackets` | 125 | [User commands and move packets](networking.md#user-commands-and-move-packets) |
 | `gameplay_fps` | 0, Auto: movement at the FPS cap, a `pmove_fixed` server's step wins | [Gameplay FPS](client.md#gameplay-fps) |
 | `gameplay_fps_nocap` | 0: the known server caps (JoF's 125) hold | [User commands and move packets](networking.md#user-commands-and-move-packets) |
-| `cjp_client` | empty: `1.4 SJK` on JA+, `1.4JAPRO` on jaPRO (its client-support switch) | [Networking](networking.md) |
+| `cjp_client` | empty: `1.4 SJK` on JA+, `1.4JAPRO` on jaPRO (its client-support switch); only a staff key's value is sent | [Networking](networking.md) |
 | `rate` | 90000 (stock 25000), saved 25000 moved to 90000 once | [User commands and move packets](networking.md#user-commands-and-move-packets) |
 | rendering profile | noon, bloom, dust, material maps | [Default visual profile](rendering.md#default-visual-profile) |
 | `cl_consoleUseScanCode` | 1, saved 0 moved to 1 once | [Useful console commands](client.md#useful-console-commands) |
 | `mod_japlus`, `mod_jof` | on (each mod loads on its servers only), saved 0 moved to 1 once | [Client mods](mods.md) |
 | `con_drawNotify` | off (no console feed at the top left; chat keeps its box) | [Classic console](client.md#classic-console) |
-| `cl_experimentalShowcase` | off (the experimental `ghost` and `mimic` commands) | [Ghost replay](client.md#ghost-replay) |
-| `ui_donationGoal` | on, but shelved since 14/10/2026: the card never shows ([Donations](#donations)) | [Main page](sjk-ui.md#main-page) |
+| `cl_experimentalShowcase` | off (the experimental `ghost` and `mimic` commands, staff keys only) | [Ghost replay](client.md#ghost-replay) |
+| `ui_supportLinks` | on: Support SJK's links to GitHub Sponsors and Ko-fi, until its × hides them ([Donations](#donations)) | [Main page](sjk-ui.md#main-page) |
 
 The HUD look (`cg_hudStyle game`) and the console (`con_style auto`: the SJK UI's
 console with its menus, else the classic one; a saved `classic` moved once to
@@ -179,18 +187,44 @@ timestamps in logs and JSON, and file names meant to sort.
 | [Pages](../.github/workflows/pages.yml) | Pushes to `main` changing `site/` or the workflow | Publishes `site/` to https://sol-vulpes.github.io/SJK/ |
 | [SJK release](../.github/workflows/release.yml) | Tags `sjk-v<version>` | Builds and publishes the release ZIPs |
 
-The site is static: `index.html`, `assets/style.css` and `assets/site.js` (release
-list, download entry, screenshot gallery, donation card). It wears the SJK UI's look
-([sjk-ui.md](sjk-ui.md), Sol's request of 09/10/2026): the home page is the
-client's main page, SJK's emblem in its turning ring with a plain menu beside it
-(a gold Download button, then the sections in one column; Sol found the first
-version's arc, whose entries grew and moved under the pointer, hard to use), the
-latest release where the client lists recent servers, a profile card for Sol with
-Sol's GitHub picture (the initial shows if it does not load),
-over shots of the client's tour of Yavin Training Grounds that cross-fade every 15
-seconds; What SJK brings is laid out as the client's Settings (a rail of categories,
-rows, a detail column with a screenshot). Below 900 px wide (or in a tall window) the
-home page stacks into a list. Its pictures are the client's own off-screen renders
+The site is static: `index.html`, `assets/style.css` and `assets/site.js` (download
+entry, release recap and log, platform steps, contributor counts, screenshot gallery,
+donation card). It wears the SJK UI's look ([sjk-ui.md](sjk-ui.md), Sol's request of
+09/10/2026). Its layout since 25/10/2026 is the one Sol chose from three proposals:
+the home page keeps the client's main page, SJK's emblem in its turning ring, with the
+title, a short introduction and a gold Download button beside it (the first version's
+menu arc, whose entries grew and moved under the pointer, was hard to use; the plain
+column after it gave way to the fixed navigation bar, clear over the home page and
+solid below it), the latest release's recap where the client lists recent servers,
+and a profile card for Sol with Sol's GitHub picture (the initial shows if it does not
+load), over shots of the client's tour of Yavin Training Grounds that cross-fade every
+15 seconds. The home page wraps to one column on narrow screens. What SJK brings is
+laid out as the client's Settings (a rail of categories, rows, a detail column with a
+screenshot); Why SJK, the gallery, What's new, Install and Credits follow.
+
+The script fills what changes from GitHub, and the page keeps working links without
+it:
+
+- **Download:** the latest published release (the releases API); the button takes
+  the visitor's platform (Windows, Linux, or Mac from the browser's description;
+  phones and tablets get Windows) and names it, and the line under it links the other
+  platforms' ZIPs and the release's files and checksums.
+- **Recap and What's new:** `CHANGELOG.md` read from `main` on
+  raw.githubusercontent.com: the home page shows the latest release's recap lines
+  (`> Heading: sentence`, at most six), What's new the last five releases GitHub has
+  published, each with its date, introduction, recap and a link to its changes in
+  the changelog. The format is the client's ([Changelog](#changelog)); a release's
+  notes written before its tag stay off the site until the release is published.
+- **Install:** one platform at a time, the visitor's first, with buttons for the
+  others; without the script all three are listed.
+- **Credits:** each contributor card (`data-author`, the GitHub login) shows its
+  merged pull requests in SJK, from one GitHub search over all of them (`is:merged`,
+  so a pull request Sol merged by hand counts only once GitHub marks it merged). The
+  search allows 10 requests a minute without a token, so the counts are kept an hour
+  in the visitor's browser; without an answer the cards say "Pull requests" and link
+  the list. A new contributor needs a card in `index.html`.
+
+Its pictures are the client's own off-screen renders
 ([screenshots/README.md](../site/screenshots/README.md)). The sun behind the
 emblem (a warm glow, uneven god rays and an 18-ray sunburst turning against each
 other) is CSS (`.sun` in `style.css`), so every browser shows it; it once was a
@@ -206,6 +240,18 @@ the script adds nothing. To
 update the library, replace the vendored file with a release's
 `dist/js/bundle.js` and check that `disableTelemetry` still stops its telemetry.
 
+Visits are counted with [GoatCounter](https://www.goatcounter.com) (no cookies, no
+personal data; the footer says so), whose ISC-licensed `count.js` is vendored as
+`assets/vendor/goatcounter/count.js` with its license, so the script is not fetched
+from another server; only the counts go to `sjkclient.goatcounter.com` (the
+`data-goatcounter` address in `site/index.html`; Slash holds that counter for now, and
+another counter only needs that address changed). Links posted on video
+platforms carry `?utm_source=<platform>` (and `utm_campaign`), which GoatCounter lists
+as the visit's source, so the dashboard shows which platform brings visitors. The page's
+`rel="canonical"` link makes them all count as the one page `/SJK/`. To
+update the script, replace the vendored file with GoatCounter's current
+`public/count.js`.
+
 Release tags exist only on SJK and are created on Sol's request. The release
 title carries the stage, "Sol JK 2026.1005.1 (Alpha)" (`STAGE` in the workflow).
 Alphas are not marked as pre-releases, so the site's download link
@@ -213,46 +259,47 @@ Alphas are not marked as pre-releases, so the site's download link
 
 ## Donations
 
-**Shelved since 14/10/2026 (Sol's decision).** Nothing asks for donations for now: the
-site's Support SJK section and its two menu links carry `hidden` and `site.js` skips the
-hub (`DONATION.shelved`); the client's card never shows and its setting is out of the
-settings screens (`donation_goal::SHELVED`), and the Collection lists the Supporter
-medal only to players who hold it. The hub's webhook, goal endpoint and medal stay as
-they are. To bring it back: `DONATION.shelved = false` and the three `hidden`
-attributes in `index.html`, then `SHELVED = false` and the "Donation goal" row back in
-`settings/catalog.rs` (GAME), `settings/groups.rs` (Interface) and its help line in
-`settings/help.rs`, all three in git history before 14/10/2026. What follows is how
-it works once back.
+SJK takes donations on two pages: Sol's GitHub Sponsors page,
+https://github.com/sponsors/Sol-Vulpes (since 25/10/2026), and Ko-fi,
+https://ko-fi.com/soljk (Sol's page, 13/10/2026). They are offered in two places:
 
-SJK takes donations on Ko-fi, https://ko-fi.com/soljk (Sol's page, 13/10/2026). The
-site's Support SJK section and the SJK UI's main page ([sjk-ui.md](sjk-ui.md#main-page))
-say what they are for: a full Claude plan used only for SJK, so more of the tasks Sol
-has ready can run as parallel agents. A Claude plan is billed monthly, so the goal is
-monthly ("80 € of 200 € this month") and starts again on the 1st.
+- the GitHub repository's Sponsor button, GitHub Sponsors only (Sol's choice), through
+  [.github/FUNDING.yml](../.github/FUNDING.yml), with "Sponsorships" ticked in the
+  repository's settings (General, Features);
+- Support SJK, a small line at the top left of the SJK UI's main page (since
+  26/10/2026, Sol's request; [sjk-ui.md](sjk-ui.md#main-page)): a link to each page and
+  ×, which hides it for good (`ui_supportLinks 0`; Settings, Interface, "Support SJK"
+  shows it again). Both addresses are in
+  [support_links.rs](../crates/sjk-viewer/src/support_links.rs); it asks no server
+  anything.
 
-The goal is live: Ko-fi calls the SJK hub's webhook for every payment and the hub sums
-them (the hub's `PROTOCOL.md`, "Donations"). Ko-fi has no API to read a goal, and its
-public page does not carry it, so the goal set on Ko-fi is repeated in the hub's
-configuration, which the hub operator keeps. Both the site and the client read
-`GET https://sjk.dfox.app/v1/donations/goal` (no key, readable from any origin):
+Nothing is sold: a donation brings no feature and no advantage in the game, and
+neither place promises anything for one.
 
-| Reader | Where | Without an answer |
-| --- | --- | --- |
-| Site | `DONATION.hub` at the top of [site.js](../site/assets/site.js), fetched once per visit (6 s at most) | `DONATION`'s own `url`, `goal`, `raised` and `monthly`; without JavaScript, [index.html](../site/index.html)'s "200 € a month" and its Ko-fi link |
-| Client | [donation_goal.rs](../crates/sjk-viewer/src/donation_goal.rs) through `cl_hubUrl`, every ten minutes while the main page shows | The card without numbers, Donate still opening Ko-fi |
+### The shelved goal
 
-The Ko-fi address is written in three places, all for when the hub cannot answer: the
-site's `DONATION.url` and its link in `index.html`, and the client's
-`sjk_identity::donations::DEFAULT_URL`. Changing the page means changing the three and
-the hub's configuration. `ui_donationGoal 0` hides the client's card and asks nothing.
+From 13/10/2026 the site and the main page showed a live monthly goal on Ko-fi
+("80 € of 200 € this month", for a full Claude plan used only for SJK) and offered the
+Supporter medal for more than 1 euro. Sol shelved both on 14/10/2026. What is left:
 
-A donation of more than 1 euro earns the Supporter medal
-([identity.md](identity.md#medals)): with the donor's SJK key id in the Ko-fi message
-(Settings, Network, SJK identity key, Copy key id), the hub gives it as soon as Ko-fi
-calls; without one, or in another currency, the SJK team matches it by hand. The site
-shows the medallion from `site/assets/medal-supporter.png`, a copy of the client's
-`supporter_small.png`: replace both when the art changes. The page promises nothing
-else: no feature is sold and a donation brings no advantage in the game.
+- Site: the Support SJK section and its two menu links carry `hidden`, and `site.js`
+  skips the hub (`DONATION.shelved`). To bring it back: `DONATION.shelved = false` and
+  the three `hidden` attributes in `index.html`. Its Ko-fi address is in
+  `DONATION.url` and in the section's link. The section shows the medallion from
+  `site/assets/medal-supporter.png`, a copy of the client's `supporter_small.png`:
+  replace both when the art changes.
+- Client: the goal card and its reader of the hub were removed on 26/10/2026, when
+  Support SJK took their place (`donation_goal.rs` and `sjk_identity::donations` are
+  in git history before that date). The Collection lists the Supporter medal only to
+  players who hold it (`collection_medals.rs`).
+- Hub: unchanged. Ko-fi calls its webhook for every payment and the hub sums them for
+  `GET https://sjk.dfox.app/v1/donations/goal` (the hub's `PROTOCOL.md`,
+  "Donations"). Ko-fi has no API to read a goal, so the goal is repeated in the hub's
+  configuration, which the hub operator keeps. A Ko-fi donation of more than 1 euro
+  with the donor's SJK key id in its message (Settings, Network, SJK identity key,
+  Copy key id) gives the Supporter medal ([identity.md](identity.md#medals)) as soon
+  as Ko-fi calls; without one, or in another currency, the SJK team matches it by
+  hand.
 
 ## Changelog
 
@@ -280,12 +327,36 @@ section; the tests reject a dated release from 12/10/2026 on without one, and th
 release notes' introduction may repeat it. A player who skips releases sees the recaps
 of each, so a recap must read on its own.
 
+Every release is also announced in SJK chat (Sol's rule, 25/10/2026), small ones too:
+an announcement of kind `release` with the release's version, titled "SJK <version>",
+its text (the card a click on the line opens, [hub-chat.md](hub-chat.md)) filled in
+full from the recap and the notable changes in player words, never a title alone. The
+draft is shown to Sol, then posted on the hub's host with
+`sjk-hub announce --release <version> "SJK <version>" <file>` once the release's
+download is live. Staff tools stay out of it, as they stay out of the changelog.
+
+A release that changes what a setting does, or its default, asks players to choose it
+again with a line `= <cvar>: <one sentence>` beside the recap, before the changes
+(17/10/2026), in place of a migration marker cvar of its own: the what's-new card
+opens on a "Settings to review" page listing every such setting of the releases the
+player has not seen, each with its Settings name, the sentence and a switch
+([sjk-ui.md](sjk-ui.md#whats-new-card)). `= <cvar> reset: ...` also puts the setting back
+to its default when the card is offered (once per version, `cl_whatsNewReset`), so a value every profile saved under the old
+meaning does not carry over unchosen (`cg_nameplate`, when it became See & share
+nameplates). The cvar must be an on/off row in Settings, and the sentence at most 160
+characters; the tests reject anything else. Write the line under "Unreleased" with the
+change, so it is part of the release it ships in.
+
 ## Credits
 
 [credits.txt](../crates/sjk-viewer/assets/credits.txt) feeds the client's credits
 page ([client.md](client.md#credits-page)); [CREDITS.md](../CREDITS.md) stays
 the full written record. Sol develops SJK alone since October 2026; Bishop is
-credited for JKR, the engine SJK began from, in the Origins section of both.
+credited for JKR, SJK's starting point, in the Origins section, last in both (Sol's
+decision, 18/10/2026: most of JKR's code has since been replaced). Sol's card shows
+the contributors' pull requests Sol reviewed and merged as a "REVIEWED & MERGED"
+chip beside the pull requests and commits: the client counts every "SJK #" piece
+of the other cards' history, so it needs no hand count.
 
 Credits are kept for everything (Sol's rule, 06/10/2026): every merge into
 `main` that brings someone's work updates credits.txt, CREDITS.md and the
@@ -300,7 +371,7 @@ medals the SJK team gave them, by the hub's ids (`early_contributor`;
 names. Sections are free: a later "Supporters" section is a `== Supporters`
 heading and its cards, with no code. The tests reject a card without a role, an
 unknown key, a link that is not https, an unknown medal id, a medal listed twice
-(but Bug Hunter, which counts up) or a non-ASCII character.
+(Bug Hunter included: it is held once since 21/10/2026) or a non-ASCII character.
 
 Under each card the page folds that person's whole history: every feature and
 pull request merged into `main`, with its commits. It comes from
@@ -313,7 +384,10 @@ commit with the file (`git commit --amend`), so the merge carries its own
 history and no extra commit appears in it; `--check` says whether the file is
 current. A new contributor goes into the script's `PEOPLE` (their git name and
 GitHub login) along with their card; the tests reject a person in the history
-without a card.
+without a card. The script's `QUIET` names the topics it leaves out, with every
+commit their merge brought: since 25/10/2026, Sol's hand-given Unique blades
+(`personal/thousand-cranes`, `personal/hearth`, `personal/hearth-full`), which show
+only to their holders ([unlockables.md](unlockables.md#unique-shaders)).
 
 ## Debug panel
 

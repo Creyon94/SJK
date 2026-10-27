@@ -65,6 +65,8 @@ const NAME_COLUMN: f32 = CONTROL_LEFT - LABEL_X - 30.0;
 const RESET_X: f32 = ROWS_X + ROWS_WIDTH - 22.0;
 /// A field's width, a slider's track and its number.
 const FIELD_WIDTH: f32 = 230.0;
+/// A chat kind's preview button (`chat_sounds.rs`): under half a field, a word wide.
+const PREVIEW_WIDTH: f32 = 120.0;
 const TRACK_WIDTH: f32 = 230.0;
 const NUMBER_WIDTH: f32 = 46.0;
 const TRACK_X: f32 = CONTROL_RIGHT - NUMBER_WIDTH - 18.0 - TRACK_WIDTH;
@@ -244,8 +246,7 @@ impl SettingsMenu {
             };
             slots.push((row, top));
             let open = self.dropdown.as_ref().is_some_and(|open| open.row == row);
-            let under_list = !open
-                && covered.is_some_and(|[_, y, _, height]| top + LINE > y && top < y + height);
+            let under_list = covered.is_some_and(|list| list_covers(list, top, open));
             self.sjk_row(frame, measure, row, top, under_list);
         }
         if lines.len() > visible {
@@ -284,7 +285,7 @@ impl SettingsMenu {
         if focused {
             kit::band(&mut self.ui, frame, [ROWS_X, top, ROWS_WIDTH, LINE]);
         }
-        let (label, _) = help::classic_label(setting.cvar, setting.label);
+        let (label, _) = help::classic_label(setting.cvar, crate::terms::say_static(setting.label));
         let changed = self
             .defaults
             .get(row)
@@ -332,7 +333,7 @@ impl SettingsMenu {
             FIELD_WIDTH,
             kit::CONTROL_HEIGHT,
         ];
-        match setting.kind {
+        match setting.kind() {
             ValueKind::Bool => {
                 kit::switch(
                     &mut self.ui,
@@ -383,6 +384,22 @@ impl SettingsMenu {
                     RowControl::Segment { row, index: 0 }.token(),
                 );
             }
+            // A chat kind's preview: a button that plays its chosen sound.
+            ValueKind::SoundPreview => kit::button(
+                &mut self.ui,
+                frame,
+                [
+                    CONTROL_RIGHT - PREVIEW_WIDTH,
+                    middle - kit::CONTROL_HEIGHT * 0.5,
+                    PREVIEW_WIDTH,
+                    kit::CONTROL_HEIGHT,
+                ],
+                &value,
+                false,
+                true,
+                focused,
+                row as u16,
+            ),
             // It opens a page: no list drops from it.
             ValueKind::IdentityPage
             | ValueKind::ImportPage
@@ -397,6 +414,7 @@ impl SettingsMenu {
                 false,
             ),
             ValueKind::Choice(_)
+            | ValueKind::Live(_)
             | ValueKind::Resolution
             | ValueKind::DisplayMode
             | ValueKind::HudPicker
@@ -585,7 +603,7 @@ impl SettingsMenu {
                 .and_then(|index| rail.categories.get(index))
                 .map(|(_, icon)| *icon),
         };
-        let (title, timing) = help::timing(setting.label);
+        let (title, timing) = help::timing(crate::terms::say_static(setting.label));
         let title_x = DETAIL_X + if icon.is_some() { 58.0 } else { 0.0 };
         let title_lines: Vec<&str> = wrap(title, 24).take(2).collect();
         let title_height = title_lines.len().max(1) as f32 * 38.0;
@@ -670,7 +688,7 @@ impl SettingsMenu {
                 color::TEXT,
             );
         }
-        match setting.kind {
+        match setting.kind() {
             ValueKind::Integer { min, max, .. } if min < 0 => {
                 self.fact(
                     frame,
@@ -722,7 +740,7 @@ impl SettingsMenu {
         if let Some(group) = found_in {
             self.fact(frame, &mut y, "In", format_args!("{group}"), color::TEXT);
         }
-        let source = match setting.kind {
+        let source = match setting.kind() {
             ValueKind::WheelPages => "File",
             _ => "Console",
         };
@@ -808,10 +826,10 @@ impl SettingsMenu {
                 .get(self.selected)
                 .filter(|_| self.shows(self.selected))
             {
-                keys.push(match setting.kind {
+                keys.push(match setting.kind() {
                     ValueKind::Bool => (&["Enter"][..], "switch"),
                     ValueKind::Choice(_) | ValueKind::DisplayMode | ValueKind::Quality
-                        if segment_choices(setting.kind).is_none() =>
+                        if segment_choices(setting.kind()).is_none() =>
                     {
                         (&["Enter"][..], "choices")
                     }
@@ -822,6 +840,7 @@ impl SettingsMenu {
                     ValueKind::ImportPage => (&["Enter"][..], "choose"),
                     ValueKind::GameplayFps => (&["Enter"][..], "explain"),
                     ValueKind::AssetBrowser | ValueKind::JofContent => (&["Enter"][..], "browse"),
+                    ValueKind::SoundPreview => (&["Enter"][..], "play"),
                     ValueKind::Text => (&["Enter"][..], "type"),
                     _ => (&["Left", "Right"][..], "change"),
                 });
@@ -1023,9 +1042,38 @@ const _: () = assert!(DETAIL_X + DETAIL_WIDTH <= 1824.0);
 const _: () = assert!(ROWS_TOP + VISIBLE as f32 * LINE < KEYS_Y - 20.0);
 const _: () = assert!(SEARCH[1] + SEARCH[3] < ROWS_TOP);
 
+/// Whether the open list, `list` (frame pixels), hides the control of the row whose
+/// line starts at `top`: a row's whole line, or for the open row itself only its
+/// field, which a long list pushed over its own line covers (hub report #101).
+fn list_covers([_, y, _, height]: [f32; 4], top: f32, open: bool) -> bool {
+    let (from, to) = if open {
+        let middle = top + LINE * 0.5;
+        (
+            middle - kit::CONTROL_HEIGHT * 0.5,
+            middle + kit::CONTROL_HEIGHT * 0.5,
+        )
+    } else {
+        (top, top + LINE)
+    };
+    to > y && from < y + height
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Hub report #101 (Rollembones): a list pushed over its own row hides that
+    /// row's value; a list under the field leaves it, and covers the rows below.
+    #[test]
+    fn an_open_list_hides_the_field_it_covers() {
+        let top = ROWS_TOP;
+        let field_bottom = top + LINE * 0.5 + kit::CONTROL_HEIGHT * 0.5;
+        let below = [0.0, field_bottom + 6.0, 300.0, 400.0];
+        assert!(!list_covers(below, top, true));
+        assert!(list_covers(below, top + LINE, false));
+        let over = [0.0, top, 300.0, 1_000.0];
+        assert!(list_covers(over, top, true));
+    }
     use crate::text::TextStyle;
 
     #[test]
@@ -1060,7 +1108,7 @@ mod tests {
             (
                 [1920.0, 1080.0],
                 TextStyle {
-                    scale: 1.2,
+                    scale: crate::text::style::SCALE_RANGE.1,
                     tracking: 0.1,
                 },
             ),

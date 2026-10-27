@@ -1,9 +1,28 @@
 //! Tab completion of the command or cvar name being typed (`Field_CompleteCommand`,
 //! `qcommon/common.cpp`): a unique name completes with a trailing space; several
 //! complete to their longest shared prefix and are listed in the scrollback, with
-//! descriptions while the listing is short.
+//! descriptions while the listing is short. The file argument of `exec` and the
+//! other commands in [`FILE_ARGUMENTS`] completes the same way from the files the
+//! caller lists (`Cmd_CompleteCfgName`, `qcommon/cmd.cpp`), and the map argument of
+//! `devmap` from the maps it lists (`SV_CompleteMapName`, `server/sv_ccmds.cpp`).
 
 use super::{ConsoleLineKind, Shell, ascii_starts_with_ignore_case, builtin_commands};
+
+/// Commands whose first argument names a file, with the extension of the files it
+/// completes from, as the completion functions `Cmd_Init`, `Com_Init` and
+/// `SV_AddOperatorCommands` register. [`MAP_EXTENSION`] asks for maps.
+const FILE_ARGUMENTS: &[(&str, &str)] = &[
+    ("exec", "cfg"),
+    ("execq", "cfg"),
+    ("writeconfig", "cfg"),
+    ("write", "cfg"),
+    ("devmap", MAP_EXTENSION),
+];
+
+/// The extension a map argument asks the caller's file list for. The caller answers
+/// with map names as `devmap` takes them: the path under `maps/` without the
+/// extension (`mp/ffa3`).
+pub const MAP_EXTENSION: &str = "bsp";
 
 /// Longest cvar value shown in a completion listing, as `TRUNCATE_LENGTH`.
 const LISTED_VALUE_CHARS: usize = 64;
@@ -46,9 +65,38 @@ impl Shell {
     /// later one, which nothing strips. Returns the completed line, or `None` when
     /// nothing matches or the line already continues past the name.
     pub fn complete_line(&mut self, line: &str, key: CompletionKey) -> Option<String> {
-        let typed = typed_name(line)?;
-        let (name, listing) = self.completion(&line[typed.name..], key)?;
-        let completed = format!("{}{name}", &line[..typed.replaced]);
+        self.complete_line_with_files(line, key, |_| Vec::new())
+    }
+
+    /// [`Self::complete_line`], and on Tab also the file argument of `exec` and the
+    /// other commands in `FILE_ARGUMENTS`: `files` lists the names, with their
+    /// extension, of the files of the given extension the command can open, highest
+    /// priority first. Enter leaves arguments alone, as `Field_CompleteCommand` does.
+    pub fn complete_line_with_files(
+        &mut self,
+        line: &str,
+        key: CompletionKey,
+        files: impl FnOnce(&str) -> Vec<String>,
+    ) -> Option<String> {
+        let (replaced, name, listing) = match typed_file_argument(line) {
+            Some(argument) if key == CompletionKey::Tab => {
+                let names = files(argument.extension);
+                let typed = &line[argument.start..];
+                let (name, listing) = if argument.extension == MAP_EXTENSION {
+                    map_completion(typed, &names)?
+                } else {
+                    file_completion(typed, &names)?
+                };
+                (argument.start, name, listing)
+            }
+            Some(_) => return None,
+            None => {
+                let typed = typed_name(line)?;
+                let (name, listing) = self.completion(&line[typed.name..], key)?;
+                (typed.replaced, name, listing)
+            }
+        };
+        let completed = format!("{}{name}", &line[..replaced]);
         if !listing.is_empty() {
             self.push_line(
                 ConsoleLineKind::Input,
@@ -127,7 +175,7 @@ impl Shell {
             .map(|cvar| Candidate {
                 name: &cvar.name,
                 description: &cvar.description,
-                value: Some(listed_value(cvar.value.as_text())),
+                value: Some(listed_value(cvar.shown_value())),
             })
             .collect::<Vec<_>>();
         cvars.sort_by_cached_key(|candidate| candidate.name.to_ascii_lowercase());
@@ -152,23 +200,7 @@ fn typed_name(line: &str) -> Option<TypedName> {
     // The splitter's own view of the line; normalizing only rewrites the first
     // command's argument, so the name at the end is a suffix of both spellings.
     let normalized = crate::key_names::normalize_stock_backslash(line);
-    let mut segment = 0;
-    let mut quoted = false;
-    let mut escaped = false;
-    for (index, byte) in normalized.bytes().enumerate() {
-        if escaped {
-            escaped = false;
-        } else if byte == b'\\' && quoted {
-            escaped = true;
-        } else if byte == b'"' {
-            quoted = !quoted;
-        } else if byte == b';' && !quoted {
-            segment = index + 1;
-        }
-    }
-    if quoted || escaped {
-        return None;
-    }
+    let segment = last_command(&normalized)?;
     let command = normalized[segment..].trim_start_matches(|c: char| c.is_ascii_whitespace());
     let name = command.strip_prefix(['/', '\\']).unwrap_or(command);
     let continues = name
@@ -186,6 +218,121 @@ fn typed_name(line: &str) -> Option<TypedName> {
             line.len() - command.len()
         },
     })
+}
+
+/// Start of the last command on `line`: after its last `;` that
+/// [`split_commands`](crate::split_commands) splits on. `None` while a quote is open.
+fn last_command(line: &str) -> Option<usize> {
+    let mut segment = 0;
+    let mut quoted = false;
+    let mut escaped = false;
+    for (index, byte) in line.bytes().enumerate() {
+        if escaped {
+            escaped = false;
+        } else if byte == b'\\' && quoted {
+            escaped = true;
+        } else if byte == b'"' {
+            quoted = !quoted;
+        } else if byte == b';' && !quoted {
+            segment = index + 1;
+        }
+    }
+    (!quoted && !escaped).then_some(segment)
+}
+
+/// The file argument being typed to a command in [`FILE_ARGUMENTS`].
+struct TypedFileArgument {
+    /// Byte offset in the line of the argument; it runs to the end of the line.
+    start: usize,
+    /// Extension of the files it completes from.
+    extension: &'static str,
+}
+
+/// The first argument of the last command on `line` when that command takes a file
+/// and nothing follows the argument. The argument may still be empty.
+fn typed_file_argument(line: &str) -> Option<TypedFileArgument> {
+    let command = line[last_command(line)?..].trim_start_matches(|c: char| c.is_ascii_whitespace());
+    let command = command.strip_prefix(['/', '\\']).unwrap_or(command);
+    let (name, rest) = command.split_once(|c: char| c.is_ascii_whitespace())?;
+    let argument = rest.trim_start_matches(|c: char| c.is_ascii_whitespace());
+    if argument
+        .bytes()
+        .any(|byte| byte.is_ascii_whitespace() || byte == b'"')
+    {
+        return None;
+    }
+    let &(_, extension) = FILE_ARGUMENTS
+        .iter()
+        .find(|(command, _)| command.eq_ignore_ascii_case(name))?;
+    Some(TypedFileArgument {
+        start: line.len() - argument.len(),
+        extension,
+    })
+}
+
+/// The completed file name and, when it is not unique, the lines listing the
+/// candidates, as `PrintFileMatches` (`qcommon/common.cpp`) prints them. A name met
+/// twice, in any letter case, is listed once, as first met. A unique name replaces
+/// the typed text; several only extend it, keeping the letter case typed so far.
+fn file_completion(prefix: &str, names: &[String]) -> Option<(String, Vec<String>)> {
+    let mut candidates = names
+        .iter()
+        .filter(|name| ascii_starts_with_ignore_case(name, prefix))
+        .collect::<Vec<_>>();
+    // A stable sort keeps the first met of the names equal without case before
+    // the others, so dedup keeps it.
+    candidates.sort_by_cached_key(|name| name.to_ascii_lowercase());
+    candidates.dedup_by(|later, earlier| later.eq_ignore_ascii_case(earlier));
+    if let [only] = candidates.as_slice() {
+        return Some((format!("{only} "), Vec::new()));
+    }
+    let shared = shared_prefix(candidates.iter().map(|name| name.as_str()))?;
+    // Every candidate starts with `prefix` without case, so its bytes end on a
+    // boundary of `shared` too.
+    let completed = format!("{prefix}{}", &shared[prefix.len()..]);
+    let listing = candidates
+        .iter()
+        .map(|name| format!("^9File  ^7{name}"))
+        .collect();
+    Some((completed, listing))
+}
+
+/// The completed map name and, when it is not unique, the lines listing the
+/// candidates. A map matches when its name starts with `prefix`, or, for a prefix
+/// without a `/`, when the name after its folder does: `siege_ho` finds
+/// `mp/siege_hoth`. A unique map replaces the typed text; several extend it to their
+/// shared start when that still holds what was typed, and are listed as `Map` rows.
+fn map_completion(prefix: &str, names: &[String]) -> Option<(String, Vec<String>)> {
+    fn base(name: &str) -> &str {
+        name.rsplit_once('/').map_or(name, |(_, base)| base)
+    }
+    let by_base = !prefix.contains('/');
+    let mut candidates = names
+        .iter()
+        .filter(|name| {
+            ascii_starts_with_ignore_case(name, prefix)
+                || (by_base && ascii_starts_with_ignore_case(base(name), prefix))
+        })
+        .collect::<Vec<_>>();
+    candidates.sort_by_cached_key(|name| name.to_ascii_lowercase());
+    candidates.dedup_by(|later, earlier| later.eq_ignore_ascii_case(earlier));
+    if let [only] = candidates.as_slice() {
+        return Some((format!("{only} "), Vec::new()));
+    }
+    let shared = shared_prefix(candidates.iter().map(|name| name.as_str()))?;
+    let completed = if ascii_starts_with_ignore_case(shared, prefix) {
+        format!("{prefix}{}", &shared[prefix.len()..])
+    } else if ascii_starts_with_ignore_case(base(shared), prefix) {
+        // Every match is by its name after the folder, and all are in one folder.
+        shared.to_owned()
+    } else {
+        prefix.to_owned()
+    };
+    let listing = candidates
+        .iter()
+        .map(|name| format!("^9Map   ^7{name}"))
+        .collect();
+    Some((completed, listing))
 }
 
 /// Longest case-insensitive prefix shared by every name, spelled as the first.
@@ -260,6 +407,123 @@ mod tests {
                 "^9Cvar  ^7con_scale = ^9\"^71.0^9\"^7",
                 "^2      Console size",
                 "^9Cvar  ^7con_style = ^9\"^71.0^9\"^7",
+            ]
+        );
+    }
+
+    fn cfgs(extension: &str) -> Vec<String> {
+        assert_eq!(extension, "cfg");
+        ["moj.cfg", "Mod.cfg", "autoexec.cfg", "MOJ.cfg"]
+            .map(str::to_owned)
+            .to_vec()
+    }
+
+    #[test]
+    fn exec_completes_a_unique_cfg_name() {
+        let mut shell = shell();
+        let completed = shell.complete_line_with_files("exec mo", CompletionKey::Tab, cfgs);
+        assert_eq!(completed.as_deref(), Some("exec mo"));
+        let completed = shell.complete_line_with_files("/exec mo", CompletionKey::Tab, cfgs);
+        assert_eq!(completed.as_deref(), Some("/exec mo"));
+        let completed =
+            shell.complete_line_with_files("echo x; execq MOJ", CompletionKey::Tab, cfgs);
+        assert_eq!(completed.as_deref(), Some("echo x; execq moj.cfg "));
+        let completed = shell.complete_line_with_files("exec a", CompletionKey::Tab, cfgs);
+        assert_eq!(completed.as_deref(), Some("exec autoexec.cfg "));
+    }
+
+    #[test]
+    fn exec_lists_the_cfgs_it_could_complete_to() {
+        let mut shell = shell();
+        let completed = shell.complete_line_with_files("exec ", CompletionKey::Tab, cfgs);
+        assert_eq!(completed.as_deref(), Some("exec "));
+        let lines: Vec<_> = shell.lines().map(|line| line.text.as_str()).collect();
+        assert_eq!(
+            lines,
+            [
+                "]exec ",
+                "^9File  ^7autoexec.cfg",
+                "^9File  ^7Mod.cfg",
+                "^9File  ^7moj.cfg",
+            ]
+        );
+    }
+
+    #[test]
+    fn file_arguments_complete_only_on_tab_and_only_the_first_argument() {
+        let mut shell = shell();
+        for line in ["exec moj.cfg x", "exec \"mo", "bind mo"] {
+            assert_eq!(
+                shell.complete_line_with_files(line, CompletionKey::Tab, cfgs),
+                None,
+                "{line}"
+            );
+        }
+        assert_eq!(
+            shell.complete_line_with_files("exec mo", CompletionKey::Enter, cfgs),
+            None
+        );
+        assert_eq!(
+            shell.complete_line_with_files("exec nothing", CompletionKey::Tab, cfgs),
+            None
+        );
+    }
+
+    fn maps(extension: &str) -> Vec<String> {
+        assert_eq!(extension, super::MAP_EXTENSION);
+        [
+            "mp/ffa3",
+            "mp/siege_hoth",
+            "mp/siege_desert",
+            "sjk_arena1",
+            "mp/duel1",
+        ]
+        .map(str::to_owned)
+        .to_vec()
+    }
+
+    #[test]
+    fn devmap_completes_a_map_by_its_name_after_the_folder() {
+        let mut shell = shell();
+        let completed = shell.complete_line_with_files("devmap siege_ho", CompletionKey::Tab, maps);
+        assert_eq!(completed.as_deref(), Some("devmap mp/siege_hoth "));
+        let completed = shell.complete_line_with_files("devmap mp/FF", CompletionKey::Tab, maps);
+        assert_eq!(completed.as_deref(), Some("devmap mp/ffa3 "));
+        let completed = shell.complete_line_with_files("devmap sjk", CompletionKey::Tab, maps);
+        assert_eq!(completed.as_deref(), Some("devmap sjk_arena1 "));
+        let completed = shell.complete_line_with_files("devmap siege", CompletionKey::Tab, maps);
+        assert_eq!(completed.as_deref(), Some("devmap mp/siege_"));
+        assert_eq!(
+            shell.complete_line_with_files("devmap nothing", CompletionKey::Tab, maps),
+            None
+        );
+    }
+
+    #[test]
+    fn devmap_keeps_what_was_typed_when_matches_are_in_several_folders() {
+        let mut shell = shell();
+        let maps = |_: &str| ["mp/duel1", "jof/duel_arena"].map(str::to_owned).to_vec();
+        let completed = shell.complete_line_with_files("devmap duel", CompletionKey::Tab, maps);
+        assert_eq!(completed.as_deref(), Some("devmap duel"));
+        let completed = shell.complete_line_with_files("devmap jof/", CompletionKey::Tab, maps);
+        assert_eq!(completed.as_deref(), Some("devmap jof/duel_arena "));
+    }
+
+    #[test]
+    fn devmap_lists_every_map_on_tab() {
+        let mut shell = shell();
+        let completed = shell.complete_line_with_files("devmap ", CompletionKey::Tab, maps);
+        assert_eq!(completed.as_deref(), Some("devmap "));
+        let lines: Vec<_> = shell.lines().map(|line| line.text.as_str()).collect();
+        assert_eq!(
+            lines,
+            [
+                "]devmap ",
+                "^9Map   ^7mp/duel1",
+                "^9Map   ^7mp/ffa3",
+                "^9Map   ^7mp/siege_desert",
+                "^9Map   ^7mp/siege_hoth",
+                "^9Map   ^7sjk_arena1",
             ]
         );
     }

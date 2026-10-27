@@ -43,6 +43,9 @@ const FIELD_Y: f32 = 900.0;
 const FIELD_WIDTH: f32 = 936.0;
 const GIF_X: f32 = LIST_X + FIELD_WIDTH + 16.0;
 const SEND_X: f32 = LIST_X + 1_060.0;
+/// Send only in SJK, under Send and as big; Retry then goes left of it.
+const ONLY_Y: f32 = FIELD_Y + 52.0;
+const RETRY_BESIDE_X: f32 = SEND_X - 132.0;
 /// The keys' line.
 const KEYS_Y: f32 = 1_010.0;
 /// The who-is-online window: its left, top and width (its height follows what it
@@ -93,6 +96,9 @@ struct Laid {
     /// does, there is no colon, and the text is in the tier's colour.
     tier: Option<&'static crate::holocrons::Tier>,
     drop: bool,
+    /// The SJK team's line (`official.rs`): "SJK" in gold, its mark where the tick goes,
+    /// the title in bold; a click opens it.
+    official: Option<crate::official::words::Look>,
     /// The message's GIF ([`crate::chat_gifs`]) and what it shows this frame.
     gif: Option<crate::chat_gifs::Shown>,
 }
@@ -131,8 +137,9 @@ fn lay(message: &ChatMessage, inputs: &Inputs<'_>, measure: &Measure<'_>, s: f32
     // tier's gem for the tick, no colon.
     let drop = message.holocron.is_some();
     let words = crate::holocrons::line::words(message);
+    let official = crate::official::words::words(message, "Read more");
     let mark = crate::ui_renderer::mark_texture(message.verified, message.trust).filter(|_| !drop);
-    let tick = if mark.is_some() || drop {
+    let tick = if mark.is_some() || drop || official.is_some() {
         sjk_chat_look::tick_room(NAME_SIZE)
     } else {
         0.0
@@ -153,18 +160,26 @@ fn lay(message: &ChatMessage, inputs: &Inputs<'_>, measure: &Measure<'_>, s: f32
         sjk_chat_look::emoji_gap(NAME_SIZE) + width(&emoji, NAME_SIZE, TextFace::Regular)
     };
     let indent = jof + name_width + emoji_width + tick + colon;
-    let staff = if message.staff { "Staff  ·  " } else { "" };
+    let staff = if message.creator {
+        "Creator  ·  "
+    } else if message.staff {
+        "Staff  ·  "
+    } else {
+        ""
+    };
     let when = ago(u64::try_from(message.at).unwrap_or(0), inputs.now);
     let meta = format!("{staff}{when}");
     let meta_room = width(&meta, META_SIZE, TextFace::Regular) + 24.0;
-    let muted = inputs.muted.contains(&message.key_id);
+    let muted = inputs.muted.contains(&message.key_id) && official.is_none();
     let mut gif = None;
-    let text = if muted {
-        "Muted on this PC".to_owned()
+    let text = if let Some(official) = &official {
+        official.text.clone()
+    } else if muted {
+        "Blocked on this PC".to_owned()
     } else if let Some(words) = &words {
         words.rest.clone()
     } else if drop {
-        "found a holocron.".to_owned()
+        crate::terms::say("found a holocron.").into_owned()
     } else {
         // A muted sender's GIF is never asked for: the text above says so instead.
         let (text, id) =
@@ -193,6 +208,7 @@ fn lay(message: &ChatMessage, inputs: &Inputs<'_>, measure: &Measure<'_>, s: f32
         muted,
         tier: words.map(|words| words.tier),
         drop,
+        official: official.map(|official| official.look),
         gif,
     }
 }
@@ -296,6 +312,7 @@ impl Panel {
         self.chosen(&frame, inputs, measure, bottom + CHOSEN_GAP);
         self.keys(&frame);
         self.card(&frame, inputs, measure, viewport);
+        self.only_hover(&frame, inputs);
         if !self.order.contains(&self.focus) {
             self.focus = FIELD_TOKEN;
         }
@@ -364,6 +381,7 @@ impl Panel {
     ) -> Option<Shows> {
         let s = frame.s;
         self.shown.messages.clear();
+        self.shown.officials.clear();
         let empty = std::collections::VecDeque::new();
         let messages = inputs.chat.map_or(&empty, |chat| &chat.messages);
         self.shown.total = messages.len();
@@ -411,25 +429,30 @@ impl Panel {
             if self.focus == token || self.selected == Some(message.id) {
                 kit::band(&mut self.ui, frame, row);
             }
-            self.message(frame, laid, y);
+            self.message(frame, laid, y, measure);
             self.ui
                 .hit_region(token, frame.rect(row[0], row[1], row[2], row[3]));
             // The name over its row: resting the pointer on it shows the card.
             let name = frame.rect(LIST_X + laid.jof, y, laid.name_width + 2.0, NAME_ROW - 2.0);
             self.ui.hit_region(NAME_BASE + index as u16, name);
-            if self.ui.token_hovered(NAME_BASE + index as u16) {
+            if self.ui.token_hovered(NAME_BASE + index as u16) && laid.official.is_none() {
                 let person = crate::sender_card::Person {
                     name: laid.name.clone(),
                     key_id: Some(message.key_id.clone()),
                     hub_name: None,
                     verified: message.verified,
                     staff: message.staff,
+                    creator: message.creator,
                     trust: message.trust,
                     emoji: laid.emoji.clone(),
                     medals: crate::medals::Medals::default(),
                     place: crate::sender_card::Place::Unknown,
                     avatar: None,
                     note: None,
+                    safety: false,
+                    report: false,
+                    trade: offers_trade(&message.key_id, &laid.name),
+                    map_block: None,
                 };
                 hovered = Some((CardSource::Message(message.id), person, name));
             }
@@ -437,6 +460,9 @@ impl Panel {
             self.shown
                 .messages
                 .push((message.id, message.key_id.clone()));
+            self.shown
+                .officials
+                .push(laid.official.map(|look| look.target));
             y += tall;
         }
         if first > 0 {
@@ -470,7 +496,7 @@ impl Panel {
     /// name, the tick, the
     /// colon and the text going on after them, then its other rows from the left
     /// edge, and what is said of it on the right of the first row.
-    fn message(&mut self, frame: &Frame, laid: &Laid, y: f32) {
+    fn message(&mut self, frame: &Frame, laid: &Laid, y: f32, measure: &Measure<'_>) {
         let s = frame.s;
         let first = frame.rect(LIST_X, y, LIST_WIDTH, NAME_ROW - 2.0);
         if let Some(clan) = crate::jof_tag::clan(&laid.name) {
@@ -491,7 +517,11 @@ impl Panel {
             format_args!("{}", laid.name),
             frame.rect(LIST_X + laid.jof, y, laid.name_width + 2.0, NAME_ROW - 2.0),
             NAME_SIZE * s,
-            color::TEXT,
+            if laid.official.is_some() {
+                sjk_chat_look::ACCENT
+            } else {
+                color::TEXT
+            },
             FontWeight::Semibold,
             TextAlign::Start,
         );
@@ -510,7 +540,32 @@ impl Panel {
             );
             x += laid.emoji_width;
         }
-        if let Some(tier) = laid.tier {
+        if let Some(look) = laid.official {
+            let [left, _] = frame.point(x, y);
+            let mut gift = None;
+            sjk_chat_look::official_mark(
+                self.ui.draw_list_mut(),
+                look,
+                left,
+                first.y + first.height * 0.5,
+                NAME_SIZE * s,
+                1.0,
+                |c, rect, colour| gift = Some((c, rect, colour)),
+            );
+            if let Some((c, rect, colour)) = gift {
+                text(
+                    &mut self.ui,
+                    TextFamily::Body,
+                    format_args!("{c}"),
+                    rect,
+                    NAME_SIZE * s * 1.1,
+                    colour,
+                    FontWeight::Regular,
+                    TextAlign::Start,
+                );
+            }
+            x += sjk_chat_look::tick_room(NAME_SIZE);
+        } else if let Some(tier) = laid.tier {
             let [left, _] = frame.point(x, y);
             sjk_chat_look::gem_mark(
                 self.ui.draw_list_mut(),
@@ -583,16 +638,54 @@ impl Panel {
                     BODY_ROW - 2.0,
                 )
             };
-            text(
-                &mut self.ui,
-                TextFamily::Body,
-                format_args!("{}", &laid.text[range.clone()]),
-                rect,
-                TEXT_SIZE * s,
-                colour,
-                FontWeight::Regular,
-                TextAlign::Start,
-            );
+            let shown = &laid.text[range.clone()];
+            // The SJK team's title, in bold where it starts the first row.
+            let bold = laid
+                .official
+                .map_or(0, |look| look.bold)
+                .saturating_sub(range.start)
+                .min(shown.len());
+            if bold > 0 && shown.is_char_boundary(bold) {
+                let (title, rest) = shown.split_at(bold);
+                text(
+                    &mut self.ui,
+                    TextFamily::Body,
+                    format_args!("{title}"),
+                    rect,
+                    TEXT_SIZE * s,
+                    colour,
+                    FontWeight::Semibold,
+                    TextAlign::Start,
+                );
+                let after = measure.width(title, TEXT_SIZE * s, TextFace::Semibold);
+                let rest_rect = sjk_ui::Rect::new(
+                    rect.x + after,
+                    rect.y,
+                    (rect.width - after).max(1.0),
+                    rect.height,
+                );
+                text(
+                    &mut self.ui,
+                    TextFamily::Body,
+                    format_args!("{rest}"),
+                    rest_rect,
+                    TEXT_SIZE * s,
+                    colour,
+                    FontWeight::Regular,
+                    TextAlign::Start,
+                );
+            } else {
+                text(
+                    &mut self.ui,
+                    TextFamily::Body,
+                    format_args!("{shown}"),
+                    rect,
+                    TEXT_SIZE * s,
+                    colour,
+                    FontWeight::Regular,
+                    TextAlign::Start,
+                );
+            }
         }
         if let Some(shown) = laid.gif {
             let under = y + NAME_ROW + laid.rows.len().saturating_sub(1) as f32 * BODY_ROW;
@@ -858,12 +951,17 @@ impl Panel {
                 hub_name: None,
                 verified: row.verified,
                 staff: row.staff,
+                creator: row.creator,
                 trust: row.trust,
                 emoji: row.emoji.clone(),
                 medals: crate::medals::Medals::default(),
                 place: crate::sender_card::Place::Unknown,
                 avatar: version,
                 note: Some(note),
+                safety: false,
+                report: false,
+                trade: offers_trade(&row.key_id, &row.name),
+                map_block: None,
             };
             (CardSource::Person(row.key_id.clone()), person, square)
         })
@@ -902,26 +1000,62 @@ impl Panel {
         );
     }
 
+    /// Send only in SJK's hover card, over the page: why it should stay rare.
+    fn only_hover(&mut self, frame: &Frame, inputs: &Inputs<'_>) {
+        let now = Instant::now();
+        self.hover.follow(self.ui.hovered(), now);
+        let Some(words) = inputs.said_in_all else {
+            return;
+        };
+        let Some((ONLY_TOKEN, alpha)) = self.hover.showing(now) else {
+            return;
+        };
+        let Some(anchor) = self.ui.rect_for(ONLY_TOKEN) else {
+            return;
+        };
+        let card = crate::menu::sjk::hover::Card {
+            title: words.only_title.to_owned(),
+            colour: color::EMBER,
+            lines: words
+                .only_why
+                .iter()
+                .enumerate()
+                .map(|(index, line)| {
+                    if index == 1 {
+                        crate::menu::sjk::hover::Line::how(*line)
+                    } else {
+                        crate::menu::sjk::hover::Line::status(*line)
+                    }
+                })
+                .collect(),
+        };
+        crate::menu::sjk::hover::draw(&mut self.ui, frame, anchor, &card, alpha);
+    }
+
     /// The field, Send, and what became of the last message.
     fn composer(&mut self, frame: &Frame, inputs: &Inputs<'_>) {
         let s = frame.s;
         let focused = self.focus == FIELD_TOKEN;
-        let caret = focused && (self.epoch.elapsed().as_millis() / 500).is_multiple_of(2);
-        let count = self.draft.chars().count();
-        let shown = if count > 96 {
-            let tail: String = self.draft.chars().skip(count - 93).collect();
-            format!("...{tail}")
-        } else if self.draft.is_empty() && !focused {
+        let blink = (self.epoch.elapsed().as_millis() / 500).is_multiple_of(2);
+        let at = self.caret.cursor(&self.draft);
+        // The caret blinks at the end; inside the text it stays, so the text after it
+        // does not shift every half second.
+        let mark = if focused && (blink || at < self.draft.len()) {
+            "|"
+        } else {
+            ""
+        };
+        let shown = if self.draft.is_empty() && !focused {
             "Say something to every SJK player".to_owned()
         } else {
-            self.draft.clone()
+            crate::sjk_chat_field::with_caret(&self.draft, at, mark, 96)
         };
         let field = [LIST_X, FIELD_Y, FIELD_WIDTH, 46.0];
         kit::field(
             &mut self.ui,
             frame,
             field,
-            format_args!("{shown}{}", if caret { "|" } else { "" }),
+            format_args!("{shown}"),
             focused,
             false,
         );
@@ -957,6 +1091,22 @@ impl Panel {
             SEND_TOKEN,
         );
         self.order.push(SEND_TOKEN);
+        // Where a mod says SJK chat in this server's All chat: Send only in SJK, under
+        // Send and as big, for every player; its hover card says to keep it rare.
+        self.only_for_staff = inputs.said_in_all.is_some() && inputs.staff;
+        if let Some(words) = inputs.said_in_all {
+            kit::button(
+                &mut self.ui,
+                frame,
+                [SEND_X, ONLY_Y, 120.0, 42.0],
+                words.only,
+                false,
+                can_send,
+                self.focus == ONLY_TOKEN,
+                ONLY_TOKEN,
+            );
+            self.order.push(ONLY_TOKEN);
+        }
         let notice = inputs
             .chat
             .and_then(|chat| chat.outcome.as_ref())
@@ -964,7 +1114,7 @@ impl Panel {
             .map(|outcome| outcome.message.as_str());
         let line = match notice {
             Some(why) => format!("Not sent: {why}"),
-            None => format!("{count} of {DRAFT_MAX}"),
+            None => format!("{} of {DRAFT_MAX}", self.draft.chars().count()),
         };
         text(
             &mut self.ui,
@@ -985,7 +1135,16 @@ impl Panel {
             kit::button(
                 &mut self.ui,
                 frame,
-                [SEND_X, FIELD_Y + 52.0, 120.0, 34.0],
+                [
+                    if inputs.said_in_all.is_some() {
+                        RETRY_BESIDE_X
+                    } else {
+                        SEND_X
+                    },
+                    FIELD_Y + 52.0,
+                    120.0,
+                    34.0,
+                ],
                 "Retry",
                 false,
                 true,
@@ -996,7 +1155,80 @@ impl Panel {
         }
     }
 
-    /// The chosen message's sender and what can be done: Mute here, Ban 24 h for a
+    /// The players blocked on this PC, each with Unblock, while no message is chosen:
+    /// as many as there is room for above the keys' line, the console's `block` listing
+    /// the rest.
+    fn blocked_list(&mut self, frame: &Frame, inputs: &Inputs<'_>, top: f32) {
+        const ROW: f32 = 44.0;
+        if inputs.blocked.is_empty() {
+            return;
+        }
+        let s = frame.s;
+        let room = ((KEYS_Y - 40.0 - top - 30.0) / ROW).max(0.0) as usize;
+        let shown = inputs.blocked.len().min(room).min(UNBLOCK_SHOWN);
+        text(
+            &mut self.ui,
+            TextFamily::Body,
+            format_args!("Blocked on this PC ({})", inputs.blocked.len()),
+            frame.rect(SIDE_X, top, SIDE_WIDTH, 24.0),
+            17.0 * s,
+            color::TEXT,
+            FontWeight::Semibold,
+            TextAlign::Start,
+        );
+        for (index, blocked) in inputs.blocked.iter().take(shown).enumerate() {
+            let y = top + 32.0 + index as f32 * ROW;
+            let token = UNBLOCK_BASE + index as u16;
+            let name = name_for_display(&blocked.name);
+            let name = if name.trim().is_empty() {
+                "(no name)".into()
+            } else {
+                name
+            };
+            text(
+                &mut self.ui,
+                TextFamily::Body,
+                format_args!("{name}"),
+                frame.rect(SIDE_X, y + 8.0, SIDE_WIDTH - 160.0, 24.0),
+                16.0 * s,
+                color::TEXT,
+                FontWeight::Regular,
+                TextAlign::Start,
+            );
+            kit::button(
+                &mut self.ui,
+                frame,
+                [SIDE_X + SIDE_WIDTH - 140.0, y, 140.0, 36.0],
+                "Unblock",
+                false,
+                true,
+                self.focus == token,
+                token,
+            );
+            self.order.push(token);
+            self.shown.blocked.push(blocked.clone());
+        }
+        let more = inputs.blocked.len() - shown;
+        if more > 0 {
+            text(
+                &mut self.ui,
+                TextFamily::Body,
+                format_args!("{more} more: block in the console lists them all"),
+                frame.rect(
+                    SIDE_X,
+                    top + 32.0 + shown as f32 * ROW + 4.0,
+                    SIDE_WIDTH,
+                    22.0,
+                ),
+                15.0 * s,
+                color::QUIET,
+                FontWeight::Regular,
+                TextAlign::Start,
+            );
+        }
+    }
+
+    /// The chosen message's sender and what can be done: Block here, Ban 24 h for a
     /// sender the hub does not vouch for when it vouches for the player, and for staff
     /// Delete, Lift chat ban and Mute at the hub.
     fn chosen(&mut self, frame: &Frame, inputs: &Inputs<'_>, measure: &Measure<'_>, top: f32) {
@@ -1011,16 +1243,21 @@ impl Panel {
         );
         self.shown.chosen_bannable = false;
         let message = self.selected.and_then(|id| {
-            inputs
-                .chat
-                .and_then(|chat| chat.messages.iter().find(|message| message.id == id))
+            inputs.chat.and_then(|chat| {
+                // The SJK team's lines have no sender to act on.
+                chat.messages
+                    .iter()
+                    .find(|message| message.id == id && message.official.is_none())
+            })
         });
         self.shown.chosen_gif = None;
+        self.shown.chosen_source = None;
+        self.shown.blocked.clear();
         let Some(message) = message else {
             self.shown.chosen = None;
             for (row, line) in [
                 "Choose a message (Up from the field, or a click)",
-                "to mute its sender on this PC.",
+                "to block its sender on this PC.",
             ]
             .into_iter()
             .enumerate()
@@ -1036,6 +1273,7 @@ impl Panel {
                     TextAlign::Start,
                 );
             }
+            self.blocked_list(frame, inputs, top + 98.0);
             return;
         };
         let muted = inputs.muted.contains(&message.key_id);
@@ -1067,28 +1305,16 @@ impl Panel {
                 1.0,
             );
         }
-        // The player's own key stays off screen, on their own messages too.
-        if let Some(key) = crate::player_identity::printable_key_id(&message.key_id) {
-            text(
-                &mut self.ui,
-                TextFamily::Body,
-                format_args!("Key id {key}"),
-                frame.rect(SIDE_X, top + 66.0, SIDE_WIDTH, 22.0),
-                15.0 * s,
-                color::MUTED,
-                FontWeight::Regular,
-                TextAlign::Start,
-            );
-        }
+        // No key id here: key ids never show in the game.
         let mut y = top + 110.0;
         kit::button(
             &mut self.ui,
             frame,
             [SIDE_X, y, 240.0, 42.0],
             if muted {
-                "Unmute on this PC"
+                "Unblock on this PC"
             } else {
-                "Mute on this PC"
+                "Block on this PC"
             },
             false,
             true,
@@ -1096,7 +1322,7 @@ impl Panel {
             MUTE_TOKEN,
         );
         self.order.push(MUTE_TOKEN);
-        let quiet = "Hides their chat, model, sabers and sounds on this PC.";
+        let quiet = "Hides their chat, model, sabers, sounds and emotes on this PC.";
         let under = frame.rect(SIDE_X, y + 50.0, SIDE_WIDTH, 22.0);
         let bannable = crate::chat_ban::offered(
             Some(&message.key_id),
@@ -1173,6 +1399,23 @@ impl Panel {
             // Staff's part goes under the button, as far below it as under Mute's line.
             y = at - 30.0;
         }
+        if !muted && let Some((id, _)) = crate::chat_gifs::link::find(&message.text) {
+            let at = y + 104.0;
+            let token = super::gif_sources::OPEN;
+            kit::button(
+                &mut self.ui,
+                frame,
+                [SIDE_X, at, 300.0, 42.0],
+                "Manage GIF source...",
+                false,
+                true,
+                self.focus == token,
+                token,
+            );
+            self.order.push(token);
+            self.shown.chosen_source = Some(id);
+            y = at - 30.0;
+        }
         if !inputs.staff {
             return;
         }
@@ -1243,20 +1486,42 @@ impl Panel {
     fn follow_card(&mut self, hovered: Option<Shows>) {
         match hovered {
             Some((source, person, anchor)) => match &mut self.card {
-                Some(card) if card.source == source => card.anchor = anchor,
+                Some(card) if card.source == source => {
+                    card.anchor = anchor;
+                    card.left = None;
+                }
                 _ => {
                     self.card = Some(Hovered {
                         source,
                         person,
                         anchor,
                         placed: false,
+                        left: None,
                     });
                 }
             },
-            None if [CARD_TOKEN, CARD_MUTE_TOKEN, CARD_BAN_TOKEN]
-                .into_iter()
-                .any(|token| self.ui.token_hovered(token)) => {}
-            None => self.card = None,
+            None if [
+                CARD_TOKEN,
+                CARD_MUTE_TOKEN,
+                CARD_BAN_TOKEN,
+                CARD_TRADE_TOKEN,
+            ]
+            .into_iter()
+            .any(|token| self.ui.token_hovered(token)) =>
+            {
+                if let Some(card) = &mut self.card {
+                    card.left = None;
+                }
+            }
+            // Off both: it waits a moment for the pointer on its way to the card.
+            None => {
+                if let Some(card) = &mut self.card {
+                    let left = *card.left.get_or_insert_with(std::time::Instant::now);
+                    if left.elapsed() >= CARD_GRACE {
+                        self.card = None;
+                    }
+                }
+            }
         }
     }
 
@@ -1279,7 +1544,7 @@ impl Panel {
             .is_some_and(|key| inputs.muted.contains(key));
         self.shown.card_muted = muted;
         let s = frame.s;
-        let size = crate::sender_card::size(&card.person, s);
+        let size = crate::sender_card::size(&card.person, false, s);
         // A player of the who-is-online window has their card left of the window, over
         // the chat's quiet top, rather than over the window's other faces (text draws
         // over every shape, so a card over them would show their initials through it).
@@ -1312,6 +1577,13 @@ impl Panel {
                 card: CARD_TOKEN,
                 mute: CARD_MUTE_TOKEN,
                 ban: CARD_BAN_TOKEN,
+                // The safety code, Report and Whisper are only offered in the game's chat.
+                safety: CARD_TOKEN,
+                report: CARD_TOKEN,
+                whisper: None,
+                trade: CARD_TRADE_TOKEN,
+                map_block: CARD_TOKEN,
+                staff_block: CARD_TOKEN,
             },
         );
     }
@@ -1325,6 +1597,13 @@ impl Panel {
                 (&["Enter"], "save"),
                 (&["Tab"], "next"),
                 (&["Esc"], "not now"),
+            ]
+        } else if self.gifs.open && self.gifs.tab == super::gif_picker::Tab::Sources {
+            [
+                (&["Ctrl", "V"], "paste"),
+                (&["Enter"], "activate"),
+                (&["Tab"], "next"),
+                (&["Esc"], "close GIFs"),
             ]
         } else if self.gifs.open {
             [
@@ -1353,6 +1632,15 @@ impl Panel {
             x = key_hint(&mut self.ui, caps, action, x, y, s) + gap;
         }
     }
+}
+
+/// Whether the card of the player with `key_id` (wearing `name`) offers Trade: another
+/// player's, not blocked here (Sol's decision 1), while the SJK hub lets this player
+/// trade.
+fn offers_trade(key_id: &str, name: &str) -> bool {
+    crate::player_trades::trading_open()
+        && !crate::player_trades::blocked(key_id, name)
+        && crate::player_identity::own_key_id().as_deref() != Some(key_id)
 }
 
 #[cfg(test)]
@@ -1470,11 +1758,13 @@ mod tests {
         drop.holocron = Some(sjk_identity::DropMark {
             tier: "legendary".to_owned(),
             own: false,
+            find: None,
         });
         let mut future = message(2, "bbbbbbbbbbbbbbbb", "");
         future.holocron = Some(sjk_identity::DropMark {
             tier: "from_the_future".to_owned(),
             own: false,
+            find: None,
         });
         state.messages.extend([drop, future]);
         let mut panel = Panel::new();
@@ -1547,7 +1837,7 @@ mod tests {
                 .collect();
             assert_eq!(boxes.len(), 1, "{boxes:?}");
             // The muted sender's line says so, and their GIF was never asked for.
-            found(&texts, "Muted on this PC");
+            found(&texts, "Blocked on this PC");
             assert!(!crate::chat_gifs::asked_for(
                 &crate::chat_gifs::GifId::new("PageGif03Muted").unwrap()
             ));
@@ -1969,7 +2259,17 @@ mod tests {
             DrawCommand::Arc { color, center, .. }
                 if *color == color::GOLD_BRIGHT && (center[0] - centre(shown[0])[0]).abs() < 0.01
         )));
-        // Between two faces: no card.
+        point_at(
+            &mut panel,
+            &inputs,
+            &fonts.font,
+            [shown[0].right() + 5.0, centre(shown[0])[1]],
+        );
+        // Between two faces: the card waits a moment for the pointer, then goes.
+        assert!(panel.card.is_some(), "kept on the way");
+        if let Some(card) = panel.card.as_mut() {
+            card.left = card.left.map(|at| at - super::CARD_GRACE);
+        }
         point_at(
             &mut panel,
             &inputs,

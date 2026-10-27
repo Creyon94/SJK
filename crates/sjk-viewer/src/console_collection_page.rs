@@ -91,6 +91,13 @@ impl ViewerConsole {
             PanelAction::None => {}
             PanelAction::Close => self.close_collection_panel(),
             PanelAction::Wear(id) => crate::unlockables::wear(self, id),
+            PanelAction::WearSecond(id) => {
+                let _ = self.set_cvar(crate::looks::SECOND_CVAR, id);
+            }
+            PanelAction::WearBoth { first, second } => {
+                let _ = self.set_cvar(crate::looks::SECOND_CVAR, second);
+                crate::unlockables::wear(self, first);
+            }
             PanelAction::SkinOption { skin, option, on } => {
                 let setting = self
                     .text_cvar(crate::saber_skin_options::CVAR)
@@ -101,15 +108,38 @@ impl ViewerConsole {
                     &crate::saber_skin_options::with(&setting, skin, &option, on),
                 );
             }
+            PanelAction::Shatter(id) => {
+                let _ = crate::economy::shatter(id);
+            }
+            PanelAction::ShatterLast(id) => {
+                let _ = crate::economy::shatter_last(id);
+            }
+            PanelAction::ShatterAll => {
+                let _ = crate::economy::shatter_all();
+            }
+            PanelAction::Craft(id) => {
+                let _ = crate::economy::craft(id);
+            }
+            PanelAction::Buy(id) => {
+                let _ = crate::player_identity::buy(&id);
+            }
+            PanelAction::BuyHolocron(tier) => {
+                let _ = crate::economy::buy_holocron(&tier);
+            }
             PanelAction::RevealCards => {
                 let _ = crate::player_identity::reveal_cards();
+            }
+            PanelAction::SeeAndShare(on) => {
+                self.set_cvar("cg_nameplate", if on { "1" } else { "0" });
             }
             PanelAction::ShaderView(grid) => {
                 self.set_cvar(
                     super::collection_panel::SHADER_VIEW_CVAR,
-                    if grid { "1" } else { "0" },
+                    if grid { "0" } else { "1" },
                 );
             }
+            PanelAction::Bind { command, key } => self.rebind_action(command, 0, &key),
+            PanelAction::Unbind(command) => self.clear_action(command, 0),
             PanelAction::Illuminate(on) => {
                 self.pending_illuminate = Some(on);
                 // The page shows it at once; the viewer applies it next frame.
@@ -118,6 +148,30 @@ impl ViewerConsole {
             PanelAction::CardboardBox(on) => {
                 self.pending_cardboard_box = Some(on);
                 self.cardboard_box_on = on;
+            }
+            PanelAction::Order66(on) => {
+                self.pending_order66 = Some(on);
+                self.order66_on = on;
+            }
+            PanelAction::Hax(on) => {
+                self.pending_hax = Some(on);
+                self.hax_on = on;
+            }
+            PanelAction::Ragdoll(on) => {
+                self.pending_ragdoll = Some(on);
+                self.ragdoll_on = on;
+            }
+            PanelAction::Drone(on) => {
+                self.pending_drone = Some(on);
+                self.drone_on = on;
+            }
+            PanelAction::Boombox(on) => {
+                self.pending_boombox = Some(on);
+                self.boombox_on = on;
+            }
+            PanelAction::Monitor(on) => {
+                self.pending_monitor = Some(on);
+                self.monitor_on = on;
             }
             PanelAction::Hub(tab) => {
                 // A tab of another page: the Holocrons page.
@@ -156,6 +210,66 @@ impl ViewerConsole {
     /// The Toys tab asked to get in the cardboard box (`true`) or out, once.
     pub(crate) fn take_cardboard_box_request(&mut self) -> Option<bool> {
         self.pending_cardboard_box.take()
+    }
+
+    /// The viewer says whether the Order 66 toy is on, once a frame.
+    pub(crate) fn set_order66_on(&mut self, on: bool) {
+        self.order66_on = on;
+    }
+
+    /// The Toys tab asked to turn Order 66 on (`true`) or off, once.
+    pub(crate) fn take_order66_request(&mut self) -> Option<bool> {
+        self.pending_order66.take()
+    }
+
+    /// The viewer says whether the Hax toy is on, once a frame.
+    pub(crate) fn set_hax_on(&mut self, on: bool) {
+        self.hax_on = on;
+    }
+
+    /// The Toys tab asked to turn the Hax on (`true`) or off, once.
+    pub(crate) fn take_hax_request(&mut self) -> Option<bool> {
+        self.pending_hax.take()
+    }
+
+    /// The viewer says whether the player is limp (the Ragdoll), once a frame.
+    pub(crate) fn set_ragdoll_on(&mut self, on: bool) {
+        self.ragdoll_on = on;
+    }
+
+    /// The Toys tab asked to go limp (`true`) or get up, once.
+    pub(crate) fn take_ragdoll_request(&mut self) -> Option<bool> {
+        self.pending_ragdoll.take()
+    }
+
+    /// The viewer says whether the Drone is on, once a frame.
+    pub(crate) fn set_drone_on(&mut self, on: bool) {
+        self.drone_on = on;
+    }
+
+    /// The Toys tab asked to turn the Drone on (`true`) or off, once.
+    pub(crate) fn take_drone_request(&mut self) -> Option<bool> {
+        self.pending_drone.take()
+    }
+
+    /// The viewer says whether the Boombox is carried, once a frame.
+    pub(crate) fn set_boombox_on(&mut self, on: bool) {
+        self.boombox_on = on;
+    }
+
+    /// The Toys tab asked to carry the Boombox (`true`) or put it away, once.
+    pub(crate) fn take_boombox_request(&mut self) -> Option<bool> {
+        self.pending_boombox.take()
+    }
+
+    /// The viewer says whether the Monitor toy is on, once a frame.
+    pub(crate) fn set_monitor_on(&mut self, on: bool) {
+        self.monitor_on = on;
+    }
+
+    /// The Toys tab asked to turn the Monitor on (`true`) or off, once.
+    pub(crate) fn take_monitor_request(&mut self) -> Option<bool> {
+        self.pending_monitor.take()
     }
 
     /// Give a pressed key to the open page; false when the page is closed.
@@ -224,13 +338,42 @@ impl ViewerConsole {
         let name = self.text_value("name").unwrap_or_default().to_owned();
         let illuminate = self.illuminate_lit();
         let cardboard_box = self.cardboard_box_on;
+        let order66 = self.order66_on;
+        let hax = self.hax_on;
+        let ragdoll = self.ragdoll_on;
+        let drone = self.drone_on;
+        let boombox = self.boombox_on;
+        let monitor = self.monitor_on;
         let stock = self.stock_blade();
-        let grid = self.integer_cvar(super::collection_panel::SHADER_VIEW_CVAR) == Some(1);
+        // Tiles unless the list is chosen (`ui_shaderList 1`).
+        let grid = self.integer_cvar(super::collection_panel::SHADER_VIEW_CVAR) != Some(1);
+        let toy_keys = if self.collection_panel.tab() == Tab::Toys {
+            self.toy_keys()
+        } else {
+            Vec::new()
+        };
         let options = self
             .text_cvar(crate::saber_skin_options::CVAR)
             .unwrap_or_default()
             .to_owned();
+        let second = self
+            .text_cvar(crate::looks::SECOND_CVAR)
+            .unwrap_or_default()
+            .to_owned();
+        // What the model holds (two sabers, a staff), or two sabers when `saber2` names a
+        // second hilt and the model has not been drawn yet.
+        let pair = match crate::saber_skins::local_pair() {
+            crate::saber_skins::Pair::None
+                if self.text_value("saber2").is_some_and(|saber2| {
+                    !saber2.is_empty() && !saber2.eq_ignore_ascii_case("none")
+                }) =>
+            {
+                crate::saber_skins::Pair::TwoSabers
+            }
+            pair => pair,
+        };
         let enabled = self.bool_cvar("cl_identity") == Some(true);
+        let share = crate::hud::nameplate::see_and_share(self);
         let snapshot =
             crate::player_identity::collection_snapshot(crate::debug_collectibles::wanted(self));
         let held = snapshot
@@ -243,6 +386,7 @@ impl ViewerConsole {
         if let Some(unlocks) = self.collection_panel.preview.take() {
             let profile = self.profile_preview_snapshot();
             let standings = self.profile_preview_standings().unwrap_or(standings);
+            self.follow_forge(true, profile.as_ref());
             let inputs = Inputs {
                 enabled: true,
                 snapshot: profile.as_ref(),
@@ -251,15 +395,26 @@ impl ViewerConsole {
                 standings: &standings,
                 illuminate,
                 cardboard_box,
+                order66,
+                hax,
+                ragdoll,
+                drone,
+                boombox,
+                monitor,
                 name: &name,
                 stock,
                 grid,
                 options: &options,
+                second: &second,
+                pair,
+                share,
+                toy_keys: &toy_keys,
             };
             self.collection_panel.append_sjk(&inputs, target, viewport);
             self.collection_panel.preview = Some(unlocks);
             return;
         }
+        self.follow_forge(enabled, snapshot.as_ref());
         let inputs = Inputs {
             enabled,
             snapshot: snapshot.as_ref(),
@@ -268,12 +423,112 @@ impl ViewerConsole {
             standings: &standings,
             illuminate,
             cardboard_box,
+            order66,
+            hax,
+            ragdoll,
+            drone,
+            boombox,
+            monitor,
             name: &name,
             stock,
             grid,
             options: &options,
+            second: &second,
+            pair,
+            share,
+            toy_keys: &toy_keys,
         };
         self.collection_panel.append_sjk(&inputs, target, viewport);
+    }
+
+    /// The keys bound to each of the toys' commands, as players read them ("F5", "F5 /
+    /// K"), in the order of `collection_toys::COMMANDS`; empty for none.
+    fn toy_keys(&self) -> Vec<String> {
+        super::collection_panel::TOY_COMMANDS
+            .iter()
+            .map(|command| {
+                let mut shown = String::new();
+                for key in self.keys_for_command(command) {
+                    if !shown.is_empty() {
+                        shown.push_str(" / ");
+                    }
+                    sjk_shell::key_names::push_display_key(&mut shown, &key);
+                }
+                shown
+            })
+            .collect()
+    }
+
+    /// Give the Forge what the hub said this frame, read the shop when it asks, and take a
+    /// shader whose last copy was just broken down off the saber when it is worn.
+    fn follow_forge(&mut self, enabled: bool, snapshot: Option<&sjk_identity::Snapshot>) {
+        let known = snapshot.is_some_and(|snapshot| snapshot.economy.is_some());
+        self.collection_panel.set_trade_known(known);
+        let data = if self.collection_panel.tab() == Tab::Forge {
+            super::collection_panel::forge::ForgeData::read(enabled)
+        } else {
+            Default::default()
+        };
+        self.collection_panel.set_forge(data);
+        if self
+            .collection_panel
+            .forge_shop_due(std::time::Instant::now())
+        {
+            let _ = crate::player_identity::read_shop();
+        }
+        if let Some(id) = self.collection_panel.take_forge_unequip()
+            && self.text_cvar(SABER_SKIN_CVAR).is_ok_and(|worn| worn == id)
+        {
+            crate::unlockables::wear(self, "");
+        }
+    }
+
+    /// Show the Collection on the Forge's `section`, as the Holocrons tab's Shop does.
+    pub(crate) fn open_forge(
+        &mut self,
+        section: super::collection_panel::forge::Section,
+        back: ReturnTarget,
+    ) {
+        self.collection_panel.show_forge(section);
+        self.open_profile_hub_page(Tab::Forge, back);
+    }
+
+    /// Show `data` on the Forge in place of the live identity's (`None` lets go), for a
+    /// world shot.
+    #[cfg(test)]
+    pub(crate) fn preview_forge(
+        &mut self,
+        data: Option<super::collection_panel::forge::ForgeData>,
+    ) {
+        self.collection_panel.preview_forge(data);
+    }
+
+    /// Show the Forge's `section`, for a world shot.
+    #[cfg(test)]
+    pub(crate) fn forge_section_for_shot(
+        &mut self,
+        section: super::collection_panel::forge::Section,
+    ) {
+        self.collection_panel.show_forge(section);
+    }
+
+    /// Put the Forge in the state a world shot wants (see `Panel::forge_for_shot`).
+    #[cfg(test)]
+    pub(crate) fn forge_for_shot(&mut self, chosen: usize, armed: bool, ask: bool, asked: bool) {
+        self.collection_panel
+            .forge_for_shot(chosen, armed, ask, asked);
+    }
+
+    /// Choose shader `id` in the Forge's section on its next frame, for a world shot.
+    #[cfg(test)]
+    pub(crate) fn forge_want_for_shot(&mut self, id: &str) {
+        self.collection_panel.forge_want_for_shot(id);
+    }
+
+    /// Type `query` in the Forge's search (and its own chip), for a world shot.
+    #[cfg(test)]
+    pub(crate) fn forge_search_for_shot(&mut self, query: &str, only: bool) {
+        self.collection_panel.forge_search_for_shot(query, only);
     }
 
     /// Show `unlocks` (`None`: the live ones) whenever the page opens, its swatches drawn
@@ -304,14 +559,32 @@ impl ViewerConsole {
     /// Show `cards` and `credits` on the Cards tab in place of the own profile's, for a
     /// world shot.
     #[cfg(test)]
-    pub(crate) fn preview_cards(&mut self, cards: Vec<sjk_identity::CardStack>, credits: u64) {
-        self.collection_panel.preview_cards = Some((cards, credits));
+    pub(crate) fn preview_cards(
+        &mut self,
+        cards: Vec<sjk_identity::CardStack>,
+        credits: u64,
+        shards: u64,
+    ) {
+        self.collection_panel.preview_cards = Some((cards, credits, shards));
     }
 
-    /// Choose the Cards tab's kind `index`, for a world shot.
+    /// Choose the Cards tab's tile `index` (in the list its filter shows), for a world
+    /// shot.
     #[cfg(test)]
     pub(crate) fn collection_card_for_shot(&mut self, index: usize) {
         self.collection_panel.choose_card_for_shot(index);
+    }
+
+    /// Look at the Cards tab's chosen tile closely (or put it back), for a world shot.
+    #[cfg(test)]
+    pub(crate) fn collection_inspect_for_shot(&mut self, on: bool) {
+        self.collection_panel.inspect_card_for_shot(on);
+    }
+
+    /// Set the Cards tab's filter, for a world shot.
+    #[cfg(test)]
+    pub(crate) fn collection_card_filter_for_shot(&mut self, filter: crate::cards::binder::Filter) {
+        self.collection_panel.card_filter_for_shot(filter);
     }
 
     /// Tilt the Cards tab's card `key` (0 up close) as though the pointer rested at `at`
@@ -325,6 +598,21 @@ impl ViewerConsole {
     #[cfg(test)]
     pub(crate) fn collection_hover_for_shot(&mut self, index: Option<usize>) {
         self.collection_panel.hover_for_shot(index);
+    }
+
+    /// Let the Shaders tab show its way to the Forge (`known`), for a world shot.
+    #[cfg(test)]
+    pub(crate) fn collection_trade_for_shot(&mut self, known: bool) {
+        self.collection_panel.trade_known_for_shot(known);
+    }
+
+    /// Hold the Shaders tab's lone saber turned so (`None` lets go), for a world shot.
+    #[cfg(test)]
+    pub(crate) fn collection_saber_turn_for_shot(
+        &mut self,
+        turn: Option<super::collection_panel::SaberTurn>,
+    ) {
+        self.collection_panel.hold_saber_for_shot(turn);
     }
 
     /// Choose the Collection's shader row `row` (0 the stock blade), for a world shot.

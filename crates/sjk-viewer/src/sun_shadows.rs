@@ -240,7 +240,7 @@ impl crate::GpuState {
             &self.queue,
             self.context.sun_shadows,
             scene,
-            scene[0] / self.size.width.max(1),
+            self.scene_supersampling(),
         );
         self.world_materials
             .configure_light_preservation(&self.device, self.has_floor_surfaces());

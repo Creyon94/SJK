@@ -59,7 +59,8 @@ vector that both test suites check, so a drift in either shows as a failing test
    mid-match, out of the menus, with input in the last two minutes), which is how the hub
    counts play time toward the next holocron ([holocrons.md](holocrons.md#earning)); the
    flag is left out otherwise.
-4. The thread reads the hub's list of claims for the server every 15 seconds. The
+4. The thread reads the hub's list of claims for the server every 5 seconds (15 before
+   27/10/2026; the hub gives the reads an allowance of their own since then). The
    scoreboard marks a row with SJK's emblem, in gold when verified, the player card
    shows the hub name, and a verified player's nameplate gets a gold badge after the
    name (`ui_renderer/verified_badge.rs`, read once a second), when a claim names
@@ -83,6 +84,13 @@ team changes reach a running client. It reads it sooner, at most once every 30
 seconds, when its unlocks look out of date: the hub refused a blade skin
 (`not_unlocked`), or the feed relayed a look of the player's own key, newer than the
 last one sent, with another blade skin (staff took it back).
+
+Opening the game menu (Escape on a server, since 27/10/2026) reads what its pages show
+of the hub at once: the profile (achievements, medals, unlocks, kyber crystals), the
+holocron progress and the trades, at most once every 15 seconds (`Service::menu_opened`,
+`player_identity::follow_game_menu`), and sends achievement counts that changed since the
+last sending, at most once every 30 seconds (the hub takes 40 in 10 minutes from an
+address). A hub that refused one of them (an older hub, a quota) keeps its longer wait.
 
 ## What a badge proves
 
@@ -119,6 +127,13 @@ off the client sends nothing. Since 06/10/2026 `cl_hubUrl` defaults to `https://
 set nothing: a default install makes a key and tells that hub where it plays and whether it is active. The
 Identity page, the setting's help and the changelog say what is sent and that
 `cl_identity 0` stops it.
+
+Every request to the hub names the build in its `User-Agent`: `SJK/<version> (<commit>)`
+(`build_info::hub_agent`; since 20/10/2026 with the commit, `SJK/<version>` before). The
+hub keeps, per key, each agent it signed with and when it was first and last seen, until
+the operator removes the identity, and checks a release's commit against the public
+`sjk-v<version>` tags, so the hub can tell an SJK release from a changed build or
+another client. It is what the game says it is, not proof.
 
 A model list ([Installed models](#installed-models), since 15/10/2026) is sent once
 registered, while `cl_shareModels` (default 1) is on: the names of the player model
@@ -194,7 +209,9 @@ screen with a text box, a character count, Send and Cancel (Escape cancels too).
 has an insertion point (Left, Right, Up, Down, Home, End, Backspace, Delete, Ctrl for
 words, a click in the box) and a Send the rules refuse says why in a red band. As it is
 typed or pasted, only letters and digits of any
-script, spaces and `. , ! ? ' - : ( )` are kept (line breaks become spaces), up to 600
+script, spaces and `. , ! ? ' - : ( )` are kept, and since 19/10/2026 the characters
+cvars and commands need, `_ / \ + = " ; [ ] < > #` (a hub from before then refuses
+those); line breaks become spaces, up to 600
 characters. Enter or Send checks the hub's rules (a refusal is shown in the panel, which
 stays open) (10 to 600 characters, a few real words, no
 long run of one character) and hands the report to the identity service, which sends
@@ -203,8 +220,10 @@ or why it refused, for example a quota) shows on the SJK UI's card, which waits 
 ([sjk-ui.md](sjk-ui.md#report-a-bug-and-its-dialogs)), else as a centre print. The report carries the
 in-game name the player wears (the service fills it from the `name` it already sends the
 hub); the hub keeps it with the report and adds it to the key's worn names. The hub checks
-everything again and limits reports per key (3 a day, 20 once verified, 5 an hour, no
-repeat within a day), per address (3 in 10 minutes) and overall (300 a day, 5000 kept),
+everything again and limits reports per key (3 a day and 5 an hour; once verified 60 a
+day and 20 an hour; none for staff; no repeat within a day), per address (3 in 10
+minutes, 10 for a verified or staff key) and overall (500 a day, 5000 kept; raised
+18/10/2026),
 so a troll with fresh keys gets little through and nothing that is not plain words. The
 operator reads them with the hub's `reports` command or `/admin/v1/reports`.
 
@@ -229,10 +248,19 @@ since 11/10/2026. A crash leaves a report in `crashes/` beside the configuration
   live.
 
 The trail is every console line as it is kept (through `Shell::set_line_tap`), colour
-codes removed, except chat lines (`push_chat_line` keeps them out), and every
+codes removed, except chat lines (`push_chat_line` keeps them out) and the echo of a
+chat message typed in the console (`say`, `say_team`, `tell`: `CHAT_COMMANDS` in
+[crash_report.rs](../crates/sjk-viewer/src/crash_report.rs), and a mod's chat commands
+on any server, JA+ tools' `say_team_mod`, `clansay`, `amsay` and `ampsay`
+([mods.md](mods.md#passwords)); the scrollback keeps it),
+and every
 `log::progress` diagnostic. Each report is also written as plain text to
 `crashes/last-crash.txt`, which a player can send by hand. Paths under the player's own
-folder become `%USERPROFILE%`.
+folder become `%USERPROFILE%`. Passwords never enter the trail: the console masks a
+password typed or listed, and scrubs the secret cvars' values from every line, before
+the tap sees it
+([client](client.md#passwords-in-the-console)), so the trail, the session log, crash
+reports and log uploads carry the mask.
 
 With `cl_crashReports` on, the report waits in `crashes/pending/` (20 at most, the oldest
 make room). Once registered, the identity service sends what waits (`POST /v1/crash`,
@@ -282,7 +310,8 @@ what the logs hold, that the Windows user name is left out and that nothing goes
 the player chooses Send logs. Send logs (Enter) gathers the logs then
 (`crash_report::log_upload`): a header (time, build, system, graphics adapter, map,
 server), the newest 200 KB of this session's log, 120 KB of the previous one's and the
-last crash report (40 KB, when under 14 days old), the player's folder replaced by
+last crash report (40 KB, when under 14 days old: its head with the message and backtrace
+whole, then its newest last lines), the player's folder replaced by
 `%USERPROFILE%`; the service fits it to the hub's limits (400 000 characters, a body
 under 512 KiB; the oldest lines go first, at a line) and sends it (`POST /v1/logs`).
 Don't send (Escape) tells the hub (`POST /v1/logs/decline`). The request leaves the list
@@ -317,7 +346,15 @@ signed with the player's key, and the outcome (the hub's number, or why it refus
 on the SJK UI's card, else as a centre print. The player is copied when chosen, so the
 report names them as they were.
 
-Only a verified SJK player may report (`player_identity::report_gate`): with the identity
+A player whom the reported one sent an encrypted whisper may report them whether verified
+or not (25/10/2026): the chat card's Report opens the Report page for them, which says
+"Their last encrypted whisper goes with it", and the report carries that whisper with
+its sender's signature ([hub-chat.md](hub-chat.md#encrypted-whispers), "Reporting one").
+The hub checks the signature (400 `whisper_unsigned`), takes it up to a day old, and
+names the whisper's sender as the reported key (source `whisper`); the operator's panel
+shows the whisper under the reason.
+
+Otherwise only a verified SJK player may report (`player_identity::report_gate`): with the identity
 off, the hub not answering yet, an unverified key or a game on this PC, the Players page
 says why under its title (the classic pages in their first line), and the Report
 page's reasons are dimmed, Back carrying the reason; yourself and bots cannot be reported
@@ -370,6 +407,9 @@ menu's row of icons): [sjk-ui.md](sjk-ui.md#report-a-bug-and-its-dialogs).
 
 ## Medals
 
+With the JoF tools on, medals are called "Honors" by default
+([mods.md](mods.md#honors-and-echoes), `jof.honorNames`).
+
 A medal is recognition the SJK team gives a player by hand: for testing SJK early,
 contributing to its code, finding bugs or donating to SJK. Since 10/10/2026 (Sol's decision)
 a medal may bring one saber shader for as long as the player holds it: Early Tester the
@@ -384,8 +424,12 @@ the SJK team gives them.
 | --- | --- | --- | --- |
 | Early Tester | `early_tester` | Helped test SJK in its early days. | no |
 | Early Contributor | `early_contributor` | Contributed to SJK's code in its early days. | no |
-| Bug Hunter | `bug_hunter` | Found bugs that got fixed. | yes, with a count ("Bug Hunter x2") |
+| Bug Hunter | `bug_hunter` | Found bugs that got fixed. | no (since 21/10/2026: bug hunting is rewarded with holocrons) |
 | Supporter | `supporter` | Donated to SJK's development (more than 1 euro on Ko-fi, since 13/10/2026; [sjk.md](sjk.md#donations)): given by the hub itself when the Ko-fi message holds the donor's key id, else by the SJK team. | no |
+
+No medal is given again since 21/10/2026, when Bug Hunter stopped counting up: a count
+above 1 from the hub reads as 1. The counting (`Medal::repeatable`, the "x2" labels,
+Give +1, `debug_medal`'s `x<count>`) stays for a future medal that may be.
 
 The hub lists a key's medals in its profile (`"medals":[{"id","count","awarded","note"}]`:
 the count, when it was last given and a short note from the team, often empty) and in its
@@ -396,7 +440,8 @@ name, description, ribbon colours and two pictures in `assets/medals` (`<id>.png
 whole medal on its ribbon, 512 square; `<id>_small.png`, the medallion alone, 128
 square, for anything under about 64 pixels). A new medal is one entry there and two
 pictures; new art is a file replacement. Supporter's pictures are Sol's pick of a generated sheet
-(a gold-and-steel star with a sun gem on a crimson ribbon, 14/10/2026). The JoF Clan medal (`jof_clan`) was dropped on
+(a gold-and-steel star with a sun gem on a crimson ribbon, 14/10/2026), its ribbon
+lengthened and cut in a V onto the star's bail like the others (redone cleanly 17/10/2026). The JoF Clan medal (`jof_clan`) was dropped on
 10/10/2026 for the [JoF clan tag](#clan-tags); a client ignores an old award of it as
 an unknown id.
 
@@ -456,7 +501,7 @@ Where they show:
   ([classic-plus.md](classic-plus.md#pages)).
 - `debug_medal` ([rehearsal.rs](../crates/sjk-viewer/src/medal_popup/rehearsal.rs))
   rehearses receiving medals offline: `debug_medal <id> [x<count>] [note]` (a count for
-  Bug Hunter only), `debug_medal all [note]` for every medal, `debug_medal` alone for the
+  a repeatable medal only, and none is since 21/10/2026), `debug_medal all [note]` for every medal, `debug_medal` alone for the
   ids. It makes the list a hub profile would carry (dated today), which is read as the
   hub's is and queued like a real arrival, so the card in a match, the pop-up
   on a menu, the ceremony, the fanfare and Next can all be tried; the console closes so
@@ -509,17 +554,22 @@ the drawing. `cg_clanEmblems` (archived, default 1, Settings > HUD > Scoreboard 
 0 turns every emblem off.
 
 The clans are the entries of `jof_tag::KNOWN`, each with its tag, its emblem, its tint,
-the share of the emblem's square its ink spans and how a tag stuck to a name counts,
+the share of the emblem's square its ink spans and its rule (how its tag is read),
 with the reason and who asked; supporting a clan means adding an entry and its emblem
-(an icon atlas cell each, room for four). Longer tags come first, so `JoFA` is read
-before `JoF`.
+(an icon atlas cell each, room for four; all four are used, so a fifth clan needs
+`CLAN_ICON_CELLS` raised). Longer tags come first, so `JoFA` is read before `JoF`.
 
-| Clan | Tag | Emblem | Stuck to a name |
+| Clan | Tag | Emblem | Rule |
 | --- | --- | --- | --- |
-| JoF Academy (Sol's request, 11/10/2026) | `JoFA` | `jofa-emblem.png`, the academy's HD logo in its own colours | with the tag's capitals and a capitalised word after it (`JoFAKen`) |
-| JoF, Jedi of Freedom | `JoF` | `jof-emblem.png`, J o F, tinted in the teal of the clan's logo (`#02B99D`; crimson until 11/10/2026) | in any case, unless a second f follows (`JoFSanjiJ`, `jofsanji`; not `Joffrey`) |
+| JAWA (Sol's request, 19/10/2026) | `(JAWA)` | `jawa-emblem.png`, the clan's forum icon (a Jawa's hood) in its own colours | exact, at the start (Sol, 22/10/2026; letters before): `(JAWA)Ken`, not `JAWAKen`, `[Jawa] Ken` or `Ken(JAWA)` |
+| {{S}} (Sol's request, 22/10/2026) | `{{S}}` | `s-emblem.png`, the clan's red Sith emblem in its own colours | exact, at the start: `{{S}}Ken`, not `{{s}}Ken`, `{S}Ken` or `Ken{{S}}` |
+| JoF Academy (Sol's request, 11/10/2026) | `JoFA` | `jofa-emblem.png`, the academy's HD logo in its own colours | letters; stuck to a name with the tag's capitals and a capitalised word after it (`JoFAKen`) |
+| JoF, Jedi of Freedom | `JoF` | `jof-emblem.png`, the clan's green J o F logo in its own colours (Sol, 22/10/2026; a teal `#02B99D` J o F before, crimson until 11/10/2026) | letters; stuck to a name in any case, unless a second f follows (`JoFSanjiJ`, `jofsanji`; not `Joffrey`) |
 
-The rule, for every clan: the tag's letters in any case, with no letter right before the
+The exact rule: the name, colour codes dropped, starts with the tag exactly as written,
+case and signs included (`^3(JAWA)^7Ken` counts).
+
+The letters rule: the tag's letters in any case, with no letter right before the
 first (the name starts there or a separator comes first: a space, a bracket, a dot, a
 digit...). Colour codes are dropped first. `{JoF}Name`, `jof.Name`, `[JOF] Name`,
 `Name-JoF`, `^1J^7oF`, `JoFA}Ken`, `^5JoFA^7<3Toad` and `[jofa] Ken` count; `MrJoF` does
@@ -533,10 +583,9 @@ Where it shows: the game chat's lines with a sender (JA+ lines too, since 16/10/
 dock and chat page, the scoreboard (classic and SJK, list rows and duel cards), the player
 card (`inspect`) and the SJK UI Players page's card. Not on nameplates.
 
-The emblems are 128-pixel squares in `assets/branding` ([README](../assets/branding/README.md)):
-JoF's rendered from the clan's SVG path by `scripts/jof_emblem.py`, the academy's shrunk
-from its HD logo (1295 by 1214) by `scripts/clan_emblem.py` (cropped to its ink, centred
-and scaled with Lanczos on premultiplied alpha).
+The emblems are 128-pixel squares in `assets/branding` ([README](../assets/branding/README.md)),
+each shrunk (or enlarged) from the clan's logo by `scripts/clan_emblem.py` (cropped to its
+ink, centred and scaled with Lanczos on premultiplied alpha).
 
 ## Unlocks and looks
 
@@ -577,9 +626,19 @@ blade-skin unlock id or `""`, and whether the Illuminate holocron is lit.
   blade skins are drawn by the saber renderer from `Looks::saber_skin_id`, with the
   parts their wearer switched off (`Look::saber_off`, sent only when it names one, as
   an older hub refuses the field; `Looks::options_off`,
-  [unlockables.md](unlockables.md#options)).
+  [unlockables.md](unlockables.md#options)) and the extras they switched on
+  (`Look::saber_on` and `saber2_on`, since 26/10/2026, which the hub relays only while
+  the wearer holds the card that unlocks them; [unlockables.md](unlockables.md#extras)).
 
 Looks are public to every SJK player on the server, as badges are.
+
+## Map edits
+
+Staff publish a map's edits to the hub, and the worker keeps every SJK player's copies
+in `map_edits` beside the key: the hub's list every 10 minutes once registered, each
+document newer than its copy downloaded, a copy the hub stopped listing removed, and a
+copy with unpublished changes left alone. What the edits do is in
+[map-edits.md](map-edits.md).
 
 ## Asset packs
 
@@ -635,7 +694,14 @@ on the hub, in the SJK UI's look in every menu style:
   played) and the last four achievements unlocked;
 - the bio, written in a box of up to 6 lines (Enter saves, Shift+Enter starts a new
   line, Revert puts back the hub's copy), with its counts, the hub's answer and the
-  rules in a line under it;
+  rules in a line under it. The box has a caret, the report dialog's
+  ([text_dialog_field.rs](../crates/sjk-viewer/src/text_dialog_field.rs), since
+  23/10/2026 after Kushina's report; before, only the end could be written): a click
+  places it, Left and Right (a word with Ctrl), Up and Down, Home and End (the
+  text's ends with Ctrl) move it, typing, pasting, Backspace and Delete (a word with
+  Ctrl) work at it, Ctrl+A selects all (typing replaces it) and Ctrl+C copies the
+  selection or the whole bio. Its lines wrap and the caret measures in the player's
+  menu text style;
 - their medals (picture, name, date given; on its own only) and how many
   achievements are unlocked, with See the board, and how many saber shaders are owned,
   with See the collection: both open the [Collection](sjk-ui.md#collection), where the
@@ -786,8 +852,15 @@ clients show the stand-in.
 
 ## Achievements
 
-An achievement is a milestone of the player's own play. It grants nothing (saber
-shaders for harder achievements are an idea for later, not built). The catalogue, in [achievements.rs](../crates/sjk-viewer/src/achievements.rs)
+An achievement is a milestone of the player's own play. Since 21/10/2026 each brings a
+kyber crystal once, when it unlocks ([holocrons.md](holocrons.md#kyber-crystals)): Uncommon
+for most, Rare for the harder ones, Legendary for Duel Master, Veteran, Keeper of the
+Holocrons and Full Set, Mythical for Legend of the Arena. The Collection's Achievements tab says it under the achievement up
+close ("Reward: Rare Kyber Crystal" after the crystal's gem, in its colour), its hover card
+ends with it, and the unlock card says it at the right of "ACHIEVEMENT UNLOCKED" in place
+of the category when the hub unlocked it (not with the identity off, which brings no
+crystal; see below). The hub's `reward` on each achievement wins over the client's own table
+(`kyber::REWARDS`) once it sends one. The catalogue, in [achievements.rs](../crates/sjk-viewer/src/achievements.rs)
 and in the hub (same ids):
 
 | Achievement | Id | Goal | Counted by |
@@ -805,11 +878,38 @@ and in the hub (same ids):
 | Regular, Veteran | `hours_10`, `hours_100` | 10, 100 hours played on servers | client |
 | Storyteller | `storyteller` | a bio | hub |
 | Bug Reporter | `bug_reporter` | a bug report the hub took | hub |
-| Surveyor | `surveyor` | 5 world notes the hub took | hub |
+| Surveyor (retired 26/10/2026) | `surveyor` | 5 world notes the hub took | hub |
 | Decorated | `decorated` | a medal | hub |
+| Collector, Archivist, Keeper of the Holocrons | `holocrons_10`, `holocrons_50`, `holocrons_200` | 10, 50, 200 holocrons opened (kyber crystals not counted) | hub |
+| Touched by the Force (hidden) | `mythical_find` | a Mythical shader or card from a holocron | hub |
+| Craftsman | `craft_blade` | a blade crafted from a card | hub |
+| Master Craftsman | `craft_finishes` | a blade crafted from a card of every finish (3: Normal, Holo, Solar, `cards::FINISHES`); three crafts from cards of one finish count 1 | hub |
+| Full Set | `full_set` | every Common and Uncommon card of any one set, in any finish, revealed copies only (sealed ones do not count) | hub |
+| Executor | `order66_kill` | an Order 66 execute on another player who also has the toy | hub |
+| Tactical Espionage | `box_minutes_10` | 10 minutes hidden in the cardboard box with another player close by | client |
+| Flawless | `duel_flawless` | a duel won without taking damage | client |
+| Close Call | `duel_close_call` | a duel won with less than 5 health left | client |
+| Well Met | `duel_partners_25` | 25 different players duelled | client |
+| Long Throw | `saber_throw_far` | a player defeated by a saber throw from 512 units or more | client |
+| Return to Sender | `thermal_return` | a player defeated with their own thermal detonator | client |
 
-What the client counts comes from its live matches on servers, never a demo or a game
-it hosts ([tracker.rs](../crates/sjk-viewer/src/achievements/tracker.rs), fed each
+The fourteen after Decorated came on 26/10/2026 (Sol's list), with the categories
+Collection and Toys. A hidden achievement (Touched by the Force) is a secret until it
+is unlocked: the board, its hover card and the "Next up" list show "Secret" or "Secret
+achievement", a `?` in its medallion, no goal and no count; unlocked, it shows like any
+other (the unlock card names it). A retired achievement (Surveyor, since 26/10/2026)
+can no longer be earned: it shows only to a player who holds it unlocked, with "No
+longer obtainable", and is not listed at all, nor its progress, for anyone else. Hidden
+and retired are flags of the client's catalogue (`Kind::hidden`, `Kind::retired`); the
+hub's `"retired": true` on Surveyor's entry is not needed by the client.
+Totals ("12 of 34 unlocked", the player card's "Achievements 12 / 34", the profile
+card) count every obtainable achievement and the retired ones the player holds, so a
+holder of Surveyor reads "of 35".
+
+What the client counts comes from its live matches on servers, never a demo, a game
+it hosts or a server on the player's own machine (a loopback address: Create game and
+`devmap` run `sjk-server` there, on a new port each time, #165)
+([tracker.rs](../crates/sjk-viewer/src/achievements/tracker.rs), fed each
 live snapshot by `achievements_frame.rs`):
 
 - a kill is an obituary (`EV_OBITUARY`) whose attacker is the player's own client
@@ -827,32 +927,85 @@ live snapshot by `achievements_frame.rs`):
   3 at once, with the same team; a team, map, server or slot change starts afresh);
 - a map and a server count once the player is in the game there (not spectating, not
   following, not in the intermission), and time played is the time between such
-  snapshots, at most a second at once.
+  snapshots, at most a second at once;
+- time in the cardboard box counts like time played, while the player hides in it (on,
+  alive, playing: `CardboardBox::hiding`) and another player the game draws alive
+  stands within 1024 units (`tracker::BOX_NEAR`, about 28 metres; 512 until 26/10/2026)
+  in the snapshot;
+- what the player took in a private duel is their own health and shield in the
+  snapshots while the duel is on: either falling is damage (not during the duel's
+  countdown, which may set them, nor health or shield above the maximum health wearing
+  down); the last health seen in the duel is the one it was won with, as the game gives
+  the winner full health when it ends. A win is Flawless when nothing fell and a Close
+  Call under 5 health (`tracker::CLOSE_CALL_HEALTH`). In a Duel or Power Duel game the
+  same is followed from the player's last spawn;
+- a duel partner is the opponent of a private duel that ends with a death (won or lost:
+  the obituary of either), or the other player of any kill or death in a Duel or Power
+  Duel game, kept by the name the server shows without colours or punctuation
+  (`sjk_identity::normal_form`), so a player who changes name counts again and two who
+  share one count once;
+- a long saber throw is a saber kill (the game gives a thrown saber's kills
+  `MOD_SABER`, as a swing's) while the player's saber is in flight (`saberInFlight`, in
+  that snapshot or the one before) with the victim 512 units or more away
+  (`tracker::SABER_THROW_FAR`; a swing reaches under 100, a throw up to 700 per Saber
+  Throw level);
+- a thermal detonator sent back is a thermal kill (`MOD_THERMAL`, `MOD_THERMAL_SPLASH`)
+  credited to the player while a thermal detonator the victim threw went off (left the
+  snapshot) within the last second and none of the player's own did. The game credits
+  a pushed or deflected missile to whoever sent it back (`G_ReflectMissile` sets
+  `r.ownerNum`) but never sends a missile's owner to clients (`entityState_t::owner`
+  stays 0 for missiles), so the client names a thermal detonator's thrower itself: the
+  player nearest (within 96 units) to where its flight started when it is first seen,
+  provided that start is at most 250 ms old. A thermal detonator first seen later (it
+  came into view after leaving the hand, or after a bounce) has no thrower and counts
+  nothing.
 
 The counts are kept in `achievements.json` beside `identity.key` (written at most
 every 20 seconds while they change, through a temporary file, and on the way out),
 so they work with the identity off. With it on, the identity service sends the
 counts of the achievements the client counts to the hub (`PUT /v1/achievements`, a
-signed request, at most once a minute, and again an hour later when the hub held
-part back). The hub keeps each key's best count, up to the goal, and when it was
+signed request, at most once a minute while they change, and unchanged again an hour
+later when the hub held part back; changed counts go at the minute even after a hold,
+so an achievement unlocked then reaches the hub within a minute). When the hub's answer
+unlocks an achievement, the profile is read again within 30 seconds, so its kyber
+crystal is listed at once rather than at the next ten-minute reading (reports 149 and
+150, 26/10/2026). The hub keeps each key's best count, up to the goal, and when it was
 reached. Because the hub cannot see a match, it takes the counts as the player's own
 record and bounds how fast each may rise (an hourly allowance per achievement: what
 is over is taken in a later hour); a count the client keeps is never lower than the
 hub's, so another PC or a reinstall takes the hub's counts back. Achievements the hub
 counts itself come from what the key did there and no request can set them.
 
-When the client sees one of its achievements reach its goal (in a match, or the hub's
-count arriving), it writes "Achievement unlocked" to the console and shows its pop-up
+Since 26/10/2026 the hub has the last word on the achievements the client counts. With
+the identity on and a hub address (`player_identity::hub_on`, whether the hub answers
+or not), one whose count reaches its goal here is not unlocked yet: it waits for the hub
+(`Record::awaiting`, kept in `achievements.json`), which takes the count at its hourly
+pace, unlocks it and grants its crystal minutes to hours later. Until then the board
+and the hover card show it reached but "Waiting for the SJK hub" (`Standing::waiting`),
+and nothing is announced. Once the hub's profile holds it unlocked (`unlocked` above 0),
+the client announces it, with its crystal, once, at the next reading after it, also
+when the hub unlocked it while the game was closed. An achievement the hub unlocked that
+did not wait here (reached on another PC) is not announced. Before, the client unlocked
+and announced it with "Reward: ... Kyber Crystal" at once, and players read that a
+crystal had come while the hub had not unlocked it yet. With the identity off, or no hub
+address, there is no hub to wait for: the client unlocks it and announces it at once,
+with its category where the reward would stand, as no crystal comes; what was waiting
+for the hub when the identity is turned off unlocks the same way. Achievements the hub
+counts are unchanged.
+
+When one of the client's achievements is unlocked as above, it writes "Achievement
+unlocked" to the console and shows its pop-up
 ([achievement_toast.rs](../crates/sjk-viewer/src/achievement_toast.rs)): a card at the
 top centre of the screen, clear of the crosshair, the chat and the HUD's corners, with
 the board's medallion, "Achievement unlocked", the name, the category and what it
-asked. It takes no input and pauses nothing, over play and over the menus alike. It
+asked (a hidden one too: it is unlocked). It takes no input and pauses nothing, over play and over the menus alike. It
 slides down and grows into place in under half a second while a gold ring sweeps
 round the medallion, light bursts from it (a glow, a ring of light, sparks), its edge
 flares and a glint crosses the card; it holds five seconds and fades out. Several
 unlocks queue and show one after another. It waits while the console is open, a
-large pop-up shows or the window is away (alt-tabbed out or minimised; since 10/10/2026,
-Sol's request), and its clock runs only while it is drawn: a card hidden half way
+large pop-up shows, the window is away (alt-tabbed out or minimised; since 10/10/2026,
+Sol's request) or the player is in a private duel (since 20/10/2026, hub report #81: the
+rewards play after the duel), and its clock runs only while it is drawn: a card hidden half way
 resumes where it was when the player comes back, and a long frame (a hitch, a map
 loading, a minimised window drawing nothing) moves it on by a tenth of a second at
 most, so no card is spent unseen. Each pop-up plays `sound/interface/secret_area.mp3`, the
@@ -868,9 +1021,13 @@ tier's colour. One arrival brings at most three cards, and the large pop-up that
 the game menu takes back the cards of what it shows. The new medal and holocron pop-ups'
 entrances (and their fanfare) also wait for the window to come back. A newer SJK release
 the update check finds has a card too ([client.md](client.md#updates)). The board shows every
-achievement in three columns: a medallion with the goal that fills with the count,
-gold once unlocked, the name, the category (Combat, Duels and flags, Journeys,
-Community), what to do, a bar and the count or the date it was unlocked.
+achievement listed as a wall of medallions in four bands of up to twelve (since
+26/10/2026; each category's run under its name and count, two short categories
+sharing a band, `collection_achievements.rs`): a medallion with the goal that fills
+with the count, gold once unlocked, and the name under it, the categories Combat,
+Duels and flags, Journeys, Community, Collection and Toys. The arrows and Tab read the
+wall in its order; the one chosen shows up close on the right with what to do, a bar
+and the count or the date it was unlocked.
 
 What this proves: an achievement is the player's own record, as a claim is the
 player's own word. A modified client or an edited `achievements.json` can send counts
@@ -885,35 +1042,89 @@ staff key gets the SJK team's tools in the game: the Profile page shows Staff to
 as does the SJK UI in-game menu's row of icons (and the `staff` command opens them; for
 any other key it says they are for staff).
 
-The Staff page ([staff_panel.rs](../crates/sjk-viewer/src/staff_panel.rs), the SJK
-UI's look) finds players (a name or part of one, colour codes ignored; a key id; or,
-with Seen lately, the players the hub saw last), shows the chosen one (the player
-themself until another is chosen, or with Me), and offers:
+The creator (since 20/10/2026) is SJK's own creator: a flag above staff that only the hub
+operator sets, and that makes the person staff too. Profiles, chat messages and the
+chat's people list carry it (`creator`, absent as false). Where staff show as such the
+creator shows as the creator: the player card's pill reads SJK CREATOR (sun orange,
+wider) instead of SJK TEAM, the sender card's status line says "SJK player, SJK
+creator", and the Chat page's message line starts "Creator" instead of "Staff". The hub
+refuses staff's tools on the creator (an error `creator`), so other staff cannot mute,
+unverify, take from or merge them, nor delete their chat messages. The creator alone
+makes players staff or takes it away from inside the game (since 20/10/2026, Sol's
+call): on the Staff page's Overview, beside Verify, their own **Make staff** or
+**Remove staff** button acts on a second press (`StaffRequest::SetStaff`, hub `POST
+/v1/staff/staff`, logged and undoable by the owner). It never shows on the creator's
+own player, and admin panel access stays the operator's.
 
-- every medal of the catalogue with what the player holds: Give (Give +1 for a
-  repeatable one already held), Take back (one award; a repeatable one counts down),
-  and a note sent with the next medal, which everyone can read;
-- every unlockable of the catalogue with whether the player holds it (and since
-  when): Unlock (`StaffRequest::Unlock`, with the note field's text as the team's
-  note) and Relock (`StaffRequest::Relock`), as Give and Take back for medals; the
-  hub's answer replaces the chosen profile and shows in the status line;
-- the player's achievements at the hub, each with Clear, and Clear all, which waits
-  for a second press within 3 seconds;
-- the player's picture beside their name, with Take picture down
-  ([Pictures](#pictures));
-- the player's holocrons: the four tiers to choose and Give (`StaffRequest::HolocronGive`,
-  with the note field's text as the team's note), and their four newest with Remove
-  (`StaffRequest::HolocronRemove`) ([holocrons.md](holocrons.md#staff));
-- Verify beside Take picture down (`StaffRequest::Verify`): it reads Unverify while the
-  player is verified and takes the mark away again;
-- the right column's second tab, Keys and merge: the player's main key and their
-  linked keys, each with Unlink (`StaffRequest::Unlink`, which waits for a second press
-  within 3 seconds), then Merge another key into this player ([Players with several
-  keys](#players-with-several-keys));
-- its third, Logs: Request logs for the chosen player and the log requests with Open,
-  and its fourth, Crashes: every player's crash reports by kind, then one kind's with
-  Open ([Log requests](#log-requests)). Clear all sits at the top of the achievements
-  since 11/10/2026, the tabs' row being full.
+Since 23/10/2026 (Sol's call) what gives, takes back, clears or merges is the creator's
+alone too: medals, unlockables, holocrons, credits and shards, clearing achievements,
+taking a picture down, unlinking and merging keys. The hub refuses those requests from
+other staff (an error `creator_only`); on their Staff page those buttons show dimmed,
+Tab skips them and a press does nothing (`owner_only` in `staff_panel.rs`), and the
+status line says the tab is to read. Other staff keep search, verify, chat moderation,
+picture blocks, log requests and the Logs, Crashes and Chat bans tabs.
+
+The JKR creator (since 22/10/2026) is the creator of JKR, the client SJK is built on
+(Bishop): a flag only the hub operator sets (`sjk-hub jkr-creator KEY_ID`), carried by
+Profiles as `jkr_creator` (absent as false). It is a mark and nothing else: no staff
+rights, no tools, no protection. The player card shows it as a rust JKR CREATOR pill,
+after SJK TEAM or SJK CREATOR when the person has one.
+
+The Staff page ([staff_panel.rs](../crates/sjk-viewer/src/staff_panel.rs), the SJK
+UI's look) finds players down its left (a name or part of one, colour codes ignored; a
+key id; or, with Seen lately, the players the hub saw last; 15 shown, each with their
+flags and when the hub last saw them in a game, "you" on the player's own), and shows
+the chosen one (the player themself until another is chosen, or with Me) on the right:
+their picture, name, flags, how many keys and when last seen beside the note field (the note sent with the next
+medal, unlock, holocron, credits or shards, and with a log request, which everyone
+reads), over a row of tabs (reworked 18/10/2026 at Sol's request, "manage all that's
+needed better"; the page used to squeeze everything into three columns). Since
+26/10/2026 no key id shows anywhere on it ([Settings and commands](#settings-and-commands)):
+a key id typed or pasted into the search or the merge field shows as bullets and "(key
+id)" (with the player's name when the list has them), linked keys are numbered, a chat
+ban given by a player without a name says "a player", and the status line never names a
+key ("Merged the other player into this one", "Unlinked the key: it starts afresh").
+
+- **Overview**, where the page opens: the account (flags, trust, member since, last seen,
+  keys counted, medals and unlockables held, achievements, unopened holocrons and kyber
+  crystals, credits, shards and cards), Verify (`StaffRequest::Verify`; Unverify while the player is
+  verified), the last six names the hub kept, and moderation: their picture (Take down,
+  `StaffRequest::AvatarRemove`; Block pictures and Allow pictures,
+  `StaffRequest::AvatarBlock`, [Pictures](#pictures)) and the SJK chat (Mute at the hub
+  and Unmute, `StaffRequest::ChatMute`; Lift chat bans, `StaffRequest::ChatUnban`,
+  [hub-chat.md](hub-chat.md)). The hub does not say whether a player's pictures are
+  blocked or whether they are muted at the hub, so both ways are offered;
+- **Medals and unlocks**: every medal of the catalogue with what the player holds: Give
+  (Give +1 for a repeatable one already held) and Take back (one award; a repeatable one
+  counts down); beside them every unlockable with whether the player holds it (and since
+  when): Unlock (`StaffRequest::Unlock`) and Relock (`StaffRequest::Relock`), in pages of
+  36 with `<` and `>`;
+- **Holocrons and credits**: the player's holocrons and kyber crystals, the four holocron
+  tiers and under them the four crystal tiers to choose, Give (`StaffRequest::HolocronGive`)
+  and their twelve newest holocrons and crystals with Remove
+  (`StaffRequest::HolocronRemove`, on a second press within 3 seconds)
+  ([holocrons.md](holocrons.md#staff)); beside them their credits and kyber shards, an
+  amount (digits only) and Give credits, Take credits, Give shards and Take shards
+  (`StaffRequest::Credits` and `StaffRequest::Shards`, `POST /v1/staff/credits` and
+  `/v1/staff/shards` with the amount as `delta`, negative to take; Take waits for a second
+  press). The hub refuses taking more than they hold;
+- **Achievements**: the player's achievements at the hub in two columns, each with
+  Clear, and Clear all, which waits for a second press within 3 seconds;
+- **Keys**: the player's main key and their linked keys (numbered, never shown), each
+  with Unlink
+  (`StaffRequest::Unlink`, which waits for a second press within 3 seconds), then Merge
+  another key into this player ([Players with several keys](#players-with-several-keys));
+- **Logs**: Request logs for the chosen player and the log requests with Open
+  ([Log requests](#log-requests));
+- then two tabs set apart, about every player: **Crashes**, every player's crash reports
+  by kind, then one kind's with Open; and **Chat bans**, the SJK chat bans in force,
+  newest first (`StaffQuery::ChatBans`, `POST /v1/staff/chat-bans`), each with who
+  banned them, until when and whether their address is banned too, and Lift
+  (`StaffRequest::ChatUnban`; a ban that holds only an address has no key to name and
+  cannot be lifted from here). A lift takes the player's bans off the list.
+
+Each request's answer shows in the status line at the bottom left; one that answers a
+profile replaces the chosen player's, and the player's own when it is theirs.
 
 Each action is a request signed by the staff member's own key (`PROTOCOL.md`,
 "Staff"); the hub refuses it from a key that is not staff, keeps a log of every staff
@@ -921,7 +1132,8 @@ action, and limits a staff key to 120 requests an hour. Staff cannot make staff 
 and bios.
 
 Clearing achievements at the hub alone does not stick for the ones a client counts:
-the player's game sends its counts again. So when staff members clear their own,
+the player's game sends its counts again (clearing is the creator's alone at the hub,
+above). So when the creator clears their own,
 the client also forgets them (`achievements::forget`): the counter goes just below
 the cleared achievement's goal, and every achievement on the same counter with a
 higher goal is cleared with it (clearing First Blood clears Centurion and Legend of
@@ -941,11 +1153,12 @@ achievements and holocrons, whichever PC they play from.
 Keys get linked by a merge, for a player who reset their key (deleted `identity.key`
 by accident, a new PC without the backup). On the Staff page, with the kept player
 chosen (the one with the history, usually), the Keys and merge tab takes the key id
-of the other player, typed or pasted (Ctrl+V), or Pick in list and then a click on them
-among the players found; the page says when it is not a key id, already this
+of the other player, pasted (Ctrl+V) or typed, or Pick in list and then a click on them
+among the players found (the field shows bullets, never the key, and the player's name
+when the list has them); the page says when it is not a key id, already this
 player's, or a staff player (who is never merged away). Merge... only asks: a card
-says who is kept and who is merged away, by name and key id, and that it cannot be
-undone, with Cancel first under the keyboard and Merge for good
+says who is kept and who is merged away, by name and when last seen (never by key), and
+that it cannot be undone, with Cancel first under the keyboard and Merge for good
 (`StaffRequest::Merge`). Everything of the merged-away player (medals, unlocks,
 achievements, holocrons, names, reports, the picture when the kept player has none, a
 verified mark) goes to the kept player and their keys become its linked keys; the hub's
@@ -1003,18 +1216,24 @@ once.
 - The Identity page (Settings > Network > SJK identity key, main menu > SJK > IDENTITY
   in the classic menus, the in-game SJK menu, or the `identity` command) shows what the
   hub knows: the name worn now and up to three earlier ones, whether the key is
-  verified, the key id and the key file's location and the players the hub knows here.
-  The key id and the file (whose path names the Windows account) are bullets and
-  "(hidden)" until Show key is pressed, every time the page opens (not saved), so a
-  player can open it on a stream (09/10/2026, Sol's request). Elsewhere the player's
-  own key id is never printed: not on the Profile page, nor on their own row of the
-  Players cards, their own sender card or the SJK chat page's side panel for their own
-  message (`player_identity::printable_key_id`); other players' key ids still show. Its controls are
-  optional: the on/off switch, a bio field with Save, a button that copies the key id
-  (to the clipboard, never on screen), Show key. The words do the same without it: `identity bio <text>` sets the bio,
-  `identity key` shows the key id and file, `identity who [slot]` lists the players the hub
-  knows here (with a slot, their bio). `identity name` explains that the name is the one
-  played under (`/name`).
+  verified, the key file's location and the players the hub knows here. The key id is
+  always bullets and "(hidden)", and the file (whose path names the Windows account)
+  until Show file is pressed, every time the page opens (not saved), so a player can
+  open it on a stream (09/10/2026, Sol's request).
+
+  **Key ids never show in the game** (26/10/2026, Sol's rule: "ALWAYS hide the keys,
+  never show them in game"), the player's own or anyone else's: not on the Identity or
+  Profile page, the Players cards, the player card, the report page, sender cards, the
+  SJK chat page's side panel, the Staff page ([Staff](#staff)), nor in the console's
+  `identity key`, `identity who` and `block` lists. Where a key used to show, a player
+  goes by name (and the report page says "known" or "known, verified").
+  `player_identity::is_others_key` only tells whose a key is (for chat bans). Its
+  controls are optional: the on/off switch, a bio field with Save, a button that copies
+  the key id (to the clipboard, never on screen), Show file. The words do the same
+  without it: `identity bio <text>` sets the bio, `identity key` copies the key id to the
+  clipboard and says where the key file is, `identity who [slot]` lists the players the
+  hub knows here (with a slot, their bio). `identity name` explains that the name is the
+  one played under (`/name`).
 
 ## The key file
 

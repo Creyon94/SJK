@@ -1,6 +1,5 @@
 //! Keyboard and pointer actions for the floating conversation layer.
 
-use super::player_actions::{ACTIONS, MENU_BACK};
 use super::*;
 use sjk_client::{ChatDestination, chat_command};
 use sjk_ui::{InputEvent, PointerButton, UiEventKind};
@@ -64,37 +63,9 @@ impl ChatOverlay {
         if handled_key(key) {
             input.dead.other_key(text);
         }
-        if let Some(menu) = &mut self.player_menu {
-            match key {
-                KeyCode::Escape => {
-                    self.player_menu = None;
-                    return ChatInputResult::None;
-                }
-                KeyCode::ArrowUp | KeyCode::ArrowDown | KeyCode::Tab => {
-                    let previous = key == KeyCode::ArrowUp
-                        || (key == KeyCode::Tab && self.modifiers.shift_key());
-                    let index = menu
-                        .selected
-                        .and_then(|selected| ACTIONS.iter().position(|token| *token == selected));
-                    let next = match index {
-                        Some(index) if previous => (index + ACTIONS.len() - 1) % ACTIONS.len(),
-                        Some(index) => (index + 1) % ACTIONS.len(),
-                        None if previous => ACTIONS.len() - 1,
-                        None => 0,
-                    };
-                    menu.selected = Some(ACTIONS[next]);
-                    return ChatInputResult::None;
-                }
-                KeyCode::Enter | KeyCode::NumpadEnter => {
-                    if let Some(token) = menu.selected {
-                        self.activate(token);
-                    }
-                    return ChatInputResult::None;
-                }
-                _ => self.player_menu = None,
-            }
-        }
         match key {
+            // A pinned sender card goes first, the composer with the next Escape.
+            KeyCode::Escape if self.unpin_card() => {}
             KeyCode::Escape => {
                 self.input = None;
                 self.scroll = 0;
@@ -178,13 +149,6 @@ impl ChatOverlay {
         if !self.is_typing() {
             return;
         }
-        if matches!(
-            event,
-            InputEvent::PointerMove(_) | InputEvent::PointerLeave | InputEvent::PointerPress { .. }
-        ) && let Some(menu) = &mut self.player_menu
-        {
-            menu.selected = None;
-        }
         // The profile card lies over the feed and may reach the composer: a press on
         // it is the card's.
         let on_card = matches!(event, InputEvent::PointerPress { position, .. }
@@ -198,23 +162,40 @@ impl ChatOverlay {
             button: PointerButton::Primary,
         } = event
         {
-            // Match the canvas's reverse paint order: popovers cover the
+            // Match the canvas's reverse paint order: the card covers the
             // composer, which covers the feed. Otherwise release activates a
             // different widget than the one recorded here and is discarded.
-            self.pressed_action = [card::CARD_BAN, card::CARD_MUTE, card::CARD]
-                .into_iter()
-                .chain(ACTIONS.into_iter().rev())
-                .chain([MENU_BACK, LATEST, SJK, TEAM, GLOBAL])
-                .chain(0..MAX_VISIBLE as u16)
-                .find(|token| {
-                    self.ui
-                        .rect_for(*token)
-                        .is_some_and(|rect| rect.contains(position))
-                })
-                .map(|token| (token, self.action_target(token)));
+            self.pressed_action = [
+                card::CARD_TRADE,
+                card::CARD_WHISPER,
+                card::CARD_REPORT,
+                card::CARD_SAFETY,
+                card::CARD_BAN,
+                card::CARD_MUTE,
+                card::CARD,
+            ]
+            .into_iter()
+            .chain([LATEST, SJK, TEAM, GLOBAL])
+            .chain(0..MAX_VISIBLE as u16)
+            .find(|token| {
+                self.ui
+                    .rect_for(*token)
+                    .is_some_and(|rect| rect.contains(position))
+            });
+            // A sender's name: whose it is, so a release on another never pins theirs.
+            self.pressed_who = self
+                .pressed_action
+                .and_then(|token| self.visible_people.get(usize::from(token)).copied())
+                .flatten();
+            // A press off a pinned card and off every name lets the card go.
+            if !self
+                .pressed_action
+                .is_some_and(|token| usize::from(token) < MAX_VISIBLE || token >= card::CARD)
+            {
+                self.unpin_card();
+            }
         }
         if let InputEvent::PointerWheel { delta, .. } = event {
-            self.player_menu = None;
             if delta.y != 0.0 {
                 self.scroll_by(if delta.y > 0.0 { 1 } else { -1 });
             }
@@ -224,57 +205,20 @@ impl ChatOverlay {
         if let Some(result) = result
             && result.kind == UiEventKind::Activate
             && let Some(token) = result.token
+            && self.pressed_action.take() == Some(token)
         {
-            let target = self.action_target(token);
-            // A new message can rebuild the name widgets between press and
-            // release. Never reinterpret the old press as a different sender.
-            if self.pressed_action.take() != Some((token, target)) {
-                return;
-            }
-            if usize::from(token) < self.visible_targets.len() {
-                if let Some(target) = self.visible_targets[usize::from(token)]
-                    .filter(|target| self.roster.name(*target).is_some())
-                {
-                    self.player_menu = Some(PlayerMenu {
-                        target,
-                        anchor_y: self.ui.rect_for(token).map_or(0.0, |rect| rect.y),
-                        selected: None,
-                    });
-                }
-            } else {
-                self.activate(token);
-            }
-        }
-        if let InputEvent::PointerPress {
-            position,
-            button: PointerButton::Primary,
-        } = event
-            && self.player_menu.is_some()
-            && !self
-                .ui
-                .rect_for(MENU_BACK)
-                .is_some_and(|r| r.contains(position))
-        {
-            self.player_menu = None;
-        }
-    }
-
-    fn action_target(&self, token: u16) -> Option<ChatTarget> {
-        if ACTIONS.contains(&token) || token == MENU_BACK {
-            self.player_menu.map(|menu| menu.target)
-        } else {
-            self.visible_targets
-                .get(usize::from(token))
-                .copied()
-                .flatten()
+            self.activate(token);
         }
     }
 
     fn scroll_by(&mut self, delta: isize) {
-        self.scroll = self
-            .scroll
-            .saturating_add_signed(delta)
-            .min(self.lines.len().saturating_sub(1));
+        self.scroll = self.scroll.saturating_add_signed(delta).min(
+            self.lines
+                .iter()
+                .filter(|line| self.pm_visible(line))
+                .count()
+                .saturating_sub(1),
+        );
         if self.scroll == 0 {
             self.unread = 0;
         }
@@ -295,16 +239,23 @@ impl ChatOverlay {
                     input.recipient = None;
                     self.notice = "";
                 }
-                self.player_menu = None;
             }
             LATEST => {
                 self.scroll = 0;
                 self.unread = 0;
-                self.player_menu = None;
             }
-            token if ACTIONS.contains(&token) => self.player_action(token),
             card::CARD_MUTE => self.toggle_card_mute(),
             card::CARD_BAN => self.press_card_ban(),
+            card::CARD_SAFETY => self.press_card_safety(),
+            card::CARD_REPORT => self.press_card_report(),
+            card::CARD_WHISPER => self.press_card_whisper(),
+            card::CARD_TRADE => self.press_card_trade(),
+            card::CARD_MAP_BLOCK => self.press_card_map_block(false),
+            card::CARD_STAFF_BLOCK => self.press_card_map_block(true),
+            token if usize::from(token) < MAX_VISIBLE => {
+                let pressed = self.pressed_who.take();
+                self.click_name(usize::from(token), pressed);
+            }
             _ => {}
         }
     }
@@ -324,28 +275,34 @@ impl crate::GpuState {
         }
         match self.chat.handle_key(event) {
             ChatInputResult::Submit(command) => {
-                let command = self.console.as_ref().map_or_else(
-                    || command.clone(),
-                    |console| console.color_chat_command(&command),
-                );
-                self.send_chat_command(&command);
+                self.send_chat_command(&command, None);
             }
-            ChatInputResult::Sjk(text) => self.send_sjk_chat(text),
+            ChatInputResult::Sjk(text) => {
+                // Staff's Shift+Enter keeps it out of the server's All chat.
+                let only = self.chat.modifiers.shift_key()
+                    && self.chat.said_in_all.is_some()
+                    && crate::player_identity::is_staff();
+                self.send_sjk_chat(text, only);
+            }
             ChatInputResult::None => {}
         }
         self.sync_cursor_policy();
     }
 
-    /// Hand a message to the SJK chat, never to the game server; say why when it
-    /// cannot go.
-    pub(crate) fn send_sjk_chat(&mut self, text: String) {
+    /// Hand a message to the SJK chat (`only`: never said in the server's All chat, even
+    /// where a mod says SJK chat there); say why when it cannot go.
+    pub(crate) fn send_sjk_chat(&mut self, text: String, only: bool) {
         let off = self
             .console
             .as_ref()
             .is_some_and(|console| console.bool_cvar("cl_sjkChat") == Some(false));
         let why = if off {
             Some("^3SJK chat is off (cl_sjkChat 1 turns it on)")
-        } else if !crate::player_identity::chat(text) {
+        } else if !if only {
+            crate::player_identity::chat_sjk_only(text)
+        } else {
+            crate::player_identity::chat(text)
+        } {
             Some("^3SJK chat needs the SJK identity (cl_identity 1)")
         } else {
             None
@@ -361,12 +318,78 @@ impl crate::GpuState {
     }
 
     /// Composer and console messages share the real server's reliable channel.
-    pub(crate) fn send_chat_command(&mut self, command: &str) {
-        if let Some(session) = self.communication_session_mut()
-            && let Err(error) = session.send_reliable_command(command.as_bytes())
-        {
-            eprintln!("failed to send chat: {error}");
+    pub(crate) fn send_chat_command(&mut self, command: &str, console_colors: Option<(u16, u32)>) {
+        let values = self.chat_substitution_values();
+        let command = super::substitutions::command(
+            command,
+            values.as_ref(),
+            sjk_shell::local_time::LocalTime::now(),
+        );
+        let command = self.console.as_ref().map_or_else(
+            || command.clone(),
+            |console| console.color_chat_command(&command, console_colors),
+        );
+        // A whisper to a player who takes encrypted ones goes through the SJK hub
+        // instead (`e2e_whispers.rs`).
+        if self.route_encrypted_whisper(&command) {
+            return;
         }
+        let recipient = whisper_destination(&command).map(|slot| {
+            self.chat
+                .player_name(slot)
+                .map(str::to_owned)
+                .unwrap_or_else(|| format!("client {slot}"))
+        });
+        self.send_chat_to_server(&command, recipient);
+    }
+
+    /// Send an expanded and coloured chat `command` to the game server; `recipient` is
+    /// a whisper's, for the console's note of it.
+    pub(crate) fn send_chat_to_server(&mut self, command: &str, recipient: Option<String>) {
+        let sent = if let Some(session) = self.communication_session_mut() {
+            if let Err(error) = session.send_reliable_command_from(
+                command.as_bytes(),
+                sjk_client::ReliableCommandOrigin::Chat,
+            ) {
+                eprintln!("failed to send chat: {error}");
+                false
+            } else {
+                true
+            }
+        } else {
+            false
+        };
+        if sent
+            && let Some(name) = recipient
+            && let Some(console) = &mut self.console
+        {
+            console.note_sent_whisper(command, name);
+        }
+    }
+}
+
+fn whisper_destination(command: &str) -> Option<u16> {
+    let tokens = sjk_shell::tokenize(command).ok()?;
+    let [verb, slot, body @ ..] = tokens.as_slice() else {
+        return None;
+    };
+    (verb.eq_ignore_ascii_case("tell") && !body.is_empty())
+        .then(|| slot.parse().ok())
+        .flatten()
+}
+
+#[cfg(test)]
+mod whisper_destination_tests {
+    use super::whisper_destination;
+
+    #[test]
+    fn reads_only_a_complete_tell_command() {
+        assert_eq!(whisper_destination("tell 7 \"hello there\""), Some(7));
+        assert_eq!(whisper_destination("tell 7 hello there"), Some(7));
+        assert_eq!(whisper_destination("TELL 12 hello"), Some(12));
+        assert_eq!(whisper_destination("say hello"), None);
+        assert_eq!(whisper_destination("tell nope hello"), None);
+        assert_eq!(whisper_destination("tell 7"), None);
     }
 }
 

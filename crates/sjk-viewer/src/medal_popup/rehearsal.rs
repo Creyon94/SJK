@@ -11,7 +11,7 @@
 //! ```text
 //! debug_medal                          the ids and how to use it
 //! debug_medal early_tester             one medal
-//! debug_medal bug_hunter x3 The fog    Bug Hunter given a third time, with a note
+//! debug_medal bug_hunter The fog      one medal, with a note
 //! debug_medal all [note]               every medal, one after another
 //! ```
 
@@ -71,11 +71,17 @@ pub(crate) fn parse(args: &[String], now: i64) -> Result<Vec<sjk_identity::Medal
         None => 1,
     };
     if count > 1 && medals.iter().all(|medal| !medal.repeatable()) {
-        return Err(format!(
-            "{} is given only once; only {} takes a count",
-            medals[0].name(),
-            Medal::BugHunter.name()
-        ));
+        let repeatable: Vec<&str> = Medal::ALL
+            .iter()
+            .filter(|medal| medal.repeatable())
+            .map(|medal| medal.name())
+            .collect();
+        let takes = if repeatable.is_empty() {
+            "no medal takes a count".to_owned()
+        } else {
+            format!("only {} takes a count", repeatable.join(", "))
+        };
+        return Err(format!("{} is given only once; {takes}", medals[0].name()));
     }
     let note = note.join(" ");
     Ok(medals
@@ -145,10 +151,15 @@ mod tests {
     }
 
     #[test]
-    fn a_count_for_the_repeatable_medal_only() {
-        let list = parse(&words("bug_hunter x3 The fog"), NOW).unwrap();
-        assert_eq!((list[0].count, list[0].note.as_str()), (3, "The fog"));
-        assert_eq!(crate::medals::awards(&list)[0].label(), "Bug Hunter x3");
+    fn a_count_for_a_repeatable_medal_only_and_none_is() {
+        // Bug Hunter was the repeatable one until 21/10/2026: now it is given once.
+        let error = parse(&words("bug_hunter x3 The fog"), NOW).unwrap_err();
+        assert_eq!(
+            error,
+            "Bug Hunter is given only once; no medal takes a count"
+        );
+        let list = parse(&words("bug_hunter x1 The fog"), NOW).unwrap();
+        assert_eq!((list[0].count, list[0].note.as_str()), (1, "The fog"));
         assert!(parse(&words("early_tester x2"), NOW).is_err());
         assert!(parse(&words("bug_hunter x0"), NOW).is_err());
         assert!(parse(&words("bug_hunter x1000"), NOW).is_err());
@@ -159,7 +170,7 @@ mod tests {
 
     #[test]
     fn all_gives_every_medal_in_the_catalogues_order() {
-        let list = parse(&words("all x2 Well done"), NOW).unwrap();
+        let list = parse(&words("all Well done"), NOW).unwrap();
         let ids: Vec<&str> = list.iter().map(|medal| medal.id.as_str()).collect();
         assert_eq!(
             ids,
@@ -172,7 +183,9 @@ mod tests {
         );
         assert!(list.iter().all(|medal| medal.note == "Well done"));
         let counts: Vec<u32> = list.iter().map(|medal| medal.count).collect();
-        assert_eq!(counts, [1, 1, 2, 1]);
+        assert_eq!(counts, [1, 1, 1, 1]);
+        // No medal is repeatable, so all takes no count either.
+        assert!(parse(&words("all x2 Well done"), NOW).is_err());
     }
 
     #[test]

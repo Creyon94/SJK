@@ -5,10 +5,17 @@
 use super::*;
 
 /// Reserve carrier instances in addition to ordinary pickups before the first frame.
-pub(super) fn instance_groups(meshes: &[StaticModelMesh]) -> Vec<Vec<ActorInstance>> {
+pub(super) fn instance_groups(
+    meshes: &[StaticModelMesh],
+    hilts: Option<&saber::HiltCatalog>,
+) -> Vec<Vec<ActorInstance>> {
     meshes
         .iter()
-        .map(|mesh| {
+        .enumerate()
+        .map(|(index, mesh)| {
+            if hilts.is_some_and(|catalog| catalog.uses_mesh(index)) {
+                return crate::saber_hilts::instance_group();
+            }
             let flag = actor_world_submission::flags::MODELS
                 .iter()
                 .flatten()
@@ -29,6 +36,8 @@ pub(super) struct StaticModelMesh {
     pub(super) draws: Vec<ActorDraw>,
     pub(super) center: [f32; 3],
     pub(super) flash_bolt: Option<bolt::BoltMatrix>,
+    /// For an emplaced gun's turning part, the bind pose of the bone that carries it.
+    pub(super) turning_bone: Option<sjk_model::GlaBone>,
 }
 
 /// Gather preload defaults and the initial world's rigid appearances and append
@@ -59,6 +68,18 @@ pub(super) fn load<'a>(
     });
     appearances.insert(Appearance {
         model: crate::cardboard_box::MODEL.to_owned(),
+        variant: String::new(),
+    });
+    appearances.insert(Appearance {
+        model: crate::drone::MODEL.to_owned(),
+        variant: String::new(),
+    });
+    appearances.insert(Appearance {
+        model: crate::boombox::MODEL.to_owned(),
+        variant: String::new(),
+    });
+    appearances.insert(Appearance {
+        model: crate::monitor::MODEL.to_owned(),
         variant: String::new(),
     });
     // The Profile screen's Holocrons tab: a model per tier and the locked look.
@@ -118,6 +139,9 @@ pub(super) fn load_one(
     appearance: &Appearance,
     flattened: &mut FlattenedScene,
 ) -> Result<StaticModelMesh, Box<dyn Error>> {
+    if let Some(part) = emplaced_swivel::Part::of(appearance) {
+        return emplaced_swivel::load_part(vfs, appearance, part, flattened);
+    }
     let asset = vfs
         .read(&appearance.model)?
         .ok_or("network model asset was not found")?;
@@ -141,5 +165,6 @@ pub(super) fn load_one(
         draws,
         center: mesh_center(&flattened.vertices[vertex_start..]),
         flash_bolt,
+        turning_bone: None,
     })
 }

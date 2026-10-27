@@ -28,7 +28,7 @@ pub(crate) use style::TextStyle;
 
 use bytemuck::{Pod, Zeroable};
 use fontdue::{Font, FontSettings, Metrics};
-use image::{Rgba, RgbaImage};
+use image::{GrayImage, Luma};
 use std::error::Error;
 
 pub(crate) const MAX_TEXT_VERTICES: usize = 32_768;
@@ -219,7 +219,8 @@ impl UiFont {
 /// CPU assets uploaded once to the GPU text texture.
 pub(crate) struct FontAtlas {
     pub(crate) font: UiFont,
-    pub(crate) image: RgbaImage,
+    /// Glyph coverage, one channel (uploaded as `R8Unorm`, read from `.r`).
+    pub(crate) image: GrayImage,
     /// `image` is a signed distance field for the distance-field text pipeline.
     pub(crate) distance_field: bool,
 }
@@ -233,20 +234,24 @@ pub(crate) struct TextVertex {
     color: [f32; 4],
 }
 
-#[cfg(test)]
 impl TextVertex {
-    /// The vertex's colour, for tests of what a surface drew.
+    /// The vertex's colour, used by drawing assertions.
+    #[cfg(test)]
     pub(crate) fn colour(&self) -> [f32; 4] {
         self.color
     }
 
-    /// The vertex's position in window pixels of `viewport`, for tests of where
-    /// a surface drew.
+    /// The vertex's position in window pixels of `viewport`.
     pub(crate) fn window_position(&self, viewport: [f32; 2]) -> [f32; 2] {
         [
             (self.position[0] + 1.0) * 0.5 * viewport[0],
             (1.0 - self.position[1]) * 0.5 * viewport[1],
         ]
+    }
+
+    /// Make one already-built text vertex transparent.
+    pub(crate) fn hide(&mut self) {
+        self.color[3] = 0.0;
     }
 }
 
@@ -390,7 +395,7 @@ pub(crate) fn load_family(
 
 /// Pack `rasterized` into a coverage atlas [`ATLAS_WIDTH`] wide with mipmappable
 /// padding, and return it with each glyph's rectangle `[u0, v0, u1, v1]`.
-fn paint_atlas(rasterized: &[RasterizedGlyph]) -> (RgbaImage, Vec<[f32; 4]>) {
+fn paint_atlas(rasterized: &[RasterizedGlyph]) -> (GrayImage, Vec<[f32; 4]>) {
     let placements = pack_glyphs(rasterized);
     let height = placements
         .iter()
@@ -399,9 +404,9 @@ fn paint_atlas(rasterized: &[RasterizedGlyph]) -> (RgbaImage, Vec<[f32; 4]>) {
         .max()
         .unwrap_or(1)
         .next_power_of_two();
-    // Transparent texels retain white RGB so bilinear sampling at a glyph
-    // boundary does not interpolate toward black before straight-alpha blend.
-    let mut image = RgbaImage::from_pixel(ATLAS_WIDTH, height, Rgba([255, 255, 255, 0]));
+    // Coverage only: the text colour comes from the vertices, so the atlas needs
+    // no RGB (the shaders read coverage from the red channel).
+    let mut image = GrayImage::new(ATLAS_WIDTH, height);
     let rectangles = rasterized
         .iter()
         .zip(placements)
@@ -409,12 +414,8 @@ fn paint_atlas(rasterized: &[RasterizedGlyph]) -> (RgbaImage, Vec<[f32; 4]>) {
             let metrics = glyph.metrics;
             for row in 0..metrics.height {
                 for column in 0..metrics.width {
-                    let alpha = glyph.pixels[row * metrics.width + column];
-                    image.put_pixel(
-                        x + column as u32,
-                        y + row as u32,
-                        Rgba([255, 255, 255, alpha]),
-                    );
+                    let coverage = glyph.pixels[row * metrics.width + column];
+                    image.put_pixel(x + column as u32, y + row as u32, Luma([coverage]));
                 }
             }
             [
@@ -654,7 +655,9 @@ pub(crate) fn append_text_face(
     )
 }
 
-/// Append text with an explicit weight, base colour, and tracking.
+/// Append text with an explicit weight, base colour, and tracking. A glyph that
+/// would come within one line height of the viewport's right edge starts a new
+/// line, as does `\n`.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn append_text_style(
     vertices: &mut Vec<TextVertex>,
@@ -666,6 +669,62 @@ pub(crate) fn append_text_style(
     face: TextFace,
     base_color: [f32; 4],
     letter_spacing: f32,
+) -> usize {
+    append_text_wrapping(
+        vertices,
+        font,
+        text,
+        origin,
+        scale,
+        viewport,
+        face,
+        base_color,
+        letter_spacing,
+        true,
+    )
+}
+
+/// [`append_text_style`] without the wrap at the viewport's right edge: only `\n`
+/// starts a new line. For text placed where it must stay, such as the HUD's,
+/// whose callers keep it on screen themselves.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn append_text_unwrapped(
+    vertices: &mut Vec<TextVertex>,
+    font: &UiFont,
+    text: &str,
+    origin: [f32; 2],
+    scale: f32,
+    viewport: [f32; 2],
+    face: TextFace,
+    base_color: [f32; 4],
+    letter_spacing: f32,
+) -> usize {
+    append_text_wrapping(
+        vertices,
+        font,
+        text,
+        origin,
+        scale,
+        viewport,
+        face,
+        base_color,
+        letter_spacing,
+        false,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn append_text_wrapping(
+    vertices: &mut Vec<TextVertex>,
+    font: &UiFont,
+    text: &str,
+    origin: [f32; 2],
+    scale: f32,
+    viewport: [f32; 2],
+    face: TextFace,
+    base_color: [f32; 4],
+    letter_spacing: f32,
+    edge_wrap: bool,
 ) -> usize {
     let mut cursor = origin;
     let mut color = base_color;
@@ -681,7 +740,7 @@ pub(crate) fn append_text_style(
         let (key, step) = glyph_at(text, index);
         index += step;
         let newline = key == GlyphKey::Slot(b'\n');
-        if newline || cursor[0] + font.height * scale > viewport[0] {
+        if newline || (edge_wrap && cursor[0] + font.height * scale > viewport[0]) {
             cursor[0] = origin[0];
             cursor[1] += font.height * scale * 1.18;
             lines += 1;
@@ -924,6 +983,36 @@ impl std::fmt::Display for Carry {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn only_the_wrapping_variant_breaks_at_the_right_edge() {
+        let font = test_font();
+        let draw = |wrap: bool| {
+            let mut vertices = Vec::new();
+            let append = if wrap {
+                append_text_style
+            } else {
+                append_text_unwrapped
+            };
+            let lines = append(
+                &mut vertices,
+                &font,
+                "MEDIUM\nX",
+                [600.0, 0.0],
+                1.0,
+                [640.0, 480.0],
+                TextFace::Regular,
+                [1.0; 4],
+                0.0,
+            );
+            (lines, vertices.len())
+        };
+        let (wrapped, wrapped_vertices) = draw(true);
+        let (unwrapped, unwrapped_vertices) = draw(false);
+        assert!(wrapped > 2, "{wrapped}");
+        assert_eq!(unwrapped, 2);
+        assert_eq!(wrapped_vertices, unwrapped_vertices);
+    }
 
     #[test]
     fn the_legible_palette_lifts_dark_codes_and_keeps_their_hue() {

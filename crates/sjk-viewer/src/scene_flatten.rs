@@ -286,10 +286,20 @@ pub(super) fn append_static_glm_mesh(
     scene: &mut FlattenedScene,
     model: &Glm,
 ) -> Result<Vec<ActorDraw>, Box<dyn Error>> {
+    append_static_glm_surfaces(scene, model, |_| true)
+}
+
+/// [`append_static_glm_mesh`] for the drawn surfaces `keep` accepts, as the emplaced
+/// gun's two parts are cut from one model ([`crate::emplaced_swivel`]).
+pub(super) fn append_static_glm_surfaces(
+    scene: &mut FlattenedScene,
+    model: &Glm,
+    keep: impl Fn(&sjk_model::GlmSurface) -> bool,
+) -> Result<Vec<ActorDraw>, Box<dyn Error>> {
     let lod = model.lods.first().ok_or("static GLM has no LOD")?;
     let mut draws = Vec::new();
     for (surface, hierarchy) in lod.surfaces.iter().zip(&model.hierarchy) {
-        if hierarchy.name.starts_with('*') || hierarchy.flags & 0x2 != 0 {
+        if hierarchy.name.starts_with('*') || hierarchy.flags & 0x2 != 0 || !keep(surface) {
             continue;
         }
         let vertex_base: u32 = scene.vertices.len().try_into()?;

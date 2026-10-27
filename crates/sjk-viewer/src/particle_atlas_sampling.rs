@@ -24,20 +24,13 @@ impl ParticleLayerSample {
 }
 
 impl ParticleAtlas {
-    /// Sample the first authored stage, or the atlas fallback for an unknown shader.
-    pub(crate) fn first_layer(&self, shader: &str, age_seconds: f32) -> ParticleLayerSample {
-        self.stages(shader)
-            .and_then(|animations| animations.first())
-            .map(|animation| self.sample_animation(animation, age_seconds))
-            .unwrap_or(ParticleLayerSample {
-                uv_rect: self.fallback,
-                blend: ParticleBlend::Add,
-                rgb: 1.0,
-                alpha: 1.0,
-                uv_transform: [1.0, 1.0, 0.0, 0.0],
-                glow: false,
-                tinted: true,
-            })
+    /// First visible stage, or a fallback only for an unknown shader.
+    pub(crate) fn first_layer(
+        &self,
+        shader: &str,
+        age_seconds: f32,
+    ) -> Option<ParticleLayerSample> {
+        self.layers_for(shader, age_seconds).iter().next()
     }
 
     /// Evaluate one stage's original frame, waveform and texture-coordinate rules.
@@ -91,7 +84,7 @@ impl ParticleAtlas {
     ) -> effect_runtime::ParticleLayerSamples<'_> {
         effect_runtime::ParticleLayerSamples::new(
             self,
-            self.stages(shader).map_or(&[], Vec::as_slice),
+            self.stages(shader).map(Vec::as_slice),
             age_seconds,
         )
     }

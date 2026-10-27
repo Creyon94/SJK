@@ -31,7 +31,7 @@ use super::ViewerConsole;
 use super::line_edit::token_at;
 use super::selection::{Gesture, Mark, PromptPointer, floor_boundary};
 use crate::console_backdrop::{Background, ConsoleFrame, MAX_TEXT_VERTICES, SolidQuad, TextAtlas};
-use crate::text::{CodePalette, GlyphKey, UiFont, append_cell, glyph_at, quake_color};
+use crate::text::{CodePalette, GlyphKey, TextVertex, UiFont, append_cell, glyph_at, quake_color};
 use sjk_shell::local_time::LocalTime;
 use sjk_shell::{ConsoleLine, ConsoleLineKind};
 use sjk_ui::{Rect, Vec2};
@@ -70,8 +70,10 @@ pub(super) const PAGE_ROWS: usize = 2;
 pub(super) const FAST_PAGES: usize = 5;
 /// Commands kept for Up and Down (`COMMAND_HISTORY`).
 pub(super) const HISTORY: usize = 32;
-/// Open fraction of Ctrl and Shift with the console key (`CL_KeyDownEvent`).
+/// Open fraction of Ctrl with the console key.
 const FULL_HEIGHT: f32 = 1.0;
+/// Open fraction of Shift with the console key (`CL_KeyDownEvent`), or of
+/// Shift+Escape with `con_shiftHeight`.
 const QUARTER_HEIGHT: f32 = 0.25;
 
 /// The character grid for a viewport and `con_scale`.
@@ -157,14 +159,21 @@ pub(super) fn ratio_fix_range(fraction: f32, viewport: [f32; 2], enabled: bool) 
     }
 }
 
-/// Open fraction for a console key: Ctrl opens it full screen, Shift a quarter,
-/// otherwise follow the live `con_height` setting (`None`). Shift+Escape also
-/// clears the override, rather than caching the setting's current value.
-pub(super) fn open_height(escape: bool, control: bool, shift: bool) -> Option<f32> {
+/// Open fraction for a console key; `None` follows live `con_height`. Ctrl plus
+/// the console key opens full screen. As `CL_KeyDownEvent`, Shift plus the console
+/// key opens a quarter and Shift+Escape the plain height; `con_shiftHeight`
+/// (`shift_height`) swaps those two: Shift plus the console key follows
+/// `con_height` and Shift+Escape opens a quarter.
+pub(super) fn open_height(
+    escape: bool,
+    control: bool,
+    shift: bool,
+    shift_height: bool,
+) -> Option<f32> {
     match (escape, control, shift) {
-        (true, ..) => None,
+        (true, ..) => shift_height.then_some(QUARTER_HEIGHT),
         (false, true, _) => Some(FULL_HEIGHT),
-        (false, false, true) => Some(QUARTER_HEIGHT),
+        (false, false, true) => (!shift_height).then_some(QUARTER_HEIGHT),
         _ => None,
     }
 }
@@ -617,7 +626,8 @@ impl ViewerConsole {
     ) {
         frame.atlas = atlas;
         self.presentation.clear(viewport);
-        if self.debug_panel.is_open()
+        if self.server_dialogue_active()
+            || self.debug_panel.is_open()
             || self.model_viewer.is_open()
             || self.changelog.is_open()
             || self.credits.is_open()
@@ -841,6 +851,20 @@ impl ViewerConsole {
                 let column = grid.column_at(position.x, text_column);
                 (row.max(-1.0) as isize, column)
             });
+        let hover_target = self
+            .open
+            .then(|| self.selection.hover_position())
+            .flatten()
+            .filter(|position| {
+                position.x >= 0.0
+                    && position.x < painter.viewport[0]
+                    && position.y >= layout.rows_top
+                    && position.y < rows_bottom + grid.pitch
+            })
+            .map(|position| {
+                let row = ((rows_bottom - position.y) / grid.pitch).floor() as isize;
+                (row, position)
+            });
         let shown = |y: f32| {
             if layout.partial {
                 y + grid.pitch > layout.rows_top
@@ -852,6 +876,7 @@ impl ViewerConsole {
         let mut resolved = None;
         let mut bottom_end = None;
         let mut top_start = None;
+        let mut hovered_whisper = None;
         let Some(newest) = total.checked_sub(1 + self.scroll_offset) else {
             return;
         };
@@ -910,6 +935,13 @@ impl ViewerConsole {
                     .map_or_else(|| ink.line(entry), |code| ink.palette.colour(code));
                 painter.coloured(frame, text, text_column, y, color);
             }
+            if let Some((row, position)) = hover_target
+                && row == index as isize
+                && visible
+                && self.whisper_hover.label(line).is_some()
+            {
+                hovered_whisper = Some((line, y, position));
+            }
             if let Some((row, column)) = target
                 && row == index as isize
             {
@@ -945,6 +977,46 @@ impl ViewerConsole {
                 None => self.selection.drag_output(at),
             }
         }
+        if let Some((line, row_y, position)) = hovered_whisper {
+            self.whisper_tooltip(frame, painter, layout, line, row_y, position);
+        }
+    }
+
+    fn whisper_tooltip(
+        &self,
+        frame: &mut ConsoleFrame,
+        painter: &Painter<'_>,
+        layout: &Layout,
+        line: u64,
+        row_y: f32,
+        position: Vec2,
+    ) {
+        let Some(label) = self.whisper_hover.label(line) else {
+            return;
+        };
+        let grid = painter.grid;
+        let columns = cell_count(label) + 2;
+        let last_column = grid.columns.saturating_sub(columns).max(1);
+        let column = grid.column_at(position.x + grid.width, 0).min(last_column);
+        let x = grid.x(column);
+        let width = columns as f32 * grid.width;
+        let height = grid.pitch + 2.0;
+        let above = row_y - height;
+        let y = if above >= layout.rows_top {
+            above
+        } else {
+            (row_y + grid.pitch).min((layout.input_y - height).max(layout.rows_top))
+        };
+        frame.quads.push(SolidQuad {
+            rect: [x, y, width, height],
+            color: painter.ink.highlight,
+        });
+        frame.quads.push(SolidQuad {
+            rect: [x + 1.0, y + 1.0, width - 2.0, height - 2.0],
+            color: [0.015, 0.025, 0.055, 0.97],
+        });
+        cover_text(&mut frame.text, [x, y, width, height], painter.viewport);
+        painter.raw(frame, label, column + 1, y + 1.0, painter.ink.text);
     }
 
     /// The input row at `y`: the green clock and `]` (classic) or the prompt
@@ -1122,6 +1194,33 @@ impl ViewerConsole {
     }
 }
 
+/// Hide complete console glyphs under an opaque pop-up drawn before the text pass.
+fn cover_text(vertices: &mut [TextVertex], rect: [f32; 4], viewport: [f32; 2]) {
+    let [left, top, width, height] = rect;
+    let right = left + width;
+    let bottom = top + height;
+    for glyph in vertices.as_chunks_mut::<6>().0 {
+        let mut bounds = [
+            f32::INFINITY,
+            f32::INFINITY,
+            f32::NEG_INFINITY,
+            f32::NEG_INFINITY,
+        ];
+        for vertex in glyph.iter() {
+            let [x, y] = vertex.window_position(viewport);
+            bounds[0] = bounds[0].min(x);
+            bounds[1] = bounds[1].min(y);
+            bounds[2] = bounds[2].max(x);
+            bounds[3] = bounds[3].max(y);
+        }
+        if bounds[0] < right && bounds[2] > left && bounds[1] < bottom && bounds[3] > top {
+            for vertex in glyph {
+                vertex.hide();
+            }
+        }
+    }
+}
+
 /// The glyph that draws `character` in its cell: its Windows-1252 byte's, as
 /// [`crate::text::glyph_at`] picks it, so a typed `’` uses cell 0x92 like the same
 /// byte from another player; a character with no such byte (`ж`, `日`) is wide.
@@ -1265,14 +1364,19 @@ mod tests {
 
     #[test]
     fn console_key_heights() {
-        assert_eq!(open_height(false, false, false), None);
-        assert_eq!(open_height(false, true, false), Some(1.0));
-        assert_eq!(open_height(false, false, true), Some(0.25));
-        // Ctrl wins over Shift; Shift+Escape is the plain height.
-        assert_eq!(open_height(false, true, true), Some(1.0));
-        assert_eq!(open_height(true, false, true), None);
-        // A normal opening follows subsequent changes, even without reopening.
-        let height = open_height(false, false, false);
+        // After EternalJK: Shift+tilde a quarter, Shift+Escape the setting,
+        // Ctrl+tilde full screen (Ctrl wins over Shift).
+        assert_eq!(open_height(false, false, false, false), None);
+        assert_eq!(open_height(false, true, false, false), Some(1.0));
+        assert_eq!(open_height(false, false, true, false), Some(0.25));
+        assert_eq!(open_height(false, true, true, false), Some(1.0));
+        assert_eq!(open_height(true, false, true, false), None);
+        // con_shiftHeight: Shift+tilde follows the setting, Shift+Escape a quarter.
+        assert_eq!(open_height(false, false, true, true), None);
+        assert_eq!(open_height(true, false, true, true), Some(0.25));
+        assert_eq!(open_height(false, true, true, true), Some(1.0));
+        // A normal opening follows changes without reopening.
+        let height = open_height(false, false, false, false);
         assert_eq!(height.unwrap_or(0.5), 0.5);
         assert_eq!(height.unwrap_or(0.75), 0.75);
     }

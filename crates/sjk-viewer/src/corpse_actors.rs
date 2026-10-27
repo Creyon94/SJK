@@ -13,6 +13,7 @@ impl GpuState {
         for command in commands.drain(..) {
             match command {
                 BaseServerCommandEvent::CopyBody(body) => {
+                    self.reset_body_fade(body.entity_num);
                     if let Err(error) = self.copy_body_actor(body, presentation_time) {
                         crate::log::progress(format_args!("body copy failed: {error}"));
                     }
@@ -40,9 +41,12 @@ impl GpuState {
     ) -> Result<(), Box<dyn Error>> {
         // The body of a player muted on this PC looks as they did: Kyle, the default saber.
         if self.muted_players.contains(u16::from(body.client_num)) {
-            body.appearance = crate::muted_players::appearance(&body.appearance);
-            crate::muted_players::sabers(&mut body.sabers);
+            let hilts = self.saber_hilts.as_ref();
+            crate::muted_players::sabers(&mut body.sabers, |name| {
+                hilts.is_some_and(|catalog| catalog.is_staff(name))
+            });
         }
+        body.appearance = self.body_appearance(u16::from(body.client_num), &body.appearance);
         let id = EntityId::new(u64::from(body.entity_num) + 1);
         for name in body.sabers.iter().flatten() {
             self.load_hilt(name)?;
@@ -64,6 +68,7 @@ impl GpuState {
             let client_num = body.client_num;
             mesh.body_identity = Some(body);
             mesh.disintegration = None;
+            mesh.body_fade = None;
             let animation = mesh.preview.animation.clone();
             let config = mesh.preview.config.clone();
             let copied = self.body_queue_animator(client_num, &animation, &config, time)?;
@@ -105,6 +110,24 @@ impl GpuState {
             self.copy_body_surfaces(client_num, self.actor_meshes.len() - 1);
         }
         Ok(())
+    }
+
+    /// The appearance a body of `client` is drawn with, from the player's own
+    /// (`legacy_client_appearance`, no forced or overridden model): Kyle for a player
+    /// muted on this PC or a model this PC refuses for players. Model loads pool a body
+    /// copy only when the live model is this one (`player_loads.rs`), the copy a death
+    /// looks for.
+    pub(crate) fn body_appearance(&self, client: u16, own: &Appearance) -> Appearance {
+        let appearance = if self.muted_players.contains(client) {
+            crate::muted_players::appearance(own)
+        } else {
+            own.clone()
+        };
+        eligible_body(
+            appearance,
+            &self.clientinfo_watch.model_policy,
+            crate::actor_load::model_options(self.console.as_ref()),
+        )
     }
 
     /// `CG_BodyQueueCopy` duplicates the instance, so the body keeps the limbs its
@@ -175,5 +198,60 @@ impl GpuState {
         Ok(Some(crate::actor_pose::evaluation::Slot::from_animator(
             animator,
         )))
+    }
+}
+
+/// A body is a player's: a model this PC refuses for players (eligibility or the
+/// model blacklist, as `actor_load::eligible_appearance` decides) falls back to Kyle
+/// on the corpse as on the live actor. The copy's skin is already team-resolved, so
+/// Kyle keeps its red or blue as the live fallback gets it.
+fn eligible_body(
+    appearance: Appearance,
+    policy: &sjk_client::player_model_eligibility::PlayerModelEligibility,
+    options: (&str, bool),
+) -> Appearance {
+    let refused = crate::actor_load::eligible_appearance(appearance.clone(), true, policy, options)
+        != appearance;
+    if refused {
+        crate::muted_players::appearance(&appearance)
+    } else {
+        appearance
+    }
+}
+
+#[cfg(test)]
+mod eligibility_tests {
+    use super::*;
+
+    #[test]
+    fn a_restricted_model_corpse_falls_back_like_the_live_player() {
+        let mut vfs = VirtualFileSystem::new();
+        vfs.mount_memory(
+            "synthetic",
+            [(
+                "models/players/creature/settings.txt",
+                b"notInMP 1".to_vec(),
+            )],
+        )
+        .unwrap();
+        let policy = sjk_client::player_model_eligibility::PlayerModelEligibility::load(&vfs);
+        let body = |model: &str| Appearance {
+            model: model.into(),
+            variant: "red".into(),
+        };
+        let red_kyle = Appearance {
+            model: "models/players/kyle".into(),
+            variant: "red".into(),
+        };
+        let restricted = eligible_body(body("models/players/creature"), &policy, ("", true));
+        assert_eq!(restricted, red_kyle);
+        let blacklisted =
+            eligible_body(body("models/players/jedi_hm"), &policy, ("jedi_hm", false));
+        assert_eq!(blacklisted, red_kyle);
+        // The metadata override off lets the restricted model through.
+        let overridden = eligible_body(body("models/players/creature"), &policy, ("", false));
+        assert_eq!(overridden, body("models/players/creature"));
+        let allowed = eligible_body(body("models/players/jedi_hm"), &policy, ("", true));
+        assert_eq!(allowed, body("models/players/jedi_hm"));
     }
 }

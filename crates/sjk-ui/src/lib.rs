@@ -6,11 +6,13 @@
 
 mod animation;
 mod arc;
+mod aura;
 mod document;
 mod draw;
 mod geometry;
 mod input;
 mod layout;
+mod shine;
 
 mod theme;
 mod tree;
@@ -20,6 +22,7 @@ pub use arc::{
     ArcSegment, MAX_ARC_SEGMENTS, arc_distance, knockout_coverage, knockout_remainder,
     segments as arc_segments, span as arc_span,
 };
+pub use aura::{StrafeAura, shade as strafe_aura_shade, strafe_gain, strafe_peak};
 pub use document::{
     ArcStyle, HudLayoutDocument, HudWidget, HudWidgetKind, StyleOverrides, VisibilityCondition,
 };
@@ -31,6 +34,9 @@ pub use input::{AbstractAction, InputEvent, InputRouter, PointerButton, UiEvent,
 pub use layout::{
     Align, Anchor, Axis, Dimension, FlexLayout, LayoutContext, LayoutEngine, LayoutKind,
     LayoutScratch, SizeSpec,
+};
+pub use shine::{
+    CardShine, SUN_CORE, SUN_INNER, SUN_RIM_COOL, SUN_RIM_HOT, ShineKind, shade as card_shine_shade,
 };
 pub use theme::{MotionTokens, RadiusTokens, SpacingTokens, Theme, TypeTokens};
 pub use tree::{Widget, WidgetId, WidgetTree};

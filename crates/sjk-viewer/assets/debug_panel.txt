@@ -24,6 +24,764 @@
 
 # ---- Console & chat ----
 
+[slash-emote-volume]
+area: Audio
+title: Emote volume apart from s_volume (Slash, PR #216, hub #163)
+change: s_emoteVolume is the emote loudness itself (1 as recorded, 0-3), no longer times s_volume.
+change: Saved values moved once to what was heard; boombox on its own channel 15, keeps s_volume.
+test: s_volume 0.2, s_emoteVolume 3: an emote plays loud over quiet game sounds.
+test: Your old emote loudness is the same as before the update at your usual s_volume.
+test: Boombox: changing s_volume changes its loudness; s_emoteVolume does not.
+test: Window muted (alt-tab with mute on): emotes are silent too.
+
+[slash-devmap-no-count]
+area: Gameplay
+title: Nothing counts on a server on your machine (Slash, PR #212, hub #165)
+change: The achievement tracker ignores loopback servers (Create game, devmap), like a hosted game.
+test: devmap a few maps: Servers played, Maps played and Time played stay the same.
+test: Join a real server: they count again.
+
+[slash-vehicle-ragdoll]
+area: Gameplay
+title: No ragdoll in a vehicle (Slash, PR #213, hub #168)
+change: A pilot or passenger never goes limp; a monitor's hit is refused; toy_ragdoll says so.
+test: devmap, npc spawn vehicle swoop_mp, board it, toy_ragdoll: "No ragdoll in a vehicle".
+test: 2nd client throws a monitor at you on the swoop: you stay seated and can drive.
+
+[slash-hack-ragdoll]
+area: Gameplay
+title: A hacked limp player gets up (Slash, PR #214, hub #167)
+change: A Hax hack on a player lying as a ragdoll gets them up, hacker or hacked.
+test: 2 clients with Ragdoll and Hax on: go limp, get hacked: you stand and the hacker steers.
+
+[slash-home-title]
+area: Menus & settings
+title: No small title over the main menu arc (Slash, PR #215)
+change: SJK main menu Play, SJK and Quit pages no longer draw their name above the first entry.
+test: ui_menuStyle sjk: open Play, SJK and Quit: no small title over the arc.
+
+[jof-honor-names]
+area: Menus & settings
+title: JoF names: Honors for medals, Echoes for holocrons
+change: With mod_jof on and jof.honorNames on (default), medals read Honors, holocrons Echoes.
+change: Every menu and message, on every server; hub text, chat, names and Holocron FFA keep theirs.
+test: Profile, Collection, Holocrons tab, trade window, Esc menu: Honors and Echoes everywhere.
+test: debug_medal and debug_holocron: the pop-ups say New honor / New echo.
+test: Settings > Mods > JoF names off (or mod_jof 0): Medals and Holocrons are back at once.
+test: Settings > Game options: the "Holocron FFA" game type and Force holocron help keep their word.
+
+[map-block]
+area: Console & chat
+title: Block for this map, staff Block for all, BLOCKED names
+change: Card on a player here: Block for this map (until the map changes or they leave).
+change: Staff: Block this map / Block for all (everyone on the server, needs hub map-block).
+change: Every blocked player reads BLOCKED (scoreboard, kill feed, plates); staff saber = dual_1.
+test: Rest on a player's name in chat, Block for this map: Kyle, silent, BLOCKED everywhere.
+test: block alone lists them under "this map"; change map: they are back to normal.
+test: As staff with a 2nd client: Block for all shows them BLOCKED there within 5 seconds.
+test: 2nd client: Settings > Network > Follow SJK staff blocks off: they show as usual.
+note: Block for all fails until the hub branch map-block is deployed.
+
+[devmap-tab-completion]
+area: Console & chat
+title: Tab completes the map name after devmap (Slash, PR #209)
+change: devmap + Tab completes from the game data's maps, also by the name after the folder.
+change: devmap with nothing typed + Tab lists every map as Map rows.
+test: Console: "devmap siege_ho" + Tab gives "devmap mp/siege_hoth ".
+test: "devmap mp/ff" + Tab lists mp/ffa1..ffa5 and extends to "devmap mp/ffa".
+test: "devmap " + Tab lists your maps, custom pk3 maps included.
+
+[chat-open-over-map-change]
+area: Console & chat
+title: Chat field and bubble stay open over a map change (Nib #134)
+change: The open chat field, its draft and channel go to the new map; the bubble comes back.
+change: Commands sent while the map loads carry the talk button while the field is open.
+test: Two clients on a local server; on one, open chat (team chat too) and type, then map change.
+test: After the load: the field is still open with the draft; the other client sees the bubble.
+test: Esc closes it; Enter sends the draft. Leaving to the main menu closes the field.
+
+[callvote-arena-maps]
+area: Menus & settings
+title: Call Vote map list: arena maps of the server's game type (Kushina #136)
+change: Maps from the arena files for g_gametype (team FFA lists FFA maps), Jedi Academy first.
+change: Rows show the long name and the map; no more 128-map cut or single-player levels.
+test: A team FFA server with JoF content: Call Vote > Change map lists mp/ffa1.. first.
+test: A duel server: only duel maps. A server sending sv_maplist: its own list as before.
+test: Pick a map: the vote names the map (mp/ffa3), not the long name.
+
+[duel-hides-drones]
+area: Gameplay
+title: Drones of pilots outside your private duel are hidden (Sanji #145)
+change: In a private duel (or following a duellist), others' drones, names and hiss are hidden.
+change: On every server; cg_duelHideOthers 0 shows them.
+test: Two SJK clients and a third flying freecam near the duel: the drone shows before the duel.
+test: Start a private duel: the drone and its name go; the duel ends: it comes back.
+test: cg_duelHideOthers 0: the drone stays during the duel.
+
+[announcements]
+area: Console & chat
+title: SJK team announcements and contributor reward rounds (Claim)
+change: Announcements show in SJK chat (SJK logo, title, Read more card); releases offer update.
+change: Reward rounds list who was rewarded and why; your own reward opens a window with Claim.
+test: debug_announce: a line in the game chat and the card opens. Try debug_announce release / long.
+test: announcement reopens the newest; in the dock and chat page a click on the line opens it.
+test: debug_reward, then back to the main menu: the claim window shows; Claim and Later close it.
+test: In a match, debug_reward: the "Contributor reward waiting" card, the window on game menu.
+test: debug_reward list (and rewards): the round list scrolls with Up, Down and the wheel.
+test: announcement from the console: the console closes; Esc closes the card, back to the game.
+test: In a match, announcement: the mouse cursor shows and clicks the card; Close gives it back.
+note: Live on the hub since 25/10 (announcement #1 is the 2026.1025.1 release).
+
+[japlus-names]
+area: Console & chat
+title: JA+ settings renamed to japlus.* (old names still work)
+change: cg_antiAmKiss is japlus.antiAmKiss, cg_awayEmoteJaplus is japlus.awayEmote.
+change: Anti-kiss moved to Settings > Mods, under the JA+ tools switch. japlus.color is gone.
+test: Type japlus. then Tab: antiAmKiss and awayEmote show with the japlus commands.
+test: Type cg_antiAmKiss 1, then japlus.antiAmKiss: it says 1. Restart: it is still 1.
+test: Settings > Mods (SJK) and Game options (classic): Push away kiss attempts under JA+ tools.
+test: Settings > Gameplay: the JA+ away emote row still works and keeps its saved pick.
+test: amcolor 255 0 0 still tints you; japlus.color answers Unknown command.
+
+[safety-code-v2]
+area: Console & chat
+title: Safety code v2: 60 digits, one half per key (Slash, PR #200)
+change: whisper_verify shows 12 groups of five digits in 3 rows: your key's half and theirs.
+change: The hub can no longer make two keys of its own show matching codes on both screens.
+test: Two SJK clients, whisper_verify <name> on both: the same 60 digits, 3 rows of 4 groups.
+test: The rows fit inside the card; Mark verified turns them gold.
+test: A player verified before this version still shows VERIFIED.
+note: A client older than this shows 12 digits, which never match the new code.
+
+[drone-watched]
+area: Gameplay
+title: Drone: game-size remote, hidden from the player it watches
+change: The remote is drawn at the game's own seeker size (was 2.2 times bigger).
+change: A drone peeking at you is not drawn on your screen; a line at the top names who watches.
+test: Two SJK clients. A: freecam near B: B sees a small remote, the size of a seeker.
+test: A: peek B: B sees no remote, "A is spectating you with the Drone" near the top.
+test: A stops peeking: B's line goes. Third player C still sees A's remote behind B.
+
+[monitor-busy]
+area: Gameplay
+title: Monitors pass through players who are typing or away
+change: Chat/console/menu open, alt-tabbed, idle or an AFK tag: not hit, by anyone's monitor.
+test: Two SJK clients, toys on. B opens the chat: A's monitor passes through B on both screens.
+test: B alt-tabs or types afk: same. B closes the chat: B can be hit again.
+[monitor-foresee]
+area: Gameplay
+title: Monitor hits show at once: every client foresees them; the thrower hears first
+change: Your client knocks an opted-in player down the moment your monitor reaches them.
+change: Their own client's word then settles the fall; a hit not confirmed in 1.2 s undoes.
+change: The struck player's client tells the thrower first, fall and blow back to back.
+test: Two SJK clients, both toys on. A throws at B: on A's screen B flies at the touch.
+test: Watch for a snap a moment later (the real fall replacing the guess): small is fine.
+test: B strafes away at the last moment: if A saw a hit B dodged, B stands again in ~1 s.
+test: Third client C watching: B flies at the touch on C's screen too.
+test: B with the toy off: the monitor passes through on every screen, no guess.
+note: Untested in game; GUESS_WAIT in ragdoll.rs, FORESEE_LATE_MS in monitor.rs.
+[monitor-ring-centre]
+area: HUD
+title: Monitor charge ring and hit marker centred on the crosshair (were top left)
+change: The ring and the hit marker take the crosshair's middle in pixels.
+test: Hold the throw key: the ring fills round the crosshair. Hit someone: strokes round it.
+test: With cg_crosshairX/Y moved: the ring follows the crosshair.
+[ragdoll-nameplate]
+area: HUD
+title: Nameplates and overhead names follow a ragdolling player's body
+change: Limp (toy_ragdoll or a monitor): plate/overhead name hang over the ragdoll, not the real body.
+test: Two SJK clients, nameplates on. B goes limp: B's plate drops with the body, lies low over it.
+test: A knocks B flying with a monitor: the plate flies with the body; B gets up: back over B.
+test: B in third person with cg_nameplateSelf 1, limp: own plate over the ragdoll.
+test: cg_drawPlayerNames 1: B's overhead name follows the ragdoll the same way.
+note: Untested in game.
+[monitor-hide]
+area: Gameplay
+title: Monitors unseen in duels; Show monitors setting hides them everywhere
+change: In a duel (yours or followed, or a Duel server): no monitor drawn or heard, no marks.
+change: Game options > Toys > Show monitors (cg_toyMonitorShow) off hides all monitors + sounds.
+test: Two SJK clients, toys on. B duels C; A throws near them: B and C see/hear no monitor.
+test: Spectate-follow B in the duel: still none. Duel ends: monitors show again.
+test: Show monitors off: none drawn, no whoosh/bonk/knock; your ring and hit tick still show.
+test: Show monitors off with the toy on: you can still be hit (only the toy switch stops it).
+note: Untested in game.
+[monitor-charge]
+area: Gameplay
+title: Monitor: hold the throw key to charge a harder throw; hit marker and tick on a hit
+change: +monitor_throw charges while held (1100 to 2600 u/s over 1 s) and throws on release.
+change: Ring round the crosshair + rising hum; charged throws sound heavier for everyone.
+change: Your monitor hitting someone: 4 diagonal strokes on the crosshair (red if hard), tick.
+test: Old bind to monitor_throw: now shows +monitor_throw in Key bindings, and charges.
+test: Tap: plain throw. Hold 1 s: ring fills, turns white, ping; release: fast heavy throw.
+test: Hold during the 1.2 s cooldown: the ring waits, then fills. Die while holding: put down.
+test: Two SJK clients: A charges at B. B flies harder; A sees the red marker and hears a tick.
+test: B hears the heavy whoosh for A's charged throw, the plain one for a tap.
+test: Quick wheel Throw monitor still throws at once. Hitting yourself shows no marker.
+note: Untested in game; tune CHARGE_TIME / MAX_THROW_SPEED / MARK_TIME in monitor.rs.
+[monitor-toy]
+area: Gameplay
+title: Monitor toy: throw an old CRT that sends opted-in players flying as ragdolls
+change: toy_monitor (opt-in: throw and be hit), monitor_throw throws a CRT the way you look.
+change: A hit knocks the player limp and launches them the way it struck; they get up on rest.
+change: Ragdoll physics for all falls: weights, friction, limbs apart, no wall rebound.
+test: Bind monitor_throw. Toy off: 'Turn the Monitor toy on'. On: a beige CRT flies, tumbles.
+test: It bounces off walls, lands on a face, knocks are heard, it shrinks away after ~10 s.
+test: Two SJK clients, both toys on: A throws at B. Both see B fly the same way, CRT bounce back.
+test: Hit B at the head vs the legs: head flips them backwards, legs sweep them over.
+test: B lands, rests ~2.5 s, gets up where the body lies. B with toy off: CRT passes through.
+test: toy_ragdoll on a slope and against a wall: body lies still, no flying back off walls.
+note: Untested in game; launch numbers are guesses (monitor.rs TRANSFER/LIFT/MAX_LAUNCH).
+[boombox-toy]
+area: Gameplay
+title: Boombox toy: an 80s stereo playing your tracks to players close by
+change: toy_boombox: a stereo on the right shoulder, playing sound/boombox/<id>.mp3 from pk3s.
+change: Verified players only; others hear it within cg_toyBoomboxRange if they have the file.
+change: boombox lists tracks; boombox next/prev/play/stop. Next track plays when one ends.
+test: Put two mp3s in a pk3 as sound/boombox/<id>.mp3; boombox lists them in the console.
+test: toy_boombox (or wheel Toys, Collection > Toys "Play"): stereo on shoulder, track title.
+test: Third person and a mirror: the stereo sits on the right shoulder, not inside the head.
+test: Two SJK clients, both verified, same pk3: B hears A's track from the same moment.
+test: B walks away: fades out, silent past the range; walks back: it plays from where it is.
+test: B without the pk3 reads once in the console which track A plays.
+test: An unverified player: toy_boombox says it is for verified players; nothing plays.
+test: boombox next skips; the last track's end starts the first; s_toyBoomboxSound 0 silences.
+note: The stereo's place on the shoulder was set from world shots; check it on custom models.
+
+[drone-toy]
+area: Gameplay
+title: Drone toy: freecam and peek fly a remote others see
+change: freecam/peek unchanged (binds too) but fly the seeker ball, name over it, for SJK players.
+change: Peek needs consent: the target's Drone switch (toy_drone, wheel Toys, Collection > Toys).
+change: Target reads who watches; switching off sends the drone away (relayed "away").
+test: Two SJK clients on a server. A: freecam and fly: B sees the remote glide, A's name over it.
+test: A: peek B with B's Drone off: "has not let drones follow them". B turns it on: peek works.
+test: While A peeks, B reads "A is spectating you with the Drone" at the top (no remote).
+test: B turns toy_drone off: A's view returns, "B sent your drone away"; the remote fades.
+test: Collection > Toys shows six niches, Drone's switch "Peek me" stays on after a restart.
+
+[ragdoll-sound-fix]
+area: Gameplay
+title: Ragdoll: knocks and scrapes are heard again
+change: The knock and scrape timers no longer wrap round in release builds (every sound was dropped).
+test: Go limp and fall: the body thuds on the ground, limbs too, and scrapes when it slides.
+test: Fall against a wall: it knocks on the wall's material.
+
+[ragdoll-physics]
+area: Gameplay
+title: Ragdoll: movers carry the body, every part heard on what it hits
+change: Lifts, trains and turning platforms carry the limp body; closing doors push it.
+change: Each part (trunk, head, arms, legs) knocks on its own: flesh + the surface's footstep.
+change: Sliding along the ground scrapes; harder hits are louder.
+test: Go limp on a lift, ride it: the body stays on and rises with it, the camera too.
+test: Go limp standing on a lift that is still, then call it: the body wakes and rides.
+test: Fall down stairs or off a ledge: several knocks, limbs lighter than the trunk.
+test: Fall on metal, then grass or snow: the knocks sound of the floor.
+test: Run and go limp: the body slides and scrapes.
+test: A second SJK client near you sees the body ride the lift the same way.
+
+[more-achievements]
+area: Menus & settings
+title: 14 new achievements, a secret one, Surveyor retired
+change: Collection > Achievements: 35 in six categories (new Collection, Toys), in four bands.
+change: Touched by the Force shows as Secret (?) until unlocked; Surveyor only if you hold it.
+change: New counts: box time near players, flawless/close duels, partners, long throw, thermal.
+test: Collection > Achievements: all bands fit, arrows and Tab move through the wall in order.
+test: Hover the Secret medallion: "Secret achievement", no goal or count; same in Next up.
+test: Without Surveyor: it is gone and the total reads N of 34 (player card too).
+test: Hide in the box (toy_box) near another player for a minute: Tactical Espionage counts 1.
+test: Win a private duel untouched: Flawless; one under 5 health: Close Call; Well Met +1 each.
+test: Kill with a saber throw from far (over 512 units): Long Throw.
+test: Push a thermal detonator back at its thrower and kill them: Return to Sender.
+note: Hub side is a separate change; until it ships the new ones may not reach the hub.
+
+[achievement-hub-wait]
+area: Menus & settings
+title: Achievements wait for the SJK hub before their card and crystal
+change: With the identity on, one SJK counts is announced only once the hub unlocked it.
+change: Until then Collection > Achievements and its hover card say "Waiting for the SJK hub".
+change: Identity off: unlocks at once, card shows the category (no crystal). Box: 1024 units.
+test: Identity on, reach one (first_blood on a fresh key): no card yet, tab says Waiting.
+test: Within the hub's hour the card comes with "Reward: ... Kyber Crystal", once only.
+test: Reach one, quit before the hub unlocks it, wait, restart: the card comes after sync.
+test: Identity off (cl_identity 0): reaching one shows its card with its category, no reward.
+test: Hide in the box (toy_box) with a player about 20 m away: Tactical Espionage counts.
+test: Hover Master Craftsman and Full Set: the new descriptions.
+
+[ragdoll-held-view]
+area: Gameplay
+title: Ragdoll: only a new hit wakes you; held views stop the toys (#135 #139 #140)
+change: Falling again after an "Ouch!" stays down until the next hit (server damage feedback).
+change: A JA+ kiss, kick or knockdown, a grapple, a throw or a saber lock gets you up.
+change: The Ragdoll will not start then ("No ragdoll right now"), and a Hax hack ends.
+test: toy_ragdoll, get hit: "Ouch! You got up". toy_ragdoll again: you stay down.
+test: On a JoF server, ragdoll then amkiss someone: you get up, no camera spin.
+test: During a kiss, toy_ragdoll: "No ragdoll right now". Melee grapple: same, no spin.
+test: Hax: steer someone and amkiss (or be kissed while hacked): the hack ends, no spin.
+
+[held-view-look]
+area: Input
+title: Free look when held: on by default, off holds the view still (Rollembones #146)
+change: JA+ kicks, knockdowns, kisses, grapples, throws and saber locks: the mouse turns the view.
+change: Free look when held off (cg_heldViewLook 0): the mouse is ignored then, no shake.
+test: On a JoF server, get kicked down by a kata or a WD melee kick, move the mouse: no shake.
+test: When you are up again the mouse turns the view at once, from where it was held.
+test: Default: kicked down, the mouse turns the view. Option off, kicked again: it stays still.
+test: The what's-new card offers Free look when held with its switch.
+
+[ragdoll-toy]
+area: Gameplay
+title: Ragdoll toy: go limp and fall, sandbox style
+change: toy_ragdoll (bind, quick wheel Toys, Collection > Toys) toggles a limp body.
+change: Flatline + game body-fall sounds; camera behind the body; others see the same fall.
+change: Your real body walks to the ragdoll; getting hurt, a duel or the flag gets you up.
+test: Bind a key to toy_ragdoll, press it standing: you crumple, flatline, mouse turns camera.
+test: Run and jump, press it: the body tumbles on; off a ledge it falls down.
+test: Press again: you stand where the body lay, your view as before.
+test: A second SJK client sees the same fall in the same place; a JKA client sees you walk.
+test: Get hit while limp: "Ouch! You got up". In a duel: "No ragdoll in a duel".
+
+[staff-owner-actions]
+area: Menus & settings
+title: Staff page: giving, taking back and merging are the owner's
+change: Non-creator staff see medal/unlock/holocron/credit/clear/merge/unlink dimmed.
+change: Tab skips them, a press does nothing; the hub refuses them too (creator_only).
+test: As Sol: every Staff page button works as before.
+test: As other staff: those buttons dimmed, the tab says it is to read; mute still works.
+
+[emote-typing-keep]
+area: Gameplay
+title: Emotes: typing keeps your emote until you move after
+change: Settings > Sound > Emotes: Typing keeps emote (cg_emoteTypingKeep, default 1).
+change: A player with chat, console or a menu open keeps the emote even if pushed.
+test: Dance, open the chat, get pushed (force push, a mover): still dancing.
+test: Close the chat without moving: still dancing. Walk a step: it ends.
+test: A second SJK client sees the same; with cg_emoteTypingKeep 0 a push ends it.
+
+[emote-alttab-quiet]
+area: Audio
+title: Alt-tab always silences your emote's music
+change: Alt-tabbed or minimised, your emote goes quiet for everyone, even with cg_awayAltTab 0.
+change: cg_awayAltTab now only decides whether the away emote starts.
+test: cg_awayAltTab 0, dance with music, alt-tab: a second SJK client hears it stop.
+test: Come back: the music plays again from where it is. No emote + alt-tab: nothing starts.
+
+[chat-name-actions]
+area: Console & chat
+title: Click a chat name: pinned card with Whisper and Block (Bishop, Sanjisan)
+change: With the chat open, a click on a name pins the sender card; Whisper heads its buttons.
+change: Whisper turns the composer to that player (encrypted when they take it, else tell).
+test: Open chat, click a player's name: the card stays when the pointer leaves it.
+test: Whisper: the composer says To <name>; send: they get it (pink ENCRYPTED if SJK).
+test: Escape closes the card first, then the chat; a click elsewhere closes the card.
+test: Your own name and a player who left show no Whisper.
+
+[saber-sound-pick]
+area: Audio
+title: Saber sounds chosen apart from the shader (Nib's idea, hub #109)
+change: Profile > Saber > Sounds: Follow shader, Stock, or an owned shader's sounds.
+change: cg_saberSounds; sent in the look (saber_sounds) once the hub takes the field.
+test: Profile > Saber: Sounds row under Blade. Step it, Preview plays ignition + hum.
+test: Wear the Storm, pick Void sounds: ignite and swing in game, the Void is heard.
+test: Pick Stock: a skinned blade sounds stock. Follow shader: back to the blade's sounds.
+note: Other players hear it only after the hub change (old hub: they hear the blade's).
+
+[chat-sounds]
+area: Audio
+title: Chat sounds by kind: public, team, private messages, SJK chat (Turin, Nib)
+change: Settings > Sound > Chat sounds: a switch, a sound and a Play button for each kind.
+change: cg_chatBeep 0 no longer mutes tells; cg_privateChatBeep switches them (and encrypted).
+change: cl_privateChatFlash (default 1): a private message flashes the taskbar when away.
+test: Public chat off, Private messages on: public chat silent, a /tell to you still plays.
+test: Pick each sound in a list: it plays as you pick it; Play plays the chosen one.
+test: Private message sound SJK whisper: a tell and an encrypted whisper both play it.
+test: cg_chatSounds 2 with Default sounds: team chat and tells play EJK's switch beeps.
+test: cg_chatSounds 0: no chat sound of any kind; Play still plays (you are choosing).
+test: Alt-tab, get a tell (or encrypted whisper): taskbar flashes; off: no flash.
+note: Unit tests and a Settings world shot only; not heard or flashed in a game window.
+
+[saber-throw-parts]
+area: Rendering & effects
+title: Thrown saber keeps its skin's afterimages and swing parts (Kushina #127)
+change: The flying blade records afterimages, blossoms and swing motion like the held one.
+test: Wear Spectral (or a signature with afterimages), throw the saber: afterimages trail it.
+test: Varykino Blossom thrown: petals fall along its flight. Catch: no stray afterimage.
+
+[saber-command-again]
+area: Console & chat
+title: The saber command asks the server again, same pick too (Kushina #132)
+change: Every /saber run sends the server's saber command on JA+, as JoF EJK does.
+change: A switch the server refused (moving, not idle) can be asked again at once.
+test: On a JoF server, single saber, run /saber single_1 single_1 while running: refused.
+test: Stand still, run the same /saber single_1 single_1 again: you hold two sabers now.
+test: Wheel custom choices for single and dual, standing still: both ways swap at once.
+test: The console shows "Saber: saber ..." for each run.
+
+[saber-command]
+area: Console & chat
+title: The saber command keeps your sabers (Kushina #126)
+change: saber <saber1> [<saber2>] is a client command (JoF): it sets saber1/saber2.
+change: Profile > Saber shows the choice and the next map keeps it.
+test: Pick Single in Profile > Saber, then run /saber dual_1 (or a wheel custom choice).
+test: Open Profile > Saber: Staff shown. Change map: you spawn with the staff.
+test: /saber single_1 single_2: Dual. On a JoF server the saber swaps at once.
+
+[cards-forge-tab]
+area: Menus & settings
+title: Cards tab's big card no longer covers the Forge tab (Kushina #124)
+change: The card up close starts under the row of tabs (a little smaller).
+test: Settings: largest text size and letter spacing (ui_textScale 1.4, ui_letterSpacing 0.15).
+test: Collection > Cards: click the Forge tab anywhere on its name: it opens.
+
+[chat-box-lines-24]
+area: Console & chat
+title: cg_chatBoxLines shows up to 24 chat messages (Creyon #129)
+change: The feed stopped at 8 messages whatever cg_chatBoxLines said; EternalJK's top is 24.
+test: cg_chatBoxLines 15, then 15+ chat lines (a local server, two clients): 15 show.
+test: cg_chatBoxLines 3: only the last 3; cg_chatBoxLines 100 acts as 24.
+
+[bio-caret]
+area: Menus & settings
+title: Profile bio: click a line, arrows move the caret (Kushina's report)
+change: About you has a caret: click, Left/Right (Ctrl: word), Up/Down, Home/End.
+change: Typing, Ctrl+V, Backspace and Delete work at it; Ctrl+A selects all.
+test: profile, click in the middle of a bio line: the caret is there, type: text goes in.
+test: Up/Down walk the lines, Shift+Enter breaks a line at the caret, Enter still saves.
+test: Ctrl+A then type: the bio is replaced; hold Backspace: it repeats.
+
+[hax-trap]
+area: Gameplay
+title: Hax trap: hacking a trapped player blows you both up
+change: Settings > Game options > Toys: Hax trap (cl_haxTrap), Hax trap while away (cl_haxAway).
+change: A hack on a trapped player: "IT'S A TRAP!" 2 s, then both die in an Order 66 blast.
+change: Others see it through a feed toy event; away hacking needs both switches.
+test: B sets Hax trap on; A hacks B: both read IT'S A TRAP! with beeps, then both blow up.
+test: A third SJK client sees both explode (pieces, or confetti with cg_dismember 0).
+test: B adds Hax trap while away and alt-tabs: A can hack B (refused without it).
+test: B types in chat: still no hacking, trap or not.
+
+[vehicle-gunfire]
+area: Audio
+title: Vehicle guns: firing sound and muzzle flash (Kushina's report)
+change: EV_VEH_FIRE plays each fired muzzle's .vwp muzzleFX: its flash and the gun's sound.
+change: Every effect sound plays at full volume (was 0.7), as stock S_StartSound does.
+test: Local devmap, npc spawn vehicle x-wing, board it, fire: loud shots, wing flashes.
+test: Same with swoop_mp and atst_vehicle: flash at each muzzle, sound on every shot.
+test: Watch another player fire from a vehicle: flashes at its guns, sound from there.
+note: Impacts and explosions are louder too; compare with JoF EJK by ear.
+
+[yaw-wrap]
+area: Input
+title: Very fast turning no longer breaks the camera (Yernow #121)
+change: The camera yaw is kept within one turn; unbounded, it lost precision and froze.
+test: cl_yawspeed 100000, hold +left (bind a key) for a minute: camera stays behind you.
+test: Then turn with the mouse: no shaking, character turns with the camera.
+
+[clan-s-emblem]
+area: Console & chat
+title: {{S}} clan emblem, green JoF logo, JAWA only as (JAWA) first
+change: A name starting with {{S}} exactly gets the red Sith emblem; JoF's emblem is its green logo.
+change: JAWA's hood now needs (JAWA) at the very start of the name.
+test: Rename to {{S}}Test, say something: the red emblem sits left of your name in chat.
+test: Rename to {JoF}Test: the green J o F logo, not the teal one.
+test: Rename to (JAWA)Test: the hood. Then JAWA|Test and Test(JAWA): no emblem.
+test: Rename to {{s}}Test and Test{{S}}: no emblem. Check scoreboard and inspect (X) too.
+note: Both logos are small sources (80x93, 178x93): check they are not too soft at 4K.
+
+[hax-afk]
+area: Gameplay
+title: Hax: not on a player typing or away; softer rain
+change: No hack starts on a player whose chat is open or who is marked away on the scoreboard.
+change: The hacked player's client refuses while idle/alt-tabbed ("Hack failed: X is away").
+test: B opens the chat, A holds Use on B: "B is typing: no hacking them now".
+test: B alt-tabs (or /afk), A hacks B: refused, "is away" (or "is typing" at once).
+test: The green rain round a hacked player is fainter and sparser than before.
+
+[jof-sjk-chat]
+area: Console & chat
+title: SJK chat said in All chat on JoF servers (JoF tools), ALL/SJK and SJK labels
+change: On a JoF server in a match, an SJK chat line the hub took is also said in All chat.
+change: One-time card on the first JoF match (jof.sjkChatNotice); red note on the SJK channel.
+change: Copies show once, labelled ALL/SJK; SJK-only lines read SJK. JoF EJK icon via a table.
+test: Join a JoF server with SJK chat on: the card shows once over the game menu; Got it.
+test: Rejoin: no card. Open chat, pick SJK: the red note shows above the field.
+test: Say something on SJK: a non-SJK client sees "SJK text"; you see it once, ALL/SJK.
+test: Same on a non-JoF server or in the menus: nothing in All chat, line labelled SJK.
+test: On JoF, send a GIF (or sjkgif 1): it stays in SJK chat, labelled SJK.
+test: SJK chat page on JoF: Send only in SJK (hover card explains); line stays SJK only.
+test: As staff, Shift+Enter in the composer or page: SJK only, nothing in All chat.
+note: Milamber's PR #194, moved into JoF tools at JoF's request.
+
+[hax-rain]
+area: Rendering & effects
+title: Hax: green digital rain round a hacked player
+change: Glyphs (0, 1, katakana) fall on a ring round the steered player, following them.
+change: Others learn it through a feed toy event (hacked_<until>, freed), maybe 1-2 s late.
+test: A hacks B: both see the green rain round B while A steers, and it moves with B.
+test: A third SJK client on the server sees it too, ending when B is free.
+test: B turns toy_hax off mid-hack: the rain stops (for the third client, within a few s).
+
+[e2e-whispers]
+area: Console & chat
+title: End-to-end encrypted whispers between SJK players (cl_e2eWhispers)
+change: A whisper to an SJK player goes sealed through the hub: pink, ENCRYPTED, its own sound.
+change: If the hub cannot take it, a card asks before sending it through the game server.
+test: Needs the hub deployed (branch e2e-whispers) and two SJK clients on one local server.
+test: Open the whisper composer on the other: it says "To <name> (encrypted)" in pink.
+test: Send: "To <name>" with their tick and emoji, ENCRYPTED, and the sound on both sides.
+test: reply on their side answers encrypted; tell <name> from the console too.
+test: Stop the hub, whisper: the card asks; Esc sends nothing, Enter sends it through the server.
+test: cl_e2eWhispers 0: whispers go through the server as before, a red "Not private" note under.
+test: whisper_verify <name> on both PCs: same 60 digits. Mark verified: lines say VERIFIED.
+test: Then a new identity on the other PC: your whisper asks first, theirs warns in red.
+
+[e2e-verified]
+area: Console & chat
+title: Encrypted whispers for verified players only; JoF keeps whispers; whisper reports
+change: Only verified/staff start one; others answer it, to that player only, for 30 minutes.
+change: On JoF servers whispers stay on the server unless jof.e2eWhispers 1 (both players).
+change: The chat card's Report sends their last encrypted whisper, signed by them, with it.
+test: Needs the hub branch e2e-verified on a local hub and two SJK clients (A verified, B not).
+test: B whispers A first: not encrypted, red "Not private" note, no card.
+test: A whispers B: encrypted. B replies within 30 min: encrypted, to A only.
+test: Hover A's name in B's chat (composer open): Report beside Safety code.
+test: Report > a reason > Send: the panel shows the whisper under the report, "signed whisper".
+
+[whisper-backslash]
+area: Console & chat
+title: Encrypted whispers ending with a backslash stay encrypted (Blep's report)
+change: The whisper's text is split as the game server does: a backslash is plain text.
+test: Two SJK clients that whisper encrypted: A whispers B "hello\" (ending with \).
+test: B gets it as an encrypted whisper reading hello\; no "Not private" note on A.
+test: A whispers B "a\nb \ c": B reads exactly that, backslashes kept.
+test: On a JoF server: whispers go through the server; jof.e2eWhispers 1 on both: encrypted.
+
+[sjk-chat-caret]
+area: Console & chat
+title: SJK chat field: the arrows move the caret (Rollembones' report)
+change: The SJK chat page's and the docks' fields have a caret: Left/Right (Ctrl: a word),
+change: Home, End; typing, Ctrl+V, Backspace and Delete work at it, not only at the end.
+test: sjkchat, type "helo", Left once, type "l": "hello"; Home, type "oh ": "oh hello".
+test: Ctrl+Left jumps a word; Delete takes the letter after the caret; Enter sends it all.
+test: Main page dock: same keys; the caret is "|" inside the text and "_" at its end.
+
+[camera-cvars-after-control]
+area: Rendering & effects
+title: cg_thirdPersonRange works after Camera control (Rollembones' report)
+change: A pose set in Camera control overrode the third-person cvars until its Reset.
+change: Now a changed cvar (console, bind, Settings) replaces its part of the pose at once.
+test: Third person, F8, set Distance 200, Hide panel; console: cg_thirdPersonRange 60.
+test: The camera comes in to 60 at once; Angle and Height stay as Camera control set them.
+
+[whisper-followed]
+area: Console & chat
+title: Whisper key while spectating goes to the followed player (Kushina's report)
+change: messagemode3 (U) while following a player whispers to them, as JoF EJK does.
+test: Local server, two clients: B spectates and follows A, presses U with no crosshair.
+test: The composer opens on a whisper to A; Enter: A gets the tell.
+
+[saber-switch-trail]
+area: Rendering & effects
+title: No trail streak when a blade lights again (hub report 116)
+change: A blade that is out keeps its trail edge at the hilt and forgets its afterimages,
+change: so the first swing after it lights again no longer streaks from where it went out.
+test: Staff with a signature shader (Holonet Feed), saber trail on: run, switch stance
+test: and swing at once: no streak or blade copy back where the second blade went out.
+test: Same with dual sabers, and a single saber turned off and on while running.
+
+[forge-craft-flicker]
+area: Menus & settings
+title: Forge Craft no longer flickers on its last lines (#117)
+change: The Collection page holds 4096 draw commands (was 2048), the UI 32768 vertices.
+test: ui_menuPictures 1, Collection > Forge > Craft, grid (V): scroll to the Legendary lines.
+test: Stay a few seconds on each line to the end: no flicker, detail and key hints stay.
+test: Same in the list view and with ui_menuPictures 0.
+
+[holonet-flecks-once]
+area: Menus & settings
+title: Holonet Feed lists Data flecks once (#115)
+change: A part and a section of one name are one switch (Power Coupling's Sparks too).
+test: Collection > Shaders > Holonet Feed: Data flecks shows once among its parts.
+test: Switch Data flecks off: the flecks beside the blade and the motes round it both go.
+
+[hax-fixes]
+area: Gameplay
+title: Hax: hackable after a teleport or respawn, and after a map change
+change: A player who teleported or respawned an odd number of times could not be hacked.
+change: A map change forgets the cooldown and immunity; relay reads retry within 2 s.
+test: B uses a teleporter (or dies and respawns), then A holds Use on B: the hack starts.
+test: Hack B, change map, hack B again at once: no long "Hax again" wait, B not immune.
+
+[toys-persist]
+area: Gameplay
+title: Order 66 and the Hax stay on until turned off
+change: Their switches are saved (cl_toyOrder66, cl_toyHax) and come back at every start.
+test: toy_hax and toy_order66 on, change map, join another server: both still on.
+test: Quit and start the game again: both still on (Collection > Toys shows them on).
+test: Turn one off, restart: it stays off. cl_toyHax 1 in the console turns the Hax on.
+
+[duel-stock-blades]
+area: Rendering & effects
+title: Normal blades in duels (cg_duelStockBlades, Creyon #192)
+change: With it on, every blade is the stock one in its owner's colour, stock sounds,
+change: in a private duel you play or follow, and on a Duel or Power Duel server.
+test: Settings, Game options: turn on Normal blades in duels; wear a blade skin.
+test: Local server: start a private duel: both blades go stock, skins back when it ends.
+test: g_gametype 3: every blade stock; turn the setting off: skins come back.
+note: Off by default; the What's new card offers it.
+
+[hax]
+area: Gameplay
+title: The Hax toy: hack another player, then steer them for 5 s
+change: toy_hax (key, quick wheel Toys page, Collection Toys tab) turns it on or off.
+change: Hold Use 3 s on a holder in reach: siege hack bar and sound, then you steer them 5 s.
+change: Their client plays your keys, swings and view; you watch from behind, your body stays.
+test: Two SJK clients on one server, both toy_hax on; A holds Use facing B up close.
+test: A: bar under the crosshair, hacking loop; B: "A is hacking you!", same bar, the loop.
+test: Release Use or walk away mid-hack: the bar goes on both.
+test: Bar full: both hear the mind trick; A's camera goes behind B, A's mouse turns B.
+test: A runs, jumps, crouches, walks, swings: B does it; B's own keys do nothing; 5 s, then free.
+test: B turns toy_hax off while steered: free at once, A reads "B broke free".
+test: Again at once: A "Hax again in N s"; B immune 15 s; in a duel: "Hack failed ... duel".
+note: Uses the hub's toy relay (deployed 22/10/2026); without cl_identity nothing happens.
+
+[sky-empty-box]
+area: Rendering & effects
+title: No crash on a sky with every box face missing
+change: A sky with all six outer-box pictures missing (ct on nightmare) crashed with reflections on.
+test: r_cubeMapping 1, vid_restart, then join a server on nightmare: no crash.
+test: The sky still looks as before (log: sky textures/skies/ct missing outer-box face ...).
+
+[kyber-crystals]
+area: Menus & settings
+title: Kyber crystals from achievements
+change: Each achievement brings a kyber crystal once (Uncommon to Mythical); it opens to a shader.
+change: Holocrons tab: a Kyber crystals row with the pity line; L on a crystal shows their odds.
+change: Achievements tab, hover card and unlock card say the crystal each achievement brings.
+test: Collection > Holocrons: four crystal tiles under the holocrons, the pity line at the right.
+test: Choose a crystal (5 to 8, arrows): caption, what it gives, hover card; L for its table.
+test: debug_open kyber_rare x3: the strip shows shaders only, then each shader's entrance.
+test: debug_holocron kyber: four arrivals, Earned from an achievement, no chat line.
+test: Collection > Achievements: Reward: <tier> Kyber Crystal up close and on hover.
+note: The hub side is built in parallel; until it is deployed no crystal is held for real.
+note: The 3D crystal is today's Mythical holocron model until the crystal models land.
+
+[card-perks]
+area: Menus & settings
+title: Perk marks on cards
+change: Cards tab: a round badge per perk over a tile's top left corner (saber, Solar sun, hammer).
+change: The card up close lists the marks after its set; the hover card puts each before its line.
+test: Collection > Cards: the Sun card has a saber badge; each SJK Blades card a sun and a hammer.
+test: Badges show on cards not found yet too (dimmer), and never cover the x2 count.
+test: Hover a blade card: its two perk lines start with the sun and the hammer.
+test: Choose it: the line under 'held' ends with the same marks.
+
+[blade-card-craft]
+area: Menus & settings
+title: Blade cards craft their saber shader for less
+change: Holding a copy of a shader's SJK Blades card: Craft costs the shop price (Normal) or half.
+change: The Craft button says 'Holo card -50 %'; the blade card's hover card says it crafts for less.
+test: Local hub on feat/blade-card-craft; reveal a blade card for a shader you do not hold.
+test: Collection > Forge > Craft, that shader: Craft shows the lower cost and the card's finish.
+test: Craft it: the shards spent match the button; the card stays in the Cards tab.
+test: Collection > Cards, hover the blade card: 'Any copy crafts the ... blade for less.'
+test: Choose a held blade card you lack: 'Craft the ... in the Forge' opens Forge > Craft on it.
+test: One whose shader you hold: 'Go to the ... blade' opens Shaders on that shader.
+test: Set a Shaders or Craft filter (T) first: the button still lands on it, filter cleared.
+note: The live hub gives no discount until feat/blade-card-craft is deployed (full cost shown).
+
+[forge]
+area: Menus & settings
+title: The Forge: Shop, Craft and Break down in one Collection tab
+change: New Forge tab after Holocrons; the shop overlay and Shaders' Shatter/Craft lead to it.
+change: Break down a last copy too (hub shatter_last), after a warning card; all duplicates at once.
+test: Local hub from SJK-hub main: Collection > Forge, Tab through Shop, Craft and Break down.
+test: Buy an offer and a holocron, craft one, break a duplicate down: each asks twice first.
+test: Break down your last copy of the worn blade: warning card, then saber back to stock.
+test: B on Break down: all duplicates card, one of each kept; Holocrons S opens Forge > Shop.
+note: Against the live hub (no abilities yet) Break down lists duplicates only.
+
+[min-client]
+area: Menus & settings
+title: Holocrons tab says to update when the hub needs a newer SJK
+change: Hub min_client above this build: no Open/Open all/Shop, an update line in their place.
+change: A 426 client_update_required refusal reads as the same update notice.
+test: Local hub, serve --opening everyone --opening-min-client 2099.1.1; play main: Open works.
+test: Release zip older than that min: Holocrons tab shows the update line, holocrons listed.
+note: Dev builds and staff always pass the hub's version gate.
+
+[blade-numbers-debug]
+area: Menus & settings
+title: Blade numbers show only with debug_collectibles on
+change: Collection tier line and hover card hide 'Blade 042' unless debug_collectibles is 1.
+test: debug_collectibles 0: Collection > Shaders, no number after the tier or on hover.
+test: debug_collectibles 1: numbers back ('Mythical  .  001', 'Blade 001.').
+
+[staff-gates]
+area: Console & chat
+title: cjp_client, ghost and mimic are for SJK staff only
+change: Another key always sends SJK's default plugin name, whatever cjp_client says.
+change: ghost and mimic say they are an experimental staff tool for a key that is not staff.
+test: As staff, cjp_client "1.6.5 JoF", join a JA+ server: an admin amstatus shows that name.
+test: As staff, Experimental: showcase tools on: ghost record test works.
+test: Without a staff key: amstatus shows 1.4 SJK; ghost list says it is a staff tool.
+note: Staff status comes from the hub; known only after joining, cjp_client waits a rejoin.
+
+[creator-tools]
+area: Console & chat
+title: The creator makes and removes staff from the Staff page
+change: Staff page Overview: Make staff / Remove staff beside Verify, for the creator only.
+change: Acts on a second press; the hub refuses it from anyone but the creator.
+test: As the creator, choose a player: Make staff, press again; their flags say staff.
+test: Remove staff on them the same way; their flags no longer say staff.
+test: On your own player the button is not there.
+note: Needs the hub branch creator-tools deployed and the creator command run on you.
+
+[creator-status]
+area: Console & chat
+title: SJK CREATOR mark above staff, out of staff's reach
+change: Player card pill reads SJK CREATOR (orange); sender card and Chat page say creator.
+change: The hub refuses staff tools on the creator: mute, unverify, merge, chat delete...
+test: After the hub update, sjk-hub creator <your key>: your card shows SJK CREATOR.
+test: A chat message of yours: the Chat page line starts with Creator.
+test: Another staff key: Staff tools on you answer an error instead of acting.
+note: Needs the hub branch creator-status deployed and the creator command run on you.
+
+[hub-client-agent]
+area: Console & chat
+title: The hub sees which build you play: SJK/<version> (<commit>)
+change: Hub requests name the build's commit too; the hub keeps each key's client per key.
+test: After the hub update is deployed, play a few minutes, then open your page in the panel.
+test: Clients lists SJK/<version> (<commit>); a play build reads "SJK dev build".
+note: Needs the hub branch client-agent deployed; a release reads "SJK release".
+
+[chat-card-cleanup]
+area: Console & chat
+title: Chat: old name dropdown removed, sender card drawn over the feed's text
+change: Clicking a name opened whisper/ignore/friend/copy; it is gone with the friend star.
+change: The sender card no longer shows the chat messages under it through its face.
+test: Open chat, hover a sender's name: the card shows, no message text through it.
+test: Hover Block on the card and click it: works as before; Unblock restores.
+test: Click a name: nothing opens; typing, Tab channels and reply still work.
+
+[command-reference]
+area: Console & chat
+title: Every command and cvar exported as one page, for SolBot (developer tool)
+change: An ignored test writes the cmdlist/cvarlist/help data to Markdown (development.md).
+change: Nothing changes in game; SolBot's SJK answers come from this page.
+test: cmdlist, cvarlist and help <name> still list and describe everything as before.
+test: Ask SolBot in SJK chat how to show your FPS: it should say cg_drawFPS 1.
+
+[block-players]
+area: Console & chat
+title: Block a player: no chat, Kyle, silent, no emotes, toys or card (was Mute)
+change: The sender card's Mute is now Block; the list stays in chat-mutes.txt.
+change: Their emotes, Order 66 orders, cardboard box spots and player card are ignored too.
+change: block <player|target>, block (lists), unblock <player|all>; SJK chat page lists them.
+test: Rest on a name in chat, Block: their lines go, they turn Kyle with a blue single saber.
+test: Have them play an emote (sjkemote) and spot your box: nothing happens on your screen.
+test: Aim at them: no player card. block alone lists them; unblock <name> brings them back.
+test: SJK chat page with no message chosen: "Blocked on this PC" with Unblock beside each.
+
 [name-emoji]
 area: Console & chat
 title: Name emoji: one emoji at the right of your name, picked on the Profile page
@@ -34,6 +792,16 @@ test: Profile, Name emoji, pick the fox: the headline and button show it, "Saved
 test: Say something in SJK chat and game chat: the fox stands between your name and tick.
 test: Open the scoreboard (SJK style): the fox follows your name.
 test: Paste two emoji or a letter on the panel: it says a name emoji is one emoji picture.
+
+[grand-finds]
+area: Console & chat
+title: Grand finds in SJK chat: who opened a holocron and got a grand prize
+change: A Legendary or Solar card, or a Legendary or Mythical shader, is told to everyone.
+change: The line reads "Sol opened a Mythical Holocron: Phoenix blade!" with the tier's gem.
+test: Needs the hub branch feat/grand-finds deployed; then open holocrons until a grand find.
+test: Your line reads "You opened ..."; a second SJK client sees "Sol opened ...".
+test: A muted player's finds are not shown.
+note: The hub part is NOT deployed yet; until then nothing changes.
 
 [chat-limits]
 area: Console & chat
@@ -148,14 +916,14 @@ test: Send a message the hub refuses (same text twice in 30 s): no sound, just t
 
 [chat-reply]
 area: Console & chat
-title: reply, chat opens on the last channel, SJK logo on SJK chat lines
+title: reply, chat key channel (cg_chatRememberChannel), SJK logo on SJK chat lines
 change: reply <message> whispers to the last whisperer (JoF EJK); bare reply opens the chat on it.
-change: The chat key opens on the last channel sent on (cg_chatRememberChannel 1).
+change: The chat key opens on All; cg_chatRememberChannel 1 (off by default): on the last channel.
 change: SJK chat lines in the game start with SJK's emblem instead of the letters SJK.
 test: Have someone /tell you, then /reply hi: they get it as a whisper.
 test: Bind "Reply to last whisper" (Key bindings > Other): its key opens a whisper to them.
 test: In the chat, Tab goes All, Team, SJK, then the whisperer, then All.
-test: Send on SJK, close, press the chat key: it opens on SJK. Settings > HUD toggle: All.
+test: Send on SJK, close, press the chat key: it opens on All. Remember chat channel on: SJK.
 test: SJK chat lines show the small gold emblem before the name, no SJK letters.
 note: The remembered channel lasts while SJK runs; a restart opens on All.
 
@@ -182,6 +950,15 @@ test: In that key's game: the console says the team asks; the main menu shows th
 test: Send logs: the console thanks you. Staff > Logs > Refresh: sent; Open opens the text.
 test: Staff > Crashes: kinds listed; choose one, Open a report: it opens as a text file.
 note: Needs the hub's feat/log-requests deployed; older hubs answer 404 (asked again hourly).
+
+[crash-names]
+area: Console & chat
+title: Crash reports name what ran out of video memory; logs keep the crash's message
+change: An uncaught GPU error names what failed: Out of Memory (In Device::create_texture, ...).
+change: It adds the causes and the video memory SJK held (MiB in use and reserved).
+change: Sent logs keep last-crash.txt's head (message, backtrace) whole, then its newest lines.
+test: Request logs from your own key, Send logs: the crash part starts with its header.
+note: The new message shows only after a real out-of-memory crash on a small card.
 
 [config-save-quiet]
 area: Console & chat
@@ -215,6 +992,7 @@ change: guillemets, section sign, bullet... (they were dropped). Messages keep t
 test: Wear a name like {JoF}Sol, send an SJK chat message: feed, dock and page show {JoF}Sol.
 test: The chat page's online window shows the braces; a holocron drop line too.
 test: A message with {JoF} is still refused (messages keep their alphabet).
+
 [chat-paste]
 area: Console & chat
 title: Paste into the SJK chat (Ctrl+V, Shift+Insert): page and docks
@@ -321,6 +1099,15 @@ test: Click a face that spoke: its newest message is chosen; Chosen message sits
 test: Mute someone from the card: their face greys. The window is only as tall as its faces.
 test: Turn cl_sjkChat 0: the window says it shows once the hub answers.
 note: The deployed hub has no people list yet: expect Recently in chat for now.
+
+[clan-jawa]
+area: Console & chat
+title: JAWA clan emblem: a Jawa's hood beside names tagged JAWA
+change: (JAWA)Name gets the hood icon left of the name (only that form since 22/10).
+test: Rename to (JAWA)Test, say something: the brown hood sits left of your name in chat.
+test: Open the scoreboard (classic and SJK) and inspect yourself (X): the hood is there too.
+test: Rename to Jawad: no emblem.
+note: The source icon is 60 px, enlarged to 128: check it is not too blurry at 4K.
 
 [jof-tag]
 area: Console & chat
@@ -528,6 +1315,186 @@ note: A roll on landing while crouched (PM_CrashLand) is not prevented, in EJK e
 
 # ---- Menus & settings ----
 
+[mp-sp-camera-names]
+area: Menus & settings
+title: Camera styles named MP camera and SP camera
+change: Settings > Game options, Camera style: MP camera (was EJK) and SP camera (was SJK).
+test: Game options: Camera style shows MP camera; the other choice reads SP camera.
+test: First setup's camera row shows the same names; the help line names them too.
+
+[vanilla-style-ejk-defaults]
+area: Menus & settings
+title: Vanilla style follows EternalJK's defaults: light flares off too
+change: Graphics > Image has a Light flares row (r_flares); Vanilla style sets it off.
+change: SJK (recommended) and Experimental keep flares on; glow stays off in Vanilla style.
+test: Graphics preset: pick Vanilla style: Light flares reads Off, the row reads Vanilla style.
+test: On a map whose lamps have halos, they are gone; the SJK preset brings them back.
+
+[second-saber-skin]
+area: Menus & settings
+title: A blade skin for each saber and each staff half (Creyon, PR #193)
+change: Collection > Shaders: with two sabers or a staff, pills over the saber pick a side.
+change: Equip dresses that side; the Both box dresses both; a click on a saber picks it.
+change: saberskin second <id> | stock | same; saber <hilt> [<hilt>] checks both names.
+test: Profile > Saber: two sabers. Collection > Shaders: 2nd pill, a shader, Equip: only it.
+test: Tick Both, Equip: both wear it; Unequip: both stock. Staff: a half each the same way.
+test: Click a saber (or half) on the preview: the pill follows; a drag still turns them.
+test: Hover over a tile's or row's words: nothing changes; over its blade strip: previewed.
+test: saber kyle kyle, then saber dual_4, then saber dual_4 kyel: the last changes nothing.
+test: Another SJK player sees both skins (needs the hub deployed with SJK-hub-shared #2).
+test: cg_stockBlades 2 and a private duel: both sabers stock.
+
+[collection-revamp]
+area: Menus & settings
+title: Collection revamp: Shaders wall by tier and sortable list, Toys rows with keys
+change: Shaders: tiles 6 a line under tier headings (V: a list sorted by S), tier strip, Chroma.
+change: Locked shaders show their own colours dimmed; the card grows up, words never cut.
+change: Toys: rows with key and own switch (K binds); dark band behind tabs; model fits 4:3.
+test: Collection > Shaders: the wall by tier; arrows, Up/Down by lines; wheel scrolls a line.
+test: V: the list; S and clicks on Shader, Tier, Yours sort it; the chosen one stays chosen.
+test: Scroll the wall down, leave the Collection, come back: it starts from the top again.
+test: Click a tier in the strip (or T), Owned (O) and Chroma (C); the search still filters.
+test: Choose a long one (Varykino Blossom): its whole description shows, nothing ends in "...".
+test: Toys: a row's switch turns that toy on; K then a key binds it; Backspace clears it.
+test: Window 4:3 (and ui_textScale 1.4): tabs readable, model clear of the words and keys.
+note: ui_shaderView is gone: everyone starts on the wall (ui_shaderList 1 for the list).
+
+[small-card-profile]
+area: Menus & settings
+title: Small graphics cards start once on lighter graphics, with a Keep / Back card
+change: Under 3.5 GB (or integrated): Vanilla style, stock blades for others, 60 FPS menu cap.
+change: Only from the untouched SJK preset and settings still off; once per card (r_smallCardPreset).
+test: r_smallCardPreset 0 and a small card (or ask Sol's tester): the card shows on the main menu.
+test: Back to SJK graphics: preset, stock blades and menu cap back; the reload card offers to apply.
+test: Keep (Enter): Vanilla style stays; the card does not come back at the next start.
+
+[menu-frame-cost]
+area: Menus & settings
+title: Lighter menus: shader pictures redrawn less often, no per-frame setting allocations
+change: Shader swatches not hovered animate up to 30 times a second, 6 redrawn a frame at most.
+change: Setting lookups and the low-FPS check no longer allocate every frame.
+test: Collection > Shaders grid with many owned shaders: hovered one smooth, others still animate.
+test: Forge, Saber tab and a holocron reveal: the blade pictures show with no seams or glow left.
+
+[card-faces-lazy]
+area: Menus & settings
+title: Card pictures load only when shown (1.8 GB less video memory; 3 GB cards crashed)
+change: A card's picture is decoded and uploaded when a screen draws it, 64 kept at most.
+change: 512 pixel pictures from Texture detail 1; 1024 at 0, as before.
+test: Collection > Cards: pictures appear within a moment; page through, they keep coming.
+test: Look closer at a card (Enter): the picture is sharp; open a holocron: the found card shows.
+test: Task Manager > GPU memory in the main menu: about 1.8 GB less than the last release.
+
+[card-faces-guard]
+area: Menus & settings
+title: Card pictures: decoder guard, found card loaded early, own memory labels (Slash #206)
+change: A picture the decoder panics on fails alone; the later card pictures still load.
+change: Opening a holocron asks for the found card's picture at the start, not at the flip.
+change: vram names "SJK card art" and "SJK medal art" instead of "SJK menu emblem".
+test: Open a holocron: the found card turns over with its picture, not a dark window.
+test: vram in the main menu after Collection > Cards: card pictures listed as SJK card art.
+
+[profile-vfs-release]
+area: Menus & settings
+title: No 'Too many open files' after many maps (Lukas, PR #198)
+change: Profile's model icons, cosmetics and Force templates drop the old map's game files.
+test: Play a long session: change maps 10+ times, reconnect: the map loads, no mount error.
+test: After a map change, Profile: model icons, cosmetics, Force templates still listed.
+note: Only part 1 merged; the PK3 close-between-reads part is held (asked Lukas why).
+
+[open-all-confirm]
+area: Menus & settings
+title: Open all asks first when more than one holocron would open
+change: A card 'Open all N holocrons?' with Open all and Cancel over the Holocrons tab.
+change: Over three it says they open together in a quicker, simpler animation.
+test: Collection > Holocrons with 4+ to open: Open all (or A) shows the card; Esc: nothing.
+test: Tab to Cancel, Enter: nothing opens. Open all again, Enter: the batch plays.
+test: With 2 or 3: the card says each plays its full opening. With 1: A opens it at once.
+test: Click Cancel and Open all with the mouse: same answers.
+
+[sun-card-blade]
+area: Menus & settings
+title: Sol's card brings the Sun blade (it still drops from holocrons)
+change: Sun (001) still drops; a copy of SJK Alpha 000 also brings it while held.
+change: Cards and Shaders tabs say so: 'Brings the Sun blade', 'with your Sol card'.
+test: Collection > Shaders, Sun: facts 'Holocron drop' and 'Sol card'; hover says both.
+test: Hold card 000: Sun owned 'with your Sol card' (needs the hub's card-blade).
+test: Collection > Cards, card 000: 'Brings the Sun blade while you hold it.'
+note: Shatter/craft are offered only on dropped copies, never on the card's.
+
+[all-blades-drop]
+area: Menus & settings
+title: Every Blade Lab blade drops from holocrons
+change: 162 of 165 blades drop; only Glitch, Hologram and Runic stay medal blades.
+change: How to get it reads 'Found in holocrons.' No 'given by the SJK team' on blades.
+test: Collection > Shaders, hover a Blade Lab blade: Found in holocrons.
+test: Open holocrons: Blade Lab blades can come out (needs the deployed hub).
+
+[blade-tiers-3]
+area: Menus & settings
+title: 38 more blades change tier after Sol's last adjustments
+change: 10 Mythical -> Legendary, 13 to Rare, 4 to Uncommon, 12 to Common (docs/unlockables).
+test: Collection > Shaders: Mythical chip lists 11 blades; Starforge shows as Legendary.
+test: Frost and Chameleon show the Common colour and frame; Thermal Fuse shows Rare.
+
+[blade-tiers]
+area: Menus & settings
+title: 26 blades change tier after Sol's review
+change: 049, 092 Mythical; 007 008 040 041 045-047 058 065 067 068 070-072 074 Legendary.
+change: 002 005 006 012 076 080 082 087 Rare; 160 Uncommon. Looks unchanged.
+test: Collection > Shaders: Mythical chip lists 22 blades, Clone Wars and Exegol Rift in it.
+test: Molten, Storm show their new tier colour and frame in grid, rack and hover card.
+
+[blade-numbers]
+area: Menus & settings
+title: Every blade has a number, as cards do
+change: Collection > Shaders shows "Tier . 042" on each blade; the hover card reads Blade 042.
+change: saberskin lists numbers; saberskin 42 wears blade 042. docs/unlockables.md lists all.
+test: Collection > Shaders: grid, rack and card show the number after the tier, nothing cut.
+test: Search 42, 042 or #42: only blade 042 stays. Search a name still works.
+test: Console: saberskin lists numbers; saberskin 1 wears the Sun blade.
+
+[emote-icons-map-change]
+area: Menus & settings
+title: Emote pictures stay after a map change or a connection
+change: Each new world has an empty icon atlas; the emote pictures were put only into the first.
+change: They now go into every new one, on the quick wheel and in its editor.
+test: Join a server (or change map), open Settings > Quick wheel > add a choice > Emotes.
+test: Every emote with an icon shows its picture; the wheel's emote page shows them too.
+
+[discord-presence]
+area: Menus & settings
+title: Discord status: your Discord profile shows what you do in SJK
+change: Settings > Network > Discord status (cl_discordPresence): Off, On, Server hidden.
+change: Menus show the screen; in game the server, map, mode, team, scores and players.
+test: With Discord open, sit in the main menu: your profile shows Sol JK, In the menus.
+test: Open Collection > Holocrons: the second line turns to Opening holocrons.
+test: Join a server: its name, map, mode and player count show, the timer starts.
+test: Set Server hidden: the name turns to Playing online. Set Off: the status goes away.
+
+[menu-pictures]
+area: Menus & settings
+title: Menu pictures: pictures of the map behind the menus, to save video memory
+change: Settings > Interface > Menu pictures stands the menus on 4K pictures of duel6/ffa3.
+change: Running out of video memory on a map turns it on and says so on the error screen.
+test: Turn Menu pictures on in the main menu: the map turns to pictures within a few seconds.
+test: Open Profile/Character: Kyle stands on the pictured courtyard floor.
+test: Join a server and leave: the menus come back on pictures.
+test: Turn it off again: the live duel6 comes back.
+
+[staff-tabs]
+area: Menus & settings
+title: Staff page in tabs, with credits, shards, moderation and chat bans (staff keys only)
+change: Players on the left; the chosen player's note field over tabs, opening on Overview.
+change: Overview: account facts, names worn, Verify, picture and SJK chat moderation.
+change: Credits and shards Give/Take; Chat bans (every player's) lists bans with Lift.
+test: staff: the page opens on your Overview; every tab shows its part and nothing overlaps.
+test: Holocrons and credits on yourself: type 10, Give credits: the balance rises 10.
+test: Take credits more than you hold: the status line says the hub refused.
+test: Give shards: refused until the hub has /v1/staff/shards (feat/shop-shards).
+test: Chat bans: lists bans in force; Lift one: it leaves the list.
+test: Medals and unlocks: Give a medal, Unlock a blade with a note: both show at once.
+
 [alpha-notice]
 area: Menus & settings
 title: Alpha notice at the first start
@@ -557,16 +1524,31 @@ test: Esc menu: the Credits icon is a grey disc with a silver laurel.
 test: Settings rail: every category icon is grey; Chat, Mods and Quick wheel have one too.
 test: What's new card: the headings' icons are grey discs.
 
-[donation-goal]
+[support-links]
 area: Menus & settings
-title: Donations shelved: no Support card, setting or unheld Supporter medal
-change: Shelved 14/10: the main page's Support SJK card and its Donation goal setting are gone.
-change: Collection > Medals lists Supporter only to holders (three medals otherwise).
-change: Site: the Support SJK section and its two menu links are hidden.
-test: SJK UI main page: no Support SJK card top left, even with ui_donationGoal 1.
-test: Settings > Interface and settings search: no "Donation goal" row.
-test: Collection > Medals: Early Tester, Early Contributor, Bug Hunter; "x of 3 medals".
-test: Site (after push): no Support link in either menu, no Support SJK section.
+title: Support SJK on the main page: GitHub Sponsors and Ko-fi, x hides it for good
+change: SJK UI main page, top left: "Support SJK", GitHub Sponsors and Ko-fi pills, and x.
+change: x sets ui_supportLinks 0; Settings > Interface > Support SJK shows it again.
+change: The old donation goal card and its hub request are gone; Supporter still holders only.
+test: Main page: the line sits top left, clear of the ring, at 1080p and 4K (150 %).
+test: GitHub Sponsors opens github.com/sponsors/Sol-Vulpes; Ko-fi opens ko-fi.com/soljk.
+test: Hover x: a quiet line says where to bring it back. Click x: the line goes at once.
+test: Restart: still hidden. Settings > Interface > Support SJK on: it comes back.
+test: Classic+ menus: no Support SJK line.
+
+[staff-tools-2]
+area: Menus & settings
+title: Staff page: kyber crystal gifts, second presses, and key ids never shown in game
+change: Holocrons tab: a row of kyber crystal tiers; Remove and Take wait for a second press.
+change: No key id anywhere in game: Staff page, cards, chat, Identity page, console lists.
+change: Staff list shows when last seen; identity key copies the key id instead of printing.
+test: staff, Holocrons and credits on yourself: pick Rare crystal, Give: it lists as earned/gift.
+test: Collection > Holocrons: the gifted crystal is there and opens to a saber shader.
+test: Remove a row: first press says Press again, second removes it.
+test: Search by pasting a key id: the field shows dots, the player is found.
+test: Keys tab: linked keys numbered; merge field and confirmation show names, no key.
+test: Player card, report page, chat page side panel, sender card: no key id anywhere.
+test: Identity page: Show file shows the path; the key id stays dots. identity key copies it.
 
 [settings-simple-advanced]
 area: Menus & settings
@@ -621,6 +1603,100 @@ test: Collection > Cards before opening any: 'No cards yet' and an empty outline
 test: Once the hub is deployed: Open one holocron, the count drops, credits rise, Cards shows it.
 note: The hub's opening is deployed (12/10/2026).
 
+[holocron-forms]
+area: Menus & settings
+title: The four holocrons: Jedi cube, Great Holocron, Sith pyramid, kyber prism
+change: Each tier is its own object; the halo, cap, eye, crystal, rings and motes move.
+change: Sol's faces: the Jedi emblem on the pentagons, Sith runes over pyramid and cap.
+change: A tier held none of keeps its shape, drained and dark, its parts still.
+test: Collection > Holocrons: choose each tier; watch the moving parts for a while.
+test: Legendary: the runes run from each side of the pyramid on up the floating cap.
+test: Choose a tier you hold none of: the same shape, dark, nothing moving.
+test: debug_open legendary: the pyramid glides to the middle, spins and cracks open.
+test: In a match, game menu > Collection > Holocrons: the holocron before the camera.
+
+[shop-shards]
+area: Menus & settings
+title: The shop sells for kyber shards; credits buy Uncommon and Rare holocrons
+change: Each offer's price is in kyber shards (30 to 1 500), with the shards' mark.
+change: Under the offers: Uncommon Holocron 150 credits, Rare Holocron 400, asking twice.
+change: A bought holocron joins the list at once and never counts against the daily caps.
+test: Shop (S): Right past the offers chooses the holocrons; Enter twice buys one.
+test: A holocron too dear is dimmed with "N more credits needed." under it.
+test: After buying: "Uncommon Holocron bought for 150 credits. It waits in your holocrons."
+note: Needs the hub's feat/shop-shards; on a hub before, the shop stays in credits.
+
+[card-pack]
+area: Menus & settings
+title: The card pack: a holocron's card comes with its credits and a few kyber shards
+change: Beside the card, two tiles slide out: its credits left, its kyber shards right.
+change: Open all: a card's note says its shards and the totals at the top count them.
+test: debug_open rare: the card turns in, the two tiles slide out and count up.
+test: debug_open rare x5: the summary's cards say "+N credits, +M shards".
+note: Needs the hub's feat/card-pack; without it a card shows its credits alone, as before.
+
+[credits-roll]
+area: Menus & settings
+title: A card on the holocron strip shows as its credits, the card tucked in a corner
+change: Strip: a card's tile is coins and "+N credits", a face-down card in the top right.
+change: The card back is in the holocron's colour; neighbours show amounts in the tier's range.
+change: Pack: credits rise, the card slides out and flips (Holo/Solar/Legendary flourish).
+test: debug_open uncommon: the card tiles are green, with coins and amounts 10 to 20.
+test: debug_open mythical solar: card tiles gold, 250 to 350; it lands on its own amount.
+test: After the stop: the credits tile rises, slides left, the card slides out and flips.
+test: debug_open rare holo: a rainbow flourish on the flip; plain: none unless Legendary.
+test: debug_open rare x5: the stacked strips' small tiles show coins, amount and tucked card.
+
+[economy]
+area: Menus & settings
+title: Kyber shards and the shop: shatter duplicates, craft shaders, four offers a day
+change: Shards beside credits; a holocron can bring a pile of shards (one opening in ten).
+change: Holocrons tab: Shop (S) sells four shaders a day for credits, new at midnight Paris.
+change: Duplicates shatter into shards and shards craft a shader (needs the hub's economy).
+test: debug_open rare shards: a shard tile on the strip, crystals and a count-up at the end.
+test: Holocrons tab, Loot table: a kyber shards column with each tier's pile chance.
+test: Once the hub's feat/economy is deployed: Shop (S), Buy asks twice, the countdown runs.
+note: Needs the hub's feat/economy; players see nothing until opening is set to everyone.
+
+[shader-cards]
+area: Menus & settings
+title: The Shaders tab: your saber on its own to turn, and a card for each shader
+change: No character: the saber floats alone; drag to turn it, it spins on and settles.
+change: Under it a card in the tier's colours with icons; locked ones list drop chances.
+change: Behind the Holocrons tab (and its opening) the character no longer stands there.
+test: Collection > Shaders: the worn saber turns alone; drag across, then up and down.
+test: Choose a staff saber on Profile > Saber: the staff fills the same room as a single.
+test: Pick a locked Common shader: 'Where it drops' shows Uncommon to Mythical chips.
+test: Grid view (V), then back: the tier mark and state icons on each card.
+test: Leave Shaders for Toys: the character comes back holding the saber (no floating hilt).
+test: In a match, game menu > Collection > Shaders: the saber alone in the live preview.
+test: Holocrons tab and debug_open rare: only the holocron, no character behind it.
+test: With the hub's economy on: a duplicate's card offers Shatter, a missing one Craft.
+test: Shatter asks 'Confirm: shatter one'; a second press sends it, the answer shows.
+
+[more-droppable]
+area: Menus & settings
+title: Every saber shader drops from holocrons, except the ones medals bring
+change: 48 of the 51 shaders can drop; Glitch, Hologram and Runic stay with their medals.
+change: How to get it reads 'Found in holocrons.' for those 48.
+test: Holocrons tab, Loot table: the shader rows read the same odds as before.
+test: debug_open mythical shader: the strip shows Sun, Void, Molten or Spectral among the tiles.
+test: Collection > Shaders: Sun's 'How to get it' (with debug_collectibles 0) says holocrons.
+note: Needs the hub's feat/more-droppable deployed before any player gets the new drops.
+
+[crate-open]
+area: Menus & settings
+title: Holocrons open like a loot crate: the holocron cracks open, a strip runs to the prize
+change: The 3D holocron glides to the middle, spins up and flashes open (sounds: charge, crack).
+change: A strip of what it can hold ticks past the marker and slows to the prize, then lights it.
+change: Open all (4+): five strips at a time, then everything found laid out, the finest first.
+test: debug_open rare: holocron to the middle, spin-up, flash, strip, soft ticks, prize lit.
+test: debug_open mythical solar: a grand prize (Solar card) at rest turns rays; fanfare plays.
+test: debug_open all x2 (8): one crack, two rounds of strips, then the finds and their credits.
+test: Enter skips to the burst (to the stops, next five, finds for many); Escape ends it.
+test: After the ceremony the 3D holocron grows back in its place on the page.
+note: Sounds are the game's own: jumpbuild, sound/player/holocron.wav, menuroam, sub_select.
+
 [loot-table]
 area: Menus & settings
 title: Holocrons tab: a Loot table with every chance a holocron brings
@@ -668,6 +1744,104 @@ test: Log: "SJK packs: card faces: sol_lore_001" once the pack downloaded.
 test: As staff: Collection > Cards > Reveal: your sealed Legendary cards become card 001.
 test: Open holocrons (staff): a Legendary card shows the face in the ceremony.
 test: debug_open legendary shows the face offline; other rarities stay sealed.
+
+[sjk-alpha-cards]
+area: Menus & settings
+title: SJK Alpha collection: Mythical rarity, Credits and Meme kinds, card 1 Bishop
+change: Cards gain a fifth rarity, Mythical (gold), with the Legendary fanfare.
+change: Card 1 is Bishop (Mythical, Credits); the Toxiee card is now 010 (Meme).
+change: Holocrons tab loot table has a Mythical column; rarest card is Mythical Solar.
+test: Log: "SJK packs: card faces: sjk_alpha_001, sjk_alpha_010" once the pack downloaded.
+test: Collection > Cards: your old Toxiee card reads 010 / Meme; strip says SJK Alpha.
+test: debug_open mythical x5: cards go round the rarities; the Mythical one shows Bishop.
+test: Holocrons tab > loot table: five rarity rows, all text fits.
+note: The hub is deployed with these cards (19/10); released clients don't show Bishop.
+
+[sjk-alpha-credits]
+area: Menus & settings
+title: SJK Alpha credits cards 000-012 (placeholder art), card numbers from 0
+change: The hub's SJK Alpha set: 000 Sol, 001 Bishop ... 012 JA+; 010 is still Toxiee.
+change: Cards may be numbered 0; the client used to drop card 000's face.
+test: Log: "SJK packs: card faces:" lists sjk_alpha_000 to sjk_alpha_012.
+test: debug_open mythical x5: the Mythical card is one of Sol, Bishop, Creyon, Early Team.
+test: Sol's face footer reads "000 / 013".
+
+[card-binder]
+area: Menus & settings
+title: Cards tab as a binder: every card, missing ones greyed, stacks, filters
+change: Every card of the packs shows; ones you lack are greyed. "N of M cards found".
+change: One tile per card with an x3 badge, lit in your best finish; sealed copies first.
+change: Hover: copies by finish and edition, first found, odds. Chips filter the grid.
+test: Collection > Cards: 13 SJK Alpha tiles, owned lit, missing greyed; "SJK Alpha N / 13".
+test: Hover a card you hold several of: "3 copies: 1 Solar, 2 Normal - Alpha Edition".
+test: Click Missing, Rarity, Kind, Finish chips (or O T K F): grid and "N of M" follow.
+test: Wheel and arrows scroll and choose; a missing card up close reads "Not found yet".
+test: R or Reveal still reveals sealed copies.
+
+[card-finishes]
+area: Menus & settings
+title: Card finishes: Solar burns like the Sun blade, Holo a smooth rainbow; paging
+change: Solar: a living corona along the card's edges in the Sun blade's colours.
+change: Holo: a continuous rainbow foil with a soft glint, no more bands or steps.
+change: Cards tab: PgUp/PgDn/Home/End page the grid; "Rows 3-5 of 9" while scrolled.
+test: Collection > Cards: a Solar card up close burns at the edges; art and text stay clear.
+test: A Holo card: smooth rainbow sweep, follows the pointer, no blocky bands.
+test: debug_open mythical solar x3: the ceremony's card burns too.
+test: Many Solar tiles on screen: check the frame rate stays fine.
+
+[smooth-hover]
+area: Menus & settings
+title: Cards answer the pointer smoothly; one soft glare
+change: Tilt, light and glare ease in and out; the light glides to the pointer.
+change: The card you leave settles back while the next one rises.
+change: The glare is one soft shaded light instead of four rings.
+test: Collection > Cards: sweep the pointer across the grid; cards ease, none snaps flat.
+test: Enter a Holo card mid-sweep: the rainbow glides to the pointer.
+test: Hover a plain card: a soft round glare, no visible rings.
+
+[credits-unnumbered]
+area: Menus & settings
+title: Credits cards: all Mythical, no number shown
+change: Credits cards show no number on the card, close-up, hover card or opening.
+change: Every credits card is Mythical (the hub refuses any other rarity).
+test: Collection > Cards: a credits card's foot has no 00X / 013; Toxiee keeps 010 / 013.
+test: Hover a credits tile: 'Mythical card. Credits, SJK Alpha.' with no number.
+
+[blade-cards]
+area: Menus & settings
+title: SJK Blades: a card per blade; a Solar copy drops its blade
+change: New card kind Blade (SJK Blades, one card per droppable blade, numbered #NNN).
+change: A Solar blade card also drops its blade: shown in the opening and on reveal.
+change: The hub picks a collection first, then a card, so Blades don't crowd out credits.
+test: After the hub deploy and publish: open holocrons; blade cards show as 'Blade - SJK Blades'.
+test: Hover a blade card: 'Its Solar copies also drop the ... blade.'
+test: Binder kind filter offers Blade; blade cards foot reads #NNN.
+
+[personal-shop]
+area: Menus & settings
+title: Holocron shop: your own four shaders a day
+change: After the hub deploy, each player's offers skip the shaders they hold.
+change: Reopening shows the same four until midnight Paris; a shader you gain swaps only its slot.
+test: Open the shop on two accounts: different offers, none already owned.
+test: Close and reopen the shop: same four offers.
+
+[collection-tally]
+area: Menus & settings
+title: Collection: one bar a tab under "N of M collected"
+change: The top right's tick for each thing (a barcode at 193) is now one thin bar a tab.
+change: Each bar fills gold as far as that tab's share held, in the tabs' order.
+test: Collection, any tab: 4 to 6 bars under the count, none past the title on the left.
+test: Debug collectibles on: every bar full; off: each bar matches its tab's count.
+
+[card-pages]
+area: Menus & settings
+title: Cards tab: named tiles, a closer look, lore that fills its box, no numbers
+change: Bigger tiles (6 a row) with the card's name and rarity under the picture.
+change: Enter/Space/I or a click shows the chosen card large; arrows browse, Esc puts it back.
+change: Short lore grows and centres in its box; no card shows its number anywhere.
+test: Collection > Cards: tiles readable at 4K/150%; unowned names grey.
+test: Click a tile: large view; Left/Right browse; Esc returns without closing the Collection.
+test: A 1-line and a 7-line lore both fill their box; open a holocron: no number on the card.
 
 [hover-cards]
 area: Menus & settings
@@ -1046,20 +2220,63 @@ test: 301 characters: the box stops at 300; sjksay with more sends the first 300
 
 # ---- HUD ----
 
+[ctf-team-boxes]
+area: HUD
+title: CTF team score boxes with each flag's state (Slash, PR #201)
+change: Team scores in two SJK boxes under the clock; in CTF each holds its flag and where it is.
+change: Carrier named from the CTF message, "You" in gold, a dropped flag's seconds and gold arc.
+test: CTF server: take the flag: "You" in gold, "Take it home" under the boxes.
+test: Die with it: the flag's box counts down from 30 s with a gold arc; at 0 it goes home.
+test: Spectate the carrier: their name, not "You", and no line under the boxes.
+test: Team FFA with scores over 99 or below 0: the whole number shows, centred.
+test: Settings > HUD: SJK team score boxes off: classic plates and left flag icons return.
+test: Team score box size 0.5 and 2: the boxes shrink and grow under the clock.
+note: Join a server with a flag already lying: it says Dropped, no count.
+
+[duel-no-weapon-icon]
+area: HUD
+title: Nameplates: no weapon icon beside a duellist's name (duel badge sat on top of it)
+change: The duel badge and the saber icon were both drawn left of the name and overlapped.
+change: While the duel badge shows, the plate leaves the weapon icon out.
+test: Duel someone and look at their nameplate: only the crossed-sabers badge before the name.
+test: Out of a duel the weapon icon is back beside the name.
+
+[hud-picker-sjk-card]
+area: HUD
+title: HUD look picker: SJK card over the map, pictures of SJK radial and SJK classic
+change: Settings > HUD > HUD look opens the SJK UI's pop-up card in every menu style.
+change: Hovering SJK radial or SJK classic shows it drawn by the live HUD for the sample player.
+test: Settings > HUD > HUD look, Enter: a dark card over the dimmed map, list left, picture right.
+test: Hover SJK radial: arcs and pills round the centre; SJK classic: bars at the bottom.
+test: Hover Jedi Academy: the retail HUD picture as before. Enter uses, Esc (or its cap) closes.
+test: Menu style classic: the picker is the same SJK card.
+
+[scoreboard-afk]
+area: HUD
+title: Away players faint at the bottom of the scoreboard (cg_scoreboardAfk, on by default)
+change: A player whose view has not moved for 3 minutes in view, or named [AFK], is away.
+change: SJK look: below their list, no place, faint name, "AFK 7m" where the ping goes.
+change: Classic look: their row faint and "AFK" left of it. Chat, a turn or a kill: back.
+test: Local server, a second client standing still in view: after 3 minutes, Tab: AFK row.
+test: Turn that client's mouse a little: back in place, numbered, ping shown again.
+test: Rename it [AFK]Name: away at once. Chat from a still client: present again.
+test: Kill the idle client and let it respawn: it stays away (the idle time is kept).
+test: Settings > HUD > Scoreboard > Away players apart off: nobody marked, server order.
+note: Unit tests and world shots only; never tried with real players.
+
 [nameplate-share]
 area: HUD
-title: Nameplate bars only on players who share them (cg_nameplateShare, cg_nameplateEstimate)
-change: Others' health, shield and Force bars show only if they share (off by default).
-change: Bars on everyone (estimates) shares your own; your card says you see others' bars.
-change: A sharer's bars are the estimates corrected twice a second with their real values.
-test: Defaults, a stock or non-sharing player: name, weapon, icons, no bars; teammates keep HP.
-test: Two SJK clients, one with Share my bars on: the other sees its bars, close to its HUD.
+title: See & share nameplates: one switch to see others' bars and share yours (cg_nameplate)
+change: See & share nameplates (cg_nameplate, off by default) replaces Share my bars.
+change: On: you see nameplates and share your health, shield and Force; off: neither.
+change: Others' bars show only if they share; Force is the shared value, never estimated.
+test: Defaults: no nameplates, nothing sent; Settings > Interface shows the switch off.
+test: Two SJK clients, both switched on: each sees the other's bars, close to its HUD.
 test: That sharer's plate has a gold contour (a red or blue line inside it in team games).
 test: Hit the sharer: the bar drops at once, then settles on the real value within a second.
-test: Turn Bars on everyone on: Share my bars turns on too and cannot be turned off.
-test: Inspect a player with Bars on everyone: the card says, in amber, Sees your health...
-test: A player with Bars on everyone has the gold contour too; so does your own plate.
-test: Nameplates with bars on: Share my bars cannot be turned off; bars 0 frees it.
+test: Collection > Nameplates: its switch row pulses gold and flips cg_nameplate.
+test: Switch it off with plates on bars: the Settings row stays off (no hold turns it on).
+test: In a duel (private, Duel, Power Duel): no bars on the opponent, yours not sent.
 test: cl_identity 0: no bars on other players but teammates/NPCs; on again, back in seconds.
 note: Needs cl_identity and the hub deployed with /v1/vitals; starts a few seconds after joining.
 
@@ -1073,6 +2290,27 @@ test: Same with Bars on everyone on the viewer: still grey; a stock client gets 
 test: Team game, the non-sharer a teammate: grey too, no HP/shield from the server.
 test: The non-sharer turns sharing on: real bars and the gold contour within a second or two.
 note: Needs cl_identity on both; a player the hub does not list is treated as stock.
+
+[nameplate-grey-all]
+area: HUD
+title: Grey bars on every player who does not share, on SJK or not; Bars on everyone removed
+change: Stock players and bots get the same full grey, empty bars as SJK non-sharers.
+change: No teammate HP from the server either; Bars on everyone (cg_nameplateEstimate) is gone.
+test: Join with a bot or a stock client: its plate shows grey bars, not estimates, not none.
+test: Team game, a stock teammate: grey bars, no HP/shield from the server.
+test: An SJK player sharing: real bars and gold contour as before.
+test: Settings, Nameplates: no Bars on everyone row; help has no entry for it.
+note: NPC plates (cg_nameplateNpcs) keep their bars.
+
+[card-sight]
+area: HUD
+title: Player card and inspect only in sight and within 1200 units
+change: No card through a wall or from farther than 1200 units, by dwell or by inspect.
+change: A pinned card hides when its player goes out of sight; it unpins after 3 seconds.
+test: Aim at a player across a large map (over 1200 units) and press X: no card.
+test: Pin a player close by, let them walk behind a wall: the card fades out.
+test: They come back within 3 s: the card returns; stay hidden longer: the pin is gone.
+test: Pin, then back off past 1200 units: same as behind a wall.
 
 [model-check]
 area: HUD
@@ -1107,6 +2345,20 @@ test: Settings > HUD+ > Strafe lines on (or cg_strafeHelper 2242); run and straf
 test: Two lines rise from the bottom; holding W+A or W+D turns its line green.
 test: Third and first person both show them; on the ground too once at running speed.
 test: Compare with JoF EJK: the crosshair on the green line should gain speed the same way.
+
+[strafe-aura]
+area: HUD
+title: Strafe aura: a glow over the crosshair showing where turning gains speed
+change: cg_strafeAura draws an arc over the crosshair; each point is a turn left/right.
+change: It glows with the gain of the keys held: white edge = best, nothing short, red slows.
+change: Own shader now (flowing wisps), and only in the air unless cg_strafeAuraGround 1.
+test: Settings > HUD+ > Strafe aura on (or cg_strafeAura 1); run and strafe-jump with W+A.
+test: Running on the ground: no aura; Aura on the ground on: it shows while running too.
+test: The glow flows towards the white seam and pulses while you sit on it.
+test: Turn until the top tick sits on the white edge: it turns blue and speed should climb.
+test: Under-turn: tick white, no glow under it; over-turn far: glow fades, then red.
+test: Compare with Strafe lines on: the white edge sits where the green line points.
+test: Size and opacity: cg_strafeAuraRadius (40), cg_strafeAuraAlpha (1).
 
 [card-profile]
 area: HUD
@@ -1191,6 +2443,295 @@ note: Not tried in a running client: the HUD hiding and the compact board over a
 note: Alt+Tab while holding Tab leaves the board and the hidden HUD up until Tab is pressed again.
 
 # ---- Rendering & effects ----
+
+[sun-trails]
+area: Rendering & effects
+title: Sun blade trails: plasma for all, Solar card 000 unlocks Flare, Embers, Heat wake
+change: Sun blade's swing trail is plasma: white gold cooling to deep red, flame-torn edge.
+change: Extras (off until on): Flare trail, Swing embers, Heat wake; a Solar 000 copy unlocks.
+change: Collection > Shaders > Sun: extras after the parts, padlocked without the card.
+test: Wear the Sun, swing hard: the trail cools from white gold to red, edge in flames.
+test: With a Solar copy of card 000: switch on Flare trail, Swing embers, Heat wake; swing.
+test: Without it: extras padlocked, 'saberskin saber_sun flare_trail on' says it is locked.
+test: A second SJK client sees the same trail and extras (needs the hub's sun-trails branch).
+note: Untested in game. Needs hub branch sun-trails deployed for others to see the extras.
+
+[reduce-flashes]
+area: Rendering & effects
+title: Reduce bright flashes, saber clash flare settings (Piza, #138)
+change: Game options: Reduce bright flashes (cg_reduceFlashes), Saber clash flare, Clash flare size.
+change: Reduced: no clash flare, no screen flash (rocket, concussion, DEMP2), no saberFlare particle.
+test: Saber duel: clashes flash as before. Reduce bright flashes on: no burst over the screen.
+test: With JoF's HD movie saber clash pack: blocks no longer show the big white flare.
+test: Rocket or DEMP2 alt shot near you: the screen no longer flashes white (with it on).
+test: Off, Clash flare size 0.5 and 2: the flare is half and twice the size; Saber clash flare off.
+test: The what's-new card offers Reduce bright flashes with its switch.
+note: Not compared with retail in game: SJK draws the flare in the scene, so bloom may add to it.
+
+[portable-shield]
+area: Rendering & effects
+title: The Merc's force field is drawn (blec-bee #133)
+change: ET_SPECIAL HI_SHIELD fields drawn as FX_DrawPortableShield: an upright additive wall.
+change: Red team red, else blue; the damaged look while hit; hidden while down (EF_NODRAW).
+test: CTF on a JA+ server as Merc: use the field (holdable): a blue/red wall where it stands.
+test: Walk round it: seen from both sides, as tall as it blocks; it flickers off when it drops.
+test: Shoot it: the damaged look; another team's field in its own colour.
+note: Brightness follows stock at 125 FPS (overlapping copies); compare with JoF EJK.
+
+[skin-last-entry]
+area: Rendering & effects
+title: Skins: a part's last entry shows or hides it (Rollembones #148)
+change: A surface named twice takes its shader from its first line, on/off from its last.
+change: Before, the first line decided both: outfit skins showed every outfit at once.
+test: Model yuna (and kushina), default, sum and song skins: one outfit each, as in JoF EJK.
+test: Model zuvio: the neck cap shows as in JoF EJK (a grey default-image cap there too).
+test: Kyle, Jedi and other retail models look unchanged.
+
+[scaled-saber-hand]
+area: Rendering & effects
+title: Scaled players hold their saber in the hand (g0dchris #144)
+change: iModelScale now scales the hand bolt: hilt, gun, blade start, hook rope, Force hand FX.
+change: The hilt and gun are drawn at the player's scale; the blade keeps its length.
+test: A youngling (or Jawa) player on JoF: the saber sits in the hand while idle and swinging.
+test: Gun in hand on a scaled player: in the hand, scaled with the body.
+test: Normal-size players: sabers and guns unchanged.
+note: The cause is inferred: the server scales those models (their meshes are full size).
+
+[model-install-stutters]
+area: Rendering & effects
+title: Fewer stutters at joins, model changes and first deaths (Slash, PR #205)
+change: A new player's model goes up one texture a frame; a model shown again reuses materials.
+change: The body for deaths is built on the loading worker, not at the first kill.
+test: Busy server: players joining or changing model cause no hitch lines in the console log.
+test: Kill a player who just joined: no stutter at their first death; the body looks right.
+test: cg_forceModel 1: bodies still show the player's own model, as before.
+note: Untested on a weak GPU at the merge; Slash measured the hitches on a built-in Radeon.
+
+[render-scale]
+area: Rendering & effects
+title: Render scale (r_renderScale 50-100%): the world drawn smaller, menus and text sharp
+change: Below 100 the 3D scene is drawn at that share of the window and stretched up, sharpened.
+change: Applies after a graphics reload; supersampling wins when both are set.
+test: Settings > Display > Render scale 50, reload graphics: world softer, HUD and text sharp.
+test: Back to 100 and reload: the image is exactly as before.
+test: Resize the window or alt-enter at 50: the world still fills the screen correctly.
+
+[experimental-vram]
+area: Rendering & effects
+title: Experimental preset: less video memory (lamp lists, lamp shadows, cache by card size)
+change: Lamp shadow distances packed two per texel; lamp lists 16-bit on maps under 65,536 lamps.
+change: The lamp light cache's budget follows the card: 32 MiB per GB, 64 to 512 MiB.
+test: Experimental preset on ffa5 and siege_hoth: lamps, door shadows and walls light as before.
+test: Change maps a few times on Experimental: no missing light or black walls.
+
+[texture-compression]
+area: Rendering & effects
+title: Texture compression (r_textureCompression, off): map and model textures 4 to 8x smaller
+change: On: opaque textures BC1, translucent BC3, encoded at load; skies, UI and material maps not.
+change: ffa3 at full detail: map textures 928 -> 118 MiB; the load takes 2 to 3.5 s longer.
+test: Settings > Texture compression on, change map: textures look the same (no blocky gradients).
+test: Translucent things (glass, grates, foliage) keep their see-through parts.
+test: Off again and change map: everything exactly as before.
+
+[font-atlas-r8]
+area: Rendering & effects
+title: Font atlases in one channel: 120 MiB less video memory, text unchanged
+change: Every font atlas (game, UI, classic HUD) is coverage only (R8) instead of RGBA.
+test: Menus, console, chat (with Russian/Japanese and emoji), HUD numbers: text looks the same.
+test: Classic and SJK menu styles, retail fonts and SJK fonts: no missing or blocky glyphs.
+test: cg_groundHud 1 (ground HUD): its digits still draw.
+
+[decoded-image-sweep]
+area: Rendering & effects
+title: Decoded textures of maps you left are freed (memory no longer grows map after map)
+change: Past 128 MiB more than last time, images only the cache holds are dropped.
+test: Play several maps in a row: Task Manager memory stops growing after the second or third.
+test: Go back to a map you played: it loads and looks the same.
+
+[stock-blades-menu-cap]
+area: Rendering & effects
+title: Stock blades (cg_stockBlades) and a menu frame cap (com_maxfpsMenu) for weak PCs
+change: Stock blades: Off / Others / All draws blades without skins, in their own colour.
+change: Menu FPS cap: frames a second while only the menus run; 0 keeps the normal cap.
+test: Settings > Advanced > Gameplay > Effects: Stock blades Others: others' skins gone, yours kept.
+test: Stock blades All: your own blade is stock too; the Collection still shows skins.
+test: Settings > Advanced > Display > Frame rate: Menu FPS cap 30: the main menu runs at 30.
+test: Join a server with the cap set: the game runs at your normal cap, menus over it too.
+
+[picmip-everywhere]
+area: Rendering & effects
+title: Texture detail (r_picmip) now also shrinks skies, material maps, unmipped textures
+change: Sky boxes, normal/specular/emission maps and r_textureMode GL_LINEAR follow r_picmip.
+change: Shaders with nopicmip or nomipmaps keep full size, as in the original game.
+test: r_picmip 2, then a map with a sky (siege_desert): the sky draws, softer, no seams.
+test: r_picmip 0: skies and textures look exactly as before.
+test: Experimental preset with material maps at r_picmip 2: maps load, bumps still show.
+
+[lazy-scene-targets]
+area: Rendering & effects
+title: Mirror, sky portal and portal views, CJK and emoji atlases made only when drawn
+change: Floor mirror, sky portal and map portal targets are made the first frame they draw.
+change: The wide glyph (CJK) and emoji atlases are made with the first such character.
+test: r_floorReflections 1 on ffa3: the floor mirror draws; 0 then 1 again: it comes back.
+test: duel6 (sky portal): the sky scenery draws as before; resize the window: still right.
+test: Type Russian/Japanese and an emoji in chat: they show from the first character.
+
+[body-fade]
+area: Rendering & effects
+title: Bodies fade away as in EternalJK (Creyon, PR #202)
+change: 30 s after death the body thins under a blue/red glow that burns away, with sounds.
+change: SJK's server sends EV_BODYFADE as 100 and unlinks the body 4 s after it.
+test: Die on a JoF server, wait 30 s: the body fades under its Force side's glow.
+test: Dark side body: red electric shell, a crackle now and then, not a rattle.
+test: Busy FFA, many deaths: every body fades, none just pops out.
+test: Own server (local): the body fades and is gone ~4 s later, no invisible corpse.
+note: Held hilt vanishes at fade start; rig models show squares in the glow (known).
+
+[blade-tip-edges]
+area: Rendering & effects
+title: Signature blades: no bright tip rim, no hard edges (Creyon, PR #191)
+change: The tip's core is filtered as its shaft; effects fade instead of ending at a line.
+change: Effects area grows only with a haze/lens; skinned blades do one skin lookup a pixel.
+test: Collection, a signature blade close: no bright pixels round the tip, no box past it.
+test: Point a smoke or arc blade (Mortis, Reactor) at the camera: no straight cut edges.
+test: Obsidian Edge in front of a wall, third person: no box round the tip.
+test: Watch the frame rate with several signature blades: no drop vs before.
+note: Not timed on a low-VRAM card.
+
+[demp2-flash]
+area: Rendering & effects
+title: DEMP2 shock flash fades with distance (Slash #125)
+change: Effect Flash primitives scaled as stock CFlash::Init: none past 900 u or off-view.
+test: DEMP2 alt fire (charge) at a wall far away: no white screen, the shock still shows.
+test: Fire it at a wall a few metres in front: a short flash, as in JoF EJK.
+test: Another player's shock across the map: no flash.
+test: A close shock flashes the whole view white (no magenta/yellow/purple, no edge, sky untinted).
+
+[varykino-blossom]
+area: Rendering & effects
+title: Varykino Blossom, a Mythical blade that sheds blossoms
+change: Blade 166 (Kushina's idea): pink blade, lavender mist, drifting blossoms, branch at the hilt.
+change: Swinging it sheds real petals that flutter down behind the blade, land and fade.
+test: Wear it (staff grant saber_varykino_blossom): a flowering branch beside the emitter.
+test: A pink nacre pearl hangs at the tip; a clash bursts it into petals and it grows back.
+test: Swing hard: petals trail the swing and settle; still, turning or running sheds none.
+test: Collection > Shaders > its parts: Falling blossoms off, swing: no petals.
+test: A second client sees your petals, and none once you switched them off.
+note: Hub drops need the hub branch varykino-blossom deployed; the client's own file draws it.
+
+[thousand-cranes]
+area: Rendering & effects
+title: Thousand Cranes, the first Unique blade (hand-given, hidden unless owned)
+change: Blade 167: silk-white blade, red thread, origami cranes circling, golden crane at tip.
+change: New Unique tier (rose): never drops, sold or traded; hidden from players who lack it.
+change: A swing releases paper cranes that climb away; a clash startles a ring of cranes.
+test: Collection > Shaders without it: no Thousand Cranes, no Unique chip, totals unchanged.
+test: Staff grant saber_thousand_cranes: it shows first in Shaders with its rose Unique mark.
+test: Wear it: cranes circle and rise, unfold as the blade lights, golden crane over the tip.
+test: Swing hard: coloured paper cranes fly up off the blade; still or running releases none.
+test: Collection > Shaders > its parts: each of the five switches off on its own.
+note: Needs the hub branch thousand-cranes deployed (pack, sounds, grant); client draws it alone.
+
+[hearth]
+area: Rendering & effects
+title: Hearth, a Unique blade of coals and flame
+change: Blade 168: glowing coals, rising embers, flames up its edges, heat shimmer, a blaze.
+change: A ring of hearthstones stands round the emitter; ash drifts off it and off its swings.
+test: Wear it (granted to Sol 25/10): the whole fire shows at once, nothing locked or waiting.
+test: Light it: it kindles up from the hilt; put it away: it cools to a deep red.
+test: Swing hard: grey and glowing ash flakes drift down and settle; a still blade sheds none.
+test: Collection > Shaders > its parts: each of the five switches off on its own.
+note: Hub deployed 25/10 (pack, sounds); the growth by days held was dropped the same day.
+
+[lazy-blade-skins]
+area: Rendering & effects
+title: Blade skins and signature shaders load only when a blade draws them
+change: A skin's textures upload, and its signature builds, once a blade/preview/picture uses it.
+test: Join a server: the log has signature builds only for blades people wear.
+test: Open the Collection's blades: each shows its blade (its own effects after a moment).
+test: Wear a signature blade you never showed before: it draws plain for a moment, then its own.
+
+[fps-fixes]
+area: Rendering & effects
+title: Map changes keep the blade signatures; vsync with supersampling no longer crashes
+change: Signature shaders are built once per game, not again (~130 builds) at every map change.
+change: Turning r_vsync on or off no longer remakes the scene depth at the window's size.
+test: Join a server, change map: the log has no "signature shader built" lines the 2nd time.
+test: r_superSample 2, then toggle r_vsync 1 / 0 in game: no crash.
+note: Map changes should stutter less on CPUs with few cores.
+
+[texture-detail]
+area: Rendering & effects
+title: Texture detail (r_picmip) and no crash when the card is full
+change: r_picmip 0-3 halves textures larger than 128 pixels per step, from the next map.
+change: The creator's head/torso/legs model that runs out of video memory just does not show.
+test: Settings > Renderer > Texture detail 2, join a map: textures look softer, no crash.
+test: Set it back to 0, join again: textures are sharp again.
+test: In the creator, change head, torso and legs several times: still fine.
+note: The out-of-memory ladder (pictures, then picmip 1, 2) needs a small card to see.
+
+[vram-detect]
+area: Rendering & effects
+title: Small graphics cards found at start
+change: A card of 4 GB or less starts on Texture detail 1 (2 at 3 GB) and menu pictures, once.
+change: With menu pictures on, saber shader swatches are drawings, not the live blades.
+test: The log names your card and its video memory at start (graphics card: ...).
+test: ui_menuPictures 1: Collection Shaders tab shows drawn blades; 0: live blades again.
+note: Your 16 GB card changes nothing; r_videoMemoryChecked 0 makes it check again.
+
+[saber-picmip]
+area: Rendering & effects
+title: Texture detail shrinks the saber glows too
+change: r_picmip halves the saber glow and core images like world textures (300 MiB to 28 at 2).
+test: Settings > Renderer > Texture detail 2, join a map, light a saber: glow looks the same.
+test: Texture detail 0, join again: glow unchanged, no stutter when the map loads.
+note: Measured with menu_pictures_vram (world shot); a 3 GB card needs to confirm in play.
+
+[sun-signature]
+area: Rendering & effects
+title: The Sun blade is a signature blade
+change: Sunrise ignition (red to white gold, dawn flare), sunset switch-off (cools to deep red).
+change: Slow breathing, sunspots, coronal rain down glowing loops, 4 prominences, solar wind.
+change: Clash: an eclipse's diamond ring; strongest light; deeper hum (needs the hub's pack).
+test: Wear the Sun, switch on: the blade rises red then warms; a flare at the emitter.
+test: Switch off: the blade cools to deep red as it goes in.
+test: No straight spikes leave the blade; beads of light slide down loops beside it.
+test: The warm bloom round the blade is half as bright as before (not blinding up close).
+test: Clash with someone: a dark moon crosses the hit spot, a ring and a diamond flash.
+test: Collection > Shaders > Sun parts: Sunspots and corona, Prominences, Sparks, Glint, Haze.
+note: Older choices (prominences/sparks/glint/haze off) still apply.
+
+[creyon-blade-signatures]
+area: Rendering & effects
+title: Creyon's Blade Lab signature blades (SJK #188, hub PR 1)
+change: 128 saber shaders in five tiers, each drawn by its own shader; effects switch in Collection.
+change: Their sounds come from the hub's skins pack (re-downloaded once, 15.5 MB).
+test: Collection > Blades: owned skins show live pictures; switch a blade's parts on and off.
+test: Wear a signature (staff grant): ignite, swing, run, turn: effects stay with the blade.
+test: Several signature blades on screen: frame time stays smooth; no hitch at startup.
+test: Normal sabers look as before (glow, heat haze, trails): a blade alpha change touched all.
+test: Settings > Sound > Blade skin sounds: Off, With normal, Only skin; throw the saber too.
+note: Review: cg_saberLabDesigns 0 + Clone Wars blade leaves a blade up 1.6 s after switch-off.
+
+[creyon-blade-rounds]
+area: Rendering & effects
+title: Creyon's blade rounds 15 to 22 (pushed after #188 merged)
+change: Every effect round a signature blade is 3D, hidden behind the blade, never cut off.
+change: Mythicals awaken when lit, breathe, ring out on a clash (not the Sun: its own moments).
+change: Faster blade effect loading; built effects kept when the skins reload.
+test: Wear a few signatures, walk round them and look from above: effects stay put in 3D.
+test: Mythical (Abyssal Eye): switch on: surge up the blade, flare and ring at the tip; clash.
+test: Sun: sunrise and eclipse alone, no ring line across the moon, no flash at the emitter.
+test: Clone Wars: 3D speed lines on a swing; its halftone stops at the hilt.
+note: Kept Sol's tiers over Creyon's (his Jedi Spirits Mythical is not applied).
+
+[vram-map-change]
+area: Rendering & effects
+title: Map changes share textures between the old and new map (less video memory)
+change: While the next map builds, textures both maps use are held once (~730 MiB less peak).
+test: Play an hour on a server with map changes: no out-of-memory error on map load.
+test: After a few map changes, sabers, fonts, effects and map textures look right.
+test: Change graphics preset after a map change: nothing turns black or wrong.
 
 [tail-gravity]
 area: Rendering & effects
@@ -1702,6 +3243,53 @@ note: Not run in a game against the deployed hub; the sounds have not been heard
 
 # ---- Audio ----
 
+[saber-toggle-spam]
+area: Audio
+title: Saber on/off spam is capped to 4 sounds, then one per half second
+change: Toggling a saber over and over plays its on/off sound 4 times, then every 500 ms.
+change: Covers the server's toggle, attack ignition and weapon switch loops; saber still toggles.
+test: Bind a key to saber toggle, mash it near a second client: 4 sounds, then sparse ones.
+test: Toggle normally (on, wait, off): every sound plays. Weapon 1 / weapon 3 spam: capped too.
+test: Dual sabers and a blade skin: both hilts and the skin sound together, or none.
+test: JA+ server, staff on the back: weapon 1 / weapon 3 spam is capped the same way.
+test: Staff put away normally: its shutdown plays once, at the reach, never twice.
+
+[saber-skin-toggle-once]
+area: Audio
+title: A blade skin's on/off sound plays once per toggle (was doubled since 2026.1026.3)
+change: The server's toggle sounds every hilt, a single saber's empty slot too; the skin layered each.
+change: Now it plays once over them; with Only skin, it is the toggle's only sound.
+test: Wear a blade skin, single saber: toggle on and off; the skin's sound is heard once, clean.
+test: Same with dual sabers, and with Settings > Sound > Blade skin sounds on Only skin.
+
+[voice-volume]
+area: Audio
+title: Voice volume (s_volumeVoice) works, in Settings > Sound (Rollembones, #141)
+change: Voices (pain, death, taunts, grunts, voice commands) take s_volumeVoice, not s_volume.
+change: As in the original game: at the default 1 they are louder against effects than before.
+test: Settings > Sound: Voice volume shows under Music volume (Advanced and Simple).
+test: In a game, Voice volume 0: no pain or jump grunts, no taunts; sabers and guns still heard.
+test: Voice volume 1, Effects volume 0.2: voices loud, effects quiet. Menu sounds follow Effects.
+test: A teammate's voice command: at them follows Voice volume, the radio copy follows Effects.
+
+[blocked-chat-beep]
+area: Audio
+title: No chat beep for a blocked player's messages on JA+ and JoF (blec-bee, #147)
+change: JA+ and JoF send no sender slot, so the beep played while the line was hidden.
+change: The beep now names the player whose name starts the line, as the chat feed does.
+test: On a JoF server, block a player who chats (block <name>): their lines hide and are silent.
+test: Other players' messages still beep; unblock: theirs beep again.
+test: A whisper from the blocked player: hidden and silent too.
+
+[sound-memory]
+area: Audio
+title: Sounds kept at 16 bits (half the memory), old map music freed
+change: Every sound and music track is stored as 16-bit samples instead of floats.
+change: A map's music is freed once the next music is chosen, instead of piling up.
+test: Play a few maps: sounds, voices, loops and music sound as before (no crackle, no clicks).
+test: Change map a few times, then soundinfo: decoded total stays level, freed bytes grow.
+test: music and stopmusic in the console still play and stop the music.
+
 [stereo-sides]
 area: Audio
 title: Sounds on your right play in your right ear again
@@ -1711,6 +3299,32 @@ test: Turn round with a sound running: it moves to the other ear.
 test: Fire at a wall on your left: the impact plays mostly in the left ear.
 
 # ---- Gameplay ----
+
+[wall-grab-lock]
+area: Gameplay
+title: Wall grabs: stock camera holds, cg_wallGrabLock option (Lumaya, PR #195)
+change: Stock: the wall-grab camera no longer comes loose when a snapshot catches up.
+change: JA+ keeps free look on a wall; cg_wallGrabLock 1 locks it and faces the wall.
+test: Stock server, g_debugMelee 2: hang on a wall, mouse: the view stays held.
+test: JA+/JoF, option off: hang, look left, let go: you kick off where you aimed.
+test: Settings > Advanced > Gameplay: Lock wall-grab camera on: JA+ hang faces the wall.
+note: Untested live: grabs on moving walls.
+
+[atst-camera]
+area: Gameplay
+title: AT-ST camera no longer jumps on walk/run/stand changes (Kushina)
+change: The pilot's seat bolt uses a skeleton posed as cgame does, new animations blended.
+test: siege_hoth or npc spawn vehicle atst_vehicle, board, walk with W then let go: no jump.
+test: Tap W, hold W to run, turn with A/D: the camera moves smoothly.
+note: If it still jumps, record it at a high frame rate; prediction misses may remain.
+
+[tauntaun-swing]
+area: Gameplay
+title: Tauntaun rider swings again and again (Slash #123)
+change: A torso restarting its own clip starts from frame 0, not on the legs' finished frame.
+test: Local devmap, npc spawn vehicle tauntaun, board with a saber, hold attack: swing after swing.
+test: Hold attack with A or D held: the swing goes to that side, repeated.
+test: Watch another player do it: same repeated swings.
 
 [allow-download]
 area: Gameplay
@@ -2482,6 +4096,7 @@ test: Classic main menu: SJK > CHANGELOG; pick 2026.1005.1; scroll with the whee
 test: Modern menus (ui_menuStyle modern): Changelog sits above Quit and opens the same page.
 test: In a match, type changelog in the console; Escape closes the page and the console.
 test: At 4K with 150% scaling the text wraps inside the pane and nothing overlaps.
+
 [center-print-names]
 area: Console & chat
 title: Duel challenges from names with symbols: no crash, symbol shown (SJK PR #2, Creyon)
@@ -4134,7 +5749,7 @@ title: New medal pop-up, animation and fanfare (SJK PR #59)
 change: The medal notice follows the menu style: SJK UI floating text, classic+ box.
 change: The medal flies in with a burst and ring, then idles; a key or click skips the entrance.
 change: Fanfare from music/goodsmall.mp3; debug_medal rehearses without the hub or medals_seen.
-test: debug_medal bug_hunter x3 in the SJK UI: three pop-ups, Next, then Close on the last.
+test: debug_medal all in the SJK UI: one pop-up per medal, Next, then Close on the last.
 test: Same with ui_menuStyle classic: the box with NEXT / CLOSE; Enter, Space, Escape and click work.
 test: debug_medal alone lists the ids; restart: nothing was saved as seen.
 note: Not seen or heard in a game yet.
@@ -4556,7 +6171,7 @@ title: New medals and holocrons in a match: the achievement card; the big pop-up
 change: A medal or holocron that comes mid-match shows the achievement card, not a centre print.
 change: Medal: medallion, name (x2), what it is for. Holocron: icon or gem, light in its tier colour.
 change: Esc still opens the big pop-up, which takes the card away. Settings > Sound > Unlock sound.
-test: In a match: debug_medal bug_hunter x2 - "New medal", Bug Hunter x2, chime; no centre print.
+test: In a match: debug_medal bug_hunter - "New medal", Bug Hunter, chime; no centre print.
 test: Press Esc while the card shows: the big medal pop-up opens; after Close the card is gone.
 test: debug_holocron all in a match: three cards in turn (green, blue, purple); Esc shows all four.
 test: debug_holocron rare, then unlock an achievement: the cards queue and never overlap.
@@ -5000,3 +6615,544 @@ test: Die in the box: the death sound; you respawn without it.
 test: Collection > Toys: two toys; the switch beside the box turns it on and off.
 note: Spotting and others seeing the box need a second SJK client and the hub deploy.
 note: Sounds only from base/zz_sjk_box_sounds_local.pk3 (yours, not shipped).
+
+# ---- Bug reports, 17/10/2026 ----
+
+[freecam-emote]
+area: Gameplay
+title: Free camera moves during emotes (amsit, amhips, dances)
+change: The held-animation input filter stopped the free camera; it now flies freely.
+change: The body still stays in its emote on the server. Hub reports 47, 57, 62.
+test: On a JA+ server: amhips, then freecam: the camera flies with the move keys.
+test: Same from the quick wheel, and during an SJK dance emote.
+test: Leave free cam: you are still in the emote where you left it.
+test: JA+ amsit/amhips/dance, then freecam: camera flies off the body; developer 1 logs basespeed.
+note: 2nd fix 17/10: flight speed no longer follows a body the server holds at speed 0.
+
+[hug-queue]
+area: Input
+title: Spamming a bind (amhug) no longer queues the extra presses to fire later
+change: A bind or console command pressed again while the same one waits is not queued twice.
+change: One that cannot leave within 1.5 s is dropped instead of sent late. Chat is never dropped.
+test: On a JA+ server, press the amhug bind 20 times fast near a player, then stop.
+test: Walk away and come back after 3 s: no further hug starts on its own.
+test: Type two different chat lines quickly: both still arrive, about a second apart.
+note: Hub report 73. Client-made commands (userinfo, team, menus) keep the ordered pacing.
+
+[saber-team-colors]
+area: Rendering & effects
+title: Team saber colours (cg_saberTeamColors), as in JoF EJK
+change: Team games force red or blue blades, custom RGB and black included; shaders stay worn.
+change: cg_saberTeamColors 0 changes only the other team's colour and RGB/black. Hub report 70.
+test: Team FFA or CTF: red team blades red, blue team blue, also custom RGB/black and thrown sabers.
+test: cg_saberTeamColors 0: red player keeps yellow, blue/RGB/black turn red; FFA keeps own colours.
+test: Wear a chroma shader in a team game: it stays and turns red or blue; player card swatches match.
+note: CTF team saber colours (Slash's option) now only adds plain blades in CTF.
+
+[spectator-name]
+area: HUD
+title: Spectating names the followed player in the top left, as JoF EJK
+change: Following someone (or playing a demo) shows their name, colours kept, in the top left.
+change: The warmup line is hidden while the name shows, as in EJK. Hub report 69.
+test: Spectate on a local server and follow a player: their coloured name shows in the top left.
+test: Free-fly spectate: no name. Play a demo: the recorded player's name shows.
+test: ui_gameFont 1 then 0: the name switches between SJK Menu and the HUD font.
+
+[simple-hud-wrap]
+area: HUD
+title: Text HUD (cg_hudFiles 1): the saber style stays on one line
+change: Six-letter styles (MEDIUM, STRONG, DESANN, TAVION, AKIMBO) no longer wrap their last letter.
+change: Right-hand text moves left only when it would pass 4 units from the right edge.
+test: cg_hudFiles 1, saber out, cycle every style: each name on one line, inside the screen.
+test: Switch to a gun: the ammo count still sits at the bottom right, on one line.
+note: Hub reports 75 and 76.
+
+[npc-sabers-sounds]
+area: Gameplay
+title: NPCs: thrown sabers visible, own voices, hilt colour instead of always red
+change: An NPC's thrown saber draws with its own hilt and colour; it was drawn nowhere.
+change: NPC and vehicle pain/death/jump sounds use the NPC's sound set, not player slot 31's.
+change: NPC blades take the .sab colour; no saber entity, no blade. Hub report 68.
+test: JoFCrucible (JoF): saber NPCs throw: the spinning saber is visible, with its colour.
+test: Hit NPCs and the tauntaun: each cries in its own voice, never a player's.
+test: NPCs without sabers (gunners, creatures) show no red blade.
+
+[saber-skin-cost]
+area: Rendering & effects
+title: Saber shaders cost less up close and when swinging
+change: Afterimages (Spectral's ghosts) draw as a plain glow; the faintest one is dropped.
+change: Pixels past a blade's glow skip the shader's work. Hub reports 63 and 64.
+test: Spectral in first person, blade close to the screen: FPS holds better than before.
+test: Swing fast with Spectral: the afterimages still fade behind the blade, FPS steadier.
+test: Sun and other shaders up close: the look is unchanged.
+note: Measured on an RTX 5080 only (swing +5.3 ms -> +1.3 ms); a weak GPU still needs a try.
+
+[linux-paste]
+area: Input
+title: Ctrl+V works on Linux without xclip or wl-clipboard
+change: The clipboard is read and set in process (X11 and Wayland); the tools stay a fallback.
+change: Console, chat, SJK chat, Report a bug and menu fields share it. Hub report 58.
+test: Linux, no xclip or wl-paste installed: copy text in a browser, Ctrl+V in the console.
+test: Same in chat, the SJK chat box and the Report a bug box.
+test: Ctrl+C in the console, paste it in another program.
+note: Needs a Linux desktop; Windows paste is unchanged.
+
+[ctf-flags]
+area: HUD
+title: Capture the flag: flag icons, "you have the flag" and team scores on the HUD
+change: Flag icons at the left (theirs taken/dropped, yours taken), in every HUD style.
+change: A gold plate and "YOU HAVE THE FLAG" while you carry one; red and blue scores at the top centre.
+change: Scoreboards also mark a carrier in view when the server sends no powerups. CTY icons fixed.
+test: On a CTF server take the enemy flag: gold plate and "YOU HAVE THE FLAG" at the left.
+test: A teammate takes it, then drops it: the icon says TAKEN, then DROPPED; same for your flag.
+test: Red and blue scores show under the clock; try cg_hudStyle game, classic and radial.
+test: Hold the scoreboard: the carrier has a flag icon before the name, in both scoreboard styles.
+test: Settings > HUD > Team scores and Flag status (capture the flag) switch them off.
+note: Slash reported this on JoF servers; the status string is the original CS_FLAGSTATUS.
+
+[order66]
+area: Gameplay
+title: Order 66: everyone with the toy on dies together and blows apart
+change: toy_order66 (key, quick wheel Toys page, Collection Toys tab) turns it on or off.
+change: order66 gives the order: 3 s countdown, then kill for every SJK player with it on.
+change: Holders who die then explode: thermal blast, six pieces fly; confetti if cg_dismember 0.
+test: toy_order66, then order66: centre countdown 3 2 1 with beeps, then you die.
+test: Your body flies apart: head, arms, legs and trunk bounce, smoke and sink after 6 s.
+test: order66 again at once: "Order 66 again in N s" (one order every 30 s).
+test: In a private duel or carrying a flag: "Spared: ...", no kill.
+test: cg_dismember 0, then an order: confetti instead of pieces, the body hidden.
+test: Respawn: your body is whole again; the corpse left behind stays hidden.
+note: Others dying with you needs a second SJK client with the toy on; no hub deploy needed.
+note: The order's voice is sound/sjk/order66/order.wav, yours to add; SJK ships no sound.
+
+[chroma-pastel]
+area: Rendering & effects
+title: Shader blades keep their colour on pale custom tints
+change: A pale custom blade colour (RGB 207 190 234) turned a Spectral or other chroma blade cyan.
+change: Only near-grey colours (under 3 percent saturation) now leave a chroma at its own hue.
+test: Saber page, wear Spectral (or another chroma shader), pick Custom, set R 207, B 234.
+test: Move Green from 185 to 190 and on: the blade and thumbnails stay violet, no jump to cyan.
+test: Slide each channel slowly: the shader blade changes hue smoothly with the colour swatch.
+note: Kushina's Discord report, build 2026.1016.2.
+
+[russian-one-letter]
+area: Console & chat
+title: One Russian letter in chat reaches other players
+change: A chat message of one Russian letter (or two capitals) went out as UTF-8, garbage to others.
+change: It now goes as the Windows-1251 byte they send; theirs reads as Russian here, not Latin.
+test: Settings > Chat > Other clients' text on Auto; join a JA+ or JoF server with a second client.
+test: Send a single Russian letter (ya, then Zh): the other player sees that letter.
+test: Have a Russian client send one letter (or Da in capitals): you see it as Russian.
+test: Send a normal word and an accented one (cafe with e acute): both unchanged.
+note: Foshin's Discord report, 13/10/2026. A letter next to Latin words is still UTF-8.
+
+[supporter-medal-art]
+area: Menus & settings
+title: Supporter medal art cleaned up
+change: The ribbon's V end had a dark block, cut gold stubs and a gap in the stem below it.
+change: The ribbon now ends in a clean V on the bail; the small medallion has no top line.
+test: Collection > Medals, hover or open Supporter: ribbon V meets the knob, stem unbroken.
+test: Small sizes (scoreboard card, Identity list): the star shows no stray line above it.
+
+[model-demand-hitch]
+area: Rendering & effects
+title: No 2 s freeze when a map object first appears
+change: A model first seen mid-match decoded its textures in the frame: 2.1 s with JoF HD textures.
+change: A worker now decodes them; the frame only uploads (falcon2: 2040 ms -> 111 ms off screen).
+test: With JoF_HD4KTextures.pk3, play a JoF map where the Millennium Falcon (falcon2) appears.
+test: When it first shows, no long freeze; the logs show no hitch near 2000 ms config-refresh.
+note: Sol's hitch log 18/10/2026: config-refresh 2146 ms after loaded demanded model falcon2.
+
+[server-remaps-off]
+area: Rendering & effects
+title: Server shader remaps off by default
+change: New cg_serverRemaps (Settings, off): servers' remaps apply only when it is on.
+change: The what's-new card of the next release asks the player, with its switch.
+test: Join a JoF server with remaps (night ffa3, ffa1 walls): textures stay stock.
+test: Turn Server remaps on: the server's remaps appear live, without reloading the map.
+test: listRemaps with it off says "Server shader remaps are off".
+
+[map-edits]
+area: Rendering & effects
+title: Map edits: hide props and surfaces, place models, remap (staff editor)
+change: mapedit (staff) turns the editor on; the world-note key selects, mapedit_* commands edit.
+change: Edits save to GameData/SJK/map_edits; mapedit_publish sends them to the hub for everyone.
+test: On duel6, mapedit, aim at a fern, O, mapedit_hide: the fern goes; mapedit_undo brings it back.
+test: On ffa3, aim at a merged prop, mapedit_hide group: the whole model goes, the wall stays.
+test: mapedit_place on a selected prop, then mapedit_grab, move, mapedit_grab: a copy stays there.
+test: mapedit_remap <shader> on a wall; listRemaps lists it as edit; cg_mapEdits 0 hides all edits.
+test: mapedit_scope server on a server: the edit shows there, not on another server with the map.
+note: Hub endpoints on hub branch map-edits (b504457), not deployed: publish fails until it is.
+
+[map-edits-ui]
+area: Rendering & effects
+title: Map editor panel (staff)
+change: With mapedit on, the world-note key selects what you aim at and opens the editor's panel.
+change: Pages Selected, Place (model list with search) and Edits; Esc or Aim goes back to aiming.
+test: In the console, mapedit and mapedit_panel run (no "Viewer command dispatcher required").
+test: On duel6, mapedit, aim at a fern, O: the panel opens on Map prop; Hide: the fern goes.
+test: Click a wall left of the panel: Selected shows its surface; type a shader, Remap.
+test: Place: search tree, click a row twice: a tree stands where you aimed; Turn right, Up, Bigger.
+test: Grab: the panel hides and the tree follows your aim; O puts it down and reopens the panel.
+test: Edits: choose one, Delete; Ctrl+Z undoes the newest; This server: new edits name it.
+test: Esc while aiming shows the Map editor strip at the top; Editor off removes it.
+
+# ---- Bug reports, 19/10/2026 ----
+
+[bool-settings]
+area: Rendering & effects
+title: Server remaps and Map edits switches work
+change: cg_serverRemaps and cg_mapEdits were read as numbers only: switching them did nothing.
+test: On a server that remaps, cg_serverRemaps 1 and cg_remaps 2: listRemaps lists its remaps.
+test: cg_serverRemaps 0: the remaps go, listRemaps says server remaps are off.
+test: cg_mapEdits 0 on a map with edits: they go; 1 brings them back.
+
+[emote-attack-stop]
+area: Gameplay
+title: Emotes: Attack ends emote setting (off by default)
+change: Settings > Sound > Emotes: Attack ends emote (cg_emoteAttackStop, default 0).
+change: On, attack or alt attack stops your emote and tells the hub (as sjkemote stop). Report 78.
+test: Default: start a looping dance, attack and alt attack: the dance keeps going.
+test: Turn Attack ends emote on, dance, attack: the dance stops and your swing shows.
+test: Same with alt attack; a second SJK client sees the dance end too.
+
+[audio-listener-once]
+area: Audio
+title: Audio: saber hum no longer crackles while moving
+change: A new snapshot no longer moves the sound listener for part of the frame. Hub report 95.
+test: Saber out, run and strafe in first and third person: the hum stays smooth and centred.
+test: Other players' sounds still pan correctly as you turn.
+
+[holocron-cap-window]
+area: Menus & settings
+title: Holocrons: limit shown as 8 in 24 hours, with when the next one can drop
+change: The page said "8 of 8 today"; the hub's cap is a rolling 24 hours, not a calendar day.
+change: Capped, it says "Limit reached: next one in about N h M min". Hub report 77.
+test: Open Holocrons (not capped): the counter reads "n of 8 in 24 h".
+test: Capped key: the line reads "Limit reached: next one in about ..." and drops over minutes.
+test: Hover a tier: the card says "at most 8 in 24 hours".
+
+[portal-cameras]
+area: Rendering & effects
+title: Map security cameras and mirrors show their view (JoF ffa3 camera screen)
+change: Portal faces now find their misc_portal_surface (ET_PORTAL 8; SJK looked for 7, ET_BEAM).
+change: Hub report 84.
+test: On JoF's ffa3, the camera screen in the extra area shows the remote view, not grey.
+test: Walk away from it: the camera texture fades in with distance (alphaGen portal 2048).
+
+[e11-purple-tip]
+area: Rendering & effects
+title: E11 (JoF HD weapon pack): no purple bit at the end of the barrel
+change: A model naming its texture with an unknown extension (tex.jpgv) now loads tex.png, as JA.
+change: Hub report 88.
+test: With JoF_HDWeaponModels.pk3 in base, take the E11 and stand idle: no magenta at the barrel.
+test: Third person (cg_thirdPerson 1) and another player holding an E11: the barrel is textured.
+
+[score-deaths]
+area: HUD
+title: Scoreboard deaths: local count resets as in EJK, none in duel and CTF
+change: cg_scoreDeaths 2 (no server deaths) and 3 restart a player's count on team change or leave.
+change: Everyone's count restarts on map_restart or a new map; duel and CTF show score alone.
+test: cg_scoreDeaths 3 on a TFFA server: die twice, switch team: your deaths restart from 0.
+test: Wait for a map_restart (warmup end or callvote): every player's deaths restart from 0.
+test: On a CTF server with cg_scoreDeaths 1: the SJK scoreboard shows score without /deaths.
+note: Report #94 (Kushina, TFFA on JoF): ask whether the numbers now match what she expected.
+
+[dead-camera]
+area: Gameplay
+title: Death camera: fixed pitch, always third person
+change: Dead, the camera keeps the death yaw and the pitch you died with, as EternalJK.
+change: A first-person player is shown the death in third person. Hub report 80.
+test: Die in third person and move the mouse up and down: the camera must not tilt.
+test: Die in first person: the view switches to third person until you respawn.
+
+[fall-camera]
+area: Gameplay
+title: Pit falls: camera stays at the edge, watches you drop
+change: Falling to death leaves the camera where the fall began, looking down at you (EJK).
+change: Hub report 92.
+test: Jump into a fall-to-death pit (screen fades to black): the camera stays at the edge.
+test: After respawning, the camera follows you normally again.
+
+[model-preload]
+area: Rendering & effects
+title: NPCs, vehicles and map models load without a pause
+change: NPC bodies and vehicles load on a worker, one at a time, as players' models do.
+change: Map models and NPCs upload a texture a frame; new pipelines compile on a worker. Report 86.
+test: On FFA3, wait for the falcon to fly over: no hang when it appears.
+test: Have an admin spawn a vehicle or NPC (npc spawn vehicle swoop): no hang; it shows soon after.
+test: Watch the console for hitch lines blaming config-refresh when it comes in.
+note: NPC saber hilts and effect/projectile models still load on the render thread.
+
+[leave-crash]
+area: Rendering & effects
+title: Leaving a server no longer closes the game; quit from fullscreen is clean
+change: A world waits for the last one's frame before it takes the window over.
+change: A renderer joins its submit thread when it goes, so quitting never panics in winit.
+test: Join a server, then disconnect to the menu several times: the menu world comes back.
+test: Change map on a local server (devmap) a few times: no crash.
+test: In exclusive fullscreen, quit and use update: no crash report at the next start.
+note: Crashes went with an exact frame timing; a few clean tries are not proof.
+
+[duel-hide-others]
+area: Gameplay
+title: Duel: players outside your private duel are hidden, as in JoF EJK
+change: On JA+ (cp_pluginDisable bit 1 clear) and jaPRO, bystanders vanish while you duel.
+change: Their bodies, sabers, thrown sabers, NPCs, effects and sounds go; jaPRO shots too.
+change: cg_duelHideOthers: 0 Off (dark as before), 1 Auto (default), 2 Always. Report 82.
+test: On a JoF/JA+ server, duel someone near others: only you and your opponent show.
+test: Have a bystander throw a saber and swing near you: no saber, no sounds, no sparks.
+test: cg_duelHideOthers 0: bystanders show dark again; 2 on a base server hides them.
+test: Follow a duellist as a spectator: the others are hidden from that view too.
+note: JA+ bystanders' shots stay (the server does not say whose).
+
+[text-sizes-ejk]
+area: Console & chat
+title: Chat text and centre prints at JoF EJK's size (1 = EJK's 1)
+change: cg_chatBoxFontSize 1 draws chat 1.7x larger, cg_centerSize 1 centre prints 2.25x.
+change: Chat size range is now 0.15-2, centre 0-2 (0 draws at 1, as in EJK). Reports 79, 85.
+change: Old profiles keep their look once: a saved non-1 size is divided by that factor.
+test: Fresh profile on a JA+/JoF server: chat and centre prints match EJK at 1 side by side.
+test: Settings > Chat > Chat text size at 2: the chat wraps sooner and stays clear of the HUD.
+test: Old config with cg_chatBoxFontSize 1.25: it loads as 0.733 and looks as before.
+test: Press the chat key: the typed text is a bit larger than the chat lines, not smaller.
+note: Later on 19/10 the chat's default became 0.85 (a saved 1 moves to it once).
+
+[chat-line-spacing]
+area: Console & chat
+title: Chat line spacing setting, tighter by default; chat text default 0.85
+change: cg_chatBoxLineSpacing (Settings > Chat, classic+ HUD): room between messages, 0-16.
+change: Default 2 (was a fixed 8); scales with Chat text size.
+change: cg_chatBoxFontSize defaults to 0.85 (old 1.45); a profile still at 1 moves once.
+test: Several chat messages: they sit closer than before; a wrapped one keeps its rows.
+test: Chat line spacing at 0 and 16: messages touch, then spread; the composer stays put.
+test: Your config at cg_chatBoxFontSize 1.0: after start it reads 0.85.
+note: A saved 1 (the old default) becomes EJK's size, larger than before.
+
+[away-emote]
+area: Gameplay
+title: Away emote; emotes go quiet while you are alt-tabbed out or idle
+change: Settings > Sound > Emotes: Away emote, JA+ away emote, Away when alt-tabbed, Away after.
+change: Away (alt-tab or cg_awayIdle s idle): your emote's music stops for all, or the pick plays.
+change: JA+ pick on JA+ servers, else a looping SJK one, silent. Back: undone. Hub 57e105a.
+note: Hub quiet-emotes deployed 19/10 (hub 15a8b20).
+test: whatsnew: an Away emote line; click its cg_awayEmote chip: Settings opens on it.
+test: Settings in Simple > Gameplay: Away emote and JA+ away emote at the end; both pick.
+test: Pick amsit on a JoF server, alt-tab: you sit. Come back: a short crouch stands you up.
+test: Pick a looping SJK emote, alt-tab: a 2nd SJK client sees it dance with no music.
+test: Dance with music, alt-tab: the 2nd client's music stops; back: it resumes in step.
+test: cg_awayIdle 30, no input for 30 s: same as alt-tab; a key press brings you back.
+note: A quick alt-tab (under 2 s) may send nothing: the hub takes one emote per 2 s.
+
+[emote-picker]
+area: Menus & settings
+title: Emote picker: emotes opens a window of every emote, search and click to play
+change: Tiles with each emote's picture, name and id, sorted by name; typing searches.
+change: A click or Enter plays it as sjkemote <id> and closes the window and game menu.
+change: Emote pictures: 128 now (was 32), so a big pack shows them all.
+test: On a server, type emotes in the console: the window opens with every emote.
+test: Type part of a name: only matching ones stay; Escape clears, Escape again closes.
+test: Click an emote: the window closes and you play it; others with it see it.
+test: Arrows and Page Down move the gold choice and scroll; the mouse wheel scrolls.
+test: Ctrl+A, Ctrl+V and a held Backspace work in the search.
+note: In the main menu (no server) emotes answers Join a server to emote.
+# ---- Bug reports, 20/10/2026 ----
+
+[toys-count]
+area: Menus & settings
+title: Collection: the Toys tab counts every toy (3/3, not 1/1)
+change: The Toys tab's count was still 1 of 1 from when Illuminate was alone. Hub report 108.
+test: Open the Collection: the Toys tab reads 3/3 (Illuminate, the box, Order 66).
+
+[dropdown-own-row]
+area: Menus & settings
+title: Settings: a long open list no longer shows its row's value through it
+change: A list pushed over its own row (the away emote's) hides that row's value. Report 101.
+test: SJK UI Settings > Sound > Emotes, open Away emote: no value text shows through the list.
+test: Open a short list (e.g. a two-choice row): its row's value still shows beside the list.
+note: A list taller than the screen still runs off the bottom (no scrolling in lists yet).
+
+[snd-restart-emotes]
+area: Audio
+title: snd_restart brings emote, box and Order 66 sounds back
+change: Their sounds registered once and were lost with snd_restart's new output. Report 99.
+test: Join, play a dance with music, snd_restart in the console, dance again: the music plays.
+test: Same with the cardboard box's music and the Order 66 toy's sound.
+
+[userinfo-window]
+area: Gameplay
+title: Userinfo keeps to the server's 3 changes in 6 s: the RGB slider's last colour arrives
+change: A long slider drag sent one userinfo a second; the server kept an early one. Kushina.
+change: Changes wait for the server's window; a "Too many info changes" warning sends again.
+test: On a server, drag the saber RGB green slider for several seconds, then let go.
+test: Within about 6 s another client sees your blade in the colour picked, not blue.
+test: Change name twice quickly: both arrive, the second after a short wait.
+
+[show-miss]
+area: Console & chat
+title: Prediction misses go to the log only with cg_showMiss 1
+change: Every large miss was logged (a JA+ grapple's release each time). Hub report 72.
+test: On a JA+ server, use the grapple and land: no "prediction miss" line in the console.
+test: cg_showMiss 1 and again: the line shows (at most four a second).
+
+[duel-rewards-wait]
+area: HUD
+title: Rewards wait for the end of a private duel
+change: Achievement, holocron and medal pop-ups wait while you are in a private duel. Report 81.
+test: In a private duel, earn an achievement (or have a holocron drop): no pop-up.
+test: When the duel ends the pop-up plays, with its sound.
+
+[dance-music-keeps]
+area: Audio
+title: Dances keep their music: idle is not away, a moment unseen is not gone
+change: A dance left running made the dancer away after cg_awayIdle; its music went quiet.
+change: A dancer missing from one snapshot ended their emote; now only after 2 s. Report 107.
+test: Start a looping SJK dance and touch nothing for over 3 minutes: the music keeps playing.
+test: Alt-tab while dancing: it still goes quiet for others (cg_awayAltTab).
+test: Several players dance close together: nobody's music stops while they stay put.
+
+[jof-content-order]
+area: Rendering & effects
+title: JoF content sorts among your own packs instead of above them (hub #100)
+change: jof/base PK3s mount by name among GameData/base's, as JoF's launcher installs them.
+change: A zz_ pack of yours in base wins over JoF's again; JoF's still win over assets0-3.
+test: jof.content 1 with a group downloaded; put a zz_test.pk3 overriding one JoF texture
+test: in GameData/base; load a map: your texture shows, not JoF's.
+test: Without your pack, JoF's version of that texture shows (over the retail one).
+note: fs_debug 1 logs the mount order: jof/base packs now sit between base packs by name.
+
+[japro-move-styles]
+area: Gameplay
+title: jaPRO tools mod: styles SJK cannot predict are shown from the server (hub #97/#98)
+change: New mod jaPRO tools (mod_japro, on; jaPRO servers only). ps.stats[13] names the style.
+change: Only Siege, JKA, Swoop, Speed predicted; others move as cg_noPredict 1 (log names it).
+change: japro.predictMoveStyles 1 predicts every style as JKA; japro.styles lists the styles.
+test: On a jaPRO server, mods says jaPRO tools loaded; japro.styles lists 15 styles.
+test: /move cpm (or QW): no snap-back; the log says the style once.
+test: /move jka: prediction is back (movement responds without delay).
+test: japro.predictMoveStyles 1 with CPM: the old snapping returns; 0 again: smooth.
+test: mod_japro 0 with CPM: old snapping too. Settings > Mods shows both rows.
+test: On a JA+ or base server nothing changes; japro.styles says it is for jaPRO servers.
+note: Movement on those styles shows one snapshot late until each style is ported (CPM next).
+
+[leading-slash-images]
+area: Rendering & effects
+title: A texture named with a leading slash no longer fails the map load (Mae, siege_desert)
+change: Shader and image names drop a leading / or \ before the lookup, as FS_FOpenFileRead.
+change: Was: "virtual path must be relative", map transition failed (JoF Pillowtalk skin).
+test: Join a server where a player wears Pillowtalk (JoF pack): the map loads, model textured.
+test: logs/last-client.log has no "virtual path must be relative".
+
+[own-model-scale]
+area: Rendering & effects
+title: Your own model takes its size change (Ysalamiri), as others see it
+change: The local player's scale comes from playerState iModelScale (it is never an entity).
+change: Hub report 105.
+test: On JoF's FFA1, take the Ysalamiri size boost in third person: your model grows.
+test: Others still see your size; at normal size nothing changes, first person included.
+
+[jetpack-strafe-aura]
+area: HUD
+title: Strafe aura and guides show while flying the jetpack
+change: The guides were off for any pm_type but PM_NORMAL; PM_JETPACK (jetpack flight) counts too.
+change: Hub report 102.
+test: cg_strafeAura 1, take a jetpack (Siege_Desert), fly and strafe: the aura shows.
+test: Spectate someone: still no guides.
+
+[scope-crosshair-names]
+area: HUD
+title: Crosshair names show in the disruptor scope; binoculars still hide them
+change: Any zoom hid the names; now only zoom mode 2 (binoculars) does, as JoF EJK.
+change: Hub report 103.
+test: Disruptor, zoom on a player: their name shows under the scope.
+test: Binoculars on a player: no name; U still whispers to the one in sight.
+
+[missing-stage-shader]
+area: Rendering & effects
+title: A shader with a missing stage image is dropped as retail drops it (no magenta)
+change: Models keep the stages before the missing image; map surfaces take the default box.
+change: The missing picture is retail's grey box with a white border, not a magenta checker.
+change: The log says R_FindImageFile could not find '<image>' in shader '<name>' once each.
+test: Load maps and models with community skins: no magenta checkers anywhere.
+test: logs/last-client.log: R_FindImageFile lines name the shaders that were dropped.
+note: Nib's Nautolan purple arrows were model tags, fixed 15/10 (Creyon).
+
+[unload-before-load]
+area: Rendering & effects
+title: Old map unloaded before the next one loads
+change: Map change, server switch, vid_restart: an empty world drops the old map first.
+change: Peak VRAM ffa3 to siege_desert at 1080p: 3719 -> 3045 MiB; about 2 s slower.
+test: On a server, connect to another server: loading screen, then the new map, no glitch.
+test: Map change on the same server and vid_restart: map loads, chat and score still work.
+test: logs/last-client.log: 'old map unloaded in' before 'installed maps/...'.
+
+[wheel-moveup]
+area: Input
+title: +moveup on the mouse wheel jumps every notch
+change: A press let go in the same millisecond (a wheel notch) moves the whole user command.
+change: Stock counted it only for buttons; movement got 0, so the wheel never jumped.
+test: bind MWHEELDOWN +moveup, scroll one notch: one jump each notch, at 125 and 333 FPS.
+test: Held keys and short taps of Space move as before; +attack on the wheel still swings.
+
+[report-chars]
+area: Menus & settings
+title: Reports take _ / \ + = " ; [ ] < > #
+change: Bug reports, notes and player reports accept the characters of cvars and binds.
+change: @ * & | ~ backtick $ % ^ and braces stay refused; the rules line lists what is taken.
+test: Report a bug: 'bind x "say hi; kill" [90] <value> cg_fov_2' is sent, no refusal.
+test: A report with @ or {braces}: refused, the message lists the allowed characters.
+
+[jkr-creator]
+area: HUD
+title: JKR CREATOR mark + centred card labels
+change: Bishop's card shows a rust JKR CREATOR pill (hub jkr_creator flag, no staff rights).
+change: SJK TEAM pill, holocron name and Achievements text no longer sit a bit high.
+test: Pin Bishop's card: rust JKR CREATOR pill, no staff tools for him.
+test: Pin a staff card: SJK TEAM text, holocron name, achievements centred on their shapes.
+
+[no-console-window]
+area: Menus & settings
+title: No console window on Windows; SJK.app on a Mac
+change: Windows release builds open no console beside the game, nor for the server or clipboard.
+change: The Mac ZIP holds SJK.app (own icon in the Dock) with sjk-server beside it.
+test: play: no black console window opens; logs\last-client.log still fills.
+test: Create game: the local server starts with no console window; Ctrl+C/Ctrl+V in chat work.
+test: Open a link from the menu (Ko-fi, changelog page): no window flashes.
+note: Mac side checked by a Mac player after the next release.
+
+[toy-sounds]
+area: Menus & settings
+title: Toy volume + mute per toy (Settings > Sound > Toys)
+change: Toy volume s_toyVolume (0-2) scales every toy sound, loops included.
+change: One switch per toy (box, Order 66, Hax, Ragdoll, Drone) silences its sounds here.
+test: Settings > Sound > Toys: Toy volume slider and five switches, each with help text.
+test: toy_box: drag the slider while the music plays, it follows live; 0 silences it.
+test: Box sounds off: no music or cues, the box still shows; on again: music back.
+test: Ragdoll / Hax / Order 66 / Drone switches each silence only their toy.
+
+[trading]
+area: Menus & settings
+title: Trading between players, staff only for now (Creyon, PR #197)
+change: Trade on a player card, the SJK chat page, Players page or trade <name>.
+change: Request toast, trade window: offers, Ready, Confirm; gifts; daily limits.
+test: Two staff clients: ask, accept, add duplicates, Ready, Confirm: items swap.
+test: A request in play stays a toast; it never opens over the main menu.
+test: Blocked player: no Trade on their card, their requests vanish quietly.
+test: Ask the same player again after a decline: the hub asks you to wait.
+note: Hub runs with SJK_HUB_TRADING=staff; holocrons stay out (no --trade-holocrons).
+
+[mod-settings-console]
+area: Console & chat
+title: Mod settings (jof.*, japlus.*) can be set from the console again
+change: The console asked the mod first and answered "Unknown command" for its settings.
+test: Console: jof.e2eWhispers 1, then jof.e2eWhispers: it says 1, no "Unknown command".
+test: Settings (F3), search e2e: the JoF row shows it on.
+test: jof.commands off a JoF server still says it works on JoF servers only.
+
+[sun-perf]
+area: Rendering & effects
+title: Sun blade costs about 40 % less to draw (no FPS drop once lit)
+change: Its coronal rain is only worked out near its loops; nothing changes on screen.
+test: Wear the Sun, light it in first person with cg_drawFPS 1: frames stay close to stock.
+test: Look at the blade: loops with beads of light sliding down, as before; none cut off.
+test: Hold the blade across the view and along it (tip pointing away): no loop pops in or out.

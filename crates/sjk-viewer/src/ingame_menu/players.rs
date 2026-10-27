@@ -139,10 +139,17 @@ pub(crate) struct State {
     info: Vec<String>,
     read_at: Option<Instant>,
     scores_at: Option<Instant>,
+    /// Whether the SJK hub lets this player trade now (`crate::player_trades`).
+    trading: bool,
+    /// Whether holocrons trade yet (duplicates come first): the Trade hint says so.
+    trade_holocrons: bool,
     /// A report was handed to the identity service; its outcome is awaited.
     pub(crate) waiting: bool,
     /// The serial of the last outcome shown.
     pub(crate) serial: u64,
+    /// The players (key ids) whose last encrypted whisper to us can go with a report
+    /// (`e2e_whispers.rs`): any SJK player may report them, not only a verified one.
+    pub(crate) whispered: Vec<String>,
     /// A made-up roster the tests set stays as it is.
     #[cfg(test)]
     held: bool,
@@ -248,6 +255,70 @@ impl State {
         self.write_info();
     }
 
+    /// Whether the SJK hub lets this player trade now (the Report page offers Trade), and
+    /// whether holocrons trade yet.
+    pub(crate) fn set_trading(&mut self, open: bool, holocrons: bool) {
+        self.trading = open;
+        self.trade_holocrons = holocrons;
+    }
+
+    /// What Trade does, as its hint says: holocrons only once the hub trades them. Short
+    /// enough for one line beside the card's Trade button (`sjk_view::trade_button`).
+    pub(crate) fn trade_hint(&self) -> &'static str {
+        if self.trade_holocrons {
+            "Swap holocrons and duplicate shaders"
+        } else {
+            "Swap duplicate shaders"
+        }
+    }
+
+    /// Every line the Trade button's words can show: the hints and why not.
+    #[cfg(test)]
+    pub(crate) const TRADE_LINES: [&'static str; 8] = [
+        "Swap holocrons and duplicate shaders",
+        "Swap duplicate shaders",
+        "This is you",
+        "Bots do not trade",
+        "The hub does not know this player",
+        "You blocked this player",
+        "Trading is not open on the SJK hub",
+        "Trades happen on online servers",
+    ];
+
+    /// Why the chosen player cannot be asked to trade now, if they cannot.
+    pub(crate) fn trade_blocked(&self) -> Option<&'static str> {
+        self.trade_blocked_for(self.target()?)
+    }
+
+    /// Why `player` cannot be asked to trade now, if they cannot.
+    pub(crate) fn trade_blocked_for(&self, player: &Player) -> Option<&'static str> {
+        if player.you {
+            Some("This is you")
+        } else if player.bot {
+            Some("Bots do not trade")
+        } else if player.hub.is_none() {
+            Some("The hub does not know this player")
+        } else if player
+            .hub
+            .as_ref()
+            .is_some_and(|hub| crate::player_trades::blocked(&hub.key_id, &player.name))
+        {
+            // Sol's decision 1: no Trade for a player blocked here.
+            Some("You blocked this player")
+        } else if !self.trading {
+            Some("Trading is not open on the SJK hub")
+        } else if self.gate == Gate::Local {
+            Some("Trades happen on online servers")
+        } else {
+            None
+        }
+    }
+
+    /// The Report page's Trade row, after the reasons.
+    pub(crate) const fn trade_row() -> usize {
+        Category::ALL.len()
+    }
+
     /// Whether the local player may report, and why not.
     pub(crate) fn gate(&self) -> Gate {
         self.gate
@@ -286,10 +357,36 @@ impl State {
 
     /// Why the chosen player cannot be reported now, if they cannot.
     pub(crate) fn blocked(&self) -> Option<&'static str> {
-        self.gate.reason().or_else(|| {
-            self.target()
-                .map_or(Some("No player chosen"), Player::unreportable)
-        })
+        self.target()
+            .map_or(Some("No player chosen"), |player| self.blocked_for(player))
+    }
+
+    /// Why `player` cannot be reported now, if they cannot: a player who is not
+    /// verified reports one who whispered them, their whisper with it.
+    pub(crate) fn blocked_for(&self, player: &Player) -> Option<&'static str> {
+        match self.gate {
+            Gate::NotVerified if self.whispered_by(player) => None,
+            gate => gate.reason(),
+        }
+        .or_else(|| player.unreportable())
+    }
+
+    /// Whether `player`'s last encrypted whisper to us goes with a report.
+    pub(crate) fn whispered_by(&self, player: &Player) -> bool {
+        player
+            .hub
+            .as_ref()
+            .is_some_and(|hub| self.whispered.contains(&hub.key_id))
+    }
+
+    /// Choose the player in `slot` for a report, showing the page they are on; false
+    /// when nobody is there.
+    pub(crate) fn choose_slot(&mut self, slot: u8) -> bool {
+        let Some(index) = self.players.iter().position(|player| player.slot == slot) else {
+            return false;
+        };
+        self.offset = index - index % PAGE_ITEMS;
+        self.choose(index % PAGE_ITEMS)
     }
 
     /// Rows of `page`: the shown players, More players... when there are more, and
@@ -297,7 +394,7 @@ impl State {
     pub(crate) fn row_count(&self, page: Page) -> usize {
         match page {
             Page::Players => self.shown().len() + usize::from(self.more()) + 1,
-            Page::ReportPlayer => Category::ALL.len() + 1,
+            Page::ReportPlayer => Category::ALL.len() + 2,
             _ => 0,
         }
     }
@@ -338,13 +435,14 @@ impl State {
         Category::ALL.get(row).copied()
     }
 
-    /// The first row the Report page may take: the first reason, or Back when the
-    /// reasons are closed.
+    /// The first row the Report page may take: the first reason, else Trade, else Back.
     pub(crate) fn first_report_row(&self) -> usize {
-        if self.blocked().is_some() {
-            Category::ALL.len()
-        } else {
+        if self.blocked().is_none() {
             0
+        } else if self.trade_blocked().is_none() {
+            Self::trade_row()
+        } else {
+            Self::trade_row() + 1
         }
     }
 
@@ -386,7 +484,13 @@ impl State {
                     hints[row].push_str(category.hint());
                     enabled[row] = blocked.is_none();
                 }
-                let back = Category::ALL.len();
+                let trade = Self::trade_row();
+                rows[trade].push_str("Trade");
+                hints[trade].push_str(&crate::terms::say(
+                    self.trade_blocked().unwrap_or(self.trade_hint()),
+                ));
+                enabled[trade] = self.trade_blocked().is_none();
+                let back = trade + 1;
                 rows[back].push_str("Back");
                 hints[back].push_str(blocked.unwrap_or("Back to the players"));
                 back + 1
@@ -454,15 +558,16 @@ impl State {
             let _ = write!(place, ", {side}");
         }
         self.info.push(format!("Place  /  {place}"));
-        let key = player.hub.as_ref().map(|hub| {
-            crate::player_identity::printable_key_id(&hub.key_id)
-                .map_or_else(|| "your key".to_owned(), |key| format!("key {key}"))
+        // Key ids never show in the game, the player's own or anyone else's.
+        self.info.push(match &player.hub {
+            Some(hub) if hub.verified => "SJK hub  /  known, verified".to_owned(),
+            Some(_) => "SJK hub  /  known".to_owned(),
+            None => "SJK hub  /  not known to the hub".to_owned(),
         });
-        self.info.push(match (&player.hub, key) {
-            (Some(hub), Some(key)) if hub.verified => format!("SJK hub  /  verified, {key}"),
-            (Some(_), Some(key)) => format!("SJK hub  /  {key}"),
-            _ => "SJK hub  /  not known to the hub".to_owned(),
-        });
+        if self.whispered_by(player) {
+            self.info
+                .push("Whisper  /  Their last encrypted whisper goes with it".to_owned());
+        }
         if let Some(reason) = self.blocked() {
             self.info.push(format!("Report  /  {reason}"));
         }
@@ -586,6 +691,7 @@ mod tests {
             defends: 0,
             assists: 0,
             captures: 0,
+            deaths: None,
         };
         let scores = [score(2, 30, 40), score(0, 12, 80), score(4, 3, 0)];
         let mut state = State::default();
@@ -627,7 +733,7 @@ mod tests {
             [
                 "Player  /  ^1Troll",
                 "Place  /  slot 0, red team",
-                "SJK hub  /  key 0123456789abcdef"
+                "SJK hub  /  known"
             ]
         );
         assert!(!state.choose(4), "Back is not a player");
@@ -638,14 +744,26 @@ mod tests {
         let mut state = State::for_shot(5, false, Gate::NotVerified);
         assert!(state.choose(0));
         let (labels, hints, enabled, count) = rows(&state, Page::ReportPlayer);
-        assert_eq!(count, Category::ALL.len() + 1);
+        assert_eq!(count, Category::ALL.len() + 2);
         assert_eq!(labels[0], "Cheating");
         assert!(enabled[..Category::ALL.len()].iter().all(|on| !on));
+        // Trade follows the reasons, closed while the hub does not let players trade.
+        assert_eq!(labels[State::trade_row()], "Trade");
+        assert!(!enabled[State::trade_row()]);
         assert_eq!(
-            hints[Category::ALL.len()],
+            hints[State::trade_row()],
+            "Trading is not open on the SJK hub"
+        );
+        assert_eq!(
+            hints[Category::ALL.len() + 1],
             "Only verified SJK players can report players"
         );
-        assert_eq!(state.first_report_row(), Category::ALL.len());
+        assert_eq!(state.first_report_row(), Category::ALL.len() + 1);
+        // Open, an unverified player may still trade: Trade is the first row it takes.
+        state.set_trading(true, true);
+        let (_, hints, enabled, _) = rows(&state, Page::ReportPlayer);
+        assert!(enabled[State::trade_row()], "{hints:?}");
+        assert_eq!(state.first_report_row(), State::trade_row());
         assert_eq!(
             state.info(Page::Players),
             ["Reports  /  Only verified SJK players can report players"]
@@ -661,6 +779,33 @@ mod tests {
         assert!(!enabled[0], "no player chosen yet: the reasons stay closed");
         assert_eq!(State::category(0), Some(Category::Cheating));
         assert_eq!(State::category(Category::ALL.len()), None);
+    }
+
+    /// Sol's decision 1: a player blocked here is not offered to trade, and the hint says
+    /// holocrons only once the hub trades them.
+    #[test]
+    fn a_blocked_player_is_not_offered_to_trade() {
+        let mut state = State::for_shot(5, false, Gate::Open);
+        state.set_trading(true, false);
+        let mut player = state
+            .players
+            .iter()
+            .find(|player| !player.you && !player.bot && player.hub.is_some())
+            .expect("an SJK player")
+            .clone();
+        // A key no other test blocks: the block list is the process's own.
+        let key = "b10c4ed0b10c4ed1";
+        if let Some(hub) = player.hub.as_mut() {
+            hub.key_id = key.to_owned();
+        }
+        assert_eq!(state.trade_blocked_for(&player), None);
+        assert_eq!(state.trade_hint(), "Swap duplicate shaders");
+        crate::player_mutes::set_muted(Some(key), &player.name, true);
+        let blocked = state.trade_blocked_for(&player);
+        crate::player_mutes::set_muted(Some(key), &player.name, false);
+        assert_eq!(blocked, Some("You blocked this player"));
+        state.set_trading(true, true);
+        assert_eq!(state.trade_hint(), "Swap holocrons and duplicate shaders");
     }
 
     #[test]
@@ -693,5 +838,32 @@ mod tests {
             assert!(gate.reason().is_some_and(|reason| reason.len() < 60));
         }
         assert_eq!(Gate::Open.reason(), None);
+    }
+
+    #[test]
+    fn a_player_not_verified_reports_one_who_whispered_them() {
+        let mut state = State::for_shot(5, false, Gate::NotVerified);
+        assert!(state.choose_slot(0));
+        assert_eq!(state.target().map(|player| player.slot), Some(0));
+        assert_eq!(state.blocked(), Gate::NotVerified.reason());
+        state.whispered = vec!["0123456789abcdef".to_owned()];
+        assert_eq!(state.blocked(), None, "Vulpes whispered them");
+        state.write_info();
+        assert!(
+            state
+                .info(Page::ReportPlayer)
+                .iter()
+                .any(|line| line.starts_with("Whisper  /  "))
+        );
+        // Another player is still closed to them, and an offline hub closes it all.
+        assert!(state.choose_slot(3));
+        assert_eq!(state.blocked(), Gate::NotVerified.reason());
+        assert!(!state.choose_slot(40), "nobody there");
+        let offline = State {
+            whispered: state.whispered.clone(),
+            ..State::for_shot(5, false, Gate::Offline)
+        };
+        let vulpes = &offline.shown()[0];
+        assert_eq!(offline.blocked_for(vulpes), Gate::Offline.reason());
     }
 }

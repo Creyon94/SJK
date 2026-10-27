@@ -325,6 +325,70 @@ pub fn chat_unescape(text: &str) -> std::borrow::Cow<'_, str> {
     std::borrow::Cow::Owned(output)
 }
 
+/// The end of the game server's copy of an SJK chat message (`docs/hub-chat.md`,
+/// "Said on the game server too", after JoF EternalJK): the hub's id for the message
+/// in colour codes, which no client draws: `^9`, then `^` and the number of digits,
+/// then `^` and each digit, so id 12 ends a line with `^9^2^1^2`. `None` for an id of
+/// more than nine digits, whose copy goes without it.
+pub fn sjk_copy_marker(id: u64) -> Option<String> {
+    let digits = id.to_string();
+    if digits.len() > 9 {
+        return None;
+    }
+    let mut marker = format!("^9^{}", digits.len());
+    for digit in digits.chars() {
+        marker.push('^');
+        marker.push(digit);
+    }
+    Some(marker)
+}
+
+/// The hub's id a chat line's text ends with ([`sjk_copy_marker`]): `Some` for the
+/// server's copy of an SJK chat message, `None` for any other line.
+pub fn sjk_copy_id(text: &str) -> Option<u64> {
+    copy_id(text.trim_end().as_bytes())
+}
+
+fn copy_id(text: &[u8]) -> Option<u64> {
+    (1..=9u8).find_map(|digits| {
+        let start = text.len().checked_sub(4 + 2 * usize::from(digits))?;
+        let end = &text[start..];
+        if end[..3] != *b"^9^" || end[3] != b'0' + digits {
+            return None;
+        }
+        end[4..].chunks(2).try_fold(0u64, |id, pair| {
+            (pair[0] == b'^' && pair[1].is_ascii_digit())
+                .then(|| id * 10 + u64::from(pair[1] - b'0'))
+        })
+    })
+}
+
+/// Whether a server `chat` command carries the server's copy of an SJK chat message
+/// ([`sjk_copy_id`]): its beep is left to the SJK chat's own sound.
+pub(crate) fn sjk_copy_command(command: &[u8]) -> bool {
+    let mut parts = command.splitn(2, u8::is_ascii_whitespace);
+    if parts.next() != Some(b"chat".as_slice()) {
+        return false;
+    }
+    let Some(rest) = parts.next() else {
+        return false;
+    };
+    let Some(text) = rest.trim_ascii_start().strip_prefix(b"\"") else {
+        return false;
+    };
+    let end = text
+        .iter()
+        .position(|&byte| byte == b'"')
+        .unwrap_or(text.len());
+    copy_id(&text[..end]).is_some()
+}
+
+/// What starts the game server's copy of an SJK chat message (and each of its pieces), so
+/// the server's players on any client read it as an SJK line: SJK in gold, then All
+/// chat's green again. JoF tools say such copies on JoF servers (`sjk-mod-jof`,
+/// `sjk_chat.rs`); the core only reads them.
+pub const SJK_COPY_TAG: &str = "^3SJK^2 ";
+
 /// Interpret the already-tokenized stock chat command (`G_SayTo`).
 pub(crate) fn server_chat_event(arguments: &[Vec<u8>]) -> Option<ServerEvent> {
     let command = arguments.first()?.as_slice();
@@ -343,9 +407,14 @@ pub(crate) fn server_chat_event(arguments: &[Vec<u8>]) -> Option<ServerEvent> {
     let text = if localized {
         // CG_Chat_f: location-bearing chat uses separate name/location/colour/body args.
         let [name, location, color, body] = [1, 2, 3, 4].map(|i| {
-            arguments
-                .get(i)
-                .map(|arg| crate::legacy_text::decode_legacy(arg))
+            arguments.get(i).map(|arg| {
+                // The body is a whole message: one Russian letter reads as one.
+                if i == 4 {
+                    crate::legacy_text::decode_legacy_message(arg)
+                } else {
+                    crate::legacy_text::decode_legacy(arg)
+                }
+            })
         });
         let location = location?;
         // Use the client's existing localization marker for CG_Chat_f's @key.
@@ -355,7 +424,17 @@ pub(crate) fn server_chat_event(arguments: &[Vec<u8>]) -> Option<ServerEvent> {
     } else {
         crate::legacy_text::decode_legacy(arguments.get(1)?).into_owned()
     };
-    Some(ServerEvent { kind, text, sender })
+    Some(ServerEvent {
+        kind,
+        // G_Say's SAY_TELL to a teammate with a location sends `lchat`, whose
+        // argument 1 is the same marked name.
+        is_private: matches!(command, b"chat" | b"lchat")
+            && arguments
+                .get(1)
+                .is_some_and(|text| text.starts_with(b"\x19[")),
+        text,
+        sender,
+    })
 }
 
 #[cfg(test)]
@@ -437,6 +516,45 @@ mod escape_tests {
         ));
     }
 
+    /// Every Russian letter alone, then short messages, typed in SJK and read as
+    /// another SJK client reads the server's line (`Name^7\x19: ^2msg\x19`), and
+    /// what an EternalJK Russian client gets: the Windows-1251 byte, never UTF-8.
+    #[test]
+    fn a_single_russian_letter_is_sent_and_read_as_russian() {
+        let letters = ('\u{410}'..='\u{44f}').chain(['\u{401}', '\u{451}']);
+        for letter in letters {
+            let text = letter.to_string();
+            assert_eq!(round_trip(&text), text);
+            let command = chat_command(ChatDestination::Global, &text).unwrap();
+            let sent = crate::legacy_text::legacy_command(command.as_bytes());
+            let byte = sjk_protocol::windows_1251_byte(letter).unwrap();
+            assert_eq!(
+                &*sent,
+                [b"say \"".as_slice(), &[byte], b"\""].concat(),
+                "{text}"
+            );
+            let line = [b"Foshin^7\x19: ^2".as_slice(), &[byte], b"\x19"].concat();
+            assert_eq!(
+                crate::legacy_text::decode_legacy(&line),
+                format!("Foshin^7\x19: ^2{text}\x19"),
+                "{text}"
+            );
+            let one = [byte];
+            let body = crate::legacy_text::decode_legacy_message(&one);
+            assert_eq!(body, text, "a localized chat body");
+        }
+        for text in ["ДА", "НЕ", "я!", "Ж)", "1 я", "ага", "Привет", "лол xD"] {
+            assert_eq!(round_trip(text), text);
+        }
+    }
+
+    #[test]
+    fn a_lone_western_accent_still_reads_back() {
+        for text in ["ÿ", "é", "à", "ÆØ", "ß", "merci à tous", "Größe"] {
+            assert_eq!(round_trip(text), text);
+        }
+    }
+
     #[test]
     fn the_budget_never_splits_an_escape_or_a_character() {
         let text = format!("{}%", "a".repeat(CHAT_INPUT_BYTES - 2));
@@ -463,7 +581,13 @@ mod escape_tests {
         assert!(!quoted.contains(&b'"'), "a quote would end the message");
         // A byte in 0x80..=0x9F decodes as the C1 character of that value, which
         // the renderer draws as its Windows-1252 glyph (`€`, `’`, ...).
-        chat_unescape(&crate::legacy_text::decode_legacy(quoted))
+        let line = [b"Name^7\x19: ^2".as_slice(), quoted, b"\x19"].concat();
+        let line = crate::legacy_text::decode_legacy(&line).into_owned();
+        let shown = line
+            .strip_prefix("Name^7\x19: ^2")
+            .and_then(|line| line.strip_suffix('\x19'))
+            .expect("the line keeps its frame");
+        chat_unescape(shown)
             .chars()
             .map(|c| match u8::try_from(u32::from(c)) {
                 Ok(byte @ 0x80..=0x9f) => sjk_protocol::windows_1252_char(byte),
@@ -505,5 +629,100 @@ mod escape_tests {
             .strip_suffix('"')
             .unwrap();
         assert_eq!(chat_unescape(body), "it's 100% \"fine\"");
+    }
+}
+
+/// Whether a reliable command carries the stock private-message marker before its name.
+/// `lchat` (G_Say's tell to a teammate with a location) qualifies, its argument 1
+/// being the marked name; team commands and lookalike colours or bodies do not.
+pub(crate) fn private_chat_command(command: &[u8]) -> bool {
+    let mut parts = command.splitn(2, u8::is_ascii_whitespace);
+    if !parts
+        .next()
+        .is_some_and(|command| matches!(command, b"chat" | b"lchat"))
+    {
+        return false;
+    }
+    let Some(rest) = parts.next() else {
+        return false;
+    };
+    let rest = rest.trim_ascii_start();
+    rest.strip_prefix(b"\"")
+        .unwrap_or(rest)
+        .starts_with(b"\x19[")
+}
+
+#[cfg(test)]
+mod private_marker_tests {
+    use super::*;
+    #[test]
+    fn private_marker_precedes_name_and_only_belongs_to_global_chat() {
+        for command in [
+            b"chat \"\x19[Fox^7]: ^6hello\" 2".as_slice(),
+            b"chat \x19[Fox]: hi 2",
+            // G_Say's SAY_TELL to a teammate in a team game, with a location.
+            b"lchat \"\x19[Fox^7\x19]\x19: \" \"@Base\" \"6\" \"hello\" 2",
+        ] {
+            assert!(private_chat_command(command));
+            assert!(
+                server_chat_event(&crate::tokenize_command(command))
+                    .unwrap()
+                    .is_private
+            );
+        }
+        for command in [
+            b"chat \"Fox: [Other^7]: ^6fake\" 2".as_slice(),
+            b"chat \"Fox: \x19[Other]: fake\" 2",
+            b"tchat \"\x19[Fox]: hi\" 2",
+            b"lchat Fox 0 7 hi 2",
+        ] {
+            assert!(!private_chat_command(command));
+            assert!(
+                !server_chat_event(&crate::tokenize_command(command))
+                    .unwrap()
+                    .is_private
+            );
+        }
+    }
+}
+
+#[cfg(test)]
+mod sjk_copy_tests {
+    use super::*;
+
+    #[test]
+    fn an_id_ends_the_line_in_colour_codes_and_reads_back() {
+        assert_eq!(sjk_copy_marker(12).as_deref(), Some("^9^2^1^2"));
+        assert_eq!(sjk_copy_marker(7).as_deref(), Some("^9^1^7"));
+        assert_eq!(sjk_copy_marker(1_000_000_000), None);
+        for id in [1, 9, 10, 99, 12_345, 999_999_999] {
+            let line = format!("Sol^7: ^2hello{}", sjk_copy_marker(id).unwrap());
+            assert_eq!(sjk_copy_id(&line), Some(id), "{line}");
+        }
+        assert_eq!(sjk_copy_id("Sol^7: ^2hello^9^2^1^2\n"), Some(12));
+    }
+
+    #[test]
+    fn a_line_without_the_end_is_no_copy() {
+        for line in [
+            "Sol^7: ^2hello",
+            "Sol^7: ^2hello ^9",
+            "Sol^7: ^2hello^9^3^1^2",
+            "Sol^7: ^2hello^8^2^1^2",
+            "Sol^7: ^2hello^9^2^1x",
+            "^2^1^2",
+            "",
+        ] {
+            assert_eq!(sjk_copy_id(line), None, "{line}");
+        }
+    }
+
+    #[test]
+    fn only_a_chat_command_with_the_end_is_a_copy() {
+        assert!(sjk_copy_command(b"chat \"Sol^7: ^2hello^9^2^1^2\" 3"));
+        assert!(sjk_copy_command(b"chat \"Sol^7: ^2hello^9^1^5\""));
+        assert!(!sjk_copy_command(b"chat \"Sol^7: ^2hello\" 3"));
+        assert!(!sjk_copy_command(b"tchat \"Sol^7: ^2hello^9^2^1^2\" 3"));
+        assert!(!sjk_copy_command(b"print \"hello^9^2^1^2\""));
     }
 }

@@ -6,25 +6,33 @@
 //! looks like, so a client draws a card it has the face of and shows "Unknown card"
 //! (its id) for one it has not.
 //!
-//! The faces are read whenever the packs are mounted ([`install`]); their pictures are
-//! decoded on a worker thread, squeezed into a square mip chain the UI renderer uploads
+//! The faces are read whenever the packs are mounted ([`install`]), each picture kept as
+//! the pack's file. A picture is decoded only when a screen draws its face ([`request`]):
+//! on a worker thread, squeezed into a square mip chain the UI renderer uploads
 //! (`ui_renderer/card_art.rs`) and drawn back into the 6:5 window, which undoes the
-//! squeeze. Until a picture is decoded the window stays dark.
+//! squeeze. Until then the window stays dark. Decoding and uploading every face at
+//! start held 1.8 GB of video memory and as much system memory for the hub's 333
+//! faces, more than a 3 GB card has (`docs/cards.md`, "Faces").
 
 use super::Rarity;
 use crate::menu::emblem::MipChain;
 use serde::Deserialize;
 use sjk_ui::TextureId;
 use sjk_vfs::VirtualFileSystem;
-use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
+use std::sync::{Arc, Mutex, MutexGuard};
 
 /// Where the card files are in a pack, and their extension.
 pub(crate) const FOLDER: &str = "cards";
 pub(crate) const EXTENSION: &str = ".card";
 /// The art window's width against its height: 6:5 (pictures are 1020 x 850).
 pub(crate) const ART_ASPECT: f32 = 1.2;
-/// The square texture a picture is squeezed into.
+/// The square texture a picture is squeezed into at full texture detail; from `r_picmip`
+/// 1 on, half that. The inspected card's window is about 605 x 504 pixels at 1080p and
+/// twice that at 4K.
 const TEXTURE_EDGE: u32 = 1_024;
+/// Decoded pictures waiting for the renderer at most; the worker stops at this many and
+/// starts again as they are taken.
+const READY_MAX: usize = 8;
 /// Most faces the client draws pictures for; one texture each.
 pub(crate) const MAX_FACES: usize = 512;
 /// Card pictures' texture ids: this, plus the face's position in [`Faces::list`].
@@ -34,22 +42,44 @@ const TEXTURE_BASE: u32 = 0x6100_0000;
 const NAME_MAX: usize = 40;
 const LORE_MAX: usize = 400;
 
-/// What a card is about.
+/// What a card is about. A face of a kind (or rarity) this client does not know is left
+/// out on its own, named in the log; the pack's other faces still read.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum Kind {
     Community,
     Place,
     Personality,
     Game,
+    /// The people the project owes (19/10/2026): card 1 of SJK Alpha is Bishop.
+    Credits,
+    /// A meme of the community (19/10/2026).
+    Meme,
+    /// A droppable saber shader (20/10/2026, the SJK Blades collection): its Solar copies
+    /// drop that blade too ([`Face::blade`]).
+    Blade,
 }
 
 impl Kind {
+    /// Every kind the client knows, in the order the Cards tab's filter walks them.
+    pub(crate) const ALL: [Self; 7] = [
+        Self::Community,
+        Self::Place,
+        Self::Personality,
+        Self::Game,
+        Self::Credits,
+        Self::Meme,
+        Self::Blade,
+    ];
+
     fn from_id(id: &str) -> Option<Self> {
         match id {
             "community" => Some(Self::Community),
             "place" => Some(Self::Place),
             "personality" => Some(Self::Personality),
             "game" => Some(Self::Game),
+            "credits" => Some(Self::Credits),
+            "meme" => Some(Self::Meme),
+            "blade" => Some(Self::Blade),
             _ => None,
         }
     }
@@ -61,6 +91,9 @@ impl Kind {
             Self::Place => "Place",
             Self::Personality => "Personality",
             Self::Game => "Jedi Academy",
+            Self::Credits => "Credits",
+            Self::Meme => "Meme",
+            Self::Blade => "Blade",
         }
     }
 }
@@ -68,10 +101,10 @@ impl Kind {
 /// One card's face.
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct Face {
-    /// The card's id ("sol_lore_001"), the hub's.
+    /// The card's id ("sjk_alpha_010"), the hub's.
     pub(crate) id: String,
     pub(crate) name: String,
-    /// The set's id ("sol_lore") and the name players read ("Sol lore").
+    /// The set's id ("sjk_alpha") and the name players read ("SJK Alpha").
     pub(crate) set: String,
     pub(crate) set_name: String,
     /// Its place in its set, from 1.
@@ -82,7 +115,70 @@ pub(crate) struct Face {
     pub(crate) artist: String,
     /// The game path of its picture in the pack.
     pub(crate) art: String,
+    /// The unlockable a copy of it brings while held (`saber_sun`; 20/10/2026), as the
+    /// hub grants it ([`crate::unlockables::CARD_BLADES`]); `None` for most cards.
+    pub(crate) grants: Option<String>,
+    /// The saber shader a blade card is of (`saber_sun`; 20/10/2026): the hub drops it
+    /// to whoever finds or reveals a Solar copy. `None` for other cards.
+    pub(crate) blade: Option<String>,
 }
+
+impl Face {
+    /// What it brings, as its hover card and the Cards tab say it ("Brings the Sun blade
+    /// while you hold it."), when it brings an unlockable this client knows.
+    pub(crate) fn brings(&self) -> Option<String> {
+        let unlockable = crate::unlockables::find(self.grants.as_deref()?)?;
+        Some(format!("Brings the {} while you hold it.", unlockable.name))
+    }
+
+    /// What its Solar copies drop, as its hover card and the Cards tab say it ("Its Solar
+    /// copies also drop the Sun blade."), when it is a blade card of an unlockable this
+    /// client knows.
+    pub(crate) fn solar_drop(&self) -> Option<String> {
+        let unlockable = crate::unlockables::find(self.blade.as_deref()?)?;
+        Some(format!(
+            "Its Solar copies also drop the {}.",
+            unlockable.name
+        ))
+    }
+
+    /// What any copy of a blade card gives when crafting, as its hover card says it ("Any
+    /// copy crafts the Sun blade for less."; 21/10/2026), for a shader this client knows.
+    pub(crate) fn crafts_for_less(&self) -> Option<String> {
+        let unlockable = crate::unlockables::find(self.blade.as_deref()?)?;
+        Some(format!("Any copy crafts the {} for less.", unlockable.name))
+    }
+
+    /// What its copies bring ([`PERKS`], in that order; 21/10/2026, Sol's request: a mark
+    /// on the card for each), as the tiles, the close-up and the hover card show them.
+    pub(crate) fn perks(&self) -> Vec<Perk> {
+        PERKS
+            .iter()
+            .filter_map(|(mark, words)| {
+                Some(Perk {
+                    mark: *mark,
+                    words: words(self)?,
+                })
+            })
+            .collect()
+    }
+}
+
+/// A perk of a card: its SJK Symbols mark and its words ("Brings the Sun blade while you
+/// hold it.").
+pub(crate) struct Perk {
+    pub(crate) mark: char,
+    pub(crate) words: String,
+}
+
+/// Every perk a card can have and its mark, in the order they show: a new perk is a row
+/// here. A lightsaber brings a blade while held, the Solar finish's sun drops one, the
+/// smith's hammer crafts one for less.
+const PERKS: [(char, fn(&Face) -> Option<String>); 3] = [
+    (crate::symbols::SABER, Face::brings),
+    (crate::symbols::FINISH[2], Face::solar_drop),
+    (crate::symbols::SMITH, Face::crafts_for_less),
+];
 
 /// A card file as written.
 #[derive(Deserialize)]
@@ -98,6 +194,10 @@ struct File {
     art: String,
     #[serde(default)]
     artist: String,
+    #[serde(default)]
+    grants: Option<String>,
+    #[serde(default)]
+    blade: Option<String>,
 }
 
 /// The card file `text` of card `id`, read.
@@ -115,8 +215,9 @@ fn parse(id: &str, text: &str) -> Result<Face, String> {
     if file.lore.chars().count() > LORE_MAX {
         return Err(format!("lore is longer than {LORE_MAX} characters"));
     }
-    if !(1..=999).contains(&file.number) {
-        return Err("number must be 1 to 999".to_owned());
+    // 0 is allowed: SJK Alpha's card 000 is Sol's (19/10/2026).
+    if file.number > 999 {
+        return Err("number must be 0 to 999".to_owned());
     }
     let kind = Kind::from_id(&file.kind).ok_or_else(|| format!("unknown kind {}", file.kind))?;
     let rarity =
@@ -136,6 +237,8 @@ fn parse(id: &str, text: &str) -> Result<Face, String> {
             file.artist
         },
         art: file.art,
+        grants: file.grants.filter(|id| !id.trim().is_empty()),
+        blade: file.blade.filter(|id| !id.trim().is_empty()),
     })
 }
 
@@ -163,32 +266,57 @@ pub(crate) fn load(vfs: &VirtualFileSystem) -> Vec<Face> {
     faces
 }
 
-/// The faces of the last mount and their pictures, as they decode.
+/// The faces of the last mount, their pictures' files and the pictures decoded for the
+/// renderer.
 pub(crate) struct Faces {
     pub(crate) list: Vec<Face>,
-    /// Each face's picture, once decoded (`None` inside when it could not be).
-    art: Vec<OnceLock<Option<MipChain>>>,
+    /// Each face's picture file as the pack holds it (`None` when it is missing).
+    pictures: Vec<Option<Arc<[u8]>>>,
+    /// The pictures asked for, being decoded, or decoded and not taken yet.
+    art: Mutex<Art>,
     /// Counts mounts; the renderer uploads the pictures again when it changes.
     pub(crate) generation: u64,
 }
 
+/// What [`request`] and its worker share.
+#[derive(Default)]
+struct Art {
+    /// Faces asked for and not decoded yet, the first first.
+    asked: Vec<usize>,
+    /// The face the worker is decoding.
+    decoding: Option<usize>,
+    /// Decoded pictures waiting for the renderer ([`Faces::take_art`]), at most
+    /// [`READY_MAX`].
+    ready: Vec<(usize, MipChain)>,
+    /// Faces whose picture is missing or would not decode: never asked for again.
+    failed: Vec<usize>,
+    /// Whether a worker thread is decoding.
+    working: bool,
+}
+
 impl Faces {
-    fn empty() -> Self {
+    fn new(list: Vec<Face>, pictures: Vec<Option<Arc<[u8]>>>, generation: u64) -> Self {
         Self {
-            list: Vec::new(),
-            art: Vec::new(),
-            generation: 0,
+            list,
+            pictures,
+            art: Mutex::new(Art::default()),
+            generation,
         }
+    }
+
+    fn empty() -> Self {
+        Self::new(Vec::new(), Vec::new(), 0)
+    }
+
+    fn lock_art(&self) -> MutexGuard<'_, Art> {
+        self.art
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
     }
 
     /// The face of card `id`, with its position in [`Self::list`].
     pub(crate) fn find(&self, id: &str) -> Option<(usize, &Face)> {
         self.list.iter().enumerate().find(|(_, face)| face.id == id)
-    }
-
-    /// How many faces of set `set` there are.
-    pub(crate) fn in_set(&self, set: &str) -> usize {
-        self.list.iter().filter(|face| face.set == set).count()
     }
 
     /// Whether some face has rarity `rarity`: sealed copies of it can be revealed.
@@ -199,17 +327,131 @@ impl Faces {
     /// Faces `list` without pictures, for tests (not the current ones).
     #[cfg(test)]
     pub(crate) fn of_list(list: Vec<Face>) -> Self {
-        Self {
-            art: list.iter().map(|_| OnceLock::new()).collect(),
-            list,
-            generation: 1,
-        }
+        let pictures = list.iter().map(|_| None).collect();
+        Self::new(list, pictures, 1)
     }
 
-    /// The decoded picture of face `index`, once it is.
-    pub(crate) fn art(&self, index: usize) -> Option<&MipChain> {
-        self.art.get(index)?.get()?.as_ref()
+    /// The decoded picture of face `index`, taken for upload: `None` until a [`request`]
+    /// for it has been decoded. The worker keeps no copy.
+    pub(crate) fn take_art(&self, index: usize) -> Option<MipChain> {
+        let mut art = self.lock_art();
+        let at = art.ready.iter().position(|(ready, _)| *ready == index)?;
+        Some(art.ready.remove(at).1)
     }
+}
+
+/// Ask for the pictures of faces `wanted`, the ones a screen draws that have no texture
+/// yet, in that order: they replace the last asks, and decoded pictures no longer wanted
+/// are dropped. A worker thread decodes them one by one ([`Faces::take_art`]); nothing
+/// is decoded for a face no screen draws.
+pub(crate) fn request(faces: &Arc<Faces>, wanted: &[usize]) {
+    let mut art = faces.lock_art();
+    art.ready.retain(|(index, _)| wanted.contains(index));
+    art.asked.clear();
+    for &index in wanted {
+        let new = index < faces.list.len()
+            && art.decoding != Some(index)
+            && !art.failed.contains(&index)
+            && !art.ready.iter().any(|(ready, _)| *ready == index)
+            && !art.asked.contains(&index);
+        if new {
+            art.asked.push(index);
+        }
+    }
+    if art.asked.is_empty() || art.working || art.ready.len() >= READY_MAX {
+        return;
+    }
+    #[cfg(test)]
+    if inline_for_shots() {
+        drop(art);
+        work(faces);
+        return;
+    }
+    art.working = true;
+    drop(art);
+    let worker = Arc::clone(faces);
+    let spawned = std::thread::Builder::new()
+        .name("sjk-card-art".into())
+        .spawn(move || work(&worker));
+    if let Err(error) = spawned {
+        faces.lock_art().working = false;
+        crate::log::progress(format_args!(
+            "warning: card pictures not decoded, drawing without them: {error}"
+        ));
+    }
+}
+
+/// Decode the asked pictures until none is left or [`READY_MAX`] wait for the renderer.
+fn work(faces: &Faces) {
+    loop {
+        let index = {
+            let mut art = faces.lock_art();
+            if art.asked.is_empty() || art.ready.len() >= READY_MAX {
+                art.working = false;
+                return;
+            }
+            let index = art.asked.remove(0);
+            art.decoding = Some(index);
+            index
+        };
+        let decoded = match faces.pictures.get(index).and_then(Option::as_deref) {
+            Some(bytes) => decode_guarded(bytes, texture_edge()),
+            None => Err("missing".to_owned()),
+        };
+        let mut art = faces.lock_art();
+        art.decoding = None;
+        match decoded {
+            Ok(chain) => art.ready.push((index, chain)),
+            Err(why) => {
+                crate::log::progress(format_args!("cards: {}: {why}", faces.list[index].art));
+                art.failed.push(index);
+            }
+        }
+    }
+}
+
+/// [`decode`], a panic in it failing that picture alone: the worker goes on and clears
+/// `working`, so later faces still load (after Slash's #206). The panic hook still
+/// writes its crash report, which names the picture's decoder.
+fn decode_guarded(bytes: &[u8], edge: u32) -> Result<MipChain, String> {
+    std::panic::catch_unwind(|| {
+        #[cfg(test)]
+        if bytes == PANICS_FOR_TEST {
+            panic!("a test picture the decoder trips on");
+        }
+        decode(bytes, edge)
+    })
+    .unwrap_or_else(|_| Err("the decoder panicked".to_owned()))
+}
+
+/// A picture file [`decode_guarded`] panics on, for tests.
+#[cfg(test)]
+const PANICS_FOR_TEST: &[u8] = b"sjk test: panic";
+
+/// The edge pictures decode to at the current texture detail ([`TEXTURE_EDGE`]).
+fn texture_edge() -> u32 {
+    if crate::world_materials::filtering::mips::picmip() == 0 {
+        TEXTURE_EDGE
+    } else {
+        TEXTURE_EDGE / 2
+    }
+}
+
+/// Whether pictures decode on the asking thread rather than a worker, for world shots.
+#[cfg(test)]
+static INLINE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Decode pictures where they are asked for from now on, and upload every one a frame
+/// asks for at once, so a face a shot draws in one frame shows in the next.
+#[cfg(test)]
+pub(crate) fn decode_inline_for_shots() {
+    INLINE.store(true, std::sync::atomic::Ordering::Relaxed);
+}
+
+/// Whether [`decode_inline_for_shots`] was called.
+#[cfg(test)]
+pub(crate) fn inline_for_shots() -> bool {
+    INLINE.load(std::sync::atomic::Ordering::Relaxed)
 }
 
 static FACES: Mutex<Option<Arc<Faces>>> = Mutex::new(None);
@@ -225,6 +467,26 @@ pub(crate) fn current() -> Arc<Faces> {
     lock().clone().unwrap_or_else(|| Arc::new(Faces::empty()))
 }
 
+/// Make `list` the current faces, face `index`'s picture the current face
+/// `pictures(index)`'s file: a made-up catalogue over the packs' pictures, for a world
+/// shot.
+#[cfg(test)]
+pub(crate) fn install_for_shot(list: Vec<Face>, pictures: impl Fn(usize) -> usize) {
+    let before = current();
+    let files = (0..list.len())
+        .map(|index| before.pictures.get(pictures(index)).cloned().flatten())
+        .collect();
+    *lock() = Some(Arc::new(Faces::new(list, files, before.generation + 1)));
+}
+
+/// The name of card `id` as players read it: its face's name, or its id when the packs
+/// have no face for it.
+pub(crate) fn name_of(id: &str) -> String {
+    current()
+        .find(id)
+        .map_or_else(|| id.to_owned(), |(_, face)| face.name.clone())
+}
+
 /// The texture of face `index`'s picture.
 pub(crate) fn texture(index: usize) -> TextureId {
     TextureId(TEXTURE_BASE + index.min(MAX_FACES - 1) as u32)
@@ -236,19 +498,19 @@ pub(crate) fn index_of(texture: TextureId) -> Option<usize> {
     (index < MAX_FACES).then_some(index)
 }
 
-/// Read the faces of the packs `vfs` (just mounted, under `generation`), make them the
-/// current ones, and decode their pictures on a worker thread.
+/// Read the faces of the packs `vfs` (just mounted, under `generation`) and their
+/// pictures' files, and make them the current ones; a picture is decoded when a screen
+/// draws its face ([`request`]).
 pub(crate) fn install(vfs: &VirtualFileSystem, generation: u64) {
     let list = load(vfs);
-    let pictures: Vec<Option<Vec<u8>>> = list
+    let pictures = list
         .iter()
-        .map(|face| vfs.read(&face.art).ok().flatten().map(|asset| asset.bytes))
+        .map(|face| {
+            let asset = vfs.read(&face.art).ok().flatten();
+            asset.map(|asset| Arc::from(asset.bytes))
+        })
         .collect();
-    let faces = Arc::new(Faces {
-        art: list.iter().map(|_| OnceLock::new()).collect(),
-        list,
-        generation,
-    });
+    let faces = Arc::new(Faces::new(list, pictures, generation));
     if !faces.list.is_empty() {
         crate::log::progress(format_args!(
             "SJK packs: card faces: {}",
@@ -260,41 +522,12 @@ pub(crate) fn install(vfs: &VirtualFileSystem, generation: u64) {
                 .join(", ")
         ));
     }
-    *lock() = Some(Arc::clone(&faces));
-    if faces.list.is_empty() {
-        return;
-    }
-    let spawned = std::thread::Builder::new()
-        .name("sjk-card-art".into())
-        .spawn(move || {
-            for (index, bytes) in pictures.into_iter().enumerate() {
-                let face = &faces.list[index];
-                let chain = match bytes {
-                    Some(bytes) => match decode(&bytes) {
-                        Ok(chain) => Some(chain),
-                        Err(why) => {
-                            crate::log::progress(format_args!("cards: {}: {why}", face.art));
-                            None
-                        }
-                    },
-                    None => {
-                        crate::log::progress(format_args!("cards: {}: missing", face.art));
-                        None
-                    }
-                };
-                let _ = faces.art[index].set(chain);
-            }
-        });
-    if let Err(error) = spawned {
-        crate::log::progress(format_args!(
-            "warning: card pictures not loaded, drawing without them: {error}"
-        ));
-    }
+    *lock() = Some(faces);
 }
 
 /// A picture's bytes as the square mip chain the renderer uploads: cut to the window's
-/// 6:5 about its middle when it is not 6:5, then squeezed to [`TEXTURE_EDGE`] square.
-pub(crate) fn decode(bytes: &[u8]) -> Result<MipChain, String> {
+/// 6:5 about its middle when it is not 6:5, then squeezed to `edge` square.
+pub(crate) fn decode(bytes: &[u8], edge: u32) -> Result<MipChain, String> {
     let image = image::load_from_memory(bytes)
         .map_err(|error| error.to_string())?
         .into_rgba8();
@@ -316,12 +549,7 @@ pub(crate) fn decode(bytes: &[u8]) -> Result<MipChain, String> {
         cut_h.min(height),
     )
     .to_image();
-    let square = image::imageops::resize(
-        &cut,
-        TEXTURE_EDGE,
-        TEXTURE_EDGE,
-        image::imageops::FilterType::Triangle,
-    );
+    let square = image::imageops::resize(&cut, edge, edge, image::imageops::FilterType::Triangle);
     Ok(MipChain::new(square))
 }
 
@@ -331,33 +559,88 @@ mod tests {
 
     const FILE: &str = r#"{
   "name": "Toxiee and Sol on JoF Memorial",
-  "set": "sol_lore",
-  "set_name": "Sol lore",
-  "number": 1,
-  "kind": "community",
+  "set": "sjk_alpha",
+  "set_name": "SJK Alpha",
+  "number": 10,
+  "kind": "meme",
   "rarity": "legendary",
   "lore": "Tox was simply chilling.",
-  "art": "cards/sol_lore_001.jpg",
+  "art": "cards/sjk_alpha_010.jpg",
   "artist": "Sol"
 }
 "#;
 
     #[test]
     fn a_card_file_reads_and_bad_ones_are_refused() {
-        let face = parse("sol_lore_001", FILE).unwrap();
+        let face = parse("sjk_alpha_010", FILE).unwrap();
         assert_eq!(face.name, "Toxiee and Sol on JoF Memorial");
-        assert_eq!((face.set.as_str(), face.number), ("sol_lore", 1));
-        assert_eq!(face.kind, Kind::Community);
+        assert_eq!((face.set.as_str(), face.number), ("sjk_alpha", 10));
+        assert_eq!(face.kind, Kind::Meme);
         assert_eq!(face.rarity.id, "legendary");
-        assert_eq!(face.art, "cards/sol_lore_001.jpg");
+        assert_eq!(face.art, "cards/sjk_alpha_010.jpg");
+        let bishop = FILE
+            .replace("\"meme\"", "\"credits\"")
+            .replace("\"legendary\"", "\"mythical\"");
+        let bishop = parse("sjk_alpha_001", &bishop).unwrap();
+        assert_eq!(
+            (bishop.kind.name(), bishop.rarity.name),
+            ("Credits", "Mythical")
+        );
+        assert_eq!(Kind::Meme.name(), "Meme");
         for (from, to) in [
             ("\"legendary\"", "\"mythic\""),
-            ("\"community\"", "\"memes\""),
-            ("\"number\": 1", "\"number\": 0"),
+            ("\"meme\"", "\"memes\""),
+            ("\"number\": 10", "\"number\": 1000"),
             ("Toxiee and Sol on JoF Memorial", ""),
         ] {
             assert!(parse("x", &FILE.replace(from, to)).is_err(), "{to}");
         }
+        // Card 000 is a card like any other.
+        let zero = FILE.replace("\"number\": 10", "\"number\": 0");
+        assert_eq!(parse("x", &zero).unwrap().number, 0);
+        // A card that brings a blade says which; one this client does not know brings
+        // nothing it can name.
+        assert_eq!(face.grants, None);
+        let sun = FILE.replace("\"artist\"", "\"grants\": \"saber_sun\", \"artist\"");
+        let sun = parse("sjk_alpha_000", &sun).unwrap();
+        assert_eq!(sun.grants.as_deref(), Some("saber_sun"));
+        assert_eq!(
+            sun.brings().as_deref(),
+            Some("Brings the Sun blade while you hold it.")
+        );
+        let later = FILE.replace("\"artist\"", "\"grants\": \"saber_later\", \"artist\"");
+        assert_eq!(parse("x", &later).unwrap().brings(), None);
+        assert_eq!(face.brings(), None);
+        // A blade card names its shader; its Solar copies drop it.
+        let blade = FILE
+            .replace("\"meme\"", "\"blade\"")
+            .replace("\"artist\"", "\"blade\": \"saber_sun\", \"artist\"");
+        let blade = parse("sjk_blades_001", &blade).unwrap();
+        assert_eq!((blade.kind, blade.kind.name()), (Kind::Blade, "Blade"));
+        assert_eq!(blade.blade.as_deref(), Some("saber_sun"));
+        assert_eq!(
+            blade.solar_drop().as_deref(),
+            Some("Its Solar copies also drop the Sun blade.")
+        );
+        let blank = FILE.replace("\"artist\"", "\"blade\": \" \", \"artist\"");
+        assert_eq!(parse("x", &blank).unwrap().blade, None);
+        let later = FILE.replace("\"artist\"", "\"blade\": \"saber_later\", \"artist\"");
+        assert_eq!(parse("x", &later).unwrap().solar_drop(), None);
+        assert_eq!(
+            blade.crafts_for_less().as_deref(),
+            Some("Any copy crafts the Sun blade for less.")
+        );
+        assert_eq!(face.crafts_for_less(), None);
+        assert_eq!(face.solar_drop(), None);
+        // Its perks, a mark each, in the table's order; a plain card has none.
+        let marks: Vec<char> = blade.perks().iter().map(|perk| perk.mark).collect();
+        assert_eq!(
+            marks,
+            [crate::symbols::FINISH[2], crate::symbols::SMITH],
+            "the Solar drop, then the craft"
+        );
+        assert!(face.perks().is_empty());
+        assert_eq!(sun.perks()[0].mark, crate::symbols::SABER);
         // A field the client does not know yet is read past.
         let later = FILE.replace("\"artist\"", "\"frame\": \"gold\", \"artist\"");
         assert!(parse("x", &later).is_ok());
@@ -370,10 +653,95 @@ mod tests {
         image::DynamicImage::ImageRgba8(picture)
             .write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)
             .unwrap();
-        let chain = decode(&png).unwrap();
+        let chain = decode(&png, TEXTURE_EDGE).unwrap();
         assert_eq!(chain.size, TEXTURE_EDGE);
         assert_eq!(chain.levels.len(), 11, "1024 down to 1");
-        assert!(decode(b"not a picture").is_err());
+        assert_eq!(decode(&png, TEXTURE_EDGE / 2).unwrap().levels.len(), 10);
+        assert!(decode(b"not a picture", TEXTURE_EDGE).is_err());
+    }
+
+    #[test]
+    fn only_the_faces_asked_for_are_decoded() {
+        let mut png = Vec::new();
+        let picture = image::RgbaImage::from_pixel(1_020, 850, image::Rgba([10, 20, 30, 255]));
+        image::DynamicImage::ImageRgba8(picture)
+            .write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)
+            .unwrap();
+        let png: Arc<[u8]> = Arc::from(png);
+        let list = (0..3)
+            .map(|index| parse(&format!("sjk_alpha_{index:03}"), FILE).unwrap())
+            .collect();
+        let faces = Arc::new(Faces::new(
+            list,
+            vec![Some(Arc::clone(&png)), Some(png), None],
+            1,
+        ));
+        let taken = |index: usize| {
+            for _ in 0..400 {
+                if let Some(chain) = faces.take_art(index) {
+                    return Some(chain);
+                }
+                request(&faces, &[index]);
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
+            None
+        };
+        // Face 1 is asked for and decoded; face 0, never asked for, is not.
+        request(&faces, &[1]);
+        assert!(taken(1).is_some());
+        assert!(faces.take_art(0).is_none());
+        assert!(faces.take_art(1).is_none(), "the worker keeps no copy");
+        // A face without a picture is tried once, then never asked for again.
+        request(&faces, &[2]);
+        for _ in 0..400 {
+            if faces.lock_art().failed.contains(&2) {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        assert!(faces.lock_art().failed.contains(&2));
+        request(&faces, &[2]);
+        assert!(faces.lock_art().asked.is_empty());
+        // A decoded picture no screen wants any more is dropped.
+        request(&faces, &[0]);
+        for _ in 0..400 {
+            if !faces.lock_art().ready.is_empty() {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        request(&faces, &[]);
+        assert!(faces.lock_art().ready.is_empty());
+    }
+
+    #[test]
+    fn a_picture_the_decoder_panics_on_fails_alone() {
+        let mut png = Vec::new();
+        let picture = image::RgbaImage::from_pixel(60, 50, image::Rgba([10, 20, 30, 255]));
+        image::DynamicImage::ImageRgba8(picture)
+            .write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)
+            .unwrap();
+        let list = (0..2)
+            .map(|index| parse(&format!("sjk_alpha_{index:03}"), FILE).unwrap())
+            .collect();
+        let faces = Arc::new(Faces::new(
+            list,
+            vec![Some(Arc::from(PANICS_FOR_TEST)), Some(Arc::from(png))],
+            1,
+        ));
+        // Face 0 panics in the decoder, face 1 behind it still decodes.
+        request(&faces, &[0, 1]);
+        let mut decoded = None;
+        for _ in 0..400 {
+            decoded = faces.take_art(1);
+            if decoded.is_some() {
+                break;
+            }
+            request(&faces, &[0, 1]);
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        assert!(decoded.is_some(), "the worker went on after the panic");
+        assert!(faces.lock_art().failed.contains(&0));
     }
 
     #[test]

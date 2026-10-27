@@ -394,14 +394,16 @@ impl Feed {
         entry.start = event.server_time;
         entry.local = event.target == local || (!entry.solo && event.attacker == local);
         entry.victim.clear();
-        entry
-            .victim
-            .push_str(&sjk_client::obituary_name(game, event.target));
+        entry.victim.push_str(crate::muted_players::label(
+            event.target,
+            &sjk_client::obituary_name(game, event.target),
+        ));
         entry.killer.clear();
         if !entry.solo {
-            entry
-                .killer
-                .push_str(&sjk_client::obituary_name(game, event.attacker));
+            entry.killer.push_str(crate::muted_players::label(
+                event.attacker,
+                &sjk_client::obituary_name(game, event.attacker),
+            ));
         }
     }
 

@@ -75,6 +75,9 @@ pub(crate) struct Icons {
     seconds: [i32; 16],
     cty: bool,
     warned_model: bool,
+    /// The team boxes show the flags this frame (`flag_status`), so the carried
+    /// flag's pictures at the bottom left and in the upper-right column stay out.
+    pub(super) flags_in_boxes: bool,
 }
 
 impl Icons {
@@ -105,6 +108,11 @@ impl Icons {
     pub(crate) fn powerup(&self, power: usize) -> Option<TextureId> {
         let item = *assets::POWERS.get(power)?;
         (item != 0).then(|| self.handles[item]).flatten()
+    }
+
+    /// The loaded picture in icon cell `slot` ([`assets`]), if any.
+    pub(crate) fn cell(&self, slot: usize) -> Option<TextureId> {
+        self.handles.get(slot).copied().flatten()
     }
 
     /// The loaded picture of team logo `logo`, if any.
@@ -157,6 +165,7 @@ impl Default for Icons {
             seconds: [-1; 16],
             cty: false,
             warned_model: false,
+            flags_in_boxes: false,
         }
     }
 }
@@ -189,7 +198,7 @@ impl Icons {
         self.cty = game
             .config_string(0)
             .and_then(|s| sjk_client::LegacyClientInfo::new(s).integer("g_gametype"))
-            == Some(8);
+            == Some(9);
         for (seconds, end) in self.seconds.iter_mut().zip(snapshot.player.powerups) {
             let remaining = i64::from(end) - i64::from(snapshot.server_time);
             *seconds = if remaining > 0 {
@@ -245,7 +254,7 @@ impl Icons {
                 );
             }
         }
-        if self.enabled && visibility.status && self.alive && !self.models {
+        if self.enabled && visibility.status && self.alive && !self.models && !self.flags_in_boxes {
             for power in 4..=6 {
                 if self.seconds[power] >= 0 {
                     self.quad(
@@ -263,7 +272,10 @@ impl Icons {
         let mut bottom = 0.0;
         let mut y = 200.0 * s;
         for (power, seconds) in self.seconds.iter().copied().enumerate() {
-            if seconds < 0 || assets::POWERS[power] == 0 {
+            if seconds < 0
+                || assets::POWERS[power] == 0
+                || (self.flags_in_boxes && matches!(power, 4..=6))
+            {
                 continue;
             }
             let index = if self.cty && matches!(power, 4 | 5) {

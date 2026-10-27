@@ -138,6 +138,13 @@ impl ViewerConsole {
         match action {
             PanelAction::None => {}
             PanelAction::Close => self.close_sjk_chat_panel(),
+            PanelAction::SendSjkOnly(text) => {
+                if self.bool_cvar("cl_sjkChat") == Some(false) {
+                    self.push_log("^3sjkchat: SJK chat is off (cl_sjkChat 1 turns it on)");
+                } else if !crate::player_identity::chat_sjk_only(text) {
+                    self.push_log("^3sjkchat: the SJK identity is off (cl_identity 1)");
+                }
+            }
             PanelAction::Send(text) => {
                 if self.bool_cvar("cl_sjkChat") == Some(false) {
                     self.push_log("^3sjkchat: SJK chat is off (cl_sjkChat 1 turns it on)");
@@ -155,6 +162,16 @@ impl ViewerConsole {
                 self.set_cvars([(crate::chat_gifs::search::KEY_CVAR, key.as_str())]);
             }
             PanelAction::Ban(key_id) => crate::chat_ban::press(&key_id),
+            PanelAction::Trade(key_id) => {
+                match crate::player_trades::ask_by_key(&key_id) {
+                    Ok(()) => {
+                        // The window shows over the game once this page is closed.
+                        self.close_sjk_chat_panel();
+                        self.set_open(false);
+                    }
+                    Err(why) => self.push_log(format!("^3Trade: {why}.")),
+                }
+            }
             PanelAction::Staff(request) => {
                 let serial = crate::player_identity::staff_state().map_or(0, |state| state.serial);
                 if crate::player_identity::staff(request) {
@@ -201,6 +218,7 @@ impl ViewerConsole {
         self.sjk_chat_panel
             .find_pictures(crate::player_identity::avatar_version);
         let muted = crate::player_mutes::muted_keys();
+        let blocked = crate::player_mutes::entries();
         let staff = crate::player_identity::is_staff();
         let staff_state = staff.then(crate::player_identity::staff_state).flatten();
         let staff_shown = staff_state.as_ref().map(|state| StaffShown {
@@ -225,11 +243,13 @@ impl ViewerConsole {
         let inputs = Inputs {
             chat: chat.as_ref(),
             muted: &muted,
+            blocked: &blocked,
             staff,
             enabled,
             now,
             staff_state: staff_shown,
             giphy_key: &giphy_key,
+            said_in_all: crate::chat::server_copy::said_in_all(),
         };
         self.sjk_chat_panel.append_sjk(&inputs, target, viewport);
     }
@@ -243,6 +263,12 @@ impl ViewerConsole {
         if let Some(id) = chosen {
             self.sjk_chat_panel.choose_for_shot(id);
         }
+    }
+
+    /// Type `draft` on the page and show Send only in SJK's hover card, for a world shot.
+    #[cfg(test)]
+    pub(crate) fn sjk_chat_only_for_shot(&mut self, draft: &str) {
+        self.sjk_chat_panel.only_sjk_for_shot(draft);
     }
 
     /// Open the page on `chat` with the GIF picker on tab `tab`, `typed` searched, for a

@@ -5,12 +5,13 @@
 //! selects. Output is pictures and text runs in the 640x480 screen, written
 //! into fixed storage without allocating.
 
-use super::layout::{Layout, Piece, Side, TICS};
+use super::layout::{Layout, Piece, Side, TICS, VEHICLE_TICS};
 use std::fmt::Write as _;
 
 /// Most pictures one frame can draw (two frames, 16 tics, 4 three-digit
-/// numbers, a saber style and the painted backgrounds).
-pub(crate) const MAX_PICTURES: usize = 96;
+/// numbers, a saber style and the painted backgrounds, then the vehicle HUD's
+/// two frames, five backgrounds, 32 tics and two marks).
+pub(crate) const MAX_PICTURES: usize = 160;
 /// Text runs: the score line and the infinite-ammo mark, or the simple HUD.
 pub(crate) const MAX_TEXTS: usize = 5;
 
@@ -64,6 +65,32 @@ pub(crate) struct Readout {
     pub(crate) time: i32,
 }
 
+/// What the vehicle HUD reads: `cg.predictedVehicleState` and the `.veh`
+/// maxima, as [`crate::hud::vehicle`] samples them.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub(crate) struct VehicleReadout {
+    /// `stats[STAT_HEALTH]` against `armor`.
+    pub(crate) hull: [f32; 2],
+    /// `stats[STAT_ARMOR]` against `shields`.
+    pub(crate) shields: [f32; 2],
+    /// `speed` against `speedMax`.
+    pub(crate) speed: [f32; 2],
+    /// `ammo[n]` against `weapon[n].ammoMax`.
+    pub(crate) ammo: [[f32; 2]; 2],
+    /// `weapon[n].ID` is set.
+    pub(crate) weapons: [bool; 2],
+    /// The speed tics show `CT_LTRED1` this frame (the turbo burns).
+    pub(crate) boost_flash: bool,
+    /// Turbo recharge fraction and readiness, where prediction gives it.
+    pub(crate) turbo: Option<(f32, bool)>,
+    pub(crate) linked: bool,
+}
+
+/// `colorTable` entries the vehicle HUD uses.
+const GREEN: [f32; 4] = [0.0, 1.0, 0.0, 1.0];
+const CYAN: [f32; 4] = [0.0, 1.0, 1.0, 1.0];
+const LIGHT_RED: [f32; 4] = [0.953, 0.378, 0.250, 1.0];
+
 /// The timers `cg` keeps across frames for the HUD.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub(crate) struct Timers {
@@ -96,6 +123,10 @@ pub(crate) struct TextRun {
     pub(crate) color: [f32; 4],
     pub(crate) centred: bool,
     pub(crate) side: Option<Side>,
+    /// The x (640x480 units, on `side`) the run must end at or before: a run
+    /// that would pass it moves left to end there. SJK's vector font is wider
+    /// than retail's, so the text HUD's right-hand runs could leave the screen.
+    pub(crate) end_limit: Option<f32>,
 }
 
 /// One frame's pictures and text, reused frame to frame.
@@ -128,6 +159,10 @@ impl Default for Frame {
 /// `FONT_MEDIUM` (`ergoec`) and `FONT_SMALL` (`ocr_a`) point sizes.
 const MEDIUM_POINTS: f32 = 20.0;
 const SMALL_POINTS: f32 = 18.0;
+
+/// Units the text HUD's right-hand runs keep from the screen's right edge, as
+/// EternalJK keeps its followed name 4 units from the left.
+pub(crate) const SIMPLE_MARGIN: f32 = 4.0;
 
 impl Frame {
     pub(crate) fn clear(&mut self) {
@@ -188,7 +223,9 @@ impl Frame {
         }
     }
 
-    /// The retail menu HUD (`cg_hudFiles` names a menu list).
+    /// The retail menu HUD (`cg_hudFiles` names a menu list) alone, for the tests;
+    /// the game and the picker's pictures draw through [`Self::stats`].
+    #[cfg(test)]
     pub(crate) fn menu_hud(
         &mut self,
         layout: &Layout,
@@ -198,6 +235,145 @@ impl Frame {
         score_label: &str,
     ) {
         self.clear();
+        self.status_hud(layout, readout, timers, digits, score_label);
+    }
+
+    /// `CG_DrawStats`: the vehicle HUD of `vehicle`, then, unless the vehicle
+    /// hides its rider (`readout` is `None`), the player's status HUD.
+    pub(crate) fn stats(
+        &mut self,
+        layout: &Layout,
+        readout: Option<&Readout>,
+        vehicle: Option<&VehicleReadout>,
+        timers: &mut Timers,
+        digits: u16,
+        score_label: &str,
+    ) {
+        self.clear();
+        if let Some(vehicle) = vehicle {
+            self.vehicle_hud(layout, vehicle);
+        }
+        if let Some(readout) = readout {
+            self.status_hud(layout, readout, timers, digits, score_label);
+        }
+    }
+
+    /// OpenJK codemp `CG_DrawVehicleHud` from `swoopvehiclehud`. Not drawn:
+    /// the no-ammo flash and the damage HUDs (as [`crate::hud::vehicle`]).
+    pub(crate) fn vehicle_hud(&mut self, layout: &Layout, vehicle: &VehicleReadout) {
+        let Some(pieces) = &layout.vehicle else {
+            return;
+        };
+        // CG_DrawVehicleTurboRecharge: a white bar filled by the charge.
+        if let (Some((fraction, ready)), Some(piece)) = (vehicle.turbo, &pieces.turbo) {
+            let [x, y, w, h] = piece.rect;
+            let color = if ready { GREEN } else { RED };
+            self.picture_at([x, y, w, h * fraction], piece.side, pieces.white, color);
+        }
+        // CG_DrawVehicleWeaponsLinked.
+        if vehicle.linked
+            && let Some(piece) = &pieces.linked
+        {
+            self.picture(piece, CYAN);
+        }
+        for piece in pieces.frames.iter().flatten() {
+            self.picture(piece, piece.color);
+        }
+        // CG_DrawVehicleArmor: the hull on `shield_tic*`.
+        let [hull, armor] = vehicle.hull;
+        self.vehicle_meter(
+            &pieces.hull.background,
+            &pieces.hull.tics,
+            hull,
+            armor,
+            None,
+        );
+        // CG_DrawVehicleSpeed, flashing while the turbo burns.
+        let [speed, speed_max] = vehicle.speed;
+        let flash = vehicle.boost_flash.then_some(LIGHT_RED);
+        self.vehicle_meter(
+            &pieces.speed.background,
+            &pieces.speed.tics,
+            speed,
+            speed_max,
+            flash,
+        );
+        // CG_DrawVehicleShields: the shields on `armor_tic*`.
+        let [shields, shields_max] = vehicle.shields;
+        let meter = &pieces.shields;
+        self.vehicle_meter(&meter.background, &meter.tics, shields, shields_max, None);
+        let [[first, first_max], [second, second_max]] = vehicle.ammo;
+        match vehicle.weapons {
+            [true, false] => {
+                let meter = &pieces.ammo;
+                self.vehicle_meter(&meter.background, &meter.tics, first, first_max, None);
+            }
+            // CG_DrawVehicleAmmoUpper and Lower loop `i < MAX_VHUD_AMMO_TICS`:
+            // the fifth tic of each row is never drawn.
+            [true, true] => {
+                let (upper, lower) = (&pieces.ammo_upper, &pieces.ammo_lower);
+                let last = VEHICLE_TICS - 1;
+                self.vehicle_meter(
+                    &upper.background,
+                    &upper.tics[..last],
+                    first,
+                    first_max,
+                    None,
+                );
+                self.vehicle_meter(
+                    &lower.background,
+                    &lower.tics[..last],
+                    second,
+                    second_max,
+                    None,
+                );
+            }
+            _ => {}
+        }
+    }
+
+    /// One vehicle meter: its background, then each tic `value` covers of
+    /// `max` in five or twelve parts, the partly covered one faded. A tic a
+    /// HUD lacks is skipped without using up its part, as stock's `continue`.
+    fn vehicle_meter(
+        &mut self,
+        background: &Option<Piece>,
+        tics: &[Option<Piece>],
+        value: f32,
+        max: f32,
+        tint: Option<[f32; 4]>,
+    ) {
+        if let Some(piece) = background {
+            self.picture(piece, piece.color);
+        }
+        let divisions = if tics.len() > VEHICLE_TICS {
+            tics.len()
+        } else {
+            VEHICLE_TICS
+        };
+        let inc = max / divisions as f32;
+        let mut value = value;
+        for piece in tics.iter().flatten() {
+            let mut color = tint.unwrap_or(piece.color);
+            if value.is_nan() || value <= 0.0 {
+                break;
+            } else if value < inc {
+                color[3] *= value / inc;
+            }
+            self.picture(piece, color);
+            value -= inc;
+        }
+    }
+
+    /// `CG_DrawHUD`'s menu branch.
+    fn status_hud(
+        &mut self,
+        layout: &Layout,
+        readout: &Readout,
+        timers: &mut Timers,
+        digits: u16,
+        score_label: &str,
+    ) {
         if let Some(left) = &layout.left {
             for piece in &left.painted {
                 self.picture(piece, piece.color);
@@ -233,6 +409,7 @@ impl Frame {
                     color: piece.color,
                     centred: true,
                     side: Some(piece.side),
+                    end_limit: None,
                 };
             }
             for piece in right.scanline.iter().chain(&right.frame) {
@@ -356,6 +533,7 @@ impl Frame {
                     color: piece.color,
                     centred: true,
                     side: Some(piece.side),
+                    end_limit: None,
                 };
             }
             (8.0, (8 / TICS) as f32)
@@ -490,7 +668,10 @@ impl Frame {
             run.size = SMALL_POINTS;
             run.color = color;
             run.centred = false;
-            run.side = Some(if x > 320.0 { Side::Right } else { Side::Left });
+            let right = x > 320.0;
+            run.side = Some(if right { Side::Right } else { Side::Left });
+            // Retail's narrower font fits; keep SJK's on screen (hub reports 75/76).
+            run.end_limit = right.then_some(640.0 - SIMPLE_MARGIN);
         }
     }
 }
@@ -690,6 +871,135 @@ menuDef { name righthud rect 640 368 -112 112
             );
         }
         assert_eq!(shown, [false, true, false, true]);
+    }
+
+    fn vehicle_layout() -> Layout {
+        let mut source = String::from(
+            r#"menuDef { name lefthud rect 0 368 112 112 itemDef { name frame background "f" rect 0 0 112 112 } }
+menuDef { name swoopvehiclehud rect 0 400 640 80
+  itemDef { name leftframe background "frame" rect 200 30 16 64 }
+  itemDef { name rightframe background "frame" rect 436 30 -16 64 }
+  itemDef { name shieldbackground background "grid" rect 190 32 256 16 }
+  itemDef { name turborecharge background "grid2" rect 207 70 3 -14 }
+  itemDef { name weaponslinked background "grid2" rect 426 56 3 14 }
+"#,
+        );
+        for index in 1..=12 {
+            source.push_str(&format!(
+                "itemDef {{ name shield_tic{index} background \"hull\" rect 0 0 1 1 }}\n"
+            ));
+        }
+        for (prefix, picture) in [
+            ("armor", "shield"),
+            ("speed", "speed"),
+            ("ammo", "ammo"),
+            ("ammoupper", "upper"),
+            ("ammolower", "lower"),
+        ] {
+            source.push_str(&format!(
+                "itemDef {{ name {prefix}background background \"{prefix}bg\" rect 0 0 1 1 }}\n"
+            ));
+            for index in 1..=5 {
+                source.push_str(&format!(
+                    "itemDef {{ name {prefix}_tic{index} background \"{picture}\" rect 0 0 1 1 }}\n"
+                ));
+            }
+        }
+        source.push('}');
+        Layout::resolve(&parse(&source).menus)
+    }
+
+    fn vehicle() -> VehicleReadout {
+        VehicleReadout {
+            hull: [60.0, 120.0],
+            shields: [25.0, 50.0],
+            speed: [200.0, 400.0],
+            ammo: [[50.0, 100.0], [16.0, 40.0]],
+            weapons: [true, false],
+            boost_flash: false,
+            turbo: Some((0.5, false)),
+            linked: true,
+        }
+    }
+
+    #[test]
+    fn the_vehicle_hud_draws_stocks_pictures_in_stocks_order() {
+        let layout = vehicle_layout();
+        let mut frame = Frame::default();
+        frame.stats(
+            &layout,
+            None,
+            Some(&vehicle()),
+            &mut Timers::default(),
+            DIGITS,
+            "Score",
+        );
+        let drawn = pictures(&frame, &layout);
+        let names: Vec<_> = drawn.iter().map(|(name, _)| name.as_str()).collect();
+        // A rider-hiding vehicle: only the vehicle HUD, no status frame.
+        assert!(!names.contains(&"f"));
+        assert_eq!(&names[..5], ["*white", "*white", "frame", "frame", "grid"]);
+        // Half the hull: six of twelve tics.
+        assert_eq!(names.iter().filter(|name| **name == "hull").count(), 6);
+        // Half the speed and shields: two full tics and a half-faded one.
+        let speed: Vec<_> = drawn.iter().filter(|(name, _)| name == "speed").collect();
+        assert_eq!(speed.len(), 3);
+        assert_eq!(speed[2].1, 0.5);
+        assert_eq!(names.iter().filter(|name| **name == "shield").count(), 3);
+        // One weapon: the single row, not the split one.
+        assert_eq!(names.iter().filter(|name| **name == "ammo").count(), 3);
+        assert!(!names.contains(&"upper") && !names.contains(&"lower"));
+        // The turbo charges half its (upward) height in red; linked is cyan.
+        let turbo = frame.pictures[0];
+        assert_eq!(turbo.rect, [207.0, 470.0, 3.0, -7.0]);
+        assert_eq!(turbo.color, RED);
+        assert_eq!(frame.pictures[1].color, CYAN);
+        assert_eq!(turbo.side, Side::Centre);
+    }
+
+    #[test]
+    fn two_weapons_fill_four_tics_and_the_turbo_flashes_the_speed() {
+        let layout = vehicle_layout();
+        let mut frame = Frame::default();
+        let mut values = vehicle();
+        values.weapons = [true, true];
+        values.ammo = [[100.0, 100.0], [16.0, 40.0]];
+        values.boost_flash = true;
+        values.turbo = Some((1.0, true));
+        values.linked = false;
+        frame.stats(
+            &layout,
+            Some(&readout()),
+            Some(&values),
+            &mut Timers::default(),
+            DIGITS,
+            "Score",
+        );
+        let drawn = pictures(&frame, &layout);
+        let count = |wanted: &str| drawn.iter().filter(|(name, _)| name == wanted).count();
+        assert_eq!(count("upper"), 4, "the fifth tic is never drawn");
+        assert_eq!(count("lower"), 2);
+        assert_eq!(count("ammo"), 0);
+        assert_eq!(count("*white"), 1);
+        assert_eq!(frame.pictures[0].color, GREEN);
+        let speed = frame.pictures[..frame.picture_count]
+            .iter()
+            .find(|picture| layout.pictures[usize::from(picture.picture)] == "speed")
+            .unwrap();
+        assert_eq!(speed.color, LIGHT_RED);
+        // The rider is shown: the status HUD follows the vehicle's.
+        assert_eq!(count("f"), 1);
+        // A HUD without the vehicle menu draws nothing for it.
+        let plain = super::tests::layout();
+        frame.stats(
+            &plain,
+            None,
+            Some(&values),
+            &mut Timers::default(),
+            DIGITS,
+            "Score",
+        );
+        assert_eq!(frame.picture_count, 0);
     }
 
     #[test]

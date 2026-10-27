@@ -4,9 +4,22 @@ use sjk_shell::{CvarDefinition, CvarFlags, CvarRegistry};
 
 /// Register only options consumed by presentation paths in this batch.
 pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarError> {
+    crate::actor_world_submission::force_powers::flame::register(cvars)?;
     crate::hud::family::register(cvars)?;
     crate::hud::kill_feed::register(cvars)?;
     crate::hud::movement::register(cvars)?;
+    cvars.register(CvarDefinition::new(
+        crate::actor_world_submission::force_powers::victim::CVAR,
+        true,
+        CvarFlags::ARCHIVE,
+        "Red neck puffs on choking Grip victims; hidden on the viewed player in first person or zoom",
+    ))?;
+    cvars.register(CvarDefinition::new(
+        crate::chat::pm_only::CVAR,
+        false,
+        CvarFlags::NONE,
+        "Show only private game-server chat for this map; SJK hub chat is independent",
+    ))?;
     for (name, value, help) in [
         (
             "cg_chatBox",
@@ -16,7 +29,7 @@ pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
         (
             "cg_chatBoxLines",
             5,
-            "Visible conversation entries, bounded to eight",
+            "Chat messages shown together, 1 to 24 as in EternalJK",
         ),
         (
             "cg_chatBoxShowHistory",
@@ -28,11 +41,15 @@ pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
             0,
             "Clean body colours and suppress repeated messages",
         ),
-        ("cg_chatSounds", 1, "Master chat notification switch"),
+        (
+            "cg_chatSounds",
+            1,
+            "Master chat notification switch: 0 silences every chat sound, 2 gives team chat and private messages distinct default sounds (EJK)",
+        ),
         (
             crate::chat::reply::REMEMBER_CVAR,
-            1,
-            "The chat key opens on the channel of the last message sent (All, Team, SJK or a whisper)",
+            0,
+            "The chat key opens on the channel of the last message sent (All, Team, SJK or a whisper); 0 always opens All",
         ),
         (
             crate::chat::emoji::CVAR,
@@ -69,11 +86,25 @@ pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
             350.0,
             "Chat bottom in virtual 480-high coordinates",
         ),
-        ("cg_chatBoxFontSize", 1.0, "Conversation font scale"),
+        (
+            "cg_chatBoxFontSize",
+            0.85,
+            "Chat text scale, 1 is EternalJK's size (0.15 to 2)",
+        ),
+        (
+            crate::chat::options::LINE_SPACING_CVAR,
+            2.0,
+            "Space between chat messages, in 1080p pixels at text size 1 (0 to 16)",
+        ),
         (
             "cg_chatBoxLetterSpacing",
             -0.5,
             "Extra space between chat message letters, in 1080p pixels (-2 to 8)",
+        ),
+        (
+            crate::chat::options::CARD_SCALE_CVAR,
+            1.0,
+            "Size of the player card a chat name shows, on top of the chat's own scale (0.5 to 2)",
         ),
         (
             "cg_fovViewmodel",
@@ -94,7 +125,11 @@ pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
         ("cg_bobPitch", 0.002, "View pitch bob scalar"),
         ("cg_bobRoll", 0.002, "View roll bob scalar"),
         ("cg_centerTime", 3.0, "Centre-print lifetime in seconds"),
-        ("cg_centerSize", 1.0, "Centre-print font scale"),
+        (
+            "cg_centerSize",
+            1.0,
+            "Centre-print text scale, 1 is EternalJK's size (0 is 1, up to 2)",
+        ),
         (
             "cg_centerHeight",
             0.0,
@@ -122,14 +157,6 @@ pub(crate) fn scope_style(console: Option<&ViewerConsole>) -> i64 {
 /// Mask and rotating-insert visibility used directly by the GPU quad builder.
 pub(crate) fn scope_layers(style: i64) -> [bool; 2] {
     [style != 1, style == 0]
-}
-
-/// Master chat-sound switch, composed with the existing independent beep controls.
-pub(crate) fn chat_sounds(console: Option<&ViewerConsole>) -> bool {
-    console
-        .and_then(|c| c.integer_cvar("cg_chatsounds"))
-        .unwrap_or(1)
-        != 0
 }
 
 /// Finite scalar lookup using canonical lowercase names, without temporary strings.

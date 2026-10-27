@@ -29,6 +29,38 @@ pub(super) fn register(shell: &mut sjk_shell::Shell) -> Result<(), sjk_shell::Co
             crate::cardboard_box::COMMAND,
             "Toy: hide in a cardboard box, or come out (+use on a boxed player lifts theirs)",
         ),
+        (
+            crate::order66::COMMAND,
+            "Toy: Order 66 on or off (every player who has it on dies when one of them executes it)",
+        ),
+        (
+            crate::order66::EXECUTE_COMMAND,
+            "Execute Order 66: in 3 seconds every player with the toy on blows up (toy_order66 first)",
+        ),
+        (
+            crate::hax::COMMAND,
+            "Toy: Hax on or off (hold +use on a player who has it on to hack them and steer them)",
+        ),
+        (
+            crate::ragdoll::COMMAND,
+            "Toy: go limp as a ragdoll, or get up (other SJK players see the same fall)",
+        ),
+        (
+            crate::boombox::COMMAND,
+            "Toy: Boombox on or off (a stereo on your shoulder playing your boombox tracks to the SJK players close by; verified players)",
+        ),
+        (
+            crate::drone::COMMAND,
+            "Toy: Drone on or off (on, players may peek at you; freecam and peek fly a drone others see)",
+        ),
+        (
+            crate::monitor::COMMAND,
+            "Toy: Monitor on or off (on, you throw monitors with monitor_throw and they knock you flying)",
+        ),
+        (
+            crate::monitor::THROW_COMMAND,
+            "Throw a monitor the way you look (the Monitor toy on); it sends players who have it on flying",
+        ),
     ] {
         shell.commands.register(name, help, |_| {
             Err(sjk_shell::CommandError::Handler(
