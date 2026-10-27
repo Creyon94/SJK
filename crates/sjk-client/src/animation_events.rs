@@ -284,17 +284,21 @@ impl Heard {
 
     /// Note `now` as heard up to its frame.
     fn note(&mut self, now: Played) {
-        if let Some(index) = self
-            .0
-            .iter()
-            .position(|heard| heard.is_some_and(|heard| heard.same(now)))
-        {
-            let heard = self.0[index].expect("found");
-            self.0[..=index].rotate_right(1);
+        if let Some(heard) = self.0[0].filter(|heard| heard.same(now)) {
             self.0[0] = Some(Played {
                 frame: heard.frame.max(now.frame),
                 ..now
             });
+        } else if let Some(index) = self
+            .0
+            .iter()
+            .position(|heard| heard.is_some_and(|heard| heard.same(now)))
+        {
+            // The same clip and revision after another animation is a new run: a
+            // restart flips the revision only when the same animation plays again
+            // (A, R, A keeps it), so the older run's frame does not carry over.
+            self.0[..=index].rotate_right(1);
+            self.0[0] = Some(now);
         } else {
             self.0.rotate_right(1);
             self.0[0] = Some(now);
@@ -356,9 +360,13 @@ impl Handover {
                     let heard = self.heard[track].find(now);
                     if predicted {
                         // The cursor's last frame is the server's; the keys between
-                        // are played from what was heard instead.
+                        // are played from what was heard instead. A one-shot clip only
+                        // moves forward, so one heard past the predicted frame is an
+                        // older run of the same clip (A, R, A), not this one.
                         quiet[track] = true;
-                        let after = heard.map_or(i32::MIN, |heard| heard.frame);
+                        let after = heard
+                            .filter(|heard| heard.frame <= now.frame)
+                            .map_or(i32::MIN, |heard| heard.frame);
                         catch_up[track] = Some((now.clip, after, now.frame));
                     } else if let Some(heard) = heard.filter(|heard| now.frame < heard.frame) {
                         self.hold[track] = Some((heard, now_millis + HOLD_MILLIS));
@@ -644,6 +652,61 @@ BOTH_STAND1 300 10 0 20
             );
         }
         assert_eq!(heard, ["103", "203"]);
+    }
+
+    /// Cues heard through a hand-over of the second track's `frames`.
+    fn heard_through(
+        (config, events): (&AnimationConfig, &Events),
+        frames: impl IntoIterator<Item = (bool, Played)>,
+    ) -> Vec<String> {
+        let mut cursor = Cursor::default();
+        let mut handover = Handover::default();
+        let mut heard = Vec::new();
+        for (step, (predicted, played)) in frames.into_iter().enumerate() {
+            handover.advance(
+                &mut cursor,
+                Clips { events, config },
+                [None, Some(played)],
+                predicted,
+                step as i64 * 50,
+                |cue, _| heard.push(sound(cue)),
+            );
+        }
+        heard
+    }
+
+    #[test]
+    fn a_swing_repeated_after_another_is_a_new_run_across_the_hand_over() {
+        let (config, events, first, second) = swings();
+        // A, R, A: the revision flips only when the same animation restarts, so the
+        // second A has the first one's revision.
+        let swing = |clip, revision, frame| Played {
+            clip,
+            revision,
+            frame,
+        };
+        let a_r = || {
+            (100..=109)
+                .map(move |frame| (true, swing(first, 1, frame)))
+                .chain((200..=209).map(move |frame| (true, swing(second, 2, frame))))
+        };
+        // Handed to the server's before the second A's key: the server's plays it.
+        let to_server = a_r()
+            .chain((100..=101).map(|frame| (true, swing(first, 1, frame))))
+            .chain((100..=105).map(|frame| (false, swing(first, 1, frame))));
+        assert_eq!(
+            heard_through((&config, &events), to_server),
+            ["103", "203", "103"]
+        );
+        // The combo ends on the server's R; the next opens with A predicted past its
+        // key: it is caught up, not taken for the first A heard to its end (#171).
+        let to_predicted = a_r()
+            .chain((201..=209).map(|frame| (false, swing(second, 2, frame))))
+            .chain((105..=107).map(|frame| (true, swing(first, 1, frame))));
+        assert_eq!(
+            heard_through((&config, &events), to_predicted),
+            ["103", "203", "103"]
+        );
     }
 
     #[test]

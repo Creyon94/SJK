@@ -1680,7 +1680,10 @@ while a saber move is not predicted (`local_actor_state`). Its cues go through
 `animation_events::Handover` (hub report #171, 27/10/2026): the server's animation
 replayed the swing just heard and the way back to the predicted one landed past the
 next swing's key, which then stayed silent. Each track remembers its last three heard
-animations (clip and revision). Handed to the server's, a track keeps back its cues
+animations (clip and revision). The revision flips only when the same animation
+restarts, so a clip seen again after another (A, R, A) counts as a new run, heard from
+its own frame; handed back to the predicted one, a run heard past the predicted frame
+is such an older run and is ignored. Handed to the server's, a track keeps back its cues
 while the server shows one of them, until it reaches the frame already heard, or for
 `HOLD_MILLIS` (1 s); an animation the prediction never played (a parry, a deflect, a
 saber lock) is heard at once, and so is the server's as soon as it leaves the one held.
