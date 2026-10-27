@@ -30,6 +30,10 @@ The site (site/assets/site.js, parseChangelog) reads the release headings,
 introductions and recap lines too.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
+## Unreleased
+
+- The DEMP2's alt fire now shows its shock bubble: a sphere grows where the shot lands and bursts as the shock spreads, as in the original game _(Slash)_
+
 ## 2026.1027.1 (Alpha) | 27/10/2026
 
 Faster Monitor hits, emote volume of its own, achievements that wait for the hub, and a lighter Sun blade.

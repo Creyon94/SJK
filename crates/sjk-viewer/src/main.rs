@@ -78,6 +78,7 @@ mod decal_marks;
 mod decal_store;
 mod decoded_image_cache;
 mod demo_playback;
+mod demp2_shell;
 mod discord_ipc;
 mod discord_presence;
 mod disintegration;
@@ -550,6 +551,8 @@ struct GpuState {
     force_overlays: sjk_client::LegacyForceOverlayTracker,
     /// `EV_BODYFADE` per body (`body_fade.rs`).
     body_fades: Box<sjk_client::LegacyBodyFadeTracker>,
+    /// The DEMP2 alternate fire's bubbles (`demp2_shell.rs`).
+    demp2_shells: demp2_shell::Shells,
     /// The jetpack model and its jet bolts.
     jetpack: jetpack::Catalog,
     /// Which entities' jets have sounded their start.
@@ -1516,6 +1519,7 @@ impl GpuState {
             vehicle_fires: Default::default(),
             force_overlays: sjk_client::LegacyForceOverlayTracker::default(),
             body_fades: Box::default(),
+            demp2_shells: Default::default(),
             jetpack,
             jetpack_sounds: Default::default(),
             force_overlays_last: 0,

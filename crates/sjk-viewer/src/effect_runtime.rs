@@ -31,6 +31,7 @@ pub(crate) fn spawn_snapshot_particles(
     auxiliary: &mut crate::effect_aux::Runtime,
     previous_events: &mut HashMap<u16, u16>,
     vehicle_fires: &mut crate::vehicle_fire::Pending,
+    demp2_shells: &mut crate::demp2_shell::Shells,
     snapshot: &Snapshot,
     game_state: &GameState,
     vfs: &VirtualFileSystem,
@@ -117,6 +118,14 @@ pub(crate) fn spawn_snapshot_particles(
         } else {
             origin
         };
+        // `FX_DEMP2_AltDetonate`'s bubble beside `demp2/altdetonate` (`demp2_shell.rs`).
+        demp2_shells.observe(
+            raw_event,
+            entity.event_parameter(),
+            entity.weapon(),
+            origin,
+            now,
+        );
         spawn_effect(
             particles,
             auxiliary,

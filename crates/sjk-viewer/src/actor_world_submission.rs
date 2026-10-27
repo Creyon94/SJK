@@ -435,6 +435,16 @@ pub(crate) fn submit(
             sinks.object_groups[mesh].push(instance);
         }
     }
+    crate::demp2_shell::submit(
+        &mut gpu.demp2_shells,
+        sinks
+            .object_meshes
+            .iter()
+            .position(|mesh| mesh.appearance.model == crate::demp2_shell::MODEL),
+        sinks.material_overrides.demp2_shell,
+        sinks.overrides,
+        visual_now,
+    );
     // Volleys of vehicles not drawn this frame play where their events were.
     while let Some(fire) = sinks.vehicle_fires.take_any(visual_now) {
         crate::vehicle_fire::play(&mut sinks.vehicle_fire(), &fire, |_| None, visual_now);

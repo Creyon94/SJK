@@ -145,6 +145,7 @@ fn entity_vertex(input: VertexInput, instance: InstanceInput, index: u32) -> Ver
     output.position = clip_position(position, instance.position.w);
     let disintegrate = (instance.view_flags >> 24u) & 3u;
     if disintegrate != 0u { disintegrate_vertex(&output, vertex, instance, disintegrate); }
+    if (instance.view_flags & (1u << 26u)) != 0u { volumetric_vertex(&output, vertex.normal, instance); }
     // A secondary map view must not inherit the main camera's view weapon.
     if !instance_visible(instance) { output.position = vec4(2.0, 2.0, 2.0, 1.0); }
     return output;
@@ -181,6 +182,21 @@ fn disintegrate_vertex(output: ptr<function, VertexOutput>, vertex: VertexInput,
     }
     (*output).color = color;
     (*output).entity_control = vec2(3.0, 0.0);
+}
+
+// RF_VOLUMETRIC (`tr_shade.cpp:1164-1189`, the DEMP2 bubble of `demp2_shell.rs`): every
+// channel is shaderRGBA's red times one less the fourth power of the model normal's dot
+// with the view axis, that power clamped to zero under 0.2, so the rim glows and the
+// middle stays clear. rd-vanilla reads the unrotated model normal ("does not work for
+// rotated models"); the colours replace every generator, as disintegration's do, with
+// entity_control.x = 4 so the fragment stage skips DISINTEGRATE1's alpha test.
+fn volumetric_vertex(output: ptr<function, VertexOutput>, normal: vec3<f32>,
+                     instance: InstanceInput) {
+    var facing = dot(normal, camera.view_forward);
+    facing = facing * facing * facing * facing;
+    if facing < 0.2 { facing = 0.0; }
+    (*output).color = vec4(floor(instance.entity_color.r * 255.0 * (1.0 - facing)) / 255.0);
+    (*output).entity_control = vec2(4.0, 0.0);
 }
 
 // Ordered RB_Calc{Turbulent,Scale,Scroll,Transform,Rotate}TexCoords and
@@ -261,7 +277,8 @@ fn apply_secondary_tcmods(initial: vec2<f32>, position: vec3<f32>,
 // tr_shade.cpp:1175-1348. RB_CalcDiffuseColor is tr_shade_calc.cpp:1138-1191;
 // Legacy evaluation is per vertex. Optional diffuse samples the grid in world space.
 fn generated_color(input: VertexOutput) -> vec4<f32> {
-    // RF_DISINTEGRATE1/2 replace every generator (`disintegrate_vertex`).
+    // RF_DISINTEGRATE1/2 and RF_VOLUMETRIC replace every generator
+    // (`disintegrate_vertex`, `volumetric_vertex`).
     if input.entity_control.x > 2.5 { return input.color; }
     var color = vec4(1.0);
     let rgb_kind = i32(stage.generators.x);
@@ -358,7 +375,9 @@ fn stage_fragment(input: VertexOutput) -> vec4<f32> {
     if alpha_test == 3 && output.a < (128.0 / 255.0) { discard; }
     if alpha_test == 4 && output.a < (192.0 / 255.0) { discard; }
     // RF_DISINTEGRATE1 tests alpha >= 0.5 (GLS_ATEST_GE_C0); burnt-away vertices are 0.
-    if input.entity_control.x > 2.5 && output.a < 0.5 { discard; }
+    if input.entity_control.x > 2.5 && input.entity_control.x < 3.5 && output.a < 0.5 {
+        discard;
+    }
     if stage.secondary_control.w > 0.5 {
         output = vec4(output.rgb * (vec3(1.0) + dynamic_light_modulation(input)), output.a);
     }

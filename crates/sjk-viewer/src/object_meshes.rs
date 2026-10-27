@@ -63,6 +63,10 @@ pub(super) fn load<'a>(
         variant: String::new(),
     });
     appearances.insert(Appearance {
+        model: crate::demp2_shell::MODEL.to_owned(),
+        variant: String::new(),
+    });
+    appearances.insert(Appearance {
         model: crate::illuminate::MODEL.to_owned(),
         variant: String::new(),
     });

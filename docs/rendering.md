@@ -1926,8 +1926,20 @@ A primitive's colour start and end are picked once when it spawns (`GetRGB_Color
 rgb `random` flag then scales the whole colour by one random number each frame
 (`CParticle::UpdateRGB`, `CLight::UpdateRGB`): SJK drew one per channel, which turned the
 DEMP2's white flash magenta, yellow and purple frame to frame (and tinted the other
-retail effects with the flag: lava, `env/powerbolt`, `mrancor/breath`, ship burners). The growing
-`gfx/effects/demp2shell` sphere `FX_DEMP2_AltDetonate` adds with that effect is not drawn.
+retail effects with the flag: lava, `env/powerbolt`, `mrancor/breath`, ship burners).
+
+With that effect, `FX_DEMP2_AltDetonate` (`fx_demp2.c:263-282`) leaves the DEMP2 alt
+fire's bubble, an `LE_FADE_SCALE_MODEL` local entity, and SJK draws it as
+`CG_AddFadeScaleModel` does (Slash, hub report #157;
+[demp2_shell.rs](../crates/sjk-viewer/src/demp2_shell.rs)): `models/items/sphere.md3`
+with `gfx/effects/demp2shell`, unrotated at the event's origin for 800 ms, its axes
+scaled by the event's `weapon` (the charge's units doubled) times the cube of the
+elapsed fraction, the vertical by half, and its `shaderRGBA` falling from white to black
+on that curve. The bubble's `RF_VOLUMETRIC` (`tr_shade.cpp:1164-1189`) is an instance
+`view_flags` bit (26) read by `stage_runtime.wgsl`: every vertex colour channel is that
+red times one less the fourth power of the model normal's dot with the view axis (zero
+under 0.2), replacing the stage's generators as disintegration's colours do, so the rim
+glows and the middle stays clear. Up to 32 bubbles live at once.
 
 Effect particles share one pool of 4,096 slots, plus 256 kept for per-frame
 billboards (talk balloons, pickup icons, hook ropes)
