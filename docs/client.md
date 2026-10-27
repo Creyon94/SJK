@@ -5856,7 +5856,10 @@ the SJK UI's look in every menu style
 console output. A capture copies the final swapchain image into a buffer that is
 mapped over the next frames; frames keep running meanwhile, and the readback stays
 in [screenshot.rs](../crates/sjk-viewer/src/screenshot.rs)'s state until its own map
-callback lands (dropping it earlier aborts the map). See [console registration](../crates/sjk-viewer/src/console_session.rs)
+callback lands (dropping it earlier aborts the map). The picture is written opaque, as
+rd-vanilla reads it (`GL_RGB`): the scene's alpha holds what the shader stages left (a
+tinted player skin's tint mask), which a PNG would otherwise show see-through (hub
+report #155). See [console registration](../crates/sjk-viewer/src/console_session.rs)
 and [file commands](../crates/sjk-viewer/src/console_files.rs) for argument handling.
 
 `tell <player> <message>` takes a slot number or, as in EternalJK, a name or a
