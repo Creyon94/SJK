@@ -5,9 +5,12 @@ creator places on maps (`mysterybox_place`, or the map editor's Place page), ope
 any SJK player with `+use` for credits ([mystery-boxes.md](mystery-boxes.md)). The hub
 (its branch `mystery-box`) keeps the boxes, takes the price, rolls on a provisional table
 (empty, refund, double, jackpot; 85 % paid back on average) and tells the server's other
-players. Verified: unit tests on both sides and the workspace checks. Not verified: in a
-game, or against a hub serving it (the hub branch is not deployed); the box is a retail
-crate and outcomes pay credits only for now.
+players. The hub side is deployed (27/10/2026). An opening rolls for 5.5 seconds to a music
+box tune of SJK's own (`scripts/mystery_box_assets.py`), retail weapons and crystals
+cycling over the box and slowing to a stop on what came out, which floats there until the
+opener takes it with `+use` or for 10 seconds (`personal/mystery-box-roll`). Verified:
+unit tests on both sides and the workspace checks. Not verified: in a game; the box is a
+retail crate and outcomes pay credits only for now.
 
 ## Sun blade drawn for less
 

@@ -108,18 +108,15 @@ impl GpuState {
                     .find(|appearance| !attempted.contains(appearance))
             })
             .or_else(|| {
-                // The mystery boxes' model (`mystery_box`).
-                let appearance = Appearance {
-                    model: crate::mystery_box::MODEL.to_owned(),
-                    variant: String::new(),
-                };
-                (self.mystery_boxes.wants_model()
-                    && !self
-                        .config_string_refresh
-                        .models
-                        .attempted
-                        .contains(&appearance))
-                .then_some(appearance)
+                // The mystery boxes' models: the box, what rolls over it (`mystery_box`).
+                let attempted = &self.config_string_refresh.models.attempted;
+                self.mystery_boxes
+                    .wanted_models()
+                    .map(|model| Appearance {
+                        model: model.to_owned(),
+                        variant: String::new(),
+                    })
+                    .find(|appearance| !attempted.contains(appearance))
             });
         let (Some(appearance), Some(vfs)) = (wanted, self.vfs.clone()) else {
             return;

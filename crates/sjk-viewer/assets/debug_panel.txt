@@ -7161,10 +7161,13 @@ test: Hold the blade across the view and along it (tip pointing away): no loop p
 area: Gameplay
 title: Mystery boxes: placed by Sol, opened with Use for credits
 change: Boxes on maps via the hub; opening costs 100 credits: empty, refund, double or jackpot.
-test: Needs the hub's mystery-box branch (local hub or deployed); give yourself credits first.
+test: The hub serves boxes since 27/10 (deployed); give yourself credits first.
 test: As creator, aim at the floor, mysterybox_place: a crate faces you; mysterybox_list: its id.
 test: mapedit_panel > Place: Mystery box places one where you aim; Remove box takes the nearest.
-test: Face it up close: centre says press Use (100 credits). Use: hop, sound, result, credits left.
-test: Use again at once: "The box is still closing"; under 100 credits: "Not enough credits".
-test: A 2nd SJK player sees and hears it open; Settings > Sound > Toys > Mystery box sounds mutes.
+test: Face it up close: centre says press Use (100 credits); under 100: "Not enough credits".
+test: Use: the box rattles, a music box tune, weapons roll over it and slow to a stop at 5.5 s.
+test: It stops on bolts (empty) or a blue/green/red crystal; the centre says what, Use to take.
+test: Use at the box: a sparkle, chat line with credits left; wait 10 s instead: taken for you.
+test: Use while it rolls: nothing; a 2nd SJK player sees the roll, Use there: someone is opening.
+test: Settings > Sound > Toys > Mystery box sounds off mutes the tune and its sounds.
 test: Another map or another server (box placed with 'server'): no box.

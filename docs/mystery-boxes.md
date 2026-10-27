@@ -16,11 +16,28 @@ Standing at a box (within 80 units across the floor and 96 up or down) and facin
 (within 60 degrees), the player is told once "Mystery box: press Use to open it (100
 credits)". `+use` asks the hub to open it; the hub refuses without the price, within the
 cooldown (one box every 3 seconds a person) or when the box is gone, and the refusal shows
-in the centre of the screen. An opened box hops and turns for 1.6 seconds and plays a crate
-sliding open, then a chime (credits back), a fanfare (the jackpot) or a locked door (empty);
-the result shows in the centre and a chat line gives the credits left. The other SJK players
-on the server see and hear the same box open through the hub's toy event
-(`mystery_box`, `open_<box>_<outcome>`).
+in the centre of the screen. An opened box plays a crate sliding open and a little music
+box tune (SJK's own, bundled: `assets/mystery_box`, made by
+[mystery_box_assets.py](../scripts/mystery_box_assets.py)) while it rattles and things
+rise out of it and roll over it: the game's weapons and the four prizes, changing fast,
+then slower, like a wound-down spring. At 5.5 seconds, on the tune's last chord, the roll
+stops on what came out and plays a chime (credits back), a fanfare (the jackpot) or a
+locked door (empty):
+
+| Outcome | Stops on |
+| --- | --- |
+| `empty` | a handful of bolts |
+| `refund` | a blue crystal |
+| `double` | a green crystal |
+| `jackpot` | a red crystal |
+
+The opener is told what came out in the centre of the screen. It floats over the box,
+turning slowly, until they take it with `+use` at the box (a sparkle; a chat line gives
+the credits left) or for 10 seconds, when it is taken for them. Meanwhile the box is busy:
+another player's `+use` there says someone is opening it. The hub pays at the opening
+itself, so walking away loses nothing. The other SJK players on the server see and hear
+the same roll through the hub's toy event (`mystery_box`, `open_<box>_<outcome>`); they
+see what came out float for the 10 seconds, as they are not told when the opener takes it.
 
 Settings > Sound > Toys, "Mystery box sounds" (`s_toyMysteryBoxSound`), silences them.
 
@@ -60,7 +77,7 @@ model of its own; its sounds are retail too.
 - No other bonuses or penalties yet: an outcome only pays credits. Effects (toys played on
   the opener, items) are Sol's plan for later and need a client release for each new kind.
 - Verified: unit tests (the pick of the faced box, which boxes stand on a map file and
-  server, the hop and its sounds, the result lines; on the hub, the odds, placing and
+  server, the roll slowing to its prize, the stop, the take and the take after 10
+  seconds, the result lines; on the hub, the odds, placing and
   removing as the creator only, the price, the roll, the cooldown and another server's
-  box). Not tried in a game, nor against the live hub (the hub's `mystery-box` branch is
-  not deployed).
+  box). Not tried in a game; the hub side is deployed (27/10/2026).
