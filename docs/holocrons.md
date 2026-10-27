@@ -256,6 +256,12 @@ the person's own count) and where crystals come from.
   pop-up or the main menu) and had input (a key or mouse button pressed, the wheel, the
   mouse moving) in the last two minutes. A claim without the flag, which an older client
   sends, earns nothing; `active: false` is left out of the body altogether.
+- Only SJK earns (hub, 27/10/2026, Sol's rule): the hub reads `active` as false unless the
+  claim's User-Agent is an SJK release whose commit matches its `sjk-v` tag, an SJK
+  development build, or a version newer than every tag it has read (any `SJK/` version
+  before it has read them). Other clients in SJK chat, JoF's EternalJK among them, claim
+  their slot for their mark on the scoreboard and earn nothing. The agent is a hint, not
+  proof: a client that copies SJK's agent is not stopped by it.
 - On each claim renewal with `active: true` the hub adds the time since its last claim of
   the key, at most 60 seconds, to the key's active time, and `last_tick` moves on with every
   claim. The client renews every 45 seconds, so a renewal counts in full and sending claims
