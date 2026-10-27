@@ -24,6 +24,23 @@
 
 # ---- Console & chat ----
 
+[medal-ranks]
+area: Menus & settings
+title: Medal ranks I-V; Early Tester/Contributor renamed Tester/Contributor
+change: Each medal has a rank set by staff: I Issued, II Polished, III Engraved, IV Holo, V Solar.
+change: Large medals (Collection, Identity, profile, pop-up) animate their rank; small ones wear a pip.
+change: A rank rising shows the pop-up again: "Promoted to Holo". Staff page: Rank button per medal.
+test: Main menu, console: debug_medal early_tester ranks - five pop-ups, I to V, each look adds one.
+test: II: a sheen sweeps across; III: it sways, rim glows; IV: rainbow foil; V: corona + motes.
+test: debug_medal bug_hunter r4: kicker "Promoted to Holo", line "Rank IV Holo - Given <today>".
+test: ui_rarityEffects 0, debug_medal early_tester r5: medal still, a small sun on its ribbon.
+test: Staff page, your own player: Rank button on Tester; press it - rank goes up, V back to I.
+test: Then Collection > Medals: Tester leans to the pointer from III; name says "Rank III Engraved".
+test: Then scoreboard on a server: pip on your ribbon bar (bronze/silver/gold/sun by rank).
+test: Then the pop-up shows once as a promotion after the rank change; not again after restart.
+note: Needs the hub with medal ranks deployed for the Staff button and the scoreboard pips.
+note: Names everywhere: Tester and Contributor (no "Early"); with JoF names on, Honors.
+
 [slash-crosshair-color]
 area: HUD
 title: Own crosshair colour over targets (Slash, PR #217, hub #159)
@@ -5389,13 +5406,13 @@ note: Resolution and HUD pickers opened from the card are untested; tell Claude 
 area: Menus & settings
 title: SJK UI: Credits with the emblem as its sun, and medals on the cards
 change: Sol JK > Credits in the SJK UI: the sun and the sections on the left, the people right.
-change: Cards show their medals in every style; Creyon and Lumaya wear Early Contributor.
+change: Cards show their medals in every style; Creyon and Lumaya wear Contributor.
 test: Main page > Sol JK > Credits: the sunburst turns, god rays cross the page, sparks rise.
 test: Wheel, Up/Down, Page Up/Down scroll; Tab / Shift+Tab jump sections, the rail follows.
 test: Click a section on the rail; Expand all (or E): every fold opens, rows fade in.
 test: Click Highlights / All work; a + on a work row opens its commits; hover shows the band.
 test: Click a PR tag, a commit, an @handle or a link: GitHub opens in your browser.
-test: Creyon's and Lumaya's panels: the Early Contributor medal right of their lines.
+test: Creyon's and Lumaya's panels: the Contributor medal right of their lines.
 test: Also from the in-game menu's Sol JK page, and with classic and modern (medal chips).
 note: Rays too strong behind the text, medals too small, text cut? Tell Claude where.
 
@@ -6166,7 +6183,7 @@ note: World shots only (duel6, off-screen); not tried in a game, sounds not hear
 
 [medal-shaders]
 area: Menus & settings
-title: Medals bring saber shaders: Bug Hunter Glitch, Early Tester Hologram, Contributor Runic
+title: Medals bring saber shaders: Bug Hunter Glitch, Tester Hologram, Contributor Runic
 change: The hub derives the blade from the medal; taking the medal back takes the blade.
 change: Collection Shaders says "with your Bug Hunter medal"; the Medals tab names the shader.
 test: Hub with feat/medal-blades. Award yourself Bug Hunter: Collection > Shaders, Glitch is Yours.
@@ -6174,7 +6191,7 @@ test: The owned line reads "Yours since dd/mm/yyyy, with your Bug Hunter medal".
 test: Collection > Medals: each medal says "Comes with the ... blade, a saber shader."
 test: Wear Glitch in a match, take the medal back (Staff page): the blade goes stock at once.
 test: Grant Glitch by hand too, then take the medal back: the blade stays (from the SJK team).
-test: Locked Hologram/Runic: "How to get it" names the Early Tester / Early Contributor medal.
+test: Locked Hologram/Runic: "How to get it" names the Tester / Contributor medal.
 note: Unit tests only (client and hub); hub not deployed when built, not tried in a game.
 
 [wheel-toys]

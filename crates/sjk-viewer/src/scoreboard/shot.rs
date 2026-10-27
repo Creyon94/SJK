@@ -144,6 +144,7 @@ fn medals(ids: &[&str], count: u32) -> crate::medals::Medals {
             count,
             awarded: 0,
             note: String::new(),
+            rank: 1,
         })
         .collect();
     crate::medals::Medals::from_wire(&list)

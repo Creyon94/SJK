@@ -1214,6 +1214,7 @@ mod tests {
             count,
             awarded: 1_791_336_225,
             note: note.to_owned(),
+            rank: 1,
         };
         let me = sjk_identity::Profile {
             credits: 0,
@@ -1446,6 +1447,7 @@ like this one.",
             count,
             awarded: 1_791_336_225,
             note: note.to_owned(),
+            rank: 1,
         };
         let me = sjk_identity::Profile {
             staff: true,
@@ -1817,6 +1819,7 @@ like this one.",
                 count: 2,
                 awarded: 1_791_336_225,
                 note: "The fog that followed the camera floor.".to_owned(),
+                rank: 1,
             }]);
             let moments = [
                 (0.3, None, "flight"),
@@ -1860,6 +1863,49 @@ like this one.",
         });
     }
 
+    /// The new medal pop-up in the SJK UI over the main page on the live duel6, Tester at
+    /// each rank (`medals/rank.rs`) standing still mid-way through its Polished sweep,
+    /// ranks II to V as promotions: the light drawn by the real renderer (the Holo
+    /// foil, the Solar corona and the lean of rank III and up).
+    #[test]
+    #[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+    fn duel6_medal_ranks() {
+        use crate::medal_popup::MedalPopup;
+        on_big_stack(|| {
+            let menu = menu::ClientMenu::new(true, String::new());
+            let cvars = [
+                ("ui_menuStyle", "sjk"),
+                (crate::settings::quick::HIDE_CVAR, "1"),
+            ];
+            let Some((mut gpu, _profile)) =
+                open("maps/mp/duel6.bsp", [1920, 1080], Some(menu), &cvars)
+            else {
+                return;
+            };
+            let _ = frame(&mut gpu, 10);
+            crate::medals::art::request();
+            for _ in 0..240 {
+                let _ = frame(&mut gpu, 1);
+                if crate::medals::art::decoded().is_some() {
+                    break;
+                }
+            }
+            // 4.6 s in: standing still, no glint of the ceremony's, Tester's sweep crossing.
+            for rank in 1..=5_u8 {
+                let awards = crate::medals::awards(&[sjk_identity::Medal {
+                    id: "early_tester".to_owned(),
+                    count: 1,
+                    awarded: 1_791_336_225,
+                    note: String::new(),
+                    rank,
+                }]);
+                gpu.medal_popup = MedalPopup::preview(awards, 4.6, None);
+                let name = format!("duel6-medal-rank-{rank}");
+                println!("{}", shoot(&mut gpu, 6, &name).display());
+            }
+        });
+    }
+
     /// The unlock pop-up over play on the live duel6 (no menu), at 1920x1080 and
     /// 1440x1080: an achievement's card coming in (the ring sweeping, the burst, the
     /// glint), held and leaving, each moment held still, and a sheet of the top of the
@@ -1881,6 +1927,7 @@ like this one.",
             let mut others = vec![Unlock::Medal {
                 medal: crate::medals::Medal::BugHunter,
                 count: 2,
+                promoted: None,
             }];
             for (index, tier) in crate::holocrons::TIERS.iter().enumerate() {
                 others.push(Unlock::Holocron {

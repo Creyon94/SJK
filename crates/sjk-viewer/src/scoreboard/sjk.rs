@@ -2549,6 +2549,7 @@ mod tests {
                 count: 1,
                 awarded: 0,
                 note: String::new(),
+                rank: 1,
             })
             .collect();
         crate::medals::Medals::from_wire(&list)

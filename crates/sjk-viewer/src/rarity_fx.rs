@@ -218,14 +218,26 @@ fn sheen_offset(rect: Rect) -> f32 {
     scatter((rect.x * 0.37 + rect.y * 1.91) as u32)
 }
 
+/// How far the sheen over a frame at `rect` has crossed it at `seconds`, 0 to 1, or
+/// `None` while it rests: the Legendary sheen's clock, which a medal's Polished rank
+/// keeps too (`medals/rank.rs`).
+pub(crate) fn sheen_travel(rect: Rect, seconds: f32) -> Option<f32> {
+    sheen_travel_from(sheen_offset(rect), seconds)
+}
+
+/// [`sheen_travel`] with its moment at time 0 given, `offset` of its period, for a
+/// frame that moves (a medal coming down into place keeps its own moment).
+pub(crate) fn sheen_travel_from(offset: f32, seconds: f32) -> Option<f32> {
+    let phase = (seconds / SHEEN_SECONDS + offset).rem_euclid(1.0);
+    (phase < SHEEN_CROSS).then(|| phase / SHEEN_CROSS)
+}
+
 /// Legendary and up: a slanted band of light crossing the frame left to right, then a
 /// rest.
 fn sheen(list: &mut DrawList, item: Item, rect: Rect, px: f32, seconds: f32) {
-    let phase = (seconds / SHEEN_SECONDS + sheen_offset(rect)).rem_euclid(1.0);
-    if phase >= SHEEN_CROSS {
+    let Some(travel) = sheen_travel(rect, seconds) else {
         return;
-    }
-    let travel = phase / SHEEN_CROSS;
+    };
     let slices = if item.size == Size::Full {
         SHEEN_SLICES_FULL
     } else {
@@ -359,13 +371,19 @@ fn scatter(n: u32) -> f32 {
 
 /// Mythical, full frames: a few faint motes rising inside, each on its own clock.
 fn motes(list: &mut DrawList, item: Item, rect: Rect, px: f32, seconds: f32) {
+    rising_motes(list, item.colour, rect, px, seconds);
+}
+
+/// Mythical's motes in `colour`, rising inside `rect`: a medal's Solar rank shares them
+/// (`medals/rank.rs`).
+pub(crate) fn rising_motes(list: &mut DrawList, colour: Color, rect: Rect, px: f32, seconds: f32) {
     let size = 3.0 * px;
     let margin = 6.0 * px + size;
     let inner = inset(rect, margin);
     if inner.width <= 0.0 || inner.height <= 0.0 {
         return;
     }
-    let colour = lit(item.colour, 0.4);
+    let colour = lit(colour, 0.4);
     for mote in 0..MOTES as u32 {
         let life = (seconds / MOTE_SECONDS + scatter(mote * 2 + 1)).rem_euclid(1.0);
         let sway = (seconds * 1.3 + scatter(mote * 2 + 7) * TAU).sin() * 4.0 * px;

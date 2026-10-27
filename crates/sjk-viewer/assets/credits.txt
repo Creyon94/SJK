@@ -53,6 +53,7 @@ did: Mystery boxes on maps: open one with Use for credits, and maybe win big
 did: The mystery box's roll and its music box tune
 did: A macOS build for Apple Silicon, built by GitHub with every release (experimental)
 did: Medals from the SJK team, with medal pictures generated and chosen by Sol
+did: Medal ranks I to V set by the SJK team, from Polished to Solar, pips on ribbons
 did: Clan tags: the JoF, JoFA, JAWA and {{S}} emblems beside tagged names
 did: Holocron drops: loot boxes earned by playing, in four tiers, with a Holocrons tab
 did: Opening holocrons: sealed cards in Normal, Holo and Solar, and credits (in testing)

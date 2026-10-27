@@ -1,3 +1,17 @@
+## Medal ranks
+
+27/10/2026, `personal/medal-ranks`, based on `main` `ef6364c0` (Sol's decision): every
+medal held has a rank I to V set by staff (`rank` in the hub's profile and presence
+medals, `POST /v1/staff/medal-rank`, built on the hub in parallel), drawn large with each
+rank's light (Polished sweep, Engraved lean and rim, Holo foil, Solar corona and motes)
+and in small places as a ribbon device; a rank rising shows the pop-up once as a
+promotion; Early Tester and Early Contributor read Tester and Contributor
+([identity.md](identity.md#medal-ranks)). Verified: unit tests (wire defaults and clamp,
+staff request, rank names, devices, seen-file compatibility, rehearsal), the workspace
+checks, and the five ranks rendered off screen (`menu_snapshot::medal_ranks_snapshot`,
+`world_shot::duel6_medal_ranks`). Not verified: in a game, against the hub's ranks, or
+the staff page's Rank button against the hub.
+
 ## Saber key and chat delay (#172)
 
 27/10/2026, `fix/saber-key-chat-delay`, based on `main` `685edded` (hub report #172: key 1

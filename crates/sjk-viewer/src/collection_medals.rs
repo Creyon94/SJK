@@ -1,8 +1,10 @@
 //! The Collection's Medals tab: every medal the client knows hangs by its ribbon from a
 //! lit rail, the ones the SJK team gave the player first, in colour on a soft gold
 //! light, the others dark; the one chosen is marked on the rail and shown up close on
-//! the right, with its name (and how many times for one given again), when it was
-//! given, what it is for and the team's note. The medals come from the player's own hub
+//! the right, with its name (and how many times for one given again), its rank, when it
+//! was given, what it is for and the team's note. A medal held shows in its rank's light
+//! (`medals/rank.rs`), leaning towards the pointer from rank III. The medals come from
+//! the player's own hub
 //! profile (`crate::medals::awards`), as the Players page and the profile card read
 //! them.
 
@@ -21,6 +23,11 @@ const SLOT: f32 = 226.0;
 const ART: f32 = 220.0;
 /// The medal up close.
 const BIG_ART: f32 = 400.0;
+/// The keys the rank's lean eases under ([`crate::tile_shine::HoverEase`]): the rail's
+/// medals from the first, then the one up close; clear of the cards' (the tabs share
+/// the easing, never at once).
+const LEAN_KEY: usize = 10_000;
+const LEAN_KEY_CLOSE: usize = 10_999;
 
 /// A medal as the tab shows it: the player's award, or the medal they do not hold.
 pub(super) struct Showing {
@@ -109,8 +116,8 @@ fn given(award: Option<&Award>) -> String {
 }
 
 impl Panel {
-    /// The Medals tab.
-    pub(super) fn medals(&mut self, frame: &Frame, inputs: &Inputs<'_>) {
+    /// The Medals tab, `seconds` into the page's clock.
+    pub(super) fn medals(&mut self, frame: &Frame, inputs: &Inputs<'_>, seconds: f32) {
         let ((headline, line), shown) = showing(inputs);
         self.lead(
             frame,
@@ -136,7 +143,7 @@ impl Panel {
         let art = (slot - 6.0).min(ART);
         for (index, showing) in shown.iter().enumerate() {
             let centre = LEFT_X + slot * (index as f32 + 0.5);
-            self.hanging_medal(frame, showing, index, centre, art);
+            self.hanging_medal(frame, showing, index, [centre, art], seconds);
         }
         // Room for the medals to come.
         let mut x = LEFT_X;
@@ -161,19 +168,19 @@ impl Panel {
             TextAlign::Start,
         );
         if let Some(chosen) = shown.get(self.medal) {
-            self.medal_up_close(frame, chosen);
+            self.medal_up_close(frame, chosen, seconds);
         }
     }
 
     /// Medal `index` hanging from the rail, its middle at `centre`, its picture `art`
-    /// across.
+    /// across, at `seconds`.
     fn hanging_medal(
         &mut self,
         frame: &Frame,
         showing: &Showing,
         index: usize,
-        centre: f32,
-        art: f32,
+        [centre, art]: [f32; 2],
+        seconds: f32,
     ) {
         let s = frame.s;
         let held = showing.award.is_some();
@@ -189,15 +196,8 @@ impl Panel {
                 if chosen { 0.42 } else { 0.18 },
             );
         }
-        let _ = self.ui.draw_list_mut().push(DrawCommand::TexturedQuad {
-            rect: frame.rect(centre - art * 0.5, RAIL_Y - art * 0.04, art, art),
-            texture: showing.medal.art(),
-            color: if held {
-                Color::new(1.0, 1.0, 1.0, 1.0)
-            } else {
-                Color::new(0.42, 0.45, 0.52, 0.4)
-            },
-        });
+        let rect = frame.rect(centre - art * 0.5, RAIL_Y - art * 0.04, art, art);
+        self.medal_art(showing, rect, LEAN_KEY + index, seconds, 0.4);
         if chosen {
             let _ = self.ui.draw_list_mut().push(DrawCommand::RoundedRect {
                 rect: frame.rect(centre - 2.0, RAIL_Y - 9.0, 4.0, 18.0),
@@ -224,17 +224,9 @@ impl Panel {
             FontWeight::Semibold,
             TextAlign::Center,
         );
+        // A medal held says its rank under its name; the date is up close.
         let status = match &showing.award {
-            Some(award) if award.count > 1 => format!("Given {} times", award.count),
-            Some(_) => {
-                let date =
-                    crate::medals::date_text(showing.award.as_ref().map_or(0, |a| a.awarded));
-                if date.is_empty() {
-                    "Given".to_owned()
-                } else {
-                    format!("Given {date}")
-                }
-            }
+            Some(award) => award.rank.title().to_owned(),
             None => "Not given yet".to_owned(),
         };
         text(
@@ -253,8 +245,39 @@ impl Panel {
         );
     }
 
-    /// The medal chosen, up close on the right.
-    fn medal_up_close(&mut self, frame: &Frame, showing: &Showing) {
+    /// `showing`'s whole picture over `rect` (window pixels) at `seconds`: a medal held
+    /// in its rank's light, leaning towards the pointer under `key`; one not held dark,
+    /// at `dim` opacity.
+    fn medal_art(
+        &mut self,
+        showing: &Showing,
+        rect: sjk_ui::Rect,
+        key: usize,
+        seconds: f32,
+        dim: f32,
+    ) {
+        let Some(award) = &showing.award else {
+            let _ = self.ui.draw_list_mut().push(DrawCommand::TexturedQuad {
+                rect,
+                texture: showing.medal.art(),
+                color: Color::new(0.42, 0.45, 0.52, dim),
+            });
+            return;
+        };
+        let hover = (award.rank >= crate::medals::Rank::Engraved)
+            .then(|| self.tilt.update(key, rect, self.pointer, seconds))
+            .flatten();
+        crate::medals::rank::draw_art(
+            self.ui.draw_list_mut(),
+            crate::medals::rank::Art {
+                hover,
+                ..crate::medals::rank::Art::new(award.medal, award.rank, rect, seconds)
+            },
+        );
+    }
+
+    /// The medal chosen, up close on the right, at `seconds`.
+    fn medal_up_close(&mut self, frame: &Frame, showing: &Showing, seconds: f32) {
         let s = frame.s;
         let held = showing.award.is_some();
         let middle = SHOWCASE_X + SHOWCASE_WIDTH * 0.5;
@@ -269,15 +292,8 @@ impl Panel {
                 0.4,
             );
         }
-        let _ = self.ui.draw_list_mut().push(DrawCommand::TexturedQuad {
-            rect: frame.rect(middle - BIG_ART * 0.5, top, BIG_ART, BIG_ART),
-            texture: showing.medal.art(),
-            color: if held {
-                Color::new(1.0, 1.0, 1.0, 1.0)
-            } else {
-                Color::new(0.45, 0.48, 0.56, 0.45)
-            },
-        });
+        let rect = frame.rect(middle - BIG_ART * 0.5, top, BIG_ART, BIG_ART);
+        self.medal_art(showing, rect, LEAN_KEY_CLOSE, seconds, 0.45);
         let name = showing
             .award
             .as_ref()
@@ -298,11 +314,19 @@ impl Panel {
             TextAlign::Center,
         );
         y += 66.0;
-        let line = format!(
-            "{}  \u{b7}  {}",
-            given(showing.award.as_ref()),
-            crate::editions::name(showing.medal.edition())
-        );
+        let line = match &showing.award {
+            Some(award) => format!(
+                "{}  \u{b7}  {}  \u{b7}  {}",
+                award.rank.title(),
+                given(Some(award)),
+                crate::editions::name(showing.medal.edition())
+            ),
+            None => format!(
+                "{}  \u{b7}  {}",
+                given(None),
+                crate::editions::name(showing.medal.edition())
+            ),
+        };
         text(
             &mut self.ui,
             TextFamily::Body,
@@ -406,6 +430,7 @@ mod tests {
             count,
             awarded: 1_791_336_225,
             note: note.to_owned(),
+            rank: 1,
         }
     }
 
@@ -450,9 +475,9 @@ mod tests {
         assert_eq!(
             order,
             [
-                (Medal::EarlyTester, true),
+                (Medal::Tester, true),
                 (Medal::BugHunter, true),
-                (Medal::EarlyContributor, false),
+                (Medal::Contributor, false),
             ]
         );
         // Bug Hunter is held once since 21/10/2026: an old count of 3 reads as one.
@@ -477,7 +502,10 @@ mod tests {
         let shot = holding(
             Medal::ALL
                 .iter()
-                .map(|kind| medal(kind.id(), 12, &note))
+                .map(|kind| sjk_identity::Medal {
+                    rank: 5,
+                    ..medal(kind.id(), 12, &note)
+                })
                 .collect(),
         );
         let font = crate::text::load_modern(1.0, None).expect("Inter").font;

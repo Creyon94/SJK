@@ -12,7 +12,10 @@
 //! medal's art is replacing those files.
 
 pub(crate) mod art;
+pub(crate) mod rank;
 pub(crate) mod seen;
+
+pub(crate) use rank::Rank;
 
 use sjk_ui::{Color, TextureId};
 
@@ -26,8 +29,8 @@ const NOTE_LIMIT: usize = 200;
 /// A medal the client knows, in the hub's catalogue order.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub(crate) enum Medal {
-    EarlyTester,
-    EarlyContributor,
+    Tester,
+    Contributor,
     BugHunter,
     Supporter,
 }
@@ -63,7 +66,7 @@ const fn stripe(at: f32, width: f32, color: Color) -> Stripe {
     Stripe { at, width, color }
 }
 
-const EARLY_TESTER: Ribbon = Ribbon {
+const TESTER: Ribbon = Ribbon {
     base: rgb(0xE8_A13A),
     stripes: &[
         stripe(0.22, 0.07, BLACK),
@@ -71,7 +74,7 @@ const EARLY_TESTER: Ribbon = Ribbon {
         stripe(0.71, 0.07, BLACK),
     ],
 };
-const EARLY_CONTRIBUTOR: Ribbon = Ribbon {
+const CONTRIBUTOR: Ribbon = Ribbon {
     base: rgb(0x1F_2E66),
     stripes: &[stripe(0.45, 0.1, rgb(0xE8_ECF2))],
 };
@@ -90,8 +93,8 @@ impl Medal {
     pub(crate) const COUNT: usize = 4;
     /// Every medal, in the hub's catalogue order.
     pub(crate) const ALL: [Self; Self::COUNT] = [
-        Self::EarlyTester,
-        Self::EarlyContributor,
+        Self::Tester,
+        Self::Contributor,
         Self::BugHunter,
         Self::Supporter,
     ];
@@ -109,8 +112,8 @@ impl Medal {
     /// The hub's id.
     pub(crate) const fn id(self) -> &'static str {
         match self {
-            Self::EarlyTester => "early_tester",
-            Self::EarlyContributor => "early_contributor",
+            Self::Tester => "early_tester",
+            Self::Contributor => "early_contributor",
             Self::BugHunter => "bug_hunter",
             Self::Supporter => "supporter",
         }
@@ -119,8 +122,8 @@ impl Medal {
     /// The name players read.
     pub(crate) const fn name(self) -> &'static str {
         match self {
-            Self::EarlyTester => "Early Tester",
-            Self::EarlyContributor => "Early Contributor",
+            Self::Tester => "Tester",
+            Self::Contributor => "Contributor",
             Self::BugHunter => "Bug Hunter",
             Self::Supporter => "Supporter",
         }
@@ -129,8 +132,8 @@ impl Medal {
     /// What it is for, in a sentence.
     pub(crate) const fn description(self) -> &'static str {
         match self {
-            Self::EarlyTester => "Helped test SJK in its early days.",
-            Self::EarlyContributor => "Contributed to SJK's code in its early days.",
+            Self::Tester => "Helped test SJK.",
+            Self::Contributor => "Contributed to SJK's code.",
             Self::BugHunter => "Found bugs that got fixed.",
             Self::Supporter => "Donated to SJK's development.",
         }
@@ -139,12 +142,8 @@ impl Medal {
     /// How a player comes to hold it, in a sentence (the Collection's hover card).
     pub(crate) const fn how_to_get(self) -> &'static str {
         match self {
-            Self::EarlyTester => {
-                "Given by the SJK team to players who helped test SJK in its early days."
-            }
-            Self::EarlyContributor => {
-                "Given by the SJK team to players who contributed to SJK's code in its early days."
-            }
+            Self::Tester => "Given by the SJK team to players who helped test SJK.",
+            Self::Contributor => "Given by the SJK team to players who contributed to SJK's code.",
             Self::BugHunter => {
                 "Given by the SJK team when a bug you found gets fixed; it can be given again."
             }
@@ -158,8 +157,8 @@ impl Medal {
     /// hub's `MedalKind::grants`. Supporter brings none (no decision yet).
     pub(crate) const fn blade(self) -> Option<&'static str> {
         match self {
-            Self::EarlyTester => Some("saber_hologram"),
-            Self::EarlyContributor => Some("saber_runic"),
+            Self::Tester => Some("saber_hologram"),
+            Self::Contributor => Some("saber_runic"),
             Self::BugHunter => Some("saber_glitch"),
             Self::Supporter => None,
         }
@@ -168,7 +167,7 @@ impl Medal {
     /// The edition it belongs to ([`crate::editions`]).
     pub(crate) const fn edition(self) -> &'static str {
         match self {
-            Self::EarlyTester | Self::EarlyContributor | Self::BugHunter | Self::Supporter => {
+            Self::Tester | Self::Contributor | Self::BugHunter | Self::Supporter => {
                 crate::editions::ALPHA
             }
         }
@@ -179,25 +178,36 @@ impl Medal {
     /// counting stays for a future repeatable medal; a new one must choose here.
     pub(crate) const fn repeatable(self) -> bool {
         match self {
-            Self::EarlyTester | Self::EarlyContributor | Self::BugHunter | Self::Supporter => false,
+            Self::Tester | Self::Contributor | Self::BugHunter | Self::Supporter => false,
         }
     }
 
     /// The ribbon bar's colours.
     pub(crate) const fn ribbon(self) -> Ribbon {
         match self {
-            Self::EarlyTester => EARLY_TESTER,
-            Self::EarlyContributor => EARLY_CONTRIBUTOR,
+            Self::Tester => TESTER,
+            Self::Contributor => CONTRIBUTOR,
             Self::BugHunter => BUG_HUNTER,
             Self::Supporter => SUPPORTER,
+        }
+    }
+
+    /// Its own colour, which its rank's light takes (`rank.rs`): its ribbon's, made
+    /// light enough to glow.
+    pub(crate) const fn glow(self) -> Color {
+        match self {
+            Self::Tester => rgb(0xF2_AE4C),
+            Self::Contributor => rgb(0x86_A6F0),
+            Self::BugHunter => rgb(0x46_D69E),
+            Self::Supporter => rgb(0xF0_C35A),
         }
     }
 
     /// The whole medal on its ribbon, 512 square.
     pub(crate) const fn art_png(self) -> &'static [u8] {
         match self {
-            Self::EarlyTester => include_bytes!("../assets/medals/early_tester.png"),
-            Self::EarlyContributor => include_bytes!("../assets/medals/early_contributor.png"),
+            Self::Tester => include_bytes!("../assets/medals/early_tester.png"),
+            Self::Contributor => include_bytes!("../assets/medals/early_contributor.png"),
             Self::BugHunter => include_bytes!("../assets/medals/bug_hunter.png"),
             Self::Supporter => include_bytes!("../assets/medals/supporter.png"),
         }
@@ -206,8 +216,8 @@ impl Medal {
     /// The medallion alone, one atlas cell (128 square).
     pub(crate) const fn small_png(self) -> &'static [u8] {
         match self {
-            Self::EarlyTester => include_bytes!("../assets/medals/early_tester_small.png"),
-            Self::EarlyContributor => {
+            Self::Tester => include_bytes!("../assets/medals/early_tester_small.png"),
+            Self::Contributor => {
                 include_bytes!("../assets/medals/early_contributor_small.png")
             }
             Self::BugHunter => include_bytes!("../assets/medals/bug_hunter_small.png"),
@@ -250,6 +260,8 @@ impl Medal {
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub(crate) struct Medals {
     counts: [u16; Medal::COUNT],
+    /// Each medal's rank (Issued where none is held).
+    ranks: [Rank; Medal::COUNT],
 }
 
 impl Medals {
@@ -264,6 +276,7 @@ impl Medals {
                     1
                 };
                 medals.counts[medal.index()] = count;
+                medals.ranks[medal.index()] = Rank::from_wire(entry.rank);
             }
         }
         medals
@@ -276,6 +289,11 @@ impl Medals {
     /// How many different medals.
     pub(crate) fn len(self) -> usize {
         self.counts.iter().filter(|count| **count > 0).count()
+    }
+
+    /// The rank of `medal` (Issued when it is not held).
+    pub(crate) fn rank(self, medal: Medal) -> Rank {
+        self.ranks[medal.index()]
     }
 
     /// Each medal held and its count, in catalogue order.
@@ -297,12 +315,25 @@ pub(crate) struct Award {
     pub(crate) awarded: i64,
     /// The team's note as plain text, often empty.
     pub(crate) note: String,
+    /// The rank the SJK team set.
+    pub(crate) rank: Rank,
 }
 
 impl Award {
     /// The name, with the count when it was given more than once.
     pub(crate) fn label(&self) -> String {
         self.medal.label(self.count)
+    }
+
+    /// Its rank and when it was given: "Rank III Engraved · Given 07/10/2026", or the
+    /// rank alone when the hub did not say when.
+    pub(crate) fn rank_and_given(&self) -> String {
+        let given = self.given();
+        if given.is_empty() {
+            self.rank.title().to_owned()
+        } else {
+            format!("{} \u{b7} {given}", self.rank.title())
+        }
     }
 
     /// "Given 07/10/2026", or nothing when the hub did not say when.
@@ -331,6 +362,7 @@ pub(crate) fn awards(list: &[sjk_identity::Medal]) -> Vec<Award> {
                 },
                 awarded: entry.awarded,
                 note: plain_note(&entry.note),
+                rank: Rank::from_wire(entry.rank),
             })
         })
         .collect();
@@ -406,6 +438,7 @@ mod tests {
             count,
             awarded: 0,
             note: String::new(),
+            rank: 1,
         }
     }
 
@@ -443,13 +476,13 @@ mod tests {
         assert_eq!(
             medals.iter().collect::<Vec<_>>(),
             [
-                (Medal::EarlyTester, 1),
-                (Medal::EarlyContributor, 1),
+                (Medal::Tester, 1),
+                (Medal::Contributor, 1),
                 (Medal::BugHunter, 1)
             ]
         );
         assert_eq!(Medal::BugHunter.label(3), "Bug Hunter x3");
-        assert_eq!(Medal::EarlyTester.label(1), "Early Tester");
+        assert_eq!(Medal::Tester.label(1), "Tester");
     }
 
     #[test]
@@ -487,17 +520,35 @@ mod tests {
                 count: 2,
                 awarded: 1_791_336_225,
                 note: "^3Fog".to_owned(),
+                rank: 4,
             },
             wire("early_tester", 1),
             wire("unknown", 1),
         ];
         let awards = awards(&profile);
         assert_eq!(awards.len(), 2);
-        assert_eq!(awards[0].medal, Medal::EarlyTester);
+        assert_eq!(awards[0].medal, Medal::Tester);
         assert_eq!(awards[0].given(), "");
         assert_eq!(awards[1].count, 1);
         assert_eq!(awards[1].label(), "Bug Hunter");
         assert_eq!(awards[1].given(), "Given 07/10/2026");
         assert_eq!(awards[1].note, "Fog");
+        assert_eq!(awards[1].rank, Rank::Holo);
+        assert_eq!(awards[0].rank, Rank::Issued);
+        assert_eq!(awards[0].rank_and_given(), "Rank I Issued");
+        assert_eq!(
+            awards[1].rank_and_given(),
+            "Rank IV Holo \u{b7} Given 07/10/2026"
+        );
+    }
+
+    #[test]
+    fn the_scoreboards_medals_carry_their_ranks() {
+        let mut solar = wire("bug_hunter", 1);
+        solar.rank = 5;
+        let medals = Medals::from_wire(&[wire("early_tester", 1), solar]);
+        assert_eq!(medals.rank(Medal::Tester), Rank::Issued);
+        assert_eq!(medals.rank(Medal::BugHunter), Rank::Solar);
+        assert_eq!(medals.rank(Medal::Supporter), Rank::Issued, "not held");
     }
 }

@@ -162,7 +162,7 @@ impl MedalPopup {
             texture: view.award.medal.art(),
             palette: PALETTE,
         }
-        .draw(ui, view.t, view.exit);
+        .draw_ranked(ui, view.t, view.exit, view.award.rank, view.seconds);
         let moment = Moment::at(view.t, view.exit);
         words(ui, &place, &layout, art, font, &view, &moment);
         ui.finish(NEXT_TOKEN);
@@ -214,7 +214,7 @@ fn words(
             Some((at, of)) => text(
                 ui,
                 place,
-                format_args!("{}  {at} OF {of}", crate::terms::say("NEW MEDAL")),
+                format_args!("{}  {at} OF {of}", view.kicker(true)),
                 title,
                 12.5,
                 LABEL,
@@ -224,7 +224,7 @@ fn words(
             None => text(
                 ui,
                 place,
-                format_args!("{}", crate::terms::say("NEW MEDAL")),
+                format_args!("{}", view.kicker(true)),
                 title,
                 12.5,
                 LABEL,
@@ -419,7 +419,7 @@ mod tests {
                 for medal in Medal::ALL {
                     for others in [0, 2] {
                         let mut awards = vec![award(medal, &note)];
-                        awards.extend((0..others).map(|_| award(Medal::EarlyTester, "")));
+                        awards.extend((0..others).map(|_| award(Medal::Tester, "")));
                         for viewport in VIEWPORTS {
                             for (at, leaving) in MOMENTS {
                                 let mut popup = MedalPopup::preview_in(

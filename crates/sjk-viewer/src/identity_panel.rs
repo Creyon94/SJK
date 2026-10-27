@@ -378,7 +378,7 @@ impl Panel {
             open: false,
             owns_console: false,
             revealed: false,
-            ui: MenuCanvas::with_capacities(160, 640, 512),
+            ui: MenuCanvas::with_capacities(160, 640, 640),
             focus: Focus::Toggle,
             bio: String::new(),
             edited: false,
@@ -881,6 +881,7 @@ mod tests {
             count,
             awarded: 1_791_336_225,
             note: "^2Thanks".to_owned(),
+            rank: 1,
         };
         state.me = Some(Profile {
             medals: vec![medal("bug_hunter", 2), medal("unknown", 1)],

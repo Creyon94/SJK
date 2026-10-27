@@ -1715,7 +1715,7 @@ mod tests {
         // and its name are drawn.
         panel.scroll_to_person(1);
         draw(&mut panel, &fonts, [1920.0, 1080.0]);
-        let art = Medal::EarlyContributor.art();
+        let art = Medal::Contributor.art();
         let pictures = panel
             .ui
             .draw_list()
@@ -1725,11 +1725,11 @@ mod tests {
                 matches!(command, DrawCommand::TexturedQuad { texture, .. } if *texture == art)
             })
             .count();
-        assert!(pictures >= 1, "no Early Contributor picture");
+        assert!(pictures >= 1, "no Contributor picture");
         let names = panel
             .ui
             .text_runs()
-            .filter(|run| *run == "Early Contributor")
+            .filter(|run| *run == "Contributor")
             .count();
         assert!(names >= 1, "no medal name");
         // A card's lines leave the medals' column free.

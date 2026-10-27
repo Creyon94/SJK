@@ -160,6 +160,7 @@ impl Panel {
         let target = self.target(inputs).cloned();
         self.shown.target = target.as_ref().map(|profile| profile.key_id.clone());
         self.shown.medals = [0; Medal::COUNT];
+        self.shown.ranks = [crate::medals::Rank::Issued; Medal::COUNT];
         self.shown.picture = target
             .as_ref()
             .is_some_and(|profile| !profile.avatar.is_empty());
@@ -195,6 +196,7 @@ impl Panel {
             for medal in &profile.medals {
                 if let Some(known) = Medal::from_id(&medal.id) {
                     self.shown.medals[known.index()] = medal.count.max(1);
+                    self.shown.ranks[known.index()] = crate::medals::Rank::from_wire(medal.rank);
                 }
             }
             for (held, unlockable) in self.shown.unlocks.iter_mut().zip(&crate::unlockables::ALL) {
@@ -462,7 +464,8 @@ impl Panel {
         self.order.push(NOTE_TOKEN);
     }
 
-    /// Every medal of the catalogue with what the player holds, Give and Take back.
+    /// Every medal of the catalogue with what the player holds, its rank's button (each
+    /// press the next rank, V back to I), Give and Take back.
     fn medals(&mut self, frame: &Frame, profile: &Profile) {
         let s = frame.s;
         kit::heading(
@@ -476,16 +479,21 @@ impl Panel {
         for medal in Medal::ALL {
             let y = SECTION_TOP + medal.index() as f32 * MEDAL_ROW;
             let held = self.shown.medals[medal.index()];
+            let rank = self.shown.ranks[medal.index()];
+            let icon = frame.rect(MIDDLE_X, y + 4.0, 54.0, 54.0);
             let _ = self.ui.draw_list_mut().push(DrawCommand::TexturedQuad {
-                rect: frame.rect(MIDDLE_X, y + 4.0, 54.0, 54.0),
+                rect: icon,
                 texture: medal.icon(),
                 color: Color::new(1.0, 1.0, 1.0, if held > 0 { 1.0 } else { 0.35 }),
             });
+            if held > 0 {
+                crate::medals::rank::icon_device(self.ui.draw_list_mut(), rank, icon);
+            }
             text(
                 &mut self.ui,
                 TextFamily::Display,
                 format_args!("{}", medal.label(held)),
-                frame.rect(MIDDLE_X + 68.0, y + 4.0, 220.0, 28.0),
+                frame.rect(MIDDLE_X + 68.0, y + 4.0, 136.0, 28.0),
                 21.0 * s,
                 if held > 0 {
                     color::GOLD_BRIGHT
@@ -503,14 +511,14 @@ impl Panel {
                 .filter(|date| !date.is_empty());
             let line = match (held, given) {
                 (0, _) => "Not held".to_owned(),
-                (_, Some(date)) => format!("Given {date}"),
-                (_, None) => "Held".to_owned(),
+                (_, Some(date)) => format!("{} \u{b7} {date}", rank.name()),
+                (_, None) => rank.name().to_owned(),
             };
             text(
                 &mut self.ui,
                 TextFamily::Body,
                 format_args!("{line}"),
-                frame.rect(MIDDLE_X + 68.0, y + 32.0, 200.0, 22.0),
+                frame.rect(MIDDLE_X + 68.0, y + 32.0, 136.0, 22.0),
                 14.0 * s,
                 color::QUIET,
                 FontWeight::Regular,
@@ -519,11 +527,25 @@ impl Panel {
             let can_give = held == 0 || medal.repeatable();
             let give = GIVE_BASE + medal.index() as u16;
             let take = TAKE_BASE + medal.index() as u16;
+            let step = RANK_BASE + medal.index() as u16;
             let right = MIDDLE_X + MIDDLE_WIDTH;
+            if held > 0 {
+                kit::button(
+                    &mut self.ui,
+                    frame,
+                    [right - 312.0, y + 10.0, 92.0, 40.0],
+                    &format!("Rank {}", rank.numeral()),
+                    false,
+                    self.shown.creator,
+                    self.focus == step,
+                    step,
+                );
+                self.order.push(step);
+            }
             kit::button(
                 &mut self.ui,
                 frame,
-                [right - 236.0, y + 10.0, 96.0, 40.0],
+                [right - 212.0, y + 10.0, 84.0, 40.0],
                 if held > 0 && medal.repeatable() {
                     "Give +1"
                 } else {
@@ -537,7 +559,7 @@ impl Panel {
             kit::button(
                 &mut self.ui,
                 frame,
-                [right - 128.0, y + 10.0, 128.0, 40.0],
+                [right - 120.0, y + 10.0, 120.0, 40.0],
                 "Take back",
                 false,
                 held > 0 && self.shown.creator,
@@ -2341,6 +2363,7 @@ mod tests {
                     count: 3,
                     awarded: 1_791_336_225,
                     note: String::new(),
+                    rank: 1,
                 })
                 .collect(),
             achievements: achievements::ALL

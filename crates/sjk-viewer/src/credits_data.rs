@@ -378,10 +378,10 @@ mod tests {
             assert!(cards.iter().any(|card| card.name == name), "{name} missing");
         }
         assert!(cards.iter().flat_map(|card| &card.links).count() > 0);
-        // Both contributors with merged pull requests wear Early Contributor.
+        // Both contributors with merged pull requests wear Contributor.
         let card = |name: &str| *cards.iter().find(|card| card.name == name).unwrap();
         for name in ["Creyon", "Lumaya"] {
-            assert_eq!(card(name).medals, [(Medal::EarlyContributor, 1)], "{name}");
+            assert_eq!(card(name).medals, [(Medal::Contributor, 1)], "{name}");
         }
         assert_eq!(card("Lumaya").github, "@lumayaa");
         assert!(card("Sol").medals.is_empty());
@@ -393,7 +393,7 @@ mod tests {
         let sections = parse(text).unwrap();
         assert_eq!(
             sections[0].cards[0].medals,
-            [(Medal::EarlyContributor, 1), (Medal::BugHunter, 1)]
+            [(Medal::Contributor, 1), (Medal::BugHunter, 1)]
         );
         for bad in [
             "medal: from_the_future",

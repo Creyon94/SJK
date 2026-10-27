@@ -1323,11 +1323,13 @@ fn player_card(
         for (index, (medal, count)) in hub.medals.iter().enumerate() {
             let x = CARD_X + (index % 2) as f32 * column;
             let row_y = y + (index / 2) as f32 * MEDAL_PITCH;
+            let icon = frame.rect(x, row_y, 36.0, 36.0);
             let _ = canvas.draw_list_mut().push(DrawCommand::TexturedQuad {
-                rect: frame.rect(x, row_y, 36.0, 36.0),
+                rect: icon,
                 texture: medal.icon(),
                 color: Color::new(1.0, 1.0, 1.0, 1.0),
             });
+            crate::medals::rank::icon_device(canvas.draw_list_mut(), hub.medals.rank(medal), icon);
             text(
                 canvas,
                 TextFamily::Body,

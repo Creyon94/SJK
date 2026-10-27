@@ -1,7 +1,8 @@
 //! The new medal pop-up: the first time the client sees a medal in the player's own
 //! profile, or a repeatable one's count rise, it shows it once, large, with its name,
-//! what it is for and the SJK team's note (`docs/identity.md`, "Medals"). Several
-//! new medals show one after another.
+//! its rank, what it is for and the SJK team's note (`docs/identity.md`, "Medals").
+//! A medal whose rank rose shows once more, as a promotion ("Promoted to Holo",
+//! `medals/rank.rs`). Several new medals show one after another.
 //!
 //! When: on the main menu, or when the game menu opens in a match, never over play.
 //! A medal that arrives during a match is announced once by a card at the top of the
@@ -58,13 +59,17 @@ struct Queued {
     rehearsal: bool,
     /// Its card was given in a match ([`MedalPopup::announce`]).
     announced: bool,
+    /// It was shown before and its rank rose: a promotion.
+    promoted: bool,
 }
 
 /// The medal on show and where its ceremony is.
 struct Showing {
     award: Award,
     rehearsal: bool,
-    /// "Given 07/10/2026", or nothing; made once, not every frame.
+    promoted: bool,
+    /// "Rank III Engraved · Given 07/10/2026" (the date when the hub said it); made
+    /// once, not every frame.
     given: String,
     /// When it was put on show.
     opened: Instant,
@@ -80,9 +85,10 @@ struct Showing {
 impl Showing {
     fn new(queued: Queued, now: Instant) -> Self {
         Self {
-            given: queued.award.given(),
+            given: queued.award.rank_and_given(),
             award: queued.award,
             rehearsal: queued.rehearsal,
+            promoted: queued.promoted,
             opened: now,
             started: None,
             ahead: 0.0,
@@ -115,12 +121,48 @@ struct View<'a> {
     scrim: f32,
     /// More medals wait: the button says Next, else Close.
     more: bool,
+    /// Its rank rose: it is shown as a promotion.
+    promoted: bool,
+    /// The page's clock, for the rank's light.
+    seconds: f32,
 }
 
 impl View<'_> {
     /// The button's word.
     fn action(&self) -> &'static str {
         if self.more { "Next" } else { "Close" }
+    }
+
+    /// What it is: "New medal" (through `terms::say`), or "Promoted to Holo"; in
+    /// capitals for the classic+ look when `caps`. Written without allocating.
+    fn kicker(&self, caps: bool) -> Kicker {
+        Kicker {
+            promoted: self.promoted.then_some(self.award.rank),
+            caps,
+        }
+    }
+}
+
+/// A pop-up's kicker ([`View::kicker`]).
+struct Kicker {
+    promoted: Option<medals::Rank>,
+    caps: bool,
+}
+
+impl std::fmt::Display for Kicker {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match (self.promoted, self.caps) {
+            (Some(rank), false) => write!(formatter, "Promoted to {}", rank.name()),
+            (Some(rank), true) => {
+                formatter.write_str("PROMOTED TO ")?;
+                for c in rank.name().chars() {
+                    write!(formatter, "{}", c.to_ascii_uppercase())?;
+                }
+                Ok(())
+            }
+            (None, false) => formatter.write_str(&crate::terms::say("New medal")),
+            (None, true) => formatter.write_str(&crate::terms::say("NEW MEDAL")),
+        }
     }
 }
 
@@ -151,8 +193,9 @@ pub(crate) struct MedalPopup {
 impl Default for MedalPopup {
     fn default() -> Self {
         Self {
-            // About 20 text runs and 170 shapes at the busiest moment.
-            ui: MenuCanvas::with_capacities(32, 256, 320),
+            // About 20 text runs and 170 shapes at the busiest moment, and a Solar
+            // medal's light (`medals/rank.rs`).
+            ui: MenuCanvas::with_capacities(32, 256, 400),
             queue: VecDeque::new(),
             current: None,
             step: 0,
@@ -205,12 +248,15 @@ impl MedalPopup {
                 !shown.rehearsal
                     && shown.award.medal == award.medal
                     && shown.award.count >= award.count
+                    && shown.award.rank >= award.rank
             }) {
                 continue;
             }
-            // A newer count replaces one still waiting, and the real medal a rehearsal;
-            // the same award again (another medal changed the list) keeps its card said.
+            // A newer count or rank replaces one still waiting, and the real medal a
+            // rehearsal; the same award again (another medal changed the list) keeps its
+            // card said.
             let queued = Queued {
+                promoted: seen.is_promotion(&award),
                 award,
                 rehearsal: false,
                 announced: false,
@@ -237,20 +283,22 @@ impl MedalPopup {
     }
 
     /// Queue `awards` as made-up arrivals (`debug_medal`): they go through the same
-    /// queue, card, ceremony and sound as the hub's, but are never counted as seen. A
-    /// rehearsal of a medal already waiting as one replaces it.
+    /// queue, card, ceremony and sound as the hub's, but are never counted as seen; one
+    /// above rank I arrives as a promotion. A rehearsal of a medal and rank already
+    /// waiting as one replaces it.
     pub(crate) fn rehearse(&mut self, awards: Vec<Award>) {
         for award in awards {
             let queued = Queued {
+                promoted: award.rank > medals::Rank::Issued,
                 award,
                 rehearsal: true,
                 announced: false,
             };
-            match self
-                .queue
-                .iter_mut()
-                .find(|waiting| waiting.rehearsal && waiting.award.medal == queued.award.medal)
-            {
+            match self.queue.iter_mut().find(|waiting| {
+                waiting.rehearsal
+                    && waiting.award.medal == queued.award.medal
+                    && waiting.award.rank == queued.award.rank
+            }) {
                 Some(waiting) => *waiting = queued,
                 None => self.queue.push_back(queued),
             }
@@ -290,6 +338,7 @@ impl MedalPopup {
                 show(Unlock::Medal {
                     medal: waiting.award.medal,
                     count: waiting.award.count,
+                    promoted: waiting.promoted.then_some(waiting.award.rank),
                 });
             }
         }
@@ -411,13 +460,17 @@ impl MedalPopup {
     /// The canvas and what to draw on it at `now`, while a medal shows.
     fn parts(&mut self, now: Instant) -> Option<(&mut MenuCanvas, View<'_>)> {
         let showing = self.current.as_ref()?;
+        // The rank's light keeps its own clock from the moment the medal was put on
+        // show, held still with the ceremony in the tests and shots.
+        #[allow(unused_mut)]
+        let mut seconds = now.saturating_duration_since(showing.opened).as_secs_f32();
         #[allow(unused_mut)]
         let (mut t, mut exit) = showing.times(now);
         #[allow(unused_mut)]
         let mut scrim = award::scrim(now.saturating_duration_since(self.sitting).as_secs_f32());
         #[cfg(test)]
         if let Some((held, leaving)) = self.held {
-            (t, exit, scrim) = (held, leaving, 1.0);
+            (t, exit, scrim, seconds) = (held, leaving, 1.0, held);
         }
         let Self {
             ui,
@@ -440,6 +493,8 @@ impl MedalPopup {
                 exit,
                 scrim,
                 more: !queue.is_empty(),
+                promoted: showing.promoted,
+                seconds,
             },
         ))
     }
@@ -455,6 +510,7 @@ impl MedalPopup {
             queue: awards
                 .into_iter()
                 .map(|award| Queued {
+                    promoted: award.rank > medals::Rank::Issued,
                     award,
                     rehearsal: true,
                     announced: false,
@@ -569,8 +625,9 @@ impl crate::GpuState {
             return Ok(rehearsal::listing());
         }
         let list = rehearsal::parse(args, rehearsal::unix_now())?;
-        // The same reading as a hub profile's list: known ids, counts, plain notes.
-        let awards = medals::awards(&list);
+        // The same reading as a hub profile's list: known ids, counts, plain notes;
+        // ranks rehearsed one after another each stay.
+        let awards = rehearsal::awards(&list);
         let lines = rehearsal::queued(&awards);
         self.medal_popup.rehearse(awards);
         if let Some(console) = &mut self.console {
@@ -624,13 +681,14 @@ mod fixtures {
     }
 
     /// `medal` with `note`, a repeatable one (none is since 21/10/2026) given a twelfth
-    /// time.
+    /// time, at rank V, whose light draws the most.
     pub(super) fn award(medal: Medal, note: &str) -> Award {
         Award {
             medal,
             count: if medal.repeatable() { 12 } else { 1 },
             awarded: 1_791_336_225,
             note: note.to_owned(),
+            rank: crate::medals::Rank::Solar,
         }
     }
 
@@ -669,6 +727,7 @@ mod tests {
             count,
             awarded: 0,
             note: String::new(),
+            rank: 1,
         }
     }
 
@@ -678,6 +737,7 @@ mod tests {
             count,
             awarded: 0,
             note: String::new(),
+            rank: crate::medals::Rank::Issued,
         }
     }
 
@@ -722,11 +782,11 @@ mod tests {
             &[wire("early_tester", 1), wire("bug_hunter", 1)],
         );
         assert!(popup.pending() && !popup.is_open());
-        assert_eq!(cards(&mut popup), ["Early Tester", "Bug Hunter"]);
+        assert_eq!(cards(&mut popup), ["Tester", "Bug Hunter"]);
         assert!(cards(&mut popup).is_empty(), "said once");
         let start = Instant::now();
         let now = open_settled(&mut popup, start);
-        assert_eq!(shown(&popup), Some(Medal::EarlyTester));
+        assert_eq!(shown(&popup), Some(Medal::Tester));
         let now = next(&mut popup, now);
         assert_eq!(shown(&popup), Some(Medal::BugHunter));
         assert_eq!(popup.step, 1);
@@ -758,7 +818,7 @@ mod tests {
         assert!(!restarted.pending());
         restarted.offer(directory.path(), "bb", &[wire("early_tester", 1)]);
         assert_eq!(restarted.queue.len(), 1);
-        assert_eq!(restarted.queue[0].award.medal, Medal::EarlyTester);
+        assert_eq!(restarted.queue[0].award.medal, Medal::Tester);
     }
 
     #[test]
@@ -776,10 +836,7 @@ mod tests {
     fn each_medal_has_its_fanfare_and_a_press_first_finishes_its_entrance() {
         ui_cues::take_posted();
         let mut popup = MedalPopup::default();
-        popup.rehearse(vec![
-            award(Medal::EarlyTester, 1),
-            award(Medal::EarlyContributor, 1),
-        ]);
+        popup.rehearse(vec![award(Medal::Tester, 1), award(Medal::Contributor, 1)]);
         let start = Instant::now();
         popup.open_next(start);
         // Not seen yet (the console over it): no ceremony, no sound.
@@ -799,12 +856,12 @@ mod tests {
         popup.key(KeyCode::Space, press);
         assert_eq!(ui_cues::take_posted(), [Cue::Click]);
         popup.update(after(start, 0.5 + EXIT * 0.5), true, true);
-        assert_eq!(shown(&popup), Some(Medal::EarlyTester), "still leaving");
+        assert_eq!(shown(&popup), Some(Medal::Tester), "still leaving");
         popup.key(KeyCode::Enter, after(start, 0.5 + EXIT * 0.6));
         assert!(ui_cues::take_posted().is_empty(), "a key while it leaves");
         let gone = after(start, 0.5 + EXIT + 0.01);
         popup.update(gone, true, true);
-        assert_eq!(shown(&popup), Some(Medal::EarlyContributor));
+        assert_eq!(shown(&popup), Some(Medal::Contributor));
         assert!(
             ui_cues::take_posted().is_empty(),
             "the next begins next frame"
@@ -832,7 +889,7 @@ mod tests {
     fn the_ceremony_waits_a_moment_for_the_picture() {
         ui_cues::take_posted();
         let mut popup = MedalPopup::default();
-        popup.rehearse(vec![award(Medal::EarlyContributor, 1)]);
+        popup.rehearse(vec![award(Medal::Contributor, 1)]);
         let start = Instant::now();
         popup.open_next(start);
         popup.update(after(start, 0.5), true, false);
@@ -852,10 +909,7 @@ mod tests {
         let file = directory.path().join(crate::medals::seen::FILE);
         let mut popup = MedalPopup::default();
         popup.offer(directory.path(), "aa", &[]);
-        popup.rehearse(vec![
-            award(Medal::EarlyTester, 1),
-            award(Medal::BugHunter, 3),
-        ]);
+        popup.rehearse(vec![award(Medal::Tester, 1), award(Medal::BugHunter, 3)]);
         popup.rehearse(vec![award(Medal::BugHunter, 4)]);
         assert_eq!(popup.queue.len(), 2, "a rehearsal replaces its own kind");
         assert_eq!(popup.queue[1].award.count, 4);
@@ -870,7 +924,7 @@ mod tests {
         popup.offer(directory.path(), "aa", &[wire("early_tester", 1)]);
         assert!(popup.pending() && !popup.queue[0].rehearsal);
         let mut fresh = MedalPopup::default();
-        fresh.rehearse(vec![award(Medal::EarlyContributor, 1)]);
+        fresh.rehearse(vec![award(Medal::Contributor, 1)]);
         fresh.offer(directory.path(), "aa", &[wire("early_contributor", 1)]);
         assert_eq!(fresh.queue.len(), 1);
         assert!(
@@ -878,7 +932,7 @@ mod tests {
             "the real one replaces the rehearsal"
         );
         let mut early = MedalPopup::default();
-        early.rehearse(vec![award(Medal::EarlyContributor, 1)]);
+        early.rehearse(vec![award(Medal::Contributor, 1)]);
         early.offer(directory.path(), "bb", &[]);
         assert_eq!(
             early.queue.len(),
@@ -886,7 +940,7 @@ mod tests {
             "the identity arriving keeps rehearsals"
         );
         // In a match the rehearsal's card is the hub's.
-        assert_eq!(cards(&mut early), ["Early Contributor"]);
+        assert_eq!(cards(&mut early), ["Contributor"]);
     }
 
     /// A count above 1 for a medal that is not repeatable (Bug Hunter, held once since
@@ -906,6 +960,53 @@ mod tests {
     /// The real medal is written as seen when its button is taken, before it has
     /// lifted away.
     #[test]
+    fn a_rank_rising_shows_the_medal_again_as_a_promotion() {
+        let directory = tempfile::tempdir().expect("a folder");
+        let mut popup = MedalPopup::default();
+        let start = Instant::now();
+        popup.offer(directory.path(), "aa", &[wire("early_tester", 1)]);
+        let settled = open_settled(&mut popup, start);
+        assert!(!popup.current.as_ref().expect("shown").promoted, "new");
+        popup.press(settled, false);
+        popup.update(after(settled, EXIT + 0.1), true, true);
+        assert!(!popup.is_open() && !popup.pending());
+        // The SJK team raises it to Holo: it shows once more, as a promotion.
+        let mut holo = wire("early_tester", 1);
+        holo.rank = 4;
+        popup.offer(directory.path(), "aa", std::slice::from_ref(&holo));
+        assert!(popup.pending());
+        let mut cards = Vec::new();
+        popup.announce(|unlock| cards.push(unlock));
+        assert!(matches!(
+            cards[..],
+            [Unlock::Medal {
+                promoted: Some(crate::medals::Rank::Holo),
+                ..
+            }]
+        ));
+        let later = after(settled, 10.0);
+        let settled = open_settled(&mut popup, later);
+        let (_, view) = popup.parts(settled).expect("shown");
+        assert!(view.promoted);
+        assert_eq!(view.kicker(false).to_string(), "Promoted to Holo");
+        assert_eq!(view.kicker(true).to_string(), "PROMOTED TO HOLO");
+        assert!(view.given.starts_with("Rank IV Holo"));
+        popup.press(settled, false);
+        popup.update(after(settled, EXIT + 0.1), true, true);
+        // Seen at Holo: the same list again, or after a restart, shows nothing.
+        popup.offer(directory.path(), "bb", &[]);
+        popup.offer(directory.path(), "aa", std::slice::from_ref(&holo));
+        assert!(!popup.pending());
+        // Lowered, nothing; raised past it, again.
+        holo.rank = 2;
+        popup.offer(directory.path(), "aa", std::slice::from_ref(&holo));
+        assert!(!popup.pending());
+        holo.rank = 5;
+        popup.offer(directory.path(), "aa", std::slice::from_ref(&holo));
+        assert!(popup.pending());
+    }
+
+    #[test]
     fn a_real_medal_is_remembered_when_its_button_is_taken() {
         let directory = tempfile::tempdir().expect("a folder");
         let mut popup = MedalPopup::default();
@@ -913,6 +1014,6 @@ mod tests {
         let now = open_settled(&mut popup, Instant::now());
         popup.press(now, false);
         let seen = Seen::load(directory.path(), "aa");
-        assert!(!seen.is_new(&award(Medal::EarlyContributor, 1)));
+        assert!(!seen.is_new(&award(Medal::Contributor, 1)));
     }
 }

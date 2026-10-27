@@ -380,11 +380,17 @@ pub(crate) fn draw(
     }
     if !person.medals.is_empty() {
         for (index, (medal, _)) in person.medals.iter().take(MEDALS).enumerate() {
+            let icon = Rect::new(x + index as f32 * 26.0 * u, y + 2.0 * u, 22.0 * u, 22.0 * u);
             let _ = canvas.draw_list_mut().push(DrawCommand::TexturedQuad {
-                rect: Rect::new(x + index as f32 * 26.0 * u, y + 2.0 * u, 22.0 * u, 22.0 * u),
+                rect: icon,
                 texture: medal.icon(),
                 color: Color::new(1.0, 1.0, 1.0, 1.0),
             });
+            crate::medals::rank::icon_device(
+                canvas.draw_list_mut(),
+                person.medals.rank(medal),
+                icon,
+            );
         }
         y += MEDAL_ROW * u;
     }

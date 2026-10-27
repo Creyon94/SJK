@@ -1600,11 +1600,14 @@ impl State {
                 let icon = row(26.0);
                 let mut x = left;
                 for (medal, _) in medals.iter() {
+                    let rect = Rect::new(x, y + row(2.0), icon, icon);
                     let _ = self.list.push(DrawCommand::TexturedQuad {
-                        rect: Rect::new(x, y + row(2.0), icon, icon),
+                        rect,
                         texture: medal.icon(),
                         color: Color::new(1.0, 1.0, 1.0, a),
                     });
+                    // Its rank's device, a badge (`medals/rank.rs`).
+                    crate::medals::rank::icon_device(&mut self.list, medals.rank(medal), rect);
                     x += icon + 6.0 * unit;
                 }
                 y += row(30.0);
@@ -1948,6 +1951,7 @@ mod tests {
             count: 1,
             awarded: 0,
             note: String::new(),
+            rank: 1,
         };
         let card = card_from(
             &info("n|Sol|"),
@@ -1963,10 +1967,7 @@ mod tests {
             }),
             None,
         );
-        assert_eq!(
-            card.texts[T_MEDALS],
-            "Early Tester, Early Contributor, Bug Hunter"
-        );
+        assert_eq!(card.texts[T_MEDALS], "Tester, Contributor, Bug Hunter");
         assert!(card.texts[T_MEDALS_MORE].is_empty());
         assert_eq!(card.medal_lines(), 1);
     }
@@ -1978,6 +1979,7 @@ mod tests {
             count,
             awarded: 0,
             note: String::new(),
+            rank: 1,
         };
         let card = card_from(
             &info("n|Sol|"),
@@ -1994,7 +1996,7 @@ mod tests {
             None,
         );
         // Bug Hunter is held once since 21/10/2026: an old count of 2 shows no count.
-        assert_eq!(card.texts[T_MEDALS], "Early Tester, Bug Hunter");
+        assert_eq!(card.texts[T_MEDALS], "Tester, Bug Hunter");
         assert!(card.texts[T_MEDALS_MORE].is_empty());
         let icons = |state: &State| {
             state
@@ -2003,7 +2005,7 @@ mod tests {
                 .iter()
                 .filter(|command| {
                     matches!(command, DrawCommand::TexturedQuad { texture, .. }
-                        if *texture == crate::medals::Medal::EarlyTester.icon()
+                        if *texture == crate::medals::Medal::Tester.icon()
                             || *texture == crate::medals::Medal::BugHunter.icon())
                 })
                 .count()
@@ -2081,6 +2083,7 @@ mod tests {
                     count: 2,
                     awarded: 0,
                     note: String::new(),
+                    rank: 1,
                 }]),
                 key_id: "0123456789abcdef".to_owned(),
                 avatar: "v1".to_owned(),

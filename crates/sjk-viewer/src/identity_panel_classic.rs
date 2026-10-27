@@ -154,19 +154,21 @@ impl Panel {
             let line_y = y + 22.0 + index as f32 * LINE;
             for (slot, award) in medals.iter().rev().enumerate() {
                 let side = LINE - 1.0;
+                let icon = place.rect([
+                    x + width - 8.0 - (slot + 1) as f32 * (side + 2.0),
+                    line_y,
+                    side,
+                    side,
+                ]);
                 let _ = self
                     .ui
                     .draw_list_mut()
                     .push(sjk_ui::DrawCommand::TexturedQuad {
-                        rect: place.rect([
-                            x + width - 8.0 - (slot + 1) as f32 * (side + 2.0),
-                            line_y,
-                            side,
-                            side,
-                        ]),
+                        rect: icon,
                         texture: award.medal.icon(),
                         color: Color::new(1.0, 1.0, 1.0, 1.0),
                     });
+                crate::medals::rank::icon_device(self.ui.draw_list_mut(), award.rank, icon);
             }
         }
 

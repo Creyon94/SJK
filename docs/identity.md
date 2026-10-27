@@ -429,10 +429,10 @@ menu's row of icons): [sjk-ui.md](sjk-ui.md#report-a-bug-and-its-dialogs).
 With the JoF tools on, medals are called "Honors" by default
 ([mods.md](mods.md#honors-and-echoes), `jof.honorNames`).
 
-A medal is recognition the SJK team gives a player by hand: for testing SJK early,
+A medal is recognition the SJK team gives a player by hand: for testing SJK,
 contributing to its code, finding bugs or donating to SJK. Since 10/10/2026 (Sol's decision)
-a medal may bring one saber shader for as long as the player holds it: Early Tester the
-Hologram blade, Early Contributor the Runic blade, Bug Hunter the Glitch blade; Supporter
+a medal may bring one saber shader for as long as the player holds it: Tester the
+Hologram blade, Contributor the Runic blade, Bug Hunter the Glitch blade; Supporter
 brings none. The hub derives
 it from the medal and takes it back with the medal's last award, off the player's look
 too ([unlockables.md](unlockables.md#decisions)). Nothing else comes with a medal: no
@@ -441,18 +441,63 @@ the SJK team gives them.
 
 | Medal | Id | For | Given again |
 | --- | --- | --- | --- |
-| Early Tester | `early_tester` | Helped test SJK in its early days. | no |
-| Early Contributor | `early_contributor` | Contributed to SJK's code in its early days. | no |
+| Tester | `early_tester` | Helped test SJK. | no |
+| Contributor | `early_contributor` | Contributed to SJK's code. | no |
 | Bug Hunter | `bug_hunter` | Found bugs that got fixed. | no (since 21/10/2026: bug hunting is rewarded with holocrons) |
 | Supporter | `supporter` | Donated to SJK's development (more than 1 euro on Ko-fi, since 13/10/2026; [sjk.md](sjk.md#donations)): given by the hub itself when the Ko-fi message holds the donor's key id, else by the SJK team. | no |
+
+Tester and Contributor were called Early Tester and Early Contributor until 27/10/2026
+(Sol's decision): the names lost "Early" and their texts "in its early days", since the
+team keeps giving them. Only the names players read changed; the ids stay
+`early_tester` and `early_contributor`, as the hub stores and sends them.
+
+### Medal ranks
+
+Since 27/10/2026 (Sol's decision) every medal a player holds has a rank from I to V,
+set by hand by the SJK team, which says how far the player went in what the medal is
+for: a Tester at rank V is a top tester. A new medal starts at I. The ranks, each
+keeping the lower ranks' look and adding one, in the medal's own colour where it makes
+sense ([rank.rs](../crates/sjk-viewer/src/medals/rank.rs)):
+
+| Rank | Name | Look where the medal is drawn large |
+| --- | --- | --- |
+| I | Issued | The picture as it is. |
+| II | Polished | A band of metal light in the medal's colour sweeps across it every few seconds (the Legendary sheen's clock, drawn as the picture's own strips so it keeps to the medal's shape). |
+| III | Engraved | The medal leans slightly towards the pointer, as a card does, with a soft glare following it over the medallion and a faint rim of its colour breathing round it; with no pointer on it, it sways gently by itself. |
+| IV | Holo | The cards' Holo rainbow foil over the medallion. |
+| V | Solar | The cards' Solar corona burning round the medallion's rim, and Mythical's motes rising over it. |
+
+The effects play where a medal is drawn large: the Collection's Medals tab (the rail and
+the medal up close, where rank III and up lean towards the pointer), the Identity page,
+the profile page's Medals column and the new medal pop-up (which sway instead). They
+follow `ui_rarityEffects`: with it off a medal stays still and wears its rank's device
+on its ribbon instead. Small places show the device, like a real ribbon's: none for I,
+then a bronze (II), silver (III) or gold (IV) pip and a small sun (V), drawn as shapes:
+on the scoreboard's ribbon bars, and as a badge at the lower right of a medallion (the
+player card, the Players page, the sender card, the classic+ Identity box, the staff
+page). Text names a rank "Rank III Engraved": under a medal's name in the Collection,
+beside its date ("Rank III Engraved · Given 07/10/2026") on the Identity and profile
+pages and in the pop-up; lists of names (the pinned player card, the Players page) leave
+it to the device.
+
+The hub sends the rank with each medal, in the profile and the presence entry (`rank`,
+1 to 5; missing from older hubs, read as 1; a value out of range is brought into it,
+`sjk_identity::Medal::rank`). A rank rising shows the pop-up once more, as a promotion:
+"Promoted to Holo" over the medal at its new rank (the card in a match says MEDAL
+PROMOTED and "Promoted to Rank IV Holo"); a rank lowered shows nothing.
+`medals_seen.txt` keeps the rank shown in a line of its own, `<id>.rank <rank>`, written
+above rank I only: a file from before ranks has none and saw rank I, and an older build
+keeps those lines as an unknown id's. Staff set a rank from the staff page
+([Staff](#staff)); `debug_medal <id> r<rank>` and `debug_medal <id> ranks` rehearse it.
 
 No medal is given again since 21/10/2026, when Bug Hunter stopped counting up: a count
 above 1 from the hub reads as 1. The counting (`Medal::repeatable`, the "x2" labels,
 Give +1, `debug_medal`'s `x<count>`) stays for a future medal that may be.
 
-The hub lists a key's medals in its profile (`"medals":[{"id","count","awarded","note"}]`:
-the count, when it was last given and a short note from the team, often empty) and in its
-presence entry (`id` and `count` only), so the scoreboard needs no request per player.
+The hub lists a key's medals in its profile
+(`"medals":[{"id","count","awarded","note","rank"}]`: the count, when it was last given,
+a short note from the team, often empty, and the rank) and in its presence entry (`id`,
+`count` and `rank` only), so the scoreboard needs no request per player.
 Lists come in the table's order; a client shows only the ids it knows and older hubs
 send none. The catalogue is [medals.rs](../crates/sjk-viewer/src/medals.rs): each medal's
 name, description, ribbon colours and two pictures in `assets/medals` (`<id>.png`, the
@@ -468,8 +513,8 @@ Where they show:
 
 - The scoreboard, every style: up to three small ribbon bars after the SJK emblem, on
   rows whose claim the emblem trusts (the claimed name matches the name the game shows).
-  They are coloured rectangles drawn from the catalogue (Early Tester amber with black
-  stripes, Early Contributor navy with a white centre stripe, Bug Hunter emerald with
+  They are coloured rectangles drawn from the catalogue (Tester amber with black
+  stripes, Contributor navy with a white centre stripe, Bug Hunter emerald with
   black edges, Supporter violet with gold edges and a gold centre stripe), sized after the emblem; they take room from the name,
   never the columns, and fewer show where the name would keep less than half its room
   (the SJK UI: a third). Derived only when the roster or the rows change.
@@ -519,16 +564,17 @@ Where they show:
   the menus: the SJK UI's ([sjk-ui.md](sjk-ui.md#new-medal)) or the classic+ one
   ([classic-plus.md](classic-plus.md#pages)).
 - `debug_medal` ([rehearsal.rs](../crates/sjk-viewer/src/medal_popup/rehearsal.rs))
-  rehearses receiving medals offline: `debug_medal <id> [x<count>] [note]` (a count for
-  a repeatable medal only, and none is since 21/10/2026), `debug_medal all [note]` for every medal, `debug_medal` alone for the
-  ids. It makes the list a hub profile would carry (dated today), which is read as the
+  rehearses receiving medals offline: `debug_medal <id> [x<count>] [r<rank>] [note]` (a
+  count for a repeatable medal only, and none is since 21/10/2026; a rank above 1 arrives
+  as a promotion), `debug_medal <id> ranks` for the medal at ranks I to V one after
+  another, `debug_medal all [note]` for every medal, `debug_medal` alone for the ids. It makes the list a hub profile would carry (dated today), which is read as the
   hub's is and queued like a real arrival, so the card in a match, the pop-up
   on a menu, the ceremony, the fanfare and Next can all be tried; the console closes so
   it shows at once over a menu. Nothing is sent to the hub, and rehearsed medals are
   never written to `medals_seen.txt`, so a medal the team gives later still shows (a
   real medal arriving replaces its rehearsal still waiting).
 - The credits page's cards: not from the hub but from credits.txt's `medal:` lines,
-  which use the same ids (Creyon and Lumaya wear Early Contributor), so a contributor's
+  which use the same ids (Creyon and Lumaya wear Contributor), so a contributor's
   card shows its medals without a request; the SJK UI draws each whole with its name
   and description beside the card's lines, the other looks as chips (medallion and
   name) after the counts ([client.md](client.md#credits-page)).
@@ -1121,7 +1167,12 @@ key ("Merged the other player into this one", "Unlinked the key: it starts afres
   and Unmute, `StaffRequest::ChatMute`; Lift chat bans, `StaffRequest::ChatUnban`,
   [hub-chat.md](hub-chat.md)). The hub does not say whether a player's pictures are
   blocked or whether they are muted at the hub, so both ways are offered;
-- **Medals and unlocks**: every medal of the catalogue with what the player holds: Give
+- **Medals and unlocks**: every medal of the catalogue with what the player holds (its
+  medallion wearing its rank's device, the rank's name beside the date): a held medal's
+  Rank button ("Rank III"; each press sets the next rank, V back to I,
+  `StaffRequest::MedalRank`, `POST /v1/staff/medal-rank` with `key_id`, `medal` and
+  `rank`, answered with the profile as an award is; since 27/10/2026, quiet like every
+  staff change: only the player's own pop-up tells them), Give
   (Give +1 for a repeatable one already held) and Take back (one award; a repeatable one
   counts down); beside them every unlockable with whether the player holds it (and since
   when): Unlock (`StaffRequest::Unlock`) and Relock (`StaffRequest::Relock`), in pages of

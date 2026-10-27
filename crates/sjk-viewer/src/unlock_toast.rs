@@ -196,8 +196,13 @@ pub(crate) enum Unlock {
     /// An achievement unlocked; `crystal` when the hub unlocked it, so its kyber crystal
     /// comes (without a hub it unlocks on this client and brings none).
     Achievement { kind: &'static Kind, crystal: bool },
-    /// The SJK team gave a medal, `count` times in all for a repeatable one.
-    Medal { medal: Medal, count: u32 },
+    /// The SJK team gave a medal, `count` times in all for a repeatable one; `promoted`
+    /// when it was held already and its rank rose to this one.
+    Medal {
+        medal: Medal,
+        count: u32,
+        promoted: Option<crate::medals::Rank>,
+    },
     /// A holocron dropped, numbered `id` at the hub; `gift` when staff gave it. A kyber
     /// crystal ([`crate::kyber`]) arrives the same way, `earned` saying from what.
     Holocron {
@@ -220,12 +225,17 @@ impl Unlock {
         match (self, other) {
             (Self::Achievement { kind: a, .. }, Self::Achievement { kind: b, .. }) => a.id == b.id,
             (
-                Self::Medal { medal, count },
+                Self::Medal {
+                    medal,
+                    count,
+                    promoted,
+                },
                 Self::Medal {
                     medal: other,
                     count: other_count,
+                    promoted: other_promoted,
                 },
-            ) => medal == other && count == other_count,
+            ) => medal == other && count == other_count && promoted == other_promoted,
             (Self::Holocron { id, .. }, Self::Holocron { id: other, .. }) => id == other,
             (Self::Update { version, .. }, Self::Update { version: other, .. }) => version == other,
             (Self::Reward { id }, Self::Reward { id: other }) => id == other,
@@ -237,6 +247,9 @@ impl Unlock {
     pub(crate) const fn kicker(self) -> &'static str {
         match self {
             Self::Achievement { .. } => "ACHIEVEMENT UNLOCKED",
+            Self::Medal {
+                promoted: Some(_), ..
+            } => "MEDAL PROMOTED",
             Self::Medal { .. } => "NEW MEDAL",
             Self::Holocron { tier, .. } if tier.is_kyber() => "NEW KYBER CRYSTAL",
             Self::Holocron { .. } => "NEW HOLOCRON",
@@ -321,7 +334,7 @@ impl fmt::Display for Name {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.0 {
             Unlock::Achievement { kind, .. } => formatter.write_str(&crate::terms::say(kind.name)),
-            Unlock::Medal { medal, count } if count > 1 => {
+            Unlock::Medal { medal, count, .. } if count > 1 => {
                 write!(formatter, "{} x{count}", medal.name())
             }
             Unlock::Medal { medal, .. } => formatter.write_str(medal.name()),
@@ -342,6 +355,10 @@ impl fmt::Display for Description {
             Unlock::Achievement { kind, .. } => {
                 formatter.write_str(&crate::terms::say(kind.description))
             }
+            Unlock::Medal {
+                promoted: Some(rank),
+                ..
+            } => write!(formatter, "Promoted to {}", rank.title()),
             Unlock::Medal { medal, .. } => formatter.write_str(medal.description()),
             Unlock::Holocron { gift: true, .. } => formatter.write_str("A gift from the SJK team"),
             Unlock::Holocron {
@@ -1214,7 +1231,11 @@ mod tests {
     }
 
     fn medal(medal: Medal, count: u32) -> Unlock {
-        Unlock::Medal { medal, count }
+        Unlock::Medal {
+            medal,
+            count,
+            promoted: None,
+        }
     }
 
     fn holocron(id: u64, tier: usize) -> Unlock {
@@ -1434,7 +1455,7 @@ mod tests {
     fn a_large_pop_up_takes_its_cards_back() {
         let mut toast = UnlockToast::default();
         toast.push(holocron(3, 0));
-        toast.push(medal(Medal::EarlyTester, 1));
+        toast.push(medal(Medal::Tester, 1));
         toast.push(kind("first_blood"));
         toast.push(holocron(4, 1));
         let now = Instant::now();
@@ -1490,12 +1511,21 @@ mod tests {
         assert!(!update.chimes() && kind("streak_5").chimes());
         let bug_hunter = medal(Medal::BugHunter, 3);
         assert_eq!(bug_hunter.kicker(), "NEW MEDAL");
+        let promoted = Unlock::Medal {
+            medal: Medal::Tester,
+            count: 1,
+            promoted: Some(crate::medals::Rank::Holo),
+        };
+        assert_eq!(promoted.kicker(), "MEDAL PROMOTED");
+        assert_eq!(promoted.name().to_string(), "Tester");
+        assert_eq!(
+            promoted.description().to_string(),
+            "Promoted to Rank IV Holo"
+        );
+        assert!(!promoted.same(bug_hunter));
         assert_eq!(bug_hunter.name().to_string(), "Bug Hunter x3");
         assert_eq!(bug_hunter.tag(), MENU_HINT);
-        assert_eq!(
-            medal(Medal::EarlyTester, 1).name().to_string(),
-            "Early Tester"
-        );
+        assert_eq!(medal(Medal::Tester, 1).name().to_string(), "Tester");
         let mythical = holocron(9, 3);
         assert_eq!(mythical.kicker(), "NEW HOLOCRON");
         assert_eq!(

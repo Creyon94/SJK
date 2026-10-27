@@ -305,7 +305,7 @@ pub(crate) static ALL: [Unlockable; 168] = [
         edition: crate::editions::ALPHA,
         smith: SOL,
         description: "A wireframe projection with scan lines running along it, jittering like a training hologram.",
-        how_to_get: "Comes with the Early Tester medal, for as long as you hold it.",
+        how_to_get: "Comes with the Tester medal, for as long as you hold it.",
     },
     Unlockable {
         id: "saber_runic",
@@ -318,7 +318,7 @@ pub(crate) static ALL: [Unlockable; 168] = [
         edition: crate::editions::ALPHA,
         smith: SOL,
         description: "A gold core with glyphs scrolling along it that spell its wearer's name.",
-        how_to_get: "Comes with the Early Contributor medal, for as long as you hold it.",
+        how_to_get: "Comes with the Contributor medal, for as long as you hold it.",
     },
     Unlockable {
         id: "saber_chameleon",

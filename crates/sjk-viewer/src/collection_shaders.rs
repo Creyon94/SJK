@@ -2638,7 +2638,7 @@ mod tests {
         assert_eq!(owned_line(&twice), "Yours, from the SJK team, 3 held");
         assert_eq!(held_words("Yours", 1), "Yours");
         assert_eq!(held_words("Worn", 2), "Worn x2");
-        assert!(owned_line(&dated).ends_with(", with your Early Tester medal"));
+        assert!(owned_line(&dated).ends_with(", with your Tester medal"));
         let card = sjk_identity::Unlock {
             id: "saber_sun".to_owned(),
             card: Some("sjk_unknown_999".to_owned()),
@@ -2755,7 +2755,7 @@ mod tests {
         let facts = [
             "Takes your colour",
             "2 copies",
-            "Early Contributor medal",
+            "Contributor medal",
             "Smith: Creyon",
         ]
         .iter()

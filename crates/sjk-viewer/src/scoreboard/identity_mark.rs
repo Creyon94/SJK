@@ -67,7 +67,7 @@ pub(super) fn marks_width(side: f32, count: usize) -> f32 {
 }
 
 /// Ribbon bar `medal` over `rect`: its base colour, then its stripes.
-pub(super) fn ribbon(medal: Medal, rect: Rect, mut push: impl FnMut(DrawCommand)) {
+pub(crate) fn ribbon(medal: Medal, rect: Rect, mut push: impl FnMut(DrawCommand)) {
     let ribbon = medal.ribbon();
     push(DrawCommand::SolidRect {
         rect,
@@ -117,11 +117,10 @@ pub(super) fn draw_marks(
     let (width, height, gap) = ribbon_size(side);
     let mut at = x + side + gap;
     for (medal, _) in tag.medals.iter().take(count) {
-        ribbon(
-            medal,
-            Rect::new(at, middle - height * 0.5, width, height),
-            &mut push,
-        );
+        let bar = Rect::new(at, middle - height * 0.5, width, height);
+        ribbon(medal, bar, &mut push);
+        // Its rank's device on it, as a real ribbon's (`medals/rank.rs`).
+        crate::medals::rank::ribbon_device(tag.medals.rank(medal), bar, &mut push);
         at += width + gap;
     }
 }
@@ -162,6 +161,7 @@ mod tests {
                 count: 1,
                 awarded: 0,
                 note: String::new(),
+                rank: 1,
             })
             .collect();
         Tag {
@@ -231,7 +231,7 @@ mod tests {
                 })
                 .collect();
         let emblem = rects[0];
-        // The early tester's base and three stripes, then the bug hunter's base and edges.
+        // The tester's base and three stripes, then the bug hunter's base and edges.
         assert_eq!(rects.len(), 1 + 4 + 3);
         let first = rects[1];
         let last = rects[5];
