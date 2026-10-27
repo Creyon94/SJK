@@ -707,7 +707,9 @@ request, 08/10/2026):
   (`KNOWN`, each with why and its evidence; today JoF EternalJK, `client` `ejk`,
   `ui_renderer::EJK_TEXTURE`, `assets/branding/jof-ejk-icon.png`, 21/10/2026).
   `cl_sjkChatClientIcons 0` (Settings, "Other clients' icons") gives every message
-  SJK's emblem.
+  SJK's emblem. The same icon marks that client's players on the scoreboard and the
+  player card, once the client claims its slot (presence's `client`, 27/10/2026,
+  [identity.md](identity.md#what-happens)).
 - In the game's chat an SJK chat line is labelled after the name, where All chat lines
   have none and Team chat reads TEAM: SJK for a message only in SJK chat, ALL/SJK for
   one also said in the server's All chat ([Said on the game server too](#said-on-the-game-server-too);

@@ -66,7 +66,13 @@ vector that both test suites check, so a drift in either shows as a failing test
    name (`ui_renderer/verified_badge.rs`, read once a second), when a claim names
    that slot and its claimed name matches the name the game shows there (compared
    after lower-casing and dropping colour codes and symbols). The local player's own
-   plate (`cg_nameplateSelf`) has the badge when their own key is verified.
+   plate (`cg_nameplateSelf`) has the badge when their own key is verified. A claim
+   made from another client that takes part in SJK chat (the hub's `client` in each
+   presence entry, since 27/10/2026: today `ejk`, JoF EternalJK) shows that client's
+   icon in its own colours on the scoreboard and the player card in place of SJK's
+   emblem, as its chat lines do ([hub-chat.md](hub-chat.md#how-a-line-looks),
+   `cl_sjkChatClientIcons 0` gives everyone SJK's emblem); the gold of a verified
+   player is then left to the nameplate badge.
 5. Once a claim is accepted the thread also tells the hub the player's *look* (the
    blade skin they wear and whether their Illuminate holocron is lit), which lives on
    the claim; other SJK clients on the server read it from the claims and the feed and

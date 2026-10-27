@@ -219,6 +219,7 @@ mod tests {
                 avatar: String::new(),
                 look: None,
                 whisper_key: None,
+                client: String::new(),
             }],
             profiles: HashMap::new(),
             model_checks: HashMap::new(),

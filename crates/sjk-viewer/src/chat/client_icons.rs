@@ -10,8 +10,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 /// 0 shows SJK's emblem before every SJK chat message.
 pub(crate) const CVAR: &str = "cl_sjkChatClientIcons";
 
-/// A client whose messages start with its own icon.
-#[derive(Debug)]
+/// A client whose messages start with its own icon. Its players wear it on the
+/// scoreboard and the player card too, in place of SJK's emblem (presence's `client`).
+#[derive(Debug, Eq, PartialEq)]
 pub(crate) struct ClientIcon {
     /// `ChatMessage::client` as the hub sends it.
     pub(crate) client: &'static str,

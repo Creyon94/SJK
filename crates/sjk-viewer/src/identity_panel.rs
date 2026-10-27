@@ -814,6 +814,7 @@ mod tests {
             avatar: String::new(),
             look: None,
             whisper_key: None,
+            client: String::new(),
         }];
         let shown = view(&inputs(Some(&state)), true);
         assert_eq!(shown.headline, "Sol");
@@ -974,6 +975,7 @@ mod tests {
                 avatar: String::new(),
                 look: None,
                 whisper_key: None,
+                client: String::new(),
             })
             .collect();
         assert_eq!(

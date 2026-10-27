@@ -2523,6 +2523,7 @@ mod tests {
             trust: None,
             emoji: Default::default(),
             medals: three_medals(),
+            client: None,
         });
         let ui = draw(&decorated, &ffa, viewport);
         let side = 20.0 * 1.05;

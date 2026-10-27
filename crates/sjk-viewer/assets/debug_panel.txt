@@ -24,6 +24,17 @@
 
 # ---- Console & chat ----
 
+[presence-client-icon]
+area: HUD
+title: JoF EJK players wear the EJK icon on the scoreboard
+change: The hub's presence now says which client claimed each slot (sjk, ejk).
+change: Scoreboard rows and the player card show JoF EJK's icon in place of SJK's emblem.
+test: Needs the hub deployed (branch presence-client) and a JoF EJK build that claims slots.
+test: Join a server with a JoF EJK player logged into SJK chat, open the scoreboard (Tab).
+test: Their row shows the EJK icon in colour; SJK players keep the SJK emblem.
+test: cl_sjkChatClientIcons 0 puts SJK's emblem back on their row.
+note: Nothing changes until JoF EJK sends claims (separate JoF PR).
+
 [slash-emote-volume]
 area: Audio
 title: Emote volume apart from s_volume (Slash, PR #216, hub #163)

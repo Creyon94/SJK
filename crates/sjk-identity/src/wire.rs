@@ -1004,6 +1004,10 @@ pub struct Presence {
     /// they do (`PROTOCOL.md`, "Whispers"); absent otherwise, and from older hubs.
     #[serde(default)]
     pub whisper_key: Option<String>,
+    /// The client the claim came from, as chat messages name it (`ChatMessage::client`):
+    /// `sjk`, `ejk`, empty for another (and from hubs before 27/10/2026).
+    #[serde(default)]
+    pub client: String,
 }
 
 /// One SJK chat message (`PROTOCOL.md`, "Chat"), as the feed carries it. Show its

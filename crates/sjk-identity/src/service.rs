@@ -7002,6 +7002,7 @@ mod tests {
             avatar: String::new(),
             look: None,
             whisper_key: None,
+            client: String::new(),
         }];
         let t0 = Instant::now();
         let (mut worker, snapshot) = worker(&fake, t0);
