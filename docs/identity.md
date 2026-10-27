@@ -56,7 +56,10 @@ vector that both test suites check, so a drift in either shows as a failing test
    hub answers, anything the player sends (SJK chat, emotes, reports, trades...) is
    refused with why (`Worker::not_connected`): the identity off (`cl_identity 1`), no
    hub (`cl_hubUrl`), or "not connected to the hub yet", with the last failure if
-   there was one. Before 27/10/2026 every case said "is identity on, cl_identity 1?",
+   there was one. Nothing goes to the hub then, so the error is its own
+   (`HubError::NotConnected`), printed without a hub code: no "the hub refused it",
+   and a chat ban refused this way says the same words. A new setting forgets the
+   last hub's failure. Before 27/10/2026 every case said "is identity on, cl_identity 1?",
    which misled verified players who joined a server before the registration had been
    answered. Each change of the service's status goes to `session.log` once
    (`player_identity::log_status`): `identity: registering with the hub`, `identity:

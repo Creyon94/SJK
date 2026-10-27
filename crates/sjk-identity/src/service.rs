@@ -1212,11 +1212,7 @@ impl Worker {
         } else {
             "not connected to the hub yet: try again in a moment".to_owned()
         };
-        HubError::Rejected {
-            status: 503,
-            code: "not_registered".to_owned(),
-            message,
-        }
+        HubError::NotConnected(message)
     }
 
     /// Put what became of a message or an emote where the chat shows it.
@@ -1551,8 +1547,12 @@ impl Worker {
         self.saber2_unknown = None;
         self.extras_unknown = None;
         self.update(Snapshot::clear_me);
-        // Another hub's news, or none.
+        // Another hub's news, or none; a failure from before is not this hub's, and
+        // the next tick says where the new settings stand.
         self.update(|snapshot| {
+            if matches!(snapshot.status, Status::Failed(_)) {
+                snapshot.status = Status::Registering;
+            }
             if !snapshot.announcements.is_empty() {
                 snapshot.announcements.clear();
                 snapshot.announcements_revision += 1;
@@ -7039,6 +7039,18 @@ mod tests {
                     .starts_with("not connected to the hub yet (")
         );
         assert!(!waiting.message.contains("cl_identity"));
+        // Refused here, never by the hub: no hub code in what anyone prints.
+        let error = worker.not_connected();
+        assert!(matches!(error, HubError::NotConnected(_)));
+        assert!(
+            error
+                .to_string()
+                .starts_with("not connected to the hub yet (")
+        );
+        // A failure is the last hub's: new settings start without it.
+        assert!(matches!(lock(&_snapshot).status, Status::Failed(_)));
+        worker.handle(Command::Configure(on("https://other-hub")), t0);
+        assert!(!matches!(lock(&_snapshot).status, Status::Failed(_)));
     }
 
     #[test]
@@ -7050,7 +7062,7 @@ mod tests {
         worker.handle(Command::ChatBan("feedfacefeedface".into()), t0);
         assert!(matches!(
             ban(&worker).result,
-            Err(HubError::Rejected { code, .. }) if code == "not_registered"
+            Err(HubError::NotConnected(_))
         ));
         worker.handle(Command::Configure(on("https://hub")), t0);
         worker.tick(t0);

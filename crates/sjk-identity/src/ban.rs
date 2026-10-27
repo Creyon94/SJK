@@ -11,6 +11,7 @@
 
 use crate::HubError;
 use chrono::{DateTime, Datelike, Local, TimeZone, Timelike};
+use std::borrow::Cow;
 
 /// How long a ban lasts, in seconds (the hub's rule; shown, never sent).
 pub const BAN_SECS: i64 = 24 * 60 * 60;
@@ -41,7 +42,7 @@ impl BanOutcome {
     pub fn line(&self) -> String {
         match &self.result {
             Ok(ban) => format!("Banned from SJK chat until {}", local_day_time(ban.until)),
-            Err(error) => refusal(error).to_owned(),
+            Err(error) => refusal(error).into_owned(),
         }
     }
 }
@@ -74,15 +75,15 @@ pub fn banned_message(until: i64) -> String {
 }
 
 /// Why the hub did not take a ban, in the player's words.
-pub fn refusal(error: &HubError) -> &'static str {
-    match error {
+pub fn refusal(error: &HubError) -> Cow<'_, str> {
+    let why = match error {
         HubError::Rejected { code, .. } => match code.as_str() {
             "not_verified" => "Only verified players can ban from SJK chat",
             "target_verified" => "Verified players and staff cannot be banned",
             "target_trusted" => "Only staff can ban a trusted player",
             "not_found" => "The hub does not know this player",
             "bad_target" => "You cannot ban yourself",
-            "not_registered" => "Not connected to the SJK hub yet; try again in a moment",
+            "not_registered" => "Your identity is not registered at the SJK hub yet",
             "unauthorized" | "clock" => "The hub did not take the request; try again",
             code if code.ends_with("quota") || code == "rate_limited" => {
                 "Too many requests; wait a moment"
@@ -97,7 +98,11 @@ pub fn refusal(error: &HubError) -> &'static str {
         }
         HubError::Network(_) => "Cannot reach the SJK hub",
         HubError::Protocol(_) => "The hub did not take the ban",
-    }
+        // Never sent: why, as the service words it (identity off, no hub, not yet
+        // registered, with what to do).
+        HubError::NotConnected(why) => return Cow::Borrowed(why),
+    };
+    Cow::Borrowed(why)
 }
 
 #[cfg(test)]
@@ -154,6 +159,9 @@ mod tests {
             refusal(&HubError::Protocol("status 404, not JSON".to_owned())),
             "This SJK hub cannot ban from the chat yet"
         );
+        // Not sent at all: the service's reason, with what to do.
+        let off = "the SJK identity is off: turn it on with cl_identity 1";
+        assert_eq!(refusal(&HubError::NotConnected(off.to_owned())), off);
         let banned = BanOutcome {
             serial: 1,
             key_id: "0123456789abcdef".to_owned(),
