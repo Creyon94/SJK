@@ -94,6 +94,7 @@ mod tests {
             key_id: "aa".to_owned(),
             name: name.to_owned(),
             verified: true,
+            tick: sjk_identity::Tick::None,
             staff: false,
             creator: false,
             trust: None,

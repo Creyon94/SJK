@@ -78,6 +78,7 @@ did: Settings in Simple and Advanced, Vanilla or the SJK renderer, anonymous set
 did: Card faces and the first card, art by Sol (AI-assisted)
 did: SJK Alpha cards: Mythical rarity, card 1 Bishop, art by Sol (AI-assisted)
 did: World pings: mark a spot for the SJK players on your server
+did: Ticks: JoF, Sith, Jawa, JKR creator, staff and the creator's sun
 did: Team games: red and green outlines, team logos over teammates (after JoF EJK)
 did: World notes: a page of text, the shader remaps in play, and map models
 did: Donations: Support SJK on the main page (GitHub Sponsors, Ko-fi), the Supporter medal

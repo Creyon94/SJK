@@ -3083,6 +3083,7 @@ mod tests {
             name: "Sol".into(),
             bio: String::new(),
             verified: false,
+            tick: sjk_identity::Tick::None,
             staff: false,
             creator: false,
             jkr_creator: false,

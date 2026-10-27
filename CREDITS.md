@@ -192,7 +192,9 @@ includes:
 - weather: rain, snow and mist kept under open sky, 3D splashes, ground fog and
   volumetric clouds;
 - SJK identity: the identity key, the SJK hub, its verified badges, bug reports
-  and player reports; since 26/10/2026 no key id is ever shown in the game;
+  and player reports; since 26/10/2026 no key id is ever shown in the game; since
+  27/10/2026 one tick per person (gold, JoF, Sith, Jawa, JKR creator, staff and the
+  creator's sun), the group picked by staff when verifying;
 - the Profile page (medals, the bio under strict rules, the player's record) and
   achievements counted in matches and kept on the SJK hub, with their board;
 - the in-game staff tools for medals and achievements, verifying players and merging

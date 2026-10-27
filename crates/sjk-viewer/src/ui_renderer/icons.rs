@@ -107,8 +107,15 @@ pub(crate) const TRUST_ICON_CELLS: u32 = 3;
 /// The cell holding JoF EternalJK's icon (`ui_renderer::EJK_TEXTURE`), after the trust
 /// marks'.
 pub(crate) const EJK_ICON: u32 = TRUST_ICON_FIRST + TRUST_ICON_CELLS;
+/// First of the other ticks' cells (`ui_renderer::tick_texture`: JoF, Sith, Jawa, JKR
+/// creator, staff, then the creator's sun, one cell per frame), after JoF EternalJK's.
+pub(crate) const TICK_ICON_FIRST: u32 = EJK_ICON + 1;
+/// The creator's sun's first cell, after the five still ticks.
+pub(crate) const CREATOR_TICK_FIRST: u32 = TICK_ICON_FIRST + 5;
+/// Tick cells: the five still ones and the sun's frames.
+pub(crate) const TICK_ICON_CELLS: u32 = 5 + super::tick_badge::CREATOR_FRAMES;
 /// Every icon cell.
-pub(crate) const ATLAS_CELLS: u32 = EJK_ICON + 1;
+pub(crate) const ATLAS_CELLS: u32 = TICK_ICON_FIRST + TICK_ICON_CELLS;
 const TOTAL_CELLS: u32 = ATLAS_CELLS;
 const ATLAS_HEIGHT: u32 = TOTAL_CELLS.div_ceil(COLUMNS) * ICON_SIZE;
 

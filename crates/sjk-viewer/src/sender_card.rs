@@ -44,6 +44,8 @@ pub(crate) struct Person {
     /// Their hub name, when it is not the name shown.
     pub(crate) hub_name: Option<String>,
     pub(crate) verified: bool,
+    /// Their tick, as the hub sent it.
+    pub(crate) tick: sjk_identity::Tick,
     pub(crate) staff: bool,
     /// SJK's creator (staff too).
     pub(crate) creator: bool,
@@ -279,6 +281,7 @@ pub(crate) fn draw(
             version: person.avatar.as_deref().unwrap_or(""),
             name: &person.name,
             verified: false,
+            tick: sjk_identity::Tick::None,
             trust: None,
             preview: false,
             lit: false,
@@ -288,7 +291,7 @@ pub(crate) fn draw(
     let head_width = (inner - (head_x - x)).max(1.0);
     // The name and its mark alone: the verified seal or the trust mark.
     let name_size = 16.0 * u;
-    let mark = crate::ui_renderer::mark_texture(person.verified, person.trust);
+    let mark = crate::ui_renderer::mark_texture(person.verified, person.tick, person.trust);
     let tick_room = if mark.is_some() {
         crate::sjk_chat_look::tick_room(name_size)
     } else {
@@ -729,6 +732,7 @@ mod tests {
             key_id: Some("0123456789abcdef".to_owned()),
             hub_name: None,
             verified: true,
+            tick: sjk_identity::Tick::None,
             staff: false,
             creator: false,
             trust: None,

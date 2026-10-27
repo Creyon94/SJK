@@ -57,6 +57,8 @@ struct Who {
     key_id: String,
     avatar: String,
     verified: bool,
+    /// Their tick, as the hub sent it.
+    tick: sjk_identity::Tick,
     /// Their trust mark (`ui_renderer::mark_texture`), none when verified.
     trust: Option<sjk_identity::Trust>,
 }
@@ -71,6 +73,7 @@ fn who(inputs: &Inputs<'_>) -> Who {
         key_id: String::new(),
         avatar: String::new(),
         verified: false,
+        tick: sjk_identity::Tick::None,
         trust: None,
     };
     if !inputs.enabled {
@@ -105,6 +108,7 @@ fn who(inputs: &Inputs<'_>) -> Who {
                 .map(|me| me.avatar.clone())
                 .unwrap_or_default(),
             verified: false,
+            tick: sjk_identity::Tick::None,
             trust: None,
         },
         Status::Online => {
@@ -159,6 +163,7 @@ fn who(inputs: &Inputs<'_>) -> Who {
                 key_id: me.key_id.clone(),
                 avatar: me.avatar.clone(),
                 verified: me.verified,
+                tick: me.tick,
                 trust: me.trust,
             }
         }
@@ -257,6 +262,7 @@ impl Panel {
                 version: &who.avatar,
                 name: &who.headline,
                 verified: who.verified,
+                tick: who.tick,
                 trust: who.trust,
                 preview: false,
                 lit,
@@ -668,6 +674,7 @@ impl Panel {
                 version: &who.avatar,
                 name: &who.headline,
                 verified: who.verified,
+                tick: who.tick,
                 trust: who.trust,
                 preview,
                 lit: preview,
@@ -1337,6 +1344,7 @@ mod tests {
                 "x".repeat(60)
             ),
             verified: true,
+            tick: sjk_identity::Tick::None,
             staff: false,
             creator: false,
             jkr_creator: false,

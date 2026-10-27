@@ -1036,6 +1036,7 @@ mod tests {
             key_id: key.to_owned(),
             name: format!("^{}Player {id}", id % 8),
             verified: id.is_multiple_of(3),
+            tick: sjk_identity::Tick::None,
             staff: id.is_multiple_of(5),
             creator: false,
             trust: None,

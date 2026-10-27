@@ -310,7 +310,7 @@ fn line_marks<'a>(
         let marks = sjk_line::Marks {
             sjk: true,
             icon: hub.client,
-            mark: crate::ui_renderer::mark_texture(hub.verified, hub.trust),
+            mark: crate::ui_renderer::mark_texture(hub.verified, hub.tick, hub.trust),
             tier: hub.tier,
             // Which chats it was said in; a holocron drop and the SJK team's lines are
             // the hub's news, unlabelled.
@@ -337,7 +337,9 @@ fn line_marks<'a>(
             .filter(|mark| mark.sjk);
         let marks = sjk_line::Marks {
             sjk: true,
-            mark: mark.and_then(|mark| crate::ui_renderer::mark_texture(mark.verified, mark.trust)),
+            mark: mark.and_then(|mark| {
+                crate::ui_renderer::mark_texture(mark.verified, mark.tick, mark.trust)
+            }),
             label: if line.verified {
                 "VERIFIED"
             } else {
@@ -355,7 +357,9 @@ fn line_marks<'a>(
     let marks = sjk_line::Marks {
         sjk: mark.is_some(),
         icon: None,
-        mark: mark.and_then(|mark| crate::ui_renderer::mark_texture(mark.verified, mark.trust)),
+        mark: mark.and_then(|mark| {
+            crate::ui_renderer::mark_texture(mark.verified, mark.tick, mark.trust)
+        }),
         tier: None,
         label: match line.channel {
             _ if line.muted => "",

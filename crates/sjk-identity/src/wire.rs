@@ -26,6 +26,76 @@ pub enum Trust {
     Unknown,
 }
 
+/// The tick after a person's name (`PROTOCOL.md`, "Ticks"): one per person, the hub's
+/// `tick` field, which it leaves out for the plain gold one and for none. Read it only
+/// through [`Tick::shown`], which tells those two apart by the verified flag.
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, Hash, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum Tick {
+    /// No tick: not verified (and the hub's empty `tick` before [`Tick::shown`]).
+    #[default]
+    #[serde(rename = "")]
+    None,
+    /// The plain gold tick of a verified player.
+    Gold,
+    /// A verified player of JoF (Jedi of Freedom, its Academy too): cyan.
+    Jof,
+    /// A verified player of the Sith clan `{{S}}`: crimson.
+    Sith,
+    /// A verified player of the JAWA clan: leather.
+    Jawa,
+    /// JKR's creator: rust.
+    Jkr,
+    /// SJK staff.
+    Staff,
+    /// SJK's creator: the solar tick.
+    Creator,
+    /// A tick a later hub added, shown as gold while verified.
+    #[serde(other)]
+    Other,
+}
+
+impl Tick {
+    /// The tick to draw for a person whose hub `tick` is `self` and who is `verified`
+    /// or not: gold for a verified one without another, none otherwise.
+    pub fn shown(self, verified: bool) -> Self {
+        match self {
+            Self::None | Self::Other if verified => Self::Gold,
+            Self::None | Self::Other => Self::None,
+            tick => tick,
+        }
+    }
+
+    /// The groups staff verify a player with, in the order the Staff page offers them.
+    pub const GROUPS: [Self; 4] = [Self::Gold, Self::Jof, Self::Sith, Self::Jawa];
+
+    /// This group as `POST /v1/staff/verify`'s `tick` says it; `None` for a tick that
+    /// is not a group (staff, creators, none).
+    pub fn group_wire(self) -> Option<&'static str> {
+        match self {
+            Self::Gold => Some(""),
+            Self::Jof => Some("jof"),
+            Self::Sith => Some("sith"),
+            Self::Jawa => Some("jawa"),
+            _ => None,
+        }
+    }
+
+    /// The tick's name as players read it.
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::None => "None",
+            Self::Gold | Self::Other => "Gold",
+            Self::Jof => "JoF",
+            Self::Sith => "Sith",
+            Self::Jawa => "Jawa",
+            Self::Jkr => "JKR creator",
+            Self::Staff => "SJK staff",
+            Self::Creator => "SJK creator",
+        }
+    }
+}
+
 /// A player's public profile as the hub serves it.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
 pub struct Profile {
@@ -51,6 +121,10 @@ pub struct Profile {
     /// hub's `PROTOCOL.md`, "JKR creator"; absent when false and from older hubs).
     #[serde(default)]
     pub jkr_creator: bool,
+    /// The player's tick as the hub sends it (absent from older hubs); draw
+    /// [`Tick::shown`].
+    #[serde(default)]
+    pub tick: Tick,
     /// The player's trust, `None` when verified or staff (and from older hubs).
     #[serde(default)]
     pub trust: Option<Trust>,
@@ -982,6 +1056,10 @@ pub struct Presence {
     pub name: String,
     /// Whether the hub's operator vouches for the claimant.
     pub verified: bool,
+    /// The claimant's tick as the hub sends it (absent from older hubs); draw
+    /// [`Tick::shown`].
+    #[serde(default)]
+    pub tick: Tick,
     /// The claimant's trust, `None` when verified or staff (and from older hubs).
     #[serde(default)]
     pub trust: Option<Trust>,
@@ -1031,6 +1109,10 @@ pub struct ChatMessage {
     /// Whether the sender is SJK's creator.
     #[serde(default)]
     pub creator: bool,
+    /// The sender's tick when they sent it (absent from older hubs); draw
+    /// [`Tick::shown`].
+    #[serde(default)]
+    pub tick: Tick,
     /// The sender's trust when they sent it, `None` when verified or staff.
     #[serde(default)]
     pub trust: Option<Trust>,
@@ -1279,6 +1361,9 @@ pub struct Person {
     /// Whether they are SJK's creator.
     #[serde(default)]
     pub creator: bool,
+    /// Their tick (absent from older hubs); draw [`Tick::shown`].
+    #[serde(default)]
+    pub tick: Tick,
     /// Their trust, `None` when verified or staff.
     #[serde(default)]
     pub trust: Option<Trust>,

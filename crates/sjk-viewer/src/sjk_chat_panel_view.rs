@@ -138,7 +138,8 @@ fn lay(message: &ChatMessage, inputs: &Inputs<'_>, measure: &Measure<'_>, s: f32
     let drop = message.holocron.is_some();
     let words = crate::holocrons::line::words(message);
     let official = crate::official::words::words(message, "Read more");
-    let mark = crate::ui_renderer::mark_texture(message.verified, message.trust).filter(|_| !drop);
+    let mark = crate::ui_renderer::mark_texture(message.verified, message.tick, message.trust)
+        .filter(|_| !drop);
     let tick = if mark.is_some() || drop || official.is_some() {
         sjk_chat_look::tick_room(NAME_SIZE)
     } else {
@@ -441,6 +442,7 @@ impl Panel {
                     key_id: Some(message.key_id.clone()),
                     hub_name: None,
                     verified: message.verified,
+                    tick: message.tick,
                     staff: message.staff,
                     creator: message.creator,
                     trust: message.trust,
@@ -950,6 +952,7 @@ impl Panel {
                 key_id: Some(row.key_id.clone()),
                 hub_name: None,
                 verified: row.verified,
+                tick: row.tick,
                 staff: row.staff,
                 creator: row.creator,
                 trust: row.trust,
@@ -1295,7 +1298,9 @@ impl Panel {
             FontWeight::Semibold,
             TextAlign::Start,
         );
-        if let Some(mark) = crate::ui_renderer::mark_texture(message.verified, message.trust) {
+        if let Some(mark) =
+            crate::ui_renderer::mark_texture(message.verified, message.tick, message.trust)
+        {
             sjk_chat_look::tick(
                 self.ui.draw_list_mut(),
                 mark,

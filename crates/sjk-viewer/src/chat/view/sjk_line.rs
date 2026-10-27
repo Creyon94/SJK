@@ -333,6 +333,7 @@ mod tests {
             key_id: format!("{id:016x}"),
             name: name.to_owned(),
             verified,
+            tick: sjk_identity::Tick::None,
             staff: false,
             creator: false,
             trust: None,
@@ -529,6 +530,7 @@ mod tests {
         chat.slot_marks[3] = crate::chat::marks::SlotMark {
             sjk: true,
             verified: true,
+            tick: sjk_identity::Tick::None,
             trust: None,
             emoji: String::new(),
             name: Some("^5JoF^7 Sol 🦊".to_owned()),

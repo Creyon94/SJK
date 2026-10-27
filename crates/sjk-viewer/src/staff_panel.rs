@@ -60,6 +60,9 @@ const VERIFY_TOKEN: u16 = 1_400;
 /// Make staff or Remove staff, the creator's own button (`PROTOCOL.md` of the hub,
 /// "Creator").
 const SET_STAFF_TOKEN: u16 = 1_408;
+/// The tick buttons, one per group of [`sjk_identity::Tick::GROUPS`] (`PROTOCOL.md` of
+/// the hub, "Ticks"): verify the chosen player with that tick, or change theirs.
+const TICK_BASE: u16 = 1_540;
 /// The tabs: the chosen player's views, then every player's crashes and chat bans.
 const ACHIEVEMENTS_TAB_TOKEN: u16 = 1_401;
 const KEYS_TAB_TOKEN: u16 = 1_402;
@@ -259,6 +262,8 @@ struct Shown {
     holocron_rows: usize,
     /// The chosen player is verified.
     verified: bool,
+    /// The chosen player's tick as drawn ([`sjk_identity::Tick::shown`]).
+    tick: sjk_identity::Tick,
     /// The chosen player is staff.
     staff: bool,
     /// The player's own is SJK's creator, who alone makes staff and uses the
@@ -484,9 +489,23 @@ impl Panel {
                 Some(key_id) => PanelAction::Request(StaffRequest::Verify {
                     key_id,
                     verified: !self.shown.verified,
+                    tick: None,
                 }),
                 None => PanelAction::None,
             },
+            token
+                if (TICK_BASE..TICK_BASE + sjk_identity::Tick::GROUPS.len() as u16)
+                    .contains(&token) =>
+            {
+                match target {
+                    Some(key_id) => PanelAction::Request(StaffRequest::Verify {
+                        key_id,
+                        verified: true,
+                        tick: Some(sjk_identity::Tick::GROUPS[usize::from(token - TICK_BASE)]),
+                    }),
+                    None => PanelAction::None,
+                }
+            }
             SET_STAFF_TOKEN => match target {
                 Some(key_id) if self.shown.creator && self.second_press(SET_STAFF_TOKEN) => {
                     PanelAction::Request(StaffRequest::SetStaff {
@@ -1018,6 +1037,7 @@ mod tests {
             name: name.to_owned(),
             bio: String::new(),
             verified: false,
+            tick: sjk_identity::Tick::None,
             staff: false,
             creator: false,
             jkr_creator: false,
@@ -1447,7 +1467,8 @@ mod tests {
             panel.activate(VERIFY_TOKEN),
             PanelAction::Request(StaffRequest::Verify {
                 key_id: me.key_id.clone(),
-                verified: true
+                verified: true,
+                tick: None,
             })
         );
         let verified = Profile {
@@ -1458,8 +1479,19 @@ mod tests {
         assert_eq!(
             panel.activate(VERIFY_TOKEN),
             PanelAction::Request(StaffRequest::Verify {
+                key_id: me.key_id.clone(),
+                verified: false,
+                tick: None,
+            })
+        );
+        // A tick button verifies with that group, or changes it.
+        assert!(panel.order.contains(&(TICK_BASE + 2)));
+        assert_eq!(
+            panel.activate(TICK_BASE + 2),
+            PanelAction::Request(StaffRequest::Verify {
                 key_id: me.key_id,
-                verified: false
+                verified: true,
+                tick: Some(sjk_identity::Tick::Sith),
             })
         );
     }

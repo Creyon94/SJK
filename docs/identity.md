@@ -5,7 +5,7 @@ install keeps an Ed25519 key; a small web service, the SJK hub, maps public keys
 the in-game names they have worn, an optional bio and a "verified" flag its operator
 sets; and while a player is on a game server, their client tells the hub which slot
 they are in, so other SJK clients can mark that player on the scoreboard and put a
-gold verified badge after a verified player's nameplate. A player does nothing: the
+verified tick after a verified player's nameplate ([Ticks](#ticks)). A player does nothing: the
 key is made, registered and kept up to date on its own, under the name they play
 with. The game works without the hub; the badges and profiles are an extra.
 
@@ -66,13 +66,16 @@ vector that both test suites check, so a drift in either shows as a failing test
    name (`ui_renderer/verified_badge.rs`, read once a second), when a claim names
    that slot and its claimed name matches the name the game shows there (compared
    after lower-casing and dropping colour codes and symbols). The local player's own
-   plate (`cg_nameplateSelf`) has the badge when their own key is verified. A claim
+   plate (`cg_nameplateSelf`) has the badge when their own key is verified. Since
+   27/10/2026 the badge is the player's tick ([Ticks](#ticks)), and the scoreboard's and
+   the player card's emblem stays white with the tick small on its foot, where the
+   trust mark goes, instead of turning gold (Sol's call). A claim
    made from another client that takes part in SJK chat (the hub's `client` in each
    presence entry, since 27/10/2026: today `ejk`, JoF EternalJK) shows that client's
    icon in its own colours on the scoreboard and the player card in place of SJK's
    emblem, as its chat lines do ([hub-chat.md](hub-chat.md#how-a-line-looks),
-   `cl_sjkChatClientIcons 0` gives everyone SJK's emblem); the gold of a verified
-   player is then left to the nameplate badge.
+   `cl_sjkChatClientIcons 0` gives everyone SJK's emblem); the tick still sits on its
+   foot.
 5. Once a claim is accepted the thread also tells the hub the player's *look* (the
    blade skin they wear and whether their Illuminate holocron is lit), which lives on
    the claim; other SJK clients on the server read it from the claims and the feed and
@@ -81,6 +84,40 @@ vector that both test suites check, so a drift in either shows as a failing test
 
 Verification is the operator's alone (the hub's `verify` command or its operator API,
 which list every key with its worn names); a player asks for nothing and sets nothing.
+
+### Ticks
+
+Since 27/10/2026 (Sol's request) a person's name shows one tick, which the hub works out
+and sends as `tick` with profiles, presence, chat messages and the chat's people (the
+hub's `PROTOCOL.md`, "Ticks"; `sjk_identity::Tick`, drawn through
+`Tick::shown`, which turns a verified player's empty `tick` into gold). The highest
+applies:
+
+| Tick | Who | Look |
+| --- | --- | --- |
+| SJK creator | Sol | a sun whose twelve rays turn and over which a glint passes every four seconds |
+| SJK staff | the SJK team | a silver seal ringed in the SJK TEAM pill's teal, its tick teal |
+| JKR creator | Bishop | the seal rusted, in the JKR CREATOR pill's rust |
+| JoF | verified players of JoF (JoF Academy too) | the seal in cyan |
+| Sith | verified players of the Sith clan `{{S}}` | the seal in deep crimson, its rim dark so it never reads as the chat ban's red disc |
+| Jawa | verified players of the JAWA clan | the seal in leather brown |
+| Gold | every other verified player | the gold seal |
+
+A group's tick is staff's choice when they verify, never read from a name or clan tag
+(the [clan emblems](#clan-tags) are): on the Staff page's Overview, the row of tick
+buttons under Verify (Gold, JoF, Sith, Jawa, each with its tick; the one drawn now lit)
+verifies the player with that tick, or changes it when they already are; Verify alone
+keeps the group they had. A group shows only while the player is verified; staff and
+the creators wear their own whatever it is. Hubs older than ticks send none, so every
+verified player shows gold, as clients older than ticks show everyone.
+
+The ticks are computed at start like the gold seal
+([tick_badge.rs](../crates/sjk-viewer/src/ui_renderer/tick_badge.rs), icon cells after
+JoF EternalJK's). The sun is 40 cells, which the renderer steps through at 10 a second
+when it lays out a frame's icons (`ui_renderer::animated`), so it moves wherever a tick
+is drawn at no cost beyond any icon's. `SJK_TICKS_PREVIEW=<png>` with the
+`tick_badge` tests writes every tick side by side. The player card writes VERIFIED in
+the tick's colour (`ui_renderer::tick_accent`).
 
 Nothing blocks a frame: the viewer compares settings and place with what the thread
 was last told twice a second, and the scoreboard re-derives its marks only when the
@@ -846,7 +883,7 @@ that could not be had is asked for again after two minutes, or at once when the 
 address changes. Until a picture is there, and for a player without one, a stand-in
 shows: the first letter of the name (past colour codes and symbols) on one of eight
 colours picked from the key id, so a player has the same colour on every PC. A
-verified player's picture is ringed in gold with the verified badge at its foot.
+verified player's picture is ringed in gold with their tick ([Ticks](#ticks)) at its foot.
 
 **Kept on this PC.** Downloaded pictures are kept as the hub served them in
 `avatars/<key id>-<version>.png` beside `identity.key`

@@ -12,6 +12,7 @@ mod gif_textures;
 mod icons;
 mod levelshot;
 mod medal_art;
+mod tick_badge;
 mod trust_badge;
 mod verified_badge;
 use art::{ArtTextures, Run, Source};
@@ -57,17 +58,49 @@ pub(crate) fn trust_texture(trust: sjk_identity::Trust) -> Option<sjk_ui::Textur
     Some(sjk_ui::TextureId(icons::TRUST_ICON_FIRST + cell))
 }
 
-/// The mark after an SJK player's name: the gold verified seal when `verified`, else
-/// their trust mark (`trust`, the hub's; none from hubs before it or for staff).
+/// `TexturedQuad` texture naming tick `tick` (`tick_badge`, the gold seal for `Gold`),
+/// drawn once at start; `None` for no tick. The creator's sun names its first frame,
+/// which the renderer steps through as time goes ([`animated`]).
+pub(crate) fn tick_texture(tick: sjk_identity::Tick) -> Option<sjk_ui::TextureId> {
+    use sjk_identity::Tick;
+    let cell = match tick {
+        Tick::None => return None,
+        Tick::Gold | Tick::Other => return Some(VERIFIED_TEXTURE),
+        Tick::Jof => 0,
+        Tick::Sith => 1,
+        Tick::Jawa => 2,
+        Tick::Jkr => 3,
+        Tick::Staff => 4,
+        Tick::Creator => return Some(sjk_ui::TextureId(icons::CREATOR_TICK_FIRST)),
+    };
+    Some(sjk_ui::TextureId(icons::TICK_ICON_FIRST + cell))
+}
+
+/// The colour of a word about tick `tick` (`tick_badge::accent`), at alpha `a`.
+pub(crate) fn tick_accent(tick: sjk_identity::Tick, a: f32) -> Option<sjk_ui::Color> {
+    tick_badge::accent(tick).map(|[r, g, b]| sjk_ui::Color::new(r, g, b, a))
+}
+
+/// The cell to draw for `texture` at `now` seconds: the creator's sun's frame then, any
+/// other texture itself.
+fn animated(texture: sjk_ui::TextureId, now: f64) -> sjk_ui::TextureId {
+    if texture.0 != icons::CREATOR_TICK_FIRST {
+        return texture;
+    }
+    let frame =
+        (now.max(0.0) * tick_badge::CREATOR_FPS) as u64 % u64::from(tick_badge::CREATOR_FRAMES);
+    sjk_ui::TextureId(icons::CREATOR_TICK_FIRST + frame as u32)
+}
+
+/// The mark after an SJK player's name: their tick (`tick`, the hub's, as
+/// [`sjk_identity::Tick::shown`] reads it with `verified`), else their trust mark
+/// (`trust`, the hub's; none from hubs before it or for staff).
 pub(crate) fn mark_texture(
     verified: bool,
+    tick: sjk_identity::Tick,
     trust: Option<sjk_identity::Trust>,
 ) -> Option<sjk_ui::TextureId> {
-    if verified {
-        Some(VERIFIED_TEXTURE)
-    } else {
-        trust.and_then(trust_texture)
-    }
+    tick_texture(tick.shown(verified)).or_else(|| trust.and_then(trust_texture))
 }
 
 /// `TexturedQuad` texture naming the duel badge (crossed sabers) in duel colour
@@ -406,6 +439,29 @@ impl ShapeRenderer {
             VERIFIED_TEXTURE,
             &verified_badge::pixels(icons::ICON_SIZE),
         );
+        for (cell, tick) in [
+            sjk_identity::Tick::Jof,
+            sjk_identity::Tick::Sith,
+            sjk_identity::Tick::Jawa,
+            sjk_identity::Tick::Jkr,
+            sjk_identity::Tick::Staff,
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            icons.upload(
+                queue,
+                sjk_ui::TextureId(icons::TICK_ICON_FIRST + cell as u32),
+                &tick_badge::pixels(icons::ICON_SIZE, tick, 0),
+            );
+        }
+        for frame in 0..tick_badge::CREATOR_FRAMES {
+            icons.upload(
+                queue,
+                sjk_ui::TextureId(icons::CREATOR_TICK_FIRST + frame),
+                &tick_badge::pixels(icons::ICON_SIZE, sjk_identity::Tick::Creator, frame),
+            );
+        }
         for trust in [
             sjk_identity::Trust::New,
             sjk_identity::Trust::Trusted,
@@ -734,7 +790,7 @@ impl ShapeRenderer {
                         | Source::HudPreview
                         | Source::BladePictures
                         | Source::Preview => ([0.0, 0.0], [1.0, 1.0]),
-                        Source::Atlas => icons::uv_range(texture),
+                        Source::Atlas => icons::uv_range(animated(texture, now)),
                     };
                     icons::push_quad(
                         &mut self.vertices,
@@ -757,7 +813,7 @@ impl ShapeRenderer {
                         continue;
                     };
                     let uv = match source {
-                        Source::Atlas => icons::uv_range(texture),
+                        Source::Atlas => icons::uv_range(animated(texture, now)),
                         _ => ([0.0, 0.0], [1.0, 1.0]),
                     };
                     // Like explicit coordinates, a turned quad is not clipped.

@@ -73,6 +73,7 @@ fn duel6_jof_sjk_chat_feed() {
             key_id: format!("{id:016x}"),
             name: name.to_owned(),
             verified: true,
+            tick: sjk_identity::Tick::None,
             staff: false,
             creator: false,
             trust: None,

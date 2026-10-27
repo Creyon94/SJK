@@ -63,6 +63,11 @@ impl ChatOverlay {
             hub: Some(HubLine {
                 id: message.id,
                 verified: message.verified && drop.is_none(),
+                tick: if drop.is_none() {
+                    message.tick
+                } else {
+                    sjk_identity::Tick::None
+                },
                 staff: message.staff,
                 creator: message.creator,
                 trust: message.trust.filter(|_| drop.is_none()),
@@ -94,6 +99,7 @@ impl ChatOverlay {
             key_id: String::new(),
             name: String::new(),
             verified: false,
+            tick: sjk_identity::Tick::None,
             staff: false,
             creator: false,
             trust: None,
@@ -119,6 +125,7 @@ impl ChatOverlay {
             key_id: String::new(),
             name: crate::official::words::SENDER.to_owned(),
             verified: false,
+            tick: sjk_identity::Tick::None,
             staff: false,
             creator: false,
             trust: None,
@@ -350,6 +357,7 @@ mod tests {
             key_id: format!("{id:016x}"),
             name: "^2Sol".to_owned(),
             verified: id.is_multiple_of(2),
+            tick: sjk_identity::Tick::None,
             staff: false,
             creator: false,
             trust: None,
