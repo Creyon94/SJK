@@ -7180,3 +7180,12 @@ test: /connect 143.103.168.40:30071 (baronshed_share): the map loads instead of 
 test: Its rooms are lit with shadows and light pools, not flat grey.
 test: Log: "external lightmaps: loaded 57 of 57 pages from maps/baronshed_share/".
 test: A retail map (mp/ffa3) still looks the same as before.
+
+[sky-clouds]
+area: Rendering & effects
+title: Sky shader stages drawn as clouds over the sky box
+change: A sky's own stages (tcMod scroll clouds, masks) blend over its box per pixel, like retail.
+test: /connect 143.103.168.40:30071 (baronshed_share), go to the beach: the clouds drift.
+test: The city part keeps its still Coruscant sky (that shader has no stages).
+test: A retail map with a plain sky (mp/ffa3, mp/duel6) looks the same as before.
+test: With r_dayNight 1 the clouds take the hour's tint like the box.

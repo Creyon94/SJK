@@ -102,20 +102,13 @@ fn source() -> String {
     patched_source(include_str!("sky_stage.wgsl"))
 }
 
-/// The sky program `sky` with both of its returns tinted. The discard pattern spans a
-/// line break, so a CRLF checkout's source is normalised first.
+/// The sky program `sky` with both of its returns tinted; a CRLF checkout's source is
+/// normalised first.
 fn patched_source(sky: &str) -> String {
-    let shader = crate::wgsl_source::lf(sky)
-        .replace(
-            "return textureSample(sky_images, sky_sampler, input.uv, input.layer);",
-            "let texel = textureSample(sky_images, sky_sampler, input.uv, input.layer);\n\
-        return vec4(day_sky(texel.rgb, normalize(input.direction)), texel.a);",
-        )
-        .replace(
-            "    if texel.a <= 0.0 { discard; }\n    return texel;",
-            "    if texel.a <= 0.0 { discard; }\n    \
-        return vec4(day_sky(texel.rgb, normalize(input.direction)), texel.a);",
-        );
+    let shader = crate::wgsl_source::lf(sky).replace(
+        "return texel;",
+        "return vec4(day_sky(texel.rgb, normalize(input.direction)), texel.a);",
+    );
     format!(
         "struct DayControls {{ clock: vec4<f32>, sun: vec4<f32> }};\n@group(2) @binding(0) var<uniform> day_controls: DayControls;\n{}\n{}",
         shader,

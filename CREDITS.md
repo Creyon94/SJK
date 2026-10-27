@@ -361,6 +361,8 @@ includes:
   silences your emote's music;
 - saber toggle spam muted (26/10/2026): a player turning a saber on and off over and
   over, by hand, bind or script, is heard four times, then once per half second;
+- sky cloud layers (27/10/2026, after rd-vanilla's `R_BuildCloudData`): a sky
+  shader's own stages drawn over its box, so scrolling skies move;
 - maps with external lightmaps (27/10/2026, after EJK's `R_FindLightmap`): maps
   compiled with q3map2's `-external` load their `lm_NNNN.tga` pages instead of failing;
 - chat name actions (23/10/2026, after Bishop's and Sanjisan's ideas): a click on a

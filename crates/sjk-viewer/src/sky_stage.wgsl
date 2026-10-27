@@ -11,6 +11,25 @@ override sky_radiance: f32 = 1.0;
 @group(0) @binding(0) var<uniform> camera: Camera;
 @group(1) @binding(0) var sky_images: texture_2d_array<f32>;
 @group(1) @binding(1) var sky_sampler: sampler;
+@group(1) @binding(2) var cloud_images: texture_2d_array<f32>;
+@group(1) @binding(3) var cloud_sampler: sampler;
+@group(1) @binding(4) var<uniform> clouds: Clouds;
+
+// The shader's own stages over the box, rd-vanilla's cloud layer (`sky_clouds.rs`).
+struct CloudStage {
+    tcmod_a: array<vec4<f32>, 4>,
+    tcmod_b: array<vec4<f32>, 4>,
+    control: vec4<f32>,
+    colour: vec4<f32>,
+    rgb_wave: vec4<f32>,
+    alpha_wave: vec4<f32>,
+    generators: vec4<f32>,
+    test: vec4<f32>,
+};
+struct Clouds {
+    header: vec4<f32>,
+    stages: array<CloudStage, 8>,
+};
 
 struct BoxInput {
     @location(0) position: vec3<f32>,
@@ -41,7 +60,123 @@ fn box_vertex(input: BoxInput) -> BoxOutput {
 
 @fragment
 fn box_fragment(input: BoxOutput) -> @location(0) vec4<f32> {
-    return textureSample(sky_images, sky_sampler, input.uv, input.layer);
+    let texel = with_clouds(textureSample(sky_images, sky_sampler, input.uv, input.layer),
+        input.direction);
+    return texel;
+}
+
+// rd-vanilla's wave table (`tr_init.cpp` R_InitFuncTables), noise and random as zero.
+fn wave_value(function: f32, wave: vec4<f32>) -> f32 {
+    let x = fract(wave.z + camera.shader_time * wave.w);
+    var table = sin(x * 6.28318530718);
+    let code = i32(function);
+    if code == 1 {
+        table = select(-1.0, 1.0, x < 0.5);
+    } else if code == 2 {
+        table = select(select(4.0 * x - 4.0, 2.0 - 4.0 * x, x < 0.75), 4.0 * x, x < 0.25);
+    } else if code == 3 {
+        table = x;
+    } else if code == 4 {
+        table = 1.0 - x;
+    } else if code >= 5 {
+        table = 0.0;
+    }
+    return wave.x + wave.y * table;
+}
+
+// `R_InitSkyTexCoords`: where the view ray meets a dome `height` above a world of radius
+// 4096 centred under the eye, as the arc cosines of its unit vector's x and y.
+fn cloud_coordinates(direction: vec3<f32>, height: f32) -> vec2<f32> {
+    let radius = 4096.0;
+    let d = normalize(direction);
+    let p = -radius * d.z + sqrt(radius * radius * d.z * d.z + 2.0 * radius * height + height * height);
+    let v = normalize(d * p + vec3(0.0, 0.0, radius));
+    return vec2(acos(clamp(v.x, -1.0, 1.0)), acos(clamp(v.y, -1.0, 1.0)));
+}
+
+// The stage's tcMods in order, as the world's stages apply them (`stage_runtime.wgsl`).
+fn cloud_tcmods(stage: CloudStage, initial: vec2<f32>, position: vec3<f32>) -> vec2<f32> {
+    var uv = initial;
+    let time = camera.shader_time;
+    for (var index = 0; index < 4; index++) {
+        if index >= i32(stage.control.y) { break; }
+        let a = stage.tcmod_a[index];
+        let b = stage.tcmod_b[index];
+        let kind = i32(a.x);
+        if kind == 1 {
+            uv += fract(vec2(a.y, a.z) * time);
+        } else if kind == 2 {
+            uv *= vec2(a.y, a.z);
+        } else if kind == 3 {
+            let angle = -a.y * time * 6.28318530718 / 360.0;
+            let centered = uv - vec2(0.5);
+            uv = vec2(cos(angle) * centered.x - sin(angle) * centered.y,
+                      sin(angle) * centered.x + cos(angle) * centered.y) + vec2(0.5);
+        } else if kind == 4 {
+            let now = a.w + time * b.x;
+            uv.x += sin(((position.x + position.z) / 1024.0 + now) * 6.28318530718) * a.z;
+            uv.y += sin((position.y / 1024.0 + now) * 6.28318530718) * a.z;
+        } else if kind == 5 {
+            let value = 1.0 / wave_value(a.y, vec4(a.z, a.w, b.x, b.y));
+            uv = uv * value + vec2(0.5 - 0.5 * value);
+        } else if kind == 6 {
+            uv = vec2(uv.x * a.y + uv.y * a.w + b.y, uv.x * a.z + uv.y * b.x + b.z);
+        }
+    }
+    return uv;
+}
+
+fn blend_factor(code: f32, source: vec4<f32>, destination: vec4<f32>) -> vec4<f32> {
+    switch i32(code) {
+        case 0: { return vec4(0.0); }
+        case 2: { return source; }
+        case 3: { return vec4(1.0) - source; }
+        case 4: { return vec4(source.a); }
+        case 5: { return vec4(1.0 - source.a); }
+        case 6: { return destination; }
+        case 7: { return vec4(1.0) - destination; }
+        case 8: { return vec4(destination.a); }
+        case 9: { return vec4(1.0 - destination.a); }
+        case 10: {
+            let f = min(source.a, 1.0 - destination.a);
+            return vec4(f, f, f, 1.0);
+        }
+        default: { return vec4(1.0); }
+    }
+}
+
+// The box texel seen along `direction` with the cloud stages blended over it, each as
+// its blendFunc would over the framebuffer. Like `FillCloudBox`, nothing below the box's
+// bottom face; whatever a stage covers counts as sky drawn.
+fn with_clouds(box_texel: vec4<f32>, direction: vec3<f32>) -> vec4<f32> {
+    let count = i32(clouds.header.x);
+    if count == 0 { return box_texel; }
+    let a = abs(direction);
+    let below = direction.z < 0.0 && a.z >= a.x && a.z >= a.y;
+    let base = cloud_coordinates(direction, clouds.header.y);
+    let position = camera.camera_position + normalize(direction) * 1024.0;
+    var colour = box_texel;
+    var drawn = box_texel.a;
+    for (var index = 0; index < 8; index++) {
+        if index >= count { break; }
+        let stage = clouds.stages[index];
+        var uv = cloud_tcmods(stage, base, position);
+        if stage.test.y > 0.0 { uv = clamp(uv, vec2(0.0), vec2(1.0)); }
+        var source = textureSample(cloud_images, cloud_sampler, uv, i32(stage.control.x));
+        var tint = stage.colour;
+        if stage.generators.x > 0.0 { tint = vec4(vec3(clamp(wave_value(stage.generators.z, stage.rgb_wave), 0.0, 1.0)), tint.a); }
+        if stage.generators.y > 0.0 { tint.a = clamp(wave_value(stage.generators.w, stage.alpha_wave), 0.0, 1.0); }
+        source *= tint;
+        let test = i32(stage.test.x);
+        let passes = test == 0 || (test == 1 && source.a > 0.0) || (test == 2 && source.a < 0.5)
+            || (test == 3 && source.a >= 0.5) || (test == 4 && source.a >= 0.75);
+        let blended = source * blend_factor(stage.control.z, source, colour)
+            + colour * blend_factor(stage.control.w, source, colour);
+        let applies = passes && !below;
+        colour = select(colour, clamp(blended, vec4(0.0), vec4(1.0)), applies);
+        drawn = select(drawn, 1.0, applies);
+    }
+    return vec4(colour.rgb, drawn);
 }
 
 // A sky face's depth, pushed back by `SKY_FACE_PUSH` of its distance (the clip-space
@@ -108,8 +243,8 @@ fn box_texel(d: vec3<f32>) -> vec4<f32> {
 
 @fragment
 fn face_fragment(input: FaceOutput) -> @location(0) vec4<f32> {
-    let texel = box_texel(input.direction);
-    // A missing box face has no geometry: whatever was there stays.
+    let texel = with_clouds(box_texel(input.direction), input.direction);
+    // A missing box face without clouds has no geometry: whatever was there stays.
     if texel.a <= 0.0 { discard; }
     return texel;
 }

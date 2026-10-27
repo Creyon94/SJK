@@ -175,6 +175,7 @@ did: Discord status: your Discord profile shows the server, map and mode you pla
 did: Chat sounds by kind, each with its own sound, and a taskbar flash for private messages
 did: Saber on/off spam quietened: four sounds, then one per half second
 did: Maps with external lightmaps (q3map2 -external) load and are lit (after EJK)
+did: Sky cloud layers: a sky shader's scrolling stages drawn over its box (after JKA)
 link: https://github.com/Sol-Vulpes/SJK
 link: https://sol-vulpes.github.io/SJK/
 
