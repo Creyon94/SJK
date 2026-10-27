@@ -1679,10 +1679,15 @@ The local player is shown the predicted animation, or the server's (a ping behin
 while a saber move is not predicted (`local_actor_state`). Its cues go through
 `animation_events::Handover` (hub report #171, 27/10/2026): the server's animation
 replayed the swing just heard and the way back to the predicted one landed past the
-next swing's key, which then stayed silent. Handed to the server's, a track keeps back
-its cues until that animation (clip and revision) reaches the frame already heard, or
-for `HOLD_MILLIS` (1 s); handed back to the predicted one, it plays the keys of a
-non-looping clip the prediction passed unheard, at most `CATCH_UP_FRAMES` (12) back.
+next swing's key, which then stayed silent. Each track remembers its last three heard
+animations (clip and revision). Handed to the server's, a track keeps back its cues
+while the server shows one of them, until it reaches the frame already heard, or for
+`HOLD_MILLIS` (1 s); an animation the prediction never played (a parry, a deflect, a
+saber lock) is heard at once, and so is the server's as soon as it leaves the one held.
+Handed back to the predicted one, it plays the keys the prediction passed unheard, at
+most `CATCH_UP_FRAMES` (12) back. Looping clips (running, standing) are neither held
+nor caught up, so footsteps carry on across the hand-over. During a blend the outgoing
+clip's revision is taken from the track's transition.
 
 Ground-contact events trace beneath the animated foot and select the authored
 walk/run sound bank for the surface material. Ground the map gives no material

@@ -8,10 +8,15 @@ switch, so the server's animation crossed the swing's key again, and the way bac
 predicted one landed past the new swing's key. The local player's cues now go through
 `animation_events::Handover`, which holds back keys already heard and plays the ones the
 prediction passed unheard ([client.md](client.md#animation-sounds-and-voice-variants)).
+After Sol's review: only an animation the prediction played is held (a server-only
+parry or saber lock was muted up to 1 s), and looping clips are neither held nor
+caught up (footsteps dropped while running across the hand-over).
 No hub change. Verified: fmt, Clippy (no warning in the touched files), sjk-client tests
 (325, with `a_bare_cursor_repeats_the_swing_and_misses_the_next_across_the_hand_over`,
-which reproduces the report, `the_hand_over_hears_each_swing_once` and
-`the_servers_animation_is_heard_again_once_it_leaves_the_swing_or_the_hold_lapses`),
+which reproduces the report, `the_hand_over_hears_each_swing_once`,
+`a_server_move_the_prediction_never_had_is_heard_at_once`,
+`the_server_replaying_a_swing_is_held_until_it_leaves_it` and
+`footsteps_of_a_looping_clip_are_kept_across_the_hand_over`),
 sjk-viewer tests (3094 passed; `cards::faces::tests::only_the_faces_asked_for_are_decoded`
 timed out under the full run's load and passes alone). Not verified: in game, which
 saber moves at a combo's end hand over to the server's animation, and the caught-up

@@ -2,7 +2,7 @@
 //! A step also leaves its dust and footprint on the ground it finds ([`crate::footprints`]).
 use crate::{GameAudio, GpuState};
 use glam::{Quat, Vec3};
-use sjk_client::animation_events::{Cue, Cursor, Handover, Played, footsteps};
+use sjk_client::animation_events::{Clips, Cue, Cursor, Handover, Played, footsteps};
 
 #[derive(Default)]
 pub(crate) struct State {
@@ -182,25 +182,35 @@ pub(crate) fn update(gpu: &mut GpuState, time: i64, audio: &mut Option<GameAudio
         let state = &mut mesh.audio_events;
         if is_local {
             // The predicted animation, or the server's while a saber move is not
-            // predicted (`local_actor_state`); each track's revision tells a restart.
+            // predicted (`local_actor_state`); each track's revision tells a restart,
+            // the outgoing one's while a blend still shows its clip.
             let requested = mesh.animator.requested;
-            let revisions = [
-                requested.map(|state| (state.lower.clip, state.lower.revision)),
-                requested.map(|state| (state.upper.clip, state.upper.revision)),
+            let tracks = [
+                requested.map(|state| state.lower),
+                requested.map(|state| state.upper),
             ];
             let played = std::array::from_fn(|track| {
                 frames[track].map(|(clip, frame)| Played {
                     clip,
-                    revision: revisions[track]
-                        .filter(|&(requested, _)| requested == clip)
-                        .map_or(0, |(_, revision)| revision),
+                    revision: tracks[track].map_or(0, |state| {
+                        if state.clip == clip {
+                            state.revision
+                        } else {
+                            state
+                                .transition
+                                .filter(|previous| previous.clip == clip)
+                                .map_or(0, |previous| previous.revision)
+                        }
+                    }),
                     frame,
                 })
             });
             state.handover.advance(
                 &mut state.cursor,
-                &mesh.preview.events,
-                &mesh.preview.config,
+                Clips {
+                    events: &mesh.preview.events,
+                    config: &mesh.preview.config,
+                },
                 played,
                 gpu.local_actor_state.is_active(),
                 time,
