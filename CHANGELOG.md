@@ -30,7 +30,15 @@ The site (site/assets/site.js, parseChangelog) reads the release headings,
 introductions and recap lines too.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
-## Unreleased
+## 2026.1027.2 (Alpha) | 27/10/2026
+
+Mystery boxes, medal ranks, coloured verified ticks, a quick way up from a ragdoll and moving skies.
+
+> Mystery boxes: Open a box placed on the map for 100 credits and watch the roll: empty, your credits back, double or a jackpot.
+> Medal ranks: Every medal you hold now has a rank from I Issued to V Solar, each with its own look.
+> Verified ticks: Ticks come in colours for JoF, the Sith and JAWA clans, JKR's creator, SJK staff and SJK's creator.
+> Ragdolls: Jump, attack or taunt to get back up at once, whether you went limp or a monitor knocked you down.
+> Maps: Animated skies move again, and maps built with external lightmaps load.
 
 - Ragdoll and Monitor: jump, attack or taunt to get back up at once, whether you went limp yourself or a monitor knocked you down _(Sol)_
 - Verified ticks come in colours: cyan for JoF, crimson for the Sith clan, leather for the JAWA clan, rust for JKR's creator, silver and teal for SJK staff and a turning sun for SJK's creator, chosen by the SJK team when they verify a player (gold stays for everyone else). The scoreboard and player card emblem stays white with the tick on its foot _(Sol)_
