@@ -220,7 +220,6 @@ impl NativeGame {
                 self.cloak_toggled(client, toggled, level_time);
             }
             HI_SHIELD => self.place_shield(client, level_time),
-            HI_JETPACK => self.use_jetpack(client, level_time),
             HI_SENTRY_GUN | HI_EWEB => {
                 // Given back: the movement used a sentry up.
                 if moved && tag == HI_SENTRY_GUN {
