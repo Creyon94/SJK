@@ -74,6 +74,13 @@ const MAX_HITS: usize = 24;
 /// body has walked to it (or [`REST_WAIT`] later whatever it did).
 const REST_UP: Duration = Duration::from_millis(2_500);
 const REST_WAIT: Duration = Duration::from_secs(6);
+/// A limp player gets up on a new jump, attack or taunt this long after falling: the
+/// fall shows a moment first, and a button held as they fell does not end it.
+const WAKE_AFTER: Duration = Duration::from_millis(500);
+/// `BUTTON_ATTACK`, `BUTTON_GESTURE` (`+button3`) and `BUTTON_ALT_ATTACK`.
+const WAKE_BUTTONS: u16 = 1 | 8 | 128;
+/// The `generic_cmd` taunts: `taunt`, `bow`, `meditate`, `flourish`, `gloat`.
+const WAKE_TAUNTS: std::ops::RangeInclusive<u8> = 27..=31;
 /// Between two start events sent (the relay takes 40 a second from a player).
 const TELL_GAP: Duration = Duration::from_millis(35);
 /// A blow this client foresaw on another player ([`GpuState::ragdoll_foresee`]) waits
@@ -301,6 +308,8 @@ struct Mine {
     /// player who fell again after a hit without being hit (Sanji's report #135).
     damage_event: u8,
     camera: (f32, f32),
+    /// When it began: a press to get up counts only [`WAKE_AFTER`] on.
+    fell: Instant,
 }
 
 /// The toy's state.
@@ -309,6 +318,10 @@ pub(crate) struct Ragdoll {
     server: Option<SocketAddr>,
     /// `toy_ragdoll` was pressed since the last frame.
     toggled: bool,
+    /// A jump, an attack or a taunt was pressed since the last frame, while limp
+    /// ([`Ragdoll::wake`]); and whether one was held at the last command.
+    woken: bool,
+    wake_held: bool,
     falls: Vec<Option<Fall>>,
     mine: Option<Mine>,
     /// The player's own slot, and where its real body is to walk to.
@@ -419,6 +432,25 @@ impl Ragdoll {
     /// Go limp (`true`) or get up, at the next frame, unless already so.
     pub(crate) fn set_on(&mut self, on: bool) {
         self.toggled = on != self.on();
+    }
+
+    /// The player's command this frame, before [`Ragdoll::drive`] takes its buttons: a
+    /// new jump, attack or taunt gets a limp player up (at the next frame), once
+    /// [`WAKE_AFTER`] has passed since the fall.
+    pub(crate) fn wake(&mut self, input: &UserCommand) {
+        let wish = input.up_move > 0
+            || input.buttons & WAKE_BUTTONS != 0
+            || WAKE_TAUNTS.contains(&input.generic_command);
+        let pressed = wish && !self.wake_held;
+        self.wake_held = wish;
+        if pressed
+            && self
+                .mine
+                .as_ref()
+                .is_some_and(|mine| mine.fell.elapsed() >= WAKE_AFTER)
+        {
+            self.woken = true;
+        }
     }
 
     /// Whether the player's own body is limp.
@@ -768,6 +800,7 @@ impl GpuState {
                 self.ragdoll.leave();
             }
             self.ragdoll.toggled = false;
+            self.ragdoll.woken = false;
             return;
         };
         let server = session.server();
@@ -814,9 +847,11 @@ impl GpuState {
         self.ragdoll.expire_guesses(Instant::now());
         // The player's own fall.
         let toggled = std::mem::take(&mut self.ragdoll.toggled);
+        // A press only ever gets up: it never begins a fall.
+        let woken = std::mem::take(&mut self.ragdoll.woken);
         let rested = self.ragdoll_rested();
         if let Some(mine) = &self.ragdoll.mine {
-            let why = if toggled {
+            let why = if toggled || woken {
                 None
             } else if spared.is_some() || self.hax.busy() || rested {
                 // A hack gets a limp player up too: the hacker steers a standing body,
@@ -827,7 +862,7 @@ impl GpuState {
             } else {
                 None
             };
-            if toggled || why.is_some() {
+            if toggled || woken || why.is_some() {
                 self.ragdoll_get_up(true);
                 if let Some(why) = why.filter(|why| !why.is_empty()) {
                     self.ragdoll_centre(why);
@@ -884,6 +919,7 @@ impl GpuState {
             rest: None,
             damage_event,
             camera: (self.camera_pitch, self.camera_yaw),
+            fell: Instant::now(),
         });
         self.ragdoll.cues.push(Cue::flatline(None, own));
         true
@@ -1487,6 +1523,7 @@ mod tests {
             rest: None,
             damage_event: 0,
             camera: (0.0, 0.0),
+            fell: Instant::now(),
         });
         // Far off along +Y: runs there, facing it.
         ragdoll.walk_to = Some(Vec3::new(0.0, 300.0, 0.0));
@@ -1505,6 +1542,76 @@ mod tests {
         ragdoll.walk_to = Some(Vec3::new(0.0, 300.0, 0.0));
         let drive = ragdoll.drive(&input, [0, 100, 0], [0.0; 3]).unwrap();
         assert_eq!(drive.command.angles[1], 16_284);
+    }
+
+    #[test]
+    fn a_new_jump_attack_or_taunt_gets_a_limp_player_up() {
+        let mut ragdoll = Ragdoll::default();
+        let idle = UserCommand::default();
+        let attack = UserCommand {
+            buttons: 1,
+            ..UserCommand::default()
+        };
+        // Standing: nothing.
+        ragdoll.wake(&attack);
+        assert!(!ragdoll.woken);
+        let fall = |fell| Mine {
+            moment: 0,
+            told: [0; SLOTS],
+            tell_at: Instant::now(),
+            hits: Vec::new(),
+            auto: true,
+            rest: None,
+            damage_event: 0,
+            camera: (0.0, 0.0),
+            fell,
+        };
+        // Attack held as they fell: not until let go and pressed again.
+        ragdoll.mine = Some(fall(Instant::now() - WAKE_AFTER));
+        ragdoll.wake(&attack);
+        assert!(!ragdoll.woken);
+        ragdoll.wake(&idle);
+        ragdoll.wake(&attack);
+        assert!(ragdoll.woken);
+        // Too soon after the fall: the press is lost.
+        ragdoll.woken = false;
+        ragdoll.mine = Some(fall(Instant::now()));
+        ragdoll.wake(&idle);
+        ragdoll.wake(&attack);
+        assert!(!ragdoll.woken);
+        ragdoll.mine = Some(fall(Instant::now() - WAKE_AFTER));
+        for press in [
+            UserCommand {
+                up_move: 127,
+                ..UserCommand::default()
+            },
+            UserCommand {
+                buttons: 128,
+                ..UserCommand::default()
+            },
+            UserCommand {
+                generic_command: 27,
+                ..UserCommand::default()
+            },
+            UserCommand {
+                buttons: 8,
+                ..UserCommand::default()
+            },
+        ] {
+            ragdoll.woken = false;
+            ragdoll.wake(&idle);
+            ragdoll.wake(&press);
+            assert!(ragdoll.woken);
+        }
+        // Moving or crouching does not.
+        ragdoll.woken = false;
+        ragdoll.wake(&idle);
+        ragdoll.wake(&UserCommand {
+            forward_move: 127,
+            up_move: -127,
+            ..UserCommand::default()
+        });
+        assert!(!ragdoll.woken);
     }
 
     #[test]

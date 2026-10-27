@@ -4555,7 +4555,12 @@ every fall ends with the map or the server.
   body walking to it: traced to its pelvis, above its highest point (the head's top
   standing, just over the body lying), whether they fell by themselves or a monitor
   knocked them down (`ragdoll::shown_top`).
-- **Getting up:** `toy_ragdoll` again; or at once when the player is hurt ("Ouch! You
+- **Getting up:** `toy_ragdoll` again; a new jump, attack, alt attack or taunt
+  (`+button3`, `taunt`, `bow`, `meditate`, `flourish`, `gloat`) from 0.5 s after the
+  fall, whether they fell by themselves or a monitor knocked them down (Sol's ask,
+  27/10/2026: `Ragdoll::wake`, read from the command before the walk takes its
+  buttons; one held as they fell counts only once let go and pressed again, and a
+  press never begins a fall); or at once when the player is hurt ("Ouch! You
   got up"), dies, spectates, is in a duel, carries a flag or is hacked (a [Hax](#hax)
   hack on a limp player left the body on the floor, Rollembones's report #167), or
   when the server holds their view (a JA+ kiss, kick or knockdown, a melee grapple or

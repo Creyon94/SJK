@@ -9,6 +9,14 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 27/10/2026 | - | Ragdoll: jump, attack or taunt gets a limp player up
+- 76cc170 |  | Ragdoll: jump, attack or taunt gets a limp player up
++ 27/10/2026 | - | Identity: medal ranks on the wire and the staff medal-rank request
+- 9d2e78b |  | Identity: medal ranks on the wire and the staff medal-rank request
++ 27/10/2026 | - | Medal ranks I-V in the client; Tester and Contributor drop "Early"
+- 5eab1d3 |  | Medal ranks I-V in the client; Tester and Contributor drop "Early"
++ 27/10/2026 | - | Ticks: JoF, Sith, Jawa, JKR creator, staff and the creator's sun
+- 5ba49ad |  | Ticks: JoF, Sith, Jawa, JKR creator, staff and the creator's sun
 + 27/10/2026 | - | Mystery boxes: refuse through the worker's not_connected, as PR #218 made it
 - 17434bf |  | Mystery boxes: refuse through the worker's not_connected, as PR #218 made it
 + 27/10/2026 | - | Holocron docs: only SJK builds earn play time

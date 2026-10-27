@@ -32,6 +32,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
+- Ragdoll and Monitor: jump, attack or taunt to get back up at once, whether you went limp yourself or a monitor knocked you down _(Sol)_
 - Verified ticks come in colours: cyan for JoF, crimson for the Sith clan, leather for the JAWA clan, rust for JKR's creator, silver and teal for SJK staff and a turning sun for SJK's creator, chosen by the SJK team when they verify a player (gold stays for everyone else). The scoreboard and player card emblem stays white with the tick on its foot _(Sol)_
 - Medal ranks: every medal you hold now has a rank from I to V, set by the SJK team: I Issued, II Polished (a sheen sweeps across it), III Engraved (it leans towards your pointer, its rim glowing), IV Holo (the cards' rainbow foil) and V Solar (a corona round its rim and rising motes). The Collection, the Identity and profile pages and the new medal pop-up show the look; the scoreboard, player cards and other small places show a pip on the ribbon (bronze, silver, gold, then a sun). A rank going up shows the pop-up again, "Promoted to Holo". With `ui_rarityEffects 0` the medals stay still and wear the pip. Early Tester and Early Contributor are now simply Tester and Contributor _(Sol)_
 - JoF EternalJK players logged into SJK chat wear JoF EJK's icon on the scoreboard and the player card, as their chat lines do, once their client tells the hub which slot is theirs _(Sol)_
