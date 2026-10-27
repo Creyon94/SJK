@@ -75,6 +75,7 @@ fn dress(me: &mut sjk_identity::Profile, faces: &[crate::cards::faces::Face], no
                 count: 1,
                 awarded: now,
                 note: NOTE.to_owned(),
+                rank: 1,
             });
         }
     }

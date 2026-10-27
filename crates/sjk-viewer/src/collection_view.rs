@@ -318,7 +318,7 @@ impl Panel {
             self.tally(&frame, &counts);
         }
         match self.tab {
-            Tab::Medals => self.medals(&frame, inputs),
+            Tab::Medals => self.medals(&frame, inputs, seconds),
             Tab::Achievements => self.achievements(&frame, inputs),
             Tab::Shaders => self.shaders(&frame, inputs, seconds),
             Tab::Toys => self.toys(&frame, inputs),

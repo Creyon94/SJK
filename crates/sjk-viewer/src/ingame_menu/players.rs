@@ -595,6 +595,7 @@ fn shot_medals(ids: &[&str]) -> crate::medals::Medals {
             count: 2,
             awarded: 0,
             note: String::new(),
+            rank: 1,
         })
         .collect();
     crate::medals::Medals::from_wire(&list)

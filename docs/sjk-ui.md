@@ -644,7 +644,8 @@ overlay routes their text to the UI's families (`console_sjk_pages.rs`).
   rows of 50, the chosen one banded, tags Staff and Verified in gold); the chosen
   player's picture (a disc 64 across), name at 38 and facts over the middle and
   right, and Take picture down at the right (dimmed without one); Medals: each medal's
-  medallion (dim when not held), name and count, date given, Give (gold) and Take
+  medallion (dim when not held) with its rank's device, name and count, rank and date
+  given, a held one's Rank button (the next rank each press), Give (gold) and Take
   back, then the note's field (sent with the next medal or unlock); Unlockables under
   it: each unlockable of the catalogue, two to a row of 36 (all fourteen fit, since
   10/10/2026), its name at 16 (gold when held), "Since" its date or "Not held", and one
@@ -1992,12 +1993,14 @@ UI's navy (80 %, coming in over 0.3 s with the sitting's first medal), as the
 screen's one memorable thing, on the main page's 16:9 frame.
 
 - **Top:** "New medal" in gold (Rajdhani 24; "New medal · 1 of 3" when several
-  wait) over "From the SJK team" (muted, Exo 2 17).
-- **Medal:** its whole picture, 340 across, from y 172, centred; behind its
+  wait; "Promoted to Holo" when its rank rose, [Medal ranks](identity.md#medal-ranks))
+  over "From the SJK team" (muted, Exo 2 17).
+- **Medal:** its whole picture in its rank's light, 340 across, from y 172, centred; behind its
   medallion a soft gold glow, a thin gold ring and a ring of holo ticks turning once
   every four minutes, as the main page's ring does.
 - **Words:** the name with its count in gold (Rajdhani 56, centre line at y 600),
-  what it is for (Exo 2 20, up to two lines), "Given dd/mm/yyyy" (muted, 16), and
+  what it is for (Exo 2 20, up to two lines), "Rank III Engraved · Given dd/mm/yyyy"
+  (muted, 16), and
   the team's note in quotes (Exo 2 19, up to five lines of 880, wrapped by measured
   width).
 - **Button:** the kit's button (gold, 200 by 46), Next while more wait, Close on the

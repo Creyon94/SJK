@@ -1,6 +1,7 @@
 //! The player's own medals on the Identity page (`medals.rs`, `docs/identity.md`
-//! "Medals"): each one's whole picture, its name (with how often a repeatable one was
-//! given), what it is for, when it was given and the SJK team's note, beside the page's
+//! "Medals"): each one's whole picture in its rank's light (`medals/rank.rs`), its name
+//! (with how often a repeatable one was given), what it is for, its rank and when it was
+//! given, and the SJK team's note, beside the page's
 //! column; or a line saying how medals come when there are none. The SJK UI puts them
 //! in a column right of its own; the classic+ box names them in a line of its status
 //! with their small medallions.
@@ -9,7 +10,6 @@ use super::*;
 use crate::medals::Award;
 use crate::menu::sjk::{Frame, color, kit, text, wrap};
 use crate::menu_widgets::TextFamily;
-use sjk_ui::DrawCommand;
 
 /// What the page says when the player holds no medal yet.
 pub(super) const NONE_YET: &str =
@@ -40,7 +40,7 @@ fn lay_out<'a>(medals: &'a [Award], fits: &dyn Fn(&str) -> bool) -> Vec<Laid<'a>
             award,
             description: wrap_fitting(award.medal.description(), fits),
             note: wrap_fitting(&award.note, &|line: &str| fits(&format!("\"{line}\""))),
-            given: award.given(),
+            given: award.rank_and_given(),
         })
         .collect()
 }
@@ -123,6 +123,7 @@ impl Panel {
             }
             return;
         }
+        let seconds = self.epoch.elapsed().as_secs_f32();
         let text_x = SJK_X + SJK_ART + 14.0;
         let text_width = SJK_WIDTH - SJK_ART - 14.0;
         // Exo 2 at 16 is about 8 pixels a character.
@@ -131,11 +132,15 @@ impl Panel {
             if y + height > bottom {
                 break;
             }
-            let _ = self.ui.draw_list_mut().push(DrawCommand::TexturedQuad {
-                rect: frame.rect(SJK_X, y, SJK_ART, SJK_ART),
-                texture: medal.award.medal.art(),
-                color: Color::new(1.0, 1.0, 1.0, 1.0),
-            });
+            crate::medals::rank::draw_art(
+                self.ui.draw_list_mut(),
+                crate::medals::rank::Art::new(
+                    medal.award.medal,
+                    medal.award.rank,
+                    frame.rect(SJK_X, y, SJK_ART, SJK_ART),
+                    seconds,
+                ),
+            );
             let mut line_y = y;
             text(
                 &mut self.ui,
@@ -200,6 +205,7 @@ mod tests {
             count,
             awarded: 1_791_336_225,
             note: note.to_owned(),
+            rank: crate::medals::Rank::Issued,
         }
     }
 
@@ -207,13 +213,10 @@ mod tests {
     fn the_classic_line_names_the_medals_or_says_how_they_come() {
         assert_eq!(classic_line(None), None);
         assert_eq!(classic_line(Some(&[])).as_deref(), Some(NONE_YET));
-        let medals = [
-            award(Medal::EarlyTester, 1, ""),
-            award(Medal::BugHunter, 3, ""),
-        ];
+        let medals = [award(Medal::Tester, 1, ""), award(Medal::BugHunter, 3, "")];
         assert_eq!(
             classic_line(Some(&medals)).as_deref(),
-            Some("Medals: Early Tester, Bug Hunter x3")
+            Some("Medals: Tester, Bug Hunter x3")
         );
     }
 
@@ -226,7 +229,7 @@ mod tests {
         )];
         let laid = lay_out(&medals, &chars_fit(30));
         assert_eq!(laid[0].description, ["Found bugs that got fixed."]);
-        assert_eq!(laid[0].given, "Given 07/10/2026");
+        assert_eq!(laid[0].given, "Rank I Issued \u{b7} Given 07/10/2026");
         assert!(laid[0].note.len() >= 2);
         assert!(laid[0].note.iter().all(|line| line.chars().count() <= 28));
         assert_eq!(

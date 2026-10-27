@@ -1149,6 +1149,14 @@ fn staff_call(request: &StaffRequest) -> (&'static str, Value) {
             "/v1/staff/unaward",
             json!({ "key_id": key_id, "medal": medal }),
         ),
+        StaffRequest::MedalRank {
+            key_id,
+            medal,
+            rank,
+        } => (
+            "/v1/staff/medal-rank",
+            json!({ "key_id": key_id, "medal": medal, "rank": rank }),
+        ),
         StaffRequest::Unlock {
             key_id,
             unlock,
@@ -2352,6 +2360,21 @@ mod tests {
             (
                 "/v1/staff/relock",
                 json!({"key_id": "0123456789abcdef", "unlock": "saber_sun"})
+            )
+        );
+    }
+
+    #[test]
+    fn staff_medal_ranks_send_the_protocols_fields() {
+        assert_eq!(
+            staff_call(&StaffRequest::MedalRank {
+                key_id: "0123456789abcdef".into(),
+                medal: "early_tester".into(),
+                rank: 4,
+            }),
+            (
+                "/v1/staff/medal-rank",
+                json!({"key_id": "0123456789abcdef", "medal": "early_tester", "rank": 4})
             )
         );
     }

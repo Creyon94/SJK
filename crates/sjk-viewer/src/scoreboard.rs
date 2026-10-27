@@ -6,7 +6,7 @@ pub(crate) mod behavior;
 mod classic;
 mod deaths;
 mod icons;
-mod identity_mark;
+pub(crate) mod identity_mark;
 pub(crate) mod layout;
 mod live_flags;
 mod motion;

@@ -4571,6 +4571,22 @@ mod tests {
                         count: 1,
                         awarded: 1,
                         note: String::new(),
+                        rank: 1,
+                    }],
+                    ..profile("Target")
+                }],
+                StaffRequest::MedalRank {
+                    key_id,
+                    medal,
+                    rank,
+                } => vec![Profile {
+                    key_id: key_id.clone(),
+                    medals: vec![crate::wire::Medal {
+                        id: medal.clone(),
+                        count: 1,
+                        awarded: 1,
+                        note: String::new(),
+                        rank: *rank,
                     }],
                     ..profile("Target")
                 }],
@@ -6638,6 +6654,16 @@ mod tests {
         );
         assert_eq!(lock(&snapshot).me.as_ref().unwrap().medals.len(), 1);
         assert_eq!(state().message, "Gave bug_hunter");
+        worker.handle(
+            Command::Staff(StaffRequest::MedalRank {
+                key_id: me.clone(),
+                medal: "bug_hunter".into(),
+                rank: 3,
+            }),
+            t0,
+        );
+        assert_eq!(lock(&snapshot).me.as_ref().unwrap().medals[0].rank, 3);
+        assert_eq!(state().message, "Set bug_hunter to rank 3");
         // A key that is not staff is refused here, before the hub hears it.
         lock(&snapshot).me.as_mut().unwrap().staff = false;
         let before = fake.log().len();

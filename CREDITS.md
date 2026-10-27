@@ -92,6 +92,9 @@ includes:
 - medals, the recognition the SJK team gives players, on the scoreboard, the
   player card and the Identity page, with medal pictures generated and chosen by
   Sol;
+- medal ranks (27/10/2026): every medal held has a rank from I to V that the SJK
+  team sets, each with its own look (Polished, Engraved, Holo, Solar) and a pip on
+  the ribbon in small places, and Tester and Contributor named without "Early";
 - the JoF clan tag: the clan's emblem beside the names that carry its tag, in
   the chats, on the scoreboard and on player cards; the JAWA clan's tag with its
   forum icon, a Jawa's hood (19/10/2026, read only as `(JAWA)` at the start of
@@ -377,7 +380,7 @@ includes:
 
 ## Contributors to SJK
 
-Creyon and Lumaya wear the SJK team's Early Contributor medal, shown on their
+Creyon and Lumaya wear the SJK team's Contributor medal, shown on their
 cards of the in-game credits page.
 
 Creyon ([Creyon94](https://github.com/Creyon94)), contributor and tester, has 58

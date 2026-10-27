@@ -37,6 +37,9 @@ const PICTURE_DOWN_TOKEN: u16 = 1_105;
 /// Players found, one token each.
 const PLAYER_BASE: u16 = 1_110;
 const PLAYERS_SHOWN: usize = 15;
+/// A held medal's rank button, one token per medal of the catalogue: each press sets the
+/// next rank, V going back to I (`medals/rank.rs`).
+const RANK_BASE: u16 = 1_140;
 /// Give and Take back, one token per medal of the catalogue.
 const GIVE_BASE: u16 = 1_150;
 const TAKE_BASE: u16 = 1_160;
@@ -146,7 +149,8 @@ fn owner_only(token: u16) -> bool {
             | MERGE_PICK_TOKEN
             | MERGE_TOKEN
             | MERGE_CONFIRM_TOKEN
-    ) || within(GIVE_BASE, crate::medals::Medal::COUNT)
+    ) || within(RANK_BASE, crate::medals::Medal::COUNT)
+        || within(GIVE_BASE, crate::medals::Medal::COUNT)
         || within(TAKE_BASE, crate::medals::Medal::COUNT)
         || within(UNLOCK_BASE, crate::unlockables::ALL.len())
         || within(RELOCK_BASE, crate::unlockables::ALL.len())
@@ -251,6 +255,8 @@ struct Shown {
     /// unlockables.
     target: Option<String>,
     medals: [u32; crate::medals::Medal::COUNT],
+    /// The rank of each medal they hold.
+    ranks: [crate::medals::Rank; crate::medals::Medal::COUNT],
     /// The chosen player has a picture.
     picture: bool,
     /// Which unlockables of the catalogue they hold, in its order.
@@ -751,6 +757,24 @@ impl Panel {
                 }
             }
             token
+                if (RANK_BASE..RANK_BASE + crate::medals::Medal::COUNT as u16).contains(&token) =>
+            {
+                let medal = crate::medals::Medal::ALL[usize::from(token - RANK_BASE)];
+                let rank = self.shown.ranks[medal.index()];
+                match target {
+                    Some(key_id) if self.shown.medals[medal.index()] > 0 => {
+                        // Quiet, as every staff change: the player sees the promotion
+                        // on their own pop-up, nobody else is told.
+                        PanelAction::Request(StaffRequest::MedalRank {
+                            key_id,
+                            medal: medal.id().to_owned(),
+                            rank: rank.next().unwrap_or_default().number(),
+                        })
+                    }
+                    _ => PanelAction::None,
+                }
+            }
+            token
                 if (TAKE_BASE..TAKE_BASE + crate::medals::Medal::COUNT as u16).contains(&token) =>
             {
                 let medal = crate::medals::Medal::ALL[usize::from(token - TAKE_BASE)];
@@ -1065,6 +1089,7 @@ mod tests {
                 count: 1,
                 awarded: 1,
                 note: String::new(),
+                rank: 1,
             }],
             achievements: vec![Achievement {
                 id: "first_blood".into(),
@@ -1228,7 +1253,7 @@ mod tests {
     fn medals_are_given_and_taken_back_as_the_catalogue_allows() {
         let (mut panel, me, _) = drawn(Vec::new());
         panel.note = "  found the fog bug ".into();
-        // Early Tester is held and not repeatable: no second one.
+        // Tester is held and not repeatable: no second one.
         assert_eq!(panel.activate(GIVE_BASE), PanelAction::None);
         assert_eq!(
             panel.activate(TAKE_BASE),
@@ -1247,6 +1272,37 @@ mod tests {
         );
         // Not held: nothing to take back.
         assert_eq!(panel.activate(TAKE_BASE + 2), PanelAction::None);
+    }
+
+    #[test]
+    fn a_held_medals_rank_steps_up_and_round() {
+        let (mut panel, me, _) = drawn(Vec::new());
+        let _ = panel.activate(REWARDS_TAB_TOKEN);
+        redraw(&mut panel, &me, Vec::new());
+        assert!(panel.order.contains(&RANK_BASE), "Tester is held");
+        assert!(!panel.order.contains(&(RANK_BASE + 2)), "Bug Hunter is not");
+        assert_eq!(
+            panel.activate(RANK_BASE),
+            PanelAction::Request(StaffRequest::MedalRank {
+                key_id: me.key_id.clone(),
+                medal: "early_tester".into(),
+                rank: 2,
+            })
+        );
+        assert_eq!(panel.activate(RANK_BASE + 2), PanelAction::None);
+        // At rank V the next press goes back to I.
+        let mut solar = me.clone();
+        solar.medals[0].rank = 5;
+        redraw(&mut panel, &solar, Vec::new());
+        assert_eq!(
+            panel.activate(RANK_BASE),
+            PanelAction::Request(StaffRequest::MedalRank {
+                key_id: me.key_id.clone(),
+                medal: "early_tester".into(),
+                rank: 1,
+            })
+        );
+        assert!(owner_only(RANK_BASE));
     }
 
     #[test]

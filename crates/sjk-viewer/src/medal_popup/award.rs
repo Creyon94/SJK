@@ -290,7 +290,21 @@ impl Stage {
 
     /// Draw the medal and its light `t` seconds after it arrived (and `exit` seconds
     /// after it began to leave) on `canvas`.
+    #[cfg(test)]
     pub(crate) fn draw(&self, canvas: &mut MenuCanvas, t: f32, exit: Option<f32>) {
+        self.draw_ranked(canvas, t, exit, crate::medals::Rank::Issued, t);
+    }
+
+    /// [`Self::draw`] with the medal at `rank`, its rank's light `seconds` into its own
+    /// clock (`medals/rank.rs`).
+    pub(crate) fn draw_ranked(
+        &self,
+        canvas: &mut MenuCanvas,
+        t: f32,
+        exit: Option<f32>,
+        rank: crate::medals::Rank,
+        seconds: f32,
+    ) {
         let moment = Moment::at(t, exit);
         let size = self.rect.width;
         let unit = size / 340.0;
@@ -367,13 +381,24 @@ impl Stage {
             }
         }
 
-        // The medal itself, then a band of light crossing it.
+        // The medal itself at its rank, then a band of light crossing it.
         let drawn = self.drawn(&moment);
-        let _ = list.push(DrawCommand::TexturedQuad {
-            rect: drawn,
-            texture: self.texture,
-            color: Color::new(1.0, 1.0, 1.0, moment.medal),
-        });
+        match crate::medals::Medal::from_art(self.texture) {
+            Some(medal) => crate::medals::rank::draw_art(
+                list,
+                crate::medals::rank::Art {
+                    alpha: moment.medal,
+                    ..crate::medals::rank::Art::new(medal, rank, drawn, seconds)
+                },
+            ),
+            None => {
+                let _ = list.push(DrawCommand::TexturedQuad {
+                    rect: drawn,
+                    texture: self.texture,
+                    color: Color::new(1.0, 1.0, 1.0, moment.medal),
+                });
+            }
+        }
         if let Some((at, strength)) = glint(t) {
             shine(list, drawn, self.texture, at, strength);
         }
@@ -480,6 +505,19 @@ const SHINE_ALPHA: f32 = 0.75;
 /// width, `strength` at most 1: the picture's own strips drawn again brighter, most
 /// in the band's middle, so the light follows the medal's shape and not a box.
 fn shine(list: &mut sjk_ui::DrawList, rect: Rect, texture: TextureId, at: f32, strength: f32) {
+    band(list, rect, texture, at, strength, SHINE_TINT);
+}
+
+/// [`shine`]'s band tinted `tint` (past white, so it brightens): a medal's Polished
+/// rank sweeps its own colour across it this way (`medals/rank.rs`).
+pub(crate) fn band(
+    list: &mut sjk_ui::DrawList,
+    rect: Rect,
+    texture: TextureId,
+    at: f32,
+    strength: f32,
+    tint: [f32; 3],
+) {
     let strip = SHINE_WIDTH / SHINE_STRIPS as f32;
     for index in 0..SHINE_STRIPS {
         let from = at - SHINE_WIDTH * 0.5 + strip * index as f32;
@@ -489,7 +527,7 @@ fn shine(list: &mut sjk_ui::DrawList, rect: Rect, texture: TextureId, at: f32, s
         }
         let middle = (index as f32 + 0.5) / SHINE_STRIPS as f32;
         let profile = 1.0 - (2.0 * middle - 1.0).abs();
-        let [r, g, b] = SHINE_TINT;
+        let [r, g, b] = tint;
         let _ = list.push(DrawCommand::TexturedQuadUv {
             rect: Rect::new(
                 rect.x + left * rect.width,
@@ -677,7 +715,7 @@ mod tests {
     #[test]
     fn the_band_of_light_lies_on_the_medal() {
         let rect = Rect::new(100.0, 50.0, 300.0, 300.0);
-        let texture = crate::medals::Medal::EarlyTester.art();
+        let texture = crate::medals::Medal::Tester.art();
         for at in [-0.2, 0.0, 0.3, 0.5, 0.97, 1.2] {
             let mut list = sjk_ui::DrawList::new(16);
             shine(&mut list, rect, texture, at, 1.0);

@@ -3775,7 +3775,7 @@ the file (Sol JK, Contributors, Art, Made with, Origins) is a heading with its p
 - A card's medals (credits.txt `medal:` lines, the hub's ids:
   [identity.md](identity.md#medals)) show on it: a chip with the medallion and the
   name after the counts (under the role on a card without a history). Creyon and
-  Lumaya wear Early Contributor.
+  Lumaya wear Contributor.
 
 The page is animated from the clock alone. Golden god rays turn slowly down from
 above the top of the screen, two sets against each other so the shafts shimmer
@@ -3955,9 +3955,11 @@ are in [identity.md](identity.md).
   Right, Escape or a click finish the entrance, then take Next or Close. It has the
   SJK UI's look with its menus and the classic+ look with the classic ones
   ([identity.md](identity.md#medals), [sjk-ui.md](sjk-ui.md#new-medal)).
-- `debug_medal <id> [x<count>] [note]` (`debug_medal all [note]` for every medal,
-  alone it lists the ids: `early_tester`, `early_contributor`, `bug_hunter`; a count
-  is only for a repeatable medal, and none is since 21/10/2026) shows made-up medals as if the SJK team had just given them, through
+- `debug_medal <id> [x<count>] [r<rank>] [note]` (`debug_medal all [note]` for every
+  medal, `debug_medal <id> ranks` for one at ranks I to V one after another, alone it
+  lists the ids: `early_tester`, `early_contributor`, `bug_hunter`, `supporter`; a count
+  is only for a repeatable medal, and none is since 21/10/2026; a rank above 1 arrives as
+  a promotion, [identity.md](identity.md#medal-ranks)) shows made-up medals as if the SJK team had just given them, through
   the same queue, card (in a match), pop-up, ceremony and sound, to try them without the
   hub. It sends nothing and never writes `medals_seen.txt`; the console
   closes so the pop-up shows at once on the main menu (in a match, open the game

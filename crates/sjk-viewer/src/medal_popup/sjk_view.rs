@@ -85,7 +85,7 @@ impl MedalPopup {
         });
         // A click anywhere acts as the button; the button itself is drawn over it.
         ui.hit_region(SCREEN_TOKEN, screen);
-        stage(&frame, &view).draw(ui, view.t, view.exit);
+        stage(&frame, &view).draw_ranked(ui, view.t, view.exit, view.award.rank, view.seconds);
         let moment = Moment::at(view.t, view.exit);
         words(ui, &frame, body, &view, &moment);
         ui.finish(NEXT_TOKEN);
@@ -164,7 +164,7 @@ fn words(ui: &mut MenuCanvas, frame: &Frame, body: &UiFont, view: &View<'_>, mom
                 ui,
                 frame,
                 TextFamily::Display,
-                format_args!("{} \u{b7} {at} of {of}", crate::terms::say("New medal")),
+                format_args!("{} \u{b7} {at} of {of}", view.kicker(false)),
                 KICKER_Y + rise,
                 KICKER_SIZE,
                 color::GOLD_BRIGHT,
@@ -174,7 +174,7 @@ fn words(ui: &mut MenuCanvas, frame: &Frame, body: &UiFont, view: &View<'_>, mom
                 ui,
                 frame,
                 TextFamily::Display,
-                format_args!("{}", crate::terms::say("New medal")),
+                format_args!("{}", view.kicker(false)),
                 KICKER_Y + rise,
                 KICKER_SIZE,
                 color::GOLD_BRIGHT,
@@ -355,7 +355,7 @@ mod tests {
                 for medal in Medal::ALL {
                     for others in [0, 3] {
                         let mut awards = vec![award(medal, &note)];
-                        awards.extend((0..others).map(|_| award(Medal::EarlyContributor, "")));
+                        awards.extend((0..others).map(|_| award(Medal::Contributor, "")));
                         for viewport in VIEWPORTS {
                             for (at, leaving) in MOMENTS {
                                 let mut popup = popup(awards.clone(), at, leaving);
@@ -364,7 +364,7 @@ mod tests {
                                 assert!(!ui.overflowed(), "{medal:?} {at} {viewport:?}");
                                 let (runs, slots) = ui.text_budget();
                                 assert!(runs < slots, "{runs} text runs");
-                                assert!(ui.draw_list().len() < 260, "{}", ui.draw_list().len());
+                                assert!(ui.draw_list().len() < 300, "{}", ui.draw_list().len());
                                 let button = ui.rect_for(NEXT_TOKEN).expect("the button");
                                 let frame = Frame::new(viewport);
                                 let keys = frame.point(KEYS_RIGHT, KEYS_Y)[1];
@@ -427,10 +427,7 @@ mod tests {
         let viewport = [1920.0, 1080.0];
         let mut popup = MedalPopup::default();
         popup.set_style(MenuStyle::Sjk, crate::menu::art::ArtSet::default());
-        popup.rehearse(vec![
-            award(Medal::EarlyTester, ""),
-            award(Medal::BugHunter, ""),
-        ]);
+        popup.rehearse(vec![award(Medal::Tester, ""), award(Medal::BugHunter, "")]);
         let start = Instant::now();
         popup.open_next(start);
         popup.update(start, true, true);

@@ -1044,12 +1044,17 @@ impl Panel {
             }
             y += 16.0;
         }
+        let seconds = self.epoch.elapsed().as_secs_f32();
         for award in medals.iter().take(MEDALS_SHOWN) {
-            let _ = self.ui.draw_list_mut().push(DrawCommand::TexturedQuad {
-                rect: frame.rect(RIGHT_X, y, 84.0, 84.0),
-                texture: award.medal.art(),
-                color: Color::new(1.0, 1.0, 1.0, 1.0),
-            });
+            crate::medals::rank::draw_art(
+                self.ui.draw_list_mut(),
+                crate::medals::rank::Art::new(
+                    award.medal,
+                    award.rank,
+                    frame.rect(RIGHT_X, y, 84.0, 84.0),
+                    seconds,
+                ),
+            );
             text(
                 &mut self.ui,
                 TextFamily::Display,
@@ -1060,18 +1065,10 @@ impl Panel {
                 FontWeight::Semibold,
                 TextAlign::Start,
             );
-            let given = award.given();
             text(
                 &mut self.ui,
                 TextFamily::Body,
-                format_args!(
-                    "{}",
-                    if given.is_empty() {
-                        award.medal.description()
-                    } else {
-                        &given
-                    }
-                ),
+                format_args!("{}", award.rank_and_given()),
                 frame.rect(RIGHT_X + 98.0, y + 40.0, RIGHT_WIDTH - 98.0, 24.0),
                 15.0 * s,
                 color::MUTED,
@@ -1366,6 +1363,7 @@ mod tests {
                     count: 3,
                     awarded: 1_759_900_000,
                     note: "a note".to_owned(),
+                    rank: 1,
                 })
                 .collect(),
             achievements: Vec::new(),

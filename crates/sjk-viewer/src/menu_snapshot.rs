@@ -1643,6 +1643,7 @@ fn player_card_profile(shots: &mut Snapshot) {
         count: 2,
         awarded: 0,
         note: String::new(),
+        rank: 1,
     };
     for (name, pinned, jkr_creator) in [
         ("player-card-profile", false, false),
@@ -2622,6 +2623,65 @@ fn medal_icons(icons: &mut HashMap<u32, RgbaImage>) {
     }
 }
 
+/// The five medal ranks side by side (`medals/rank.rs`), drawn by the snapshots' own
+/// rasteriser on a dark ground (no game data): Tester at ranks I to V with the effects
+/// on, mid-sweep, then the same with `ui_rarityEffects 0` (still, the device on the
+/// ribbon), then a scoreboard ribbon bar of each medal wearing each rank's device, large.
+/// The tilt of rank III and up is a transform this rasteriser leaves out.
+#[test]
+#[ignore = "writes target/menu-snapshots/medal-ranks.png to look at"]
+fn medal_ranks_snapshot() {
+    use crate::medals::Medal;
+    use crate::medals::rank::{self, Art, Rank};
+    let (width, height) = (1_500_u32, 980_u32);
+    let mut image = RgbaImage::from_pixel(width, height, image::Rgba([14, 16, 24, 255]));
+    let mut icons = HashMap::new();
+    medal_icons(&mut icons);
+    let font = crate::text::load_modern(1.0, None).expect("build the menu font");
+    let mut list = DrawList::new(2_048);
+    // A moment in the middle of the Polished sweep's crossing for Tester.
+    let seconds = (0..2_000)
+        .map(|step| step as f32 * 0.01)
+        .find(|seconds| {
+            crate::rarity_fx::sheen_travel_from(0.0, *seconds)
+                .is_some_and(|travel| (travel - 0.5).abs() < 0.02)
+        })
+        .expect("a crossing");
+    for (row, on) in [(0, true), (1, false)] {
+        for (column, rank) in Rank::ALL.into_iter().enumerate() {
+            let rect = Rect::new(
+                30.0 + column as f32 * 290.0,
+                20.0 + row as f32 * 320.0,
+                280.0,
+                280.0,
+            );
+            rank::draw_art_as(&mut list, Art::new(Medal::Tester, rank, rect, seconds), on);
+        }
+    }
+    for (row, medal) in Medal::ALL.into_iter().enumerate() {
+        for (column, rank) in Rank::ALL.into_iter().enumerate() {
+            let bar = Rect::new(
+                100.0 + column as f32 * 290.0,
+                680.0 + row as f32 * 70.0,
+                120.0,
+                40.0,
+            );
+            crate::scoreboard::identity_mark::ribbon(medal, bar, |command| {
+                let _ = list.push(command);
+            });
+            rank::ribbon_device(rank, bar, |command| {
+                let _ = list.push(command);
+            });
+        }
+    }
+    raster(&mut image, &list, &[], &font.image, &icons);
+    let directory = workspace_root().join("target/menu-snapshots");
+    std::fs::create_dir_all(&directory).expect("create the snapshot directory");
+    let path = directory.join("medal-ranks.png");
+    image.save(&path).expect("write the snapshot");
+    println!("{}", path.display());
+}
+
 /// Made-up medals as the hub sends them in a profile.
 fn shot_medals() -> Vec<sjk_identity::Medal> {
     let medal = |id: &str, count, awarded, note: &str| sjk_identity::Medal {
@@ -2629,6 +2689,7 @@ fn shot_medals() -> Vec<sjk_identity::Medal> {
         count,
         awarded,
         note: note.to_owned(),
+        rank: 1,
     };
     vec![
         medal("early_tester", 1, 1_790_208_000, ""),
