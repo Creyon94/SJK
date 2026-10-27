@@ -772,12 +772,22 @@ impl super::GpuState {
             return;
         };
         // `CG_Weapon_f` uses slot 1 as the saber toggle when the saber is
-        // already selected (`cg_weapons.c:1538-1545`).
-        if slot == 1
-            && session.latest_snapshot().player.weapon() == 3
-            && session.latest_snapshot().player.weapon_time() < 1
-        {
-            self.pending_generic_command = GENCMD_SABER_SWITCH;
+        // already selected (`cg_weapons.c:1538-1545`), and a press while
+        // `weaponTime` runs does nothing, rather than picking another weapon.
+        // JoF EJK reads the predicted state there, not the snapshot (hub report
+        // 172): a snapshot's `weaponTime` is a round trip old, still running (a
+        // swing, the holster's 400 ms) when the server would already take it.
+        let snapshot = &session.latest_snapshot().player;
+        let (weapon, weapon_time) = self
+            .local_prediction
+            .predicted_state()
+            .map_or((snapshot.weapon(), snapshot.weapon_time()), |state| {
+                (state.weapon, state.weapon_time)
+            });
+        if slot == 1 && weapon == 3 {
+            if weapon_time < 1 {
+                self.pending_generic_command = GENCMD_SABER_SWITCH;
+            }
             return;
         }
         let inventory =

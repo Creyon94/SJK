@@ -37,6 +37,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Animated skies move again: a sky shader's own stages (scrolling clouds and the like) are drawn over its sky box as a cloud layer, as in the original game, instead of only the box _(Sol, after JKA)_
 - Maps compiled with external lightmaps (q3map2 `-external`, `lm_0000.tga` pages beside the map) load and are lit, instead of failing with "Surfaces record ... references ..., outside 0..0" _(Sol, after EJK)_
 - Mystery boxes: SJK's creator places boxes on maps, and any SJK player opens one with Use for 100 credits: a little music box tune plays while weapons and crystals roll over the box, slowing to a stop on what came out (empty, your credits back, double or a jackpot), which floats there until you take it with Use (or it is taken for you after 10 seconds). Everyone around sees and hears it; `mysterybox_list` shows the boxes on the map, and Settings > Sound > Toys silences them (`s_toyMysteryBoxSound`) _(Sol)_
+- Key 1 switches the saber on or off as soon as the server would let it, no longer a round trip later, and a press that is too early never picks another weapon. Chat you type no longer waits behind the scoreboard's requests _(Slash)_
 
 ## 2026.1027.1 (Alpha) | 27/10/2026
 
