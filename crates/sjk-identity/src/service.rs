@@ -912,11 +912,6 @@ impl Held {
     }
 }
 
-/// The refusal of anything sent before the hub answered the registration.
-fn not_connected() -> HubError {
-    HubError::Protocol("not connected to the hub (is identity on, cl_identity 1?)".to_owned())
-}
-
 /// What the player is told of a report or a note: what the hub stored it as, or why
 /// it did not.
 /// A hub from before pictures has no `/v1/avatar`: say so in words rather than as the
@@ -1239,6 +1234,24 @@ impl Worker {
         }
     }
 
+    /// The refusal of anything sent before the hub answered the registration, saying
+    /// why: the identity off, no hub, or (most often) the registration not answered
+    /// yet, just after the game starts or while a failed one waits to try again. Only
+    /// the first is the player's to fix ("is identity on, cl_identity 1?" was shown
+    /// to verified players who joined a server too soon).
+    fn not_connected(&self) -> HubError {
+        let message = if !self.settings.enabled {
+            "the SJK identity is off: turn it on with cl_identity 1".to_owned()
+        } else if self.hub.is_none() {
+            "no SJK hub to send to: check cl_hubUrl".to_owned()
+        } else if let Status::Failed(why) = &lock(&self.snapshot).status {
+            format!("not connected to the hub yet ({why}): it tries again shortly")
+        } else {
+            "not connected to the hub yet: try again in a moment".to_owned()
+        };
+        HubError::NotConnected(message)
+    }
+
     /// Put what became of a message or an emote where the chat shows it.
     fn chat_outcome(&self, outcome: Result<String, HubError>) {
         let mut chat = lock_chat(&self.chat);
@@ -1291,7 +1304,7 @@ impl Worker {
                     }
                     sent.map(|_| String::new())
                 }
-                _ => Err(not_connected()),
+                _ => Err(self.not_connected()),
             },
         };
         self.chat_outcome(outcome);
@@ -1311,7 +1324,7 @@ impl Worker {
                 code: "not_verified".to_owned(),
                 message: "only verified SJK players can ban from the chat".to_owned(),
             }),
-            _ => Err(not_connected()),
+            _ => Err(self.not_connected()),
         };
         let mut chat = lock_chat(&self.chat);
         let serial = chat.ban.as_ref().map_or(1, |last| last.serial + 1);
@@ -1357,7 +1370,7 @@ impl Worker {
                 }
                 .map(|_| String::new())
             }
-            _ => Err(not_connected()),
+            _ => Err(self.not_connected()),
         };
         self.chat_outcome(outcome);
     }
@@ -1378,7 +1391,7 @@ impl Worker {
             (Some(hub), true, Some(server)) => hub
                 .ping(&self.identity, &server, pos, scope)
                 .map(|_| String::new()),
-            _ => Err(not_connected()),
+            _ => Err(self.not_connected()),
         };
         let mut last = crate::feed::lock(&self.ping_outcome);
         let serial = last.as_ref().map_or(1, |last| last.serial + 1);
@@ -1583,8 +1596,12 @@ impl Worker {
         self.saber2_unknown = None;
         self.extras_unknown = None;
         self.update(Snapshot::clear_me);
-        // Another hub's news, or none.
+        // Another hub's news, or none; a failure from before is not this hub's, and
+        // the next tick says where the new settings stand.
         self.update(|snapshot| {
+            if matches!(snapshot.status, Status::Failed(_)) {
+                snapshot.status = Status::Registering;
+            }
             if !snapshot.announcements.is_empty() {
                 snapshot.announcements.clear();
                 snapshot.announcements_revision += 1;
@@ -1611,9 +1628,7 @@ impl Worker {
     fn note(&mut self, tag: u64, note: &WorldNote) {
         let outcome = match (self.hub.as_mut(), self.registered) {
             (Some(hub), true) => hub.note(&self.identity, note),
-            _ => Err(HubError::Protocol(
-                "not connected to the hub (is identity on, cl_identity 1?)".to_owned(),
-            )),
+            _ => Err(self.not_connected()),
         };
         if let Ok(id) = outcome {
             if self.notes_sent.len() >= NOTES_AWAITING_PICTURES {
@@ -1642,9 +1657,7 @@ impl Worker {
     fn report(&mut self, report: &BugReport) {
         let outcome = match (self.hub.as_mut(), self.registered) {
             (Some(hub), true) => hub.report(&self.identity, report),
-            _ => Err(HubError::Protocol(
-                "not connected to the hub (is identity on, cl_identity 1?)".to_owned(),
-            )),
+            _ => Err(self.not_connected()),
         };
         self.update(|snapshot| {
             let serial = snapshot.report.as_ref().map_or(1, |last| last.serial + 1);
@@ -1669,9 +1682,7 @@ impl Worker {
                 code: "not_verified".to_owned(),
                 message: "only verified SJK players can report players".to_owned(),
             }),
-            _ => Err(HubError::Protocol(
-                "not connected to the hub (is identity on, cl_identity 1?)".to_owned(),
-            )),
+            _ => Err(self.not_connected()),
         };
         self.update(|snapshot| {
             let serial = snapshot
@@ -1696,7 +1707,7 @@ impl Worker {
             }),
             (Some(hub), true, Some(png)) => hub.set_avatar(&self.identity, png),
             (Some(hub), true, None) => hub.remove_avatar(&self.identity),
-            _ => Err(not_connected()),
+            _ => Err(self.not_connected()),
         }
         .map_err(older_hub);
         self.update(|snapshot| {
@@ -1727,7 +1738,7 @@ impl Worker {
                 message: "there is no holocron to open".to_owned(),
             }),
             (Some(hub), true) => hub.open_holocrons(&self.identity, ids),
-            _ => Err(not_connected()),
+            _ => Err(self.not_connected()),
         };
         if let Err(HubError::Rejected { code, .. }) = &outcome
             && (code == "holocron_opened" || code == "not_found")
@@ -1765,7 +1776,7 @@ impl Worker {
     fn reveal_cards(&mut self) {
         let outcome = match (self.hub.as_mut(), self.registered) {
             (Some(hub), true) => hub.reveal_cards(&self.identity),
-            _ => Err(not_connected()),
+            _ => Err(self.not_connected()),
         };
         self.update(|snapshot| {
             let serial = snapshot.reveal.as_ref().map_or(1, |last| last.serial + 1);
@@ -1830,7 +1841,7 @@ impl Worker {
                     (answer.bought.price, 0, Some(credits), None, answer.profile)
                 }),
             },
-            _ => Err(not_connected()),
+            _ => Err(self.not_connected()),
         };
         let reread =
             matches!(&outcome, Err(HubError::Rejected { code, .. }) if code == "not_on_offer");
@@ -1887,7 +1898,7 @@ impl Worker {
     fn read_shop(&mut self, now: Instant) {
         let outcome = match (self.hub.as_mut(), self.registered) {
             (Some(hub), true) => hub.shop(&self.identity),
-            _ => Err(not_connected()),
+            _ => Err(self.not_connected()),
         };
         self.update(|snapshot| {
             let serial = snapshot.shop.as_ref().map_or(1, |last| last.serial + 1);
@@ -1976,9 +1987,7 @@ impl Worker {
                 code: "not_staff".to_owned(),
                 message: "only SJK staff can do this".to_owned(),
             }),
-            _ => Err(HubError::Protocol(
-                "not connected to the hub (is identity on, cl_identity 1?)".to_owned(),
-            )),
+            _ => Err(self.not_connected()),
         };
         let mut staff = self
             .staff
@@ -2041,7 +2050,7 @@ impl Worker {
                 code: "not_staff".to_owned(),
                 message: "only SJK staff can do this".to_owned(),
             }),
-            _ => Err(not_connected()),
+            _ => Err(self.not_connected()),
         };
         let mut staff = self
             .staff
@@ -2119,7 +2128,7 @@ impl Worker {
             (Some(hub), true, None) => hub
                 .decline_logs(&self.identity, id)
                 .map(|()| "declined".to_owned()),
-            _ => Err(not_connected()),
+            _ => Err(self.not_connected()),
         };
         // Not reached: the request comes back with the next listing, to answer again.
         if matches!(outcome, Err(HubError::Network(_))) {
@@ -2313,7 +2322,7 @@ impl Worker {
     fn claim_reward(&mut self, id: u64, now: Instant) {
         let outcome = match (self.hub.as_mut(), self.registered) {
             (Some(hub), true) => hub.claim_reward(&self.identity, id),
-            _ => Err(not_connected()),
+            _ => Err(self.not_connected()),
         };
         let message = match outcome {
             Ok(answer) => {
@@ -2353,7 +2362,7 @@ impl Worker {
             }),
             Ok(checked) => match (self.hub.as_mut(), self.registered) {
                 (Some(hub), true) => hub.announce(&self.identity, &checked),
-                _ => Err(not_connected()),
+                _ => Err(self.not_connected()),
             },
         };
         let outcome = outcome.map(|announcement| {
@@ -2446,7 +2455,7 @@ impl Worker {
                 (None, Some(to)) => hub.trade_ask(&self.identity, to),
                 (None, None) => return,
             },
-            _ => Err(not_connected()),
+            _ => Err(self.not_connected()),
         };
         let problem = match outcome {
             Ok(answer) => {
@@ -5205,7 +5214,7 @@ mod tests {
         let (mut worker, snapshot) = worker(&fake, t0);
         worker.handle(Command::Shatter("saber_tidal".to_owned()), t0);
         let first = lock(&snapshot).trade.clone().unwrap();
-        assert!(!first.done() && first.message.contains("not connected"));
+        assert!(!first.done() && first.message.contains("cl_identity 1"));
         assert!(
             fake.log().is_empty(),
             "nothing goes before the registration"
@@ -5307,7 +5316,7 @@ mod tests {
         let (mut worker, snapshot) = worker(&fake, t0);
         worker.handle(Command::RevealCards, t0);
         let first = lock(&snapshot).reveal.clone().unwrap();
-        assert!(first.revealed.is_empty() && first.message.contains("not connected"));
+        assert!(first.revealed.is_empty() && first.message.contains("cl_identity 1"));
         assert!(
             fake.log().is_empty(),
             "nothing goes before the registration"
@@ -5332,7 +5341,7 @@ mod tests {
         let (mut worker, snapshot) = worker(&fake, t0);
         worker.handle(Command::OpenHolocrons(vec![7]), t0);
         let first = lock(&snapshot).opening.clone().unwrap();
-        assert!(first.opened.is_empty() && first.message.contains("not connected"));
+        assert!(first.opened.is_empty() && first.message.contains("cl_identity 1"));
         assert!(
             fake.log().is_empty(),
             "nothing goes before the registration"
@@ -5384,7 +5393,7 @@ mod tests {
         let (mut worker, snapshot) = worker(&fake, t0);
         worker.handle(Command::SetAvatar(vec![1; 300]), t0);
         let first = lock(&snapshot).avatar.clone().unwrap();
-        assert!(!first.sent && first.message.contains("not connected"));
+        assert!(!first.sent && first.message.contains("cl_identity 1"));
         assert!(
             fake.log().is_empty(),
             "nothing goes before the registration"
@@ -5432,7 +5441,7 @@ mod tests {
         let (mut worker, snapshot) = worker(&fake, t0);
         worker.handle(Command::Chat("hello".into()), t0);
         let first = chat_outcome(&worker);
-        assert!(!first.sent && first.message.contains("not connected"));
+        assert!(!first.sent && first.message.contains("cl_identity 1"));
         worker.handle(Command::Name("^2Sol".into()), t0);
         worker.handle(Command::Configure(on("https://hub")), t0);
         worker.tick(t0);
@@ -7130,7 +7139,7 @@ mod tests {
         // Before registering, nothing is sent and the outcome says why.
         worker.handle(Command::Report(report.clone()), t0);
         let first = lock(&snapshot).report.clone().unwrap();
-        assert!(!first.sent && first.message.contains("not connected"));
+        assert!(!first.sent && first.message.contains("cl_identity 1"));
         worker.handle(Command::Configure(on("https://hub")), t0);
         worker.tick(t0);
         worker.handle(Command::Report(report), t0);
@@ -7141,13 +7150,50 @@ mod tests {
     }
 
     #[test]
+    fn a_refusal_before_the_registration_says_why() {
+        let fake = Fake::default();
+        let t0 = Instant::now();
+        let (mut worker, _snapshot) = worker(&fake, t0);
+        worker.handle(Command::Chat("hello".into()), t0);
+        assert!(chat_outcome(&worker).message.contains("cl_identity 1"));
+        // On, the registration not answered yet: nothing for the player to change.
+        fake.fail.store(true, Ordering::SeqCst);
+        worker.handle(Command::Configure(on("https://hub")), t0);
+        worker.tick(t0);
+        worker.handle(Command::Chat("hello".into()), t0);
+        let waiting = chat_outcome(&worker);
+        assert!(
+            !waiting.sent
+                && waiting
+                    .message
+                    .starts_with("not connected to the hub yet (")
+        );
+        assert!(!waiting.message.contains("cl_identity"));
+        // Refused here, never by the hub: no hub code in what anyone prints.
+        let error = worker.not_connected();
+        assert!(matches!(error, HubError::NotConnected(_)));
+        assert!(
+            error
+                .to_string()
+                .starts_with("not connected to the hub yet (")
+        );
+        // A failure is the last hub's: new settings start without it.
+        assert!(matches!(lock(&_snapshot).status, Status::Failed(_)));
+        worker.handle(Command::Configure(on("https://other-hub")), t0);
+        assert!(!matches!(lock(&_snapshot).status, Status::Failed(_)));
+    }
+
+    #[test]
     fn chat_bans_go_only_from_a_verified_or_staff_key() {
         let fake = Fake::default();
         let t0 = Instant::now();
         let (mut worker, snapshot) = worker(&fake, t0);
         let ban = |worker: &Worker| lock_chat(&worker.chat).ban.clone().unwrap();
         worker.handle(Command::ChatBan("feedfacefeedface".into()), t0);
-        assert!(matches!(ban(&worker).result, Err(HubError::Protocol(_))));
+        assert!(matches!(
+            ban(&worker).result,
+            Err(HubError::NotConnected(_))
+        ));
         worker.handle(Command::Configure(on("https://hub")), t0);
         worker.tick(t0);
         lock(&snapshot).me.as_mut().unwrap().staff = false;
@@ -7202,7 +7248,7 @@ mod tests {
         };
         worker.handle(Command::PlayerReport(report.clone()), t0);
         let first = lock(&snapshot).player_report.clone().unwrap();
-        assert!(!first.sent && first.message.contains("not connected"));
+        assert!(!first.sent && first.message.contains("cl_identity 1"));
         worker.handle(Command::Name("^2Sol".into()), t0);
         worker.handle(Command::Configure(on("https://hub")), t0);
         worker.tick(t0);
