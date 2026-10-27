@@ -82,6 +82,7 @@ pub fn refusal(error: &HubError) -> &'static str {
             "target_trusted" => "Only staff can ban a trusted player",
             "not_found" => "The hub does not know this player",
             "bad_target" => "You cannot ban yourself",
+            "not_registered" => "Not connected to the SJK hub yet; try again in a moment",
             "unauthorized" | "clock" => "The hub did not take the request; try again",
             code if code.ends_with("quota") || code == "rate_limited" => {
                 "Too many requests; wait a moment"

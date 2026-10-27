@@ -51,7 +51,17 @@ vector that both test suites check, so a drift in either shows as a failing test
    it registers again with the new one. The hub keeps each key's worn names (20 most
    recent, with when it first and last saw each), and a profile's name is the one
    worn last unless the operator gave the key another. Nobody chooses a hub name, so
-   two keys may wear one name: the name proves nothing, the key does.
+   two keys may wear one name: the name proves nothing, the key does. A failed
+   registration is tried again after 10 seconds, doubling up to 2 minutes. Until the
+   hub answers, anything the player sends (SJK chat, emotes, reports, trades...) is
+   refused with why (`Worker::not_connected`): the identity off (`cl_identity 1`), no
+   hub (`cl_hubUrl`), or "not connected to the hub yet", with the last failure if
+   there was one. Before 27/10/2026 every case said "is identity on, cl_identity 1?",
+   which misled verified players who joined a server before the registration had been
+   answered. Each change of the service's status goes to `session.log` once
+   (`player_identity::log_status`): `identity: registering with the hub`, `identity:
+   registered with the hub`, or `identity: hub request failed: ...` with the error (a
+   hub's 429 shows as `the hub refused it (rate_limited)` or its quota's code).
 3. While the client is in a live, non-local session, the thread repeats a *claim*
    every 45 seconds: "this key is in slot N of server S, shown as NAME". Claims
    live 90 seconds at the hub and are withdrawn when the player leaves or quits. A claim
