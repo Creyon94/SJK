@@ -95,6 +95,19 @@ pub type MapEditsPublished = Result<(String, i32, u64), String>;
 
 /// How often the hub's list of map edits is read while registered.
 const MAP_EDITS_EVERY: Duration = Duration::from_secs(600);
+/// How often the hub's mystery boxes are read while registered.
+const MYSTERY_BOXES_EVERY: Duration = Duration::from_secs(600);
+
+/// What a mystery box request did ([`Snapshot::mystery_box`]).
+#[derive(Clone, Debug, PartialEq)]
+pub enum BoxDone {
+    /// The box was opened: what came out.
+    Opened(crate::mystery_box::Opened),
+    /// SJK's creator placed a box: its id.
+    Placed(i64),
+    /// SJK's creator removed box `id`.
+    Removed(i64),
+}
 /// How often the hub's list of asset packs is read while registered.
 const ASSETS_EVERY: Duration = Duration::from_secs(6 * 3_600);
 /// First wait after an asset check fell short, doubled up to [`ASSETS_EVERY`].
@@ -236,6 +249,13 @@ pub struct Snapshot {
     /// The hub's answer to the last [`Service::publish_map_edits`], by serial: the map,
     /// the checksum and the new revision, or why it was refused.
     pub map_edits_published: Option<(u64, MapEditsPublished)>,
+    /// The hub's mystery boxes, once read ([`Service::open_mystery_box`]).
+    pub mystery_boxes: Option<crate::mystery_box::Boxes>,
+    /// Counts the times [`Snapshot::mystery_boxes`] changed.
+    pub mystery_boxes_revision: u64,
+    /// The answer to the last mystery box request, by serial, or why it was refused
+    /// (in the player's words).
+    pub mystery_box: Option<(u64, Result<BoxDone, String>)>,
     /// Counts crash reports the hub took ([`Service::send_crashes`]).
     pub crashes_sent: u64,
     /// What the last round of crash reports did, for the log, once a round sent,
@@ -571,6 +591,9 @@ impl Snapshot {
             assets_note: None,
             map_edits_revision: 0,
             map_edits_published: None,
+            mystery_boxes: None,
+            mystery_boxes_revision: 0,
+            mystery_box: None,
             crashes_sent: 0,
             crash_note: None,
             holocrons: None,
@@ -676,6 +699,15 @@ enum Command {
     AssetsDir(PathBuf),
     /// The folder map edits are kept in ([`crate::map_edits`]).
     MapEditsDir(PathBuf),
+    /// Open mystery box `id` on `server`.
+    OpenMysteryBox {
+        id: i64,
+        server: String,
+    },
+    /// SJK's creator: place a mystery box (its id is ignored).
+    PlaceMysteryBox(crate::mystery_box::MysteryBox),
+    /// SJK's creator: remove mystery box `id`.
+    RemoveMysteryBox(i64),
     /// Staff: publish a map's edits.
     PublishMapEdits {
         map: String,
@@ -826,6 +858,9 @@ struct Worker {
     due_map_edits: Instant,
     /// Serial of the last map edits publication.
     map_edits_serial: u64,
+    /// When the hub's mystery boxes are next read, and the last request's serial.
+    due_mystery_boxes: Instant,
+    mystery_box_serial: u64,
     /// The folder crash reports wait in; without one none is sent.
     crash_dir: Option<PathBuf>,
     /// When the crash folder is next looked at.
@@ -1090,6 +1125,8 @@ impl Worker {
             map_edits_dir: None,
             due_map_edits: now,
             map_edits_serial: 0,
+            due_mystery_boxes: now,
+            mystery_box_serial: 0,
             crash_dir: None,
             due_crashes: now,
             due_assets: now,
@@ -1485,6 +1522,18 @@ impl Worker {
                 checksum,
                 edits,
             } => self.publish_map_edits(&map, checksum, &edits, now),
+            Command::OpenMysteryBox { id, server } => self.mystery_box(now, |hub, identity| {
+                hub.open_mystery_box(identity, id, &server)
+                    .map(|answer| (BoxDone::Opened(answer.opened), Some(answer.profile)))
+            }),
+            Command::PlaceMysteryBox(placed) => self.mystery_box(now, |hub, identity| {
+                hub.place_mystery_box(identity, &placed)
+                    .map(|id| (BoxDone::Placed(id), None))
+            }),
+            Command::RemoveMysteryBox(id) => self.mystery_box(now, |hub, identity| {
+                hub.remove_mystery_box(identity, id)
+                    .map(|_| (BoxDone::Removed(id), None))
+            }),
             Command::Crashes(dir) => {
                 if self.crash_dir != dir {
                     self.crash_dir = dir;
@@ -2155,6 +2204,7 @@ impl Worker {
         self.keep_rewards(now);
         self.keep_assets(now);
         self.keep_map_edits(now);
+        self.keep_mystery_boxes(now);
         self.send_crashes(now);
         let mut wait = IDLE_MAX;
         if self.location.is_some() {
@@ -2186,6 +2236,9 @@ impl Worker {
         }
         if self.map_edits_dir.is_some() {
             wait = wait.min(self.due_map_edits.saturating_duration_since(now));
+        }
+        if self.registered {
+            wait = wait.min(self.due_mystery_boxes.saturating_duration_since(now));
         }
         if self.crash_dir.is_some() {
             wait = wait.min(self.due_crashes.saturating_duration_since(now));
@@ -2497,6 +2550,65 @@ impl Worker {
         if refresh.changed > 0 {
             self.update(|snapshot| snapshot.map_edits_revision += refresh.changed as u64);
         }
+    }
+
+    /// Read the hub's mystery boxes once registered, if it is time: next time
+    /// [`MYSTERY_BOXES_EVERY`] later. Cosmetic: a failure keeps the last list.
+    fn keep_mystery_boxes(&mut self, now: Instant) {
+        if !self.registered || now < self.due_mystery_boxes {
+            return;
+        }
+        let Some(hub) = self.hub.as_mut() else {
+            return;
+        };
+        self.due_mystery_boxes = now + MYSTERY_BOXES_EVERY;
+        if let Ok(boxes) = hub.mystery_boxes(&self.identity) {
+            self.update(|snapshot| {
+                if snapshot.mystery_boxes.as_ref() != Some(&boxes) {
+                    snapshot.mystery_boxes = Some(boxes);
+                    snapshot.mystery_boxes_revision += 1;
+                }
+            });
+        }
+    }
+
+    /// Send a mystery box request: its outcome goes in [`Snapshot::mystery_box`], the
+    /// profile after it (an opening's) in [`Snapshot::me`]. The boxes are read again
+    /// at once after a placing or a removal, and after a box that is not there any more.
+    fn mystery_box(
+        &mut self,
+        now: Instant,
+        request: impl FnOnce(&mut dyn Hub, &Identity) -> Result<(BoxDone, Option<Profile>), HubError>,
+    ) {
+        self.mystery_box_serial += 1;
+        let serial = self.mystery_box_serial;
+        let outcome = match (self.hub.as_mut(), self.registered) {
+            (Some(hub), true) => request(hub.as_mut(), &self.identity),
+            _ => Err(not_connected()),
+        };
+        let reread = match &outcome {
+            Ok((BoxDone::Placed(_) | BoxDone::Removed(_), _)) => true,
+            Err(HubError::Rejected { code, .. }) => code == "no_such_box",
+            _ => false,
+        };
+        if reread {
+            self.due_mystery_boxes = now;
+        }
+        self.update(|snapshot| {
+            let outcome = match outcome {
+                Ok((done, profile)) => {
+                    if let Some(profile) = profile {
+                        if let Some(shop) = snapshot.shop.as_mut() {
+                            shop.day.credits = profile.credits;
+                        }
+                        snapshot.set_me(profile);
+                    }
+                    Ok(done)
+                }
+                Err(error) => Err(crate::mystery_box::refusal(&error)),
+            };
+            snapshot.mystery_box = Some((serial, outcome));
+        });
     }
 
     /// Send a map's edits for staff; the folder is read again at once after.
@@ -3242,6 +3354,23 @@ impl Service {
     /// [`Snapshot::map_edits_revision`] counts the documents changed.
     pub fn keep_map_edits(&self, directory: PathBuf) {
         let _ = self.commands.send(Command::MapEditsDir(directory));
+    }
+
+    /// Open mystery box `id`, which the player stands at on `server`: what came of it
+    /// arrives in [`Snapshot::mystery_box`], the credits after in the profile.
+    pub fn open_mystery_box(&self, id: i64, server: String) {
+        let _ = self.commands.send(Command::OpenMysteryBox { id, server });
+    }
+
+    /// SJK's creator: place `placed` (its id is ignored); the answer arrives in
+    /// [`Snapshot::mystery_box`] and the list is read again.
+    pub fn place_mystery_box(&self, placed: crate::mystery_box::MysteryBox) {
+        let _ = self.commands.send(Command::PlaceMysteryBox(placed));
+    }
+
+    /// SJK's creator: remove mystery box `id`.
+    pub fn remove_mystery_box(&self, id: i64) {
+        let _ = self.commands.send(Command::RemoveMysteryBox(id));
     }
 
     /// Staff: publish `edits` for `map` and `checksum`; the answer lands in

@@ -30,6 +30,10 @@ The site (site/assets/site.js, parseChangelog) reads the release headings,
 introductions and recap lines too.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
+## Unreleased
+
+- Mystery boxes: SJK's creator places boxes on maps, and any SJK player opens one with Use for 100 credits: it may be empty, give your credits back, double them or pay a jackpot. Everyone around sees and hears it open; `mysterybox_list` shows the boxes on the map, and Settings > Sound > Toys silences them (`s_toyMysteryBoxSound`) _(Sol)_
+
 ## 2026.1027.1 (Alpha) | 27/10/2026
 
 Faster Monitor hits, emote volume of its own, achievements that wait for the hub, and a lighter Sun blade.

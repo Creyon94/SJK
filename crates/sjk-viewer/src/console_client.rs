@@ -314,6 +314,7 @@ fn all_commands() -> impl Iterator<Item = &'static (&'static str, &'static str)>
         .chain(crate::saber_colour_command::COMMANDS)
         .chain(crate::saber_hilt_command::COMMANDS)
         .chain(crate::map_edits::editor::COMMANDS)
+        .chain(crate::mystery_box::COMMANDS)
         .chain(jof_commands())
 }
 
@@ -945,6 +946,9 @@ impl crate::GpuState {
             }
             name if crate::map_edits::editor::is_command(name) => {
                 return self.map_edit_command(name, args);
+            }
+            name if crate::mystery_box::is_command(name) => {
+                return self.mystery_box_command(name, args);
             }
             "speedometer" | "strafehelper" => {
                 return hud_commands::execute(

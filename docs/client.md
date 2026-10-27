@@ -4842,7 +4842,8 @@ Settings > Sound > Toys (Sol's request, 25/10/2026) sets how the toys sound on t
 "Toy volume" (`s_toyVolume`, 0 to 2, default 1, times the effects volume) scales every
 toy's sounds, and a switch per toy silences that toy's sounds alone, the player's own
 and everyone else's (`s_toyBoxSound`, `s_toyOrder66Sound`, `s_toyHaxSound`,
-`s_toyRagdollSound`, `s_toyDroneSound`, `s_toyBoomboxSound`, `s_toyMonitorSound`, all
+`s_toyRagdollSound`, `s_toyDroneSound`, `s_toyBoomboxSound`, `s_toyMonitorSound`,
+`s_toyMysteryBoxSound` (the [mystery boxes](mystery-boxes.md)), all
 on by default,
 archived). The toy still
 runs and is still seen; nothing is sent to anyone. The Illuminate holocron makes no

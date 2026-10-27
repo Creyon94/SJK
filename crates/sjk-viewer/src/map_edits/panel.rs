@@ -45,6 +45,10 @@ pub(crate) const SMALLER: u16 = 26;
 pub(crate) const BIGGER: u16 = 27;
 pub(crate) const GRAB: u16 = 28;
 pub(crate) const REMOVE: u16 = 29;
+/// Place, SJK's creator only: a mystery box where you aim, the nearest one removed
+/// (`crate::mystery_box`).
+pub(crate) const BOX_PLACE: u16 = 32;
+pub(crate) const BOX_REMOVE: u16 = 33;
 /// Edits: delete the chosen edit, undo the newest.
 pub(crate) const DELETE: u16 = 30;
 pub(crate) const UNDO: u16 = 31;
@@ -101,6 +105,8 @@ pub(crate) enum Action {
     Scale(f32),
     Grab,
     Remove,
+    BoxPlace,
+    BoxRemove,
     Delete,
     Undo,
     Scope(Scope),
@@ -424,6 +430,8 @@ impl Panel {
             BIGGER => return Some(Action::Scale(GROW)),
             GRAB => return Some(Action::Grab),
             REMOVE => return Some(Action::Remove),
+            BOX_PLACE => return Some(Action::BoxPlace),
+            BOX_REMOVE => return Some(Action::BoxRemove),
             DELETE => return Some(Action::Delete),
             UNDO => return Some(Action::Undo),
             SCOPE_ALL => return Some(Action::Scope(Scope::AllServers)),
@@ -629,6 +637,18 @@ impl GpuState {
         let (name, args): (&str, Vec<String>) = match action {
             Action::Aim => {
                 self.close_map_edit_panel();
+                return;
+            }
+            Action::BoxPlace | Action::BoxRemove => {
+                let (name, args) = match action {
+                    Action::BoxPlace => match self.map_edits.editor.scope() {
+                        Scope::ThisServer => ("mysterybox_place", text(&["server"])),
+                        Scope::AllServers => ("mysterybox_place", vec![]),
+                    },
+                    _ => ("mysterybox_remove", vec![]),
+                };
+                let result = self.mystery_box_command(name, &args);
+                self.map_edits.panel.answer(result);
                 return;
             }
             Action::Hide => ("mapedit_hide", vec![]),

@@ -489,6 +489,48 @@ pub trait Hub: Send {
         ))
     }
 
+    /// Every placed mystery box, the price and the odds (`GET /v1/mystery-boxes`,
+    /// 27/10/2026).
+    fn mystery_boxes(
+        &mut self,
+        _identity: &Identity,
+    ) -> Result<crate::mystery_box::Boxes, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not read mystery boxes".to_owned(),
+        ))
+    }
+
+    /// Open mystery box `id`, which the player stands at on `server`
+    /// (`POST /v1/mystery-box/open`).
+    fn open_mystery_box(
+        &mut self,
+        _identity: &Identity,
+        _id: i64,
+        _server: &str,
+    ) -> Result<crate::mystery_box::OpenAnswer, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not open mystery boxes".to_owned(),
+        ))
+    }
+
+    /// SJK's creator: place a mystery box (`POST /v1/creator/mystery-box`); answers its id.
+    fn place_mystery_box(
+        &mut self,
+        _identity: &Identity,
+        _placed: &crate::mystery_box::MysteryBox,
+    ) -> Result<i64, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not place mystery boxes".to_owned(),
+        ))
+    }
+
+    /// SJK's creator: remove mystery box `id` (`POST /v1/creator/mystery-box/remove`).
+    fn remove_mystery_box(&mut self, _identity: &Identity, _id: i64) -> Result<(), HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not remove mystery boxes".to_owned(),
+        ))
+    }
+
     /// Buy a holocron of tier `tier` with credits (`POST /v1/holocrons/buy`, 17/10/2026).
     fn buy_holocron(
         &mut self,
@@ -1555,6 +1597,59 @@ impl Hub for HttpHub {
             "/v1/shop/buy",
             Some(json!({ "id": id })),
         )?)
+    }
+
+    fn mystery_boxes(
+        &mut self,
+        identity: &Identity,
+    ) -> Result<crate::mystery_box::Boxes, HubError> {
+        parse(self.send(Some(identity), "GET", "/v1/mystery-boxes", None)?)
+    }
+
+    fn open_mystery_box(
+        &mut self,
+        identity: &Identity,
+        id: i64,
+        server: &str,
+    ) -> Result<crate::mystery_box::OpenAnswer, HubError> {
+        parse(self.send(
+            Some(identity),
+            "POST",
+            "/v1/mystery-box/open",
+            Some(json!({ "box": id, "server": server })),
+        )?)
+    }
+
+    fn place_mystery_box(
+        &mut self,
+        identity: &Identity,
+        placed: &crate::mystery_box::MysteryBox,
+    ) -> Result<i64, HubError> {
+        let answer = self.send(
+            Some(identity),
+            "POST",
+            "/v1/creator/mystery-box",
+            Some(json!({
+                "map": placed.map,
+                "checksum": placed.checksum,
+                "server": placed.server,
+                "origin": placed.origin,
+                "yaw": placed.yaw,
+            })),
+        )?;
+        answer["id"]
+            .as_i64()
+            .ok_or_else(|| HubError::Protocol("a placed box without its id".to_owned()))
+    }
+
+    fn remove_mystery_box(&mut self, identity: &Identity, id: i64) -> Result<(), HubError> {
+        self.send(
+            Some(identity),
+            "POST",
+            "/v1/creator/mystery-box/remove",
+            Some(json!({ "id": id })),
+        )
+        .map(|_| ())
     }
 
     fn buy_holocron(

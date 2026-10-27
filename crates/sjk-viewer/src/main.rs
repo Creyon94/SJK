@@ -244,6 +244,7 @@ mod looks;
 mod looks_frame;
 mod map_blocks;
 mod map_edits;
+mod mystery_box;
 mod net_timing;
 mod particle_motion;
 mod particle_physics;
@@ -610,6 +611,8 @@ struct GpuState {
     decal_surfaces: decal_marks::DecalSurfaces,
     /// SJK's edits of the loaded map ([`map_edits`]).
     map_edits: map_edits::State,
+    /// The mystery boxes standing on the loaded map (`mystery_box`).
+    mystery_boxes: mystery_box::MysteryBoxes,
     player_shadows: player_shadows::State,
     camera_buffer: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
@@ -1559,6 +1562,7 @@ impl GpuState {
             shaders: Arc::new(shaders),
             decal_surfaces,
             map_edits: Default::default(),
+            mystery_boxes: Default::default(),
             player_shadows: player_shadows::State::default(),
             camera_buffer,
             camera_bind_group,
@@ -2780,6 +2784,7 @@ impl GpuState {
         movers::append_frame(self, presentation_time);
         self.static_models.append_instances(&mut self.object_groups);
         self.append_map_edit_instances();
+        self.append_mystery_box_instances();
         pickups::simple::append_frame(self, visual_now);
         // The charge glow on the view gun's muzzle (`cg_weapons.c` charge bits), after
         // this frame's sprites were cleared.

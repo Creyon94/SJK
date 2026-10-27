@@ -370,6 +370,11 @@ pub(super) const AUDIO: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Mystery box sounds",
+        cvar: crate::toy_sounds::Toy::MysteryBox.cvar(),
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Unlock sound",
         cvar: crate::unlock_toast::SOUND_CVAR,
         kind: ValueKind::Bool,
