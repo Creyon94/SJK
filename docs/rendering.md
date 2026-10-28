@@ -4338,9 +4338,17 @@ font, following OpenJK `codemp`:
 
 | Retail font | Drawn with | Surfaces |
 | --- | --- | --- |
-| `ergoec` (`FONT_MEDIUM`) | SJK Menu | Menus, crosshair name, followed player's name, centre prints, warmup text, match timer, enemy info, scoreboard names and headings |
+| `ergoec` (`FONT_MEDIUM`) | SJK Menu | Menus, crosshair name, followed player's name, warmup text, match timer, enemy info, scoreboard names and headings |
 | `ocr_a` (`FONT_SMALL`) | SJK Chat | Chat box and typing line, weapon/Force/inventory selection names, scoreboard numbers |
 | Console character set (`gfx/2d/charsgrid_med`) | JetBrains Mono | Console and notify lines, FPS, snapshot, vote, connection interrupted |
+
+Centre prints are SJK's headline text: they draw in Fira Sans Condensed
+(`text::HEADLINE`, `RetailFont::Headline` in [game_font.rs](../crates/sjk-viewer/src/game_font.rs))
+with `ui_gameFont` on or off, as do the words in the world over mystery boxes and the box
+hunt's mark ([mystery-boxes.md](mystery-boxes.md)). It loads with the SJK UI's families;
+until it does (or if it fails), they draw in Inter. Centre prints keep `ergoec`'s line
+(`CENTER_FONT_1080`) grown by `HEADLINE_GROWTH` (1.07), so their capitals stay as tall as
+SJK Menu's (a test measures both fonts).
 
 The routing is per text run: the HUD maps its text ids in
 [text_values.rs](../crates/sjk-viewer/src/hud/text_values.rs), chat marks its

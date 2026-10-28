@@ -105,7 +105,8 @@ credits.txt.
 | --- | --- | --- |
 | `gfx/2d/charsgrid_med` | Console, notify lines, cgame small/big strings | JetBrains Mono ([console_font.rs](../crates/sjk-viewer/src/text/console_font.rs)) |
 | `ocr_a` | Chat, selection names, scoreboard numbers (`ui_gameFont`) | SJK Chat: OCR-A (public domain) set to the retail widths ([retail_font.rs](../crates/sjk-viewer/src/text/retail_font.rs)) |
-| `ergoec` | Menus, centre prints, scoreboard names (`ui_gameFont`) | SJK Menu: traced from the JoF HD pack's atlas |
+| `ergoec` | Menus, scoreboard names (`ui_gameFont`) | SJK Menu: traced from the JoF HD pack's atlas |
+| `ergoec` | Centre prints, and the words in the world (over mystery boxes, the mark), whatever `ui_gameFont` says | Fira Sans Condensed SemiBold and Bold (OFL, subset to Windows-1252 with fontTools; the rest from Exo 2), Sol's pick of open fonts close to `ergoec` (28/10/2026) |
 | `arialnb` | Classic status HUD (`cg_classicHudFont`) | SJK HUD: traced from the JoF HD pack's atlas |
 | `logo` glyph (0xAC) | The "WSI fonts" logo in Inter's atlas | SJK Menu's vector logo ([logo_glyph.rs](../crates/sjk-viewer/src/text/logo_glyph.rs)) |
 

@@ -30,6 +30,10 @@ The site (site/assets/site.js, parseChangelog) reads the release headings,
 introductions and recap lines too.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
+## Unreleased
+
+- Centre prints and the words over mystery boxes (and the box hunt's mark) are drawn in Fira Sans Condensed, a real typeface close to the old menu font, instead of a tracing of a low-resolution bitmap _(Sol)_
+
 ## 2026.1028.1 (Alpha) | 28/10/2026
 
 Capsule nameplates, the Sith cloud, a chest and a hunt for mystery boxes, and a working jetpack.

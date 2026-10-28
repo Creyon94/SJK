@@ -16,7 +16,8 @@ iron, 60 x 26 x 24 units, a pale question mark glowing (pulsing) on each half of
 long sides, and a lid hinged at the back that swings open while it rolls and closes once
 what came out is taken.
 
-Words stand in the world over every box, for every SJK player who sees it (hidden behind
+Words stand in the world over every box, in the headline font (Fira Sans Condensed, as
+centre prints), for every SJK player who sees it (hidden behind
 walls, fading out past 1000 units, gone past 1400): "MYSTERY BOX" and its price (or "Free
 roll: press Use" for a player holding one), "Rolling..." while it rolls, then what came
 out ("JACKPOT!", "DOUBLE!", "CREDITS BACK" or "EMPTY", and the credits; the opener's also

@@ -217,11 +217,17 @@ impl GpuState {
             return;
         }
         let labels = &self.mystery_boxes.labels;
+        // In the headline font, as centre prints are (Inter until it loads).
+        let (vertices, font) = self.game_fonts.target(
+            crate::game_font::RetailFont::Headline,
+            &mut self.text_vertices,
+            &self.ui_font,
+        );
         crate::ui_renderer::append_text_commands(
             &labels.list,
             |id| labels.lines.get(id.0 as usize).map_or("", String::as_str),
-            &mut self.text_vertices,
-            &self.ui_font,
+            vertices,
+            font,
             viewport,
             crate::text::TextStyle::NEUTRAL,
         );
