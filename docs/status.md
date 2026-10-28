@@ -7,9 +7,14 @@ server chat line before the chat box decided whether its sender was blocked. Now
 `ChatOverlay::sent_by_muted` decides it as the chat box does (the slot the server names,
 else the one player whose name starts the line), and the console's scrollback and its
 alert words leave the line out ([hub-chat.md](hub-chat.md#blocking-a-player)). The chat
-log (`cl_logchat`) still keeps it. Verified on Linux x86_64: the new test
-`a_muted_slots_chat_stays_out_of_the_console`, fmt, workspace build, tests and Clippy.
-Not verified: in game with a blocked player.
+log (`cl_logchat`) still keeps it. The console's kill lines (`format_obituary`) name a
+blocked player BLOCKED, as the kill feed does. Lines the server writes itself (a join,
+JA+'s "has defeated") are finished text and keep the server's name. Verified on Linux
+x86_64: the new tests `a_muted_slots_chat_stays_out_of_the_console` and
+`a_blocked_players_name_reads_blocked_in_the_console`, fmt, workspace build, tests and
+Clippy; in game by Creyon on Windows (29/10/2026, the JoF server): a blocked player
+asked by whisper to say hello did, and nothing of it reached the console, and their
+nameplate read BLOCKED.
 
 ## Capsule nameplates
 
