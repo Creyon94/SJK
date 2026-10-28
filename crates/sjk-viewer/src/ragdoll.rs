@@ -1297,9 +1297,14 @@ fn start_point(start: &Start) -> Vec3 {
 }
 
 /// The limp player's camera: behind the ragdoll's pelvis, turned as the player's own
-/// camera is; `None` otherwise.
+/// camera is; `None` otherwise, and while the player flies the free camera, which keeps
+/// its own view (Dave's test, 28/10/2026). Plain `fakenoclip` keeps this camera: it has
+/// no detached view of its own (#232's review).
 pub(crate) fn camera(state: &mut GpuState, time: i64) -> Option<(Vec3, Vec3)> {
     state.ragdoll.mine.as_ref()?;
+    if state.local_prediction.free_camera() {
+        return None;
+    }
     let session = state.live_session.as_ref()?;
     let game = session.game_state();
     let snapshot = session.snapshot_at_or_before(time as i32);
