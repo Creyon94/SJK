@@ -355,9 +355,12 @@ on the 16:9 frame, dark behind the form on the left and clear over the model.
   "Follow shader (<the blade worn>)", "Stock sounds" or an owned shader's name
   (`cg_saberSounds`, [unlockables.md](unlockables.md#saber-sounds)); Preview, or Enter on
   the row (the keys line then says "Enter preview"), plays the choice's ignition and hum.
-  Then the blade's colour as seven chips (the six
-  stock colours and the custom one, ringed gold when chosen), its red, green
-  and blue sliders (a digit types the number), and the second blade's for Dual.
+  Then the blade's colour as eight chips (the six
+  stock colours, the custom one, which says "RGB" so that its tint is not taken for a
+  stock colour or black, and last JA+'s black, colour 11, since 27/10/2026, hub report
+  #130; ringed gold when chosen; the model then holds black blades, drawn as in game,
+  not as the near-black tint, which the additive blade pass showed white), its red,
+  green and blue sliders (a digit types the number), and the second blade's for Dual.
   The camera cuts to the saber shot, where the model throws the saber to float
   and turn before it. World shot: `world_shot::saber_skins::duel6_sjk_saber_page`
   (the search typed, a search finding nothing with no skin owned, the Sounds row, Dual; at 1080p,

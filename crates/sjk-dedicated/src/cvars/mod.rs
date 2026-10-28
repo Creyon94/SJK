@@ -47,6 +47,10 @@ pub const CVAR_PROTECTED: u32 = 0x8000;
 /// `CVAR_NODEFAULT`: not archived while it holds its default.
 pub const CVAR_NODEFAULT: u32 = 0x10000;
 
+/// The serverinfo key and value that say a server is SJK's: the client's family `sjk`
+/// (`sjk_mod::known_servers`) matches them.
+pub const SJK_SERVER: (&[u8], &[u8]) = (b"sjk", b"1");
+
 /// One variable.
 #[derive(Clone, Debug)]
 pub struct Cvar {
@@ -140,6 +144,15 @@ impl Cvars {
             let index = cvars.get(name, value, flags | CVAR_VM_CREATED, None);
             cvars.vars[index].announced = announced;
         }
+        // SJK's own, with no reference counterpart: says in the serverinfo that this is
+        // SJK's server, so a client's tables keyed on server families can act on it
+        // (`sjk_mod::known_servers`, family `sjk`; the client's black blades, 27/10/2026).
+        cvars.get(
+            SJK_SERVER.0,
+            SJK_SERVER.1,
+            CVAR_SERVERINFO | CVAR_ROM,
+            Some(b"This is SJK's server"),
+        );
     }
 
     fn find(&self, name: &[u8]) -> Option<usize> {

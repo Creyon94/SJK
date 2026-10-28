@@ -949,8 +949,25 @@ impl PlayerMenu {
             if row.is_blade() {
                 let custom = self.saber.custom_rgb(row.second());
                 let chips = PALETTE.map(|index| saber_color(index, custom));
-                let active = usize::from(self.saber.color(row.second()));
-                kit::chips(&mut self.canvas, frame, control, &chips, active, focused);
+                let active = super::saber::palette_position(self.saber.color(row.second()));
+                // The custom chip says so: its tint alone can pass for a stock colour
+                // or for black (Dave's test of #130, 28/10/2026).
+                let labels = PALETTE.map(|index| {
+                    if index == super::saber::RGB_COLOR_INDEX {
+                        "RGB"
+                    } else {
+                        ""
+                    }
+                });
+                kit::chips(
+                    &mut self.canvas,
+                    frame,
+                    control,
+                    &chips,
+                    &labels,
+                    active,
+                    focused,
+                );
                 self.sjk_targets(frame, index, control, area);
                 continue;
             }
@@ -2405,6 +2422,7 @@ fn blade_word(index: u8) -> &'static str {
         Ok(sjk_client::SaberColor::Green) => "green blade",
         Ok(sjk_client::SaberColor::Purple) => "purple blade",
         Ok(sjk_client::SaberColor::Rgb) => "custom blade",
+        _ if index == super::saber::BLACK_COLOR_INDEX => "black blade",
         _ => "blue blade",
     }
 }
