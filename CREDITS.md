@@ -804,7 +804,10 @@ Mono by The JetBrains Mono Project Authors, keeps its
 fonts, Rajdhani by the Indian Type Foundry and Exo 2 by the Exo 2 Project Authors (Natanael
 Gama), keep theirs ([Rajdhani](crates/sjk-viewer/assets/fonts/Rajdhani-OFL.txt),
 [Exo 2](crates/sjk-viewer/assets/fonts/Exo2-OFL.txt); Exo 2's static weights are instances
-of its variable font, unchanged otherwise), Noto Sans JP, SC and KR by Adobe and Google,
+of its variable font, unchanged otherwise), the headline font of centre prints and the
+words in the world, Fira Sans Condensed by the Mozilla Foundation and Telefonica S.A., keeps
+its [SIL Open Font License](crates/sjk-viewer/assets/fonts/FiraSansCondensed-OFL.txt)
+(SemiBold and Bold, subset with fontTools to Windows-1252, unchanged otherwise), Noto Sans JP, SC and KR by Adobe and Google,
 which draw kana, kanji, hanzi and Hangul, keep their
 [SIL Open Font License](crates/sjk-viewer/assets/fonts/NotoSansJP-OFL.txt) (subset with
 fontTools to kana, kanji, CJK punctuation and full-width forms, to the GB 2312 hanzi Noto

@@ -20,7 +20,6 @@ pub(crate) fn append(
         Some(font) => gpu.hud.nameplate.append(
             &gpu.chat,
             &power_icons,
-            &gpu.hud.icons,
             &mut gpu.classic_text_vertices,
             font,
             viewport,
@@ -28,7 +27,6 @@ pub(crate) fn append(
         None => gpu.hud.nameplate.append(
             &gpu.chat,
             &power_icons,
-            &gpu.hud.icons,
             &mut gpu.text_vertices,
             &gpu.ui_font,
             viewport,

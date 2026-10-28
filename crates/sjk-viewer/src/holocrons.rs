@@ -222,7 +222,6 @@ pub(crate) fn colour(id: &str) -> Color {
 }
 
 /// The name of the tier `id` names, if the client knows it.
-#[allow(dead_code)] // for screens that know a tier by the hub's id
 pub(crate) fn name(id: &str) -> Option<&'static str> {
     by_id(id).map(|tier| tier.name)
 }

@@ -142,6 +142,18 @@ const LATE_MS: i64 = 8_000;
 const EARLY_MS: i64 = 3_000;
 /// A monitor's knocks on the world are heard this far apart at least.
 const KNOCK_GAP: Duration = Duration::from_millis(120);
+/// How a knock on the world fades with distance: at full volume to 768 units, silent
+/// past about 2,000 (the game's voice channel's). A monitor lands far from the one who
+/// threw it, and with the game's own (silent past 1,500, half at 900) its knocks were
+/// not heard (Sol, 28/10/2026).
+const KNOCK_REACH: sjk_audio::Attenuation = sjk_audio::Attenuation::Linear {
+    full_volume_distance: 768.0,
+    falloff_per_unit: 0.0008,
+};
+/// A knock's volume: the softest heard knock's, and the speed (units a second) it is
+/// at its loudest from.
+const KNOCK_SOFTEST: f32 = 0.55;
+const KNOCK_LOUDEST: f32 = 600.0;
 /// A monitor's way over a step is tried for a body every this many units (a fast one
 /// goes farther in a step than a limb is thick).
 const SWEEP_PIECE: f32 = 6.0;
@@ -546,6 +558,13 @@ fn launch(monitor: Vec3, body: Vec3) -> Option<[i32; 3]> {
     }
     let push = (against * TRANSFER + Vec3::Z * LIFT).clamp_length_max(MAX_LAUNCH);
     Some(push.to_array().map(|c| c.round() as i32))
+}
+
+/// How loud a knock on the world of `speed` (units a second) is heard: from
+/// [`KNOCK_SOFTEST`] for the slightest one heard to full at [`KNOCK_LOUDEST`].
+fn knock_volume(speed: f32) -> f32 {
+    let over = (speed - flight::KNOCK_SPEED) / (KNOCK_LOUDEST - flight::KNOCK_SPEED);
+    KNOCK_SOFTEST + (1.0 - KNOCK_SOFTEST) * over.clamp(0.0, 1.0)
 }
 
 /// The bounce a monitor takes off a body pushed by `push`.
@@ -1091,7 +1110,7 @@ impl GpuState {
                 self.monitor.cues.push(Cue {
                     path: KNOCK_SOUND,
                     at: Some(shown.flight.centre()),
-                    volume: (knock / 900.0).clamp(0.25, 1.0),
+                    volume: knock_volume(knock),
                 });
             }
             if shown.flight.asleep() {
@@ -1209,6 +1228,18 @@ impl GpuState {
             } else {
                 (sjk_audio::SourceId(0x5100_0000), sjk_audio::ChannelId(0))
             };
+            if let (KNOCK_SOUND, Some(at)) = (path, at) {
+                audio.play_toy_reaching(
+                    crate::toy_sounds::Toy::Monitor,
+                    path,
+                    volume,
+                    at.to_array(),
+                    source,
+                    channel,
+                    KNOCK_REACH,
+                );
+                continue;
+            }
             audio.play_toy(
                 crate::toy_sounds::Toy::Monitor,
                 path,
@@ -1251,6 +1282,23 @@ impl GpuState {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn knocks_are_heard_louder_the_harder_and_never_faint() {
+        assert_eq!(knock_volume(flight::KNOCK_SPEED), KNOCK_SOFTEST);
+        assert!(knock_volume(300.0) > knock_volume(200.0));
+        assert_eq!(knock_volume(KNOCK_LOUDEST), 1.0);
+        assert_eq!(knock_volume(5_000.0), 1.0);
+        // Still heard where a monitor thrown hard lands, 1,500 units off.
+        let sjk_audio::Attenuation::Linear {
+            full_volume_distance,
+            falloff_per_unit,
+        } = KNOCK_REACH
+        else {
+            panic!("a reach");
+        };
+        assert!(1.0 - (1_500.0 - full_volume_distance) * falloff_per_unit > 0.4);
+    }
 
     #[test]
     fn throw_events_read_back_as_written_and_fit_the_relay() {

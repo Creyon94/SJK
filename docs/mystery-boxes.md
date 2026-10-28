@@ -16,7 +16,8 @@ iron, 60 x 26 x 24 units, a pale question mark glowing (pulsing) on each half of
 long sides, and a lid hinged at the back that swings open while it rolls and closes once
 what came out is taken.
 
-Words stand in the world over every box, for every SJK player who sees it (hidden behind
+Words stand in the world over every box, in the headline font (Fira Sans Condensed, as
+centre prints), for every SJK player who sees it (hidden behind
 walls, fading out past 1000 units, gone past 1400): "MYSTERY BOX" and its price (or "Free
 roll: press Use" for a player holding one), "Rolling..." while it rolls, then what came
 out ("JACKPOT!", "DOUBLE!", "CREDITS BACK" or "EMPTY", and the credits; the opener's also
@@ -42,6 +43,8 @@ locked door (empty):
 | `refund` | a blue crystal |
 | `double` | a green crystal |
 | `jackpot` | a red crystal |
+| `explode` | a thermal detonator |
+| `holocron` | SJK's holocron |
 
 The opener is told what came out in the centre of the screen. It floats over the box,
 turning slowly, until they take it with `+use` at the box (a sparkle; a chat line gives
@@ -61,13 +64,33 @@ The price and the odds are the hub's (`GET /v1/mystery-boxes`), PROVISIONAL, Sol
 
 | Outcome | Chance | Pays |
 | --- | --- | --- |
-| `empty` | 50 % | nothing |
+| `empty` | 43 % | nothing |
 | `refund` | 30 % | the price back |
 | `double` | 15 % | twice the price |
 | `jackpot` | 5 % | five times the price |
+| `explode` | 5 % | nothing: the price goes to a hunter |
+| `holocron` | 2 % | a holocron |
 
-On average a box pays back 85 of its 100 credits. A newer hub's outcome the client does
-not know is shown by its credits alone.
+On average a box pays back 85 of its 100 credits, and a holocron one time in fifty. A
+newer hub's outcome the client does not know is shown by its credits alone.
+
+**It blows up** (`explode`, Sol's idea of 28/10/2026, after Call of Duty zombies' boxes):
+the roll stops on a thermal detonator, and with a detpack's explosion
+(`detpack/explosion`, `sound/weapons/detpack/explode.mp3`) where the opener stands, the
+box blows them up: their own client throws them down as a [ragdoll](client.md#ragdoll),
+900 units a second up and 500 away from the box, and they get up by themselves
+(`GpuState::ragdoll_blown_up`; not in a duel, with the flag or wherever a monitor could
+not knock them down). The hub hands what they paid (nothing for a free roll) to another
+player on the server with the Box hunt toy on, at random; with nobody else hunting
+there, it is lost. The opener reads where it went; every hunter hears a laugh, "a ghost
+having fun" (`LAUGH`: a retail gloat, `sound/chars/alora/misc/gloat1.mp3`, until Sol's
+own is bundled), the one who got the credits in the centre of the screen and the others
+in the chat (the hub's box hunt event `laugh_<opener>_<to>_<credits>`).
+
+**A holocron** (`holocron`, 28/10/2026): the roll stops on SJK's holocron, and the hub
+gives one of any tier, rolled on the holocrons' own odds ([holocrons.md](holocrons.md));
+it counts against no daily cap and cannot be traded (source `box`). The opener reads its
+tier over the box and in the centre, and finds it in the Collection.
 
 ## Placing one (SJK's creator)
 
@@ -85,7 +108,7 @@ placing and removal goes to the staff log. The client reads the hub's list once 
 every 10 minutes, and at once after a placing, a removal or a box that is gone.
 
 Some of its sounds are retail (the crate sliding open, the chime, the fanfare, the locked
-door); the tune and the take are SJK's own.
+door, the box hunt's alarm); the tune and the take are SJK's own.
 
 ## Box hunt
 
@@ -94,7 +117,15 @@ look toy `box_hunt`); with it off a player is never the mark and is told nothing
 hunt. Among the players of a server with it on (at least 2), the hub picks a mark at
 random for 3 minutes. The mark is told in the centre of the screen ("You are the mark!"),
 the other hunters by a chat line, and they see "MARK" in red over the mark's head
-(hidden behind walls). A hunter who kills the mark wins a free mystery box roll: the
+(hidden behind walls). Every hunter, the mark too, hears the game's alarm
+(`sound/effects/mpalarm.wav`, Sol's pick, 28/10/2026; with "Mystery box sounds") as a new
+mark is picked, and a small card at the top centre of the screen names the mark (in
+the headline font, "BOX HUNT · THE MARK" over the name) or, red, tells the player "YOU
+ARE THE MARK"; its red edge flashes for 2 seconds as it arrives, and it stays until the
+mark is hunted or the hub has no mark or another one. The card and the alarm are
+[hunt.rs](../crates/sjk-viewer/src/mystery_box/hunt.rs) and
+[label.rs](../crates/sjk-viewer/src/mystery_box/label.rs); the card draws with the words
+in the world, so it is hidden with them (menus, console, scoreboard, intermission). A hunter who kills the mark wins a free mystery box roll: the
 next box they open costs nothing (the centre says "press Use for your free roll" at a
 box). The hunt then pauses a minute before the next mark.
 
@@ -109,8 +140,10 @@ PROVISIONAL.
 ## Limits
 
 - The hub cannot tell where a player stands: the reach is the client's.
-- No other bonuses or penalties yet: an outcome only pays credits. Effects (toys played on
-  the opener, items) are Sol's plan for later and need a client release for each new kind.
+- An outcome pays credits, blows the opener up or gives a holocron; other effects need a
+  client release for each new kind.
+- The explosion is SJK's only: no game server knows of it, so it hurts nobody, and
+  players on other clients see the opener stand where they were.
 - Two friends with the toy on could take turns being killed for free rolls; the 3-minute
   mark, the pause and the 5 a day cap how much that pays.
 - Verified: unit tests (the pick of the faced box, which boxes stand on a map file and
