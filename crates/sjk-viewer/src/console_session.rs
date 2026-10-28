@@ -1096,6 +1096,8 @@ fn retire_modern_ui(cvars: &mut CvarRegistry) {
         // The Shaders tab's rack or grid (0 the rack), replaced on 25/10/2026 by
         // `ui_shaderList`, whose 0 is the new wall of tiles, so every player starts on it.
         "ui_shaderView",
+        // The weapon icon on nameplates, removed on 28/10/2026 (Sol: it told nothing).
+        "cg_nameplateWeapon",
     ] {
         let _ = cvars.unset(retired);
     }

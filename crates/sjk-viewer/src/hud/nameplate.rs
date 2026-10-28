@@ -2,9 +2,11 @@
 //!
 //! Every plate is a capsule (design E, Sol's pick of 28/10/2026): a pill holding the
 //! player's picture (their SJK hub picture, else their initial on their colour, or for
-//! a player without SJK their model's head icon), their name and the weapon they hold
-//! after the saber stance's dot. Closer, a sharer's health, shield and Force bars fade
-//! in on a tray under it; far away the pill fades and the picture and a dim name stay.
+//! a player without SJK their model's head icon) and their name; no weapon since
+//! 28/10/2026. Closer, a sharer's health, shield and Force bars fade in on a tray under
+//! it, and the Force powers they have on stand over it in square cells; far away the
+//! pill fades and the picture and a dim name stay. A dark name (black `^0`) is edged in
+//! a light halo so it reads on the see-through plate ([`crate::text::CodePalette::Haloed`]).
 //! Names come from the chat roster and are drawn in the classic HUD font with
 //! their colour codes; the layout maths is in [`super::nameplate_math`]. A sharer's
 //! health and shield are estimated between the values they share, once per snapshot,
@@ -128,8 +130,6 @@ const EMPTY_SHARE: f32 = 0.005;
 const ET_PLAYER: u8 = 1;
 const ET_NPC: u8 = 13;
 const EF_DEAD: u32 = 2;
-/// `WP_SABER`.
-const WP_SABER: u8 = 3;
 /// The first team game type.
 const GT_TEAM: i32 = 6;
 /// `GT_DUEL`, `GT_POWERDUEL` and `TEAM_SPECTATOR`.
@@ -169,7 +169,7 @@ const SHARED_CONTOUR: Color = Color::new(1.0, 0.82, 0.25, 1.0);
 const NEUTRAL_EDGE: Color = Color::new(0.78, 0.82, 0.9, 0.45);
 /// The capsule's and the tray's fill out of team games (a team's is its own colour
 /// made deep, [`math::team_fill`]).
-const PILL_FILL: Color = Color::new(0.03, 0.04, 0.06, 0.76);
+const PILL_FILL: Color = Color::new(0.03, 0.04, 0.06, 0.55);
 /// The track a bar fills on the tray.
 const TRACK: Color = Color::new(1.0, 1.0, 1.0, 0.09);
 /// The edge of NPC plates, a paler gold.
@@ -178,17 +178,16 @@ const NPC_ACCENT: Color = Color::new(0.95, 0.8, 0.35, 0.7);
 const HAZE: Color = Color::new(0.8, 0.82, 0.86, 0.6);
 /// A range narrower than this share of the bar is drawn sharp.
 const HAZE_MIN_WIDTH: f32 = 0.02;
-/// The power icons' round chips and the ring round each.
-const CHIP_FILL: Color = Color::new(0.03, 0.04, 0.06, 0.7);
-const CHIP_RING: Color = Color::new(0.47, 0.67, 0.9, 0.45);
+/// The power icons' square cells' backdrop, as before the capsules (Sol, 28/10/2026:
+/// the round chips went back to squares).
+const CHIP_FILL: Color = Color::new(0.03, 0.04, 0.06, 0.55);
+/// A cell's corners, and the room round its icon, in the design's pixels.
+const CHIP_CORNER: f32 = 3.0;
+const CHIP_INSET: f32 = 1.0;
 /// The picture's place while a head icon is being cut.
 const BLANK_PICTURE: Color = Color::new(0.16, 0.18, 0.22, 0.9);
-/// The stance dot's opacity with the blade put away, as a share of a lit one's.
-const HOLSTERED_HALO: f32 = 0.4;
 /// Milliseconds before a head icon that could not be cut is tried again.
 const HEAD_RETRY: i64 = 2_000;
-/// `WP_NONE`.
-const WP_NONE: u8 = 0;
 /// The duel badge's least opacity: a far plate's name dims, the badge stays clear.
 const DUEL_BADGE_OPACITY: f32 = 0.9;
 /// Milliseconds between reads of which players are verified.
@@ -343,12 +342,6 @@ pub(super) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
         "Nameplate bars: 0 none, 1 allies only, 2 everyone, 3 the player you aim at; never a duel opponent's",
     ))?;
     cvars.register(CvarDefinition::new(
-        "cg_nameplateWeapon",
-        true,
-        CvarFlags::ARCHIVE,
-        "Icon of the weapon a player holds beside the nameplate, a saber's haloed in its stance's colour",
-    ))?;
-    cvars.register(CvarDefinition::new(
         "cg_nameplateIcons",
         true,
         CvarFlags::ARCHIVE,
@@ -410,7 +403,6 @@ struct Settings {
     near: f32,
     scale: f32,
     bars: i64,
-    weapon: bool,
     walls: bool,
     npcs: bool,
     icons: bool,
@@ -435,7 +427,6 @@ impl Default for Settings {
             near: 1000.0,
             scale: 0.5,
             bars: 2,
-            weapon: true,
             walls: false,
             npcs: false,
             icons: true,
@@ -475,11 +466,6 @@ struct Entry {
     health: Option<Range>,
     shield: Option<Range>,
     force: Option<Range>,
-    /// The weapon held (`WP_NONE` for no icon), the saber style (`fireflag`, which
-    /// carries `fd.saberAnimLevel`) and whether the blade is put away.
-    weapon: u8,
-    style: u8,
-    holstered: bool,
     accent: Color,
     names_allowed: bool,
     /// The mark after the name: the gold badge of a player the SJK hub's operator vouches
@@ -616,7 +602,6 @@ impl State {
             bars: console
                 .and_then(|c| c.integer_cvar("cg_nameplatebars"))
                 .unwrap_or(2),
-            weapon: flag("cg_nameplateweapon", true),
             walls: flag("cg_nameplatewalls", false),
             npcs: flag("cg_nameplatenpcs", false),
             icons: flag("cg_nameplateicons", true),
@@ -1129,13 +1114,6 @@ impl State {
                 health,
                 shield,
                 force,
-                weapon: if player && settings.weapon && bars {
-                    entity.weapon()
-                } else {
-                    WP_NONE
-                },
-                style: entity.fire_flag(),
-                holstered: entity.saber_holstered() != 0,
                 accent,
                 names_allowed,
                 mark: if player { self.mark(number) } else { None },
@@ -1349,9 +1327,6 @@ impl State {
                 health: None,
                 shield: None,
                 force: None,
-                weapon: WP_NONE,
-                style: 0,
-                holstered: false,
                 accent: who.accent,
                 names_allowed: who.names_allowed,
                 mark: self.mark(number),
@@ -1441,13 +1416,6 @@ impl State {
                     sjk_game_jka::force_powers::FORCE_POWER_MAX as f32,
                 )
             }),
-            weapon: if settings.weapon {
-                player.weapon()
-            } else {
-                WP_NONE
-            },
-            style: player.saber_style(),
-            holstered: player.saber_holstered() != 0,
             accent: team_accent(mode, player.team() as i32),
             names_allowed: true,
             mark: self.mark(local),
@@ -1532,7 +1500,6 @@ impl State {
         &mut self,
         label: &dyn Fn(TextId) -> &'a str,
         icons: &[Option<TextureId>],
-        weapons: &super::icons::Icons,
         font: &UiFont,
         viewport: [f32; 2],
     ) {
@@ -1558,7 +1525,7 @@ impl State {
             };
             let bottom = logo_top.map_or(y, |top| top.min(y)) - 2.0 * u;
             let scale = size / font.height.max(1.0);
-            // The duel badge takes the weapon's place at the capsule's right end.
+            // The duel badge stands at the capsule's right end.
             let duel_badge = entry.duelling && self.settings.duel_badge;
             // The tray holds a sharer's bars: a player who does not share has the
             // capsule alone (28/10/2026, no more grey bars), and a duel shows none.
@@ -1567,18 +1534,9 @@ impl State {
             } else {
                 entry.rows()
             };
-            let weapon = (entry.weapon != WP_NONE && !duel_badge)
-                .then(|| weapons.weapon_select(entry.weapon, false, entry.style))
-                .flatten();
-            let end = if duel_badge {
-                End::Duel
-            } else if weapon.is_some() {
-                End::Weapon {
-                    dot: entry.weapon == WP_SABER && entry.style != 0,
-                }
-            } else {
-                End::Nothing
-            };
+            // No weapon at the other end: what a player holds told nothing worth the
+            // room (Sol, 28/10/2026).
+            let end = if duel_badge { End::Duel } else { End::Nothing };
             let capsule = Capsule::new(&CapsuleSpec {
                 centre_x: x,
                 bottom,
@@ -1636,26 +1594,6 @@ impl State {
                     texture: crate::ui_renderer::duel_texture(usize::from(entry.duel_colour)),
                     color: Color::new(1.0, 1.0, 1.0, opacity.max(DUEL_BADGE_OPACITY)),
                 });
-            }
-            if let (Some(rect), Some(texture)) = (capsule.weapon, weapon)
-                && entry.proximity > 0.01
-            {
-                let _ = self.list.push(DrawCommand::PushOpacity(entry.proximity));
-                if let Some(dot) = capsule.dot {
-                    let color = super::radial::saber_style_color(entry.style);
-                    let strength = if entry.holstered { HOLSTERED_HALO } else { 1.0 };
-                    let _ = self.list.push(DrawCommand::RoundedRect {
-                        rect: dot,
-                        radius: dot.width * 0.5,
-                        color: Color::new(color.r, color.g, color.b, strength),
-                    });
-                }
-                let _ = self.list.push(DrawCommand::TexturedQuad {
-                    rect,
-                    texture,
-                    color: Color::new(1.0, 1.0, 1.0, 1.0),
-                });
-                let _ = self.list.push(DrawCommand::PopOpacity);
             }
             if entry.power_count > 0 && entry.proximity > 0.01 {
                 self.power_row(&entry, icons, &capsule, viewport);
@@ -1903,7 +1841,7 @@ impl State {
         let _ = self.list.push(DrawCommand::PopOpacity);
     }
 
-    /// The row of power icons centred over the capsule, each on a round chip.
+    /// The row of power icons centred over the capsule, each on a square cell.
     fn power_row(
         &mut self,
         entry: &Entry,
@@ -1919,24 +1857,16 @@ impl State {
             return;
         }
         let (mut chip, step) = capsule.chips(shown, viewport);
-        let ring = capsule.k.max(1.0);
-        let inset = chip.width * 0.14;
+        let inset = (CHIP_INSET * capsule.k).max(1.0);
         let _ = self.list.push(DrawCommand::PushOpacity(entry.proximity));
         for power in &entry.powers[..usize::from(entry.power_count)] {
             let Some(texture) = icons.get(usize::from(*power)).copied().flatten() else {
                 continue;
             };
-            let radius = chip.width * 0.5;
             let _ = self.list.push(DrawCommand::RoundedRect {
                 rect: chip,
-                radius,
+                radius: CHIP_CORNER * capsule.k,
                 color: CHIP_FILL,
-            });
-            let _ = self.list.push(DrawCommand::Border {
-                rect: chip,
-                radius,
-                width: ring,
-                color: CHIP_RING,
             });
             let _ = self.list.push(DrawCommand::TexturedQuad {
                 rect: Rect::new(
@@ -2082,7 +2012,6 @@ impl State {
         &mut self,
         chat: &ChatOverlay,
         icons: &[Option<TextureId>],
-        weapons: &super::icons::Icons,
         vertices: &mut Vec<TextVertex>,
         font: &UiFont,
         viewport: [f32; 2],
@@ -2098,14 +2027,28 @@ impl State {
                 label(chat, id)
             }
         };
-        self.build(&text, icons, weapons, font, viewport);
-        crate::ui_renderer::append_text_commands(
+        self.build(&text, icons, font, viewport);
+        self.append_text(text, vertices, font, viewport);
+    }
+
+    /// Append the laid out plates' text: a black name keeps its colour, edged in a
+    /// light halo to read on the see-through plate.
+    fn append_text<'a>(
+        &self,
+        text: impl Fn(TextId) -> &'a str,
+        vertices: &mut Vec<TextVertex>,
+        font: &UiFont,
+        viewport: [f32; 2],
+    ) {
+        crate::ui_renderer::append_text_commands_where(
             &self.list,
             text,
+            |_, _| true,
             vertices,
             font,
             viewport,
             crate::text::TextStyle::NEUTRAL,
+            crate::text::CodePalette::Haloed,
         );
     }
 }
@@ -2381,8 +2324,8 @@ pub(crate) struct PreviewPlate {
     pub(crate) health: Option<[f32; 3]>,
     pub(crate) shield: Option<[f32; 3]>,
     pub(crate) force: Option<[f32; 3]>,
-    pub(crate) weapon: u8,
-    pub(crate) style: u8,
+    /// The Force powers on (`forcePowersActive` bits), shown over the plate.
+    pub(crate) powers: u32,
     pub(crate) verified: bool,
     /// In a private duel: the duel badge before the name.
     pub(crate) duelling: bool,
@@ -2404,7 +2347,7 @@ impl State {
         &mut self,
         plates: &[PreviewPlate],
         names: &[&str],
-        weapons: &super::icons::Icons,
+        power_icons: &[Option<TextureId>],
         font: &UiFont,
         vertices: &mut Vec<TextVertex>,
         viewport: [f32; 2],
@@ -2422,14 +2365,11 @@ impl State {
                 alpha: 1.0,
                 detail: proximity,
                 proximity,
-                powers: [0; MAX_ICONS],
-                power_count: 0,
+                powers: icon_powers(plate.powers).0,
+                power_count: icon_powers(plate.powers).1,
                 health: plate.health.map(range),
                 shield: plate.shield.map(range),
                 force: plate.force.map(range),
-                weapon: plate.weapon,
-                style: plate.style,
-                holstered: false,
                 accent: match plate.team {
                     Some(red) => team_accent(GT_TEAM, if red { 1 } else { 2 }),
                     None => NEUTRAL_ACCENT,
@@ -2462,15 +2402,8 @@ impl State {
                 names.get(id.0 as usize).copied().unwrap_or("")
             }
         };
-        self.build(&label, &[], weapons, font, viewport);
-        crate::ui_renderer::append_text_commands(
-            &self.list,
-            label,
-            vertices,
-            font,
-            viewport,
-            crate::text::TextStyle::NEUTRAL,
-        );
+        self.build(&label, power_icons, font, viewport);
+        self.append_text(label, vertices, font, viewport);
     }
 }
 
@@ -2621,11 +2554,10 @@ mod tests {
         // its own baseline, low in the line box.
         let font = crate::text::load_classic().expect("the HUD font");
         let mut state = State::default();
-        let icons = super::super::icons::Icons::default();
         state.preview(
             &[plate],
             &[name],
-            &icons,
+            &[],
             &font.font,
             &mut Vec::new(),
             [800.0, 600.0],
@@ -2641,8 +2573,7 @@ mod tests {
             health: None,
             shield: None,
             force: None,
-            weapon: WP_NONE,
-            style: 0,
+            powers: 0,
             verified: true,
             duelling: true,
             team: None,
