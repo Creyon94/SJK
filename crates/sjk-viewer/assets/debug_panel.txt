@@ -24,6 +24,59 @@
 
 # ---- Console & chat ----
 
+[slash-jetpack-fuel]
+area: HUD
+title: Jetpack fuel bar, flight on SJK's server, jetpack cheat (Slash, PR #225)
+change: A fuel bar at the right edge while the jetpack burns, at the HUD scale (JoF EJK).
+change: devmap: use in the air lights the jetpack, use again puts it out; `jetpack` cheat.
+test: devmap, /jetpack, jump and press use: you fly, the bar shows and drains on the right.
+test: Land and put it out: the bar goes. cg_hudScale 2: the bar grows, keeps the right edge.
+test: On a JoF server with a jetpack: same bar while flying.
+
+[slash-credits-rail]
+area: Menus & settings
+title: Credits rail clear of Expand all (Slash, PR #227)
+change: The section rail starts higher and draws closer with more sections; past ten, a window.
+test: Main menu > Credits: no section row under Expand all, rows do not overlap.
+
+[creyon-black-sabers]
+area: Rendering & effects
+title: Black sabers in Profile > Saber and in game (Creyon, PR #230, hub #130)
+change: A black chip after the RGB chip; colour 11 kept; black blades drawn alpha-blended.
+test: Profile > Saber: pick black, the model's blades are black; reopen, black is kept.
+test: On a JA+/JoF server and on devmap: your black blade shows black, not white.
+test: RGB chip, step a dark red down: it stays dark red. Collection swatch shows black.
+
+[creyon-box-freecam]
+area: Gameplay
+title: Cardboard box with freecam, crouched in the box (Creyon, PR #231, hub #152)
+change: No crouch while flying; carton stays on the body; boxed players drawn crouched.
+test: toy_box on, hide, freecam: the camera flies freely, the carton stays on your body.
+test: In the box, open chat or Esc: you stay crouched, the view does not jump up.
+test: Boxed, lunge or kick: the move plays (another client sees it too).
+
+[creyon-ragdoll-freecam]
+area: Gameplay
+title: Limp body stays visible in freecam (Creyon, PR #232)
+change: A limp body is never hidden from the flight; the walk and its camera pause while flying.
+test: toy_ragdoll, go limp, freecam: fly over the body, it stays visible, no jitter.
+test: Rise (jump) and speed up in freecam: you stay limp. End freecam: the camera follows again.
+
+[slash-swing-sounds]
+area: Audio
+title: Saber swings heard once across a combo's end (Slash, PR #226, hub #171)
+change: The local player's cues go through a hand-over between predicted and server animations.
+test: Hold attack for a few combos in each stance: no extra swing after a combo ends.
+test: Start the next combo at once: its first swing is heard.
+test: Parry, deflect, saber lock: their sounds play at once. Run: footsteps carry on.
+
+[launcher-chat-icon]
+area: Console & chat
+title: SJK chat lines from the SJK Launcher show its icon (PR #229)
+change: Messages the hub marks client "launcher" start with the launcher's gold play mark.
+test: Send an SJK chat message from the SJK Launcher, read it in game: launcher icon first.
+note: Needs SJK-hub#6 deployed (merged 28/10).
+
 [tag-toy]
 area: Gameplay
 title: Tag toy: stick a tag on a wall or the floor (needs the hub's tag-toy branch)

@@ -281,7 +281,10 @@ impl GpuState {
                 },
             );
             self.gameplay_input.apply_flip_kick(&mut command, flip_kick);
-            // In the cardboard box the player crouches (`cardboard_box`).
+            // In the cardboard box the player crouches (`cardboard_box`), but not
+            // while flying the free camera, whose `upmove` it would steer down.
+            self.cardboard_box
+                .set_flying(self.local_prediction.fake_noclip());
             self.cardboard_box.shape_command(&mut command);
             // A Hax hack starts and holds on `+use` (`hax`).
             self.hax.observe_use(&command);
@@ -306,17 +309,28 @@ impl GpuState {
                 .committed_state()
                 .map(crate::ghost_replay::Pose::of);
             // The Hax toy steers, or stands still while steering another (`hax`); a
-            // limp player's real body walks to their ragdoll (`ragdoll`).
+            // limp player's real body walks to their ragdoll (`ragdoll`), though not
+            // while they fly the free camera: the flight is theirs, and the server's body
+            // is held still (`command_for_server`).
+            let flying = self.local_prediction.fake_noclip();
             let origin = self
                 .local_prediction
                 .committed_state()
                 .map_or(snapshot_origin, |state| state.origin);
-            // A jump, attack or taunt gets a limp player up.
-            self.ragdoll.wake(&command);
+            // A jump, attack or taunt gets a limp player up, though not while flying the
+            // free camera, whose rise is `upmove` and whose speed key a wake button
+            // (#232's review: the first rise ended the ragdoll).
+            if !flying {
+                self.ragdoll.wake(&command);
+            }
             let replay = self
                 .hax
                 .drive(&command, delta_angles, (self.camera_pitch, self.camera_yaw))
-                .or_else(|| self.ragdoll.drive(&command, delta_angles, origin))
+                .or_else(|| {
+                    (!flying)
+                        .then(|| self.ragdoll.drive(&command, delta_angles, origin))
+                        .flatten()
+                })
                 .or_else(|| pose.and_then(|pose| self.ghost.drive(&command, &pose)));
             // Or the mimic copies another player (`mimic`).
             let replay = replay.or_else(|| {

@@ -119,8 +119,11 @@ pub(crate) const TICK_ICON_CELLS: u32 = 5 + super::tick_badge::CREATOR_FRAMES;
 pub(crate) const TAG_ICON_FIRST: u32 = TICK_ICON_FIRST + TICK_ICON_CELLS;
 /// Tag cells: two rows, room for twice the first tags.
 pub(crate) const TAG_ICON_CELLS: u32 = 2 * COLUMNS;
+/// The cell holding the SJK Launcher's icon (`ui_renderer::LAUNCHER_TEXTURE`), after the
+/// tags'.
+pub(crate) const LAUNCHER_ICON: u32 = TAG_ICON_FIRST + TAG_ICON_CELLS;
 /// Every icon cell.
-pub(crate) const ATLAS_CELLS: u32 = TAG_ICON_FIRST + TAG_ICON_CELLS;
+pub(crate) const ATLAS_CELLS: u32 = LAUNCHER_ICON + 1;
 const TOTAL_CELLS: u32 = ATLAS_CELLS;
 const ATLAS_HEIGHT: u32 = TOTAL_CELLS.div_ceil(COLUMNS) * ICON_SIZE;
 

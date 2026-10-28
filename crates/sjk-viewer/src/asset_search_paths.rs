@@ -300,6 +300,41 @@ impl Options {
             .collect()
     }
 
+    /// EternalJK's black saber pictures, `gfx/effects/sabers/blackglow`, `blackcore` and
+    /// `blacktrail`, from the highest-priority PK3 in `install/EternalJK` that has each
+    /// (jaPRO's `japro-assets.pk3`), as `(archive, path, image bytes)`: JoF EJK draws its
+    /// black blades with them (`cg_main.c`, `blackSaberGlowShader` and the others), so
+    /// SJK's look the same where they are installed (Dave's test, 27/10/2026). Only these
+    /// pictures, nothing else from the pack. Empty when the folder is a game directory.
+    pub(crate) fn eternaljk_black_sabers(&self, install: &Path) -> Vec<(PathBuf, String, Vec<u8>)> {
+        let Some(directory) = self.eternaljk_directory(install) else {
+            return Vec::new();
+        };
+        let archives: Vec<(PathBuf, VirtualFileSystem)> = sjk_vfs::pk3_search_order(&directory)
+            .unwrap_or_default()
+            .into_iter()
+            .rev()
+            .filter(|archive| self.disabled.allows(archive))
+            .filter_map(|archive| {
+                let mut probe = VirtualFileSystem::new();
+                probe.mount_pk3(&archive).ok()?;
+                Some((archive, probe))
+            })
+            .collect();
+        ["glow", "core", "trail"]
+            .iter()
+            .filter_map(|kind| {
+                archives.iter().find_map(|(archive, probe)| {
+                    ["png", "tga", "jpg"].iter().find_map(|extension| {
+                        let path = format!("gfx/effects/sabers/black{kind}.{extension}");
+                        let asset = probe.read(&path).ok()??;
+                        Some((archive.clone(), path, asset.bytes))
+                    })
+                })
+            })
+            .collect()
+    }
+
     /// JoF EternalJK's chat emoji pictures, every `gfx/emoji/*.png` in the PK3s of
     /// `install/EternalJK` (jaPRO's `japro-assets.pk3` ships 175), as `(path as the
     /// archive stores it, image bytes)`, the highest-priority archive's copy of each
@@ -443,6 +478,22 @@ impl Options {
             vfs.mount_memory(
                 "EternalJK crosshairs",
                 crosshairs.into_iter().map(|(_, path, bytes)| (path, bytes)),
+            )?;
+        }
+        // EternalJK's black saber pictures, likewise only those.
+        let black = self.eternaljk_black_sabers(install);
+        if !black.is_empty() {
+            if log {
+                for (archive, path, _) in &black {
+                    crate::log::progress(format_args!(
+                        "black saber picture {path} from {}",
+                        archive.display(),
+                    ));
+                }
+            }
+            vfs.mount_memory(
+                "EternalJK black sabers",
+                black.into_iter().map(|(_, path, bytes)| (path, bytes)),
             )?;
         }
         // JoF EternalJK's chat emojis, likewise only those pictures from the folder.
@@ -669,6 +720,27 @@ mod tests {
         assert!(options.cosmetic_packs(install.path()).is_empty());
         assert!(options.eternaljk_crosshairs(install.path()).is_empty());
         assert!(options.eternaljk_emojis(install.path()).is_empty());
+    }
+
+    #[test]
+    fn eternaljk_black_saber_pictures_are_mounted_alone() {
+        let install = tempfile::tempdir().unwrap();
+        let folder = install.path().join("EternalJK");
+        std::fs::create_dir_all(&folder).unwrap();
+        pk3(
+            &folder.join("japro-assets.pk3"),
+            &[
+                "gfx/effects/sabers/blackglow.png",
+                "gfx/effects/sabers/blackcore.png",
+                "gfx/effects/sabers/blacktrail.png",
+                "gfx/effects/sabers/red_glow2.png",
+            ],
+        );
+        let options = Options::default();
+        assert_eq!(options.eternaljk_black_sabers(install.path()).len(), 3);
+        let vfs = options.mount(install.path()).unwrap();
+        assert!(vfs.contains("gfx/effects/sabers/blacktrail.png").unwrap());
+        assert!(!vfs.contains("gfx/effects/sabers/red_glow2.png").unwrap());
     }
 
     #[test]

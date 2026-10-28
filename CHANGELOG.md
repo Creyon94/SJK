@@ -35,6 +35,13 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Mystery boxes have their own chest: wood and iron with glowing question marks, its lid swinging open as it rolls, and words over it everyone sees (its price, the roll, then what came out) _(Sol)_
 - Box hunt toy (Collection > Toys, `toy_boxhunt`): turn it on to take part. Every few minutes one player with it on becomes the mark, shown in red to the others with it on; kill the mark to win a free mystery box roll _(Sol)_
 - Mystery boxes are heard from the box itself: their sounds followed whoever played on the first slot of the server around the map, so they were heard only near that player (#185) _(Sol)_
+- Saber swings: a combo's end no longer plays one swing too many, and the next combo's first swing is no longer silent; parries, deflects and saber locks the server shows are heard at once, and footsteps carry on while running _(Slash, PR #226, after Kushina's and T2_Trip's report)_
+- SJK chat messages sent from the SJK Launcher start with the launcher's icon _(Sol)_
+- Jetpack: a fuel bar at the right edge of the screen shows while your jetpack burns and follows the HUD scale, after JoF EJK. On SJK's own server the jetpack now flies as in the original game: press use in the air to light it, use again to put it out; a grip or a fall to death puts it out. The `jetpack` cheat gives or takes one _(Slash, PR #225)_
+- Credits page: the section list on the left no longer runs under Expand all; with many sections its rows draw closer, and past ten it shows ten with dots for the hidden ones _(Slash, PR #227)_
+- Black sabers: Profile > Saber has a black blade of its own (the custom colour's chip now reads RGB), and black blades show in game, on SJK's own server too, as in JoF EJK _(Creyon, PR #230, after JoF EJK)_
+- Cardboard box: the free camera works while you hide in it, and a boxed player stays crouched in the box when they open the chat or the menu, for everyone; their lunges and kicks still play (#152) _(Creyon, PR #231)_
+- Ragdoll: your limp body no longer disappears while you fly the free camera, and rising or speeding up in the free camera no longer gets you up _(Creyon, PR #232)_
 
 ## 2026.1027.2 (Alpha) | 27/10/2026
 

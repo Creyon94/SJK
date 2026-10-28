@@ -16,6 +16,42 @@ floor (`world_shot::duel6_tags_on_walls_and_floor`) and the Tags tab
 (`world_shot::duel6_sjk_collection_tags`). Not verified: in a game, against the hub, two
 clients seeing each other's tags, or the opening's tag prize drawn.
 
+## Each swing heard once across the predicted and server animations
+
+27/10/2026, `fix/swing-sound-171`, based on `main` `685edded` (hub report #171, Kushina,
+T2_Trip, 2026.1026.3: a combo's end sometimes played one swing more, and then the next
+held combo's first swing was silent). The local player is shown the server's animation, a
+ping behind, while a saber move is not predicted; the cue cursor carried on across the
+switch, so the server's animation crossed the swing's key again, and the way back to the
+predicted one landed past the new swing's key. The local player's cues now go through
+`animation_events::Handover`, which holds back keys already heard and plays the ones the
+prediction passed unheard ([client.md](client.md#animation-sounds-and-voice-variants)).
+After Sol's review: only an animation the prediction played is held (a server-only
+parry or saber lock was muted up to 1 s), and looping clips are neither held nor
+caught up (footsteps dropped while running across the hand-over).
+No hub change. Verified: fmt, Clippy (no warning in the touched files), sjk-client tests
+(325, with `a_bare_cursor_repeats_the_swing_and_misses_the_next_across_the_hand_over`,
+which reproduces the report, `the_hand_over_hears_each_swing_once`,
+`a_server_move_the_prediction_never_had_is_heard_at_once`,
+`the_server_replaying_a_swing_is_held_until_it_leaves_it` and
+`footsteps_of_a_looping_clip_are_kept_across_the_hand_over`),
+sjk-viewer tests (3094 passed; `cards::faces::tests::only_the_faces_asked_for_are_decoded`
+timed out under the full run's load and passes alone); in game by Slash on a release build (combos, stances, A, R, A). Not verified: which
+saber moves at a combo's end hand over to the server's animation, and the caught-up
+swing's delay over a real ping.
+
+## Jetpack fuel bar
+
+27/10/2026, `feat/jetpack-fuel-bar`, based on `main` `685edded`: the HUD showed
+nothing of a jetpack's fuel. As JoF EJK's `CG_DrawJetpackFuel` (`cg_draw.c:9897-9940`)
+does, a 20 by 100 unit bar now stands 8 units in from the right edge, 260 down: a black
+frame, the fuel left in dark red from the bottom, the fuel burnt greyed out above it
+([jetpack_fuel.rs](../crates/sjk-viewer/src/hud/jetpack_fuel.rs)). Stock draws it while
+the tank is not full; on Sol's call SJK draws it only while the jetpack burns
+(`EF_JETPACK_ACTIVE`), so mods that give everyone a jetpack keep no bar up. It hides with
+the HUD (`cg_draw2D`, `cg_drawHud`) and follows the HUD scale (`cg_hudScale`), keeping its
+right edge and centre height. The cloak fuel bar is not drawn yet. Unit tests cover when it shows, its
+position and fill; untested in a game.
 ## Medal ranks
 
 27/10/2026, `personal/medal-ranks`, based on `main` `ef6364c0` (Sol's decision): every
@@ -69,6 +105,34 @@ hunt toy (`toy_boxhunt`, look toy `box_hunt`) makes a random player with it on t
 every 3 minutes; another with it on who kills the mark wins a free roll (the mark's client
 tells the hub who killed it). Needs the hub's `box-hunt` branch (not deployed). Verified:
 unit tests on both sides. Not verified: in a game.
+
+Slash's test the same day: `give all` showed no jetpack. It did hold one, but the server
+never set `EF_JETPACK` on a player (only on NPCs), so no pack hung on the back; the
+player's think now sets it from the held jetpack, as `ClientThink_real` does. A new cheat,
+`jetpack` (SJK's own; needs cheats, e.g. `devmap`, and a living player), gives the jetpack
+with a full tank, or takes it away switched off with the tank full again, so the pack and
+the fuel bar go with it. Unit tests cover the toggle and `give all`; the `EF_JETPACK` sync
+and the command are untested in a game.
+
+Then the flight on SJK's own server (Slash: in `devmap` the jetpack could not be flown;
+on other servers it flies). The movement already had stock `PM_JETPACK`
+([pmove_jetpack.rs](../crates/sjk-game-jka/src/pmove_jetpack.rs)) and the batteries ran;
+what was missing is switching it on. The use key now does, as stock `TryUse` does
+(`tryJetPack`, `g_utils.c:2040-2048`): having used nothing in front of the eyes, it runs
+`ItemUse_Jetpack` for a held jetpack in the air (a second between switches, 5 fuel to
+start, not while gripped or falling to death, `sound/boba/JETON`), and while the jetpack
+burns it reaches for nothing else and only switches it off
+([bridge_use.rs](../crates/sjk-dedicated/src/bridge_use.rs)). The player's think flies a
+player whose jetpack is on (`PM_JETPACK`, `EF_JETPACK_ACTIVE`, `g_active.c:4007-4038`),
+lands one whose is off and puts the jets out; dying, a grip (`w_force.c:4185`) and the
+trigger a fall to death begins in (`g_trigger.c:2372`) turn it off, checked each frame
+(`holdables::jetpack_forced_off`). Jump thrusts up and burns two fuel a tick instead of
+one; empty, it switches off. `use_jetpack` stays refused, as stock's `G_ItemUsable`
+refuses it (`BG_IsItemSelectable` never selects the jetpack), and the client offers no
+bind for it. Sol's review on PR #225 moved the flight from that bind to the use key. Not
+ported: a DEMP2 hit switching the jetpack off for 3 to 10
+seconds (`G_Damage`). Unit tests cover the think's link, `tryJetPack`'s gate and the
+switch-offs; untested in a game.
 
 ## Sun blade drawn for less
 
@@ -8362,7 +8426,13 @@ Unit tests in `sjk-shader` pin it; not verified in game.
 Detached free camera (`feat/free-camera`): `/freecam [on|off]`
 uses the existing JoF EJK fake-noclip predictor and frozen server commands,
 with the body left at its entity and the view weapon hidden. Within 32 units
-of its eye the body is hidden from the main view to avoid head clipping. The existing
+of its eye the body is hidden from the main view to avoid head clipping. A limp
+body (the Ragdoll toy), drawn where the ragdoll lies, is never hidden so: the camera
+did not start in it, and it vanished while the camera flew above it (27/10/2026). While
+limp, the flight keeps the player's input and its own view: the body no longer walks to the
+ragdoll (in the sent commands and the frame preview), rising does not wake it, and the
+ragdoll's camera stands aside until the flight ends; the camera did not move before
+(28/10/2026). Only a body the ragdoll posed escapes the head hide. The existing
 flight tests cover server command suppression and return-to-server behavior.
 Death/spectator/vehicle policy is shared with fake noclip. Combined revision
 `7b76890` was checked on 2026-10-07 (Windows, RTX 5070 Ti, release, retail

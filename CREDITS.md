@@ -388,7 +388,7 @@ includes:
 Creyon and Lumaya wear the SJK team's Contributor medal, shown on their
 cards of the in-game credits page.
 
-Creyon ([Creyon94](https://github.com/Creyon94)), contributor and tester, has 58
+Creyon ([Creyon94](https://github.com/Creyon94)), contributor and tester, has 61
 pull requests merged into SJK, most of them bringing SJK in line with EternalJK
 ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3ACreyon94)):
 
@@ -468,6 +468,12 @@ pull requests merged into SJK, most of them bringing SJK in line with EternalJK
   game or from the main menu; the request card, the trade window with what each side is
   worth, Ready and Confirm, the daily limits with their reset clock, the resale countdown
   on a traded holocron and the window's size setting;
+- #230 black sabers (JA+'s colour 11): a black chip in Profile > Saber, black blades in the
+  menu and in game, on SJK's own server too, as JoF EJK draws them (hub report #130);
+- #231 the cardboard box with the free camera, and a boxed player drawn crouched in the
+  box while the server stands them up to talk (hub report #152);
+- #232 a limp body (Ragdoll toy) stays in sight from the free camera, which flies freely
+  while limp;
 - #102 a formatting fix that unblocked every pull request's checks.
 - the Saber ideas page, whose concepts became the Tidal, Circuit, Aurora, Echo, Nebula,
   Cinder, Venom, Sakura and Firefly blades, and the twelve that followed (Slate, Amber,
@@ -630,7 +636,7 @@ merged into SJK
 - #198 "Too many open files" after a long session: the Profile menu's model icons, cosmetics and
   Force templates let go of the previous map's game files (its PK3 reopening part held back).
 
-Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 43 pull requests merged
+Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 46 pull requests merged
 into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AJoFSlash)):
 
 - #114 Tab completes the cfg file argument of `exec`, `execq`, `writeconfig` and `write`
@@ -713,6 +719,14 @@ into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author
 - #220 screenshots are written opaque, so tinted skins keep their colour.
 - #221 the in-game menu's Leave page no longer draws its name over the arc.
 - #223 the DEMP2 alt fire's shock bubble, as `FX_DEMP2_AltDetonate` draws it.
+- #226 each saber swing is heard once across a combo's end: no extra swing after it, no
+  silent first swing of the next (hub report #171), as the cues hand over between the
+  predicted and the server's animation.
+- #225 the jetpack's fuel bar after JoF EJK's `CG_DrawJetpackFuel`, shown only while it burns
+  and at the HUD scale; the jetpack flies on SJK's own server as stock (`tryJetPack`), and
+  the `jetpack` cheat gives or takes one.
+- #227 the credits page's section rail stays clear of Expand all: rows draw closer as
+  sections are added, and past ten a still window with dots for the hidden ones.
 
 His Peek work in #199 (closed 24/10/2026, not merged) shaped the Drone toy: a player is
 asked before being peeked, told who watches, and can end it. His #206 (closed 25/10/2026,

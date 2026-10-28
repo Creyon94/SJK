@@ -43,6 +43,9 @@ pub(crate) const LOGO_TEXTURE: sjk_ui::TextureId = sjk_ui::TextureId(LOGO_ICON);
 /// `TexturedQuad` texture naming JoF EternalJK's icon, which SJK chat messages sent from
 /// it start with in place of SJK's emblem, uploaded once at start.
 pub(crate) const EJK_TEXTURE: sjk_ui::TextureId = sjk_ui::TextureId(icons::EJK_ICON);
+/// `TexturedQuad` texture naming the SJK Launcher's icon, which SJK chat messages sent from
+/// its chat window start with in place of SJK's emblem, uploaded once at start.
+pub(crate) const LAUNCHER_TEXTURE: sjk_ui::TextureId = sjk_ui::TextureId(icons::LAUNCHER_ICON);
 /// `TexturedQuad` texture naming the gold verified badge, drawn once at start.
 pub(crate) const VERIFIED_TEXTURE: sjk_ui::TextureId = sjk_ui::TextureId(icons::VERIFIED_ICON);
 /// `TexturedQuad` texture naming the trust mark for `trust` (`trust_badge`), drawn once
@@ -183,6 +186,8 @@ use levelshot::LevelshotTexture;
 const SJK_EMBLEM: &[u8] = include_bytes!("../../../assets/branding/sjk-logo-512.png");
 /// JoF EternalJK's icon, scaled into one icon cell at start.
 const EJK_ICON: &[u8] = include_bytes!("../../../assets/branding/jof-ejk-icon.png");
+/// The SJK Launcher's icon, scaled into one icon cell at start.
+const LAUNCHER_ICON: &[u8] = include_bytes!("../../../assets/branding/sjk-launcher-icon.png");
 
 /// Shape vertices one frame may draw (six per quad), across every layer: the Collection alone
 /// may fill its [`crate::console::collection_panel::DRAW_COMMANDS`] (#117: its Forge reached
@@ -429,6 +434,7 @@ impl ShapeRenderer {
         for (name, bytes, texture) in [
             ("SJK emblem", SJK_EMBLEM, LOGO_TEXTURE),
             ("JoF EternalJK icon", EJK_ICON, EJK_TEXTURE),
+            ("SJK Launcher icon", LAUNCHER_ICON, LAUNCHER_TEXTURE),
         ] {
             match image::load_from_memory(bytes) {
                 Ok(emblem) => {
