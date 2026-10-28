@@ -43,7 +43,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Black sabers: Profile > Saber has a black blade of its own (the custom colour's chip now reads RGB), and black blades show in game, on SJK's own server too, as in JoF EJK _(Creyon, PR #230, after JoF EJK)_
 - Cardboard box: the free camera works while you hide in it, and a boxed player stays crouched in the box when they open the chat or the menu, for everyone; their lunges and kicks still play (#152) _(Creyon, PR #231)_
 - Ragdoll: your limp body no longer disappears while you fly the free camera, and rising or speeding up in the free camera no longer gets you up _(Creyon, PR #232)_
-- Tab completes emotes in the console: `sjkemote aut` and Tab writes `sjkemote autumn_tea`, and with several matches lists them, as it does the words stop, sync, mute, unmute and help _(Slash)_
+- Tab completes emotes in the console: `sjkemote aut` and Tab writes `sjkemote autumn_tea`, and with several matches lists them, as it does the words stop, sync, mute, unmute and help _(Slash, PR #234)_
 
 ## 2026.1027.2 (Alpha) | 27/10/2026
 
