@@ -5001,6 +5001,9 @@ sees it there.
   from holocrons ([holocrons.md](holocrons.md)), duplicates stacking. There are no uploads
   (Sol's decision, 27/10/2026): Sol picks every tag, new ones from rounds on Discord, and
   each needs a new id in both catalogues and its picture in the hub's `sjk_tags` pack.
+  Players propose them in the Discord's `#tag-proposals` channel (28/10/2026; a pinned
+  post says how: one idea per post, voted with reactions, a bold square PNG, nothing
+  taken from another game), which the tag card in Collection > Tags points to.
 - **Choosing:** Collection > Tags shows every tag, the ones the player lacks dimmed;
   Choose (or Enter) sets `cg_tag`, the tag `toy_tag` sticks (default `tag_sjk`).
 - **Sticking:** `toy_tag` (a bind, Settings > Key bindings > Interaction "Toy: Tag", the
