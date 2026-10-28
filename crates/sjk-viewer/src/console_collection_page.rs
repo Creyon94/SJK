@@ -331,11 +331,11 @@ impl ViewerConsole {
 
     /// The stock blade's colour, from `color1`, for its swatch.
     fn stock_blade(&self) -> sjk_ui::Color {
+        // The whole number, as the game reads it: a black blade's 11 read as 1 (orange).
         let index = self
             .text_value("color1")
-            .map(str::trim)
-            .and_then(|value| value.get(..1))
-            .and_then(|digit| digit.parse::<u8>().ok())
+            .map(|value| sjk_client::split_color_value(value).0)
+            .and_then(|colour| u8::try_from(colour).ok())
             .unwrap_or(4);
         crate::player_menu::saber_color(index, [255, 255, 255])
     }
@@ -665,6 +665,22 @@ impl ViewerConsole {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// #230's review: Collection's stock-blade swatch read only the first digit of
+    /// `color1`, so a black blade (11) showed orange (1).
+    #[test]
+    fn the_stock_blade_swatch_reads_the_whole_colour() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut console = ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
+        for (value, index) in [("11", 11), ("1", 1), ("6", 6), ("4", 4)] {
+            console.set_cvar("color1", value);
+            assert_eq!(
+                console.stock_blade(),
+                crate::player_menu::saber_color(index, [255, 255, 255]),
+                "{value}"
+            );
+        }
+    }
 
     #[test]
     fn the_page_opens_alone_and_its_actions_set_the_cvars_and_ask_for_the_holocron() {

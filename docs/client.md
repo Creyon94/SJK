@@ -1032,10 +1032,11 @@ The normal plugin-mask default (1536) allows black blades.
 The SJK UI's Profile > Saber offers black as a chip of its own, the last, after the
 custom chip, which writes colour 11 (hub report #130, 27/10/2026): before, the
 page had no black, and a saved 11 read and was written back as the custom colour. A
-stored custom tint too dark for a blade (no channel above 39, as an earlier test build
-saved for black) counts as none: the custom chip showed it as a second black chip that
-gave a white blade, and now shows and starts from the stock blue (`stored_rgb`, Dave's
-test, 28/10/2026). The classic page keeps retail's six swatches.
+stored custom tint that is black's own near-black (`BLACK_RGB`, which an earlier test
+build saved for black) counts as none: the custom chip showed it as a second black chip
+that gave a white blade, and now shows and starts from the stock blue (`stored_rgb`,
+Dave's test, 28/10/2026). Any other tint is the player's, however dark. Collection's
+stock-blade swatch reads the whole `color1`, so black shows black there too. The classic page keeps retail's six swatches.
 
 Other servers show colour 11 as before: purple, or the player's RGB tint when
 one is set. (JoF EJK shows orange there; SJK keeps its earlier colour.) Ordinary RGB colours, including

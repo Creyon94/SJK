@@ -113,15 +113,6 @@ fn menu_colour(index: u8) -> u8 {
     }
 }
 
-/// Whether a custom tint is too dark to show as a blade or a chip apart from
-/// black ([`SaberMenu::stored_rgb`]).
-fn too_dark(rgb: [u8; 3]) -> bool {
-    rgb.into_iter().max().unwrap_or(0) < DARKEST_TINT
-}
-
-/// The brightest channel a custom tint needs to count ([`too_dark`]).
-const DARKEST_TINT: u8 = 40;
-
 /// The chip of a menu colour in [`PALETTE`].
 pub(super) fn palette_position(index: u8) -> usize {
     PALETTE
@@ -263,12 +254,14 @@ impl SaberMenu {
         blade_rgb(self.color(second), self.stored_rgb(second))
     }
 
-    /// The stored custom tint, unless it is too dark to be a blade: an earlier
-    /// test build stored black as a custom tint, which drew a second black chip
-    /// that gave a white blade (Dave's test of #130, 28/10/2026). Black is its own
-    /// chip; such a tint counts as none.
+    /// The stored custom tint, unless it is black's own near-black tint ([`BLACK_RGB`]),
+    /// which an earlier test build stored as the custom tint for black: that drew a
+    /// second black chip that gave a white blade (Dave's test of #130, 28/10/2026).
+    /// Black is its own chip; that exact tint counts as none. Any other tint is the
+    /// player's, however dark (#230's review: a filter on darkness also dropped a real
+    /// dark red stepped down from the sliders).
     fn stored_rgb(&self, second: bool) -> Option<[u8; 3]> {
-        self.draft.rgb[usize::from(second)].filter(|rgb| !too_dark(*rgb))
+        self.draft.rgb[usize::from(second)].filter(|rgb| *rgb != BLACK_RGB)
     }
 
     /// The custom tint the RGB chip shows: the stored one, else what the
@@ -601,9 +594,9 @@ mod tests {
         assert_eq!(menu.stage_sabers(false).black, [false, true]);
     }
 
-    /// Dave's test of #130: a black custom tint stored by an earlier test build
-    /// drew a second black chip, which gave a white blade. It counts as no tint:
-    /// the custom chip shows, and picking it starts from, the stock blue.
+    /// Dave's test of #130: black's own tint, stored as the custom tint by an earlier
+    /// test build, drew a second black chip, which gave a white blade. It counts as no
+    /// tint: the custom chip shows, and picking it starts from, the stock blue.
     #[test]
     fn a_black_custom_tint_is_no_custom_tint() {
         let directory = tempfile::tempdir().unwrap();
@@ -623,6 +616,24 @@ mod tests {
             Some(i64::from(sjk_client::pack_saber_rgb(blue))),
             "and the black tint is replaced"
         );
+    }
+
+    /// #230's review: a dark custom tint the player chose stays theirs; stepping the
+    /// red channel of [45, 0, 0] down keeps [35, 0, 0] in the menu, not white.
+    #[test]
+    fn a_dark_custom_tint_stays_the_players() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut console = ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
+        let packed = sjk_client::pack_saber_rgb([45, 0, 0]);
+        console.set_cvar("cp_sbRGB1", &packed.to_string());
+        console.set_cvar("color1", "6");
+        let mut menu = SaberMenu::new();
+        menu.open(&console);
+        assert_eq!(menu.rgb(false), [45, 0, 0]);
+        menu.set_channel(false, 0, 35);
+        assert_eq!(menu.rgb(false), [35, 0, 0], "the blade");
+        assert_eq!(menu.custom_rgb(false), [35, 0, 0], "the chip");
+        assert_eq!(menu.channel(false, 0), 35, "the slider");
     }
 
     /// Kushina's report #126: sabers chosen with the `saber` command (a quick-wheel
