@@ -1029,6 +1029,13 @@ default, under classic Settings > Game Options and SJK Advanced > Gameplay.
 Turning it off uses orange. The existing `cp_pluginDisable` bit 3 also disables
 black blades when set: `japlus.plugin 3` toggles it, and a clear bit means allowed.
 The normal plugin-mask default (1536) allows black blades.
+The SJK UI's Profile > Saber offers black as a chip of its own, the last, after the
+custom chip, which writes colour 11 (hub report #130, 27/10/2026): before, the
+page had no black, and a saved 11 read and was written back as the custom colour. A
+stored custom tint too dark for a blade (no channel above 39, as an earlier test build
+saved for black) counts as none: the custom chip showed it as a second black chip that
+gave a white blade, and now shows and starts from the stock blue (`stored_rgb`, Dave's
+test, 28/10/2026). The classic page keeps retail's six swatches.
 
 Other servers show colour 11 as before: purple, or the player's RGB tint when
 one is set. (JoF EJK shows orange there; SJK keeps its earlier colour.) Ordinary RGB colours, including
@@ -1038,6 +1045,13 @@ trail images are used when available; otherwise SJK generates black alpha
 profiles locally. No extra content download is required. See
 [rendering](rendering.md#ja-black-sabers) and
 [verification](status.md#ja-black-sabers).
+
+SJK's own server (devmap, Create game) carries black blades too, as JoF EJK shows
+them on its own devmap, where JoF's JA+-based game module runs: the server says
+`sjk\1` in its serverinfo and the families of `black_sabers::FAMILIES` (today `sjk`)
+count as supported (27/10/2026). The blade, its halo and its trail are drawn as in
+[rendering](rendering.md#ja-black-sabers), with EternalJK's own pictures when its
+folder has them.
 
 ## EternalJK animation fixes
 

@@ -11,8 +11,15 @@ use sjk_client::{LegacySaberDefinition, LegacySaberType, pack_saber_rgb, unpack_
 pub(super) const RGB_COLOR_INDEX: u8 = 6;
 /// Keyboard step of one RGB channel.
 const CHANNEL_STEP: isize = 5;
-/// The blade colour palette: the six stock colours, then the custom chip.
-pub(super) const PALETTE: [u8; 7] = [0, 1, 2, 3, 4, 5, RGB_COLOR_INDEX];
+/// `color1`/`color2` value of JA+'s black blade (`SABER_BLACK`), drawn black on
+/// JA+, jaPRO and TaystJK servers with `cg_blackSabers` on (`docs/client.md`, "JA+
+/// black sabers"); other servers show it as before (hub report #130).
+pub(super) const BLACK_COLOR_INDEX: u8 = 11;
+/// The blade colour palette: the six stock colours, the custom chip, then JA+'s
+/// black, last. A colour's chip is its position here, not its number.
+pub(super) const PALETTE: [u8; 8] = [0, 1, 2, 3, 4, 5, RGB_COLOR_INDEX, BLACK_COLOR_INDEX];
+/// Near black, so the blade's preview and the chip still show on dark menus.
+const BLACK_RGB: [u8; 3] = [16, 16, 18];
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum SaberStyle {
@@ -84,10 +91,40 @@ impl Default for SaberDraft {
 
 /// Blade tint of a `color1`/`color2` value with its custom RGB.
 fn blade_rgb(index: u8, rgb: Option<[u8; 3]>) -> [u8; 3] {
+    if index == BLACK_COLOR_INDEX {
+        return BLACK_RGB;
+    }
     match Color::ALL.get(usize::from(index)) {
         Some(color) => color.blade_rgb(),
         None => rgb.unwrap_or_else(|| unpack_saber_rgb(0)),
     }
+}
+
+/// A `color1`/`color2` number as the menu keeps it: a stock colour, black, or the
+/// custom chip for anything else (JA+'s flame and electric blades among them).
+fn menu_colour(index: u8) -> u8 {
+    if index == BLACK_COLOR_INDEX {
+        index
+    } else {
+        index.min(RGB_COLOR_INDEX)
+    }
+}
+
+/// Whether a custom tint is too dark to show as a blade or a chip apart from
+/// black ([`SaberMenu::stored_rgb`]).
+fn too_dark(rgb: [u8; 3]) -> bool {
+    rgb.into_iter().max().unwrap_or(0) < DARKEST_TINT
+}
+
+/// The brightest channel a custom tint needs to count ([`too_dark`]).
+const DARKEST_TINT: u8 = 40;
+
+/// The chip of a menu colour in [`PALETTE`].
+pub(super) fn palette_position(index: u8) -> usize {
+    PALETTE
+        .iter()
+        .position(|colour| *colour == index)
+        .unwrap_or(usize::from(RGB_COLOR_INDEX))
 }
 
 pub(super) struct SaberMenu {
@@ -170,8 +207,8 @@ impl SaberMenu {
             .unwrap_or("single_1")
             .to_owned();
         self.draft.secondary = console.text_value("saber2").unwrap_or("none").to_owned();
-        self.draft.color1 = colour_cvar(console, "color1").min(RGB_COLOR_INDEX);
-        self.draft.color2 = colour_cvar(console, "color2").min(RGB_COLOR_INDEX);
+        self.draft.color1 = menu_colour(colour_cvar(console, "color1"));
+        self.draft.color2 = menu_colour(colour_cvar(console, "color2"));
         for (slot, cvar) in self.draft.rgb.iter_mut().zip(["cp_sbRGB1", "cp_sbRGB2"]) {
             let packed = console
                 .integer_cvar(cvar)
@@ -220,24 +257,45 @@ impl SaberMenu {
     /// The tint the blade is drawn with: the stock triplet, or the custom
     /// RGB when the colour is RGB.
     pub(super) fn rgb(&self, second: bool) -> [u8; 3] {
-        blade_rgb(self.color(second), self.draft.rgb[usize::from(second)])
+        blade_rgb(self.color(second), self.stored_rgb(second))
+    }
+
+    /// The stored custom tint, unless it is too dark to be a blade: an earlier
+    /// test build stored black as a custom tint, which drew a second black chip
+    /// that gave a white blade (Dave's test of #130, 28/10/2026). Black is its own
+    /// chip; such a tint counts as none.
+    fn stored_rgb(&self, second: bool) -> Option<[u8; 3]> {
+        self.draft.rgb[usize::from(second)].filter(|rgb| !too_dark(*rgb))
     }
 
     /// The custom tint the RGB chip shows: the stored one, else what the
-    /// blade is drawn with now.
+    /// blade is drawn with now. Black is not a tint to start from (it drew a
+    /// second black chip and a custom blade too dark to see): the stock blue then.
     pub(super) fn custom_rgb(&self, second: bool) -> [u8; 3] {
-        self.draft.rgb[usize::from(second)].unwrap_or_else(|| self.rgb(second))
+        self.stored_rgb(second)
+            .unwrap_or_else(|| self.tint_to_nudge(second))
+    }
+
+    /// What the sliders show and start from: the blade's tint, or with black the
+    /// custom one ([`Self::custom_rgb`]).
+    fn tint_to_nudge(&self, second: bool) -> [u8; 3] {
+        if self.color(second) == BLACK_COLOR_INDEX {
+            self.stored_rgb(second)
+                .unwrap_or_else(|| Color::Blue.blade_rgb())
+        } else {
+            self.rgb(second)
+        }
     }
 
     /// One channel of the custom RGB.
     pub(super) fn channel(&self, second: bool, channel: usize) -> u8 {
-        self.rgb(second)[channel]
+        self.tint_to_nudge(second)[channel]
     }
 
     /// Set one channel; the colour becomes custom (RGB), starting from the
     /// tint that was showing, so a stock colour can be nudged directly.
     pub(super) fn set_channel(&mut self, second: bool, channel: usize, value: u8) {
-        let mut rgb = self.rgb(second);
+        let mut rgb = self.tint_to_nudge(second);
         rgb[channel] = value;
         self.draft.rgb[usize::from(second)] = Some(rgb);
         self.select_color(second, RGB_COLOR_INDEX);
@@ -320,7 +378,7 @@ impl SaberMenu {
                 }
             }
             SaberRow::Blade | SaberRow::SecondBlade => {
-                let current = usize::from(self.color(row.second()));
+                let current = palette_position(self.color(row.second()));
                 self.select_color(
                     row.second(),
                     PALETTE[wrap(current, direction, PALETTE.len())],
@@ -383,10 +441,10 @@ impl SaberMenu {
     /// Choose a colour; picking RGB for the first time starts from the tint
     /// of the colour that was selected until then.
     pub(super) fn select_color(&mut self, second: bool, index: u8) {
-        let index = index.min(RGB_COLOR_INDEX);
-        let previous = self.rgb(second);
+        let index = menu_colour(index);
+        let previous = self.tint_to_nudge(second);
         let slot = usize::from(second);
-        if index == RGB_COLOR_INDEX && self.draft.rgb[slot].is_none() {
+        if index == RGB_COLOR_INDEX && self.stored_rgb(second).is_none() {
             self.draft.rgb[slot] = Some(previous);
         }
         if second {
@@ -464,6 +522,86 @@ mod tests {
         reopened.open(&console);
         let userinfo = console.userinfo().unwrap();
         (shown, reopened.rgb(false), userinfo.saber_rgb[0])
+    }
+
+    /// Hub report #130: JA+'s black blade (11) is a chip of its own. A saved black
+    /// opens as black (it used to read as the custom chip), is kept when written, and
+    /// the arrows step through it; other numbers past 6 still read as custom.
+    #[test]
+    fn black_is_a_colour_of_its_own() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut console = ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
+        console.set_cvar("color1", "11");
+        console.set_cvar("color2", "8");
+        let mut menu = SaberMenu::new();
+        menu.open(&console);
+        assert_eq!(menu.color(false), BLACK_COLOR_INDEX);
+        assert_eq!(
+            menu.color(true),
+            RGB_COLOR_INDEX,
+            "a flame blade reads as custom"
+        );
+        assert_eq!(menu.rgb(false), BLACK_RGB);
+        menu.apply(&mut console);
+        assert_eq!(colour_cvar(&console, "color1"), BLACK_COLOR_INDEX);
+        // Purple, then the custom chip, then black, last.
+        assert_eq!(PALETTE[palette_position(5) + 1], RGB_COLOR_INDEX);
+        assert_eq!(
+            PALETTE[palette_position(RGB_COLOR_INDEX) + 1],
+            BLACK_COLOR_INDEX
+        );
+        assert_eq!(palette_position(BLACK_COLOR_INDEX), PALETTE.len() - 1);
+        menu.select_color(false, PALETTE[PALETTE.len() - 1]);
+        assert_eq!(menu.color(false), BLACK_COLOR_INDEX);
+    }
+
+    /// Dave's test of #130: with black chosen the custom chip showed black too, and
+    /// picking it gave a near-black custom blade. The custom chip and the sliders now
+    /// keep a real tint (the stored one, else stock blue), and the custom blade
+    /// starts from it.
+    #[test]
+    fn black_does_not_become_the_custom_tint() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut console = ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
+        console.set_cvar("color1", "11");
+        let mut menu = SaberMenu::new();
+        menu.open(&console);
+        let blue = Color::Blue.blade_rgb();
+        assert_eq!(menu.custom_rgb(false), blue, "the custom chip is not black");
+        assert_eq!(menu.channel(false, 2), blue[2], "nor are the sliders");
+        menu.select_color(false, RGB_COLOR_INDEX);
+        assert_eq!(menu.rgb(false), blue, "the custom blade starts from blue");
+        // A stored custom tint survives black and comes back with the custom chip.
+        menu.set_channel(false, 0, 200);
+        let tint = menu.rgb(false);
+        menu.select_color(false, BLACK_COLOR_INDEX);
+        assert_eq!(menu.custom_rgb(false), tint);
+        menu.select_color(false, RGB_COLOR_INDEX);
+        assert_eq!(menu.rgb(false), tint);
+    }
+
+    /// Dave's test of #130: a black custom tint stored by an earlier test build
+    /// drew a second black chip, which gave a white blade. It counts as no tint:
+    /// the custom chip shows, and picking it starts from, the stock blue.
+    #[test]
+    fn a_black_custom_tint_is_no_custom_tint() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut console = ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
+        let packed = sjk_client::pack_saber_rgb([16, 16, 18]);
+        console.set_cvar("cp_sbRGB1", &packed.to_string());
+        console.set_cvar("color1", "4");
+        let mut menu = SaberMenu::new();
+        menu.open(&console);
+        let blue = Color::Blue.blade_rgb();
+        assert_eq!(menu.custom_rgb(false), blue, "the custom chip is not black");
+        menu.select_color(false, RGB_COLOR_INDEX);
+        assert_eq!(menu.rgb(false), blue, "the custom blade starts from blue");
+        menu.apply(&mut console);
+        assert_eq!(
+            console.integer_cvar("cp_sbRGB1"),
+            Some(i64::from(sjk_client::pack_saber_rgb(blue))),
+            "and the black tint is replaced"
+        );
     }
 
     /// Kushina's report #126: sabers chosen with the `saber` command (a quick-wheel

@@ -2147,9 +2147,22 @@ the reference shader's two identical stages combined into one, retaining the
 existing trail lifetime and UV fade. Black blades/trails are excluded from the
 dynamic-glow image and emit no blade light. The renderer resolves installed
 `gfx/effects/sabers/blackglow`, `blackcore` and `blacktrail` images at load time,
-or generates black alpha coverage from its neutral profiles. Its smooth
-capsule presentation and generated fallback are not a claim of pixel parity
-with EJK's sprite chain or community textures. See
+taking EternalJK's own from its folder when installed (jaPRO's `japro-assets.pk3`,
+only those three pictures, as for its crosshairs), or generates black alpha
+coverage: the neutral profiles for the glow and core, and for the trail a picture
+shaped as jaPRO's `blacktrail` (solid over the first two thirds of U, which is a
+slice's age as it scrolls, fading by 0.8; solid along V but for its ends). The trail
+used to fall back to the core profile, solid only in a narrow band of U, so a swing
+showed a translucent banded fan, clear by the blade, where JoF EJK draws a solid wedge
+(Dave's test, 27/10/2026). The capsule's glow takes stock's sprite overlap: the chain
+(`RB_SurfaceSaberGlow`) lays a sprite of the blade's radius every 0.65 radii, so a point
+is under about 2 / 0.65 of them, and the halo's alpha is `1 - (1 - a)^2.2` (a little
+under that full overlap, which read as too much glow in game, 28/10/2026) instead
+of one sprite's, which made the black blade thinner than EJK's. Offscreen renders on
+llvmpipe of a 150-degree, 60 ms sweep and a 40-unit blade, before and after, with the
+generated and with jaPRO's pictures, matched EJK's solid wedge and halo width; the
+capsule and generated pictures are still not a claim of pixel parity with EJK's sprite
+chain. See
 [status](status.md#ja-black-sabers) for verification and limits.
 
 ## First-person saber body
