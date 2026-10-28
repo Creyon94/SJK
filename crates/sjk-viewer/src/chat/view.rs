@@ -106,7 +106,7 @@ impl ChatOverlay {
                     self.ui.text_aligned(
                         line,
                         Rect::new(32.0, y, viewport[0] - 64.0, row),
-                        CENTER_FONT_1080 * center_scale * size,
+                        CENTER_FONT_1080 * crate::game_font::HEADLINE_GROWTH * center_scale * size,
                         color,
                         FontWeight::Semibold,
                         0.0,
@@ -475,7 +475,9 @@ fn row_box(g: &Geometry) -> f32 {
 /// EternalJK draws it: `CG_DrawCenterString` (JoF EJK `cg_draw.c:6985`) draws
 /// `ergoec` (`FONT_MEDIUM`) at scale `cg_centerSize`, and `ergoec`'s line is 22
 /// retail pixels (`mHeight`), which SJK Menu keeps (`text::retail_font::MENU`): 49.5
-/// px at 1080 lines, capitals about 29 px. Before 19/10/2026 it was 22 px.
+/// px at 1080 lines, capitals about 29 px. Before 19/10/2026 it was 22 px. The
+/// headline font draws it grown by [`crate::game_font::HEADLINE_GROWTH`], to the
+/// same capitals.
 pub(super) const CENTER_FONT_1080: f32 = 22.0 * 1080.0 / 480.0;
 
 /// Pitch of centre-print rows in 1080p pixels for `size`: EternalJK advances
@@ -804,5 +806,36 @@ mod tests {
         let (_, marks) = super::line_marks(line, &slots).expect("marks");
         assert!(marks.sjk && marks.mark.is_some());
         assert_eq!(marks.emoji, "x");
+    }
+
+    /// A centre print in the headline font (Fira Sans Condensed), rendered off screen
+    /// at 1080p and 4K, with `ui_gameFont` on and off (it draws the same either way).
+    #[test]
+    #[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+    fn centre_print_shot() {
+        for (size, suffix) in [([1920, 1080], "1080p"), ([3840, 2160], "4k")] {
+            for game_font in ["1", "0"] {
+                crate::world_shot::on_big_stack(move || {
+                    let Some((mut gpu, _profile)) = crate::world_shot::open(
+                        "maps/mp/duel6.bsp",
+                        size,
+                        None,
+                        &[(crate::game_font::CVAR, game_font), ("cg_centertime", "60")],
+                    ) else {
+                        return;
+                    };
+                    gpu.chat.for_shot = true;
+                    gpu.chat.receive(
+                        ServerEventKind::CenterPrint,
+                        "^1You are the mark!\n^7Hunters: Solol, dart_mario 0123456789".to_owned(),
+                        None,
+                        Instant::now(),
+                    );
+                    let name = format!("centre-print-{suffix}-gamefont{game_font}");
+                    let path = crate::world_shot::shoot(&mut gpu, 10, &name);
+                    println!("{}", path.display());
+                });
+            }
+        }
     }
 }

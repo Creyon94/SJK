@@ -6318,7 +6318,7 @@ size, about 0.59 of EternalJK's chat and 0.44 of its centre prints). The HUD's v
   little larger than the feed's text, as before; an SJK line's GIF stays three rows
   high. See
   [chat/layout.rs](../crates/sjk-viewer/src/chat/layout.rs).
-- Centre prints: `CG_DrawCenterString` draws `ergoec` (`FONT_MEDIUM`, a 22-pixel line,
+- Centre prints (drawn in SJK's headline font, Fira Sans Condensed, [rendering.md](rendering.md#menu-text)): `CG_DrawCenterString` draws `ergoec` (`FONT_MEDIUM`, a 22-pixel line,
   13-pixel capitals, point size 20) at scale `cg_centerSize` and advances
   `20 * cg_centerSize + 6` virtual pixels a row. SJK draws a 49.5 px line box at 1080p
   (it was 22 px) and the same advance, 58.5 px at 1 (it was 30); SJK Menu keeps

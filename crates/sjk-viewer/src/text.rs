@@ -47,6 +47,9 @@ const RAJDHANI_SEMIBOLD: &[u8] = include_bytes!("../assets/fonts/Rajdhani-SemiBo
 pub(crate) const RAJDHANI_BOLD: &[u8] = include_bytes!("../assets/fonts/Rajdhani-Bold.ttf");
 const EXO2_REGULAR: &[u8] = include_bytes!("../assets/fonts/Exo2-Regular.ttf");
 const EXO2_SEMIBOLD: &[u8] = include_bytes!("../assets/fonts/Exo2-SemiBold.ttf");
+const FIRA_CONDENSED_SEMIBOLD: &[u8] =
+    include_bytes!("../assets/fonts/FiraSansCondensed-SemiBold.ttf");
+const FIRA_CONDENSED_BOLD: &[u8] = include_bytes!("../assets/fonts/FiraSansCondensed-Bold.ttf");
 
 /// One family of the vector UI atlas: its [`TextFace::Regular`] and
 /// [`TextFace::Semibold`] fonts, and fonts of the same weights lending the
@@ -84,6 +87,17 @@ pub(crate) const BODY: Family = Family {
     faces: [EXO2_REGULAR, EXO2_SEMIBOLD],
     fallback: None,
     wide: wide::EXO2,
+};
+
+/// The headline family: Fira Sans Condensed SemiBold and Bold, close to the
+/// retail `ergoec` but a real typeface, for centre prints and the words in the
+/// world ([`crate::game_font::RetailFont::Headline`]). Subset to Windows-1252;
+/// what lies beyond comes from Exo 2 SemiBold.
+pub(crate) const HEADLINE: Family = Family {
+    name: "Fira Sans Condensed",
+    faces: [FIRA_CONDENSED_SEMIBOLD, FIRA_CONDENSED_BOLD],
+    fallback: None,
+    wide: [wide::EXO2[1], wide::EXO2[1]],
 };
 
 /// Font weight available in the modern UI atlas.
@@ -1050,6 +1064,21 @@ mod tests {
             index += step;
         }
         bytes
+    }
+
+    #[test]
+    fn the_headline_subset_keeps_every_windows_1252_character() {
+        for bytes in HEADLINE.faces {
+            let font = Font::from_bytes(bytes, FontSettings::default()).unwrap();
+            for byte in (0x21..=0x7e).chain(0x80..=0xff) {
+                let character = sjk_protocol::windows_1252_char(byte);
+                // Bytes Windows-1252 leaves undefined, the soft hyphen and NBSP aside.
+                if character.is_control() || matches!(byte, 0xa0 | 0xad) {
+                    continue;
+                }
+                assert_ne!(font.lookup_glyph_index(character), 0, "{character}");
+            }
+        }
     }
 
     #[test]

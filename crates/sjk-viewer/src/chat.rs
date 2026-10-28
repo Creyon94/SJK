@@ -681,10 +681,10 @@ impl ChatOverlay {
         }
     }
 
-    /// Lay out and append chat text: the chat box in the small game font and
-    /// centre prints in the medium one when `ui_gameFont` has them loaded
-    /// (`CG_ChatBox_DrawStrings` paints with `FONT_SMALL`, `CG_DrawCenterString`
-    /// with `FONT_MEDIUM`), otherwise in `font`.
+    /// Lay out and append chat text: the chat box in the small game font when
+    /// `ui_gameFont` has it loaded (`CG_ChatBox_DrawStrings` paints with
+    /// `FONT_SMALL`), centre prints in the headline font (where retail's
+    /// `CG_DrawCenterString` drew `FONT_MEDIUM`), otherwise in `font`.
     pub(crate) fn append(
         &mut self,
         draw_feed: bool,
@@ -706,7 +706,7 @@ impl ChatOverlay {
             fonts,
             |id, _| {
                 Some(if (start..end).contains(&id.0) {
-                    RetailFont::Medium
+                    RetailFont::Headline
                 } else {
                     RetailFont::Small
                 })

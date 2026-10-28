@@ -425,15 +425,17 @@ did: Found encrypted whispers ending with a backslash going out unencrypted
 role: Coding assistant, by Anthropic
 did: Wrote many of Sol's changes together with Sol
 
-[Inter, JetBrains Mono, Rajdhani, Exo 2 and Noto Sans]
-role: The fonts of the menus, the SJK UI and the console, under the SIL Open Font License
+[Inter, JetBrains Mono, Rajdhani, Exo 2, Fira Sans Condensed and Noto Sans]
+role: The fonts of the menus, the SJK UI, centre prints and the console, under the SIL Open Font License
 did: Inter by The Inter Project Authors, JetBrains Mono by The JetBrains Mono Project Authors
 did: Rajdhani by the Indian Type Foundry, Exo 2 by the Exo 2 Project Authors (Natanael Gama)
+did: Fira Sans Condensed by the Mozilla Foundation and Telefonica S.A., for centre prints
 did: Noto Sans JP, SC and KR by Adobe and Google, for Japanese, Chinese and Korean
 link: https://rsms.me/inter/
 link: https://www.jetbrains.com/lp/mono/
 link: https://fonts.google.com/specimen/Rajdhani
 link: https://fonts.google.com/specimen/Exo+2
+link: https://fonts.google.com/specimen/Fira+Sans+Condensed
 link: https://fonts.google.com/noto/specimen/Noto+Sans+JP
 
 [Twemoji]
