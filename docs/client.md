@@ -4544,9 +4544,12 @@ every fall ends with the map or the server.
   drawn as animated.
 - **The camera:** behind the body's pelvis, turned by the mouse (as the Hax's hacker's).
   Getting up gives the view back as it was. Flying the free camera while limp, the
-  flight keeps its own view and the player's input (the real body is not walked to the
-  ragdoll until it ends), and the ragdoll stays drawn when the camera comes near it
-  (28/10/2026; before, the camera did not move and the ragdoll could vanish).
+  flight keeps its own view and the player's input: the real body is not walked to the
+  ragdoll until it ends, in the sent commands or the frame preview between them, and
+  rising or the speed key does not get the player up. The ragdoll stays drawn when the
+  camera comes near it (28/10/2026; before, the camera did not move and the ragdoll
+  could vanish). Plain `fakenoclip` keeps the ragdoll's camera, having no view of its
+  own.
 - **The real body:** the game server knows nothing of it, so the player's player stays
   there: while limp, the client walks it to where the ragdoll lies (its own user
   commands, running far off, walking near, stopping within 12 units), so that the

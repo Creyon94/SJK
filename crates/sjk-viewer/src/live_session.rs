@@ -314,8 +314,12 @@ impl GpuState {
                 .local_prediction
                 .committed_state()
                 .map_or(snapshot_origin, |state| state.origin);
-            // A jump, attack or taunt gets a limp player up.
-            self.ragdoll.wake(&command);
+            // A jump, attack or taunt gets a limp player up, though not while flying the
+            // free camera, whose rise is `upmove` and whose speed key a wake button
+            // (#232's review: the first rise ended the ragdoll).
+            if !flying {
+                self.ragdoll.wake(&command);
+            }
             let replay = self
                 .hax
                 .drive(&command, delta_angles, (self.camera_pitch, self.camera_yaw))

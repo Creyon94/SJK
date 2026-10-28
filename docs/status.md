@@ -8366,8 +8366,9 @@ of its eye the body is hidden from the main view to avoid head clipping. A limp
 body (the Ragdoll toy), drawn where the ragdoll lies, is never hidden so: the camera
 did not start in it, and it vanished while the camera flew above it (27/10/2026). While
 limp, the flight keeps the player's input and its own view: the body no longer walks to the
-ragdoll and the ragdoll's camera stands aside until the flight ends; the camera did not move
-before (28/10/2026). The existing
+ragdoll (in the sent commands and the frame preview), rising does not wake it, and the
+ragdoll's camera stands aside until the flight ends; the camera did not move before
+(28/10/2026). Only a body the ragdoll posed escapes the head hide. The existing
 flight tests cover server command suppression and return-to-server behavior.
 Death/spectator/vehicle policy is shared with fake noclip. Combined revision
 `7b76890` was checked on 2026-10-07 (Windows, RTX 5070 Ti, release, retail
