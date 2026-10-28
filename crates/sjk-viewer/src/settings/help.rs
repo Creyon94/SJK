@@ -912,6 +912,10 @@ const HELP: &[(&str, &str)] = &[
         "JoF's maps, skins, hilts and packs, as JoF's launcher gets them. Off until you turn it on; Enter opens the card.",
     ),
     (
+        "sith.downloads",
+        "The S community's maps, skins and extras, into the game's base folder. Off until you turn it on; Enter opens the card.",
+    ),
+    (
         "jof.contentSource",
         "Where JoF content downloads from: JoF Cloud, then jofhub.eu when a file is missing there (Auto), or only one of them.",
     ),

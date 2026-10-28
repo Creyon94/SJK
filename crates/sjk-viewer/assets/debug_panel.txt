@@ -24,6 +24,44 @@
 
 # ---- Console & chat ----
 
+[slash-jetpack-fuel]
+area: HUD
+title: Jetpack fuel bar, flight on SJK's server, jetpack cheat (Slash, PR #225)
+change: A fuel bar at the right edge while the jetpack burns, at the HUD scale (JoF EJK).
+change: devmap: use in the air lights the jetpack, use again puts it out; `jetpack` cheat.
+test: devmap, /jetpack, jump and press use: you fly, the bar shows and drains on the right.
+test: Land and put it out: the bar goes. cg_hudScale 2: the bar grows, keeps the right edge.
+test: On a JoF server with a jetpack: same bar while flying.
+
+[slash-credits-rail]
+area: Menus & settings
+title: Credits rail clear of Expand all (Slash, PR #227)
+change: The section rail starts higher and draws closer with more sections; past ten, a window.
+test: Main menu > Credits: no section row under Expand all, rows do not overlap.
+
+[creyon-black-sabers]
+area: Rendering & effects
+title: Black sabers in Profile > Saber and in game (Creyon, PR #230, hub #130)
+change: A black chip after the RGB chip; colour 11 kept; black blades drawn alpha-blended.
+test: Profile > Saber: pick black, the model's blades are black; reopen, black is kept.
+test: On a JA+/JoF server and on devmap: your black blade shows black, not white.
+test: RGB chip, step a dark red down: it stays dark red. Collection swatch shows black.
+
+[creyon-box-freecam]
+area: Gameplay
+title: Cardboard box with freecam, crouched in the box (Creyon, PR #231, hub #152)
+change: No crouch while flying; carton stays on the body; boxed players drawn crouched.
+test: toy_box on, hide, freecam: the camera flies freely, the carton stays on your body.
+test: In the box, open chat or Esc: you stay crouched, the view does not jump up.
+test: Boxed, lunge or kick: the move plays (another client sees it too).
+
+[creyon-ragdoll-freecam]
+area: Gameplay
+title: Limp body stays visible in freecam (Creyon, PR #232)
+change: A limp body is never hidden from the flight; the walk and its camera pause while flying.
+test: toy_ragdoll, go limp, freecam: fly over the body, it stays visible, no jitter.
+test: Rise (jump) and speed up in freecam: you stay limp. End freecam: the camera follows again.
+
 [slash-swing-sounds]
 area: Audio
 title: Saber swings heard once across a combo's end (Slash, PR #226, hub #171)
@@ -2444,6 +2482,18 @@ test: Team game, a stock teammate: grey bars, no HP/shield from the server.
 test: An SJK player sharing: real bars and gold contour as before.
 test: Settings, Nameplates: no Bars on everyone row; help has no entry for it.
 note: NPC plates (cg_nameplateNpcs) keep their bars.
+
+[nameplate-capsule]
+area: HUD
+title: Capsule nameplates: picture, name, weapon; a sharer's bars on a tray (design E)
+change: Every plate is a capsule: SJK picture (or initial), name, stance dot and weapon.
+change: Sharers' bars sit on a tray under it; non-sharers get the capsule alone, no grey bars.
+change: Team games tint the capsule; a duel shows its badge instead of the weapon.
+test: SJK players with a hub picture show it; one without shows their initial on their colour.
+test: A stock client or bot: its model's head icon, round, in the capsule.
+test: Team game: capsules in team colours, sharers keep the gold edge and the tray.
+test: Walk away from a player: the capsule fades to a smaller picture and dim name.
+test: Duel someone: the duel badge replaces the weapon; Collection > Nameplates shows it.
 
 [card-sight]
 area: HUD
@@ -6733,6 +6783,18 @@ test: Download stays dim while Use JoF content is off; turn it on, pick a small 
 test: Progress bar moves; close the card mid-download, reopen it: still downloading.
 test: Next map on a JoF server: a downloaded map or skin is there; Stop, then Download resumes.
 note: First open hashes your base folder once (about a minute); later opens are quick.
+
+[sith-cloud]
+area: Menus & settings
+title: Sith cloud on the JoF content card; the hub names both collections' servers
+change: Settings > General > Sith cloud (sith.downloads) opens the card on the Sith cloud.
+change: Off by default (sith.cloud 0); files go to base, as the SJK Launcher puts them.
+change: SJK asks the hub (/v1/content-sources) where JoF content and the Sith cloud are.
+test: Open the Sith cloud card: groups listed, SJK Extras not chosen; Download dim while off.
+test: Turn sith.cloud on, pick a small group, Download; next map it loads from base.
+test: JoF content card still lists and downloads as before.
+test: sith.cloudUrl set to a bad address: the card says it cannot reach that server.
+note: Needs the hub's content-sources endpoint (deployed 28/10).
 
 [linux-update-browse]
 area: Menus & settings

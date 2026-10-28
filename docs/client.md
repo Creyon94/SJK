@@ -1029,6 +1029,14 @@ default, under classic Settings > Game Options and SJK Advanced > Gameplay.
 Turning it off uses orange. The existing `cp_pluginDisable` bit 3 also disables
 black blades when set: `japlus.plugin 3` toggles it, and a clear bit means allowed.
 The normal plugin-mask default (1536) allows black blades.
+The SJK UI's Profile > Saber offers black as a chip of its own, the last, after the
+custom chip, which writes colour 11 (hub report #130, 27/10/2026): before, the
+page had no black, and a saved 11 read and was written back as the custom colour. A
+stored custom tint that is black's own near-black (`BLACK_RGB`, which an earlier test
+build saved for black) counts as none: the custom chip showed it as a second black chip
+that gave a white blade, and now shows and starts from the stock blue (`stored_rgb`,
+Dave's test, 28/10/2026). Any other tint is the player's, however dark. Collection's
+stock-blade swatch reads the whole `color1`, so black shows black there too. The classic page keeps retail's six swatches.
 
 Other servers show colour 11 as before: purple, or the player's RGB tint when
 one is set. (JoF EJK shows orange there; SJK keeps its earlier colour.) Ordinary RGB colours, including
@@ -1038,6 +1046,13 @@ trail images are used when available; otherwise SJK generates black alpha
 profiles locally. No extra content download is required. See
 [rendering](rendering.md#ja-black-sabers) and
 [verification](status.md#ja-black-sabers).
+
+SJK's own server (devmap, Create game) carries black blades too, as JoF EJK shows
+them on its own devmap, where JoF's JA+-based game module runs: the server says
+`sjk\1` in its serverinfo and the families of `black_sabers::FAMILIES` (today `sjk`)
+count as supported (27/10/2026). The blade, its halo and its trail are drawn as in
+[rendering](rendering.md#ja-black-sabers), with EternalJK's own pictures when its
+folder has them.
 
 ## EternalJK animation fixes
 
@@ -1577,6 +1592,18 @@ previews) play on channels past the game's (`interface_channel`), so none takes 
 voice volume. A muted window silences voices too. Unit tests:
 `a_channel_gain_replaces_the_master_gain_for_that_channel_only` (sjk-audio),
 `voices_take_the_voice_volume_and_other_sounds_the_effects_volume` (viewer).
+
+## Jetpack fuel bar
+
+While the player's jetpack burns, a tall bar at the right edge of the screen shows the
+fuel left in dark red, as JoF EJK's `CG_DrawJetpackFuel` draws it (20 by 100 units, 8 in
+from the right, 260 down). It hides with the HUD (`cg_drawHud`) and follows the HUD scale
+(`cg_hudScale`), keeping its right edge and centre height. In a
+[devmap](#development-maps) game the `jetpack` command gives or takes away the jetpack;
+as in the original game, the use key in the air switches it on (and off while it burns),
+and jump climbs.
+See
+[status](status.md#jetpack-fuel-bar).
 
 ## Jetpack sounds
 
@@ -4354,6 +4381,27 @@ first 5 seconds on a server).
   jump), so the server sees an ordinary crouching player and movement stays stock. Its
   music loops on the player, in both ears for one's own and placed on the player for
   others (on channel 14, its own, so it cuts no game sound).
+- **Flying** the free camera or `fakenoclip` (hub report #152, 27/10/2026), the box
+  holds no crouch: the commands' `upmove` steers the flight there, and a held crouch
+  sank the camera. One's own carton stays on the body and keeps the body's facing, not
+  the camera's; it is drawn for mirrors only while the camera is inside it (a flight
+  starts in the body), and the player does not count as hiding.
+- **Crouched in the box:** every SJK client draws a boxed player who stands as
+  crouching (`BOTH_CROUCH1IDLE` over standing legs, `BOTH_STAND*` and the saber stances'
+  `BOTH_SABER*_STANCE`, and over the torso when it
+  stands too; `cardboard_box::crouched_in_box`, `actor_pose_steps.rs`; Dave's test of
+  #152, 28/10/2026). The box asks the server to crouch, but `PmoveSingle` zeroes a
+  talking player's moves, `upmove` included (EternalJK `bg_pmove.c:12441-12448` at
+  a40e793; JoF EJK `bg_pmove.c:13108-13115` at 390f756), so the server stands up a
+  boxed player with the chat or console open or the free camera's talk balloon, which
+  stays so the player keeps its protection. Any other move (a lunge, a kick, a roll, a
+  knockdown, which a boxed player can still make) plays as the server sends it. Who is
+  boxed is noted before the actors are posed (`note_boxed_players`), so the pose
+  follows the carton on the same frame. A crouch keeps the origin, so the pose sits
+  where a real crouch would. One's own eye stays at crouch height (12) too while hidden
+  in the box, so opening the menu or the chat no longer lifts the view
+  (`keep_boxed_eye`, 28/10/2026). Rig models crouch too. Other clients see the server's
+  player, as they never see the box.
 - **Others see it** through the SJK hub: the box is a toy in the player's look
   (`toys: ["cardboard_box"]`, [unlockables.md](unlockables.md); `looks::TOYS`), so every
   SJK player on the server draws the carton over that player (their entity's
@@ -4599,7 +4647,13 @@ every fall ends with the map or the server.
   and the other bolts follow the posed bones. A model without the stock skeleton is
   drawn as animated.
 - **The camera:** behind the body's pelvis, turned by the mouse (as the Hax's hacker's).
-  Getting up gives the view back as it was.
+  Getting up gives the view back as it was. Flying the free camera while limp, the
+  flight keeps its own view and the player's input: the real body is not walked to the
+  ragdoll until it ends, in the sent commands or the frame preview between them, and
+  rising or the speed key does not get the player up. The ragdoll stays drawn when the
+  camera comes near it (28/10/2026; before, the camera did not move and the ragdoll
+  could vanish). Plain `fakenoclip` keeps the ragdoll's camera, having no view of its
+  own.
 - **The real body:** the game server knows nothing of it, so the player's player stays
   there: while limp, the client walks it to where the ragdoll lies (its own user
   commands, running far off, walking near, stopping within 12 units), so that the

@@ -235,6 +235,10 @@ impl PlayerMenu {
 /// Swatch of a `color1`/`color2` value; `rgb` is the custom tint for RGB.
 pub(crate) fn saber_color(index: u8, rgb: [u8; 3]) -> sjk_ui::Color {
     use sjk_ui::Color;
+    if index == super::saber::BLACK_COLOR_INDEX {
+        // JA+'s black blade, a shade off black so its chip shows on dark menus.
+        return Color::new(0.06, 0.06, 0.07, 1.0);
+    }
     match SaberColor::from_index(index).unwrap_or(SaberColor::Blue) {
         SaberColor::Red => Color::new(1.0, 0.12, 0.12, 1.0),
         SaberColor::Orange => Color::new(1.0, 0.45, 0.08, 1.0),

@@ -929,6 +929,7 @@ fn submit_actor(
         });
         let inside_body = local
             && sinks.detached_flight
+            && !limp(&sinks.actor_meshes[mesh])
             && crate::free_camera::inside_body(
                 sinks.camera_position,
                 Vec3::from_array(transform.translation),
@@ -1192,6 +1193,16 @@ fn speed_ghosts(
     )
 }
 
+/// Whether the player's body is drawn as their ragdoll lies (the Ragdoll toy): a free
+/// camera never starts in that body's head, which is not where the server holds the
+/// player, so it is never hidden from the camera (Dave's test, 27/10/2026: a ragdoll
+/// vanished while the camera flew above it). Only a body the ragdoll posed counts: a
+/// model off the stock skeleton stays where the server holds it, and is hidden as
+/// usual where the flight starts in its head (#232's review).
+fn limp(mesh: &crate::actor_mesh::ActorMesh) -> bool {
+    mesh.ragdoll.posed
+}
+
 #[allow(clippy::too_many_arguments)]
 fn submit_equipment(
     sinks: &mut Sinks<'_>,
@@ -1274,6 +1285,7 @@ fn submit_equipment(
         ActorInstance::new(grip.to_array(), weapon_rotation.to_array(), transform.scale);
     let inside_body = local
         && sinks.detached_flight
+        && !limp(&sinks.actor_meshes[actor_mesh])
         && crate::free_camera::inside_body(
             sinks.camera_position,
             Vec3::from_array(transform.translation),

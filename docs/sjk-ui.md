@@ -355,9 +355,12 @@ on the 16:9 frame, dark behind the form on the left and clear over the model.
   "Follow shader (<the blade worn>)", "Stock sounds" or an owned shader's name
   (`cg_saberSounds`, [unlockables.md](unlockables.md#saber-sounds)); Preview, or Enter on
   the row (the keys line then says "Enter preview"), plays the choice's ignition and hum.
-  Then the blade's colour as seven chips (the six
-  stock colours and the custom one, ringed gold when chosen), its red, green
-  and blue sliders (a digit types the number), and the second blade's for Dual.
+  Then the blade's colour as eight chips (the six
+  stock colours, the custom one, which says "RGB" so that its tint is not taken for a
+  stock colour or black, and last JA+'s black, colour 11, since 27/10/2026, hub report
+  #130; ringed gold when chosen; the model then holds black blades, drawn as in game,
+  not as the near-black tint, which the additive blade pass showed white), its red,
+  green and blue sliders (a digit types the number), and the second blade's for Dual.
   The camera cuts to the saber shot, where the model throws the saber to float
   and turn before it. World shot: `world_shot::saber_skins::duel6_sjk_saber_page`
   (the search typed, a search finding nothing with no skin owned, the Sounds row, Dual; at 1080p,
@@ -709,8 +712,14 @@ overlay routes their text to the UI's families (`console_sjk_pages.rs`).
   reading column has a navy shade of its own (half), so the rays cross it softly.
   Under the emblem "The people who make SJK", then the sections down a lit
   rail, the one in view gold (a click scrolls to it), and Expand all (Collapse
-  all once a fold is open). The column (x 640, 1120 wide, from y 140 to 960,
-  scrolled by the arrows, Page Up and Down, Space, Home and End, the wheel and a
+  all once a fold is open) under them; the sections draw closer, their rows
+  and type shrinking with the step, when there are too many for the rail to
+  end above y 960 with Expand all. The step goes no lower than 30, so up to
+  ten sections show; past that the rail shows a window of ten that moves only
+  when the section in view leaves it, and only as far as brings it back (a
+  click on a row never moves the rows), with three dots over the first row or
+  under the last where sections are hidden.
+  The column (x 640, 1120 wide, from y 140 to 960, scrolled by the arrows, Page Up and Down, Space, Home and End, the wheel and a
   thin holo scrollbar at x 1800) holds each section under a sub-heading:
   - Someone with a history: the name (Rajdhani 84 for Sol JK's section, 62 for
     the rest), the GitHub handle in gold at the right of its line, the role, the
