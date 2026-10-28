@@ -598,6 +598,15 @@ pub(crate) fn crouched_in_box(slot: usize) -> bool {
     slot < SLOTS && BOXED.load(Ordering::Relaxed) & (1 << slot) != 0
 }
 
+/// `CROUCH_VIEWHEIGHT` (`bg_public.h`): a crouching player's eye above the origin.
+const CROUCH_VIEWHEIGHT: f32 = 12.0;
+
+/// How far a boxed player's eye at `view_height` drops to crouch height, if it is
+/// above it ([`GpuState::keep_boxed_eye`]).
+fn eye_drop(view_height: f32) -> Option<f32> {
+    (view_height > CROUCH_VIEWHEIGHT).then_some(view_height - CROUCH_VIEWHEIGHT)
+}
+
 /// The carton over a player standing at `origin` (their entity's), facing `yaw`
 /// (radians).
 fn carton(origin: [f32; 3], yaw: f32) -> ActorInstance {
@@ -712,9 +721,21 @@ impl GpuState {
         self.cardboard_box.expire_lifts(boxed, now);
     }
 
-    /// Add this frame's cartons, and note the music: the player's own (drawn in mirrors
-    /// only in first person), then every other boxed player the game draws; then the
-    /// boxes put on, taken off and fallen ([`CardboardBox::frame`]).
+    /// Keep one's own eye at crouch height while hidden in the box. The server stands a
+    /// talking player up (the menu, the chat or the console open; [`crouched_in_box`]),
+    /// and the view rose with them, a jump Dave saw on Escape (28/10/2026). The eye and
+    /// the view height drop together, so the body's root (the eye less the view height)
+    /// stays put. Run each frame after the prediction presented the eye.
+    pub(crate) fn keep_boxed_eye(&mut self) {
+        if self.live_session.is_none() || !self.cardboard_box.hiding() {
+            return;
+        }
+        if let Some(drop) = eye_drop(self.local_prediction.view_height()) {
+            self.camera_position.z -= drop;
+            self.local_prediction.set_view_height(CROUCH_VIEWHEIGHT);
+        }
+    }
+
     /// Note which players are in a carton this frame ([`crouched_in_box`]), before the
     /// actors are posed, by the rules [`Self::submit_cardboard_boxes`] draws the cartons
     /// by: noted while drawing them, the pose read the previous frame's set (one
@@ -768,6 +789,9 @@ impl GpuState {
         BOXED.store(boxed, Ordering::Relaxed);
     }
 
+    /// Add this frame's cartons, and note the music: the player's own (drawn in mirrors
+    /// only in first person), then every other boxed player the game draws; then the
+    /// boxes put on, taken off and fallen ([`CardboardBox::frame`]).
     pub(crate) fn submit_cardboard_boxes(&mut self, presentation_time: i64, now: Instant) {
         self.cardboard_box.music.clear();
         let mesh = self
@@ -1034,6 +1058,15 @@ mod tests {
         toy.shape_command(&mut command);
         assert_eq!(command.up_move, CROUCH, "back on foot: crouch again");
         assert!(toy.hiding());
+    }
+
+    /// Dave's test: opening the menu in the box stood the view up (36) from the crouch
+    /// (12); the eye drops back, once, and a crouching eye stays.
+    #[test]
+    fn a_boxed_eye_stays_at_crouch_height() {
+        assert_eq!(eye_drop(36.0), Some(24.0));
+        assert_eq!(eye_drop(CROUCH_VIEWHEIGHT), None);
+        assert_eq!(eye_drop(8.0), None);
     }
 
     /// Dave's test of #152: a boxed player is drawn crouching until they leave the

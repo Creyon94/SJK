@@ -4315,7 +4315,9 @@ first 5 seconds on a server).
   knockdown, which a boxed player can still make) plays as the server sends it. Who is
   boxed is noted before the actors are posed (`note_boxed_players`), so the pose
   follows the carton on the same frame. A crouch keeps the origin, so the pose sits
-  where a real crouch would. Rig models crouch too. Other clients see the server's
+  where a real crouch would. One's own eye stays at crouch height (12) too while hidden
+  in the box, so opening the menu or the chat no longer lifts the view
+  (`keep_boxed_eye`, 28/10/2026). Rig models crouch too. Other clients see the server's
   player, as they never see the box.
 - **Others see it** through the SJK hub: the box is a toy in the player's look
   (`toys: ["cardboard_box"]`, [unlockables.md](unlockables.md); `looks::TOYS`), so every
