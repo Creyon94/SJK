@@ -6189,7 +6189,14 @@ map (`SV_CompleteMapName`) from every `maps/*.bsp` and `maps/*/*.bsp` of the gam
 data, named as `devmap` takes them (`mp/ffa3`): a map matches by its whole name or,
 when nothing typed has a `/`, by the name after its folder, so `devmap siege_ho`
 completes to `devmap mp/siege_hoth `; `devmap` and Tab lists every map as `Map`
-rows. Enter does not complete arguments, and no other argument is completed. See
+rows. Tab after `sjkemote` completes the installed emotes' ids (`sjkemote aut`
+completes to `sjkemote autumn_tea `) and the command's words `stop`, `sync`,
+`mute`, `unmute` and `help`, listed as `Emote` rows; the catalogue loads on the
+first Tab if nothing has loaded it yet. The client's commands with a completed
+argument are the `ARGUMENT_SOURCES` table of
+[console.rs](../crates/sjk-viewer/src/console.rs), one entry per command beside the
+shell's own (`exec`, `devmap`). Enter does not complete arguments, only the first
+argument completes, and no other command's argument is completed yet. See
 [shell_completion.rs](../crates/sjk-shell/src/shell_completion.rs) and
 [console_scripting.rs](../crates/sjk-viewer/src/console_scripting.rs).
 
