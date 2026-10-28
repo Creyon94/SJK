@@ -115,19 +115,26 @@ door, the box hunt's alarm); the tune and the take are SJK's own.
 Players opt in with the Box hunt toy (`toy_boxhunt`, Collection > Toys, the quick wheel;
 look toy `box_hunt`); with it off a player is never the mark and is told nothing of the
 hunt. Among the players of a server with it on (at least 2), the hub picks a mark at
-random for 3 minutes. The mark is told in the centre of the screen ("You are the mark!"),
+random for 3 minutes, one mark at most every 10 minutes (Sol, 29/10/2026: from one pick
+to the next; the hunt rests in between, also when the mark is killed or leaves). The
+mark is told in the centre of the screen ("You are the mark!"),
 the other hunters by a chat line, and they see "MARK" in red over the mark's head
-(hidden behind walls). Every hunter, the mark too, hears the game's alarm
+(hidden behind walls) and the mark's body ringed in red where they see it, the team
+outlines' enemy ring (`hud::team_outline`, 29/10/2026), in every game type and whatever
+`cg_teamOutline` says. Every hunter, the mark too, hears the game's alarm
 (`sound/effects/mpalarm.wav`, Sol's pick, 28/10/2026; with "Mystery box sounds") as a new
 mark is picked, and a small card at the top centre of the screen names the mark (in
 the headline font, "BOX HUNT · THE MARK" over the name) or, red, tells the player "YOU
-ARE THE MARK"; its red edge flashes for 2 seconds as it arrives, and it stays until the
+ARE THE MARK"; its words take the menus' lifted colours (`text::CodePalette::Legible`), so
+a black name reads on the dark card, and their shadow is the name without its colour
+codes; its red edge flashes for 2 seconds as it arrives, and it stays until the
 mark is hunted or the hub has no mark or another one. The card and the alarm are
 [hunt.rs](../crates/sjk-viewer/src/mystery_box/hunt.rs) and
 [label.rs](../crates/sjk-viewer/src/mystery_box/label.rs); the card draws with the words
 in the world, so it is hidden with them (menus, console, scoreboard, intermission). A hunter who kills the mark wins a free mystery box roll: the
 next box they open costs nothing (the centre says "press Use for your free roll" at a
-box). The hunt then pauses a minute before the next mark.
+box). The hunt then rests until 10 minutes after that mark was picked (a minute at
+least).
 
 The hub never sees kills, so the mark's own client says who killed it
 (`POST /v1/box-hunt/killed`, from the game's obituary): a hunter cannot claim a kill it

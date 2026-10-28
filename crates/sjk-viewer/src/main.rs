@@ -220,6 +220,7 @@ mod tags;
 mod tags_frame;
 mod team_sabers;
 mod toy_saved;
+mod toy_sight;
 mod toy_sounds;
 mod trade_window;
 mod trip_mine_lasers;

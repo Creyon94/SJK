@@ -33,6 +33,9 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 ## Unreleased
 
 - Centre prints and the words over mystery boxes (and the box hunt's mark) are drawn in Fira Sans Condensed, a real typeface close to the old menu font, instead of a tracing of a low-resolution bitmap _(Sol)_
+- Box hunt: one mark every 10 minutes at most, not one after the other. Hunters see the mark ringed in red, and a black name reads on the hunt's card _(Sol)_
+- Toys: each toy other players are seen with has a switch on its card in Collection > Toys to hide theirs on your PC (holocrons, boxes, ragdoll falls, drones, boomboxes, monitors) _(Sol)_
+- Nameplates: the light edge round black names is fainter _(Sol)_
 - Nameplates are holo frames: your picture in a hexagon beside a plate with a cut corner, blue for SJK players and grey for the others (a team's or a duel's colour when there is one), a gold corner when the player shares, and the bars in segments; far away, a small hexagon and the name over a thin line. The Collection's Nameplates tab shows it _(Sol)_
 - Nameplates are more see-through, a black name gets a light edge so it reads on the plate, and the weapon icon is gone; the Force power icons over a plate are square again and half as large again _(Sol)_
 - Monitor toy: its knocks on walls and floors are heard, louder and from farther away; they were too faint where a monitor lands to be noticed _(Sol)_

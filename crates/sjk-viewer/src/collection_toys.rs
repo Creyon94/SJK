@@ -39,6 +39,8 @@ const CARD_PAD: f32 = 26.0;
 /// size, a line of its other words this many.
 const ABOUT_CHARS: f32 = 46.0;
 const NOTE_CHARS: f32 = 52.0;
+/// The card's "See" row under its switch.
+const SIGHT_ROW: f32 = 48.0;
 
 /// Every command a toy is run by, in the order the page is told their keys
 /// ([`Inputs::toy_keys`]): each toy's switch, Order 66's order after its own, and the
@@ -74,6 +76,10 @@ struct Toy {
     commands: &'static [(&'static str, &'static str)],
     /// The switch's words.
     switch: &'static str,
+    /// The cvar of the card's second switch, which hides other players' toy on this PC,
+    /// and its words ([`crate::toy_sight`]); none for a toy that only acts on players
+    /// who have it on.
+    sight: Option<(&'static str, &'static str)>,
     token: u16,
 }
 
@@ -88,6 +94,7 @@ const TOYS: [Toy; TOY_COUNT] = [
         more: None,
         commands: &[("toy_illuminate", "Your key")],
         switch: "Holocron lit",
+        sight: Some((crate::toy_sight::ILLUMINATE, "See others' holocrons")),
         token: TOY_TOKEN,
     },
     Toy {
@@ -99,6 +106,7 @@ const TOYS: [Toy; TOY_COUNT] = [
         more: None,
         commands: &[("toy_box", "Your key")],
         switch: "In the box",
+        sight: Some((crate::toy_sight::CARDBOARD_BOX, "See others' boxes")),
         token: BOX_TOKEN,
     },
     Toy {
@@ -110,6 +118,7 @@ const TOYS: [Toy; TOY_COUNT] = [
         more: Some("Join with its switch or key; the order key executes it for everyone in it."),
         commands: &[("toy_order66", "Join key"), ("order66", "Order key")],
         switch: "In the order",
+        sight: None,
         token: ORDER_TOKEN,
     },
     Toy {
@@ -121,6 +130,7 @@ const TOYS: [Toy; TOY_COUNT] = [
         more: Some("With it on, hold Use on a player who has it on too."),
         commands: &[("toy_hax", "Your key")],
         switch: "Hacker",
+        sight: None,
         token: HAX_TOKEN,
     },
     Toy {
@@ -132,6 +142,7 @@ const TOYS: [Toy; TOY_COUNT] = [
         more: Some("Press its key again to get up."),
         commands: &[("toy_ragdoll", "Your key")],
         switch: "Limp",
+        sight: Some((crate::toy_sight::RAGDOLL, "See others fall limp")),
         token: RAGDOLL_TOKEN,
     },
     Toy {
@@ -143,6 +154,7 @@ const TOYS: [Toy; TOY_COUNT] = [
         more: Some("freecam and peek fly it, with the keys you have for them."),
         commands: &[("toy_drone", "Your key")],
         switch: "Peek me",
+        sight: Some((crate::toy_sight::DRONE, "See others' drones")),
         token: DRONE_TOKEN,
     },
     Toy {
@@ -154,6 +166,7 @@ const TOYS: [Toy; TOY_COUNT] = [
         more: Some("boombox in the console lists your tracks; boombox next skips one."),
         commands: &[("toy_boombox", "Your key")],
         switch: "Play",
+        sight: Some((crate::toy_sight::BOOMBOX, "See and hear others' boomboxes")),
         token: BOOMBOX_TOKEN,
     },
     Toy {
@@ -167,6 +180,7 @@ const TOYS: [Toy; TOY_COUNT] = [
         ),
         commands: &[("toy_monitor", "Your key"), ("+monitor_throw", "Throw key")],
         switch: "Hit me",
+        sight: Some((crate::monitor::SHOW_CVAR, "See monitors")),
         token: MONITOR_TOKEN,
     },
     Toy {
@@ -174,10 +188,11 @@ const TOYS: [Toy; TOY_COUNT] = [
         name: "Box hunt",
         tag: "Hunt the mark for a free mystery box roll.",
         title: "Box hunt",
-        what: "Every few minutes one player with Box hunt on becomes the mark. Kill the mark to win a free mystery box roll. Only players with it on see the mark or can be it.",
+        what: "Every 10 minutes one player with Box hunt on becomes the mark. Kill the mark to win a free mystery box roll. Only players with it on see the mark or can be it.",
         more: Some("Its switch is all there is: on, you hunt and may be the mark."),
         commands: &[("toy_boxhunt", "Your key")],
         switch: "Hunt",
+        sight: None,
         token: BOX_HUNT_TOKEN,
     },
 ];
@@ -187,6 +202,20 @@ pub(super) fn command(toy: usize, slot: usize) -> Option<&'static str> {
     TOYS.get(toy)
         .and_then(|toy| toy.commands.get(slot))
         .map(|(command, _)| *command)
+}
+
+/// The cvar of toy `toy`'s "See" switch, if it has one.
+pub(super) fn sight_cvar(toy: usize) -> Option<&'static str> {
+    TOYS.get(toy)?.sight.map(|(cvar, _)| cvar)
+}
+
+/// The toys whose other players' are hidden, as bits in the tab's order: those whose
+/// "See" cvar `seen` says off.
+pub(crate) fn unseen(seen: impl Fn(&str) -> bool) -> u16 {
+    TOYS.iter()
+        .enumerate()
+        .filter(|(_, toy)| toy.sight.is_some_and(|(cvar, _)| !seen(cvar)))
+        .fold(0, |bits, (index, _)| bits | 1 << index)
 }
 
 /// The keys bound to `command`, as the page was told them; empty for none.
@@ -441,6 +470,7 @@ impl Panel {
             + more as f32 * line(15.0)
             + 18.0
             + 48.0
+            + if toy.sight.is_some() { SIGHT_ROW } else { 0.0 }
             + CARD_PAD
     }
 
@@ -659,6 +689,26 @@ impl Panel {
             TOY_SWITCH_TOKEN,
             frame.rect(left - 4.0, middle - 19.0, right - left + 8.0, 38.0),
         );
+        // Other players' toy, seen or hidden on this PC.
+        if let Some((_, words)) = toy.sight {
+            let middle = middle + SIGHT_ROW;
+            let seen = inputs.toys_unseen & 1 << chosen == 0;
+            text(
+                &mut self.ui,
+                TextFamily::Display,
+                format_args!("{words}"),
+                frame.rect(x, middle - 13.0, width - 140.0, 26.0),
+                18.0 * s,
+                color::MUTED,
+                FontWeight::Semibold,
+                TextAlign::Start,
+            );
+            let left = kit::switch(&mut self.ui, frame, right, middle, seen, false);
+            self.ui.hit_region(
+                TOY_SIGHT_TOKEN,
+                frame.rect(left - 4.0, middle - 19.0, right - left + 8.0, 38.0),
+            );
+        }
     }
 }
 

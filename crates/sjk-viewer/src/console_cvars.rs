@@ -863,7 +863,38 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             crate::toy_saved::BOX_HUNT_CVAR,
             false,
             archive,
-            "Box hunt is on: you may become the mark every few minutes, and killing the mark wins you a free mystery box roll (toy_boxhunt switches it)",
+            "Box hunt is on: you may become the mark (one every 10 minutes), and killing the mark wins you a free mystery box roll (toy_boxhunt switches it)",
+        ),
+        // Other players' toys seen (Collection > Toys).
+        CvarDefinition::new(
+            crate::toy_sight::CVARS[0].0,
+            true,
+            archive,
+            crate::toy_sight::CVARS[0].1,
+        ),
+        CvarDefinition::new(
+            crate::toy_sight::CVARS[1].0,
+            true,
+            archive,
+            crate::toy_sight::CVARS[1].1,
+        ),
+        CvarDefinition::new(
+            crate::toy_sight::CVARS[2].0,
+            true,
+            archive,
+            crate::toy_sight::CVARS[2].1,
+        ),
+        CvarDefinition::new(
+            crate::toy_sight::CVARS[3].0,
+            true,
+            archive,
+            crate::toy_sight::CVARS[3].1,
+        ),
+        CvarDefinition::new(
+            crate::toy_sight::CVARS[4].0,
+            true,
+            archive,
+            crate::toy_sight::CVARS[4].1,
         ),
         CvarDefinition::new(
             crate::monitor::SHOW_CVAR,

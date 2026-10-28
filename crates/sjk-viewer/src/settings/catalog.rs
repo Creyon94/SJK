@@ -971,6 +971,31 @@ pub(super) const GAME: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Show others' holocrons",
+        cvar: crate::toy_sight::ILLUMINATE,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Show others' boxes",
+        cvar: crate::toy_sight::CARDBOARD_BOX,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Show others' ragdolls",
+        cvar: crate::toy_sight::RAGDOLL,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Show others' drones",
+        cvar: crate::toy_sight::DRONE,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Show others' boomboxes",
+        cvar: crate::toy_sight::BOOMBOX,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Boombox range",
         cvar: crate::boombox::RANGE_CVAR,
         kind: ValueKind::Integer {

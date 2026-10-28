@@ -162,6 +162,7 @@ pub(crate) fn row_labels(
         pair: crate::saber_skins::Pair::None,
         share: false,
         toy_keys: &[],
+        toys_unseen: 0,
         tag: "",
     };
     counts(&inputs).iter().map(|count| count.label()).collect()
@@ -281,6 +282,7 @@ impl Panel {
         self.monitor_on = inputs.monitor;
         self.box_hunt_on = inputs.box_hunt;
         self.share_on = inputs.share;
+        self.toys_unseen = inputs.toys_unseen;
         let seconds = self.epoch.elapsed().as_secs_f32();
         #[cfg(test)]
         let seconds = self.shot_seconds.unwrap_or(seconds);

@@ -746,6 +746,26 @@ const HELP: &[(&str, &str)] = &[
         "Off: no Monitor toy monitor is drawn, yours or other players', nor their sounds heard. You can still be hit while the toy is on.",
     ),
     (
+        crate::toy_sight::ILLUMINATE,
+        "Off: other players' Illuminate holocrons are not drawn on this PC. Yours still is.",
+    ),
+    (
+        crate::toy_sight::CARDBOARD_BOX,
+        "Off: other players' cardboard boxes are not drawn on this PC, and you cannot lift them.",
+    ),
+    (
+        crate::toy_sight::RAGDOLL,
+        "Off: other players' Ragdoll falls are not played on this PC; you see their bodies as the game shows them.",
+    ),
+    (
+        crate::toy_sight::DRONE,
+        "Off: other players' drones are not drawn or heard on this PC. You are still told who peeks at you.",
+    ),
+    (
+        crate::toy_sight::BOOMBOX,
+        "Off: other players' boomboxes are not drawn or heard on this PC.",
+    ),
+    (
         crate::boombox::RANGE_CVAR,
         "How far your boombox carries, in units (a player is 64 tall). It fades out toward the edge.",
     ),
