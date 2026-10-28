@@ -45,6 +45,17 @@ const EMPTY: &str = "sound/movers/doors/door_locked.mp3";
 /// Played to every hunter, the mark too, when the box hunt picks a new mark (Sol's
 /// pick, 28/10/2026).
 const HUNT_MARK: &str = "sound/effects/mpalarm.wav";
+/// Played, with [`BLAST_EFFECT`], where a box's opener stands when it blows up.
+const BLAST_SOUND: &str = "sound/weapons/detpack/explode.mp3";
+const BLAST_EFFECT: &str = "detpack/explosion";
+/// Played to every hunter when a box blows up and its price goes to one of them: a
+/// ghost having fun, after Call of Duty zombies (Sol, 28/10/2026). A retail gloat until
+/// Sol's own laugh is bundled.
+const LAUGH: &str = "sound/chars/alora/misc/gloat1.mp3";
+/// How hard a box that blows up flings its opener, units a second: up, and away from
+/// the box.
+const BLAST_UP: f32 = 900.0;
+const BLAST_BACK: f32 = 500.0;
 /// `BUTTON_USE`, `+use`.
 const BUTTON_USE: u16 = 32;
 /// Farthest a player may stand from a box to open it, across the floor.
@@ -80,16 +91,20 @@ const fn item(model: &'static str, scale: f32) -> Item {
 }
 
 /// What the roll stops on, by outcome: bolts (empty), a blue crystal (refund), a green
-/// one (double), a red one (jackpot).
-const PRIZES: [Item; 4] = [
+/// one (double), a red one (jackpot), a thermal detonator (it blows up) and SJK's
+/// holocron (a holocron).
+const PRIZES: [Item; 6] = [
     item("models/items/metallic_bolts.md3", 1.5),
     item("models/map_objects/mp/crystal_blue.md3", 0.8),
     item("models/map_objects/mp/crystal_green.md3", 0.8),
     item("models/map_objects/mp/crystal_red.md3", 1.0),
+    item("models/weapons2/thermal/thermal.md3", 3.0),
+    item(crate::illuminate::MODEL, 3.0),
 ];
 
-/// What rolls over an opened box before it stops: the game's weapons and the prizes.
-const REEL: [Item; 16] = [
+/// What rolls over an opened box before it stops: the game's weapons and the prizes
+/// (the thermal detonator is among the weapons).
+const REEL: [Item; 17] = [
     item("models/weapons2/blaster_pistol/blaster_pistol.md3", 2.0),
     item("models/weapons2/blaster_r/blaster.md3", 0.9),
     item("models/weapons2/bowcaster/bowcaster.md3", 1.2),
@@ -106,6 +121,7 @@ const REEL: [Item; 16] = [
     PRIZES[1],
     PRIZES[2],
     PRIZES[3],
+    PRIZES[5],
 ];
 
 /// The prize the roll stops on for `outcome`; a newer hub's outcome by whether it pays.
@@ -115,6 +131,8 @@ fn prize(outcome: &str, pays: bool) -> Item {
         "refund" => PRIZES[1],
         "double" => PRIZES[2],
         "jackpot" => PRIZES[3],
+        wire::EXPLODE => PRIZES[4],
+        wire::HOLOCRON => PRIZES[5],
         _ if pays => PRIZES[2],
         _ => PRIZES[0],
     }
@@ -180,11 +198,15 @@ pub(crate) fn mount(vfs: &mut sjk_vfs::VirtualFileSystem) -> Result<(), sjk_vfs:
 }
 
 /// What the opener gets, told when they take it.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 struct Prize {
     price: u64,
     won: u64,
     balance: u64,
+    /// A box that blew up: the hunter who got the price.
+    gift: Option<wire::Gift>,
+    /// The tier of the holocron it gave.
+    holocron: Option<String>,
 }
 
 /// A box's opening under way: the roll, then what came out waiting to be taken.
@@ -198,6 +220,8 @@ struct Opening {
     seed: u32,
     /// The player's own opening: what they get.
     mine: Option<Prize>,
+    /// The slot of the player who opened it, blown up if it blows up.
+    opener: Option<u8>,
     /// The roll has stopped (its sound played).
     revealed: bool,
 }
@@ -302,6 +326,12 @@ enum Moment {
         prize: Prize,
     },
     Taken(Taken),
+    /// A box that blew up at the roll's end, for everyone who sees it: the opener's slot
+    /// and the box's place.
+    Blast {
+        opener: Option<u8>,
+        at: Vec3,
+    },
 }
 
 /// A number to vary a roll by.
@@ -342,6 +372,8 @@ pub(crate) struct MysteryBoxes {
     hinted: Option<i64>,
     pending_place: Option<PendingPlace>,
     cues: Vec<Cue>,
+    /// Where boxes that blew up flung their openers this frame, for their explosions.
+    blasts: Vec<Vec3>,
     sounds_registered: Option<u64>,
     /// What an outcome pays, by the hub's list (for other players' openings).
     outcomes: Vec<(String, u64)>,
@@ -429,9 +461,18 @@ impl MysteryBoxes {
         }
     }
 
-    /// Box `id` opened at `now` on `outcome`: the roll starts. `mine` is what the player
-    /// gets from their own opening; `seed` varies what the roll shows.
-    fn opened(&mut self, id: i64, outcome: &str, mine: Option<Prize>, seed: u32, now: Instant) {
+    /// Box `id` opened at `now` on `outcome` by the player on slot `opener`: the roll
+    /// starts. `mine` is what the player gets from their own opening; `seed` varies what
+    /// the roll shows.
+    fn opened(
+        &mut self,
+        id: i64,
+        outcome: &str,
+        mine: Option<Prize>,
+        opener: Option<u8>,
+        seed: u32,
+        now: Instant,
+    ) {
         let Some(here) = self.here.iter_mut().find(|here| here.id == id) else {
             return;
         };
@@ -442,6 +483,7 @@ impl MysteryBoxes {
             prize: prize(outcome, pays),
             seed,
             mine,
+            opener,
             revealed: false,
         });
         here.lid.set(true, now);
@@ -468,6 +510,13 @@ impl MysteryBoxes {
                 opening.revealed = true;
                 let path = match opening.outcome.as_str() {
                     "jackpot" => JACKPOT,
+                    wire::EXPLODE => {
+                        moments.push(Moment::Blast {
+                            opener: opening.opener,
+                            at: here.origin,
+                        });
+                        BLAST_SOUND
+                    }
                     _ if opening.prize == PRIZES[0] => EMPTY,
                     _ => WIN,
                 };
@@ -543,6 +592,33 @@ fn pick_box<'a>(from: Vec3, yaw: f32, boxes: impl IntoIterator<Item = &'a Here>)
         .map(|(id, _)| id)
 }
 
+/// How a box at `at` that blew up flings the opener standing at `stands`: up, and away
+/// from the box across the floor (straight up when they stand on it).
+fn blast_kick(at: Vec3, stands: Vec3) -> Vec3 {
+    let away = (stands - at).truncate().normalize_or_zero();
+    Vec3::new(away.x * BLAST_BACK, away.y * BLAST_BACK, BLAST_UP)
+}
+
+/// How an opening reads for the opener: [`result_text`], or for a box that blew up or
+/// gave a holocron, what became of it.
+fn prize_text(outcome: &str, prize: &Prize) -> String {
+    match (outcome, &prize.gift, &prize.holocron) {
+        (wire::EXPLODE, Some(gift), _) if gift.credits > 0 => format!(
+            "BOOM! The box blew up: your {} credits went to {}^7",
+            gift.credits, gift.name
+        ),
+        (wire::EXPLODE, None, _) if prize.price > 0 => {
+            format!("BOOM! The box blew up: -{} credits", prize.price)
+        }
+        (wire::EXPLODE, ..) => "BOOM! The box blew up: your free roll is spent".to_owned(),
+        (wire::HOLOCRON, _, Some(tier)) => {
+            let name = crate::holocrons::name(tier).unwrap_or("A holocron");
+            format!("{name}! In your Collection")
+        }
+        _ => result_text(outcome, prize.price, prize.won),
+    }
+}
+
 /// How an opening reads for the opener.
 fn result_text(outcome: &str, price: u64, won: u64) -> String {
     // A free roll won in the box hunt: what it paid alone.
@@ -595,6 +671,35 @@ impl GpuState {
             None,
             Instant::now(),
         );
+    }
+
+    /// A box at `at` blew up on the player on slot `opener`: an explosion where they
+    /// stand, and when they are this client's player, their body flung up and away from
+    /// the box as a ragdoll (they get up by themselves).
+    fn mystery_box_blast(&mut self, opener: Option<u8>, at: Vec3) {
+        let own = self
+            .live_session
+            .as_ref()
+            .and_then(|session| u8::try_from(session.game_state().client_num).ok());
+        let mine = opener.is_some() && opener == own;
+        let stands = if mine {
+            self.local_prediction
+                .predicted_state()
+                .map(|state| Vec3::from_array(state.origin))
+        } else {
+            opener.and_then(|slot| {
+                let time = self.presentation_clock.sample(Instant::now());
+                let presented = self
+                    .live_world
+                    .entity(sjk_runtime::EntityId::new(u64::from(slot) + 1))?;
+                Some(Vec3::from_array(presented.sample(time).translation))
+            })
+        };
+        let stands = stands.unwrap_or(at);
+        self.mystery_boxes.blasts.push(stands);
+        if mine {
+            self.ragdoll_blown_up(blast_kick(at, stands).to_array());
+        }
     }
 
     fn mystery_box_centre(&mut self, text: String) {
@@ -684,7 +789,8 @@ impl GpuState {
                 continue;
             }
             if let Some((id, outcome)) = wire::parse_event(&event.event) {
-                self.mystery_boxes.opened(id, outcome, None, seed(), now);
+                self.mystery_boxes
+                    .opened(id, outcome, None, Some(event.slot), seed(), now);
             }
         }
         if self.mystery_boxes.here.is_empty() {
@@ -794,9 +900,24 @@ impl GpuState {
                     price: opened.price,
                     won: opened.won,
                     balance: opened.balance,
+                    gift: opened.gift.clone(),
+                    holocron: opened
+                        .holocron
+                        .as_ref()
+                        .map(|holocron| holocron.tier.clone()),
                 };
-                self.mystery_boxes
-                    .opened(opened.box_id, &opened.outcome, Some(mine), seed(), now);
+                let own = self
+                    .live_session
+                    .as_ref()
+                    .and_then(|session| u8::try_from(session.game_state().client_num).ok());
+                self.mystery_boxes.opened(
+                    opened.box_id,
+                    &opened.outcome,
+                    Some(mine),
+                    own,
+                    seed(),
+                    now,
+                );
             }
             Ok(BoxDone::Placed(id)) => {
                 self.mystery_box_print(format!("Mystery box {id} placed"));
@@ -812,15 +933,16 @@ impl GpuState {
     /// Tell the player their roll stopped, or that they took what came out.
     fn mystery_box_moment(&mut self, moment: Moment) {
         match moment {
+            Moment::Blast { opener, at } => self.mystery_box_blast(opener, at),
             Moment::Stopped { outcome, prize } => {
-                let text = result_text(&outcome, prize.price, prize.won);
+                let text = prize_text(&outcome, &prize);
                 self.mystery_box_centre(format!(
                     "{text}
 Press Use to take it"
                 ));
             }
             Moment::Taken(taken) => {
-                let text = result_text(&taken.outcome, taken.prize.price, taken.prize.won);
+                let text = prize_text(&taken.outcome, &taken.prize);
                 let how = if taken.by_itself {
                     " (taken for you)"
                 } else {
@@ -1016,12 +1138,41 @@ Press Use to take it"
         if self.mystery_boxes.cues.is_empty() {
             return;
         }
+        // The explosions of boxes that blew up; their sound is the box's own cue, so
+        // "Mystery box sounds" silences it.
+        if let Some(vfs) = self.vfs.clone() {
+            for stands in self.mystery_boxes.blasts.drain(..) {
+                crate::effect_runtime::spawn_effect(
+                    &mut self.particles,
+                    &mut self.effect_aux,
+                    &mut self.effects,
+                    &vfs,
+                    BLAST_EFFECT,
+                    stands + Vec3::Z * 8.0,
+                    Instant::now(),
+                    seed(),
+                    0,
+                    &mut None,
+                    crate::combat_effects::rotation_from_direction([0.0, 0.0, 1.0]),
+                );
+            }
+        }
         if self.mystery_boxes.sounds_registered != Some(audio.generation())
             && let Some(vfs) = self.vfs.as_deref()
         {
             audio.register_effect_paths(
                 vfs,
-                [OPEN, ROLL_SOUND, TAKE_SOUND, WIN, JACKPOT, EMPTY, HUNT_MARK],
+                [
+                    OPEN,
+                    ROLL_SOUND,
+                    TAKE_SOUND,
+                    WIN,
+                    JACKPOT,
+                    EMPTY,
+                    HUNT_MARK,
+                    BLAST_SOUND,
+                    LAUGH,
+                ],
             );
             self.mystery_boxes.sounds_registered = Some(audio.generation());
         }
@@ -1059,6 +1210,7 @@ mod tests {
             price: 100,
             won,
             balance: 900,
+            ..Prize::default()
         }
     }
 
@@ -1130,6 +1282,7 @@ mod tests {
             prize: prize("jackpot", true),
             seed: 12345,
             mine: None,
+            opener: None,
             revealed: false,
         };
         // Changing often early on, the prize over the last second and after.
@@ -1154,7 +1307,7 @@ mod tests {
             ..Default::default()
         };
         let now = Instant::now();
-        state.opened(7, "double", Some(prize_of(200)), 1, now);
+        state.opened(7, "double", Some(prize_of(200)), Some(3), 1, now);
         // Each at the box, on the box's own source: never an entity's, which the audio
         // moves to where that entity is (#185).
         assert!(
@@ -1202,9 +1355,9 @@ mod tests {
             ..Default::default()
         };
         let now = Instant::now();
-        state.opened(7, "empty", Some(prize_of(0)), 1, now);
+        state.opened(7, "empty", Some(prize_of(0)), Some(3), 1, now);
         // Another player's opening: rolls and goes, nothing taken for the player.
-        state.opened(8, "jackpot", None, 2, now);
+        state.opened(8, "jackpot", None, Some(5), 2, now);
         let moments = state.tick(now + ROLL);
         assert_eq!(moments.len(), 1);
         let stops: Vec<&str> = state.cues[4..].iter().map(|cue| cue.path).collect();
@@ -1237,5 +1390,64 @@ mod tests {
             result_text("newer_thing", 100, 0),
             "Nothing inside: -100 credits"
         );
+    }
+
+    #[test]
+    fn a_box_that_blew_up_or_gave_a_holocron_says_what_became_of_it() {
+        let paid = |gift: Option<wire::Gift>| Prize {
+            price: 100,
+            gift,
+            ..Prize::default()
+        };
+        let gift = wire::Gift {
+            slot: 4,
+            name: "^1Jan".to_owned(),
+            credits: 100,
+        };
+        assert_eq!(
+            prize_text(wire::EXPLODE, &paid(Some(gift))),
+            "BOOM! The box blew up: your 100 credits went to ^1Jan^7"
+        );
+        assert_eq!(
+            prize_text(wire::EXPLODE, &paid(None)),
+            "BOOM! The box blew up: -100 credits"
+        );
+        assert_eq!(
+            prize_text(wire::EXPLODE, &Prize::default()),
+            "BOOM! The box blew up: your free roll is spent"
+        );
+        let found = Prize {
+            holocron: Some("legendary".to_owned()),
+            ..paid(None)
+        };
+        assert_eq!(
+            prize_text(wire::HOLOCRON, &found),
+            "Legendary Holocron! In your Collection"
+        );
+        // The others read as before.
+        assert_eq!(
+            prize_text(
+                "double",
+                &Prize {
+                    won: 200,
+                    ..paid(None)
+                }
+            ),
+            "Double! +200 credits"
+        );
+        // What the roll stops on, and the models it loads.
+        assert_eq!(prize(wire::EXPLODE, false), PRIZES[4]);
+        assert_eq!(prize(wire::HOLOCRON, false), PRIZES[5]);
+        assert!(models().any(|model| model == PRIZES[4].model));
+        assert!(models().any(|model| model == PRIZES[5].model));
+    }
+
+    #[test]
+    fn a_box_that_blows_up_flings_its_opener_up_and_away() {
+        let kick = blast_kick(Vec3::ZERO, Vec3::new(30.0, 40.0, 0.0));
+        assert!((kick.truncate().length() - BLAST_BACK).abs() < 1e-3);
+        assert!(kick.x > 0.0 && kick.y > 0.0 && kick.z == BLAST_UP);
+        // Standing on the box: straight up.
+        assert_eq!(blast_kick(Vec3::ZERO, Vec3::ZERO), Vec3::Z * BLAST_UP);
     }
 }

@@ -114,6 +114,35 @@ fn mark_words(slot: u8, own: u8, name: &str) -> (bool, String) {
     }
 }
 
+/// What a hunter is told when the box the player on slot `opener` (named `opener_name`)
+/// opened blew up and `credits` went to the hunter on `to` (named `to_name`); `own` is
+/// the player's slot. Nothing for the opener: their own box says it.
+fn laugh_words(
+    opener: u8,
+    to: Option<u8>,
+    credits: u64,
+    own: u8,
+    opener_name: &str,
+    to_name: &str,
+) -> Option<(bool, String)> {
+    if opener == own {
+        return None;
+    }
+    Some(match to {
+        Some(to) if to == own && credits > 0 => (
+            true,
+            format!("{opener_name}^7's box blew up!\nYou get their {credits} credits"),
+        ),
+        Some(_) if credits > 0 => (
+            false,
+            format!(
+                "Box hunt: {opener_name}^7's box blew up, and {to_name}^7 gets their {credits} credits"
+            ),
+        ),
+        _ => (false, format!("Box hunt: {opener_name}^7's box blew up")),
+    })
+}
+
 impl GpuState {
     /// The frame's box hunt: read the hunt, take the hub's events of it (`events`, this
     /// server's toy events), tell the hub who killed the player when they are the mark.
@@ -160,6 +189,7 @@ impl GpuState {
         }
         let told_before = hunt.told;
         let mut lines = Vec::new();
+        let mut laughs = 0_u32;
         for event in events.iter().filter(|event| event.toy == wire::HUNT_TOY) {
             let Some(said) = wire::parse_hunt_event(&event.event) else {
                 continue;
@@ -193,6 +223,23 @@ impl GpuState {
                         )
                     });
                 }
+                HuntEvent::Laugh {
+                    opener,
+                    to,
+                    credits,
+                } => {
+                    laughs += 1;
+                    let opener_name = self
+                        .chat
+                        .player_name(u16::from(opener))
+                        .unwrap_or("Someone")
+                        .to_owned();
+                    if let Some(line) =
+                        laugh_words(opener, to, credits, own, &opener_name, &event.claimed_name)
+                    {
+                        lines.push(line);
+                    }
+                }
                 HuntEvent::Mark(_) => {}
             }
         }
@@ -203,6 +250,14 @@ impl GpuState {
             && hunt.told != Some(slot)
         {
             lines.push(hunt.tell(slot, own, &name, now));
+        }
+        // A box that blew up laughs for every hunter, the player alone hearing it.
+        if laughs > 0 {
+            self.mystery_boxes.cues.push(super::Cue {
+                path: super::LAUGH,
+                origin: None,
+                source: super::HUNT_SOURCE,
+            });
         }
         // A new mark rings the hunt's alarm, for the player alone.
         if hunt.told.is_some() && hunt.told != told_before {
@@ -297,6 +352,26 @@ mod tests {
         let (centre, words) = mark_words(3, 5, "Kyle");
         assert!(!centre);
         assert!(words.contains("Kyle^7 is the mark"));
+    }
+
+    #[test]
+    fn a_box_that_blew_up_is_told_to_the_other_hunters() {
+        // The hunter who got the credits, in the centre.
+        let (centre, words) = laugh_words(2, Some(4), 100, 4, "Kyle", "Jan").unwrap();
+        assert!(centre);
+        assert_eq!(words, "Kyle^7's box blew up!\nYou get their 100 credits");
+        // Another hunter, in the chat.
+        let (centre, words) = laugh_words(2, Some(4), 100, 6, "Kyle", "Jan").unwrap();
+        assert!(!centre);
+        assert!(words.contains("Jan^7 gets their 100 credits"));
+        // Nobody got them, or a free roll passed nothing.
+        assert_eq!(
+            laugh_words(2, None, 0, 6, "Kyle", "Kyle").unwrap().1,
+            "Box hunt: Kyle^7's box blew up"
+        );
+        assert!(!laugh_words(2, Some(4), 0, 4, "Kyle", "Jan").unwrap().0);
+        // The opener's own box tells them.
+        assert_eq!(laugh_words(2, Some(4), 100, 2, "Kyle", "Jan"), None);
     }
 
     #[test]

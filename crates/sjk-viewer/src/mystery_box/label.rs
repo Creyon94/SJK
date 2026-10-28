@@ -4,7 +4,7 @@
 //! away.
 
 use super::hunt::Card;
-use super::{Here, Opening, ROLL};
+use super::{Here, Opening, ROLL, wire};
 use crate::GpuState;
 use glam::Vec3;
 use sjk_ui::{Color, DrawCommand, DrawList, FontWeight, Rect, TextAlign, TextId, TextOverflow};
@@ -117,13 +117,21 @@ fn came_out(opening: &Opening, pays: impl Fn(&str) -> Option<u64>) -> Label {
         "double" => ("DOUBLE!", Tone::Win),
         "refund" => ("CREDITS BACK", Tone::Win),
         "empty" => ("EMPTY", Tone::Empty),
+        wire::EXPLODE => ("BOOM!", Tone::Jackpot),
+        wire::HOLOCRON => ("HOLOCRON!", Tone::Jackpot),
         _ if won > 0 => ("PRIZE", Tone::Win),
         _ => ("EMPTY", Tone::Empty),
     };
-    let mut line = if won > 0 {
-        format!("+{won} credits")
-    } else {
-        "Nothing inside".to_owned()
+    let tier = opening
+        .mine
+        .as_ref()
+        .and_then(|prize| prize.holocron.as_deref())
+        .and_then(crate::holocrons::name);
+    let mut line = match opening.outcome.as_str() {
+        wire::EXPLODE => "It blew up".to_owned(),
+        wire::HOLOCRON => tier.unwrap_or("A holocron").to_owned(),
+        _ if won > 0 => format!("+{won} credits"),
+        _ => "Nothing inside".to_owned(),
     };
     if opening.mine.is_some() {
         line.push_str(" - press Use to take it");
@@ -343,6 +351,7 @@ mod tests {
             prize: prize(outcome, true),
             seed: 0,
             mine,
+            opener: None,
             revealed: false,
         }
     }
@@ -378,6 +387,7 @@ mod tests {
             price: 100,
             won: 200,
             balance: 300,
+            ..Prize::default()
         };
         let own = here(Some(opening("double", Some(mine), now)));
         assert_eq!(
@@ -389,6 +399,25 @@ mod tests {
         assert_eq!(
             (empty.headline.as_str(), empty.tone),
             ("EMPTY", Tone::Empty)
+        );
+        // A box that blew up, and a holocron: the opener's names its tier.
+        let blown = here(Some(opening(wire::EXPLODE, None, now)));
+        let blown = box_label(&blown, 100, false, pays, later);
+        assert_eq!(
+            (blown.headline.as_str(), blown.line.as_str()),
+            ("BOOM!", "It blew up")
+        );
+        let found = Prize {
+            holocron: Some("rare".to_owned()),
+            ..Prize::default()
+        };
+        let found = here(Some(opening(wire::HOLOCRON, Some(found), now)));
+        let found = box_label(&found, 100, false, pays, later);
+        assert_eq!(found.headline, "HOLOCRON!");
+        assert!(
+            found.line.starts_with("Rare Holocron - press Use"),
+            "{}",
+            found.line
         );
     }
 
