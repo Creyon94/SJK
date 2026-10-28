@@ -43,6 +43,8 @@ locked door (empty):
 | `refund` | a blue crystal |
 | `double` | a green crystal |
 | `jackpot` | a red crystal |
+| `explode` | a thermal detonator |
+| `holocron` | SJK's holocron |
 
 The opener is told what came out in the centre of the screen. It floats over the box,
 turning slowly, until they take it with `+use` at the box (a sparkle; a chat line gives
@@ -62,13 +64,33 @@ The price and the odds are the hub's (`GET /v1/mystery-boxes`), PROVISIONAL, Sol
 
 | Outcome | Chance | Pays |
 | --- | --- | --- |
-| `empty` | 50 % | nothing |
+| `empty` | 43 % | nothing |
 | `refund` | 30 % | the price back |
 | `double` | 15 % | twice the price |
 | `jackpot` | 5 % | five times the price |
+| `explode` | 5 % | nothing: the price goes to a hunter |
+| `holocron` | 2 % | a holocron |
 
-On average a box pays back 85 of its 100 credits. A newer hub's outcome the client does
-not know is shown by its credits alone.
+On average a box pays back 85 of its 100 credits, and a holocron one time in fifty. A
+newer hub's outcome the client does not know is shown by its credits alone.
+
+**It blows up** (`explode`, Sol's idea of 28/10/2026, after Call of Duty zombies' boxes):
+the roll stops on a thermal detonator, and with a detpack's explosion
+(`detpack/explosion`, `sound/weapons/detpack/explode.mp3`) where the opener stands, the
+box blows them up: their own client throws them down as a [ragdoll](client.md#ragdoll),
+900 units a second up and 500 away from the box, and they get up by themselves
+(`GpuState::ragdoll_blown_up`; not in a duel, with the flag or wherever a monitor could
+not knock them down). The hub hands what they paid (nothing for a free roll) to another
+player on the server with the Box hunt toy on, at random; with nobody else hunting
+there, it is lost. The opener reads where it went; every hunter hears a laugh, "a ghost
+having fun" (`LAUGH`: a retail gloat, `sound/chars/alora/misc/gloat1.mp3`, until Sol's
+own is bundled), the one who got the credits in the centre of the screen and the others
+in the chat (the hub's box hunt event `laugh_<opener>_<to>_<credits>`).
+
+**A holocron** (`holocron`, 28/10/2026): the roll stops on SJK's holocron, and the hub
+gives one of any tier, rolled on the holocrons' own odds ([holocrons.md](holocrons.md));
+it counts against no daily cap and cannot be traded (source `box`). The opener reads its
+tier over the box and in the centre, and finds it in the Collection.
 
 ## Placing one (SJK's creator)
 
@@ -118,8 +140,10 @@ PROVISIONAL.
 ## Limits
 
 - The hub cannot tell where a player stands: the reach is the client's.
-- No other bonuses or penalties yet: an outcome only pays credits. Effects (toys played on
-  the opener, items) are Sol's plan for later and need a client release for each new kind.
+- An outcome pays credits, blows the opener up or gives a holocron; other effects need a
+  client release for each new kind.
+- The explosion is SJK's only: no game server knows of it, so it hurts nobody, and
+  players on other clients see the opener stand where they were.
 - Two friends with the toy on could take turns being killed for free rolls; the 3-minute
   mark, the pause and the 5 a day cap how much that pays.
 - Verified: unit tests (the pick of the faced box, which boxes stand on a map file and

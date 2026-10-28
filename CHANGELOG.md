@@ -36,6 +36,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Nameplates are more see-through, a black name gets a light edge so it reads on the plate, and the weapon icon is gone; the Force power icons over a plate are square again and half as large again _(Sol)_
 - Monitor toy: its knocks on walls and floors are heard, louder and from farther away; they were too faint where a monitor lands to be noticed _(Sol)_
 - Tags: propose new ones in the new #tag-proposals channel on SJK's Discord; Collection > Tags says where _(Sol)_
+- Mystery boxes can blow up (5%): the opener is blasted off their feet, and the credits they paid go to a random player with the Box hunt toy on, while a ghostly laugh plays for every hunter. A box can also hold a holocron of any tier (2%) _(Sol)_
 - Box hunt: an alarm sounds when a new mark is picked, and a small card at the top of the screen names the mark while the hunt lasts, or tells you that you are the mark. A mark that was just hunted is no longer told again _(Sol)_
 
 ## 2026.1028.1 (Alpha) | 28/10/2026
