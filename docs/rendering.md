@@ -4206,6 +4206,21 @@ is missing is left out). Retail interpolates the dome over a coarse grid per fac
 per-pixel form is the exact curve. The ignored test `baronshed_clouds_move` renders the
 beach sky twice, four seconds apart, from open ground it finds under that sky.
 
+### Sky without a box under global fog
+
+A sky shader may have neither an outer box nor stages: `taspir1`'s `textures/skies/taspir1`
+is `skyParms - 512 -` alone, under its worldspawn fog `textures/fogs/taspir1_fog`
+(`fogparms ( 0.8 0.7 0.4 ) 4096`, `distancecull 4096`). rd-vanilla draws nothing there;
+what shows is the clear colour, which is the global fog's `parms.color` whenever the map
+has one (`RB_DrawBuffer` and `RB_BeginDrawingView`, tr_backend.cpp:547-553,1812-1818), so
+the sky is the fog and fogged geometry fades into it. SJK cleared the world pass to its
+night tint instead, so that sky came out dark blue and distant fogged walls stood against
+it as sand-coloured cut-outs, as if the fog were see-through (hub reports #179, #180,
+#184). The world pass now clears to the global fog colour, unquantized as the reference
+uses it ([fog_volumes.rs](../crates/sjk-viewer/src/fog_volumes.rs) `Table::global_color`,
+[frame_target.rs](../crates/sjk-viewer/src/frame_target.rs) `world_load`); maps without
+global fog keep the night tint, and boxes and clouds still cover the clear as before.
+
 ## UI ownership
 
 `sjk-ui` provides renderer-independent retained widgets. The viewer supplies GPU
