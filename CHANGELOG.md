@@ -62,6 +62,7 @@ Mystery boxes, medal ranks, coloured verified ticks, a quick way up from a ragdo
 - Your own crosshair colour (`cg_crosshairColor`) stays when it passes over a player or an object, instead of turning to the target's colour; health and saber-style colours still come first _(Slash, PR #217)_
 - Screenshots are saved fully opaque, so a skin tinted with your RGB colour keeps its colour in the picture instead of fading where the game left the alpha low _(Slash, PR #220)_
 - The in-game menu's Leave page no longer draws its name small over the arc _(Slash, PR #221)_
+- Saber swings: a combo's end no longer plays one swing too many, and the next combo's first swing is no longer silent; parries, deflects and saber locks the server shows are heard at once, and footsteps carry on while running _(Slash, PR #226, after Kushina's and T2_Trip's report)_
 
 ## 2026.1027.1 (Alpha) | 27/10/2026
 
