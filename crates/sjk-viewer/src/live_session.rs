@@ -281,7 +281,10 @@ impl GpuState {
                 },
             );
             self.gameplay_input.apply_flip_kick(&mut command, flip_kick);
-            // In the cardboard box the player crouches (`cardboard_box`).
+            // In the cardboard box the player crouches (`cardboard_box`), but not
+            // while flying the free camera, whose `upmove` it would steer down.
+            self.cardboard_box
+                .set_flying(self.local_prediction.fake_noclip());
             self.cardboard_box.shape_command(&mut command);
             // A Hax hack starts and holds on `+use` (`hax`).
             self.hax.observe_use(&command);

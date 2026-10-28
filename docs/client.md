@@ -4315,6 +4315,27 @@ first 5 seconds on a server).
   jump), so the server sees an ordinary crouching player and movement stays stock. Its
   music loops on the player, in both ears for one's own and placed on the player for
   others (on channel 14, its own, so it cuts no game sound).
+- **Flying** the free camera or `fakenoclip` (hub report #152, 27/10/2026), the box
+  holds no crouch: the commands' `upmove` steers the flight there, and a held crouch
+  sank the camera. One's own carton stays on the body and keeps the body's facing, not
+  the camera's; it is drawn for mirrors only while the camera is inside it (a flight
+  starts in the body), and the player does not count as hiding.
+- **Crouched in the box:** every SJK client draws a boxed player who stands as
+  crouching (`BOTH_CROUCH1IDLE` over standing legs, `BOTH_STAND*` and the saber stances'
+  `BOTH_SABER*_STANCE`, and over the torso when it
+  stands too; `cardboard_box::crouched_in_box`, `actor_pose_steps.rs`; Dave's test of
+  #152, 28/10/2026). The box asks the server to crouch, but `PmoveSingle` zeroes a
+  talking player's moves, `upmove` included (EternalJK `bg_pmove.c:12441-12448` at
+  a40e793; JoF EJK `bg_pmove.c:13108-13115` at 390f756), so the server stands up a
+  boxed player with the chat or console open or the free camera's talk balloon, which
+  stays so the player keeps its protection. Any other move (a lunge, a kick, a roll, a
+  knockdown, which a boxed player can still make) plays as the server sends it. Who is
+  boxed is noted before the actors are posed (`note_boxed_players`), so the pose
+  follows the carton on the same frame. A crouch keeps the origin, so the pose sits
+  where a real crouch would. One's own eye stays at crouch height (12) too while hidden
+  in the box, so opening the menu or the chat no longer lifts the view
+  (`keep_boxed_eye`, 28/10/2026). Rig models crouch too. Other clients see the server's
+  player, as they never see the box.
 - **Others see it** through the SJK hub: the box is a toy in the player's look
   (`toys: ["cardboard_box"]`, [unlockables.md](unlockables.md); `looks::TOYS`), so every
   SJK player on the server draws the carton over that player (their entity's

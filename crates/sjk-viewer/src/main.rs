@@ -1786,6 +1786,8 @@ impl GpuState {
             demo_playback::Session::current_server_time,
         );
         prediction_preview::tick(self, game_audio, Instant::now(), presentation_time as i32);
+        // Hidden in the box, the eye stays down while the server stands the player up.
+        self.keep_boxed_eye();
         // The Monitor's monitors, then the Ragdoll's bodies (one may strike) at this
         // frame's time, for the camera and the actors.
         self.step_monitors(presentation_time);
@@ -2578,6 +2580,8 @@ impl GpuState {
             self.update_limbs(presentation_time);
         }
         {
+            // Who is in a carton is noted before the poses that crouch them.
+            self.note_boxed_players();
             if let Err(error) = self.update_actor_animations(presentation_time, game_audio) {
                 eprintln!("remote actor animation stopped: {error}");
             }
