@@ -1,3 +1,29 @@
+## JoF hats as in JoF EJK
+
+28/10/2026, `fix/pumpkin-hat` (Creyon), based on `main` `8f73ab73`: JoF's pumpkin hat drew
+grey on the JoF public server (oldsGhoul's hub report #192, 2026.1028.1); Creyon found six
+more grey in game and in the profile preview (cap, cringe, fedora, santahat, sombrero,
+tophat) and McFox and McSnowFox see-through, all fine in JoF EJK. The seven moved to
+`models/cosmetics/hats/` but their models still name `models/players/hats/<name>`, where
+SJK had nothing: JoF EJK finds jaPRO's own copies of their pictures and
+`japro_hats.shader` in `japro-assets.pk3`. SJK now takes those files alone from the
+EternalJK folder (`asset_search_paths::Options::eternaljk_old_hats`), and without that pack copies
+the same picture from the new folder under the old name
+(`cosmetics::old_folder_pictures`), so they draw with their pictures as in JoF EJK (not
+with JoF's unused `jof_hats.shader`, whose pumpkin glows: the first take of this branch
+did that, and Creyon's video showed a yellow pumpkin). McFox's and McSnowFox's models are
+wound inside out (82 of 120 triangles), so culling drew their insides: hats built so get
+a two-sided shader of their picture (`cosmetics::inside_out_shaders`), unless a script
+defines them ([client.md](client.md#hats-and-capes)). Verified on Linux x86_64: the new
+tests `a_hat_naming_the_old_folder_gets_its_picture_there`,
+`only_a_shader_file_of_old_piece_folders_is_taken` and
+`an_inside_out_hat_is_drawn_two_sided`; Creyon's `JoF_AssetsExtra.pk3` and
+`japro-assets.pk3` mounted as SJK mounts them, with and without the EternalJK folder,
+where the seven names resolve as in JoF EJK (jaPRO's scripts for cap and cringe, the
+pictures for the rest) and only McFox and McSnowFox are drawn two-sided; fmt, workspace
+build, tests and Clippy. Seen in game by Creyon on Windows (28/10/2026): every hat as in
+JoF EJK, in game and in the profile preview, McFox and McSnowFox solid.
+
 ## Capsule nameplates
 
 28/10/2026, `personal/nameplate-capsule`, based on `main` `fbd28832` (Sol's pick of design E,
