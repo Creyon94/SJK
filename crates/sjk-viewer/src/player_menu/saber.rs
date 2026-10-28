@@ -59,6 +59,9 @@ impl SaberStyle {
 pub(crate) struct StageSabers<'a> {
     pub(crate) hilts: [Option<&'a str>; 2],
     pub(crate) colors: [[u8; 3]; 2],
+    /// Whether each hand's blade is JA+'s black (colour 11), drawn black rather than
+    /// as its near-black tint, which the additive blade pass shows white (#130).
+    pub(crate) black: [bool; 2],
     pub(crate) stance: &'static str,
     pub(crate) thrown: bool,
 }
@@ -309,6 +312,7 @@ impl SaberMenu {
         StageSabers {
             hilts: [hand(&self.draft.primary), hand(&self.draft.secondary)],
             colors: [self.rgb(false), self.rgb(true)],
+            black: [false, true].map(|second| self.color(second) == BLACK_COLOR_INDEX),
             stance: self.draft.style.stance(),
             thrown,
         }
@@ -578,6 +582,23 @@ mod tests {
         assert_eq!(menu.custom_rgb(false), tint);
         menu.select_color(false, RGB_COLOR_INDEX);
         assert_eq!(menu.rgb(false), tint);
+    }
+
+    /// Dave's test of #130: the menu's model held white blades with black chosen, as
+    /// the near-black tint went through the additive pass. The stage is told black.
+    #[test]
+    fn the_menu_model_holds_black_blades() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut console = ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
+        console.set_cvar("color1", "11");
+        console.set_cvar("color2", "4");
+        let mut menu = SaberMenu::new();
+        menu.open(&console);
+        assert_eq!(menu.stage_sabers(false).black, [true, false]);
+        menu.select_color(true, BLACK_COLOR_INDEX);
+        assert_eq!(menu.stage_sabers(false).black, [true, true]);
+        menu.select_color(false, RGB_COLOR_INDEX);
+        assert_eq!(menu.stage_sabers(false).black, [false, true]);
     }
 
     /// Dave's test of #130: a black custom tint stored by an earlier test build
