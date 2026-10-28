@@ -1665,7 +1665,11 @@ for the run.
   the toy is on, Enter or a click runs it (the `toy_illuminate`, `toy_box`,
   `toy_order66`, `toy_hax`, `toy_ragdoll`, `toy_drone`, `toy_boombox` or `toy_monitor`
   toggle, set to the state wanted;
-  the viewer owns the state, the console mirrors it each frame). The keys line says
+  the viewer owns the state, the console mirrors it each frame). Under it, for a toy other
+  players are seen with, a second, smaller switch, "See others' holocrons", "See others'
+  boxes", "See others fall limp", "See others' drones", "See and hear others' boomboxes"
+  or "See monitors" (29/10/2026): off, theirs are hidden on this PC
+  ([client.md](client.md#illuminate), the toys' table). The keys line says
   "Enter: light" or "Enter: put out", "Enter: hide" or "Enter: come out", "Enter: turn
   on" or "Enter: turn off", "Enter: play" or "Enter: put away", and "K: bind a key" (while a key waits: "Esc: cancel", "Backspace: clear the
   key"). Hovering Order 66's row shows how to turn it on and that `order66` executes it;

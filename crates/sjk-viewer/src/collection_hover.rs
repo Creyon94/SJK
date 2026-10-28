@@ -145,7 +145,7 @@ impl Panel {
                 colour: color::GOLD_BRIGHT,
                 lines: vec![
                     Line::how(
-                        "Every few minutes one player with Box hunt on becomes the mark. Kill \
+                        "Every 10 minutes one player with Box hunt on becomes the mark. Kill \
                          the mark to win a free mystery box roll. Only players with it on see \
                          the mark or can be it.",
                     ),

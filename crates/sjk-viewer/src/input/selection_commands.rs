@@ -67,7 +67,7 @@ pub(super) fn register(shell: &mut sjk_shell::Shell) -> Result<(), sjk_shell::Co
         ),
         (
             crate::box_hunt::COMMAND,
-            "Toy: Box hunt on or off (on, you may become the mark every few minutes, and killing the mark wins you a free mystery box roll; only players with it on take part)",
+            "Toy: Box hunt on or off (on, you may become the mark (one every 10 minutes), and killing the mark wins you a free mystery box roll; only players with it on take part)",
         ),
     ] {
         shell.commands.register(name, help, |_| {

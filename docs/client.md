@@ -3273,7 +3273,8 @@ that font is not loaded), whatever `cg_classicHudFont` says. A dark letter (lumi
 under 0.3: black `^0`, and the game's dark blue) keeps its colour, edged in a pale halo,
 the glyph drawn a step out all round in a light tint instead of its drop shadow, so a
 black name reads on the see-through plate (`text::CodePalette::Haloed`, Sol's pick of
-28/10/2026 over lightening the colour).
+28/10/2026 over lightening the colour). The halo is faint, each of its eight copies 18%
+opaque (38% until 29/10/2026, when Sol found the outline too strong).
 
 **The holo frame** (28/10/2026, design C of the nameplate designs Sol chose from, in
 place of the capsule, design E, the same day): every plate, bars or not, is a hexagon
@@ -4344,6 +4345,25 @@ picked), from the quick wheel's [Toys page](#toys-page), or from the switch on t
 Collection's Toys tab ([SJK UI](sjk-ui.md#collection)). Every toy is a
 `toy_<name>` command ([sjk.md](sjk.md#names)).
 
+**Other players' toys, hidden on request** (Sol's request, 29/10/2026): each toy other
+players are seen with has a second switch on its card in the Collection's Toys tab, and
+a row in Settings > Game options > Toys, that hides theirs on this PC alone, for a player
+who does not like them; on by default, archived ([toy_sight.rs](../crates/sjk-viewer/src/toy_sight.rs)).
+The player's own toy still shows, and nothing changes for the toys' rules.
+
+| Toy | Switch | Cvar | Hidden |
+| --- | --- | --- | --- |
+| Illuminate | See others' holocrons | `cg_toyIlluminateShow` | their holocron and its light |
+| Cardboard box | See others' boxes | `cg_toyBoxShow` | their box (not lifted either) |
+| Ragdoll | See others fall limp | `cg_toyRagdollShow` | their falls: their bodies as the game shows them |
+| Drone | See others' drones | `cg_toyDroneShow` | their drones, names and sounds (who peeks at you is still told) |
+| Boombox | See and hear others' boomboxes | `cg_toyBoomboxShow` | their stereo and its music |
+| Monitor | See monitors | `cg_toyMonitorShow` | every monitor and its sounds, yours too ([Monitor](#monitor)) |
+
+Order 66, the Hax and Box hunt act only on players who have them on, so they have none.
+The holocron, the box and the boombox are hidden as if those players had them off here
+(`Looks::set_unseen`); the drone's and the ragdoll's relayed events are left undrawn.
+
 It is always there, with no setting that enables it, and it is out at every start:
 whether it is lit is the client's run only, not saved. The old Force wheel setting
 `cg_illuminate` is gone; a profile that still holds it (0, off the wheel, or 1, on
@@ -4966,7 +4986,8 @@ sends them flying, the way the monitor struck them.
   player they follow, is in a private duel, and on Duel and Power Duel servers, no monitor
   is drawn or heard, and no charge ring or hit marker shows (nobody throws or is hit in a
   duel anyway; this hides the monitors of the players around it). Settings > Game options >
-  Toys, "Show monitors" (`cg_toyMonitorShow`, archived, default 1), at 0 hides every
+  Toys, "Show monitors", and the Monitor's card in the Collection's Toys tab, "See
+  monitors" (`cg_toyMonitorShow`, archived, default 1), at 0 hides every
   monitor and its sounds in the world on this PC, the player's own too; their charge ring,
   charge hum, hit marker and tick stay. Neither changes who may be hit: a player with the
   toy on and monitors hidden can still be struck.

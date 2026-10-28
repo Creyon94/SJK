@@ -61,7 +61,7 @@ mod toys;
 mod view;
 
 pub(crate) use spin::SaberTurn;
-pub(crate) use toys::COMMANDS as TOY_COMMANDS;
+pub(crate) use toys::{COMMANDS as TOY_COMMANDS, unseen as toys_unseen};
 pub(crate) use view::{MODEL_AREA, SABER_AREA, row_labels};
 
 /// The things' tokens: the medals, the achievements, the shaders' rows, the shader's
@@ -83,6 +83,8 @@ fn ui_cues_click() {
 const WEAR_TOKEN: u16 = 1_300;
 const TOY_TOKEN: u16 = 1_310;
 const TOY_SWITCH_TOKEN: u16 = 1_311;
+/// The chosen toy's card's second switch: other players' toy seen or not.
+const TOY_SIGHT_TOKEN: u16 = 1_305;
 /// The cardboard box's niche on Toys (Illuminate's is [`TOY_TOKEN`]).
 const BOX_TOKEN: u16 = 1_314;
 /// Order 66's niche on Toys.
@@ -369,6 +371,12 @@ pub(crate) enum PanelAction {
     /// See and share nameplates on (`true`) or off: `cg_nameplate`
     /// ([`crate::hud::nameplate::see_and_share`]).
     SeeAndShare(bool),
+    /// Other players' toy seen (`true`) or hidden on this PC: set the toy's `cvar`
+    /// ([`crate::toy_sight`]).
+    ToySight {
+        cvar: &'static str,
+        seen: bool,
+    },
     /// Bind `key` (its console name) to a toy's `command`, in place of the first key it
     /// had, as the key-binding editor does.
     Bind {
@@ -468,6 +476,9 @@ pub(crate) struct Inputs<'a> {
     /// The keys bound to the toys' commands, as players read them ("F5", "F5 / K"), in
     /// the order of [`toys::COMMANDS`]; empty for none (or none known).
     pub(crate) toy_keys: &'a [String],
+    /// The toys whose other players' are hidden on this PC, as bits in the Toys tab's
+    /// order (each one's "See" switch off, [`crate::toy_sight`]).
+    pub(crate) toys_unseen: u16,
     /// `cg_tag`: the tag `toy_tag` sticks.
     pub(crate) tag: &'a str,
 }
@@ -530,6 +541,9 @@ pub(crate) struct Panel {
     box_hunt_on: bool,
     /// See and share nameplates was on, as the last frame's inputs said.
     share_on: bool,
+    /// The toys (bits by the Toys tab's order) whose other players' are hidden here, as
+    /// the last frame's inputs said.
+    toys_unseen: u16,
     /// The tile chosen on Cards (in the list the filter shows), how many tiles the last
     /// frame's list held, and the first line of them shown (the grid scrolls a line at a
     /// time).
@@ -684,6 +698,7 @@ impl Panel {
             monitor_on: false,
             box_hunt_on: false,
             share_on: false,
+            toys_unseen: 0,
             card: 0,
             cards_shown: 0,
             card_first: 0,
@@ -878,6 +893,17 @@ impl Panel {
     }
 
     /// What Enter (or a click on the button) does on the tab on show.
+    /// The chosen toy's "See" switch: other players' toy hidden on this PC, or seen again.
+    fn toy_sight(&self) -> PanelAction {
+        let Some(cvar) = toys::sight_cvar(self.toy) else {
+            return PanelAction::None;
+        };
+        PanelAction::ToySight {
+            cvar,
+            seen: self.toys_unseen & 1 << self.toy != 0,
+        }
+    }
+
     fn activate(&mut self, illuminate: bool) -> PanelAction {
         match self.tab {
             Tab::Shaders => self
@@ -1633,6 +1659,7 @@ impl Panel {
             LIST_VIEW_TOKEN => self.set_grid(false),
             GRID_VIEW_TOKEN => self.set_grid(true),
             WEAR_TOKEN | TOY_SWITCH_TOKEN | SHARE_TOKEN => self.activate(illuminate),
+            TOY_SIGHT_TOKEN => self.toy_sight(),
             TARGET_FIRST_TOKEN => self.set_target(false),
             TARGET_SECOND_TOKEN => self.set_target(true),
             BOTH_TOKEN => self.toggle_both(),
@@ -1865,6 +1892,7 @@ mod tests {
             pair: crate::saber_skins::Pair::None,
             share: true,
             toy_keys: &[],
+            toys_unseen: 0,
             tag: "",
         }
     }
@@ -2378,6 +2406,33 @@ mod tests {
         assert!(
             all.contains("toy_order66") && all.contains("In the order"),
             "{all}"
+        );
+        // The Hax acts only on players who have it on: its card has no "See" switch.
+        redraw(&mut panel, &shown);
+        assert!(panel.ui.rect_for(TOY_SIGHT_TOKEN).is_none());
+        // The Monitor's hides the monitors, and shows them again.
+        let _ = click(&mut panel, MONITOR_TOKEN);
+        redraw(&mut panel, &shown);
+        assert_eq!(
+            click(&mut panel, TOY_SIGHT_TOKEN),
+            PanelAction::ToySight {
+                cvar: crate::monitor::SHOW_CVAR,
+                seen: false,
+            }
+        );
+        shown.toys_unseen = 1 << 7;
+        redraw(&mut panel, &shown);
+        assert_eq!(
+            click(&mut panel, TOY_SIGHT_TOKEN),
+            PanelAction::ToySight {
+                cvar: crate::monitor::SHOW_CVAR,
+                seen: true,
+            }
+        );
+        assert_eq!(
+            toys::unseen(|cvar| cvar != crate::toy_sight::DRONE),
+            1 << 5,
+            "the Drone's bit"
         );
     }
 

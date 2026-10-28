@@ -73,6 +73,9 @@ pub(crate) fn append_bounded(
     }
 }
 
+/// The opacity of each of a dark glyph's eight pale copies in [`CodePalette::Haloed`].
+const HALO_ALPHA: f32 = 0.18;
+
 #[allow(clippy::too_many_arguments)]
 fn glyph_quad(
     vertices: &mut Vec<TextVertex>,
@@ -94,8 +97,9 @@ fn glyph_quad(
     if halo {
         // A dark glyph: the same glyph in a pale tint a step out all round, the
         // diagonals too so the ring stays even ([`CodePalette::Haloed`]), which edges
-        // it on a dark ground.
-        let tint = [0.86, 0.89, 0.95, 0.38 * color[3]];
+        // it on a dark ground. Faint (Sol, 29/10/2026: 0.38 drew too strong an
+        // outline): the copies overlap at the glyph's edge into a soft rim.
+        let tint = [0.86, 0.89, 0.95, HALO_ALPHA * color[3]];
         let d = step * std::f32::consts::FRAC_1_SQRT_2;
         for [dx, dy] in [
             [-step, 0.0],
