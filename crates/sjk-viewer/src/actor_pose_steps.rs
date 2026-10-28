@@ -6,6 +6,15 @@ use sjk_protocol::{GameState, Snapshot};
 use sjk_runtime::{AnimationState, EntityId, World};
 use std::error::Error;
 
+/// `BOTH_CROUCH1IDLE`'s animation number (`anims.h`; `pmove_locomotion.rs`).
+const BOTH_CROUCH1IDLE: usize = 1_005;
+const CROUCH_IDLE: &str = "BOTH_CROUCH1IDLE";
+
+/// Whether a protocol animation number is one of the crouch animations (idle, walking).
+fn crouch_clip(clip: usize) -> bool {
+    sjk_client::legacy_animation_name(clip).is_some_and(|name| name.starts_with("BOTH_CROUCH"))
+}
+
 /// Immutable inputs shared by independently prepared actors in one frame.
 pub(super) struct Frame<'a> {
     pub flame: Option<&'static crate::actor_world_submission::force_powers::flame::Contract>,
@@ -84,6 +93,26 @@ pub(super) fn prepare(mesh: &mut ActorMesh, frame: &Frame<'_>) -> Result<(), Box
         });
     mesh.flame_pose
         .apply(mesh.entity_id, flame_clip, presentation_time, &mut state);
+    // A boxed player is drawn crouching for as long as they are in the box, also while
+    // the server holds them upright (talking; `cardboard_box::crouched_in_box`). Clips
+    // are protocol animation numbers, looked up by name (`ghoul2_pose.rs`), not
+    // `animation.cfg` lines. A rig model follows the stock skeleton that drives it, so
+    // it crouches too (a boxed rig model stood up through its carton, 28/10/2026).
+    if !mesh.corpse_pool
+        && mesh.animator.humanoid()
+        && mesh
+            .entity_id
+            .and_then(|id| usize::try_from(id.get().checked_sub(1)?).ok())
+            .is_some_and(crate::cardboard_box::crouched_in_box)
+        && !crouch_clip(state.lower.clip)
+        && mesh.preview.config.get_exact(CROUCH_IDLE).is_some()
+    {
+        for track in [&mut state.lower, &mut state.upper] {
+            track.clip = BOTH_CROUCH1IDLE;
+            track.forced_frame = None;
+            track.transition = None;
+        }
+    }
     if mesh.corpse_pool && !mesh.body_copied {
         state.lower.forced_frame =
             sjk_client::legacy_body_frame(&mesh.preview.config, state.lower.clip);
@@ -334,5 +363,22 @@ pub(super) fn failed(mesh: &mut ActorMesh, error: &dyn Error) {
             mesh.appearance.model,
             mesh.appearance.variant,
         ));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_box_crouch_is_the_protocol_crouch() {
+        assert_eq!(
+            sjk_client::legacy_animation_name(BOTH_CROUCH1IDLE),
+            Some(CROUCH_IDLE)
+        );
+        assert!(crouch_clip(BOTH_CROUCH1IDLE));
+        let walk = sjk_game_jka::legacy_animation_index("BOTH_CROUCH1WALK").unwrap();
+        let stand = sjk_game_jka::legacy_animation_index("BOTH_STAND1").unwrap();
+        assert!(crouch_clip(walk) && !crouch_clip(stand));
     }
 }

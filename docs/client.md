@@ -4298,6 +4298,19 @@ first 5 seconds on a server).
   jump), so the server sees an ordinary crouching player and movement stays stock. Its
   music loops on the player, in both ears for one's own and placed on the player for
   others (on channel 14, its own, so it cuts no game sound).
+- **Flying** the free camera or `fakenoclip` (hub report #152, 27/10/2026), the box
+  holds no crouch: the commands' `upmove` steers the flight there, and a held crouch
+  sank the camera. One's own carton stays on the body and keeps the body's facing, not
+  the camera's; it is drawn for mirrors only while the camera is inside it (a flight
+  starts in the body), and the player does not count as hiding.
+- **Crouched in the box:** every SJK client draws a boxed player crouching until they
+  leave the box (`BOTH_CROUCH1IDLE` on both halves unless a crouch animation already
+  plays; `cardboard_box::crouched_in_box`, `actor_pose_steps.rs`; Dave's test of #152,
+  28/10/2026). The box asks the server to crouch, but codemp's `PmoveSingle` zeroes a
+  talking player's `upmove` (`bg_pmove.c:12441-12448`), so the server stands up a boxed
+  player with the chat or console open or the free camera's talk balloon, which stays
+  so the player keeps its protection. A crouch keeps the origin, so the pose sits where
+  a real crouch would. Other clients see the server's player, as they never see the box.
 - **Others see it** through the SJK hub: the box is a toy in the player's look
   (`toys: ["cardboard_box"]`, [unlockables.md](unlockables.md); `looks::TOYS`), so every
   SJK player on the server draws the carton over that player (their entity's
