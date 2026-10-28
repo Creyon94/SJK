@@ -710,7 +710,10 @@ overlay routes their text to the UI's families (`console_sjk_pages.rs`).
   all once a fold is open) under them; the sections draw closer, their rows
   and type shrinking with the step, when there are too many for the rail to
   end above y 960 with Expand all. The step goes no lower than 30, so up to
-  ten sections show; past that the rail shows the ten around the one in view.
+  ten sections show; past that the rail shows a window of ten that moves only
+  when the section in view leaves it, and only as far as brings it back (a
+  click on a row never moves the rows), with three dots over the first row or
+  under the last where sections are hidden.
   The column (x 640, 1120 wide, from y 140 to 960, scrolled by the arrows, Page Up and Down, Space, Home and End, the wheel and a
   thin holo scrollbar at x 1800) holds each section under a sub-heading:
   - Someone with a history: the name (Rajdhani 84 for Sol JK's section, 62 for

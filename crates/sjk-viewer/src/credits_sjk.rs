@@ -22,8 +22,9 @@ const EMBLEM: f32 = 220.0;
 const CAPTION_Y: f32 = 486.0;
 /// The sections down a rail on the left, and Expand all under them; the
 /// sections draw closer and smaller when there are too many for their full
-/// step, down to `MIN_STEP`, and past that the rail shows the ones around the
-/// section in view.
+/// step, down to `MIN_STEP`, and past that the rail shows a window of them
+/// that moves only as far as keeps the section in view on it, with dots where
+/// sections are hidden above or below.
 const RAIL_X: f32 = 96.0;
 const RAIL_TOP: f32 = 556.0;
 const SECTION_STEP: f32 = 52.0;
@@ -242,12 +243,18 @@ struct RailRows {
 }
 
 impl RailRows {
-    /// The rows for `count` sections with `current` in view.
-    fn of(count: usize, current: usize) -> Self {
+    /// The rows for `count` sections with `current` in view, the window
+    /// starting at `first` last frame. The window moves only when `current`
+    /// leaves it, and only as far as brings it back, so a click on a row near
+    /// its edge leaves the rows where they are.
+    fn of(count: usize, current: usize, first: usize) -> Self {
         // As many as fit at the smallest step; more scroll with the one in view.
         let fit = (RAIL_ROOM / MIN_STEP) as usize + 1;
         let shown = count.min(fit);
-        let first = current.saturating_sub(shown / 2).min(count - shown);
+        let first = first
+            .min(current)
+            .max((current + 1).saturating_sub(shown))
+            .min(count - shown);
         let step = if shown > 1 {
             SECTION_STEP.min(RAIL_ROOM / (shown - 1) as f32)
         } else {
@@ -1061,7 +1068,8 @@ impl Panel {
         let s = frame.s;
         let count = self.sections.len().min(usize::from(SECTION_TOKENS));
         let current = self.current_section().min(count.saturating_sub(1));
-        let rows = RailRows::of(count, current);
+        let rows = RailRows::of(count, current, self.rail_first);
+        self.rail_first = rows.first;
         let bottom = RAIL_TOP + rows.shown.saturating_sub(1) as f32 * rows.step + rows.height;
         if rows.shown > 0 {
             kit::rail(
@@ -1093,6 +1101,17 @@ impl Panel {
                 );
                 self.ui
                     .hit_region(token, frame.rect(RAIL_X, top, RAIL_WIDTH, rows.height));
+            }
+            // Three dots over the first row or under the last where sections are hidden.
+            let hidden = [
+                (rows.first > 0, RAIL_TOP - 8.0),
+                (rows.first + rows.shown < count, bottom + 8.0),
+            ];
+            for (_, y) in hidden.into_iter().filter(|(hidden, _)| *hidden) {
+                for step in 0..3 {
+                    let x = RAIL_X + 32.0 + step as f32 * 10.0;
+                    dot(&mut self.ui, frame, [x, y], 4.0, color::MUTED);
+                }
             }
         }
         let y = if rows.shown > 0 {
@@ -1823,12 +1842,12 @@ mod tests {
 
     #[test]
     fn the_rail_rows_never_overlap_and_end_above_expand_all() {
-        let full = RailRows::of(7, 0);
+        let full = RailRows::of(7, 0, 0);
         assert_eq!((full.first, full.shown), (0, 7));
         assert!(full.step > SECTION_HEIGHT && full.height == SECTION_HEIGHT);
         for count in 1..=usize::from(SECTION_TOKENS) {
             for current in 0..count {
-                let rows = RailRows::of(count, current);
+                let rows = RailRows::of(count, current, 0);
                 assert!(rows.shown >= 1 && rows.first + rows.shown <= count);
                 assert!((rows.first..rows.first + rows.shown).contains(&current));
                 assert!(rows.step >= MIN_STEP && rows.height <= rows.step);
@@ -1841,9 +1860,24 @@ mod tests {
             }
         }
         // Past what fits, the rail follows the section in view.
-        let many = RailRows::of(40, 39);
+        let many = RailRows::of(40, 39, 0);
         assert_eq!(many.first + many.shown, 40);
-        assert_eq!(RailRows::of(40, 0).first, 0);
+        assert_eq!(RailRows::of(40, 0, many.first).first, 0);
+    }
+
+    #[test]
+    fn the_rail_window_moves_only_when_the_section_in_view_leaves_it() {
+        let rows = RailRows::of(40, 0, 0);
+        let last = rows.shown - 1;
+        // A click on the last row shown, or any row between, leaves the window.
+        for current in 0..=last {
+            assert_eq!(RailRows::of(40, current, 0).first, 0);
+        }
+        // Scrolling one past the window moves it by one, not to centre it.
+        assert_eq!(RailRows::of(40, last + 1, 0).first, 1);
+        assert_eq!(RailRows::of(40, 20, 25).first, 20);
+        // A window left past the end (fewer sections) comes back within them.
+        assert_eq!(RailRows::of(12, 11, 30).first, 12 - rows.shown);
     }
 
     #[test]
