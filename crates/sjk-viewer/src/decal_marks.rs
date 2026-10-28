@@ -12,11 +12,15 @@
 //! The world triangles come from the same tessellated batches the renderer
 //! draws, so marks follow the rendered patch geometry exactly. Surfaces the
 //! game forbids marks on are filtered with the caller-supplied predicate the
-//! clipper exposes; the JKA flag values live in `particle_physics`.
+//! clipper exposes; the JKA flag values live in `particle_physics`. As in
+//! `R_BoxSurfaces_r`, a shader's script decides (its `surfaceparm nomarks`,
+//! `noimpact` and `fog`), not the flags the map was compiled with, which a map
+//! built without the script lacks; a shader with no script keeps the compiled ones.
 
 use super::*;
 use crate::particle_physics::{CONTENTS_FOG, SURF_NOIMPACT, SURF_NOMARKS};
 use sjk_bsp::{MAX_VERTICES_ON_POLY, MarkFragments, MarkProjection, SurfaceKind};
+use sjk_shader::{ShaderCatalog, ShaderDefinition};
 
 /// `MAX_DECAL_POINTS` / `MAX_DECAL_FRAGMENTS` (`tr_decals.cpp:157-158`).
 const MAX_DECAL_POINTS: usize = 384;
@@ -61,13 +65,19 @@ pub(crate) struct DecalSurfaces {
     ranges: Vec<Range<u32>>,
     /// Surfaces a map edit hides ([`crate::map_edits`]): no marks, no picks.
     hidden: Vec<bool>,
+    /// Per BSP shader: marks never land on it ([`marks_forbidden`]).
+    markless: Vec<bool>,
 }
 
 impl DecalSurfaces {
     /// Capture the world batches. Only draws that belong to the world model
     /// take part (`R_BoxSurfaces_r` walks `tr.world->nodes`, so marks never
     /// land on inline models).
-    pub(crate) fn from_flattened(scene: &FlattenedScene, bsp: &Bsp) -> Self {
+    pub(crate) fn from_flattened(
+        scene: &FlattenedScene,
+        bsp: &Bsp,
+        shaders: &ShaderCatalog,
+    ) -> Self {
         let mut ranges = vec![0..0; bsp.render().surfaces().len()];
         for draw in &scene.draws {
             let Some(surface_index) = draw.surface_index else {
@@ -90,6 +100,17 @@ impl DecalSurfaces {
             indices: scene.indices.clone(),
             hidden: vec![false; ranges.len()],
             ranges,
+            markless: bsp
+                .shaders()
+                .iter()
+                .map(|shader| {
+                    marks_forbidden(
+                        shaders.get(&shader.name_lossy()),
+                        shader.surface_flags,
+                        shader.content_flags,
+                    )
+                })
+                .collect(),
         }
     }
 
@@ -374,21 +395,32 @@ pub(crate) fn project_strip(
     }
 }
 
+/// `R_BoxSurfaces_r` (`tr_marks.cpp:161-164`) skips a surface whose shader has
+/// `SURF_NOIMPACT` or `SURF_NOMARKS` or fog contents, read from its script
+/// (`ParseSurfaceParm`); without a script, the flags the map was compiled with.
+fn marks_forbidden(
+    script: Option<&ShaderDefinition>,
+    surface_flags: u32,
+    content_flags: u32,
+) -> bool {
+    match script {
+        Some(definition) => definition.no_marks || definition.fog_contents,
+        None => {
+            surface_flags & (SURF_NOIMPACT | SURF_NOMARKS) != 0 || content_flags & CONTENTS_FOG != 0
+        }
+    }
+}
+
 fn clip(world: &DecalSurfaces, bsp: &Bsp, projection: &MarkProjection, scratch: &mut DecalScratch) {
     let direction = Vec3::from_array(projection.direction());
 
     scratch.surfaces.clear();
     scratch.fragments.clear();
-    let shaders = bsp.shaders();
     bsp.mark_surfaces(
         projection,
         MAX_MARK_SURFACES,
         &mut scratch.surfaces,
-        |_, surface| {
-            let shader = &shaders[surface.shader];
-            shader.surface_flags & (SURF_NOIMPACT | SURF_NOMARKS) == 0
-                && shader.content_flags & CONTENTS_FOG == 0
-        },
+        |_, surface| !world.markless.get(surface.shader).copied().unwrap_or(true),
     );
     let surfaces = bsp.render().surfaces();
     'surfaces: for &surface_index in &scratch.surfaces {
@@ -433,4 +465,45 @@ fn perpendicular_vector(source: Vec3) -> Vec3 {
     let mut seed = Vec3::ZERO;
     seed[smallest] = 1.0;
     (seed - source * seed.dot(source)).normalize_or(Vec3::Y)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn script(text: &str) -> ShaderDefinition {
+        sjk_shader::parse_shader_script(text.as_bytes(), "shaders/test.shader")
+            .expect("parsed")
+            .remove(0)
+    }
+
+    #[test]
+    fn a_scripts_nomarks_keeps_marks_off_what_the_map_compiled_without_it() {
+        // JoF's The-Council-RPG compiled its holograms with no surface flags; their
+        // script says nomarks, and rd-vanilla reads the script.
+        let hologram = script(
+            "textures/generator/b_cor_holo1\n{\n\tsurfaceparm nomarks\n\tsurfaceparm trans\n\t{\n\t\tmap textures/a.tga\n\t}\n}\n",
+        );
+        assert!(hologram.no_marks);
+        assert!(marks_forbidden(Some(&hologram), 0, 0));
+        assert!(marks_forbidden(
+            Some(&script("x\n{\nsurfaceparm noimpact\n}\n")),
+            0,
+            0
+        ));
+        assert!(marks_forbidden(
+            Some(&script("x\n{\nsurfaceparm fog\n}\n")),
+            0,
+            0
+        ));
+        // The script decides when there is one, as in R_BoxSurfaces_r.
+        let plain = script("x\n{\nsurfaceparm metalsteps\n}\n");
+        assert!(!plain.no_marks);
+        assert!(!marks_forbidden(Some(&plain), SURF_NOMARKS, 0));
+        // Without one, the compiled flags.
+        assert!(marks_forbidden(None, SURF_NOMARKS, 0));
+        assert!(marks_forbidden(None, SURF_NOIMPACT, 0));
+        assert!(marks_forbidden(None, 0, CONTENTS_FOG));
+        assert!(!marks_forbidden(None, 0, 0));
+    }
 }

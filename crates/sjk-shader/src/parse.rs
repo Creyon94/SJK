@@ -38,6 +38,7 @@ pub(super) fn parse_tokens(
             sun: None,
             fog: None,
             fog_contents: false,
+            no_marks: false,
             no_gl_fog: false,
             polygon_offset: false,
             no_picmip: false,
@@ -113,8 +114,10 @@ pub(super) fn parse_tokens(
                     });
                 }
                 "surfaceparm" => {
-                    definition.fog_contents |=
-                        token(&tokens, cursor, source)?.eq_ignore_ascii_case("fog");
+                    let parm = token(&tokens, cursor, source)?;
+                    definition.fog_contents |= parm.eq_ignore_ascii_case("fog");
+                    definition.no_marks |= parm.eq_ignore_ascii_case("nomarks")
+                        || parm.eq_ignore_ascii_case("noimpact");
                     cursor += 1;
                 }
                 "noglfog" => definition.no_gl_fog = true,

@@ -185,7 +185,11 @@ clash flare asks for `gfx/effects/saberFlare`.
 
 Impact marks (decals) are drawn before every other effect, as rd-vanilla sorts mark
 shaders (`sort decal`) ahead of blended effects, so an explosion's fire and smoke
-cover its own scorch mark. Effect atlas stages honour `alphaGen const` and a grey
+cover its own scorch mark. Marks skip a surface whose shader script has `surfaceparm
+nomarks`, `noimpact` or `fog`, read from the script as rd-vanilla's `R_BoxSurfaces_r`
+does, not from the flags the map was compiled with (JoF's The-Council-RPG compiled its
+holograms without them; [decal_marks.rs](../crates/sjk-viewer/src/decal_marks.rs)); a
+shader with no script keeps the compiled flags. Effect atlas stages honour `alphaGen const` and a grey
 `rgbGen const` (JoF's HD scorch marks are 15% grey at 80% opacity). A coloured
 `rgbGen const` is ignored: effect layers carry one brightness, so only a grey
 constant is taken. Both constants are applied as a flat brightness and alpha

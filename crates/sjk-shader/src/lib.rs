@@ -58,6 +58,10 @@ pub struct ShaderDefinition {
     pub fog: Option<FogParms>,
     /// `surfaceparm fog`: the material carries fog contents.
     pub fog_contents: bool,
+    /// `surfaceparm nomarks` or `noimpact` (`SURF_NOMARKS`, `SURF_NOIMPACT`): no
+    /// marks land on the surface. rd-vanilla's `R_MarkFragments` reads these from the
+    /// script, not from the flags the map was compiled with.
+    pub no_marks: bool,
     /// `noglfog` suppresses the volume pass.
     pub no_gl_fog: bool,
     /// `polygonOffset`: the surface is laid onto another (painted markings, decals) and

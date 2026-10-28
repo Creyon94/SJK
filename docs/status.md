@@ -6,11 +6,15 @@ The-Council-RPG map) skipped at every load ("wave
 generator requires four numeric arguments"). The original engine keeps a wave with
 missing values (0) and stops at the line's end; SJK read the next line's keyword as a
 number and dropped the shader. Its values now end at the first non-number
-([rendering.md](rendering.md#where-to-work)). Verified on Linux x86_64: sjk-shader tests
+([rendering.md](rendering.md#where-to-work)). Drawn again, the holograms took saber
+marks in Creyon's test, not in JoF EJK: their script says `surfaceparm nomarks` but the
+map was compiled without it, and SJK read only the compiled flags; marks now follow the
+script as `R_BoxSurfaces_r` does (new test
+`a_scripts_nomarks_keeps_marks_off_what_the_map_compiled_without_it`). Verified on Linux x86_64: sjk-shader tests
 (new `a_short_wave_keeps_its_shader_and_the_next_directive`), fmt, workspace build, tests
 (4155 passed) and Clippy; on Creyon's PC (28/10/2026) the build without the fix logged the
 nine warnings at load and the build with it none; in game by Creyon on Windows
-(28/10/2026, The-Council-RPG): the holograms draw, their text scrolling and pulsing.
+(28/10/2026, The-Council-RPG): the holograms draw, their text scrolling.
 
 ## Capsule nameplates
 
