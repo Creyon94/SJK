@@ -39,6 +39,19 @@ sjk-viewer tests (3094 passed; `cards::faces::tests::only_the_faces_asked_for_ar
 timed out under the full run's load and passes alone); in game by Slash on a release build (combos, stances, A, R, A). Not verified: which
 saber moves at a combo's end hand over to the server's animation, and the caught-up
 swing's delay over a real ping.
+
+## Jetpack fuel bar
+
+27/10/2026, `feat/jetpack-fuel-bar`, based on `main` `685edded`: the HUD showed
+nothing of a jetpack's fuel. As JoF EJK's `CG_DrawJetpackFuel` (`cg_draw.c:9897-9940`)
+does, a 20 by 100 unit bar now stands 8 units in from the right edge, 260 down: a black
+frame, the fuel left in dark red from the bottom, the fuel burnt greyed out above it
+([jetpack_fuel.rs](../crates/sjk-viewer/src/hud/jetpack_fuel.rs)). Stock draws it while
+the tank is not full; on Sol's call SJK draws it only while the jetpack burns
+(`EF_JETPACK_ACTIVE`), so mods that give everyone a jetpack keep no bar up. It hides with
+the HUD (`cg_draw2D`, `cg_drawHud`) and follows the HUD scale (`cg_hudScale`), keeping its
+right edge and centre height. The cloak fuel bar is not drawn yet. Unit tests cover when it shows, its
+position and fill; untested in a game.
 ## Medal ranks
 
 27/10/2026, `personal/medal-ranks`, based on `main` `ef6364c0` (Sol's decision): every
@@ -92,6 +105,34 @@ hunt toy (`toy_boxhunt`, look toy `box_hunt`) makes a random player with it on t
 every 3 minutes; another with it on who kills the mark wins a free roll (the mark's client
 tells the hub who killed it). Needs the hub's `box-hunt` branch (not deployed). Verified:
 unit tests on both sides. Not verified: in a game.
+
+Slash's test the same day: `give all` showed no jetpack. It did hold one, but the server
+never set `EF_JETPACK` on a player (only on NPCs), so no pack hung on the back; the
+player's think now sets it from the held jetpack, as `ClientThink_real` does. A new cheat,
+`jetpack` (SJK's own; needs cheats, e.g. `devmap`, and a living player), gives the jetpack
+with a full tank, or takes it away switched off with the tank full again, so the pack and
+the fuel bar go with it. Unit tests cover the toggle and `give all`; the `EF_JETPACK` sync
+and the command are untested in a game.
+
+Then the flight on SJK's own server (Slash: in `devmap` the jetpack could not be flown;
+on other servers it flies). The movement already had stock `PM_JETPACK`
+([pmove_jetpack.rs](../crates/sjk-game-jka/src/pmove_jetpack.rs)) and the batteries ran;
+what was missing is switching it on. The use key now does, as stock `TryUse` does
+(`tryJetPack`, `g_utils.c:2040-2048`): having used nothing in front of the eyes, it runs
+`ItemUse_Jetpack` for a held jetpack in the air (a second between switches, 5 fuel to
+start, not while gripped or falling to death, `sound/boba/JETON`), and while the jetpack
+burns it reaches for nothing else and only switches it off
+([bridge_use.rs](../crates/sjk-dedicated/src/bridge_use.rs)). The player's think flies a
+player whose jetpack is on (`PM_JETPACK`, `EF_JETPACK_ACTIVE`, `g_active.c:4007-4038`),
+lands one whose is off and puts the jets out; dying, a grip (`w_force.c:4185`) and the
+trigger a fall to death begins in (`g_trigger.c:2372`) turn it off, checked each frame
+(`holdables::jetpack_forced_off`). Jump thrusts up and burns two fuel a tick instead of
+one; empty, it switches off. `use_jetpack` stays refused, as stock's `G_ItemUsable`
+refuses it (`BG_IsItemSelectable` never selects the jetpack), and the client offers no
+bind for it. Sol's review on PR #225 moved the flight from that bind to the use key. Not
+ported: a DEMP2 hit switching the jetpack off for 3 to 10
+seconds (`G_Damage`). Unit tests cover the think's link, `tryJetPack`'s gate and the
+switch-offs; untested in a game.
 
 ## Sun blade drawn for less
 

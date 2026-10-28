@@ -46,6 +46,7 @@ impl HudOverlay {
         values: ClientHudData,
         time_ms: u64,
     ) -> ClientHudData {
+        self.jetpack_fuel = jetpack_fuel::shown(player);
         let maximum = player.max_health().max(1) as f32;
         self.icons.weapon(values.weapon);
         // Health and armour run to twice the maximum (125 at spawn, a large shield on a

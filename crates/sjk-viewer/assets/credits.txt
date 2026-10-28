@@ -189,7 +189,7 @@ link: https://sol-vulpes.github.io/SJK/
 
 [Creyon]
 github: Creyon94
-role: Contributor and tester: 58 merged pull requests, EternalJK parity
+role: Contributor and tester: 61 merged pull requests, EternalJK parity
 medal: early_contributor
 did: #2 #7 Duel challenges from names with symbols, centre prints kept whole
 did: #3 The third-person camera damped per frame as EternalJK (cg_cameraFPS)
@@ -224,6 +224,9 @@ did: #192 Normal blades in duels, each in its owner's colour (cg_duelStockBlades
 did: #191 Signature blades without the bright rim at the tip or hard edges round their effects
 did: #202 Bodies fade away as in EternalJK, with their Force side's glow and sounds
 did: #208 Formatting that unblocked CI
+did: #230 Black sabers in Profile > Saber and in game
+did: #231 The cardboard box with the free camera, crouched in the box
+did: #232 The limp body stays in sight from the free camera
 did: #193 A blade skin for each saber and each half of a staff
 did: #197 Trading between players: duplicates (and later holocrons) swapped or given as gifts, from a game or the main menu
 did: Blade Lab rounds 15 to 22: every blade effect in 3D, richer mythicals, faster loading
@@ -316,7 +319,7 @@ link: Lukas's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+
 
 [Slash]
 github: JoFSlash
-role: Contributor: 44 merged pull requests
+role: Contributor: 46 merged pull requests
 did: #114 Tab completes cfg file names after exec and writeconfig
 did: #113 CTF team saber colours, an option
 did: #153 The SJK scoreboard tells who won the Siege round or team match
@@ -364,6 +367,8 @@ did: #220 Screenshots saved opaque
 did: #221 No stray title over the Leave page
 did: #223 The DEMP2 alt fire's shock bubble
 did: #226 Each saber swing heard once across a combo's end
+did: #225 The jetpack's fuel bar, its flight on SJK's server, the jetpack cheat
+did: #227 A credits rail that fits any number of sections
 link: Slash's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AJoFSlash
 
 [Milamber]
