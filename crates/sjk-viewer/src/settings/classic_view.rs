@@ -653,7 +653,7 @@ impl SettingsMenu {
                 | ValueKind::IdentityPage
                 | ValueKind::ImportPage
                 | ValueKind::AssetBrowser
-                | ValueKind::JofContent
+                | ValueKind::ContentCard
                 | ValueKind::SoundPreview
                 | ValueKind::GameplayFps
                 | ValueKind::Quality => {
@@ -881,7 +881,7 @@ impl SettingsMenu {
             ValueKind::AssetBrowser => {
                 "ENTER to enable or disable installed PK3 packs for the next start"
             }
-            ValueKind::JofContent => "ENTER to choose and download JoF's content",
+            ValueKind::ContentCard => "ENTER to choose and download",
             ValueKind::SoundPreview => "ENTER or a click to hear the sound chosen above",
         });
         if self
@@ -1045,7 +1045,7 @@ pub(super) fn row_default(console: &ViewerConsole, setting: &Setting) -> RowDefa
             | ValueKind::IdentityPage
             | ValueKind::ImportPage
             | ValueKind::AssetBrowser
-            | ValueKind::JofContent
+            | ValueKind::ContentCard
             | ValueKind::SoundPreview
     ) {
         return RowDefault::default();

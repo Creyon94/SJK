@@ -1,5 +1,6 @@
-//! The JoF content card (`jof.downloads`, Settings > General or Mods > JoF
-//! content): an SJK UI pop-up in every menu style. The switch that loads the
+//! The content card, for JoF content (`jof.downloads`, Settings > General or Mods >
+//! JoF content) and the Sith cloud (`sith.downloads`, `sith_cloud.rs`), each with its
+//! own [`Words`]: an SJK UI pop-up in every menu style. The switch that loads the
 //! folder, the repository's groups with a tick each and what is here of them,
 //! each group's files to pick one by one, what a download will do, its
 //! progress, and Check again and Download.
@@ -35,6 +36,35 @@ const TICK_BASE: u16 = 100;
 /// Whose the files are (Sol's request, 16/10/2026): JoF chooses them, SJK
 /// only fetches what the player picks.
 pub(crate) const NOTICE: &str = "JoF chooses and publishes these files and is responsible for them; SJK only downloads what you pick and is not responsible for their content.";
+/// What a card says about its collection: the only part that differs between
+/// JoF content and the Sith cloud.
+pub(crate) struct Words {
+    pub(crate) title: &'static str,
+    pub(crate) about: &'static str,
+    /// Whose the files are.
+    pub(crate) notice: &'static str,
+    /// The switch's name, also in the hints to turn it on.
+    pub(crate) switch: &'static str,
+    pub(crate) on: &'static str,
+    pub(crate) off: &'static str,
+    /// After the folder, on the line under the switch.
+    pub(crate) folder_note: &'static str,
+    /// Where the list comes from, as a sentence's subject.
+    pub(crate) repository: &'static str,
+}
+
+/// JoF content's words.
+pub(crate) const JOF: Words = Words {
+    title: "JoF content",
+    about: "JoF's maps, skins, hilts and packs, from JoF's repository as JoF's launcher installs them.",
+    notice: NOTICE,
+    switch: "Use JoF content",
+    on: "On: SJK loads these files from its JoF folder, from the next map. Off leaves them on disk unused.",
+    off: "Off by default. Turn it on to download and load JoF's files; nothing is fetched until you press Download.",
+    folder_note: "files JoF's launcher put in your game folder are used as they are",
+    repository: "JoF's repository",
+};
+
 /// The card, in frame pixels.
 const CARD: [f32; 4] = [360.0, 96.0, 1200.0, 888.0];
 const LEFT: f32 = 404.0;
@@ -76,6 +106,7 @@ struct Summary {
 }
 
 pub(crate) struct Card {
+    words: &'static Words,
     pub(crate) open: bool,
     pub(crate) owns_console: bool,
     game_data: PathBuf,
@@ -102,7 +133,14 @@ pub(crate) struct Card {
 
 impl Default for Card {
     fn default() -> Self {
+        Self::new(&JOF)
+    }
+}
+
+impl Card {
+    pub(crate) fn new(words: &'static Words) -> Self {
         Self {
+            words,
             open: false,
             owns_console: false,
             game_data: PathBuf::new(),
@@ -122,9 +160,7 @@ impl Default for Card {
             ui: MenuCanvas::with_text_capacity(128),
         }
     }
-}
 
-impl Card {
     /// Show the card with the settings' values. The returned flag asks for a
     /// refresh (none is running and nothing was looked at yet).
     pub(crate) fn open(
@@ -492,6 +528,7 @@ impl Card {
         let main_focus = self.main_focus();
         let rows = self.rows();
         let items = self.items();
+        let words = self.words;
         self.ui.begin_transparent(viewport);
         kit::scrim(&mut self.ui, viewport);
         kit::card(&mut self.ui, &frame, CARD);
@@ -499,7 +536,7 @@ impl Card {
         text(
             ui,
             TextFamily::Display,
-            format_args!("JoF content"),
+            format_args!("{}", words.title),
             frame.rect(LEFT, 126.0, 700.0, 50.0),
             36.0 * s,
             color::GOLD_BRIGHT,
@@ -509,9 +546,7 @@ impl Card {
         text(
             ui,
             TextFamily::Body,
-            format_args!(
-                "JoF's maps, skins, hilts and packs, from JoF's repository as JoF's launcher installs them."
-            ),
+            format_args!("{}", words.about),
             frame.rect(LEFT, 174.0, 1100.0, 26.0),
             18.0 * s,
             color::MUTED,
@@ -521,7 +556,7 @@ impl Card {
         text(
             ui,
             TextFamily::Body,
-            format_args!("{NOTICE}"),
+            format_args!("{}", words.notice),
             frame.rect(LEFT, 198.0, 1100.0, 22.0),
             15.0 * s,
             color::QUIET,
@@ -553,7 +588,7 @@ impl Card {
         text(
             ui,
             TextFamily::Body,
-            format_args!("Use JoF content"),
+            format_args!("{}", words.switch),
             frame.rect(LEFT, top + 12.0, 700.0, 30.0),
             21.0 * s,
             color::TEXT,
@@ -561,11 +596,7 @@ impl Card {
             TextAlign::Start,
         );
         kit::switch(ui, &frame, RIGHT, top + 27.0, self.on, switch_focused);
-        let explained = if self.on {
-            "On: SJK loads these files from its JoF folder, from the next map. Off leaves them on disk unused."
-        } else {
-            "Off by default. Turn it on to download and load JoF's files; nothing is fetched until you press Download."
-        };
+        let explained = if self.on { words.on } else { words.off };
         text(
             ui,
             TextFamily::Body,
@@ -580,8 +611,9 @@ impl Card {
             ui,
             TextFamily::Body,
             format_args!(
-                "Folder: {}   ·   files JoF's launcher put in your game folder are used as they are",
-                shorten(&self.folder, 70)
+                "Folder: {}   ·   {}",
+                shorten(&self.folder, 70),
+                words.folder_note
             ),
             frame.rect(LEFT, top + 78.0, 1100.0, 24.0),
             15.0 * s,
@@ -598,8 +630,10 @@ impl Card {
             (None, _) => {
                 kit::heading(ui, &frame, LEFT, 346.0, RIGHT - LEFT, "Groups");
                 let waiting = match &self.phase {
-                    Phase::Failed(_) => "The list could not be fetched. Check again to retry.",
-                    _ => "Fetching the list from JoF's repository...",
+                    Phase::Failed(_) => {
+                        "The list could not be fetched. Check again to retry.".to_owned()
+                    }
+                    _ => format!("Fetching the list from {}...", words.repository),
                 };
                 text(
                     ui,
@@ -969,7 +1003,7 @@ impl Card {
         };
         match &self.phase {
             Phase::Manifest => (
-                "Asking JoF's repository for its list...".into(),
+                format!("Asking {} for its list...", self.words.repository),
                 color::MUTED,
                 None,
             ),
@@ -1007,7 +1041,8 @@ impl Card {
             Phase::Finished(outcome) if outcome.synced => self.finished(outcome),
             Phase::Failed(reason) => (
                 format!(
-                    "JoF's repository could not be reached: {}",
+                    "{} could not be reached: {}",
+                    capital(self.words.repository),
                     shorten(reason, 80)
                 ),
                 color::EMBER,
@@ -1041,11 +1076,11 @@ impl Card {
             human_size(outcome.downloaded_bytes),
             outcome.removed
         );
-        done.push_str(if self.on {
-            " They load from the next map."
+        if self.on {
+            done.push_str(" They load from the next map.");
         } else {
-            " Turn on Use JoF content to load them."
-        });
+            done.push_str(&format!(" Turn on {} to load them.", self.words.switch));
+        }
         (done, color::GOLD_BRIGHT, None)
     }
 
@@ -1077,9 +1112,17 @@ impl Card {
         if self.on {
             what
         } else {
-            format!("{what} Turn on Use JoF content first.")
+            format!("{what} Turn on {} first.", self.words.switch)
         }
     }
+}
+
+/// The text with its first letter in capitals, for a name starting a sentence.
+fn capital(text: &str) -> String {
+    let mut letters = text.chars();
+    letters.next().map_or_else(String::new, |first| {
+        first.to_uppercase().chain(letters).collect()
+    })
 }
 
 /// Each group's counts, in the manifest's order.
@@ -1390,12 +1433,28 @@ mod tests {
             .expect("a GPU adapter");
             let game_data = gpu.game_data.clone();
             let console = gpu.console.as_mut().unwrap();
+            // SJK_CONTENT_CLOUD=sith: the Sith cloud's card instead.
+            let sith = std::env::var("SJK_CONTENT_CLOUD").is_ok_and(|cloud| cloud == "sith");
             if std::env::var_os("SJK_JOF_CONTENT_ON").is_some() {
-                console.set_cvar(crate::jof_content::SWITCH, "1");
+                let switch = if sith {
+                    crate::sith_cloud::SWITCH
+                } else {
+                    crate::jof_content::SWITCH
+                };
+                console.set_cvar(switch, "1");
             }
-            console.open_jof_content(&game_data);
+            if sith {
+                console.open_sith_cloud(&game_data);
+            } else {
+                console.open_jof_content(&game_data);
+            }
+            let card = if sith {
+                &mut console.sith_cloud
+            } else {
+                &mut console.jof_content
+            };
             let start = std::time::Instant::now();
-            while console.jof_content.busy() && start.elapsed().as_secs() < 300 {
+            while card.busy() && start.elapsed().as_secs() < 300 {
                 std::thread::sleep(std::time::Duration::from_millis(100));
             }
             // SJK_JOF_CONTENT_GROUP=<n>: show the n-th group's files.
@@ -1403,9 +1462,9 @@ mod tests {
                 .ok()
                 .and_then(|group| group.parse::<usize>().ok())
             {
-                console.jof_content.update();
-                console.jof_content.open_group(group);
-                console.jof_content.set_focus(3);
+                card.update();
+                card.open_group(group);
+                card.set_focus(3);
             }
             assert!(matches!(
                 gpu.render(&mut None),

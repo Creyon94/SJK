@@ -58,7 +58,11 @@ alone: it never updates, moves or removes them.
 - **Hosts** ([source.rs](../crates/sjk-jof-content/src/source.rs)), a table read by
   generic code: JoF Cloud (`cloud.jof.app`, an hourly copy that JoF runs to take load
   off the origin) and jofhub.eu (the origin). `jof.contentSource` is `auto` (JoF Cloud,
-  then jofhub.eu, as the launcher does), `mirror` or `origin`. A file is
+  then jofhub.eu, as the launcher does), `mirror` or `origin`. Since 28/10/2026 the SJK
+  hub names the hosts (`GET /v1/content-sources`, asked before each list), so SJK can
+  move JoF content to other hosts or switch it off for everyone (the hub's empty list:
+  "switched off by SJK for now") without a release; the player's choice picks among the
+  hosts it names, and the table here is used when the hub can't be asked. A file is
   `<host root>/<localfolder>/<name>`, each segment percent-encoded on its own, so names
   such as `{JoF}'s-GWing.pk3` work.
 - **Checks** ([download.rs](../crates/sjk-jof-content/src/download.rs)). A file is

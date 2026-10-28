@@ -54,8 +54,9 @@ pub(crate) enum SettingsResult {
     OpenGameplayFps,
     /// The installed-pack browser, over the settings.
     OpenAssets,
-    /// The JoF content card, over the settings.
-    OpenJofContent,
+    /// A content card, over the settings: its command (`jof.downloads`,
+    /// `sith.downloads`).
+    OpenContent(&'static str),
     /// A button of the classic panel screen around the options: index into
     /// its page's slots.
     Classic(usize),
@@ -689,8 +690,8 @@ impl SettingsMenu {
                         return SettingsResult::OpenIdentity;
                     } else if matches!(setting.kind(), ValueKind::AssetBrowser) {
                         return SettingsResult::OpenAssets;
-                    } else if matches!(setting.kind(), ValueKind::JofContent) {
-                        return SettingsResult::OpenJofContent;
+                    } else if matches!(setting.kind(), ValueKind::ContentCard) {
+                        return SettingsResult::OpenContent(setting.cvar);
                     } else if matches!(setting.kind(), ValueKind::ImportPage) {
                         return SettingsResult::OpenImport;
                     } else if matches!(setting.kind(), ValueKind::GameplayFps) {
@@ -876,7 +877,7 @@ impl SettingsMenu {
                 ValueKind::ImportPage => IMPORT_TEXT.to_owned(),
                 ValueKind::GameplayFps => crate::gameplay_fps::row_text(console),
                 ValueKind::AssetBrowser => "Browse packs".to_owned(),
-                ValueKind::JofContent => "Choose and download".to_owned(),
+                ValueKind::ContentCard => "Choose and download".to_owned(),
                 ValueKind::SoundPreview => PREVIEW_TEXT.to_owned(),
                 ValueKind::Quality => crate::graphics_quality::shown(console).to_owned(),
                 ValueKind::Bool if derived_switch(setting.cvar).is_some() => {
@@ -1318,7 +1319,7 @@ mod tests {
                     | ValueKind::IdentityPage
                     | ValueKind::ImportPage
                     | ValueKind::AssetBrowser
-                    | ValueKind::JofContent
+                    | ValueKind::ContentCard
                     | ValueKind::SoundPreview
                     | ValueKind::Quality
             ) {
