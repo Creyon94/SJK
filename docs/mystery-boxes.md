@@ -51,6 +51,10 @@ itself, so walking away loses nothing. The other SJK players on the server see a
 the same roll through the hub's toy event (`mystery_box`, `open_<box>_<outcome>`); they
 see what came out float for the 10 seconds, as they are not told when the opener takes it.
 
+Every sound plays at the box on a sound source of the box's own (`0x5200_0000` and its id),
+never an entity's: the audio moves an entity's sounds to where it is, so box sounds once
+followed the player on slot 0 (bug report #185).
+
 Settings > Sound > Toys, "Mystery box sounds" (`s_toyMysteryBoxSound`), silences them.
 
 The price and the odds are the hub's (`GET /v1/mystery-boxes`), PROVISIONAL, Sol's to tune:

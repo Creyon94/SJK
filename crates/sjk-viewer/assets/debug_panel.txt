@@ -7301,6 +7301,7 @@ test: Settings > Sound > Toys > Mystery box sounds off mutes the tune and its so
 test: Another map or another server (box placed with 'server'): no box.
 test: Over the box: MYSTERY BOX + price, Rolling..., then e.g. JACKPOT! +500; not through walls.
 test: The lid swings open on Use and closes once the prize is taken.
+test: #185: a 2nd player far from the opener hears the tune from the box, not from the opener.
 
 [box-hunt]
 area: Gameplay
