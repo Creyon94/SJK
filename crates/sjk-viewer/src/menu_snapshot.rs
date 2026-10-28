@@ -892,9 +892,9 @@ fn nameplate_snapshot() {
     nameplates(&mut shots, &vfs);
 }
 
-/// Nameplates over a match, as capsules: a verified saber player in medium stance with
-/// a picture, just spawned (overheal, 125) with estimated Force (grey haze), a red
-/// enemy with a gun and no picture (their initial) whom the estimate cannot place
+/// Nameplates over a match, as capsules (no weapon since 28/10/2026): a verified player
+/// with a picture, just spawned (overheal, 125) with estimated Force (grey haze), a red
+/// enemy with no picture (their initial) whom the estimate cannot place
 /// (yellow "?"), a duelling staff player without SJK farther off (their model's head
 /// icon, the duel badge and no tray), an SJK player who does not share (the capsule
 /// alone), and the player's own plate (`cg_nameplateSelf`, blue team) over a large
@@ -907,23 +907,6 @@ fn nameplates(shots: &mut Snapshot, vfs: &sjk_vfs::VirtualFileSystem) {
     shots
         .icons
         .insert(crate::ui_renderer::VERIFIED_TEXTURE.0, badge);
-    let mut weapons = Vec::new();
-    for (index, (weapon, path)) in [
-        (3_u8, "gfx/hud/w_icon_lightsaber.tga"),
-        (5, "gfx/hud/w_icon_blaster.tga"),
-    ]
-    .into_iter()
-    .enumerate()
-    {
-        if let Some(image) = decode(vfs, path) {
-            let texture = TextureId(900_000 + index as u32);
-            let cell =
-                image::imageops::resize(&image, 128, 128, image::imageops::FilterType::Triangle);
-            shots.icons.insert(texture.0, cell);
-            weapons.push((weapon, texture));
-        }
-    }
-    let icons = crate::hud::icons::Icons::with_weapons(&weapons);
     // Two pictures as a hub serves them, and a head icon, each cut round in a cell.
     let round = |mut cell: RgbaImage| {
         crate::avatars::picture::round(&mut cell, 128);
@@ -973,6 +956,18 @@ fn nameplates(shots: &mut Snapshot, vfs: &sjk_vfs::VirtualFileSystem) {
         }
     }
     let shown = |index: usize| pictures[index].1.as_ref().map(|_| pictures[index].0);
+    // The Force powers' icons over the plates, as the Force wheel's.
+    let mut power_icons = [None; crate::hud::force_wheel::ICONS];
+    for (slot, name) in crate::hud::force_wheel::picture_names() {
+        let image = ["tga", "png", "jpg"]
+            .into_iter()
+            .find_map(|extension| decode(vfs, &format!("{name}.{extension}")));
+        if let Some(image) = image {
+            let id = TextureId(crate::ui_renderer::FORCE_WHEEL_ICON_FIRST + slot as u32);
+            shots.icons.insert(id.0, image);
+            power_icons[slot] = Some(id);
+        }
+    }
     let plates = [
         PreviewPlate {
             slot: 1,
@@ -981,8 +976,7 @@ fn nameplates(shots: &mut Snapshot, vfs: &sjk_vfs::VirtualFileSystem) {
             health: Some([1.25, 1.25, 1.25]),
             shield: Some([0.25, 0.25, 0.25]),
             force: Some([0.35, 0.8, 0.85]),
-            weapon: 3,
-            style: 2,
+            powers: (1 << 2) | (1 << 9),
             verified: true,
             duelling: false,
             team: None,
@@ -998,8 +992,7 @@ fn nameplates(shots: &mut Snapshot, vfs: &sjk_vfs::VirtualFileSystem) {
             health: Some([0.01, 1.0, 1.25]),
             shield: Some([0.0, 0.25, 1.0]),
             force: Some([0.1, 0.45, 0.6]),
-            weapon: 5,
-            style: 0,
+            powers: (1 << 6) | (1 << 13) | (1 << 7),
             verified: false,
             duelling: false,
             team: Some(true),
@@ -1015,8 +1008,7 @@ fn nameplates(shots: &mut Snapshot, vfs: &sjk_vfs::VirtualFileSystem) {
             health: Some([0.45, 0.5, 0.55]),
             shield: Some([0.0, 0.0, 0.0]),
             force: Some([1.0, 1.0, 1.0]),
-            weapon: 3,
-            style: 7,
+            powers: 0,
             verified: true,
             duelling: true,
             team: None,
@@ -1032,8 +1024,7 @@ fn nameplates(shots: &mut Snapshot, vfs: &sjk_vfs::VirtualFileSystem) {
             health: Some([1.0, 1.0, 1.0]),
             shield: Some([1.99, 1.99, 1.99]),
             force: Some([0.64, 0.64, 0.64]),
-            weapon: 3,
-            style: 3,
+            powers: 0,
             verified: true,
             duelling: false,
             team: Some(false),
@@ -1049,8 +1040,7 @@ fn nameplates(shots: &mut Snapshot, vfs: &sjk_vfs::VirtualFileSystem) {
             health: Some([0.0, 0.0, 0.0]),
             shield: Some([0.0, 0.0, 0.0]),
             force: Some([0.0, 0.0, 0.0]),
-            weapon: 3,
-            style: 1,
+            powers: 0,
             verified: false,
             duelling: false,
             team: None,
@@ -1065,7 +1055,8 @@ fn nameplates(shots: &mut Snapshot, vfs: &sjk_vfs::VirtualFileSystem) {
         "^5Kit^7 Fisto",
         "^1Bounty",
         "^3Darth^7Staff",
-        "^2Quiet",
+        // A black name, edged in its halo.
+        "^0Qu^7iet",
     ];
     let mut state = State::default();
     let mut vertices = Vec::new();
@@ -1075,7 +1066,7 @@ fn nameplates(shots: &mut Snapshot, vfs: &sjk_vfs::VirtualFileSystem) {
     state.preview(
         &plates,
         &names,
-        &icons,
+        &power_icons,
         &shots.font.font,
         &mut vertices,
         VIEWPORT,

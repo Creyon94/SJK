@@ -1147,17 +1147,17 @@ mod tests {
         let mut console =
             crate::console::ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
         console.set_cvar("cg_nameplate", "1");
-        console.set_cvar("cg_nameplateWeapon", "0");
+        console.set_cvar("cg_nameplateIcons", "0");
         reset_reviewed(
             &mut console,
             &[
                 review("cg_nameplate", true),
-                review("cg_nameplateWeapon", false),
+                review("cg_nameplateIcons", false),
                 review("not_a_setting", true),
             ],
         );
         assert_eq!(console.bool_cvar("cg_nameplate"), Some(false));
-        assert_eq!(console.bool_cvar("cg_nameplateWeapon"), Some(false));
+        assert_eq!(console.bool_cvar("cg_nameplateIcons"), Some(false));
     }
 
     /// The reset applies once per version: a later start with the card still unanswered,

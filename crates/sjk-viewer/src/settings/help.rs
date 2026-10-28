@@ -565,10 +565,6 @@ const HELP: &[(&str, &str)] = &[
         "Your own nameplate over your head in third person, with your real bars.",
     ),
     (
-        "cg_nameplateWeapon",
-        "The weapon a player holds, left of the nameplate. A saber is ringed in its stance's colour.",
-    ),
-    (
         "cg_nameplateIcons",
         "Icons of the Force powers a player has on, over the name when close.",
     ),

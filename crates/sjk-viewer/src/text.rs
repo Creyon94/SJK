@@ -500,9 +500,22 @@ pub(crate) enum CodePalette {
     /// The same hues lifted to read on the SJK UI's navy ground: black,
     /// red, green, blue, magenta and grey lighter, the rest as the game's.
     Legible,
+    /// The game's own colours, a dark glyph edged in a soft light halo instead of
+    /// its shadow, so a black name reads on a dark nameplate (Sol's pick, 28/10/2026).
+    Haloed,
 }
 
+/// Darkest glyph colour drawn without a halo in [`CodePalette::Haloed`], by its
+/// luminance.
+const HALO_BELOW: f32 = 0.3;
+
 impl CodePalette {
+    /// Whether a glyph of `color` gets a light halo instead of its dark shadow.
+    pub(crate) fn halo(self, color: [f32; 4]) -> bool {
+        self == Self::Haloed
+            && 0.2126 * color[0] + 0.7152 * color[1] + 0.0722 * color[2] < HALO_BELOW
+    }
+
     /// The colour of code `index` (0-9), as a display value.
     pub(crate) fn colour(self, index: u8) -> [f32; 4] {
         match (self, index) {

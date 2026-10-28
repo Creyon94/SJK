@@ -181,14 +181,8 @@ const GAP: f32 = 6.0;
 const MARK_GAP: f32 = 4.0;
 /// The verified seal's side.
 const MARK: f32 = 11.0;
-/// The right end: the padding before it, the stance dot, its gap to the weapon, the
-/// weapon's icon and the duel badge.
+/// The right end: the padding before the duel badge, and the badge.
 const END_LEAD: f32 = 2.0;
-const DOT: f32 = 5.0;
-const DOT_GAP: f32 = 3.0;
-/// Wider than the design's 11: the weapons' art has room round it, and a saber's hilt
-/// is a thin line at 11.
-const WEAPON: f32 = 15.0;
 const BADGE: f32 = 18.0;
 /// The widest the name runs before its ellipsis.
 const NAME_MAX: f32 = 150.0;
@@ -214,9 +208,9 @@ const TRAY_SHIELD: f32 = 2.0;
 const TRAY_HEALTH: f32 = 3.0;
 const TRAY_FORCE: f32 = 2.0;
 const TRAY_GAP: f32 = 1.5;
-/// The power icons over the capsule: their chips' side, the gap between them and the
-/// room under the row.
-const CHIP: f32 = 15.0;
+/// The power icons over the capsule: their square cells' side (1.5 times the round
+/// chips' 15, Sol, 28/10/2026), the gap between them and the room under the row.
+const CHIP: f32 = 22.5;
 const CHIP_GAP: f32 = 2.0;
 const CHIP_LIFT: f32 = 3.0;
 
@@ -224,11 +218,7 @@ const CHIP_LIFT: f32 = 3.0;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum End {
     Nothing,
-    /// The held weapon's icon, after the saber stance's dot when there is one.
-    Weapon {
-        dot: bool,
-    },
-    /// The duel badge, in the weapon's place.
+    /// The duel badge. The held weapon's icon stood here until 28/10/2026.
     Duel,
 }
 
@@ -269,7 +259,7 @@ pub(super) struct Tray {
 }
 
 /// A nameplate as a capsule (design E, 28/10/2026): a pill holding the picture, the
-/// name with its mark, and the weapon (or the duel badge) at its right end, with the
+/// name with its mark, and the duel badge at its right end in a duel, with the
 /// power icons over it and, for a player whose bars show, the tray under it. Physical
 /// pixels.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -284,8 +274,6 @@ pub(super) struct Capsule {
     /// Where the name runs: its left edge and the most it may take.
     pub(super) name: Rect,
     pub(super) mark: Option<Rect>,
-    pub(super) dot: Option<Rect>,
-    pub(super) weapon: Option<Rect>,
     pub(super) badge: Option<Rect>,
     pub(super) tray: Option<Tray>,
 }
@@ -311,10 +299,6 @@ impl Capsule {
         };
         let (end_width, end_pad) = match spec.end {
             End::Nothing => (0.0, END_PAD),
-            End::Weapon { dot } => (
-                GAP + END_LEAD + if dot { DOT + DOT_GAP } else { 0.0 } + WEAPON,
-                END_PAD,
-            ),
             End::Duel => (GAP + END_LEAD + BADGE, DUEL_END_PAD),
         };
         let natural = start + name_width + mark_width + (end_width + end_pad) * k;
@@ -352,7 +336,7 @@ impl Capsule {
         };
         let hidden_right = match spec.end {
             End::Duel => end_pad * k,
-            End::Nothing | End::Weapon { .. } => (end_width + end_pad) * k,
+            End::Nothing => (end_width + end_pad) * k,
         };
         let lean = (hidden_right - shown_from) * 0.5 * (1.0 - near);
         let x =
@@ -368,15 +352,7 @@ impl Capsule {
             .mark
             .then(|| square(name.right() + MARK_GAP * k, MARK * k));
         let right = pill.right() - end_pad * k;
-        let (dot, weapon, badge) = match spec.end {
-            End::Nothing => (None, None, None),
-            End::Weapon { dot } => {
-                let weapon = square(right - WEAPON * k, WEAPON * k);
-                let dot = dot.then(|| square(weapon.x - (DOT_GAP + DOT) * k, DOT * k));
-                (dot, Some(weapon), None)
-            }
-            End::Duel => (None, None, Some(square(right - BADGE * k, BADGE * k))),
-        };
+        let badge = (spec.end == End::Duel).then(|| square(right - BADGE * k, BADGE * k));
         let tray = tray.then(|| {
             let tray_width = (TRAY_WIDTH * k).min(pill.width);
             let frame = Rect::new(
@@ -409,8 +385,6 @@ impl Capsule {
             picture,
             name,
             mark,
-            dot,
-            weapon,
             badge,
             tray,
         }
@@ -435,7 +409,7 @@ impl Capsule {
 /// dark as the design's blue (`rgba(22, 52, 110, 0.86)`) does.
 pub(super) fn team_fill(accent: Color) -> Color {
     let deep = |channel: f32| 0.04 + 0.43 * channel * channel;
-    Color::new(deep(accent.r), deep(accent.g), deep(accent.b), 0.86)
+    Color::new(deep(accent.r), deep(accent.g), deep(accent.b), 0.62)
 }
 
 #[cfg(test)]
@@ -556,7 +530,7 @@ mod tests {
     }
 
     /// A capsule near enough for its tray: 18-pixel names (`cg_nameplateScale` 0.5 at
-    /// 1080 lines), a picture, the seal and a saber.
+    /// 1080 lines), a picture and the seal.
     fn spec(rows: Rows) -> CapsuleSpec {
         CapsuleSpec {
             centre_x: 960.0,
@@ -565,7 +539,7 @@ mod tests {
             name_width: 60.0,
             picture: true,
             mark: true,
-            end: End::Weapon { dot: true },
+            end: End::Nothing,
             rows,
             detail: 1.0,
             proximity: 1.0,
@@ -587,8 +561,8 @@ mod tests {
             && inner.bottom() <= outer.bottom() + 1e-3
     }
 
-    /// Left to right in the pill: the picture, the name, the seal, the stance's dot and
-    /// the weapon, all centred on its middle; the tray under it holds the bars, shield
+    /// Left to right in the pill: the picture, the name and the seal, all centred on its
+    /// middle, and no weapon after them; the tray under it holds the bars, shield
     /// on top, and the whole plate stands on its bottom.
     #[test]
     fn a_capsule_holds_its_parts_in_order_with_the_tray_under_it() {
@@ -598,15 +572,12 @@ mod tests {
         assert!((capsule.middle - (pill.y + pill.height * 0.5)).abs() < 1e-4);
         let picture = capsule.picture.unwrap();
         let mark = capsule.mark.unwrap();
-        let dot = capsule.dot.unwrap();
-        let weapon = capsule.weapon.unwrap();
-        for part in [picture, mark, dot, weapon] {
+        for part in [picture, mark] {
             assert!(inside(part, pill), "{part:?} in {pill:?}");
             assert!((part.y + part.height * 0.5 - capsule.middle).abs() < 1e-3);
         }
         assert!(picture.right() < capsule.name.x);
         assert!(capsule.name.right() < mark.x);
-        assert!(mark.right() < dot.x && dot.right() < weapon.x);
         assert!(capsule.badge.is_none());
         let tray = capsule.tray.unwrap();
         assert!((tray.frame.bottom() - 500.0).abs() < 1e-3, "on the bottom");
@@ -631,6 +602,10 @@ mod tests {
     fn without_bars_the_capsule_stands_alone() {
         let bare = Capsule::new(&spec(Rows::default()));
         assert!(bare.tray.is_none());
+        // No weapon after the seal: the pill ends a padding after it.
+        let mark = bare.mark.unwrap();
+        let after = bare.pill.right() - mark.right();
+        assert!((after - END_PAD * bare.k).abs() < 1e-3, "{after}");
         assert!((bare.pill.bottom() - 500.0).abs() < 1e-3);
         let short = CapsuleSpec {
             name_width: 10.0,
@@ -662,7 +637,7 @@ mod tests {
         }
     }
 
-    /// The duel badge takes the weapon's place at the right end; with no picture (an
+    /// The duel badge stands at the right end; with no picture (an
     /// NPC) the name starts further in; far away the picture is smaller.
     #[test]
     fn the_right_end_and_the_picture_follow_the_plate() {
@@ -672,7 +647,6 @@ mod tests {
             ..spec(ALL)
         });
         let badge = duel.badge.unwrap();
-        assert!(duel.weapon.is_none() && duel.dot.is_none());
         assert!(inside(badge, duel.pill) && badge.x > duel.name.right());
         let npc = Capsule::new(&CapsuleSpec {
             picture: false,
@@ -680,11 +654,6 @@ mod tests {
         });
         assert!(npc.picture.is_none());
         assert!(npc.name.x > npc.pill.x);
-        let gun = Capsule::new(&CapsuleSpec {
-            end: End::Weapon { dot: false },
-            ..spec(ALL)
-        });
-        assert!(gun.dot.is_none() && gun.weapon.is_some());
         let near = Capsule::new(&spec(Rows::default()));
         let far = Capsule::new(&CapsuleSpec {
             proximity: 0.0,
