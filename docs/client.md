@@ -4964,7 +4964,12 @@ sends them flying, the way the monitor struck them.
   [monitor_assets.py](../scripts/monitor_assets.py): a whoosh as it leaves the hand
   (`sound/sjk/monitor/throw.wav`), a hollow plastic thunk with the glass ringing when it
   strikes a body (`bonk.wav`), a clunk and rattle when it knocks on the world harder than
-  160 units a second (`knock.wav`, at most every 120 ms a monitor, louder the harder).
+  160 units a second (`knock.wav`, at most every 120 ms a monitor, louder the harder:
+  from 0.55 to full at 600). A knock carries farther than the game's own sounds, at full
+  volume to 768 units and silent past about 2,000 (`KNOCK_REACH`): with the game's
+  falloff (silent past 1,500, half at 900) the knocks of a monitor landing far from
+  the listener went unheard (Sol, 28/10/2026). Tests throw a monitor at a floor and a
+  wall, in shapes and in a map's brushes, and count the knocks heard.
   Settings > Sound > Toys, "Monitor sounds" (`s_toyMonitorSound`), silences them.
 
 No game server knows of it: the struck player's real body stays where it was and walks

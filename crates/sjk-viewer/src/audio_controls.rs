@@ -370,6 +370,37 @@ impl GameAudio {
         }
     }
 
+    /// [`Self::play_toy`] at `origin` with its own `attenuation`, for a toy sound that
+    /// must carry farther than the game's own (the Monitor's knocks on the world).
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn play_toy_reaching(
+        &mut self,
+        toy: crate::toy_sounds::Toy,
+        path: &str,
+        volume: f32,
+        origin: [f32; 3],
+        source: SourceId,
+        channel: ChannelId,
+        attenuation: sjk_audio::Attenuation,
+    ) {
+        let Some(volume) = self.toy_sounds.gain(toy, volume) else {
+            return;
+        };
+        let Some(handle) = self.find_handle(path) else {
+            return;
+        };
+        self.output.send(AudioCommand::Play(
+            handle,
+            PlayRequest {
+                origin: Some(origin),
+                source,
+                channel,
+                volume,
+                attenuation,
+            },
+        ));
+    }
+
     /// Stop the toy sound playing on `source`'s `channel`.
     pub(crate) fn stop_toy(&mut self, source: SourceId, channel: ChannelId) {
         self.output.send(AudioCommand::StopChannel(source, channel));
