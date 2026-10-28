@@ -872,6 +872,7 @@ impl State {
     pub(crate) fn clear(&mut self) {
         self.entries.clear();
         self.list.clear();
+        self.head_wanted = None;
     }
 
     /// Smooth one entity's opacity towards `target`.
