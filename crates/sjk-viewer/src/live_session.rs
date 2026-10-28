@@ -306,7 +306,10 @@ impl GpuState {
                 .committed_state()
                 .map(crate::ghost_replay::Pose::of);
             // The Hax toy steers, or stands still while steering another (`hax`); a
-            // limp player's real body walks to their ragdoll (`ragdoll`).
+            // limp player's real body walks to their ragdoll (`ragdoll`), though not
+            // while they fly the free camera: the flight is theirs, and the server's body
+            // is held still (`command_for_server`).
+            let flying = self.local_prediction.fake_noclip();
             let origin = self
                 .local_prediction
                 .committed_state()
@@ -316,7 +319,11 @@ impl GpuState {
             let replay = self
                 .hax
                 .drive(&command, delta_angles, (self.camera_pitch, self.camera_yaw))
-                .or_else(|| self.ragdoll.drive(&command, delta_angles, origin))
+                .or_else(|| {
+                    (!flying)
+                        .then(|| self.ragdoll.drive(&command, delta_angles, origin))
+                        .flatten()
+                })
                 .or_else(|| pose.and_then(|pose| self.ghost.drive(&command, &pose)));
             // Or the mimic copies another player (`mimic`).
             let replay = replay.or_else(|| {

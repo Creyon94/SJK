@@ -4543,7 +4543,10 @@ every fall ends with the map or the server.
   and the other bolts follow the posed bones. A model without the stock skeleton is
   drawn as animated.
 - **The camera:** behind the body's pelvis, turned by the mouse (as the Hax's hacker's).
-  Getting up gives the view back as it was.
+  Getting up gives the view back as it was. Flying the free camera while limp, the
+  flight keeps its own view and the player's input (the real body is not walked to the
+  ragdoll until it ends), and the ragdoll stays drawn when the camera comes near it
+  (28/10/2026; before, the camera did not move and the ragdoll could vanish).
 - **The real body:** the game server knows nothing of it, so the player's player stays
   there: while limp, the client walks it to where the ragdoll lies (its own user
   commands, running far off, walking near, stopping within 12 units), so that the

@@ -929,6 +929,7 @@ fn submit_actor(
         });
         let inside_body = local
             && sinks.detached_flight
+            && !limp(entity)
             && crate::free_camera::inside_body(
                 sinks.camera_position,
                 Vec3::from_array(transform.translation),
@@ -1192,6 +1193,14 @@ fn speed_ghosts(
     )
 }
 
+/// Whether the player lies limp (the Ragdoll toy), drawn where the ragdoll lies:
+/// a free camera never starts in that body's head, which is not where the server
+/// holds the player, so it is never hidden from the camera (Dave's test, 27/10/2026:
+/// a ragdoll vanished while the camera flew above it).
+fn limp(entity: &sjk_runtime::SceneEntity) -> bool {
+    crate::ragdoll::shown_entity(entity.id).is_some()
+}
+
 #[allow(clippy::too_many_arguments)]
 fn submit_equipment(
     sinks: &mut Sinks<'_>,
@@ -1274,6 +1283,7 @@ fn submit_equipment(
         ActorInstance::new(grip.to_array(), weapon_rotation.to_array(), transform.scale);
     let inside_body = local
         && sinks.detached_flight
+        && !limp(entity)
         && crate::free_camera::inside_body(
             sinks.camera_position,
             Vec3::from_array(transform.translation),
