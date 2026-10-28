@@ -263,6 +263,19 @@ impl Lid {
 struct Cue {
     path: &'static str,
     origin: [f32; 3],
+    /// The box it comes from, whose own sound source it plays on ([`source`]).
+    id: i64,
+}
+
+/// The first of the boxes' sound sources: past the game's entity numbers, which the
+/// audio moves each frame to where their entity is (box sounds on source 0 followed the
+/// player on slot 0 around the map, bug report #185), and past the boombox's and the
+/// Monitor's.
+const SOURCE_BASE: u32 = 0x5200_0000;
+
+/// Box `id`'s own sound source.
+fn source(id: i64) -> sjk_audio::SourceId {
+    sjk_audio::SourceId(SOURCE_BASE | (id as u32 & 0xFFFF))
 }
 
 /// The player took what came out of their box (`by_itself`: after [`HOLD`]).
@@ -425,11 +438,16 @@ impl MysteryBoxes {
             revealed: false,
         });
         here.lid.set(true, now);
-        let origin = here.origin.to_array();
-        self.cues.push(Cue { path: OPEN, origin });
+        let (origin, id) = (here.origin.to_array(), here.id);
+        self.cues.push(Cue {
+            path: OPEN,
+            origin,
+            id,
+        });
         self.cues.push(Cue {
             path: ROLL_SOUND,
             origin,
+            id,
         });
     }
 
@@ -452,6 +470,7 @@ impl MysteryBoxes {
                 self.cues.push(Cue {
                     path,
                     origin: here.origin.to_array(),
+                    id: here.id,
                 });
                 if let Some(prize) = &opening.mine {
                     moments.push(Moment::Stopped {
@@ -492,6 +511,7 @@ impl MysteryBoxes {
         self.cues.push(Cue {
             path: TAKE_SOUND,
             origin: here.origin.to_array(),
+            id: here.id,
         });
         Some(Taken {
             outcome: opening.outcome,
@@ -1004,8 +1024,10 @@ Press Use to take it"
                 cue.path,
                 1.0,
                 Some(cue.origin),
-                sjk_audio::SourceId(0),
-                crate::audio::TOY_CHANNEL,
+                source(cue.id),
+                // `CHAN_AUTO`: the crate's slide, the tune and what came out overlap
+                // rather than cut each other off.
+                sjk_audio::ChannelId(0),
             );
         }
     }
@@ -1126,6 +1148,16 @@ mod tests {
         };
         let now = Instant::now();
         state.opened(7, "double", Some(prize_of(200)), 1, now);
+        // Each at the box, on the box's own source: never an entity's, which the audio
+        // moves to where that entity is (#185).
+        assert!(
+            state
+                .cues
+                .iter()
+                .all(|cue| cue.origin == [0.0; 3] && cue.id == 7)
+        );
+        assert_ne!(source(7), sjk_audio::SourceId(0));
+        assert!(source(7).0 >= SOURCE_BASE && source(7) != source(8));
         let paths: Vec<&str> = state.cues.drain(..).map(|cue| cue.path).collect();
         assert_eq!(paths, [OPEN, ROLL_SOUND]);
         // The lid swings open, and stays open while it rolls.
