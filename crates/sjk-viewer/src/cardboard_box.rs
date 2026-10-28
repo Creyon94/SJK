@@ -582,16 +582,18 @@ fn inside_carton(camera: [f32; 3], origin: [f32; 3]) -> bool {
 }
 
 /// The slots whose player is in a drawn carton, set once a frame by
-/// [`GpuState::submit_cardboard_boxes`] and read by the actor poses.
+/// [`GpuState::note_boxed_players`] before the actor poses read it.
 static BOXED: AtomicU64 = AtomicU64::new(0);
 
-/// Whether the player in `slot` is drawn crouched in their box. The box asks the server
-/// to crouch, but codemp's `PmoveSingle` zeroes a talking player's `upmove`
-/// (`bg_pmove.c:12441-12448`), so the server stands up a boxed player who opens the
-/// chat or flies the free camera; the balloon stays (it keeps them from being attacked),
-/// and every SJK client poses a boxed player crouching (`BOTH_CROUCH1IDLE`,
-/// `actor_pose_steps.rs`) until they leave the box (Dave's test of #152, 28/10/2026).
-/// A crouch keeps the player's origin, so the pose sits where a real crouch would.
+/// Whether the player in `slot` is in a drawn carton, so standing there is drawn
+/// crouched. The box asks the server to crouch, but `PmoveSingle` zeroes a talking
+/// player's moves, `upmove` included (EternalJK `codemp/game/bg_pmove.c:12441-12448` at
+/// a40e793; JoF EJK `bg_pmove.c:13108-13115` at 390f756), so the server stands up a
+/// boxed player who opens the chat or flies the free camera; the balloon stays (it keeps
+/// them from being attacked), and every SJK client poses a boxed player who stands as
+/// crouching (`BOTH_CROUCH1IDLE`, `actor_pose_steps.rs`; Dave's test of #152,
+/// 28/10/2026). Any other move (a lunge, a kick, a roll, a knockdown) plays as sent. A
+/// crouch keeps the player's origin, so the pose sits where a real crouch would.
 pub(crate) fn crouched_in_box(slot: usize) -> bool {
     slot < SLOTS && BOXED.load(Ordering::Relaxed) & (1 << slot) != 0
 }
@@ -713,6 +715,59 @@ impl GpuState {
     /// Add this frame's cartons, and note the music: the player's own (drawn in mirrors
     /// only in first person), then every other boxed player the game draws; then the
     /// boxes put on, taken off and fallen ([`CardboardBox::frame`]).
+    /// Note which players are in a carton this frame ([`crouched_in_box`]), before the
+    /// actors are posed, by the rules [`Self::submit_cardboard_boxes`] draws the cartons
+    /// by: noted while drawing them, the pose read the previous frame's set (one
+    /// crouched frame after leaving the box, one standing frame on entering it).
+    pub(crate) fn note_boxed_players(&self) {
+        let Some(session) = self
+            .live_session
+            .as_ref()
+            .filter(|session| !session.is_local())
+        else {
+            BOXED.store(0, Ordering::Relaxed);
+            return;
+        };
+        let snapshot = session.latest_snapshot();
+        let slots = crate::looks::ViewSlots::of(session.game_state(), &snapshot.player);
+        let followed = slots.followed().filter(|&slot| slot < SLOTS);
+        let own = slots.own.filter(|&slot| slot < SLOTS);
+        let shows = |slot: usize| {
+            Some(slot) != slots.own
+                && self.looks.toy(slot, TOY)
+                && self.cardboard_box.lifted[slot].is_none()
+        };
+        let mut boxed = 0_u64;
+        if let Some(own) = own
+            && self.cardboard_box.crouching
+            && self.cardboard_box.own_alive == Some(true)
+        {
+            boxed |= 1 << own;
+        }
+        if let Some(slot) = followed
+            && shows(slot)
+            && alive(&snapshot.player)
+        {
+            boxed |= 1 << slot;
+        }
+        for entity in &snapshot.entities {
+            let slot = usize::from(entity.number());
+            if slot < SLOTS
+                && Some(slot) != followed
+                && Some(slot) != own
+                && drawn(entity)
+                && shows(slot)
+                && self
+                    .live_world
+                    .entity(sjk_runtime::EntityId::new(slot as u64 + 1))
+                    .is_some()
+            {
+                boxed |= 1 << slot;
+            }
+        }
+        BOXED.store(boxed, Ordering::Relaxed);
+    }
+
     pub(crate) fn submit_cardboard_boxes(&mut self, presentation_time: i64, now: Instant) {
         self.cardboard_box.music.clear();
         let mesh = self
@@ -744,11 +799,9 @@ impl GpuState {
             .as_ref()
             .filter(|session| !session.is_local())
         else {
-            BOXED.store(0, Ordering::Relaxed);
             return;
         };
         let snapshot = session.latest_snapshot();
-        let mut boxed = 0_u64;
         let slots = crate::looks::ViewSlots::of(session.game_state(), &snapshot.player);
         let followed = slots.followed().filter(|&slot| slot < SLOTS);
         let first_person = !self.third_person;
@@ -789,7 +842,6 @@ impl GpuState {
                 instance.view_flags |= 1;
             }
             cartons[own] = Some((own, instance));
-            boxed |= 1 << own;
             self.cardboard_box.music.push(Music {
                 slot: own as u8,
                 origin: None,
@@ -822,7 +874,6 @@ impl GpuState {
                 instance.view_flags |= 1;
             }
             cartons[slot] = Some((slot, instance));
-            boxed |= 1 << slot;
             self.cardboard_box.music.push(Music {
                 slot: slot as u8,
                 origin: Some(origin),
@@ -850,13 +901,11 @@ impl GpuState {
                 .to_radians();
             seen[slot].carton = Some((origin, yaw));
             cartons[slot] = Some((slot, carton(origin, yaw)));
-            boxed |= 1 << slot;
             self.cardboard_box.music.push(Music {
                 slot: slot as u8,
                 origin: Some(origin),
             });
         }
-        BOXED.store(boxed, Ordering::Relaxed);
         self.cardboard_box.frame(&seen, own, first_person, now);
         if let Some(mesh) = mesh {
             for (_, instance) in cartons.into_iter().flatten() {

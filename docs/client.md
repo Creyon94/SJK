@@ -4303,14 +4303,20 @@ first 5 seconds on a server).
   sank the camera. One's own carton stays on the body and keeps the body's facing, not
   the camera's; it is drawn for mirrors only while the camera is inside it (a flight
   starts in the body), and the player does not count as hiding.
-- **Crouched in the box:** every SJK client draws a boxed player crouching until they
-  leave the box (`BOTH_CROUCH1IDLE` on both halves unless a crouch animation already
-  plays; `cardboard_box::crouched_in_box`, `actor_pose_steps.rs`; Dave's test of #152,
-  28/10/2026). The box asks the server to crouch, but codemp's `PmoveSingle` zeroes a
-  talking player's `upmove` (`bg_pmove.c:12441-12448`), so the server stands up a boxed
-  player with the chat or console open or the free camera's talk balloon, which stays
-  so the player keeps its protection. A crouch keeps the origin, so the pose sits where
-  a real crouch would. Other clients see the server's player, as they never see the box.
+- **Crouched in the box:** every SJK client draws a boxed player who stands as
+  crouching (`BOTH_CROUCH1IDLE` over standing legs, `BOTH_STAND*` and the saber stances'
+  `BOTH_SABER*_STANCE`, and over the torso when it
+  stands too; `cardboard_box::crouched_in_box`, `actor_pose_steps.rs`; Dave's test of
+  #152, 28/10/2026). The box asks the server to crouch, but `PmoveSingle` zeroes a
+  talking player's moves, `upmove` included (EternalJK `bg_pmove.c:12441-12448` at
+  a40e793; JoF EJK `bg_pmove.c:13108-13115` at 390f756), so the server stands up a
+  boxed player with the chat or console open or the free camera's talk balloon, which
+  stays so the player keeps its protection. Any other move (a lunge, a kick, a roll, a
+  knockdown, which a boxed player can still make) plays as the server sends it. Who is
+  boxed is noted before the actors are posed (`note_boxed_players`), so the pose
+  follows the carton on the same frame. A crouch keeps the origin, so the pose sits
+  where a real crouch would. Rig models crouch too. Other clients see the server's
+  player, as they never see the box.
 - **Others see it** through the SJK hub: the box is a toy in the player's look
   (`toys: ["cardboard_box"]`, [unlockables.md](unlockables.md); `looks::TOYS`), so every
   SJK player on the server draws the carton over that player (their entity's

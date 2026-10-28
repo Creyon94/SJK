@@ -10,9 +10,14 @@ use std::error::Error;
 const BOTH_CROUCH1IDLE: usize = 1_005;
 const CROUCH_IDLE: &str = "BOTH_CROUCH1IDLE";
 
-/// Whether a protocol animation number is one of the crouch animations (idle, walking).
-fn crouch_clip(clip: usize) -> bool {
-    sjk_client::legacy_animation_name(clip).is_some_and(|name| name.starts_with("BOTH_CROUCH"))
+/// Whether a protocol animation number is one of the standing animations: `BOTH_STAND*`
+/// (the idles and their turns) and the saber stances' idles (`BOTH_SABER*_STANCE`), the
+/// only ones a boxed player is crouched over.
+fn standing_clip(clip: usize) -> bool {
+    sjk_client::legacy_animation_name(clip).is_some_and(|name| {
+        name.starts_with("BOTH_STAND")
+            || (name.starts_with("BOTH_SABER") && name.ends_with("_STANCE"))
+    })
 }
 
 /// Immutable inputs shared by independently prepared actors in one frame.
@@ -93,8 +98,10 @@ pub(super) fn prepare(mesh: &mut ActorMesh, frame: &Frame<'_>) -> Result<(), Box
         });
     mesh.flame_pose
         .apply(mesh.entity_id, flame_clip, presentation_time, &mut state);
-    // A boxed player is drawn crouching for as long as they are in the box, also while
-    // the server holds them upright (talking; `cardboard_box::crouched_in_box`). Clips
+    // A boxed player who stands is drawn crouching: the server stands them up while they
+    // talk (the chat, the free camera's balloon; `cardboard_box::crouched_in_box`). Only
+    // standing legs are replaced, so a lunge, a kick, a roll or a knockdown plays as
+    // sent; the torso follows only when it stands too (a gun's ready pose stays). Clips
     // are protocol animation numbers, looked up by name (`ghoul2_pose.rs`), not
     // `animation.cfg` lines. A rig model follows the stock skeleton that drives it, so
     // it crouches too (a boxed rig model stood up through its carton, 28/10/2026).
@@ -104,13 +111,16 @@ pub(super) fn prepare(mesh: &mut ActorMesh, frame: &Frame<'_>) -> Result<(), Box
             .entity_id
             .and_then(|id| usize::try_from(id.get().checked_sub(1)?).ok())
             .is_some_and(crate::cardboard_box::crouched_in_box)
-        && !crouch_clip(state.lower.clip)
+        && standing_clip(state.lower.clip)
         && mesh.preview.config.get_exact(CROUCH_IDLE).is_some()
     {
-        for track in [&mut state.lower, &mut state.upper] {
-            track.clip = BOTH_CROUCH1IDLE;
-            track.forced_frame = None;
-            track.transition = None;
+        let upper = standing_clip(state.upper.clip);
+        for (track, crouch) in [(&mut state.lower, true), (&mut state.upper, upper)] {
+            if crouch {
+                track.clip = BOTH_CROUCH1IDLE;
+                track.forced_frame = None;
+                track.transition = None;
+            }
         }
     }
     if mesh.corpse_pool && !mesh.body_copied {
@@ -376,9 +386,30 @@ mod tests {
             sjk_client::legacy_animation_name(BOTH_CROUCH1IDLE),
             Some(CROUCH_IDLE)
         );
-        assert!(crouch_clip(BOTH_CROUCH1IDLE));
-        let walk = sjk_game_jka::legacy_animation_index("BOTH_CROUCH1WALK").unwrap();
-        let stand = sjk_game_jka::legacy_animation_index("BOTH_STAND1").unwrap();
-        assert!(crouch_clip(walk) && !crouch_clip(stand));
+        let index = |name| sjk_game_jka::legacy_animation_index(name).unwrap();
+        // Standing (the stances' idles) is crouched over in a box ...
+        for stand in [
+            "BOTH_STAND1",
+            "BOTH_STAND2",
+            "BOTH_STAND5",
+            "BOTH_STAND1IDLE1",
+            "BOTH_SABERFAST_STANCE",
+            "BOTH_SABERDUAL_STANCE",
+            "BOTH_SABERSTAFF_STANCE",
+        ] {
+            assert!(standing_clip(index(stand)), "{stand}");
+        }
+        // ... a move the server plays is not (#231's review: lunge, kicks, rolls,
+        // knockdowns), nor a crouch already.
+        for other in [
+            "BOTH_LUNGE2_B__T_",
+            "BOTH_A7_KICK_F",
+            "BOTH_ROLL_STAB",
+            "BOTH_KNOCKDOWN1",
+            "BOTH_CROUCH1WALK",
+            "BOTH_CROUCH1IDLE",
+        ] {
+            assert!(!standing_clip(index(other)), "{other}");
+        }
     }
 }

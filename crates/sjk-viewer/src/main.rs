@@ -2578,6 +2578,8 @@ impl GpuState {
             self.update_limbs(presentation_time);
         }
         {
+            // Who is in a carton is noted before the poses that crouch them.
+            self.note_boxed_players();
             if let Err(error) = self.update_actor_animations(presentation_time, game_audio) {
                 eprintln!("remote actor animation stopped: {error}");
             }
