@@ -3,8 +3,9 @@
 //! burnt greyed out above it).
 //!
 //! Stock draws it while the tank is not full (`cg_draw.c:11310-11313`); SJK draws it
-//! too while the player holds a jetpack (`HI_JETPACK` in `STAT_HOLDABLE_ITEMS`), so a
-//! full tank shows before the first burn.
+//! only while the jetpack burns (`EF_JETPACK_ACTIVE`, Sol's call on #225), so mods that
+//! give everyone a jetpack keep no bar on screen. It follows the HUD scale
+//! (`cg_hudScale`) like the rest of the HUD.
 use sjk_protocol::PlayerState;
 use sjk_ui::{Color, DrawCommand, DrawList, Rect};
 
@@ -18,25 +19,27 @@ const TOP: f32 = 260.0;
 const FRAME: Color = Color::new(0.0, 0.0, 0.0, 1.0);
 const FUEL: Color = Color::new(0.5, 0.0, 0.0, 0.8);
 const BURNT: Color = Color::new(0.5, 0.5, 0.5, 0.1);
-/// `STAT_HOLDABLE_ITEMS`, `HI_JETPACK`.
-const STAT_HOLDABLE_ITEMS: usize = 2;
-const HI_JETPACK: u32 = 7;
+/// `playerState_t::eFlags`, `EF_JETPACK_ACTIVE` (`bg_public.h`).
+const PS_E_FLAGS: usize = 17;
+const EF_JETPACK_ACTIVE: u32 = 1 << 11;
 /// `playerState_t::jetpackFuel`.
 const PS_JETPACK_FUEL: usize = 39;
 
-/// The fuel to show for `player`, `None` when the bar is not drawn: a full tank
-/// without a jetpack held.
+/// The fuel to show for `player`, `None` when the bar is not drawn: the jetpack is
+/// not burning.
 pub(super) fn shown(player: &PlayerState) -> Option<i32> {
+    let active = player.raw_field(PS_E_FLAGS)? & EF_JETPACK_ACTIVE != 0;
     let fuel = player.raw_field(PS_JETPACK_FUEL)? as u8 as i32;
-    let held = player.stats[STAT_HOLDABLE_ITEMS] & (1 << HI_JETPACK) != 0;
-    (fuel < 100 || held).then_some(fuel)
+    active.then_some(fuel)
 }
 
 /// Draw the bar for `fuel` (see [`shown`]) in a `viewport` of physical pixels.
+/// `user_scale` is `cg_hudScale`.
 ///
 /// Units follow the 480-line height, so the bar keeps its shape on wide screens as
-/// `widthRatioCoef` keeps it, its right edge 8 units in from the screen's.
-pub(super) fn emit(list: &mut DrawList, viewport: [f32; 2], fuel: Option<i32>) {
+/// `widthRatioCoef` keeps it, its right edge 8 units in from the screen's. The HUD
+/// scale grows the bar around its centre's height, as stock's 260-unit top centres it.
+pub(super) fn emit(list: &mut DrawList, viewport: [f32; 2], user_scale: f32, fuel: Option<i32>) {
     let Some(fuel) = fuel else {
         return;
     };
@@ -45,9 +48,9 @@ pub(super) fn emit(list: &mut DrawList, viewport: [f32; 2], fuel: Option<i32>) {
         return;
     }
     let filled = filled.max(0.1);
-    let unit = viewport[1] / 480.0;
+    let unit = viewport[1] / 480.0 * user_scale.clamp(0.25, 2.0);
     let x = viewport[0] - RIGHT * unit;
-    let y = TOP * unit;
+    let y = viewport[1] / 480.0 * (TOP + HEIGHT / 2.0) - HEIGHT / 2.0 * unit;
     let mut rect = |rx: f32, ry: f32, w: f32, h: f32, color: Color| {
         let _ = list.push(DrawCommand::SolidRect {
             rect: Rect::new(x + rx * unit, y + ry * unit, w * unit, h * unit),
@@ -72,7 +75,7 @@ mod tests {
 
     fn draw(fuel: Option<i32>) -> DrawList {
         let mut list = DrawList::new(8);
-        emit(&mut list, [1920.0, 1080.0], fuel);
+        emit(&mut list, [1920.0, 1080.0], 1.0, fuel);
         list
     }
 
@@ -86,19 +89,29 @@ mod tests {
             .collect()
     }
 
-    fn player(fuel: u32, holdables: u32) -> PlayerState {
+    fn player(fuel: u32, e_flags: u32) -> PlayerState {
         let mut player = PlayerState::default();
         player.set_raw_field(PS_JETPACK_FUEL, fuel);
-        player.stats[STAT_HOLDABLE_ITEMS] = holdables;
+        player.set_raw_field(PS_E_FLAGS, e_flags);
         player
     }
 
     #[test]
-    fn the_bar_shows_while_burning_or_while_a_jetpack_is_held() {
+    fn the_bar_shows_only_while_the_jetpack_burns() {
         assert_eq!(shown(&player(100, 0)), None);
-        assert_eq!(shown(&player(40, 0)), Some(40));
-        assert_eq!(shown(&player(100, 1 << HI_JETPACK)), Some(100));
-        assert_eq!(shown(&player(0, 1 << HI_JETPACK)), Some(0));
+        assert_eq!(shown(&player(40, 0)), None);
+        assert_eq!(shown(&player(100, EF_JETPACK_ACTIVE)), Some(100));
+        assert_eq!(shown(&player(0, EF_JETPACK_ACTIVE)), Some(0));
+    }
+
+    #[test]
+    fn the_bar_follows_the_hud_scale_and_stays_at_the_right_edge() {
+        let mut list = DrawList::new(8);
+        emit(&mut list, [1920.0, 1080.0], 2.0, Some(50));
+        let frame = rects(&list)[0].0;
+        // 4.5 pixels a unit: 20 units wide, 8 in from the right, centred where stock's is.
+        assert_eq!((frame.x, frame.width), (1920.0 - 28.0 * 4.5, 90.0));
+        assert_eq!(frame.y + 50.0 * 4.5, 310.0 * 2.25);
     }
 
     #[test]

@@ -47,7 +47,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Your own crosshair colour (`cg_crosshairColor`) stays when it passes over a player or an object, instead of turning to the target's colour; health and saber-style colours still come first _(Slash, PR #217)_
 - Screenshots are saved fully opaque, so a skin tinted with your RGB colour keeps its colour in the picture instead of fading where the game left the alpha low _(Slash, PR #220)_
 - The in-game menu's Leave page no longer draws its name small over the arc _(Slash, PR #221)_
-- Jetpack: a fuel bar at the right edge of the screen shows while you hold a jetpack or its tank is not full, after JoF EJK. On SJK's own server the jetpack now flies as in the original game: press use in the air to light it, use again to put it out; a grip or a fall to death puts it out. The `jetpack` cheat gives or takes one _(Slash, PR #225)_
+- Jetpack: a fuel bar at the right edge of the screen shows while your jetpack burns and follows the HUD scale, after JoF EJK. On SJK's own server the jetpack now flies as in the original game: press use in the air to light it, use again to put it out; a grip or a fall to death puts it out. The `jetpack` cheat gives or takes one _(Slash, PR #225)_
 
 ## 2026.1027.1 (Alpha) | 27/10/2026
 

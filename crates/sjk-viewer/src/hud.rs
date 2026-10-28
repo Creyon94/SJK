@@ -602,7 +602,7 @@ impl HudOverlay {
             );
         }
         if visibility.hud {
-            jetpack_fuel::emit(&mut self.draw_list, viewport, self.jetpack_fuel);
+            jetpack_fuel::emit(&mut self.draw_list, viewport, user_scale, self.jetpack_fuel);
             if visibility.vehicle {
                 self.vehicle
                     .emit(&mut self.draw_list, self.theme, viewport, user_scale);
