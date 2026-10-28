@@ -71,8 +71,10 @@ pub(crate) const EMOJI_ICON_FIRST: u32 = MEDAL_ICON_FIRST + MEDAL_ICON_CELLS;
 pub(crate) const EMOJI_ICON_CELLS: u32 = 4 * COLUMNS;
 /// First of the players' pictures' cells (`avatars`), after the emojis'.
 pub(crate) const AVATAR_ICON_FIRST: u32 = EMOJI_ICON_FIRST + EMOJI_ICON_CELLS;
-/// Picture cells: two rows, the cache's pictures and the upload's preview.
-pub(crate) const AVATAR_ICON_CELLS: u32 = 2 * COLUMNS;
+/// Picture cells: three rows, the cache's pictures and the upload's preview. Three
+/// since the nameplates show pictures (28/10/2026): a full server's 31 other players
+/// and the player's own plate, with room left for the chat, the cards and the boards.
+pub(crate) const AVATAR_ICON_CELLS: u32 = 3 * COLUMNS;
 /// The cell holding the riding vehicle's crosshair picture (`crosshairShader` of its
 /// `.veh`), after the pictures'. One cell: it is replaced when the pilot changes vehicle.
 pub(crate) const VEHICLE_CROSSHAIR_ICON: u32 = AVATAR_ICON_FIRST + AVATAR_ICON_CELLS;

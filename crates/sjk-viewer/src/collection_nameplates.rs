@@ -2,7 +2,8 @@
 //! the player's head (`docs/client.md`, Nameplates). None exist yet, so the tab shows
 //! where they will go: three empty places on the left (a crest before the name, a
 //! frame round the plate, a trail under it) and, over the player's model beside the
-//! page, their nameplate as a match draws it near, with dashed marks at those places.
+//! page, their nameplate as a match draws it near (the capsule with their picture, and
+//! the tray of bars while they share), with dashed marks at those places.
 //! Under the words beside it, See and share nameplates switches `cg_nameplate`, the one
 //! setting for seeing other players' nameplates and sharing the player's own health,
 //! shield and Force ([`crate::hud::nameplate::see_and_share`]).
@@ -18,9 +19,19 @@ use std::f32::consts::{PI, TAU};
 const PLACES_TOP: f32 = 300.0;
 const PLACE: f32 = 240.0;
 const PLACE_GAP: f32 = 30.0;
-/// The nameplate: its plate's width and the bars' colours (the Radial HUD's shield,
-/// health and Force, as the nameplates take them).
-const PLATE_WIDTH: f32 = 176.0;
+/// The nameplate's capsule, at twice its design's size (its name 26 pixels): the
+/// name's size, the pill's height, the picture and its inset, the gap either side of
+/// the crest's place and that place, the room after the name, and the tray's width;
+/// and the bars' colours (the Radial HUD's shield, health and Force, as the nameplates
+/// take them).
+const NAME_SIZE: f32 = 26.0;
+const PILL: f32 = 52.0;
+const PICTURE: f32 = 40.0;
+const PICTURE_INSET: f32 = 6.0;
+const PLATE_GAP: f32 = 12.0;
+const CREST: f32 = 28.0;
+const PLATE_END: f32 = 30.0;
+const TRAY_WIDTH: f32 = 208.0;
 const SHIELD: Color = Color::new(0.25, 0.82, 0.5, 1.0);
 const HEALTH: Color = Color::new(0.9, 0.28, 0.3, 1.0);
 const FORCE: Color = Color::new(0.29, 0.66, 1.0, 1.0);
@@ -34,7 +45,7 @@ const WORDS_BOTTOM: f32 = 990.0;
 const WORDS_PAD: f32 = 26.0;
 const ABOUT_CHARS: f32 = 44.0;
 const NOTE_CHARS: f32 = 50.0;
-const ABOUT: &str = "What every SJK player sees over your head in a match: your name, then your shield, health and Force.";
+const ABOUT: &str = "What every SJK player sees over your head in a match: your picture and your name, and while you share, your shield, health and Force under them.";
 const ORNAMENTS: &str =
     "Ornaments will go before your name, round your plate and under it: the dashed marks.";
 /// The See and share nameplates row's width, from its name to the switch's right edge:
@@ -165,12 +176,41 @@ impl Panel {
                 color: faint,
             });
         };
+        let outline = |canvas: &mut crate::menu_widgets::MenuCanvas,
+                       rect: [f32; 4],
+                       radius: f32,
+                       colour: Color| {
+            let [bx, by, bw, bh] = rect;
+            let _ = canvas.draw_list_mut().push(DrawCommand::Border {
+                rect: frame.rect(bx, by, bw, bh),
+                radius: radius * s,
+                width: 1.5 * s,
+                color: colour,
+            });
+        };
         match index {
-            // A crest: a ring with a mark inside, before a name's bar.
+            // A crest: a ring with a mark inside, between a capsule's picture and its
+            // name.
             0 => {
+                let left = middle[0] - 90.0;
+                outline(
+                    &mut self.ui,
+                    [left, middle[1] - 22.0, 180.0, 44.0],
+                    22.0,
+                    faint,
+                );
                 let _ = self.ui.draw_list_mut().push(DrawCommand::Arc {
-                    center: frame.point(middle[0] - 52.0, middle[1]),
-                    radius: 22.0 * s,
+                    center: frame.point(left + 22.0, middle[1]),
+                    radius: 15.0 * s,
+                    width: 1.5 * s,
+                    start: 0.0,
+                    sweep: TAU,
+                    color: faint,
+                    knockout: None,
+                });
+                let _ = self.ui.draw_list_mut().push(DrawCommand::Arc {
+                    center: frame.point(left + 58.0, middle[1]),
+                    radius: 12.0 * s,
                     width: 2.0 * s,
                     start: 0.0,
                     sweep: TAU,
@@ -178,28 +218,26 @@ impl Panel {
                     knockout: None,
                 });
                 let _ = self.ui.draw_list_mut().push(DrawCommand::RoundedRect {
-                    rect: frame.rect(middle[0] - 57.0, middle[1] - 5.0, 10.0, 10.0),
+                    rect: frame.rect(left + 54.0, middle[1] - 4.0, 8.0, 8.0),
                     radius: 2.0 * s,
                     color: line,
                 });
-                bar(
-                    &mut self.ui,
-                    [middle[0] - 18.0, middle[1] - 8.0, 92.0, 16.0],
-                );
+                bar(&mut self.ui, [left + 80.0, middle[1] - 7.0, 82.0, 14.0]);
             }
-            // A frame round the plate's three bars, with corner marks.
+            // A frame round the capsule and the tray of bars under it, with corner
+            // marks.
             1 => {
                 let _ = self.ui.draw_list_mut().push(DrawCommand::Border {
-                    rect: frame.rect(middle[0] - 64.0, middle[1] - 30.0, 128.0, 60.0),
-                    radius: 8.0 * s,
+                    rect: frame.rect(middle[0] - 72.0, middle[1] - 40.0, 144.0, 80.0),
+                    radius: 10.0 * s,
                     width: 2.0 * s,
                     color: line,
                 });
                 for (dx, dy) in [(-1.0, -1.0), (1.0, -1.0), (-1.0, 1.0), (1.0, 1.0)] {
                     let _ = self.ui.draw_list_mut().push(DrawCommand::RoundedRect {
                         rect: frame.rect(
-                            middle[0] + dx * 72.0 - 3.0,
-                            middle[1] + dy * 38.0 - 3.0,
+                            middle[0] + dx * 80.0 - 3.0,
+                            middle[1] + dy * 48.0 - 3.0,
                             6.0,
                             6.0,
                         ),
@@ -207,32 +245,39 @@ impl Panel {
                         color: line,
                     });
                 }
+                outline(
+                    &mut self.ui,
+                    [middle[0] - 60.0, middle[1] - 30.0, 120.0, 30.0],
+                    15.0,
+                    faint,
+                );
+                outline(
+                    &mut self.ui,
+                    [middle[0] - 46.0, middle[1], 92.0, 24.0],
+                    6.0,
+                    faint,
+                );
                 for row in 0..3 {
-                    let width = if row == 2 { 72.0 } else { 96.0 };
+                    let width = if row == 2 { 56.0 } else { 76.0 };
                     bar(
                         &mut self.ui,
                         [
-                            middle[0] - 48.0,
-                            middle[1] - 18.0 + row as f32 * 13.0,
+                            middle[0] - 38.0,
+                            middle[1] + 4.0 + row as f32 * 6.0,
                             width,
-                            7.0,
+                            3.0,
                         ],
                     );
                 }
             }
-            // A trail sweeping under the plate.
+            // A trail sweeping under the capsule.
             _ => {
-                for row in 0..2 {
-                    bar(
-                        &mut self.ui,
-                        [
-                            middle[0] - 50.0,
-                            middle[1] - 34.0 + row as f32 * 12.0,
-                            100.0,
-                            7.0,
-                        ],
-                    );
-                }
+                outline(
+                    &mut self.ui,
+                    [middle[0] - 56.0, middle[1] - 50.0, 112.0, 28.0],
+                    14.0,
+                    faint,
+                );
                 for (radius, alpha) in [(64.0, 0.55), (48.0, 0.4)] {
                     let _ = self.ui.draw_list_mut().push(DrawCommand::Arc {
                         center: frame.point(middle[0], middle[1] - 40.0),
@@ -289,77 +334,226 @@ impl Panel {
         }
     }
 
-    /// The player's nameplate as a match draws it near, its bottom at `at`, with the
-    /// dashed marks where ornaments will go.
+    /// The player's nameplate as a match draws it near, its bottom at `at`: the capsule
+    /// with their picture and name, gold-edged with the tray of bars under it while they
+    /// share (See and share nameplates), with the dashed marks where ornaments will go:
+    /// the crest between the picture and the name, the frame round the plate, the trail
+    /// under it.
     fn nameplate(&mut self, frame: &Frame, inputs: &Inputs<'_>, at: [f32; 2]) {
         let s = frame.s;
         let [x, bottom] = at;
         let mark = color::alpha(color::HOLO, 0.8);
+        let name = crate::profile_hub::title(inputs.name);
+        let plain_name = plain(name);
+        let name_width = crate::text::display_width(&plain_name, NAME_SIZE);
+        let tray = inputs.share;
+        let natural = PICTURE_INSET + PICTURE + PLATE_GAP * 2.0 + CREST + name_width + PLATE_END;
+        let width = if tray {
+            natural.max(TRAY_WIDTH + PLATE_GAP * 4.0)
+        } else {
+            natural
+        };
+        let tray_height = 2.0 * (3.0 + 2.0 + 3.0 + 2.0 + 1.5 * 2.0 + 5.0);
+        let pill_bottom = if tray {
+            bottom - tray_height + 2.0
+        } else {
+            bottom
+        };
+        let pill = [x - width * 0.5, pill_bottom - PILL, width, PILL];
+        let middle = pill[1] + PILL * 0.5;
+        let edge = if tray {
+            color::GOLD
+        } else {
+            color::alpha(color::HOLO, 0.45)
+        };
+        let fill = color::alpha(color::SPACE, 0.82);
+        let tray_rect = [
+            x - TRAY_WIDTH * 0.5,
+            pill[1] + PILL - 2.0,
+            TRAY_WIDTH,
+            tray_height,
+        ];
         // Under the plate, the trail's place.
+        let low = if tray { bottom } else { pill_bottom };
         dashed_arc(
             &mut self.ui,
             frame,
-            [x, bottom - 52.0],
+            [x, low - 30.0],
             60.0,
             (PI * 0.28, PI * 0.44),
             mark,
         );
-        let plate_top = bottom - 46.0;
-        let plate = [x - PLATE_WIDTH * 0.5, plate_top, PLATE_WIDTH, 30.0];
-        let _ = self.ui.draw_list_mut().push(DrawCommand::RoundedRect {
-            rect: frame.rect(plate[0], plate[1], plate[2], plate[3]),
-            radius: 4.0 * s,
-            color: color::alpha(color::SPACE, 0.78),
-        });
-        for (row, (colour, share)) in [(SHIELD, 1.0), (HEALTH, 1.0), (FORCE, 0.78)]
-            .into_iter()
-            .enumerate()
-        {
-            let _ = self.ui.draw_list_mut().push(DrawCommand::RoundedRect {
-                rect: frame.rect(
-                    plate[0] + 6.0,
-                    plate[1] + 5.0 + row as f32 * 7.0,
-                    (PLATE_WIDTH - 12.0) * share,
-                    5.0,
-                ),
-                radius: 2.0 * s,
-                color: colour,
-            });
+        if tray {
+            self.plate_tray(frame, tray_rect, pill[1] + PILL, fill, edge);
         }
-        // Round the plate, the frame's place.
-        dashed_rect(
+        let pill_rect = frame.rect(pill[0], pill[1], pill[2], pill[3]);
+        let _ = self.ui.draw_list_mut().push(DrawCommand::RoundedRect {
+            rect: pill_rect,
+            radius: PILL * 0.5 * s,
+            color: fill,
+        });
+        let _ = self.ui.draw_list_mut().push(DrawCommand::Border {
+            rect: pill_rect,
+            radius: PILL * 0.5 * s,
+            width: 2.0 * s,
+            color: edge,
+        });
+        // The picture: theirs once loaded, else their initial on their colour.
+        let picture = frame.rect(
+            pill[0] + PICTURE_INSET,
+            middle - PICTURE * 0.5,
+            PICTURE,
+            PICTURE,
+        );
+        let me = inputs.snapshot.and_then(|snapshot| {
+            snapshot.me.as_ref().map(|me| {
+                (
+                    snapshot.key_id.as_str(),
+                    me.avatar.as_str(),
+                    me.name.as_str(),
+                )
+            })
+        });
+        let (key_id, version, hub_name) = me.unwrap_or(("", "", name));
+        match crate::avatars::texture(key_id, version) {
+            Some(texture) => {
+                let _ = self.ui.draw_list_mut().push(DrawCommand::TexturedQuad {
+                    rect: picture,
+                    texture,
+                    color: Color::new(1.0, 1.0, 1.0, 1.0),
+                });
+            }
+            None => {
+                let _ = self.ui.draw_list_mut().push(DrawCommand::RoundedRect {
+                    rect: picture,
+                    radius: picture.width * 0.5,
+                    color: crate::profile_card::stand_in_colour(key_id, hub_name),
+                });
+                text(
+                    &mut self.ui,
+                    TextFamily::Display,
+                    format_args!("{}", crate::profile_card::initial(hub_name)),
+                    picture,
+                    PICTURE * 0.55 * s,
+                    color::TEXT,
+                    FontWeight::Semibold,
+                    TextAlign::Center,
+                );
+            }
+        }
+        // Between the picture and the name, the crest's place.
+        let crest_x = pill[0] + PICTURE_INSET + PICTURE + PLATE_GAP + CREST * 0.5;
+        dashed_arc(
             &mut self.ui,
             frame,
-            [
-                plate[0] - 9.0,
-                plate[1] - 9.0,
-                plate[2] + 18.0,
-                plate[3] + 18.0,
-            ],
+            [crest_x, middle],
+            CREST * 0.5,
+            (0.0, TAU),
             mark,
         );
-        let name = crate::profile_hub::title(inputs.name);
-        let name_top = plate_top - 44.0;
+        let name_x = crest_x + CREST * 0.5 + PLATE_GAP;
         text(
             &mut self.ui,
             TextFamily::Body,
             format_args!("{name}"),
-            frame.rect(x - 200.0, name_top, 400.0, 34.0),
-            26.0 * s,
+            frame.rect(name_x, middle - 17.0, name_width + 40.0, 34.0),
+            NAME_SIZE * s,
             color::TEXT,
             FontWeight::Semibold,
-            TextAlign::Center,
+            TextAlign::Start,
         );
-        // Before the name, the crest's place.
-        let half = crate::text::display_width(&plain(name), 27.0) * 0.5;
-        dashed_arc(
+        // Round the plate, the frame's place.
+        let foot = if tray {
+            tray_rect[1] + tray_rect[3]
+        } else {
+            pill[1] + PILL
+        };
+        dashed_rect(
             &mut self.ui,
             frame,
-            [x - half - 26.0, name_top + 17.0],
-            14.0,
-            (0.0, TAU),
+            [
+                pill[0] - 9.0,
+                pill[1] - 9.0,
+                pill[2] + 18.0,
+                foot - pill[1] + 18.0,
+            ],
             mark,
         );
+    }
+
+    /// The tray of bars under the preview's capsule, from `top` (the capsule's foot,
+    /// which it tucks under): the capsule's fill and edge carried down, square at the
+    /// top and round at the bottom, as the nameplates draw it.
+    fn plate_tray(
+        &mut self,
+        frame: &Frame,
+        [x, y, width, height]: [f32; 4],
+        top: f32,
+        fill: Color,
+        edge: Color,
+    ) {
+        let s = frame.s;
+        let corner = 12.0;
+        let bottom = y + height;
+        let list = self.ui.draw_list_mut();
+        let _ = list.push(DrawCommand::PushRoundedClip {
+            rect: frame.rect(x, top - corner, width, bottom - top + corner),
+            radius: corner * s,
+        });
+        let _ = list.push(DrawCommand::Line {
+            from: frame.point(x, (top + bottom) * 0.5),
+            to: frame.point(x + width, (top + bottom) * 0.5),
+            width: (bottom - top) * s,
+            color: fill,
+        });
+        let _ = list.push(DrawCommand::PopClip);
+        let line = 2.0;
+        let half = line * 0.5;
+        for side in [x + half, x + width - half] {
+            let _ = list.push(DrawCommand::Line {
+                from: frame.point(side, top),
+                to: frame.point(side, bottom - corner),
+                width: line * s,
+                color: edge,
+            });
+        }
+        let _ = list.push(DrawCommand::Line {
+            from: frame.point(x + corner, bottom - half),
+            to: frame.point(x + width - corner, bottom - half),
+            width: line * s,
+            color: edge,
+        });
+        for (centre, start) in [
+            ([x + corner, bottom - corner], PI * 0.5),
+            ([x + width - corner, bottom - corner], 0.0),
+        ] {
+            let _ = list.push(DrawCommand::Arc {
+                center: frame.point(centre[0], centre[1]),
+                radius: (corner - half) * s,
+                width: line * s,
+                start,
+                sweep: PI * 0.5,
+                color: edge,
+                knockout: None,
+            });
+        }
+        // Shield, health and Force, as the HUD's bars colour them.
+        let mut bar_y = top + 6.0;
+        for (colour, share, thick) in [(SHIELD, 0.45, 4.0), (HEALTH, 0.8, 6.0), (FORCE, 0.65, 4.0)]
+        {
+            let inner = width - 24.0;
+            let _ = list.push(DrawCommand::RoundedRect {
+                rect: frame.rect(x + 12.0, bar_y, inner, thick),
+                radius: thick * 0.5 * s,
+                color: Color::new(1.0, 1.0, 1.0, 0.09),
+            });
+            let _ = list.push(DrawCommand::RoundedRect {
+                rect: frame.rect(x + 12.0, bar_y, inner * share, thick),
+                radius: thick * 0.5 * s,
+                color: colour,
+            });
+            bar_y += thick + 3.0;
+        }
     }
 
     /// What the nameplate is, beside the model, and the See and share nameplates switch,

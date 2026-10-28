@@ -1671,11 +1671,14 @@ for the run.
   key"). Hovering Order 66's row shows how to turn it on and that `order66` executes it;
   the Hax's, how to turn it on and that `+use` held on a holder hacks them.
 - **Nameplates:** none exist yet. "No nameplates yet"; three empty places, dashed, each
-  with a drawing of where its kind will go: Crest (before the name), Frame (round the
-  plate), Trail (under the plate). Over the model's head (projected from the stage
-  model's head with the last frame's view, `GpuState::frame_view`; over the preview's
-  head without a stage) the player's nameplate as a match draws it near: the name in
-  its colours, the shield, health and Force bars, with dashed marks at the three places.
+  with a drawing of where its kind will go on the capsule: Crest (before the name),
+  Frame (round the plate), Trail (under the plate). Over the model's head (projected
+  from the stage model's head with the last frame's view, `GpuState::frame_view`; over
+  the preview's head without a stage) the player's nameplate as a match draws it near
+  (since 28/10/2026 the capsule, [client.md](client.md#nameplates)): their picture (or
+  their initial on their colour), the name in its colours and, while See & share
+  nameplates is on, the gold edge and the tray of shield, health and Force bars, with
+  dashed marks at the three places (the crest's between the picture and the name).
   Its words stand on a dark card beside the model (x 1360 to 1824, its foot at y 990,
   as tall as they need, since 25/10/2026). Under them, **See & share nameplates** (a switch; a click or Enter flips
   it, its row pulsing gold every 1.2 s, a ring round it and a glow behind the switch)

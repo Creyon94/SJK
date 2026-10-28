@@ -928,16 +928,24 @@ key.
 **Showing.** Profiles and presence carry `avatar`, the picture's version (16 hex
 digits of the SHA-256 of the hub's PNG), `""` for none. Pictures show on the profile
 card, the Profile page, the in-game Players page's card of a player the hub knows on
-the server, and the Staff page's chosen player. A screen asks the cache
+the server, the Staff page's chosen player, and since 28/10/2026 the nameplates over
+the players of a match ([client.md](client.md#nameplates)). A screen asks the cache
 ([avatars.rs](../crates/sjk-viewer/src/avatars.rs)) for a key's picture at a version
 each frame it draws it; that compares a few strings and allocates nothing once asked.
 The first ask hands the request to one worker thread (`sjk-avatars`), which reads the
 picture kept on this PC or downloads `GET /v1/avatar/<key id>?v=<version>` (unsigned,
 at most 256 KiB, a PNG), checks it is square, decodes it and cuts it round. Once a
 frame, `avatars::service` takes what the worker finished and uploads at most four
-pictures into the UI's icon atlas (two rows of 128-pixel cells: 31 pictures and the
-preview). The cache holds 31; a new picture takes the place of the one shown longest
-ago, never one drawn in the last two frames. A new version is a new picture. A picture
+pictures into the UI's icon atlas (three rows of 128-pixel cells: 47 pictures and the
+preview). The cache holds 47 (31 until 28/10/2026, when the nameplates came to show
+pictures: a full server's 31 other players and the player's own plate may be on screen
+at once, which left the chat, the cards and the boards nothing; a fourth row would bring
+the atlas to 8192 pixels, the largest texture the client asks for, so three); a new
+picture takes the place of the one shown longest ago, never one drawn in the last two
+frames. A screen that draws many a frame (the nameplates) asks for them all under one
+lock (`avatars::textures`). Pictures made on this PC share the cells: the nameplates'
+head icons of players without SJK, cut round, kept under a key from the model's name
+and never asked of the hub (`avatars::insert_local`). A new version is a new picture. A picture
 that could not be had is asked for again after two minutes, or at once when the hub's
 address changes. Until a picture is there, and for a player without one, a stand-in
 shows: the first letter of the name (past colour codes and symbols) on one of eight

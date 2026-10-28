@@ -57,6 +57,41 @@ pub(crate) fn append(
     }
 }
 
+/// Cut the head icon the nameplates want this frame, if any
+/// ([`hud::nameplate::State::head_to_cut`]): the icon of a model worn by a player
+/// without SJK, read from the game data, cut round and kept in the pictures' cache
+/// ([`crate::avatars::insert_local`]); without one their plate shows their initial.
+fn cut_nameplate_head(
+    nameplate: &mut hud::nameplate::State,
+    vfs: Option<&sjk_vfs::VirtualFileSystem>,
+    shaders: &sjk_shader::ShaderCatalog,
+    game: &sjk_protocol::GameState,
+) {
+    let Some((slot, key)) = nameplate.head_to_cut() else {
+        return;
+    };
+    if crate::avatars::has_local(key) {
+        return;
+    }
+    let Some(vfs) = vfs else {
+        return;
+    };
+    let model = game
+        .config_string(1131 + usize::from(slot))
+        .and_then(|info| sjk_client::LegacyClientInfo::new(info).bytes("model"))
+        .unwrap_or_default();
+    match hud::portrait::icon_path(model)
+        .and_then(|path| hud::icons::assets::decode(vfs, shaders, &path))
+    {
+        Some(icon) => {
+            let mut rgba = icon.into_raw();
+            crate::avatars::picture::round(&mut rgba, crate::ui_renderer::ICON_SIZE);
+            crate::avatars::insert_local(key, rgba);
+        }
+        None => nameplate.head_missing(slot, key, game),
+    }
+}
+
 /// GPU layout shared with `hud.wgsl`; appended parameters begin at byte 144.
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
@@ -213,7 +248,11 @@ pub(crate) fn update(
         gpu.hud
             .nameplate
             .refresh_marks(i64::from(presentation_time), || {
-                player_identity::slot_marks(session.game_state())
+                let game_state = session.game_state();
+                (
+                    player_identity::slot_marks(game_state),
+                    player_identity::slot_pictures(game_state),
+                )
             });
         gpu.hud
             .nameplate
@@ -246,6 +285,12 @@ pub(crate) fn update(
                 .filter(|_| !detached_flight)
                 .map(|state| state.force_powers_active),
             plates_hidden,
+        );
+        cut_nameplate_head(
+            &mut gpu.hud.nameplate,
+            gpu.vfs.as_deref(),
+            &gpu.shaders,
+            session.game_state(),
         );
         gpu.hud.rocket_lock.update(
             hud::rocket_lock::input(
@@ -447,6 +492,12 @@ pub(crate) fn update(
             &mut gpu.trace_scratch,
             None,
             plates_hidden,
+        );
+        cut_nameplate_head(
+            &mut gpu.hud.nameplate,
+            gpu.vfs.as_deref(),
+            &gpu.shaders,
+            session.game_state(),
         );
         gpu.hud.rocket_lock.update(
             hud::rocket_lock::input(

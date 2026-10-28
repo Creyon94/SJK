@@ -191,7 +191,8 @@ includes:
 - nameplates with estimated health, shield and Force, held-weapon and Force
   power icons, and player cards; then bars shared through the hub, shown only for
   players who share them (15/10/2026), and grey on SJK players who do not
-  (16/10/2026);
+  (16/10/2026); since 28/10/2026 capsules holding each player's picture, name and
+  weapon, with a sharer's bars on a tray under them;
 - 125 Hz user commands on the server's 8 ms grid (after JoF EJK's
   `cl_cmdratecap`) and a working `cl_maxpackets`; then the gameplay FPS, the
   movement of 125, 142, 250, 333 or any frame rate apart from the frames drawn,

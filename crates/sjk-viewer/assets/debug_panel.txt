@@ -2483,6 +2483,18 @@ test: An SJK player sharing: real bars and gold contour as before.
 test: Settings, Nameplates: no Bars on everyone row; help has no entry for it.
 note: NPC plates (cg_nameplateNpcs) keep their bars.
 
+[nameplate-capsule]
+area: HUD
+title: Capsule nameplates: picture, name, weapon; a sharer's bars on a tray (design E)
+change: Every plate is a capsule: SJK picture (or initial), name, stance dot and weapon.
+change: Sharers' bars sit on a tray under it; non-sharers get the capsule alone, no grey bars.
+change: Team games tint the capsule; a duel shows its badge instead of the weapon.
+test: SJK players with a hub picture show it; one without shows their initial on their colour.
+test: A stock client or bot: its model's head icon, round, in the capsule.
+test: Team game: capsules in team colours, sharers keep the gold edge and the tray.
+test: Walk away from a player: the capsule fades to a smaller picture and dim name.
+test: Duel someone: the duel badge replaces the weapon; Collection > Nameplates shows it.
+
 [card-sight]
 area: HUD
 title: Player card and inspect only in sight and within 1200 units

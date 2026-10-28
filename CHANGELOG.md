@@ -32,6 +32,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
+- Nameplates are capsules: everyone gets a plate with their picture beside their name (their SJK picture, else their initial; players without SJK show their model's head icon), the weapon at its end, and a sharer's shield, health and Force on a tray under it. Players who do not share have the capsule alone instead of grey bars, and team games tint it in the team's colour _(Sol)_
 - Sith cloud: the S community's own maps, skins and optional SJK extras, on the same card as JoF content (Settings > General > Sith cloud, `sith.cloud`, off by default). The SJK hub now names the servers both collections download from, so they can move or be paused without a release _(Sol)_
 - Mystery boxes have their own chest: wood and iron with glowing question marks, its lid swinging open as it rolls, and words over it everyone sees (its price, the roll, then what came out) _(Sol)_
 - Box hunt toy (Collection > Toys, `toy_boxhunt`): turn it on to take part. Every few minutes one player with it on becomes the mark, shown in red to the others with it on; kill the mark to win a free mystery box roll _(Sol)_

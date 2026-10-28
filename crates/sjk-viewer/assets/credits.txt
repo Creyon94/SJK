@@ -36,6 +36,7 @@ did: The classic menus and classic+, the settings and search, the retail-look co
 did: The SJK UI, Sol JK's own menus over the live map
 did: SJK's icon art: the quick wheels' and the settings' icons
 did: The HUD picker, the radial HUD, nameplates with shared bars and player cards
+did: Capsule nameplates: each player's picture, name and weapon, the shared bars on a tray
 did: JA+ and JoF server support: movement, sabers, grapple, Force wheel, flip kick
 did: Illuminate, SJK's own toy: a holocron that lights the way, art by Sol
 did: The cardboard box toy: hide in a carton, spotted with Use, tipping over

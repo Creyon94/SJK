@@ -1,8 +1,10 @@
 //! MMO-style nameplates over players (and, optionally, NPCs).
 //!
-//! Far away a player shows only a small, dim name. Closer, the name rises and a
-//! framed plate fades in beneath it with health, shield and Force bars, and the
-//! weapon the player holds beside it, haloed in the saber stance's colour.
+//! Every plate is a capsule (design E, Sol's pick of 28/10/2026): a pill holding the
+//! player's picture (their SJK hub picture, else their initial on their colour, or for
+//! a player without SJK their model's head icon), their name and the weapon they hold
+//! after the saber stance's dot. Closer, a sharer's health, shield and Force bars fade
+//! in on a tray under it; far away the pill fades and the picture and a dim name stay.
 //! Names come from the chat roster and are drawn in the classic HUD font with
 //! their colour codes; the layout maths is in [`super::nameplate_math`]. A sharer's
 //! health and shield are estimated between the values they share, once per snapshot,
@@ -13,7 +15,7 @@
 use super::estimate::Range;
 use super::force_streams;
 use super::identification::{Camera, info_number, unoccluded};
-use super::nameplate_math::{self as math, Rows, Stack};
+use super::nameplate_math::{self as math, Capsule, CapsuleSpec, End, Rows};
 use super::vitals_estimate;
 use crate::{TextVertex, UiFont, chat::ChatOverlay, console::ViewerConsole};
 use glam::Vec3;
@@ -33,6 +35,8 @@ const NPC_TEXT: u32 = 1024;
 const UNKNOWN_TEXT: u32 = 1000;
 /// Text id of the mode's name, shown for a moment when the mode changes.
 const MODE_TEXT: u32 = 1001;
+/// Text ids from this one up are the initials on the plates' stand-ins, by plate.
+const INITIAL_TEXT: u32 = 2000;
 /// How long the mode's name shows, and the last part of that over which it fades.
 const MODE_SHOWN: i64 = 1_500;
 const MODE_FADE: i64 = 400;
@@ -156,23 +160,33 @@ const MAX_ICONS: usize = 4;
 /// light side and neutral ones, as `forcePowers_t` indices. Push, pull, jump and
 /// the saber powers are left out: they last a moment and would only flicker.
 const ICON_POWERS: [u8; 11] = [7, 6, 13, 8, 9, 10, 2, 0, 12, 5, 14];
-/// Frame colour of players who follow no team.
+/// The colour of players who follow no team: no team tints their capsule.
 const NEUTRAL_ACCENT: Color = Color::new(0.78, 0.82, 0.9, 0.9);
-/// The contour of a player who shares their bars (`cg_nameplate`, See and share
+/// The edge of a player who shares their bars (`cg_nameplate`, See and share
 /// nameplates), the verified badge's gold.
 const SHARED_CONTOUR: Color = Color::new(1.0, 0.82, 0.25, 1.0);
-/// The flat grey of every bar of a player who does not share.
-const WITHHELD_BAR: Color = Color::new(0.42, 0.44, 0.48, 0.55);
-/// Frame colour of NPC plates.
-const NPC_ACCENT: Color = Color::new(0.95, 0.8, 0.35, 0.9);
+/// The edge of a player who does not share.
+const NEUTRAL_EDGE: Color = Color::new(0.78, 0.82, 0.9, 0.45);
+/// The capsule's and the tray's fill out of team games (a team's is its own colour
+/// made deep, [`math::team_fill`]).
+const PILL_FILL: Color = Color::new(0.03, 0.04, 0.06, 0.76);
+/// The track a bar fills on the tray.
+const TRACK: Color = Color::new(1.0, 1.0, 1.0, 0.09);
+/// The edge of NPC plates, a paler gold.
+const NPC_ACCENT: Color = Color::new(0.95, 0.8, 0.35, 0.7);
 /// The grey haze over a bar's uncertain stretch, at its thickest.
 const HAZE: Color = Color::new(0.8, 0.82, 0.86, 0.6);
 /// A range narrower than this share of the bar is drawn sharp.
 const HAZE_MIN_WIDTH: f32 = 0.02;
-/// Backdrop of the power and weapon icons.
-const ICON_BACKDROP: Color = Color::new(0.03, 0.04, 0.06, 0.55);
-/// Halo opacity of a holstered saber, as a share of a lit one's.
+/// The power icons' round chips and the ring round each.
+const CHIP_FILL: Color = Color::new(0.03, 0.04, 0.06, 0.7);
+const CHIP_RING: Color = Color::new(0.47, 0.67, 0.9, 0.45);
+/// The picture's place while a head icon is being cut.
+const BLANK_PICTURE: Color = Color::new(0.16, 0.18, 0.22, 0.9);
+/// The stance dot's opacity with the blade put away, as a share of a lit one's.
 const HOLSTERED_HALO: f32 = 0.4;
+/// Milliseconds before a head icon that could not be cut is tried again.
+const HEAD_RETRY: i64 = 2_000;
 /// `WP_NONE`.
 const WP_NONE: u8 = 0;
 /// The duel badge's least opacity: a far plate's name dims, the badge stays clear.
@@ -191,6 +205,108 @@ pub(crate) struct SharedSlot {
     pub(crate) estimates: bool,
     /// Their values, while they have some (alive in a match).
     pub(crate) vitals: Option<sjk_identity::Vitals>,
+}
+
+/// The picture of an SJK player's plate, from the hub's players on the server (read
+/// once a second, [`crate::player_identity::slot_pictures`]): their key id and their
+/// picture's version as the hub sends them, and their stand-in, the initial of their
+/// hub name on their colour ([`crate::profile_card::stand_in_colour`]), shown while
+/// the picture loads and when they have none.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct SlotPicture {
+    key_id: [u8; 16],
+    version: Option<[u8; 16]>,
+    initial: Initial,
+    colour: Color,
+}
+
+impl SlotPicture {
+    /// The picture of the player with key `key_id`, whose picture is at `version`
+    /// (empty for none) and whose hub name is `name`; `None` for a key id the hub would
+    /// not send.
+    pub(crate) fn new(key_id: &str, version: &str, name: &str) -> Option<Self> {
+        if !sjk_identity::avatar::valid_key_id(key_id) {
+            return None;
+        }
+        let key: [u8; 16] = key_id.as_bytes().try_into().ok()?;
+        let version = sjk_identity::avatar::valid_version(version)
+            .then(|| version.as_bytes().try_into().ok())
+            .flatten();
+        Some(Self {
+            key_id: key,
+            version,
+            initial: Initial::new(crate::profile_card::initial(name)),
+            colour: crate::profile_card::stand_in_colour(key_id, name),
+        })
+    }
+
+    /// The hub picture to ask the cache for, if they have one.
+    fn wanted(&self) -> crate::avatars::Wanted<'_> {
+        fn text(bytes: &[u8; 16]) -> Option<&str> {
+            std::str::from_utf8(bytes).ok()
+        }
+        match (text(&self.key_id), self.version.as_ref().and_then(text)) {
+            (Some(key_id), Some(version)) => crate::avatars::Wanted::Hub(key_id, version),
+            _ => crate::avatars::Wanted::Nothing,
+        }
+    }
+}
+
+/// Each slot's plate picture ([`SlotPicture`]); `None` for a player the hub does not
+/// know there.
+pub(crate) type SlotPictures = [Option<SlotPicture>; MAX_PLAYER_TAGS];
+
+/// A stand-in's initial, kept without an allocation.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+struct Initial {
+    bytes: [u8; 4],
+    len: u8,
+}
+
+impl Initial {
+    fn new(initial: char) -> Self {
+        let mut bytes = [0; 4];
+        let len = initial.encode_utf8(&mut bytes).len() as u8;
+        Self { bytes, len }
+    }
+
+    fn as_str(&self) -> &str {
+        std::str::from_utf8(&self.bytes[..usize::from(self.len)]).unwrap_or_default()
+    }
+}
+
+/// What a plate shows as its picture.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+enum Picture {
+    /// None: an NPC's plate.
+    #[default]
+    Nothing,
+    /// A picture in the atlas: the player's hub picture, or their model's head icon
+    /// cut round ([`crate::avatars::insert_local`]).
+    Texture(TextureId),
+    /// The plate's initial on this colour: an SJK player without a picture (or before
+    /// it loads), or a player without SJK whose model has no head icon.
+    StandIn(Color),
+    /// An empty disc, while a head icon is being cut.
+    Blank,
+}
+
+/// A player without SJK's head icon, cut round for their plate: the key it is kept
+/// under (from their `model`), when it was last asked for, and, once it could not be
+/// had, the stand-in their plate shows instead.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+struct Head {
+    key: u64,
+    asked: Option<i64>,
+    missing: Option<(Initial, Color)>,
+}
+
+/// The key a model's head icon is kept under in the pictures' cache (FNV-1a of its
+/// `model` value): players wearing one model share one picture.
+fn head_key(model: &[u8]) -> u64 {
+    model.iter().fold(0xcbf2_9ce4_8422_2325_u64, |hash, byte| {
+        (hash ^ u64::from(*byte)).wrapping_mul(0x0100_0000_01b3)
+    })
 }
 
 /// Register the nameplate settings.
@@ -380,6 +496,10 @@ struct Entry {
     /// The duel's badge colour ([`super::duel_pairs`]): both duellists of one duel
     /// share it.
     duel_colour: u8,
+    /// The picture at the capsule's left end ([`State::place_pictures`]), and the
+    /// initial a stand-in shows.
+    picture: Picture,
+    initial: Initial,
 }
 
 impl Entry {
@@ -438,6 +558,12 @@ pub(crate) struct State {
     logo_tops: [Option<f32>; MAX_PLAYER_TAGS],
     /// Each slot's duel colour this frame ([`super::duel_pairs`]).
     duel_colours: [Option<u8>; MAX_PLAYER_TAGS],
+    /// Each slot's SJK picture, read with the marks ([`Self::refresh_marks`]).
+    pictures: SlotPictures,
+    /// Each slot's head icon, for a player without SJK, and the one to cut this frame
+    /// ([`Self::head_to_cut`]): its slot and key.
+    heads: [Head; MAX_PLAYER_TAGS],
+    head_wanted: Option<(u16, u64)>,
 }
 
 impl Default for State {
@@ -464,6 +590,9 @@ impl Default for State {
             announced: None,
             logo_tops: [None; MAX_PLAYER_TAGS],
             duel_colours: [None; MAX_PLAYER_TAGS],
+            pictures: [None; MAX_PLAYER_TAGS],
+            heads: [Head::default(); MAX_PLAYER_TAGS],
+            head_wanted: None,
         }
     }
 }
@@ -522,12 +651,12 @@ impl State {
         };
     }
 
-    /// Read each slot's mark (`read` asks the identity service) at most once a second,
-    /// so the names it compares are not rebuilt every frame.
+    /// Read each slot's mark and SJK picture (`read` asks the identity service) at most
+    /// once a second, so the names it compares are not rebuilt every frame.
     pub(crate) fn refresh_marks(
         &mut self,
         now: i64,
-        read: impl FnOnce() -> crate::player_identity::SlotMarks,
+        read: impl FnOnce() -> (crate::player_identity::SlotMarks, SlotPictures),
     ) {
         if self
             .marks_read
@@ -536,7 +665,7 @@ impl State {
             return;
         }
         self.marks_read = Some(now);
-        self.marks = read();
+        (self.marks, self.pictures) = read();
     }
 
     /// Slot `number`'s mark.
@@ -743,6 +872,7 @@ impl State {
     pub(crate) fn clear(&mut self) {
         self.entries.clear();
         self.list.clear();
+        self.head_wanted = None;
     }
 
     /// Smooth one entity's opacity towards `target`.
@@ -1013,6 +1143,8 @@ impl State {
                 withheld,
                 duelling: player && entity.bolt1(),
                 duel_colour: self.duel_colour(number),
+                picture: Picture::Nothing,
+                initial: Initial::default(),
             });
             if self.entries.len() == MAX_TAGS {
                 break;
@@ -1024,9 +1156,97 @@ impl State {
         if settings.own {
             self.own_plate(snapshot, mode, now, camera, step);
         }
+        self.place_pictures(game, now);
         // Far plates first, so a near plate covers a far one.
         self.entries
             .sort_unstable_by(|a, b| b.distance.total_cmp(&a.distance));
+    }
+
+    /// Each plate's picture, all asked of the pictures' cache under one lock: an SJK
+    /// player's hub picture, else their stand-in; a player without SJK, their model's
+    /// head icon cut round (the first one missing is cut this frame,
+    /// [`Self::head_to_cut`]), else the initial of their name; an NPC, none.
+    fn place_pictures(&mut self, game: &GameState, now: i64) {
+        use crate::avatars::Wanted;
+        self.head_wanted = None;
+        let mut wanted = [Wanted::Nothing; MAX_TAGS];
+        for (entry, wanted) in self.entries.iter().zip(wanted.iter_mut()) {
+            let slot = usize::from(entry.number);
+            if entry.npc_class != 0 || slot >= MAX_PLAYER_TAGS {
+                continue;
+            }
+            if let Some(picture) = &self.pictures[slot] {
+                *wanted = picture.wanted();
+                continue;
+            }
+            let model = game
+                .config_string(1131 + slot)
+                .and_then(|info| sjk_client::LegacyClientInfo::new(info).bytes("model"))
+                .unwrap_or_default();
+            let key = head_key(model);
+            let head = &mut self.heads[slot];
+            if head.key != key {
+                *head = Head {
+                    key,
+                    ..Head::default()
+                };
+            }
+            if head.missing.is_none() {
+                *wanted = Wanted::Local(key);
+            }
+        }
+        let textures = crate::avatars::textures(&wanted);
+        for (entry, texture) in self.entries.iter_mut().zip(textures) {
+            let slot = usize::from(entry.number);
+            if entry.npc_class != 0 || slot >= MAX_PLAYER_TAGS {
+                continue;
+            }
+            (entry.picture, entry.initial) = match (&self.pictures[slot], texture) {
+                (_, Some(texture)) => (Picture::Texture(texture), Initial::default()),
+                (Some(picture), None) => (Picture::StandIn(picture.colour), picture.initial),
+                (None, None) => {
+                    let head = &mut self.heads[slot];
+                    match head.missing {
+                        Some((initial, colour)) => (Picture::StandIn(colour), initial),
+                        None => {
+                            let due = head
+                                .asked
+                                .is_none_or(|asked| !(0..HEAD_RETRY).contains(&(now - asked)));
+                            if due && self.head_wanted.is_none() {
+                                head.asked = Some(now);
+                                self.head_wanted = Some((entry.number, head.key));
+                            }
+                            (Picture::Blank, Initial::default())
+                        }
+                    }
+                }
+            };
+        }
+    }
+
+    /// The head icon to cut this frame, at most one: the slot of a player without SJK
+    /// whose model's icon is not in the pictures' cache, and the key to keep it under
+    /// ([`crate::avatars::insert_local`]). The caller, which has the game data, cuts it,
+    /// or says it could not with [`Self::head_missing`].
+    pub(crate) fn head_to_cut(&self) -> Option<(u16, u64)> {
+        self.head_wanted
+    }
+
+    /// The head icon under `key` of slot `slot`'s model could not be had (no icon, or
+    /// a model this PC does not have): their plate shows the initial of their name on a
+    /// colour of their own until their model changes.
+    pub(crate) fn head_missing(&mut self, slot: u16, key: u64, game: &GameState) {
+        let Some(head) = self.heads.get_mut(usize::from(slot)) else {
+            return;
+        };
+        if head.key != key {
+            return;
+        }
+        let name = crate::player_identity::shown_name(game, usize::from(slot)).unwrap_or_default();
+        head.missing = Some((
+            Initial::new(crate::profile_card::initial(&name)),
+            crate::profile_card::stand_in_colour("", &name),
+        ));
     }
 
     /// The plates of pilots sealed in a vehicle (`hideRider`). `Ghost` gives such a
@@ -1140,6 +1360,8 @@ impl State {
                 // A pilot cannot duel: the server ends a duel on boarding.
                 duelling: false,
                 duel_colour: 0,
+                picture: Picture::Nothing,
+                initial: Initial::default(),
             });
         }
     }
@@ -1233,6 +1455,8 @@ impl State {
             withheld: false,
             duelling: player.duel_in_progress(),
             duel_colour: self.duel_colour(local),
+            picture: Picture::Nothing,
+            initial: Initial::default(),
         };
         let (powers, power_count) = if settings.icons {
             icon_powers(player.force_powers_active())
@@ -1316,14 +1540,12 @@ impl State {
         let unit = crate::ui_scale::height_scale(viewport[1]);
         for index in 0..self.entries.len() {
             let entry = self.entries[index];
+            if !entry.names_allowed {
+                continue;
+            }
             let u = unit * entry.scale;
             let size = 36.0 * self.settings.scale * u;
             let id = Self::text_id(&entry);
-            let rows = if entry.names_allowed {
-                entry.rows()
-            } else {
-                Rows::default()
-            };
             let [x, y] = entry.point;
             // Over a team logo (drawn by `super::team_logo` at the same anchor).
             let logo_top = if entry.npc_class == 0 {
@@ -1334,91 +1556,303 @@ impl State {
             } else {
                 None
             };
-            let _ = self.list.push(DrawCommand::PushOpacity(entry.alpha));
             let bottom = logo_top.map_or(y, |top| top.min(y)) - 2.0 * u;
-            let stack_height = Stack::height(rows, u);
-            // The name rises as the plate fades in beneath it.
-            let line = size * 1.15;
-            let top = bottom - stack_height * entry.detail - line;
-            let named = entry.names_allowed && !label(id).is_empty();
-            // The duel badge takes the weapon icon's place left of the name.
-            let duel_badge = named && entry.duelling && self.settings.duel_badge;
-            if named {
-                let width = (320.0 * unit).min(viewport[0]);
-                let left = (x - width * 0.5).clamp(0.0, (viewport[0] - width).max(0.0));
-                let opacity = FAR_NAME_OPACITY + (1.0 - FAR_NAME_OPACITY) * entry.proximity;
-                let tint = if entry.npc_class == 0 {
-                    Color::new(1.0, 1.0, 1.0, opacity)
-                } else {
-                    Color::new(1.0, 0.95, 0.75, opacity)
-                };
-                let _ = self.list.push(DrawCommand::Text {
-                    rect: Rect::new(left, top, width, line),
-                    text: id,
-                    size,
-                    color: tint,
-                    align: TextAlign::Center,
-                    overflow: TextOverflow::Ellipsis,
-                    weight: FontWeight::Regular,
-                    letter_spacing: 0.0,
-                });
-                let scale = size / font.height.max(1.0);
-                // Measured only for a badge beside the name.
-                let text = if duel_badge || entry.mark.is_some() {
-                    crate::text::visible_text_width(font, label(id), scale).min(width)
-                } else {
-                    0.0
-                };
-                if duel_badge {
-                    // Mirrors the verified badge: before the name, level with its capitals.
-                    let side = size * 1.05;
-                    let badge = Rect::new(
-                        (left + (width - text) * 0.5 - size * 0.2 - side).max(0.0),
-                        top + font.capital_middle(scale) - side * 0.5,
-                        side,
-                        side,
-                    );
-                    let _ = self.list.push(DrawCommand::TexturedQuad {
-                        rect: badge,
-                        texture: crate::ui_renderer::duel_texture(usize::from(entry.duel_colour)),
-                        color: Color::new(1.0, 1.0, 1.0, opacity.max(DUEL_BADGE_OPACITY)),
-                    });
+            let scale = size / font.height.max(1.0);
+            // The duel badge takes the weapon's place at the capsule's right end.
+            let duel_badge = entry.duelling && self.settings.duel_badge;
+            // The tray holds a sharer's bars: a player who does not share has the
+            // capsule alone (28/10/2026, no more grey bars), and a duel shows none.
+            let rows = if entry.withheld || duel_badge {
+                Rows::default()
+            } else {
+                entry.rows()
+            };
+            let weapon = (entry.weapon != WP_NONE && !duel_badge)
+                .then(|| weapons.weapon_select(entry.weapon, false, entry.style))
+                .flatten();
+            let end = if duel_badge {
+                End::Duel
+            } else if weapon.is_some() {
+                End::Weapon {
+                    dot: entry.weapon == WP_SABER && entry.style != 0,
                 }
-                if let Some(mark) = entry.mark {
-                    let side = size * 0.95;
-                    // Level with the name's capitals: the text hangs from the top of
-                    // its line by the font's own baseline, not from the line's middle.
-                    let badge = Rect::new(
-                        (left + (width + text) * 0.5 + size * 0.15).min(viewport[0] - side),
-                        top + font.capital_middle(scale) - side * 0.5,
-                        side,
-                        side,
-                    );
-                    let _ = self.list.push(DrawCommand::TexturedQuad {
-                        rect: badge,
-                        texture: mark,
-                        color: Color::new(1.0, 1.0, 1.0, opacity),
-                    });
-                }
-            }
-            if entry.power_count > 0 && entry.proximity > 0.01 {
-                self.power_row(&entry, icons, [x, top], size, u, viewport);
-            }
-            // The weapon sits left of the plate, or of where it would be beside the name.
-            let mut weapon_centre = top + line * 0.5;
-            if rows.any() && entry.detail > 0.01 {
-                let stack = Stack::new(x, bottom, rows, u, viewport);
-                weapon_centre = stack.frame.y + stack.frame.height * 0.5;
-                let _ = self.list.push(DrawCommand::PushOpacity(entry.detail));
-                self.plate(&entry, &stack, u);
+            } else {
+                End::Nothing
+            };
+            let capsule = Capsule::new(&CapsuleSpec {
+                centre_x: x,
+                bottom,
+                size,
+                name_width: crate::text::visible_text_width(font, label(id), scale),
+                picture: entry.picture != Picture::Nothing,
+                mark: entry.mark.is_some(),
+                end,
+                rows,
+                detail: entry.detail,
+                proximity: entry.proximity,
+                least_bar: 2.0 * unit,
+                viewport,
+            });
+            let opacity = FAR_NAME_OPACITY + (1.0 - FAR_NAME_OPACITY) * entry.proximity;
+            let _ = self.list.push(DrawCommand::PushOpacity(entry.alpha));
+            // The pill (and the tray under it) fades out with distance: far away the
+            // picture and the name stay.
+            if entry.proximity > 0.01 {
+                let _ = self.list.push(DrawCommand::PushOpacity(entry.proximity));
+                self.pill(&entry, &capsule, duel_badge);
                 let _ = self.list.push(DrawCommand::PopOpacity);
             }
-            if entry.weapon != WP_NONE && entry.proximity > 0.01 && !duel_badge {
-                self.weapon_icon(&entry, weapons, [x, weapon_centre], u, viewport);
+            self.picture(&entry, &capsule, index, font, opacity);
+            let tint = if entry.npc_class == 0 {
+                Color::new(1.0, 1.0, 1.0, opacity)
+            } else {
+                Color::new(1.0, 0.95, 0.75, opacity)
+            };
+            let _ = self.list.push(DrawCommand::Text {
+                rect: Rect::new(
+                    capsule.name.x,
+                    capsule.middle - font.capital_middle(scale),
+                    capsule.name.width + 0.5,
+                    size * 1.15,
+                ),
+                text: id,
+                size,
+                color: tint,
+                align: TextAlign::Start,
+                overflow: TextOverflow::Ellipsis,
+                weight: FontWeight::Regular,
+                letter_spacing: 0.0,
+            });
+            if let (Some(rect), Some(mark)) = (capsule.mark, entry.mark) {
+                let _ = self.list.push(DrawCommand::TexturedQuad {
+                    rect,
+                    texture: mark,
+                    color: Color::new(1.0, 1.0, 1.0, opacity),
+                });
+            }
+            if let Some(rect) = capsule.badge {
+                let _ = self.list.push(DrawCommand::TexturedQuad {
+                    rect,
+                    texture: crate::ui_renderer::duel_texture(usize::from(entry.duel_colour)),
+                    color: Color::new(1.0, 1.0, 1.0, opacity.max(DUEL_BADGE_OPACITY)),
+                });
+            }
+            if let (Some(rect), Some(texture)) = (capsule.weapon, weapon)
+                && entry.proximity > 0.01
+            {
+                let _ = self.list.push(DrawCommand::PushOpacity(entry.proximity));
+                if let Some(dot) = capsule.dot {
+                    let color = super::radial::saber_style_color(entry.style);
+                    let strength = if entry.holstered { HOLSTERED_HALO } else { 1.0 };
+                    let _ = self.list.push(DrawCommand::RoundedRect {
+                        rect: dot,
+                        radius: dot.width * 0.5,
+                        color: Color::new(color.r, color.g, color.b, strength),
+                    });
+                }
+                let _ = self.list.push(DrawCommand::TexturedQuad {
+                    rect,
+                    texture,
+                    color: Color::new(1.0, 1.0, 1.0, 1.0),
+                });
+                let _ = self.list.push(DrawCommand::PopOpacity);
+            }
+            if entry.power_count > 0 && entry.proximity > 0.01 {
+                self.power_row(&entry, icons, &capsule, viewport);
             }
             let _ = self.list.push(DrawCommand::PopOpacity);
         }
         self.mode_label(label, font, unit, viewport);
+    }
+
+    /// The capsule's pill, its fill (a team's colour made deep in team games) and its
+    /// edge (gold for a sharer, the pair's colour in a duel), with the tray of bars
+    /// tucked under it while they fade in.
+    fn pill(&mut self, entry: &Entry, capsule: &Capsule, duel_badge: bool) {
+        let k = capsule.k;
+        let fill = if entry.npc_class == 0 && entry.accent != NEUTRAL_ACCENT {
+            math::team_fill(entry.accent)
+        } else {
+            PILL_FILL
+        };
+        let edge = if duel_badge {
+            let [r, g, b] = crate::ui_renderer::duel_badge::COLOURS
+                [usize::from(entry.duel_colour) % crate::ui_renderer::duel_badge::COLOURS.len()];
+            Color::new(r, g, b, 1.0)
+        } else if entry.npc_class != 0 {
+            NPC_ACCENT
+        } else if entry.shared {
+            SHARED_CONTOUR
+        } else {
+            NEUTRAL_EDGE
+        };
+        let width = (if duel_badge {
+            math::DUEL_EDGE
+        } else {
+            math::EDGE
+        } * k)
+            .max(1.0);
+        if let Some(tray) = capsule.tray
+            && entry.detail > 0.01
+        {
+            let _ = self.list.push(DrawCommand::PushOpacity(entry.detail));
+            self.tray(entry, &tray, capsule, fill, (edge, width));
+            let _ = self.list.push(DrawCommand::PopOpacity);
+        }
+        let pill = capsule.pill;
+        let radius = pill.height * 0.5;
+        let _ = self.list.push(DrawCommand::RoundedRect {
+            rect: pill,
+            radius,
+            color: fill,
+        });
+        let _ = self.list.push(DrawCommand::Border {
+            rect: pill,
+            radius,
+            width,
+            color: edge,
+        });
+    }
+
+    /// The tray under the pill: the pill's fill and edge carried down round the bars,
+    /// with a square top, which the pill's own edge closes, and round bottom corners.
+    /// The fill is one stroke cut to the tray's rounded clip and the edge strokes and
+    /// arcs, so nothing is drawn twice where the shapes meet (each is translucent).
+    fn tray(
+        &mut self,
+        entry: &Entry,
+        tray: &math::Tray,
+        capsule: &Capsule,
+        fill: Color,
+        (edge, width): (Color, f32),
+    ) {
+        let frame = tray.frame;
+        let top = capsule.pill.bottom();
+        let corner = (math::TRAY_CORNER * capsule.k)
+            .min(frame.width * 0.5)
+            .min((frame.bottom() - top).max(0.0));
+        if frame.bottom() - top > 0.5 {
+            let _ = self.list.push(DrawCommand::PushRoundedClip {
+                rect: Rect::new(
+                    frame.x,
+                    top - corner,
+                    frame.width,
+                    frame.bottom() - top + corner,
+                ),
+                radius: corner,
+            });
+            let middle = (top + frame.bottom()) * 0.5;
+            let _ = self.list.push(DrawCommand::Line {
+                from: [frame.x, middle],
+                to: [frame.right(), middle],
+                width: frame.bottom() - top,
+                color: fill,
+            });
+            let _ = self.list.push(DrawCommand::PopClip);
+        }
+        let half = width * 0.5;
+        let low = frame.bottom() - corner;
+        for side in [frame.x + half, frame.right() - half] {
+            let _ = self.list.push(DrawCommand::Line {
+                from: [side, top],
+                to: [side, low],
+                width,
+                color: edge,
+            });
+        }
+        let _ = self.list.push(DrawCommand::Line {
+            from: [frame.x + corner, frame.bottom() - half],
+            to: [frame.right() - corner, frame.bottom() - half],
+            width,
+            color: edge,
+        });
+        for (centre, start) in [
+            ([frame.x + corner, low], std::f32::consts::FRAC_PI_2),
+            ([frame.right() - corner, low], 0.0),
+        ] {
+            let _ = self.list.push(DrawCommand::Arc {
+                center: centre,
+                radius: (corner - half).max(0.0),
+                width,
+                start,
+                sweep: std::f32::consts::FRAC_PI_2,
+                color: edge,
+                knockout: None,
+            });
+        }
+        let colors = self.colors;
+        let u = capsule.k;
+        for (bar, range, color, meter) in [
+            (tray.shield, entry.shield, colors.shield, Meter::Shield),
+            (tray.health, entry.health, colors.health, Meter::Health),
+            (tray.force, entry.force, colors.force, Meter::Force),
+        ] {
+            if let (Some(rect), Some(range)) = (bar, range) {
+                self.meter(rect, range, color, meter, u);
+            }
+        }
+    }
+
+    /// The picture at the capsule's left end, at `opacity` (the name's): the player's
+    /// picture or head icon, already round, or their initial on their colour.
+    fn picture(
+        &mut self,
+        entry: &Entry,
+        capsule: &Capsule,
+        index: usize,
+        font: &UiFont,
+        opacity: f32,
+    ) {
+        let Some(rect) = capsule.picture else {
+            return;
+        };
+        let radius = rect.width * 0.5;
+        match entry.picture {
+            Picture::Nothing => {}
+            Picture::Texture(texture) => {
+                let _ = self.list.push(DrawCommand::TexturedQuad {
+                    rect,
+                    texture,
+                    color: Color::new(1.0, 1.0, 1.0, opacity),
+                });
+            }
+            Picture::StandIn(colour) => {
+                let _ = self.list.push(DrawCommand::RoundedRect {
+                    rect,
+                    radius,
+                    color: Color::new(colour.r, colour.g, colour.b, opacity),
+                });
+                let size = rect.height * 0.55;
+                let scale = size / font.height.max(1.0);
+                let _ = self.list.push(DrawCommand::Text {
+                    rect: Rect::new(
+                        rect.x,
+                        rect.y + radius - font.capital_middle(scale),
+                        rect.width,
+                        size * 1.15,
+                    ),
+                    text: TextId(INITIAL_TEXT + index as u32),
+                    size,
+                    color: Color::new(1.0, 1.0, 1.0, opacity),
+                    align: TextAlign::Center,
+                    overflow: TextOverflow::Clip,
+                    weight: FontWeight::Semibold,
+                    letter_spacing: 0.0,
+                });
+            }
+            Picture::Blank => {
+                let _ = self.list.push(DrawCommand::RoundedRect {
+                    rect,
+                    radius,
+                    color: Color::new(
+                        BLANK_PICTURE.r,
+                        BLANK_PICTURE.g,
+                        BLANK_PICTURE.b,
+                        BLANK_PICTURE.a * opacity,
+                    ),
+                });
+            }
+        }
     }
 
     /// The name of the mode just chosen, near the top of the screen for a moment.
@@ -1469,87 +1903,14 @@ impl State {
         let _ = self.list.push(DrawCommand::PopOpacity);
     }
 
-    /// The held weapon's icon, centred vertically on `centre_y` left of the plate,
-    /// in a round backdrop; a saber's is ringed and haloed in its stance's colour
-    /// (the Radial HUD's), dimmed while the blade is put away.
-    fn weapon_icon(
-        &mut self,
-        entry: &Entry,
-        weapons: &super::icons::Icons,
-        [x, centre_y]: [f32; 2],
-        u: f32,
-        viewport: [f32; 2],
-    ) {
-        let Some(texture) = weapons.weapon_select(entry.weapon, false, entry.style) else {
-            return;
-        };
-        let side = 22.0 * u;
-        let width = Stack::WIDTH * u;
-        let plate_left = (x - width * 0.5).clamp(0.0, (viewport[0] - width).max(0.0));
-        let rect = Rect::new(
-            (plate_left - 4.0 * u - side).max(0.0),
-            centre_y - side * 0.5,
-            side,
-            side,
-        );
-        let radius = side * 0.5;
-        let halo = (entry.weapon == WP_SABER && entry.style != 0).then(|| {
-            let strength = if entry.holstered { HOLSTERED_HALO } else { 1.0 };
-            (super::radial::saber_style_color(entry.style), strength)
-        });
-        let _ = self.list.push(DrawCommand::PushOpacity(entry.proximity));
-        if let Some((color, strength)) = halo {
-            let grow = 3.0 * u;
-            let _ = self.list.push(DrawCommand::RoundedRect {
-                rect: Rect::new(
-                    rect.x - grow,
-                    rect.y - grow,
-                    side + grow * 2.0,
-                    side + grow * 2.0,
-                ),
-                radius: radius + grow,
-                color: Color::new(color.r, color.g, color.b, 0.3 * strength),
-            });
-        }
-        let _ = self.list.push(DrawCommand::RoundedRect {
-            rect,
-            radius,
-            color: ICON_BACKDROP,
-        });
-        if let Some((color, strength)) = halo {
-            let _ = self.list.push(DrawCommand::Border {
-                rect,
-                radius,
-                width: (1.6 * u).max(1.0),
-                color: Color::new(color.r, color.g, color.b, 0.95 * strength),
-            });
-        }
-        let inset = 3.5 * u;
-        let _ = self.list.push(DrawCommand::TexturedQuad {
-            rect: Rect::new(
-                rect.x + inset,
-                rect.y + inset,
-                side - inset * 2.0,
-                side - inset * 2.0,
-            ),
-            texture,
-            color: Color::new(1.0, 1.0, 1.0, 1.0),
-        });
-        let _ = self.list.push(DrawCommand::PopOpacity);
-    }
-
-    /// The row of power icons centred over the name, whose top edge is `[x, top]`.
+    /// The row of power icons centred over the capsule, each on a round chip.
     fn power_row(
         &mut self,
         entry: &Entry,
         icons: &[Option<TextureId>],
-        [x, top]: [f32; 2],
-        size: f32,
-        u: f32,
+        capsule: &Capsule,
         viewport: [f32; 2],
     ) {
-        let side = size;
-        let gap = 2.0 * u;
         let shown = entry.powers[..usize::from(entry.power_count)]
             .iter()
             .filter(|power| icons.get(usize::from(**power)).copied().flatten().is_some())
@@ -1557,144 +1918,66 @@ impl State {
         if shown == 0 {
             return;
         }
-        let width = shown as f32 * side + (shown - 1) as f32 * gap;
-        let mut left = (x - width * 0.5).clamp(0.0, (viewport[0] - width).max(0.0));
-        let y = top - gap - side;
+        let (mut chip, step) = capsule.chips(shown, viewport);
+        let ring = capsule.k.max(1.0);
+        let inset = chip.width * 0.14;
         let _ = self.list.push(DrawCommand::PushOpacity(entry.proximity));
         for power in &entry.powers[..usize::from(entry.power_count)] {
             let Some(texture) = icons.get(usize::from(*power)).copied().flatten() else {
                 continue;
             };
-            let cell = Rect::new(left, y, side, side);
+            let radius = chip.width * 0.5;
             let _ = self.list.push(DrawCommand::RoundedRect {
-                rect: cell,
-                radius: 3.0 * u,
-                color: ICON_BACKDROP,
+                rect: chip,
+                radius,
+                color: CHIP_FILL,
             });
-            let inset = u.max(1.0);
+            let _ = self.list.push(DrawCommand::Border {
+                rect: chip,
+                radius,
+                width: ring,
+                color: CHIP_RING,
+            });
             let _ = self.list.push(DrawCommand::TexturedQuad {
                 rect: Rect::new(
-                    left + inset,
-                    y + inset,
-                    side - inset * 2.0,
-                    side - inset * 2.0,
+                    chip.x + inset,
+                    chip.y + inset,
+                    chip.width - inset * 2.0,
+                    chip.height - inset * 2.0,
                 ),
                 texture,
                 color: Color::new(1.0, 1.0, 1.0, 1.0),
             });
-            left += side + gap;
+            chip.x += step;
         }
         let _ = self.list.push(DrawCommand::PopOpacity);
     }
 
-    /// The framed plate and its bars.
-    fn plate(&mut self, entry: &Entry, stack: &Stack, u: f32) {
-        let _ = self.list.push(DrawCommand::RoundedRect {
-            rect: stack.frame,
-            radius: 4.0 * u,
-            color: Color::new(0.03, 0.04, 0.06, 0.62),
-        });
-        if entry.shared {
-            // Gold for sharing; a team's colour stays as a thin line inside it.
-            let _ = self.list.push(DrawCommand::Border {
-                rect: stack.frame,
-                radius: 4.0 * u,
-                width: (1.6 * u).max(1.0),
-                color: SHARED_CONTOUR,
-            });
-            if entry.accent != NEUTRAL_ACCENT {
-                let inset = (1.6 * u).max(1.0);
-                let _ = self.list.push(DrawCommand::Border {
-                    rect: Rect::new(
-                        stack.frame.x + inset,
-                        stack.frame.y + inset,
-                        stack.frame.width - inset * 2.0,
-                        stack.frame.height - inset * 2.0,
-                    ),
-                    radius: (4.0 * u - inset).max(0.0),
-                    width: (0.8 * u).max(1.0),
-                    color: entry.accent,
-                });
-            }
-        } else {
-            let _ = self.list.push(DrawCommand::Border {
-                rect: stack.frame,
-                radius: 4.0 * u,
-                width: (1.2 * u).max(1.0),
-                color: entry.accent,
-            });
-        }
-        let colors = self.colors;
-        for (bar, range, color, meter) in [
-            (stack.shield, entry.shield, colors.shield, Meter::Shield),
-            (stack.health, entry.health, colors.health, Meter::Health),
-            (stack.force, entry.force, colors.force, Meter::Force),
-        ] {
-            match (bar, range) {
-                (Some(rect), Some(_)) if entry.withheld => self.withheld_meter(rect, u),
-                (Some(rect), Some(range)) => self.meter(rect, range, color, meter, u),
-                _ => {}
-            }
-        }
-    }
-
-    /// The bar of a player who does not share: a flat grey bar the whole way,
-    /// so it reads as hidden rather than empty.
-    fn withheld_meter(&mut self, rect: Rect, u: f32) {
-        let radius = rect.height * 0.5;
-        let _ = self.list.push(DrawCommand::RoundedRect {
-            rect,
-            radius,
-            color: Color::new(0.0, 0.0, 0.0, 0.6),
-        });
-        let _ = self.list.push(DrawCommand::RoundedRect {
-            rect,
-            radius,
-            color: WITHHELD_BAR,
-        });
-        let _ = self.list.push(DrawCommand::Border {
-            rect,
-            radius,
-            width: u.max(1.0),
-            color: Color::new(1.0, 1.0, 1.0, 0.15),
-        });
-    }
-
-    /// One bar: its track, the fill to the guess with the haze over the uncertain
-    /// stretch, and over a full bar (overheal, overshield) a second layer in a
+    /// One bar on the tray: its track, the fill to the guess with the haze over the
+    /// uncertain stretch, and over a full bar (overheal, overshield) a second layer in a
     /// deeper shade from the left. An empty shield is a broken grey bar; health or
-    /// shield too unsure to show dims under a yellow "?".
+    /// shield too unsure to show dims under a yellow "?". `u` is the design's pixel.
     fn meter(&mut self, rect: Rect, range: Range, color: Color, meter: Meter, u: f32) {
         let radius = rect.height * 0.5;
-        let _ = self.list.push(DrawCommand::RoundedRect {
-            rect,
-            radius,
-            color: Color::new(0.0, 0.0, 0.0, 0.6),
-        });
-        let outline = match meter {
-            Meter::Force => math::lighter(color, 0.4, 0.75),
-            _ => Color::new(1.0, 1.0, 1.0, 0.3),
-        };
         if meter == Meter::Shield && range.high < EMPTY_SHARE {
             for (start, end) in math::broken_dashes() {
                 let _ = self.list.push(DrawCommand::SolidRect {
                     rect: Rect::new(
                         rect.x + rect.width * start,
-                        rect.y + rect.height * 0.2,
+                        rect.y,
                         rect.width * (end - start),
-                        rect.height * 0.6,
+                        rect.height,
                     ),
                     color: math::EMPTY_SHIELD,
                 });
             }
-            let _ = self.list.push(DrawCommand::Border {
-                rect,
-                radius,
-                width: u.max(1.0),
-                color: Color::new(1.0, 1.0, 1.0, 0.15),
-            });
             return;
         }
+        let _ = self.list.push(DrawCommand::RoundedRect {
+            rect,
+            radius,
+            color: TRACK,
+        });
         let unsure = meter != Meter::Force && range.width() >= UNSURE_WIDTH;
         let _ = self
             .list
@@ -1731,12 +2014,6 @@ impl State {
             self.haze(band, layer);
         }
         let _ = self.list.push(DrawCommand::PopOpacity);
-        let _ = self.list.push(DrawCommand::Border {
-            rect,
-            radius,
-            width: u.max(1.0),
-            color: outline,
-        });
         if unsure {
             // Sized to its bar, so the marks of two unsure bars do not meet.
             let size = rect.height * 1.3 + 2.5 * u;
@@ -1789,6 +2066,16 @@ impl State {
         let _ = self.list.push(DrawCommand::PopClip);
     }
 
+    /// The plates' stand-in initials, by plate, copied out so the text they are drawn
+    /// with can be read while the plates are laid out.
+    fn initials(&self) -> [Initial; MAX_TAGS] {
+        let mut initials = [Initial::default(); MAX_TAGS];
+        for (initial, entry) in initials.iter_mut().zip(&self.entries) {
+            *initial = entry.initial;
+        }
+        initials
+    }
+
     /// Build the plates from the existing roster text at submission, never
     /// allocating another name store.
     pub(crate) fn append(
@@ -1801,9 +2088,12 @@ impl State {
         viewport: [f32; 2],
     ) {
         let mode = self.announced.map(|(mode, _)| mode);
+        let initials = self.initials();
         let text = |id: TextId| {
             if id.0 == MODE_TEXT {
                 mode.map_or("", Mode::label)
+            } else if let Some(initial) = initial(&initials, id) {
+                initial
             } else {
                 label(chat, id)
             }
@@ -2063,6 +2353,12 @@ enum Meter {
     Force,
 }
 
+/// The text of stand-in initial `id` ([`INITIAL_TEXT`]), if it is one.
+fn initial(initials: &[Initial; MAX_TAGS], id: TextId) -> Option<&str> {
+    let index = id.0.checked_sub(INITIAL_TEXT)?;
+    initials.get(index as usize).map(Initial::as_str)
+}
+
 /// Text of a plate: a roster name, an NPC class name, or the "?" over a bar.
 fn label(chat: &ChatOverlay, id: TextId) -> &str {
     if id.0 == UNKNOWN_TEXT {
@@ -2094,8 +2390,11 @@ pub(crate) struct PreviewPlate {
     pub(crate) team: Option<bool>,
     /// The gold contour of a player who shares their bars.
     pub(crate) shared: bool,
-    /// A player who does not share: grey bars.
+    /// A player who does not share: no tray.
     pub(crate) withheld: bool,
+    /// Their picture in the atlas, else their initial on this colour, else none.
+    pub(crate) picture: Option<TextureId>,
+    pub(crate) stand_in: Option<(char, Color)>,
 }
 
 #[cfg(test)]
@@ -2143,11 +2442,22 @@ impl State {
                 withheld: plate.withheld,
                 duelling: plate.duelling,
                 duel_colour: 0,
+                picture: match (plate.picture, plate.stand_in) {
+                    (Some(texture), _) => Picture::Texture(texture),
+                    (None, Some((_, colour))) => Picture::StandIn(colour),
+                    (None, None) => Picture::Nothing,
+                },
+                initial: plate
+                    .stand_in
+                    .map_or_else(Initial::default, |(initial, _)| Initial::new(initial)),
             });
         }
+        let initials = self.initials();
         let label = |id: TextId| {
             if id.0 == UNKNOWN_TEXT {
                 "?"
+            } else if let Some(initial) = initial(&initials, id) {
+                initial
             } else {
                 names.get(id.0 as usize).copied().unwrap_or("")
             }
@@ -2305,12 +2615,26 @@ mod tests {
         assert_eq!(powers, [7, 6, 13, 8]);
     }
 
-    #[test]
-    fn the_badges_sit_level_with_the_capitals_either_side_of_the_name() {
+    /// A plate laid out as [`State::append`] does, for a player in slot 0 named `name`.
+    fn laid_out(plate: PreviewPlate, name: &str) -> (State, crate::text::FontAtlas) {
         // The HUD font the plates use in game hangs its glyphs from the line top by
         // its own baseline, low in the line box.
-        let font = crate::text::load_classic().expect("the HUD font").font;
-        let plate = PreviewPlate {
+        let font = crate::text::load_classic().expect("the HUD font");
+        let mut state = State::default();
+        let icons = super::super::icons::Icons::default();
+        state.preview(
+            &[plate],
+            &[name],
+            &icons,
+            &font.font,
+            &mut Vec::new(),
+            [800.0, 600.0],
+        );
+        (state, font)
+    }
+
+    fn plate() -> PreviewPlate {
+        PreviewPlate {
             slot: 0,
             point: [400.0, 300.0],
             distance: 200.0,
@@ -2324,67 +2648,144 @@ mod tests {
             team: None,
             shared: false,
             withheld: false,
-        };
-        let mut state = State::default();
-        let icons = super::super::icons::Icons::default();
-        state.preview(
-            &[plate],
-            &["Hello"],
-            &icons,
-            &font,
-            &mut Vec::new(),
-            [800.0, 600.0],
-        );
+            picture: None,
+            stand_in: Some(('H', Color::new(0.2, 0.5, 0.45, 1.0))),
+        }
+    }
+
+    fn quad(state: &State, texture: TextureId) -> Option<Rect> {
+        state
+            .list
+            .commands()
+            .iter()
+            .find_map(|command| match command {
+                DrawCommand::TexturedQuad {
+                    rect, texture: t, ..
+                } if *t == texture => Some(*rect),
+                _ => None,
+            })
+    }
+
+    /// In the capsule the picture comes first, then the name, its seal and, at the right
+    /// end, the duel badge, each level with the name's capitals, on the pill's middle.
+    #[test]
+    fn the_badges_sit_level_with_the_capitals_after_the_name() {
+        let (state, font) = laid_out(plate(), "Hello");
+        let font = &font.font;
         let commands = state.list.commands();
         let (line, size) = commands
             .iter()
             .find_map(|command| match command {
-                DrawCommand::Text { rect, size, .. } => Some((*rect, *size)),
+                DrawCommand::Text {
+                    rect, size, text, ..
+                } if *text == TextId(0) => Some((*rect, *size)),
                 _ => None,
             })
             .expect("the name");
-        let badge = commands
+        let pill = commands
             .iter()
             .find_map(|command| match command {
-                DrawCommand::TexturedQuad { rect, texture, .. }
-                    if *texture == crate::ui_renderer::VERIFIED_TEXTURE =>
-                {
-                    Some(*rect)
-                }
+                DrawCommand::RoundedRect { rect, .. } => Some(*rect),
                 _ => None,
             })
-            .expect("the badge");
+            .expect("the pill");
         let capital = font.glyph(crate::text::TextFace::Regular, b'H');
         let scale = size / font.height;
         let middle = line.y + (capital.offset_y + capital.height * 0.5) * scale;
         assert!(
-            (badge.y + badge.height * 0.5 - middle).abs() < 0.01,
-            "{badge:?} {middle}"
+            (middle - (pill.y + pill.height * 0.5)).abs() < 0.01,
+            "{pill:?}"
         );
-        // After the name, not over it.
-        let width = crate::text::visible_text_width(&font, "Hello", scale);
-        assert!(badge.x >= line.x + (line.width + width) * 0.5);
-        // The duel badge: before the name, at the same height.
-        let duel = commands
+        let badge = quad(&state, crate::ui_renderer::VERIFIED_TEXTURE).expect("the badge");
+        let duel = quad(&state, crate::ui_renderer::duel_texture(0)).expect("the duel badge");
+        for mark in [badge, duel] {
+            assert!(
+                (mark.y + mark.height * 0.5 - middle).abs() < 0.01,
+                "{mark:?} {middle}"
+            );
+            assert!(mark.right() <= pill.right() && mark.y >= pill.y, "{mark:?}");
+        }
+        // After the name, the duel badge last.
+        let width = crate::text::visible_text_width(font, "Hello", scale);
+        assert!(badge.x >= line.x + width);
+        assert!(duel.x >= badge.right());
+        // The stand-in's initial before the name.
+        let initial = commands
             .iter()
             .find_map(|command| match command {
-                DrawCommand::TexturedQuad { rect, texture, .. }
-                    if *texture == crate::ui_renderer::duel_texture(0) =>
-                {
+                DrawCommand::Text { rect, text, .. } if *text == TextId(INITIAL_TEXT) => {
                     Some(*rect)
                 }
                 _ => None,
             })
-            .expect("the duel badge");
-        assert!(
-            (duel.y + duel.height * 0.5 - middle).abs() < 0.01,
-            "{duel:?} {middle}"
-        );
-        assert!(duel.x + duel.width <= line.x + (line.width - width) * 0.5);
+            .expect("the initial");
+        assert!(initial.right() <= line.x && initial.x >= pill.x);
     }
 
-    /// Snapshots of the local player (0) at the origin looking along +x, draining
-    /// when `draining`, and player 3 standing `ahead` units in front.
+    /// A sharer's bars stand on a tray under the capsule; a player who does not share
+    /// (and a duellist) has the capsule alone: no tray, no grey bars.
+    #[test]
+    fn only_a_sharers_bars_get_a_tray() {
+        let bars = || PreviewPlate {
+            health: Some([0.8, 0.8, 0.8]),
+            shield: Some([0.0, 0.0, 0.0]),
+            force: Some([0.5, 0.5, 0.5]),
+            duelling: false,
+            shared: true,
+            ..plate()
+        };
+        let lines = |state: &State| {
+            state
+                .list
+                .commands()
+                .iter()
+                .filter(|command| matches!(command, DrawCommand::Line { .. }))
+                .count()
+        };
+        let (sharer, _) = laid_out(bars(), "Hello");
+        assert!(lines(&sharer) > 0, "the tray");
+        let (withheld, _) = laid_out(
+            PreviewPlate {
+                withheld: true,
+                shared: false,
+                ..bars()
+            },
+            "Hello",
+        );
+        assert_eq!(lines(&withheld), 0);
+        let (duel, _) = laid_out(
+            PreviewPlate {
+                duelling: true,
+                ..bars()
+            },
+            "Hello",
+        );
+        assert_eq!(lines(&duel), 0);
+    }
+
+    /// A model's head icon is kept under one key for every player wearing it, and the
+    /// initial of a stand-in is drawn from a few bytes, whatever the letter.
+    #[test]
+    fn head_keys_follow_the_model_and_initials_keep_their_letter() {
+        assert_eq!(head_key(b"kyle/default"), head_key(b"kyle/default"));
+        assert_ne!(head_key(b"kyle/default"), head_key(b"kyle/red"));
+        assert_eq!(Initial::new('E').as_str(), "E");
+        assert_eq!(Initial::new('\u{c9}').as_str(), "\u{c9}");
+        let initials = [Initial::new('Q'); MAX_TAGS];
+        assert_eq!(initial(&initials, TextId(INITIAL_TEXT + 3)), Some("Q"));
+        assert_eq!(initial(&initials, TextId(5)), None);
+        let picture =
+            SlotPicture::new("0123456789abcdef", "fedcba9876543210", "^1Sol").expect("valid");
+        assert_eq!(picture.initial.as_str(), "S");
+        assert_eq!(
+            picture.wanted(),
+            crate::avatars::Wanted::Hub("0123456789abcdef", "fedcba9876543210")
+        );
+        let none = SlotPicture::new("0123456789abcdef", "", "Sol").expect("valid");
+        assert_eq!(none.wanted(), crate::avatars::Wanted::Nothing);
+        assert_eq!(SlotPicture::new("nope", "", "Sol"), None);
+    }
+
     mod drain {
         use super::*;
         use sjk_protocol::{EntityState, LEGACY_ENTITY_FIELDS, PlayerState};

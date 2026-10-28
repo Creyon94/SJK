@@ -1,3 +1,24 @@
+## Capsule nameplates
+
+28/10/2026, `personal/nameplate-capsule`, based on `main` `fbd28832` (Sol's pick of design E,
+"Capsule", from the nameplate designs of 28/10/2026): every nameplate is a capsule holding
+the player's picture (their SJK hub picture, else their initial on their colour; a player
+without SJK, their model's head icon cut round), their name and mark, and the stance dot and
+weapon at its end (the duel badge in a duel); a sharer's bars stand on a tray under it, a
+player who does not share has the capsule alone (no more grey bars), team games tint it
+([client.md](client.md#nameplates)). The pictures' cache grows from 31 to 47 for a full
+server's plates ([identity.md](identity.md#pictures)); the Collection's Nameplates tab shows
+the capsule. No hub change. Verified: fmt, build, Clippy (no new warning in the touched
+files), the workspace's tests (4110 passed, none failed, 237 ignored), with the capsule's layout
+(`nameplate_math` tests: parts in order on the pill's middle, the tray under it, no bar under
+2 pixels at 1080 lines, the far plate centred on what stays, team tints), the plates' badges
+level with the name's capitals, only a sharer's bars on a tray, the cache's pictures made on
+this PC; and off screen with the game data: the nameplate snapshot
+(`menu_snapshot::nameplate_snapshot`: pictures, a stand-in, a head icon, a red team, a
+duellist, a player who does not share, the own plate over a large shield) and the Collection
+tab, both shared and not. Not verified: in a match (pictures from a live hub, head icons of
+real players' models, the duel badge drawn, the far fade in motion), or on a GPU at 4K.
+
 ## Tag toy
 
 27/10/2026, `personal/tag-toy`, based on `main` `26f546b6` (Sol's idea: TF2-style sprays,

@@ -1,7 +1,7 @@
-//! Nameplate maths: how large, how opaque and where a plate sits, and the
-//! colours and rectangles of its bars. Pure functions, so the layout is
-//! testable without a window; [`super::nameplate`] collects the players and
-//! draws with these.
+//! Nameplate maths: how large, how opaque and where a plate sits, the capsule it is
+//! drawn as ([`Capsule`]), and the colours and rectangles of its bars. Pure functions,
+//! so the layout is testable without a window; [`super::nameplate`] collects the
+//! players and draws with these.
 use sjk_ui::{Color, Rect};
 
 /// Distance, in world units, out to which a plate keeps its full size.
@@ -148,12 +148,6 @@ pub(super) fn broken_dashes() -> impl Iterator<Item = (f32, f32)> {
     })
 }
 
-/// `color` mixed `share` of the way to white, at opacity `alpha`: a bar's outline.
-pub(super) fn lighter(color: Color, share: f32, alpha: f32) -> Color {
-    let mix = |channel: f32| channel + (1.0 - channel) * share.clamp(0.0, 1.0);
-    Color::new(mix(color.r), mix(color.g), mix(color.b), alpha)
-}
-
 /// Which bars a plate holds.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(super) struct Rows {
@@ -168,74 +162,280 @@ impl Rows {
     }
 }
 
-/// The plate under a name: its frame and the bars inside (shield on top, then
+/// The capsule's measures are its design's (28/10/2026, design E), in that design's
+/// pixels, whose name is this tall: a plate scales them by its name's size over it.
+const DESIGN_NAME: f32 = 13.0;
+/// The capsule's height, its edge's width (a duellist's is wider), and the picture's
+/// inset from the outer edge (the edge and the padding round the picture).
+const PILL_HEIGHT: f32 = 26.0;
+pub(super) const EDGE: f32 = 1.0;
+pub(super) const DUEL_EDGE: f32 = 1.5;
+const PICTURE_INSET: f32 = 3.0;
+/// The room before the name without a picture (an NPC's), and after the last item: a
+/// duel badge's end is tighter.
+const BARE_START: f32 = 11.0;
+const END_PAD: f32 = 11.0;
+const DUEL_END_PAD: f32 = 5.0;
+/// The gap before the right end's items, and between the name and the mark after it.
+const GAP: f32 = 6.0;
+const MARK_GAP: f32 = 4.0;
+/// The verified seal's side.
+const MARK: f32 = 11.0;
+/// The right end: the padding before it, the stance dot, its gap to the weapon, the
+/// weapon's icon and the duel badge.
+const END_LEAD: f32 = 2.0;
+const DOT: f32 = 5.0;
+const DOT_GAP: f32 = 3.0;
+/// Wider than the design's 11: the weapons' art has room round it, and a saber's hilt
+/// is a thin line at 11.
+const WEAPON: f32 = 15.0;
+const BADGE: f32 = 18.0;
+/// The widest the name runs before its ellipsis.
+const NAME_MAX: f32 = 150.0;
+/// The picture's diameter as a share of the name's size, near and far: far away the
+/// capsule fades and a smaller picture stays beside the name.
+const NEAR_PICTURE: f32 = 20.0 / 13.0;
+const FAR_PICTURE: f32 = 13.0 / 11.0;
+/// The gap after the picture, near and far, as a share of the name's size.
+const NEAR_GAP: f32 = 6.0 / 13.0;
+const FAR_GAP: f32 = 4.0 / 11.0;
+/// The tray under the capsule: its width, how far it tucks under, the room round its
+/// bars (top, sides, bottom), its bottom corners, and the room the capsule keeps
+/// either side of it.
+const TRAY_WIDTH: f32 = 104.0;
+const TRAY_TUCK: f32 = 1.0;
+const TRAY_TOP: f32 = 3.0;
+const TRAY_SIDE: f32 = 6.0;
+const TRAY_BOTTOM: f32 = 5.0;
+pub(super) const TRAY_CORNER: f32 = 6.0;
+const TRAY_MARGIN: f32 = 10.0;
+/// The tray's bars, top to bottom, and the gap between them.
+const TRAY_SHIELD: f32 = 2.0;
+const TRAY_HEALTH: f32 = 3.0;
+const TRAY_FORCE: f32 = 2.0;
+const TRAY_GAP: f32 = 1.5;
+/// The power icons over the capsule: their chips' side, the gap between them and the
+/// room under the row.
+const CHIP: f32 = 15.0;
+const CHIP_GAP: f32 = 2.0;
+const CHIP_LIFT: f32 = 3.0;
+
+/// What a capsule ends with, right of the name.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum End {
+    Nothing,
+    /// The held weapon's icon, after the saber stance's dot when there is one.
+    Weapon {
+        dot: bool,
+    },
+    /// The duel badge, in the weapon's place.
+    Duel,
+}
+
+/// What [`Capsule::new`] lays out.
+#[derive(Clone, Copy, Debug)]
+pub(super) struct CapsuleSpec {
+    /// The point the plate is centred on, and the bottom of the whole plate (the
+    /// tray's while it shows, else the capsule's).
+    pub(super) centre_x: f32,
+    pub(super) bottom: f32,
+    /// The name's text size and drawn width, in pixels.
+    pub(super) size: f32,
+    pub(super) name_width: f32,
+    pub(super) picture: bool,
+    /// The mark after the name (the verified seal or a trust mark).
+    pub(super) mark: bool,
+    pub(super) end: End,
+    /// The bars on the tray; none, no tray.
+    pub(super) rows: Rows,
+    /// How much of the tray shows, 0 to 1 ([`detail`]): the capsule rises over it and
+    /// widens to hold it as it fades in.
+    pub(super) detail: f32,
+    /// How close the player is, 0 (far) to 1 ([`detail`]'s ramp, bars or not).
+    pub(super) proximity: f32,
+    /// The thinnest a bar may be, in pixels.
+    pub(super) least_bar: f32,
+    pub(super) viewport: [f32; 2],
+}
+
+/// The tray under a capsule: its frame and the bars inside (shield on top, then
 /// health, then Force), in physical pixels.
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub(super) struct Stack {
+pub(super) struct Tray {
     pub(super) frame: Rect,
-    pub(super) health: Option<Rect>,
     pub(super) shield: Option<Rect>,
+    pub(super) health: Option<Rect>,
     pub(super) force: Option<Rect>,
 }
 
-impl Stack {
-    /// Bar heights and spacing in units of `u` pixels (the scaled pixel unit).
-    const HEALTH: f32 = 7.0;
-    const SHIELD: f32 = 5.0;
-    const FORCE: f32 = 4.0;
-    const GAP: f32 = 2.5;
-    const PAD: f32 = 4.0;
-    /// Plate width in units of `u`.
-    pub(super) const WIDTH: f32 = 112.0;
+/// A nameplate as a capsule (design E, 28/10/2026): a pill holding the picture, the
+/// name with its mark, and the weapon (or the duel badge) at its right end, with the
+/// power icons over it and, for a player whose bars show, the tray under it. Physical
+/// pixels.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(super) struct Capsule {
+    /// The design's pixel in physical ones.
+    pub(super) k: f32,
+    pub(super) pill: Rect,
+    /// The pill's vertical middle: the name's capitals, the picture and the icons are
+    /// centred on it.
+    pub(super) middle: f32,
+    pub(super) picture: Option<Rect>,
+    /// Where the name runs: its left edge and the most it may take.
+    pub(super) name: Rect,
+    pub(super) mark: Option<Rect>,
+    pub(super) dot: Option<Rect>,
+    pub(super) weapon: Option<Rect>,
+    pub(super) badge: Option<Rect>,
+    pub(super) tray: Option<Tray>,
+}
 
-    /// Total height of a stack holding `rows`, in pixels.
-    pub(super) fn height(rows: Rows, u: f32) -> f32 {
-        let bars = [
-            (rows.shield, Self::SHIELD),
-            (rows.health, Self::HEALTH),
-            (rows.force, Self::FORCE),
-        ];
-        let heights: f32 = bars.iter().filter(|b| b.0).map(|b| b.1).sum();
-        let count = bars.iter().filter(|b| b.0).count();
-        if count == 0 {
-            return 0.0;
-        }
-        (Self::PAD * 2.0 + heights + Self::GAP * (count - 1) as f32) * u
-    }
-
-    /// Lay a stack out centred on `centre_x` with its bottom edge on
-    /// `bottom_y`, kept on screen.
-    pub(super) fn new(
-        centre_x: f32,
-        bottom_y: f32,
-        rows: Rows,
-        u: f32,
-        viewport: [f32; 2],
-    ) -> Self {
-        let width = Self::WIDTH * u;
-        let height = Self::height(rows, u);
-        let x = (centre_x - width * 0.5).clamp(0.0, (viewport[0] - width).max(0.0));
-        let y = bottom_y - height;
-        let inner_x = x + Self::PAD * u;
-        let inner_width = width - Self::PAD * 2.0 * u;
-        let mut cursor = y + Self::PAD * u;
-        let mut bar = |wanted: bool, h: f32| {
-            wanted.then(|| {
-                let rect = Rect::new(inner_x, cursor, inner_width, h * u);
-                cursor += (h + Self::GAP) * u;
-                rect
-            })
+impl Capsule {
+    pub(super) fn new(spec: &CapsuleSpec) -> Self {
+        let k = spec.size / DESIGN_NAME;
+        let near = spec.proximity.clamp(0.0, 1.0);
+        let detail = spec.detail.clamp(0.0, 1.0);
+        let lerp = |far: f32, close: f32| far + (close - far) * near;
+        let diameter = spec.size * lerp(FAR_PICTURE, NEAR_PICTURE);
+        let height = PILL_HEIGHT * k;
+        let start = if spec.picture {
+            PICTURE_INSET * k + diameter + spec.size * lerp(FAR_GAP, NEAR_GAP)
+        } else {
+            BARE_START * k
         };
-        let shield = bar(rows.shield, Self::SHIELD);
-        let health = bar(rows.health, Self::HEALTH);
-        let force = bar(rows.force, Self::FORCE);
+        let name_width = spec.name_width.clamp(0.0, NAME_MAX * k);
+        let mark_width = if spec.mark {
+            (MARK_GAP + MARK) * k
+        } else {
+            0.0
+        };
+        let (end_width, end_pad) = match spec.end {
+            End::Nothing => (0.0, END_PAD),
+            End::Weapon { dot } => (
+                GAP + END_LEAD + if dot { DOT + DOT_GAP } else { 0.0 } + WEAPON,
+                END_PAD,
+            ),
+            End::Duel => (GAP + END_LEAD + BADGE, DUEL_END_PAD),
+        };
+        let natural = start + name_width + mark_width + (end_width + end_pad) * k;
+        let tray = spec.rows.any();
+        let wanted = if tray {
+            natural.max((TRAY_WIDTH + TRAY_MARGIN * 2.0) * k)
+        } else {
+            natural
+        };
+        let width = (natural + (wanted - natural) * detail).min(spec.viewport[0]);
+        let bar = |height: f32| (height * k).max(spec.least_bar);
+        let bars = [
+            (spec.rows.shield, bar(TRAY_SHIELD)),
+            (spec.rows.health, bar(TRAY_HEALTH)),
+            (spec.rows.force, bar(TRAY_FORCE)),
+        ];
+        let count = bars.iter().filter(|(wanted, _)| *wanted).count();
+        let tray_height = if count == 0 {
+            0.0
+        } else {
+            (TRAY_TOP + TRAY_BOTTOM + TRAY_GAP * (count - 1) as f32) * k
+                + bars
+                    .iter()
+                    .filter(|(wanted, _)| *wanted)
+                    .map(|(_, height)| height)
+                    .sum::<f32>()
+        };
+        let pill_bottom = spec.bottom - (tray_height - TRAY_TUCK * k).max(0.0) * detail;
+        // Far away only the picture, the name and its mark (and a duel badge) stay:
+        // they, not the faded pill, are centred over the player.
+        let shown_from = if spec.picture {
+            PICTURE_INSET * k
+        } else {
+            BARE_START * k
+        };
+        let hidden_right = match spec.end {
+            End::Duel => end_pad * k,
+            End::Nothing | End::Weapon { .. } => (end_width + end_pad) * k,
+        };
+        let lean = (hidden_right - shown_from) * 0.5 * (1.0 - near);
+        let x =
+            (spec.centre_x - width * 0.5 + lean).clamp(0.0, (spec.viewport[0] - width).max(0.0));
+        let pill = Rect::new(x, pill_bottom - height, width, height);
+        let middle = pill.y + height * 0.5;
+        let square = |left: f32, side: f32| Rect::new(left, middle - side * 0.5, side, side);
+        let picture = spec
+            .picture
+            .then(|| square(pill.x + PICTURE_INSET * k, diameter));
+        let name = Rect::new(pill.x + start, pill.y, name_width, height);
+        let mark = spec
+            .mark
+            .then(|| square(name.right() + MARK_GAP * k, MARK * k));
+        let right = pill.right() - end_pad * k;
+        let (dot, weapon, badge) = match spec.end {
+            End::Nothing => (None, None, None),
+            End::Weapon { dot } => {
+                let weapon = square(right - WEAPON * k, WEAPON * k);
+                let dot = dot.then(|| square(weapon.x - (DOT_GAP + DOT) * k, DOT * k));
+                (dot, Some(weapon), None)
+            }
+            End::Duel => (None, None, Some(square(right - BADGE * k, BADGE * k))),
+        };
+        let tray = tray.then(|| {
+            let tray_width = (TRAY_WIDTH * k).min(pill.width);
+            let frame = Rect::new(
+                pill.x + (pill.width - tray_width) * 0.5,
+                pill.bottom() - TRAY_TUCK * k,
+                tray_width,
+                tray_height,
+            );
+            let inner_x = frame.x + TRAY_SIDE * k;
+            let inner_width = (frame.width - TRAY_SIDE * 2.0 * k).max(0.0);
+            let mut cursor = frame.y + TRAY_TOP * k;
+            let mut next = |(wanted, height): (bool, f32)| {
+                wanted.then(|| {
+                    let rect = Rect::new(inner_x, cursor, inner_width, height);
+                    cursor += height + TRAY_GAP * k;
+                    rect
+                })
+            };
+            Tray {
+                frame,
+                shield: next(bars[0]),
+                health: next(bars[1]),
+                force: next(bars[2]),
+            }
+        });
         Self {
-            frame: Rect::new(x, y, width, height),
-            health,
-            shield,
-            force,
+            k,
+            pill,
+            middle,
+            picture,
+            name,
+            mark,
+            dot,
+            weapon,
+            badge,
+            tray,
         }
     }
+
+    /// The power icons' chips, `count` of them, centred over the capsule: the first's
+    /// rectangle and the step to the next.
+    pub(super) fn chips(&self, count: usize, viewport: [f32; 2]) -> (Rect, f32) {
+        let side = CHIP * self.k;
+        let step = side + CHIP_GAP * self.k;
+        let width = count as f32 * step - CHIP_GAP * self.k;
+        let centre = self.pill.x + self.pill.width * 0.5;
+        let left = (centre - width * 0.5).clamp(0.0, (viewport[0] - width).max(0.0));
+        (
+            Rect::new(left, self.pill.y - CHIP_LIFT * self.k - side, side, side),
+            step,
+        )
+    }
+}
+
+/// The colour a team tints a capsule with: its own colour made deep, so red reads as
+/// dark as the design's blue (`rgba(22, 52, 110, 0.86)`) does.
+pub(super) fn team_fill(accent: Color) -> Color {
+    let deep = |channel: f32| 0.04 + 0.43 * channel * channel;
+    Color::new(deep(accent.r), deep(accent.g), deep(accent.b), 0.86)
 }
 
 #[cfg(test)]
@@ -355,52 +555,186 @@ mod tests {
         );
     }
 
-    #[test]
-    fn outlines_are_a_lighter_shade() {
-        let outline = lighter(Color::new(0.2, 0.4, 1.0, 1.0), 0.5, 0.75);
-        assert!((outline.r - 0.6).abs() < 1e-5 && (outline.g - 0.7).abs() < 1e-5);
-        assert_eq!((outline.b, outline.a), (1.0, 0.75));
+    /// A capsule near enough for its tray: 18-pixel names (`cg_nameplateScale` 0.5 at
+    /// 1080 lines), a picture, the seal and a saber.
+    fn spec(rows: Rows) -> CapsuleSpec {
+        CapsuleSpec {
+            centre_x: 960.0,
+            bottom: 500.0,
+            size: 18.0,
+            name_width: 60.0,
+            picture: true,
+            mark: true,
+            end: End::Weapon { dot: true },
+            rows,
+            detail: 1.0,
+            proximity: 1.0,
+            least_bar: 2.0,
+            viewport: [1920.0, 1080.0],
+        }
     }
 
+    const ALL: Rows = Rows {
+        health: true,
+        shield: true,
+        force: true,
+    };
+
+    fn inside(inner: Rect, outer: Rect) -> bool {
+        inner.x >= outer.x - 1e-3
+            && inner.y >= outer.y - 1e-3
+            && inner.right() <= outer.right() + 1e-3
+            && inner.bottom() <= outer.bottom() + 1e-3
+    }
+
+    /// Left to right in the pill: the picture, the name, the seal, the stance's dot and
+    /// the weapon, all centred on its middle; the tray under it holds the bars, shield
+    /// on top, and the whole plate stands on its bottom.
     #[test]
-    fn stacks_hold_only_the_wanted_bars_inside_their_frame() {
-        let viewport = [1920.0, 1080.0];
-        let all = Rows {
-            health: true,
-            shield: true,
-            force: true,
-        };
-        let stack = Stack::new(960.0, 500.0, all, 2.0, viewport);
-        assert!((stack.frame.x + stack.frame.width * 0.5 - 960.0).abs() < 1e-3);
-        assert!((stack.frame.y + stack.frame.height - 500.0).abs() < 1e-3);
-        let (hp, shield, force) = (
-            stack.health.unwrap(),
-            stack.shield.unwrap(),
-            stack.force.unwrap(),
+    fn a_capsule_holds_its_parts_in_order_with_the_tray_under_it() {
+        let capsule = Capsule::new(&spec(ALL));
+        let pill = capsule.pill;
+        assert!((pill.x + pill.width * 0.5 - 960.0).abs() < 1e-3, "centred");
+        assert!((capsule.middle - (pill.y + pill.height * 0.5)).abs() < 1e-4);
+        let picture = capsule.picture.unwrap();
+        let mark = capsule.mark.unwrap();
+        let dot = capsule.dot.unwrap();
+        let weapon = capsule.weapon.unwrap();
+        for part in [picture, mark, dot, weapon] {
+            assert!(inside(part, pill), "{part:?} in {pill:?}");
+            assert!((part.y + part.height * 0.5 - capsule.middle).abs() < 1e-3);
+        }
+        assert!(picture.right() < capsule.name.x);
+        assert!(capsule.name.right() < mark.x);
+        assert!(mark.right() < dot.x && dot.right() < weapon.x);
+        assert!(capsule.badge.is_none());
+        let tray = capsule.tray.unwrap();
+        assert!((tray.frame.bottom() - 500.0).abs() < 1e-3, "on the bottom");
+        assert!(tray.frame.y < pill.bottom(), "tucked under the pill");
+        assert!(tray.frame.width <= pill.width);
+        let (shield, health, force) = (
+            tray.shield.unwrap(),
+            tray.health.unwrap(),
+            tray.force.unwrap(),
         );
-        // Shield on top, then health, then Force.
-        assert!(shield.y > stack.frame.y && hp.y > shield.y + shield.height && force.y > hp.y);
-        assert!(force.y + force.height < stack.frame.y + stack.frame.height);
-
-        let only_force = Rows {
-            force: true,
-            ..Rows::default()
-        };
-        let slim = Stack::new(960.0, 500.0, only_force, 2.0, viewport);
-        assert!(slim.health.is_none() && slim.shield.is_none() && slim.force.is_some());
-        assert!(slim.frame.height < stack.frame.height);
-        assert_eq!(Stack::height(Rows::default(), 2.0), 0.0);
+        assert!(shield.bottom() < health.y && health.bottom() < force.y);
+        for bar in [shield, health, force] {
+            assert!(inside(bar, tray.frame), "{bar:?}");
+            assert!(bar.y >= pill.bottom(), "under the pill");
+        }
+        assert!(health.height > shield.height, "health is the thickest");
     }
 
+    /// No bars (sharing off, names only, a duel): no tray, and the pill stands on the
+    /// bottom itself; the pill widens to hold a tray only as it fades in.
     #[test]
-    fn stacks_stay_on_screen() {
-        let viewport = [1920.0, 1080.0];
-        let rows = Rows {
-            health: true,
-            ..Rows::default()
+    fn without_bars_the_capsule_stands_alone() {
+        let bare = Capsule::new(&spec(Rows::default()));
+        assert!(bare.tray.is_none());
+        assert!((bare.pill.bottom() - 500.0).abs() < 1e-3);
+        let short = CapsuleSpec {
+            name_width: 10.0,
+            ..spec(ALL)
         };
-        assert_eq!(Stack::new(5.0, 500.0, rows, 2.0, viewport).frame.x, 0.0);
-        let right = Stack::new(1915.0, 500.0, rows, 2.0, viewport).frame;
-        assert!((right.x + right.width - viewport[0]).abs() < 1e-3);
+        let hidden = Capsule::new(&CapsuleSpec {
+            detail: 0.0,
+            ..short
+        });
+        let shown = Capsule::new(&short);
+        assert!((hidden.pill.bottom() - 500.0).abs() < 1e-3, "no room kept");
+        assert!(shown.pill.width > hidden.pill.width, "widened for the tray");
+        let tray = shown.tray.unwrap().frame;
+        assert!(tray.x > shown.pill.x && tray.right() < shown.pill.right());
+    }
+
+    /// At 1080 lines with the default text size no bar is thinner than two pixels,
+    /// even at the far edge of the bars' range, where the plate has shrunk.
+    #[test]
+    fn the_bars_are_never_under_two_pixels() {
+        let shrunk = distance_scale(1000.0, 3000.0, 0.6);
+        let capsule = Capsule::new(&CapsuleSpec {
+            size: 36.0 * 0.5 * shrunk,
+            ..spec(ALL)
+        });
+        let tray = capsule.tray.unwrap();
+        for bar in [tray.shield, tray.health, tray.force] {
+            assert!(bar.unwrap().height >= 2.0 - 1e-4, "{bar:?}");
+        }
+    }
+
+    /// The duel badge takes the weapon's place at the right end; with no picture (an
+    /// NPC) the name starts further in; far away the picture is smaller.
+    #[test]
+    fn the_right_end_and_the_picture_follow_the_plate() {
+        let duel = Capsule::new(&CapsuleSpec {
+            end: End::Duel,
+            rows: Rows::default(),
+            ..spec(ALL)
+        });
+        let badge = duel.badge.unwrap();
+        assert!(duel.weapon.is_none() && duel.dot.is_none());
+        assert!(inside(badge, duel.pill) && badge.x > duel.name.right());
+        let npc = Capsule::new(&CapsuleSpec {
+            picture: false,
+            ..spec(ALL)
+        });
+        assert!(npc.picture.is_none());
+        assert!(npc.name.x > npc.pill.x);
+        let gun = Capsule::new(&CapsuleSpec {
+            end: End::Weapon { dot: false },
+            ..spec(ALL)
+        });
+        assert!(gun.dot.is_none() && gun.weapon.is_some());
+        let near = Capsule::new(&spec(Rows::default()));
+        let far = Capsule::new(&CapsuleSpec {
+            proximity: 0.0,
+            ..spec(Rows::default())
+        });
+        assert!(far.picture.unwrap().width < near.picture.unwrap().width);
+        assert!(
+            far.picture.unwrap().width > 18.0,
+            "still taller than the name"
+        );
+        // Far, what stays (the picture to the mark) is centred, not the faded pill.
+        let shown = (far.picture.unwrap().x + far.mark.unwrap().right()) * 0.5;
+        assert!((shown - 960.0).abs() < 0.5, "{shown}");
+    }
+
+    /// A long name stops at its widest, and a plate at the screen's edge stays on it.
+    #[test]
+    fn capsules_stay_on_screen() {
+        let long = Capsule::new(&CapsuleSpec {
+            name_width: 5_000.0,
+            ..spec(ALL)
+        });
+        assert!(long.name.width < 300.0);
+        let left = Capsule::new(&CapsuleSpec {
+            centre_x: 5.0,
+            ..spec(ALL)
+        });
+        assert_eq!(left.pill.x, 0.0);
+        let right = Capsule::new(&CapsuleSpec {
+            centre_x: 1915.0,
+            ..spec(ALL)
+        });
+        assert!((right.pill.right() - 1920.0).abs() < 1e-3);
+        // The power icons centre over it and stand clear of it.
+        let (chip, step) = right.chips(3, [1920.0, 1080.0]);
+        assert!(chip.bottom() < right.pill.y && step > chip.width);
+        assert!(chip.x + 2.0 * step + chip.width <= 1920.0 + 1e-3);
+    }
+
+    /// A team's tint is its colour made deep: the blue one is the design's, and red is as
+    /// dark.
+    #[test]
+    fn team_tints_are_deep_and_alike() {
+        let blue = team_fill(Color::new(0.3, 0.6, 1.0, 0.95));
+        assert!((blue.r - 22.0 / 255.0).abs() < 0.02);
+        assert!((blue.g - 52.0 / 255.0).abs() < 0.02);
+        assert!((blue.b - 110.0 / 255.0).abs() < 0.05);
+        let red = team_fill(Color::new(1.0, 0.3, 0.25, 0.95));
+        assert!(red.r > red.g && red.r > red.b, "still red");
+        let light = |c: Color| 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
+        assert!((light(red) - light(blue)).abs() < 0.06);
     }
 }
