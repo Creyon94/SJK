@@ -135,6 +135,23 @@ fn duel6_sjk_collection() {
                 shoot(&mut gpu, 60, "duel6-collection-toys-lit").display()
             );
             gpu.illuminate.set_on(false);
+            // The nameplate over the model's head (the holo frame), without and with See
+            // and share nameplates: the dotted line, then the gold corner and the bars.
+            gpu.profile_hub_show_for_shot(Tab::Nameplates);
+            for (share, name) in [
+                ("0", "duel6-collection-nameplates"),
+                ("1", "duel6-collection-nameplates-shared"),
+            ] {
+                if let Some(console) = gpu.console.as_mut() {
+                    let _ = console.set_cvar("cg_nameplate", share);
+                }
+                gpu.ui_epoch -= std::time::Duration::from_millis(3_000);
+                println!("{}", shoot(&mut gpu, 60, name).display());
+                assert!(!overflowed(&gpu), "{name}");
+            }
+            if let Some(console) = gpu.console.as_mut() {
+                let _ = console.set_cvar("cg_nameplate", "0");
+            }
             // A locked one, previewed on the saber. Rows are counted as a player holding no
             // Unique shader sees the list (the shots below hold none).
             gpu.profile_hub_show_for_shot(Tab::Shaders);

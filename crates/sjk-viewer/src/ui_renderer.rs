@@ -206,6 +206,9 @@ const AURA_MODE: f32 = 5.0;
 /// `parameters.y` value that selects the card finish shader path (`ui_shapes.wgsl`).
 const SHINE_MODE: f32 = 6.0;
 
+/// `parameters.y` value that selects the convex polygon shader path (`ui_shapes.wgsl`).
+const POLYGON_MODE: f32 = 7.0;
+
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
 pub(super) struct ShapeVertex {
@@ -963,6 +966,45 @@ impl ShapeRenderer {
                     (clips[clip_depth], rounds[clip_depth]),
                     viewport,
                 ),
+                DrawCommand::Polygon {
+                    points,
+                    count,
+                    color,
+                    texture,
+                } => {
+                    let uv = match texture {
+                        None => {
+                            art::untextured(&mut self.runs, self.vertices.len());
+                            None
+                        }
+                        Some((texture, [low, high])) => {
+                            let Some(source) = self.texture_source(queue, texture, now) else {
+                                continue;
+                            };
+                            Some(match source {
+                                Source::Atlas => {
+                                    let (cell_low, cell_high) =
+                                        icons::uv_range(animated(texture, now));
+                                    let at = |[s, t]: [f32; 2]| {
+                                        [
+                                            cell_low[0] + s * (cell_high[0] - cell_low[0]),
+                                            cell_low[1] + t * (cell_high[1] - cell_low[1]),
+                                        ]
+                                    };
+                                    (at(low), at(high))
+                                }
+                                _ => (low, high),
+                            })
+                        }
+                    };
+                    self.push_polygon(
+                        &points[..usize::from(count).min(points.len())],
+                        color,
+                        uv,
+                        opacity[opacity_depth],
+                        viewport,
+                    );
+                }
                 DrawCommand::Text { .. }
                 | DrawCommand::PushClip(_)
                 | DrawCommand::PushRoundedClip { .. }
@@ -1254,6 +1296,70 @@ impl ShapeRenderer {
             self.vertices.push(vertex(points[0]));
             self.vertices.push(vertex(points[index]));
             self.vertices.push(vertex(points[index + 1]));
+        }
+    }
+
+    /// A convex polygon as a fan of triangles from its middle, each carrying its
+    /// distance to its outer edge for the shader to fade the last pixel (mode 7);
+    /// textured when `uv` gives the texture coordinates of its bounding box's top-left
+    /// and bottom-right corners.
+    fn push_polygon(
+        &mut self,
+        points: &[[f32; 2]],
+        color: Color,
+        uv: Option<([f32; 2], [f32; 2])>,
+        opacity: f32,
+        viewport: [f32; 2],
+    ) {
+        let count = points.len();
+        if count < 3
+            || self.vertices.len() + 3 * count > MAX_SHAPE_VERTICES
+            || points.iter().flatten().any(|value| !value.is_finite())
+        {
+            return;
+        }
+        let middle = points
+            .iter()
+            .fold([0.0, 0.0], |sum, [x, y]| [sum[0] + x, sum[1] + y])
+            .map(|sum| sum / count as f32);
+        let (mut low, mut high) = ([f32::MAX; 2], [f32::MIN; 2]);
+        for [x, y] in points {
+            low = [low[0].min(*x), low[1].min(*y)];
+            high = [high[0].max(*x), high[1].max(*y)];
+        }
+        let size = [(high[0] - low[0]).max(1e-6), (high[1] - low[1]).max(1e-6)];
+        let position =
+            |[x, y]: [f32; 2]| [x / viewport[0] * 2.0 - 1.0, 1.0 - y / viewport[1] * 2.0];
+        let tint = [color.r, color.g, color.b, color.a * opacity];
+        let (textured, (uv_low, uv_high)) = match uv {
+            Some(uv) => (1.0, uv),
+            None => (0.0, ([0.0; 2], [0.0; 2])),
+        };
+        let vertex = |point: [f32; 2], edge: f32| ShapeVertex {
+            position: position(point),
+            local: [edge, 0.0],
+            size,
+            start_color: tint,
+            end_color: tint,
+            parameters: [textured, POLYGON_MODE],
+            uv: [
+                uv_low[0] + (uv_high[0] - uv_low[0]) * (point[0] - low[0]) / size[0],
+                uv_low[1] + (uv_high[1] - uv_low[1]) * (point[1] - low[1]) / size[1],
+            ],
+        };
+        for index in 0..count {
+            let (from, to) = (points[index], points[(index + 1) % count]);
+            let along = [to[0] - from[0], to[1] - from[1]];
+            let length = along[0].hypot(along[1]);
+            if length < 1e-4 {
+                continue;
+            }
+            // The middle's distance from this edge: the fan is wound either way.
+            let reach = ((middle[0] - from[0]) * along[1] - (middle[1] - from[1]) * along[0]).abs()
+                / length;
+            self.vertices.push(vertex(middle, reach));
+            self.vertices.push(vertex(from, 0.0));
+            self.vertices.push(vertex(to, 0.0));
         }
     }
 

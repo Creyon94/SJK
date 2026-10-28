@@ -1,12 +1,16 @@
 //! MMO-style nameplates over players (and, optionally, NPCs).
 //!
-//! Every plate is a capsule (design E, Sol's pick of 28/10/2026): a pill holding the
-//! player's picture (their SJK hub picture, else their initial on their colour, or for
-//! a player without SJK their model's head icon) and their name; no weapon since
-//! 28/10/2026. Closer, a sharer's health, shield and Force bars fade in on a tray under
-//! it, and the Force powers they have on stand over it in square cells; far away the
-//! pill fades and the picture and a dim name stay. A dark name (black `^0`) is edged in
-//! a light halo so it reads on the see-through plate ([`crate::text::CodePalette::Haloed`]).
+//! Every plate is a holo frame (design C, Sol's pick of 28/10/2026, after the capsule of
+//! design E): a hexagon holding the player's picture (their SJK hub picture, else their
+//! initial on their colour, or for a player without SJK their model's head icon) over
+//! the left end of a plate with a cut corner, which holds their name; no weapon since
+//! 28/10/2026. The frame's colour tells an SJK player (holo blue) from one without SJK
+//! (grey), a team or a duel; a sharer's plate has a gold corner. Closer, a sharer's
+//! health, shield and Force bars fade in under the name (a dotted line without them),
+//! and the Force powers they have on stand over the plate in square cells; far away the
+//! plate fades and a small hexagon and the name stay over a hairline. A dark name (black
+//! `^0`) is edged in a light halo so it reads on the see-through plate
+//! ([`crate::text::CodePalette::Haloed`]).
 //! Names come from the chat roster and are drawn in the classic HUD font with
 //! their colour codes; the layout maths is in [`super::nameplate_math`]. A sharer's
 //! health and shield are estimated between the values they share, once per snapshot,
@@ -17,7 +21,7 @@
 use super::estimate::Range;
 use super::force_streams;
 use super::identification::{Camera, info_number, unoccluded};
-use super::nameplate_math::{self as math, Capsule, CapsuleSpec, End, Rows};
+use super::nameplate_math::{self as math, Holo, HoloSpec, Rows};
 use super::vitals_estimate;
 use crate::{TextVertex, UiFont, chat::ChatOverlay, console::ViewerConsole};
 use glam::Vec3;
@@ -151,7 +155,7 @@ const SCREEN_MARGIN: f32 = 1.15;
 /// Smallest size, as a share of full, a plate at the end of its range shrinks to.
 const MIN_SCALE: f32 = 0.6;
 /// Opacity of a name too far for a plate.
-const FAR_NAME_OPACITY: f32 = 0.7;
+const FAR_NAME_OPACITY: f32 = 0.85;
 /// Full health and armour, for teammates (`tinfo` sends points, not a share).
 const FULL_POINTS: f32 = 100.0;
 /// Power icons shown over a name at most.
@@ -160,29 +164,37 @@ const MAX_ICONS: usize = 4;
 /// light side and neutral ones, as `forcePowers_t` indices. Push, pull, jump and
 /// the saber powers are left out: they last a moment and would only flicker.
 const ICON_POWERS: [u8; 11] = [7, 6, 13, 8, 9, 10, 2, 0, 12, 5, 14];
-/// The colour of players who follow no team: no team tints their capsule.
+/// The colour of players who follow no team: no team tints their frame.
 const NEUTRAL_ACCENT: Color = Color::new(0.78, 0.82, 0.9, 0.9);
-/// The edge of a player who shares their bars (`cg_nameplate`, See and share
+/// The holo frame of an SJK player out of team games: its hexagon and its edge.
+pub(crate) const HOLO_HEX: Color = Color::new(110.0 / 255.0, 210.0 / 255.0, 1.0, 0.85);
+pub(crate) const HOLO_EDGE: Color = Color::new(110.0 / 255.0, 210.0 / 255.0, 1.0, 0.75);
+/// The grey frame of a player without SJK, and their far plate's hairline.
+const GREY_HEX: Color = Color::new(170.0 / 255.0, 178.0 / 255.0, 190.0 / 255.0, 0.7);
+const GREY_EDGE: Color = Color::new(170.0 / 255.0, 178.0 / 255.0, 190.0 / 255.0, 0.6);
+const GREY_HAIRLINE: Color = Color::new(110.0 / 255.0, 118.0 / 255.0, 130.0 / 255.0, 0.8);
+/// The dotted line under the name of a plate without bars.
+const DOTTED: Color = Color::new(160.0 / 255.0, 170.0 / 255.0, 185.0 / 255.0, 0.4);
+/// The gold corner of a player who shares their bars (`cg_nameplate`, See and share
 /// nameplates), the verified badge's gold.
-const SHARED_CONTOUR: Color = Color::new(1.0, 0.82, 0.25, 1.0);
-/// The edge of a player who does not share.
-const NEUTRAL_EDGE: Color = Color::new(0.78, 0.82, 0.9, 0.45);
-/// The capsule's and the tray's fill out of team games (a team's is its own colour
-/// made deep, [`math::team_fill`]).
-const PILL_FILL: Color = Color::new(0.03, 0.04, 0.06, 0.55);
-/// The track a bar fills on the tray.
-const TRACK: Color = Color::new(1.0, 1.0, 1.0, 0.09);
+pub(crate) const SHARED_GOLD: Color = Color::new(1.0, 209.0 / 255.0, 64.0 / 255.0, 1.0);
+/// The plate's opacity (Sol, 28/10/2026: more see-through than the design's 0.78), the
+/// scan lines' over it and the bars' tracks', all in the frame's colour.
+pub(crate) const PLATE_ALPHA: f32 = 0.55;
+pub(crate) const SCAN_ALPHA: f32 = 0.05;
+pub(crate) const TRACK_ALPHA: f32 = 0.12;
 /// The edge of NPC plates, a paler gold.
 const NPC_ACCENT: Color = Color::new(0.95, 0.8, 0.35, 0.7);
 /// The grey haze over a bar's uncertain stretch, at its thickest.
 const HAZE: Color = Color::new(0.8, 0.82, 0.86, 0.6);
 /// A range narrower than this share of the bar is drawn sharp.
 const HAZE_MIN_WIDTH: f32 = 0.02;
-/// The power icons' square cells' backdrop, as before the capsules (Sol, 28/10/2026:
-/// the round chips went back to squares).
+/// The power icons' square cells' backdrop (Sol, 28/10/2026: squares, not round
+/// chips), and their edge in the frame's colour.
 const CHIP_FILL: Color = Color::new(0.03, 0.04, 0.06, 0.55);
+const CHIP_EDGE_ALPHA: f32 = 0.5;
 /// A cell's corners, and the room round its icon, in the design's pixels.
-const CHIP_CORNER: f32 = 3.0;
+const CHIP_CORNER: f32 = 2.0;
 const CHIP_INSET: f32 = 1.0;
 /// The picture's place while a head icon is being cut.
 const BLANK_PICTURE: Color = Color::new(0.16, 0.18, 0.22, 0.9);
@@ -482,10 +494,12 @@ struct Entry {
     /// The duel's badge colour ([`super::duel_pairs`]): both duellists of one duel
     /// share it.
     duel_colour: u8,
-    /// The picture at the capsule's left end ([`State::place_pictures`]), and the
-    /// initial a stand-in shows.
+    /// The picture in the hexagon ([`State::place_pictures`]), and the initial a
+    /// stand-in shows.
     picture: Picture,
     initial: Initial,
+    /// The SJK hub knows them on this server: a player without SJK has a grey frame.
+    sjk: bool,
 }
 
 impl Entry {
@@ -1123,6 +1137,7 @@ impl State {
                 duel_colour: self.duel_colour(number),
                 picture: Picture::Nothing,
                 initial: Initial::default(),
+                sjk: false,
             });
             if self.entries.len() == MAX_TAGS {
                 break;
@@ -1179,6 +1194,7 @@ impl State {
             if entry.npc_class != 0 || slot >= MAX_PLAYER_TAGS {
                 continue;
             }
+            entry.sjk = self.pictures[slot].is_some();
             (entry.picture, entry.initial) = match (&self.pictures[slot], texture) {
                 (_, Some(texture)) => (Picture::Texture(texture), Initial::default()),
                 (Some(picture), None) => (Picture::StandIn(picture.colour), picture.initial),
@@ -1337,6 +1353,7 @@ impl State {
                 duel_colour: 0,
                 picture: Picture::Nothing,
                 initial: Initial::default(),
+                sjk: false,
             });
         }
     }
@@ -1425,6 +1442,7 @@ impl State {
             duel_colour: self.duel_colour(local),
             picture: Picture::Nothing,
             initial: Initial::default(),
+            sjk: false,
         };
         let (powers, power_count) = if settings.icons {
             icon_powers(player.force_powers_active())
@@ -1525,42 +1543,50 @@ impl State {
             };
             let bottom = logo_top.map_or(y, |top| top.min(y)) - 2.0 * u;
             let scale = size / font.height.max(1.0);
-            // The duel badge stands at the capsule's right end.
+            // The duel badge stands on the picture's corner.
             let duel_badge = entry.duelling && self.settings.duel_badge;
-            // The tray holds a sharer's bars: a player who does not share has the
-            // capsule alone (28/10/2026, no more grey bars), and a duel shows none.
+            // A sharer's bars: a player who does not share has a dotted line under
+            // their name instead (28/10/2026, no grey bars), and a duel shows none.
             let rows = if entry.withheld || duel_badge {
                 Rows::default()
             } else {
                 entry.rows()
             };
-            // No weapon at the other end: what a player holds told nothing worth the
-            // room (Sol, 28/10/2026).
-            let end = if duel_badge { End::Duel } else { End::Nothing };
-            let capsule = Capsule::new(&CapsuleSpec {
+            let holo = Holo::new(&HoloSpec {
                 centre_x: x,
                 bottom,
                 size,
                 name_width: crate::text::visible_text_width(font, label(id), scale),
                 picture: entry.picture != Picture::Nothing,
                 mark: entry.mark.is_some(),
-                end,
+                duel: duel_badge,
                 rows,
                 detail: entry.detail,
                 proximity: entry.proximity,
                 least_bar: 2.0 * unit,
                 viewport,
             });
+            let frame = Frame::of(&entry, duel_badge);
             let opacity = FAR_NAME_OPACITY + (1.0 - FAR_NAME_OPACITY) * entry.proximity;
             let _ = self.list.push(DrawCommand::PushOpacity(entry.alpha));
-            // The pill (and the tray under it) fades out with distance: far away the
-            // picture and the name stay.
+            // The plate fades out with distance: far away the hexagon and the name stay,
+            // over a hairline.
             if entry.proximity > 0.01 {
                 let _ = self.list.push(DrawCommand::PushOpacity(entry.proximity));
-                self.pill(&entry, &capsule, duel_badge);
+                self.plate(&entry, &holo, &frame, rows, duel_badge);
                 let _ = self.list.push(DrawCommand::PopOpacity);
             }
-            self.picture(&entry, &capsule, index, font, opacity);
+            if entry.proximity < 0.99 {
+                let _ = self
+                    .list
+                    .push(DrawCommand::PushOpacity(1.0 - entry.proximity));
+                let _ = self.list.push(DrawCommand::SolidRect {
+                    rect: holo.hairline,
+                    color: frame.hairline,
+                });
+                let _ = self.list.push(DrawCommand::PopOpacity);
+            }
+            self.picture(&entry, &holo, &frame, index, font, opacity);
             let tint = if entry.npc_class == 0 {
                 Color::new(1.0, 1.0, 1.0, opacity)
             } else {
@@ -1568,9 +1594,9 @@ impl State {
             };
             let _ = self.list.push(DrawCommand::Text {
                 rect: Rect::new(
-                    capsule.name.x,
-                    capsule.middle - font.capital_middle(scale),
-                    capsule.name.width + 0.5,
+                    holo.name.x,
+                    holo.middle - font.capital_middle(scale),
+                    holo.name.width + 0.5,
                     size * 1.15,
                 ),
                 text: id,
@@ -1581,14 +1607,14 @@ impl State {
                 weight: FontWeight::Regular,
                 letter_spacing: 0.0,
             });
-            if let (Some(rect), Some(mark)) = (capsule.mark, entry.mark) {
+            if let (Some(rect), Some(mark)) = (holo.mark, entry.mark) {
                 let _ = self.list.push(DrawCommand::TexturedQuad {
                     rect,
                     texture: mark,
                     color: Color::new(1.0, 1.0, 1.0, opacity),
                 });
             }
-            if let Some(rect) = capsule.badge {
+            if let Some(rect) = holo.badge {
                 let _ = self.list.push(DrawCommand::TexturedQuad {
                     rect,
                     texture: crate::ui_renderer::duel_texture(usize::from(entry.duel_colour)),
@@ -1596,177 +1622,164 @@ impl State {
                 });
             }
             if entry.power_count > 0 && entry.proximity > 0.01 {
-                self.power_row(&entry, icons, &capsule, viewport);
+                self.power_row(&entry, icons, &holo, &frame, viewport);
             }
             let _ = self.list.push(DrawCommand::PopOpacity);
         }
         self.mode_label(label, font, unit, viewport);
     }
 
-    /// The capsule's pill, its fill (a team's colour made deep in team games) and its
-    /// edge (gold for a sharer, the pair's colour in a duel), with the tray of bars
-    /// tucked under it while they fade in.
-    fn pill(&mut self, entry: &Entry, capsule: &Capsule, duel_badge: bool) {
-        let k = capsule.k;
-        let fill = if entry.npc_class == 0 && entry.accent != NEUTRAL_ACCENT {
-            math::team_fill(entry.accent)
-        } else {
-            PILL_FILL
-        };
-        let edge = if duel_badge {
-            let [r, g, b] = crate::ui_renderer::duel_badge::COLOURS
-                [usize::from(entry.duel_colour) % crate::ui_renderer::duel_badge::COLOURS.len()];
-            Color::new(r, g, b, 1.0)
-        } else if entry.npc_class != 0 {
-            NPC_ACCENT
-        } else if entry.shared {
-            SHARED_CONTOUR
-        } else {
-            NEUTRAL_EDGE
-        };
-        let width = (if duel_badge {
-            math::DUEL_EDGE
-        } else {
-            math::EDGE
-        } * k)
-            .max(1.0);
-        if let Some(tray) = capsule.tray
-            && entry.detail > 0.01
-        {
-            let _ = self.list.push(DrawCommand::PushOpacity(entry.detail));
-            self.tray(entry, &tray, capsule, fill, (edge, width));
-            let _ = self.list.push(DrawCommand::PopOpacity);
-        }
-        let pill = capsule.pill;
-        let radius = pill.height * 0.5;
-        let _ = self.list.push(DrawCommand::RoundedRect {
-            rect: pill,
-            radius,
-            color: fill,
-        });
-        let _ = self.list.push(DrawCommand::Border {
-            rect: pill,
-            radius,
-            width,
-            color: edge,
+    /// A filled convex polygon, the first [`sjk_ui::POLYGON_POINTS`] of `points`.
+    fn polygon(
+        &mut self,
+        points: &[[f32; 2]],
+        color: Color,
+        texture: Option<(TextureId, [[f32; 2]; 2])>,
+    ) {
+        let mut corners = [[0.0; 2]; sjk_ui::POLYGON_POINTS];
+        let count = points.len().min(corners.len());
+        corners[..count].copy_from_slice(&points[..count]);
+        let _ = self.list.push(DrawCommand::Polygon {
+            points: corners,
+            count: count as u8,
+            color,
+            texture,
         });
     }
 
-    /// The tray under the pill: the pill's fill and edge carried down round the bars,
-    /// with a square top, which the pill's own edge closes, and round bottom corners.
-    /// The fill is one stroke cut to the tray's rounded clip and the edge strokes and
-    /// arcs, so nothing is drawn twice where the shapes meet (each is translucent).
-    fn tray(
-        &mut self,
-        entry: &Entry,
-        tray: &math::Tray,
-        capsule: &Capsule,
-        fill: Color,
-        (edge, width): (Color, f32),
-    ) {
-        let frame = tray.frame;
-        let top = capsule.pill.bottom();
-        let corner = (math::TRAY_CORNER * capsule.k)
-            .min(frame.width * 0.5)
-            .min((frame.bottom() - top).max(0.0));
-        if frame.bottom() - top > 0.5 {
-            let _ = self.list.push(DrawCommand::PushRoundedClip {
-                rect: Rect::new(
-                    frame.x,
-                    top - corner,
-                    frame.width,
-                    frame.bottom() - top + corner,
-                ),
-                radius: corner,
-            });
-            let middle = (top + frame.bottom()) * 0.5;
-            let _ = self.list.push(DrawCommand::Line {
-                from: [frame.x, middle],
-                to: [frame.right(), middle],
-                width: frame.bottom() - top,
-                color: fill,
-            });
-            let _ = self.list.push(DrawCommand::PopClip);
-        }
-        let half = width * 0.5;
-        let low = frame.bottom() - corner;
-        for side in [frame.x + half, frame.right() - half] {
-            let _ = self.list.push(DrawCommand::Line {
-                from: [side, top],
-                to: [side, low],
-                width,
-                color: edge,
-            });
-        }
-        let _ = self.list.push(DrawCommand::Line {
-            from: [frame.x + corner, frame.bottom() - half],
-            to: [frame.right() - corner, frame.bottom() - half],
-            width,
-            color: edge,
-        });
-        for (centre, start) in [
-            ([frame.x + corner, low], std::f32::consts::FRAC_PI_2),
-            ([frame.right() - corner, low], 0.0),
-        ] {
-            let _ = self.list.push(DrawCommand::Arc {
-                center: centre,
-                radius: (corner - half).max(0.0),
-                width,
-                start,
-                sweep: std::f32::consts::FRAC_PI_2,
-                color: edge,
-                knockout: None,
-            });
-        }
-        let colors = self.colors;
-        let u = capsule.k;
-        for (bar, range, color, meter) in [
-            (tray.shield, entry.shield, colors.shield, Meter::Shield),
-            (tray.health, entry.health, colors.health, Meter::Health),
-            (tray.force, entry.force, colors.force, Meter::Force),
-        ] {
-            if let (Some(rect), Some(range)) = (bar, range) {
-                self.meter(rect, range, color, meter, u);
+    /// The plate: its fill (the frame's colour made dark) under scan lines, its edge,
+    /// the gold corner of a player who shares, and the bars, or while they have not
+    /// faded in, the dotted line under the name.
+    fn plate(&mut self, entry: &Entry, holo: &Holo, frame: &Frame, rows: Rows, duel: bool) {
+        let k = holo.k;
+        let outline = holo.outline();
+        self.polygon(&outline, math::plate_fill(frame.edge, PLATE_ALPHA), None);
+        let plate = holo.plate;
+        if frame.scan {
+            let colour = Color::new(frame.edge.r, frame.edge.g, frame.edge.b, SCAN_ALPHA);
+            let step = (math::SCAN * k).max(2.0);
+            let mut y = plate.bottom() - 1.5;
+            while y > plate.y + 1.0 {
+                let cut = (holo.cut - (y - plate.y)).max(0.0);
+                let _ = self.list.push(DrawCommand::Line {
+                    from: [plate.x + 1.0, y],
+                    to: [plate.right() - 1.0 - cut, y],
+                    width: 1.0,
+                    color: colour,
+                });
+                y -= step;
             }
         }
+        let width = (math::EDGE * k).max(1.0);
+        let half = width * 0.5;
+        let [top_left, cut_start, cut_end, bottom_right, bottom_left] = outline;
+        for (from, to) in [
+            (
+                [top_left[0], top_left[1] + half],
+                [cut_start[0], cut_start[1] + half],
+            ),
+            (
+                [cut_start[0], cut_start[1] + half],
+                [cut_end[0] - half, cut_end[1]],
+            ),
+            (
+                [cut_end[0] - half, cut_end[1]],
+                [bottom_right[0] - half, bottom_right[1]],
+            ),
+            (
+                [bottom_right[0], bottom_right[1] - half],
+                [bottom_left[0], bottom_left[1] - half],
+            ),
+            (
+                [bottom_left[0] + half, bottom_left[1] - half],
+                [top_left[0] + half, top_left[1] + width],
+            ),
+        ] {
+            let _ = self.list.push(DrawCommand::Line {
+                from,
+                to,
+                width,
+                color: frame.edge,
+            });
+        }
+        if entry.shared && !duel {
+            let [start, corner, end] = holo.gold();
+            for (from, to) in [(start, corner), (corner, end)] {
+                let _ = self.list.push(DrawCommand::Line {
+                    from,
+                    to,
+                    width: (math::GOLD_WIDTH * k).max(1.0),
+                    color: SHARED_GOLD,
+                });
+            }
+        }
+        let detail = if rows.any() { entry.detail } else { 0.0 };
+        if detail > 0.01 {
+            let _ = self.list.push(DrawCommand::PushOpacity(detail));
+            let colors = self.colors;
+            let track = Color::new(frame.edge.r, frame.edge.g, frame.edge.b, TRACK_ALPHA);
+            for (bar, range, color, meter) in [
+                (holo.bars.shield, entry.shield, colors.shield, Meter::Shield),
+                (holo.bars.health, entry.health, colors.health, Meter::Health),
+                (holo.bars.force, entry.force, colors.force, Meter::Force),
+            ] {
+                if let (Some(rect), Some(range)) = (bar, range) {
+                    self.meter(rect, range, color, meter, k, track);
+                }
+            }
+            let _ = self.list.push(DrawCommand::PopOpacity);
+        }
+        if detail < 0.99 {
+            let _ = self.list.push(DrawCommand::PushOpacity(1.0 - detail));
+            let line = holo.dotted;
+            for (start, end) in math::dashes(line.x, line.width, math::DOT * k, math::DOT_GAP * k) {
+                let _ = self.list.push(DrawCommand::SolidRect {
+                    rect: Rect::new(start, line.y, end - start, line.height),
+                    color: frame.dotted,
+                });
+            }
+            let _ = self.list.push(DrawCommand::PopOpacity);
+        }
     }
 
-    /// The picture at the capsule's left end, at `opacity` (the name's): the player's
-    /// picture or head icon, already round, or their initial on their colour.
+    /// The hexagon at the plate's left end, at `opacity` (the name's): the frame's
+    /// colour round the player's picture or head icon, or their initial on their
+    /// colour.
     fn picture(
         &mut self,
         entry: &Entry,
-        capsule: &Capsule,
+        holo: &Holo,
+        frame: &Frame,
         index: usize,
         font: &UiFont,
         opacity: f32,
     ) {
-        let Some(rect) = capsule.picture else {
+        let Some(hex) = holo.hex else {
             return;
         };
-        let radius = rect.width * 0.5;
+        let faded = |colour: Color| Color::new(colour.r, colour.g, colour.b, colour.a * opacity);
+        self.polygon(&math::hexagon(hex), faded(frame.hex), None);
+        // The frame round the picture: two design pixels near, one far.
+        let inner = math::inset(hex, (1.0 + entry.proximity) * holo.k);
+        let shape = math::hexagon(inner);
         match entry.picture {
             Picture::Nothing => {}
             Picture::Texture(texture) => {
-                let _ = self.list.push(DrawCommand::TexturedQuad {
-                    rect,
-                    texture,
-                    color: Color::new(1.0, 1.0, 1.0, opacity),
-                });
+                self.polygon(
+                    &shape,
+                    Color::new(1.0, 1.0, 1.0, opacity),
+                    Some((texture, math::HEX_UV)),
+                );
             }
             Picture::StandIn(colour) => {
-                let _ = self.list.push(DrawCommand::RoundedRect {
-                    rect,
-                    radius,
-                    color: Color::new(colour.r, colour.g, colour.b, opacity),
-                });
-                let size = rect.height * 0.55;
+                self.polygon(&shape, faded(Color { a: 1.0, ..colour }), None);
+                let size = inner.height * 0.55;
                 let scale = size / font.height.max(1.0);
                 let _ = self.list.push(DrawCommand::Text {
                     rect: Rect::new(
-                        rect.x,
-                        rect.y + radius - font.capital_middle(scale),
-                        rect.width,
+                        inner.x,
+                        inner.y + inner.height * 0.5 - font.capital_middle(scale),
+                        inner.width,
                         size * 1.15,
                     ),
                     text: TextId(INITIAL_TEXT + index as u32),
@@ -1778,18 +1791,7 @@ impl State {
                     letter_spacing: 0.0,
                 });
             }
-            Picture::Blank => {
-                let _ = self.list.push(DrawCommand::RoundedRect {
-                    rect,
-                    radius,
-                    color: Color::new(
-                        BLANK_PICTURE.r,
-                        BLANK_PICTURE.g,
-                        BLANK_PICTURE.b,
-                        BLANK_PICTURE.a * opacity,
-                    ),
-                });
-            }
+            Picture::Blank => self.polygon(&shape, faded(BLANK_PICTURE), None),
         }
     }
 
@@ -1841,12 +1843,14 @@ impl State {
         let _ = self.list.push(DrawCommand::PopOpacity);
     }
 
-    /// The row of power icons centred over the capsule, each on a square cell.
+    /// The row of power icons over the plate's right end, each on a square cell edged
+    /// in the frame's colour.
     fn power_row(
         &mut self,
         entry: &Entry,
         icons: &[Option<TextureId>],
-        capsule: &Capsule,
+        holo: &Holo,
+        frame: &Frame,
         viewport: [f32; 2],
     ) {
         let shown = entry.powers[..usize::from(entry.power_count)]
@@ -1856,25 +1860,28 @@ impl State {
         if shown == 0 {
             return;
         }
-        let (mut chip, step) = capsule.chips(shown, viewport);
-        let inset = (CHIP_INSET * capsule.k).max(1.0);
+        let (mut chip, step) = holo.chips(shown, viewport);
+        let inset = (CHIP_INSET * holo.k).max(1.0);
+        let edge = Color::new(frame.edge.r, frame.edge.g, frame.edge.b, CHIP_EDGE_ALPHA);
         let _ = self.list.push(DrawCommand::PushOpacity(entry.proximity));
         for power in &entry.powers[..usize::from(entry.power_count)] {
             let Some(texture) = icons.get(usize::from(*power)).copied().flatten() else {
                 continue;
             };
+            let radius = CHIP_CORNER * holo.k;
             let _ = self.list.push(DrawCommand::RoundedRect {
                 rect: chip,
-                radius: CHIP_CORNER * capsule.k,
+                radius,
                 color: CHIP_FILL,
             });
+            let _ = self.list.push(DrawCommand::Border {
+                rect: chip,
+                radius,
+                width: holo.k.max(1.0),
+                color: edge,
+            });
             let _ = self.list.push(DrawCommand::TexturedQuad {
-                rect: Rect::new(
-                    chip.x + inset,
-                    chip.y + inset,
-                    chip.width - inset * 2.0,
-                    chip.height - inset * 2.0,
-                ),
+                rect: math::inset(chip, inset),
                 texture,
                 color: Color::new(1.0, 1.0, 1.0, 1.0),
             });
@@ -1883,70 +1890,81 @@ impl State {
         let _ = self.list.push(DrawCommand::PopOpacity);
     }
 
-    /// One bar on the tray: its track, the fill to the guess with the haze over the
-    /// uncertain stretch, and over a full bar (overheal, overshield) a second layer in a
-    /// deeper shade from the left. An empty shield is a broken grey bar; health or
-    /// shield too unsure to show dims under a yellow "?". `u` is the design's pixel.
-    fn meter(&mut self, rect: Rect, range: Range, color: Color, meter: Meter, u: f32) {
-        let radius = rect.height * 0.5;
+    /// One bar: shield and health in segments, Force whole. Each piece shows the fill
+    /// to the guess and the track past it, the haze over the uncertain stretch, and over
+    /// a full bar (overheal, overshield) a second layer in a deeper shade from the left.
+    /// An empty shield is a broken grey bar; health or shield too unsure to show dims
+    /// under a yellow "?". `k` is the design's pixel.
+    fn meter(
+        &mut self,
+        rect: Rect,
+        range: Range,
+        color: Color,
+        meter: Meter,
+        k: f32,
+        track: Color,
+    ) {
         if meter == Meter::Shield && range.high < EMPTY_SHARE {
-            for (start, end) in math::broken_dashes() {
+            for (start, end) in math::dashes(
+                rect.x,
+                rect.width,
+                math::EMPTY_DASH * k,
+                math::EMPTY_GAP * k,
+            ) {
                 let _ = self.list.push(DrawCommand::SolidRect {
-                    rect: Rect::new(
-                        rect.x + rect.width * start,
-                        rect.y,
-                        rect.width * (end - start),
-                        rect.height,
-                    ),
+                    rect: Rect::new(start, rect.y, end - start, rect.height),
                     color: math::EMPTY_SHIELD,
                 });
             }
             return;
         }
-        let _ = self.list.push(DrawCommand::RoundedRect {
-            rect,
-            radius,
-            color: TRACK,
-        });
         let unsure = meter != Meter::Force && range.width() >= UNSURE_WIDTH;
         let _ = self
             .list
             .push(DrawCommand::PushOpacity(if unsure { 0.35 } else { 1.0 }));
-        let layers = [
-            (range.clamp(0.0, 1.0), color),
+        let (on, off) = if meter == Meter::Force {
+            (rect.width, 0.0)
+        } else {
+            (math::SEGMENT * k, math::SEGMENT_GAP * k)
+        };
+        let base = range.clamp(0.0, 1.0);
+        // The second layer is an inner band, so the full bar shows round it.
+        let over = (range.high > 1.0).then(|| {
             (
+                math::overflow_band(rect),
                 range.map(|share| (share - 1.0).clamp(0.0, 1.0)),
-                math::saturated(color),
-            ),
-        ];
-        for (index, (layer, shade)) in layers.into_iter().enumerate() {
-            if index == 1 && range.high <= 1.0 {
-                break;
-            }
-            // The second layer is an inner band, so the full bar shows round it.
-            let band = if index == 0 {
-                rect
-            } else {
-                math::overflow_band(rect)
+            )
+        });
+        let at = |share: f32| rect.x + rect.width * share;
+        for (start, end) in math::segments(rect.x, rect.width, on, off) {
+            let piece = |from: f32, to: f32, band: Rect| {
+                let (from, to) = (from.max(start), to.min(end));
+                (to - from > 0.01).then(|| Rect::new(from, band.y, to - from, band.height))
             };
-            if layer.best > 0.01 {
-                let _ = self.list.push(DrawCommand::RoundedRect {
-                    rect: Rect::new(
-                        band.x,
-                        band.y,
-                        (band.width * layer.best).max(band.height),
-                        band.height,
-                    ),
-                    radius: band.height * 0.5,
-                    color: shade,
-                });
+            let filled = at(base.best);
+            if let Some(rect) = piece(rect.x, filled, rect) {
+                let _ = self.list.push(DrawCommand::SolidRect { rect, color });
             }
-            self.haze(band, layer);
+            if let Some(rect) = piece(filled, rect.right(), rect) {
+                let _ = self
+                    .list
+                    .push(DrawCommand::SolidRect { rect, color: track });
+            }
+            self.haze(rect, base, (start, end));
+            if let Some((band, layer)) = over {
+                if let Some(rect) = piece(band.x, at(layer.best), band) {
+                    let _ = self.list.push(DrawCommand::SolidRect {
+                        rect,
+                        color: math::saturated(color),
+                    });
+                }
+                self.haze(band, layer, (start, end));
+            }
         }
         let _ = self.list.push(DrawCommand::PopOpacity);
         if unsure {
             // Sized to its bar, so the marks of two unsure bars do not meet.
-            let size = rect.height * 1.3 + 2.5 * u;
+            let size = rect.height * 1.3 + 2.5 * k;
             let _ = self.list.push(DrawCommand::Text {
                 rect: Rect::new(
                     rect.x,
@@ -1965,35 +1983,41 @@ impl State {
         }
     }
 
-    /// The grey haze over the uncertain stretch of a bar: thickest at the guess,
-    /// fading out towards either bound, so the bar's edge looks as blurred as the
-    /// estimate is loose.
-    fn haze(&mut self, rect: Rect, range: Range) {
+    /// The grey haze over the uncertain stretch of a bar, within its piece from `start`
+    /// to `end` (pixels): thickest at the guess, fading out towards either bound, so the
+    /// bar's edge looks as blurred as the estimate is loose.
+    fn haze(&mut self, rect: Rect, range: Range, (start, end): (f32, f32)) {
         if range.width() < HAZE_MIN_WIDTH {
             return;
         }
         let at = |share: f32| rect.x + rect.width * share;
         let clear = Color::new(HAZE.r, HAZE.g, HAZE.b, 0.0);
-        let _ = self.list.push(DrawCommand::PushClip(rect));
-        for (from, to, start, end) in [
-            (range.low, range.best, clear, HAZE),
-            (range.best, range.high, HAZE, clear),
+        for (from, to, low, high) in [
+            (range.low, range.best, 0.0, HAZE.a),
+            (range.best, range.high, HAZE.a, 0.0),
         ] {
-            let width = at(to) - at(from);
-            if width < 0.5 {
+            let (left, right) = (at(from), at(to));
+            let (shown_left, shown_right) = (left.max(start), right.min(end));
+            if shown_right - shown_left < 0.5 {
                 continue;
             }
+            let alpha = |x: f32| low + (high - low) * (x - left) / (right - left).max(1e-6);
             let _ = self.list.push(DrawCommand::GradientRect {
-                rect: Rect::new(at(from), rect.y, width, rect.height),
+                rect: Rect::new(shown_left, rect.y, shown_right - shown_left, rect.height),
                 radius: 0.0,
                 gradient: Gradient {
-                    start,
-                    end,
+                    start: Color {
+                        a: alpha(shown_left),
+                        ..clear
+                    },
+                    end: Color {
+                        a: alpha(shown_right),
+                        ..clear
+                    },
                     vertical: false,
                 },
             });
         }
-        let _ = self.list.push(DrawCommand::PopClip);
     }
 
     /// The plates' stand-in initials, by plate, copied out so the text they are drawn
@@ -2288,6 +2312,62 @@ impl Default for BarColors {
     }
 }
 
+/// The colours of a plate's frame.
+#[derive(Clone, Copy, Debug)]
+struct Frame {
+    /// The hexagon round the picture.
+    hex: Color,
+    /// The plate's edge, whose colour also tints its fill, scan lines, bar tracks and
+    /// power icon cells.
+    edge: Color,
+    /// The dotted line under the name of a plate without bars, and the hairline under
+    /// a far plate's name.
+    dotted: Color,
+    hairline: Color,
+    /// Scan lines over the plate: not on a grey frame, an NPC's or in a duel.
+    scan: bool,
+}
+
+impl Frame {
+    /// The frame of `entry`'s plate (design C): a duel's pair's colour, a team's, an
+    /// NPC's pale gold, grey for a player without SJK, else the holo blue.
+    fn of(entry: &Entry, duel: bool) -> Self {
+        let with = |colour: Color, alpha: f32| Color::new(colour.r, colour.g, colour.b, alpha);
+        if duel {
+            let colours = crate::ui_renderer::duel_badge::COLOURS;
+            let [r, g, b] = colours[usize::from(entry.duel_colour) % colours.len()];
+            let pair = Color::new(r, g, b, 1.0);
+            return Self {
+                hex: pair,
+                edge: pair,
+                dotted: with(pair, 0.45),
+                hairline: with(pair, 0.6),
+                scan: false,
+            };
+        }
+        let (hex, edge, scan) = if entry.npc_class != 0 {
+            (NPC_ACCENT, NPC_ACCENT, false)
+        } else if entry.accent != NEUTRAL_ACCENT {
+            (with(entry.accent, 1.0), entry.accent, true)
+        } else if !entry.sjk {
+            (GREY_HEX, GREY_EDGE, false)
+        } else {
+            (HOLO_HEX, HOLO_EDGE, true)
+        };
+        Self {
+            hex,
+            edge,
+            dotted: DOTTED,
+            hairline: if entry.sjk || entry.npc_class != 0 {
+                with(edge, 0.6)
+            } else {
+                GREY_HAIRLINE
+            },
+            scan,
+        }
+    }
+}
+
 /// Which bar [`State::meter`] draws.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Meter {
@@ -2333,11 +2413,13 @@ pub(crate) struct PreviewPlate {
     pub(crate) team: Option<bool>,
     /// The gold contour of a player who shares their bars.
     pub(crate) shared: bool,
-    /// A player who does not share: no tray.
+    /// A player who does not share: a dotted line, no bars.
     pub(crate) withheld: bool,
     /// Their picture in the atlas, else their initial on this colour, else none.
     pub(crate) picture: Option<TextureId>,
     pub(crate) stand_in: Option<(char, Color)>,
+    /// On SJK: else the frame is grey.
+    pub(crate) sjk: bool,
 }
 
 #[cfg(test)]
@@ -2390,6 +2472,7 @@ impl State {
                 initial: plate
                     .stand_in
                     .map_or_else(Initial::default, |(initial, _)| Initial::new(initial)),
+                sjk: plate.sjk,
             });
         }
         let initials = self.initials();
@@ -2581,6 +2664,7 @@ mod tests {
             withheld: false,
             picture: None,
             stand_in: Some(('H', Color::new(0.2, 0.5, 0.45, 1.0))),
+            sjk: true,
         }
     }
 
@@ -2597,10 +2681,38 @@ mod tests {
             })
     }
 
-    /// In the capsule the picture comes first, then the name, its seal and, at the right
-    /// end, the duel badge, each level with the name's capitals, on the pill's middle.
+    /// The polygons of a laid out plate: the hexagons and the plate, with their colours.
+    fn polygons(state: &State) -> Vec<(Vec<[f32; 2]>, Color)> {
+        state
+            .list
+            .commands()
+            .iter()
+            .filter_map(|command| match command {
+                DrawCommand::Polygon {
+                    points,
+                    count,
+                    color,
+                    ..
+                } => Some((points[..usize::from(*count)].to_vec(), *color)),
+                _ => None,
+            })
+            .collect()
+    }
+
+    fn bounds(points: &[[f32; 2]]) -> Rect {
+        let (mut low, mut high) = ([f32::MAX; 2], [f32::MIN; 2]);
+        for [x, y] in points {
+            low = [low[0].min(*x), low[1].min(*y)];
+            high = [high[0].max(*x), high[1].max(*y)];
+        }
+        Rect::new(low[0], low[1], high[0] - low[0], high[1] - low[1])
+    }
+
+    /// The plate with its cut corner comes first, then the hexagon over its left end
+    /// holding the stand-in's initial; the name follows with its seal level with its
+    /// capitals, and the duel badge sits on the hexagon's corner.
     #[test]
-    fn the_badges_sit_level_with_the_capitals_after_the_name() {
+    fn the_hexagon_holds_the_picture_and_the_seal_follows_the_name() {
         let (state, font) = laid_out(plate(), "Hello");
         let font = &font.font;
         let commands = state.list.commands();
@@ -2613,34 +2725,24 @@ mod tests {
                 _ => None,
             })
             .expect("the name");
-        let pill = commands
-            .iter()
-            .find_map(|command| match command {
-                DrawCommand::RoundedRect { rect, .. } => Some(*rect),
-                _ => None,
-            })
-            .expect("the pill");
+        let shapes = polygons(&state);
+        let (plate, hex) = (bounds(&shapes[0].0), bounds(&shapes[1].0));
+        assert_eq!(shapes[0].0.len(), 5, "the plate's cut corner");
+        assert_eq!(shapes[1].0.len(), 6, "a hexagon");
+        assert!(
+            hex.x < plate.x && hex.right() > plate.x,
+            "{hex:?} {plate:?}"
+        );
         let capital = font.glyph(crate::text::TextFace::Regular, b'H');
         let scale = size / font.height;
         let middle = line.y + (capital.offset_y + capital.height * 0.5) * scale;
-        assert!(
-            (middle - (pill.y + pill.height * 0.5)).abs() < 0.01,
-            "{pill:?}"
-        );
         let badge = quad(&state, crate::ui_renderer::VERIFIED_TEXTURE).expect("the badge");
-        let duel = quad(&state, crate::ui_renderer::duel_texture(0)).expect("the duel badge");
-        for mark in [badge, duel] {
-            assert!(
-                (mark.y + mark.height * 0.5 - middle).abs() < 0.01,
-                "{mark:?} {middle}"
-            );
-            assert!(mark.right() <= pill.right() && mark.y >= pill.y, "{mark:?}");
-        }
-        // After the name, the duel badge last.
+        assert!((badge.y + badge.height * 0.5 - middle).abs() < 0.01);
         let width = crate::text::visible_text_width(font, "Hello", scale);
-        assert!(badge.x >= line.x + width);
-        assert!(duel.x >= badge.right());
-        // The stand-in's initial before the name.
+        assert!(badge.x >= line.x + width && badge.right() <= plate.right());
+        assert!(line.x > hex.right());
+        let duel = quad(&state, crate::ui_renderer::duel_texture(0)).expect("the duel badge");
+        assert!(duel.right() > hex.right() && duel.x < hex.right());
         let initial = commands
             .iter()
             .find_map(|command| match command {
@@ -2650,13 +2752,13 @@ mod tests {
                 _ => None,
             })
             .expect("the initial");
-        assert!(initial.right() <= line.x && initial.x >= pill.x);
+        assert!(initial.x >= hex.x && initial.right() <= hex.right() + 0.01);
     }
 
-    /// A sharer's bars stand on a tray under the capsule; a player who does not share
-    /// (and a duellist) has the capsule alone: no tray, no grey bars.
+    /// A sharer's bars stand in their plate under a gold corner; a player who does not
+    /// share (and a duellist) has a dotted line under the name instead: no bars.
     #[test]
-    fn only_a_sharers_bars_get_a_tray() {
+    fn only_a_sharers_bars_show() {
         let bars = || PreviewPlate {
             health: Some([0.8, 0.8, 0.8]),
             shield: Some([0.0, 0.0, 0.0]),
@@ -2665,16 +2767,25 @@ mod tests {
             shared: true,
             ..plate()
         };
-        let lines = |state: &State| {
+        let health = |state: &State| {
             state
                 .list
                 .commands()
                 .iter()
-                .filter(|command| matches!(command, DrawCommand::Line { .. }))
+                .filter(|command| {
+                    matches!(command, DrawCommand::SolidRect { color, .. }
+                        if *color == math::HEALTH_COLOR)
+                })
                 .count()
         };
+        let gold = |state: &State| {
+            state.list.commands().iter().any(|command| {
+                matches!(command, DrawCommand::Line { color, .. } if *color == SHARED_GOLD)
+            })
+        };
         let (sharer, _) = laid_out(bars(), "Hello");
-        assert!(lines(&sharer) > 0, "the tray");
+        assert!(health(&sharer) > 3, "health in segments");
+        assert!(gold(&sharer));
         let (withheld, _) = laid_out(
             PreviewPlate {
                 withheld: true,
@@ -2683,7 +2794,8 @@ mod tests {
             },
             "Hello",
         );
-        assert_eq!(lines(&withheld), 0);
+        assert_eq!(health(&withheld), 0);
+        assert!(!gold(&withheld));
         let (duel, _) = laid_out(
             PreviewPlate {
                 duelling: true,
@@ -2691,7 +2803,31 @@ mod tests {
             },
             "Hello",
         );
-        assert_eq!(lines(&duel), 0);
+        assert_eq!(health(&duel), 0);
+    }
+
+    /// A player without SJK wears a grey frame, an SJK player the holo blue, a team its
+    /// colour.
+    #[test]
+    fn the_frame_tells_sjk_players_and_teams() {
+        let hex = |plate: PreviewPlate| polygons(&laid_out(plate, "Hello").0)[1].1;
+        let without = PreviewPlate {
+            sjk: false,
+            duelling: false,
+            ..plate()
+        };
+        assert_eq!(hex(without), GREY_HEX);
+        let with = PreviewPlate {
+            duelling: false,
+            ..plate()
+        };
+        assert_eq!(hex(with), HOLO_HEX);
+        let blue = hex(PreviewPlate {
+            duelling: false,
+            team: Some(false),
+            ..plate()
+        });
+        assert!(blue.b > blue.r && blue.a == 1.0, "{blue:?}");
     }
 
     /// A model's head icon is kept under one key for every player wearing it, and the

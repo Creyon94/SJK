@@ -1,3 +1,24 @@
+## Holo frame nameplates
+
+28/10/2026, `personal/holo-nameplates`, based on `main` `8f73ab73` (Sol's switch to design C,
+"Holo frame", from the nameplate designs of 28/10/2026, in place of the capsule): every
+nameplate is a hexagon holding the player's picture over a plate with a cut top-right
+corner, holding the name and mark and, under them, a sharer's segmented bars or a dotted
+line; the frame is holo blue for SJK players, grey for players without SJK, a team's or a
+duel's colour, with a gold corner for a sharer; far away a small hexagon and the name over
+a hairline ([client.md](client.md#nameplates)). The UI renderer gains a convex polygon draw
+command (`DrawCommand::Polygon`, shader mode 7, and the snapshots' CPU copy). The
+Collection's Nameplates tab draws the holo frame with the same layout. No hub change.
+Verified: fmt, build, Clippy, the workspace's tests, the holo frame's layout
+(`nameplate_math` tests: parts in order, short and tall plates, the far plate over its
+hairline, the duel badge on the hexagon, plates on screen, a round picture covering the
+hexagon, the plate's tint), the drawn plate (hexagon and seal, bars only for a sharer, the
+frame's colours); off screen with the game data: the nameplate snapshot
+(`menu_snapshot::nameplate_snapshot`) and, on the GPU, the Collection's Nameplates tab, shared
+and not (`world_shot::collection::duel6_sjk_collection`). Not verified: in a match (live hub
+pictures and head icons in the hexagon, the frames' colours on real teams and duels, the far
+fade in motion), or at 4K.
+
 ## Capsule nameplates
 
 28/10/2026, `personal/nameplate-capsule`, based on `main` `fbd28832` (Sol's pick of design E,
