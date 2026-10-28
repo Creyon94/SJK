@@ -32,6 +32,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
+- Sith cloud: the S community's own maps, skins and optional SJK extras, on the same card as JoF content (Settings > General > Sith cloud, `sith.cloud`, off by default). The SJK hub now names the servers both collections download from, so they can move or be paused without a release _(Sol)_
 - Mystery boxes have their own chest: wood and iron with glowing question marks, its lid swinging open as it rolls, and words over it everyone sees (its price, the roll, then what came out) _(Sol)_
 - Box hunt toy (Collection > Toys, `toy_boxhunt`): turn it on to take part. Every few minutes one player with it on becomes the mark, shown in red to the others with it on; kill the mark to win a free mystery box roll _(Sol)_
 - Mystery boxes are heard from the box itself: their sounds followed whoever played on the first slot of the server around the map, so they were heard only near that player (#185) _(Sol)_
