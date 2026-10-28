@@ -33,6 +33,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 ## Unreleased
 
 - Exclusive fullscreen: Alt+Tab and Win+D now send the game to the taskbar, as in the original game, instead of leaving it as a window over the desktop _(Creyon)_
+- Community maps: shaders with a short colour wave (such as the holograms of coruscant_promenade) are drawn again, as in the original game, instead of being skipped _(Creyon)_
 - Centre prints and the words over mystery boxes (and the box hunt's mark) are drawn in Fira Sans Condensed, a real typeface close to the old menu font, instead of a tracing of a low-resolution bitmap _(Sol)_
 - Nameplates are more see-through, a black name gets a light edge so it reads on the plate, and the weapon icon is gone; the Force power icons over a plate are square again and half as large again _(Sol)_
 - Monitor toy: its knocks on walls and floors are heard, louder and from farther away; they were too faint where a monitor lands to be noticed _(Sol)_

@@ -465,6 +465,56 @@ impl From<VfsError> for ShaderError {
 mod tests {
     use super::*;
 
+    /// A wave missing its last values keeps the shader, the missing ones 0, and the next
+    /// line's directive is read as one, as `ParseWaveForm` does.
+    #[test]
+    fn wave_numbers_read_as_atof_reads_them() {
+        let loose = parse_shader_script(
+            b"x\n{\n{\nmap a.tga\nrgbGen wave sin .5 -1 1e1 2.0f\n}\n}\n",
+            "shaders/loose.shader",
+        )
+        .expect("parsed");
+        let wave = loose[0].stages[0].rgb_wave.as_ref().unwrap();
+        assert_eq!(
+            (wave.base, wave.amplitude, wave.phase, wave.frequency),
+            (0.5, -1.0, 10.0, 2.0)
+        );
+    }
+
+    #[test]
+    fn a_short_wave_keeps_its_shader_and_the_next_directive() {
+        let script = b"textures/generator/b_cor_holo1\n{\n\tqer_editorimage textures/a\n\t{\n\t\tmap textures/a.tga\n\t\tblendFunc GL_ONE GL_ONE\n\t\trgbGen wave sin 0.5 0.5 0\n\t\talphaGen wave square 0.2\n\t\ttcMod scroll 0 1\n\t}\n}\n";
+        let shaders = parse_shader_script(script, "shaders/test.shader").expect("parsed");
+        let stage = &shaders[0].stages[0];
+        let rgb = stage.rgb_wave.as_ref().expect("rgb wave");
+        assert_eq!(
+            (
+                rgb.function.as_str(),
+                rgb.base,
+                rgb.amplitude,
+                rgb.phase,
+                rgb.frequency
+            ),
+            ("sin", 0.5, 0.5, 0.0, 0.0)
+        );
+        let alpha = stage.alpha_wave.as_ref().expect("alpha wave");
+        assert_eq!(
+            (alpha.base, alpha.amplitude, alpha.frequency),
+            (0.2, 0.0, 0.0)
+        );
+        // The full form is unchanged.
+        let full = parse_shader_script(
+            b"x\n{\n{\nmap a.tga\nrgbGen wave sin 0.1 0.2 0.3 0.4\n}\n}\n",
+            "shaders/full.shader",
+        )
+        .expect("parsed");
+        let wave = full[0].stages[0].rgb_wave.as_ref().unwrap();
+        assert_eq!(
+            (wave.base, wave.amplitude, wave.phase, wave.frequency),
+            (0.1, 0.2, 0.3, 0.4)
+        );
+    }
+
     fn vfs(files: &[&str]) -> VirtualFileSystem {
         let mut vfs = VirtualFileSystem::new();
         vfs.mount_memory("test", files.iter().map(|path| (*path, vec![0_u8])))

@@ -6,6 +6,16 @@ or Win+D in exclusive fullscreen left the game as a window over the desktop (hub
 window, as SDL does for a fullscreen window in OpenJK
 ([client.md](client.md#configuration-and-content)). Verified on Linux x86_64: the display unit tests.
 Not verified: on Windows (Alt+Tab, Win+D, restoring from the taskbar).
+## Short shader waves
+
+26/10/2026, `fix/shader-short-wave` (Creyon), based on `main` `8f73ab73`: Creyon's
+session logs showed three coruscant_promenade shaders skipped at every load ("wave
+generator requires four numeric arguments"). The original engine keeps a wave with
+missing values (0) and stops at the line's end; SJK read the next line's keyword as a
+number and dropped the shader. Its values now end at the first non-number
+([rendering.md](rendering.md#where-to-work)). Verified on Linux x86_64: sjk-shader tests
+(new `a_short_wave_keeps_its_shader_and_the_next_directive`). Not verified: the real
+map's shader file (not available here) and its look in game.
 
 ## Capsule nameplates
 
