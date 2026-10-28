@@ -86,7 +86,7 @@ placing and removal goes to the staff log. The client reads the hub's list once 
 every 10 minutes, and at once after a placing, a removal or a box that is gone.
 
 Some of its sounds are retail (the crate sliding open, the chime, the fanfare, the locked
-door); the tune and the take are SJK's own.
+door, the box hunt's alarm); the tune and the take are SJK's own.
 
 ## Box hunt
 
@@ -95,7 +95,15 @@ look toy `box_hunt`); with it off a player is never the mark and is told nothing
 hunt. Among the players of a server with it on (at least 2), the hub picks a mark at
 random for 3 minutes. The mark is told in the centre of the screen ("You are the mark!"),
 the other hunters by a chat line, and they see "MARK" in red over the mark's head
-(hidden behind walls). A hunter who kills the mark wins a free mystery box roll: the
+(hidden behind walls). Every hunter, the mark too, hears the game's alarm
+(`sound/effects/mpalarm.wav`, Sol's pick, 28/10/2026; with "Mystery box sounds") as a new
+mark is picked, and a small card at the top centre of the screen names the mark (in
+the headline font, "BOX HUNT · THE MARK" over the name) or, red, tells the player "YOU
+ARE THE MARK"; its red edge flashes for 2 seconds as it arrives, and it stays until the
+mark is hunted or the hub has no mark or another one. The card and the alarm are
+[hunt.rs](../crates/sjk-viewer/src/mystery_box/hunt.rs) and
+[label.rs](../crates/sjk-viewer/src/mystery_box/label.rs); the card draws with the words
+in the world, so it is hidden with them (menus, console, scoreboard, intermission). A hunter who kills the mark wins a free mystery box roll: the
 next box they open costs nothing (the centre says "press Use for your free roll" at a
 box). The hunt then pauses a minute before the next mark.
 

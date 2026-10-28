@@ -42,6 +42,9 @@ const WIN: &str = "sound/player/holocron.wav";
 const JACKPOT: &str = "sound/items/respawn1.wav";
 /// Played as the roll stops on nothing.
 const EMPTY: &str = "sound/movers/doors/door_locked.mp3";
+/// Played to every hunter, the mark too, when the box hunt picks a new mark (Sol's
+/// pick, 28/10/2026).
+const HUNT_MARK: &str = "sound/effects/mpalarm.wav";
 /// `BUTTON_USE`, `+use`.
 const BUTTON_USE: u16 = 32;
 /// Farthest a player may stand from a box to open it, across the floor.
@@ -262,9 +265,10 @@ impl Lid {
 /// A sound to play once.
 struct Cue {
     path: &'static str,
-    origin: [f32; 3],
-    /// The box it comes from, whose own sound source it plays on ([`source`]).
-    id: i64,
+    /// Where it plays; `None` for the player alone, wherever they are.
+    origin: Option<[f32; 3]>,
+    /// The box it comes from's own sound source ([`source`]), or the hunt's.
+    source: sjk_audio::SourceId,
 }
 
 /// The first of the boxes' sound sources: past the game's entity numbers, which the
@@ -277,6 +281,9 @@ const SOURCE_BASE: u32 = 0x5200_0000;
 fn source(id: i64) -> sjk_audio::SourceId {
     sjk_audio::SourceId(SOURCE_BASE | (id as u32 & 0xFFFF))
 }
+
+/// The box hunt's sound source, past every box's.
+const HUNT_SOURCE: sjk_audio::SourceId = sjk_audio::SourceId(SOURCE_BASE | 0x1_0000);
 
 /// The player took what came out of their box (`by_itself`: after [`HOLD`]).
 #[derive(Debug, PartialEq)]
@@ -439,16 +446,13 @@ impl MysteryBoxes {
         });
         here.lid.set(true, now);
         let (origin, id) = (here.origin.to_array(), here.id);
-        self.cues.push(Cue {
-            path: OPEN,
-            origin,
-            id,
-        });
-        self.cues.push(Cue {
-            path: ROLL_SOUND,
-            origin,
-            id,
-        });
+        for path in [OPEN, ROLL_SOUND] {
+            self.cues.push(Cue {
+                path,
+                origin: Some(origin),
+                source: source(id),
+            });
+        }
     }
 
     /// Move the openings on to `now`: a roll that stops plays what it stopped on, and
@@ -469,8 +473,8 @@ impl MysteryBoxes {
                 };
                 self.cues.push(Cue {
                     path,
-                    origin: here.origin.to_array(),
-                    id: here.id,
+                    origin: Some(here.origin.to_array()),
+                    source: source(here.id),
                 });
                 if let Some(prize) = &opening.mine {
                     moments.push(Moment::Stopped {
@@ -510,8 +514,8 @@ impl MysteryBoxes {
         here.lid.set(false, Instant::now());
         self.cues.push(Cue {
             path: TAKE_SOUND,
-            origin: here.origin.to_array(),
-            id: here.id,
+            origin: Some(here.origin.to_array()),
+            source: source(here.id),
         });
         Some(Taken {
             outcome: opening.outcome,
@@ -1015,7 +1019,10 @@ Press Use to take it"
         if self.mystery_boxes.sounds_registered != Some(audio.generation())
             && let Some(vfs) = self.vfs.as_deref()
         {
-            audio.register_effect_paths(vfs, [OPEN, ROLL_SOUND, TAKE_SOUND, WIN, JACKPOT, EMPTY]);
+            audio.register_effect_paths(
+                vfs,
+                [OPEN, ROLL_SOUND, TAKE_SOUND, WIN, JACKPOT, EMPTY, HUNT_MARK],
+            );
             self.mystery_boxes.sounds_registered = Some(audio.generation());
         }
         for cue in self.mystery_boxes.cues.drain(..) {
@@ -1023,8 +1030,8 @@ Press Use to take it"
                 crate::toy_sounds::Toy::MysteryBox,
                 cue.path,
                 1.0,
-                Some(cue.origin),
-                source(cue.id),
+                cue.origin,
+                cue.source,
                 // `CHAN_AUTO`: the crate's slide, the tune and what came out overlap
                 // rather than cut each other off.
                 sjk_audio::ChannelId(0),
@@ -1154,10 +1161,12 @@ mod tests {
             state
                 .cues
                 .iter()
-                .all(|cue| cue.origin == [0.0; 3] && cue.id == 7)
+                .all(|cue| cue.origin == Some([0.0; 3]) && cue.source == source(7))
         );
         assert_ne!(source(7), sjk_audio::SourceId(0));
         assert!(source(7).0 >= SOURCE_BASE && source(7) != source(8));
+        // The hunt's source is no box's.
+        assert!((0..=0xFFFF).all(|id| source(id) != HUNT_SOURCE));
         let paths: Vec<&str> = state.cues.drain(..).map(|cue| cue.path).collect();
         assert_eq!(paths, [OPEN, ROLL_SOUND]);
         // The lid swings open, and stays open while it rolls.
