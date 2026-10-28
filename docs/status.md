@@ -1,3 +1,16 @@
+## Blocked players' chat in the console
+
+28/10/2026, `fix/blocked-chat-console` (Creyon), based on `main` `2a5adcb6`: a blocked
+player's game chat was hidden in the chat box but still showed in the console, with their
+name (bleck-bee's and Kushina's hub report #191, 2026.1028.1). The console took every
+server chat line before the chat box decided whether its sender was blocked. Now
+`ChatOverlay::sent_by_muted` decides it as the chat box does (the slot the server names,
+else the one player whose name starts the line), and the console's scrollback and its
+alert words leave the line out ([hub-chat.md](hub-chat.md#blocking-a-player)). The chat
+log (`cl_logchat`) still keeps it. Verified on Linux x86_64: the new test
+`a_muted_slots_chat_stays_out_of_the_console`, fmt, workspace build, tests and Clippy.
+Not verified: in game with a blocked player.
+
 ## Capsule nameplates
 
 28/10/2026, `personal/nameplate-capsule`, based on `main` `fbd28832` (Sol's pick of design E,

@@ -34,6 +34,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 - Centre prints and the words over mystery boxes (and the box hunt's mark) are drawn in Fira Sans Condensed, a real typeface close to the old menu font, instead of a tracing of a low-resolution bitmap _(Sol)_
 - Box hunt: an alarm sounds when a new mark is picked, and a small card at the top of the screen names the mark while the hunt lasts, or tells you that you are the mark. A mark that was just hunted is no longer told again _(Sol)_
+- Blocking: a blocked player's chat no longer shows in the console either, as it already did not in the chat box _(Creyon)_
 
 ## 2026.1028.1 (Alpha) | 28/10/2026
 
