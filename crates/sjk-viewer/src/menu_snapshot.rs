@@ -231,6 +231,8 @@ fn raster(
     let decoded = crate::menu::art::decoded();
     let full = Rect::new(0.0, 0.0, image.width() as f32, image.height() as f32);
     let mut clips = vec![full];
+    // Each clip's rounding: the renderer cuts lines to a rounded clip's corners.
+    let mut rounds: Vec<Option<(Rect, f32)>> = vec![None];
     let mut opacity = vec![1.0_f32];
     let color = |c: sjk_ui::Color, o: f32| [c.r, c.g, c.b, c.a * o];
     let emblem = EMBLEM.get_or_init(emblem_layers);
@@ -246,6 +248,7 @@ fn raster(
     };
     for command in list.commands() {
         let clip = *clips.last().unwrap_or(&full);
+        let round = rounds.last().copied().flatten();
         let o = *opacity.last().unwrap_or(&1.0);
         match command {
             DrawCommand::SolidRect { rect, color: c } => {
@@ -427,7 +430,11 @@ fn raster(
                     for x in xs.clone() {
                         let point = [x as f32 + 0.5 - from[0], y as f32 + 0.5 - from[1]];
                         let t = (point[0] * along[0] + point[1] * along[1]) / length;
-                        if !(0.0..=length).contains(&t) {
+                        if !(0.0..=length).contains(&t)
+                            || round.is_some_and(|(rect, radius)| {
+                                outside_rounded(rect, radius, [x as f32 + 0.5, y as f32 + 0.5])
+                            })
+                        {
                             continue;
                         }
                         let across = (point[0] * along[1] - point[1] * along[0]).abs() / length;
@@ -447,10 +454,15 @@ fn raster(
                     (rect.right().min(clip.right()) - x).max(0.0),
                     (rect.bottom().min(clip.bottom()) - y).max(0.0),
                 ));
+                rounds.push(match command {
+                    DrawCommand::PushRoundedClip { rect, radius } => Some((*rect, *radius)),
+                    _ => round,
+                });
             }
             DrawCommand::PopClip => {
                 if clips.len() > 1 {
                     clips.pop();
+                    rounds.pop();
                 }
             }
             // Snapshots draw a tilted card flat: its parts as laid out.
@@ -465,6 +477,14 @@ fn raster(
         }
     }
     raster_text(image, vertices, atlas);
+}
+
+/// Whether `point` lies outside `rect` with its corners rounded by `radius`.
+fn outside_rounded(rect: Rect, radius: f32, point: [f32; 2]) -> bool {
+    let radius = radius.min(rect.width * 0.5).min(rect.height * 0.5).max(0.0);
+    let dx = (rect.x + radius - point[0]).max(point[0] - (rect.right() - radius));
+    let dy = (rect.y + radius - point[1]).max(point[1] - (rect.bottom() - radius));
+    dx.max(0.0).hypot(dy.max(0.0)) > radius
 }
 
 /// Draw text `vertices` from `atlas` over `image`.

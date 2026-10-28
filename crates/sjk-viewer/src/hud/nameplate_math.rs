@@ -186,8 +186,9 @@ const MARK: f32 = 11.0;
 const END_LEAD: f32 = 2.0;
 const DOT: f32 = 5.0;
 const DOT_GAP: f32 = 3.0;
-/// Wider than the design's 11: the weapons' art has room round it.
-const WEAPON: f32 = 13.0;
+/// Wider than the design's 11: the weapons' art has room round it, and a saber's hilt
+/// is a thin line at 11.
+const WEAPON: f32 = 15.0;
 const BADGE: f32 = 18.0;
 /// The widest the name runs before its ellipsis.
 const NAME_MAX: f32 = 150.0;
