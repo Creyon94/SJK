@@ -37,6 +37,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Mystery boxes are heard from the box itself: their sounds followed whoever played on the first slot of the server around the map, so they were heard only near that player (#185) _(Sol)_
 - Saber swings: a combo's end no longer plays one swing too many, and the next combo's first swing is no longer silent; parries, deflects and saber locks the server shows are heard at once, and footsteps carry on while running _(Slash, PR #226, after Kushina's and T2_Trip's report)_
 - SJK chat messages sent from the SJK Launcher start with the launcher's icon _(Sol)_
+- Emote volume reaches the emotes already playing: turned down, a dance's music nearby got quieter only once you had walked away from it _(Slash, PR #233, after KãTsumøTø's report)_
 
 ## 2026.1027.2 (Alpha) | 27/10/2026
 
