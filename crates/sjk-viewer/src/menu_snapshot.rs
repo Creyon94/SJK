@@ -872,11 +872,13 @@ fn nameplate_snapshot() {
     nameplates(&mut shots, &vfs);
 }
 
-/// Nameplates over a match: a verified saber player in medium stance just spawned
-/// (overheal, 125) with estimated Force (grey haze), an enemy with a gun the estimate
-/// cannot place (yellow "?"), a duelling staff player farther off with an empty shield (broken
-/// grey), an SJK player who does not share (grey bars), and the player's own plate
-/// (`cg_nameplateSelf`) over a large shield (199).
+/// Nameplates over a match, as capsules: a verified saber player in medium stance with
+/// a picture, just spawned (overheal, 125) with estimated Force (grey haze), a red
+/// enemy with a gun and no picture (their initial) whom the estimate cannot place
+/// (yellow "?"), a duelling staff player without SJK farther off (their model's head
+/// icon, the duel badge and no tray), an SJK player who does not share (the capsule
+/// alone), and the player's own plate (`cg_nameplateSelf`, blue team) over a large
+/// shield (199).
 fn nameplates(shots: &mut Snapshot, vfs: &sjk_vfs::VirtualFileSystem) {
     use crate::hud::nameplate::{PreviewPlate, State};
     use sjk_ui::TextureId;
@@ -902,6 +904,55 @@ fn nameplates(shots: &mut Snapshot, vfs: &sjk_vfs::VirtualFileSystem) {
         }
     }
     let icons = crate::hud::icons::Icons::with_weapons(&weapons);
+    // Two pictures as a hub serves them, and a head icon, each cut round in a cell.
+    let round = |mut cell: RgbaImage| {
+        crate::avatars::picture::round(&mut cell, 128);
+        cell
+    };
+    let picture = |from: [u8; 3], to: [u8; 3]| {
+        round(RgbaImage::from_fn(128, 128, |x, y| {
+            let t = (x + y) as f32 / 254.0;
+            let mix = |a: u8, b: u8| (f32::from(a) + (f32::from(b) - f32::from(a)) * t) as u8;
+            let ring = ((x as f32 - 64.0).hypot(y as f32 - 50.0) - 26.0).abs() < 6.0;
+            if ring {
+                Rgba([240, 240, 245, 255])
+            } else {
+                Rgba([
+                    mix(from[0], to[0]),
+                    mix(from[1], to[1]),
+                    mix(from[2], to[2]),
+                    255,
+                ])
+            }
+        }))
+    };
+    let pictures = [
+        (
+            TextureId(900_100),
+            Some(picture([230, 120, 40], [120, 40, 90])),
+        ),
+        (
+            TextureId(900_101),
+            Some(picture([40, 90, 200], [30, 160, 150])),
+        ),
+        (
+            TextureId(900_102),
+            decode(vfs, "models/players/kyle/icon_default.jpg").map(|icon| {
+                round(image::imageops::resize(
+                    &icon,
+                    128,
+                    128,
+                    image::imageops::FilterType::Triangle,
+                ))
+            }),
+        ),
+    ];
+    for (texture, cell) in &pictures {
+        if let Some(cell) = cell {
+            shots.icons.insert(texture.0, cell.clone());
+        }
+    }
+    let shown = |index: usize| pictures[index].1.as_ref().map(|_| pictures[index].0);
     let plates = [
         PreviewPlate {
             slot: 1,
@@ -917,6 +968,8 @@ fn nameplates(shots: &mut Snapshot, vfs: &sjk_vfs::VirtualFileSystem) {
             team: None,
             shared: true,
             withheld: false,
+            picture: shown(0),
+            stand_in: None,
         },
         PreviewPlate {
             slot: 2,
@@ -932,6 +985,8 @@ fn nameplates(shots: &mut Snapshot, vfs: &sjk_vfs::VirtualFileSystem) {
             team: Some(true),
             shared: true,
             withheld: false,
+            picture: None,
+            stand_in: Some(('K', sjk_ui::Color::new(0.63, 0.36, 0.2, 1.0))),
         },
         PreviewPlate {
             slot: 3,
@@ -947,6 +1002,8 @@ fn nameplates(shots: &mut Snapshot, vfs: &sjk_vfs::VirtualFileSystem) {
             team: None,
             shared: false,
             withheld: false,
+            picture: shown(2),
+            stand_in: Some(('D', sjk_ui::Color::new(0.6, 0.27, 0.4, 1.0))),
         },
         PreviewPlate {
             slot: 0,
@@ -962,6 +1019,8 @@ fn nameplates(shots: &mut Snapshot, vfs: &sjk_vfs::VirtualFileSystem) {
             team: Some(false),
             shared: false,
             withheld: false,
+            picture: shown(1),
+            stand_in: None,
         },
         PreviewPlate {
             slot: 4,
@@ -977,6 +1036,8 @@ fn nameplates(shots: &mut Snapshot, vfs: &sjk_vfs::VirtualFileSystem) {
             team: None,
             shared: false,
             withheld: true,
+            picture: None,
+            stand_in: Some(('Q', sjk_ui::Color::new(0.18, 0.5, 0.45, 1.0))),
         },
     ];
     let names = [
