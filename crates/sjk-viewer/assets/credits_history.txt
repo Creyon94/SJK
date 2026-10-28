@@ -9,6 +9,19 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 28/10/2026 | SJK #229 | Show the SJK Launcher's icon before its SJK chat messages
+- d22352e |  | Show the SJK Launcher's icon before its SJK chat messages
+- e282e13 |  | Wrap the launcher line of the JoF SJK chat world shot as rustfmt does
++ 28/10/2026 | - | Mystery boxes: play their sounds on the box's own source (#185)
+- 084125b |  | Mystery boxes: play their sounds on the box's own source (#185)
++ 28/10/2026 | - | Staff page: choose a medal's rank when giving it
+- 8e39bf8 |  | Staff page: choose a medal's rank when giving it
++ 27/10/2026 | - | Mystery boxes: own chest and lid, words over the box, and the Box hunt toy
+- 923fbec |  | Mystery boxes: own chest and lid, words over the box, and the Box hunt toy
++ 27/10/2026 | - | Tag toy: stick premade tags on walls and floors, TF2 style
+- e5d6f70 |  | Tag toy: stick premade tags on walls and floors, TF2 style
++ 27/10/2026 | - | Release 2026.1027.2
+- 26f546b |  | Release 2026.1027.2
 + 27/10/2026 | - | Ragdoll: jump, attack or taunt gets a limp player up
 - 76cc170 |  | Ragdoll: jump, attack or taunt gets a limp player up
 + 27/10/2026 | - | Identity: medal ranks on the wire and the staff medal-rank request
@@ -2684,6 +2697,12 @@
 - fed9acd |  | Hide duel opponents' bars and send nothing while duelling
 
 = Slash
++ 28/10/2026 | SJK #226 | Swing sounds: no stray swing after a combo, no silent first swing (#171)
+- 434f2c6 |  | Start fixing the stray swing sound after a combo ends (#171)
+- 48bb996 |  | Hear each swing once across the predicted and server animations (#171)
+- 75ccd53 |  | Hold only swings the prediction played; leave loops alone (#171)
+- 0089039 |  | Count a swing repeated after another as a new run across the hand-over (#171)
+- 8421ece |  | Changelog: list the swing fix after main's items
 + 27/10/2026 | SJK #223 | Draw the DEMP2 alt fire's shock bubble
 - 95a7b01 |  | Draw the DEMP2 alt fire's shock bubble
 - a15c459 |  | Changelog: credit PR #223

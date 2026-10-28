@@ -35,6 +35,8 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Mystery boxes have their own chest: wood and iron with glowing question marks, its lid swinging open as it rolls, and words over it everyone sees (its price, the roll, then what came out) _(Sol)_
 - Box hunt toy (Collection > Toys, `toy_boxhunt`): turn it on to take part. Every few minutes one player with it on becomes the mark, shown in red to the others with it on; kill the mark to win a free mystery box roll _(Sol)_
 - Mystery boxes are heard from the box itself: their sounds followed whoever played on the first slot of the server around the map, so they were heard only near that player (#185) _(Sol)_
+- Saber swings: a combo's end no longer plays one swing too many, and the next combo's first swing is no longer silent; parries, deflects and saber locks the server shows are heard at once, and footsteps carry on while running _(Slash, PR #226, after Kushina's and T2_Trip's report)_
+- SJK chat messages sent from the SJK Launcher start with the launcher's icon _(Sol)_
 
 ## 2026.1027.2 (Alpha) | 27/10/2026
 
@@ -62,7 +64,6 @@ Mystery boxes, medal ranks, coloured verified ticks, a quick way up from a ragdo
 - Your own crosshair colour (`cg_crosshairColor`) stays when it passes over a player or an object, instead of turning to the target's colour; health and saber-style colours still come first _(Slash, PR #217)_
 - Screenshots are saved fully opaque, so a skin tinted with your RGB colour keeps its colour in the picture instead of fading where the game left the alpha low _(Slash, PR #220)_
 - The in-game menu's Leave page no longer draws its name small over the arc _(Slash, PR #221)_
-- Saber swings: a combo's end no longer plays one swing too many, and the next combo's first swing is no longer silent; parries, deflects and saber locks the server shows are heard at once, and footsteps carry on while running _(Slash, PR #226, after Kushina's and T2_Trip's report)_
 
 ## 2026.1027.1 (Alpha) | 27/10/2026
 

@@ -705,7 +705,10 @@ request, 08/10/2026):
   starts with that client's icon instead, at the same size: the clients are the
   entries of [chat/client_icons.rs](../crates/sjk-viewer/src/chat/client_icons.rs)
   (`KNOWN`, each with why and its evidence; today JoF EternalJK, `client` `ejk`,
-  `ui_renderer::EJK_TEXTURE`, `assets/branding/jof-ejk-icon.png`, 21/10/2026).
+  `ui_renderer::EJK_TEXTURE`, `assets/branding/jof-ejk-icon.png`, 21/10/2026, and the
+  SJK Launcher's chat window, `client` `launcher`, `ui_renderer::LAUNCHER_TEXTURE`,
+  `assets/branding/sjk-launcher-icon.png`, 27/10/2026: the launcher signs with the
+  player's own `identity.key`, so its lines are the player's, marked with its icon).
   `cl_sjkChatClientIcons 0` (Settings, "Other clients' icons") gives every message
   SJK's emblem. The same icon marks that client's players on the scoreboard and the
   player card, once the client claims its slot (presence's `client`, 27/10/2026,

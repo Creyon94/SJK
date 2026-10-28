@@ -316,7 +316,7 @@ link: Lukas's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+
 
 [Slash]
 github: JoFSlash
-role: Contributor: 43 merged pull requests
+role: Contributor: 44 merged pull requests
 did: #114 Tab completes cfg file names after exec and writeconfig
 did: #113 CTF team saber colours, an option
 did: #153 The SJK scoreboard tells who won the Siege round or team match
@@ -363,6 +363,7 @@ did: #217 Own crosshair colour stays over targets
 did: #220 Screenshots saved opaque
 did: #221 No stray title over the Leave page
 did: #223 The DEMP2 alt fire's shock bubble
+did: #226 Each saber swing heard once across a combo's end
 link: Slash's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AJoFSlash
 
 [Milamber]
