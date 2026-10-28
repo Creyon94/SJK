@@ -30,7 +30,15 @@ The site (site/assets/site.js, parseChangelog) reads the release headings,
 introductions and recap lines too.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
-## Unreleased
+## 2026.1028.1 (Alpha) | 28/10/2026
+
+Capsule nameplates, the Sith cloud, a chest and a hunt for mystery boxes, and a working jetpack.
+
+> Nameplates: Every player gets a capsule with their picture, name and weapon; shared bars sit on a tray under it.
+> Sith cloud: The S community's maps, skins and extras download from the same card as JoF content, off until you turn it on.
+> Mystery boxes: Boxes get their own chest with a swinging lid, and the `toy_boxhunt` toy hunts a mark for a free roll.
+> Jetpack: A fuel bar shows while it burns, and on SJK's server it flies as in the original game.
+> Sabers: Black blades in the menu and in game, and combo swings that sound right.
 
 - Nameplates are capsules: everyone gets a plate with their picture beside their name (their SJK picture, else their initial; players without SJK show their model's head icon), the weapon at its end, and a sharer's shield, health and Force on a tray under it. Players who do not share have the capsule alone instead of grey bars, and team games tint it in the team's colour _(Sol)_
 - Sith cloud: the S community's own maps, skins and optional SJK extras, on the same card as JoF content (Settings > General > Sith cloud, `sith.cloud`, off by default). The SJK hub now names the servers both collections download from, so they can move or be paused without a release _(Sol)_
