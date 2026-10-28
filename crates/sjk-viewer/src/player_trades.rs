@@ -61,6 +61,19 @@ pub(crate) struct State {
     pub(crate) shot: Option<(View, bool)>,
 }
 
+impl State {
+    /// The state the next map's world takes over (`GpuState::hand_shell_to`): what the
+    /// window and the toast already said goes on, so the hub's last refusal is not shown
+    /// again (Creyon's screenshot, 26/10/2026). The game menu does not go on (the new
+    /// world starts with it closed), so the window no longer counts as having opened it:
+    /// else Esc after the map change brought the window back and Close shut the menu the
+    /// player opened themselves (Sol's review of #211, 27/10/2026).
+    pub(crate) fn handed_over(mut self) -> Self {
+        self.opened_menu = false;
+        self
+    }
+}
+
 /// What the views were built from: the trades' read and step counts, the own profile's
 /// and the known players' revisions, whether the window's parts (the player's items,
 /// the limits) were built, and the minute (the tiles' resale countdowns) while they are.
@@ -881,6 +894,31 @@ pub(crate) fn trading_open() -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// At a map change the refusal already shown stays shown, and the window no longer
+    /// owns a game menu the new world does not have (Sol's review of #211, 27/10/2026).
+    #[test]
+    fn a_map_change_keeps_the_shown_refusal_and_drops_the_menu_it_opened() {
+        let mut state = State {
+            opened_menu: true,
+            ..State::default()
+        };
+        state.problem = Some((
+            4,
+            "Two accounts on one connection cannot trade with each other.".to_owned(),
+            Instant::now(),
+        ));
+        let next = state.handed_over();
+        assert!(
+            !next.opened_menu,
+            "the new world's menu is the player's own"
+        );
+        assert_eq!(
+            next.problem.as_ref().map(|(steps, _, _)| *steps),
+            Some(4),
+            "the refusal counts as shown"
+        );
+    }
 
     /// The trade window (a request, an open trade with both sides in each of the three
     /// sizes, both ready, a gift's question) and the toast over play, over duel6 at

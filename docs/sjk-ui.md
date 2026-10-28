@@ -2263,7 +2263,13 @@ every menu style, on the 16:9 frame:
   in a gold ring, their name in its colours, "Nib wants to trade" (Rajdhani 24) with the request's seconds in gold, a muted
   line, a thin gold bar running down smoothly (to the fraction of a second, not in steps),
   and the key: Esc answer (or Esc open), 40 above the card's foot, clear of the bar. It also tells
-  for six seconds how a trade ended, or why a request was refused.
+  for six seconds how a trade ended, or why a request was refused. What the window and
+  the toast already said goes on to the next map's world with the shell: a world that
+  began without it took the hub's last refusal for a new one and showed it again at every
+  map change (Creyon's screenshot, 26/10/2026: "Two accounts on one connection cannot
+  trade with each other." over a loading screen). The game menu does not go on, so the
+  window no longer counts as having opened it; after a map change a running trade's
+  window comes back with Esc, and its Close leaves the menu the player opened.
 - **Reaching it in game:** the pointer is free only in the menus, so the window shows
   over the game menu: Esc in play opens it while a trade runs; Esc in it shows the game
   menu under it (the trade goes on, the toast at the top says so) and Esc there goes back

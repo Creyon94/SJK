@@ -33,6 +33,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 ## Unreleased
 
 - Trading: after a trade, the player who confirmed first sees the holocrons and duplicates they gave leave their collection, and those they received arrive, at once instead of up to ten minutes later _(Creyon, PR #210)_
+- Trading: a refusal (such as "Two accounts on one connection cannot trade with each other") shows once instead of again at every map change _(Creyon, PR #211)_
 
 ## 2026.1028.1 (Alpha) | 28/10/2026
 

@@ -534,6 +534,11 @@ impl GpuState {
         to.whats_new_card = std::mem::take(&mut self.whats_new_card);
         to.load_event_gap = self.load_event_gap.clone();
         to.hitches = std::mem::take(&mut self.hitches);
+        // The trades go on across the map (the toast and what it already said): a world
+        // that started without them took the last refusal the hub gave for a new one and
+        // showed it again at every map change. The game menu does not go on, so neither
+        // does the window's claim to have opened it.
+        to.trades = std::mem::take(&mut self.trades).handed_over();
         to.hitches.settle(now);
         to.completed_map_changes = self.completed_map_changes;
         to.gameplay_input.clear();
