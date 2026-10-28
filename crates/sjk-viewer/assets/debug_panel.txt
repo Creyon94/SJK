@@ -6772,6 +6772,18 @@ test: Progress bar moves; close the card mid-download, reopen it: still download
 test: Next map on a JoF server: a downloaded map or skin is there; Stop, then Download resumes.
 note: First open hashes your base folder once (about a minute); later opens are quick.
 
+[sith-cloud]
+area: Menus & settings
+title: Sith cloud on the JoF content card; the hub names both collections' servers
+change: Settings > General > Sith cloud (sith.downloads) opens the card on the Sith cloud.
+change: Off by default (sith.cloud 0); files go to base, as the SJK Launcher puts them.
+change: SJK asks the hub (/v1/content-sources) where JoF content and the Sith cloud are.
+test: Open the Sith cloud card: groups listed, SJK Extras not chosen; Download dim while off.
+test: Turn sith.cloud on, pick a small group, Download; next map it loads from base.
+test: JoF content card still lists and downloads as before.
+test: sith.cloudUrl set to a bad address: the card says it cannot reach that server.
+note: Needs the hub's content-sources endpoint (deployed 28/10).
+
 [linux-update-browse]
 area: Menus & settings
 title: Linux: updates restart the new version; Browse works without a portal file chooser

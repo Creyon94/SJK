@@ -610,6 +610,8 @@ impl ViewerConsole {
             asset_browser: Default::default(),
             #[cfg(feature = "mod-jof")]
             jof_content: Default::default(),
+            #[cfg(feature = "mod-jof")]
+            sith_cloud: crate::jof_content::card::Card::new(&crate::sith_cloud::WORDS),
             debug_panel: super::debug_panel::Panel::new(&config_directory),
             model_viewer: Default::default(),
             changelog: super::changelog::Panel::new(),

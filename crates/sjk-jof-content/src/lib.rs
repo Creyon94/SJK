@@ -20,7 +20,7 @@ pub mod store;
 
 pub use manifest::{Asset, Group, GroupKind, Manifest, Target};
 pub use plan::{Plan, Selection};
-pub use source::{Source, SourceChoice};
+pub use source::{Directory, Source, SourceChoice};
 pub use store::{AssetState, Snapshot, Store};
 
 /// Lower-case hexadecimal of an MD5 digest, as the manifest writes it.

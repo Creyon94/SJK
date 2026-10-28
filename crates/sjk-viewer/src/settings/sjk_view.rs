@@ -404,7 +404,7 @@ impl SettingsMenu {
             ValueKind::IdentityPage
             | ValueKind::ImportPage
             | ValueKind::AssetBrowser
-            | ValueKind::JofContent
+            | ValueKind::ContentCard
             | ValueKind::GameplayFps => kit::field(
                 &mut self.ui,
                 frame,
@@ -839,7 +839,7 @@ impl SettingsMenu {
                     ValueKind::IdentityPage => (&["Enter"][..], "open"),
                     ValueKind::ImportPage => (&["Enter"][..], "choose"),
                     ValueKind::GameplayFps => (&["Enter"][..], "explain"),
-                    ValueKind::AssetBrowser | ValueKind::JofContent => (&["Enter"][..], "browse"),
+                    ValueKind::AssetBrowser | ValueKind::ContentCard => (&["Enter"][..], "browse"),
                     ValueKind::SoundPreview => (&["Enter"][..], "play"),
                     ValueKind::Text => (&["Enter"][..], "type"),
                     _ => (&["Left", "Right"][..], "change"),

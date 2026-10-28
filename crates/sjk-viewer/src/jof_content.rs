@@ -120,11 +120,20 @@ pub(crate) fn job_settings(
     console: &ViewerConsole,
     game_data: &Path,
 ) -> sjk_jof_content::job::Settings {
+    let choice = sjk_jof_content::SourceChoice::parse(console.text_value(SOURCE).unwrap_or("auto"));
     sjk_jof_content::job::Settings {
         root: folder(console),
         game_base: Some(game_data.join("base")),
-        sources: sjk_jof_content::SourceChoice::parse(console.text_value(SOURCE).unwrap_or("auto"))
-            .sources(),
+        sources: choice.sources(),
+        // The hub names the hosts; the built-in ones are kept for when it can't be asked.
+        directory: Some(sjk_jof_content::Directory {
+            hub: console.text_value("cl_hubUrl").unwrap_or("").to_owned(),
+            collection: "jof",
+            only: match choice {
+                sjk_jof_content::SourceChoice::Auto => None,
+                sjk_jof_content::SourceChoice::Only(source) => Some(source.name.to_owned()),
+            },
+        }),
         version: crate::build_info::VERSION.to_owned(),
     }
 }

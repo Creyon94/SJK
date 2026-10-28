@@ -19,7 +19,10 @@ pub struct Settings {
     pub root: PathBuf,
     /// The game's `base`, read to find files JoF's launcher put there.
     pub game_base: Option<PathBuf>,
+    /// The hosts, or the fallback when `directory` is set.
     pub sources: Vec<Source>,
+    /// Ask the SJK hub for the hosts first ([`crate::source::Directory`]).
+    pub directory: Option<crate::source::Directory>,
     /// The client's version, for the hosts' logs.
     pub version: String,
 }
@@ -195,7 +198,8 @@ impl Worker {
         selection: Option<Selection>,
     ) -> Result<Outcome, FetchError> {
         let agent = download::agent(&settings.version);
-        let (manifest, source) = download::manifest(&agent, &settings.sources)?;
+        let sources = download::sources(&agent, settings.directory.as_ref(), &settings.sources)?;
+        let (manifest, source) = download::manifest(&agent, &sources)?;
         let mut store = Store::open(&settings.root, settings.game_base.clone());
         if store.is_game_folder() {
             return Err(FetchError::Failed(
@@ -246,14 +250,7 @@ impl Worker {
                 })
             };
             report(0);
-            match download::file(
-                &agent,
-                &settings.sources,
-                asset,
-                &content,
-                &self.cancel,
-                &mut report,
-            ) {
+            match download::file(&agent, &sources, asset, &content, &self.cancel, &mut report) {
                 Ok(path) => {
                     store.remember(&path, &asset.md5);
                     store.save();
@@ -329,6 +326,7 @@ mod tests {
                 root: directory.path().join("jof"),
                 game_base: None,
                 sources: vec![source],
+                directory: None,
                 version: "test".into(),
             },
             Selection::default(),

@@ -69,9 +69,10 @@ pub(super) enum ValueKind {
     /// A chat kind's preview (not a cvar; its name is the console command that plays
     /// the same, `chat_sounds.rs`): Enter or a click plays the kind's chosen sound.
     SoundPreview,
-    /// Open the JoF content card (`jof.downloads`, `crate::jof_content`).
+    /// Open a content card: JoF content (`jof.downloads`, `crate::jof_content`) or the
+    /// Sith cloud (`sith.downloads`, `crate::sith_cloud`); the row's cvar is the command.
     #[cfg_attr(not(feature = "mod-jof"), allow(dead_code))]
-    JofContent,
+    ContentCard,
     /// `cl_gameplayFps`: Left/Right step through the presets (125, 142, 250,
     /// 333); Enter opens the card that explains it and takes any value
     /// ([`crate::gameplay_fps`]).
@@ -1317,13 +1318,20 @@ pub(super) const GAME: &[Setting] = &[
     Setting {
         label: "JoF content",
         cvar: crate::jof_content::COMMAND,
-        kind: ValueKind::JofContent,
+        kind: ValueKind::ContentCard,
     },
     #[cfg(feature = "mod-jof")]
     Setting {
         label: "JoF content host",
         cvar: crate::jof_content::SOURCE,
         kind: ValueKind::Choice(&crate::jof_content::SOURCES),
+    },
+    // The Sith cloud (`docs/sith-cloud.md`): the S community's server, on the same card.
+    #[cfg(feature = "mod-jof")]
+    Setting {
+        label: "Sith cloud",
+        cvar: crate::sith_cloud::COMMAND,
+        kind: ValueKind::ContentCard,
     },
     Setting {
         label: "Invisible brushes",

@@ -199,6 +199,9 @@ pub(crate) struct ViewerConsole {
     /// The JoF content card (`jof.downloads`), drawn in place of the console while open.
     #[cfg(feature = "mod-jof")]
     pub(crate) jof_content: crate::jof_content::card::Card,
+    /// The Sith cloud card (`sith.downloads`), the same card with its own words.
+    #[cfg(feature = "mod-jof")]
+    pub(crate) sith_cloud: crate::jof_content::card::Card,
     /// Personal test list of Sol's build, drawn in place of the console while open.
     debug_panel: debug_panel::Panel,
     /// The `modelviewer` page, drawn in place of the console while open.
@@ -534,11 +537,12 @@ impl ViewerConsole {
         self.open
     }
 
-    /// The JoF content card is open (never in a build without JoF tools).
+    /// A content card (JoF content or the Sith cloud) is open (never in a build
+    /// without JoF tools).
     pub(crate) fn jof_content_open(&self) -> bool {
         #[cfg(feature = "mod-jof")]
         {
-            self.jof_content.open
+            self.jof_content.open || self.sith_cloud.open
         }
         #[cfg(not(feature = "mod-jof"))]
         {
@@ -1005,8 +1009,10 @@ impl ViewerConsole {
             return self.asset_browser.draw_list();
         }
         #[cfg(feature = "mod-jof")]
-        if self.open && self.jof_content.open {
-            return self.jof_content.draw_list();
+        if self.open
+            && let Some(draw_list) = self.content_draw_list()
+        {
+            return draw_list;
         }
         if let Some(draw_list) = self.model_viewer_draw_list() {
             return draw_list;
@@ -1098,9 +1104,7 @@ impl ViewerConsole {
             self.dialogue_closed();
             self.asset_browser.open = false;
             #[cfg(feature = "mod-jof")]
-            {
-                self.jof_content.open = false;
-            }
+            self.close_content();
             self.browser.close();
             self.debug_panel.close();
             self.model_viewer.close();

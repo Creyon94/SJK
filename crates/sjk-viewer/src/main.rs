@@ -212,6 +212,8 @@ mod sender_card;
 mod server_caps;
 mod siege_objective_notice;
 mod siege_sabers;
+#[cfg(feature = "mod-jof")]
+mod sith_cloud;
 mod surface_tables;
 mod tag_icons;
 mod tags;

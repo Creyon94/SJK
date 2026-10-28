@@ -287,15 +287,18 @@ pub(super) struct Commands {
     pub name_clock: identity::NameClock,
 }
 
-/// JoF content's command (`jof.downloads`), in a build with JoF tools.
-fn jof_commands() -> &'static [(&'static str, &'static str)] {
+/// JoF content's and the Sith cloud's commands (`jof.downloads`, `sith.downloads`),
+/// in a build with JoF tools.
+fn jof_commands() -> impl Iterator<Item = &'static (&'static str, &'static str)> {
     #[cfg(feature = "mod-jof")]
     {
         crate::jof_content::COMMANDS
+            .iter()
+            .chain(crate::sith_cloud::COMMANDS)
     }
     #[cfg(not(feature = "mod-jof"))]
     {
-        &[]
+        [].iter()
     }
 }
 
@@ -1030,6 +1033,13 @@ impl crate::GpuState {
             crate::jof_content::COMMAND => {
                 if let Some(console) = &mut self.console {
                     console.open_jof_content(&self.game_data);
+                }
+                self.sync_cursor_policy();
+            }
+            #[cfg(feature = "mod-jof")]
+            crate::sith_cloud::COMMAND => {
+                if let Some(console) = &mut self.console {
+                    console.open_sith_cloud(&self.game_data);
                 }
                 self.sync_cursor_policy();
             }
