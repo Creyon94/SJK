@@ -3866,6 +3866,12 @@ coverage, as the HUD blends by alpha). Each new slice plays
 `sound/weapons/rocket/tick.wav` at the target and the eighth `lock.wav`. The ring stays
 square on wide screens; a teammate's lock is not drawn in team games; vehicle weapons'
 own lock times are not covered.
+`DrawCommand::Polygon` (28/10/2026, for the nameplates' holo frame) fills a convex
+polygon of up to six corners (`sjk_ui::POLYGON_POINTS`): a fan of triangles from its
+middle, each carrying its distance to its outer edge so the shader (`ui_shapes.wgsl`,
+mode 7) fades the last pixel inside, and with a texture the picture is spread over the
+polygon's box from the texture coordinates given for its corners. Like explicit
+texture coordinates, it is not clipped. `menu_snapshot` draws it the same way on the CPU.
 The in-game HUD shader is restricted to crosshair and damage-indicator regions.
 Intersecting regions become one rectangle so translucent pixels blend once.
 Menus and the shader's status-bar fallback retain full-screen coverage.

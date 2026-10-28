@@ -3275,21 +3275,31 @@ the glyph drawn a step out all round in a light tint instead of its drop shadow,
 black name reads on the see-through plate (`text::CodePalette::Haloed`, Sol's pick of
 28/10/2026 over lightening the colour).
 
-**The capsule** (28/10/2026, design E of the nameplate designs Sol chose from): every
-plate, bars or not, is a pill (`nameplate_math::Capsule`), so a player who does not share
-still has a plate. Left to right it holds the player's picture, their name with its
-mark after it, and at its right end the duel badge in a duel. Until 28/10/2026 the
-weapon they held stood there (`cg_nameplateWeapon`, dropped from saved profiles): Sol
-found it told nothing. Its fill is a dark navy, 55% opaque (76% until 28/10/2026, Sol
-asked for more see-through plates); in team games it is the team's own colour made
-deep (`nameplate_math::team_fill`, 62% opaque: the design's blue, `rgba(22, 52, 110)`,
-and a red as dark). Its edge is gold for a player who shares, a pale grey otherwise, the duel's colour
-in a duel, and a paler gold on NPC plates. The measures are the design's, scaled by the
-name's size over its 13 pixels (an 18-pixel name at 1080 lines with the default
-`cg_nameplateScale` 0.5): a pill 26 tall with a 20 picture.
+**The holo frame** (28/10/2026, design C of the nameplate designs Sol chose from, in
+place of the capsule, design E, the same day): every plate, bars or not, is a hexagon
+holding the player's picture over the left end of a plate whose top-right corner is cut
+(`nameplate_math::Holo`), so a player who does not share still has a plate. The plate
+holds their name with its mark after it and, under it, the bars of a sharer, or a dim
+dotted line (3 design pixels on, 4 off) on a plate without bars. Until 28/10/2026 the
+weapon they held stood after the name (`cg_nameplateWeapon`, dropped from saved
+profiles): Sol found it told nothing. The frame's colour says who they are: the holo
+blue (`rgba(110, 210, 255)`) for an SJK player, grey for a player without SJK (one the
+hub does not know on this server), the team's red or blue in team games, the duel's
+colour in a duel, a paler gold on NPC plates. The plate is that colour made dark (a
+tenth of it, `nameplate_math::plate_fill`), 55% opaque (the design's 78%: Sol asked for
+more see-through plates), under faint scan lines of the frame's colour every 3 design
+pixels (not on a grey frame, an NPC's or in a duel), and edged in it; a player who
+shares has a gold corner along its top to the cut and down its right side. The
+measures are the design's, scaled by the name's size over its 15 pixels (an 18-pixel
+name at 1080 lines with the default `cg_nameplateScale` 0.5): a plate at least 150
+wide, 40 tall with bars (a 44 by 40 hexagon overlapping it by 12) and 30 without (38
+by 34, overlapping by 10). The hexagon and the plate are convex polygons, a draw
+command new for them (`DrawCommand::Polygon`, [rendering.md](rendering.md#submission-and-lighting-work-reduction)).
 
-- **Picture:** the player's SJK hub picture, round, as the chat and the cards show it
-  ([identity.md](identity.md#pictures)); an SJK player without one, or before it loads,
+- **Picture:** the player's SJK hub picture in the hexagon, two design pixels inside the
+  frame's colour ([identity.md](identity.md#pictures)). The pictures are kept cut round,
+  as the chat and the cards show them; the hexagon takes the part inside the disc, its
+  corners just inside it (`nameplate_math::HEX_UV`). an SJK player without one, or before it loads,
   gets their stand-in, the initial of their hub name on their colour; a player without
   SJK gets their model's head icon (`models/players/<model>/icon_<skin>`, the player
   card's), cut round; a model without one (one this PC does not have) gives the initial
@@ -3301,23 +3311,24 @@ name's size over its 13 pixels (an 18-pixel name at 1080 lines with the default
   decoded and cut on the frame thread, one a frame at most and each model once while it
   stays in the cache (`hud_runtime::cut_nameplate_head`, kept with
   `avatars::insert_local`); one that could not be had is asked again after 2 seconds.
-- **Far:** the capsule's fill and edge fade out with the bars' ramp, leaving the
-  picture, smaller, and the name, dim, centred over the player. Plates shrink with
+- **Far:** the plate fades out with the bars' ramp, leaving a small hexagon (17 by 15
+  design pixels) and the name, at 85%, centred over the player above a hairline in the
+  frame's colour, 46 design pixels long. Plates shrink with
   distance (to 60% at the range) and fade over the last quarter of `cg_nameplateRange`
   (3000 units).
-- **Near:** inside `cg_nameplateNear` (1000 units) the capsule fades in, and for a
-  player whose bars show (a sharer, an NPC, a teammate the server reports) it rises as a
-  tray fades in under it: the capsule's fill and edge carried down round the bars, 104
-  design pixels wide, square at the top where the capsule's edge closes it and round at
-  the bottom (one stroke cut to a rounded clip, and the edge's strokes and arcs, so
-  nothing translucent is drawn twice). The capsule widens to hold it. The shield bar is
-  on top, then health, then Force (2, 3 and 2 design pixels on a faint track, never
-  under 2 pixels at 1080 lines). The bars take the HUD's own colours (the layout's
+- **Near:** inside `cg_nameplateNear` (1000 units) the plate fades in, and for a
+  player whose bars show (a sharer, an NPC, a teammate the server reports) it grows from
+  30 to 40 design pixels as the bars fade in under the name and the dotted line fades
+  out. The shield bar is on top, then health, then Force (3, 5 and 2 design pixels on a
+  track of the frame's colour, never under 2 pixels at 1080 lines); shield and health
+  are cut into segments of about 9 design pixels with 2 between, stretched so the bar
+  holds whole ones (`nameplate_math::segments`), Force is whole. The bars take the HUD's
+  own colours (the layout's
   `armor_ratio`, `health_ratio` and `force_ratio` widgets: the Radial HUD's green
   shield, red health and blue Force; the retail green, red and light blue for the
   game-data HUD, which draws pictures). Health is always that red, whatever is left.
 - **Empty shield:** a player's shield bar is always there; known to be empty it is
-  drawn broken, grey dashes the bar's height.
+  drawn broken, grey dashes (4 design pixels, 3 between) the bar's height.
 - **Overheal and overshield:** health and shield go to twice the maximum (125 at
   spawn; 199 shield from a large shield picked up at 99). The bar shows 0 to the
   maximum; what lies over it is a second, inner band in a deeper shade of the same
@@ -3334,15 +3345,15 @@ name's size over its 13 pixels (an 18-pixel name at 1080 lines with the default
 - **Verified badge:** a player the SJK hub's operator vouches for (see
   [Identity](#identity)) gets a gold seal with a white tick after the name, drawn at
   start into an icon cell ([verified_badge.rs](../crates/sjk-viewer/src/ui_renderer/verified_badge.rs)).
-  The name's capitals are centred on the capsule's middle as the plate's font lays them
+  The name's capitals are centred on the name's row as the plate's font lays them
   out (`UiFont::capital_middle`; the HUD font hangs its glyphs low in the line), and the
-  seal, the picture and the icons with them.
+  seal with them.
   Which slots are verified is read from the identity service once a second.
 - **Duel badge:** a player in a private duel (`bolt1`, your own `duelInProgress`
   on your own plate) gets two crossed lightsabers, white blades in a coloured glow on a
   disc filled and ringed in the same colour (so the colours tell apart at a nameplate's
-  size), at the capsule's right end; the capsule's edge takes the badge's colour, a
-  little wider, and a duellist's plate has no tray. **The two duellists of one duel
+  size), on the hexagon's bottom-right corner; the frame takes the badge's colour, its
+  dotted line too, and a duellist's plate has no bars. **The two duellists of one duel
   share a colour** (blue, orange, green, magenta, yellow, cyan, red, in the order duels
   start), so in a crowd the matching badges show who duels whom. The pairs come
   from [duel_pairs.rs](../crates/sjk-viewer/src/hud/duel_pairs.rs):
@@ -3364,7 +3375,7 @@ name's size over its 13 pixels (an 18-pixel name at 1080 lines with the default
   seek. Each colour is its own icon
   cell, drawn at start ([duel_badge.rs](../crates/sjk-viewer/src/ui_renderer/duel_badge.rs)).
   The badge sits level with the name's capitals like the verified badge, and stays at
-  least 90% opaque on a far plate whose name dims, at the capsule's right end.
+  least 90% opaque on a far plate whose name dims, smaller with the far hexagon.
   `cg_nameplateDuel` (on; Settings >
   Quick > Nameplates > Duel badge) turns it off, and it shows with the name, so
   `cg_nameplate 0` hides it too. The duellist's body is drawn as JoF EJK draws it (see
@@ -3431,14 +3442,14 @@ name's size over its 13 pixels (an 18-pixel name at 1080 lines with the default
   carries his entity and the world never presents his body. Like stock's crosshair
   target name (`CG_DrawCrosshair`), the plate follows the vehicle's `owner` while it
   is below `MAX_CLIENTS`: the name and team come from his `CS_PLAYERS` string and the
-  plate hangs over the vehicle's presented position and box top. Only the capsule, with
-  his picture, name and team's tint, shows (no bars, icons or weapon: the client has no
+  plate hangs over the vehicle's presented position and box top. Only the plate, with
+  his name and team's colour, shows (no picture, bars or icons: the client has no
   state of him). A rider
   whose entity is sent keeps his own plate, anchored to the vehicle if his body is
   hidden (`nameplate_math::anchor`, `hidden_pilot`).
 - `cg_nameplateSelf` (off): your own plate over your head in third person, with your
-  real health, shield and Force (the server sends you those), your weapon and your
-  badge when your key is verified. In first person it is not drawn: it would sit in
+  real health, shield and Force (the server sends you those) and your badge when your
+  key is verified. In first person it is not drawn: it would sit in
   the camera.
 - **Modes (V):** the `nameplates` command, bound to V by default (Controls > Other >
   "Nameplate mode"; an existing config gets it when V is free), cycles off, names
@@ -3466,15 +3477,16 @@ name's size over its 13 pixels (an 18-pixel name at 1080 lines with the default
   entities are omitted from snapshots, such as sealed vehicle pilots, have no
   available private-duel marker and keep their plates.
 - `cg_nameplateIcons` (on): up close, a row of the holocron icons of the Force powers a
-  player has on sits over the capsule, each on a square cell of the capsule's dark fill
-  (55% opaque, corners of 3 design pixels, the icon a pixel in from its edge), 22.5
-  design pixels a side, at most four, dark side first (lightning, grip,
-  drain, rage, then protect, absorb, speed, heal, team force, mind trick, sight). They
-  come from `forcePowersActive`, so every player's powers are known without a request;
-  jump, push, pull and the saber powers are left out because they last a moment. The
-  pictures are the Force bar's, loaded with the map. From 28/10/2026 to that evening they
-  sat on smaller round chips (15) with a pale blue ring; Sol had the square cells, as
-  before the capsules, back, half as large again.
+  player has on stands over the plate's right end, each on a square cell (55% opaque,
+  corners of 2 design pixels, edged in the frame's colour at half strength, the icon a
+  pixel in from its edge), 22.5 design pixels a side (the design's 15, half as large
+  again), at most four, dark side first (lightning, grip, drain, rage, then protect,
+  absorb, speed, heal, team force, mind trick, sight). They come from
+  `forcePowersActive`, so every player's powers are known without a request; jump,
+  push, pull and the saber powers are left out because they last a moment. The pictures
+  are the Force bar's, loaded with the map. From 28/10/2026 to that evening they sat on
+  smaller round chips (15) with a pale blue ring; Sol had the square cells, as before
+  the capsules, back, half as large again.
 - `cg_nameplateDebug` logs, every two seconds, what the server sends about each other
   player (health, `tinfo`, active powers, weapon and stance) and the estimates (health,
   armour and Force as `guess[low..high]`) to `logs\last-client.log`, with the regen
@@ -3511,7 +3523,7 @@ seeing any of them means sharing your own, through the hub (Sol's rule, 15/10/20
   settings (`hud::nameplate::Duel`). In a private duel (`duelInProgress`) the opponent
   is the one your player state names (`duelIndex`); in the Duel game type every other
   player in the arena; in Power Duel the other side (`dt` in `CS_PLAYERS`); a
-  spectator duels nobody. The opponent's plate keeps its name, weapon and icons but
+  spectator duels nobody. The opponent's plate keeps its name and icons but
   shows no bars (not the grey ones either), in every bar mode; target mode no longer
   shows bars on the duel opponent. While you duel your client sends the hub no values
   (as when dead), so nobody on the server, bystanders and a Power Duel partner
@@ -3527,9 +3539,9 @@ seeing any of them means sharing your own, through the hub (Sol's rule, 15/10/20
   their numbers.
 - **Players who do not share** (Sol's rule, 16/10/2026 for SJK players, 17/10/2026
   for everyone, bots and players without SJK too): no bars for any viewer, health,
-  shield or Force. Nothing overrides it, not even a teammate's `tinfo`. Their capsule
-  stays, with its pale edge, picture, name and power icons, and no tray (until
-  28/10/2026 they had grey bars, full length and empty: the capsule alone says the same).
+  shield or Force. Nothing overrides it, not even a teammate's `tinfo`. Their plate
+  stays, with its picture, name and power icons, and the dim dotted line under the name
+  instead of bars (until 28/10/2026 they had grey bars, full length and empty).
   NPCs keep their bars.
 - **Sharers:** their health and shield bars are the estimates below, corrected with
   every value they share ([estimate.rs](../crates/sjk-viewer/src/hud/estimate.rs) `History`). A
@@ -3539,9 +3551,10 @@ seeing any of them means sharing your own, through the hub (Sol's rule, 15/10/20
   seen since, the bar is exact; it never waits for the next value to move. Their
   Force bar is the last Force they shared, not estimated (17/10/2026,
   `hud::nameplate::shared_force`), so it moves with each value, about four times a second.
-- **Gold edge:** the capsule (and its tray) of a player who shares (See & share
-  nameplates) is edged in the verified badge's gold instead of grey; in team games the
-  team's colour tints the capsule itself. Your own plate (`cg_nameplateSelf`) gets it
+- **Gold corner:** the plate of a player who shares (See & share nameplates) has a
+  corner in the verified badge's gold, along its top to the cut and down its right
+  side (until 28/10/2026 the capsule's whole edge was gold); in team games the frame
+  takes the team's colour. Your own plate (`cg_nameplateSelf`) gets it
   too while the hub lists you sharing. NPC plates (`cg_nameplateNpcs`) are edged a paler
   gold.
 - `cg_nameplateEstimate` ("Bars on everyone", estimates on every player without
@@ -3663,7 +3676,7 @@ health strip, text only, off by default); they are hidden while nameplates are o
 Both stand above an ally's team logo
 ([Team outlines and logos](#team-outlines-and-logos)). At most 32 players and 16 NPCs
 are tagged and nothing is allocated per frame. Not tested in game yet; the estimates
-are unit-tested against synthetic snapshots only. The capsule (28/10/2026) is
+are unit-tested against synthetic snapshots only. The holo frame (28/10/2026) is
 unit-tested for its layout and checked in the off-screen nameplate snapshot
 (`menu_snapshot::nameplate_snapshot`, with the game data), not yet in a match.
 

@@ -22,7 +22,7 @@ mod info;
 pub(crate) mod kill_feed;
 pub(crate) mod movement;
 pub(crate) mod nameplate;
-mod nameplate_math;
+pub(crate) mod nameplate_math;
 mod npc_class;
 pub(crate) mod options;
 pub(crate) mod player_card;
