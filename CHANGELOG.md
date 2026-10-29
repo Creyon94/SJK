@@ -48,6 +48,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Fogged skies: on a map whose sky is only its fog, such as taspir1, the sky now takes the fog's colour instead of a plain dark blue, so distant walls fade into it rather than standing out against it (#179, #180, #184) _(Slash, after the original game)_
 - Trading: after a trade, the player who confirmed first sees the holocrons and duplicates they gave leave their collection, and those they received arrive, at once instead of up to ten minutes later _(Creyon, PR #210)_
 - Trading: a refusal (such as "Two accounts on one connection cannot trade with each other") shows once instead of again at every map change _(Creyon, PR #211)_
+- Blocking: a blocked player's chat no longer shows in the console either, as it already did not in the chat box, and the console's kill lines name them BLOCKED as the kill feed does _(Creyon)_
 
 ## 2026.1028.1 (Alpha) | 28/10/2026
 

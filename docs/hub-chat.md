@@ -897,7 +897,13 @@ and plays changes. The code still says "mute" (`chat_mutes.rs`, `muted_players.r
   keys' line (six at most; a line says how many more `block` lists).
 - **What blocking does:** their SJK chat lines are hidden (the page shows "Blocked on this
   PC", the dock leaves them out, the game's feed hides them as ignored lines are) and so
-  are their game chat lines once they are matched to a slot. While they are on the
+  are their game chat lines once they are matched to a slot, in the chat box and in the
+  console, whose scrollback and alert words (`con_notifywords`) leave them out as the
+  chat box does (`ChatOverlay::sent_by_muted`, after bleck-bee's and Kushina's hub report
+  #191: the line was hidden in the chat box but showed in the console; the chat log
+  `cl_logchat` still keeps it), and the console's kill lines name them BLOCKED as the
+  kill feed does. Lines the server writes itself (a join, JA+'s "has defeated") come as
+  finished text and keep the name the server put in them. While they are on the
   server, their model is drawn as `kyle/default` (Kyle's red or blue skin when a team
   game colours the teams, so the teams still show), each saber they hold or throw as
   `single_1` in the default blue (`color1` 4), with no hat or cape; a body they leave

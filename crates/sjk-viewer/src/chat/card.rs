@@ -644,6 +644,28 @@ mod tests {
         assert!(chat.lines.iter().all(|line| !line.muted));
     }
 
+    /// A blocked player's chat stays out of the console as it stays out of the chat
+    /// box, attributed by the server or not (hub report #191); others' chat does not.
+    #[test]
+    fn a_muted_slots_chat_stays_out_of_the_console() {
+        let mut chat = ChatOverlay::new();
+        let mut game = sjk_protocol::GameState::empty_local(0);
+        game.replace_config_string(1_131 + 3, b"n\\^1Dark^7Lord\\t\\0".to_vec())
+            .expect("a player");
+        chat.update_roster(&game);
+        assert!(
+            !chat.sent_by_muted("^1Dark^7Lord^7: one", Some(3)),
+            "nobody blocked"
+        );
+        chat.set_muted_slots(1 << 3);
+        assert!(chat.sent_by_muted("^1Dark^7Lord^7: one", Some(3)));
+        assert!(
+            chat.sent_by_muted("DarkLord^7: two", None),
+            "a JA+ line by its name"
+        );
+        assert!(!chat.sent_by_muted("Fox: three", None));
+    }
+
     /// The composer open over game lines, with "Fox" in slot 3 and us in slot 0.
     fn game_chat(players: &[(usize, &str)]) -> ChatOverlay {
         let mut chat = ChatOverlay::new();
