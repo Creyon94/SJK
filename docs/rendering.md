@@ -1561,6 +1561,13 @@ running, so these are non-exclusive GPU checks, not a performance certification.
 Populated combat visibility, broader map coverage and 31-player performance remain
 owner-playtest/benchmark work. No new shadow lights, passes or probe rays were added.
 
+Without real-time lighting, sun shadows reach the world as a second pass over its diffuse
+surfaces that multiplies in the shade and tests for equal depth against the stage program.
+That pass also runs when light shafts alone turned the world shadows on. Its position is
+`@invariant` like every other equal-depth redraw: without it a driver may round the depth
+differently, and the shade misses a speckle of the floor that changes as the camera moves
+(hub report #193).
+
 Sun-shadow filtering compensates for the receiver surface's slope across the
 full texel footprint of a linear depth comparison. A half-texel allowance only
 covers samples midway between texel centers and can produce bands of false
