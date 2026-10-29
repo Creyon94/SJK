@@ -793,6 +793,33 @@ pub(super) const HUD: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Chat left / right",
+        cvar: "cg_chatBoxX",
+        kind: ValueKind::Float {
+            min: 0.0,
+            max: 600.0,
+            step: 5.0,
+        },
+    },
+    Setting {
+        label: "Chat bottom position",
+        cvar: "cg_chatBoxHeight",
+        kind: ValueKind::Float {
+            min: 0.0,
+            max: 480.0,
+            step: 5.0,
+        },
+    },
+    Setting {
+        label: "Chat width",
+        cvar: "cg_chatBoxCutOffLength",
+        kind: ValueKind::Float {
+            min: 60.0,
+            max: 640.0,
+            step: 10.0,
+        },
+    },
+    Setting {
         label: "Tabs hide other chat",
         cvar: crate::chat::tabs::FILTER_CVAR,
         kind: ValueKind::Bool,

@@ -635,6 +635,18 @@ const HELP: &[(&str, &str)] = &[
         "Shows emoji pictures in place of names like :poop: in new chat messages.",
     ),
     (
+        "cg_chatBoxX",
+        "Moves the chat sideways: 0 is the left edge of the screen, higher moves it right.",
+    ),
+    (
+        "cg_chatBoxHeight",
+        "Moves the chat up or down: lower values lift its bottom line up the screen.",
+    ),
+    (
+        "cg_chatBoxCutOffLength",
+        "How wide the chat is before a message wraps onto the next line.",
+    ),
+    (
         crate::chat::tabs::FILTER_CVAR,
         "On, a chat button shows only its own messages while you type; off, it only picks where you talk.",
     ),

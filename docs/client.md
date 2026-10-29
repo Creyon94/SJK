@@ -2796,7 +2796,10 @@ too (Dave, 29/10/2026): while the composer is on Team, SJK, Admin or a whisper, 
 shows only that channel's messages (whispers both ways, encrypted ones and the server's
 private lines included; admin lines are jaPRO's `<Admin>(name)`), All shows everything,
 and closing the composer shows everything again; `cg_chatTabFilter` 0 (Settings > Chat >
-Tabs hide other chat) keeps the feed whole.
+Tabs hide other chat) keeps the feed whole. The chat's place and width are Settings >
+Chat sliders too (Creo's second point): Chat left / right (`cg_chatBoxX`), Chat bottom
+position (`cg_chatBoxHeight`) and Chat width (`cg_chatBoxCutOffLength`), beside its text
+size, so nobody has to set them in the console.
 
 Open the chat composer with your chat binding: the cursor is free while composing.
 Resting the pointer on a name (a sender's, or an SJK chat sender's) shows their
