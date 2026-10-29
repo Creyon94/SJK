@@ -50,6 +50,18 @@ by MSVC-compiled OpenJK cover fighters, fliers, static vehicles, large origins
 and 8/7/4/3 ms orientation samples. Synthetic trace, interpolation, model-change
 and warmed-allocation tests accompany the change. Live vehicle contacts,
 community vehicle coverage and rendered FPS remain unverified.
+## jaPRO movement-style acceleration
+
+29/10/2026, `feat/prediction-japro-styles`, based on `main` `c7089264` and
+the shared command adapter in PR #277: the next jaPRO prediction change covers
+movement-style acceleration, air control, ground friction and crouch speed.
+Reference: TaystJK `2d60c0fa5` multiplayer `codemp`. Windows x64 focused tests
+match 329 MSVC-emitted kernel/parameter results (152 air, 120 friction, 19 ground
+parameter pairs and 38 command scales) across 8/7/4/3 ms, with velocity tolerance
+0.0001 units/s. Server-switch tests reuse identical race/style metadata on
+jaPRO/TaystJK, BaseJKA, JA+ and Lugormod and confirm that only the current jaPRO
+dialect enables the rules. Jumps, ramps/steps, restrictions, new jetpack and
+grapples remain separate; full and live-server parity remain unverified.
 
 ## Passenger movement prediction
 

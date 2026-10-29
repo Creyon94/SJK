@@ -1918,6 +1918,9 @@ impl Predictor {
         acceleration: f32,
         seconds: f32,
     ) {
+        if self.japro_siege_accelerate(wish_direction, wish_speed, acceleration, seconds) {
+            return;
+        }
         let mut velocity = Vec3::from_array(self.state.velocity);
         let add_speed = wish_speed - velocity.dot(wish_direction);
         let npc = self.state.client_num >= MAX_CLIENTS;
@@ -1935,11 +1938,16 @@ impl Predictor {
     fn command_scale(&self, command: &UserCommand) -> f32 {
         let forward = i32::from(command.forward_move);
         let right = i32::from(command.right_move);
-        let maximum = forward.abs().max(right.abs());
+        let up = if self.japro_style().is_some_and(|rules| rules.scale_upmove) {
+            i32::from(command.up_move)
+        } else {
+            0
+        };
+        let maximum = forward.abs().max(right.abs()).max(up.abs());
         if maximum == 0 {
             return 0.0;
         }
-        let total = ((forward * forward + right * right) as f32).sqrt();
+        let total = ((forward * forward + right * right + up * up) as f32).sqrt();
         // `PM_CmdScale` (`bg_pmove.c:1188`) divides by `127.0 * total`, a double, and
         // rounds to float once. Dividing in single precision rounds twice and is one
         // ulp off for mixed forward/strafe input, which shows in the position's bits.
@@ -1962,7 +1970,8 @@ impl Predictor {
             self.air_move(command, seconds, bounds, ground, collision, context);
             return;
         }
-        self.friction(seconds, ground);
+        self.friction_for_command(seconds, ground, command);
+        let style = self.japro_style();
         crate::pmove_dir::set_movement_direction(&mut self.state, command);
         // A vehicle's `Update` turned its view since the axes were taken.
         let view = if self.vehicle_move() {
@@ -1972,8 +1981,17 @@ impl Predictor {
         };
         let (forward, right) = flattened_axes(view);
         let normal = Vec3::from_array(ground.trace.plane_normal);
-        let forward = vector_normalize(self.clip_velocity(forward, normal, OVERCLIP));
-        let right = vector_normalize(self.clip_velocity(right, normal, OVERCLIP));
+        let surf = style.is_some_and(|rules| rules.style == japro_movement::Style::Surf);
+        let forward = vector_normalize(if surf {
+            forward
+        } else {
+            self.clip_velocity(forward, normal, OVERCLIP)
+        });
+        let right = vector_normalize(if surf {
+            right
+        } else {
+            self.clip_velocity(right, normal, OVERCLIP)
+        });
         // A vehicle goes along its `moveDir` at its own speed (`bg_pmove.c:3330-3375`).
         let (wish_direction, mut wish_speed) = self.vehicle_walk_wish().unwrap_or_else(|| {
             let wish_velocity =
@@ -1983,8 +2001,17 @@ impl Predictor {
                 wish_velocity.length() * self.command_scale(command),
             )
         });
-        if self.state.movement_flags & PMF_DUCKED != 0 {
-            wish_speed = wish_speed.min(self.state.speed * DUCK_SCALE);
+        if surf {
+            wish_speed = wish_speed.min(250.0);
+        }
+        if self.state.movement_flags & PMF_DUCKED != 0
+            || style.is_some()
+                && self.state.movement_flags & crate::pmove_roll::PMF_ROLLING != 0
+                && !crate::pmove_roll::in_roll(&self.state)
+                && !crate::pmove_roll::in_roll_complete(&self.state)
+        {
+            wish_speed =
+                wish_speed.min(self.state.speed * style.map_or(DUCK_SCALE, |rules| rules.duck));
         }
         // PM_WalkMove :3391-3399; level >= 2 is dispatched to swimming first.
         if self.state.water_level != 0 {
@@ -1993,20 +2020,38 @@ impl Predictor {
         }
         let slick = ground.trace.surface_flags & SURF_SLICK != 0;
         let knockback = self.state.movement_flags & PMF_TIME_KNOCKBACK != 0;
-        self.accelerate(
-            wish_direction,
-            wish_speed,
-            if self.hovering() {
-                vehicle::VEHICLE_ACCELERATION
-            } else if slick || knockback {
-                AIR_ACCELERATION
+        let skiing = style.is_some_and(|rules| rules.skiing(command));
+        let style_slick = style.is_some_and(|rules| rules.style == japro_movement::Style::Slick);
+        if skiing {
+            japro_movement::ski_accelerate(&mut self.state, wish_direction, wish_speed, seconds);
+        } else {
+            self.accelerate(
+                wish_direction,
+                wish_speed,
+                if self.hovering() {
+                    vehicle::VEHICLE_ACCELERATION
+                } else if slick && !style_slick || knockback {
+                    if style.is_some_and(|rules| rules.style == japro_movement::Style::Ocpm) {
+                        15.0
+                    } else {
+                        AIR_ACCELERATION
+                    }
+                } else {
+                    style.map_or(GROUND_ACCELERATION, |rules| rules.ground_acceleration)
+                },
+                seconds,
+            );
+        }
+        if surf {
+            self.state.velocity[2] -= self.state.gravity * 0.5 * seconds;
+        }
+        if slick || knockback || skiing || style_slick {
+            let change = if style.is_some() && self.state.ja_pro.race {
+                800.0 * seconds.min(0.008)
             } else {
-                GROUND_ACCELERATION
-            },
-            seconds,
-        );
-        if slick || knockback {
-            self.state.velocity[2] -= self.state.gravity * seconds;
+                self.state.gravity * seconds
+            };
+            self.state.velocity[2] -= change;
         }
         let old_speed = Vec3::from_array(self.state.velocity).length();
         // `VectorNormalize` leaves a zero vector as it is, its signed zeros included: a
@@ -2036,7 +2081,12 @@ impl Predictor {
         context: &MoveContext,
     ) {
         self.check_jump(command, bounds, ground, collision, context);
-        self.friction(seconds, ground);
+        self.friction_for_command(seconds, ground, command);
+        let style = self.japro_style();
+        let surf = style.is_some_and(|rules| rules.style == japro_movement::Style::Surf);
+        if surf && command.forward_move != 0 && command.right_move != 0 {
+            command.right_move = 0;
+        }
         crate::pmove_dir::set_movement_direction(&mut self.state, command);
         // A vehicle's `Update` turned its view since the axes were taken.
         let view = if self.vehicle_move() {
@@ -2058,13 +2108,21 @@ impl Predictor {
             }
             (
                 vector_normalize(wish_velocity),
-                wish_velocity.length() * self.command_scale(command),
+                if surf {
+                    wish_velocity.length().min(250.0)
+                } else {
+                    wish_velocity.length() * self.command_scale(command)
+                },
             )
         });
         let acceleration = self
             .vehicle_air_acceleration(ground)
             .unwrap_or(AIR_ACCELERATION);
-        self.accelerate(wish_direction, wish_speed, acceleration, seconds);
+        if let Some(style) = style.filter(|rules| rules.style != japro_movement::Style::Siege) {
+            style.air_accelerate(&mut self.state, wish_direction, wish_speed, seconds);
+        } else {
+            self.accelerate(wish_direction, wish_speed, acceleration, seconds);
+        }
         let stuck = self.state.movement_flags & PMF_STUCK_TO_WALL != 0;
         if ground.ground_plane
             && !stuck
@@ -2103,6 +2161,12 @@ impl Predictor {
                     dot / overbounce
                 };
         if self.config.step_slide_fix
+            && !self.japro_style().is_some_and(|rules| {
+                matches!(
+                    rules.style,
+                    japro_movement::Style::Tribes | japro_movement::Style::Slick
+                )
+            })
             && self.state.client_num < MAX_CLIENTS
             && self.state.ground_entity_number != ENTITY_NUMBER_NONE
             && normal.z < MIN_WALK_NORMAL
@@ -2365,6 +2429,8 @@ impl Predictor {
 mod events;
 #[path = "pmove_grapple.rs"]
 pub mod grapple;
+#[path = "pmove_japro_movement.rs"]
+mod japro_movement;
 #[path = "pmove_water.rs"]
 mod water;
 #[path = "pmove_weapon_history.rs"]
