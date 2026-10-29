@@ -305,6 +305,11 @@ Inline-brush point contents use the presented origin and angles, matching
 Prediction keeps these transforms separately, including when the newest and
 displayed snapshots carry different mover trajectories.
 
+The dual forward jump attack raises the collision hull's feet during codemp's
+two authored animation windows. `PMF_FIX_MINS` restores the hull with downward
+and upward clearance traces, moving up or ending in a crouch when necessary.
+The animation window requires a loaded animation timing table.
+
 `PM_JETPACK` (movement type 1), used by the equipped jetpack on stock-derived
 servers including JA+, runs the reference's gravity, thrust and air-control
 rules ([pmove_jetpack.rs](../crates/sjk-game-jka/src/pmove_jetpack.rs)). The

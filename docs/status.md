@@ -1,3 +1,12 @@
+## Dual jump-attack collision hull
+
+29/10/2026, `fix/prediction-dual-jump-hull`, based on `main` `e702b0b1`:
+ported local-player dual jump-attack hull resizing/restoration from OpenJK
+`4d0dfaf1`, codemp `PM_CheckDualForwardJumpDuck` and `PM_CheckFixMins`.
+Windows x64 synthetic tests cover both timing windows and clearance/crouch
+restoration around 8/7/4/3 ms boundaries. Live head/ceiling/ledge contacts
+and community animation tables remain unverified.
+
 ## Passenger movement prediction
 
 29/10/2026, `fix/prediction-passenger-movement`, based on `main` `9e48ff6d`:
