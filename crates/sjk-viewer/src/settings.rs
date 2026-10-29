@@ -23,6 +23,7 @@ mod resolution_list;
 mod search;
 mod sjk_popup;
 pub(crate) mod sjk_view;
+pub(crate) mod slider_peek;
 mod usage;
 mod wheel_editor;
 mod wheel_editor_view;
@@ -273,6 +274,14 @@ pub(crate) struct SettingsMenu {
     screen_label: &'static str,
     /// What the player does, for settings usage ([`usage`]).
     usage: usage::UsageTrack,
+    /// A held slider's peek at the game ([`slider_peek`]).
+    peek: slider_peek::SliderPeek,
+    /// A match is behind the screen, so a held slider may peek at it; set by
+    /// the menu each frame the SJK UI draws the screen.
+    peek_world: bool,
+    /// The row peeking this frame and how far the rest has faded, while the
+    /// SJK UI draws the rows; `None` outside that.
+    peek_draw: Option<(usize, f32)>,
 }
 
 impl SettingsMenu {
@@ -348,6 +357,24 @@ impl SettingsMenu {
             screen: None,
             screen_label: "",
             usage: usage::UsageTrack::default(),
+            peek: slider_peek::SliderPeek::default(),
+            peek_world: false,
+            peek_draw: None,
+        }
+    }
+
+    /// End a held slider's peek at once: something else took the pointer or the keys
+    /// (the console, a card, another window), so its release will not come here.
+    pub(crate) fn cancel_peek(&mut self) {
+        self.peek.cancel();
+    }
+
+    /// Whether a match is behind the screen: only then may a held slider peek
+    /// at it ([`slider_peek`]).
+    pub(crate) fn set_world_behind(&mut self, world: bool) {
+        self.peek_world = world;
+        if !world {
+            self.peek.cancel();
         }
     }
 
@@ -383,6 +410,7 @@ impl SettingsMenu {
         self.numeric = None;
         self.classic = None;
         self.wheel.close();
+        self.peek.cancel();
         self.refresh(console);
     }
 
@@ -505,6 +533,18 @@ impl SettingsMenu {
         }
     }
 
+    /// Focus `cvar`'s row and hold its slider long enough that it peeks
+    /// (world shots).
+    #[cfg(test)]
+    pub(crate) fn peek_for_shot(&mut self, cvar: &str) {
+        self.select_cvar(cvar);
+        let now = std::time::Instant::now();
+        let since = now
+            .checked_sub(slider_peek::HOLD + slider_peek::FADE)
+            .unwrap_or(now);
+        self.peek.press(self.selected, since);
+    }
+
     pub(crate) fn visual_selection(&self) -> (usize, bool) {
         (self.selected, false)
     }
@@ -554,6 +594,8 @@ impl SettingsMenu {
         if event.state != ElementState::Pressed {
             return SettingsResult::None;
         }
+        // A key shows the whole screen again.
+        self.peek.cancel();
         let PhysicalKey::Code(key) = event.physical_key else {
             return SettingsResult::None;
         };

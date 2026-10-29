@@ -185,6 +185,10 @@ impl GpuState {
         self.cursor_policy.set_focus(focused);
         self.gameplay_input.focus(focused);
         if !focused {
+            // The window that took the focus takes the slider's release too.
+            if let Some(menu) = &mut self.client_menu {
+                menu.cancel_slider_peek();
+            }
             self.pending_generic_command = 0;
             self.generic_command_sent = 0;
             if let Some(console) = &mut self.console {

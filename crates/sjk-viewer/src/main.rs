@@ -2253,6 +2253,17 @@ impl GpuState {
             || trade_shown;
         // Nor under the SJK UI's report card, as under its other cards.
         let report_card = self.text_dialog.is_open() && self.text_dialog.is_sjk();
+        // A card or the console over a held slider takes the pointer and keys from
+        // Settings, so its release would never come: the peek ends now (`slider_peek.rs`).
+        let console_open = self
+            .console
+            .as_ref()
+            .is_some_and(console::ViewerConsole::is_open);
+        if (medal_popup || report_card || console_open)
+            && let Some(menu) = &mut self.client_menu
+        {
+            menu.cancel_slider_peek();
+        }
         self.text_vertices.clear();
         self.classic_text_vertices.clear();
         game_font::prepare(self);

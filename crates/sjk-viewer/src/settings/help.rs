@@ -960,6 +960,10 @@ const HELP: &[(&str, &str)] = &[
         "Support SJK at the top left of the SJK UI's main page: links to SJK's GitHub Sponsors and Ko-fi pages. Off hides it, as its x does.",
     ),
     (
+        super::slider_peek::CVAR,
+        "In the game, hold a slider in the SJK UI a moment and the rest of Settings fades away, showing the game as you drag. Off keeps it.",
+    ),
+    (
         crate::menu_pictures::CVAR,
         "Map pictures behind the menus and drawn saber shaders, not live ones: saves video memory. On by itself on small cards.",
     ),

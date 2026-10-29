@@ -1123,6 +1123,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "The SJK version whose update put the settings it changed back to their default (the what's-new card's Settings to review), so they are reset once",
         ),
         CvarDefinition::new(
+            crate::settings::slider_peek::CVAR,
+            true,
+            archive,
+            "Over a match, holding a Settings slider for a moment fades the rest of the screen away so its change shows on the game (0 keeps the screen)",
+        ),
+        CvarDefinition::new(
             crate::support_links::CVAR,
             true,
             archive,
