@@ -1,3 +1,28 @@
+## Mystery box: the extras pack's sounds, a cooldown, the teddy bear, a sturdier chest
+
+30/10/2026, `personal/box-teddy`, based on `main` `dbfb7e9a` (Sol's request), with the
+hub's `box-cooldown` branch ([mystery-boxes.md](mystery-boxes.md)). The box's opening,
+roll and closing are Sol's sounds in the optional SJK extras pack (`extras_open.mp3`,
+`extras_roll.mp3`, `extras_close.mp3` under `sound/sjk/mystery_box/`), each falling
+back to the crate slide, the bundled tune and silence without it (`mystery_box::EXTRAS`,
+the laugh's fallback made general). The roll ends at 5.2 s, the extras roll's last note;
+the bundled tune is played 6% faster to end there too (`mystery_box_assets.py`, `STEP`).
+A player opens one box every 15 seconds (the hub's `cooldown`, 3 before), which the client
+says at once from its own last opening. A box that blows up stops on a teddy bear
+(`teddy_bear_model.py`, never in the reel) and laughs at the box for everyone who sees the
+roll; 1.5 s later it blows up and the opener's client sends `kill` where the Ragdoll could
+strike (`GpuState::ragdoll_blown_up`, its ragdoll, is gone); the hunters' words of where
+the price went wait for the roll. The chest gained feet, a plinth, raised bands, corner
+posts, a rim, a lock plate, handles and an arched, banded lid (`mystery_box_model.py`,
+same atlas and size, so the hinge is unchanged). The box_cooldown refusal now says "You
+opened a box a moment ago: let someone else roll." Verified: fmt, the workspace build,
+tests and Clippy; `mystery_box` tests (the extras and their fallbacks, the bear, the laugh
+then the blast once and the opener told, the cooldown's seconds, the close); the world
+shot `duel6_mystery_box_teddy` (a closed chest and two open on the bear, lids open since
+the shots now give the lid its opening time); the hub's tests. Not verified: anything in
+game, `kill` on JA+, jaPRO and base servers, the extras pack's sounds against the roll in
+game, two clients seeing the same bear and death.
+
 ## Monitor Screen Saver
 
 29/10/2026, `personal/monitor-screen-saver`, based on `main` `9f40fded` (Sol's idea),

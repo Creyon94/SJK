@@ -30,6 +30,14 @@ The site (site/assets/site.js, parseChangelog) reads the release headings,
 introductions and recap lines too.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
+## Unreleased
+
+- Mystery boxes have new opening, roll and closing sounds with the SJK extras pack (Settings > General > Sith cloud); without it they sound as before. The roll stops a little sooner, at 5.2 seconds _(Sol)_
+- Mystery boxes: after opening one, you wait 15 seconds before opening another, so other players get a turn _(Sol)_
+- A mystery box that blows up stops on a teddy bear and laughs, then blows up and kills you, for everyone to see, instead of throwing you down _(Sol, after Call of Duty zombies)_
+- The mystery box is a sturdier chest: iron feet, bands and corners that stand out, a lock, handles and an arched lid _(Sol)_
+- Mystery boxes pay back less: double 5% (was 15%), jackpot 1% (was 5%), empty 36% and blowing up 12% _(Sol)_
+
 ## 2026.1029.1 (Alpha) | 29/10/2026
 
 Banana peels, the Monitor's Screen Saver, holo frame nameplates, collection marks, chat tabs and jaPRO movement that matches the server.

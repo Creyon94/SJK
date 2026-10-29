@@ -373,6 +373,7 @@ mod tests {
             mine,
             opener: None,
             revealed: false,
+            blasted: false,
         }
     }
 
