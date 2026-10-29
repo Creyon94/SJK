@@ -776,3 +776,9 @@ This follows OpenJK `codemp/cgame/cg_predict.c:722` at `4d0dfaf1`;
 items retain their separate proximity test. Unit tests cover 8/7/4/3 ms commands
 and both directions of a standing/crouching hull mismatch. Live trigger timing
 against an OpenJK server remains unverified.
+
+### Face the opponent during predicted saber locks
+
+Known limitation (source review against OpenJK `codemp` at `4d0dfaf1`):
+Client prediction freezes the prior view during a saber lock without codemp's opponent-facing adjustment.
+A focused fix and verification are in progress.
