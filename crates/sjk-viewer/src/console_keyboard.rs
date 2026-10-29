@@ -65,7 +65,30 @@ pub(crate) fn open_console_key(
     }
 }
 
+/// Whether a key pressed in the chat composer leaves it for the console. Stock's
+/// console key goes before the message field (`cl_keys.cpp:1318`), so it does here,
+/// Shift+Escape included; Shift with any other console key types in the composer
+/// instead, so `~` can still be written there.
+pub(crate) fn console_key_leaves_chat(toggles: bool, escape: bool, shift: bool, repeat: bool) -> bool {
+    toggles && !repeat && (escape || !shift)
+}
+
 impl ViewerConsole {
+    /// Whether `event`, pressed while the chat composer is open, closes it and opens
+    /// the console ([`console_key_leaves_chat`]).
+    pub(crate) fn leaves_chat_for_console(&self, event: &KeyEvent) -> bool {
+        let PhysicalKey::Code(key) = event.physical_key else {
+            return false;
+        };
+        event.state == ElementState::Pressed
+            && console_key_leaves_chat(
+                self.toggles_console(event, key),
+                key == KeyCode::Escape,
+                self.shift,
+                event.repeat,
+            )
+    }
+
     /// Stock console keys: Shift+Escape (`cl_keys.cpp:1318`), the physical key
     /// under Escape with `cl_consoleUseScanCode` (EternalJK's default, so layouts
     /// where it types `0`, as Hungarian, open the console too), or else a
@@ -376,6 +399,17 @@ mod dead_key_tests {
 
     fn character(text: &str) -> Key {
         Key::Character(SmolStr::new(text))
+    }
+
+    #[test]
+    fn the_console_key_leaves_the_chat_composer_but_shift_types_a_tilde() {
+        use super::console_key_leaves_chat as leaves;
+        // toggles, escape, shift, repeat
+        assert!(leaves(true, false, false, false));
+        assert!(!leaves(true, false, true, false), "Shift+` types ~ in the chat");
+        assert!(leaves(true, true, true, false), "Shift+Escape opens the console");
+        assert!(!leaves(true, false, false, true), "a held key does nothing more");
+        assert!(!leaves(false, false, false, false));
     }
 
     #[test]
