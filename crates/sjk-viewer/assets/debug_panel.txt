@@ -71,7 +71,7 @@ area: HUD
 title: cg_lagometer 2 and 3: average ping, interpolation and a speed graph (Kushina's idea)
 change: 2: the graph, its averages on a line just above it and a speed graph above with the speed.
 change: 3: the same without backdrops, the speed graph taller, its number only moving.
-change: The numbers are the HUD's text size (21 px at 1080p); the graph keeps its size.
+change: The numbers are EJK's size (digits about 13 px at 1080p); the graph keeps its size.
 test: cg_lagometer 1: exactly the old graph. Settings > HUD > Lagometer steps 0 to 3.
 test: cg_lagometer 2 on a server: ping left, interpolation right, the speed graph above.
 test: At cg_lagometerScale 1 the numbers read easily, about EJK's size; the graph is as before.

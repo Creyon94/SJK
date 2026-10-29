@@ -15,11 +15,12 @@
 //! modes (Sol's decision, 29/10/2026). The graphs are in units of the graph's own height
 //! over 48, EJK's size, at any `cg_lagometerScale`.
 //!
-//! The numbers are not: SJK's graph is 48 pixels at 1080 lines where EJK's is 108, so at
-//! EJK's proportion they were 10 pixels tall. They are drawn at the HUD's text size
-//! instead ([`TEXT_LINE`], about EJK's at 1080p), grown by the HUD scale and
-//! `cg_lagometerScale`, and the average ping and interpolation stand on a line just above
-//! the graph rather than over its top, so the graph keeps its size (Sol's decision,
+//! The numbers are not: SJK's graph is 45 pixels at 1080 lines with the default HUD scale
+//! where EJK's is 108, so at EJK's proportion they were 10 pixels tall. They are drawn at
+//! EJK's own size instead ([`TEXT_LINE`]: digits about 13 pixels tall at 1080p, as the
+//! HUD's "Score" capitals), grown by the HUD scale and `cg_lagometerScale`, and the average
+//! ping and interpolation stand on a line just above the graph rather than over its top,
+//! wider than the graph and centred on it, so the graph keeps its size (Sol's decision,
 //! 29/10/2026). The speed graph rises as far as that line needs ([`places`]).
 
 use super::*;
@@ -50,16 +51,17 @@ const SPEED_RANGE: f32 = 3_000.0;
 const SPEED_GAP: f32 = 56.0;
 const TALL_SPEED_RISE: f32 = 96.0;
 /// The numbers' line box at 1080 lines and `cg_lagometerScale 1`, in the HUD's logical
-/// pixels: the size the HUD layouts' text starts from (`Theme::typography.value`), about
-/// EJK's at 1080p (`CG_Text_Paint(..., 0.5f, ..., FONT_SMALL)`, `ocr_a`'s 21-unit line at
-/// half scale, 10.5 of 480 lines: 23.6 pixels), as the HUD's other small readouts
-/// (`cg_showpos`'s 20, the frame times' 18 under the frame rate).
-pub(super) const TEXT_LINE: f32 = 21.0;
+/// pixels (before `cg_hudScale`, 0.7 by default): with the default HUD scale a 23.8-pixel
+/// line, EJK's at 1080p (`CG_Text_Paint(..., 0.5f, ..., FONT_SMALL)`, `ocr_a`'s 21-unit
+/// line at half scale, 10.5 of 480 lines: 23.6 pixels). `ocr_a`'s digits (SJK Chat with
+/// `ui_gameFont`) fill 11.4 of its 21-pixel line, so they stand about 13 pixels tall, as
+/// the HUD's "Score" capitals (Sol's request, 29/10/2026).
+pub(super) const TEXT_LINE: f32 = 34.0;
 /// The space between the numbers' line and the graphs, in the same pixels.
 pub(super) const TEXT_GAP: f32 = 2.0;
 /// The narrowest the numbers' line is, in lines: a three-digit ping and an interpolation
-/// such as "-12.5" side by side, on a graph narrower than that.
-const ROW_LINES: f32 = 3.6;
+/// such as "-12.5" side by side with a digit's room between them, wider than the graph.
+const ROW_LINES: f32 = 4.7;
 const YELLOW: Color = Color::new(1.0, 0.82, 0.20, 0.9);
 const BLUE: Color = Color::new(0.25, 0.55, 1.0, 0.9);
 const GREEN: Color = Color::new(0.28, 0.95, 0.48, 0.9);
@@ -514,13 +516,13 @@ mod tests {
         let readout = moving(300.0, 2);
         let commands = drawn(2, &readout);
         // The graph's backdrop, as in mode 1, and the speed graph's, 56 units (of 96 / 48)
-        // above it and 9 pixels higher, so the numbers' 21-pixel line and its 2-pixel gaps
-        // fit between the two (EJK's 8 units leave 16 pixels).
+        // above it and 22 pixels higher, so the numbers' 34-pixel line and its 2-pixel
+        // gaps fit between the two (EJK's 8 units leave 16 pixels).
         assert_eq!(
             panels(&commands),
             [
                 Rect::new(500.0, 300.0, 96.0, 96.0),
-                Rect::new(500.0, 300.0 - 112.0 - 9.0, 96.0, 96.0)
+                Rect::new(500.0, 300.0 - 112.0 - 22.0, 96.0, 96.0)
             ]
         );
         assert_eq!(
@@ -551,7 +553,7 @@ mod tests {
         );
         let graph = Rect::new(500.0, 300.0, 96.0, 96.0);
         let tall = places(graph, 3, 1.0, SCREEN).speed;
-        assert_eq!(tall, Rect::new(500.0, 300.0 - 304.0 - 9.0, 96.0, 288.0));
+        assert_eq!(tall, Rect::new(500.0, 300.0 - 304.0 - 22.0, 96.0, 288.0));
         // Its bottom is mode 2's.
         let short = places(graph, 2, 1.0, SCREEN).speed;
         assert!((tall.bottom() - short.bottom()).abs() < 1e-3);
@@ -560,18 +562,18 @@ mod tests {
         assert_eq!(texts(&drawn(2, &moving(0.0, 2))).len(), 3, "mode 2 shows 0");
     }
 
-    /// The numbers are the HUD's text size (21 pixels at 1080 lines) grown by the HUD
-    /// scale and `cg_lagometerScale`, not the graph's EJK proportion (10.5 pixels on
+    /// The numbers are EJK's size (a 34-pixel line at 1080 lines before `cg_hudScale`)
+    /// grown by the HUD scale and `cg_lagometerScale`, not the graph's EJK proportion (10.5
+    /// pixels on
     /// SJK's 48-pixel graph): the ping and interpolation on a line just above the graph,
     /// ping left and interpolation right, the speed number at the speed graph's top left.
     /// Nothing overlaps, and the graph itself keeps its size.
     #[test]
     fn the_numbers_are_readable_above_the_graph_at_every_scale() {
-        assert_eq!(TEXT_LINE, sjk_ui::Theme::default().typography.value);
         for scale in [1.0, 2.0] {
             // SJK's graph: 48 pixels at 1080 lines, times `cg_lagometerScale`.
             let side = 48.0 * scale;
-            let graph = Rect::new(1_920.0 - 108.0 - side, 1_080.0 - 324.0 - side, side, side);
+            let graph = Rect::new(1_920.0 - 324.0 - side, 1_080.0 - 324.0 - side, side, side);
             for mode in [2, 3] {
                 let readout = moving(300.0, mode);
                 let commands = drawn_at(mode, &readout, graph, scale);
@@ -616,7 +618,8 @@ mod tests {
                 }
             }
         }
-        // `cg_hudScale` or a larger screen grows them as the HUD's other text: 1440 lines.
+        // `cg_hudScale` or a larger screen grows them as the HUD's other text: 1440 lines
+        // at `cg_hudScale 1`.
         let commands = drawn_at(
             2,
             &moving(300.0, 2),
@@ -626,7 +629,35 @@ mod tests {
         assert!(
             texts_placed(&commands)
                 .iter()
-                .all(|(_, _, size)| (size - 28.0).abs() < 1e-3)
+                .all(|(_, _, size)| (size - TEXT_LINE * 4.0 / 3.0).abs() < 1e-3)
+        );
+    }
+
+    /// At 1080 lines with the default `cg_hudScale` (0.7), SJK Chat's digits (the font of
+    /// `ui_gameFont`, on by default) stand about 13 pixels tall on EJK's 23.6-pixel line,
+    /// and the widest numbers likely, a three-digit ping and "-99.9", fit the line side by
+    /// side with room between them, on the 45-pixel graph or wider.
+    #[test]
+    fn the_digits_are_about_13_pixels_and_both_numbers_fit_their_line() {
+        let font = crate::text::retail_font::load(&crate::text::retail_font::CHAT)
+            .unwrap()
+            .font;
+        let hud = 0.7;
+        let line = TEXT_LINE * hud;
+        assert!((line - 23.6).abs() < 0.5, "{line}");
+        let scale = line / font.height;
+        let digit = font.glyph(crate::text::TextFace::Regular, b'8').height * scale;
+        assert!((12.5..=13.5).contains(&digit), "{digit}");
+        let graph = Rect::new(1_700.0, 700.0, 64.0 * hud, 64.0 * hud);
+        let row = places(graph, 2, hud, SCREEN).numbers;
+        assert!(row.width > graph.width);
+        let width = |text| crate::text::visible_text_width(&font, text, scale);
+        let room = row.width - 3.0 * graph.height / UNITS;
+        assert!(
+            width("999") + width("-99.9") + width("0") <= room,
+            "{} + {} in {room}",
+            width("999"),
+            width("-99.9")
         );
     }
 
