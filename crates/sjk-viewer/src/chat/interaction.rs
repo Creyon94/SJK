@@ -165,23 +165,15 @@ impl ChatOverlay {
             // Match the canvas's reverse paint order: the card covers the
             // composer, which covers the feed. Otherwise release activates a
             // different widget than the one recorded here and is discarded.
-            self.pressed_action = [
-                card::CARD_TRADE,
-                card::CARD_WHISPER,
-                card::CARD_REPORT,
-                card::CARD_SAFETY,
-                card::CARD_BAN,
-                card::CARD_MUTE,
-                card::CARD,
-            ]
-            .into_iter()
-            .chain([LATEST, SJK, TEAM, GLOBAL])
-            .chain(0..MAX_VISIBLE as u16)
-            .find(|token| {
-                self.ui
-                    .rect_for(*token)
-                    .is_some_and(|rect| rect.contains(position))
-            });
+            self.pressed_action = card::BUTTONS
+                .into_iter()
+                .chain([card::CARD, LATEST, SJK, TEAM, GLOBAL])
+                .chain(0..MAX_VISIBLE as u16)
+                .find(|token| {
+                    self.ui
+                        .rect_for(*token)
+                        .is_some_and(|rect| rect.contains(position))
+                });
             // A sender's name: whose it is, so a release on another never pins theirs.
             self.pressed_who = self
                 .pressed_action
