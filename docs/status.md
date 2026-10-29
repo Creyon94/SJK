@@ -1,3 +1,12 @@
+## jaPRO jump prediction review
+
+29/10/2026, `feat/prediction-japro-jumps`, based on `main` `0fd6a5e1` with
+the adapters in PRs #277 and #279: this change claims style-specific jump
+impulses, held-jump behavior, ramp/double-jump impulses, superjump scaling and
+the jump timer from TaystJK `2d60c0fa5` multiplayer `codemp`. Implementation
+and reference checks are pending; every rule remains confined to the current
+advertised jaPRO/TaystJK server profile.
+
 ## jaPRO movement-style acceleration
 
 29/10/2026, `feat/prediction-japro-styles`, based on `main` `c7089264` and
