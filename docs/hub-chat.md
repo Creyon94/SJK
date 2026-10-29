@@ -1076,7 +1076,7 @@ the server, an SJK player or not.
   ([Emotes on stock models](rig-models.md#emotes-on-stock-models)); the `sound` plays
   on the player (`emotes::Cue`, channel 13,
   following another player, in both ears for the player's own, at `s_emoteVolume`
-  apart from `s_volume`)
+  apart from `s_volume`, live while it plays)
   and stops when the emote is cut short; the `torso` and `legs` animations are not
   played yet, and a received emote is written to the console (`* Sol: Wave`). Demos
   keep the emotes started on them.

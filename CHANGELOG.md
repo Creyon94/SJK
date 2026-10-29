@@ -69,6 +69,7 @@ Capsule nameplates, the Sith cloud, a chest and a hunt for mystery boxes, and a 
 - Cardboard box: the free camera works while you hide in it, and a boxed player stays crouched in the box when they open the chat or the menu, for everyone; their lunges and kicks still play (#152) _(Creyon, PR #231)_
 - Ragdoll: your limp body no longer disappears while you fly the free camera, and rising or speeding up in the free camera no longer gets you up _(Creyon, PR #232)_
 - Tab completes emotes in the console: `sjkemote aut` and Tab writes `sjkemote autumn_tea`, and with several matches lists them, as it does the words stop, sync, mute, unmute and help _(Slash, PR #234)_
+- Emote volume reaches the emotes already playing: turned down, a dance's music nearby got quieter only once you had walked away from it _(Slash, PR #233, after KaTsumoTo's report)_
 
 ## 2026.1027.2 (Alpha) | 27/10/2026
 
