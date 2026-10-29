@@ -431,8 +431,12 @@ fn main() {
 }
 /// Tell the player why the game closed: a release build on Windows has no console, so
 /// without this the window only vanished (a laptop with two graphics cards, #sjk player
-/// chat 28-29/10/2026).
+/// chat 28-29/10/2026). `SJK_NO_START_DIALOG` leaves it out for unattended runs (the
+/// release's package smoke check), where nobody would close it.
 fn show_start_failure(error: &str) {
+    if std::env::var_os("SJK_NO_START_DIALOG").is_some() {
+        return;
+    }
     let _ = rfd::MessageDialog::new()
         .set_level(rfd::MessageLevel::Error)
         .set_title("SJK could not start")
