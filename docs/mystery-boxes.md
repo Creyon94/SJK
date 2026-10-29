@@ -44,7 +44,12 @@ locked door (empty):
 | `double` | a green crystal |
 | `jackpot` | a red crystal |
 | `explode` | a thermal detonator |
-| `holocron` | SJK's holocron |
+| `holocron` | the tier's own holocron, every part of it, for the opener; SJK's holocron for the others (the hub tells them no tier) |
+
+What rolls before it stops is the game's weapons and these prizes, among them the four
+tiers' holocrons, Uncommon to Mythical, each drawn as the Holocrons tab draws it, its
+parts posed and turning (`mystery_box::HOLOCRONS`, Sol, 29/10/2026; before, one holocron
+for all). `world_shot::mystery_box_shots::duel6_mystery_box_holocrons` shows the four.
 
 The opener is told what came out in the centre of the screen. It floats over the box,
 turning slowly, until they take it with `+use` at the box (a sparkle; a chat line gives
@@ -64,14 +69,16 @@ The price and the odds are the hub's (`GET /v1/mystery-boxes`), PROVISIONAL, Sol
 
 | Outcome | Chance | Pays |
 | --- | --- | --- |
-| `empty` | 43 % | nothing |
-| `refund` | 30 % | the price back |
+| `empty` | 39 % | nothing |
+| `refund` | 26 % | the price back |
 | `double` | 15 % | twice the price |
 | `jackpot` | 5 % | five times the price |
 | `explode` | 5 % | nothing: the price goes to a hunter |
-| `holocron` | 2 % | a holocron |
+| `holocron` | 10 % | a holocron |
 
-On average a box pays back 85 of its 100 credits, and a holocron one time in fifty. A
+On average a box pays back 81 of its 100 credits, and a holocron one time in ten (Sol,
+29/10/2026; 2% before, with empty 43% and refund 30%): a green holocron sells for 150, so
+a box gives back about what it costs. A
 newer hub's outcome the client does not know is shown by its credits alone.
 
 **It blows up** (`explode`, Sol's idea of 28/10/2026, after Call of Duty zombies' boxes):
@@ -83,11 +90,12 @@ box blows them up: their own client throws them down as a [ragdoll](client.md#ra
 not knock them down). The hub hands what they paid (nothing for a free roll) to another
 player on the server with the Box hunt toy on, at random; with nobody else hunting
 there, it is lost. The opener reads where it went; every hunter hears a laugh, "a ghost
-having fun" (`LAUGH`: a retail gloat, `sound/chars/alora/misc/gloat1.mp3`, until Sol's
-own is bundled), the one who got the credits in the centre of the screen and the others
+having fun" (`LAUGH`, Sol's laugh of 29/10/2026, `sound/sjk/mystery_box/laugh.mp3`, in the
+optional SJK extras pack `unofficial_sjk_extras.pk3`, the Sith cloud's `extras`; a
+player without the pack hears the retail gloat, `sound/chars/alora/misc/gloat1.mp3`), the one who got the credits in the centre of the screen and the others
 in the chat (the hub's box hunt event `laugh_<opener>_<to>_<credits>`).
 
-**A holocron** (`holocron`, 28/10/2026): the roll stops on SJK's holocron, and the hub
+**A holocron** (`holocron`, 28/10/2026): the roll stops on the tier's holocron, and the hub
 gives one of any tier, rolled on the holocrons' own odds ([holocrons.md](holocrons.md));
 it counts against no daily cap and cannot be traded (source `box`). The opener reads its
 tier over the box and in the centre, and finds it in the Collection.
