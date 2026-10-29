@@ -789,3 +789,13 @@ stays pending so recovery cannot smooth across it. Fixed-step commands use their
 simulation times for this decision. This follows OpenJK `codemp/cgame/cg_predict.c:1020-1033`
 at `4d0dfaf1`, while retaining SJK's larger history window. Unit tests cover
 8/7/4/3 ms boundaries; live packet-loss recovery remains unverified.
+### Face the opponent during predicted saber locks
+
+An active saber lock faces the opponent before each committed, replayed or
+preview Pmove. The direction starts at the displayed snapshot's player origin
+and ends at the opponent's presented solid origin, including interpolation,
+as OpenJK `codemp/cgame/cg_predict.c:1252-1263` does at `4d0dfaf1`.
+Display-only frames refresh that facing through the camera's existing view-lock
+path. Expired locks, a changed client, a missing opponent and fake noclip do not
+take the view. Tests cover 8/7/4/3 ms endpoints, moving opponents, pitch/yaw and
+expiry; live saber locks remain unverified.

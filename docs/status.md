@@ -8,6 +8,14 @@ so it cannot become a delayed smoothed correction.
 Reference: OpenJK multiplayer `cg_predict.c:1020-1033`, revision `4d0dfaf1`.
 Windows x64 unit tests exercise ACK boundaries and explicit resets at 8/7/4/3 ms.
 Recovery under actual packet loss remains unverified.
+## Prediction: saber-lock facing
+
+29/10/2026, `fix/prediction-saber-lock-facing`, based on `main` `e702b0b1`:
+a saber lock faces its opponent during movement prediction and display-only
+frames, using the snapshot player origin and the presented opponent origin.
+Reference: OpenJK multiplayer `cg_predict.c:1252-1263`, revision `4d0dfaf1`.
+Windows x64 synthetic tests cover 8/7/4/3 ms endpoints, repeated frames,
+pitch/yaw, expiry and missing opponents. Live locks remain unverified.
 
 ## Passenger movement prediction
 

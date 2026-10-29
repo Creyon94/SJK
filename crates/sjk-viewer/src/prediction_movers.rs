@@ -412,6 +412,12 @@ impl Movers {
         }
     }
 
+    /// Presented packed-solid origin, including snapshot interpolation.
+    pub(super) fn entity_origin(&self, number: u16) -> Option<[f32; 3]> {
+        let index = self.by_entity.get(usize::from(number)).copied().flatten()?;
+        Some(self.colliders[index].origin)
+    }
+
     /// `CG_AdjustPositionForMover` (`cg_ents.c:3005-3038`): translate only.
     /// Stock deliberately does not rotate a rider's origin or view angles.
     /// SJK's presentation clock can select an older trajectory than prediction
