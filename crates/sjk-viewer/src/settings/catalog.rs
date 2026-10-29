@@ -1344,6 +1344,11 @@ pub(super) const GAME: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Slider peek",
+        cvar: super::slider_peek::CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Menu pictures (saves video memory)",
         cvar: crate::menu_pictures::CVAR,
         kind: ValueKind::Bool,

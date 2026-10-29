@@ -412,6 +412,7 @@ impl Group {
                 crate::menu::style::CVAR,
                 crate::support_links::CVAR,
                 crate::menu_pictures::CVAR,
+                super::slider_peek::CVAR,
                 crate::rarity_fx::CVAR,
                 crate::game_font::CVAR,
                 crate::text::style::SCALE_CVAR,

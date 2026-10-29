@@ -2601,6 +2601,47 @@ like this one.",
         });
     }
 
+    /// Settings > Graphics opened over a match with its "max brighten" slider
+    /// focused, then held so that it peeks: only its row over the game.
+    #[test]
+    #[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+    fn duel6_sjk_slider_peek() {
+        on_big_stack(|| {
+            let size = [1920, 1080];
+            let menu = menu::ClientMenu::new(false, String::new());
+            let cvars = [
+                ("ui_menuStyle", "sjk"),
+                ("ui_settingsMode", "advanced"),
+                (crate::settings::quick::HIDE_CVAR, "1"),
+            ];
+            let Some((mut gpu, _profile)) = open("maps/mp/duel6.bsp", size, Some(menu), &cvars)
+            else {
+                return;
+            };
+            let shots = menu_backdrop::tour_for("Yavin Training Grounds").expect("duel6's tour");
+            let shot = &shots[0];
+            let (yaw, pitch) = look(shot.from, shot.at);
+            aim(&mut gpu, shot.from, yaw, pitch);
+            if let Some(console) = gpu.console.as_mut() {
+                console.close_for_connection();
+            }
+            let _ = frame(&mut gpu, 60);
+            let brighten = crate::frame_target::aa::exposure::MAX_EV;
+            for held in [false, true] {
+                if let (Some(menu), Some(console)) =
+                    (gpu.client_menu.as_mut(), gpu.console.as_ref())
+                {
+                    menu.sjk_slider_peek_for_shot(console, brighten, held);
+                }
+                let name = if held { "held" } else { "before" };
+                println!(
+                    "{}",
+                    shoot(&mut gpu, 8, &format!("duel6-slider-peek-{name}")).display()
+                );
+            }
+        });
+    }
+
     /// The SJK chat docked on the main page and in the in-game menu, on made-up messages
     /// (a long one wrapping onto rows of its own, the newest too tall for the box at the
     /// larger text style): the main page, then something typed in its field; the in-game
