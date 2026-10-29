@@ -61,6 +61,17 @@ test: Break down the last copy of the shader you wear: the card says first that 
 test: Trade window: a locked duplicate is dimmed with a padlock; the Favourites chip filters.
 note: Stars and locks show only once the hub with collection marks is deployed.
 
+[holocron-day]
+area: Menus & settings
+title: Holocron limit resets at 9:00 Paris time, not 24 h after each drop
+change: The hub's 8-a-day cap (and 1 mythical, 16 per address) starts again at 09:00 in Paris.
+change: Holocrons tab: "n of 8 today"; at the cap "Limit reached: resets in about 3 h 10 min".
+change: A failed progress reading is tried again in 2 minutes, not an hour.
+test: Holocrons tab before the cap: "n of 8 today" and the next holocron in minutes of play.
+test: At 8 of 8: the line counts down to 09:00 Paris; at 09:00 a held holocron drops at once.
+test: Hover a holocron tier, then open the Loot table: both say at most 8 a day, resets at 9:00.
+note: Needs the hub's holocron-day deploy; an old hub shows "Limit reached for today".
+
 [ejk-flesh-sparks]
 area: Rendering & effects
 title: Saber hit sparks, cg_fleshSparks 0-7, as in JoF EJK (Kushina's idea)

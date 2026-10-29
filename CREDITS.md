@@ -106,7 +106,8 @@ includes:
   the name since 22/10/2026); the {{S}} clan's tag with its red Sith emblem and
   JoF's green logo (22/10/2026);
 - holocron drops, loot boxes earned by playing: four tiers, drops announced in
-  the SJK chat and a Holocrons tab on the Profile screen with a 3D holocron;
+  the SJK chat and a Holocrons tab on the Profile screen with a 3D holocron; since
+  29/10/2026 the daily limit resets for everyone at 9:00, Paris time (Sol's decision);
 - opening holocrons: sealed cards (Normal, Holo and Solar finishes, the Alpha
   Edition) and credits, the ceremony and the Collection's Cards tab, and a loot
   table with every chance; credits will buy droppable cosmetics as a fix for bad
