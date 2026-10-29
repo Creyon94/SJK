@@ -40,6 +40,16 @@ test: A turns the toy off or leaves, or the map changes: A's peels go on B's scr
 test: Getting up: jump, attack or taunt, or lie still ~2.5 s. Look at the model up close.
 note: Untested in game: checked by unit tests and off-screen world shots only.
 
+[mac-high-dpi]
+area: Menus & settings
+title: High DPI (r_highDpi): window sizes and the world in pixels or in points
+change: Off (Mac default): r_resolution counts points, the world drawn at the points' size.
+change: On (default elsewhere): pixels, as before. Settings > Video and Simple Display: High DPI.
+test: Windows: High DPI is On; window, world and Resolution list are as before.
+test: At 150 % Windows scaling, turn it Off: windowed grows by 1.5; reload: world softer, HUD sharp.
+test: Off, Resolution list: sizes are the desktop's divided by 1.5; back On: pixel sizes again.
+note: Mac side needs Glen after the next release: 1280x720 window full size, better FPS.
+
 [fullscreen-keeps-size]
 area: Menus & settings
 title: Fullscreen keeps the screen's size (Mac: small game in a black screen)

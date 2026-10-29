@@ -9,6 +9,18 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 29/10/2026 | - | Banana peel toy: drop peels; opted-in players who walk onto one slip
+- 6494e3c |  | Banana peel toy: drop peels; opted-in players who walk onto one slip
++ 29/10/2026 | - | Cards docs: the hub keeps and changes its cards live (29/10/2026)
+- 86da73f |  | Cards docs: the hub keeps and changes its cards live (29/10/2026)
++ 29/10/2026 | - | Fullscreen keeps the screen's size: r_resolution only sizes a window
+- 6fdcb81 |  | Fullscreen keeps the screen's size: r_resolution only sizes a window
++ 29/10/2026 | - | Holocron limit resets at 9:00 Paris time; countdown from the hub
+- c24a65c |  | Holocron limit resets at 9:00 Paris time; countdown from the hub
++ 29/10/2026 | - | Staff tick: a silver starburst of sixteen points
+- 94a43ba |  | Staff tick: a silver starburst of sixteen points
++ 29/10/2026 | - | Lagometer numbers at EJK's size: digits about 13 px at 1080p
+- 026c006 |  | Lagometer numbers at EJK's size: digits about 13 px at 1080p
 + 29/10/2026 | - | Chat backdrop and text outline, for chat over bright maps (Creo's idea)
 - f9fd439 |  | Chat backdrop and text outline, for chat over bright maps (Creo's idea)
 + 29/10/2026 | - | Lagometer 2 and 3: readable numbers on a line above the graph

@@ -4,11 +4,10 @@ use super::GpuState;
 use super::console::ViewerConsole;
 use super::pointer_input::MouseLook;
 use crate::settings::{
-    DisplayMode, MonitorModes, exclusive_supported, exclusive_video_mode, minimise_after_focus,
-    suspended_after_focus, window_size_request,
+    DisplayMode, MonitorModes, exclusive_supported, exclusive_video_mode, high_dpi,
+    minimise_after_focus, suspended_after_focus, window_size, window_size_request,
 };
 use std::time::{Duration, Instant};
-use winit::dpi::PhysicalSize;
 use winit::window::Fullscreen;
 
 impl GpuState {
@@ -134,6 +133,7 @@ impl GpuState {
         let resolution = console
             .text_value("r_resolution")
             .and_then(parse_resolution);
+        let pixels = high_dpi(console);
         let exclusive = display == DisplayMode::Exclusive;
         // An exclusive video mode is the resolution, so a new size re-enters it.
         let resized = exclusive && resolution.is_some_and(|size| size != self.applied_resolution);
@@ -160,10 +160,12 @@ impl GpuState {
             window.fullscreen().is_some(),
             suspended,
             resolution,
-            self.applied_resolution,
+            pixels,
+            (self.applied_resolution, self.applied_high_dpi),
         ) {
-            let _ = window.request_inner_size(PhysicalSize::new(width, height));
+            let _ = window.request_inner_size(window_size([width, height], pixels));
             self.applied_resolution = [width, height];
+            self.applied_high_dpi = pixels;
         }
     }
 

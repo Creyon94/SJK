@@ -5874,7 +5874,17 @@ fullscreen window for the size too, after `vid_restart` or a pick: winit's macOS
 `request_inner_size` sets the content size inside the fullscreen Space, which left
 the game a small window in the middle of a black screen (Glen's report,
 29/10/2026); the Mac's green button, which does not change `r_fullscreen`, counts
-as fullscreen too. Left and Right step the row within
+as fullscreen too. `r_highDpi` (Video tab and Simple Display, "High DPI") says what
+`r_resolution` counts: the screen's pixels (1, the default except on a Mac) or its points
+(0, the Mac's default, as EternalJK's window there, SDL without high DPI): `window_size`
+asks winit for a `LogicalSize` then, so 1280x720 is a 1280x720-point window on a Retina
+screen rather than a quarter of one. The window was made at 1280x720 pixels before
+(29/10/2026), 640x360 points on a Mac. The Resolution list divides the monitor's sizes by
+its scale in points (`MonitorModes::counted_in_points`: a 3024x1964 desktop is 1512x982);
+exclusive video modes always count pixels. A change resizes a windowed window at once
+(`window_size_request` compares the size with how it was counted); the world's resolution
+follows on the graphics reload ([rendering](rendering.md#render-scale-and-supersampling)).
+Left and Right step the row within
 its aspect-ratio group. See [display.rs](../crates/sjk-viewer/src/settings/display.rs)
 and [resolution.rs](../crates/sjk-viewer/src/settings/resolution.rs).
 

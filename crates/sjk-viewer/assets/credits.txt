@@ -461,6 +461,7 @@ did: Saber sounds of your choice, apart from your saber shader
 role: The first player of SJK on a Mac
 did: Reported the Mac build's fullscreen crash, its frame rate and Cmd+Tab
 did: Reported fullscreen on a Mac shrinking the game into a black screen
+did: His frame rate in fullscreen: Mac sizes and the world now count points (r_highDpi)
 
 [Blep]
 role: Tester, and ideas for SJK
