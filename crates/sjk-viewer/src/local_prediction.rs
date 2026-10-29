@@ -192,6 +192,13 @@ impl LocalPrediction {
         });
         let mut physics_movers = movers::Movers::new();
         let mut render_movers = movers::Movers::new();
+        let mut rides = ride::Rides::new(vfs);
+        if let (Some(snapshot), Some(game)) = (snapshot, game_state) {
+            rides.resolve(snapshot, game);
+        }
+        let (revision, bounds) = rides.collision_bounds();
+        physics_movers.set_vehicle_bounds(revision, bounds);
+        render_movers.set_vehicle_bounds(revision, bounds);
         physics_movers.set_permanents(game_state);
         render_movers.set_permanents(game_state);
         if let Some(snapshot) = snapshot {
@@ -224,7 +231,7 @@ impl LocalPrediction {
             seed_ground: None,
             last_sample: PredictionSample::default(),
             miss_log: telemetry::MissLog::default(),
-            rides: ride::Rides::new(vfs),
+            rides,
             fake_noclip: false,
             snap_back: false,
             frozen_angles: [0; 3],
@@ -473,6 +480,9 @@ impl LocalPrediction {
     /// [`Self::apply_snapshot`] to predict with it.
     pub(crate) fn resolve_ride(&mut self, snapshot: &Snapshot, game_state: &GameState) {
         self.rides.resolve(snapshot, game_state);
+        let (revision, bounds) = self.rides.collision_bounds();
+        self.physics_movers.set_vehicle_bounds(revision, bounds);
+        self.render_movers.set_vehicle_bounds(revision, bounds);
     }
 
     /// Queue the command `sent` to the server and predict `command`, the same command unless
@@ -625,8 +635,12 @@ impl LocalPrediction {
 
 #[path = "prediction_ride.rs"]
 mod ride;
+
 #[path = "prediction_triggers.rs"]
 mod triggers;
+#[cfg(test)]
+#[path = "prediction_vehicle_bounds_tests.rs"]
+mod vehicle_bounds_tests;
 
 use triggers::touch_triggers;
 
