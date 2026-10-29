@@ -358,7 +358,7 @@ mod tests {
         Opening {
             started,
             outcome: outcome.to_owned(),
-            prize: prize(outcome, true),
+            prize: prize(outcome, true, None),
             seed: 0,
             mine,
             opener: None,
