@@ -93,6 +93,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - jaPRO servers: each movement style (CPM, QuakeWorld, Tribes, Surf, Slick, Siege and the others) accelerates, brakes and crouches as jaPRO does, so it no longer snaps back _(Lumaya, PR #279, after jaPRO)_
 - jaPRO servers: each style's jumps, held jumps, bunny hops, ramp and double jumps and its Force jump limits are predicted as jaPRO does; `cp_pluginDisable` bit 19 picks only-bhop where the server allows _(Lumaya, PR #282, after jaPRO)_
 - jaPRO servers: the new jetpack (race jetpack) lifts, thrusts and steers at once, predicted as jaPRO does _(Lumaya, PR #284, after jaPRO)_
+- `fs_restart` mounts the game files again without restarting SJK: a PK3 you just added (a model, a saber, a map) shows in the profile and Create game, and the asset browser's pack choices apply; the map on show gets them at the next map _(Slash, PR #286, after Blep's idea and the original game)_
 
 ## 2026.1028.1 (Alpha) | 28/10/2026
 

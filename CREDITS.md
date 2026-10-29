@@ -665,7 +665,7 @@ merged into SJK
 - #198 "Too many open files" after a long session: the Profile menu's model icons, cosmetics and
   Force templates let go of the previous map's game files (its PK3 reopening part held back).
 
-Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 66 pull requests merged
+Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 67 pull requests merged
 into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AJoFSlash)):
 
 - #114 Tab completes the cfg file argument of `exec`, `execq`, `writeconfig` and `write`
@@ -792,6 +792,8 @@ into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author
   move the radial HUD's meters apart and up or down, after Lex's idea.
 - #283 laptops with two graphics cards: sjk.exe asks NVIDIA and AMD drivers for the fast
   card, tries the other cards when one cannot open, and says why when none starts.
+- #286 `fs_restart` mounts the game files again without restarting SJK: new PK3s and the
+  asset browser's pack choices reach the menus and the next map, after Blep's idea.
 
 His Peek work in #199 (closed 24/10/2026, not merged) shaped the Drone toy: a player is
 asked before being peeked, told who watches, and can end it. His #206 (closed 25/10/2026,

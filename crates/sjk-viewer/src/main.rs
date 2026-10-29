@@ -132,6 +132,7 @@ mod file_dialog;
 mod fps_help;
 mod frame_target;
 mod free_camera;
+mod fs_restart;
 mod game_font;
 mod game_menu_actions;
 mod gameplay_fps;

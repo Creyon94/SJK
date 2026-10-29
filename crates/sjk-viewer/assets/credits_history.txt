@@ -2824,6 +2824,9 @@
 - fed9acd |  | Hide duel opponents' bars and send nothing while duelling
 
 = Slash
++ 29/10/2026 | SJK #286 | fs_restart: mount the game files again without restarting SJK
+- de38ac3 |  | fs_restart: mount the game files again without restarting SJK
+- ac00c0f |  | Changelog: fs_restart's PR number
 + 29/10/2026 | SJK #283 | Laptops with two graphics cards: ask for the fast card, fall back, say why
 - 22aeab5 |  | Laptops with two graphics cards: ask for the fast card, fall back, say why
 + 29/10/2026 | SJK #281 | SJK radial HUD: spacing and height sliders for its meters
