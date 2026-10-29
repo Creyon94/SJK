@@ -1,7 +1,7 @@
 //! Unboxed composer, channel choices, and a compact player-action popover.
 
 use super::*;
-use crate::chat::interaction::{GLOBAL, LATEST, SJK, TEAM};
+use crate::chat::interaction::{ADMIN, GLOBAL, LATEST, SJK, TEAM};
 
 impl ChatOverlay {
     pub(in crate::chat) fn build_composer(&mut self, font: &UiFont, g: &Geometry, ms: u64) {
@@ -11,11 +11,21 @@ impl ChatOverlay {
         let alpha = Tween::new(0.0, 1.0, self.opened_ms, ENTER_MS, Easing::EaseOutCubic).sample(ms);
         let y = g.bottom + 18.0 * g.scale;
         self.ui.push_opacity(alpha);
-        for (token, label, channel, offset) in [
-            (GLOBAL, "All", Channel::Global, 0.0),
-            (TEAM, "Team", Channel::Team, 58.0),
-            (SJK, "SJK", Channel::Sjk, 116.0),
-        ] {
+        // The row's channels (`chat/tabs.rs`), 58 px apart.
+        let mut row = [(GLOBAL, "All", Channel::Global); 4];
+        let mut count = 0;
+        for channel in self.offered() {
+            row[count] = match channel {
+                Channel::Team => (TEAM, "Team", channel),
+                Channel::Sjk => (SJK, "SJK", channel),
+                Channel::Admin => (ADMIN, "Admin", channel),
+                _ => (GLOBAL, "All", Channel::Global),
+            };
+            count += 1;
+        }
+        let row_end = self.row_end();
+        for (index, &(token, label, channel)) in row[..count].iter().enumerate() {
+            let offset = index as f32 * 58.0;
             let rect = Rect::new(g.left + offset * g.scale, y, 50.0 * g.scale, 26.0 * g.scale);
             let selected = input.channel == channel;
             self.ui.hit_region(token, rect);
@@ -53,14 +63,16 @@ impl ChatOverlay {
                 ("", tint(Channel::Whisper, 1.0))
             };
             // Room for " (encrypted)" at the composer's size.
-            let room = g.width - 303.0 * g.scale - if encrypted { 96.0 * g.scale } else { 0.0 };
+            let room = g.width
+                - (row_end + 125.0) * g.scale
+                - if encrypted { 96.0 * g.scale } else { 0.0 };
             let end = layout::fitting_end(name, font, room.max(0.0), 14.0 * g.scale);
             self.ui.text_fmt_aligned(
                 format_args!("To {}{suffix}", &name[..end]),
                 Rect::new(
-                    g.left + 178.0 * g.scale,
+                    g.left + row_end * g.scale,
                     y,
-                    g.width - 298.0 * g.scale,
+                    g.width - (row_end + 120.0) * g.scale,
                     26.0 * g.scale,
                 ),
                 14.0 * g.scale,
@@ -77,8 +89,8 @@ impl ChatOverlay {
             red_note(
                 &mut self.ui,
                 note,
-                [g.left + 178.0 * g.scale, y + 1.0 * g.scale],
-                g.width - 298.0 * g.scale,
+                [g.left + row_end * g.scale, y + 1.0 * g.scale],
+                g.width - (row_end + 120.0) * g.scale,
                 font,
                 g,
                 alpha,

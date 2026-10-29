@@ -1,3 +1,14 @@
+## Chat channel buttons
+
+29/10/2026, `feat/chat-tabs` (Creyon), based on `main` `e702b0b1`, Creo's idea: an Admin
+button in the chat composer's row sends `amsay` (JA+ and jaPRO; JoF EJK `Cmd_Amsay_f`) and
+shows only on those servers; `cg_chatTabTeam`, `cg_chatTabSjk` and `cg_chatTabAdmin`
+(Settings > Chat, all on by default) keep or drop the Team, SJK and Admin buttons, Tab
+walking only the ones shown ([chat/tabs.rs](../crates/sjk-viewer/src/chat/tabs.rs);
+[client.md](client.md)). Verified on Linux x86_64: new tests in `chat::tabs`, fmt, workspace
+build, tests (4175 passed) and Clippy (no new warning). Not
+verified: in game.
+
 ## Synced emote music back from alt-tab in step
 
 29/10/2026, `fix/emote-sound-alt-tab`, based on `main` `b558d4ae`, hub report #195 (build

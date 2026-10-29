@@ -71,6 +71,8 @@ pub(super) struct Options {
     pub(super) gifs: bool,
     /// The chat key opens on the last channel sent on ([`super::reply::REMEMBER_CVAR`]).
     pub(super) remember: bool,
+    /// The channels kept in the composer's row ([`super::tabs`]).
+    pub(super) tabs: super::tabs::Tabs,
 }
 
 impl Default for Options {
@@ -112,6 +114,7 @@ impl Options {
             // An integer cvar (`cgame_options`): read as a switch it was never off, so
             // turning it off kept the last channel (a player's bug report, 12/10/2026).
             remember: integer(super::reply::REMEMBER_CVAR, 0) != 0,
+            tabs: super::tabs::Tabs::read(console),
         }
     }
 

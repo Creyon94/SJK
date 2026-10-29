@@ -52,6 +52,21 @@ pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
             "The chat key opens on the channel of the last message sent (All, Team, SJK or a whisper); 0 always opens All",
         ),
         (
+            crate::chat::tabs::TEAM_CVAR,
+            1,
+            "Team chat in the chat composer's row of channels; the team chat key still opens it",
+        ),
+        (
+            crate::chat::tabs::SJK_CVAR,
+            1,
+            "SJK chat in the chat composer's row of channels",
+        ),
+        (
+            crate::chat::tabs::ADMIN_CVAR,
+            1,
+            "Admin chat (amsay, read by the server's admins) in the chat composer's row, on JA+ and jaPRO servers",
+        ),
+        (
             crate::chat::emoji::CVAR,
             0,
             "Show emoji pictures (gfx/emoji) in place of their names in chat; listEmojis lists them",
@@ -236,6 +251,12 @@ impl crate::GpuState {
         scoreboard: bool,
     ) {
         self.chat.configure(self.console.as_ref());
+        let admin = self.live_session.as_ref().is_some_and(|session| {
+            crate::chat::tabs::server_has_admin_chat(crate::mods::server_kind(
+                session.compat_profile(),
+            ))
+        });
+        self.chat.set_admin_server(admin);
         self.chat
             .set_scoreboard_layout(crate::scoreboard::behavior::chat_layout(self, scoreboard));
         let visible = self

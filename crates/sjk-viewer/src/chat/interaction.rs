@@ -10,6 +10,7 @@ pub(super) const GLOBAL: u16 = 100;
 pub(super) const TEAM: u16 = 101;
 pub(super) const LATEST: u16 = 102;
 pub(super) const SJK: u16 = 103;
+pub(super) const ADMIN: u16 = 104;
 
 /// Keys the composer acts on itself rather than typing their text.
 fn handled_key(key: KeyCode) -> bool {
@@ -76,18 +77,17 @@ impl ChatOverlay {
             KeyCode::PageDown | KeyCode::ArrowDown => self.scroll_by(-3),
             KeyCode::Tab => {
                 let channel = self.input.as_ref().expect("active input").channel;
-                match channel {
-                    Channel::Global => self.activate(TEAM),
-                    Channel::Team => self.activate(SJK),
-                    // The last whisperer comes after SJK (`chat/reply.rs`).
-                    Channel::Sjk if self.reply_target().is_ok() => {
+                // The row's channels in turn (`chat/tabs.rs`), then the last whisperer
+                // (`chat/reply.rs`), then All.
+                match self.next_channel(channel) {
+                    Some(next) => self.choose(next),
+                    None => {
                         let target = self.reply_target().ok();
                         let input = self.input.as_mut().expect("active input");
                         input.channel = Channel::Whisper;
                         input.recipient = target;
                         self.notice = "";
                     }
-                    Channel::Sjk | Channel::Whisper => self.activate(GLOBAL),
                 }
             }
             _ => {
@@ -105,7 +105,7 @@ impl ChatOverlay {
         ChatInputResult::None
     }
 
-    fn submit(&mut self) -> ChatInputResult {
+    pub(super) fn submit(&mut self) -> ChatInputResult {
         let input = self.input.as_ref().expect("active input");
         if input.channel == Channel::Sjk {
             let text = input.text.trim().to_owned();
@@ -123,6 +123,7 @@ impl ChatOverlay {
             Channel::Sjk => unreachable!("sent to the hub above"),
             Channel::Global => ChatDestination::Global,
             Channel::Team => ChatDestination::Team,
+            Channel::Admin => ChatDestination::Admin,
             Channel::Whisper => {
                 let Some(target) = input
                     .recipient
@@ -227,19 +228,21 @@ impl ChatOverlay {
         }
     }
 
+    /// Put the composer on `channel`, away from any whisper.
+    pub(super) fn choose(&mut self, channel: Channel) {
+        if let Some(input) = &mut self.input {
+            input.channel = channel;
+            input.recipient = None;
+            self.notice = "";
+        }
+    }
+
     pub(super) fn activate(&mut self, token: u16) {
         match token {
-            GLOBAL | TEAM | SJK => {
-                if let Some(input) = &mut self.input {
-                    input.channel = match token {
-                        GLOBAL => Channel::Global,
-                        TEAM => Channel::Team,
-                        _ => Channel::Sjk,
-                    };
-                    input.recipient = None;
-                    self.notice = "";
-                }
-            }
+            GLOBAL => self.choose(Channel::Global),
+            TEAM => self.choose(Channel::Team),
+            SJK => self.choose(Channel::Sjk),
+            ADMIN => self.choose(Channel::Admin),
             LATEST => {
                 self.scroll = 0;
                 self.unread = 0;

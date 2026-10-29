@@ -21,6 +21,8 @@ pub(super) fn tint(channel: Channel, alpha: f32) -> Color {
         Channel::Whisper => Color::new(0.84, 0.68, 1.0, alpha),
         // The SJK UI's gold (`#E8B84A`), apart from the game's blues.
         Channel::Sjk => Color::new(0.91, 0.72, 0.29, alpha),
+        // jaPRO's `<Admin>` yellow, softened.
+        Channel::Admin => Color::new(0.98, 0.88, 0.40, alpha),
     }
 }
 
@@ -367,7 +369,7 @@ fn line_marks<'a>(
             _ if line.encrypted => "ENCRYPTED",
             Channel::Team => "TEAM",
             Channel::Whisper => "WHISPER",
-            Channel::Global | Channel::Sjk => "",
+            Channel::Global | Channel::Sjk | Channel::Admin => "",
         },
         emoji: mark.map_or("", |mark| mark.emoji.as_str()),
         accent: false,

@@ -17,6 +17,7 @@ pub(crate) mod reply;
 pub(crate) mod server_copy;
 pub(crate) mod sjk;
 mod substitutions;
+pub(crate) mod tabs;
 pub(crate) mod text_sizes;
 
 mod view;
@@ -52,6 +53,8 @@ enum Channel {
     Whisper,
     /// The SJK chat, through the SJK hub (`chat/sjk.rs`).
     Sjk,
+    /// The server's admins, `amsay` (`chat/tabs.rs`); only sent, never a line's channel.
+    Admin,
 }
 
 struct ChatLine {
@@ -186,6 +189,8 @@ pub(crate) struct ChatOverlay {
     /// The channel (and whisper recipient) the composer last sent on, which the chat
     /// key opens on while `cg_chatRememberChannel` is on.
     last_channel: (Channel, Option<ChatTarget>),
+    /// The server being played takes `amsay` (`chat/tabs.rs`).
+    admin_server: bool,
     /// The client slots (bits) whose player takes encrypted whispers now
     /// (`e2e_whispers.rs`): a whisper to them goes encrypted, which the composer says,
     /// and their card offers the safety code.
@@ -285,6 +290,7 @@ impl ChatOverlay {
             own_slot: None,
             last_whisperer: None,
             last_channel: (Channel::Global, None),
+            admin_server: false,
             encrypted_slots: 0,
             safety_request: None,
             reportable_slots: 0,
