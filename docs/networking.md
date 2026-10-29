@@ -779,6 +779,11 @@ against an OpenJK server remains unverified.
 
 ### Freeze prediction when command history is incomplete
 
-Known limitation (source review against OpenJK `codemp` at `4d0dfaf1`):
-The pending command queue currently evicts commands without preventing incomplete replay from an older snapshot.
-A focused fix and verification are in progress.
+When the 512-command pending window evicts an unacknowledged command, local
+movement and speculative previews freeze at the last valid committed endpoint.
+Commands continue to leave for the server. Prediction resumes from a snapshot
+once its command time covers every missing command. A map transition or explicit
+prediction reset starts a fresh history window. Fixed-step commands use their rounded
+simulation times for this decision. This follows OpenJK `codemp/cgame/cg_predict.c:1020-1033`
+at `4d0dfaf1`, while retaining SJK's larger history window. Unit tests cover
+8/7/4/3 ms boundaries; live packet-loss recovery remains unverified.

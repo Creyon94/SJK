@@ -1,3 +1,12 @@
+## Prediction: incomplete command history
+
+29/10/2026, `fix/prediction-command-overflow`, based on `main` `e702b0b1`:
+a discarded unacknowledged command freezes local prediction and previews until
+snapshots cover the missing interval. Network commands continue normally.
+Reference: OpenJK multiplayer `cg_predict.c:1020-1033`, revision `4d0dfaf1`.
+Windows x64 unit tests exercise ACK boundaries and explicit resets at 8/7/4/3 ms.
+Recovery under actual packet loss remains unverified.
+
 ## Passenger movement prediction
 
 29/10/2026, `fix/prediction-passenger-movement`, based on `main` `9e48ff6d`:

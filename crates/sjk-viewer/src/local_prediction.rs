@@ -25,6 +25,8 @@ use crate::movement_collision::BspMovementCollision;
 
 #[path = "prediction_entities.rs"]
 mod entity_context;
+#[path = "prediction_history_gap.rs"]
+mod history_gap;
 #[path = "prediction_movers.rs"]
 pub(crate) mod movers;
 #[path = "local_prediction_reconcile.rs"]
@@ -98,6 +100,7 @@ pub(crate) struct LocalPrediction {
     render_movers: movers::Movers,
     presentation_time: i32,
     pending: VecDeque<UserCommand>,
+    history_gap: history_gap::HistoryGap,
     latest_input: Option<UserCommand>,
     view_height: f32,
     error: PredictionErrorDecay,
@@ -201,6 +204,7 @@ impl LocalPrediction {
             render_movers,
             presentation_time: snapshot.map_or(0, |s| s.server_time),
             pending: VecDeque::with_capacity(COMMAND_BACKUP),
+            history_gap: Default::default(),
             latest_input: None,
             view_height,
             error: PredictionErrorDecay::default(),
@@ -439,6 +443,7 @@ impl LocalPrediction {
         self.latest_input = None;
         self.pending_events.clear();
         self.pending.clear();
+        self.history_gap = Default::default();
         self.presented = None;
     }
 
@@ -448,6 +453,7 @@ impl LocalPrediction {
         self.latest_input = None;
         self.pending_events.clear();
         self.pending.clear();
+        self.history_gap = Default::default();
         self.predictor = None;
         self.preview = None;
         self.presented = None;
@@ -473,12 +479,12 @@ impl LocalPrediction {
         scratch: &mut TraceScratch,
     ) -> Option<Vec3> {
         self.latest_input = Some(command);
-        if self.pending.len() == COMMAND_BACKUP {
-            self.pending.pop_front();
+        self.remember_command(sent);
+        if !self.fake_noclip && self.history_gap.incomplete() {
+            self.preview = None;
+            self.presented = None;
+            return self.frozen_eye();
         }
-        // What the server was sent is what a re-prediction replays; a fake noclip's own
-        // flight is only the predictor's (`cg_predict.c:1355`).
-        self.pending.push_back(sent);
         let predictor = self.predictor.as_mut()?;
         let collision =
             BspMovementCollision::with_movers(bsp, scratch, &self.physics_movers.colliders);
@@ -519,6 +525,9 @@ impl LocalPrediction {
         scratch: &mut TraceScratch,
     ) -> Option<Vec3> {
         self.latest_input = Some(command);
+        if !self.fake_noclip && self.history_gap.incomplete() {
+            return self.frozen_eye();
+        }
         let committed = self.predictor.as_ref()?;
         if command.server_time <= committed.state().command_time {
             return None;
@@ -546,6 +555,27 @@ impl LocalPrediction {
         preview.emit_events(|event| self.pending_events.push(event));
         self.view_height = preview.state().view_height as f32;
         Some(Vec3::from_array(preview.state().origin) + Vec3::Z * self.view_height)
+    }
+
+    /// Retain the exact wire command, tracking any missing simulation interval.
+    fn remember_command(&mut self, sent: UserCommand) {
+        if self.pending.len() == COMMAND_BACKUP
+            && let Some(dropped) = self.pending.pop_front()
+        {
+            self.history_gap.discarded(
+                self.movement_config.command_time(dropped.server_time),
+                self.last_acknowledged,
+            );
+        }
+        // What the server was sent is what a re-prediction replays; a fake noclip's own
+        // flight is only the predictor's (`cg_predict.c:1355`).
+        self.pending.push_back(sent);
+    }
+
+    /// Last valid command endpoint while missing history prevents further prediction.
+    fn frozen_eye(&self) -> Option<Vec3> {
+        let state = self.predictor.as_ref()?.state();
+        Some(Vec3::from_array(state.origin) + Vec3::Z * state.view_height as f32)
     }
 
     /// Latest fully constructed input, including mouse movement and strafe modifiers.
@@ -727,5 +757,58 @@ mod animation_length_tests {
         assert!(without_game.animation_lengths.is_none());
         let without_file = LocalPrediction::new(None, None, Some(&game), &VirtualFileSystem::new());
         assert!(without_file.animation_lengths.is_none());
+    }
+}
+
+#[cfg(test)]
+mod history_overflow_tests {
+    use super::*;
+
+    #[test]
+    fn overflowing_the_real_queue_marks_a_gap_and_reset_clears_it() {
+        for step in [8, 7, 4, 3] {
+            let mut prediction = LocalPrediction::new(None, None, None, &VirtualFileSystem::new());
+            for n in 1..=COMMAND_BACKUP {
+                prediction.remember_command(UserCommand {
+                    server_time: n as i32 * step,
+                    ..Default::default()
+                });
+            }
+            assert!(!prediction.history_gap.incomplete());
+            prediction.remember_command(UserCommand {
+                server_time: (COMMAND_BACKUP as i32 + 1) * step,
+                ..Default::default()
+            });
+            assert_eq!(prediction.pending.len(), COMMAND_BACKUP);
+            assert!(prediction.history_gap.incomplete());
+            prediction.history_gap.acknowledge(step - 1);
+            assert!(prediction.history_gap.incomplete());
+            prediction.history_gap.acknowledge(step);
+            assert!(!prediction.history_gap.incomplete());
+            prediction.remember_command(UserCommand {
+                server_time: (COMMAND_BACKUP as i32 + 2) * step,
+                ..Default::default()
+            });
+            assert!(prediction.history_gap.incomplete());
+            prediction.clear_pending();
+            assert!(!prediction.history_gap.incomplete());
+            assert!(prediction.pending.is_empty());
+        }
+    }
+
+    #[test]
+    fn a_fixed_step_gap_requires_the_rounded_endpoint() {
+        let mut prediction = LocalPrediction::new(None, None, None, &VirtualFileSystem::new());
+        prediction.movement_config.fixed_millis = Some(8);
+        for n in 1..=COMMAND_BACKUP + 1 {
+            prediction.remember_command(UserCommand {
+                server_time: n as i32 * 3,
+                ..Default::default()
+            });
+        }
+        prediction.history_gap.acknowledge(3);
+        assert!(prediction.history_gap.incomplete());
+        prediction.history_gap.acknowledge(8);
+        assert!(!prediction.history_gap.incomplete());
     }
 }
