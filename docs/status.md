@@ -35,6 +35,13 @@ Forge's `favourites_lead_and_a_locked_duplicate_is_kept` and
 store, trade and API tests, the world shot `duel6_sjk_collection_marks` (Windows, the
 installed game data and the hub's packs), fmt, the workspace's build, tests and Clippy (no
 new warning in the files changed). Not tried in a game, nor against a hub serving marks.
+The same day (`personal/ideas-followups`, Sol's decision) a New shader is seen once it has
+stayed chosen a second, rather than as soon as the choice leaves it: hovering chooses, so a
+sweep of the pointer across the wall cleared every New mark it crossed. Closing the page or
+turning to another tab sees it only after its second. Verified by
+`shader_marks::tests::a_new_shader_is_seen_after_a_second_chosen`,
+`a_sweep_across_new_shaders_sees_none` and
+`leaving_sees_only_a_shader_looked_at_for_a_second`; not tried in a game.
 ## `cg_fleshSparks`, `in_mouseRepeat` and `cg_lagometer` 2 and 3 from JoF EJK
 
 29/10/2026, `personal/ejk-commands`, based on `main` `0fd6a5e1`, after Kushina's ask

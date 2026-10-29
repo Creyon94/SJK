@@ -13,9 +13,10 @@
 //!   this PC: the seen-list [`FILE`] beside `config.cfg`, one shader id a line. With no file
 //!   yet, everything already held the first time the hub says what the player holds counts
 //!   as seen, so a player never finds every shader marked New. A shader chosen on the
-//!   Shaders tab or in the Forge is seen once the choice leaves it; "Mark all seen" sees
-//!   every one. One the player no longer holds leaves the list, so it is New again when it
-//!   comes back.
+//!   Shaders tab or in the Forge (by the pointer or the keys) is seen once it has stayed
+//!   chosen for [`LOOK_MS`] ([`Look`]): sweeping the pointer across the wall sees nothing
+//!   (Sol's decision, 29/10/2026); "Mark all seen" sees every one. One the player no longer
+//!   holds leaves the list, so it is New again when it comes back.
 
 use std::collections::{BTreeSet, HashSet};
 use std::path::{Path, PathBuf};
@@ -23,6 +24,8 @@ use std::sync::{Mutex, MutexGuard};
 
 /// The seen-list's file, beside `config.cfg`.
 pub(crate) const FILE: &str = "shader-seen.txt";
+/// How long a New shader must stay chosen to count as seen, in milliseconds.
+pub(crate) const LOOK_MS: u64 = 1_000;
 /// The file's largest size read: far past every shader's id a line.
 const MAX_FILE_BYTES: u64 = 256 * 1024;
 
@@ -98,6 +101,48 @@ impl Tracker {
             .ids
             .retain(|id| owned.clone().any(|held| held == id));
         self.seen.ids.len() != before
+    }
+}
+
+/// The New shader the choice rests on, and since when: it is seen once it has stayed
+/// chosen [`LOOK_MS`]. A choice that only passes over it, as a pointer swept across the
+/// wall chooses each shader it crosses, sees nothing; nor does leaving it sooner.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub(crate) struct Look {
+    on: Option<(&'static str, u64)>,
+}
+
+impl Look {
+    /// The choice is on `chosen` at `now` (milliseconds on any steady clock), `new`
+    /// whether that shader is New: the shader now seen, once, when it has stayed chosen
+    /// [`LOOK_MS`].
+    pub(crate) fn observe(
+        &mut self,
+        chosen: Option<&'static str>,
+        new: bool,
+        now: u64,
+    ) -> Option<&'static str> {
+        match (self.on, chosen) {
+            (Some((id, since)), Some(chosen)) if id == chosen => {
+                if now.saturating_sub(since) < LOOK_MS {
+                    return None;
+                }
+                // Seen: nothing more to wait for while the choice stays.
+                self.on = Some((id, u64::MAX));
+                (since != u64::MAX).then_some(id)
+            }
+            _ => {
+                self.on = chosen.filter(|_| new).map(|id| (id, now));
+                None
+            }
+        }
+    }
+
+    /// The choice left the page (another tab, the page closed) at `now`: the shader it
+    /// was on when it had stayed [`LOOK_MS`] and was not seen yet.
+    pub(crate) fn leave(&mut self, now: u64) -> Option<&'static str> {
+        let (id, since) = self.on.take()?;
+        (since != u64::MAX && now.saturating_sub(since) >= LOOK_MS).then_some(id)
     }
 }
 
@@ -383,7 +428,7 @@ pub(crate) fn hover_lines(marks: &Marks, id: &str) -> Vec<String> {
         ));
     }
     if marks.is_new(id) {
-        lines.push("New: yours since you last looked. Choosing it marks it seen.".to_owned());
+        lines.push("New: yours since you last looked. A second on it marks it seen.".to_owned());
     }
     if marks.favourite(id) {
         lines.push(format!(
@@ -504,6 +549,75 @@ mod tests {
         let lines = hover_lines(&marks, "saber_void");
         assert_eq!(lines.len(), 3, "{lines:?}");
         assert!(lines[0].contains("Worn") && lines[1].starts_with("New"));
+    }
+
+    /// A New shader is seen once it has stayed chosen a second, by the pointer or the
+    /// keys; one the choice only passed over is not, and leaving it sooner sees nothing.
+    #[test]
+    fn a_new_shader_is_seen_after_a_second_chosen() {
+        let mut look = Look::default();
+        // Chosen and kept: seen at one second, once.
+        assert_eq!(look.observe(Some("saber_storm"), true, 10_000), None);
+        assert_eq!(look.observe(Some("saber_storm"), true, 10_500), None);
+        assert_eq!(look.observe(Some("saber_storm"), true, 10_999), None);
+        assert_eq!(
+            look.observe(Some("saber_storm"), true, 11_000),
+            Some("saber_storm")
+        );
+        assert_eq!(look.observe(Some("saber_storm"), true, 11_016), None);
+        assert_eq!(look.leave(12_000), None, "already seen");
+        // One that is not New starts no wait.
+        assert_eq!(look.observe(Some("saber_void"), false, 20_000), None);
+        assert_eq!(look.observe(Some("saber_void"), false, 25_000), None);
+        // Nothing chosen, then a New one: the wait starts when it is chosen.
+        assert_eq!(look.observe(None, false, 30_000), None);
+        assert_eq!(look.observe(Some("saber_frost"), true, 30_016), None);
+        assert_eq!(
+            look.observe(Some("saber_frost"), true, 31_016),
+            Some("saber_frost")
+        );
+    }
+
+    /// Sweeping the pointer across the wall chooses each shader for a few frames: none of
+    /// them is seen, and the one it stops on is seen a second later.
+    #[test]
+    fn a_sweep_across_new_shaders_sees_none() {
+        let wall = ["saber_storm", "saber_void", "saber_frost", "saber_tidal"];
+        let mut look = Look::default();
+        let mut now = 0;
+        let mut seen = Vec::new();
+        for _ in 0..3 {
+            for id in wall.iter().chain(wall.iter().rev()) {
+                // About 150 ms on each, a frame every 16 ms.
+                for _ in 0..10 {
+                    now += 16;
+                    seen.extend(look.observe(Some(id), true, now));
+                }
+            }
+        }
+        assert!(seen.is_empty(), "{seen:?}");
+        // Off the wall (between tiles) and back: the wait starts again.
+        assert_eq!(look.observe(None, false, now + 16), None);
+        now += 32;
+        for _ in 0..70 {
+            now += 16;
+            seen.extend(look.observe(Some("saber_tidal"), true, now));
+        }
+        assert_eq!(seen, ["saber_tidal"]);
+    }
+
+    /// Closing the page or turning to another tab sees the shader chosen only when it had
+    /// stayed a second (a frame may not have come since); sooner, it stays New.
+    #[test]
+    fn leaving_sees_only_a_shader_looked_at_for_a_second() {
+        let mut look = Look::default();
+        look.observe(Some("saber_storm"), true, 5_000);
+        assert_eq!(look.leave(5_400), None, "left too soon");
+        assert_eq!(look.leave(9_000), None, "nothing chosen any more");
+        look.observe(Some("saber_storm"), true, 6_000);
+        assert_eq!(look.leave(7_000), Some("saber_storm"));
+        assert_eq!(look.observe(Some("saber_storm"), true, 7_100), None);
+        assert_eq!(Look::default().leave(1_000), None);
     }
 
     /// Favourites come first, each part in its order.

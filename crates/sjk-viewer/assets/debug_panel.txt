@@ -40,7 +40,8 @@ title: Collection marks: worn, favourite, locked and New saber shaders (Atrosex,
 change: Shaders, the Forge and the trade window mark worn and New shaders, stars and padlocks.
 change: Favourites first, Shift+F shows them alone; a locked shader is never broken down/traded.
 change: New is kept on this PC (shader-seen.txt); stars and locks on the hub (needs its deploy).
-test: Collection > Shaders: "N new" by the headline, New stickers; choose one, move on: it clears.
+test: Collection > Shaders: "N new" by the headline, New stickers; rest on one a second: it clears.
+test: Sweep the pointer fast across New shaders: their stickers stay; N clears them all.
 test: F stars the chosen shader: it moves under Favourites at the top; Shift+F shows them alone.
 test: L locks a held shader: Forge > Break down shows Locked on its button, B leaves it out.
 test: Break down the last copy of the shader you wear: the card says first that you wear it.

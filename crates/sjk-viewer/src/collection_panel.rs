@@ -710,9 +710,9 @@ pub(crate) struct Panel {
     /// changes.
     marks: crate::shader_marks::Marks,
     marks_from: Option<MarksFrom>,
-    /// The shader chosen on Shaders or in the Forge while it was New: seen once the choice
-    /// leaves it, or the page closes.
-    viewing: Option<&'static str>,
+    /// The shader chosen on Shaders or in the Forge while it was New: seen once it has
+    /// stayed chosen a second (`shader_marks::Look`), not when a sweep passes over it.
+    viewing: crate::shader_marks::Look,
     /// The count of the last refused change of a mark the console was told of.
     mark_refusal_seen: u64,
     /// The marks a world shot or a test shows in place of the live ones.
@@ -826,7 +826,7 @@ impl Panel {
             trade_known: false,
             marks: Default::default(),
             marks_from: None,
-            viewing: None,
+            viewing: crate::shader_marks::Look::default(),
             mark_refusal_seen: 0,
             #[cfg(test)]
             preview_marks: None,
@@ -1399,14 +1399,18 @@ impl Panel {
         self.marks_from = Some(from);
     }
 
-    /// The shader chosen on Shaders or in the Forge is now `chosen`: one New the choice
-    /// left is seen.
+    /// The shader chosen on Shaders or in the Forge is now `chosen` (each frame): a New one
+    /// is seen once it has stayed chosen a second.
     fn view(&mut self, chosen: Option<&'static str>) {
-        if self.viewing.is_some() && self.viewing == chosen {
-            return;
+        let new = chosen.is_some_and(|id| self.marks.is_new(id));
+        if let Some(id) = self.viewing.observe(chosen, new, self.look_clock()) {
+            crate::shader_marks::see(id);
         }
-        self.leave_viewing();
-        self.viewing = chosen.filter(|id| self.marks.is_new(id));
+    }
+
+    /// The milliseconds the New marks' second is counted on ([`Self::view`]).
+    fn look_clock(&self) -> u64 {
+        u64::try_from(self.epoch.elapsed().as_millis()).unwrap_or(u64::MAX)
     }
 
     /// Why the hub refused the last change of a mark, once, when it is new since the last
@@ -1423,9 +1427,10 @@ impl Panel {
         Some(words.clone())
     }
 
-    /// The choice left the shader it was on (another tab, the page closed): seen.
+    /// The choice left the page (another tab, the page closed): the shader it was on is
+    /// seen only if it had stayed chosen a second.
     fn leave_viewing(&mut self) {
-        if let Some(id) = self.viewing.take() {
+        if let Some(id) = self.viewing.leave(self.look_clock()) {
             crate::shader_marks::see(id);
         }
     }
