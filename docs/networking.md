@@ -524,3 +524,9 @@ Check ordinary native and legacy client joins on isolated servers for integratio
 A handshake or successful movement run does not verify downloads, every reliable
 command, map restarts, all combat, vehicles or every game type. The current evidence
 and open validation work are recorded in [status.md](status.md).
+
+### Use the Pmove hull for predicted trigger contact
+
+Known limitation (source review against OpenJK `codemp` at `4d0dfaf1`):
+Predicted brush triggers currently reconstruct the hull from final posture flags instead of reading the box left by Pmove.
+A focused fix and verification are in progress.
