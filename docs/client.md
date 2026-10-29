@@ -6598,6 +6598,34 @@ shows while the composer is open, on top of the chat's own scale (the viewport a
 stays 0.4 s after the pointer leaves the name and the card, so the way to its buttons
 never loses it.
 
+Two settings help the chat read over a bright map (Creo's idea, 29/10/2026: the chat
+is often hard to read over light ground, vanilla graphics too). Both are off by
+default, so the chat looks as it did until a player turns them on.
+
+`cg_chatBoxBackdrop` (default 0, archived; Settings > Chat > **Chat backdrop (%)**, and
+HUD in the classic views, 0 to 100 in steps of 10) puts a dark band behind each drawn
+row of a chat message, that many per cent opaque, in the SJK UI's navy
+(`menu::sjk::color::SPACE`). A band is as long as what its row shows (on a line's
+first row the sender's emblems, name, tick and label, then the text and emoji
+pictures, and the ellipsis of a cut last row) plus half its height at each end, which
+is round; it is nine tenths of the row pitch high and centred on the row's letters, so
+two rows' bands never overlap and nothing is darkened beside a short row. Its opacity is
+the setting's times its line's, so it slides in, moves and fades out with its line and
+goes with it; a GIF under an SJK line gets none, and every band is drawn before the
+lines, so the emblem and other pictures stay over the bands. It follows the chat's size,
+spacing, position, the scoreboard's chat column and the composer's history. See
+[chat/view/backdrop.rs](../crates/sjk-viewer/src/chat/view/backdrop.rs).
+
+`cg_chatBoxOutline` (default 0, archived; Settings > Chat > **Chat text outline**, and
+HUD in the classic views) draws every letter of the chat feed and of the chat field
+(the channel row and what you type) inside a dark outline instead of the 1 px drop
+shadow: the text renderer's ring of eight copies a step out all round, as the
+nameplates' Strong outline draws (`text::CodePalette::DarkOutlined`, per text run in
+`ChatOverlay::palette_of`). A black letter (`^0`) keeps the faint light halo the
+nameplates give dark names instead, as an outline as dark as it would hide it. It costs
+nine glyph quads a letter instead of two. Centre prints, the sender card and the
+combat numbers keep their shadow.
+
 A message too long for one row wraps onto up to four, each drawn as its own text,
 and every row after the first starts in the colour code in force where the row
 before it ended, as if the message were one line: a green `say` (the server puts

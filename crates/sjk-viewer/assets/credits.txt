@@ -432,6 +432,10 @@ did: JoF EJK's saber hit sparks, mouse 4/5 repeat and lagometer modes 2 and 3 fo
 role: Ideas for SJK
 did: The worn saber shader marked in the Forge's Break down, and said on the last copy's card
 
+[Creo]
+role: Ideas for SJK
+did: The chat's backdrop and text outline, so the chat reads over bright maps
+
 [Turin]
 role: Ideas for SJK
 did: Chat sounds by kind: private messages heard with public chat off

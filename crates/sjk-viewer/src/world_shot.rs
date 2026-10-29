@@ -377,6 +377,9 @@ mod jof_sjk_chat_shots;
 #[path = "world_shot_text_sizes.rs"]
 mod text_sizes_shots;
 
+#[path = "world_shot_chat_readability.rs"]
+mod chat_readability_shots;
+
 #[path = "world_shot_map_change.rs"]
 mod map_change;
 

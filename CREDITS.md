@@ -858,6 +858,12 @@ shaders and a lock against breaking one down by mistake. Sol built both as colle
 hub (breaking down and trading refused), and a New sticker on what was gained since the
 player last looked.
 
+Creo, a player, found the chat often hard to read over bright maps, with vanilla graphics
+too: Sol built two Settings > Chat options for it (29/10/2026), Chat backdrop
+(`cg_chatBoxBackdrop`), a dark band behind each row of the chat as long as its words, and
+Chat text outline (`cg_chatBoxOutline`), a dark edge round every letter instead of its
+shadow.
+
 ## Testing
 
 Glen, a player, was the first to play SJK on a Mac (25/10/2026), on a MacBook Pro
