@@ -389,13 +389,15 @@ fn stage_fragment(input: VertexOutput) -> vec4<f32> {
         discard;
     }
     // rd-vanilla blends `GL_DST_COLOR GL_ONE` on display values: the scene times one plus
-    // the stage's display colour. The scene here is linear, where that factor is
-    // (1 + display)^2.2, so the stage writes that less one; blended as written, it would
-    // brighten the scene by (1 + linear)^(1/2.2) on screen, leaving only the texture's
-    // brightest texels visible.
+    // the stage's display colour. The scene here is linear, where that factor is the sRGB
+    // decode of (1 + display), extended past 1, so the stage writes that less one; blended
+    // as written, it would brighten the scene far less, leaving only the texture's
+    // brightest texels visible. An 8-bit scene (`r_sceneHdr 0`) clamps what is written
+    // to 1, so there a stage lifts the scene at most twice in linear light.
     if input.entity_control.y < -0.5 {
-        let source = stage_display_value(texel.rgb) * generated_color(input).rgb;
-        output = vec4(pow(vec3(1.0) + max(source, vec3(0.0)), vec3(2.2)) - vec3(1.0), output.a);
+        let source = vec3(1.0) + max(stage_display_value(texel.rgb) * generated_color(input).rgb,
+            vec3(0.0));
+        output = vec4(pow((source + 0.055) / 1.055, vec3(2.4)) - vec3(1.0), output.a);
     }
     if stage.secondary_control.w > 0.5 {
         output = vec4(output.rgb * (vec3(1.0) + dynamic_light_modulation(input)), output.a);
