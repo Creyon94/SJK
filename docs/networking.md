@@ -308,6 +308,10 @@ displayed snapshots carry different mover trajectories.
 Jump prediction respects `PMF_RESPAWNED`: holding attack or use after spawning
 blocks jumping until those buttons are released. The latch is cleared before
 movement for every weapon, as in OpenJK `codemp/game/bg_pmove.c`.
+The dual forward jump attack raises the collision hull's feet during codemp's
+two authored animation windows. `PMF_FIX_MINS` restores the hull with downward
+and upward clearance traces, moving up or ending in a crouch when necessary.
+The animation window requires a loaded animation timing table.
 
 `PM_JETPACK` (movement type 1), used by the equipped jetpack on stock-derived
 servers including JA+, runs the reference's gravity, thrust and air-control
