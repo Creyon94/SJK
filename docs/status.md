@@ -1,4 +1,4 @@
-﻿## Passenger movement prediction
+## Passenger movement prediction
 
 29/10/2026, `fix/prediction-passenger-movement`, based on `main` `e702b0b1`:
 a player's vehicle entity number now suppresses ordinary movement even without
@@ -8,6 +8,7 @@ Windows x64 focused tests cover stationary and moving airborne passengers,
 movement input, advancing command time and dismounting at 8/7/4/3 ms. Optional
 vehicle-specific seat/view/duck context is unchanged. Live passenger gameplay
 and a full Pmove output comparison against OpenJK remain unverified.
+
 ## Synced emote music back from alt-tab in step
 
 29/10/2026, `fix/emote-sound-alt-tab`, based on `main` `b558d4ae`, hub report #195 (build
@@ -775,7 +776,7 @@ Verified on Windows 11, RTX 5080, Vulkan: `low_end_vram_audit` at r_picmip 2 and
 mp/siege_desert 1086 -> 1023 (1019 at 8 GB, 851 at 6 and 4 GB), the other presets
 unchanged; the audit frames, `lamp_light` (ffa5, ffa1) and `movers_shadow_lamps`
 (siege_hoth, door tiles) against two runs of `main`: within the noise on a 16 GB card,
-and with the smaller cache within its tolerance except one siege_hoth wall the 1024Â²
+and with the smaller cache within its tolerance except one siege_hoth wall the 1024²
 cache had lit wrongly, now lit directly; unit tests of the list packing, the budget and
 the atlas shape, and the changed programs validate. Not verified: a real 4 to 8 GB card,
 DX12 and Metal (the formats used are core WebGPU), the light pass's cost on a mid-range
@@ -1569,7 +1570,7 @@ Not verified: in a duel in game.
 ## Blade numbers only with debug collectibles
 
 21/10/2026, `personal/blade-numbers-debug`, based on `main` (Sol: no blade ids shown unless
-`debug_collectibles` is on): the Collection's tier line ("Mythical  Â·  001") and hover card
+`debug_collectibles` is on): the Collection's tier line ("Mythical  ·  001") and hover card
 ("Blade 001.") show the number only while `debug_collectibles` dresses the profile
 (`Holdings::debug`); the search by number and `saberskin 42` still work. Verified on Windows
 11: unit tests. Not verified: in a game.
@@ -3121,15 +3122,15 @@ Passing these checks does not establish gameplay parity.
 17/10/2026, `personal/cyrillic-one` (Foshin's report, builds 2026.1012.x-1013.x, JoF / JA+: a
 message of one Russian letter "bugs out"). Cause: under `cl_charset auto` a single-byte
 encoding is used only when `looks_cyrillic` reads it back, and the word rule needs two
-letters with a lower-case one or four letters, so `Ñ`, `Ð–` or `Ð”Ð` were sent as UTF-8
+letters with a lower-case one or four letters, so `я`, `Ж` or `ДА` were sent as UTF-8
 (`D1 8F`), which JoF, JA+ and EternalJK players draw as two garbage characters; received
-as the byte they send (0xFF), `Ñ` showed as `Ã¿`. Now a message (after a `"` in a typed
+as the byte they send (0xFF), `я` showed as `ÿ`. Now a message (after a `"` in a typed
 command, after the `: ` of a received line, or a localized chat's body) with no ASCII
 letter and a high letter reads as Windows-1251 (`looks_cyrillic`,
-`decode_legacy_message`); names keep the word rule (`Ã†Ã˜` stays Latin-1). Unit tests send
-and read back every `Ð`-`Ñ`, `Ð`, `Ñ‘` and short mixed messages (`chat::escape_tests`,
+`decode_legacy_message`); names keep the word rule (`ÆØ` stays Latin-1). Unit tests send
+and read back every `А`-`я`, `Ё`, `ё` and short mixed messages (`chat::escape_tests`,
 `legacy_text::tests`). Not tried on a server. Limits: a letter next to ASCII words
-(`Ñ lol`) still goes as UTF-8, and a lone Latin `Ã ` message now reads as Cyrillic
+(`я lol`) still goes as UTF-8, and a lone Latin `à` message now reads as Cyrillic
 (`cl_charset western` pins it); see [networking.md](networking.md#player-text).
 
 ## Player card in sight only; grey bars for every non-sharer
@@ -3429,7 +3430,7 @@ not shown.
 16/10/2026, `feat/chat-text-size-setting` based on review revision `1d2922c3`
 (Sol's request): the
 existing `cg_chatBoxFontSize` is now **Chat text size** in the classic+ HUD page,
-SJK Advanced > Chat and SJK Simple > HUD, with its full supported 0.25â€“3 range.
+SJK Advanced > Chat and SJK Simple > HUD, with its full supported 0.25–3 range.
 **Menu text size** (`ui_textScale`) now reaches 1.4 instead of 1.2 (the pull request asked for 1.5; at 1.5 the home page's key hints were cut, so it was capped at 1.4 at the merge). Classic+
 settings grow their rows and show fewer through their existing scrolling; the
 long SJK Collection tab row closes its gaps, and the dual-saber search leaves its
@@ -3999,7 +4000,7 @@ odds and crate spin read them (`loot_odds::current`), its own copy only before t
 answer or when the hub's tables do not fit. A shader the hub drops that this client does
 not know still shows at opening, by the hub's name ("A saber shader new to this version of
 SJK"), the spin ending on a "?" tile. The Saber tab's Blade row is browsed with the wheel
-and its â€¹ â€º arrows a row at a time without wearing anything; a pick follows the chosen
+and its ‹ › arrows a row at a time without wearing anything; a pick follows the chosen
 blade again.
 
 ## Holocron opening: the crate spin
@@ -4057,11 +4058,11 @@ ids with a pack file; lazy loading and a texture array come when the catalogue g
 
 Branch `personal/euro-retry` (13/10/2026):
 
-- The euro sign `â‚¬` is in the bio alphabet (`PUNCTUATION` in `bio.rs`), so the SJK chat,
+- The euro sign `€` is in the bio alphabet (`PUNCTUATION` in `bio.rs`), so the SJK chat,
   bios and notes take it; before, the check answered "a message keeps to letters, digits,
   common punctuation and colour codes". The hub has the same character on its branch
-  `euro-sign` (`dae0aee`, not deployed: until it is, the hub refuses a message with `â‚¬`).
-  Messages to game servers already sent `â‚¬` as the Windows-1252 byte 0x80.
+  `euro-sign` (`dae0aee`, not deployed: until it is, the hub refuses a message with `€`).
+  Messages to game servers already sent `€` as the Windows-1252 byte 0x80.
 - The SJK chat page keeps the last message it handed to the hub; when the hub did not
   take it ("Not sent: too many requests; slow down" and the like) a Retry button under
   Send sends it again. The hub's `Any` allowance is 30 requests a minute per address,
@@ -4672,7 +4673,7 @@ in the clan's teal and for the tags players write to count. The clans are now th
 of a documented table (`jof_tag::KNOWN`: tag, emblem, tint, ink width, how a stuck tag
 counts) read by generic code, with `cg_clanEmblems` to turn every emblem off
 ([identity.md](identity.md#clan-tags)). A name tagged `JoFA` gets the academy's HD logo; JoF's
-emblem is tinted `#02B99D`; look-alike letters (`jÃ¸f'p Evi`, `J0F`, `JÃ¶Æ’`, `jÃ¸fÃ¥`) and tags
+emblem is tinted `#02B99D`; look-alike letters (`jøf'p Evi`, `J0F`, `Jöƒ`, `jøfå`) and tags
 stuck to the name (`JoFSanjiJ`, `jofsanji`, `JoFAKen`; not `Joffrey`) count. Verified: tag
 tests (JoFA names, look-alikes, stuck tags, near misses, the wider room, the table's order,
 emblems and letters, the setting), previews at 20 to 48 pixels and the workspace checks. In
@@ -4714,7 +4715,7 @@ Creyon.
 ## Character page: no Model row
 
 Branch `fix/character-model-row` (11/10/2026, based on `9dbbdf19`, Linux): Sol asked to
-remove the Character page's Model row (â€¹ olol/dark â€º), which only stepped to the next model
+remove the Character page's Model row (‹ olol/dark ›), which only stepped to the next model
 like a next button; the grid chooses the model ([sjk-ui.md](sjk-ui.md#character)). The
 classic profile's own model controls are unchanged. Verified: the workspace checks; in game on
 Windows 11 by Creyon.
@@ -4733,13 +4734,13 @@ masters.
 ## Server browser: names in the game's charset
 
 Branch `fix/browser-name-symbols` (11/10/2026, based on `9dbbdf19`, Linux): Creyon saw
-`?jof?entinel?rollem2` in the browser for `jofÂ§entinelÂ·rollem2`, and servers missing from
+`?jof?entinel?rollem2` in the browser for `jof§entinel·rollem2`, and servers missing from
 the list. Server replies carry names as Windows-1252 bytes; the browser refused a server
 info that was not UTF-8 (the server vanished from the list) and replaced such bytes in
 players' names with `?`. Infos, statuses and printed replies are now read as the game reads
 chat (`sjk_protocol::decode_legacy_text`: UTF-8 when valid, else byte by byte)
-([client.md](client.md#menu-style)). Verified: tests that a host name with `Â»Â«Â§` keeps its
-server and that a status's player names keep `Â·Â§`, and the workspace checks; in game on
+([client.md](client.md#menu-style)). Verified: tests that a host name with `»«§` keeps its
+server and that a status's player names keep `·§`, and the workspace checks; in game on
 Windows 11 by Creyon, the names showing right and those servers listed.
 
 ## Server browser: add a favourite by its address
@@ -5015,7 +5016,7 @@ new pack. Not verified: in a live match.
 Branch `feat/saber-rain-steam` (11/10/2026, based on `3654f5b2`, Windows 11 Pro,
 Rust 1.99.0) ports [JoF EJK PR #257](https://github.com/JediofFreedom/JoF_EJK/pull/257).
 Exposed rendered blades play the stock `saber/fizz` steam/sizzle effect at independent
-300â€“600 ms intervals. `cg_saberRainSteam` is archived: `1` everyone (default), `2`
+300–600 ms intervals. `cg_saberRainSteam` is archived: `1` everyone (default), `2`
 only your blades, `0` off; both settings interfaces expose it. Dry-point and sky
 traces include moving inline solids and permanent BSP instances. See
 [rendering.md](rendering.md#weather).
@@ -5025,11 +5026,11 @@ Verified: formatting, locked workspace build/tests and all-target clippy pass
 defaults, timer bounds at 8/7/4/3 ms, duplicate submissions and demo rewinds, roofs,
 indoor/liquid volumes, a translated inline door, rain commands, clear/die/freeze,
 forced rain/snow and disabling weather. The release run also passes an off-screen
-GPU test on `mp/duel6` at 960Ã—540 with forced rain, fog/clouds off, and installed
+GPU test on `mp/duel6` at 960×540 with forced rain, fog/clouds off, and installed
 retail assets: Off creates no particles, On creates the stock fizz particles, the
 graph contains its sound component, and the Off/On images were reviewed. GPU:
 RTX 5070 Ti, driver 617.14; CPU: Ryzen 7 5800X3D. One blade's added submission cost
-averaged 0.199 Âµs over 1,000 release iterations at 8 ms presentation intervals, with no
+averaged 0.199 µs over 1,000 release iterations at 8 ms presentation intervals, with no
 snapshot solids or audio; this excludes rendering and does not measure a crowd.
 
 Unverified: a live match's held, first-person, dual/multi-blade and thrown saber
@@ -5039,15 +5040,15 @@ crowd/frame-time cost. The GPU check uses a tagged blade, not a connected player
 ## Lagometer scale
 
 Branch `feat/lagometer-scale` (11/10/2026, based on `3654f5b2`, Windows 11 Pro,
-Rust 1.99.0) adds archived `cg_lagometerScale`, default `1`, range 0.25â€“4, in both
+Rust 1.99.0) adds archived `cg_lagometerScale`, default `1`, range 0.25–4, in both
 settings interfaces. It scales the graph around its existing bottom-right corner
 and preserves the displayed sample count and millisecond ranges; X/Y positioning
 still applies. See [client.md](client.md#lagometer-size).
 
 Verified: formatting, locked workspace build/tests and all-target clippy pass
 (existing warnings remain). Unit checks cover default size, scaling and anchoring
-with custom offsets at 640Ã—480, 1920Ã—1080 and 2560Ã—1080, range limits, live reads and
-archived restoration. A GPU check starts `mp/duel6` at 960Ã—540 and draws synthetic
+with custom offsets at 640×480, 1920×1080 and 2560×1080, range limits, live reads and
+archived restoration. A GPU check starts `mp/duel6` at 960×540 and draws synthetic
 frame/ping samples through the retained UI pipeline at 0.5/1/2 in the classic,
 game and radial HUDs. Sample counts stay fixed, bar widths scale, the GPU draws
 green ping bars, and the comparison images were reviewed (RTX 5070 Ti).
@@ -6503,7 +6504,7 @@ in-game Escape menu, and for a click on it to open the profile and achievements.
 - The SJK UI's main page and in-game menu show a profile card bottom left
   ([sjk-ui.md](sjk-ui.md#profile-card)) in place of the name and circle: the
   player's picture (or their initial on a colour from their key), the name in its
-  colours, the verified badge, a line such as "Verified Â· 2 medals Â· 12/21
+  colours, the verified badge, a line such as "Verified · 2 medals · 12/21
   achievements" (or why the hub is not answering) and their model and blade. A click
   (on the main page also Left, then Enter) opens the Profile page. The classic menus
   have no such corner and keep their layout; their SJK page opens the Profile page.
@@ -6641,9 +6642,9 @@ skinned player within 64 units is a guess, as the game sends it with no owner.
 Branch `fix/sjk-character-clicks` (08/10/2026, based on `a6230f9`, Linux). Sol
 reported that clicks on the Character screen (saber colours and other controls)
 landed beside where they were aimed. The SJK UI's rows give their token the
-control's own rectangle, but its â€¹ â€º controls and blade chips were hit-tested as
+control's own rectangle, but its ‹ › controls and blade chips were hit-tested as
 on the older form, by a value zone in the right 48% of the control: a click just
-right of a â€¹ â€º's middle stepped back, a chip click took the chip to its left (and
+right of a ‹ ›'s middle stepped back, a chip click took the chip to its left (and
 any click on the left half the first chip), and a click on a Force power's name
 stepped the power instead of only choosing its row. They now follow the control
 as drawn ([sjk-ui.md](sjk-ui.md)).
@@ -6689,7 +6690,7 @@ should go on silently, log the line, and `snd_restart` should bring the sound ba
 once a device is there. If the freeze
 remains with sound working, the window side is next and unchanged here: where Vulkan
 reports a minimised window's swapchain out of date, every frame reconfigures it at
-the old size (`Resized` to 0Ã—0 is ignored), waiting for the GPU each time, and a
+the old size (`Resized` to 0×0 is ignored), waiting for the GPU each time, and a
 redraw request that never arrives leaves the event loop polling instead of sleeping.
 ## Monitor refresh-rate detection off by default
 
@@ -6842,7 +6843,7 @@ that a player killed or killing sometimes showed in the console as `noname`, as 
 `noname was sabered by {JoF}emiah{I}`. Cause: the console's kill message read the
 name after checking that the player's whole `CS_PLAYERS` configstring was UTF-8,
 and printed `noname` when it was not. Servers keep Latin-1 letters in names
-(`Ã©` is byte 0xE9), so every player with an accented letter or a Windows-1252
+(`é` is byte 0xE9), so every player with an accented letter or a Windows-1252
 symbol in their name was `noname`; the same check gave such a player's gendered
 suicide message the male form. OpenJK prints the name's bytes. Fix: the name and
 gender are read from the string's bytes and the name decoded as the scoreboard
@@ -6852,7 +6853,7 @@ the line ([networking.md](networking.md#player-text)). `noname` remains only
 for a slot with no name at all, where OpenJK prints an empty name.
 
 Verified on Linux with Rust 1.97: a unit test of the console line with Sol's
-example, the victim named `RÃ©mi` in Latin-1 bytes, printed `noname^7 was sabered by
+example, the victim named `Rémi` in Latin-1 bytes, printed `noname^7 was sabered by
 {JoF}emiah{I}^7` before the fix and the name after it; further tests cover the
 `^7` after each name, the placeholder for an empty slot, the name accessor and a
 female player's falling death with a Latin-1 name. Formatting, the locked
@@ -6936,15 +6937,15 @@ seen over a real match, with a live chat beside it, or on an ultrawide screen.
 
 Branch `feat/parallax-range` (08/10/2026, based on `a6230f9`, Linux): Sol asked for
 parallax to show farther away, and for something to be done when the camera is too
-close. Its far limits were a fade below 20Â° above the surface and from 1.5 to 4 texels a
+close. Its far limits were a fade below 20° above the surface and from 1.5 to 4 texels a
 pixel along the longer side of the pixel's footprint, which a grazing view stretches: with
 a 1024-texel map a floor went flat 90 to 160 units ahead of a standing player. Up close
 nothing limited it: the parallax on screen grows as 1/distance from the surface, so the
 third-person camera pressed against a wall saw several times the shift, swimming and
 stretching the texture over relief edges, where the offset's jumps also picked blurred mip
 levels. Now ([rendering](rendering.md#parallax)) the depth fades where it would move the
-texture by less than half a pixel, below 8.6Â° and at mip levels 2 to 4 (at 1080p a floor
-keeps it to about 410 units and loses it by 920, a wall seen at 45Â° to 570 and 1,920);
+texture by less than half a pixel, below 8.6° and at mip levels 2 to 4 (at 1080p a floor
+keeps it to about 410 units and loses it by 920, a wall seen at 45° to 570 and 1,920);
 within `r_parallaxNearDistance` (default 24 units, live, console only) of a surface's plane
 it stops growing on screen; the march takes 4 to 24 linear steps by the texels it crosses
 (at most 31 reads of the height a pixel, against 25); and the maps and the diffuse image
@@ -6972,7 +6973,7 @@ Offline, the world shot `world_shot::notes::world_notes` with
 `SJK_NOTES_CVARS=r_materialMapsDebug=7,r_parallaxStrength=1` on a note at a parallax
 floor shows the far limit, and on a note written against a relief wall, with and without
 `r_parallaxNearDistance=0`, the near one. Known: grazing views now keep parallax down to
-8.6Â° (it was 20Â°), so the open note of sand too deep at grazing angles may return at high
+8.6° (it was 20°), so the open note of sand too deep at grazing angles may return at high
 strengths.
 ## Dynamic lights stop at walls
 
@@ -7065,7 +7066,7 @@ duels and the new panels' looks are unchecked.
 Branch `fix/chat-percent` (08/10/2026, based on `15cf7a9`, Linux): a `%` typed in
 chat arrived as `.`, because the engine turns `%` into `.` in every command it
 reads (`MSG_ReadString`), and a `"` became a space. SJK now sends them as
-EternalJK does, `%` as `Â°/.` (byte 0xB0) and `"` as `''`, and its chat box shows
+EternalJK does, `%` as `°/.` (byte 0xB0) and `"` as `''`, and its chat box shows
 those back as `%` and `"`, so both clients show each other's. The composer
 counts the escapes in its length limit, so a long message is never cut when sent
 ([client.md](client.md#percent-signs-and-quotes-in-chat)). Unit tests cover the
@@ -7487,7 +7488,7 @@ asked (08/10/2026) for "a sound effect while changing pages, moving selection
 and actually validating selection". `scripts/wheel_icons.py` learnt the board
 (`second`, a list of names per board) and cut its 28 icons
 ([assets/wheel](../crates/sjk-viewer/assets/wheel/README.md)): every catalogue
-action now has its icon, every custom command shows the `{â€¢}` disc, and Settings'
+action now has its icon, every custom command shows the `{•}` disc, and Settings'
 Quick wheel category wears the ring-of-discs icon on its rail instead of the
 settings board's sliders. The UI atlas gives the wheel three rows (48 cells)
 instead of one, which makes it 5504 texels tall instead of 5248 (2048 wide,
@@ -8686,7 +8687,7 @@ game on Windows 11 on a JoF server next to EternalJK, with the default 125;
 Branch `fix/windows-1252-display`:
 
 - Glyphs are chosen by Windows-1252 byte and the modern font's slots 0x80..=0x9F
-  hold the Windows-1252 characters. Typed `â‚¬`, `â€™`, `â€˜`, `â„¢` or `â€”` drew `?` (the
+  hold the Windows-1252 characters. Typed `€`, `’`, `‘`, `™` or `—` drew `?` (the
   glyph was chosen by Unicode value below 256), and the same symbols received from
   other clients drew blank.
 - Chat keeps those symbols and other control bytes in names for display; it
@@ -8749,11 +8750,11 @@ in a game.
 Replaced by the console font above. Branch `feat/eternaljk-charset`: when `GameData/EternalJK` holds a PK3 with
 `gfx/2d/charsgrid_med` (jaPRO's `japro-assets.pk3`), that one image is mounted above
 the game's `base`, and below the `fs_basegame` and `fs_game` directories, as EternalJK
-mounts its folder above `base` and below the mod. The PK3 probe runs once per process. It has `Â¬`, `Â¥`, `Â²`, `Â½`
+mounts its folder above `base` and below the mod. The PK3 probe runs once per process. It has `¬`, `¥`, `²`, `½`
 and the rest of Latin-1, which the retail set lacks. It replaces the set for all text
 that uses it (the console and the character-set text of `game_font.rs`), as in
 EternalJK. Unit tests cover that it overrides the base set, that a mod's own set still
-overrides it, and that nothing else is mounted from the pack. Checked in game on Windows 11: the console shows `Â¬Â¬Â¬` and `Â¥Â²Â½` as in
+overrides it, and that nothing else is mounted from the pack. Checked in game on Windows 11: the console shows `¬¬¬` and `¥²½` as in
 EternalJK.
 
 ## EternalJK player animation fixes
@@ -8832,8 +8833,8 @@ unit tests only.
 ## Clipboard symbols on Windows
 
 Implemented: on Windows the clipboard is reached through PowerShell with UTF-8 in
-both directions, so `â‚¬`, `â€™`, `Ã—` and other symbols keep their characters
-(`aÃ—Â¥â€™â‚¬â€¦` pasted as `a??'???` through the console's OEM code page before).
+both directions, so `€`, `’`, `×` and other symbols keep their characters
+(`a×¥’€…` pasted as `a??'???` through the console's OEM code page before).
 Copy tries, in order, `Set-Clipboard` fed from an environment variable (works in
 PowerShell Constrained Language Mode; texts up to 30000 bytes without NUL),
 `Set-Clipboard` fed raw UTF-8 bytes on standard input (Full Language Mode only),
@@ -8849,7 +8850,7 @@ which tool can carry which text.
 
 Verified on Windows 11 (06/10/2026, Windows PowerShell 5.1), by hand and with
 `cargo test -p sjk-viewer clipboard -- --ignored` (a real-clipboard round trip of
-`aÃ—Â¥â€™â‚¬â€¦`, CRLF, LF and an emoji, and two quick copies followed by a paste): the
+`a×¥’€…`, CRLF, LF and an emoji, and two quick copies followed by a paste): the
 environment copy, the stdin-bytes copy, both pastes and `clip` kept the symbols;
 the paste writes UTF-8 with no byte-order mark (the decoder strips one if a tool
 adds it); with the language mode set to `ConstrainedLanguage` the stdin-bytes copy
@@ -9082,16 +9083,16 @@ field, the dropdown's pointer handling and the in-game pop-up are unverified.
 Branch `fix/center-print-utf8` (05/10/2026, based on `86ad1be`): a centre print
 with a row over 50 bytes crashed the client when byte 50 fell inside a non-ASCII
 character, for example a duel challenge (`cp`, `PLDUELCHALLENGE`) from a player
-named with `Ã—`. Rows now wrap at 50 characters, as OpenJK `CG_DrawCenterString`
+named with `×`. Rows now wrap at 50 characters, as OpenJK `CG_DrawCenterString`
 wraps 50 code-page bytes. Unit tests cover the wrap at a space, a two-byte
 character across the old byte limit (it panicked before the change) and 50 two-byte
 characters on one row. `print` and `cp` text was also read as UTF-8, so the same
-name showed `?` for each `Ã—`; it is now decoded as legacy text like chat and the
+name showed `?` for each `×`; it is now decoded as legacy text like chat and the
 scoreboard (unit-tested). Formatting, the locked workspace build, tests and clippy
 passed on Linux and Windows 11. On Windows 11 the old build crashed when the
-contributor challenged a player named with `Ã—` on a live server; with the wrapping
-fix the challenge showed without a crash, but with `?` for each `Ã—`; with both
-fixes it read `You have challenged Ã—jof.jk.belyashÃ—`. Merged into SJK `main` from
+contributor challenged a player named with `×` on a live server; with the wrapping
+fix the challenge showed without a crash, but with `?` for each `×`; with both
+fixes it read `You have challenged ×jof.jk.belyash×`. Merged into SJK `main` from
 SJK pull request #2 (Creyon94, 06/10/2026).
 
 ## Worldspawn shader remaps and remap order
@@ -9197,8 +9198,8 @@ An isolated local Tayst server and an original small BSP verified join-time gree
 replacement, live pulsing material, self-reset to red, enable/disable, translucent
 local replacement, and the default/player-inclusive policies (24 player material
 slots changed when enabled). Automated checks used an ALSA null sink and isolated
-zero-volume settings. Simple remap updates measured 0.5â€“0.8 ms. One settled
-2,048-frame sample at 1280Ã—720 measured 0.419 ms mean and 0.609 ms p99 CPU frame
+zero-volume settings. Simple remap updates measured 0.5–0.8 ms. One settled
+2,048-frame sample at 1280×720 measured 0.419 ms mean and 0.609 ms p99 CPU frame
 work; this is a small fixture, not a populated-server benchmark, and excludes cold
 pipeline compilation. No wire, movement or combat rules changed. Workspace
 formatting, locked build/tests and the optimized Linux viewer build passed.
@@ -9449,7 +9450,7 @@ still close it. Gameplay and wire code are unchanged.
 
 Linux verification (2026-10-04, based on `7155455`): 22 temporary checks passed
 for caret motion, selection/copying, UTF-8 byte limits, glyph alignment and browser
-footer pointer actions at 960Ã—540, 1920Ã—1080 and 3840Ã—2160. Test infrastructure
+footer pointer actions at 960×540, 1920×1080 and 3840×2160. Test infrastructure
 remains outside the repository. A release X11/Vulkan desktop run exercised
 browser opening, search and edit mode. Native keyboard probes reproduced and
 corrected the pending-accent problem; the owner confirmed that fix and accepted
@@ -9487,7 +9488,7 @@ The key under Escape opens the console on every layout (07/10/2026, a Hungarian
 tester could not open it): `cl_consoleUseScanCode` defaults to 1 as in EternalJK,
 with its exception that a layout typing `^` there needs Shift, and saved profiles
 are moved from the old 0 once. Unit tests cover the Shift rule for the `0`, `` ` ``,
-`Â²`, `Â§` and `^` layouts; not tried in a game or with a Hungarian layout.
+`²`, `§` and `^` layouts; not tried in a game or with a Hungarian layout.
 
 With the classic console the F3 command browser is classic+ (05/10/2026): the
 in-game pop-up frame, retail buttons and list box, and a detail box; the menus'
@@ -9814,7 +9815,7 @@ the far survey on four retail maps. Not yet tried in a game.
 water on walls flicker and move with the camera: its streaks now lie on each wall's
 plane in world coordinates and scroll at one speed from a wrapped offset, thinner than
 before ([Weather](rendering.md#weather)). Off-screen world shots of the streak mask on a
-`T2_Rogue` wall from two cameras 6 units and 2Â° apart, with weather time frozen, showed
+`T2_Rogue` wall from two cameras 6 units and 2° apart, with weather time frozen, showed
 a different, speckled pattern from each before the change and the same streaks in the
 same places after. Not yet tried in a game.
 
@@ -10047,7 +10048,7 @@ Captures confirmed the scoreboard, loading notice and absence of the local body
 at the intermission camera. The visibility rule follows codemp `CG_Player`;
 scripted NPC and vehicle intermission scenes were not separately exercised.
 
-On RX 9060 XT at 960Ã—540, this final run took about 7.9 seconds from connection
+On RX 9060 XT at 960×540, this final run took about 7.9 seconds from connection
 request to playable FFA3 (excluding initial menu construction) and 9.3 seconds
 for FFA1 map preparation/adoption, of which 0.52 seconds was CPU map preparation.
 These are individual observations, not a controlled speedup or cold-cache result.
@@ -10058,12 +10059,12 @@ Native-window owner playtesting and Windows runtime checks remain pending.
 Local loading changes based on `7155455` plus the suspended-continuation policy
 reduce emission-mask preparation, lamp patch searches and serial mip generation.
 An interleaved optimized/baseline/optimized Linux release run on RX 9060 XT,
-Vulkan, 960Ã—540 and an isolated loopback TaystJK server measured:
+Vulkan, 960×540 and an isolated loopback TaystJK server measured:
 
 | Operation | Baseline | Optimized runs |
 | --- | --- | --- |
 | Connection request to playable FFA3, including gate animation | 6.82 s | 4.75 / 4.76 s |
-| Natural FFA3 â†’ FFA1 map preparation/adoption | 7.88 s | 3.82 / 3.64 s |
+| Natural FFA3 → FFA1 map preparation/adoption | 7.88 s | 3.82 / 3.64 s |
 
 Initial menu construction is excluded. These are warm-machine observations from
 one host, not cold-cache guarantees or internet-server latency measurements. All
@@ -10075,7 +10076,7 @@ ordering on FFA3 (978 sources), FFA1 (3,562) and `t2_rancor` (4,333). Mip pixels
 matched the original algorithm in 12 dimension/layer cases; changed content,
 concurrent reuse and byte/entry eviction checks passed. Emission reduction
 matched every float bit in 54 rectangular, power-of-two and NPOT cases.
-Before/after 1280Ã—720 Vulkan captures retained the scene appearance; animated
+Before/after 1280×720 Vulkan captures retained the scene appearance; animated
 materials and temporal rendering mean whole screenshots are not bit-identical.
 The isolated checks live outside the source tree and do not add a regression
 suite. Gameplay rules, command quantization and protocol encoding are unchanged.
@@ -10173,7 +10174,7 @@ and custom HUD packs; a nonzero integer `cg_hudFiles` gives the stock text HUD
 ([rendering](rendering.md#game-data-hud)). Windows 11 checks, no client window:
 a temporary test read the real files and composited one HUD frame (health 60,
 armor 40, Force 80, blaster ammo 120 and a medium-style saber) to PNG at
-1920Ã—1080 for retail `assets1.pk3`'s `ui/hud.menu` (13 menus, 31 pictures), the
+1920×1080 for retail `assets1.pk3`'s `ui/hud.menu` (13 menus, 31 pictures), the
 TheRisqe Radial HUD PK3 (33 pictures, centred on the crosshair) and JoF's
 `ui/elegance_hud.txt` (22 pictures); every picture resolved and the placement,
 tic fades and digits matched the reference logic. Unit tests cover the reader,
@@ -10195,7 +10196,7 @@ their original row, and invalid values leave the previous setting intact.
 Eleven temporary offline checks passed on Linux, covering actual pointer routing,
 all numeric settings/cvar types, all six saber channels, Shot preview actions,
 sub-step values, cancellation, bounds, malformed/non-finite input, caret editing,
-and value targets at 1280Ã—720, 1920Ã—1080 and 3440Ã—1440. The temporary checks are
+and value targets at 1280×720, 1920×1080 and 3440×1440. The temporary checks are
 not bundled with the source. No windows, game instances or servers were opened;
 visual playtesting remains with the owner. Formatting, locked workspace build/tests
 and the optimized build passed.
@@ -10580,12 +10581,12 @@ through every player and NPC but its opponent
 ([networking](networking.md)). Windows 11 check, no client window: a local JA+
 Mod v2.4 Build 7 server (EternalJK x86 dedicated, loopback, `devmap mp/ffa3`,
 scratch home) with three windowless clients, two in a private duel. The server
-let a bystander walk through a dueller (closest approach 0.2â€“2.4 units) and a
+let a bystander walk through a dueller (closest approach 0.2–2.4 units) and a
 dueller walk through the bystander. For a client sending no plugin identity the
 dueller arrived with `solid 0` and bystanders were never sent to duellers, so
 prediction already matched. With the JA+ plugin identity the
 dueller arrived as a solid box with `bolt1`: replaying the bystander's commands
-through the predictor with player boxes, the stock rule mispredicted 30â€“33 of
+through the predictor with player boxes, the stock rule mispredicted 30–33 of
 about 88 intervals around the crossing at 8/7/4/3 ms steps, the duel rule none.
 Bystanders were not sent to duellers with "Duel see others" on or off, so no
 drawing change was needed on this server. jaPRO was not exercised live, and
@@ -10604,7 +10605,7 @@ each snapshot interval through the predictor. With the plugin identity, interval
 matching the server went from 549/774, 643/772, 536/776 and 544/775 at 8/7/4/3 ms
 to 762, 763, 763 and 763; pull intervals mismatched 8/159, 4/94, 9/174 and 8/166
 (all before: the hook's game-side edges) and rope-hang intervals 0 of 62, 30, 62
-and 61 (all before). Without the plugin identity, 685 â†’ 762 of 774 at 8 ms.
+and 61 (all before). Without the plugin identity, 685 → 762 of 774 at 8 ms.
 The hook's rope is drawn as EternalJK draws it
 ([rendering.md](rendering.md#billboard-icons)), checked by unit tests only.
 Nothing was run in the client. Crouched and in-water pulls and TaystJK/jaPRO's
@@ -10661,7 +10662,7 @@ around `r_hdrExposure`, only brightening with `r_sceneHdr 0`).
 Headless Vulkan and DX12 probes on 2026-10-04 (Windows 11, RTX 5080) showed the
 resolve and effect layer byte-identical to the fixed exposure at exposure 1 and
 checked metering, snapping and smoothing on synthetic scenes; both passes took
-about 0.01 ms at 1080p and 0.02â€“0.03 ms at 4K. No client was run: the look in
+about 0.01 ms at 1080p and 0.02–0.03 ms at 4K. No client was run: the look in
 play, the default key on real maps and the cost in a full frame are unverified.
 See [rendering](rendering.md#eye-adaptation).
 
@@ -10787,7 +10788,7 @@ taskbar icons and the X11 icon are unverified, as is the GNU toolchain's
 ## Version label and dates
 
 Branch `personal/version-overlay` (05/10/2026, based on `3f57938`): the
-client draws `SJK <version> Â· <dd/mm/yyyy HH:MM> Â· <commit>` at the top centre of
+client draws `SJK <version> · <dd/mm/yyyy HH:MM> · <commit>` at the top centre of
 every frame (`cg_drawVersion`, default on) and logs it at startup; the version
 comes from one build script for both programs (`SJK_VERSION` in releases,
 `dev` otherwise; releases are numbered by date, see [SJK conventions](sjk.md#version)), and the classic console's corner clock reads
@@ -10984,7 +10985,7 @@ Performance work based on `b4debe4` (2026-10-02) preserves the accepted shadow
 filter while skipping provably constant footprints, unused baked-lightmap reads
 and hidden opaque shading. External 31-player replays show 4K GPU means falling
 from 5.30 to 4.57 ms on `mp/ffa3` and 6.71 to 5.81 ms on `mp/ffa1`. At
-2560Ã—1080, `ffa3` GPU work is 1.85 ms but total frame time remains 2.47 ms:
+2560×1080, `ffa3` GPU work is 1.85 ms but total frame time remains 2.47 ms:
 the 2 ms target is still open. Shader reference comparisons, alternate-mode
 captures, workspace checks and a native release smoke check passed; see
 [rendering](rendering.md) for settings, evidence and limitations.
@@ -10998,14 +10999,14 @@ both maps also passed. Reflection resolution and shadow filtering are unchanged.
 Lazy particle-stage sampling removes about 0.025 ms of measured effect preparation
 on the `ffa3` replay; 3,360 sampled stage values matched the previous implementation
 bit for bit. Its total-frame effect was within run variation.
-Caching immutable material sort keys saves another 0.01â€“0.014 ms in instance
+Caching immutable material sort keys saves another 0.01–0.014 ms in instance
 preparation on the two routes. The original comparator matched 1,362,200 ordered
 draw entries; total-frame improvement remains below run variation.
-Reusing each draw's stage-major classification removes a further 0.011â€“0.016 ms
+Reusing each draw's stage-major classification removes a further 0.011–0.016 ms
 of CPU world-pass encoding in paired runs, with unchanged draw storage size
 and reference-checked classification.
 Fixed AO sample tables and equivalent depth-ray arithmetic save another
-0.023â€“0.026 ms of total GPU time in paired 4K runs, with unchanged AO settings
+0.023–0.026 ms of total GPU time in paired 4K runs, with unchanged AO settings
 and checked captures on both routes. The owner playtested and accepted the
 combined performance preview before publication.
 
@@ -11014,7 +11015,7 @@ Submission and deferred-lighting work based on `f3f3db2` (2026-10-02) records
 frame uploads for a bounded submission worker, restricts HUD shading, shades
 uncached lamp receivers in compute, avoids redundant clears/copies and uses
 conservative shadow-bound mip levels. On Linux with Ryzen 5 5500 / RX 9060 XT,
-external 31-player replays at 2560Ã—1080 reduced mean total frame time from
+external 31-player replays at 2560×1080 reduced mean total frame time from
 2.464 to 1.822 ms on `ffa3` and 3.042 to 2.157 ms on `ffa1`. The latter's p99
 increased from 3.757 to 4.263 ms, so improved tail latency is not established.
 Finite image comparisons and workspace/release checks passed; see
@@ -11032,7 +11033,7 @@ current verification and remaining visual/readability limits.
 Resident world transitions (2026-10-03, local changes based on `8f692ac`):
 menu joining and live map changes retain a rendered, locally playable world.
 External release checks against an isolated loopback TaystJK server exercised
-FFA3 entry, FFA3 â†’ FFA1, same-map restart, and two consecutive map changes.
+FFA3 entry, FFA3 → FFA1, same-map restart, and two consecutive map changes.
 Cancellation after entering the destination restored the menu, and the transition
 sequence also passed with a local bot present. Artificially delaying delivery of
 the completed session from the connection worker allowed more than 1,600 locally controlled
@@ -11052,10 +11053,10 @@ its header/data. One installed-set comparison measured 4,697 ms for the old
 payload-header inventory and 134 ms for the directory reader. These checks do not
 constitute a new pure-server/wire certification; protocol codecs were unchanged.
 
-Checks used Linux/RADV on a Radeon RX 9060 XT, 960Ã—540, owner graphics settings,
-and external ignored harnesses. Normal joins measured about 7â€“18 seconds in these
+Checks used Linux/RADV on a Radeon RX 9060 XT, 960×540, owner graphics settings,
+and external ignored harnesses. Normal joins measured about 7–18 seconds in these
 runs, depending on machine/cache pressure; the early pre-optimization run took
-41 seconds. Typical FFA1 background preparation was about 8â€“12 seconds. These
+41 seconds. Typical FFA1 background preparation was about 8–12 seconds. These
 are observations, not a controlled cold-cache speedup or a populated-match frame
 budget result. Simultaneous build pressure worsened some runs substantially.
 One default-backend headless run emitted an EGL destruction panic on the submit
@@ -11069,7 +11070,7 @@ for local-authority and exploration limits.
 
 Local gameplay continuation (2026-10-03, same unmerged baseline): departed live
 worlds now run the native dedicated gameplay behind a socket-free client session.
-Release GPU checks on isolated loopback TaystJK exercised FFA3 â†’ FFA1, same-map
+Release GPU checks on isolated loopback TaystJK exercised FFA3 → FFA1, same-map
 restart, rapid map changes and cancellation, both with and without a bot. They
 asserted that only the local player remained, local saber moves advanced, and
 the real connection reattached. Screenshots confirmed the third-person model and
@@ -11087,7 +11088,7 @@ and pointer Cancel action are restored for menu joins; in-server map changes
 keep the local gameplay presentation without that overlay. The notice restoration
 passed workspace build/test/format checks; native visual acceptance is pending.
 
-In the final 960Ã—540 Vulkan run, local render calls after the first ten local
+In the final 960×540 Vulkan run, local render calls after the first ten local
 frames measured 0.98 ms median, 2.72 ms p99 and 38.35 ms maximum, excluding the
 harness sleep and capture work. This is a single-player continuation while
 background loading, not a 31-player benchmark. Initial model, effect and shader
@@ -11114,7 +11115,7 @@ and advancing bot commands after both kinds of transition. No packet codec or
 movement/combat rules changed. The external 560-case on-foot reference checks
 passed again at 8/7/4/3 ms. Native visual acceptance and wider mod/vehicle coverage
 remain open.
-The final 960Ã—540 Vulkan native-server run covered eight bots, FFA3 â†’ FFA1,
+The final 960×540 Vulkan native-server run covered eight bots, FFA3 → FFA1,
 same-map restart, rapid map changes and cancellation. All 8,650 presented remote
 actor endpoints matched their received snapshot positions. The saber returned
 about 1.21 seconds after the test press, following focus loss. Local render calls
@@ -11128,7 +11129,7 @@ Natural intermission and chat (2026-10-03, local changes based on `a993436`):
 the previous forced-map checks missed the frozen scoreboard phase at normal
 match end. The viewer now starts full local continuation before presenting that
 snapshot, while the real remote session retains scores and communication.
-A Linux/RADV 960Ã—540 release check against an isolated loopback TaystJK server
+A Linux/RADV 960×540 release check against an isolated loopback TaystJK server
 expired its timelimit, displayed authoritative scores over the local character,
 used the stock ready button and followed `nextmap` from FFA3 to FFA1. The final
 run observed 1,404 scoreboard frames and 2,450 loading frames with exactly one
@@ -11150,7 +11151,7 @@ reached their intended presentation. Workspace build/tests, formatting and the
 updated production release build passed. This routing check sent no messages
 to a server. Captures cover the composer
 beside real scores and a synthetic 32-player team board; 576 geometry cases cover
-1â€“32 rows, FFA/team layouts and nine viewports from 640Ã—480 through 4K, including
+1–32 rows, FFA/team layouts and nine viewports from 640×480 through 4K, including
 ultrawide and portrait. These checks do not establish human-to-human delivery or
 all mod/platform behavior. Client changes leave gameplay rules and wire codecs
 untouched. External compiled OpenJK on-foot/force-jump checks passed again at
@@ -11261,7 +11262,7 @@ passed. Native owner playtesting remains pending; see
    That refinement also awaits owner acceptance. Static model fixtures were also
    missing from source extraction: both `t2_rancor` marks now gain local illumination,
    with unchanged stock-map appearance in the sampled `ffa1`/`ffa3` views. The
-   Rancor checks add approximately 0.017â€“0.144 ms of GPU work; see
+   Rancor checks add approximately 0.017–0.144 ms of GPU work; see
    [static model fixtures](rendering.md#static-model-fixtures) for evidence and
    remaining visibility limits. Owner acceptance is pending. A subsequent GPU audit
    confirmed a sign error in GI voxel traversal. The corrected forward distances
