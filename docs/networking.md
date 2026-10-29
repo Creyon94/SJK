@@ -261,6 +261,8 @@ filter; the game continues to own the held state and carried position.
 Command gestures predict codemp's taunt hand extension and `EV_TAUNT` before
 the final ground trace and weapon animation. Busy animation/weapon tracks and
 saber locks reject the gesture. Riders skip this step, as in `PmoveSingle`.
+Vehicle riders may select melee, saber or blaster (weapon IDs 2, 3 and 5),
+as in codemp. Bryar pistol (ID 4) is not the blaster and is not in this whitelist.
 
 `PM_JETPACK` (movement type 1), used by the equipped jetpack on stock-derived
 servers including JA+, runs the reference's gravity, thrust and air-control
