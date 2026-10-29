@@ -1565,8 +1565,10 @@ Without real-time lighting, sun shadows reach the world as a second pass over it
 surfaces that multiplies in the shade and tests for equal depth against the stage program.
 That pass also runs when light shafts alone turned the world shadows on. Its position is
 `@invariant` like every other equal-depth redraw: without it a driver may round the depth
-differently, and the shade misses a speckle of the floor that changes as the camera moves
-(hub report #193).
+differently, and the shade would miss a speckle of the floor that changes as the camera
+moves. That is the likely cause of hub report #193 (floors flickering with light shafts
+on), not a verified one: the flicker did not reproduce on the test machine, where frames
+with and without the qualifier are identical.
 
 Sun-shadow filtering compensates for the receiver surface's slope across the
 full texel footprint of a linear depth comparison. A half-texel allowance only
