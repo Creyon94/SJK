@@ -109,7 +109,7 @@ applies:
 | Tick | Who | Look |
 | --- | --- | --- |
 | SJK creator | Sol | a sun whose twelve rays turn and over which a glint passes every four seconds |
-| SJK staff | the SJK team | a silver seal ringed in the SJK TEAM pill's teal, its tick teal |
+| SJK staff | the SJK team | a silver starburst of sixteen points (since 29/10/2026, the seal before), edged in the SJK TEAM pill's teal, its tick teal |
 | JKR creator | Bishop | the seal rusted, in the JKR CREATOR pill's rust |
 | JoF | verified players of JoF (JoF Academy too) | the seal in cyan |
 | Sith | verified players of the Sith clan `{{S}}` | the seal in deep crimson, its rim dark so it never reads as the chat ban's red disc |
