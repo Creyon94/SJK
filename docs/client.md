@@ -5693,12 +5693,20 @@ returning to the row ([wheel_editor.rs](../crates/sjk-viewer/src/settings/wheel_
 - **Right column:** a live preview of the page's ring, the focused choice
   highlighted, then the page's key and bind (`+wheel <id>`) or what the choice
   runs. Picking a choice shows the catalogue there instead (Up and Down, Enter,
-  Escape; actions already on the page say so), Custom command last, with a
-  search field right of its title that has the keyboard as it opens: typing keeps the actions and
-  emotes whose name or group holds every word (Custom command always stays),
+  Escape; actions already on the page say so), then under Your own the custom
+  commands named before and Custom command last, with a
+  search field right of its title that has the keyboard as it opens: typing keeps the actions,
+  emotes and named commands whose name or group (a named command's command too)
+  holds every word (Custom command always stays),
   held letters and Backspace repeat, Ctrl+A, Ctrl+C and Ctrl+V work as in every
   field, Backspace on an empty search closes it; a custom
   choice's form has its name and command fields, Save and Cancel.
+- **Named commands** (after Dante's idea): a custom command saved from its form is
+  remembered and offered under Your own in every page's catalogue, newest first,
+  one per command (the same command saved again takes its new name and moves
+  first), 24 at most (the oldest go). Delete on the highlighted one, or its cross,
+  forgets it; choices already on pages keep it. They are kept in
+  `wheel_commands.json` beside `wheel.json` (see below).
 - The pointer: hovering a row focuses it (a page row without showing that page,
   which a click does), the focused row's small controls act (Rename, up, down,
   remove), a click on a choice or Add a choice opens the catalogue, a click on a
@@ -5746,6 +5754,19 @@ as version 3; a Toys page removed afterwards stays removed, a wheel of 8 pages i
 left alone (the file is not rewritten) and a page of the player's own called Toys
 keeps its id, the new one taking `toys2`.
 
+The named custom commands are kept apart, in `wheel_commands.json` in the same
+folder, so Restore the default pages (which removes `wheel.json`) keeps them:
+
+```json
+{ "version": 1, "commands": [ {"name": "Ready", "command": "ready"} ] }
+```
+
+Newest first, one per command, 24 at most; an entry that is not a complete
+`{name, command}` object is left out. Without the file, the custom choices already
+on the pages are remembered as it is first read (installed emotes, `sjkemote <id>`,
+aside: the catalogue lists them already) and the file is written; once it exists,
+even empty, it is what is remembered.
+
 ## Configuration and content
 
 The default writable client folder is `GameData/SJK/`, under the selected game
@@ -5760,6 +5781,7 @@ is independent of the executable's location and working directory. The client cr
 | `jakey` | Persistent client identity key |
 | `hud.json` | Optional custom HUD |
 | `wheel.json` | The quick wheel's pages, once changed ([Quick wheels](#kept-in-wheeljson)) |
+| `wheel_commands.json` | The quick wheel's named custom commands ([Quick wheels](#kept-in-wheeljson)) |
 | `screenshots/`, `demos/` | Screenshots and recordings |
 | `chatlogs/`, `qconsole.log` | Logs when enabled |
 
