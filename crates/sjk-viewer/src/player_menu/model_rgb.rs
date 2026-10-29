@@ -2,9 +2,12 @@
 //! JoF EJK's `ingame_player.menu` R, G and B sliders over `ui_char_color_*`): a model
 //! worn with its `rgb` skin takes a colour of the player's choosing, the
 //! `char_color_red`, `_green` and `_blue` userinfo cvars (0 to 255) that the server
-//! hands everyone as the player's `customRGBA`. EJK shows the sliders for the skins its
-//! "RGB" team colour lists, the `/rgb` ones (`UI_HeadCountByColor`); so does SJK, on the
-//! Model category, under the grid. The colour shows on the stage at once and is worn
+//! hands everyone as the player's `customRGBA`. The colour shows only on shader stages
+//! that read the entity colour (`rgbGen entity`, `oneMinusEntity`,
+//! `lightingDiffuseEntity`), so SJK shows the sliders, on the Model category under the
+//! grid, for a model with such a shader, whatever its skin is called (Creyon: many RGB
+//! models have no `rgb` skin), and for an `rgb` skin, the ones JoF EJK's RGB team colour
+//! lists (`UI_HeadCountByColor`). The colour shows on the stage at once and is worn
 //! with the model on Apply; the grid's pictures keep their own colours.
 use super::*;
 
@@ -15,13 +18,45 @@ pub(super) fn takes_rgb(model: &str) -> bool {
         .is_some_and(|(_, skin)| skin.eq_ignore_ascii_case("rgb"))
 }
 
+/// Whether `shader`'s definition has a stage the entity colour colours.
+pub(crate) fn takes_entity_colour(shaders: &sjk_shader::ShaderCatalog, shader: &str) -> bool {
+    use sjk_shader::RgbGen;
+    shaders.get(shader).is_some_and(|definition| {
+        definition.stages.iter().any(|stage| {
+            matches!(
+                stage.resolved_colour.rgb,
+                RgbGen::Entity | RgbGen::OneMinusEntity | RgbGen::LightingDiffuseEntity
+            )
+        })
+    })
+}
+
 /// A slider's step for the arrow keys, as the saber's colour sliders step.
 const STEP: isize = 5;
 
 impl PlayerMenu {
-    /// Whether the model on show takes the colour sliders.
+    /// Whether the model on show takes the colour sliders: an `rgb` skin, or a model the
+    /// stage found a shader of that the colour shows on.
     pub(super) fn model_takes_rgb(&self) -> bool {
         takes_rgb(&self.draft.model)
+            || self
+                .stage_tintable
+                .as_ref()
+                .is_some_and(|(model, tintable)| {
+                    *tintable && model.eq_ignore_ascii_case(&self.draft.model)
+                })
+    }
+
+    /// What the stage found of model `model` ([`takes_entity_colour`]).
+    pub(crate) fn set_stage_tintable(&mut self, model: &str, tintable: bool) {
+        if self
+            .stage_tintable
+            .as_ref()
+            .is_some_and(|(known, was)| *was == tintable && known == model)
+        {
+            return;
+        }
+        self.stage_tintable = Some((model.to_owned(), tintable));
     }
 
     /// The colour channel (0 red, 1 green, 2 blue) of Character row `index`, if it is
@@ -168,5 +203,37 @@ mod tests {
         menu.apply_look(&mut console);
         assert!(!menu.look_pending());
         assert_eq!(menu.applied_rgb, [250, 0, 128]);
+    }
+
+    #[test]
+    fn a_shader_that_reads_the_entity_colour_takes_it() {
+        let mut vfs = sjk_vfs::VirtualFileSystem::new();
+        vfs.mount_memory(
+            "test",
+            [(
+                "shaders/test.shader",
+                b"models/players/wolf/fur\n{\n{\nmap models/players/wolf/fur\nrgbGen lightingDiffuseEntity\n}\n}\nmodels/players/wolf/eyes\n{\n{\nmap models/players/wolf/eyes\nrgbGen lightingDiffuse\n}\n}\n"
+                    .to_vec(),
+            )],
+        )
+        .unwrap();
+        let shaders = sjk_shader::ShaderCatalog::load(&vfs).unwrap();
+        assert!(takes_entity_colour(&shaders, "models/players/wolf/fur"));
+        assert!(!takes_entity_colour(&shaders, "models/players/wolf/eyes"));
+        assert!(!takes_entity_colour(&shaders, "models/players/wolf/none"));
+    }
+
+    #[test]
+    fn a_model_the_stage_finds_colourable_gets_the_sliders_whatever_its_skin() {
+        let (mut menu, _console, _directory) = page("wolf/default");
+        assert!(!menu.model_takes_rgb());
+        menu.set_stage_tintable("wolf/default", true);
+        assert!(menu.model_takes_rgb());
+        draw(&mut menu);
+        assert_eq!(slider_rows(&menu).len(), 3);
+        assert!(!menu.canvas.overflowed());
+        // What the stage found of another model says nothing of this one.
+        menu.draft.model = "kyle/default".to_owned();
+        assert!(!menu.model_takes_rgb());
     }
 }

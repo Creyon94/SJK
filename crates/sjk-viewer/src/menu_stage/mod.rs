@@ -113,6 +113,9 @@ pub(crate) struct MenuStage {
 
 struct StageActor {
     model: String,
+    /// One of its shaders reads the entity colour, so the player's colour shows on it
+    /// (`player_menu/model_rgb.rs`).
+    tintable: bool,
     /// Which build this is ([`MenuStage::actor_builds`]).
     build: u64,
     /// Lit as a preview is ([`EntityLight::FALLBACK`], whatever the map), not by the map
@@ -604,6 +607,9 @@ impl GpuState {
         let frame = animation_frame(&preview.sequence, 0.0);
         let mut flattened = FlattenedScene::default();
         let (actor_draws, vertex_ranges) = append_actor_mesh(&mut flattened, &preview, frame)?;
+        let tintable = flattened.materials.iter().any(|material| {
+            crate::player_menu::takes_entity_colour(&self.shaders, &material.shader)
+        });
         let materials = self.world_materials.compile_detached(
             &self.device,
             &self.queue,
@@ -672,6 +678,7 @@ impl GpuState {
         self.menu_stage.actor_builds += 1;
         Ok(StageActor {
             model: model.to_owned(),
+            tintable,
             build: self.menu_stage.actor_builds,
             preview_lit,
             stance,
@@ -712,6 +719,9 @@ impl GpuState {
         let Some(actor) = self.menu_stage.actor.as_mut() else {
             return;
         };
+        if let Some(menu) = self.client_menu.as_mut() {
+            menu.set_stage_tintable(&actor.model, actor.tintable);
+        }
         let wanted = [rgb[0], rgb[1], rgb[2], 255].map(|channel| f32::from(channel) / 255.0);
         if actor.instance.entity_color == wanted {
             return;

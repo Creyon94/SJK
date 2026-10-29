@@ -568,6 +568,11 @@ impl ClientMenu {
         self.player.stage_rgb()
     }
 
+    /// Whether the stage's model `model` shows the player's colour.
+    pub(crate) fn set_stage_tintable(&mut self, model: &str, tintable: bool) {
+        self.player.set_stage_tintable(model, tintable);
+    }
+
     /// The model the classic profile's preview shows, with the stage it
     /// may stand on: only while the profile is on screen and its page shows
     /// one.
