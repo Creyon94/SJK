@@ -255,6 +255,9 @@ through `i64` now, wrapping rather than saturating if a huge angle ever reaches 
 
 ### Equipped jetpack prediction
 
+Vehicle riders may select melee, saber or blaster (weapon IDs 2, 3 and 5),
+as in codemp. Bryar pistol (ID 4) is not the blaster and is not in this whitelist.
+
 `PM_JETPACK` (movement type 1), used by the equipped jetpack on stock-derived
 servers including JA+, runs the reference's gravity, thrust and air-control
 rules ([pmove_jetpack.rs](../crates/sjk-game-jka/src/pmove_jetpack.rs)). The

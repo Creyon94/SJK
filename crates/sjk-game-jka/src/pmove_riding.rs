@@ -27,7 +27,7 @@ const EF_NODRAW: u32 = 1 << 8;
 /// `WP_MELEE`, `WP_SABER`, `WP_BLASTER`.
 const WP_MELEE: u8 = 2;
 const WP_SABER: u8 = 3;
-const WP_BLASTER: u8 = 4;
+const WP_BLASTER: u8 = 5;
 /// `BUTTON_ATTACK`, `BUTTON_ALT_ATTACK`.
 const BUTTON_ATTACK: u16 = 1;
 const BUTTON_ALT_ATTACK: u16 = 128;
@@ -142,6 +142,58 @@ impl Riding {
 /// `PM_WeaponOkOnVehicle` (`bg_pmove.c:9713-9727`).
 pub fn weapon_ok_on_vehicle(weapon: u8) -> bool {
     matches!(weapon, WP_MELEE | WP_SABER | WP_BLASTER)
+}
+
+#[cfg(test)]
+mod whitelist_tests {
+    use super::*;
+
+    #[test]
+    fn rider_weapon_ids_match_codemp() {
+        for weapon in 0..crate::LEGACY_WEAPON_COUNT as u8 {
+            assert_eq!(
+                weapon_ok_on_vehicle(weapon),
+                matches!(weapon, 2 | 3 | 5),
+                "weapon {weapon}"
+            );
+        }
+        for step in [8, 7, 4, 3] {
+            let mut predictor = Predictor::from_state(
+                MovementState {
+                    client_num: 0,
+                    vehicle_entity_num: 42,
+                    weapon: 4,
+                    weapons: (1 << 4) | (1 << 5),
+                    ..MovementState::default()
+                },
+                MovementConfig::default(),
+            );
+            let mut command = UserCommand {
+                server_time: step,
+                weapon: 4,
+                ..UserCommand::default()
+            };
+            predictor.set_riding(Some(Riding {
+                vehicle: 42,
+                kind: kind::SPEEDER,
+                pilot: false,
+                speed: 0.0,
+                speed_max: 100.0,
+                orientation: [0.0; 3],
+                hyperspace_time: 0,
+                hyperspace_angles: [0.0; 3],
+                command_moves: None,
+                ready_for_hyperspace: false,
+                solid_hack: false,
+                turnaround: None,
+            }));
+            assert!(predictor.rider_weapon(&mut command));
+            assert_eq!(command.weapon, 5);
+            assert_eq!(predictor.state().weapon, 5);
+            predictor.state_mut().entity_flags |= EF_NODRAW;
+            assert!(!predictor.rider_weapon(&mut command));
+        }
+    }
 }
 
 impl Predictor {

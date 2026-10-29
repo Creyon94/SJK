@@ -1,3 +1,11 @@
+## Vehicle rider weapon whitelist
+
+29/10/2026, `fix/rider-weapon-whitelist`, based on `main` `e702b0b1`:
+corrected the rider adapter's `WP_BLASTER` from Bryar's ID 4 to blaster's ID 5.
+Reference: OpenJK `4d0dfaf1`, codemp `PM_WeaponOkOnVehicle` and `weapons_t`.
+Windows x64 synthetic tests check every weapon ID and forced selection at
+8/7/4/3 ms. Live mounted weapon selection remains unverified.
+
 ## Synced emote music back from alt-tab in step
 
 29/10/2026, `fix/emote-sound-alt-tab`, based on `main` `b558d4ae`, hub report #195 (build
