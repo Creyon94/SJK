@@ -961,7 +961,7 @@ const HELP: &[(&str, &str)] = &[
     ),
     (
         super::slider_peek::CVAR,
-        "In a match, hold a slider a moment and the rest of Settings fades away, showing the game as you drag. Off keeps the screen.",
+        "In the game, hold a slider in the SJK UI a moment and the rest of Settings fades away, showing the game as you drag. Off keeps it.",
     ),
     (
         crate::menu_pictures::CVAR,

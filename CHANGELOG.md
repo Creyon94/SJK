@@ -32,9 +32,9 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
-= ui_sliderPeek: New: in a match, hold a Settings slider a moment and the rest of the menu fades away, so you see the change on the game as you drag.
+= ui_sliderPeek: New: in the game, hold a Settings slider a moment and the rest of the menu fades away, so you see the change on the game as you drag.
 
-- Settings: in a match, hold a slider (its track or knob) a moment and everything else fades away, the darkening behind too, leaving only that slider over the game, so you see the change as you drag; letting go brings the menu back. Settings > Interface > Slider peek (`ui_sliderPeek`) switches it off _(Slash, PR #248, after Blep's idea)_
+- Settings: in the game, hold a slider (its track or knob) a moment and everything else fades away, the darkening behind too, leaving only that slider over the game, so you see the change as you drag; letting go brings the menu back. Settings > Interface > Slider peek (`ui_sliderPeek`) switches it off _(Slash, PR #248, after Blep's idea)_
 - Mystery boxes hold a holocron one time in ten (it was one in fifty), and the roll shows the four tiers' real holocrons, stopping on the one you won. A box that blows up laughs with Sol's own laugh when the SJK extras pack is installed _(Sol)_
 - Centre prints and the words over mystery boxes (and the box hunt's mark) are drawn in Fira Sans Condensed, a real typeface close to the old menu font, instead of a tracing of a low-resolution bitmap _(Sol)_
 - Box hunt: one mark every 10 minutes at most, not one after the other. Hunters see the mark ringed in red, and a black name reads on the hunt's card _(Sol)_

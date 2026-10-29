@@ -363,6 +363,12 @@ impl SettingsMenu {
         }
     }
 
+    /// End a held slider's peek at once: something else took the pointer or the keys
+    /// (the console, a card, another window), so its release will not come here.
+    pub(crate) fn cancel_peek(&mut self) {
+        self.peek.cancel();
+    }
+
     /// Whether a match is behind the screen: only then may a held slider peek
     /// at it ([`slider_peek`]).
     pub(crate) fn set_world_behind(&mut self, world: bool) {

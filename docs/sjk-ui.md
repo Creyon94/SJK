@@ -901,14 +901,15 @@ that mode for the visit and leaves the player's choice as it was.
     Hovering a name shows its picture; SJK's radial and classic layouts are
     drawn on it by the live HUD ([client.md](client.md#hud-style)).
   - Slider peek (since 29/10/2026, after Blep's idea; Settings > Interface,
-    `ui_sliderPeek`, on): over a match, holding a slider (its track or knob, not
+    `ui_sliderPeek`, on): in the game, holding a slider (its track or knob, not
     its number) for 0.3 s fades everything else away in 0.15 s, eased: the rail,
     the top bar, the other rows and sub-headings, the detail column, the keys and
     the darkening behind, leaving only that row (its band, name, slider and number)
     where it was over the live game, which keeps changing as the slider is dragged.
     Letting go (or the pointer leaving the window) brings the screen back in 0.15 s;
     a press again while it returns carries on from there, and a key shows it at
-    once. A quick click never fades it, nor does it happen over the main menu's map
+    once, as does the console opening, a card coming up over Settings or the window
+    losing the focus (each takes the release away from Settings). A quick click never fades it, nor does it happen over the main menu's map
     or in First setup's pop-up ([slider_peek.rs](../crates/sjk-viewer/src/settings/slider_peek.rs)).
   - The focused row has a soft band and a gold bar at its left; a row changed
     from its default a gold dot after its name, and when focused the reset arrow.
