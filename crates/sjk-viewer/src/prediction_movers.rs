@@ -50,6 +50,7 @@ impl Trajectory {
 /// presented frame; packed boxes stay axis-aligned at their rendered origin.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Collider {
+    pub(crate) rocket_target: sjk_game_jka::pmove::RocketLockTarget,
     pub(crate) entity: u16,
     pub(crate) model: usize,
     pub(crate) bounds: Option<sjk_bsp::Aabb>,
@@ -86,6 +87,10 @@ impl Collider {
         };
         Self {
             entity: mover.entity_number,
+            rocket_target: sjk_game_jka::pmove::RocketLockTarget {
+                actor: false,
+                powerups: 0,
+            },
             model: mover.model_index,
             bounds: None,
             origin: mover.origin,
@@ -143,6 +148,10 @@ impl Collider {
         };
         let mut result = Self {
             entity: state.number(),
+            rocket_target: sjk_game_jka::pmove::RocketLockTarget {
+                actor: matches!(state.entity_type(), 1 | 13),
+                powerups: state.powerups(),
+            },
             model: state.model_index() as usize,
             bounds,
             origin: position.position(physics_time),
@@ -188,6 +197,23 @@ impl Collider {
     /// not stands where it was read, whatever the time.
     pub(crate) fn moves(&self) -> bool {
         self.position.kind >= TR_LINEAR || self.angular.kind >= TR_LINEAR
+    }
+}
+
+#[cfg(test)]
+mod rocket_target_tests {
+    use super::*;
+    #[test]
+    fn snapshot_solid_keeps_rocket_target_kind_and_powerups() {
+        for kind in [1, 3, 13] {
+            let mut entity = EntityState::zero(45, &sjk_protocol::LEGACY_ENTITY_FIELDS);
+            entity.set_raw_field(8, kind);
+            entity.set_raw_field(26, 15 | (24 << 8) | (72 << 16));
+            entity.set_raw_field(77, 2);
+            let collider = Collider::from_entity(&entity, 0, 0, false).unwrap();
+            assert_eq!(collider.rocket_target.actor, matches!(kind, 1 | 13));
+            assert_eq!(collider.rocket_target.powerups, 2);
+        }
     }
 }
 
