@@ -24,6 +24,16 @@
 
 # ---- Console & chat ----
 
+[fullscreen-keeps-size]
+area: Menus & settings
+title: Fullscreen keeps the screen's size (Mac: small game in a black screen)
+change: r_resolution sizes the window only while windowed; fullscreen is never resized.
+change: Mac: vid_restart or a picked size shrank the fullscreen game into a black screen.
+test: Borderless fullscreen, console vid_restart: the game still fills the screen.
+test: Borderless, Resolution list: pick 1280 x 720; still full screen. Alt+Enter: 1280x720 window.
+test: Windowed: picking a size resizes the window at once, as before.
+note: Mac side needs Glen (or another Mac player) after the next release.
+
 [staff-starburst]
 area: HUD
 title: SJK staff's tick is a silver starburst (16 points, teal edge and tick)

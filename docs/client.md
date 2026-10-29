@@ -5781,7 +5781,15 @@ groups by how close their shape is to it (on a 16:9 monitor 16:10, then 3:2,
 4:3, 5:4; since 10/10/2026, before which they ran narrow to wide), largest first
 in each, and the size in use highlighted. Windowed and borderless also list the classic presets that fit the
 monitor and a custom `r_resolution`; borderless fullscreen always fills the
-desktop and uses the size only when windowed. Left and Right step the row within
+desktop and uses the size only when windowed. `apply_display` asks the window for
+`r_resolution` only while it is windowed and winit reports it not fullscreen
+(`window_size_request` in [display.rs](../crates/sjk-viewer/src/settings/display.rs)),
+so a size picked in fullscreen waits for the return to a window. It asked a
+fullscreen window for the size too, after `vid_restart` or a pick: winit's macOS
+`request_inner_size` sets the content size inside the fullscreen Space, which left
+the game a small window in the middle of a black screen (Glen's report,
+29/10/2026); the Mac's green button, which does not change `r_fullscreen`, counts
+as fullscreen too. Left and Right step the row within
 its aspect-ratio group. See [display.rs](../crates/sjk-viewer/src/settings/display.rs)
 and [resolution.rs](../crates/sjk-viewer/src/settings/resolution.rs).
 
