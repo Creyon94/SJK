@@ -227,6 +227,11 @@ pub(crate) const REWARDS: [(&str, usize); 35] = [
     ("duel_partners_25", 1),
     ("saber_throw_far", 0),
     ("thermal_return", 1),
+    ("style_blue_50", 1),
+    ("style_yellow_50", 1),
+    ("style_red_50", 1),
+    ("style_dual_50", 1),
+    ("style_staff_50", 1),
 ];
 
 /// What the hub said each achievement brings, in [`crate::achievements::ALL`]'s order: 0

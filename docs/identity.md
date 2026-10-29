@@ -1010,9 +1010,11 @@ and in the hub (same ids):
 | Well Met | `duel_partners_25` | 25 different players duelled | client |
 | Long Throw | `saber_throw_far` | a player defeated by a saber throw from 512 units or more | client |
 | Return to Sender | `thermal_return` | a player defeated with their own thermal detonator | client |
+| Blue, Yellow, Red, Dual, Staff Master | `style_blue_50`, `style_yellow_50`, `style_red_50`, `style_dual_50`, `style_staff_50` | 50 duels won with the saber in that style (`fd.saberAnimLevel` when the kill is made: 1 Fast, 2 Medium, 3 Strong, 6 two sabers, 7 staff; Desann's and Tavion's count towards none), in a private duel (saber only or full Force) or a duel game; kills out of a duel do not count | client |
 
 The fourteen after Decorated came on 26/10/2026 (Sol's list), with the categories
-Collection and Toys. A hidden achievement (Touched by the Force) is a secret until it
+Collection and Toys; the five style masters on 29/10/2026 (Dante's idea in #ideas,
+duels only at Slash's call). Each needs the same id in the hub's catalogue. A hidden achievement (Touched by the Force) is a secret until it
 is unlocked: the board, its hover card and the "Next up" list show "Secret" or "Secret
 achievement", a `?` in its medallion, no goal and no count; unlocked, it shows like any
 other (the unlock card names it). A retired achievement (Surveyor, since 26/10/2026)
@@ -1020,9 +1022,9 @@ can no longer be earned: it shows only to a player who holds it unlocked, with "
 longer obtainable", and is not listed at all, nor its progress, for anyone else. Hidden
 and retired are flags of the client's catalogue (`Kind::hidden`, `Kind::retired`); the
 hub's `"retired": true` on Surveyor's entry is not needed by the client.
-Totals ("12 of 34 unlocked", the player card's "Achievements 12 / 34", the profile
+Totals ("12 of 39 unlocked", the player card's "Achievements 12 / 39", the profile
 card) count every obtainable achievement and the retired ones the player holds, so a
-holder of Surveyor reads "of 35".
+holder of Surveyor reads "of 40".
 
 What the client counts comes from its live matches on servers, never a demo, a game
 it hosts or a server on the player's own machine (a loopback address: Create game and
