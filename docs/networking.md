@@ -255,6 +255,11 @@ through `i64` now, wrapping rather than saturating if a huge angle ever reaches 
 
 ### Equipped jetpack prediction
 
+Inline-brush point contents use the presented origin and angles, matching
+`CG_PointContents`; collision sweeps retain their physics-time translation.
+Prediction keeps these transforms separately, including when the newest and
+displayed snapshots carry different mover trajectories.
+
 `PM_JETPACK` (movement type 1), used by the equipped jetpack on stock-derived
 servers including JA+, runs the reference's gravity, thrust and air-control
 rules ([pmove_jetpack.rs](../crates/sjk-game-jka/src/pmove_jetpack.rs)). The

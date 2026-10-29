@@ -1,3 +1,12 @@
+## Presented inline-brush contents
+
+29/10/2026, `fix/prediction-mover-contents`, based on `main` `e702b0b1`:
+inline point-contents queries now use the presented brush transform rather
+than the sweep's physics-time position. Reference: OpenJK `4d0dfaf1`, codemp
+`CG_PointContents:407-440`. Windows x64 synthetic moving-water tests cover
+8/7/4/3 ms time offsets; live moving liquid/community-map behavior remains
+unverified. Swept collision keeps its existing time convention.
+
 ## Synced emote music back from alt-tab in step
 
 29/10/2026, `fix/emote-sound-alt-tab`, based on `main` `b558d4ae`, hub report #195 (build

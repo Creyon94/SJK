@@ -54,6 +54,9 @@ pub(crate) struct Collider {
     pub(crate) model: usize,
     pub(crate) bounds: Option<sjk_bsp::Aabb>,
     pub(crate) origin: [f32; 3],
+    /// CG_PointContents uses the presented transform, while sweeps use physics time.
+    pub(crate) contents_origin: [f32; 3],
+    pub(crate) contents_axes: Option<[[f32; 3]; 3]>,
     pub(crate) axes: [[f32; 3]; 3],
     pub(crate) rotated: bool,
     mover: bool,
@@ -89,6 +92,8 @@ impl Collider {
             model: mover.model_index,
             bounds: None,
             origin: mover.origin,
+            contents_origin: mover.origin,
+            contents_axes: (mover.angles != [0.0; 3]).then(|| rotation_axes(mover.angles)),
             axes: rotation_axes(mover.angles),
             rotated: mover.angles != [0.0; 3],
             mover: true,
@@ -146,6 +151,8 @@ impl Collider {
             model: state.model_index() as usize,
             bounds,
             origin: position.position(physics_time),
+            contents_origin: position.position(angle_time),
+            contents_axes: None,
             axes: [[0.0; 3]; 3],
             rotated: false,
             mover: state.entity_type() == ET_MOVER,
@@ -173,6 +180,8 @@ impl Collider {
         let angles = self.angular.angles(time);
         self.rotated = angles != [0.0; 3];
         self.axes = rotation_axes(angles);
+        self.contents_origin = self.position.position(time);
+        self.contents_axes = self.rotated.then_some(self.axes);
     }
 
     /// The same solid where its trajectories put it at `time`, moved and turned alike
@@ -344,6 +353,15 @@ impl Movers {
     pub(crate) fn present_boxes(&mut self, shown: &Self, time: i32) {
         for collider in &mut self.colliders {
             if collider.bounds.is_none() {
+                if let Some(index) = shown.by_entity[usize::from(collider.entity)] {
+                    let before = &shown.colliders[index];
+                    if before.bounds.is_none() && before.teleport == collider.teleport {
+                        collider.contents_origin = before.position.position(time);
+                        let angles = before.angular.angles(time);
+                        collider.contents_axes =
+                            (angles != [0.0; 3]).then(|| rotation_axes(angles));
+                    }
+                }
                 continue;
             }
             let Some(index) = shown.by_entity[usize::from(collider.entity)] else {
