@@ -69,12 +69,12 @@ pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
         (
             crate::chat::tabs::FILTER_CVAR,
             1,
-            "While typing, the chat shows only the chosen tab's messages (Team, SJK, Admin or PM); All shows everything",
+            "While typing, a chat button (Team, SJK, Admin or PM) shows only its own messages; 0 keeps every message and the button only picks where you talk",
         ),
         (
             crate::chat::tabs::PM_CVAR,
             0,
-            "A PM button in the chat composer's row: a whisper to the last player who whispered you",
+            "A PM button in the chat composer's row: replies to players who whispered you, left click next, right click back",
         ),
         (
             crate::chat::emoji::CVAR,

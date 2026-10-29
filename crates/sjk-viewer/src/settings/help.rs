@@ -636,7 +636,7 @@ const HELP: &[(&str, &str)] = &[
     ),
     (
         crate::chat::tabs::FILTER_CVAR,
-        "While typing, Team, SJK, Admin and PM show only their own messages; All shows everything.",
+        "On, a chat button shows only its own messages while you type; off, it only picks where you talk.",
     ),
     (
         crate::chat::tabs::TEAM_CVAR,
@@ -652,7 +652,7 @@ const HELP: &[(&str, &str)] = &[
     ),
     (
         crate::chat::tabs::PM_CVAR,
-        "Shows PM beside All when you type a message: it whispers the last player who whispered you.",
+        "Shows PM when you type: it replies to players who whispered you; left click next, right click back.",
     ),
     (
         crate::chat::reply::REMEMBER_CVAR,

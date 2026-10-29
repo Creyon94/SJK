@@ -793,7 +793,7 @@ pub(super) const HUD: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
-        label: "Tabs filter chat",
+        label: "Tabs hide other chat",
         cvar: crate::chat::tabs::FILTER_CVAR,
         kind: ValueKind::Bool,
     },
