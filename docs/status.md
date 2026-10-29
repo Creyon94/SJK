@@ -69,13 +69,17 @@ draw it), 1 unchanged. Verified: unit tests `flesh_sparks_gate_each_saber_hit_on
 build, Clippy and the workspace's tests; the world shot `lagometer_modes_on_a_demo` (a demo
 frozen on its first snapshot, a made-up steady connection) draws modes 1 to 3 at
 `cg_lagometerScale` 1 and 2 as described. The same day (`personal/ideas-followups`, Sol's
-decision) the numbers, which at EJK's proportion of SJK's smaller graph (48 px at 1080p,
-EJK's 108) were about 10 px tall at scale 1, became the HUD's text size, a 21 px line at
-1080p grown by the HUD scale and `cg_lagometerScale`, on a line of their own just above
-the graph (below it at the screen's top), the speed graph rising to make room; the graph
-keeps its size. Verified by `the_numbers_are_readable_above_the_graph_at_every_scale`,
-`at_the_screen_edges_the_numbers_stay_inside` and the same world shot again (the digits
-about 8 px tall at scale 1, as OCR-A's are about 40 % of its line; EJK's about 9.5 px).
+decision) the numbers, which at EJK's proportion of SJK's smaller graph (45 px at 1080p
+with the default `cg_hudScale` 0.7, EJK's 108) were tiny at scale 1, moved to a line of
+their own just above the graph (below it at the screen's top), the speed graph rising to
+make room; the graph keeps its size. A first size (the HUD's 21 px text line before
+`cg_hudScale`) left the digits about 8 px tall in the world shot; at Sol's request they
+are now EJK's size, a 34 px line before `cg_hudScale` (23.8 px with the default, EJK's
+23.6), the digits about 13 px tall at 1080p and scale 1 (measured in the shot), the line
+at least 4.7 lines wide and centred on the graph. Verified by
+`the_numbers_are_readable_above_the_graph_at_every_scale`,
+`the_digits_are_about_13_pixels_and_both_numbers_fit_their_line` (SJK Chat's own
+metrics), `at_the_screen_edges_the_numbers_stay_inside` and the same world shot again.
 Not tried in a game or compared with EJK side by side; the shots' recorder stands still,
 so they show no speed graph.
 

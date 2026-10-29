@@ -2989,18 +2989,22 @@ EJK draws the speed graph only with its `cg_speedometer` speed graph bit; SJK ha
 such bit and draws it with modes 2 and 3 (Sol's decision, 29/10/2026).
 
 The numbers do not keep EJK's proportion of the graph (`ocr_a` at half size, 10.5 of
-its 48 units): SJK's graph is 48 pixels at 1080 lines where EJK's is 108, so they were
-10 pixels tall at `cg_lagometerScale 1`, too small to read. They are drawn at the HUD's
-text size instead, a 21-pixel line at 1080 lines (`Theme::typography.value`, about
-EJK's 23.6 there), grown with the HUD (the screen's height, `cg_hudScale`) and
-`cg_lagometerScale`; the ping and interpolation stand on their own line just above the
-graph, so the graph keeps its size in every mode (Sol's decision, 29/10/2026). The line
-is at least 3.6 lines wide, centred on a narrower graph, and stays inside the screen:
-when the graph sits too near the top for it, it goes just below the graph instead (the
-speed graph, above the screen's top then, as in EJK, is not moved). See
+its 48 units): SJK's graph is 45 pixels at 1080 lines with the default `cg_hudScale`
+(0.7) where EJK's is 108, so they were tiny at `cg_lagometerScale 1`. They are drawn at
+EJK's own size instead (Sol's decision and request, 29/10/2026): a 34-pixel line at 1080
+lines before `cg_hudScale`, so 23.8 pixels with the default HUD scale (EJK's is 23.6),
+where SJK Chat's digits (`ui_gameFont`) stand about 13 pixels tall, as the HUD's
+"Score" capitals. They grow with the HUD (the screen's height, `cg_hudScale`) and
+`cg_lagometerScale`, mode 3's speed number alike. The ping and interpolation stand on
+their own line just above the graph, so the graph keeps its size in every mode. The line
+is at least 4.7 lines wide (a three-digit ping and "-99.9" side by side), wider than the
+graph and centred on it, and stays inside the screen: shifted in at the sides, and just
+below the graph when the graph sits too near the top for it (the speed graph, above the
+screen's top then, as in EJK, is not moved). See
 [hud/lagometer.rs](../crates/sjk-viewer/src/hud/lagometer.rs) and its tests
 (`mode_1_is_the_graph_alone`, `the_averages_follow_ejk`,
 `the_numbers_are_readable_above_the_graph_at_every_scale`,
+`the_digits_are_about_13_pixels_and_both_numbers_fit_their_line`,
 `at_the_screen_edges_the_numbers_stay_inside`). Not compared side by side with EJK in
 game.
 
