@@ -5095,6 +5095,27 @@ sends them flying, the way the monitor struck them.
   monitor and its sounds in the world on this PC, the player's own too; their charge ring,
   charge hum, hit marker and tick stay. Neither changes who may be hit: a player with the
   toy on and monitors hidden can still be struck.
+- **The Screen Saver** (Sol's idea, 29/10/2026): a player struck by 5 monitors of other
+  players within 20 seconds is untouchable by monitors for 30 seconds, and may still
+  throw their own ([saver.rs](../crates/sjk-viewer/src/monitor/saver.rs)). A monitor counts
+  once however often it strikes (one juggling a body), the player's own never, and the
+  count starts afresh once it rises. The fifth hit still lands; from then every monitor
+  passes through the player, standing or limp, as through a player without the toy. The
+  centre of the screen says "SCREEN SAVER: monitors pass through you for 30 seconds".
+  A gold shell wraps the body: Force Absorb's (`gfx/misc/personalshield`) tinted gold,
+  as many passes as `cg_shieldBrightness`, fading in, pulsing gently, and flickering
+  over its last 3 seconds. A CRT's degauss is heard as it rises (`saver_on.wav`) and its
+  power-off as it ends (`saver_off.wav`), the player's own in both ears, another's where
+  they are. It ends at its time, or sooner with the player's death or a new map (the
+  game clock going back). Others learn of it through a feed
+  [toy event](hub-chat.md#toy-events) the player sends to the one who raised it
+  (`monitor` `saver_<until>`, the game server time it ends; `saver_off` if the player
+  dies first): their clients draw the shell and foresee no hit on the player meanwhile,
+  and drop it at its time or the player's death. Clients from before it see no shell
+  and may foresee a hit that the player's own client refuses, which they undo as any
+  hit whose word does not come. No shell shows in a duel or with `cg_toyMonitorShow` 0.
+  It brings two achievements ([identity.md](identity.md#achievements)): Payback and
+  the hidden Power Surge.
 - **Getting up:** a fall a monitor began ends by itself 2.5 seconds after the body came
   to rest, once the real body has walked to it (or 6 seconds later whatever it did);
   `toy_ragdoll` gets up at once, and being hurt does as for the Ragdoll.

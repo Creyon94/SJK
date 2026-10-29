@@ -1,3 +1,18 @@
+## Monitor Screen Saver
+
+29/10/2026, `personal/monitor-screen-saver`, based on `main` `9f40fded` (Sol's idea),
+with the hub's `screen-saver` branch (the two achievement ids): a player struck by 5
+monitors of others within 20 seconds is untouchable by monitors for 30 seconds and
+still throws, in Force Absorb's shell tinted gold that pulses and flickers before it
+ends, with a CRT degauss and power-off synthesized by `scripts/monitor_assets.py`
+([client.md](client.md#monitor)). Others learn of it through a feed toy event
+(`saver_<until>`, `saver_off`). Two achievements: Payback and the hidden Power Surge
+(42 in all, [identity.md](identity.md#achievements)). Verified: fmt, workspace build,
+Clippy (no warnings in the changed code), `cargo test --locked --workspace` (new unit
+tests for the count, the achievements once a Screen Saver, the feed events and the
+shell's glow), the hub's tests and Clippy. Not verified: anything in game, the gold
+shell's look, two clients seeing the same Screen Saver, the hub taking the new ids live.
+
 ## Passenger movement prediction
 
 29/10/2026, `fix/prediction-passenger-movement`, based on `main` `9e48ff6d`:
