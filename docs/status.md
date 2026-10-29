@@ -1,3 +1,12 @@
+## External rider weapon prediction
+
+29/10/2026, `fix/prediction-rider-weapons`, based on `main` `e702b0b1`:
+removed the server-only gate around legal external rider weapon prediction.
+Reference: OpenJK `4d0dfaf1`, codemp `PmoveSingle:11081-11113`, shared by game
+and cgame. Windows x64 synthetic tests cover visible/hidden rider weapon
+timers and unchanged rider origin at 8/7/4/3 ms. Live mounted firing remains
+unverified. The separate rider weapon-ID correction is independent.
+
 ## Synced emote music back from alt-tab in step
 
 29/10/2026, `fix/emote-sound-alt-tab`, based on `main` `b558d4ae`, hub report #195 (build

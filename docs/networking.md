@@ -255,6 +255,10 @@ through `i64` now, wrapping rather than saturating if a huge angle ever reaches 
 
 ### Equipped jetpack prediction
 
+An exposed vehicle rider predicts legal handheld weapon timers and firing just
+as an on-foot player does. Hidden occupants skip their handheld weapon; neither
+case gives the rider independent movement physics.
+
 `PM_JETPACK` (movement type 1), used by the equipped jetpack on stock-derived
 servers including JA+, runs the reference's gravity, thrust and air-control
 rules ([pmove_jetpack.rs](../crates/sjk-game-jka/src/pmove_jetpack.rs)). The

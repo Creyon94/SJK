@@ -139,6 +139,72 @@ impl Riding {
     }
 }
 
+#[cfg(test)]
+mod prediction_tests {
+    use super::*;
+    struct Void;
+    impl MovementCollision for Void {
+        fn trace(
+            &self,
+            _: [f32; 3],
+            _: [f32; 3],
+            _: [f32; 3],
+            end: [f32; 3],
+            _: u32,
+        ) -> MovementTrace {
+            MovementTrace::miss(end)
+        }
+    }
+    #[test]
+    fn external_rider_weapons_advance_on_the_client() {
+        for step in [8, 7, 4, 3] {
+            for hidden in [false, true] {
+                let mut predictor = Predictor::from_state(
+                    MovementState {
+                        health: 100,
+                        client_num: 0,
+                        vehicle_entity_num: 42,
+                        weapon: WP_MELEE,
+                        weapons: 1 << WP_MELEE,
+                        weapon_time: 100,
+                        entity_flags: if hidden { EF_NODRAW } else { 0 },
+                        standing_height: 40.0,
+                        ..MovementState::default()
+                    },
+                    MovementConfig::default(),
+                );
+                predictor.set_riding(Some(Riding {
+                    vehicle: 42,
+                    kind: kind::SPEEDER,
+                    pilot: false,
+                    speed: 0.0,
+                    speed_max: 100.0,
+                    orientation: [0.0; 3],
+                    hyperspace_time: 0,
+                    hyperspace_angles: [0.0; 3],
+                    command_moves: None,
+                    ready_for_hyperspace: false,
+                    solid_hack: false,
+                    turnaround: None,
+                }));
+                predictor.predict_command(
+                    UserCommand {
+                        server_time: step,
+                        weapon: WP_MELEE,
+                        ..UserCommand::default()
+                    },
+                    &Void,
+                );
+                assert_eq!(
+                    predictor.state().weapon_time,
+                    if hidden { 100 } else { 100 - step }
+                );
+                assert_eq!(predictor.state().origin, [0.0; 3]);
+            }
+        }
+    }
+}
+
 /// `PM_WeaponOkOnVehicle` (`bg_pmove.c:9713-9727`).
 pub fn weapon_ok_on_vehicle(weapon: u8) -> bool {
     matches!(weapon, WP_MELEE | WP_SABER | WP_BLASTER)
