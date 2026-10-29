@@ -508,6 +508,60 @@ report 172). It stays behind the client's other commands, a `userinfo` after a m
 or saber change or a Force-profile `team` retry, so a `kill` bind respawns with the
 new model and a typed `/team s` is not undone by a retry sent after it.
 
+## Prediction source comparison
+
+The 29/10/2026 review compares SJK `main` `e702b0b1` with OpenJK
+`4d0dfaf1cb9af979a827c0b0371aacf4fe9b2724`, **multiplayer `codemp`**:
+`cg_predict.c`, `bg_pmove.c`, `bg_slidemove.c`, `bg_saber.c`, `bg_panimate.c`
+and the referenced item, saber-definition and vehicle helpers. It traces
+snapshot replay, collision, command filtering, movement dispatch, posture,
+Force/wall moves, weapon/saber prediction, animation context, riders,
+vehicles, predictable events and trigger/item contact. Source review does not
+establish that every reachable state or mod setting has been exercised.
+
+Confirmed corrections are proposed separately; an open PR is not a merged feature:
+
+| Area | Pull requests |
+| --- | --- |
+| Game type and surrounding actor context | #249, #250 |
+| Zero-gravity movement and incomplete command history | #251, #252 |
+| Saber-lock facing and trigger hull | #253, #254 |
+| Respawn jumping and movement while held | #260, #261 |
+| Command gestures | #262 |
+| Rider weapon IDs and client weapon execution | #263, #264 |
+| Rocket trace contents and snapshot target identity/powerups | #265, #268 |
+| Dual jump-attack hull restoration | #266 |
+| Equipped saber movement definitions | #267 |
+| Presented inline-brush point contents | #270 |
+
+The wider comparison leaves these source differences for targeted validation
+before proposing a correction:
+
+- Remote vehicle boxes: `CG_ClipMoveToEntities` calls
+  `BG_VehicleAdjustBBoxForOrientation`; the viewer decodes a packed remote box.
+  The locally predicted vehicle has a separate orientation-aware path.
+- Vehicle/rider collision exclusions: stock `CG_VehicleClipCheck` depends on
+  the particular entity making the trace, including passengers. SJK shares a
+  collision list between local pilot and vehicle; passenger cases need an
+  isolated vehicle scenario before changing that shared list.
+- Model-specific animation context: OpenJK chooses the local player's animation
+  table and `nonHumanoid` every frame. SJK initially loads humanoid timings and
+  retains them on map reuse. A model change or custom skeleton needs focused
+  evidence; the slope-pose limitation is documented above.
+
+Known deviations remain explicit: missile solids are omitted as documented in
+"Own rockets"; slope poses wait for snapshots; spinning-saber jetpack impulses
+are not implemented; intermission movement keeps updating local view angles
+where stock `PM_UpdateViewAngles` returns. These do not establish stock parity.
+
+Several apparent omissions are not additional client findings: `PM_Use` has no
+predicted client consumer, saber offense/defense/throw levels are not networked,
+`rocketLastValidTime` is also lost in stock snapshot reseeding, and stock water
+sampling uses `MINS_Z` rather than a dynamically resized hull's minimum.
+Windows x64 synthetic tests and small MSVC-compiled OpenJK function probes at
+8/7/4/3 ms support the proposed fixes. A live differential run, full animation,
+vehicle and mod coverage, and rendered performance remain unverified.
+
 ## Parity requirements
 
 Movement includes integer-millisecond user-command quantization. Validate common

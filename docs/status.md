@@ -1,3 +1,15 @@
+## Prediction comparison coverage
+
+29/10/2026, `docs/prediction-comparison-coverage`: source review of `main`
+`e702b0b1` against OpenJK multiplayer `4d0dfaf1` found further corrections
+proposed separately in PRs #260-#268 and #270, beyond #249-#254. The
+[comparison inventory](networking.md#prediction-source-comparison) records
+reviewed paths, remaining vehicle/model questions, known deviations and
+apparent omissions that also occur in stock. Windows x64 synthetic checks
+include 8/7/4/3 ms and MSVC-compiled functions extracted from that OpenJK
+revision. This is source-level evidence, not an exhaustive parity result;
+live multiplayer, full animation/vehicle/mod coverage and FPS remain unverified.
+
 ## Synced emote music back from alt-tab in step
 
 29/10/2026, `fix/emote-sound-alt-tab`, based on `main` `b558d4ae`, hub report #195 (build
