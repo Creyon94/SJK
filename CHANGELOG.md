@@ -32,7 +32,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
-- Quick wheel commands you name are remembered: a custom command saved in Settings > Quick wheel is offered again under Your own in the catalogue when you add or change a choice on any page, so it goes on another page or wheel without typing it again. Delete (or its cross) forgets one; choices already on pages keep it _(Sol, after Dante's idea)_
+- Quick wheel commands you name are remembered: a custom command saved in Settings > Quick wheel is offered again under Your own in the catalogue when you add or change a choice on any page, so it goes on another page or wheel without typing it again. Delete (or its cross) forgets one; choices already on pages keep it _(Slash, after Dante's idea)_
 
 ## 2026.1029.1 (Alpha) | 29/10/2026
 
