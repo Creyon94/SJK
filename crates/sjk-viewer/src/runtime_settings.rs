@@ -5,7 +5,7 @@ use super::console::ViewerConsole;
 use super::pointer_input::MouseLook;
 use crate::settings::{
     DisplayMode, MonitorModes, exclusive_supported, exclusive_video_mode, minimise_after_focus,
-    suspended_after_focus,
+    suspended_after_focus, window_size_request,
 };
 use std::time::{Duration, Instant};
 use winit::dpi::PhysicalSize;
@@ -120,9 +120,10 @@ impl GpuState {
 
     /// Apply the requested display mode and `r_resolution` to the window.
     ///
-    /// While exclusive fullscreen is suspended (the window lost focus) the
-    /// window is windowed and `r_resolution` is left alone, so the exclusive
-    /// size is entered again unchanged when focus returns.
+    /// `r_resolution` sizes the window only while it is windowed
+    /// ([`window_size_request`]). While exclusive fullscreen is suspended (the
+    /// window lost focus) the window is windowed and `r_resolution` is left
+    /// alone, so the exclusive size is entered again unchanged when focus returns.
     fn apply_display(&mut self) {
         let (Some(console), Some(window)) = (&self.console, &self.window) else {
             return;
@@ -154,10 +155,13 @@ impl GpuState {
                 self.applied_resolution = size;
             }
         }
-        if let Some([width, height]) = resolution
-            && !suspended
-            && [width, height] != self.applied_resolution
-        {
+        if let Some([width, height]) = window_size_request(
+            display,
+            window.fullscreen().is_some(),
+            suspended,
+            resolution,
+            self.applied_resolution,
+        ) {
             let _ = window.request_inner_size(PhysicalSize::new(width, height));
             self.applied_resolution = [width, height];
         }

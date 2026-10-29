@@ -875,7 +875,9 @@ shadow.
 Glen, a player, was the first to play SJK on a Mac (25/10/2026), on a MacBook Pro
 with Apple Silicon, and reported that the game aborted on choosing fullscreen, its
 frame rate on Metal and that Cmd+Tab did not work. Sol kept macOS to borderless
-fullscreen after that crash report (25/10/2026).
+fullscreen after that crash report (25/10/2026). Glen then reported fullscreen
+showing the game as a small window in the middle of a black screen (29/10/2026):
+the client asked the fullscreen window for the `r_resolution` size.
 
 Blep, a player, reported that a whisper ending with a backslash left unencrypted
 through the game server; Sol fixed it (26/10/2026).
