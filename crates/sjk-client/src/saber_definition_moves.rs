@@ -6,7 +6,6 @@ mod names;
 
 /// `saberFlags` authored by the corresponding nonzero `.sab` keywords.
 const FLAGS: &[(&str, u32)] = &[
-    ("notthrowable", 1 << 1),
     ("singlebladethrowable", 1 << 5),
     ("nopullattack", 1 << 10),
     ("nobackattack", 1 << 11),
@@ -23,6 +22,12 @@ const FLAGS: &[(&str, u32)] = &[
 ];
 
 pub(super) fn parse(info: &mut SaberInfo, key: &str, value: &str) {
+    if key.eq_ignore_ascii_case("throwable") {
+        if value.parse::<i32>() == Ok(0) {
+            info.flags |= 1 << 1;
+        }
+        return;
+    }
     if let Some((_, flag)) = FLAGS
         .iter()
         .find(|(name, _)| key.eq_ignore_ascii_case(name))
@@ -103,6 +108,11 @@ mod tests {
             (0, 15, 61, -1)
         );
         assert_eq!((info.ready_anim, info.draw_anim), (915, 917));
+        parse(&mut info, "throwable", "invalid");
+        assert_eq!(info.flags & (1 << 1), 0);
+        parse(&mut info, "throwable", "0");
+        parse(&mut info, "throwable", "1");
+        assert_ne!(info.flags & (1 << 1), 0);
         assert!(!names::MOVES.iter().any(|(name, _)| *name == "LS_READY"));
     }
 }
