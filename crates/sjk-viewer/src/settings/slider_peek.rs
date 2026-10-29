@@ -167,7 +167,11 @@ mod tests {
         peek.release(release);
         let (_, at) = peek.show(release).expect("a fifth faded");
         assert!((at - smoothstep(0.2)).abs() < 0.01, "{at}");
-        assert_eq!(peek.show(release + ms(30)), None, "back in the time it took");
+        assert_eq!(
+            peek.show(release + ms(30)),
+            None,
+            "back in the time it took"
+        );
     }
 
     #[test]

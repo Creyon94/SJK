@@ -83,6 +83,7 @@ migrated, except where the table says so. Where each is documented:
 | `mod_japlus`, `mod_jof` | on (each mod loads on its servers only), saved 0 moved to 1 once | [Client mods](mods.md) |
 | `con_drawNotify` | off (no console feed at the top left; chat keeps its box) | [Classic console](client.md#classic-console) |
 | `cl_experimentalShowcase` | off (the experimental `ghost` and `mimic` commands, staff keys only) | [Ghost replay](client.md#ghost-replay) |
+| `ui_sliderPeek` | on: over a match, a Settings slider held a moment fades the rest of the screen away | [Settings](sjk-ui.md#settings) |
 | `ui_supportLinks` | on: Support SJK's links to GitHub Sponsors and Ko-fi, until its × hides them ([Donations](#donations)) | [Main page](sjk-ui.md#main-page) |
 
 The HUD look (`cg_hudStyle game`) and the console (`con_style auto`: the SJK UI's
