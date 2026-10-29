@@ -16,6 +16,8 @@ struct Fog { color: vec4<f32>, surface: vec4<f32>, low: vec4<f32>, high: vec4<f3
 @group(0) @binding(10) var column_output: texture_storage_2d<rgba32float, write>;
 @group(1) @binding(0) var scene_depth: texture_depth_2d;
 const TILES: u32 = 6u;
+// Bilateral weight sum below which the composite blends to plain bilinear (`composite`).
+const DISAGREE: f32 = 0.05;
 // Sixteen-sample cells visit their four lattice corners and the centre first; a cell
 // whose five agree (all sunlit, all shadowed, all inside a wall) is not on a beam edge and
 // its remaining eleven samples would agree too, so it stops there.
@@ -277,6 +279,7 @@ var<workgroup> partial: array<vec3<f32>, 64>;
     let blend = fract(position);
     var sum = vec3(0.0);
     var weight_sum = 0.0;
+    var plain = vec3(0.0);
     for (var y = 0; y < 2; y++) { for (var x = 0; x < 2; x++) {
         let column = clamp(base+vec2(x,y),vec2(0),vec2<i32>(p.grid.xy)-1);
         let column_axial = textureLoad(column_range,column,0).z;
@@ -293,10 +296,16 @@ var<workgroup> partial: array<vec3<f32>, 64>;
         let integral = mix(before,after,fraction);
         sum += integral.rgb*weight;
         weight_sum += weight;
+        plain += integral.rgb*bilinear;
     } }
     // Continuous bilateral weights avoid holes when all four columns lie on a sloping face.
     let normalization = max(weight_sum,1e-30);
-    let scattering = max(sum/normalization,vec3(0.0));
+    // A floor seen at a grazing angle changes depth across a column by far more than the
+    // tolerance, so all four weights are near zero and the least-wrong column alone sets
+    // the light; a small camera move hands it to another and the floor flickers (hub
+    // report #193). Below DISAGREE the plain bilinear mean takes over smoothly.
+    let trust = smoothstep(0.0,DISAGREE,weight_sum);
+    let scattering = max(mix(plain,sum/normalization,trust),vec3(0.0));
     let luminance = dot(scattering,vec3(0.2126,0.7152,0.0722));
     // Colour-preserving soft limit on ADDED radiance, never on visibility or scene colour.
     // Y/(1+Y/0.02) increases monotonically: revealing sunlight cannot invert a beam.

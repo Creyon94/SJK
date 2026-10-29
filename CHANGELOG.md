@@ -53,6 +53,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Trading: a refusal (such as "Two accounts on one connection cannot trade with each other") shows once instead of again at every map change _(Creyon, PR #211)_
 - Exclusive fullscreen: Alt+Tab and Win+D now send the game to the taskbar, as in the original game, instead of leaving it as a window over the desktop _(Creyon, PR #238)_
 - Blocking: a blocked player's chat no longer shows in the console either, as it already did not in the chat box, and the console's kill lines name them BLOCKED as the kill feed does _(Creyon, PR #239)_
+- Light shafts: the light they cast on a floor seen at a low angle no longer jumps between neighbouring cells as you move, which could make floors flicker (#193) _(Slash)_
 
 ## 2026.1028.1 (Alpha) | 28/10/2026
 
