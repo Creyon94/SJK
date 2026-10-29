@@ -793,6 +793,31 @@ pub(super) const HUD: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Tabs hide other chat",
+        cvar: crate::chat::tabs::FILTER_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Team chat button",
+        cvar: crate::chat::tabs::TEAM_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "SJK chat button",
+        cvar: crate::chat::tabs::SJK_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Admin chat button",
+        cvar: crate::chat::tabs::ADMIN_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "PM chat button",
+        cvar: crate::chat::tabs::PM_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Chat line spacing",
         cvar: crate::chat::options::LINE_SPACING_CVAR,
         kind: ValueKind::Float {

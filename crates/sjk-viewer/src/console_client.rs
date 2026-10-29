@@ -72,6 +72,10 @@ pub(super) const COMMANDS: &[(&str, &str)] = &[
         "messagemode5",
         "Compose SJK chat, which every SJK player shares through the SJK hub",
     ),
+    (
+        crate::chat::tabs::ADMIN_COMMAND,
+        "Compose admin chat (amsay): read only by the server's admins, on JA+ and jaPRO servers",
+    ),
     (crate::am_color::COMMAND, crate::am_color::HELP),
     (
         crate::chat_sounds::PREVIEW_COMMAND,
@@ -981,6 +985,9 @@ impl crate::GpuState {
             }
             "messagemode5" => {
                 self.apply_input_action(Some(crate::input::InputAction::SjkMessageMode));
+            }
+            crate::chat::tabs::ADMIN_COMMAND => {
+                self.apply_input_action(Some(crate::input::InputAction::AdminMessageMode));
             }
             crate::am_color::COMMAND => {
                 let console = self.console.as_mut().ok_or("Console unavailable")?;
