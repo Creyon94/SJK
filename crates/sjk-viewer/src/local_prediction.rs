@@ -29,6 +29,8 @@ mod entity_context;
 pub(crate) mod movers;
 #[path = "local_prediction_reconcile.rs"]
 mod reconcile;
+#[path = "saber_lock_view.rs"]
+mod saber_lock_view;
 #[path = "prediction_miss.rs"]
 pub(crate) mod telemetry;
 #[path = "wall_grab_view.rs"]
@@ -95,6 +97,7 @@ pub(crate) struct LocalPrediction {
     presented: Option<MovementState>,
     physics_movers: movers::Movers,
     entities: entity_context::Entities,
+    saber_lock_view: saber_lock_view::LockView,
     render_movers: movers::Movers,
     presentation_time: i32,
     pending: VecDeque<UserCommand>,
@@ -198,6 +201,7 @@ impl LocalPrediction {
             presented: None,
             physics_movers,
             entities: entity_context::Entities::new(snapshot),
+            saber_lock_view: saber_lock_view::LockView::new(snapshot),
             render_movers,
             presentation_time: snapshot.map_or(0, |s| s.server_time),
             pending: VecDeque::with_capacity(COMMAND_BACKUP),
@@ -482,6 +486,14 @@ impl LocalPrediction {
         let predictor = self.predictor.as_mut()?;
         let collision =
             BspMovementCollision::with_movers(bsp, scratch, &self.physics_movers.colliders);
+        if !self.fake_noclip {
+            self.saber_lock_view.face(
+                predictor.state_mut(),
+                self.presentation_time,
+                self.physics_movers
+                    .entity_origin(self.saber_lock_view.enemy()),
+            );
+        }
         self.entities.predict(
             predictor,
             self.rides.committed.as_mut(),
@@ -533,6 +545,14 @@ impl LocalPrediction {
         };
         let collision =
             BspMovementCollision::with_movers(bsp, scratch, &self.physics_movers.colliders);
+        if !self.fake_noclip {
+            self.saber_lock_view.face(
+                preview.state_mut(),
+                self.presentation_time,
+                self.physics_movers
+                    .entity_origin(self.saber_lock_view.enemy()),
+            );
+        }
         self.entities
             .predict(preview, self.rides.begin_preview(), command, &collision);
         touch_triggers(
