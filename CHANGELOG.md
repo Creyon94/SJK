@@ -30,6 +30,12 @@ The site (site/assets/site.js, parseChangelog) reads the release headings,
 introductions and recap lines too.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
+## Unreleased
+
+= r_dayClock: New: day and night follow your PC's clock in every preset: with Sun and sky the sun moves, without it the sky turns to night and the world darkens.
+
+- Lighting: day and night can follow your PC's clock (Settings > Lighting > Sun follows PC clock, `r_dayClock`); with Sun and sky off, as in the SJK and Vanilla presets, the sky turns to dusk and night and the world gets darker _(Creyon)_
+
 ## 2026.1030.1 (Alpha) | 30/10/2026
 
 Mystery boxes: new sounds, a teddy bear that kills, a turn for everyone and a sturdier chest.

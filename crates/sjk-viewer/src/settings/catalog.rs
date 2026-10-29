@@ -1935,6 +1935,11 @@ pub(super) const RENDER_LIGHTING: &[Setting] = &[
         },
     },
     Setting {
+        label: "Sun follows PC clock",
+        cvar: "r_dayClock",
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Day length, min (0 holds)",
         cvar: "r_dayMinutes",
         kind: ValueKind::Float {
