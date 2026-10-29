@@ -22,6 +22,7 @@ mod resolution;
 mod resolution_list;
 mod search;
 mod sjk_popup;
+pub(crate) mod slider_peek;
 pub(crate) mod sjk_view;
 mod usage;
 mod wheel_editor;
