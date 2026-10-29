@@ -452,6 +452,14 @@ jaPRO/TaystJK, BaseJKA, JA+ and Lugormod and confirm that only the current jaPRO
 dialect enables the rules. Jumps, ramps/steps, restrictions, new jetpack and
 grapples remain separate; full and live-server parity remain unverified.
 
+## Prediction vehicle/rider trace exclusions
+
+29/10/2026, `fix/prediction-vehicle-rider-collision`, based on `main` `e702b0b1`:
+OpenJK `4d0dfaf1` multiplayer `CG_VehicleClipCheck` filters vehicle/rider
+contacts according to the entity making each trace. The viewer's shared
+pilot/vehicle collision view does not express those exclusions. A correction
+is under review; live multi-passenger vehicle behavior remains unverified.
+
 ## Passenger movement prediction
 
 29/10/2026, `fix/prediction-passenger-movement`, based on `main` `9e48ff6d`:
