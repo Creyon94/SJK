@@ -3364,6 +3364,11 @@ the glyph drawn a step out all round in a light tint instead of its drop shadow,
 black name reads on the see-through plate (`text::CodePalette::Haloed`, Sol's pick of
 28/10/2026 over lightening the colour). The halo is faint, each of its eight copies 18%
 opaque (38% until 29/10/2026, when Sol found the outline too strong).
+`cg_nameplateOutline` (Settings "Name outline", Lex's idea, 29/10/2026: some names hard
+to read on busy backgrounds) chooses the edge: 0 Off, the drop shadow only
+(`CodePalette::Game`); 1 Faint, the default, the halo above (`Haloed`); 2 Strong, the
+halo at 38% and every other letter ringed by eight dark copies (0.45 opaque each)
+instead of its shadow (`Outlined`, `text::Edge`).
 
 **The holo frame** (28/10/2026, design C of the nameplate designs Sol chose from, in
 place of the capsule, design E, the same day): every plate, bars or not, is a hexagon

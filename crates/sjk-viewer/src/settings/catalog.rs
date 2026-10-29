@@ -676,6 +676,11 @@ pub(super) const HUD: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Name outline",
+        cvar: "cg_nameplateOutline",
+        kind: ValueKind::Choice(&["0", "1", "2"]),
+    },
+    Setting {
         label: "My own nameplate",
         cvar: "cg_nameplateSelf",
         kind: ValueKind::Bool,

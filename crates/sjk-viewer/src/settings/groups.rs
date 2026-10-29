@@ -454,6 +454,7 @@ impl Group {
                 "cg_nameplateHideDuelers",
                 "cg_nameplateIcons",
                 "cg_nameplateDuel",
+                "cg_nameplateOutline",
                 "cg_nameplateWalls",
                 "cg_nameplateNpcs",
                 crate::world_ping::SHOW_CVAR,

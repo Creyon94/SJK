@@ -148,6 +148,9 @@ const CHOICE_NAMES: &[(&str, &str, &str)] = &[
     (crate::input::idrive::CVAR, "1", "All keys"),
     (crate::input::idrive::CVAR, "2", "Jump, crouch"),
     (crate::audio::SKIN_SOUNDS_CVAR, "0", "Off"),
+    ("cg_nameplateOutline", "0", "Off"),
+    ("cg_nameplateOutline", "1", "Faint"),
+    ("cg_nameplateOutline", "2", "Strong"),
     (crate::audio::SKIN_SOUNDS_CVAR, "1", "With normal"),
     (crate::audio::SKIN_SOUNDS_CVAR, "2", "Only skin"),
     (crate::effect_aux::saber_rain_steam::CVAR, "0", "Off"),
@@ -567,6 +570,10 @@ const HELP: &[(&str, &str)] = &[
     (
         "cg_nameplateIcons",
         "Icons of the Force powers a player has on, over the name when close.",
+    ),
+    (
+        "cg_nameplateOutline",
+        "Edges names so they read on any background. Faint: dark letters get a soft halo. Strong: a dark outline around every name too.",
     ),
     (
         "cg_nameplateDuel",
