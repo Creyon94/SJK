@@ -243,6 +243,7 @@ came in.
 | 166 | `saber_varykino_blossom` | Varykino Blossom blade | Mythical | Sol | yes |
 | 167 | `saber_thousand_cranes` | Thousand Cranes blade | Unique | Sol | no |
 | 168 | `saber_hearth` | Hearth blade | Unique | Sol | no |
+| 169 | `saber_mystery` | Mystery blade | Legendary | Sol | no |
 
 A client ignores an id it does not know. Both catalogues' tests pin this exact list
 (ids, names, order), so a change to one fails until the other follows.
