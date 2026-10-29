@@ -564,7 +564,8 @@ impl Options {
             }
             hats.push((path, bytes));
         }
-        let moved = crate::cosmetics::old_folder_pictures(&vfs, |path| {
+        let pieces = crate::cosmetics::piece_models(&vfs);
+        let moved = crate::cosmetics::old_folder_pictures(&vfs, &pieces, |path| {
             hats.iter()
                 .any(|(known, _)| known.eq_ignore_ascii_case(path))
         });
@@ -578,7 +579,7 @@ impl Options {
             vfs.mount_memory("EternalJK hats", hats)?;
         }
         // JoF's pieces built inside out (McFox), drawn two-sided as JoF EJK shows them.
-        if let Some((path, text)) = crate::cosmetics::inside_out_shaders(&vfs) {
+        if let Some((path, text)) = crate::cosmetics::inside_out_shaders(&pieces) {
             if log {
                 crate::log::progress(format_args!(
                     "two-sided cosmetics: {}",

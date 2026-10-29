@@ -914,7 +914,9 @@ JoF EJK (hub report #192, 28/10/2026: they drew grey; JoF's `jof_hats.shader` in
 new folder, which no model names, is left unused as there: its pumpkin glows). Hats
 built inside out (JoF's McFox and McSnowFox, most of their triangles wound away from
 their middle) are drawn two-sided, their picture lit as an unscripted surface is
-(`cosmetics::inside_out_shaders`), as JoF EJK shows them solid. A name is at
+(`cosmetics::inside_out_shaders`), as JoF EJK shows them solid; their file sorts before
+every other script, so a script defining the same name keeps its own culling. Each mount
+lists and parses the hats' models once for both (`cosmetics::piece_models`). A name is at
 most 13 letters, digits, `_` or `-` and does not start with a digit. JoF's
 launcher installs its pack (`zzz_jof_cosmetics.pk3`) in the `EternalJK` folder:
 SJK mounts every PK3 there that has models in `models/cosmetics/hats/` or

@@ -87,6 +87,50 @@ pub(crate) const MOVED_FOLDERS: [(&str, &str); 2] = [
 /// The picture formats a shader name finds, in the loader's order (`R_LoadImage`).
 const PICTURES: [&str; 4] = ["png", "tga", "jpg", "jpeg"];
 
+/// A hat's or cape's model, read once per mount for [`old_folder_pictures`] and
+/// [`inside_out_shaders`] (Sol's review of PR #236: each read every model itself).
+pub(crate) struct PieceModel {
+    /// Whether it is a hat (in `models/cosmetics/hats/` or `models/players/hats/`).
+    hat: bool,
+    /// Whether it is in a new folder (`models/cosmetics/`).
+    new_folder: bool,
+    md3: sjk_model::Md3,
+}
+
+/// The models of the hats and capes [`old_folder_pictures`] and [`inside_out_shaders`]
+/// look at, each read and parsed once: every `.md3` in `models/cosmetics/hats/` and
+/// `capes/` (one listing for both, as a listing walks every mounted file) and in
+/// `models/players/hats/`.
+pub(crate) fn piece_models(vfs: &VirtualFileSystem) -> Vec<PieceModel> {
+    let mut models = Vec::new();
+    for (folder, new_folder) in [("models/cosmetics", true), ("models/players/hats", false)] {
+        for name in vfs.list_files(folder, ".md3") {
+            let hat = if new_folder {
+                match name.split_once('/') {
+                    Some(("hats", _)) => true,
+                    Some(("capes", _)) => false,
+                    _ => continue,
+                }
+            } else if name.contains('/') {
+                continue;
+            } else {
+                true
+            };
+            let Ok(Some(asset)) = vfs.read(&format!("{folder}/{name}")) else {
+                continue;
+            };
+            if let Ok(md3) = sjk_model::Md3::parse(&asset.bytes) {
+                models.push(PieceModel {
+                    hat,
+                    new_folder,
+                    md3,
+                });
+            }
+        }
+    }
+    models
+}
+
 /// The pictures to add under the old folders so that pieces whose models still name
 /// them draw as JoF EJK draws them (hub report #192, 28/10/2026: the pumpkin hat drew
 /// grey). Seven of JoF's hats (pumpkin, cap, cringe, fedora, santahat, sombrero,
@@ -96,106 +140,97 @@ const PICTURES: [&str; 4] = ["png", "tga", "jpg", "jpeg"];
 /// the EternalJK folder, [`crate::asset_search_paths`]); where that pack is not
 /// installed, the same picture from the new folder is copied under the old name, so the
 /// surface draws with its picture as EternalJK does (not with JoF's `jof_hats.shader`
-/// in the new folder, which no model names: its pumpkin glows). `have` says whether a
-/// path is already given (jaPRO's copies).
+/// in the new folder, which no model names: its pumpkin glows). `models` are
+/// [`piece_models`]; `have` says whether a path is already given (jaPRO's copies).
 pub(crate) fn old_folder_pictures(
     vfs: &VirtualFileSystem,
+    models: &[PieceModel],
     have: impl Fn(&str) -> bool,
 ) -> Vec<(String, Vec<u8>)> {
     let mut added: Vec<(String, Vec<u8>)> = Vec::new();
-    for (old, new) in MOVED_FOLDERS {
-        for model in vfs.list_files(new, ".md3") {
-            let Ok(Some(asset)) = vfs.read(&format!("{new}{model}")) else {
+    for model in models.iter().filter(|model| model.new_folder) {
+        let (old, new) = MOVED_FOLDERS[usize::from(!model.hat)];
+        for shader in model
+            .md3
+            .surfaces
+            .iter()
+            .flat_map(|surface| &surface.shaders)
+        {
+            let name = shader.to_ascii_lowercase();
+            let name = name
+                .rsplit_once('.')
+                .filter(|(_, extension)| PICTURES.contains(extension))
+                .map_or(name.as_str(), |(stem, _)| stem);
+            let Some(rest) = name.strip_prefix(old) else {
                 continue;
             };
-            let Ok(md3) = sjk_model::Md3::parse(&asset.bytes) else {
-                continue;
-            };
-            for shader in md3.surfaces.iter().flat_map(|surface| &surface.shaders) {
-                let name = shader.to_ascii_lowercase();
-                let name = name
-                    .rsplit_once('.')
-                    .filter(|(_, extension)| PICTURES.contains(extension))
-                    .map_or(name.as_str(), |(stem, _)| stem);
-                let Some(rest) = name.strip_prefix(old) else {
-                    continue;
-                };
-                let found = |path: &str| have(path) || vfs.contains(path).unwrap_or(false);
-                if PICTURES
+            let found = |path: &str| have(path) || vfs.contains(path).unwrap_or(false);
+            if PICTURES
+                .iter()
+                .any(|extension| found(&format!("{old}{rest}.{extension}")))
+                || added
                     .iter()
-                    .any(|extension| found(&format!("{old}{rest}.{extension}")))
-                    || added
-                        .iter()
-                        .any(|(path, _)| path.starts_with(&format!("{old}{rest}.")))
-                {
-                    continue;
-                }
-                let copy = PICTURES.iter().find_map(|extension| {
-                    let bytes = vfs.read(&format!("{new}{rest}.{extension}")).ok()??.bytes;
-                    Some((format!("{old}{rest}.{extension}"), bytes))
-                });
-                added.extend(copy);
+                    .any(|(path, _)| path.starts_with(&format!("{old}{rest}.")))
+            {
+                continue;
             }
+            let copy = PICTURES.iter().find_map(|extension| {
+                let bytes = vfs.read(&format!("{new}{rest}.{extension}")).ok()??.bytes;
+                Some((format!("{old}{rest}.{extension}"), bytes))
+            });
+            added.extend(copy);
         }
     }
     added
 }
 
-/// A shader file drawing two-sided the pieces built inside out, as JoF EJK shows them
+/// Where [`inside_out_shaders`] puts its file. A shader name defined twice takes the
+/// definition read last, and scripts are read in path order
+/// (`sjk_shader::ShaderCatalog`), so this name, which sorts before every other
+/// script's, lets any script defining the same name keep its own culling, without
+/// reading every script at each mount to find out.
+pub(crate) const TWO_SIDED_SHADERS: &str = "shaders/!sjk_cosmetics_two_sided.shader";
+
+/// A shader file drawing two-sided the hats built inside out, as JoF EJK shows them
 /// (Dave's report, 28/10/2026: McFox and McSnowFox were see-through in SJK). Most of their
 /// triangles are wound away from the model's middle where every other piece's face it
 /// (82 of 120 in `mcfox.md3`), so culling the back faces drew their insides only. Each
-/// such model's surface shaders that no script defines get one: their picture as
+/// such model's surface shaders get one: their picture as
 /// [`crate::world_stage::material_stages`] draws an unscripted model surface (lit by
-/// `lightingDiffuse`), with `cull twosided`. `None` when there are none.
-pub(crate) fn inside_out_shaders(vfs: &VirtualFileSystem) -> Option<(String, Vec<u8>)> {
+/// `lightingDiffuse`), with `cull twosided`; a script defining the same name wins
+/// ([`TWO_SIDED_SHADERS`]). Capes are left out: a cape is a thin sheet, which the
+/// middle-of-the-model test cannot judge (it took JoF's royal cape for inside out).
+/// `models` are [`piece_models`]; `None` when none is inside out.
+pub(crate) fn inside_out_shaders(models: &[PieceModel]) -> Option<(String, Vec<u8>)> {
     let mut names: Vec<String> = Vec::new();
-    for folder in COSMETIC_PIECE_FOLDERS {
-        for model in vfs.list_files(folder, ".md3") {
-            let Ok(Some(asset)) = vfs.read(&format!("{folder}/{model}")) else {
-                continue;
-            };
-            let Ok(md3) = sjk_model::Md3::parse(&asset.bytes) else {
-                continue;
-            };
-            if !inside_out(&md3) {
-                continue;
-            }
-            for shader in md3.surfaces.iter().flat_map(|surface| &surface.shaders) {
-                let name = shader.to_ascii_lowercase();
-                if !name.is_empty() && !names.contains(&name) {
-                    names.push(name);
-                }
+    for model in models
+        .iter()
+        .filter(|model| model.hat && inside_out(&model.md3))
+    {
+        for shader in model
+            .md3
+            .surfaces
+            .iter()
+            .flat_map(|surface| &surface.shaders)
+        {
+            let name = shader.to_ascii_lowercase();
+            if !name.is_empty() && !names.contains(&name) {
+                names.push(name);
             }
         }
     }
     if names.is_empty() {
         return None;
     }
-    // Only names no script defines: a scripted surface keeps its own culling.
-    let mut defined = std::collections::HashSet::new();
-    for file in vfs.list_files("shaders", ".shader") {
-        if let Ok(Some(asset)) = vfs.read(&format!("shaders/{file}")) {
-            defined.extend(shader_names(&String::from_utf8_lossy(&asset.bytes)));
-        }
-    }
     let mut text =
         String::from("// SJK: JoF's pieces built inside out, drawn two-sided (cosmetics.rs)\n");
-    for name in names.iter().filter(|name| !defined.contains(name.as_str())) {
+    for name in &names {
         text.push_str(&format!(
             "{name}\n{{\n\tcull twosided\n\t{{\n\t\tmap {name}\n\t\trgbGen lightingDiffuse\n\t}}\n}}\n"
         ));
     }
-    Some((
-        "shaders/sjk_cosmetics_two_sided.shader".to_owned(),
-        text.into_bytes(),
-    ))
+    Some((TWO_SIDED_SHADERS.to_owned(), text.into_bytes()))
 }
-
-/// The folders whose pieces [`inside_out_shaders`] looks at: hats only. A cape is a
-/// thin sheet, which the middle-of-the-model test cannot judge (it took JoF's royal
-/// cape for inside out).
-const COSMETIC_PIECE_FOLDERS: [&str; 2] = ["models/cosmetics/hats", "models/players/hats"];
 
 /// Whether more of `md3`'s triangles are wound as seen from inside it than from outside
 /// (the game's front faces turn clockwise as seen: their normal by the right-hand rule
@@ -231,24 +266,6 @@ fn inside_out(md3: &sjk_model::Md3) -> bool {
         }
     }
     outward > inward * 3 / 2
-}
-
-/// The names a shader file's text defines (its top-level tokens), lower-cased.
-fn shader_names(text: &str) -> Vec<String> {
-    let mut depth = 0usize;
-    let mut names = Vec::new();
-    for line in text.lines() {
-        let line = line.split("//").next().unwrap_or_default();
-        for token in line.split_whitespace() {
-            match token {
-                "{" => depth += 1,
-                "}" => depth = depth.saturating_sub(1),
-                name if depth == 0 => names.push(name.to_ascii_lowercase()),
-                _ => {}
-            }
-        }
-    }
-    names
 }
 
 /// Whether a `.shader` file's text defines only shaders in the old piece folders
@@ -695,19 +712,23 @@ mod tests {
             ],
         )
         .expect("mount");
-        let (path, text) = inside_out_shaders(&vfs).expect("one inside-out hat");
-        let text = String::from_utf8(text).expect("text");
-        assert_eq!(path, "shaders/sjk_cosmetics_two_sided.shader");
-        assert!(text.contains("models/cosmetics/hats/mcfox\n{\n\tcull twosided\n\t{\n\t\tmap models/cosmetics/hats/mcfox\n\t\trgbGen lightingDiffuse"));
-        assert!(!text.contains("crown"), "wound as the game's");
-        assert!(!text.contains("mask"), "a script keeps its own culling");
-        let mut shown = VirtualFileSystem::new();
-        shown
-            .mount_memory("test", [(path, text.into_bytes())])
+        let (path, text) = inside_out_shaders(&piece_models(&vfs)).expect("one inside-out hat");
+        assert_eq!(path, TWO_SIDED_SHADERS);
+        let written = String::from_utf8(text.clone()).expect("text");
+        assert!(written.contains("models/cosmetics/hats/mcfox\n{\n\tcull twosided\n\t{\n\t\tmap models/cosmetics/hats/mcfox\n\t\trgbGen lightingDiffuse"));
+        assert!(!written.contains("crown"), "wound as the game's");
+        // Mounted as the game mounts it, over the rest: a script still wins.
+        vfs.mount_memory("two-sided", [(path, text)])
             .expect("mount");
-        let shaders = sjk_shader::ShaderCatalog::load_with_warnings(&shown, |_, _| {});
+        let shaders = sjk_shader::ShaderCatalog::load_with_warnings(&vfs, |_, _| {});
         let mcfox = shaders.get("models/cosmetics/hats/mcfox").expect("defined");
         assert_eq!(mcfox.cull, sjk_shader::ShaderCull::TwoSided);
+        let mask = shaders.get("models/cosmetics/hats/mask").expect("scripted");
+        assert_ne!(
+            mask.cull,
+            sjk_shader::ShaderCull::TwoSided,
+            "a script keeps its own culling"
+        );
     }
 
     /// JoF's pumpkin: its model names `models/players/hats/pumpkin`, its picture is in
@@ -750,7 +771,8 @@ mod tests {
             ],
         )
         .expect("mount");
-        let added = old_folder_pictures(&vfs, |_| false);
+        let pieces = piece_models(&vfs);
+        let added = old_folder_pictures(&vfs, &pieces, |_| false);
         assert_eq!(
             added,
             [(
@@ -760,7 +782,9 @@ mod tests {
             "the tophat is found where it is, the crown names the new folder, the cape has no picture"
         );
         assert!(
-            old_folder_pictures(&vfs, |path| path == "models/players/hats/pumpkin.png").is_empty()
+            old_folder_pictures(&vfs, &pieces, |path| path
+                == "models/players/hats/pumpkin.png")
+            .is_empty()
         );
     }
 

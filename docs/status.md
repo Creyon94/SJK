@@ -23,6 +23,17 @@ where the seven names resolve as in JoF EJK (jaPRO's scripts for cap and cringe,
 pictures for the rest) and only McFox and McSnowFox are drawn two-sided; fmt, workspace
 build, tests and Clippy. Seen in game by Creyon on Windows (28/10/2026): every hat as in
 JoF EJK, in game and in the profile preview, McFox and McSnowFox solid.
+Startup cost (Sol's review, 29/10/2026; Windows 11, release, Creyon's install with five PK3s
+in `EternalJK`, 34 MB): with `main` `9e48ff6d` merged in, the first version took 64 ms
+between reading jaPRO's files and the two-sided shaders in SJK's timestamped log, and
+reached the main menu about 73 ms later than `main` (median of 7 starts, 1,488 against
+1,561 ms). Reading jaPRO's files took about 5 ms; the rest was listing and parsing the hats'
+models twice and reading every shader script at each mount. The models are now listed and
+parsed once (`cosmetics::piece_models`) and no script is read: the two-sided file is named
+to sort before every other (`shaders/!sjk_cosmetics_two_sided.shader`), and the catalogue
+keeps the last definition of a name in path order, so a script defining the same name still
+wins. That step now takes 22 ms. The whole start is too noisy to show it (medians of 7
+starts: `main` 1,507 ms, first version 1,624, now 1,566).
 
 ## A JA+ emote kept when going away, and `cg_debugEmoteEnd`
 
