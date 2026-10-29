@@ -962,7 +962,7 @@ Gameplay's first row, under Asset packs, is Asset browser ("Browse packs";
 `assetbrowser` in the console, `asset_pack_browser.rs`): Enter opens the
 installed-pack browser, an SJK UI card in every menu style. It lists ten pack
 rows at a time, with keyboard, wheel and click controls; each row says what the
-pack will be at the next start (Enabled, Disabled, Required). The console owns
+pack will be at `fs_restart` or the next start (Enabled, Disabled, Required). The console owns
 input while it is open, and closing it restores the previous console state. See
 [installed PK3 choices](client.md#launch).
 
