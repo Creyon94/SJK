@@ -1,3 +1,12 @@
+## Prediction: server game type
+
+29/10/2026, `fix/prediction-gametype`, based on `main` `e702b0b1`:
+client movement reads the serverinfo game type for Force eligibility, fixing
+predicted Force jumps while carrying a CTY flag. Source comparison: OpenJK
+multiplayer `cg_predict.c:1244`, `bg_pmove.c:1257,2091`, revision `4d0dfaf1`.
+Windows x64 synthetic tests cover both flags and CTF/FFA/unladen controls at
+8/7/4/3 ms, plus authoritative context selection. Live CTY play remains unverified.
+
 ## Synced emote music back from alt-tab in step
 
 29/10/2026, `fix/emote-sound-alt-tab`, based on `main` `b558d4ae`, hub report #195 (build

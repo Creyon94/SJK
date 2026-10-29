@@ -527,6 +527,10 @@ and open validation work are recorded in [status.md](status.md).
 
 ### Use the server gametype in local movement prediction
 
-Known limitation (source review against OpenJK `codemp` at `4d0dfaf1`):
-Client movement currently uses the default FFA context for Force eligibility even when serverinfo advertises CTY.
-A focused fix and verification are in progress.
+Every client movement command uses the serverinfo game type, including Force-jump,
+wall-move and saber eligibility checks. In CTY, carrying either flag suppresses
+Force movement as `BG_HasYsalamiri` does; a CTF flag does not. Authoritative
+simulation retains its explicit world context. Reference: OpenJK multiplayer
+`cg_predict.c:1244` and `bg_pmove.c:1257,2091` at `4d0dfaf1`.
+Focused tests cover both CTY flags and CTF/FFA/unladen controls at 8/7/4/3 ms.
+Live CTY movement against an OpenJK server remains unverified.

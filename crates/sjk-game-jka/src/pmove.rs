@@ -1133,6 +1133,17 @@ impl Predictor {
         outcome: &mut crate::pmove_saber_lock::LockOutcome,
         mut game: Option<&mut (dyn vehicle::VehicleGame + 'd)>,
     ) {
+        // CG_PredictPlayerState supplies cgs.gametype on every command. The
+        // client knows it from serverinfo even when other context is unavailable.
+        // Authoritative callers continue to supply their own world context.
+        let context = &MoveContext {
+            gametype: if self.config.authoritative {
+                context.gametype
+            } else {
+                i32::from(self.config.roll_rules.gametype)
+            },
+            ..*context
+        };
         self.gametype = context.gametype;
         self.events.clear();
         self.vehicle_landing = None;
@@ -2389,5 +2400,94 @@ fn vector_normalize(vector: Vec3) -> Vec3 {
         vector * (1.0 / length)
     } else {
         vector
+    }
+}
+
+#[cfg(test)]
+mod prediction_gametype_tests {
+    use super::*;
+
+    struct Empty;
+    impl MovementCollision for Empty {
+        fn trace(
+            &self,
+            _: [f32; 3],
+            _: [f32; 3],
+            _: [f32; 3],
+            end: [f32; 3],
+            _: u32,
+        ) -> MovementTrace {
+            MovementTrace::miss(end)
+        }
+    }
+
+    #[test]
+    fn cty_flag_carriers_cannot_predict_a_force_jump() {
+        // OpenJK bg_pmove.c PM_ForceJumpingUp -> BG_HasYsalamiri(GT_CTY).
+        for step in [8, 7, 4, 3] {
+            for (gametype, flag, restricted) in [
+                (9, 4, true),
+                (9, 5, true),
+                (8, 4, false),
+                (0, 4, false),
+                (9, 0, false),
+            ] {
+                let mut state = MovementState {
+                    health: 100,
+                    gravity: 800.0,
+                    weapon: 2,
+                    speed: 250.0,
+                    origin: [0.0, 0.0, 100.0],
+                    velocity: [0.0, 0.0, 225.0],
+                    force_jump_start_height: 24.0,
+                    force_power: 100,
+                    levitation_level: 3,
+                    movement_flags: PMF_JUMP_HELD,
+                    ground_entity_number: ENTITY_NUMBER_NONE,
+                    standing_height: 40.0,
+                    crouching_height: 16.0,
+                    ..Default::default()
+                };
+                if flag != 0 {
+                    state.powerup_deadlines[flag] = 1;
+                }
+                let mut config = MovementConfig::default();
+                config.roll_rules.gametype = gametype;
+                let mut predictor = Predictor::from_state(state, config);
+                predictor.predict_command(
+                    UserCommand {
+                        server_time: step,
+                        up_move: 127,
+                        ..Default::default()
+                    },
+                    &Empty,
+                );
+                assert_eq!(
+                    predictor.state().velocity[2] < 225.0,
+                    restricted,
+                    "{step} ms, gametype {gametype}, flag {flag}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn authoritative_context_keeps_its_world_gametype() {
+        let mut predictor = Predictor::from_state(
+            MovementState::default(),
+            MovementConfig {
+                authoritative: true,
+                ..Default::default()
+            },
+        );
+        predictor.predict_command_in(
+            UserCommand::default(),
+            &Empty,
+            &MoveContext {
+                gametype: 9,
+                ..MoveContext::CLIENT
+            },
+        );
+        assert_eq!(predictor.gametype, 9);
     }
 }
