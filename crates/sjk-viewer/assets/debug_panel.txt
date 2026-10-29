@@ -24,6 +24,19 @@
 
 # ---- Console & chat ----
 
+[chat-readability]
+area: Console & chat
+title: Chat backdrop and text outline, for chat over bright maps (Creo's idea)
+change: Settings > Chat > Chat backdrop (%): a dark band behind each chat row, as long as it.
+change: Settings > Chat > Chat text outline: a dark edge round each chat letter, not a shadow.
+change: Both are off by default: with them off the chat looks exactly as before.
+test: On a bright map (ffa3's sand), Chat backdrop 50: each chat row gets a round-ended band.
+test: Let a line fade out: its band fades with it; with the chat empty nothing is drawn.
+test: Change chat text size, line and letter spacing: the bands follow and never overlap.
+test: An SJK chat line with a GIF: the band stops above the GIF; the SJK emblem stays on top.
+test: Chat text outline on: the chat and what you type are edged; centre prints keep a shadow.
+note: Not seen in game yet: checked by unit tests and off-screen world shots only.
+
 [player-card-key-only]
 area: HUD
 title: Player card Key only: cg_playerCard 0 Off, 1 On look and key, 2 Key only (Blep's idea)

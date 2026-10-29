@@ -695,6 +695,14 @@ const HELP: &[(&str, &str)] = &[
         "Adds space between the letters of chat messages; below zero packs them closer.",
     ),
     (
+        crate::chat::options::BACKDROP_CVAR,
+        "A dark band behind each chat line, so it reads over bright maps: how dark, in per cent. 0 shows none.",
+    ),
+    (
+        crate::chat::options::OUTLINE_CVAR,
+        "Edges chat letters and what you type in a dark outline instead of a shadow, so they read over bright maps.",
+    ),
+    (
         crate::chat::options::CARD_SCALE_CVAR,
         "Size of the player card a chat name shows, over the chat's own size: 0.5 half, 2 double.",
     ),

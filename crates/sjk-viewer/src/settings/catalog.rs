@@ -864,6 +864,20 @@ pub(super) const HUD: &[Setting] = &[
         },
     },
     Setting {
+        label: "Chat backdrop (%)",
+        cvar: crate::chat::options::BACKDROP_CVAR,
+        kind: ValueKind::Integer {
+            min: 0,
+            max: 100,
+            step: 10,
+        },
+    },
+    Setting {
+        label: "Chat text outline",
+        cvar: crate::chat::options::OUTLINE_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Chat card size",
         cvar: crate::chat::options::CARD_SCALE_CVAR,
         kind: ValueKind::Float {

@@ -803,6 +803,7 @@ impl HudOverlay {
             &self.draw_list,
             |id| self.resolve_text(id),
             |id, _| text_values::retail_font(id),
+            |_| crate::text::CodePalette::Game,
             (vertices, font),
             viewport,
             crate::text::TextStyle::NEUTRAL,
