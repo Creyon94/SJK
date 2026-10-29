@@ -35,6 +35,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 = con_overChat: New: while you type in the chat, the console key opens the console over it and your message waits; off, the chat takes the key as before.
 = ui_sliderPeek: New: in the game, hold a Settings slider a moment and the rest of the menu fades away, so you see the change on the game as you drag.
 
+- The holocron limit (8 a day) now resets for everyone at 9:00, Paris time, instead of 24 hours after each holocron; the Holocrons tab says "n of 8 today" and, at the limit, how long until it resets. The countdown no longer goes wrong after a trade (it could say hours while the next holocron came at once) _(Sol)_
 - SJK staff's tick is a silver starburst of sixteen points edged in teal, so it stands out from the round seals of verified players _(Sol)_
 - Chat that reads over bright maps: Settings > Chat has Chat backdrop, a dark band behind each line of the chat, as long as its words and as dark as you choose (`cg_chatBoxBackdrop`, 0 to 100 per cent), and Chat text outline, a dark edge round every letter of the chat and of what you type instead of its shadow (`cg_chatBoxOutline`). Both are off until you turn them on _(Sol, after Creo's idea)_
 - Player card: Key only (Settings > HUD+ > Player card, `cg_playerCard 2`) shows a player's card only when you press Inspect player (X), never from looking at them; On look and key, the default, works as before _(Sol, after Blep's idea)_
