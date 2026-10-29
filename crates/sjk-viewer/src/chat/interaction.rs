@@ -151,6 +151,12 @@ impl ChatOverlay {
         if !self.is_typing() {
             return;
         }
+        if let InputEvent::PointerMove(position)
+        | InputEvent::PointerPress { position, .. }
+        | InputEvent::PointerRelease { position, .. } = event
+        {
+            self.pointer_at = Some(position);
+        }
         // The profile card lies over the feed and may reach the composer: a press on
         // it is the card's.
         let on_card = matches!(event, InputEvent::PointerPress { position, .. }

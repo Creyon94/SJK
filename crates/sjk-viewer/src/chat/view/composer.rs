@@ -1,7 +1,7 @@
 //! Unboxed composer, channel choices, and a compact player-action popover.
 
 use super::*;
-use crate::chat::interaction::{ADMIN, GLOBAL, LATEST, PM, SJK, TEAM};
+use crate::chat::interaction::LATEST;
 
 impl ChatOverlay {
     pub(in crate::chat) fn build_composer(&mut self, font: &UiFont, g: &Geometry, ms: u64) {
@@ -11,30 +11,34 @@ impl ChatOverlay {
         let alpha = Tween::new(0.0, 1.0, self.opened_ms, ENTER_MS, Easing::EaseOutCubic).sample(ms);
         let y = g.bottom + 18.0 * g.scale;
         self.ui.push_opacity(alpha);
-        // The row's channels (`chat/tabs.rs`), 58 px apart.
-        let mut row = [(GLOBAL, "All", Channel::Global); 5];
-        let mut count = 0;
-        for channel in self.offered() {
-            row[count] = match channel {
-                Channel::Team => (TEAM, "Team", channel),
-                Channel::Sjk => (SJK, "SJK", channel),
-                Channel::Admin => (ADMIN, "Admin", channel),
-                Channel::Whisper => (PM, "PM", channel),
-                Channel::Global => (GLOBAL, "All", channel),
-            };
-            count += 1;
-        }
-        let row_end = self.row_end();
-        for (index, &(token, label, channel)) in row[..count].iter().enumerate() {
-            let offset = index as f32 * 58.0;
-            let rect = Rect::new(g.left + offset * g.scale, y, 50.0 * g.scale, 26.0 * g.scale);
+        // The row's channels (`chat/tabs.rs`), each as wide as its word, an even gap
+        // between them; the hit area reaches half the gap either side.
+        let (row, count, row_end) = self.row_layout(font);
+        let pointer = self.pointer_at;
+        for &(channel, x, width) in &row[..count] {
+            let token = super::super::tabs::token(channel);
+            let text = Rect::new(
+                g.left + x * g.scale,
+                y,
+                (width + 4.0) * g.scale,
+                26.0 * g.scale,
+            );
+            let pad = super::super::tabs::ROW_GAP * 0.5 * g.scale;
+            let hit = Rect::new(
+                text.x - pad,
+                y,
+                (width * g.scale) + pad * 2.0,
+                26.0 * g.scale,
+            );
             let selected = input.channel == channel;
-            self.ui.hit_region(token, rect);
+            self.ui.hit_region(token, hit);
+            // Hovered as this frame lays the row out (`pointer_at`).
+            let hovered = self.ui.token_hovered(token) && pointer.is_none_or(|at| hit.contains(at));
             self.ui.text(
-                label,
-                rect,
+                super::super::tabs::label(channel),
+                text,
                 14.0 * g.scale,
-                if selected || self.ui.token_hovered(token) {
+                if selected || hovered {
                     tint(channel, 1.0)
                 } else {
                     Color::new(0.786, 0.827, 0.865, 1.0)
@@ -44,7 +48,7 @@ impl ChatOverlay {
             );
             if selected {
                 self.ui.accent_bar(
-                    Rect::new(rect.x, rect.bottom(), 20.0 * g.scale, 2.0 * g.scale),
+                    Rect::new(text.x, text.bottom(), width * g.scale, 2.0 * g.scale),
                     tint(channel, 1.0),
                 );
             }
@@ -66,10 +70,17 @@ impl ChatOverlay {
             // Room for " (encrypted)" at the composer's size.
             let room = g.width
                 - (row_end + 125.0) * g.scale
-                - if encrypted { 96.0 * g.scale } else { 0.0 };
+                - if encrypted { 96.0 * g.scale } else { 0.0 }
+                - 40.0 * g.scale;
             let end = layout::fitting_end(name, font, room.max(0.0), 14.0 * g.scale);
+            // Several players whispered you: which one this is, the PM button stepping on.
+            let mut place = String::new();
+            if let Some((at, of)) = self.pm_place() {
+                use std::fmt::Write as _;
+                let _ = write!(place, "  {at}/{of}");
+            }
             self.ui.text_fmt_aligned(
-                format_args!("To {}{suffix}", &name[..end]),
+                format_args!("To {}{suffix}{place}", &name[..end]),
                 Rect::new(
                     g.left + row_end * g.scale,
                     y,

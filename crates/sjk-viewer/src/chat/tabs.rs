@@ -12,6 +12,7 @@
 //! feed shows everything again once the composer closes. [`FILTER_CVAR`] turns it off.
 use super::*;
 use crate::console::ViewerConsole;
+use crate::text::UiFont;
 
 /// Team chat in the composer's row.
 pub(crate) const TEAM_CVAR: &str = "cg_chatTabTeam";
@@ -23,6 +24,34 @@ pub(crate) const ADMIN_CVAR: &str = "cg_chatTabAdmin";
 pub(crate) const PM_CVAR: &str = "cg_chatTabPm";
 /// The key command that opens the composer on Admin chat, beside `messagemode5` (SJK).
 pub(crate) const ADMIN_COMMAND: &str = "messagemode6";
+/// Room between two of the row's words, in 1080p pixels at the chat's scale (58 px apart
+/// whatever the word before 29/10/2026, which left wide holes after the short ones).
+pub(super) const ROW_GAP: f32 = 22.0;
+/// The row's text size, in 1080p pixels at the chat's scale.
+const LABEL_SIZE: f32 = 14.0;
+
+/// A channel's word in the row: All is the game's say chat.
+pub(super) fn label(channel: Channel) -> &'static str {
+    match channel {
+        Channel::Global => "All",
+        Channel::Team => "Team",
+        Channel::Sjk => "SJK",
+        Channel::Admin => "Admin",
+        Channel::Whisper => "PM",
+    }
+}
+
+/// A channel's button in the row.
+pub(super) fn token(channel: Channel) -> u16 {
+    match channel {
+        Channel::Global => interaction::GLOBAL,
+        Channel::Team => interaction::TEAM,
+        Channel::Sjk => interaction::SJK,
+        Channel::Admin => interaction::ADMIN,
+        Channel::Whisper => interaction::PM,
+    }
+}
+
 /// The composer's channel also filters the feed while it is open.
 pub(crate) const FILTER_CVAR: &str = "cg_chatTabFilter";
 /// What the composer says when PM is chosen and no one has whispered yet.
@@ -155,18 +184,63 @@ impl ChatOverlay {
         Some(Channel::Global)
     }
 
-    /// The PM button: a whisper to the last whisperer, or a word on how to whisper.
-    pub(super) fn choose_pm(&mut self) {
-        match self.reply_target() {
-            Ok(target) => {
-                if let Some(input) = self.input.as_mut() {
-                    input.channel = Channel::Whisper;
-                    input.recipient = Some(target);
-                    self.notice = "";
-                }
+    /// The players who whispered you, newest first, each once, while they are still
+    /// in the game: the PM button's choices.
+    pub(super) fn whisperers(&self) -> Vec<ChatTarget> {
+        let mut found: Vec<ChatTarget> = Vec::new();
+        let senders = self.last_whisperer.into_iter().chain(
+            self.lines
+                .iter()
+                .rev()
+                .filter(|line| line.channel == Channel::Whisper)
+                .filter_map(|line| line.sender),
+        );
+        for sender in senders {
+            if Some(sender.slot()) != self.own_slot
+                && self.roster.name(sender).is_some()
+                && !found.contains(&sender)
+            {
+                found.push(sender);
             }
-            Err(_) => self.notice = NO_PM,
         }
+        found
+    }
+
+    /// The PM button: a whisper to the last whisperer; pressed again while on one, the
+    /// next player who whispered you, round to the first. With no whisperer, a word on
+    /// how to whisper.
+    pub(super) fn choose_pm(&mut self) {
+        let whisperers = self.whisperers();
+        let Some(&first) = whisperers.first() else {
+            self.notice = NO_PM;
+            return;
+        };
+        let Some(input) = self.input.as_mut() else {
+            return;
+        };
+        let next = match (input.channel, input.recipient) {
+            (Channel::Whisper, Some(current)) => whisperers
+                .iter()
+                .position(|target| *target == current)
+                .and_then(|at| whisperers.get(at + 1))
+                .copied()
+                .unwrap_or(first),
+            _ => first,
+        };
+        input.channel = Channel::Whisper;
+        input.recipient = Some(next);
+        self.notice = "";
+    }
+
+    /// Where the composer's whisper stands among the players who whispered you, as
+    /// "2/3", when more than one did and it is one of them.
+    pub(super) fn pm_place(&self) -> Option<(usize, usize)> {
+        let recipient = self.input.as_ref()?.recipient?;
+        let whisperers = self.whisperers();
+        (whisperers.len() > 1)
+            .then(|| whisperers.iter().position(|target| *target == recipient))
+            .flatten()
+            .map(|at| (at + 1, whisperers.len()))
     }
 
     /// Open the composer on Admin chat for its key, whether or not its button is in the
@@ -182,10 +256,25 @@ impl ChatOverlay {
         }
     }
 
-    /// Left edge of the whisper's "To ..." and the SJK chat's red note: past the row's
-    /// last channel, in 1080p pixels at the chat's scale.
-    pub(super) fn row_end(&self) -> f32 {
-        self.offered().count() as f32 * 58.0 + 4.0
+    /// The row as drawn: each offered channel with its left edge and its word's width,
+    /// in 1080p pixels at the chat's scale, and where the row ends (the whisper's
+    /// "To ..." and the SJK chat's red note start there).
+    pub(super) fn row_layout(&self, font: &UiFont) -> ([(Channel, f32, f32); 5], usize, f32) {
+        let mut row = [(Channel::Global, 0.0, 0.0); 5];
+        let mut count = 0;
+        let mut x = 0.0;
+        for channel in self.offered() {
+            let width = crate::text::visible_text_width_face(
+                font,
+                label(channel),
+                LABEL_SIZE / font.height,
+                crate::text::TextFace::Semibold,
+            );
+            row[count] = (channel, x, width);
+            count += 1;
+            x += width + ROW_GAP;
+        }
+        (row, count, x)
     }
 }
 
@@ -246,11 +335,18 @@ mod tests {
             lean.offered().collect::<Vec<_>>(),
             [Channel::Global, Channel::Admin]
         );
-        assert_eq!(lean.row_end(), 120.0);
+        let font = crate::text::test_font();
+        let (_, _, lean_end) = lean.row_layout(&font);
+        let (row, count, every_end) = every.row_layout(&font);
+        assert!(lean_end < every_end);
+        // An even gap between the words, whatever their length.
+        for pair in row[..count].windows(2) {
+            assert!((pair[1].1 - (pair[0].1 + pair[0].2) - ROW_GAP).abs() < 0.01);
+        }
         // Admin only where the server takes amsay.
         let base = chat(true, true, true, false);
         assert!(!base.offers(Channel::Admin));
-        assert_eq!(base.row_end(), 178.0);
+        assert_eq!(base.row_layout(&font).1, 3);
     }
 
     #[test]
@@ -426,5 +522,79 @@ mod tests {
         assert!(is_admin_line("^3<Admin>^7(Fox^7)^7: ^2hi"));
         assert!(!is_admin_line("Fox: <Admin>(nope)"));
         assert!(!is_admin_line("Fox: hi"));
+    }
+
+    #[test]
+    fn the_pm_button_steps_through_everyone_who_whispered() {
+        let mut chat = chat(true, true, true, true);
+        chat.options.tabs.pm = true;
+        let mut game = sjk_protocol::GameState::empty_local(0);
+        for (slot, name) in [(3usize, "Fox"), (4, "Wolf"), (5, "Bear")] {
+            game.replace_config_string(1_131 + slot, format!("n\\{name}\\t\\0").into_bytes())
+                .expect("a player");
+        }
+        chat.update_roster(&game);
+        let now = std::time::Instant::now();
+        for (name, slot) in [("Fox", 3u16), ("Wolf", 4), ("Bear", 5)] {
+            chat.receive_classified(
+                sjk_client::ServerEventKind::Chat,
+                format!("\u{19}[{name}\u{19}]: hi"),
+                Some(slot),
+                true,
+                now,
+            );
+        }
+        let names = |chat: &ChatOverlay| {
+            chat.whisperers()
+                .iter()
+                .map(|target| chat.roster.name(*target).unwrap().to_owned())
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(names(&chat), ["Bear", "Wolf", "Fox"], "newest first");
+        chat.open(false);
+        let recipient = |chat: &ChatOverlay| {
+            let target = chat.input.as_ref().unwrap().recipient.unwrap();
+            chat.roster.name(target).unwrap().to_owned()
+        };
+        chat.choose_pm();
+        assert_eq!(recipient(&chat), "Bear");
+        assert_eq!(chat.pm_place(), Some((1, 3)));
+        chat.choose_pm();
+        assert_eq!(recipient(&chat), "Wolf");
+        chat.choose_pm();
+        assert_eq!(recipient(&chat), "Fox");
+        chat.choose_pm();
+        assert_eq!(recipient(&chat), "Bear", "round to the first");
+    }
+
+    #[test]
+    fn choosing_a_tab_with_the_pointer_still_on_it_opens_no_card() {
+        let mut chat = chat(true, true, true, true);
+        chat.options.lines = 10;
+        let mut game = sjk_protocol::GameState::empty_local(0);
+        for (slot, name) in [(1usize, "ArdanHett"), (2, "Padawan")] {
+            game.replace_config_string(1_131 + slot, format!("n\\{name}\\t\\0").into_bytes())
+                .expect("a player");
+        }
+        chat.update_roster(&game);
+        let now = std::time::Instant::now();
+        for text in ["ArdanHett: hi", "Padawan: yo", "Padawan: there"] {
+            chat.receive_classified(
+                sjk_client::ServerEventKind::Chat,
+                text.to_owned(),
+                None,
+                false,
+                now,
+            );
+        }
+        chat.open(false);
+        // Team hides them all; then All, clicked where the pointer rests.
+        click(&mut chat, interaction::TEAM);
+        click(&mut chat, interaction::GLOBAL);
+        let font = crate::text::test_font();
+        for ms in [1_100, 1_200, 1_500] {
+            chat.build(true, &font, [1920.0, 1080.0], ms);
+            assert!(chat.card.is_none(), "no player's card at {ms}");
+        }
     }
 }

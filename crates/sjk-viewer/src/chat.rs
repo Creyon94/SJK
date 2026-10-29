@@ -191,6 +191,11 @@ pub(crate) struct ChatOverlay {
     last_channel: (Channel, Option<ChatTarget>),
     /// The server being played takes `amsay` (`chat/tabs.rs`).
     admin_server: bool,
+    /// Where the pointer last was over the chat, for hovers checked against this frame's
+    /// layout ([`card`]): the canvas's hovered widget is the one under the pointer when it
+    /// last moved, and a feed that changed under a still pointer (a tab chosen) would
+    /// otherwise hand that place to another widget.
+    pointer_at: Option<sjk_ui::Vec2>,
     /// The client slots (bits) whose player takes encrypted whispers now
     /// (`e2e_whispers.rs`): a whisper to them goes encrypted, which the composer says,
     /// and their card offers the safety code.
@@ -291,6 +296,7 @@ impl ChatOverlay {
             last_whisperer: None,
             last_channel: (Channel::Global, None),
             admin_server: false,
+            pointer_at: None,
             encrypted_slots: 0,
             safety_request: None,
             reportable_slots: 0,
