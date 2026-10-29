@@ -266,6 +266,8 @@ as in codemp. Bryar pistol (ID 4) is not the blaster and is not in this whitelis
 An exposed vehicle rider predicts legal handheld weapon timers and firing just
 as an on-foot player does. Hidden occupants skip their handheld weapon; neither
 case gives the rider independent movement physics.
+Rocket-lock prediction traces with codemp's `MASK_PLAYERSOLID` (`0x1111`):
+solid, player clip, body and terrain. `CONTENTS_OUTSIDE` is not a blocker.
 
 `PM_JETPACK` (movement type 1), used by the equipped jetpack on stock-derived
 servers including JA+, runs the reference's gravity, thrust and air-control
