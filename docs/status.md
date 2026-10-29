@@ -1,3 +1,13 @@
+## jaPRO command prediction review
+
+29/10/2026, `fix/prediction-japro-commands`, based on `main` `9e48ff6d`:
+the jaPRO prediction task starts with race command slicing and velocity
+precision, using clean TaystJK upstream `2d60c0fa5` multiplayer `codemp`.
+The current predictor applies stock slicing and integer velocity snapping
+without the race/OCPM/high-FPS policy. This branch claims that correction;
+implementation and reference checks are pending. Movement-style algorithms,
+jetpack and other jaPRO capabilities require separate changes.
+
 ## A JA+ emote kept when going away, and `cg_debugEmoteEnd`
 
 29/10/2026, `fix/menu-cancels-meditate`, based on `main` `b558d4ae`, hub report #196 (build
