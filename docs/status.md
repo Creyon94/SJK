@@ -1,3 +1,11 @@
+## Remote vehicle prediction hulls
+
+29/10/2026, `fix/prediction-remote-vehicle-box`, based on `main` `e702b0b1`:
+source comparison confirms the viewer keeps a packed remote-vehicle box where
+OpenJK `4d0dfaf1` multiplayer `CG_ClipMoveToEntities` calls
+`BG_VehicleAdjustBBoxForOrientation` with the presented pose. A fighter/flier
+collision correction is under review; live vehicle contacts remain unverified.
+
 ## Passenger movement prediction
 
 29/10/2026, `fix/prediction-passenger-movement`, based on `main` `9e48ff6d`:
