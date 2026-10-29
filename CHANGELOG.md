@@ -32,10 +32,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
-- maps/oot.bsp: the sand floor under the shallow water is drawn lit again, and a saber lights it; a shader named twice in one script now keeps its first definition, as in the original game _(Slash, after Sol's reports)_
 - Mystery boxes hold a holocron one time in ten (it was one in fifty), and the roll shows the four tiers' real holocrons, stopping on the one you won. A box that blows up laughs with Sol's own laugh when the SJK extras pack is installed _(Sol)_
-- Exclusive fullscreen: Alt+Tab and Win+D now send the game to the taskbar, as in the original game, instead of leaving it as a window over the desktop _(Creyon)_
-- Low FPS card: jumping no longer turns on Vanilla graphics when the card comes up in the middle of play, strafing right no longer ticks "Don't suggest this again", and the card takes no key or click for a moment after it opens (#194) _(Slash, PR #240)_
 - Centre prints and the words over mystery boxes (and the box hunt's mark) are drawn in Fira Sans Condensed, a real typeface close to the old menu font, instead of a tracing of a low-resolution bitmap _(Sol)_
 - Box hunt: one mark every 10 minutes at most, not one after the other. Hunters see the mark ringed in red, and a black name reads on the hunt's card _(Sol)_
 - Toys: each toy other players are seen with has a switch on its card in Collection > Toys to hide theirs on your PC (holocrons, boxes, ragdoll falls, drones, boomboxes, monitors) _(Sol)_
@@ -46,10 +43,16 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Tags: propose new ones in the new #tag-proposals channel on SJK's Discord; Collection > Tags says where _(Sol)_
 - Mystery boxes can blow up (5%): the opener is blasted off their feet, and the credits they paid go to a random player with the Box hunt toy on, while a ghostly laugh plays for every hunter. A box can also hold a holocron of any tier (2%) _(Sol)_
 - Box hunt: an alarm sounds when a new mark is picked, and a small card at the top of the screen names the mark while the hunt lasts, or tells you that you are the mark. A mark that was just hunted is no longer told again _(Sol)_
-- Fogged skies: on a map whose sky is only its fog, such as taspir1, the sky now takes the fog's colour instead of a plain dark blue, so distant walls fade into it rather than standing out against it (#179, #180, #184) _(Slash, after the original game)_
+- maps/oot.bsp: the sand floor under the shallow water is drawn lit again, and a saber lights it; a shader named twice in one script now keeps its first definition, as in the original game _(Slash, PR #242, after Sol's reports)_
+- Fogged skies: on a map whose sky is only its fog, such as taspir1, the sky now takes the fog's colour instead of a plain dark blue, so distant walls fade into it rather than standing out against it (#179, #180, #184) _(Slash, PR #235, after the original game)_
+- Tab completes emotes in the console: `sjkemote aut` and Tab writes `sjkemote autumn_tea`, and with several matches lists them, as it does the words stop, sync, mute, unmute and help _(Slash, PR #234)_
+- Emote volume reaches the emotes already playing: turned down, a dance's music nearby got quieter only once you had walked away from it _(Slash, PR #233, after KaTsumoTo's report)_
+- Low FPS card: jumping no longer turns on Vanilla graphics when the card comes up in the middle of play, strafing right no longer ticks "Don't suggest this again", and the card takes no key or click for a moment after it opens (#194) _(Slash, PR #240)_
+- Synced dances: after alt-tabbing out and back, your music plays in step with the others again; with three or more dancing it played a little apart, a doubled sound, until the loop came round _(Slash, PR #241, after Foshincubus' report)_
 - Trading: after a trade, the player who confirmed first sees the holocrons and duplicates they gave leave their collection, and those they received arrive, at once instead of up to ten minutes later _(Creyon, PR #210)_
 - Trading: a refusal (such as "Two accounts on one connection cannot trade with each other") shows once instead of again at every map change _(Creyon, PR #211)_
-- Blocking: a blocked player's chat no longer shows in the console either, as it already did not in the chat box, and the console's kill lines name them BLOCKED as the kill feed does _(Creyon)_
+- Exclusive fullscreen: Alt+Tab and Win+D now send the game to the taskbar, as in the original game, instead of leaving it as a window over the desktop _(Creyon, PR #238)_
+- Blocking: a blocked player's chat no longer shows in the console either, as it already did not in the chat box, and the console's kill lines name them BLOCKED as the kill feed does _(Creyon, PR #239)_
 
 ## 2026.1028.1 (Alpha) | 28/10/2026
 
@@ -73,8 +76,6 @@ Capsule nameplates, the Sith cloud, a chest and a hunt for mystery boxes, and a 
 - Black sabers: Profile > Saber has a black blade of its own (the custom colour's chip now reads RGB), and black blades show in game, on SJK's own server too, as in JoF EJK _(Creyon, PR #230, after JoF EJK)_
 - Cardboard box: the free camera works while you hide in it, and a boxed player stays crouched in the box when they open the chat or the menu, for everyone; their lunges and kicks still play (#152) _(Creyon, PR #231)_
 - Ragdoll: your limp body no longer disappears while you fly the free camera, and rising or speeding up in the free camera no longer gets you up _(Creyon, PR #232)_
-- Tab completes emotes in the console: `sjkemote aut` and Tab writes `sjkemote autumn_tea`, and with several matches lists them, as it does the words stop, sync, mute, unmute and help _(Slash, PR #234)_
-- Emote volume reaches the emotes already playing: turned down, a dance's music nearby got quieter only once you had walked away from it _(Slash, PR #233, after KaTsumoTo's report)_
 
 ## 2026.1027.2 (Alpha) | 27/10/2026
 

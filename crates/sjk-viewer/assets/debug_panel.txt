@@ -24,6 +24,80 @@
 
 # ---- Console & chat ----
 
+[slash-oot-floor]
+area: Rendering & effects
+title: oot's sand floor lit: a shader named twice keeps its first (Slash, PR #242, hub #175)
+change: A shader defined twice in one script keeps the first definition, as rd-vanilla.
+test: devmap oot, walk into the shallow water: lit sand under it, not a dark see-through plane.
+test: Saber on near the floor: the sand lights up.
+
+[slash-fogged-sky]
+area: Rendering & effects
+title: Fogged skies take the fog's colour (Slash, PR #235, hub #179 #180 #184)
+change: The world clears to the map's global fog colour; maps without one keep the night tint.
+test: devmap taspir1: the sky is the sand-coloured fog, far buildings fade into it.
+test: A map with a sky box (ffa_bespin): its sky is unchanged.
+
+[slash-sjkemote-tab]
+area: Console & chat
+title: Tab completes sjkemote's emote ids (Slash, PR #234)
+change: sjkemote's first argument completes from the installed emotes and its words.
+test: Console: sjkemote aut, Tab: it reads sjkemote autumn_tea.
+test: sjkemote s, Tab: Emote rows list stop and sync.
+
+[slash-emote-volume-live]
+area: Audio
+title: Emote volume reaches emotes already playing (Slash, PR #233, hub #188)
+change: The emote channel's gain is s_emoteVolume, set each frame, up to 3.
+test: Near a dance with music, s_emoteVolume 0: silent at once; 1 brings it back.
+test: s_emoteVolume 3: louder than recorded.
+
+[slash-emote-alt-tab-sync]
+area: Audio
+title: Synced emote music back from alt-tab in step (Slash, PR #241, hub #195)
+change: Music back from away starts at the sample its group plays (leader, else a follower).
+test: Three players in one synced dance: the leader alt-tabs out and back.
+test: The music sounds as one song, not doubled, at once.
+note: Needs three clients; not tried in a game by Slash.
+
+[slash-fps-card-keys]
+area: Menus & settings
+title: Low FPS card: jumping or strafing no longer chooses on it (Slash, PR #240)
+change: Space no longer turns Vanilla graphics on; D no longer ticks Don't suggest this again.
+change: For 0.6 s after the card opens, no key or click counts.
+test: help_fps in a match, hold W and press Space and D: the card stays, nothing changes.
+test: Press Enter (or click Use Vanilla graphics) after a moment: Vanilla graphics turn on.
+test: Click Don't suggest this again: it ticks; cg_fpsHelp reads 0.
+
+[creyon-trade-swap]
+area: Menus & settings
+title: The first to confirm a trade sees the swap at once (Creyon, PR #210)
+change: The trade list that first shows a trade done reads your profile and holocrons at once.
+test: Two clients trade a duplicate; confirm first on A, then on B.
+test: On A, the duplicate leaves the Collection and the received one arrives within seconds.
+
+[creyon-trade-refusal]
+area: Menus & settings
+title: A trade refusal shows once, not at every map change (Creyon, PR #211)
+change: The trade state goes on to the next map's world; the menu the window opened does not.
+test: Two clients on one connection: trade, the refusal toast shows once.
+test: Change map (callvote map or devmap): the refusal does not show again.
+test: Mid-trade, change map: Esc brings the window back; its Close leaves your menu.
+
+[creyon-fullscreen-minimise]
+area: Menus & settings
+title: Exclusive fullscreen minimises on Alt+Tab (Creyon, PR #238, hub #131)
+change: Pausing exclusive fullscreen on focus loss also minimises the window, as SDL.
+test: Exclusive fullscreen, Alt+Tab: the game goes to the taskbar, not a window.
+test: Click it on the taskbar: back in exclusive fullscreen. Win+D: same.
+
+[creyon-blocked-console]
+area: Console & chat
+title: A blocked player's chat stays out of the console (Creyon, PR #239, hub #191)
+change: Their chat lines skip the console and its alert words; kill lines name them BLOCKED.
+test: Block a player, have them talk: nothing in the chat box or the console.
+test: Kill them or die to them: the console's kill line reads BLOCKED.
+
 [slash-jetpack-fuel]
 area: HUD
 title: Jetpack fuel bar, flight on SJK's server, jetpack cheat (Slash, PR #225)
@@ -3136,15 +3210,6 @@ test: /model to a custom model and back several times: right model each time, no
 test: A model you do not have: Kyle, log "using Kyle", no retry every frame.
 test: cg_forcemodel 1 then 0 on a full server: brief stand-ins, no long freeze.
 note: Hilts, NPCs, corpses and cosmetics still load in one frame. Not tested in game yet.
-
-[slash-fps-card-keys]
-area: Menus & settings
-title: Low FPS card: jumping or strafing no longer chooses on it (Slash, PR #240)
-change: Space no longer turns Vanilla graphics on; D no longer ticks Don't suggest this again.
-change: For 0.6 s after the card opens, no key or click counts.
-test: help_fps in a match, hold W and press Space and D: the card stays, nothing changes.
-test: Press Enter (or click Use Vanilla graphics) after a moment: Vanilla graphics turn on.
-test: Click Don't suggest this again: it ticks; cg_fpsHelp reads 0.
 
 [fps-help]
 area: Rendering & effects
