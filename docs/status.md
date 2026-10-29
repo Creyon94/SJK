@@ -12,7 +12,8 @@ Dave's request; admin lines told by jaPRO's `<Admin>(name)`) ([chat/tabs.rs](../
 opened a player's card (the canvas keeps the widget that was under the pointer when it
 last moved, another one once the feed changed; hovers are now checked against the frame's
 layout); the words stood 58 px apart whatever their length (now an even gap); and the PM
-button steps through everyone who whispered. Each has a test.
+button steps through everyone who whispered (left click next, right click back). Each has
+a test.
 Verified on Linux x86_64: tests in `chat::tabs` (the settings switching the drawn
 buttons, clicks, the key), fmt, workspace build, tests (4184 passed) and Clippy (no new warning). Not verified: in game.
 

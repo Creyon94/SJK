@@ -165,6 +165,19 @@ impl ChatOverlay {
         if !on_card && self.edit_pointer(event) {
             return;
         }
+        // A right click on PM steps back to the previous whisperer (`chat/tabs.rs`).
+        if let InputEvent::PointerRelease {
+            position,
+            button: PointerButton::Secondary,
+        } = event
+            && self
+                .ui
+                .rect_for(PM)
+                .is_some_and(|rect| rect.contains(position))
+        {
+            self.step_pm(-1);
+            return;
+        }
         if let InputEvent::PointerPress {
             position,
             button: PointerButton::Primary,
@@ -250,7 +263,7 @@ impl ChatOverlay {
             TEAM => self.choose(Channel::Team),
             SJK => self.choose(Channel::Sjk),
             ADMIN => self.choose(Channel::Admin),
-            PM => self.choose_pm(),
+            PM => self.step_pm(1),
             LATEST => {
                 self.scroll = 0;
                 self.unread = 0;

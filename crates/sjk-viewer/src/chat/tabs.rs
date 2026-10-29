@@ -206,29 +206,29 @@ impl ChatOverlay {
         found
     }
 
-    /// The PM button: a whisper to the last whisperer; pressed again while on one, the
-    /// next player who whispered you, round to the first. With no whisperer, a word on
-    /// how to whisper.
-    pub(super) fn choose_pm(&mut self) {
+    /// The PM button: a whisper to the last whisperer. Left-clicked again while on one
+    /// (`step` 1), the next player who whispered you, round to the first; right-clicked
+    /// (`step` -1), the one before, round to the last. With no whisperer, a word on how
+    /// to whisper.
+    pub(super) fn step_pm(&mut self, step: isize) {
         let whisperers = self.whisperers();
-        let Some(&first) = whisperers.first() else {
+        if whisperers.is_empty() {
             self.notice = NO_PM;
             return;
-        };
+        }
         let Some(input) = self.input.as_mut() else {
             return;
         };
-        let next = match (input.channel, input.recipient) {
-            (Channel::Whisper, Some(current)) => whisperers
-                .iter()
-                .position(|target| *target == current)
-                .and_then(|at| whisperers.get(at + 1))
-                .copied()
-                .unwrap_or(first),
-            _ => first,
+        let current = match (input.channel, input.recipient) {
+            (Channel::Whisper, Some(current)) => {
+                whisperers.iter().position(|target| *target == current)
+            }
+            _ => None,
         };
+        let count = whisperers.len() as isize;
+        let at = current.map_or(0, |at| (at as isize + step).rem_euclid(count) as usize);
         input.channel = Channel::Whisper;
-        input.recipient = Some(next);
+        input.recipient = Some(whisperers[at]);
         self.notice = "";
     }
 
@@ -307,10 +307,13 @@ mod tests {
     }
 
     fn click(chat: &mut ChatOverlay, token: u16) {
+        press(chat, token, PointerButton::Primary);
+    }
+
+    fn press(chat: &mut ChatOverlay, token: u16, button: PointerButton) {
         chat.build(true, &crate::text::test_font(), [1920.0, 1080.0], 1_000);
         let rect = chat.ui.rect_for(token).expect("a button");
         let at = sjk_ui::Vec2::new(rect.x + rect.width * 0.5, rect.y + rect.height * 0.5);
-        let button = PointerButton::Primary;
         chat.pointer(InputEvent::PointerMove(at));
         chat.pointer(InputEvent::PointerPress {
             position: at,
@@ -556,15 +559,25 @@ mod tests {
             let target = chat.input.as_ref().unwrap().recipient.unwrap();
             chat.roster.name(target).unwrap().to_owned()
         };
-        chat.choose_pm();
+        chat.step_pm(1);
         assert_eq!(recipient(&chat), "Bear");
         assert_eq!(chat.pm_place(), Some((1, 3)));
-        chat.choose_pm();
+        chat.step_pm(1);
         assert_eq!(recipient(&chat), "Wolf");
-        chat.choose_pm();
+        chat.step_pm(1);
         assert_eq!(recipient(&chat), "Fox");
-        chat.choose_pm();
+        chat.step_pm(1);
         assert_eq!(recipient(&chat), "Bear", "round to the first");
+        // A right click goes back, round to the last.
+        chat.step_pm(-1);
+        assert_eq!(recipient(&chat), "Fox");
+        chat.step_pm(-1);
+        assert_eq!(recipient(&chat), "Wolf");
+        // The same with the mouse on the PM button.
+        click(&mut chat, interaction::PM);
+        assert_eq!(recipient(&chat), "Fox");
+        press(&mut chat, interaction::PM, PointerButton::Secondary);
+        assert_eq!(recipient(&chat), "Wolf");
     }
 
     #[test]
