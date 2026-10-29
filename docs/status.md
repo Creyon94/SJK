@@ -50,6 +50,21 @@ by MSVC-compiled OpenJK cover fighters, fliers, static vehicles, large origins
 and 8/7/4/3 ms orientation samples. Synthetic trace, interpolation, model-change
 and warmed-allocation tests accompany the change. Live vehicle contacts,
 community vehicle coverage and rendered FPS remain unverified.
+## jaPRO jump prediction
+
+29/10/2026, `feat/prediction-japro-jumps`, based on `main` `0fd6a5e1` with
+the adapters in PRs #277 and #279: this change claims style-specific jump
+impulses, held-jump behavior, ramp/double-jump impulses, superjump scaling and
+the jump timer from TaystJK `2d60c0fa5` multiplayer `codemp`. Windows x64 tests
+match 323 results emitted by MSVC-compiled source branches, gates, curves and
+timers (valid-state power/animation stubs, not a full Pmove simulation). Held
+jump integration runs at 8/7/4/3 ms, including release-only OCPM and non-jaPRO
+isolation. Server/player only-bhop policy honors the existing plugin preference
+and advertised capabilities; a foreign profile cannot enable it, including
+after a server switch. Ramp/step collision, further restrictions, new jetpack
+and grapples remain outside this change. Full and live-server parity remain
+unverified; see [networking](networking.md#server-dialect-movement-rules).
+
 ## jaPRO movement-style acceleration
 
 29/10/2026, `feat/prediction-japro-styles`, based on `main` `c7089264` and

@@ -157,6 +157,12 @@ copy clears roll; outgoing user commands remain unchanged. Serverinfo refresh
 and snapshot reseeding refresh this policy and metadata. `cg_noPredict 1` is the
 existing player override to display server positions without local prediction.
 
+The jaPRO held-jump gate runs before the shared zero-gravity push-off. At
+nonpositive gravity the push remains available even on styles that disable
+Force special jumps; those style restrictions apply to the positive-gravity
+special-jump branch (TaystJK `2d60c0fa`, `bg_pmove.c:3744-3796`). Focused
+regressions cover all 19 styles, held/released input and 8/7/4/3 ms.
+
 jaPRO on-foot acceleration and friction also follow the movement-style table
 in [pmove_japro_movement.rs](../crates/sjk-game-jka/src/pmove_japro_movement.rs).
 The 19 advertised style ordinals select ground acceleration, friction, crouch
@@ -170,11 +176,24 @@ The local player's vehicle selects Swoop policy while NPC vehicle simulation
 retains its vehicle controller. Server switches refresh both policy and snapshot
 metadata; reused stat slots on other mods cannot enable jaPRO physics.
 
-This is not complete jaPRO race physics: jumps, ramps/steps, restrictions, new
-jetpack and grapples still require their own reference-backed implementation
-and verification. Compiled reference fixtures cover slicing/snapping decisions,
-style air kernels, friction, ground parameters and command scaling; they do not
-establish full gameplay or live-server parity.
+The [jump adapter](../crates/sjk-game-jka/src/pmove_japro_jump.rs) also selects
+style-specific takeoff, held-jump/bhop and Force-rise policy. It retains the
+reference's OCPM jump-release requirement and PJK delay, ramp/double-jump
+impulses, superjump scaling and QW/PJK Force-rise curve based on the server's
+integer last-jump speed. Existing stat slots 10/12/14 supply jump speed,
+restrictions and timer; the timer advances per command, not per rendered frame.
+`JAPRO_CINFO_BHOP1` (`jcinfo` bit 10) forces ordinary-height bunnyhops;
+`JAPRO_CINFO_BHOP2` (bit 26) enables the player's existing `cp_pluginDisable`
+bit 19 preference. The preference is remembered across sessions but can affect
+physics only on the current jaPRO/TaystJK profile. BHOP restrictions suppress
+wall moves and flips. There is no new setting or protocol field.
+
+This is not complete jaPRO race physics: ramp/step collision changes, remaining
+restrictions, new jetpack and grapples still require their own reference-backed
+implementation and verification. Compiled reference fixtures cover command
+policy, style kernels/parameters and jump decisions/curves/timers; they do not
+establish full Pmove output or live-server parity. Stock baseline corrections
+remain in their own changes; these additions do not certify the full baseline.
 
 Prediction follows rules the server advertises in `CS_SERVERINFO`, read by
 [pmove_rules.rs](../crates/sjk-game-jka/src/pmove_rules.rs): the roll fixes of

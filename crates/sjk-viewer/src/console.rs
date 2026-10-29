@@ -413,6 +413,11 @@ impl ViewerConsole {
         }
     }
 
+    /// The existing USERINFO plugin mask, cached for movement/presentation policy.
+    pub(crate) fn plugin_disable_bits(&self) -> u32 {
+        u32::try_from(self.plugin_disable.value()).unwrap_or(sjk_client::PLUGIN_DISABLE_DEFAULT)
+    }
+
     /// Cached `cl_showtimedelta` state for the allocation-free runtime read.
     pub(crate) fn show_timedelta(&self) -> bool {
         self.show_timedelta.enabled()
