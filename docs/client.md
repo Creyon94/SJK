@@ -1154,6 +1154,10 @@ Both follow EternalJK's cgame (`cg_ents.c`, `cg_players.c`) and rd-vanilla's ren
   from 254 down by 0.08 a millisecond, gone after 2.54 s) while the body drawn again
   with its side's shader brightens over it (`RF_RGB_TINT` rising to 200): the light
   side's is `gfx/misc/personalshield`, the dark side's `gfx/effects/sabers/red_glow`.
+  `personalshield` blends `GL_DST_COLOR GL_ONE` on display values in rd-vanilla (the scene
+  times one plus the stage's colour); SJK's scene is linear, so the light side's glow sets
+  `DISPLAY_FILTER_ADD` and the stage program writes `(1 + display colour)^2.2 - 1` for it
+  (hub report #190: blended as written it showed only as a faint blue speckle).
   At 2.513 s that glow burns away from the body's origin (`RF_DISINTEGRATE2`), with the
   Force Sight sound for the light side and lightning for the dark. For the first 3.4 s
   the light side hums (`saberhum1`, for 2.2 s, at most once per 100 ms as EternalJK
