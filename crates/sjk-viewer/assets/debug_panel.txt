@@ -24,6 +24,22 @@
 
 # ---- Console & chat ----
 
+[lumaya-japro-styles]
+area: Gameplay
+title: jaPRO movement styles, jumps and new jetpack predicted (Lumaya, PRs #279-#284)
+change: On jaPRO servers: each style's acceleration, friction, jumps and the race jetpack.
+test: Local jaPRO server, /move cpm, qw, tribes, surf: run, strafe, bhop: no snapping back.
+test: cp_pluginDisable with bit 19 where the server allows: only-bhop held jumps.
+test: Race jetpack: lift and steer at once. On a JA+ server: movement as before.
+
+[lumaya-prediction-audit-2]
+area: Gameplay
+title: Prediction audit, second part (Lumaya, PRs #252-#273)
+change: Saber-lock facing, respawn jump latch, dual jump-attack hull, equipped saber definitions,
+change: remote vehicle hulls, and a still view when command history has a gap.
+test: Saber lock on a local server: the view turns to the opponent at once.
+test: Respawn holding jump: no jump until attack and use are let go.
+
 [lumaya-japro-race-slicing]
 area: Gameplay
 title: jaPRO race moves predicted as jaPRO cuts them (Lumaya, PR #277)

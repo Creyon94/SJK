@@ -501,7 +501,7 @@ pull requests merged into SJK, most of them bringing SJK in line with EternalJK
   its next seven the Sketch, Hourglass, Fiber Optic, Serpent, Monarch, Phoenix and Quantum
   blades, and its last three the Comic, Quicksilver and Obsidian Edge blades.
 
-Lumaya ([lumayaa](https://github.com/lumayaa)), contributor, has 66 pull requests
+Lumaya ([lumayaa](https://github.com/lumayaa)), contributor, has 75 pull requests
 merged into SJK
 ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3Alumayaa)):
 
@@ -618,6 +618,11 @@ merged into SJK
   a predicted vehicle (#276), and the audit's record in networking.md (#271).
 - #277 the first jaPRO prediction layer: race-mode command slicing and velocity precision
   from TaystJK, only on servers that advertise jaPRO.
+- #252-#273 the rest of the prediction audit: frozen view on a command-history gap (#252),
+  saber-lock facing (#253), the respawn jump latch (#260), the dual jump-attack hull (#266),
+  the equipped saber definitions (#267) and remote vehicle hulls (#273).
+- #279, #282, #284 jaPRO prediction from TaystJK: movement-style acceleration and friction,
+  style jumps and only-bhop, and the new jetpack, only on servers that advertise jaPRO.
 
 Lukas ([LukasMoudry](https://github.com/LukasMoudry)), contributor, has 18 pull requests
 merged into SJK

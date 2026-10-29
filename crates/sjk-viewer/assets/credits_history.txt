@@ -2618,6 +2618,32 @@
 - ddfe116 |  | Fix Linux clipboard integration
 
 = Lumaya
++ 29/10/2026 | SJK #284 | Predict jaPRO new-jetpack activation and thrust
+- 588cd09 |  | Record jaPRO new-jetpack prediction scope
+- ea8ed75 |  | Predict jaPRO new jetpack only for current server profile
++ 29/10/2026 | SJK #282 | Predict jaPRO style jump impulses and held jumps
+- 5312e4d |  | Record jaPRO style jump prediction scope
+- ca5ac9e |  | Predict jaPRO style jumps and only-bhop policy
++ 29/10/2026 | SJK #279 | Match jaPRO movement-style acceleration and friction
+- 2846d42 |  | Predict jaPRO movement-style acceleration and friction
++ 29/10/2026 | SJK #273 | Match remote vehicle collision hulls to their presented orientation
+- 6e02295 |  | Record the remote vehicle prediction hull discrepancy
+- 70a2c8e |  | Apply presented vehicle dimensions to remote prediction hulls
+- 4ab9d24 |  | Interpolate remote vehicle poses with smooth clients enabled
++ 29/10/2026 | SJK #267 | Supply equipped saber definitions to client movement prediction
+- 1f3469f |  | Supply equipped saber definitions to client movement prediction
+- 56dfae8 |  | Parse codemp throwable zero as the saber throw restriction
++ 29/10/2026 | SJK #266 | Restore dual jump-attack collision hull resizing
+- a07488e |  | Restore dual jump-attack collision hull resizing
++ 29/10/2026 | SJK #260 | Respect the respawn latch before predicting jumps
+- 39e80cd |  | Respect the respawn latch before predicting jumps
++ 29/10/2026 | SJK #253 | Face the opponent during predicted saber locks
+- 7fe9ced |  | Document prediction saber-lock-facing gap
+- ccef0be |  | Face the opponent during local saber-lock prediction
++ 29/10/2026 | SJK #252 | Freeze prediction when command history is incomplete
+- 0905f24 |  | Document prediction command-overflow gap
+- cfd34f2 |  | Freeze prediction across missing command history
+- 70b6771 |  | Preserve displayed positions and teleports across prediction gaps
 + 29/10/2026 | SJK #277 | Match jaPRO command slicing and velocity precision
 - 19a03fb |  | Record jaPRO command prediction scope
 - 9928ee6 |  | Match jaPRO race command slicing and velocity precision

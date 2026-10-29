@@ -188,8 +188,25 @@ bit 19 preference. The preference is remembered across sessions but can affect
 physics only on the current jaPRO/TaystJK profile. BHOP restrictions suppress
 wall moves and flips. There is no new setting or protocol field.
 
+The [new-jetpack adapter](../crates/sjk-game-jka/src/pmove_japro_jetpack.rs)
+implements jaPRO's separate active flag, inventory/resource/water/animation
+eligibility, hover-height activation, vertical thrust, Tribes horizontal thrust,
+1.75 air-control multiplier and directional airborne pose. It uses existing
+`jetpackFuel` snapshot field 39; fuel consumption remains server-owned. The
+advertised jetpack capability (`jcinfo` bit 12) or race mode enables activation,
+only after the current profile selects jaPRO. Reused flags/stats/capability bits
+on other mods do not enable it. Server switches reset flag ownership immediately,
+including before a new snapshot is replayed. Existing `cg_nopredict` remains the
+player override. This path is separate from stock `PM_JETPACK` below.
+
+Windows x64 comparisons cover 280 compiled TaystJK activation/thrust results
+and its 25 knockdown ordinals, with velocity tolerance 0.0005 units/s. Source
+branches use deterministic distance/shared eligibility stubs. Command tests cover
+8/7/4/3 ms, profile switches, authoritative fuel and pose priority with synthetic
+animation timing. No retail assets or live servers were used.
+
 This is not complete jaPRO race physics: ramp/step collision changes, remaining
-restrictions, new jetpack and grapples still require their own reference-backed
+restrictions and grapples still require their own reference-backed
 implementation and verification. Compiled reference fixtures cover command
 policy, style kernels/parameters and jump decisions/curves/timers; they do not
 establish full Pmove output or live-server parity. Stock baseline corrections
@@ -366,8 +383,9 @@ direction, and jump pads accept movement type 1.
 Reference: OpenJK `codemp/game/bg_pmove.c` `PmoveSingle`, `PM_AirMove` and
 `PM_GroundTrace`, at `4d0dfaf1`. Focused tests cover 8/7/4/3 ms commands and
 height/thrust boundaries. This is not verification against a running JA+ server;
-its unpublished settings, the stock spinning-saber random horizontal impulses,
-and jaPRO's separate new/race jetpack path remain outside this implementation.
+its unpublished settings and the stock spinning-saber random horizontal impulses
+remain outside the stock implementation. jaPRO's separate new/race jetpack path
+is described under [server dialect movement rules](#server-dialect-movement-rules).
 Equipping and fuel state still arrive from the server.
 
 ### Local wall-grab facing

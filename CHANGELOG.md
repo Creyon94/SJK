@@ -84,6 +84,15 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - SJK radial HUD: two Settings sliders, Radial HUD spacing and Radial HUD height, move its meters farther from your character and up or down the screen (`cg_hudRadialSpread`, `cg_hudRadialHeight`) _(Slash, PR #281, after Lex's idea)_
 - Laptops with two graphics cards: SJK asks the NVIDIA or AMD driver for the fast card, tries another card if the first one cannot start the game, and says why when nothing works instead of closing without a word (found by Nib for SimpleSmokie) _(Slash, PR #283)_
 - jaPRO servers: in race mode your moves are cut and rounded as jaPRO does (no 66 ms slices, 8 ms in OCPM and rolls, velocity kept exact), so racing snaps back less; other servers are unchanged _(Lumaya, PR #277, after jaPRO)_
+- Prediction: when commands were lost on the way, your view holds still until the server catches up, instead of guessing from a gap _(Lumaya, PR #252, after the original game)_
+- Saber locks: your view faces your opponent at once, as the server turns you, instead of after the next update _(Lumaya, PR #253, after the original game)_
+- Prediction: just after respawning, a jump held from before is not predicted until you let go of attack and use, as the server does _(Lumaya, PR #260, after the original game)_
+- Prediction: the dual sabers jump attack shrinks and restores your body as the server does, so it no longer catches on ceilings in prediction only _(Lumaya, PR #266, after the original game)_
+- Prediction: wall runs, flips and saber moves use the sabers you really hold, not the stock ones _(Lumaya, PR #267, after the original game)_
+- Vehicles: other players' vehicles collide with the size and turn you see them at _(Lumaya, PR #273, after the original game)_
+- jaPRO servers: each movement style (CPM, QuakeWorld, Tribes, Surf, Slick, Siege and the others) accelerates, brakes and crouches as jaPRO does, so it no longer snaps back _(Lumaya, PR #279, after jaPRO)_
+- jaPRO servers: each style's jumps, held jumps, bunny hops, ramp and double jumps and its Force jump limits are predicted as jaPRO does; `cp_pluginDisable` bit 19 picks only-bhop where the server allows _(Lumaya, PR #282, after jaPRO)_
+- jaPRO servers: the new jetpack (race jetpack) lifts, thrusts and steers at once, predicted as jaPRO does _(Lumaya, PR #284, after jaPRO)_
 
 ## 2026.1028.1 (Alpha) | 28/10/2026
 

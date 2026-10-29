@@ -156,6 +156,7 @@ fn japro_fractional_velocity_survives_prediction_and_reseed() {
                 JaProState {
                     race: false,
                     style: 16,
+                    predicts_jetpack_flag: enabled,
                     ..Default::default()
                 }
             );

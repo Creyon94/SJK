@@ -50,6 +50,22 @@ by MSVC-compiled OpenJK cover fighters, fliers, static vehicles, large origins
 and 8/7/4/3 ms orientation samples. Synthetic trace, interpolation, model-change
 and warmed-allocation tests accompany the change. Live vehicle contacts,
 community vehicle coverage and rendered FPS remain unverified.
+## jaPRO new-jetpack prediction
+
+29/10/2026, `feat/prediction-japro-jetpack`, based on `main` `0fd6a5e1` with
+PRs #277/#279/#282: this change implements jaPRO's separate new-jetpack activation,
+eligibility, fuel/Force-resource checks, thrust, air control and pose behavior
+from TaystJK `2d60c0fa5` multiplayer `codemp`. Windows x64 checks match 280
+MSVC-emitted activation/thrust results and 25 knockdown animation ordinals
+(extracted source branches with deterministic distance/shared eligibility stubs).
+Full command tests cover 8/7/4/3 ms and switches between jaPRO/TaystJK, BaseJKA,
+JA+ and Lugormod using identical capability/stat slots. The new flag and stat
+semantics apply only on the current jaPRO/TaystJK profile; changing profiles
+immediately relinquishes prediction ownership of the active flag. Fuel remains
+snapshot-authoritative. Stock equipped-jetpack tests pass. Full Pmove, live-server
+and GPU/presentation parity remain unverified; see
+[networking](networking.md#server-dialect-movement-rules).
+
 ## jaPRO jump prediction
 
 29/10/2026, `feat/prediction-japro-jumps`, based on `main` `0fd6a5e1` with
