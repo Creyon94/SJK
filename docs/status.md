@@ -1,3 +1,12 @@
+## Prediction: trigger collision hull
+
+29/10/2026, `fix/prediction-trigger-hull`, based on `main` `e702b0b1`:
+brush-trigger prediction reads the actual Pmove box instead of reconstructing it
+from the final posture flags. Reference: OpenJK multiplayer `cg_predict.c:722`
+at `4d0dfaf1`. Focused synthetic tests exercise 8/7/4/3 ms commands and hull/flag
+mismatches. Verification environment: Windows x64; live OpenJK trigger contacts
+and retail/community maps remain unverified.
+
 ## Synced emote music back from alt-tab in step
 
 29/10/2026, `fix/emote-sound-alt-tab`, based on `main` `b558d4ae`, hub report #195 (build

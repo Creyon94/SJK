@@ -527,6 +527,9 @@ and open validation work are recorded in [status.md](status.md).
 
 ### Use the Pmove hull for predicted trigger contact
 
-Known limitation (source review against OpenJK `codemp` at `4d0dfaf1`):
-Predicted brush triggers currently reconstruct the hull from final posture flags instead of reading the box left by Pmove.
-A focused fix and verification are in progress.
+Brush-trigger prediction uses the exact collision box left by the final Pmove slice,
+including a roll transition whose final posture flags describe a different hull.
+This follows OpenJK `codemp/cgame/cg_predict.c:722` at `4d0dfaf1`;
+items retain their separate proximity test. Unit tests cover 8/7/4/3 ms commands
+and both directions of a standing/crouching hull mismatch. Live trigger timing
+against an OpenJK server remains unverified.
