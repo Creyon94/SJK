@@ -184,6 +184,7 @@ did: Saber on/off spam quietened: four sounds, then one per half second
 did: Maps with external lightmaps (q3map2 -external) load and are lit (after EJK)
 did: Sky cloud layers: a sky shader's scrolling stages drawn over its box (after JKA)
 did: tcGen vector stages: textures projected in world space, as in JKA
+did: Collection marks: worn, favourite, locked and New saber shaders, the lock held by the hub
 link: https://github.com/Sol-Vulpes/SJK
 link: https://sol-vulpes.github.io/SJK/
 
@@ -423,8 +424,13 @@ did: Made Solfox, Sol's fox player model, which every SJK player gets through th
 [Kushina]
 role: Ideas for SJK
 did: The Varykino Blossom blade: a blossom-pink blade, lavender mist, a flowering branch and blossoms shed as it swings
+did: Favourite and locked saber shaders: stars listed first, locks kept from break down and trades
 did: Plugin options as Settings switches, in place of typing a cp_pluginDisable number
 did: JoF EJK's saber hit sparks, mouse 4/5 repeat and lagometer modes 2 and 3 for players coming from EJK
+
+[Atrosex]
+role: Ideas for SJK
+did: The worn saber shader marked in the Forge's Break down, and said on the last copy's card
 
 [Turin]
 role: Ideas for SJK

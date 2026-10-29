@@ -43,6 +43,8 @@ pub(crate) mod forge;
 mod forge_view;
 #[path = "collection_hover.rs"]
 mod hover;
+#[path = "collection_marks_view.rs"]
+mod marks_view;
 #[path = "collection_medals.rs"]
 mod medals;
 #[path = "collection_nameplates.rs"]
@@ -137,6 +139,11 @@ const TOY_SWITCH_BASE: u16 = 1_360;
 /// second (the key that executes the order).
 const BIND_TOKEN: u16 = 1_370;
 const BIND_SECOND_TOKEN: u16 = 1_371;
+/// The chosen shader's star and padlock on the Shaders tab's card (29/10/2026, collection
+/// marks), and Mark all seen beside the New count.
+const FAVOURITE_TOKEN: u16 = 1_372;
+const LOCK_TOKEN: u16 = 1_373;
+const SEEN_ALL_TOKEN: u16 = 1_374;
 /// The Shaders tab's view switches: the list and the wall of tiles.
 const LIST_VIEW_TOKEN: u16 = 1_312;
 const GRID_VIEW_TOKEN: u16 = 1_313;
@@ -188,6 +195,11 @@ const SEARCH_TOKEN: u16 = 7_311;
 const FILTER_CHROMA_TOKEN: u16 = 7_312;
 const SORT_BASE: u16 = 7_313;
 const _: () = assert!(SORT_BASE as usize + ShaderSort::ALL.len() < CARD_BASE as usize);
+/// The favourites-only chip (29/10/2026, collection marks).
+const FILTER_FAVOURITE_TOKEN: u16 = 7_320;
+const _: () =
+    assert!(SORT_BASE as usize + ShaderSort::ALL.len() <= FILTER_FAVOURITE_TOKEN as usize);
+const _: () = assert!(FILTER_FAVOURITE_TOKEN < CARD_BASE);
 /// The most characters a search holds.
 const SEARCH_MAX: usize = 24;
 /// The tiers the Forge's chips filter by, after All, the commonest first, as its Craft
@@ -218,28 +230,39 @@ const STRIP_TIERS_WITH_UNIQUE: [unlockables::Rarity; 6] = [
     unlockables::Rarity::Common,
 ];
 
-/// What the Shaders tab lists: a tier, the shaders held only, the chromas only, and words
-/// of a name (or a tier) or a blade's number the search names. The stock blade is always
-/// the first row.
+/// What the Shaders tab lists: a tier, the shaders held only, the chromas only, the
+/// favourites only (29/10/2026), and words of a name (or a tier) or a blade's number the
+/// search names. The stock blade is always the first row.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub(super) struct ShaderFilter {
     pub(super) tier: Option<unlockables::Rarity>,
     pub(super) owned: bool,
     pub(super) chroma: bool,
+    pub(super) favourite: bool,
     pub(super) query: String,
 }
 
 impl ShaderFilter {
     /// Whether anything is filtered out.
     pub(super) fn active(&self) -> bool {
-        self.tier.is_some() || self.owned || self.chroma || !self.query.trim().is_empty()
+        self.tier.is_some()
+            || self.owned
+            || self.chroma
+            || self.favourite
+            || !self.query.trim().is_empty()
     }
 
-    /// Whether `skin` (held or not) stays in the list.
-    pub(super) fn passes(&self, skin: &unlockables::Unlockable, owned: bool) -> bool {
+    /// Whether `skin` (held or not, a favourite or not) stays in the list.
+    pub(super) fn passes(
+        &self,
+        skin: &unlockables::Unlockable,
+        owned: bool,
+        favourite: bool,
+    ) -> bool {
         if self.tier.is_some_and(|tier| tier != skin.tier)
             || (self.owned && !owned)
             || (self.chroma && !skin.chroma)
+            || (self.favourite && !favourite)
         {
             return false;
         }
@@ -385,6 +408,49 @@ pub(crate) enum PanelAction {
     },
     /// Clear the first key bound to a toy's command.
     Unbind(&'static str),
+    /// Set (`on`) or clear a collection mark on this shader at the hub (29/10/2026): a
+    /// star or a padlock.
+    Mark {
+        id: &'static str,
+        mark: sjk_identity::Mark,
+        on: bool,
+    },
+}
+
+/// What the marks a frame shows were read from ([`Panel::follow_marks`]).
+#[derive(Clone, Debug, PartialEq)]
+struct MarksFrom {
+    /// The identity's marks' and own profile's revisions.
+    hub: Option<(u64, u64)>,
+    /// The seen-list's revision.
+    seen: u64,
+    worn: [Option<&'static str>; 2],
+    debug: bool,
+    /// How many unlocks the holdings list (they change with the profile, and in tests).
+    known: usize,
+}
+
+/// What a press of the star (`Favourite`) or the padlock (`Locked`) does on shader `id`
+/// (`owned` whether the player holds it): set the mark it lacks, or clear the one it has;
+/// nothing while the hub keeps no marks, nor a lock on a shader not held.
+pub(super) fn mark_action(
+    marks: &crate::shader_marks::Marks,
+    id: &'static str,
+    mark: sjk_identity::Mark,
+    owned: bool,
+) -> PanelAction {
+    if !marks.kept {
+        return PanelAction::None;
+    }
+    let on = match mark {
+        sjk_identity::Mark::Favourite => !marks.favourite(id),
+        sjk_identity::Mark::Locked => !marks.locked(id),
+    };
+    if on && mark == sjk_identity::Mark::Locked && !owned {
+        return PanelAction::None;
+    }
+    ui_cues_click();
+    PanelAction::Mark { id, mark, on }
 }
 
 /// Where the player's model stands behind Shaders, Toys and Nameplates this frame, as
@@ -604,6 +670,8 @@ pub(crate) struct Panel {
     /// The shaders the tab lists now (the filter's), the stock blade's row 0 before them,
     /// and how many rows that makes; read again each frame.
     shader_list: Vec<&'static unlockables::Unlockable>,
+    /// The ones of them the player holds, as the last frame's rows said (a lock needs one).
+    shader_owned: Vec<&'static str>,
     shader_count: usize,
     shader_filter: ShaderFilter,
     /// The Shaders tab offers Unique's chip: the player holds a Unique shader, as the last
@@ -637,6 +705,19 @@ pub(crate) struct Panel {
     forge_link: Option<(forge::Section, &'static str)>,
     /// Whether the hub's economy is known (the Shaders tab's way to the Forge shows then).
     trade_known: bool,
+    /// What the Shaders tab and the Forge show on each shader (worn, favourite, locked,
+    /// New; `crate::shader_marks`), and what it was read from, read again only when that
+    /// changes.
+    marks: crate::shader_marks::Marks,
+    marks_from: Option<MarksFrom>,
+    /// The shader chosen on Shaders or in the Forge while it was New: seen once the choice
+    /// leaves it, or the page closes.
+    viewing: Option<&'static str>,
+    /// The count of the last refused change of a mark the console was told of.
+    mark_refusal_seen: u64,
+    /// The marks a world shot or a test shows in place of the live ones.
+    #[cfg(test)]
+    pub(crate) preview_marks: Option<crate::shader_marks::Marks>,
     /// How much wider than the display family the page's text face is drawn.
     widen: f32,
     epoch: Instant,
@@ -680,7 +761,8 @@ impl Panel {
             // frames, which flickered.
             // The Shaders tab's wall shows up to thirty tiles, each its name on two lines
             // and its state: 320 text runs leave the rest of the page its room.
-            ui: MenuCanvas::with_capacities(320, 220, DRAW_COMMANDS),
+            // The marks (29/10/2026) add a sticker and a pill to a tile at most.
+            ui: MenuCanvas::with_capacities(400, 220, DRAW_COMMANDS),
             medal: 0,
             // The first frame chooses the one nearest to unlocking.
             achievement: usize::MAX,
@@ -726,6 +808,7 @@ impl Panel {
             shader_rows: [ShaderRow::default(); SHADER_ROWS],
             // Until the first frame reads the holdings: what a player who holds nothing sees.
             shader_list: Holdings::IdentityOff.listed().collect(),
+            shader_owned: Vec::new(),
             shader_count: 1 + Holdings::IdentityOff.listed_count(),
             shader_filter: ShaderFilter::default(),
             unique_chip: false,
@@ -741,6 +824,12 @@ impl Panel {
             forge: forge::Forge::default(),
             forge_link: None,
             trade_known: false,
+            marks: Default::default(),
+            marks_from: None,
+            viewing: None,
+            mark_refusal_seen: 0,
+            #[cfg(test)]
+            preview_marks: None,
             widen: 1.0,
             epoch: Instant::now(),
             skins: Default::default(),
@@ -790,6 +879,7 @@ impl Panel {
     pub(crate) fn show(&mut self, tab: Tab) {
         if tab.screen() == crate::profile_hub::Screen::Collection && tab != Tab::Holocrons {
             if tab != self.tab {
+                self.leave_viewing();
                 self.leave_search();
                 self.forge.leave_search();
                 self.forge.ask = None;
@@ -817,6 +907,7 @@ impl Panel {
 
     /// Hide the page; returns whether it had opened the console.
     pub(crate) fn close(&mut self) -> bool {
+        self.leave_viewing();
         let owned = self.open && self.owns_console;
         self.open = false;
         self.owns_console = false;
@@ -827,6 +918,13 @@ impl Panel {
     /// Where the model stands this frame.
     pub(crate) fn set_backstage(&mut self, backstage: Backstage) {
         self.backstage = backstage;
+    }
+
+    /// Show `marks` in place of the live ones (`None` lets go), for a world shot.
+    #[cfg(test)]
+    pub(crate) fn marks_for_shot(&mut self, marks: Option<crate::shader_marks::Marks>) {
+        self.preview_marks = marks;
+        self.marks_from = None;
     }
 
     /// Whether the hub's economy is known this frame: the Shaders tab's way to the Forge
@@ -1042,6 +1140,13 @@ impl Panel {
         };
         self.hover.keyed();
         if self.tab == Tab::Forge {
+            if !control
+                && !self.forge.search_focus
+                && self.forge.ask.is_none()
+                && let Some(action) = self.forge_mark_key(key, shift)
+            {
+                return action;
+            }
             let action = self
                 .forge
                 .key(event.text.as_deref(), key, shift, control, self.grid);
@@ -1079,6 +1184,12 @@ impl Panel {
             match key {
                 KeyCode::Slash => return self.focus_search(),
                 KeyCode::KeyF if control => return self.focus_search(),
+                KeyCode::KeyF if shift => return self.toggle_favourites_only(),
+                KeyCode::KeyF => return self.toggle_mark(sjk_identity::Mark::Favourite),
+                KeyCode::KeyL if !control => {
+                    return self.toggle_mark(sjk_identity::Mark::Locked);
+                }
+                KeyCode::KeyN if !control => return self.see_all(),
                 KeyCode::KeyT => return self.cycle_tier(shift),
                 KeyCode::KeyO => return self.toggle_owned(),
                 KeyCode::KeyC if !control => return self.toggle_chroma(),
@@ -1210,6 +1321,113 @@ impl Panel {
     fn toggle_owned(&mut self) -> PanelAction {
         self.shader_filter.owned = !self.shader_filter.owned;
         self.filter_changed()
+    }
+
+    /// Show only the favourites, or all again (Shift+F); only while the hub keeps marks.
+    fn toggle_favourites_only(&mut self) -> PanelAction {
+        if !self.marks.kept && !self.shader_filter.favourite {
+            return PanelAction::None;
+        }
+        self.shader_filter.favourite = !self.shader_filter.favourite;
+        self.filter_changed()
+    }
+
+    /// Star or unstar (F), lock or unlock (L) the shader chosen on the Shaders tab: a blade
+    /// skin, and only one the player holds for a lock, while the hub keeps marks.
+    fn toggle_mark(&mut self, mark: sjk_identity::Mark) -> PanelAction {
+        let Some(skin) = self.skin_at(self.shader) else {
+            return PanelAction::None;
+        };
+        let owned = self.shader_list_owned(skin.id);
+        mark_action(&self.marks, skin.id, mark, owned)
+    }
+
+    /// Whether the player holds shader `id`, as the last frame's rows said.
+    fn shader_list_owned(&self, id: &'static str) -> bool {
+        self.shader_owned.contains(&id)
+    }
+
+    /// Mark every New shader seen (N, or Mark all seen).
+    fn see_all(&mut self) -> PanelAction {
+        if self.marks.new_count() > 0 {
+            crate::shader_marks::see_all(self.marks.new_ids());
+            ui_cues_click();
+        }
+        PanelAction::None
+    }
+
+    /// The marks for `inputs` this frame: read again only when what they come from
+    /// changed (the hub's marks, the own profile, the seen-list, the blades worn).
+    fn follow_marks(&mut self, inputs: &Inputs<'_>) {
+        #[cfg(test)]
+        if let Some(marks) = &self.preview_marks {
+            self.marks = marks.clone();
+            return;
+        }
+        let owned = match inputs.holdings {
+            Holdings::Known(owned) => owned,
+            _ => &[],
+        };
+        let worn = crate::shader_marks::worn_of(inputs.setting, inputs.second, owned);
+        let snapshot = inputs.snapshot.filter(|_| inputs.enabled);
+        let from = MarksFrom {
+            hub: snapshot.map(|snapshot| (snapshot.marks_revision, snapshot.me_revision)),
+            seen: crate::shader_marks::revision(),
+            worn,
+            debug: inputs.holdings.debug(),
+            known: owned.len(),
+        };
+        if self.marks_from.as_ref() == Some(&from) {
+            return;
+        }
+        let kept = snapshot.is_some_and(|snapshot| {
+            snapshot
+                .economy
+                .as_ref()
+                .is_some_and(|economy| economy.can(sjk_identity::MARKS_ABILITY))
+        });
+        self.marks = crate::shader_marks::with_seen(|seen| {
+            crate::shader_marks::Marks::of(
+                snapshot.and_then(|snapshot| snapshot.marks.as_ref()),
+                kept,
+                owned,
+                seen,
+                from.debug,
+                worn,
+            )
+        });
+        self.marks_from = Some(from);
+    }
+
+    /// The shader chosen on Shaders or in the Forge is now `chosen`: one New the choice
+    /// left is seen.
+    fn view(&mut self, chosen: Option<&'static str>) {
+        if self.viewing.is_some() && self.viewing == chosen {
+            return;
+        }
+        self.leave_viewing();
+        self.viewing = chosen.filter(|id| self.marks.is_new(id));
+    }
+
+    /// Why the hub refused the last change of a mark, once, when it is new since the last
+    /// call (the console says it).
+    pub(crate) fn take_mark_refusal(
+        &mut self,
+        snapshot: Option<&sjk_identity::Snapshot>,
+    ) -> Option<String> {
+        let (serial, words) = snapshot?.mark_refusal.as_ref()?;
+        if *serial <= self.mark_refusal_seen {
+            return None;
+        }
+        self.mark_refusal_seen = *serial;
+        Some(words.clone())
+    }
+
+    /// The choice left the shader it was on (another tab, the page closed): seen.
+    fn leave_viewing(&mut self) {
+        if let Some(id) = self.viewing.take() {
+            crate::shader_marks::see(id);
+        }
     }
 
     /// A key while the search field has the typing: Escape or Enter leave it (Escape
@@ -1531,6 +1749,18 @@ impl Panel {
             if !(activate || resting) {
                 return PanelAction::None;
             }
+            if activate && self.forge.ask.is_none() {
+                match token {
+                    forge::STAR_TOKEN => {
+                        return self.forge_mark(sjk_identity::Mark::Favourite);
+                    }
+                    forge::PADLOCK_TOKEN => return self.forge_mark(sjk_identity::Mark::Locked),
+                    forge::FAVOURITES_TOKEN => {
+                        return self.forge.toggle_favourites(self.marks.kept);
+                    }
+                    _ => {}
+                }
+            }
             return match self.forge.token(token, activate, now) {
                 Some(PanelAction::ShaderView(grid)) => self.set_grid(grid),
                 Some(action) => action,
@@ -1563,6 +1793,9 @@ impl Panel {
             }
             if token == FILTER_CHROMA_TOKEN {
                 return self.toggle_chroma();
+            }
+            if token == FILTER_FAVOURITE_TOKEN {
+                return self.toggle_favourites_only();
             }
             if let Some(sort) = token
                 .checked_sub(SORT_BASE)
@@ -1664,6 +1897,9 @@ impl Panel {
             TARGET_SECOND_TOKEN => self.set_target(true),
             BOTH_TOKEN => self.toggle_both(),
             FORGE_LINK_TOKEN => self.open_forge_link(),
+            FAVOURITE_TOKEN => self.toggle_mark(sjk_identity::Mark::Favourite),
+            LOCK_TOKEN => self.toggle_mark(sjk_identity::Mark::Locked),
+            SEEN_ALL_TOKEN => self.see_all(),
             // A toy's row chooses it; its own switch runs it.
             TOY_TOKEN | BOX_TOKEN | ORDER_TOKEN | HAX_TOKEN | RAGDOLL_TOKEN | DRONE_TOKEN
             | BOOMBOX_TOKEN | MONITOR_TOKEN => {
@@ -1947,7 +2183,7 @@ mod tests {
             ..ShaderFilter::default()
         };
         let found: Vec<_> = unlockables::blade_skins()
-            .filter(|skin| filter.passes(skin, false))
+            .filter(|skin| filter.passes(skin, false, false))
             .map(|skin| skin.number)
             .collect();
         assert_eq!(found, [2]);

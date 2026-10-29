@@ -1568,6 +1568,12 @@ What the Forge lists counts the profile's `Unlock::count` when it has no `medal`
 `card`; a shader not listed is not held. The kyber shard's mark to draw beside a count is
 `cards::shard::draw` (or the symbol `symbols::SHARD` in text).
 
+**Collection marks** (29/10/2026, [sjk-ui.md](sjk-ui.md#marks)): a player stars their
+favourite shaders and locks the ones they want to keep; both are kept at the hub, which
+refuses to break down or trade a locked one. `shader_marks::Marks` is what a page shows
+(worn, favourite, locked, New), `sjk_identity::Service::set_mark` asks the hub, and the
+New marks are kept on the PC (`shader-seen.txt`).
+
 ## Planned, not built
 
 Achievements granting unlockables (with harder goals), holocron drops beyond shaders

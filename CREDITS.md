@@ -382,6 +382,12 @@ includes:
   compiled with q3map2's `-external` load their `lm_NNNN.tga` pages instead of failing;
 - chat name actions (23/10/2026, after Bishop's and Sanjisan's ideas): a click on a
   player's name in the chat pins their card, to Whisper or Block them;
+- collection marks (29/10/2026, after Atrosex's and Kushina's ideas): the shader worn
+  marked in the Forge's Break down, on the Shaders tab and in the trade window, and said
+  first on the last copy's card; favourite shaders starred and listed first with a
+  Favourites filter, and locked ones the SJK hub never breaks down or trades until
+  unlocked, both kept at the hub; a New sticker on shaders gained since the player last
+  looked, kept on the PC;
 - three JoF EJK options (29/10/2026, after Kushina's idea): saber hit sparks
   (`cg_fleshSparks`), a held mouse 4 or 5 repeating its bind (`in_mouseRepeat`, 20 times
   a second at any frame rate) and the lagometer's numbers and speed graph
@@ -844,6 +850,13 @@ built it as the pinned chat card's Whisper button (23/10/2026).
 
 Nib, a player, asked to choose the saber sounds apart from the saber shader (18/10/2026,
 and hub report #109): Sol built it as the Saber tab's Sounds row (23/10/2026).
+
+Atrosex, a player, asked for the Forge's Break down to mark the saber shader the player
+wears, and its last copy's card to say plainly that it is worn; Kushina asked for favourite
+shaders and a lock against breaking one down by mistake. Sol built both as collection marks
+(29/10/2026): Worn, a star and a padlock on every listed shader, the lock held by the SJK
+hub (breaking down and trading refused), and a New sticker on what was gained since the
+player last looked.
 
 ## Testing
 
