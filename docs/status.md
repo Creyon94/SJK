@@ -11273,3 +11273,12 @@ start an unrelated task. Update this page when evidence or agreed priorities
 change. For a new result, record the source revision, environment, scenario,
 reference and limits. Keep resolved change history in Git rather than appending
 session-by-session notes here.
+## Passenger movement prediction review
+
+29/10/2026, `fix/prediction-passenger-movement`, based on `main` `e702b0b1`:
+the expanded OpenJK prediction audit found that SJK requires a local `Riding`
+context before suppressing a player's movement physics. A passenger need not
+have a predicted chassis or that context. OpenJK `4d0dfaf1` multiplayer
+`bg_pmove.c:11027-11031` suppresses movement from `m_iVehicleNum` itself.
+This branch claims that correction; implementation and verification are pending.
+
