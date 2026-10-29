@@ -28,6 +28,17 @@ pub(super) const CARD_REPORT: u16 = 125;
 pub(super) const CARD_TRADE: u16 = 126;
 pub(super) const CARD_MAP_BLOCK: u16 = 127;
 pub(super) const CARD_STAFF_BLOCK: u16 = 128;
+/// Every button on the card, which a press must find before the card under them.
+pub(super) const BUTTONS: [u16; 8] = [
+    CARD_TRADE,
+    CARD_WHISPER,
+    CARD_REPORT,
+    CARD_SAFETY,
+    CARD_BAN,
+    CARD_MUTE,
+    CARD_MAP_BLOCK,
+    CARD_STAFF_BLOCK,
+];
 /// How long the card stays once the pointer is off the name and the card.
 pub(super) const GRACE_MS: u64 = 400;
 
@@ -134,19 +145,9 @@ impl ChatOverlay {
                     }
                 }
             }
-            None if [
-                CARD,
-                CARD_MUTE,
-                CARD_BAN,
-                CARD_SAFETY,
-                CARD_WHISPER,
-                CARD_REPORT,
-                CARD_TRADE,
-                CARD_MAP_BLOCK,
-                CARD_STAFF_BLOCK,
-            ]
-            .into_iter()
-            .any(|token| self.ui.token_hovered(token)) =>
+            None if std::iter::once(CARD)
+                .chain(BUTTONS)
+                .any(|token| self.ui.token_hovered(token)) =>
             {
                 if let Some(card) = &mut self.card {
                     card.left_ms = None;
@@ -834,6 +835,42 @@ mod tests {
         click(&mut chat, centre(trade));
         assert_eq!(chat.take_trade_request(), Some(3));
         assert!(chat.card.is_none(), "the card makes way for the request");
+    }
+
+    /// Block for this map and, for staff, for everyone are buttons of their own: a click
+    /// asks to block (before 29/10/2026 the press was taken for the card's, as Trade's
+    /// once was, and the click was lost).
+    #[test]
+    fn a_click_on_the_block_buttons_asks_to_block() {
+        for (token, everyone) in [(CARD_MAP_BLOCK, false), (CARD_STAFF_BLOCK, true)] {
+            let mut chat = game_chat(&[(0, "Me"), (3, "Fox")]);
+            let fox = chat.roster.target(Some(3)).expect("Fox");
+            chat.open(false);
+            chat.card = Some(Card {
+                who: Who::Player(fox),
+                person: Person {
+                    name: "Fox".to_owned(),
+                    place: Place::Slot(3),
+                    map_block: Some(sender_card::MapBlockRow {
+                        own: false,
+                        staff: Some(false),
+                    }),
+                    ..Person::default()
+                },
+                muted: false,
+                anchor: Rect::new(10.0, 300.0, 40.0, 10.0),
+                left_ms: None,
+                pinned: true,
+            });
+            build(&mut chat);
+            let button = chat.ui.rect_for(token).expect("block button");
+            click(&mut chat, centre(button));
+            let request = chat.take_map_block_request().expect("a block request");
+            assert_eq!(
+                (request.slot, request.everyone, request.blocked),
+                (3, everyone, true)
+            );
+        }
     }
 
     #[test]
