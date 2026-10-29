@@ -61,6 +61,7 @@ impl Predictor {
                 HANDEXTEND_KNOCKDOWN | HANDEXTEND_PRETHROWN | HANDEXTEND_POSTTHROWN
             )
             || state.movement_type == PM_JETPACK
+            || self.new_jetpack_active()
         {
             return false;
         }

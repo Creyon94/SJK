@@ -35,6 +35,11 @@ pub struct JaProState {
     pub jump_time: i32,
     /// `STAT_LASTJUMPSPEED`, stat slot 10: integer takeoff speed before superjump.
     pub last_jump_speed: i32,
+    /// Existing protocol-26 jetpackFuel field (39), read only from snapshots.
+    pub jetpack_fuel: i32,
+    /// Runtime ownership of the new active flag, selected by current server policy.
+    /// This is never inferred from the snapshot's flags or stat-slot contents.
+    pub predicts_jetpack_flag: bool,
 }
 
 impl JaProState {
@@ -46,6 +51,8 @@ impl JaProState {
             restrictions: player.stats[STAT_RESTRICTIONS],
             jump_time: player.stats[STAT_JUMPTIME] as i32,
             last_jump_speed: player.stats[STAT_LASTJUMPSPEED] as i32,
+            jetpack_fuel: player.raw_field(39).unwrap_or(0) as i32,
+            predicts_jetpack_flag: false,
         }
     }
 }
@@ -65,6 +72,8 @@ pub struct JaProRules {
     pub optional_bhop: bool,
     /// Existing `cp_pluginDisable` bit 19; refreshed from the player's setting.
     pub player_bhop: bool,
+    /// `JAPRO_CINFO_JETPACK`, bit 12, enables the new pack outside race mode.
+    pub jetpack: bool,
 }
 
 impl JaProRules {
@@ -97,6 +106,7 @@ impl JaProRules {
                 forced_bhop: ja_pro_capabilities.contains(1 << 10),
                 optional_bhop: ja_pro_capabilities.contains(1 << 26),
                 player_bhop: false,
+                jetpack: ja_pro_capabilities.contains(1 << 12),
             },
             _ => Self::default(),
         }

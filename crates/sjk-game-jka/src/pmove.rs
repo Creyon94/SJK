@@ -498,6 +498,12 @@ impl MovementState {
         player.set_view_height(self.view_height);
         // What `Pmove` decides besides motion, by protocol-26 field index: a legacy
         // client draws and hears these.
+        let predicted_flags = PMOVE_ENTITY_FLAGS
+            | if self.ja_pro.predicts_jetpack_flag {
+                japro_jetpack::ACTIVE
+            } else {
+                0
+            };
         for (index, value) in [
             (9, u32::from(self.bob_cycle)),
             (10, self.weapon_time as u32),
@@ -552,8 +558,8 @@ impl MovementState {
             // flags and leaves the game's alone — the two share one field on the wire.
             (
                 17,
-                (player.raw_field(17).unwrap_or(0) & !PMOVE_ENTITY_FLAGS)
-                    | (self.entity_flags & PMOVE_ENTITY_FLAGS),
+                (player.raw_field(17).unwrap_or(0) & !predicted_flags)
+                    | (self.entity_flags & predicted_flags),
             ),
             // What a Force jump costs while it lasts: the pool, when it next pays, and
             // that it is on (`fd.forcePower`, `fd.forcePowerDebounce[FP_LEVITATION]`,
@@ -797,6 +803,8 @@ pub struct Predictor {
 impl Predictor {
     pub fn from_player_state(player: &PlayerState, config: MovementConfig) -> Self {
         let mut state = MovementState::from_player_state(player);
+        state.ja_pro.predicts_jetpack_flag =
+            config.ja_pro.enabled && state.client_num < MAX_CLIENTS;
         state.saber_anim_speed_scales = HiltSpeedScales(config.saber_anim_speed_scales);
         // A fully acknowledged queue may render this seed without running Pmove.
         // OpenJK renders the seed's viewangles too (cg_predict.c:1043-1051,1401;
@@ -829,6 +837,8 @@ impl Predictor {
     }
 
     pub fn from_state(mut state: MovementState, config: MovementConfig) -> Self {
+        state.ja_pro.predicts_jetpack_flag =
+            config.ja_pro.enabled && state.client_num < MAX_CLIENTS;
         // Synthetic callers historically supplied only speed. Network seeds
         // use from_player_state and must preserve authoritative zero basespeed.
         if state.base_speed == 0.0 {
@@ -873,6 +883,8 @@ impl Predictor {
     /// Refresh movement policy without discarding the replay state.
     pub fn set_config(&mut self, config: MovementConfig) {
         self.config = config;
+        self.state.ja_pro.predicts_jetpack_flag =
+            config.ja_pro.enabled && self.state.client_num < MAX_CLIENTS;
         self.state.saber_anim_speed_scales = HiltSpeedScales(config.saber_anim_speed_scales);
     }
 
@@ -1462,9 +1474,12 @@ impl Predictor {
         self.box_bounds = (bounds.minimums, bounds.maximums);
         // A wall run falls at half gravity (`bg_pmove.c:10726-10730`), until the slice ends.
         let gravity = self.state.gravity;
+        let pack_distance = self.activate_new_jetpack(&command, bounds, collision);
         let jetpacking = self.state.movement_type == 1;
         if jetpacking {
             self.jetpack_move(&command, bounds, collision);
+        } else if self.new_jetpack_active() {
+            self.new_jetpack_thrust(&command, bounds, collision, seconds, pack_distance);
         } else if self.slow_fall {
             self.state.gravity = wall_moves::halved_gravity(gravity);
         }
@@ -1667,7 +1682,7 @@ impl Predictor {
             millis,
             self.config.snap_velocity,
         );
-        if jetpacking || self.slow_fall {
+        if jetpacking || self.slow_fall || self.new_jetpack_active() {
             self.state.gravity = gravity;
         }
         // `AttachRiders` (`bg_pmove.c:11138-11154`).
@@ -1842,8 +1857,17 @@ impl Predictor {
         );
         // PM_FLOAT always takes PM_GroundTraceMissed, even above a floor
         // (bg_pmove.c:4137-4143); it must not acquire walking friction/land timers.
-        if trace.all_solid || trace.fraction == 1.0 || matches!(self.state.movement_type, 1 | 2) {
+        let new_jetpack = self.new_jetpack_active();
+        if trace.all_solid
+            || trace.fraction == 1.0
+            || matches!(self.state.movement_type, 1 | 2)
+            || new_jetpack
+        {
+            if new_jetpack && !trace.all_solid {
+                self.new_jetpack_pose(command);
+            }
             if !trace.all_solid
+                && !new_jetpack
                 && let Some(lengths) = self.animation_lengths.as_deref()
             {
                 // `PM_GroundTraceMissed`: the legs react to leaving the ground.
@@ -2099,6 +2123,8 @@ impl Predictor {
             };
             if self.state.movement_type == 1 && !self.slow_fall {
                 wish_velocity *= if command.up_move <= 0 { 0.8 } else { 2.0 };
+            } else if self.new_jetpack_active() && !self.slow_fall {
+                wish_velocity *= 1.75;
             }
             (
                 vector_normalize(wish_velocity),
@@ -2434,6 +2460,8 @@ mod weapon_history;
 
 #[path = "pmove_flight.rs"]
 pub mod flight;
+#[path = "pmove_japro_jetpack.rs"]
+mod japro_jetpack;
 #[path = "pmove_jetpack.rs"]
 mod jetpack;
 
