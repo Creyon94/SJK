@@ -787,6 +787,28 @@ pub(crate) fn playing(slot: u8, now: Instant) -> Option<Playing> {
     })
 }
 
+/// What `sjkemote`'s first argument completes to on Tab in the console: the
+/// installed emotes' ids, loading the catalogue when nothing has yet, and the
+/// command's own words. [`QUIET`] and [`LOUD`] are the client's, never typed.
+pub(crate) fn argument_words(vfs: Option<&sjk_vfs::VirtualFileSystem>) -> Vec<String> {
+    let mut state = lock();
+    if state.catalogue.is_none()
+        && let Some(vfs) = vfs
+    {
+        state.catalogue = Some(load(vfs));
+    }
+    words(state.catalogue.as_deref().unwrap_or_default())
+}
+
+/// [`argument_words`] of `catalogue`.
+fn words(catalogue: &[EmoteDef]) -> Vec<String> {
+    catalogue
+        .iter()
+        .map(|def| def.id.clone())
+        .chain([STOP, SYNC, MUTE, UNMUTE, crate::emote_help::WORD].map(str::to_owned))
+        .collect()
+}
+
 /// What `emote` alone prints: the catalogue, or how emotes come.
 pub(crate) fn listing(catalogue: &[EmoteDef]) -> Vec<String> {
     if catalogue.is_empty() {
@@ -853,6 +875,15 @@ mod tests {
 
     fn wave() -> EmoteDef {
         parse("wave", WAVE).unwrap()
+    }
+
+    #[test]
+    fn tab_completes_the_installed_ids_and_the_commands_words() {
+        assert_eq!(
+            words(&[wave()]),
+            ["wave", STOP, SYNC, MUTE, UNMUTE, crate::emote_help::WORD]
+        );
+        assert!(!words(&[]).iter().any(|word| word == QUIET || word == LOUD));
     }
 
     #[test]

@@ -170,6 +170,16 @@ use winit::event::{ElementState, KeyEvent};
 use winit::keyboard::{KeyCode, PhysicalKey};
 
 const INPUT_LIMIT: usize = 512;
+/// The list `sjkemote`'s first argument completes from on Tab
+/// ([`crate::emotes::argument_words`]).
+const EMOTE_ARGUMENTS: &str = "emote";
+/// The client's commands whose first argument Tab completes, beside the shell's
+/// own (`exec`, `devmap`...), one entry per command.
+const ARGUMENT_SOURCES: &[sjk_shell::ArgumentSource] = &[sjk_shell::ArgumentSource {
+    command: crate::emotes::COMMAND,
+    list: EMOTE_ARGUMENTS,
+    label: "Emote",
+}];
 
 /// Toggleable console state owned by the viewer frontend.
 pub(crate) struct ViewerConsole {
@@ -1142,14 +1152,15 @@ impl ViewerConsole {
     fn complete_command(&mut self, key: CompletionKey) {
         let resolver =
             console_scripting::Resolver::new(&self.config_directory, self.script_vfs.as_deref());
-        let files = |extension: &str| {
-            if extension == sjk_shell::MAP_EXTENSION {
-                resolver.map_names()
-            } else {
-                resolver.root_files(extension)
-            }
+        let lists = |list: &str| match list {
+            sjk_shell::MAP_EXTENSION => resolver.map_names(),
+            EMOTE_ARGUMENTS => crate::emotes::argument_words(self.script_vfs.as_deref()),
+            extension => resolver.root_files(extension),
         };
-        if let Some(line) = self.shell.complete_line_with_files(&self.input, key, files) {
+        let completed =
+            self.shell
+                .complete_line_with_arguments(&self.input, key, ARGUMENT_SOURCES, lists);
+        if let Some(line) = completed {
             self.input = line;
             self.rebuild_prompt();
         }
