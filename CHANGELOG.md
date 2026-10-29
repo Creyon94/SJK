@@ -30,7 +30,16 @@ The site (site/assets/site.js, parseChangelog) reads the release headings,
 introductions and recap lines too.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
-## Unreleased
+## 2026.1029.1 (Alpha) | 29/10/2026
+
+Banana peels, the Monitor's Screen Saver, holo frame nameplates, collection marks, chat tabs and jaPRO movement that matches the server.
+
+> Toys: Banana peels with `toy_banana`, and the Monitor's Screen Saver.
+> Collection: Favourite, lock and New marks on saber shaders.
+> Mystery boxes: Shards, a free roll, the Mystery blade, more holocrons.
+> Chat: Admin, Team, SJK and PM tabs, and a backdrop for bright maps.
+> Movement: jaPRO styles, jumps and jetpack predicted as the server.
+> Macs: Windows the size they say, and fullscreen keeps the screen.
 
 = con_overChat: New: while you type in the chat, the console key opens the console over it and your message waits; off, the chat takes the key as before.
 = ui_sliderPeek: New: in the game, hold a Settings slider a moment and the rest of the menu fades away, so you see the change on the game as you drag.
