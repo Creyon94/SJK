@@ -141,7 +141,7 @@ fn rocket_lock(
     collision: &dyn crate::pmove::MovementCollision,
 ) {
     const LOCK_DISTANCE: f32 = 2_048.0;
-    const MASK_PLAYERSOLID: u32 = 0x1 | 0x100 | 0x10000;
+    const MASK_PLAYERSOLID: u32 = crate::pmove::PLAYER_CONTENT_MASK;
     const MUZZLE: [f32; 3] = [12.0, 8.0, -4.0];
     const ENTITY_NONE: u16 = 1_023;
     let (forward, right) = crate::pmove::flight::flight_axes(state.view_angles);
@@ -181,6 +181,75 @@ fn rocket_lock(
             state.rocket_last_valid_time = state.rocket_lock_time;
         }
         state.rocket_lock_time = -1.0;
+    }
+}
+
+/// PM_DoChargedWeapons (:6044-6060,6111-6257). True short-circuits PM_Weapon. The
+#[cfg(test)]
+mod rocket_mask_tests {
+    use super::*;
+    use crate::pmove::{MovementCollision, MovementTrace};
+    use std::cell::Cell;
+
+    struct MaskWorld {
+        contents: u32,
+        seen: Cell<u32>,
+    }
+    impl MovementCollision for MaskWorld {
+        fn trace(
+            &self,
+            _: [f32; 3],
+            _: [f32; 3],
+            _: [f32; 3],
+            end: [f32; 3],
+            mask: u32,
+        ) -> MovementTrace {
+            self.seen.set(mask);
+            if self.contents & mask != 0 {
+                MovementTrace {
+                    fraction: 0.5,
+                    entity_number: crate::pmove::ENTITY_NUMBER_WORLD,
+                    ..MovementTrace::miss(end)
+                }
+            } else {
+                MovementTrace {
+                    fraction: 0.5,
+                    entity_number: 1,
+                    ..MovementTrace::miss(end)
+                }
+            }
+        }
+    }
+    #[test]
+    fn rocket_lock_obeys_playerclip_and_terrain_but_ignores_outside() {
+        for step in [8, 7, 4, 3] {
+            for (contents, blocked) in [
+                (0x1, true),
+                (0x10, true),
+                (0x100, true),
+                (0x1000, true),
+                (0x10000, false),
+            ] {
+                let collision = MaskWorld {
+                    contents,
+                    seen: Cell::new(0),
+                };
+                let mut state = MovementState {
+                    rocket_lock_index: 1023,
+                    ..MovementState::default()
+                };
+                rocket_lock(
+                    &mut state,
+                    &UserCommand {
+                        server_time: step,
+                        ..UserCommand::default()
+                    },
+                    &collision,
+                );
+                assert_eq!(collision.seen.get(), 0x1111);
+                assert_eq!(state.rocket_lock_index, if blocked { 1023 } else { 1 });
+            }
+        }
     }
 }
 

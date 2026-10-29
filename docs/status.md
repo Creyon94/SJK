@@ -1,3 +1,11 @@
+## Rocket-lock trace contents
+
+29/10/2026, `fix/prediction-rocket-lock-mask`, based on `main` `e702b0b1`:
+replaced a mistyped rocket-lock trace mask (`0x10101`) with `MASK_PLAYERSOLID`
+(`0x1111`). Reference: OpenJK `4d0dfaf1`, codemp `PM_RocketLock`,
+`bg_public.h` and `surfaceflags.h`. Windows x64 synthetic tests cover each
+contents bit at 8/7/4/3 ms. Live locking across map clip/terrain remains unverified.
+
 ## Synced emote music back from alt-tab in step
 
 29/10/2026, `fix/emote-sound-alt-tab`, based on `main` `b558d4ae`, hub report #195 (build
