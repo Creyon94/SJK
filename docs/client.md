@@ -65,7 +65,15 @@ Put `sjk` (`sjk.exe` on Windows) inside the installed game's
 `GameData` folder, beside `base/`, then launch it to open the main menu. A shortcut
 can use any working directory. No path settings are required. Keep
 `sjk-server` (`sjk-server.exe` on Windows) beside the client for Create game
-and local `devmap`.
+and local `devmap`. The server is its own process, so the client's console does not
+reach it once it runs; the console's `g_dismember` and `g_forceRegenTime` (the
+milliseconds a point of Force takes to come back, 200 by default as in the
+reference; servers often run 30 to 50) are handed to it at launch, as are
+EternalJK's `g_saberDuelForceRegenTime` (the same pace in a private duel) and
+`g_forceDuelForceRegenTime` (in a full-force duel, kept for when SJK has one). As in
+EternalJK, a private duel takes its own pace, not `g_forceRegenTime`: a host who sets only
+`g_forceRegenTime 50` still refills at 200 ms in private duels. 0 refills every
+millisecond; a negative value is not handed over.
 
 From that folder:
 
