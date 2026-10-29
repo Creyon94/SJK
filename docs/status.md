@@ -68,6 +68,14 @@ context reads. Release measurement on Windows x64, Ryzen 7 5800X3D:
 `measure_actor_context_lookups`, 1M hot lookups in a 128-actor table, 5.75 ns/lookup.
 This measures only the lookup, excluding snapshot rebuild, full Pmove, BSP traces
 and rendering. Live contacts and rendered frame rates remain unverified.
+## Prediction: zero-gravity push-off
+
+29/10/2026, `fix/prediction-zero-gravity`, based on `main` `e702b0b1`:
+shared movement includes codemp's gravity <= 0 impulse, backward trace and leg
+animation. It deliberately retains the clear-trace impulse (`fraction <= 1`).
+Reference: OpenJK multiplayer `bg_pmove.c:2057-2085`, revision `4d0dfaf1`.
+Windows x64 synthetic tests cover command steps 8/7/4/3 ms and the jump gates;
+zero-gravity map play against a live OpenJK server remains unverified.
 
 ## Synced emote music back from alt-tab in step
 

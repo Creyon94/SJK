@@ -545,3 +545,13 @@ cloning it per command. Other players' authoritative state is never changed.
 Reference: OpenJK multiplayer `cg_predict.c:1080-1096` and
 `bg_pmove.c:10880-10896` at `4d0dfaf1`. Tests cover NPC/vehicle/brush contacts at
 8/7/4/3 ms and snapshot replacement. Live NPC and wall contacts remain unverified.
+### Restore codemp zero-gravity push-off movement
+
+At gravity zero or below, an eligible jump check traces eight units backwards
+and adds 450 units/s along the player's full view direction, with the Force-jump
+leg animation, then clears upmove. This preserves OpenJK's `fraction <= 1`
+condition, including a clear trace and airborne commands without jump held.
+A held jump latch and the grounded no-jump gate still suppress the branch.
+Reference: `codemp/game/bg_pmove.c:2057-2085` at `4d0dfaf1`.
+Synthetic tests cover 8/7/4/3 ms, negative gravity, clear/blocked traces, pitch/yaw,
+animation and jump gates. Zero-gravity maps against a live server remain unverified.
