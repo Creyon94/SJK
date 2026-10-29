@@ -34,6 +34,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 = ui_sliderPeek: New: in the game, hold a Settings slider a moment and the rest of the menu fades away, so you see the change on the game as you drag.
 
+- SJK radial HUD: two Settings sliders, Radial HUD spacing and Radial HUD height, move its meters farther from your character and up or down the screen (`cg_hudRadialSpread`, `cg_hudRadialHeight`) _(Slash, after Lex's idea)_
 - Mystery boxes hold a holocron one time in ten (it was one in fifty), and the roll shows the four tiers' real holocrons, stopping on the one you won. A box that blows up laughs with Sol's own laugh when the SJK extras pack is installed _(Sol)_
 - Centre prints and the words over mystery boxes (and the box hunt's mark) are drawn in Fira Sans Condensed, a real typeface close to the old menu font, instead of a tracing of a low-resolution bitmap _(Sol)_
 - Box hunt: one mark every 10 minutes at most, not one after the other. Hunters see the mark ringed in red, and a black name reads on the hunt's card _(Sol)_

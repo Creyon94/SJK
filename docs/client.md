@@ -3149,6 +3149,16 @@ installed. `cg_hudPack` names the PK3 whose HUD to use when several replace
 wins, as in the game. See [game-data HUD](rendering.md#game-data-hud) for what
 is drawn.
 
+The `radial` layout's status meters (the pills, the arcs and their numbers round the
+crosshair) can be placed (Lex's idea, 29/10/2026: too close to the character):
+`cg_hudRadialSpread` (0 to 250 HUD pixels, Settings "Radial HUD spacing") moves the
+left meters left and the right ones right, and `cg_hudRadialHeight` (-20 to 40 per
+cent of the screen, "Radial HUD height") moves them all up, or down below zero. The
+crosshair, its name, the timer and the rest of the HUD stay put. Both are 0 by default,
+the layout as bundled ([hud.rs](../crates/sjk-viewer/src/hud.rs), `RadialPlacement`,
+which moves each widget of `RADIAL_STATUS` by its side: an arc's from its sweep, the
+rest from their offset).
+
 The upper right stacks the readouts as JoF EJK's `CG_DrawUpperRight` does, in every
 HUD style ([console_overlay.rs](../crates/sjk-viewer/src/console_overlay.rs)): with
 `cg_drawFPS` the frame rate ("125fps", JoF EJK's big console characters, measured over
