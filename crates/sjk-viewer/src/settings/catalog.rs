@@ -544,6 +544,24 @@ pub(super) const HUD: &[Setting] = &[
         },
     },
     Setting {
+        label: "Radial HUD spacing",
+        cvar: crate::hud::RadialPlacement::SPREAD_CVAR,
+        kind: ValueKind::Float {
+            min: 0.0,
+            max: 250.0,
+            step: 10.0,
+        },
+    },
+    Setting {
+        label: "Radial HUD height",
+        cvar: crate::hud::RadialPlacement::HEIGHT_CVAR,
+        kind: ValueKind::Float {
+            min: -20.0,
+            max: 40.0,
+            step: 1.0,
+        },
+    },
+    Setting {
         label: "Status (health / armour / force)",
         cvar: "cg_drawStatus",
         kind: ValueKind::Bool,

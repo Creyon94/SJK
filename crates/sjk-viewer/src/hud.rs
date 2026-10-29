@@ -263,7 +263,85 @@ pub(crate) struct HudOverlay {
     displayed_ratios: [f32; 3],
     ammo_ratio: Tween,
     displayed_ammo: f32,
+    /// The radial look as bundled, and as drawn: placed by the player's spacing and
+    /// height ([`Self::set_radial_placement`]).
+    radial_base: HudLayoutDocument,
     radial_document: HudLayoutDocument,
+    radial_placement: RadialPlacement,
+}
+
+/// Where the player wants the radial look's status meters (Lex's idea, 29/10/2026: too
+/// close to the character): `spread` logical pixels farther out on each side
+/// (`cg_hudRadialSpread`), `height` per cent of the screen higher (`cg_hudRadialHeight`;
+/// negative is lower).
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub(crate) struct RadialPlacement {
+    pub(crate) spread: f32,
+    pub(crate) height: f32,
+}
+
+impl RadialPlacement {
+    pub(crate) const SPREAD_CVAR: &'static str = "cg_hudRadialSpread";
+    pub(crate) const HEIGHT_CVAR: &'static str = "cg_hudRadialHeight";
+    pub(crate) const SPREAD_MAX: f32 = 250.0;
+    pub(crate) const HEIGHT_RANGE: (f32, f32) = (-20.0, 40.0);
+
+    /// The placement the console's cvars ask for, within its limits.
+    pub(crate) fn read(console: Option<&crate::console::ViewerConsole>) -> Self {
+        let number = |name: &str| {
+            console
+                .and_then(|console| console.float_cvar(name))
+                .unwrap_or(0.0) as f32
+        };
+        let (low, high) = Self::HEIGHT_RANGE;
+        Self {
+            spread: number(Self::SPREAD_CVAR).clamp(0.0, Self::SPREAD_MAX),
+            height: number(Self::HEIGHT_CVAR).clamp(low, high),
+        }
+    }
+}
+
+/// The radial look's status meters, the pills, arcs and numbers round the crosshair:
+/// what [`RadialPlacement`] moves. The crosshair, its name, the timer and the rest stay.
+const RADIAL_STATUS: [&str; 13] = [
+    "left_pill",
+    "right_pill",
+    "health_arc",
+    "armor_arc",
+    "force_arc",
+    "ammo_arc",
+    "style_arc",
+    "health_value",
+    "armor_value",
+    "ammo_value",
+    "force_value",
+    "style_value",
+    "weapon_value",
+];
+
+/// Which side of the crosshair a status widget is on: -1 left, 1 right, 0 under it. An
+/// arc is centred on the crosshair, so its side is its sweep's; anything else, its
+/// offset's.
+fn radial_side(widget: &sjk_ui::HudWidget) -> f32 {
+    let x = match widget.style.arc {
+        Some(arc) => (arc.start_degrees + arc.sweep_degrees * 0.5)
+            .to_radians()
+            .cos(),
+        None => widget.offset.x,
+    };
+    if x.abs() < 1e-3 { 0.0 } else { x.signum() }
+}
+
+/// `base` with its status meters placed as `placement` says.
+fn place_radial(base: &HudLayoutDocument, placement: RadialPlacement) -> HudLayoutDocument {
+    let mut document = base.clone();
+    for widget in &mut document.widgets {
+        if RADIAL_STATUS.contains(&widget.id.as_str()) {
+            widget.offset.x += radial_side(widget) * placement.spread;
+            widget.offset_fraction.y -= placement.height / 100.0;
+        }
+    }
+    document
 }
 
 /// Which bundled layout document the status HUD is drawn from.
@@ -397,8 +475,20 @@ impl HudOverlay {
             displayed_ratios: [1.0, 0.0, 1.0],
             ammo_ratio: Tween::settled(0.0),
             displayed_ammo: 0.0,
+            radial_base: HudLayoutDocument::from_json(RADIAL_LAYOUT)
+                .expect("bundled radial HUD document is valid"),
             radial_document: HudLayoutDocument::from_json(RADIAL_LAYOUT)
                 .expect("bundled radial HUD document is valid"),
+            radial_placement: RadialPlacement::default(),
+        }
+    }
+
+    /// Place the radial look's status meters as the player asks (laid out again only
+    /// when it changes).
+    pub(crate) fn set_radial_placement(&mut self, placement: RadialPlacement) {
+        if placement != self.radial_placement {
+            self.radial_placement = placement;
+            self.radial_document = place_radial(&self.radial_base, placement);
         }
     }
 
@@ -743,6 +833,50 @@ mod tests {
             };
             let top = 540.0 - height * 0.5 + widget.offset.y;
             assert!((top - 170.0 * 1_080.0 / 480.0).abs() < 1e-3, "{top}");
+        }
+    }
+
+    /// The radial look's spacing moves the left meters left and the right ones right,
+    /// its height moves all of them, and the rest of the HUD stays where it was.
+    #[test]
+    fn radial_placement_moves_only_the_status_meters() {
+        let base = HudLayoutDocument::from_json(super::RADIAL_LAYOUT).unwrap();
+        let placed = super::place_radial(
+            &base,
+            super::RadialPlacement {
+                spread: 100.0,
+                height: 10.0,
+            },
+        );
+        let find = |document: &HudLayoutDocument, id: &str| {
+            document
+                .widgets
+                .iter()
+                .find(|widget| widget.id == id)
+                .unwrap()
+                .clone()
+        };
+        for (id, side) in [
+            ("health_arc", -1.0),
+            ("left_pill", -1.0),
+            ("health_value", -1.0),
+            ("force_arc", 1.0),
+            ("ammo_value", 1.0),
+            ("weapon_value", 0.0),
+        ] {
+            let (before, after) = (find(&base, id), find(&placed, id));
+            assert_eq!(after.offset.x - before.offset.x, side * 100.0, "{id}");
+            assert!((before.offset_fraction.y - after.offset_fraction.y - 0.1).abs() < 1e-6);
+        }
+        for id in ["crosshair", "match_timer", "lagometer"] {
+            assert_eq!(find(&base, id), find(&placed, id), "{id}");
+        }
+        assert_eq!(
+            super::place_radial(&base, super::RadialPlacement::default()),
+            base
+        );
+        for id in super::RADIAL_STATUS {
+            assert!(base.widgets.iter().any(|widget| widget.id == id), "{id}");
         }
     }
 }

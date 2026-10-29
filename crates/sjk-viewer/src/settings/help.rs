@@ -501,6 +501,14 @@ const HELP: &[(&str, &str)] = &[
         "Shows the HUD; off hides it, for screenshots and recordings.",
     ),
     ("cg_hudScale", "Size of the HUD: higher is larger."),
+    (
+        crate::hud::RadialPlacement::SPREAD_CVAR,
+        "SJK radial HUD only: moves the health and armour meters left and the Force and ammo meters right, farther from your character.",
+    ),
+    (
+        crate::hud::RadialPlacement::HEIGHT_CVAR,
+        "SJK radial HUD only: moves its meters up (higher numbers) or down (below zero) on the screen.",
+    ),
     ("cg_drawStatus", "Health, armor and Force on the HUD."),
     (
         "cg_drawWeapon",

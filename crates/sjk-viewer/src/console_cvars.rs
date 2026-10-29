@@ -344,6 +344,18 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "Size multiplier for the HUD (0.25 to 2)",
         ),
         CvarDefinition::new(
+            crate::hud::RadialPlacement::SPREAD_CVAR,
+            0.0_f64,
+            archive,
+            "SJK radial HUD: how much farther from the crosshair its meters sit on each side, in HUD pixels (0 to 250)",
+        ),
+        CvarDefinition::new(
+            crate::hud::RadialPlacement::HEIGHT_CVAR,
+            0.0_f64,
+            archive,
+            "SJK radial HUD: how much higher its meters sit, in per cent of the screen (-20 lower to 40 higher)",
+        ),
+        CvarDefinition::new(
             "cg_thirdPersonRange",
             80.0,
             archive,

@@ -2031,6 +2031,8 @@ impl GpuState {
         // JoF EJK's Force wheel (the retail icon bar) with the retail-looking HUDs.
         self.hud
             .set_force_wheel_bar(hud_style != menu_hud::HudStyle::Radial);
+        self.hud
+            .set_radial_placement(hud::RadialPlacement::read(self.console.as_ref()));
         let hud_layout = self.hud.layout(
             hud_font,
             match hud_style {
