@@ -9,6 +9,12 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 29/10/2026 | - | Monitor: a Screen Saver after 5 hits, with Payback and Power Surge
+- b6b2ecd |  | Monitor: a Screen Saver after 5 hits, with Payback and Power Surge
++ 29/10/2026 | - | Saber cost shot: the Sun swinging, with its extras and part by part, at 4K
+- e2823e9 |  | Saber cost shot: the Sun swinging, with its extras and part by part, at 4K
++ 29/10/2026 | - | Credits history: the High DPI merge's entry
+- 9d9ac2b |  | Credits history: the High DPI merge's entry
 + 29/10/2026 | - | High DPI: on a Mac, window sizes and the world count points
 - c4d8954 |  | High DPI: on a Mac, window sizes and the world count points
 + 29/10/2026 | - | Banana peel toy: drop peels; opted-in players who walk onto one slip
@@ -17,6 +23,8 @@
 - 86da73f |  | Cards docs: the hub keeps and changes its cards live (29/10/2026)
 + 29/10/2026 | - | Fullscreen keeps the screen's size: r_resolution only sizes a window
 - 6fdcb81 |  | Fullscreen keeps the screen's size: r_resolution only sizes a window
++ 29/10/2026 | - | Mystery boxes: shards, a free roll and the Mystery blade; no more weapons
+- 93763ae |  | Mystery boxes: shards, a free roll and the Mystery blade; no more weapons
 + 29/10/2026 | - | Holocron limit resets at 9:00 Paris time; countdown from the hub
 - c24a65c |  | Holocron limit resets at 9:00 Paris time; countdown from the hub
 + 29/10/2026 | - | Staff tick: a silver starburst of sixteen points
