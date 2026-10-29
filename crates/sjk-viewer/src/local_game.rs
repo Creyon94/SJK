@@ -55,7 +55,8 @@ impl crate::GpuState {
                 .console
                 .as_ref()
                 .and_then(|console| console.integer_cvar(name))
-                .filter(|regen| *regen > 0)
+                // 0 is a pace too: it refills every millisecond (`Q_max(..., 1)`).
+                .filter(|regen| *regen >= 0)
             {
                 arguments.extend(["--set".into(), name.into(), regen.to_string().into()]);
             }
