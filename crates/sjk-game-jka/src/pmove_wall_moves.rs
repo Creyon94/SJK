@@ -168,6 +168,78 @@ impl JumpRules {
     }
 }
 
+#[cfg(test)]
+mod definition_tests {
+    use super::*;
+    use crate::pmove::{MovementConfig, MovementTrace};
+    use crate::pmove_anim::{AnimationLengthTable, AnimationTiming};
+    use crate::saber_info::{SaberInfo, Sabers};
+    use std::sync::Arc;
+    struct Void;
+    impl MovementCollision for Void {
+        fn trace(
+            &self,
+            _: [f32; 3],
+            _: [f32; 3],
+            _: [f32; 3],
+            end: [f32; 3],
+            _: u32,
+        ) -> MovementTrace {
+            MovementTrace::miss(end)
+        }
+    }
+    #[test]
+    fn client_saber_definitions_reach_committed_and_cloned_moves() {
+        for step in [8, 7, 4, 3] {
+            for authoritative in [false, true] {
+                let mut predictor = Predictor::from_state(
+                    MovementState {
+                        health: 100,
+                        weapon: WP_SABER,
+                        gravity: 800.0,
+                        force_jump_flip: true,
+                        ground_entity_number: ENTITY_NUMBER_NONE,
+                        ..MovementState::default()
+                    },
+                    MovementConfig {
+                        authoritative,
+                        saber_definitions: Some(Sabers {
+                            first: Some(SaberInfo {
+                                flags: SFL_NO_FLIPS,
+                                ..SaberInfo::STOCK
+                            }),
+                            second: None,
+                        }),
+                        ..MovementConfig::default()
+                    },
+                );
+                predictor.set_animation_lengths(Arc::new(AnimationLengthTable::new(vec![
+                        AnimationTiming {
+                            frame_count: 20,
+                            frame_lerp_ms: 50
+                        };
+                        1_400
+                    ])));
+                for mut prediction in [predictor.clone(), predictor] {
+                    prediction.predict_command(
+                        UserCommand {
+                            server_time: step,
+                            forward_move: 127,
+                            weapon: WP_SABER,
+                            ..UserCommand::default()
+                        },
+                        &Void,
+                    );
+                    assert_eq!(
+                        prediction.state().legs_anim,
+                        if authoritative { 1_163 } else { 1_152 }
+                    );
+                }
+            }
+        }
+    }
+}
+
 /// `AngleVectors` of `(0, yaw, 0)`: the flat forward and right axes.
 fn yaw_axes(yaw: f32) -> (Vec3, Vec3) {
     super::flight::flight_axes([0.0, yaw, 0.0])

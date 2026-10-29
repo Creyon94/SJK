@@ -15,7 +15,7 @@ use sjk_bsp::{Bsp, TraceScratch};
 use sjk_client::pmove::{MovementConfig, MovementState, Predictor};
 use sjk_client::{
     AnimationLengthTable, AnimationLengths, EF_TELEPORT_BIT, PredictionErrorDecay,
-    legacy_saber_hands, legacy_saber_movement,
+    legacy_saber_combat, legacy_saber_hands, legacy_saber_movement,
 };
 use sjk_model::AnimationConfig;
 use sjk_protocol::{GameState, Snapshot, UserCommand};
@@ -176,6 +176,7 @@ impl LocalPrediction {
             movement_config.saber_speed_scales = scales;
             movement_config.saber_anim_speed_scales = anim_scales;
             movement_config.saber_hands = Some(legacy_saber_hands(vfs, game_state, client));
+            movement_config.saber_definitions = Some(legacy_saber_combat(vfs, game_state, client));
         }
         let predictor = snapshot.and_then(|snapshot| {
             (predicts_local_view(snapshot.player.movement_flags())
@@ -333,6 +334,7 @@ impl LocalPrediction {
         self.movement_config.saber_speed_scales = scales;
         self.movement_config.saber_anim_speed_scales = anim_scales;
         self.movement_config.saber_hands = Some(legacy_saber_hands(vfs, game, client));
+        self.movement_config.saber_definitions = Some(legacy_saber_combat(vfs, game, client));
         for predictor in self.predictor.iter_mut().chain(self.preview.iter_mut()) {
             predictor.set_config(self.movement_config);
         }

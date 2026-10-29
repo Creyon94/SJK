@@ -213,6 +213,9 @@ pub struct MovementConfig {
     /// What a client knows of the sabers it holds, to work out `fd.saberAnimLevelBase` for each
     /// command ([`saber_base`]); `None` leaves the state's base alone, as a server does.
     pub saber_hands: Option<saber_base::SaberHands>,
+    /// Locally loaded saber movement definitions, refreshed with clientinfo.
+    /// `None` leaves the caller's context alone; authoritative moves always use it.
+    pub saber_definitions: Option<crate::saber_info::Sabers>,
     /// Whose `Pmove` this is. A client's prediction (`false`, the default) also does
     /// what `CG_PredictPlayerState` does around it; a server's simulation (`true`) is
     /// the bare `Pmove` that `ClientThink_real` calls.
@@ -243,6 +246,7 @@ impl Default for MovementConfig {
             saber_speed_scales: [1.0; 2],
             saber_anim_speed_scales: [1.0; 2],
             saber_hands: None,
+            saber_definitions: None,
             authoritative: false,
             // The reference server's cvar defaults: every fix on.
             legacy_fixes: 0b111,
@@ -1168,6 +1172,11 @@ impl Predictor {
                 context.gametype
             } else {
                 i32::from(self.config.roll_rules.gametype)
+            },
+            sabers: if self.config.authoritative {
+                context.sabers
+            } else {
+                self.config.saber_definitions.unwrap_or(context.sabers)
             },
             ..*context
         };
