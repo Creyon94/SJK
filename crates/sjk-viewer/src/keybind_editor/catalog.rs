@@ -209,6 +209,8 @@ pub(crate) const ACTIONS: &[BindableAction] = &[
     action(Other, "Whisper to crosshair player", "messagemode3", "u"),
     action(Other, "Whisper to last attacker", "messagemode4", ""),
     action(Other, "SJK chat", "messagemode5", "i"),
+    // SJK: admin chat (`amsay`, JA+ and jaPRO); no key by default.
+    action(Other, "Admin chat", "messagemode6", ""),
     // SJK: the SJK chat page, big, in a game or not; the wheel of favourite GIFs.
     action(Other, "SJK chat page", "sjkchat", ""),
     action(Other, "GIF wheel (hold)", "+gifwheel", ""),
