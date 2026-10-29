@@ -392,6 +392,25 @@ impl ChatOverlay {
                 .any(|name| chat_body(text, name).0.len() < text.len())
     }
 
+    /// Whether server chat `text` (from `sender`, when the server named one) comes from
+    /// a player blocked on this PC, decided as the chat box decides it: the console
+    /// leaves the line out too (hub report #191, 28/10/2026: a blocked player's name
+    /// and messages still showed there).
+    pub(crate) fn sent_by_muted(&self, text: &str, sender: Option<u16>) -> bool {
+        if self.muted_slots == 0 {
+            return false;
+        }
+        let display = chat_display_text(&chat_unescape(text));
+        match self
+            .roster
+            .target(sender)
+            .or_else(|| self.line_sender(&display))
+        {
+            Some(target) => self.slot_muted(target),
+            None => self.prefix_muted(&display),
+        }
+    }
+
     /// Chat lines each client slot has sent: a counter that only grows (and wraps).
     pub(crate) fn spoken(&self) -> &[u32; 32] {
         &self.spoken

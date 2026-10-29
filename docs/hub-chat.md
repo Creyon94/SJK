@@ -897,7 +897,13 @@ and plays changes. The code still says "mute" (`chat_mutes.rs`, `muted_players.r
   keys' line (six at most; a line says how many more `block` lists).
 - **What blocking does:** their SJK chat lines are hidden (the page shows "Blocked on this
   PC", the dock leaves them out, the game's feed hides them as ignored lines are) and so
-  are their game chat lines once they are matched to a slot. While they are on the
+  are their game chat lines once they are matched to a slot, in the chat box and in the
+  console, whose scrollback and alert words (`con_notifywords`) leave them out as the
+  chat box does (`ChatOverlay::sent_by_muted`, after bleck-bee's and Kushina's hub report
+  #191: the line was hidden in the chat box but showed in the console; the chat log
+  `cl_logchat` still keeps it), and the console's kill lines name them BLOCKED as the
+  kill feed does. Lines the server writes itself (a join, JA+'s "has defeated") come as
+  finished text and keep the name the server put in them. While they are on the
   server, their model is drawn as `kyle/default` (Kyle's red or blue skin when a team
   game colours the teams, so the teams still show), each saber they hold or throw as
   `single_1` in the default blue (`color1` 4), with no hat or cape; a body they leave
@@ -960,7 +966,7 @@ and plays changes. The code still says "mute" (`chat_mutes.rs`, `muted_players.r
 Since 26/10/2026 (Sol's request: "temporary, on the current map, synced between players
 ... only staff members can do the sync thing, everyone else it's personal"), a player can
 be blocked until the server's map changes, as the block above does it (Kyle, silent, no
-chat or emotes, named BLOCKED), with nothing written to `chat-mutes.txt`
+chat, encrypted whispers or emotes, named BLOCKED), with nothing written to `chat-mutes.txt`
 ([map_blocks.rs](../crates/sjk-viewer/src/map_blocks.rs)). It works for any player of
 the server, an SJK player or not.
 
@@ -1076,7 +1082,7 @@ the server, an SJK player or not.
   ([Emotes on stock models](rig-models.md#emotes-on-stock-models)); the `sound` plays
   on the player (`emotes::Cue`, channel 13,
   following another player, in both ears for the player's own, at `s_emoteVolume`
-  apart from `s_volume`)
+  apart from `s_volume`, live while it plays)
   and stops when the emote is cut short; the `torso` and `legs` animations are not
   played yet, and a received emote is written to the console (`* Sol: Wave`). Demos
   keep the emotes started on them.
@@ -1089,7 +1095,12 @@ the server, an SJK player or not.
   dance left running on purpose, whose music going quiet stopped it for everyone; since
   20/10/2026, hub report #107), unless they are away already. Going away, an emote the player plays goes quiet for everyone: the client
   posts `quiet` and each client stops its music (`ActiveEmotes::set_quiet`) while it
-  keeps time, so `loud`, posted on the way back, plays it again from where it would be.
+  keeps time, so `loud`, posted on the way back, plays it again from where it would be:
+  in a synced group, at the very sample the leader's music plays, or another
+  follower's when the leader is the one back or away too (`ActiveEmotes::in_step_with`;
+  since 29/10/2026, hub report #195: a leader back from alt-tab came in from the clock
+  alone, a few milliseconds off the followers, and the group sounded doubled until the
+  loop came round).
   Alt-tabbing out or minimising always does this to an emote playing, whatever
   `cg_awayAltTab` says (Sol's rule, 23/10/2026, `away_emote::alt_tab_quiets`): the
   setting only decides whether alt-tabbing with no emote playing starts the away emote
@@ -1100,14 +1111,18 @@ the server, an SJK player or not.
   hips, wait, surrender and Neo ones, which hold the player until they crouch), sent to
   the server; on the way back, while it still holds the player (`PM_FREEZE`), the
   commands crouch until it lets go, for a second at most (`away_emote::shape_command`;
-  sending it again does not end it); else the looping SJK emote of `cg_awayEmote` (Away emote, any
+  sending it again does not end it). Else (off a JA+ server, or on one with
+  `japlus.awayEmote none`) the looping SJK emote of `cg_awayEmote` (Away emote, any
   looping emote that is not `local`), posted with `quiet` so no client plays its
   music, and stopped (`stop`) on the way back unless it already ended. The hub takes
   one emote every 2 seconds from a key, so a post waits for its turn
   (`player_identity::emote_ready`); one still waiting when the player comes back was
   never seen, and neither it nor its undoing is sent. A hub from before 19/10/2026
   refuses `quiet` in a post: the emote goes again with its sound. The settings list
-  the installed emotes as they are when the page shows (`ValueKind::Live`).
+  the installed emotes as they are when the page shows (`ValueKind::Live`). A JA+ emote
+  that already holds the player when they go away (one they chose, `amsit5` or
+  `ammeditate`) is left alone: neither away emote goes over it and no crouch follows,
+  which got them up (hub report #196, `Away::turn`'s `held`).
 - The quick wheel's editor lists the installed emotes under Emotes. An emote's `icon`
   is decoded when the catalogue loads and put into the UI atlas's emote cells
   (`emote_icons.rs`, 128 of them): a wheel choice that runs `sjkemote <id>` wears it,

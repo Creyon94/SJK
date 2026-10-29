@@ -164,12 +164,15 @@ fn format_obituary(
     use std::fmt::Write as _;
     // Names come from the configstring's bytes: a name with a Latin-1 letter is
     // not UTF-8, and reading the whole string as UTF-8 printed it as `noname`.
+    // A blocked player's name reads BLOCKED here as in the kill feed (hub report #191).
     let target = sjk_client::obituary_name(game, event.target);
+    let target = crate::muted_players::label(event.target, &target);
     let key = event.attacker_message.unwrap_or(event.message);
     let phrase = localization.strings.get(key).map_or(key, String::as_str);
     let mut line = String::with_capacity(128);
     if event.attacker_message.is_some() {
         let attacker = sjk_client::obituary_name(game, event.attacker);
+        let attacker = crate::muted_players::label(event.attacker, &attacker);
         let _ = write!(line, "{target}^7 {phrase} {attacker}^7");
     } else {
         let _ = write!(line, "{target}^7 {phrase}");
@@ -601,6 +604,19 @@ mod tests {
             format_obituary(fall, &game, &Localization::default()),
             "^1Red^7 SUICIDE_FALLDEATH_MALE"
         );
+    }
+
+    /// A blocked player's name reads BLOCKED in the console's kill lines, as in the
+    /// kill feed (hub report #191). Slot 30, which no other test names.
+    #[test]
+    fn a_blocked_players_name_reads_blocked_in_the_console() {
+        let game = players(&[(30, b"\\n\\Toxic\\t\\0"), (1, b"\\n\\Sol\\t\\0")]);
+        crate::muted_players::set_shown(1 << 30);
+        let killed = format_obituary(kill(30, 1, "KILLED_SABER"), &game, &Localization::default());
+        let killer = format_obituary(kill(1, 30, "KILLED_SABER"), &game, &Localization::default());
+        crate::muted_players::set_shown(0);
+        assert_eq!(killed, "BLOCKED^7 KILLED_SABER Sol^7");
+        assert_eq!(killer, "Sol^7 KILLED_SABER BLOCKED^7");
     }
 
     #[test]

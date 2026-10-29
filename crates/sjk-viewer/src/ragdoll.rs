@@ -828,11 +828,13 @@ impl GpuState {
         self.ragdoll.spared = spared.is_some() || self.hax.busy();
         let now = self.ragdoll.time;
         // The relay's events: a sender counts only when the game shows the name they
-        // claimed, and never one blocked on this PC.
+        // claimed, and never one blocked on this PC, nor anyone's while the player hides
+        // other players' falls (Collection > Toys).
+        let seen = crate::toy_sight::seen(self.console.as_ref(), crate::toy_sight::RAGDOLL);
         let heard: Vec<(u8, Event)> = relay_events
             .iter()
             .filter(|event| {
-                event.toy == TOY
+                seen && event.toy == TOY
                     && Some(event.slot) != own
                     && usize::from(event.slot) < SLOTS
                     && !self.muted_players.contains(u16::from(event.slot))

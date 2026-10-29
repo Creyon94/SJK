@@ -1665,19 +1665,24 @@ for the run.
   the toy is on, Enter or a click runs it (the `toy_illuminate`, `toy_box`,
   `toy_order66`, `toy_hax`, `toy_ragdoll`, `toy_drone`, `toy_boombox` or `toy_monitor`
   toggle, set to the state wanted;
-  the viewer owns the state, the console mirrors it each frame). The keys line says
+  the viewer owns the state, the console mirrors it each frame). Under it, for a toy other
+  players are seen with, a second, smaller switch, "See others' holocrons", "See others'
+  boxes", "See others fall limp", "See others' drones", "See and hear others' boomboxes"
+  or "See monitors" (29/10/2026): off, theirs are hidden on this PC
+  ([client.md](client.md#illuminate), the toys' table). The keys line says
   "Enter: light" or "Enter: put out", "Enter: hide" or "Enter: come out", "Enter: turn
   on" or "Enter: turn off", "Enter: play" or "Enter: put away", and "K: bind a key" (while a key waits: "Esc: cancel", "Backspace: clear the
   key"). Hovering Order 66's row shows how to turn it on and that `order66` executes it;
   the Hax's, how to turn it on and that `+use` held on a holder hacks them.
 - **Nameplates:** none exist yet. "No nameplates yet"; three empty places, dashed, each
-  with a drawing of where its kind will go on the capsule: Crest (before the name),
+  with a drawing of where its kind will go on the plate: Crest (before the name),
   Frame (round the plate), Trail (under the plate). Over the model's head (projected
   from the stage model's head with the last frame's view, `GpuState::frame_view`; over
   the preview's head without a stage) the player's nameplate as a match draws it near
-  (since 28/10/2026 the capsule, [client.md](client.md#nameplates)): their picture (or
-  their initial on their colour), the name in its colours and, while See & share
-  nameplates is on, the gold edge and the tray of shield, health and Force bars, with
+  (since 28/10/2026 the holo frame, [client.md](client.md#nameplates), drawn with the
+  match's layout at twice its size): their picture (or their initial on their colour) in
+  the hexagon, the name in its colours and, while See & share nameplates is on, the gold
+  corner and the shield, health and Force bars (else the dotted line), with
   dashed marks at the three places (the crest's between the picture and the name).
   Its words stand on a dark card beside the model (x 1360 to 1824, its foot at y 990,
   as tall as they need, since 25/10/2026). Under them, **See & share nameplates** (a switch; a click or Enter flips
@@ -2104,8 +2109,9 @@ are not drawn and take no input. The same look in every menu style, on the 16:9 
   map loads again, on a server without leaving it.
 - **Foot:** the kit's tick and "Don't suggest this again" at the left; Not now
   (outlined, 150) and Use Vanilla graphics (gold, 260; Turn Vanilla graphics off when on) at
-  the right; keys bottom right: D don't suggest, Esc not now, Enter use Vanilla (turn
-  off). "EJK graphics" was the name until 12/10/2026.
+  the right; keys bottom right: Esc not now, Enter use Vanilla (turn off). The tick
+  takes a click only, and Space does nothing (a jump took the offer, hub report #194,
+  29/10/2026); no key or click counts for 0.6 s after the card opens. "EJK graphics" was the name until 12/10/2026.
 
 ## Alpha notice
 
@@ -2263,7 +2269,13 @@ every menu style, on the 16:9 frame:
   in a gold ring, their name in its colours, "Nib wants to trade" (Rajdhani 24) with the request's seconds in gold, a muted
   line, a thin gold bar running down smoothly (to the fraction of a second, not in steps),
   and the key: Esc answer (or Esc open), 40 above the card's foot, clear of the bar. It also tells
-  for six seconds how a trade ended, or why a request was refused.
+  for six seconds how a trade ended, or why a request was refused. What the window and
+  the toast already said goes on to the next map's world with the shell: a world that
+  began without it took the hub's last refusal for a new one and showed it again at every
+  map change (Creyon's screenshot, 26/10/2026: "Two accounts on one connection cannot
+  trade with each other." over a loading screen). The game menu does not go on, so the
+  window no longer counts as having opened it; after a map change a running trade's
+  window comes back with Esc, and its Close leaves the menu the player opened.
 - **Reaching it in game:** the pointer is free only in the menus, so the window shows
   over the game menu: Esc in play opens it while a trade runs; Esc in it shows the game
   menu under it (the trade goes on, the toast at the top says so) and Esc there goes back
@@ -2331,6 +2343,12 @@ every menu style, on the 16:9 frame:
   trade says so under its name: "Received from Nib in a trade", and while the hub's lock
   runs "- tradable again in 6d 23h" (no countdown before the hub said how long).
 - **Ended:** "Traded with Nib" (or ended) and how, with Close, while the window was open.
+  The swap happens at the second confirmation, so only that player's answer from the hub
+  carries their new profile. The first to confirm learns of it from the trade list (the
+  feed's word, or the 15-second read): the list that first shows a trade done reads the
+  own profile and the holocron progress at once, so the holocrons and duplicates given
+  leave the collection, and those received arrive, without waiting for the ten-minute
+  profile read (Sol, in game, 25/10/2026).
 - **Cost:** the views are built only when what they show changes (a new list or step from
   the hub, the own profile, the players known) and the window's parts (the player's items,
   the limits) only while the window can show, under one short identity lock; between, only

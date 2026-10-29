@@ -132,6 +132,9 @@ impl ViewerConsole {
             PanelAction::SeeAndShare(on) => {
                 self.set_cvar("cg_nameplate", if on { "1" } else { "0" });
             }
+            PanelAction::ToySight { cvar, seen } => {
+                self.set_cvar(cvar, if seen { "1" } else { "0" });
+            }
             PanelAction::ShaderView(grid) => {
                 self.set_cvar(
                     super::collection_panel::SHADER_VIEW_CVAR,
@@ -374,6 +377,8 @@ impl ViewerConsole {
         } else {
             Vec::new()
         };
+        let toys_unseen =
+            super::collection_panel::toys_unseen(|cvar| crate::toy_sight::seen(Some(self), cvar));
         let options = self
             .text_cvar(crate::saber_skin_options::CVAR)
             .unwrap_or_default()
@@ -432,6 +437,7 @@ impl ViewerConsole {
                 pair,
                 share,
                 toy_keys: &toy_keys,
+                toys_unseen,
                 tag: &tag,
             };
             self.collection_panel.append_sjk(&inputs, target, viewport);
@@ -462,6 +468,7 @@ impl ViewerConsole {
             pair,
             share,
             toy_keys: &toy_keys,
+            toys_unseen,
             tag: &tag,
         };
         self.collection_panel.append_sjk(&inputs, target, viewport);

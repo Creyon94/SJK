@@ -17,6 +17,8 @@ mod force_templates;
 mod grid;
 pub(crate) mod icons;
 mod model_icons;
+mod model_rgb;
+pub(crate) use model_rgb::takes_entity_colour;
 mod numeric;
 mod part_icons;
 mod pointer;
@@ -192,6 +194,8 @@ pub(crate) struct PlayerMenu {
     /// the draft's model but wears this one until Apply ([`Self::apply_look`]).
     applied_model: String,
     applied_rgb: [u8; 3],
+    /// The stage's model and whether the player's colour shows on it (`model_rgb.rs`).
+    stage_tintable: Option<(String, bool)>,
     choice: Option<Choice>,
     /// Selected head, torso, legs and skin colour of the current species.
     variants: [usize; 4],
@@ -267,6 +271,7 @@ impl PlayerMenu {
             draft: Draft::default(),
             applied_model: "kyle/default".to_owned(),
             applied_rgb: [255; 3],
+            stage_tintable: None,
             choice: None,
             variants: [0; 4],
             selected: 0,

@@ -538,6 +538,14 @@ impl GpuState {
             }
             _ => 0,
         };
+        // Every other pilot's, when the player hides other players' drones
+        // (Collection > Toys); who peeks at them is still told.
+        let duel_hidden = if crate::toy_sight::seen(self.console.as_ref(), crate::toy_sight::DRONE)
+        {
+            duel_hidden
+        } else {
+            u64::MAX
+        };
         for slot in 0..SLOTS {
             let shown = self.drone.others[slot];
             if (own.is_some() && shown.flight == own) || duel_hidden & 1 << slot != 0 {

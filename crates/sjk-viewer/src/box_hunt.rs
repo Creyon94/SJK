@@ -1,6 +1,6 @@
-//! Box hunt, SJK's mystery box game (`toy_boxhunt`; Sol's design, 27/10/2026): every
-//! few minutes the SJK hub picks one player who has the toy on as the mark; another
-//! player with it on who kills the mark wins a free mystery box roll.
+//! Box hunt, SJK's mystery box game (`toy_boxhunt`; Sol's design, 27/10/2026): once
+//! every 10 minutes at most the SJK hub picks one player who has the toy on as the mark;
+//! another player with it on who kills the mark wins a free mystery box roll.
 //!
 //! - **Opt-in:** the switch (`toy_boxhunt`, the Collection's Toys tab, the key bindings)
 //!   is the consent to take part: only players with it on see the mark or can be it. It

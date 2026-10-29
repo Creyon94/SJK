@@ -391,7 +391,7 @@ includes:
 Creyon and Lumaya wear the SJK team's Contributor medal, shown on their
 cards of the in-game credits page.
 
-Creyon ([Creyon94](https://github.com/Creyon94)), contributor and tester, has 61
+Creyon ([Creyon94](https://github.com/Creyon94)), contributor and tester, has 66
 pull requests merged into SJK, most of them bringing SJK in line with EternalJK
 ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3ACreyon94)):
 
@@ -477,6 +477,16 @@ pull requests merged into SJK, most of them bringing SJK in line with EternalJK
   box while the server stands them up to talk (hub report #152);
 - #232 a limp body (Ragdoll toy) stays in sight from the free camera, which flies freely
   while limp;
+- #210 the first to confirm a trade sees the swap at once: the list that first shows it
+  done reads the profile and holocron progress;
+- #211 a trade refusal shown once, not again at every map change: the trade state goes on
+  to the next map's world;
+- #238 exclusive fullscreen minimises to the taskbar on Alt+Tab and Win+D, as SDL does in
+  OpenJK (hub report #131);
+- #239 a blocked player's chat stays out of the console as out of the chat box, and the
+  console's kill lines name them BLOCKED (hub report #191);
+- #269 Red, Green and Blue sliders in Profile > Character for a model that can be
+  coloured, shown on the stage at once, as JoF EJK's profile has them;
 - #102 a formatting fix that unblocked every pull request's checks.
 - the Saber ideas page, whose concepts became the Tidal, Circuit, Aurora, Echo, Nebula,
   Cinder, Venom, Sakura and Firefly blades, and the twelve that followed (Slate, Amber,
@@ -639,7 +649,7 @@ merged into SJK
 - #198 "Too many open files" after a long session: the Profile menu's model icons, cosmetics and
   Force templates let go of the previous map's game files (its PK3 reopening part held back).
 
-Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 46 pull requests merged
+Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 60 pull requests merged
 into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AJoFSlash)):
 
 - #114 Tab completes the cfg file argument of `exec`, `execq`, `writeconfig` and `write`
@@ -730,6 +740,30 @@ into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author
   the `jetpack` cheat gives or takes one.
 - #227 the credits page's section rail stays clear of Expand all: rows draw closer as
   sections are added, and past ten a still window with dots for the hidden ones.
+- #237 the site's top nav on one line on phones.
+- #242 a shader named twice in one script keeps its first definition, as rd-vanilla's
+  `FindShaderInShaderText`: oot's sand floor drawn lit again (hub reports #175, #177).
+- #234 Tab completes `sjkemote`'s emote ids, through a table of client commands whose
+  first argument completes.
+- #235 the world cleared to the map's global fog colour, as rd-vanilla clears: taspir1's
+  sky is its fog (hub reports #179, #180, #184).
+- #233 the emote volume reaches emotes already playing: the emote channel's gain is
+  `s_emoteVolume` (hub report #188).
+- #240 the Low FPS card chooses nothing on Space or D and takes no input for 0.6 s after
+  it opens (hub report #194).
+- #241 synced emote music back from alt-tab starts at the sample its group plays (hub
+  report #195).
+- #243 the hosted server refills Force at `g_forceRegenTime`, and in private duels at
+  EternalJK's `g_saberDuelForceRegenTime`, both handed to it at launch.
+- #244 going away leaves a JA+ emote the player chose alone, and `cg_debugEmoteEnd` to
+  catch what ends one (hub report #196).
+- #245 the light side's body fade glow blends as rd-vanilla's display-space
+  `GL_DST_COLOR GL_ONE` (hub report #190).
+- #246 the sun shadow receiver's position `@invariant` for its equal depth test, the
+  likely cause of floors flickering with light shafts (hub report #193).
+- #256 the chat card's Block for this map and Block for all buttons take their click.
+- #257 the mod notice takes no input for 0.6 s after it opens, and Space no longer closes it.
+- #258 encrypted whispers from a player blocked for the map or by staff stay out.
 
 His Peek work in #199 (closed 24/10/2026, not merged) shaped the Drone toy: a player is
 asked before being peeked, told who watches, and can end it. His #206 (closed 25/10/2026,

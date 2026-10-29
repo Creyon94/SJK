@@ -49,9 +49,11 @@ const HUNT_MARK: &str = "sound/effects/mpalarm.wav";
 const BLAST_SOUND: &str = "sound/weapons/detpack/explode.mp3";
 const BLAST_EFFECT: &str = "detpack/explosion";
 /// Played to every hunter when a box blows up and its price goes to one of them: a
-/// ghost having fun, after Call of Duty zombies (Sol, 28/10/2026). A retail gloat until
-/// Sol's own laugh is bundled.
-const LAUGH: &str = "sound/chars/alora/misc/gloat1.mp3";
+/// ghost having fun, after Call of Duty zombies (Sol, 28/10/2026). Sol's laugh of
+/// 29/10/2026, in the optional SJK extras pack (`unofficial_sjk_extras.pk3`, the Sith
+/// cloud's `extras`); without the pack, [`LAUGH_FALLBACK`], a retail gloat.
+const LAUGH: &str = "sound/sjk/mystery_box/laugh.mp3";
+const LAUGH_FALLBACK: &str = "sound/chars/alora/misc/gloat1.mp3";
 /// How hard a box that blows up flings its opener, units a second: up, and away from
 /// the box.
 const BLAST_UP: f32 = 900.0;
@@ -79,20 +81,58 @@ const ASK_TIMEOUT: Duration = Duration::from_secs(10);
 /// Farthest a box `mysterybox_remove` takes without an id may stand.
 const REMOVE_REACH: f32 = 256.0;
 
-/// A thing the roll shows: a model and how much it is grown to read at a box's size.
+/// A thing the roll shows: a model and how much it is grown to read at a box's size,
+/// or a tier's holocron, every part of its form (`crate::holocrons::stage::FORMS`, by
+/// slot) posed as the Holocrons tab poses it.
 #[derive(Clone, Copy, Debug, PartialEq)]
 struct Item {
     model: &'static str,
     scale: f32,
+    form: Option<usize>,
 }
 
 const fn item(model: &'static str, scale: f32) -> Item {
-    Item { model, scale }
+    Item {
+        model,
+        scale,
+        form: None,
+    }
 }
+
+/// Tier `slot`'s holocron (0 Uncommon to 3 Mythical), grown by `scale`.
+const fn holocron(slot: usize, scale: f32) -> Item {
+    Item {
+        model: FORMS[slot].parts[0].model,
+        scale,
+        form: Some(slot),
+    }
+}
+
+use crate::holocrons::stage::FORMS;
+
+impl Item {
+    /// The models it is drawn with.
+    fn models(self) -> impl Iterator<Item = &'static str> {
+        let parts = self.form.map_or(&[][..], |slot| FORMS[slot].parts);
+        std::iter::once(self.model)
+            .filter(move |_| parts.is_empty())
+            .chain(parts.iter().map(|part| part.model))
+    }
+}
+
+/// The four tiers' holocrons as the roll shows them (Sol, 29/10/2026: the real ones, not
+/// one for all), each about the Illuminate holocron's size over the box.
+const HOLOCRONS: [Item; 4] = [
+    holocron(0, 2.0),
+    holocron(1, 2.3),
+    holocron(2, 2.0),
+    holocron(3, 1.8),
+];
 
 /// What the roll stops on, by outcome: bolts (empty), a blue crystal (refund), a green
 /// one (double), a red one (jackpot), a thermal detonator (it blows up) and SJK's
-/// holocron (a holocron).
+/// holocron (a holocron of a tier not told: another player's; the opener's stops on its
+/// tier's, [`HOLOCRONS`]).
 const PRIZES: [Item; 6] = [
     item("models/items/metallic_bolts.md3", 1.5),
     item("models/map_objects/mp/crystal_blue.md3", 0.8),
@@ -103,8 +143,8 @@ const PRIZES: [Item; 6] = [
 ];
 
 /// What rolls over an opened box before it stops: the game's weapons and the prizes
-/// (the thermal detonator is among the weapons).
-const REEL: [Item; 17] = [
+/// (the thermal detonator is among the weapons), the four tiers' holocrons among them.
+const REEL: [Item; 20] = [
     item("models/weapons2/blaster_pistol/blaster_pistol.md3", 2.0),
     item("models/weapons2/blaster_r/blaster.md3", 0.9),
     item("models/weapons2/bowcaster/bowcaster.md3", 1.2),
@@ -121,28 +161,52 @@ const REEL: [Item; 17] = [
     PRIZES[1],
     PRIZES[2],
     PRIZES[3],
-    PRIZES[5],
+    HOLOCRONS[0],
+    HOLOCRONS[1],
+    HOLOCRONS[2],
+    HOLOCRONS[3],
 ];
 
-/// The prize the roll stops on for `outcome`; a newer hub's outcome by whether it pays.
-fn prize(outcome: &str, pays: bool) -> Item {
+/// The prize the roll stops on for `outcome` (a holocron of `tier`, when the player
+/// knows it); a newer hub's outcome by whether it pays.
+fn prize(outcome: &str, pays: bool, tier: Option<&str>) -> Item {
     match outcome {
         "empty" => PRIZES[0],
         "refund" => PRIZES[1],
         "double" => PRIZES[2],
         "jackpot" => PRIZES[3],
         wire::EXPLODE => PRIZES[4],
-        wire::HOLOCRON => PRIZES[5],
+        wire::HOLOCRON => tier
+            .and_then(|tier| {
+                FORMS[..HOLOCRONS.len()]
+                    .iter()
+                    .position(|form| form.id == tier)
+            })
+            .map_or(PRIZES[5], |slot| HOLOCRONS[slot]),
         _ if pays => PRIZES[2],
         _ => PRIZES[0],
     }
 }
 
 /// Every model the boxes draw: the box, its lid, then [`REEL`] (which holds the prizes).
+/// Each once: a holocron's motes share a model, and the prizes roll too.
 fn models() -> impl Iterator<Item = &'static str> {
-    [MODEL, LID_MODEL]
-        .into_iter()
-        .chain(REEL.iter().map(|item| item.model))
+    static MODELS: std::sync::OnceLock<Vec<&'static str>> = std::sync::OnceLock::new();
+    MODELS
+        .get_or_init(|| {
+            let mut models: Vec<&'static str> = Vec::new();
+            let every = [MODEL, LID_MODEL]
+                .into_iter()
+                .chain(PRIZES.iter().chain(&REEL).flat_map(|item| item.models()));
+            for model in every {
+                if !models.contains(&model) {
+                    models.push(model);
+                }
+            }
+            models
+        })
+        .iter()
+        .copied()
 }
 
 /// The creator's console commands, with their help.
@@ -381,6 +445,9 @@ pub(crate) struct MysteryBoxes {
     free: u64,
     hunt: hunt::Hunt,
     labels: label::Labels,
+    /// A world shot's boxes, kept without a session.
+    #[cfg(test)]
+    shot: bool,
 }
 
 impl MysteryBoxes {
@@ -477,10 +544,11 @@ impl MysteryBoxes {
             return;
         };
         let pays = outcome != "empty" && mine.as_ref().is_none_or(|prize| prize.won > 0);
+        let tier = mine.as_ref().and_then(|prize| prize.holocron.as_deref());
         here.opening = Some(Opening {
             started: now,
             outcome: outcome.to_owned(),
-            prize: prize(outcome, pays),
+            prize: prize(outcome, pays, tier),
             seed,
             mine,
             opener,
@@ -714,7 +782,26 @@ impl GpuState {
     /// The frame's mystery box logic, after the looks: the boxes of the loaded map,
     /// the hub's answers, a `+use` press, the hint and other players' openings
     /// (`events`, this server's toy events).
+    /// Find the boxes' models among the loaded ones, when more have loaded.
+    fn find_mystery_box_meshes(&mut self) {
+        if self.mystery_boxes.meshes_seen != self.object_meshes.len() {
+            self.mystery_boxes.meshes_seen = self.object_meshes.len();
+            self.mystery_boxes.meshes = models()
+                .map(|model| {
+                    self.object_meshes.iter().position(|mesh| {
+                        mesh.appearance.variant.is_empty() && mesh.appearance.model == model
+                    })
+                })
+                .collect();
+        }
+    }
+
     pub(crate) fn update_mystery_boxes(&mut self, events: &[sjk_identity::ToyEvent]) {
+        #[cfg(test)]
+        if self.mystery_boxes.shot {
+            self.find_mystery_box_meshes();
+            return;
+        }
         let now = Instant::now();
         self.read_mystery_box_answer(now);
         let Some(session) = self
@@ -766,16 +853,7 @@ impl GpuState {
                 .take(&boxes, &map, checksum, Some(&server));
             self.mystery_boxes.taken = Some((revision, map, checksum, Some(server.clone())));
         }
-        if self.mystery_boxes.meshes_seen != self.object_meshes.len() {
-            self.mystery_boxes.meshes_seen = self.object_meshes.len();
-            self.mystery_boxes.meshes = models()
-                .map(|model| {
-                    self.object_meshes.iter().position(|mesh| {
-                        mesh.appearance.variant.is_empty() && mesh.appearance.model == model
-                    })
-                })
-                .collect();
-        }
+        self.find_mystery_box_meshes();
         for moment in self.mystery_boxes.tick(now) {
             self.mystery_box_moment(moment);
         }
@@ -1112,11 +1190,28 @@ Press Use to take it"
                 continue;
             };
             let item = opening.showing(elapsed);
+            let (height, yaw) = float(elapsed, here.yaw);
+            let rotation = sjk_client::legacy_angles_to_quaternion([0.0, yaw, 0.0]);
+            // A holocron: each part of its form about its own centre, moving as it does.
+            if let Some(slot) = item.form {
+                let turn = Quat::from_array(rotation);
+                let centre = here.origin + Vec3::Z * height;
+                for part in FORMS[slot].parts {
+                    let Some(mesh) = boxes.mesh_of(part.model) else {
+                        continue;
+                    };
+                    let (at, turned) = part.pose(elapsed.as_secs_f32());
+                    self.object_groups[mesh].push(ActorInstance::new(
+                        (centre + turn * (at * item.scale)).to_array(),
+                        (turn * turned).to_array(),
+                        [item.scale; 3],
+                    ));
+                }
+                continue;
+            }
             let Some(mesh) = boxes.mesh_of(item.model) else {
                 continue;
             };
-            let (height, yaw) = float(elapsed, here.yaw);
-            let rotation = sjk_client::legacy_angles_to_quaternion([0.0, yaw, 0.0]);
             // The model's own centre over the box, whatever its origin.
             let centre = Vec3::from_array(self.object_meshes[mesh].center) * item.scale;
             let origin = here.origin + Vec3::Z * height - Quat::from_array(rotation) * centre;
@@ -1172,14 +1267,21 @@ Press Use to take it"
                     HUNT_MARK,
                     BLAST_SOUND,
                     LAUGH,
+                    LAUGH_FALLBACK,
                 ],
             );
             self.mystery_boxes.sounds_registered = Some(audio.generation());
         }
         for cue in self.mystery_boxes.cues.drain(..) {
+            // The laugh is the extras pack's: without it, the retail gloat.
+            let path = if cue.path == LAUGH && !audio.has_sound(LAUGH) {
+                LAUGH_FALLBACK
+            } else {
+                cue.path
+            };
             audio.play_toy(
                 crate::toy_sounds::Toy::MysteryBox,
-                cue.path,
+                path,
                 1.0,
                 cue.origin,
                 cue.source,
@@ -1190,6 +1292,43 @@ Press Use to take it"
         }
     }
 }
+
+#[cfg(test)]
+impl GpuState {
+    /// For the world shots: a box at each of `boxes` (origin and yaw), opened `since` ago
+    /// on a holocron of tier `n % 4` for the `n`th: the roll shows its tier's holocron once
+    /// `since` passes the roll.
+    pub(crate) fn shot_mystery_boxes(&mut self, boxes: &[([f32; 3], f32)], since: Duration) {
+        let started = Instant::now() - since;
+        self.mystery_boxes.shot = true;
+        self.mystery_boxes.here = boxes
+            .iter()
+            .enumerate()
+            .map(|(index, (origin, yaw))| Here {
+                id: index as i64 + 1,
+                origin: Vec3::from_array(*origin),
+                yaw: *yaw,
+                opening: Some(Opening {
+                    started,
+                    outcome: wire::HOLOCRON.to_owned(),
+                    prize: HOLOCRONS[index % HOLOCRONS.len()],
+                    seed: index as u32,
+                    mine: None,
+                    opener: None,
+                    revealed: true,
+                }),
+                lid: Lid {
+                    open: true,
+                    since: None,
+                },
+            })
+            .collect();
+    }
+}
+
+/// How long the roll takes, for the world shots.
+#[cfg(test)]
+pub(crate) const SHOT_ROLL: Duration = ROLL;
 
 #[cfg(test)]
 mod tests {
@@ -1269,7 +1408,11 @@ mod tests {
         // The box, its lid and everything the roll shows, each once.
         let wanted: Vec<&str> = state.wanted_models().collect();
         assert_eq!(wanted[..2], [MODEL, LID_MODEL]);
-        assert_eq!(wanted.len(), 2 + REEL.len());
+        assert_eq!(wanted.len(), models().count());
+        let mut unique = wanted.clone();
+        unique.sort_unstable();
+        unique.dedup();
+        assert_eq!(unique.len(), wanted.len(), "each once");
         state.meshes = vec![Some(0); wanted.len()];
         assert_eq!(state.wanted_models().count(), 0);
     }
@@ -1279,7 +1422,7 @@ mod tests {
         let opening = Opening {
             started: Instant::now(),
             outcome: "jackpot".to_owned(),
-            prize: prize("jackpot", true),
+            prize: prize("jackpot", true, None),
             seed: 12345,
             mine: None,
             opener: None,
@@ -1293,8 +1436,23 @@ mod tests {
         for ms in [ROLL.as_millis() as u64 - 700, 5_500, 12_000] {
             assert_eq!(opening.showing(Duration::from_millis(ms)), PRIZES[3]);
         }
-        assert_eq!(prize("empty", false), PRIZES[0]);
-        assert_eq!(prize("newer_thing", true), PRIZES[2]);
+        assert_eq!(prize("empty", false, None), PRIZES[0]);
+        assert_eq!(prize("newer_thing", true, None), PRIZES[2]);
+        // A holocron stops on its tier's own, the plain one when the tier is not told.
+        assert_eq!(
+            prize(wire::HOLOCRON, false, Some("legendary")),
+            HOLOCRONS[2]
+        );
+        assert_eq!(prize(wire::HOLOCRON, false, None), PRIZES[5]);
+        assert_eq!(prize(wire::HOLOCRON, false, Some("later_tier")), PRIZES[5]);
+        // Every part of every tier's holocron is among the models the boxes load.
+        for item in HOLOCRONS {
+            assert_eq!(FORMS[item.form.unwrap()].parts[0].model, item.model);
+            for model in item.models() {
+                assert!(models().any(|known| known == model), "{model}");
+            }
+        }
+        assert!(models().any(|known| known == crate::illuminate::MODEL));
         // Rising out of the box, then floating over it.
         assert!(float(Duration::ZERO, 0.0).0 < 33.0);
         assert!((float(Duration::from_secs(3), 0.0).0 - FLOAT).abs() <= 1.5);
@@ -1436,8 +1594,8 @@ mod tests {
             "Double! +200 credits"
         );
         // What the roll stops on, and the models it loads.
-        assert_eq!(prize(wire::EXPLODE, false), PRIZES[4]);
-        assert_eq!(prize(wire::HOLOCRON, false), PRIZES[5]);
+        assert_eq!(prize(wire::EXPLODE, false, None), PRIZES[4]);
+        assert_eq!(prize(wire::HOLOCRON, false, None), PRIZES[5]);
         assert!(models().any(|model| model == PRIZES[4].model));
         assert!(models().any(|model| model == PRIZES[5].model));
     }

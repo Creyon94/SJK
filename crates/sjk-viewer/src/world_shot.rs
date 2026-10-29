@@ -301,6 +301,8 @@ mod drone_shots;
 mod hax_shots;
 #[path = "world_shot_monitor.rs"]
 mod monitor_shots;
+#[path = "world_shot_mystery_box.rs"]
+mod mystery_box_shots;
 #[path = "world_shot_order66.rs"]
 mod order66_shots;
 #[path = "world_shot_petals.rs"]

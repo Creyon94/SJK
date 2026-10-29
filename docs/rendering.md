@@ -1561,6 +1561,15 @@ running, so these are non-exclusive GPU checks, not a performance certification.
 Populated combat visibility, broader map coverage and 31-player performance remain
 owner-playtest/benchmark work. No new shadow lights, passes or probe rays were added.
 
+Without real-time lighting, sun shadows reach the world as a second pass over its diffuse
+surfaces that multiplies in the shade and tests for equal depth against the stage program.
+That pass also runs when light shafts alone turned the world shadows on. Its position is
+`@invariant` like every other equal-depth redraw: without it a driver may round the depth
+differently, and the shade would miss a speckle of the floor that changes as the camera
+moves. That is the likely cause of hub report #193 (floors flickering with light shafts
+on), not a verified one: the flicker did not reproduce on the test machine, where frames
+with and without the qualifier are identical.
+
 Sun-shadow filtering compensates for the receiver surface's slope across the
 full texel footprint of a linear depth comparison. A half-texel allowance only
 covers samples midway between texel centers and can produce bands of false
@@ -3866,6 +3875,12 @@ coverage, as the HUD blends by alpha). Each new slice plays
 `sound/weapons/rocket/tick.wav` at the target and the eighth `lock.wav`. The ring stays
 square on wide screens; a teammate's lock is not drawn in team games; vehicle weapons'
 own lock times are not covered.
+`DrawCommand::Polygon` (28/10/2026, for the nameplates' holo frame) fills a convex
+polygon of up to six corners (`sjk_ui::POLYGON_POINTS`): a fan of triangles from its
+middle, each carrying its distance to its outer edge so the shader (`ui_shapes.wgsl`,
+mode 7) fades the last pixel inside, and with a texture the picture is spread over the
+polygon's box from the texture coordinates given for its corners. Like explicit
+texture coordinates, it is not clipped. `menu_snapshot` draws it the same way on the CPU.
 The in-game HUD shader is restricted to crosshair and damage-indicator regions.
 Intersecting regions become one rectangle so translucent pixels blend once.
 Menus and the shader's status-bar fallback retain full-screen coverage.
@@ -4205,6 +4220,21 @@ eight stages and one image each (an `animMap` shows its first frame; a stage who
 is missing is left out). Retail interpolates the dome over a coarse grid per face; the
 per-pixel form is the exact curve. The ignored test `baronshed_clouds_move` renders the
 beach sky twice, four seconds apart, from open ground it finds under that sky.
+
+### Sky without a box under global fog
+
+A sky shader may have neither an outer box nor stages: `taspir1`'s `textures/skies/taspir1`
+is `skyParms - 512 -` alone, under its worldspawn fog `textures/fogs/taspir1_fog`
+(`fogparms ( 0.8 0.7 0.4 ) 4096`, `distancecull 4096`). rd-vanilla draws nothing there;
+what shows is the clear colour, which is the global fog's `parms.color` whenever the map
+has one (`RB_DrawBuffer` and `RB_BeginDrawingView`, tr_backend.cpp:547-553,1812-1818), so
+the sky is the fog and fogged geometry fades into it. SJK cleared the world pass to its
+night tint instead, so that sky came out dark blue and distant fogged walls stood against
+it as sand-coloured cut-outs, as if the fog were see-through (hub reports #179, #180,
+#184). The world pass now clears to the global fog colour, unquantized as the reference
+uses it ([fog_volumes.rs](../crates/sjk-viewer/src/fog_volumes.rs) `Table::global_color`,
+[frame_target.rs](../crates/sjk-viewer/src/frame_target.rs) `world_load`); maps without
+global fog keep the night tint, and boxes and clouds still cover the clear as before.
 
 ## UI ownership
 
@@ -4985,6 +5015,14 @@ definitions regardless of filename ordering. Among override files the first
 normalized path wins, and the first definition in an override file wins. Normal
 `.shader` ordering remains unchanged. Strict tools and fault-isolated client loading
 share this policy; malformed override scripts still produce diagnostics.
+
+A shader named twice in one script, `.shader` or `.oshader`, keeps its first
+definition, as rd-vanilla's `FindShaderInShaderText` finds the first in the text
+(`definition_order` in `sjk-shader/src/catalog.rs`). `maps/oot.bsp`'s
+`shaders/oot.shader` names `textures/oot/wtr_0_yuka_02_4` twice; the second, an
+unfinished copy without its lightmap stage, drew the sand floor under the shallow
+water as a dark see-through plane that a saber did not light (Sol's hub reports,
+27/10/2026).
 
 Existing source-authority and downloaded-content restrictions remain in force:
 retail-authority protection wins when enabled (`fs_protectShaders`, on by

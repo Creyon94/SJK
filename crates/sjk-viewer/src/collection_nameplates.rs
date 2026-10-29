@@ -2,8 +2,8 @@
 //! the player's head (`docs/client.md`, Nameplates). None exist yet, so the tab shows
 //! where they will go: three empty places on the left (a crest before the name, a
 //! frame round the plate, a trail under it) and, over the player's model beside the
-//! page, their nameplate as a match draws it near (the capsule with their picture, and
-//! the tray of bars while they share), with dashed marks at those places.
+//! page, their nameplate as a match draws it near (the holo frame with their picture,
+//! and its bars while they share), with dashed marks at those places.
 //! Under the words beside it, See and share nameplates switches `cg_nameplate`, the one
 //! setting for seeing other players' nameplates and sharing the player's own health,
 //! shield and Force ([`crate::hud::nameplate::see_and_share`]).
@@ -19,19 +19,14 @@ use std::f32::consts::{PI, TAU};
 const PLACES_TOP: f32 = 300.0;
 const PLACE: f32 = 240.0;
 const PLACE_GAP: f32 = 30.0;
-/// The nameplate's capsule, at twice its design's size (its name 26 pixels): the
-/// name's size, the pill's height, the picture and its inset, the gap either side of
-/// the crest's place and that place, the room after the name, and the tray's width;
-/// and the bars' colours (the Radial HUD's shield, health and Force, as the nameplates
-/// take them).
-const NAME_SIZE: f32 = 26.0;
-const PILL: f32 = 52.0;
-const PICTURE: f32 = 40.0;
-const PICTURE_INSET: f32 = 6.0;
-const PLATE_GAP: f32 = 12.0;
+/// The nameplate's holo frame, at twice its design's size (its name 30 pixels), its
+/// plate a little more opaque than in a match as it stands on the stage; the crest's
+/// place before the name and the gap after it; and the bars' colours (the Radial HUD's
+/// shield, health and Force, as the nameplates take them).
+const NAME_SIZE: f32 = 30.0;
+const PLATE_ALPHA: f32 = 0.78;
 const CREST: f32 = 28.0;
-const PLATE_END: f32 = 30.0;
-const TRAY_WIDTH: f32 = 208.0;
+const PLATE_GAP: f32 = 12.0;
 const SHIELD: Color = Color::new(0.25, 0.82, 0.5, 1.0);
 const HEALTH: Color = Color::new(0.9, 0.28, 0.3, 1.0);
 const FORCE: Color = Color::new(0.29, 0.66, 1.0, 1.0);
@@ -107,6 +102,39 @@ fn dashed_rect(
     }
 }
 
+/// A sketch of a holo frame in outline (frame pixels): the hexagon in `hex`, the plate
+/// with its cut corner in `plate`.
+fn sketch(
+    canvas: &mut crate::menu_widgets::MenuCanvas,
+    frame: &Frame,
+    hex: [f32; 4],
+    plate: [f32; 4],
+    colour: Color,
+) {
+    use crate::hud::nameplate_math::hexagon;
+    let [x, y, width, height] = plate;
+    let cut = 8.0_f32.min(height * 0.4);
+    let outline = [
+        [x, y],
+        [x + width - cut, y],
+        [x + width, y + cut],
+        [x + width, y + height],
+        [x, y + height],
+    ];
+    let corners = hexagon(sjk_ui::Rect::new(hex[0], hex[1], hex[2], hex[3]));
+    for shape in [&outline[..], &corners[..]] {
+        for (index, from) in shape.iter().enumerate() {
+            let to = shape[(index + 1) % shape.len()];
+            let _ = canvas.draw_list_mut().push(DrawCommand::Line {
+                from: frame.point(from[0], from[1]),
+                to: frame.point(to[0], to[1]),
+                width: 1.5 * frame.s,
+                color: colour,
+            });
+        }
+    }
+}
+
 /// A dashed arc round `centre` (frame pixels) from `start` over `sweep` radians.
 fn dashed_arc(
     canvas: &mut crate::menu_widgets::MenuCanvas,
@@ -176,40 +204,20 @@ impl Panel {
                 color: faint,
             });
         };
-        let outline = |canvas: &mut crate::menu_widgets::MenuCanvas,
-                       rect: [f32; 4],
-                       radius: f32,
-                       colour: Color| {
-            let [bx, by, bw, bh] = rect;
-            let _ = canvas.draw_list_mut().push(DrawCommand::Border {
-                rect: frame.rect(bx, by, bw, bh),
-                radius: radius * s,
-                width: 1.5 * s,
-                color: colour,
-            });
-        };
         match index {
-            // A crest: a ring with a mark inside, between a capsule's picture and its
+            // A crest: a ring with a mark inside, between a plate's picture and its
             // name.
             0 => {
                 let left = middle[0] - 90.0;
-                outline(
+                sketch(
                     &mut self.ui,
-                    [left, middle[1] - 22.0, 180.0, 44.0],
-                    22.0,
+                    frame,
+                    [left, middle[1] - 20.0, 44.0, 40.0],
+                    [left + 32.0, middle[1] - 16.0, 148.0, 32.0],
                     faint,
                 );
                 let _ = self.ui.draw_list_mut().push(DrawCommand::Arc {
-                    center: frame.point(left + 22.0, middle[1]),
-                    radius: 15.0 * s,
-                    width: 1.5 * s,
-                    start: 0.0,
-                    sweep: TAU,
-                    color: faint,
-                    knockout: None,
-                });
-                let _ = self.ui.draw_list_mut().push(DrawCommand::Arc {
-                    center: frame.point(left + 58.0, middle[1]),
+                    center: frame.point(left + 62.0, middle[1]),
                     radius: 12.0 * s,
                     width: 2.0 * s,
                     start: 0.0,
@@ -218,17 +226,16 @@ impl Panel {
                     knockout: None,
                 });
                 let _ = self.ui.draw_list_mut().push(DrawCommand::RoundedRect {
-                    rect: frame.rect(left + 54.0, middle[1] - 4.0, 8.0, 8.0),
+                    rect: frame.rect(left + 58.0, middle[1] - 4.0, 8.0, 8.0),
                     radius: 2.0 * s,
                     color: line,
                 });
-                bar(&mut self.ui, [left + 80.0, middle[1] - 7.0, 82.0, 14.0]);
+                bar(&mut self.ui, [left + 84.0, middle[1] - 7.0, 82.0, 14.0]);
             }
-            // A frame round the capsule and the tray of bars under it, with corner
-            // marks.
+            // A frame round the plate and its bars, with corner marks.
             1 => {
                 let _ = self.ui.draw_list_mut().push(DrawCommand::Border {
-                    rect: frame.rect(middle[0] - 72.0, middle[1] - 40.0, 144.0, 80.0),
+                    rect: frame.rect(middle[0] - 76.0, middle[1] - 36.0, 152.0, 72.0),
                     radius: 10.0 * s,
                     width: 2.0 * s,
                     color: line,
@@ -236,8 +243,8 @@ impl Panel {
                 for (dx, dy) in [(-1.0, -1.0), (1.0, -1.0), (-1.0, 1.0), (1.0, 1.0)] {
                     let _ = self.ui.draw_list_mut().push(DrawCommand::RoundedRect {
                         rect: frame.rect(
-                            middle[0] + dx * 80.0 - 3.0,
-                            middle[1] + dy * 48.0 - 3.0,
+                            middle[0] + dx * 84.0 - 3.0,
+                            middle[1] + dy * 44.0 - 3.0,
                             6.0,
                             6.0,
                         ),
@@ -245,37 +252,33 @@ impl Panel {
                         color: line,
                     });
                 }
-                outline(
+                sketch(
                     &mut self.ui,
-                    [middle[0] - 60.0, middle[1] - 30.0, 120.0, 30.0],
-                    15.0,
-                    faint,
-                );
-                outline(
-                    &mut self.ui,
-                    [middle[0] - 46.0, middle[1], 92.0, 24.0],
-                    6.0,
+                    frame,
+                    [middle[0] - 66.0, middle[1] - 18.0, 40.0, 36.0],
+                    [middle[0] - 38.0, middle[1] - 22.0, 104.0, 44.0],
                     faint,
                 );
                 for row in 0..3 {
-                    let width = if row == 2 { 56.0 } else { 76.0 };
+                    let width = if row == 2 { 52.0 } else { 70.0 };
                     bar(
                         &mut self.ui,
                         [
-                            middle[0] - 38.0,
-                            middle[1] + 4.0 + row as f32 * 6.0,
+                            middle[0] - 16.0,
+                            middle[1] - 2.0 + row as f32 * 7.0,
                             width,
                             3.0,
                         ],
                     );
                 }
             }
-            // A trail sweeping under the capsule.
+            // A trail sweeping under the plate.
             _ => {
-                outline(
+                sketch(
                     &mut self.ui,
-                    [middle[0] - 56.0, middle[1] - 50.0, 112.0, 28.0],
-                    14.0,
+                    frame,
+                    [middle[0] - 62.0, middle[1] - 52.0, 34.0, 30.0],
+                    [middle[0] - 40.0, middle[1] - 50.0, 100.0, 26.0],
                     faint,
                 );
                 for (radius, alpha) in [(64.0, 0.55), (48.0, 0.4)] {
@@ -334,77 +337,169 @@ impl Panel {
         }
     }
 
-    /// The player's nameplate as a match draws it near, its bottom at `at`: the capsule
-    /// with their picture and name, gold-edged with the tray of bars under it while they
-    /// share (See and share nameplates), with the dashed marks where ornaments will go:
-    /// the crest between the picture and the name, the frame round the plate, the trail
-    /// under it.
+    /// The player's nameplate as a match draws it near, its bottom at `at`: the holo
+    /// frame with their picture in its hexagon and their name, with the gold corner and
+    /// the bars while they share (See and share nameplates), else the dotted line, and the
+    /// dashed marks where ornaments will go: the crest before the name, the frame round
+    /// the plate, the trail under it.
     fn nameplate(&mut self, frame: &Frame, inputs: &Inputs<'_>, at: [f32; 2]) {
+        use crate::hud::nameplate as plate;
+        use crate::hud::nameplate_math::{self as math, Holo, HoloSpec, Rows};
         let s = frame.s;
         let [x, bottom] = at;
         let mark = color::alpha(color::HOLO, 0.8);
         let name = crate::profile_hub::title(inputs.name);
         let plain_name = plain(name);
         let name_width = crate::text::display_width(&plain_name, NAME_SIZE);
-        let tray = inputs.share;
-        let natural = PICTURE_INSET + PICTURE + PLATE_GAP * 2.0 + CREST + name_width + PLATE_END;
-        let width = if tray {
-            natural.max(TRAY_WIDTH + PLATE_GAP * 4.0)
-        } else {
-            natural
+        let share = inputs.share;
+        let rows = Rows {
+            health: share,
+            shield: share,
+            force: share,
         };
-        let tray_height = 2.0 * (3.0 + 2.0 + 3.0 + 2.0 + 1.5 * 2.0 + 5.0);
-        let pill_bottom = if tray {
-            bottom - tray_height + 2.0
-        } else {
-            bottom
+        // The crest's place stands before the name, inside the name's run.
+        let crest_room = CREST + PLATE_GAP;
+        let holo = Holo::new(&HoloSpec {
+            centre_x: x,
+            bottom,
+            size: NAME_SIZE,
+            name_width: crest_room + name_width,
+            picture: true,
+            mark: false,
+            duel: false,
+            rows,
+            detail: 1.0,
+            proximity: 1.0,
+            least_bar: 2.0,
+            viewport: [f32::MAX, f32::MAX],
+        });
+        let k = holo.k;
+        let point = |[px, py]: [f32; 2]| frame.point(px, py);
+        let list = self.ui.draw_list_mut();
+        let polygon = |list: &mut sjk_ui::DrawList,
+                       points: &[[f32; 2]],
+                       colour: Color,
+                       texture: Option<(sjk_ui::TextureId, [[f32; 2]; 2])>| {
+            let mut corners = [[0.0; 2]; sjk_ui::POLYGON_POINTS];
+            for (corner, at) in corners.iter_mut().zip(points) {
+                *corner = point(*at);
+            }
+            let _ = list.push(DrawCommand::Polygon {
+                points: corners,
+                count: points.len().min(sjk_ui::POLYGON_POINTS) as u8,
+                color: colour,
+                texture,
+            });
         };
-        let pill = [x - width * 0.5, pill_bottom - PILL, width, PILL];
-        let middle = pill[1] + PILL * 0.5;
-        let edge = if tray {
-            color::GOLD
-        } else {
-            color::alpha(color::HOLO, 0.45)
+        let line = |list: &mut sjk_ui::DrawList,
+                    from: [f32; 2],
+                    to: [f32; 2],
+                    width: f32,
+                    colour: Color| {
+            let _ = list.push(DrawCommand::Line {
+                from: point(from),
+                to: point(to),
+                width: width * s,
+                color: colour,
+            });
         };
-        let fill = color::alpha(color::SPACE, 0.82);
-        let tray_rect = [
-            x - TRAY_WIDTH * 0.5,
-            pill[1] + PILL - 2.0,
-            TRAY_WIDTH,
-            tray_height,
-        ];
-        // Under the plate, the trail's place.
-        let low = if tray { bottom } else { pill_bottom };
-        dashed_arc(
-            &mut self.ui,
-            frame,
-            [x, low - 30.0],
-            60.0,
-            (PI * 0.28, PI * 0.44),
-            mark,
-        );
-        if tray {
-            self.plate_tray(frame, tray_rect, pill[1] + PILL, fill, edge);
+        let edge = plate::HOLO_EDGE;
+        let solid = |colour: Color, alpha: f32| Color::new(colour.r, colour.g, colour.b, alpha);
+        // The plate: a little more opaque than in a match, standing on the stage.
+        let outline = holo.outline();
+        polygon(list, &outline, math::plate_fill(edge, PLATE_ALPHA), None);
+        let p = holo.plate;
+        let mut y = p.bottom() - 1.5;
+        while y > p.y + 1.0 {
+            let cut = (holo.cut - (y - p.y)).max(0.0);
+            line(
+                list,
+                [p.x + 1.0, y],
+                [p.right() - 1.0 - cut, y],
+                1.0,
+                solid(edge, plate::SCAN_ALPHA),
+            );
+            y -= math::SCAN * k;
         }
-        let pill_rect = frame.rect(pill[0], pill[1], pill[2], pill[3]);
-        let _ = self.ui.draw_list_mut().push(DrawCommand::RoundedRect {
-            rect: pill_rect,
-            radius: PILL * 0.5 * s,
-            color: fill,
-        });
-        let _ = self.ui.draw_list_mut().push(DrawCommand::Border {
-            rect: pill_rect,
-            radius: PILL * 0.5 * s,
-            width: 2.0 * s,
-            color: edge,
-        });
-        // The picture: theirs once loaded, else their initial on their colour.
-        let picture = frame.rect(
-            pill[0] + PICTURE_INSET,
-            middle - PICTURE * 0.5,
-            PICTURE,
-            PICTURE,
-        );
+        let width = math::EDGE * k;
+        let half = width * 0.5;
+        let [top_left, cut_start, cut_end, bottom_right, bottom_left] = outline;
+        for (from, to) in [
+            (
+                [top_left[0], top_left[1] + half],
+                [cut_start[0], cut_start[1] + half],
+            ),
+            (
+                [cut_start[0], cut_start[1] + half],
+                [cut_end[0] - half, cut_end[1]],
+            ),
+            (
+                [cut_end[0] - half, cut_end[1]],
+                [bottom_right[0] - half, bottom_right[1]],
+            ),
+            (
+                [bottom_right[0], bottom_right[1] - half],
+                [bottom_left[0], bottom_left[1] - half],
+            ),
+            (
+                [bottom_left[0] + half, bottom_left[1] - half],
+                [top_left[0] + half, top_left[1] + width],
+            ),
+        ] {
+            line(list, from, to, width, edge);
+        }
+        if share {
+            let [start, corner, end] = holo.gold();
+            for (from, to) in [(start, corner), (corner, end)] {
+                line(list, from, to, math::GOLD_WIDTH * k, plate::SHARED_GOLD);
+            }
+            // Shield, health and Force, as the HUD's bars colour them: shield and health
+            // in segments.
+            let track = solid(edge, plate::TRACK_ALPHA);
+            for (bar, colour, share, segmented) in [
+                (holo.bars.shield, SHIELD, 0.45, true),
+                (holo.bars.health, HEALTH, 0.8, true),
+                (holo.bars.force, FORCE, 0.65, false),
+            ] {
+                let Some(bar) = bar else {
+                    continue;
+                };
+                let (on, off) = if segmented {
+                    (math::SEGMENT * k, math::SEGMENT_GAP * k)
+                } else {
+                    (bar.width, 0.0)
+                };
+                let filled = bar.x + bar.width * share;
+                for (start, end) in math::segments(bar.x, bar.width, on, off) {
+                    for (from, to, colour) in [
+                        (start, end.min(filled), colour),
+                        (start.max(filled), end, track),
+                    ] {
+                        if to > from {
+                            let _ = list.push(DrawCommand::SolidRect {
+                                rect: frame.rect(from, bar.y, to - from, bar.height),
+                                color: colour,
+                            });
+                        }
+                    }
+                }
+            }
+        } else {
+            let dotted = holo.dotted;
+            for (start, end) in
+                math::dashes(dotted.x, dotted.width, math::DOT * k, math::DOT_GAP * k)
+            {
+                let _ = list.push(DrawCommand::SolidRect {
+                    rect: frame.rect(start, dotted.y, end - start, dotted.height),
+                    color: solid(color::QUIET, 0.5),
+                });
+            }
+        }
+        // The picture in its hexagon: theirs once loaded, else their initial on their
+        // colour.
+        let hex = holo.hex.unwrap_or(p);
+        polygon(list, &math::hexagon(hex), plate::HOLO_HEX, None);
+        let inner = math::inset(hex, 2.0 * k);
         let me = inputs.snapshot.and_then(|snapshot| {
             snapshot.me.as_ref().map(|me| {
                 (
@@ -416,144 +511,77 @@ impl Panel {
         });
         let (key_id, version, hub_name) = me.unwrap_or(("", "", name));
         match crate::avatars::texture(key_id, version) {
-            Some(texture) => {
-                let _ = self.ui.draw_list_mut().push(DrawCommand::TexturedQuad {
-                    rect: picture,
-                    texture,
-                    color: Color::new(1.0, 1.0, 1.0, 1.0),
-                });
-            }
+            Some(texture) => polygon(
+                list,
+                &math::hexagon(inner),
+                Color::new(1.0, 1.0, 1.0, 1.0),
+                Some((texture, math::HEX_UV)),
+            ),
             None => {
-                let _ = self.ui.draw_list_mut().push(DrawCommand::RoundedRect {
-                    rect: picture,
-                    radius: picture.width * 0.5,
-                    color: crate::profile_card::stand_in_colour(key_id, hub_name),
-                });
+                polygon(
+                    list,
+                    &math::hexagon(inner),
+                    crate::profile_card::stand_in_colour(key_id, hub_name),
+                    None,
+                );
                 text(
                     &mut self.ui,
                     TextFamily::Display,
                     format_args!("{}", crate::profile_card::initial(hub_name)),
-                    picture,
-                    PICTURE * 0.55 * s,
+                    frame.rect(inner.x, inner.y, inner.width, inner.height),
+                    inner.height * 0.55 * s,
                     color::TEXT,
                     FontWeight::Semibold,
                     TextAlign::Center,
                 );
             }
         }
-        // Between the picture and the name, the crest's place.
-        let crest_x = pill[0] + PICTURE_INSET + PICTURE + PLATE_GAP + CREST * 0.5;
+        // Before the name, the crest's place.
+        let crest_x = holo.name.x + CREST * 0.5;
         dashed_arc(
             &mut self.ui,
             frame,
-            [crest_x, middle],
+            [crest_x, holo.middle],
             CREST * 0.5,
             (0.0, TAU),
             mark,
         );
-        let name_x = crest_x + CREST * 0.5 + PLATE_GAP;
+        let line_height = NAME_SIZE * 1.3;
         text(
             &mut self.ui,
             TextFamily::Body,
             format_args!("{name}"),
-            frame.rect(name_x, middle - 17.0, name_width + 40.0, 34.0),
+            frame.rect(
+                holo.name.x + crest_room,
+                holo.middle - line_height * 0.5,
+                name_width + 40.0,
+                line_height,
+            ),
             NAME_SIZE * s,
             color::TEXT,
             FontWeight::Semibold,
             TextAlign::Start,
         );
-        // Round the plate, the frame's place.
-        let foot = if tray {
-            tray_rect[1] + tray_rect[3]
-        } else {
-            pill[1] + PILL
-        };
+        // Round the plate, the frame's place, and under it the trail's.
         dashed_rect(
             &mut self.ui,
             frame,
             [
-                pill[0] - 9.0,
-                pill[1] - 9.0,
-                pill[2] + 18.0,
-                foot - pill[1] + 18.0,
+                hex.x - 9.0,
+                p.y - 9.0,
+                p.right() - hex.x + 18.0,
+                p.height + 18.0,
             ],
             mark,
         );
-    }
-
-    /// The tray of bars under the preview's capsule, from `top` (the capsule's foot,
-    /// which it tucks under): the capsule's fill and edge carried down, square at the
-    /// top and round at the bottom, as the nameplates draw it.
-    fn plate_tray(
-        &mut self,
-        frame: &Frame,
-        [x, y, width, height]: [f32; 4],
-        top: f32,
-        fill: Color,
-        edge: Color,
-    ) {
-        let s = frame.s;
-        let corner = 12.0;
-        let bottom = y + height;
-        let list = self.ui.draw_list_mut();
-        let _ = list.push(DrawCommand::PushRoundedClip {
-            rect: frame.rect(x, top - corner, width, bottom - top + corner),
-            radius: corner * s,
-        });
-        let _ = list.push(DrawCommand::Line {
-            from: frame.point(x, (top + bottom) * 0.5),
-            to: frame.point(x + width, (top + bottom) * 0.5),
-            width: (bottom - top) * s,
-            color: fill,
-        });
-        let _ = list.push(DrawCommand::PopClip);
-        let line = 2.0;
-        let half = line * 0.5;
-        for side in [x + half, x + width - half] {
-            let _ = list.push(DrawCommand::Line {
-                from: frame.point(side, top),
-                to: frame.point(side, bottom - corner),
-                width: line * s,
-                color: edge,
-            });
-        }
-        let _ = list.push(DrawCommand::Line {
-            from: frame.point(x + corner, bottom - half),
-            to: frame.point(x + width - corner, bottom - half),
-            width: line * s,
-            color: edge,
-        });
-        for (centre, start) in [
-            ([x + corner, bottom - corner], PI * 0.5),
-            ([x + width - corner, bottom - corner], 0.0),
-        ] {
-            let _ = list.push(DrawCommand::Arc {
-                center: frame.point(centre[0], centre[1]),
-                radius: (corner - half) * s,
-                width: line * s,
-                start,
-                sweep: PI * 0.5,
-                color: edge,
-                knockout: None,
-            });
-        }
-        // Shield, health and Force, as the HUD's bars colour them.
-        let mut bar_y = top + 6.0;
-        for (colour, share, thick) in [(SHIELD, 0.45, 4.0), (HEALTH, 0.8, 6.0), (FORCE, 0.65, 4.0)]
-        {
-            let inner = width - 24.0;
-            let _ = list.push(DrawCommand::RoundedRect {
-                rect: frame.rect(x + 12.0, bar_y, inner, thick),
-                radius: thick * 0.5 * s,
-                color: Color::new(1.0, 1.0, 1.0, 0.09),
-            });
-            let _ = list.push(DrawCommand::RoundedRect {
-                rect: frame.rect(x + 12.0, bar_y, inner * share, thick),
-                radius: thick * 0.5 * s,
-                color: colour,
-            });
-            bar_y += thick + 3.0;
-        }
+        dashed_arc(
+            &mut self.ui,
+            frame,
+            [x, bottom - 30.0],
+            60.0,
+            (PI * 0.28, PI * 0.44),
+            mark,
+        );
     }
 
     /// What the nameplate is, beside the model, and the See and share nameplates switch,

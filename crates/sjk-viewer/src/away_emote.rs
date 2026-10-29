@@ -92,12 +92,17 @@ pub(crate) struct Away {
 impl Away {
     /// The player is `away` now, playing `own` (the id of their SJK emote, if any);
     /// `japlus` is the JA+ emote to play (on a JA+ server only), `sjk` the SJK one.
+    /// `held` is whether a JA+ emote holds the player already (`PM_FREEZE`): one they
+    /// chose themselves (`amsit5`, `ammeditate`), which going away leaves alone, as
+    /// another emote over it, and the crouch that ends that one on the way back, would
+    /// get them up (hub report #196).
     pub(crate) fn turn(
         &mut self,
         away: bool,
         own: Option<&str>,
         japlus: Option<&str>,
         sjk: Option<&str>,
+        held: bool,
     ) -> Option<Step> {
         if away == self.away {
             return None;
@@ -106,6 +111,9 @@ impl Away {
         if away {
             let (did, step) = if own.is_some() {
                 (Did::Quieted, Step::Quiet)
+            } else if held {
+                self.did = Did::Nothing;
+                return None;
             } else if let Some(japlus) = japlus {
                 (
                     Did::Japlus(japlus.to_owned()),
@@ -331,7 +339,16 @@ impl crate::GpuState {
                 away_state.away,
             ) || alt_tab_quiets(unfocused, current.is_some()));
         let sjk = pick(SJK_CVAR).filter(|id| def_of(&state, id).is_some_and(|def| fits(&def)));
-        let step = away_state.turn(away, current.as_deref(), japlus.as_deref(), sjk.as_deref());
+        let step = away_state.turn(
+            away,
+            current.as_deref(),
+            japlus.as_deref(),
+            sjk.as_deref(),
+            frozen,
+        );
+        if let Some(step) = &step {
+            crate::emote_end_debug::note_away_step(step);
+        }
         if let (Some(step), Some(own)) = (step, own) {
             let def = current.as_deref().and_then(|id| def_of(&state, id));
             match step {
@@ -387,50 +404,87 @@ mod tests {
     fn going_away_quiets_the_emote_playing_or_starts_the_pick() {
         let mut away = Away::default();
         assert_eq!(
-            away.turn(false, None, None, Some("dance")),
+            away.turn(false, None, None, Some("dance"), false),
             None,
             "not away"
         );
         assert_eq!(
-            away.turn(true, Some("wave"), None, Some("dance")),
+            away.turn(true, Some("wave"), None, Some("dance"), false),
             Some(Step::Quiet)
         );
         assert_eq!(
-            away.turn(true, Some("wave"), None, Some("dance")),
+            away.turn(true, Some("wave"), None, Some("dance"), false),
             None,
             "still away"
         );
-        assert_eq!(away.turn(false, Some("wave"), None, None), Some(Step::Loud));
+        assert_eq!(
+            away.turn(false, Some("wave"), None, None, false),
+            Some(Step::Loud)
+        );
         // A JA+ pick (on a JA+ server) comes before the SJK one.
         assert_eq!(
-            away.turn(true, None, Some("amsit"), Some("dance")),
+            away.turn(true, None, Some("amsit"), Some("dance"), false),
             Some(Step::Japlus("amsit".into()))
         );
-        assert_eq!(away.turn(false, None, None, None), Some(Step::Crouch));
         assert_eq!(
-            away.turn(true, None, None, Some("dance")),
+            away.turn(false, None, None, None, false),
+            Some(Step::Crouch)
+        );
+        assert_eq!(
+            away.turn(true, None, None, Some("dance"), false),
             Some(Step::Start("dance".into()))
         );
         assert_eq!(
-            away.turn(false, Some("dance"), None, None),
+            away.turn(false, Some("dance"), None, None, false),
             Some(Step::Stop)
         );
-        assert_eq!(away.turn(true, None, None, None), None, "nothing picked");
-        assert_eq!(away.turn(false, None, None, None), None);
+        assert_eq!(
+            away.turn(true, None, None, None, false),
+            None,
+            "nothing picked"
+        );
+        assert_eq!(away.turn(false, None, None, None, false), None);
+    }
+
+    /// Hub report #196: a JA+ emote the player chose (`amsit5`, `ammeditate`) is left
+    /// alone when they go away: no away emote over it, and no crouch on the way back.
+    #[test]
+    fn going_away_leaves_a_held_ja_plus_emote_alone() {
+        let mut away = Away::default();
+        assert_eq!(
+            away.turn(true, None, Some("amsit"), Some("dance"), true),
+            None
+        );
+        assert_eq!(away.turn(false, None, None, None, true), None, "no crouch");
+        // Not held, the away emote starts and is got up from as before.
+        assert_eq!(
+            away.turn(true, None, Some("amsit"), None, false),
+            Some(Step::Japlus("amsit".into()))
+        );
+        assert_eq!(
+            away.turn(false, None, None, None, true),
+            Some(Step::Crouch),
+            "held by the away emote itself"
+        );
+        // The player's own SJK emote still goes quiet, held or not.
+        assert_eq!(
+            away.turn(true, Some("wave"), None, None, true),
+            Some(Step::Quiet)
+        );
     }
 
     #[test]
     fn coming_back_leaves_alone_what_already_ended() {
         let mut away = Away::default();
-        away.turn(true, None, None, Some("dance"));
+        away.turn(true, None, None, Some("dance"), false);
         assert_eq!(
-            away.turn(false, Some("wave"), None, None),
+            away.turn(false, Some("wave"), None, None, false),
             None,
             "another emote now"
         );
-        away.turn(true, Some("wave"), None, None);
+        away.turn(true, Some("wave"), None, None, false);
         assert_eq!(
-            away.turn(false, None, None, None),
+            away.turn(false, None, None, None, false),
             None,
             "it ended meanwhile"
         );
@@ -481,11 +535,23 @@ mod tests {
         let mut away = Away::default();
         assert!(alt_tab_off(true, true));
         assert_eq!(
-            away.turn(alt_tab_off(true, true), Some("dance"), None, Some("sit")),
+            away.turn(
+                alt_tab_off(true, true),
+                Some("dance"),
+                None,
+                Some("sit"),
+                false
+            ),
             Some(Step::Quiet)
         );
         assert_eq!(
-            away.turn(alt_tab_off(false, true), Some("dance"), None, Some("sit")),
+            away.turn(
+                alt_tab_off(false, true),
+                Some("dance"),
+                None,
+                Some("sit"),
+                false
+            ),
             Some(Step::Loud)
         );
         assert!(

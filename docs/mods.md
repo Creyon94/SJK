@@ -299,7 +299,8 @@ So players used to a private SJK chat are not misled:
 
 - **The notice.** The first time the player is in a match on a JoF server with SJK chat
   on, a card over the game menu says SJK chat is said in All chat here, that JoF asked
-  for it, and that elsewhere it stays as it was. Got it (Enter, Space, Escape) turns
+  for it, and that elsewhere it stays as it was. Got it (Enter or Escape, taken only
+  0.6 s after the card opens, so a jump or a key meant for the game does not) turns
   `jof.sjkChatNotice` (archived, on by default) off; turning it back on shows the card
   on the next JoF server. The card is the core's generic mod notice
   ([mod_notice_card.rs](../crates/sjk-viewer/src/mod_notice_card.rs)): a mod gives the

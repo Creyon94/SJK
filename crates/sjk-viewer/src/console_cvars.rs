@@ -722,6 +722,26 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             archive,
             "Chance (0-100) that games you host cut off limbs",
         ),
+        // The reference's `g_forceRegenTime` default (`g_xcvar.h`), and EternalJK's for
+        // its duels.
+        CvarDefinition::new(
+            crate::connection::local_server::FORCE_REGEN_CVARS[0],
+            200_i64,
+            archive,
+            "Milliseconds a point of Force takes to come back in games you host",
+        ),
+        CvarDefinition::new(
+            crate::connection::local_server::FORCE_REGEN_CVARS[1],
+            200_i64,
+            archive,
+            "Milliseconds a point of Force takes to come back in private duels in games you host",
+        ),
+        CvarDefinition::new(
+            crate::connection::local_server::FORCE_REGEN_CVARS[2],
+            200_i64,
+            archive,
+            "Milliseconds a point of Force takes to come back in full-force duels in games you host",
+        ),
         CvarDefinition::new("cg_drawGun", true, archive, "Draw the first-person weapon"),
         CvarDefinition::new(
             "cg_debugMissiles",
@@ -734,6 +754,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             0_i64,
             CvarFlags::NONE,
             "Log each effect as it plays, with its shaders and sizes (diagnostics)",
+        ),
+        CvarDefinition::new(
+            crate::emote_end_debug::CVAR,
+            false,
+            CvarFlags::NONE,
+            "Say what came just before a JA+ emote let go of you (diagnostics)",
         ),
         CvarDefinition::new(
             crate::debug_collectibles::CVAR,
@@ -863,7 +889,38 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             crate::toy_saved::BOX_HUNT_CVAR,
             false,
             archive,
-            "Box hunt is on: you may become the mark every few minutes, and killing the mark wins you a free mystery box roll (toy_boxhunt switches it)",
+            "Box hunt is on: you may become the mark (one every 10 minutes), and killing the mark wins you a free mystery box roll (toy_boxhunt switches it)",
+        ),
+        // Other players' toys seen (Collection > Toys).
+        CvarDefinition::new(
+            crate::toy_sight::CVARS[0].0,
+            true,
+            archive,
+            crate::toy_sight::CVARS[0].1,
+        ),
+        CvarDefinition::new(
+            crate::toy_sight::CVARS[1].0,
+            true,
+            archive,
+            crate::toy_sight::CVARS[1].1,
+        ),
+        CvarDefinition::new(
+            crate::toy_sight::CVARS[2].0,
+            true,
+            archive,
+            crate::toy_sight::CVARS[2].1,
+        ),
+        CvarDefinition::new(
+            crate::toy_sight::CVARS[3].0,
+            true,
+            archive,
+            crate::toy_sight::CVARS[3].1,
+        ),
+        CvarDefinition::new(
+            crate::toy_sight::CVARS[4].0,
+            true,
+            archive,
+            crate::toy_sight::CVARS[4].1,
         ),
         CvarDefinition::new(
             crate::monitor::SHOW_CVAR,

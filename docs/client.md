@@ -65,7 +65,15 @@ Put `sjk` (`sjk.exe` on Windows) inside the installed game's
 `GameData` folder, beside `base/`, then launch it to open the main menu. A shortcut
 can use any working directory. No path settings are required. Keep
 `sjk-server` (`sjk-server.exe` on Windows) beside the client for Create game
-and local `devmap`.
+and local `devmap`. The server is its own process, so the client's console does not
+reach it once it runs; the console's `g_dismember` and `g_forceRegenTime` (the
+milliseconds a point of Force takes to come back, 200 by default as in the
+reference; servers often run 30 to 50) are handed to it at launch, as are
+EternalJK's `g_saberDuelForceRegenTime` (the same pace in a private duel) and
+`g_forceDuelForceRegenTime` (in a full-force duel, kept for when SJK has one). As in
+EternalJK, a private duel takes its own pace, not `g_forceRegenTime`: a host who sets only
+`g_forceRegenTime 50` still refills at 200 ms in private duels. 0 refills every
+millisecond; a negative value is not handed over.
 
 From that folder:
 
@@ -1165,6 +1173,14 @@ Both follow EternalJK's cgame (`cg_ents.c`, `cg_players.c`) and rd-vanilla's ren
   from 254 down by 0.08 a millisecond, gone after 2.54 s) while the body drawn again
   with its side's shader brightens over it (`RF_RGB_TINT` rising to 200): the light
   side's is `gfx/misc/personalshield`, the dark side's `gfx/effects/sabers/red_glow`.
+  `personalshield` blends `GL_DST_COLOR GL_ONE` on display values in rd-vanilla (the scene
+  times one plus the stage's colour); SJK's scene is linear, so the light side's glow sets
+  `DISPLAY_FILTER_ADD` and the stage program writes the sRGB decode of (1 + display colour), less 1, for it
+  (hub report #190: blended as written it showed only as a faint blue speckle). Two
+  limits: an 8-bit scene (`r_sceneHdr 0`, the Vanilla style) clamps what a stage writes
+  to 1, so there each stage lifts the scene at most twice in linear light, less than
+  rd-vanilla's brightest; with HDR nothing saturates at display white as rd-vanilla's
+  8-bit framebuffer does, so the brightest texels can go past it (into bloom).
   At 2.513 s that glow burns away from the body's origin (`RF_DISINTEGRATE2`), with the
   Force Sight sound for the light side and lightning for the dark. For the first 3.4 s
   the light side hums (`saberhum1`, for 2.2 s, at most once per 100 ms as EternalJK
@@ -2179,7 +2195,10 @@ a whole. The low-FPS help
   Vanilla graphics turn off, **Use Vanilla graphics** (Enter: the renderer choice,
   then `vid_restart`;
   the map loads again and the player stays on the server) or **Not now** (Escape),
-  and a **Don't suggest this again** tick (D, `cg_fpsHelp 0`).
+  and a **Don't suggest this again** tick (a click, `cg_fpsHelp 0`). It comes in the
+  middle of play, so Space, D and the other keys a player plays with choose nothing
+  on it, and for 0.6 s after it opens it takes no key or click at all: a jump once
+  switched to Vanilla graphics (hub report #194).
 - `help_fps` opens the same card at any time, on the menus or in a match, with the
   numbers once the frames it times while open come in. With Vanilla graphics on, its
   button turns them off and the player's settings come back.
@@ -2727,6 +2746,16 @@ from the earlier incorrect global-U default repair U to `messagemode3` and
 restore Y global chat if needed and free; other occupied keys stay unchanged.
 This migration advances `cl_bindDefaultsVersion` to 3. Use
 `bind u messagemode3` to select U explicitly. No message is sent until Enter.
+
+On the SJK UI's Character page a model the player's colour shows on (one of its shaders
+reads the entity colour: `rgbGen entity`, `oneMinusEntity` or `lightingDiffuseEntity`,
+whatever its skin is called), or worn with an `rgb` skin (the ones JoF EJK's RGB team
+colour lists), gets Red, Green and Blue sliders under the grid, as JoF EJK's profile has (Creyon, 29/10/2026;
+[model_rgb.rs](../crates/sjk-viewer/src/player_menu/model_rgb.rs)): 0 to 255, set by the
+arrows, a click or drag on the track, or a typed number; the stage model shows the colour
+at once (the shader stages that read the entity colour, as `CG_Player` hands them
+`customRGBA`), the grid's pictures keep their own, and Apply wears it with the model
+(`char_color_*`). Other models show no sliders.
 
 `amcolor <red> <green> <blue>` (EternalJK's `amColor`) sets the player tint, the archived
 `char_color_red`, `_green` and `_blue` userinfo cvars, each 0 to 255, so the server gets
@@ -3284,23 +3313,34 @@ that font is not loaded), whatever `cg_classicHudFont` says. A dark letter (lumi
 under 0.3: black `^0`, and the game's dark blue) keeps its colour, edged in a pale halo,
 the glyph drawn a step out all round in a light tint instead of its drop shadow, so a
 black name reads on the see-through plate (`text::CodePalette::Haloed`, Sol's pick of
-28/10/2026 over lightening the colour).
+28/10/2026 over lightening the colour). The halo is faint, each of its eight copies 18%
+opaque (38% until 29/10/2026, when Sol found the outline too strong).
 
-**The capsule** (28/10/2026, design E of the nameplate designs Sol chose from): every
-plate, bars or not, is a pill (`nameplate_math::Capsule`), so a player who does not share
-still has a plate. Left to right it holds the player's picture, their name with its
-mark after it, and at its right end the duel badge in a duel. Until 28/10/2026 the
-weapon they held stood there (`cg_nameplateWeapon`, dropped from saved profiles): Sol
-found it told nothing. Its fill is a dark navy, 55% opaque (76% until 28/10/2026, Sol
-asked for more see-through plates); in team games it is the team's own colour made
-deep (`nameplate_math::team_fill`, 62% opaque: the design's blue, `rgba(22, 52, 110)`,
-and a red as dark). Its edge is gold for a player who shares, a pale grey otherwise, the duel's colour
-in a duel, and a paler gold on NPC plates. The measures are the design's, scaled by the
-name's size over its 13 pixels (an 18-pixel name at 1080 lines with the default
-`cg_nameplateScale` 0.5): a pill 26 tall with a 20 picture.
+**The holo frame** (28/10/2026, design C of the nameplate designs Sol chose from, in
+place of the capsule, design E, the same day): every plate, bars or not, is a hexagon
+holding the player's picture over the left end of a plate whose top-right corner is cut
+(`nameplate_math::Holo`), so a player who does not share still has a plate. The plate
+holds their name with its mark after it and, under it, the bars of a sharer, or a dim
+dotted line (3 design pixels on, 4 off) on a plate without bars. Until 28/10/2026 the
+weapon they held stood after the name (`cg_nameplateWeapon`, dropped from saved
+profiles): Sol found it told nothing. The frame's colour says who they are: the holo
+blue (`rgba(110, 210, 255)`) for an SJK player, grey for a player without SJK (one the
+hub does not know on this server), the team's red or blue in team games, the duel's
+colour in a duel, a paler gold on NPC plates. The plate is that colour made dark (a
+tenth of it, `nameplate_math::plate_fill`), 55% opaque (the design's 78%: Sol asked for
+more see-through plates), under faint scan lines of the frame's colour every 3 design
+pixels (not on a grey frame, an NPC's or in a duel), and edged in it; a player who
+shares has a gold corner along its top to the cut and down its right side. The
+measures are the design's, scaled by the name's size over its 15 pixels (an 18-pixel
+name at 1080 lines with the default `cg_nameplateScale` 0.5): a plate at least 150
+wide, 40 tall with bars (a 44 by 40 hexagon overlapping it by 12) and 30 without (38
+by 34, overlapping by 10). The hexagon and the plate are convex polygons, a draw
+command new for them (`DrawCommand::Polygon`, [rendering.md](rendering.md#submission-and-lighting-work-reduction)).
 
-- **Picture:** the player's SJK hub picture, round, as the chat and the cards show it
-  ([identity.md](identity.md#pictures)); an SJK player without one, or before it loads,
+- **Picture:** the player's SJK hub picture in the hexagon, two design pixels inside the
+  frame's colour ([identity.md](identity.md#pictures)). The pictures are kept cut round,
+  as the chat and the cards show them; the hexagon takes the part inside the disc, its
+  corners just inside it (`nameplate_math::HEX_UV`). an SJK player without one, or before it loads,
   gets their stand-in, the initial of their hub name on their colour; a player without
   SJK gets their model's head icon (`models/players/<model>/icon_<skin>`, the player
   card's), cut round; a model without one (one this PC does not have) gives the initial
@@ -3312,23 +3352,24 @@ name's size over its 13 pixels (an 18-pixel name at 1080 lines with the default
   decoded and cut on the frame thread, one a frame at most and each model once while it
   stays in the cache (`hud_runtime::cut_nameplate_head`, kept with
   `avatars::insert_local`); one that could not be had is asked again after 2 seconds.
-- **Far:** the capsule's fill and edge fade out with the bars' ramp, leaving the
-  picture, smaller, and the name, dim, centred over the player. Plates shrink with
+- **Far:** the plate fades out with the bars' ramp, leaving a small hexagon (17 by 15
+  design pixels) and the name, at 85%, centred over the player above a hairline in the
+  frame's colour, 46 design pixels long. Plates shrink with
   distance (to 60% at the range) and fade over the last quarter of `cg_nameplateRange`
   (3000 units).
-- **Near:** inside `cg_nameplateNear` (1000 units) the capsule fades in, and for a
-  player whose bars show (a sharer, an NPC, a teammate the server reports) it rises as a
-  tray fades in under it: the capsule's fill and edge carried down round the bars, 104
-  design pixels wide, square at the top where the capsule's edge closes it and round at
-  the bottom (one stroke cut to a rounded clip, and the edge's strokes and arcs, so
-  nothing translucent is drawn twice). The capsule widens to hold it. The shield bar is
-  on top, then health, then Force (2, 3 and 2 design pixels on a faint track, never
-  under 2 pixels at 1080 lines). The bars take the HUD's own colours (the layout's
+- **Near:** inside `cg_nameplateNear` (1000 units) the plate fades in, and for a
+  player whose bars show (a sharer, an NPC, a teammate the server reports) it grows from
+  30 to 40 design pixels as the bars fade in under the name and the dotted line fades
+  out. The shield bar is on top, then health, then Force (3, 5 and 2 design pixels on a
+  track of the frame's colour, never under 2 pixels at 1080 lines); shield and health
+  are cut into segments of about 9 design pixels with 2 between, stretched so the bar
+  holds whole ones (`nameplate_math::segments`), Force is whole. The bars take the HUD's
+  own colours (the layout's
   `armor_ratio`, `health_ratio` and `force_ratio` widgets: the Radial HUD's green
   shield, red health and blue Force; the retail green, red and light blue for the
   game-data HUD, which draws pictures). Health is always that red, whatever is left.
 - **Empty shield:** a player's shield bar is always there; known to be empty it is
-  drawn broken, grey dashes the bar's height.
+  drawn broken, grey dashes (4 design pixels, 3 between) the bar's height.
 - **Overheal and overshield:** health and shield go to twice the maximum (125 at
   spawn; 199 shield from a large shield picked up at 99). The bar shows 0 to the
   maximum; what lies over it is a second, inner band in a deeper shade of the same
@@ -3345,15 +3386,15 @@ name's size over its 13 pixels (an 18-pixel name at 1080 lines with the default
 - **Verified badge:** a player the SJK hub's operator vouches for (see
   [Identity](#identity)) gets a gold seal with a white tick after the name, drawn at
   start into an icon cell ([verified_badge.rs](../crates/sjk-viewer/src/ui_renderer/verified_badge.rs)).
-  The name's capitals are centred on the capsule's middle as the plate's font lays them
+  The name's capitals are centred on the name's row as the plate's font lays them
   out (`UiFont::capital_middle`; the HUD font hangs its glyphs low in the line), and the
-  seal, the picture and the icons with them.
+  seal with them.
   Which slots are verified is read from the identity service once a second.
 - **Duel badge:** a player in a private duel (`bolt1`, your own `duelInProgress`
   on your own plate) gets two crossed lightsabers, white blades in a coloured glow on a
   disc filled and ringed in the same colour (so the colours tell apart at a nameplate's
-  size), at the capsule's right end; the capsule's edge takes the badge's colour, a
-  little wider, and a duellist's plate has no tray. **The two duellists of one duel
+  size), on the hexagon's bottom-right corner; the frame takes the badge's colour, its
+  dotted line too, and a duellist's plate has no bars. **The two duellists of one duel
   share a colour** (blue, orange, green, magenta, yellow, cyan, red, in the order duels
   start), so in a crowd the matching badges show who duels whom. The pairs come
   from [duel_pairs.rs](../crates/sjk-viewer/src/hud/duel_pairs.rs):
@@ -3375,7 +3416,7 @@ name's size over its 13 pixels (an 18-pixel name at 1080 lines with the default
   seek. Each colour is its own icon
   cell, drawn at start ([duel_badge.rs](../crates/sjk-viewer/src/ui_renderer/duel_badge.rs)).
   The badge sits level with the name's capitals like the verified badge, and stays at
-  least 90% opaque on a far plate whose name dims, at the capsule's right end.
+  least 90% opaque on a far plate whose name dims, smaller with the far hexagon.
   `cg_nameplateDuel` (on; Settings >
   Quick > Nameplates > Duel badge) turns it off, and it shows with the name, so
   `cg_nameplate 0` hides it too. The duellist's body is drawn as JoF EJK draws it (see
@@ -3442,14 +3483,14 @@ name's size over its 13 pixels (an 18-pixel name at 1080 lines with the default
   carries his entity and the world never presents his body. Like stock's crosshair
   target name (`CG_DrawCrosshair`), the plate follows the vehicle's `owner` while it
   is below `MAX_CLIENTS`: the name and team come from his `CS_PLAYERS` string and the
-  plate hangs over the vehicle's presented position and box top. Only the capsule, with
-  his picture, name and team's tint, shows (no bars, icons or weapon: the client has no
+  plate hangs over the vehicle's presented position and box top. Only the plate, with
+  his name and team's colour, shows (no picture, bars or icons: the client has no
   state of him). A rider
   whose entity is sent keeps his own plate, anchored to the vehicle if his body is
   hidden (`nameplate_math::anchor`, `hidden_pilot`).
 - `cg_nameplateSelf` (off): your own plate over your head in third person, with your
-  real health, shield and Force (the server sends you those), your weapon and your
-  badge when your key is verified. In first person it is not drawn: it would sit in
+  real health, shield and Force (the server sends you those) and your badge when your
+  key is verified. In first person it is not drawn: it would sit in
   the camera.
 - **Modes (V):** the `nameplates` command, bound to V by default (Controls > Other >
   "Nameplate mode"; an existing config gets it when V is free), cycles off, names
@@ -3477,15 +3518,16 @@ name's size over its 13 pixels (an 18-pixel name at 1080 lines with the default
   entities are omitted from snapshots, such as sealed vehicle pilots, have no
   available private-duel marker and keep their plates.
 - `cg_nameplateIcons` (on): up close, a row of the holocron icons of the Force powers a
-  player has on sits over the capsule, each on a square cell of the capsule's dark fill
-  (55% opaque, corners of 3 design pixels, the icon a pixel in from its edge), 22.5
-  design pixels a side, at most four, dark side first (lightning, grip,
-  drain, rage, then protect, absorb, speed, heal, team force, mind trick, sight). They
-  come from `forcePowersActive`, so every player's powers are known without a request;
-  jump, push, pull and the saber powers are left out because they last a moment. The
-  pictures are the Force bar's, loaded with the map. From 28/10/2026 to that evening they
-  sat on smaller round chips (15) with a pale blue ring; Sol had the square cells, as
-  before the capsules, back, half as large again.
+  player has on stands over the plate's right end, each on a square cell (55% opaque,
+  corners of 2 design pixels, edged in the frame's colour at half strength, the icon a
+  pixel in from its edge), 22.5 design pixels a side (the design's 15, half as large
+  again), at most four, dark side first (lightning, grip, drain, rage, then protect,
+  absorb, speed, heal, team force, mind trick, sight). They come from
+  `forcePowersActive`, so every player's powers are known without a request; jump,
+  push, pull and the saber powers are left out because they last a moment. The pictures
+  are the Force bar's, loaded with the map. From 28/10/2026 to that evening they sat on
+  smaller round chips (15) with a pale blue ring; Sol had the square cells, as before
+  the capsules, back, half as large again.
 - `cg_nameplateDebug` logs, every two seconds, what the server sends about each other
   player (health, `tinfo`, active powers, weapon and stance) and the estimates (health,
   armour and Force as `guess[low..high]`) to `logs\last-client.log`, with the regen
@@ -3522,7 +3564,7 @@ seeing any of them means sharing your own, through the hub (Sol's rule, 15/10/20
   settings (`hud::nameplate::Duel`). In a private duel (`duelInProgress`) the opponent
   is the one your player state names (`duelIndex`); in the Duel game type every other
   player in the arena; in Power Duel the other side (`dt` in `CS_PLAYERS`); a
-  spectator duels nobody. The opponent's plate keeps its name, weapon and icons but
+  spectator duels nobody. The opponent's plate keeps its name and icons but
   shows no bars (not the grey ones either), in every bar mode; target mode no longer
   shows bars on the duel opponent. While you duel your client sends the hub no values
   (as when dead), so nobody on the server, bystanders and a Power Duel partner
@@ -3538,9 +3580,9 @@ seeing any of them means sharing your own, through the hub (Sol's rule, 15/10/20
   their numbers.
 - **Players who do not share** (Sol's rule, 16/10/2026 for SJK players, 17/10/2026
   for everyone, bots and players without SJK too): no bars for any viewer, health,
-  shield or Force. Nothing overrides it, not even a teammate's `tinfo`. Their capsule
-  stays, with its pale edge, picture, name and power icons, and no tray (until
-  28/10/2026 they had grey bars, full length and empty: the capsule alone says the same).
+  shield or Force. Nothing overrides it, not even a teammate's `tinfo`. Their plate
+  stays, with its picture, name and power icons, and the dim dotted line under the name
+  instead of bars (until 28/10/2026 they had grey bars, full length and empty).
   NPCs keep their bars.
 - **Sharers:** their health and shield bars are the estimates below, corrected with
   every value they share ([estimate.rs](../crates/sjk-viewer/src/hud/estimate.rs) `History`). A
@@ -3550,9 +3592,10 @@ seeing any of them means sharing your own, through the hub (Sol's rule, 15/10/20
   seen since, the bar is exact; it never waits for the next value to move. Their
   Force bar is the last Force they shared, not estimated (17/10/2026,
   `hud::nameplate::shared_force`), so it moves with each value, about four times a second.
-- **Gold edge:** the capsule (and its tray) of a player who shares (See & share
-  nameplates) is edged in the verified badge's gold instead of grey; in team games the
-  team's colour tints the capsule itself. Your own plate (`cg_nameplateSelf`) gets it
+- **Gold corner:** the plate of a player who shares (See & share nameplates) has a
+  corner in the verified badge's gold, along its top to the cut and down its right
+  side (until 28/10/2026 the capsule's whole edge was gold); in team games the frame
+  takes the team's colour. Your own plate (`cg_nameplateSelf`) gets it
   too while the hub lists you sharing. NPC plates (`cg_nameplateNpcs`) are edged a paler
   gold.
 - `cg_nameplateEstimate` ("Bars on everyone", estimates on every player without
@@ -3674,7 +3717,7 @@ health strip, text only, off by default); they are hidden while nameplates are o
 Both stand above an ally's team logo
 ([Team outlines and logos](#team-outlines-and-logos)). At most 32 players and 16 NPCs
 are tagged and nothing is allocated per frame. Not tested in game yet; the estimates
-are unit-tested against synthetic snapshots only. The capsule (28/10/2026) is
+are unit-tested against synthetic snapshots only. The holo frame (28/10/2026) is
 unit-tested for its layout and checked in the off-screen nameplate snapshot
 (`menu_snapshot::nameplate_snapshot`, with the game data), not yet in a match.
 
@@ -4342,6 +4385,25 @@ picked), from the quick wheel's [Toys page](#toys-page), or from the switch on t
 Collection's Toys tab ([SJK UI](sjk-ui.md#collection)). Every toy is a
 `toy_<name>` command ([sjk.md](sjk.md#names)).
 
+**Other players' toys, hidden on request** (Sol's request, 29/10/2026): each toy other
+players are seen with has a second switch on its card in the Collection's Toys tab, and
+a row in Settings > Game options > Toys, that hides theirs on this PC alone, for a player
+who does not like them; on by default, archived ([toy_sight.rs](../crates/sjk-viewer/src/toy_sight.rs)).
+The player's own toy still shows, and nothing changes for the toys' rules.
+
+| Toy | Switch | Cvar | Hidden |
+| --- | --- | --- | --- |
+| Illuminate | See others' holocrons | `cg_toyIlluminateShow` | their holocron and its light |
+| Cardboard box | See others' boxes | `cg_toyBoxShow` | their box (not lifted either) |
+| Ragdoll | See others fall limp | `cg_toyRagdollShow` | their falls: their bodies as the game shows them |
+| Drone | See others' drones | `cg_toyDroneShow` | their drones, names and sounds (who peeks at you is still told) |
+| Boombox | See and hear others' boomboxes | `cg_toyBoomboxShow` | their stereo and its music |
+| Monitor | See monitors | `cg_toyMonitorShow` | every monitor and its sounds, yours too ([Monitor](#monitor)) |
+
+Order 66, the Hax and Box hunt act only on players who have them on, so they have none.
+The holocron, the box and the boombox are hidden as if those players had them off here
+(`Looks::set_unseen`); the drone's and the ragdoll's relayed events are left undrawn.
+
 It is always there, with no setting that enables it, and it is out at every start:
 whether it is lit is the client's run only, not saved. The old Force wheel setting
 `cg_illuminate` is gone; a profile that still holds it (0, off the wheel, or 1, on
@@ -4964,7 +5026,8 @@ sends them flying, the way the monitor struck them.
   player they follow, is in a private duel, and on Duel and Power Duel servers, no monitor
   is drawn or heard, and no charge ring or hit marker shows (nobody throws or is hit in a
   duel anyway; this hides the monitors of the players around it). Settings > Game options >
-  Toys, "Show monitors" (`cg_toyMonitorShow`, archived, default 1), at 0 hides every
+  Toys, "Show monitors", and the Monitor's card in the Collection's Toys tab, "See
+  monitors" (`cg_toyMonitorShow`, archived, default 1), at 0 hides every
   monitor and its sounds in the world on this PC, the player's own too; their charge ring,
   charge hum, hit marker and tick stay. Neither changes who may be hit: a player with the
   toy on and monitors hidden can still be struck.
@@ -5566,9 +5629,11 @@ of that size falls back to borderless.
 Exclusive fullscreen is paused while the window lacks focus: winit makes an
 exclusive window topmost and keeps the monitor's video mode, which left the game
 over the desktop after Alt+Tab or Win+D. On focus loss the window goes windowed
-(restoring the desktop mode and the window's earlier placement) and `r_resolution`
-is not re-requested; on focus gain, such as restoring from the taskbar, it enters
-the exclusive mode again. A loss within 0.75 s of a display change is ignored so
+(restoring the desktop mode and the window's earlier placement), then minimises to
+the taskbar, as SDL does for a fullscreen window in OpenJK (a window left on the
+desktop was hub report #131; `minimise_after_focus`), and `r_resolution` is not
+re-requested; on focus gain, such as restoring from the taskbar, it enters the
+exclusive mode again. A loss within 0.75 s of a display change is ignored so
 a focus flicker caused by the switch cannot loop. Borderless and windowed are
 unaffected. The logic is in `apply_display` and `display_focus_changed`
 ([runtime_settings.rs](../crates/sjk-viewer/src/runtime_settings.rs)) and
@@ -6248,7 +6313,14 @@ map (`SV_CompleteMapName`) from every `maps/*.bsp` and `maps/*/*.bsp` of the gam
 data, named as `devmap` takes them (`mp/ffa3`): a map matches by its whole name or,
 when nothing typed has a `/`, by the name after its folder, so `devmap siege_ho`
 completes to `devmap mp/siege_hoth `; `devmap` and Tab lists every map as `Map`
-rows. Enter does not complete arguments, and no other argument is completed. See
+rows. Tab after `sjkemote` completes the installed emotes' ids (`sjkemote aut`
+completes to `sjkemote autumn_tea `) and the command's words `stop`, `sync`,
+`mute`, `unmute` and `help`, listed as `Emote` rows; the catalogue loads on the
+first Tab if nothing has loaded it yet. The client's commands with a completed
+argument are the `ARGUMENT_SOURCES` table of
+[console.rs](../crates/sjk-viewer/src/console.rs), one entry per command beside the
+shell's own (`exec`, `devmap`). Enter does not complete arguments, only the first
+argument completes, and no other command's argument is completed yet. See
 [shell_completion.rs](../crates/sjk-shell/src/shell_completion.rs) and
 [console_scripting.rs](../crates/sjk-viewer/src/console_scripting.rs).
 

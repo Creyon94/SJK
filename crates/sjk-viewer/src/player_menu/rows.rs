@@ -17,6 +17,11 @@ pub(super) enum CharacterRow {
     Team,
     /// SJK UI: the tiles of the category on show.
     Grid,
+    /// SJK UI: the model's colour, red, green and blue (`char_color_*`), for a model
+    /// worn with its RGB skin ([`super::model_rgb`]).
+    Red,
+    Green,
+    Blue,
     /// SJK UI: wears the model chosen (the `model` cvar); until then it only shows.
     Apply,
 }
@@ -29,7 +34,20 @@ impl CharacterRow {
             Self::Category => "Choose",
             Self::Team => "Team colour",
             Self::Grid => "Pick",
+            Self::Red => "Red",
+            Self::Green => "Green",
+            Self::Blue => "Blue",
             Self::Apply => "Apply",
+        }
+    }
+
+    /// The colour channel a slider row sets: 0 red, 1 green, 2 blue.
+    pub(super) fn channel(self) -> Option<usize> {
+        match self {
+            Self::Red => Some(0),
+            Self::Green => Some(1),
+            Self::Blue => Some(2),
+            _ => None,
         }
     }
 }
@@ -42,6 +60,18 @@ const MODEL_ROWS: [CharacterRow; 6] = [
     CharacterRow::Category,
     CharacterRow::Team,
     CharacterRow::Grid,
+    CharacterRow::Apply,
+];
+/// A model worn with its RGB skin: its colour sliders under the grid.
+const MODEL_RGB_ROWS: [CharacterRow; 9] = [
+    CharacterRow::Name,
+    CharacterRow::Search,
+    CharacterRow::Category,
+    CharacterRow::Team,
+    CharacterRow::Grid,
+    CharacterRow::Red,
+    CharacterRow::Green,
+    CharacterRow::Blue,
     CharacterRow::Apply,
 ];
 const OTHER_ROWS: [CharacterRow; 5] = [
@@ -166,7 +196,9 @@ const FORCE_ROWS: usize = 24;
 
 impl PlayerMenu {
     pub(super) fn character_rows(&self) -> &'static [CharacterRow] {
-        if self.category() == sjk_creator::Category::Model {
+        if self.category() == sjk_creator::Category::Model && self.model_takes_rgb() {
+            &MODEL_RGB_ROWS
+        } else if self.category() == sjk_creator::Category::Model {
             &MODEL_ROWS
         } else {
             &OTHER_ROWS

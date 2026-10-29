@@ -824,7 +824,20 @@ impl PlayerMenu {
             .hit_region(2, frame.rect(strip[0], strip[1], strip[2], strip[3]));
         self.sjk_category_strip(frame, COLUMN_X, strip_top);
         let grid_top = strip_top + STRIP + 6.0;
-        self.sjk_creator_grid(frame, COLUMN_X, COLUMN_WIDTH, grid_top, BOTTOM - APPLY_LINE);
+        // A model worn with its RGB skin: its colour sliders under the grid
+        // (`model_rgb.rs`).
+        let sliders = rows.iter().filter(|row| row.channel().is_some()).count();
+        let sliders_top = BOTTOM - APPLY_LINE - sliders as f32 * ROW;
+        self.sjk_creator_grid(frame, COLUMN_X, COLUMN_WIDTH, grid_top, sliders_top);
+        let slider_rows = rows
+            .iter()
+            .copied()
+            .enumerate()
+            .filter(|(_, row)| row.channel().is_some());
+        for (line, (index, row)) in slider_rows.enumerate() {
+            let top = sliders_top + line as f32 * ROW;
+            self.sjk_model_slider(frame, index, row, top);
+        }
         // The model chosen shows on the stage and is worn on Apply.
         let pending = self.look_pending();
         let apply = self.apply_row();
@@ -837,6 +850,61 @@ impl PlayerMenu {
             pending,
             self.selected == apply,
             apply as u16,
+        );
+    }
+
+    /// One of the model's colour sliders on `top`: its name, the track and the value,
+    /// as the saber page draws its own ([`Self::sjk_saber`]).
+    fn sjk_model_slider(&mut self, frame: &Frame, index: usize, row: CharacterRow, top: f32) {
+        let Some(channel) = row.channel() else {
+            return;
+        };
+        let area = [COLUMN_X, top, COLUMN_WIDTH, ROW];
+        let focused = self.sjk_row(frame, index, area, row.label());
+        let middle = top + ROW * 0.5;
+        let value = self.model_channel_value(channel);
+        let track_x = CONTROL_RIGHT - NUMBER_WIDTH - 18.0 - TRACK_WIDTH;
+        kit::slider(
+            &mut self.canvas,
+            frame,
+            track_x,
+            middle,
+            TRACK_WIDTH,
+            f32::from(value) / 255.0,
+            focused,
+        );
+        let number = frame.rect(
+            CONTROL_RIGHT - NUMBER_WIDTH - 6.0,
+            middle - 15.0,
+            NUMBER_WIDTH + 6.0,
+            30.0,
+        );
+        match self.numeric.as_ref().filter(|edit| edit.row == index) {
+            Some(edit) => {
+                self.canvas.set_family(TextFamily::Display);
+                edit.draw(&mut self.canvas, number, 1.4 * frame.s);
+                self.canvas.set_family(TextFamily::Body);
+            }
+            None => text(
+                &mut self.canvas,
+                TextFamily::Display,
+                format_args!("{value}"),
+                number,
+                21.0 * frame.s,
+                if focused {
+                    color::TEXT
+                } else {
+                    color::alpha(color::TEXT, 0.9)
+                },
+                FontWeight::Regular,
+                TextAlign::End,
+            ),
+        }
+        let track = [track_x - 10.0, middle - 16.0, TRACK_WIDTH + 20.0, 32.0];
+        self.sjk_targets(frame, index, track, area);
+        self.canvas.hit_region(
+            crate::menu_widgets::numeric::VALUE_BASE + index as u16,
+            number,
         );
     }
 

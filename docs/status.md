@@ -24,6 +24,134 @@ pictures for the rest) and only McFox and McSnowFox are drawn two-sided; fmt, wo
 build, tests and Clippy. Seen in game by Creyon on Windows (28/10/2026): every hat as in
 JoF EJK, in game and in the profile preview, McFox and McSnowFox solid.
 
+## A JA+ emote kept when going away, and `cg_debugEmoteEnd`
+
+29/10/2026, `fix/menu-cancels-meditate`, based on `main` `b558d4ae`, hub report #196 (build
+2026.1028.1, JoF, CTF4: opening Shaders, Toys or Nameplates ended `/ammeditate`, and
+`/amsit5`-`/amsit7`). Not reproduced: Slash sat through every tab change on the same build.
+The Collection sends nothing when a tab opens: no cvar or userinfo write, no reliable command;
+the open console takes every key and pointer event, Ctrl+Tab too, and the stage preview has its
+own buffers. The one client path found that ends a JA+ emote the player chose is the away emote:
+going away (alt-tabbed or idle) with `japlus.awayEmote` set sent its emote over theirs, and the
+way back crouched while `PM_FREEZE` held them, which got them up. Going away now leaves a JA+
+emote that already holds the player alone (`Away::turn`, `held`;
+[hub-chat.md](hub-chat.md#emotes-in-the-client)). Whether that was the reporter's case is not
+known. For the next one, `cg_debugEmoteEnd 1` (off, not archived) prints, when `PM_FREEZE`
+lets go, the last command with a button besides the talk balloon's, a move, a `generic_cmd` or
+another weapon and how long before, the away emote's last step, the longest frame of the last
+3 s (a hitch loading the stage model is the other suspect) and whether the window was out of
+focus, the console open and the Collection showing (`emote_end_debug`). Verified: unit tests
+`going_away_leaves_a_held_ja_plus_emote_alone`, `only_what_could_end_an_emote_counts`,
+`the_end_of_a_freeze_names_the_crouch_before_it`, fmt, build, Clippy and the workspace's tests.
+Not tried in a game.
+## Model colour sliders
+
+29/10/2026, `feat/model-rgb` (Creyon), based on `main` `e702b0b1`: JoF EJK's profile has
+R, G and B sliders (`ui_char_color_*`) for the skins its RGB team colour lists (`/rgb`);
+SJK set the colour only with `amcolor`. The SJK UI's Character page now gives a model the
+colour shows on (a shader of it reads the entity colour, found when the stage loads it; many
+RGB models have no `rgb` skin, Creyon's test) or an `rgb` skin three slider rows under the grid (arrows, click or drag, typed number),
+the stage model wears the colour at once (entity colour on its instance) and Apply writes
+`char_color_*` with the model; the grid's pictures are not tinted, and other models show
+no sliders ([model_rgb.rs](../crates/sjk-viewer/src/player_menu/model_rgb.rs)). Creyon's first
+try crashed at start: the stage's instance buffer could not be written (now `COPY_DST`).
+Verified on Linux x86_64: tests in `player_menu::model_rgb`, fmt, workspace build, tests and
+Clippy. Not verified: in game.
+
+## Synced emote music back from alt-tab in step
+
+29/10/2026, `fix/emote-sound-alt-tab`, based on `main` `b558d4ae`, hub report #195 (build
+2026.1028.1, CTF4: with 3+ players dancing, alt-tabbing changed the sound until it reset).
+Alt-tabbing quiets the player's emote (`quiet`), and coming back (`loud`) restarts its music
+from the clock (`ActiveEmotes::set_quiet`), aligned only to its leader's voice. The group's
+leader has no leader, so its music came back a few milliseconds off the followers', which
+stayed in step with each other: the mixer merges only voices at the very same sample
+(`same_sample`, `MixerConfig::protected_channels`), so two copies played apart, heard as a
+changed, doubled sound until the loop came round and every copy restarted together. A
+follower back while its leader was away had the same fault. Coming back now aligns to the
+leader's music, or, when the leader is the one back or is away, to another follower's
+(`ActiveEmotes::in_step_with`; [hub-chat.md](hub-chat.md#emotes-in-the-client)). No hub change.
+Verified: the unit test `music_back_from_away_lines_up_with_the_group_still_playing`, fmt,
+build, Clippy and the workspace's tests. The reporter's video agrees (silence while away,
+then a denser, layered sound for about 6 seconds, then normal again), but whether the
+reporter led the group is not known. Not reproduced or tried in a game.
+
+## Holo frame nameplates
+
+28/10/2026, `personal/holo-nameplates`, based on `main` `8f73ab73` (Sol's switch to design C,
+"Holo frame", from the nameplate designs of 28/10/2026, in place of the capsule): every
+nameplate is a hexagon holding the player's picture over a plate with a cut top-right
+corner, holding the name and mark and, under them, a sharer's segmented bars or a dotted
+line; the frame is holo blue for SJK players, grey for players without SJK, a team's or a
+duel's colour, with a gold corner for a sharer; far away a small hexagon and the name over
+a hairline ([client.md](client.md#nameplates)). The UI renderer gains a convex polygon draw
+command (`DrawCommand::Polygon`, shader mode 7, and the snapshots' CPU copy). The
+Collection's Nameplates tab draws the holo frame with the same layout. No hub change.
+Verified: fmt, build, Clippy, the workspace's tests, the holo frame's layout
+(`nameplate_math` tests: parts in order, short and tall plates, the far plate over its
+hairline, the duel badge on the hexagon, plates on screen, a round picture covering the
+hexagon, the plate's tint), the drawn plate (hexagon and seal, bars only for a sharer, the
+frame's colours); off screen with the game data: the nameplate snapshot
+(`menu_snapshot::nameplate_snapshot`) and, on the GPU, the Collection's Nameplates tab, shared
+and not (`world_shot::collection::duel6_sjk_collection`). Not verified: in a match (live hub
+pictures and head icons in the hexagon, the frames' colours on real teams and duels, the far
+fade in motion), or at 4K.
+## Trade refusals at map changes
+
+26/10/2026, `fix/trade-toast-map-change` (Creyon, PR #211), based on
+`fix/trade-inventory-refresh` (PR #210) on `main` `61f22008` (rebased 28/10/2026 after
+Sol's review of 27/10): after a refused trade request, the refusal ("Two accounts on one
+connection cannot trade with each other.") showed again in the trade toast and the
+console at every map change (seen in game by Creyon on 2026.1026.1). Each map builds a
+new world whose trade state began empty, so the identity service's last refusal looked
+new. The trade state now moves with the shell to the next world, without the window's
+claim to have opened the game menu, which the new world does not carry (else Esc after
+the map change brought the window back and Close shut the player's own menu)
+([sjk-ui.md](sjk-ui.md#trading)). Verified on Linux x86_64: the new test
+`a_map_change_keeps_the_shown_refusal_and_drops_the_menu_it_opened`, fmt, workspace
+build, tests and Clippy. Not verified: in game across a map change.
+
+## Trade swap reaches the first to confirm
+
+26/10/2026, `fix/trade-inventory-refresh` (Creyon, PR #210), based on `main` `61f22008`
+(rebased 28/10/2026 after Sol's review of 27/10): after a trade, the player who confirmed
+first kept the holocrons and duplicates they gave, and lacked those they received, for up
+to ten minutes (seen in game by Sol and Creyon, 25/10/2026). The hub swaps at the second
+confirmation and returns the new profile only to that player; the other learned of the
+swap from the trade list, which read nothing more, so their collection waited for the
+ten-minute profile read. The list that first shows a trade done now reads the own profile
+and the holocron progress at once ([sjk-ui.md](sjk-ui.md#trading)). Verified on Linux
+x86_64: the new test `a_swap_finished_by_the_other_player_reads_the_profile_at_once`
+(fails without the fix), fmt, workspace build, tests and Clippy. Not verified: in game
+with two clients.
+## Exclusive fullscreen minimises on focus loss
+
+26/10/2026, `fix/fullscreen-focus-minimise` (Creyon), based on `main` `8f73ab73`: Alt+Tab
+or Win+D in exclusive fullscreen left the game as a window over the desktop (hub report
+#131, 2026.1023.3). Pausing exclusive fullscreen on focus loss now also minimises the
+window, as SDL does for a fullscreen window in OpenJK
+([client.md](client.md#configuration-and-content)). Verified: fmt, workspace build, tests (4155 passed) and Clippy on Linux x86_64, with the
+display unit tests; in game by Creyon on Windows (28/10/2026, exclusive fullscreen): Alt+Tab
+and Win+D send the game to the taskbar and its button brings it back fullscreen (a second
+Win+D does not, as Windows restores only what Win+D hid itself).
+## Blocked players' chat in the console
+
+28/10/2026, `fix/blocked-chat-console` (Creyon), based on `main` `2a5adcb6`: a blocked
+player's game chat was hidden in the chat box but still showed in the console, with their
+name (bleck-bee's and Kushina's hub report #191, 2026.1028.1). The console took every
+server chat line before the chat box decided whether its sender was blocked. Now
+`ChatOverlay::sent_by_muted` decides it as the chat box does (the slot the server names,
+else the one player whose name starts the line), and the console's scrollback and its
+alert words leave the line out ([hub-chat.md](hub-chat.md#blocking-a-player)). The chat
+log (`cl_logchat`) still keeps it. The console's kill lines (`format_obituary`) name a
+blocked player BLOCKED, as the kill feed does. Lines the server writes itself (a join,
+JA+'s "has defeated") are finished text and keep the server's name. Verified on Linux
+x86_64: the new tests `a_muted_slots_chat_stays_out_of_the_console` and
+`a_blocked_players_name_reads_blocked_in_the_console`, fmt, workspace build, tests and
+Clippy; in game by Creyon on Windows (29/10/2026, the JoF server): a blocked player
+asked by whisper to say hello did, and nothing of it reached the console, and their
+nameplate read BLOCKED.
+
 ## Capsule nameplates
 
 28/10/2026, `personal/nameplate-capsule`, based on `main` `fbd28832` (Sol's pick of design E,

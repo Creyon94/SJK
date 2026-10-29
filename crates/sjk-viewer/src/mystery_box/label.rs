@@ -243,13 +243,16 @@ impl GpuState {
             &mut self.text_vertices,
             &self.ui_font,
         );
-        crate::ui_renderer::append_text_commands(
+        // The menus' lifted colours, so a black name reads on the dark card and plates.
+        crate::ui_renderer::append_text_commands_where(
             &labels.list,
             |id| labels.lines.get(id.0 as usize).map_or("", String::as_str),
+            |_, _| true,
             vertices,
             font,
             viewport,
             crate::text::TextStyle::NEUTRAL,
+            crate::text::CodePalette::Legible,
         );
     }
 }
@@ -292,23 +295,30 @@ fn push_card(labels: &mut Labels, card: &Card, since: f32, viewport: [f32; 2], u
     });
     let (caption, line) = card_words(card);
     let id = labels.lines.len() as u32;
+    // Each line's shadow is the line without its colour codes, all of it dark.
+    let plain = crate::text::Plain(&line).to_string();
     labels.lines.push(caption.to_owned());
     labels.lines.push(line);
+    labels.lines.push(plain);
     let pad = 14.0 * unit;
     let small = 15.0 * unit;
     let big = 28.0 * unit;
     let top = rect.y + 7.0 * unit;
     let rows = [
-        (top, small, id, Tone::Box.colour(1.0)),
+        (top, small, id, id, Tone::Box.colour(1.0)),
         (
             top + small * 1.3,
             big,
             id + 1,
+            id + 2,
             Color::new(1.0, 1.0, 1.0, 1.0),
         ),
     ];
-    for (y, size, text, colour) in rows {
-        for (offset, color) in [(1.5 * unit, Color::new(0.0, 0.0, 0.0, 0.7)), (0.0, colour)] {
+    for (y, size, text, shadow, colour) in rows {
+        for (offset, text, color) in [
+            (1.5 * unit, shadow, Color::new(0.0, 0.0, 0.0, 0.7)),
+            (0.0, text, colour),
+        ] {
             let _ = labels.list.push(DrawCommand::Text {
                 rect: Rect::new(
                     rect.x + pad + offset,
@@ -348,7 +358,7 @@ mod tests {
         Opening {
             started,
             outcome: outcome.to_owned(),
-            prize: prize(outcome, true),
+            prize: prize(outcome, true, None),
             seed: 0,
             mine,
             opener: None,

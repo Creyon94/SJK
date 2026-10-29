@@ -1,5 +1,5 @@
 //! The box hunt (Sol's idea, 27/10/2026; `docs/mystery-boxes.md`, "Box hunt"): players
-//! with the Box hunt toy on (`crate::box_hunt`) take part. Every few minutes the hub
+//! with the Box hunt toy on (`crate::box_hunt`) take part. Every 10 minutes at most the hub
 //! picks one of them on the server as the mark; another who kills the mark wins a free
 //! mystery box roll. Only players with it on see the mark or can be it. The hub never
 //! sees kills: this client tells it who killed its player when its player is the mark,
@@ -310,6 +310,17 @@ impl GpuState {
                 self.mystery_box_print(text);
             }
         }
+    }
+
+    /// The mark's client slot while the player takes part and someone else is the mark:
+    /// their body is ringed in red ([`crate::hud::team_outline`]).
+    pub(crate) fn box_hunt_outlined(&self) -> Option<u16> {
+        if !self.box_hunt.on() {
+            return None;
+        }
+        let slot = self.mystery_boxes.hunt.mark()?.slot;
+        let own = self.live_session.as_ref()?.game_state().client_num;
+        (i32::from(slot) != own).then_some(u16::from(slot))
     }
 
     /// The mark's label over their head, while the player takes part and someone else

@@ -2400,25 +2400,46 @@ impl Worker {
 
     /// Read the player's trades if it is due.
     fn keep_trades(&mut self, now: Instant) {
-        if now >= self.due_trades {
-            self.read_trades(now);
+        if now >= self.due_trades && self.read_trades(now) {
+            self.swap_seen(now);
         }
+    }
+
+    /// A trade of the player's finished with the items swapped, and this worker has not
+    /// had the profile after it: the player who confirms first gets no profile in the
+    /// hub's answer (the swap happens at the other's confirmation), so their collection
+    /// would keep the items given away and lack the ones received until the next
+    /// [`PROFILE_EVERY`] read (Sol, 25/10/2026). The profile and the holocrons are read at once.
+    fn swap_seen(&mut self, now: Instant) {
+        self.due_profile = now;
+        self.holocrons_soon(now);
     }
 
     /// Read the player's trades into [`Snapshot::trades`]; the next read is due
     /// [`TRADES_LIVE`] later while one runs, else [`TRADES_EVERY`]. A hub before trades
     /// (or one that cannot be reached) is asked again much later: its list stays as it
-    /// was.
-    fn read_trades(&mut self, now: Instant) {
+    /// was. Says whether a trade finished with a swap since the last list (never on the
+    /// first list, whose finished trades are old).
+    fn read_trades(&mut self, now: Instant) -> bool {
         let outcome = match (self.hub.as_mut(), self.registered) {
             (Some(hub), true) => hub.trades(&self.identity),
             _ => {
                 self.due_trades = now + TRADES_EVERY;
-                return;
+                return false;
             }
         };
         match outcome {
             Ok(list) => {
+                let swapped = lock(&self.snapshot).trades.as_ref().is_some_and(|last| {
+                    list.trades.iter().any(|trade| {
+                        trade.is_done()
+                            && !last
+                                .list
+                                .trades
+                                .iter()
+                                .any(|seen| seen.id == trade.id && seen.is_done())
+                    })
+                });
                 let live = list.trades.iter().any(|trade| trade.is_live());
                 // A trade just started: the window lists the player's holocrons and
                 // duplicates from their profile, so it is read again now.
@@ -2449,9 +2470,16 @@ impl Worker {
                         steps: last.as_ref().map_or(0, |last| last.steps),
                     });
                 });
+                swapped
             }
-            Err(HubError::Network(_)) => self.due_trades = now + RETRY_MAX,
-            Err(_) => self.due_trades = now + TRADES_EVERY,
+            Err(HubError::Network(_)) => {
+                self.due_trades = now + RETRY_MAX;
+                false
+            }
+            Err(_) => {
+                self.due_trades = now + TRADES_EVERY;
+                false
+            }
         }
     }
 
@@ -2480,11 +2508,13 @@ impl Worker {
             },
             _ => Err(self.not_connected()),
         };
+        let mut has_profile = false;
         let problem = match outcome {
             Ok(answer) => {
                 if let Some(profile) = answer.profile {
                     self.update(|snapshot| snapshot.set_me(profile));
                     self.holocrons_soon(now);
+                    has_profile = true;
                 }
                 String::new()
             }
@@ -2502,7 +2532,9 @@ impl Worker {
             state.steps += 1;
             state.problem = problem;
         });
-        self.read_trades(now);
+        if self.read_trades(now) && !has_profile {
+            self.swap_seen(now);
+        }
     }
 
     /// Read the progress toward the next holocron if it is due. Cosmetic, like the asset
@@ -3981,6 +4013,8 @@ mod tests {
         trade_reads: Arc<Mutex<usize>>,
         /// The hub says trading is off.
         trading_off: Arc<AtomicBool>,
+        /// The other player confirmed last: the trade with Nib is done.
+        partner_swapped: Arc<AtomicBool>,
         /// The announcements and rewards the fake hub serves; none is a hub from before
         /// them, which answers 404.
         news: Arc<Mutex<Option<News>>>,
@@ -4209,9 +4243,16 @@ mod tests {
             let log = self.log();
             let trades = if log.iter().any(|line| line == "ask nib") {
                 let accepted = log.iter().any(|line| line == "step 3 accept");
+                let state = if self.partner_swapped.load(Ordering::SeqCst) {
+                    "done"
+                } else if accepted {
+                    "open"
+                } else {
+                    "asked"
+                };
                 vec![crate::trades::PlayerTrade {
                     id: 3,
-                    state: if accepted { "open" } else { "asked" }.to_owned(),
+                    state: state.to_owned(),
                     asker: true,
                     expires: Some(1_791_000_030),
                     ..crate::trades::PlayerTrade::default()
@@ -5284,6 +5325,53 @@ mod tests {
             t0 + TRADES_LIVE,
         );
         assert_eq!(lock(&snapshot).me.as_ref().map(|me| me.shards), Some(77));
+    }
+
+    /// The player who confirms first gets no profile from the hub: the swap happens at
+    /// the other player's confirmation. The list that first shows the trade done reads
+    /// the profile at once, so the collection does not wait for the ten-minute read
+    /// (Sol, in game, 25/10/2026); later lists of the same trade read nothing more.
+    #[test]
+    fn a_swap_finished_by_the_other_player_reads_the_profile_at_once() {
+        let fake = Fake::default();
+        let t0 = Instant::now();
+        let (mut worker, _snapshot) = worker(&fake, t0);
+        worker.handle(Command::Configure(on("https://hub")), t0);
+        worker.tick(t0);
+        worker.handle(Command::TradeAsk("nib".to_owned()), t0);
+        worker.handle(Command::TradeStep(3, crate::trades::TradeStep::Accept), t0);
+        worker.tick(t0);
+        let own = format!("lookup {}", Identity::from_seed([1; 32]).key_id());
+        let lookups = |fake: &Fake| fake.log().iter().filter(|line| **line == own).count();
+        let t1 = t0 + Duration::from_secs(60);
+        worker.tick(t1);
+        let before = lookups(&fake);
+        let holocron_reads = |fake: &Fake| *fake.holocron_reads.lock().unwrap();
+        let progress_before = holocron_reads(&fake);
+        assert!(worker.due_profile > t1, "no profile read is due yet");
+        // Nib confirms last; the feed tells of the change.
+        fake.partner_swapped.store(true, Ordering::SeqCst);
+        worker.handle(Command::ReadTrades, t1);
+        assert_eq!(
+            worker.tick(t1),
+            Duration::ZERO,
+            "the worker goes on at once"
+        );
+        worker.tick(t1);
+        assert_eq!(
+            lookups(&fake),
+            before + 1,
+            "the swap reads the profile at once"
+        );
+        assert!(
+            holocron_reads(&fake) > progress_before,
+            "the holocron progress too"
+        );
+        // The same done trade in later lists reads nothing more.
+        worker.handle(Command::ReadTrades, t1);
+        worker.tick(t1);
+        worker.tick(t1);
+        assert_eq!(lookups(&fake), before + 1);
     }
 
     /// Trading off on the hub: the list is not read again every ten minutes (Sol's
