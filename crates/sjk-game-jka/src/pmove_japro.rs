@@ -40,6 +40,8 @@ pub struct JaProRules {
     pub enabled: bool,
     /// `JAPRO_CINFO_HIGHFPSFIX`, `jcinfo` bit 21.
     pub high_fps_fix: bool,
+    /// `JAPRO_CINFO_HEADSLIDE`, `jcinfo` bit 5: standing on a player has no friction.
+    pub head_slide: bool,
 }
 
 impl JaProRules {
@@ -59,6 +61,7 @@ impl JaProRules {
             } => Self {
                 enabled: true,
                 high_fps_fix: ja_pro_capabilities.contains(HIGH_FPS_FIX),
+                head_slide: ja_pro_capabilities.contains(1 << 5),
             },
             _ => Self::default(),
         }

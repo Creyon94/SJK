@@ -157,11 +157,24 @@ copy clears roll; outgoing user commands remain unchanged. Serverinfo refresh
 and snapshot reseeding refresh this policy and metadata. `cg_noPredict 1` is the
 existing player override to display server positions without local prediction.
 
-This is command-policy support, not complete jaPRO race physics: style-specific
-acceleration, jumps, ramps, restrictions, new jetpack and grapples still require
-their own reference-backed implementation and verification. Compiled reference
-fixtures cover slicing/snapping decisions; they do not establish full gameplay
-or live-server parity.
+jaPRO on-foot acceleration and friction also follow the movement-style table
+in [pmove_japro_movement.rs](../crates/sjk-game-jka/src/pmove_japro_movement.rs).
+The 19 advertised style ordinals select ground acceleration, friction, crouch
+speed and whether jump input participates in command scaling. Air kernels cover
+QuakeWorld, CPM stop/strafe acceleration and air control, SP air deceleration,
+Tribes and Surf; Siege uses its vector-push accelerator. Slick and Tribes use
+their explicit walking/skiing friction and steep-plane clipping rules. The
+advertised `jcinfo` head-slide bit controls friction when standing on a player.
+Surf applies its reference input restriction, wish-speed and ground projection.
+The local player's vehicle selects Swoop policy while NPC vehicle simulation
+retains its vehicle controller. Server switches refresh both policy and snapshot
+metadata; reused stat slots on other mods cannot enable jaPRO physics.
+
+This is not complete jaPRO race physics: jumps, ramps/steps, restrictions, new
+jetpack and grapples still require their own reference-backed implementation
+and verification. Compiled reference fixtures cover slicing/snapping decisions,
+style air kernels, friction, ground parameters and command scaling; they do not
+establish full gameplay or live-server parity.
 
 Prediction follows rules the server advertises in `CS_SERVERINFO`, read by
 [pmove_rules.rs](../crates/sjk-game-jka/src/pmove_rules.rs): the roll fixes of
