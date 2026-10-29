@@ -1111,17 +1111,18 @@ the server, an SJK player or not.
   hips, wait, surrender and Neo ones, which hold the player until they crouch), sent to
   the server; on the way back, while it still holds the player (`PM_FREEZE`), the
   commands crouch until it lets go, for a second at most (`away_emote::shape_command`;
-  sending it again does not end it). A JA+ emote that already holds the player when
-  they go away (one they chose, `amsit5` or `ammeditate`) is left alone: no away emote
-  goes over it and no crouch follows, which got them up (hub report #196,
-  `Away::turn`'s `held`). Off a JA+ server, the looping SJK emote of `cg_awayEmote` (Away emote, any
+  sending it again does not end it). Else (off a JA+ server, or on one with
+  `japlus.awayEmote none`) the looping SJK emote of `cg_awayEmote` (Away emote, any
   looping emote that is not `local`), posted with `quiet` so no client plays its
   music, and stopped (`stop`) on the way back unless it already ended. The hub takes
   one emote every 2 seconds from a key, so a post waits for its turn
   (`player_identity::emote_ready`); one still waiting when the player comes back was
   never seen, and neither it nor its undoing is sent. A hub from before 19/10/2026
   refuses `quiet` in a post: the emote goes again with its sound. The settings list
-  the installed emotes as they are when the page shows (`ValueKind::Live`).
+  the installed emotes as they are when the page shows (`ValueKind::Live`). A JA+ emote
+  that already holds the player when they go away (one they chose, `amsit5` or
+  `ammeditate`) is left alone: neither away emote goes over it and no crouch follows,
+  which got them up (hub report #196, `Away::turn`'s `held`).
 - The quick wheel's editor lists the installed emotes under Emotes. An emote's `icon`
   is decoded when the catalogue loads and put into the UI atlas's emote cells
   (`emote_icons.rs`, 128 of them): a wheel choice that runs `sjkemote <id>` wears it,

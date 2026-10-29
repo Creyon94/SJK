@@ -8,6 +8,7 @@
 //! showing. Off by default and not archived, so it changes nothing until turned on.
 
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
 use sjk_protocol::UserCommand;
@@ -40,6 +41,21 @@ struct Watch {
 }
 
 static WATCH: Mutex<Option<Watch>> = Mutex::new(None);
+/// [`CVAR`]'s value, so that while it is off (the default) nothing is locked or kept.
+static ENABLED: AtomicBool = AtomicBool::new(false);
+
+/// Follow [`CVAR`]; turning it off forgets what was watched.
+pub(crate) fn set_enabled(on: bool) {
+    if ENABLED.swap(on, Ordering::Relaxed) && !on {
+        *WATCH
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner()) = None;
+    }
+}
+
+fn enabled() -> bool {
+    ENABLED.load(Ordering::Relaxed)
+}
 
 fn with<T>(f: impl FnOnce(&mut Watch) -> T) -> T {
     let mut slot = WATCH
@@ -61,19 +77,25 @@ fn could_end(command: &UserCommand, held: u8) -> bool {
 
 /// A command went to the server while the player held weapon `held`.
 pub(crate) fn observe_command(command: &UserCommand, held: u8, now: Instant) {
-    if could_end(command, held) {
+    if enabled() && could_end(command, held) {
         with(|watch| watch.input = Some((now, *command, held)));
     }
 }
 
 /// The away emote took `step`.
 pub(crate) fn note_away_step(step: &crate::away_emote::Step) {
+    if !enabled() {
+        return;
+    }
     let now = Instant::now();
     with(|watch| watch.away = Some((now, format!("{step:?}"))));
 }
 
 /// A frame began at `now`: the longest of the last [`WINDOW`] is kept.
 pub(crate) fn observe_frame(now: Instant) {
+    if !enabled() {
+        return;
+    }
     with(|watch| {
         if let Some(last) = watch.last_frame {
             let frame = now.saturating_duration_since(last);
@@ -89,18 +111,16 @@ pub(crate) fn observe_frame(now: Instant) {
 }
 
 /// The player's movement type is `movement_type` now; the line to print when a JA+
-/// emote just let go of them and `enabled`.
-pub(crate) fn report(
-    movement_type: u8,
-    enabled: bool,
-    context: Context,
-    now: Instant,
-) -> Option<String> {
+/// emote just let go of them, while [`CVAR`] is on.
+pub(crate) fn report(movement_type: u8, context: Context, now: Instant) -> Option<String> {
+    if !enabled() {
+        return None;
+    }
     with(|watch| {
         let frozen = movement_type == PM_FREEZE;
         let ended = watch.frozen && !frozen;
         watch.frozen = frozen;
-        (ended && enabled).then(|| line(watch, context, now))
+        ended.then(|| line(watch, context, now))
     })
 }
 
@@ -189,7 +209,8 @@ mod tests {
     fn the_end_of_a_freeze_names_the_crouch_before_it() {
         let t0 = Instant::now();
         let quiet = Context::default();
-        assert_eq!(report(PM_FREEZE, true, quiet, t0), None, "held");
+        set_enabled(true);
+        assert_eq!(report(PM_FREEZE, quiet, t0), None, "held");
         observe_command(&still(), 3, t0);
         observe_command(
             &UserCommand {
@@ -200,12 +221,14 @@ mod tests {
             t0,
         );
         let later = t0 + Duration::from_millis(40);
-        let line = report(0, true, quiet, later).expect("let go");
+        let line = report(0, quiet, later).expect("let go");
         assert!(line.contains("40 ms before"), "{line}");
         assert!(line.contains("up -127"), "{line}");
-        assert_eq!(report(0, true, quiet, later), None, "once");
-        // Off, nothing is said.
-        assert_eq!(report(PM_FREEZE, false, quiet, later), None);
-        assert_eq!(report(0, false, quiet, later), None);
+        assert_eq!(report(0, quiet, later), None, "once");
+        // Off, nothing is said or kept.
+        set_enabled(false);
+        assert_eq!(report(PM_FREEZE, quiet, later), None);
+        assert_eq!(report(0, quiet, later), None);
+        assert!(WATCH.lock().unwrap().is_none());
     }
 }

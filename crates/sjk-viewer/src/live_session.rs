@@ -404,15 +404,19 @@ impl GpuState {
         let (Some(session), Some(console)) = (&self.live_session, &mut self.console) else {
             return;
         };
-        let movement_type = session.latest_snapshot().player.movement_type();
         let enabled = console.bool_cvar(crate::emote_end_debug::CVAR) == Some(true);
+        crate::emote_end_debug::set_enabled(enabled);
+        if !enabled {
+            return;
+        }
+        let movement_type = session.latest_snapshot().player.movement_type();
         let context = crate::emote_end_debug::Context {
             unfocused: console.bool_cvar("com_unfocused") == Some(true)
                 || console.bool_cvar("com_minimized") == Some(true),
             console_open: console.is_open(),
             collection_open: console.collection_stage_wish().is_some(),
         };
-        if let Some(line) = crate::emote_end_debug::report(movement_type, enabled, context, now) {
+        if let Some(line) = crate::emote_end_debug::report(movement_type, context, now) {
             console.push_log(line);
         }
     }
