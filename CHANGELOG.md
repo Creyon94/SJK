@@ -69,6 +69,17 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Achievements: Blue Master, Yellow Master, Red Master, Dual Sabers Master and Staff Master, for 50 duels won with the saber in that style (private duels, saber only or full Force, and duel games) _(Slash, PR #272, after Dante's idea)_
 - Chat: the console key opens the console while you are typing in the chat, as in the original game; the chat waits under it with what you typed, and the console now covers it instead of the chat's text showing on top. Shift with it still types `~`, and a letter, a digit or a printable key bound to the console types as before. Settings > Interface > Console over chat (`con_overChat`) turns it off _(Slash, PR #255)_
 - Movement keys: Settings > HUD > Movement keys (`cg_movementKeys`, off) shows jump, forward, crouch, left, back and right on screen, each lit while held, and guesses them for a player you follow or watch in a demo; `cg_movementKeysX`, `cg_movementKeysY` and `cg_movementKeysSize` move and size them. With EternalJK installed they use its key pictures _(Creyon, PR #275, after JoF EJK)_
+- Prediction: in CTY, carrying a flag no longer predicts Force jumps and wall moves the server refuses; prediction now knows the server's game type _(Lumaya, PR #249, after the original game)_
+- Prediction: standing on an NPC bounces you off it at once, as the server does, and wall and saber moves see the players and NPCs around you _(Lumaya, PR #250, after the original game)_
+- Prediction: in zero gravity, jumping pushes you off along your view as the server does, instead of nothing until the server corrects you _(Lumaya, PR #251, after the original game)_
+- Prediction: jump pads and teleporters are touched with your real body size, so at their edges, after a roll, they no longer disagree with the server _(Lumaya, PR #254, after the original game)_
+- Prediction: while another player carries you, your movement keys stop at once instead of fighting the server; looking and attacking still work _(Lumaya, PR #261, after the original game)_
+- Prediction: the gesture key plays its hand gesture at once instead of after the server answers _(Lumaya, PR #262, after the original game)_
+- Vehicles: riders can hold the blaster, not the pistol, as the server allows _(Lumaya, PR #263, after the original game)_
+- Vehicles: a rider who can be seen fires their melee, saber or blaster at once, predicted like on foot _(Lumaya, PR #264, after the original game)_
+- Rocket lock: the lock-on sees through and stops at the same things as the server, and locks on NPCs and vehicles too, not only players _(Lumaya, PRs #265 and #268, after the original game)_
+- Prediction: water, lava and other contents of moving doors and lifts are tested where you see them _(Lumaya, PR #270, after the original game)_
+- Vehicles: a passenger no longer walks on their own between updates while the vehicle is not predicted _(Lumaya, PR #276, after the original game)_
 
 ## 2026.1028.1 (Alpha) | 28/10/2026
 

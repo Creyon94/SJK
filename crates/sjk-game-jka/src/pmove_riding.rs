@@ -273,11 +273,10 @@ impl Predictor {
         self.riding
     }
 
-    /// Whether this is a rider's move (`m_iVehicleNum` of a client, with its vehicle).
+    /// Whether this is a rider's move (`m_iVehicleNum` of a client). A passenger
+    /// need not have the optional vehicle context used for piloting prediction.
     pub(super) fn riding_move(&self) -> bool {
-        self.riding.is_some()
-            && self.state.vehicle_entity_num != 0
-            && self.state.client_num < MAX_CLIENTS
+        self.state.vehicle_entity_num != 0 && self.state.client_num < MAX_CLIENTS
     }
 
     /// An NPC that is no vehicle (`CLASS_VEHICLE`, 53) with an `m_iVehicleNum` (`bg_pmove.c:11027-11030`): a
@@ -566,5 +565,79 @@ fn forced_turning(
     for axis in 0..3 {
         let short = crate::npc_think::angle_to_short(state.view_angles[axis]);
         state.delta_angles[axis] = short.wrapping_sub(command.angles[axis]);
+    }
+}
+
+#[cfg(test)]
+mod passenger_tests {
+    use super::*;
+
+    struct Clear;
+    impl MovementCollision for Clear {
+        fn trace(
+            &self,
+            _: [f32; 3],
+            _: [f32; 3],
+            _: [f32; 3],
+            end: [f32; 3],
+            _: u32,
+        ) -> MovementTrace {
+            MovementTrace::miss(end)
+        }
+    }
+
+    #[test]
+    fn passenger_without_chassis_context_does_not_run_physics() {
+        // OpenJK 4d0dfaf1 bg_pmove.c:11027-11031 dispatches from m_iVehicleNum,
+        // not CG_Piloting or the availability of predictedVehicleState.
+        for millis in [8, 7, 4, 3] {
+            for velocity in [[0.0; 3], [80.0, -40.0, 120.0]] {
+                let mut player = sjk_protocol::PlayerState::default();
+                player.stats[0] = 100;
+                let mut predictor =
+                    Predictor::from_player_state(&player, MovementConfig::default());
+                let origin = [20.0, 30.0, 200.0];
+                let state = predictor.state_mut();
+                state.origin = origin;
+                state.velocity = velocity;
+                state.gravity = 800.0;
+                state.speed = 250.0;
+                state.vehicle_entity_num = 100;
+                state.ground_entity_number = ENTITY_NUMBER_NONE;
+                assert!(predictor.riding().is_none());
+                assert!(predictor.riding_move());
+                predictor.predict_command(
+                    UserCommand {
+                        server_time: millis,
+                        forward_move: 127,
+                        right_move: 127,
+                        up_move: 127,
+                        ..Default::default()
+                    },
+                    &Clear,
+                );
+                assert_eq!(
+                    predictor.state().origin,
+                    origin,
+                    "{millis} ms, {velocity:?}"
+                );
+                assert_eq!(predictor.state().velocity, velocity);
+                assert_eq!(predictor.state().command_time, millis);
+
+                // Dismounting restores movement on the next command without any
+                // optional Riding context needing to be installed or removed.
+                predictor.state_mut().vehicle_entity_num = 0;
+                assert!(!predictor.riding_move());
+                predictor.predict_command(
+                    UserCommand {
+                        server_time: millis * 2,
+                        forward_move: 127,
+                        ..Default::default()
+                    },
+                    &Clear,
+                );
+                assert_ne!(predictor.state().origin, origin);
+            }
+        }
     }
 }

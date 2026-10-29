@@ -158,6 +158,13 @@ hands Pmove the local player's animation set (`cg_predict.c:1311` at a40e793). T
 server does not simulate `g_debugMelee`; its default there is 0, which keeps
 prediction on the stock behavior.
 
+A player's nonzero vehicle entity number suppresses ordinary movement physics,
+including for a passenger with no predicted chassis. The optional `Riding`
+context supplies vehicle-specific details; it does not decide whether the player
+is aboard (`codemp/game/bg_pmove.c:11027-11031`). Dismounting restores ordinary
+movement on the next command. Passenger seat placement and vehicle-specific
+view/duck details still require the corresponding vehicle context.
+
 JA+ and TaystJK/jaPRO isolate private duels: the two duellers and everyone else
 pass through each other. A JA+ 2.4 server leaves part of that to client-plugin
 users, sending them a dueller as a solid player box flagged with `bolt1`, so on

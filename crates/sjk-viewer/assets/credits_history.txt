@@ -2618,6 +2618,40 @@
 - ddfe116 |  | Fix Linux clipboard integration
 
 = Lumaya
++ 29/10/2026 | SJK #276 | Suppress local passenger movement without a predicted chassis
+- ba58cab |  | Record passenger movement prediction finding
+- dbacf2f |  | Suppress passenger movement without a predicted chassis
+- 0e148bb |  | Preserve existing status documentation encoding
++ 29/10/2026 | SJK #271 | Record prediction comparison coverage and remaining parity gaps
+- 3e50e81 |  | Record prediction comparison coverage and remaining parity gaps
+- 45252ce |  | Compare prediction fixes with JA+ and jaPRO sources
++ 29/10/2026 | SJK #270 | Use presented inline brush transforms for point contents
+- a7de034 |  | Use presented inline brush transforms for point contents
++ 29/10/2026 | SJK #268 | Use snapshot actors and powerups for predicted rocket locking
+- 859e88b |  | Use snapshot actors and powerups for predicted rocket locking
++ 29/10/2026 | SJK #265 | Use codemp player-solid contents for rocket locking
+- 9aae3e8 |  | Use codemp player-solid contents for rocket locking
++ 29/10/2026 | SJK #264 | Predict legal handheld weapons for exposed vehicle riders
+- e7c4c08 |  | Predict legal handheld weapons for exposed vehicle riders
++ 29/10/2026 | SJK #263 | Use the blaster weapon ID in the vehicle rider whitelist
+- 961418e |  | Use the blaster weapon ID in the vehicle rider whitelist
++ 29/10/2026 | SJK #262 | Predict command gestures through codemp PM_Animate
+- d731c47 |  | Predict command gestures through codemp PM_Animate
++ 29/10/2026 | SJK #261 | Freeze movement input while another client holds the player
+- 96fa579 |  | Freeze movement input while another client holds the player
++ 29/10/2026 | SJK #254 | Use the Pmove hull for predicted trigger contact
+- c5bc630 |  | Document prediction trigger-hull gap
+- 9cc782d |  | Use the final Pmove hull for predicted brush triggers
++ 29/10/2026 | SJK #251 | Restore codemp zero-gravity push-off movement
+- ee377e0 |  | Document prediction zero-gravity gap
+- 79290e7 |  | Restore codemp zero-gravity push-off movement
++ 29/10/2026 | SJK #250 | Supply snapshot entity context to local movement prediction
+- caf9635 |  | Document prediction entity-context gap
+- bc66481 |  | Supply snapshot actor context to local prediction
+- 9b891e7 |  | Verify prediction actor lookups in release builds
++ 29/10/2026 | SJK #249 | Use the server gametype in local movement prediction
+- 1481723 |  | Document prediction gametype gap
+- b39c1ba |  | Use the server gametype for predicted Force eligibility
 + 24/10/2026 | SJK #195 | Respect wall-grab free look and add an opt-in camera lock
 - f71bf25 |  | Hold the camera throughout wall grabs
 - c03b6a5 |  | Fold wall-normal camera alignment into the wall-grab fix

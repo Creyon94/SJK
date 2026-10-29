@@ -501,7 +501,7 @@ pull requests merged into SJK, most of them bringing SJK in line with EternalJK
   its next seven the Sketch, Hourglass, Fiber Optic, Serpent, Monarch, Phoenix and Quantum
   blades, and its last three the Comic, Quicksilver and Obsidian Edge blades.
 
-Lumaya ([lumayaa](https://github.com/lumayaa)), contributor, has 52 pull requests
+Lumaya ([lumayaa](https://github.com/lumayaa)), contributor, has 65 pull requests
 merged into SJK
 ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3Alumayaa)):
 
@@ -611,6 +611,11 @@ merged into SJK
 - #195 (with #196) the wall-grab camera no longer comes loose on stock servers when a snapshot
   catches up, JA+'s free look kept; `cg_wallGrabLock` (off) locks it there too and faces the
   wall. At the merge the facing runs only with the option on.
+- #249-#276 prediction audit against codemp, checked against JA+ (JoF EJK) and jaPRO (TaystJK) sources:
+  the server's game type (#249), surrounding players and NPCs (#250), the zero-gravity push-off (#251),
+  the trigger hull (#254), input frozen while carried (#261), the gesture (#262), vehicle riders' blaster
+  and weapons (#263, #264), rocket locking (#265, #268), moving brush contents (#270), passengers without
+  a predicted vehicle (#276), and the audit's record in networking.md (#271).
 
 Lukas ([LukasMoudry](https://github.com/LukasMoudry)), contributor, has 18 pull requests
 merged into SJK

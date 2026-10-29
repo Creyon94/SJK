@@ -247,7 +247,7 @@ link: Creyon's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr
 
 [Lumaya]
 github: lumayaa
-role: Contributor: 52 merged pull requests
+role: Contributor: 65 merged pull requests
 medal: early_contributor
 did: #24 Saber blades stop at walls instead of shining through them
 did: #29 Free camera: /freecam flies the camera away from your body
@@ -301,6 +301,9 @@ did: #149 JoF mod: EJK opt-in and Stasis/Repulse confirmations
 did: #165 Trusted chat media sources: GIFs, WebP, opt-in video
 did: #166 Shift+console at your console height, an option
 did: #195 The wall-grab camera holds on stock servers; cg_wallGrabLock locks it on JA+
+did: #249-#276 Prediction audit: 12 fixes checked against JA+ and jaPRO
+did: #265 #268 Rocket lock-on predicted as the server does
+did: #263 #264 Vehicle riders' weapons predicted
 link: Lumaya's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3Alumayaa
 
 [Lukas]

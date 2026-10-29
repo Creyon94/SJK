@@ -1,3 +1,14 @@
+## Passenger movement prediction
+
+29/10/2026, `fix/prediction-passenger-movement`, based on `main` `9e48ff6d`:
+a player's vehicle entity number now suppresses ordinary movement even without
+a local `Riding` context or predicted chassis. This follows OpenJK `4d0dfaf1`
+multiplayer `bg_pmove.c`'s movement dispatch, rider weapon and footstep gates.
+Windows x64 focused tests cover stationary and moving airborne passengers,
+movement input, advancing command time and dismounting at 8/7/4/3 ms. Optional
+vehicle-specific seat/view/duck context is unchanged. Live passenger gameplay
+and a full Pmove output comparison against OpenJK remain unverified.
+
 ## A JA+ emote kept when going away, and `cg_debugEmoteEnd`
 
 29/10/2026, `fix/menu-cancels-meditate`, based on `main` `b558d4ae`, hub report #196 (build
