@@ -24,6 +24,32 @@
 
 # ---- Console & chat ----
 
+[slash-slider-peek]
+area: Menus & settings
+title: A held slider peeks at the game behind the menu (Slash, PR #248)
+change: Hold a slider 0.3 s in a match: the rest of the menu fades away; let go, it returns.
+change: Settings > Interface > Slider peek (ui_sliderPeek, on).
+test: In a match, Settings > Graphics, hold a slider and drag: only that row over the game.
+test: A quick click does not peek; on the main menu it never does.
+test: ui_sliderPeek 0: holding a slider no longer fades the menu.
+
+[creyon-chat-tabs]
+area: Console & chat
+title: Chat tabs: Admin and PM buttons, a tab shows only its channel (Creyon, PR #259)
+change: Admin sends amsay on JA+/jaPRO servers; PM replies to whoever whispered you.
+change: Settings > Chat picks the buttons; cg_chatTabFilter shows only the tab's chat.
+test: On a JA+ server, open chat: Admin shows; send, admins see <Admin>(you).
+test: On Team, only team chat shows in the feed; on All, everything.
+test: cg_chatTabPm 1, get a whisper: PM reads To <name>; left/right click cycles.
+
+[slash-style-masters]
+area: Gameplay
+title: Saber style Master achievements (Slash, PR #272)
+change: Blue, Yellow, Red, Dual Sabers and Staff Master: 50 duels won in that style.
+test: Collection > Achievements: the five show in Duels and flags at 0 / 50.
+test: Win a private duel in blue style: Blue Master goes to 1 / 50.
+note: Needs the hub with the five ids (SJK-hub ec1d253) deployed to unlock.
+
 [slash-force-regen]
 area: Gameplay
 title: Force refills at g_forceRegenTime on hosted games (Slash, PR #243)

@@ -74,10 +74,16 @@ pub(crate) enum Counter {
     SaberThrowFar,
     /// Players defeated with their own thermal detonator.
     ThermalReturn,
+    /// Duels won with the saber in each style (`fd.saberAnimLevel` at the kill).
+    DuelStyleBlue,
+    DuelStyleYellow,
+    DuelStyleRed,
+    DuelStyleDual,
+    DuelStyleStaff,
 }
 
 impl Counter {
-    const COUNT: usize = 17;
+    const COUNT: usize = 22;
     const ALL: [Self; Self::COUNT] = [
         Self::Kills,
         Self::SaberKills,
@@ -96,6 +102,11 @@ impl Counter {
         Self::DuelPartners,
         Self::SaberThrowFar,
         Self::ThermalReturn,
+        Self::DuelStyleBlue,
+        Self::DuelStyleYellow,
+        Self::DuelStyleRed,
+        Self::DuelStyleDual,
+        Self::DuelStyleStaff,
     ];
 
     /// Its name in `achievements.json`.
@@ -118,6 +129,11 @@ impl Counter {
             Self::DuelPartners => "duel_partners",
             Self::SaberThrowFar => "saber_throws_far",
             Self::ThermalReturn => "thermal_returns",
+            Self::DuelStyleBlue => "duel_style_blue",
+            Self::DuelStyleYellow => "duel_style_yellow",
+            Self::DuelStyleRed => "duel_style_red",
+            Self::DuelStyleDual => "duel_style_dual",
+            Self::DuelStyleStaff => "duel_style_staff",
         }
     }
 
@@ -249,7 +265,7 @@ use Counter as C;
 use Source::{Client, Hub};
 
 /// Every achievement, in the hub's catalogue order.
-pub(crate) const ALL: [Kind; 35] = [
+pub(crate) const ALL: [Kind; 40] = [
     kind(
         "first_blood",
         "First Blood",
@@ -534,6 +550,46 @@ pub(crate) const ALL: [Kind; 35] = [
         1,
         Combat,
         Client(C::ThermalReturn),
+    ),
+    kind(
+        "style_blue_50",
+        "Blue Master",
+        "Win 50 duels with the saber in the Fast (blue) style.",
+        50,
+        Duels,
+        Client(C::DuelStyleBlue),
+    ),
+    kind(
+        "style_yellow_50",
+        "Yellow Master",
+        "Win 50 duels with the saber in the Medium (yellow) style.",
+        50,
+        Duels,
+        Client(C::DuelStyleYellow),
+    ),
+    kind(
+        "style_red_50",
+        "Red Master",
+        "Win 50 duels with the saber in the Strong (red) style.",
+        50,
+        Duels,
+        Client(C::DuelStyleRed),
+    ),
+    kind(
+        "style_dual_50",
+        "Dual Sabers Master",
+        "Win 50 duels with two sabers.",
+        50,
+        Duels,
+        Client(C::DuelStyleDual),
+    ),
+    kind(
+        "style_staff_50",
+        "Staff Master",
+        "Win 50 duels with a saber staff.",
+        50,
+        Duels,
+        Client(C::DuelStyleStaff),
     ),
 ];
 
@@ -1214,6 +1270,11 @@ mod tests {
                 "duel_partners_25",
                 "saber_throw_far",
                 "thermal_return",
+                "style_blue_50",
+                "style_yellow_50",
+                "style_red_50",
+                "style_dual_50",
+                "style_staff_50",
             ]
         );
         assert_eq!(ALL[20].id, "decorated");

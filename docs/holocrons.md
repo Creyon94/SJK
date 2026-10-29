@@ -164,7 +164,8 @@ The client's list is [kyber.rs](../crates/sjk-viewer/src/kyber.rs) (`kyber::TIER
   `kills_100`, `saber_kills_100`, `streak_10`, `dark_side_25`, `arsenal`, `maps_25`,
   `surveyor` (retired 26/10/2026: its holders keep their crystal), `decorated`,
   `holocrons_50`, `mythical_find`, `craft_finishes`, `duel_flawless`, `duel_partners_25`,
-  `thermal_return`; Legendary for `duel_wins_100`, `hours_100`, `holocrons_200`,
+  `thermal_return`, the five style masters (`style_blue_50`, `style_yellow_50`,
+  `style_red_50`, `style_dual_50`, `style_staff_50`); Legendary for `duel_wins_100`, `hours_100`, `holocrons_200`,
   `full_set`; Mythical for `kills_1000`. A hub
   that sends `reward` on an achievement replaces the client's word for it
   (`kyber::follow_rewards`, lock-free, read by the boards every frame). The hub grants a

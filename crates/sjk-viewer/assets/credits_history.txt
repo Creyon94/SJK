@@ -2327,6 +2327,8 @@
 - 0d215f1 |  | Initial JKR source
 
 = Creyon
++ 29/10/2026 | SJK #259 | Chat tabs: an Admin (amsay) button and key, and choosable Team/SJK/Admin/PM buttons that filter
+- b6b5800 |  | Chat tabs: an Admin (amsay) button and key, and choosable Team/SJK/Admin/PM buttons that filter
 + 29/10/2026 | SJK #269 | Profile: RGB sliders for models that can be coloured, as in JoF EJK
 - d6ef676 |  | Profile > Character: colour sliders for a model's RGB skin
 - c5a66b0 |  | Model colour: let the stage instance buffer be written again
@@ -2755,6 +2757,14 @@
 - fed9acd |  | Hide duel opponents' bars and send nothing while duelling
 
 = Slash
++ 29/10/2026 | SJK #272 | Achievements: Blue, Yellow, Red, Dual Sabers and Staff Master
+- 249ad46 |  | Achievements: Blue, Yellow, Red, Dual and Staff Master
+- fa8c779 |  | Achievements: room for the five style crystals in the reward table
+- 129ade6 |  | Achievements: Dual Sabers Master, so it does not read as Duel Master
++ 29/10/2026 | SJK #248 | Settings: a held slider peeks at the game behind the menu
+- 9aeb0ce |  | Add the hold and fade state for Settings slider peek
+- 08b73c8 |  | Fade Settings round a held slider so it peeks at the match
+- b2898cc |  | Slider peek: end it when the console, a card or another window takes over
 + 29/10/2026 | SJK #257 | Mod notice: no input for its first 0.6 s, and Space does not close it
 - d52f3ed |  | Mod notice: no input for its first 0.6 s, and Space does not close it
 + 29/10/2026 | SJK #258 | Encrypted whispers: a player blocked for the map or by staff stays out

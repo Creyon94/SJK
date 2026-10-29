@@ -34,8 +34,6 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 = ui_sliderPeek: New: in the game, hold a Settings slider a moment and the rest of the menu fades away, so you see the change on the game as you drag.
 
-- Settings: in the game, hold a slider (its track or knob) a moment and everything else fades away, the darkening behind too, leaving only that slider over the game, so you see the change as you drag; letting go brings the menu back. Settings > Interface > Slider peek (`ui_sliderPeek`) switches it off _(Slash, PR #248, after Blep's idea)_
-- Chat: a new Admin button beside All, Team and SJK sends your message to the server's admins only (amsay), on JA+ and jaPRO servers, and Controls has an Admin chat key for it. In Settings > Chat you choose which buttons show: Team, SJK, Admin and PM. PM replies to players who whispered you: left click goes to the next one, right click to the one before. With Tabs hide other chat on, a button shows only its own messages while you type; off, it only picks where you talk (Creo's idea) _(Creyon)_
 - Mystery boxes hold a holocron one time in ten (it was one in fifty), and the roll shows the four tiers' real holocrons, stopping on the one you won. A box that blows up laughs with Sol's own laugh when the SJK extras pack is installed _(Sol)_
 - Centre prints and the words over mystery boxes (and the box hunt's mark) are drawn in Fira Sans Condensed, a real typeface close to the old menu font, instead of a tracing of a low-resolution bitmap _(Sol)_
 - Box hunt: one mark every 10 minutes at most, not one after the other. Hunters see the mark ringed in red, and a black name reads on the hunt's card _(Sol)_
@@ -65,6 +63,9 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - A mod's notice (JoF: SJK chat is said in All chat) no longer closes for good when you jump as it opens: it takes no input for its first 0.6 s, and Space no longer closes it _(Slash, PR #257)_
 - Blocking: a player blocked for this map, or by SJK staff, can no longer reach you with encrypted whispers either (no console line, flash or sound), as with game chat _(Slash, PR #258)_
 - Profile > Character: a model that can be coloured gets Red, Green and Blue sliders under the model grid, as in JoF EJK; the model on the stage shows the colour at once and Apply wears it (the grid's pictures stay as they are) _(Creyon, PR #269)_
+- Settings: in the game, hold a slider (its track or knob) a moment and everything else fades away, the darkening behind too, leaving only that slider over the game, so you see the change as you drag; letting go brings the menu back. Settings > Interface > Slider peek (`ui_sliderPeek`) switches it off _(Slash, PR #248, after Blep's idea)_
+- Chat: a new Admin button beside All, Team and SJK sends your message to the server's admins only (amsay), on JA+ and jaPRO servers, and Controls has an Admin chat key for it. In Settings > Chat you choose which buttons show: Team, SJK, Admin and PM. PM replies to players who whispered you: left click goes to the next one, right click to the one before. With Tabs hide other chat on, a button shows only its own messages while you type; off, it only picks where you talk (Creo's idea) _(Creyon, PR #259)_
+- Achievements: Blue Master, Yellow Master, Red Master, Dual Sabers Master and Staff Master, for 50 duels won with the saber in that style (private duels, saber only or full Force, and duel games) _(Slash, PR #272, after Dante's idea)_
 
 ## 2026.1028.1 (Alpha) | 28/10/2026
 
