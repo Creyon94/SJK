@@ -808,6 +808,11 @@ pub(super) const HUD: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "PM chat button",
+        cvar: crate::chat::tabs::PM_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Chat line spacing",
         cvar: crate::chat::options::LINE_SPACING_CVAR,
         kind: ValueKind::Float {

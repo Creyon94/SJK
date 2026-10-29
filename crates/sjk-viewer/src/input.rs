@@ -54,6 +54,8 @@ pub(crate) enum InputAction {
     TargetMessage(bool),
     /// The SJK chat, through the SJK hub (`messagemode5`).
     SjkMessageMode,
+    /// Admin chat, `amsay` (`messagemode6`, `chat/tabs.rs`).
+    AdminMessageMode,
     ToggleCamera,
     SaberToggle,
     SaberStyle,
@@ -289,6 +291,7 @@ impl GameplayInput {
                     | "messagemode3"
                     | "messagemode4"
                     | "messagemode5"
+                    | "messagemode6"
                     | "togglecamera"
                     | "sabertoggle"
                     | "saberstyle"
@@ -465,6 +468,7 @@ impl GameplayInput {
             "messagemode3" => Some(InputAction::TargetMessage(false)),
             "messagemode4" => Some(InputAction::TargetMessage(true)),
             "messagemode5" => Some(InputAction::SjkMessageMode),
+            "messagemode6" => Some(InputAction::AdminMessageMode),
             "togglecamera" => Some(InputAction::ToggleCamera),
             "sabertoggle" => Some(InputAction::SaberToggle),
             "saberstyle" => Some(InputAction::SaberStyle),
@@ -582,6 +586,12 @@ impl super::GpuState {
                 self.chat.open_sjk();
                 self.sync_cursor_policy();
             }
+            Some(InputAction::AdminMessageMode) if self.live_session.is_some() => {
+                self.gameplay_input.release_keys();
+                self.chat.open_admin();
+                self.sync_cursor_policy();
+            }
+            Some(InputAction::AdminMessageMode) => {}
             // Without a game the composer has nowhere to show: the page has it.
             Some(InputAction::SjkMessageMode) => {
                 if let Some(console) = &mut self.console {

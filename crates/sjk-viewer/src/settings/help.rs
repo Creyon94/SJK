@@ -647,6 +647,10 @@ const HELP: &[(&str, &str)] = &[
         "Shows Admin beside All on JA+ and jaPRO servers: your message goes to the server's admins only (amsay).",
     ),
     (
+        crate::chat::tabs::PM_CVAR,
+        "Shows PM beside All when you type a message: it whispers the last player who whispered you.",
+    ),
+    (
         crate::chat::reply::REMEMBER_CVAR,
         "On, the chat key opens on your last channel: All, Team, SJK or a whisper. Off (the default), it always opens on All.",
     ),

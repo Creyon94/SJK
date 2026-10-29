@@ -11,6 +11,7 @@ pub(super) const TEAM: u16 = 101;
 pub(super) const LATEST: u16 = 102;
 pub(super) const SJK: u16 = 103;
 pub(super) const ADMIN: u16 = 104;
+pub(super) const PM: u16 = 105;
 
 /// Keys the composer acts on itself rather than typing their text.
 fn handled_key(key: KeyCode) -> bool {
@@ -176,7 +177,7 @@ impl ChatOverlay {
                 card::CARD,
             ]
             .into_iter()
-            .chain([LATEST, SJK, TEAM, GLOBAL])
+            .chain([LATEST, PM, ADMIN, SJK, TEAM, GLOBAL])
             .chain(0..MAX_VISIBLE as u16)
             .find(|token| {
                 self.ui
@@ -243,6 +244,7 @@ impl ChatOverlay {
             TEAM => self.choose(Channel::Team),
             SJK => self.choose(Channel::Sjk),
             ADMIN => self.choose(Channel::Admin),
+            PM => self.choose_pm(),
             LATEST => {
                 self.scroll = 0;
                 self.unread = 0;

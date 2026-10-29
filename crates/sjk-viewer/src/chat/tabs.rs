@@ -1,9 +1,10 @@
-//! The channels the chat composer offers (Creo's idea, 29/10/2026): All always, then
-//! Team, SJK and Admin, each behind its own switch, so a player who never uses one can
-//! leave it out. Admin is JA+'s and jaPRO's `amsay`, a message only the server's admins
+//! The channels the chat composer offers (Creo's idea in #ideas, 26/10/2026): All always,
+//! then Team, SJK, Admin and PM, each behind its own switch, so every player sets up the
+//! row they use. Admin is JA+'s and jaPRO's `amsay`, a message only the server's admins
 //! read (JoF EJK `Cmd_Amsay_f`, `SAY_ADMIN`); it is offered only on a server whose mod
-//! has the command. A hidden channel is only left off the row and out of Tab: the team
-//! chat key still opens Team, and a whisper still opens from a name.
+//! has the command, and has its own key ([`ADMIN_COMMAND`]). PM whispers to the last
+//! player who whispered you (`chat/reply.rs`). A hidden channel is only left off the row
+//! and out of Tab: its key still opens it, and a whisper still opens from a name.
 use super::*;
 use crate::console::ViewerConsole;
 
@@ -13,6 +14,15 @@ pub(crate) const TEAM_CVAR: &str = "cg_chatTabTeam";
 pub(crate) const SJK_CVAR: &str = "cg_chatTabSjk";
 /// Admin chat (`amsay`) in the composer's row, on servers that have it.
 pub(crate) const ADMIN_CVAR: &str = "cg_chatTabAdmin";
+/// A PM button (a whisper to the last whisperer) in the composer's row.
+pub(crate) const PM_CVAR: &str = "cg_chatTabPm";
+/// The key command that opens the composer on Admin chat, beside `messagemode5` (SJK).
+pub(crate) const ADMIN_COMMAND: &str = "messagemode6";
+/// What the composer says when PM is chosen and no one has whispered yet.
+pub(super) const NO_PM: &str =
+    "No one has whispered you yet: click a player's name to whisper them.";
+/// What the composer says when the Admin key is used on a server without admin chat.
+pub(super) const NO_ADMIN: &str = "This server has no admin chat (amsay is JA+ and jaPRO's).";
 
 /// Which of the switchable channels the player keeps in the row.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -20,19 +30,21 @@ pub(super) struct Tabs {
     pub(super) team: bool,
     pub(super) sjk: bool,
     pub(super) admin: bool,
+    pub(super) pm: bool,
 }
 
 impl Tabs {
     pub(super) fn read(console: Option<&ViewerConsole>) -> Self {
-        let on = |name| {
+        let on = |name, default| {
             console
                 .and_then(|console| console.integer_cvar(name))
-                .is_none_or(|value| value != 0)
+                .map_or(default, |value| value != 0)
         };
         Self {
-            team: on(TEAM_CVAR),
-            sjk: on(SJK_CVAR),
-            admin: on(ADMIN_CVAR),
+            team: on(TEAM_CVAR, true),
+            sjk: on(SJK_CVAR, true),
+            admin: on(ADMIN_CVAR, true),
+            pm: on(PM_CVAR, false),
         }
     }
 }
@@ -49,9 +61,15 @@ pub(crate) fn server_has_admin_chat(kind: sjk_mod::ServerKind) -> bool {
 impl ChatOverlay {
     /// The channels the composer's row offers now, in order.
     pub(super) fn offered(&self) -> impl Iterator<Item = Channel> + '_ {
-        [Channel::Global, Channel::Team, Channel::Sjk, Channel::Admin]
-            .into_iter()
-            .filter(|channel| self.offers(*channel))
+        [
+            Channel::Global,
+            Channel::Team,
+            Channel::Sjk,
+            Channel::Admin,
+            Channel::Whisper,
+        ]
+        .into_iter()
+        .filter(|channel| self.offers(*channel))
     }
 
     /// Whether the row offers `channel`.
@@ -62,7 +80,7 @@ impl ChatOverlay {
             Channel::Team => tabs.team,
             Channel::Sjk => tabs.sjk,
             Channel::Admin => tabs.admin && self.admin_server,
-            Channel::Whisper => false,
+            Channel::Whisper => tabs.pm,
         }
     }
 
@@ -70,7 +88,7 @@ impl ChatOverlay {
     /// composer on Admin to All.
     pub(crate) fn set_admin_server(&mut self, admin: bool) {
         self.admin_server = admin;
-        if !self.offers(Channel::Admin)
+        if !admin
             && let Some(input) = self.input.as_mut()
             && input.channel == Channel::Admin
         {
@@ -79,19 +97,53 @@ impl ChatOverlay {
     }
 
     /// The channel Tab moves to from `channel`: the next one in the row, then the last
-    /// whisperer (`chat/reply.rs`), then All again.
+    /// whisperer (`chat/reply.rs`) when the row has no PM button, then All again. `None`
+    /// is the last whisperer.
     pub(super) fn next_channel(&self, channel: Channel) -> Option<Channel> {
-        if channel != Channel::Whisper {
-            let mut row = self.offered().skip_while(|offered| *offered != channel);
-            row.next();
-            if let Some(next) = row.next() {
-                return Some(next);
-            }
-            if self.reply_target().is_ok() {
-                return None;
+        let mut row = self.offered().skip_while(|offered| *offered != channel);
+        row.next();
+        for next in row {
+            match next {
+                // The PM button stands for the last whisperer, skipped when there is none.
+                Channel::Whisper if self.reply_target().is_ok() => return None,
+                Channel::Whisper => {}
+                next => return Some(next),
             }
         }
+        if channel != Channel::Whisper
+            && !self.offers(Channel::Whisper)
+            && self.reply_target().is_ok()
+        {
+            return None;
+        }
         Some(Channel::Global)
+    }
+
+    /// The PM button: a whisper to the last whisperer, or a word on how to whisper.
+    pub(super) fn choose_pm(&mut self) {
+        match self.reply_target() {
+            Ok(target) => {
+                if let Some(input) = self.input.as_mut() {
+                    input.channel = Channel::Whisper;
+                    input.recipient = Some(target);
+                    self.notice = "";
+                }
+            }
+            Err(_) => self.notice = NO_PM,
+        }
+    }
+
+    /// Open the composer on Admin chat for its key, whether or not its button is in the
+    /// row; on a server without it, on All with a word why.
+    pub(crate) fn open_admin(&mut self) {
+        self.open(false);
+        if self.admin_server {
+            if let Some(input) = self.input.as_mut() {
+                input.channel = Channel::Admin;
+            }
+        } else {
+            self.notice = NO_ADMIN;
+        }
     }
 
     /// Left edge of the whisper's "To ..." and the SJK chat's red note: past the row's
@@ -104,12 +156,44 @@ impl ChatOverlay {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use sjk_ui::{InputEvent, PointerButton};
 
     fn chat(team: bool, sjk: bool, admin: bool, server: bool) -> ChatOverlay {
         let mut chat = ChatOverlay::new();
-        chat.options.tabs = Tabs { team, sjk, admin };
+        chat.options.tabs = Tabs {
+            team,
+            sjk,
+            admin,
+            pm: false,
+        };
         chat.admin_server = server;
         chat
+    }
+
+    /// The labels the open composer draws in its row, after a frame.
+    fn drawn(chat: &mut ChatOverlay) -> Vec<String> {
+        chat.build(true, &crate::text::test_font(), [1920.0, 1080.0], 1_000);
+        ["All", "Team", "SJK", "Admin", "PM"]
+            .into_iter()
+            .filter(|label| chat.ui.text_runs().any(|text| text == *label))
+            .map(str::to_owned)
+            .collect()
+    }
+
+    fn click(chat: &mut ChatOverlay, token: u16) {
+        chat.build(true, &crate::text::test_font(), [1920.0, 1080.0], 1_000);
+        let rect = chat.ui.rect_for(token).expect("a button");
+        let at = sjk_ui::Vec2::new(rect.x + rect.width * 0.5, rect.y + rect.height * 0.5);
+        let button = PointerButton::Primary;
+        chat.pointer(InputEvent::PointerMove(at));
+        chat.pointer(InputEvent::PointerPress {
+            position: at,
+            button,
+        });
+        chat.pointer(InputEvent::PointerRelease {
+            position: at,
+            button,
+        });
     }
 
     #[test]
@@ -119,7 +203,7 @@ mod tests {
             every.offered().collect::<Vec<_>>(),
             [Channel::Global, Channel::Team, Channel::Sjk, Channel::Admin]
         );
-        // Dave's row: no SJK or Team chat most of the time.
+        // Creo's and Dave's row: no SJK or Team chat most of the time.
         let lean = chat(false, false, true, true);
         assert_eq!(
             lean.offered().collect::<Vec<_>>(),
@@ -133,24 +217,83 @@ mod tests {
     }
 
     #[test]
+    fn the_settings_switch_the_drawn_buttons() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut console = ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
+        let mut chat = ChatOverlay::new();
+        chat.set_admin_server(true);
+        chat.configure(Some(&console));
+        chat.open(false);
+        assert_eq!(drawn(&mut chat), ["All", "Team", "SJK", "Admin"]);
+        assert!(console.set_cvar(TEAM_CVAR, "0"));
+        assert!(console.set_cvar(SJK_CVAR, "0"));
+        assert!(console.set_cvar(PM_CVAR, "1"));
+        chat.configure(Some(&console));
+        assert_eq!(drawn(&mut chat), ["All", "Admin", "PM"]);
+        assert!(console.set_cvar(ADMIN_CVAR, "0"));
+        chat.configure(Some(&console));
+        assert_eq!(drawn(&mut chat), ["All", "PM"]);
+    }
+
+    #[test]
+    fn the_admin_button_can_be_clicked() {
+        let mut chat = chat(true, true, true, true);
+        chat.open(false);
+        click(&mut chat, interaction::ADMIN);
+        assert_eq!(chat.input.as_ref().unwrap().channel, Channel::Admin);
+        click(&mut chat, interaction::TEAM);
+        assert_eq!(chat.input.as_ref().unwrap().channel, Channel::Team);
+    }
+
+    #[test]
+    fn the_pm_button_whispers_the_last_whisperer_or_says_how() {
+        let mut chat = chat(true, true, true, true);
+        chat.options.tabs.pm = true;
+        chat.open(false);
+        click(&mut chat, interaction::PM);
+        assert_eq!(chat.input.as_ref().unwrap().channel, Channel::Global);
+        assert_eq!(chat.notice, NO_PM);
+    }
+
+    #[test]
     fn tab_walks_only_the_offered_channels() {
         let lean = chat(false, true, true, true);
         assert_eq!(lean.next_channel(Channel::Global), Some(Channel::Sjk));
         assert_eq!(lean.next_channel(Channel::Sjk), Some(Channel::Admin));
         assert_eq!(lean.next_channel(Channel::Admin), Some(Channel::Global));
-        // The team key opened Team though it is hidden: Tab goes on to the next one.
+        // The team key opened Team though it is hidden: Tab goes back to All.
         assert_eq!(lean.next_channel(Channel::Team), Some(Channel::Global));
         assert_eq!(lean.next_channel(Channel::Whisper), Some(Channel::Global));
     }
 
     #[test]
-    fn the_switches_default_on_and_read_zero_as_off() {
+    fn the_admin_key_opens_admin_chat_even_with_its_button_hidden() {
+        let mut hidden = chat(true, true, false, true);
+        hidden.open_admin();
+        assert_eq!(hidden.input.as_ref().unwrap().channel, Channel::Admin);
+        hidden.set_admin_server(true);
+        assert_eq!(hidden.input.as_ref().unwrap().channel, Channel::Admin);
+        // Not on a server without it.
+        let mut base = chat(true, true, true, false);
+        base.open_admin();
+        assert_eq!(base.input.as_ref().unwrap().channel, Channel::Global);
+        assert_eq!(base.notice, NO_ADMIN);
+    }
+
+    #[test]
+    fn the_admin_key_is_a_bindable_control() {
+        assert!(crate::input::GameplayInput::recognizes(ADMIN_COMMAND));
+    }
+
+    #[test]
+    fn the_switches_default_on_but_pm_and_read_zero_as_off() {
         assert_eq!(
             Tabs::read(None),
             Tabs {
                 team: true,
                 sjk: true,
-                admin: true
+                admin: true,
+                pm: false
             }
         );
     }

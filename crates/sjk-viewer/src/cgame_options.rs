@@ -67,6 +67,11 @@ pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
             "Admin chat (amsay, read by the server's admins) in the chat composer's row, on JA+ and jaPRO servers",
         ),
         (
+            crate::chat::tabs::PM_CVAR,
+            0,
+            "A PM button in the chat composer's row: a whisper to the last player who whispered you",
+        ),
+        (
             crate::chat::emoji::CVAR,
             0,
             "Show emoji pictures (gfx/emoji) in place of their names in chat; listEmojis lists them",

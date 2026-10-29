@@ -2779,14 +2779,16 @@ last message sent from it instead: All, Team, SJK, or a whisper to a player stil
 the game (All once they leave). That lasts while SJK runs. The team, crosshair,
 last-attacker and SJK keys always open on their own channel.
 
-The composer's row of channels (Creo's idea, 29/10/2026;
-[chat/tabs.rs](../crates/sjk-viewer/src/chat/tabs.rs)) is All, then Team, SJK and Admin,
-each behind its own switch (`cg_chatTabTeam`, `cg_chatTabSjk`, `cg_chatTabAdmin`, all 1 by
-default; Settings > Chat): a channel switched off leaves the row and Tab skips it, but its
-key still opens it. Admin sends `amsay`, which only the server's admins read (JoF EJK
-`Cmd_Amsay_f`, `SAY_ADMIN`; they see it as `<Admin>`), and shows only on JA+ and jaPRO
-servers; leaving one moves a composer on Admin to All, and a remembered Admin or hidden
-channel opens on All.
+The composer's row of channels (Creo's idea in #ideas, 26/10/2026;
+[chat/tabs.rs](../crates/sjk-viewer/src/chat/tabs.rs)) is All, then Team, SJK, Admin and
+PM, each behind its own switch in Settings > Chat (`cg_chatTabTeam`, `cg_chatTabSjk`,
+`cg_chatTabAdmin` 1 by default, `cg_chatTabPm` 0): a channel switched off leaves the row
+and Tab skips it, but its key still opens it. Admin sends `amsay`, which only the
+server's admins read (JoF EJK `Cmd_Amsay_f`, `SAY_ADMIN`; they see it as `<Admin>`), and
+shows only on JA+ and jaPRO servers; its key is `messagemode6` (Controls > Admin chat, no
+key by default), which says so on other servers. Leaving one moves a composer on Admin to
+All, and a remembered Admin or hidden channel opens on All. PM whispers to the last
+player who whispered you, or says how to whisper when no one has.
 
 Open the chat composer with your chat binding: the cursor is free while composing.
 Resting the pointer on a name (a sender's, or an SJK chat sender's) shows their

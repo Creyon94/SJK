@@ -1,7 +1,7 @@
 //! Unboxed composer, channel choices, and a compact player-action popover.
 
 use super::*;
-use crate::chat::interaction::{ADMIN, GLOBAL, LATEST, SJK, TEAM};
+use crate::chat::interaction::{ADMIN, GLOBAL, LATEST, PM, SJK, TEAM};
 
 impl ChatOverlay {
     pub(in crate::chat) fn build_composer(&mut self, font: &UiFont, g: &Geometry, ms: u64) {
@@ -12,14 +12,15 @@ impl ChatOverlay {
         let y = g.bottom + 18.0 * g.scale;
         self.ui.push_opacity(alpha);
         // The row's channels (`chat/tabs.rs`), 58 px apart.
-        let mut row = [(GLOBAL, "All", Channel::Global); 4];
+        let mut row = [(GLOBAL, "All", Channel::Global); 5];
         let mut count = 0;
         for channel in self.offered() {
             row[count] = match channel {
                 Channel::Team => (TEAM, "Team", channel),
                 Channel::Sjk => (SJK, "SJK", channel),
                 Channel::Admin => (ADMIN, "Admin", channel),
-                _ => (GLOBAL, "All", Channel::Global),
+                Channel::Whisper => (PM, "PM", channel),
+                Channel::Global => (GLOBAL, "All", channel),
             };
             count += 1;
         }
