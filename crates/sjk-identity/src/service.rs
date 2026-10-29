@@ -64,7 +64,7 @@ fn unix_now() -> i64 {
 /// Shortest time between two readings of it brought forward (a drop of the player's
 /// own key, or the viewer asking), and the profile's early reading for a drop.
 const HOLOCRONS_SOON: Duration = Duration::from_secs(30);
-/// How long a hub that refused the reading (from before holocrons) is left alone.
+/// How long a hub without the reading (from before holocrons) is left alone.
 const HOLOCRONS_AGAIN: Duration = Duration::from_secs(3_600);
 /// Shortest time between two sendings of the achievement counts.
 const ACHIEVEMENTS_EVERY: Duration = Duration::from_secs(60);
@@ -528,10 +528,12 @@ pub struct HolocronProgress {
     pub progress_secs: u64,
     /// Seconds of active play for one holocron.
     pub every_secs: u64,
-    /// Holocrons dropped in the 24 hours before it was read.
+    /// Holocrons dropped since the caps' day began when it was read (09:00 in Paris).
     pub today: u32,
-    /// The most a key can earn in 24 hours.
+    /// The most a key can earn in a day.
     pub daily_cap: u32,
+    /// When the caps' next day begins, unix seconds; `None` from a hub before 29/10/2026.
+    pub resets_at: Option<i64>,
     /// The hub's clock when it answered, unix seconds.
     pub server_time: i64,
     /// Whether the person may open holocrons now (only staff while opening is tested).
@@ -547,6 +549,7 @@ impl HolocronProgress {
             every_secs: state.every_secs,
             today: state.today,
             daily_cap: state.daily_cap,
+            resets_at: state.resets_at,
             server_time: state.server_time,
             can_open: state.can_open,
             read_at,
@@ -560,7 +563,7 @@ impl HolocronProgress {
         self.every_secs.saturating_sub(self.progress_secs)
     }
 
-    /// Whether the day's cap is reached, so no holocron drops until one is a day old.
+    /// Whether the day's cap is reached, so no holocron drops until the next day begins.
     pub fn capped(&self) -> bool {
         self.daily_cap > 0 && self.today >= self.daily_cap
     }
@@ -2618,8 +2621,11 @@ impl Worker {
     }
 
     /// Read the progress toward the next holocron if it is due. Cosmetic, like the asset
-    /// packs: the status stays. A hub that refuses (from before holocrons) is asked
-    /// again in an hour, one that cannot be reached after [`RETRY_MAX`].
+    /// packs: the status stays. A hub without the reading (404, from before holocrons) is
+    /// asked again in an hour; any other failure (unreachable, too many requests, a
+    /// restart) after [`RETRY_MAX`], so one failed reading does not leave the progress an
+    /// hour old (the Esc menu's reading, which waits for a due one, could not bring it
+    /// forward).
     fn keep_holocrons(&mut self, now: Instant) {
         if now < self.due_holocrons {
             return;
@@ -2650,8 +2656,10 @@ impl Worker {
                     snapshot.holocrons = Some(HolocronProgress::new(state, now));
                 });
             }
-            Err(HubError::Network(_)) => self.due_holocrons = now + RETRY_MAX,
-            Err(_) => self.due_holocrons = now + HOLOCRONS_AGAIN,
+            Err(HubError::Rejected { status: 404, .. } | HubError::Protocol(_)) => {
+                self.due_holocrons = now + HOLOCRONS_AGAIN;
+            }
+            Err(_) => self.due_holocrons = now + RETRY_MAX,
         }
     }
 
@@ -4098,6 +4106,8 @@ mod tests {
         /// The holocron progress the fake hub reports; none is a hub from before
         /// holocrons, which refuses the reading.
         progress: Arc<Mutex<Option<HolocronState>>>,
+        /// Refusals the next readings of the holocron progress get, in order.
+        progress_refusals: Arc<Mutex<VecDeque<HubError>>>,
         /// How many times the holocron progress was asked for.
         holocron_reads: Arc<Mutex<usize>>,
         /// The open log requests the fake hub lists; none is a hub from before log
@@ -4483,6 +4493,9 @@ mod tests {
             *self.holocron_reads.lock().unwrap() += 1;
             if self.fail.load(Ordering::SeqCst) {
                 return Err(HubError::Network("down".to_owned()));
+            }
+            if let Some(refusal) = self.progress_refusals.lock().unwrap().pop_front() {
+                return Err(refusal);
             }
             let state = self.progress.lock().unwrap().clone();
             let marks = self.marks.lock().unwrap().clone();
@@ -4987,6 +5000,7 @@ mod tests {
             every_secs: 1_800,
             today: 2,
             daily_cap: 8,
+            resets_at: Some(1_791_010_800),
             server_time: 1_791_000_000,
             can_open: true,
             min_client: None,
@@ -5166,6 +5180,33 @@ mod tests {
         worker.tick(t0 + HOLOCRONS_EVERY + RETRY_MAX);
         assert_eq!(holocron_reads(&fake), reads + 1);
         assert!(lock(&snapshot).holocrons.is_some());
+    }
+
+    #[test]
+    fn a_refused_reading_of_a_hub_with_holocrons_is_tried_again_soon() {
+        // Too many requests or a hub restarting is no hub without holocrons: the
+        // progress is read again after the short retry, not in an hour, and the Esc
+        // menu's reading can bring it forward again.
+        let fake = Fake::default();
+        *fake.progress.lock().unwrap() = Some(progress(0));
+        let t0 = Instant::now();
+        let (mut worker, snapshot) = worker(&fake, t0);
+        worker.handle(Command::Configure(on("https://hub")), t0);
+        worker.tick(t0);
+        assert_eq!(holocron_reads(&fake), 1);
+        for refusal in [refused(429, "rate_limited"), refused(502, "error")] {
+            fake.progress_refusals.lock().unwrap().push_back(refusal);
+        }
+        worker.tick(t0 + HOLOCRONS_EVERY);
+        assert_eq!(holocron_reads(&fake), 2);
+        worker.tick(t0 + HOLOCRONS_EVERY + RETRY_MAX);
+        assert_eq!(holocron_reads(&fake), 3);
+        *fake.progress.lock().unwrap() = Some(progress(1_500));
+        let menu = t0 + HOLOCRONS_EVERY + RETRY_MAX + Duration::from_secs(20);
+        worker.handle(Command::MenuOpened, menu);
+        worker.tick(menu);
+        assert_eq!(holocron_reads(&fake), 4);
+        assert_eq!(lock(&snapshot).holocrons.unwrap().remaining_secs(), 300);
     }
 
     #[test]

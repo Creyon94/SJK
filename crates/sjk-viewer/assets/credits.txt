@@ -79,6 +79,7 @@ did: Perk marks on cards: a badge for each thing a card brings
 did: The Forge: shop, crafting and breaking any saber shader down, in one tab
 did: The four holocrons: the Jedi cube, the Great Holocron, the Sith pyramid, the kyber prism
 did: Grand finds told in SJK chat: who opened a holocron and got a grand prize
+did: The holocron limit resets for everyone at 9:00, Paris time
 did: Hover cards: how every collected thing is obtained
 did: Settings in Simple and Advanced, Vanilla or the SJK renderer, anonymous settings usage
 did: Card faces and the first card, art by Sol (AI-assisted)
@@ -459,6 +460,7 @@ did: Saber sounds of your choice, apart from your saber shader
 [Glen]
 role: The first player of SJK on a Mac
 did: Reported the Mac build's fullscreen crash, its frame rate and Cmd+Tab
+did: Reported fullscreen on a Mac shrinking the game into a black screen
 
 [Blep]
 role: Tester, and ideas for SJK

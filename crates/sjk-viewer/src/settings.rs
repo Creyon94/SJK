@@ -35,7 +35,7 @@ use catalog::*;
 pub(crate) use catalog::{FIRST_SETUP_CAPTION, RESOLUTIONS};
 pub(crate) use display::{
     DisplayMode, EXCLUSIVE_CVAR, MonitorModes, exclusive_supported, exclusive_video_mode,
-    minimise_after_focus, suspended_after_focus,
+    minimise_after_focus, suspended_after_focus, window_size_request,
 };
 pub(crate) use groups::{Advanced, Group, Simple};
 use resolution::{PickResult, ResolutionChoice, ResolutionPicker};

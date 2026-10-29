@@ -420,12 +420,17 @@ pub struct HolocronState {
     pub progress_secs: u64,
     /// Seconds of active play for one holocron.
     pub every_secs: u64,
-    /// Holocrons dropped in the last 24 hours.
+    /// Holocrons dropped since the caps' day began (09:00 in Paris; hubs before 29/10/2026:
+    /// in the last 24 hours).
     #[serde(default)]
     pub today: u32,
-    /// The most holocrons a key can earn in 24 hours.
+    /// The most holocrons a key can earn in a day.
     #[serde(default)]
     pub daily_cap: u32,
+    /// When the caps' next day begins and `today` starts again from 0, unix seconds
+    /// (29/10/2026); `None` from hubs before, whose caps looked back a rolling 24 hours.
+    #[serde(default)]
+    pub resets_at: Option<i64>,
     /// The hub's clock, unix seconds.
     #[serde(default)]
     pub server_time: i64,
@@ -1923,6 +1928,7 @@ mod tests {
                 every_secs: 1800,
                 today: 3,
                 daily_cap: 8,
+                resets_at: None,
                 server_time: 1_791_000_000,
                 can_open: false,
                 min_client: None,
@@ -1932,6 +1938,13 @@ mod tests {
                 marks: None,
             }
         );
+        // Since 29/10/2026 the hub says when its caps' day ends (09:00 in Paris).
+        let day: HolocronState = serde_json::from_str(
+            r#"{"progress_secs":0,"every_secs":1800,"today":8,"daily_cap":8,
+                "resets_at":1793260800,"server_time":1793250000}"#,
+        )
+        .unwrap();
+        assert_eq!(day.resets_at, Some(1_793_260_800));
         let odds: HolocronState = serde_json::from_str(
             r#"{"progress_secs":0,"every_secs":1800,"server_time":1,"loot":[{"tier":"uncommon",
                 "drop":600,"rarity":[700,240,55,5],"finish":[970,30,0],"credits":[10,20],

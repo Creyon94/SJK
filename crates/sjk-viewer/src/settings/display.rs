@@ -143,6 +143,26 @@ pub(crate) fn minimise_after_focus(suspended: bool, focused: bool) -> bool {
     suspended && !focused
 }
 
+/// The size to ask the window for, if any: `r_resolution` (`resolution`) while the
+/// window is windowed and not already at the size last asked for (`applied`). A
+/// fullscreen window keeps the screen's size: borderless covers the monitor and an
+/// exclusive mode is the resolution. Asking a fullscreen window for another size shrank
+/// it on a Mac, a small game in the middle of a black screen (Glen's report, 29/10/2026).
+/// `fullscreen` is the window's own state, which the Mac's green button changes without
+/// the cvars, and still set while a Mac fullscreen animation runs; suspended exclusive
+/// fullscreen keeps its size for the return.
+pub(crate) fn window_size_request(
+    display: DisplayMode,
+    fullscreen: bool,
+    suspended: bool,
+    resolution: Option<[u32; 2]>,
+    applied: [u32; 2],
+) -> Option<[u32; 2]> {
+    resolution.filter(|size| {
+        display == DisplayMode::Windowed && !fullscreen && !suspended && *size != applied
+    })
+}
+
 /// What the window's monitor offers, gathered when the settings screen opens.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub(crate) struct MonitorModes {
@@ -285,6 +305,31 @@ mod tests {
     #[test]
     fn repeated_focus_loss_stays_suspended() {
         assert!(suspended_after_focus(true, false, Duration::ZERO, false));
+    }
+
+    #[test]
+    fn only_a_windowed_window_takes_r_resolution() {
+        let size = Some([1280, 720]);
+        assert_eq!(
+            window_size_request(DisplayMode::Windowed, false, false, size, [0; 2]),
+            size
+        );
+        assert_eq!(
+            window_size_request(DisplayMode::Windowed, false, false, size, [1280, 720]),
+            None
+        );
+        // Borderless, exclusive, the Mac's green button and suspended exclusive.
+        for (display, fullscreen, suspended) in [
+            (DisplayMode::Borderless, true, false),
+            (DisplayMode::Exclusive, true, false),
+            (DisplayMode::Windowed, true, false),
+            (DisplayMode::Windowed, false, true),
+        ] {
+            assert_eq!(
+                window_size_request(display, fullscreen, suspended, size, [0; 2]),
+                None
+            );
+        }
     }
 
     #[test]

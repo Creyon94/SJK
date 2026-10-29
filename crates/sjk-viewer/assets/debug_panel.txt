@@ -40,6 +40,25 @@ test: A turns the toy off or leaves, or the map changes: A's peels go on B's scr
 test: Getting up: jump, attack or taunt, or lie still ~2.5 s. Look at the model up close.
 note: Untested in game: checked by unit tests and off-screen world shots only.
 
+[fullscreen-keeps-size]
+area: Menus & settings
+title: Fullscreen keeps the screen's size (Mac: small game in a black screen)
+change: r_resolution sizes the window only while windowed; fullscreen is never resized.
+change: Mac: vid_restart or a picked size shrank the fullscreen game into a black screen.
+test: Borderless fullscreen, console vid_restart: the game still fills the screen.
+test: Borderless, Resolution list: pick 1280 x 720; still full screen. Alt+Enter: 1280x720 window.
+test: Windowed: picking a size resizes the window at once, as before.
+note: Mac side needs Glen (or another Mac player) after the next release.
+
+[staff-starburst]
+area: HUD
+title: SJK staff's tick is a silver starburst (16 points, teal edge and tick)
+change: Staff's tick was the round seal in silver; now a starburst, not round like the others.
+test: A staff member's nameplate, chat line and scoreboard row: the silver starburst.
+test: At chat size, on a bright map: it still reads as a starburst, not a grey blur.
+test: Inspect a staff member (X): the starburst on the emblem's foot, VERIFIED in teal.
+note: Not seen in game yet: checked by unit tests and a preview of the cell only.
+
 [chat-readability]
 area: Console & chat
 title: Chat backdrop and text outline, for chat over bright maps (Creo's idea)
@@ -76,6 +95,17 @@ test: L locks a held shader: Forge > Break down shows Locked on its button, B le
 test: Break down the last copy of the shader you wear: the card says first that you wear it.
 test: Trade window: a locked duplicate is dimmed with a padlock; the Favourites chip filters.
 note: Stars and locks show only once the hub with collection marks is deployed.
+
+[holocron-day]
+area: Menus & settings
+title: Holocron limit resets at 9:00 Paris time, not 24 h after each drop
+change: The hub's 8-a-day cap (and 1 mythical, 16 per address) starts again at 09:00 in Paris.
+change: Holocrons tab: "n of 8 today"; at the cap "Limit reached: resets in about 3 h 10 min".
+change: A failed progress reading is tried again in 2 minutes, not an hour.
+test: Holocrons tab before the cap: "n of 8 today" and the next holocron in minutes of play.
+test: At 8 of 8: the line counts down to 09:00 Paris; at 09:00 a held holocron drops at once.
+test: Hover a holocron tier, then open the Loot table: both say at most 8 a day, resets at 9:00.
+note: Needs the hub's holocron-day deploy; an old hub shows "Limit reached for today".
 
 [ejk-flesh-sparks]
 area: Rendering & effects

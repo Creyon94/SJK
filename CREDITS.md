@@ -111,7 +111,8 @@ includes:
   the name since 22/10/2026); the {{S}} clan's tag with its red Sith emblem and
   JoF's green logo (22/10/2026);
 - holocron drops, loot boxes earned by playing: four tiers, drops announced in
-  the SJK chat and a Holocrons tab on the Profile screen with a 3D holocron;
+  the SJK chat and a Holocrons tab on the Profile screen with a 3D holocron; since
+  29/10/2026 the daily limit resets for everyone at 9:00, Paris time (Sol's decision);
 - opening holocrons: sealed cards (Normal, Holo and Solar finishes, the Alpha
   Edition) and credits, the ceremony and the Collection's Cards tab, and a loot
   table with every chance; credits will buy droppable cosmetics as a fix for bad
@@ -881,7 +882,9 @@ shadow.
 Glen, a player, was the first to play SJK on a Mac (25/10/2026), on a MacBook Pro
 with Apple Silicon, and reported that the game aborted on choosing fullscreen, its
 frame rate on Metal and that Cmd+Tab did not work. Sol kept macOS to borderless
-fullscreen after that crash report (25/10/2026).
+fullscreen after that crash report (25/10/2026). Glen then reported fullscreen
+showing the game as a small window in the middle of a black screen (29/10/2026):
+the client asked the fullscreen window for the `r_resolution` size.
 
 Blep, a player, reported that a whisper ending with a backslash left unencrypted
 through the game server; Sol fixed it (26/10/2026).
