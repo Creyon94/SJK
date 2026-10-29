@@ -255,6 +255,10 @@ through `i64` now, wrapping rather than saturating if a huge angle ever reaches 
 
 ### Equipped jetpack prediction
 
+The snapshot's `heldByClient` freezes movement input while another client holds
+the player. It leaves look and attack input alone, matching codemp's command
+filter; the game continues to own the held state and carried position.
+
 `PM_JETPACK` (movement type 1), used by the equipped jetpack on stock-derived
 servers including JA+, runs the reference's gravity, thrust and air-control
 rules ([pmove_jetpack.rs](../crates/sjk-game-jka/src/pmove_jetpack.rs)). The

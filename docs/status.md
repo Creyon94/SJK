@@ -1,3 +1,12 @@
+## Held-player movement restriction
+
+29/10/2026, `fix/prediction-held-client`, based on `main` `e702b0b1`:
+the movement adapter reads existing player field 121 (`heldByClient`) and
+filters movement in codemp's branch order. Reference: OpenJK `4d0dfaf1`,
+`codemp/game/bg_pmove.c:10283`. Synthetic Windows x64 tests cover 8/7/4/3 ms,
+retained look/attack and snapshot release. Live carried-player behavior remains
+unverified; the protocol schema and game ownership are unchanged.
+
 ## Synced emote music back from alt-tab in step
 
 29/10/2026, `fix/emote-sound-alt-tab`, based on `main` `b558d4ae`, hub report #195 (build
