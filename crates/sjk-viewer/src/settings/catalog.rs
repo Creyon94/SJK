@@ -1575,6 +1575,11 @@ pub(super) const TEXT: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Console over chat",
+        cvar: crate::console::console_options::OVER_CHAT_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Other clients' text",
         cvar: crate::text::charset::CVAR,
         kind: ValueKind::Choice(&crate::text::charset::NAMES),

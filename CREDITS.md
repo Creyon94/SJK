@@ -391,7 +391,7 @@ includes:
 Creyon and Lumaya wear the SJK team's Contributor medal, shown on their
 cards of the in-game credits page.
 
-Creyon ([Creyon94](https://github.com/Creyon94)), contributor and tester, has 67
+Creyon ([Creyon94](https://github.com/Creyon94)), contributor and tester, has 68
 pull requests merged into SJK, most of them bringing SJK in line with EternalJK
 ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3ACreyon94)):
 
@@ -489,6 +489,8 @@ pull requests merged into SJK, most of them bringing SJK in line with EternalJK
   coloured, shown on the stage at once, as JoF EJK's profile has them;
 - #259 chat tabs: an Admin (`amsay`) button and key, a PM button for replies, the
   buttons chosen in Settings, and a tab showing only its channel while you type;
+- #275 JoF EJK's movement keys (`cg_movementKeys`), lit from the own command or guessed
+  from a followed player's state, in jaPRO's pictures where installed;
 - #102 a formatting fix that unblocked every pull request's checks.
 - the Saber ideas page, whose concepts became the Tidal, Circuit, Aurora, Echo, Nebula,
   Cinder, Venom, Sakura and Firefly blades, and the twelve that followed (Slate, Amber,
@@ -651,7 +653,7 @@ merged into SJK
 - #198 "Too many open files" after a long session: the Profile menu's model icons, cosmetics and
   Force templates let go of the previous map's game files (its PK3 reopening part held back).
 
-Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 62 pull requests merged
+Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 63 pull requests merged
 into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AJoFSlash)):
 
 - #114 Tab completes the cfg file argument of `exec`, `execq`, `writeconfig` and `write`
@@ -770,6 +772,8 @@ into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author
   (Blep's idea).
 - #272 Blue, Yellow, Red, Dual Sabers and Staff Master: 50 duels won with the saber in
   each style (Dante's idea).
+- #255 the console key opens the console over the chat composer, which keeps its draft,
+  as stock (`con_overChat` turns it off).
 
 His Peek work in #199 (closed 24/10/2026, not merged) shaped the Drone toy: a player is
 asked before being peeked, told who watches, and can end it. His #206 (closed 25/10/2026,

@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 29/10/2026 | - | Console over chat: a setting, on by default
+- 6d0125a |  | Console over chat: a setting, on by default
 + 29/10/2026 | - | Mystery boxes: the tiers' real holocrons in the roll, Sol's laugh from the extras pack
 - e48e8c9 |  | Mystery boxes: the tiers' real holocrons in the roll, Sol's laugh from the extras pack
 + 29/10/2026 | - | Box hunt mark outline and card colours, toy sight switches, a fainter halo
@@ -2327,6 +2329,8 @@
 - 0d215f1 |  | Initial JKR source
 
 = Creyon
++ 29/10/2026 | SJK #275 | Movement keys added to SJK, the same as JoF EJK (cg_movementKeys)
+- 2da84bf |  | Add JoF EJK's movement keys (cg_movementKeys)
 + 29/10/2026 | SJK #259 | Chat tabs: an Admin (amsay) button and key, and choosable Team/SJK/Admin/PM buttons that filter
 - b6b5800 |  | Chat tabs: an Admin (amsay) button and key, and choosable Team/SJK/Admin/PM buttons that filter
 + 29/10/2026 | SJK #269 | Profile: RGB sliders for models that can be coloured, as in JoF EJK
@@ -2757,6 +2761,10 @@
 - fed9acd |  | Hide duel opponents' bars and send nothing while duelling
 
 = Slash
++ 29/10/2026 | SJK #255 | Chat: the console key opens the console over the composer, as stock
+- 93dbcd5 |  | Chat: the console key closes the composer and opens the console
+- 4c6726a |  | Format the console-key-in-chat rule
+- f8ca7b9 |  | Console key in chat: leave the composer under the console, as stock
 + 29/10/2026 | SJK #272 | Achievements: Blue, Yellow, Red, Dual Sabers and Staff Master
 - 249ad46 |  | Achievements: Blue, Yellow, Red, Dual and Staff Master
 - fa8c779 |  | Achievements: room for the five style crystals in the reward table

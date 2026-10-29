@@ -24,6 +24,24 @@
 
 # ---- Console & chat ----
 
+[slash-console-over-chat]
+area: Console & chat
+title: The console key opens the console over the chat (Slash, PR #255)
+change: Typing in the chat, the console key opens the console; the message waits under it.
+change: Settings > Interface > Console over chat (con_overChat, on) turns it off.
+test: Open the chat, type hello, press the console key: the console opens over it.
+test: Close the console: hello is still in the chat, typing goes on.
+test: Shift+console key in the chat types ~. con_overChat 0: the key types in the chat.
+
+[creyon-movement-keys]
+area: HUD
+title: Movement keys on screen, as in JoF EJK (Creyon, PR #275)
+change: cg_movementKeys 1 shows jump, forward, crouch, left, back, right, lit while held.
+change: cg_movementKeysX, Y and Size place it; jaPRO's pictures if EternalJK is installed.
+test: Settings > HUD > Movement keys on: the six keys bottom right, lit as you move.
+test: Follow another player: their keys are guessed from their movement.
+test: cg_movementKeysSize 2: the block doubles, stays clear of the right edge.
+
 [slash-slider-peek]
 area: Menus & settings
 title: A held slider peeks at the game behind the menu (Slash, PR #248)

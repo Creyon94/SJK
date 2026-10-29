@@ -109,8 +109,12 @@ pub(crate) fn console_key_leaves_chat(key: ChatConsoleKey) -> bool {
 
 impl ViewerConsole {
     /// Whether `event`, pressed while the chat composer is open, opens the console over
-    /// it ([`console_key_leaves_chat`]).
+    /// it ([`console_key_leaves_chat`]); never with `con_overChat` off, where the
+    /// composer takes every key as it did before.
     pub(crate) fn leaves_chat_for_console(&self, event: &KeyEvent) -> bool {
+        if self.bool_cvar(super::console_options::OVER_CHAT_CVAR) == Some(false) {
+            return false;
+        }
         let PhysicalKey::Code(key) = event.physical_key else {
             return false;
         };
