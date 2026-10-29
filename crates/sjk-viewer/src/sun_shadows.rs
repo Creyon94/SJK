@@ -1337,3 +1337,32 @@ mod far_mover_tests {
         assert!(far_follows_movers((3, Some(start)), 4, || later(250)));
     }
 }
+
+#[cfg(test)]
+mod receiver_tests {
+    use wgpu::naga;
+
+    /// The receivers redraw the world under `CompareFunction::Equal`, so their position must
+    /// be computed exactly as the stage program's is (hub report #193: floors flickered).
+    #[test]
+    fn the_receiver_position_is_invariant_for_its_equal_depth_test() {
+        let source = super::receiver_shader();
+        let module = naga::front::wgsl::parse_str(&source)
+            .unwrap_or_else(|error| panic!("{}", error.emit_to_string(&source)));
+        let vertex = module
+            .entry_points
+            .iter()
+            .find(|entry| entry.stage == naga::ShaderStage::Vertex)
+            .expect("a vertex entry point");
+        let output = vertex.function.result.as_ref().expect("a vertex output");
+        let naga::TypeInner::Struct { members, .. } = &module.types[output.ty].inner else {
+            panic!("the vertex output is a struct");
+        };
+        assert!(members.iter().any(|member| matches!(
+            member.binding,
+            Some(naga::Binding::BuiltIn(naga::BuiltIn::Position {
+                invariant: true
+            }))
+        )));
+    }
+}
