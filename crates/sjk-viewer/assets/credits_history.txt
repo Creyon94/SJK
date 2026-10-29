@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 29/10/2026 | - | cg_fleshSparks, in_mouseRepeat and cg_lagometer 2 and 3 from JoF EJK
+- 46f3a29 |  | cg_fleshSparks, in_mouseRepeat and cg_lagometer 2 and 3 from JoF EJK
 + 29/10/2026 | - | Plugin options: JA+ and jaPRO cp_pluginDisable bits as Settings switches
 - 6d1a803 |  | Plugin options: JA+ and jaPRO cp_pluginDisable bits as Settings switches
 + 29/10/2026 | - | Console over chat: a setting, on by default

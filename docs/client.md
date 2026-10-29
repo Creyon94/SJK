@@ -1964,6 +1964,22 @@ EternalJK's). Reduce bright flashes wins over both. The viewer reads them once a
 ([saber_clash_flare.rs](../crates/sjk-viewer/src/saber_clash_flare.rs)); the effect
 spawner and submission read the reduce switch from an atomic the frame sets.
 
+**Saber hit sparks** (`cg_fleshSparks`, archived, 0 to 7, default 7; Settings > Game
+options, Effects) is EternalJK's count of the red sparks a saber hit on a body plays
+(JoF EJK `cg_event.c`, `EV_SABER_HIT`, each `FX_PlayEffectID` behind
+`cg_fleshSparks.integer > N`). At 7 every hit plays what the original game plays: six
+`saber/blood_sparks_mp` for the special hit (`eventParm` 16), one
+`saber/blood_sparks_50_mp` for a really big hit (2), one `saber/blood_sparks_25_mp`
+for a moderate hit (3) and three `saber/blood_sparks_mp` for any other body hit.
+Lower, a plain body hit plays two sparks at 6, one at 5 and none from 4; the moderate
+hit's spark goes from 3, the big hit's from 2; the special hit keeps one spark at 1,
+without its sound (every other hit keeps its sound), and none at 0. A saber hit on something else
+than a body keeps its `saber/saber_cut`. Read once a snapshot
+([impacts.rs](../crates/sjk-viewer/src/impacts.rs) `saber_hit`, the sound in
+`LegacySoundAdapter::set_flesh_sparks`). Unit tests:
+`flesh_sparks_gate_each_saber_hit_on_a_body`,
+`flesh_sparks_below_two_silence_only_the_special_saber_hit`. Not tried in a game.
+
 Compared with retail: the flare's timing, size, the behind-the-view and wall tests
 follow `CG_SaberClashFlare` exactly ([sjk-client saber_clash_flare.rs](../crates/sjk-client/src/saber_clash_flare.rs)),
 and a `Flash` follows `CFlash`'s distance and direction scale. One difference is not
@@ -2948,13 +2964,40 @@ strafe guides on jaPRO servers either), and the guess's floor trace sees only th
 map, not movers or players under the followed player. Riding a vehicle hides them,
 where JoF keeps them when the vehicle has no HUD menu of its own.
 
-## Lagometer size
+## Lagometer
+
+`cg_lagometer` (archived, default 0, Settings > HUD > **Lagometer**) draws the
+network graph: frame interpolation in its top third (yellow above the middle line
+while the view runs ahead of the latest snapshot, blue below while it interpolates)
+and snapshot latency at its bottom (green, yellow when the server held a snapshot
+back for rate, red for a dropped one). It takes JoF EJK's values (`cg_draw.c`,
+`CG_DrawLagometer` and `CG_DrawSpeedGraph`):
+
+- `1` (**Graph**): the graph on its backdrop, as SJK always drew it; an old config's
+  `cg_lagometer 1` looks the same;
+- `2` (**Graph + speed**): the same, with the average ping and the average
+  interpolation of its 48 newest columns written along its top (ping at the left,
+  interpolation at the right, `%.0f` and `%04.1f` as EJK writes them; a dropped
+  snapshot counts as the highest ping seen so far), and a speed graph on a backdrop of
+  its own 56 of the graph's 48 units above it: a green column per frame for the
+  horizontal speed, the height worth 3000 units a second, the current speed at its
+  top left;
+- `3` (**No backdrop**): the same without either backdrop, the speed graph three times
+  as tall (its bottom where mode 2's is), its number only while moving.
+
+EJK draws the speed graph only with its `cg_speedometer` speed graph bit; SJK has no
+such bit and draws it with modes 2 and 3 (Sol's decision, 29/10/2026). The numbers
+keep EJK's proportions of the graph (`ocr_a` at half size, 10.5 of its 48 units), so
+at `cg_lagometerScale 1` they are small; `2` draws them about EJK's size. See
+[hud/lagometer.rs](../crates/sjk-viewer/src/hud/lagometer.rs) and its tests
+(`mode_1_is_the_graph_alone`, `the_averages_follow_ejk`). Not compared side by side
+with EJK in game.
 
 `cg_lagometerScale` changes the lagometer's width and height: `1` (default) is
 normal size, `0.5` half size, `2` double size. Settings > HUD > **Lagometer scale**
 offers 0.25–4 in both menu interfaces; values outside that range are clamped when
-drawn. The setting is archived and takes effect immediately. Enable the graph with
-`cg_lagometer 1`.
+drawn. The setting is archived and takes effect immediately; it scales the numbers
+and the speed graph with the graph.
 
 Scaling keeps the graph's existing bottom-right corner fixed, including custom
 `cg_lagometerX` and `cg_lagometerY` offsets. It applies to every built-in HUD and
@@ -6294,6 +6337,22 @@ stops every key, and nothing is sent while the console, chat or a menu has the
 keyboard. `+useforce` does not repeat (the server waits for its release). An alias
 that runs push is not followed. The table of repeated commands, with why each is safe,
 is in [force_repeat.rs](../crates/sjk-viewer/src/input/force_repeat.rs).
+
+`in_mouseRepeat` (archived, default 0, Settings > Controls > **Hold mouse 4/5
+repeats**) is EternalJK's `in_mouserepeat` (JoF EJK `sdl_input.cpp`,
+`IN_ProcessEvents`): while mouse 4 is held, and mouse 5 unless the value is 2, its key
+goes down again and again, as a held keyboard key's system repeats do in EJK. A bind to
+a plain command runs it again; a `+` command ignores the repeated press, as
+`IN_KeyDown` ignores a repeating key. `1` repeats both buttons, `2` mouse 4 only (EJK:
+"don't spam mouse5"). One deliberate difference (Sol's decision, 29/10/2026): EJK
+repeats once every other frame, 125 presses a second at 250 FPS and more above, each
+possibly a command to the server, which servers that cap commands (JoF's) see as a
+flood; SJK repeats 20 times a second at any frame rate, at most once a frame, on the
+console's clock. Only a press that went to the binds repeats, only while the pointer is
+the game's and no console, chat or menu has the keys; a release stops it wherever it
+went, and losing the window stops both. See
+[mouse_repeat.rs](../crates/sjk-viewer/src/input/mouse_repeat.rs) and its tests
+(`twenty_presses_a_second_at_any_frame_rate`, `the_setting_picks_the_buttons`).
 
 `+duck` is JoF EJK's crouch without a roll (`CG_NorollDown_f`). Its press lets go
 of jump and walks for one user command, then it crouches like `+movedown`, sharing

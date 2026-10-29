@@ -323,6 +323,8 @@ mod animation_profile;
 mod card_outline_shots;
 #[path = "world_shot_ctf_flags.rs"]
 mod ctf_flags_shots;
+#[path = "world_shot_lagometer.rs"]
+mod lagometer_shots;
 #[path = "world_shot_rig_model.rs"]
 mod rig_model_shots;
 #[path = "world_shot_team_outline.rs"]

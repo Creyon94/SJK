@@ -1,3 +1,34 @@
+## `cg_fleshSparks`, `in_mouseRepeat` and `cg_lagometer` 2 and 3 from JoF EJK
+
+29/10/2026, `personal/ejk-commands`, based on `main` `0fd6a5e1`, after Kushina's ask
+(players coming from JoF EJK rely on them; Sol approved the three). Three EternalJK client
+options in the core client, as EJK has them for every server
+([client.md](client.md#bright-flashes), [client.md](client.md#lagometer)):
+`cg_fleshSparks` (0 to 7, default 7, Settings > Game options) gates each red spark of a
+saber hit on a body, and the special hit's sound below 2, as JoF EJK's `EV_SABER_HIT`
+(7 is stock and SJK until now); `in_mouseRepeat` (0, 1, 2, Settings > Controls) presses a
+held mouse 4, and mouse 5 unless 2, again into the binds, at 20 presses a second at any
+frame rate instead of EJK's every other frame (Sol's decision: EJK's 125 a second at
+250 FPS floods servers that cap commands); `cg_lagometer` becomes 0 to 3, 2 adding the
+average ping and interpolation and a speed graph above the graph, 3 the same without
+backdrops (EJK ties the speed graph to a `cg_speedometer` bit SJK has not; here the modes
+draw it), 1 unchanged. Verified: unit tests `flesh_sparks_gate_each_saber_hit_on_a_body`,
+`flesh_sparks_read_clamped_and_default_to_every_spark`,
+`flesh_sparks_below_two_silence_only_the_special_saber_hit`,
+`twenty_presses_a_second_at_any_frame_rate`, `the_setting_picks_the_buttons`,
+`only_mouse_4_and_5_held_repeat`,
+`a_held_mouse_4_or_5_presses_its_bind_again_twenty_times_a_second`,
+`a_held_keys_repeated_press_changes_nothing`, `mode_1_is_the_graph_alone`,
+`mode_2_adds_the_numbers_and_the_speed_graph_on_backdrops`,
+`mode_3_has_no_backdrop_a_tall_speed_graph_and_a_number_only_while_moving`,
+`the_averages_follow_ejk`, `the_mode_reads_clamped_and_old_configs_keep_the_graph`, fmt,
+build, Clippy and the workspace's tests; the world shot `lagometer_modes_on_a_demo` (a demo
+frozen on its first snapshot, a made-up steady connection) draws modes 1 to 3 at
+`cg_lagometerScale` 1 and 2 as described. At scale 1 on a 1080p screen the numbers are
+about 10 px tall, EJK's proportion of SJK's smaller graph (48 px there, EJK's 108);
+scale 2 is about EJK's size. Not tried in a game or compared with EJK side by side; the
+shots' recorder stands still, so they show no speed graph.
+
 ## JA+ and jaPRO plugin options
 
 29/10/2026, `personal/plugin-options`, based on `main` `0fd6a5e1`, Kushina's idea:
@@ -5243,7 +5274,7 @@ Branch `feat/lagometer-scale` (11/10/2026, based on `3654f5b2`, Windows 11 Pro,
 Rust 1.99.0) adds archived `cg_lagometerScale`, default `1`, range 0.25–4, in both
 settings interfaces. It scales the graph around its existing bottom-right corner
 and preserves the displayed sample count and millisecond ranges; X/Y positioning
-still applies. See [client.md](client.md#lagometer-size).
+still applies. See [client.md](client.md#lagometer).
 
 Verified: formatting, locked workspace build/tests and all-target clippy pass
 (existing warnings remain). Unit checks cover default size, scaling and anchoring

@@ -704,6 +704,14 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             archive,
             "Holding a push or pull key uses it again as soon as its cooldown is over",
         ),
+        // EternalJK's `in_mouserepeat` (`sdl_input.cpp`), at a fixed rate
+        // ([`crate::input::mouse_repeat`]).
+        CvarDefinition::new(
+            crate::input::mouse_repeat::CVAR,
+            0_i64,
+            archive,
+            "Held mouse 4 and 5 press their bind again 20 times a second: 0 off, 1 both, 2 mouse 4 only",
+        ),
         CvarDefinition::new(
             crate::input::idrive::DELAY_CVAR,
             0_i64,
@@ -824,11 +832,13 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             archive,
             "flipkick: user command at which the second jump starts",
         ),
+        // JoF EJK's modes (`cg_draw.c` `CG_DrawLagometer`, `CG_DrawSpeedGraph`;
+        // [`crate::hud::lagometer`]).
         CvarDefinition::new(
-            "cg_lagometer",
-            false,
+            crate::hud::lagometer::CVAR,
+            0_i64,
             archive,
-            "Display frame interpolation and snapshot latency samples",
+            "Lagometer: 0 off, 1 graph, 2 graph with average ping, interpolation and a speed graph, 3 the same without the backdrop",
         ),
         CvarDefinition::new(
             "cg_saberTrail",
@@ -848,6 +858,14 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             1.0_f64,
             archive,
             "Saber clash flare size, 0 to 2",
+        ),
+        // EternalJK's (JoF EJK `cg_xcvar.h`, `cg_event.c` `EV_SABER_HIT`): the red sparks
+        // of a saber hit on a body ([`crate::impacts::flesh_sparks`]).
+        CvarDefinition::new(
+            crate::impacts::FLESH_SPARKS_CVAR,
+            i64::from(crate::impacts::FLESH_SPARKS_ALL),
+            archive,
+            "Red sparks of a saber hit on a body: 0 none to 7 all (default, as stock), as EternalJK",
         ),
         CvarDefinition::new(
             crate::effect_flash::REDUCE_CVAR,
