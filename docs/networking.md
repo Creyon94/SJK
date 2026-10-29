@@ -258,6 +258,9 @@ through `i64` now, wrapping rather than saturating if a huge angle ever reaches 
 The snapshot's `heldByClient` freezes movement input while another client holds
 the player. It leaves look and attack input alone, matching codemp's command
 filter; the game continues to own the held state and carried position.
+Command gestures predict codemp's taunt hand extension and `EV_TAUNT` before
+the final ground trace and weapon animation. Busy animation/weapon tracks and
+saber locks reject the gesture. Riders skip this step, as in `PmoveSingle`.
 
 `PM_JETPACK` (movement type 1), used by the equipped jetpack on stock-derived
 servers including JA+, runs the reference's gravity, thrust and air-control
