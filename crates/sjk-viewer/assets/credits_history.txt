@@ -9,6 +9,14 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 29/10/2026 | - | Start-failure dialog: SJK_NO_START_DIALOG leaves it out for the package smoke check
+- 198e6cb |  | Start-failure dialog: SJK_NO_START_DIALOG leaves it out for the package smoke check
++ 29/10/2026 | - | Release 2026.1029.1
+- 8952cbd |  | Release 2026.1029.1
++ 29/10/2026 | - | Format: holocrons test line over the width
+- 103113b |  | Format: holocrons test line over the width
++ 29/10/2026 | - | Credits history: the Monitor Screen Saver and Sun swing merges' entries
+- add4fb4 |  | Credits history: the Monitor Screen Saver and Sun swing merges' entries
 + 29/10/2026 | - | Monitor: a Screen Saver after 5 hits, with Payback and Power Surge
 - b6b2ecd |  | Monitor: a Screen Saver after 5 hits, with Payback and Power Surge
 + 29/10/2026 | - | Saber cost shot: the Sun swinging, with its extras and part by part, at 4K
