@@ -2618,6 +2618,9 @@
 - ddfe116 |  | Fix Linux clipboard integration
 
 = Lumaya
++ 29/10/2026 | SJK #277 | Match jaPRO command slicing and velocity precision
+- 19a03fb |  | Record jaPRO command prediction scope
+- 9928ee6 |  | Match jaPRO race command slicing and velocity precision
 + 29/10/2026 | SJK #276 | Suppress local passenger movement without a predicted chassis
 - ba58cab |  | Record passenger movement prediction finding
 - dbacf2f |  | Suppress passenger movement without a predicted chassis

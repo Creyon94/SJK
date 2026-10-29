@@ -83,6 +83,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Nameplates: a Name outline setting (Off, Faint, Strong); Strong edges every name in a dark outline so it reads on any background (`cg_nameplateOutline`) _(Slash, PR #280, after Lex's idea)_
 - SJK radial HUD: two Settings sliders, Radial HUD spacing and Radial HUD height, move its meters farther from your character and up or down the screen (`cg_hudRadialSpread`, `cg_hudRadialHeight`) _(Slash, PR #281, after Lex's idea)_
 - Laptops with two graphics cards: SJK asks the NVIDIA or AMD driver for the fast card, tries another card if the first one cannot start the game, and says why when nothing works instead of closing without a word (found by Nib for SimpleSmokie) _(Slash, PR #283)_
+- jaPRO servers: in race mode your moves are cut and rounded as jaPRO does (no 66 ms slices, 8 ms in OCPM and rolls, velocity kept exact), so racing snaps back less; other servers are unchanged _(Lumaya, PR #277, after jaPRO)_
 
 ## 2026.1028.1 (Alpha) | 28/10/2026
 

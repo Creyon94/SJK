@@ -8,6 +8,21 @@ Windows x64 focused tests cover stationary and moving airborne passengers,
 movement input, advancing command time and dismounting at 8/7/4/3 ms. Optional
 vehicle-specific seat/view/duck context is unchanged. Live passenger gameplay
 and a full Pmove output comparison against OpenJK remain unverified.
+## jaPRO command prediction
+
+29/10/2026, `fix/prediction-japro-commands`, based on `main` `9e48ff6d`:
+the jaPRO prediction task starts with race command slicing and velocity
+precision, using clean TaystJK upstream `2d60c0fa5` multiplayer `codemp`.
+The predictor now selects the race/OCPM/roll slicing, roll-angle clearing,
+200 ms simulation limit, wallbug cleanup and advertised high-FPS precision
+policy. Existing decoded snapshot slots supply race/style metadata without a
+wire change. Windows x64 checks compare 128 slice and 288 snap decisions emitted
+by MSVC-compiled reference source; the reference command wrapper uses a
+slice-recording PmoveSingle stub, not a full game simulation. Focused Rust tests
+also cover fractional velocity, reseeding, 8/7/4/3 ms, a 350 ms command and
+non-jaPRO isolation. Movement-style algorithms, restrictions, new jetpack and
+grapples remain outside this first change. Full jaPRO and live-server parity
+remain unverified; see [networking](networking.md#server-dialect-movement-rules).
 
 ## A JA+ emote kept when going away, and `cg_debugEmoteEnd`
 

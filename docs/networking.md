@@ -143,6 +143,26 @@ read as -1, not 65535.
 
 ### Server-dialect movement rules
 
+jaPRO/TaystJK command prediction also reads the existing snapshot race/style
+slots (`stats[11]` and `stats[13]`), only for the advertised jaPRO dialect.
+[pmove_japro.rs](../crates/sjk-game-jka/src/pmove_japro.rs) follows TaystJK
+`2d60c0fa5` multiplayer `Pmove` and `PmoveSingle`: race commands bypass ordinary
+fixed/66 ms slicing except active rolls and OCPM (at most 8 ms), and each slice
+simulates at most 200 ms while acknowledging its original timestamp. Most race
+styles retain fractional velocity; OCPM follows `pmove_float` and the advertised
+high-FPS fix (`jcinfo` bit 21). That fix suppresses snapping below 4 or above
+25 ms outside race mode too. Race moves that end at their starting origin clear
+velocity before snapping to prevent wallbug accumulation. The jaPRO command
+copy clears roll; outgoing user commands remain unchanged. Serverinfo refresh
+and snapshot reseeding refresh this policy and metadata. `cg_noPredict 1` is the
+existing player override to display server positions without local prediction.
+
+This is command-policy support, not complete jaPRO race physics: style-specific
+acceleration, jumps, ramps, restrictions, new jetpack and grapples still require
+their own reference-backed implementation and verification. Compiled reference
+fixtures cover slicing/snapping decisions; they do not establish full gameplay
+or live-server parity.
+
 Prediction follows rules the server advertises in `CS_SERVERINFO`, read by
 [pmove_rules.rs](../crates/sjk-game-jka/src/pmove_rules.rs): the roll fixes of
 JA+ (`jp_cinfo`) and TaystJK/jaPRO, and `g_debugMelee`

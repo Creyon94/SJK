@@ -36,6 +36,7 @@ const PMF_ALL_TIMES: u16 = PMF_TIME_LAND | PMF_TIME_KNOCKBACK | PMF_TIME_WATERJU
 
 /// `bg_public.h` angle axis order; only pitch is clamped by `PM_UpdateViewAngles`.
 const PITCH: usize = 0;
+const ROLL: usize = 2;
 /// `bg_pmove.c` PM_UpdateViewAngles: 16000 short units, 87.89 degrees, "don't let the
 /// player look up or down more than 90 degrees".
 const PITCH_CLAMP: i16 = 16_000;
@@ -227,6 +228,8 @@ pub struct MovementConfig {
     pub grapple: Option<grapple::GrappleRules>,
     /// JA+ server rules selected from `CS_SERVERINFO`; stock on other servers.
     pub ja_plus: crate::pmove_japlus::JaPlusRules,
+    /// jaPRO command policy selected from advertised server capabilities.
+    pub ja_pro: crate::pmove_japro::JaProRules,
 }
 
 impl Default for MovementConfig {
@@ -246,6 +249,7 @@ impl Default for MovementConfig {
             debug_melee: crate::pmove_debug_melee::DebugMelee::default(),
             grapple: None,
             ja_plus: crate::pmove_japlus::JaPlusRules::default(),
+            ja_pro: crate::pmove_japro::JaProRules::default(),
         }
     }
 }
@@ -263,6 +267,8 @@ impl Default for HiltSpeedScales {
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct MovementState {
+    /// Raw jaPRO stat metadata; interpreted only when its dialect is selected.
+    pub ja_pro: crate::pmove_japro::JaProState,
     /// Authoritative pickup eligibility fields, separate from predicted grants.
     pub pickup_limits: crate::prediction_items::PickupLimits,
     /// Legacy entity hide mask for this replay; reset on authoritative reseed.
@@ -578,6 +584,7 @@ impl MovementState {
     /// on-foot `Pmove`; this is the authoritative replay starting point.
     pub fn from_player_state(player: &PlayerState) -> Self {
         Self {
+            ja_pro: crate::pmove_japro::JaProState::from_player_state(player),
             pickup_limits: crate::prediction_items::PickupLimits::from_player(player),
             predicted_items: [0; 16],
             jump_pad_entity: None,
@@ -1190,6 +1197,13 @@ impl Predictor {
         // `Pmove` (`bg_pmove.c:11185-11191`): a player falling to death has no controls
         // of its own — it moves as whatever threw it in left it moving.
         let mut command = command;
+        // TaystJK Pmove clears roll before slicing; no roll is sent back onto
+        // the command stream. Other dialects retain their existing behavior.
+        if self.config.ja_pro.enabled {
+            command.angles[ROLL] = 0;
+            self.state.view_angles[ROLL] = 0.0;
+            self.state.delta_angles[ROLL] = 0;
+        }
         if self.state.falling_to_death != 0 {
             (
                 command.forward_move,
@@ -1229,13 +1243,11 @@ impl Predictor {
         self.cleared_box =
             self.config.authoritative && self.npc.is_none() && self.state.client_num < MAX_CLIENTS;
         while self.state.command_time != final_time {
-            let maximum = self
-                .config
-                .fixed_millis
-                .map_or(66, |value| value.clamp(8, 33));
-            let millis = final_time
-                .wrapping_sub(self.state.command_time)
-                .min(maximum);
+            let millis = self.config.ja_pro.slice_millis(
+                &self.state,
+                final_time.wrapping_sub(self.state.command_time),
+                self.config.fixed_millis,
+            );
             let mut slice = repeated_command;
             slice.server_time = self.state.command_time.wrapping_add(millis);
             let opponent = lock
@@ -1244,7 +1256,7 @@ impl Predictor {
             if let Some(left_out) = left_out {
                 self.pmove_single_with(
                     slice,
-                    millis,
+                    millis.clamp(1, 200),
                     &flight::WithoutBodies(collision, left_out),
                     context,
                     opponent,
@@ -1254,7 +1266,7 @@ impl Predictor {
             } else {
                 self.pmove_single_with(
                     slice,
-                    millis,
+                    millis.clamp(1, 200),
                     collision,
                     context,
                     opponent,
@@ -1649,9 +1661,12 @@ impl Predictor {
         }
         self.advance_bob(bob_rate, millis, command.server_time, bounds, collision);
         self.water_events();
-        if self.config.snap_velocity {
-            self.state.velocity = self.state.velocity.map(f32::round_ties_even);
-        }
+        self.config.ja_pro.finish_velocity(
+            &mut self.state,
+            previous_origin,
+            millis,
+            self.config.snap_velocity,
+        );
         if jetpacking || self.slow_fall {
             self.state.gravity = gravity;
         }

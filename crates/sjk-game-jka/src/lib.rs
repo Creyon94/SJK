@@ -262,6 +262,7 @@ pub mod pmove_debug_melee;
 pub mod pmove_dir;
 pub mod pmove_input_freeze;
 pub mod pmove_japlus;
+pub mod pmove_japro;
 pub mod pmove_locomotion;
 pub mod pmove_posture;
 pub mod pmove_roll;
