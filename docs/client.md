@@ -4285,8 +4285,15 @@ for a player, at most every ten minutes a player and never per frame; until it c
 and from a hub that does not send a field, that line is left out (10/10/2026). It adds
 nothing a glance at the scoreboard would not: no health, Force or position.
 
-- `cg_playerCard` (default 1; Settings > HUD+ > Player card) turns it on.
-- `cg_playerCardDelay` (default 1.5; Settings > HUD+ > Card delay) is the seconds
+- `cg_playerCard` (default 1; Settings > HUD+ > Player card) says what opens it: `0`
+  (**Off**) nothing, neither a look nor `inspect`; `1` (**On look and key**) a steady
+  look or `inspect`; `2` (**Key only**, Blep's idea, 29/10/2026) `inspect` alone, so
+  looking at a player never brings their card up. The setting was on/off until then:
+  configs saved it as 0 or 1, which keep their meaning (`player_card::Opens`, tests
+  `the_setting_reads_three_ways_and_old_configs_keep_their_meaning` and
+  `each_mode_opens_the_card_its_own_way`).
+- `cg_playerCardDelay` (default 1.5; Settings > HUD+ > Card delay; only with
+  `cg_playerCard 1`, as its help says) is the seconds
   the crosshair must stay on the player before the card fades in. Turning the view
   more than 6 degrees, or losing the player for over 0.3 seconds, starts the wait
   again and the card fades out.
@@ -4297,7 +4304,7 @@ nothing a glance at the scoreboard would not: no health, Force or position.
   has no list of theirs or you wear a retail model.
 - `inspect` (Settings > Key bindings > Interaction > Inspect player; bound to X by default,
   or `bind <key> inspect`) pins the card to the player under the crosshair at once, with
-  no wait. It stays when you look away or the player moves, follows them (kept inside the
+  no wait, with `cg_playerCard` 1 or 2. It stays when you look away or the player moves, follows them (kept inside the
   screen), and a second press or Escape hides it (Escape then does not open the game
   menu); it also drops when the player leaves or the map changes. After hiding it, the
   card does not return until the crosshair leaves that player. Behind you, the card is not drawn but stays pinned.

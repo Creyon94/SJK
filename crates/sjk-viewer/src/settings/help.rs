@@ -150,6 +150,9 @@ const CHOICE_NAMES: &[(&str, &str, &str)] = &[
     (crate::input::mouse_repeat::CVAR, "0", "Off"),
     (crate::input::mouse_repeat::CVAR, "1", "Mouse 4 and 5"),
     (crate::input::mouse_repeat::CVAR, "2", "Mouse 4 only"),
+    (crate::hud::player_card::CVAR, "0", "Off"),
+    (crate::hud::player_card::CVAR, "1", "On look and key"),
+    (crate::hud::player_card::CVAR, "2", "Key only"),
     (crate::hud::lagometer::CVAR, "0", "Off"),
     (crate::hud::lagometer::CVAR, "1", "Graph"),
     (crate::hud::lagometer::CVAR, "2", "Graph + speed"),
@@ -541,12 +544,12 @@ const HELP: &[(&str, &str)] = &[
         "Size of the plain names above players.",
     ),
     (
-        "cg_playerCard",
-        "Look at a player without moving and a card shows their model, sabers and SJK profile.",
+        crate::hud::player_card::CVAR,
+        "A card with a player's model, sabers and SJK profile: on a steady look or the Inspect player key, or Key only: that key alone.",
     ),
     (
         "cg_playerCardDelay",
-        "Seconds you must keep looking at a player, steady, before the card shows.",
+        "With Player card On look and key: seconds you keep looking at a player, steady, before it shows.",
     ),
     (
         "cg_playerCardOutline",

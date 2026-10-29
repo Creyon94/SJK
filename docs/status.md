@@ -1,3 +1,15 @@
+## Player card: Key only
+
+29/10/2026, `personal/ideas-followups`, based on `main` `45921ca1`, the player Blep's idea:
+`cg_playerCard` becomes three-way, 0 Off, 1 On look and key (the default, as before), 2 Key
+only: the card opens from `inspect` alone, never from a steady look
+([client.md](client.md#player-card)). Settings > HUD+ > Player card is a three-way choice;
+Card delay's help says it counts only with On look and key. Old configs saved the on/off
+setting as 0 or 1, which keep their meaning. Verified by
+`hud::player_card::tests::the_setting_reads_three_ways_and_old_configs_keep_their_meaning`
+and `each_mode_opens_the_card_its_own_way` (the card's choice of frame by frame, with a
+console for the setting), the settings' help and row tests; not tried in a game.
+
 ## Collection marks: worn, favourite, locked and New saber shaders
 
 29/10/2026, `personal/collection-marks`, based on `main` `0fd6a5e1`, the ideas of the players
