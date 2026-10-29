@@ -1228,6 +1228,10 @@ const HELP: &[(&str, &str)] = &[
         "Shift+console opens at Console height, Shift+Escape a quarter screen. Off: as in EternalJK.",
     ),
     (
+        crate::console::console_options::OVER_CHAT_CVAR,
+        "The console key opens the console over the chat; your message waits. Off: the chat takes the key.",
+    ),
+    (
         crate::text::charset::CVAR,
         "Chat and names of EternalJK and retail players: Auto spots Russian, Cyrillic always reads it as Russian, Western never.",
     ),
