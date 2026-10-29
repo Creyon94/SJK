@@ -2861,6 +2861,47 @@ Earlier SJK builds mistook X for the left edge of a centred 240-unit field and
 omitted the HUD clearance, placing the label too far right. The archived cvar
 values themselves are unchanged.
 
+## Movement keys
+
+`cg_movementKeys 1` (default 0; Settings > HUD > **Movement keys**, Advanced) draws
+JoF EternalJK's movement keys (jaPRO's `CG_MovementKeys`, JoF EJK's `cg_draw.c`),
+[movement_keys.rs](../crates/sjk-viewer/src/hud/movement_keys.rs): jump, forward and
+crouch over left, back and right, each lit while it is held.
+
+- **Whose keys.** Playing, they are the command being made this frame, so an analog
+  move lights its direction too. Following a player or watching a demo, the keys are
+  guessed from the player state as JoF guesses them: the movement direction
+  (`movementDir`) while moving at 9 units a second or more; jump while the jump is
+  held (`PMF_JUMP_HELD`) or while rising faster than the frame before, more than
+  8 units a second, not gripped, with the origin more than 1 unit over standing
+  height above the floor (a trace straight down, `PM_GroundDistance2`); crouch while
+  ducked (`PMF_DUCKED`) or rolling (`BOTH_ROLL_F`, `_B`, `_L`, `_R`).
+- **Where.** `cg_movementKeysX` (465) and `cg_movementKeysY` (432) are the block's top
+  left corner in the 640 by 480 screen, cut to whole units as JoF reads them;
+  `cg_movementKeysSize` (1) scales each key's 16-unit side. As EternalJK's
+  `widthRatioCoef` does, the keys stay square on wide screens and keep their distance
+  from the right edge. With the game-data HUD and one of JoF's numbered HUDs
+  (`cg_hudFiles` 1 to 3) they move as JoF moves them (`JOF_HUD_OFFSETS`): 51 units
+  right for HUD 1, 26 right and 3 up for HUD 2, 18 left for HUD 3; then 12 down
+  without a score line (`cg_drawScore 0`, or Power Duel), or, with team scores
+  (`cg_drawScore` 2 or more in a team game other than Siege), 14 up and 23 left for
+  HUD 1, 12 left for the others. A menu file path such as `ui/jahud.txt` moves
+  nothing. `cg_hudScale` does not size them, as in JoF.
+- **When.** With the HUD (`cg_drawHud`, `cg_draw2D`) and `cg_drawStatus` on, for a
+  living player not on the spectator team, on foot, and not under the scoreboard,
+  as `CG_DrawStats` draws them.
+- **Look.** jaPRO's pictures (`gfx/hud/keys/<key>_on` and `_off`), from any pack that
+  has all twelve, EternalJK's `japro-assets.pk3` included: only those pictures are
+  mounted from the `EternalJK` folder, as for its crosshairs. Without them SJK draws
+  its own keys in the same places: a rounded cap with an arrow (jump an arrow up from
+  a floor line, crouch an arrow down from a ceiling), dim while released and bright
+  while held.
+
+Not covered: jaPRO's race mode moving the keys as no score line does (SJK draws no
+strafe guides on jaPRO servers either), and the guess's floor trace sees only the
+map, not movers or players under the followed player. Riding a vehicle hides them,
+where JoF keeps them when the vehicle has no HUD menu of its own.
+
 ## Lagometer size
 
 `cg_lagometerScale` changes the lagometer's width and height: `1` (default) is

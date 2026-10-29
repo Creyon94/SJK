@@ -21,6 +21,7 @@ pub(crate) mod identification;
 mod info;
 pub(crate) mod kill_feed;
 pub(crate) mod movement;
+pub(crate) mod movement_keys;
 pub(crate) mod nameplate;
 pub(crate) mod nameplate_math;
 mod npc_class;
@@ -58,9 +59,11 @@ use std::path::Path;
 
 const WIDGET_LIMIT: usize = 64;
 /// The HUD's draw commands: the 384 its other widgets had, and room for a full
-/// kill feed (55).
-const DRAW_LIMIT: usize =
-    384 + kill_feed::CAPACITY * kill_feed::ENTRY_COMMANDS + movement::AURA_COMMANDS;
+/// kill feed (55), the strafe aura and the movement keys.
+const DRAW_LIMIT: usize = 384
+    + kill_feed::CAPACITY * kill_feed::ENTRY_COMMANDS
+    + movement::AURA_COMMANDS
+    + movement_keys::COMMANDS;
 const DEFAULT_LAYOUT: &str = include_str!("../assets/hud/default.json");
 /// The weapon name fades over this long at the end of its life.
 const WEAPON_FADE_MS: u64 = 600;
@@ -163,6 +166,8 @@ pub(crate) struct HudOverlay {
     /// Who the team outlines ring this frame.
     pub(crate) team_outline: team_outline::State,
     guides: movement::Guides,
+    /// JoF EJK's movement keys (`cg_movementKeys`).
+    pub(crate) movement_keys: movement_keys::State,
     family: family::Policy,
     pub(crate) targeting: targeting::State,
     pub(crate) enemy_info: enemy_info::State,
@@ -309,6 +314,7 @@ impl HudOverlay {
             weapon_select: crate::weapon_select::State::new(),
             tints: tints::State::default(),
             guides: movement::Guides::default(),
+            movement_keys: movement_keys::State::default(),
             family: family::Policy::default(),
             targeting: targeting::State::default(),
             enemy_info: enemy_info::State::default(),
@@ -608,6 +614,7 @@ impl HudOverlay {
                     .emit(&mut self.draw_list, self.theme, viewport, user_scale);
             }
             self.speed.emit(&mut self.draw_list, self.theme, viewport);
+            self.movement_keys.emit(&mut self.draw_list, viewport);
             follow::emit(
                 &mut self.draw_list,
                 &self.followed_name,
