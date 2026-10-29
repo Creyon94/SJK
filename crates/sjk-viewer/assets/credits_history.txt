@@ -9,6 +9,10 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 30/10/2026 | - | Mystery box: extras pack sounds, a 15 s cooldown, the teddy bear that kills, a sturdier chest
+- e7bfadd |  | Mystery box: extras pack sounds, a 15 s cooldown, the teddy bear that kills, a sturdier chest
++ 29/10/2026 | - | Credits history: the start-dialog merge's entry
+- dbfb7e9 |  | Credits history: the start-dialog merge's entry
 + 29/10/2026 | - | Start-failure dialog: SJK_NO_START_DIALOG leaves it out for the package smoke check
 - 198e6cb |  | Start-failure dialog: SJK_NO_START_DIALOG leaves it out for the package smoke check
 + 29/10/2026 | - | Release 2026.1029.1
