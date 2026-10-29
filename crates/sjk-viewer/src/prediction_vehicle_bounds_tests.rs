@@ -9,6 +9,7 @@ fn vehicle(number: u16, yaw: f32) -> EntityState {
     state.set_raw_field(88, 53); // CLASS_VEHICLE
     state.set_raw_field(46, 1); // CS_MODELS + 1
     state.set_raw_field(26, 10 | (10 << 8) | (42 << 16));
+    state.set_raw_field(23, 2); // TR_LINEAR, also interpolated for remote vehicles
     state.set_raw_field(3, yaw.to_bits()); // apos.trBase[YAW]
     state
 }
@@ -50,10 +51,14 @@ fn inputs() -> (VirtualFileSystem, GameState, Bsp) {
 #[test]
 fn remote_vehicle_traces_follow_the_presented_hull_at_each_command_step() {
     let (files, game, bsp) = inputs();
-    for step in [8, 7, 4, 3] {
+    for (step, smooth) in [8, 7, 4, 3]
+        .into_iter()
+        .flat_map(|step| [false, true].map(|smooth| (step, smooth)))
+    {
         for (yaw, hit) in [(0.0, true), (90.0, false)] {
             let snap = snapshot(vec![vehicle(45, yaw)], 1_000, 1);
             let mut prediction = LocalPrediction::new(Some(&snap), None, Some(&game), &files);
+            prediction.set_smooth_clients(smooth);
             let mut scratch = bsp.trace_scratch();
             prediction.physics_movers.set_angle_time(1_000 + step);
             let collision = BspMovementCollision::with_movers(
@@ -79,10 +84,14 @@ fn remote_vehicle_traces_follow_the_presented_hull_at_each_command_step() {
 #[test]
 fn remote_vehicle_hull_uses_interpolated_orientation_and_model_changes() {
     let (files, mut game, _) = inputs();
-    for step in [8, 7, 4, 3] {
+    for (step, smooth) in [8, 7, 4, 3]
+        .into_iter()
+        .flat_map(|step| [false, true].map(|smooth| (step, smooth)))
+    {
         let before = snapshot(vec![vehicle(45, 0.0)], 1_000, 1);
         let after = snapshot(vec![vehicle(45, 90.0)], 1_000 + 2 * step, 2);
         let mut prediction = LocalPrediction::new(Some(&before), None, Some(&game), &files);
+        prediction.set_smooth_clients(smooth);
         prediction.physics_movers.update(&after, 1_000 + step);
         prediction
             .physics_movers
@@ -148,10 +157,13 @@ fn measure_remote_vehicle_hull_updates() {
         prediction
             .physics_movers
             .set_angle_time(std::hint::black_box(1_000 + frame * 3));
+        prediction
+            .physics_movers
+            .present_boxes(&prediction.render_movers, 1_000 + frame * 3);
         std::hint::black_box(&prediction.physics_movers.colliders);
     }
     println!(
-        "128 remote vehicles: {:.2} ns per hull update",
+        "128 remote vehicles: {:.2} ns per vehicle frame update (placement and presentation)",
         start.elapsed().as_nanos() as f64 / (iterations as f64 * 128.0)
     );
 }

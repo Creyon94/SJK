@@ -371,8 +371,9 @@ list altogether
 
 Remote vehicle hulls use the loaded `.veh` dimensions and the presented pose,
 as codemp `CG_ClipMoveToEntities` calls `BG_VehicleAdjustBBoxForOrientation`.
-Fighter/flier bounds expand around the nose, tail and wingtips; other vehicle
-types use their definition's static width and height. Missing definitions or
+Remote poses interpolate between snapshots even with smooth-client
+extrapolation enabled. Fighter/flier bounds expand around the nose, tail and
+wingtips; other vehicle types use their definition's static width and height. Missing definitions or
 zero dimensions retain the packed snapshot hull. Definition data is cached by
 model slot and refreshed on encountered model-configstring changes, outside
 command replay. The local vehicle shares the geometry helper and keeps its

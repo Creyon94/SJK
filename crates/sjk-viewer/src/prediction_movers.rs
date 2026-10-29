@@ -7,6 +7,8 @@ use sjk_protocol::{ENTITY_NUMBER_NONE, EntityState, Snapshot};
 const ENTITY_SLOTS: usize = ENTITY_NUMBER_NONE as usize + 1;
 const SOLID_BMODEL: u32 = 0x00ff_ffff;
 const ET_MOVER: u8 = 6;
+const ET_NPC: u8 = 13;
+const CLASS_VEHICLE: u8 = 53;
 /// `ET_MISSILE`.
 const ET_MISSILE: u8 = 3;
 /// `TR_LINEAR` to `TR_GRAVITY`: the trajectories that move from their start time.
@@ -52,6 +54,7 @@ impl Trajectory {
 pub(crate) struct Collider {
     pub(crate) rocket_target: sjk_game_jka::pmove::RocketLockTarget,
     vehicle_bounds: Option<sjk_game_jka::vehicle_bounds::VehicleBounds>,
+    vehicle: bool,
     pub(crate) entity: u16,
     pub(crate) model: usize,
     pub(crate) bounds: Option<sjk_bsp::Aabb>,
@@ -96,6 +99,7 @@ impl Collider {
                 powerups: 0,
             },
             vehicle_bounds: None,
+            vehicle: false,
             model: mover.model_index,
             bounds: None,
             origin: mover.origin,
@@ -160,6 +164,7 @@ impl Collider {
                 powerups: state.powerups(),
             },
             vehicle_bounds: None,
+            vehicle: state.entity_type() == ET_NPC && state.npc_class() == CLASS_VEHICLE,
             model: state.model_index() as usize,
             bounds,
             origin: position.position(physics_time),
@@ -345,8 +350,7 @@ impl Movers {
             if let Some(mut collider) =
                 Collider::from_entity(state, snapshot.server_time, angle_time, self.smooth_clients)
             {
-                if state.entity_type() == 13 && state.npc_class() == 53 && collider.bounds.is_some()
-                {
+                if collider.vehicle && collider.bounds.is_some() {
                     collider.vehicle_bounds = self
                         .vehicle_models
                         .get(state.model_index() as usize)
@@ -439,7 +443,11 @@ impl Movers {
             if before.bounds.is_none() || before.teleport != collider.teleport {
                 continue;
             }
-            if (before.position.kind == 1 || (before.actor && before.position.kind == 3))
+            // CG_CalcEntityLerpPositions also always interpolates remote vehicles,
+            // even with cg_smoothClients and a non-LINEAR_STOP trajectory.
+            if (before.position.kind == 1
+                || (before.actor && before.position.kind == 3)
+                || before.vehicle)
                 && self.snapshot_time > shown.snapshot_time
             {
                 let fraction = ((time - shown.snapshot_time) as f32
