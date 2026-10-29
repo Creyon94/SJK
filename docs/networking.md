@@ -524,3 +524,13 @@ Check ordinary native and legacy client joins on isolated servers for integratio
 A handshake or successful movement run does not verify downloads, every reliable
 command, map restarts, all combat, vehicles or every game type. The current evidence
 and open validation work are recorded in [status.md](status.md).
+
+### Use the server gametype in local movement prediction
+
+Every client movement command uses the serverinfo game type, including Force-jump,
+wall-move and saber eligibility checks. In CTY, carrying either flag suppresses
+Force movement as `BG_HasYsalamiri` does; a CTF flag does not. Authoritative
+simulation retains its explicit world context. Reference: OpenJK multiplayer
+`cg_predict.c:1244` and `bg_pmove.c:1257,2091` at `4d0dfaf1`.
+Focused tests cover both CTY flags and CTF/FFA/unladen controls at 8/7/4/3 ms.
+Live CTY movement against an OpenJK server remains unverified.

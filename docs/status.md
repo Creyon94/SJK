@@ -48,6 +48,14 @@ button steps through everyone who whispered (left click next, right click back).
 a test.
 Verified on Linux x86_64: tests in `chat::tabs` (the settings switching the drawn
 buttons, clicks, the key), fmt, workspace build, tests (4184 passed) and Clippy (no new warning). Not verified: in game.
+## Prediction: server game type
+
+29/10/2026, `fix/prediction-gametype`, based on `main` `e702b0b1`:
+client movement reads the serverinfo game type for Force eligibility, fixing
+predicted Force jumps while carrying a CTY flag. Source comparison: OpenJK
+multiplayer `cg_predict.c:1244`, `bg_pmove.c:1257,2091`, revision `4d0dfaf1`.
+Windows x64 synthetic tests cover both flags and CTF/FFA/unladen controls at
+8/7/4/3 ms, plus authoritative context selection. Live CTY play remains unverified.
 
 ## Synced emote music back from alt-tab in step
 
