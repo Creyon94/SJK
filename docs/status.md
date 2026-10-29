@@ -1,6 +1,6 @@
 ## Passenger movement prediction
 
-29/10/2026, `fix/prediction-passenger-movement`, based on `main` `e702b0b1`:
+29/10/2026, `fix/prediction-passenger-movement`, based on `main` `9e48ff6d`:
 a player's vehicle entity number now suppresses ordinary movement even without
 a local `Riding` context or predicted chassis. This follows OpenJK `4d0dfaf1`
 multiplayer `bg_pmove.c`'s movement dispatch, rider weapon and footstep gates.
@@ -8,6 +8,40 @@ Windows x64 focused tests cover stationary and moving airborne passengers,
 movement input, advancing command time and dismounting at 8/7/4/3 ms. Optional
 vehicle-specific seat/view/duck context is unchanged. Live passenger gameplay
 and a full Pmove output comparison against OpenJK remain unverified.
+
+## A JA+ emote kept when going away, and `cg_debugEmoteEnd`
+
+29/10/2026, `fix/menu-cancels-meditate`, based on `main` `b558d4ae`, hub report #196 (build
+2026.1028.1, JoF, CTF4: opening Shaders, Toys or Nameplates ended `/ammeditate`, and
+`/amsit5`-`/amsit7`). Not reproduced: Slash sat through every tab change on the same build.
+The Collection sends nothing when a tab opens: no cvar or userinfo write, no reliable command;
+the open console takes every key and pointer event, Ctrl+Tab too, and the stage preview has its
+own buffers. The one client path found that ends a JA+ emote the player chose is the away emote:
+going away (alt-tabbed or idle) with `japlus.awayEmote` set sent its emote over theirs, and the
+way back crouched while `PM_FREEZE` held them, which got them up. Going away now leaves a JA+
+emote that already holds the player alone (`Away::turn`, `held`;
+[hub-chat.md](hub-chat.md#emotes-in-the-client)). Whether that was the reporter's case is not
+known. For the next one, `cg_debugEmoteEnd 1` (off, not archived) prints, when `PM_FREEZE`
+lets go, the last command with a button besides the talk balloon's, a move, a `generic_cmd` or
+another weapon and how long before, the away emote's last step, the longest frame of the last
+3 s (a hitch loading the stage model is the other suspect) and whether the window was out of
+focus, the console open and the Collection showing (`emote_end_debug`). Verified: unit tests
+`going_away_leaves_a_held_ja_plus_emote_alone`, `only_what_could_end_an_emote_counts`,
+`the_end_of_a_freeze_names_the_crouch_before_it`, fmt, build, Clippy and the workspace's tests.
+Not tried in a game.
+## Model colour sliders
+
+29/10/2026, `feat/model-rgb` (Creyon), based on `main` `e702b0b1`: JoF EJK's profile has
+R, G and B sliders (`ui_char_color_*`) for the skins its RGB team colour lists (`/rgb`);
+SJK set the colour only with `amcolor`. The SJK UI's Character page now gives a model the
+colour shows on (a shader of it reads the entity colour, found when the stage loads it; many
+RGB models have no `rgb` skin, Creyon's test) or an `rgb` skin three slider rows under the grid (arrows, click or drag, typed number),
+the stage model wears the colour at once (entity colour on its instance) and Apply writes
+`char_color_*` with the model; the grid's pictures are not tinted, and other models show
+no sliders ([model_rgb.rs](../crates/sjk-viewer/src/player_menu/model_rgb.rs)). Creyon's first
+try crashed at start: the stage's instance buffer could not be written (now `COPY_DST`).
+Verified on Linux x86_64: tests in `player_menu::model_rgb`, fmt, workspace build, tests and
+Clippy. Not verified: in game.
 
 ## Synced emote music back from alt-tab in step
 

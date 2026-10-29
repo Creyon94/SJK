@@ -203,6 +203,7 @@ impl GpuState {
         // User commands are made on the gameplay FPS's grid and wait for the next
         // `cl_maxpackets` packet (`command_rate`).
         let now = Instant::now();
+        crate::emote_end_debug::observe_frame(now);
         let server_time = self.server_clock.server_time(now);
         let step =
             self.console
@@ -246,9 +247,8 @@ impl GpuState {
         if let Some(yaw) = emplaced_view::forced_yaw(snapshot, self.camera_yaw.to_degrees()) {
             self.camera_yaw = yaw.to_radians();
         }
-        let weapon = self
-            .selected_weapon
-            .unwrap_or_else(|| snapshot.player.weapon());
+        let held_weapon = snapshot.player.weapon();
+        let weapon = self.selected_weapon.unwrap_or(held_weapon);
         let force_power = snapshot.player.selected_force_power();
         let known = self.gameplay_input.selection.known(&snapshot.player);
         let own_slot = u8::try_from(snapshot.player.client_num()).ok();
@@ -353,6 +353,7 @@ impl GpuState {
             }
             let sent = self.local_prediction.command_for_server(command);
             session.queue_command(&sent);
+            crate::emote_end_debug::observe_command(&sent, held_weapon, now);
             // With `cg_emoteAttackStop`, an attack or alt attack ends the player's
             // own emote, here and, as `sjkemote stop` does, for the other SJK
             // players: the server attacks whatever the emote shows.
@@ -392,8 +393,32 @@ impl GpuState {
             }
         }
         self.gameplay_input.set_command_age(0);
+        self.report_emote_end(now);
         self.send_due_packet(now);
         self.sync_cursor_policy();
+    }
+
+    /// `cg_debugEmoteEnd`: say in the console what came before a JA+ emote let go of the
+    /// player ([`crate::emote_end_debug`]).
+    fn report_emote_end(&mut self, now: Instant) {
+        let (Some(session), Some(console)) = (&self.live_session, &mut self.console) else {
+            return;
+        };
+        let enabled = console.bool_cvar(crate::emote_end_debug::CVAR) == Some(true);
+        crate::emote_end_debug::set_enabled(enabled);
+        if !enabled {
+            return;
+        }
+        let movement_type = session.latest_snapshot().player.movement_type();
+        let context = crate::emote_end_debug::Context {
+            unfocused: console.bool_cvar("com_unfocused") == Some(true)
+                || console.bool_cvar("com_minimized") == Some(true),
+            console_open: console.is_open(),
+            collection_open: console.collection_stage_wish().is_some(),
+        };
+        if let Some(line) = crate::emote_end_debug::report(movement_type, context, now) {
+            console.push_log(line);
+        }
     }
 
     /// Send the queued user commands once `cl_maxpackets` allows a packet.

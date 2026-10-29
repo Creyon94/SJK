@@ -65,7 +65,15 @@ Put `sjk` (`sjk.exe` on Windows) inside the installed game's
 `GameData` folder, beside `base/`, then launch it to open the main menu. A shortcut
 can use any working directory. No path settings are required. Keep
 `sjk-server` (`sjk-server.exe` on Windows) beside the client for Create game
-and local `devmap`.
+and local `devmap`. The server is its own process, so the client's console does not
+reach it once it runs; the console's `g_dismember` and `g_forceRegenTime` (the
+milliseconds a point of Force takes to come back, 200 by default as in the
+reference; servers often run 30 to 50) are handed to it at launch, as are
+EternalJK's `g_saberDuelForceRegenTime` (the same pace in a private duel) and
+`g_forceDuelForceRegenTime` (in a full-force duel, kept for when SJK has one). As in
+EternalJK, a private duel takes its own pace, not `g_forceRegenTime`: a host who sets only
+`g_forceRegenTime 50` still refills at 200 ms in private duels. 0 refills every
+millisecond; a negative value is not handed over.
 
 From that folder:
 
@@ -1154,6 +1162,14 @@ Both follow EternalJK's cgame (`cg_ents.c`, `cg_players.c`) and rd-vanilla's ren
   from 254 down by 0.08 a millisecond, gone after 2.54 s) while the body drawn again
   with its side's shader brightens over it (`RF_RGB_TINT` rising to 200): the light
   side's is `gfx/misc/personalshield`, the dark side's `gfx/effects/sabers/red_glow`.
+  `personalshield` blends `GL_DST_COLOR GL_ONE` on display values in rd-vanilla (the scene
+  times one plus the stage's colour); SJK's scene is linear, so the light side's glow sets
+  `DISPLAY_FILTER_ADD` and the stage program writes the sRGB decode of (1 + display colour), less 1, for it
+  (hub report #190: blended as written it showed only as a faint blue speckle). Two
+  limits: an 8-bit scene (`r_sceneHdr 0`, the Vanilla style) clamps what a stage writes
+  to 1, so there each stage lifts the scene at most twice in linear light, less than
+  rd-vanilla's brightest; with HDR nothing saturates at display white as rd-vanilla's
+  8-bit framebuffer does, so the brightest texels can go past it (into bloom).
   At 2.513 s that glow burns away from the body's origin (`RF_DISINTEGRATE2`), with the
   Force Sight sound for the light side and lightning for the dark. For the first 3.4 s
   the light side hums (`saberhum1`, for 2.2 s, at most once per 100 ms as EternalJK
@@ -2719,6 +2735,16 @@ from the earlier incorrect global-U default repair U to `messagemode3` and
 restore Y global chat if needed and free; other occupied keys stay unchanged.
 This migration advances `cl_bindDefaultsVersion` to 3. Use
 `bind u messagemode3` to select U explicitly. No message is sent until Enter.
+
+On the SJK UI's Character page a model the player's colour shows on (one of its shaders
+reads the entity colour: `rgbGen entity`, `oneMinusEntity` or `lightingDiffuseEntity`,
+whatever its skin is called), or worn with an `rgb` skin (the ones JoF EJK's RGB team
+colour lists), gets Red, Green and Blue sliders under the grid, as JoF EJK's profile has (Creyon, 29/10/2026;
+[model_rgb.rs](../crates/sjk-viewer/src/player_menu/model_rgb.rs)): 0 to 255, set by the
+arrows, a click or drag on the track, or a typed number; the stage model shows the colour
+at once (the shader stages that read the entity colour, as `CG_Player` hands them
+`customRGBA`), the grid's pictures keep their own, and Apply wears it with the model
+(`char_color_*`). Other models show no sliders.
 
 `amcolor <red> <green> <blue>` (EternalJK's `amColor`) sets the player tint, the archived
 `char_color_red`, `_green` and `_blue` userinfo cvars, each 0 to 255, so the server gets

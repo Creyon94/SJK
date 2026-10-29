@@ -2327,6 +2327,10 @@
 - 0d215f1 |  | Initial JKR source
 
 = Creyon
++ 29/10/2026 | SJK #269 | Profile: RGB sliders for models that can be coloured, as in JoF EJK
+- d6ef676 |  | Profile > Character: colour sliders for a model's RGB skin
+- c5a66b0 |  | Model colour: let the stage instance buffer be written again
+- 57b8dd2 |  | Model colour: sliders for any model a shader of which takes the player's colour
 + 29/10/2026 | SJK #210 | Trading: the first to confirm sees the swap at once
 - e6a72e3 |  | Read the profile when a trade's swap is first seen
 + 29/10/2026 | SJK #211 | Trading: a refusal no longer shows again at every map change
@@ -2751,6 +2755,28 @@
 - fed9acd |  | Hide duel opponents' bars and send nothing while duelling
 
 = Slash
++ 29/10/2026 | SJK #257 | Mod notice: no input for its first 0.6 s, and Space does not close it
+- d52f3ed |  | Mod notice: no input for its first 0.6 s, and Space does not close it
++ 29/10/2026 | SJK #258 | Encrypted whispers: a player blocked for the map or by staff stays out
+- 141b7f0 |  | Encrypted whispers: a player blocked for the map or by staff stays out
++ 29/10/2026 | SJK #243 | Take the Force refill pace from g_forceRegenTime and EJK's duel cvars
+- e2805bc |  | Take the Force refill pace from g_forceRegenTime
+- 4f0d026 |  | Give private duels EternalJK's g_saberDuelForceRegenTime
+- 527374a |  | Force regen: hand over a pace of 0 too, changelog and the private duel note
++ 29/10/2026 | SJK #244 | Away emote leaves a held JA+ emote alone; cg_debugEmoteEnd (#196)
+- 8360214 |  | Away emote leaves a held JA+ emote alone; cg_debugEmoteEnd (#196)
+- 7163a34 |  | Changelog: away emote keeps a held JA+ emote (#196, PR #244)
+- e4ffa91 |  | Emote end debug: nothing kept or locked while cg_debugEmoteEnd is off
++ 29/10/2026 | SJK #245 | Body fade: the light side's glow blends as in rd-vanilla, not a blue speckle (hub report #190)
+- bba02fa |  | Start fix for blue pixelated body fade (hub report #190)
+- 3da68fa |  | Blend the light side's body fade glow as rd-vanilla does (#190)
+- 417cf2e |  | Body fade glow: exact sRGB decode, and the 8-bit and HDR limits documented (#190)
++ 29/10/2026 | SJK #246 | Light shafts: invariant depth for the sun shade pass, so floors stop flickering (hub report #193)
+- 8841e91 |  | Keep light shafts on grazing floors from jumping between cells
+- 8557466 |  | Make the sun shade pass's depth invariant, drop the shaft fallback
+- e768c9c |  | Light shafts: say the sun shade fix is the likely cause of #193, not a verified one
++ 29/10/2026 | SJK #256 | Chat card: Block for this map and Block for all take their click
+- 586efa9 |  | Chat card: Block for this map and Block for all take their click
 + 29/10/2026 | SJK #241 | Synced emote music back from alt-tab lines up with the group (#195)
 - 7d47923 |  | Synced emote music back from alt-tab lines up with the group (#195)
 - 916add2 |  | Changelog: synced emote music back from alt-tab (#195, PR #241)

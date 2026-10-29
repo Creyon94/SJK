@@ -191,7 +191,7 @@ link: https://sol-vulpes.github.io/SJK/
 
 [Creyon]
 github: Creyon94
-role: Contributor and tester: 65 merged pull requests, EternalJK parity
+role: Contributor and tester: 66 merged pull requests, EternalJK parity
 medal: early_contributor
 did: #2 #7 Duel challenges from names with symbols, centre prints kept whole
 did: #3 The third-person camera damped per frame as EternalJK (cg_cameraFPS)
@@ -233,6 +233,7 @@ did: #210 The first to confirm a trade sees the swap at once
 did: #211 A trade refusal shown once, not at every map change
 did: #238 Exclusive fullscreen minimises on Alt+Tab
 did: #239 A blocked player's chat out of the console, BLOCKED in kill lines
+did: #269 RGB sliders for colourable models in Profile
 did: #193 A blade skin for each saber and each half of a staff
 did: #197 Trading between players: duplicates (and later holocrons) swapped or given as gifts, from a game or the main menu
 did: Blade Lab rounds 15 to 22: every blade effect in 3D, richer mythicals, faster loading
@@ -325,7 +326,7 @@ link: Lukas's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+
 
 [Slash]
 github: JoFSlash
-role: Contributor: 53 merged pull requests
+role: Contributor: 60 merged pull requests
 did: #114 Tab completes cfg file names after exec and writeconfig
 did: #113 CTF team saber colours, an option
 did: #153 The SJK scoreboard tells who won the Siege round or team match
@@ -382,6 +383,13 @@ did: #235 Fogged skies take the fog's colour
 did: #233 The emote volume reaches emotes already playing
 did: #240 The Low FPS card ignores jumps and strafes
 did: #241 Synced emote music back from alt-tab in step
+did: #243 Force refills at g_forceRegenTime on hosted games
+did: #244 Going away leaves a chosen JA+ emote alone
+did: #245 The light side's body fade glow as in the original game
+did: #246 Light shafts without flickering floors
+did: #256 The chat card's Block buttons take their click
+did: #257 The mod notice ignores a jump as it opens
+did: #258 Blocked players' encrypted whispers stay out
 link: Slash's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AJoFSlash
 
 [Milamber]
