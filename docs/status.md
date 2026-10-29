@@ -138,6 +138,26 @@ than the sweep's physics-time position. Reference: OpenJK `4d0dfaf1`, codemp
 `CG_PointContents:407-440`. Windows x64 synthetic moving-water tests cover
 8/7/4/3 ms time offsets; live moving liquid/community-map behavior remains
 unverified. Swept collision keeps its existing time convention.
+## Prediction comparison coverage
+
+29/10/2026, `docs/prediction-comparison-coverage`: source review of `main`
+`e702b0b1` against OpenJK multiplayer `4d0dfaf1` found further corrections
+proposed separately in PRs #260-#268 and #270, beyond #249-#254. The
+[comparison inventory](networking.md#prediction-source-comparison) records
+reviewed paths, remaining vehicle/model questions, known deviations and
+apparent omissions that also occur in stock. Windows x64 synthetic checks
+include 8/7/4/3 ms and MSVC-compiled functions extracted from that OpenJK
+revision. This is source-level evidence, not an exhaustive parity result;
+live multiplayer, full animation/vehicle/mod coverage and FPS remain unverified.
+
+The 29/10 follow-up on #271 checks each proposed correction, including #273,
+#274 and #276, against JoF EternalJK `bd5e202d` (JA+ client-plugin reference)
+and TaystJK `2d60c0fa` (jaPRO game/client), on Windows x64. The
+[mod applicability table](networking.md#ja-and-japro-applicability) records
+shared contracts and the surrounding dialect differences. No additional mod
+gate was indicated for these corrections. JA+'s closed-source server builds,
+jaPRO full-body taunt/race collision behavior, private saber changes and live
+mod differential testing remain outside that source-level finding.
 
 ## Synced emote music back from alt-tab in step
 
