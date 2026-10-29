@@ -1157,6 +1157,10 @@ const HELP: &[(&str, &str)] = &[
     ("cg_crosshairSize", "Size of the crosshair."),
     ("cg_speedometer", "Shows how fast you move."),
     (
+        crate::hud::movement_keys::CVAR,
+        "JoF EJK's movement keys on screen, each lit while you hold it. Place them with cg_movementKeysX, Y and Size.",
+    ),
+    (
         crate::hud::movement::LINES_ROW,
         "JoF EJK's strafe helper: a line to the best heading for each strafe key. Keep the crosshair on the green one to gain speed.",
     ),

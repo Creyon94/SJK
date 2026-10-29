@@ -67,6 +67,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Settings: in the game, hold a slider (its track or knob) a moment and everything else fades away, the darkening behind too, leaving only that slider over the game, so you see the change as you drag; letting go brings the menu back. Settings > Interface > Slider peek (`ui_sliderPeek`) switches it off _(Slash, PR #248, after Blep's idea)_
 - Chat: a new Admin button beside All, Team and SJK sends your message to the server's admins only (amsay), on JA+ and jaPRO servers, and Controls has an Admin chat key for it. In Settings > Chat you choose which buttons show: Team, SJK, Admin and PM. PM replies to players who whispered you: left click goes to the next one, right click to the one before. With Tabs hide other chat on, a button shows only its own messages while you type; off, it only picks where you talk (Creo's idea) _(Creyon, PR #259)_
 - Achievements: Blue Master, Yellow Master, Red Master, Dual Sabers Master and Staff Master, for 50 duels won with the saber in that style (private duels, saber only or full Force, and duel games) _(Slash, PR #272, after Dante's idea)_
+- Movement keys: Settings > HUD > Movement keys (`cg_movementKeys`, off) shows jump, forward, crouch, left, back and right on screen, each lit while held, and guesses them for a player you follow or watch in a demo; `cg_movementKeysX`, `cg_movementKeysY` and `cg_movementKeysSize` move and size them. With EternalJK installed they use its key pictures _(Creyon, after JoF EJK)_
 
 ## 2026.1028.1 (Alpha) | 28/10/2026
 

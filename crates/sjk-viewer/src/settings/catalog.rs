@@ -467,6 +467,11 @@ pub(super) const HUD_OPTIONS: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Movement keys",
+        cvar: crate::hud::movement_keys::CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Strafe lines",
         cvar: crate::hud::movement::LINES_ROW,
         kind: ValueKind::Bool,

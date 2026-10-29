@@ -466,6 +466,7 @@ impl Group {
                 "cg_drawFlagStatus",
                 crate::version_overlay::CVAR,
                 "cg_speedometer",
+                crate::hud::movement_keys::CVAR,
                 crate::hud::movement::LINES_ROW,
                 crate::hud::movement::AURA_CVAR,
                 crate::hud::movement::AURA_GROUND_CVAR,

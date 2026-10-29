@@ -124,8 +124,13 @@ pub(crate) const TAG_ICON_CELLS: u32 = 2 * COLUMNS;
 /// The cell holding the SJK Launcher's icon (`ui_renderer::LAUNCHER_TEXTURE`), after the
 /// tags'.
 pub(crate) const LAUNCHER_ICON: u32 = TAG_ICON_FIRST + TAG_ICON_CELLS;
+/// First of the movement keys' picture cells (`gfx/hud/keys`, `hud::movement_keys`),
+/// after the SJK Launcher's icon.
+pub(crate) const MOVEMENT_KEY_ICON_FIRST: u32 = LAUNCHER_ICON + 1;
+/// Movement key cells: six keys, each released and pressed.
+pub(crate) const MOVEMENT_KEY_ICON_CELLS: u32 = 12;
 /// Every icon cell.
-pub(crate) const ATLAS_CELLS: u32 = LAUNCHER_ICON + 1;
+pub(crate) const ATLAS_CELLS: u32 = MOVEMENT_KEY_ICON_FIRST + MOVEMENT_KEY_ICON_CELLS;
 const TOTAL_CELLS: u32 = ATLAS_CELLS;
 const ATLAS_HEIGHT: u32 = TOTAL_CELLS.div_ceil(COLUMNS) * ICON_SIZE;
 

@@ -335,6 +335,45 @@ impl Options {
             .collect()
     }
 
+    /// jaPRO's movement key pictures, `gfx/hud/keys/<key>_on` and `_off`, from the
+    /// highest-priority PK3 in `install/EternalJK` that has each (jaPRO's
+    /// `japro-assets.pk3`), as `(archive, path, image bytes)`: JoF EJK's
+    /// `cg_movementKeys` draws them (`cg_main.c`, `keyJumpOnShader` and the others), so
+    /// SJK's keys look the same where they are installed ([`crate::hud::movement_keys`]).
+    /// Only these pictures, nothing else from the pack. Empty when the folder is a game
+    /// directory.
+    pub(crate) fn eternaljk_movement_keys(
+        &self,
+        install: &Path,
+    ) -> Vec<(PathBuf, String, Vec<u8>)> {
+        let Some(directory) = self.eternaljk_directory(install) else {
+            return Vec::new();
+        };
+        let archives: Vec<(PathBuf, VirtualFileSystem)> = sjk_vfs::pk3_search_order(&directory)
+            .unwrap_or_default()
+            .into_iter()
+            .rev()
+            .filter(|archive| self.disabled.allows(archive))
+            .filter_map(|archive| {
+                let mut probe = VirtualFileSystem::new();
+                probe.mount_pk3(&archive).ok()?;
+                Some((archive, probe))
+            })
+            .collect();
+        crate::hud::movement_keys::PICTURES
+            .iter()
+            .filter_map(|name| {
+                archives.iter().find_map(|(archive, probe)| {
+                    ["tga", "png", "jpg"].iter().find_map(|extension| {
+                        let path = format!("{name}.{extension}");
+                        let asset = probe.read(&path).ok()??;
+                        Some((archive.clone(), path, asset.bytes))
+                    })
+                })
+            })
+            .collect()
+    }
+
     /// JoF EternalJK's chat emoji pictures, every `gfx/emoji/*.png` in the PK3s of
     /// `install/EternalJK` (jaPRO's `japro-assets.pk3` ships 175), as `(path as the
     /// archive stores it, image bytes)`, the highest-priority archive's copy of each
@@ -494,6 +533,21 @@ impl Options {
             vfs.mount_memory(
                 "EternalJK black sabers",
                 black.into_iter().map(|(_, path, bytes)| (path, bytes)),
+            )?;
+        }
+        // jaPRO's movement key pictures, likewise only those.
+        let keys = self.eternaljk_movement_keys(install);
+        if !keys.is_empty() {
+            if log {
+                crate::log::progress(format_args!(
+                    "{} movement key pictures from {}",
+                    keys.len(),
+                    install.join(COSMETICS_GAME).display(),
+                ));
+            }
+            vfs.mount_memory(
+                "EternalJK movement keys",
+                keys.into_iter().map(|(_, path, bytes)| (path, bytes)),
             )?;
         }
         // JoF EternalJK's chat emojis, likewise only those pictures from the folder.
@@ -741,6 +795,26 @@ mod tests {
         let vfs = options.mount(install.path()).unwrap();
         assert!(vfs.contains("gfx/effects/sabers/blacktrail.png").unwrap());
         assert!(!vfs.contains("gfx/effects/sabers/red_glow2.png").unwrap());
+    }
+
+    #[test]
+    fn eternaljk_movement_key_pictures_are_mounted_alone() {
+        let install = tempfile::tempdir().unwrap();
+        let folder = install.path().join("EternalJK");
+        std::fs::create_dir_all(&folder).unwrap();
+        let mut entries: Vec<String> = crate::hud::movement_keys::PICTURES
+            .iter()
+            .map(|name| format!("{name}.tga"))
+            .collect();
+        entries.push("gfx/hud/speedometer.tga".to_owned());
+        let entries: Vec<&str> = entries.iter().map(String::as_str).collect();
+        pk3(&folder.join("japro-assets.pk3"), &entries);
+        let options = Options::default();
+        assert_eq!(options.eternaljk_movement_keys(install.path()).len(), 12);
+        let vfs = options.mount(install.path()).unwrap();
+        assert!(vfs.contains("gfx/hud/keys/jump_on.tga").unwrap());
+        assert!(vfs.contains("gfx/hud/keys/right_off.tga").unwrap());
+        assert!(!vfs.contains("gfx/hud/speedometer.tga").unwrap());
     }
 
     #[test]

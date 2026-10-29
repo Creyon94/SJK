@@ -10963,6 +10963,23 @@ kept across frames until a command is made, buttons and `+forward` on the wheel,
 2 ms key tap keeping stock's share. No client was run: the jump on a server is
 unverified in game, as is whether EJK jumps in practice (its source says it does not).
 
+## Movement keys
+
+Branch `feat/movement-keys` (29/10/2026, based on `e702b0b1`), Creyon's request: JoF
+EternalJK's `cg_movementKeys` with `cg_movementKeysX`, `Y` and `Size`, compared with
+`CG_MovementKeys` in JoF EJK's `cg_draw.c` at `e88f6add` (the same as EternalJK's but
+for reading `cg.snap->ps`), drawn with jaPRO's `gfx/hud/keys` pictures where EternalJK
+is installed and SJK's own keys otherwise; Settings > HUD > Movement keys
+([client.md](client.md#movement-keys)). Unit tests cover the block's place at 4:3 and
+16:9, the pressed pictures, SJK's own keys, analog moves, the guessed keys of a
+followed player (direction, standing still, ducked, rolling, jump held, a rising jump
+off the ground, a grip), the own command over a guess, hiding (off, `cg_drawStatus 0`,
+dead, spectator team, riding), the settings, JoF's numbered HUD shifts and mounting
+only those twelve pictures from the `EternalJK` folder. On Linux with Rust 1.97,
+formatting, the locked workspace build and tests pass, and workspace Clippy reports no
+errors. No client was run: the keys in game, the guess while following and in a demo,
+and JoF's pictures loading from a real `japro-assets.pk3` are unverified.
+
 ## Implemented scope
 
 - PK3/loose-file content, BSP maps/collision, legacy models and shader scripts.

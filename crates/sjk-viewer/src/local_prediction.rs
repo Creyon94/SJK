@@ -548,6 +548,13 @@ impl LocalPrediction {
         self.latest_input.map(|c| [c.forward_move, c.right_move])
     }
 
+    /// The movement of the command made last (`forwardmove`, `rightmove`, `upmove`),
+    /// for the movement keys (`hud::movement_keys`).
+    pub(crate) fn movement_keys_input(&self) -> Option<[i8; 3]> {
+        self.latest_input
+            .map(|c| [c.forward_move, c.right_move, c.up_move])
+    }
+
     /// Deliver this frame's committed, replayed and preview events without allocating.
     pub(crate) fn drain_events(
         &mut self,

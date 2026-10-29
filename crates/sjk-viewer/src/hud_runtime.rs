@@ -699,6 +699,34 @@ pub(crate) fn update(
         .as_ref()
         .and_then(|_| gpu.local_prediction.guide_input());
     gpu.hud.restrict_guides(!japro, keys);
+    // The movement keys: the own command while playing, a guess while following or in
+    // a demo, with the map's floor under the player for a guessed jump.
+    let viewed = gpu
+        .live_session
+        .as_ref()
+        .map(|s| (s.latest_snapshot(), false))
+        .or_else(|| {
+            gpu.demo_session
+                .as_ref()
+                .map(|s| (s.snapshot_at_or_before(presentation_time), true))
+        });
+    if let Some((snapshot, demo)) = viewed {
+        let player = &snapshot.player;
+        let own = gpu
+            .local_prediction
+            .movement_keys_input()
+            .filter(|_| !demo && !hud::movement_keys::following(player));
+        let (bsp, scratch) = (&gpu.bsp, &mut gpu.trace_scratch);
+        gpu.hud
+            .movement_keys
+            .update(player, game, own, gpu.console.as_ref(), |origin| {
+                // `PM_GroundDistance2`: straight down 4096 units against solid map.
+                let mut end = origin;
+                end[2] -= 4096.0;
+                let trace = bsp.trace_box_with(scratch, origin, end, sjk_bsp::Aabb::POINT, 1);
+                Vec3::from_array(origin).distance(Vec3::from_array(trace.end_position))
+            });
+    }
     gpu.hud.guide_camera(
         view_target - view_position,
         view_up,
