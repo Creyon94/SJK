@@ -154,6 +154,9 @@ pub(super) fn emit(
                     readout: context.lagometer_readout,
                     mode: context.targeting.lagometer_mode(),
                     columns,
+                    // The numbers grow with the HUD, as its other text, and the graph.
+                    text_scale: context.dpi_scale * context.targeting.lagometer_scale(),
+                    screen: context.viewport,
                 },
                 &mut super::lagometer::panel(theme, widget),
             )

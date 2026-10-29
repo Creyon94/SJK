@@ -158,6 +158,11 @@ impl Policy {
         self.lagometer_mode
     }
 
+    /// `cg_lagometerScale`, 0.25 to 4.
+    pub(super) fn lagometer_scale(self) -> f32 {
+        self.lagometer_scale
+    }
+
     /// Scale the graph around its existing bottom-right corner, retaining X/Y offsets.
     pub(super) fn lagometer_rect(self, rect: Rect, viewport: [f32; 2]) -> Rect {
         // TaystJK cg_draw.c:7175-7176; horizontal virtual units are aspect corrected.

@@ -49,10 +49,16 @@ draw it), 1 unchanged. Verified: unit tests `flesh_sparks_gate_each_saber_hit_on
 `the_averages_follow_ejk`, `the_mode_reads_clamped_and_old_configs_keep_the_graph`, fmt,
 build, Clippy and the workspace's tests; the world shot `lagometer_modes_on_a_demo` (a demo
 frozen on its first snapshot, a made-up steady connection) draws modes 1 to 3 at
-`cg_lagometerScale` 1 and 2 as described. At scale 1 on a 1080p screen the numbers are
-about 10 px tall, EJK's proportion of SJK's smaller graph (48 px there, EJK's 108);
-scale 2 is about EJK's size. Not tried in a game or compared with EJK side by side; the
-shots' recorder stands still, so they show no speed graph.
+`cg_lagometerScale` 1 and 2 as described. The same day (`personal/ideas-followups`, Sol's
+decision) the numbers, which at EJK's proportion of SJK's smaller graph (48 px at 1080p,
+EJK's 108) were about 10 px tall at scale 1, became the HUD's text size, a 21 px line at
+1080p grown by the HUD scale and `cg_lagometerScale`, on a line of their own just above
+the graph (below it at the screen's top), the speed graph rising to make room; the graph
+keeps its size. Verified by `the_numbers_are_readable_above_the_graph_at_every_scale`,
+`at_the_screen_edges_the_numbers_stay_inside` and the same world shot again (the digits
+about 8 px tall at scale 1, as OCR-A's are about 40 % of its line; EJK's about 9.5 px).
+Not tried in a game or compared with EJK side by side; the shots' recorder stands still,
+so they show no speed graph.
 
 ## JA+ and jaPRO plugin options
 

@@ -7,14 +7,20 @@
 //! ([`super::targeting::Policy::lagometer_rect`]).
 //!
 //! JoF EJK (`cg_draw.c`, `CG_DrawLagometer` and `CG_DrawSpeedGraph`) adds two modes:
-//! 2 writes the average ping and interpolation of the graph's 48 columns along its top,
-//! and draws a speed graph above it (56 of the graph's 48 units up) with the current
-//! speed at its top left; 3 does the same without the backdrops, the speed graph three
-//! times as tall, its number only while moving. EJK draws the speed graph only with
+//! 2 writes the average ping and interpolation of the graph's 48 columns along its top
+//! (SJK: just above it), and draws a speed graph above it (56 of the graph's 48 units
+//! up) with the current speed at its top left; 3 does the same without the backdrops,
+//! the speed graph three times as tall, its number only while moving. EJK draws the speed graph only with
 //! its `cg_speedometer` speed graph bit; SJK has no such bit and draws it with the
-//! modes (Sol's decision, 29/10/2026). Everything here is in units of the graph's own
-//! height over 48, EJK's size, so the numbers keep EJK's proportions at any
-//! `cg_lagometerScale`.
+//! modes (Sol's decision, 29/10/2026). The graphs are in units of the graph's own height
+//! over 48, EJK's size, at any `cg_lagometerScale`.
+//!
+//! The numbers are not: SJK's graph is 48 pixels at 1080 lines where EJK's is 108, so at
+//! EJK's proportion they were 10 pixels tall. They are drawn at the HUD's text size
+//! instead ([`TEXT_LINE`], about EJK's at 1080p), grown by the HUD scale and
+//! `cg_lagometerScale`, and the average ping and interpolation stand on a line just above
+//! the graph rather than over its top, so the graph keeps its size (Sol's decision,
+//! 29/10/2026). The speed graph rises as far as that line needs ([`places`]).
 
 use super::*;
 use sjk_ui::{Color, DrawCommand, DrawList, FontWeight, HudWidget, Rect, TextAlign, TextOverflow};
@@ -43,8 +49,17 @@ const SPEED_RANGE: f32 = 3_000.0;
 /// 96 more up and three times as tall, so its bottom stays.
 const SPEED_GAP: f32 = 56.0;
 const TALL_SPEED_RISE: f32 = 96.0;
-/// `CG_Text_Paint(..., 0.5f, ..., FONT_SMALL)`: `ocr_a`'s 21-unit line at half scale.
-const TEXT_LINE: f32 = 21.0 * 0.5;
+/// The numbers' line box at 1080 lines and `cg_lagometerScale 1`, in the HUD's logical
+/// pixels: the size the HUD layouts' text starts from (`Theme::typography.value`), about
+/// EJK's at 1080p (`CG_Text_Paint(..., 0.5f, ..., FONT_SMALL)`, `ocr_a`'s 21-unit line at
+/// half scale, 10.5 of 480 lines: 23.6 pixels), as the HUD's other small readouts
+/// (`cg_showpos`'s 20, the frame times' 18 under the frame rate).
+pub(super) const TEXT_LINE: f32 = 21.0;
+/// The space between the numbers' line and the graphs, in the same pixels.
+pub(super) const TEXT_GAP: f32 = 2.0;
+/// The narrowest the numbers' line is, in lines: a three-digit ping and an interpolation
+/// such as "-12.5" side by side, on a graph narrower than that.
+const ROW_LINES: f32 = 3.6;
 const YELLOW: Color = Color::new(1.0, 0.82, 0.20, 0.9);
 const BLUE: Color = Color::new(0.25, 0.55, 1.0, 0.9);
 const GREEN: Color = Color::new(0.28, 0.95, 0.48, 0.9);
@@ -150,6 +165,79 @@ pub(super) struct Graph<'a> {
     pub(super) mode: u8,
     /// Columns drawn, whatever the graph's size.
     pub(super) columns: usize,
+    /// The numbers' scale: the HUD's (the screen's height over 1080, with `cg_hudScale`)
+    /// times `cg_lagometerScale`.
+    pub(super) text_scale: f32,
+    /// The screen's size in pixels, which the numbers stay inside.
+    pub(super) screen: [f32; 2],
+}
+
+/// Where modes 2 and 3 put the numbers and the speed graph around the graph.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(super) struct Places {
+    /// The average ping's (from its left) and interpolation's (to its right) line: just
+    /// above the graph, or just below it when the graph is too near the screen's top. As
+    /// wide as the graph, or [`ROW_LINES`] lines when that is wider, centred on it and
+    /// inside the screen.
+    pub(super) numbers: Rect,
+    /// The speed graph: EJK's 56 units above the graph, higher when the numbers' line
+    /// needs the room; in mode 3 three times as tall, rising.
+    pub(super) speed: Rect,
+    /// The speed number's line, at the top left of the speed graph's lowest 48 units
+    /// (its top in mode 2), where EJK writes it.
+    pub(super) speed_number: Rect,
+}
+
+/// Where the numbers and the speed graph stand around the graph in `rect` for `mode`,
+/// with the numbers `text_scale` times [`TEXT_LINE`] tall on a `screen`-sized screen.
+pub(super) fn places(rect: Rect, mode: u8, text_scale: f32, screen: [f32; 2]) -> Places {
+    let unit = rect.height / UNITS;
+    let line = TEXT_LINE * text_scale;
+    let gap = TEXT_GAP * text_scale;
+    let width = rect
+        .width
+        .max(ROW_LINES * line)
+        .min(screen[0].max(rect.width));
+    let x = (rect.x + (rect.width - width) * 0.5).clamp(0.0, (screen[0] - width).max(0.0));
+    let above = rect.y - gap - line;
+    let fits_above = above >= 0.0;
+    let numbers = Rect::new(
+        x,
+        if fits_above {
+            above
+        } else {
+            rect.bottom() + gap
+        },
+        width,
+        line,
+    );
+    // EJK leaves 8 units between the graph and the speed graph; the numbers' line and a
+    // gap on each side of it may need more.
+    let room = if fits_above { line + 2.0 * gap } else { 0.0 };
+    let lift = (room - (SPEED_GAP - UNITS) * unit).max(0.0);
+    let top = rect.y - SPEED_GAP * unit - lift;
+    let speed = if mode >= 3 {
+        Rect::new(
+            rect.x,
+            top - TALL_SPEED_RISE * unit,
+            rect.width,
+            rect.height * 3.0,
+        )
+    } else {
+        Rect::new(rect.x, top, rect.width, rect.height)
+    };
+    let speed_x = rect.x + 2.0 * unit;
+    let speed_number = Rect::new(
+        speed_x,
+        top,
+        (width - 2.0 * unit).min(screen[0] - speed_x).max(0.0),
+        line,
+    );
+    Places {
+        numbers,
+        speed,
+        speed_number,
+    }
 }
 
 /// Draw the lagometer in `rect` (already placed and scaled), with what `graph.mode`
@@ -168,58 +256,43 @@ pub(super) fn emit(
     if graph.mode < 2 {
         return;
     }
+    let places = places(rect, graph.mode, graph.text_scale, graph.screen);
+    // The averages on their line: the ping from its left, the interpolation ending at
+    // its right (EJK's `ax + 3` and `ax + aw - strW`).
+    let numbers = places.numbers;
+    let line = numbers.height;
     let unit = rect.height / UNITS;
-    // The averages along the graph's top: the ping from its left, the interpolation
-    // ending at its right (`ay - 1`, `ax + 3`, `ax + aw - strW`).
-    let line = TEXT_LINE * unit;
-    let top = rect.y - unit;
     text(
         draw_list,
-        Rect::new(rect.x + 2.0 * unit, top, rect.width, line),
+        Rect::new(
+            numbers.x + 2.0 * unit,
+            numbers.y,
+            numbers.width - 2.0 * unit,
+            line,
+        ),
         PING_TEXT,
         line,
         TextAlign::Start,
     );
     text(
         draw_list,
-        Rect::new(rect.x, top, rect.width - unit, line),
+        Rect::new(numbers.x, numbers.y, numbers.width - unit, line),
         INTERPOLATION_TEXT,
         line,
         TextAlign::End,
     );
-    let speed = speed_rect(rect, graph.mode);
     if backdrop {
-        panel(draw_list, speed);
+        panel(draw_list, places.speed);
     }
-    emit_speed(draw_list, speed, graph);
+    emit_speed(draw_list, places.speed, graph);
     if graph.mode == 2 || graph.readout.moving {
         text(
             draw_list,
-            Rect::new(
-                rect.x + 2.0 * unit,
-                rect.y - SPEED_GAP * unit,
-                rect.width,
-                line,
-            ),
+            places.speed_number,
             SPEED_TEXT,
             line,
             TextAlign::Start,
         );
-    }
-}
-
-/// The speed graph's place above the lagometer in `rect` for `mode`.
-pub(super) fn speed_rect(rect: Rect, mode: u8) -> Rect {
-    let unit = rect.height / UNITS;
-    if mode >= 3 {
-        Rect::new(
-            rect.x,
-            rect.y - (SPEED_GAP + TALL_SPEED_RISE) * unit,
-            rect.width,
-            rect.height * 3.0,
-        )
-    } else {
-        Rect::new(rect.x, rect.y - SPEED_GAP * unit, rect.width, rect.height)
     }
 }
 
@@ -328,7 +401,15 @@ mod tests {
         samples
     }
 
+    /// A 1080p screen.
+    const SCREEN: [f32; 2] = [1920.0, 1080.0];
+
     fn drawn(mode: u8, readout: &Readout) -> Vec<DrawCommand> {
+        drawn_at(mode, readout, Rect::new(500.0, 300.0, 96.0, 96.0), 1.0)
+    }
+
+    /// What `mode` draws for a graph in `rect`, the numbers at `text_scale`.
+    fn drawn_at(mode: u8, readout: &Readout, rect: Rect, text_scale: f32) -> Vec<DrawCommand> {
         let samples = samples();
         let mut draw_list = DrawList::new(512);
         let graph = Graph {
@@ -336,19 +417,16 @@ mod tests {
             readout,
             mode,
             columns: 48,
+            text_scale,
+            screen: SCREEN,
         };
-        emit(
-            &mut draw_list,
-            Rect::new(500.0, 300.0, 96.0, 96.0),
-            &graph,
-            &mut |draw_list, rect| {
-                let _ = draw_list.push(DrawCommand::RoundedRect {
-                    rect,
-                    radius: 0.0,
-                    color: Color::new(0.0, 0.0, 0.0, 0.5),
-                });
-            },
-        );
+        emit(&mut draw_list, rect, &graph, &mut |draw_list, rect| {
+            let _ = draw_list.push(DrawCommand::RoundedRect {
+                rect,
+                radius: 0.0,
+                color: Color::new(0.0, 0.0, 0.0, 0.5),
+            });
+        });
         draw_list.commands().to_vec()
     }
 
@@ -363,13 +441,27 @@ mod tests {
     }
 
     fn texts(commands: &[DrawCommand]) -> Vec<TextId> {
+        texts_placed(commands)
+            .into_iter()
+            .map(|(text, _, _)| text)
+            .collect()
+    }
+
+    /// Each text drawn, with its line box and size.
+    fn texts_placed(commands: &[DrawCommand]) -> Vec<(TextId, Rect, f32)> {
         commands
             .iter()
             .filter_map(|command| match command {
-                DrawCommand::Text { text, .. } => Some(*text),
+                DrawCommand::Text {
+                    text, rect, size, ..
+                } => Some((*text, *rect, *size)),
                 _ => None,
             })
             .collect()
+    }
+
+    fn overlaps(a: Rect, b: Rect) -> bool {
+        a.x < b.right() && b.x < a.right() && a.y < b.bottom() && b.y < a.bottom()
     }
 
     fn moving(speed: f32, mode: u8) -> Readout {
@@ -421,12 +513,14 @@ mod tests {
     fn mode_2_adds_the_numbers_and_the_speed_graph_on_backdrops() {
         let readout = moving(300.0, 2);
         let commands = drawn(2, &readout);
-        // The graph's backdrop and the speed graph's, 56 units (of 96 / 48) above.
+        // The graph's backdrop, as in mode 1, and the speed graph's, 56 units (of 96 / 48)
+        // above it and 9 pixels higher, so the numbers' 21-pixel line and its 2-pixel gaps
+        // fit between the two (EJK's 8 units leave 16 pixels).
         assert_eq!(
             panels(&commands),
             [
                 Rect::new(500.0, 300.0, 96.0, 96.0),
-                Rect::new(500.0, 300.0 - 112.0, 96.0, 96.0)
+                Rect::new(500.0, 300.0 - 112.0 - 9.0, 96.0, 96.0)
             ]
         );
         assert_eq!(
@@ -455,14 +549,114 @@ mod tests {
             texts(&commands),
             [PING_TEXT, INTERPOLATION_TEXT, SPEED_TEXT]
         );
-        let tall = speed_rect(Rect::new(500.0, 300.0, 96.0, 96.0), 3);
-        assert_eq!(tall, Rect::new(500.0, 300.0 - 304.0, 96.0, 288.0));
+        let graph = Rect::new(500.0, 300.0, 96.0, 96.0);
+        let tall = places(graph, 3, 1.0, SCREEN).speed;
+        assert_eq!(tall, Rect::new(500.0, 300.0 - 304.0 - 9.0, 96.0, 288.0));
         // Its bottom is mode 2's.
-        let short = speed_rect(Rect::new(500.0, 300.0, 96.0, 96.0), 2);
+        let short = places(graph, 2, 1.0, SCREEN).speed;
         assert!((tall.bottom() - short.bottom()).abs() < 1e-3);
         let still = moving(0.0, 3);
         assert_eq!(texts(&drawn(3, &still)), [PING_TEXT, INTERPOLATION_TEXT]);
         assert_eq!(texts(&drawn(2, &moving(0.0, 2))).len(), 3, "mode 2 shows 0");
+    }
+
+    /// The numbers are the HUD's text size (21 pixels at 1080 lines) grown by the HUD
+    /// scale and `cg_lagometerScale`, not the graph's EJK proportion (10.5 pixels on
+    /// SJK's 48-pixel graph): the ping and interpolation on a line just above the graph,
+    /// ping left and interpolation right, the speed number at the speed graph's top left.
+    /// Nothing overlaps, and the graph itself keeps its size.
+    #[test]
+    fn the_numbers_are_readable_above_the_graph_at_every_scale() {
+        assert_eq!(TEXT_LINE, sjk_ui::Theme::default().typography.value);
+        for scale in [1.0, 2.0] {
+            // SJK's graph: 48 pixels at 1080 lines, times `cg_lagometerScale`.
+            let side = 48.0 * scale;
+            let graph = Rect::new(1_920.0 - 108.0 - side, 1_080.0 - 324.0 - side, side, side);
+            for mode in [2, 3] {
+                let readout = moving(300.0, mode);
+                let commands = drawn_at(mode, &readout, graph, scale);
+                let placed = texts_placed(&commands);
+                assert_eq!(placed.len(), 3, "mode {mode} at {scale}");
+                let line = TEXT_LINE * scale;
+                assert!(
+                    placed.iter().all(|(_, rect, size)| *size == line
+                        && rect.height == line
+                        && rect.x >= 0.0
+                        && rect.right() <= SCREEN[0]),
+                    "mode {mode} at {scale}: {placed:?}"
+                );
+                let (ping, interpolation, speed) = (placed[0], placed[1], placed[2]);
+                assert_eq!(
+                    (ping.0, interpolation.0, speed.0),
+                    (PING_TEXT, INTERPOLATION_TEXT, SPEED_TEXT)
+                );
+                // Just above the graph, its gap scaled too.
+                let row = places(graph, mode, scale, SCREEN);
+                assert_eq!(row.numbers.bottom(), graph.y - TEXT_GAP * scale);
+                for text in [ping.1, interpolation.1] {
+                    assert_eq!(text.y, row.numbers.y);
+                    assert!(text.x >= row.numbers.x && text.right() <= row.numbers.right());
+                    assert!(!overlaps(text, graph) && !overlaps(text, row.speed));
+                }
+                // Centred on the graph, wide enough for both numbers on its 48 pixels.
+                assert!(row.numbers.width >= graph.width);
+                assert!(
+                    (row.numbers.x + row.numbers.width / 2.0 - (graph.x + graph.width / 2.0)).abs()
+                        < 1e-3
+                );
+                assert!(!overlaps(row.speed, graph));
+                assert!(row.speed.bottom() <= row.numbers.y - TEXT_GAP * scale + 1e-3);
+                // The speed number inside the speed graph's lowest 48 units, at its left.
+                assert!((speed.1.y - (row.speed.bottom() - side)).abs() < 1e-3);
+                assert!(speed.1.x > row.speed.x && speed.1.x < row.speed.x + side / 4.0);
+                if mode == 2 {
+                    // The graph's backdrop is mode 1's: its size does not change.
+                    assert_eq!(panels(&commands)[0], graph);
+                    assert_eq!(panels(&commands)[1], row.speed);
+                }
+            }
+        }
+        // `cg_hudScale` or a larger screen grows them as the HUD's other text: 1440 lines.
+        let commands = drawn_at(
+            2,
+            &moving(300.0, 2),
+            Rect::new(1_600.0, 900.0, 64.0, 64.0),
+            1_440.0 / 1_080.0,
+        );
+        assert!(
+            texts_placed(&commands)
+                .iter()
+                .all(|(_, _, size)| (size - 28.0).abs() < 1e-3)
+        );
+    }
+
+    /// A graph at the screen's top edge has no room above it: the numbers stand just
+    /// below it instead, inside the screen; one at the right edge keeps them inside too.
+    #[test]
+    fn at_the_screen_edges_the_numbers_stay_inside() {
+        for mode in [2, 3] {
+            let top = Rect::new(800.0, 10.0, 48.0, 48.0);
+            let row = places(top, mode, 1.0, SCREEN);
+            assert_eq!(row.numbers.y, top.bottom() + TEXT_GAP);
+            assert!(!overlaps(row.numbers, top));
+            let commands = drawn_at(mode, &moving(300.0, mode), top, 1.0);
+            let placed = texts_placed(&commands);
+            assert!(
+                placed[..2]
+                    .iter()
+                    .all(|(_, rect, _)| rect.y >= 0.0 && rect.y == row.numbers.y)
+            );
+            // Barely room above: they still go above, at the very top.
+            let just = Rect::new(800.0, TEXT_LINE + TEXT_GAP, 48.0, 48.0);
+            assert_eq!(places(just, mode, 1.0, SCREEN).numbers.y, 0.0);
+            // At the right edge, wider than the graph: shifted left to stay on screen.
+            let right = Rect::new(SCREEN[0] - 48.0, 500.0, 48.0, 48.0);
+            let row = places(right, mode, 1.0, SCREEN);
+            assert!(row.numbers.width > right.width);
+            assert_eq!(row.numbers.right(), SCREEN[0]);
+            let left = Rect::new(0.0, 500.0, 48.0, 48.0);
+            assert_eq!(places(left, mode, 1.0, SCREEN).numbers.x, 0.0);
+        }
     }
 
     /// EJK's averages: the 48 newest columns, a dropped snapshot as the highest ping
