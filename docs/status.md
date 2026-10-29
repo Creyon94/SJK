@@ -16,6 +16,13 @@ frames, using the snapshot player origin and the presented opponent origin.
 Reference: OpenJK multiplayer `cg_predict.c:1252-1263`, revision `4d0dfaf1`.
 Windows x64 synthetic tests cover 8/7/4/3 ms endpoints, repeated frames,
 pitch/yaw, expiry and missing opponents. Live locks remain unverified.
+## Respawn jump restriction
+
+29/10/2026, `fix/prediction-respawn-jump`, based on `main` `e702b0b1`:
+movement now refuses jumps while `PMF_RESPAWNED` remains set. Reference:
+OpenJK `4d0dfaf1`, multiplayer `PM_CheckJump` and `PmoveSingle`. Synthetic
+tests cover holding attack/use and releasing them at 8/7/4/3 ms on Windows
+x64. Live respawn behavior against an OpenJK server remains unverified.
 
 ## Passenger movement prediction
 

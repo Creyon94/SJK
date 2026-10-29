@@ -305,6 +305,10 @@ Inline-brush point contents use the presented origin and angles, matching
 Prediction keeps these transforms separately, including when the newest and
 displayed snapshots carry different mover trajectories.
 
+Jump prediction respects `PMF_RESPAWNED`: holding attack or use after spawning
+blocks jumping until those buttons are released. The latch is cleared before
+movement for every weapon, as in OpenJK `codemp/game/bg_pmove.c`.
+
 `PM_JETPACK` (movement type 1), used by the equipped jetpack on stock-derived
 servers including JA+, runs the reference's gravity, thrust and air-control
 rules ([pmove_jetpack.rs](../crates/sjk-game-jka/src/pmove_jetpack.rs)). The
