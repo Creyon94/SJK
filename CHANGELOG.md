@@ -35,8 +35,6 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 = con_overChat: New: while you type in the chat, the console key opens the console over it and your message waits; off, the chat takes the key as before.
 = ui_sliderPeek: New: in the game, hold a Settings slider a moment and the rest of the menu fades away, so you see the change on the game as you drag.
 
-- Nameplates: a Name outline setting (Off, Faint, Strong); Strong edges every name in a dark outline so it reads on any background (`cg_nameplateOutline`) _(Slash, after Lex's idea)_
-- SJK radial HUD: two Settings sliders, Radial HUD spacing and Radial HUD height, move its meters farther from your character and up or down the screen (`cg_hudRadialSpread`, `cg_hudRadialHeight`) _(Slash, after Lex's idea)_
 - Mystery boxes hold a holocron one time in ten (it was one in fifty), and the roll shows the four tiers' real holocrons, stopping on the one you won. A box that blows up laughs with Sol's own laugh when the SJK extras pack is installed _(Sol)_
 - Centre prints and the words over mystery boxes (and the box hunt's mark) are drawn in Fira Sans Condensed, a real typeface close to the old menu font, instead of a tracing of a low-resolution bitmap _(Sol)_
 - Box hunt: one mark every 10 minutes at most, not one after the other. Hunters see the mark ringed in red, and a black name reads on the hunt's card _(Sol)_
@@ -82,6 +80,9 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Rocket lock: the lock-on sees through and stops at the same things as the server, and locks on NPCs and vehicles too, not only players _(Lumaya, PRs #265 and #268, after the original game)_
 - Prediction: water, lava and other contents of moving doors and lifts are tested where you see them _(Lumaya, PR #270, after the original game)_
 - Vehicles: a passenger no longer walks on their own between updates while the vehicle is not predicted _(Lumaya, PR #276, after the original game)_
+- Nameplates: a Name outline setting (Off, Faint, Strong); Strong edges every name in a dark outline so it reads on any background (`cg_nameplateOutline`) _(Slash, PR #280, after Lex's idea)_
+- SJK radial HUD: two Settings sliders, Radial HUD spacing and Radial HUD height, move its meters farther from your character and up or down the screen (`cg_hudRadialSpread`, `cg_hudRadialHeight`) _(Slash, PR #281, after Lex's idea)_
+- Laptops with two graphics cards: SJK asks the NVIDIA or AMD driver for the fast card, tries another card if the first one cannot start the game, and says why when nothing works instead of closing without a word (found by Nib for SimpleSmokie) _(Slash, PR #283)_
 
 ## 2026.1028.1 (Alpha) | 28/10/2026
 

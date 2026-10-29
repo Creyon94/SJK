@@ -658,7 +658,7 @@ merged into SJK
 - #198 "Too many open files" after a long session: the Profile menu's model icons, cosmetics and
   Force templates let go of the previous map's game files (its PK3 reopening part held back).
 
-Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 63 pull requests merged
+Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 66 pull requests merged
 into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AJoFSlash)):
 
 - #114 Tab completes the cfg file argument of `exec`, `execq`, `writeconfig` and `write`
@@ -779,6 +779,12 @@ into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author
   each style (Dante's idea).
 - #255 the console key opens the console over the chat composer, which keeps its draft,
   as stock (`con_overChat` turns it off).
+- #280 a Name outline setting for nameplates (`cg_nameplateOutline`): Off, Faint (the
+  default, as before) or Strong, every name ringed dark, after Lex's idea.
+- #281 Radial HUD spacing and height sliders (`cg_hudRadialSpread`, `cg_hudRadialHeight`)
+  move the radial HUD's meters apart and up or down, after Lex's idea.
+- #283 laptops with two graphics cards: sjk.exe asks NVIDIA and AMD drivers for the fast
+  card, tries the other cards when one cannot open, and says why when none starts.
 
 His Peek work in #199 (closed 24/10/2026, not merged) shaped the Drone toy: a player is
 asked before being peeked, told who watches, and can end it. His #206 (closed 25/10/2026,

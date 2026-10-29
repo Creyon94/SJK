@@ -24,6 +24,37 @@
 
 # ---- Console & chat ----
 
+[slash-gpu-fast-card]
+area: Rendering & effects
+title: Laptops with two graphics cards start on the fast one (Slash, PR #283)
+change: sjk.exe asks NVIDIA Optimus and AMD for the fast card; another card if one fails.
+change: A start that fails shows a dialog saying why and what to try, not just closing.
+test: On a laptop with two cards: SJK starts on the NVIDIA or AMD card (Task Manager > GPU).
+test: logs\last-client.log: a card that failed is named with its error, then the one used.
+
+[slash-nameplate-outline]
+area: HUD
+title: Nameplates: Name outline, Off, Faint or Strong (Slash, PR #280)
+change: Settings > HUD > Name outline (cg_nameplateOutline): 0 shadow, 1 faint halo, 2 strong.
+test: Strong: every name ringed dark, a black name in a stronger pale halo.
+test: Faint (the default): as before. Off: only the drop shadow.
+
+[slash-radial-placement]
+area: HUD
+title: SJK radial HUD: spacing and height sliders (Slash, PR #281)
+change: Settings > HUD > Radial HUD spacing (cg_hudRadialSpread) and height (cg_hudRadialHeight).
+test: Radial HUD on, spacing 150: health and armour move left, Force, ammo and style right.
+test: Height 20: the meters move up; -10 down. Crosshair, timer, lagometer stay put.
+
+[lumaya-prediction-audit]
+area: Gameplay
+title: Prediction audit: 12 fixes against the original game (Lumaya, PRs #249-#276)
+change: Game type, NPCs, zero gravity, triggers, carried players, gesture, vehicle riders,
+change: rocket lock, moving brush contents; same code on JA+ and jaPRO (table in networking).
+test: On a JA+ server: run, jump, roll through jump pads and teleporters: no snapping back.
+test: CTY with a flag: no Force jump is predicted. Gesture key: the hand gesture at once.
+test: Rocket lock on an NPC (local server): it locks as the server does.
+
 [slash-console-over-chat]
 area: Console & chat
 title: The console key opens the console over the chat (Slash, PR #255)

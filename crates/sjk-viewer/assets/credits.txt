@@ -331,7 +331,7 @@ link: Lukas's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+
 
 [Slash]
 github: JoFSlash
-role: Contributor: 63 merged pull requests
+role: Contributor: 66 merged pull requests
 did: #114 Tab completes cfg file names after exec and writeconfig
 did: #113 CTF team saber colours, an option
 did: #153 The SJK scoreboard tells who won the Siege round or team match
@@ -398,6 +398,9 @@ did: #258 Blocked players' encrypted whispers stay out
 did: #248 Slider peek: a held slider shows the game behind the menu
 did: #272 The five saber style Master achievements
 did: #255 The console key opens the console over the chat
+did: #280 Name outline for nameplates: Off, Faint or Strong
+did: #281 Radial HUD spacing and height sliders
+did: #283 Laptops with two graphics cards start on the fast one
 link: Slash's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AJoFSlash
 
 [Milamber]
