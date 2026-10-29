@@ -793,6 +793,11 @@ pub(super) const HUD: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Tabs filter chat",
+        cvar: crate::chat::tabs::FILTER_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Team chat button",
         cvar: crate::chat::tabs::TEAM_CVAR,
         kind: ValueKind::Bool,

@@ -217,7 +217,7 @@ impl ChatOverlay {
         self.scroll = self.scroll.saturating_add_signed(delta).min(
             self.lines
                 .iter()
-                .filter(|line| self.pm_visible(line))
+                .filter(|line| self.shown(line))
                 .count()
                 .saturating_sub(1),
         );

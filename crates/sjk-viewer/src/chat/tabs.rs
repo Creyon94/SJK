@@ -5,6 +5,11 @@
 //! has the command, and has its own key ([`ADMIN_COMMAND`]). PM whispers to the last
 //! player who whispered you (`chat/reply.rs`). A hidden channel is only left off the row
 //! and out of Tab: its key still opens it, and a whisper still opens from a name.
+//!
+//! Each button is also a tab, as in other games' chat windows (Dave, 29/10/2026): while
+//! the composer is on Team, SJK, Admin or a whisper, the feed shows only that channel's
+//! messages (whispers both ways, encrypted ones too), and All shows everything; the
+//! feed shows everything again once the composer closes. [`FILTER_CVAR`] turns it off.
 use super::*;
 use crate::console::ViewerConsole;
 
@@ -18,6 +23,8 @@ pub(crate) const ADMIN_CVAR: &str = "cg_chatTabAdmin";
 pub(crate) const PM_CVAR: &str = "cg_chatTabPm";
 /// The key command that opens the composer on Admin chat, beside `messagemode5` (SJK).
 pub(crate) const ADMIN_COMMAND: &str = "messagemode6";
+/// The composer's channel also filters the feed while it is open.
+pub(crate) const FILTER_CVAR: &str = "cg_chatTabFilter";
 /// What the composer says when PM is chosen and no one has whispered yet.
 pub(super) const NO_PM: &str =
     "No one has whispered you yet: click a player's name to whisper them.";
@@ -31,6 +38,8 @@ pub(super) struct Tabs {
     pub(super) sjk: bool,
     pub(super) admin: bool,
     pub(super) pm: bool,
+    /// The composer's channel filters the feed ([`FILTER_CVAR`]).
+    pub(super) filter: bool,
 }
 
 impl Tabs {
@@ -45,6 +54,7 @@ impl Tabs {
             sjk: on(SJK_CVAR, true),
             admin: on(ADMIN_CVAR, true),
             pm: on(PM_CVAR, false),
+            filter: on(FILTER_CVAR, true),
         }
     }
 }
@@ -58,7 +68,33 @@ pub(crate) fn server_has_admin_chat(kind: sjk_mod::ServerKind) -> bool {
     )
 }
 
+/// Whether a game chat line is jaPRO's admin chat: its name starts `<Admin>` (JoF EJK
+/// `G_Say`, `SAY_ADMIN`: `^3<Admin>^7(name)`), colour codes aside.
+pub(super) fn is_admin_line(display: &str) -> bool {
+    super::options::clean_body(display, 1)
+        .trim_start()
+        .starts_with("<Admin>(")
+}
+
 impl ChatOverlay {
+    /// Whether the feed shows `line` now: the PM-only switch (`chat/pm_only.rs`), then
+    /// the open composer's tab.
+    pub(super) fn shown(&self, line: &ChatLine) -> bool {
+        if !self.pm_visible(line) {
+            return false;
+        }
+        let Some(input) = self.input.as_ref().filter(|_| self.options.tabs.filter) else {
+            return true;
+        };
+        match input.channel {
+            Channel::Global => true,
+            Channel::Whisper => {
+                line.channel == Channel::Whisper || line.encrypted || line.server_private
+            }
+            channel => line.channel == channel,
+        }
+    }
+
     /// The channels the composer's row offers now, in order.
     pub(super) fn offered(&self) -> impl Iterator<Item = Channel> + '_ {
         [
@@ -165,6 +201,7 @@ mod tests {
             sjk,
             admin,
             pm: false,
+            filter: true,
         };
         chat.admin_server = server;
         chat
@@ -293,7 +330,8 @@ mod tests {
                 team: true,
                 sjk: true,
                 admin: true,
-                pm: false
+                pm: false,
+                filter: true
             }
         );
     }
@@ -331,5 +369,62 @@ mod tests {
             chat.submit(),
             ChatInputResult::Submit(command) if command == "amsay \"hi admins\""
         ));
+    }
+
+    fn feed(chat: &mut ChatOverlay) -> Vec<String> {
+        chat.build(true, &crate::text::test_font(), [1920.0, 1080.0], 1_000);
+        ["public", "teamwords", "adminwords", "whisperwords"]
+            .into_iter()
+            .filter(|word| chat.ui.text_runs().any(|text| text.contains(word)))
+            .map(str::to_owned)
+            .collect()
+    }
+
+    #[test]
+    fn each_tab_shows_only_its_own_messages_while_typing() {
+        let mut chat = chat(true, true, true, true);
+        chat.options.lines = 10;
+        let now = std::time::Instant::now();
+        for (kind, text, private) in [
+            (sjk_client::ServerEventKind::Chat, "Fox: public", false),
+            (
+                sjk_client::ServerEventKind::TeamChat,
+                "(Fox): teamwords",
+                false,
+            ),
+            (
+                sjk_client::ServerEventKind::Chat,
+                "^3<Admin>^7(Fox^7)^7: ^2adminwords",
+                false,
+            ),
+            (
+                sjk_client::ServerEventKind::Chat,
+                "\u{19}[Fox]: whisperwords",
+                true,
+            ),
+        ] {
+            chat.receive_classified(kind, text.to_owned(), None, private, now);
+        }
+        assert!(chat.lines.iter().any(|line| line.channel == Channel::Admin));
+        // Closed: everything, as before.
+        assert_eq!(feed(&mut chat).len(), 4);
+        chat.open(false);
+        assert_eq!(feed(&mut chat).len(), 4, "All shows everything");
+        chat.choose(Channel::Team);
+        assert_eq!(feed(&mut chat), ["teamwords"]);
+        chat.choose(Channel::Admin);
+        assert_eq!(feed(&mut chat), ["adminwords"]);
+        chat.input.as_mut().unwrap().channel = Channel::Whisper;
+        assert_eq!(feed(&mut chat), ["whisperwords"]);
+        // The switch off: the tabs only choose where a message goes.
+        chat.options.tabs.filter = false;
+        assert_eq!(feed(&mut chat).len(), 4);
+    }
+
+    #[test]
+    fn admin_lines_are_told_from_their_admin_name() {
+        assert!(is_admin_line("^3<Admin>^7(Fox^7)^7: ^2hi"));
+        assert!(!is_admin_line("Fox: <Admin>(nope)"));
+        assert!(!is_admin_line("Fox: hi"));
     }
 }

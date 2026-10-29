@@ -2788,7 +2788,12 @@ server's admins read (JoF EJK `Cmd_Amsay_f`, `SAY_ADMIN`; they see it as `<Admin
 shows only on JA+ and jaPRO servers; its key is `messagemode6` (Controls > Admin chat, no
 key by default), which says so on other servers. Leaving one moves a composer on Admin to
 All, and a remembered Admin or hidden channel opens on All. PM whispers to the last
-player who whispered you, or says how to whisper when no one has.
+player who whispered you, or says how to whisper when no one has. Each button is a tab
+too (Dave, 29/10/2026): while the composer is on Team, SJK, Admin or a whisper, the feed
+shows only that channel's messages (whispers both ways, encrypted ones and the server's
+private lines included; admin lines are jaPRO's `<Admin>(name)`), All shows everything,
+and closing the composer shows everything again; `cg_chatTabFilter` 0 (Settings > Chat >
+Tabs filter chat) keeps the feed whole.
 
 Open the chat composer with your chat binding: the cursor is free while composing.
 Resting the pointer on a name (a sender's, or an SJK chat sender's) shows their

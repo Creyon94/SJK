@@ -5,12 +5,12 @@
 JoF EJK `Cmd_Amsay_f`) and shows only on those servers, with its own key `messagemode6`
 (Controls > Admin chat); `cg_chatTabTeam`, `cg_chatTabSjk`, `cg_chatTabAdmin` and
 `cg_chatTabPm` (Settings > Chat; PM off by default) choose the buttons, Tab walking only
-the ones shown ([chat/tabs.rs](../crates/sjk-viewer/src/chat/tabs.rs);
+the ones shown; while typing each tab shows only its channel's messages (`cg_chatTabFilter`,
+Dave's request; admin lines told by jaPRO's `<Admin>(name)`) ([chat/tabs.rs](../crates/sjk-viewer/src/chat/tabs.rs);
 [client.md](client.md)). Creyon's first try in game: the Admin button could not be
 clicked (its token was missing from the press list), fixed with a test that clicks it.
 Verified on Linux x86_64: tests in `chat::tabs` (the settings switching the drawn
-buttons, clicks, the key), fmt, workspace build, tests (4180 passed) and Clippy (no new
-warning). Not verified: in game.
+buttons, clicks, the key), fmt, workspace build, tests (4182 passed) and Clippy (no new warning). Not verified: in game.
 
 ## Synced emote music back from alt-tab in step
 
@@ -63,7 +63,7 @@ claim to have opened the game menu, which the new world does not carry (else Esc
 the map change brought the window back and Close shut the player's own menu)
 ([sjk-ui.md](sjk-ui.md#trading)). Verified on Linux x86_64: the new test
 `a_map_change_keeps_the_shown_refusal_and_drops_the_menu_it_opened`, fmt, workspace
-build, tests and Clippy. Not verified: in game across a map change.
+build, tests (4182 passed) and Clippy (no new warning). Not verified: in game.across a map change.
 
 ## Trade swap reaches the first to confirm
 

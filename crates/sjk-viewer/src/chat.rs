@@ -53,7 +53,7 @@ enum Channel {
     Whisper,
     /// The SJK chat, through the SJK hub (`chat/sjk.rs`).
     Sjk,
-    /// The server's admins, `amsay` (`chat/tabs.rs`); only sent, never a line's channel.
+    /// The server's admins, `amsay` (`chat/tabs.rs`): jaPRO's `<Admin>(name)` lines.
     Admin,
 }
 
@@ -512,6 +512,8 @@ impl ChatOverlay {
             sender: target,
             channel: if private {
                 Channel::Whisper
+            } else if tabs::is_admin_line(&display) {
+                Channel::Admin
             } else if kind == ServerEventKind::TeamChat {
                 Channel::Team
             } else {

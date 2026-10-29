@@ -635,6 +635,10 @@ const HELP: &[(&str, &str)] = &[
         "Shows emoji pictures in place of names like :poop: in new chat messages.",
     ),
     (
+        crate::chat::tabs::FILTER_CVAR,
+        "While typing, Team, SJK, Admin and PM show only their own messages; All shows everything.",
+    ),
+    (
         crate::chat::tabs::TEAM_CVAR,
         "Shows Team beside All when you type a message. Off, Tab skips it; the team chat key still opens team chat.",
     ),

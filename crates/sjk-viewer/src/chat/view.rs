@@ -157,7 +157,7 @@ impl ChatOverlay {
         let mut skipped = 0;
         for index in (0..self.lines.len()).rev() {
             let line = &self.lines[index];
-            if !self.pm_visible(line) {
+            if !self.shown(line) {
                 continue;
             }
             if skipped < self.scroll {
