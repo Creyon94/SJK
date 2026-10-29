@@ -5595,8 +5595,19 @@ the console's `path` command also lists it. The fallback uses the profile in
 that per-user folder; the per-user and portable profiles are not synced.
 See [platform.rs](../crates/sjk-viewer/src/platform.rs) and
 [storage.rs](../crates/sjk-viewer/src/platform/storage.rs).
-Edit settings through the client, or edit the file while the client is stopped
-so autosaving cannot overwrite your changes.
+Settings can be changed in the client, or `config.cfg` edited in a text editor, even
+while the client runs. The shell remembers the texts it loaded and wrote
+([config_watch.rs](../crates/sjk-shell/src/config_watch.rs)) and looks at the file's
+size and time once a second, and again before each save and at exit, once its own
+writes have landed. A file holding a text the client did not write was changed from
+outside: it is loaded as at start (its cvars, and its bindings replace the table), the
+console says so, and later saves build on it. A file deleted while the client runs
+stays deleted: nothing is written for the rest of that run, so the next start is on
+the defaults (the console says so, and settings changed before the restart are not
+kept); `writeconfig` still writes it on request. Until 29/10/2026 the client wrote
+the values it held over such an edit at its next save or at exit, so an edited or
+deleted config came back with the old name, field of view or camera at the next start
+(hub report #199, and Kushina's `autoexec.cfg` workaround for it).
 
 Autosaving writes `config.cfg` only when an archived cvar or a binding changed:
 key presses, `+`/`-` buttons and unarchived cvars never touch the file. A change

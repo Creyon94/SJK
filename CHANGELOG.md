@@ -35,6 +35,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 = con_overChat: New: while you type in the chat, the console key opens the console over it and your message waits; off, the chat takes the key as before.
 = ui_sliderPeek: New: in the game, hold a Settings slider a moment and the rest of the menu fades away, so you see the change on the game as you drag.
 
+- Settings no longer go back to old values after `config.cfg` is edited or deleted while the game runs: an edited file is loaded at once, and a deleted one stays deleted so the next start is on the defaults, instead of the game writing its old name, field of view and camera back over it at exit (#199, after Kushina's workaround) _(Slash)_
 - Mystery boxes hold a holocron one time in ten (it was one in fifty), and the roll shows the four tiers' real holocrons, stopping on the one you won. A box that blows up laughs with Sol's own laugh when the SJK extras pack is installed _(Sol)_
 - Centre prints and the words over mystery boxes (and the box hunt's mark) are drawn in Fira Sans Condensed, a real typeface close to the old menu font, instead of a tracing of a low-resolution bitmap _(Sol)_
 - Box hunt: one mark every 10 minutes at most, not one after the other. Hunters see the mark ringed in red, and a black name reads on the hunt's card _(Sol)_
