@@ -664,7 +664,8 @@ impl GpuState {
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("SJK player stage instance"),
                 contents: bytemuck::bytes_of(&instance),
-                usage: wgpu::BufferUsages::VERTEX,
+                // Written again when the Character page's colour changes (`sync_stage_rgb`).
+                usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             });
         self.menu_stage.sabers_dirty = true;
         let pose = preview.animation.frame_matrices(frame).unwrap_or_default();
