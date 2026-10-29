@@ -620,8 +620,8 @@ pub(super) const HUD: &[Setting] = &[
     },
     Setting {
         label: "Player card",
-        cvar: "cg_playerCard",
-        kind: ValueKind::Bool,
+        cvar: crate::hud::player_card::CVAR,
+        kind: ValueKind::Choice(&["0", "1", "2"]),
     },
     Setting {
         label: "Card delay (s)",

@@ -2976,28 +2976,39 @@ back for rate, red for a dropped one). It takes JoF EJK's values (`cg_draw.c`,
 - `1` (**Graph**): the graph on its backdrop, as SJK always drew it; an old config's
   `cg_lagometer 1` looks the same;
 - `2` (**Graph + speed**): the same, with the average ping and the average
-  interpolation of its 48 newest columns written along its top (ping at the left,
-  interpolation at the right, `%.0f` and `%04.1f` as EJK writes them; a dropped
+  interpolation of its 48 newest columns written on a line just above it (ping at the
+  left, interpolation at the right, `%.0f` and `%04.1f` as EJK writes them; a dropped
   snapshot counts as the highest ping seen so far), and a speed graph on a backdrop of
-  its own 56 of the graph's 48 units above it: a green column per frame for the
-  horizontal speed, the height worth 3000 units a second, the current speed at its
-  top left;
+  its own 56 of the graph's 48 units above it, higher by as much as that line needs: a
+  green column per frame for the horizontal speed, the height worth 3000 units a
+  second, the current speed at its top left;
 - `3` (**No backdrop**): the same without either backdrop, the speed graph three times
   as tall (its bottom where mode 2's is), its number only while moving.
 
 EJK draws the speed graph only with its `cg_speedometer` speed graph bit; SJK has no
-such bit and draws it with modes 2 and 3 (Sol's decision, 29/10/2026). The numbers
-keep EJK's proportions of the graph (`ocr_a` at half size, 10.5 of its 48 units), so
-at `cg_lagometerScale 1` they are small; `2` draws them about EJK's size. See
+such bit and draws it with modes 2 and 3 (Sol's decision, 29/10/2026).
+
+The numbers do not keep EJK's proportion of the graph (`ocr_a` at half size, 10.5 of
+its 48 units): SJK's graph is 48 pixels at 1080 lines where EJK's is 108, so they were
+10 pixels tall at `cg_lagometerScale 1`, too small to read. They are drawn at the HUD's
+text size instead, a 21-pixel line at 1080 lines (`Theme::typography.value`, about
+EJK's 23.6 there), grown with the HUD (the screen's height, `cg_hudScale`) and
+`cg_lagometerScale`; the ping and interpolation stand on their own line just above the
+graph, so the graph keeps its size in every mode (Sol's decision, 29/10/2026). The line
+is at least 3.6 lines wide, centred on a narrower graph, and stays inside the screen:
+when the graph sits too near the top for it, it goes just below the graph instead (the
+speed graph, above the screen's top then, as in EJK, is not moved). See
 [hud/lagometer.rs](../crates/sjk-viewer/src/hud/lagometer.rs) and its tests
-(`mode_1_is_the_graph_alone`, `the_averages_follow_ejk`). Not compared side by side
-with EJK in game.
+(`mode_1_is_the_graph_alone`, `the_averages_follow_ejk`,
+`the_numbers_are_readable_above_the_graph_at_every_scale`,
+`at_the_screen_edges_the_numbers_stay_inside`). Not compared side by side with EJK in
+game.
 
 `cg_lagometerScale` changes the lagometer's width and height: `1` (default) is
 normal size, `0.5` half size, `2` double size. Settings > HUD > **Lagometer scale**
 offers 0.25–4 in both menu interfaces; values outside that range are clamped when
 drawn. The setting is archived and takes effect immediately; it scales the numbers
-and the speed graph with the graph.
+(from their own base size) and the speed graph with the graph.
 
 Scaling keeps the graph's existing bottom-right corner fixed, including custom
 `cg_lagometerX` and `cg_lagometerY` offsets. It applies to every built-in HUD and
@@ -4274,8 +4285,15 @@ for a player, at most every ten minutes a player and never per frame; until it c
 and from a hub that does not send a field, that line is left out (10/10/2026). It adds
 nothing a glance at the scoreboard would not: no health, Force or position.
 
-- `cg_playerCard` (default 1; Settings > HUD+ > Player card) turns it on.
-- `cg_playerCardDelay` (default 1.5; Settings > HUD+ > Card delay) is the seconds
+- `cg_playerCard` (default 1; Settings > HUD+ > Player card) says what opens it: `0`
+  (**Off**) nothing, neither a look nor `inspect`; `1` (**On look and key**) a steady
+  look or `inspect`; `2` (**Key only**, Blep's idea, 29/10/2026) `inspect` alone, so
+  looking at a player never brings their card up. The setting was on/off until then:
+  configs saved it as 0 or 1, which keep their meaning (`player_card::Opens`, tests
+  `the_setting_reads_three_ways_and_old_configs_keep_their_meaning` and
+  `each_mode_opens_the_card_its_own_way`).
+- `cg_playerCardDelay` (default 1.5; Settings > HUD+ > Card delay; only with
+  `cg_playerCard 1`, as its help says) is the seconds
   the crosshair must stay on the player before the card fades in. Turning the view
   more than 6 degrees, or losing the player for over 0.3 seconds, starts the wait
   again and the card fades out.
@@ -4286,7 +4304,7 @@ nothing a glance at the scoreboard would not: no health, Force or position.
   has no list of theirs or you wear a retail model.
 - `inspect` (Settings > Key bindings > Interaction > Inspect player; bound to X by default,
   or `bind <key> inspect`) pins the card to the player under the crosshair at once, with
-  no wait. It stays when you look away or the player moves, follows them (kept inside the
+  no wait, with `cg_playerCard` 1 or 2. It stays when you look away or the player moves, follows them (kept inside the
   screen), and a second press or Escape hides it (Escape then does not open the game
   menu); it also drops when the player leaves or the map changes. After hiding it, the
   card does not return until the crosshair leaves that player. Behind you, the card is not drawn but stays pinned.

@@ -24,13 +24,24 @@
 
 # ---- Console & chat ----
 
+[player-card-key-only]
+area: HUD
+title: Player card Key only: cg_playerCard 0 Off, 1 On look and key, 2 Key only (Blep's idea)
+change: Settings > HUD+ > Player card is a three-way choice; 2 opens the card from inspect alone.
+change: Old configs (0 or 1) keep their meaning; Card delay matters only with On look and key.
+test: Settings > HUD+ > Player card: Off, On look and key (default), Key only; read the help.
+test: On look and key: look at a player, steady: the card comes; X pins it, as before.
+test: Key only: look at a player for a long time: no card. X: the card pins; X or Escape hides it.
+test: Off: no card from a look or X; Escape opens the game menu.
+
 [collection-marks]
 area: Menus & settings
 title: Collection marks: worn, favourite, locked and New saber shaders (Atrosex, Kushina)
 change: Shaders, the Forge and the trade window mark worn and New shaders, stars and padlocks.
 change: Favourites first, Shift+F shows them alone; a locked shader is never broken down/traded.
 change: New is kept on this PC (shader-seen.txt); stars and locks on the hub (needs its deploy).
-test: Collection > Shaders: "N new" by the headline, New stickers; choose one, move on: it clears.
+test: Collection > Shaders: "N new" by the headline, New stickers; rest on one a second: it clears.
+test: Sweep the pointer fast across New shaders: their stickers stay; N clears them all.
 test: F stars the chosen shader: it moves under Favourites at the top; Shift+F shows them alone.
 test: L locks a held shader: Forge > Break down shows Locked on its button, B leaves it out.
 test: Break down the last copy of the shader you wear: the card says first that you wear it.
@@ -58,12 +69,15 @@ test: bind mouse4 +attack and hold it: one swing chain, as a held key.
 [ejk-lagometer-modes]
 area: HUD
 title: cg_lagometer 2 and 3: average ping, interpolation and a speed graph (Kushina's idea)
-change: 2: the graph, its averages along the top and a speed graph above with the speed.
+change: 2: the graph, its averages on a line just above it and a speed graph above with the speed.
 change: 3: the same without backdrops, the speed graph taller, its number only moving.
+change: The numbers are the HUD's text size (21 px at 1080p); the graph keeps its size.
 test: cg_lagometer 1: exactly the old graph. Settings > HUD > Lagometer steps 0 to 3.
 test: cg_lagometer 2 on a server: ping left, interpolation right, the speed graph above.
+test: At cg_lagometerScale 1 the numbers read easily, about EJK's size; the graph is as before.
 test: cg_lagometer 3: no backdrops; stand still: the speed number goes.
 test: cg_lagometerScale 2 and cg_lagometerX/Y: the numbers and speed graph follow.
+test: cg_lagometerY 470 (graph at the top): the numbers stand under the graph, on screen.
 
 [plugin-options]
 area: Menus & settings

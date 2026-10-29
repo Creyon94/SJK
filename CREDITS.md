@@ -388,6 +388,8 @@ includes:
   Favourites filter, and locked ones the SJK hub never breaks down or trades until
   unlocked, both kept at the hub; a New sticker on shaders gained since the player last
   looked, kept on the PC;
+- the player card's Key only (29/10/2026, after Blep's idea): `cg_playerCard 2` opens
+  the card from the `inspect` key alone, never from a look;
 - three JoF EJK options (29/10/2026, after Kushina's idea): saber hit sparks
   (`cg_fleshSparks`), a held mouse 4 or 5 repeating its bind (`in_mouseRepeat`, 20 times
   a second at any frame rate) and the lagometer's numbers and speed graph
@@ -850,6 +852,9 @@ built it as the pinned chat card's Whisper button (23/10/2026).
 
 Nib, a player, asked to choose the saber sounds apart from the saber shader (18/10/2026,
 and hub report #109): Sol built it as the Saber tab's Sounds row (23/10/2026).
+
+Blep, a player, asked for the player card to come only from the `inspect` key, not from
+looking at a player: Sol built it as Key only, `cg_playerCard 2` (29/10/2026).
 
 Atrosex, a player, asked for the Forge's Break down to mark the saber shader the player
 wears, and its last copy's card to say plainly that it is worn; Kushina asked for favourite

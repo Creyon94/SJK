@@ -1,3 +1,15 @@
+## Player card: Key only
+
+29/10/2026, `personal/ideas-followups`, based on `main` `45921ca1`, the player Blep's idea:
+`cg_playerCard` becomes three-way, 0 Off, 1 On look and key (the default, as before), 2 Key
+only: the card opens from `inspect` alone, never from a steady look
+([client.md](client.md#player-card)). Settings > HUD+ > Player card is a three-way choice;
+Card delay's help says it counts only with On look and key. Old configs saved the on/off
+setting as 0 or 1, which keep their meaning. Verified by
+`hud::player_card::tests::the_setting_reads_three_ways_and_old_configs_keep_their_meaning`
+and `each_mode_opens_the_card_its_own_way` (the card's choice of frame by frame, with a
+console for the setting), the settings' help and row tests; not tried in a game.
+
 ## Collection marks: worn, favourite, locked and New saber shaders
 
 29/10/2026, `personal/collection-marks`, based on `main` `0fd6a5e1`, the ideas of the players
@@ -23,6 +35,13 @@ Forge's `favourites_lead_and_a_locked_duplicate_is_kept` and
 store, trade and API tests, the world shot `duel6_sjk_collection_marks` (Windows, the
 installed game data and the hub's packs), fmt, the workspace's build, tests and Clippy (no
 new warning in the files changed). Not tried in a game, nor against a hub serving marks.
+The same day (`personal/ideas-followups`, Sol's decision) a New shader is seen once it has
+stayed chosen a second, rather than as soon as the choice leaves it: hovering chooses, so a
+sweep of the pointer across the wall cleared every New mark it crossed. Closing the page or
+turning to another tab sees it only after its second. Verified by
+`shader_marks::tests::a_new_shader_is_seen_after_a_second_chosen`,
+`a_sweep_across_new_shaders_sees_none` and
+`leaving_sees_only_a_shader_looked_at_for_a_second`; not tried in a game.
 ## `cg_fleshSparks`, `in_mouseRepeat` and `cg_lagometer` 2 and 3 from JoF EJK
 
 29/10/2026, `personal/ejk-commands`, based on `main` `0fd6a5e1`, after Kushina's ask
@@ -49,10 +68,16 @@ draw it), 1 unchanged. Verified: unit tests `flesh_sparks_gate_each_saber_hit_on
 `the_averages_follow_ejk`, `the_mode_reads_clamped_and_old_configs_keep_the_graph`, fmt,
 build, Clippy and the workspace's tests; the world shot `lagometer_modes_on_a_demo` (a demo
 frozen on its first snapshot, a made-up steady connection) draws modes 1 to 3 at
-`cg_lagometerScale` 1 and 2 as described. At scale 1 on a 1080p screen the numbers are
-about 10 px tall, EJK's proportion of SJK's smaller graph (48 px there, EJK's 108);
-scale 2 is about EJK's size. Not tried in a game or compared with EJK side by side; the
-shots' recorder stands still, so they show no speed graph.
+`cg_lagometerScale` 1 and 2 as described. The same day (`personal/ideas-followups`, Sol's
+decision) the numbers, which at EJK's proportion of SJK's smaller graph (48 px at 1080p,
+EJK's 108) were about 10 px tall at scale 1, became the HUD's text size, a 21 px line at
+1080p grown by the HUD scale and `cg_lagometerScale`, on a line of their own just above
+the graph (below it at the screen's top), the speed graph rising to make room; the graph
+keeps its size. Verified by `the_numbers_are_readable_above_the_graph_at_every_scale`,
+`at_the_screen_edges_the_numbers_stay_inside` and the same world shot again (the digits
+about 8 px tall at scale 1, as OCR-A's are about 40 % of its line; EJK's about 9.5 px).
+Not tried in a game or compared with EJK side by side; the shots' recorder stands still,
+so they show no speed graph.
 
 ## JA+ and jaPRO plugin options
 

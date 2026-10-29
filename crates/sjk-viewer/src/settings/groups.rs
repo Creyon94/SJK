@@ -497,7 +497,7 @@ impl Group {
                 "cg_drawPlayerNames",
                 "cg_drawPlayerNamesScale",
                 "cg_drawFriend",
-                "cg_playerCard",
+                crate::hud::player_card::CVAR,
                 "cg_playerCardDelay",
                 "cg_playerCardOutline",
                 crate::hud::team_outline::CVAR,

@@ -455,8 +455,9 @@ role: The first player of SJK on a Mac
 did: Reported the Mac build's fullscreen crash, its frame rate and Cmd+Tab
 
 [Blep]
-role: Tester
+role: Tester, and ideas for SJK
 did: Found encrypted whispers ending with a backslash going out unencrypted
+did: The player card on the inspect key only, never from a look (Key only)
 
 == Made with
 
