@@ -4988,8 +4988,11 @@ included in the repository.
 The shared shader catalogue reads installed `shaders/*.oshader` files as ordinary
 Quake 3 shader syntax, following JoF EJK #138. Their definitions override `.shader`
 definitions regardless of filename ordering. Among override files the first
-normalized path wins, and the first definition in an override file wins. Normal
-`.shader` ordering remains unchanged. Strict tools and fault-isolated client loading
+normalized path wins, and the first definition in an override file wins. Between
+normal `.shader` files the last in name order wins; inside one file, as in any script,
+the first definition of a name wins, as rd-vanilla's `FindShaderInShaderText` finds it
+first (until 29/10/2026 SJK kept the last, so Figo's robes lost their `cull twosided`
+first definitions; [catalog.rs](../crates/sjk-shader/src/catalog.rs)). Strict tools and fault-isolated client loading
 share this policy; malformed override scripts still produce diagnostics.
 
 Existing source-authority and downloaded-content restrictions remain in force:

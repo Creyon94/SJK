@@ -91,14 +91,19 @@ fn script_kind(path: &VirtualPath) -> Option<bool> {
     }
 }
 
+/// Within one script the first definition of a name wins, as in rd-vanilla: its
+/// `FindShaderInShaderText` returns the first match in the shader text, which keeps each
+/// file's definitions in order (`ScanAndLoadShaderFiles`). The catalogue keeps the last
+/// insert, so a script's later definitions of a name it already defined are left out;
+/// between files the order above still decides.
 fn definition_order(
-    mut definitions: Vec<ShaderDefinition>,
-    path: &VirtualPath,
+    definitions: Vec<ShaderDefinition>,
+    _path: &VirtualPath,
 ) -> impl Iterator<Item = ShaderDefinition> {
-    if script_kind(path) == Some(true) {
-        definitions.reverse();
-    }
-    definitions.into_iter()
+    let mut seen = std::collections::HashSet::new();
+    definitions
+        .into_iter()
+        .filter(move |definition| seen.insert(normalize_name(&definition.name)))
 }
 
 #[cfg(test)]

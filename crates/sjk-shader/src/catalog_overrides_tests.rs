@@ -63,6 +63,41 @@ fn first_override_path_and_first_definition_win_but_normal_order_is_unchanged() 
 }
 
 #[test]
+fn a_name_defined_twice_in_one_script_keeps_the_first_as_rd_vanilla_does() {
+    // Figo's zFigo2026.pk3: cape_white first double-sided, then again without it, in
+    // one file; JoF EJK draws the first. A later file still wins over an earlier one.
+    let mut twice = script("first");
+    twice.extend(script("second"));
+    let mut vfs = VirtualFileSystem::new();
+    vfs.mount_memory("synthetic", [("shaders/figo.shader", twice.clone())])
+        .unwrap();
+    assert_eq!(image(&ShaderCatalog::load(&vfs).unwrap()), "first");
+    assert_eq!(
+        image(&ShaderCatalog::load_with_warnings(&vfs, |_, error| panic!(
+            "{error}"
+        ))),
+        "first"
+    );
+    let authority =
+        ShaderCatalog::load_with_authority(&vfs, |_| true, |_, e| panic!("{e}"), |_, _, _| {});
+    assert_eq!(image(&authority), "first");
+    let legacy =
+        ShaderCatalog::load_with_authority(&vfs, |_| false, |_, e| panic!("{e}"), |_, _, _| {});
+    assert_eq!(image(&legacy), "first");
+    let mut files = VirtualFileSystem::new();
+    files
+        .mount_memory(
+            "synthetic",
+            [
+                ("shaders/a.shader", twice),
+                ("shaders/z.shader", script("later_file")),
+            ],
+        )
+        .unwrap();
+    assert_eq!(image(&ShaderCatalog::load(&files).unwrap()), "later_file");
+}
+
+#[test]
 fn source_authority_still_protects_definitions_and_downloads_only_add() {
     let mut vfs = VirtualFileSystem::new();
     let trusted = vfs

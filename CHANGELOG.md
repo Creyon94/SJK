@@ -32,6 +32,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
+- Player models and maps whose shader file defines the same shader twice use the first definition, as the original game and JoF EJK do, instead of the last (Figo's robes) _(Creyon)_
 - Centre prints and the words over mystery boxes (and the box hunt's mark) are drawn in Fira Sans Condensed, a real typeface close to the old menu font, instead of a tracing of a low-resolution bitmap _(Sol)_
 - Nameplates are holo frames: your picture in a hexagon beside a plate with a cut corner, blue for SJK players and grey for the others (a team's or a duel's colour when there is one), a gold corner when the player shares, and the bars in segments; far away, a small hexagon and the name over a thin line. The Collection's Nameplates tab shows it _(Sol)_
 - Nameplates are more see-through, a black name gets a light edge so it reads on the plate, and the weapon icon is gone; the Force power icons over a plate are square again and half as large again _(Sol)_

@@ -1,3 +1,20 @@
+## First shader definition wins
+
+29/10/2026, `fix/shader-first-definition` (Creyon), based on `main` `fb1abbfc`: Figo's
+robes are missing in SJK and drawn in other clients (#bugs, 29/10/2026). His
+`zFigo2026.pk3` defines several shaders twice in one file: `cape_white`, `cape` and
+`cape_tatooine` first with `cull twosided`, then again without it; `torso`, `torso_alt`,
+`torso_blue`, `torso_red` and `mask` first with a glow stage, then with an alpha test.
+rd-vanilla's `FindShaderInShaderText` returns the first match in the shader text, so the
+original game and JoF EJK draw the first; SJK kept the last. Inside one script the first
+definition of a name now wins (`definition_order` in
+[catalog.rs](../crates/sjk-shader/src/catalog.rs)); between files the order is unchanged.
+Verified on Linux x86_64: new test
+`a_name_defined_twice_in_one_script_keeps_the_first_as_rd_vanilla_does`, fmt, workspace
+build, tests (4155 passed) and Clippy (no new warning); in game by Creyon on Windows
+(29/10/2026, `Figo_Jedi_Knight/white2`): before, the robe's side panels were missing
+from the front; with the fix they show as in other clients.
+
 ## Holo frame nameplates
 
 28/10/2026, `personal/holo-nameplates`, based on `main` `8f73ab73` (Sol's switch to design C,
