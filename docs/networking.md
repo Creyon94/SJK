@@ -524,3 +524,9 @@ Check ordinary native and legacy client joins on isolated servers for integratio
 A handshake or successful movement run does not verify downloads, every reliable
 command, map restarts, all combat, vehicles or every game type. The current evidence
 and open validation work are recorded in [status.md](status.md).
+
+### Restore codemp zero-gravity push-off movement
+
+Known limitation (source review against OpenJK `codemp` at `4d0dfaf1`):
+PM_CheckJump currently omits codemp's gravity-at-or-below-zero push-off branch.
+A focused fix and verification are in progress.
