@@ -597,6 +597,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "Play mystery box sounds (SJK)",
         ),
         CvarDefinition::new(
+            crate::toy_sounds::Toy::Banana.cvar(),
+            true,
+            archive,
+            "Play Banana peel sounds (SJK)",
+        ),
+        CvarDefinition::new(
             crate::held_view::LOOK_CVAR,
             crate::held_view::DEFAULT_LOOK,
             archive,
@@ -921,6 +927,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             archive,
             "Box hunt is on: you may become the mark (one every 10 minutes), and killing the mark wins you a free mystery box roll (toy_boxhunt switches it)",
         ),
+        CvarDefinition::new(
+            crate::toy_saved::BANANA_CVAR,
+            false,
+            archive,
+            "The Banana peel toy is on: you may drop banana peels (banana_drop) and slip on the ones you walk onto (toy_banana switches it)",
+        ),
         // Other players' toys seen (Collection > Toys).
         CvarDefinition::new(
             crate::toy_sight::CVARS[0].0,
@@ -957,6 +969,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             true,
             archive,
             "Monitors are seen (0: no Monitor toy monitor is drawn, nor its sounds in the world heard, on this PC; SJK)",
+        ),
+        CvarDefinition::new(
+            crate::banana::SHOW_CVAR,
+            true,
+            archive,
+            "Banana peels are seen (0: no Banana peel toy peel is drawn, nor its sounds in the world heard, on this PC; SJK)",
         ),
         CvarDefinition::new(
             crate::tags::CVAR,

@@ -1663,12 +1663,13 @@ for the run.
   model's blade following at once and, worn, every SJK player's view of it
   ([unlockables.md](unlockables.md#options)).
 - **Toys** (rows since 25/10/2026,
-  [collection_toys.rs](../crates/sjk-viewer/src/collection_toys.rs)): "8 toys", things
+  [collection_toys.rs](../crates/sjk-viewer/src/collection_toys.rs)): "10 toys", things
   to use in a match, and how many are on now. Illuminate's holocron, the cardboard box
   (since 16/10/2026), Order 66 (since 17/10/2026), the Hax (since 21/10/2026), the
   Ragdoll (since 23/10/2026), the Drone (since 24/10/2026), the Boombox (since
-  25/10/2026, verified players) and the Monitor (since 26/10/2026), a row of 76 to each
-  under column heads (Toy, Your key, On; eight rows fit over the keys): its icon, its
+  25/10/2026, verified players), the Monitor (since 26/10/2026), Box hunt (since
+  27/10/2026) and the Banana peel (since 29/10/2026), a row of 64 to each under column
+  heads (Toy, Your key, On; ten rows fit over the keys, 3 apart): its icon, its
   name and a line of what it does, the key bound to its command ("Not bound" when none)
   and its own switch, which runs that toy in place and chooses it; the chosen row framed
   gold on a soft gold ground. The arrows and Tab choose; a click on a row chooses it.
@@ -1680,19 +1681,21 @@ for the run.
   1360 to 1824, its foot at y 990, as tall as its words): "Toy · everyone's", its name,
   what it is in full, its keys (Order 66 two: the join key, `toy_order66`, and the order
   key, `order66`; the Monitor two: its key, `toy_monitor`, and the throw key,
-  `+monitor_throw`, held to charge), each a button: a click (or K for the first) waits for a key ("Press
+  `+monitor_throw`, held to charge; the Banana peel two: its key, `toy_banana`, and the
+  drop key, `banana_drop`), each a button: a click (or K for the first) waits for a key ("Press
   a key...", Escape lets go, Backspace clears), which binds it to the command in place
   of its first key as the key-binding editor does (`rebind_action`, never a locked key);
   "Quick wheel: On its Toys page", a line more for some (the Hax: hold Use on a player
   who has it on; the Ragdoll: its key again gets up), then its switch, "Holocron lit",
-  "In the box", "In the order", "Hacker", "Limp", "Peek me", "Play" or "Hit me": on while
+  "In the box", "In the order", "Hacker", "Limp", "Peek me", "Play", "Hit me", "Hunt" or
+  "Slip on peels": on while
   the toy is on, Enter or a click runs it (the `toy_illuminate`, `toy_box`,
-  `toy_order66`, `toy_hax`, `toy_ragdoll`, `toy_drone`, `toy_boombox` or `toy_monitor`
-  toggle, set to the state wanted;
+  `toy_order66`, `toy_hax`, `toy_ragdoll`, `toy_drone`, `toy_boombox`, `toy_monitor`,
+  `toy_boxhunt` or `toy_banana` toggle, set to the state wanted;
   the viewer owns the state, the console mirrors it each frame). Under it, for a toy other
   players are seen with, a second, smaller switch, "See others' holocrons", "See others'
-  boxes", "See others fall limp", "See others' drones", "See and hear others' boomboxes"
-  or "See monitors" (29/10/2026): off, theirs are hidden on this PC
+  boxes", "See others fall limp", "See others' drones", "See and hear others' boomboxes",
+  "See monitors" or "See banana peels" (29/10/2026): off, theirs are hidden on this PC
   ([client.md](client.md#illuminate), the toys' table). The keys line says
   "Enter: light" or "Enter: put out", "Enter: hide" or "Enter: come out", "Enter: turn
   on" or "Enter: turn off", "Enter: play" or "Enter: put away", and "K: bind a key" (while a key waits: "Esc: cancel", "Backspace: clear the

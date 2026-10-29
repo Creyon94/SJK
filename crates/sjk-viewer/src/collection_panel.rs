@@ -103,6 +103,8 @@ const BOOMBOX_TOKEN: u16 = 1_307;
 const MONITOR_TOKEN: u16 = 1_303;
 /// Box hunt's niche on Toys.
 const BOX_HUNT_TOKEN: u16 = 1_304;
+/// The Banana peel's niche on Toys.
+const BANANA_TOKEN: u16 = 1_375;
 /// The Shaders tab's lone saber, where the pointer takes hold of it to turn it.
 const SABER_TOKEN: u16 = 1_316;
 /// The shader card's way to the Forge: Craft in the Forge (one not held) or Break down
@@ -119,8 +121,8 @@ const BOTH_TOKEN: u16 = 1_306;
 /// How far (frame pixels) a press on the lone saber may move and still be a click.
 const CLICK_SLOP: f32 = 6.0;
 /// The toys the Toys tab shows: Illuminate, the cardboard box, Order 66, the Hax, the
-/// Ragdoll, the Drone, the Boombox, the Monitor, then Box hunt.
-const TOY_COUNT: usize = 9;
+/// Ragdoll, the Drone, the Boombox, the Monitor, Box hunt, then the Banana peel.
+const TOY_COUNT: usize = 10;
 /// Each toy's row, in the order of [`Panel::toy`].
 const TOY_TOKENS: [u16; TOY_COUNT] = [
     TOY_TOKEN,
@@ -132,6 +134,7 @@ const TOY_TOKENS: [u16; TOY_COUNT] = [
     BOOMBOX_TOKEN,
     MONITOR_TOKEN,
     BOX_HUNT_TOKEN,
+    BANANA_TOKEN,
 ];
 /// Each toy row's own switch (25/10/2026): it turns that toy on or off in place.
 const TOY_SWITCH_BASE: u16 = 1_360;
@@ -365,6 +368,9 @@ pub(crate) enum PanelAction {
     /// Turn Box hunt on (`true`) or off: the same as `toy_boxhunt`, set rather than
     /// toggled.
     BoxHunt(bool),
+    /// Turn the Banana peel on (`true`) or off: the same as `toy_banana`, set rather than
+    /// toggled.
+    Banana(bool),
     /// Set `cg_tag` to this tag's id: the one `toy_tag` sticks.
     ChooseTag(&'static str),
     /// Show a tab another page draws: the Holocrons page.
@@ -523,6 +529,8 @@ pub(crate) struct Inputs<'a> {
     pub(crate) monitor: bool,
     /// Box hunt is on now (kept as [`Self::illuminate`] is).
     pub(crate) box_hunt: bool,
+    /// The Banana peel toy is on now (kept as [`Self::illuminate`] is).
+    pub(crate) banana: bool,
     /// The `name` cvar, for the nameplate.
     pub(crate) name: &'a str,
     /// The stock blade's colour (`color1`), for its swatch.
@@ -583,7 +591,8 @@ pub(crate) struct Panel {
     achievement_slots: Vec<achievements::Slot>,
     shader: usize,
     /// The toy chosen on Toys: 0 Illuminate, 1 the cardboard box, 2 Order 66, 3 the Hax,
-    /// 4 the Ragdoll, 5 the Drone, 6 the Boombox, 7 the Monitor, 8 Box hunt.
+    /// 4 the Ragdoll, 5 the Drone, 6 the Boombox, 7 the Monitor, 8 Box hunt, 9 the Banana
+    /// peel.
     toy: usize,
     /// The tag chosen on Tags, in `tags::CATALOGUE`'s order, and which tags the last
     /// frame showed as held (Enter picks only one of those).
@@ -605,6 +614,8 @@ pub(crate) struct Panel {
     monitor_on: bool,
     /// Box hunt was on, as the last frame's inputs said.
     box_hunt_on: bool,
+    /// The Banana peel was on, as the last frame's inputs said.
+    banana_on: bool,
     /// See and share nameplates was on, as the last frame's inputs said.
     share_on: bool,
     /// The toys (bits by the Toys tab's order) whose other players' are hidden here, as
@@ -779,6 +790,7 @@ impl Panel {
             boombox_on: false,
             monitor_on: false,
             box_hunt_on: false,
+            banana_on: false,
             share_on: false,
             toys_unseen: 0,
             card: 0,
@@ -1017,6 +1029,7 @@ impl Panel {
             Tab::Toys if self.toy == 6 => PanelAction::Boombox(!self.boombox_on),
             Tab::Toys if self.toy == 7 => PanelAction::Monitor(!self.monitor_on),
             Tab::Toys if self.toy == 8 => PanelAction::BoxHunt(!self.box_hunt_on),
+            Tab::Toys if self.toy == 9 => PanelAction::Banana(!self.banana_on),
             Tab::Toys => PanelAction::Illuminate(!illuminate),
             Tab::Nameplates => PanelAction::SeeAndShare(!self.share_on),
             Tab::Tags => self.choose_tag(),
@@ -1907,7 +1920,7 @@ impl Panel {
             SEEN_ALL_TOKEN => self.see_all(),
             // A toy's row chooses it; its own switch runs it.
             TOY_TOKEN | BOX_TOKEN | ORDER_TOKEN | HAX_TOKEN | RAGDOLL_TOKEN | DRONE_TOKEN
-            | BOOMBOX_TOKEN | MONITOR_TOKEN => {
+            | BOOMBOX_TOKEN | MONITOR_TOKEN | BOX_HUNT_TOKEN | BANANA_TOKEN => {
                 self.toy = TOY_TOKENS.iter().position(|&row| row == token).unwrap_or(0);
                 PanelAction::None
             }
@@ -2042,9 +2055,20 @@ impl Panel {
             Tab::Cards => CARD_BASE,
             // The Forge's shots name the token itself.
             Tab::Forge => 0,
-            _ => TOY_TOKEN,
+            // A toy's row, by its place in the tab.
+            _ => {
+                self.hover
+                    .pin(index.and_then(|index| TOY_TOKENS.get(index).copied()));
+                return;
+            }
         };
         self.hover.pin(index.map(|index| base + index as u16));
+    }
+
+    /// Choose the Toys tab's toy `index` (0 Illuminate), for a world shot.
+    #[cfg(test)]
+    pub(crate) fn choose_toy_for_shot(&mut self, index: usize) {
+        self.toy = index.min(TOY_COUNT - 1);
     }
 
     /// Hold the lone saber turned so, still, as a drag would (`None` lets go), for a
@@ -2125,6 +2149,7 @@ mod tests {
             boombox: false,
             monitor: false,
             box_hunt: false,
+            banana: false,
             name: "^1Sol^7Vulpes",
             stock: sjk_ui::Color::new(0.16, 0.48, 1.0, 1.0),
             grid: false,

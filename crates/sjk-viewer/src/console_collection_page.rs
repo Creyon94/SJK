@@ -186,6 +186,10 @@ impl ViewerConsole {
                 self.pending_box_hunt = Some(on);
                 self.box_hunt_on = on;
             }
+            PanelAction::Banana(on) => {
+                self.pending_banana = Some(on);
+                self.banana_on = on;
+            }
             PanelAction::ChooseTag(id) => {
                 self.set_cvar(crate::tags::CVAR, id);
             }
@@ -298,6 +302,16 @@ impl ViewerConsole {
         self.pending_box_hunt.take()
     }
 
+    /// The viewer says whether the Banana peel is on, once a frame.
+    pub(crate) fn set_banana_on(&mut self, on: bool) {
+        self.banana_on = on;
+    }
+
+    /// The Toys tab asked to turn the Banana peel on (`true`) or off, once.
+    pub(crate) fn take_banana_request(&mut self) -> Option<bool> {
+        self.pending_banana.take()
+    }
+
     /// Give a pressed key to the open page; false when the page is closed.
     pub(super) fn collection_panel_key(&mut self, event: &KeyEvent) -> bool {
         if !self.collection_panel.is_open() {
@@ -375,6 +389,7 @@ impl ViewerConsole {
         let boombox = self.boombox_on;
         let monitor = self.monitor_on;
         let box_hunt = self.box_hunt_on;
+        let banana = self.banana_on;
         let stock = self.stock_blade();
         // Tiles unless the list is chosen (`ui_shaderList 1`).
         let grid = self.integer_cvar(super::collection_panel::SHADER_VIEW_CVAR) != Some(1);
@@ -435,6 +450,7 @@ impl ViewerConsole {
                 boombox,
                 monitor,
                 box_hunt,
+                banana,
                 name: &name,
                 stock,
                 grid,
@@ -466,6 +482,7 @@ impl ViewerConsole {
             boombox,
             monitor,
             box_hunt,
+            banana,
             name: &name,
             stock,
             grid,
@@ -657,6 +674,12 @@ impl ViewerConsole {
     #[cfg(test)]
     pub(crate) fn collection_tilt_for_shot(&mut self, key: usize, at: [f32; 2]) {
         self.collection_panel.tilt_card_for_shot(key, at);
+    }
+
+    /// Choose the Toys tab's toy `index` (0 Illuminate), for a world shot.
+    #[cfg(test)]
+    pub(crate) fn collection_toy_for_shot(&mut self, index: usize) {
+        self.collection_panel.choose_toy_for_shot(index);
     }
 
     /// Show the hover card of the Collection tab's thing `index`, for a world shot.

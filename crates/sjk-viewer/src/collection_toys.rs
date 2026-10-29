@@ -2,12 +2,13 @@
 //! holocron (`docs/client.md`, Illuminate), the cardboard box (`docs/client.md`,
 //! Cardboard box), Order 66 (`docs/client.md`, Order 66), the Hax (`docs/client.md`,
 //! Hax), the Ragdoll (`docs/client.md`, Ragdoll), the Drone (`docs/client.md`, Drone),
-//! the Boombox (`docs/client.md`, Boombox), the Monitor (`docs/client.md`, Monitor) and
-//! Box hunt (`docs/client.md`, Box hunt), a row to each on the left (Sol's pick of
-//! 25/10/2026, the Collection revamp's canvas): its picture, its name and a line of what
-//! it does, the key bound to it and its own switch, which runs it in place
-//! (`toy_illuminate`, `toy_box`, `toy_order66`, `toy_hax`, `toy_ragdoll`, `toy_drone`,
-//! `toy_boombox`, `toy_monitor`, `toy_boxhunt`). The chosen one is described on a dark card beside the
+//! the Boombox (`docs/client.md`, Boombox), the Monitor (`docs/client.md`, Monitor), Box
+//! hunt (`docs/client.md`, Box hunt) and the Banana peel (`docs/client.md`, Banana peel),
+//! a row to each on the left (Sol's pick of 25/10/2026, the Collection revamp's canvas):
+//! its picture, its name and a line of what it does, the key bound to it and its own
+//! switch, which runs it in place (`toy_illuminate`, `toy_box`, `toy_order66`, `toy_hax`,
+//! `toy_ragdoll`, `toy_drone`, `toy_boombox`, `toy_monitor`, `toy_boxhunt`,
+//! `toy_banana`). The chosen one is described on a dark card beside the
 //! model, where its key is bound without the console (a click or K, then the key). The
 //! holocron floats lit by the model while it is chosen.
 
@@ -18,13 +19,15 @@ use crate::menu_widgets::TextFamily;
 use sjk_ui::{Color, DrawCommand, FontWeight, TextAlign, TextureId};
 
 /// The rows: their left edge and width, where the column heads and the first row stand,
-/// a row's height and the room between rows. Nine fit over the keys.
+/// a row's height and the room between rows, and its picture's side. Ten fit over the
+/// keys.
 const ROWS_X: f32 = LEFT_X - 12.0;
 const ROWS_WIDTH: f32 = 860.0;
 const HEADS_Y: f32 = 300.0;
 const ROWS_Y: f32 = 336.0;
-const ROW_HEIGHT: f32 = 68.0;
-const ROW_GAP: f32 = 4.0;
+const ROW_HEIGHT: f32 = 64.0;
+const ROW_GAP: f32 = 3.0;
+const ROW_ART: f32 = 54.0;
 /// A row's key column: its width, and the room the switch keeps at the row's right.
 const KEY_WIDTH: f32 = 150.0;
 const SWITCH_ROOM: f32 = 130.0;
@@ -43,9 +46,10 @@ const NOTE_CHARS: f32 = 52.0;
 const SIGHT_ROW: f32 = 48.0;
 
 /// Every command a toy is run by, in the order the page is told their keys
-/// ([`Inputs::toy_keys`]): each toy's switch, Order 66's order after its own, and the
-/// Monitor's throw (held, it charges) after its own.
-pub(crate) const COMMANDS: [&str; 11] = [
+/// ([`Inputs::toy_keys`]): each toy's switch, Order 66's order after its own, the
+/// Monitor's throw (held, it charges) after its own, and the Banana peel's drop after its
+/// own.
+pub(crate) const COMMANDS: [&str; 13] = [
     "toy_illuminate",
     "toy_box",
     "toy_order66",
@@ -57,6 +61,8 @@ pub(crate) const COMMANDS: [&str; 11] = [
     "toy_monitor",
     "+monitor_throw",
     "toy_boxhunt",
+    "toy_banana",
+    "banana_drop",
 ];
 
 /// One toy as the tab shows it.
@@ -195,6 +201,23 @@ const TOYS: [Toy; TOY_COUNT] = [
         sight: None,
         token: BOX_HUNT_TOKEN,
     },
+    Toy {
+        icon: "banana",
+        name: "Banana peel",
+        tag: "Drop peels; players who walk onto them slip.",
+        title: "Banana peel",
+        what: "Drop a banana peel at your feet, or toss one ahead as you run. A player who has it on too and walks onto a peel slips and falls as a ragdoll, cartoon style; the peel is gone. With it off, you walk over peels.",
+        more: Some(
+            "Three peels down at a time, each for two minutes, none by a spawn point. Its switch lets you drop them and slip on them.",
+        ),
+        commands: &[
+            (crate::banana::COMMAND, "Your key"),
+            (crate::banana::DROP_COMMAND, "Drop key"),
+        ],
+        switch: "Slip on peels",
+        sight: Some((crate::banana::SHOW_CVAR, "See banana peels")),
+        token: BANANA_TOKEN,
+    },
 ];
 
 /// The command toy `toy`'s key `slot` runs (0 its switch's, 1 Order 66's order).
@@ -279,6 +302,7 @@ fn states(inputs: &Inputs<'_>) -> [bool; TOY_COUNT] {
         inputs.boombox,
         inputs.monitor,
         inputs.box_hunt,
+        inputs.banana,
     ]
 }
 
@@ -291,7 +315,7 @@ impl Panel {
             0 => "Switch them here or in a match; other SJK players on your server see what you turn on.".to_owned(),
             lit => format!("{lit} on now. Switch them here or in a match; other SJK players on your server see what you turn on."),
         };
-        self.lead(frame, "9 toys", &line);
+        self.lead(frame, "10 toys", &line);
         self.toy_heads(frame);
         let chosen = self.toy.min(TOY_COUNT - 1);
         for (index, toy) in TOYS.iter().enumerate() {
@@ -373,7 +397,7 @@ impl Panel {
                 color::alpha(color::HOLO, if hovered { 0.35 } else { 0.16 })
             },
         });
-        let art = 58.0;
+        let art = ROW_ART;
         let _ = self.ui.draw_list_mut().push(DrawCommand::TexturedQuad {
             rect: frame.rect(x + 14.0, y + (ROW_HEIGHT - art) * 0.5, art, art),
             texture: icon(toy.icon),
@@ -386,7 +410,7 @@ impl Panel {
             &mut self.ui,
             TextFamily::Display,
             format_args!("{}", toy.name),
-            frame.rect(words_x, y + 8.0, words_width, 30.0 * k),
+            frame.rect(words_x, y + 6.0, words_width, 30.0 * k),
             23.0 * s,
             if chosen {
                 color::GOLD_BRIGHT
@@ -400,7 +424,7 @@ impl Panel {
             &mut self.ui,
             TextFamily::Body,
             format_args!("{}", toy.tag),
-            frame.rect(words_x, y + 10.0 + 30.0 * k, words_width, 22.0 * k),
+            frame.rect(words_x, y + 8.0 + 30.0 * k, words_width, 22.0 * k),
             15.0 * s,
             color::MUTED,
             FontWeight::Regular,
@@ -783,7 +807,7 @@ mod tests {
                         }
                     }
                     let mut card = vec![TOY_SWITCH_TOKEN, BIND_TOKEN];
-                    if toy == 2 || toy == 7 {
+                    if toy == 2 || toy == 7 || toy == 9 {
                         card.push(BIND_SECOND_TOKEN);
                     }
                     for token in card {

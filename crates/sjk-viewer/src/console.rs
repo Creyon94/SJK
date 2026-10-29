@@ -276,6 +276,10 @@ pub(crate) struct ViewerConsole {
     box_hunt_on: bool,
     /// The Toys tab asked to turn Box hunt on (`true`) or off, not yet taken.
     pending_box_hunt: Option<bool>,
+    /// The Banana peel toy is on, mirrored as [`Self::order66_on`] is.
+    banana_on: bool,
+    /// The Toys tab asked to turn the Banana peel on (`true`) or off, not yet taken.
+    pending_banana: Option<bool>,
     /// A chip naming a setting was clicked (`console_changelog.rs`): the cvar to search
     /// Settings for, not yet taken.
     pending_settings_search: Option<String>,

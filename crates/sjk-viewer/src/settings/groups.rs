@@ -393,6 +393,7 @@ impl Group {
                 crate::hax::TRAP_CVAR,
                 crate::hax::AWAY_CVAR,
                 crate::monitor::SHOW_CVAR,
+                crate::banana::SHOW_CVAR,
                 crate::toy_sight::ILLUMINATE,
                 crate::toy_sight::CARDBOARD_BOX,
                 crate::toy_sight::RAGDOLL,

@@ -4530,6 +4530,7 @@ The player's own toy still shows, and nothing changes for the toys' rules.
 | Drone | See others' drones | `cg_toyDroneShow` | their drones, names and sounds (who peeks at you is still told) |
 | Boombox | See and hear others' boomboxes | `cg_toyBoomboxShow` | their stereo and its music |
 | Monitor | See monitors | `cg_toyMonitorShow` | every monitor and its sounds, yours too ([Monitor](#monitor)) |
+| Banana peel | See banana peels | `cg_toyBananaShow` | every peel and its sounds, yours too ([Banana peel](#banana-peel)) |
 
 Order 66, the Hax and Box hunt act only on players who have them on, so they have none.
 The holocron, the box and the boombox are hidden as if those players had them off here
@@ -5194,6 +5195,85 @@ taken from another game), and mounted below all game data, so a PK3 with the sam
 replaces them. World shots: `world_shot::monitor_shots::monitor_on_a_demo` (with
 `SJK_TEST_DEMO`). See [monitor.rs](../crates/sjk-viewer/src/monitor.rs).
 
+## Banana peel
+
+The Banana peel (Kushina's idea, 29/10/2026, which Sol took up) is a toy for every SJK
+player: drop a banana peel on the floor, and a player who has the toy on too and walks
+onto it slips, cartoon style, and falls as a [ragdoll](#ragdoll).
+
+- **`toy_banana`** (a bind, Settings > Key bindings > Interaction > Toy: Banana peel, the
+  quick wheel's Toys group, Collection > Toys, "Slip on peels") is the switch, both the
+  right to drop peels and the consent to slip on them (the Monitor's rule: always opt
+  in). It stays as last switched, across maps, servers and restarts (`cl_toyBanana`,
+  archived), and says so on the centre of the screen. A player without it walks over
+  peels.
+- **`banana_drop`** (Interaction > Drop banana peel, the Collection's Drop key, the quick
+  wheel's Drop banana peel) drops one: standing (slower than 80 units a second along the
+  floor) 20 units ahead of the feet the way the player looks, moving 72 units ahead the
+  way they move, short of a wall. It leaves the hand 32 units over the floor, tumbles
+  through a short arc for 0.4 seconds and lands with a soft flop (`drop.wav`) on the floor
+  under that spot, lying along it (a floor steeper than about 45 degrees takes none, nor
+  the sky: "Nowhere to drop a peel here"). Without the toy on it says "Turn the Banana
+  peel toy on to drop one"; nobody drops while limp, dead, spectating, in a duel, with the
+  flag, hacked, held by the server or in a vehicle ("No banana peel right now"), the
+  Ragdoll's own rules.
+- **Limits** (anti-spam, named in [banana.rs](../crates/sjk-viewer/src/banana.rs)): one
+  drop every 2 seconds; three peels down a player, a fourth taking the oldest's place;
+  each lies 2 minutes, then shrinks away; none within 96 units of a spawn point (the map's
+  `info_player_deathmatch`, `info_player_start`, duel, Siege and CTF team spawns, read
+  from its entities: "Not so close to a spawn point"). Every peel goes with a new map or
+  another server, and a player's go when they turn the toy off or leave.
+- **The slip** is decided by the slipping player's client alone, as the Monitor's hit is,
+  against its own predicted player: on the ground, moving at least 40 units a second along
+  it (a crouched walk still slips), their feet within 14 units of a peel that has landed
+  (no more than 12 units over it nor 8 under it). The peel must be one they came at: a
+  peel that lands under someone waits until they have been more than 26 units from it,
+  and the dropper's own cannot trip them for 1.5 seconds after it lands (a peel tossed
+  ahead while running would trip its dropper at once). The rules that keep a player from
+  dropping keep them from slipping. They hear a cartoon slip, a squeaky skid and a slide
+  whistle zipping up and dropping (`slip.wav`, in both ears; at the peel for everyone
+  else), and their body goes limp as the Ragdoll's, taking a blow at a foot along the way
+  they walked and upwards (40 and 110 units a second), which throws the feet up over the
+  head and lays the body on its back, sliding on a little with the speed they had. The
+  peel is gone for everyone. They get up as from a monitor's hit: a new jump, attack or
+  taunt, `toy_ragdoll`, being hurt, or by themselves 2.5 seconds after the body comes to
+  rest.
+- **Unseen in duels, or on request:** while the player, or the player they follow, is in a
+  private duel, and on Duel and Power Duel servers, no peel is drawn or heard. Settings >
+  Game options > Toys, "Show banana peels", and the toy's card in the Collection's Toys
+  tab, "See banana peels" (`cg_toyBananaShow`, archived, default 1), at 0 hides every peel
+  and its sounds in the world on this PC, the player's own too. Neither changes who may
+  slip: a player with the toy on and peels hidden still slips on the ones they walk onto.
+  Settings > Sound > Toys, "Banana peel sounds" (`s_toyBananaSound`), silences them.
+
+No game server knows of it, and nothing goes in the hub's looks (they hold eight toy ids
+at most, all taken): every SJK client on the server learns of a peel through the
+[toy relay](hub-chat.md#toy-relay). The dropper's client tells each SJK player in turn,
+the nearest first, one event every 50 ms, and the ones who come later while it lies:
+`drop_<number>_<moment>_<x>_<y>_<z>_<dx>_<dy>_<dz>_<yaw>` (the peel's number among the
+dropper's, 0 to 99; the game server time it left the hand; where it lands, whole units;
+the hand's offset from there, 128 at most; its turn in degrees). Each client finds the
+floor under that spot itself and lays the peel on it, and ignores a peel by a spawn
+point. The slipping player's client tells every SJK player `slip_<dropper>_<number>`, and
+a client that hears it plays the slip at the peel and takes it away (a drop heard after
+its slip stays away); the dropper's client tells `clear` to everyone it told of a peel
+when the toy goes off, and every client takes a dropper's peels away once the hub's
+presence no longer shows them on the server. The fall travels as the Ragdoll's, its blow
+(`hit_...`) naming the peel's dropper and no monitor (`ragdoll::UNTHROWN`), so clients
+from before the toy see the same fall. A sender counts only when the game shows the name
+they claimed, and never one blocked here. Players on stock clients see nothing. The peel
+(about 19 units long and 12 wide: its closed end with the stem's stub, four strips
+fanning out, two curling up),
+its picture, shader, icon and sounds are SJK's own, made by
+[banana_assets.py](../scripts/banana_assets.py) from parametric strips, noise and
+synthesized tones (nothing taken from another game), and mounted below all game data, so
+a PK3 with the same paths replaces them
+([assets/banana](../crates/sjk-viewer/assets/banana/README.md)). World shots:
+`world_shot::banana_shots::banana_peels_ahead_of_the_first_spawn` (`SJK_BANANA_MAPS`),
+`banana_peel_toys_card`, and `banana_slip_on_a_demo` (with `SJK_TEST_DEMO`). See
+[banana.rs](../crates/sjk-viewer/src/banana.rs) and
+[banana_frame.rs](../crates/sjk-viewer/src/banana_frame.rs).
+
 ## Tag
 
 The Tag (Sol's idea, 27/10/2026, after TF2's sprays) is a toy for every SJK player: stick
@@ -5242,7 +5322,8 @@ Settings > Sound > Toys (Sol's request, 25/10/2026) sets how the toys sound on t
 toy's sounds, and a switch per toy silences that toy's sounds alone, the player's own
 and everyone else's (`s_toyBoxSound`, `s_toyOrder66Sound`, `s_toyHaxSound`,
 `s_toyRagdollSound`, `s_toyDroneSound`, `s_toyBoomboxSound`, `s_toyMonitorSound`,
-`s_toyMysteryBoxSound` (the [mystery boxes](mystery-boxes.md)), all
+`s_toyMysteryBoxSound` (the [mystery boxes](mystery-boxes.md)), `s_toyBananaSound` (the
+[Banana peel](#banana-peel), 29/10/2026), all
 on by default,
 archived). The toy still
 runs and is still seen; nothing is sent to anyone. The Illuminate holocron makes no
@@ -5464,7 +5545,11 @@ Execute Order 66, `order66`), since 21/10/2026 the [Hax](#hax) (`toy_hax`, marke
 while it is on), since 23/10/2026 the [Ragdoll](#ragdoll) (`toy_ragdoll`, marked
 while the player is limp), and since 26/10/2026 the [Monitor](#monitor) (`toy_monitor`,
 marked while it is on, then Throw monitor, `monitor_throw`); a wheel saved before keeps
-its Toys page as it was, and gains them from Add a choice, Toys.
+its Toys page as it was, and gains them from Add a choice, Toys. The page holds ten, so
+later toys are in the catalogue's Toys group only, to add from there: Box hunt
+(`toy_boxhunt`), the Tag (`toy_tag`) and since 29/10/2026 the
+[Banana peel](#banana-peel) (Banana peel, `toy_banana`, marked while it is on, and Drop
+banana peel, `banana_drop`).
 
 ### GIF wheel
 
