@@ -78,6 +78,11 @@ includes:
 - the Tag toy: premade tags stuck on walls and floors, TF2 style, seen by every SJK
   player on the map, three free and the rest dropped by holocrons, with a Collection tab
   to choose them (27/10/2026);
+- the Banana peel toy (29/10/2026, after Kushina's idea): banana peels dropped on the
+  floor, or tossed ahead while running, that a player who has the toy on and walks onto
+  slips on, feet up, as a ragdoll; three a player, two minutes each, none by a spawn
+  point; the peel modelled and the slip sound synthesized by a script, nothing taken from
+  another game;
 - mystery boxes: boxes placed on maps through the hub, chests of SJK's own with glowing
   question marks, opened by players for credits to a music box tune of SJK's own while
   the roll slows to a stop on what came out, with a roll the hub makes and every SJK
@@ -839,7 +844,9 @@ Kushina also asked for JA+ and jaPRO plugin options she would not have to type a
 with JoF EJK's `plugin` command (29/10/2026). She asked too for three JoF EJK options that
 players coming from EJK rely on: Sol built them as `cg_fleshSparks`, `in_mouseRepeat` (at
 20 presses a second rather than with the frame rate) and `cg_lagometer` 2 and 3
-(29/10/2026).
+(29/10/2026). Her idea of a banana peel toy, peels that players slip on, Sol approved and
+built as the Banana peel (29/10/2026): opted-in players who walk onto a peel slip and fall
+as ragdolls.
 
 Turin, a player, asked for private messages to be heard with the public chat sounds off:
 Sol built chat sounds by kind, each with its own sound (23/10/2026).

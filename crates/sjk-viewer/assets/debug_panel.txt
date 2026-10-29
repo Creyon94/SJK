@@ -24,6 +24,22 @@
 
 # ---- Console & chat ----
 
+[banana-peel]
+area: Gameplay
+title: Banana peel toy: drop peels; opted-in players who walk onto one slip (Kushina's idea)
+change: toy_banana (opt-in: drop and slip), banana_drop drops one ahead of you, tossed when running.
+change: Walking onto a peel with the toy on: cartoon slip sound, feet up, you fall as a ragdoll.
+change: 3 peels each, 2 min each, 2 s apart, none by a spawn; cg_toyBananaShow hides them.
+test: Collection > Toys: 10 rows fit, Banana peel last; its card, Drop key, See banana peels.
+test: Toy off, banana_drop: "Turn the Banana peel toy on..."; on: a peel lands ahead, a flop.
+test: Run and drop: tossed ~72 ahead; you do not slip on it at once, but do after 1.5 s.
+test: Drop at a spawn point: "Not so close to a spawn point". Drop a 4th: the 1st goes.
+test: Two SJK clients, both on: B walks onto A's peel: B slips on both screens, peel gone.
+test: B with the toy off walks over it: nothing. B in a duel or carrying a flag: no slip.
+test: A turns the toy off or leaves, or the map changes: A's peels go on B's screen.
+test: Getting up: jump, attack or taunt, or lie still ~2.5 s. Look at the model up close.
+note: Untested in game: checked by unit tests and off-screen world shots only.
+
 [chat-readability]
 area: Console & chat
 title: Chat backdrop and text outline, for chat over bright maps (Creo's idea)

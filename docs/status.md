@@ -1,3 +1,30 @@
+## Banana peel toy
+
+29/10/2026, `personal/banana-peel`, based on `main` `99904a8e` (the player Kushina's idea,
+which Sol approved): `toy_banana` (opt-in, `cl_toyBanana`, both the right to drop peels and
+the consent to slip on them) and `banana_drop` drop a banana peel at the feet, or tossed
+72 units ahead while moving, onto the floor under it ([client.md](client.md#banana-peel)).
+Three peels a player, two minutes each, one drop every 2 seconds, none within 96 units of a
+spawn point; all go with the map, the server, the toy turned off or the dropper leaving.
+The slipping player's client decides the slip against its own predicted player (on the
+ground, moving, feet on a peel it came at) and falls as the Ragdoll does, with a blow at a
+foot (`ragdoll::UNTHROWN` names no monitor) that throws the feet over the head and lays the
+body on its back. Peels, slips and clears go through the toy relay as `drop_...`,
+`slip_<dropper>_<number>` and `clear`; nothing in the looks, which hold eight toy ids at
+most and are full. No hub change (the relay checks no toy ids: `relay.rs`, "The hub knows
+no toys"). Collection > Toys has ten rows (64 high, was 68), `cg_toyBananaShow` hides the
+peels, `s_toyBananaSound` silences them; the key bindings' icons have four more atlas
+cells (the atlas keeps its height). Model, picture, icon, slip and drop sounds are SJK's own
+(`scripts/banana_assets.py`). Verified: fmt, workspace build, Clippy and tests (events
+read back and fit the relay, three peels a player, expiry and the dropper leaving, a used-up
+peel heard late, the slip's radius, ground, speed, arming and the dropper's grace, the
+toy and the Ragdoll's exclusions, placement ahead of the feet or tossed and short of a
+wall, the spawn table, the flight's arc and landing flat, the body thrown on its back at four
+speeds); world shots of peels on duel6 and ffa3, the Toys card and hover card, and a player
+of Sol's 21/03 demo slipping. Not verified: anything in game, two clients seeing the same
+peel and slip, the slip against real movement and latency, how the peel reads at a
+distance, the sounds' mix.
+
 ## Player card: Key only
 
 29/10/2026, `personal/ideas-followups`, based on `main` `45921ca1`, the player Blep's idea:

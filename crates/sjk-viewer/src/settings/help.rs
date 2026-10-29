@@ -481,6 +481,10 @@ const HELP: &[(&str, &str)] = &[
         "Off: mystery boxes open silently on this PC, yours and other players'.",
     ),
     (
+        crate::toy_sounds::Toy::Banana.cvar(),
+        "Off: Banana peel sounds are not played on this PC, yours or other players'. The toy still works and is still seen.",
+    ),
+    (
         crate::away_emote::SJK_CVAR,
         "A looping emote you play while away (alt-tabbed out or idle), silent. Any emote you play then goes quiet too, for everyone.",
     ),
@@ -808,6 +812,10 @@ const HELP: &[(&str, &str)] = &[
     (
         crate::monitor::SHOW_CVAR,
         "Off: no Monitor toy monitor is drawn, yours or other players', nor their sounds heard. You can still be hit while the toy is on.",
+    ),
+    (
+        crate::banana::SHOW_CVAR,
+        "Off: no Banana peel toy peel is drawn, yours or other players', nor their sounds heard. You can still slip while the toy is on.",
     ),
     (
         crate::toy_sight::ILLUMINATE,
