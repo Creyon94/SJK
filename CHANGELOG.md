@@ -32,7 +32,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
-- Chat: an Admin button beside All, Team and SJK sends your message to the server's admins (amsay) on JA+ and jaPRO servers, with its own key in Controls (Admin chat); Settings > Chat chooses which buttons the chat shows (Team, SJK, Admin, and a PM button for the last player who whispered you), and while you type each one shows only its own messages, like chat tabs in other games (Creo's idea) _(Creyon)_
+- Chat: an Admin button beside All, Team and SJK sends your message to the server's admins (amsay) on JA+ and jaPRO servers, with its own key in Controls (Admin chat). Settings > Chat chooses which buttons show (Team, SJK, Admin, and PM, whose left and right clicks step through the players who whispered you), and whether a button also shows only its own messages while you type, like chat tabs in other games, or only picks where you talk (Tabs filter chat) (Creo's idea) _(Creyon)_
 - Mystery boxes hold a holocron one time in ten (it was one in fifty), and the roll shows the four tiers' real holocrons, stopping on the one you won. A box that blows up laughs with Sol's own laugh when the SJK extras pack is installed _(Sol)_
 - Centre prints and the words over mystery boxes (and the box hunt's mark) are drawn in Fira Sans Condensed, a real typeface close to the old menu font, instead of a tracing of a low-resolution bitmap _(Sol)_
 - Box hunt: one mark every 10 minutes at most, not one after the other. Hunters see the mark ringed in red, and a black name reads on the hunt's card _(Sol)_
