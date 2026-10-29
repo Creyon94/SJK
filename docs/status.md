@@ -1,3 +1,12 @@
+## jaPRO new-jetpack prediction review
+
+29/10/2026, `feat/prediction-japro-jetpack`, based on `main` `0fd6a5e1` with
+PRs #277/#279/#282: this change claims jaPRO's separate new-jetpack activation,
+eligibility, fuel/Force-resource checks, thrust, air control and pose behavior
+from TaystJK `2d60c0fa5` multiplayer `codemp`. Implementation/reference checks
+are pending. The new flag and stat semantics apply only on the current
+jaPRO/TaystJK server profile; stock equipped-jetpack behavior stays separate.
+
 ## jaPRO jump prediction
 
 29/10/2026, `feat/prediction-japro-jumps`, based on `main` `0fd6a5e1` with
