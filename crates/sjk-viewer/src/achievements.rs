@@ -577,7 +577,7 @@ pub(crate) const ALL: [Kind; 40] = [
     ),
     kind(
         "style_dual_50",
-        "Dual Master",
+        "Dual Sabers Master",
         "Win 50 duels with two sabers.",
         50,
         Duels,
