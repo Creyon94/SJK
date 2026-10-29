@@ -534,3 +534,14 @@ simulation retains its explicit world context. Reference: OpenJK multiplayer
 `cg_predict.c:1244` and `bg_pmove.c:1257,2091` at `4d0dfaf1`.
 Focused tests cover both CTY flags and CTF/FFA/unladen controls at 8/7/4/3 ms.
 Live CTY movement against an OpenJK server remains unverified.
+### Supply snapshot entity context to local movement prediction
+
+Client prediction supplies snapshot player/NPC leg animations and non-vehicle
+NPC identity to movement's read-only entity lookups. Standing on a non-vehicle
+NPC predicts the stock upward bounce; a vehicle or brush does not. Body-dependent
+wall and saber checks can read the actor's legs. The snapshot list is built once
+and borrowed by committed moves, replay, previews and vehicle pilots, without
+cloning it per command. Other players' authoritative state is never changed.
+Reference: OpenJK multiplayer `cg_predict.c:1080-1096` and
+`bg_pmove.c:10880-10896` at `4d0dfaf1`. Tests cover NPC/vehicle/brush contacts at
+8/7/4/3 ms and snapshot replacement. Live NPC and wall contacts remain unverified.

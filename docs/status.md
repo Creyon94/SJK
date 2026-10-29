@@ -56,6 +56,18 @@ predicted Force jumps while carrying a CTY flag. Source comparison: OpenJK
 multiplayer `cg_predict.c:1244`, `bg_pmove.c:1257,2091`, revision `4d0dfaf1`.
 Windows x64 synthetic tests cover both flags and CTF/FFA/unladen controls at
 8/7/4/3 ms, plus authoritative context selection. Live CTY play remains unverified.
+## Prediction: snapshot actor context
+
+29/10/2026, `fix/prediction-entity-context`, based on `main` `e702b0b1`:
+local movement receives snapshot actor legs and non-vehicle NPC identity for
+head bounces and body-dependent wall/saber checks. Replay and previews borrow
+the snapshot list. Reference: OpenJK multiplayer `bg_pmove.c:10880-10896`,
+revision `4d0dfaf1`. Windows x64 synthetic tests cover NPC/vehicle/brush contacts
+at 8/7/4/3 ms and actor removal. The debug test also checks allocation-free
+context reads. Release measurement on Windows x64, Ryzen 7 5800X3D:
+`measure_actor_context_lookups`, 1M hot lookups in a 128-actor table, 5.75 ns/lookup.
+This measures only the lookup, excluding snapshot rebuild, full Pmove, BSP traces
+and rendering. Live contacts and rendered frame rates remain unverified.
 
 ## Synced emote music back from alt-tab in step
 
