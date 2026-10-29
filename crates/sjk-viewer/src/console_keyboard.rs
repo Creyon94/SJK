@@ -69,7 +69,12 @@ pub(crate) fn open_console_key(
 /// console key goes before the message field (`cl_keys.cpp:1318`), so it does here,
 /// Shift+Escape included; Shift with any other console key types in the composer
 /// instead, so `~` can still be written there.
-pub(crate) fn console_key_leaves_chat(toggles: bool, escape: bool, shift: bool, repeat: bool) -> bool {
+pub(crate) fn console_key_leaves_chat(
+    toggles: bool,
+    escape: bool,
+    shift: bool,
+    repeat: bool,
+) -> bool {
     toggles && !repeat && (escape || !shift)
 }
 
@@ -406,9 +411,18 @@ mod dead_key_tests {
         use super::console_key_leaves_chat as leaves;
         // toggles, escape, shift, repeat
         assert!(leaves(true, false, false, false));
-        assert!(!leaves(true, false, true, false), "Shift+` types ~ in the chat");
-        assert!(leaves(true, true, true, false), "Shift+Escape opens the console");
-        assert!(!leaves(true, false, false, true), "a held key does nothing more");
+        assert!(
+            !leaves(true, false, true, false),
+            "Shift+` types ~ in the chat"
+        );
+        assert!(
+            leaves(true, true, true, false),
+            "Shift+Escape opens the console"
+        );
+        assert!(
+            !leaves(true, false, false, true),
+            "a held key does nothing more"
+        );
         assert!(!leaves(false, false, false, false));
     }
 
