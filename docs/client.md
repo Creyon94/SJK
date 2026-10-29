@@ -1035,8 +1035,9 @@ blade with an alpha-blended trail and no blade light or bloom. It works for
 both hands and thrown sabers. The archived `cg_blackSabers` setting is on by
 default, under classic Settings > Game Options and SJK Advanced > Gameplay.
 Turning it off uses orange. The existing `cp_pluginDisable` bit 3 also disables
-black blades when set: `japlus.plugin 3` toggles it, and a clear bit means allowed.
-The normal plugin-mask default (1536) allows black blades.
+black blades when set: Settings > Mods, Black sabers (JA+ or jaPRO plugin options), or
+`japlus.plugin 3` switches it ([plugin options](mods.md#plugin-options)). The normal
+plugin-mask default (1536) allows black blades.
 The SJK UI's Profile > Saber offers black as a chip of its own, the last, after the
 custom chip, which writes colour 11 (hub report #130, 27/10/2026): before, the
 page had no black, and a saved 11 read and was written back as the custom colour. A
@@ -3475,8 +3476,9 @@ command new for them (`DrawCommand::Polygon`, [rendering.md](rendering.md#submis
   follow, are in a private duel, as JoF EJK does (EternalJK `CG_Player`,
   `cg_players.c:11983-11990`). The rule is per server family, in the table
   `DUEL_HIDE_SERVERS` ([duel_hide.rs](../crates/sjk-client/src/duel_hide.rs)): JA+
-  hides unless your `cp_pluginDisable` sets bit 1 ("duel see others", `japlus.plugin
-  1`; SJK's default 1536 leaves it clear), since a JA+ server sends bystanders to a
+  hides unless your `cp_pluginDisable` sets bit 1 (Settings > Mods, See others in
+  duels, or `japlus.plugin 1`; SJK's default 1536 leaves it clear, Off), since a JA+
+  server sends bystanders to a
   plugin client and expects it to hide them; jaPRO (TaystJK) always hides; other
   servers do not. Other players' [drones](#drone) are hidden in a duel on every
   server, unless the setting is 0. `2` (Always) hides on every server, `0` (Off) never, and they are
@@ -5180,9 +5182,12 @@ it on an unrelated server can misinterpret that server's ownership flags.
 Stowed single hilts sit at the right hip; dual hilts use both hips. A single
 staff goes across the back when JA+ plugin 9 is enabled, with a hip fallback
 for models without a back tag. `cp_pluginDisable` is a disable mask: bit 9
-(`512`) disables the staff back reach, and bit 13 (`8192`) disables holstered
-hilts altogether. SJK preserves its existing default mask `1536`, so the
-default staff placement remains at the hip. This feature does not enable
+(`512`) disables the staff back reach, and bit 29 (`536870912`, EJK's
+`JAPRO_PLUGIN_HOLSTEREDSABERS`; bit 13 until 29/10/2026, which is JA+'s single-player
+cartwheel) disables holstered hilts altogether. Settings > Mods switches both as Staff
+on the back and Holstered sabers ([plugin options](mods.md#plugin-options)). SJK
+preserves its existing default mask `1536`, so the default staff placement remains
+at the hip. This feature does not enable
 JA+ animation plugins or install their animation assets.
 
 With plugin 9 enabled and usable JA+ reach animations installed, the staff
@@ -6308,12 +6313,14 @@ It changes no Grip damage, timing, targeting or movement. See
 [rendering](rendering.md) for the reference and effect details.
 
 `cp_pluginDisable` is the archived userinfo cvar a JA+ server reads to switch its
-client-plugin features off for this client (a set bit disables one). Its default,
-1536, disables the holstered saber and ledge grab, which need JA+ animations SJK
-does not have. JA+ and TaystJK/jaPRO servers receive it from the connect packet
-on, and a change sends a userinfo update ([networking.md](networking.md)). The
-JA+ tools mod lists and toggles its bits (`japlus.plugin`) and lists a JA+
-server's options (`japlus.serverconfig`); see [mods.md](mods.md).
+client-plugin features off for this client (most set bits disable one, a few enable
+one). Its default, 1536, disables the holstered saber and ledge grab, which need JA+
+animations SJK does not have. JA+ and TaystJK/jaPRO servers receive it from the
+connect packet on, and a change sends a userinfo update ([networking.md](networking.md)).
+Settings > Mods shows the options SJK honours as switches named after their feature
+(JA+ and jaPRO plugin options), and `japlus.plugin` and `japro.plugin` list and switch
+them as JoF EJK's `plugin` does; the JA+ tools mod also lists a JA+ server's options
+(`japlus.serverconfig`). See [plugin options](mods.md#plugin-options).
 
 The console input line has a caret, drawn as stock's underscore: Left and Right
 move it, Ctrl+Left and Ctrl+Right by word, Home and End to either end, and Shift

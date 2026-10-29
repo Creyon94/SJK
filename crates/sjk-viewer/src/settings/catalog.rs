@@ -1368,6 +1368,80 @@ pub(super) const GAME: &[Setting] = &[
         cvar: "mod_jof",
         kind: ValueKind::Bool,
     },
+    // JA+ and jaPRO plugin options (`docs/mods.md`): each a bit of `cp_pluginDisable`,
+    // named after the feature (`settings/plugin_rows.rs`, the mods' tables).
+    #[cfg(feature = "mod-japlus")]
+    Setting {
+        label: "See others in duels (JA+)",
+        cvar: "japlus.plugin 1",
+        kind: ValueKind::Bool,
+    },
+    #[cfg(feature = "mod-japlus")]
+    Setting {
+        label: "Black sabers (JA+)",
+        cvar: "japlus.plugin 3",
+        kind: ValueKind::Bool,
+    },
+    #[cfg(feature = "mod-japlus")]
+    Setting {
+        label: "New Force effects (JA+)",
+        cvar: "japlus.plugin 5",
+        kind: ValueKind::Bool,
+    },
+    #[cfg(feature = "mod-japlus")]
+    Setting {
+        label: "Staff on the back (JA+)",
+        cvar: "japlus.plugin 9",
+        kind: ValueKind::Bool,
+    },
+    #[cfg(feature = "mod-japlus")]
+    Setting {
+        label: "Holstered sabers (JA+)",
+        cvar: "japlus.plugin 15",
+        kind: ValueKind::Bool,
+    },
+    #[cfg(feature = "mod-japro")]
+    Setting {
+        label: "Black sabers (jaPRO)",
+        cvar: "japro.plugin 0",
+        kind: ValueKind::Bool,
+    },
+    #[cfg(feature = "mod-japro")]
+    Setting {
+        label: "Respawn where you fell (jaPRO)",
+        cvar: "japro.plugin 5",
+        kind: ValueKind::Bool,
+    },
+    #[cfg(feature = "mod-japro")]
+    Setting {
+        label: "Checkpoints on screen (jaPRO)",
+        cvar: "japro.plugin 6",
+        kind: ValueKind::Bool,
+    },
+    #[cfg(feature = "mod-japro")]
+    Setting {
+        label: "Checkpoints in chat (jaPRO)",
+        cvar: "japro.plugin 7",
+        kind: ValueKind::Bool,
+    },
+    #[cfg(feature = "mod-japro")]
+    Setting {
+        label: "Damage numbers (jaPRO)",
+        cvar: "japro.plugin 8",
+        kind: ValueKind::Bool,
+    },
+    #[cfg(feature = "mod-japro")]
+    Setting {
+        label: "Shots from the centre (jaPRO)",
+        cvar: "japro.plugin 9",
+        kind: ValueKind::Bool,
+    },
+    #[cfg(feature = "mod-japro")]
+    Setting {
+        label: "Checkpoints in console (jaPRO)",
+        cvar: "japro.plugin 10",
+        kind: ValueKind::Bool,
+    },
     // JoF content (`docs/jof-content.md`): its card, and where it downloads from.
     #[cfg(feature = "mod-jof")]
     Setting {

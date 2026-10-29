@@ -224,6 +224,8 @@ const SJK_TERMS: &[&str] = &[
 ];
 
 /// The description of setting `cvar`.
+/// The plugin options' rows are described by their mods' tables
+/// ([`super::plugin_rows`]).
 pub(super) fn help(cvar: &str) -> Option<&'static str> {
     HELP.iter()
         .find(|(name, _)| name.eq_ignore_ascii_case(cvar))
@@ -234,6 +236,7 @@ pub(super) fn help(cvar: &str) -> Option<&'static str> {
                 text
             }
         })
+        .or_else(|| super::plugin_rows::help(cvar))
 }
 
 /// `text` cut into at most [`HELP_LINES`] lines of [`HELP_LINE_CHARS`]
