@@ -382,6 +382,10 @@ includes:
   compiled with q3map2's `-external` load their `lm_NNNN.tga` pages instead of failing;
 - chat name actions (23/10/2026, after Bishop's and Sanjisan's ideas): a click on a
   player's name in the chat pins their card, to Whisper or Block them;
+- three JoF EJK options (29/10/2026, after Kushina's idea): saber hit sparks
+  (`cg_fleshSparks`), a held mouse 4 or 5 repeating its bind (`in_mouseRepeat`, 20 times
+  a second at any frame rate) and the lagometer's numbers and speed graph
+  (`cg_lagometer` 2 and 3);
 - SJK Alpha (19/10/2026), the first collection of cards: the Mythical rarity, the
   Credits and Meme kinds, and card 1, "Bishop", honouring the author of JKR (art by
   Sol, AI-assisted: a rusted helmet portrait).
@@ -809,6 +813,9 @@ palette with pink as its main colour, light purple and white mist, afterimages m
 falling blossoms like the Spectral's, and a branch with a flower where the blade starts
 (and one day a wooden hilt). Sol built it as the Varykino Blossom, a Mythical saber shader
 (blade 166, 21/10/2026), with all of it but the hilt, which waits for custom hilts.
+Kushina also asked for three JoF EJK options that players coming from EJK rely on: Sol
+built them as `cg_fleshSparks`, `in_mouseRepeat` (at 20 presses a second rather than
+with the frame rate) and `cg_lagometer` 2 and 3 (29/10/2026).
 
 Turin, a player, asked for private messages to be heard with the public chat sounds off:
 Sol built chat sounds by kind, each with its own sound (23/10/2026).

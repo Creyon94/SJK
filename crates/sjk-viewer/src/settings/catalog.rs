@@ -751,8 +751,8 @@ pub(super) const HUD: &[Setting] = &[
     },
     Setting {
         label: "Lagometer",
-        cvar: "cg_lagometer",
-        kind: ValueKind::Bool,
+        cvar: crate::hud::lagometer::CVAR,
+        kind: ValueKind::Choice(&["0", "1", "2", "3"]),
     },
     Setting {
         label: "Lagometer scale",
@@ -914,6 +914,11 @@ pub(super) const CONTROLS: &[Setting] = &[
         cvar: crate::input::force_repeat::CVAR,
         kind: ValueKind::Bool,
     },
+    Setting {
+        label: "Hold mouse 4/5 repeats",
+        cvar: crate::input::mouse_repeat::CVAR,
+        kind: ValueKind::Choice(&["0", "1", "2"]),
+    },
 ];
 pub(super) const GAME: &[Setting] = &[
     Setting {
@@ -963,6 +968,15 @@ pub(super) const GAME: &[Setting] = &[
             min: 0.0,
             max: 2.0,
             step: 0.1,
+        },
+    },
+    Setting {
+        label: "Saber hit sparks",
+        cvar: crate::impacts::FLESH_SPARKS_CVAR,
+        kind: ValueKind::Integer {
+            min: 0,
+            max: crate::impacts::FLESH_SPARKS_ALL as i64,
+            step: 1,
         },
     },
     Setting {

@@ -10,9 +10,15 @@ impl GpuState {
         // A chip naming a setting (the changelog page's, the what's-new card's) opens
         // Settings on it.
         self.open_chip_settings();
+        // Held mouse 4 and 5 repeat into the binds while the pointer and keys are the
+        // game's, as their presses went (`in_mouseRepeat`).
+        let mouse_repeat = self.pointer_captured && !self.text_has_keyboard();
         let Some(console) = &mut self.console else {
             return;
         };
+        if mouse_repeat {
+            console.repeat_held_mouse_buttons();
+        }
         // The Collection's Toys tab lights or puts out the holocron through the console.
         if let Some(on) = console.take_illuminate_request() {
             self.illuminate.set_on(on);

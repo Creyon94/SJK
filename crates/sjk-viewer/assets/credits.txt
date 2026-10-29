@@ -416,6 +416,7 @@ did: Made Solfox, Sol's fox player model, which every SJK player gets through th
 [Kushina]
 role: Ideas for SJK
 did: The Varykino Blossom blade: a blossom-pink blade, lavender mist, a flowering branch and blossoms shed as it swings
+did: JoF EJK's saber hit sparks, mouse 4/5 repeat and lagometer modes 2 and 3 for players coming from EJK
 
 [Turin]
 role: Ideas for SJK
