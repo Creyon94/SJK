@@ -455,10 +455,14 @@ grapples remain separate; full and live-server parity remain unverified.
 ## Prediction vehicle/rider trace exclusions
 
 29/10/2026, `fix/prediction-vehicle-rider-collision`, based on `main` `e702b0b1`:
-OpenJK `4d0dfaf1` multiplayer `CG_VehicleClipCheck` filters vehicle/rider
-contacts according to the entity making each trace. The viewer's shared
-pilot/vehicle collision view does not express those exclusions. A correction
-is under review; live multi-passenger vehicle behavior remains unverified.
+prediction now filters contacts using the actor making each trace, following
+OpenJK `4d0dfaf1` multiplayer `CG_VehicleClipCheck`. Pilot and chassis views
+share query storage but keep their exclusions separate. A 45-case matrix
+emitted by MSVC-compiled OpenJK covers players, NPCs, vehicles, passengers,
+unlinked actors and world hits. Windows x64 synthetic tests cover separate
+pilot/chassis routing, attached/dismounted contacts, local passengers and
+8/7/4/3 ms. Warmed-query allocation checks accompany the change. Live
+multi-passenger gameplay and rendered performance remain unverified.
 
 ## Passenger movement prediction
 

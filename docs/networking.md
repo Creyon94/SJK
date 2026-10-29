@@ -449,6 +449,18 @@ model slot and refreshed on encountered model-configstring changes, outside
 command replay. The local vehicle shares the geometry helper and keeps its
 clearance check; remote collision follows stock's no-clearance-callback path.
 
+### Vehicle and rider trace exclusions
+
+Prediction applies codemp `CG_VehicleClipCheck` to the actor making each trace.
+A vehicle's chassis ignores its linked riders, while a rider ignores its linked
+vehicle. Rider/rider and unrelated-actor contacts retain stock behavior. The
+pilot's collision view and the chassis view borrow the same world and scratch
+storage without changing each other's context. Committed, replayed and preview
+commands use these views; local passengers also receive the rider exclusions
+when no locally predicted chassis is available.
+Both views retain snapshot rocket-target metadata, and both moves retain the
+snapshot NPC/animation context.
+
 ### When prediction steps aside
 
 These cases show the server's state instead of predicting, as JoF EternalJK's
