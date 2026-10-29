@@ -776,3 +776,16 @@ This follows OpenJK `codemp/cgame/cg_predict.c:722` at `4d0dfaf1`;
 items retain their separate proximity test. Unit tests cover 8/7/4/3 ms commands
 and both directions of a standing/crouching hull mismatch. Live trigger timing
 against an OpenJK server remains unverified.
+
+### Freeze prediction when command history is incomplete
+
+When the 512-command pending window evicts an unacknowledged command, local
+movement and speculative previews freeze at the last valid displayed endpoint,
+including its mover offset.
+Commands continue to leave for the server. Prediction resumes from a snapshot
+once its command time covers every missing command. A map transition or explicit
+prediction reset starts a fresh history window. A teleport received during the gap
+stays pending so recovery cannot smooth across it. Fixed-step commands use their rounded
+simulation times for this decision. This follows OpenJK `codemp/cgame/cg_predict.c:1020-1033`
+at `4d0dfaf1`, while retaining SJK's larger history window. Unit tests cover
+8/7/4/3 ms boundaries; live packet-loss recovery remains unverified.

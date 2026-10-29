@@ -52,6 +52,23 @@ impl LocalPrediction {
                 |predictor| Vec3::from_array(predictor.state().origin) + Vec3::Z * self.view_height,
             );
         }
+        self.history_gap.acknowledge(acknowledged);
+        if self.history_gap.incomplete() {
+            // CG_PredictPlayerState returns before consuming thisFrameTeleport.
+            // Retain the discontinuity until a usable snapshot can reseed us.
+            self.snap_back |= teleported;
+            // codemp cg_predict.c:1020-1033: never replay a truncated history.
+            self.pending
+                .retain(|command| command.server_time > acknowledged);
+            self.last_acknowledged = acknowledged;
+            self.last_sample = PredictionSample {
+                pending: self.pending.len(),
+                ..PredictionSample::default()
+            };
+            return self
+                .frozen_eye()
+                .unwrap_or_else(|| Vec3::from_array(player.origin()) + Vec3::Z * self.view_height);
+        }
         let status = CommandStatus::classify(
             acknowledged,
             self.last_acknowledged,
@@ -202,6 +219,9 @@ impl LocalPrediction {
         self.render_movers.update(snapshot, time);
         self.physics_movers.set_angle_time(time);
         self.physics_movers.present_boxes(&self.render_movers, time);
+        if !self.fake_noclip && self.history_gap.incomplete() {
+            return self.frozen_eye();
+        }
         let raw = self.preview.as_ref().or(self.predictor.as_ref())?.state();
         let mut presented = raw.clone();
         if raw.team != 3 && raw.movement_type != 4 {
