@@ -17,6 +17,7 @@ mod force_templates;
 mod grid;
 pub(crate) mod icons;
 mod model_icons;
+mod model_rgb;
 mod numeric;
 mod part_icons;
 mod pointer;

@@ -436,6 +436,7 @@ impl GpuState {
             }
         }
         self.sync_stage_prop(now);
+        self.sync_stage_rgb();
         if let Some(request) = request {
             self.sync_stage_sabers(request);
         }
@@ -694,6 +695,34 @@ impl GpuState {
             upper: tracks::Track::new(sequence, started),
             from: None,
         })
+    }
+
+    /// The stage model wears the Character page's colour (`player_menu/model_rgb.rs`):
+    /// the player's `customRGBA`, which only the shader stages that read the entity
+    /// colour show, so only a model made for it (an RGB skin) changes.
+    fn sync_stage_rgb(&mut self) {
+        let Some(rgb) = self
+            .client_menu
+            .as_ref()
+            .map(crate::menu::ClientMenu::stage_rgb)
+        else {
+            return;
+        };
+        let Some(actor) = self.menu_stage.actor.as_mut() else {
+            return;
+        };
+        let wanted = [rgb[0], rgb[1], rgb[2], 255].map(|channel| f32::from(channel) / 255.0);
+        if actor.instance.entity_color == wanted {
+            return;
+        }
+        actor.instance = actor
+            .instance
+            .with_entity_color([rgb[0], rgb[1], rgb[2], 255]);
+        self.queue.write_buffer(
+            &actor.instance_buffer,
+            0,
+            bytemuck::bytes_of(&actor.instance),
+        );
     }
 
     /// Where a preview actor stands without a stage, so the map lights it:

@@ -563,6 +563,11 @@ impl ClientMenu {
         Some((stage, self.player.stage_model()))
     }
 
+    /// The colour the stage model wears (`player_menu/model_rgb.rs`).
+    pub(crate) fn stage_rgb(&self) -> [u8; 3] {
+        self.player.stage_rgb()
+    }
+
     /// The model the classic profile's preview shows, with the stage it
     /// may stand on: only while the profile is on screen and its page shows
     /// one.

@@ -2720,6 +2720,15 @@ restore Y global chat if needed and free; other occupied keys stay unchanged.
 This migration advances `cl_bindDefaultsVersion` to 3. Use
 `bind u messagemode3` to select U explicitly. No message is sent until Enter.
 
+On the SJK UI's Character page a model worn with its RGB skin (`name/rgb`, the skins
+JoF EJK's RGB team colour lists) gets Red, Green and Blue sliders under the grid, as
+JoF EJK's profile has (Creyon, 29/10/2026;
+[model_rgb.rs](../crates/sjk-viewer/src/player_menu/model_rgb.rs)): 0 to 255, set by the
+arrows, a click or drag on the track, or a typed number; the stage model shows the colour
+at once (the shader stages that read the entity colour, as `CG_Player` hands them
+`customRGBA`), the grid's pictures keep their own, and Apply wears it with the model
+(`char_color_*`). Other models show no sliders.
+
 `amcolor <red> <green> <blue>` (EternalJK's `amColor`) sets the player tint, the archived
 `char_color_red`, `_green` and `_blue` userinfo cvars, each 0 to 255, so the server gets
 it at once and it is kept for the next connect; bare, it prints the current tint

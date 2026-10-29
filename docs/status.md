@@ -1,3 +1,14 @@
+## Model colour sliders
+
+29/10/2026, `feat/model-rgb` (Creyon), based on `main` `e702b0b1`: JoF EJK's profile has
+R, G and B sliders (`ui_char_color_*`) for the skins its RGB team colour lists (`/rgb`);
+SJK set the colour only with `amcolor`. The SJK UI's Character page now gives a model worn
+with its RGB skin three slider rows under the grid (arrows, click or drag, typed number),
+the stage model wears the colour at once (entity colour on its instance) and Apply writes
+`char_color_*` with the model; the grid's pictures are not tinted, and other models show
+no sliders ([model_rgb.rs](../crates/sjk-viewer/src/player_menu/model_rgb.rs)). Verified on
+Linux x86_64: tests in `player_menu::model_rgb`. Not verified: in game.
+
 ## Synced emote music back from alt-tab in step
 
 29/10/2026, `fix/emote-sound-alt-tab`, based on `main` `b558d4ae`, hub report #195 (build
