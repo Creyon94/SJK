@@ -519,7 +519,7 @@ pull requests merged into SJK, most of them bringing SJK in line with EternalJK
   its next seven the Sketch, Hourglass, Fiber Optic, Serpent, Monarch, Phoenix and Quantum
   blades, and its last three the Comic, Quicksilver and Obsidian Edge blades.
 
-Lumaya ([lumayaa](https://github.com/lumayaa)), contributor, has 66 pull requests
+Lumaya ([lumayaa](https://github.com/lumayaa)), contributor, has 75 pull requests
 merged into SJK
 ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3Alumayaa)):
 
@@ -636,6 +636,11 @@ merged into SJK
   a predicted vehicle (#276), and the audit's record in networking.md (#271).
 - #277 the first jaPRO prediction layer: race-mode command slicing and velocity precision
   from TaystJK, only on servers that advertise jaPRO.
+- #252-#273 the rest of the prediction audit: frozen view on a command-history gap (#252),
+  saber-lock facing (#253), the respawn jump latch (#260), the dual jump-attack hull (#266),
+  the equipped saber definitions (#267) and remote vehicle hulls (#273).
+- #279, #282, #284 jaPRO prediction from TaystJK: movement-style acceleration and friction,
+  style jumps and only-bhop, and the new jetpack, only on servers that advertise jaPRO.
 
 Lukas ([LukasMoudry](https://github.com/LukasMoudry)), contributor, has 18 pull requests
 merged into SJK
@@ -678,7 +683,7 @@ merged into SJK
 - #198 "Too many open files" after a long session: the Profile menu's model icons, cosmetics and
   Force templates let go of the previous map's game files (its PK3 reopening part held back).
 
-Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 66 pull requests merged
+Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 67 pull requests merged
 into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AJoFSlash)):
 
 - #114 Tab completes the cfg file argument of `exec`, `execq`, `writeconfig` and `write`
@@ -805,6 +810,8 @@ into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author
   move the radial HUD's meters apart and up or down, after Lex's idea.
 - #283 laptops with two graphics cards: sjk.exe asks NVIDIA and AMD drivers for the fast
   card, tries the other cards when one cannot open, and says why when none starts.
+- #286 `fs_restart` mounts the game files again without restarting SJK: new PK3s and the
+  asset browser's pack choices reach the menus and the next map, after Blep's idea.
 
 His Peek work in #199 (closed 24/10/2026, not merged) shaped the Drone toy: a player is
 asked before being peeked, told who watches, and can end it. His #206 (closed 25/10/2026,

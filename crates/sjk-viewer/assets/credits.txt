@@ -250,7 +250,7 @@ link: Creyon's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr
 
 [Lumaya]
 github: lumayaa
-role: Contributor: 66 merged pull requests
+role: Contributor: 75 merged pull requests
 medal: early_contributor
 did: #24 Saber blades stop at walls instead of shining through them
 did: #29 Free camera: /freecam flies the camera away from your body
@@ -308,6 +308,9 @@ did: #249-#276 Prediction audit: 12 fixes checked against JA+ and jaPRO
 did: #265 #268 Rocket lock-on predicted as the server does
 did: #263 #264 Vehicle riders' weapons predicted
 did: #277 jaPRO race moves predicted as jaPRO cuts and rounds them
+did: #252-#273 Six more prediction fixes: saber locks, respawn, vehicles
+did: #279 #282 jaPRO movement styles and their jumps predicted
+did: #284 jaPRO new jetpack predicted
 link: Lumaya's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3Alumayaa
 
 [Lukas]
@@ -335,7 +338,7 @@ link: Lukas's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+
 
 [Slash]
 github: JoFSlash
-role: Contributor: 66 merged pull requests
+role: Contributor: 67 merged pull requests
 did: #114 Tab completes cfg file names after exec and writeconfig
 did: #113 CTF team saber colours, an option
 did: #153 The SJK scoreboard tells who won the Siege round or team match
@@ -405,6 +408,7 @@ did: #255 The console key opens the console over the chat
 did: #280 Name outline for nameplates: Off, Faint or Strong
 did: #281 Radial HUD spacing and height sliders
 did: #283 Laptops with two graphics cards start on the fast one
+did: #286 fs_restart: new PK3s without restarting SJK
 link: Slash's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AJoFSlash
 
 [Milamber]

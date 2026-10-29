@@ -97,7 +97,7 @@ impl ViewerConsole {
                 "cp_pluginDisable",
                 i64::from(sjk_client::PLUGIN_DISABLE_DEFAULT),
                 user,
-                "JA+ plugin features this client disables (bits; see japlus.plugin)",
+                "JA+/jaPRO plugin mask; jaPRO bit 19 selects only-bhop when the server allows it",
             ),
             CvarDefinition::new("handicap", 100_i64, user, "Starting health percentage"),
             CvarDefinition::new("sex", "male", user, "Player voice sex token"),

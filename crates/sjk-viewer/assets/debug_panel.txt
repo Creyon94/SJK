@@ -161,6 +161,30 @@ test: Staff on the back On, then draw a staff in a JA+ match: it goes over the s
 test: On a jaPRO race map, Checkpoints in chat On: checkpoint times show in the chat.
 note: The options not offered (ledge grab, new DFA, jaPRO rolls...) and why: docs/mods.md.
 
+[slash-fs-restart]
+area: Console & chat
+title: fs_restart mounts the game files again without a restart (Slash, PR #286)
+change: New or changed PK3s and the asset browser's pack choices apply without restarting.
+test: With SJK open, add a model PK3 to base, type fs_restart: the profile lists the model.
+test: assetbrowser, disable a pack, fs_restart, change map: its files are gone.
+test: The console says how many PK3s it mounted; a second fs_restart at once is refused.
+
+[lumaya-japro-styles]
+area: Gameplay
+title: jaPRO movement styles, jumps and new jetpack predicted (Lumaya, PRs #279-#284)
+change: On jaPRO servers: each style's acceleration, friction, jumps and the race jetpack.
+test: Local jaPRO server, /move cpm, qw, tribes, surf: run, strafe, bhop: no snapping back.
+test: cp_pluginDisable with bit 19 where the server allows: only-bhop held jumps.
+test: Race jetpack: lift and steer at once. On a JA+ server: movement as before.
+
+[lumaya-prediction-audit-2]
+area: Gameplay
+title: Prediction audit, second part (Lumaya, PRs #252-#273)
+change: Saber-lock facing, respawn jump latch, dual jump-attack hull, equipped saber definitions,
+change: remote vehicle hulls, and a still view when command history has a gap.
+test: Saber lock on a local server: the view turns to the opponent at once.
+test: Respawn holding jump: no jump until attack and use are let go.
+
 [lumaya-japro-race-slicing]
 area: Gameplay
 title: jaPRO race moves predicted as jaPRO cuts them (Lumaya, PR #277)

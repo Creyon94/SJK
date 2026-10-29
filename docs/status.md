@@ -134,6 +134,102 @@ the workspace build, tests and Clippy (no new warning), and the Mods page in
 `menu_snapshot::sjk_settings_snapshot` (`sjk-settings-plugin-options.png`).
 Not verified: switching them in a match on a JA+ or jaPRO server.
 
+## Prediction: incomplete command history
+
+29/10/2026, `fix/prediction-command-overflow`, based on `main` `e702b0b1`:
+a discarded unacknowledged command freezes local prediction and previews until
+snapshots cover the missing interval, retaining the last displayed mover offset.
+Network commands continue normally; a teleport remains pending until recovery,
+so it cannot become a delayed smoothed correction.
+Reference: OpenJK multiplayer `cg_predict.c:1020-1033`, revision `4d0dfaf1`.
+Windows x64 unit tests exercise ACK boundaries and explicit resets at 8/7/4/3 ms.
+Recovery under actual packet loss remains unverified.
+## Prediction: saber-lock facing
+
+29/10/2026, `fix/prediction-saber-lock-facing`, based on `main` `e702b0b1`:
+a saber lock faces its opponent during movement prediction and display-only
+frames, using the snapshot player origin and the presented opponent origin.
+Reference: OpenJK multiplayer `cg_predict.c:1252-1263`, revision `4d0dfaf1`.
+Windows x64 synthetic tests cover 8/7/4/3 ms endpoints, repeated frames,
+pitch/yaw, expiry and missing opponents. Live locks remain unverified.
+## Respawn jump restriction
+
+29/10/2026, `fix/prediction-respawn-jump`, based on `main` `e702b0b1`:
+movement now refuses jumps while `PMF_RESPAWNED` remains set. Reference:
+OpenJK `4d0dfaf1`, multiplayer `PM_CheckJump` and `PmoveSingle`. Synthetic
+tests cover holding attack/use and releasing them at 8/7/4/3 ms on Windows
+x64. Live respawn behavior against an OpenJK server remains unverified.
+## Dual jump-attack collision hull
+
+29/10/2026, `fix/prediction-dual-jump-hull`, based on `main` `e702b0b1`:
+ported local-player dual jump-attack hull resizing/restoration from OpenJK
+`4d0dfaf1`, codemp `PM_CheckDualForwardJumpDuck` and `PM_CheckFixMins`.
+Windows x64 synthetic tests cover both timing windows and clearance/crouch
+restoration around 8/7/4/3 ms boundaries. Live head/ceiling/ledge contacts
+and community animation tables remain unverified.
+## Equipped saber definitions in client prediction
+
+29/10/2026, `fix/prediction-saber-definitions`, based on `main` `e702b0b1`:
+the cached `.sab` parser supplies movement flags, move overrides and stance
+animations to local prediction. Reference: OpenJK `4d0dfaf1`, codemp
+`BG_MySaber`, `WP_SetSaber` and `saberMoveTable`/`WP_SaberParseParms`.
+Windows x64 synthetic tests cover parsing/fallbacks and prediction configuration
+at 8/7/4/3 ms. Live custom-hilt behavior and full combat parity remain unverified.
+## Remote vehicle prediction hulls
+
+29/10/2026, `fix/prediction-remote-vehicle-box`, based on `main` `e702b0b1`:
+remote vehicle collision now applies definition-owned dimensions at the
+presented pose. Local movement shares the geometry and retains its clearance
+check. Reference: OpenJK `4d0dfaf1`, multiplayer `CG_ClipMoveToEntities` and
+`BG_VehicleAdjustBBoxForOrientation`. On Windows x64, 36 bounds fixtures emitted
+by MSVC-compiled OpenJK cover fighters, fliers, static vehicles, large origins
+and 8/7/4/3 ms orientation samples. Synthetic trace, interpolation, model-change
+and warmed-allocation tests accompany the change. Live vehicle contacts,
+community vehicle coverage and rendered FPS remain unverified.
+## jaPRO new-jetpack prediction
+
+29/10/2026, `feat/prediction-japro-jetpack`, based on `main` `0fd6a5e1` with
+PRs #277/#279/#282: this change implements jaPRO's separate new-jetpack activation,
+eligibility, fuel/Force-resource checks, thrust, air control and pose behavior
+from TaystJK `2d60c0fa5` multiplayer `codemp`. Windows x64 checks match 280
+MSVC-emitted activation/thrust results and 25 knockdown animation ordinals
+(extracted source branches with deterministic distance/shared eligibility stubs).
+Full command tests cover 8/7/4/3 ms and switches between jaPRO/TaystJK, BaseJKA,
+JA+ and Lugormod using identical capability/stat slots. The new flag and stat
+semantics apply only on the current jaPRO/TaystJK profile; changing profiles
+immediately relinquishes prediction ownership of the active flag. Fuel remains
+snapshot-authoritative. Stock equipped-jetpack tests pass. Full Pmove, live-server
+and GPU/presentation parity remain unverified; see
+[networking](networking.md#server-dialect-movement-rules).
+
+## jaPRO jump prediction
+
+29/10/2026, `feat/prediction-japro-jumps`, based on `main` `0fd6a5e1` with
+the adapters in PRs #277 and #279: this change claims style-specific jump
+impulses, held-jump behavior, ramp/double-jump impulses, superjump scaling and
+the jump timer from TaystJK `2d60c0fa5` multiplayer `codemp`. Windows x64 tests
+match 323 results emitted by MSVC-compiled source branches, gates, curves and
+timers (valid-state power/animation stubs, not a full Pmove simulation). Held
+jump integration runs at 8/7/4/3 ms, including release-only OCPM and non-jaPRO
+isolation. Server/player only-bhop policy honors the existing plugin preference
+and advertised capabilities; a foreign profile cannot enable it, including
+after a server switch. Ramp/step collision, further restrictions, new jetpack
+and grapples remain outside this change. Full and live-server parity remain
+unverified; see [networking](networking.md#server-dialect-movement-rules).
+
+## jaPRO movement-style acceleration
+
+29/10/2026, `feat/prediction-japro-styles`, based on `main` `c7089264` and
+the shared command adapter in PR #277: the next jaPRO prediction change covers
+movement-style acceleration, air control, ground friction and crouch speed.
+Reference: TaystJK `2d60c0fa5` multiplayer `codemp`. Windows x64 focused tests
+match 329 MSVC-emitted kernel/parameter results (152 air, 120 friction, 19 ground
+parameter pairs and 38 command scales) across 8/7/4/3 ms, with velocity tolerance
+0.0001 units/s. Server-switch tests reuse identical race/style metadata on
+jaPRO/TaystJK, BaseJKA, JA+ and Lugormod and confirm that only the current jaPRO
+dialect enables the rules. Jumps, ramps/steps, restrictions, new jetpack and
+grapples remain separate; full and live-server parity remain unverified.
+
 ## Passenger movement prediction
 
 29/10/2026, `fix/prediction-passenger-movement`, based on `main` `9e48ff6d`:

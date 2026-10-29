@@ -18,10 +18,20 @@ It does not change damage camera kick, hit sounds or damage-event timing.
 
 Settings > Mods > Asset browser or `assetbrowser` opens SJK's installed PK3 browser (also discoverable through F3
 in the console's command browser). Select a pack with the arrow keys or wheel;
-Enter, Space or a click toggles it. Choices save immediately and apply at the
-next client start. The page lists configured game directories and supplemental
+Enter, Space or a click toggles it. Choices save immediately and apply at
+`fs_restart` or the next client start. The page lists configured game directories and supplemental
 `EternalJK` packs, including disabled packs, and protects retail
 `base/assets0.pk3` through `assets3.pk3` from disabling.
+
+`fs_restart` mounts the installed game files again without restarting SJK
+([fs_restart.rs](../crates/sjk-viewer/src/fs_restart.rs)), as the original game's
+`FS_Restart` searched its paths again: PK3s added or changed since the start, and the
+pack choices above, reach the lists of installed content (the profile's models and
+sabers, Create game's maps, the key bindings' pictures) and the scripts `exec` reads
+from packs. The mount runs on a worker; the console says how many PK3s it found. The
+map on show keeps the files it was built from, as each map load mounts the files afresh
+anyway, so the next map has them. `fs_game`, `fs_basegame`, `fs_homepath` and the other
+search settings whose help says so still apply at the next start.
 
 The archived `fs_disabledPaks` setting stores a JSON list of portable
 `directory/filename.pk3` names. Names are case-insensitive, and identical names
