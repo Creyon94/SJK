@@ -18,6 +18,19 @@ frame's colours); off screen with the game data: the nameplate snapshot
 and not (`world_shot::collection::duel6_sjk_collection`). Not verified: in a match (live hub
 pictures and head icons in the hexagon, the frames' colours on real teams and duels, the far
 fade in motion), or at 4K.
+## Trade swap reaches the first to confirm
+
+26/10/2026, `fix/trade-inventory-refresh` (Creyon, PR #210), based on `main` `61f22008`
+(rebased 28/10/2026 after Sol's review of 27/10): after a trade, the player who confirmed
+first kept the holocrons and duplicates they gave, and lacked those they received, for up
+to ten minutes (seen in game by Sol and Creyon, 25/10/2026). The hub swaps at the second
+confirmation and returns the new profile only to that player; the other learned of the
+swap from the trade list, which read nothing more, so their collection waited for the
+ten-minute profile read. The list that first shows a trade done now reads the own profile
+and the holocron progress at once ([sjk-ui.md](sjk-ui.md#trading)). Verified on Linux
+x86_64: the new test `a_swap_finished_by_the_other_player_reads_the_profile_at_once`
+(fails without the fix), fmt, workspace build, tests and Clippy. Not verified: in game
+with two clients.
 
 ## Capsule nameplates
 
