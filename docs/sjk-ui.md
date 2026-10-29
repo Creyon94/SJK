@@ -851,7 +851,8 @@ that mode for the visit and leaves the player's choice as it was.
     emojis, remembered channel, letter spacing and sender card size) and the SJK chat (SJK
     chat, its game-feed and console visibility, its GIFs, its video clips opt-in and
     the GIPHY key); Mods the asset browser (Packs), JA+ and
-    JoF tools (Server mods), JoF content's card and host (JoF content),
+    JoF tools (Server mods), the JA+ and jaPRO plugin options under a heading each
+    ([mods.md](mods.md#plugin-options)), JoF content's card and host (JoF content),
     invisible brushes (Map tools) and the showcase tools (Experimental); Interface's
     Console rows include retaining colour codes when console scrollback is copied;
     Network SJK online and Connection. A test checks that

@@ -35,6 +35,8 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 = con_overChat: New: while you type in the chat, the console key opens the console over it and your message waits; off, the chat takes the key as before.
 = ui_sliderPeek: New: in the game, hold a Settings slider a moment and the rest of the menu fades away, so you see the change on the game as you drag.
 
+- Plugin options without typing a number: Settings > Mods has JA+ plugin options and jaPRO plugin options, switches named after what they do (See others in duels, Black sabers, Staff on the back, Damage numbers, Checkpoints in chat...), each On while its feature is on, in place of `cp_pluginDisable 1536`. `japlus.plugin` and `japro.plugin` list and switch them with JoF EJK's numbers. Options SJK cannot follow yet (ledge grab, the new DFAs, jaPRO's rolls and cartwheels) are not offered _(Sol, after Kushina's idea)_
+- Holstered sabers: `cp_pluginDisable` bit 29 hides them, as in JoF EJK; bit 13, JA+'s single-player cartwheel, no longer does _(Sol, after JoF EJK)_
 - Mystery boxes hold a holocron one time in ten (it was one in fifty), and the roll shows the four tiers' real holocrons, stopping on the one you won. A box that blows up laughs with Sol's own laugh when the SJK extras pack is installed _(Sol)_
 - Centre prints and the words over mystery boxes (and the box hunt's mark) are drawn in Fira Sans Condensed, a real typeface close to the old menu font, instead of a tracing of a low-resolution bitmap _(Sol)_
 - Box hunt: one mark every 10 minutes at most, not one after the other. Hunters see the mark ringed in red, and a black name reads on the hunt's card _(Sol)_

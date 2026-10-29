@@ -1268,6 +1268,22 @@ mod tests {
         assert!(console.shell.cvars.get("jofejk").is_none());
     }
 
+    /// Settings' plugin options and the `japlus.plugin`/`japro.plugin` commands write
+    /// `cp_pluginDisable`; like every userinfo cvar, a change goes to the server.
+    #[test]
+    fn plugin_mask_changes_mark_userinfo_dirty() {
+        use std::sync::atomic::Ordering;
+        let dir = tempfile::tempdir().unwrap();
+        let mut console = super::ViewerConsole::new(dir.path().join("config.cfg")).unwrap();
+        console.userinfo_dirty.store(false, Ordering::Release);
+        console.set_cvar("cp_pluginDisable", "1544");
+        assert!(console.userinfo_dirty.load(Ordering::Acquire));
+        console.userinfo_dirty.store(false, Ordering::Release);
+        console.try_set_cvar("cp_pluginDisable", "1536").unwrap();
+        assert!(console.userinfo_dirty.load(Ordering::Acquire));
+        assert_eq!(console.userinfo().unwrap().plugin_disable, Some(1_536));
+    }
+
     /// A new profile keeps the default 5; a profile saved before the stock units
     /// is rescaled once, and only once.
     #[test]

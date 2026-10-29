@@ -1,3 +1,27 @@
+## JA+ and jaPRO plugin options
+
+29/10/2026, `personal/plugin-options`, based on `main` `0fd6a5e1`, Kushina's idea:
+`cp_pluginDisable` had to be typed as a number. Settings > Mods now shows JA+ plugin options
+(See others in duels, Black sabers, New Force effects, Staff on the back, Holstered sabers)
+and jaPRO plugin options (Black sabers, Respawn where you fell, Checkpoints on screen, in
+chat and in console, Damage numbers, Shots from the centre), each named after the feature
+and On while it is on, whichever way its bit works; `japlus.plugin` and `japro.plugin` are
+JoF EJK's `plugin` with its numbers ([mods.md](mods.md#plugin-options)). The tables are in
+the mods with each bit's polarity and where JoF EJK reads it. Hidden, with the reason kept:
+the bits that change how the server moves the player (JA+ ledge grab, new DFAs and
+single-player cartwheel; jaPRO force jumps, rolls, cartwheels, and the Jawa run, which the
+movement code picks), since SJK's prediction does not follow them, and the JA+ plugin's own
+looks SJK does not draw (new Drain, end-of-duel camera, auto replier, death messages, Sense
+ring, alternate dimension, download redirect). Holstered hilts now follow bit 29, EJK's
+`JAPRO_PLUGIN_HOLSTEREDSABERS`, instead of bit 13 (JA+'s single-player cartwheel).
+Verified on Windows x86_64: the tables' tests in both mods (`the_polarity_follows_the_reference`,
+the EJK order, listings and switching), `sjk_mod::plugin_options`'s (the command saving the mask),
+`settings::plugin_rows::tests` (rows, default and existing masks, the userinfo),
+`plugin_mask_changes_mark_userinfo_dirty`, `contract_detection_overrides_and_plugin_bits`, fmt,
+the workspace build, tests and Clippy (no new warning), and the Mods page in
+`menu_snapshot::sjk_settings_snapshot` (`sjk-settings-plugin-options.png`).
+Not verified: switching them in a match on a JA+ or jaPRO server.
+
 ## Passenger movement prediction
 
 29/10/2026, `fix/prediction-passenger-movement`, based on `main` `9e48ff6d`:

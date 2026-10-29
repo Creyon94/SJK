@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 29/10/2026 | - | Plugin options: JA+ and jaPRO cp_pluginDisable bits as Settings switches
+- 6d1a803 |  | Plugin options: JA+ and jaPRO cp_pluginDisable bits as Settings switches
 + 29/10/2026 | - | Console over chat: a setting, on by default
 - 6d0125a |  | Console over chat: a setting, on by default
 + 29/10/2026 | - | Mystery boxes: the tiers' real holocrons in the roll, Sol's laugh from the extras pack

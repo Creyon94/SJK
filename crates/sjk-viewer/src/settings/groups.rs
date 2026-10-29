@@ -108,6 +108,11 @@ const CHAT_ROWS: &[&str] = &[
     crate::map_blocks::CVAR,
 ];
 
+/// The first row of the JA+ plugin options, under their heading.
+const JAPLUS_PLUGIN_ROW: &str = "japlus.plugin 1";
+/// The first row of the jaPRO plugin options, under their heading.
+const JAPRO_PLUGIN_ROW: &str = "japro.plugin 0";
+
 /// The rows Mods gathers from the classic Game options.
 const MODS_ROWS: &[&str] = &[
     "assetbrowser",
@@ -128,6 +133,30 @@ const MODS_ROWS: &[&str] = &[
     sjk_mod_jof::ABILITY_SOUNDS,
     #[cfg(feature = "mod-jof")]
     sjk_mod_jof::HONOR_NAMES,
+    #[cfg(feature = "mod-japlus")]
+    "japlus.plugin 1",
+    #[cfg(feature = "mod-japlus")]
+    "japlus.plugin 3",
+    #[cfg(feature = "mod-japlus")]
+    "japlus.plugin 5",
+    #[cfg(feature = "mod-japlus")]
+    "japlus.plugin 9",
+    #[cfg(feature = "mod-japlus")]
+    "japlus.plugin 15",
+    #[cfg(feature = "mod-japro")]
+    "japro.plugin 0",
+    #[cfg(feature = "mod-japro")]
+    "japro.plugin 5",
+    #[cfg(feature = "mod-japro")]
+    "japro.plugin 6",
+    #[cfg(feature = "mod-japro")]
+    "japro.plugin 7",
+    #[cfg(feature = "mod-japro")]
+    "japro.plugin 8",
+    #[cfg(feature = "mod-japro")]
+    "japro.plugin 9",
+    #[cfg(feature = "mod-japro")]
+    "japro.plugin 10",
     "jof.downloads",
     "jof.contentSource",
     "sith.downloads",
@@ -401,6 +430,30 @@ impl Group {
                 "jof.downloads",
                 "jof.contentSource",
                 "sith.downloads",
+                #[cfg(feature = "mod-japlus")]
+                "japlus.plugin 1",
+                #[cfg(feature = "mod-japlus")]
+                "japlus.plugin 3",
+                #[cfg(feature = "mod-japlus")]
+                "japlus.plugin 5",
+                #[cfg(feature = "mod-japlus")]
+                "japlus.plugin 9",
+                #[cfg(feature = "mod-japlus")]
+                "japlus.plugin 15",
+                #[cfg(feature = "mod-japro")]
+                "japro.plugin 0",
+                #[cfg(feature = "mod-japro")]
+                "japro.plugin 5",
+                #[cfg(feature = "mod-japro")]
+                "japro.plugin 6",
+                #[cfg(feature = "mod-japro")]
+                "japro.plugin 7",
+                #[cfg(feature = "mod-japro")]
+                "japro.plugin 8",
+                #[cfg(feature = "mod-japro")]
+                "japro.plugin 9",
+                #[cfg(feature = "mod-japro")]
+                "japro.plugin 10",
                 crate::brush_view::CVAR,
                 crate::entity_view::CVAR,
                 crate::ghost_replay::SHOWCASE_CVAR,
@@ -611,6 +664,8 @@ impl Group {
                 ("cg_saberTrail", "Effects"),
                 (crate::hax::TRAP_CVAR, "Toys"),
                 (crate::camera::STYLE_CVAR, "Camera and prediction"),
+                (JAPLUS_PLUGIN_ROW, "JA+ plugin options"),
+                (JAPRO_PLUGIN_ROW, "jaPRO plugin options"),
                 (crate::brush_view::CVAR, "Map tools"),
             ],
             Self::Interface => &[
@@ -665,6 +720,8 @@ impl Group {
             Self::Advanced(Advanced::Mods) => &[
                 ("assetbrowser", "Packs"),
                 ("mod_japlus", "Server mods"),
+                (JAPLUS_PLUGIN_ROW, "JA+ plugin options"),
+                (JAPRO_PLUGIN_ROW, "jaPRO plugin options"),
                 ("jof.downloads", "JoF content"),
                 ("sith.downloads", "Sith cloud"),
                 (crate::brush_view::CVAR, "Map tools"),

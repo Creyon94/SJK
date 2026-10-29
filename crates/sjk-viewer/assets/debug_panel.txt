@@ -24,6 +24,19 @@
 
 # ---- Console & chat ----
 
+[plugin-options]
+area: Menus & settings
+title: JA+ and jaPRO plugin options as switches, and the plugin command (Kushina's idea)
+change: Settings > Mods: JA+ plugin options and jaPRO plugin options, each On while it is on.
+change: japlus.plugin and japro.plugin list them with JoF EJK's numbers, or switch one.
+change: Holstered sabers follow cp_pluginDisable bit 29, as in JoF EJK, no longer bit 13.
+test: Settings > Mods: See others in duels Off, Black sabers On, Staff on the back Off.
+test: Black sabers (JA+) Off: cp_pluginDisable reads 1544; on a JA+ server black blades go orange.
+test: On a JA+ server: japlus.plugin lists 5 options, then Not in SJK yet; japlus.plugin 10 says why.
+test: Staff on the back On, then draw a staff in a JA+ match: it goes over the shoulder.
+test: On a jaPRO race map, Checkpoints in chat On: checkpoint times show in the chat.
+note: The options not offered (ledge grab, new DFA, jaPRO rolls...) and why: docs/mods.md.
+
 [lumaya-japro-race-slicing]
 area: Gameplay
 title: jaPRO race moves predicted as jaPRO cuts them (Lumaya, PR #277)

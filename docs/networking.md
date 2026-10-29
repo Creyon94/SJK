@@ -59,7 +59,8 @@ Player blade tints in a player configstring's `c3`/`c4` keys are read for every
 profile; the JA+ 2.4 server module formats both keys too. The JA+ client
 plugin's `serverconfig` and `pluginDisable` commands are the JA+ tools mod's
 `japlus.serverconfig` and `japlus.plugin` ([mods.md](mods.md)); the setting stays
-in the core client.
+in the core client. Settings switches its bits one at a time, named after their
+feature, and `japro.plugin` lists jaPRO's ([plugin options](mods.md#plugin-options)).
 
 ### Player text
 
