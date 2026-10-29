@@ -367,6 +367,17 @@ than stopping him: missiles (`ET_MISSILE`) are now left out of the prediction's 
 list altogether
 ([prediction_movers.rs](../crates/sjk-viewer/src/prediction_movers.rs)).
 
+### Remote vehicle collision
+
+Remote vehicle hulls use the loaded `.veh` dimensions and the presented pose,
+as codemp `CG_ClipMoveToEntities` calls `BG_VehicleAdjustBBoxForOrientation`.
+Fighter/flier bounds expand around the nose, tail and wingtips; other vehicle
+types use their definition's static width and height. Missing definitions or
+zero dimensions retain the packed snapshot hull. Definition data is cached by
+model slot and refreshed on encountered model-configstring changes, outside
+command replay. The local vehicle shares the geometry helper and keeps its
+clearance check; remote collision follows stock's no-clearance-callback path.
+
 ### When prediction steps aside
 
 These cases show the server's state instead of predicting, as JoF EternalJK's

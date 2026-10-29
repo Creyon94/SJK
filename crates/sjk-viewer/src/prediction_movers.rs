@@ -51,6 +51,7 @@ impl Trajectory {
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Collider {
     pub(crate) rocket_target: sjk_game_jka::pmove::RocketLockTarget,
+    vehicle_bounds: Option<sjk_game_jka::vehicle_bounds::VehicleBounds>,
     pub(crate) entity: u16,
     pub(crate) model: usize,
     pub(crate) bounds: Option<sjk_bsp::Aabb>,
@@ -94,6 +95,7 @@ impl Collider {
                 actor: false,
                 powerups: 0,
             },
+            vehicle_bounds: None,
             model: mover.model_index,
             bounds: None,
             origin: mover.origin,
@@ -157,6 +159,7 @@ impl Collider {
                 actor: matches!(state.entity_type(), 1 | 13),
                 powerups: state.powerups(),
             },
+            vehicle_bounds: None,
             model: state.model_index() as usize,
             bounds,
             origin: position.position(physics_time),
@@ -184,6 +187,9 @@ impl Collider {
                 && !self.mover
                 && (TR_LINEAR..=TR_GRAVITY).contains(&self.position.kind)
                 && time < self.position.start;
+            if self.vehicle_bounds.is_some() {
+                self.orient_vehicle(self.angular.angles(time));
+            }
             return;
         }
         let angles = self.angular.angles(time);
@@ -191,6 +197,15 @@ impl Collider {
         self.axes = rotation_axes(angles);
         self.contents_origin = self.position.position(time);
         self.contents_axes = self.rotated.then_some(self.axes);
+    }
+
+    fn orient_vehicle(&mut self, angles: [f32; 3]) {
+        if let Some(shape) = self.vehicle_bounds {
+            let (mins, maxs) = shape.at(self.origin, angles);
+            if let Ok(bounds) = sjk_bsp::Aabb::new(mins, maxs) {
+                self.bounds = Some(bounds);
+            }
+        }
     }
 
     /// The same solid where its trajectories put it at `time`, moved and turned alike
@@ -230,6 +245,8 @@ mod rocket_target_tests {
 /// and a displayed snapshot each own one list: their trajectories may differ
 /// at lift starts/stops and must not be silently mixed.
 pub(crate) struct Movers {
+    vehicle_models: Vec<Option<sjk_game_jka::vehicle_bounds::VehicleBounds>>,
+    vehicle_models_revision: Option<u64>,
     /// CG_BuildSolidList's separate trigger list (cg_predict.c:68-80).
     pub(crate) triggers: Vec<sjk_client::prediction_items::PredictionTrigger>,
     pub(crate) colliders: Vec<Collider>,
@@ -247,6 +264,8 @@ impl Movers {
     pub(crate) fn new() -> Self {
         Self {
             triggers: Vec::with_capacity(ENTITY_SLOTS),
+            vehicle_models: Vec::new(),
+            vehicle_models_revision: None,
             colliders: Vec::with_capacity(ENTITY_SLOTS),
             by_entity: vec![None; ENTITY_SLOTS].into_boxed_slice(),
             sequence: None,
@@ -323,9 +342,18 @@ impl Movers {
             if self.duel_isolation && sjk_client::duel_passes_through(&snapshot.player, state) {
                 continue;
             }
-            if let Some(collider) =
+            if let Some(mut collider) =
                 Collider::from_entity(state, snapshot.server_time, angle_time, self.smooth_clients)
             {
+                if state.entity_type() == 13 && state.npc_class() == 53 && collider.bounds.is_some()
+                {
+                    collider.vehicle_bounds = self
+                        .vehicle_models
+                        .get(state.model_index() as usize)
+                        .copied()
+                        .flatten();
+                    collider.orient_vehicle(collider.angular.angles(angle_time));
+                }
                 self.by_entity[usize::from(collider.entity)] = Some(self.colliders.len());
                 self.colliders.push(collider);
             }
@@ -336,6 +364,20 @@ impl Movers {
         for collider in &mut self.colliders {
             collider.set_angle_time(time);
         }
+    }
+
+    pub(crate) fn set_vehicle_bounds(
+        &mut self,
+        revision: u64,
+        bounds: &[Option<sjk_game_jka::vehicle_bounds::VehicleBounds>],
+    ) {
+        if self.vehicle_models_revision == Some(revision) {
+            return;
+        }
+        self.vehicle_models_revision = Some(revision);
+        self.vehicle_models.clear();
+        self.vehicle_models.extend_from_slice(bounds);
+        self.sequence = None;
     }
 
     pub(crate) fn set_permanents(&mut self, game: Option<&sjk_protocol::GameState>) {
@@ -406,8 +448,17 @@ impl Movers {
                 let a = before.position.position(shown.snapshot_time);
                 let b = collider.position.position(self.snapshot_time);
                 collider.origin = std::array::from_fn(|i| a[i] + fraction * (b[i] - a[i]));
+                if collider.vehicle_bounds.is_some() {
+                    let a = before.angular.angles(shown.snapshot_time);
+                    let b = collider.angular.angles(self.snapshot_time);
+                    collider
+                        .orient_vehicle(std::array::from_fn(|i| lerp_angle(a[i], b[i], fraction)));
+                }
             } else {
                 collider.origin = before.position.position(time);
+                if collider.vehicle_bounds.is_some() {
+                    collider.orient_vehicle(before.angular.angles(time));
+                }
             }
         }
     }
@@ -464,6 +515,17 @@ impl super::LocalPrediction {
         self.physics_movers.set_smooth_clients(enabled);
         self.render_movers.set_smooth_clients(enabled);
     }
+}
+
+/// `LerpAngle`: interpolate across the shortest wrapped turn.
+fn lerp_angle(from: f32, mut to: f32, fraction: f32) -> f32 {
+    if to - from > 180.0 {
+        to -= 360.0;
+    }
+    if to - from < -180.0 {
+        to += 360.0;
+    }
+    from + fraction * (to - from)
 }
 
 /// `CreateRotationMatrix` / `AngleVectors`: rows of world-to-model rotation.

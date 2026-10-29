@@ -1,10 +1,14 @@
 ## Remote vehicle prediction hulls
 
 29/10/2026, `fix/prediction-remote-vehicle-box`, based on `main` `e702b0b1`:
-source comparison confirms the viewer keeps a packed remote-vehicle box where
-OpenJK `4d0dfaf1` multiplayer `CG_ClipMoveToEntities` calls
-`BG_VehicleAdjustBBoxForOrientation` with the presented pose. A fighter/flier
-collision correction is under review; live vehicle contacts remain unverified.
+remote vehicle collision now applies definition-owned dimensions at the
+presented pose. Local movement shares the geometry and retains its clearance
+check. Reference: OpenJK `4d0dfaf1`, multiplayer `CG_ClipMoveToEntities` and
+`BG_VehicleAdjustBBoxForOrientation`. On Windows x64, 36 bounds fixtures emitted
+by MSVC-compiled OpenJK cover fighters, fliers, static vehicles, large origins
+and 8/7/4/3 ms orientation samples. Synthetic trace, interpolation, model-change
+and warmed-allocation tests accompany the change. Live vehicle contacts,
+community vehicle coverage and rendered FPS remain unverified.
 
 ## Passenger movement prediction
 
