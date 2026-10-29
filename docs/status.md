@@ -76,6 +76,14 @@ animation. It deliberately retains the clear-trace impulse (`fraction <= 1`).
 Reference: OpenJK multiplayer `bg_pmove.c:2057-2085`, revision `4d0dfaf1`.
 Windows x64 synthetic tests cover command steps 8/7/4/3 ms and the jump gates;
 zero-gravity map play against a live OpenJK server remains unverified.
+## Prediction: trigger collision hull
+
+29/10/2026, `fix/prediction-trigger-hull`, based on `main` `e702b0b1`:
+brush-trigger prediction reads the actual Pmove box instead of reconstructing it
+from the final posture flags. Reference: OpenJK multiplayer `cg_predict.c:722`
+at `4d0dfaf1`. Focused synthetic tests exercise 8/7/4/3 ms commands and hull/flag
+mismatches. Verification environment: Windows x64; live OpenJK trigger contacts
+and retail/community maps remain unverified.
 
 ## Synced emote music back from alt-tab in step
 

@@ -555,3 +555,11 @@ A held jump latch and the grounded no-jump gate still suppress the branch.
 Reference: `codemp/game/bg_pmove.c:2057-2085` at `4d0dfaf1`.
 Synthetic tests cover 8/7/4/3 ms, negative gravity, clear/blocked traces, pitch/yaw,
 animation and jump gates. Zero-gravity maps against a live server remain unverified.
+### Use the Pmove hull for predicted trigger contact
+
+Brush-trigger prediction uses the exact collision box left by the final Pmove slice,
+including a roll transition whose final posture flags describe a different hull.
+This follows OpenJK `codemp/cgame/cg_predict.c:722` at `4d0dfaf1`;
+items retain their separate proximity test. Unit tests cover 8/7/4/3 ms commands
+and both directions of a standing/crouching hull mismatch. Live trigger timing
+against an OpenJK server remains unverified.
