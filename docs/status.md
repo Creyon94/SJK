@@ -84,6 +84,14 @@ from the final posture flags. Reference: OpenJK multiplayer `cg_predict.c:722`
 at `4d0dfaf1`. Focused synthetic tests exercise 8/7/4/3 ms commands and hull/flag
 mismatches. Verification environment: Windows x64; live OpenJK trigger contacts
 and retail/community maps remain unverified.
+## Held-player movement restriction
+
+29/10/2026, `fix/prediction-held-client`, based on `main` `e702b0b1`:
+the movement adapter reads existing player field 121 (`heldByClient`) and
+filters movement in codemp's branch order. Reference: OpenJK `4d0dfaf1`,
+`codemp/game/bg_pmove.c:10283`. Synthetic Windows x64 tests cover 8/7/4/3 ms,
+retained look/attack and snapshot release. Live carried-player behavior remains
+unverified; the protocol schema and game ownership are unchanged.
 
 ## Synced emote music back from alt-tab in step
 

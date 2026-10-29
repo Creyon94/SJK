@@ -276,6 +276,8 @@ pub struct MovementState {
     /// Authoritative base speed restored before compatibility modifiers.
     pub base_speed: f32,
     pub ground_entity_number: u16,
+    /// `heldByClient`: nonzero while another client holds this player. Game-owned.
+    pub held_by_client: u8,
     /// Eight-sector strafe direction published for cgame leg/torso yaw
     /// (`PM_SetMovementDir`).
     pub movement_direction: i8,
@@ -580,6 +582,7 @@ impl MovementState {
             speed: player.speed(),
             base_speed: player.raw_field(37).unwrap_or(0) as i32 as f32,
             ground_entity_number: player.ground_entity_num(),
+            held_by_client: player.raw_field(121).unwrap_or(0) as u8,
             movement_direction: player.movement_direction(),
             view_angles: player.view_angles(),
             delta_angles: player.delta_angles(),
