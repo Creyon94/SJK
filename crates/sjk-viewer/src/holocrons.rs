@@ -630,7 +630,11 @@ mod tests {
             resets_at: None,
             ..capped
         };
-        assert_eq!(cap_lifts_in(&old_hub, now), None, "a hub before does not say");
+        assert_eq!(
+            cap_lifts_in(&old_hub, now),
+            None,
+            "a hub before does not say"
+        );
         let open = HolocronProgress { today: 3, ..capped };
         assert_eq!(cap_lifts_in(&open, now), None, "not capped");
     }
