@@ -80,10 +80,15 @@ pub(crate) enum Counter {
     DuelStyleRed,
     DuelStyleDual,
     DuelStyleStaff,
+    /// Players struck with a monitor during the player's Screen Saver who raised it
+    /// (`monitor/saver.rs`).
+    MonitorPayback,
+    /// Screen Savers during which the player struck three different players.
+    MonitorSurge,
 }
 
 impl Counter {
-    const COUNT: usize = 22;
+    const COUNT: usize = 24;
     const ALL: [Self; Self::COUNT] = [
         Self::Kills,
         Self::SaberKills,
@@ -107,6 +112,8 @@ impl Counter {
         Self::DuelStyleRed,
         Self::DuelStyleDual,
         Self::DuelStyleStaff,
+        Self::MonitorPayback,
+        Self::MonitorSurge,
     ];
 
     /// Its name in `achievements.json`.
@@ -134,6 +141,8 @@ impl Counter {
             Self::DuelStyleRed => "duel_style_red",
             Self::DuelStyleDual => "duel_style_dual",
             Self::DuelStyleStaff => "duel_style_staff",
+            Self::MonitorPayback => "monitor_paybacks",
+            Self::MonitorSurge => "monitor_surges",
         }
     }
 
@@ -265,7 +274,7 @@ use Counter as C;
 use Source::{Client, Hub};
 
 /// Every achievement, in the hub's catalogue order.
-pub(crate) const ALL: [Kind; 40] = [
+pub(crate) const ALL: [Kind; 42] = [
     kind(
         "first_blood",
         "First Blood",
@@ -591,6 +600,24 @@ pub(crate) const ALL: [Kind; 40] = [
         Duels,
         Client(C::DuelStyleStaff),
     ),
+    // Since 29/10/2026 (Sol's Screen Saver, `monitor/saver.rs`).
+    kind(
+        "monitor_payback",
+        "Payback",
+        "During your Screen Saver, hit the player whose monitor set it off.",
+        1,
+        Toys,
+        Client(C::MonitorPayback),
+    ),
+    kind(
+        "monitor_surge",
+        "Power Surge",
+        "Hit 3 different players with monitors during one Screen Saver.",
+        1,
+        Toys,
+        Client(C::MonitorSurge),
+    )
+    .secret(),
 ];
 
 /// How many achievements can still be earned (every one but the retired).
@@ -1208,6 +1235,16 @@ pub(crate) fn forget(id: Option<&str>) {
     shared.dirty = true;
 }
 
+/// One more of `counter`, a moment a toy saw rather than the snapshots' tracker (the
+/// Screen Saver's achievements); the caller keeps to live matches on servers, as the
+/// tracker does.
+pub(crate) fn note(counter: Counter) {
+    update(|record| {
+        record.add(counter, 1);
+        true
+    });
+}
+
 /// The record's counts, for the profile's numbers.
 pub(crate) fn count(counter: Counter) -> u64 {
     lock().record.count(counter)
@@ -1275,6 +1312,8 @@ mod tests {
                 "style_red_50",
                 "style_dual_50",
                 "style_staff_50",
+                "monitor_payback",
+                "monitor_surge",
             ]
         );
         assert_eq!(ALL[20].id, "decorated");
@@ -1286,7 +1325,7 @@ mod tests {
             crate::cards::FINISHES.len() as u64
         );
         let hidden: Vec<&str> = ALL.iter().filter(|k| k.hidden).map(|k| k.id).collect();
-        assert_eq!(hidden, ["mythical_find"]);
+        assert_eq!(hidden, ["mythical_find", "monitor_surge"]);
         let retired: Vec<&str> = ALL.iter().filter(|k| k.retired).map(|k| k.id).collect();
         assert_eq!(retired, ["surveyor"]);
         assert_eq!(OBTAINABLE, ALL.len() - 1);

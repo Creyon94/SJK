@@ -1185,6 +1185,12 @@ ahead) and 30 seconds or more after the last one it took on that server; the hub
 quota (one toy event a second, ten a minute per key) still applies. The client takes
 the hub's toy events once a frame and hands them to every toy (`identity_frame.rs`).
 
+The Monitor's Screen Saver (since 29/10/2026, no hub change,
+[client.md](client.md#monitor)) is told the same way: toy `monitor`, event
+`saver_<until>` (the game server time it ends, at most 31 seconds ahead of the reader's)
+when it rises, and `saver_off` if the player dies before, to the player whose monitor
+raised it (any other slot would do; the readers ignore the target).
+
 ## Toy relay
 
 The toy relay (since 21/10/2026, Sol-Vulpes/SJK-hub, `PROTOCOL.md`, "Toy relay")
