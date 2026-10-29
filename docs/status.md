@@ -18,6 +18,19 @@ focus, the console open and the Collection showing (`emote_end_debug`). Verified
 `going_away_leaves_a_held_ja_plus_emote_alone`, `only_what_could_end_an_emote_counts`,
 `the_end_of_a_freeze_names_the_crouch_before_it`, fmt, build, Clippy and the workspace's tests.
 Not tried in a game.
+## Model colour sliders
+
+29/10/2026, `feat/model-rgb` (Creyon), based on `main` `e702b0b1`: JoF EJK's profile has
+R, G and B sliders (`ui_char_color_*`) for the skins its RGB team colour lists (`/rgb`);
+SJK set the colour only with `amcolor`. The SJK UI's Character page now gives a model the
+colour shows on (a shader of it reads the entity colour, found when the stage loads it; many
+RGB models have no `rgb` skin, Creyon's test) or an `rgb` skin three slider rows under the grid (arrows, click or drag, typed number),
+the stage model wears the colour at once (entity colour on its instance) and Apply writes
+`char_color_*` with the model; the grid's pictures are not tinted, and other models show
+no sliders ([model_rgb.rs](../crates/sjk-viewer/src/player_menu/model_rgb.rs)). Creyon's first
+try crashed at start: the stage's instance buffer could not be written (now `COPY_DST`).
+Verified on Linux x86_64: tests in `player_menu::model_rgb`, fmt, workspace build, tests and
+Clippy. Not verified: in game.
 
 ## Synced emote music back from alt-tab in step
 

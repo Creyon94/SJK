@@ -32,12 +32,6 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
-- Hosted games: Force refills at the pace `g_forceRegenTime` sets (it was always 200 ms), and in private duels at `g_saberDuelForceRegenTime`, as in EternalJK _(Slash, PR #243)_
-- Away emote: going away no longer gets you up from a JA+ emote you chose (amsit5, ammeditate) with a JA+ away emote set; `cg_debugEmoteEnd 1` says in the console what came just before a JA+ emote ended _(Slash, PR #244, after Rollembones' report)_
-- A light-side body fading away glows blue over it as in the original game, instead of a faint, pixelated blue speckle (hub report #190) _(Slash, PR #245)_
-- Chat: Block for this map and Block for all on a player's card in the game chat work; a click on them was lost _(Slash)_
-- A mod's notice (JoF: SJK chat is said in All chat) no longer closes for good when you jump as it opens: it takes no input for its first 0.6 s, and Space no longer closes it _(Slash)_
-- Blocking: a player blocked for this map, or by SJK staff, can no longer reach you with encrypted whispers either (no console line, flash or sound), as with game chat _(Slash)_
 - Mystery boxes hold a holocron one time in ten (it was one in fifty), and the roll shows the four tiers' real holocrons, stopping on the one you won. A box that blows up laughs with Sol's own laugh when the SJK extras pack is installed _(Sol)_
 - Centre prints and the words over mystery boxes (and the box hunt's mark) are drawn in Fira Sans Condensed, a real typeface close to the old menu font, instead of a tracing of a low-resolution bitmap _(Sol)_
 - Box hunt: one mark every 10 minutes at most, not one after the other. Hunters see the mark ringed in red, and a black name reads on the hunt's card _(Sol)_
@@ -59,7 +53,14 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Trading: a refusal (such as "Two accounts on one connection cannot trade with each other") shows once instead of again at every map change _(Creyon, PR #211)_
 - Exclusive fullscreen: Alt+Tab and Win+D now send the game to the taskbar, as in the original game, instead of leaving it as a window over the desktop _(Creyon, PR #238)_
 - Blocking: a blocked player's chat no longer shows in the console either, as it already did not in the chat box, and the console's kill lines name them BLOCKED as the kill feed does _(Creyon, PR #239)_
+- Hosted games: Force refills at the pace `g_forceRegenTime` sets (it was always 200 ms), and in private duels at `g_saberDuelForceRegenTime`, as in EternalJK _(Slash, PR #243)_
+- Away emote: going away no longer gets you up from a JA+ emote you chose (amsit5, ammeditate) with a JA+ away emote set; `cg_debugEmoteEnd 1` says in the console what came just before a JA+ emote ended _(Slash, PR #244, after Rollembones' report)_
+- A light-side body fading away glows blue over it as in the original game, instead of a faint, pixelated blue speckle (hub report #190) _(Slash, PR #245)_
 - Light shafts: the sun shading they bring onto floors is now computed exactly as the floor itself, a likely cause of floors flickering with them on, on some graphics cards (#193; the flicker did not show on the test machine, so tell us if it stays) _(Slash, PR #246)_
+- Chat: Block for this map and Block for all on a player's card in the game chat work; a click on them was lost _(Slash, PR #256)_
+- A mod's notice (JoF: SJK chat is said in All chat) no longer closes for good when you jump as it opens: it takes no input for its first 0.6 s, and Space no longer closes it _(Slash, PR #257)_
+- Blocking: a player blocked for this map, or by SJK staff, can no longer reach you with encrypted whispers either (no console line, flash or sound), as with game chat _(Slash, PR #258)_
+- Profile > Character: a model that can be coloured gets Red, Green and Blue sliders under the model grid, as in JoF EJK; the model on the stage shows the colour at once and Apply wears it (the grid's pictures stay as they are) _(Creyon, PR #269)_
 
 ## 2026.1028.1 (Alpha) | 28/10/2026
 

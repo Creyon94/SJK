@@ -24,6 +24,63 @@
 
 # ---- Console & chat ----
 
+[slash-force-regen]
+area: Gameplay
+title: Force refills at g_forceRegenTime on hosted games (Slash, PR #243)
+change: The server reads g_forceRegenTime; private duels use g_saberDuelForceRegenTime.
+test: g_forceRegenTime 50, devmap: Force comes back about four times faster.
+test: Private duel on that server: Force refills at g_saberDuelForceRegenTime (200).
+
+[slash-away-held-emote]
+area: Gameplay
+title: Going away leaves a chosen JA+ emote alone (Slash, PR #244, hub #196)
+change: No away emote over a JA+ emote holding you, no crouch on the way back.
+change: cg_debugEmoteEnd 1 prints what came just before a JA+ emote let go.
+test: JA+ server, japlus.awayEmote set, /ammeditate, alt-tab out and back: still seated.
+test: cg_debugEmoteEnd 1, stand up from the emote: one ^3emote ended line in the console.
+
+[slash-body-fade-glow]
+area: Rendering & effects
+title: Light side body fade glows blue as in the original game (Slash, PR #245, hub #190)
+change: personalshield's GL_DST_COLOR GL_ONE blended in display space for the body fade.
+test: Kill a light side player and watch the body fade: a clear blue glow, no speckle.
+test: r_sceneHdr 0 (Vanilla): the glow still shows, a little weaker.
+
+[slash-light-shafts-flicker]
+area: Rendering & effects
+title: Light shafts without flickering floors (Slash, PR #246, hub #193)
+change: The sun shadow receiver's position is invariant for its equal depth test.
+test: r_volumetrics 2, devmap mp/ffa2, walk indoors: floors shade steadily, no speckle.
+note: The flicker never showed on Slash's machine; check on yours.
+
+[slash-chat-card-block]
+area: Console & chat
+title: The chat card's Block buttons take their click (Slash, PR #256)
+change: Block for this map and Block for all are buttons of their own for the press.
+test: Chat open, hover a name, click Block for this map: they read BLOCKED.
+test: With a staff key, Block for all: blocked for everyone on the server.
+
+[slash-mod-notice-settle]
+area: Menus & settings
+title: The mod notice ignores a jump as it opens (Slash, PR #257)
+change: No key or click for 0.6 s after it opens; Space no longer closes it.
+test: jof.sjkChatNotice 1, join a JoF server, jump as the card opens: it stays.
+test: Enter or Escape after a moment: it closes, jof.sjkChatNotice reads 0.
+
+[slash-whisper-blocks]
+area: Console & chat
+title: Blocked players' encrypted whispers stay out (Slash, PR #258)
+change: A whisper from a player blocked for the map or by staff is dropped.
+test: Block a player for this map, have them whisper you: no line, flash or sound.
+
+[creyon-model-rgb]
+area: Menus & settings
+title: RGB sliders for colourable models in Profile (Creyon, PR #269)
+change: Red, Green and Blue rows under the model grid, 0-255; the stage shows the colour.
+test: Profile > Character, pick an RGB model: three sliders above Apply.
+test: Drag Red: the stage model turns red at once; the grid pictures stay as they are.
+test: Apply, join a server: others see the colour. A plain model shows no sliders.
+
 [slash-oot-floor]
 area: Rendering & effects
 title: oot's sand floor lit: a shader named twice keeps its first (Slash, PR #242, hub #175)
