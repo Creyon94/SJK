@@ -415,6 +415,7 @@ fn main() {
     if let Err(error) = app_launch::run() {
         log::progress(format_args!("sjk: {error}"));
         crash_report::fatal_error(&error.to_string());
+        show_start_failure(&error.to_string());
         std::process::exit(1);
     }
     crash_report::clean_exit();
@@ -424,6 +425,22 @@ fn main() {
     // After the settings were saved on the way out, start an installed update.
     update::restart_if_requested();
 }
+/// Tell the player why the game closed: a release build on Windows has no console, so
+/// without this the window only vanished (a laptop with two graphics cards, #sjk player
+/// chat 28-29/10/2026).
+fn show_start_failure(error: &str) {
+    let _ = rfd::MessageDialog::new()
+        .set_level(rfd::MessageLevel::Error)
+        .set_title("SJK could not start")
+        .set_description(format!(
+            "{error}
+
+On a laptop with two graphics cards, set sjk.exe to the fast card              (NVIDIA Control Panel > Manage 3D settings, or Windows Settings > Display >              Graphics > High performance) and start it again. Updating the graphics              driver can help too."
+        ))
+        .set_buttons(rfd::MessageButtons::Ok)
+        .show();
+}
+
 mod gpu_vertex;
 use gpu_vertex::GpuVertex;
 

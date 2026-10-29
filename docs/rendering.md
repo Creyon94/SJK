@@ -597,6 +597,33 @@ materials are the model's), until the map changes: a player cycling skins adds o
 An install over 4 ms logs `model install <model>: X ms (materials, geometry for N
 vertices, skin)`, a pooled body `body copy <model>: ...`. Not measured since.
 
+## Which graphics card
+
+On a laptop with two graphics cards (an integrated one and an NVIDIA or AMD one) the
+driver chooses the card when the program starts. Before 29/10/2026 some such laptops
+started `sjk.exe` on the integrated card and the game closed at once, with nothing on
+screen (SimpleSmokie, 28/10/2026; Nib found that setting `sjk.exe` to the NVIDIA card in
+the NVIDIA Control Panel fixed it). Three things handle it now:
+
+- **The drivers' hints.** `sjk.exe` exports `NvOptimusEnablement` and
+  `AmdPowerXpressRequestHighPerformance`, both 1, which NVIDIA Optimus and AMD
+  switchable graphics read to start a program on the fast card
+  ([gpu_hints.c](../crates/sjk-viewer/src/gpu_hints.c), compiled by the client's
+  `build.rs` on Windows only: the client's Rust forbids the unmangled statics; `/INCLUDE`
+  keeps the object in the link). A player's own choice in the driver's or Windows'
+  settings still wins.
+- **Another card when one fails.** The device opens on the adapter wgpu picks for high
+  performance; if that fails, every other adapter that can draw to the window is tried,
+  discrete before integrated and Vulkan before DX12, each failure written to the log
+  ([gpu_context.rs](../crates/sjk-viewer/src/gpu_context.rs), `open_device`).
+- **A message when nothing opens.** A start that fails shows a dialog with the error and
+  what to try (setting `sjk.exe` to the fast card, updating the driver) before the
+  game closes, as well as the crash report (`main.rs`, `show_start_failure`); a release
+  build on Windows has no console.
+
+Not verified on a laptop with two cards: the exports are checked in the built
+`sjk.exe`'s export table, the fallback and the dialog only by building.
+
 ## Graphics reload
 
 The settings read only when the graphics context is made (`r_sceneHdr`, `r_fxaa`,
