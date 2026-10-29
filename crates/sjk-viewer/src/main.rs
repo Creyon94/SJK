@@ -724,6 +724,8 @@ struct GpuState {
     /// screen with retail's opaque menu or loading screen.
     world_hidden: bool,
     applied_resolution: [u32; 2],
+    /// Whether [`Self::applied_resolution`] counted pixels or points (`r_highDpi`).
+    applied_high_dpi: bool,
     /// Monitor refresh rate behind `com_maxfps -1`, re-read at most once a second.
     refresh_cap: std::cell::Cell<Option<(Instant, u32)>>,
     frame_pacer: frame_pacing::FramePacer,
@@ -1663,6 +1665,7 @@ impl GpuState {
             display_changed_at: Instant::now(),
             world_hidden: false,
             applied_resolution: [size.width, size.height],
+            applied_high_dpi: true,
             refresh_cap: std::cell::Cell::new(None),
             frame_pacer: frame_pacing::FramePacer::new(),
             upper_right_rate: String::with_capacity(16),

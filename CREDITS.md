@@ -877,7 +877,9 @@ with Apple Silicon, and reported that the game aborted on choosing fullscreen, i
 frame rate on Metal and that Cmd+Tab did not work. Sol kept macOS to borderless
 fullscreen after that crash report (25/10/2026). Glen then reported fullscreen
 showing the game as a small window in the middle of a black screen (29/10/2026):
-the client asked the fullscreen window for the `r_resolution` size.
+the client asked the fullscreen window for the `r_resolution` size. Glen's frame
+rate once fullscreen worked led to `r_highDpi` (29/10/2026): on a Mac, window sizes
+and the world's resolution count the screen's points, as in EternalJK.
 
 Blep, a player, reported that a whisper ending with a backslash left unencrypted
 through the game server; Sol fixed it (26/10/2026).

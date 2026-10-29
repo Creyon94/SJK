@@ -971,6 +971,7 @@ mod tests {
             ],
             desktop: Some([3840, 2160]),
             exclusive: true,
+            scale: 1.0,
         }
     }
 

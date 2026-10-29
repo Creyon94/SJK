@@ -325,6 +325,11 @@ const HELP: &[(&str, &str)] = &[
         "The window's size, or the screen mode in exclusive fullscreen. Enter opens the list of sizes.",
     ),
     (
+        super::display::HIGH_DPI_CVAR,
+        "On: sizes and the world in the screen's pixels, sharpest on Retina. \
+         Off: in points, as EternalJK on a Mac, much faster.",
+    ),
+    (
         "r_fullscreen",
         "Windowed, borderless (fills the desktop) or exclusive fullscreen (sets the monitor's mode).",
     ),

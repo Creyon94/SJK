@@ -34,8 +34,9 @@ pub(crate) use catalog::IMPORT_ROW;
 use catalog::*;
 pub(crate) use catalog::{FIRST_SETUP_CAPTION, RESOLUTIONS};
 pub(crate) use display::{
-    DisplayMode, EXCLUSIVE_CVAR, MonitorModes, exclusive_supported, exclusive_video_mode,
-    minimise_after_focus, suspended_after_focus, window_size_request,
+    DisplayMode, EXCLUSIVE_CVAR, HIGH_DPI_CVAR, HIGH_DPI_DEFAULT, MonitorModes,
+    exclusive_supported, exclusive_video_mode, high_dpi, minimise_after_focus,
+    suspended_after_focus, window_size, window_size_request,
 };
 pub(crate) use groups::{Advanced, Group, Simple};
 use resolution::{PickResult, ResolutionChoice, ResolutionPicker};

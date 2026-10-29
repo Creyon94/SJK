@@ -131,6 +131,11 @@ pub(super) const VIDEO: &[Setting] = &[
         kind: ValueKind::Resolution,
     },
     Setting {
+        label: "High DPI (reload)",
+        cvar: super::display::HIGH_DPI_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Display mode",
         cvar: "r_fullscreen",
         kind: ValueKind::DisplayMode,

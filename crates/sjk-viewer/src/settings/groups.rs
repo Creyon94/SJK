@@ -562,6 +562,7 @@ impl Group {
             ],
             Self::Display => &[
                 "r_resolution",
+                super::display::HIGH_DPI_CVAR,
                 "r_fullscreen",
                 "r_vsync",
                 "com_maxfps",
@@ -590,6 +591,7 @@ impl Group {
             Self::Simple(Simple::Display) => &[
                 "r_resolution",
                 crate::frame_target::scale::CVAR,
+                super::display::HIGH_DPI_CVAR,
                 "r_fullscreen",
                 "r_vsync",
                 "com_maxfps",
