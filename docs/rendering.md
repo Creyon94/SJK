@@ -620,7 +620,9 @@ the NVIDIA Control Panel fixed it). Three things handle it now:
 - **A message when nothing opens.** A start that fails shows a dialog with the error and
   what to try (setting `sjk.exe` to the fast card, updating the driver) before the
   game closes, as well as the crash report (`main.rs`, `show_start_failure`); a release
-  build on Windows has no console.
+  build on Windows has no console. `SJK_NO_START_DIALOG` set leaves the dialog out, for
+  unattended runs: the release's package smoke check, whose client fails on purpose,
+  hung on the macOS runner until it timed out (29/10/2026).
 
 Not verified on a laptop with two cards: the exports are checked in the built
 `sjk.exe`'s export table, the fallback and the dialog only by building.
