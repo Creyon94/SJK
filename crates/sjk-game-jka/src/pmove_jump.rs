@@ -3,11 +3,85 @@
 //! ([`super::force_jump`]), the special jumps off walls
 //! ([`super::wall_moves`]) and the ordinary jump.
 //!
-//! The `PMF_RESPAWNED` gate remains outside this port's jump checks. The
-//! zero-gravity branch deliberately preserves codemp's `fraction <= 1` test,
-//! including its impulse on a clear backward trace.
+//! Jumping observes the respawn latch before Force-jump upkeep. The
+//! zero-gravity branch preserves codemp's `fraction <= 1` test, including
+//! its impulse on a clear backward trace.
 
 use super::wall_moves::JumpRules;
+#[cfg(test)]
+mod respawn_tests {
+    use super::*;
+    use crate::pmove::{MovementConfig, MovementState, MovementTrace};
+    struct Floor;
+    impl MovementCollision for Floor {
+        fn trace(
+            &self,
+            start: [f32; 3],
+            _: [f32; 3],
+            _: [f32; 3],
+            end: [f32; 3],
+            _: u32,
+        ) -> MovementTrace {
+            if end[2] < start[2] && start[2] <= 24.0 {
+                MovementTrace {
+                    fraction: 0.0,
+                    end_position: start,
+                    plane_normal: [0.0, 0.0, 1.0],
+                    entity_number: super::super::ENTITY_NUMBER_WORLD,
+                    ..MovementTrace::miss(end)
+                }
+            } else {
+                MovementTrace::miss(end)
+            }
+        }
+    }
+    #[test]
+    fn respawn_jump_waits_for_attack_and_use_release() {
+        for step in [8, 7, 4, 3] {
+            for button in [1, 4] {
+                let mut predictor = Predictor::from_state(
+                    MovementState {
+                        health: 100,
+                        gravity: 800.0,
+                        origin: [0.0, 0.0, 24.0],
+                        standing_height: 40.0,
+                        crouching_height: 16.0,
+                        ground_entity_number: super::super::ENTITY_NUMBER_WORLD,
+                        movement_flags: PMF_RESPAWNED,
+                        ..MovementState::default()
+                    },
+                    MovementConfig::default(),
+                );
+                predictor.predict_command(
+                    UserCommand {
+                        server_time: step,
+                        up_move: 127,
+                        buttons: button,
+                        ..UserCommand::default()
+                    },
+                    &Floor,
+                );
+                assert_eq!(
+                    predictor.state().movement_flags & PMF_RESPAWNED,
+                    PMF_RESPAWNED
+                );
+                assert_eq!(predictor.state().velocity[2], 0.0);
+                predictor.predict_command(
+                    UserCommand {
+                        server_time: step * 2,
+                        up_move: 127,
+                        ..UserCommand::default()
+                    },
+                    &Floor,
+                );
+                assert_eq!(predictor.state().movement_flags & PMF_RESPAWNED, 0);
+                assert!(predictor.state().velocity[2] > 0.0);
+            }
+        }
+    }
+}
+/// `PMF_RESPAWNED` (`codemp/game/bg_public.h`).
+const PMF_RESPAWNED: u16 = 512;
 use super::{
     Bounds, GroundState, JUMP_VELOCITY, MAX_CLIENTS, MoveContext, MovementCollision, PMF_JUMP_HELD,
     Predictor,
@@ -62,6 +136,11 @@ impl Predictor {
             )
             || state.movement_type == PM_JETPACK
         {
+            return false;
+        }
+        // `PM_CheckJump`, before Force-jump upkeep: attack/use must first release
+        // PmoveSingle's respawn latch, even if jump itself has already been released.
+        if state.movement_flags & PMF_RESPAWNED != 0 {
             return false;
         }
         // Knocked down, getting up or rolling, there is no jumping (`bg_pmove.c:1790-1793`).

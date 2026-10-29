@@ -1,3 +1,11 @@
+## Respawn jump restriction
+
+29/10/2026, `fix/prediction-respawn-jump`, based on `main` `e702b0b1`:
+movement now refuses jumps while `PMF_RESPAWNED` remains set. Reference:
+OpenJK `4d0dfaf1`, multiplayer `PM_CheckJump` and `PmoveSingle`. Synthetic
+tests cover holding attack/use and releasing them at 8/7/4/3 ms on Windows
+x64. Live respawn behavior against an OpenJK server remains unverified.
+
 ## Passenger movement prediction
 
 29/10/2026, `fix/prediction-passenger-movement`, based on `main` `9e48ff6d`:
