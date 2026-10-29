@@ -273,6 +273,16 @@ once). The look, keys and states are in [sjk-ui.md](sjk-ui.md#collection); the r
 and refusals in the hub's `PROTOCOL.md` ("Shards and the shop"). Checked by unit tests and
 world shots (`world_shot::forge_shots`); not tried in a game.
 
+Since 29/10/2026 (collection marks, the ideas of the players Atrosex and Kushina extended
+by Sol; [sjk-ui.md](sjk-ui.md#marks), the hub's `PROTOCOL.md` "Collection marks"): Break
+down marks the shader the player wears (on either saber or staff half) and its last
+copy's card says so first; the player's favourites are listed first in Craft and Break
+down, with a Favourites chip on Break down; and a shader the player locked is never broken
+down, one copy or the last, nor counted among all duplicates, nor offered in a trade, until
+they unlock it. The hub holds the lock (409 `locked`), so a client cannot get round it; the
+Forge shows the button dimmed with "Locked". Against a hub without marks, nothing of the
+star or the padlock shows.
+
 Fixed 22/10/2026, #117 (Nib: the Forge flickered on the last lines of Craft): Craft's grid
 on its Legendary and Mythical lines, its fifteen swatches drawn rather than live pictures
 (the menu pictures on, or before a live picture is ready), took up to about 2,100 draw

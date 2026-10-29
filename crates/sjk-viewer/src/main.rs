@@ -57,6 +57,7 @@ mod loot_odds;
 
 mod saber_colour_command;
 mod shader_image;
+mod shader_marks;
 mod shared_textures;
 
 mod body_fade;

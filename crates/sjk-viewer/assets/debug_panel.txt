@@ -24,6 +24,19 @@
 
 # ---- Console & chat ----
 
+[collection-marks]
+area: Menus & settings
+title: Collection marks: worn, favourite, locked and New saber shaders (Atrosex, Kushina)
+change: Shaders, the Forge and the trade window mark worn and New shaders, stars and padlocks.
+change: Favourites first, Shift+F shows them alone; a locked shader is never broken down/traded.
+change: New is kept on this PC (shader-seen.txt); stars and locks on the hub (needs its deploy).
+test: Collection > Shaders: "N new" by the headline, New stickers; choose one, move on: it clears.
+test: F stars the chosen shader: it moves under Favourites at the top; Shift+F shows them alone.
+test: L locks a held shader: Forge > Break down shows Locked on its button, B leaves it out.
+test: Break down the last copy of the shader you wear: the card says first that you wear it.
+test: Trade window: a locked duplicate is dimmed with a padlock; the Favourites chip filters.
+note: Stars and locks show only once the hub with collection marks is deployed.
+
 [slash-console-over-chat]
 area: Console & chat
 title: The console key opens the console over the chat (Slash, PR #255)

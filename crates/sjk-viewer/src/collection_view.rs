@@ -428,7 +428,7 @@ impl Panel {
     fn keys(&mut self, frame: &Frame, inputs: &Inputs<'_>) {
         let s = frame.s;
         let next_tab = crate::terms::say(self.tab.next(true).label());
-        let mut keys: Vec<(&[&str], &str)> = Vec::with_capacity(6);
+        let mut keys: Vec<(&[&str], &str)> = Vec::with_capacity(10);
         match self.tab {
             Tab::Medals => keys.push((&["Left", "Right"], "choose")),
             Tab::Cards if self.card_inspect => {
@@ -469,6 +469,12 @@ impl Panel {
                         keys.push((&["Arrows"], "choose"));
                         keys.push((&["V"], if self.grid { "list" } else { "grid" }));
                         keys.push((&["/"], "search"));
+                        // The marks (29/10/2026): the star, and the padlock on what is held.
+                        if self.marks.kept && section == forge::Section::Break {
+                            keys.push((&["F", "L"], "star, lock"));
+                        } else if self.marks.kept {
+                            keys.push((&["F"], "star"));
+                        }
                         if section == forge::Section::Break && self.forge.data.all {
                             keys.push((&["B"], "all duplicates"));
                         }
@@ -494,6 +500,13 @@ impl Panel {
                 }
                 keys.push((&["T"], "tier"));
                 keys.push((&["/"], "search"));
+                // The marks (29/10/2026): the star and the padlock, and every New one seen.
+                if self.marks.kept && self.shader > 0 {
+                    keys.push((&["F", "L"], "star, lock"));
+                }
+                if self.marks.new_count() > 0 {
+                    keys.push((&["N"], "all seen"));
+                }
                 let worn = self.shader_rows.get(self.shader).and_then(|row| row.wear);
                 match worn {
                     Some("") if self.shader > 0 => keys.push((&["Enter"], "unequip")),

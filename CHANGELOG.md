@@ -35,6 +35,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 = con_overChat: New: while you type in the chat, the console key opens the console over it and your message waits; off, the chat takes the key as before.
 = ui_sliderPeek: New: in the game, hold a Settings slider a moment and the rest of the menu fades away, so you see the change on the game as you drag.
 
+- Collection marks on saber shaders: the ones you wear say Worn in Collection > Shaders, the Forge's Break down and the trade window, and breaking down the last copy of one you wear says so first. Star your favourites (F) to list them first, with a Favourites filter (Shift+F), and lock a shader (L) so it is never broken down or traded until you unlock it; the SJK hub keeps both, on every PC you play on. Shaders you got since you last looked carry a New sticker, the Shaders tab counts them, and Mark all seen (N) clears them _(Sol, after Atrosex's and Kushina's ideas)_
 - Mystery boxes hold a holocron one time in ten (it was one in fifty), and the roll shows the four tiers' real holocrons, stopping on the one you won. A box that blows up laughs with Sol's own laugh when the SJK extras pack is installed _(Sol)_
 - Centre prints and the words over mystery boxes (and the box hunt's mark) are drawn in Fira Sans Condensed, a real typeface close to the old menu font, instead of a tracing of a low-resolution bitmap _(Sol)_
 - Box hunt: one mark every 10 minutes at most, not one after the other. Hunters see the mark ringed in red, and a black name reads on the hunt's card _(Sol)_

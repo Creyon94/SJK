@@ -1,3 +1,28 @@
+## Collection marks: worn, favourite, locked and New saber shaders
+
+29/10/2026, `personal/collection-marks`, based on `main` `0fd6a5e1`, the ideas of the players
+Atrosex (the worn shader marked in the Forge's Break down, and said on the last copy's card)
+and Kushina (favourites and a lock), extended by Sol ([sjk-ui.md](sjk-ui.md#marks)). The
+Shaders tab, the Forge and the trade window mark each saber shader worn (either saber or
+staff half), New (gained since the player last looked: `shader-seen.txt` on the PC, the
+first holdings seen whole when there is no file) and, on a hub that keeps them, favourite
+(listed first, a Favourites chip) and locked; F, L, Shift+F and N, and the chosen shader's
+two toggles. The hub holds the lock: its branch `collection-marks` (not deployed) refuses to
+shatter or trade a locked shader and keeps the marks per person (merges and their undo move
+them); against the hub deployed today the client shows no star or padlock and asks nothing
+(`economy.abilities` without `marks`). The last copy's card says first, in ember, that the
+player wears it, and its answer also takes it off a second saber that wore it by its own
+choice. Since then the Shaders tab says "Not owned" where it said "Locked" for a shader not
+held: the padlock is the player's lock now. Verified: unit tests (`shader_marks::tests`, the
+Forge's `favourites_lead_and_a_locked_duplicate_is_kept` and
+`a_locked_shader_is_not_broken_down_and_the_keys_mark`, the Shaders tab's
+`favourites_are_listed_first_under_their_heading`, the trade window's
+`a_locked_shader_waits_and_the_favourites_chip_filters`, `player_trades`'
+`marked_shaders_are_ordered_and_a_locked_one_waits`, the hover cards',
+`sjk_identity`'s `collection_marks_come_with_the_progress_and_change_at_once`), the hub's
+store, trade and API tests, the world shot `duel6_sjk_collection_marks` (Windows, the
+installed game data and the hub's packs), fmt, the workspace's build, tests and Clippy (no
+new warning in the files changed). Not tried in a game, nor against a hub serving marks.
 ## A JA+ emote kept when going away, and `cg_debugEmoteEnd`
 
 29/10/2026, `fix/menu-cancels-meditate`, based on `main` `b558d4ae`, hub report #196 (build
