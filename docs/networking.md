@@ -524,3 +524,9 @@ Check ordinary native and legacy client joins on isolated servers for integratio
 A handshake or successful movement run does not verify downloads, every reliable
 command, map restarts, all combat, vehicles or every game type. The current evidence
 and open validation work are recorded in [status.md](status.md).
+
+### Supply snapshot entity context to local movement prediction
+
+Known limitation (source review against OpenJK `codemp` at `4d0dfaf1`):
+Client movement currently supplies empty body and NPC lookups, so NPC head bounces and body-dependent wall checks cannot match codemp.
+A focused fix and verification are in progress.
