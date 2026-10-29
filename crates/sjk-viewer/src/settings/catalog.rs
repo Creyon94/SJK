@@ -1785,6 +1785,11 @@ pub(super) const RENDER_IMAGE: &[Setting] = &[
         kind: ValueKind::Choice(&["0", "1", "2"]),
     },
     Setting {
+        label: "No glow on sabers",
+        cvar: crate::frame_target::aa::glow::NO_SABERS_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Glow style",
         cvar: "r_dynamicGlowStyle",
         kind: ValueKind::Choice(&["0", "1"]),
