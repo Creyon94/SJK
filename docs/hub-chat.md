@@ -966,7 +966,7 @@ and plays changes. The code still says "mute" (`chat_mutes.rs`, `muted_players.r
 Since 26/10/2026 (Sol's request: "temporary, on the current map, synced between players
 ... only staff members can do the sync thing, everyone else it's personal"), a player can
 be blocked until the server's map changes, as the block above does it (Kyle, silent, no
-chat or emotes, named BLOCKED), with nothing written to `chat-mutes.txt`
+chat, encrypted whispers or emotes, named BLOCKED), with nothing written to `chat-mutes.txt`
 ([map_blocks.rs](../crates/sjk-viewer/src/map_blocks.rs)). It works for any player of
 the server, an SJK player or not.
 
