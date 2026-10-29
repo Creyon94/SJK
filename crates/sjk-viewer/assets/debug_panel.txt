@@ -24,6 +24,15 @@
 
 # ---- Console & chat ----
 
+[staff-starburst]
+area: HUD
+title: SJK staff's tick is a silver starburst (16 points, teal edge and tick)
+change: Staff's tick was the round seal in silver; now a starburst, not round like the others.
+test: A staff member's nameplate, chat line and scoreboard row: the silver starburst.
+test: At chat size, on a bright map: it still reads as a starburst, not a grey blur.
+test: Inspect a staff member (X): the starburst on the emblem's foot, VERIFIED in teal.
+note: Not seen in game yet: checked by unit tests and a preview of the cell only.
+
 [chat-readability]
 area: Console & chat
 title: Chat backdrop and text outline, for chat over bright maps (Creo's idea)
