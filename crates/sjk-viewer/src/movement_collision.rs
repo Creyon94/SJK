@@ -312,6 +312,54 @@ mod bsp_instance_tests {
     }
 
     #[test]
+    fn moving_brush_contents_use_presentation_time_and_sweeps_keep_physics_time() {
+        const WATER: u32 = 4;
+        let shaders = [CollisionShader {
+            name: "textures/test/water".into(),
+            surface_flags: 0,
+            content_flags: WATER,
+        }];
+        let water = Bsp::parse(&write_collision_map(
+            "{\n\"classname\" \"worldspawn\"\n}\n",
+            &shaders,
+            &[box_brush([-1.0, -4.0, -4.0], [1.0, 4.0, 4.0], 0)],
+        ))
+        .unwrap();
+        let mut bsp = map(&[]);
+        let model = bsp.append_model_asset(water).unwrap().start;
+        for step in [8, 7, 4, 3] {
+            let mut state = instance(model);
+            state.set_raw_field(19, 0);
+            state.set_raw_field(2, 0.0_f32.to_bits());
+            state.set_raw_field(23, 2); // TR_LINEAR
+            state.set_raw_field(6, 1_000.0_f32.to_bits()); // pos.trDelta[0]
+            let collider = Collider::from_entity(&state, step, 0, false).unwrap();
+            assert!((collider.origin[0] - step as f32).abs() < 0.0001);
+            assert_eq!(collider.contents_origin[0], 0.0);
+            assert_eq!(inline::contents(&bsp, &collider, [0.0; 3]), WATER);
+            assert_eq!(
+                inline::contents(&bsp, &collider, [step as f32, 0.0, 0.0]),
+                0
+            );
+            let mut scratch = bsp.trace_scratch();
+            let collision = BspMovementCollision::with_movers(
+                &bsp,
+                &mut scratch,
+                std::slice::from_ref(&collider),
+            );
+            let trace = collision.trace(
+                [step as f32 - 2.0, 0.0, 0.0],
+                [0.0; 3],
+                [0.0; 3],
+                [step as f32 + 2.0, 0.0, 0.0],
+                WATER,
+            );
+            assert_eq!(trace.entity_number, INSTANCE);
+            assert!(trace.fraction < 1.0);
+        }
+    }
+
+    #[test]
     fn the_camera_stops_at_a_permanent_bsp_instance_wall() {
         let (bsp, model) = world();
         let mut scratch = bsp.trace_scratch();

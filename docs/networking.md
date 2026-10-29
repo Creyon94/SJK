@@ -273,6 +273,10 @@ Player and NPC targets (including vehicle NPCs) are eligible. The stock
 `PM_RocketLock` powerup check is preserved literally: `powerups & PW_CLOAKED`,
 where the protocol-26 `BASE_COMPAT` ordinal is 11, not a shifted bit mask.
 Minimal collision adapters without snapshot metadata retain player-only targeting.
+Inline-brush point contents use the presented origin and angles, matching
+`CG_PointContents`; collision sweeps retain their physics-time translation.
+Prediction keeps these transforms separately, including when the newest and
+displayed snapshots carry different mover trajectories.
 
 `PM_JETPACK` (movement type 1), used by the equipped jetpack on stock-derived
 servers including JA+, runs the reference's gravity, thrust and air-control
