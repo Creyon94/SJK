@@ -59,6 +59,12 @@ impl<'a> BspMovementCollision<'a> {
 }
 
 impl MovementCollision for BspMovementCollision<'_> {
+    fn rocket_lock_target(&self, entity: u16) -> Option<sjk_game_jka::pmove::RocketLockTarget> {
+        self.movers
+            .iter()
+            .find(|collider| collider.entity == entity)
+            .map(|collider| collider.rocket_target)
+    }
     fn point_contents(&self, point: [f32; 3]) -> u32 {
         // Water-jump ledge probes need SOLID/PLAYERCLIP/BODY as well as liquids.
         let mut contents = self.bsp.point_contents(point, u32::MAX);

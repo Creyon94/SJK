@@ -134,7 +134,7 @@ fn moving(cmd: &UserCommand) -> bool {
 /// target's time is past when another was; the lock's time kept, and its target time
 /// pushed 500 ms on while the lock holds; struck nothing, the lock goes once its target
 /// time is past, and meanwhile its time is remembered and set to -1. Entities that are
-/// not players (a rocket, a husk) are no target; cloaking is not ported.
+/// not player/NPC actors (a rocket, a husk) are no target.
 fn rocket_lock(
     state: &mut MovementState,
     cmd: &UserCommand,
@@ -154,7 +154,14 @@ fn rocket_lock(
     let trace = collision.trace(muzzle, [0.0; 3], [0.0; 3], end, MASK_PLAYERSOLID);
     let struck = trace.entity_number;
     if trace.fraction != 1.0 && struck < ENTITY_NONE && struck != state.client_num {
-        if struck < 32 {
+        let target = collision.rocket_lock_target(struck);
+        // Preserve codemp's literal `s.powerups & PW_CLOAKED`, where the enum
+        // BASE_COMPAT ordinal is 11, rather than changing it to `1 << PW_CLOAKED`.
+        const PW_CLOAKED: u32 = 11;
+        if target.is_some_and(|target| target.powerups & PW_CLOAKED != 0) {
+            state.rocket_lock_index = ENTITY_NONE;
+            state.rocket_lock_time = 0.0;
+        } else if target.is_some_and(|target| target.actor) {
             if state.rocket_lock_index == ENTITY_NONE {
                 state.rocket_lock_index = struck;
                 state.rocket_lock_time = cmd.server_time as f32;
@@ -181,6 +188,95 @@ fn rocket_lock(
             state.rocket_last_valid_time = state.rocket_lock_time;
         }
         state.rocket_lock_time = -1.0;
+    }
+}
+
+#[cfg(test)]
+mod rocket_target_tests {
+    use super::*;
+    use crate::pmove::{MovementCollision, MovementTrace, RocketLockTarget};
+    struct Target {
+        entity: u16,
+        target: RocketLockTarget,
+    }
+    impl MovementCollision for Target {
+        fn rocket_lock_target(&self, entity: u16) -> Option<RocketLockTarget> {
+            (entity == self.entity).then_some(self.target)
+        }
+        fn trace(
+            &self,
+            _: [f32; 3],
+            _: [f32; 3],
+            _: [f32; 3],
+            end: [f32; 3],
+            _: u32,
+        ) -> MovementTrace {
+            MovementTrace {
+                fraction: 0.5,
+                entity_number: self.entity,
+                ..MovementTrace::miss(end)
+            }
+        }
+    }
+    #[test]
+    fn rocket_lock_uses_actor_identity_and_literal_codemp_cloak_test() {
+        for step in [8, 7, 4, 3] {
+            for (entity, actor, powerups, expected) in [
+                (1, true, 0, 1),
+                (45, true, 0, 45),
+                (45, false, 0, 1023),
+                (1, true, 1, 1023),
+                (45, true, 2, 1023),
+                (45, true, 8, 1023),
+                (45, true, 4, 45),
+                (45, true, 1 << 11, 45),
+            ] {
+                let target = Target {
+                    entity,
+                    target: RocketLockTarget { actor, powerups },
+                };
+                let mut state = MovementState {
+                    rocket_lock_index: 1023,
+                    ..MovementState::default()
+                };
+                // The movement wrapper must not lose entity metadata.
+                let collision = crate::pmove::flight::WithoutBodies(&target, 0);
+                rocket_lock(
+                    &mut state,
+                    &UserCommand {
+                        server_time: step,
+                        ..UserCommand::default()
+                    },
+                    &collision,
+                );
+                assert_eq!(state.rocket_lock_index, expected);
+            }
+            let target = Target {
+                entity: 45,
+                target: RocketLockTarget {
+                    actor: true,
+                    powerups: 2,
+                },
+            };
+            let mut state = MovementState {
+                rocket_lock_index: 45,
+                rocket_target_time: 999.0,
+                rocket_lock_time: 123.0,
+                ..MovementState::default()
+            };
+            rocket_lock(
+                &mut state,
+                &UserCommand {
+                    server_time: step,
+                    ..UserCommand::default()
+                },
+                &target,
+            );
+            assert_eq!(
+                (state.rocket_lock_index, state.rocket_lock_time),
+                (1023, 0.0)
+            );
+        }
     }
 }
 

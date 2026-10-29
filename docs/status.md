@@ -121,6 +121,15 @@ replaced a mistyped rocket-lock trace mask (`0x10101`) with `MASK_PLAYERSOLID`
 (`0x1111`). Reference: OpenJK `4d0dfaf1`, codemp `PM_RocketLock`,
 `bg_public.h` and `surfaceflags.h`. Windows x64 synthetic tests cover each
 contents bit at 8/7/4/3 ms. Live locking across map clip/terrain remains unverified.
+## Snapshot rocket-lock targets
+
+29/10/2026, `fix/prediction-rocket-targets`, based on `main` `e702b0b1`:
+client solid metadata now supplies player/NPC identity and raw powerups to
+rocket locking. Reference: OpenJK `4d0dfaf1`, codemp `PM_RocketLock:5954-5970`.
+The reference's literal `powerups & 11` check is retained, including its
+unshifted-enum quirk. Windows x64 synthetic tests cover actors, non-actors,
+powerup masks, immediate lock cancellation and 8/7/4/3 ms. Live targeting
+remains unverified; metadata-free/server adapters still have player-only fallback.
 
 ## Synced emote music back from alt-tab in step
 

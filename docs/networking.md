@@ -268,6 +268,11 @@ as an on-foot player does. Hidden occupants skip their handheld weapon; neither
 case gives the rider independent movement physics.
 Rocket-lock prediction traces with codemp's `MASK_PLAYERSOLID` (`0x1111`):
 solid, player clip, body and terrain. `CONTENTS_OUTSIDE` is not a blocker.
+Rocket locking reads the traced solid's snapshot actor type and powerup bits.
+Player and NPC targets (including vehicle NPCs) are eligible. The stock
+`PM_RocketLock` powerup check is preserved literally: `powerups & PW_CLOAKED`,
+where the protocol-26 `BASE_COMPAT` ordinal is 11, not a shifted bit mask.
+Minimal collision adapters without snapshot metadata retain player-only targeting.
 
 `PM_JETPACK` (movement type 1), used by the equipped jetpack on stock-derived
 servers including JA+, runs the reference's gravity, thrust and air-control

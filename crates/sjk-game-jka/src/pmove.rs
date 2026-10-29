@@ -163,7 +163,24 @@ impl MoveContext<'static> {
     };
 }
 
+/// Snapshot facts read by codemp's `PM_RocketLock` after a trace.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct RocketLockTarget {
+    /// `ET_PLAYER` or `ET_NPC` are eligible, including vehicle NPCs.
+    pub actor: bool,
+    /// Raw `entityState_t.powerups`; the reference tests it with `PW_CLOAKED`.
+    pub powerups: u32,
+}
+
 pub trait MovementCollision {
+    /// Facts about the traced entity. Minimal adapters retain player-only targeting;
+    /// client snapshot collision supplies NPC identity and raw powerup bits too.
+    fn rocket_lock_target(&self, entity: u16) -> Option<RocketLockTarget> {
+        (entity < MAX_CLIENTS).then_some(RocketLockTarget {
+            actor: true,
+            powerups: 0,
+        })
+    }
     /// Contents for PM_SetWaterLevel and ledge probes; dry synthetic worlds may omit it.
     fn point_contents(&self, _point: [f32; 3]) -> u32 {
         0
