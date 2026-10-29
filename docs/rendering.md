@@ -4992,6 +4992,14 @@ normalized path wins, and the first definition in an override file wins. Normal
 `.shader` ordering remains unchanged. Strict tools and fault-isolated client loading
 share this policy; malformed override scripts still produce diagnostics.
 
+A shader named twice in one script, `.shader` or `.oshader`, keeps its first
+definition, as rd-vanilla's `FindShaderInShaderText` finds the first in the text
+(`definition_order` in `sjk-shader/src/catalog.rs`). `maps/oot.bsp`'s
+`shaders/oot.shader` names `textures/oot/wtr_0_yuka_02_4` twice; the second, an
+unfinished copy without its lightmap stage, drew the sand floor under the shallow
+water as a dark see-through plane that a saber did not light (Sol's hub reports,
+27/10/2026).
+
 Existing source-authority and downloaded-content restrictions remain in force:
 retail-authority protection wins when enabled (`fs_protectShaders`, on by
 default; changing it requires restart), and downloaded scripts may add new
