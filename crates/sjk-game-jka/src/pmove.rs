@@ -1313,9 +1313,8 @@ impl Predictor {
         self.update_view_angles(&command);
         crate::pmove_roll::prepare_command(&mut self.state, &mut command, self.config.roll_rules);
         let predict_weapon = if self.riding_move() {
-            // A rider's weapon (`bg_pmove.c:11081-11113`), on the server.
-            self.config.authoritative
-                && self.rider_weapon(&mut command)
+            // Legal external rider weapons run in both game and cgame.
+            self.rider_weapon(&mut command)
                 && crate::pmove_weapon::predicts_rider_command(
                     &self.state,
                     &command,

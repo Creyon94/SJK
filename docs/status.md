@@ -106,6 +106,14 @@ corrected the rider adapter's `WP_BLASTER` from Bryar's ID 4 to blaster's ID 5.
 Reference: OpenJK `4d0dfaf1`, codemp `PM_WeaponOkOnVehicle` and `weapons_t`.
 Windows x64 synthetic tests check every weapon ID and forced selection at
 8/7/4/3 ms. Live mounted weapon selection remains unverified.
+## External rider weapon prediction
+
+29/10/2026, `fix/prediction-rider-weapons`, based on `main` `e702b0b1`:
+removed the server-only gate around legal external rider weapon prediction.
+Reference: OpenJK `4d0dfaf1`, codemp `PmoveSingle:11081-11113`, shared by game
+and cgame. Windows x64 synthetic tests cover visible/hidden rider weapon
+timers and unchanged rider origin at 8/7/4/3 ms. Live mounted firing remains
+unverified. The separate rider weapon-ID correction is independent.
 
 ## Synced emote music back from alt-tab in step
 
