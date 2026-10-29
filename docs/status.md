@@ -10,6 +10,15 @@ include 8/7/4/3 ms and MSVC-compiled functions extracted from that OpenJK
 revision. This is source-level evidence, not an exhaustive parity result;
 live multiplayer, full animation/vehicle/mod coverage and FPS remain unverified.
 
+The 29/10 follow-up on #271 checks each proposed correction, including #273,
+#274 and #276, against JoF EternalJK `bd5e202d` (JA+ client-plugin reference)
+and TaystJK `2d60c0fa` (jaPRO game/client), on Windows x64. The
+[mod applicability table](networking.md#ja-and-japro-applicability) records
+shared contracts and the surrounding dialect differences. No additional mod
+gate was indicated for these corrections. JA+'s closed-source server builds,
+jaPRO full-body taunt/race collision behavior, private saber changes and live
+mod differential testing remain outside that source-level finding.
+
 ## Synced emote music back from alt-tab in step
 
 29/10/2026, `fix/emote-sound-alt-tab`, based on `main` `b558d4ae`, hub report #195 (build
