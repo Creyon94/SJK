@@ -6079,8 +6079,17 @@ Profiles that saved the earlier default 0 are moved to 1 once
 a `cl_consoleKeys` character such as `~` or `²` instead. Holding it toggles once. Escape and Shift+Escape close
 the console too, and so does a key bound to `toggleconsole` that prints nothing;
 a printable key bound to it types while the console is open
-([console_keyboard.rs](../crates/sjk-viewer/src/console_keyboard.rs)). The chat
-composer still types `~` when the console is closed. On layouts with dead keys
+([console_keyboard.rs](../crates/sjk-viewer/src/console_keyboard.rs)). While the
+chat composer is open, the console key (or a non-printing key bound to
+`toggleconsole`, or Shift+Escape) opens the console over it, as stock's console key
+goes before the message field (`cl_keys.cpp:1318`) and leaves the field and its draft
+under the console (`Con_ToggleConsole_f` only adds `KEYCATCH_CONSOLE`): typing goes on
+when the console closes. The chat is not drawn while the console is open, which stock
+draws last, as text would otherwise draw over the console's shapes. The composer keeps
+what a player types: a letter or digit (the key under Escape types `0` on
+Hungarian), a printable key bound to `toggleconsole`, and Shift with a key that opens
+the console alone, so `~` can be written; where the console key needs Shift (a `^`
+layout, `cl_consoleShiftRequirement`), Shift opens it (`console_key_leaves_chat`). On layouts with dead keys
 (`^` on French AZERTY and German QWERTZ, `'` on US International), the console
 line and the chat draft show a dead key at the caret at once and replace it with
 what the platform composes on the next key, so typing reads as on a layout without

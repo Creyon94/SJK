@@ -50,8 +50,8 @@ impl GpuState {
             self.quick_wheel.cancel();
             return;
         }
-        // A modern composer must be able to type `~`, unlike stock, where the
-        // console key precedes the message catcher (`cl_keys.cpp:1318`).
+        // The console key precedes the message catcher as in stock (`cl_keys.cpp:1318`);
+        // `console_key_leaves_chat` says which keys the composer keeps.
         let console_open = self
             .console
             .as_ref()
@@ -148,6 +148,17 @@ impl GpuState {
             return;
         }
         if !console_open && typed && self.chat.is_typing() {
+            // The console key opens the console over the composer, which keeps its
+            // draft for when the console closes, as stock's message field does.
+            if self
+                .console
+                .as_ref()
+                .is_some_and(|console| console.leaves_chat_for_console(&event))
+            {
+                self.route_console_key(&event);
+                self.sync_cursor_policy();
+                return;
+            }
             self.chat_key(&event);
             return;
         }
