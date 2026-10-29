@@ -122,7 +122,8 @@ pub(crate) struct LocalPrediction {
     rides: ride::Rides,
     /// `cg_fakeNoclip`: the predictor flies on its own while the server is sent a still player.
     fake_noclip: bool,
-    /// The next snapshot ends a fake noclip: snap to the server's position without smoothing.
+    /// Reset without smoothing on the next usable snapshot (returning from fake noclip,
+    /// or a discontinuity received while incomplete history prevents reseeding).
     snap_back: bool,
     /// The view angles the server is sent while flying: the ones held when it began.
     frozen_angles: [i32; 3],
@@ -481,8 +482,6 @@ impl LocalPrediction {
         self.latest_input = Some(command);
         self.remember_command(sent);
         if !self.fake_noclip && self.history_gap.incomplete() {
-            self.preview = None;
-            self.presented = None;
             return self.frozen_eye();
         }
         let predictor = self.predictor.as_mut()?;
@@ -572,9 +571,9 @@ impl LocalPrediction {
         self.pending.push_back(sent);
     }
 
-    /// Last valid command endpoint while missing history prevents further prediction.
+    /// Hold the last display copy, including its mover offset, while history is missing.
     fn frozen_eye(&self) -> Option<Vec3> {
-        let state = self.predictor.as_ref()?.state();
+        let state = self.predicted_state()?;
         Some(Vec3::from_array(state.origin) + Vec3::Z * state.view_height as f32)
     }
 
@@ -793,6 +792,106 @@ mod history_overflow_tests {
             prediction.clear_pending();
             assert!(!prediction.history_gap.incomplete());
             assert!(prediction.pending.is_empty());
+        }
+    }
+
+    #[test]
+    fn a_history_gap_holds_the_presented_mover_offset_and_view_height() {
+        let mut prediction = LocalPrediction::new(None, None, None, &VirtualFileSystem::new());
+        prediction.predictor = Some(Predictor::from_state(
+            MovementState {
+                origin: [1.0, 2.0, 3.0],
+                view_height: 36,
+                ..Default::default()
+            },
+            Default::default(),
+        ));
+        prediction.presented = Some(MovementState {
+            origin: [4.0, 5.0, 6.0],
+            view_height: 12,
+            ..Default::default()
+        });
+        prediction.history_gap.discarded(8, 0);
+        assert_eq!(prediction.frozen_eye(), Some(Vec3::new(4.0, 5.0, 18.0)));
+        assert_eq!(
+            prediction.predicted_state().unwrap().origin,
+            [4.0, 5.0, 6.0]
+        );
+        prediction.presented = None;
+        assert_eq!(prediction.frozen_eye(), Some(Vec3::new(1.0, 2.0, 39.0)));
+    }
+
+    #[test]
+    fn a_teleport_during_a_history_gap_stays_pending_until_recovery() {
+        for step in [8, 7, 4, 3] {
+            let mut prediction = LocalPrediction::new(None, None, None, &VirtualFileSystem::new());
+            prediction.predictor = Some(Predictor::from_state(
+                MovementState {
+                    command_time: 2 * step,
+                    health: 100,
+                    gravity: 800.0,
+                    origin: [10.0, 0.0, 0.0],
+                    view_height: 36,
+                    ground_entity_number: sjk_protocol::ENTITY_NUMBER_NONE,
+                    ..Default::default()
+                },
+                Default::default(),
+            ));
+            prediction.presented = Some(MovementState {
+                origin: [11.0, 0.0, 0.0],
+                view_height: 36,
+                ..Default::default()
+            });
+            prediction.previous_player = Some((0, 0, 0));
+            prediction.history_gap.discarded(step, 0);
+            prediction.pending.push_back(UserCommand {
+                server_time: 2 * step,
+                ..Default::default()
+            });
+            let mut player = sjk_protocol::PlayerState::default();
+            player.stats[0] = 100;
+            player.set_gravity(800);
+            player.set_ground_entity_num(sjk_protocol::ENTITY_NUMBER_NONE);
+            player.set_origin([1000.0, 0.0, 0.0]);
+            player.set_raw_field(17, EF_TELEPORT_BIT);
+            let mut snapshot = Snapshot {
+                message_sequence: 1,
+                reliable_acknowledge: 0,
+                server_commands: Vec::new(),
+                server_time: 100,
+                delta_from: None,
+                flags: 0,
+                area_mask: Vec::new(),
+                player,
+                vehicle_player: None,
+                entities: Vec::new(),
+                consumed_bits: 0,
+            };
+            let bsp = Bsp::empty([-2000.0; 3], [2000.0; 3]);
+            let mut scratch = TraceScratch::new();
+            assert_eq!(
+                prediction.apply_snapshot(&snapshot, &bsp, &mut scratch),
+                Vec3::new(11.0, 0.0, 36.0)
+            );
+            assert!(prediction.snap_back);
+            assert!(prediction.history_gap.incomplete());
+            snapshot.message_sequence += 1;
+            prediction.apply_snapshot(&snapshot, &bsp, &mut scratch);
+            assert!(
+                prediction.snap_back,
+                "a stalled ACK must retain the teleport"
+            );
+            snapshot.message_sequence += 1;
+            snapshot.player.set_command_time(step);
+            prediction.apply_snapshot(&snapshot, &bsp, &mut scratch);
+            assert!(!prediction.history_gap.incomplete());
+            assert!(!prediction.snap_back);
+            assert_eq!(prediction.committed_state().unwrap().origin[0], 1000.0);
+            assert_eq!(
+                prediction.error.error(),
+                [0.0; 3],
+                "never smooth across the delayed teleport"
+            );
         }
     }
 

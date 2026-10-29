@@ -54,12 +54,13 @@ impl LocalPrediction {
         }
         self.history_gap.acknowledge(acknowledged);
         if self.history_gap.incomplete() {
+            // CG_PredictPlayerState returns before consuming thisFrameTeleport.
+            // Retain the discontinuity until a usable snapshot can reseed us.
+            self.snap_back |= teleported;
             // codemp cg_predict.c:1020-1033: never replay a truncated history.
             self.pending
                 .retain(|command| command.server_time > acknowledged);
             self.last_acknowledged = acknowledged;
-            self.preview = None;
-            self.presented = None;
             self.last_sample = PredictionSample {
                 pending: self.pending.len(),
                 ..PredictionSample::default()

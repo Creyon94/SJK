@@ -2,7 +2,9 @@
 
 29/10/2026, `fix/prediction-command-overflow`, based on `main` `e702b0b1`:
 a discarded unacknowledged command freezes local prediction and previews until
-snapshots cover the missing interval. Network commands continue normally.
+snapshots cover the missing interval, retaining the last displayed mover offset.
+Network commands continue normally; a teleport remains pending until recovery,
+so it cannot become a delayed smoothed correction.
 Reference: OpenJK multiplayer `cg_predict.c:1020-1033`, revision `4d0dfaf1`.
 Windows x64 unit tests exercise ACK boundaries and explicit resets at 8/7/4/3 ms.
 Recovery under actual packet loss remains unverified.
