@@ -366,6 +366,12 @@ pub(super) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
         "Crossed-sabers badge before the name of a player in a private duel",
     ))?;
     cvars.register(CvarDefinition::new(
+        "cg_nameplateOutline",
+        1_i64,
+        CvarFlags::ARCHIVE,
+        "How names are set off from the nameplate: 0 a shadow, 1 a faint halo on dark letters, 2 a strong halo and a dark outline on the rest",
+    ))?;
+    cvars.register(CvarDefinition::new(
         "cg_nameplateWalls",
         false,
         CvarFlags::ARCHIVE,
@@ -420,6 +426,8 @@ struct Settings {
     icons: bool,
     /// The duel badge before a duellist's name (`cg_nameplateDuel`).
     duel_badge: bool,
+    /// How the names are set off from the plate (`cg_nameplateOutline`).
+    outline: crate::text::CodePalette,
     friends: bool,
     /// The local player's own plate, in third person.
     own: bool,
@@ -443,6 +451,7 @@ impl Default for Settings {
             npcs: false,
             icons: true,
             duel_badge: true,
+            outline: crate::text::CodePalette::Haloed,
             friends: true,
             own: false,
             hide_duelers: false,
@@ -620,6 +629,11 @@ impl State {
             npcs: flag("cg_nameplatenpcs", false),
             icons: flag("cg_nameplateicons", true),
             duel_badge: flag("cg_nameplateduel", true),
+            outline: crate::text::CodePalette::nameplate(
+                console
+                    .and_then(|c| c.integer_cvar("cg_nameplateoutline"))
+                    .unwrap_or(1),
+            ),
             friends: flag("cg_drawfriend", true),
             own: flag("cg_nameplateself", false),
             hide_duelers: flag("cg_nameplatehideduelers", false),
@@ -2072,7 +2086,7 @@ impl State {
             font,
             viewport,
             crate::text::TextStyle::NEUTRAL,
-            crate::text::CodePalette::Haloed,
+            self.settings.outline,
         );
     }
 }
