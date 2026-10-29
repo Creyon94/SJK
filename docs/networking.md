@@ -776,3 +776,9 @@ This follows OpenJK `codemp/cgame/cg_predict.c:722` at `4d0dfaf1`;
 items retain their separate proximity test. Unit tests cover 8/7/4/3 ms commands
 and both directions of a standing/crouching hull mismatch. Live trigger timing
 against an OpenJK server remains unverified.
+
+### Freeze prediction when command history is incomplete
+
+Known limitation (source review against OpenJK `codemp` at `4d0dfaf1`):
+The pending command queue currently evicts commands without preventing incomplete replay from an older snapshot.
+A focused fix and verification are in progress.
