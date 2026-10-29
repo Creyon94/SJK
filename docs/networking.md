@@ -527,6 +527,11 @@ and open validation work are recorded in [status.md](status.md).
 
 ### Restore codemp zero-gravity push-off movement
 
-Known limitation (source review against OpenJK `codemp` at `4d0dfaf1`):
-PM_CheckJump currently omits codemp's gravity-at-or-below-zero push-off branch.
-A focused fix and verification are in progress.
+At gravity zero or below, an eligible jump check traces eight units backwards
+and adds 450 units/s along the player's full view direction, with the Force-jump
+leg animation, then clears upmove. This preserves OpenJK's `fraction <= 1`
+condition, including a clear trace and airborne commands without jump held.
+A held jump latch and the grounded no-jump gate still suppress the branch.
+Reference: `codemp/game/bg_pmove.c:2057-2085` at `4d0dfaf1`.
+Synthetic tests cover 8/7/4/3 ms, negative gravity, clear/blocked traces, pitch/yaw,
+animation and jump gates. Zero-gravity maps against a live server remain unverified.
