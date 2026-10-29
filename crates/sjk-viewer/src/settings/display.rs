@@ -132,6 +132,17 @@ pub(crate) fn suspended_after_focus(
     }
 }
 
+/// Whether a focus change that just suspended exclusive fullscreen also minimises the
+/// window: always when it lost focus. Going windowed restores the desktop's video mode,
+/// but the window stayed on it (Alt+Tab and Win+D "only into a smaller window", hub
+/// report #131). SDL, which OpenJK's window runs on, minimises a fullscreen window on
+/// focus loss (`SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS`'s default for real, not
+/// desktop, fullscreen); the taskbar button brings it back, and the focus gained then
+/// resumes the exclusive mode.
+pub(crate) fn minimise_after_focus(suspended: bool, focused: bool) -> bool {
+    suspended && !focused
+}
+
 /// What the window's monitor offers, gathered when the settings screen opens.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub(crate) struct MonitorModes {
@@ -242,6 +253,15 @@ mod tests {
         assert!(suspended_after_focus(false, true, settled, false));
         assert!(!suspended_after_focus(true, false, Duration::ZERO, true));
         assert!(!suspended_after_focus(false, true, settled, true));
+    }
+
+    #[test]
+    fn suspending_on_focus_loss_minimises_and_resuming_does_not() {
+        assert!(minimise_after_focus(true, false));
+        assert!(!minimise_after_focus(false, true));
+        // A change that did not suspend (borderless, windowed, the grace period) is not
+        // asked to minimise: the caller acts only when the suspension changed.
+        assert!(!minimise_after_focus(false, false));
     }
 
     #[test]
