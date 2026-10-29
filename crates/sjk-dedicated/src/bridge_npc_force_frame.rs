@@ -79,8 +79,13 @@ impl NativeGame {
             self.limits.duel_fraglimit,
             self.gametype,
         );
-        // `g_forceRegenTime`: the milliseconds a point of Force takes to come back.
-        let regen_time = self.cvars.integer(b"g_forceRegenTime");
+        // `g_forceRegenTime`: the milliseconds a point of Force takes to come back; in a
+        // private duel EternalJK's `g_saberDuelForceRegenTime`, the duel key's duel being
+        // its no-force duel (`dueltypes` 0).
+        let regen_time = (
+            self.cvars.integer(b"g_forceRegenTime"),
+            self.cvars.integer(b"g_saberDuelForceRegenTime"),
+        );
         // The Jedi Master's rule for the user's blows on an NPC, which is never the master.
         let spared_by_master = self.jedi_master_spares(Some(client as u16), usize::MAX);
         let mut scratch = std::mem::take(&mut self.force_scratch);
@@ -177,7 +182,7 @@ fn run_frame<T>(
         i32,
         i32,
         bool,
-        i32,
+        (i32, i32),
     ),
     run: impl FnOnce(&mut PlayerState, &mut ForcePowers, &mut ForceFrame) -> T,
 ) -> Option<(T,)> {
@@ -214,11 +219,18 @@ fn run_frame<T>(
         }
         _ => sjk_game_jka::force_powers::SaberOffSound::Silent,
     });
+    let (regen_time, duel_regen_time) = regen_time;
     let lone_regen = (gametype == super::super::GAMETYPE_POWERDUEL
         && peer.session.duel_team == sjk_game_jka::power_duel::DUELTEAM_LONE)
         .then(|| {
             sjk_game_jka::power_duel::lone_regen_time(regen_time, peer.session.wins, duel_fraglimit)
         });
+    // EternalJK's `WP_ForcePowersUpdate`: a duellist's pace is the duel's.
+    let regen_time = if peer.state.duel_in_progress() {
+        duel_regen_time
+    } else {
+        regen_time
+    };
     touched.clear();
     let mut others = ServerOthers {
         host,

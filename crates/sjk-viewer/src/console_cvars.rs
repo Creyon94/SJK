@@ -722,12 +722,25 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             archive,
             "Chance (0-100) that games you host cut off limbs",
         ),
-        // The reference's `g_forceRegenTime` default (`g_xcvar.h`).
+        // The reference's `g_forceRegenTime` default (`g_xcvar.h`), and EternalJK's for
+        // its duels.
         CvarDefinition::new(
-            crate::connection::local_server::FORCE_REGEN_CVAR,
+            crate::connection::local_server::FORCE_REGEN_CVARS[0],
             200_i64,
             archive,
             "Milliseconds a point of Force takes to come back in games you host",
+        ),
+        CvarDefinition::new(
+            crate::connection::local_server::FORCE_REGEN_CVARS[1],
+            200_i64,
+            archive,
+            "Milliseconds a point of Force takes to come back in private duels in games you host",
+        ),
+        CvarDefinition::new(
+            crate::connection::local_server::FORCE_REGEN_CVARS[2],
+            200_i64,
+            archive,
+            "Milliseconds a point of Force takes to come back in full-force duels in games you host",
         ),
         CvarDefinition::new("cg_drawGun", true, archive, "Draw the first-person weapon"),
         CvarDefinition::new(
