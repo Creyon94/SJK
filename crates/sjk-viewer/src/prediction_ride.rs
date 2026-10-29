@@ -365,10 +365,11 @@ pub(super) fn predict(
     ride: Option<&mut RidePrediction>,
     command: UserCommand,
     collision: &impl MovementCollision,
+    context: &sjk_game_jka::pmove::MoveContext,
 ) {
     match ride {
-        Some(ride) => ride.predict(predictor, command, collision),
-        None => predictor.predict_command(command, collision),
+        Some(ride) => ride.predict_in(predictor, command, collision, context),
+        None => predictor.predict_command_in(command, collision, context),
     }
 }
 

@@ -1035,8 +1035,9 @@ blade with an alpha-blended trail and no blade light or bloom. It works for
 both hands and thrown sabers. The archived `cg_blackSabers` setting is on by
 default, under classic Settings > Game Options and SJK Advanced > Gameplay.
 Turning it off uses orange. The existing `cp_pluginDisable` bit 3 also disables
-black blades when set: `japlus.plugin 3` toggles it, and a clear bit means allowed.
-The normal plugin-mask default (1536) allows black blades.
+black blades when set: Settings > Mods, Black sabers (JA+ or jaPRO plugin options), or
+`japlus.plugin 3` switches it ([plugin options](mods.md#plugin-options)). The normal
+plugin-mask default (1536) allows black blades.
 The SJK UI's Profile > Saber offers black as a chip of its own, the last, after the
 custom chip, which writes colour 11 (hub report #130, 27/10/2026): before, the
 page had no black, and a saved 11 read and was written back as the custom colour. A
@@ -1962,6 +1963,22 @@ The clash flare also follows EternalJK's switches (JoF EJK `CG_SaberClashFlare`)
 EternalJK's). Reduce bright flashes wins over both. The viewer reads them once a frame
 ([saber_clash_flare.rs](../crates/sjk-viewer/src/saber_clash_flare.rs)); the effect
 spawner and submission read the reduce switch from an atomic the frame sets.
+
+**Saber hit sparks** (`cg_fleshSparks`, archived, 0 to 7, default 7; Settings > Game
+options, Effects) is EternalJK's count of the red sparks a saber hit on a body plays
+(JoF EJK `cg_event.c`, `EV_SABER_HIT`, each `FX_PlayEffectID` behind
+`cg_fleshSparks.integer > N`). At 7 every hit plays what the original game plays: six
+`saber/blood_sparks_mp` for the special hit (`eventParm` 16), one
+`saber/blood_sparks_50_mp` for a really big hit (2), one `saber/blood_sparks_25_mp`
+for a moderate hit (3) and three `saber/blood_sparks_mp` for any other body hit.
+Lower, a plain body hit plays two sparks at 6, one at 5 and none from 4; the moderate
+hit's spark goes from 3, the big hit's from 2; the special hit keeps one spark at 1,
+without its sound (every other hit keeps its sound), and none at 0. A saber hit on something else
+than a body keeps its `saber/saber_cut`. Read once a snapshot
+([impacts.rs](../crates/sjk-viewer/src/impacts.rs) `saber_hit`, the sound in
+`LegacySoundAdapter::set_flesh_sparks`). Unit tests:
+`flesh_sparks_gate_each_saber_hit_on_a_body`,
+`flesh_sparks_below_two_silence_only_the_special_saber_hit`. Not tried in a game.
 
 Compared with retail: the flare's timing, size, the behind-the-view and wall tests
 follow `CG_SaberClashFlare` exactly ([sjk-client saber_clash_flare.rs](../crates/sjk-client/src/saber_clash_flare.rs)),
@@ -2947,13 +2964,40 @@ strafe guides on jaPRO servers either), and the guess's floor trace sees only th
 map, not movers or players under the followed player. Riding a vehicle hides them,
 where JoF keeps them when the vehicle has no HUD menu of its own.
 
-## Lagometer size
+## Lagometer
+
+`cg_lagometer` (archived, default 0, Settings > HUD > **Lagometer**) draws the
+network graph: frame interpolation in its top third (yellow above the middle line
+while the view runs ahead of the latest snapshot, blue below while it interpolates)
+and snapshot latency at its bottom (green, yellow when the server held a snapshot
+back for rate, red for a dropped one). It takes JoF EJK's values (`cg_draw.c`,
+`CG_DrawLagometer` and `CG_DrawSpeedGraph`):
+
+- `1` (**Graph**): the graph on its backdrop, as SJK always drew it; an old config's
+  `cg_lagometer 1` looks the same;
+- `2` (**Graph + speed**): the same, with the average ping and the average
+  interpolation of its 48 newest columns written along its top (ping at the left,
+  interpolation at the right, `%.0f` and `%04.1f` as EJK writes them; a dropped
+  snapshot counts as the highest ping seen so far), and a speed graph on a backdrop of
+  its own 56 of the graph's 48 units above it: a green column per frame for the
+  horizontal speed, the height worth 3000 units a second, the current speed at its
+  top left;
+- `3` (**No backdrop**): the same without either backdrop, the speed graph three times
+  as tall (its bottom where mode 2's is), its number only while moving.
+
+EJK draws the speed graph only with its `cg_speedometer` speed graph bit; SJK has no
+such bit and draws it with modes 2 and 3 (Sol's decision, 29/10/2026). The numbers
+keep EJK's proportions of the graph (`ocr_a` at half size, 10.5 of its 48 units), so
+at `cg_lagometerScale 1` they are small; `2` draws them about EJK's size. See
+[hud/lagometer.rs](../crates/sjk-viewer/src/hud/lagometer.rs) and its tests
+(`mode_1_is_the_graph_alone`, `the_averages_follow_ejk`). Not compared side by side
+with EJK in game.
 
 `cg_lagometerScale` changes the lagometer's width and height: `1` (default) is
 normal size, `0.5` half size, `2` double size. Settings > HUD > **Lagometer scale**
 offers 0.25–4 in both menu interfaces; values outside that range are clamped when
-drawn. The setting is archived and takes effect immediately. Enable the graph with
-`cg_lagometer 1`.
+drawn. The setting is archived and takes effect immediately; it scales the numbers
+and the speed graph with the graph.
 
 Scaling keeps the graph's existing bottom-right corner fixed, including custom
 `cg_lagometerX` and `cg_lagometerY` offsets. It applies to every built-in HUD and
@@ -3190,6 +3234,16 @@ installed. `cg_hudPack` names the PK3 whose HUD to use when several replace
 wins, as in the game. See [game-data HUD](rendering.md#game-data-hud) for what
 is drawn.
 
+The `radial` layout's status meters (the pills, the arcs and their numbers round the
+crosshair) can be placed (Lex's idea, 29/10/2026: too close to the character):
+`cg_hudRadialSpread` (0 to 250 HUD pixels, Settings "Radial HUD spacing") moves the
+left meters left and the right ones right, and `cg_hudRadialHeight` (-20 to 40 per
+cent of the screen, "Radial HUD height") moves them all up, or down below zero. The
+crosshair, its name, the timer and the rest of the HUD stay put. Both are 0 by default,
+the layout as bundled ([hud.rs](../crates/sjk-viewer/src/hud.rs), `RadialPlacement`,
+which moves each widget of `RADIAL_STATUS` by its side: an arc's from its sweep, the
+rest from their offset).
+
 The upper right stacks the readouts as JoF EJK's `CG_DrawUpperRight` does, in every
 HUD style ([console_overlay.rs](../crates/sjk-viewer/src/console_overlay.rs)): with
 `cg_drawFPS` the frame rate ("125fps", JoF EJK's big console characters, measured over
@@ -3364,6 +3418,11 @@ the glyph drawn a step out all round in a light tint instead of its drop shadow,
 black name reads on the see-through plate (`text::CodePalette::Haloed`, Sol's pick of
 28/10/2026 over lightening the colour). The halo is faint, each of its eight copies 18%
 opaque (38% until 29/10/2026, when Sol found the outline too strong).
+`cg_nameplateOutline` (Settings "Name outline", Lex's idea, 29/10/2026: some names hard
+to read on busy backgrounds) chooses the edge: 0 Off, the drop shadow only
+(`CodePalette::Game`); 1 Faint, the default, the halo above (`Haloed`); 2 Strong, the
+halo at 38% and every other letter ringed by eight dark copies (0.45 opaque each)
+instead of its shadow (`Outlined`, `text::Edge`).
 
 **The holo frame** (28/10/2026, design C of the nameplate designs Sol chose from, in
 place of the capsule, design E, the same day): every plate, bars or not, is a hexagon
@@ -3475,8 +3534,9 @@ command new for them (`DrawCommand::Polygon`, [rendering.md](rendering.md#submis
   follow, are in a private duel, as JoF EJK does (EternalJK `CG_Player`,
   `cg_players.c:11983-11990`). The rule is per server family, in the table
   `DUEL_HIDE_SERVERS` ([duel_hide.rs](../crates/sjk-client/src/duel_hide.rs)): JA+
-  hides unless your `cp_pluginDisable` sets bit 1 ("duel see others", `japlus.plugin
-  1`; SJK's default 1536 leaves it clear), since a JA+ server sends bystanders to a
+  hides unless your `cp_pluginDisable` sets bit 1 (Settings > Mods, See others in
+  duels, or `japlus.plugin 1`; SJK's default 1536 leaves it clear, Off), since a JA+
+  server sends bystanders to a
   plugin client and expects it to hide them; jaPRO (TaystJK) always hides; other
   servers do not. Other players' [drones](#drone) are hidden in a duel on every
   server, unless the setting is 0. `2` (Always) hides on every server, `0` (Off) never, and they are
@@ -5180,9 +5240,12 @@ it on an unrelated server can misinterpret that server's ownership flags.
 Stowed single hilts sit at the right hip; dual hilts use both hips. A single
 staff goes across the back when JA+ plugin 9 is enabled, with a hip fallback
 for models without a back tag. `cp_pluginDisable` is a disable mask: bit 9
-(`512`) disables the staff back reach, and bit 13 (`8192`) disables holstered
-hilts altogether. SJK preserves its existing default mask `1536`, so the
-default staff placement remains at the hip. This feature does not enable
+(`512`) disables the staff back reach, and bit 29 (`536870912`, EJK's
+`JAPRO_PLUGIN_HOLSTEREDSABERS`; bit 13 until 29/10/2026, which is JA+'s single-player
+cartwheel) disables holstered hilts altogether. Settings > Mods switches both as Staff
+on the back and Holstered sabers ([plugin options](mods.md#plugin-options)). SJK
+preserves its existing default mask `1536`, so the default staff placement remains
+at the hip. This feature does not enable
 JA+ animation plugins or install their animation assets.
 
 With plugin 9 enabled and usable JA+ reach animations installed, the staff
@@ -6275,6 +6338,22 @@ keyboard. `+useforce` does not repeat (the server waits for its release). An ali
 that runs push is not followed. The table of repeated commands, with why each is safe,
 is in [force_repeat.rs](../crates/sjk-viewer/src/input/force_repeat.rs).
 
+`in_mouseRepeat` (archived, default 0, Settings > Controls > **Hold mouse 4/5
+repeats**) is EternalJK's `in_mouserepeat` (JoF EJK `sdl_input.cpp`,
+`IN_ProcessEvents`): while mouse 4 is held, and mouse 5 unless the value is 2, its key
+goes down again and again, as a held keyboard key's system repeats do in EJK. A bind to
+a plain command runs it again; a `+` command ignores the repeated press, as
+`IN_KeyDown` ignores a repeating key. `1` repeats both buttons, `2` mouse 4 only (EJK:
+"don't spam mouse5"). One deliberate difference (Sol's decision, 29/10/2026): EJK
+repeats once every other frame, 125 presses a second at 250 FPS and more above, each
+possibly a command to the server, which servers that cap commands (JoF's) see as a
+flood; SJK repeats 20 times a second at any frame rate, at most once a frame, on the
+console's clock. Only a press that went to the binds repeats, only while the pointer is
+the game's and no console, chat or menu has the keys; a release stops it wherever it
+went, and losing the window stops both. See
+[mouse_repeat.rs](../crates/sjk-viewer/src/input/mouse_repeat.rs) and its tests
+(`twenty_presses_a_second_at_any_frame_rate`, `the_setting_picks_the_buttons`).
+
 `+duck` is JoF EJK's crouch without a roll (`CG_NorollDown_f`). Its press lets go
 of jump and walks for one user command, then it crouches like `+movedown`, sharing
 its key state. Crouching while moving rolls only from a running legs animation
@@ -6308,12 +6387,14 @@ It changes no Grip damage, timing, targeting or movement. See
 [rendering](rendering.md) for the reference and effect details.
 
 `cp_pluginDisable` is the archived userinfo cvar a JA+ server reads to switch its
-client-plugin features off for this client (a set bit disables one). Its default,
-1536, disables the holstered saber and ledge grab, which need JA+ animations SJK
-does not have. JA+ and TaystJK/jaPRO servers receive it from the connect packet
-on, and a change sends a userinfo update ([networking.md](networking.md)). The
-JA+ tools mod lists and toggles its bits (`japlus.plugin`) and lists a JA+
-server's options (`japlus.serverconfig`); see [mods.md](mods.md).
+client-plugin features off for this client (most set bits disable one, a few enable
+one). Its default, 1536, disables the holstered saber and ledge grab, which need JA+
+animations SJK does not have. JA+ and TaystJK/jaPRO servers receive it from the
+connect packet on, and a change sends a userinfo update ([networking.md](networking.md)).
+Settings > Mods shows the options SJK honours as switches named after their feature
+(JA+ and jaPRO plugin options), and `japlus.plugin` and `japro.plugin` list and switch
+them as JoF EJK's `plugin` does; the JA+ tools mod also lists a JA+ server's options
+(`japlus.serverconfig`). See [plugin options](mods.md#plugin-options).
 
 The console input line has a caret, drawn as stock's underscore: Left and Right
 move it, Ctrl+Left and Ctrl+Right by word, Home and End to either end, and Shift

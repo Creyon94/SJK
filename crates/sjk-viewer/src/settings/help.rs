@@ -147,9 +147,19 @@ const CHOICE_NAMES: &[(&str, &str, &str)] = &[
     (crate::input::idrive::CVAR, "0", "Off"),
     (crate::input::idrive::CVAR, "1", "All keys"),
     (crate::input::idrive::CVAR, "2", "Jump, crouch"),
+    (crate::input::mouse_repeat::CVAR, "0", "Off"),
+    (crate::input::mouse_repeat::CVAR, "1", "Mouse 4 and 5"),
+    (crate::input::mouse_repeat::CVAR, "2", "Mouse 4 only"),
+    (crate::hud::lagometer::CVAR, "0", "Off"),
+    (crate::hud::lagometer::CVAR, "1", "Graph"),
+    (crate::hud::lagometer::CVAR, "2", "Graph + speed"),
+    (crate::hud::lagometer::CVAR, "3", "No backdrop"),
     (crate::audio::SKIN_SOUNDS_CVAR, "0", "Off"),
     (crate::audio::SKIN_SOUNDS_CVAR, "1", "With normal"),
     (crate::audio::SKIN_SOUNDS_CVAR, "2", "Only skin"),
+    ("cg_nameplateOutline", "0", "Off"),
+    ("cg_nameplateOutline", "1", "Faint"),
+    ("cg_nameplateOutline", "2", "Strong"),
     (crate::effect_aux::saber_rain_steam::CVAR, "0", "Off"),
     (crate::effect_aux::saber_rain_steam::CVAR, "1", "Everyone"),
     (crate::effect_aux::saber_rain_steam::CVAR, "2", "Only mine"),
@@ -224,6 +234,8 @@ const SJK_TERMS: &[&str] = &[
 ];
 
 /// The description of setting `cvar`.
+/// The plugin options' rows are described by their mods' tables
+/// ([`super::plugin_rows`]).
 pub(super) fn help(cvar: &str) -> Option<&'static str> {
     HELP.iter()
         .find(|(name, _)| name.eq_ignore_ascii_case(cvar))
@@ -234,6 +246,7 @@ pub(super) fn help(cvar: &str) -> Option<&'static str> {
                 text
             }
         })
+        .or_else(|| super::plugin_rows::help(cvar))
 }
 
 /// `text` cut into at most [`HELP_LINES`] lines of [`HELP_LINE_CHARS`]
@@ -498,6 +511,14 @@ const HELP: &[(&str, &str)] = &[
         "Shows the HUD; off hides it, for screenshots and recordings.",
     ),
     ("cg_hudScale", "Size of the HUD: higher is larger."),
+    (
+        crate::hud::RadialPlacement::SPREAD_CVAR,
+        "SJK radial HUD only: moves the health and armour meters left and the Force and ammo meters right, farther from your character.",
+    ),
+    (
+        crate::hud::RadialPlacement::HEIGHT_CVAR,
+        "SJK radial HUD only: moves its meters up (higher numbers) or down (below zero) on the screen.",
+    ),
     ("cg_drawStatus", "Health, armor and Force on the HUD."),
     (
         "cg_drawWeapon",
@@ -569,6 +590,10 @@ const HELP: &[(&str, &str)] = &[
         "Icons of the Force powers a player has on, over the name when close.",
     ),
     (
+        "cg_nameplateOutline",
+        "Edges names so they read on any background. Faint: dark letters get a soft halo. Strong: a dark outline around every name too.",
+    ),
+    (
         "cg_nameplateDuel",
         "Crossed sabers before the name of a player who is in a duel.",
     ),
@@ -614,8 +639,8 @@ const HELP: &[(&str, &str)] = &[
         "Shows SJK's version, build date and commit at the top, so screenshots say which build.",
     ),
     (
-        "cg_lagometer",
-        "A small graph of interpolation and snapshot delay, for spotting network trouble.",
+        crate::hud::lagometer::CVAR,
+        "Network delay graph. Graph + speed adds the average ping and interpolation and a speed graph (JoF EJK); No backdrop, bare.",
     ),
     (
         "cg_lagometerScale",
@@ -712,6 +737,10 @@ const HELP: &[(&str, &str)] = &[
         crate::input::force_repeat::CVAR,
         "Keep a push or pull key held to use the power again the moment its cooldown ends, as in JoF EJK.",
     ),
+    (
+        crate::input::mouse_repeat::CVAR,
+        "Hold mouse 4 or 5 to run its bind again 20 times a second, like a held key (JoF EJK, there at the frame rate).",
+    ),
     // GAME
     (
         "cg_simpleItems",
@@ -736,6 +765,10 @@ const HELP: &[(&str, &str)] = &[
     (
         crate::saber_clash_flare::SIZE_CVAR,
         "Size of the saber clash flare: 1 as in the original game, 0 to 2.",
+    ),
+    (
+        crate::impacts::FLESH_SPARKS_CVAR,
+        "Red sparks when a saber hits a body: 7 all, as in the original game, down to 0 none (JoF EJK).",
     ),
     (
         crate::team_sabers::TEAM_COLORS_CVAR,

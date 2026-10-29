@@ -12,6 +12,7 @@ impl LocalPrediction {
         scratch: &mut TraceScratch,
     ) -> Vec3 {
         let player = &snapshot.player;
+        self.entities.update(&snapshot.entities);
         let current = (
             player.entity_flags(),
             player.client_num(),
@@ -145,7 +146,7 @@ impl LocalPrediction {
         ));
         for command in &self.pending {
             let deferred = predictor.state().saber_special_deferred;
-            ride::predict(
+            self.entities.predict(
                 &mut predictor,
                 self.rides.committed.as_mut(),
                 *command,

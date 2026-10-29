@@ -388,6 +388,10 @@ includes:
   Favourites filter, and locked ones the SJK hub never breaks down or trades until
   unlocked, both kept at the hub; a New sticker on shaders gained since the player last
   looked, kept on the PC;
+- three JoF EJK options (29/10/2026, after Kushina's idea): saber hit sparks
+  (`cg_fleshSparks`), a held mouse 4 or 5 repeating its bind (`in_mouseRepeat`, 20 times
+  a second at any frame rate) and the lagometer's numbers and speed graph
+  (`cg_lagometer` 2 and 3);
 - SJK Alpha (19/10/2026), the first collection of cards: the Mythical rarity, the
   Credits and Meme kinds, and card 1, "Bishop", honouring the author of JKR (art by
   Sol, AI-assisted: a rusted helmet portrait).
@@ -507,7 +511,7 @@ pull requests merged into SJK, most of them bringing SJK in line with EternalJK
   its next seven the Sketch, Hourglass, Fiber Optic, Serpent, Monarch, Phoenix and Quantum
   blades, and its last three the Comic, Quicksilver and Obsidian Edge blades.
 
-Lumaya ([lumayaa](https://github.com/lumayaa)), contributor, has 52 pull requests
+Lumaya ([lumayaa](https://github.com/lumayaa)), contributor, has 66 pull requests
 merged into SJK
 ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3Alumayaa)):
 
@@ -617,6 +621,13 @@ merged into SJK
 - #195 (with #196) the wall-grab camera no longer comes loose on stock servers when a snapshot
   catches up, JA+'s free look kept; `cg_wallGrabLock` (off) locks it there too and faces the
   wall. At the merge the facing runs only with the option on.
+- #249-#276 prediction audit against codemp, checked against JA+ (JoF EJK) and jaPRO (TaystJK) sources:
+  the server's game type (#249), surrounding players and NPCs (#250), the zero-gravity push-off (#251),
+  the trigger hull (#254), input frozen while carried (#261), the gesture (#262), vehicle riders' blaster
+  and weapons (#263, #264), rocket locking (#265, #268), moving brush contents (#270), passengers without
+  a predicted vehicle (#276), and the audit's record in networking.md (#271).
+- #277 the first jaPRO prediction layer: race-mode command slicing and velocity precision
+  from TaystJK, only on servers that advertise jaPRO.
 
 Lukas ([LukasMoudry](https://github.com/LukasMoudry)), contributor, has 18 pull requests
 merged into SJK
@@ -659,7 +670,7 @@ merged into SJK
 - #198 "Too many open files" after a long session: the Profile menu's model icons, cosmetics and
   Force templates let go of the previous map's game files (its PK3 reopening part held back).
 
-Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 63 pull requests merged
+Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 66 pull requests merged
 into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AJoFSlash)):
 
 - #114 Tab completes the cfg file argument of `exec`, `execq`, `writeconfig` and `write`
@@ -780,6 +791,12 @@ into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author
   each style (Dante's idea).
 - #255 the console key opens the console over the chat composer, which keeps its draft,
   as stock (`con_overChat` turns it off).
+- #280 a Name outline setting for nameplates (`cg_nameplateOutline`): Off, Faint (the
+  default, as before) or Strong, every name ringed dark, after Lex's idea.
+- #281 Radial HUD spacing and height sliders (`cg_hudRadialSpread`, `cg_hudRadialHeight`)
+  move the radial HUD's meters apart and up or down, after Lex's idea.
+- #283 laptops with two graphics cards: sjk.exe asks NVIDIA and AMD drivers for the fast
+  card, tries the other cards when one cannot open, and says why when none starts.
 
 His Peek work in #199 (closed 24/10/2026, not merged) shaped the Drone toy: a player is
 asked before being peeked, told who watches, and can end it. His #206 (closed 25/10/2026,
@@ -815,6 +832,12 @@ palette with pink as its main colour, light purple and white mist, afterimages m
 falling blossoms like the Spectral's, and a branch with a flower where the blade starts
 (and one day a wooden hilt). Sol built it as the Varykino Blossom, a Mythical saber shader
 (blade 166, 21/10/2026), with all of it but the hilt, which waits for custom hilts.
+Kushina also asked for JA+ and jaPRO plugin options she would not have to type as a
+`cp_pluginDisable` number: Sol built them as Settings switches named after each feature,
+with JoF EJK's `plugin` command (29/10/2026). She asked too for three JoF EJK options that
+players coming from EJK rely on: Sol built them as `cg_fleshSparks`, `in_mouseRepeat` (at
+20 presses a second rather than with the frame rate) and `cg_lagometer` 2 and 3
+(29/10/2026).
 
 Turin, a player, asked for private messages to be heard with the public chat sounds off:
 Sol built chat sounds by kind, each with its own sound (23/10/2026).

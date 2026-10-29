@@ -23,6 +23,87 @@ Forge's `favourites_lead_and_a_locked_duplicate_is_kept` and
 store, trade and API tests, the world shot `duel6_sjk_collection_marks` (Windows, the
 installed game data and the hub's packs), fmt, the workspace's build, tests and Clippy (no
 new warning in the files changed). Not tried in a game, nor against a hub serving marks.
+## `cg_fleshSparks`, `in_mouseRepeat` and `cg_lagometer` 2 and 3 from JoF EJK
+
+29/10/2026, `personal/ejk-commands`, based on `main` `0fd6a5e1`, after Kushina's ask
+(players coming from JoF EJK rely on them; Sol approved the three). Three EternalJK client
+options in the core client, as EJK has them for every server
+([client.md](client.md#bright-flashes), [client.md](client.md#lagometer)):
+`cg_fleshSparks` (0 to 7, default 7, Settings > Game options) gates each red spark of a
+saber hit on a body, and the special hit's sound below 2, as JoF EJK's `EV_SABER_HIT`
+(7 is stock and SJK until now); `in_mouseRepeat` (0, 1, 2, Settings > Controls) presses a
+held mouse 4, and mouse 5 unless 2, again into the binds, at 20 presses a second at any
+frame rate instead of EJK's every other frame (Sol's decision: EJK's 125 a second at
+250 FPS floods servers that cap commands); `cg_lagometer` becomes 0 to 3, 2 adding the
+average ping and interpolation and a speed graph above the graph, 3 the same without
+backdrops (EJK ties the speed graph to a `cg_speedometer` bit SJK has not; here the modes
+draw it), 1 unchanged. Verified: unit tests `flesh_sparks_gate_each_saber_hit_on_a_body`,
+`flesh_sparks_read_clamped_and_default_to_every_spark`,
+`flesh_sparks_below_two_silence_only_the_special_saber_hit`,
+`twenty_presses_a_second_at_any_frame_rate`, `the_setting_picks_the_buttons`,
+`only_mouse_4_and_5_held_repeat`,
+`a_held_mouse_4_or_5_presses_its_bind_again_twenty_times_a_second`,
+`a_held_keys_repeated_press_changes_nothing`, `mode_1_is_the_graph_alone`,
+`mode_2_adds_the_numbers_and_the_speed_graph_on_backdrops`,
+`mode_3_has_no_backdrop_a_tall_speed_graph_and_a_number_only_while_moving`,
+`the_averages_follow_ejk`, `the_mode_reads_clamped_and_old_configs_keep_the_graph`, fmt,
+build, Clippy and the workspace's tests; the world shot `lagometer_modes_on_a_demo` (a demo
+frozen on its first snapshot, a made-up steady connection) draws modes 1 to 3 at
+`cg_lagometerScale` 1 and 2 as described. At scale 1 on a 1080p screen the numbers are
+about 10 px tall, EJK's proportion of SJK's smaller graph (48 px there, EJK's 108);
+scale 2 is about EJK's size. Not tried in a game or compared with EJK side by side; the
+shots' recorder stands still, so they show no speed graph.
+
+## JA+ and jaPRO plugin options
+
+29/10/2026, `personal/plugin-options`, based on `main` `0fd6a5e1`, Kushina's idea:
+`cp_pluginDisable` had to be typed as a number. Settings > Mods now shows JA+ plugin options
+(See others in duels, Black sabers, New Force effects, Staff on the back, Holstered sabers)
+and jaPRO plugin options (Black sabers, Respawn where you fell, Checkpoints on screen, in
+chat and in console, Damage numbers, Shots from the centre), each named after the feature
+and On while it is on, whichever way its bit works; `japlus.plugin` and `japro.plugin` are
+JoF EJK's `plugin` with its numbers ([mods.md](mods.md#plugin-options)). The tables are in
+the mods with each bit's polarity and where JoF EJK reads it. Hidden, with the reason kept:
+the bits that change how the server moves the player (JA+ ledge grab, new DFAs and
+single-player cartwheel; jaPRO force jumps, rolls, cartwheels, and the Jawa run, which the
+movement code picks), since SJK's prediction does not follow them, and the JA+ plugin's own
+looks SJK does not draw (new Drain, end-of-duel camera, auto replier, death messages, Sense
+ring, alternate dimension, download redirect). Holstered hilts now follow bit 29, EJK's
+`JAPRO_PLUGIN_HOLSTEREDSABERS`, instead of bit 13 (JA+'s single-player cartwheel).
+Verified on Windows x86_64: the tables' tests in both mods (`the_polarity_follows_the_reference`,
+the EJK order, listings and switching), `sjk_mod::plugin_options`'s (the command saving the mask),
+`settings::plugin_rows::tests` (rows, default and existing masks, the userinfo),
+`plugin_mask_changes_mark_userinfo_dirty`, `contract_detection_overrides_and_plugin_bits`, fmt,
+the workspace build, tests and Clippy (no new warning), and the Mods page in
+`menu_snapshot::sjk_settings_snapshot` (`sjk-settings-plugin-options.png`).
+Not verified: switching them in a match on a JA+ or jaPRO server.
+
+## Passenger movement prediction
+
+29/10/2026, `fix/prediction-passenger-movement`, based on `main` `9e48ff6d`:
+a player's vehicle entity number now suppresses ordinary movement even without
+a local `Riding` context or predicted chassis. This follows OpenJK `4d0dfaf1`
+multiplayer `bg_pmove.c`'s movement dispatch, rider weapon and footstep gates.
+Windows x64 focused tests cover stationary and moving airborne passengers,
+movement input, advancing command time and dismounting at 8/7/4/3 ms. Optional
+vehicle-specific seat/view/duck context is unchanged. Live passenger gameplay
+and a full Pmove output comparison against OpenJK remain unverified.
+## jaPRO command prediction
+
+29/10/2026, `fix/prediction-japro-commands`, based on `main` `9e48ff6d`:
+the jaPRO prediction task starts with race command slicing and velocity
+precision, using clean TaystJK upstream `2d60c0fa5` multiplayer `codemp`.
+The predictor now selects the race/OCPM/roll slicing, roll-angle clearing,
+200 ms simulation limit, wallbug cleanup and advertised high-FPS precision
+policy. Existing decoded snapshot slots supply race/style metadata without a
+wire change. Windows x64 checks compare 128 slice and 288 snap decisions emitted
+by MSVC-compiled reference source; the reference command wrapper uses a
+slice-recording PmoveSingle stub, not a full game simulation. Focused Rust tests
+also cover fractional velocity, reseeding, 8/7/4/3 ms, a 350 ms command and
+non-jaPRO isolation. Movement-style algorithms, restrictions, new jetpack and
+grapples remain outside this first change. Full jaPRO and live-server parity
+remain unverified; see [networking](networking.md#server-dialect-movement-rules).
+
 ## A JA+ emote kept when going away, and `cg_debugEmoteEnd`
 
 29/10/2026, `fix/menu-cancels-meditate`, based on `main` `b558d4ae`, hub report #196 (build
@@ -73,6 +154,116 @@ button steps through everyone who whispered (left click next, right click back).
 a test.
 Verified on Linux x86_64: tests in `chat::tabs` (the settings switching the drawn
 buttons, clicks, the key), fmt, workspace build, tests (4184 passed) and Clippy (no new warning). Not verified: in game.
+## Prediction: server game type
+
+29/10/2026, `fix/prediction-gametype`, based on `main` `e702b0b1`:
+client movement reads the serverinfo game type for Force eligibility, fixing
+predicted Force jumps while carrying a CTY flag. Source comparison: OpenJK
+multiplayer `cg_predict.c:1244`, `bg_pmove.c:1257,2091`, revision `4d0dfaf1`.
+Windows x64 synthetic tests cover both flags and CTF/FFA/unladen controls at
+8/7/4/3 ms, plus authoritative context selection. Live CTY play remains unverified.
+## Prediction: snapshot actor context
+
+29/10/2026, `fix/prediction-entity-context`, based on `main` `e702b0b1`:
+local movement receives snapshot actor legs and non-vehicle NPC identity for
+head bounces and body-dependent wall/saber checks. Replay and previews borrow
+the snapshot list. Reference: OpenJK multiplayer `bg_pmove.c:10880-10896`,
+revision `4d0dfaf1`. Windows x64 synthetic tests cover NPC/vehicle/brush contacts
+at 8/7/4/3 ms and actor removal. The debug test also checks allocation-free
+context reads. Release measurement on Windows x64, Ryzen 7 5800X3D:
+`measure_actor_context_lookups`, 1M hot lookups in a 128-actor table, 5.75 ns/lookup.
+This measures only the lookup, excluding snapshot rebuild, full Pmove, BSP traces
+and rendering. Live contacts and rendered frame rates remain unverified.
+## Prediction: zero-gravity push-off
+
+29/10/2026, `fix/prediction-zero-gravity`, based on `main` `e702b0b1`:
+shared movement includes codemp's gravity <= 0 impulse, backward trace and leg
+animation. It deliberately retains the clear-trace impulse (`fraction <= 1`).
+Reference: OpenJK multiplayer `bg_pmove.c:2057-2085`, revision `4d0dfaf1`.
+Windows x64 synthetic tests cover command steps 8/7/4/3 ms and the jump gates;
+zero-gravity map play against a live OpenJK server remains unverified.
+## Prediction: trigger collision hull
+
+29/10/2026, `fix/prediction-trigger-hull`, based on `main` `e702b0b1`:
+brush-trigger prediction reads the actual Pmove box instead of reconstructing it
+from the final posture flags. Reference: OpenJK multiplayer `cg_predict.c:722`
+at `4d0dfaf1`. Focused synthetic tests exercise 8/7/4/3 ms commands and hull/flag
+mismatches. Verification environment: Windows x64; live OpenJK trigger contacts
+and retail/community maps remain unverified.
+## Held-player movement restriction
+
+29/10/2026, `fix/prediction-held-client`, based on `main` `e702b0b1`:
+the movement adapter reads existing player field 121 (`heldByClient`) and
+filters movement in codemp's branch order. Reference: OpenJK `4d0dfaf1`,
+`codemp/game/bg_pmove.c:10283`. Synthetic Windows x64 tests cover 8/7/4/3 ms,
+retained look/attack and snapshot release. Live carried-player behavior remains
+unverified; the protocol schema and game ownership are unchanged.
+## Command gesture prediction
+
+29/10/2026, `fix/prediction-gesture`, based on `main` `e702b0b1`: ported
+`PM_Animate`'s command gesture branch from OpenJK `4d0dfaf1`, multiplayer
+`bg_pmove.c:7707`. Windows x64 synthetic tests cover event/hand-extension
+state at 8/7/4/3 ms, held-button suppression and busy/lock gates. Live taunt
+animation and audio against an OpenJK server remain unverified.
+## Vehicle rider weapon whitelist
+
+29/10/2026, `fix/rider-weapon-whitelist`, based on `main` `e702b0b1`:
+corrected the rider adapter's `WP_BLASTER` from Bryar's ID 4 to blaster's ID 5.
+Reference: OpenJK `4d0dfaf1`, codemp `PM_WeaponOkOnVehicle` and `weapons_t`.
+Windows x64 synthetic tests check every weapon ID and forced selection at
+8/7/4/3 ms. Live mounted weapon selection remains unverified.
+## External rider weapon prediction
+
+29/10/2026, `fix/prediction-rider-weapons`, based on `main` `e702b0b1`:
+removed the server-only gate around legal external rider weapon prediction.
+Reference: OpenJK `4d0dfaf1`, codemp `PmoveSingle:11081-11113`, shared by game
+and cgame. Windows x64 synthetic tests cover visible/hidden rider weapon
+timers and unchanged rider origin at 8/7/4/3 ms. Live mounted firing remains
+unverified. The separate rider weapon-ID correction is independent.
+## Rocket-lock trace contents
+
+29/10/2026, `fix/prediction-rocket-lock-mask`, based on `main` `e702b0b1`:
+replaced a mistyped rocket-lock trace mask (`0x10101`) with `MASK_PLAYERSOLID`
+(`0x1111`). Reference: OpenJK `4d0dfaf1`, codemp `PM_RocketLock`,
+`bg_public.h` and `surfaceflags.h`. Windows x64 synthetic tests cover each
+contents bit at 8/7/4/3 ms. Live locking across map clip/terrain remains unverified.
+## Snapshot rocket-lock targets
+
+29/10/2026, `fix/prediction-rocket-targets`, based on `main` `e702b0b1`:
+client solid metadata now supplies player/NPC identity and raw powerups to
+rocket locking. Reference: OpenJK `4d0dfaf1`, codemp `PM_RocketLock:5954-5970`.
+The reference's literal `powerups & 11` check is retained, including its
+unshifted-enum quirk. Windows x64 synthetic tests cover actors, non-actors,
+powerup masks, immediate lock cancellation and 8/7/4/3 ms. Live targeting
+remains unverified; metadata-free/server adapters still have player-only fallback.
+## Presented inline-brush contents
+
+29/10/2026, `fix/prediction-mover-contents`, based on `main` `e702b0b1`:
+inline point-contents queries now use the presented brush transform rather
+than the sweep's physics-time position. Reference: OpenJK `4d0dfaf1`, codemp
+`CG_PointContents:407-440`. Windows x64 synthetic moving-water tests cover
+8/7/4/3 ms time offsets; live moving liquid/community-map behavior remains
+unverified. Swept collision keeps its existing time convention.
+## Prediction comparison coverage
+
+29/10/2026, `docs/prediction-comparison-coverage`: source review of `main`
+`e702b0b1` against OpenJK multiplayer `4d0dfaf1` found further corrections
+proposed separately in PRs #260-#268 and #270, beyond #249-#254. The
+[comparison inventory](networking.md#prediction-source-comparison) records
+reviewed paths, remaining vehicle/model questions, known deviations and
+apparent omissions that also occur in stock. Windows x64 synthetic checks
+include 8/7/4/3 ms and MSVC-compiled functions extracted from that OpenJK
+revision. This is source-level evidence, not an exhaustive parity result;
+live multiplayer, full animation/vehicle/mod coverage and FPS remain unverified.
+
+The 29/10 follow-up on #271 checks each proposed correction, including #273,
+#274 and #276, against JoF EternalJK `bd5e202d` (JA+ client-plugin reference)
+and TaystJK `2d60c0fa` (jaPRO game/client), on Windows x64. The
+[mod applicability table](networking.md#ja-and-japro-applicability) records
+shared contracts and the surrounding dialect differences. No additional mod
+gate was indicated for these corrections. JA+'s closed-source server builds,
+jaPRO full-body taunt/race collision behavior, private saber changes and live
+mod differential testing remain outside that source-level finding.
 
 ## Synced emote music back from alt-tab in step
 
@@ -5108,7 +5299,7 @@ Branch `feat/lagometer-scale` (11/10/2026, based on `3654f5b2`, Windows 11 Pro,
 Rust 1.99.0) adds archived `cg_lagometerScale`, default `1`, range 0.25–4, in both
 settings interfaces. It scales the graph around its existing bottom-right corner
 and preserves the displayed sample count and millisecond ranges; X/Y positioning
-still applies. See [client.md](client.md#lagometer-size).
+still applies. See [client.md](client.md#lagometer).
 
 Verified: formatting, locked workspace build/tests and all-target clippy pass
 (existing warnings remain). Unit checks cover default size, scaling and anchoring

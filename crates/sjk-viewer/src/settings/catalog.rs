@@ -544,6 +544,24 @@ pub(super) const HUD: &[Setting] = &[
         },
     },
     Setting {
+        label: "Radial HUD spacing",
+        cvar: crate::hud::RadialPlacement::SPREAD_CVAR,
+        kind: ValueKind::Float {
+            min: 0.0,
+            max: 250.0,
+            step: 10.0,
+        },
+    },
+    Setting {
+        label: "Radial HUD height",
+        cvar: crate::hud::RadialPlacement::HEIGHT_CVAR,
+        kind: ValueKind::Float {
+            min: -20.0,
+            max: 40.0,
+            step: 1.0,
+        },
+    },
+    Setting {
         label: "Status (health / armour / force)",
         cvar: "cg_drawStatus",
         kind: ValueKind::Bool,
@@ -676,6 +694,11 @@ pub(super) const HUD: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Name outline",
+        cvar: "cg_nameplateOutline",
+        kind: ValueKind::Choice(&["0", "1", "2"]),
+    },
+    Setting {
         label: "My own nameplate",
         cvar: "cg_nameplateSelf",
         kind: ValueKind::Bool,
@@ -751,8 +774,8 @@ pub(super) const HUD: &[Setting] = &[
     },
     Setting {
         label: "Lagometer",
-        cvar: "cg_lagometer",
-        kind: ValueKind::Bool,
+        cvar: crate::hud::lagometer::CVAR,
+        kind: ValueKind::Choice(&["0", "1", "2", "3"]),
     },
     Setting {
         label: "Lagometer scale",
@@ -914,6 +937,11 @@ pub(super) const CONTROLS: &[Setting] = &[
         cvar: crate::input::force_repeat::CVAR,
         kind: ValueKind::Bool,
     },
+    Setting {
+        label: "Hold mouse 4/5 repeats",
+        cvar: crate::input::mouse_repeat::CVAR,
+        kind: ValueKind::Choice(&["0", "1", "2"]),
+    },
 ];
 pub(super) const GAME: &[Setting] = &[
     Setting {
@@ -963,6 +991,15 @@ pub(super) const GAME: &[Setting] = &[
             min: 0.0,
             max: 2.0,
             step: 0.1,
+        },
+    },
+    Setting {
+        label: "Saber hit sparks",
+        cvar: crate::impacts::FLESH_SPARKS_CVAR,
+        kind: ValueKind::Integer {
+            min: 0,
+            max: crate::impacts::FLESH_SPARKS_ALL as i64,
+            step: 1,
         },
     },
     Setting {
@@ -1366,6 +1403,80 @@ pub(super) const GAME: &[Setting] = &[
     Setting {
         label: "JoF tools",
         cvar: "mod_jof",
+        kind: ValueKind::Bool,
+    },
+    // JA+ and jaPRO plugin options (`docs/mods.md`): each a bit of `cp_pluginDisable`,
+    // named after the feature (`settings/plugin_rows.rs`, the mods' tables).
+    #[cfg(feature = "mod-japlus")]
+    Setting {
+        label: "See others in duels (JA+)",
+        cvar: "japlus.plugin 1",
+        kind: ValueKind::Bool,
+    },
+    #[cfg(feature = "mod-japlus")]
+    Setting {
+        label: "Black sabers (JA+)",
+        cvar: "japlus.plugin 3",
+        kind: ValueKind::Bool,
+    },
+    #[cfg(feature = "mod-japlus")]
+    Setting {
+        label: "New Force effects (JA+)",
+        cvar: "japlus.plugin 5",
+        kind: ValueKind::Bool,
+    },
+    #[cfg(feature = "mod-japlus")]
+    Setting {
+        label: "Staff on the back (JA+)",
+        cvar: "japlus.plugin 9",
+        kind: ValueKind::Bool,
+    },
+    #[cfg(feature = "mod-japlus")]
+    Setting {
+        label: "Holstered sabers (JA+)",
+        cvar: "japlus.plugin 15",
+        kind: ValueKind::Bool,
+    },
+    #[cfg(feature = "mod-japro")]
+    Setting {
+        label: "Black sabers (jaPRO)",
+        cvar: "japro.plugin 0",
+        kind: ValueKind::Bool,
+    },
+    #[cfg(feature = "mod-japro")]
+    Setting {
+        label: "Respawn where you fell (jaPRO)",
+        cvar: "japro.plugin 5",
+        kind: ValueKind::Bool,
+    },
+    #[cfg(feature = "mod-japro")]
+    Setting {
+        label: "Checkpoints on screen (jaPRO)",
+        cvar: "japro.plugin 6",
+        kind: ValueKind::Bool,
+    },
+    #[cfg(feature = "mod-japro")]
+    Setting {
+        label: "Checkpoints in chat (jaPRO)",
+        cvar: "japro.plugin 7",
+        kind: ValueKind::Bool,
+    },
+    #[cfg(feature = "mod-japro")]
+    Setting {
+        label: "Damage numbers (jaPRO)",
+        cvar: "japro.plugin 8",
+        kind: ValueKind::Bool,
+    },
+    #[cfg(feature = "mod-japro")]
+    Setting {
+        label: "Shots from the centre (jaPRO)",
+        cvar: "japro.plugin 9",
+        kind: ValueKind::Bool,
+    },
+    #[cfg(feature = "mod-japro")]
+    Setting {
+        label: "Checkpoints in console (jaPRO)",
+        cvar: "japro.plugin 10",
         kind: ValueKind::Bool,
     },
     // JoF content (`docs/jof-content.md`): its card, and where it downloads from.

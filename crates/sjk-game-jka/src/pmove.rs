@@ -36,6 +36,7 @@ const PMF_ALL_TIMES: u16 = PMF_TIME_LAND | PMF_TIME_KNOCKBACK | PMF_TIME_WATERJU
 
 /// `bg_public.h` angle axis order; only pitch is clamped by `PM_UpdateViewAngles`.
 const PITCH: usize = 0;
+const ROLL: usize = 2;
 /// `bg_pmove.c` PM_UpdateViewAngles: 16000 short units, 87.89 degrees, "don't let the
 /// player look up or down more than 90 degrees".
 const PITCH_CLAMP: i16 = 16_000;
@@ -163,7 +164,24 @@ impl MoveContext<'static> {
     };
 }
 
+/// Snapshot facts read by codemp's `PM_RocketLock` after a trace.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct RocketLockTarget {
+    /// `ET_PLAYER` or `ET_NPC` are eligible, including vehicle NPCs.
+    pub actor: bool,
+    /// Raw `entityState_t.powerups`; the reference tests it with `PW_CLOAKED`.
+    pub powerups: u32,
+}
+
 pub trait MovementCollision {
+    /// Facts about the traced entity. Minimal adapters retain player-only targeting;
+    /// client snapshot collision supplies NPC identity and raw powerup bits too.
+    fn rocket_lock_target(&self, entity: u16) -> Option<RocketLockTarget> {
+        (entity < MAX_CLIENTS).then_some(RocketLockTarget {
+            actor: true,
+            powerups: 0,
+        })
+    }
     /// Contents for PM_SetWaterLevel and ledge probes; dry synthetic worlds may omit it.
     fn point_contents(&self, _point: [f32; 3]) -> u32 {
         0
@@ -210,6 +228,8 @@ pub struct MovementConfig {
     pub grapple: Option<grapple::GrappleRules>,
     /// JA+ server rules selected from `CS_SERVERINFO`; stock on other servers.
     pub ja_plus: crate::pmove_japlus::JaPlusRules,
+    /// jaPRO command policy selected from advertised server capabilities.
+    pub ja_pro: crate::pmove_japro::JaProRules,
 }
 
 impl Default for MovementConfig {
@@ -229,6 +249,7 @@ impl Default for MovementConfig {
             debug_melee: crate::pmove_debug_melee::DebugMelee::default(),
             grapple: None,
             ja_plus: crate::pmove_japlus::JaPlusRules::default(),
+            ja_pro: crate::pmove_japro::JaProRules::default(),
         }
     }
 }
@@ -246,6 +267,8 @@ impl Default for HiltSpeedScales {
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct MovementState {
+    /// Raw jaPRO stat metadata; interpreted only when its dialect is selected.
+    pub ja_pro: crate::pmove_japro::JaProState,
     /// Authoritative pickup eligibility fields, separate from predicted grants.
     pub pickup_limits: crate::prediction_items::PickupLimits,
     /// Legacy entity hide mask for this replay; reset on authoritative reseed.
@@ -276,6 +299,8 @@ pub struct MovementState {
     /// Authoritative base speed restored before compatibility modifiers.
     pub base_speed: f32,
     pub ground_entity_number: u16,
+    /// `heldByClient`: nonzero while another client holds this player. Game-owned.
+    pub held_by_client: u8,
     /// Eight-sector strafe direction published for cgame leg/torso yaw
     /// (`PM_SetMovementDir`).
     pub movement_direction: i8,
@@ -559,6 +584,7 @@ impl MovementState {
     /// on-foot `Pmove`; this is the authoritative replay starting point.
     pub fn from_player_state(player: &PlayerState) -> Self {
         Self {
+            ja_pro: crate::pmove_japro::JaProState::from_player_state(player),
             pickup_limits: crate::prediction_items::PickupLimits::from_player(player),
             predicted_items: [0; 16],
             jump_pad_entity: None,
@@ -580,6 +606,7 @@ impl MovementState {
             speed: player.speed(),
             base_speed: player.raw_field(37).unwrap_or(0) as i32 as f32,
             ground_entity_number: player.ground_entity_num(),
+            held_by_client: player.raw_field(121).unwrap_or(0) as u8,
             movement_direction: player.movement_direction(),
             view_angles: player.view_angles(),
             delta_angles: player.delta_angles(),
@@ -1133,6 +1160,17 @@ impl Predictor {
         outcome: &mut crate::pmove_saber_lock::LockOutcome,
         mut game: Option<&mut (dyn vehicle::VehicleGame + 'd)>,
     ) {
+        // CG_PredictPlayerState supplies cgs.gametype on every command. The
+        // client knows it from serverinfo even when other context is unavailable.
+        // Authoritative callers continue to supply their own world context.
+        let context = &MoveContext {
+            gametype: if self.config.authoritative {
+                context.gametype
+            } else {
+                i32::from(self.config.roll_rules.gametype)
+            },
+            ..*context
+        };
         self.gametype = context.gametype;
         self.events.clear();
         self.vehicle_landing = None;
@@ -1159,6 +1197,13 @@ impl Predictor {
         // `Pmove` (`bg_pmove.c:11185-11191`): a player falling to death has no controls
         // of its own — it moves as whatever threw it in left it moving.
         let mut command = command;
+        // TaystJK Pmove clears roll before slicing; no roll is sent back onto
+        // the command stream. Other dialects retain their existing behavior.
+        if self.config.ja_pro.enabled {
+            command.angles[ROLL] = 0;
+            self.state.view_angles[ROLL] = 0.0;
+            self.state.delta_angles[ROLL] = 0;
+        }
         if self.state.falling_to_death != 0 {
             (
                 command.forward_move,
@@ -1198,13 +1243,11 @@ impl Predictor {
         self.cleared_box =
             self.config.authoritative && self.npc.is_none() && self.state.client_num < MAX_CLIENTS;
         while self.state.command_time != final_time {
-            let maximum = self
-                .config
-                .fixed_millis
-                .map_or(66, |value| value.clamp(8, 33));
-            let millis = final_time
-                .wrapping_sub(self.state.command_time)
-                .min(maximum);
+            let millis = self.config.ja_pro.slice_millis(
+                &self.state,
+                final_time.wrapping_sub(self.state.command_time),
+                self.config.fixed_millis,
+            );
             let mut slice = repeated_command;
             slice.server_time = self.state.command_time.wrapping_add(millis);
             let opponent = lock
@@ -1213,7 +1256,7 @@ impl Predictor {
             if let Some(left_out) = left_out {
                 self.pmove_single_with(
                     slice,
-                    millis,
+                    millis.clamp(1, 200),
                     &flight::WithoutBodies(collision, left_out),
                     context,
                     opponent,
@@ -1223,7 +1266,7 @@ impl Predictor {
             } else {
                 self.pmove_single_with(
                     slice,
-                    millis,
+                    millis.clamp(1, 200),
                     collision,
                     context,
                     opponent,
@@ -1299,9 +1342,8 @@ impl Predictor {
         self.update_view_angles(&command);
         crate::pmove_roll::prepare_command(&mut self.state, &mut command, self.config.roll_rules);
         let predict_weapon = if self.riding_move() {
-            // A rider's weapon (`bg_pmove.c:11081-11113`), on the server.
-            self.config.authoritative
-                && self.rider_weapon(&mut command)
+            // Legal external rider weapons run in both game and cgame.
+            self.rider_weapon(&mut command)
                 && crate::pmove_weapon::predicts_rider_command(
                     &self.state,
                     &command,
@@ -1520,6 +1562,9 @@ impl Predictor {
                 context,
             );
         }
+        if !self.riding_move() && !self.npc_aboard() {
+            gesture::animate(&mut self.state, &command, &mut self.events);
+        }
         self.vehicle_impacts(&command, game.as_deref_mut());
         let airborne = self.state.ground_entity_number == ENTITY_NUMBER_NONE;
         let mut landed = self.ground_trace(&command, bounds, collision);
@@ -1616,9 +1661,12 @@ impl Predictor {
         }
         self.advance_bob(bob_rate, millis, command.server_time, bounds, collision);
         self.water_events();
-        if self.config.snap_velocity {
-            self.state.velocity = self.state.velocity.map(f32::round_ties_even);
-        }
+        self.config.ja_pro.finish_velocity(
+            &mut self.state,
+            previous_origin,
+            millis,
+            self.config.snap_velocity,
+        );
         if jetpacking || self.slow_fall {
             self.state.gravity = gravity;
         }
@@ -2333,6 +2381,9 @@ mod force_jump;
 #[path = "pmove_jump.rs"]
 mod jump;
 
+#[path = "pmove_gesture.rs"]
+mod gesture;
+
 #[path = "pmove_wall_moves.rs"]
 mod wall_moves;
 pub use wall_moves::{in_wall_rebound, wall_hold_yaw};
@@ -2389,5 +2440,94 @@ fn vector_normalize(vector: Vec3) -> Vec3 {
         vector * (1.0 / length)
     } else {
         vector
+    }
+}
+
+#[cfg(test)]
+mod prediction_gametype_tests {
+    use super::*;
+
+    struct Empty;
+    impl MovementCollision for Empty {
+        fn trace(
+            &self,
+            _: [f32; 3],
+            _: [f32; 3],
+            _: [f32; 3],
+            end: [f32; 3],
+            _: u32,
+        ) -> MovementTrace {
+            MovementTrace::miss(end)
+        }
+    }
+
+    #[test]
+    fn cty_flag_carriers_cannot_predict_a_force_jump() {
+        // OpenJK bg_pmove.c PM_ForceJumpingUp -> BG_HasYsalamiri(GT_CTY).
+        for step in [8, 7, 4, 3] {
+            for (gametype, flag, restricted) in [
+                (9, 4, true),
+                (9, 5, true),
+                (8, 4, false),
+                (0, 4, false),
+                (9, 0, false),
+            ] {
+                let mut state = MovementState {
+                    health: 100,
+                    gravity: 800.0,
+                    weapon: 2,
+                    speed: 250.0,
+                    origin: [0.0, 0.0, 100.0],
+                    velocity: [0.0, 0.0, 225.0],
+                    force_jump_start_height: 24.0,
+                    force_power: 100,
+                    levitation_level: 3,
+                    movement_flags: PMF_JUMP_HELD,
+                    ground_entity_number: ENTITY_NUMBER_NONE,
+                    standing_height: 40.0,
+                    crouching_height: 16.0,
+                    ..Default::default()
+                };
+                if flag != 0 {
+                    state.powerup_deadlines[flag] = 1;
+                }
+                let mut config = MovementConfig::default();
+                config.roll_rules.gametype = gametype;
+                let mut predictor = Predictor::from_state(state, config);
+                predictor.predict_command(
+                    UserCommand {
+                        server_time: step,
+                        up_move: 127,
+                        ..Default::default()
+                    },
+                    &Empty,
+                );
+                assert_eq!(
+                    predictor.state().velocity[2] < 225.0,
+                    restricted,
+                    "{step} ms, gametype {gametype}, flag {flag}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn authoritative_context_keeps_its_world_gametype() {
+        let mut predictor = Predictor::from_state(
+            MovementState::default(),
+            MovementConfig {
+                authoritative: true,
+                ..Default::default()
+            },
+        );
+        predictor.predict_command_in(
+            UserCommand::default(),
+            &Empty,
+            &MoveContext {
+                gametype: 9,
+                ..MoveContext::CLIENT
+            },
+        );
+        assert_eq!(predictor.gametype, 9);
     }
 }

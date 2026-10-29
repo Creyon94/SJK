@@ -7,6 +7,7 @@ pub(crate) mod flip_kick;
 pub(crate) mod force_repeat;
 pub(crate) mod idrive;
 pub(crate) mod motion;
+pub(crate) mod mouse_repeat;
 
 pub(crate) mod force_abilities;
 mod selection_commands;

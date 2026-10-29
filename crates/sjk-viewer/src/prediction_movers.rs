@@ -50,10 +50,14 @@ impl Trajectory {
 /// presented frame; packed boxes stay axis-aligned at their rendered origin.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Collider {
+    pub(crate) rocket_target: sjk_game_jka::pmove::RocketLockTarget,
     pub(crate) entity: u16,
     pub(crate) model: usize,
     pub(crate) bounds: Option<sjk_bsp::Aabb>,
     pub(crate) origin: [f32; 3],
+    /// CG_PointContents uses the presented transform, while sweeps use physics time.
+    pub(crate) contents_origin: [f32; 3],
+    pub(crate) contents_axes: Option<[[f32; 3]; 3]>,
     pub(crate) axes: [[f32; 3]; 3],
     pub(crate) rotated: bool,
     mover: bool,
@@ -86,9 +90,15 @@ impl Collider {
         };
         Self {
             entity: mover.entity_number,
+            rocket_target: sjk_game_jka::pmove::RocketLockTarget {
+                actor: false,
+                powerups: 0,
+            },
             model: mover.model_index,
             bounds: None,
             origin: mover.origin,
+            contents_origin: mover.origin,
+            contents_axes: (mover.angles != [0.0; 3]).then(|| rotation_axes(mover.angles)),
             axes: rotation_axes(mover.angles),
             rotated: mover.angles != [0.0; 3],
             mover: true,
@@ -143,9 +153,15 @@ impl Collider {
         };
         let mut result = Self {
             entity: state.number(),
+            rocket_target: sjk_game_jka::pmove::RocketLockTarget {
+                actor: matches!(state.entity_type(), 1 | 13),
+                powerups: state.powerups(),
+            },
             model: state.model_index() as usize,
             bounds,
             origin: position.position(physics_time),
+            contents_origin: position.position(angle_time),
+            contents_axes: None,
             axes: [[0.0; 3]; 3],
             rotated: false,
             mover: state.entity_type() == ET_MOVER,
@@ -173,6 +189,8 @@ impl Collider {
         let angles = self.angular.angles(time);
         self.rotated = angles != [0.0; 3];
         self.axes = rotation_axes(angles);
+        self.contents_origin = self.position.position(time);
+        self.contents_axes = self.rotated.then_some(self.axes);
     }
 
     /// The same solid where its trajectories put it at `time`, moved and turned alike
@@ -188,6 +206,23 @@ impl Collider {
     /// not stands where it was read, whatever the time.
     pub(crate) fn moves(&self) -> bool {
         self.position.kind >= TR_LINEAR || self.angular.kind >= TR_LINEAR
+    }
+}
+
+#[cfg(test)]
+mod rocket_target_tests {
+    use super::*;
+    #[test]
+    fn snapshot_solid_keeps_rocket_target_kind_and_powerups() {
+        for kind in [1, 3, 13] {
+            let mut entity = EntityState::zero(45, &sjk_protocol::LEGACY_ENTITY_FIELDS);
+            entity.set_raw_field(8, kind);
+            entity.set_raw_field(26, 15 | (24 << 8) | (72 << 16));
+            entity.set_raw_field(77, 2);
+            let collider = Collider::from_entity(&entity, 0, 0, false).unwrap();
+            assert_eq!(collider.rocket_target.actor, matches!(kind, 1 | 13));
+            assert_eq!(collider.rocket_target.powerups, 2);
+        }
     }
 }
 
@@ -344,6 +379,15 @@ impl Movers {
     pub(crate) fn present_boxes(&mut self, shown: &Self, time: i32) {
         for collider in &mut self.colliders {
             if collider.bounds.is_none() {
+                if let Some(index) = shown.by_entity[usize::from(collider.entity)] {
+                    let before = &shown.colliders[index];
+                    if before.bounds.is_none() && before.teleport == collider.teleport {
+                        collider.contents_origin = before.position.position(time);
+                        let angles = before.angular.angles(time);
+                        collider.contents_axes =
+                            (angles != [0.0; 3]).then(|| rotation_axes(angles));
+                    }
+                }
                 continue;
             }
             let Some(index) = shown.by_entity[usize::from(collider.entity)] else {

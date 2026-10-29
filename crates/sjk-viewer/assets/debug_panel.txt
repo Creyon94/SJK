@@ -37,6 +37,85 @@ test: Break down the last copy of the shader you wear: the card says first that 
 test: Trade window: a locked duplicate is dimmed with a padlock; the Favourites chip filters.
 note: Stars and locks show only once the hub with collection marks is deployed.
 
+[ejk-flesh-sparks]
+area: Rendering & effects
+title: Saber hit sparks, cg_fleshSparks 0-7, as in JoF EJK (Kushina's idea)
+change: Settings > Game options > Saber hit sparks: 7 (default) as before, 0 none on bodies.
+change: Below 2 the special hit (eventParm 16) is silent too; other hits keep their sound.
+test: Duel a bot or friend at 7: the same red sparks as before on every body hit.
+test: cg_fleshSparks 4: plain body hits show no sparks, big and moderate ones still do.
+test: cg_fleshSparks 0: no red sparks on bodies; a hit on a wall still shows its cut.
+
+[ejk-mouse-repeat]
+area: Input
+title: Held mouse 4/5 repeats its bind, in_mouseRepeat (Kushina's idea)
+change: Settings > Controls > Hold mouse 4/5 repeats: Off, Mouse 4 and 5, Mouse 4 only.
+change: 20 presses a second at any frame rate (EJK: every other frame, a server flood).
+test: bind mouse4 "echo hi", in_mouseRepeat 1, hold mouse 4 in game: 20 his a second.
+test: in_mouseRepeat 2: mouse 5 no longer repeats; open the console: the repeat stops.
+test: bind mouse4 +attack and hold it: one swing chain, as a held key.
+
+[ejk-lagometer-modes]
+area: HUD
+title: cg_lagometer 2 and 3: average ping, interpolation and a speed graph (Kushina's idea)
+change: 2: the graph, its averages along the top and a speed graph above with the speed.
+change: 3: the same without backdrops, the speed graph taller, its number only moving.
+test: cg_lagometer 1: exactly the old graph. Settings > HUD > Lagometer steps 0 to 3.
+test: cg_lagometer 2 on a server: ping left, interpolation right, the speed graph above.
+test: cg_lagometer 3: no backdrops; stand still: the speed number goes.
+test: cg_lagometerScale 2 and cg_lagometerX/Y: the numbers and speed graph follow.
+
+[plugin-options]
+area: Menus & settings
+title: JA+ and jaPRO plugin options as switches, and the plugin command (Kushina's idea)
+change: Settings > Mods: JA+ plugin options and jaPRO plugin options, each On while it is on.
+change: japlus.plugin and japro.plugin list them with JoF EJK's numbers, or switch one.
+change: Holstered sabers follow cp_pluginDisable bit 29, as in JoF EJK, no longer bit 13.
+test: Settings > Mods: See others in duels Off, Black sabers On, Staff on the back Off.
+test: Black sabers (JA+) Off: cp_pluginDisable reads 1544; on a JA+ server black blades go orange.
+test: On a JA+ server: japlus.plugin lists 5 options, then Not in SJK yet; japlus.plugin 10 says why.
+test: Staff on the back On, then draw a staff in a JA+ match: it goes over the shoulder.
+test: On a jaPRO race map, Checkpoints in chat On: checkpoint times show in the chat.
+note: The options not offered (ledge grab, new DFA, jaPRO rolls...) and why: docs/mods.md.
+
+[lumaya-japro-race-slicing]
+area: Gameplay
+title: jaPRO race moves predicted as jaPRO cuts them (Lumaya, PR #277)
+change: On jaPRO servers in race mode: no 66 ms slices, 8 ms in OCPM and rolls, exact velocity.
+test: Local jaPRO server, /race, run and strafe-jump at 125 and 333 fps: no snapping back.
+test: A JA+ or base server: movement as before.
+
+[slash-gpu-fast-card]
+area: Rendering & effects
+title: Laptops with two graphics cards start on the fast one (Slash, PR #283)
+change: sjk.exe asks NVIDIA Optimus and AMD for the fast card; another card if one fails.
+change: A start that fails shows a dialog saying why and what to try, not just closing.
+test: On a laptop with two cards: SJK starts on the NVIDIA or AMD card (Task Manager > GPU).
+test: logs\last-client.log: a card that failed is named with its error, then the one used.
+
+[slash-nameplate-outline]
+area: HUD
+title: Nameplates: Name outline, Off, Faint or Strong (Slash, PR #280)
+change: Settings > HUD > Name outline (cg_nameplateOutline): 0 shadow, 1 faint halo, 2 strong.
+test: Strong: every name ringed dark, a black name in a stronger pale halo.
+test: Faint (the default): as before. Off: only the drop shadow.
+
+[slash-radial-placement]
+area: HUD
+title: SJK radial HUD: spacing and height sliders (Slash, PR #281)
+change: Settings > HUD > Radial HUD spacing (cg_hudRadialSpread) and height (cg_hudRadialHeight).
+test: Radial HUD on, spacing 150: health and armour move left, Force, ammo and style right.
+test: Height 20: the meters move up; -10 down. Crosshair, timer, lagometer stay put.
+
+[lumaya-prediction-audit]
+area: Gameplay
+title: Prediction audit: 12 fixes against the original game (Lumaya, PRs #249-#276)
+change: Game type, NPCs, zero gravity, triggers, carried players, gesture, vehicle riders,
+change: rocket lock, moving brush contents; same code on JA+ and jaPRO (table in networking).
+test: On a JA+ server: run, jump, roll through jump pads and teleporters: no snapping back.
+test: CTY with a flag: no Force jump is predicted. Gesture key: the hand gesture at once.
+test: Rocket lock on an NPC (local server): it locks as the server does.
+
 [slash-console-over-chat]
 area: Console & chat
 title: The console key opens the console over the chat (Slash, PR #255)

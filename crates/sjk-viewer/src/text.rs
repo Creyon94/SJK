@@ -503,17 +503,62 @@ pub(crate) enum CodePalette {
     /// The game's own colours, a dark glyph edged in a soft light halo instead of
     /// its shadow, so a black name reads on a dark nameplate (Sol's pick, 28/10/2026).
     Haloed,
+    /// As [`Self::Haloed`], the halo stronger, and every other glyph edged in a dark
+    /// outline instead of its shadow (`cg_nameplateOutline 2`; Lex's idea, 29/10/2026:
+    /// names hard to read on some backgrounds).
+    Outlined,
 }
 
 /// Darkest glyph colour drawn without a halo in [`CodePalette::Haloed`], by its
 /// luminance.
 const HALO_BELOW: f32 = 0.3;
 
+/// How a glyph is set off from what is behind it.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) enum Edge {
+    /// The dark drop shadow, a step down and right.
+    Shadow,
+    /// Eight copies a step out all round, each in this colour (its alpha the copy's).
+    Ring([f32; 4]),
+}
+
+/// A dark glyph's pale halo, and how opaque each of its copies is: faint (Sol,
+/// 29/10/2026: 0.38 drew too strong an outline), or strong in [`CodePalette::Outlined`].
+const HALO_TINT: [f32; 3] = [0.86, 0.89, 0.95];
+const HALO_ALPHA: f32 = 0.18;
+const HALO_ALPHA_STRONG: f32 = 0.38;
+/// A light glyph's dark outline in [`CodePalette::Outlined`].
+const OUTLINE_TINT: [f32; 3] = [0.04, 0.04, 0.06];
+const OUTLINE_ALPHA: f32 = 0.45;
+
 impl CodePalette {
     /// Whether a glyph of `color` gets a light halo instead of its dark shadow.
     pub(crate) fn halo(self, color: [f32; 4]) -> bool {
-        self == Self::Haloed
+        matches!(self, Self::Haloed | Self::Outlined)
             && 0.2126 * color[0] + 0.7152 * color[1] + 0.0722 * color[2] < HALO_BELOW
+    }
+
+    /// How a glyph of `color` is set off: a ring of copies or its shadow.
+    pub(crate) fn edge(self, color: [f32; 4]) -> Edge {
+        let ring =
+            |tint: [f32; 3], alpha: f32| Edge::Ring([tint[0], tint[1], tint[2], alpha * color[3]]);
+        match (self, self.halo(color)) {
+            (Self::Haloed, true) => ring(HALO_TINT, HALO_ALPHA),
+            (Self::Outlined, true) => ring(HALO_TINT, HALO_ALPHA_STRONG),
+            (Self::Outlined, false) => ring(OUTLINE_TINT, OUTLINE_ALPHA),
+            _ => Edge::Shadow,
+        }
+    }
+
+    /// The nameplates' palette for `cg_nameplateOutline`: 0 the shadow only, 1 (the
+    /// default) a faint halo on dark letters, 2 a strong one and a dark outline on the
+    /// rest.
+    pub(crate) fn nameplate(outline: i64) -> Self {
+        match outline {
+            ..=0 => Self::Game,
+            1 => Self::Haloed,
+            _ => Self::Outlined,
+        }
     }
 
     /// The colour of code `index` (0-9), as a display value.

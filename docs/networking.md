@@ -59,7 +59,8 @@ Player blade tints in a player configstring's `c3`/`c4` keys are read for every
 profile; the JA+ 2.4 server module formats both keys too. The JA+ client
 plugin's `serverconfig` and `pluginDisable` commands are the JA+ tools mod's
 `japlus.serverconfig` and `japlus.plugin` ([mods.md](mods.md)); the setting stays
-in the core client.
+in the core client. Settings switches its bits one at a time, named after their
+feature, and `japro.plugin` lists jaPRO's ([plugin options](mods.md#plugin-options)).
 
 ### Player text
 
@@ -143,6 +144,26 @@ read as -1, not 65535.
 
 ### Server-dialect movement rules
 
+jaPRO/TaystJK command prediction also reads the existing snapshot race/style
+slots (`stats[11]` and `stats[13]`), only for the advertised jaPRO dialect.
+[pmove_japro.rs](../crates/sjk-game-jka/src/pmove_japro.rs) follows TaystJK
+`2d60c0fa5` multiplayer `Pmove` and `PmoveSingle`: race commands bypass ordinary
+fixed/66 ms slicing except active rolls and OCPM (at most 8 ms), and each slice
+simulates at most 200 ms while acknowledging its original timestamp. Most race
+styles retain fractional velocity; OCPM follows `pmove_float` and the advertised
+high-FPS fix (`jcinfo` bit 21). That fix suppresses snapping below 4 or above
+25 ms outside race mode too. Race moves that end at their starting origin clear
+velocity before snapping to prevent wallbug accumulation. The jaPRO command
+copy clears roll; outgoing user commands remain unchanged. Serverinfo refresh
+and snapshot reseeding refresh this policy and metadata. `cg_noPredict 1` is the
+existing player override to display server positions without local prediction.
+
+This is command-policy support, not complete jaPRO race physics: style-specific
+acceleration, jumps, ramps, restrictions, new jetpack and grapples still require
+their own reference-backed implementation and verification. Compiled reference
+fixtures cover slicing/snapping decisions; they do not establish full gameplay
+or live-server parity.
+
 Prediction follows rules the server advertises in `CS_SERVERINFO`, read by
 [pmove_rules.rs](../crates/sjk-game-jka/src/pmove_rules.rs): the roll fixes of
 JA+ (`jp_cinfo`) and TaystJK/jaPRO, and `g_debugMelee`
@@ -157,6 +178,13 @@ an animation length table: a joined game reads the humanoid
 hands Pmove the local player's animation set (`cg_predict.c:1311` at a40e793). The dedicated
 server does not simulate `g_debugMelee`; its default there is 0, which keeps
 prediction on the stock behavior.
+
+A player's nonzero vehicle entity number suppresses ordinary movement physics,
+including for a passenger with no predicted chassis. The optional `Riding`
+context supplies vehicle-specific details; it does not decide whether the player
+is aboard (`codemp/game/bg_pmove.c:11027-11031`). Dismounting restores ordinary
+movement on the next command. Passenger seat placement and vehicle-specific
+view/duck details still require the corresponding vehicle context.
 
 JA+ and TaystJK/jaPRO isolate private duels: the two duellers and everyone else
 pass through each other. A JA+ 2.4 server leaves part of that to client-plugin
@@ -254,6 +282,29 @@ so wrapping by whole turns changes nothing that is sent; `angle_to_short` also g
 through `i64` now, wrapping rather than saturating if a huge angle ever reaches it.
 
 ### Equipped jetpack prediction
+
+The snapshot's `heldByClient` freezes movement input while another client holds
+the player. It leaves look and attack input alone, matching codemp's command
+filter; the game continues to own the held state and carried position.
+Command gestures predict codemp's taunt hand extension and `EV_TAUNT` before
+the final ground trace and weapon animation. Busy animation/weapon tracks and
+saber locks reject the gesture. Riders skip this step, as in `PmoveSingle`.
+Vehicle riders may select melee, saber or blaster (weapon IDs 2, 3 and 5),
+as in codemp. Bryar pistol (ID 4) is not the blaster and is not in this whitelist.
+An exposed vehicle rider predicts legal handheld weapon timers and firing just
+as an on-foot player does. Hidden occupants skip their handheld weapon; neither
+case gives the rider independent movement physics.
+Rocket-lock prediction traces with codemp's `MASK_PLAYERSOLID` (`0x1111`):
+solid, player clip, body and terrain. `CONTENTS_OUTSIDE` is not a blocker.
+Rocket locking reads the traced solid's snapshot actor type and powerup bits.
+Player and NPC targets (including vehicle NPCs) are eligible. The stock
+`PM_RocketLock` powerup check is preserved literally: `powerups & PW_CLOAKED`,
+where the protocol-26 `BASE_COMPAT` ordinal is 11, not a shifted bit mask.
+Minimal collision adapters without snapshot metadata retain player-only targeting.
+Inline-brush point contents use the presented origin and angles, matching
+`CG_PointContents`; collision sweeps retain their physics-time translation.
+Prediction keeps these transforms separately, including when the newest and
+displayed snapshots carry different mover trajectories.
 
 `PM_JETPACK` (movement type 1), used by the equipped jetpack on stock-derived
 servers including JA+, runs the reference's gravity, thrust and air-control
@@ -508,6 +559,169 @@ report 172). It stays behind the client's other commands, a `userinfo` after a m
 or saber change or a Force-profile `team` retry, so a `kill` bind respawns with the
 new model and a typed `/team s` is not undone by a retry sent after it.
 
+## Prediction source comparison
+
+The 29/10/2026 review compares SJK `main` `e702b0b1` with OpenJK
+`4d0dfaf1cb9af979a827c0b0371aacf4fe9b2724`, **multiplayer `codemp`**:
+`cg_predict.c`, `bg_pmove.c`, `bg_slidemove.c`, `bg_saber.c`, `bg_panimate.c`
+and the referenced item, saber-definition and vehicle helpers. It traces
+snapshot replay, collision, command filtering, movement dispatch, posture,
+Force/wall moves, weapon/saber prediction, animation context, riders,
+vehicles, predictable events and trigger/item contact. Source review does not
+establish that every reachable state or mod setting has been exercised.
+
+Confirmed corrections are proposed separately; an open PR is not a merged feature:
+
+| Area | Pull requests |
+| --- | --- |
+| Game type and surrounding actor context | #249, #250 |
+| Zero-gravity movement and incomplete command history | #251, #252 |
+| Saber-lock facing and trigger hull | #253, #254 |
+| Respawn jumping and movement while held | #260, #261 |
+| Command gestures | #262 |
+| Rider weapon IDs and client weapon execution | #263, #264 |
+| Rocket trace contents and snapshot target identity/powerups | #265, #268 |
+| Dual jump-attack hull restoration | #266 |
+| Equipped saber movement definitions | #267 |
+| Presented inline-brush point contents | #270 |
+
+The wider comparison leaves these source differences for targeted validation
+before proposing a correction:
+
+- Remote vehicle boxes: `CG_ClipMoveToEntities` calls
+  `BG_VehicleAdjustBBoxForOrientation`; the viewer decodes a packed remote box.
+  The locally predicted vehicle has a separate orientation-aware path.
+- Vehicle/rider collision exclusions: stock `CG_VehicleClipCheck` depends on
+  the particular entity making the trace, including passengers. SJK shares a
+  collision list between local pilot and vehicle; passenger cases need an
+  isolated vehicle scenario before changing that shared list.
+- Model-specific animation context: OpenJK chooses the local player's animation
+  table and `nonHumanoid` every frame. SJK initially loads humanoid timings and
+  retains them on map reuse. A model change or custom skeleton needs focused
+  evidence; the slope-pose limitation is documented above.
+
+Known deviations remain explicit: missile solids are omitted as documented in
+"Own rockets"; slope poses wait for snapshots; spinning-saber jetpack impulses
+are not implemented; intermission movement keeps updating local view angles
+where stock `PM_UpdateViewAngles` returns. These do not establish stock parity.
+
+Several apparent omissions are not additional client findings: `PM_Use` has no
+predicted client consumer, saber offense/defense/throw levels are not networked,
+`rocketLastValidTime` is also lost in stock snapshot reseeding, and stock water
+sampling uses `MINS_Z` rather than a dynamically resized hull's minimum.
+Windows x64 synthetic tests and small MSVC-compiled OpenJK function probes at
+8/7/4/3 ms support the proposed fixes. A live differential run, full animation,
+vehicle and mod coverage, and rendered performance remain unverified.
+
+### JA+ and jaPRO applicability
+
+The 29/10/2026 follow-up checks the proposed corrections against multiplayer
+sources at two fixed revisions: **E**, [JoF EternalJK `bd5e202d`][prediction-e],
+for JA+ client-plugin behavior, and **T**, [TaystJK `2d60c0fa`][prediction-t],
+for jaPRO game (`_GAME`) and client (`_CGAME`) behavior. JA+ is closed source:
+E is evidence for its client prediction, not proof of every JA+ server build
+or unpublished setting. The PR heads checked were #249-#254, #260-#268, #270,
+#273, #274 and #276 as published on 29/10/2026; #271 itself changes only docs.
+
+In the table, **shared** describes the correction, not every rule in its
+surrounding function. Source locations are `codemp/game/bg_pmove.c` (**PM**),
+`codemp/cgame/cg_predict.c` (**CP**) and `codemp/game/bg_saber.c` (**SA**).
+The links pin both revision and starting line.
+
+| Proposed correction | JA+ client reference (E) | jaPRO game/client reference (T) | Integration decision |
+| --- | --- | --- | --- |
+| #249 `b39c1ba0` gametype | [CP:1388][prediction-e-gametype] passes `cgs.gametype` | [CP:1420][prediction-t-gametype] does the same | Shared context input; keep the server's actual gametype |
+| #250 `9b891e7f` surrounding actors | [CP:971][prediction-e-entities] supplies `baseEnt`; PM queries player/NPC state | [CP:953][prediction-t-entities] supplies the same entity context | Shared snapshot input; preserve the dialect's existing move rules |
+| #251 `79290e76` zero-gravity push | [PM:2479][prediction-e-zero] retains the backward trace and clear-trace impulse | [PM:3766][prediction-t-zero] retains that impulse too; earlier held-jump gates depend on movement style | Share the impulse; retain jaPRO style-specific jump gates, proposed separately in #282 |
+| #252 `a807ccd0` missing command history | [CP:1140][prediction-e-history] returns before replay when history is incomplete | [CP:1127][prediction-t-history] has the same guard | Shared replay guard, independent of physics style |
+| #253 `e10a62cf` saber-lock facing | [CP:1396][prediction-e-lock] faces the snapshot opponent's presented origin | [CP:1428][prediction-t-lock] has the same facing step | Shared lock behavior; do not confuse it with dialect-specific DFA view rules |
+| #254 `9cc782db` trigger hull | [CP:815][prediction-e-trigger] traces `cg_pmove.mins/maxs` | [CP:797][prediction-t-trigger] does the same | Share the final movement hull; this does not add mod-specific trigger effects |
+| #260 `f353bc91` respawn latch | [PM:2121][prediction-e-respawn] blocks jumping; PM:12606 clears the latch after attack/use release | [PM:3391][prediction-t-respawn] blocks jumping; PM:14579 uses the same release condition | Shared latch; no JA+ or jaPRO exception found |
+| #261 `96fa5790` held-player input | [PM:12258][prediction-e-held] stiffens a player with `heldByClient` | [PM:14277][prediction-t-held] has the same branch | Shared input freeze; retain the separate JA+ kick/throw/view policies |
+| #262 `d731c470` command gesture | [PM:9424][prediction-e-gesture] starts `BOTH_ENGAGETAUNT` with a 1000 ms hand-extend and `EV_TAUNT` | [PM:11353][prediction-t-gesture] has the same start conditions and result | Share `PM_Animate`; keep JA+ full-body taunt controls in `JaPlusRules::free_taunts` |
+| #263 `961418e1` rider weapon ID | [PM:11698][prediction-e-rider] allows melee, saber and blaster | [PM:13648][prediction-t-rider] has the same whitelist | Shared protocol-26 weapon IDs; blaster is 5, not pistol 4 |
+| #264 `e7c4c087` rider weapon execution | [PM:13354][prediction-e-rider-weapon] runs exposed riders' legal weapons in cgame too | [PM:15654][prediction-t-rider-weapon] does the same | Shared execution gate; keep hidden riders excluded |
+| #265 `9aae3e8b` rocket trace mask | [PM:7528][prediction-e-rocket] uses `MASK_PLAYERSOLID` | [PM:9201][prediction-t-rocket] uses that mask too | Shared contents mask; no replacement of dialect collision filtering |
+| #266 `f0d6e1f0` dual-jump hull | [PM:5532][prediction-e-dual] retains both timed resize windows and `PM_CheckFixMins` | [PM:7162][prediction-t-dual] retains the same functions | Shared hull correction; animation timing still comes from the loaded model |
+| #267 `f2532dde` saber definitions | [SA:4284][prediction-e-saber] obtains both equipped definitions via `BG_MySaber` | [SA:4593][prediction-t-saber] uses the same lookup in game and cgame | Shared definition input; do not substitute stock definitions for a mod's installed `.sab` files |
+| #268 `859e88b4` rocket target facts | [PM:7543][prediction-e-target] reads entity type and the literal `powerups & PW_CLOAKED` test | [PM:9216][prediction-t-target] retains the same tests | Shared snapshot facts, including the reference's literal cloak-ordinal quirk |
+| #270 `a7de034a` brush point contents | [CP:494][prediction-e-contents] uses the brush's presented origin/angles | [CP:478][prediction-t-contents] does the same | Shared transform correction; preserve which solids the dialect includes |
+| #273 `1df3dd85` remote vehicle hull | [CP:359][prediction-e-vehicle] calls `BG_VehicleAdjustBBoxForOrientation` without a clearance callback | [CP:343][prediction-t-vehicle] has the same call | Shared definition/orientation geometry; no server-name special case |
+| #274 `9374aa42` vehicle/rider exclusions | [CP:192][prediction-e-clip] checks the particular tracing actor's vehicle relationships | [CP:164][prediction-t-clip] has the same helper | Share actor-relative exclusions; do not replace duel/race collision policies |
+| #276 `4991cd66` passenger movement | [CP:1677][prediction-e-passenger] attaches non-pilots to the remote chassis; PM suppresses independent rider movement | [CP:1693][prediction-t-passenger] has the same passenger attachment and movement split | Shared rider classification even without a locally predicted chassis |
+
+No additional dialect gate is indicated for these corrections by this source
+comparison. A comment/whitespace-insensitive token comparison also found the
+complete bodies of `PM_Animate`, `PM_CheckDualForwardJumpDuck`,
+`PM_CheckFixMins`, `PM_RocketLock`, `PM_WeaponOkOnVehicle`,
+`BG_VehicleAdjustBBoxForOrientation` and `BG_MySaber` unchanged from OpenJK
+`4d0dfaf1` in both references. Other rows were checked at their call sites and
+conditions; this is not an end-to-end mod compatibility result.
+
+The surrounding dialect differences remain separate:
+
+- JA+ taunt movement/view controls remain in
+  [pmove_input_freeze.rs](../crates/sjk-game-jka/src/pmove_input_freeze.rs) and
+  [JaPlusRules](../crates/sjk-game-jka/src/pmove_japlus.rs). `BOTH_ENGAGETAUNT`
+  is not a `BG_FullBodyTauntAnim`; #262 does not change bow/meditation rules.
+  T also unlocks full-body taunt controls in its client path (PM:14340-14424);
+  SJK's JA+-only handling does not establish jaPRO full-body taunt parity.
+- jaPRO command slicing/precision, movement coefficients and style-specific
+  jumps are proposed separately in #277, #279 and #282. They are not supplied
+  by these stock-path corrections; their integration must preserve the shared
+  respawn gate and zero-gravity impulse. Complete race physics is unverified.
+- Mod DFA/kick/grapple rules, server-only saber tweaks and private definition
+  changes are not made stock by #267. `BG_MySaber` being shared establishes the
+  need for definition context, not parity for every move token or mod setting.
+- E and T have duel/race collision filters outside `CG_VehicleClipCheck`.
+  Correcting a hull, transform or actor relationship does not verify jaPRO's
+  racer-specific solid exclusions or any mod-specific trigger/item policy.
+
+This follow-up ran on Windows x64 and reviewed source, not live servers.
+The earlier 8/7/4/3 ms synthetic/OpenJK checks remain evidence for those
+individual corrections; they were not differential JA+/jaPRO server runs.
+
+[prediction-e]: https://github.com/JediofFreedom/JoF_EJK/blob/bd5e202dfedd49500f1b7aadd655619bac152167/codemp/game/bg_pmove.c
+[prediction-e-gametype]: https://github.com/JediofFreedom/JoF_EJK/blob/bd5e202dfedd49500f1b7aadd655619bac152167/codemp/cgame/cg_predict.c#L1388
+[prediction-e-entities]: https://github.com/JediofFreedom/JoF_EJK/blob/bd5e202dfedd49500f1b7aadd655619bac152167/codemp/cgame/cg_predict.c#L971
+[prediction-e-zero]: https://github.com/JediofFreedom/JoF_EJK/blob/bd5e202dfedd49500f1b7aadd655619bac152167/codemp/game/bg_pmove.c#L2479
+[prediction-e-history]: https://github.com/JediofFreedom/JoF_EJK/blob/bd5e202dfedd49500f1b7aadd655619bac152167/codemp/cgame/cg_predict.c#L1140
+[prediction-e-lock]: https://github.com/JediofFreedom/JoF_EJK/blob/bd5e202dfedd49500f1b7aadd655619bac152167/codemp/cgame/cg_predict.c#L1396
+[prediction-e-trigger]: https://github.com/JediofFreedom/JoF_EJK/blob/bd5e202dfedd49500f1b7aadd655619bac152167/codemp/cgame/cg_predict.c#L815
+[prediction-e-respawn]: https://github.com/JediofFreedom/JoF_EJK/blob/bd5e202dfedd49500f1b7aadd655619bac152167/codemp/game/bg_pmove.c#L2121
+[prediction-e-held]: https://github.com/JediofFreedom/JoF_EJK/blob/bd5e202dfedd49500f1b7aadd655619bac152167/codemp/game/bg_pmove.c#L12258
+[prediction-e-gesture]: https://github.com/JediofFreedom/JoF_EJK/blob/bd5e202dfedd49500f1b7aadd655619bac152167/codemp/game/bg_pmove.c#L9424
+[prediction-e-rider]: https://github.com/JediofFreedom/JoF_EJK/blob/bd5e202dfedd49500f1b7aadd655619bac152167/codemp/game/bg_pmove.c#L11698
+[prediction-e-rider-weapon]: https://github.com/JediofFreedom/JoF_EJK/blob/bd5e202dfedd49500f1b7aadd655619bac152167/codemp/game/bg_pmove.c#L13354
+[prediction-e-rocket]: https://github.com/JediofFreedom/JoF_EJK/blob/bd5e202dfedd49500f1b7aadd655619bac152167/codemp/game/bg_pmove.c#L7528
+[prediction-e-dual]: https://github.com/JediofFreedom/JoF_EJK/blob/bd5e202dfedd49500f1b7aadd655619bac152167/codemp/game/bg_pmove.c#L5532
+[prediction-e-saber]: https://github.com/JediofFreedom/JoF_EJK/blob/bd5e202dfedd49500f1b7aadd655619bac152167/codemp/game/bg_saber.c#L4284
+[prediction-e-target]: https://github.com/JediofFreedom/JoF_EJK/blob/bd5e202dfedd49500f1b7aadd655619bac152167/codemp/game/bg_pmove.c#L7543
+[prediction-e-contents]: https://github.com/JediofFreedom/JoF_EJK/blob/bd5e202dfedd49500f1b7aadd655619bac152167/codemp/cgame/cg_predict.c#L494
+[prediction-e-vehicle]: https://github.com/JediofFreedom/JoF_EJK/blob/bd5e202dfedd49500f1b7aadd655619bac152167/codemp/cgame/cg_predict.c#L359
+[prediction-e-clip]: https://github.com/JediofFreedom/JoF_EJK/blob/bd5e202dfedd49500f1b7aadd655619bac152167/codemp/cgame/cg_predict.c#L192
+[prediction-e-passenger]: https://github.com/JediofFreedom/JoF_EJK/blob/bd5e202dfedd49500f1b7aadd655619bac152167/codemp/cgame/cg_predict.c#L1677
+[prediction-t]: https://github.com/taysta/TaystJK/blob/2d60c0fa524a5c48626532581c72711592b6f8d3/codemp/game/bg_pmove.c
+[prediction-t-gametype]: https://github.com/taysta/TaystJK/blob/2d60c0fa524a5c48626532581c72711592b6f8d3/codemp/cgame/cg_predict.c#L1420
+[prediction-t-entities]: https://github.com/taysta/TaystJK/blob/2d60c0fa524a5c48626532581c72711592b6f8d3/codemp/cgame/cg_predict.c#L953
+[prediction-t-zero]: https://github.com/taysta/TaystJK/blob/2d60c0fa524a5c48626532581c72711592b6f8d3/codemp/game/bg_pmove.c#L3766
+[prediction-t-history]: https://github.com/taysta/TaystJK/blob/2d60c0fa524a5c48626532581c72711592b6f8d3/codemp/cgame/cg_predict.c#L1127
+[prediction-t-lock]: https://github.com/taysta/TaystJK/blob/2d60c0fa524a5c48626532581c72711592b6f8d3/codemp/cgame/cg_predict.c#L1428
+[prediction-t-trigger]: https://github.com/taysta/TaystJK/blob/2d60c0fa524a5c48626532581c72711592b6f8d3/codemp/cgame/cg_predict.c#L797
+[prediction-t-respawn]: https://github.com/taysta/TaystJK/blob/2d60c0fa524a5c48626532581c72711592b6f8d3/codemp/game/bg_pmove.c#L3391
+[prediction-t-held]: https://github.com/taysta/TaystJK/blob/2d60c0fa524a5c48626532581c72711592b6f8d3/codemp/game/bg_pmove.c#L14277
+[prediction-t-gesture]: https://github.com/taysta/TaystJK/blob/2d60c0fa524a5c48626532581c72711592b6f8d3/codemp/game/bg_pmove.c#L11353
+[prediction-t-rider]: https://github.com/taysta/TaystJK/blob/2d60c0fa524a5c48626532581c72711592b6f8d3/codemp/game/bg_pmove.c#L13648
+[prediction-t-rider-weapon]: https://github.com/taysta/TaystJK/blob/2d60c0fa524a5c48626532581c72711592b6f8d3/codemp/game/bg_pmove.c#L15654
+[prediction-t-rocket]: https://github.com/taysta/TaystJK/blob/2d60c0fa524a5c48626532581c72711592b6f8d3/codemp/game/bg_pmove.c#L9201
+[prediction-t-dual]: https://github.com/taysta/TaystJK/blob/2d60c0fa524a5c48626532581c72711592b6f8d3/codemp/game/bg_pmove.c#L7162
+[prediction-t-saber]: https://github.com/taysta/TaystJK/blob/2d60c0fa524a5c48626532581c72711592b6f8d3/codemp/game/bg_saber.c#L4593
+[prediction-t-target]: https://github.com/taysta/TaystJK/blob/2d60c0fa524a5c48626532581c72711592b6f8d3/codemp/game/bg_pmove.c#L9216
+[prediction-t-contents]: https://github.com/taysta/TaystJK/blob/2d60c0fa524a5c48626532581c72711592b6f8d3/codemp/cgame/cg_predict.c#L478
+[prediction-t-vehicle]: https://github.com/taysta/TaystJK/blob/2d60c0fa524a5c48626532581c72711592b6f8d3/codemp/cgame/cg_predict.c#L343
+[prediction-t-clip]: https://github.com/taysta/TaystJK/blob/2d60c0fa524a5c48626532581c72711592b6f8d3/codemp/cgame/cg_predict.c#L164
+[prediction-t-passenger]: https://github.com/taysta/TaystJK/blob/2d60c0fa524a5c48626532581c72711592b6f8d3/codemp/cgame/cg_predict.c#L1693
+
 ## Parity requirements
 
 Movement includes integer-millisecond user-command quantization. Validate common
@@ -524,3 +738,42 @@ Check ordinary native and legacy client joins on isolated servers for integratio
 A handshake or successful movement run does not verify downloads, every reliable
 command, map restarts, all combat, vehicles or every game type. The current evidence
 and open validation work are recorded in [status.md](status.md).
+
+### Use the server gametype in local movement prediction
+
+Every client movement command uses the serverinfo game type, including Force-jump,
+wall-move and saber eligibility checks. In CTY, carrying either flag suppresses
+Force movement as `BG_HasYsalamiri` does; a CTF flag does not. Authoritative
+simulation retains its explicit world context. Reference: OpenJK multiplayer
+`cg_predict.c:1244` and `bg_pmove.c:1257,2091` at `4d0dfaf1`.
+Focused tests cover both CTY flags and CTF/FFA/unladen controls at 8/7/4/3 ms.
+Live CTY movement against an OpenJK server remains unverified.
+### Supply snapshot entity context to local movement prediction
+
+Client prediction supplies snapshot player/NPC leg animations and non-vehicle
+NPC identity to movement's read-only entity lookups. Standing on a non-vehicle
+NPC predicts the stock upward bounce; a vehicle or brush does not. Body-dependent
+wall and saber checks can read the actor's legs. The snapshot list is built once
+and borrowed by committed moves, replay, previews and vehicle pilots, without
+cloning it per command. Other players' authoritative state is never changed.
+Reference: OpenJK multiplayer `cg_predict.c:1080-1096` and
+`bg_pmove.c:10880-10896` at `4d0dfaf1`. Tests cover NPC/vehicle/brush contacts at
+8/7/4/3 ms and snapshot replacement. Live NPC and wall contacts remain unverified.
+### Restore codemp zero-gravity push-off movement
+
+At gravity zero or below, an eligible jump check traces eight units backwards
+and adds 450 units/s along the player's full view direction, with the Force-jump
+leg animation, then clears upmove. This preserves OpenJK's `fraction <= 1`
+condition, including a clear trace and airborne commands without jump held.
+A held jump latch and the grounded no-jump gate still suppress the branch.
+Reference: `codemp/game/bg_pmove.c:2057-2085` at `4d0dfaf1`.
+Synthetic tests cover 8/7/4/3 ms, negative gravity, clear/blocked traces, pitch/yaw,
+animation and jump gates. Zero-gravity maps against a live server remain unverified.
+### Use the Pmove hull for predicted trigger contact
+
+Brush-trigger prediction uses the exact collision box left by the final Pmove slice,
+including a roll transition whose final posture flags describe a different hull.
+This follows OpenJK `codemp/cgame/cg_predict.c:722` at `4d0dfaf1`;
+items retain their separate proximity test. Unit tests cover 8/7/4/3 ms commands
+and both directions of a standing/crouching hull mismatch. Live trigger timing
+against an OpenJK server remains unverified.
