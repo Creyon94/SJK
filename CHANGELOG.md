@@ -44,6 +44,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Tags: propose new ones in the new #tag-proposals channel on SJK's Discord; Collection > Tags says where _(Sol)_
 - Mystery boxes can blow up (5%): the opener is blasted off their feet, and the credits they paid go to a random player with the Box hunt toy on, while a ghostly laugh plays for every hunter. A box can also hold a holocron of any tier (2%) _(Sol)_
 - Box hunt: an alarm sounds when a new mark is picked, and a small card at the top of the screen names the mark while the hunt lasts, or tells you that you are the mark. A mark that was just hunted is no longer told again _(Sol)_
+- Fogged skies: on a map whose sky is only its fog, such as taspir1, the sky now takes the fog's colour instead of a plain dark blue, so distant walls fade into it rather than standing out against it (#179, #180, #184) _(Slash, after the original game)_
 
 ## 2026.1028.1 (Alpha) | 28/10/2026
 
