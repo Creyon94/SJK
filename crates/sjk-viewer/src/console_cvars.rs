@@ -756,6 +756,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "Log each effect as it plays, with its shaders and sizes (diagnostics)",
         ),
         CvarDefinition::new(
+            crate::emote_end_debug::CVAR,
+            false,
+            CvarFlags::NONE,
+            "Say what came just before a JA+ emote let go of you (diagnostics)",
+        ),
+        CvarDefinition::new(
             crate::debug_collectibles::CVAR,
             false,
             archive,

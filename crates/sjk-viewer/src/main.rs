@@ -123,6 +123,7 @@ mod frame_split;
 mod charge_flash;
 mod e2e_whisper_card;
 mod e2e_whispers;
+mod emote_end_debug;
 mod emote_help;
 mod emote_picker;
 mod emplaced_swivel;

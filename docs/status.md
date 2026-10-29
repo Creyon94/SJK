@@ -1,3 +1,24 @@
+## A JA+ emote kept when going away, and `cg_debugEmoteEnd`
+
+29/10/2026, `fix/menu-cancels-meditate`, based on `main` `b558d4ae`, hub report #196 (build
+2026.1028.1, JoF, CTF4: opening Shaders, Toys or Nameplates ended `/ammeditate`, and
+`/amsit5`-`/amsit7`). Not reproduced: Slash sat through every tab change on the same build.
+The Collection sends nothing when a tab opens: no cvar or userinfo write, no reliable command;
+the open console takes every key and pointer event, Ctrl+Tab too, and the stage preview has its
+own buffers. The one client path found that ends a JA+ emote the player chose is the away emote:
+going away (alt-tabbed or idle) with `japlus.awayEmote` set sent its emote over theirs, and the
+way back crouched while `PM_FREEZE` held them, which got them up. Going away now leaves a JA+
+emote that already holds the player alone (`Away::turn`, `held`;
+[hub-chat.md](hub-chat.md#emotes-in-the-client)). Whether that was the reporter's case is not
+known. For the next one, `cg_debugEmoteEnd 1` (off, not archived) prints, when `PM_FREEZE`
+lets go, the last command with a button besides the talk balloon's, a move, a `generic_cmd` or
+another weapon and how long before, the away emote's last step, the longest frame of the last
+3 s (a hitch loading the stage model is the other suspect) and whether the window was out of
+focus, the console open and the Collection showing (`emote_end_debug`). Verified: unit tests
+`going_away_leaves_a_held_ja_plus_emote_alone`, `only_what_could_end_an_emote_counts`,
+`the_end_of_a_freeze_names_the_crouch_before_it`, fmt, build, Clippy and the workspace's tests.
+Not tried in a game.
+
 ## Synced emote music back from alt-tab in step
 
 29/10/2026, `fix/emote-sound-alt-tab`, based on `main` `b558d4ae`, hub report #195 (build
