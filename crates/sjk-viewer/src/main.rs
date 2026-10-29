@@ -2334,7 +2334,14 @@ impl GpuState {
         let scoreboard_visible =
             self.scoreboard
                 .present(self.console.as_ref(), scores_requested, scores_allowed);
-        let chat_visible = !self.console_covers_frame()
+        // An open console goes over the chat, as stock draws it last: its text would
+        // otherwise draw above the console (text goes above every shape). A composer
+        // left open under it keeps its draft for when the console closes.
+        let console_open = self
+            .console
+            .as_ref()
+            .is_some_and(console::ViewerConsole::is_open);
+        let chat_visible = !console_open
             && scoreboard::chat_visible(
                 information_visible,
                 self.chat.wants_history(self.console.as_ref()),

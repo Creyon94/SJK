@@ -6035,10 +6035,16 @@ a `cl_consoleKeys` character such as `~` or `²` instead. Holding it toggles onc
 the console too, and so does a key bound to `toggleconsole` that prints nothing;
 a printable key bound to it types while the console is open
 ([console_keyboard.rs](../crates/sjk-viewer/src/console_keyboard.rs)). While the
-chat composer is open, the console key (or a key bound to `toggleconsole`, or
-Shift+Escape) closes it, its draft dropped as Escape drops it, and opens the console,
-as stock's console key goes before the message field (`cl_keys.cpp:1318`); with
-Shift the composer types it instead, so `~` can still be written there. On layouts with dead keys
+chat composer is open, the console key (or a non-printing key bound to
+`toggleconsole`, or Shift+Escape) opens the console over it, as stock's console key
+goes before the message field (`cl_keys.cpp:1318`) and leaves the field and its draft
+under the console (`Con_ToggleConsole_f` only adds `KEYCATCH_CONSOLE`): typing goes on
+when the console closes. The chat is not drawn while the console is open, which stock
+draws last, as text would otherwise draw over the console's shapes. The composer keeps
+what a player types: a letter or digit (the key under Escape types `0` on
+Hungarian), a printable key bound to `toggleconsole`, and Shift with a key that opens
+the console alone, so `~` can be written; where the console key needs Shift (a `^`
+layout, `cl_consoleShiftRequirement`), Shift opens it (`console_key_leaves_chat`). On layouts with dead keys
 (`^` on French AZERTY and German QWERTZ, `'` on US International), the console
 line and the chat draft show a dead key at the caret at once and replace it with
 what the platform composes on the next key, so typing reads as on a layout without

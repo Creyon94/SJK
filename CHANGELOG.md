@@ -32,7 +32,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
-- Chat: the console key closes the chat you are typing in and opens the console, so you no longer have to close the chat first; Shift with it still types `~` _(Slash)_
+- Chat: the console key opens the console while you are typing in the chat, as in the original game; the chat waits under it with what you typed, and the console now covers it instead of the chat's text showing on top. Shift with it still types `~`, and a letter, a digit or a printable key bound to the console types as before _(Slash, PR #255)_
 - Mystery boxes hold a holocron one time in ten (it was one in fifty), and the roll shows the four tiers' real holocrons, stopping on the one you won. A box that blows up laughs with Sol's own laugh when the SJK extras pack is installed _(Sol)_
 - Centre prints and the words over mystery boxes (and the box hunt's mark) are drawn in Fira Sans Condensed, a real typeface close to the old menu font, instead of a tracing of a low-resolution bitmap _(Sol)_
 - Box hunt: one mark every 10 minutes at most, not one after the other. Hunters see the mark ringed in red, and a black name reads on the hunt's card _(Sol)_
