@@ -1111,7 +1111,10 @@ the server, an SJK player or not.
   hips, wait, surrender and Neo ones, which hold the player until they crouch), sent to
   the server; on the way back, while it still holds the player (`PM_FREEZE`), the
   commands crouch until it lets go, for a second at most (`away_emote::shape_command`;
-  sending it again does not end it); else the looping SJK emote of `cg_awayEmote` (Away emote, any
+  sending it again does not end it). A JA+ emote that already holds the player when
+  they go away (one they chose, `amsit5` or `ammeditate`) is left alone: no away emote
+  goes over it and no crouch follows, which got them up (hub report #196,
+  `Away::turn`'s `held`). Off a JA+ server, the looping SJK emote of `cg_awayEmote` (Away emote, any
   looping emote that is not `local`), posted with `quiet` so no client plays its
   music, and stopped (`stop`) on the way back unless it already ended. The hub takes
   one emote every 2 seconds from a key, so a post waits for its turn
