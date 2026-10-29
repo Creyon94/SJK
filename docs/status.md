@@ -18,6 +18,21 @@ frame's colours); off screen with the game data: the nameplate snapshot
 and not (`world_shot::collection::duel6_sjk_collection`). Not verified: in a match (live hub
 pictures and head icons in the hexagon, the frames' colours on real teams and duels, the far
 fade in motion), or at 4K.
+## Trade refusals at map changes
+
+26/10/2026, `fix/trade-toast-map-change` (Creyon, PR #211), based on
+`fix/trade-inventory-refresh` (PR #210) on `main` `61f22008` (rebased 28/10/2026 after
+Sol's review of 27/10): after a refused trade request, the refusal ("Two accounts on one
+connection cannot trade with each other.") showed again in the trade toast and the
+console at every map change (seen in game by Creyon on 2026.1026.1). Each map builds a
+new world whose trade state began empty, so the identity service's last refusal looked
+new. The trade state now moves with the shell to the next world, without the window's
+claim to have opened the game menu, which the new world does not carry (else Esc after
+the map change brought the window back and Close shut the player's own menu)
+([sjk-ui.md](sjk-ui.md#trading)). Verified on Linux x86_64: the new test
+`a_map_change_keeps_the_shown_refusal_and_drops_the_menu_it_opened`, fmt, workspace
+build, tests and Clippy. Not verified: in game across a map change.
+
 ## Trade swap reaches the first to confirm
 
 26/10/2026, `fix/trade-inventory-refresh` (Creyon, PR #210), based on `main` `61f22008`
