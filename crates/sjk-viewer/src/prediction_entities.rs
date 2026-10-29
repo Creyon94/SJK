@@ -148,6 +148,7 @@ mod tests {
         assert!(entities.body(40).is_none());
     }
     #[test]
+    #[cfg(debug_assertions)] // violation_count is provided by the warn_debug test feature.
     fn reading_actor_context_during_a_move_allocates_nothing() {
         let mut entities = Entities::default();
         entities.update(&[entity(40, 13, 0)]);
