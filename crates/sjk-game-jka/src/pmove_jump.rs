@@ -70,23 +70,35 @@ impl Predictor {
         {
             return false;
         }
-        let rules = JumpRules::of(state, context);
+        let mut rules = JumpRules::of(state, context);
+        if self.config.ja_pro.enabled
+            && state.ja_pro.restrictions & crate::pmove_japro::RESTRICT_BHOP != 0
+        {
+            rules = rules.without_wall_moves();
+        }
+        let ja_pro_jump = self.japro_jump_rules();
         self.force_jump_upkeep(command.server_time);
         if self.state.force_jump_flip {
             self.force_jump_flip(command, rules.flips);
             return true;
         }
-        if self.check_force_jump(command, rules.flips) {
+        if self.check_force_jump(command, rules.flips)
+            && !ja_pro_jump.is_some_and(|rules| rules.held_jump)
+        {
             command.up_move = 0;
             return false;
         }
         let grounded =
             |predictor: &Self| predictor.state.ground_entity_number != ENTITY_NUMBER_NONE;
-        if command.up_move < 10 && grounded(self) {
+        if ja_pro_jump.is_none() && command.up_move < 10 && grounded(self) {
             return false;
         }
         // Must wait for the jump to be released.
-        if self.state.movement_flags & PMF_JUMP_HELD != 0 {
+        if ja_pro_jump.is_some() {
+            if self.japro_jump_blocked(command) {
+                return false;
+            }
+        } else if self.state.movement_flags & PMF_JUMP_HELD != 0 {
             command.up_move = 0;
             return false;
         }
@@ -120,6 +132,9 @@ impl Predictor {
             }
             command.up_move = 0;
         } else if command.up_move > 0
+            && ja_pro_jump.is_none_or(|rules| {
+                rules.force_special && self.state.movement_flags & PMF_JUMP_HELD == 0
+            })
             && self.state.water_level < 2
             && self.state.levitation_level > 0
             && matches!(self.state.weapon, WP_SABER | WP_MELEE)
@@ -140,7 +155,9 @@ impl Predictor {
         }
         if command.up_move > 0 {
             // No special jump.
-            self.state.velocity[2] = JUMP_VELOCITY;
+            if !self.japro_jump_takeoff(ground) {
+                self.state.velocity[2] = JUMP_VELOCITY;
+            }
             self.set_force_jump_start(self.state.origin[2]);
             self.state.movement_flags |= PMF_JUMP_HELD;
         }

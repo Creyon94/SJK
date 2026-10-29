@@ -66,6 +66,8 @@ impl GpuState {
             .set_show_miss(console.bool_cvar("cg_showMiss").unwrap_or(false));
         self.local_prediction
             .set_free_knockdown_view(crate::held_view::free_knockdown_view(Some(console)));
+        self.local_prediction
+            .set_ja_pro_plugin_disable(console.plugin_disable_bits());
         if let Some(adapter) = &mut self.legacy_world_adapter {
             adapter.set_smooth_clients(console.smooth_clients());
             let corpses_changed = adapter.set_hide_corpses_in_duel(console.hide_corpses_in_duel());

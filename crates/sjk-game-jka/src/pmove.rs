@@ -1718,6 +1718,9 @@ impl Predictor {
     /// the torso's animation timers — after the first ground trace, whose leg animations
     /// still see this command's timers (a choked player falling keeps its legs).
     fn drop_timers(&mut self, millis: i32) {
+        if self.config.ja_pro.enabled && self.state.ja_pro.jump_time > 0 {
+            self.state.ja_pro.jump_time = (self.state.ja_pro.jump_time - millis).max(0);
+        }
         if self.state.movement_time > 0 {
             if millis >= self.state.movement_time {
                 self.state.movement_flags &= !PMF_ALL_TIMES;
@@ -2420,6 +2423,8 @@ impl Predictor {
 mod events;
 #[path = "pmove_grapple.rs"]
 pub mod grapple;
+#[path = "pmove_japro_jump.rs"]
+mod japro_jump;
 #[path = "pmove_japro_movement.rs"]
 mod japro_movement;
 #[path = "pmove_water.rs"]

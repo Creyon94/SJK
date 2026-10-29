@@ -157,6 +157,16 @@ pub(super) struct JumpRules {
 }
 
 impl JumpRules {
+    /// jaPRO's BHOP restriction disables flips and wall moves, independently of
+    /// the server/player only-bhop option that controls held Force-rise height.
+    pub(super) fn without_wall_moves(mut self) -> Self {
+        self.flips = false;
+        self.wall_runs = false;
+        self.wall_flips = false;
+        self.wall_grabs = false;
+        self
+    }
+
     pub(super) fn of(state: &MovementState, context: &MoveContext) -> Self {
         let forbids = |flag| state.weapon == WP_SABER && context.sabers.any_flag(flag);
         Self {

@@ -396,6 +396,19 @@ impl LocalPrediction {
         self.view_height = view_height;
     }
 
+    /// Refresh the existing player's jaPRO only-bhop preference without enabling
+    /// jaPRO on a foreign server. Serverinfo refresh preserves this preference.
+    pub(crate) fn set_ja_pro_plugin_disable(&mut self, bits: u32) {
+        let player_bhop = bits & sjk_game_jka::pmove_japro::PLUGIN_BHOP != 0;
+        if self.movement_config.ja_pro.player_bhop == player_bhop {
+            return;
+        }
+        self.movement_config.ja_pro.player_bhop = player_bhop;
+        for predictor in self.predictor.iter_mut().chain(self.preview.iter_mut()) {
+            predictor.set_config(self.movement_config);
+        }
+    }
+
     /// Update whether the JA+ server leaves the view free through knockdowns and get-ups
     /// (`held_view::free_knockdown_view`), which no serverinfo says.
     pub(crate) fn set_free_knockdown_view(&mut self, free: bool) {
@@ -593,6 +606,10 @@ fn humanoid_animation_config(vfs: &VirtualFileSystem) -> Option<AnimationConfig>
 pub(crate) fn predicts_local_view(movement_flags: u16) -> bool {
     movement_flags & 4096 == 0 // PMF_FOLLOW, not the spectator team/type.
 }
+
+#[cfg(test)]
+#[path = "prediction_japro_preferences_tests.rs"]
+mod ja_pro_preferences_tests;
 
 #[cfg(test)]
 mod fake_noclip_tests {
