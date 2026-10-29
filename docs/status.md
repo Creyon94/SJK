@@ -1,3 +1,12 @@
+## Equipped saber definitions in client prediction
+
+29/10/2026, `fix/prediction-saber-definitions`, based on `main` `e702b0b1`:
+the cached `.sab` parser supplies movement flags, move overrides and stance
+animations to local prediction. Reference: OpenJK `4d0dfaf1`, codemp
+`BG_MySaber`, `WP_SetSaber` and `saberMoveTable`/`WP_SaberParseParms`.
+Windows x64 synthetic tests cover parsing/fallbacks and prediction configuration
+at 8/7/4/3 ms. Live custom-hilt behavior and full combat parity remain unverified.
+
 ## Passenger movement prediction
 
 29/10/2026, `fix/prediction-passenger-movement`, based on `main` `9e48ff6d`:

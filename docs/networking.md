@@ -305,6 +305,13 @@ Inline-brush point contents use the presented origin and angles, matching
 Prediction keeps these transforms separately, including when the newest and
 displayed snapshots carry different mover trajectories.
 
+Local prediction loads the equipped hilts' movement flags, named special-move
+overrides and ready/draw/putaway animations from the shared `.sab` catalog.
+Clientinfo changes refresh this configuration for committed moves, replay and
+previews; unknown or multiplayer-forbidden names fall back to Kyle and
+two-handed hilts exclude a second saber. Authoritative moves keep the game's
+explicit context. No saber skill levels are inferred from hilt definitions.
+
 `PM_JETPACK` (movement type 1), used by the equipped jetpack on stock-derived
 servers including JA+, runs the reference's gravity, thrust and air-control
 rules ([pmove_jetpack.rs](../crates/sjk-game-jka/src/pmove_jetpack.rs)). The
