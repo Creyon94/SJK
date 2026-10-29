@@ -255,6 +255,10 @@ through `i64` now, wrapping rather than saturating if a huge angle ever reaches 
 
 ### Equipped jetpack prediction
 
+Command gestures predict codemp's taunt hand extension and `EV_TAUNT` before
+the final ground trace and weapon animation. Busy animation/weapon tracks and
+saber locks reject the gesture. Riders skip this step, as in `PmoveSingle`.
+
 `PM_JETPACK` (movement type 1), used by the equipped jetpack on stock-derived
 servers including JA+, runs the reference's gravity, thrust and air-control
 rules ([pmove_jetpack.rs](../crates/sjk-game-jka/src/pmove_jetpack.rs)). The

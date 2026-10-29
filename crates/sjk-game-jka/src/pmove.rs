@@ -1520,6 +1520,9 @@ impl Predictor {
                 context,
             );
         }
+        if !self.riding_move() && !self.npc_aboard() {
+            gesture::animate(&mut self.state, &command, &mut self.events);
+        }
         self.vehicle_impacts(&command, game.as_deref_mut());
         let airborne = self.state.ground_entity_number == ENTITY_NUMBER_NONE;
         let mut landed = self.ground_trace(&command, bounds, collision);
@@ -2332,6 +2335,9 @@ mod force_jump;
 
 #[path = "pmove_jump.rs"]
 mod jump;
+
+#[path = "pmove_gesture.rs"]
+mod gesture;
 
 #[path = "pmove_wall_moves.rs"]
 mod wall_moves;

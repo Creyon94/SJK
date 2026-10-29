@@ -1,3 +1,11 @@
+## Command gesture prediction
+
+29/10/2026, `fix/prediction-gesture`, based on `main` `e702b0b1`: ported
+`PM_Animate`'s command gesture branch from OpenJK `4d0dfaf1`, multiplayer
+`bg_pmove.c:7707`. Windows x64 synthetic tests cover event/hand-extension
+state at 8/7/4/3 ms, held-button suppression and busy/lock gates. Live taunt
+animation and audio against an OpenJK server remain unverified.
+
 ## Synced emote music back from alt-tab in step
 
 29/10/2026, `fix/emote-sound-alt-tab`, based on `main` `b558d4ae`, hub report #195 (build
