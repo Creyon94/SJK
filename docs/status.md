@@ -1,3 +1,12 @@
+## Prediction: snapshot actor context
+
+29/10/2026, `fix/prediction-entity-context`, based on `main` `e702b0b1`:
+local movement receives snapshot actor legs and non-vehicle NPC identity for
+head bounces and body-dependent wall/saber checks. Replay and previews borrow
+the snapshot list. Reference: OpenJK multiplayer `bg_pmove.c:10880-10896`,
+revision `4d0dfaf1`. Windows x64 synthetic tests cover NPC/vehicle/brush contacts
+at 8/7/4/3 ms and actor removal. Live contacts remain unverified.
+
 ## Synced emote music back from alt-tab in step
 
 29/10/2026, `fix/emote-sound-alt-tab`, based on `main` `b558d4ae`, hub report #195 (build

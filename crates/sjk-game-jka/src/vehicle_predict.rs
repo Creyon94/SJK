@@ -215,6 +215,17 @@ impl RidePrediction {
         command: UserCommand,
         collision: &impl MovementCollision,
     ) {
+        self.predict_in(pilot, command, collision, &MoveContext::CLIENT);
+    }
+
+    /// Predict the pilot and vehicle with the snapshot's read-only entity context.
+    pub fn predict_in(
+        &mut self,
+        pilot: &mut Predictor,
+        command: UserCommand,
+        collision: &impl MovementCollision,
+        context: &MoveContext,
+    ) {
         let Some(mut vehicle) = self.own.take() else {
             return;
         };
@@ -235,7 +246,7 @@ impl RidePrediction {
                 self.vehicle.state().speed,
             )
         }));
-        pilot.predict_command(command, collision);
+        pilot.predict_command_in(command, collision, context);
         let mut own = command;
         if own.buttons & BUTTON_TALK != 0 {
             own.buttons = BUTTON_TALK;
@@ -260,7 +271,7 @@ impl RidePrediction {
             fighter_alt_control: self.fighter_alt_control,
         };
         self.vehicle
-            .predict_vehicle_command(own, collision, &MoveContext::CLIENT, &mut game);
+            .predict_vehicle_command(own, collision, context, &mut game);
         self.own = self.vehicle.take_vehicle();
     }
 }

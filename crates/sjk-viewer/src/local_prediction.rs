@@ -23,6 +23,8 @@ use sjk_vfs::VirtualFileSystem;
 
 use crate::movement_collision::BspMovementCollision;
 
+#[path = "prediction_entities.rs"]
+mod entity_context;
 #[path = "prediction_movers.rs"]
 pub(crate) mod movers;
 #[path = "local_prediction_reconcile.rs"]
@@ -92,6 +94,7 @@ pub(crate) struct LocalPrediction {
     preview: Option<Predictor>,
     presented: Option<MovementState>,
     physics_movers: movers::Movers,
+    entities: entity_context::Entities,
     render_movers: movers::Movers,
     presentation_time: i32,
     pending: VecDeque<UserCommand>,
@@ -194,6 +197,7 @@ impl LocalPrediction {
             preview: None,
             presented: None,
             physics_movers,
+            entities: entity_context::Entities::new(snapshot),
             render_movers,
             presentation_time: snapshot.map_or(0, |s| s.server_time),
             pending: VecDeque::with_capacity(COMMAND_BACKUP),
@@ -478,7 +482,7 @@ impl LocalPrediction {
         let predictor = self.predictor.as_mut()?;
         let collision =
             BspMovementCollision::with_movers(bsp, scratch, &self.physics_movers.colliders);
-        ride::predict(
+        self.entities.predict(
             predictor,
             self.rides.committed.as_mut(),
             command,
@@ -529,7 +533,8 @@ impl LocalPrediction {
         };
         let collision =
             BspMovementCollision::with_movers(bsp, scratch, &self.physics_movers.colliders);
-        ride::predict(preview, self.rides.begin_preview(), command, &collision);
+        self.entities
+            .predict(preview, self.rides.begin_preview(), command, &collision);
         touch_triggers(
             preview,
             &self.physics_movers.triggers,

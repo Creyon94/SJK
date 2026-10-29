@@ -527,6 +527,12 @@ and open validation work are recorded in [status.md](status.md).
 
 ### Supply snapshot entity context to local movement prediction
 
-Known limitation (source review against OpenJK `codemp` at `4d0dfaf1`):
-Client movement currently supplies empty body and NPC lookups, so NPC head bounces and body-dependent wall checks cannot match codemp.
-A focused fix and verification are in progress.
+Client prediction supplies snapshot player/NPC leg animations and non-vehicle
+NPC identity to movement's read-only entity lookups. Standing on a non-vehicle
+NPC predicts the stock upward bounce; a vehicle or brush does not. Body-dependent
+wall and saber checks can read the actor's legs. The snapshot list is built once
+and borrowed by committed moves, replay, previews and vehicle pilots, without
+cloning it per command. Other players' authoritative state is never changed.
+Reference: OpenJK multiplayer `cg_predict.c:1080-1096` and
+`bg_pmove.c:10880-10896` at `4d0dfaf1`. Tests cover NPC/vehicle/brush contacts at
+8/7/4/3 ms and snapshot replacement. Live NPC and wall contacts remain unverified.
