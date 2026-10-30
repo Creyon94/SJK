@@ -30,6 +30,16 @@ The site (site/assets/site.js, parseChangelog) reads the release headings,
 introductions and recap lines too.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
+## 2026.1030.2 (Alpha) | 30/10/2026
+
+Hotfix: dual sabers and joining JA+ servers behave again as before 2026.1029.1.
+
+> Dual sabers: The forward jump attack lands on the floor again instead of sinking into it.
+> Joining: You no longer slide away at high speed while a JA+ server lets you in.
+> Movement: Two prediction changes of 2026.1029.1 are backed out after checks on a real JA+ server.
+
+- Prediction on JA+ servers: dual sabers jump attacks no longer sink you into the floor, and joining no longer throws you sideways at high speed before the server stops you; two prediction changes of 2026.1029.1 (dual jump attack hull, zero gravity push) are backed out after Lumaya checked them against an original JA+ server _(Lumaya, PRs #305, #307 and #308)_
+
 ## 2026.1030.1 (Alpha) | 30/10/2026
 
 Mystery boxes: new sounds, a teddy bear that kills, a turn for everyone and a sturdier chest.
