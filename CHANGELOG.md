@@ -35,6 +35,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 = r_dynamicGlowNoSabers: New: the dynamic glow leaves saber blades and trails out, so each saber's details show while the rest still glows; off, sabers glow as before.
 = r_dayClock: New: day and night follow your PC's clock in every preset: with Sun and sky the sun moves, without it the sky turns to night and the world darkens.
 
+- Chat GIFs: Hide this GIF on the chosen message in SJK chat hides one GIF on your PC: its line reads GIF hidden and it never loads. The GIF picker's new Hidden tab lists the GIFs you hid, and a click on one shows it again; `gif_unhideall` shows them all (Kushina's idea) _(Creyon)_
 - Toys: switching a toy says its name and ON in green or OFF in red, short, for every toy (Illuminate, the cardboard box, Order 66 and the Hax said nothing, Box hunt, the Drone, the Monitor and the Banana peel said a long line), and `toy_help` lists every toy with what it does and how _(Creyon)_
 - Away emote: alt-tabbing out or going idle while riding a vehicle no longer starts your away emote, which broke the vehicle's animations and attacks until you got off and on again _(Slash, after hub report #205)_
 - Force templates: on saber-only servers, templates such as JoF's Fullforce FFA no longer lose Force Speed (leaving only Sense) when the server's info does not show its free saber skills: SJK now takes them from the server's own word, as the original game does _(Slash, after hub report #206)_

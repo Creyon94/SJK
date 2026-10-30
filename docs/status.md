@@ -1,3 +1,20 @@
+## Hidden GIFs
+
+30/10/2026, `feat/hide-gifs`, based on `main` `487f296f` (Sol's #ideas recap of 29/10): the
+chosen message on the SJK chat page has Hide this GIF / Show this GIF again
+(`HIDE_GIF_TOKEN`); hidden GIFs are kept in `gif-hidden.txt` beside `config.cfg`
+(`chat_gifs::hidden`, the favourites' format) and never show (`chat_gifs::shows`,
+`shown_revision`): their lines read "GIF hidden" (`link::HIDDEN_LABEL`), no picture, never
+fetched for a line. The picker's new Hidden tab lists them with their pictures
+(`show_hidden_preview`); a click chooses a tile and Show this GIF again shows that one
+again. The chosen message's GIF buttons share one row, and Staff's four buttons stand in
+two rows (Unmute beside Mute), so a GIF message fits above the keys for staff. `gif_unhideall` clears the list
+([hub-chat.md](hub-chat.md#hidden-gifs)). Verified: unit tests (the file, the wording,
+the buttons, a Hidden tile chosen then shown again while another stays hidden, no star
+there, the reply, a GIF message and Staff fitting above the keys at five screen shapes), fmt, the workspace's build, tests and Clippy; in game on Windows (the
+button, "GIF hidden" lines, the Hidden tab and one GIF shown again from it). Not
+verified in game: the choose-then-Show step and the new panel rows.
+
 ## Toys say ON and OFF, and toy_help
 
 29/10/2026, `feat/toy-announce` (Creyon), based on `main` `9f40fded` (Blep's idea, Sol's
