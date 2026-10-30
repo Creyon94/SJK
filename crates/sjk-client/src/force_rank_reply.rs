@@ -33,9 +33,10 @@ const WP_NUM_WEAPONS: u32 = 19;
 const FORCE_MASTERY_JEDI_MASTER: i32 = 7;
 const NUM_FORCE_MASTERY_LEVELS: i32 = 8;
 
-/// `ET_EVENTS` and `EV_SET_FREE_SABER` (`codemp/game/bg_public.h`).
+/// `ET_EVENTS` (`codemp/game/bg_public.h`): a temporary entity's type is this
+/// plus its event.
 const ET_EVENTS: u8 = 18;
-const EV_SET_FREE_SABER: u8 = 106;
+const EV_SET_FREE_SABER: u8 = sjk_game_jka::event_entity::EV_SET_FREE_SABER as u8;
 
 /// The server's own `HasSetSaberOnly()` as its `EV_SET_FREE_SABER` event tells
 /// it in `snapshot`, if one is there.
@@ -54,6 +55,25 @@ pub fn free_saber_event(snapshot: &Snapshot) -> Option<bool> {
         .iter()
         .rfind(|entity| entity.entity_type() == ET_EVENTS + EV_SET_FREE_SABER)
         .map(|entity| entity.event_parameter() != 0)
+}
+
+/// Whether `CS_SERVERINFO` carries what `HasSetSaberOnly` reads for its game
+/// type: `g_duelWeaponDisable` in duels, `g_weaponDisable` otherwise (Jedi
+/// Master needs neither). Without it, whether saber skills come free is unknown
+/// until the server's `EV_SET_FREE_SABER` ([`free_saber_event`]).
+pub fn serverinfo_shows_free_saber(game_state: &GameState) -> bool {
+    let info = game_state
+        .config_string(CS_SERVERINFO)
+        .and_then(|raw| std::str::from_utf8(raw).ok())
+        .and_then(|text| InfoString::parse(text).ok());
+    let Some(info) = info else {
+        return false;
+    };
+    match info.get_i32("g_gametype").unwrap_or(0) {
+        GT_JEDIMASTER => true,
+        GT_DUEL | GT_POWERDUEL => info.get("g_duelWeaponDisable").is_some(),
+        _ => info.get("g_weaponDisable").is_some(),
+    }
 }
 
 /// Mirror `HasSetSaberOnly` (`codemp/game/w_saber.c:9459-9489`).

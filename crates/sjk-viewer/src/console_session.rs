@@ -854,11 +854,8 @@ impl ViewerConsole {
     /// stock cgame's `ui_freeSaber`): adopt it, and when the profile sent for
     /// the player's own changes with it, send that and have the server read it.
     pub(crate) fn note_free_saber(&mut self, free_saber: bool) {
-        let Some(rules) = self.force_profile.server_rules() else {
-            return;
-        };
-        if rules.free_saber == free_saber {
-            // Already so; only remember that the server said it.
+        if !self.force_profile.free_saber_news(free_saber) {
+            // Nothing new (or off a server): no profile work per snapshot.
             self.force_profile.note_free_saber(free_saber);
             return;
         }
@@ -866,9 +863,7 @@ impl ViewerConsole {
         let before = preferred
             .as_deref()
             .map(|preferred| self.force_profile.sent_forcepowers(preferred));
-        if !self.force_profile.note_free_saber(free_saber) {
-            return;
-        }
+        self.force_profile.note_free_saber(free_saber);
         let after = preferred
             .as_deref()
             .map(|preferred| self.force_profile.sent_forcepowers(preferred));
@@ -1025,7 +1020,8 @@ impl ViewerConsole {
             ));
         }
         self.input_health.reset();
-        self.force_profile.reset();
+        // The same server's free-saber word survives its map changes.
+        self.force_profile.begin_server(&server_info.address);
         self.saber_change.reset();
         let value = format!("profile={profile} server={server} CS_SERVERINFO={raw}");
         if let Ok(mut status) = self.server_status.write() {
@@ -1083,7 +1079,9 @@ impl ViewerConsole {
             .to_owned();
         let reply = force_rank_reply(
             &current,
-            rules.for_sent_profile(),
+            self.force_profile
+                .sent_rules()
+                .unwrap_or_else(|| rules.for_sent_profile()),
             self.force_profile.rejoin_team(),
         );
         // The reply waits for this userinfo, carrying the fitted profile.
@@ -1559,6 +1557,39 @@ mod tests {
         );
         let naive = legalize_force_powers(preferred, rules).allocation;
         assert_ne!(own, naive, "the player's own profile would be granted more");
+    }
+
+    /// An `EV_SET_FREE_SABER` that changes the profile sent sends it again with
+    /// one `forcechanged`; the same word again, or one that changes nothing
+    /// sent, sends nothing.
+    #[test]
+    fn a_changing_free_saber_event_resends_the_profile_once() {
+        use sjk_client::ForceLegalizeRules;
+        use std::sync::atomic::Ordering;
+        use std::time::Instant;
+        let directory = tempfile::tempdir().unwrap();
+        let mut console = ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
+        assert!(console.set_cvar("forcepowers", "7-1-331330000330001133"));
+        console
+            .force_profile
+            .set_server_rules(Some(ForceLegalizeRules::default()));
+        let now = Instant::now();
+        let poll = |console: &mut ViewerConsole| console.force_profile.poll(now, true, false);
+        console.userinfo_dirty.store(false, Ordering::Release);
+        console.note_free_saber(true);
+        assert!(console.userinfo_dirty.load(Ordering::Acquire));
+        assert_eq!(poll(&mut console).commands, vec![b"forcechanged".to_vec()]);
+        console.userinfo_dirty.store(false, Ordering::Release);
+        console.note_free_saber(true);
+        assert!(!console.userinfo_dirty.load(Ordering::Acquire));
+        assert!(poll(&mut console).commands.is_empty(), "repeated");
+        // The stock profile fits either way: nothing to send.
+        assert!(console.set_cvar("forcepowers", "7-1-032330000000001333"));
+        console.userinfo_dirty.store(false, Ordering::Release);
+        poll(&mut console);
+        console.note_free_saber(false);
+        assert!(!console.userinfo_dirty.load(Ordering::Acquire));
+        assert!(poll(&mut console).commands.is_empty(), "unchanged profile");
     }
 
     /// A `forcepowers` typed in the console, or set by a config, on a server

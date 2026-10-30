@@ -757,9 +757,13 @@ fitted to the server's rules from `CS_SERVERINFO` (`g_maxForceRank`, free saber
 skills when every other weapon is off, the game type), as stock
 `BG_LegalizedForcePowers` would fit it. Whether saber skills are free is then
 taken from the server's own `EV_SET_FREE_SABER` event, which stock cgame keeps in
-`ui_freeSaber` for the Force menu, once one arrives: `CS_SERVERINFO` may lack
-`g_weaponDisable` (keys past `MAX_INFO_STRING` are dropped), and a change that
-alters the profile sent is sent with `forcechanged`. The fitting keeps team
+`ui_freeSaber` for the Force menu, once one arrives, and kept through the same
+server's map changes (a disconnect or another address forgets it):
+`CS_SERVERINFO` may lack `g_weaponDisable` (keys past `MAX_INFO_STRING` are
+dropped). Until either tells, a profile that only fits with free saber skills is
+sent fitted with them, so the first life is not cut by a guess; stock sends the
+profile unfitted and the server fits it. An event that alters the profile sent
+has it sent again with `forcechanged`. The fitting keeps team
 powers and the powers `g_forcePowerDisable` turns off: the server drops unavailable powers from its own
 copy without calling the profile illegal, so sending them never parks the player in
 spectator, and a mod that gives them back in a full Force duel finds them
