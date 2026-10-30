@@ -32,6 +32,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
+- Server browser: Copy IP copies the chosen server's address and port (also Ctrl+C), and `copyServerIP` copies the server you are on, never a password _(Lumaya, PR #312)_
 - Prediction with custom sabers: when two saber files define the same saber name, the first one counts, in the original game's file order, so a mod's saber no longer predicts the wrong flips, wall runs or jump attacks _(Lumaya, PR #314, after the original game)_
 - Mac and Linux: SJK raises its open-file limit at start as far as the system allows, so many PK3s no longer run out of files, and the log tracks how many game-file sets are still held at each map change _(Lukas, PR #198)_
 - Achievements: 26 new ones for the toys (the cardboard box, Order 66, the Hax, the Drone, the boombox, the monitor and the box hunt), three of them secret, and the board has two pages, General and Fun, a category for each toy on Fun (press F or use the switch at the top right) _(Sol, after a player's ideas)_

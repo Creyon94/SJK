@@ -24,6 +24,15 @@
 
 # ---- Console & chat ----
 
+[copy-server-ip]
+area: Menus & settings
+title: Copy a server's IP: Copy IP in both browsers, Ctrl+C, copyServerIP (Lumaya, #312)
+change: SJK and classic browsers: Copy IP copies the chosen server's address and port.
+change: Ctrl+C in the browser (outside a field) does the same; copyServerIP the server you are on.
+test: SJK browser: choose a server, Copy IP, paste in Notepad: ip:port, no password.
+test: Classic browser: COPY IP (where FIND PLAYER was) does the same; Ctrl+C too.
+test: In a game, copyServerIP in the console: the line says Copied server IP and pastes.
+
 [toy-achievements]
 area: Menus & settings
 title: Toy achievements (26) and the Achievements board's General and Fun pages

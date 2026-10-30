@@ -523,7 +523,7 @@ pull requests merged into SJK, most of them bringing SJK in line with EternalJK
   its next seven the Sketch, Hourglass, Fiber Optic, Serpent, Monarch, Phoenix and Quantum
   blades, and its last three the Comic, Quicksilver and Obsidian Edge blades.
 
-Lumaya ([lumayaa](https://github.com/lumayaa)), contributor, has 80 pull requests
+Lumaya ([lumayaa](https://github.com/lumayaa)), contributor, has 81 pull requests
 merged into SJK
 ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3Alumayaa)):
 
@@ -649,6 +649,8 @@ merged into SJK
   against an original JA+ server, and the two that broke dual jump attacks and joining
   (#266, #251) backed out; #313 then gave each of the 25 its reason; #314 makes duplicate
   saber names follow the original game's file order.
+- #312 Copy IP in both server browsers (and Ctrl+C), and `copyServerIP` for the server you
+  are on: the address and port only, never a password.
 
 Lukas ([LukasMoudry](https://github.com/LukasMoudry)), contributor, has 18 pull requests
 merged into SJK
