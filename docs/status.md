@@ -1,3 +1,12 @@
+## Zero-gravity prediction regression review
+
+30/10/2026, based on `main` `c1b90267`: this change claims the rollback of
+PR #251 after the new push-off impulse accelerated a joining JA+ player
+while its initial snapshot still had zero gravity and base speed. The
+original JA+ 2.4 B7 server kept the player stationary until initialized.
+Correction and full checks are pending. Restoring the prior behavior leaves
+zero-gravity push-off prediction unsupported; it is not full gameplay parity.
+
 ## Banana peel in the look
 
 30/10/2026, `personal/sync-origin`, based on `main` `bc9343ff`, with the hub's `look-toys`
