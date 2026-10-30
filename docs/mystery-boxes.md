@@ -83,8 +83,12 @@ turning slowly, until they take it with `+use` at the box (a sparkle; a chat lin
 the credits left) or for 10 seconds, when it is taken for them. Meanwhile the box is busy:
 another player's Use prompt there says someone is opening it. The hub pays at the opening
 itself, so walking away loses nothing. The other SJK players on the server see and hear
-the same roll through the hub's toy event (`mystery_box`, `open_<box>_<outcome>`); they
-see what came out float for the 10 seconds, as they are not told when the opener takes it.
+the same roll through the hub's toy event (`mystery_box`, `open_<box>_<outcome>`). When
+the opener takes what came out, their client tells each other SJK player on the server
+through the toy relay (`mystery_box`, `take_<box>`, one player every 50 ms), and their box
+closes too, with the take and closing sounds (30/10/2026; before, they saw it float for
+the 10 seconds). Only the opener's take closes it; a player who misses it sees it go at
+the 10 seconds.
 
 Every sound plays at the box on a sound source of the box's own (`0x5200_0000` and its id),
 never an entity's: the audio moves an entity's sounds to where it is, so box sounds once

@@ -94,6 +94,21 @@ const RISE: Duration = Duration::from_millis(700);
 const FLOAT: f32 = 44.0;
 /// How many times the roll changes what it shows; it slows to a stop on the last.
 const SWAPS: f32 = 30.0;
+/// How far apart the opener's client tells each other SJK player that they took what
+/// came out (the toy relay, one player an event).
+const TAKE_GAP: Duration = Duration::from_millis(50);
+
+/// The toy relay's event the opener's client sends when they take what came out of box
+/// `id` (Sol, 30/10/2026: the others saw it float on for the hold's 10 seconds).
+fn take_event(id: i64) -> String {
+    format!("take_{id}")
+}
+
+/// The box a relayed take event names.
+fn parse_take(event: &str) -> Option<i64> {
+    event.strip_prefix("take_")?.parse().ok()
+}
+
 /// How long an opening waits for the hub before the player may ask again.
 const ASK_TIMEOUT: Duration = Duration::from_secs(10);
 /// Farthest a box `mysterybox_remove` takes without an id may stand.
@@ -497,6 +512,10 @@ pub(crate) struct MysteryBoxes {
     /// Free openings the player won in the box hunt and has not spent.
     free: u64,
     hunt: hunt::Hunt,
+    /// Boxes whose prize the player took, and the slots of the SJK players still to tell
+    /// (a bit a slot), and when the next may be told.
+    takes: Vec<(i64, u64)>,
+    tell_at: Option<Instant>,
     labels: label::Labels,
     /// A world shot's boxes, kept without a session.
     #[cfg(test)]
@@ -696,6 +715,51 @@ impl MysteryBoxes {
             }
         }
         moments
+    }
+
+    /// The player on slot `slot` took what came out of their box `id` (the toy relay): it
+    /// goes, the lid closes, as for the opener. Only from the player who opened it.
+    fn taken_by(&mut self, id: i64, slot: u8, now: Instant) {
+        let Some(here) = self.here.iter_mut().find(|here| here.id == id) else {
+            return;
+        };
+        let theirs = here
+            .opening
+            .as_ref()
+            .is_some_and(|opening| opening.mine.is_none() && opening.opener == Some(slot));
+        if !theirs {
+            return;
+        }
+        here.opening = None;
+        here.lid.set(false, now);
+        for path in [TAKE_SOUND, EXTRAS_CLOSE] {
+            self.cues.push(Cue {
+                path,
+                origin: Some(here.origin.to_array()),
+                source: source(here.id),
+            });
+        }
+    }
+
+    /// The next take to relay, at `now`, to one of `others` (bits a slot): the box and
+    /// the slot; none while the gap since the last one runs or none is left.
+    fn next_take(&mut self, others: u64, now: Instant) -> Option<(i64, u8)> {
+        if self.tell_at.is_some_and(|at| now < at) {
+            return None;
+        }
+        while let Some((id, slots)) = self.takes.first_mut() {
+            *slots &= others;
+            if *slots == 0 {
+                self.takes.remove(0);
+                continue;
+            }
+            let slot = slots.trailing_zeros() as u8;
+            *slots &= !(1 << slot);
+            let id = *id;
+            self.tell_at = Some(now + TAKE_GAP);
+            return Some((id, slot));
+        }
+        None
     }
 
     /// The player takes what came out of box `id`, when it is theirs and waiting.
@@ -970,7 +1034,11 @@ impl GpuState {
         }
     }
 
-    pub(crate) fn update_mystery_boxes(&mut self, events: &[sjk_identity::ToyEvent]) {
+    pub(crate) fn update_mystery_boxes(
+        &mut self,
+        events: &[sjk_identity::ToyEvent],
+        relay_events: &[sjk_identity::ToyEvent],
+    ) {
         #[cfg(test)]
         if self.mystery_boxes.shot {
             self.find_mystery_box_meshes();
@@ -1045,6 +1113,22 @@ impl GpuState {
                     .opened(id, outcome, None, Some(event.slot), seed(), now);
             }
         }
+        // Their takes: the opener's client says so through the toy relay.
+        for event in relay_events {
+            if event.toy != wire::TOY || Some(event.slot) == own {
+                continue;
+            }
+            if let Some(id) = parse_take(&event.event) {
+                self.mystery_boxes.taken_by(id, event.slot, now);
+            }
+        }
+        // The player's own takes, told to every other SJK player here, one at a time.
+        if let Some(own) = own {
+            let others = self.looks.sjk_slots() & !(1_u64 << own);
+            if let Some((id, slot)) = self.mystery_boxes.next_take(others, now) {
+                crate::player_identity::relay_toy_event(wire::TOY, take_event(id), slot, false);
+            }
+        }
         if self.mystery_boxes.here.is_empty() {
             self.mystery_boxes.use_pressed = false;
             return;
@@ -1095,6 +1179,9 @@ impl GpuState {
         };
         if let Some(taken) = self.mystery_boxes.take_prize(id) {
             self.mystery_box_moment(Moment::Taken(taken));
+            // Told to the other SJK players here, whose box would float on till the hold
+            // ends.
+            self.mystery_boxes.takes.push((id, u64::MAX));
             return;
         }
         let busy = self
@@ -1986,6 +2073,36 @@ mod tests {
         // A box that blows up says nothing: the player is about to die.
         state.opened(1, wire::EXPLODE, Some(prize_of(0)), Some(3), 1, started);
         assert_eq!(at(&state.here[0], &wallet, None, false), None);
+    }
+
+    #[test]
+    fn a_take_is_told_to_each_other_player_and_closes_their_box() {
+        let now = Instant::now();
+        // The opener's side: one other player at a time, the gap between.
+        let mut opener = MysteryBoxes::default();
+        opener.takes.push((7, u64::MAX));
+        let others = 0b1010;
+        assert_eq!(opener.next_take(others, now), Some((7, 1)));
+        assert_eq!(opener.next_take(others, now), None);
+        assert_eq!(opener.next_take(others, now + TAKE_GAP), Some((7, 3)));
+        assert_eq!(opener.next_take(others, now + TAKE_GAP * 2), None);
+        assert!(opener.takes.is_empty());
+        assert_eq!(parse_take(&take_event(7)), Some(7));
+        assert_eq!(parse_take("open_7_double"), None);
+        // A watcher's side: only the opener's take closes the box.
+        let mut watcher = MysteryBoxes {
+            here: vec![here(7, [0.0; 3])],
+            ..Default::default()
+        };
+        watcher.opened(7, "double", None, Some(5), 1, now);
+        watcher.cues.clear();
+        watcher.taken_by(7, 6, now + ROLL);
+        assert!(watcher.here[0].opening.is_some(), "not the opener");
+        watcher.taken_by(7, 5, now + ROLL);
+        assert!(watcher.here[0].opening.is_none());
+        assert!(!watcher.here[0].lid.open);
+        let paths: Vec<&str> = watcher.cues.drain(..).map(|cue| cue.path).collect();
+        assert_eq!(paths, [TAKE_SOUND, EXTRAS_CLOSE]);
     }
 
     #[test]

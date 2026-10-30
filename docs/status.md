@@ -1,3 +1,13 @@
+## Mystery box: a take seen by everyone
+
+30/10/2026, `personal/box-take-sync`, based on `main` `c784eb8f` (Sol's report: when a
+player took what came out, the others still saw it float). The opener's client relays
+`mystery_box` `take_<box>` to each other SJK player (`looks::sjk_slots`), one every
+50 ms, and theirs closes the box with the take and closing sounds; only the opener's
+slot is heeded ([mystery-boxes.md](mystery-boxes.md)). No hub change: the relay checks no
+toy ids. Verified: `mystery_box::tests::a_take_is_told_to_each_other_player_and_closes_their_box`,
+fmt, the workspace's build, tests and Clippy. Not verified: two clients in a game.
+
 ## Use prompt by the crosshair
 
 30/10/2026, `personal/use-prompt`, based on `main` `b138373f` (Sol's idea): a new anchor
