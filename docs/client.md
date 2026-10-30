@@ -1212,6 +1212,10 @@ the permanent ones the server sends only in its baselines, such as the `misc_bsp
 map pieces a server places in a map's void: stock `CG_BuildSolidList` adds them
 from `cg_permanents` (`cg_predict.c`), so the camera stops at their walls. The
 crosshair name trace uses the same list, so such a wall hides a player behind it.
+In a free spectator camera it still names the player under the crosshair, and a
+primary click while aimed at that player sends `follow <client>` to enter their
+view. The click is consumed instead of running the primary-button bind; a click
+with no visible player under the crosshair keeps its ordinary binding.
 Player and vehicle bodies do not obstruct this camera trace. When geometry
 collapses the camera onto its target, the view uses the intended forward direction
 instead of constructing an undefined look-at matrix.

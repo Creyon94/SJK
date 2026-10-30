@@ -654,7 +654,7 @@ merged into SJK
 - #312 Copy IP in both server browsers (and Ctrl+C), and `copyServerIP` for the server you
   are on: the address and port only, never a password.
 
-Lukas ([LukasMoudry](https://github.com/LukasMoudry)), contributor, has 18 pull requests
+Lukas ([LukasMoudry](https://github.com/LukasMoudry)), contributor, has 19 pull requests
 merged into SJK
 ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3ALukasMoudry)):
 
@@ -696,6 +696,8 @@ merged into SJK
   Force templates let go of the previous map's game files (its PK3 reopening part held back);
   its second part raises the open-file limit on Mac and Linux, lets cancelled map loads let go
   of their game files sooner, and logs how many game-file sets are still held.
+- #304 a free spectator sees the name of the player under the crosshair and follows them
+  with a left click; a click on nobody does what it did.
 
 Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 71 pull requests merged
 into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AJoFSlash)):

@@ -320,7 +320,7 @@ link: Lumaya's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr
 
 [Lukas]
 github: LukasMoudry
-role: Contributor: 18 merged pull requests
+role: Contributor: 19 merged pull requests
 did: #115 Linux clipboard tools follow the desktop session; copy reports failures
 did: #108 clientlist and clientlistinfo, JoF EJK's player list commands
 did: #109 Two-key combo binds, such as bind K+L kill
@@ -339,6 +339,7 @@ did: #181 The chat key opens on All; remembering the channel is an option
 did: #190 JA+ anti-kiss: one Force Push breaks an amkiss
 did: #179 Holocron notifications: off, after duels or always
 did: #198 No more "Too many open files" after a long session
+did: #304 Spectators click the player under the crosshair to follow them
 link: Lukas's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3ALukasMoudry
 
 [Slash]

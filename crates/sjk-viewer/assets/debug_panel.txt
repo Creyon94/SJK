@@ -24,6 +24,15 @@
 
 # ---- Console & chat ----
 
+[spectator-click-follow]
+area: Gameplay
+title: Spectators: aim at a player to see their name, left-click to follow them (Lukas, #304)
+change: Free spectating: the crosshair names the player under it; a left click sends follow.
+change: A click with nobody under the crosshair does what it did before (follow the next).
+test: Spectate freely on a server with players: aim at one, their name shows under the crosshair.
+test: Left-click: you follow that player. Aim at nothing and click: the usual follow cycle.
+test: While playing (not spectating) a left click still attacks.
+
 [wheel-commands-remembered]
 area: Menus & settings
 title: Quick wheel: custom commands you name are remembered (Dante's idea, Slash's #293)
