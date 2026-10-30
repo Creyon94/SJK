@@ -32,6 +32,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
+- Achievements: 26 new ones for the toys (the cardboard box, Order 66, the Hax, the Drone, the boombox, the monitor and the box hunt), three of them secret, and the board has two pages, General and Fun, a category for each toy on Fun (press F or use the switch at the top right) _(Sol, after a player's ideas)_
 - Prediction on JA+ servers: dual sabers jump attacks no longer sink you into the floor, and joining no longer throws you sideways at high speed before the server stops you; two prediction changes of 2026.1029.1 (dual jump attack hull, zero gravity push) are backed out after Lumaya checked them against an original JA+ server _(Lumaya, PRs #305, #307 and #308)_
 - jaPRO plugin options: Force jumps (Settings > Mods, `japro.plugin 1`) is offered now that SJK predicts it: off, holding jump bunny hops instead of Force jumping, on jaPRO servers that let players choose _(Sol, after Kushina's idea and Lumaya's PR #282)_
 
