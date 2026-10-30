@@ -1,3 +1,12 @@
+## Dual-saber jump-hull regression review
+
+30/10/2026, based on `main` `c1b90267`: this change claims the rollback of
+PR #266 after an isolated original JA+ 2.4 B7 server disagreed with the new
+dual forward jump-attack hull. At the same acknowledged command endpoint,
+prediction had `PMF_FIX_MINS` and downward velocity while the server was
+grounded without that flag. Correction and full checks are pending. This
+does not certify other attacks, base servers or complete movement parity.
+
 ## Banana peel in the look
 
 30/10/2026, `personal/sync-origin`, based on `main` `bc9343ff`, with the hub's `look-toys`
