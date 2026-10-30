@@ -18,6 +18,27 @@ With both rollbacks, the remaining mismatch records equal the pre-merge
 `0fd6a5e1` control, including its pre-existing spawn-height/wall-stop differences.
 The probe excludes inline movers and actors and is not a full viewer check.
 
+## Zero-gravity prediction regression review
+
+30/10/2026, based on `main` `c1b90267`: this change claims the rollback of
+PR #251 after the new push-off impulse accelerated a joining JA+ player
+while its initial snapshot still had zero gravity and base speed. The
+original JA+ 2.4 B7 server kept the player stationary until initialized.
+The rollback is implemented; focused regressions cover 8/7/4/3 ms.
+Recorded-input replay removes the corresponding regression at 8/7/4/3 ms;
+workspace check results are recorded in the pull request. Restoring the prior behavior leaves
+zero-gravity push-off prediction unsupported; it is not full gameplay parity.
+
+
+Evidence: Windows x64, original 2011 JA+ module SHA-256 prefix `9c2063955c5e6c3c`,
+private `mp/duel1`. Four exact command/snapshot captures compare 1,598
+acknowledged endpoints at 8/7/4/3 ms. In the 7 ms capture, the new impulse
+predicted -4,500 units/s against server zero; this rollback removes that speed
+and horizontal displacement. The old 8.875-unit spawn-height adjustment remains.
+Dual-jump floor sinking is separate (#307). With both rollbacks, remaining
+mismatch records equal the pre-merge `0fd6a5e1` control. The probe excludes inline
+movers and actors and does not certify base, jaPRO or full viewer behavior.
+
 ## Banana peel in the look
 
 30/10/2026, `personal/sync-origin`, based on `main` `bc9343ff`, with the hub's `look-toys`
@@ -436,12 +457,8 @@ This measures only the lookup, excluding snapshot rebuild, full Pmove, BSP trace
 and rendering. Live contacts and rendered frame rates remain unverified.
 ## Prediction: zero-gravity push-off
 
-29/10/2026, `fix/prediction-zero-gravity`, based on `main` `e702b0b1`:
-shared movement includes codemp's gravity <= 0 impulse, backward trace and leg
-animation. It deliberately retains the clear-trace impulse (`fraction <= 1`).
-Reference: OpenJK multiplayer `bg_pmove.c:2057-2085`, revision `4d0dfaf1`.
-Windows x64 synthetic tests cover command steps 8/7/4/3 ms and the jump gates;
-zero-gravity map play against a live OpenJK server remains unverified.
+PR #251's shared zero-gravity impulse was rolled back in #308. Original JA+ 2.4 B7 spawn snapshots temporarily supplied zero gravity and base speed; prediction accumulated 450-unit/s impulses while the server stayed still. The previous jump branch is restored globally. Zero-gravity wall push-off remains unsupported.
+
 ## Prediction: trigger collision hull
 
 29/10/2026, `fix/prediction-trigger-hull`, based on `main` `e702b0b1`:
