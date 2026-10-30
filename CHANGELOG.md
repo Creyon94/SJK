@@ -32,6 +32,15 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
+= r_dynamicGlowNoSabers: New: the dynamic glow leaves saber blades and trails out, so each saber's details show while the rest still glows; off, sabers glow as before.
+= r_dayClock: New: day and night follow your PC's clock in every preset: with Sun and sky the sun moves, without it the sky turns to night and the world darkens.
+
+- Lighting: day and night can follow your PC's clock (Settings > Lighting > Sun follows PC clock, `r_dayClock`); with Sun and sky off, as in the SJK and Vanilla presets, the sky turns to dusk and night and the world gets darker _(Creyon)_
+- Spectating: aim at a player to see their name, then left-click to follow their view; a click with nobody under the crosshair keeps its normal bind _(Lukas)_
+- Quick wheel commands you name are remembered: a custom command saved in Settings > Quick wheel is offered again under Your own in the catalogue when you add or change a choice on any page, so it goes on another page or wheel without typing it again. Delete (or its cross) forgets one; choices already on pages keep it _(Slash, after Dante's idea)_
+- Blade core thickness: a slider in Settings > Game options (`cg_saberCoreSize`, 0.5 to 2) draws the white core of every lit blade thinner or thicker, its glow unchanged _(Creyon)_
+- No glow on sabers (Settings > Graphics > Image, `r_dynamicGlowNoSabers`): the dynamic glow leaves saber blades, their glow and their trails out, so they keep their own look and the details of each saber show, while everything else still glows. Off until you turn it on _(Slash, after g0dchris' idea)_
+- Server browser: Copy IP copies the chosen server's address and port (also Ctrl+C), and `copyServerIP` copies the server you are on, never a password _(Lumaya, PR #312)_
 - Prediction with custom sabers: when two saber files define the same saber name, the first one counts, in the original game's file order, so a mod's saber no longer predicts the wrong flips, wall runs or jump attacks _(Lumaya, PR #314, after the original game)_
 - Mac and Linux: SJK raises its open-file limit at start as far as the system allows, so many PK3s no longer run out of files, and the log tracks how many game-file sets are still held at each map change _(Lukas, PR #198)_
 - Achievements: 26 new ones for the toys (the cardboard box, Order 66, the Hax, the Drone, the boombox, the monitor and the box hunt), three of them secret, and the board has two pages, General and Fun, a category for each toy on Fun (press F or use the switch at the top right) _(Sol, after a player's ideas)_

@@ -293,6 +293,7 @@ mod rig_model;
 mod runtime_settings;
 mod saber;
 mod saber_clash_flare;
+mod saber_core;
 mod saber_defs;
 mod saber_ghosts;
 mod saber_gpu;
@@ -765,6 +766,8 @@ struct GpuState {
     /// Collection's nameplate over the stage model).
     frame_view: Option<hud::identification::Camera>,
     pointer_captured: bool,
+    /// A primary press consumed by spectator aim-to-follow; consume its release too.
+    spectator_follow_click: bool,
     cursor_policy: pointer_input::CursorPolicy,
     cursor_position: [f32; 2],
     ui_epoch: Instant,
@@ -1699,6 +1702,7 @@ impl GpuState {
             profile_hub: profile_hub::Hub::default(),
             frame_view: None,
             pointer_captured: false,
+            spectator_follow_click: false,
             cursor_policy: pointer_input::CursorPolicy::new(),
             cursor_position: [0.0; 2],
             ui_epoch: Instant::now(),

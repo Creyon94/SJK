@@ -2407,6 +2407,10 @@
 - 0d215f1 |  | Initial JKR source
 
 = Creyon
++ 30/10/2026 | SJK #296 | Day and night follow the PC's clock (r_dayClock), in every graphics preset
+- 874c7fb |  | Let day and night follow the PC's clock (r_dayClock)
++ 30/10/2026 | SJK #297 | Blade core thickness slider (cg_saberCoreSize)
+- d638459 |  | Add a blade core thickness slider (cg_saberCoreSize)
 + 29/10/2026 | SJK #275 | Movement keys added to SJK, the same as JoF EJK (cg_movementKeys)
 - 2da84bf |  | Add JoF EJK's movement keys (cg_movementKeys)
 + 29/10/2026 | SJK #259 | Chat tabs: an Admin (amsay) button and key, and choosable Team/SJK/Admin/PM buttons that filter
@@ -2652,6 +2656,8 @@
 - 0874042 |  | Decode print and cp text as legacy bytes
 
 = Lukas
++ 30/10/2026 | SJK #304 | Let spectators follow the crosshair player
+- 4de76ec |  | Let spectators follow the crosshair player
 + 30/10/2026 | SJK #198 | Add VFS headroom and lifetime diagnostics
 - 69c6da4 |  | Release stale profile VFS generations
 - 37c8ade |  | Add VFS headroom and lifetime diagnostics
@@ -2697,12 +2703,17 @@
 - ddfe116 |  | Fix Linux clipboard integration
 
 = Lumaya
-+ 30/10/2026 | SJK #314 | Resolve saber definitions in multiplayer load order
-- 3d7346d |  | Claim the saber definition precedence correction
-- 308a4ae |  | Keep the first saber definition in multiplayer load order
++ 30/10/2026 | SJK #312 | Let players copy server IPs from the browser and console
+- 13856ad |  | Let players copy selected and connected server IPs
+- c8afe53 |  | Show and document the Copy IP browser action
 + 30/10/2026 | SJK #313 | Reassess necessity and integration of the prediction changes
 - a9b446a |  | Claim a necessity review of the prediction changes
 - 4474dd8 |  | Replace blanket prediction retention with necessity evidence
+- 18968c7 |  | Place the necessity review beside prediction status
++ 30/10/2026 | SJK #314 | Resolve saber definitions in multiplayer load order
+- 3d7346d |  | Claim the saber definition precedence correction
+- 308a4ae |  | Keep the first saber definition in multiplayer load order
+- fe1b6a0 |  | Place the prediction finding beside the existing audit
 + 30/10/2026 | - | Restore fixed dual-jump hull after JA+ runtime regression
 - 8fd4f9b |  | Restore fixed dual-jump hull after JA+ runtime regression
 + 30/10/2026 | - | Remove zero-gravity impulses from transient spawn prediction
@@ -2922,6 +2933,11 @@
 - fed9acd |  | Hide duel opponents' bars and send nothing while duelling
 
 = Slash
++ 30/10/2026 | SJK #293 | Quick wheel: custom commands are remembered in the command list (Dante's idea)
+- b8744f9 |  | Quick wheel: custom commands are remembered in the catalogue (Dante's idea)
+- aa573c2 |  | Changelog: credit the remembered wheel commands to Slash
++ 30/10/2026 | SJK #294 | Dynamic glow: No glow on sabers (r_dynamicGlowNoSabers), g0dchris' idea
+- d12b687 |  | Dynamic glow: No glow on sabers (r_dynamicGlowNoSabers)
 + 30/10/2026 | SJK #310 | Spectate: joining the game works while following a player (#207)
 - 83af9e8 |  | Start fix for joining while following a player (hub report #207)
 - 5933e67 |  | Offer Join while following a player from spectate
