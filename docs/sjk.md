@@ -51,6 +51,11 @@ general contributor rules.
 
 ## Defaults
 
+New settings default to the stock base Jedi Academy experience (Sol's rule,
+30/10/2026; [AGENTS.md](../AGENTS.md)): what changes how the game looks, sounds or
+plays compared with stock JKA is opt-in, and only Sol moves a default away from stock
+(the table below). #292, server remaps on by default, was declined under it.
+
 A new profile starts with Sol's own choices. Defaults apply only to settings a
 `config.cfg` has not saved: an existing profile keeps its values and nothing is
 migrated, except where the table says so. Where each is documented:

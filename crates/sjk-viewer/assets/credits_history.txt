@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 30/10/2026 | - | Defaults are the stock base JKA experience (Sol's rule)
+- 7bd082a |  | Defaults are the stock base JKA experience (Sol's rule)
 + 30/10/2026 | - | Achievements: the toys' own, and a Fun page for them
 - 04151f1 |  | Achievements: the toys' own, and a Fun page for them
 + 30/10/2026 | - | Release 2026.1030.2
