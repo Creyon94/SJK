@@ -1,14 +1,20 @@
 ## Prediction regression audit
 
-30/10/2026, based on `main` `c1b90267` and release `2026.1030.1`
-(`b138373f`): players report incorrect dual-saber attacks, jumping and
-strafe-jump speed on JA+ after the 29/10 prediction merges. The report is not
-yet isolated to a particular change. Audit the complete prediction PR set,
-including shared movement paths and JA+/base/jaPRO isolation, before adding
-further movement features. Previous kernel fixtures and successful Cargo checks
-did not establish end-to-end JA+ gameplay parity. Corrections or reversions need
-a reproducible before/after comparison with the applicable multiplayer source
-and command steps 8/7/4/3 ms. Live confirmation remains pending.
+30/10/2026, Windows x64: audit #305 reviewed the 25 prediction PRs from
+29/10 against release `2026.1030.1` (`b138373f`) and `main` `c1b90267`.
+An original JA+ 2.4 B7 private server reproduced two regressions: transient
+zero-gravity spawn impulses (#251, rollback #308), and dual-jump hull sinking
+below the floor (#266, rollback #307). Source-only and synthetic checks had
+missed these failures. The before-merge control is `0fd6a5e1`.
+
+Four 8/7/4/3 ms captures cover 1,598 acknowledged endpoints. Tested chained
+stock dual-saber moves matched server move IDs; this does not clear every
+attack or presentation path. The complete PR disposition, reference module
+hash, probe limits and remaining unverified cases are in
+[the networking review](networking.md#prediction-regression-review-30102026).
+Base-server, jaPRO and complete gameplay parity remain unverified. Further
+prediction feature work should wait for these corrections and targeted
+runtime validation.
 
 ## Banana peel in the look
 

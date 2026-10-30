@@ -637,6 +637,69 @@ report 172). It stays behind the client's other commands, a `userinfo` after a m
 or saber change or a Force-profile `team` retry, so a `kill` bind respawns with the
 new model and a typed `/team s` is not undone by a retry sent after it.
 
+## Prediction regression review, 30/10/2026
+
+Audit #305 covers all 25 prediction PRs from 29/10, against release
+`2026.1030.1` (`b138373f`) and `main` `c1b90267`. Twenty-three were merged;
+#274 and #287 were not in that release. The before-merge control is `0fd6a5e1`.
+OpenJK source reference remains multiplayer `codemp` at `4d0dfaf1`.
+
+Two changes caused reproducible disagreements with an original JA+ 2.4 B7
+server and have separate rollback PRs: #251 in #308 and #266 in #307. Source
+agreement and synthetic tests had missed both integration failures. This review
+supersedes the implementation recommendations for those two rows below.
+
+| PR | Disposition and remaining evidence gap |
+| --- | --- |
+| #249 gametype | Retain: source-aligned context; live CTY flag-carrier jumps unverified. |
+| #250 actor context | Retain: actor/NPC filtering reviewed; live multiplayer target interactions unverified. |
+| #251 zero-gravity push | Roll back in #308: transient spawn data repeatedly injects 450-unit/s impulses while JA+ remains stationary. |
+| #252 command-history gaps | Retain: bounded replay freeze; real network overflow recovery unverified. |
+| #253 saber-lock facing | Retain: active-lock/opponent gates reviewed; live locks unverified. |
+| #254 trigger hull | Retain: uses final Pmove box; live jump-pad/trigger timing unverified. |
+| #260 respawn jump gate | Retain: multiplayer reference blocks jumping until attack/use releases; ordinary controlled motion unchanged. |
+| #261 held-player movement | Retain: existing heldByClient field and nonzero gate; live carried players unverified. |
+| #262 gestures | Retain: gesture-only command path matches shared Pmove; live gesture timing unverified. |
+| #263 rider weapon whitelist | Retain: vehicle-only path; live rider weapons unverified. |
+| #264 exposed-rider weapon prediction | Retain: vehicle-only path; live mounted firing unverified. |
+| #265 rocket trace mask | Retain: rocket-only targeting path; live lock traces unverified. |
+| #266 dual-jump hull | Roll back in #307: prediction sinks below the floor during a dual forward jump while JA+ remains grounded. |
+| #267 saber definitions | Retain: no saber-move mismatch in tested stock dual single_1 sequences; custom hilt flags/overrides unverified. |
+| #268 rocket targets | Retain: target identity/powerup filtering reviewed; live rocket targets unverified. |
+| #270 inline-brush contents | Retain: separates presentation contents from physics sweeps; live moving/liquid brushes unverified. |
+| #271 audit documentation | Correct its source-only verification interpretation with this review. |
+| #273 remote vehicle bounds | Retain: vehicle/NPC scope reviewed; live vehicle contacts unverified. |
+| #274 vehicle collision exclusions | Unmerged: cannot explain this release regression. |
+| #276 passenger physics suppression | Retain: vehicle-number gate; live missing-seat-context cases unverified. |
+| #277 jaPRO command slicing | Retain: disabled on the tested JA+ profile; live jaPRO parity unverified. |
+| #279 jaPRO movement styles | Retain: disabled on JA+; live jaPRO acceleration/friction unverified. |
+| #282 jaPRO jumps | Retain: disabled on JA+; live jaPRO jump policies unverified. |
+| #284 jaPRO jetpack | Retain: disabled on JA+; remove the shared zero-gravity impulse assumption in #308. Live jaPRO jetpack unverified. |
+| #287 Lugormod prediction | Unmerged: cannot explain this release regression. |
+
+Evidence was collected on Windows x64 using a private loopback server with no
+human players: original 2011 JA+ module SHA-256
+`9c2063955c5e6c3cd9febe84469a44cf164fbf9646462b1c66a00020c71d6400`,
+retail dedicated executable, `mp/duel1`, two `single_1` hilts, style 6.
+The local module rebuilt in 2026 was excluded from reference evidence.
+The selected profile detected JA+ enabled and jaPRO disabled.
+
+Four 20-second command/snapshot captures at integer 8/7/4/3 ms yielded
+399/399/400/400 acknowledged endpoints (1,598 total). They cover neutral,
+forward, diagonal held jumping, changing-direction chained swings and a dual
+forward jump attack. Replaying the captures reproduces the native probe's
+endpoint comparisons. All tested saber-move IDs matched the server. Separately,
+46,080 synthetic before/after endpoints across five saber styles and nine
+scenarios isolated differences to the new dual hull in those inputs; synthetic
+animation timings do not establish retail behavior.
+
+The native probe uses SJK BSP world collision, without inline-mover or actor
+collision, and does not exercise the full viewer/input/presentation pipeline.
+The old predictor already has an 8.875-unit initial spawn-height adjustment and
+five wall-stop endpoint disagreements in the 8 ms capture. These are not cleared
+by this review. No full base, jaPRO, custom-hilt, multiplayer-interaction or
+complete movement/animation parity claim follows from these checks.
+
 ## Prediction source comparison
 
 The 29/10/2026 review compares SJK `main` `e702b0b1` with OpenJK
