@@ -34,6 +34,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 = r_dynamicGlowNoSabers: New: the dynamic glow leaves saber blades and trails out, so each saber's details show while the rest still glows; off, sabers glow as before.
 
+- Quick wheel commands you name are remembered: a custom command saved in Settings > Quick wheel is offered again under Your own in the catalogue when you add or change a choice on any page, so it goes on another page or wheel without typing it again. Delete (or its cross) forgets one; choices already on pages keep it _(Slash, after Dante's idea)_
 - Blade core thickness: a slider in Settings > Game options (`cg_saberCoreSize`, 0.5 to 2) draws the white core of every lit blade thinner or thicker, its glow unchanged _(Creyon)_
 - No glow on sabers (Settings > Graphics > Image, `r_dynamicGlowNoSabers`): the dynamic glow leaves saber blades, their glow and their trails out, so they keep their own look and the details of each saber show, while everything else still glows. Off until you turn it on _(Slash, after g0dchris' idea)_
 - Server browser: Copy IP copies the chosen server's address and port (also Ctrl+C), and `copyServerIP` copies the server you are on, never a password _(Lumaya, PR #312)_

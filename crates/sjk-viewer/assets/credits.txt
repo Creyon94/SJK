@@ -343,7 +343,7 @@ link: Lukas's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+
 
 [Slash]
 github: JoFSlash
-role: Contributor: 70 merged pull requests
+role: Contributor: 71 merged pull requests
 did: #114 Tab completes cfg file names after exec and writeconfig
 did: #113 CTF team saber colours, an option
 did: #153 The SJK scoreboard tells who won the Siege round or team match
@@ -416,6 +416,7 @@ did: #283 Laptops with two graphics cards start on the fast one
 did: #286 fs_restart: new PK3s without restarting SJK
 did: #310 Join the game while following a player
 did: #294 No glow on sabers: the dynamic glow without blades and trails
+did: #293 Quick wheel commands you name are remembered for any page
 link: Slash's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AJoFSlash
 
 [Milamber]
@@ -469,6 +470,10 @@ did: Saber sounds of your choice, apart from your saber shader
 [g0dchris]
 role: Ideas for SJK
 did: No glow on sabers: the dynamic glow without the blades, so their details show
+
+[Dante]
+role: Ideas for SJK
+did: Quick wheel custom commands remembered in the command list
 
 == Testing
 

@@ -24,6 +24,15 @@
 
 # ---- Console & chat ----
 
+[wheel-commands-remembered]
+area: Menus & settings
+title: Quick wheel: custom commands you name are remembered (Dante's idea, Slash's #293)
+change: Settings > Quick wheel: a saved custom command shows under Your own in the command list.
+change: Kept in wheel_commands.json, newest first, 24 at most; Restore default pages keeps them.
+test: Add a custom command Ready / ready on a page: open another page's list, Your own has it.
+test: Pick it there: it goes on that page in one click; search finds it by name or command.
+test: Delete (or its cross) forgets it; the choices on pages stay. Restore defaults keeps it.
+
 [blade-core-thickness]
 area: Rendering & effects
 title: Blade core thickness slider (cg_saberCoreSize 0.5 to 2), Creyon's #297
