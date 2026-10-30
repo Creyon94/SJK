@@ -1326,6 +1326,10 @@ const HELP: &[(&str, &str)] = &[
         "The glow around sabers and glowing surfaces: on everything that glows, or on sabers only.",
     ),
     (
+        crate::frame_target::aa::glow::NO_SABERS_CVAR,
+        "Saber blades and trails get no glow halo, so each saber's details show; the rest still glows.",
+    ),
+    (
         "r_dynamicGlowStyle",
         "How the glow is blurred: like the original renderer, or like EternalJK's Vulkan one.",
     ),

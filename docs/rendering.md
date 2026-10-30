@@ -491,6 +491,7 @@ first drawn) and keys only a later remap uses. Not measured on a GPU; compare th
 | `r_floorReflections` | Polished floors mirror the scene (see [Floor reflections](#floor-reflections)); default 1, live |
 | `r_DynamicGlow` | Halo around `glow` shader stages: 0 off, 1 on (default), 2 saber blades only, 3 the glow alone (debug); live. See [Dynamic glow](#dynamic-glow) |
 | `r_dynamicGlowStyle` | Glow blur: 1 EternalJK rd-vulkan's (default), 0 retail rd-vanilla's; live |
+| `r_dynamicGlowNoSabers` | 1 keeps saber blades and trails out of the dynamic glow, everything else keeps it; default 0, live, archived |
 | `r_dynamicLightShadows` | Walls stop dynamic lights (sabers, bolts, explosions) in real-time lighting, 1 (default, SJK) or 0 (they light through, as retail); live, console only, archived. See [Dynamic lights and walls](#dynamic-lights-and-walls) |
 
 See [day_night.rs](../crates/sjk-viewer/src/day_night.rs),
@@ -3372,7 +3373,11 @@ same for the main view:
    glowing layers are emitted after the others, so the glow pass draws one tail
    range per slot; this only reorders layers within one slot, which leaves additive
    and modulating blends unchanged (alpha-blended layers stay back to front within
-   each part). Nothing glowing on screen means no pass, no blur and no composite
+   each part). `r_dynamicGlowNoSabers 1` leaves the saber part out (the blades' glow
+   capsules with their skins' glints and black-hole horizons, and the trails), so only
+   the rest of the scene glows; the sabers' own drawing in the scene and the effect
+   layer is unchanged ([`Live::sources`](../crates/sjk-viewer/src/post_glow.rs)).
+   Nothing glowing on screen means no pass, no blur and no composite
    work; a frame only walks the glowing world passes and the entity queue to decide.
 3. **Blur** ([post_glow.rs](../crates/sjk-viewer/src/post_glow.rs)), in 8-bit images
    that clamp after every pass as stock's framebuffer copies did:
@@ -3399,6 +3404,7 @@ same for the main view:
 | --- | --- | --- |
 | `r_DynamicGlow` | 1 | 0 off, 1 on, 2 saber blades only (JoF EternalJK), 3 the blurred glow without the scene (debug); live, 0 frees the images |
 | `r_dynamicGlowStyle` | 1 | 1 rd-vulkan pyramid, 0 retail kernel; rebuilds the blur |
+| `r_dynamicGlowNoSabers` | 0 | 1 keeps saber blades and trails out of the glow image (g0dchris' idea), with any style; with `r_DynamicGlow 2` nothing glows; live |
 | `r_DynamicGlowIntensity` | 1.13 | Retail per-pass gain; rd-vulkan scales its level sum by Intensity - 1; live |
 | `r_DynamicGlowPasses` | 5 | Retail passes, 1-32; live |
 | `r_DynamicGlowDelta` | 0.8 | Retail tap spread added per pass; live |
@@ -3407,9 +3413,10 @@ same for the main view:
 | `r_DynamicGlowWidth`, `r_DynamicGlowHeight` | 0 | Retail blur size in pixels when both are positive; rebuild |
 
 All are archived and keep stock's names (lookups ignore case, so the retail menu's
-`r_dynamicglow` is the same cvar); `r_dynamicGlowStyle` is SJK's. Stock defaults
-`r_DynamicGlow` to 0; SJK turns it on. The renderer settings' IMAGE tab has rows
-for `r_DynamicGlow` and `r_dynamicGlowStyle`. SJK's classic menus have no
+`r_dynamicglow` is the same cvar); `r_dynamicGlowStyle` and `r_dynamicGlowNoSabers`
+are SJK's. Stock defaults `r_DynamicGlow` to 0; SJK turns it on. The renderer
+settings' IMAGE tab has rows for `r_DynamicGlow`, `r_dynamicGlowNoSabers` (No glow on
+sabers) and `r_dynamicGlowStyle`. SJK's classic menus have no
 counterpart of the retail Setup page's glow toggle.
 
 Emission-mapped world stages are drawn too, writing only their emission (see

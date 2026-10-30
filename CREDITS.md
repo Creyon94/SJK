@@ -695,7 +695,7 @@ merged into SJK
   its second part raises the open-file limit on Mac and Linux, lets cancelled map loads let go
   of their game files sooner, and logs how many game-file sets are still held.
 
-Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 69 pull requests merged
+Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 70 pull requests merged
 into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AJoFSlash)):
 
 - #114 Tab completes the cfg file argument of `exec`, `execq`, `writeconfig` and `write`
@@ -826,6 +826,8 @@ into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author
   asset browser's pack choices reach the menus and the next map, after Blep's idea.
 - #310 joining the game while following a player: the join menu and the match card read your
   own team, not the followed player's (hub report #207, Jaykmeit).
+- #294 No glow on sabers (`r_dynamicGlowNoSabers`): the dynamic glow leaves saber blades
+  and their trails out, after g0dchris' idea.
 
 His Peek work in #199 (closed 24/10/2026, not merged) shaped the Drone toy: a player is
 asked before being peeked, told who watches, and can end it. His #206 (closed 25/10/2026,
@@ -886,6 +888,9 @@ built it as the pinned chat card's Whisper button (23/10/2026).
 
 Nib, a player, asked to choose the saber sounds apart from the saber shader (18/10/2026,
 and hub report #109): Sol built it as the Saber tab's Sounds row (23/10/2026).
+
+g0dchris, a player, asked for the dynamic glow on everything but the sabers, whose glow
+hid the blades' details: Slash built it as No glow on sabers (#294, 30/10/2026).
 
 Blep, a player, asked for the player card to come only from the `inspect` key, not from
 looking at a player: Sol built it as Key only, `cg_playerCard 2` (29/10/2026).

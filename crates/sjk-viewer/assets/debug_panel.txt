@@ -24,6 +24,15 @@
 
 # ---- Console & chat ----
 
+[glow-no-sabers]
+area: Rendering & effects
+title: No glow on sabers (r_dynamicGlowNoSabers), g0dchris' idea, Slash's #294
+change: Settings > Graphics > Image: No glow on sabers keeps blades and trails out of the glow.
+change: The rest of the scene still glows; the sabers themselves draw as before.
+test: Dynamic glow on, No glow on sabers on: a lit blade has no halo, glowing walls still glow.
+test: Swing: the trail has no glow either; turn it off: halo and trail glow come back live.
+test: Dynamic glow Sabers (2) with it on: nothing glows.
+
 [copy-server-ip]
 area: Menus & settings
 title: Copy a server's IP: Copy IP in both browsers, Ctrl+C, copyServerIP (Lumaya, #312)
