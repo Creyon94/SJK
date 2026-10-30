@@ -3306,6 +3306,22 @@ in every menu style, as the resolution list is ([sjk-ui.md](sjk-ui.md#settings))
 it was a boxed panel in retail's or the theme's colours. "Game HUD files" stays on the tab for lists the picker does not
 find.
 
+## Use prompt
+
+What the Use key does at what the player faces (Sol's idea, 30/10/2026), drawn to the
+right of the crosshair with a gap, as many games show it
+([use_prompt.rs](../crates/sjk-viewer/src/use_prompt.rs)): a dark key cap naming the
+first key bound to `+use` as the key bindings show it ("E", "Mouse 2"; "Use" when none
+is), edged in gold, then the action in white and a line under it in grey, each over a
+dark shadow, in the headline font (Fira Sans Condensed, as centre prints). A prompt that
+cannot be acted on now greys its cap and action. It follows the crosshair's middle
+(`cg_crosshairX`/`Y` and the dynamic crosshair) and stays on the screen at its edge; it
+is hidden with the words in the world (menus, console, scoreboard, intermission).
+
+A feature sets the prompt each frame it applies (`GpuState::want_use_prompt`); the frame
+draws the last one set and forgets it. The [mystery boxes](mystery-boxes.md#opening-one)
+are its first user, in place of their centre prints.
+
 ## Capture the flag HUD
 
 In Capture the Flag and Capture the Ysalamiri every HUD style shows the flags' state

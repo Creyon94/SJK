@@ -29,14 +29,20 @@ says to press Use to take it).
 ## Opening one
 
 Standing at a box (within 80 units across the floor and 96 up or down) and facing it
-(within 60 degrees), the player is told once "Mystery box: press Use to open it (100
-credits)". `+use` asks the hub to open it; the hub refuses without the price, within the
-cooldown or when the box is gone, and the refusal shows in the centre of the screen.
+(within 60 degrees), the player sees the [Use prompt](client.md#use-prompt) by the
+crosshair: the key bound to `+use` in a cap, then "Open mystery box" over its price or
+"Free roll" (since 30/10/2026; a centre print said it once before). `+use` asks the hub to
+open it; the hub refuses without the price, within the cooldown or when the box is gone,
+and the refusal shows in the centre of the screen. What the client knows already, the
+prompt says instead, its cap greyed: "Your turn again in N s", "100 credits: not
+enough", "Opening..." while the hub answers, "Someone is opening it" at another player's
+roll; it says "Take it" over the player's own prize, and nothing while their own roll
+runs or at a box that blows up.
 
 **The cooldown** (Sol, 30/10/2026): a player opens one box every 15 seconds (3 before,
 the hub's `cooldown`), so a roll and its taking, about 8 seconds, leave the box free a
-while for another player. The client knows its own last opening and says at once "Let
-someone else roll: you can open a box again in N s" without asking the hub.
+while for another player. The client knows its own last opening and says so on the Use
+prompt without asking the hub.
 
 An opened box plays its opening sound and its roll while it rattles and things rise out of
 it and roll over it, changing fast, then slower, like a wound-down spring. At 5.2 seconds
@@ -75,7 +81,7 @@ four, and `duel6_mystery_box_loot` the piles, the little box and the hilt.
 The opener is told what came out in the centre of the screen. It floats over the box,
 turning slowly, until they take it with `+use` at the box (a sparkle; a chat line gives
 the credits left) or for 10 seconds, when it is taken for them. Meanwhile the box is busy:
-another player's `+use` there says someone is opening it. The hub pays at the opening
+another player's Use prompt there says someone is opening it. The hub pays at the opening
 itself, so walking away loses nothing. The other SJK players on the server see and hear
 the same roll through the hub's toy event (`mystery_box`, `open_<box>_<outcome>`); they
 see what came out float for the 10 seconds, as they are not told when the opener takes it.
