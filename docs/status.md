@@ -1,19 +1,3 @@
-## Saber definition precedence review
-
-30/10/2026, based on `main` `82c8c185`: investigate the catalog consumed
-by prediction PR #267. OpenJK `4d0dfaf1` concatenates `.sab` files in
-`FS_GetFileList` order and resolves the first matching saber name. SJK's
-shared catalog instead traverses sorted paths and replaces duplicate names.
-This predates #267, which exposes more of that catalog to combat prediction.
-Three synthetic tests fail before the fix: the later definition's
-`noFlips` flag wins over the first definition's `noWallRuns`. The correction
-uses legacy file-list order and preserves the first case-insensitive name,
-including combat move overrides. The movement case selects the wrong Force-jump
-pose before the fix (1152 rather than 1163); corrected movement passes at
-8/7/4/3 ms. Same-path mount replacement is preserved.
-No retail data is in the tests; this has not been linked to the stock-hilt JA+
-report or verified with a live custom-hilt server. See PR #314 for full checks.
-
 ## Toy achievements and the board's Fun page
 
 30/10/2026, branch `personal/toy-achievements` (with hub branch
@@ -51,6 +35,22 @@ hash, probe limits and remaining unverified cases are in
 Base-server, jaPRO and complete gameplay parity remain unverified. Further
 prediction feature work should wait for these corrections and targeted
 runtime validation.
+
+## Saber definition precedence review
+
+30/10/2026, based on `main` `82c8c185`: investigate the catalog consumed
+by prediction PR #267. OpenJK `4d0dfaf1` concatenates `.sab` files in
+`FS_GetFileList` order and resolves the first matching saber name. SJK's
+shared catalog instead traverses sorted paths and replaces duplicate names.
+This predates #267, which exposes more of that catalog to combat prediction.
+Three synthetic tests fail before the fix: the later definition's
+`noFlips` flag wins over the first definition's `noWallRuns`. The correction
+uses legacy file-list order and preserves the first case-insensitive name,
+including combat move overrides. The movement case selects the wrong Force-jump
+pose before the fix (1152 rather than 1163); corrected movement passes at
+8/7/4/3 ms. Same-path mount replacement is preserved.
+No retail data is in the tests; this has not been linked to the stock-hilt JA+
+report or verified with a live custom-hilt server. See PR #314 for full checks.
 
 ## Banana peel in the look
 
