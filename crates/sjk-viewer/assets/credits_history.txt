@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 30/10/2026 | - | Use prompt: further from the crosshair, the key centred in its cap by its ink
+- 0961996 |  | Use prompt: further from the crosshair, the key centred in its cap by its ink
 + 30/10/2026 | - | Card pictures drawn from the game: scenes for the JKA cards
 - ef04e96 |  | Card pictures drawn from the game: scenes for the JKA cards
 + 30/10/2026 | - | Credits history: the Use prompt merge's entry
