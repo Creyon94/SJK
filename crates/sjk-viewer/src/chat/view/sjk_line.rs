@@ -422,6 +422,35 @@ mod tests {
     }
 
     #[test]
+    fn incoming_colour_changes_displayed_history_but_not_names_or_stored_text() {
+        let mut chat = feed(
+            &["^1server text"],
+            vec![message(1, "^3Sol", "hello", false)],
+        );
+        let stored = chat
+            .lines
+            .iter()
+            .map(|l| l.body.clone())
+            .collect::<Vec<_>>();
+        chat.options.incoming = Some(Color::new(0.0, 1.0, 0.0, 1.0));
+        chat.build(true, &crate::text::test_font(), VIEWPORT, 1_000);
+        let shown = texts(&chat);
+        drawn(&shown, "^3Sol");
+        let (_, _, colour) = drawn(&shown, "hello");
+        assert_eq!(rgb(*colour), [0.0, 1.0, 0.0]);
+        assert_eq!(
+            chat.lines
+                .iter()
+                .map(|l| l.body.clone())
+                .collect::<Vec<_>>(),
+            stored
+        );
+        chat.options.incoming = None;
+        chat.build(true, &crate::text::test_font(), VIEWPORT, 1_000);
+        assert_eq!(rgb(drawn(&texts(&chat), "hello").2), rgb(GOLD));
+    }
+
+    #[test]
     fn an_unverified_sender_shows_their_trust_mark_where_the_tick_goes() {
         use crate::ui_renderer::{VERIFIED_TEXTURE, trust_texture};
         use sjk_identity::Trust;

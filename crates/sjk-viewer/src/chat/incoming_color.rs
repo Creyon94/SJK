@@ -6,10 +6,12 @@ use std::fmt::{self, Write};
 /// Zero keeps authored colours; 1-9 match the chat codes, 10 selects black.
 pub(crate) const CVAR: &str = "cg_chatColor";
 /// Settings labels indexed by the saved cvar value.
-pub(crate) const CHOICES: &[&str] = &[
+pub(crate) const LABELS: &[&str] = &[
     "Original", "Red", "Green", "Yellow", "Blue", "Cyan", "Magenta", "White", "Orange", "Grey",
     "Black",
 ];
+
+pub(crate) const CHOICES: &[&str] = &["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"];
 
 /// Resolve the local preference once while a view reads its settings.
 pub(crate) fn read(console: Option<&ViewerConsole>) -> Option<Color> {
