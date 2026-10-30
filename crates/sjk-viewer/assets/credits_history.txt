@@ -9,6 +9,12 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 30/10/2026 | - | Use prompt: what Use does, with its key, to the right of the crosshair
+- bc7779c |  | Use prompt: what Use does, with its key, to the right of the crosshair
++ 30/10/2026 | - | Release 2026.1030.1
+- b138373 |  | Release 2026.1030.1
++ 30/10/2026 | - | Credits history: the mystery box teddy merge's entry
+- a588b2e |  | Credits history: the mystery box teddy merge's entry
 + 30/10/2026 | - | Mystery box: extras pack sounds, a 15 s cooldown, the teddy bear that kills, a sturdier chest
 - e7bfadd |  | Mystery box: extras pack sounds, a 15 s cooldown, the teddy bear that kills, a sturdier chest
 + 29/10/2026 | - | Credits history: the start-dialog merge's entry
