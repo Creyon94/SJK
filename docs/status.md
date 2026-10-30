@@ -1797,16 +1797,26 @@ menu, the taskbar flash on a real window (winit's Informational attention).
 
 ## Old menu catalogues kept PK3 files open
 
-23/10/2026, `dev/pr-stack` (Sol's report after a long session and reconnect): the
+30/10/2026, `dev/pr-stack` (Sol's report after a long session and reconnect): the
 client failed to mount `base` with `Too many open files`. A mounted VFS keeps each PK3
 open, and the Profile menu moves between worlds; its model-icon worker, cosmetics
 catalogue and Force-template catalogue could retain an older world's VFS after a new
 one was attached. With 297 PK3s in the reported installation, retained generations
 used hundreds of file descriptors each. Attaching a world now invalidates every
-VFS-bound Profile cache immediately while preserving the player's menu draft. Unit
-tests pin release of the old VFS by the worker and both catalogues. Verified on Linux
-with the locked workspace format, build, test and Clippy checks. Not yet verified: a
-multi-map live session with the reported installation.
+VFS-bound Profile cache immediately while preserving the player's menu draft.
+Superseded CPU world loads (including menu rebuilds) now receive cancellation and drop
+their VFS at the next mount/BSP/scene boundary; shader catalogue loading checks before
+each script read. A `Weak` ownership test pins that release, alongside the Profile
+worker/catalogue tests. VFS generations and their live PK3 sources are counted and
+logged at world attach, disconnect and reconnect. On Unix the client non-fatally raises
+its soft `RLIMIT_NOFILE` to the host-permitted ceiling at startup and logs the old/new
+values; the safe wrapper respects macOS `kern.maxfilesperproc`, while Windows remains a
+no-op. The per-asset open/close experiment was dropped: mounted archives retain their
+readers, so this change adds headroom and makes stale ownership observable without
+trading it for repeated PK3 opens. Verified on Linux by locked workspace format, build,
+test and Clippy checks (including VFS/shader suites and both cancelled-worker ownership
+tests). Not yet verified: macOS/Windows builds or a multi-map live session with the
+reported installation.
 
 ## Heimdall's time nudge kicks after a hitch
 

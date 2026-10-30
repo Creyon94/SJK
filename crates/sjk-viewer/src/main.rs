@@ -103,6 +103,7 @@ mod effect_geometry_gpu;
 mod vehicle_assets;
 mod vehicle_fire;
 mod vehicle_pose;
+mod vfs_lifetime;
 
 mod effect_library;
 mod effect_runtime;
@@ -417,6 +418,7 @@ use winit::keyboard::{KeyCode, PhysicalKey};
 use winit::window::{Window, WindowAttributes, WindowId};
 fn main() {
     log::init();
+    platform::raise_open_file_limit();
     crash_report::install();
     if let Err(error) = app_launch::run() {
         log::progress(format_args!("sjk: {error}"));
