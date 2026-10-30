@@ -1,3 +1,17 @@
+## Local incoming chat colour
+
+30/10/2026, `feat/chat-color`, based on `main` `82c8c185`: archived `cg_chatColor`
+forces only the game server's public All message-body colours.
+Team/admin chat, plain/encrypted whispers and the separate SJK channel retain their
+original colours. Original colours remain the default; names, sent messages, logs and centre prints
+are unchanged. The choice applies to displayed history without a reconnect.
+Windows x64 formatting, locked workspace build/tests and all-target clippy passed
+on `533f67f5`. The subsequent main merge retains both status entries; its full
+workspace recheck is left to CI.
+An offline GPU screenshot with cyan selected confirms body colours and preserved
+identified sender names. Live-server chat and other operating systems remain unverified. Formatting strips only display escapes without new
+per-frame strings, retaining wrapping offsets and emoji markers.
+
 ## Toys say ON and OFF, and toy_help
 
 29/10/2026, `feat/toy-announce` (Creyon), based on `main` `9f40fded` (Blep's idea, Sol's
