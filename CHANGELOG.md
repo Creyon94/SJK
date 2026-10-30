@@ -30,7 +30,14 @@ The site (site/assets/site.js, parseChangelog) reads the release headings,
 introductions and recap lines too.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
-## Unreleased
+## 2026.1030.1 (Alpha) | 30/10/2026
+
+Mystery boxes: new sounds, a teddy bear that kills, a turn for everyone and a sturdier chest.
+
+> Teddy bear: A box that blows up shows a teddy bear and laughs, then kills you.
+> Sounds: New box sounds with the SJK extras pack from the Sith cloud.
+> Your turn: Wait 15 seconds between two boxes, so others get to roll.
+> The chest: Iron feet, bands, a lock, handles and an arched lid.
 
 - Mystery boxes have new opening, roll and closing sounds with the SJK extras pack (Settings > General > Sith cloud); without it they sound as before. The roll stops a little sooner, at 5.2 seconds _(Sol)_
 - Mystery boxes: after opening one, you wait 15 seconds before opening another, so other players get a turn _(Sol)_
