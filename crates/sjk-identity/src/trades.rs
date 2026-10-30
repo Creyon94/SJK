@@ -176,11 +176,22 @@ impl PlayerTrade {
         self.state == "done"
     }
 
-    /// How it ended, in the player's words, for an ended trade; empty while it runs.
+    /// How it ended, in the player's words, for an ended trade; empty while it runs. A
+    /// finished trade says new items are in the collection only when the other side
+    /// gave some.
     pub fn ending(&self) -> String {
         let name = crate::chat::for_display(&self.with.name);
         match self.state.as_str() {
-            "done" => "Trade complete. Your new items are in your collection.".to_owned(),
+            // What the reader received decides the words (hub report #208: a trade the
+            // other side put nothing into said new items were in the collection).
+            "done" => match (self.theirs.items.len(), self.mine.items.is_empty()) {
+                (0, true) => "Trade complete. Nothing changed hands.".to_owned(),
+                (0, false) => {
+                    format!("Trade complete. You gave your offer to {name} and received nothing.")
+                }
+                (1, _) => "Trade complete. Your new item is in your collection.".to_owned(),
+                _ => "Trade complete. Your new items are in your collection.".to_owned(),
+            },
             // The hub ends a request as `busy` when one of the two took another trade.
             "declined" if self.reason == "busy" && self.asker => {
                 format!("{name} is trading with someone else.")
@@ -687,6 +698,50 @@ mod tests {
         assert_eq!(
             ended.ending(),
             "The hub stopped the trade: one of you reached the day's limit of Mythical holocrons received."
+        );
+    }
+
+    /// Hub report #208: a finished trade says new items are in the collection only when
+    /// the other side gave some; one item reads in the singular; a trade they put nothing
+    /// into says so, with their name as the other endings carry it.
+    #[test]
+    fn a_finished_trade_says_what_was_received() {
+        let shader = |id: &str| TradeItem {
+            kind: "shader".to_owned(),
+            id: Some(id.to_owned()),
+            ..TradeItem::default()
+        };
+        let done = |mine: Vec<TradeItem>, theirs: Vec<TradeItem>| PlayerTrade {
+            state: "done".to_owned(),
+            with: TradePartner {
+                name: "^1Zed".to_owned(),
+                ..TradePartner::default()
+            },
+            mine: TradeSide {
+                items: mine,
+                ..TradeSide::default()
+            },
+            theirs: TradeSide {
+                items: theirs,
+                ..TradeSide::default()
+            },
+            ..PlayerTrade::default()
+        };
+        assert_eq!(
+            done(vec![shader("a")], Vec::new()).ending(),
+            "Trade complete. You gave your offer to ^1Zed and received nothing."
+        );
+        assert_eq!(
+            done(Vec::new(), vec![shader("b")]).ending(),
+            "Trade complete. Your new item is in your collection."
+        );
+        assert_eq!(
+            done(vec![shader("a")], vec![shader("b"), shader("c")]).ending(),
+            "Trade complete. Your new items are in your collection."
+        );
+        assert_eq!(
+            done(Vec::new(), Vec::new()).ending(),
+            "Trade complete. Nothing changed hands."
         );
     }
 

@@ -1,3 +1,14 @@
+## Finished trade: what was received
+
+30/10/2026, `fix/trade-done-message`, based on `main` `487f296f` (hub report #208): a
+finished trade always said "Trade complete. Your new items are in your collection.",
+even when the other side gave nothing. `PlayerTrade::ending` now words it from what the
+reader received: "Your new items are in your collection" (or "item is" for one), "You
+gave your offer to <name> and received nothing", or "Nothing changed hands". The ended
+trade's card and the toast over play both read it ([sjk-ui.md](sjk-ui.md#trading)).
+Verified: unit test (the four cases), fmt, the workspace's build, tests and Clippy. Not
+verified: anything in game.
+
 ## Toys say ON and OFF, and toy_help
 
 29/10/2026, `feat/toy-announce` (Creyon), based on `main` `9f40fded` (Blep's idea, Sol's
