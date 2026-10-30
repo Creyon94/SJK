@@ -345,21 +345,40 @@ impl Panel {
         } else {
             format!("Name emoji {}", self.emoji)
         };
+        // On the Profile screen, Change name first: it opens the Character tab's Name
+        // field, the name the hub shows being the one worn in game.
+        let mut x = LEFT_X;
+        if self.mode == Mode::Hub {
+            kit::button(
+                &mut self.ui,
+                frame,
+                [x, y, 150.0, 42.0],
+                "Change name",
+                false,
+                true,
+                self.focus == Focus::Name,
+                NAME_TOKEN,
+            );
+            x += 162.0;
+        }
+        let emoji_width = if self.mode == Mode::Hub { 210.0 } else { 230.0 };
         kit::button(
             &mut self.ui,
             frame,
-            [LEFT_X, y, 230.0, 42.0],
+            [x, y, emoji_width, 42.0],
             &emoji_label,
             false,
             self.writable,
             self.focus == Focus::Emoji || self.middle == Middle::Emoji,
             EMOJI_TOKEN,
         );
+        x += emoji_width + 16.0;
         if self.staff {
+            let width = (LEFT_X + LEFT_WIDTH - x).min(180.0);
             kit::button(
                 &mut self.ui,
                 frame,
-                [LEFT_X + 246.0, y, 180.0, 42.0],
+                [x, y, width, 42.0],
                 "Staff tools",
                 true,
                 true,
@@ -1256,6 +1275,7 @@ impl Panel {
             Focus::UsePicture => "use this picture",
             Focus::RemovePicture => "remove picture",
             Focus::BioBack => "back to your bio",
+            Focus::Name => "change your name",
             Focus::Emoji => "choose an emoji",
             Focus::EmojiGrid => "use this emoji",
             Focus::RemoveEmoji => "remove emoji",
