@@ -2764,3 +2764,7 @@ its tour, player stage and saber shot.
 Settings > Chat includes **Incoming chat colour**, a named choice shared with
 the classic settings. Original preserves authored colours; the other ten choices
 force message bodies while keeping sender names and non-message controls distinct.
+
+Incoming chat colour, cyan selected (offline fixture):
+
+![Incoming chat colour](images/incoming-chat-colour.png)
