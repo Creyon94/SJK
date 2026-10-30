@@ -1,12 +1,22 @@
 ## Prediction change necessity review
 
-30/10/2026, based on `main` `82c8c185`: reassess the 29/10 prediction PRs
-for a concrete missing behavior, existing equivalent implementation, correct
-call-site context and mod assumptions. The earlier #305 table's "Retain"
-labels are provisional; narrow stock dual-saber captures do not establish
-necessity or correctness for unrelated changes. Review is in progress; no
-additional correction is claimed yet. The #251/#266 rollbacks are already
-merged and included in hotfix `2026.1030.2`.
+30/10/2026, based on `main` `82c8c185` (hotfix `2026.1030.2`): #313
+reassesses each October 29 prediction PR's merge parent and current callers
+for a concrete missing input, duplicate implementation and mod/ownership gates.
+The blanket "Retain" labels from #305 have been replaced with per-change
+reasons and remaining runtime gaps in [networking.md](networking.md#prediction-regression-review-30102026).
+
+The #251/#266 rollbacks are merged. A further source-level integration defect
+feeds #267: the shared saber catalog chooses duplicate names in the wrong
+file/name order. Three focused tests fail on main; #314 corrects generic load
+precedence. That catalog behavior predates #267, which expands its combat use;
+no connection to the reported stock-hilt JA+ symptoms is established. Existing
+roll/speed loading was distinguished from #267's newly supplied combat fields.
+
+Several changes have specific missing-context, gate or constant counterexamples;
+none is certified for every mod by that source evidence. The jaPRO changes are
+requested new support with partial kernel evidence, not live parity certification.
+No new broad gameplay verification was performed for this documentation review.
 
 ## Prediction regression audit
 
