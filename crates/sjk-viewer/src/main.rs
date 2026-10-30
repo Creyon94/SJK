@@ -2420,10 +2420,13 @@ impl GpuState {
             let view = ingame_menu::View {
                 page: self.game_menu_page,
                 selected_row: self.game_menu_row,
-                team: self
-                    .live_session
-                    .as_ref()
-                    .map_or(3, |session| session.latest_snapshot().player.team()),
+                team: self.live_session.as_ref().map_or(3, |session| {
+                    ingame_menu::OwnSide::of(
+                        session.game_state(),
+                        &session.latest_snapshot().player,
+                    )
+                    .team
+                }),
                 team_game: self.is_team_game(),
                 siege: self.is_siege_game(),
                 red_players: team_sizes[0],

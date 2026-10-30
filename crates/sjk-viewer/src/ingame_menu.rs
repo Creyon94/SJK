@@ -791,6 +791,48 @@ fn current_team_row(view: &View<'_>, row: usize) -> bool {
     }
 }
 
+/// `pmove_t` flag the server sets on a follower's copy of the followed player's state
+/// (`codemp/game/bg_public.h` `PMF_FOLLOW`).
+const PMF_FOLLOW: u16 = 0x1000;
+
+/// The local player's own side for the join page and the match card, from `game` and
+/// the snapshot's player state `player`.
+///
+/// While the player follows someone, `player` is the followed player's copy
+/// (`SpectatorClientEndFrame` copies their `ps`, `PMF_FOLLOW` set, their `client_num`
+/// and `persistant[PERS_TEAM]` kept), so its team is theirs, not the local player's.
+/// The own team then comes from the own clientinfo (`CS_PLAYERS + clientNum`, `t`), as
+/// codemp's cgame copies it into `ui_myteam` for the join menu only for
+/// `clientNum == cg.clientNum` (`CG_NewClientInfo`), and as `SetTeam` judges a request by
+/// the own `sess.sessionTeam`. A follower watches, whatever team that is.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct OwnSide {
+    /// `TEAM_FREE` 0, red 1, blue 2, spectator 3.
+    pub(crate) team: u8,
+    /// The player watches the match (a spectator, or following someone).
+    pub(crate) watching: bool,
+}
+
+impl OwnSide {
+    pub(crate) fn of(game: &GameState, player: &sjk_protocol::PlayerState) -> Self {
+        let following = player.movement_flags() & PMF_FOLLOW != 0
+            || crate::looks::ViewSlots::of(game, player)
+                .followed()
+                .is_some();
+        if following {
+            Self {
+                team: siege_data::local_team(game),
+                watching: true,
+            }
+        } else {
+            Self {
+                team: player.team(),
+                watching: player.is_spectator(),
+            }
+        }
+    }
+}
+
 /// Count populated red/blue clientinfo records for the join modal.
 pub(crate) fn team_sizes(game_state: &GameState) -> [usize; 2] {
     let mut sizes = [0; 2];
@@ -899,6 +941,68 @@ mod sjk_tests {
         assert_eq!(menu.row_count(Page::VoteMap, false), 18);
         menu.build_sjk(view(Page::VoteMap, 0, false, 0), [1_920.0, 1_080.0]);
         assert_eq!(menu.rows[16], "More maps...");
+    }
+
+    /// Hub report #207: following a player in a free-for-all, the snapshot carries
+    /// their state (`PMF_FOLLOW`, their slot, `TEAM_FREE`), yet the local player is a
+    /// spectator: Join is offered, on the join page and the match card alike.
+    #[test]
+    fn following_a_player_still_offers_join() {
+        const ME: i32 = 5;
+        const FOLLOWED: u16 = 2;
+        let mut game = GameState::empty_local(ME);
+        game.replace_config_string(1_131 + ME as usize, b"n\\Me\\t\\3".to_vec())
+            .expect("own clientinfo");
+        game.replace_config_string(1_131 + FOLLOWED as usize, b"n\\Them\\t\\0".to_vec())
+            .expect("followed clientinfo");
+        let mut followed = sjk_protocol::PlayerState::default();
+        followed.set_client_num(FOLLOWED); // the followed player's slot
+        followed.set_movement_flags(PMF_FOLLOW);
+        followed.persistent[3] = 0; // their TEAM_FREE
+        assert_eq!(followed.team(), 0, "the copy carries their team");
+        let own = OwnSide::of(&game, &followed);
+        assert_eq!(
+            own,
+            OwnSide {
+                team: 3,
+                watching: true
+            }
+        );
+        let mut menu = sjk_menu();
+        menu.build_sjk(view(Page::Team, 0, false, own.team), [1_920.0, 1_080.0]);
+        assert!(menu.activation_allowed(0), "Join the game");
+        assert!(!menu.activation_allowed(1), "already spectating");
+        let card = sjk_focus::Controls::for_match(sjk_focus::Match {
+            known: true,
+            team_game: false,
+            siege: false,
+            team: own.team,
+            vote: false,
+        });
+        assert!(card.takes(sjk_focus::Control::Team(sjk_client::LegacyTeamChoice::Free)));
+        // The followed player's team, read as before, would hide Join.
+        menu.build_sjk(
+            view(Page::Team, 0, false, followed.team()),
+            [1_920.0, 1_080.0],
+        );
+        assert!(!menu.activation_allowed(0));
+
+        // A follower on a side (a Siege player waiting out a respawn) keeps that side.
+        game.replace_config_string(1_131 + ME as usize, b"n\\Me\\t\\1".to_vec())
+            .expect("own clientinfo");
+        assert_eq!(OwnSide::of(&game, &followed).team, 1);
+
+        // In the own view the snapshot's own state stands.
+        let mut playing = sjk_protocol::PlayerState::default();
+        playing.set_client_num(ME as u16);
+        playing.persistent[3] = 0;
+        assert_eq!(
+            OwnSide::of(&game, &playing),
+            OwnSide {
+                team: 0,
+                watching: false
+            }
+        );
     }
 
     #[test]
