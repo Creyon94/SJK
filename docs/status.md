@@ -20,6 +20,76 @@ bots): the labels and ID tags, the # column 1 to 20, and with `cg_scoreDeaths 2`
 ranking by score minus deaths. Not verified: the compact board, team games, the
 what's-new card's switch.
 
+## Toys say ON and OFF, and toy_help
+
+29/10/2026, `feat/toy-announce` (Creyon), based on `main` `9f40fded` (Blep's idea, Sol's
+#ideas recap 29/10/2026): Box hunt, the Monitor and the Drone said a long line on the
+centre of the screen when switched, the older toys said nothing. After Creyon's test
+(29/10/2026: too long, on and off alike in white) every toy with a switch says its name
+and ON in green or OFF in red ("Cardboard box ON"): Illuminate, the cardboard box, Order
+66, the Hax, the Drone, the Monitor and Box hunt, and the Boombox when put away (its start
+names the track). Only the player's own switch says it, not a toy restored at start nor a
+box lifted by another player. The explanations moved to `toy_help`, which lists all eleven
+toys in the console, the name in yellow and what it does and how in white
+([toy_switch_words.rs](../crates/sjk-viewer/src/toy_switch_words.rs),
+[client.md](client.md#illuminate)). Verified: the unit tests
+`a_switch_says_on_in_green_and_off_in_red` and `toy_help_lists_every_toy_once`, fmt,
+build, Clippy and the workspace's tests.
+
+## Time of day from the PC's clock
+
+30/10/2026, `feat/pc-clock-time`, based on `main` `b138373f`: with `r_dayClock 1`
+(Settings > Lighting > Sun follows PC clock, off by default) day and night follow the PC's local time, daylight saving included
+(`sjk_shell::local_time`); the clock is read at most once a second (`day_live::PcClock`),
+so frames never ask the time zone rules. With Sun and sky (`r_dayNight 1`) the sun's hour
+is the PC's, over `r_dayHour` and `r_dayMinutes`. The SJK (recommended) and Vanilla style
+presets keep Sun and sky off, where the hour moved nothing:
+there the night is a darker exposure, factor 1 by day, 0.4 from 20:30 to 05:00, eased
+through dusk from 18:00 and dawn to 07:00 (`day_live::night_tint`), multiplied in after
+eye adaptation (`Params::night` in `post_exposure.wgsl`), which brightens less as the night
+deepens and not at all in full night (`post_exposure::day_share`: in a match the dark night sky
+made it brighten the view back), so the night is not adapted
+away, and the HUD, composed after the scene resolve, keeps its brightness; and the sky alone turns
+to dusk and night with the PC's hour: the sky stage's day tint, installed without sun or shadows
+(`day::Settings::sky`), its clock written only when the hour changes
+(`sky_stage::Runtime::follow_day_clock`), from the next map load or graphics reload, and with the
+clock off again shows noon, the authored sky as it is (`day_live::Clock::sky_values`;
+before, it stayed tinted by `r_dayHour`)
+([rendering.md](rendering.md)). A changelog `= r_dayClock:` line offers it on the what's-new
+card. Verified: the unit tests `the_pc_clock_gives_the_hour_of_the_sun`,
+`the_pc_clock_switch_takes_the_hour_and_gives_it_back`,
+`the_night_tint_darkens_the_night_only`, `the_night_takes_away_the_brightening_only` and
+`without_the_pc_clock_the_sky_keeps_its_own_look`, the ignored world shot `pc_clock_night`
+(ffa3: darker on switching, night sky from the load), the exposure programs translating for Vulkan and
+DX12, fmt, build, Clippy and the workspace's tests. In game on Windows
+(29/10/2026): with Sun and sky on, the map goes dark at night; (30/10/2026) the night
+exposure and the night sky in the SJK and Vanilla presets on ffa3 and a JoF server, and on
+Taspir the map's own sky and sun back with the clock switched off. Not verified: dusk and
+dawn in game.
+
+## Blade core thickness
+
+30/10/2026, `feat/blade-core-thickness`, based on `main` `bc9343ff`: `cg_saberCoreSize`
+(archived, 0.5 to 2, 1 retail), the slider **Blade core thickness** in Settings > Game
+options, multiplies the radius of the core of every blade drawn in the world, held and
+thrown (`Instance::with_core_scale`, read once a frame into the actor submission's sinks)
+([client.md](client.md), [saber_core.rs](../crates/sjk-viewer/src/saber_core.rs)).
+Menu previews keep retail's core. Verified: unit tests (`saber_core`: the value's clamp
+and fallback; `saber`: a scaled pair's core only), fmt, the workspace's build, tests and
+Clippy; in game on Windows (a local server, a skinned blade at 1 and at 10, which is
+drawn as 2: the core thicker, the glow and glints unchanged). Not verified: the thrown
+blade and plain retail blades in game, other players' blades.
+
+## Copy server endpoints
+
+30/10/2026, `feat/copy-server-address`, based on `main` `82c8c185`: the SJK
+and classic browsers expose Copy IP and Ctrl+C outside fields/dialogs. The console's
+`copyServerIP` copies the connected endpoint, including its port and IPv6 brackets;
+no password or command is copied. Windows x64 formatting, locked workspace build/tests and all-target Clippy passed
+(warnings). The windowless GPU browser fixture shows the action and shortcut; no
+public server was exercised. Actual desktop clipboard use and non-Windows clipboard
+behavior remain unverified for this change.
+
 ## Prediction change necessity review
 
 30/10/2026, based on `main` `82c8c185` (hotfix `2026.1030.2`): #313
@@ -257,6 +327,7 @@ turning to another tab sees it only after its second. Verified by
 `shader_marks::tests::a_new_shader_is_seen_after_a_second_chosen`,
 `a_sweep_across_new_shaders_sees_none` and
 `leaving_sees_only_a_shader_looked_at_for_a_second`; not tried in a game.
+
 ## `cg_fleshSparks`, `in_mouseRepeat` and `cg_lagometer` 2 and 3 from JoF EJK
 
 29/10/2026, `personal/ejk-commands`, based on `main` `0fd6a5e1`, after Kushina's ask
@@ -332,6 +403,7 @@ so it cannot become a delayed smoothed correction.
 Reference: OpenJK multiplayer `cg_predict.c:1020-1033`, revision `4d0dfaf1`.
 Windows x64 unit tests exercise ACK boundaries and explicit resets at 8/7/4/3 ms.
 Recovery under actual packet loss remains unverified.
+
 ## Prediction: saber-lock facing
 
 29/10/2026, `fix/prediction-saber-lock-facing`, based on `main` `e702b0b1`:
@@ -340,6 +412,7 @@ frames, using the snapshot player origin and the presented opponent origin.
 Reference: OpenJK multiplayer `cg_predict.c:1252-1263`, revision `4d0dfaf1`.
 Windows x64 synthetic tests cover 8/7/4/3 ms endpoints, repeated frames,
 pitch/yaw, expiry and missing opponents. Live locks remain unverified.
+
 ## Respawn jump restriction
 
 29/10/2026, `fix/prediction-respawn-jump`, based on `main` `e702b0b1`:
@@ -347,6 +420,7 @@ movement now refuses jumps while `PMF_RESPAWNED` remains set. Reference:
 OpenJK `4d0dfaf1`, multiplayer `PM_CheckJump` and `PmoveSingle`. Synthetic
 tests cover holding attack/use and releasing them at 8/7/4/3 ms on Windows
 x64. Live respawn behavior against an OpenJK server remains unverified.
+
 ## Dual jump-attack collision hull
 
 PR #266's timed dual-attack hull resizing was rolled back in #307. An original JA+ 2.4 B7 server stayed grounded while prediction shrank the hull and acquired downward velocity (about 254 units/s in the captured case). The fixed -24-unit foot minimum is restored. Timed hull resizing remains unsupported.
@@ -359,6 +433,7 @@ animations to local prediction. Reference: OpenJK `4d0dfaf1`, codemp
 `BG_MySaber`, `WP_SetSaber` and `saberMoveTable`/`WP_SaberParseParms`.
 Windows x64 synthetic tests cover parsing/fallbacks and prediction configuration
 at 8/7/4/3 ms. Live custom-hilt behavior and full combat parity remain unverified.
+
 ## Remote vehicle prediction hulls
 
 29/10/2026, `fix/prediction-remote-vehicle-box`, based on `main` `e702b0b1`:
@@ -370,6 +445,7 @@ by MSVC-compiled OpenJK cover fighters, fliers, static vehicles, large origins
 and 8/7/4/3 ms orientation samples. Synthetic trace, interpolation, model-change
 and warmed-allocation tests accompany the change. Live vehicle contacts,
 community vehicle coverage and rendered FPS remain unverified.
+
 ## jaPRO new-jetpack prediction
 
 29/10/2026, `feat/prediction-japro-jetpack`, based on `main` `0fd6a5e1` with
@@ -424,6 +500,7 @@ Windows x64 focused tests cover stationary and moving airborne passengers,
 movement input, advancing command time and dismounting at 8/7/4/3 ms. Optional
 vehicle-specific seat/view/duck context is unchanged. Live passenger gameplay
 and a full Pmove output comparison against OpenJK remain unverified.
+
 ## jaPRO command prediction
 
 29/10/2026, `fix/prediction-japro-commands`, based on `main` `9e48ff6d`:
@@ -460,6 +537,7 @@ focus, the console open and the Collection showing (`emote_end_debug`). Verified
 `going_away_leaves_a_held_ja_plus_emote_alone`, `only_what_could_end_an_emote_counts`,
 `the_end_of_a_freeze_names_the_crouch_before_it`, fmt, build, Clippy and the workspace's tests.
 Not tried in a game.
+
 ## Model colour sliders
 
 29/10/2026, `feat/model-rgb` (Creyon), based on `main` `e702b0b1`: JoF EJK's profile has
@@ -473,6 +551,7 @@ no sliders ([model_rgb.rs](../crates/sjk-viewer/src/player_menu/model_rgb.rs)). 
 try crashed at start: the stage's instance buffer could not be written (now `COPY_DST`).
 Verified on Linux x86_64: tests in `player_menu::model_rgb`, fmt, workspace build, tests and
 Clippy. Not verified: in game.
+
 ## Chat channel buttons
 
 29/10/2026, `feat/chat-tabs` (Creyon), based on `main` `e702b0b1`: an Admin button in the
@@ -490,6 +569,7 @@ button steps through everyone who whispered (left click next, right click back).
 a test.
 Verified on Linux x86_64: tests in `chat::tabs` (the settings switching the drawn
 buttons, clicks, the key), fmt, workspace build, tests (4184 passed) and Clippy (no new warning). Not verified: in game.
+
 ## Prediction: server game type
 
 29/10/2026, `fix/prediction-gametype`, based on `main` `e702b0b1`:
@@ -498,6 +578,7 @@ predicted Force jumps while carrying a CTY flag. Source comparison: OpenJK
 multiplayer `cg_predict.c:1244`, `bg_pmove.c:1257,2091`, revision `4d0dfaf1`.
 Windows x64 synthetic tests cover both flags and CTF/FFA/unladen controls at
 8/7/4/3 ms, plus authoritative context selection. Live CTY play remains unverified.
+
 ## Prediction: snapshot actor context
 
 29/10/2026, `fix/prediction-entity-context`, based on `main` `e702b0b1`:
@@ -510,6 +591,7 @@ context reads. Release measurement on Windows x64, Ryzen 7 5800X3D:
 `measure_actor_context_lookups`, 1M hot lookups in a 128-actor table, 5.75 ns/lookup.
 This measures only the lookup, excluding snapshot rebuild, full Pmove, BSP traces
 and rendering. Live contacts and rendered frame rates remain unverified.
+
 ## Prediction: zero-gravity push-off
 
 PR #251's shared zero-gravity impulse was rolled back in #308. Original JA+ 2.4 B7 spawn snapshots temporarily supplied zero gravity and base speed; prediction accumulated 450-unit/s impulses while the server stayed still. The previous jump branch is restored globally. Zero-gravity wall push-off remains unsupported.
@@ -522,6 +604,7 @@ from the final posture flags. Reference: OpenJK multiplayer `cg_predict.c:722`
 at `4d0dfaf1`. Focused synthetic tests exercise 8/7/4/3 ms commands and hull/flag
 mismatches. Verification environment: Windows x64; live OpenJK trigger contacts
 and retail/community maps remain unverified.
+
 ## Held-player movement restriction
 
 29/10/2026, `fix/prediction-held-client`, based on `main` `e702b0b1`:
@@ -530,6 +613,7 @@ filters movement in codemp's branch order. Reference: OpenJK `4d0dfaf1`,
 `codemp/game/bg_pmove.c:10283`. Synthetic Windows x64 tests cover 8/7/4/3 ms,
 retained look/attack and snapshot release. Live carried-player behavior remains
 unverified; the protocol schema and game ownership are unchanged.
+
 ## Command gesture prediction
 
 29/10/2026, `fix/prediction-gesture`, based on `main` `e702b0b1`: ported
@@ -537,6 +621,7 @@ unverified; the protocol schema and game ownership are unchanged.
 `bg_pmove.c:7707`. Windows x64 synthetic tests cover event/hand-extension
 state at 8/7/4/3 ms, held-button suppression and busy/lock gates. Live taunt
 animation and audio against an OpenJK server remain unverified.
+
 ## Vehicle rider weapon whitelist
 
 29/10/2026, `fix/rider-weapon-whitelist`, based on `main` `e702b0b1`:
@@ -544,6 +629,7 @@ corrected the rider adapter's `WP_BLASTER` from Bryar's ID 4 to blaster's ID 5.
 Reference: OpenJK `4d0dfaf1`, codemp `PM_WeaponOkOnVehicle` and `weapons_t`.
 Windows x64 synthetic tests check every weapon ID and forced selection at
 8/7/4/3 ms. Live mounted weapon selection remains unverified.
+
 ## External rider weapon prediction
 
 29/10/2026, `fix/prediction-rider-weapons`, based on `main` `e702b0b1`:
@@ -552,6 +638,7 @@ Reference: OpenJK `4d0dfaf1`, codemp `PmoveSingle:11081-11113`, shared by game
 and cgame. Windows x64 synthetic tests cover visible/hidden rider weapon
 timers and unchanged rider origin at 8/7/4/3 ms. Live mounted firing remains
 unverified. The separate rider weapon-ID correction is independent.
+
 ## Rocket-lock trace contents
 
 29/10/2026, `fix/prediction-rocket-lock-mask`, based on `main` `e702b0b1`:
@@ -559,6 +646,7 @@ replaced a mistyped rocket-lock trace mask (`0x10101`) with `MASK_PLAYERSOLID`
 (`0x1111`). Reference: OpenJK `4d0dfaf1`, codemp `PM_RocketLock`,
 `bg_public.h` and `surfaceflags.h`. Windows x64 synthetic tests cover each
 contents bit at 8/7/4/3 ms. Live locking across map clip/terrain remains unverified.
+
 ## Snapshot rocket-lock targets
 
 29/10/2026, `fix/prediction-rocket-targets`, based on `main` `e702b0b1`:
@@ -568,6 +656,7 @@ The reference's literal `powerups & 11` check is retained, including its
 unshifted-enum quirk. Windows x64 synthetic tests cover actors, non-actors,
 powerup masks, immediate lock cancellation and 8/7/4/3 ms. Live targeting
 remains unverified; metadata-free/server adapters still have player-only fallback.
+
 ## Presented inline-brush contents
 
 29/10/2026, `fix/prediction-mover-contents`, based on `main` `e702b0b1`:
@@ -576,6 +665,7 @@ than the sweep's physics-time position. Reference: OpenJK `4d0dfaf1`, codemp
 `CG_PointContents:407-440`. Windows x64 synthetic moving-water tests cover
 8/7/4/3 ms time offsets; live moving liquid/community-map behavior remains
 unverified. Swept collision keeps its existing time convention.
+
 ## Prediction comparison coverage
 
 29/10/2026, `docs/prediction-comparison-coverage`: source review of `main`
@@ -635,6 +725,7 @@ frame's colours); off screen with the game data: the nameplate snapshot
 and not (`world_shot::collection::duel6_sjk_collection`). Not verified: in a match (live hub
 pictures and head icons in the hexagon, the frames' colours on real teams and duels, the far
 fade in motion), or at 4K.
+
 ## Trade refusals at map changes
 
 26/10/2026, `fix/trade-toast-map-change` (Creyon, PR #211), based on
@@ -663,6 +754,7 @@ and the holocron progress at once ([sjk-ui.md](sjk-ui.md#trading)). Verified on 
 x86_64: the new test `a_swap_finished_by_the_other_player_reads_the_profile_at_once`
 (fails without the fix), fmt, workspace build, tests and Clippy. Not verified: in game
 with two clients.
+
 ## Exclusive fullscreen minimises on focus loss
 
 26/10/2026, `fix/fullscreen-focus-minimise` (Creyon), based on `main` `8f73ab73`: Alt+Tab
@@ -673,6 +765,7 @@ window, as SDL does for a fullscreen window in OpenJK
 display unit tests; in game by Creyon on Windows (28/10/2026, exclusive fullscreen): Alt+Tab
 and Win+D send the game to the taskbar and its button brings it back fullscreen (a second
 Win+D does not, as Windows restores only what Win+D hid itself).
+
 ## Blocked players' chat in the console
 
 28/10/2026, `fix/blocked-chat-console` (Creyon), based on `main` `2a5adcb6`: a blocked
@@ -774,6 +867,7 @@ the tank is not full; on Sol's call SJK draws it only while the jetpack burns
 the HUD (`cg_draw2D`, `cg_drawHud`) and follows the HUD scale (`cg_hudScale`), keeping its
 right edge and centre height. The cloak fuel bar is not drawn yet. Unit tests cover when it shows, its
 position and fill; untested in a game.
+
 ## Medal ranks
 
 27/10/2026, `personal/medal-ranks`, based on `main` `ef6364c0` (Sol's decision): every
@@ -869,6 +963,7 @@ cost test (`saber_gpu::cost_test`, 1080p on Sol's PC, old and new back to back w
 Starforge steady): game scene 1.74 to 1.01 ms, close 1.01 to 0.60 ms, along 0.72 to
 0.41 ms; the `duel6_sun_blade` world shot's fixed-time sheets are byte-identical before
 and after. Not verified: in game.
+
 ## Monitor hits foreseen, ring centred
 
 26/10/2026, `personal/monitor-fixes`, based on `main` `62d3e587` (Sol's report after
@@ -989,6 +1084,7 @@ player slammed into a wall and crumpling at its foot, blows at the head, chest a
 monitor at rest). Not verified: anything in game, two clients seeing the same throw and
 fall, the hit test against real movement and latency, the real body's walk after a long
 flight, the sounds' mix, or how the older clients' view of a fall differs.
+
 ## MP and SP camera, Vanilla style as EternalJK
 
 26/10/2026, `personal/mp-sp-camera`, Sol's request: Settings names the camera styles MP
@@ -3131,6 +3227,7 @@ bans, another player's Medals and unlocks, Keys, a merge's confirmation), looked
 verified: no game was started and nothing reached the deployed hub; `/v1/staff/shards`
 is on the hub's `feat/shop-shards` branch only, so Give and Take shards are refused until
 it is deployed.
+
 ## Chords that open text input
 
 18/10/2026, `fix/reply-chord-release`: keyboard releases now retire held
@@ -3142,6 +3239,7 @@ x86_64 with Rust 1.99.1, focused shell and viewer tests, formatting, the locked
 workspace build and test suite, workspace all-target Clippy, and the locked
 release viewer/dedicated build pass; existing warnings remain. The exact key
 sequence has not yet been checked interactively in the game.
+
 ## Snapshot external sounds on follow switches
 
 17/10/2026, `fix/snapshot-external-sounds`, based on `bb83eb28`, Windows:
@@ -3156,6 +3254,7 @@ These tests do not exercise movement simulation or
 establish live audible/gameplay parity; installed-asset/server comparison remains
 unverified. No wire, animation timing, simulation or UI option changes.
 See [client audio](client.md#animation-sounds-and-voice-variants).
+
 ## Cosmetic colour script order
 
 17/10/2026, `fix/cosmetic-script-order`, based on `bb83eb28`, Windows:
@@ -3169,6 +3268,7 @@ Two command-order regressions plus the existing console cases passed; workspace
 fmt/build/test/clippy passed on Windows x86_64, Rust 1.99.0.
 No live cosmetic-model/server comparison was run. Wire encoding and gameplay
 are unchanged. See [client cosmetics](client.md#hats-and-capes).
+
 ## Consistent player-texture remap filtering
 
 17/10/2026, `fix/player-remap-filter`, based on `bb83eb28`, Windows:
@@ -3183,6 +3283,7 @@ fmt/build/test/clippy passed on Windows x86_64, Rust 1.99.0.
 Installed-scene/GPU and live-server remap
 comparison remain unverified. See [remap controls](client.md#shader-remap-controls)
 and [renderer policy](rendering.md#server-shader-remaps).
+
 ## Recent servers across map changes
 
 17/10/2026, `fix/recent-servers-map-changes`: a remote server keeps one Recent servers row when it
@@ -3194,6 +3295,7 @@ the old persisted-file shape. On Linux x86_64 with Rust 1.99.1, formatting, the 
 workspace build and test suite, workspace all-target Clippy, and the locked release
 viewer/dedicated build pass; existing warnings remain. Not yet checked by changing
 maps on a live server.
+
 ## Cosmetic visibility in held and cloaked states
 
 17/10/2026, `fix/cosmetic-visibility`, based on `bb83eb28`, Windows:
@@ -3210,6 +3312,7 @@ measured 0.276 us per 128 accepted-state decisions over 20,000 frames on Ryzen
 monster/cloak/Sight visuals and populated
 scene performance remain unverified. No wire, movement or gameplay changes.
 See [hats and capes](client.md#hats-and-capes).
+
 ## Community override shader scripts
 
 17/10/2026, `feat/oshader-overrides`, based on `bb83eb28`, Windows x86_64:
@@ -3225,6 +3328,7 @@ remain. Rend2 `.omtr` companion
 selection and installed community-pack/GPU comparison remain unimplemented or
 unverified respectively. This adds no frame-loop work, renderer setting or wire change.
 See [rendering](rendering.md#community-override-shader-scripts).
+
 ## Expanded Siege content catalogues
 
 17/10/2026, `fix/siege-catalog-limits`, based on `bb83eb28`, Windows:
@@ -3238,6 +3342,7 @@ passed; workspace fmt/build/test/clippy passed on Windows x86_64, Rust 1.99.0.
 Installed custom Siege packs, live class/team
 selection and match parity remain unverified.
 See [server content limits](server.md#siege-class-catalogues).
+
 ## Siege winner on the SJK scoreboard
 
 17/10/2026, `feat/siege-winner-scoreboard`, based on `Sol-Vulpes/SJK` `1c8887f7`: Siege counts no team score, so the SJK
@@ -3283,6 +3388,7 @@ blades and the player card; the class files are read once per map and the colour
 redone on serverinfo or player configstring changes. The server takes no part, as in
 stock. See [client](client.md#siege-class-saber-colours). Unit tests only; not tried in
 a Siege match.
+
 ## Live Force effects and controls
 
 17/10/2026, `feat/force-animation-effects`, based on `bb83eb28`, Windows:
@@ -3538,6 +3644,7 @@ the reset, and the card's review page and switches. The client was launched to t
 main menu; the shared bars and duels were not exercised against a hub or a second
 client, and the review page shows on its own only in a tagged release (`whatsnew`
 previews it). The server's own duel health (`g_showDuelHealths`) is not affected.
+
 ## Siege doors: teamallow and vehopen
 
 17/10/2026, `fix/siege-door-teamallow`, based on `Sol-Vulpes/SJK` `1c8887f7`: the
@@ -3613,6 +3720,7 @@ the existing jetpack tests pass too. Source evidence is EJK `codemp/cgame` at
 reproduction were not exercised; game assets are not configured for the
 ignored installed-assets/GPU check. These checks do not establish audible or
 gameplay parity, or populated-match performance.
+
 ## Tavion and Desann idle poses
 
 17/10/2026, `feat/jof-idle-stances`, based on `Sol-Vulpes/SJK` `94b1d1ce`:
@@ -3633,6 +3741,7 @@ or establish gameplay parity. Source inspection also checked `bg_misc.c`'s
 build, tests and Clippy passed (existing warnings remain).
 Installed-animation/GPU appearance and live-server behavior remain
 unverified; no game assets are configured for an in-game comparison.
+
 ## JA+ black sabers
 
 17/10/2026, `feat/japlus-black-sabers`, based on `Sol-Vulpes/SJK` `94b1d1ce`:
@@ -3668,6 +3777,7 @@ synthetic frames; this excludes trails, submission, rendering and GPU work
 and does not establish a game FPS rate. Live server behavior, installed-texture
 appearance, crowded-scene performance and EJK pixel parity remain unverified;
 simulation and codecs are unchanged.
+
 ## SJK chat in the console
 
 17/10/2026, `feat/sjk-chat-console`: each live SJK chat message from an unblocked player now also enters the
@@ -3788,6 +3898,7 @@ carrier in view from the snapshot, for servers whose `scores` list no powerups
 ([client.md](client.md#capture-the-flag-hud)). Checked by unit tests and world shots
 `world_shot::ctf_flags_shots::ctf_flags_on_a_demo` (three HUD styles, two states, over
 Sol's demo); not tried on a live server.
+
 ## Clipboard tools follow the desktop session
 
 17/10/2026, SJK pull request #115 (LukasMoudry), on top of the in-process Linux clipboard
@@ -3813,6 +3924,7 @@ console commands, config round-trip and import. On Linux x86_64 with Rust 1.99.1
 all-target clippy, and the release viewer/dedicated build pass (existing clippy
 warnings remain). It has not yet been tried in the game; Sol will test the local
 build before anything is pushed.
+
 ## JoF EJK camera settings
 
 17/10/2026, `feat/ejk-camera-settings`: Advanced > Gameplay > Camera and
@@ -4016,6 +4128,7 @@ status line. Ban 24 h is not offered on a trusted sender to a player who is not 
 Built against the hub's `trust` field (Sol-Vulpes/SJK-hub branch `trust`, on top of
 `chat-ban`). Checked by unit tests (`trust_badge`, the chat line's marks, `offered` on a
 trusted sender). Not tried in the game or against a running hub.
+
 ## JoF EJK client lists
 
 16/10/2026, `feat/clientlist-commands`: `clientlist` lists client numbers, teams,
@@ -4031,6 +4144,7 @@ optimized viewer/dedicated build pass (the repository's existing warnings remain
 Not yet tried against a running game server. SJK has no copied
 `clientInfo_t::deferred` model-load flag, so the EJK-only `(deferred)` diagnostic is
 not shown.
+
 ## Menu and chat text sizes
 
 16/10/2026, `feat/chat-text-size-setting` based on review revision `1d2922c3`
@@ -4178,6 +4292,7 @@ sending a list once and again when it changes and storing answers), the hub's AP
 forgetting, bad slot and model) and an off-screen render of the pinned card with the
 line. Not yet seen in the game; the hub branch is not deployed, so until it is the hub
 refuses the list (once an hour) and the card shows no line.
+
 ## Duels: shown as JoF EJK shows them, with paired duel badges
 
 15/10/2026, `feat/duel-visibility` (Creyon, after JoF players' reports): players outside a
@@ -4196,6 +4311,7 @@ broadcast, stock's or jaPRO/TaystJK's, or your own duel; an unknown opponent get
 grey badge, never a guess). SJK-made glows (a repeated bubble, a chrome shell, a blue wash)
 were tried in playtest and dropped. Played on JoF (Windows 11): the figures, the badges and
 their colours for duels started in view, no glow on the pair.
+
 ## Weapon selection across view transitions
 
 16/10/2026, `fix/weapon-selection-view-transitions` based on `7026c735`:
@@ -4217,6 +4333,7 @@ baseline rebasing, and rejection of another client's queued no-ammo event.
 The original icon bug has not been reproduced in-game; live spectator-to-play
 and GPU icon appearance remain unverified. No gameplay simulation or protocol
 codecs changed.
+
 ## Native NPC definition filename capacity
 
 16/10/2026, `fix/native-npc-definition-list` based on `7026c735`: native NPC
@@ -4232,6 +4349,7 @@ retail data; GPU/data-dependent workspace tests remain ignored.
 Live map loading and NPC spawning with a large community pack remain unverified.
 This changes definition availability, not gameplay timing, live NPC capacity or
 the wire format. See [NPC definition packs](server.md#npc-definition-packs).
+
 ## Distinct native colours for all seven saber styles
 
 16/10/2026, `fix/native-saber-style-colours` based on `7026c735`: Desann now
@@ -4247,6 +4365,7 @@ Formatting, locked workspace build/tests and Clippy with all targets passed on
 Windows, Rust 1.99.0, with existing warnings. The GPU snapshot check was not run:
 its required `JKA_GAME_DATA` asset path is not configured in this environment.
 See [radial HUD](rendering.md#game-data-hud) and [nameplates](client.md#nameplates).
+
 ## Team powers in outgoing Force profiles
 
 16/10/2026, `fix/team-force-profiles`, based on `7026c735`: Team Heal and Team
@@ -4263,6 +4382,7 @@ illegal-profile result, server disable rules, and both Force-menu layouts.
 Formatting, workspace build/tests and all-target clippy passed with existing
 warnings, using a target on a separate volume with incremental compilation off.
 Live FFA server grants and GPU/UI verification have not been performed.
+
 ## Optional private-duel nameplate filter
 
 16/10/2026, `feat/hide-dueller-nameplates` based on `7026c735`: the archived,
@@ -4278,6 +4398,7 @@ build/tests and Clippy with all targets passed on Windows with Rust 1.99.0
 (existing warnings; GPU/data-dependent tests remain ignored). Missing player entities have no
 duel marker, so sealed pilots' plates remain visible. Live server duel transitions
 and GPU presentation have not been exercised. See [Nameplates](client.md#nameplates).
+
 ## Game chat substitutions
 
 16/10/2026, `feat/chat-substitutions`, based on `7026c735`: the game-chat send
@@ -4292,6 +4413,7 @@ target on another volume and `CARGO_INCREMENTAL=0` after the original volume ran
 out of space during debug-symbol/cache writes. Existing warnings and ignored
 GPU/asset tests remain. Live server delivery and visual checks have not been
 performed. This changes no movement rules or wire codec.
+
 ## Inventory list and selector visibility
 
 16/10/2026, `fix/inventory-list-default` based on `7026c735`: the archived
@@ -4307,6 +4429,7 @@ registered default and both list values across Game, Classic and Radial layouts:
 the permanent labels follow the toggle while the inventory selector remains.
 Shared settings layout/category checks passed. Live/GPU appearance remains
 unverified; `JKA_GAME_DATA` is not configured.
+
 ## Grip victim effects
 
 16/10/2026, `feat/grip-victim-effects` based on `7026c735`: red neck puffs
@@ -4328,6 +4451,7 @@ checks, not live visual parity evidence.
 
 Live Grip play and actual GPU appearance remain unverified. `JKA_GAME_DATA`
 is not configured; no release frame-time measurements have been made.
+
 ## Bundled JoF Force presets
 
 16/10/2026, `feat/jof-force-presets` based on `7026c735`: the client bundles
@@ -4347,6 +4471,7 @@ Formatting, locked workspace build/tests and Clippy with all targets passed on
 Windows with Rust 1.99.0 (existing warnings; GPU/data-dependent tests ignored).
 Live server use and GPU presentation remain unverified. See
 [the client](client.md#menu-style) and [SJK UI](sjk-ui.md#character).
+
 ## JA+ flamethrower client presentation
 
 16/10/2026, `feat/japlus-flamethrower-presentation` based on `7026c735`: a named
@@ -4373,6 +4498,7 @@ flag selection, the reference pose ordinal, capability overrides, hit/sound
 cadence, stop/restart and rewind handling, and upper-body blending at integer
 8/7/4/3 ms steps. These synthetic checks do not establish live visual or audio
 parity, or release-build frame-time performance.
+
 ## Holstered saber hilts
 
 16/10/2026, `feat/holstered-saber-hilts`, based on `7026c735`: implemented
@@ -4401,6 +4527,7 @@ deferred staff sounds played rather than dropped on a slot release, and hilt
 groups sized for 64 carriers (about 16 KB each instead of 256 KB). The staff
 test (`saber_type` staff or more than one blade) is kept: it is EJK's own
 `CG_StaffHolsteredOnBack` rule (`cg_players.c:10812`).
+
 ## Classic scoreboard JoF behavior
 
 16/10/2026, `fix/classic-scoreboard-jof-parity` based on `7026c735`, compares
@@ -4712,6 +4839,7 @@ since removing done notes renumbers them, and `world_note_flicker` holds a note'
 still and steps it a few units at a time to find what flickers. Not tried in a game.
 Decals flickering outside fog (below) stays open: eight 0.37-unit steps at the `mp/ctf4`
 decal showed none.
+
 ## Relief method, Korriban glossy walls, obsidian shine
 
 Branch `personal/relief-client` (13/10/2026), two of Sol's world notes. Korriban's
@@ -5422,6 +5550,7 @@ connection only. The console command `amcolor <r> <g> <b>` now sets the archived
 `char_color_*` userinfo cvars, as EternalJK does ([client.md](client.md)). Verified: unit
 tests (set, saved and read back by a new console; bad values change nothing) and the
 workspace checks; in game on Windows 11 by Creyon (kept across a reconnect).
+
 ## Electrified players crackle (the JoF amlogin sound)
 
 Branch `fix/electrify-crackle` (12/10/2026, based on `9dbbdf19`, Linux): Creyon heard no
@@ -5745,6 +5874,7 @@ upright; the haze measured to bend about 87,000 pixels behind the Sun and nothin
 glow) and `duel6_sjk_collection` (the Parts grid of both skins). Not verified: a live
 match, another player's view through a deployed hub (neither hub branch deployed), the
 haze and wisps' cost on a GPU, the wisps against a bright sky (additive, they fade there).
+
 ## Effects and sabers under the weather, no squares
 
 Branch `personal/effect-transparency` (11/10/2026, based on `58c3f20d`, Windows 11). Sol
@@ -6868,6 +6998,7 @@ dropped one. Checked with the off-screen shots: `duel6_player_sjk` now also writ
 `duel6-player-sjk-force-server.png` (the page on a server with eight powers off).
 Verified: `cargo fmt --all --check`, `cargo test --locked --workspace`, the shots. Not
 tried in a running client.
+
 ## New medal pop-up: SJK UI look, ceremony, fanfare and `debug_medal`
 
 Branch `feat/medal-award` (08/10/2026, based on `a6230f9`, Linux): Sol asked for the
@@ -6923,6 +7054,7 @@ updated for both looks and the moments but not run. To try it: on the main menu,
 `debug_medal all Thank you from the SJK team` in the console (it closes, and the four
 medals show one after another), or `debug_medal bug_hunter x3` in a match, then open
 the game menu.
+
 ## More blade skins, and a round tip for them
 
 Branch `feat/more-blade-skins` (09/10/2026, based on `personal/blade-skins`, Linux), with
@@ -6981,6 +7113,7 @@ not measured for frame time, not tried with a real hub. Deploy and merge order: 
 hub's commit first (its pack and catalogue are safe for clients without this change:
 the Sun's file is unchanged, and such a client leaves out the four new files, logging a
 line for each, and does not know their ids), then PR #45, then this branch.
+
 ## Saber ignition on a weapon switch
 
 Branch `fix/saber-switch-sounds` (08/10/2026, based on `a6230f9`, Linux): Sol
@@ -7018,6 +7151,7 @@ pass, with no new warnings. Not heard: nothing was run in a game or with retail
 assets. Whether retail ships `enemy_saber_on`, the second ignition sound of a single
 saber, and the timing of the predicted local switch against a live server are
 unchecked.
+
 ## Muting a player from a name in chat
 
 Branch `feat/sjk-chat-mute` (08/10/2026, based on `feat/sjk-chat-look`, Linux): Sol
@@ -7243,6 +7377,7 @@ review fixed the followed player wearing the spectator's skin, looks lost to a 4
 a failed claim, looks read across a server change, and a relocked skin lingering on
 its owner's screen, each with a test); giving a saber on/off sound to the nearest
 skinned player within 64 units is a guess, as the game sends it with no owner.
+
 ## Clicks on the SJK UI's Character screen
 
 Branch `fix/sjk-character-clicks` (08/10/2026, based on `a6230f9`, Linux). Sol
@@ -7260,6 +7395,7 @@ drawn SJK UI (every blade chip at its centre and edges, a power's holocron and
 name after buying a level), which fail without the fix; formatting, the locked
 workspace build and tests pass, and workspace Clippy finishes without errors and
 with no warning on a changed line. Not seen in a running client or on screen.
+
 ## A sound device that goes away no longer freezes the game
 
 Branch `fix/alt-tab-hang` (08/10/2026, based on `a6230f9`, Linux): Sol reported that
@@ -7298,6 +7434,7 @@ remains with sound working, the window side is next and unchanged here: where Vu
 reports a minimised window's swapchain out of date, every frame reconfigures it at
 the old size (`Resized` to 0×0 is ignored), waiting for the GPU each time, and a
 redraw request that never arrives leaves the event loop polling instead of sleeping.
+
 ## Monitor refresh-rate detection off by default
 
 Branch `feat/monitor-rate-cvar` (08/10/2026, based on `a6230f9`, Linux): Sol asked
@@ -7321,6 +7458,7 @@ way; formatting, the locked workspace build and tests pass, and workspace Clippy
 reports no warning on a changed line. Not verified: no client was run (no GPU,
 display or game data), so neither the cap in either state nor the new Settings row
 was seen on screen.
+
 ## Low frame rate for a while after a map load
 
 Branch `perf/after-load-stalls` (08/10/2026, based on `a6230f9`, Linux). Sol reported
@@ -7380,6 +7518,7 @@ lines (`compiled N pipeline keys`, `Stage table: compiled N pipelines at load`,
 converged`, `Reflection probes`, `Mover occlusion`, `client N now wears`) place each
 cost. Comparisons: `SJK_LAMP_CACHE=0`, `SJK_MOVER_OCCLUSION=0`, `SJK_STAGE_TABLE=0`,
 `r_cubeMapping 0` (restart) and `r_clouds 0`.
+
 ## Door start sounds
 
 Branch `fix/start-sounds` (08/10/2026, based on `a6230f9`, Linux): Sol reported that
@@ -7408,6 +7547,7 @@ its model (both came from the world origin before the change) and add a model's
 midpoint only for brush models. Formatting, the locked workspace build and tests pass,
 and workspace Clippy reports no warning in the changed code. Not verified: no client
 was run, so neither door nor saber was heard in game.
+
 ## Kill feed with icons
 
 Branch `feat/kill-feed` (08/10/2026, based on `fix/obituary-names`, Linux): Sol
@@ -7467,6 +7607,7 @@ workspace build and tests pass; workspace Clippy finishes without errors, and it
 warnings are all in code this change does not touch. Not verified: not seen in
 game; Sol's victim's exact name is unknown, so a name that is `noname` for another
 reason (none found in the code) would remain.
+
 ## Teleport and spawn beam
 
 Branch `fix/teleport-spawn-beam` (08/10/2026, based on `a6230f9`, Linux): Sol reported
@@ -7503,6 +7644,7 @@ with cheats); the beam should rise from the floor where the player stands to the
 ceiling or sky, as in EternalJK. A Jedi Master pickup should show the same.
 Known: stock's floor trace also stops on solid entities such as a lift (SJK's uses the
 world only), and `traceImpactFx` on a traced line is not played.
+
 ## Narrower, centred compact SJK scoreboard
 
 Branch `feat/compact-scoreboard-width` (08/10/2026, based on `a6230f9`, Linux): Sol
@@ -7539,6 +7681,7 @@ sjk-viewer duel6_sjk_scoreboard -- --ignored`), writes the compact board to
 `target/world-shots/duel6-scoreboard-ffa.png`, `-full`, `-ctf`, `-duel`,
 `-power-duel` and `-4x3`, and the full one to `duel6-scoreboard-full-split`; nor
 seen over a real match, with a live chat beside it, or on an ultrawide screen.
+
 ## Parallax reaches farther and holds still up close
 
 Branch `feat/parallax-range` (08/10/2026, based on `a6230f9`, Linux): Sol asked for
@@ -7581,6 +7724,7 @@ floor shows the far limit, and on a note written against a relief wall, with and
 `r_parallaxNearDistance=0`, the near one. Known: grazing views now keep parallax down to
 8.6° (it was 20°), so the open note of sand too deep at grazing angles may return at high
 strengths.
+
 ## Dynamic lights stop at walls
 
 Branch `fix/dynamic-light-leaks` (08/10/2026, based on `a6230f9`, Linux): Sol reported
@@ -7608,6 +7752,7 @@ look at the far side with `r_dynamicLightShadows` 1 and 0, check stairs and wall
 the saber for dark bands, and time `dlight-shadows` with `SJK_GPU_PHASES`; the world shot
 `world_shot::notes::world_notes` with notes written on the floor beside a corner or
 doorway, run again with `SJK_NOTES_CVARS=r_dynamicLightShadows=0`, compares the two.
+
 ## Force-profile rejoin retries
 
 Branch `fix/force-rejoin-retries` (08/10/2026, based on the Force profile branch
