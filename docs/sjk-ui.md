@@ -621,8 +621,10 @@ overlay routes their text to the UI's families (`console_sjk_pages.rs`).
   SJK Profile tab, under the screen's title and row of tabs, moved down 44 pixels
   (`profile_panel::Mode`). Three columns: who the player is (their picture, a disc 104
   across with "Add a picture" or "Change picture" under it, beside the hub name in its
-  colours at 38, verified, member since, other names; then Staff tools for a staff
-  key) over "Your record" (eight numbers in two columns) and "Unlocked lately"; "About
+  colours at 38, verified, member since, other names; then, on the Profile screen,
+  Change name (it opens the Character tab's Name field, the hub's name being the one
+  worn in game; hub report #202, 30/10/2026), the Name emoji button and Staff tools
+  for a staff key) over "Your record" (eight numbers in two columns) and "Unlocked lately"; "About
   you", the bio's box (620 by 300, Exo 2 at 18, wrapped by measured width, the end
   being written kept in view) with its counts, Revert and Save (gold) and the rules;
   Medals (pictures at 84, on its own only), Achievements (how many unlocked, a gold
@@ -1516,8 +1518,10 @@ grown to four. The same module serves the Collection screen's row
   menu, which waits under it), or to the main page.
 - **SJK Profile tab:** the page without its top bar's title (the keyboard starts on
   the picture), its medals left to the Collection and its Identity settings button
-  gone (the identity is in Settings, Network); See the board and See the collection
-  open the Collection screen on Achievements and Medals.
+  gone (the identity is in Settings, Network); Change name, before the Name emoji and
+  Staff tools buttons, opens the Character tab's Name field (`PanelAction::EditName`);
+  See the board and See the collection open the Collection screen on Achievements and
+  Medals.
 - **Opened by:** the in-game menu's Profile (the tab shown last in the run, Character
   the first time; the tab a console page turned to itself counts too) and its profile
   card (SJK Profile); the main page's Profile (Character, on the menu map's stage) and
