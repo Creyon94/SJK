@@ -32,6 +32,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
+- Achievements: 26 new ones for the toys (the cardboard box, Order 66, the Hax, the Drone, the boombox, the monitor and the box hunt), three of them secret, and the board has two pages, General and Fun, a category for each toy on Fun (press F or use the switch at the top right) _(Sol, after a player's ideas)_
 - jaPRO plugin options: Force jumps (Settings > Mods, `japro.plugin 1`) is offered now that SJK predicts it: off, holding jump bunny hops instead of Force jumping, on jaPRO servers that let players choose _(Sol, after Kushina's idea and Lumaya's PR #282)_
 
 - Mystery boxes: when the opener takes what came out, everyone else sees it go and the lid close at once, instead of it floating on for 10 seconds _(Sol)_

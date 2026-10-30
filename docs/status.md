@@ -14,6 +14,26 @@ pose before the fix (1152 rather than 1163); corrected movement passes at
 No retail data is in the tests; this has not been linked to the stock-hilt JA+
 report or verified with a live custom-hilt server. See PR #314 for full checks.
 
+## Toy achievements and the board's Fun page
+
+30/10/2026, branch `personal/toy-achievements` (with hub branch
+`toy-achievements`): 26 achievements for the toys, from a player's ideas reworked with
+Sol, and the Achievements board split into a General page and a Fun page with a
+category per toy (F or the switch at the wall's top right turns them). Box: Sneaking
+Mission and Legendary Soldier (30 and 60 minutes), Surprise!, Alert!. Order 66: Wipe
+Them Out, I Am the Senate. Hax: Puppet Master, Double Agent, Total Control (hidden),
+Leap of Faith, Script Kiddie, Elite Hacker, It's a Trap!. Drone: Eye in the Sky,
+Special Delivery. Boombox: DJ, Block Party, Tough Crowd (hidden). Monitor: Tech
+Support, Two for One, Strike! (hidden), Long Distance Call. Box hunt (counted by the
+hub): Bounty Hunter, Big Game Hunter, Still Standing, Most Wanted. The client's are
+counted by the tracker from what the toys tell it (`tracker::Toys`) or by the toys
+themselves; [identity.md](identity.md#achievements) has the rules. The medallions'
+canvas tokens moved to 6000 (they would have run into the toys' at 1300).
+
+Checked by unit tests (record, tracker, board layout on both pages, hub counting);
+not yet played in a match. Until the hub branch is deployed the client's new ones
+wait at "Waiting for the SJK hub" and the box hunt's do not count.
+
 ## Prediction regression audit
 
 30/10/2026, Windows x64: audit #305 reviewed the 25 prediction PRs from
