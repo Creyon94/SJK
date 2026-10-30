@@ -468,6 +468,37 @@ jaPRO/TaystJK, BaseJKA, JA+ and Lugormod and confirm that only the current jaPRO
 dialect enables the rules. Jumps, ramps/steps, restrictions, new jetpack and
 grapples remain separate; full and live-server parity remain unverified.
 
+## Prediction vehicle/rider trace exclusions
+
+29/10/2026, `fix/prediction-vehicle-rider-collision`, based on `main` `e702b0b1`:
+prediction now filters contacts using the actor making each trace, following
+OpenJK `4d0dfaf1` multiplayer `CG_VehicleClipCheck`. Pilot and chassis views
+share query storage but keep their exclusions separate. A 45-case matrix
+emitted by MSVC-compiled OpenJK covers players, NPCs, vehicles, passengers,
+unlinked actors and world hits. Windows x64 synthetic tests cover separate
+pilot/chassis routing, attached/dismounted contacts, local passengers and
+8/7/4/3 ms. Warmed-query allocation checks accompany the change. Live
+multi-passenger gameplay and rendered performance remain unverified.
+
+30/10/2026 runtime check: rebased PR #274 (`f5e52234`) and `main`
+`58c2e386` replayed identical original JA+ 2.4 B7 captures on Windows x64,
+using the viewer's prediction, BSP/entity collision and ride/seat modules.
+All 5,245 recorded acknowledged endpoints matched between revisions and
+between live PR prediction and offline replay, at exact 8/7/4/3 ms command
+steps. A swoop on `mp/siege_desert` had zero steady rider/chassis position
+and velocity error in 580 samples. A pilot plus one passenger in a
+`LambdaShuttle` on `mp/siege_hoth` exercised passenger carrier exclusions;
+steady pilot position errors peaked at 2.89 units and chassis velocity
+component errors at 54 units/s in both builds. Passenger position errors
+peaked at 187.20 units in both builds; passenger chassis prediction was
+absent, not a zero-error measurement. These checks observed no PR regression
+or endpoint improvement. They do not establish full parity: shuttle setup
+used controlled airborne placement, dismount attempts did not detach,
+world-obstacle flight, multiple passengers, rendering and performance were
+not verified. Original server DLL SHA-256:
+`9c2063955c5e6c3cd9febe84469a44cf164fbf9646462b1c66a00020c71d6400`.
+The temporary capture instrumentation was removed after comparison.
+
 ## Passenger movement prediction
 
 29/10/2026, `fix/prediction-passenger-movement`, based on `main` `9e48ff6d`:
