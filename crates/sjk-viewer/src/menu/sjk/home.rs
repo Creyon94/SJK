@@ -1429,6 +1429,7 @@ mod tests {
 
     fn dock() -> ChatDock<'static> {
         ChatDock {
+            body_color: None,
             lines: &LINES,
             online: 7,
             live: true,

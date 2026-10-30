@@ -2760,3 +2760,7 @@ classic version:
 
 `sjk` became the default `ui_menuStyle` before these were done. mp/duel6 has
 its tour, player stage and saber shot.
+
+Settings > Chat includes **Incoming chat colour**, a named choice shared with
+the classic settings. Original preserves authored colours; the other ten choices
+force message bodies while keeping sender names and non-message controls distinct.

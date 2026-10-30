@@ -242,6 +242,7 @@ impl ViewerConsole {
             .unwrap_or_default();
         let inputs = Inputs {
             chat: chat.as_ref(),
+            body_color: crate::chat::incoming_color::read(Some(self)),
             muted: &muted,
             blocked: &blocked,
             staff,

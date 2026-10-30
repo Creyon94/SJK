@@ -2004,6 +2004,7 @@ fn sjk_home_snapshot() {
             update: crate::update::Version::new("2026.1008.1").map(crate::update::Notice::Ready),
             seconds: 12.0,
             chat: Some(ChatDock {
+                body_color: None,
                 lines: &chat,
                 online: 12,
                 live: true,

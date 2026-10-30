@@ -129,6 +129,7 @@ pub(crate) struct InGameMenu {
     chat: chat_dock::Dock,
     chat_cache: chat_dock::DockCache,
     chat_on: bool,
+    chat_color: Option<sjk_ui::Color>,
     chat_shown: bool,
     /// The world shots' made-up match facts in place of the frame's.
     #[cfg(test)]
@@ -176,6 +177,7 @@ impl InGameMenu {
             chat: chat_dock::Dock::default(),
             chat_cache: chat_dock::DockCache::default(),
             chat_on: false,
+            chat_color: None,
             chat_shown: false,
             #[cfg(test)]
             shot_view: None,
@@ -232,6 +234,10 @@ impl InGameMenu {
 
     /// Follow `cl_sjkChat` (`on`): the dock shows only while it is on, its copy of the
     /// chat read again when the chat changed.
+    pub(crate) fn set_chat_color(&mut self, color: Option<sjk_ui::Color>) {
+        self.chat_color = color;
+    }
+
     pub(crate) fn sync_chat(&mut self, on: bool) {
         self.chat_on = on;
         if on {
@@ -424,6 +430,7 @@ impl InGameMenu {
         self.chat.locate_sender_card(crate::player_mutes::place);
         let mut lines = [chat_dock::BLANK; chat_dock::LINES];
         let chat_view = chat.then(|| chat_dock::ChatDock {
+            body_color: self.chat_color,
             measure,
             ..self.chat_cache.view(&mut lines)
         });

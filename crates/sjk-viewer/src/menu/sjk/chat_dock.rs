@@ -46,6 +46,7 @@ fn gif_room(gif: Option<crate::chat_gifs::Shown>) -> f32 {
 /// The SJK chat as the dock shows it.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct ChatDock<'a> {
+    pub(crate) body_color: Option<sjk_ui::Color>,
     /// The last messages, oldest first; the dock shows the last that fit.
     pub(crate) lines: &'a [DockLine<'a>],
     /// Keys reading the chat lately.
@@ -531,6 +532,7 @@ impl DockCache {
             self.refused.as_str()
         };
         ChatDock {
+            body_color: None,
             lines: &lines[..self.lines.len()],
             online: self.online,
             live: self.live,
@@ -576,6 +578,7 @@ impl DockCache {
 /// How the dock's messages measure: with the body family's [`Measure`], else by an
 /// estimate of its mean advance. Sizes and widths are window pixels.
 struct Lay<'a> {
+    body_color: Option<sjk_ui::Color>,
     measure: Option<Measure<'a>>,
     size: f32,
     /// The text column's width.
@@ -756,6 +759,7 @@ pub(crate) fn draw(
         // caret on when it is further back. The caret is `_` at the end, `|` inside.
         Some(draft) => {
             let lay = Lay {
+                body_color: view.body_color,
                 measure: view.measure,
                 size: TEXT_SIZE * s,
                 width: inside.width,
@@ -870,6 +874,7 @@ fn messages(
 ) {
     let s = frame.s;
     let lay = Lay {
+        body_color: view.body_color,
         measure: view.measure,
         size: TEXT_SIZE * s,
         width: place.width * s,
@@ -1105,7 +1110,10 @@ fn message(
             .map_or(0, |look| look.bold)
             .saturating_sub(range.start)
             .min(shown.len());
-        let colour = sjk_chat_look::text_colour(line.tier);
+        let colour = crate::chat::incoming_color::colour(
+            sjk_chat_look::text_colour(line.tier),
+            lay.body_color,
+        );
         if bold > 0 && shown.is_char_boundary(bold) {
             let (title, rest) = shown.split_at(bold);
             text(
@@ -1296,6 +1304,7 @@ mod tests {
     fn gold_runs(lines: &[DockLine<'_>], style: TextStyle) -> (Vec<(String, Rect)>, Dock) {
         let font = test_font();
         let view = ChatDock {
+            body_color: None,
             lines,
             online: 3,
             live: true,
@@ -1359,6 +1368,7 @@ mod tests {
             PLACE,
             &mut dock,
             &ChatDock {
+                body_color: None,
                 lines: &lines,
                 online: 2,
                 live: true,
@@ -1527,6 +1537,7 @@ mod tests {
                 },
             ];
             let view = ChatDock {
+                body_color: None,
                 lines: &lines,
                 online: 3,
                 live: true,

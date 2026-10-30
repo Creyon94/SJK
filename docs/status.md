@@ -1,3 +1,13 @@
+## Local incoming chat colour
+
+30/10/2026, `feat/chat-color`, based on `main` `82c8c185`: archived `cg_chatColor`
+forces incoming message-body colours in the game feed, SJK chat page and docks.
+Original colours remain the default; names, sent messages, logs and centre prints
+are unchanged. The choice applies to displayed history without a reconnect.
+Windows x64 all-target viewer check passed; final workspace checks and runtime
+screenshots remain pending. Formatting strips only display escapes without new
+per-frame strings, retaining wrapping offsets and emoji markers.
+
 ## Prediction regression audit
 
 30/10/2026, Windows x64: audit #305 reviewed the 25 prediction PRs from

@@ -20,6 +20,8 @@ impl GpuState {
         let Some(console) = &self.console else {
             return; // evidence runs keep the settings they set
         };
+        self.in_game_menu
+            .set_chat_color(crate::chat::incoming_color::read(Some(console)));
         let text_style = crate::text::TextStyle::from_cvars(
             console.float_cvar(crate::text::style::SCALE_CVAR),
             console.float_cvar(crate::text::style::TRACKING_CVAR),

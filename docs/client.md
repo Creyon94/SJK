@@ -6956,3 +6956,17 @@ the server; the world draws its own shaders until the server sends new remaps (a
 shader-state change or a `remapShader` command) or a new map loads. As in
 EternalJK, destination time offsets are kept. See [rendering](rendering.md#server-shader-remaps)
 for scope and remaining limitations. These controls do not edit map geometry.
+
+### Incoming chat colour
+
+`cg_chatColor` forces the displayed colour of incoming message bodies, including
+SJK chat in the game feed, full chat page and menu docks. It is local and archived:
+it never changes sent text or the chat log. Sender names keep their own colours,
+and emoji pictures, channel marks, timestamps, centre prints and the composer
+keep their normal appearance. Existing history changes without reconnecting.
+
+The default 0 keeps original colours; 1 red, 2 green, 3 yellow, 4 blue, 5 cyan,
+6 magenta, 7 white, 8 orange, 9 grey and 10 black force one colour, ignoring inline
+colour codes in the body while retaining message fading. Invalid values fall back
+to original colours. Settings > Chat offers the same named choices (also in classic
+HUD settings). It is independent of outgoing `cl_colorstring` and chat cleaning.

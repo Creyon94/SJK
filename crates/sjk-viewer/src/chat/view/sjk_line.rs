@@ -177,6 +177,7 @@ pub(in crate::chat) struct Line<'a> {
     /// The message's colour: the SJK chat's gold, a holocron tier's, or a game line's
     /// white under its own colour codes.
     pub(in crate::chat) colour: Color,
+    pub(in crate::chat) forced: Option<Color>,
     /// The channel label's colour (`view::tint`).
     pub(in crate::chat) label_colour: Color,
 }
@@ -301,6 +302,7 @@ pub(in crate::chat) fn draw(
         body_row(
             ui,
             BodyRow {
+                forced: line.forced,
                 text: &line.body[range.clone()],
                 carry: line.wrap.carry[row],
                 marks: line.marks,

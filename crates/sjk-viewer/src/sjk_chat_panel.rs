@@ -20,7 +20,7 @@
 
 use crate::menu_widgets::{BACK_TOKEN, MenuCanvas};
 use sjk_identity::{ChatState, StaffRequest};
-use sjk_ui::{InputEvent, UiEventKind};
+use sjk_ui::{Color, InputEvent, UiEventKind};
 use std::time::Instant;
 use winit::event::{ElementState, KeyEvent};
 use winit::keyboard::{KeyCode, PhysicalKey};
@@ -104,6 +104,7 @@ pub(crate) enum PanelAction {
 pub(crate) struct Inputs<'a> {
     /// The chat, or `None` while the identity is not running.
     pub(crate) chat: Option<&'a ChatState>,
+    pub(crate) body_color: Option<Color>,
     /// The keys muted on this PC.
     pub(crate) muted: &'a [String],
     /// Every player blocked on this PC (the mute list), in the order they were blocked:
@@ -164,6 +165,7 @@ struct Shown {
 }
 
 pub(crate) struct Panel {
+    body_color: Option<Color>,
     open: bool,
     owns_console: bool,
     ui: MenuCanvas,
@@ -253,6 +255,7 @@ impl Default for Panel {
 impl Panel {
     pub(crate) fn new() -> Self {
         Self {
+            body_color: None,
             open: false,
             owns_console: false,
             ui: MenuCanvas::with_capacities(260, 160, 1_600),
@@ -1066,6 +1069,7 @@ mod tests {
     pub(super) fn inputs<'a>(chat: &'a ChatState, muted: &'a [String], staff: bool) -> Inputs<'a> {
         Inputs {
             chat: Some(chat),
+            body_color: None,
             muted,
             blocked: &[],
             staff,
