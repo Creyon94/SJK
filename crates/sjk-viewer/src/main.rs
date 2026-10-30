@@ -34,6 +34,7 @@ mod camera;
 mod camera_uniform;
 mod capture;
 mod card_outline;
+mod card_scenes;
 mod cardboard_box;
 mod cards;
 mod cgame_options;
@@ -645,6 +646,8 @@ struct GpuState {
     entity_lighting: entity_lighting::EntityLighting,
     /// Live player model behind the Player screen.
     menu_stage: menu_stage::MenuStage,
+    /// Card pictures drawn from the game's models (`cards::scene`).
+    card_scenes: card_scenes::CardScenes,
     clientinfo_watch: clientinfo_refresh::ClientInfoWatch,
     config_string_refresh: config_string_refresh::ConfigStringRefresh,
     /// Black-blade server/clientinfo scan, redone on configstring changes.
@@ -1613,6 +1616,7 @@ impl GpuState {
             bug_report_serial: 0,
             entity_lighting,
             menu_stage: menu_stage::MenuStage::default(),
+            card_scenes: card_scenes::CardScenes::default(),
             clientinfo_watch,
             config_string_refresh,
             black_sabers: Default::default(),
@@ -3160,6 +3164,7 @@ impl GpuState {
         }
         self.encode_stage_preview(&mut encoder);
         self.encode_blade_pictures(&mut encoder);
+        self.draw_card_scenes();
         let (output, mut encoder) = match target.finish(self, encoder, timing) {
             Ok(output) => output,
             Err(status) => {

@@ -102,6 +102,10 @@ includes:
 - medals, the recognition the SJK team gives players, on the scoreboard, the
   player card and the Identity page, with medal pictures generated and chosen by
   Sol;
+- card pictures drawn from the game (30/10/2026): a card naming a scene has its picture
+  drawn by SJK from the player's own Jedi Academy models (characters posed with their
+  sabers lit, weapons and items, Force powers and saber moves), kept on disk, so
+  nothing of the game is shipped or hosted;
 - medal ranks (27/10/2026): every medal held has a rank from I to V that the SJK
   team sets, each with its own look (Polished, Engraved, Holo, Solar) and a pip on
   the ribbon in small places, and Tester and Contributor named without "Early";
