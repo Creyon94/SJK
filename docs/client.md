@@ -3309,10 +3309,10 @@ find.
 ## Use prompt
 
 What the Use key does at what the player faces (Sol's idea, 30/10/2026), drawn to the
-right of the crosshair with a gap, as many games show it
+right of the crosshair with a gap (56 pixels at 1080 lines; 34 at first), as many games show it
 ([use_prompt.rs](../crates/sjk-viewer/src/use_prompt.rs)): a dark key cap naming the
 first key bound to `+use` as the key bindings show it ("E", "Mouse 2"; "Use" when none
-is), edged in gold, then the action in white and a line under it in grey, each over a
+is), edged in gold, the key centred in it by its ink rather than its line box, then the action in white and a line under it in grey, each over a
 dark shadow, in the headline font (Fira Sans Condensed, as centre prints). A prompt that
 cannot be acted on now greys its cap and action. It follows the crosshair's middle
 (`cg_crosshairX`/`Y` and the dynamic crosshair) and stays on the screen at its edge; it
