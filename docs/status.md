@@ -5,8 +5,14 @@ by prediction PR #267. OpenJK `4d0dfaf1` concatenates `.sab` files in
 `FS_GetFileList` order and resolves the first matching saber name. SJK's
 shared catalog instead traverses sorted paths and replaces duplicate names.
 This predates #267, which exposes more of that catalog to combat prediction.
-A synthetic duplicate-definition reproduction and correction are pending;
-this is not yet linked to the reported JA+ stock-hilt symptoms.
+Three synthetic tests fail before the fix: the later definition's
+`noFlips` flag wins over the first definition's `noWallRuns`. The correction
+uses legacy file-list order and preserves the first case-insensitive name,
+including combat move overrides. The movement case selects the wrong Force-jump
+pose before the fix (1152 rather than 1163); corrected movement passes at
+8/7/4/3 ms. Same-path mount replacement is preserved.
+No retail data is in the tests; this has not been linked to the stock-hilt JA+
+report or verified with a live custom-hilt server. See PR #314 for full checks.
 
 ## Prediction regression audit
 
