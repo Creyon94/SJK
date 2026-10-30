@@ -503,17 +503,78 @@ pub(crate) enum CodePalette {
     /// The game's own colours, a dark glyph edged in a soft light halo instead of
     /// its shadow, so a black name reads on a dark nameplate (Sol's pick, 28/10/2026).
     Haloed,
+    /// As [`Self::Haloed`], the halo stronger, and every other glyph edged in a dark
+    /// outline instead of its shadow (`cg_nameplateOutline 2`; Lex's idea, 29/10/2026:
+    /// names hard to read on some backgrounds).
+    Outlined,
+    /// The game's own colours, every glyph edged in a dark outline instead of its
+    /// shadow but a black one, which an outline as dark as it would hide: it keeps the
+    /// faint light halo of [`Self::Haloed`] (`cg_chatBoxOutline`; Creo's idea,
+    /// 29/10/2026: chat hard to read over a bright map).
+    DarkOutlined,
 }
 
 /// Darkest glyph colour drawn without a halo in [`CodePalette::Haloed`], by its
 /// luminance.
 const HALO_BELOW: f32 = 0.3;
 
+/// How a glyph is set off from what is behind it.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) enum Edge {
+    /// The dark drop shadow, a step down and right.
+    Shadow,
+    /// Eight copies a step out all round, each in this colour (its alpha the copy's).
+    Ring([f32; 4]),
+}
+
+/// A dark glyph's pale halo, and how opaque each of its copies is: faint (Sol,
+/// 29/10/2026: 0.38 drew too strong an outline), or strong in [`CodePalette::Outlined`].
+const HALO_TINT: [f32; 3] = [0.86, 0.89, 0.95];
+const HALO_ALPHA: f32 = 0.18;
+const HALO_ALPHA_STRONG: f32 = 0.38;
+/// A light glyph's dark outline in [`CodePalette::Outlined`].
+const OUTLINE_TINT: [f32; 3] = [0.04, 0.04, 0.06];
+const OUTLINE_ALPHA: f32 = 0.45;
+/// Darkest glyph colour [`CodePalette::DarkOutlined`] edges in a dark outline, by its
+/// luminance: below it (black, `^0`) the glyph keeps the faint light halo.
+const OUTLINE_BLACK_BELOW: f32 = 0.05;
+
+/// How light `color` looks (Rec. 709 luminance of its display value).
+fn luminance(color: [f32; 4]) -> f32 {
+    0.2126 * color[0] + 0.7152 * color[1] + 0.0722 * color[2]
+}
+
 impl CodePalette {
     /// Whether a glyph of `color` gets a light halo instead of its dark shadow.
     pub(crate) fn halo(self, color: [f32; 4]) -> bool {
-        self == Self::Haloed
-            && 0.2126 * color[0] + 0.7152 * color[1] + 0.0722 * color[2] < HALO_BELOW
+        match self {
+            Self::Haloed | Self::Outlined => luminance(color) < HALO_BELOW,
+            Self::DarkOutlined => luminance(color) < OUTLINE_BLACK_BELOW,
+            Self::Game | Self::Legible => false,
+        }
+    }
+
+    /// How a glyph of `color` is set off: a ring of copies or its shadow.
+    pub(crate) fn edge(self, color: [f32; 4]) -> Edge {
+        let ring =
+            |tint: [f32; 3], alpha: f32| Edge::Ring([tint[0], tint[1], tint[2], alpha * color[3]]);
+        match (self, self.halo(color)) {
+            (Self::Haloed | Self::DarkOutlined, true) => ring(HALO_TINT, HALO_ALPHA),
+            (Self::Outlined, true) => ring(HALO_TINT, HALO_ALPHA_STRONG),
+            (Self::Outlined | Self::DarkOutlined, false) => ring(OUTLINE_TINT, OUTLINE_ALPHA),
+            _ => Edge::Shadow,
+        }
+    }
+
+    /// The nameplates' palette for `cg_nameplateOutline`: 0 the shadow only, 1 (the
+    /// default) a faint halo on dark letters, 2 a strong one and a dark outline on the
+    /// rest.
+    pub(crate) fn nameplate(outline: i64) -> Self {
+        match outline {
+            ..=0 => Self::Game,
+            1 => Self::Haloed,
+            _ => Self::Outlined,
+        }
     }
 
     /// The colour of code `index` (0-9), as a display value.
@@ -585,6 +646,31 @@ pub(crate) fn drop_quads_under(
         quad += 6;
     }
     vertices.truncate(kept);
+}
+
+/// Move `vertices` so the bounds of their glyphs centre on `centre` (pixels from the top
+/// left of `viewport`): a word in a box, centred by its ink rather than its line box
+/// (a key cap, `use_prompt`).
+pub(crate) fn centre_vertices(vertices: &mut [TextVertex], centre: [f32; 2], viewport: [f32; 2]) {
+    let Some(first) = vertices.first() else {
+        return;
+    };
+    let (mut low, mut high) = (first.position, first.position);
+    for vertex in vertices.iter() {
+        for axis in 0..2 {
+            low[axis] = low[axis].min(vertex.position[axis]);
+            high[axis] = high[axis].max(vertex.position[axis]);
+        }
+    }
+    let target = [
+        centre[0] / viewport[0] * 2.0 - 1.0,
+        1.0 - centre[1] / viewport[1] * 2.0,
+    ];
+    let shift = [
+        target[0] - (low[0] + high[0]) * 0.5,
+        target[1] - (low[1] + high[1]) * 0.5,
+    ];
+    map_vertices(vertices, |point| [point[0] + shift[0], point[1] + shift[1]]);
 }
 
 /// Move every vertex of `vertices` by `map` (normalized device coordinates in and out):
@@ -1249,5 +1335,34 @@ mod tests {
         assert_eq!(vertices.len(), 24);
         assert_eq!(vertices[6].color, [1.0, 0.5, 0.0, 1.0]);
         assert_eq!(vertices[18].color, [0.5, 0.5, 0.5, 1.0]);
+    }
+}
+
+#[cfg(test)]
+mod centre_tests {
+    use super::*;
+
+    #[test]
+    fn glyphs_are_centred_by_their_ink() {
+        let viewport = [200.0, 100.0];
+        let mut vertices = Vec::new();
+        // A glyph high and left in its line box: 10..30 across, 5..15 down.
+        push_quad(
+            &mut vertices,
+            [10.0, 5.0, 20.0, 10.0],
+            [0.0; 4],
+            [1.0; 4],
+            viewport,
+        );
+        centre_vertices(&mut vertices, [100.0, 50.0], viewport);
+        let xs = vertices.iter().map(|v| v.position[0]);
+        let ys = vertices.iter().map(|v| v.position[1]);
+        let (lx, hx) = xs.fold((f32::MAX, f32::MIN), |(l, h), x| (l.min(x), h.max(x)));
+        let (ly, hy) = ys.fold((f32::MAX, f32::MIN), |(l, h), y| (l.min(y), h.max(y)));
+        // The screen's middle is the origin of device coordinates.
+        assert!(((lx + hx) * 0.5).abs() < 1e-5 && ((ly + hy) * 0.5).abs() < 1e-5);
+        // Its size is kept: 20 of 200 pixels across is 0.2 of the device's 2.
+        assert!((hx - lx - 0.2).abs() < 1e-5);
+        centre_vertices(&mut [], [0.0; 2], viewport);
     }
 }

@@ -22,6 +22,8 @@ mod auto_switch;
 mod avatar_command;
 mod avatars;
 mod away_emote;
+mod banana;
+mod banana_frame;
 mod block_command;
 mod bolt;
 mod boombox;
@@ -32,6 +34,7 @@ mod camera;
 mod camera_uniform;
 mod capture;
 mod card_outline;
+mod card_scenes;
 mod cardboard_box;
 mod cards;
 mod cgame_options;
@@ -57,6 +60,7 @@ mod loot_odds;
 
 mod saber_colour_command;
 mod shader_image;
+mod shader_marks;
 mod shared_textures;
 
 mod body_fade;
@@ -132,6 +136,7 @@ mod file_dialog;
 mod fps_help;
 mod frame_target;
 mod free_camera;
+mod fs_restart;
 mod game_font;
 mod game_menu_actions;
 mod gameplay_fps;
@@ -338,6 +343,7 @@ mod ui_target;
 mod unlock_toast;
 mod unlockables;
 mod update;
+mod use_prompt;
 mod version_overlay;
 mod wall_hold_pose;
 mod weapon_select;
@@ -415,6 +421,7 @@ fn main() {
     if let Err(error) = app_launch::run() {
         log::progress(format_args!("sjk: {error}"));
         crash_report::fatal_error(&error.to_string());
+        show_start_failure(&error.to_string());
         std::process::exit(1);
     }
     crash_report::clean_exit();
@@ -424,6 +431,29 @@ fn main() {
     // After the settings were saved on the way out, start an installed update.
     update::restart_if_requested();
 }
+/// Tell the player why the game closed: a release build on Windows has no console, so
+/// without this the window only vanished (a laptop with two graphics cards, #sjk player
+/// chat 28-29/10/2026). `SJK_NO_START_DIALOG` leaves it out for unattended runs (the
+/// release's package smoke check), where nobody would close it.
+fn show_start_failure(error: &str) {
+    if std::env::var_os("SJK_NO_START_DIALOG").is_some() {
+        return;
+    }
+    let _ = rfd::MessageDialog::new()
+        .set_level(rfd::MessageLevel::Error)
+        .set_title("SJK could not start")
+        .set_description(format!(
+            "{error}
+
+On a laptop with two graphics cards, set sjk.exe to the fast card \
+             (NVIDIA Control Panel > Manage 3D settings, or Windows Settings > Display > \
+             Graphics > High performance) and start it again. Updating the graphics \
+             driver can help too."
+        ))
+        .set_buttons(rfd::MessageButtons::Ok)
+        .show();
+}
+
 mod gpu_vertex;
 use gpu_vertex::GpuVertex;
 
@@ -538,13 +568,15 @@ struct GpuState {
     monitor: monitor::Monitor,
     /// The Box hunt toy (`toy_boxhunt`): its switch, the consent to hunt and be the mark.
     box_hunt: box_hunt::BoxHunt,
+    /// The Banana peel toy (`toy_banana`): its switch and the peels on the floor.
+    banana: banana::Banana,
     /// The Tag toy (`toy_tag`): the own tag stuck on the world.
     tags: tags::Tags,
     /// The Ragdoll toy (`toy_ragdoll`): the player's own fall and the falls of others.
     ragdoll: ragdoll::Ragdoll,
-    /// Order 66's, the Hax's, the Drone's, the Monitor's and Box hunt's switches as last
-    /// saved (`toy_saved`).
-    toys_saved: [toy_saved::Saved; 5],
+    /// Order 66's, the Hax's, the Drone's, the Monitor's, Box hunt's and the Banana peel's
+    /// switches as last saved (`toy_saved`).
+    toys_saved: [toy_saved::Saved; 6],
     /// The Holocrons tab's 3D holocron ([`holocrons::stage`]).
     holocron_stage: holocrons::stage::Stage,
     /// The time its turn and bob are drawn at, instead of the clock's, for a world shot.
@@ -614,6 +646,8 @@ struct GpuState {
     entity_lighting: entity_lighting::EntityLighting,
     /// Live player model behind the Player screen.
     menu_stage: menu_stage::MenuStage,
+    /// Card pictures drawn from the game's models (`cards::scene`).
+    card_scenes: card_scenes::CardScenes,
     clientinfo_watch: clientinfo_refresh::ClientInfoWatch,
     config_string_refresh: config_string_refresh::ConfigStringRefresh,
     /// Black-blade server/clientinfo scan, redone on configstring changes.
@@ -630,6 +664,8 @@ struct GpuState {
     map_edits: map_edits::State,
     /// The mystery boxes standing on the loaded map (`mystery_box`).
     mystery_boxes: mystery_box::MysteryBoxes,
+    /// What the player's Use key does at what they face, by the crosshair (`use_prompt`).
+    use_prompt: use_prompt::UsePrompt,
     player_shadows: player_shadows::State,
     camera_buffer: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
@@ -703,6 +739,8 @@ struct GpuState {
     /// screen with retail's opaque menu or loading screen.
     world_hidden: bool,
     applied_resolution: [u32; 2],
+    /// Whether [`Self::applied_resolution`] counted pixels or points (`r_highDpi`).
+    applied_high_dpi: bool,
     /// Monitor refresh rate behind `com_maxfps -1`, re-read at most once a second.
     refresh_cap: std::cell::Cell<Option<(Instant, u32)>>,
     frame_pacer: frame_pacing::FramePacer,
@@ -1523,6 +1561,7 @@ impl GpuState {
             boombox: Default::default(),
             monitor: Default::default(),
             box_hunt: Default::default(),
+            banana: Default::default(),
             tags: Default::default(),
             ragdoll: Default::default(),
             toys_saved: Default::default(),
@@ -1577,6 +1616,7 @@ impl GpuState {
             bug_report_serial: 0,
             entity_lighting,
             menu_stage: menu_stage::MenuStage::default(),
+            card_scenes: card_scenes::CardScenes::default(),
             clientinfo_watch,
             config_string_refresh,
             black_sabers: Default::default(),
@@ -1586,6 +1626,7 @@ impl GpuState {
             decal_surfaces,
             map_edits: Default::default(),
             mystery_boxes: Default::default(),
+            use_prompt: Default::default(),
             player_shadows: player_shadows::State::default(),
             camera_buffer,
             camera_bind_group,
@@ -1642,6 +1683,7 @@ impl GpuState {
             display_changed_at: Instant::now(),
             world_hidden: false,
             applied_resolution: [size.width, size.height],
+            applied_high_dpi: true,
             refresh_cap: std::cell::Cell::new(None),
             frame_pacer: frame_pacing::FramePacer::new(),
             upper_right_rate: String::with_capacity(16),
@@ -1792,9 +1834,11 @@ impl GpuState {
         prediction_preview::tick(self, game_audio, Instant::now(), presentation_time as i32);
         // Hidden in the box, the eye stays down while the server stands the player up.
         self.keep_boxed_eye();
-        // The Monitor's monitors, then the Ragdoll's bodies (one may strike) at this
-        // frame's time, for the camera and the actors.
+        // The Monitor's monitors and the Banana peel's peels, then the Ragdoll's bodies
+        // (one may strike, one may trip) at this frame's time, for the camera and the
+        // actors.
         self.step_monitors(presentation_time);
+        self.step_bananas(presentation_time);
         self.step_ragdolls(presentation_time);
         timing.mark(Phase::Config);
         self.refresh_config_strings(game_audio);
@@ -2031,6 +2075,8 @@ impl GpuState {
         // JoF EJK's Force wheel (the retail icon bar) with the retail-looking HUDs.
         self.hud
             .set_force_wheel_bar(hud_style != menu_hud::HudStyle::Radial);
+        self.hud
+            .set_radial_placement(hud::RadialPlacement::read(self.console.as_ref()));
         let hud_layout = self.hud.layout(
             hud_font,
             match hud_style {
@@ -2253,6 +2299,17 @@ impl GpuState {
             || trade_shown;
         // Nor under the SJK UI's report card, as under its other cards.
         let report_card = self.text_dialog.is_open() && self.text_dialog.is_sjk();
+        // A card or the console over a held slider takes the pointer and keys from
+        // Settings, so its release would never come: the peek ends now (`slider_peek.rs`).
+        let console_open = self
+            .console
+            .as_ref()
+            .is_some_and(console::ViewerConsole::is_open);
+        if (medal_popup || report_card || console_open)
+            && let Some(menu) = &mut self.client_menu
+        {
+            menu.cancel_slider_peek();
+        }
         self.text_vertices.clear();
         self.classic_text_vertices.clear();
         game_font::prepare(self);
@@ -2281,6 +2338,10 @@ impl GpuState {
             information_visible && intermission_view.is_none() && !scoreboard_held,
         );
         self.append_mystery_box_labels(
+            viewport,
+            information_visible && intermission_view.is_none() && !scoreboard_held,
+        );
+        self.append_use_prompt(
             viewport,
             information_visible && intermission_view.is_none() && !scoreboard_held,
         );
@@ -2335,7 +2396,14 @@ impl GpuState {
         let scoreboard_visible =
             self.scoreboard
                 .present(self.console.as_ref(), scores_requested, scores_allowed);
-        let chat_visible = !self.console_covers_frame()
+        // An open console goes over the chat, as stock draws it last: its text would
+        // otherwise draw above the console (text goes above every shape). A composer
+        // left open under it keeps its draft for when the console closes.
+        let console_open = self
+            .console
+            .as_ref()
+            .is_some_and(console::ViewerConsole::is_open);
+        let chat_visible = !console_open
             && scoreboard::chat_visible(
                 information_visible,
                 self.chat.wants_history(self.console.as_ref()),
@@ -2512,6 +2580,7 @@ impl GpuState {
             Some(&self.world_pings.list),
             Some(&self.drone.list),
             Some(self.mystery_boxes.labels()),
+            Some(self.use_prompt.list()),
             information_visible.then(|| &self.hud.team_logo.list),
             information_visible.then(|| &self.hud.nameplate.list),
             information_visible.then(|| &self.hud.identification.list),
@@ -2629,6 +2698,7 @@ impl GpuState {
         self.submit_order66(presentation_time, visual_now);
         self.submit_drones(presentation_time, visual_now);
         self.submit_monitors(presentation_time);
+        self.submit_bananas(presentation_time);
         self.submit_holocron_stage(visual_now);
         self.sync_saber_skins(game_audio, presentation_time);
         let debug_missiles = effect_debug::sync(self.console.as_ref());
@@ -3094,6 +3164,7 @@ impl GpuState {
         }
         self.encode_stage_preview(&mut encoder);
         self.encode_blade_pictures(&mut encoder);
+        self.draw_card_scenes();
         let (output, mut encoder) = match target.finish(self, encoder, timing) {
             Ok(output) => output,
             Err(status) => {

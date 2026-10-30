@@ -344,6 +344,7 @@ fn open_binder(size: [u32; 2]) -> Option<GpuState> {
         every_secs: 1_800,
         today: 0,
         daily_cap: 8,
+        resets_at: None,
         server_time: 1_791_900_000,
         can_open: true,
         read_at: std::time::Instant::now(),
@@ -671,6 +672,7 @@ fn made_up_faces(
                 art: String::new(),
                 grants: None,
                 blade: None,
+                scene: None,
             });
         }
     }
@@ -1001,6 +1003,7 @@ fn duel6_sjk_blade_card() {
             art: String::new(),
             grants: None,
             blade: Some("saber_sun".to_owned()),
+            scene: None,
         });
         let real = packs.len();
         crate::cards::faces::install_for_shot(

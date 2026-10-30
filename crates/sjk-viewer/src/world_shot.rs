@@ -291,6 +291,8 @@ mod cardboard_box;
 #[path = "world_shot_map_edits.rs"]
 mod map_edit_shots;
 
+#[path = "world_shot_banana.rs"]
+mod banana_shots;
 #[path = "world_shot_body_fade.rs"]
 mod body_fade_shots;
 #[path = "world_shot_boombox.rs"]
@@ -323,6 +325,8 @@ mod animation_profile;
 mod card_outline_shots;
 #[path = "world_shot_ctf_flags.rs"]
 mod ctf_flags_shots;
+#[path = "world_shot_lagometer.rs"]
+mod lagometer_shots;
 #[path = "world_shot_rig_model.rs"]
 mod rig_model_shots;
 #[path = "world_shot_team_outline.rs"]
@@ -375,6 +379,9 @@ mod jof_sjk_chat_shots;
 #[path = "world_shot_text_sizes.rs"]
 mod text_sizes_shots;
 
+#[path = "world_shot_chat_readability.rs"]
+mod chat_readability_shots;
+
 #[path = "world_shot_map_change.rs"]
 mod map_change;
 
@@ -394,6 +401,8 @@ mod log_requests;
 #[path = "world_shot_whats_new.rs"]
 mod whats_new;
 
+#[path = "world_shot_card_scenes.rs"]
+mod card_scenes_shots;
 #[path = "world_shot_chat_sounds.rs"]
 mod chat_sounds_shots;
 #[cfg(test)]
@@ -966,6 +975,7 @@ mod tests {
             ],
             desktop: Some([3840, 2160]),
             exclusive: true,
+            scale: 1.0,
         }
     }
 
@@ -1310,6 +1320,9 @@ Found the fog bug, ask me about it!"
             kyber: None,
             shop: None,
             trade: None,
+            marks: None,
+            marks_revision: 0,
+            mark_refusal: None,
             trades: None,
             announcements: Vec::new(),
             announcements_revision: 0,
@@ -2597,6 +2610,47 @@ like this one.",
                     menu.open_sjk_settings_from_game(console);
                 }
                 println!("{}", shoot(&mut gpu, 8, "duel6-ingame-settings").display());
+            }
+        });
+    }
+
+    /// Settings > Graphics opened over a match with its "max brighten" slider
+    /// focused, then held so that it peeks: only its row over the game.
+    #[test]
+    #[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+    fn duel6_sjk_slider_peek() {
+        on_big_stack(|| {
+            let size = [1920, 1080];
+            let menu = menu::ClientMenu::new(false, String::new());
+            let cvars = [
+                ("ui_menuStyle", "sjk"),
+                ("ui_settingsMode", "advanced"),
+                (crate::settings::quick::HIDE_CVAR, "1"),
+            ];
+            let Some((mut gpu, _profile)) = open("maps/mp/duel6.bsp", size, Some(menu), &cvars)
+            else {
+                return;
+            };
+            let shots = menu_backdrop::tour_for("Yavin Training Grounds").expect("duel6's tour");
+            let shot = &shots[0];
+            let (yaw, pitch) = look(shot.from, shot.at);
+            aim(&mut gpu, shot.from, yaw, pitch);
+            if let Some(console) = gpu.console.as_mut() {
+                console.close_for_connection();
+            }
+            let _ = frame(&mut gpu, 60);
+            let brighten = crate::frame_target::aa::exposure::MAX_EV;
+            for held in [false, true] {
+                if let (Some(menu), Some(console)) =
+                    (gpu.client_menu.as_mut(), gpu.console.as_ref())
+                {
+                    menu.sjk_slider_peek_for_shot(console, brighten, held);
+                }
+                let name = if held { "held" } else { "before" };
+                println!(
+                    "{}",
+                    shoot(&mut gpu, 8, &format!("duel6-slider-peek-{name}")).display()
+                );
             }
         });
     }

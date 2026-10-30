@@ -22,13 +22,15 @@ general contributor rules.
   (`japlus.guntele`, `jof.commands`), and its switch is `mod_<id>`
   ([mods.md](mods.md)).
 - Every toy is a `toy_<name>` command (`toy_illuminate`, `toy_box`, `toy_order66`,
-  `toy_hax`, `toy_ragdoll`, `toy_drone`, `toy_boombox`, `toy_monitor`); a
+  `toy_hax`, `toy_ragdoll`, `toy_drone`, `toy_boombox`, `toy_monitor`, `toy_boxhunt`,
+  `toy_banana`); a
   toy has no Force wheel entry, and one with a setting names it `cg_toy<Name>...`.
   Illuminate, the cardboard box and Order 66 have none: they are always available and
   on only for the client's run. A toy others see has an id in the look's `toys`
   (`cardboard_box`, `order66`). A toy may have a command of its own besides
   (`order66`, which gives the order; `monitor_throw`, which throws a monitor, and
-  `+monitor_throw`, its held bind, which charges the throw).
+  `+monitor_throw`, its held bind, which charges the throw; `banana_drop`, which drops a
+  banana peel).
 - The crates are SJK's too: `crates/sjk-*`, packages `sjk-*` (`cargo build -p
   sjk-viewer -p sjk-dedicated`) and Rust paths `sjk_*`. Environment variables for
   diagnostics are `SJK_*`; the game-data and server paths keep the neutral
@@ -83,6 +85,7 @@ migrated, except where the table says so. Where each is documented:
 | `mod_japlus`, `mod_jof` | on (each mod loads on its servers only), saved 0 moved to 1 once | [Client mods](mods.md) |
 | `con_drawNotify` | off (no console feed at the top left; chat keeps its box) | [Classic console](client.md#classic-console) |
 | `cl_experimentalShowcase` | off (the experimental `ghost` and `mimic` commands, staff keys only) | [Ghost replay](client.md#ghost-replay) |
+| `ui_sliderPeek` | on: over a match, a Settings slider held a moment fades the rest of the screen away | [Settings](sjk-ui.md#settings) |
 | `ui_supportLinks` | on: Support SJK's links to GitHub Sponsors and Ko-fi, until its × hides them ([Donations](#donations)) | [Main page](sjk-ui.md#main-page) |
 
 The HUD look (`cg_hudStyle game`) and the console (`con_style auto`: the SJK UI's

@@ -92,11 +92,16 @@ impl ChatOverlay {
             self.card = None;
             return;
         }
+        // A name hovered as this frame lays it out: the canvas keeps the widget that was
+        // under the pointer when it last moved, which is another one once the feed
+        // changed (a chat tab chosen with the pointer still on its button).
+        let pointer = self.pointer_at;
         let hovered = (0..MAX_VISIBLE).find_map(|token| {
             let who = self.visible_people[token]?;
-            self.ui
-                .token_hovered(token as u16)
-                .then(|| (who, self.ui.rect_for(token as u16)))
+            let rect = self.ui.rect_for(token as u16);
+            (self.ui.token_hovered(token as u16)
+                && rect.zip(pointer).is_none_or(|(rect, at)| rect.contains(at)))
+            .then_some((who, rect))
         });
         // A pinned card stays, following its name while the name is in view.
         if let Some(card) = self.card.as_mut().filter(|card| card.pinned) {

@@ -22,8 +22,9 @@ use icons::IconAtlas;
 pub(crate) use icons::{
     ATLAS_CELLS, BIND_ICON_CELLS, BIND_ICON_FIRST, CROSSHAIR_ICON_CELLS, CROSSHAIR_ICON_FIRST,
     EMOJI_ICON_CELLS, EMOJI_ICON_FIRST, FORCE_ICON_CELLS, FORCE_ICON_FIRST, FORCE_WHEEL_ICON_CELLS,
-    FORCE_WHEEL_ICON_FIRST, HOLOCRON_ICON_FIRST, ICON_CELLS, ICON_SIZE, LOGO_ICON, PART_ICON_CELLS,
-    PART_ICON_FIRST, ROCKET_LOCK_ICON_FIRST, SCOREBOARD_ICON_CELLS, VEHICLE_CROSSHAIR_ICON,
+    FORCE_WHEEL_ICON_FIRST, HOLOCRON_ICON_FIRST, ICON_CELLS, ICON_SIZE, LOGO_ICON,
+    MOVEMENT_KEY_ICON_CELLS, MOVEMENT_KEY_ICON_FIRST, PART_ICON_CELLS, PART_ICON_FIRST,
+    ROCKET_LOCK_ICON_FIRST, SCOREBOARD_ICON_CELLS, VEHICLE_CROSSHAIR_ICON,
 };
 pub(crate) use levelshot::LEVELSHOT_TEXTURE;
 use medal_art::MedalTextures;
@@ -1812,6 +1813,31 @@ pub(crate) fn append_text_commands_where<'a>(
     style: text::TextStyle,
     palette: text::CodePalette,
 ) {
+    append_text_commands_paletted(
+        draw_list,
+        resolve,
+        keep,
+        vertices,
+        font,
+        viewport,
+        style,
+        |_| palette,
+    );
+}
+
+/// [`append_text_commands_where`], each command's colour codes and edge drawn in the
+/// palette `palette_of` gives for its id (the chat's outline, `cg_chatBoxOutline`).
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn append_text_commands_paletted<'a>(
+    draw_list: &DrawList,
+    resolve: impl Fn(TextId) -> &'a str,
+    keep: impl Fn(TextId, &str) -> bool,
+    vertices: &mut Vec<TextVertex>,
+    font: &UiFont,
+    viewport: [f32; 2],
+    style: text::TextStyle,
+    palette_of: impl Fn(TextId) -> text::CodePalette,
+) {
     let mut opacity = [1.0_f32; 8];
     let mut opacity_depth = 0_usize;
     let mut clips = [Rect::new(0.0, 0.0, viewport[0], viewport[1]); 8];
@@ -1890,7 +1916,7 @@ pub(crate) fn append_text_commands_where<'a>(
             [color.r, color.g, color.b, color.a * opacity[opacity_depth]],
             placement.letter_spacing,
             *overflow,
-            palette,
+            palette_of(*id),
         );
         if let Some(transform) = transforms[transform_depth] {
             text::map_vertices(&mut vertices[start..], |point| {

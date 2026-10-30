@@ -53,6 +53,13 @@ pub(crate) const BOX_NEAR: f32 = 1024.0;
 /// A swing reaches under 100; a thrown saber flies up to 700 per Saber Throw level
 /// (`SABER_MAX_THROW_DISTANCE`).
 pub(crate) const SABER_THROW_FAR: f32 = 512.0;
+/// `fd.saberAnimLevel`'s styles (`SS_FAST` to `SS_STAFF`, `bg_public.h`): Desann's and
+/// Tavion's (4, 5) count towards none.
+const SS_FAST: u8 = 1;
+const SS_MEDIUM: u8 = 2;
+const SS_STRONG: u8 = 3;
+const SS_DUAL: u8 = 6;
+const SS_STAFF: u8 = 7;
 /// Close Call: a duel won with less health than this left.
 pub(crate) const CLOSE_CALL_HEALTH: i32 = 5;
 /// How near a player a new thermal detonator must be first seen to be theirs (game
@@ -112,6 +119,20 @@ struct Kill {
     long_throw: bool,
     /// The victim's own thermal detonator, sent back.
     returned: bool,
+    /// The saber style the player fought in (`fd.saberAnimLevel`) when it was made.
+    style: u8,
+}
+
+/// The count a duel won with the saber in `style` adds to.
+fn style_counter(style: u8) -> Option<Counter> {
+    Some(match style {
+        SS_FAST => Counter::DuelStyleBlue,
+        SS_MEDIUM => Counter::DuelStyleYellow,
+        SS_STRONG => Counter::DuelStyleRed,
+        SS_DUAL => Counter::DuelStyleDual,
+        SS_STAFF => Counter::DuelStyleStaff,
+        _ => return None,
+    })
 }
 
 /// What a kill by the player counts towards.
@@ -139,6 +160,12 @@ fn count_kill(record: &mut Record, means: u8, kill: Kill, streak: u64) {
         }
         if watch.health > 0 && watch.health < CLOSE_CALL_HEALTH {
             record.add(Counter::DuelCloseCall, 1);
+        }
+        // A duel, private (saber only or full Force) or a duel game's, won with the saber.
+        if means == means::SABER
+            && let Some(counter) = style_counter(kill.style)
+        {
+            record.add(counter, 1);
         }
     }
     if kill.long_throw {
@@ -360,6 +387,7 @@ impl Tracker {
                 duel,
                 long_throw,
                 returned,
+                style: player.saber_style(),
             };
             count_kill(record, event.means_of_death, kill, self.streak);
             changed = true;
@@ -726,6 +754,43 @@ mod tests {
         let mut duel = Bench::new(game("mp/duel6", GT_DUEL, 2, &[]));
         duel.step(&[kill(2, 4, means::SABER)]);
         assert_eq!(duel.record.count(Counter::DuelWins), 1);
+    }
+
+    /// Dante's idea (#ideas, 29/10/2026): duels won with the saber count towards the style
+    /// the player fought in, and only duels, private or a duel game's.
+    #[test]
+    fn duels_won_with_the_saber_count_towards_the_style_fought_in() {
+        let style_wins = |record: &Record| {
+            [
+                Counter::DuelStyleBlue,
+                Counter::DuelStyleYellow,
+                Counter::DuelStyleRed,
+                Counter::DuelStyleDual,
+                Counter::DuelStyleStaff,
+            ]
+            .map(|counter| record.count(counter))
+        };
+        let mut duel = Bench::new(game("mp/duel6", GT_DUEL, 2, &[]));
+        for (target, style) in [(4, SS_FAST), (5, SS_STRONG), (6, SS_STAFF), (7, SS_DUAL)] {
+            duel.snapshot.player.set_raw_field(23, u32::from(style));
+            duel.step(&[kill(2, target, means::SABER)]);
+        }
+        // Desann's style, and a duel won with another weapon, count towards none.
+        duel.snapshot.player.set_raw_field(23, 4);
+        duel.step(&[kill(2, 8, means::SABER)]);
+        duel.snapshot.player.set_raw_field(23, u32::from(SS_MEDIUM));
+        duel.step(&[kill(2, 9, 2)]); // MOD_MELEE
+        assert_eq!(style_wins(&duel.record), [1, 0, 1, 1, 1]);
+        // Out of a duel the style counts nothing.
+        let mut ffa = Bench::new(game("mp/ffa3", 0, 2, &[]));
+        ffa.snapshot.player.set_raw_field(23, u32::from(SS_STRONG));
+        ffa.step(&[kill(2, 5, means::SABER)]);
+        assert_eq!(style_wins(&ffa.record), [0; 5]);
+        // A private duel counts, whatever Force it allows.
+        set_duel(&mut ffa.snapshot.player, true, 6);
+        ffa.step(&[]);
+        ffa.step(&[kill(2, 6, means::SABER)]);
+        assert_eq!(style_wins(&ffa.record), [0, 0, 1, 0, 0]);
     }
 
     #[test]

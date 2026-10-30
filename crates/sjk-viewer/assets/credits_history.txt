@@ -9,6 +9,82 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 30/10/2026 | - | jaPRO plugin options: offer Force jumps, now that prediction follows it
+- 6ed042b |  | jaPRO plugin options: offer Force jumps, now that prediction follows it
++ 30/10/2026 | - | Banana peel in the look: its id goes in the look's toys like the others
+- 01e9cb8 |  | Banana peel in the look: its id goes in the look's toys like the others
++ 30/10/2026 | - | Status: name the hub's look-toys branch, not its commit
+- ebe6a39 |  | Status: name the hub's look-toys branch, not its commit
++ 30/10/2026 | - | Tags: Gonk and Geyon, Blep's, picked from #tag-proposals
+- 1aaeb9c |  | Tags: Gonk and Geyon, Blep's, picked from #tag-proposals
++ 30/10/2026 | - | Credits history: the box take sync merge's entry
+- bc9343f |  | Credits history: the box take sync merge's entry
++ 30/10/2026 | - | Mystery box: the opener's take closes the box for everyone
+- eaf15ee |  | Mystery box: the opener's take closes the box for everyone
++ 30/10/2026 | - | Credits history: the Use prompt cap merge's entry
+- c784eb8 |  | Credits history: the Use prompt cap merge's entry
++ 30/10/2026 | - | Use prompt: further from the crosshair, the key centred in its cap by its ink
+- 0961996 |  | Use prompt: further from the crosshair, the key centred in its cap by its ink
++ 30/10/2026 | - | Card pictures drawn from the game: scenes for the JKA cards
+- ef04e96 |  | Card pictures drawn from the game: scenes for the JKA cards
++ 30/10/2026 | - | Credits history: the Use prompt merge's entry
+- ec78cf4 |  | Credits history: the Use prompt merge's entry
++ 30/10/2026 | - | Use prompt: what Use does, with its key, to the right of the crosshair
+- bc7779c |  | Use prompt: what Use does, with its key, to the right of the crosshair
++ 30/10/2026 | - | Release 2026.1030.1
+- b138373 |  | Release 2026.1030.1
++ 30/10/2026 | - | Credits history: the mystery box teddy merge's entry
+- a588b2e |  | Credits history: the mystery box teddy merge's entry
++ 30/10/2026 | - | Mystery box: extras pack sounds, a 15 s cooldown, the teddy bear that kills, a sturdier chest
+- e7bfadd |  | Mystery box: extras pack sounds, a 15 s cooldown, the teddy bear that kills, a sturdier chest
++ 29/10/2026 | - | Credits history: the start-dialog merge's entry
+- dbfb7e9 |  | Credits history: the start-dialog merge's entry
++ 29/10/2026 | - | Start-failure dialog: SJK_NO_START_DIALOG leaves it out for the package smoke check
+- 198e6cb |  | Start-failure dialog: SJK_NO_START_DIALOG leaves it out for the package smoke check
++ 29/10/2026 | - | Release 2026.1029.1
+- 8952cbd |  | Release 2026.1029.1
++ 29/10/2026 | - | Format: holocrons test line over the width
+- 103113b |  | Format: holocrons test line over the width
++ 29/10/2026 | - | Credits history: the Monitor Screen Saver and Sun swing merges' entries
+- add4fb4 |  | Credits history: the Monitor Screen Saver and Sun swing merges' entries
++ 29/10/2026 | - | Monitor: a Screen Saver after 5 hits, with Payback and Power Surge
+- b6b2ecd |  | Monitor: a Screen Saver after 5 hits, with Payback and Power Surge
++ 29/10/2026 | - | Saber cost shot: the Sun swinging, with its extras and part by part, at 4K
+- e2823e9 |  | Saber cost shot: the Sun swinging, with its extras and part by part, at 4K
++ 29/10/2026 | - | Credits history: the High DPI merge's entry
+- 9d9ac2b |  | Credits history: the High DPI merge's entry
++ 29/10/2026 | - | High DPI: on a Mac, window sizes and the world count points
+- c4d8954 |  | High DPI: on a Mac, window sizes and the world count points
++ 29/10/2026 | - | Banana peel toy: drop peels; opted-in players who walk onto one slip
+- 6494e3c |  | Banana peel toy: drop peels; opted-in players who walk onto one slip
++ 29/10/2026 | - | Cards docs: the hub keeps and changes its cards live (29/10/2026)
+- 86da73f |  | Cards docs: the hub keeps and changes its cards live (29/10/2026)
++ 29/10/2026 | - | Fullscreen keeps the screen's size: r_resolution only sizes a window
+- 6fdcb81 |  | Fullscreen keeps the screen's size: r_resolution only sizes a window
++ 29/10/2026 | - | Mystery boxes: shards, a free roll and the Mystery blade; no more weapons
+- 93763ae |  | Mystery boxes: shards, a free roll and the Mystery blade; no more weapons
++ 29/10/2026 | - | Holocron limit resets at 9:00 Paris time; countdown from the hub
+- c24a65c |  | Holocron limit resets at 9:00 Paris time; countdown from the hub
++ 29/10/2026 | - | Staff tick: a silver starburst of sixteen points
+- 94a43ba |  | Staff tick: a silver starburst of sixteen points
++ 29/10/2026 | - | Lagometer numbers at EJK's size: digits about 13 px at 1080p
+- 026c006 |  | Lagometer numbers at EJK's size: digits about 13 px at 1080p
++ 29/10/2026 | - | Chat backdrop and text outline, for chat over bright maps (Creo's idea)
+- f9fd439 |  | Chat backdrop and text outline, for chat over bright maps (Creo's idea)
++ 29/10/2026 | - | Lagometer 2 and 3: readable numbers on a line above the graph
+- 1560ecb |  | Lagometer 2 and 3: readable numbers on a line above the graph
++ 29/10/2026 | - | Player card: Key only (cg_playerCard 2), Blep's idea
+- 7da4c4e |  | Player card: Key only (cg_playerCard 2), Blep's idea
++ 29/10/2026 | - | New shader marks clear after a second's look, not on a sweep
+- eebe3eb |  | New shader marks clear after a second's look, not on a sweep
++ 29/10/2026 | - | Collection marks: worn, favourite, locked and New saber shaders
+- 64c780e |  | Collection marks: worn, favourite, locked and New saber shaders
++ 29/10/2026 | - | cg_fleshSparks, in_mouseRepeat and cg_lagometer 2 and 3 from JoF EJK
+- 46f3a29 |  | cg_fleshSparks, in_mouseRepeat and cg_lagometer 2 and 3 from JoF EJK
++ 29/10/2026 | - | Plugin options: JA+ and jaPRO cp_pluginDisable bits as Settings switches
+- 6d1a803 |  | Plugin options: JA+ and jaPRO cp_pluginDisable bits as Settings switches
++ 29/10/2026 | - | Console over chat: a setting, on by default
+- 6d0125a |  | Console over chat: a setting, on by default
 + 29/10/2026 | - | Mystery boxes: the tiers' real holocrons in the roll, Sol's laugh from the extras pack
 - e48e8c9 |  | Mystery boxes: the tiers' real holocrons in the roll, Sol's laugh from the extras pack
 + 29/10/2026 | - | Box hunt mark outline and card colours, toy sight switches, a fainter halo
@@ -2327,6 +2403,10 @@
 - 0d215f1 |  | Initial JKR source
 
 = Creyon
++ 29/10/2026 | SJK #275 | Movement keys added to SJK, the same as JoF EJK (cg_movementKeys)
+- 2da84bf |  | Add JoF EJK's movement keys (cg_movementKeys)
++ 29/10/2026 | SJK #259 | Chat tabs: an Admin (amsay) button and key, and choosable Team/SJK/Admin/PM buttons that filter
+- b6b5800 |  | Chat tabs: an Admin (amsay) button and key, and choosable Team/SJK/Admin/PM buttons that filter
 + 29/10/2026 | SJK #269 | Profile: RGB sliders for models that can be coloured, as in JoF EJK
 - d6ef676 |  | Profile > Character: colour sliders for a model's RGB skin
 - c5a66b0 |  | Model colour: let the stage instance buffer be written again
@@ -2568,7 +2648,7 @@
 - 0874042 |  | Decode print and cp text as legacy bytes
 
 = Lukas
-+ 24/10/2026 | SJK #198 | Release stale profile VFS generations
++ 24/10/2026 | SJK #198 | Add VFS headroom and lifetime diagnostics
 - 69c6da4 |  | Release stale profile VFS generations
 + 21/10/2026 | SJK #179 | Add holocron notification modes
 - d7ae6dc |  | Add holocron notification modes
@@ -2612,6 +2692,78 @@
 - ddfe116 |  | Fix Linux clipboard integration
 
 = Lumaya
++ 30/10/2026 | SJK #305 | Audit reported JA+ prediction regressions after October 29 merges
+- 626f005 |  | Record reported JA+ prediction regressions and audit scope
+- e25ad39 |  | Record runtime regression audit of all prediction PRs
++ 30/10/2026 | SJK #308 | Back out zero-gravity push prediction after spawn regression
+- cb5a74c |  | Claim rollback of zero-gravity prediction regression
+- 97002d2 |  | Remove zero-gravity impulses from transient spawn prediction
++ 30/10/2026 | SJK #307 | Back out dual jump-hull prediction after JA+ regression
+- 3e7be04 |  | Claim rollback of dual jump-hull prediction regression
+- bbc8fd4 |  | Restore fixed dual-jump hull after JA+ runtime regression
++ 29/10/2026 | SJK #284 | Predict jaPRO new-jetpack activation and thrust
+- 588cd09 |  | Record jaPRO new-jetpack prediction scope
+- ea8ed75 |  | Predict jaPRO new jetpack only for current server profile
++ 29/10/2026 | SJK #282 | Predict jaPRO style jump impulses and held jumps
+- 5312e4d |  | Record jaPRO style jump prediction scope
+- ca5ac9e |  | Predict jaPRO style jumps and only-bhop policy
++ 29/10/2026 | SJK #279 | Match jaPRO movement-style acceleration and friction
+- 2846d42 |  | Predict jaPRO movement-style acceleration and friction
++ 29/10/2026 | SJK #273 | Match remote vehicle collision hulls to their presented orientation
+- 6e02295 |  | Record the remote vehicle prediction hull discrepancy
+- 70a2c8e |  | Apply presented vehicle dimensions to remote prediction hulls
+- 4ab9d24 |  | Interpolate remote vehicle poses with smooth clients enabled
++ 29/10/2026 | SJK #267 | Supply equipped saber definitions to client movement prediction
+- 1f3469f |  | Supply equipped saber definitions to client movement prediction
+- 56dfae8 |  | Parse codemp throwable zero as the saber throw restriction
++ 29/10/2026 | SJK #266 | Restore dual jump-attack collision hull resizing
+- a07488e |  | Restore dual jump-attack collision hull resizing
++ 29/10/2026 | SJK #260 | Respect the respawn latch before predicting jumps
+- 39e80cd |  | Respect the respawn latch before predicting jumps
++ 29/10/2026 | SJK #253 | Face the opponent during predicted saber locks
+- 7fe9ced |  | Document prediction saber-lock-facing gap
+- ccef0be |  | Face the opponent during local saber-lock prediction
++ 29/10/2026 | SJK #252 | Freeze prediction when command history is incomplete
+- 0905f24 |  | Document prediction command-overflow gap
+- cfd34f2 |  | Freeze prediction across missing command history
+- 70b6771 |  | Preserve displayed positions and teleports across prediction gaps
++ 29/10/2026 | SJK #277 | Match jaPRO command slicing and velocity precision
+- 19a03fb |  | Record jaPRO command prediction scope
+- 9928ee6 |  | Match jaPRO race command slicing and velocity precision
++ 29/10/2026 | SJK #276 | Suppress local passenger movement without a predicted chassis
+- ba58cab |  | Record passenger movement prediction finding
+- dbacf2f |  | Suppress passenger movement without a predicted chassis
+- 0e148bb |  | Preserve existing status documentation encoding
++ 29/10/2026 | SJK #271 | Record prediction comparison coverage and remaining parity gaps
+- 3e50e81 |  | Record prediction comparison coverage and remaining parity gaps
+- 45252ce |  | Compare prediction fixes with JA+ and jaPRO sources
++ 29/10/2026 | SJK #270 | Use presented inline brush transforms for point contents
+- a7de034 |  | Use presented inline brush transforms for point contents
++ 29/10/2026 | SJK #268 | Use snapshot actors and powerups for predicted rocket locking
+- 859e88b |  | Use snapshot actors and powerups for predicted rocket locking
++ 29/10/2026 | SJK #265 | Use codemp player-solid contents for rocket locking
+- 9aae3e8 |  | Use codemp player-solid contents for rocket locking
++ 29/10/2026 | SJK #264 | Predict legal handheld weapons for exposed vehicle riders
+- e7c4c08 |  | Predict legal handheld weapons for exposed vehicle riders
++ 29/10/2026 | SJK #263 | Use the blaster weapon ID in the vehicle rider whitelist
+- 961418e |  | Use the blaster weapon ID in the vehicle rider whitelist
++ 29/10/2026 | SJK #262 | Predict command gestures through codemp PM_Animate
+- d731c47 |  | Predict command gestures through codemp PM_Animate
++ 29/10/2026 | SJK #261 | Freeze movement input while another client holds the player
+- 96fa579 |  | Freeze movement input while another client holds the player
++ 29/10/2026 | SJK #254 | Use the Pmove hull for predicted trigger contact
+- c5bc630 |  | Document prediction trigger-hull gap
+- 9cc782d |  | Use the final Pmove hull for predicted brush triggers
++ 29/10/2026 | SJK #251 | Restore codemp zero-gravity push-off movement
+- ee377e0 |  | Document prediction zero-gravity gap
+- 79290e7 |  | Restore codemp zero-gravity push-off movement
++ 29/10/2026 | SJK #250 | Supply snapshot entity context to local movement prediction
+- caf9635 |  | Document prediction entity-context gap
+- bc66481 |  | Supply snapshot actor context to local prediction
+- 9b891e7 |  | Verify prediction actor lookups in release builds
++ 29/10/2026 | SJK #249 | Use the server gametype in local movement prediction
+- 1481723 |  | Document prediction gametype gap
+- b39c1ba |  | Use the server gametype for predicted Force eligibility
 + 24/10/2026 | SJK #195 | Respect wall-grab free look and add an opt-in camera lock
 - f71bf25 |  | Hold the camera throughout wall grabs
 - c03b6a5 |  | Fold wall-normal camera alignment into the wall-grab fix
@@ -2755,6 +2907,27 @@
 - fed9acd |  | Hide duel opponents' bars and send nothing while duelling
 
 = Slash
++ 29/10/2026 | SJK #286 | fs_restart: mount the game files again without restarting SJK
+- de38ac3 |  | fs_restart: mount the game files again without restarting SJK
+- ac00c0f |  | Changelog: fs_restart's PR number
++ 29/10/2026 | SJK #283 | Laptops with two graphics cards: ask for the fast card, fall back, say why
+- 22aeab5 |  | Laptops with two graphics cards: ask for the fast card, fall back, say why
++ 29/10/2026 | SJK #281 | SJK radial HUD: spacing and height sliders for its meters
+- 3a03e33 |  | SJK radial HUD: spacing and height sliders for its meters
++ 29/10/2026 | SJK #280 | Nameplates: a Name outline setting, Off, Faint or Strong
+- e8358e8 |  | Nameplates: a Name outline setting, Off, Faint or Strong
++ 29/10/2026 | SJK #255 | Chat: the console key opens the console over the composer, as stock
+- 93dbcd5 |  | Chat: the console key closes the composer and opens the console
+- 4c6726a |  | Format the console-key-in-chat rule
+- f8ca7b9 |  | Console key in chat: leave the composer under the console, as stock
++ 29/10/2026 | SJK #272 | Achievements: Blue, Yellow, Red, Dual Sabers and Staff Master
+- 249ad46 |  | Achievements: Blue, Yellow, Red, Dual and Staff Master
+- fa8c779 |  | Achievements: room for the five style crystals in the reward table
+- 129ade6 |  | Achievements: Dual Sabers Master, so it does not read as Duel Master
++ 29/10/2026 | SJK #248 | Settings: a held slider peeks at the game behind the menu
+- 9aeb0ce |  | Add the hold and fade state for Settings slider peek
+- 08b73c8 |  | Fade Settings round a held slider so it peeks at the match
+- b2898cc |  | Slider peek: end it when the console, a card or another window takes over
 + 29/10/2026 | SJK #257 | Mod notice: no input for its first 0.6 s, and Space does not close it
 - d52f3ed |  | Mod notice: no input for its first 0.6 s, and Space does not close it
 + 29/10/2026 | SJK #258 | Encrypted whispers: a player blocked for the map or by staff stays out

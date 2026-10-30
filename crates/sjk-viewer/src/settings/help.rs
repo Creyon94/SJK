@@ -147,9 +147,22 @@ const CHOICE_NAMES: &[(&str, &str, &str)] = &[
     (crate::input::idrive::CVAR, "0", "Off"),
     (crate::input::idrive::CVAR, "1", "All keys"),
     (crate::input::idrive::CVAR, "2", "Jump, crouch"),
+    (crate::input::mouse_repeat::CVAR, "0", "Off"),
+    (crate::input::mouse_repeat::CVAR, "1", "Mouse 4 and 5"),
+    (crate::input::mouse_repeat::CVAR, "2", "Mouse 4 only"),
+    (crate::hud::player_card::CVAR, "0", "Off"),
+    (crate::hud::player_card::CVAR, "1", "On look and key"),
+    (crate::hud::player_card::CVAR, "2", "Key only"),
+    (crate::hud::lagometer::CVAR, "0", "Off"),
+    (crate::hud::lagometer::CVAR, "1", "Graph"),
+    (crate::hud::lagometer::CVAR, "2", "Graph + speed"),
+    (crate::hud::lagometer::CVAR, "3", "No backdrop"),
     (crate::audio::SKIN_SOUNDS_CVAR, "0", "Off"),
     (crate::audio::SKIN_SOUNDS_CVAR, "1", "With normal"),
     (crate::audio::SKIN_SOUNDS_CVAR, "2", "Only skin"),
+    ("cg_nameplateOutline", "0", "Off"),
+    ("cg_nameplateOutline", "1", "Faint"),
+    ("cg_nameplateOutline", "2", "Strong"),
     (crate::effect_aux::saber_rain_steam::CVAR, "0", "Off"),
     (crate::effect_aux::saber_rain_steam::CVAR, "1", "Everyone"),
     (crate::effect_aux::saber_rain_steam::CVAR, "2", "Only mine"),
@@ -224,6 +237,8 @@ const SJK_TERMS: &[&str] = &[
 ];
 
 /// The description of setting `cvar`.
+/// The plugin options' rows are described by their mods' tables
+/// ([`super::plugin_rows`]).
 pub(super) fn help(cvar: &str) -> Option<&'static str> {
     HELP.iter()
         .find(|(name, _)| name.eq_ignore_ascii_case(cvar))
@@ -234,6 +249,7 @@ pub(super) fn help(cvar: &str) -> Option<&'static str> {
                 text
             }
         })
+        .or_else(|| super::plugin_rows::help(cvar))
 }
 
 /// `text` cut into at most [`HELP_LINES`] lines of [`HELP_LINE_CHARS`]
@@ -307,6 +323,11 @@ const HELP: &[(&str, &str)] = &[
     (
         "r_resolution",
         "The window's size, or the screen mode in exclusive fullscreen. Enter opens the list of sizes.",
+    ),
+    (
+        super::display::HIGH_DPI_CVAR,
+        "On: sizes and the world in the screen's pixels, sharpest on Retina. \
+         Off: in points, as EternalJK on a Mac, much faster.",
     ),
     (
         "r_fullscreen",
@@ -465,6 +486,10 @@ const HELP: &[(&str, &str)] = &[
         "Off: mystery boxes open silently on this PC, yours and other players'.",
     ),
     (
+        crate::toy_sounds::Toy::Banana.cvar(),
+        "Off: Banana peel sounds are not played on this PC, yours or other players'. The toy still works and is still seen.",
+    ),
+    (
         crate::away_emote::SJK_CVAR,
         "A looping emote you play while away (alt-tabbed out or idle), silent. Any emote you play then goes quiet too, for everyone.",
     ),
@@ -498,6 +523,14 @@ const HELP: &[(&str, &str)] = &[
         "Shows the HUD; off hides it, for screenshots and recordings.",
     ),
     ("cg_hudScale", "Size of the HUD: higher is larger."),
+    (
+        crate::hud::RadialPlacement::SPREAD_CVAR,
+        "SJK radial HUD only: moves the health and armour meters left and the Force and ammo meters right, farther from your character.",
+    ),
+    (
+        crate::hud::RadialPlacement::HEIGHT_CVAR,
+        "SJK radial HUD only: moves its meters up (higher numbers) or down (below zero) on the screen.",
+    ),
     ("cg_drawStatus", "Health, armor and Force on the HUD."),
     (
         "cg_drawWeapon",
@@ -520,12 +553,12 @@ const HELP: &[(&str, &str)] = &[
         "Size of the plain names above players.",
     ),
     (
-        "cg_playerCard",
-        "Look at a player without moving and a card shows their model, sabers and SJK profile.",
+        crate::hud::player_card::CVAR,
+        "A card with a player's model, sabers and SJK profile: on a steady look or the Inspect player key, or Key only: that key alone.",
     ),
     (
         "cg_playerCardDelay",
-        "Seconds you must keep looking at a player, steady, before the card shows.",
+        "With Player card On look and key: seconds you keep looking at a player, steady, before it shows.",
     ),
     (
         "cg_playerCardOutline",
@@ -567,6 +600,10 @@ const HELP: &[(&str, &str)] = &[
     (
         "cg_nameplateIcons",
         "Icons of the Force powers a player has on, over the name when close.",
+    ),
+    (
+        "cg_nameplateOutline",
+        "Edges names so they read on any background. Faint: dark letters get a soft halo. Strong: a dark outline around every name too.",
     ),
     (
         "cg_nameplateDuel",
@@ -614,8 +651,8 @@ const HELP: &[(&str, &str)] = &[
         "Shows SJK's version, build date and commit at the top, so screenshots say which build.",
     ),
     (
-        "cg_lagometer",
-        "A small graph of interpolation and snapshot delay, for spotting network trouble.",
+        crate::hud::lagometer::CVAR,
+        "Network delay graph. Graph + speed adds the average ping and interpolation and a speed graph (JoF EJK); No backdrop, bare.",
     ),
     (
         "cg_lagometerScale",
@@ -635,6 +672,26 @@ const HELP: &[(&str, &str)] = &[
         "Shows emoji pictures in place of names like :poop: in new chat messages.",
     ),
     (
+        crate::chat::tabs::FILTER_CVAR,
+        "On, a chat button shows only its own messages while you type; off, it only picks where you talk.",
+    ),
+    (
+        crate::chat::tabs::TEAM_CVAR,
+        "Shows Team beside All when you type a message. Off, Tab skips it; the team chat key still opens team chat.",
+    ),
+    (
+        crate::chat::tabs::SJK_CVAR,
+        "Shows SJK beside All when you type a message, for the SJK chat. Off, Tab skips it.",
+    ),
+    (
+        crate::chat::tabs::ADMIN_CVAR,
+        "Shows Admin beside All on JA+ and jaPRO servers: your message goes to the server's admins only (amsay).",
+    ),
+    (
+        crate::chat::tabs::PM_CVAR,
+        "Shows PM when you type: it replies to players who whispered you; left click next, right click back.",
+    ),
+    (
         crate::chat::reply::REMEMBER_CVAR,
         "On, the chat key opens on your last channel: All, Team, SJK or a whisper. Off (the default), it always opens on All.",
     ),
@@ -645,6 +702,14 @@ const HELP: &[(&str, &str)] = &[
     (
         "cg_chatBoxLetterSpacing",
         "Adds space between the letters of chat messages; below zero packs them closer.",
+    ),
+    (
+        crate::chat::options::BACKDROP_CVAR,
+        "A dark band behind each chat line, so it reads over bright maps: how dark, in per cent. 0 shows none.",
+    ),
+    (
+        crate::chat::options::OUTLINE_CVAR,
+        "Edges chat letters and what you type in a dark outline instead of a shadow, so they read over bright maps.",
     ),
     (
         crate::chat::options::CARD_SCALE_CVAR,
@@ -692,6 +757,10 @@ const HELP: &[(&str, &str)] = &[
         crate::input::force_repeat::CVAR,
         "Keep a push or pull key held to use the power again the moment its cooldown ends, as in JoF EJK.",
     ),
+    (
+        crate::input::mouse_repeat::CVAR,
+        "Hold mouse 4 or 5 to run its bind again 20 times a second, like a held key (JoF EJK, there at the frame rate).",
+    ),
     // GAME
     (
         "cg_simpleItems",
@@ -716,6 +785,10 @@ const HELP: &[(&str, &str)] = &[
     (
         crate::saber_clash_flare::SIZE_CVAR,
         "Size of the saber clash flare: 1 as in the original game, 0 to 2.",
+    ),
+    (
+        crate::impacts::FLESH_SPARKS_CVAR,
+        "Red sparks when a saber hits a body: 7 all, as in the original game, down to 0 none (JoF EJK).",
     ),
     (
         crate::team_sabers::TEAM_COLORS_CVAR,
@@ -744,6 +817,10 @@ const HELP: &[(&str, &str)] = &[
     (
         crate::monitor::SHOW_CVAR,
         "Off: no Monitor toy monitor is drawn, yours or other players', nor their sounds heard. You can still be hit while the toy is on.",
+    ),
+    (
+        crate::banana::SHOW_CVAR,
+        "Off: no Banana peel toy peel is drawn, yours or other players', nor their sounds heard. You can still slip while the toy is on.",
     ),
     (
         crate::toy_sight::ILLUMINATE,
@@ -960,6 +1037,10 @@ const HELP: &[(&str, &str)] = &[
         "Support SJK at the top left of the SJK UI's main page: links to SJK's GitHub Sponsors and Ko-fi pages. Off hides it, as its x does.",
     ),
     (
+        super::slider_peek::CVAR,
+        "In the game, hold a slider in the SJK UI a moment and the rest of Settings fades away, showing the game as you drag. Off keeps it.",
+    ),
+    (
         crate::menu_pictures::CVAR,
         "Map pictures behind the menus and drawn saber shaders, not live ones: saves video memory. On by itself on small cards.",
     ),
@@ -1133,6 +1214,10 @@ const HELP: &[(&str, &str)] = &[
     ("cg_crosshairSize", "Size of the crosshair."),
     ("cg_speedometer", "Shows how fast you move."),
     (
+        crate::hud::movement_keys::CVAR,
+        "JoF EJK's movement keys on screen, each lit while you hold it. Place them with cg_movementKeysX, Y and Size.",
+    ),
+    (
         crate::hud::movement::LINES_ROW,
         "JoF EJK's strafe helper: a line to the best heading for each strafe key. Keep the crosshair on the green one to gain speed.",
     ),
@@ -1198,6 +1283,10 @@ const HELP: &[(&str, &str)] = &[
     (
         crate::console::console_options::SHIFT_HEIGHT_CVAR,
         "Shift+console opens at Console height, Shift+Escape a quarter screen. Off: as in EternalJK.",
+    ),
+    (
+        crate::console::console_options::OVER_CHAT_CVAR,
+        "The console key opens the console over the chat; your message waits. Off: the chat takes the key.",
     ),
     (
         crate::text::charset::CVAR,

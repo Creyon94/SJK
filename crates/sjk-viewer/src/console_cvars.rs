@@ -344,6 +344,18 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "Size multiplier for the HUD (0.25 to 2)",
         ),
         CvarDefinition::new(
+            crate::hud::RadialPlacement::SPREAD_CVAR,
+            0.0_f64,
+            archive,
+            "SJK radial HUD: how much farther from the crosshair its meters sit on each side, in HUD pixels (0 to 250)",
+        ),
+        CvarDefinition::new(
+            crate::hud::RadialPlacement::HEIGHT_CVAR,
+            0.0_f64,
+            archive,
+            "SJK radial HUD: how much higher its meters sit, in per cent of the screen (-20 lower to 40 higher)",
+        ),
+        CvarDefinition::new(
             "cg_thirdPersonRange",
             80.0,
             archive,
@@ -585,6 +597,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "Play mystery box sounds (SJK)",
         ),
         CvarDefinition::new(
+            crate::toy_sounds::Toy::Banana.cvar(),
+            true,
+            archive,
+            "Play Banana peel sounds (SJK)",
+        ),
+        CvarDefinition::new(
             crate::held_view::LOOK_CVAR,
             crate::held_view::DEFAULT_LOOK,
             archive,
@@ -691,6 +709,14 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             true,
             archive,
             "Holding a push or pull key uses it again as soon as its cooldown is over",
+        ),
+        // EternalJK's `in_mouserepeat` (`sdl_input.cpp`), at a fixed rate
+        // ([`crate::input::mouse_repeat`]).
+        CvarDefinition::new(
+            crate::input::mouse_repeat::CVAR,
+            0_i64,
+            archive,
+            "Held mouse 4 and 5 press their bind again 20 times a second: 0 off, 1 both, 2 mouse 4 only",
         ),
         CvarDefinition::new(
             crate::input::idrive::DELAY_CVAR,
@@ -812,11 +838,13 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             archive,
             "flipkick: user command at which the second jump starts",
         ),
+        // JoF EJK's modes (`cg_draw.c` `CG_DrawLagometer`, `CG_DrawSpeedGraph`;
+        // [`crate::hud::lagometer`]).
         CvarDefinition::new(
-            "cg_lagometer",
-            false,
+            crate::hud::lagometer::CVAR,
+            0_i64,
             archive,
-            "Display frame interpolation and snapshot latency samples",
+            "Lagometer: 0 off, 1 graph, 2 graph with average ping, interpolation and a speed graph, 3 the same without the backdrop",
         ),
         CvarDefinition::new(
             "cg_saberTrail",
@@ -836,6 +864,14 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             1.0_f64,
             archive,
             "Saber clash flare size, 0 to 2",
+        ),
+        // EternalJK's (JoF EJK `cg_xcvar.h`, `cg_event.c` `EV_SABER_HIT`): the red sparks
+        // of a saber hit on a body ([`crate::impacts::flesh_sparks`]).
+        CvarDefinition::new(
+            crate::impacts::FLESH_SPARKS_CVAR,
+            i64::from(crate::impacts::FLESH_SPARKS_ALL),
+            archive,
+            "Red sparks of a saber hit on a body: 0 none to 7 all (default, as stock), as EternalJK",
         ),
         CvarDefinition::new(
             crate::effect_flash::REDUCE_CVAR,
@@ -891,6 +927,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             archive,
             "Box hunt is on: you may become the mark (one every 10 minutes), and killing the mark wins you a free mystery box roll (toy_boxhunt switches it)",
         ),
+        CvarDefinition::new(
+            crate::toy_saved::BANANA_CVAR,
+            false,
+            archive,
+            "The Banana peel toy is on: you may drop banana peels (banana_drop) and slip on the ones you walk onto (toy_banana switches it)",
+        ),
         // Other players' toys seen (Collection > Toys).
         CvarDefinition::new(
             crate::toy_sight::CVARS[0].0,
@@ -927,6 +969,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             true,
             archive,
             "Monitors are seen (0: no Monitor toy monitor is drawn, nor its sounds in the world heard, on this PC; SJK)",
+        ),
+        CvarDefinition::new(
+            crate::banana::SHOW_CVAR,
+            true,
+            archive,
+            "Banana peels are seen (0: no Banana peel toy peel is drawn, nor its sounds in the world heard, on this PC; SJK)",
         ),
         CvarDefinition::new(
             crate::tags::CVAR,
@@ -1121,6 +1169,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "",
             archive,
             "The SJK version whose update put the settings it changed back to their default (the what's-new card's Settings to review), so they are reset once",
+        ),
+        CvarDefinition::new(
+            crate::settings::slider_peek::CVAR,
+            true,
+            archive,
+            "Over a match, holding a Settings slider for a moment fades the rest of the screen away so its change shows on the game (0 keeps the screen)",
         ),
         CvarDefinition::new(
             crate::support_links::CVAR,

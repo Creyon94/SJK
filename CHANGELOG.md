@@ -33,6 +33,54 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 ## Unreleased
 
 - JoF hats look as in JoF EJK: the pumpkin, cap, cringe, fedora, Santa hat, sombrero and top hat show their own pictures instead of plain grey, in game and in the profile preview, and McFox and McSnowFox are solid instead of see-through _(Creyon)_
+- Prediction on JA+ servers: dual sabers jump attacks no longer sink you into the floor, and joining no longer throws you sideways at high speed before the server stops you; two prediction changes of 2026.1029.1 (dual jump attack hull, zero gravity push) are backed out after Lumaya checked them against an original JA+ server _(Lumaya, PRs #305, #307 and #308)_
+- jaPRO plugin options: Force jumps (Settings > Mods, `japro.plugin 1`) is offered now that SJK predicts it: off, holding jump bunny hops instead of Force jumping, on jaPRO servers that let players choose _(Sol, after Kushina's idea and Lumaya's PR #282)_
+
+- Mystery boxes: when the opener takes what came out, everyone else sees it go and the lid close at once, instead of it floating on for 10 seconds _(Sol)_
+- Tags: two new ones, Gonk (Uncommon) and Geyon (Rare), and the EZ tag has its real picture, all three drawn by Blep and picked from the Discord's #tag-proposals _(Sol, art by Blep)_
+- A prompt by the crosshair shows what Use does at a mystery box, with the key you bound to Use: Open mystery box and its price, Take it, or why you cannot yet (your turn in a few seconds, not enough credits), instead of a message in the middle of the screen _(Sol)_
+
+## 2026.1030.1 (Alpha) | 30/10/2026
+
+Mystery boxes: new sounds, a teddy bear that kills, a turn for everyone and a sturdier chest.
+
+> Teddy bear: A box that blows up shows a teddy bear and laughs, then kills you.
+> Sounds: New box sounds with the SJK extras pack from the Sith cloud.
+> Your turn: Wait 15 seconds between two boxes, so others get to roll.
+> The chest: Iron feet, bands, a lock, handles and an arched lid.
+
+- Mystery boxes have new opening, roll and closing sounds with the SJK extras pack (Settings > General > Sith cloud); without it they sound as before. The roll stops a little sooner, at 5.2 seconds _(Sol)_
+- Mystery boxes: after opening one, you wait 15 seconds before opening another, so other players get a turn _(Sol)_
+- A mystery box that blows up stops on a teddy bear and laughs, then blows up and kills you, for everyone to see, instead of throwing you down _(Sol, after Call of Duty zombies)_
+- The mystery box is a sturdier chest: iron feet, bands and corners that stand out, a lock, handles and an arched lid _(Sol)_
+- Mystery boxes pay back less: double 5% (was 15%), jackpot 1% (was 5%), empty 36% and blowing up 12% _(Sol)_
+
+## 2026.1029.1 (Alpha) | 29/10/2026
+
+Banana peels, the Monitor's Screen Saver, holo frame nameplates, collection marks, chat tabs and jaPRO movement that matches the server.
+
+> Toys: Banana peels with `toy_banana`, and the Monitor's Screen Saver.
+> Collection: Favourite, lock and New marks on saber shaders.
+> Mystery boxes: Shards, a free roll, the Mystery blade, more holocrons.
+> Chat: Admin, Team, SJK and PM tabs, and a backdrop for bright maps.
+> Movement: jaPRO styles, jumps and jetpack predicted as the server.
+> Macs: Windows the size they say, and fullscreen keeps the screen.
+
+= con_overChat: New: while you type in the chat, the console key opens the console over it and your message waits; off, the chat takes the key as before.
+= ui_sliderPeek: New: in the game, hold a Settings slider a moment and the rest of the menu fades away, so you see the change on the game as you drag.
+
+- Banana peel, a new toy in Collection > Toys: turn it on (`toy_banana`) and drop banana peels on the floor with your drop key (`banana_drop`, in Key bindings), tossed ahead when you run. A player who has it on too and walks onto one slips with a cartoon sound, feet in the air, and falls as a ragdoll; the peel is gone. Three peels down at a time, two minutes each, none by a spawn point, and See banana peels hides them on your PC _(Sol, after Kushina's idea)_
+- Macs: the window is the size it says. A 1280 x 720 window was a quarter of that on a Retina screen; sizes now count the screen's points, as in EternalJK, and the Resolution list offers them. The world is drawn at the same resolution, half a Retina screen's pixels each way, with the menus and HUD still sharp: fullscreen on a MacBook drew about six times the pixels of the old window and lost frames. Settings > Video > High DPI (`r_highDpi`) turns the full Retina sharpness back on; it is on, as before, on Windows and Linux _(Sol, after Glen's report)_
+- Fullscreen keeps the whole screen: on a Mac, reloading the graphics or picking a resolution while in fullscreen shrank the game into a small window in the middle of a black screen. The Resolution setting now sizes the window only while it is windowed, as the Resolution list already said _(Sol, after Glen's report)_
+- The holocron limit (8 a day) now resets for everyone at 9:00, Paris time, instead of 24 hours after each holocron; the Holocrons tab says "n of 8 today" and, at the limit, how long until it resets. The countdown no longer goes wrong after a trade (it could say hours while the next holocron came at once) _(Sol)_
+- SJK staff's tick is a silver starburst of sixteen points edged in teal, so it stands out from the round seals of verified players _(Sol)_
+- Chat that reads over bright maps: Settings > Chat has Chat backdrop, a dark band behind each line of the chat, as long as its words and as dark as you choose (`cg_chatBoxBackdrop`, 0 to 100 per cent), and Chat text outline, a dark edge round every letter of the chat and of what you type instead of its shadow (`cg_chatBoxOutline`). Both are off until you turn them on _(Sol, after Creo's idea)_
+- Player card: Key only (Settings > HUD+ > Player card, `cg_playerCard 2`) shows a player's card only when you press Inspect player (X), never from looking at them; On look and key, the default, works as before _(Sol, after Blep's idea)_
+- Collection marks on saber shaders: the ones you wear say Worn in Collection > Shaders, the Forge's Break down and the trade window, and breaking down the last copy of one you wear says so first. Star your favourites (F) to list them first, with a Favourites filter (Shift+F), and lock a shader (L) so it is never broken down or traded until you unlock it; the SJK hub keeps both, on every PC you play on. Shaders you got since you last looked carry a New sticker until you have looked at one for a second (sweeping the pointer across them clears none), the Shaders tab counts them, and Mark all seen (N) clears them _(Sol, after Atrosex's and Kushina's ideas)_
+- Plugin options without typing a number: Settings > Mods has JA+ plugin options and jaPRO plugin options, switches named after what they do (See others in duels, Black sabers, Staff on the back, Damage numbers, Checkpoints in chat...), each On while its feature is on, in place of `cp_pluginDisable 1536`. `japlus.plugin` and `japro.plugin` list and switch them with JoF EJK's numbers. Options SJK cannot follow yet (ledge grab, the new DFAs, jaPRO's rolls and cartwheels) are not offered _(Sol, after Kushina's idea)_
+- Holstered sabers: `cp_pluginDisable` bit 29 hides them, as in JoF EJK; bit 13, JA+'s single-player cartwheel, no longer does _(Sol, after JoF EJK)_
+- Mystery boxes can hold a pile of kyber shards (6%), a free roll (5%) or the Mystery blade (1%), a Legendary saber shader found nowhere else. The roll now only shows what a box can give, no more weapons _(Sol)_
+- Monitor: hit by 5 monitors within 20 seconds, you get a Screen Saver, a gold shell that monitors pass through for 30 seconds while you still throw yours. Two new achievements come with it: Payback, and a secret one _(Sol)_
 - Mystery boxes hold a holocron one time in ten (it was one in fifty), and the roll shows the four tiers' real holocrons, stopping on the one you won. A box that blows up laughs with Sol's own laugh when the SJK extras pack is installed _(Sol)_
 - Centre prints and the words over mystery boxes (and the box hunt's mark) are drawn in Fira Sans Condensed, a real typeface close to the old menu font, instead of a tracing of a low-resolution bitmap _(Sol)_
 - Box hunt: one mark every 10 minutes at most, not one after the other. Hunters see the mark ringed in red, and a black name reads on the hunt's card _(Sol)_
@@ -62,6 +110,37 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - A mod's notice (JoF: SJK chat is said in All chat) no longer closes for good when you jump as it opens: it takes no input for its first 0.6 s, and Space no longer closes it _(Slash, PR #257)_
 - Blocking: a player blocked for this map, or by SJK staff, can no longer reach you with encrypted whispers either (no console line, flash or sound), as with game chat _(Slash, PR #258)_
 - Profile > Character: a model that can be coloured gets Red, Green and Blue sliders under the model grid, as in JoF EJK; the model on the stage shows the colour at once and Apply wears it (the grid's pictures stay as they are) _(Creyon, PR #269)_
+- Settings: in the game, hold a slider (its track or knob) a moment and everything else fades away, the darkening behind too, leaving only that slider over the game, so you see the change as you drag; letting go brings the menu back. Settings > Interface > Slider peek (`ui_sliderPeek`) switches it off _(Slash, PR #248, after Blep's idea)_
+- Chat: a new Admin button beside All, Team and SJK sends your message to the server's admins only (amsay), on JA+ and jaPRO servers, and Controls has an Admin chat key for it. In Settings > Chat you choose which buttons show: Team, SJK, Admin and PM. PM replies to players who whispered you: left click goes to the next one, right click to the one before. With Tabs hide other chat on, a button shows only its own messages while you type; off, it only picks where you talk (Creo's idea) _(Creyon, PR #259)_
+- Achievements: Blue Master, Yellow Master, Red Master, Dual Sabers Master and Staff Master, for 50 duels won with the saber in that style (private duels, saber only or full Force, and duel games) _(Slash, PR #272, after Dante's idea)_
+- Chat: the console key opens the console while you are typing in the chat, as in the original game; the chat waits under it with what you typed, and the console now covers it instead of the chat's text showing on top. Shift with it still types `~`, and a letter, a digit or a printable key bound to the console types as before. Settings > Interface > Console over chat (`con_overChat`) turns it off _(Slash, PR #255)_
+- Movement keys: Settings > HUD > Movement keys (`cg_movementKeys`, off) shows jump, forward, crouch, left, back and right on screen, each lit while held, and guesses them for a player you follow or watch in a demo; `cg_movementKeysX`, `cg_movementKeysY` and `cg_movementKeysSize` move and size them. With EternalJK installed they use its key pictures _(Creyon, PR #275, after JoF EJK)_
+- Prediction: in CTY, carrying a flag no longer predicts Force jumps and wall moves the server refuses; prediction now knows the server's game type _(Lumaya, PR #249, after the original game)_
+- Prediction: standing on an NPC bounces you off it at once, as the server does, and wall and saber moves see the players and NPCs around you _(Lumaya, PR #250, after the original game)_
+- Prediction: in zero gravity, jumping pushes you off along your view as the server does, instead of nothing until the server corrects you _(Lumaya, PR #251, after the original game)_
+- Prediction: jump pads and teleporters are touched with your real body size, so at their edges, after a roll, they no longer disagree with the server _(Lumaya, PR #254, after the original game)_
+- Prediction: while another player carries you, your movement keys stop at once instead of fighting the server; looking and attacking still work _(Lumaya, PR #261, after the original game)_
+- Prediction: the gesture key plays its hand gesture at once instead of after the server answers _(Lumaya, PR #262, after the original game)_
+- Vehicles: riders can hold the blaster, not the pistol, as the server allows _(Lumaya, PR #263, after the original game)_
+- Vehicles: a rider who can be seen fires their melee, saber or blaster at once, predicted like on foot _(Lumaya, PR #264, after the original game)_
+- Rocket lock: the lock-on sees through and stops at the same things as the server, and locks on NPCs and vehicles too, not only players _(Lumaya, PRs #265 and #268, after the original game)_
+- Prediction: water, lava and other contents of moving doors and lifts are tested where you see them _(Lumaya, PR #270, after the original game)_
+- Vehicles: a passenger no longer walks on their own between updates while the vehicle is not predicted _(Lumaya, PR #276, after the original game)_
+- Nameplates: a Name outline setting (Off, Faint, Strong); Strong edges every name in a dark outline so it reads on any background (`cg_nameplateOutline`) _(Slash, PR #280, after Lex's idea)_
+- SJK radial HUD: two Settings sliders, Radial HUD spacing and Radial HUD height, move its meters farther from your character and up or down the screen (`cg_hudRadialSpread`, `cg_hudRadialHeight`) _(Slash, PR #281, after Lex's idea)_
+- Laptops with two graphics cards: SJK asks the NVIDIA or AMD driver for the fast card, tries another card if the first one cannot start the game, and says why when nothing works instead of closing without a word (found by Nib for SimpleSmokie) _(Slash, PR #283)_
+- jaPRO servers: in race mode your moves are cut and rounded as jaPRO does (no 66 ms slices, 8 ms in OCPM and rolls, velocity kept exact), so racing snaps back less; other servers are unchanged _(Lumaya, PR #277, after jaPRO)_
+- Three JoF EJK options: Saber hit sparks (`cg_fleshSparks`, 0 to 7, Settings > Game options) sets how many red sparks a saber hit on a body makes, 7 as before; Hold mouse 4/5 repeats (`in_mouseRepeat`, Settings > Controls) runs a held mouse 4 or 5's bind again, 20 times a second at any frame rate (EJK does it with the frame rate, which floods servers that cap commands); and the Lagometer (`cg_lagometer`) gains 2, the average ping and interpolation in numbers as large as EJK's, just above the graph, with a speed graph above them, and 3, the same without the backdrop _(Sol, after Kushina's idea and JoF EJK)_
+- Prediction: when commands were lost on the way, your view holds still until the server catches up, instead of guessing from a gap _(Lumaya, PR #252, after the original game)_
+- Saber locks: your view faces your opponent at once, as the server turns you, instead of after the next update _(Lumaya, PR #253, after the original game)_
+- Prediction: just after respawning, a jump held from before is not predicted until you let go of attack and use, as the server does _(Lumaya, PR #260, after the original game)_
+- Prediction: the dual sabers jump attack shrinks and restores your body as the server does, so it no longer catches on ceilings in prediction only _(Lumaya, PR #266, after the original game)_
+- Prediction: wall runs, flips and saber moves use the sabers you really hold, not the stock ones _(Lumaya, PR #267, after the original game)_
+- Vehicles: other players' vehicles collide with the size and turn you see them at _(Lumaya, PR #273, after the original game)_
+- jaPRO servers: each movement style (CPM, QuakeWorld, Tribes, Surf, Slick, Siege and the others) accelerates, brakes and crouches as jaPRO does, so it no longer snaps back _(Lumaya, PR #279, after jaPRO)_
+- jaPRO servers: each style's jumps, held jumps, bunny hops, ramp and double jumps and its Force jump limits are predicted as jaPRO does; `cp_pluginDisable` bit 19 picks only-bhop where the server allows _(Lumaya, PR #282, after jaPRO)_
+- jaPRO servers: the new jetpack (race jetpack) lifts, thrusts and steers at once, predicted as jaPRO does _(Lumaya, PR #284, after jaPRO)_
+- `fs_restart` mounts the game files again without restarting SJK: a PK3 you just added (a model, a saber, a map) shows in the profile and Create game, and the asset browser's pack choices apply; the map on show gets them at the next map _(Slash, PR #286, after Blep's idea and the original game)_
 
 ## 2026.1028.1 (Alpha) | 28/10/2026
 

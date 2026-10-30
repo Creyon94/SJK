@@ -592,9 +592,9 @@ mod tests {
         crate::achievements::Record::default().standings(&held)
     }
 
-    /// The six categories fit four bands of twelve: Combat alone, Duels and flags beside
-    /// Journeys, Community beside Collection, Toys; a retired achievement not held is left
-    /// out and one held takes its place.
+    /// The six categories fit four bands of twelve: Combat alone, Duels and flags alone
+    /// (with the five style masters), Journeys beside Community, Collection beside Toys;
+    /// a retired achievement not held is left out and one held takes its place.
     #[test]
     fn the_wall_packs_the_categories_into_bands() {
         let standings = standings_holding(&[]);
@@ -607,11 +607,11 @@ mod tests {
             layout,
             [
                 ("Combat", 0, 0, 11),
-                ("Duels and flags", 1, 0, 6),
-                ("Journeys", 1, 7, 5),
-                ("Community", 2, 0, 3),
-                ("Collection", 2, 4, 7),
-                ("Toys", 3, 0, 2),
+                ("Duels and flags", 1, 0, 11),
+                ("Journeys", 2, 0, 5),
+                ("Community", 2, 6, 3),
+                ("Collection", 3, 0, 7),
+                ("Toys", 3, 8, 4),
             ]
         );
         let slots: Vec<Slot> = slots(&groups).collect();

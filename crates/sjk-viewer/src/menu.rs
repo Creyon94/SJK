@@ -392,6 +392,11 @@ impl ClientMenu {
         &mut self.loading
     }
 
+    /// End a held Settings slider's peek ([`SettingsMenu::cancel_peek`]).
+    pub(crate) fn cancel_slider_peek(&mut self) {
+        self.settings.cancel_peek();
+    }
+
     /// Build the dark the backdrop's camera tour fades through between its
     /// shots and cuts through to a screen's shot, over the world `viewport`
     /// shows ([`Self::world_fade`]); false while the world is clear.
@@ -1308,6 +1313,16 @@ impl ClientMenu {
         self.create_game.attach_vfs(std::sync::Arc::clone(&vfs));
         self.keybinds.attach_vfs(std::sync::Arc::clone(&vfs));
         self.player.attach_catalogue(vfs);
+    }
+
+    /// The game files mounted again (`fs_restart`): list the new ones from `vfs`.
+    pub(crate) fn refresh_catalogue(
+        &mut self,
+        vfs: std::sync::Arc<sjk_vfs::VirtualFileSystem>,
+        console: &ViewerConsole,
+    ) {
+        self.attach_catalogue(vfs);
+        self.player.prime(console);
     }
 
     /// Leave or stay on the player screen after one of its events.
