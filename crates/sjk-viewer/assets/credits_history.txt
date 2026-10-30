@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 30/10/2026 | - | Achievements: the toys' own, and a Fun page for them
+- 04151f1 |  | Achievements: the toys' own, and a Fun page for them
 + 30/10/2026 | - | Release 2026.1030.2
 - 2ddd0d8 |  | Release 2026.1030.2
 + 30/10/2026 | - | jaPRO plugin options: offer Force jumps, now that prediction follows it

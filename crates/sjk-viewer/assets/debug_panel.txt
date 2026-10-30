@@ -24,6 +24,19 @@
 
 # ---- Console & chat ----
 
+[toy-achievements]
+area: Menus & settings
+title: Toy achievements (26) and the Achievements board's General and Fun pages
+change: Collection > Achievements: F or the switch at the top right turns General and Fun.
+change: Fun has a category per toy: box, Order 66, Hax, Drone, Boombox, Monitor, Box hunt.
+change: Counted on a server not on this PC; the box hunt's four are counted by the hub.
+test: Open the board: General shows Combat to Collection, Fun the seven toys, nothing cut off.
+test: Hit 2 opted-in players with one monitor: Two for One waits for the hub, then unlocks.
+test: Steer a player with the Hax into a pit: Leap of Faith; steer 5 minutes: Script Kiddie.
+test: Have a player lift your box, then kill them within 3 seconds: Surprise!.
+test: Peek a player, end the peek, kill them within 10 seconds: Eye in the Sky.
+note: Needs the hub's toy-achievements deployed, else they stay at Waiting for the SJK hub.
+
 [banana-in-look]
 area: Gameplay
 title: Banana peel in the hub look: its id goes in the look's toys while it is on
