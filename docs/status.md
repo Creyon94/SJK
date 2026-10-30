@@ -1,3 +1,11 @@
+## Copy server endpoints
+
+30/10/2026, `feat/copy-server-address`, based on `main` `82c8c185`: the SJK
+and classic browsers expose Copy IP and Ctrl+C outside fields/dialogs. The console's
+`copyServerIP` copies the connected endpoint, including its port and IPv6 brackets;
+no password or command is copied. Windows x64 workspace build passed. Clipboard
+behavior on other desktops and the final UI/runtime checks remain unverified.
+
 ## Prediction regression audit
 
 30/10/2026, Windows x64: audit #305 reviewed the 25 prediction PRs from

@@ -6956,3 +6956,12 @@ the server; the world draws its own shaders until the server sends new remaps (a
 shader-state change or a `remapShader` command) or a new map loads. As in
 EternalJK, destination time offsets are kept. See [rendering](rendering.md#server-shader-remaps)
 for scope and remaining limitations. These controls do not edit map geometry.
+
+### Copying a server address
+
+The SJK and classic server browsers offer **Copy IP** for the selected server.
+Ctrl+C copies the selection while no text field or dialog is open; in a field it
+still copies that field. The copied endpoint includes the port (and brackets for
+IPv6), with no password or command. The browser reports success or clipboard failure.
+`copyServerIP` copies the connected server's endpoint from the console; disconnected
+clients report that no server is connected.
