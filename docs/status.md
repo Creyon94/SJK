@@ -1,3 +1,15 @@
+## Prediction regression audit
+
+30/10/2026, based on `main` `c1b90267` and release `2026.1030.1`
+(`b138373f`): players report incorrect dual-saber attacks, jumping and
+strafe-jump speed on JA+ after the 29/10 prediction merges. The report is not
+yet isolated to a particular change. Audit the complete prediction PR set,
+including shared movement paths and JA+/base/jaPRO isolation, before adding
+further movement features. Previous kernel fixtures and successful Cargo checks
+did not establish end-to-end JA+ gameplay parity. Corrections or reversions need
+a reproducible before/after comparison with the applicable multiplayer source
+and command steps 8/7/4/3 ms. Live confirmation remains pending.
+
 ## Banana peel in the look
 
 30/10/2026, `personal/sync-origin`, based on `main` `bc9343ff`, with the hub's `look-toys`
