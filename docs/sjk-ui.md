@@ -2746,6 +2746,16 @@ separate approval; removing a source stops cached playback. See
 The field uses the shared text-entry handler, including selection, clipboard and
 held-key editing.
 
+## Incoming chat colour
+
+Settings > Chat includes **Incoming chat colour**, a named choice shared with
+the classic settings. Original preserves authored colours; the other ten choices
+force message bodies while keeping sender names and non-message controls distinct.
+
+Incoming chat colour, cyan selected (offline fixture):
+
+![Incoming chat colour](images/incoming-chat-colour.png)
+
 ## Plan
 
 The next screens, in order; each gets snapshot tests before it replaces its
@@ -2760,11 +2770,3 @@ classic version:
 
 `sjk` became the default `ui_menuStyle` before these were done. mp/duel6 has
 its tour, player stage and saber shot.
-
-Settings > Chat includes **Incoming chat colour**, a named choice shared with
-the classic settings. Original preserves authored colours; the other ten choices
-force message bodies while keeping sender names and non-message controls distinct.
-
-Incoming chat colour, cyan selected (offline fixture):
-
-![Incoming chat colour](images/incoming-chat-colour.png)
