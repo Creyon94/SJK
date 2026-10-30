@@ -383,6 +383,7 @@ impl GpuState {
                     trace_scratch: &mut self.trace_scratch,
                 },
             );
+            let toys = self.toy_moments();
             crate::achievements_frame::observe(
                 &mut self.achievement_tracker,
                 &self.obituaries,
@@ -390,6 +391,7 @@ impl GpuState {
                 snapshot,
                 obituaries_before,
                 self.cardboard_box.hiding(),
+                toys,
                 visual_now,
             );
         }
