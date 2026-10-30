@@ -469,9 +469,10 @@ did: Reported fullscreen on a Mac shrinking the game into a black screen
 did: His frame rate in fullscreen: Mac sizes and the world now count points (r_highDpi)
 
 [Blep]
-role: Tester, and ideas for SJK
+role: Tester, tag artist and ideas for SJK
 did: Found encrypted whispers ending with a backslash going out unencrypted
 did: The player card on the inspect key only, never from a look (Key only)
+did: Drew the Gonk, EZ and Geyon tags
 
 == Made with
 
