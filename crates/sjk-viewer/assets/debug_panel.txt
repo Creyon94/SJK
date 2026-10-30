@@ -24,6 +24,16 @@
 
 # ---- Console & chat ----
 
+[banana-in-look]
+area: Gameplay
+title: Banana peel in the hub look: its id goes in the look's toys while it is on
+change: The look lists banana while toy_banana is on, as the other toys; peels are unchanged.
+change: Needs the hub's look-toys (32 toy ids) deployed: an older hub took 8 at most.
+test: Turn every toy on (box, Order 66, Hax, Drone, Boombox, Monitor, Box hunt, Banana peel).
+test: A second SJK client still sees your blade skin and your carton: the look went through.
+test: Drop a peel with all of them on: the other client sees it and slips on it as before.
+note: An old hub refuses a look with all nine toys (bad_look): the blade skin stops showing.
+
 [banana-peel]
 area: Gameplay
 title: Banana peel toy: drop peels; opted-in players who walk onto one slip (Kushina's idea)

@@ -5293,8 +5293,10 @@ onto it slips, cartoon style, and falls as a [ragdoll](#ragdoll).
   slip: a player with the toy on and peels hidden still slips on the ones they walk onto.
   Settings > Sound > Toys, "Banana peel sounds" (`s_toyBananaSound`), silences them.
 
-No game server knows of it, and nothing goes in the hub's looks (they hold eight toy ids
-at most, all taken): every SJK client on the server learns of a peel through the
+No game server knows of it. While it is on, the player's look lists it, as the other
+toys' do (`toys: ["banana"]`, since 30/10/2026, when the hub's looks went from eight toy
+ids to 32; [unlockables.md](unlockables.md); `looks::TOYS`). The peels go otherwise:
+every SJK client on the server learns of a peel through the
 [toy relay](hub-chat.md#toy-relay). The dropper's client tells each SJK player in turn,
 the nearest first, one event every 50 ms, and the ones who come later while it lies:
 `drop_<number>_<moment>_<x>_<y>_<z>_<dx>_<dy>_<dz>_<yaw>` (the peel's number among the
