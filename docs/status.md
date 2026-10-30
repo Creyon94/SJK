@@ -1,3 +1,31 @@
+## Banana peel in the look
+
+30/10/2026, `personal/sync-origin`, based on `main` `bc9343ff`, with the hub's `look-toys`
+(a look holds up to 32 toy ids, 8 before, `bad_look` past them). The Banana
+peel was kept out of the look's `toys` when it came (29/10/2026) because SJK's toys
+already filled the hub's 8; its id `banana` now goes there while it is on, as the other
+toys' do (`looks::TOYS`, nine; `Worn::toys` is a `u32`, as many bits as the hub's 32
+ids). The peels still go through the toy relay, and the dropper's `clear` stays: clients
+of 29/10 and 30/10/2026 do not list the toy. Nothing else in the client caps a look's
+toys (`sjk-identity` sends the list as it is; the blade's option lists keep their 8).
+The hub must be deployed first: a hub from before refuses a look with all nine toys out
+as `bad_look`, which the client takes as its blade skin refused. Verified:
+`looks::tests::every_toy_goes_both_ways_all_at_once`, the looks and banana tests. Not
+verified: a look with nine toys on the live hub.
+
+## jaPRO plugin options: Force jumps
+
+30/10/2026, `personal/sync-origin`, based on `main` `bc9343ff`: Force jumps (`cp_pluginDisable`
+bit 19, `JAPRO_PLUGIN_BHOP`), hidden by the plugin options of 29/10/2026 because the
+prediction did not follow it, is offered under jaPRO plugin options (`japro.plugin 1`,
+[mods.md](mods.md#plugin-options)). Lumaya's PR #282 made the prediction read the bit
+(`JaProRules::only_bhop`, both of EternalJK's checks, `bg_pmove.c:2670` and `2836`, only on
+a jaPRO profile advertising `JAPRO_CINFO_BHOP2`), refreshed from the cvar each frame
+(`runtime_settings.rs`). Verified: the table's tests (polarity, listing, switching) and
+`settings::plugin_rows::tests::japro_rows_follow_their_bits` (the row sets the bit the
+prediction reads), with Lumaya's `japro_only_bhop_*` tests. Not verified: only-bhop on a
+jaPRO server in game.
+
 ## Mystery box: a take seen by everyone
 
 30/10/2026, `personal/box-take-sync`, based on `main` `c784eb8f` (Sol's report: when a
@@ -74,8 +102,8 @@ The slipping player's client decides the slip against its own predicted player (
 ground, moving, feet on a peel it came at) and falls as the Ragdoll does, with a blow at a
 foot (`ragdoll::UNTHROWN` names no monitor) that throws the feet over the head and lays the
 body on its back. Peels, slips and clears go through the toy relay as `drop_...`,
-`slip_<dropper>_<number>` and `clear`; nothing in the looks, which hold eight toy ids at
-most and are full. No hub change (the relay checks no toy ids: `relay.rs`, "The hub knows
+`slip_<dropper>_<number>` and `clear`; nothing in the looks, which held eight toy ids at
+most and were full (the look lists `banana` since 30/10/2026: "Banana peel in the look"). No hub change (the relay checks no toy ids: `relay.rs`, "The hub knows
 no toys"). Collection > Toys has ten rows (64 high, was 68), `cg_toyBananaShow` hides the
 peels, `s_toyBananaSound` silences them; the key bindings' icons have four more atlas
 cells (the atlas keeps its height). Model, picture, icon, slip and drop sounds are SJK's own
