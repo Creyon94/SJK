@@ -464,6 +464,14 @@ test: A second SJK client on the same map sees it; one joining later sees it too
 test: cg_toyTags 0 on the other client hides yours; a map change clears it.
 note: Pictures are hub placeholders until Sol's art; the hub branch is not deployed.
 
+[tags-gonk-geyon]
+area: Gameplay
+title: Blep's tags: Gonk and Geyon new, EZ drawn (needs the hub's tags-gonk-geyon branch)
+change: Gonk (Uncommon) and Geyon (Rare) join the tags; the EZ tag has Blep's art.
+test: Collection > Tags: Gonk after Rage Quit, Geyon after Saber Skull, EZ shows 100% EZ.
+test: Grant yourself tag_gonk and tag_geyon on the hub, stick each: the picture, not a badge.
+note: Old clients do not know Gonk or Geyon: deploy the hub with the release.
+
 [ragdoll-wake]
 area: Gameplay
 title: Jump, attack or taunt gets you up from a ragdoll

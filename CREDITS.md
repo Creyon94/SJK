@@ -844,6 +844,11 @@ serves it to every SJK player in the `sjk_solfox` pack (16/10/2026), so anyone m
 wear it and SJK players see it on each other. Reyced keeps the rights to the model;
 it is distributed with his permission and is not part of SJK's code or its licence.
 
+Blep, a player, drew the Gonk, EZ and Geyon tags (Geyon for Creyon) and proposed them
+in the Discord's #tag-proposals; Sol picked them (30/10/2026), and the SJK hub serves
+them to every SJK player in the `sjk_tags` pack. Blep keeps the rights to them; they
+are not part of SJK's code or its licence.
+
 ## Ideas
 
 Kushina, a player, sent Sol the idea of a blossom blade (15/10/2026): a locked blossom

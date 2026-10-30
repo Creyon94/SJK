@@ -604,6 +604,14 @@ floor (`world_shot::duel6_tags_on_walls_and_floor`) and the Tags tab
 (`world_shot::duel6_sjk_collection_tags`). Not verified: in a game, against the hub, two
 clients seeing each other's tags, or the opening's tag prize drawn.
 
+30/10/2026, `personal/tags-gonk-geyon`, based on `main` `c784eb8f`: the first tags from
+the Discord's `#tag-proposals`, all three Blep's and picked by Sol: `tag_gonk` (Uncommon)
+and `tag_geyon` (Rare, for Creyon) join the catalogue, and the EZ tag gets its art (the
+pictures are in the hub's `sjk_tags` pack, hub branch `tags-gonk-geyon`).
+`scripts/tag_assets.py` now also reads the entries rustfmt wraps over two lines (it had
+dropped Crossed Sabers and Droid Doodle). Verified: the catalogue and bundled-shader unit
+tests. Not verified: in a game or against the live hub.
+
 ## Each swing heard once across the predicted and server animations
 
 27/10/2026, `fix/swing-sound-171`, based on `main` `685edded` (hub report #171, Kushina,
