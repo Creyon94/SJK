@@ -1493,6 +1493,83 @@ mod tests {
         let _ = &families.display;
     }
 
+    /// On the Profile screen a staff key gets Change name, the Name emoji button and
+    /// Staff tools in one row: each label fits its button, the buttons keep apart and
+    /// within the left column, and each answers the pointer (hub report #202).
+    #[test]
+    fn change_name_emoji_and_staff_tools_fit_their_buttons() {
+        let families = fonts();
+        let record = record();
+        let standings = standings();
+        for emoji in ["", "\u{1F98A}"] {
+            let mut me = full_profile();
+            me.staff = true;
+            me.emoji = emoji.to_owned();
+            let online = snapshot(Some(me), None);
+            for viewport in [[1920.0, 1080.0], [3840.0, 2160.0], [1440.0, 1080.0]] {
+                let frame = Frame::new(viewport);
+                let mut panel = Panel::new();
+                panel.open_as(true, Mode::Hub);
+                let inputs = Inputs {
+                    enabled: true,
+                    snapshot: Some(&online),
+                    standings: &standings,
+                    record: &record,
+                };
+                panel.build(&inputs, &families.body.font, TextStyle::NEUTRAL, viewport);
+                assert!(!panel.ui.overflowed());
+                assert!(panel.staff);
+                assert_eq!(panel.emoji, emoji);
+                // An emoji is drawn about as wide as the text is tall.
+                let emoji_label = if emoji.is_empty() {
+                    ("Add a name emoji", 0.0)
+                } else {
+                    ("Name emoji ", 22.0)
+                };
+                let left = frame.point(LEFT_X, 0.0)[0];
+                let right = frame.point(LEFT_X + LEFT_WIDTH, 0.0)[0];
+                let mut end = left - 1.0;
+                for (token, (label, extra)) in [
+                    (NAME_TOKEN, ("Change name", 0.0)),
+                    (EMOJI_TOKEN, emoji_label),
+                    (STAFF_TOKEN, ("Staff tools", 0.0)),
+                ] {
+                    let rect = panel.ui.rect_for(token).expect("the button's area");
+                    // Room for the label (measured in the heavier weight) and the
+                    // pill's rounded ends.
+                    let needed = (crate::text::display_width(label, 20.0) + extra + 24.0) * frame.s;
+                    assert!(
+                        needed <= rect.width,
+                        "{label:?} needs {needed}, has {} at {viewport:?}",
+                        rect.width
+                    );
+                    assert!(
+                        rect.x > end && rect.right() <= right + 0.5,
+                        "{label:?} at {viewport:?}"
+                    );
+                    end = rect.right();
+                }
+            }
+        }
+        // On its own the page has no Change name.
+        let online = snapshot(Some(full_profile()), None);
+        let mut alone = Panel::new();
+        alone.open_as(true, Mode::Pages);
+        let inputs = Inputs {
+            enabled: true,
+            snapshot: Some(&online),
+            standings: &standings,
+            record: &record,
+        };
+        alone.build(
+            &inputs,
+            &families.body.font,
+            TextStyle::NEUTRAL,
+            [1920.0, 1080.0],
+        );
+        assert!(alone.ui.rect_for(NAME_TOKEN).is_none());
+    }
+
     /// The picture panel fits the canvas in each of its states, keeps to the middle
     /// column, and its controls (and the picture that opens it) answer the pointer
     /// above the keys, at 1080 lines, 4K, 4:3 and 21:9.
