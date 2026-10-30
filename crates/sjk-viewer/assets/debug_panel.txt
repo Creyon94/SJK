@@ -24,6 +24,16 @@
 
 # ---- Console & chat ----
 
+[day-pc-clock]
+area: Rendering & effects
+title: Day and night follow the PC's clock (r_dayClock), every preset, Creyon's #296
+change: Settings > Lighting > Sun follows PC clock: the hour is the PC's local time.
+change: Sun and sky on: the sun moves. Off (SJK, Vanilla): world 0.4 at night, a night sky.
+test: SJK preset, clock on in the evening: ffa3 darkens, the sky turns to night, HUD unchanged.
+test: Sun and sky on: the sun stands where the PC's hour puts it.
+test: Turn it off: the world is bright again at once; the sky after a map load or vid_restart.
+note: Off by default; with it off nothing changes. Check eye adaptation does not undo the night.
+
 [spectator-click-follow]
 area: Gameplay
 title: Spectators: aim at a player to see their name, left-click to follow them (Lukas, #304)

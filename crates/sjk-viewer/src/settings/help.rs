@@ -1455,6 +1455,10 @@ const HELP: &[(&str, &str)] = &[
         "The hour of the sun, 0 to 24, when the sun and sky are on.",
     ),
     (
+        "r_dayClock",
+        "Day and night follow your PC's clock; without Sun and sky the nights are darker.",
+    ),
+    (
         "r_dayMinutes",
         "Real minutes a whole day lasts; 0 holds the hour still.",
     ),

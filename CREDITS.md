@@ -413,7 +413,7 @@ includes:
 Creyon and Lumaya wear the SJK team's Contributor medal, shown on their
 cards of the in-game credits page.
 
-Creyon ([Creyon94](https://github.com/Creyon94)), contributor and tester, has 69
+Creyon ([Creyon94](https://github.com/Creyon94)), contributor and tester, has 70
 pull requests merged into SJK, most of them bringing SJK in line with EternalJK
 ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3ACreyon94)):
 
@@ -524,6 +524,9 @@ pull requests merged into SJK, most of them bringing SJK in line with EternalJK
   blades, and its last three the Comic, Quicksilver and Obsidian Edge blades.
 - #297 Blade core thickness (`cg_saberCoreSize`, 0.5 to 2): the white core of every lit
   blade drawn thinner or bolder, its glow unchanged, after the #ideas recap of 29/10/2026.
+- #296 day and night follow the PC's clock (`r_dayClock`): the sun moves with Sun and sky
+  on; without it the world darkens and the sky turns to night, in the SJK and Vanilla
+  presets too.
 
 Lumaya ([lumayaa](https://github.com/lumayaa)), contributor, has 81 pull requests
 merged into SJK

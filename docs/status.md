@@ -1,3 +1,34 @@
+## Time of day from the PC's clock
+
+30/10/2026, `feat/pc-clock-time`, based on `main` `b138373f`: with `r_dayClock 1`
+(Settings > Lighting > Sun follows PC clock, off by default) day and night follow the PC's local time, daylight saving included
+(`sjk_shell::local_time`); the clock is read at most once a second (`day_live::PcClock`),
+so frames never ask the time zone rules. With Sun and sky (`r_dayNight 1`) the sun's hour
+is the PC's, over `r_dayHour` and `r_dayMinutes`. The SJK (recommended) and Vanilla style
+presets keep Sun and sky off, where the hour moved nothing:
+there the night is a darker exposure, factor 1 by day, 0.4 from 20:30 to 05:00, eased
+through dusk from 18:00 and dawn to 07:00 (`day_live::night_tint`), multiplied in after
+eye adaptation (`Params::night` in `post_exposure.wgsl`), which brightens less as the night
+deepens and not at all in full night (`post_exposure::day_share`: in a match the dark night sky
+made it brighten the view back), so the night is not adapted
+away, and the HUD, composed after the scene resolve, keeps its brightness; and the sky alone turns
+to dusk and night with the PC's hour: the sky stage's day tint, installed without sun or shadows
+(`day::Settings::sky`), its clock written only when the hour changes
+(`sky_stage::Runtime::follow_day_clock`), from the next map load or graphics reload, and with the
+clock off again shows noon, the authored sky as it is (`day_live::Clock::sky_values`;
+before, it stayed tinted by `r_dayHour`)
+([rendering.md](rendering.md)). A changelog `= r_dayClock:` line offers it on the what's-new
+card. Verified: the unit tests `the_pc_clock_gives_the_hour_of_the_sun`,
+`the_pc_clock_switch_takes_the_hour_and_gives_it_back`,
+`the_night_tint_darkens_the_night_only`, `the_night_takes_away_the_brightening_only` and
+`without_the_pc_clock_the_sky_keeps_its_own_look`, the ignored world shot `pc_clock_night`
+(ffa3: darker on switching, night sky from the load), the exposure programs translating for Vulkan and
+DX12, fmt, build, Clippy and the workspace's tests. In game on Windows
+(29/10/2026): with Sun and sky on, the map goes dark at night; (30/10/2026) the night
+exposure and the night sky in the SJK and Vanilla presets on ffa3 and a JoF server, and on
+Taspir the map's own sky and sun back with the clock switched off. Not verified: dusk and
+dawn in game.
+
 ## Blade core thickness
 
 30/10/2026, `feat/blade-core-thickness`, based on `main` `bc9343ff`: `cg_saberCoreSize`
