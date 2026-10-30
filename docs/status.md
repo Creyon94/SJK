@@ -1,7 +1,7 @@
 ## Banana peel in the look
 
 30/10/2026, `personal/sync-origin`, based on `main` `bc9343ff`, with the hub's `look-toys`
-(`cdeb88d`: a look holds up to 32 toy ids, 8 before, `bad_look` past them). The Banana
+(a look holds up to 32 toy ids, 8 before, `bad_look` past them). The Banana
 peel was kept out of the look's `toys` when it came (29/10/2026) because SJK's toys
 already filled the hub's 8; its id `banana` now goes there while it is on, as the other
 toys' do (`looks::TOYS`, nine; `Worn::toys` is a `u32`, as many bits as the hub's 32
