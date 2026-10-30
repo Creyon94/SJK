@@ -32,12 +32,21 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
-- Prediction on JA+ servers: dual sabers jump attacks no longer sink you into the floor, and joining no longer throws you sideways at high speed before the server stops you; two prediction changes of 2026.1029.1 (dual jump attack hull, zero gravity push) are backed out after Lumaya checked them against an original JA+ server _(Lumaya, PRs #305, #307 and #308)_
 - jaPRO plugin options: Force jumps (Settings > Mods, `japro.plugin 1`) is offered now that SJK predicts it: off, holding jump bunny hops instead of Force jumping, on jaPRO servers that let players choose _(Sol, after Kushina's idea and Lumaya's PR #282)_
 
 - Mystery boxes: when the opener takes what came out, everyone else sees it go and the lid close at once, instead of it floating on for 10 seconds _(Sol)_
 - Tags: two new ones, Gonk (Uncommon) and Geyon (Rare), and the EZ tag has its real picture, all three drawn by Blep and picked from the Discord's #tag-proposals _(Sol, art by Blep)_
 - A prompt by the crosshair shows what Use does at a mystery box, with the key you bound to Use: Open mystery box and its price, Take it, or why you cannot yet (your turn in a few seconds, not enough credits), instead of a message in the middle of the screen _(Sol)_
+
+## 2026.1030.2 (Alpha) | 30/10/2026
+
+Hotfix: dual sabers and joining JA+ servers behave again as before 2026.1029.1.
+
+> Dual sabers: The forward jump attack lands on the floor again instead of sinking into it.
+> Joining: You no longer slide away at high speed while a JA+ server lets you in.
+> Movement: Two prediction changes of 2026.1029.1 are backed out after checks on a real JA+ server.
+
+- Prediction on JA+ servers: dual sabers jump attacks no longer sink you into the floor, and joining no longer throws you sideways at high speed before the server stops you; two prediction changes of 2026.1029.1 (dual jump attack hull, zero gravity push) are backed out after Lumaya checked them against an original JA+ server _(Lumaya, PRs #305, #307 and #308)_
 
 ## 2026.1030.1 (Alpha) | 30/10/2026
 

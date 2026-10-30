@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 30/10/2026 | - | Release 2026.1030.2
+- 2ddd0d8 |  | Release 2026.1030.2
 + 30/10/2026 | - | jaPRO plugin options: offer Force jumps, now that prediction follows it
 - 6ed042b |  | jaPRO plugin options: offer Force jumps, now that prediction follows it
 + 30/10/2026 | - | Banana peel in the look: its id goes in the look's toys like the others
@@ -2692,6 +2694,10 @@
 - ddfe116 |  | Fix Linux clipboard integration
 
 = Lumaya
++ 30/10/2026 | - | Restore fixed dual-jump hull after JA+ runtime regression
+- 8fd4f9b |  | Restore fixed dual-jump hull after JA+ runtime regression
++ 30/10/2026 | - | Remove zero-gravity impulses from transient spawn prediction
+- f5e68c6 |  | Remove zero-gravity impulses from transient spawn prediction
 + 30/10/2026 | SJK #305 | Audit reported JA+ prediction regressions after October 29 merges
 - 626f005 |  | Record reported JA+ prediction regressions and audit scope
 - e25ad39 |  | Record runtime regression audit of all prediction PRs
