@@ -35,10 +35,13 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 = r_dynamicGlowNoSabers: New: the dynamic glow leaves saber blades and trails out, so each saber's details show while the rest still glows; off, sabers glow as before.
 = r_dayClock: New: day and night follow your PC's clock in every preset: with Sun and sky the sun moves, without it the sky turns to night and the world darkens.
 
-- Profile > SJK Profile has a Change name button: it opens the Character tab with its Name field ready to type, the name the hub and other SJK players see being the one you wear in game _(hub report #202, Nib)_
+- Profile > SJK Profile has a Change name button: it opens the Character tab with its Name field ready to type, the name the hub and other SJK players see being the one you wear in game _(Slash, PR #299, after hub report #202, Nib)_
 - Chat GIFs: Hide this GIF on the chosen message in SJK chat hides one GIF on your PC: its line reads GIF hidden and it never loads. The GIF picker's new Hidden tab lists the GIFs you hid, and a click on one shows it again; `gif_unhideall` shows them all (Kushina's idea) _(Creyon)_
 - Toys: switching a toy says its name and ON in green or OFF in red, short, for every toy (Illuminate, the cardboard box, Order 66 and the Hax said nothing, Box hunt, the Drone, the Monitor and the Banana peel said a long line), and `toy_help` lists every toy with what it does and how _(Creyon)_
+- All chat colour: Settings > Chat > All chat colour (`cg_chatColor`) shows the text of public All chat in one colour of your choice on your PC; team, admin, whispers and SJK chat keep theirs, as do names. Off (original colours) until you pick one _(Lumaya, PR #315)_
+- Vehicles: each predicted rider and vehicle leaves out its own pilot or chassis when it moves, as the original game does, instead of sharing one list for both _(Lumaya, PR #274)_
 - Melee kicks: holding the kick no longer leaves your kick frozen on its last frame while the server keeps kicking; each kick plays from the start _(Slash)_
+- Duels: `fakenoclip` and `freecam` are refused in a duel, and a duel starting ends them: the server saw a still player with the chat balloon up, and JoF's servers then spared them all damage _(Slash, after hub report #209)_
 - Away emote: alt-tabbing out or going idle while riding a vehicle no longer starts your away emote, which broke the vehicle's animations and attacks until you got off and on again _(Slash, after hub report #205)_
 - Force templates: on saber-only servers, templates such as JoF's Fullforce FFA no longer lose Force Speed (leaving only Sense) when the server's info does not show its free saber skills: SJK now takes them from the server's own word, as the original game does _(Slash, after hub report #206)_
 - Settings search: every result takes a typed number. Results from the later groups (part of Sound, Gameplay, Interface, HUD, Chat, Network) only took the slider; a click on their value did nothing (#203) _(Slash)_
@@ -54,6 +57,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Mac and Linux: SJK raises its open-file limit at start as far as the system allows, so many PK3s no longer run out of files, and the log tracks how many game-file sets are still held at each map change _(Lukas, PR #198)_
 - Achievements: 26 new ones for the toys (the cardboard box, Order 66, the Hax, the Drone, the boombox, the monitor and the box hunt), three of them secret, and the board has two pages, General and Fun, a category for each toy on Fun (press F or use the switch at the top right) _(Sol, after a player's ideas)_
 - jaPRO plugin options: Force jumps (Settings > Mods, `japro.plugin 1`) is offered now that SJK predicts it: off, holding jump bunny hops instead of Force jumping, on jaPRO servers that let players choose _(Sol, after Kushina's idea and Lumaya's PR #282)_
+
 - Spectating: while you follow a player, the join menu and the match card offer Join again, as they read your own team rather than the followed player's (hub report #207) _(Slash, PR #310, after Jaykmeit's report)_
 - Mystery boxes: when the opener takes what came out, everyone else sees it go and the lid close at once, instead of it floating on for 10 seconds _(Sol)_
 - Tags: two new ones, Gonk (Uncommon) and Geyon (Rare), and the EZ tag has its real picture, all three drawn by Blep and picked from the Discord's #tag-proposals _(Sol, art by Blep)_
