@@ -1,3 +1,13 @@
+## Saber definition precedence review
+
+30/10/2026, based on `main` `82c8c185`: investigate the catalog consumed
+by prediction PR #267. OpenJK `4d0dfaf1` concatenates `.sab` files in
+`FS_GetFileList` order and resolves the first matching saber name. SJK's
+shared catalog instead traverses sorted paths and replaces duplicate names.
+This predates #267, which exposes more of that catalog to combat prediction.
+A synthetic duplicate-definition reproduction and correction are pending;
+this is not yet linked to the reported JA+ stock-hilt symptoms.
+
 ## Prediction regression audit
 
 30/10/2026, Windows x64: audit #305 reviewed the 25 prediction PRs from
