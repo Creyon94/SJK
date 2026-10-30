@@ -3,8 +3,10 @@
 30/10/2026, `feat/copy-server-address`, based on `main` `82c8c185`: the SJK
 and classic browsers expose Copy IP and Ctrl+C outside fields/dialogs. The console's
 `copyServerIP` copies the connected endpoint, including its port and IPv6 brackets;
-no password or command is copied. Windows x64 workspace build passed. Clipboard
-behavior on other desktops and the final UI/runtime checks remain unverified.
+no password or command is copied. Windows x64 formatting, locked workspace build/tests and all-target Clippy passed
+(warnings). The windowless GPU browser fixture shows the action and shortcut; no
+public server was exercised. Actual desktop clipboard use and non-Windows clipboard
+behavior remain unverified for this change.
 
 ## Prediction regression audit
 

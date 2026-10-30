@@ -6965,3 +6965,5 @@ still copies that field. The copied endpoint includes the port (and brackets for
 IPv6), with no password or command. The browser reports success or clipboard failure.
 `copyServerIP` copies the connected server's endpoint from the console; disconnected
 clients report that no server is connected.
+
+[SJK browser with Copy IP](images/copy-server-ip.png).
