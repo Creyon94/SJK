@@ -1931,6 +1931,16 @@ change: Setting lookups and the low-FPS check no longer allocate every frame.
 test: Collection > Shaders grid with many owned shaders: hovered one smooth, others still animate.
 test: Forge, Saber tab and a holocron reveal: the blade pictures show with no seams or glow left.
 
+[card-scenes]
+area: Menus & settings
+title: Character and Arsenal cards: pictures drawn from your own game's models
+change: A card naming a scene gets its picture drawn by SJK from the game's models, kept on disk.
+change: Characters posed with their sabers lit, weapons and items, Force and saber moves.
+test: Once the hub has the scenes: Collection > Cards, JKA Characters: pictures appear in a moment.
+test: First they show the old placeholder, then the drawing; a restart shows the drawing at once.
+test: Look closer at Luke: green blade lit; JKA Arsenal: the Disruptor drawn whole, not in bits.
+note: The drawings are kept in card_scenes beside identity.key; deleting the folder draws them again.
+
 [card-faces-lazy]
 area: Menus & settings
 title: Card pictures load only when shown (1.8 GB less video memory; 3 GB cards crashed)
