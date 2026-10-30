@@ -1,43 +1,20 @@
-## Dual-saber jump-hull regression review
+## Prediction regression audit
 
-30/10/2026, based on `main` `c1b90267`: this change claims the rollback of
-PR #266 after an isolated original JA+ 2.4 B7 server disagreed with the new
-dual forward jump-attack hull. At the same acknowledged command endpoint,
-prediction had `PMF_FIX_MINS` and downward velocity while the server was
-grounded without that flag. The rollback is implemented; focused regressions cover 8/7/4/3 ms.
-Recorded-input replay removes the corresponding regression at 8/7/4/3 ms;
-workspace check results are recorded in the pull request. This
-does not certify other attacks, base servers or complete movement parity.
+30/10/2026, Windows x64: audit #305 reviewed the 25 prediction PRs from
+29/10 against release `2026.1030.1` (`b138373f`) and `main` `c1b90267`.
+An original JA+ 2.4 B7 private server reproduced two regressions: transient
+zero-gravity spawn impulses (#251, rollback #308), and dual-jump hull sinking
+below the floor (#266, rollback #307). Source-only and synthetic checks had
+missed these failures. The before-merge control is `0fd6a5e1`.
 
-
-Evidence: Windows x64, original 2011 JA+ module SHA-256 prefix `9c2063955c5e6c3c`,
-private `mp/duel1`, stock dual `single_1`. Four exact command/snapshot captures
-compare 1,598 acknowledged endpoints at 8/7/4/3 ms. This rollback alone removes
-the new dual-jump mismatches; the separate spawn impulse remains until #308.
-With both rollbacks, the remaining mismatch records equal the pre-merge
-`0fd6a5e1` control, including its pre-existing spawn-height/wall-stop differences.
-The probe excludes inline movers and actors and is not a full viewer check.
-
-## Zero-gravity prediction regression review
-
-30/10/2026, based on `main` `c1b90267`: this change claims the rollback of
-PR #251 after the new push-off impulse accelerated a joining JA+ player
-while its initial snapshot still had zero gravity and base speed. The
-original JA+ 2.4 B7 server kept the player stationary until initialized.
-The rollback is implemented; focused regressions cover 8/7/4/3 ms.
-Recorded-input replay removes the corresponding regression at 8/7/4/3 ms;
-workspace check results are recorded in the pull request. Restoring the prior behavior leaves
-zero-gravity push-off prediction unsupported; it is not full gameplay parity.
-
-
-Evidence: Windows x64, original 2011 JA+ module SHA-256 prefix `9c2063955c5e6c3c`,
-private `mp/duel1`. Four exact command/snapshot captures compare 1,598
-acknowledged endpoints at 8/7/4/3 ms. In the 7 ms capture, the new impulse
-predicted -4,500 units/s against server zero; this rollback removes that speed
-and horizontal displacement. The old 8.875-unit spawn-height adjustment remains.
-Dual-jump floor sinking is separate (#307). With both rollbacks, remaining
-mismatch records equal the pre-merge `0fd6a5e1` control. The probe excludes inline
-movers and actors and does not certify base, jaPRO or full viewer behavior.
+Four 8/7/4/3 ms captures cover 1,598 acknowledged endpoints. Tested chained
+stock dual-saber moves matched server move IDs; this does not clear every
+attack or presentation path. The complete PR disposition, reference module
+hash, probe limits and remaining unverified cases are in
+[the networking review](networking.md#prediction-regression-review-30102026).
+Base-server, jaPRO and complete gameplay parity remain unverified. Further
+prediction feature work should wait for these corrections and targeted
+runtime validation.
 
 ## Banana peel in the look
 
