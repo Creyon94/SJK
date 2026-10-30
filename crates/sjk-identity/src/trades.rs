@@ -180,14 +180,14 @@ impl PlayerTrade {
     /// finished trade says new items are in the collection only when the other side
     /// gave some.
     pub fn ending(&self) -> String {
-        let name = crate::chat::for_display(&self.with.name);
+        let name = crate::chat::name_for_display(&self.with.name);
         match self.state.as_str() {
             // What the reader received decides the words (hub report #208: a trade the
             // other side put nothing into said new items were in the collection).
             "done" => match (self.theirs.items.len(), self.mine.items.is_empty()) {
                 (0, true) => "Trade complete. Nothing changed hands.".to_owned(),
                 (0, false) => {
-                    format!("Trade complete. You gave your offer to {name} and received nothing.")
+                    format!("Trade complete. You gave your offer to {name}^7 and received nothing.")
                 }
                 (1, _) => "Trade complete. Your new item is in your collection.".to_owned(),
                 _ => "Trade complete. Your new items are in your collection.".to_owned(),
@@ -729,7 +729,7 @@ mod tests {
         };
         assert_eq!(
             done(vec![shader("a")], Vec::new()).ending(),
-            "Trade complete. You gave your offer to ^1Zed and received nothing."
+            "Trade complete. You gave your offer to ^1Zed^7 and received nothing."
         );
         assert_eq!(
             done(Vec::new(), vec![shader("b")]).ending(),
@@ -742,6 +742,13 @@ mod tests {
         assert_eq!(
             done(Vec::new(), Vec::new()).ending(),
             "Trade complete. Nothing changed hands."
+        );
+        // A name's clan marks show as in the window's headline, not dropped.
+        let mut marked = done(vec![shader("a")], Vec::new());
+        marked.with.name = "jof\u{bb}jk\u{ab}belyash".to_owned();
+        assert_eq!(
+            marked.ending(),
+            "Trade complete. You gave your offer to jof\u{bb}jk\u{ab}belyash^7 and received nothing."
         );
     }
 

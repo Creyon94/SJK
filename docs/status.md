@@ -6,8 +6,13 @@ even when the other side gave nothing. `PlayerTrade::ending` now words it from w
 reader received: "Your new items are in your collection" (or "item is" for one), "You
 gave your offer to <name> and received nothing", or "Nothing changed hands". The ended
 trade's card and the toast over play both read it ([sjk-ui.md](sjk-ui.md#trading)).
-Verified: unit test (the four cases), fmt, the workspace's build, tests and Clippy. Not
-verified: anything in game.
+The endings took the name through the message alphabet, which dropped clan marks such as
+`»` and `«`; they now take it through `name_for_display`, as the window's headline does.
+The toast's 660-wide card cut the longer endings off ("...and rec..."); it now measures
+its words and grows wider, centred, so they stay whole on one line (up to 1800).
+Verified: unit tests (the four cases, a marked name, the toast fitting its words on one
+line), the toast's picture, fmt, the workspace's build, tests and Clippy; in game on
+Windows, the words and the names with their marks.
 
 ## Toys say ON and OFF, and toy_help
 
