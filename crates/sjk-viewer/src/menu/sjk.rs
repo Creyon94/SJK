@@ -200,7 +200,6 @@ impl ClientMenu {
             .place_sender_card(crate::player_identity::avatar_version);
         let measure = target.body_measure();
         let chat = chat_on.then(|| home::ChatDock {
-            body_color: crate::chat::incoming_color::read(console),
             measure: Some(measure),
             ..self.chat_dock.view(&mut lines)
         });

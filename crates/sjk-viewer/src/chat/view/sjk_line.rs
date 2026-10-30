@@ -436,7 +436,7 @@ mod tests {
         chat.build(true, &crate::text::test_font(), VIEWPORT, 1_000);
         let shown = texts(&chat);
         drawn(&shown, "^3Sol");
-        let (_, _, colour) = drawn(&shown, "hello");
+        let (_, _, colour) = drawn(&shown, "server text");
         assert_eq!(rgb(*colour), [0.0, 1.0, 0.0]);
         assert_eq!(
             chat.lines
@@ -448,6 +448,44 @@ mod tests {
         chat.options.incoming = None;
         chat.build(true, &crate::text::test_font(), VIEWPORT, 1_000);
         assert_eq!(rgb(drawn(&texts(&chat), "hello").2), rgb(GOLD));
+    }
+
+    #[test]
+    fn incoming_colour_preserves_special_channels_and_notice_colours() {
+        use crate::chat::Channel;
+        let mut chat = feed(
+            &["^5public"],
+            (1..=8)
+                .map(|id| message(id, "Fox", &format!("^5body{id}"), false))
+                .collect(),
+        );
+        chat.options.lines = crate::chat::MAX_VISIBLE;
+        for (index, line) in chat.lines.iter_mut().skip(1).enumerate() {
+            line.body = format!("^5body{}", index + 1);
+        }
+        chat.lines[1].channel = Channel::Team;
+        chat.lines[2].channel = Channel::Whisper;
+        chat.lines[3].channel = Channel::Admin;
+        chat.lines[4].channel = Channel::Global;
+        chat.lines[4].encrypted = true;
+        chat.lines[5].channel = Channel::Global;
+        chat.lines[5].server_private = true;
+        chat.lines[6].hub.as_mut().unwrap().official = true;
+        chat.lines[7].hub.as_mut().unwrap().tier = Some(&crate::holocrons::TIERS[0]);
+        chat.build(true, &crate::text::test_font(), VIEWPORT, 1_000);
+        let before = texts(&chat);
+        chat.options.incoming = Some(Color::new(0.0, 1.0, 0.0, 1.0));
+        chat.build(true, &crate::text::test_font(), VIEWPORT, 1_000);
+        let after = texts(&chat);
+        assert_eq!(rgb(drawn(&after, "public").2), [0.0, 1.0, 0.0]);
+        for id in 1..=8 {
+            let body = format!("^5body{id}");
+            assert_eq!(
+                rgb(drawn(&before, &body).2),
+                rgb(drawn(&after, &body).2),
+                "{body}"
+            );
+        }
     }
 
     #[test]

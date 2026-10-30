@@ -764,7 +764,7 @@ const HELP: &[(&str, &str)] = &[
     ),
     (
         crate::chat::incoming_color::CVAR,
-        "Force incoming message text to one colour. Original keeps its colours; names, sent text and logs stay unchanged.",
+        "Colour public All chat text. Names, team/admin chat, whispers and SJK chat keep their colours. 0 keeps originals.",
     ),
     (
         crate::chat::options::OUTLINE_CVAR,

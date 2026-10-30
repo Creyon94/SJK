@@ -276,7 +276,6 @@ impl Panel {
 
     /// Lay the page out, its messages measured in the body family (`measure`).
     pub(super) fn build(&mut self, inputs: &Inputs<'_>, measure: &Measure<'_>, viewport: [f32; 2]) {
-        self.body_color = inputs.body_color;
         let frame = Frame::new(viewport);
         self.order.clear();
         std::mem::swap(&mut self.shown.people, &mut self.previous_people);
@@ -620,10 +619,7 @@ impl Panel {
         let colour = if laid.muted {
             color::QUIET
         } else {
-            crate::chat::incoming_color::colour(
-                sjk_chat_look::text_colour(laid.tier),
-                self.body_color,
-            )
+            sjk_chat_look::text_colour(laid.tier)
         };
         for (row, range) in laid.rows.iter().enumerate() {
             if range.is_empty() {

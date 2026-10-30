@@ -6964,11 +6964,13 @@ for scope and remaining limitations. These controls do not edit map geometry.
 
 ### Incoming chat colour
 
-`cg_chatColor` forces the displayed colour of incoming message bodies, including
-SJK chat in the game feed, full chat page and menu docks. It is local and archived:
+`cg_chatColor` forces only the game server's public **All** message bodies.
+Team chat, plain/encrypted whispers, admin chat and the separate SJK chat channel
+(including reward drops and official notices) retain their original colours,
+even when they appear together in the All feed. The setting is local and archived:
 it never changes sent text or the chat log. Sender names keep their own colours,
 and emoji pictures, channel marks, timestamps, centre prints and the composer
-keep their normal appearance. Existing history changes without reconnecting.
+keep their normal appearance. Existing public history changes without reconnecting.
 
 The default 0 keeps original colours; 1 red, 2 green, 3 yellow, 4 blue, 5 cyan,
 6 magenta, 7 white, 8 orange, 9 grey and 10 black force one colour, ignoring inline

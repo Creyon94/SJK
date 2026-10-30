@@ -2058,7 +2058,6 @@ mod tests {
             chat: Some(Chat {
                 dock,
                 view: ChatDock {
-                    body_color: None,
                     lines: &CHAT,
                     online: 12,
                     live: true,

@@ -1,8 +1,9 @@
 ## Local incoming chat colour
 
 30/10/2026, `feat/chat-color`, based on `main` `82c8c185`: archived `cg_chatColor`
-forces incoming message-body colours in the game feed, SJK chat page and docks.
-Original colours remain the default; names, sent messages, logs and centre prints
+forces only the game server's public All message-body colours.
+Team/admin chat, plain/encrypted whispers and the separate SJK channel retain their
+original colours. Original colours remain the default; names, sent messages, logs and centre prints
 are unchanged. The choice applies to displayed history without a reconnect.
 Windows x64 formatting, locked workspace build/tests and all-target clippy passed.
 An offline GPU screenshot with cyan selected confirms body colours and preserved

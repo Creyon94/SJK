@@ -1,4 +1,4 @@
-//! Local, display-only colour for incoming message bodies; names keep their colours.
+//! Local, display-only colour for public message bodies; special channels keep theirs.
 use crate::console::ViewerConsole;
 use sjk_ui::Color;
 use std::fmt::{self, Write};
@@ -26,6 +26,17 @@ fn from_value(value: i64) -> Option<Color> {
     };
     let [r, g, b, _] = crate::text::quake_color(code);
     Some(Color::new(r, g, b, 1.0))
+}
+
+impl super::ChatLine {
+    /// Only the game server's public All channel uses the local preference.
+    /// Private/team/admin chat, the separate SJK channel and encrypted messages
+    /// keep their established colours, even when displayed in the All feed.
+    pub(super) fn incoming_colour(&self, preference: Option<Color>) -> Option<Color> {
+        preference.filter(|_| {
+            self.channel == super::Channel::Global && !self.server_private && !self.encrypted
+        })
+    }
 }
 
 /// Keep a message's fade while replacing only its RGB.

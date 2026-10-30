@@ -2750,7 +2750,8 @@ held-key editing.
 
 Settings > Chat includes **Incoming chat colour**, a named choice shared with
 the classic settings. Original preserves authored colours; the other ten choices
-force message bodies while keeping sender names and non-message controls distinct.
+force the game server's public All message bodies while keeping sender names and non-message controls distinct.
+Team/admin chat, whispers and the separate SJK channel keep their own colours.
 
 Incoming chat colour, cyan selected (offline fixture):
 

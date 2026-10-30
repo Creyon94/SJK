@@ -245,7 +245,7 @@ impl ChatOverlay {
                     body_row(
                         &mut self.ui,
                         BodyRow {
-                            forced: self.options.incoming,
+                            forced: line.incoming_colour(self.options.incoming),
                             text: &line.body[range.clone()],
                             carry: line.wrap.carry[row],
                             marks: &line.emojis,
@@ -284,7 +284,7 @@ impl ChatOverlay {
                     emojis: self.options.emojis.then_some(&self.emojis),
                     hovered,
                     colour,
-                    forced: self.options.incoming,
+                    forced: line.incoming_colour(self.options.incoming),
                     label_colour: if line.encrypted {
                         encrypted_pink(alpha * 0.85)
                     } else {
