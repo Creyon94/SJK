@@ -8,8 +8,9 @@
 use crate::GpuState;
 use sjk_ui::{Color, DrawCommand, DrawList, FontWeight, Rect, TextAlign, TextId, TextOverflow};
 
-/// The gap between the crosshair's middle and the key cap, in pixels at 1080 lines.
-const GAP: f32 = 34.0;
+/// The gap between the crosshair's middle and the key cap, in pixels at 1080 lines (Sol,
+/// 30/10/2026: 34 first, too close).
+const GAP: f32 = 56.0;
 /// The key cap's height and its key's size, and the action's and the line's sizes.
 const CAP: f32 = 30.0;
 const KEY_SIZE: f32 = 17.0;
@@ -179,12 +180,13 @@ impl GpuState {
             };
             let size = size * unit;
             let rect = if align == TextAlign::Center {
-                // Its line centred in the cap.
+                // Its line box about the cap's middle; its glyphs are centred on it once
+                // drawn, below.
                 Rect::new(
                     rect.x,
-                    rect.y + (rect.height - size * 1.3) * 0.5,
+                    rect.y + (rect.height - size) * 0.5,
                     rect.width,
-                    size * 1.3,
+                    size,
                 )
             } else {
                 rect
@@ -213,10 +215,29 @@ impl GpuState {
             &mut self.text_vertices,
             &self.ui_font,
         );
+        let line = |id: TextId| state.lines.get(id.0 as usize).map_or("", String::as_str);
+        // The key first, alone, its ink centred in the cap whatever the font's ascent and
+        // descent (Sol, 30/10/2026: its letter sat off the middle); then the words.
+        let key_from = vertices.len();
         crate::ui_renderer::append_text_commands_where(
             &state.list,
-            |id| state.lines.get(id.0 as usize).map_or("", String::as_str),
-            |_, _| true,
+            line,
+            |id, _| id.0 == 0,
+            vertices,
+            font,
+            viewport,
+            crate::text::TextStyle::NEUTRAL,
+            crate::text::CodePalette::Legible,
+        );
+        crate::text::centre_vertices(
+            &mut vertices[key_from..],
+            [cap.x + cap.width * 0.5, cap.y + cap.height * 0.5],
+            viewport,
+        );
+        crate::ui_renderer::append_text_commands_where(
+            &state.list,
+            line,
+            |id, _| id.0 != 0,
             vertices,
             font,
             viewport,
