@@ -173,9 +173,9 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
         ),
         CvarDefinition::new(
             "cg_scoreDeaths",
-            1_i64,
+            crate::scoreboard::DEATHS_DEFAULT_MODE,
             archive,
-            "Scoreboard deaths: 0 off, 1 server, 2 server/local fallback, 3 local",
+            "Scoreboard deaths: 0 off, 1 server, 2 server/local fallback (default), 3 local",
         ),
         CvarDefinition::new(
             "cg_hitsounds",
@@ -1478,10 +1478,16 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "Classic scoreboard: always use the small rows",
         ),
         CvarDefinition::new(
-            "cg_showClientIDs",
+            crate::scoreboard::style::IDS_CVAR,
             true,
             archive,
-            "Classic scoreboard: show each player's client ID",
+            "Scoreboard: show each player's client ID (the classic board's Id column, the SJK board's number before the name)",
+        ),
+        CvarDefinition::new(
+            crate::scoreboard::style::DEATHS_RANK_CVAR,
+            false,
+            archive,
+            "Scoreboard: rank players by score minus deaths where deaths are shown, fewer deaths first on a tie",
         ),
         CvarDefinition::new(
             crate::jof_tag::CVAR,
@@ -1536,6 +1542,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             0_i64,
             archive,
             "Internal migration marker for the scan-code console key default",
+        ),
+        CvarDefinition::new(
+            "cg_scoreDeathsDefaultVersion",
+            0_i64,
+            archive,
+            "Internal migration marker for the cg_scoreDeaths 2 default",
         ),
         CvarDefinition::new(
             "cg_scoreboardStyleDefaultVersion",

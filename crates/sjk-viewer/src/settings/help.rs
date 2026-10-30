@@ -1246,8 +1246,12 @@ const HELP: &[(&str, &str)] = &[
         "Players whose view has not moved for 3 minutes, or with [AFK] in their name, show faint below the others.",
     ),
     (
-        "cg_showClientIDs",
-        "Shows each player's client number on the scoreboard.",
+        crate::scoreboard::style::IDS_CVAR,
+        "Shows each player's client number on the scoreboard: the classic one's Id column, a small number before each name on SJK's.",
+    ),
+    (
+        crate::scoreboard::style::DEATHS_RANK_CVAR,
+        "Lists players by score minus deaths where deaths show, fewer deaths first on a tie. Off keeps the server's order.",
     ),
     (
         crate::jof_tag::CVAR,

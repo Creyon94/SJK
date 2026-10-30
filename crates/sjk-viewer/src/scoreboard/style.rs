@@ -2,7 +2,7 @@
 //!
 //! `classic` follows the retail scoreboard as EternalJK-derived clients draw it
 //! ([`super::classic`]),
-//! with their `cg_smallScoreboard`, `cg_showClientIDs`,
+//! with their `cg_smallScoreboard`, `cg_showClientIDs` (the SJK look's too),
 //! `cg_drawScoreboardIcons` and `cg_drawScoreboardPlayerCount` options; `sjk`
 //! is the SJK UI's own ([`super::sjk`]). `auto`, the default, follows the menu
 //! style: the SJK UI's scoreboard while `ui_menuStyle` is `sjk`, the classic one
@@ -38,6 +38,38 @@ pub(crate) fn fps(console: Option<&ViewerConsole>) -> bool {
     console
         .and_then(|console| console.bool_cvar(FPS_CVAR))
         .unwrap_or(true)
+}
+
+/// Archived cvar: each player's client number on the scoreboard, in both looks (the
+/// classic one's Id column, the SJK one's number before the name); on by default, as
+/// EternalJK-derived clients have it.
+pub(crate) const IDS_CVAR: &str = "cg_showClientIDs";
+
+/// Whether the scoreboard shows client numbers (`cg_showClientIDs`, on unless set off).
+pub(crate) fn client_ids(console: Option<&ViewerConsole>) -> bool {
+    console
+        .and_then(|console| console.bool_cvar(IDS_CVAR))
+        .unwrap_or(true)
+}
+
+/// Archived cvar: rank the players by their score minus their deaths, where the deaths
+/// are known (29/10/2026 #ideas recap); off by default, the server's order.
+pub(crate) const DEATHS_RANK_CVAR: &str = "cg_scoreboardDeathsRank";
+
+/// Whether the scoreboard ranks by score minus deaths (`cg_scoreboardDeathsRank`).
+pub(crate) fn deaths_rank(console: Option<&ViewerConsole>) -> bool {
+    console
+        .and_then(|console| console.bool_cvar(DEATHS_RANK_CVAR))
+        .unwrap_or(false)
+}
+
+/// What a row is ranked by: its score, or with `deaths_rank` on its score minus its
+/// deaths when the board knows them (a row without a count keeps its score).
+pub(crate) fn rank_value(score: i32, deaths: Option<i32>, deaths_rank: bool) -> i32 {
+    match deaths {
+        Some(deaths) if deaths_rank => score.saturating_sub(deaths),
+        _ => score,
+    }
 }
 
 /// Layout family of the scoreboard, as drawn.
@@ -123,9 +155,7 @@ impl ClassicOptions {
             small: console
                 .bool_cvar("cg_smallScoreboard")
                 .unwrap_or(defaults.small),
-            client_ids: console
-                .bool_cvar("cg_showClientIDs")
-                .unwrap_or(defaults.client_ids),
+            client_ids: console.bool_cvar(IDS_CVAR).unwrap_or(defaults.client_ids),
             icons: console
                 .bool_cvar("cg_drawScoreboardIcons")
                 .unwrap_or(defaults.icons),
@@ -237,5 +267,24 @@ mod tests {
             ScoreboardStyle::from_console(Some(&console)),
             ScoreboardStyle::Classic
         );
+    }
+
+    #[test]
+    fn deaths_count_against_the_score_only_when_ranked_and_known() {
+        assert_eq!(rank_value(10, Some(8), true), 2);
+        assert_eq!(rank_value(10, Some(8), false), 10);
+        assert_eq!(rank_value(10, None, true), 10);
+        assert_eq!(rank_value(i32::MIN, Some(1), true), i32::MIN);
+    }
+
+    #[test]
+    fn ids_are_on_and_the_death_rank_off_by_default() {
+        let directory = tempfile::tempdir().unwrap();
+        let console =
+            crate::console::ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
+        assert!(client_ids(Some(&console)));
+        assert!(!deaths_rank(Some(&console)));
+        assert!(client_ids(None));
+        assert!(!deaths_rank(None));
     }
 }

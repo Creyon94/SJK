@@ -92,6 +92,22 @@ const CHAT_CLEARANCE: f32 = 40.0;
 /// From the last number column to the ping's right edge, in all but the
 /// widest full list.
 const PING_COLUMN: f32 = 100.0;
+/// The room a client number takes before the name (`cg_showClientIDs`), its slot and
+/// the gap after it, wide enough for "31" in the row's number size: full rows, then
+/// compact ones, whose numbers are smaller.
+const ID_COLUMN: f32 = 40.0;
+const ID_COLUMN_COMPACT: f32 = 26.0;
+/// The gap between a client number's right edge and what follows it.
+const ID_GAP: f32 = 8.0;
+
+/// The room a client number takes in `wide` or compact rows ([`ID_COLUMN`]).
+fn id_column(compact: bool) -> f32 {
+    if compact {
+        ID_COLUMN_COMPACT
+    } else {
+        ID_COLUMN
+    }
+}
 /// A duelist's card, and how far it stands from the middle of the pair.
 const CARD_WIDTH: f32 = 470.0;
 const CARD_OFFSET: f32 = 64.0;
@@ -147,6 +163,8 @@ pub(super) struct SjkHeader<'a> {
     pub(super) duel: Duelists,
     /// `cg_compactScoreboard`: thin rows, every player in one column.
     pub(super) compact: bool,
+    /// `cg_showClientIDs`: each player's client number before the name.
+    pub(super) ids: bool,
     /// The frame rate to show left of the clock (`cg_scoreboardFps`), when on and
     /// measured.
     pub(super) fps: Option<u32>,
@@ -413,6 +431,8 @@ struct Columns {
     place: Option<f32>,
     /// A carried flag's icon, in capture modes.
     flag: Option<f32>,
+    /// The client number's right edge, when the board shows them.
+    id: Option<f32>,
     name: f32,
     name_end: f32,
     /// Each number column and its right edge.
@@ -427,7 +447,7 @@ struct Columns {
 impl Columns {
     /// A full board's list, `width` wide from `x`: the numbers packed at its
     /// right, the name taking what they leave.
-    fn new(x: f32, width: f32, kind: Kind, numbered: bool) -> Self {
+    fn new(x: f32, width: f32, kind: Kind, numbered: bool, ids: bool) -> Self {
         let wide = width > 800.0;
         let stat_width = match kind {
             Kind::Team { capture: true } => 66.0,
@@ -437,41 +457,46 @@ impl Columns {
         // Numbers are right-aligned, so the name may run into the start of
         // the first number column.
         let name_gap = if wide { 72.0 } else { 52.0 };
-        Self::lay_out(x, width, kind, numbered, wide, stat_width, name_gap)
+        Self::lay_out(
+            x, width, kind, numbered, ids, wide, false, stat_width, name_gap,
+        )
     }
 
     /// A compact list, `width` wide from `x`, its number columns
     /// `stat_width` apart; [`Self::compact_span`] gives the width for a name
     /// column.
-    fn compact(x: f32, width: f32, kind: Kind, numbered: bool, stat_width: f32) -> Self {
+    fn compact(x: f32, width: f32, kind: Kind, numbered: bool, ids: bool, stat_width: f32) -> Self {
         Self::lay_out(
             x,
             width,
             kind,
             numbered,
+            ids,
             false,
+            true,
             stat_width,
             COMPACT_NAME_GAP,
         )
     }
 
     /// The width of a compact list whose name column is `room` wide.
-    fn compact_span(kind: Kind, numbered: bool, room: f32, stat_width: f32) -> f32 {
-        Self::lead(kind, numbered, false)
+    fn compact_span(kind: Kind, numbered: bool, ids: bool, room: f32, stat_width: f32) -> f32 {
+        Self::lead(kind, numbered, ids, false, true)
             + room
             + COMPACT_NAME_GAP
             + stat_width * (kind.stats().len() - 1) as f32
             + PING_COLUMN
     }
 
-    /// From a list's left edge to its names: the place, a carried flag.
-    fn lead(kind: Kind, numbered: bool, wide: bool) -> f32 {
+    /// From a list's left edge to its names: the place, the client number, a carried
+    /// flag.
+    fn lead(kind: Kind, numbered: bool, ids: bool, wide: bool, compact: bool) -> f32 {
         let place = match (numbered, wide) {
             (true, true) => 68.0,
             (true, false) => 52.0,
             (false, _) => 10.0,
         };
-        place + if kind.capture() { 30.0 } else { 0.0 }
+        place + if ids { id_column(compact) } else { 0.0 } + if kind.capture() { 30.0 } else { 0.0 }
     }
 
     fn lay_out(
@@ -479,7 +504,9 @@ impl Columns {
         width: f32,
         kind: Kind,
         numbered: bool,
+        ids: bool,
         wide: bool,
+        compact: bool,
         stat_width: f32,
         name_gap: f32,
     ) -> Self {
@@ -492,14 +519,16 @@ impl Columns {
             stats[index] = (*stat, first + stat_width * index as f32);
         }
         let place = numbered.then_some(x + if wide { 46.0 } else { 34.0 });
-        let name = x + Self::lead(kind, numbered, wide);
+        let name = x + Self::lead(kind, numbered, ids, wide, compact);
         let flag = kind.capture().then_some(name - 30.0);
+        let id = ids.then(|| flag.unwrap_or(name) - ID_GAP);
         Self {
             x,
             width,
             wide,
             place,
             flag,
+            id,
             name,
             name_end: first - name_gap,
             stats,
@@ -840,7 +869,8 @@ impl Painter<'_> {
                 })
                 .fold(0.0, f32::max);
             let room = self.compact_room(need, &list, stat, 2);
-            let width = Columns::compact_span(list.kind, list.numbered, room, stat);
+            let width =
+                Columns::compact_span(list.kind, list.numbered, self.header.ids, room, stat);
             let whole = width * 2.0 + GUTTER;
             let x = self.place(CENTRE, whole);
             return Board {
@@ -874,7 +904,7 @@ impl Painter<'_> {
         let stat = self.stat_width(list.kind);
         let need = self.names_need(rows, &member, fit.height);
         let room = self.compact_room(need, list, stat, fit.halves);
-        let half = Columns::compact_span(list.kind, list.numbered, room, stat);
+        let half = Columns::compact_span(list.kind, list.numbered, self.header.ids, room, stat);
         let width = half * fit.halves as f32 + GUTTER * (fit.halves - 1) as f32;
         (self.place(centre, width), width)
     }
@@ -892,7 +922,7 @@ impl Painter<'_> {
     /// [`COMPACT_NAME_SQUEEZED`]).
     fn compact_room(&self, need: f32, list: &List, stat: f32, across: usize) -> f32 {
         let across = across.max(1) as f32;
-        let fixed = Columns::compact_span(list.kind, list.numbered, 0.0, stat);
+        let fixed = Columns::compact_span(list.kind, list.numbered, self.header.ids, 0.0, stat);
         // Never wider than the full board, however far the chat column lies.
         let room = (RIGHT - self.clear).min(BOARD_WIDTH);
         let fits = (room - GUTTER * (across - 1.0)) / across - fixed;
@@ -1594,32 +1624,30 @@ impl Painter<'_> {
                 .position(|row| self.is_local(row))
                 .is_some_and(|index| index >= shown);
         let ordinary = if local_hidden { shown - 1 } else { shown };
+        let ids = self.header.ids;
         let columns = |half: usize| {
             let x = list.x + half as f32 * (width + GUTTER);
             match stat_width {
                 Some(stat_width) => {
-                    Columns::compact(x, width, list.kind, list.numbered, stat_width)
+                    Columns::compact(x, width, list.kind, list.numbered, ids, stat_width)
                 }
-                None => Columns::new(x, width, list.kind, list.numbered),
+                None => Columns::new(x, width, list.kind, list.numbered, ids),
             }
         };
         for half in 0..halves {
             self.labels(&columns(half), list.top, list.title);
         }
         let mut place = 0;
-        let mut previous = None;
         let mut slot = 0;
         for (index, row) in rows.iter().filter(|row| member(row)).enumerate() {
-            // Players waiting are numbered in turn; others by score, ties
-            // sharing a place, counting the away players moved below.
+            // Numbered in the listed order, one number each, as JoF EJK lists its
+            // rows in order without shared places: the rows already come by score
+            // (or by score minus deaths, `cg_scoreboardDeathsRank`). Players waiting
+            // count in turn; away and joining rows take no number.
             if list.kind == Kind::Waiting {
                 place = index + 1;
-            } else if previous != Some(row.score) {
-                place = 1 + rows
-                    .iter()
-                    .filter(|other| member(other) && other.score > row.score)
-                    .count();
-                previous = Some(row.score);
+            } else if row.has_score && row.away.is_none() {
+                place += 1;
             }
             let local = self.is_local(row);
             if index >= ordinary && !(local_hidden && local) {
@@ -1677,6 +1705,15 @@ impl Painter<'_> {
             columns.name_end - columns.name,
             TextAlign::Start,
         );
+        // Over the place and the client number, so the two numbers before a name
+        // read apart.
+        if let Some(right) = columns.place {
+            label(self, "#", right - 60.0, 60.0, TextAlign::End);
+        }
+        if let Some(right) = columns.id {
+            let slot = id_column(self.header.compact) - ID_GAP;
+            label(self, "ID", right - slot, slot, TextAlign::Center);
+        }
         for &(stat, right) in &columns.stats[..columns.count] {
             label(
                 self,
@@ -1749,6 +1786,35 @@ impl Painter<'_> {
                 },
                 FontWeight::Semibold,
                 TextAlign::End,
+            );
+        }
+        if let Some(right) = columns.id {
+            // A tag: the number centred on a faint plate, unlike the place beside it.
+            let slot = id_column(self.header.compact) - ID_GAP;
+            let size = number_size * 0.72;
+            let plate = (size * 1.35).min(height - 4.0);
+            let rect = self
+                .frame
+                .rect(right - slot, middle - plate * 0.5, slot, plate);
+            self.push(DrawCommand::RoundedRect {
+                rect,
+                radius: 4.0 * self.frame.s,
+                color: color::alpha(color::HOLO, 0.10),
+            });
+            self.run(
+                TextFamily::Body,
+                format_args!("{}", row.client_num),
+                right - slot,
+                middle,
+                slot,
+                size,
+                if local {
+                    color::GOLD_BRIGHT
+                } else {
+                    color::MUTED
+                },
+                FontWeight::Semibold,
+                TextAlign::Center,
             );
         }
         if let Some(x) = columns.flag {
@@ -2169,6 +2235,7 @@ mod tests {
             match_over: false,
             duel: Duelists::default(),
             compact: false,
+            ids: false,
             fps: None,
         }
     }
@@ -2202,52 +2269,118 @@ mod tests {
             .count()
     }
 
-    /// Sol's request (11/10/2026): the frame rate stands on the header line left of the
-    /// clock, its number in the clock's type with "fps" after it, clear of the mode on
-    /// the left; without a reading (or with `cg_scoreboardFps 0`) nothing shows.
+    /// Every text run drawn: its text and rectangle.
+    fn placed_runs(ui: &MenuCanvas) -> Vec<(String, Rect)> {
+        ui.draw_list()
+            .commands()
+            .iter()
+            .filter_map(|command| match *command {
+                DrawCommand::Text { rect, text, .. } => {
+                    Some((ui.stored_text(text).to_owned(), rect))
+                }
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// The run `text` on the same line as the run `beside`, left of it.
+    fn left_on_line<'a>(runs: &'a [(String, Rect)], beside: &str, text: &str) -> Option<&'a Rect> {
+        let (_, name) = runs.iter().find(|(run, _)| run == beside)?;
+        let middle = name.y + name.height * 0.5;
+        runs.iter()
+            .filter(|(run, rect)| {
+                run == text
+                    && rect.x + rect.width <= name.x + 0.5
+                    && (rect.y + rect.height * 0.5 - middle).abs() < name.height * 0.5
+            })
+            .map(|(_, rect)| rect)
+            .next_back()
+    }
+
+    /// With `cg_showClientIDs` (29/10/2026 #ideas recap) the SJK board shows each
+    /// player's client number before the name, in full and compact rows, free-for-all
+    /// and teams; off, none.
     #[test]
-    fn the_header_shows_the_frame_rate_left_of_the_clock() {
-        let rows: Vec<ScoreRow> = (0..8)
-            .map(|client| row(client, 0, 30 - client as i32))
-            .collect();
-        let runs = |ui: &MenuCanvas| -> Vec<(String, Rect, f32)> {
-            ui.draw_list()
-                .commands()
-                .iter()
-                .filter_map(|command| match *command {
-                    DrawCommand::Text {
-                        rect, text, size, ..
-                    } => Some((ui.stored_text(text).to_owned(), rect, size)),
-                    _ => None,
+    fn client_numbers_stand_before_the_names_when_shown() {
+        for gametype in [0, TEAM] {
+            let rows: Vec<ScoreRow> = (0..8)
+                .map(|client| {
+                    row(
+                        client,
+                        if gametype == TEAM { 1 + client % 2 } else { 0 },
+                        30 - client as i32,
+                    )
                 })
-                .collect()
-        };
-        for viewport in VIEWPORTS {
-            let mut shown = header(0, 0);
-            shown.fps = Some(240);
-            let ui = draw(&rows, &shown, viewport);
-            let texts = runs(&ui);
-            let find = |text: &str| {
-                texts
-                    .iter()
-                    .find(|(drawn, ..)| drawn == text)
-                    .unwrap_or_else(|| panic!("{text:?} not in {texts:?}"))
-                    .clone()
-            };
-            let (_, number, number_size) = find("240");
-            let (_, word, _) = find("fps");
-            let (_, clock, clock_size) = find("14:32");
-            let (_, mode, _) = find("Free for all · 30 frags · 20 minutes");
-            assert_eq!(number_size, clock_size, "{viewport:?}: the clock's type");
-            assert!(number.right() <= word.x + 1.0, "{viewport:?}");
-            assert!(word.right() < clock.x, "{viewport:?}: {word:?} {clock:?}");
-            assert!(mode.right() < number.x, "{viewport:?}: {mode:?} {number:?}");
-            let without = draw(&rows, &header(0, 0), viewport);
+                .collect();
+            for compact in [false, true] {
+                for viewport in VIEWPORTS {
+                    let mut shown = header(gametype, 0);
+                    shown.compact = compact;
+                    shown.ids = true;
+                    let runs = placed_runs(&draw(&rows, &shown, viewport));
+                    for row in &rows {
+                        assert!(
+                            left_on_line(&runs, &row.name, &row.client_num.to_string()).is_some(),
+                            "client {} before its name (gametype {gametype}, compact {compact}, {viewport:?})",
+                            row.client_num
+                        );
+                    }
+                    assert!(
+                        runs.iter().any(|(run, _)| run == "ID"),
+                        "the ID label over them"
+                    );
+                    shown.ids = false;
+                    let hidden = placed_runs(&draw(&rows, &shown, viewport));
+                    let labels = runs.iter().filter(|(run, _)| run == "ID").count();
+                    assert_eq!(
+                        runs.len(),
+                        hidden.len() + rows.len() + labels,
+                        "one number a row and the label, only when on"
+                    );
+                }
+            }
+        }
+    }
+
+    /// The # column numbers the rows in the order listed, one number each, ties too, as
+    /// JoF EJK lists its rows: two players on 5 are 2 and 3, not both 2; a player
+    /// still joining takes no number.
+    #[test]
+    fn places_count_in_the_listed_order() {
+        let mut rows: Vec<ScoreRow> = [(2, 8), (3, 5), (4, 5), (5, 1)]
+            .into_iter()
+            .map(|(client, score)| {
+                let mut row = row(client, 0, score);
+                row.bot = false;
+                row
+            })
+            .collect();
+        let mut joining = row(6, 0, 0);
+        joining.has_score = false;
+        rows.insert(2, joining);
+        let runs = placed_runs(&draw(&rows, &header(0, 0), [1920.0, 1080.0]));
+        assert!(
+            runs.iter().any(|(run, _)| run == "#"),
+            "the place column's label"
+        );
+        for (client, place) in [(2, "1"), (3, "2"), (4, "3"), (5, "4")] {
+            let name = &rows
+                .iter()
+                .find(|row| row.client_num == client)
+                .unwrap()
+                .name;
             assert!(
-                runs(&without).iter().all(|(text, ..)| text != "fps"),
-                "{viewport:?}"
+                left_on_line(&runs, name, place).is_some(),
+                "client {client} is {place}"
             );
         }
+        let joining = &rows[2].name;
+        assert!(
+            !["1", "2", "3", "4", "5"]
+                .iter()
+                .any(|place| left_on_line(&runs, joining, place).is_some()),
+            "the joining row has no number"
+        );
     }
 
     /// 16:9 at 1080 lines and 4K, 5:4, 4:3, 21:9 and 32:9.
@@ -2569,8 +2702,8 @@ mod tests {
             let numbered = !matches!(kind, Kind::Team { .. });
             for room in [COMPACT_NAME_SQUEEZED, COMPACT_NAME_LEAST, COMPACT_NAME_MOST] {
                 for stat in [COMPACT_STAT_LEAST, 72.8] {
-                    let width = Columns::compact_span(kind, numbered, room, stat);
-                    let columns = Columns::compact(500.0, width, kind, numbered, stat);
+                    let width = Columns::compact_span(kind, numbered, false, room, stat);
+                    let columns = Columns::compact(500.0, width, kind, numbered, false, stat);
                     assert!((columns.name_end - columns.name - room).abs() < 1e-3);
                     assert!(columns.name_end + 40.0 <= columns.stats[0].1, "{kind:?}");
                     assert!(columns.stats[columns.count - 1].1 <= columns.bars);
@@ -2669,7 +2802,7 @@ mod tests {
         ] {
             let numbered = !matches!(kind, Kind::Team { .. });
             for width in [BOARD_WIDTH, (BOARD_WIDTH - GUTTER) * 0.5] {
-                let columns = Columns::new(BOARD_LEFT, width, kind, numbered);
+                let columns = Columns::new(BOARD_LEFT, width, kind, numbered, false);
                 assert!(columns.name_end - columns.name >= 160.0, "{kind:?} {width}");
                 // The name stops before the first number's last digits.
                 assert!(columns.name_end + 40.0 <= columns.stats[0].1, "{kind:?}");
@@ -2713,9 +2846,10 @@ mod tests {
         }
     }
 
-    /// Ties share a place: 1, 2, 2, 4.
+    /// Places run in the listed order, ties too: 1, 2, 3, 4 (they shared a place, 1, 2,
+    /// 2, 4, until 30/10/2026; JoF EJK lists its rows in order without shared numbers).
     #[test]
-    fn tied_scores_share_a_place() {
+    fn tied_scores_take_the_next_place() {
         let rows = [row(0, 0, 9), row(1, 0, 5), row(2, 0, 5), row(3, 0, 1)];
         let ui = draw(&rows, &header(0, 3), [1920.0, 1080.0]);
         // Each row starts with its place, then its name.
@@ -2725,7 +2859,7 @@ mod tests {
             .filter(|pair| pair[1].starts_with('^'))
             .map(|pair| pair[0])
             .collect();
-        assert_eq!(places, ["1", "2", "2", "4"], "{runs:?}");
+        assert_eq!(places, ["1", "2", "3", "4"], "{runs:?}");
         // The header: the map without `mp/`, your place gold, of how many.
         assert!(runs.contains(&"duel6"), "{runs:?}");
         assert!(runs.contains(&"3rd") && runs.contains(&"of 4"), "{runs:?}");

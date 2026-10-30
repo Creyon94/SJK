@@ -19,6 +19,11 @@ pub(super) struct Deaths {
     gametype: i32,
 }
 
+/// `cg_scoreDeaths`'s default: 2, the server's deaths when it sends them and the local
+/// count otherwise (JoF EJK's mode 2), so kills/deaths show on every server (30/10/2026;
+/// it was EJK's 1, which shows deaths only from a JA+ or jaPRO server's plugin).
+pub(crate) const DEFAULT_MODE: i64 = 2;
+
 impl Default for Deaths {
     fn default() -> Self {
         Self {
@@ -27,7 +32,7 @@ impl Default for Deaths {
             level_start: None,
             consumed: 0,
             time: 0,
-            mode: 1,
+            mode: DEFAULT_MODE,
             gametype: 0,
         }
     }
@@ -54,7 +59,7 @@ impl Scoreboard {
         d.time = snapshot.server_time;
         d.mode = console
             .and_then(|c| c.integer_cvar("cg_scoredeaths"))
-            .unwrap_or(1);
+            .unwrap_or(DEFAULT_MODE);
         d.gametype = game
             .config_string(0)
             .and_then(|b| sjk_client::LegacyClientInfo::new(b).integer("g_gametype"))

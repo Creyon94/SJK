@@ -1,3 +1,26 @@
+## Scoreboard: client numbers on the SJK board, rank by score minus deaths
+
+30/10/2026, `feat/scoreboard-ids`, based on `main` `7be59908` (Sol's #ideas recap of
+29/10): `cg_showClientIDs`, which showed the classic board's Id column alone, now also
+puts each client number before the name on the SJK board, as a small tag on a faint plate
+under an "ID" label, full and compact (`sjk::Columns::id`, `ID_COLUMN`)
+([sjk-ui.md](sjk-ui.md)), with a `=` line for the what's-new card. The place column is
+labelled "#" and numbers the rows in the listed order, one number each (ties shared a
+number before; JoF EJK lists its rows in order without shared numbers). New
+`cg_scoreboardDeathsRank` (off) sorts both boards by score minus deaths where deaths are
+counted, fewer deaths first on a tie, joining rows last ([client.md](client.md),
+`style::rank_value`). `cg_scoreDeaths` defaults to 2 (EJK's 1 shows deaths only from a
+JA+ or jaPRO plugin; 2 falls back to the local count), and a saved 1 moves to 2 once
+(`cg_scoreDeathsDefaultVersion`). Neither EJK nor JoF EJK has the numbers on this look or the
+ranking. A compact capture-the-flag board of 6 a side, 1142 of the full 1144 pixels
+before, now fills it (the width test allows equal). Verified: unit tests (the ranking,
+its defaults, the numbers before every name in full and compact, free-for-all and teams,
+the ID and # labels, places in the listed order, a joining row last and unnumbered, the
+`cg_scoreDeaths` move),
+fmt, the workspace's build, tests and Clippy; in game on Windows (a local server with
+bots): the labels and ID tags, and with `cg_scoreDeaths 2` the ranking by score minus
+deaths. The new default and its move have not been tried in game. Not verified: the compact board, team games, the what's-new card's switch.
+
 ## Prediction change necessity review
 
 30/10/2026, based on `main` `82c8c185` (hotfix `2026.1030.2`): #313

@@ -459,6 +459,25 @@ impl ViewerConsole {
                 .cvars
                 .set_text("cg_scoreboardStyleDefaultVersion", "1");
         }
+        // cg_scoreDeaths defaulted to EternalJK's 1 (deaths only from a JA+ or jaPRO
+        // plugin) and every profile saved it, so the new default 2 (the local count
+        // where the server sends none) would reach none. Move a saved 1 once; a 1
+        // chosen after this stays.
+        if matches!(
+            shell
+                .cvars
+                .get("cg_scoreDeathsDefaultVersion")
+                .map(|cvar| &cvar.value),
+            Some(CvarValue::Integer(0))
+        ) {
+            if matches!(
+                shell.cvars.get("cg_scoreDeaths").map(|cvar| &cvar.value),
+                Some(CvarValue::Integer(1))
+            ) {
+                let _ = shell.cvars.reset("cg_scoreDeaths");
+            }
+            let _ = shell.cvars.set_text("cg_scoreDeathsDefaultVersion", "1");
+        }
         // Q opened the quick wheel on General (`+wheel general`), and every
         // profile saved that default; it now opens on the page used last (a
         // bare `+wheel`). Move Q's old default once; a page bound on purpose
@@ -1715,5 +1734,47 @@ bind z \"weapnext\"
         assert_eq!(console.text_value("cg_scoreboardStyle"), Some("classic"));
         assert_eq!(console.text_value("con_style"), Some("sjk"));
         assert_eq!(console.text_value("cg_hudStyle"), Some("radial"));
+    }
+
+    /// cg_scoreDeaths moved to 2 (30/10/2026): a profile that saved the old default 1
+    /// moves once; a 1 chosen after that, or another value, stays.
+    #[test]
+    fn a_saved_score_deaths_default_moves_once_to_two() {
+        let directory = tempfile::tempdir().unwrap();
+        let old = directory.path().join("old.cfg");
+        std::fs::write(&old, "seta cg_scoreDeaths \"1\"\n").unwrap();
+        let console = ViewerConsole::new(old).unwrap();
+        assert_eq!(console.integer_cvar("cg_scoreDeaths"), Some(2));
+        assert_eq!(
+            console.integer_cvar("cg_scoreDeathsDefaultVersion"),
+            Some(1)
+        );
+        let chosen = directory.path().join("chosen.cfg");
+        std::fs::write(
+            &chosen,
+            "seta cg_scoreDeathsDefaultVersion \"1\"\nseta cg_scoreDeaths \"1\"\n",
+        )
+        .unwrap();
+        assert_eq!(
+            ViewerConsole::new(chosen)
+                .unwrap()
+                .integer_cvar("cg_scoreDeaths"),
+            Some(1)
+        );
+        let other = directory.path().join("other.cfg");
+        std::fs::write(&other, "seta cg_scoreDeaths \"3\"\n").unwrap();
+        assert_eq!(
+            ViewerConsole::new(other)
+                .unwrap()
+                .integer_cvar("cg_scoreDeaths"),
+            Some(3)
+        );
+        let fresh = directory.path().join("fresh.cfg");
+        assert_eq!(
+            ViewerConsole::new(fresh)
+                .unwrap()
+                .integer_cvar("cg_scoreDeaths"),
+            Some(2)
+        );
     }
 }
