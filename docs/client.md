@@ -1708,6 +1708,11 @@ switch copy, dropped there as the late one, gives back what it paid, so each
 put-away is paid once whichever comes first, and a staff weapon switch loop is
 capped like any other.
 
+Saber definitions are resolved in the game's file-list order, keeping the first
+case-insensitive name. Mounted replacements of the same `.sab` file still win
+through the VFS. The shared catalog supplies appearance, sounds and prediction;
+a later duplicate name must not replace its combat restrictions or special moves.
+
 `fd.saberAnimLevelBase` is no wire field, so the client works it out for every
 command it predicts, as `CG_PredictPlayerState` does before `Pmove`
 (`cg_predict.c:1335-1347` in EternalJK and JoF EJK): the current style, unless one

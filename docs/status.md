@@ -8,6 +8,62 @@ no password or command is copied. Windows x64 formatting, locked workspace build
 public server was exercised. Actual desktop clipboard use and non-Windows clipboard
 behavior remain unverified for this change.
 
+## Prediction change necessity review
+
+30/10/2026, based on `main` `82c8c185` (hotfix `2026.1030.2`): #313
+reassesses each October 29 prediction PR's merge parent and current callers
+for a concrete missing input, duplicate implementation and mod/ownership gates.
+The blanket "Retain" labels from #305 have been replaced with per-change
+reasons and remaining runtime gaps in [networking.md](networking.md#prediction-regression-review-30102026).
+
+The #251/#266 rollbacks are merged. A further source-level integration defect
+feeds #267: the shared saber catalog chooses duplicate names in the wrong
+file/name order. Three focused tests fail on main; #314 corrects generic load
+precedence. That catalog behavior predates #267, which expands its combat use;
+no connection to the reported stock-hilt JA+ symptoms is established. Existing
+roll/speed loading was distinguished from #267's newly supplied combat fields.
+
+Several changes have specific missing-context, gate or constant counterexamples;
+none is certified for every mod by that source evidence. The jaPRO changes are
+requested new support with partial kernel evidence, not live parity certification.
+No new broad gameplay verification was performed for this documentation review.
+
+## Saber definition precedence review
+
+30/10/2026, based on `main` `82c8c185`: investigate the catalog consumed
+by prediction PR #267. OpenJK `4d0dfaf1` concatenates `.sab` files in
+`FS_GetFileList` order and resolves the first matching saber name. SJK's
+shared catalog instead traverses sorted paths and replaces duplicate names.
+This predates #267, which exposes more of that catalog to combat prediction.
+Three synthetic tests fail before the fix: the later definition's
+`noFlips` flag wins over the first definition's `noWallRuns`. The correction
+uses legacy file-list order and preserves the first case-insensitive name,
+including combat move overrides. The movement case selects the wrong Force-jump
+pose before the fix (1152 rather than 1163); corrected movement passes at
+8/7/4/3 ms. Same-path mount replacement is preserved.
+No retail data is in the tests; this has not been linked to the stock-hilt JA+
+report or verified with a live custom-hilt server. See PR #314 for full checks.
+
+## Toy achievements and the board's Fun page
+
+30/10/2026, branch `personal/toy-achievements` (with hub branch
+`toy-achievements`): 26 achievements for the toys, from a player's ideas reworked with
+Sol, and the Achievements board split into a General page and a Fun page with a
+category per toy (F or the switch at the wall's top right turns them). Box: Sneaking
+Mission and Legendary Soldier (30 and 60 minutes), Surprise!, Alert!. Order 66: Wipe
+Them Out, I Am the Senate. Hax: Puppet Master, Double Agent, Total Control (hidden),
+Leap of Faith, Script Kiddie, Elite Hacker, It's a Trap!. Drone: Eye in the Sky,
+Special Delivery. Boombox: DJ, Block Party, Tough Crowd (hidden). Monitor: Tech
+Support, Two for One, Strike! (hidden), Long Distance Call. Box hunt (counted by the
+hub): Bounty Hunter, Big Game Hunter, Still Standing, Most Wanted. The client's are
+counted by the tracker from what the toys tell it (`tracker::Toys`) or by the toys
+themselves; [identity.md](identity.md#achievements) has the rules. The medallions'
+canvas tokens moved to 6000 (they would have run into the toys' at 1300).
+
+Checked by unit tests (record, tracker, board layout on both pages, hub counting);
+not yet played in a match. Until the hub branch is deployed the client's new ones
+wait at "Waiting for the SJK hub" and the box hunt's do not count.
+
 ## Prediction regression audit
 
 30/10/2026, Windows x64: audit #305 reviewed the 25 prediction PRs from
@@ -1771,16 +1827,26 @@ menu, the taskbar flash on a real window (winit's Informational attention).
 
 ## Old menu catalogues kept PK3 files open
 
-23/10/2026, `dev/pr-stack` (Sol's report after a long session and reconnect): the
+30/10/2026, `dev/pr-stack` (Sol's report after a long session and reconnect): the
 client failed to mount `base` with `Too many open files`. A mounted VFS keeps each PK3
 open, and the Profile menu moves between worlds; its model-icon worker, cosmetics
 catalogue and Force-template catalogue could retain an older world's VFS after a new
 one was attached. With 297 PK3s in the reported installation, retained generations
 used hundreds of file descriptors each. Attaching a world now invalidates every
-VFS-bound Profile cache immediately while preserving the player's menu draft. Unit
-tests pin release of the old VFS by the worker and both catalogues. Verified on Linux
-with the locked workspace format, build, test and Clippy checks. Not yet verified: a
-multi-map live session with the reported installation.
+VFS-bound Profile cache immediately while preserving the player's menu draft.
+Superseded CPU world loads (including menu rebuilds) now receive cancellation and drop
+their VFS at the next mount/BSP/scene boundary; shader catalogue loading checks before
+each script read. A `Weak` ownership test pins that release, alongside the Profile
+worker/catalogue tests. VFS generations and their live PK3 sources are counted and
+logged at world attach, disconnect and reconnect. On Unix the client non-fatally raises
+its soft `RLIMIT_NOFILE` to the host-permitted ceiling at startup and logs the old/new
+values; the safe wrapper respects macOS `kern.maxfilesperproc`, while Windows remains a
+no-op. The per-asset open/close experiment was dropped: mounted archives retain their
+readers, so this change adds headroom and makes stale ownership observable without
+trading it for repeated PK3 opens. Verified on Linux by locked workspace format, build,
+test and Clippy checks (including VFS/shader suites and both cancelled-worker ownership
+tests). Not yet verified: macOS/Windows builds or a multi-map live session with the
+reported installation.
 
 ## Heimdall's time nudge kicks after a hitch
 
