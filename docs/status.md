@@ -1,3 +1,23 @@
+## Dual-saber jump-hull regression review
+
+30/10/2026, based on `main` `c1b90267`: this change claims the rollback of
+PR #266 after an isolated original JA+ 2.4 B7 server disagreed with the new
+dual forward jump-attack hull. At the same acknowledged command endpoint,
+prediction had `PMF_FIX_MINS` and downward velocity while the server was
+grounded without that flag. The rollback is implemented; focused regressions cover 8/7/4/3 ms.
+Recorded-input replay removes the corresponding regression at 8/7/4/3 ms;
+workspace check results are recorded in the pull request. This
+does not certify other attacks, base servers or complete movement parity.
+
+
+Evidence: Windows x64, original 2011 JA+ module SHA-256 prefix `9c2063955c5e6c3c`,
+private `mp/duel1`, stock dual `single_1`. Four exact command/snapshot captures
+compare 1,598 acknowledged endpoints at 8/7/4/3 ms. This rollback alone removes
+the new dual-jump mismatches; the separate spawn impulse remains until #308.
+With both rollbacks, the remaining mismatch records equal the pre-merge
+`0fd6a5e1` control, including its pre-existing spawn-height/wall-stop differences.
+The probe excludes inline movers and actors and is not a full viewer check.
+
 ## Banana peel in the look
 
 30/10/2026, `personal/sync-origin`, based on `main` `bc9343ff`, with the hub's `look-toys`
@@ -253,12 +273,8 @@ tests cover holding attack/use and releasing them at 8/7/4/3 ms on Windows
 x64. Live respawn behavior against an OpenJK server remains unverified.
 ## Dual jump-attack collision hull
 
-29/10/2026, `fix/prediction-dual-jump-hull`, based on `main` `e702b0b1`:
-ported local-player dual jump-attack hull resizing/restoration from OpenJK
-`4d0dfaf1`, codemp `PM_CheckDualForwardJumpDuck` and `PM_CheckFixMins`.
-Windows x64 synthetic tests cover both timing windows and clearance/crouch
-restoration around 8/7/4/3 ms boundaries. Live head/ceiling/ledge contacts
-and community animation tables remain unverified.
+PR #266's timed dual-attack hull resizing was rolled back in #307. An original JA+ 2.4 B7 server stayed grounded while prediction shrank the hull and acquired downward velocity (about 254 units/s in the captured case). The fixed -24-unit foot minimum is restored. Timed hull resizing remains unsupported.
+
 ## Equipped saber definitions in client prediction
 
 29/10/2026, `fix/prediction-saber-definitions`, based on `main` `e702b0b1`:

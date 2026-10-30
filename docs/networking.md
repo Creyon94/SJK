@@ -360,10 +360,7 @@ displayed snapshots carry different mover trajectories.
 Jump prediction respects `PMF_RESPAWNED`: holding attack or use after spawning
 blocks jumping until those buttons are released. The latch is cleared before
 movement for every weapon, as in OpenJK `codemp/game/bg_pmove.c`.
-The dual forward jump attack raises the collision hull's feet during codemp's
-two authored animation windows. `PMF_FIX_MINS` restores the hull with downward
-and upward clearance traces, moving up or ending in a crouch when necessary.
-The animation window requires a loaded animation timing table.
+PR #266's timed dual-attack hull resizing was rolled back in #307. An original JA+ 2.4 B7 server stayed grounded while prediction shrank the hull and acquired downward velocity (about 254 units/s in the captured case). The fixed -24-unit foot minimum is restored. Timed hull resizing remains unsupported. Source agreement with OpenJK did not establish runtime compatibility.
 Local prediction loads the equipped hilts' movement flags, named special-move
 overrides and ready/draw/putaway animations from the shared `.sab` catalog.
 Clientinfo changes refresh this configuration for committed moves, replay and
@@ -659,7 +656,7 @@ Confirmed corrections are proposed separately; an open PR is not a merged featur
 | Command gestures | #262 |
 | Rider weapon IDs and client weapon execution | #263, #264 |
 | Rocket trace contents and snapshot target identity/powerups | #265, #268 |
-| Dual jump-attack hull restoration | #266 |
+| Dual jump-attack hull restoration | #266 rolled back in #307 |
 | Equipped saber movement definitions | #267 |
 | Presented inline-brush point contents | #270 |
 
@@ -720,7 +717,7 @@ The links pin both revision and starting line.
 | #263 `961418e1` rider weapon ID | [PM:11698][prediction-e-rider] allows melee, saber and blaster | [PM:13648][prediction-t-rider] has the same whitelist | Shared protocol-26 weapon IDs; blaster is 5, not pistol 4 |
 | #264 `e7c4c087` rider weapon execution | [PM:13354][prediction-e-rider-weapon] runs exposed riders' legal weapons in cgame too | [PM:15654][prediction-t-rider-weapon] does the same | Shared execution gate; keep hidden riders excluded |
 | #265 `9aae3e8b` rocket trace mask | [PM:7528][prediction-e-rocket] uses `MASK_PLAYERSOLID` | [PM:9201][prediction-t-rocket] uses that mask too | Shared contents mask; no replacement of dialect collision filtering |
-| #266 `f0d6e1f0` dual-jump hull | [PM:5532][prediction-e-dual] retains both timed resize windows and `PM_CheckFixMins` | [PM:7162][prediction-t-dual] retains the same functions | Shared hull correction; animation timing still comes from the loaded model |
+| #266 `f0d6e1f0` dual-jump hull | [PM:5532][prediction-e-dual] retains both timed resize windows and `PM_CheckFixMins` | [PM:7162][prediction-t-dual] retains the same functions | Source agreement only; rolled back in #307 after original JA+ runtime disagreement |
 | #267 `f2532dde` saber definitions | [SA:4284][prediction-e-saber] obtains both equipped definitions via `BG_MySaber` | [SA:4593][prediction-t-saber] uses the same lookup in game and cgame | Shared definition input; do not substitute stock definitions for a mod's installed `.sab` files |
 | #268 `859e88b4` rocket target facts | [PM:7543][prediction-e-target] reads entity type and the literal `powerups & PW_CLOAKED` test | [PM:9216][prediction-t-target] retains the same tests | Shared snapshot facts, including the reference's literal cloak-ordinal quirk |
 | #270 `a7de034a` brush point contents | [CP:494][prediction-e-contents] uses the brush's presented origin/angles | [CP:478][prediction-t-contents] does the same | Shared transform correction; preserve which solids the dialect includes |
