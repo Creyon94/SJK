@@ -362,6 +362,13 @@ movement for every weapon, as in OpenJK `codemp/game/bg_pmove.c`.
 PR #266's timed dual-attack hull resizing was rolled back in #307. An original JA+ 2.4 B7 server stayed grounded while prediction shrank the hull and acquired downward velocity (about 254 units/s in the captured case). The fixed -24-unit foot minimum is restored. Timed hull resizing remains unsupported. Source agreement with OpenJK did not establish runtime compatibility.
 Local prediction loads the equipped hilts' movement flags, named special-move
 overrides and ready/draw/putaway animations from the shared `.sab` catalog.
+The shared catalog follows OpenJK's `FS_GetFileList` order and keeps the first
+case-insensitive saber name (`WP_SaberLoadParms` / `WP_SaberParseParms`,
+`codemp/game/bg_saberLoad.c`, `4d0dfaf1`). A higher-priority mount still replaces
+the same virtual file. Sorting file paths or replacing duplicate names can select
+a different move restriction/override; PR #314 corrects that inherited integration
+problem exposed by #267. Synthetic duplicate-file/name cases are covered; a live
+custom-hilt server remains unverified.
 Clientinfo changes refresh this configuration for committed moves, replay and
 previews; unknown or multiplayer-forbidden names fall back to Kyle and
 two-handed hilts exclude a second saber. Authoritative moves keep the game's
