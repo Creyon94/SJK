@@ -1978,6 +1978,7 @@ mod tests {
             page,
             selected_row,
             team,
+            following: false,
             team_game,
             siege: false,
             red_players: 4,
@@ -1995,6 +1996,7 @@ mod tests {
             team_game: true,
             siege: false,
             team: 2,
+            following: false,
             vote: true,
         })
     }
@@ -2285,6 +2287,7 @@ mod tests {
                         team_game: false,
                         siege: false,
                         team: 3,
+                        following: false,
                         vote: false,
                     }),
                     Focus::Card(Control::CallVote),
@@ -2459,6 +2462,7 @@ mod tests {
                 team_game: true,
                 siege: false,
                 team: 2,
+                following: false,
                 vote,
             });
             for viewport in VIEWPORTS {

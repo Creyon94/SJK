@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 30/10/2026 | - | Achievements: the toys' own, and a Fun page for them
+- 04151f1 |  | Achievements: the toys' own, and a Fun page for them
 + 30/10/2026 | - | Release 2026.1030.2
 - 2ddd0d8 |  | Release 2026.1030.2
 + 30/10/2026 | - | jaPRO plugin options: offer Force jumps, now that prediction follows it
@@ -2650,8 +2652,9 @@
 - 0874042 |  | Decode print and cp text as legacy bytes
 
 = Lukas
-+ 24/10/2026 | SJK #198 | Add VFS headroom and lifetime diagnostics
++ 30/10/2026 | SJK #198 | Add VFS headroom and lifetime diagnostics
 - 69c6da4 |  | Release stale profile VFS generations
+- 37c8ade |  | Add VFS headroom and lifetime diagnostics
 + 21/10/2026 | SJK #179 | Add holocron notification modes
 - d7ae6dc |  | Add holocron notification modes
 + 20/10/2026 | SJK #190 | Add JA+ anti-kiss protection
@@ -2694,6 +2697,12 @@
 - ddfe116 |  | Fix Linux clipboard integration
 
 = Lumaya
++ 30/10/2026 | SJK #314 | Resolve saber definitions in multiplayer load order
+- 3d7346d |  | Claim the saber definition precedence correction
+- 308a4ae |  | Keep the first saber definition in multiplayer load order
++ 30/10/2026 | SJK #313 | Reassess necessity and integration of the prediction changes
+- a9b446a |  | Claim a necessity review of the prediction changes
+- 4474dd8 |  | Replace blanket prediction retention with necessity evidence
 + 30/10/2026 | - | Restore fixed dual-jump hull after JA+ runtime regression
 - 8fd4f9b |  | Restore fixed dual-jump hull after JA+ runtime regression
 + 30/10/2026 | - | Remove zero-gravity impulses from transient spawn prediction
@@ -2913,6 +2922,10 @@
 - fed9acd |  | Hide duel opponents' bars and send nothing while duelling
 
 = Slash
++ 30/10/2026 | SJK #310 | Spectate: joining the game works while following a player (#207)
+- 83af9e8 |  | Start fix for joining while following a player (hub report #207)
+- 5933e67 |  | Offer Join while following a player from spectate
+- 3301940 |  | Keep Spectate on offer while following, read team votes by own team
 + 29/10/2026 | SJK #286 | fs_restart: mount the game files again without restarting SJK
 - de38ac3 |  | fs_restart: mount the game files again without restarting SJK
 - ac00c0f |  | Changelog: fs_restart's PR number

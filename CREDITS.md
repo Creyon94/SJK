@@ -523,7 +523,7 @@ pull requests merged into SJK, most of them bringing SJK in line with EternalJK
   its next seven the Sketch, Hourglass, Fiber Optic, Serpent, Monarch, Phoenix and Quantum
   blades, and its last three the Comic, Quicksilver and Obsidian Edge blades.
 
-Lumaya ([lumayaa](https://github.com/lumayaa)), contributor, has 78 pull requests
+Lumaya ([lumayaa](https://github.com/lumayaa)), contributor, has 80 pull requests
 merged into SJK
 ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3Alumayaa)):
 
@@ -647,7 +647,8 @@ merged into SJK
   style jumps and only-bhop, and the new jetpack, only on servers that advertise jaPRO.
 - #305, #307, #308 the prediction regression audit: all 25 prediction PRs of 29/10 checked
   against an original JA+ server, and the two that broke dual jump attacks and joining
-  (#266, #251) backed out.
+  (#266, #251) backed out; #313 then gave each of the 25 its reason; #314 makes duplicate
+  saber names follow the original game's file order.
 
 Lukas ([LukasMoudry](https://github.com/LukasMoudry)), contributor, has 18 pull requests
 merged into SJK
@@ -688,9 +689,11 @@ merged into SJK
   a private duel or always, duels included; the holocron still waits for the game menu. At the
   merge a card that comes during a duel waits for the duel's end instead of being dropped.
 - #198 "Too many open files" after a long session: the Profile menu's model icons, cosmetics and
-  Force templates let go of the previous map's game files (its PK3 reopening part held back).
+  Force templates let go of the previous map's game files (its PK3 reopening part held back);
+  its second part raises the open-file limit on Mac and Linux, lets cancelled map loads let go
+  of their game files sooner, and logs how many game-file sets are still held.
 
-Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 67 pull requests merged
+Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 69 pull requests merged
 into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AJoFSlash)):
 
 - #114 Tab completes the cfg file argument of `exec`, `execq`, `writeconfig` and `write`
@@ -819,6 +822,8 @@ into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author
   card, tries the other cards when one cannot open, and says why when none starts.
 - #286 `fs_restart` mounts the game files again without restarting SJK: new PK3s and the
   asset browser's pack choices reach the menus and the next map, after Blep's idea.
+- #310 joining the game while following a player: the join menu and the match card read your
+  own team, not the followed player's (hub report #207, Jaykmeit).
 
 His Peek work in #199 (closed 24/10/2026, not merged) shaped the Drone toy: a player is
 asked before being peeked, told who watches, and can end it. His #206 (closed 25/10/2026,
