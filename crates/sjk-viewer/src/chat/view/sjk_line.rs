@@ -462,6 +462,7 @@ mod tests {
         chat.options.lines = crate::chat::MAX_VISIBLE;
         for (index, line) in chat.lines.iter_mut().skip(1).enumerate() {
             line.body = format!("^5body{}", index + 1);
+            line.wrap = Default::default();
         }
         chat.lines[1].channel = Channel::Team;
         chat.lines[2].channel = Channel::Whisper;
