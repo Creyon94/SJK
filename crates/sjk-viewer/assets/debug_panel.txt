@@ -148,6 +148,16 @@ test: cg_lagometer 3: no backdrops; stand still: the speed number goes.
 test: cg_lagometerScale 2 and cg_lagometerX/Y: the numbers and speed graph follow.
 test: cg_lagometerY 470 (graph at the top): the numbers stand under the graph, on screen.
 
+[japro-force-jumps-option]
+area: Menus & settings
+title: jaPRO plugin options: Force jumps offered, now that prediction follows bit 19
+change: Settings > Mods > jaPRO plugin options: Force jumps (japro.plugin 1), On by default.
+change: Off sets cp_pluginDisable bit 19: held jump bunny hops where the server allows it.
+test: Settings > Mods: Force jumps (jaPRO) On; japro.plugin lists 1 Force jumps: On.
+test: Off: cp_pluginDisable reads 525824 (1536 + bit 19); On again: 1536.
+test: Local jaPRO server with only-bhop by choice (g_onlyBhop 2): Off, hold jump: no snap back.
+test: Same server, On: held jump Force jumps as before. On a JA+ server: no change either way.
+
 [plugin-options]
 area: Menus & settings
 title: JA+ and jaPRO plugin options as switches, and the plugin command (Kushina's idea)

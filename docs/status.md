@@ -1,3 +1,16 @@
+## jaPRO plugin options: Force jumps
+
+30/10/2026, `personal/sync-origin`, based on `main` `bc9343ff`: Force jumps (`cp_pluginDisable`
+bit 19, `JAPRO_PLUGIN_BHOP`), hidden by the plugin options of 29/10/2026 because the
+prediction did not follow it, is offered under jaPRO plugin options (`japro.plugin 1`,
+[mods.md](mods.md#plugin-options)). Lumaya's PR #282 made the prediction read the bit
+(`JaProRules::only_bhop`, both of EternalJK's checks, `bg_pmove.c:2670` and `2836`, only on
+a jaPRO profile advertising `JAPRO_CINFO_BHOP2`), refreshed from the cvar each frame
+(`runtime_settings.rs`). Verified: the table's tests (polarity, listing, switching) and
+`settings::plugin_rows::tests::japro_rows_follow_their_bits` (the row sets the bit the
+prediction reads), with Lumaya's `japro_only_bhop_*` tests. Not verified: only-bhop on a
+jaPRO server in game.
+
 ## Mystery box: a take seen by everyone
 
 30/10/2026, `personal/box-take-sync`, based on `main` `c784eb8f` (Sol's report: when a
