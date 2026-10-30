@@ -5,10 +5,28 @@ forces only the game server's public All message-body colours.
 Team/admin chat, plain/encrypted whispers and the separate SJK channel retain their
 original colours. Original colours remain the default; names, sent messages, logs and centre prints
 are unchanged. The choice applies to displayed history without a reconnect.
-Windows x64 formatting, locked workspace build/tests and all-target clippy passed.
+Windows x64 formatting, locked workspace build/tests and all-target clippy passed
+on `533f67f5`. The subsequent main merge retains both status entries; its full
+workspace recheck is left to CI.
 An offline GPU screenshot with cyan selected confirms body colours and preserved
 identified sender names. Live-server chat and other operating systems remain unverified. Formatting strips only display escapes without new
 per-frame strings, retaining wrapping offsets and emoji markers.
+
+## Toys say ON and OFF, and toy_help
+
+29/10/2026, `feat/toy-announce` (Creyon), based on `main` `9f40fded` (Blep's idea, Sol's
+#ideas recap 29/10/2026): Box hunt, the Monitor and the Drone said a long line on the
+centre of the screen when switched, the older toys said nothing. After Creyon's test
+(29/10/2026: too long, on and off alike in white) every toy with a switch says its name
+and ON in green or OFF in red ("Cardboard box ON"): Illuminate, the cardboard box, Order
+66, the Hax, the Drone, the Monitor and Box hunt, and the Boombox when put away (its start
+names the track). Only the player's own switch says it, not a toy restored at start nor a
+box lifted by another player. The explanations moved to `toy_help`, which lists all eleven
+toys in the console, the name in yellow and what it does and how in white
+([toy_switch_words.rs](../crates/sjk-viewer/src/toy_switch_words.rs),
+[client.md](client.md#illuminate)). Verified: the unit tests
+`a_switch_says_on_in_green_and_off_in_red` and `toy_help_lists_every_toy_once`, fmt,
+build, Clippy and the workspace's tests.
 
 ## Time of day from the PC's clock
 
