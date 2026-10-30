@@ -1,23 +1,3 @@
-## Prediction change necessity review
-
-30/10/2026, based on `main` `82c8c185` (hotfix `2026.1030.2`): #313
-reassesses each October 29 prediction PR's merge parent and current callers
-for a concrete missing input, duplicate implementation and mod/ownership gates.
-The blanket "Retain" labels from #305 have been replaced with per-change
-reasons and remaining runtime gaps in [networking.md](networking.md#prediction-regression-review-30102026).
-
-The #251/#266 rollbacks are merged. A further source-level integration defect
-feeds #267: the shared saber catalog chooses duplicate names in the wrong
-file/name order. Three focused tests fail on main; #314 corrects generic load
-precedence. That catalog behavior predates #267, which expands its combat use;
-no connection to the reported stock-hilt JA+ symptoms is established. Existing
-roll/speed loading was distinguished from #267's newly supplied combat fields.
-
-Several changes have specific missing-context, gate or constant counterexamples;
-none is certified for every mod by that source evidence. The jaPRO changes are
-requested new support with partial kernel evidence, not live parity certification.
-No new broad gameplay verification was performed for this documentation review.
-
 ## Toy achievements and the board's Fun page
 
 30/10/2026, branch `personal/toy-achievements` (with hub branch
@@ -83,6 +63,26 @@ a jaPRO profile advertising `JAPRO_CINFO_BHOP2`), refreshed from the cvar each f
 `settings::plugin_rows::tests::japro_rows_follow_their_bits` (the row sets the bit the
 prediction reads), with Lumaya's `japro_only_bhop_*` tests. Not verified: only-bhop on a
 jaPRO server in game.
+
+## Prediction change necessity review
+
+30/10/2026, based on `main` `82c8c185` (hotfix `2026.1030.2`): #313
+reassesses each October 29 prediction PR's merge parent and current callers
+for a concrete missing input, duplicate implementation and mod/ownership gates.
+The blanket "Retain" labels from #305 have been replaced with per-change
+reasons and remaining runtime gaps in [networking.md](networking.md#prediction-regression-review-30102026).
+
+The #251/#266 rollbacks are merged. A further source-level integration defect
+feeds #267: the shared saber catalog chooses duplicate names in the wrong
+file/name order. Three focused tests fail on main; #314 corrects generic load
+precedence. That catalog behavior predates #267, which expands its combat use;
+no connection to the reported stock-hilt JA+ symptoms is established. Existing
+roll/speed loading was distinguished from #267's newly supplied combat fields.
+
+Several changes have specific missing-context, gate or constant counterexamples;
+none is certified for every mod by that source evidence. The jaPRO changes are
+requested new support with partial kernel evidence, not live parity certification.
+No new broad gameplay verification was performed for this documentation review.
 
 ## Mystery box: a take seen by everyone
 
