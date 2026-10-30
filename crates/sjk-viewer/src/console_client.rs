@@ -200,6 +200,10 @@ pub(super) const COMMANDS: &[(&str, &str)] = &[
     ),
     (crate::emotes::COMMAND, crate::emotes::HELP),
     (crate::boombox::TRACK_COMMAND, crate::boombox::HELP),
+    (
+        crate::toy_switch_words::COMMAND,
+        crate::toy_switch_words::HELP,
+    ),
     (crate::block_command::COMMAND, crate::block_command::HELP),
     (
         crate::block_command::UNBLOCK_COMMAND,
@@ -230,6 +234,10 @@ pub(super) const COMMANDS: &[(&str, &str)] = &[
         crate::graphics_quality::RENDERER_HELP,
     ),
     ("cmd", "Forward arguments as a reliable server command"),
+    (
+        "copyServerIP",
+        "Copy the connected server IP and port to the clipboard",
+    ),
     ("clientinfo", "Print client state and userinfo"),
     ("userinfo", "Print userinfo"),
     ("model", "Set player model and optional skin"),
@@ -1119,6 +1127,7 @@ impl crate::GpuState {
             }
             crate::emotes::COMMAND => return self.emote_command(args),
             crate::boombox::TRACK_COMMAND => return self.boombox_command(args),
+            crate::toy_switch_words::COMMAND => return Ok(crate::toy_switch_words::help_lines()),
             crate::block_command::COMMAND => return self.block_command(args),
             crate::block_command::UNBLOCK_COMMAND => return self.unblock_command(args),
             crate::medal_popup::rehearsal::COMMAND => return self.debug_medal_command(args),
