@@ -34,7 +34,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 = cg_showClientIDs: Client numbers now show on SJK's scoreboard too, small before each name; off hides them on both scoreboards.
 
-- Scoreboard: kills/deaths on every server (`cg_scoreDeaths 2` by default: the server's deaths, else counted by SJK since you joined), each player's client number on SJK's scoreboard too (`cg_showClientIDs`), the # column numbering players in order, and Rank by score - deaths (`cg_scoreboardDeathsRank`, off by default) (Foshin's idea) _(Creyon)_
+- Scoreboard: each player's client number on SJK's scoreboard too (`cg_showClientIDs`), the # column numbering players in order, and Rank by score - deaths (`cg_scoreboardDeathsRank`, off by default) (Foshin's idea) _(Creyon)_
 - Prediction with custom sabers: when two saber files define the same saber name, the first one counts, in the original game's file order, so a mod's saber no longer predicts the wrong flips, wall runs or jump attacks _(Lumaya, PR #314, after the original game)_
 - Mac and Linux: SJK raises its open-file limit at start as far as the system allows, so many PK3s no longer run out of files, and the log tracks how many game-file sets are still held at each map change _(Lukas, PR #198)_
 - Achievements: 26 new ones for the toys (the cardboard box, Order 66, the Hax, the Drone, the boombox, the monitor and the box hunt), three of them secret, and the board has two pages, General and Fun, a category for each toy on Fun (press F or use the switch at the top right) _(Sol, after a player's ideas)_

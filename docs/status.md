@@ -9,17 +9,16 @@ labelled "#" and numbers the rows in the listed order, one number each (ties sha
 number before; JoF EJK lists its rows in order without shared numbers). New
 `cg_scoreboardDeathsRank` (off) sorts both boards by score minus deaths where deaths are
 counted, fewer deaths first on a tie, joining rows last ([client.md](client.md),
-`style::rank_value`). `cg_scoreDeaths` defaults to 2 (EJK's 1 shows deaths only from a
-JA+ or jaPRO plugin; 2 falls back to the local count), and a saved 1 moves to 2 once
-(`cg_scoreDeathsDefaultVersion`). Neither EJK nor JoF EJK has the numbers on this look or the
+`style::rank_value`). `cg_scoreDeaths` keeps EJK's default 1 (Sol's defaults rule of
+30/10/2026); with 2 the local count stands in where the server sends no deaths. Neither EJK nor JoF EJK has the numbers on this look or the
 ranking. A compact capture-the-flag board of 6 a side, 1142 of the full 1144 pixels
 before, now fills it (the width test allows equal). Verified: unit tests (the ranking,
 its defaults, the numbers before every name in full and compact, free-for-all and teams,
-the ID and # labels, places in the listed order, a joining row last and unnumbered, the
-`cg_scoreDeaths` move),
+the ID and # labels, places in the listed order, a joining row last and unnumbered),
 fmt, the workspace's build, tests and Clippy; in game on Windows (a local server with
-bots): the labels and ID tags, and with `cg_scoreDeaths 2` the ranking by score minus
-deaths. The new default and its move have not been tried in game. Not verified: the compact board, team games, the what's-new card's switch.
+bots): the labels and ID tags, the # column 1 to 20, and with `cg_scoreDeaths 2` the
+ranking by score minus deaths. Not verified: the compact board, team games, the
+what's-new card's switch.
 
 ## Prediction change necessity review
 

@@ -3141,12 +3141,10 @@ the menus are the SJK UI. A look chosen after that stays. The classic board
   default), the client ID; CTF shows Score, C, A, D, Ping and Time, and duels with
   a frag limit show wins/losses. Score shows score/deaths when `cg_scoreDeaths`
   provides deaths. With JoF EJK's `cg_scoreDeaths` modes, 0 hides them, 1 uses a
-  JA+/jaPRO server's appended value only, 2 (SJK's default since 30/10/2026; EJK's is
-  1) uses that value and falls back to the session-local counter when the server sends
-  none, so kills/deaths show on every server, and 3 always uses the local counter. The
-  local counter knows only the deaths seen since you joined. A profile that had saved
-  the old default 1 moves to 2 once (`cg_scoreDeathsDefaultVersion`); a 1 chosen after
-  that stays. As in EJK, duels and CTF never show deaths, and the local counter
+  JA+/jaPRO server's appended value only (the default, as EJK), 2 uses that value and
+  falls back to the session-local counter when the server sends none, so kills/deaths
+  show on every server, and 3 always uses the local counter. The local counter knows
+  only the deaths seen since you joined. As in EJK, duels and CTF never show deaths, and the local counter
   starts again for everyone on `map_restart` or a new level (a new
   `CS_LEVEL_START_TIME`), and for one player when they change team or leave
   (`scoreboard/deaths.rs`). Bots show `BOT` for their ping; clients still connecting show

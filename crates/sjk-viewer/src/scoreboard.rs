@@ -2,7 +2,6 @@
 
 mod afk;
 pub(crate) use afk::CVAR as AFK_CVAR;
-pub(crate) use deaths::DEFAULT_MODE as DEATHS_DEFAULT_MODE;
 pub(crate) mod behavior;
 mod classic;
 mod deaths;

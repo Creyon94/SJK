@@ -173,9 +173,9 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
         ),
         CvarDefinition::new(
             "cg_scoreDeaths",
-            crate::scoreboard::DEATHS_DEFAULT_MODE,
+            1_i64,
             archive,
-            "Scoreboard deaths: 0 off, 1 server, 2 server/local fallback (default), 3 local",
+            "Scoreboard deaths: 0 off, 1 server, 2 server/local fallback, 3 local",
         ),
         CvarDefinition::new(
             "cg_hitsounds",
@@ -1542,12 +1542,6 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             0_i64,
             archive,
             "Internal migration marker for the scan-code console key default",
-        ),
-        CvarDefinition::new(
-            "cg_scoreDeathsDefaultVersion",
-            0_i64,
-            archive,
-            "Internal migration marker for the cg_scoreDeaths 2 default",
         ),
         CvarDefinition::new(
             "cg_scoreboardStyleDefaultVersion",
