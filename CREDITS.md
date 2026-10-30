@@ -523,7 +523,7 @@ pull requests merged into SJK, most of them bringing SJK in line with EternalJK
   its next seven the Sketch, Hourglass, Fiber Optic, Serpent, Monarch, Phoenix and Quantum
   blades, and its last three the Comic, Quicksilver and Obsidian Edge blades.
 
-Lumaya ([lumayaa](https://github.com/lumayaa)), contributor, has 75 pull requests
+Lumaya ([lumayaa](https://github.com/lumayaa)), contributor, has 78 pull requests
 merged into SJK
 ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3Alumayaa)):
 
@@ -645,6 +645,9 @@ merged into SJK
   the equipped saber definitions (#267) and remote vehicle hulls (#273).
 - #279, #282, #284 jaPRO prediction from TaystJK: movement-style acceleration and friction,
   style jumps and only-bhop, and the new jetpack, only on servers that advertise jaPRO.
+- #305, #307, #308 the prediction regression audit: all 25 prediction PRs of 29/10 checked
+  against an original JA+ server, and the two that broke dual jump attacks and joining
+  (#266, #251) backed out.
 
 Lukas ([LukasMoudry](https://github.com/LukasMoudry)), contributor, has 18 pull requests
 merged into SJK
@@ -843,6 +846,11 @@ Reyced made Solfox, a fox player model (`models/players/solfox`), for Sol in Oct
 serves it to every SJK player in the `sjk_solfox` pack (16/10/2026), so anyone may
 wear it and SJK players see it on each other. Reyced keeps the rights to the model;
 it is distributed with his permission and is not part of SJK's code or its licence.
+
+Blep, a player, drew the Gonk, EZ and Geyon tags (Geyon for Creyon) and proposed them
+in the Discord's #tag-proposals; Sol picked them (30/10/2026), and the SJK hub serves
+them to every SJK player in the `sjk_tags` pack. Blep keeps the rights to them; they
+are not part of SJK's code or its licence.
 
 ## Ideas
 

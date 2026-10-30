@@ -11,6 +11,52 @@ Clippy; in game on Windows (a local server, a skinned blade at 1 and at 10, whic
 drawn as 2: the core thicker, the glow and glints unchanged). Not verified: the thrown
 blade and plain retail blades in game, other players' blades.
 
+## Prediction regression audit
+
+30/10/2026, Windows x64: audit #305 reviewed the 25 prediction PRs from
+29/10 against release `2026.1030.1` (`b138373f`) and `main` `c1b90267`.
+An original JA+ 2.4 B7 private server reproduced two regressions: transient
+zero-gravity spawn impulses (#251, rollback #308), and dual-jump hull sinking
+below the floor (#266, rollback #307). Source-only and synthetic checks had
+missed these failures. The before-merge control is `0fd6a5e1`.
+
+Four 8/7/4/3 ms captures cover 1,598 acknowledged endpoints. Tested chained
+stock dual-saber moves matched server move IDs; this does not clear every
+attack or presentation path. The complete PR disposition, reference module
+hash, probe limits and remaining unverified cases are in
+[the networking review](networking.md#prediction-regression-review-30102026).
+Base-server, jaPRO and complete gameplay parity remain unverified. Further
+prediction feature work should wait for these corrections and targeted
+runtime validation.
+
+## Banana peel in the look
+
+30/10/2026, `personal/sync-origin`, based on `main` `bc9343ff`, with the hub's `look-toys`
+(a look holds up to 32 toy ids, 8 before, `bad_look` past them). The Banana
+peel was kept out of the look's `toys` when it came (29/10/2026) because SJK's toys
+already filled the hub's 8; its id `banana` now goes there while it is on, as the other
+toys' do (`looks::TOYS`, nine; `Worn::toys` is a `u32`, as many bits as the hub's 32
+ids). The peels still go through the toy relay, and the dropper's `clear` stays: clients
+of 29/10 and 30/10/2026 do not list the toy. Nothing else in the client caps a look's
+toys (`sjk-identity` sends the list as it is; the blade's option lists keep their 8).
+The hub must be deployed first: a hub from before refuses a look with all nine toys out
+as `bad_look`, which the client takes as its blade skin refused. Verified:
+`looks::tests::every_toy_goes_both_ways_all_at_once`, the looks and banana tests. Not
+verified: a look with nine toys on the live hub.
+
+## jaPRO plugin options: Force jumps
+
+30/10/2026, `personal/sync-origin`, based on `main` `bc9343ff`: Force jumps (`cp_pluginDisable`
+bit 19, `JAPRO_PLUGIN_BHOP`), hidden by the plugin options of 29/10/2026 because the
+prediction did not follow it, is offered under jaPRO plugin options (`japro.plugin 1`,
+[mods.md](mods.md#plugin-options)). Lumaya's PR #282 made the prediction read the bit
+(`JaProRules::only_bhop`, both of EternalJK's checks, `bg_pmove.c:2670` and `2836`, only on
+a jaPRO profile advertising `JAPRO_CINFO_BHOP2`), refreshed from the cvar each frame
+(`runtime_settings.rs`). Verified: the table's tests (polarity, listing, switching) and
+`settings::plugin_rows::tests::japro_rows_follow_their_bits` (the row sets the bit the
+prediction reads), with Lumaya's `japro_only_bhop_*` tests. Not verified: only-bhop on a
+jaPRO server in game.
+
 ## Mystery box: a take seen by everyone
 
 30/10/2026, `personal/box-take-sync`, based on `main` `c784eb8f` (Sol's report: when a
@@ -87,8 +133,8 @@ The slipping player's client decides the slip against its own predicted player (
 ground, moving, feet on a peel it came at) and falls as the Ragdoll does, with a blow at a
 foot (`ragdoll::UNTHROWN` names no monitor) that throws the feet over the head and lays the
 body on its back. Peels, slips and clears go through the toy relay as `drop_...`,
-`slip_<dropper>_<number>` and `clear`; nothing in the looks, which hold eight toy ids at
-most and are full. No hub change (the relay checks no toy ids: `relay.rs`, "The hub knows
+`slip_<dropper>_<number>` and `clear`; nothing in the looks, which held eight toy ids at
+most and were full (the look lists `banana` since 30/10/2026: "Banana peel in the look"). No hub change (the relay checks no toy ids: `relay.rs`, "The hub knows
 no toys"). Collection > Toys has ten rows (64 high, was 68), `cg_toyBananaShow` hides the
 peels, `s_toyBananaSound` silences them; the key bindings' icons have four more atlas
 cells (the atlas keeps its height). Model, picture, icon, slip and drop sounds are SJK's own
@@ -238,12 +284,8 @@ tests cover holding attack/use and releasing them at 8/7/4/3 ms on Windows
 x64. Live respawn behavior against an OpenJK server remains unverified.
 ## Dual jump-attack collision hull
 
-29/10/2026, `fix/prediction-dual-jump-hull`, based on `main` `e702b0b1`:
-ported local-player dual jump-attack hull resizing/restoration from OpenJK
-`4d0dfaf1`, codemp `PM_CheckDualForwardJumpDuck` and `PM_CheckFixMins`.
-Windows x64 synthetic tests cover both timing windows and clearance/crouch
-restoration around 8/7/4/3 ms boundaries. Live head/ceiling/ledge contacts
-and community animation tables remain unverified.
+PR #266's timed dual-attack hull resizing was rolled back in #307. An original JA+ 2.4 B7 server stayed grounded while prediction shrank the hull and acquired downward velocity (about 254 units/s in the captured case). The fixed -24-unit foot minimum is restored. Timed hull resizing remains unsupported.
+
 ## Equipped saber definitions in client prediction
 
 29/10/2026, `fix/prediction-saber-definitions`, based on `main` `e702b0b1`:
@@ -405,12 +447,8 @@ This measures only the lookup, excluding snapshot rebuild, full Pmove, BSP trace
 and rendering. Live contacts and rendered frame rates remain unverified.
 ## Prediction: zero-gravity push-off
 
-29/10/2026, `fix/prediction-zero-gravity`, based on `main` `e702b0b1`:
-shared movement includes codemp's gravity <= 0 impulse, backward trace and leg
-animation. It deliberately retains the clear-trace impulse (`fraction <= 1`).
-Reference: OpenJK multiplayer `bg_pmove.c:2057-2085`, revision `4d0dfaf1`.
-Windows x64 synthetic tests cover command steps 8/7/4/3 ms and the jump gates;
-zero-gravity map play against a live OpenJK server remains unverified.
+PR #251's shared zero-gravity impulse was rolled back in #308. Original JA+ 2.4 B7 spawn snapshots temporarily supplied zero gravity and base speed; prediction accumulated 450-unit/s impulses while the server stayed still. The previous jump branch is restored globally. Zero-gravity wall push-off remains unsupported.
+
 ## Prediction: trigger collision hull
 
 29/10/2026, `fix/prediction-trigger-hull`, based on `main` `e702b0b1`:
@@ -626,6 +664,14 @@ for an older hub or a tag not held), and off screen: tags projected on duel6's w
 floor (`world_shot::duel6_tags_on_walls_and_floor`) and the Tags tab
 (`world_shot::duel6_sjk_collection_tags`). Not verified: in a game, against the hub, two
 clients seeing each other's tags, or the opening's tag prize drawn.
+
+30/10/2026, `personal/tags-gonk-geyon`, based on `main` `c784eb8f`: the first tags from
+the Discord's `#tag-proposals`, all three Blep's and picked by Sol: `tag_gonk` (Uncommon)
+and `tag_geyon` (Rare, for Creyon) join the catalogue, and the EZ tag gets its art (the
+pictures are in the hub's `sjk_tags` pack, hub branch `tags-gonk-geyon`).
+`scripts/tag_assets.py` now also reads the entries rustfmt wraps over two lines (it had
+dropped Crossed Sabers and Droid Doodle). Verified: the catalogue and bundled-shader unit
+tests. Not verified: in a game or against the live hub.
 
 ## Each swing heard once across the predicted and server animations
 
