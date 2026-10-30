@@ -461,6 +461,13 @@ when no locally predicted chassis is available.
 Both views retain snapshot rocket-target metadata, and both moves retain the
 snapshot NPC/animation context.
 
+The 30/10/2026 original JA+ 2.4 B7 comparison of PR #274 against `58c2e386`
+observed identical endpoints at 8/7/4/3 ms, including a swoop pilot and a
+shuttle pilot/passenger. Passenger carrier exclusions were exercised, but no
+endpoint improvement was demonstrated. Shared shuttle residuals remain;
+this is limited regression evidence, not full vehicle parity. See the
+[verification record](status.md#prediction-vehiclerider-trace-exclusions).
+
 ### When prediction steps aside
 
 These cases show the server's state instead of predicting, as JoF EternalJK's
