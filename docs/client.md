@@ -1979,6 +1979,16 @@ EternalJK's). Reduce bright flashes wins over both. The viewer reads them once a
 ([saber_clash_flare.rs](../crates/sjk-viewer/src/saber_clash_flare.rs)); the effect
 spawner and submission read the reduce switch from an atomic the frame sets.
 
+**Blade core thickness** (`cg_saberCoreSize`, archived, 0.5 to 2, default 1; Settings >
+Game options, under Clash flare size) draws the white core down a lit blade thinner or
+thicker: retail's core radius (a third of the blade's, with its flicker, `CG_DoSaber`)
+times the setting, for every blade in the world, held or thrown, plain or skinned. The
+glow, its hilt sprite and a skin's glints keep their size, and 2 still keeps the core
+inside the glow. Previews in menus (Profile, the Collection, the forge) keep retail's
+core. JoF EJK's nearest is `cg_shaderSaberCore` (not archived, 0.625), which scales
+the core of its SFX blades only; SJK draws no SFX blades, so the setting has a name of
+its own ([saber_core.rs](../crates/sjk-viewer/src/saber_core.rs)).
+
 **Saber hit sparks** (`cg_fleshSparks`, archived, 0 to 7, default 7; Settings > Game
 options, Effects) is EternalJK's count of the red sparks a saber hit on a body plays
 (JoF EJK `cg_event.c`, `EV_SABER_HIT`, each `FX_PlayEffectID` behind

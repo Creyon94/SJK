@@ -787,6 +787,10 @@ const HELP: &[(&str, &str)] = &[
         "Size of the saber clash flare: 1 as in the original game, 0 to 2.",
     ),
     (
+        crate::saber_core::CVAR,
+        "How thick the white core down a lit blade is drawn: 1 as in the original game, 0.5 to 2. The glow around it stays the same.",
+    ),
+    (
         crate::impacts::FLESH_SPARKS_CVAR,
         "Red sparks when a saber hits a body: 7 all, as in the original game, down to 0 none (JoF EJK).",
     ),

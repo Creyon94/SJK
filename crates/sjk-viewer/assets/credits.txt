@@ -195,7 +195,7 @@ link: https://sol-vulpes.github.io/SJK/
 
 [Creyon]
 github: Creyon94
-role: Contributor and tester: 68 merged pull requests, EternalJK parity
+role: Contributor and tester: 69 merged pull requests, EternalJK parity
 medal: early_contributor
 did: #2 #7 Duel challenges from names with symbols, centre prints kept whole
 did: #3 The third-person camera damped per frame as EternalJK (cg_cameraFPS)
@@ -247,6 +247,7 @@ did: The Saber ideas page: the concepts of the Tidal, Circuit, Aurora, Echo, Neb
 did: The Blade Lab page: the Neon, Peppermint, Soap Bubble, Lava Lamp, Reactor and Bleeding Kyber blades
 did: The Blade Lab page: the Sketch, Hourglass, Fiber Optic, Serpent, Monarch, Phoenix and Quantum blades
 did: The Blade Lab page: the Comic, Quicksilver and Obsidian Edge blades
+did: #297 Blade core thickness: a slider for the white core of a lit blade
 link: Creyon's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3ACreyon94
 
 [Lumaya]

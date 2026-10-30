@@ -1,3 +1,16 @@
+## Blade core thickness
+
+30/10/2026, `feat/blade-core-thickness`, based on `main` `bc9343ff`: `cg_saberCoreSize`
+(archived, 0.5 to 2, 1 retail), the slider **Blade core thickness** in Settings > Game
+options, multiplies the radius of the core of every blade drawn in the world, held and
+thrown (`Instance::with_core_scale`, read once a frame into the actor submission's sinks)
+([client.md](client.md), [saber_core.rs](../crates/sjk-viewer/src/saber_core.rs)).
+Menu previews keep retail's core. Verified: unit tests (`saber_core`: the value's clamp
+and fallback; `saber`: a scaled pair's core only), fmt, the workspace's build, tests and
+Clippy; in game on Windows (a local server, a skinned blade at 1 and at 10, which is
+drawn as 2: the core thicker, the glow and glints unchanged). Not verified: the thrown
+blade and plain retail blades in game, other players' blades.
+
 ## Copy server endpoints
 
 30/10/2026, `feat/copy-server-address`, based on `main` `82c8c185`: the SJK

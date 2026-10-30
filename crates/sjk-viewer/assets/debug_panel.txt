@@ -24,6 +24,15 @@
 
 # ---- Console & chat ----
 
+[blade-core-thickness]
+area: Rendering & effects
+title: Blade core thickness slider (cg_saberCoreSize 0.5 to 2), Creyon's #297
+change: Settings > Game options, under Clash flare size: the white core of every lit blade.
+change: Glow, glints and skins' extras keep their size; menu previews keep the retail core.
+test: Set it to 2: your blade's core is bolder, the glow the same; 0.5: thinner.
+test: Throw the saber: the thrown blade follows it too; another player's blade as well.
+test: cg_saberCoreSize 10 in the console draws as 2; 1 is the original look.
+
 [glow-no-sabers]
 area: Rendering & effects
 title: No glow on sabers (r_dynamicGlowNoSabers), g0dchris' idea, Slash's #294
