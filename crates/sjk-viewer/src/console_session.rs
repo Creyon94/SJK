@@ -844,6 +844,40 @@ impl ViewerConsole {
         self.force_profile.server_rules()
     }
 
+    /// Play as on a server with `rules`, for tests.
+    #[cfg(test)]
+    pub(crate) fn set_server_force_rules(&mut self, rules: ForceLegalizeRules) {
+        self.force_profile.set_server_rules(Some(rules));
+    }
+
+    /// The server said whether its saber skills come free (`EV_SET_FREE_SABER`,
+    /// stock cgame's `ui_freeSaber`): adopt it, and when the profile sent for
+    /// the player's own changes with it, send that and have the server read it.
+    pub(crate) fn note_free_saber(&mut self, free_saber: bool) {
+        let Some(rules) = self.force_profile.server_rules() else {
+            return;
+        };
+        if rules.free_saber == free_saber {
+            // Already so; only remember that the server said it.
+            self.force_profile.note_free_saber(free_saber);
+            return;
+        }
+        let preferred = self.text_value("forcepowers").map(str::to_owned);
+        let before = preferred
+            .as_deref()
+            .map(|preferred| self.force_profile.sent_forcepowers(preferred));
+        if !self.force_profile.note_free_saber(free_saber) {
+            return;
+        }
+        let after = preferred
+            .as_deref()
+            .map(|preferred| self.force_profile.sent_forcepowers(preferred));
+        if before != after {
+            self.userinfo_dirty.store(true, Ordering::Release);
+            self.force_profile.profile_applied();
+        }
+    }
+
     /// Make `value` the player's Force profile; on a server, have it read it
     /// (`forcechanged` once the userinfo carrying it is out): at once while
     /// spectating, at the next respawn in play.
@@ -1041,6 +1075,8 @@ impl ViewerConsole {
         // player to) become the rules the sent profile is fitted to.
         let rules = force_rules_from_serverinfo(game_state, update.rank, update.team);
         self.force_profile.set_server_rules(Some(rules));
+        // With the server's own free-saber word, when it has given it.
+        let rules = self.force_profile.server_rules().unwrap_or(rules);
         let current = self
             .text_value("forcepowers")
             .unwrap_or_default()

@@ -14,7 +14,7 @@
 
 use crate::force_profile::{ForceLegalizeRules, ForceSide, legalize_force_powers};
 use crate::team_commands::LegacyTeamChoice;
-use sjk_protocol::{GameState, InfoString};
+use sjk_protocol::{GameState, InfoString, Snapshot};
 
 const CS_SERVERINFO: usize = 0;
 /// `gametype_t` values from `codemp/game/bg_public.h:235-244`.
@@ -32,6 +32,29 @@ const WP_NUM_WEAPONS: u32 = 19;
 /// (`codemp/game/bg_public.h:456-457`).
 const FORCE_MASTERY_JEDI_MASTER: i32 = 7;
 const NUM_FORCE_MASTERY_LEVELS: i32 = 8;
+
+/// `ET_EVENTS` and `EV_SET_FREE_SABER` (`codemp/game/bg_public.h`).
+const ET_EVENTS: u8 = 18;
+const EV_SET_FREE_SABER: u8 = 106;
+
+/// The server's own `HasSetSaberOnly()` as its `EV_SET_FREE_SABER` event tells
+/// it in `snapshot`, if one is there.
+///
+/// `WP_InitForcePowers` (`codemp/game/w_force.c:334-344`) broadcasts the
+/// event, parameter 1 or 0, whenever it sets up a player's powers, and
+/// `CG_EntityEvent` (`codemp/cgame/cg_event.c`) stores the parameter in
+/// `ui_freeSaber`, which the Force menu legalizes templates and edits with
+/// (`UI_ForceConfigHandle`, `UI_ReadLegalForce`, `codemp/ui/ui_force.c`).
+/// `CS_SERVERINFO` only lets the client guess it: the string is capped at
+/// `MAX_INFO_STRING`, past which `Cvar_InfoString` drops keys, and a mod may
+/// decide saber-only play otherwise.
+pub fn free_saber_event(snapshot: &Snapshot) -> Option<bool> {
+    snapshot
+        .entities
+        .iter()
+        .rfind(|entity| entity.entity_type() == ET_EVENTS + EV_SET_FREE_SABER)
+        .map(|entity| entity.event_parameter() != 0)
+}
 
 /// Mirror `HasSetSaberOnly` (`codemp/game/w_saber.c:9459-9489`).
 fn has_set_saber_only(gametype: i32, weapon_disable: u32, duel_weapon_disable: u32) -> bool {
@@ -69,7 +92,9 @@ pub fn force_rules_from_serverinfo(
             .and_then(|info| info.get_i32(key))
             .unwrap_or(0)
     };
-    let mask = |key: &str| integer(key).unsigned_abs();
+    // The game tests these as C `int` bits (`wDisable & (1 << i)`), so a
+    // negative value such as -1 has every bit set.
+    let mask = |key: &str| integer(key) as u32;
     let gametype = integer("g_gametype");
     let rank = if rank <= 0 || rank >= NUM_FORCE_MASTERY_LEVELS {
         FORCE_MASTERY_JEDI_MASTER
