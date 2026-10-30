@@ -2937,6 +2937,19 @@
 - fed9acd |  | Hide duel opponents' bars and send nothing while duelling
 
 = Slash
++ 30/10/2026 | SJK #291 | Collection > Shaders: the wheel scrolls past the tiers' headings (#201)
+- a3f9075 |  | Collection > Shaders: the wheel scrolls past the tiers' headings (#201)
++ 30/10/2026 | SJK #298 | Away emote: alt-tab on a vehicle no longer breaks riding (#205)
+- a2a15e4 |  | Start fix for the away emote on a vehicle (hub report #205)
+- dc5f0df |  | Keep the away emote off a vehicle rider (hub report #205)
++ 30/10/2026 | SJK #309 | Force templates: Force Speed no longer turns into Force Sense (#206)
+- cb942b6 |  | Start fix for Force Sense taking Force Speed's place (hub report #206)
+- 6202a1f |  | Take free saber skills from the server's EV_SET_FREE_SABER
+- 52f52da |  | Keep the server's free-saber word across map changes
++ 30/10/2026 | SJK #288 | Settings no longer go back to old values after config.cfg is edited or deleted while running
+- 1bfb4c6 |  | Settings no longer go back to old values after config.cfg is edited or deleted while running
++ 30/10/2026 | SJK #290 | Settings search: every result takes a typed value (#203)
+- ebd048e |  | Settings search: every result takes a typed value (#203)
 + 30/10/2026 | SJK #293 | Quick wheel: custom commands are remembered in the command list (Dante's idea)
 - b8744f9 |  | Quick wheel: custom commands are remembered in the catalogue (Dante's idea)
 - aa573c2 |  | Changelog: credit the remembered wheel commands to Slash

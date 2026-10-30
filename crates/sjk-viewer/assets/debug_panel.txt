@@ -24,6 +24,17 @@
 
 # ---- Console & chat ----
 
+[slash-fixes-1030]
+area: Menus & settings
+title: Slash's fixes 30/10: config.cfg, settings search, Shaders wheel, vehicle away, Force templates
+change: #288 config.cfg edited while running is loaded; deleted, it is not written back that run.
+change: #290 typed values in every search result; #291 wheel past Shaders tier headings.
+change: #298 no away emote on a vehicle; #309 Force templates keep Speed on saber-only servers.
+test: Edit cg_fov in config.cfg while SJK runs, quit: the edit stays. Delete it, quit: not back.
+test: Settings search "chat": click a later result's value and type a number: it takes it.
+test: Collection > Shaders with Owned on: the wheel scrolls past every tier heading.
+test: Ride a vehicle, alt-tab out a while: no away emote. JoF Fullforce FFA template: Speed kept.
+
 [toy-switch-words]
 area: Gameplay
 title: Toys say ON and OFF in colour, toy_help lists every toy (Blep's idea, Creyon's #289)

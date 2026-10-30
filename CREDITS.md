@@ -704,7 +704,7 @@ merged into SJK
 - #304 a free spectator sees the name of the player under the crosshair and follows them
   with a left click; a click on nobody does what it did.
 
-Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 71 pull requests merged
+Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 76 pull requests merged
 into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AJoFSlash)):
 
 - #114 Tab completes the cfg file argument of `exec`, `execq`, `writeconfig` and `write`
@@ -839,6 +839,15 @@ into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author
   and their trails out, after g0dchris' idea.
 - #293 the quick wheel's custom commands remembered under Your own in Settings > Quick
   wheel, kept when the default pages are restored, after Dante's idea.
+- #288 `config.cfg` edited or deleted while the game runs is no longer written over with
+  the old name, field of view and camera at exit (hub report #199).
+- #290 every Settings search result takes a typed value, not only the first hundred (hub
+  report #203).
+- #291 the mouse wheel in Collection > Shaders scrolls past the tiers' headings (hub report
+  #201).
+- #298 no away emote while riding a vehicle, which broke its animations (hub report #205).
+- #309 Force templates keep Force Speed on saber-only servers: free saber skills come from the
+  server's own word, as in the original game (hub report #206).
 
 His Peek work in #199 (closed 24/10/2026, not merged) shaped the Drone toy: a player is
 asked before being peeked, told who watches, and can end it. His #206 (closed 25/10/2026,
