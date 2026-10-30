@@ -1,3 +1,16 @@
+## Use prompt by the crosshair
+
+30/10/2026, `personal/use-prompt`, based on `main` `b138373f` (Sol's idea): a new anchor
+for what Use does at what the player faces, right of the crosshair with a gap, a key cap
+naming the key bound to `+use` (`keybind_editor::sjk_view::key_label`, its module now
+`pub(crate)`) ([client.md](client.md#use-prompt)). The mystery boxes use it in place of
+their centre prints: open (price or free roll), take it, and greyed why not (cooldown,
+credits, the hub answering, another player's roll); the words over a box lost their
+"press Use" ends. Verified: unit tests (`use_prompt`: the cap's words and width, the
+layout right of the crosshair and on the screen; `mystery_box`: every prompt at a box),
+fmt, the workspace's build, tests and Clippy. Not verified: how it looks (world shots do
+not draw the HUD's words), anything in game.
+
 ## Mystery box: the extras pack's sounds, a cooldown, the teddy bear, a sturdier chest
 
 30/10/2026, `personal/box-teddy`, based on `main` `dbfb7e9a` (Sol's request), with the

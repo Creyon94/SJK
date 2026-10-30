@@ -487,8 +487,6 @@ pub(crate) struct MysteryBoxes {
     asked: Option<(i64, Instant)>,
     /// The last hub answer read.
     answer_seen: u64,
-    /// The box the player was last told about, while they stay at it.
-    hinted: Option<i64>,
     pending_place: Option<PendingPlace>,
     cues: Vec<Cue>,
     /// Where boxes that blew up flung their openers this frame, for their explosions.
@@ -546,7 +544,6 @@ impl MysteryBoxes {
         self.taken = None;
         self.here.clear();
         self.asked = None;
-        self.hinted = None;
         self.use_pressed = false;
     }
 
@@ -579,9 +576,6 @@ impl MysteryBoxes {
                     .unwrap_or_default(),
             })
             .collect();
-        if self.here.is_empty() {
-            self.hinted = None;
-        }
     }
 
     /// Box `id` opened at `now` on `outcome` by the player on slot `opener`: the roll
@@ -747,6 +741,59 @@ fn pick_box<'a>(from: Vec3, yaw: f32, boxes: impl IntoIterator<Item = &'a Here>)
         })
         .min_by(|a, b| a.1.total_cmp(&b.1))
         .map(|(id, _)| id)
+}
+
+/// What opening a box costs the player: the price, their free openings and their
+/// credits (when known).
+struct Wallet {
+    price: u64,
+    free: u64,
+    credits: Option<u64>,
+}
+
+/// What the Use prompt says at box `here`: open it (for its price, or free), take what
+/// came out of the player's own, or why Use does nothing now (`cooldown`: the seconds
+/// the player still waits; `asked`: the hub has not answered yet; another player's
+/// roll; too few credits). None while the player's own roll runs, and for a box that
+/// blows up.
+fn box_prompt(
+    here: &Here,
+    wallet: &Wallet,
+    cooldown: Option<u64>,
+    asked: bool,
+    now: Instant,
+) -> Option<crate::use_prompt::Prompt> {
+    use crate::use_prompt::Prompt;
+    let prompt = |action: &str, line: Option<String>, ready: bool| Prompt {
+        action: action.to_owned(),
+        line,
+        ready,
+    };
+    if let Some(opening) = &here.opening {
+        let rolled = now.saturating_duration_since(opening.started) >= ROLL;
+        return match (&opening.mine, rolled) {
+            _ if opening.outcome == wire::EXPLODE => None,
+            (Some(_), true) => Some(prompt("Take it", None, true)),
+            (Some(_), false) => None,
+            (None, _) => Some(prompt("Someone is opening it", None, false)),
+        };
+    }
+    let open = "Open mystery box";
+    Some(if asked {
+        prompt("Opening...", None, false)
+    } else if let Some(left) = cooldown {
+        prompt(open, Some(format!("Your turn again in {left} s")), false)
+    } else if wallet.free > 0 {
+        prompt(open, Some("Free roll".to_owned()), true)
+    } else if wallet.credits.is_some_and(|credits| credits < wallet.price) {
+        prompt(
+            open,
+            Some(format!("{} credits: not enough", wallet.price)),
+            false,
+        )
+    } else {
+        prompt(open, Some(format!("{} credits", wallet.price)), true)
+    })
 }
 
 /// The whole seconds left before the player may open another box, their last opening
@@ -1005,7 +1052,6 @@ impl GpuState {
         let player = &session.latest_snapshot().player;
         if !plays(player) {
             self.mystery_boxes.use_pressed = false;
-            self.mystery_boxes.hinted = None;
             return;
         }
         let from = self
@@ -1018,22 +1064,31 @@ impl GpuState {
             &self.mystery_boxes.here,
         );
         let pressed = std::mem::take(&mut self.mystery_boxes.use_pressed);
-        if at != self.mystery_boxes.hinted {
-            self.mystery_boxes.hinted = at;
-            let idle = at.is_some_and(|id| {
-                self.mystery_boxes
-                    .here
-                    .iter()
-                    .any(|here| here.id == id && here.opening.is_none())
+        let credits = crate::player_identity::with_snapshot(|snapshot| {
+            snapshot.me.as_ref().map(|me| me.credits)
+        })
+        .flatten();
+        // What Use does at the box faced, by the crosshair (`use_prompt`).
+        let boxes = &self.mystery_boxes;
+        let prompt = at
+            .and_then(|id| boxes.here.iter().find(|here| here.id == id))
+            .and_then(|here| {
+                box_prompt(
+                    here,
+                    &Wallet {
+                        price: boxes.price,
+                        free: boxes.free,
+                        credits,
+                    },
+                    cooldown_left(boxes.last_mine, boxes.cooldown, now),
+                    boxes
+                        .asked
+                        .is_some_and(|(_, asked)| now.duration_since(asked) < ASK_TIMEOUT),
+                    now,
+                )
             });
-            if idle && self.mystery_boxes.free > 0 {
-                self.mystery_box_centre("Mystery box: press Use for your free roll".to_owned());
-            } else if idle {
-                let price = self.mystery_boxes.price;
-                self.mystery_box_centre(format!(
-                    "Mystery box: press Use to open it ({price} credits)"
-                ));
-            }
+        if let Some(prompt) = prompt {
+            self.want_use_prompt(prompt);
         }
         let (Some(id), true) = (at, pressed) else {
             return;
@@ -1048,10 +1103,9 @@ impl GpuState {
             .iter()
             .find(|here| here.id == id)
             .and_then(|here| here.opening.as_ref());
-        if let Some(opening) = busy {
-            if opening.mine.is_none() {
-                self.mystery_box_centre("Someone is opening this box".to_owned());
-            }
+        // The prompt says why Use does nothing now: the box is busy, the player waits out
+        // the cooldown or lacks the credits.
+        if busy.is_some() {
             return;
         }
         if self
@@ -1062,27 +1116,18 @@ impl GpuState {
             return;
         }
         // One opening a player every `cooldown` seconds, so another may take a turn.
-        if let Some(left) = cooldown_left(
+        if cooldown_left(
             self.mystery_boxes.last_mine,
             self.mystery_boxes.cooldown,
             now,
-        ) {
-            self.mystery_box_centre(format!(
-                "Let someone else roll: you can open a box again in {left} s"
-            ));
+        )
+        .is_some()
+        {
             return;
         }
-        let credits = crate::player_identity::with_snapshot(|snapshot| {
-            snapshot.me.as_ref().map(|me| me.credits)
-        })
-        .flatten();
         if self.mystery_boxes.free == 0
             && credits.is_some_and(|credits| credits < self.mystery_boxes.price)
         {
-            self.mystery_box_centre(format!(
-                "Not enough credits: the box costs {}",
-                self.mystery_boxes.price
-            ));
             return;
         }
         if crate::player_identity::with_service(|service| service.open_mystery_box(id, server))
@@ -1160,11 +1205,8 @@ impl GpuState {
         match moment {
             Moment::Blast { opener, at } => self.mystery_box_blast(opener, at),
             Moment::Stopped { outcome, prize } => {
-                let text = prize_text(&outcome, &prize);
-                self.mystery_box_centre(format!(
-                    "{text}
-Press Use to take it"
-                ));
+                // The Use prompt says to take it.
+                self.mystery_box_centre(prize_text(&outcome, &prize));
             }
             Moment::Taken(taken) => {
                 let text = prize_text(&taken.outcome, &taken.prize);
@@ -1878,6 +1920,72 @@ mod tests {
         assert!(EXTRAS.contains(&(EXTRAS_CLOSE, None)));
         state.tick(now + ROLL + HOLD);
         assert!(state.cues.iter().any(|cue| cue.path == EXTRAS_CLOSE));
+    }
+
+    #[test]
+    fn the_use_prompt_says_what_use_does_at_the_box() {
+        let now = Instant::now();
+        let wallet = Wallet {
+            price: 100,
+            free: 0,
+            credits: Some(500),
+        };
+        let at = |here: &Here, wallet: &Wallet, cooldown, asked| {
+            box_prompt(here, wallet, cooldown, asked, now)
+                .map(|prompt| (prompt.action, prompt.line, prompt.ready))
+        };
+        let idle = here(1, [0.0; 3]);
+        let open = "Open mystery box".to_owned();
+        assert_eq!(
+            at(&idle, &wallet, None, false),
+            Some((open.clone(), Some("100 credits".to_owned()), true))
+        );
+        let free = Wallet { free: 1, ..wallet };
+        assert_eq!(
+            at(&idle, &free, None, false),
+            Some((open.clone(), Some("Free roll".to_owned()), true))
+        );
+        let poor = Wallet {
+            credits: Some(40),
+            ..wallet
+        };
+        assert_eq!(
+            at(&idle, &poor, None, false),
+            Some((
+                open.clone(),
+                Some("100 credits: not enough".to_owned()),
+                false
+            ))
+        );
+        assert_eq!(
+            at(&idle, &wallet, Some(9), false),
+            Some((open, Some("Your turn again in 9 s".to_owned()), false))
+        );
+        assert_eq!(
+            at(&idle, &wallet, None, true),
+            Some(("Opening...".to_owned(), None, false))
+        );
+        // Another player's roll; the player's own, rolling, then waiting to be taken.
+        let mut state = MysteryBoxes {
+            here: vec![here(1, [0.0; 3]), here(2, [0.0; 3]), here(3, [0.0; 3])],
+            ..Default::default()
+        };
+        let started = now - ROLL;
+        state.opened(1, "double", None, Some(5), 1, now);
+        state.opened(2, "double", Some(prize_of(200)), Some(3), 1, now);
+        state.opened(3, "double", Some(prize_of(200)), Some(3), 1, started);
+        assert_eq!(
+            at(&state.here[0], &wallet, None, false),
+            Some(("Someone is opening it".to_owned(), None, false))
+        );
+        assert_eq!(at(&state.here[1], &wallet, None, false), None);
+        assert_eq!(
+            at(&state.here[2], &wallet, None, false),
+            Some(("Take it".to_owned(), None, true))
+        );
+        // A box that blows up says nothing: the player is about to die.
+        state.opened(1, wire::EXPLODE, Some(prize_of(0)), Some(3), 1, started);
+        assert_eq!(at(&state.here[0], &wallet, None, false), None);
     }
 
     #[test]

@@ -342,6 +342,7 @@ mod ui_target;
 mod unlock_toast;
 mod unlockables;
 mod update;
+mod use_prompt;
 mod version_overlay;
 mod wall_hold_pose;
 mod weapon_select;
@@ -660,6 +661,8 @@ struct GpuState {
     map_edits: map_edits::State,
     /// The mystery boxes standing on the loaded map (`mystery_box`).
     mystery_boxes: mystery_box::MysteryBoxes,
+    /// What the player's Use key does at what they face, by the crosshair (`use_prompt`).
+    use_prompt: use_prompt::UsePrompt,
     player_shadows: player_shadows::State,
     camera_buffer: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
@@ -1619,6 +1622,7 @@ impl GpuState {
             decal_surfaces,
             map_edits: Default::default(),
             mystery_boxes: Default::default(),
+            use_prompt: Default::default(),
             player_shadows: player_shadows::State::default(),
             camera_buffer,
             camera_bind_group,
@@ -2333,6 +2337,10 @@ impl GpuState {
             viewport,
             information_visible && intermission_view.is_none() && !scoreboard_held,
         );
+        self.append_use_prompt(
+            viewport,
+            information_visible && intermission_view.is_none() && !scoreboard_held,
+        );
         self.append_entity_view(
             viewport,
             information_visible && intermission_view.is_none() && !scoreboard_held,
@@ -2568,6 +2576,7 @@ impl GpuState {
             Some(&self.world_pings.list),
             Some(&self.drone.list),
             Some(self.mystery_boxes.labels()),
+            Some(self.use_prompt.list()),
             information_visible.then(|| &self.hud.team_logo.list),
             information_visible.then(|| &self.hud.nameplate.list),
             information_visible.then(|| &self.hud.identification.list),
