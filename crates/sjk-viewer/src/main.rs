@@ -292,6 +292,7 @@ mod rig_model;
 mod runtime_settings;
 mod saber;
 mod saber_clash_flare;
+mod saber_core;
 mod saber_defs;
 mod saber_ghosts;
 mod saber_gpu;

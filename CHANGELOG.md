@@ -32,6 +32,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
+- Blade core thickness: a slider in Settings > Game options (`cg_saberCoreSize`, 0.5 to 2) draws the white core of every lit blade thinner or thicker, its glow unchanged _(Creyon)_
 - Mystery boxes: when the opener takes what came out, everyone else sees it go and the lid close at once, instead of it floating on for 10 seconds _(Sol)_
 
 - A prompt by the crosshair shows what Use does at a mystery box, with the key you bound to Use: Open mystery box and its price, Take it, or why you cannot yet (your turn in a few seconds, not enough credits), instead of a message in the middle of the screen _(Sol)_

@@ -1018,6 +1018,15 @@ pub(super) const GAME: &[Setting] = &[
         },
     },
     Setting {
+        label: "Blade core thickness",
+        cvar: crate::saber_core::CVAR,
+        kind: ValueKind::Float {
+            min: crate::saber_core::MIN as f64,
+            max: crate::saber_core::MAX as f64,
+            step: 0.1,
+        },
+    },
+    Setting {
         label: "Saber hit sparks",
         cvar: crate::impacts::FLESH_SPARKS_CVAR,
         kind: ValueKind::Integer {
