@@ -671,8 +671,10 @@ overlay routes their text to the UI's families (`console_sjk_pages.rs`).
   line ([hub-chat.md](hub-chat.md#how-a-line-looks)): its name in its colours, the
   verified tick for a verified sender, and its text in the SJK chat's gold going on
   after them and wrapping when too long, with Staff and how long ago on the right of
-  its first row; a chosen one is banded and shown on the right with Block on this PC and, for
-  staff, Delete for everyone, Mute and Unmute at the hub. "N older: Page Up" and "N
+  its first row; a chosen one is banded and shown on the right with Block on this PC, for
+  a message with a GIF Add GIF to favourites beside Hide this GIF (one row) and Manage GIF
+  source, and, for staff, two rows: Delete for everyone beside Lift chat ban, Mute at the
+  hub beside Unmute at the hub, all above the keys line. "N older: Page Up" and "N
   newer: Page Down" mark the ends when it scrolls. Resting the pointer on a name shows
   the sender's sender card over the page, beside the name, with Block or Unblock
   ([hub-chat.md](hub-chat.md#blocking-a-player)). With no message chosen, the right
