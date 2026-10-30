@@ -1,3 +1,13 @@
+## Prediction change necessity review
+
+30/10/2026, based on `main` `82c8c185`: reassess the 29/10 prediction PRs
+for a concrete missing behavior, existing equivalent implementation, correct
+call-site context and mod assumptions. The earlier #305 table's "Retain"
+labels are provisional; narrow stock dual-saber captures do not establish
+necessity or correctness for unrelated changes. Review is in progress; no
+additional correction is claimed yet. The #251/#266 rollbacks are already
+merged and included in hotfix `2026.1030.2`.
+
 ## Prediction regression audit
 
 30/10/2026, Windows x64: audit #305 reviewed the 25 prediction PRs from
