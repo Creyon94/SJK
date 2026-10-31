@@ -2073,10 +2073,10 @@ impl Toast {
             );
             ui.hit_region(TOAST_TOKEN, card);
         } else if !key.is_empty() {
-            let width = key_hint_width(&[key], does, s);
-            // Clear of the request's bar along the bottom.
+            let hint = key_hint_width(&[key], does, s);
+            // Clear of the request's bar along the bottom, at the card's right edge.
             let [right, keys_y] = frame.point(x + width - 24.0, y + height - 40.0);
-            key_hint(ui, &[key], does, right - width, keys_y, s);
+            key_hint(ui, &[key], does, right - hint, keys_y, s);
         }
         if let Some(share) = said.share {
             let _ = ui.draw_list_mut().push(DrawCommand::RoundedRect {
@@ -2747,6 +2747,39 @@ pub(crate) mod tests {
         said.clickable = false;
         toast.build(&said, [1920.0, 1080.0], 0.0);
         assert!(toast.ui.rect_for(TOAST_OPEN_TOKEN).is_none());
+    }
+
+    /// In play the toast's key hint sits at the card's right edge, wide card or not
+    /// (Sol's review of #321: a local `width` once put it at the left edge).
+    #[test]
+    fn the_key_hint_sits_at_the_cards_right_edge() {
+        let mut view = open_view();
+        view.trade.state = "asked".to_owned();
+        view.trade.asker = false;
+        let said = Said::of(&view);
+        assert!(!said.clickable && !said.key.0.is_empty());
+        for words in [0.0, 900.0] {
+            let width = toast_width(words);
+            let (left, right) = (960.0 - width * 0.5, 960.0 + width * 0.5);
+            let mut toast = Toast::default();
+            toast.build(&said, [1920.0, 1080.0], words);
+            // The key's cap is the one small rounded border on the card.
+            let cap = toast
+                .ui
+                .draw_list()
+                .commands()
+                .iter()
+                .find_map(|command| match command {
+                    DrawCommand::Border { rect, radius, .. } if *radius < 8.0 => Some(*rect),
+                    _ => None,
+                })
+                .expect("the key's cap");
+            assert!(cap.x > left + width * 0.5, "{cap:?} on a card from {left}");
+            assert!(
+                cap.x + cap.width <= right - 24.0 + 0.5,
+                "{cap:?} to {right}"
+            );
+        }
     }
 
     #[test]

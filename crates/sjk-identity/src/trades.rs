@@ -194,7 +194,7 @@ impl PlayerTrade {
             },
             // The hub ends a request as `busy` when one of the two took another trade.
             "declined" if self.reason == "busy" && self.asker => {
-                format!("{name} is trading with someone else.")
+                format!("{name}^7 is trading with someone else.")
             }
             "declined" if self.reason == "busy" => {
                 "The request closed: you are trading with someone else.".to_owned()
@@ -205,7 +205,7 @@ impl PlayerTrade {
             "cancelled" if self.reason == "removed" => {
                 "The trade ended: an account was removed.".to_owned()
             }
-            "declined" if self.asker => format!("{name} declined the trade."),
+            "declined" if self.asker => format!("{name}^7 declined the trade."),
             "declined" => "You declined the trade.".to_owned(),
             "cancelled" => "The trade was cancelled.".to_owned(),
             "expired" if self.updated == self.created => {
@@ -680,12 +680,16 @@ mod tests {
         };
         assert_eq!(
             busy(true, "declined", "busy").ending(),
-            " is trading with someone else."
+            "^7 is trading with someone else."
         );
         assert_eq!(
             busy(false, "declined", "busy").ending(),
             "The request closed: you are trading with someone else."
         );
+        // The other's name stops its colours before the words, as the finished trade's does.
+        let mut refused = busy(true, "declined", "");
+        refused.with.name = "^1Zed".to_owned();
+        assert_eq!(refused.ending(), "^1Zed^7 declined the trade.");
         assert_eq!(
             busy(true, "cancelled", "removed").ending(),
             "The trade ended: an account was removed."

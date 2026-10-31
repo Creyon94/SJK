@@ -9,10 +9,14 @@ trade's card and the toast over play both read it ([sjk-ui.md](sjk-ui.md#trading
 The endings took the name through the message alphabet, which dropped clan marks such as
 `»` and `«`; they now take it through `name_for_display`, as the window's headline does.
 The toast's 660-wide card cut the longer endings off ("...and rec..."); it now measures
-its words and grows wider, centred, so they stay whole on one line (up to 1800).
-Verified: unit tests (the four cases, a marked name, the toast fitting its words on one
-line), the toast's picture, fmt, the workspace's build, tests and Clippy; in game on
-Windows, the words and the names with their marks.
+its words and grows wider, centred, so they stay whole on one line (up to 1800); over
+play its key hint stays at the card's right edge, however wide. Every ending that names
+the other player stops the name's colours after it ("<name>^7 declined the trade.",
+"... is trading with someone else."). Verified: unit tests (the four cases, a marked name,
+a declined trade's name, the toast fitting its words on one line, the key hint at the
+right edge of a usual and a wide card), the toast's picture, fmt, the workspace's build,
+tests and Clippy; in game on Windows, the words and the names with their marks. Not
+verified in game: the key hint and the declined trade's colours after Sol's review.
 
 ## Toys say ON and OFF, and toy_help
 
