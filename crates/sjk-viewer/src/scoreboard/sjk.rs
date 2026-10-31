@@ -458,29 +458,14 @@ impl Columns {
             _ if wide => 124.0,
             _ => 74.0,
         };
-        // Numbers are right-aligned, so the name may run into the start of
-        // the first number column.
-        let name_gap = if wide { 72.0 } else { 52.0 };
-        Self::lay_out(
-            x, width, kind, numbered, ids, wide, false, stat_width, name_gap,
-        )
+        Self::lay_out(x, width, kind, numbered, ids, false, stat_width)
     }
 
     /// A compact list, `width` wide from `x`, its number columns
     /// `stat_width` apart; [`Self::compact_span`] gives the width for a name
     /// column.
     fn compact(x: f32, width: f32, kind: Kind, numbered: bool, ids: bool, stat_width: f32) -> Self {
-        Self::lay_out(
-            x,
-            width,
-            kind,
-            numbered,
-            ids,
-            false,
-            true,
-            stat_width,
-            COMPACT_NAME_GAP,
-        )
+        Self::lay_out(x, width, kind, numbered, ids, true, stat_width)
     }
 
     /// The width of a compact list whose name column is `room` wide.
@@ -503,17 +488,24 @@ impl Columns {
         place + if ids { id_column(compact) } else { 0.0 } + if kind.capture() { 30.0 } else { 0.0 }
     }
 
+    /// A list `width` wide from `x`, compact rows or full ones (wide past 800).
     fn lay_out(
         x: f32,
         width: f32,
         kind: Kind,
         numbered: bool,
         ids: bool,
-        wide: bool,
         compact: bool,
         stat_width: f32,
-        name_gap: f32,
     ) -> Self {
+        let wide = !compact && width > 800.0;
+        // Numbers are right-aligned, so the name may run into the start of
+        // the first number column.
+        let name_gap = match (compact, wide) {
+            (true, _) => COMPACT_NAME_GAP,
+            (false, true) => 72.0,
+            (false, false) => 52.0,
+        };
         let right = x + width;
         let ping_width = if wide { 128.0 } else { PING_COLUMN };
         let order = kind.stats();
