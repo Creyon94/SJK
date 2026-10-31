@@ -1274,7 +1274,7 @@ and out as the classic board does, settling into place as it opens.
   ties share it, 1, 2, 2, 4, as the server ranks them; with `cg_scoreboardDeathsRank` one
   number a row in the listed order, ties too, as JoF EJK lists its rows, away and joining
   rows taking none), with `cg_scoreboardIDs` (archived, off by default as stock JKA's
-  scoreboard shows none; Settings > HUD > Scoreboard, "SJK scoreboard client IDs") the
+  scoreboard shows none; Settings > HUD > Scoreboard, "SJK scoreboard IDs") the
   client number as a small tag on a faint plate in a slot of its own just
   before the name, labelled "ID" (40 frame pixels, 26 in compact rows; gold on your
   row), the name with its colours (Exo 2), SJK's emblem right after it for a

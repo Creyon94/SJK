@@ -522,7 +522,7 @@ pub(super) const HUD_OPTIONS: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
-        label: "SJK scoreboard client IDs",
+        label: "SJK scoreboard IDs",
         cvar: crate::scoreboard::style::SJK_IDS_CVAR,
         kind: ValueKind::Bool,
     },
