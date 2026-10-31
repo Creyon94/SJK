@@ -10,7 +10,7 @@ column is labelled "#"; its places stay the server's, ties sharing one (1, 2, 2,
 `cg_scoreboardDeathsRank` (off) sorts both boards by score minus deaths where deaths are
 counted, fewer deaths first on a tie, joining rows last ([client.md](client.md),
 `style::rank_value`); with it the SJK board numbers the rows in that order, one number
-each, as JoF EJK lists its rows. `cg_scoreDeaths` keeps EJK's default 1 (Sol's defaults
+each, as JoF EJK lists its rows, and its header gives your place in that order. `cg_scoreDeaths` keeps EJK's default 1 (Sol's defaults
 rule of 30/10/2026); with 2 the local count stands in where the server sends no deaths.
 Neither EJK nor JoF EJK has the numbers on this look or the ranking. A compact
 capture-the-flag board of 6 a side with the numbers, 1142 of the full 1144 pixels without,
@@ -20,8 +20,12 @@ compact, free-for-all and teams, the ID and # labels, shared places off and plac
 listed order with the ranking, a joining row last and unnumbered, the frame rate left of
 the clock), fmt, the workspace's build, tests and Clippy; in game on Windows (a local
 server with bots, before the review's changes): the labels and ID tags, the # column 1 to
-20, and with `cg_scoreDeaths 2` the ranking by score minus deaths. Not verified: the
-review's changes in game, the compact board, team games, the what's-new card's switch.
+20, and with `cg_scoreDeaths 2` the ranking by score minus deaths; (31/10/2026, after the
+review) the SJK board with `cg_scoreboardIDs 1` and `cg_scoreboardDeathsRank 1`, compact,
+20 bots: an ID before every name, rows by score minus deaths with fewer deaths first on a
+tie, numbered 1 to 20, the joining row last and unnumbered; the classic board's Id column
+and its rows in the same order. Not verified: the header's place with the ranking in game
+(it gave the server's before this change), team games, the what's-new card's switch.
 
 ## Local incoming chat colour
 

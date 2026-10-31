@@ -1246,7 +1246,8 @@ and out as the classic board does, settling into place as it opens.
   `cg_scoreboardFps`), the time left in a timed match ("12:12 left", else "3:12
   played") and your place,
   the screen's one memorable thing, in gold ("3rd", "of 14" after it, "of 14,
-  tied" on a tie; "Spectating" when you watch). Team games say "Your team leads
+  tied" on a tie, the server's place; with `cg_scoreboardDeathsRank` the place the #
+  column gives your row, never tied; "Spectating" when you watch). Team games say "Your team leads
   by 2", "trails by", "Tied at 5" (or which team leads, for a spectator). Siege,
   which scores no team, says nothing there, and its team heads carry no score
   (the zeros meant nothing); once a round is over "Red team won" or "Blue team

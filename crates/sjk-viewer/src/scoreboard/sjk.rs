@@ -1149,8 +1149,20 @@ impl Painter<'_> {
             .iter()
             .filter(|row| !watching(row) && row.has_score)
             .count();
-        let place = (local.rank & !RANK_TIED) + 1;
-        let tied = local.rank & RANK_TIED != 0;
+        // The server's place, ties shared; with `cg_scoreboardDeathsRank` the place
+        // the # column gives your row, the rows being SJK's own order.
+        let listed = header
+            .deaths_rank
+            .then(|| {
+                rows.iter()
+                    .filter(|row| !watching(row) && row.has_score && row.away.is_none())
+                    .position(|row| self.is_local(row))
+            })
+            .flatten();
+        let (place, tied) = match listed {
+            Some(index) => (index as u32 + 1, false),
+            None => ((local.rank & !RANK_TIED) + 1, local.rank & RANK_TIED != 0),
+        };
         let of = Short::of(format_args!(
             "of {players}{}",
             if tied { ", tied" } else { "" }
@@ -2922,6 +2934,14 @@ mod tests {
         let mut ranked = header(0, 3);
         ranked.deaths_rank = true;
         assert_eq!(places(&ranked), ["1", "2", "3", "4"]);
+        // The header says the place the # column gives you, not the server's.
+        // Client 1 is listed second; the server's rank (2) would say 3rd.
+        let mut second = header(0, 1);
+        second.deaths_rank = true;
+        let ui = draw(&rows, &second, [1920.0, 1080.0]);
+        let runs: Vec<_> = ui.text_runs().collect();
+        assert!(runs.contains(&"2nd") && runs.contains(&"of 4"), "{runs:?}");
+        assert!(!runs.iter().any(|run| run.contains("tied")), "{runs:?}");
         let ui = draw(&rows, &header(0, 3), [1920.0, 1080.0]);
         let runs: Vec<_> = ui.text_runs().collect();
         // The header: the map without `mp/`, your place gold, of how many.
