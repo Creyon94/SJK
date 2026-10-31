@@ -3167,7 +3167,8 @@ the menus are the SJK UI. A look chosen after that stays. The classic board
   HUD > Scoreboard, both looks; #ideas recap of 29/10/2026): where the board shows
   deaths, players are listed by their score minus their deaths, fewer deaths first on
   a tie, then the server's order; rows without a count or still joining follow, and
-  away players stay below the others. The SJK board numbers its rows in that order. Off, the server's order as before. Neither EternalJK nor JoF EJK has it
+  away players stay below the others. The SJK board numbers its rows in that order, one
+  number each. Off, the server's order and places as before, ties sharing a place. Neither EternalJK nor JoF EJK has it
   ([style.rs](../crates/sjk-viewer/src/scoreboard/style.rs) `rank_value`).
 - Team games list the leading team first over a translucent team band, then the
   spectators; free-for-all lists the players, then the spectators. Your row is

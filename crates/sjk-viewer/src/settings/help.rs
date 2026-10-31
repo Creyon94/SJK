@@ -1251,7 +1251,11 @@ const HELP: &[(&str, &str)] = &[
     ),
     (
         crate::scoreboard::style::IDS_CVAR,
-        "Shows each player's client number on the scoreboard: the classic one's Id column, a small number before each name on SJK's.",
+        "Shows each player's client number on the scoreboard.",
+    ),
+    (
+        crate::scoreboard::style::SJK_IDS_CVAR,
+        "Shows each player's client number on SJK's scoreboard, small before the name.",
     ),
     (
         crate::scoreboard::style::DEATHS_RANK_CVAR,

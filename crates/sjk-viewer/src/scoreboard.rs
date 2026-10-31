@@ -258,6 +258,7 @@ impl Scoreboard {
                 },
                 compact: style::compact(options),
                 ids: style::client_ids(options),
+                deaths_rank: style::deaths_rank(options),
                 fps: fps.filter(|_| style::fps(options)),
             };
             // Measured in the families that will draw the text.

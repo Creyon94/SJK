@@ -562,6 +562,7 @@ impl Group {
                 crate::scoreboard::style::FPS_CVAR,
                 crate::scoreboard::AFK_CVAR,
                 crate::scoreboard::style::IDS_CVAR,
+                crate::scoreboard::style::SJK_IDS_CVAR,
                 crate::scoreboard::style::DEATHS_RANK_CVAR,
                 crate::jof_tag::CVAR,
                 "cg_drawScoreboardIcons",

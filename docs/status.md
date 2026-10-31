@@ -1,24 +1,27 @@
 ## Scoreboard: client numbers on the SJK board, rank by score minus deaths
 
 30/10/2026, `feat/scoreboard-ids`, based on `main` `7be59908` (Sol's #ideas recap of
-29/10): `cg_showClientIDs`, which showed the classic board's Id column alone, now also
-puts each client number before the name on the SJK board, as a small tag on a faint plate
-under an "ID" label, full and compact (`sjk::Columns::id`, `ID_COLUMN`)
-([sjk-ui.md](sjk-ui.md)), with a `=` line for the what's-new card. The place column is
-labelled "#" and numbers the rows in the listed order, one number each (ties shared a
-number before; JoF EJK lists its rows in order without shared numbers). New
+29/10): new `cg_scoreboardIDs` (archived, off: stock JKA's scoreboard shows no numbers,
+Sol's review of 30/10/2026) puts each client number before the name on the SJK board, as
+a small tag on a faint plate under an "ID" label, full and compact (`sjk::Columns::id`,
+`ID_COLUMN`) ([sjk-ui.md](sjk-ui.md)), with a `=` line for the what's-new card;
+`cg_showClientIDs` keeps the classic board's Id column alone, on as before. The place
+column is labelled "#"; its places stay the server's, ties sharing one (1, 2, 2, 4). New
 `cg_scoreboardDeathsRank` (off) sorts both boards by score minus deaths where deaths are
 counted, fewer deaths first on a tie, joining rows last ([client.md](client.md),
-`style::rank_value`). `cg_scoreDeaths` keeps EJK's default 1 (Sol's defaults rule of
-30/10/2026); with 2 the local count stands in where the server sends no deaths. Neither EJK nor JoF EJK has the numbers on this look or the
-ranking. A compact capture-the-flag board of 6 a side, 1142 of the full 1144 pixels
-before, now fills it (the width test allows equal). Verified: unit tests (the ranking,
-its defaults, the numbers before every name in full and compact, free-for-all and teams,
-the ID and # labels, places in the listed order, a joining row last and unnumbered),
-fmt, the workspace's build, tests and Clippy; in game on Windows (a local server with
-bots): the labels and ID tags, the # column 1 to 20, and with `cg_scoreDeaths 2` the
-ranking by score minus deaths. Not verified: the compact board, team games, the
-what's-new card's switch.
+`style::rank_value`); with it the SJK board numbers the rows in that order, one number
+each, as JoF EJK lists its rows. `cg_scoreDeaths` keeps EJK's default 1 (Sol's defaults
+rule of 30/10/2026); with 2 the local count stands in where the server sends no deaths.
+Neither EJK nor JoF EJK has the numbers on this look or the ranking. A compact
+capture-the-flag board of 6 a side with the numbers, 1142 of the full 1144 pixels without,
+fills it (the width test allows equal). Verified: unit tests (the ranking, both switches
+off by default and the classic Id column's own, the numbers before every name in full and
+compact, free-for-all and teams, the ID and # labels, shared places off and places in the
+listed order with the ranking, a joining row last and unnumbered, the frame rate left of
+the clock), fmt, the workspace's build, tests and Clippy; in game on Windows (a local
+server with bots, before the review's changes): the labels and ID tags, the # column 1 to
+20, and with `cg_scoreDeaths 2` the ranking by score minus deaths. Not verified: the
+review's changes in game, the compact board, team games, the what's-new card's switch.
 
 ## Toys say ON and OFF, and toy_help
 

@@ -1487,7 +1487,13 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             crate::scoreboard::style::IDS_CVAR,
             true,
             archive,
-            "Scoreboard: show each player's client ID (the classic board's Id column, the SJK board's number before the name)",
+            "Classic scoreboard: show each player's client ID",
+        ),
+        CvarDefinition::new(
+            crate::scoreboard::style::SJK_IDS_CVAR,
+            false,
+            archive,
+            "SJK scoreboard: show each player's client number before the name",
         ),
         CvarDefinition::new(
             crate::scoreboard::style::DEATHS_RANK_CVAR,

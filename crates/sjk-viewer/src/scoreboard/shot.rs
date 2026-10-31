@@ -371,6 +371,7 @@ pub(super) fn append(gpu: &mut crate::GpuState, viewport: [f32; 2]) {
         duel: shot.duel,
         compact: super::style::compact(gpu.console.as_ref()),
         ids: super::style::client_ids(gpu.console.as_ref()),
+        deaths_rank: super::style::deaths_rank(gpu.console.as_ref()),
         fps: super::style::fps(gpu.console.as_ref()).then_some(240),
     };
     let measure = match gpu.game_fonts.sjk_metrics() {
@@ -472,6 +473,7 @@ mod tests {
             duel: shot.duel,
             compact,
             ids: true,
+            deaths_rank: false,
             fps: Some(240),
         }
     }
@@ -622,7 +624,7 @@ mod tests {
             );
             assert!((full_right - full_left - 1144.0).abs() < 0.5, "{name}");
             if game == Match::Capture {
-                // Never wider than the full board; with client numbers (on by default)
+                // Never wider than the full board; with client numbers (`cg_scoreboardIDs`)
                 // capture the flag's two lists of 6 fill it, their names a little
                 // narrower (they stood at 1142 before the numbers).
                 assert!(right - left <= 1144.0 + 0.5, "{name}: {left} {right}");

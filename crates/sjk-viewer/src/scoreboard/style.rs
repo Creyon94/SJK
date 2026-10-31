@@ -2,7 +2,7 @@
 //!
 //! `classic` follows the retail scoreboard as EternalJK-derived clients draw it
 //! ([`super::classic`]),
-//! with their `cg_smallScoreboard`, `cg_showClientIDs` (the SJK look's too),
+//! with their `cg_smallScoreboard`, `cg_showClientIDs`,
 //! `cg_drawScoreboardIcons` and `cg_drawScoreboardPlayerCount` options; `sjk`
 //! is the SJK UI's own ([`super::sjk`]). `auto`, the default, follows the menu
 //! style: the SJK UI's scoreboard while `ui_menuStyle` is `sjk`, the classic one
@@ -40,16 +40,20 @@ pub(crate) fn fps(console: Option<&ViewerConsole>) -> bool {
         .unwrap_or(true)
 }
 
-/// Archived cvar: each player's client number on the scoreboard, in both looks (the
-/// classic one's Id column, the SJK one's number before the name); on by default, as
-/// EternalJK-derived clients have it.
+/// Archived cvar: the classic look's Id column, on by default as EternalJK-derived
+/// clients have it ([`ClassicOptions::client_ids`]).
 pub(crate) const IDS_CVAR: &str = "cg_showClientIDs";
 
-/// Whether the scoreboard shows client numbers (`cg_showClientIDs`, on unless set off).
+/// Archived cvar: each player's client number before the name on the SJK look
+/// (29/10/2026 #ideas recap); off by default, as stock JKA's scoreboard shows none
+/// (Sol's defaults rule, review of #317).
+pub(crate) const SJK_IDS_CVAR: &str = "cg_scoreboardIDs";
+
+/// Whether the SJK look shows client numbers (`cg_scoreboardIDs`, off unless set on).
 pub(crate) fn client_ids(console: Option<&ViewerConsole>) -> bool {
     console
-        .and_then(|console| console.bool_cvar(IDS_CVAR))
-        .unwrap_or(true)
+        .and_then(|console| console.bool_cvar(SJK_IDS_CVAR))
+        .unwrap_or(false)
 }
 
 /// Archived cvar: rank the players by their score minus their deaths, where the deaths
@@ -278,13 +282,18 @@ mod tests {
     }
 
     #[test]
-    fn ids_are_on_and_the_death_rank_off_by_default() {
+    fn the_sjk_ids_and_the_death_rank_are_off_by_default() {
         let directory = tempfile::tempdir().unwrap();
-        let console =
+        let mut console =
             crate::console::ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
-        assert!(client_ids(Some(&console)));
+        assert!(!client_ids(Some(&console)));
         assert!(!deaths_rank(Some(&console)));
-        assert!(client_ids(None));
+        assert!(!client_ids(None));
         assert!(!deaths_rank(None));
+        // The classic look's Id column keeps its own switch and default.
+        assert!(ClassicOptions::from_console(Some(&console)).client_ids);
+        assert!(console.set_cvar(SJK_IDS_CVAR, "1"));
+        assert!(client_ids(Some(&console)));
+        assert!(ClassicOptions::from_console(Some(&console)).client_ids);
     }
 }

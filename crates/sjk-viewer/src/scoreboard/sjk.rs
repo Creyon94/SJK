@@ -92,7 +92,7 @@ const CHAT_CLEARANCE: f32 = 40.0;
 /// From the last number column to the ping's right edge, in all but the
 /// widest full list.
 const PING_COLUMN: f32 = 100.0;
-/// The room a client number takes before the name (`cg_showClientIDs`), its slot and
+/// The room a client number takes before the name (`cg_scoreboardIDs`), its slot and
 /// the gap after it, wide enough for "31" in the row's number size: full rows, then
 /// compact ones, whose numbers are smaller.
 const ID_COLUMN: f32 = 40.0;
@@ -163,8 +163,12 @@ pub(super) struct SjkHeader<'a> {
     pub(super) duel: Duelists,
     /// `cg_compactScoreboard`: thin rows, every player in one column.
     pub(super) compact: bool,
-    /// `cg_showClientIDs`: each player's client number before the name.
+    /// `cg_scoreboardIDs`: each player's client number before the name.
     pub(super) ids: bool,
+    /// `cg_scoreboardDeathsRank`: the rows come by score minus deaths, so the place
+    /// column counts them in that order; off, players tied on score share a place as
+    /// the server ranks them.
+    pub(super) deaths_rank: bool,
     /// The frame rate to show left of the clock (`cg_scoreboardFps`), when on and
     /// measured.
     pub(super) fps: Option<u32>,
@@ -1638,16 +1642,26 @@ impl Painter<'_> {
             self.labels(&columns(half), list.top, list.title);
         }
         let mut place = 0;
+        let mut previous = None;
         let mut slot = 0;
         for (index, row) in rows.iter().filter(|row| member(row)).enumerate() {
-            // Numbered in the listed order, one number each, as JoF EJK lists its
-            // rows in order without shared places: the rows already come by score
-            // (or by score minus deaths, `cg_scoreboardDeathsRank`). Players waiting
-            // count in turn; away and joining rows take no number.
+            // Players waiting are numbered in turn. Others by score, ties sharing a
+            // place, counting the away players moved below, as the server ranks them;
+            // with `cg_scoreboardDeathsRank` the rows come in SJK's own order (score
+            // minus deaths), numbered as listed, one number each, away and joining
+            // rows taking none.
             if list.kind == Kind::Waiting {
                 place = index + 1;
-            } else if row.has_score && row.away.is_none() {
-                place += 1;
+            } else if self.header.deaths_rank {
+                if row.has_score && row.away.is_none() {
+                    place += 1;
+                }
+            } else if previous != Some(row.score) {
+                place = 1 + rows
+                    .iter()
+                    .filter(|other| member(other) && other.score > row.score)
+                    .count();
+                previous = Some(row.score);
             }
             let local = self.is_local(row);
             if index >= ordinary && !(local_hidden && local) {
@@ -2236,6 +2250,7 @@ mod tests {
             duel: Duelists::default(),
             compact: false,
             ids: false,
+            deaths_rank: false,
             fps: None,
         }
     }
@@ -2297,7 +2312,55 @@ mod tests {
             .next_back()
     }
 
-    /// With `cg_showClientIDs` (29/10/2026 #ideas recap) the SJK board shows each
+    /// Sol's request (11/10/2026): the frame rate stands on the header line left of the
+    /// clock, its number in the clock's type with "fps" after it, clear of the mode on
+    /// the left; without a reading (or with `cg_scoreboardFps 0`) nothing shows.
+    #[test]
+    fn the_header_shows_the_frame_rate_left_of_the_clock() {
+        let rows: Vec<ScoreRow> = (0..8)
+            .map(|client| row(client, 0, 30 - client as i32))
+            .collect();
+        let runs = |ui: &MenuCanvas| -> Vec<(String, Rect, f32)> {
+            ui.draw_list()
+                .commands()
+                .iter()
+                .filter_map(|command| match *command {
+                    DrawCommand::Text {
+                        rect, text, size, ..
+                    } => Some((ui.stored_text(text).to_owned(), rect, size)),
+                    _ => None,
+                })
+                .collect()
+        };
+        for viewport in VIEWPORTS {
+            let mut shown = header(0, 0);
+            shown.fps = Some(240);
+            let ui = draw(&rows, &shown, viewport);
+            let texts = runs(&ui);
+            let find = |text: &str| {
+                texts
+                    .iter()
+                    .find(|(drawn, ..)| drawn == text)
+                    .unwrap_or_else(|| panic!("{text:?} not in {texts:?}"))
+                    .clone()
+            };
+            let (_, number, number_size) = find("240");
+            let (_, word, _) = find("fps");
+            let (_, clock, clock_size) = find("14:32");
+            let (_, mode, _) = find("Free for all · 30 frags · 20 minutes");
+            assert_eq!(number_size, clock_size, "{viewport:?}: the clock's type");
+            assert!(number.right() <= word.x + 1.0, "{viewport:?}");
+            assert!(word.right() < clock.x, "{viewport:?}: {word:?} {clock:?}");
+            assert!(mode.right() < number.x, "{viewport:?}: {mode:?} {number:?}");
+            let without = draw(&rows, &header(0, 0), viewport);
+            assert!(
+                runs(&without).iter().all(|(text, ..)| text != "fps"),
+                "{viewport:?}"
+            );
+        }
+    }
+
+    /// With `cg_scoreboardIDs` (29/10/2026 #ideas recap) the SJK board shows each
     /// player's client number before the name, in full and compact rows, free-for-all
     /// and teams; off, none.
     #[test]
@@ -2342,9 +2405,9 @@ mod tests {
         }
     }
 
-    /// The # column numbers the rows in the order listed, one number each, ties too, as
-    /// JoF EJK lists its rows: two players on 5 are 2 and 3, not both 2; a player
-    /// still joining takes no number.
+    /// With `cg_scoreboardDeathsRank` the # column numbers the rows in the order listed,
+    /// one number each, ties too, as JoF EJK lists its rows: two players on 5 are 2 and
+    /// 3, not both 2; a player still joining takes no number.
     #[test]
     fn places_count_in_the_listed_order() {
         let mut rows: Vec<ScoreRow> = [(2, 8), (3, 5), (4, 5), (5, 1)]
@@ -2358,7 +2421,9 @@ mod tests {
         let mut joining = row(6, 0, 0);
         joining.has_score = false;
         rows.insert(2, joining);
-        let runs = placed_runs(&draw(&rows, &header(0, 0), [1920.0, 1080.0]));
+        let mut ranked = header(0, 0);
+        ranked.deaths_rank = true;
+        let runs = placed_runs(&draw(&rows, &ranked, [1920.0, 1080.0]));
         assert!(
             runs.iter().any(|(run, _)| run == "#"),
             "the place column's label"
@@ -2846,20 +2911,27 @@ mod tests {
         }
     }
 
-    /// Places run in the listed order, ties too: 1, 2, 3, 4 (they shared a place, 1, 2,
-    /// 2, 4, until 30/10/2026; JoF EJK lists its rows in order without shared numbers).
+    /// Ties share a place, as the server ranks them: 1, 2, 2, 4. With
+    /// `cg_scoreboardDeathsRank` the rows are SJK's own order, one number each: 1, 2,
+    /// 3, 4 (Sol's review of #317).
     #[test]
-    fn tied_scores_take_the_next_place() {
+    fn tied_scores_share_a_place() {
         let rows = [row(0, 0, 9), row(1, 0, 5), row(2, 0, 5), row(3, 0, 1)];
+        let places = |shown: &SjkHeader<'static>| -> Vec<String> {
+            let ui = draw(&rows, shown, [1920.0, 1080.0]);
+            // Each row starts with its place, then its name.
+            let runs: Vec<_> = ui.text_runs().collect();
+            runs.windows(2)
+                .filter(|pair| pair[1].starts_with('^'))
+                .map(|pair| pair[0].to_owned())
+                .collect()
+        };
+        assert_eq!(places(&header(0, 3)), ["1", "2", "2", "4"]);
+        let mut ranked = header(0, 3);
+        ranked.deaths_rank = true;
+        assert_eq!(places(&ranked), ["1", "2", "3", "4"]);
         let ui = draw(&rows, &header(0, 3), [1920.0, 1080.0]);
-        // Each row starts with its place, then its name.
         let runs: Vec<_> = ui.text_runs().collect();
-        let places: Vec<_> = runs
-            .windows(2)
-            .filter(|pair| pair[1].starts_with('^'))
-            .map(|pair| pair[0])
-            .collect();
-        assert_eq!(places, ["1", "2", "3", "4"], "{runs:?}");
         // The header: the map without `mp/`, your place gold, of how many.
         assert!(runs.contains(&"duel6"), "{runs:?}");
         assert!(runs.contains(&"3rd") && runs.contains(&"of 4"), "{runs:?}");

@@ -34,9 +34,9 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 = r_dynamicGlowNoSabers: New: the dynamic glow leaves saber blades and trails out, so each saber's details show while the rest still glows; off, sabers glow as before.
 = r_dayClock: New: day and night follow your PC's clock in every preset: with Sun and sky the sun moves, without it the sky turns to night and the world darkens.
-= cg_showClientIDs: Client numbers now show on SJK's scoreboard too, small before each name; off hides them on both scoreboards.
+= cg_scoreboardIDs: New: each player's client number, small before the name on SJK's scoreboard, as the classic one's Id column shows it.
 
-- Scoreboard: each player's client number on SJK's scoreboard too (`cg_showClientIDs`), the # column numbering players in order, and Rank by score - deaths (`cg_scoreboardDeathsRank`, off by default) (Foshin's idea) _(Creyon)_
+- Scoreboard: each player's client number on SJK's scoreboard too (`cg_scoreboardIDs`, off by default), and Rank by score - deaths (`cg_scoreboardDeathsRank`, off by default), with the # column numbering players in that order (Foshin's idea) _(Creyon)_
 - Toys: switching a toy says its name and ON in green or OFF in red, short, for every toy (Illuminate, the cardboard box, Order 66 and the Hax said nothing, Box hunt, the Drone, the Monitor and the Banana peel said a long line), and `toy_help` lists every toy with what it does and how _(Creyon)_
 - Lighting: day and night can follow your PC's clock (Settings > Lighting > Sun follows PC clock, `r_dayClock`); with Sun and sky off, as in the SJK and Vanilla presets, the sky turns to dusk and night and the world gets darker _(Creyon)_
 - Spectating: aim at a player to see their name, then left-click to follow their view; a click with nobody under the crosshair keeps its normal bind _(Lukas)_
