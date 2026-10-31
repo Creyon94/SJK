@@ -1099,6 +1099,16 @@ tauntaun rider holding attack, whose `BOTH_VT_ATR_S` restarts on both tracks eac
 many swing sounds (Slash, hub report #123). See
 [animation_selection.rs](../crates/sjk-client/src/animation_selection.rs).
 
+The local player's predicted animation also starts over when a held animation's timer
+ran out and came back up on the same clip and flip
+([local_actor_state.rs](../crates/sjk-viewer/src/local_actor_state.rs)). A frame shows
+the last command, so the one-command stand between two held melee kicks can go unseen,
+and a JA+ 2.5 server restarts the kick with no stand and no flip (a demo of 30/10/2026:
+`BOTH_A7_KICK_F` timer 4, then 692 a snapshot later, `legsFlip` never set). The torso
+then kept the finished kick's clock, the legs started their kick on its frame, and the
+kick stood frozen while the server kept kicking (Slash, 30/10/2026). Other players are
+shown the server's animation, which carries no timers, so this does not reach them.
+
 ## Tavion and Desann idle poses
 
 Tavion and Desann saber styles use their distinct JoF EJK standing poses by
@@ -7024,6 +7034,22 @@ the server; the world draws its own shaders until the server sends new remaps (a
 shader-state change or a `remapShader` command) or a new map loads. As in
 EternalJK, destination time offsets are kept. See [rendering](rendering.md#server-shader-remaps)
 for scope and remaining limitations. These controls do not edit map geometry.
+
+### Incoming chat colour
+
+`cg_chatColor` forces only the game server's public **All** message bodies.
+Team chat, plain/encrypted whispers, admin chat and the separate SJK chat channel
+(including reward drops and official notices) retain their original colours,
+even when they appear together in the All feed. The setting is local and archived:
+it never changes sent text or the chat log. Sender names keep their own colours,
+and emoji pictures, channel marks, timestamps, centre prints and the composer
+keep their normal appearance. Existing public history changes without reconnecting.
+
+The default 0 keeps original colours; 1 red, 2 green, 3 yellow, 4 blue, 5 cyan,
+6 magenta, 7 white, 8 orange, 9 grey and 10 black force one colour, ignoring inline
+colour codes in the body while retaining message fading. Invalid values fall back
+to original colours. Settings > Chat offers the same named choices (also in classic
+HUD settings). It is independent of outgoing `cl_colorstring` and chat cleaning.
 
 ### Copying a server address
 
