@@ -9,6 +9,10 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 03/11/2026 | - | Browser map editor, round 3: brush view, multiple selection, linked caulk, nearby-texture Fill
+- 7d8233f |  | Browser map editor, round 3: brush view, multiple selection, linked caulk, nearby-texture Fill
++ 03/11/2026 | - | Credits history after the browser map editor round 2
+- 07211e8 |  | Credits history after the browser map editor round 2
 + 03/11/2026 | - | Browser map editor, round 2: selection drawn, controls card, Recent rows, copy/paste, World page
 - 104c188 |  | Browser map editor, round 2: selection drawn, controls card, Recent rows, copy/paste, World page
 + 03/11/2026 | - | Release 2026.1103.2
