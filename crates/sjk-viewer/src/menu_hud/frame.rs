@@ -13,8 +13,8 @@ use std::fmt::Write as _;
 /// two frames, five backgrounds, 32 tics and two marks).
 pub(crate) const MAX_PICTURES: usize = 160;
 /// Text runs: the score line and the infinite-ammo mark, or the simple HUD (the
-/// player's four numbers and the vehicle's three).
-pub(crate) const MAX_TEXTS: usize = 7;
+/// player's four numbers and the vehicle's four: speed, hull, ammunition, turbo).
+pub(crate) const MAX_TEXTS: usize = 8;
 
 /// `colorTable` entries (`shared/qcommon/q_color.c`) the HUD uses.
 const WHITE: [f32; 4] = [1.0; 4];
@@ -85,6 +85,8 @@ pub(crate) struct VehicleReadout {
     /// Turbo recharge fraction and readiness, where prediction gives it.
     pub(crate) turbo: Option<(f32, bool)>,
     pub(crate) linked: bool,
+    /// The turbo as the text HUD shows it: a vehicle with a `turboRecharge` only.
+    pub(crate) boost: Option<crate::hud::vehicle::Turbo>,
 }
 
 /// `colorTable` entries the vehicle HUD uses.
@@ -671,7 +673,9 @@ impl Frame {
     /// The vehicle's numbers of the text HUD: the speed on the left (light red while
     /// the turbo flashes, as stock's speed tics), the hull in the middle and the
     /// ammunition on the right, one weapon's or two as `first / second`, when the
-    /// vehicle has a weapon.
+    /// vehicle has a weapon. A vehicle with a turbo shows it left of the speed: its
+    /// charge in percent in red while it recharges, `READY` in green, `BOOST` in white
+    /// while it burns.
     fn simple_vehicle(&mut self, vehicle: &VehicleReadout) {
         let whole = |value: f32| {
             if value.is_finite() {
@@ -685,6 +689,21 @@ impl Frame {
         } else {
             ICON_BLUE
         };
+        if let Some(boost) = vehicle.boost {
+            use crate::hud::vehicle::TurboPhase;
+            let color = match boost.phase {
+                TurboPhase::Charging => RED,
+                TurboPhase::Ready => GREEN,
+                TurboPhase::Burning => WHITE,
+            };
+            self.simple_vehicle_number(320.0 - 2.0 * SIMPLE_VEHICLE_SPACING, color, |text| {
+                let _ = match boost.phase {
+                    TurboPhase::Charging => write!(text, "{}%", (boost.charge * 100.0) as i32),
+                    TurboPhase::Ready => write!(text, "READY"),
+                    TurboPhase::Burning => write!(text, "BOOST"),
+                };
+            });
+        }
         self.simple_vehicle_number(320.0 - SIMPLE_VEHICLE_SPACING, speed_color, |text| {
             let _ = write!(text, "{}", whole(vehicle.speed[0]));
         });
@@ -1078,6 +1097,7 @@ menuDef { name swoopvehiclehud rect 0 400 640 80
             boost_flash: false,
             turbo: Some((0.5, false)),
             linked: true,
+            boost: None,
         }
     }
 
@@ -1203,6 +1223,27 @@ menuDef { name swoopvehiclehud rect 0 400 640 80
         frame.simple_hud(None, Some(&vehicle), &mut Timers::default());
         assert_eq!(frame.texts[2].text, "60 / 6");
         assert_eq!(frame.texts[0].color, LIGHT_RED);
+        // A turbo shows left of the speed, coloured by its phase.
+        use crate::hud::vehicle::{Turbo, TurboPhase};
+        vehicle.weapons = [true, false];
+        vehicle.boost_flash = false;
+        for (phase, text, color) in [
+            (TurboPhase::Charging, "45%", RED),
+            (TurboPhase::Ready, "READY", GREEN),
+            (TurboPhase::Burning, "BOOST", WHITE),
+        ] {
+            vehicle.boost = Some(Turbo {
+                charge: 0.45,
+                phase,
+            });
+            frame.simple_hud(None, Some(&vehicle), &mut Timers::default());
+            assert_eq!(frame.text_count, 4);
+            assert_eq!(frame.texts[0].text, text);
+            assert_eq!(frame.texts[0].color, color);
+            assert_eq!(frame.texts[0].x, 160.0);
+            assert_eq!(frame.texts[1].text, "812");
+        }
+        vehicle.boost = None;
         // No weapon, no ammunition.
         vehicle.weapons = [false, false];
         frame.simple_hud(None, Some(&vehicle), &mut Timers::default());
@@ -1212,6 +1253,13 @@ menuDef { name swoopvehiclehud rect 0 400 640 80
         frame.simple_hud(Some(&readout()), Some(&vehicle), &mut Timers::default());
         assert_eq!(frame.text_count, 7);
         assert_eq!(frame.texts[1].text, "1500");
+        // And with the turbo too.
+        vehicle.boost = Some(Turbo {
+            charge: 1.0,
+            phase: TurboPhase::Ready,
+        });
+        frame.simple_hud(Some(&readout()), Some(&vehicle), &mut Timers::default());
+        assert_eq!(frame.text_count, 8);
     }
 
     #[test]

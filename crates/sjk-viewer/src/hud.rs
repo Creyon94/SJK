@@ -339,7 +339,7 @@ impl RadialPlacement {
 
 /// The radial look's status meters, the pills, arcs and numbers round the crosshair:
 /// what [`RadialPlacement`] moves. The crosshair, its name, the timer and the rest stay.
-const RADIAL_STATUS: [&str; 19] = [
+const RADIAL_STATUS: [&str; 23] = [
     "left_pill",
     "right_pill",
     "health_arc",
@@ -359,6 +359,10 @@ const RADIAL_STATUS: [&str; 19] = [
     "vehicle_ammo_arc",
     "vehicle_speed_value",
     "vehicle_ammo_value",
+    "vehicle_turbo_arc_charging",
+    "vehicle_turbo_arc_ready",
+    "vehicle_turbo_arc_burning",
+    "vehicle_turbo_value",
 ];
 
 /// Which side of the crosshair a status widget is on: -1 left, 1 right, 0 under it. An

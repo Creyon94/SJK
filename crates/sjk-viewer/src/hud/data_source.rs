@@ -54,6 +54,16 @@ pub(super) struct WidgetData<'a> {
     pub(super) vehicle: Option<vehicle::Meters>,
 }
 
+impl WidgetData<'_> {
+    /// The turbo's phase while the vehicle HUD shows and the vehicle has one.
+    fn vehicle_turbo(&self) -> Option<vehicle::TurboPhase> {
+        self.vehicle
+            .filter(|_| self.visibility.vehicle)
+            .and_then(|meters| meters.turbo)
+            .map(|turbo| turbo.phase)
+    }
+}
+
 impl HudDataSource for WidgetData<'_> {
     fn number(&self, binding: &str) -> Option<f32> {
         match binding {
@@ -65,6 +75,11 @@ impl HudDataSource for WidgetData<'_> {
             "style_ratio" => Some(if self.saber_style.is_some() { 1.0 } else { 0.0 }),
             "vehicle_ratio" => Some(self.vehicle.map_or(0.0, |meters| meters.hull)),
             "vehicle_speed_ratio" => Some(self.vehicle.map_or(0.0, |meters| meters.speed)),
+            "vehicle_turbo_ratio" => Some(
+                self.vehicle
+                    .and_then(|meters| meters.turbo)
+                    .map_or(0.0, |turbo| turbo.charge),
+            ),
             "vehicle_ammo_ratio" => {
                 Some(self.vehicle.and_then(|meters| meters.ammo).unwrap_or(0.0))
             }
@@ -125,6 +140,17 @@ impl HudDataSource for WidgetData<'_> {
             "draw_lagometer" => Some(self.visibility.lagometer),
             "draw_interrupted" => Some(self.visibility.elements && self.interrupted),
             "draw_vehicle" => Some(self.visibility.vehicle && self.vehicle.is_some()),
+            // The turbo's widgets, one per colour: a vehicle without a turbo shows none.
+            "draw_vehicle_turbo" => Some(self.vehicle_turbo().is_some()),
+            "draw_vehicle_turbo_charging" => {
+                Some(self.vehicle_turbo() == Some(vehicle::TurboPhase::Charging))
+            }
+            "draw_vehicle_turbo_ready" => {
+                Some(self.vehicle_turbo() == Some(vehicle::TurboPhase::Ready))
+            }
+            "draw_vehicle_turbo_burning" => {
+                Some(self.vehicle_turbo() == Some(vehicle::TurboPhase::Burning))
+            }
             // A vehicle without a weapon has no ammunition to show.
             "draw_vehicle_ammo" => Some(
                 self.visibility.vehicle && self.vehicle.is_some_and(|meters| meters.ammo.is_some()),
@@ -157,6 +183,8 @@ pub(super) fn text_id(binding: Option<&str>) -> Option<TextId> {
         Some("vehicle_speed_text") => Some(TextId(vehicle::SPEED_LABEL_TEXT)),
         Some("vehicle_ammo_value") => Some(TextId(vehicle::AMMO_VALUE_TEXT)),
         Some("vehicle_ammo_text") => Some(TextId(vehicle::AMMO_LABEL_TEXT)),
+        Some("vehicle_turbo_value") => Some(TextId(vehicle::TURBO_VALUE_TEXT)),
+        Some("vehicle_turbo_text") => Some(TextId(vehicle::TURBO_LABEL_TEXT)),
         _ => None,
     }
 }

@@ -247,7 +247,15 @@ pub(crate) fn widget_element(id: &str, radial: bool) -> Option<Element> {
         | "vehicle_ammo_arc"
         | "vehicle_ammo_value"
         | "vehicle_ammo_label"
-        | "vehicle_ammo_meter" => Element::Vehicle,
+        | "vehicle_ammo_meter"
+        | "vehicle_turbo_arc_charging"
+        | "vehicle_turbo_arc_ready"
+        | "vehicle_turbo_arc_burning"
+        | "vehicle_turbo_value"
+        | "vehicle_turbo_label"
+        | "vehicle_turbo_meter_charging"
+        | "vehicle_turbo_meter_ready"
+        | "vehicle_turbo_meter_burning" => Element::Vehicle,
         "match_timer" => Element::Timer,
         "vote_panel" => Element::Vote,
         _ => return None,

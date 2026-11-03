@@ -6,7 +6,9 @@
 //! ammunition's numbers. SJK's own looks show the same three as their layouts'
 //! `vehicle_*` widgets ([`Meters`]): arcs under the crosshair with their numbers in the
 //! radial layout (hull yellow, speed cyan, ammunition orange), labelled bars in the
-//! classic one. The ammunition shows only on a vehicle with a weapon.
+//! classic one. The ammunition shows only on a vehicle with a weapon, the turbo
+//! ([`Turbo`]: red-orange while it recharges, green once ready, bright while it burns)
+//! only on one with a `turboRecharge` whose turbo time the ride prediction gives.
 //!
 //! Stock reads the maxima from the vehicle's `.veh` definition ([`Profile`]) and the
 //! values from `cg.predictedVehicleState`: `stats[STAT_HEALTH]` against `armor` (hull,
@@ -44,6 +46,10 @@ pub(super) const SPEED_VALUE_TEXT: u32 = 350;
 pub(super) const SPEED_LABEL_TEXT: u32 = 351;
 pub(super) const AMMO_VALUE_TEXT: u32 = 352;
 pub(super) const AMMO_LABEL_TEXT: u32 = 353;
+/// The turbo's word (`READY`, `BOOST` or its charge in percent, colour coded) and its
+/// labelled line, for the layouts' `vehicle_turbo_value` and `vehicle_turbo_text`.
+pub(super) const TURBO_VALUE_TEXT: u32 = 354;
+pub(super) const TURBO_LABEL_TEXT: u32 = 355;
 
 /// `MAX_VHUD_SHIELD_TICS`, `MAX_VHUD_ARMOR_TICS`, `MAX_VHUD_SPEED_TICS`,
 /// `MAX_VHUD_AMMO_TICS`.
@@ -196,6 +202,46 @@ pub(super) fn ammo_ratio(ammo: [i32; 2], max: [i32; 2], weapons: [bool; 2]) -> O
     }
 }
 
+/// What the turbo is doing, which picks its colour.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum TurboPhase {
+    /// Recharging since the last boost: red-orange.
+    Charging,
+    /// Ready to boost: green.
+    Ready,
+    /// Boosting now (`cg.time` has not passed `m_iTurboTime`): full and bright.
+    Burning,
+}
+
+/// The turbo as SJK's own looks and the text HUD show it.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct Turbo {
+    /// The recharge, `0..=1`; full while it burns.
+    pub(crate) charge: f32,
+    pub(crate) phase: TurboPhase,
+}
+
+/// The turbo of a vehicle with a `turboRecharge`, where the ride prediction gives its
+/// turbo time; `None` otherwise (no turbo to show, and no room kept for one).
+pub(super) fn turbo(time: i32, turbo_time: Option<i32>, recharge: i32) -> Option<Turbo> {
+    let turbo_time = turbo_time.filter(|_| recharge > 0)?;
+    if turbo_burning(time, turbo_time) {
+        return Some(Turbo {
+            charge: 1.0,
+            phase: TurboPhase::Burning,
+        });
+    }
+    let (charge, ready) = turbo_charge(time, turbo_time, recharge);
+    Some(Turbo {
+        charge,
+        phase: if ready {
+            TurboPhase::Ready
+        } else {
+            TurboPhase::Charging
+        },
+    })
+}
+
 /// The vehicle's meters for SJK's own layouts, each `0..=1`.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub(crate) struct Meters {
@@ -203,6 +249,8 @@ pub(crate) struct Meters {
     pub(crate) speed: f32,
     /// `None` when the vehicle has no weapon.
     pub(crate) ammo: Option<f32>,
+    /// `None` when the vehicle has no turbo to show ([`turbo`]).
+    pub(crate) turbo: Option<Turbo>,
 }
 
 /// The turbo burns while `cg.time` has not passed `m_iTurboTime` (`CG_DrawVehicleSpeed`).
@@ -284,6 +332,8 @@ pub(crate) struct State {
     /// without a weapon), `0..=1`.
     speed_ratio: f32,
     ammo_ratio: Option<f32>,
+    /// The turbo for SJK's own looks ([`turbo`]).
+    boost: Option<Turbo>,
     shield: [f32; SHIELD_TICS],
     speed: [f32; SPEED_TICS],
     ammo: [f32; AMMO_TICS],
@@ -308,6 +358,8 @@ pub(crate) struct State {
     speed_label: String,
     ammo_value: String,
     ammo_label: String,
+    turbo_value: String,
+    turbo_label: String,
     /// `crosshairShader` of the riding vehicle, and the one last tried to load.
     wanted: Option<String>,
     attempted: Option<String>,
@@ -324,6 +376,7 @@ impl Default for State {
             hull_ratio: 0.0,
             speed_ratio: 0.0,
             ammo_ratio: None,
+            boost: None,
             shield: [0.0; SHIELD_TICS],
             speed: [0.0; SPEED_TICS],
             ammo: [0.0; AMMO_TICS],
@@ -345,6 +398,8 @@ impl Default for State {
             speed_label: String::with_capacity(24),
             ammo_value: String::with_capacity(24),
             ammo_label: String::with_capacity(32),
+            turbo_value: String::with_capacity(12),
+            turbo_label: String::with_capacity(24),
             wanted: None,
             attempted: None,
             picture: None,
@@ -395,6 +450,7 @@ impl State {
             turbo_burning(sample.time, turbo) && (sample.time.div_euclid(FLASH_MS) & 1) == 1
         });
         self.linked = profile.always_linked || sample.linked;
+        self.boost = turbo(sample.time, sample.turbo_time, profile.turbo_recharge);
         self.stock = VehicleReadout {
             hull: [sample.hull as f32, profile.hull as f32],
             shields: [sample.shield as f32, profile.shields as f32],
@@ -404,6 +460,7 @@ impl State {
             boost_flash: self.boost_flash,
             turbo: self.turbo,
             linked: self.linked,
+            boost: self.boost,
         };
         self.hull_text.clear();
         self.shield_text.clear();
@@ -415,6 +472,8 @@ impl State {
         self.speed_label.clear();
         self.ammo_value.clear();
         self.ammo_label.clear();
+        self.turbo_value.clear();
+        self.turbo_label.clear();
         let _ = write!(self.hull_text, "HULL {}", sample.hull.max(0));
         let _ = write!(self.hull_value, "{}", sample.hull.max(0));
         let _ = write!(self.hull_label, "^3HP ^7{}", sample.hull.max(0));
@@ -444,6 +503,16 @@ impl State {
         if !self.ammo_value.is_empty() {
             let _ = write!(self.ammo_label, "^3AMMO ^7{}", self.ammo_value);
         }
+        if let Some(boost) = self.boost {
+            let _ = match boost.phase {
+                TurboPhase::Charging => {
+                    write!(self.turbo_value, "^1{}%", (boost.charge * 100.0) as i32)
+                }
+                TurboPhase::Ready => write!(self.turbo_value, "^2READY"),
+                TurboPhase::Burning => write!(self.turbo_value, "^3BOOST"),
+            };
+            let _ = write!(self.turbo_label, "^3TURBO {}", self.turbo_value);
+        }
     }
 
     /// No vehicle this frame (no snapshot, or a menu without a game).
@@ -467,6 +536,7 @@ impl State {
             hull: self.hull_ratio,
             speed: self.speed_ratio,
             ammo: self.ammo_ratio,
+            turbo: self.boost,
         })
     }
 
@@ -532,6 +602,8 @@ impl State {
             SPEED_LABEL_TEXT => &self.speed_label,
             AMMO_VALUE_TEXT => &self.ammo_value,
             AMMO_LABEL_TEXT => &self.ammo_label,
+            TURBO_VALUE_TEXT => &self.turbo_value,
+            TURBO_LABEL_TEXT => &self.turbo_label,
             _ => "",
         }
     }
@@ -970,6 +1042,10 @@ mod tests {
                 hull: 0.5,
                 speed: 0.5,
                 ammo: Some(0.5),
+                turbo: Some(Turbo {
+                    charge: 0.5,
+                    phase: TurboPhase::Charging,
+                }),
             })
         );
         // Prediction off: the turbo meter has no data and stays out.
@@ -1025,6 +1101,117 @@ mod tests {
         assert_eq!(state.text(AMMO_VALUE_TEXT), "");
         assert_eq!(state.text(AMMO_LABEL_TEXT), "");
         assert_eq!(state.meters().unwrap().ammo, None);
+    }
+
+    #[test]
+    fn the_turbo_charges_then_is_ready_and_burns_full() {
+        // 1500 ms of 3000 since the last boost.
+        assert_eq!(
+            turbo(2_500, Some(1_000), 3_000),
+            Some(Turbo {
+                charge: 0.5,
+                phase: TurboPhase::Charging,
+            })
+        );
+        assert_eq!(
+            turbo(4_001, Some(1_000), 3_000).map(|turbo| turbo.phase),
+            Some(TurboPhase::Ready)
+        );
+        assert_eq!(
+            turbo(900, Some(1_000), 3_000),
+            Some(Turbo {
+                charge: 1.0,
+                phase: TurboPhase::Burning,
+            })
+        );
+        // No turbo time (no prediction) or no recharge: no turbo to show.
+        assert_eq!(turbo(2_500, None, 3_000), None);
+        assert_eq!(turbo(2_500, Some(1_000), 0), None);
+    }
+
+    #[test]
+    fn the_turbo_words_follow_its_phase() {
+        let profile = profile();
+        let mut state = State::default();
+        let mut s = sample(&profile);
+        s.time = 10_000;
+        s.turbo_time = Some(8_500);
+        state.update(&s);
+        assert_eq!(state.text(TURBO_VALUE_TEXT), "^150%");
+        assert_eq!(state.text(TURBO_LABEL_TEXT), "^3TURBO ^150%");
+        assert_eq!(
+            state.readout().unwrap().boost,
+            state.meters().unwrap().turbo
+        );
+        s.turbo_time = Some(5_000);
+        state.update(&s);
+        assert_eq!(state.text(TURBO_VALUE_TEXT), "^2READY");
+        s.turbo_time = Some(10_100);
+        state.update(&s);
+        assert_eq!(state.text(TURBO_LABEL_TEXT), "^3TURBO ^3BOOST");
+        s.turbo_time = None;
+        state.update(&s);
+        assert_eq!(state.text(TURBO_VALUE_TEXT), "");
+        assert_eq!(state.meters().unwrap().turbo, None);
+    }
+
+    /// Each own look draws the turbo in its phase's colour, and nothing for it on a
+    /// vehicle without one.
+    #[test]
+    fn each_own_look_colours_the_turbo_by_its_phase() {
+        use crate::hud::{HudLook, HudOverlay, HudVisibility};
+        let font = crate::text::load_modern(1.0, None).unwrap().font;
+        let profile = profile();
+        let visibility = HudVisibility {
+            hud: true,
+            elements: true,
+            status: true,
+            vehicle: true,
+            weapon: true,
+            selection: true,
+            crosshair: false,
+            crosshair_names: false,
+            timer: false,
+            lagometer: false,
+            ground_hud: false,
+            menu_hud: false,
+        };
+        let red = |color: Color| color.r > 0.95 && (color.g - 0.35).abs() < 0.01;
+        let green = |color: Color| (color.r - 0.35).abs() < 0.01 && color.g > 0.95;
+        let bright = |color: Color| color.r > 0.95 && (color.g - 0.96).abs() < 0.01;
+        let drawn = |commands: &[DrawCommand], tint: &dyn Fn(Color) -> bool| {
+            commands.iter().any(|command| match *command {
+                DrawCommand::Arc { color, .. } | DrawCommand::RoundedRect { color, .. } => {
+                    tint(color)
+                }
+                _ => false,
+            })
+        };
+        for look in [HudLook::Radial, HudLook::Classic] {
+            let mut hud = HudOverlay::new();
+            for (turbo_time, expected) in [
+                (Some(8_500), [true, false, false]),
+                (Some(5_000), [false, true, false]),
+                (Some(10_100), [false, false, true]),
+                (None, [false, false, false]),
+            ] {
+                let mut riding = sample(&profile);
+                riding.time = 10_000;
+                riding.turbo_time = turbo_time;
+                hud.vehicle.update(&riding);
+                let _ = hud.layout(&font, look, [1920.0, 1080.0], 1.0, visibility, 0);
+                let commands = hud.draw_list().commands();
+                assert_eq!(
+                    [
+                        drawn(commands, &red),
+                        drawn(commands, &green),
+                        drawn(commands, &bright)
+                    ],
+                    expected,
+                    "{look:?} {turbo_time:?}"
+                );
+            }
+        }
     }
 
     #[test]

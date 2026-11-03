@@ -3718,6 +3718,14 @@ retail vehicle HUD and the vector strip are unchanged. Unit tests pin the ratios
 strings, the text HUD's runs and that each own look draws the speed and, with a weapon
 only, the ammunition.
 
+The turbo of swoops and animals follows in the same branch: `vehicle::turbo` gives its
+phase (recharging, ready, burning) and charge from the predicted turbo time and the
+`.veh`'s `turboRecharge`; radial draws a thin arc inside the speed arc and the word under
+the speed number, classic a `TURBO` line and bar beside `SPD`, Text only the word left of
+the speed (`MAX_TEXTS` 8). One widget per phase gives each its colour. Tests pin the
+phases, the words and that each look colours the turbo by its phase and leaves it out
+without one.
+
 ## Stock vehicle HUD in the game HUD
 
 19/10/2026, `feat/vehicle-hud-sjk-style`, on `fix/vehicle-hud-hide-rider`: a tester

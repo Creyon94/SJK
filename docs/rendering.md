@@ -4891,7 +4891,17 @@ middle) and an orange ammunition arc (48 to 84), with the speed, hull and ammuni
 numbers in a row under the outer arc; the radial placement moves them all up and down
 with the rest of the status but never spreads them apart. `classic` a yellow bar with an
 `HP` line above the weapon and ammunition lines, a cyan `SPD` bar above it and an orange
-`AMMO` bar on top. The speed's meter is `speed` over `speedMax` (the turbo passes the
+`AMMO` bar on top. A vehicle with a `turboRecharge`, whose turbo time the ride prediction
+gives (a live game, not a demo), also shows its turbo (`vehicle::Turbo`): the recharge
+fraction in red-orange while it recharges, full and green once ready, full and bright
+while it burns. As a widget's colour is fixed, each look has one turbo meter per phase,
+shown by `draw_vehicle_turbo_charging`, `draw_vehicle_turbo_ready` and
+`draw_vehicle_turbo_burning` (binding `vehicle_turbo_ratio`), and its word by
+`draw_vehicle_turbo` (`vehicle_turbo_value`: the charge in percent, `READY` or `BOOST`,
+colour coded; `vehicle_turbo_text` the `TURBO` line): `radial` a thin arc just inside the
+speed arc with the word under the speed number, `classic` a `TURBO` line and bar right of
+the `SPD` ones. The text HUD puts the same word 160 units left of the centre, in red,
+green or white. Without a turbo nothing of it shows and nothing moves. The speed's meter is `speed` over `speedMax` (the turbo passes the
 maximum and reads full), the ammunition's one weapon's `ammo` over its `ammoMax` or two
 weapons' together. With a game-data HUD that has no vehicle menu, SJK draws its own
 ([hud/vehicle.rs](../crates/sjk-viewer/src/hud/vehicle.rs)): a vector strip at the
