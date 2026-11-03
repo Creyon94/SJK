@@ -10,10 +10,13 @@
 //! stops it, and so does quitting. A map change keeps it; the page sees the new map in
 //! its next look at `api/edits` and loads it.
 
+mod caulk;
 pub(crate) mod http;
 pub(crate) mod page;
 pub(crate) mod recent;
 mod things;
+
+pub(crate) use caulk::Cache;
 
 use super::document::Kind;
 use crate::GpuState;
@@ -98,6 +101,24 @@ impl GpuState {
                 self.map_edit_web_recent_save();
                 Ok(self.map_edit_web_recent_json())
             }
+            GameRequest::Brushes => {
+                let map = self.world_load_map.clone();
+                Ok(self.map_edits.web_cache.brushes(&map, &self.bsp).clone())
+            }
+            GameRequest::Link { brush, side, grow } => {
+                let map = self.world_load_map.clone();
+                let sides = self.map_edits.web_cache.sides(&map, &self.bsp);
+                caulk::link_json(&self.bsp, sides, *brush, *side, *grow)
+            }
+            GameRequest::Suggest(suggest) => {
+                let map = self.world_load_map.clone();
+                let catalog = self.shaders.clone();
+                let (sides, drawn) =
+                    self.map_edits
+                        .web_cache
+                        .sides_and_drawn(&map, &self.bsp, Some(&catalog));
+                Ok(caulk::suggest_json(sides, drawn, &suggest.faces))
+            }
         };
         ask.answer(answer);
     }
@@ -174,8 +195,21 @@ impl GpuState {
         }
         let result = match edit {
             EditRequest::Select {
-                eye, dir, forward, ..
-            } => self.map_edit_web_select(*eye, *dir, *forward),
+                eye,
+                dir,
+                forward,
+                face,
+            } => self.map_edit_web_select(*eye, *dir, *forward, *face),
+            EditRequest::Clear => {
+                self.world_notes.cancel_selection();
+                Ok(vec!["Nothing selected".into()])
+            }
+            EditRequest::ApplyMany {
+                faces,
+                surfaces,
+                shader,
+            } => self.map_edit_many(faces, surfaces, Some(shader)),
+            EditRequest::HideMany { faces, surfaces } => self.map_edit_many(faces, surfaces, None),
             EditRequest::Current { id } => {
                 let placed = self.map_edits.document.as_ref().is_some_and(|document| {
                     document
@@ -198,7 +232,7 @@ impl GpuState {
             EditRequest::Place {
                 eye, dir, forward, ..
             } => self
-                .map_edit_web_select(*eye, *dir, *forward)
+                .map_edit_web_select(*eye, *dir, *forward, None)
                 .and_then(|_| self.map_edit_web_command(edit)),
             EditRequest::PlaceThing {
                 thing,
@@ -232,14 +266,40 @@ impl GpuState {
         self.map_edit_command(name, &args)
     }
 
-    /// Select what the page's ray meets, as a click on the in-game scene does.
+    /// Select what the page's ray meets, as a click on the in-game scene does; with
+    /// `face` (the brush view's caulk or nodraw face the click met), that face, unless a
+    /// drawn surface stands in front of it.
     fn map_edit_web_select(
         &mut self,
         eye: [f32; 3],
         dir: [f32; 3],
         forward: [f32; 3],
+        face: Option<[u32; 2]>,
     ) -> Result<Vec<String>, String> {
         let map = crate::remap_blocked_maps::map_name(&self.world_load_map).to_owned();
+        let (eye_at, along) = (
+            Vec3::from_array(eye),
+            Vec3::from_array(dir).normalize_or_zero(),
+        );
+        if let Some([brush, side]) = face
+            && let Some(met) = super::faces::met(&self.bsp, brush, side, eye_at, along)
+        {
+            // Within a unit of a drawn surface (a caulk side behind a decal, a face edits
+            // drew) the face wins, as the in-game pick's own margin has it.
+            let hidden = self
+                .decal_surfaces
+                .ray_hit(eye_at, along, met.distance)
+                .is_some_and(|hit| hit.distance + 1.0 < met.distance);
+            if !hidden {
+                let hit = eye_at + along * met.distance;
+                let summary = self.world_notes.select_face_for_edit(
+                    &map,
+                    [eye_at, Vec3::from_array(forward), hit],
+                    met,
+                );
+                return Ok(vec![summary]);
+            }
+        }
         let summary = self.world_notes.select_for_edit_ray(
             crate::world_notes::Scene {
                 bsp: &self.bsp,

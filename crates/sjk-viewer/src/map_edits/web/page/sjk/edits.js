@@ -7,7 +7,10 @@
 const SJK_POLL_MSEC = 700;
 // the last state, the game's lists (models to place, shaders a remap may draw), and the page's choices
 const sjk = { state: null, error: '', lists: null, listsFor: '', world: null, keys: {}, placed: [], faces: [], things: [], viewTaken: '', chosenModel: '', chosenShader: '', chosenEdit: null,
-	busy: 0, recent: null, chosenThing: null, placeThing: null, clip: null };
+	busy: 0, recent: null, chosenThing: null, placeThing: null, clip: null,
+	// the multiple selection (brushes.js): its members, the game's selection it last saw, a click of its own under
+	// way, the nearby shaders of its faces and the last link's note
+	multi: [], selKey: '', ownSelect: false, suggest: null, linkNote: '' };
 
 async function sjkPoll() {
 	try {
@@ -31,6 +34,7 @@ function sjkTake(s) {
 	if (s.map && s.map !== loadedMap) loadMap(s.map);
 	if (s.map && sjk.listsFor !== s.map) sjkLoadLists(s.map);
 	sjkApply();
+	sjkSelectionSeen(s);
 }
 
 // Once the map is there: the camera where the player is (the first time for a map), and the edits drawn.
@@ -200,7 +204,7 @@ async function sjkEdit(body) {
 	} catch (e) { /* the next poll */ }
 	sjkRender();
 	// a remap, a shown face or a placed model goes first in the Recent rows
-	if (answer.ok && (body.op === 'remap' || body.op === 'place')) sjkLoadRecent();
+	if (answer.ok && (body.op === 'remap' || body.op === 'place' || body.op === 'apply_many')) sjkLoadRecent();
 	return answer;
 }
 

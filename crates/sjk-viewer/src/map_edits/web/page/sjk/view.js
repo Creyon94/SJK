@@ -163,20 +163,26 @@ function sjkPropOf(number) {
 
 // what is selected as the overlay draws it: a key that says when to make it again, meshes, and models with
 // their matrices
-const sjkSel = { key: '', fill: null, lines: null, groupFill: null, models: [] };
+const sjkSel = { key: '', fill: null, lines: null, groupFill: null, models: [], fills: [], outlines: [] };
 function sjkSelectionKey(s) {
 	const sel = s && s.selection, thing = sjkTab === 'world' ? sjkChosenThing() : null;
-	return JSON.stringify([loadedMap, sel && sel.kind, sel && sel.target, sel && sel.kind === 'placed' && s.placed.find(p => p.id === sel.target.placed), thing && thing.parts]);
+	return JSON.stringify([loadedMap, sel && sel.kind, sel && sel.target, sel && sel.kind === 'placed' && s.placed.find(p => p.id === sel.target.placed), thing && thing.parts,
+		sjkMany() ? sjk.multi.map(m => m.key) : null]);
 }
 function sjkBuildSelection() {
 	const s = sjk.state, key = sjkSelectionKey(s);
 	if (sjkSel.key === key && sjkSel.world === world) return;
 	sjkGeoFree(sjkSel.fill); sjkGeoFree(sjkSel.lines); sjkGeoFree(sjkSel.groupFill);
 	for (const m of sjkSel.models) sjkGeoFree(m.box);
-	Object.assign(sjkSel, { key, world, fill: null, lines: null, groupFill: null, models: [], hit: null });
+	for (const g of [...sjkSel.fills, ...sjkSel.outlines]) sjkGeoFree(g);
+	Object.assign(sjkSel, { key, world, fill: null, lines: null, groupFill: null, models: [], hit: null, fills: [], outlines: [] });
 	const sel = s && s.selection, t = sel && sel.target;
 	if (sel) sjkSel.hit = sel.hit;
-	if (sel && sel.kind === 'surface') {
+	// a multiple selection: each of its faces and surfaces as the selection is drawn
+	if (sjkMany()) {
+		const g = sjkMultiGeo();
+		sjkSel.fills = g.fills; sjkSel.outlines = g.outlines; sjkSel.hit = null;
+	} else if (sel && sel.kind === 'surface') {
 		const own = sjkSurfaceGeo(new Set([t.surface]));
 		sjkSel.fill = own.fill; sjkSel.lines = own.lines;
 		const rest = (t.group || []).filter(n => n !== t.surface);
@@ -232,6 +238,7 @@ function sjkDrawSelection(now) {
 	let drew = false;
 	if (sjkSel.groupFill) sjkOverlayDraw(sjkSel.groupFill, SJK_IDENTITY, [SJK_GOLD[0], SJK_GOLD[1], SJK_GOLD[2], 0.08 + 0.08 * glow], 0);
 	if (sjkSel.fill) { sjkOverlayDraw(sjkSel.fill, SJK_IDENTITY, fillColor, 0); drew = true; }
+	for (const g of sjkSel.fills) { sjkOverlayDraw(g, SJK_IDENTITY, fillColor, 0); drew = true; }
 	for (const m of sjkSel.models) {
 		const model = staticNow(m.model);
 		if (model) {
@@ -248,6 +255,7 @@ function sjkDrawSelection(now) {
 	}
 	gl.disable(gl.POLYGON_OFFSET_FILL);
 	if (sjkSel.lines) sjkOutline(sjkSel.lines, SJK_IDENTITY, glow);
+	for (const g of sjkSel.outlines) sjkOutline(g, SJK_IDENTITY, glow);
 	gl.depthMask(true);
 	gl.depthFunc(gl.LESS);
 	gl.disable(gl.BLEND);
@@ -301,6 +309,7 @@ function drawFrame(now) {
 	}
 	drawWorldEnts(now);
 	sjkDrawEdits();
+	sjkDrawBrushes();
 	sjkDrawMarks(now);
 	if (scripted) {
 		drawWorldScripted(now, true);
@@ -363,7 +372,7 @@ canvas.addEventListener('pointerup', e => {
 			sjkRender();
 			return;
 		}
-		sjkEdit(Object.assign({ op: 'select' }, ray));
+		sjkSelectClick(ray, e.shiftKey || e.ctrlKey || e.metaKey);
 		if (sjkTab === 'edits' || sjkTab === 'world') sjkShowTab('selected');
 	}
 });
@@ -396,9 +405,10 @@ window.addEventListener('keydown', e => {
 	if (mod && k === 'v') { sjk.pastePending = true; setTimeout(sjkPasteFallback, 80); return; }
 	if (mod || e.altKey) return;
 	if (e.key === '?') { e.preventDefault(); sjkHudFold(); return; }
-	if (k === 'escape') { sjkStopPlacing(); return; }
+	if (k === 'escape') { if (!sjkStopPlacing()) sjkClearSelection(); return; }
+	if (k === 'b') { sjkBrushToggle(); return; }
 	if (k === 'delete' && sjk.chosenEdit !== null && sjkTab === 'edits') { sjkEdit({ op: 'delete', id: sjk.chosenEdit }); return; }
-	if (k === 'h' && sjk.state && sjk.state.selection) { sjkEdit({ op: 'hide' }); return; }
+	if (k === 'h' && sjk.state && (sjk.state.selection || sjkMany())) { sjkHideSelection(); return; }
 	keys.add(k);
 	if (k === ' ' || k.startsWith('arrow')) e.preventDefault();
 });
@@ -408,12 +418,13 @@ $('editList').addEventListener('keydown', e => {
 });
 
 function sjkStopPlacing() {
-	if (!sjk.placeThing && !sjk.chosenModel) return;
+	if (!sjk.placeThing && !sjk.chosenModel) return false;
 	sjk.placeThing = null;
 	sjk.chosenModel = '';
 	for (const r of document.querySelectorAll('#modelList .row, #modelRecent .row')) r.classList.remove('sel');
 	sjkRender();
 	toast('Stopped placing');
+	return true;
 }
 
 // ---- the controls' card: folded with ? or a click on its head, kept so in this browser
@@ -485,8 +496,8 @@ function sjkPasteClip(c) {
 		return;
 	}
 	const sel = sjk.state && sjk.state.selection;
-	if (!sel || sel.kind === 'other') { toast('Select a surface or a face to paste ' + c.shader + ' on', false); return; }
-	sjkEdit({ op: 'remap', shader: c.shader });
+	if (!sjkMany() && (!sel || sel.kind === 'other')) { toast('Select a surface or a face to paste ' + c.shader + ' on', false); return; }
+	sjkApplyShader(c.shader);
 }
 
 document.addEventListener('copy', e => {
@@ -536,5 +547,6 @@ if (!gl) {
 	sjkShowTab('selected');
 	sjkPoll();
 	sjkLoadRecent();
+	sjkBrushRestore();
 	requestAnimationFrame(frame);
 }

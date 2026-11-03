@@ -1143,6 +1143,48 @@ impl Notes {
         self.selection.as_ref().map(Selection::summary)
     }
 
+    /// Select caulk or nodraw face `face` for a map edit, met at `hit`, as seen from
+    /// `eye` looking along `forward`: the browser editor's click on a face its brush
+    /// view draws.
+    pub(crate) fn select_face_for_edit(
+        &mut self,
+        map: &str,
+        [eye, forward, hit]: [Vec3; 3],
+        face: crate::map_edits::faces::Face,
+    ) -> String {
+        let camera = CameraUniform {
+            camera_position: eye.to_array(),
+            view_forward: forward.normalize_or_zero().to_array(),
+            ..bytemuck::Zeroable::zeroed()
+        };
+        let corners: Vec<Vec3> = face.polygon.iter().map(|p| Vec3::from_array(*p)).collect();
+        let selection = Selection {
+            map: map.to_owned(),
+            pose: camera.viewpos(),
+            eye,
+            forward: forward.normalize_or_zero(),
+            hit,
+            normal: face.normal,
+            distance: face.distance,
+            surface: None,
+            entity: None,
+            collision: None,
+            edges: (0..corners.len())
+                .map(|i| [corners[i], corners[(i + 1) % corners.len()]])
+                .collect(),
+            triangles: (2..corners.len())
+                .map(|i| [corners[0], corners[i - 1], corners[i]])
+                .collect(),
+            face: Some(face),
+            selected: Instant::now(),
+            model: None,
+            remaps: Vec::new(),
+        };
+        let summary = selection.summary();
+        self.selection = Some(selection);
+        summary
+    }
+
     /// While the map editor is on, a selection never goes stale.
     pub(crate) fn hold_selection(&mut self, held: bool) {
         self.held = held;
