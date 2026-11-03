@@ -75,6 +75,7 @@ mod connection;
 mod connection_commands;
 mod console;
 mod console_backdrop;
+mod console_move;
 mod console_overlay;
 mod console_runtime;
 mod cosmetics;
@@ -105,6 +106,7 @@ mod effect_flash;
 mod effect_geometry;
 mod effect_geometry_gpu;
 mod vehicle_assets;
+mod vehicle_burning;
 mod vehicle_fire;
 mod vehicle_pose;
 mod vfs_lifetime;
@@ -129,6 +131,7 @@ mod frame_pacing;
 mod frame_queue;
 mod frame_split;
 mod lightmap_styles;
+mod vertex_light;
 
 mod charge_flash;
 mod e2e_whisper_card;
@@ -228,6 +231,7 @@ mod siege_sabers;
 #[cfg(feature = "mod-jof")]
 mod sith_cloud;
 mod surface_tables;
+mod tag_copies;
 mod tag_icons;
 mod tag_render;
 mod tags;
@@ -340,7 +344,10 @@ mod sjk_packs;
 mod sky_stage;
 mod small_card_notice;
 mod snapshot_presentation;
+mod sound_mutes;
 mod sound_sonar;
+#[cfg(test)]
+mod startup_stack;
 mod static_models;
 mod stock_blades;
 mod support_links;
@@ -420,7 +427,8 @@ use std::ops::Range;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use text::{MAX_TEXT_VERTICES, TextVertex, UiFont, append_text};
+use text::vertex_buffer::TextVertexBuffer;
+use text::{TextVertex, UiFont, append_text};
 use ui_renderer::ShapeRenderer;
 use wgpu::util::DeviceExt;
 use winit::application::ApplicationHandler;
@@ -620,6 +628,8 @@ struct GpuState {
     muzzle_effects: sjk_client::LegacyMuzzleEffects,
     /// Vehicle volleys waiting for their vehicle to be posed (`vehicle_fire.rs`).
     vehicle_fires: vehicle_fire::Pending,
+    /// Destroyed vehicles' flames' debounce.
+    vehicle_flames: vehicle_burning::Flames,
     force_overlays: sjk_client::LegacyForceOverlayTracker,
     /// `EV_BODYFADE` per body (`body_fade.rs`).
     body_fades: Box<sjk_client::LegacyBodyFadeTracker>,
@@ -666,6 +676,9 @@ struct GpuState {
     unlock_toast: unlock_toast::UnlockToast,
     /// A bug report is on its way to the hub (`bug_report`).
     bug_report_waiting: bool,
+    /// The report card open now was opened from the main menu (its SJK page): the
+    /// report says "menu" for the map and names no server.
+    bug_report_from_menu: bool,
     /// The outcome last shown, so the next one is told apart.
     bug_report_serial: u64,
     entity_lighting: entity_lighting::EntityLighting,
@@ -703,8 +716,8 @@ struct GpuState {
     /// Where this frame's HUD program can draw (`hud_runtime::HudScissors`).
     hud_scissors: hud_runtime::HudScissors,
     hud_bind_group: wgpu::BindGroup,
-    text_vertex_buffer: wgpu::Buffer,
-    classic_text_vertex_buffer: wgpu::Buffer,
+    text_vertex_buffer: TextVertexBuffer,
+    classic_text_vertex_buffer: TextVertexBuffer,
     text_bind_group: wgpu::BindGroup,
     /// The Inter atlas `text_bind_group` binds, kept to bind it again with the wide atlas.
     text_atlas: wgpu::TextureView,
@@ -731,6 +744,8 @@ struct GpuState {
     muted_players: muted_players::MutedPlayers,
     /// Players blocked until the map changes, by this player or by staff for everyone.
     map_blocks: map_blocks::MapBlocks,
+    /// Players whose sounds are muted until the map changes (`mutesounds`).
+    sound_mutes: sound_mutes::SoundMutes,
     game_menu: bool,
     in_game_menu: ingame_menu::InGameMenu,
     game_menu_page: GameMenuPage,
@@ -883,6 +898,9 @@ struct GpuState {
     client_menu: Option<menu::ClientMenu>,
     join_task: Option<connection::JoinTask>,
     last_connect_address: Option<String>,
+    /// The `password` the last join sent, to join again when it changes while that
+    /// join is still trying or has just failed ([`Self::rejoin_on_new_password`]).
+    join_password: String,
     game_data: PathBuf,
     connect_timeline: Option<log::ConnectTimeline>,
     load_event_gap: log::EventGap,
@@ -1162,6 +1180,7 @@ impl GpuState {
                 force_bar: [0.0; 4],
                 _padding: [0.0; 3],
                 crosshair_parameters: [0.0, 0.0, 640.0, 480.0],
+                damage_color: [0.0; 4],
             }),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
@@ -1450,18 +1469,9 @@ impl GpuState {
         let text_pipeline = create_text_pipeline("SJK text pipeline", "fragment_main");
         let sdf_text_pipeline =
             create_text_pipeline("SJK distance-field text pipeline", "fragment_sdf");
-        let text_vertex_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("SJK dynamic text vertices"),
-            size: (MAX_TEXT_VERTICES * std::mem::size_of::<TextVertex>()) as u64,
-            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-            mapped_at_creation: false,
-        });
-        let classic_text_vertex_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("SJK dynamic classic HUD text vertices"),
-            size: (MAX_TEXT_VERTICES * std::mem::size_of::<TextVertex>()) as u64,
-            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-            mapped_at_creation: false,
-        });
+        let text_vertex_buffer = TextVertexBuffer::new(device, "SJK dynamic text vertices");
+        let classic_text_vertex_buffer =
+            TextVertexBuffer::new(device, "SJK dynamic classic HUD text vertices");
         let entity_instance_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("SJK dynamic entity instances"),
             size: (particle_types::INSTANCE_CAPACITY * std::mem::size_of::<EntityInstance>())
@@ -1618,6 +1628,7 @@ impl GpuState {
             effect_aux: effect_aux::Runtime::default(),
             muzzle_effects: sjk_client::LegacyMuzzleEffects::new(),
             vehicle_fires: Default::default(),
+            vehicle_flames: Default::default(),
             force_overlays: sjk_client::LegacyForceOverlayTracker::default(),
             body_fades: Box::default(),
             demp2_shells: Default::default(),
@@ -1653,6 +1664,7 @@ impl GpuState {
             holocron_popup: holocron_popup::HolocronPopup::default(),
             unlock_toast: unlock_toast::UnlockToast::default(),
             bug_report_waiting: false,
+            bug_report_from_menu: false,
             bug_report_serial: 0,
             entity_lighting,
             menu_stage: menu_stage::MenuStage::default(),
@@ -1689,13 +1701,14 @@ impl GpuState {
             ui_font,
             classic_hud_font,
             game_fonts,
-            text_vertices: Vec::with_capacity(MAX_TEXT_VERTICES),
+            text_vertices: Vec::with_capacity(text::vertex_buffer::INITIAL_VERTICES),
             classic_text_vertices: Vec::with_capacity(4_096),
             hud,
             scoreboard: scoreboard::Scoreboard::new(),
             chat: chat::ChatOverlay::with_emojis(emojis),
             muted_players: muted_players::MutedPlayers::default(),
             map_blocks: map_blocks::MapBlocks::default(),
+            sound_mutes: sound_mutes::SoundMutes::default(),
             game_menu,
             in_game_menu: ingame_menu::InGameMenu::new(),
             game_menu_page: if game_menu {
@@ -1806,6 +1819,7 @@ impl GpuState {
             client_menu,
             join_task: None,
             last_connect_address: None,
+            join_password: String::new(),
             game_data,
             connect_timeline,
             load_event_gap: log::EventGap::default(),
@@ -2096,7 +2110,7 @@ impl GpuState {
         // The game HUD draws the vehicle HUD from `swoopvehiclehud`'s pictures, as
         // stock does; SJK's vector strip stands in for it with the other looks.
         let stock_vehicle =
-            hud_visibility.hud && hud_visibility.vehicle && self.menu_hud.draws_vehicle();
+            hud_visibility.elements && hud_visibility.vehicle && self.menu_hud.draws_vehicle();
         if stock_vehicle {
             hud_visibility.vehicle = false;
         }
@@ -2180,6 +2194,7 @@ impl GpuState {
             force_bar: hud_layout.force_bar,
             _padding: [0.0; 3],
             crosshair_parameters: self.hud.targeting.parameters(viewport),
+            damage_color: damage.map_or([0.0; 4], damage_feedback::Sample::color),
         };
         self.queue
             .write_buffer(&self.hud_buffer, 0, bytemuck::bytes_of(&hud_uniform));
@@ -2464,6 +2479,7 @@ impl GpuState {
             .as_ref()
             .is_some_and(console::ViewerConsole::is_open);
         let chat_visible = !console_open
+            && !hud::toggle::hides(self.console.as_ref(), hud::toggle::Part::Chat)
             && scoreboard::chat_visible(
                 information_visible,
                 self.chat.wants_history(self.console.as_ref()),
@@ -2727,24 +2743,15 @@ impl GpuState {
             .prepare_layers(&self.queue, layers.into_iter().flatten(), viewport);
         // Wide glyphs this frame asked for first draw next frame.
         self.update_wide_text();
-        let text_vertex_count = u32::try_from(self.text_vertices.len()).unwrap_or(0);
-        if !self.text_vertices.is_empty() {
-            self.queue.write_buffer(
-                &self.text_vertex_buffer,
-                0,
-                bytemuck::cast_slice(&self.text_vertices),
-            );
-        }
-        self.game_fonts.upload(&self.queue);
-        let classic_text_vertex_count =
-            u32::try_from(self.classic_text_vertices.len()).unwrap_or(0);
-        if !self.classic_text_vertices.is_empty() {
-            self.queue.write_buffer(
-                &self.classic_text_vertex_buffer,
-                0,
-                bytemuck::cast_slice(&self.classic_text_vertices),
-            );
-        }
+        let text_vertex_count =
+            self.text_vertex_buffer
+                .write(&self.device, &self.queue, &self.text_vertices);
+        self.game_fonts.upload(&self.device, &self.queue);
+        let classic_text_vertex_count = self.classic_text_vertex_buffer.write(
+            &self.device,
+            &self.queue,
+            &self.classic_text_vertices,
+        );
 
         timing.mark(Phase::Pose);
         {
@@ -3336,6 +3343,8 @@ struct ParticleAtlas {
     /// Some stage is a dynamic glow stage, so effects sort glowing layers apart.
     any_glow: bool,
     remaps: effect_remaps::State,
+    /// The atlas being rebuilt on a worker for new effects (`particle_atlas.rs`).
+    pending: particle_atlas::Pending,
 }
 
 #[derive(Clone)]

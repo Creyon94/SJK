@@ -33,6 +33,54 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 ## Unreleased
 
 - Copy a link from the chat: with the chat open, rest the pointer on a link in a message (it lights up) and press Ctrl+C to copy it; "Link copied" shows under the field _(Slash, after AngeloPapaya's idea)_
+
+## 2026.1103.2 (Alpha) | 03/11/2026
+
+Clan chats for JoF and S, holocrons earned by playing, tag copies to break down or craft, loadouts, fishing and many fixes.
+
+> Clan chats: Verified JoF and S players get their clan's chat beside SJK chat, across maps and servers.
+> Holocrons: Real play earns them, and after a quiet day the next day's first ones come twice as fast.
+> Tag copies: Break duplicate tags into kyber shards, trade them, or craft two into a tag you lack.
+> Loadouts: Save the look you wear in one of five slots and wear it again in one click.
+> Fishing: Get a rod out with `toy_fishing`, fill your fish log and earn five new achievements.
+> Your sounds: Mute one player with `mutesounds`, mute sounds by name, and hear your hits with `cg_hitsounds`.
+
+- Holocron catch-up: after a day you played little, the next day's first holocrons (up to 4) come twice as fast; the Holocrons tab says how many are left ("catch-up x2"). They count toward the day's 8 _(Sol, after Rollembones' idea)_
+- Holocrons now count real play, not just being there: moving, attacking, hitting, being hit, kills and deaths. Moving around counts as much as fighting, standing still not at all; the Holocrons tab says when you are not earning _(Sol, after Rollembones' idea)_
+- Tag copies: a duplicate tag breaks down into kyber shards (more for Holo and Solar copies), trades like a duplicate shader, or two duplicates of one tier and finish craft into a tag of that tier you lack, in that finish (Collection > Tags, once the hub offers it). You always keep one copy of every tag _(Sol, after Blep's idea)_
+- Mute one player's sounds: `mutesounds <player>` silences their voice, steps, saber, Force, emotes and toys until the map changes, their chat and look unchanged (`unmutesounds` lifts it); with Ignore mutes sounds (`cl_ignoreMutesSounds`, Settings > Chat, off by default) a JA+ or jaPRO `ignore` does it too _(Sol, after akr's and Neffie's ideas)_
+- Muted sounds (`s_muteSounds`, Settings > Sound): words such as `ysalamiri hacking`, and no sound whose file name holds one plays, items' and power-ups' loops included _(Sol, after akr's and Neffie's ideas)_
+- Hit sounds (`cg_hitsounds`, Settings > Sound, off by default): a sound each time your attack hits a player, another for a teammate, as in EJK; without EJK's or jaPRO's pack SJK plays its own (a tick, a blip, two notes or a knock) instead of nothing _(Sol, after Lex's idea and JoF EJK)_
+- Green on shield hits (`cg_hitMarkerShield`, Settings > HUD, off by default): with the damage hitmarker on, a hit your shield took shows green instead of red _(Sol, after AngeloPapaya's idea)_
+- Kill feed anywhere: Move HUD elements (`hud_edit`) shows a sample kill to drag while none shows, and the feed may now go anywhere, its entries lining up on their left in the screen's left half _(Sol, after AngeloPapaya's idea)_
+- Move with console open (`cl_consoleMove`, Settings > Controls, off by default): the movement keys you hold as the console opens keep moving you while you type, and letting one go stops it _(Sol, after AngeloPapaya's idea)_
+- Low jump (`lowjump`, Settings > Key bindings > Movement > Low jump (EJK)): one press jumps for a single command, the shortest hop a tap makes, as JoF EJK's bind does; only what a quick tap sends _(Sol, after AngeloPapaya's idea and JoF EJK)_
+- Clan chats: verified JoF and S players get their clan's chat beside SJK chat, through the SJK hub, across maps and servers; each can join the other's too (Settings > Chat, JoF clan chat, S clan chat), staff see both. Tab into them with the composer's JoF and S buttons or `messagemode7`/`messagemode8`; their lines are labelled JoF or S in their own colour _(Sol, after Lex's idea)_
+- Chat buttons can stay out of Tab: Team, SJK, JoF, S and Admin chat buttons take Not in Tab, keeping the button clickable while Tab skips it _(Sol)_
+- Fewer stutters when players join or NPCs appear: the hats and capes players wear and the models an effect needs load in the background, and new effects no longer rebuild every effect picture inside one frame (210 ms when JoF's NPCs spawned) _(Sol, after Lex's and Nib's reports)_
+- JA+ katas, kicks and `+button12` no longer turn into a plain hook after a join whose server info was lost: SJK asks again, remembers what each server runs and, if it still joined without its JA+ keys, joins again with them _(Sol, after Rollembones' report)_
+- Younglings, Jawas and other resized models keep their size as a ragdoll _(Sol, after Rollembones' report)_
+- Blade skin sounds Only skin (`s_saberSkinSounds` 2): a thrown saber hums with the skin alone too, and a blade pack update no longer leaves sabers on the stock hum _(Sol, after Blep's report)_
+- The game follows Windows' default sound device: plugging headphones in (or out) moves the sound there within two seconds, without a restart or losing what plays _(Sol, after Metan's report)_
+- `r_vertexLight 1` lights the world by its vertex colours instead of lightmaps, as the original game's vertex lighting mode (applies at the next map load); surfaces a map lit by vertex, such as oot's water, now show their light instead of a flat grey (hub report #176) _(Sol, after rd-vanilla)_
+- Vehicle guns: a vehicle's shot bursts with its own impact effect, so the AT-ST's red laser no longer explodes like a rocket _(Sol, after Kushina's report)_
+- A destroyed vehicle burns until it blows up, as in the base game _(Sol, after Kushina's report)_
+- Quick wheel pictures of your own: a custom choice's form (Settings > Quick wheel) has Choose picture, which takes a PNG or JPEG from your PC (4 MB at most) and shows it on the wheel in place of the `{.}` icon; up to eight different pictures _(Sol, after Nib's idea)_
+- Loadouts: save the look you wear (hilts, each blade's shader and its parts, colours with your hat and cape, nameplate style and tag) in one of five slots and wear it again in one click, from the Loadouts button (P) on the Collection's Shaders, Tags and Nameplates tabs; kept on your PC _(Sol, after Lex's idea)_
+- Choose what the HUD switch hides: under HUD in Settings > HUD, four switches say whether `cg_drawHud 0` hides the HUD's elements, the crosshair, names over players and the chat; by default it hides what it always did and the chat stays _(Sol, after Blep's idea)_
+- The Hax trap's switches (`cl_haxTrap`, `cl_haxAway`) moved from Settings > Gameplay to the Hax's card in Collection > Toys; a Settings search for them still finds them _(Sol, after Lex's idea)_
+- Report a bug from the main menu: the SJK page has it now, so a problem met outside a match can be sent too (its report says "menu" for the map) _(Sol, after Lex's idea)_
+- Box hunt: map teleporters and an admin teleporting or bringing you no longer count as cheating; only your own teleports (`amtele`, `japlus.goto`, `japlus.guntele` and the like), your own `noclip` and `fakenoclip` do _(Sol, after belyash's and Sanji's reports)_
+- Box hunt: the 5 free rolls a hunter can win a day and the mark's 3 bounties a day now count from 09:00 Paris time, as holocrons do, instead of the last 24 hours; a box that blows up hands its price to a hunter in play rather than one who just left _(Sol, after Nib's and Rollembones' reports)_
+- `japlus.guntelewall <distance>` (JA+ admin): teleports you that far the way you look, through walls, floors and ceilings, as `japlus.guntele` did before it learned to stop at walls; works from the quick wheel with its distance _(Sol, after Nib's report)_
+- Opening a holocron that brings something this version of SJK does not know yet (a new shader, tag, toy, banner or card) shows a card saying what it is and to update SJK, instead of a dark, empty shader card (Kushina's report) _(Sol)_
+- A custom RGB saber colour set with `saberColor` or a config shows on the Collection and Profile model and the Collection's stock blade right away, instead of the old colour or white until a slider was touched (Neffie's report) _(Sol)_
+- Chat outline: with "Chat text outline" (`cg_chatBoxOutline`) on, a busy chat no longer loses whole messages _(Sol, after Creo's report)_
+- Server browser: a server that counts its private slots as open shows the places you can take once you choose it, so a full one reads full _(Sol, after Kushina's and Blep's reports)_
+- Report a bug and notes: Enter starts a new line; Ctrl+Enter or Send sends _(Sol, after Groark's report)_
+- Scrollbars: grab and drag the scrollbar of the Profile screen's model grid and hilt lists and of Settings' open lists, not only the wheel _(Sol, after Foshin's and Groark's reports)_
+- `password <pw>` typed while joining a locked server, or after it refused you, joins again with it, as in the original game _(Sol, after headshotsmcgee117's report)_
+- Tags: `toy_tag` reaches a wall in third person with the dynamic crosshair off _(Sol, after Kushina's report)_
 - Hide the Empower glow: Settings "Empower glow" (`cg_empowerEffect`) 3 turns off the body glow of empowered players; ordinary Push still shows _(Slash, PR #338, after Dante's idea)_
 - Maps lit by switchable or flickering lights, such as the JoF Shuttle trial mission ship, the JoF missions and Memorial Grounds, show that light instead of drawing it dark, and follow the server as a light is switched off or on (SJK and Vanilla graphics presets) _(Slash, PR #339, after Kushina's report)_
 - NPCs whose skin names only a head and a torso, such as the alien younglings of the JoF Shuttle trial mission, wear their skin instead of drawing grey (Kushina's report) _(Slash, PR #336)_

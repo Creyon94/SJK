@@ -57,6 +57,9 @@ pub(crate) enum InputAction {
     SjkMessageMode,
     /// Admin chat, `amsay` (`messagemode6`, `chat/tabs.rs`).
     AdminMessageMode,
+    /// A clan chat through the SJK hub (`messagemode7` JoF, `messagemode8` S,
+    /// `chat/tabs.rs`).
+    ClanMessageMode(sjk_identity::HubChannel),
     ToggleCamera,
     SaberToggle,
     SaberStyle,
@@ -227,9 +230,29 @@ impl GameplayInput {
         self.motion.clear();
     }
 
+    /// [`Self::release_keys`] but for the movement keys (forward, back, strafing, jump,
+    /// crouch, walk), which keep their hold: the console opened with `cl_consoleMove`
+    /// ([`crate::console_move`]).
+    pub(crate) fn release_keys_but_movement(&mut self) {
+        for (slot, state) in self.held.iter_mut().enumerate() {
+            if !console_move_keeps(slot) {
+                state.release_keys();
+            }
+        }
+        self.motion.clear();
+    }
+
     /// Set `button` in the next user command only, like a `+` and `-` one frame apart.
     pub(crate) fn tap(&mut self, button: GameButton) {
         self.held[button.slot()].pressed = true;
+    }
+
+    /// `lowjump` (JoF EJK's `CG_Lowjump_f`, `+moveup` then `-moveup` a frame later):
+    /// jump held in the next user command only, so the jump is as short as a tap can
+    /// make it. The server sees one command with jump pressed, which a quick finger
+    /// could send too; the height is whatever the server's movement gives that tap.
+    pub(crate) fn low_jump(&mut self) {
+        self.tap(GameButton::Up);
     }
 
     /// Give `command` the `flipkick` run's jump state. Like EJK's `+moveup` and
@@ -303,6 +326,8 @@ impl GameplayInput {
                     | "messagemode4"
                     | "messagemode5"
                     | "messagemode6"
+                    | "messagemode7"
+                    | "messagemode8"
                     | "togglecamera"
                     | "sabertoggle"
                     | "saberstyle"
@@ -320,6 +345,7 @@ impl GameplayInput {
                     | "vote"
                     | "weapon"
                     | "flipkick"
+                    | LOW_JUMP_COMMAND
                     | "inspect"
                     | "worldnote"
                     | crate::world_ping::PRESS_COMMAND
@@ -499,6 +525,10 @@ impl GameplayInput {
             "invprev" => Some(InputAction::SelectionCycle(true, -1)),
             "teammenu" | "joinmenu" => Some(InputAction::TeamMenu),
             "flipkick" => Some(InputAction::FlipKick),
+            LOW_JUMP_COMMAND => {
+                self.low_jump();
+                None
+            }
             "inspect" => Some(InputAction::Inspect),
             "worldnote" => Some(InputAction::WorldNote),
             crate::world_ping::PRESS_COMMAND | crate::world_ping::COMMAND => {
@@ -541,6 +571,26 @@ impl GameplayInput {
         }
     }
 }
+
+/// Whether the button in `slot` is a movement key [`GameplayInput::release_keys_but_movement`]
+/// keeps.
+fn console_move_keeps(slot: usize) -> bool {
+    [
+        GameButton::Forward,
+        GameButton::Back,
+        GameButton::MoveLeft,
+        GameButton::MoveRight,
+        GameButton::Up,
+        GameButton::Down,
+        GameButton::Duck,
+        GameButton::Speed,
+    ]
+    .iter()
+    .any(|button| button.slot() == slot)
+}
+
+/// JoF EJK's low jump bind ([`GameplayInput::low_jump`]).
+pub(crate) const LOW_JUMP_COMMAND: &str = "lowjump";
 
 fn button_for_command(command: &str) -> Option<GameButton> {
     let name = command.strip_prefix(['+', '-'])?;
@@ -585,7 +635,8 @@ fn button_for_command(command: &str) -> Option<GameButton> {
 
 /// The chat a bound command opens: `messagemode` (All) and `messagemode2` (Team),
 /// `messagemode3`/`messagemode4` (whispers), `messagemode5` (SJK chat) and
-/// `messagemode6` (Admin chat); `None` for any other command.
+/// `messagemode6` (Admin chat), `messagemode7` and `messagemode8` (the clan chats);
+/// `None` for any other command.
 pub(crate) fn chat_action(command: &str) -> Option<InputAction> {
     let name = command.split_ascii_whitespace().next()?;
     let action = match name.to_ascii_lowercase().as_str() {
@@ -595,6 +646,8 @@ pub(crate) fn chat_action(command: &str) -> Option<InputAction> {
         "messagemode4" => InputAction::TargetMessage(true),
         "messagemode5" => InputAction::SjkMessageMode,
         "messagemode6" => InputAction::AdminMessageMode,
+        "messagemode7" => InputAction::ClanMessageMode(sjk_identity::HubChannel::Jof),
+        "messagemode8" => InputAction::ClanMessageMode(sjk_identity::HubChannel::Sith),
         _ => return None,
     };
     Some(action)
@@ -627,6 +680,13 @@ impl super::GpuState {
                 self.sync_cursor_policy();
             }
             Some(InputAction::AdminMessageMode) => {}
+            Some(InputAction::ClanMessageMode(clan)) if self.live_session.is_some() => {
+                self.gameplay_input.release_keys();
+                self.chat.open_clan(clan);
+                self.sync_cursor_policy();
+            }
+            // The clan chats show only in a game's chat.
+            Some(InputAction::ClanMessageMode(_)) => {}
             // Without a game the composer has nowhere to show: the page has it.
             Some(InputAction::SjkMessageMode) => {
                 if let Some(console) = &mut self.console {
@@ -1156,6 +1216,51 @@ mod tests {
         assert_ne!(buttons(&input) & (1 << 5), 0);
         input.finish_command();
         assert_eq!(buttons(&input) & (1 << 5), 0);
+    }
+
+    #[test]
+    fn lowjump_jumps_for_one_command_at_every_command_step() {
+        for step in [8, 7, 4, 3] {
+            let mut input = GameplayInput::default();
+            step_command(&mut input, 1000);
+            assert!(GameplayInput::recognizes("lowjump"));
+            assert_eq!(input.apply("lowjump"), None);
+            assert_eq!(step_command(&mut input, 1000 + step).2, 127, "step {step}");
+            assert_eq!(
+                step_command(&mut input, 1000 + 2 * step).2,
+                0,
+                "step {step}"
+            );
+        }
+    }
+
+    #[test]
+    fn lowjump_leaves_a_held_jump_key_held() {
+        let mut input = GameplayInput::default();
+        step_command(&mut input, 1000);
+        input.apply("+moveup 57 1000");
+        input.apply("lowjump");
+        assert_eq!(step_command(&mut input, 1008).2, 127);
+        assert_eq!(step_command(&mut input, 1016).2, 127, "the key still holds");
+    }
+
+    #[test]
+    fn console_move_keeps_movement_keys_only() {
+        let mut input = GameplayInput::default();
+        step_command(&mut input, 1000);
+        input.apply("+forward 17 1000");
+        input.apply("+moveleft 30 1000");
+        input.apply("+attack 200 1000");
+        input.release_keys_but_movement();
+        let held = step_command(&mut input, 1008);
+        assert_eq!(held.1, 127, "still running forward");
+        assert_eq!(buttons(&input) & 1, 0, "attack let go");
+        assert!(input.held(GameButton::MoveLeft));
+        // Their own release still stops them.
+        input.apply("-forward 17 1008");
+        assert_eq!(step_command(&mut input, 1016).1, 0);
+        input.release_keys();
+        assert!(!input.held(GameButton::MoveLeft));
     }
 
     const BUTTON_WALKING: u16 = 1 << 4;

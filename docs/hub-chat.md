@@ -31,6 +31,7 @@ The hub's side is described in Sol-Vulpes/SJK-hub (`PROTOCOL.md`, "Chat", "Emote
 | Piece | Where |
 | --- | --- |
 | Text rules (word for word with the hub's `src/chat.rs`) | [chat.rs](../crates/sjk-identity/src/chat.rs) |
+| Clan chats: channels, who joins ([Clan chats](#clan-chats)) | [channels.rs](../crates/sjk-identity/src/channels.rs), [chat/tabs.rs](../crates/sjk-viewer/src/chat/tabs.rs) |
 | Wire types (`ChatMessage`, `Emote`, `LookEvent`, `Feed`) | [wire.rs](../crates/sjk-identity/src/wire.rs) |
 | Requests (`chat`, `emote`, `feed`) | [hub.rs](../crates/sjk-identity/src/hub.rs) |
 | The feed thread and `ChatState` | [feed.rs](../crates/sjk-identity/src/feed.rs), [service.rs](../crates/sjk-identity/src/service.rs) |
@@ -111,6 +112,11 @@ Old clients ignore all of it, so it stays `/v1/`.
   `POST /v1/chat` then refuses the banned player `chat_banned` (403) with `until`. Staff
   lift bans with `/v1/staff/chat-unban` `{"key_id"}` (answer `{"lifted":<n>}`).
 
+- Clan chats (03/11/2026, [below](#clan-chats)): `POST /v1/chat` takes an optional
+  `"channel":"jof"|"sith"` (400 `bad_channel`, 403 `not_in_channel`); the feed takes
+  `channels=jof,sith` and its messages carry `channel` (left out for SJK chat); every
+  answer to a player who may read one lists `channels`
+  (`[{"id":"jof","home":true},..]`). The hub's side is `PROTOCOL.md`, "Clan chats".
 - Announcements and reward rounds (25/10/2026, [below](#announcements-and-reward-rounds)):
   `GET /v1/announcements`, `GET /v1/rewards`, `POST /v1/rewards/claim` `{"id":n}` and the
   creator's `POST /v1/creator/announce`; the feed's `announcements`
@@ -152,8 +158,9 @@ Old clients ignore all of it, so it stays `/v1/`.
 - The chat overlay has a fourth channel, SJK. `messagemode5` (I by default in a new
   profile or a whole imported config, when I is free and nothing is bound to
   `messagemode5`; an existing profile binds it in Settings > Key bindings > Other)
-  opens the composer on it; Tab cycles All, Team and SJK (then the last whisperer,
-  [client.md](client.md#chat-player-actions)). The ordinary chat key (`messagemode`,
+  opens the composer on it; Tab cycles All, Team and SJK, and the clan chats joined
+  ([Clan chats](#clan-chats)), then the last whisperer
+  ([client.md](client.md#chat-player-actions)); each button may stay out of Tab. The ordinary chat key (`messagemode`,
   Y by default) opens on global chat, or on SJK when the last message went there
   with `cg_chatRememberChannel` 1 (off by default). Enter on SJK hands the text to the hub;
   during a match the game server's chat gets it too ([Said on the game server
@@ -809,6 +816,55 @@ own `You found an Uncommon Holocron.` The identity service's feed relays a drop 
 the dock and the page word it from the tier (`holocrons::line`) and leave out a tier they
 do not know. A muted player's drops are not shown.
 
+## Clan chats
+
+Since 03/11/2026 (Sol's decision, from Lex's idea): two chats beside SJK chat, JoF's
+and the Sith clan's (`{{S}}`, shown as S), carried by the hub as SJK chat is, so they
+last across maps and servers (and, like it, are lost when the hub restarts). The hub
+decides who may use them (Sol-Vulpes/SJK-hub `PROTOCOL.md`, "Clan chats"), from the
+group staff gave the player's verified tick ([Ticks](identity.md#ticks)), never from a
+name or a clan tag:
+
+| Who | May read and write | Joined by default |
+| --- | --- | --- |
+| a verified JoF player (tick group `jof`) | JoF and S | JoF |
+| a verified S player (tick group `sith`) | S and JoF | S |
+| staff (and Sol) | JoF and S | both |
+| everyone else | neither: SJK chat only, as before | none |
+
+- **Joining** ([channels.rs](../crates/sjk-identity/src/channels.rs),
+  [chat/tabs.rs](../crates/sjk-viewer/src/chat/tabs.rs)): every feed answer lists the
+  clan chats the player may read and which are home (`channels`); Settings > Chat
+  (and Network) "JoF clan chat" and "S clan chat" (`cl_sjkChatJof`, `cl_sjkChatS`:
+  -1 Auto, the default, joins a home channel; 1 Joined; 0 Left) choose. The feed asks
+  the hub for the joined ones (`channels=jof,sith`); joining or leaving reads the
+  feed again from its backlog, under a new reading, so the joined chat's history is
+  marked and not replayed. A player the hub lists none for sees no row and no button
+  whatever the settings say. A client from before clan chats asks for none, so it
+  never shows a clan line as SJK chat.
+- **In the game**: a joined chat has its button in the composer's row after SJK
+  (All, Team, SJK, JoF, S, Admin, PM; `cg_chatTabJof`, `cg_chatTabS`), its keys
+  `messagemode7` and `messagemode8` (Controls > JoF clan chat, S clan chat, no key by
+  default), and Tab stops on it. Enter sends it to the hub with its channel, never to
+  the game server (no copy in a JoF server's All chat). Its lines flow as SJK chat's,
+  emblem, name, tick, emoji, labelled `JoF` or `S` where SJK lines say `SJK`, the
+  message in the chat's own colour: JoF's light cyan `#8FDDF5`, S's rose red `#FA8C9E`
+  (`chat::view::clan_colour`; a test keeps both far from the game's colour codes, the
+  SJK gold and the encrypted pink). They play the SJK chat's sound and go to the
+  console with a `^5JoF` or `^1S` tag (`cl_sjkChatConsole`). `cl_sjkChatFeed 0` hides
+  SJK chat's lines from the game's feed but not the clan chats', which show nowhere
+  else; `cl_sjkChat 0` turns all three off.
+- **Not on the docks or the SJK chat page**: those stay SJK chat, as they were; a clan
+  chat reads only in the game's chat, so its messages cannot be reacted to from this
+  client yet (the hub takes reactions on them from the players who may read them).
+- **The rules that hold**: blocking a player hides their clan lines and sounds as their
+  SJK chat ones (the same list); the hub's mute, the text rules, the quota (shared
+  with SJK chat) and duplicates (per channel) hold. Chat bans hold too, but only ever
+  hold players who are neither verified nor staff, so none of a clan chat's; the limits
+  for unverified players and Ban 24 h have nobody to apply to there. Encrypted whispers
+  and their verified-only start are whispers, not a channel, and stay as they are.
+  Staff delete a clan line as any (the panel marks it JoF or S).
+
 ## Chat bans
 
 Sol's request, 16/10/2026: "any verified person can ban someone that isn't verified
@@ -1030,6 +1086,35 @@ the server, an SJK player or not.
   this map (Unblock this map) and, to staff, Block this map and Block for all (Unblock
   map, Unblock all) above Block ([sender_card.rs](../crates/sjk-viewer/src/sender_card.rs),
   `MapBlockRow`).
+
+## Muting a player's sounds
+
+Since 03/11/2026 (akr's and Neffie's request) a player's sounds can be muted alone,
+without the rest of a block: `mutesounds <player>` (`target` for the one under the
+crosshair, a slot number or part of the name shown, as `block`) silences everything the
+player causes, exactly what a block silences (`audio_mute.rs`: their footsteps, voice,
+pain, taunts, weapon fire, saber swings, hum and hits, Force, a thrown saber, their
+emotes' and toys' sounds and the beep of their chat), while their chat, model and name
+stay as they are ([sound_mutes.rs](../crates/sjk-viewer/src/sound_mutes.rs)). It lasts
+until the map changes or they leave, with the bookkeeping of a block for this map (it
+follows them through renames); `mutesounds` alone lists them and
+`unmutesounds <player|all>` lifts it. Nothing is sent to the server or the hub.
+
+Settings > Chat > Ignore mutes sounds (`cl_ignoreMutesSounds`, off by default) ties it to
+the servers' own ignore: an `ignore <player>` the player types on a JA+ or jaPRO server
+(the server then hides that player's chat) also mutes their sounds, and `ignore` again,
+which the servers toggle, lifts it. The client reads the commands it released to the
+server (`sjk_client::sent_commands`), so the command still goes to the server unchanged;
+the first look after a start skips what was sent before. On a server without `ignore`
+the server answers that it does not know the command, and the sounds are muted all the
+same.
+
+What was there before: blocking (above) already silenced a player completely, but it also
+hides their chat and draws them as Kyle; Settings > Sound had volumes for effects, music,
+voices and emotes, toys' sounds by toy (Collection > Toys), chat sounds by kind,
+footsteps, jetpack, blade skin and holstered-staff sounds, but nothing for one player's
+sounds alone nor for a sound outside those groups, such as an item's or power-up's loop.
+The second gap is `s_muteSounds` ([client.md](client.md#muted-sounds)).
 
 ## Emotes in the client
 
