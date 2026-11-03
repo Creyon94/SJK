@@ -2339,7 +2339,13 @@ works](rendering.md#graphics-reload)):
 
 - `vid_restart` reloads the graphics when one of them changed, as it restarted
   the renderer in the original game (it still reapplies the display settings
-  first).
+  first). `vid_restart force` (Tab completes `force`) reloads them even when none
+  changed, as the original game's `vid_restart` always restarted the renderer: the
+  world is built again on a new graphics context with the same settings, in the
+  same places and under the same limits as a reload with a change. Plain
+  `vid_restart` still skips the reload when nothing changed (it only reapplies the
+  display settings), and the reload card and the FPS help card, which queue it after
+  a change, keep using it.
 - When one of them changed and the player is back on the main menu or the game
   menu (not in Settings, so changing several rows is not interrupted), a pop-up
   card in the SJK UI's look, in every menu style, says what changed ("Vanilla
