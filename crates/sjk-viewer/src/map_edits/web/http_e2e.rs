@@ -45,6 +45,10 @@ fn fake_game(server: &Server, until: impl Fn() -> bool) {
                         "ok": true,
                         "lines": [format!("{:?}", edit.command())],
                     })),
+                    GameRequest::Recent => Ok(serde_json::json!({ "remember": true })),
+                    GameRequest::SetRecent(change) => {
+                        Ok(serde_json::json!({ "change": format!("{change:?}") }))
+                    }
                 };
                 ask.answer(answer);
             }
@@ -97,6 +101,41 @@ fn the_page_the_map_and_an_edit_are_served_and_strangers_refused() {
         );
         assert_eq!(status, 200);
         assert!(String::from_utf8(answer).unwrap().contains("mapedit_turn"));
+        // The Recent rows: read, and the switch from the page.
+        let (status, recent) = get(port, "/api/recent", Some(&token), None);
+        assert_eq!(status, 200);
+        assert_eq!(
+            serde_json::from_slice::<serde_json::Value>(&recent).unwrap()["remember"],
+            true
+        );
+        let post = |path: &str, origin: &str, body: &[u8]| {
+            send(
+                port,
+                &format!(
+                    "POST {path} HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nX-SJK-Token: {token}\r\n\
+                     Origin: {origin}\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n",
+                    body.len()
+                ),
+                body,
+            )
+        };
+        let (status, answer) = post("/api/recent", &origin, br#"{"op":"remember","on":false}"#);
+        assert_eq!(status, 200);
+        assert!(String::from_utf8(answer).unwrap().contains("Remember { on: false }"));
+        assert_eq!(post("/api/recent", &origin, br#"{"op":"forget_all"}"#).0, 422);
+        assert_eq!(
+            post("/api/recent", "http://evil.example", br#"{"op":"clear"}"#).0,
+            403
+        );
+        assert_eq!(get(port, "/api/recent", None, None).0, 403);
+        // A thing placed from the page reaches the game as its own request.
+        let (status, answer) = post(
+            "/api/edit",
+            &origin,
+            br#"{"op":"remove_thing","thing":"mystery_box","id":4}"#,
+        );
+        assert_eq!(status, 200);
+        assert!(String::from_utf8(answer).unwrap().contains("None"));
         // Refused: no token, a wrong one, another host (DNS rebinding), a post from
         // another site.
         assert_eq!(get(port, "/", None, None).0, 403);
@@ -144,6 +183,9 @@ fn serve_the_page_for_a_browser() {
     let mut vfs = VirtualFileSystem::new();
     vfs.mount_pk3_directory(std::path::Path::new(&base).join("base"))
         .unwrap();
+    // SJK's own models, as the game mounts them (the boombox, the mystery box).
+    crate::boombox::mount(&mut vfs).unwrap();
+    crate::mystery_box::mount(&mut vfs).unwrap();
     let vfs = Arc::new(vfs);
     let models = crate::map_edits::panel::placeable_models(&vfs);
     // Images of textures/ as shaders to remap to (the game adds its scripts' names).
@@ -191,6 +233,103 @@ fn serve_the_page_for_a_browser() {
         ]));
     }
     let surfaces: Vec<u32> = if demo { (0..40).collect() } else { vec![] };
+    // With the demo, the view looks at the highest big floor left shown, with a placed copy,
+    // the player's boombox and a mystery box on it; SJK_MAPEDIT_WEB_SELECT selects that
+    // floor (`surface`), the copy (`placed`) or a caulk face over it (`face`).
+    let select = std::env::var("SJK_MAPEDIT_WEB_SELECT").unwrap_or_default();
+    let (mut selection, mut view) = (serde_json::Value::Null, serde_json::Value::Null);
+    let mut things = serde_json::json!({ "list": [], "on_server": false, "toy_kinds": ["cat"] });
+    if let (true, Some(bsp)) = (demo, &bsp) {
+        let render = bsp.render();
+        let floor = render
+            .surfaces()
+            .iter()
+            .enumerate()
+            .skip(40)
+            .filter(|(_, surface)| {
+                surface.kind == sjk_bsp::SurfaceKind::Planar
+                    && !bsp.shaders()[surface.shader].name_lossy().contains("/sk")
+            })
+            .filter_map(|(index, surface)| {
+                let corners = &render.vertices()[surface.vertices.clone()];
+                if corners.first()?.normal[2] < 0.9 {
+                    return None;
+                }
+                let (mut low, mut high) = ([f32::MAX; 2], [f32::MIN; 2]);
+                let mut middle = [0.0f32; 3];
+                for corner in corners {
+                    for axis in 0..2 {
+                        low[axis] = low[axis].min(corner.position[axis]);
+                        high[axis] = high[axis].max(corner.position[axis]);
+                    }
+                    for (sum, value) in middle.iter_mut().zip(corner.position) {
+                        *sum += value / corners.len() as f32;
+                    }
+                }
+                Some((index, (high[0] - low[0]) * (high[1] - low[1]), middle))
+            })
+            // the highest of the big ones, which the view from above sees
+            .filter(|(_, area, _)| *area >= 128.0 * 128.0)
+            .max_by(|a, b| a.2[2].total_cmp(&b.2[2]));
+        if let Some((index, _, [x, y, z])) = floor {
+            view = serde_json::json!({ "eye": [x - 300.0, y, z + 260.0], "yaw": 0, "pitch": 40 });
+            let model = placed
+                .first()
+                .map_or(serde_json::Value::Null, |p| p["model"].clone());
+            placed.push(serde_json::json!({
+                "id": 3, "model": model, "origin": [x, y - 80.0, z],
+                "angles": [0, 0, 0], "scale": [1, 1, 1],
+            }));
+            let shader = bsp.shaders()[render.surfaces()[index].shader].name_lossy();
+            let entities =
+                sjk_entity::parse_entity_lump(bsp.entities()).map_or(0, |lump| lump.len());
+            selection = match select.as_str() {
+                "surface" => serde_json::json!({
+                    "summary": format!("Surface {index}: {shader}"), "kind": "surface",
+                    "hit": [x, y, z], "target": {
+                        "surface": index, "shader": shader, "surface_kind": "planar",
+                        "group": [index],
+                    },
+                }),
+                "placed" => serde_json::json!({
+                    "summary": "Placed model", "kind": "placed", "hit": [x, y - 80.0, z],
+                    "target": { "entity": entities + 1, "model": model, "placed": 3, "shader": null },
+                }),
+                "face" => serde_json::json!({
+                    "summary": "Caulk face", "kind": "face", "hit": [x, y, z + 48.0],
+                    "target": {
+                        "brush": 1, "side": 2, "shader": "textures/system/caulk",
+                        "points": [
+                            [x - 48.0, y - 48.0, z + 48.0], [x + 48.0, y - 48.0, z + 48.0],
+                            [x + 48.0, y + 48.0, z + 48.0], [x - 48.0, y + 48.0, z + 48.0],
+                        ],
+                    },
+                }),
+                _ => serde_json::Value::Null,
+            };
+            let part = |model: &str, at: [f32; 3], scale: f32| serde_json::json!({ "model": model, "origin": at, "angles": [0, 180, 0], "scale": scale });
+            things = serde_json::json!({
+                "on_server": true, "toy_kinds": ["cat"],
+                "list": [
+                    {
+                        "thing": "boombox", "id": 0, "label": "Your boombox", "mine": true,
+                        "origin": [x + 64.0, y + 64.0, z],
+                        "parts": [part(crate::boombox::MODEL, [x + 64.0, y + 64.0, z], crate::boombox::SCALE)],
+                    },
+                    {
+                        "thing": "mystery_box", "id": 5, "label": "Mystery box 5", "mine": false,
+                        "origin": [x + 64.0, y - 64.0, z],
+                        "parts": [part(crate::mystery_box::MODEL, [x + 64.0, y - 64.0, z], 1.0)],
+                    },
+                ],
+            });
+        }
+    }
+    let recent = serde_json::json!({
+        "remember": true,
+        "shaders": shaders.iter().take(3).collect::<Vec<_>>(),
+        "models": models.iter().take(2).collect::<Vec<_>>(),
+    });
     let server = Server::start(Some(vfs)).unwrap();
     println!("SJK_MAPEDIT_WEB_URL={}", server.url());
     let end = std::time::Instant::now() + Duration::from_secs(seconds);
@@ -204,11 +343,14 @@ fn serve_the_page_for_a_browser() {
                 "map": map, "checksum": 1, "editor": true, "enabled": true, "scope": "all",
                 "server": null, "revision": 0, "unpublished": false, "edits": [], "current": null,
                 "undo": false, "redo": false, "hidden_props": props, "hidden_surfaces": surfaces,
-                "placed": placed, "remaps": remaps, "faces": [], "selection": null, "view": null,
-                "answer": null, "hub": null,
+                "placed": placed, "remaps": remaps, "faces": [], "selection": selection,
+                "view": view, "things": things, "answer": null, "hub": null,
             })),
             GameRequest::Lists => Ok(serde_json::json!({ "models": models, "shaders": shaders })),
-            GameRequest::Edit(_) => Err("no game: this is the page's test server".into()),
+            GameRequest::Edit(_) | GameRequest::SetRecent(_) => {
+                Err("no game: this is the page's test server".into())
+            }
+            GameRequest::Recent => Ok(recent.clone()),
         };
         ask.answer(answer);
     }

@@ -238,6 +238,10 @@ impl GpuState {
         {
             self.map_edits.history.changed(before);
         }
+        if result.is_ok() {
+            // The shaders and models used lately, for the browser editor's Recent rows.
+            self.map_edit_web_remember(name, args);
+        }
         result
     }
 
@@ -481,13 +485,7 @@ impl GpuState {
             }
             EditTarget::Surface { index, shader, .. } => {
                 let surfaces = if group {
-                    let render = self.bsp.render();
-                    let soup = |other: usize| {
-                        render.surfaces().get(other).is_some_and(|surface| {
-                            surface.kind == sjk_bsp::SurfaceKind::TriangleSoup
-                        })
-                    };
-                    self.decal_surfaces.connected(index, soup, GROUP_LIMIT)
+                    self.map_edit_hide_group(index)
                 } else {
                     vec![index]
                 };
@@ -529,16 +527,48 @@ impl GpuState {
         }
     }
 
+    /// The surfaces `mapedit_hide group` takes from surface `index`: those of the model
+    /// the map compiler merged into the world that it is part of.
+    pub(super) fn map_edit_hide_group(&self, index: usize) -> Vec<usize> {
+        let render = self.bsp.render();
+        let soup = |other: usize| {
+            render
+                .surfaces()
+                .get(other)
+                .is_some_and(|surface| surface.kind == sjk_bsp::SurfaceKind::TriangleSoup)
+        };
+        self.decal_surfaces.connected(index, soup, GROUP_LIMIT)
+    }
+
     fn map_edit_place(&mut self, args: &[String]) -> Result<Vec<String>, String> {
         let aim = self.map_edit_aim()?;
         let server = self.map_edit_server()?;
-        let (model, scale) = match (args, &aim.target) {
-            ([model], _) => (model.replace('\\', "/"), [1.0; 3]),
-            ([], EditTarget::Model { model, .. }) => (model.clone(), [1.0; 3]),
+        // A pasted copy (the browser editor's) brings its own angles and scale; else
+        // the model faces the view at its own size.
+        let (model, angles, scale) = match (args, &aim.target) {
+            ([model], _) => (model.replace('\\', "/"), None, [1.0; 3]),
+            ([model, rest @ ..], _) if rest.len() == 3 || rest.len() == 6 => {
+                let numbers = rest
+                    .iter()
+                    .map(|text| number(text))
+                    .collect::<Result<Vec<f32>, String>>()?;
+                let scale = match numbers.get(3..6) {
+                    Some(&[x, y, z]) => [x, y, z].map(|v| v.clamp(0.01, 64.0)),
+                    _ => [1.0; 3],
+                };
+                (
+                    model.replace('\\', "/"),
+                    Some([numbers[0], numbers[1], numbers[2]]),
+                    scale,
+                )
+            }
+            ([], EditTarget::Model { model, .. }) => (model.clone(), None, [1.0; 3]),
             ([], _) => {
                 return Err("usage: mapedit_place <model.md3>, or select a model to copy".into());
             }
-            _ => return Err("usage: mapedit_place [model.md3]".into()),
+            _ => {
+                return Err("usage: mapedit_place [model.md3 [pitch yaw roll [sx sy sz]]]".into());
+            }
         };
         if !model.to_ascii_lowercase().ends_with(".md3") {
             return Err(format!("{model}: only MD3 models can be placed"));
@@ -554,11 +584,14 @@ impl GpuState {
         // Facing the view the selection was made from (the browser editor's when the
         // page selected).
         let yaw = yaw_of(aim.forward) + 180.0;
+        let angles = angles
+            .unwrap_or([0.0, yaw, 0.0])
+            .map(|a| a.rem_euclid(360.0));
         self.world_notes.cancel_selection();
         let kind = Kind::Place {
             model: model.clone(),
             origin: aim.hit.to_array(),
-            angles: [0.0, yaw.rem_euclid(360.0), 0.0],
+            angles,
             scale,
         };
         let id = self.map_edit_document()?.add(kind, server);

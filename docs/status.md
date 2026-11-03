@@ -459,6 +459,18 @@ script errors; the map, props, panel, and a fake state's hidden prop, placed cop
 surfaces and remap drawn). Not run with the game: the game-thread side (selection by ray,
 the commands, the state) is untested in a running client.
 
+Second round, 03/11/2026, `personal/mapedit-web-2`, based on `main` `7fc4adca` (Sol's
+asks): the selection drawn (tinted, pulsing, outlined; a model's box; a hidden face's
+polygon) and named in the panel, a controls card folded with `?`, Recent shader and
+model rows kept by the game (`map_edits/web_recent.json`) with their switch, panel text
+selectable (it was rewritten every poll), copy and paste in the view, and a World page
+for the boombox, mystery boxes and Toy Master toys (placed and removed through their own
+code; boxes and toys cannot be moved, the hub has no move). Verified on Windows 11: unit
+tests (the Recent file, the new requests, `api/recent` end to end) and the page in
+headless Chrome on retail duel6 (see [map-edits.md](map-edits.md#limits)). Not run with
+the game: the selection's details, the things' placing and removal and the Recent rows'
+recording are untested in a running client.
+
 ## Map editor made easier
 
 28/10/2026, `personal/map-editor-ux`, based on `main` `db63b4f5` (Sol's request: the
