@@ -30,6 +30,10 @@ The site (site/assets/site.js, parseChangelog) reads the release headings,
 introductions and recap lines too.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
+## Unreleased
+
+- Vehicle HUD: the speed, ammo and turbo of the vehicle you pilot show beside its health in each HUD style: Text only as numbers around it, SJK radial as cyan, orange and turbo arcs under the crosshair with their numbers, SJK classic as `SPD`, `TURBO` and `AMMO` bars above the `HP` one; the turbo is red while it recharges, green when ready and bright while it boosts _(Slash, after Kushina's report)_
+
 ## 2026.1103.2 (Alpha) | 03/11/2026
 
 Clan chats for JoF and S, holocrons earned by playing, tag copies to break down or craft, loadouts, fishing and many fixes.
@@ -81,7 +85,6 @@ Clan chats for JoF and S, holocrons earned by playing, tag copies to break down 
 - Maps lit by switchable or flickering lights, such as the JoF Shuttle trial mission ship, the JoF missions and Memorial Grounds, show that light instead of drawing it dark, and follow the server as a light is switched off or on (SJK and Vanilla graphics presets) _(Slash, PR #339, after Kushina's report)_
 - NPCs whose skin names only a head and a torso, such as the alien younglings of the JoF Shuttle trial mission, wear their skin instead of drawing grey (Kushina's report) _(Slash, PR #336)_
 - Fishing toy: `toy_fishing` (the quick wheel's Toys page, Collection > Toys) gets a rod out. Stand still and press Use when the float dips to land fish and junk for your fish log; each of the 12 fish looks different, and your last catch waits in the bucket; where there is no water, a small pond appears. An Echo dropped to you while you fish comes up on the line. Five new achievements: First Bite, Angler, Every Fish in the Pond, Echo Angler and a hidden one _(Slash, PR #278, after Sanji's idea)_
-- Vehicle HUD: the speed, ammo and turbo of the vehicle you pilot show beside its health in each HUD style: Text only as numbers around it, SJK radial as cyan, orange and turbo arcs under the crosshair with their numbers, SJK classic as `SPD`, `TURBO` and `AMMO` bars above the `HP` one; the turbo is red while it recharges, green when ready and bright while it boosts _(Slash, after Kushina's report)_
 
 ## 2026.1103.1 (Alpha) | 03/11/2026
 
