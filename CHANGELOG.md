@@ -30,6 +30,12 @@ The site (site/assets/site.js, parseChangelog) reads the release headings,
 introductions and recap lines too.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
+## Unreleased
+
+= s_muteEmotesInDuel: Mute emotes in duels: emote sounds are silent while you are in a duel, and come back once it ends.
+
+- Emote sounds can be muted while you duel: Settings > Sound > Emotes "Mute emotes in duels" (`s_muteEmotesInDuel`, off by default) silences every emote's sound during a private duel or on a Duel server, those already playing too; one still playing when the duel ends is heard again _(Slash, after Groark's idea, hub report #234)_
+
 ## 2026.1103.1 (Alpha) | 03/11/2026
 
 3D sound and a sound sonar, a HUD you move with the mouse, quieter and fuller chat, profile banners, one life per box hunter and a cat that dances to its song.

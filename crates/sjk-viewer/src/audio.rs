@@ -103,6 +103,9 @@ pub(crate) struct GameAudio {
     dynamic: Option<dynamic::Level>,
     allow_dynamic: bool,
     duel_enabled: bool,
+    /// The viewed player is in a duel ([`crate::duel_blades::in_duel`]), as of the last
+    /// snapshot: the emotes fall silent with `s_muteEmotesInDuel` ([`Self::sync_gains`]).
+    in_duel: bool,
     music_sync: bool,
     music_sync_pending: bool,
     /// `cgs.musicStartTime`: server time the current `CS_MUSIC` track began.
@@ -280,6 +283,7 @@ impl GameAudio {
             dynamic: None,
             allow_dynamic: true,
             duel_enabled: true,
+            in_duel: false,
             music_sync: true,
             music_sync_pending: false,
             music_start_time: 0,
@@ -342,6 +346,7 @@ impl GameAudio {
         // the frame put it back, panned the sounds near the player for the mix blocks
         // in between whenever they moved: the saber's hum crackled.
         self.transitions.race = crate::chat::combat::race(game_state, &snapshot.player);
+        self.in_duel = crate::duel_blades::in_duel(Some(game_state), Some(&snapshot.player));
         self.last_server_time = Some(snapshot.server_time);
         if self.music_sync_pending {
             self.music_sync_pending = false;

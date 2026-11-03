@@ -524,6 +524,10 @@ const HELP: &[(&str, &str)] = &[
         "Loudness of emote sounds, apart from the game volume: 1 as recorded, 2 twice as loud.",
     ),
     (
+        crate::emotes::DUEL_MUTE_CVAR,
+        "On: emote sounds are silent while you are in a duel (a private one, or a Duel server), those playing too; one still playing after it is heard again.",
+    ),
+    (
         crate::toy_sounds::VOLUME_CVAR,
         "Loudness of every toy's sounds: 1 as made, 2 twice as loud, 0 silent. Each toy can also be silenced below.",
     ),
