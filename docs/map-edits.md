@@ -150,9 +150,68 @@ in-game panel's pages: Selected (a click on the map selects what the game's own 
 finds along that ray; Hide, Hide whole model, Place a copy, a shader list with pictures
 and Remap, Remove remap), Place (the models list; a click on the map places the chosen
 one, then Turn, Up, Down, Left, Right, Away, Closer, Smaller, Bigger, Remove, Shift for
-fine steps) and Edits (the list, Delete, Undo, Redo; a double click flies to a placed
-model), and under them the scope (All servers, This server), the last answer and Publish.
-H hides the selection, Ctrl+Z and Ctrl+Y undo and redo.
+fine steps), Edits (the list, Delete, Undo, Redo; a double click flies to a placed
+model) and World (below), and under them the scope (All servers, This server), the last
+answer and Publish. H hides the selection, Ctrl+Z and Ctrl+Y undo and redo, Esc stops
+placing.
+
+The keys act only while the 3D view has focus (a click or a drag on it gives it, a button
+of the panel hands it back): never while a text field has it or text of the panel is
+selected, so the fields take Ctrl+A, C, V and X as every field does and the panel's text
+(the summary, the facts, the lists, the answer) can be selected and copied. Before
+03/11/2026 (second round) the panel was written anew with every look at the game's state,
+about once a second, which dropped any text selected in it: that was why nothing could be
+selected to copy. A text is now written only when it changed.
+
+A small card in the view's corner lists the keys and mouse actions; `?` in the view (or a
+click on its head) folds it, and the browser keeps it folded (`localStorage`, per port:
+it unfolds again for a new port, which is harmless).
+
+**The selection drawn** (Sol, 03/11/2026: "make it more obvious what we selected"): over
+the map, last, with the depth test and pulled a little in front (polygon offset), the
+selected surface's triangles tinted gold and pulsing with their outline (the outline's
+hidden parts faint through what is in front), the rest of the model Hide whole model
+takes fainter (`target.group` from the game, the same surfaces `mapedit_hide group`
+takes); a prop or a placed model tinted with a box around it (its MD3's first frame's
+box, read from its file's head); a hidden caulk or nodraw side as its polygon
+(`target.points`, the game's `faces::polygon`). The page builds a surface's triangles
+from the map file's own lists (`pos` and `tri` of its batch, a patch at its finest). The
+panel names the selection: its kind, its edit id, model, entity, shader (the one aimed
+at on a model), surface number and kind, how many surfaces the whole model is, brush
+and side, the remap it is drawn with, and where.
+
+**Recent textures and models** (Sol: "remember in general what textures we recently
+used"): a Recent row at the top of the shader list and of the models list, newest first,
+24 each: the shaders remaps and shown faces drew and the models placed, by the in-game
+editor or the page ([recent.rs](../crates/sjk-viewer/src/map_edits/web/recent.rs)). The
+game keeps them in `map_edits/web_recent.json` of the SJK config folder, so they outlive
+the page, the game and the server's random port (the page's own storage is per port).
+"Remember recent textures" (both pages) off empties them and keeps them empty until it is
+on again.
+
+**Copy and paste** in the view: Ctrl+C copies the selection, a placed model or a prop
+with its angles and scale, or a surface's or a face's shader (the remap's when one draws
+it), as plain text (the model's or the shader's path) and as the page's own copy. Ctrl+V
+pastes a model as a placed copy where the pointer is (`mapedit_place <model> <pitch yaw
+roll> <sx sy sz>`, one step to undo) or a shader as a remap, or a shown face, of the
+selection. A model or a shader path copied elsewhere pastes the same way.
+
+**World** (Sol: "also boombox placement, the toymaster cat and box"): what other parts of
+SJK stand on the map, drawn in the page with their models and listed: the player's own
+boombox on the floor and the other players' ([client.md](client.md), `boombox.rs`), the
+mystery boxes ([mystery-boxes.md](mystery-boxes.md)) and the Toy Master's toys
+([toy-master.md](toy-master.md)). A click on one in the view or the list selects it (a
+box drawn round it); a double click flies to it. Your boombox, Mystery box and Toy (of a
+kind the hub names, for this server only, shown only where the creator is) place one
+where the next click meets the floor, facing the view, through their own code as their
+commands do (`place_boombox_at`, `mystery_box_place_at`, `toy_master_place_at`; the
+commands aim from the player, the page gives the spot). Remove takes the boombox back on
+the shoulder and asks the hub to remove a box or a toy (`mysterybox_remove <id>`,
+`toymaster_remove <id>`). The boombox moves by being placed again; the hub has no move
+for a box or a toy (it places and removes them), so neither does the page: remove one and
+place it again. Boxes and toys need a game server, as their commands do, and stay the
+creator's; the boombox follows its own rules (verified, not dead, spectating or
+following).
 
 Every edit is a request the game thread runs as the in-game editor's command
 (`mapedit_hide`, `mapedit_place <model>`, `mapedit_turn`, `mapedit_move x y z`, ...), so
@@ -190,11 +249,21 @@ game data, by a path the game data accepts (no `..`, no absolute path):
 | `GET api/list?kind=dir&dir=&ext=` | the folders and files of a folder, as VisionJK's |
 | `GET api/edits` | the game's state (above) |
 | `GET api/lists` | the models to place and the shaders a remap may draw |
-| `POST api/edit` | `{"op": "select"\|"hide"\|"place"\|"turn"\|"move"\|"scale"\|"remap"\|"scope"\|"current"\|"delete"\|"undo"\|"redo"\|"publish", ...}` |
+| `POST api/edit` | `{"op": "select"\|"hide"\|"place"\|"turn"\|"move"\|"scale"\|"remap"\|"scope"\|"current"\|"delete"\|"undo"\|"redo"\|"publish"\|"place_thing"\|"remove_thing", ...}` |
+| `GET api/recent` | `{"remember", "shaders", "models"}`: the Recent rows |
+| `POST api/recent` | `{"op": "remember", "on": bool}` or `{"op": "clear"}` |
+
+`api/edits` also carries the selection's details (above) and `things`: each thing's kind,
+id, label, whether it is the player's own, where it stands and its parts (model, origin,
+angles, scale as the game draws it at rest), whether the game is on a server, and the
+hub's toy kinds. `place_thing` takes `thing` (`boombox`, `mystery_box`, `toy`), the ray,
+`kind` for a toy, `server` and `escort`; `remove_thing` takes `thing` and `id` (none for
+the boombox).
 
 Not yet: the map's own and the server's remaps are not drawn in the page (only remap
-edits), nor the selection's outline (a marker stands at the point chosen); a mover is drawn
-where the map file has it; Grab has no page version.
+edits); a mover is drawn where the map file has it; Grab has no page version; a box or a
+toy cannot be moved (the hub has no move); a toy's show and a box's opening are not
+played in the page (drawn at rest).
 
 ## Limits
 
@@ -223,3 +292,13 @@ where the map file has it; Grab has no page version.
   `serve_the_page_for_a_browser` (no script errors; the map, its props and the panel drawn;
   a hidden prop, a placed copy, hidden surfaces and a remap from a fake state drawn; a
   click's request reaching the server). Not tried with the game running.
+- Its second round (03/11/2026): unit tests of the Recent rows' file (newest first, 24,
+  off forgets, a restart, a bad file), the pasted copy's angles and scale, the things'
+  and the Recent rows' requests, `api/recent` end to end with its refusals; in headless
+  Chrome on duel6 with `SJK_MAPEDIT_WEB_DEMO` and `SJK_MAPEDIT_WEB_SELECT`
+  (`surface`, `placed`, `face`): the selection drawn (a pixel difference against no
+  selection), the controls card and its fold kept over a reload, panel text selected by a
+  mouse drag staying selected over the polls, `?` and Ctrl+A in a field left to it, the
+  Recent rows, the World list, a copy, and pastes sent as a place and a remap. Not tried
+  with the game running: the game-thread side (the selection's details, the things'
+  placing and removal, the Recent rows' recording) is untested in a running client.

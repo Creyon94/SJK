@@ -12,12 +12,14 @@
 
 pub(crate) mod http;
 pub(crate) mod page;
+pub(crate) mod recent;
+mod things;
 
 use super::document::Kind;
 use crate::GpuState;
 use crate::world_notes::EditTarget;
 use glam::Vec3;
-use http::{Ask, EditRequest, GameRequest};
+use http::{Ask, EditRequest, GameRequest, RecentRequest};
 use serde_json::{Value, json};
 
 /// Requests answered in one frame at most; the rest wait for the next frame.
@@ -86,8 +88,78 @@ impl GpuState {
                 let edit = edit.clone();
                 Ok(self.map_edit_web_edit(&edit))
             }
+            GameRequest::Recent => Ok(self.map_edit_web_recent_json()),
+            GameRequest::SetRecent(change) => {
+                let recent = self.map_edit_web_recent();
+                match change {
+                    RecentRequest::Remember { on } => recent.set_remember(*on),
+                    RecentRequest::Clear {} => recent.clear(),
+                }
+                self.map_edit_web_recent_save();
+                Ok(self.map_edit_web_recent_json())
+            }
         };
         ask.answer(answer);
+    }
+
+    /// The Recent rows' lists, read from their file the first time.
+    fn map_edit_web_recent(&mut self) -> &mut recent::Recent {
+        if self.map_edits.web_recent.is_none() {
+            let loaded = self
+                .map_edits_folder()
+                .map(|folder| recent::Recent::load(&folder))
+                .unwrap_or_default();
+            self.map_edits.web_recent = Some(loaded);
+        }
+        self.map_edits
+            .web_recent
+            .get_or_insert_with(Default::default)
+    }
+
+    fn map_edit_web_recent_save(&mut self) {
+        let (Some(folder), Some(recent)) = (self.map_edits_folder(), &self.map_edits.web_recent)
+        else {
+            return;
+        };
+        if let Err(error) = recent.save(&folder) {
+            crate::log::progress(format_args!("map edits: recent list not saved: {error}"));
+        }
+    }
+
+    fn map_edit_web_recent_json(&mut self) -> Value {
+        serde_json::to_value(&*self.map_edit_web_recent()).unwrap_or(Value::Null)
+    }
+
+    /// After editor command `name` (with `args`) did its work: a remap's or a shown
+    /// face's shader and a placed model go first in the Recent rows.
+    pub(super) fn map_edit_web_remember(&mut self, name: &str, args: &[String]) {
+        let used = match (name, args.first()) {
+            ("mapedit_remap", Some(shader)) if shader != "-" => Some((true, shader.clone())),
+            ("mapedit_place", _) => {
+                let current = self.map_edits.editor.current();
+                self.map_edits
+                    .document
+                    .as_ref()
+                    .and_then(|document| document.edits.iter().find(|e| Some(e.id) == current))
+                    .and_then(|edit| match &edit.kind {
+                        Kind::Place { model, .. } => Some((false, model.clone())),
+                        _ => None,
+                    })
+            }
+            _ => None,
+        };
+        let Some((shader, used)) = used else {
+            return;
+        };
+        let recent = self.map_edit_web_recent();
+        let changed = if shader {
+            recent.used_shader(&used)
+        } else {
+            recent.used_model(&used)
+        };
+        if changed {
+            self.map_edit_web_recent_save();
+        }
     }
 
     /// An edit the page asked for, run as the in-game editor's command; its answer is
@@ -128,6 +200,22 @@ impl GpuState {
             } => self
                 .map_edit_web_select(*eye, *dir, *forward)
                 .and_then(|_| self.map_edit_web_command(edit)),
+            EditRequest::PlaceThing {
+                thing,
+                eye,
+                dir,
+                forward,
+                kind,
+                server,
+                escort,
+            } => self.map_edit_web_place_thing(
+                *thing,
+                [*eye, *dir, *forward],
+                kind,
+                *server,
+                *escort,
+            ),
+            EditRequest::RemoveThing { thing, id } => self.map_edit_web_remove_thing(*thing, *id),
             _ => self.map_edit_web_command(edit),
         };
         let reply = match &result {
@@ -246,26 +334,53 @@ impl GpuState {
         let selection = self.world_notes.waiting_selection().map(|selection| {
             let (hit, _) = selection.aim();
             let (kind, extra) = match selection.edit_target() {
-                EditTarget::Model { number, model, .. } => {
+                EditTarget::Model {
+                    number,
+                    model,
+                    shader,
+                    classname,
+                } => {
                     let placed = sjk_entity::parse_entity_lump(self.bsp.entities())
                         .ok()
                         .and_then(|lump| state.placed_edit(number, lump.len()));
                     (
                         if placed.is_some() { "placed" } else { "model" },
-                        json!({ "entity": number, "model": model, "placed": placed }),
+                        json!({
+                            "entity": number, "model": model, "placed": placed,
+                            "shader": shader, "classname": classname,
+                        }),
                     )
                 }
-                EditTarget::Surface { index, shader, .. } => {
-                    ("surface", json!({ "surface": index, "shader": shader }))
+                EditTarget::Surface {
+                    index,
+                    shader,
+                    kind,
+                } => {
+                    // What Hide whole model takes, drawn fainter than the surface.
+                    let group = self.map_edit_hide_group(index);
+                    (
+                        "surface",
+                        json!({
+                            "surface": index, "shader": shader, "surface_kind": kind,
+                            "group": group,
+                        }),
+                    )
                 }
                 EditTarget::Face {
                     brush,
                     side,
                     shader,
-                } => (
-                    "face",
-                    json!({ "brush": brush, "side": side, "shader": shader }),
-                ),
+                } => {
+                    // The side's polygon, drawn over the hole it leaves.
+                    let points = super::faces::polygon(&self.bsp, brush, side, &shader)
+                        .map(|(points, _)| points);
+                    (
+                        "face",
+                        json!({
+                            "brush": brush, "side": side, "shader": shader, "points": points,
+                        }),
+                    )
+                }
                 EditTarget::Other => ("other", json!({})),
             };
             json!({ "summary": selection.summary(), "kind": kind, "hit": hit.to_array(), "target": extra })
@@ -305,6 +420,7 @@ impl GpuState {
             "faces": faces,
             "selection": selection,
             "view": view,
+            "things": self.map_edit_web_things(),
             "answer": answer,
             "hub": state.hub_note.as_ref().and_then(|note| note.as_ref().err()),
         })

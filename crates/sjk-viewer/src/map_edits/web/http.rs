@@ -43,6 +43,39 @@ pub(crate) enum GameRequest {
     Lists,
     /// An edit (`POST api/edit`).
     Edit(EditRequest),
+    /// The shaders and models used lately (`GET api/recent`, [`super::recent`]).
+    Recent,
+    /// A change to them (`POST api/recent`).
+    SetRecent(RecentRequest),
+}
+
+/// A change to the Recent rows the page asks for.
+#[derive(Clone, Debug, Deserialize, PartialEq)]
+#[serde(tag = "op", rename_all = "snake_case", deny_unknown_fields)]
+pub(crate) enum RecentRequest {
+    /// "Remember recent textures" on or off (off forgets them).
+    Remember { on: bool },
+    /// Forget the lists (a struct variant, so a stray field is refused too).
+    Clear {},
+}
+
+impl RecentRequest {
+    pub(crate) fn parse(body: &[u8]) -> Result<Self, String> {
+        serde_json::from_slice(body).map_err(|error| error.to_string())
+    }
+}
+
+/// Things other systems than map edits stand on the map, which the page places and
+/// removes through their own code ([`super::things`]).
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum Thing {
+    /// The player's own boombox on the floor (`boombox_place`).
+    Boombox,
+    /// A mystery box (`mysterybox_place`, through the hub).
+    MysteryBox,
+    /// A Toy Master toy (`toymaster_place`, through the hub).
+    Toy,
 }
 
 /// The game thread's answer: JSON, or why not.
@@ -77,12 +110,38 @@ pub(crate) enum EditRequest {
         #[serde(default)]
         group: bool,
     },
-    /// `mapedit_place <model>` where the ray meets the map.
+    /// `mapedit_place <model>` where the ray meets the map; a pasted copy brings its
+    /// angles and its scale (`mapedit_place <model> <angles> <scale>`).
     Place {
         model: String,
         eye: [f32; 3],
         dir: [f32; 3],
         forward: [f32; 3],
+        #[serde(default)]
+        angles: Option<[f32; 3]>,
+        #[serde(default)]
+        scale: Option<[f32; 3]>,
+    },
+    /// Stand `thing` where the ray meets the map, facing the page's view: a boombox
+    /// already down moves there; a toy is of `kind`; `server` for this server only,
+    /// `escort` for a toy shown only where the creator is.
+    PlaceThing {
+        thing: Thing,
+        eye: [f32; 3],
+        dir: [f32; 3],
+        forward: [f32; 3],
+        #[serde(default)]
+        kind: String,
+        #[serde(default)]
+        server: bool,
+        #[serde(default)]
+        escort: bool,
+    },
+    /// Take `thing` `id` away (the boombox: back on the shoulder, no id).
+    RemoveThing {
+        thing: Thing,
+        #[serde(default)]
+        id: i64,
     },
     /// `mapedit_turn <degrees>`
     Turn { degrees: f32 },
@@ -124,13 +183,38 @@ impl EditRequest {
                 eye,
                 dir,
                 forward,
+                angles,
+                scale,
             } => {
                 name_ok(model)
                     && finite(eye)
                     && finite(dir)
                     && finite(forward)
                     && dir.iter().any(|v| *v != 0.0)
+                    && angles.is_none_or(|angles| finite(&angles))
+                    && scale.is_none_or(|scale| finite(&scale) && scale.iter().all(|v| *v > 0.0))
             }
+            Self::PlaceThing {
+                thing,
+                eye,
+                dir,
+                forward,
+                kind,
+                ..
+            } => {
+                finite(eye)
+                    && finite(dir)
+                    && finite(forward)
+                    && dir.iter().any(|v| *v != 0.0)
+                    && match thing {
+                        Thing::Toy => name_ok(kind),
+                        _ => kind.is_empty(),
+                    }
+            }
+            Self::RemoveThing { thing, id } => match thing {
+                Thing::Boombox => *id == 0,
+                _ => *id > 0,
+            },
             Self::Turn { degrees } => degrees.is_finite(),
             Self::Move { offset } => finite(offset),
             Self::Scale { factor } => factor.is_finite() && *factor > 0.0,
@@ -146,16 +230,32 @@ impl EditRequest {
     }
 
     /// The editor command and its arguments this edit runs; `None` for the page's own
-    /// steps ([`Self::Select`], [`Self::Current`]; [`Self::Place`] selects first).
+    /// steps ([`Self::Select`], [`Self::Current`], the things; [`Self::Place`] selects
+    /// first).
     pub(crate) fn command(&self) -> Option<(&'static str, Vec<String>)> {
         let number = |value: f32| format!("{value}");
         Some(match self {
-            Self::Select { .. } | Self::Current { .. } => return None,
+            Self::Select { .. }
+            | Self::Current { .. }
+            | Self::PlaceThing { .. }
+            | Self::RemoveThing { .. } => return None,
             Self::Hide { group } => (
                 "mapedit_hide",
                 if *group { vec!["group".into()] } else { vec![] },
             ),
-            Self::Place { model, .. } => ("mapedit_place", vec![model.clone()]),
+            Self::Place {
+                model,
+                angles,
+                scale,
+                ..
+            } => {
+                let mut args = vec![model.clone()];
+                if angles.is_some() || scale.is_some() {
+                    args.extend(angles.unwrap_or([0.0; 3]).map(number));
+                    args.extend(scale.unwrap_or([1.0; 3]).map(number));
+                }
+                ("mapedit_place", args)
+            }
             Self::Turn { degrees } => ("mapedit_turn", vec![number(*degrees)]),
             Self::Move { offset } => ("mapedit_move", offset.iter().copied().map(number).collect()),
             Self::Scale { factor } => ("mapedit_scale", vec![number(*factor)]),
@@ -599,6 +699,11 @@ fn handle(request: &Request, context: &Context) -> Response {
             Ok(edit) => ask_game(context, GameRequest::Edit(edit)),
             Err(why) => Response::text(422, &why),
         },
+        ("GET", "/api/recent") => ask_game(context, GameRequest::Recent),
+        ("POST", "/api/recent") => match RecentRequest::parse(&request.body) {
+            Ok(change) => ask_game(context, GameRequest::SetRecent(change)),
+            Err(why) => Response::text(422, &why),
+        },
         _ => Response::text(404, "not found"),
     }
 }
@@ -935,6 +1040,100 @@ mod tests {
         assert!(parse(r#"{"op":"scope","scope":"everywhere"}"#).is_err());
         assert!(parse(r#"{"op":"select","eye":[0,0,0],"dir":[0,0,0],"forward":[1,0,0]}"#).is_err());
         assert!(parse("not json").is_err());
+    }
+
+    #[test]
+    fn a_pasted_copy_brings_its_angles_and_scale() {
+        let parse = |json: &str| EditRequest::parse(json.as_bytes());
+        let ray = r#""eye":[0,0,0],"dir":[1,0,0],"forward":[1,0,0]"#;
+        let place = |extra: &str| {
+            parse(&format!(
+                r#"{{"op":"place","model":"models/a.md3",{ray}{extra}}}"#
+            ))
+        };
+        assert_eq!(
+            place(r#","angles":[0,90,0],"scale":[2,2,1.5]"#)
+                .unwrap()
+                .command(),
+            Some((
+                "mapedit_place",
+                ["models/a.md3", "0", "90", "0", "2", "2", "1.5"]
+                    .map(str::to_owned)
+                    .to_vec()
+            ))
+        );
+        assert_eq!(
+            place(r#","angles":[0,45,0]"#)
+                .unwrap()
+                .command()
+                .unwrap()
+                .1
+                .len(),
+            7
+        );
+        assert_eq!(place("").unwrap().command().unwrap().1.len(), 1);
+        assert!(place(r#","scale":[0,1,1]"#).is_err());
+        assert!(place(r#","angles":[1,2]"#).is_err());
+    }
+
+    #[test]
+    fn things_are_placed_and_removed_by_their_own_requests() {
+        let parse = |json: &str| EditRequest::parse(json.as_bytes());
+        let ray = r#""eye":[0,0,0],"dir":[1,0,0],"forward":[1,0,0]"#;
+        let thing = |fields: &str| parse(&format!(r#"{{"op":"place_thing",{fields},{ray}}}"#));
+        let toy = thing(r#""thing":"toy","kind":"cat","server":true,"escort":true"#).unwrap();
+        assert_eq!(
+            toy,
+            EditRequest::PlaceThing {
+                thing: Thing::Toy,
+                eye: [0.0; 3],
+                dir: [1.0, 0.0, 0.0],
+                forward: [1.0, 0.0, 0.0],
+                kind: "cat".into(),
+                server: true,
+                escort: true,
+            }
+        );
+        // Not an editor command: the game thread runs each thing's own code.
+        assert_eq!(toy.command(), None);
+        assert!(thing(r#""thing":"boombox""#).is_ok());
+        assert!(thing(r#""thing":"mystery_box""#).is_ok());
+        // A toy needs a kind without spaces; the others take none.
+        assert!(thing(r#""thing":"toy""#).is_err());
+        assert!(thing(r#""thing":"toy","kind":"a b""#).is_err());
+        assert!(thing(r#""thing":"boombox","kind":"x""#).is_err());
+        assert!(thing(r#""thing":"car""#).is_err());
+        assert!(
+            parse(
+                r#"{"op":"place_thing","thing":"boombox","eye":[0,0,0],"dir":[0,0,0],"forward":[1,0,0]}"#
+            )
+            .is_err()
+        );
+        assert_eq!(
+            parse(r#"{"op":"remove_thing","thing":"mystery_box","id":12}"#).unwrap(),
+            EditRequest::RemoveThing {
+                thing: Thing::MysteryBox,
+                id: 12
+            }
+        );
+        assert!(parse(r#"{"op":"remove_thing","thing":"boombox"}"#).is_ok());
+        assert!(parse(r#"{"op":"remove_thing","thing":"toy"}"#).is_err());
+        assert!(parse(r#"{"op":"remove_thing","thing":"boombox","id":3}"#).is_err());
+    }
+
+    #[test]
+    fn the_recent_rows_take_their_switch_and_a_clear() {
+        assert_eq!(
+            RecentRequest::parse(br#"{"op":"remember","on":false}"#).unwrap(),
+            RecentRequest::Remember { on: false }
+        );
+        assert_eq!(
+            RecentRequest::parse(br#"{"op":"clear"}"#).unwrap(),
+            RecentRequest::Clear {}
+        );
+        assert!(RecentRequest::parse(br#"{"op":"remember"}"#).is_err());
+        assert!(RecentRequest::parse(br#"{"op":"add","name":"x"}"#).is_err());
+        assert!(RecentRequest::parse(br#"{"op":"clear","x":1}"#).is_err());
     }
 
     #[test]
