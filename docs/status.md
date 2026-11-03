@@ -3813,6 +3813,16 @@ within its range, a change that does not read, undo and redo, and the files writ
 taken away). A unit test pins the trail lengths against
 the move table (styled moves only taking the style's group).
 
+03/11/2026: the local `wip/saber-lab` (49 commits to 01/11/2026, the effects from 19/10
+tuned by eye with no new unit tests, at Milamber's request) squashed onto `main` `c0d603eb`
+as `feat/saber-lab` and handed to Sol to finish: what is built, planned and owed before a
+merge (the startup stack check, blade cost, the tests) is in
+[saber-lab-handover.md](saber-lab-handover.md).
+Workspace `cargo fmt --check`, build, test and clippy (no warnings on the branch's lines)
+passed on Windows 11 x86_64, Rust 1.99.0, after four lane-count tests and the instance's
+`off` format test were brought up to date; the startup stack check and
+`scripts/blade_cost.py` were not run.
+
 ## Jetpack effect layers and tail lengths
 
 18/10/2026, `fix/jetpack-tail-rendering`, based on `sol/main` `64698160`.
