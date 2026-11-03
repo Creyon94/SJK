@@ -525,7 +525,7 @@ const HELP: &[(&str, &str)] = &[
     ),
     (
         crate::emotes::DUEL_MUTE_CVAR,
-        "On: emote sounds are silent while you are in a duel (a private one, or a Duel server), those playing too; one still playing after it is heard again.",
+        "On: emotes go silent while you duel (private or Duel server), even ones playing; one still playing when the duel ends is heard again.",
     ),
     (
         crate::toy_sounds::VOLUME_CVAR,

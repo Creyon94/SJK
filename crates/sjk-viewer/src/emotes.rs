@@ -925,7 +925,7 @@ mod tests {
         assert_eq!(heard_volume(2.0, true, true), 0.0);
         assert_eq!(heard_volume(9.0, true, false), MAX_VOLUME as f32);
         assert_eq!(heard_volume(-1.0, false, false), 0.0);
-        assert!(!DEFAULT_DUEL_MUTE);
+        const { assert!(!DEFAULT_DUEL_MUTE) };
     }
 
     const WAVE: &str = r#"{"name": "Wave", "torso": "BOTH_ENGAGETAUNT", "legs": "",

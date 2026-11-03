@@ -720,7 +720,7 @@ mod listener_tests {
         let snapshot = |duelling: bool| {
             let mut player = PlayerState::zero();
             // `duelInProgress` (netfield 119).
-            player.set_raw_field(119, i32::from(duelling));
+            player.set_raw_field(119, u32::from(duelling));
             Snapshot {
                 message_sequence: 1,
                 reliable_acknowledge: 0,

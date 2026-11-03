@@ -2382,7 +2382,8 @@ private duel, `duelInProgress`, or a Duel or Power Duel server, the rule of
 the duel ends is heard again ([rig-models.md](rig-models.md)). Verified on Windows 11:
 unit tests (`emotes_are_silent_in_a_duel_only_with_the_setting`,
 `an_emote_playing_is_silent_in_a_duel_with_the_setting` through the test mixer, a
-snapshot's `duelInProgress` starting and ending the silence). Not verified with a second
+snapshot's `duelInProgress` starting and ending the silence; the full `sjk-viewer` release
+suite passes). Not verified with a second
 SJK client.
 
 ## Emotes kept while typing, and silenced when alt-tabbed
