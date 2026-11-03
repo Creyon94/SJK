@@ -3887,6 +3887,16 @@ test: Walk, run, jump, land: the tail lags and bounces, then settles behind her.
 test: sjkemote comrade: the tail follows the dance's hips, stays attached.
 note: Needs test_content.pk3 from add-on 1.7 (the tail's 10 bones, 322 joints).
 
+[rig-cloth]
+area: Rendering & effects
+title: Rig models: capes and tails swing, kept out of the legs (SolFox2)
+change: dynamic lines take wag, stiffness, damping and nocollide (capes: wag 0).
+change: Chain points are pushed out of capsules round the hips, spine, thighs and calves.
+test: /model solfox2 (local rig_solfox2.pk3), run: cape strips swing behind, tail too.
+test: Run and jump: the loincloth is pushed by the thighs, the tail stays out of the legs.
+test: Stand still: the cape hangs without wagging; the tail wags gently.
+note: Arms and head do not collide: arms down can pass through the cape's side panels.
+
 [stock-emotes]
 area: Rendering & effects
 title: Emotes on normal JKA models (Creyon #103)
