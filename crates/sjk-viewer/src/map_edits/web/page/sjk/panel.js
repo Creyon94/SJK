@@ -94,6 +94,7 @@ function sjkRender() {
 	$('btnPublish').disabled = !s.edits.length && !s.unpublished;
 	sjkText('pubState', s.unpublished ? 'Changed here, not published' : s.revision ? 'Hub revision ' + s.revision : '');
 	sjkRenderThings();
+	sjkRenderMulti();
 }
 
 // ---- World: the boomboxes, mystery boxes and toys on the map
@@ -221,7 +222,7 @@ function sjkPublish() {
 // ---- the panel's controls
 
 for (const b of document.querySelectorAll('#tabs button')) b.addEventListener('click', () => sjkShowTab(b.dataset.tab));
-$('btnHide').addEventListener('click', () => sjkEdit({ op: 'hide' }));
+$('btnHide').addEventListener('click', () => sjkHideSelection());
 $('btnHideGroup').addEventListener('click', () => sjkEdit({ op: 'hide', group: true }));
 $('btnCopy').addEventListener('click', () => {
 	const sel = sjk.state && sjk.state.selection;
@@ -232,8 +233,8 @@ $('btnCopy').addEventListener('click', () => {
 	sjkShowTab('place');
 	toast('Click the map where the copy goes');
 });
-$('btnRemap').addEventListener('click', () => { const to = sjkRemapTarget(); if (to) sjkEdit({ op: 'remap', shader: to }); });
-$('btnUnremap').addEventListener('click', () => sjkEdit({ op: 'remap', shader: '-' }));
+$('btnRemap').addEventListener('click', () => { const to = sjkRemapTarget(); if (to) sjkApplyShader(to); });
+$('btnUnremap').addEventListener('click', () => sjkApplyShader('-'));
 let sjkTyped = 0;
 $('shaderFind').addEventListener('input', () => { clearTimeout(sjkTyped); sjkTyped = setTimeout(() => { sjkRenderShaders(); sjkRender(); }, 150); });
 function sjkTileClick(e) {
@@ -241,7 +242,7 @@ function sjkTileClick(e) {
 	// a click that ends a selection of text chooses nothing
 	if (!tile || String(getSelection())) return;
 	// a second click on the chosen one remaps, as in the game
-	if (sjk.chosenShader === tile.dataset.name && sjk.state && sjk.state.selection) { sjkEdit({ op: 'remap', shader: tile.dataset.name }); return; }
+	if (sjk.chosenShader === tile.dataset.name && sjk.state && (sjk.state.selection || sjkMany())) { sjkApplyShader(tile.dataset.name); return; }
 	sjk.chosenShader = tile.dataset.name;
 	for (const t of document.querySelectorAll('#shaderList .tile, #shaderRecent .tile')) t.classList.toggle('sel', t.dataset.name === sjk.chosenShader);
 	sjkRender();

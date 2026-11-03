@@ -137,6 +137,41 @@ pub(crate) fn polygon(
     Some((polygon, normal))
 }
 
+/// The shader of side `side` of brush `brush` when it is a world brush's side that edits
+/// may show (caulk, nodraw) and not a sliver: what a face of the browser editor's
+/// multiple selection is checked with.
+pub(crate) fn world_side_shader(bsp: &Bsp, brush: u32, side: u32) -> Option<String> {
+    let (brush, side) = (brush as usize, side as usize);
+    let model = bsp.render().models().first()?;
+    if !model.brushes.contains(&brush) || !bsp.brushes().get(brush)?.sides.contains(&side) {
+        return None;
+    }
+    let shader = showable(bsp, brush, side)?;
+    (area(&bsp.brush_side_polygon(brush, side)) >= MIN_AREA).then_some(shader)
+}
+
+/// Side `side` of brush `brush` as the ray from `eye` along `direction` (normalized) meets
+/// its plane from the front, when edits may show it: the face the browser editor's brush
+/// view was clicked on.
+pub(crate) fn met(bsp: &Bsp, brush: u32, side: u32, eye: Vec3, direction: Vec3) -> Option<Face> {
+    let shader = world_side_shader(bsp, brush, side)?;
+    let plane = bsp.planes()[bsp.brush_sides()[side as usize].plane];
+    let normal = Vec3::from_array(plane.normal);
+    let along = normal.dot(direction);
+    if along >= -1e-6 {
+        return None;
+    }
+    let distance = (plane.distance - normal.dot(eye)) / along;
+    (distance >= 0.0).then(|| Face {
+        brush,
+        side,
+        shader,
+        distance,
+        normal,
+        polygon: bsp.brush_side_polygon(brush as usize, side as usize),
+    })
+}
+
 /// The middle of `polygon`'s corners.
 pub(crate) fn centre(polygon: &[[f32; 3]]) -> [f32; 3] {
     let sum = polygon

@@ -43,11 +43,15 @@ fn fake_game(server: &Server, until: impl Fn() -> bool) {
                     GameRequest::Lists => Ok(serde_json::json!({ "models": [] })),
                     GameRequest::Edit(edit) => Ok(serde_json::json!({
                         "ok": true,
-                        "lines": [format!("{:?}", edit.command())],
+                        "lines": [format!("{:?}", edit.command()), format!("{edit:?}")],
                     })),
                     GameRequest::Recent => Ok(serde_json::json!({ "remember": true })),
                     GameRequest::SetRecent(change) => {
                         Ok(serde_json::json!({ "change": format!("{change:?}") }))
+                    }
+                    GameRequest::Brushes => Ok(serde_json::json!({ "kinds": [], "faces": [] })),
+                    GameRequest::Link { .. } | GameRequest::Suggest(_) => {
+                        Ok(serde_json::json!({ "asked": format!("{:?}", ask.request) }))
                     }
                 };
                 ask.answer(answer);
@@ -136,6 +140,45 @@ fn the_page_the_map_and_an_edit_are_served_and_strangers_refused() {
         );
         assert_eq!(status, 200);
         assert!(String::from_utf8(answer).unwrap().contains("None"));
+        // Round 3: the brush view, a link, a suggestion and a multiple selection's fill.
+        let (status, brushes) = get(port, "/api/brushes", Some(&token), None);
+        assert_eq!(status, 200);
+        assert!(String::from_utf8(brushes).unwrap().contains("kinds"));
+        let (status, link) = get(
+            port,
+            "/api/link?brush=12&side=80&grow=surface",
+            Some(&token),
+            None,
+        );
+        assert_eq!(status, 200);
+        let link = String::from_utf8(link).unwrap();
+        assert!(link.contains("brush: 12") && link.contains("Surface"), "{link}");
+        assert_eq!(get(port, "/api/link?brush=x", Some(&token), None).0, 422);
+        assert_eq!(get(port, "/api/link?brush=1&side=2", None, None).0, 403);
+        let (status, suggest) = post("/api/suggest", &origin, br#"{"faces":[[12,80],[13,86]]}"#);
+        assert_eq!(status, 200);
+        assert!(String::from_utf8(suggest).unwrap().contains("[12, 80]"));
+        assert_eq!(post("/api/suggest", &origin, br#"{"faces":[]}"#).0, 422);
+        assert_eq!(
+            post(
+                "/api/suggest",
+                "http://evil.example",
+                br#"{"faces":[[1,2]]}"#
+            )
+            .0,
+            403
+        );
+        let (status, answer) = post(
+            "/api/edit",
+            &origin,
+            br#"{"op":"apply_many","faces":[[12,80],[13,86]],"shader":"textures/a/b"}"#,
+        );
+        assert_eq!(status, 200);
+        assert!(String::from_utf8(answer).unwrap().contains("ApplyMany"));
+        assert_eq!(
+            post("/api/edit", &origin, br#"{"op":"hide_many","faces":[]}"#).0,
+            422
+        );
         // Refused: no token, a wrong one, another host (DNS rebinding), a post from
         // another site.
         assert_eq!(get(port, "/", None, None).0, 403);
@@ -169,7 +212,8 @@ fn the_page_the_map_and_an_edit_are_served_and_strangers_refused() {
 /// For a look at the page in a browser without the game: serves the retail game data
 /// (`SJK_MAPEDIT_WEB_GAMEDATA`, its `base` folder) as if the game were on
 /// `SJK_MAPEDIT_WEB_MAP` (mp/duel6 by default) for `SJK_MAPEDIT_WEB_SECONDS`, printing
-/// the page's address. Edits are refused: there is no game.
+/// the page's address. Edits are refused, there is no game, but for the brush view's
+/// picks, Esc and fills (printed as `SJK_MAPEDIT_WEB_EDIT=`).
 #[test]
 #[ignore = "serves a page for a manual look in a browser"]
 fn serve_the_page_for_a_browser() {
@@ -325,11 +369,33 @@ fn serve_the_page_for_a_browser() {
             });
         }
     }
+    // SJK_MAPEDIT_WEB_VIEW ("x y z yaw pitch") puts the player's view there instead.
+    if let Ok(given) = std::env::var("SJK_MAPEDIT_WEB_VIEW") {
+        let v: Vec<f32> = given
+            .split_whitespace()
+            .filter_map(|v| v.parse().ok())
+            .collect();
+        if let [x, y, z, yaw, pitch] = v[..] {
+            view = serde_json::json!({ "eye": [x, y, z], "yaw": yaw, "pitch": pitch });
+        }
+    }
     let recent = serde_json::json!({
         "remember": true,
         "shaders": shaders.iter().take(3).collect::<Vec<_>>(),
         "models": models.iter().take(2).collect::<Vec<_>>(),
     });
+    // Round 3: the brush view, links and votes come from the real code on the map; a
+    // click on a face of the brush view (or one the brush ray finds) selects it, Esc
+    // clears, and every edit the page sends is printed (`SJK_MAPEDIT_WEB_EDIT=`).
+    let catalog = Some(sjk_shader::ShaderCatalog::load_with_warnings(
+        &vfs,
+        |_, _| {},
+    ));
+    let brushes = bsp.as_ref().map(super::super::caulk::brushes_json);
+    let sides = bsp.as_ref().map(crate::map_edits::linked::Sides::from_bsp);
+    let drawn = bsp
+        .as_ref()
+        .map(|bsp| super::super::caulk::drawn_surfaces(bsp, catalog.as_ref()));
     let server = Server::start(Some(vfs)).unwrap();
     println!("SJK_MAPEDIT_WEB_URL={}", server.url());
     let end = std::time::Instant::now() + Duration::from_secs(seconds);
@@ -338,7 +404,68 @@ fn serve_the_page_for_a_browser() {
             std::thread::sleep(Duration::from_millis(5));
             continue;
         };
+        let face_selection = |face: crate::map_edits::faces::Face, eye: [f32; 3]| {
+            let hit = glam::Vec3::from_array(eye);
+            serde_json::json!({
+                "summary": format!("{} (brush {} side {})", face.shader, face.brush, face.side),
+                "kind": "face", "hit": hit.to_array(),
+                "target": {
+                    "brush": face.brush, "side": face.side, "shader": face.shader,
+                    "points": face.polygon,
+                },
+            })
+        };
         let answer = match &ask.request {
+            GameRequest::Edit(edit) => {
+                println!("SJK_MAPEDIT_WEB_EDIT={edit:?}");
+                let picked = match (edit, &bsp) {
+                    (EditRequest::Select { eye, dir, face, .. }, Some(bsp)) => {
+                        let (at, along) = (
+                            glam::Vec3::from_array(*eye),
+                            glam::Vec3::from_array(*dir).normalize_or_zero(),
+                        );
+                        face.and_then(|[b, s]| crate::map_edits::faces::met(bsp, b, s, at, along))
+                            .or_else(|| crate::map_edits::faces::pick(bsp, at, along, 8192.0))
+                            .map(|face| {
+                                let hit = at + along * face.distance;
+                                face_selection(face, hit.to_array())
+                            })
+                    }
+                    _ => None,
+                };
+                match edit {
+                    EditRequest::Select { .. } => match picked {
+                        Some(picked) => {
+                            selection = picked;
+                            Ok(serde_json::json!({ "ok": true, "lines": [selection["summary"]] }))
+                        }
+                        None => Err("no game: only caulk and nodraw faces are picked here".into()),
+                    },
+                    EditRequest::Clear => {
+                        selection = serde_json::Value::Null;
+                        Ok(serde_json::json!({ "ok": true, "lines": ["Nothing selected"] }))
+                    }
+                    EditRequest::ApplyMany { faces, .. } => Ok(serde_json::json!({
+                        "ok": true, "lines": [format!("(test) {} faces filled", faces.len())],
+                    })),
+                    _ => Err("no game: this is the page's test server".into()),
+                }
+            }
+            GameRequest::Brushes => brushes.clone().ok_or_else(|| "no map".into()),
+            GameRequest::Link { brush, side, grow } => match (&bsp, &sides) {
+                (Some(bsp), Some(sides)) => {
+                    super::super::caulk::link_json(bsp, sides, *brush, *side, *grow)
+                }
+                _ => Err("no map".into()),
+            },
+            GameRequest::Suggest(suggest) => match (&sides, &drawn) {
+                (Some(sides), Some(drawn)) => Ok(super::super::caulk::suggest_json(
+                    sides,
+                    drawn,
+                    &suggest.faces,
+                )),
+                _ => Err("no map".into()),
+            },
             GameRequest::State => Ok(serde_json::json!({
                 "map": map, "checksum": 1, "editor": true, "enabled": true, "scope": "all",
                 "server": null, "revision": 0, "unpublished": false, "edits": [], "current": null,
@@ -347,9 +474,7 @@ fn serve_the_page_for_a_browser() {
                 "view": view, "things": things, "answer": null, "hub": null,
             })),
             GameRequest::Lists => Ok(serde_json::json!({ "models": models, "shaders": shaders })),
-            GameRequest::Edit(_) | GameRequest::SetRecent(_) => {
-                Err("no game: this is the page's test server".into())
-            }
+            GameRequest::SetRecent(_) => Err("no game: this is the page's test server".into()),
             GameRequest::Recent => Ok(recent.clone()),
         };
         ask.answer(answer);

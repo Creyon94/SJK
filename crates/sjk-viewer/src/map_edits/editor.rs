@@ -823,6 +823,107 @@ impl GpuState {
         ))
     }
 
+    /// The browser editor's multiple selection: draw caulk or nodraw faces `faces`
+    /// (brush, side) with `shader` and remap the shaders of surfaces `surfaces` to it
+    /// (`-` takes those edits away), or, with no `shader`, hide the surfaces and draw
+    /// the faces as nothing again. One step to undo, whatever the count.
+    pub(crate) fn map_edit_many(
+        &mut self,
+        faces: &[[u32; 2]],
+        surfaces: &[u32],
+        shader: Option<&str>,
+    ) -> Result<Vec<String>, String> {
+        if !crate::player_identity::is_staff() {
+            return Err("The map editor is for SJK staff".into());
+        }
+        if !self.map_edits.editor.active {
+            return Err("Turn the map editor on first: mapedit".into());
+        }
+        if faces.is_empty() && surfaces.is_empty() {
+            return Err("Nothing selected".into());
+        }
+        let before = self.map_edit_edits();
+        let result = self.map_edit_many_change(faces, surfaces, shader);
+        if result.is_ok() && before != self.map_edit_edits() {
+            self.map_edits.history.changed(before);
+        }
+        if result.is_ok()
+            && let Some(shader) = shader.filter(|shader| *shader != "-")
+        {
+            self.map_edit_web_remember("mapedit_remap", &[shader.to_owned()]);
+        }
+        result
+    }
+
+    fn map_edit_many_change(
+        &mut self,
+        faces: &[[u32; 2]],
+        surfaces: &[u32],
+        shader: Option<&str>,
+    ) -> Result<Vec<String>, String> {
+        let server = self.map_edit_server()?;
+        let faces: Vec<(u32, u32, String)> = faces
+            .iter()
+            .map(|&[brush, side]| {
+                super::faces::world_side_shader(&self.bsp, brush, side)
+                    .map(|shader| (brush, side, shader))
+                    .ok_or_else(|| {
+                        format!(
+                            "Brush {brush} side {side} is not a caulk or nodraw face of this map"
+                        )
+                    })
+            })
+            .collect::<Result<_, _>>()?;
+        let mut surface_shaders: Vec<(u32, String)> = Vec::with_capacity(surfaces.len());
+        for &surface in surfaces {
+            let shader = self
+                .bsp
+                .render()
+                .surfaces()
+                .get(surface as usize)
+                .and_then(|s| self.bsp.shaders().get(s.shader))
+                .ok_or_else(|| format!("No surface {surface} on this map"))?;
+            surface_shaders.push((surface, shader.name_lossy().into_owned()));
+        }
+        let step = match shader {
+            Some("-") => Many::Remove {
+                faces: &faces,
+                shaders: &surface_shaders,
+            },
+            Some(target) => {
+                let (vfs, shaders) = (
+                    self.vfs.clone().ok_or("No loaded map")?,
+                    self.shaders.clone(),
+                );
+                let checked = |from: &str| {
+                    crate::world_materials::map_remaps::checked(&vfs, &shaders, from, target)
+                };
+                // The target is checked as a remap's is, once per shader it replaces.
+                let to = match (faces.first(), surface_shaders.first()) {
+                    (Some((_, _, from)), _) | (None, Some((_, from))) => checked(from)?.1,
+                    (None, None) => return Err("Nothing selected".into()),
+                };
+                for (_, from) in &surface_shaders {
+                    checked(from)?;
+                }
+                Many::Draw {
+                    faces: &faces,
+                    shaders: &surface_shaders,
+                    to,
+                }
+            }
+            None => {
+                self.world_notes.cancel_selection();
+                Many::Hide {
+                    faces: &faces,
+                    surfaces: &surface_shaders,
+                }
+            }
+        };
+        let line = apply_many(self.map_edit_document()?, server, step)?;
+        self.map_edit_saved(line)
+    }
+
     /// Undo the last change to this map's edits (`undo`), or redo the last undone.
     fn map_edit_step(&mut self, undo: bool) -> Result<Vec<String>, String> {
         // The map's checksum first: a step is taken only when it can be saved.
@@ -995,5 +1096,262 @@ impl GpuState {
         angles[1] = (angles[1] + if up { step } else { -step }).rem_euclid(360.0);
         self.map_edits.preview_placement(id, origin, angles);
         true
+    }
+}
+
+/// What the browser editor's multiple selection does to a map's edits in one step: its
+/// faces (brush, side, shader) and its surfaces (number, shader).
+enum Many<'a> {
+    /// Draw the faces with shader `to` and remap the surfaces' shaders to it.
+    Draw {
+        faces: &'a [(u32, u32, String)],
+        shaders: &'a [(u32, String)],
+        to: String,
+    },
+    /// Take away the edits that draw the faces and remap the surfaces' shaders.
+    Remove {
+        faces: &'a [(u32, u32, String)],
+        shaders: &'a [(u32, String)],
+    },
+    /// Hide the surfaces and draw the faces as nothing again.
+    Hide {
+        faces: &'a [(u32, u32, String)],
+        surfaces: &'a [(u32, String)],
+    },
+}
+
+/// The surfaces' shaders, each once: a remap acts on every surface of its shader.
+fn distinct_shaders(surfaces: &[(u32, String)]) -> Vec<&str> {
+    let mut shaders: Vec<&str> = Vec::new();
+    for (_, shader) in surfaces {
+        if !shaders.iter().any(|seen| seen.eq_ignore_ascii_case(shader)) {
+            shaders.push(shader);
+        }
+    }
+    shaders
+}
+
+/// Make `step` in `document`'s edits for `server`: its answer, or why not.
+fn apply_many(
+    document: &mut super::Document,
+    server: Option<String>,
+    step: Many<'_>,
+) -> Result<String, String> {
+    let shows = |edit: &Edit, faces: &[(u32, u32, String)]| {
+        edit.server == server
+            && matches!(&edit.kind, Kind::ShowFace { brush, side, .. }
+                if faces.iter().any(|(b, s, _)| b == brush && s == side))
+    };
+    let remove = |document: &mut super::Document, ids: &[u32]| {
+        for id in ids {
+            document.remove(*id);
+        }
+    };
+    match step {
+        Many::Draw { faces, shaders, to } => {
+            for (brush, side, shader) in faces {
+                document.add(
+                    Kind::ShowFace {
+                        brush: *brush,
+                        side: *side,
+                        shader: shader.clone(),
+                        to: to.clone(),
+                    },
+                    server.clone(),
+                );
+            }
+            let remapped = distinct_shaders(shaders);
+            for from in &remapped {
+                document.add(
+                    Kind::Remap {
+                        from: (*from).to_owned(),
+                        to: to.clone(),
+                    },
+                    server.clone(),
+                );
+            }
+            Ok(match (faces.len(), remapped.len()) {
+                (f, 0) => format!("{f} faces drawn as {to}"),
+                (0, r) => format!("{r} shaders remapped to {to} (every surface with them)"),
+                (f, r) => format!("{f} faces drawn as {to}, {r} shaders remapped to it"),
+            })
+        }
+        Many::Remove { faces, shaders } => {
+            let remapped = distinct_shaders(shaders);
+            let ids: Vec<u32> = document
+                .edits
+                .iter()
+                .filter(|edit| {
+                    shows(edit, faces)
+                        || (edit.server == server
+                            && matches!(&edit.kind, Kind::Remap { from, .. }
+                                if remapped.iter().any(|r| r.eq_ignore_ascii_case(from))))
+                })
+                .map(|edit| edit.id)
+                .collect();
+            if ids.is_empty() {
+                return Err(
+                    "No edit draws these faces or remaps these shaders for these servers".into(),
+                );
+            }
+            remove(document, &ids);
+            Ok(format!("{} edits taken away", ids.len()))
+        }
+        Many::Hide { faces, surfaces } => {
+            let shown: Vec<u32> = document
+                .edits
+                .iter()
+                .filter(|edit| shows(edit, faces))
+                .map(|edit| edit.id)
+                .collect();
+            if shown.is_empty() && surfaces.is_empty() {
+                return Err("These faces are drawn as nothing already".into());
+            }
+            remove(document, &shown);
+            for (surface, shader) in surfaces {
+                document.add(
+                    Kind::HideSurface {
+                        surface: *surface,
+                        shader: shader.clone(),
+                    },
+                    server.clone(),
+                );
+            }
+            Ok(match (surfaces.len(), shown.len()) {
+                (s, 0) => format!("{s} surfaces hidden"),
+                (0, f) => format!("{f} faces drawn as nothing again"),
+                (s, f) => format!("{s} surfaces hidden, {f} faces drawn as nothing again"),
+            })
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn faces() -> Vec<(u32, u32, String)> {
+        (0..3)
+            .map(|i| (10 + i, 60 + i, "textures/system/caulk".to_owned()))
+            .collect()
+    }
+
+    #[test]
+    fn a_fill_of_many_faces_is_one_step_to_undo() {
+        let mut document = super::super::Document::new("mp/test", 7);
+        document.add(
+            Kind::HideSurface {
+                surface: 1,
+                shader: "textures/a/b".into(),
+            },
+            None,
+        );
+        let mut history = History::default();
+        let before = document.edits.clone();
+        let surfaces = [
+            (4, "textures/a/wall".to_owned()),
+            (5, "textures/a/wall".to_owned()),
+            (6, "textures/a/trim".to_owned()),
+        ];
+        let line = apply_many(
+            &mut document,
+            None,
+            Many::Draw {
+                faces: &faces(),
+                shaders: &surfaces,
+                to: "textures/a/stone".into(),
+            },
+        )
+        .unwrap();
+        assert_eq!(
+            line,
+            "3 faces drawn as textures/a/stone, 2 shaders remapped to it"
+        );
+        // three faces and two remaps (the wall's once): five edits, one step
+        assert_eq!(document.edits.len(), 1 + 5);
+        history.changed(before.clone());
+        assert_eq!(history.can(), (true, false));
+        assert_eq!(history.undo.len(), 1);
+        // the undo puts back the edits as they were before the fill
+        assert_eq!(history.undo.pop().unwrap(), before);
+        // a second fill of the same faces replaces their shader, adding nothing
+        apply_many(
+            &mut document,
+            None,
+            Many::Draw {
+                faces: &faces(),
+                shaders: &[],
+                to: "textures/a/brick".into(),
+            },
+        )
+        .unwrap();
+        assert_eq!(document.edits.len(), 6);
+    }
+
+    #[test]
+    fn many_faces_and_surfaces_are_hidden_or_taken_back_at_once() {
+        let mut document = super::super::Document::new("mp/test", 7);
+        let faces = faces();
+        apply_many(
+            &mut document,
+            None,
+            Many::Draw {
+                faces: &faces,
+                shaders: &[(4, "textures/a/wall".to_owned())],
+                to: "textures/a/stone".into(),
+            },
+        )
+        .unwrap();
+        // Remove takes back the faces' and the remap's edits
+        let mut removed = document.clone();
+        let line = apply_many(
+            &mut removed,
+            None,
+            Many::Remove {
+                faces: &faces[..2],
+                shaders: &[(9, "TEXTURES/A/WALL".to_owned())],
+            },
+        )
+        .unwrap();
+        assert_eq!(line, "3 edits taken away");
+        assert_eq!(removed.edits.len(), 1);
+        // for another server's scope, nothing is theirs to take
+        assert!(
+            apply_many(
+                &mut document.clone(),
+                Some("1.2.3.4:29070".into()),
+                Many::Remove {
+                    faces: &faces,
+                    shaders: &[],
+                },
+            )
+            .is_err()
+        );
+        // Hide: the surfaces hidden, the shown faces drawn as nothing again
+        let line = apply_many(
+            &mut document,
+            None,
+            Many::Hide {
+                faces: &faces,
+                surfaces: &[
+                    (7, "textures/a/x".to_owned()),
+                    (8, "textures/a/y".to_owned()),
+                ],
+            },
+        )
+        .unwrap();
+        assert_eq!(line, "2 surfaces hidden, 3 faces drawn as nothing again");
+        assert_eq!(document.edits.len(), 1 + 2);
+        assert!(
+            apply_many(
+                &mut document,
+                None,
+                Many::Hide {
+                    faces: &faces,
+                    surfaces: &[],
+                },
+            )
+            .is_err()
+        );
     }
 }

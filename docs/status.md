@@ -471,6 +471,18 @@ headless Chrome on retail duel6 (see [map-edits.md](map-edits.md#limits)). Not r
 the game: the selection's details, the things' placing and removal and the Recent rows'
 recording are untested in a running client.
 
+Third round, 03/11/2026, `personal/mapedit-web-3`, based on `main` `07211e81` (Sol's asks):
+the invisible brushes in the page as `r_showBrushes` sorts them (plus liquid volumes), a
+filter per kind and a click that selects a caulk face; Shift+click multiple selection with
+one-step apply and hide (`apply_many`, `hide_many`); linked caulk (same plane or connected
+surface, faces players see only, 512 at most); and Fill with the nearby texture (a vote of
+the drawn surfaces round the faces). Verified on Windows 11: unit tests (linking, the vote,
+the batch undo, the requests), the routes end to end, the ignored retail-map run on duel6
+and ffa3 (the cover test agrees with q3map2 on 91 % and 99 % of drawn sides; timings in
+[map-edits.md](map-edits.md#limits)) and the page in headless Chrome on duel6. Not run with
+the game: the game-thread side (the face pick, the batch edits, the caches) is untested in
+a running client.
+
 ## Map editor made easier
 
 28/10/2026, `personal/map-editor-ux`, based on `main` `db63b4f5` (Sol's request: the
