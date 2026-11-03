@@ -3194,6 +3194,19 @@ hub name, key, medals, where they are), while the player card (`inspect`) needs 
 player in sight. The old dropdown (whisper, a per-map ignore, the friend star, copy
 name) stays gone; an existing `chat-friends.txt` is not read.
 
+Copying a link from the chat (03/11/2026, AngeloPapaya's idea;
+[chat/links.rs](../crates/sjk-viewer/src/chat/links.rs)): while the composer is open,
+resting the pointer on a web link in a chat line (a word starting `http://`, `https://`
+or `www.`, its closing punctuation and the colour codes round it left out) lights it as
+a name under the pointer is lit, on every row it wraps onto, and Ctrl+C (or Ctrl+Insert)
+copies the link, without its colour codes, instead of the draft; "Link copied" shows
+under the field for a second and a half. A selection in the draft goes first: with text
+selected there, Ctrl+C copies that as in every field. Off a link Ctrl+C copies the draft
+as before. Game and SJK chat lines alike; a muted line, a find's words and a GIF shown as
+"GIF" have no link to copy (with GIFs off the link shows, and copies, as typed). The chat
+box is the same in SJK UI and classic, so the feature is too. Links are laid out only in
+frames that draw the feed with the composer open, in a fixed array of 32 pieces.
+
 The draft shares the console's UTF-8 caret and selection rules: arrows/Home/End,
 Ctrl+arrows and Ctrl+Backspace/Delete, Shift-selection, Ctrl+A/C/X/V,
 Ctrl+Insert to copy and Shift+Insert to paste. Click places the caret, drag selects,

@@ -36,6 +36,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 - Emote sounds can be muted while you duel: Settings > Sound > Emotes "Mute emotes in duels" (`s_muteEmotesInDuel`, off by default) silences every emote's sound during a private duel or on a Duel server, those already playing too; one still playing when the duel ends is heard again _(Slash, after Groark's idea, hub report #234)_
 - Ragdoll: a small or big player (a youngling or a jawa the server shrank) stays their size when they go limp, and their body lies on the floor at that size, instead of growing to full size (hub report #223) _(Slash, after Rollembones' report)_
+- Copy a link from the chat: with the chat open, rest the pointer on a link in a message (it lights up) and press Ctrl+C to copy it; "Link copied" shows under the field _(Slash, after AngeloPapaya's idea)_
 
 ## 2026.1103.2 (Alpha) | 03/11/2026
 

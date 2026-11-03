@@ -1067,6 +1067,10 @@ asked to place the kill feed anywhere: the HUD edit mode now shows a sample kill
 and the feed may stand anywhere on the screen. His idea of a green damage flash on armour
 became Green on shield hits (`cg_hitMarkerShield`).
 
+AngeloPapaya, a player, asked for Ctrl+C on a link in the chat: Slash built it
+(03/11/2026), the link under the pointer lit while the chat is open and copied without its
+colour codes.
+
 ## Testing
 
 Glen, a player, was the first to play SJK on a Mac (25/10/2026), on a MacBook Pro
