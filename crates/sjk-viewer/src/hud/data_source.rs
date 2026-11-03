@@ -49,9 +49,9 @@ pub(super) struct WidgetData<'a> {
     pub(super) warmup: bool,
     /// interrupted binding supplied by the owning HUD.
     pub(super) interrupted: bool,
-    /// The vehicle's hull against its maximum while SJK's own look draws the vehicle
-    /// HUD; `None` on foot, and when the game HUD or the vector strip draws it.
-    pub(super) vehicle_ratio: Option<f32>,
+    /// The vehicle's hull, speed and ammunition meters while SJK's own look draws the
+    /// vehicle HUD; `None` on foot, and when the game HUD or the vector strip draws it.
+    pub(super) vehicle: Option<vehicle::Meters>,
 }
 
 impl HudDataSource for WidgetData<'_> {
@@ -63,7 +63,11 @@ impl HudDataSource for WidgetData<'_> {
             "ammo_ratio" => Some(self.ammo_ratio),
             // A saber style has no amount: its meter is one full line.
             "style_ratio" => Some(if self.saber_style.is_some() { 1.0 } else { 0.0 }),
-            "vehicle_ratio" => Some(self.vehicle_ratio.unwrap_or(0.0)),
+            "vehicle_ratio" => Some(self.vehicle.map_or(0.0, |meters| meters.hull)),
+            "vehicle_speed_ratio" => Some(self.vehicle.map_or(0.0, |meters| meters.speed)),
+            "vehicle_ammo_ratio" => {
+                Some(self.vehicle.and_then(|meters| meters.ammo).unwrap_or(0.0))
+            }
             _ => None,
         }
     }
@@ -120,7 +124,11 @@ impl HudDataSource for WidgetData<'_> {
             "draw_warmup" => Some(self.visibility.elements && self.warmup),
             "draw_lagometer" => Some(self.visibility.lagometer),
             "draw_interrupted" => Some(self.visibility.elements && self.interrupted),
-            "draw_vehicle" => Some(self.visibility.vehicle && self.vehicle_ratio.is_some()),
+            "draw_vehicle" => Some(self.visibility.vehicle && self.vehicle.is_some()),
+            // A vehicle without a weapon has no ammunition to show.
+            "draw_vehicle_ammo" => Some(
+                self.visibility.vehicle && self.vehicle.is_some_and(|meters| meters.ammo.is_some()),
+            ),
             _ => None,
         }
     }
@@ -145,6 +153,10 @@ pub(super) fn text_id(binding: Option<&str>) -> Option<TextId> {
         Some("connection_interrupted") => Some(TextId(313)),
         Some("vehicle_value") => Some(TextId(vehicle::VALUE_TEXT)),
         Some("vehicle_text") => Some(TextId(vehicle::LABEL_TEXT)),
+        Some("vehicle_speed_value") => Some(TextId(vehicle::SPEED_VALUE_TEXT)),
+        Some("vehicle_speed_text") => Some(TextId(vehicle::SPEED_LABEL_TEXT)),
+        Some("vehicle_ammo_value") => Some(TextId(vehicle::AMMO_VALUE_TEXT)),
+        Some("vehicle_ammo_text") => Some(TextId(vehicle::AMMO_LABEL_TEXT)),
         _ => None,
     }
 }

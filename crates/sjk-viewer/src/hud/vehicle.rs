@@ -2,9 +2,11 @@
 //! pilot, drawn in SJK's vector style instead of the `swoopvehiclehud` menu's pictures.
 //! Under `cg_hudStyle game` the game-data HUD draws those pictures instead, from the
 //! values this module samples ([`State::readout`], `crate::menu_hud::frame::vehicle_hud`),
-//! and the text HUD of a nonzero `cg_hudFiles` shows only the hull's number. SJK's own
-//! looks show only the hull too, as their layouts' `vehicle_*` widgets: a yellow arc
-//! under the crosshair in the radial layout, a yellow bar in the classic one.
+//! and the text HUD of a nonzero `cg_hudFiles` shows the hull's, the speed's and the
+//! ammunition's numbers. SJK's own looks show the same three as their layouts'
+//! `vehicle_*` widgets ([`Meters`]): arcs under the crosshair with their numbers in the
+//! radial layout (hull yellow, speed cyan, ammunition orange), labelled bars in the
+//! classic one. The ammunition shows only on a vehicle with a weapon.
 //!
 //! Stock reads the maxima from the vehicle's `.veh` definition ([`Profile`]) and the
 //! values from `cg.predictedVehicleState`: `stats[STAT_HEALTH]` against `armor` (hull,
@@ -36,6 +38,12 @@ const AMMO_TEXT: u32 = TEXT_FIRST + 3;
 /// `vehicle_text` widgets.
 pub(super) const VALUE_TEXT: u32 = 328;
 pub(super) const LABEL_TEXT: u32 = 329;
+/// The speed's and the ammunition's numbers and labelled lines, for the layouts'
+/// `vehicle_speed_*` and `vehicle_ammo_*` widgets.
+pub(super) const SPEED_VALUE_TEXT: u32 = 350;
+pub(super) const SPEED_LABEL_TEXT: u32 = 351;
+pub(super) const AMMO_VALUE_TEXT: u32 = 352;
+pub(super) const AMMO_LABEL_TEXT: u32 = 353;
 
 /// `MAX_VHUD_SHIELD_TICS`, `MAX_VHUD_ARMOR_TICS`, `MAX_VHUD_SPEED_TICS`,
 /// `MAX_VHUD_AMMO_TICS`.
@@ -166,6 +174,37 @@ pub(super) fn hull_ratio(hull: i32, max: i32) -> f32 {
     (hull as f32 / max as f32).clamp(0.0, 1.0)
 }
 
+/// The speed's share of `speedMax`, `0..=1`: the turbo may pass the maximum, and a
+/// vehicle without one reads empty.
+pub(super) fn speed_ratio(speed: f32, max: f32) -> f32 {
+    if !(speed.is_finite() && max.is_finite()) || max <= 0.0 {
+        return 0.0;
+    }
+    (speed / max).clamp(0.0, 1.0)
+}
+
+/// The ammunition's share of its maximum: one weapon's own, or two weapons' together;
+/// `None` for a vehicle without a first weapon, which shows no ammunition (as stock).
+pub(super) fn ammo_ratio(ammo: [i32; 2], max: [i32; 2], weapons: [bool; 2]) -> Option<f32> {
+    match weapons {
+        [true, false] => Some(hull_ratio(ammo[0], max[0])),
+        [true, true] => Some(hull_ratio(
+            ammo[0].max(0).saturating_add(ammo[1].max(0)),
+            max[0].max(0).saturating_add(max[1].max(0)),
+        )),
+        _ => None,
+    }
+}
+
+/// The vehicle's meters for SJK's own layouts, each `0..=1`.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub(crate) struct Meters {
+    pub(crate) hull: f32,
+    pub(crate) speed: f32,
+    /// `None` when the vehicle has no weapon.
+    pub(crate) ammo: Option<f32>,
+}
+
 /// The turbo burns while `cg.time` has not passed `m_iTurboTime` (`CG_DrawVehicleSpeed`).
 pub(super) fn turbo_burning(time: i32, turbo_time: i32) -> bool {
     time <= turbo_time
@@ -241,6 +280,10 @@ pub(crate) struct State {
     hull: [f32; HULL_TICS],
     /// The hull against its maximum, `0..=1`.
     hull_ratio: f32,
+    /// The speed against `speedMax`, and the ammunition against its maximum (`None`
+    /// without a weapon), `0..=1`.
+    speed_ratio: f32,
+    ammo_ratio: Option<f32>,
     shield: [f32; SHIELD_TICS],
     speed: [f32; SPEED_TICS],
     ammo: [f32; AMMO_TICS],
@@ -261,6 +304,10 @@ pub(crate) struct State {
     ammo_text: String,
     hull_value: String,
     hull_label: String,
+    speed_value: String,
+    speed_label: String,
+    ammo_value: String,
+    ammo_label: String,
     /// `crosshairShader` of the riding vehicle, and the one last tried to load.
     wanted: Option<String>,
     attempted: Option<String>,
@@ -275,6 +322,8 @@ impl Default for State {
             doubled: false,
             hull: [0.0; HULL_TICS],
             hull_ratio: 0.0,
+            speed_ratio: 0.0,
+            ammo_ratio: None,
             shield: [0.0; SHIELD_TICS],
             speed: [0.0; SPEED_TICS],
             ammo: [0.0; AMMO_TICS],
@@ -292,6 +341,10 @@ impl Default for State {
             ammo_text: String::with_capacity(24),
             hull_value: String::with_capacity(12),
             hull_label: String::with_capacity(24),
+            speed_value: String::with_capacity(12),
+            speed_label: String::with_capacity(24),
+            ammo_value: String::with_capacity(24),
+            ammo_label: String::with_capacity(32),
             wanted: None,
             attempted: None,
             picture: None,
@@ -319,6 +372,8 @@ impl State {
         self.hides_player = profile.hide_rider;
         self.hull = tic_alphas(sample.hull as f32, profile.hull as f32, HULL_TICS);
         self.hull_ratio = hull_ratio(sample.hull, profile.hull);
+        self.speed_ratio = speed_ratio(sample.speed, profile.speed_max);
+        self.ammo_ratio = ammo_ratio(sample.ammo, profile.ammo_max, profile.has_weapon);
         self.shield = tic_alphas(sample.shield as f32, profile.shields as f32, SHIELD_TICS);
         self.speed = tic_alphas(sample.speed, profile.speed_max, SPEED_TICS);
         self.weapons = profile.has_weapon;
@@ -356,6 +411,10 @@ impl State {
         self.ammo_text.clear();
         self.hull_value.clear();
         self.hull_label.clear();
+        self.speed_value.clear();
+        self.speed_label.clear();
+        self.ammo_value.clear();
+        self.ammo_label.clear();
         let _ = write!(self.hull_text, "HULL {}", sample.hull.max(0));
         let _ = write!(self.hull_value, "{}", sample.hull.max(0));
         let _ = write!(self.hull_label, "^3HP ^7{}", sample.hull.max(0));
@@ -366,20 +425,24 @@ impl State {
         } else {
             0.0
         };
-        let _ = write!(self.speed_text, "SPD {}", speed.round() as i32);
+        let speed = speed.round() as i32;
+        let _ = write!(self.speed_text, "SPD {speed}");
+        let _ = write!(self.speed_value, "{speed}");
+        let _ = write!(self.speed_label, "^3SPD ^7{speed}");
+        let [first, second] = sample.ammo.map(|ammo| ammo.max(0));
         match profile.has_weapon {
             [true, false] => {
-                let _ = write!(self.ammo_text, "AMMO {}", sample.ammo[0].max(0));
+                let _ = write!(self.ammo_text, "AMMO {first}");
+                let _ = write!(self.ammo_value, "{first}");
             }
             [true, true] => {
-                let _ = write!(
-                    self.ammo_text,
-                    "{} / {}",
-                    sample.ammo[0].max(0),
-                    sample.ammo[1].max(0)
-                );
+                let _ = write!(self.ammo_text, "{first} / {second}");
+                let _ = write!(self.ammo_value, "{first} / {second}");
             }
             _ => {}
+        }
+        if !self.ammo_value.is_empty() {
+            let _ = write!(self.ammo_label, "^3AMMO ^7{}", self.ammo_value);
         }
     }
 
@@ -397,10 +460,14 @@ impl State {
         self.hides_player
     }
 
-    /// The hull against its maximum while the vehicle HUD shows, for the layouts'
-    /// `vehicle_ratio` meters.
-    pub(crate) fn hull_ratio(&self) -> Option<f32> {
-        self.shown.then_some(self.hull_ratio)
+    /// The hull, speed and ammunition meters while the vehicle HUD shows, for the
+    /// layouts' `vehicle_ratio`, `vehicle_speed_ratio` and `vehicle_ammo_ratio`.
+    pub(crate) fn meters(&self) -> Option<Meters> {
+        self.shown.then_some(Meters {
+            hull: self.hull_ratio,
+            speed: self.speed_ratio,
+            ammo: self.ammo_ratio,
+        })
     }
 
     /// This frame's values for the game HUD, which draws the vehicle HUD from
@@ -461,6 +528,10 @@ impl State {
             AMMO_TEXT => &self.ammo_text,
             VALUE_TEXT => &self.hull_value,
             LABEL_TEXT => &self.hull_label,
+            SPEED_VALUE_TEXT => &self.speed_value,
+            SPEED_LABEL_TEXT => &self.speed_label,
+            AMMO_VALUE_TEXT => &self.ammo_value,
+            AMMO_LABEL_TEXT => &self.ammo_label,
             _ => "",
         }
     }
@@ -740,8 +811,10 @@ mod tests {
     }
 
     /// The vehicle HUD each look draws for a pilot at half hull: the radial layout's
-    /// yellow arc, the classic layout's yellow bar, and the vector strip only under
-    /// the game HUD look (where the game HUD does not draw it).
+    /// yellow, cyan and orange arcs (hull, speed, ammunition), the classic layout's
+    /// bars of the same colours, and the vector strip only under the game HUD look
+    /// (where the game HUD does not draw it). A vehicle without a weapon shows no
+    /// ammunition.
     #[test]
     fn each_look_draws_the_vehicle_its_own_way() {
         use crate::hud::{HudLook, HudOverlay, HudVisibility};
@@ -765,6 +838,16 @@ mod tests {
         };
         let yellow =
             |color: Color| color.r > 0.95 && (color.g - 0.82).abs() < 0.01 && color.b < 0.2;
+        let cyan = |color: Color| (color.r - 0.45).abs() < 0.01 && (color.g - 0.85).abs() < 0.01;
+        let orange = |color: Color| color.r > 0.95 && (color.g - 0.55).abs() < 0.01;
+        let meters = |commands: &[DrawCommand], tint: &dyn Fn(Color) -> bool| {
+            commands.iter().any(|command| match *command {
+                DrawCommand::Arc { color, .. } | DrawCommand::RoundedRect { color, .. } => {
+                    tint(color)
+                }
+                _ => false,
+            })
+        };
         for look in [HudLook::Radial, HudLook::Classic, HudLook::Game] {
             let mut hud = HudOverlay::new();
             hud.vehicle.update(&riding);
@@ -788,8 +871,26 @@ mod tests {
                 },
                 "{look:?}"
             );
+            let own = look != HudLook::Game;
+            assert_eq!(meters(commands, &cyan), own, "{look:?} speed");
+            assert_eq!(meters(commands, &orange), own, "{look:?} ammunition");
             assert_eq!(hud.resolve_text(sjk_ui::TextId(VALUE_TEXT)), "60");
             assert_eq!(hud.resolve_text(sjk_ui::TextId(LABEL_TEXT)), "^3HP ^760");
+            assert_eq!(hud.resolve_text(sjk_ui::TextId(SPEED_VALUE_TEXT)), "400");
+            assert_eq!(
+                hud.resolve_text(sjk_ui::TextId(AMMO_LABEL_TEXT)),
+                "^3AMMO ^7100"
+            );
+            // Without a weapon the speed stays and the ammunition goes.
+            let mut unarmed = profile.clone();
+            unarmed.has_weapon = [false, false];
+            let mut walking = sample(&unarmed);
+            walking.hull = 60;
+            hud.vehicle.update(&walking);
+            let _ = hud.layout(&font, look, [1920.0, 1080.0], 1.0, visibility, 0);
+            let commands = hud.draw_list().commands();
+            assert_eq!(meters(commands, &cyan), own, "{look:?} speed unarmed");
+            assert!(!meters(commands, &orange), "{look:?} ammunition unarmed");
         }
     }
 
@@ -859,6 +960,18 @@ mod tests {
         assert_eq!(state.text(SHIELD_TEXT), "SHIELD 25");
         assert_eq!(state.text(SPEED_TEXT), "SPD 200");
         assert_eq!(state.text(AMMO_TEXT), "AMMO 50");
+        assert_eq!(state.text(SPEED_VALUE_TEXT), "200");
+        assert_eq!(state.text(SPEED_LABEL_TEXT), "^3SPD ^7200");
+        assert_eq!(state.text(AMMO_VALUE_TEXT), "50");
+        assert_eq!(state.text(AMMO_LABEL_TEXT), "^3AMMO ^750");
+        assert_eq!(
+            state.meters(),
+            Some(Meters {
+                hull: 0.5,
+                speed: 0.5,
+                ammo: Some(0.5),
+            })
+        );
         // Prediction off: the turbo meter has no data and stays out.
         s.turbo_time = None;
         s.linked = false;
@@ -899,11 +1012,34 @@ mod tests {
         assert_eq!(state.ammo_upper, [1.0; 4]);
         assert_eq!(state.ammo_lower, [1.0, 1.0, 0.0, 0.0]);
         assert_eq!(state.text(AMMO_TEXT), "100 / 16");
+        assert_eq!(state.text(AMMO_VALUE_TEXT), "100 / 16");
+        assert_eq!(state.text(AMMO_LABEL_TEXT), "^3AMMO ^7100 / 16");
+        // Together, 116 of 140.
+        let ammo = state.meters().unwrap().ammo.unwrap();
+        assert!((ammo - 116.0 / 140.0).abs() < 1e-6);
         assert!(state.linked);
         let mut none = profile();
         none.has_weapon = [false, false];
         state.update(&sample(&none));
         assert_eq!(state.text(AMMO_TEXT), "");
+        assert_eq!(state.text(AMMO_VALUE_TEXT), "");
+        assert_eq!(state.text(AMMO_LABEL_TEXT), "");
+        assert_eq!(state.meters().unwrap().ammo, None);
+    }
+
+    #[test]
+    fn the_speed_and_ammunition_ratios_are_shares_of_their_maxima() {
+        assert_eq!(speed_ratio(200.0, 400.0), 0.5);
+        // The turbo passes the maximum; reversing reads empty.
+        assert_eq!(speed_ratio(600.0, 400.0), 1.0);
+        assert_eq!(speed_ratio(-50.0, 400.0), 0.0);
+        assert_eq!(speed_ratio(200.0, 0.0), 0.0);
+        assert_eq!(speed_ratio(f32::NAN, 400.0), 0.0);
+        assert_eq!(ammo_ratio([50, 9], [100, 40], [true, false]), Some(0.5));
+        assert_eq!(ammo_ratio([30, 10], [60, 20], [true, true]), Some(0.5));
+        assert_eq!(ammo_ratio([-5, 10], [60, 20], [true, true]), Some(0.125));
+        assert_eq!(ammo_ratio([50, 9], [100, 40], [false, false]), None);
+        assert_eq!(ammo_ratio([50, 9], [100, 40], [false, true]), None);
     }
 
     #[test]

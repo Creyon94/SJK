@@ -236,7 +236,18 @@ pub(crate) fn widget_element(id: &str, radial: bool) -> Option<Element> {
         "weapon_value" | "weapon_label" | "ammo_value" | "ammo_label" | "ammo_arc" => {
             Element::Weapon
         }
-        "vehicle_arc" | "vehicle_value" | "vehicle_label" | "vehicle_meter" => Element::Vehicle,
+        "vehicle_arc"
+        | "vehicle_value"
+        | "vehicle_label"
+        | "vehicle_meter"
+        | "vehicle_speed_arc"
+        | "vehicle_speed_value"
+        | "vehicle_speed_label"
+        | "vehicle_speed_meter"
+        | "vehicle_ammo_arc"
+        | "vehicle_ammo_value"
+        | "vehicle_ammo_label"
+        | "vehicle_ammo_meter" => Element::Vehicle,
         "match_timer" => Element::Timer,
         "vote_panel" => Element::Vote,
         _ => return None,

@@ -4874,16 +4874,26 @@ wide screen and grown by `cg_hudScale` from the bottom like the rest of the game
 HUD, with the turbo bar and the weapons-linked mark in `whiteShader` white
 ([menu_hud/frame.rs](../crates/sjk-viewer/src/menu_hud/frame.rs) `vehicle_hud`).
 Stock's item names are kept: `shield_tic*` show the hull and `armor_tic*` the shields.
-The text HUD of a nonzero `cg_hudFiles` (the HUD picker's Text only) shows just the
-hull, as a yellow number centred at the bottom in the text HUD's font
-(`Frame::simple_hud`), also when the vehicle hides its rider and the player's numbers
-give way. SJK's own looks show only the hull too, through their layout documents'
-`vehicle_*` widgets (bindings `vehicle_ratio`, `vehicle_value`, `vehicle_text`, shown by
-`draw_vehicle`): `radial` a yellow arc under the crosshair, on the health arc's circle
-between the left and right meters (132 to 48 degrees, four segments, the same track and
-shadow, moved by the radial placement with the rest of the status), with the hull's
-number inside it; `classic` a yellow bar with an `HP` line above the weapon and
-ammunition lines. With a game-data HUD that has no vehicle menu, SJK draws its own
+The text HUD of a nonzero `cg_hudFiles` (the HUD picker's Text only) shows the speed,
+the hull and the ammunition as three numbers in a row at the bottom centre, in the text
+HUD's font (`Frame::simple_hud`): the speed 80 units left of the yellow hull in
+`ICON_BLUE` (light red while the turbo flashes), the ammunition 80 units right in
+`HUD_ORANGE` (`first / second` for two weapons, nothing without a weapon), also when the
+vehicle hides its rider and the player's numbers give way. SJK's own looks show the same
+three through their layout documents' `vehicle_*` widgets (bindings `vehicle_ratio`,
+`vehicle_speed_ratio`, `vehicle_ammo_ratio`, `vehicle_value`, `vehicle_speed_value`,
+`vehicle_ammo_value`, `vehicle_text`, `vehicle_speed_text`, `vehicle_ammo_text`, shown by
+`draw_vehicle`, the ammunition's by `draw_vehicle_ammo`, which needs a weapon): `radial` a
+yellow hull arc under the crosshair, on the health arc's circle between the left and
+right meters (132 to 48 degrees, four segments, the same track and shadow), and on the
+armour arc's inner circle a cyan speed arc (132 to 96 degrees, filling towards the
+middle) and an orange ammunition arc (48 to 84), with the speed, hull and ammunition
+numbers in a row under the outer arc; the radial placement moves them all up and down
+with the rest of the status but never spreads them apart. `classic` a yellow bar with an
+`HP` line above the weapon and ammunition lines, a cyan `SPD` bar above it and an orange
+`AMMO` bar on top. The speed's meter is `speed` over `speedMax` (the turbo passes the
+maximum and reads full), the ammunition's one weapon's `ammo` over its `ammoMax` or two
+weapons' together. With a game-data HUD that has no vehicle menu, SJK draws its own
 ([hud/vehicle.rs](../crates/sjk-viewer/src/hud/vehicle.rs)): a vector strip at the
 bottom centre laid out on `swoopvehiclehud`'s 640x80 units (hull above, speed, shield
 and ammunition below), scaled by the window height and `cg_hudScale`, with its numbers
