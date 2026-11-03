@@ -1194,7 +1194,8 @@ The second gap is `s_muteSounds` ([client.md](client.md#muted-sounds)).
   ([Emotes on stock models](rig-models.md#emotes-on-stock-models)); the `sound` plays
   on the player (`emotes::Cue`, channel 13,
   following another player, in both ears for the player's own, at `s_emoteVolume`
-  apart from `s_volume`, live while it plays)
+  apart from `s_volume`, live while it plays, silent in a duel with
+  `s_muteEmotesInDuel`)
   and stops when the emote is cut short; the `torso` and `legs` animations are not
   played yet, and a received emote is written to the console (`* Sol: Wave`). Demos
   keep the emotes started on them.

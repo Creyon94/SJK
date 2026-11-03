@@ -323,6 +323,11 @@ pub(super) const AUDIO: &[Setting] = &[
         },
     },
     Setting {
+        label: "Mute emotes in duels",
+        cvar: crate::emotes::DUEL_MUTE_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Attack ends emote",
         cvar: crate::emotes::ATTACK_STOP_CVAR,
         kind: ValueKind::Bool,

@@ -567,6 +567,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "Internal migration marker for the emote volume apart from s_volume",
         ),
         CvarDefinition::new(
+            crate::emotes::DUEL_MUTE_CVAR,
+            crate::emotes::DEFAULT_DUEL_MUTE,
+            archive,
+            "Emote sounds are silent while you are in a duel (SJK)",
+        ),
+        CvarDefinition::new(
             crate::toy_sounds::VOLUME_CVAR,
             crate::toy_sounds::DEFAULT_VOLUME,
             archive,

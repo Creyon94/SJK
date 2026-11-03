@@ -85,6 +85,15 @@ pub(crate) const MAX_VOLUME: f64 = 3.0;
 /// Archived marker of the one-time move of a saved [`VOLUME_CVAR`] to its own scale
 /// (`console_session.rs`).
 pub(crate) const VOLUME_VERSION_CVAR: &str = "s_emoteVolumeVersion";
+/// Whether emote sounds are silent while the viewed player is in a duel (a private
+/// duel, or a Duel or Power Duel server: [`crate::duel_blades::in_duel`]; Settings >
+/// Sound > Emotes, Groark's idea, hub report #234). The emote channel's gain goes to 0
+/// ([`heard_volume`]), so the emotes already playing fall silent too, and one still
+/// playing when the duel ends is heard again. Off by default (stock JKA has no emotes
+/// to silence).
+pub(crate) const DUEL_MUTE_CVAR: &str = "s_muteEmotesInDuel";
+/// [`DUEL_MUTE_CVAR`]'s default.
+pub(crate) const DEFAULT_DUEL_MUTE: bool = false;
 /// Whether an attack or alt attack ends the player's own emote (Settings > Sound >
 /// Emotes, [`ActiveEmotes::end_on_attack`]). Off by default: the dance goes on
 /// through the attacks, as before 19/10/2026.
@@ -108,6 +117,16 @@ const SLOTS: usize = 64;
 /// `BUTTON_ATTACK | BUTTON_ALT_ATTACK` (`codemp/qcommon/q_shared.h`): a command with
 /// either ends the player's own emote ([`ActiveEmotes::end_on_attack`]).
 const ATTACK_BUTTONS: u16 = 1 | 128;
+
+/// The emote channel's gain: `volume` ([`VOLUME_CVAR`], kept within 0 to
+/// [`MAX_VOLUME`]), or 0 while `in_duel` and [`DUEL_MUTE_CVAR`] (`mute_in_duel`) is on.
+pub(crate) fn heard_volume(volume: f64, mute_in_duel: bool, in_duel: bool) -> f32 {
+    if mute_in_duel && in_duel {
+        0.0
+    } else {
+        volume.clamp(0.0, MAX_VOLUME) as f32
+    }
+}
 
 /// One emote of the catalogue.
 #[derive(Clone, Debug, PartialEq)]
@@ -895,6 +914,19 @@ pub(crate) fn trusted(emote: &Emote, shown: Option<&str>) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Hub report #234 (Groark): `s_muteEmotesInDuel` silences the emote channel in a
+    /// duel only, and only when on; otherwise the emote volume, kept within its range.
+    #[test]
+    fn emotes_are_silent_in_a_duel_only_with_the_setting() {
+        assert_eq!(heard_volume(2.0, false, false), 2.0);
+        assert_eq!(heard_volume(2.0, false, true), 2.0);
+        assert_eq!(heard_volume(2.0, true, false), 2.0);
+        assert_eq!(heard_volume(2.0, true, true), 0.0);
+        assert_eq!(heard_volume(9.0, true, false), MAX_VOLUME as f32);
+        assert_eq!(heard_volume(-1.0, false, false), 0.0);
+        const { assert!(!DEFAULT_DUEL_MUTE) };
+    }
 
     const WAVE: &str = r#"{"name": "Wave", "torso": "BOTH_ENGAGETAUNT", "legs": "",
         "length_ms": 2500, "loop": false, "sound": "sound/emotes/wave.mp3"}"#;
