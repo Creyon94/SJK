@@ -34,6 +34,10 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 = s_muteEmotesInDuel: Mute emotes in duels: emote sounds are silent while you are in a duel, and come back once it ends.
 
+- Hide the Empower glow: Settings "Empower glow" (`cg_empowerEffect`) 3 turns off the body glow of empowered players; ordinary Push still shows _(Slash, PR #338, after Dante's idea)_
+- Maps lit by switchable or flickering lights, such as the JoF Shuttle trial mission ship, the JoF missions and Memorial Grounds, show that light instead of drawing it dark, and follow the server as a light is switched off or on (SJK and Vanilla graphics presets) _(Slash, PR #339, after Kushina's report)_
+- NPCs whose skin names only a head and a torso, such as the alien younglings of the JoF Shuttle trial mission, wear their skin instead of drawing grey (Kushina's report) _(Slash, PR #336)_
+- Fishing toy: `toy_fishing` (the quick wheel's Toys page, Collection > Toys) gets a rod out. Stand still and press Use when the float dips to land fish and junk for your fish log; each of the 12 fish looks different, and your last catch waits in the bucket; where there is no water, a small pond appears. An Echo dropped to you while you fish comes up on the line. Five new achievements: First Bite, Angler, Every Fish in the Pond, Echo Angler and a hidden one _(Slash, PR #278, after Sanji's idea)_
 - Emote sounds can be muted while you duel: Settings > Sound > Emotes "Mute emotes in duels" (`s_muteEmotesInDuel`, off by default) silences every emote's sound during a private duel or on a Duel server, those already playing too; one still playing when the duel ends is heard again _(Slash, after Groark's idea, hub report #234)_
 
 ## 2026.1103.1 (Alpha) | 03/11/2026
