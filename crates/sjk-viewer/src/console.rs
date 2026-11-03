@@ -173,13 +173,22 @@ const INPUT_LIMIT: usize = 512;
 /// The list `sjkemote`'s first argument completes from on Tab
 /// ([`crate::emotes::argument_words`]).
 const EMOTE_ARGUMENTS: &str = "emote";
+/// The list `vid_restart`'s argument completes from on Tab: `force`.
+const VID_RESTART_ARGUMENTS: &str = "vid_restart";
 /// The client's commands whose first argument Tab completes, beside the shell's
 /// own (`exec`, `devmap`...), one entry per command.
-const ARGUMENT_SOURCES: &[sjk_shell::ArgumentSource] = &[sjk_shell::ArgumentSource {
-    command: crate::emotes::COMMAND,
-    list: EMOTE_ARGUMENTS,
-    label: "Emote",
-}];
+const ARGUMENT_SOURCES: &[sjk_shell::ArgumentSource] = &[
+    sjk_shell::ArgumentSource {
+        command: crate::emotes::COMMAND,
+        list: EMOTE_ARGUMENTS,
+        label: "Emote",
+    },
+    sjk_shell::ArgumentSource {
+        command: "vid_restart",
+        list: VID_RESTART_ARGUMENTS,
+        label: "Option",
+    },
+];
 
 /// Toggleable console state owned by the viewer frontend.
 pub(crate) struct ViewerConsole {
@@ -1213,6 +1222,7 @@ impl ViewerConsole {
         let lists = |list: &str| match list {
             sjk_shell::MAP_EXTENSION => resolver.map_names(),
             EMOTE_ARGUMENTS => crate::emotes::argument_words(self.script_vfs.as_deref()),
+            VID_RESTART_ARGUMENTS => vec![console_client::VID_RESTART_FORCE.to_owned()],
             extension => resolver.root_files(extension),
         };
         let completed =

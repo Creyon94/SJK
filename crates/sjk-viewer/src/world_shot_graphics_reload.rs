@@ -41,7 +41,8 @@ fn graphics_reload_menu() {
         assert!(changes.contains(&"sun and sky"), "{changes:?}");
 
         // Reload now: the card says the map is being built again over the old world.
-        gpu.reload_graphics(&mut None).expect("the reload starts");
+        gpu.reload_graphics(&mut None, false)
+            .expect("the reload starts");
         shoot(&mut gpu, 2, "graphics-reload-reloading");
         let started = Instant::now();
         let rebuilt = loop {
