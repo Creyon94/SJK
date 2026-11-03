@@ -8618,13 +8618,31 @@ note: if the line is too thick or strong, say so (ring copies are 85% opaque).
 [mapedit-web]
 area: Rendering & effects
 title: Map editor in the web browser (creator only for now)
-change: mapedit_web turns the editor on and opens the map in 3D in your browser (127.0.0.1).
-change: Clicks select or place through the game; every edit is the in-game editor's command.
+change: mapedit_web opens the map in 3D in your browser (127.0.0.1); edits run as game commands.
+change: Round 2: selection drawn gold, controls card (?), Recent rows, copy/paste, World page.
+change: Round 3: brush view (B), Shift+click multi-select, linked caulk, nearby-texture Fill.
 note: Only your creator key may use it; others get a refusal line. Not tried in game yet.
 test: On duel6, mapedit_web: the browser opens on the map, from where you look in game.
 test: Click a fern, Hide: it goes in the page and in the game; Ctrl+Z brings it back in both.
+test: Click a wall: it pulses gold with an outline; the panel names its shader and surface.
+test: Click a merged rock: the rest of it shows fainter (what Hide whole model takes).
+test: Click a prop or placed model: tinted with a box round it; a caulk face: its polygon.
 test: Place: search tree, choose one, click the floor: a tree stands there in both; Turn, Up.
-test: Selected: click a wall, pick a shader picture, Remap: both draw the wall with it.
+test: Remap a wall, place a model, restart the game: both lead the Recent rows; switch off.
+test: Select panel text with the mouse, Ctrl+C: it copies; Ctrl+A/C/V/X work in search fields.
+test: In the view, Ctrl+C a placed model, Ctrl+V at another spot: a copy, same turn and size.
+test: Ctrl+C a wall, select another, Ctrl+V: it is remapped to the first wall's shader.
+test: ? folds the controls card and it stays folded after a reload; Esc stops placing.
+test: World on a server: Your boombox, click the floor: it stands there; again moves it.
+test: World: Mystery box and Toy (cat) place through the hub; Remove takes them away.
 test: Edits: Delete one; Publish asks first, then the answer shows under it and in game.
 test: Change map: the page loads the new map; mapedit off: the page says SJK is not answering.
 test: With a staff key that is not the creator: mapedit_web is refused.
+test: B in the page: invisible brushes as r_showBrushes 2 colours them; untick caulk: it goes.
+test: Brush view on, click a pink caulk face: Selected names it (brush and side).
+test: Shift+click a second caulk face and a wall: 3 selected, all gold; again takes one out.
+test: Choose a shader, Remap (Apply to N): faces drawn, wall remapped; one Ctrl+Z undoes all.
+test: Shift+click two walls, H: both hidden in page and game; Ctrl+Z brings both back.
+test: On a caulk face: Same plane, then Connected surface: counts shown, unseen left out.
+test: Fill with the nearby texture: its picture and share; Fill draws them all in the game.
+test: Esc clears the selection; a reload of the page keeps the brush view and its kinds.

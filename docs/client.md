@@ -2753,6 +2753,8 @@ Checked 11/10/2026 with world shots (`world_shot_brushes.rs`, `SJK_BRUSH_MAPS`,
 as `hurt`, clips); not yet in a game. `mp/ffa5` wraps much of its detail in
 `physics_clip`, so `solid` shows white over those walls at 1: that is where players
 collide.
+The browser map editor shows the same faces, sorted by the same code, plus liquid
+volumes ([map-edits.md](map-edits.md#the-browser-editor-creator-only-for-now)).
 
 ## Map entities
 

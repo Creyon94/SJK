@@ -459,6 +459,30 @@ script errors; the map, props, panel, and a fake state's hidden prop, placed cop
 surfaces and remap drawn). Not run with the game: the game-thread side (selection by ray,
 the commands, the state) is untested in a running client.
 
+Second round, 03/11/2026, `personal/mapedit-web-2`, based on `main` `7fc4adca` (Sol's
+asks): the selection drawn (tinted, pulsing, outlined; a model's box; a hidden face's
+polygon) and named in the panel, a controls card folded with `?`, Recent shader and
+model rows kept by the game (`map_edits/web_recent.json`) with their switch, panel text
+selectable (it was rewritten every poll), copy and paste in the view, and a World page
+for the boombox, mystery boxes and Toy Master toys (placed and removed through their own
+code; boxes and toys cannot be moved, the hub has no move). Verified on Windows 11: unit
+tests (the Recent file, the new requests, `api/recent` end to end) and the page in
+headless Chrome on retail duel6 (see [map-edits.md](map-edits.md#limits)). Not run with
+the game: the selection's details, the things' placing and removal and the Recent rows'
+recording are untested in a running client.
+
+Third round, 03/11/2026, `personal/mapedit-web-3`, based on `main` `07211e81` (Sol's asks):
+the invisible brushes in the page as `r_showBrushes` sorts them (plus liquid volumes), a
+filter per kind and a click that selects a caulk face; Shift+click multiple selection with
+one-step apply and hide (`apply_many`, `hide_many`); linked caulk (same plane or connected
+surface, faces players see only, 512 at most); and Fill with the nearby texture (a vote of
+the drawn surfaces round the faces). Verified on Windows 11: unit tests (linking, the vote,
+the batch undo, the requests), the routes end to end, the ignored retail-map run on duel6
+and ffa3 (the cover test agrees with q3map2 on 91 % and 99 % of drawn sides; timings in
+[map-edits.md](map-edits.md#limits)) and the page in headless Chrome on duel6. Not run with
+the game: the game-thread side (the face pick, the batch edits, the caches) is untested in
+a running client.
+
 ## Map editor made easier
 
 28/10/2026, `personal/map-editor-ux`, based on `main` `db63b4f5` (Sol's request: the

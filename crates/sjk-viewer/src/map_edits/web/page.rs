@@ -36,6 +36,7 @@ const PARTS: &[(&str, &str)] = parts![
     "vjk/editor-remaps.js",
     "sjk/edits.js",
     "sjk/panel.js",
+    "sjk/brushes.js",
     "sjk/view.js",
     "sjk/tail.js",
 ];

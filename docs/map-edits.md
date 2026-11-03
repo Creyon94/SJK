@@ -150,9 +150,114 @@ in-game panel's pages: Selected (a click on the map selects what the game's own 
 finds along that ray; Hide, Hide whole model, Place a copy, a shader list with pictures
 and Remap, Remove remap), Place (the models list; a click on the map places the chosen
 one, then Turn, Up, Down, Left, Right, Away, Closer, Smaller, Bigger, Remove, Shift for
-fine steps) and Edits (the list, Delete, Undo, Redo; a double click flies to a placed
-model), and under them the scope (All servers, This server), the last answer and Publish.
-H hides the selection, Ctrl+Z and Ctrl+Y undo and redo.
+fine steps), Edits (the list, Delete, Undo, Redo; a double click flies to a placed
+model) and World (below), and under them the scope (All servers, This server), the last
+answer and Publish. H hides the selection, Ctrl+Z and Ctrl+Y undo and redo, Esc stops
+placing.
+
+The keys act only while the 3D view has focus (a click or a drag on it gives it, a button
+of the panel hands it back): never while a text field has it or text of the panel is
+selected, so the fields take Ctrl+A, C, V and X as every field does and the panel's text
+(the summary, the facts, the lists, the answer) can be selected and copied. Before
+03/11/2026 (second round) the panel was written anew with every look at the game's state,
+about once a second, which dropped any text selected in it: that was why nothing could be
+selected to copy. A text is now written only when it changed.
+
+A small card in the view's corner lists the keys and mouse actions; `?` in the view (or a
+click on its head) folds it, and the browser keeps it folded (`localStorage`, per port:
+it unfolds again for a new port, which is harmless).
+
+**The selection drawn** (Sol, 03/11/2026: "make it more obvious what we selected"): over
+the map, last, with the depth test and pulled a little in front (polygon offset), the
+selected surface's triangles tinted gold and pulsing with their outline (the outline's
+hidden parts faint through what is in front), the rest of the model Hide whole model
+takes fainter (`target.group` from the game, the same surfaces `mapedit_hide group`
+takes); a prop or a placed model tinted with a box around it (its MD3's first frame's
+box, read from its file's head); a hidden caulk or nodraw side as its polygon
+(`target.points`, the game's `faces::polygon`). The page builds a surface's triangles
+from the map file's own lists (`pos` and `tri` of its batch, a patch at its finest). The
+panel names the selection: its kind, its edit id, model, entity, shader (the one aimed
+at on a model), surface number and kind, how many surfaces the whole model is, brush
+and side, the remap it is drawn with, and where.
+
+**Recent textures and models** (Sol: "remember in general what textures we recently
+used"): a Recent row at the top of the shader list and of the models list, newest first,
+24 each: the shaders remaps and shown faces drew and the models placed, by the in-game
+editor or the page ([recent.rs](../crates/sjk-viewer/src/map_edits/web/recent.rs)). The
+game keeps them in `map_edits/web_recent.json` of the SJK config folder, so they outlive
+the page, the game and the server's random port (the page's own storage is per port).
+"Remember recent textures" (both pages) off empties them and keeps them empty until it is
+on again.
+
+**Copy and paste** in the view: Ctrl+C copies the selection, a placed model or a prop
+with its angles and scale, or a surface's or a face's shader (the remap's when one draws
+it), as plain text (the model's or the shader's path) and as the page's own copy. Ctrl+V
+pastes a model as a placed copy where the pointer is (`mapedit_place <model> <pitch yaw
+roll> <sx sy sz>`, one step to undo) or a shader as a remap, or a shown face, of the
+selection. A model or a shader path copied elsewhere pastes the same way.
+
+**World** (Sol: "also boombox placement, the toymaster cat and box"): what other parts of
+SJK stand on the map, drawn in the page with their models and listed: the player's own
+boombox on the floor and the other players' ([client.md](client.md), `boombox.rs`), the
+mystery boxes ([mystery-boxes.md](mystery-boxes.md)) and the Toy Master's toys
+([toy-master.md](toy-master.md)). A click on one in the view or the list selects it (a
+box drawn round it); a double click flies to it. Your boombox, Mystery box and Toy (of a
+kind the hub names, for this server only, shown only where the creator is) place one
+where the next click meets the floor, facing the view, through their own code as their
+commands do (`place_boombox_at`, `mystery_box_place_at`, `toy_master_place_at`; the
+commands aim from the player, the page gives the spot). Remove takes the boombox back on
+the shoulder and asks the hub to remove a box or a toy (`mysterybox_remove <id>`,
+`toymaster_remove <id>`). The boombox moves by being placed again; the hub has no move
+for a box or a toy (it places and removes them), so neither does the page: remove one and
+place it again. Boxes and toys need a game server, as their commands do, and stay the
+creator's; the boombox follows its own rules (verified, not dead, spectating or
+following).
+
+**Invisible brushes** (round 3, Sol: "see brushes like `r_showBrushes`"): Brushes in the
+view's corner, or B, draws the faces the game's [`r_showBrushes`](client.md#invisible-brushes)
+draws, see-through in each kind's colour with their outlines, hidden behind what stands in
+front of them, as in the game. The game sends them (`api/brushes`), sorted by its own code
+(`brush_view::each_face`, [kinds.rs](../crates/sjk-viewer/src/brush_view/kinds.rs)): the
+same kinds, names and colours, plus `water` for water, lava and slime volumes, which the
+game's view leaves out. A card lists the kinds the map has with their counts, each on or
+off, with Play (what `r_showBrushes 1` shows), All, Caulk (caulk, nodraw, invisible walls)
+and None; the browser keeps the view and the kinds (`localStorage`). Labelled tiles are
+not drawn, only colours. A click on a caulk or nodraw face it draws (from its front)
+selects that face: the page names it to the game, which takes it unless a drawn surface
+stands more than a unit in front of it ([faces.rs](../crates/sjk-viewer/src/map_edits/faces.rs)
+`met`).
+
+**Multiple selection**: Shift+click (or Ctrl+click) adds the surface or hidden face clicked
+to the selection, or takes it out; the panel counts them and every one is drawn as the
+selection is. A shader then applies to all of them at once, from the list, Remap, a Recent
+tile, a paste or Fill: each face is drawn with it and each surface's shader is remapped
+(the panel says so: a remap affects every surface with that shader, anywhere on the map).
+Hide hides the surfaces and draws the faces as nothing again. Either is one step to undo,
+whatever the count (`apply_many`, `hide_many`: `map_edit_many` in
+[editor.rs](../crates/sjk-viewer/src/map_edits/editor.rs)). Esc stops placing, else drops
+the selection.
+
+**Linked caulk** (Sol: "detect all linked caulks"): on a selected caulk or nodraw face,
+Same plane and Connected surface select every face joined to it that players see, at most
+512 (the panel says when it stops there, and how many joined faces it left out as unseen).
+Two faces join when they share a stretch of edge (within half a unit): on the same plane
+facing the same way, or at any angle but back to back. A face counts as seen when what is
+left of it, once the other solid world brushes touching it cut away what they cover or lie
+flush against, keeps a square unit and lies in front of an open leaf of the map (a
+visibility cluster, not the solid void), the way q3map2 keeps a side; faces join where
+their seen parts meet ([linked.rs](../crates/sjk-viewer/src/map_edits/linked.rs), on the
+game thread, the map's brushes indexed once per map).
+
+**Fill with the nearby texture** (Sol: "replace visible caulks by nearby textures"): for the
+selected faces the panel shows the shader the drawn surfaces round them use, with its
+picture and its share, and the next five; Fill draws every face with the one chosen (the
+first by default), one step to undo. Each drawn triangle of the world (planar surfaces,
+the triangle soups of merged models and -meta, patches by their control grid) votes for
+its shader with the length of edge it shares with a face, three times over when it lies on
+the face's plane, plus, on the plane within 24 units, the root of its area; back sides
+do not vote, nor do sky, nodraw, caulk, trigger, liquid, fog and see-through shaders by
+their flags, nor scripts that make effects (blended or alpha-tested first stage, deforms,
+polygon offset, no colour pass) ([nearby.rs](../crates/sjk-viewer/src/map_edits/nearby.rs)).
 
 Every edit is a request the game thread runs as the in-game editor's command
 (`mapedit_hide`, `mapedit_place <model>`, `mapedit_turn`, `mapedit_move x y z`, ...), so
@@ -190,11 +295,31 @@ game data, by a path the game data accepts (no `..`, no absolute path):
 | `GET api/list?kind=dir&dir=&ext=` | the folders and files of a folder, as VisionJK's |
 | `GET api/edits` | the game's state (above) |
 | `GET api/lists` | the models to place and the shaders a remap may draw |
-| `POST api/edit` | `{"op": "select"\|"hide"\|"place"\|"turn"\|"move"\|"scale"\|"remap"\|"scope"\|"current"\|"delete"\|"undo"\|"redo"\|"publish", ...}` |
+| `POST api/edit` | `{"op": "select"\|"clear"\|"hide"\|"place"\|"turn"\|"move"\|"scale"\|"remap"\|"scope"\|"current"\|"delete"\|"undo"\|"redo"\|"publish"\|"place_thing"\|"remove_thing"\|"apply_many"\|"hide_many", ...}` |
+| `GET api/recent` | `{"remember", "shaders", "models"}`: the Recent rows |
+| `POST api/recent` | `{"op": "remember", "on": bool}` or `{"op": "clear"}` |
+| `GET api/brushes` | `{"kinds": [{name, label, colour, mode, selects, count}], "faces": [[kind, brush, side, [x, y, z, ...], normal]]}` |
+| `GET api/link?brush=&side=&grow=plane\|surface` | `{"faces": [{brush, side, shader, points}], "buried", "capped", "limit"}` |
+| `POST api/suggest` | `{"faces": [[brush, side], ...]}` answered `{"candidates": [{shader, weight, share}]}` |
+
+`api/edits` also carries the selection's details (above) and `things`: each thing's kind,
+id, label, whether it is the player's own, where it stands and its parts (model, origin,
+angles, scale as the game draws it at rest), whether the game is on a server, and the
+hub's toy kinds. `place_thing` takes `thing` (`boombox`, `mystery_box`, `toy`), the ray,
+`kind` for a toy, `server` and `escort`; `remove_thing` takes `thing` and `id` (none for
+the boombox). `select` may name `face` (`[brush, side]`, the brush view's face); `apply_many`
+takes `faces` (`[brush, side]` each), `surfaces` and `shader` (`-` takes their face and remap
+edits away), `hide_many` `faces` and `surfaces`, 1024 at most in all. The game checks each
+face again (a caulk or nodraw side of a world brush) and each shader as a remap's.
 
 Not yet: the map's own and the server's remaps are not drawn in the page (only remap
-edits), nor the selection's outline (a marker stands at the point chosen); a mover is drawn
-where the map file has it; Grab has no page version.
+edits); a mover is drawn where the map file has it; Grab has no page version; a box or a
+toy cannot be moved (the hub has no move); a toy's show and a box's opening are not
+played in the page (drawn at rest). The brush view draws no labelled tiles; a click selects
+caulk and nodraw faces only (a clip or trigger is not an edit). Linked caulk's "seen" is a
+cover and open-leaf test: a face in an open place players cannot reach (between a caulk
+shell and the sky, say) counts as seen, and a face behind a detail brush q3map2 kept
+counts as unseen. The vote looks at drawn surfaces only, not at what edits draw.
 
 ## Limits
 
@@ -223,3 +348,30 @@ where the map file has it; Grab has no page version.
   `serve_the_page_for_a_browser` (no script errors; the map, its props and the panel drawn;
   a hidden prop, a placed copy, hidden surfaces and a remap from a fake state drawn; a
   click's request reaching the server). Not tried with the game running.
+- Its second round (03/11/2026): unit tests of the Recent rows' file (newest first, 24,
+  off forgets, a restart, a bad file), the pasted copy's angles and scale, the things'
+  and the Recent rows' requests, `api/recent` end to end with its refusals; in headless
+  Chrome on duel6 with `SJK_MAPEDIT_WEB_DEMO` and `SJK_MAPEDIT_WEB_SELECT`
+  (`surface`, `placed`, `face`): the selection drawn (a pixel difference against no
+  selection), the controls card and its fold kept over a reload, panel text selected by a
+  mouse drag staying selected over the polls, `?` and Ctrl+A in a field left to it, the
+  Recent rows, the World list, a copy, and pastes sent as a place and a remap. Not tried
+  with the game running: the game-thread side (the selection's details, the things'
+  placing and removal, the Recent rows' recording) is untested in a running client.
+- Its third round (03/11/2026): unit tests of linking (a caulk floor of three brushes, a
+  crate on it, a top buried under a lid, a floor two units lower: same plane takes the three
+  tops and leaves the buried one out, connected surface goes down the step; the limit; the
+  void), the vote (the floor round a hole beats a wall and a strip further off, back sides
+  and far surfaces do not vote, the skipped flags), the batch (a fill of three faces and two
+  shaders' remaps is one undo step; remove and hide by scope), and the new requests and
+  routes end to end. On retail maps offline (`linked_caulk_and_nearby_textures_on_retail_maps`,
+  ignored, release build): the cover test agrees with q3map2's kept drawn sides on 91 %
+  (duel6) and 99 % (ffa3) of them; building the brush view takes 15-19 ms (10175 faces,
+  1.1 MB of JSON on duel6; 14949, 1.6 MB on ffa3), the side index 18-32 ms, a link under
+  0.1 ms on a plane and 8-20 ms for a connected surface (duel6's run into the 512 limit).
+  In headless Chrome on duel6 (`SJK_MAPEDIT_WEB_VIEW` sets the view; the fake game picks,
+  links and votes with the real code): B draws the brush view and its card (clip, solid,
+  caulk, breakable), a click selects a caulk face, Shift+click adds a second and takes it
+  out again, the suggestion names `textures/yavin/stone_walk`, Fill sends one `apply_many`
+  with both faces, Connected surface selects 512 faces, Esc clears, a reload keeps the view,
+  no script errors. Not tried with the game running.
