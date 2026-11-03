@@ -274,6 +274,16 @@ pub(super) const AUDIO: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Hit sounds",
+        cvar: "cg_hitsounds",
+        kind: ValueKind::Choice(&["0", "1", "2", "3", "4", "5", "6"]),
+    },
+    Setting {
+        label: "Muted sounds",
+        cvar: crate::audio::muted_sounds::CVAR,
+        kind: ValueKind::Text,
+    },
+    Setting {
         label: "Sound sonar",
         cvar: crate::sound_sonar::CVAR,
         kind: ValueKind::Bool,
@@ -585,6 +595,26 @@ pub(super) const HUD: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "HUD off: elements",
+        cvar: crate::hud::toggle::Part::Elements.cvar(),
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "HUD off: crosshair",
+        cvar: crate::hud::toggle::Part::Crosshair.cvar(),
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "HUD off: names",
+        cvar: crate::hud::toggle::Part::Names.cvar(),
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "HUD off: chat",
+        cvar: crate::hud::toggle::Part::Chat.cvar(),
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "HUD scale",
         cvar: "cg_hudScale",
         kind: ValueKind::Float {
@@ -648,6 +678,11 @@ pub(super) const HUD: &[Setting] = &[
     Setting {
         label: "Damage hitmarker",
         cvar: "cg_hitMarker",
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Green on shield hits",
+        cvar: crate::damage_feedback::SHIELD_CVAR,
         kind: ValueKind::Bool,
     },
     Setting {
@@ -908,17 +943,27 @@ pub(super) const HUD: &[Setting] = &[
     Setting {
         label: "Team chat button",
         cvar: crate::chat::tabs::TEAM_CVAR,
-        kind: ValueKind::Bool,
+        kind: ValueKind::Choice(&["0", "1", "2"]),
     },
     Setting {
         label: "SJK chat button",
         cvar: crate::chat::tabs::SJK_CVAR,
-        kind: ValueKind::Bool,
+        kind: ValueKind::Choice(&["0", "1", "2"]),
+    },
+    Setting {
+        label: "JoF chat button",
+        cvar: crate::chat::tabs::JOF_CVAR,
+        kind: ValueKind::Choice(&["0", "1", "2"]),
+    },
+    Setting {
+        label: "S chat button",
+        cvar: crate::chat::tabs::SITH_CVAR,
+        kind: ValueKind::Choice(&["0", "1", "2"]),
     },
     Setting {
         label: "Admin chat button",
         cvar: crate::chat::tabs::ADMIN_CVAR,
-        kind: ValueKind::Bool,
+        kind: ValueKind::Choice(&["0", "1", "2"]),
     },
     Setting {
         label: "PM chat button",
@@ -1046,7 +1091,31 @@ pub(super) const CONTROLS: &[Setting] = &[
         cvar: crate::input::mouse_repeat::CVAR,
         kind: ValueKind::Choice(&["0", "1", "2"]),
     },
+    Setting {
+        label: "Move with console open",
+        cvar: crate::console_move::CVAR,
+        kind: ValueKind::Bool,
+    },
 ];
+/// The Hax toy's trap switches, which live on the Collection's Toys tab (the Hax's
+/// card) since 03/11/2026 (Lex's idea): no category shows them, and a search finds them
+/// under [`HAX_PLACE`], where they still switch.
+pub(super) const HAX_TOY: &[Setting] = &[
+    Setting {
+        label: "Hax trap",
+        cvar: crate::hax::TRAP_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Hax trap while away",
+        cvar: crate::hax::AWAY_CVAR,
+        kind: ValueKind::Bool,
+    },
+];
+
+/// Where [`HAX_TOY`]'s switches are, as a search's heading names it.
+pub(super) const HAX_PLACE: &str = "Collection > Toys > Hax";
+
 pub(super) const GAME: &[Setting] = &[
     Setting {
         label: "Asset browser",
@@ -1133,16 +1202,6 @@ pub(super) const GAME: &[Setting] = &[
     Setting {
         label: "Blade Lab designs",
         cvar: crate::blade_lab_designs::CVAR,
-        kind: ValueKind::Bool,
-    },
-    Setting {
-        label: "Hax trap",
-        cvar: crate::hax::TRAP_CVAR,
-        kind: ValueKind::Bool,
-    },
-    Setting {
-        label: "Hax trap while away",
-        cvar: crate::hax::AWAY_CVAR,
         kind: ValueKind::Bool,
     },
     Setting {
@@ -1724,6 +1783,16 @@ pub(super) const NETWORK: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "JoF clan chat",
+        cvar: crate::chat::tabs::JOF_JOIN_CVAR,
+        kind: ValueKind::Choice(&["-1", "0", "1"]),
+    },
+    Setting {
+        label: "S clan chat",
+        cvar: crate::chat::tabs::SITH_JOIN_CVAR,
+        kind: ValueKind::Choice(&["-1", "0", "1"]),
+    },
+    Setting {
         label: "Other clients' icons",
         cvar: crate::chat::client_icons::CVAR,
         kind: ValueKind::Bool,
@@ -1741,6 +1810,11 @@ pub(super) const NETWORK: &[Setting] = &[
     Setting {
         label: "Follow SJK staff blocks",
         cvar: crate::map_blocks::CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Ignore mutes sounds",
+        cvar: crate::sound_mutes::IGNORE_CVAR,
         kind: ValueKind::Bool,
     },
     Setting {

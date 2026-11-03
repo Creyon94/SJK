@@ -93,6 +93,8 @@ struct Runtime {
     sent_name: Option<String>,
     /// Whether the SJK chat was last told on (`cl_sjkChat`).
     sent_chat: Option<bool>,
+    /// The clan chats last told joined ([`follow_clan_chats`]), JoF's then S's.
+    sent_clans: [bool; 2],
     /// The look the service was last given (`looks.rs`).
     sent_look: Option<sjk_identity::Look>,
     /// Whether the service was last told the player is actively playing
@@ -125,6 +127,7 @@ struct Runtime {
 }
 
 static RUNTIME: Mutex<Runtime> = Mutex::new(Runtime {
+    sent_clans: [false; 2],
     service: None,
     key_error: None,
     sent_settings: None,
@@ -1186,6 +1189,28 @@ pub(crate) fn refresh_holocrons() {
     }
 }
 
+/// Hand the service what the player did lately (`holocrons/signals.rs`), for the next
+/// active claim; dropped while the service has not started.
+pub(crate) fn add_play(play: sjk_identity::PlaySignals) {
+    if let Some(service) = lock().service.as_ref() {
+        service.add_play(play);
+    }
+}
+
+/// Break one tag copy down into kyber shards (hubs whose economy says `tag_copies`).
+pub(crate) fn shatter_tag(copy: sjk_identity::TagCopy) {
+    if let Some(service) = lock().service.as_ref() {
+        service.shatter_tag(copy);
+    }
+}
+
+/// Give two tag copies of one tier and finish for a tag not held yet.
+pub(crate) fn craft_tags(copies: [sjk_identity::TagCopy; 2]) {
+    if let Some(service) = lock().service.as_ref() {
+        service.craft_tags(copies);
+    }
+}
+
 /// Tell the service whether the player is actively playing, when that is not what it
 /// was last told; false when the service has not started.
 pub(crate) fn set_active(active: bool) -> bool {
@@ -1302,6 +1327,48 @@ fn send_chat(text: String, server_too: bool) -> bool {
     }
     service.chat(text);
     true
+}
+
+/// Send a message to a clan chat (`chat/tabs.rs`); false when the service has not
+/// started. What became of it arrives in the chat's `outcome`. It never goes to the game
+/// server.
+pub(crate) fn chat_clan(text: String, channel: sjk_identity::HubChannel) -> bool {
+    let runtime = lock();
+    let Some(service) = runtime.service.as_ref() else {
+        return false;
+    };
+    service.clan_chat(text, channel);
+    true
+}
+
+/// Which clan chats the player reads, JoF's then S's: the ones the hub lists for them
+/// that `choice` (their join settings, `chat::tabs::join_choice`) keeps, telling the
+/// service when that changes. Called every frame; it allocates only on a change.
+pub(crate) fn follow_clan_chats(
+    choice: impl Fn(sjk_identity::HubChannel) -> Option<bool>,
+) -> [bool; 2] {
+    let mut runtime = lock();
+    let runtime = &mut *runtime;
+    let Some(service) = runtime.service.as_ref() else {
+        return [false; 2];
+    };
+    let joined = service.with_chat(|chat| {
+        sjk_identity::channels::CLANS.map(|clan| {
+            chat.channels
+                .iter()
+                .any(|listed| listed.id == clan && choice(clan).unwrap_or(listed.home))
+        })
+    });
+    if joined != runtime.sent_clans {
+        runtime.sent_clans = joined;
+        let wanted = sjk_identity::channels::CLANS
+            .into_iter()
+            .zip(joined)
+            .filter_map(|(clan, on)| on.then_some(clan))
+            .collect();
+        service.set_clan_chats(wanted);
+    }
+    joined
 }
 
 /// Play an emote for the player's slot; false when the service has not started.

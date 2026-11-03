@@ -181,7 +181,7 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "cg_hitsounds",
             0_i64,
             archive,
-            "Hit cues 1-4; saber variants 5-6",
+            "A sound when your attack hits a player: 0 off, 1-4 four sounds (a pack's hitsound*.wav, else SJK's); 5-6 saber hit variants",
         ),
         CvarDefinition::new(
             "cg_oldPainSounds",
@@ -1219,6 +1219,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "Show the red damage-direction indicator near the crosshair (0 off, 1 on)",
         ),
         CvarDefinition::new(
+            crate::damage_feedback::SHIELD_CVAR,
+            false,
+            archive,
+            "The damage indicator shows green, not red, when the hit took your shield (armour)",
+        ),
+        CvarDefinition::new(
             "cg_shieldBrightness",
             2_i64,
             archive,
@@ -1321,6 +1327,18 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "Show the SJK chat, which every SJK player shares through the SJK hub, and read it (0 hides it and stops reading)",
         ),
         CvarDefinition::new(
+            crate::chat::tabs::JOF_JOIN_CVAR,
+            -1,
+            archive,
+            "Read JoF's clan chat (verified JoF and S players, staff): -1 when it is yours, 1 joined, 0 left",
+        ),
+        CvarDefinition::new(
+            crate::chat::tabs::SITH_JOIN_CVAR,
+            -1,
+            archive,
+            "Read the Sith clan's chat, S (verified JoF and S players, staff): -1 when it is yours, 1 joined, 0 left",
+        ),
+        CvarDefinition::new(
             crate::sjk_chat_frame::FEED_CVAR,
             true,
             archive,
@@ -1379,6 +1397,18 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             true,
             archive,
             "Whisper other SJK players end-to-end encrypted through the SJK hub: only the two of you can read it (0 sends every whisper through the game server)",
+        ),
+        CvarDefinition::new(
+            crate::sound_mutes::IGNORE_CVAR,
+            false,
+            archive,
+            "A JA+ or jaPRO ignore <player> you send also mutes that player's sounds until the map changes; ignore again hears them",
+        ),
+        CvarDefinition::new(
+            crate::audio::muted_sounds::CVAR,
+            "",
+            archive,
+            "Words: every sound whose file path holds one is never played (s_muteSounds \"ysalamiri hacking\")",
         ),
         CvarDefinition::new(
             crate::map_blocks::CVAR,
@@ -1463,6 +1493,30 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
         ),
         CvarDefinition::new("cg_drawHud", true, archive, "Display the in-game HUD"),
         CvarDefinition::new("cg_draw2D", true, archive, "Display 2D game overlays"),
+        CvarDefinition::new(
+            crate::hud::toggle::Part::Elements.cvar(),
+            crate::hud::toggle::Part::Elements.hidden_by_default(),
+            archive,
+            "cg_drawHud 0 hides the HUD's elements (health, ammo, timers, kill feed)",
+        ),
+        CvarDefinition::new(
+            crate::hud::toggle::Part::Crosshair.cvar(),
+            crate::hud::toggle::Part::Crosshair.hidden_by_default(),
+            archive,
+            "cg_drawHud 0 hides the crosshair and the name under it",
+        ),
+        CvarDefinition::new(
+            crate::hud::toggle::Part::Names.cvar(),
+            crate::hud::toggle::Part::Names.hidden_by_default(),
+            archive,
+            "cg_drawHud 0 hides nameplates, names over players and team logos",
+        ),
+        CvarDefinition::new(
+            crate::hud::toggle::Part::Chat.cvar(),
+            crate::hud::toggle::Part::Chat.hidden_by_default(),
+            archive,
+            "cg_drawHud 0 hides the chat box",
+        ),
         CvarDefinition::new(
             "cg_simpleItems",
             false,

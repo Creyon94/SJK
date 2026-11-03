@@ -957,6 +957,12 @@ as VisionJK's does; SJK's code is its own.
 Blackwolf's VisionJK client and its 3D sound (`v_spatial`, Steam Audio) gave SJK the
 idea of its own 3D sound (`s_spatial`), built in SJK's mixer with his agreement.
 
+Blackwolf's VisionJK web admin page (GPL-2.0, used with his approval, 03/11/2026) draws
+the map in SJK's browser map editor (`mapedit_web`): its WebGL drawing of a map with its
+shader scripts, props and flares is copied into
+`crates/sjk-viewer/src/map_edits/web/page/vjk`, each file headed with what SJK changed.
+VisionJK credits that panel's origin to JKAdmin's web admin panel by Lixsl.
+
 ## Art
 
 Reyced made Solfox, a fox player model (`models/players/solfox`), for Sol in October
@@ -992,17 +998,35 @@ Turin, a player, asked for private messages to be heard with the public chat sou
 Sol built chat sounds by kind, each with its own sound (23/10/2026).
 
 Rollembones, a player, asked for emotes to stay on while typing: Sol built it as
-Typing keeps emote in Settings > Sound > Emotes (23/10/2026).
+Typing keeps emote in Settings > Sound > Emotes (23/10/2026). Rollembones also asked for
+holocrons missed one day to come faster the next, and for activity checks that are not
+chat: Sol built the holocron catch-up (a short day's missing drops, up to 4, at twice
+the speed the next day) and the play signals the hub counts time by (03/11/2026).
+
+Blep, a player, asked for duplicate tags to be broken down, traded and crafted two into
+one: Sol built tag copies (03/11/2026).
 
 Sanjisan, a player, asked to whisper a player by clicking their name in the chat: Sol
 built it as the pinned chat card's Whisper button (23/10/2026).
 
 Nib, a player, asked to choose the saber sounds apart from the saber shader (18/10/2026,
-and hub report #109): Sol built it as the Saber tab's Sounds row (23/10/2026).
+and hub report #109): Sol built it as the Saber tab's Sounds row (23/10/2026). Nib also
+asked for pictures of the player's own on the quick wheel: Sol built Choose picture in
+the custom choice's form (03/11/2026).
+
+Lex, a player, asked for clan chats beside SJK chat: Sol built JoF's and the Sith clan's
+(S) chats through the SJK hub, for the players verified with those ticks and staff, with
+their own buttons in the chat composer (03/11/2026).
 
 Dante, a player, asked for the quick wheel's custom commands to be remembered in the
 command list once made, and for duels won in each saber style to count as achievements:
 Slash built the first (#293, 30/10/2026), Sol the style masters (29/10/2026).
+
+Lex, a player, asked for Report a bug on the main menu, not only in a match: Sol built it
+as the SJK page's Report a bug (03/11/2026). Lex also asked for the Hax trap's switches to
+sit with the Hax in the Collection rather than in Settings: Sol moved them to its card
+(03/11/2026). Lex asked for cosmetic loadouts as well, a look saved under a name and worn
+again in one click: Sol built the Collection's Loadouts card (03/11/2026).
 
 g0dchris, a player, asked for the dynamic glow on everything but the sabers, whose glow
 hid the blades' details: Slash built it as No glow on sabers (#294, 30/10/2026).
@@ -1010,7 +1034,9 @@ hid the blades' details: Slash built it as No glow on sabers (#294, 30/10/2026).
 Blep, a player, asked for the player card to come only from the `inspect` key, not from
 looking at a player: Sol built it as Key only, `cg_playerCard 2` (29/10/2026). Blep
 also asked for every toy to say when it is switched on or off: Creyon built it (#289,
-30/10/2026), each toy's name and ON in green or OFF in red.
+30/10/2026), each toy's name and ON in green or OFF in red. Blep asked to choose what
+the HUD switch hides as well: Sol built the four HUD off rows of Settings > HUD
+(03/11/2026).
 
 Atrosex, a player, asked for the Forge's Break down to mark the saber shader the player
 wears, and its last copy's card to say plainly that it is worn; Kushina asked for favourite
@@ -1024,6 +1050,22 @@ too: Sol built two Settings > Chat options for it (29/10/2026), Chat backdrop
 (`cg_chatBoxBackdrop`), a dark band behind each row of the chat as long as its words, and
 Chat text outline (`cg_chatBoxOutline`), a dark edge round every letter instead of its
 shadow.
+
+Lex, a player, asked for `cg_hitsounds`, a sound for each hit as EJK plays it: SJK had
+the option but only EJK's and jaPRO's packs bring its sounds, so Sol made SJK's own for
+players without them (03/11/2026).
+
+akr and Neffie, players, asked to mute one player's sounds and more kinds of sounds,
+such as the ysalamiri's: Sol built `mutesounds` (with the servers' `ignore` muting them
+too, `cl_ignoreMutesSounds`) and Muted sounds, `s_muteSounds`, which silences any sound by
+a word of its file name (03/11/2026).
+
+AngeloPapaya, a player, asked for JoF EJK's low jump: Sol built it as the `lowjump` bind
+(03/11/2026), jump held for one user command, the shortest hop a tap makes. He asked
+to move with the console open: Sol built Move with console open (`cl_consoleMove`). He
+asked to place the kill feed anywhere: the HUD edit mode now shows a sample kill to drag
+and the feed may stand anywhere on the screen. His idea of a green damage flash on armour
+became Green on shield hits (`cg_hitMarkerShield`).
 
 ## Testing
 

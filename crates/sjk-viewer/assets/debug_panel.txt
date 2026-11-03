@@ -24,6 +24,234 @@
 
 # ---- Console & chat ----
 
+[holocron-catchup-signals]
+area: Gameplay
+title: Holocron catch-up x2 and play signals (needs the hub's economy-ideas branch)
+change: Claims carry play: moves, attacks, hits, hurts, kills, deaths since the last claim.
+change: Holocrons tab: "(catch-up x2)" after a short day, and a line when pace is not full.
+test: Play an FFA with bots on a remote server, fight: tab shows no pace warning.
+test: Stand still 2 minutes, reopen the tab after a claim: "Not earning" line.
+test: Day after a short day: next holocron in about 15 min, "Catch-up x2: N more".
+note: Only against a hub that sends catchup/activity; older hubs show nothing new.
+[tag-copies]
+area: Menus & settings
+title: Tag copies: break down, craft two into a new tag, trade (hub tag_copies)
+change: Collection > Tags card: Break down +N and Craft (2 for 1 new), each on a second press.
+change: Trade window lists spare tag copies with their finish beside duplicate shaders.
+test: Hold 2+ copies of a dropped tag: Break down twice: shards rise, one copy left.
+test: Two spare Uncommon copies: Craft twice: a new Uncommon tag in that finish.
+test: Trade: a spare tag shows among your items; offered, the other side sees it.
+note: Hidden unless the hub's economy lists tag_copies.
+[sound-mutes]
+area: Audio
+title: Mute one player's sounds (mutesounds), ignore ties, sounds muted by name
+change: mutesounds <player> silences what they cause until the map changes; chat/look stay.
+change: cl_ignoreMutesSounds: a JA+/jaPRO ignore <player> also mutes their sounds (toggle).
+change: s_muteSounds "words": no sound whose file path holds one plays.
+test: mutesounds target on a bot: its steps, saber and voice are gone; its chat still shows.
+test: unmutesounds all: heard again. Change map: mutesounds lists nobody.
+test: Settings > Chat > Ignore mutes sounds on; on JA+ type ignore <name>: silent; again: back.
+test: s_muteSounds saberhum: hums gone at once; clear it: back.
+[hit-sounds-made]
+area: Audio
+title: Hit sounds (cg_hitsounds) without EJK's pack, and its Settings row
+change: Settings > Sound > Hit sounds; 1-4 play SJK's own tones when no hitsound*.wav exists.
+change: A pack's hitsound*.wav still wins; teammate hits play a falling buzz.
+test: Settings > Sound > Hit sounds: Tick; hit a bot or player: a tick for each hit.
+test: Try Blip, Two notes, Knock; hit a teammate in TFFA: the buzz.
+test: The effects volume (s_volume) turns them down with the rest.
+[hitmarker-shield]
+area: HUD
+title: Damage hitmarker green on shield hits (cg_hitMarkerShield), off by default
+change: With cg_hitMarker 1, a hit that lowered your armour shows the arc in green.
+test: cg_hitMarker 1, cg_hitMarkerShield 1; pick up a shield, take a hit: green arc.
+test: Without armour, or with the option off: the red arc as before.
+[killfeed-anywhere]
+area: HUD
+title: Kill feed placed anywhere (HUD edit mode)
+change: hud_edit shows a sample kill (Killer [saber] Victim) while no kill shows.
+change: Moved past the vote panel it takes a full column; in the left half it aligns left.
+test: Open Move HUD elements with no kills: the sample shows, drag it to the top left.
+test: Kill someone: the real kill lines up on the left, names not cut short.
+test: Right-click it in the mode: back to the top right, under the FPS readout.
+[console-move]
+area: Input
+title: Move with console open (cl_consoleMove), off by default
+change: Movement keys held as the console opens keep their hold; no BUTTON_TALK then.
+change: Their key repeats are not typed; keys pressed with the console open still type.
+test: Settings > Controls > Move with console open on; run forward, open the console.
+test: You keep running, no talk balloon; the line gets no wwww; let W go: you stop.
+test: Off (default): opening the console stops you, as before.
+[low-jump]
+area: Input
+title: Low jump (lowjump), as JoF EJK's bind
+change: lowjump holds jump in the next user command only: the shortest hop a tap makes.
+change: Key bindings > Movement > Low jump (EJK); unbound by default.
+test: Bind it (bind v lowjump), jump with it and with Space: the low jump is lower.
+test: With Force jump 3, hold Space and press it: the held jump goes on as before.
+note: Nothing the server would not take from a quick tap; no restriction applies.
+
+[clan-chats]
+area: Console & chat
+title: Clan chats JoF and S beside SJK chat, and buttons out of Tab
+change: Verified JoF/S players and staff read the clan chats; Settings > Chat joins or leaves.
+change: Composer: JoF and S buttons, messagemode7/8; lines labelled JoF or S in their colour.
+change: Team/SJK/JoF/S/Admin buttons take Not in Tab (2): clickable, skipped by Tab.
+test: Needs the hub's clan-chats branch deployed first (old hubs list no clan chat).
+test: As a JoF-verified key: JoF button shows, a message there reaches another JoF player.
+test: An unverified key sees no JoF/S button and never gets their lines.
+test: cg_chatTabTeam 2: Team still clicks, Tab goes All > SJK > JoF.
+note: Not on the Esc docks or the SJK chat page: in-game chat only.
+
+[join-stutter-1103]
+area: Rendering & effects
+title: Joins and NPC spawns: hats, effect models and the effect atlas load in the background
+change: Worn hats/capes and effects' models load on a worker (they loaded inside the frame).
+change: New effects rebuild the effect atlas on a worker, and an unloadable one never again.
+test: On JoF, stay in game while players with hats join: no stutter, their hats appear.
+test: Spawn a few NPCs (boba_fett, rodian) on a local server: no hitch line in the log.
+test: Their effects (jetpack flames) show; a spark may stand in for a moment at first.
+note: Saber hilts nobody carried yet still load inside the frame (left for later).
+[japlus-join-keys]
+area: Gameplay
+title: JA+ katas and +button12 after a join whose getinfo was lost
+change: getinfo is asked 3 times; a server's mod is remembered from the last join.
+change: Joined without JA+ keys on a JA+ server: SJK joins again (3.5 s) with them.
+test: Hop between two JA+ servers several times: katas, diagonal kicks, +button12 work.
+test: Log shows "reconnecting with its keys" only when the first join missed them.
+[ragdoll-model-scale]
+area: Gameplay
+title: Ragdoll keeps a resized model's size
+change: toy_ragdoll drew a youngling or Jawa (iModelScale) at full size.
+test: As a small NPC/model (or JA+ size pickup), toy_ragdoll: the body stays small.
+[skin-hum-only]
+area: Audio
+title: Only skin hum: thrown sabers and duals
+change: s_saberSkinSounds 2 now silences a thrown saber's stock hum too.
+change: A blade pack update refreshes which hum each player plays.
+test: s_saberSkinSounds 2, dual sabers with a skin: only the skin's hum, lit and thrown.
+note: Blep's dual leak was not reproduced from code; tell Sol if duals still hum stock.
+[audio-follow-device]
+area: Audio
+title: Sound follows the Windows default device
+change: Every 1.5 s the default device is checked; on a change the mixer moves to it.
+test: Play with speakers, plug headphones in: sound moves within 2 s, music goes on.
+test: Unplug them: sound back on the speakers; log says "audio output moved".
+
+[vertex-light-1103]
+area: Rendering & effects
+title: Vertex-lit surfaces keep their light; r_vertexLight 1 (hub #176)
+change: Surfaces a map lit by vertex draw their vertex colours, not a flat grey lightmap.
+change: r_vertexLight 1 lights the whole world by vertex colours, as the original game.
+test: On oot, the water and vertex-lit walls show their light, not flat grey (compare EJK).
+test: r_vertexLight 1, then reload the map: world lit by vertex colours, log says so.
+test: r_vertexLight 0, then reload the map: lightmaps are back.
+note: Read at map load only; change it, then load the map again.
+
+[vehicle-impacts-burning]
+area: Rendering & effects
+title: Vehicles: shots burst with their own impact; destroyed vehicles burn
+change: A vehicle shot plays its .vwp impactFX where it hits (AT-ST laser: atst/wall_impact).
+change: A destroyed vehicle burns (ships/dest_burning) until it explodes; animals do not.
+test: Drive an AT-ST, fire the red laser at a wall: small red burst, no rocket explosion.
+test: AT-ST alt fire (rockets) still explodes as before.
+test: Destroy an AT-ST or a swoop: flames on it until it blows up.
+note: Kushina's report. Damaged fighters' surface smoke is still not drawn.
+
+[wheel-own-pictures]
+area: Menus & settings
+title: Quick wheel: a PNG/JPEG of your own as a custom choice's picture
+change: Settings > Quick wheel > a custom choice's form: Choose picture (F3), Remove.
+change: Kept in GameData/SJK/wheel_icons/ and wheel_icons.json; eight pictures at most.
+test: Add a custom choice, Choose picture, pick a PNG: the form and the ring show it.
+test: Save, open the wheel in a match: the choice shows the picture.
+test: Pick a .txt renamed .png or a 5 MB file: refused with a red line.
+test: Remove, Save: the choice shows {.} again. Restart: pictures are kept.
+
+[loadouts]
+area: Menus & settings
+title: Loadouts: save your look, wear it in one click (Collection)
+change: Shaders, Tags, Nameplates: "Loadouts (P)" opens a card of five slots kept on this PC.
+change: A slot keeps hilts, both shaders and parts, colours (hat, cape), plate style and tag.
+test: Collection > Shaders > Loadouts: Save here on slot 1, rename it, close.
+test: Change hilt, shader, colour and tag; Loadouts > Wear on slot 1: all come back.
+test: Save here over slot 1 asks a second press; Empty asks a second press.
+test: In a match, wear a loadout: others see the hilts and shader change.
+note: The slots are GameData/SJK/loadouts.json.
+
+[hud-switch-parts]
+area: HUD
+title: Choose what the HUD switch (cg_drawHud 0) hides
+change: Settings > HUD: "HUD off: elements / crosshair / names / chat" under the HUD row.
+change: Defaults keep the old switch (all but the chat hide); cg_draw2D 0 still hides all.
+test: Defaults: HUD off hides health, ammo, crosshair, nameplates; the chat stays.
+test: Untick "HUD off: crosshair": HUD off keeps the crosshair alone over the map.
+test: Tick "HUD off: chat": HUD off hides the chat box too; HUD on brings it back.
+test: Untick "HUD off: names": nameplates and team logos stay with the HUD off.
+
+[hax-trap-collection]
+area: Menus & settings
+title: Hax trap switches moved to Collection > Toys > Hax
+change: The Hax's card has "Trap: a hacker blows up with you" and "Trap while away".
+change: Settings > Gameplay no longer lists them; a search for hax or trap finds them there.
+test: Collection > Toys > Hax: both switches show and follow cl_haxTrap / cl_haxAway.
+test: Settings: search "trap": the rows show under "Collection > Toys > Hax" and switch.
+test: Settings > Gameplay > Toys starts at Show monitors.
+
+[menu-report-bug]
+area: Menus & settings
+title: Report a bug from the main menu (SJK page)
+change: The SJK UI main page's SJK page has Report a bug; it opens the report card over the menu.
+change: A report sent from there names the map "menu" and no server.
+test: Main menu > SJK > Report a bug: the card opens; type a report and Send.
+test: The hub's report shows map "menu" and an empty server.
+test: In a match, Escape > Report a bug still sends the real map and server.
+
+[box-hunt-1103]
+area: Gameplay
+title: Box hunt: only your own teleports cheat; caps from 09:00; japlus.guntelewall
+change: Map teleporters and admin amtele/bring no longer blow up the mark or put hunters out.
+change: Own amtele (goto, guntele...), setviewpos, own noclip and fakenoclip still count.
+change: Hub: 5 wins a day from 09:00 Paris (was 24 h); a box's gift goes to a hunter in play.
+test: As the mark, walk through a map teleporter: you stay the mark, nothing blows up.
+test: As the mark, have a JA+ admin amtele/bring you: you stay the mark.
+test: As the mark, japlus.guntele 300 or japlus.goto someone: you blow up (cheat).
+test: As a hunter, fakenoclip or noclip during a chase: you are out for cheating.
+test: japlus.guntelewall 300 facing a wall: you land behind it; from a quick wheel choice too.
+note: Hub branch box-hunt-1103 must be deployed for the 09:00 day and the gift change.
+
+[unknown-prize-card]
+area: Menus & settings
+title: Holocrons: loot this build does not know shows a "?" card, not a dark empty one
+change: An unknown shader, tag, toy, banner or card shows "?" in a ring and "Update SJK to see it".
+change: The strip tile says New tag / New shader / New card; batch finds say the kind too.
+test: Open holocrons with an older build while the hub drops a newer shader: "?" card, its name.
+test: A known shader still shows its blade swatch; a known tag its picture.
+note: Hard to reach on purpose; the unit tests cover the kinds.
+
+[rgb-saber-follow]
+area: Menus & settings
+title: RGB saber: a colour set by saberColor shows on the model at once (Neffie)
+change: The Collection/Profile model follows color1/color2 and cp_sbRGB1/2, not only the hilts.
+change: Collection's stock blade swatch shows the custom tint instead of white.
+test: saberColor 40 200 90 in the console, open Collection: model and stock swatch are green.
+test: Restart SJK: the RGB blade still shows green without touching a slider.
+note: Not proven to be Neffie's whole report; ask her where it showed red (menu or in game).
+
+[ui-bugs-1103]
+area: Menus & settings
+title: Reports 03/11: chat outline, full servers, report box, scrollbars, password, tags
+change: Chat outline no longer drops whole lines; Enter adds a line in report/note boxes.
+change: Scrollbars drag (Profile grid, hilt lists, Settings lists); password rejoins.
+change: Browser: chosen row drops private slots from capacity; tags reach from your eye.
+test: cg_chatBoxOutline 1, a busy chat (long lines, many players): every message shows.
+test: Report a bug: Enter starts a line, Ctrl+Enter sends; Tab to Send, Enter sends.
+test: Profile > Character: drag the grid's scrollbar; Saber: drag a hilt list's bar.
+test: Settings, a long list (chat colours, away emote): drag its thumb to both ends.
+test: connect to a locked local server, then password <pw> in the console: it joins.
+test: Third person, cg_dynamicCrosshair 0, toy_tag near a wall: the tag goes up.
+note: Browser private slots: only checkable on a server with sv_privateClients set.
+
 [tag-spray-surfaces]
 area: Gameplay
 title: Tags: spray can sound, no glitches on glass, grates, flags or curved walls
@@ -8386,3 +8614,17 @@ test: turn it on; black ^0 names on nameplates show a white outline, not a glow.
 test: Name outline Faint, Strong and Off: Off keeps the shadow only.
 test: chat with and without Chat text outline: dark letters white, the rest as before.
 note: if the line is too thick or strong, say so (ring copies are 85% opaque).
+
+[mapedit-web]
+area: Rendering & effects
+title: Map editor in the web browser (creator only for now)
+change: mapedit_web turns the editor on and opens the map in 3D in your browser (127.0.0.1).
+change: Clicks select or place through the game; every edit is the in-game editor's command.
+note: Only your creator key may use it; others get a refusal line. Not tried in game yet.
+test: On duel6, mapedit_web: the browser opens on the map, from where you look in game.
+test: Click a fern, Hide: it goes in the page and in the game; Ctrl+Z brings it back in both.
+test: Place: search tree, choose one, click the floor: a tree stands there in both; Turn, Up.
+test: Selected: click a wall, pick a shader picture, Remap: both draw the wall with it.
+test: Edits: Delete one; Publish asks first, then the answer shows under it and in game.
+test: Change map: the page loads the new map; mapedit off: the page says SJK is not answering.
+test: With a staff key that is not the creator: mapedit_web is refused.

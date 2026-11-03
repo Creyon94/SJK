@@ -69,6 +69,14 @@ pub(crate) const ACTIONS: &[BindableAction] = &[
     action(Movement, "Mouse look", "+mlook", "/"),
     // JoF EJK's `controls.menu` "FlipKick:" row: one press, a run of jump taps.
     action(Movement, "Flip kick (JoF)", "flipkick", ""),
+    // JoF EJK's `lowjump` (`ui_shared.c` bind list): jump for one command, the
+    // shortest hop a tap makes.
+    action(
+        Movement,
+        "Low jump (EJK)",
+        crate::input::LOW_JUMP_COMMAND,
+        "",
+    ),
     // INTERACTION
     action(Interaction, "Attack", "+attack", "MOUSE1"),
     action(Interaction, "Alternate attack", "+altattack", "MOUSE2"),
@@ -226,6 +234,9 @@ pub(crate) const ACTIONS: &[BindableAction] = &[
     action(Other, "SJK chat", "messagemode5", "i"),
     // SJK: admin chat (`amsay`, JA+ and jaPRO); no key by default.
     action(Other, "Admin chat", "messagemode6", ""),
+    // SJK: the clan chats through the SJK hub, for their verified players; no key.
+    action(Other, "JoF clan chat", "messagemode7", ""),
+    action(Other, "S clan chat", "messagemode8", ""),
     // SJK: the SJK chat page, big, in a game or not; the wheel of favourite GIFs.
     action(Other, "SJK chat page", "sjkchat", ""),
     action(Other, "GIF wheel (hold)", "+gifwheel", ""),

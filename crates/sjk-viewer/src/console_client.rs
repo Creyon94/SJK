@@ -80,6 +80,14 @@ pub(super) const COMMANDS: &[(&str, &str)] = &[
         crate::chat::tabs::ADMIN_COMMAND,
         "Compose admin chat (amsay): read only by the server's admins, on JA+ and jaPRO servers",
     ),
+    (
+        crate::chat::tabs::JOF_COMMAND,
+        "Compose in JoF's clan chat through the SJK hub, once joined (verified JoF and S players, staff)",
+    ),
+    (
+        crate::chat::tabs::SITH_COMMAND,
+        "Compose in the Sith clan's chat (S) through the SJK hub, once joined (verified JoF and S players, staff)",
+    ),
     (crate::am_color::COMMAND, crate::am_color::HELP),
     (
         crate::chat_sounds::PREVIEW_COMMAND,
@@ -214,6 +222,11 @@ pub(super) const COMMANDS: &[(&str, &str)] = &[
         crate::toy_switch_words::HELP,
     ),
     (crate::block_command::COMMAND, crate::block_command::HELP),
+    (crate::sound_mutes::COMMAND, crate::sound_mutes::HELP),
+    (
+        crate::sound_mutes::UNMUTE_COMMAND,
+        crate::sound_mutes::UNMUTE_HELP,
+    ),
     (
         crate::block_command::UNBLOCK_COMMAND,
         crate::block_command::UNBLOCK_HELP,
@@ -1024,6 +1037,9 @@ impl crate::GpuState {
             crate::chat::tabs::ADMIN_COMMAND => {
                 self.apply_input_action(Some(crate::input::InputAction::AdminMessageMode));
             }
+            crate::chat::tabs::JOF_COMMAND | crate::chat::tabs::SITH_COMMAND => {
+                self.apply_input_action(crate::input::chat_action(&name));
+            }
             crate::am_color::COMMAND => {
                 let console = self.console.as_mut().ok_or("Console unavailable")?;
                 return crate::am_color::run(console, args);
@@ -1160,6 +1176,8 @@ impl crate::GpuState {
             crate::toy_switch_words::COMMAND => return Ok(crate::toy_switch_words::help_lines()),
             crate::block_command::COMMAND => return self.block_command(args),
             crate::block_command::UNBLOCK_COMMAND => return self.unblock_command(args),
+            crate::sound_mutes::COMMAND => return self.mute_sounds_command(args),
+            crate::sound_mutes::UNMUTE_COMMAND => return self.unmute_sounds_command(args),
             crate::medal_popup::rehearsal::COMMAND => return self.debug_medal_command(args),
             crate::holocrons::rehearsal::COMMAND => return self.debug_holocron_command(args),
             crate::cards::rehearsal::COMMAND => return self.debug_open_command(args),

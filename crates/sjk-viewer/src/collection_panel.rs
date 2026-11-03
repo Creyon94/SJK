@@ -49,6 +49,8 @@ pub(crate) mod history;
 mod history_view;
 #[path = "collection_hover.rs"]
 mod hover;
+#[path = "collection_loadouts.rs"]
+pub(crate) mod loadouts;
 #[path = "collection_marks_view.rs"]
 mod marks_view;
 #[path = "collection_medals.rs"]
@@ -69,7 +71,7 @@ mod toys;
 mod view;
 
 pub(crate) use spin::SaberTurn;
-pub(crate) use toys::{COMMANDS as TOY_COMMANDS, unseen as toys_unseen};
+pub(crate) use toys::{COMMANDS as TOY_COMMANDS, options_on as toy_options, unseen as toys_unseen};
 pub(crate) use view::{MODEL_AREA, SABER_AREA, row_labels};
 
 /// The things' tokens: the medals, the achievements, the shaders' rows, the shader's
@@ -100,6 +102,10 @@ const TOY_TOKEN: u16 = 1_310;
 const TOY_SWITCH_TOKEN: u16 = 1_311;
 /// The chosen toy's card's second switch: other players' toy seen or not.
 const TOY_SIGHT_TOKEN: u16 = 1_305;
+/// The chosen toy's card's own switches after it (the Hax's trap), one token each.
+const TOY_OPTION_TOKEN: u16 = 1_390;
+/// Most own switches a toy's card holds.
+const TOY_OPTION_TOKENS: usize = 4;
 /// The cardboard box's niche on Toys (Illuminate's is [`TOY_TOKEN`]).
 const BOX_TOKEN: u16 = 1_314;
 /// Order 66's niche on Toys.
@@ -208,6 +214,9 @@ const TAG_BASE: u16 = 8_100;
 const TAG_CHOOSE_TOKEN: u16 = 8_099;
 /// The Tags tab's finish chips, Normal, Holo and Solar (31/10/2026).
 const TAG_FINISH_BASE: u16 = 8_090;
+/// The Tags tab card's Break down and Craft buttons (tag copies, 03/11/2026).
+const TAG_BREAK_TOKEN: u16 = 8_096;
+const TAG_CRAFT_TOKEN: u16 = 8_097;
 const OPTION_TOKENS: usize =
     crate::blade_skin_file::extras::MAX_OPTIONS + crate::blade_extras::MAX_EXTRAS;
 /// The Shaders tab's rows: the stock blade, then every blade skin, the rarest first
@@ -407,6 +416,10 @@ pub(crate) enum PanelAction {
     /// Set `cg_tag` to this tag's id: the one `toy_tag` sticks.
     /// Pick a tag (or a card) for `toy_tag`, in a finish (`cg_tag`, `cg_tagFinish`).
     ChooseTag(String, &'static str),
+    /// Break one tag copy down into kyber shards (a hub whose economy says `tag_copies`).
+    ShatterTag(sjk_identity::TagCopy),
+    /// Give two tag copies of one tier and finish for a tag not held yet.
+    CraftTags([sjk_identity::TagCopy; 2]),
     /// Ask the hub to equip an owned banner, empty to unequip.
     Banner(&'static str),
     /// Show a tab another page draws: the Holocrons page.
@@ -443,6 +456,15 @@ pub(crate) enum PanelAction {
     ToySight {
         cvar: &'static str,
         seen: bool,
+    },
+    /// Carry out what the Loadouts card asked: wear, save, rename or empty a slot
+    /// ([`loadouts::Request`]).
+    Loadout(loadouts::Request),
+    /// One of the chosen toy's own switches on its card (the Hax's trap) on (`true`) or
+    /// off: set its `cvar`.
+    ToyOption {
+        cvar: &'static str,
+        on: bool,
     },
     /// Bind `key` (its console name) to a toy's `command`, in place of the first key it
     /// had, as the key-binding editor does.
@@ -596,6 +618,9 @@ pub(crate) struct Inputs<'a> {
     /// The toys whose other players' are hidden on this PC, as bits in the Toys tab's
     /// order (each one's "See" switch off, [`crate::toy_sight`]).
     pub(crate) toys_unseen: u16,
+    /// The toys' own switches on their cards that are on, as bits in the order of
+    /// [`toys::options_on`] (the Hax's trap, then its trap while away).
+    pub(crate) toy_options: u16,
     /// `cg_tag`: the tag `toy_tag` sticks.
     pub(crate) tag: &'a str,
     /// `cg_tagFinish`: the finish it sticks it in, when held.
@@ -661,6 +686,10 @@ pub(crate) struct Panel {
     tag_finish: usize,
     tag_finish_for: Option<String>,
     tag_in_use: Option<String>,
+    /// The tag copies tools as the last frame offered them, and the button pressed once
+    /// that waits for its second press (03/11/2026).
+    tag_tools: tags::Tools,
+    tag_confirm: Option<tags::Confirm>,
     /// The player was in the cardboard box, as the last frame's inputs said.
     box_on: bool,
     /// Order 66 was on, as the last frame's inputs said.
@@ -686,6 +715,12 @@ pub(crate) struct Panel {
     /// The toys (bits by the Toys tab's order) whose other players' are hidden here, as
     /// the last frame's inputs said.
     toys_unseen: u16,
+    /// The toys' own switches that are on, as the last frame's inputs said.
+    toy_options: u16,
+    /// The Loadouts card (Shaders, Tags and Nameplates open it) and the slots it shows,
+    /// as the console last read them ([`Self::set_loadouts`]).
+    loadouts: loadouts::Card,
+    loadout_slots: [Option<loadouts::Loadout>; loadouts::SLOTS],
     /// The tile chosen on Cards (in the list the filter shows), how many tiles the last
     /// frame's list held, and the first line of them shown (the grid scrolls a line at a
     /// time).
@@ -860,6 +895,8 @@ impl Panel {
             tag_follow: false,
             tag_finish: 0,
             tag_finish_for: None,
+            tag_tools: tags::Tools::default(),
+            tag_confirm: None,
             tag_in_use: None,
             box_on: false,
             order66_on: false,
@@ -873,6 +910,9 @@ impl Panel {
             fishing_on: false,
             share_on: false,
             toys_unseen: 0,
+            toy_options: 0,
+            loadouts: loadouts::Card::default(),
+            loadout_slots: Default::default(),
             card: 0,
             cards_shown: 0,
             card_first: 0,
@@ -956,12 +996,41 @@ impl Panel {
     /// classic menus' commands) or as the SJK UI's Collection screen returning to
     /// `back`; `owns_console` when the console was closed before it. The things chosen
     /// on each tab stay as they were.
+    /// The loadouts kept, for the Loadouts card; `note` says what the last request did.
+    pub(crate) fn set_loadouts(&mut self, store: &loadouts::Store, note: Option<&str>) {
+        self.loadout_slots = store.slots.clone();
+        if let Some(note) = note {
+            self.loadouts.told(note);
+        }
+    }
+
+    /// Open the Loadouts card with `store`'s slots, its second one chosen, for a shot.
+    #[cfg(test)]
+    pub(crate) fn open_loadouts_for_shot(&mut self, store: &loadouts::Store) {
+        self.loadouts.open();
+        self.set_loadouts(store, Some("Wearing Duels"));
+    }
+
+    /// Whether the tab on show offers the Loadouts card: those where a look is chosen.
+    fn offers_loadouts(&self) -> bool {
+        matches!(self.tab, Tab::Shaders | Tab::Tags | Tab::Nameplates)
+    }
+
+    /// What the Loadouts card answered, as the page's action.
+    fn loadout_reply(reply: loadouts::Reply) -> PanelAction {
+        match reply {
+            loadouts::Reply::Ask(request) => PanelAction::Loadout(request),
+            loadouts::Reply::None | loadouts::Reply::Closed => PanelAction::None,
+        }
+    }
+
     pub(crate) fn open(&mut self, tab: Tab, owns_console: bool, hub: bool, back: ReturnTarget) {
         if !self.open {
             // Shaders opens on what the player wears.
             self.shader = usize::MAX;
         }
         self.open = true;
+        self.loadouts.close();
         self.owns_console = owns_console;
         self.hub = hub;
         self.back = back;
@@ -1095,6 +1164,17 @@ impl Panel {
         PanelAction::ToySight {
             cvar,
             seen: self.toys_unseen & 1 << self.toy != 0,
+        }
+    }
+
+    /// The chosen toy's own switch `index` on its card, the other way round.
+    fn toy_option(&self, index: usize) -> PanelAction {
+        let Some((cvar, bit)) = toys::option(self.toy, index) else {
+            return PanelAction::None;
+        };
+        PanelAction::ToyOption {
+            cvar,
+            on: self.toy_options & 1 << bit == 0,
         }
     }
 
@@ -1249,6 +1329,25 @@ impl Panel {
             return PanelAction::None;
         };
         self.hover.keyed();
+        if self.loadouts.is_open() {
+            let reply = self.loadouts.key(
+                key,
+                event.text.as_deref(),
+                shift,
+                control,
+                &self.loadout_slots,
+            );
+            return Self::loadout_reply(reply);
+        }
+        if key == KeyCode::KeyP
+            && !control
+            && self.offers_loadouts()
+            && !self.search_focus
+            && self.bind_wait.is_none()
+        {
+            self.loadouts.open();
+            return PanelAction::None;
+        }
         if self.tab == Tab::Forge {
             if !control
                 && !self.forge.search_focus
@@ -1818,6 +1917,21 @@ impl Panel {
             InputEvent::PointerLeave => self.pointer = None,
             InputEvent::Action(_) => {}
         }
+        // The Loadouts card takes the pointer while it shows; the page under it does not.
+        if self.loadouts.is_open() {
+            let Some(event) = self.ui.pointer(event) else {
+                return PanelAction::None;
+            };
+            let Some(token) = event.token else {
+                return PanelAction::None;
+            };
+            let reply = self.loadouts.token(
+                token,
+                event.kind == UiEventKind::Activate,
+                &self.loadout_slots,
+            );
+            return Self::loadout_reply(reply);
+        }
         // The lone saber turns with a drag that starts on it, wherever it goes after.
         if self.tab == Tab::Shaders {
             match event {
@@ -2046,6 +2160,12 @@ impl Panel {
             if token == TAG_CHOOSE_TOKEN {
                 return self.choose_tag();
             }
+            if token == TAG_BREAK_TOKEN {
+                return self.press_tag_tool(tags::Tool::Break);
+            }
+            if token == TAG_CRAFT_TOKEN {
+                return self.press_tag_tool(tags::Tool::Craft);
+            }
             if let Some(page) = token
                 .checked_sub(ACHIEVEMENT_PAGE_BASE)
                 .and_then(|index| crate::achievements::Page::ALL.get(usize::from(index)))
@@ -2145,6 +2265,16 @@ impl Panel {
             GRID_VIEW_TOKEN => self.set_grid(true),
             WEAR_TOKEN | TOY_SWITCH_TOKEN | SHARE_TOKEN => self.activate(illuminate),
             TOY_SIGHT_TOKEN => self.toy_sight(),
+            loadouts::OPEN_TOKEN => {
+                self.loadouts.open();
+                PanelAction::None
+            }
+            token
+                if (TOY_OPTION_TOKEN..TOY_OPTION_TOKEN + TOY_OPTION_TOKENS as u16)
+                    .contains(&token) =>
+            {
+                self.toy_option(usize::from(token - TOY_OPTION_TOKEN))
+            }
             TARGET_FIRST_TOKEN => self.set_target(false),
             TARGET_SECOND_TOKEN => self.set_target(true),
             BOTH_TOKEN => self.toggle_both(),
@@ -2399,6 +2529,7 @@ mod tests {
             nameplate_style: crate::hud::nameplate::Style::Holo,
             toy_keys: &[],
             toys_unseen: 0,
+            toy_options: 0,
             tag: "",
             tag_finish: "",
         }
@@ -2917,6 +3048,25 @@ mod tests {
         // The Hax acts only on players who have it on: its card has no "See" switch.
         redraw(&mut panel, &shown);
         assert!(panel.ui.rect_for(TOY_SIGHT_TOKEN).is_none());
+        // Its card holds its trap's two switches (moved from Settings > Gameplay).
+        assert_eq!(
+            click(&mut panel, TOY_OPTION_TOKEN),
+            PanelAction::ToyOption {
+                cvar: crate::hax::TRAP_CVAR,
+                on: true,
+            }
+        );
+        shown.toy_options = toys::options_on(|cvar| cvar == crate::hax::AWAY_CVAR);
+        redraw(&mut panel, &shown);
+        assert_eq!(
+            click(&mut panel, TOY_OPTION_TOKEN + 1),
+            PanelAction::ToyOption {
+                cvar: crate::hax::AWAY_CVAR,
+                on: false,
+            }
+        );
+        assert!(panel.ui.rect_for(TOY_OPTION_TOKEN + 2).is_none());
+        shown.toy_options = 0;
         // The Monitor's hides the monitors, and shows them again.
         let _ = click(&mut panel, MONITOR_TOKEN);
         redraw(&mut panel, &shown);

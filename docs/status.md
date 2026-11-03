@@ -1,3 +1,191 @@
+## Holocron catch-up, play signals, tag copies (client side)
+
+03/11/2026, `personal/economy-ideas` from `main` `69a3d6a0`, built with the hub's
+`economy-ideas` branch (its `PROTOCOL.md` "Holocrons" Catch-up and Play signals, "Tag
+copies"). Rollembones' ideas: every active claim carries `play`, what the player did since
+the hub last accepted a claim ([holocrons/signals.rs](../crates/sjk-viewer/src/holocrons/signals.rs):
+horizontal distance moved, attack presses, `PERS_HITS` rises, hurts by another client,
+kills and deaths from obituaries), counted only while the claim says `active`; the
+Holocrons tab shows the catch-up ("(catch-up x2)", how many left today) and a line when the
+hub's pace for the last claim was not full ([holocrons.md](holocrons.md#earning)). Blep's
+idea: tag copies on Collection > Tags (Break down, Craft two into a tag of that tier the
+player lacks, each on a second press) and in the trade window
+([client.md](client.md#tag), [tag_copies.rs](../crates/sjk-viewer/src/tag_copies.rs)), all
+shown only when the hub's economy lists `tag_copies`. Verified: unit tests (claim bodies,
+wire parsing, the signal watch on made-up snapshots and obituaries, the attack edges, the
+catch-up wait and the lines, tag copy spares, yields, craft inputs, outcome words), fmt,
+clippy, workspace tests. Not verified: against a running hub, in a game (whether the
+signals' counts match what a real duel or FFA gives, the new buttons and line on screen
+at every window shape); no world shot was made.
+
+## #ideas 03/11: low jump, console movement, kill feed, shield hits, hit sounds, sound mutes
+
+03/11/2026, `personal/hud-ideas-1103` from `main` `566c944e`, read from the code and JoF
+EJK's source, nothing tried in a game. AngeloPapaya's ideas: `lowjump` (EJK's
+`CG_Lowjump_f`: jump in one user command only), Move with console open
+(`cl_consoleMove`, off: held movement keys keep their hold and `BUTTON_TALK` is left out
+while the console alone is open, [client.md](client.md)), the kill feed placed anywhere
+(a sample kill to drag in the HUD edit mode; moved past the vote panel it takes a full
+column, aligned left in the left half), and Green on shield hits (`cg_hitMarkerShield`,
+off: the damage indicator of the hits *you take* turns green when your armour fell; hits
+you land have no indicator, so that reading of the idea was not built). Lex's
+`cg_hitsounds` existed (TaystJK port) but was silent without jaPRO's or EJK's
+`hitsound*.wav`; SJK now makes short tones when they are missing, and the option has a
+Settings row. akr's and Neffie's: `mutesounds <player>` (what a block silences, without
+the rest, until the map changes), `cl_ignoreMutesSounds` (off: a JA+/jaPRO `ignore` the
+player sends mutes the same way), and `s_muteSounds` (any sound by a word of its path,
+tested where the mixer is fed) ([hub-chat.md](hub-chat.md#muting-a-players-sounds)).
+Verified: unit tests (low jump at 8/7/4/3 ms, held movement kept, kill feed area and
+sample, shield test, made WAVs decode, mute words, ignore parsing), fmt, clippy,
+workspace tests. Not verified: in a game; which sound akr and Neffie heard as the
+ysalamiri's (no loop of that name in base JKA, so it is likely a mod's or map's: the
+words reach it whatever plays it); how the made hit sounds sound; JA+'s and jaPRO's
+`ignore` argument forms beyond a name or slot.
+
+## Clan chats (JoF and S) and chat tab options
+
+03/11/2026, `personal/clan-chats` from `main` `ac0e1c46` (Sol's spec from Lex's idea), with
+hub branch `clan-chats` (Sol-Vulpes/SJK-hub, `PROTOCOL.md` "Clan chats"): JoF's and the
+Sith clan's chats beside SJK chat, read and written by the players the hub lets in (their
+verified tick group, staff), joined from Settings > Chat, tabbed into from the composer
+([hub-chat.md](hub-chat.md#clan-chats)); every chat button may stay out of Tab (Not in
+Tab, [client.md](client.md)). The merged view while typing was already
+`cg_chatTabFilter 0`; its lines say their channel. Verified: unit tests (the hub's
+channel rules, per-channel history, feed filtering, refusals, reactions; the client's
+feed routing and backlog, the composer's row, Tab, sending, lines, colours, settings),
+fmt, clippy, workspace tests, the hub's tests. Not verified: in a game, against the live
+hub (the hub change is not deployed), with real JoF and S players. The docks and the SJK
+chat page still show SJK chat only.
+
+## Joins, JA+ keys, ragdoll scale, skin hum, sound device (hub #236 #230 #222 #223 #233 #210)
+
+03/11/2026, `personal/gameplay-1103` from `main` `d1640233`. Read from the code and Sol's
+logs, nothing tried in a game. Joins (#236, Lex: up to a second's freeze as players
+connect) and NPC spawns (#230, Nib): players' models, NPCs and entities' models already
+loaded on workers; what was left in the frame was a worn hat or cape a player brought
+(6 to 10 ms each on Sol's RTX 5080 in his log, decoded and compiled in the frame) and
+an effect a server registers (an NPC's jetpack), which rebuilt the whole effect atlas
+inside the frame: `hitch: 213.6 ms ... config-refresh 210.3` as JoF's NPCs spawned (Sol's
+`previous-client.log`), again at every new effect while one shader had no picture.
+Both now load on workers ([rendering.md](rendering.md#where-to-work)); saber hilts
+nobody carried yet still load in the frame. No log of Lex's to confirm his freeze was
+these. JA+ (#222, Rollembones): a lost `getinfo` before a join connected as base JKA,
+without `cjp_client`, which a JA+ server reads at connect only; now asked three times,
+remembered per server, and a join that still missed the keys joins again with them
+([networking.md](networking.md)). Ragdoll (#223): `toy_ragdoll` reset the model scale
+([client.md](client.md#ragdoll)). Skin hum (#233, Blep): Only skin left a thrown saber's
+stock hum, and a pack update left the players' hums stale; the duals' leak Blep heard was
+not found in the code (the loops gate both sabers). Sound device (#210, Metan): the output
+follows Windows' default device ([client.md](client.md#configuration-and-content)). Kushina's
+bow-then-duel: server-side (a duel starts only on two `engage_duel`s; the bow touches no
+duel state in JoF EJK's game module nor JA+'s). Verified: unit tests (atlas and models
+compile paths, server profile memory, ragdoll scale, dual and thrown hums, the device
+handback), fmt, clippy, workspace tests. Not verified: in a game, on JoF, on a JA+
+server whose `getinfo` is lost, with headphones plugged in.
+
+## Vertex-lit surfaces and `r_vertexLight`
+
+03/11/2026, `personal/world-bugs-1103`, based on `main` `fca8e772` (Sol's hub report #176,
+oot: "vertex color mode not working appropriately"). SJK had no `r_vertexLight`, and its
+shaders on `LIGHTMAP_BY_VERTEX` surfaces (oot: 9 765 of 23 795) drew their `$lightmap`
+stage with the grey fallback lightmap instead of the vertex colours. They now follow
+rd-vanilla `FinishShader` ([rendering.md](rendering.md#vertex-lighting-r_vertexlight)).
+`r_vertexLight 1`, read at map load, lights every surface by vertex and applies
+`vertexremapshader`. Dynamic lights stay on, unlike rd-vanilla. Verified: unit tests, fmt,
+clippy, off-screen spawn shots of oot with `r_vertexLight` 0 and 1. Not verified: in a
+game, against EJK on oot, or under real-time lighting.
+
+## Vehicle impacts and burning wrecks
+
+03/11/2026, `personal/world-bugs-1103`, based on `main` `fca8e772` (Kushina's report). A
+vehicle weapon's shot now plays its `.vwp` `impactFX` where it hits instead of the carrier
+weapon's impact (`CG_VehicleWeaponImpact`): the AT-ST laser, sent as `WP_ROCKET_LAUNCHER`
+because it has a width, burst like a rocket. A destroyed vehicle (`EF_DEAD`) plays
+`ships/dest_burning` at its origin every 50 ms until it blows up, as the dead branch of
+`CG_VehicleEffects` does, animals excepted ([client.md](client.md#vehicle-gunfire)). The
+AT-ST camera jump on stopping was fixed on 23/10 (`36523a14`). Not done: a damaged
+fighter's surface smoke (`dmgFX`, `injureFX`) and vehicle trails and exhausts. Verified:
+unit tests, fmt, clippy. Not verified: in a game, or that JoF/JA+ servers tag vehicle shots.
+
+## Menu ideas 03/11: report from the menu, loadouts, Hax trap, wheel pictures, HUD switch
+
+03/11/2026, `personal/menu-ideas-1103` from `main` `fca8e772`, Discord #ideas approved by
+Sol: Report a bug on the SJK UI main page's SJK page (Lex; the report names the map `menu`
+and no server, [identity.md](identity.md#bug-reports)); Loadouts on the Collection (Lex;
+five looks kept in `loadouts.json`, [sjk-ui.md](sjk-ui.md#collection)); the Hax trap's
+switches moved to the Hax's card in Collection > Toys, still found by a Settings search
+(Lex); a quick wheel custom choice's own PNG or JPEG picture (Nib; eight at most, the
+atlas's last free cells, [client.md](client.md#quick-wheels)); and what the HUD switch
+hides, four `cg_hudHide*` switches whose defaults are the old `cg_drawHud 0` (Blep,
+[client.md](client.md#what-the-hud-switch-hides)). No hub change. Verified: unit tests,
+fmt, clippy (no new warnings), world shots `duel6_sjk_loadouts` and
+`duel6_quick_wheel_settings` (looked at). Not verified: in a running game (a loadout worn
+in a match, a picture chosen through the real file dialog, the HUD parts hidden over a
+match, a report from the menu reaching the hub).
+
+## Box hunt: own teleports only, caps from 09:00, `japlus.guntelewall`
+
+03/11/2026, `personal/box-hunt-1103` from `main` `d3881f31`, with hub branch
+`box-hunt-1103` (hub reports #189, #204, #228, #232, #235, #237). The cheat watch
+([mystery-boxes.md](mystery-boxes.md#box-hunt)) took any flip of `EF_TELEPORT_BIT` off the
+map's named landing points as a cheat, so admin brings blew marks up and teleporters a
+server adds took hunters out; it now needs a command of the player's own that moves them
+(the client's last released reliable commands, `sjk_client::sent_commands`) within 5
+seconds, noclip counts after the player's own `noclip`, and fake noclip always. Hub: the 5
+free rolls and the mark's 3 bounties a day count from 09:00 in Paris instead of a rolling
+24 hours, and a blown-up box's price goes to a hunter in play first. New
+`japlus.guntelewall <distance>` restores the old through-walls teleport beside
+`japlus.guntele` ([mods.md](mods.md)). Verified: unit tests (watch, `amtele` forms, day
+boundary, gift choice, the new command and its wheel queueing), fmt, clippy. Not
+verified: in a game, on JA+ with Star Trek teleports, or that no other mod's own teleport
+command is missing from `OWN_MOVES`.
+
+## Saber reports: unknown loot, RGB follow, empty hilt, late joiners
+
+03/11/2026, `personal/saber-bugs-1103`, based on `main` `d3881f31`. Holocron loot this
+build does not know (Kushina, 30/10) showed as a dark, empty shader card: any unknown
+prize now shows a "?" card saying its kind, read from the hub's id, and a card of an
+unknown rarity or finish is shown rather than dropped ([unlockables.md](unlockables.md)).
+RGB saber shown red (Neffie): the config round trip, the Profile page and the userinfo
+(`cp_sbRGB1` sent with colour 6) were checked by tests and are right; two gaps were fixed,
+the stage model following only the hilts (a colour set by `saberColor` or a config waited
+for a slider) and the Collection's stock blade showing a custom colour white. Where
+Neffie saw red is not known; an in-game red with the right cvars would be the server's
+`c3`. Hub #197 (`saber saber_empty saber_left` crashed): the same empty-hilt cause as #214,
+fixed on `main` by `53157216` (stage path, both hands); the in-game mid-match path was
+checked with a GPU test (an empty hilt appended to the shared geometry raises no wgpu
+error). Neither hilt is installed here, so the report itself was not replayed. Late
+joiners' invisible saber shaders: the looks (roster, feed, name match twice a second,
+revision), the per-slot skin table and the GPU's lazy glow and signature uploads were read
+and showed no stale gate; the cause is still unknown. Verified: unit tests, the GPU tests
+above, fmt, clippy. Not verified: in a game.
+
+## Player reports 03/11: chat outline, full servers, report box, scrollbars, password, tags
+
+03/11/2026, `personal/ui-bugs-1103`, based on `main` `d3881f31`, read from the code (no
+game started):
+- Hub #211 (Creo): the chat outline drew nine quads a letter, and a text batch's 32 768
+  vertices (about 600 outlined letters for the whole font layer) cut off the lines past
+  them. Batches hold 196 608 now, their GPU buffers growing from the old size on demand
+  ([client.md](client.md#text-size-and-spacing)). Unit test: a thousand outlined letters fit.
+- Full servers read 30/32 (Kushina, Blep): stock's `getinfo` already leaves private
+  slots out of both numbers, so the servers they saw must count them; the chosen row
+  takes `sv_privateClients` off when `getstatus` shows `getinfo` gave the whole
+  `sv_maxclients` ([sjk-ui.md](sjk-ui.md#servers)). Only the chosen row is corrected, and
+  no live server was queried to confirm which servers do this.
+- Hub #227 (Groark): Enter in the report box starts a line, Ctrl+Enter sends; the hub
+  still stores line breaks as spaces (a hub change would keep them). The away emote list's
+  wheel scrolled to its end in a test with 79 emotes: not reproduced; its thumb is now
+  draggable.
+- Foshin: scrollbars drawn by `MenuCanvas::scrollbar` take a press and a drag
+  (`scrollbar_drag`); wired into the Profile screen and Settings' lists.
+- headshotsmcgee117: `password <pw>` during a join (or on its failure screen) joins again.
+- Kushina, tags: in third person with `cg_dynamicCrosshair 0` the tag's 128-unit trace
+  started at the camera; it counts from the eye now. The loud noise in her recordings
+  of tag selection was not found in the code.
+Verified: fmt, clippy, the viewer's unit tests. Not verified: in a game or on the
+reporters' servers.
+
 ## Tags: spray sound, odd surfaces
 
 03/11/2026, `personal/tag-spray`, based on `main` `3a209013` (Sol: tag decals sometimes
@@ -257,6 +445,19 @@ T1_Fatal in Vanilla and SJK, clock on and off, and duel6 in SJK and Experimental
 Limits: T1_Fatal in Experimental on DX12 stopped at the lamp light cache's page buffer
 (`SJK lamp cache pages` invalid), not a compile, so that case was checked on duel6. fmt,
 the sjk-viewer tests and Clippy.
+
+## Map editor in the web browser
+
+03/11/2026, `personal/mapedit-web`, based on `main` `566c944e` (Sol's request, Blackwolf's
+approval to reuse VisionJK's web admin page): `mapedit_web`, creator only for now
+([map-edits.md](map-edits.md#the-browser-editor-creator-only-for-now)). Verified on
+Windows 11: unit tests (HTTP parsing, Host/token/origin checks, game paths, edit
+requests, the page's bundling), an end-to-end test of the server on a socket with a fake
+game thread, and the page in headless Chrome
+(SwiftShader) on retail duel6 from the ignored test `serve_the_page_for_a_browser` (no
+script errors; the map, props, panel, and a fake state's hidden prop, placed copy, hidden
+surfaces and remap drawn). Not run with the game: the game-thread side (selection by ray,
+the commands, the state) is untested in a running client.
 
 ## Map editor made easier
 

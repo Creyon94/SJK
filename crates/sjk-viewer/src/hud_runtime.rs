@@ -140,6 +140,9 @@ pub(crate) struct HudUniform {
     pub(crate) _padding: [f32; 3],
     /// Offset UV and dimensions used to size the crosshair.
     pub(crate) crosshair_parameters: [f32; 4],
+    /// The damage indicator's colour when its alpha is above 0.5, else stock's red
+    /// (`cg_hitMarkerShield`: green for a hit the shield took).
+    pub(crate) damage_color: [f32; 4],
 }
 
 /// Refresh retained HUD data and project movement guides through this frame's camera.
@@ -160,9 +163,11 @@ pub(crate) fn update(
         || gpu.gameplay_input.held(input::GameButton::Scores)
         || scoreboard
         || intermission
-        || gpu.console.as_ref().is_some_and(|c| {
-            !c.bool_cvar("cg_drawhud").unwrap_or(true) || !c.bool_cvar("cg_draw2d").unwrap_or(true)
-        });
+        || hud::toggle::hides(gpu.console.as_ref(), hud::toggle::Part::Names)
+        || gpu
+            .console
+            .as_ref()
+            .is_some_and(|c| !c.bool_cvar("cg_draw2d").unwrap_or(true));
     gpu.hud.identification.sample(gpu.console.as_ref());
     gpu.hud.nameplate.sample(gpu.console.as_ref());
     gpu.hud.card.sample(gpu.console.as_ref());
@@ -427,6 +432,8 @@ pub(crate) fn update(
             gpu.local_prediction.predicted_state(),
             gpu.console.as_ref(),
         );
+        // An empty kill feed shows a sample to drag in the HUD edit mode.
+        gpu.hud.kill_feed.set_preview(gpu.hud_edit.is_open());
         gpu.hud.update_match_information(
             session.game_state(),
             presentation_time,
