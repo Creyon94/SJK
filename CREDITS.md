@@ -1025,6 +1025,10 @@ too: Sol built two Settings > Chat options for it (29/10/2026), Chat backdrop
 Chat text outline (`cg_chatBoxOutline`), a dark edge round every letter instead of its
 shadow.
 
+AngeloPapaya, a player, asked for Ctrl+C on a link in the chat: Slash built it
+(03/11/2026), the link under the pointer lit while the chat is open and copied without its
+colour codes.
+
 ## Testing
 
 Glen, a player, was the first to play SJK on a Mac (25/10/2026), on a MacBook Pro
