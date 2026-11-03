@@ -16,6 +16,28 @@ damage-direction indicator near the crosshair when you take damage. It defaults
 to `0` (off); `cg_hitMarker 1` enables it immediately and saves the choice.
 It does not change damage camera kick, hit sounds or damage-event timing.
 
+Settings > Sound > Hit sounds (`cg_hitsounds`, TaystJK's and JoF EJK's, Lex's request,
+03/11/2026; off by default) plays a sound beside you each time the server counts a hit
+of yours on another player (`PERS_HITS` rises, as `CG_CheckLocalSounds` reads it) and
+another when it falls, a hit on a teammate; the server counts both
+(`G_Damage`), so nothing is guessed. 1 to 4 choose the sound: jaPRO's and EJK's
+`sound/effects/hitsound.wav` to `hitsound4.wav` (and `hitsoundteam.wav`) when a pack
+brings them, else short tones SJK makes in memory, a tick, a blip, two notes and a knock,
+and a falling buzz for a teammate
+([hit_sounds.rs](../crates/sjk-viewer/src/audio/hit_sounds.rs)); before 03/11/2026 the
+option was silent without such a pack. 5 and 6 change the saber's hit sounds instead
+(the stock `saberhit.wav` only, or one of the four at random), as in TaystJK. The sounds
+follow the effects volume (`s_volume`).
+With Settings > HUD > Green on shield hits (`cg_hitMarkerShield`, off by default,
+AngeloPapaya's idea, 03/11/2026) the indicator is green instead of red when the hit took
+your shield: the armour in the snapshot carrying the damage event is lower than in the one
+before (`G_Damage` takes from armour first). A hit that took health only, or came with no
+armour left, stays red. It is the indicator of the damage you take: a hit you land shows
+nothing on the screen, and the server tells the attacker only the target's health and
+armour of the last hit (`PERS_ATTACKEE_ARMOR`, which `cg_hitsounds` listens to beside
+`PERS_HITS`), so nothing here colours hits on others
+([damage_feedback.rs](../crates/sjk-viewer/src/damage_feedback.rs)).
+
 Settings > Mods > Asset browser or `assetbrowser` opens SJK's installed PK3 browser (also discoverable through F3
 in the console's command browser). Select a pack with the arrow keys or wheel;
 Enter, Space or a click toggles it. Choices save immediately and apply at
@@ -1087,7 +1109,10 @@ stored custom tint that is black's own near-black (`BLACK_RGB`, which an earlier
 build saved for black) counts as none: the custom chip showed it as a second black chip
 that gave a white blade, and now shows and starts from the stock blue (`stored_rgb`,
 Dave's test, 28/10/2026). Any other tint is the player's, however dark. Collection's
-stock-blade swatch reads the whole `color1`, so black shows black there too. The classic page keeps retail's six swatches.
+stock-blade swatch reads the whole `color1`, so black shows black there too, and a custom
+colour in its `cp_sbRGB1` tint (it showed white; Neffie, 03/11/2026). The stage model
+behind the Collection and Profile follows `color1`, `color2` and the tints as well as the
+hilts, so a colour set elsewhere (`saberColor`, a config) shows without touching a slider. The classic page keeps retail's six swatches.
 
 Other servers show colour 11 as before: purple, or the player's RGB tint when
 one is set. (JoF EJK shows orange there; SJK keeps its earlier colour.) Ordinary RGB colours, including
@@ -1737,6 +1762,18 @@ tests: the hearing point, occlusion from rays and its glide, muffling, loops, th
 from its rays, the reverb bounded and dying away, a larger room ringing longer. Not yet
 heard in a game.
 
+## Muted sounds
+
+`s_muteSounds` (Settings > Sound > Muted sounds, empty by default; akr's and Neffie's
+request, 03/11/2026) takes words, and no sound whose file path holds one of them plays,
+whatever plays it: an item's or power-up's loop (`ysalamiri`), the loops a server puts on
+players (`hacking`, `supp_healed`, `fry`), a map's machine, a mod's sound. Matching
+ignores case: `s_muteSounds "ysalamiri hacking"`. The test sits where the mixer is fed
+(`AudioOutput::send`): one bit per loaded sound, worked out again only when the words
+change or new sounds load, so a played sound costs one bit test
+([muted_sounds.rs](../crates/sjk-viewer/src/audio/muted_sounds.rs)). One player's sounds
+are muted with `mutesounds <player>` ([hub-chat.md](hub-chat.md#muting-a-players-sounds)).
+
 ## Sound sonar
 
 `cg_soundSonar` (Settings > Sound, Sound sonar; off by default; Dawson's idea for deaf
@@ -2104,6 +2141,25 @@ primitive is the gun's firing sound, played like every effect sound at full volu
 sound is now as loud as stock). Kushina's report (21/10/2026): vehicle fire was quiet,
 the projectile's flight loop and impacts being all that was heard. JoF EJK skips
 these flashes while the viewer is in a private duel; stock does not, nor does SJK.
+
+A vehicle weapon's shot that hits plays the `.vwp` `impactFX` alone, in place of the
+impact of the hand weapon it is carried as (`CG_VehicleWeaponImpact`, called by
+`EV_MISSILE_HIT`, `EV_MISSILE_MISS` and `EV_MISSILE_MISS_METAL`): a missile flagged
+`EF_JETPACK_ACTIVE` names its vehicle weapon in `otherEntityNum2`
+([impact_events.rs](../crates/sjk-client/src/impact_events.rs),
+[impact_spawn.rs](../crates/sjk-viewer/src/impact_spawn.rs)). The game sends any shot
+with a `width` or `height` as `WP_ROCKET_LAUNCHER`, so before 03/11/2026 the AT-ST's
+red laser (`atst_laser`, 8 by 8) burst in a rocket's explosion instead of
+`atst/wall_impact` (Kushina's report). A weapon without `impactFX` keeps the carrier's.
+
+A destroyed vehicle (`EF_DEAD`, until it blows up: the AT-ST's `explosionDelay` is 2.45
+s) burns: `effects/ships/dest_burning.efx` at its origin every 50 ms, as the dead branch
+of `CG_VehicleEffects` plays it, animals excepted
+([vehicle_burning.rs](../crates/sjk-viewer/src/vehicle_burning.rs)). A vehicle still
+running shows no damage in stock but a fighter's: its damaged surfaces (`brokenLimbs`)
+smoke with the `.veh` file's `injureFX` and `dmgFX` at `*nosedamage`, `*exhaust1`,
+`*r_wingdamage` and `*l_wingdamage`, which SJK does not draw yet, nor the trails and
+exhausts (`trailFX`, `exhaustFX`, `turboFX`) of the same function.
 
 ## Electrified players' crackle
 
@@ -2864,6 +2920,12 @@ main thread boxed: through the worker's channel, `WorldInstallPoll::Ready`,
 was a stack copy, and the main thread's nested frames (`window_event` 3.1 MB,
 `Destination::poll`, `WorldInstallTask::poll` and the channel's `try_recv` about
 1.9 MB each) overflowed its 8 MiB while joining JoF's public server (02/11/2026).
+Building the menu's first world on the main thread came within 2 MiB of the same
+8 MiB with a clean profile and overflowed it with JoF content loaded (03/11/2026),
+so the client reserves 64 MiB for its main thread on Windows and macOS
+([`build.rs`](../crates/sjk-viewer/build.rs)). The client's start must fit in a quarter of
+that: [startup_stack.rs](../crates/sjk-viewer/src/startup_stack.rs) checks it, run
+before every merge into `main` (AGENTS.md).
 
 Losing window focus releases held gameplay controls and discards gameplay actions
 already queued for that frame. Synthetic key events on refocus cannot re-press a
@@ -3068,10 +3130,15 @@ the game (All once they leave). That lasts while SJK runs. The team, crosshair,
 last-attacker and SJK keys always open on their own channel.
 
 The composer's row of channels (29/10/2026;
-[chat/tabs.rs](../crates/sjk-viewer/src/chat/tabs.rs)) is All, then Team, SJK, Admin and
-PM, each behind its own switch in Settings > Chat (`cg_chatTabTeam`, `cg_chatTabSjk`,
-`cg_chatTabAdmin` 1 by default, `cg_chatTabPm` 0): a channel switched off leaves the row
-and Tab skips it, but its key still opens it. Admin sends `amsay`, which only the
+[chat/tabs.rs](../crates/sjk-viewer/src/chat/tabs.rs)) is All, then Team, SJK, the clan
+chats JoF and S once joined ([hub-chat.md](hub-chat.md#clan-chats), 03/11/2026), Admin
+and PM, each behind its own setting in Settings > Chat (`cg_chatTabTeam`,
+`cg_chatTabSjk`, `cg_chatTabJof`, `cg_chatTabS`, `cg_chatTabAdmin` 1 by default,
+`cg_chatTabPm` 0): a channel switched off (0) leaves the row and Tab skips it, but its
+key still opens it; since 03/11/2026 (Sol's request) Not in Tab (2) keeps the button
+while Tab skips it, so a player keeps Team or Admin clickable out of the cycle (Tab
+from a channel it skips goes on to the next one it stops on). The clan chats' keys are
+`messagemode7` (JoF) and `messagemode8` (S). Admin sends `amsay`, which only the
 server's admins read (JoF EJK `Cmd_Amsay_f`, `SAY_ADMIN`; they see it as `<Admin>`), and
 shows only on JA+ and jaPRO servers; its key is `messagemode6` (Controls > Admin chat, no
 key by default), which says so on other servers. Leaving one moves a composer on Admin to
@@ -3084,7 +3151,9 @@ too (Dave, 29/10/2026): while the composer is on Team, SJK, Admin or a whisper, 
 shows only that channel's messages (whispers both ways, encrypted ones and the server's
 private lines included; admin lines are jaPRO's `<Admin>(name)`), All shows everything,
 and closing the composer shows everything again; `cg_chatTabFilter` 0 (Settings > Chat >
-Tabs hide other chat) keeps the feed whole.
+Tabs hide other chat) keeps the feed whole while typing: every chat in view, each line
+labelled with its channel (TEAM, SJK, JoF, S), the button picking only where the
+message goes.
 
 Open the chat composer with your chat binding: the cursor is free while composing.
 Resting the pointer on a name (a sender's, or an SJK chat sender's) shows their
@@ -3521,6 +3590,25 @@ the layout as bundled ([hud.rs](../crates/sjk-viewer/src/hud.rs), `RadialPlaceme
 which moves each widget of `RADIAL_STATUS` by its side: an arc's from its sweep, the
 rest from their offset).
 
+### What the HUD switch hides
+
+`cg_drawHud 0` (Settings > HUD > HUD, the quick wheel's HUD on/off, a
+`toggle cg_drawHud` bind) hides the parts of the screen whose switch is on (Blep's idea,
+03/11/2026; [hud/toggle.rs](../crates/sjk-viewer/src/hud/toggle.rs)), each a row under
+HUD in Settings > HUD:
+
+| Cvar | Default | Settings | Hides |
+| --- | --- | --- | --- |
+| `cg_hudHideElements` | 1 | HUD off: elements | health, shield, Force, ammo, weapon and item rows, timers, vote and warmup lines, the kill feed, the lagometer, the game-data HUD and the rest of the layout |
+| `cg_hudHideCrosshair` | 1 | HUD off: crosshair | the crosshair and the name under it |
+| `cg_hudHideNames` | 1 | HUD off: names | nameplates, names over players, team logos and outlines |
+| `cg_hudHideChat` | 0 | HUD off: chat | the chat box |
+
+The defaults are what `cg_drawHud 0` always hid, so nothing changes until a player
+ticks otherwise; with all four off, the HUD switch hides nothing. `cg_draw2D 0` still
+hides everything, and the scoreboard, menus, intermission and the quick wheel hide the
+HUD as before. Unit tests cover the rule and the defaults; not checked in a running game.
+
 ### Moving HUD elements
 
 The HUD edit mode moves the HUD's elements with the mouse (Lex's idea, #ideas
@@ -3555,7 +3643,9 @@ warm-up and interruption notices, the frame rate and timer in the upper right, t
 power-up and inventory icons, the text-only game HUD (`cg_hudFiles 1`), the stock
 vehicle HUD drawn from the game's pictures, centre prints and the scoreboard. Only
 what shows at the moment can be dragged: the vote panel during a vote, the lagometer
-with `cg_lagometer` on, the jetpack bar with a jetpack, and so on.
+with `cg_lagometer` on, the jetpack bar with a jetpack, and so on. The kill feed is
+the exception (AngeloPapaya's idea, 03/11/2026): while the mode is open and no kill
+shows, it shows a sample, "Killer [saber] Victim", to drag.
 
 The upper right stacks the readouts as JoF EJK's `CG_DrawUpperRight` does, in every
 HUD style ([console_overlay.rs](../crates/sjk-viewer/src/console_overlay.rs)): with
@@ -3686,7 +3776,8 @@ so it shows in third person
 ## Kill feed
 
 `cg_killfeed` (on by default, Settings > HUD > "Kill feed") lists the last kills
-at the top right of the HUD, in every HUD style
+at the top right of the HUD, or where the player moved it (the HUD edit mode, or
+`cg_killfeedX` leftward and `cg_killfeedY` downward in 640x480 units), in every HUD style
 ([kill_feed.rs](../crates/sjk-viewer/src/hud/kill_feed.rs)). Each entry is
 `killer [icon] victim`, or `[skull] victim` for a suicide or a death to the world
 (a fall, lava, a trigger), on a dark plate; an entry where the viewed player
@@ -3714,7 +3805,13 @@ draws at the top right — the FPS readout, duel portrait, snapshot,
 inventory and powerup column — and never reaches left of the vote panel's right
 edge, so it does not cover the top centre's vote and timer. It is part of the
 HUD's draw list, so it hides whenever the HUD does: scoreboard held,
-`cg_drawHud 0` or `cg_draw2D 0`, intermission, menus and the console. Names draw
+`cg_drawHud 0` or `cg_draw2D 0`, intermission, menus and the console. Moved
+(AngeloPapaya's idea, 03/11/2026), it may stand anywhere: once its right edge is less
+than 200 pixels (1080-line) right of the vote panel's edge, it no longer keeps clear of
+the top centre but takes a column as wide as its longest entry (two names at their
+longest, the widest cause word and the gaps), held inside the screen; when that column
+lies mostly in the screen's left half, the entries line up on its left edge instead of
+its right, and the top right's readouts no longer push it down. Names draw
 in the HUD's font (Inter, or SJK HUD with `cg_classicHudFont`), which the feed
 measures them in.
 
@@ -5136,8 +5233,8 @@ the archived `cl_toyHax`, as Order 66 in `cl_toyOrder66`). Switching it says "Ha
   [toy event](hub-chat.md#toy-events) the hacked player sends (`hacked_<until>`, the game
   server time the steering ends; `freed` when they break free sooner), which may come a
   second or two late. Nothing is drawn round a player blocked here.
-- **The trap:** with **Hax trap** on (Settings > Game options > Toys, `cl_haxTrap`, off
-  by default), a hack that completes on the player springs a trap instead of handing
+- **The trap:** with **Hax trap** on (the Hax's card in Collection > Toys since 03/11/2026,
+  Settings > Game options > Toys before; `cl_haxTrap`, off by default), a hack that completes on the player springs a trap instead of handing
   over control (Sol's idea, 23/10/2026): both read "IT'S A TRAP!" with Order 66's beep
   each second, and two seconds later both clients send `kill` and both players blow up
   as in [Order 66](#order-66) (the explosion, then the pieces, or confetti with
@@ -5184,6 +5281,9 @@ every fall ends with the map or the server.
 - **The body:** a limp humanoid of 15 points (pelvis, chest, head, shoulders, elbows,
   hands, hips, knees, feet) held by sticks, the trunk braced as one block, knees bending
   forward and elbows back (Verlet integration, [body.rs](../crates/sjk-viewer/src/ragdoll/body.rs)).
+  A resized model (`iModelScale`: a youngling, a Jawa, the JA+ size pickup) is drawn
+  at its size, scaled about the pelvis (#223; it was drawn full size), though the body
+  it is simulated with keeps a full-size player's measures.
   It starts standing where the player stood, turned their way, with their speed, and
   pushed off balance (back, to a side, the knees buckling), so a running or jumping
   player tumbles on. It falls at `g_gravity`'s 800, slides and bounces a little on the
@@ -5789,6 +5889,18 @@ sees it there.
   (Normal needs any copy; a free tag is only Normal). Both need a hub whose profiles list
   `tag_cards` (the card kinds it lets be tags); an older hub refuses them, so the client
   offers neither there and Collection > Tags lists no cards.
+- **Tag copies** (Blep's idea, 03/11/2026, with a hub whose economy says `tag_copies`):
+  the card of a dropped tag held twice or more offers Break down (one copy of the finish
+  shown into kyber shards: the hub's `economy.tags`, by tier times the finish, more for
+  Holo and Solar) and Craft (two spare copies of one tier and finish, this tag's first,
+  for a tag of that tier the player holds none of, or none in that finish, in that
+  finish), each on a second press; the player always keeps one copy of every tag, and the
+  free tags never take part. Craft is greyed with the reason when every tag of the tier
+  is held in that finish or two spare copies are lacking. The hub's answer reads under the
+  buttons ("Holo Gonk tag broken down: +25 kyber shards.", "Crafted: Kyber tag. It is
+  yours."). Spare copies trade too: the trade window lists them with their finish beside
+  the duplicate shaders, counted as duplicates in the day's limits
+  ([tag_copies.rs](../crates/sjk-viewer/src/tag_copies.rs)).
 - **Choosing:** Collection > Tags shows every tag, then the credits cards under their own
   heading, the ones the player lacks dimmed and the Holo and Solar copies held as badges;
   the wall scrolls (the wheel, the arrows keeping the choice in view). The card on the right
@@ -5797,7 +5909,9 @@ sees it there.
   `cg_tagFinish`, its finish (`normal`, `holo` or `solar`; one not held sticks Normal). A
   finish chip of the tag in use changes its finish at once.
 - **Sticking:** `toy_tag` (a bind, Settings > Key bindings > Interaction "Toy: Tag", the
-  quick wheel's Toys page) traces the crosshair 128 units into the world and sticks the
+  quick wheel's Toys page) traces the crosshair 128 units past the player's eye into the
+  world (in third person with `cg_dynamicCrosshair 0` the trace starts at the camera, so
+  the camera's distance is added, at most 256; Kushina's tags did not go up) and sticks the
   chosen tag where it lands: upright on a wall, its top away from the player on a floor,
   56 units wide. One tag a player: a new one replaces the last, at most one every 10
   seconds. `toy_tag clear` takes it off. A tag the player does not hold is refused, and
@@ -6004,7 +6118,8 @@ cut the stock one), or, with `s_saberSkinSounds 2` (Settings > Sound > Blade ski
 sounds: Only skin; 1, With normal, is the default), in their place, or, with
 `s_saberSkinSounds 0` (Off), not at all, every player heard with the stock sounds
 (the table of who wears which set is passed empty), so a skin's own sounds are heard clearly
-(Creyon's request, 18/10/2026; a thrown saber still hums its own over the skin's): its ignition for
+(Creyon's request, 18/10/2026; a thrown saber hums with the skin's alone too since
+03/11/2026, #233): its ignition for
 `EV_SABER_UNHOLSTER`, its ignition or switching off once when the player draws the
 saber from another weapon or puts a lit one away
 ([saber ignition sounds](#saber-ignition-and-retraction-sounds)), and for a general sound that is a stock `saberon*`/`saberoff*`
@@ -6225,6 +6340,21 @@ A custom choice is a name (up to 24 characters) and any console command (up to
 200), several separated by `;`, run with all its arguments (`japlus.guntele 300`,
 `amtele 3`) as typing it would; the tests pin that it keeps them through the form,
 `wheel.json` and `wheel_commands.json`.
+
+A custom choice may show a picture of the player's own in place of `{•}` (Nib's idea,
+03/11/2026; [pictures.rs](../crates/sjk-viewer/src/quick_wheel/pictures.rs)): its form's
+Choose picture (or F3) opens the system's file dialog for a PNG or JPEG of at most 4 MB
+and 4096 pixels a side; the picture is fitted into a wheel icon (a 128-pixel square, its
+shape kept, on transparency) and kept as a small PNG in `wheel_icons/` in the profile
+folder, named by its content, so the original can move or be deleted. Remove gives the
+stock picture back. Which command shows which picture is kept in `wheel_icons.json`
+beside `wheel.json` (`{"version": 1, "icons": {"say gg": "<16 hex digits>.png"}}`, only
+names of that form taken); a choice is matched by its command, so the same command on
+two pages shows the same picture, and it takes precedence over an emote's own picture.
+Eight different pictures at most are in use at once, the room left in the UI atlas; the
+form refuses a ninth, saying so. A picture that no longer decodes is reported to the log
+and its choice shows `{•}`. Unit tests cover the checks, the fitting, the file and the
+limit; the dialog itself was not opened in a test.
 
 ### Settings
 
@@ -6456,6 +6586,17 @@ taking sound`. The game goes on silently; `snd_restart` opens the output again, 
 the device that is then the default. The decode worker keeps sounds in order and
 waits for room as before, but stops when the output is dropped, so `snd_restart` and
 quitting do not wait on it. See [audio_feed.rs](../crates/sjk-viewer/src/audio_feed.rs).
+
+The output follows the system's default device (#210, 03/11/2026): plugging headphones
+in left the game on the speakers until a restart, since Windows keeps the old device
+working. Every 1.5 s the output compares the default device's name with the one it
+plays on and, when it changed or the stream rendered nothing since the last look (once,
+not at every look), moves the mixer to the default as it is: the stream is dropped, the
+mixer comes back from the device's thread (a wrapper hands it back as it is dropped)
+and a new stream plays it, so sounds, loops and music go on and only the old device's
+buffer is lost. A device that does not open leaves the mixer waiting for the next look;
+with no device at all the current stream stays. Two identical devices swapped for each
+other are not told apart. See [audio_device.rs](../crates/sjk-viewer/src/audio_device.rs).
 
 The Video tab's Display mode row offers Windowed, Borderless fullscreen and,
 where the windowing system supports it, Exclusive fullscreen (Wayland does not,
@@ -6810,6 +6951,13 @@ the screen's right edge (EternalJK's can).
 
 ## Passwords in the console
 
+`password <pw>` typed while a join is still trying, or on the screen that says why it
+failed (a wrong or missing password, a full server), joins the same server again with
+it (headshotsmcgee117's report, 03/11/2026: only `connect <ip>;password <pw>` worked), as
+stock's client sends its next `connect` with the new userinfo (`CL_CheckForResend`). The
+password a join already sent changes nothing ([connection.rs](../crates/sjk-viewer/src/connection.rs),
+`rejoin_on_new_password`).
+
 The console never prints a password: what it prints is kept in the scrollback,
 `qconsole.log` and the crash trail that the session log, crash reports and log uploads
 are made from ([identity](identity.md#crash-reports)).
@@ -7012,7 +7160,16 @@ player or several players match, it lists them and sends nothing. See
 Held actions such as `+button12` work from binds, cfg files and the console. A
 hold typed at the console lasts until its `-` command, as in the stock client:
 opening the console, a menu or chat, or losing window focus, releases held keys
-but not typed holds; `in_restart` and session changes release both. `+grapple` is
+but not typed holds; `in_restart` and session changes release both. With Settings >
+Controls > Move with console open (`cl_consoleMove`, off by default as in stock,
+AngeloPapaya's idea, 03/11/2026), the movement keys held as the console opens (forward,
+back, strafing, jump, crouch, walk) keep their hold and their key repeats are not typed;
+letting one go stops it. Commands made while the console is the only thing open then
+leave `BUTTON_TALK` out, which the server's movement would read as "stand still"
+(`PmoveSingle` zeroes the moves of a talking command), so no talk balloon shows either.
+A key pressed with the console open still types: the console keeps the keyboard, so a
+command starting with w, a, s or d types as it should, and changing direction needs the
+console closed. See [console_move.rs](../crates/sjk-viewer/src/console_move.rs). `+grapple` is
 EternalJK's name for `+button12`, the JA+/JaPRO grapple hook; on a JA+ server
 releasing it also taps `+use`, as EternalJK does. See
 [input.rs](../crates/sjk-viewer/src/input.rs).
@@ -7027,6 +7184,15 @@ one command and `cg_fkDuration` (default 50) lasts 0.4 s.
 `cg_fkSecondJumpDelay` starts the second jump at that frame (both 0). A server
 forbids it with bit 7 (`RESTRICT_FLIPKICKBIND`) of serverinfo `restricts`. See
 [flip_kick.rs](../crates/sjk-viewer/src/input/flip_kick.rs).
+
+`lowjump` is JoF EJK's low jump bind (`CG_Lowjump_f`, AngeloPapaya's idea, 03/11/2026;
+Settings > Key bindings > Movement > Low jump (EJK), unbound by default): jump is held in
+the next user command only and released in the one after, the shortest hop a tap can
+make (EJK sends `+moveup`, then `-moveup` a frame later). It is not a cheat: the server
+gets one command with jump pressed, which a quick finger sends too, and the height is
+what the server's own movement gives that tap (with Force jump, letting go early cuts the
+jump short). A jump key held at the same time keeps holding. See
+[input.rs](../crates/sjk-viewer/src/input.rs) (`GameplayInput::low_jump`).
 
 `weapmelee` (SJK's; Settings > Key bindings > Weapons > Melee (fists), unbound by
 default, Sol's request of 10/10/2026) selects the melee weapon, the fists
@@ -7373,7 +7539,12 @@ nameplates' Strong outline draws (`text::CodePalette::DarkOutlined`, per text ru
 `ChatOverlay::palette_of`). A black letter (`^0`) keeps the faint light halo the
 nameplates give dark names instead, as an outline as dark as it would hide it. It costs
 nine glyph quads a letter instead of two. Centre prints, the sender card and the
-combat numbers keep their shadow.
+combat numbers keep their shadow. A text batch (each font's layer, the Inter HUD text)
+held 32 768 vertices until 03/11/2026, some 600 outlined letters, and a busy chat ran
+past it: the letters after the cap were dropped, whole lines with them (Creo, hub #211).
+A batch now holds up to 196 608 (`text::MAX_TEXT_VERTICES`), its GPU buffer starting at
+the old size and doubling the first frame that needs more
+([text/vertex_buffer.rs](../crates/sjk-viewer/src/text/vertex_buffer.rs)).
 
 `cg_darkTextOutline` (default 0, archived; Settings > Chat > **White edge on dark
 text**, shared with the nameplates) edges the dark letters of the feed and the field

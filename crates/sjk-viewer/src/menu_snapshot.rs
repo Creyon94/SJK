@@ -1578,6 +1578,7 @@ fn identity_page(shots: &Snapshot, art: ArtSet) {
         kyber: None,
         shop: None,
         trade: None,
+        tag_trade: None,
         marks: None,
         marks_revision: 0,
         mark_refusal: None,
@@ -2619,6 +2620,7 @@ fn radial_hud(shots: &mut Snapshot) {
     use crate::hud::{HudLook, HudOverlay, HudVisibility};
     let visibility = HudVisibility {
         hud: true,
+        elements: true,
         status: true,
         vehicle: true,
         weapon: true,
@@ -3074,6 +3076,7 @@ fn medals_snapshot() {
         kyber: None,
         shop: None,
         trade: None,
+        tag_trade: None,
         marks: None,
         marks_revision: 0,
         mark_refusal: None,

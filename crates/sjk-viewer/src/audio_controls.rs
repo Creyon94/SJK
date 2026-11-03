@@ -123,6 +123,15 @@ impl GameAudio {
         self.holster_sync.enabled = console
             .and_then(|c| c.bool_cvar("cg_holsteredstaffsound"))
             .unwrap_or(true);
+        let muted_words = console
+            .and_then(|c| c.text_value(crate::audio::muted_sounds::CVAR))
+            .unwrap_or("");
+        self.output.muted.sync(
+            muted_words,
+            self.handles
+                .iter()
+                .map(|(path, handle)| (path.as_str(), handle.0)),
+        );
         self.transitions.hits = console
             .and_then(|c| c.integer_cvar("cg_hitsounds"))
             .unwrap_or(0);
@@ -476,6 +485,7 @@ impl GameAudio {
     pub(crate) fn end_frame(&mut self) {
         ui_cues::play_pending(self);
         self.report_underruns();
+        self.output.follow_default_device(Instant::now());
     }
 
     pub(crate) fn report_underruns(&mut self) {

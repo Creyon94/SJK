@@ -1354,6 +1354,7 @@ Found the fog bug, ask me about it!"
             kyber: None,
             shop: None,
             trade: None,
+            tag_trade: None,
             marks: None,
             marks_revision: 0,
             mark_refusal: None,
@@ -3659,6 +3660,7 @@ like this one.",
                     text: (*text).to_owned(),
                     holocron: None,
                     official: None,
+                    channel: Default::default(),
                 },
             )
             .collect();
@@ -3712,6 +3714,8 @@ like this one.",
             person
         };
         let mut listed = sjk_identity::ChatState {
+            clan: Default::default(),
+            channels: Vec::new(),
             reaction: None,
             own_key: None,
             messages,

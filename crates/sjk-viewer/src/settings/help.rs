@@ -215,6 +215,13 @@ const CHOICE_NAMES: &[(&str, &str, &str)] = &[
     (crate::hud::lagometer::CVAR, "3", "No backdrop"),
     ("cg_predictLegacy", "0", "Current"),
     ("cg_predictLegacy", "255", "As in 2026.1028.1"),
+    ("cg_hitsounds", "0", "Off"),
+    ("cg_hitsounds", "1", "Tick"),
+    ("cg_hitsounds", "2", "Blip"),
+    ("cg_hitsounds", "3", "Two notes"),
+    ("cg_hitsounds", "4", "Knock"),
+    ("cg_hitsounds", "5", "Saber: stock hit"),
+    ("cg_hitsounds", "6", "Saber: mixed hits"),
     (crate::audio::SKIN_SOUNDS_CVAR, "0", "Off"),
     (crate::audio::SKIN_SOUNDS_CVAR, "1", "With normal"),
     (crate::audio::SKIN_SOUNDS_CVAR, "2", "Only skin"),
@@ -282,6 +289,7 @@ pub(super) fn choice_name(cvar: &str, value: &str) -> Option<&'static str> {
         .or_else(|| crate::away_emote::choice_name(cvar, value))
         .or_else(|| crate::chat_sounds::choice_name(cvar, value))
         .or_else(|| crate::text::system_font::choice_name(cvar, value))
+        .or_else(|| crate::chat::tabs::choice_name(cvar, value))
 }
 
 /// What the detail column says, in gold, while the SJK renderer is on and a
@@ -496,6 +504,14 @@ const HELP: &[(&str, &str)] = &[
     ),
     ("cg_footsteps", "Footstep sounds, yours and other players'."),
     (
+        crate::audio::muted_sounds::CVAR,
+        "Words, such as ysalamiri hacking: no sound whose file name holds one plays. mutesounds <player> mutes a player.",
+    ),
+    (
+        "cg_hitsounds",
+        "A sound each time you hit a player (another for a teammate), as in EJK. Saber: only changes saber hit sounds.",
+    ),
+    (
         crate::sound_sonar::CVAR,
         "For deaf and hard-of-hearing players: arcs round the crosshair point to the sounds played. Needs sound output (not s_initsound 0).",
     ),
@@ -618,12 +634,28 @@ const HELP: &[(&str, &str)] = &[
     // HUD
     (
         "cg_drawHud",
-        "Shows the HUD; off hides it, for screenshots and recordings.",
+        "Shows the HUD; off hides it, for screenshots and recordings. The four rows under it choose what off hides.",
+    ),
+    (
+        crate::hud::toggle::Part::Elements.cvar(),
+        "With the HUD off: health, shield, Force, ammo, timers, the kill feed and the rest of the HUD hide. Off: they stay.",
+    ),
+    (
+        crate::hud::toggle::Part::Crosshair.cvar(),
+        "With the HUD off: the crosshair and the name under it hide. Off: they stay.",
+    ),
+    (
+        crate::hud::toggle::Part::Names.cvar(),
+        "With the HUD off: nameplates, names over players and team logos hide. Off: they stay.",
+    ),
+    (
+        crate::hud::toggle::Part::Chat.cvar(),
+        "With the HUD off: the chat box hides too. Off (the default): the chat stays.",
     ),
     ("cg_hudScale", "Size of the HUD: higher is larger."),
     (
         crate::hud_edit::COMMAND,
-        "Drag the HUD's elements over the game with the mouse; right-click one to put it back.",
+        "Drag the HUD's elements over the game with the mouse, the kill feed too; right-click one to put it back.",
     ),
     (
         crate::hud::RadialPlacement::SPREAD_CVAR,
@@ -766,7 +798,7 @@ const HELP: &[(&str, &str)] = &[
     ),
     (
         "cg_killfeed",
-        "The last kills at the top right: killer, weapon icon, victim; a skull for suicides and falls.",
+        "The last kills, killer, weapon icon, victim, at the top right or wherever Move HUD elements put it.",
     ),
     ("cg_drawChat", "Shows chat messages over the game."),
     (
@@ -787,19 +819,35 @@ const HELP: &[(&str, &str)] = &[
     ),
     (
         crate::chat::tabs::FILTER_CVAR,
-        "On, a chat button shows only its own messages while you type; off, it only picks where you talk.",
+        "On, a chat button shows only its own messages while you type; off, every chat stays in view, labelled.",
     ),
     (
         crate::chat::tabs::TEAM_CVAR,
-        "Shows Team beside All when you type a message. Off, Tab skips it; the team chat key still opens team chat.",
+        "Shows Team beside All when you type. Not in Tab keeps the button but Tab skips it; the team key still opens it.",
     ),
     (
         crate::chat::tabs::SJK_CVAR,
-        "Shows SJK beside All when you type a message, for the SJK chat. Off, Tab skips it.",
+        "Shows SJK beside All when you type, for the SJK chat. Not in Tab keeps the button but Tab skips it.",
     ),
     (
         crate::chat::tabs::ADMIN_CVAR,
-        "Shows Admin beside All on JA+ and jaPRO servers: your message goes to the server's admins only (amsay).",
+        "Shows Admin on JA+ and jaPRO servers: only the server's admins read it (amsay). Not in Tab: Tab skips it.",
+    ),
+    (
+        crate::chat::tabs::JOF_CVAR,
+        "Shows JoF when you type, once you joined JoF's clan chat. Not in Tab keeps the button but Tab skips it.",
+    ),
+    (
+        crate::chat::tabs::SITH_CVAR,
+        "Shows S when you type, once you joined the Sith clan's chat. Not in Tab keeps the button but Tab skips it.",
+    ),
+    (
+        crate::chat::tabs::JOF_JOIN_CVAR,
+        "JoF's clan chat, for verified JoF and S players and staff. Auto joins it if it is yours; Joined or Left choose.",
+    ),
+    (
+        crate::chat::tabs::SITH_JOIN_CVAR,
+        "The Sith clan's chat (S), for verified S and JoF players and staff. Auto joins it if it is yours.",
     ),
     (
         crate::chat::tabs::PM_CVAR,
@@ -882,6 +930,10 @@ const HELP: &[(&str, &str)] = &[
     (
         crate::input::mouse_repeat::CVAR,
         "Hold mouse 4 or 5 to run its bind again 20 times a second, like a held key (JoF EJK, there at the frame rate).",
+    ),
+    (
+        crate::console_move::CVAR,
+        "Movement keys held as the console opens keep moving you, with no talk balloon; keys pressed while it is open still type.",
     ),
     // GAME
     (
@@ -1023,6 +1075,10 @@ const HELP: &[(&str, &str)] = &[
     (
         "cg_hitMarker",
         "Red direction indicator when you take damage. Off by default; camera kick and sounds stay the same.",
+    ),
+    (
+        crate::damage_feedback::SHIELD_CVAR,
+        "With the damage hitmarker on, it shows green instead of red when the hit took your shield.",
     ),
     (
         "cg_shieldBrightness",
@@ -1327,6 +1383,10 @@ const HELP: &[(&str, &str)] = &[
     (
         crate::e2e_whispers::CVAR,
         "Whispers to SJK players go end-to-end encrypted through the SJK hub: only you two can read them. Off sends them through the server.",
+    ),
+    (
+        crate::sound_mutes::IGNORE_CVAR,
+        "A JA+ or jaPRO ignore <player> also mutes their sounds until the map changes; ignore again hears them.",
     ),
     (
         crate::map_blocks::CVAR,
@@ -1691,6 +1751,8 @@ mod tests {
             RENDER_LIGHTING,
             RENDER_SHADOWS,
             RENDER_WEATHER,
+            // Rows only a search shows (they live on the Collection's Hax card).
+            HAX_TOY,
         ]
         .into_iter()
         .flatten();
