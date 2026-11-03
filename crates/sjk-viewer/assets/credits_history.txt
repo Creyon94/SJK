@@ -9,6 +9,38 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 03/11/2026 | - | Browser map editor, round 2: selection drawn, controls card, Recent rows, copy/paste, World page
+- 104c188 |  | Browser map editor, round 2: selection drawn, controls card, Recent rows, copy/paste, World page
++ 03/11/2026 | - | Release 2026.1103.2
+- c0d603e |  | Release 2026.1103.2
++ 03/11/2026 | - | Docs: Slash and Milamber can merge to main and cut releases; release steps
+- 585ea80 |  | Docs: Slash and Milamber can merge to main and cut releases; release steps
++ 03/11/2026 | - | Holocron catch-up and play signals, tag copies (client side)
+- 4c01c6f |  | Holocron catch-up and play signals, tag copies (client side)
++ 03/11/2026 | - | Holocrons: peaceful play earns at the full pace (docs, changelog)
+- 7daa73a |  | Holocrons: peaceful play earns at the full pace (docs, changelog)
++ 03/11/2026 | - | Clan chats: JoF and S chats beside SJK chat, Not in Tab for chat buttons
+- 83fd26a |  | Clan chats: JoF and S chats beside SJK chat, Not in Tab for chat buttons
++ 03/11/2026 | - | Startup stack check: module in rustfmt's order
+- f070f1c |  | Startup stack check: module in rustfmt's order
++ 03/11/2026 | - | Startup stack check: the client's start fits in a quarter of the main stack
+- b4337ce |  | Startup stack check: the client's start fits in a quarter of the main stack
++ 03/11/2026 | - | Client main thread reserves 64 MiB of stack (menu world overflowed 8 MiB)
+- ba2f80c |  | Client main thread reserves 64 MiB of stack (menu world overflowed 8 MiB)
++ 03/11/2026 | - | Report a bug from the main menu; Hax trap switches on the Hax's Collection card
+- 752b2ac |  | Report a bug from the main menu; Hax trap switches on the Hax's Collection card
++ 03/11/2026 | - | Choose what the HUD switch hides
+- 39be952 |  | Choose what the HUD switch hides
++ 03/11/2026 | - | Cosmetic loadouts in the Collection
+- b5f4d07 |  | Cosmetic loadouts in the Collection
++ 03/11/2026 | - | Loadouts card and HUD switch parts: clippy
+- 50dc651 |  | Loadouts card and HUD switch parts: clippy
++ 03/11/2026 | - | Quick wheel pictures of the player's own
+- 39dec8f |  | Quick wheel pictures of the player's own
++ 03/11/2026 | - | Status: menu ideas 03/11
+- 51725c1 |  | Status: menu ideas 03/11
++ 03/11/2026 | - | Credits history after today's merges (map editor in the browser included)
+- 1c40cde |  | Credits history after today's merges (map editor in the browser included)
 + 03/11/2026 | - | Map editor in the web browser (mapedit_web, creator only for now)
 - 07ff030 |  | Map editor in the web browser (mapedit_web, creator only for now)
 + 03/11/2026 | - | Map editor in the browser stays out of the changelog (creator tool)
