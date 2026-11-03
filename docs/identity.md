@@ -122,7 +122,9 @@ buttons under Verify (Gold, JoF, Sith, Jawa, each with its tick; the one drawn n
 verifies the player with that tick, or changes it when they already are; Verify alone
 keeps the group they had. A group shows only while the player is verified; staff and
 the creators wear their own whatever it is. Hubs older than ticks send none, so every
-verified player shows gold, as clients older than ticks show everyone.
+verified player shows gold, as clients older than ticks show everyone. Since 03/11/2026
+the JoF and Sith groups also open the clan chats ([hub-chat.md](hub-chat.md#clan-chats)):
+verifying a player with one of those ticks lets them in, unverifying takes them out.
 
 The ticks are computed at start like the gold seal
 ([tick_badge.rs](../crates/sjk-viewer/src/ui_renderer/tick_badge.rs), icon cells after
@@ -198,8 +200,8 @@ it is replaced, the player turns the setting off (an empty list, which deletes i
 operator removes the identity. Anyone may ask the hub whether the player in a server's
 slot has a given model.
 
-A bug report (Escape, SJK, Report a bug) is sent only when the player presses Enter
-on it: its text, the map, the client build, the game server's address and the in-game
+A bug report (Escape, SJK, Report a bug) is sent only when the player presses Send (or
+Ctrl+Enter; Enter in its box starts a new line, which the hub stores as a space): its text, the map, the client build, the game server's address and the in-game
 name the player wears, signed with the player's key. The hub keeps it until the operator removes it.
 
 A crash report ([Crash reports](#crash-reports)) is sent at the start after SJK
@@ -259,7 +261,9 @@ plays on); they are kept in `avatars/` in the settings folder.
 [bug_report.rs](../crates/sjk-viewer/src/bug_report.rs) and
 [report.rs](../crates/sjk-identity/src/report.rs). While the game menu is open, a Report a
 bug button sits centred at the bottom of the screen (also Escape, SJK, Report a bug); it
-closes the game menu and opens the text dialog
+closes the game menu and opens the text dialog (the SJK UI's main page has it too, on its
+SJK page since 03/11/2026, Lex's idea: that report names the map `menu` and no server,
+the map behind the menu being only its backdrop)
 ([text_dialog.rs](../crates/sjk-viewer/src/text_dialog.rs)): a panel in the middle of the
 screen with a text box, a character count, Send and Cancel (Escape cancels too). The text
 has an insertion point (Left, Right, Up, Down, Home, End, Backspace, Delete, Ctrl for

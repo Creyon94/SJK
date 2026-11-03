@@ -78,6 +78,8 @@ impl ViewerConsole {
         self.holocrons_panel.close();
         self.dead_key.settle();
         self.collection_panel.open(tab, owns_console, hub, back);
+        let store = super::collection_panel::loadouts::Store::load(self.config_directory());
+        self.collection_panel.set_loadouts(&store, Some(""));
     }
 
     fn close_collection_panel(&mut self) {
@@ -140,6 +142,10 @@ impl ViewerConsole {
             }
             PanelAction::ToySight { cvar, seen } => {
                 self.set_cvar(cvar, if seen { "1" } else { "0" });
+            }
+            PanelAction::Loadout(request) => self.loadout_request(&request),
+            PanelAction::ToyOption { cvar, on } => {
+                self.set_cvar(cvar, if on { "1" } else { "0" });
             }
             PanelAction::ShaderView(grid) => {
                 self.set_cvar(
@@ -209,6 +215,8 @@ impl ViewerConsole {
                 self.set_cvar(crate::tags::CVAR, &id);
                 self.set_cvar(crate::tags::FINISH_CVAR, finish);
             }
+            PanelAction::ShatterTag(copy) => crate::player_identity::shatter_tag(copy),
+            PanelAction::CraftTags(copies) => crate::player_identity::craft_tags(copies),
             PanelAction::Hub(tab) => {
                 // A tab of another page: the Holocrons page.
                 let back = self.collection_panel.back();
@@ -338,6 +346,37 @@ impl ViewerConsole {
         self.pending_banana.take()
     }
 
+    /// Carry out what the Collection's Loadouts card asked, and show the slots again with
+    /// what it did.
+    fn loadout_request(&mut self, request: &super::collection_panel::loadouts::Request) {
+        use super::collection_panel::loadouts::{Request, Store};
+        let directory = self.config_directory().to_path_buf();
+        let mut store = Store::load(&directory);
+        let (changed, set) = store.apply(request, |cvar| {
+            self.text_value(cvar).unwrap_or_default().to_owned()
+        });
+        if changed {
+            store.save(&directory);
+        }
+        for (cvar, value) in &set {
+            let _ = self.set_cvar(cvar, value);
+        }
+        let name = |slot: usize| {
+            store.slots[slot]
+                .as_ref()
+                .map_or_else(String::new, |loadout| loadout.name.clone())
+        };
+        let note = match request {
+            Request::Wear(slot) if set.is_empty() => format!("You already wear {}", name(*slot)),
+            Request::Wear(slot) => format!("Wearing {}", name(*slot)),
+            Request::Save(slot) => format!("Your look is saved as {}", name(*slot)),
+            Request::Rename(slot, _) if changed => format!("Renamed {}", name(*slot)),
+            Request::Rename(..) => String::new(),
+            Request::Clear(slot) => format!("Slot {} is empty", slot + 1),
+        };
+        self.collection_panel.set_loadouts(&store, Some(&note));
+    }
+
     /// Give a pressed key to the open page; false when the page is closed.
     pub(super) fn collection_panel_key(&mut self, event: &KeyEvent) -> bool {
         if !self.collection_panel.is_open() {
@@ -386,7 +425,13 @@ impl ViewerConsole {
             .map(|value| sjk_client::split_color_value(value).0)
             .and_then(|colour| u8::try_from(colour).ok())
             .unwrap_or(4);
-        crate::player_menu::saber_color(index, [255, 255, 255])
+        // A custom (RGB) blade in its own tint, as the game draws it (0 reads as red), not
+        // white (Neffie: an RGB blade did not show as chosen).
+        let tint = self
+            .integer_cvar("cp_sbRGB1")
+            .and_then(|packed| u32::try_from(packed).ok())
+            .unwrap_or(0);
+        crate::player_menu::saber_color(index, sjk_client::unpack_saber_rgb(tint))
     }
 
     /// Draw the page with its text to `target`.
@@ -431,6 +476,8 @@ impl ViewerConsole {
         };
         let toys_unseen =
             super::collection_panel::toys_unseen(|cvar| crate::toy_sight::seen(Some(self), cvar));
+        let toy_options =
+            super::collection_panel::toy_options(|cvar| self.bool_cvar(cvar) == Some(true));
         let options = self
             .text_cvar(crate::saber_skin_options::CVAR)
             .unwrap_or_default()
@@ -497,6 +544,7 @@ impl ViewerConsole {
                 nameplate_style,
                 toy_keys: &toy_keys,
                 toys_unseen,
+                toy_options,
                 tag: &tag,
                 tag_finish: &tag_finish,
             };
@@ -532,6 +580,7 @@ impl ViewerConsole {
             nameplate_style,
             toy_keys: &toy_keys,
             toys_unseen,
+            toy_options,
             tag: &tag,
             tag_finish: &tag_finish,
         };
@@ -688,6 +737,13 @@ impl ViewerConsole {
         self.collection_panel.shot_seconds = Some(seconds);
     }
 
+    /// Open the Collection's Loadouts card over its page with `store`'s slots, for a
+    /// world shot.
+    #[cfg(test)]
+    pub(crate) fn preview_loadouts(&mut self, store: &super::collection_panel::loadouts::Store) {
+        self.collection_panel.open_loadouts_for_shot(store);
+    }
+
     /// Open the page on its own on `tab` with `unlocks` in place of the own profile's,
     /// its swatches drawn at `seconds`, for a world shot.
     #[cfg(test)]
@@ -817,14 +873,23 @@ mod tests {
     fn the_stock_blade_swatch_reads_the_whole_colour() {
         let directory = tempfile::tempdir().unwrap();
         let mut console = ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
+        let tint = [40, 200, 90];
+        let packed = sjk_client::pack_saber_rgb(tint);
+        console.set_cvar("cp_sbRGB1", &packed.to_string());
         for (value, index) in [("11", 11), ("1", 1), ("6", 6), ("4", 4)] {
             console.set_cvar("color1", value);
             assert_eq!(
                 console.stock_blade(),
-                crate::player_menu::saber_color(index, [255, 255, 255]),
+                crate::player_menu::saber_color(index, tint),
                 "{value}"
             );
         }
+        // The custom blade is the player's tint, not white.
+        console.set_cvar("color1", "6");
+        assert_eq!(
+            console.stock_blade(),
+            sjk_ui::Color::new(40.0 / 255.0, 200.0 / 255.0, 90.0 / 255.0, 1.0)
+        );
     }
 
     #[test]
