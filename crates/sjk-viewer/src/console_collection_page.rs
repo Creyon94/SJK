@@ -37,6 +37,18 @@ impl ViewerConsole {
         self.show_collection_panel(tab, owns_console, false, ReturnTarget::MainMenu);
     }
 
+    /// The Saber Lab started: show the Shaders tab on its own (the classic menus; the SJK
+    /// UI's Collection screen is opened by `GpuState`) unless `hub` says it opened that
+    /// screen, and choose the lab blade.
+    pub(crate) fn show_saber_lab(&mut self, hub: bool) {
+        let shown = self.open && self.collection_panel.is_open();
+        if !hub && !(shown && self.collection_panel.tab() == Tab::Shaders) {
+            let owns_console = !self.open;
+            self.show_collection_panel(Tab::Shaders, owns_console, false, ReturnTarget::MainMenu);
+        }
+        self.collection_panel.choose_saber_lab();
+    }
+
     /// Show the page on its own on the tab shown last (the classic menus).
     pub(crate) fn open_collection_panel(&mut self) {
         let tab = self.collection_panel.tab();
@@ -415,6 +427,11 @@ impl ViewerConsole {
     pub(crate) fn set_collection_backstage(&mut self, backstage: Backstage) {
         self.model_viewer.set_backstage(backstage);
         self.collection_panel.set_backstage(backstage);
+    }
+
+    /// The style the stage's model holds its hilts in, for the Saber Lab tab.
+    pub(crate) fn set_collection_lab_held(&mut self, held: crate::player_menu::SaberStyle) {
+        self.collection_panel.set_lab_held(held);
     }
 
     /// The stock blade's colour, from `color1`, for its swatch.
@@ -834,6 +851,61 @@ impl ViewerConsole {
         turn: Option<super::collection_panel::SaberTurn>,
     ) {
         self.collection_panel.hold_saber_for_shot(turn);
+    }
+
+    /// Show the Saber Lab tab's model in `style` (0 fast to 2 strong), swinging or not, for
+    /// a world shot.
+    #[cfg(test)]
+    pub(crate) fn collection_lab_for_shot(&mut self, style: usize, swinging: bool) {
+        self.collection_panel.lab_for_shot(style, swinging);
+    }
+
+    /// Look at the Saber Lab tab's model from `view`, its blade lit or not, for a world
+    /// shot.
+    #[cfg(test)]
+    pub(crate) fn collection_lab_view_for_shot(
+        &mut self,
+        view: crate::console::collection_panel::LabView,
+        lit: bool,
+    ) {
+        self.collection_panel.lab_view_for_shot(view, lit);
+    }
+
+    /// Open the Saber Lab's editor on skin `id`, its sections open, for a world shot.
+    #[cfg(test)]
+    pub(crate) fn collection_lab_edit_for_shot(&mut self, id: &'static str) {
+        self.collection_panel.lab_edit_for_shot(id);
+    }
+
+    /// Show the sections the Saber Lab's edited skin may add, adding `add` when given, for
+    /// a world shot.
+    #[cfg(test)]
+    pub(crate) fn collection_lab_edit_adds_for_shot(&mut self, add: Option<&str>) {
+        self.collection_panel.lab_edit_adds_for_shot(add);
+    }
+
+    /// Set the number at `path` of the skin the Saber Lab edits, for a world shot.
+    #[cfg(test)]
+    pub(crate) fn collection_lab_edit_set_for_shot(&mut self, path: &str, value: f64) {
+        self.collection_panel.lab_edit_set_for_shot(path, value);
+    }
+
+    /// Preview blade skin `id` on the Saber Lab tab, for a world shot.
+    #[cfg(test)]
+    pub(crate) fn collection_lab_blade_for_shot(&mut self, id: &str) {
+        self.collection_panel.lab_blade_for_shot(id);
+    }
+
+    /// Show the Saber Lab's floating saber's still trail or not, for a world shot.
+    #[cfg(test)]
+    pub(crate) fn collection_lab_trail_for_shot(&mut self, trail: bool) {
+        self.collection_panel.lab_trail_for_shot(trail);
+    }
+
+    /// Put the Saber Lab's camera behind the model or back on the shot, for a world shot.
+    #[cfg(test)]
+    pub(crate) fn collection_lab_chase_for_shot(&mut self, chase: bool) {
+        self.collection_panel.lab_chase_for_shot(chase);
     }
 
     /// Choose the Collection's shader row `row` (0 the stock blade), for a world shot.

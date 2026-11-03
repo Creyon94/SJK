@@ -1583,7 +1583,8 @@ the choice in view with its heading, a bar at its side; the credits cards a hub 
 follow the tags under "Credits cards"; a tile badges its Holo and Solar copies, and the card
 offers Normal, Holo and Solar chips, the finishes held, shown over the picture, Choose then
 setting `cg_tagFinish` too), and since 31/10/2026
-History last (what came, was opened, spent and traded, [cards.md](cards.md#history)). Sol picked the
+History last (what came, was opened, spent and traded, [cards.md](cards.md#history)); while
+the Saber Lab is on, a tab after History, Saber Lab ([client.md](client.md#saber-lab)). Sol picked the
 direction from a design canvas (`the vault`): every thing has its place from the
 start, the ones the player lacks dimmed; each tab shows its things on the left and
 the one chosen up close on the right.

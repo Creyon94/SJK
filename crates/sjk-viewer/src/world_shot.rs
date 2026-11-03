@@ -365,6 +365,9 @@ mod create_game;
 #[path = "world_shot_graphics_reload.rs"]
 mod graphics_reload;
 
+#[path = "world_shot_saber_kill.rs"]
+mod saber_kill;
+
 #[path = "world_shot_fps_help.rs"]
 mod fps_help_shots;
 #[path = "world_shot_small_card.rs"]

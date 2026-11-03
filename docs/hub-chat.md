@@ -196,6 +196,12 @@ Old clients ignore all of it, so it stays `/v1/`.
   shows in the feed (the in-game composer has nowhere else to say it).
 - `cl_sjkChatConsole` (default 1, Settings > Chat > SJK chat in console) controls only
   whether live SJK messages are copied into console scrollback.
+- `SJK_APPEAR_OFFLINE` (environment, any value but empty or `0`; 19/10/2026) keeps the
+  chat off for that run as `cl_sjkChat 0` does, without saving it
+  (`sjk_chat_frame::appears_offline`; every reader of the switch goes through
+  `ViewerConsole::sjk_chat_on`). In the menus the feed is not read, so after a minute
+  the hub no longer lists the player as online: the player appears offline while
+  testing. The Settings row still shows the saved `cl_sjkChat`.
 
 ## Said on the game server too
 

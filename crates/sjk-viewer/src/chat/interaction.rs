@@ -321,7 +321,7 @@ impl crate::GpuState {
         let off = self
             .console
             .as_ref()
-            .is_some_and(|console| console.bool_cvar("cl_sjkChat") == Some(false));
+            .is_some_and(|console| !console.sjk_chat_on());
         let why = if off {
             Some("^3SJK chat is off (cl_sjkChat 1 turns it on)")
         } else if !if only {

@@ -57,6 +57,12 @@ mod marks_view;
 mod medals;
 #[path = "collection_nameplates.rs"]
 mod nameplates;
+#[path = "collection_saber_lab_builder.rs"]
+mod saber_lab_builder;
+#[path = "collection_saber_lab_editor.rs"]
+mod saber_lab_editor;
+#[path = "collection_saber_lab.rs"]
+mod saber_lab_tab;
 #[path = "collection_shaders.rs"]
 mod shaders;
 #[path = "collection_spin.rs"]
@@ -70,6 +76,7 @@ mod toys;
 #[path = "collection_view.rs"]
 mod view;
 
+pub(crate) use saber_lab_tab::{LAB_SABER_AREA, LabStage, LabView};
 pub(crate) use spin::SaberTurn;
 pub(crate) use toys::{COMMANDS as TOY_COMMANDS, options_on as toy_options, unseen as toys_unseen};
 pub(crate) use view::{MODEL_AREA, SABER_AREA, row_labels};
@@ -222,7 +229,10 @@ const OPTION_TOKENS: usize =
 /// The Shaders tab's rows: the stock blade, then every blade skin, the rarest first
 /// ([`unlockables::blade_skins_by_tier`]).
 const SHADER_ROWS: usize = 1 + unlockables::ALL.len();
-const _: () = assert!(SHADER_BASE as usize + SHADER_ROWS <= SHADER_LIMIT as usize);
+/// The rows the tab may hold: [`SHADER_ROWS`] and the Saber Lab's blade while the lab is
+/// on ([`crate::saber_lab`]).
+const SHADER_SLOTS: usize = SHADER_ROWS + 1;
+const _: () = assert!(SHADER_BASE as usize + SHADER_SLOTS <= SHADER_LIMIT as usize);
 /// The Shaders tab's filter (14/10/2026): its tier chips (All, then the five tiers, and
 /// Unique's for a player who holds a Unique shader), the owned-only chip and the search
 /// field.
@@ -557,6 +567,9 @@ pub(crate) struct StageWish {
     pub(crate) on_both: bool,
     /// The Illuminate holocron floats by the model, lit.
     pub(crate) holocron: bool,
+    /// The Saber Lab tab: the model holds the saber and swings it, the saber floats
+    /// beside it too ([`crate::saber_lab`]).
+    pub(crate) lab: Option<LabStage>,
 }
 
 /// What the page knows this frame.
@@ -742,6 +755,24 @@ pub(crate) struct Panel {
     card_blade: Option<&'static unlockables::Unlockable>,
     card_blade_craft: bool,
     shader_focus: Option<&'static str>,
+    /// What the Saber Lab tab asks of the stage, what a press on it holds, the style the
+    /// stage's model holds its hilts in, its blade among the lab's
+    /// ([`crate::saber_lab::blades`]) and the worn skin as the last frame's inputs said
+    /// (`cg_saberSkin`, for its Equip).
+    lab: LabStage,
+    lab_drag: Option<saber_lab_tab::LabDrag>,
+    lab_held: crate::player_menu::SaberStyle,
+    lab_blade: usize,
+    lab_setting: String,
+    /// Whether the player may wear the blade the Saber Lab tab shows, as its last frame
+    /// found.
+    lab_wearable: bool,
+    /// The Saber Lab's blade-skin editor while it is open, and why it could not open.
+    lab_edit: Option<saber_lab_editor::LabEdit>,
+    lab_edit_problem: Option<String>,
+    /// The Saber Lab's builder, and whether the tab shows the stage's choices instead.
+    lab_build: saber_lab_builder::LabBuild,
+    lab_stage_view: bool,
     /// How many sealed copies the last frame offered to reveal (0: no Reveal button).
     revealable: u32,
     /// The identity's last reveal when Reveal was pressed: the line under the button
@@ -780,7 +811,7 @@ pub(crate) struct Panel {
     bind_wait: Option<usize>,
     /// How many medals the last frame showed.
     medals_shown: usize,
-    shader_rows: [ShaderRow; SHADER_ROWS],
+    shader_rows: [ShaderRow; SHADER_SLOTS],
     /// The shaders the tab lists now (the filter's), the stock blade's row 0 before them,
     /// and how many rows that makes; read again each frame.
     shader_list: Vec<&'static unlockables::Unlockable>,
@@ -925,6 +956,16 @@ impl Panel {
             shader_focus: None,
             revealable: 0,
             reveal_asked: None,
+            lab: LabStage::default(),
+            lab_drag: None,
+            lab_held: crate::player_menu::SaberStyle::Single,
+            lab_blade: 0,
+            lab_setting: String::new(),
+            lab_wearable: false,
+            lab_edit: None,
+            lab_edit_problem: None,
+            lab_build: saber_lab_builder::LabBuild::default(),
+            lab_stage_view: false,
             shader_first: 0,
             shader_lines: Vec::new(),
             shader_shown: 0,
@@ -938,7 +979,7 @@ impl Panel {
             jump_to_worn: false,
             bind_wait: None,
             medals_shown: 0,
-            shader_rows: [ShaderRow::default(); SHADER_ROWS],
+            shader_rows: [ShaderRow::default(); SHADER_SLOTS],
             // Until the first frame reads the holdings: what a player who holds nothing sees.
             shader_list: Holdings::IdentityOff.listed().collect(),
             shader_owned: Vec::new(),
@@ -990,6 +1031,7 @@ impl Panel {
         if self.skins.generation() != crate::sjk_packs::generation() {
             self.skins = crate::sjk_packs::skins();
         }
+        self.follow_lab_editor();
     }
 
     /// Show the page on `tab` (one of the Collection's), on its own (`hub` false: the
@@ -1074,10 +1116,21 @@ impl Panel {
         let owned = self.open && self.owns_console;
         // Shown again, the History tab reads the newest lines.
         self.history.shown = false;
+        self.close_lab_editor();
+        self.lab_build.close();
         self.open = false;
         self.owns_console = false;
         self.backstage = Backstage::None;
         owned
+    }
+
+    /// Choose the Saber Lab's blade on Shaders: the first row after the stock blade while
+    /// the lab is on, shown whatever the filter.
+    pub(crate) fn choose_saber_lab(&mut self) {
+        if crate::saber_lab::active() {
+            self.shader = 1;
+            self.shader_first = 0;
+        }
     }
 
     /// Where the model stands this frame.
@@ -1126,6 +1179,7 @@ impl Panel {
                 on_second: self.second_target,
                 on_both: self.both_sides(),
                 holocron: false,
+                lab: None,
             }),
             Tab::Toys => Some(StageWish {
                 skin: PreviewSkin::Worn,
@@ -1133,6 +1187,7 @@ impl Panel {
                 on_second: false,
                 on_both: false,
                 holocron: self.toy == 0,
+                lab: None,
             }),
             Tab::Nameplates => Some(StageWish {
                 skin: PreviewSkin::Worn,
@@ -1140,7 +1195,9 @@ impl Panel {
                 on_second: false,
                 on_both: false,
                 holocron: false,
+                lab: None,
             }),
+            Tab::SaberLab => self.lab_wish(),
             _ => None,
         }
     }
@@ -1203,6 +1260,7 @@ impl Panel {
                 self.card_inspect = self.cards_shown > 0;
                 PanelAction::None
             }
+            Tab::SaberLab => self.lab_equip(&self.lab_setting),
             _ => PanelAction::None,
         }
     }
@@ -1417,6 +1475,14 @@ impl Panel {
                 }
                 _ => {}
             }
+        }
+        if self.tab == Tab::SaberLab
+            && let Some(action) = self
+                .lab_edit_key(event, key, shift, control)
+                .or_else(|| self.lab_build_key(event, key, shift, control))
+                .or_else(|| self.lab_key(key))
+        {
+            return action;
         }
         self.key(key, shift, illuminate)
     }
@@ -1933,7 +1999,7 @@ impl Panel {
             return Self::loadout_reply(reply);
         }
         // The lone saber turns with a drag that starts on it, wherever it goes after.
-        if self.tab == Tab::Shaders {
+        if matches!(self.tab, Tab::Shaders | Tab::SaberLab) {
             match event {
                 InputEvent::PointerPress { position: at, .. }
                     if self.backstage != Backstage::None
@@ -1989,6 +2055,14 @@ impl Panel {
                 }
                 _ => {}
             }
+        }
+        if self.tab == Tab::SaberLab
+            && let Some(action) = self
+                .lab_edit_pointer(event)
+                .or_else(|| self.lab_build_pointer(event))
+                .or_else(|| self.lab_pointer(event))
+        {
+            return action;
         }
         if let InputEvent::PointerWheel { delta, .. } = event
             && self.tab == Tab::Forge
@@ -2246,6 +2320,14 @@ impl Panel {
         if event.kind != UiEventKind::Activate {
             return PanelAction::None;
         }
+        if self.tab == Tab::SaberLab
+            && let Some(action) = self
+                .lab_edit_click(token)
+                .or_else(|| self.lab_build_click(token))
+                .or_else(|| self.lab_click(token))
+        {
+            return action;
+        }
         if let Some(style) = token
             .checked_sub(STYLE_BASE)
             .and_then(|index| crate::hud::nameplate::Style::ALL.get(usize::from(index)))
@@ -2478,6 +2560,7 @@ impl Panel {
                 }
                 None => BACK_TOKEN,
             },
+            Tab::SaberLab => self.lab_focus(),
             _ => BACK_TOKEN,
         }
     }

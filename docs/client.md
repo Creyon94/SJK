@@ -6141,6 +6141,219 @@ arrives mid-session (`GameAudio::follow_blade_skins`, which also decodes a skin'
 sounds afresh in case the new pack changed them); the per-client table then names the
 new sets. The Sun's sounds have not been checked by ear in a game.
 
+### Saber Lab
+
+The Saber Lab ([saber_lab.rs](../crates/sjk-viewer/src/saber_lab.rs), 18/10/2026) makes and
+tunes blade skins from a folder of loose files, reloaded as they are saved: no pack, no
+restart, no rebuild. `saberlab <folder>` starts it (a path may hold spaces), `saberlab off`
+stops it and `saberlab` alone says what it reads; `SJK_SABER_LAB=<folder>` starts it at
+launch, for a shortcut.
+
+- **The folder** is laid out as a pack: `skins/blades/<id>.bladeskin`, its additions files
+  ([unlockables.md](unlockables.md#blade-skin-files)), and the images and sounds they name.
+  It is mounted over the hub's packs (`sjk_packs::mount`), so a file there replaces a
+  pack's of the same name: `saber_sun.bladeskin` tunes a copy of the Sun. A file named
+  `saber_lab.bladeskin` is the **lab blade** (`saber_lab::BLADE`), a skin of its own the
+  catalogue knows only while the lab is on, for a new skin with no catalogue entry yet.
+- **Reloading:** the folder is looked at every half second (names, sizes and modification
+  times of at most 512 files); a change mounts the packs again, the renderer takes the new
+  skins on its next frame and their sounds are registered again, as when the hub sends a
+  pack. A reload takes about 20 ms. A file saved with a UTF-8 byte-order mark (Notepad,
+  PowerShell) reads as one without.
+- **Mistakes:** a file that does not read, or whose images or sounds do not load, keeps its
+  skin's last good look (`LoadedSkins::keep`), and the Shaders tab's lead says which file
+  and why (`corona.reach must be 1 to 2, not 9`), as does the console. The lead otherwise
+  names the folder and how long ago it was read.
+- **The preview:** starting the lab opens the Collection's Shaders tab (the SJK UI's
+  Collection screen, or the classic menus' page) with the lab blade chosen, the row after
+  the stock blade whatever the filter, on the lone saber the tab turns
+  ([sjk-ui.md](sjk-ui.md#collection)). Any skin of the folder can be chosen there.
+- **The Saber Lab tab** (18/10/2026, [collection_saber_lab.rs](../crates/sjk-viewer/src/collection_saber_lab.rs)):
+  while the lab is on the Collection's row ends with it. On the menu map's stage the
+  player's model stands left of the picture (`menu_backdrop::Shot::SaberLab`; duel6 has
+  a route of its own, other maps take the player's shot) holding the blade chosen, in
+  the style chosen (Fast, Medium, Strong: `BOTH_SABERFAST_STANCE`, `BOTH_STAND2`,
+  `BOTH_SABERSLOW_STANCE`), standing or swinging: each style's three attacks chained as
+  the game chains them, the start from the stance, the attack and the return
+  (`force_pose::STYLE_ATTACKS`, `BOTH_S1_S1_T_` / `BOTH_A1_T__B_` / `BOTH_R1_B__S1` and so
+  on). A copy of the same saber floats on the right (`LAB_SABER_AREA`, four fifths of
+  its width long at most), turned by a drag as on Shaders, its hilt in a buffer of its
+  own (`StageSaber::float_instance_buffer`). Under it: Style and Moves as segments, the
+  blade with arrows among the folder's skins, Equip, and the lab's status in the lead.
+  Keys: 1 to 3 the style, Space stand or swing, Left and Right the blade, Enter equip.
+  Over a match the tab shows no stage and says so; the stage is the main menu's only.
+- **Hilts, speed, ignition, sound and camera** (18/10/2026): the model holds the player's
+  own hilts (`saber1`, `saber2`, read as the Collection opens), as the Shaders tab's lone
+  saber does; a staff or two sabers swing in their own style (`force_pose::lab_swings`,
+  the `BOTH_A7_*` and `BOTH_A6_*` attacks) and the Style row says so. A Speed slider
+  (10% to 200%, `-` and `=`) plays the animations and the moves' script at that pace
+  (`actor.rate`, `MenuStage::motion_clock`), each swing following the last the moment
+  it ends, with no wait in the stance between at any speed (the user, 18/10/2026:
+  `force_motion::moves_at`'s `pause` 0 in the lab; the Force page's previews keep
+  theirs). Saber Off and On (`I`) retract and light
+  both sabers a frame's growth at a time, as a match does (`saber::Extension` per blade,
+  `StageSaber::extension`); with Flourish ticked (`F`, on at first) the model plays the
+  game's draw or put-away as it does (`LS_DRAW`, `LS_PUTAWAY`: `BOTH_STAND1TO2` and
+  `BOTH_STAND2TO1`, a staff's `BOTH_S1_S7` and `BOTH_S7_S1`, two sabers' `BOTH_S1_S6`
+  and `BOTH_S6_S1`; `force_pose::lab_flourish`), the swings waiting for it, and stands
+  holstered (`BOTH_STAND1`) while the blade is off. Sound On and Muted (`M`): the
+  ignition and retraction (the skin's own, else the hilt's `soundOn`/`soundOff`, else
+  `saberon.mp3` and `enemy_saber_off.wav`; a file no pack holds is passed over for the
+  next), a swing as each attack begins as a match plays `EV_SABER_ATTACK` (the hilt's
+  `swingSound*`, else `saberhup1` to `saberhup8`, the skin's swing on top), and what the
+  model's `animevents.cfg` cues (the spins and specials' swings), none of the swings while
+  the blade is off (`menu_stage/lab.rs`). The ordinary attacks have no swing in
+  `animevents.cfg`: listening for those alone, the tab was silent at first. The hum does
+  not play yet. A drag on the picture left of the choices turns the camera round the
+  model and tilts it over it, the wheel brings it nearer (45% to 220% of the shot's
+  distance), `R` puts it back (`LabView`, `menu_backdrop::orbit`): the whole view turns
+  about the model's chest, so the model stays where the shot frames it, and the camera
+  stops short of a wall between. View Third person (`T`) puts the camera behind the
+  model as a match's third person does (`cg_thirdPersonRange`, `cg_thirdPersonVertOffset`
+  and `cg_thirdPersonAngle` over the eye, `DEFAULT_VIEWHEIGHT`, looking level;
+  `menu_backdrop::behind`), the drag and the wheel turning it round that point. Both ease
+  in over 0.6 s and out as the tab is left (`menu_stage::lab::Ease`, `LabCamera`).
+- **Trails and the blade shown** (18/10/2026): the stage's blades leave a match's motion
+  trail as the model swings (`StageSaber::trails`, fed to the match's
+  `saber_trail::SegmentPool`; `cg_saberTrail 0` turns it off). How long it lasts is the
+  game's `saberMoveData` trail length of the move whose animation the torso plays, found
+  in the move table with the style's animation group (`sabers::trail_length`: starts,
+  attacks and returns 200 ms, transitions and parries 150, stances, the draw and the
+  put-away none), before `CG_AddSaberBlade` divides it by five. Trail, ticked over the
+  floating saber (`L`), gives it a still trail: an attack's trail held as a blade swinging
+  evenly leaves it, eight slices over 0.45 rad about the camera's forward through its
+  grip, each as old as its place (`saber_trail::still_trail`, drawn that frame only,
+  `SegmentPool::add_still`). The blade on the model and the floating one is the one worn
+  (`cg_saberSkin`, whatever Shaders equipped), so the lab's own shows once the tab's
+  Equip wears it. The Blade row (Left and Right) starts there, then previews the stock
+  blade, the lab folder's skins and every other blade skin of the catalogue, the rarest
+  first, owned or not (`LabBlade`, `lab_blades`; drawn on this PC only, as Shaders
+  previews a locked one). Equip wears what may be worn (a lab skin, or one the profile
+  lists) and takes off what is worn; a blade not owned is only previewed, and the line
+  under the row says which.
+- **The blade-skin editor** (18/10/2026, [blade_editor.rs](../crates/sjk-viewer/src/blade_editor.rs),
+  [collection_saber_lab_editor.rs](../crates/sjk-viewer/src/collection_saber_lab_editor.rs)):
+  Edit (`E`) on the Equip row opens the skin the Blade row shows (a skin of the packs is
+  copied into the lab's folder first, "Copy to edit": the lab then draws its copy in place
+  of the pack's, on this PC only) as its six files, the skin file and its five additions
+  files, read in their own order ([ordered_json.rs](../crates/sjk-viewer/src/ordered_json.rs)).
+  Its sections and fields are rows in the column under the floating saber: a number with
+  a slider over the range its check allows (`blade_skin_file::ranges` records each
+  `within` the checks make, over every skin of the packs and the one edited), a colour
+  with a swatch and its channels, a switch, a path; a section of another file shows that
+  file. Each section says in a few words what it draws (`blade_editor::about`: "black
+  holes", "lightning arcs"; only words, and a test fails when the format has a section
+  they do not word). There is one shader (`saber.wgsl`) and one format: a section is a
+  part of that shader a skin switches on by holding it, so the editor covers the format,
+  read from the format itself ([blade_skin_shape.rs](../crates/sjk-viewer/src/blade_skin_shape.rs),
+  no list of its own; the user, 18/10/2026: "if there is a rule to the system then
+  that's what I want the editor to cover"). A skin read with a probe member in it is
+  refused with the members the format allows there, in its order; a value of the wrong
+  type with the type wanted (a struct, an array of a length, a sequence, an integer, a
+  string, a switch); a value out of its range with the range. The sections the skin
+  lacks are listed to add under a heading ("Add a section", `A` goes there), in the
+  format's order; one is added as the first shipped skin holding it has it (in that
+  skin's file) or, when none does, as the format makes it: its fields of their types,
+  built from those words, and its values moved into their ranges until it reads, in the
+  newest additions file. Built so, every section reads on its own but for those a rule
+  binds beyond its ranges (the image paths, `motes.size × stretch`, `orbit` needing
+  `star` or `holes`, an option's id), whose words the editor then shows. Up and Down choose a row, Left and Right move a number
+  by its step (a hundredth of its range, 1, 2 or 5 times a power of ten; Shift ten,
+  Ctrl a tenth) or open and close a section, Shift+Right and Shift+Left every section, a
+  drag on a slider sets it (a number without a range is scrubbed), Enter opens, flips,
+  adds or types (a digit types a number at once), Delete takes a section or a list's
+  item out, Insert copies an item, Ctrl+Z and Ctrl+Y undo and redo (200 changes, a drag
+  as one), Ctrl+S writes at once, Esc or Done closes. Each change is laid over and
+  checked as the game reads the files; when it reads it replaces the skin's look at once
+  (`sjk_packs::edit`, `LoadedSkins::edited`: the one skin, its images made again only
+  when their profile or image changed, uploaded alone, `SaberGpu::upload_skins`'s
+  `only`), the model, the floating saber and the trail showing it the next frame; when
+  it does not, the check's words show and the last good look stays. The files are written
+  0.7 s after the last change (an additions file left empty is taken away) and the lab
+  is told (`saber_lab::wrote`), so it does not mount the packs again for them; a file
+  saved by another editor meanwhile is read again when nothing waits.
+- **Smoke from the emitter** (18/10/2026): the format's eighth set, `smoke` in
+  `<id>.bladeextra6` ([unlockables.md](unlockables.md#blade-skin-files)), drawn as the
+  game's particles let go where each blade's emitter is (`saber_smoke::Emitter`, kept per
+  blade in a match's `BladeState` and the stage's `StageSaber`, the floating copy's
+  apart): while lit and, put out, for its `after` seconds, the puffs rising and fading in
+  the air so a swing trails them. At first the puffs were made but not drawn: the effect
+  atlas holds only the map's effects' shaders, so a skin's smoke shader is now added to it
+  (`GpuState::admit_smoke_shaders`). Wisps (the user asked for wispy white smoke): many
+  small faint puffs a second chain into a thin strand, and the stream's sway (`sway`,
+  `sway_rate`) curls it; the lab's skin lets 70 a second go of the stock
+  `gfx/effects/jk_smoke5`, white, 1 to 4.5 units, opacity 0.3. The stock soft
+  `alpha_smoke2` barely shows at all, and the game's wisp `smokeTrail` is made for
+  trails: additive, it summed to white blobs, and its scrolling smeared in the atlas.
+  Then a ribbon renderer (the user, 18/10/2026: "an actual ribbon renderer for wispy
+  smoke"): `ribbon`, beside `smoke` in the same file, strands through points let go one
+  after another, each drifting on its own, drawn by `saber_ribbons::Gpu` with the blades'
+  pass (after them) and counted in the effect layer's bounds. The lab's skin now smokes
+  with a white ribbon alone: standing, for 1.5 s once lit and 3.5 s once put out, but not
+  swinging (`idle` 1, `swinging` 0; the user, 18/10/2026: trails "too distracting while
+  swinging", with the choice of smoking the whole time, `swinging` 1). Then sparks
+  (`sparks`, the same file; the user: "sparks flying out of the emitter a bit upwards,
+  crackling"): 2.5 bursts a second lit, 14 for 1.2 s once lit, 8 falling to none over
+  0.8 s once put out, up to five sparks each, 75 units a second in a 35° cone, falling at
+  420, 0.3 wide streaking 5 units; at first 0.7 wide, they read as fat ovals. `aim` turns
+  the cone from the world's up (0) to along the blade (1; the lab's skin), the user asking
+  for sparks shot out along the blade. More lab blades: a folder's
+  `saber_lab_<name>.bladeskin` is the lab blade "Saber Lab: <name>", worn on this PC as
+  the lab blade is (`saber_lab::EXTRA_PREFIX`); the user's first blade is kept so as
+  `saber_lab_half_broken`. Space, I, M, T, F
+  and L still swing, light, mute, turn the camera, flourish and trail while it is open.
+- **The builder** (30/10/2026, the user's design: "a very visual way of working with"
+  the effects; [blade_builder.rs](../crates/sjk-viewer/src/blade_builder.rs),
+  [collection_saber_lab_builder.rs](../crates/sjk-viewer/src/collection_saber_lab_builder.rs)):
+  the tab's first view; Stage controls (`B`) shows the choices above, Builder comes back.
+  The camera turns until the model stands right of the panels (`LabStage::build`,
+  `menu_backdrop::framed_yaw`: the model's chest at 78% of the frame across, from the
+  menu's field of view, eased as the other views are) and no saber floats. On the left
+  the library: every effect a skin file can draw (`blade_builder::EFFECTS`, 49: the 40
+  sections an option may switch, the orbit, and the blade's own make), by kind on six
+  tabs (Around, On the blade, Emitter, Figures, Core, Kills), a card each with its name
+  and a few words, or where it is on the blade; the pointer resting on a card or a chip
+  for 0.35 s shows its card (`hover::draw`) with what it draws and what a click or a drag
+  does. In the middle the blade's groups (`blade_builder::Shape`): The blade itself (the
+  sections every skin has; never grouped, never taken off), Always on (the effects in
+  no option), each group (an option of the file: its name, a click renames it, Enter
+  keeps the name; its switch, the wearer's own choice as on Shaders; `×` ungroups it,
+  its effects always on) and room for a new one while there are fewer than six. An
+  effect is dragged (6 frame pixels from where it was pressed) from the library onto the
+  blade, between Always on and the groups (at most four in one), onto New group (named
+  after it), or back to the library to take it off; Delete takes off the one the pointer
+  rests on; a click on a library card puts it on Always on, a click on a chip opens its
+  fields where the groups were (the editor's rows, that section alone open; Done or Esc
+  comes back). Each change goes through the editor (`Editor::add_section`,
+  `remove_section`, `set_options`), is checked as the game reads the files, and is
+  refused with the check's words when it would not read (an orbit with nothing to
+  circle, a glint with black holes); where it may not go is said under the pointer while
+  dragging. `options` is written in the newest file a client must read to know every
+  section it names, at least `.bladeextra` (`write_options`), and taken out of the
+  others, so an older client reads no option it could not check. An orbit goes with its
+  glint or holes, shown after them. A blade of the packs is copied into the lab's folder
+  first (Copy into the lab); a signature's or a hand-ported design's is not built, its
+  shader drawing most of it. Tried by the user on 30/10/2026; three blades they edited
+  had to be put back by hand, so (the user, 01/11/2026: "when you start editing a blade,
+  it keeps a copy of the original so you can always revert it") the editor, before it
+  first writes a blade's files, copies them as they are into the lab folder's
+  `originals/<id>/` (`blade_editor::ORIGINALS`, outside `skins/blades` so they are not
+  read as skins; an additions file goes before the skin file, so a copy cut short is
+  made again, and nothing is written if the copy fails). That copy is never written
+  over: the first edit's original stays until the folder is deleted. Revert, on the
+  builder's status line and the fields' column, puts it back as a change (Undo takes it
+  back), and a file back as it was is copied from the kept one, byte for byte.
+- **Wearing:** while the lab is on, the lab blade and every skin the folder holds a file
+  for count as yours on this PC (`saber_lab::owns`): Equip wears them, in the hand, in a
+  match and on the stage, and the card says "Yours in the Saber Lab, on this PC only".
+  Only the blade drawn here follows it: the look sent to the hub keeps your real unlocks
+  (`looks_frame.rs`, as debug collectibles do), so the hub never hears of a lab skin and
+  other players see your usual blade.
+
+Checked in the client on Windows: the lab started from `SJK_SABER_LAB`, a save reloaded
+within half a second, an out-of-range value was named and the last look kept, and the
+fixed file read again.
+
 ## Quick wheels
 
 SJK's quick wheel ([quick_wheel.rs](../crates/sjk-viewer/src/quick_wheel.rs)):

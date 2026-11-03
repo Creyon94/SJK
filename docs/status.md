@@ -3744,6 +3744,75 @@ the revised shortcuts. Formatting, locked workspace build/tests and all-target
 Clippy pass; the console height-selection test passes. In-game keyboard behavior
 remains unverified.
 
+## Saber Lab
+
+18/10/2026, `feat/saber-lab`, based on `Sol-Vulpes/SJK` `3483b1b2`: implemented the Saber
+Lab (`saberlab <folder>`, `SJK_SABER_LAB`), blade skins read from a folder of loose files
+mounted over the hub's packs and reloaded when one is saved, with a lab blade
+(`saber_lab`) the catalogue knows only while the lab is on, the Shaders tab opening on it,
+a file's mistake named in the tab's lead and its last good look kept. Skin files read with
+a UTF-8 byte-order mark too. The lab's skins are worn on this PC only. A Saber Lab tab in
+the Collection shows the model on the main menu's stage holding the blade and swinging it
+in the style chosen (the game's starts, attacks and returns), and a copy floating beside
+it. The tab then gained the player's own hilts (a staff or two sabers swinging in their
+own style), a speed slider (each swing following the last with no wait), the blade
+lit and put out gradually with the game's draw and put-away flourish as a choice,
+ignition, retraction and swing sounds with a mute (swings as each attack begins, as a
+match's `EV_SABER_ATTACK`), a camera turned and tilted round the model by a drag, and a
+third-person view behind it as in a match, a match's saber trails on the stage, a still
+trail on the floating saber when ticked, and the blade worn shown (the lab's once
+equipped) or any blade previewed, owned or not, and an in-game blade-skin editor: every
+section and field of a skin's six files as rows (ranges from the format's own checks,
+the sections it may add read from the format itself and made as a shipped skin has them
+or as the format says), each change shown at once and written back in
+the files' own order, with undo; and smoke from the emitter, new optional sections in a
+sixth additions file (`.bladeextra6`): puffs of the game's particles, or ribbons (strands
+drawn through drifting points, for wisps), let go while the blade is lit and for a few
+seconds after it is put out, trailing a swing, and sparks crackling out of the emitter
+in bursts (more lighting it, a few putting it out); skins without them draw as before. The hum is not played yet. See
+[client](client.md#saber-lab).
+
+Workspace `cargo fmt --check`, build, test and clippy (no new warnings) passed on
+Windows 11 x86_64, Rust 1.99.0. Unit tests pin the folder's stamp (saves, additions,
+removals), its skin files, a loose folder read like a pack, a broken save keeping the
+last look, a byte-order mark, the lab row after the stock blade and the folder's
+written form, the lab swings' animations and chains, and the tab's keys and clicks. In
+the client the lab started from `SJK_SABER_LAB` and followed a good save, an
+out-of-range value and its fix within half a second each. The world shot
+`duel6_saber_lab` (ignored, `JKA_GAME_DATA` and `SJK_TEST_PACKS`) renders the tab
+standing and swinging in each style: the model on the left with the blade in its
+hands, the copy floating on the right, read by Claude from the pictures; then the
+camera over the model and nearer from behind, the model kept where the shot frames it,
+and both sabers half retracted. Unit tests pin the orbit (the model seen in the same
+place from every turn, tilt and distance), the speed's steps and span, the view's
+bounds, the blade, flourish, sound and view toggles, the paced waits and which
+animations sound as attacks. The world shot `duel6_saber_lab_sounds` mixes the tab
+through the game's mixer with no device: silent before the tab, swings and the
+retraction heard after (it first found the tab silent: the attacks have no cue in
+`animevents.cfg`, and the test skin's sound files are in no pack). `duel6_saber_lab`
+also renders the put-away, the model holstered, the draw, and the third person swinging
+and from above, then the swings with the lab's blade equipped: the model's blade
+trailing and the floating one's still trail, and the Void blade previewed by a profile
+that does not own it (Equip off), then the editor open on the lab's blade and its glow
+turned red by an edit, the model's blade red the next frames, then the sections to add
+under their heading and black holes added, drawn at both blades' tips. A unit test
+builds every section of the format from the format alone: all read but the five a rule
+binds beyond their ranges. The smoke: unit tests pin the sixth additions file laid over
+its skin (none for a skin without one, a value out of range refused) and the emitter's
+rates (lit, falling after, none once done, no burst after a gap), the ribbons' smoothness
+(a fast swing round a circle, posed in steps too, with no corner over 8 degrees nor a
+point thrown off; a swing turning back with no loop; a leap breaking the strand; an emitter held still
+smoking on at its rate, unbroken, its points in order; its strength standing, swinging,
+lighting, put out and the whole time; the sparks' bursts lit, lighting and fizzling out,
+in their cone); `duel6_saber_lab`
+renders the lab's blade smoking lit, put out (a white wisp curling up from the
+floating hilt, one trailing the model's swing) and cleared a few seconds later. Unit tests pin the
+ordered JSON (order, whole numbers, layout), the editor's rows and ranges, a nudge
+within its range, a change that does not read, undo and redo, and the files written
+(the skin file in its order, an added section in its additions file, an emptied one
+taken away). A unit test pins the trail lengths against
+the move table (styled moves only taking the style's group).
+
 ## Jetpack effect layers and tail lengths
 
 18/10/2026, `fix/jetpack-tail-rendering`, based on `sol/main` `64698160`.

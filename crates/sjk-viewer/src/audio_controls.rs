@@ -237,12 +237,38 @@ impl GameAudio {
         &self.output.sonar
     }
 
-    /// Keep background music fed while no live snapshot is producing loops.
+    /// Keep background music fed while no live snapshot is producing loops; the loops
+    /// the menus asked for this frame ([`Self::menu_loop`]) are the set.
     pub(crate) fn idle_frame(&mut self) {
         self.stop_flame();
         self.poll_legacy_load();
         self.output.send(AudioCommand::ClearLoops);
+        for (handle, request) in self.menu_loops.iter_mut().filter_map(Option::take) {
+            self.output
+                .send(AudioCommand::SetLoop(handle, request, [0.0; 3]));
+        }
         self.output.send(AudioCommand::CommitLoops);
+    }
+
+    /// Loop `path` this frame, in both ears at `volume`, for `source`, while no match
+    /// loops any sound (the Saber Lab's hum and buzz): asked again each frame it plays,
+    /// it stops the first frame it is not. A sound not registered is not heard.
+    pub(crate) fn menu_loop(&mut self, path: &str, volume: f32, source: SourceId) {
+        let Some(handle) = self.find_handle(path) else {
+            return;
+        };
+        if let Some(slot) = self.menu_loops.iter_mut().find(|slot| slot.is_none()) {
+            *slot = Some((
+                handle,
+                PlayRequest {
+                    origin: None,
+                    source,
+                    channel: ChannelId(0),
+                    volume,
+                    attenuation: sjk_audio::Attenuation::None,
+                },
+            ));
+        }
     }
 
     /// Lookup-only jetpack switch using the original choice and corrected attribution.

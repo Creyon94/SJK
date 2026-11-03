@@ -214,6 +214,7 @@ mod object_meshes;
 mod oblique_clip;
 mod official;
 mod order66;
+mod ordered_json;
 mod particle_atlas;
 mod particle_draw;
 mod peek;
@@ -248,11 +249,14 @@ mod video_memory;
 mod viewer_app;
 use object_meshes::StaticModelMesh;
 mod achievements_frame;
+mod blade_builder;
+mod blade_editor;
 mod blade_extras;
 mod blade_lab_designs;
 mod blade_pictures;
 mod blade_signatures;
 mod blade_skin_file;
+mod blade_skin_shape;
 mod bug_report;
 mod electrify;
 mod emote_icons;
@@ -314,14 +318,18 @@ mod saber_ghosts;
 mod saber_gpu;
 mod saber_hilt_command;
 mod saber_hilts;
+mod saber_lab;
 mod saber_motion;
 mod saber_persona;
 mod saber_petals;
 mod saber_rgb;
+mod saber_ribbons;
 mod saber_skin_command;
 mod saber_skin_options;
 mod saber_skins;
+mod saber_smoke;
 mod saber_sound_choice;
+mod saber_sparks;
 mod saber_submission;
 mod saber_trail;
 mod saber_trail_gpu;
@@ -576,6 +584,11 @@ struct GpuState {
     blade_skins: std::sync::Arc<saber_skins::LoadedSkins>,
     saber_states: saber_trail::StateSlab,
     saber_trail_segments: saber_trail::SegmentPool,
+    /// Blade skins' smoke ribbons, and the frame they were last moved to.
+    smoke_ribbons: saber_ribbons::Ribbons,
+    ribbons_at: Option<i64>,
+    /// Blade skins' spark emitters.
+    saber_sparks: saber_sparks::Sparks,
     speed_trails: actor_world_submission::speed_trail::Trails,
     /// Illuminate's holocron, the client's own toy (`toy_illuminate`).
     illuminate: illuminate::Holocron,
@@ -649,6 +662,8 @@ struct GpuState {
     pickups: Vec<pickups::Presented>,
     entity_instances: Vec<EntityInstance>,
     saber_instances: Vec<saber::Instance>,
+    /// What this frame's blades of skins with a crackle are heard doing (`saber_smoke`).
+    saber_heard: saber_smoke::Heard,
     particle_groups: [Vec<EntityInstance>; effect_blend::PIPELINE_COUNT],
     actor_instances: Vec<ActorInstance>,
     actor_instance_ranges: Vec<Range<u32>>,
@@ -871,6 +886,10 @@ struct GpuState {
     obituaries: sjk_client::ObituaryTracker,
     /// The siege objectives' notices, read from the map's `.siege` file.
     siege_notices: siege_objective_notice::Notices,
+    /// The kills taken for the blade skins that burn them away, and those burning
+    /// (`disintegration::Forced`).
+    saber_kills_seen: u64,
+    forced_disintegrations: disintegration::Forced,
     /// What the player does in matches, for the achievements (`achievements.rs`).
     achievement_tracker: achievements::tracker::Tracker,
     lagometer: sjk_client::LagometerSamples,
@@ -1598,6 +1617,9 @@ impl GpuState {
             blade_skins: Default::default(),
             saber_states: saber_trail::StateSlab::default(),
             saber_trail_segments: saber_trail::SegmentPool::default(),
+            smoke_ribbons: saber_ribbons::Ribbons::default(),
+            ribbons_at: None,
+            saber_sparks: saber_sparks::Sparks::default(),
             speed_trails: Default::default(),
             illuminate: Default::default(),
             illuminate_others: Default::default(),
@@ -1644,6 +1666,7 @@ impl GpuState {
             pickups: Vec::with_capacity(sjk_protocol::MAX_LEGACY_ENTITIES),
             entity_instances: Vec::with_capacity(particle_types::INSTANCE_CAPACITY),
             saber_instances: Vec::with_capacity(saber::MAX_BLADE_INSTANCES),
+            saber_heard: saber_smoke::Heard::default(),
             particle_groups: std::array::from_fn(|_| {
                 Vec::with_capacity(particle_types::PARTICLE_POOL)
             }),
@@ -1801,6 +1824,8 @@ impl GpuState {
             snapshot_observations: snapshot_presentation::Counters::default(),
             obituaries: sjk_client::ObituaryTracker::new(),
             siege_notices: siege_objective_notice::Notices::default(),
+            saber_kills_seen: 0,
+            forced_disintegrations: disintegration::Forced::default(),
             achievement_tracker: achievements::tracker::Tracker::default(),
             lagometer: sjk_client::LagometerSamples::new(),
             auto_switch: auto_switch::Tracker::default(),
@@ -1881,6 +1906,7 @@ impl GpuState {
             .begin_frame(visual_now.duration_since(self.ui_epoch).as_millis() as i32);
         self.update_live_session(game_audio, visual_now, timing);
         self.update_identity();
+        self.follow_saber_lab();
         timing.mark(Phase::Preview);
         self.update_demo_playback(game_audio, visual_now);
         let presentation_time = self.demo_session.as_ref().map_or_else(
@@ -1910,6 +1936,7 @@ impl GpuState {
             menu.set_world_hidden(world_hidden);
         }
         self.update_menu_stage(visual_now);
+        self.play_saber_lab_sounds(game_audio, visual_now);
         self.prepare_eye_adaptation(delta_seconds, backdrop_view);
         let local_view = self
             .demo_session
@@ -2561,7 +2588,7 @@ impl GpuState {
                 let chat_on = self
                     .console
                     .as_ref()
-                    .is_some_and(|console| console.bool_cvar("cl_sjkChat") != Some(false));
+                    .is_some_and(|console| console.sjk_chat_on());
                 self.in_game_menu.sync_chat(chat_on);
                 let target = ingame_menu::sjk_view::text_target(
                     &mut self.game_fonts,
@@ -2755,6 +2782,7 @@ impl GpuState {
 
         timing.mark(Phase::Pose);
         {
+            self.observe_saber_kills();
             self.assign_corpse_meshes(presentation_time);
             self.update_limbs(presentation_time);
         }
@@ -2796,9 +2824,9 @@ impl GpuState {
         self.pickup_override_instances.clear();
         self.mover_groups.iter_mut().for_each(Vec::clear);
         self.entity_instances.clear();
-        self.begin_saber_instances();
-        self.particle_groups.iter_mut().for_each(Vec::clear);
         self.dynamic_lights.clear();
+        self.begin_saber_instances(presentation_time);
+        self.particle_groups.iter_mut().for_each(Vec::clear);
         self.submit_illuminate(presentation_time, visual_now);
         self.submit_cardboard_boxes(presentation_time, visual_now);
         self.submit_fishing(presentation_time, visual_now);
@@ -3036,6 +3064,16 @@ impl GpuState {
             visual_now,
             game_audio,
         );
+        // The sabers took this frame's clashes; the walls' touches come next.
+        self.impacts.clear_clashes();
+        // Their crackle heard: the snaps now, the buzzes in the next frame's loops.
+        match game_audio.as_mut() {
+            Some(audio) => audio.hear_sabers(&mut self.saber_heard),
+            None => {
+                self.saber_heard.snaps.clear();
+                self.saber_heard.buzzes.clear();
+            }
+        }
         let depth_size = self.depth.view.texture().size();
         self.card_outline.prepare(
             &self.device,
@@ -3247,10 +3285,18 @@ impl GpuState {
             crate::card_outline::Group::ALL
                 .map(|group| self.model_material_overrides.outline(group)),
         );
+        // The smoke ribbons move on to this frame, then are drawn with the blades.
+        let ribbons_then = self
+            .ribbons_at
+            .replace(presentation_time)
+            .unwrap_or(presentation_time);
+        self.smoke_ribbons.advance(ribbons_then, presentation_time);
+        self.saber_sparks.forget(presentation_time);
         self.saber_gpu.prepare(
             &self.queue,
             saber_instances,
             &mut self.saber_trail_segments,
+            &self.smoke_ribbons,
             presentation_time,
         );
         if !entity_instances.is_empty() {
@@ -3345,6 +3391,9 @@ struct ParticleAtlas {
     remaps: effect_remaps::State,
     /// The atlas being rebuilt on a worker for new effects (`particle_atlas.rs`).
     pending: particle_atlas::Pending,
+    /// Shaders asked for besides the map's effects' (a blade skin's smoke,
+    /// `saber_smoke.rs`): every rebuild ([`particle_atlas::Pending`]) takes them in.
+    admitted: std::collections::BTreeSet<String>,
 }
 
 #[derive(Clone)]

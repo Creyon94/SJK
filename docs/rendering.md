@@ -2554,8 +2554,10 @@ the CPU (`SkinColor::light_color`, `trail_color`).
   sky, a key highlight, a rim), tinted by the light where the blade is. The halftone is
   the glow's: outside 0.35 to 0.6 radii it is printed as dots sized by its level.
 - **Options.** An instance carries its wearer's mask of sections switched off
-  (`Instance::off`, attribute 9; [unlockables.md](unlockables.md#options)); `skin_at`
-  reads the skin with those sections' lanes zeroed, so they draw as a file without them.
+  (`Instance::off`, attribute 9, two words: `OFF_*` bits, then `OFF2_*` for the eighth
+  set's; [unlockables.md](unlockables.md#options)); `skin_at` reads the skin with those
+  sections' lanes zeroed, so they draw as a file without them. Of the eighth set it zeroes
+  only the unrest's: the CPU makes the rest.
 - **Persona and afterimages.** A skinned instance carries four more `u32`s
   (`Instance::persona`, attribute 7): the surroundings' light (three bytes) and an
   afterimage's brightness, the team and the name's letters

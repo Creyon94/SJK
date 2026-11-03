@@ -180,6 +180,7 @@ pub(super) const COMMANDS: &[(&str, &str)] = &[
     ),
     (crate::weather::COMMAND, crate::weather::HELP),
     (super::changelog::COMMAND, super::changelog::HELP),
+    (crate::saber_lab::COMMAND, crate::saber_lab::HELP),
     (super::credits::COMMAND, super::credits::HELP),
     (
         crate::console::PROFILE_COMMAND,
@@ -1189,6 +1190,7 @@ impl crate::GpuState {
             crate::official::DEBUG_ANNOUNCE_COMMAND => return self.debug_announce_command(args),
             crate::official::DEBUG_REWARD_COMMAND => return self.debug_reward_command(args),
             crate::saber_skin_command::COMMAND => return self.saber_skin_command(args),
+            crate::saber_lab::COMMAND => return Ok(self.saber_lab_command(args)),
             crate::console::SJK_CHAT_COMMAND => {
                 if let Some(console) = &mut self.console {
                     console.toggle_sjk_chat_panel();

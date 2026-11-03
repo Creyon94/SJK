@@ -30,6 +30,10 @@ The site (site/assets/site.js, parseChangelog) reads the release headings,
 introductions and recap lines too.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
+## Unreleased
+
+- The Saber Lab (`saberlab <folder>`): make and tune a blade skin from a folder of files, its saber redrawn each time you save, with a file's mistake named on the Shaders tab, and a Saber Lab tab where your model swings it on your own hilts: turn and tilt the camera round it or watch from behind as in a match, set the swing speed, light and put out the blade with or without the flourish, hear or mute its sounds (its hum and crackle too), clash it, see its trail, preview any blade, owned or not, and build the blade: every effect a card you drag into its groups, the Parts its wearer switches on and off, each opened to tune its settings as you watch, with undo and a Revert to the files as they were before your first change; blade skins can now smoke from the emitter, in puffs or wispy ribbons, crackle with sparks, flash light onto the room, surge as they light, sputter out, ripple the air as they ignite, throw their arcs up the blade on a clash, crackle aloud in a match, and burn away the body of a player they kill _(Milamber)_
+
 ## 2026.1103.2 (Alpha) | 03/11/2026
 
 Clan chats for JoF and S, holocrons earned by playing, tag copies to break down or craft, loadouts, fishing and many fixes.
