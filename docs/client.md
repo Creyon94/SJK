@@ -5290,7 +5290,12 @@ every fall ends with the map or the server.
   pushed off balance (back, to a side, the knees buckling), so a running or jumping
   player tumbles on. It falls at `g_gravity`'s 800, slides and bounces a little on the
   world's brushes, and sleeps once it has lain still for a second (or after 40 seconds
-  whatever it does), until a mover stirs it or something strikes it.
+  whatever it does), until a mover stirs it or something strikes it. It is the size the
+  player is drawn (since 03/11/2026, Rollembones's report #223): a player the server made
+  small or big (`iModelScale`, a youngling or a jawa) falls as a body that much smaller
+  or bigger, its points, sticks and boxes scaled about the feet, and the model is drawn
+  at that scale on it, so it lies on the floor as a stock-sized one does (before, the
+  body was stock-sized and the model drawn full size on it).
 - **Its physics** (since 26/10/2026, with the [Monitor](#monitor)): the points weigh what
   the body's parts weigh (the trunk 26 of its 71, a hand 1.2), so the sticks move a hand
   more than the pelvis and a limb flails while the trunk holds its course. A surface
@@ -5359,7 +5364,10 @@ every fall ends with the map or the server.
 - **Everyone sees the same fall:** no pose is ever sent. The faller's client relays
   one start event to each SJK player on the server through the hub's
   [toy relay](hub-chat.md#toy-relay), one every 35 ms: `fall_<moment>_<x>_<y>_<z>_<vx>_<vy>_<vz>_<yaw>`,
-  the game server time it began, the origin, speed (whole units) and yaw (degrees).
+  the game server time it began, the origin, speed (whole units) and yaw (degrees),
+  then `_<scale>` (the percentage, 1 to 1023) for a player not drawn at the stock size
+  (since 03/11/2026; a stock-sized fall reads as before, while clients from before then
+  drop a scaled one).
   Every client runs the same simulation from it, in fixed 16 ms steps of the game
   server's clock (the turn from a table of whole degrees, plain arithmetic, so every
   client gets the same numbers), and a client that hears it late runs the steps it
