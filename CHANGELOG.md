@@ -30,6 +30,10 @@ The site (site/assets/site.js, parseChangelog) reads the release headings,
 introductions and recap lines too.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
+## Unreleased
+
+- Ragdoll: a small or big player (a youngling or a jawa the server shrank) stays their size when they go limp, and their body lies on the floor at that size, instead of growing to full size (hub report #223) _(Slash, after Rollembones' report)_
+
 ## 2026.1103.1 (Alpha) | 03/11/2026
 
 3D sound and a sound sonar, a HUD you move with the mouse, quieter and fuller chat, profile banners, one life per box hunter and a cat that dances to its song.

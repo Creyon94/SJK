@@ -1163,7 +1163,7 @@ impl GpuState {
             return;
         }
         // Who stands round each floating show as it floats off.
-        let mut players: Vec<(u8, Vec3, f32)> = Vec::new();
+        let mut players: Vec<(u8, Vec3, f32, u16)> = Vec::new();
         if let Some(session) = self.live_session.as_ref() {
             let snapshot = session.latest_snapshot();
             let time = i64::from(snapshot.server_time);
@@ -1179,6 +1179,7 @@ impl GpuState {
                         slot,
                         Vec3::from_array(at.sample(time).translation),
                         entity.angles()[1],
+                        crate::ragdoll::scale_percent(entity.model_scale_percent()),
                     ));
                 }
             }
@@ -1193,6 +1194,7 @@ impl GpuState {
                     own,
                     Vec3::from_array(origin),
                     snapshot.player.view_angles()[1],
+                    crate::ragdoll::scale_percent(snapshot.player.model_scale_percent()),
                 ));
             }
         }
@@ -1215,7 +1217,7 @@ impl GpuState {
                 let near: Vec<_> = players
                     .iter()
                     .copied()
-                    .filter(|(_, at, _)| at.distance(here.origin) <= full)
+                    .filter(|(_, at, _, _)| at.distance(here.origin) <= full)
                     .collect();
                 here.floats
                     .begin(&near, elapsed, here.seed ^ here.id as u32);
