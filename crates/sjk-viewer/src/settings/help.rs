@@ -155,6 +155,9 @@ const CHOICE_NAMES: &[(&str, &str, &str)] = &[
         "10",
         crate::chat::incoming_color::LABELS[10],
     ),
+    (crate::fishing::CUE_CVAR, "0", "Off"),
+    (crate::fishing::CUE_CVAR, "1", "Sound off"),
+    (crate::fishing::CUE_CVAR, "2", "Always"),
     (crate::chat_sounds::MASTER_CVAR, "0", "Off"),
     (crate::chat_sounds::MASTER_CVAR, "1", "On"),
     (crate::chat_sounds::MASTER_CVAR, "2", "Distinct (EJK)"),
@@ -598,6 +601,10 @@ const HELP: &[(&str, &str)] = &[
     (
         crate::toy_sounds::Toy::Fishing.cvar(),
         "Off: your casts, bites and catches are silent. The toy still works.",
+    ),
+    (
+        crate::fishing::CUE_CVAR,
+        "A \"!\" over the float and \"Bite! Press Use!\" when a fish bites. Sound off: only while the fishing sounds can't be heard.",
     ),
     (
         crate::away_emote::SJK_CVAR,

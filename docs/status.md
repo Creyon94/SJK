@@ -2040,7 +2040,10 @@ main's one-category-per-toy board on 02/11/2026), client-counted on servers only
 the end of `achievements::ALL` and `kyber::REWARDS`. The
 look has the toy `fishing` (main's u32 toy bits, after the Banana peel). No hub change: the hub needs the five ids in its
 catalogue before they unlock online; selling junk (capped credits) is proposed to Sol, not
-built. Verified: fmt, build, the fishing, achievements, kyber and collection tests,
+built. 03/11/2026, `feat/fishing-bite-cue`: the bite cue for players with the sound off
+(`cg_fishingBiteCue`, a "!" over the float and a centre line; tests
+`the_bite_cue_follows_its_setting_and_the_sound`, `a_bite_starts_and_ends_with_its_cue`;
+Not verified: in game.) Verified: fmt, build, the fishing, achievements, kyber and collection tests,
 earlier release builds in game (Slash: the rod in third person, the pond, bites; not yet
 the first-person rod or the Fishing band on the Fun page), world shots of the pond on duel6
 (`rods_at_the_first_spawn`). Not verified: the five ids at the hub, other players seeing a
