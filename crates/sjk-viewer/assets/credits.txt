@@ -372,7 +372,7 @@ link: Lukas's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+
 
 [Slash]
 github: JoFSlash
-role: Contributor: 98 merged pull requests
+role: Contributor: 109 merged pull requests
 did: #114 Tab completes cfg file names after exec and writeconfig
 did: #113 CTF team saber colours, an option
 did: #153 The SJK scoreboard tells who won the Siege round or team match
@@ -472,6 +472,17 @@ did: #341 vid_restart force reloads the graphics
 did: #342 Ctrl+C copies a chat link
 did: #345 Ragdolls keep a scaled player's size
 did: #346 Emote sounds muted in duels (s_muteEmotesInDuel)
+did: #349 Fished junk sold to the hub for credits
+did: #350 A fishing bite shown on screen with the sound off
+did: #351 Vehicle speed, ammo and turbo in every HUD; SJK classic HUD redrawn
+did: #352 Getting on a vehicle ends your emote
+did: #353 Nameplate opacity (cg_nameplateAlpha)
+did: #354 Server remaps chosen per map
+did: #355 Loadouts button on the Shaders tab opens its card
+did: #357 Sharpening slider (r_sharpen)
+did: #358 Console aliases (alias)
+did: #359 Rounded banner covers on the profile card and page
+did: #360 Whisper recipient on its own line, pick between whisperers
 did: #278 The Fishing toy: rod, bucket, 12 fish, Echoes on the line
 link: Slash's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AJoFSlash
 
@@ -648,4 +659,5 @@ github: Bishop-R
 role: Creator of JKR, the starting point of Sol JK
 did: SJK began from JKR's code in October 2026; most of it has since been replaced
 did: JKR's Rust engine, wgpu renderer, client, server and protocol 26 networking
+did: SJK #347 Linux starts after an update again (main-thread stack)
 link: https://github.com/Bishop-R/JKR

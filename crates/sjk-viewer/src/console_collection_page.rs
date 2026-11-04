@@ -206,6 +206,7 @@ impl ViewerConsole {
                 self.pending_fishing = Some(on);
                 self.fishing_on = on;
             }
+            PanelAction::SellJunk => self.pending_fishing_sell = true,
             PanelAction::Monitor(on) => {
                 self.pending_monitor = Some(on);
                 self.monitor_on = on;
@@ -326,6 +327,24 @@ impl ViewerConsole {
     /// The Toys tab asked to get the rod out (`true`) or put it away, once.
     pub(crate) fn take_fishing_request(&mut self) -> Option<bool> {
         self.pending_fishing.take()
+    }
+
+    /// Whether the Fishing card is on show (the Collection open on Toys, Fishing chosen):
+    /// the viewer gives it its catches then ([`Self::set_fishing_card`]).
+    pub(crate) fn fishing_card_shown(&self) -> bool {
+        self.collection_panel.is_open()
+            && self.collection_panel.tab() == Tab::Toys
+            && self.collection_panel.fishing_chosen()
+    }
+
+    /// The viewer gives the Fishing card its catches and sale.
+    pub(crate) fn set_fishing_card(&mut self, card: crate::fishing_sell::Card) {
+        self.fishing_card = card;
+    }
+
+    /// The Fishing card's Sell junk button was pressed, once.
+    pub(crate) fn take_fishing_sell_request(&mut self) -> bool {
+        std::mem::take(&mut self.pending_fishing_sell)
     }
 
     /// The viewer says whether the Monitor toy is on, once a frame.
@@ -483,6 +502,7 @@ impl ViewerConsole {
         let box_hunt = self.box_hunt_on;
         let banana = self.banana_on;
         let fishing = self.fishing_on;
+        let fishing_card = self.fishing_card.clone();
         let stock = self.stock_blade();
         // Tiles unless the list is chosen (`ui_shaderList 1`).
         let grid = self.integer_cvar(super::collection_panel::SHADER_VIEW_CVAR) != Some(1);
@@ -551,6 +571,7 @@ impl ViewerConsole {
                 box_hunt,
                 banana,
                 fishing,
+                fishing_card: Some(&fishing_card),
                 name: &name,
                 stock,
                 grid,
@@ -587,6 +608,7 @@ impl ViewerConsole {
             box_hunt,
             banana,
             fishing,
+            fishing_card: Some(&fishing_card),
             name: &name,
             stock,
             grid,

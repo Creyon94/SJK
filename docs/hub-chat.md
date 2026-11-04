@@ -1179,7 +1179,12 @@ The second gap is `s_muteSounds` ([client.md](client.md#muted-sounds)).
   catalogue lacks, never for a loop), and it ends early when the player moves 24 units
   from where they were first seen dancing, or is missing from the snapshots for 2
   seconds (a moment out of them, in a crowded dance, is not leaving; since 20/10/2026,
-  hub report #107), unless it is `moving`. With Settings > Sound > Emotes: Attack ends emote
+  hub report #107), unless it is `moving`. Whatever the emote, it ends when its player
+  mounts a vehicle (`m_iVehicleNum` set in their entity, or the own player's
+  playerState; `ActiveEmotes::end_riding`, since 04/11/2026, hub report #247): the
+  vehicle plays the rider's animations, and a `moving` one such as `cloud_float` fought
+  them for the whole ride. The own player's client then sends the hub a `stop`, a
+  received emote for a rider is not started, and `sjkemote` refuses one while riding. With Settings > Sound > Emotes: Attack ends emote
   (`cg_emoteAttackStop`, off by default), the player's own emote also ends when they
   attack or alt attack (`ActiveEmotes::end_on_attack`, called for each command sent):
   the server performs the attack whatever the emote shows, so it stops here and the

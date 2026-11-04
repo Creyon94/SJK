@@ -56,10 +56,14 @@ mod economy;
 mod editions;
 mod entity_view;
 mod fishing;
+mod fishing_sell;
 mod kyber;
 mod loot_odds;
 mod propgun;
 mod propgun_frame;
+#[cfg(any(target_os = "linux", test))]
+#[path = "../stack_size.rs"]
+mod stack_size;
 
 mod saber_colour_command;
 mod shader_image;
@@ -447,6 +451,7 @@ use winit::keyboard::{KeyCode, PhysicalKey};
 use winit::window::{Window, WindowAttributes, WindowId};
 fn main() {
     log::init();
+    platform::configure_main_stack();
     platform::raise_open_file_limit();
     crash_report::install();
     if let Err(error) = app_launch::run() {
@@ -2426,6 +2431,10 @@ impl GpuState {
             information_visible && intermission_view.is_none() && !scoreboard_held,
         );
         self.append_mystery_box_labels(
+            viewport,
+            information_visible && intermission_view.is_none() && !scoreboard_held,
+        );
+        self.append_fishing_cue(
             viewport,
             information_visible && intermission_view.is_none() && !scoreboard_held,
         );

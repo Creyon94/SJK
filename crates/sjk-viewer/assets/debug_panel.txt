@@ -371,6 +371,24 @@ test: Builder: drag cards into groups, undo/redo, Revert; B for stage, C clashes
 test: Lab off (no saberlab): no Saber Lab tab; blades in a match look as before.
 note: Owed: unit tests, crackle + body burn unseen in a match, TRACE-DISINTEGRATE still in.
 
+[vehicle-hud-351]
+area: HUD
+title: Vehicle HUD in every style + new SJK classic HUD (Slash #351)
+change: Speed, ammo and turbo beside the vehicle HP in Text only, SJK radial and classic.
+change: SJK classic HUD redrawn: vitals bottom left, Force bottom right, weapon centre.
+test: SJK classic HUD on foot (blaster, saber) and on a swoop and AT-ST: rows read clearly.
+test: HUD edit mode: Vitals, Force, Weapon, Vehicle groups each move as one.
+
+[pr-batch-1104b]
+area: Gameplay
+title: PRs 04/11 b: fishing sell/cue, vehicle emotes, nameplate alpha, sharpen, alias, whispers
+change: Slash #349 sell junk (hub off until deployed), #350 bite cue, #352 emote ends on vehicle.
+change: Slash #353 cg_nameplateAlpha, #357 r_sharpen, #358 alias, #359 rounded banners.
+change: Slash #360 whisper recipient line; #355 Loadouts click; Bishop #347 Linux stack.
+test: s_volume 0, fish: a ! over the float + Bite! Press Use!; mount a swoop mid-emote: ends.
+test: r_sharpen 50 vs 0 on ffa3; cg_nameplateAlpha 0.3; alias x "say hi" then x, restart, x.
+test: Whisper two people: To <name> line, < > step, click name lists both; Loadouts (P) click.
+
 [pr-batch-1104]
 area: Gameplay
 title: PRs 04/11: duel emote mute, ragdoll scale, chat link copy, vid_restart force
@@ -4383,6 +4401,17 @@ change: It kept its static bake before: brighter than its neighbours and blind t
 test: JA+ server on mp/ffa4, real-time lighting: the remapped trim, flag and rock door match.
 test: The purple lamp near them lights them as it lights the unremapped walls.
 note: Checked offline on mp/ffa4 with the five remaps as local ones (Linux), not on a server.
+
+[remap-per-map-choice]
+area: Rendering & effects
+title: Server remaps on this map: default, on or off for each map (Lex's idea)
+change: Settings > GAME > Remaps on this map (cg_serverRemapsMap) sets the loaded map's
+change: choice; on keeps it in cg_remapsAllowedMaps, off in cg_remapsBlockedMaps.
+change: allowRemaps [map] / unallowRemaps [map] do the same from the console.
+test: Server remaps off, on a server that remaps the map: set the row to on; remaps come at once.
+test: Change map: the row says default; come back: it says on again and the remaps apply.
+test: Set it to off with Server remaps on: the server's remaps go; listRemaps says why.
+test: Restart the client: the choices are still in cg_remapsAllowedMaps / cg_remapsBlockedMaps.
 
 [remap-blocked-maps]
 area: Rendering & effects

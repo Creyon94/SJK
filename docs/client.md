@@ -2931,7 +2931,10 @@ was a stack copy, and the main thread's nested frames (`window_event` 3.1 MB,
 Building the menu's first world on the main thread came within 2 MiB of the same
 8 MiB with a clean profile and overflowed it with JoF content loaded (03/11/2026),
 so the client reserves 64 MiB for its main thread on Windows and macOS
-([`build.rs`](../crates/sjk-viewer/build.rs)). The client's start must fit in a quarter of
+([`build.rs`](../crates/sjk-viewer/build.rs)). Linux raises its inherited soft stack
+limit to the same allowance before building the client, without lowering a larger
+limit or changing the hard limit; a restrictive hard limit or failed adjustment is
+logged ([`main_stack.rs`](../crates/sjk-viewer/src/platform/main_stack.rs)). The client's start must fit in a quarter of
 that: [startup_stack.rs](../crates/sjk-viewer/src/startup_stack.rs) checks it, run
 before every merge into `main` (AGENTS.md).
 
@@ -3152,7 +3155,11 @@ shows only on JA+ and jaPRO servers; its key is `messagemode6` (Controls > Admin
 key by default), which says so on other servers. Leaving one moves a composer on Admin to
 All, and a remembered Admin or hidden channel opens on All. PM whispers to the last
 player who whispered you; left-clicked again the next one, right-clicked the one before
-("To Fox  2/3" says which),
+(since 04/11/2026, Creo's idea, the recipient has a line of its own under the row, the
+whole chat's width: "< To Fox  2/3 >", the name in its colours and cut with "..." only
+when even that is too narrow; `<`, `>`, Alt+Left and Alt+Right step between the players
+who whispered you, and a click on the name lists them, newest first, in a dark
+see-through panel right above the name, Escape closing it before the composer; `chat/view/recipient.rs`),
 or says how to whisper when no one has. The words sit an even 22 px apart, each as wide
 as itself. Each button is a tab
 too (Dave, 29/10/2026): while the composer is on Team, SJK, Admin or a whisper, the feed
@@ -4101,7 +4108,9 @@ command new for them (`DrawCommand::Polygon`, [rendering.md](rendering.md#submis
   target, 2 everyone); 1 (allies only) stays reachable in the settings.
 - `cg_nameplateBars`: 0 none, 1 allies only, 2 everyone (default), 3 target; never on
   a duel opponent ([Sharing](#sharing-and-estimates)). `cg_nameplateScale`
-  sets the text size, `cg_nameplateWalls` shows
+  sets the text size, `cg_nameplateAlpha` (Settings "Nameplate opacity", 0.1 to 1,
+  default 1) how solid the whole plate is in every style, times its distance and wall
+  fade, `cg_nameplateWalls` shows
   players behind walls at 35% opacity instead of fading them (the same BSP trace as
   before, from the rendered eye; changes ease over 120 ms), and `cg_nameplateNpcs`
   adds NPC plates (class name; at most 16; vehicles skipped). Their health bar
@@ -6034,6 +6043,30 @@ brings up are the ones the hub drops anyway.
   Echoes on the line) and Old Whiskers (hidden), counted on servers only, as the others
   ([identity.md](identity.md#achievements)).
 - **Sounds:** Settings > Sound > Toys, "Fishing" (`s_toyFishingSound`).
+- **The fish log on the card** (03/11/2026): the Fishing card in Collection > Toys says
+  how many fish were caught and of how many kinds, and in one line the junk held ("Junk:
+  7 pieces, worth 12 credits (8 left today)"). `fishing_log` in the console prints the
+  log in full: every fish and junk with its count, the junk held and what was sold.
+- **Selling junk** (03/11/2026, Sol's yes on PR #278; the hub's `PROTOCOL.md` "Fishing junk",
+  `sjk_identity::junk`): the card's "Sell junk (+N credits)" button, and `fishing_sell`
+  in the console, sell the junk held to the hub. The hub pays a few credits a piece (1
+  to 5) up to 15 credits in 24 hours per person and per address, the most valuable
+  pieces first, and answers what it took: only that is counted sold, as `sold <id>
+  <count>` lines in `fishing_log.txt` (older clients skip them), so the counts of what
+  was caught, and the achievements, never change. The card asks the hub what it still
+  pays (`GET /v1/fishing/junk`) when shown and every 30 seconds after; the button shows
+  only while the hub says this player may sell (the operator's switch, off until Sol
+  turns it on) and is greyed with nothing payable or no junk. One sale at a time
+  (`fishing_sell.rs`). Fish never sell: they stay in the log for the achievements.
+- **Bite cue** (03/11/2026, for players with the sound off): Settings > Sound > Toys,
+  "Fishing bite cue" (`cg_fishingBiteCue`: 0 off, 1 when the sound is off, the default,
+  2 always). While shown, a bite puts a pulsing "!" over the float (gold for an Echo's
+  bite), drawn as the mystery boxes' words are, and "Bite! Press Use!" (an Echo:
+  "Something shines under the float!") on the centre of the screen; a fish's bite let
+  go says "It got away.". "The sound is off" means the Fishing sounds switched off, the
+  toys' or the game's effects volume at 0, or the game muted while away
+  (`GpuState::fishing_cue_shown`); a sound muted by name (`s_muteSounds`) or no sound
+  device does not count, so set 2 there.
 
 No game server knows of it. The rod is a toy in the player's look (`toys: ["fishing"]`),
 so other SJK players draw it in the fisher's hand, with the line to a float where their
@@ -7359,6 +7392,26 @@ composes them with the same rules
 leading 0 always use code page 437, the US OEM page, even where Windows uses
 another OEM page (850 in much of Western Europe).
 
+`alias <name> <commands>` names a command line, as Quake II's `alias` does (the
+original Jedi Academy has none; Lex's idea, 04/11/2026): after `alias duel "say
+ready; +use"`, typing `duel`, a bind to it (`bind f duel`), an `exec` script or a
+quick wheel command runs `say ready` and `+use` where `duel` stood. Quote the
+commands when they hold a `;`, or the rest of the line runs at once. A `+name` alias
+with a `-name` one works as a held key: `alias +zoom "cg_fov 40"`, `alias -zoom
+"cg_fov 80"`, `bind mouse3 +zoom` zooms while the button is held. Names ignore case,
+are up to 32 characters without spaces, quotes or `;`, and cannot be a command or a
+setting the client knows (`alias bind ...` is refused; a server's command, such as
+`kill`, can be). `alias` alone or `aliaslist [<part of a name>]` lists them,
+`alias <name>` shows one, `unalias <name>` and `unaliasall` remove them; listings hide
+passwords as `bindlist` does, and Tab completes alias names. An alias may run other
+aliases; one that runs itself, or a chain 16 deep (the `exec` limit), stops with a
+console message, so a looping alias with `wait` stops too, unlike Quake II's. Aliases
+are kept for the next start in `aliases.cfg` beside `config.cfg`, not in it, so a build
+without aliases still loads that config; a line of `aliases.cfg` that cannot be read
+is reported and skipped
+([alias.rs](../crates/sjk-shell/src/alias.rs),
+[shell_alias.rs](../crates/sjk-shell/src/shell_alias.rs)).
+
 `r_we <command>` runs one weather command on the current map, as the original
 renderer's `r_we` does: `r_we heavyrain`, `r_we snow`, `r_we heavyrainfog`,
 `r_we constantwind ( 0 -800 0 )`, `r_we clear` (an unknown command lists them).
@@ -7939,6 +7992,13 @@ semicolons (`mp/ffa4 mp/duel6`; `maps/` and `.bsp` are optional, capitals do not
 matter; typed in the console, a list with semicolons needs quotes). `blockRemaps [map]` adds a map and `unblockRemaps [map]` removes it, the
 loaded one when no map is named; the change applies at once, and `listRemaps` says
 when the loaded map is blocked. The list is saved with the other settings.
+`cg_remapsAllowedMaps` is the other way round: maps whose server remaps apply,
+filtered by `cg_remaps`, even while `cg_serverRemaps` is 0; `allowRemaps [map]` adds a
+map and `unallowRemaps [map]` removes it. A map in both lists is blocked.
+Settings > GAME > "Remaps on this map" (`cg_serverRemapsMap`, not saved) shows
+and sets the loaded map's choice: `default` (as `cg_serverRemaps`), `on` (in the
+allowed list) or `off` (in the blocked list). It is rewritten from the lists on each
+map, and setting it moves the map between the lists, so each map keeps its choice.
 A map's own worldspawn remaps always apply. `listRemaps` lists the map's, the
 enabled server and the temporary local remaps in the order they were applied, each
 labelled `map:`, `server:` or `local:`, and marks those a later remap overrides.

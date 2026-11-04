@@ -431,6 +431,11 @@ pub(super) const AUDIO: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Fishing bite cue",
+        cvar: crate::fishing::CUE_CVAR,
+        kind: ValueKind::Choice(&["0", "1", "2"]),
+    },
+    Setting {
         label: "Unlock sound",
         cvar: crate::unlock_toast::SOUND_CVAR,
         kind: ValueKind::Bool,
@@ -771,6 +776,15 @@ pub(super) const HUD: &[Setting] = &[
         kind: ValueKind::Float {
             min: 0.2,
             max: 1.5,
+            step: 0.1,
+        },
+    },
+    Setting {
+        label: "Nameplate opacity",
+        cvar: crate::hud::nameplate::OPACITY_CVAR,
+        kind: ValueKind::Float {
+            min: 0.1,
+            max: 1.0,
             step: 0.1,
         },
     },
@@ -1417,6 +1431,11 @@ pub(super) const GAME: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Remaps on this map",
+        cvar: crate::remap_blocked_maps::MAP_CVAR,
+        kind: ValueKind::Choice(&crate::remap_blocked_maps::Choice::NAMES),
+    },
+    Setting {
         // SJK defaults to 2 (EternalJK); 1 excludes player-texture configstring remaps.
         label: "Shader remaps",
         cvar: "cg_remaps",
@@ -1999,6 +2018,15 @@ pub(super) const RENDER_IMAGE: &[Setting] = &[
         label: "FXAA (reload)",
         cvar: "r_fxaa",
         kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Sharpening (%)",
+        cvar: crate::frame_target::aa::color::SHARPEN_CVAR,
+        kind: ValueKind::Integer {
+            min: 0,
+            max: crate::frame_target::aa::color::SHARPEN_MAX,
+            step: 5,
+        },
     },
     Setting {
         label: "Supersampling, 1 off (reload)",

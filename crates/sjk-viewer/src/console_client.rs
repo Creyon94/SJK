@@ -44,6 +44,14 @@ pub(super) const COMMANDS: &[(&str, &str)] = &[
         "unblockRemaps",
         "Allow server shader remaps on a blocked map again: unblockRemaps [map]",
     ),
+    (
+        "allowRemaps",
+        "Apply server shader remaps on a map even with cg_serverRemaps 0, the loaded one by default: allowRemaps [map]",
+    ),
+    (
+        "unallowRemaps",
+        "Let a map's server shader remaps follow cg_serverRemaps again: unallowRemaps [map]",
+    ),
     ("speedometer", "Configure supported speedometer flags"),
     ("strafehelper", "Configure supported airborne CGAZ flags"),
     ("play", "Play local sound files"),
@@ -547,6 +555,11 @@ impl crate::GpuState {
             let _ = crate::player_identity::emote(id, None);
             return Ok(Vec::new());
         }
+        // The vehicle plays its rider's animations; an emote would fight them for the
+        // whole ride (hub report #247).
+        if session.latest_snapshot().player.vehicle_entity_num() != 0 {
+            return Err("Get off the vehicle to emote".to_owned());
+        }
         if id == crate::emotes::SYNC {
             let Some(slot) = own else {
                 return Err("Join a server to emote".to_owned());
@@ -996,8 +1009,8 @@ impl crate::GpuState {
             "remapshader" | "listremaps" | "clearremaps" => {
                 return self.remap_command(&name, args);
             }
-            "blockremaps" | "unblockremaps" => {
-                return self.remap_block_command(name == "blockremaps", args);
+            "blockremaps" | "unblockremaps" | "allowremaps" | "unallowremaps" => {
+                return self.remap_block_command(&name, args);
             }
             name if crate::map_edits::editor::is_command(name) => {
                 return self.map_edit_command(name, args);

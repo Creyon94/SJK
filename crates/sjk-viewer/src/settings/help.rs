@@ -155,6 +155,9 @@ const CHOICE_NAMES: &[(&str, &str, &str)] = &[
         "10",
         crate::chat::incoming_color::LABELS[10],
     ),
+    (crate::fishing::CUE_CVAR, "0", "Off"),
+    (crate::fishing::CUE_CVAR, "1", "Sound off"),
+    (crate::fishing::CUE_CVAR, "2", "Always"),
     (crate::chat_sounds::MASTER_CVAR, "0", "Off"),
     (crate::chat_sounds::MASTER_CVAR, "1", "On"),
     (crate::chat_sounds::MASTER_CVAR, "2", "Distinct (EJK)"),
@@ -604,6 +607,10 @@ const HELP: &[(&str, &str)] = &[
         "Off: your casts, bites and catches are silent. The toy still works.",
     ),
     (
+        crate::fishing::CUE_CVAR,
+        "A \"!\" over the float and \"Bite! Press Use!\" when a fish bites. Sound off: only while the fishing sounds can't be heard.",
+    ),
+    (
         crate::away_emote::SJK_CVAR,
         "A looping emote you play while away (alt-tabbed out or idle), silent. Any emote you play then goes quiet too, for everyone.",
     ),
@@ -723,6 +730,10 @@ const HELP: &[(&str, &str)] = &[
         "Inside this distance the bars fade in under the name; beyond it just the name.",
     ),
     ("cg_nameplateScale", "Size of the nameplate text."),
+    (
+        "cg_nameplateAlpha",
+        "How solid nameplates are, from 0.1 (faint) to 1 (solid, the default). The distance and wall fades still apply.",
+    ),
     (
         "cg_nameplateHideDuelers",
         "Hide names, bars and icons on players the server marks as private duellers, including your own plate. Off by default.",
@@ -1116,6 +1127,10 @@ const HELP: &[(&str, &str)] = &[
     (
         crate::remap_blocked_maps::SERVER_CVAR,
         "Lets servers swap the map's textures. Off by default; the map's own swaps and SJK's map fixes always apply.",
+    ),
+    (
+        crate::remap_blocked_maps::MAP_CVAR,
+        "This map only: default follows Server remaps, on lets the server swap its textures anyway, off never.",
     ),
     (
         "cg_remaps",
@@ -1544,6 +1559,10 @@ const HELP: &[(&str, &str)] = &[
         "How the glow is blurred: like the original renderer, or like EternalJK's Vulkan one.",
     ),
     ("r_fxaa", "Smooths jagged edges with a light filter."),
+    (
+        crate::frame_target::aa::color::SHARPEN_CVAR,
+        "Sharpens the world against the blur of edge smoothing and textures, without halos.          0 is off. Menus and HUD are not touched.",
+    ),
     (
         "r_superSample",
         "Draws the scene 2 or 3 times larger each way and shrinks it: very sharp, very costly.",

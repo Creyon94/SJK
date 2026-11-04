@@ -136,6 +136,18 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "Maps whose server shader remaps are ignored, as with cg_remaps 0: mp/ffa4 mp/duel6",
         ),
         CvarDefinition::new(
+            crate::remap_blocked_maps::ALLOWED_CVAR,
+            "",
+            archive,
+            "Maps whose server shader remaps apply even with cg_serverRemaps 0: mp/ffa4 mp/duel6",
+        ),
+        CvarDefinition::new(
+            crate::remap_blocked_maps::MAP_CVAR,
+            crate::remap_blocked_maps::Choice::NAMES[0],
+            CvarFlags::NONE,
+            "Server shader remaps on the loaded map: default (as cg_serverRemaps), on or off; kept in cg_remapsAllowedMaps and cg_remapsBlockedMaps",
+        ),
+        CvarDefinition::new(
             "cg_forceEnemyModel",
             "none",
             archive,
@@ -655,6 +667,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             true,
             archive,
             "Play the Fishing toy's sounds (SJK)",
+        ),
+        CvarDefinition::new(
+            crate::fishing::CUE_CVAR,
+            crate::fishing::CUE_DEFAULT,
+            archive,
+            "Show a fish's bite on screen: 0 never, 1 when the fishing sounds can't be heard, 2 always (SJK)",
         ),
         CvarDefinition::new(
             crate::held_view::LOOK_CVAR,

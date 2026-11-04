@@ -1,3 +1,37 @@
+## Linux startup stack allowance
+
+03/11/2026, `fix/linux-startup-stack` from `main` `c0d603eb`, Nobara Linux 44
+x86_64. The installed 2026.1103.2 executable matched the published Linux ZIP.
+In an isolated profile using installed game content, that release aborted with
+`thread 'main' has overflowed its stack` at an 8 MiB soft stack limit; the same
+binary passed that point with 64 MiB. Linux now requests the same 64 MiB allowance
+as the Windows/macOS builds before constructing the client, preserving larger
+limits and the inherited hard limit ([client.md](client.md)). The shared constant
+also defines the existing startup test's quarter-stack budget. Subprocess tests
+cover raising the soft limit, preserving larger/unlimited limits, and capping the
+request at a restrictive hard limit. Verified: formatting, workspace build/tests/clippy
+on Linux CI, the local optimized build, and an isolated no-argument launch of the
+patched client inheriting an 8 MiB limit (world attached, HUD/fonts loaded, still
+running after 100 seconds). The existing 16 MiB startup guard built the menu world
+and rendered its first 30 frames successfully using Mesa llvmpipe software Vulkan.
+Not verified: hardware-GPU behavior, gameplay, a complete in-game update/restart
+round trip, or Windows/macOS runtime behavior.
+## Server remaps per map (`cg_serverRemapsMap`, Lex's idea)
+
+04/11/2026, `feat/server-remaps-per-map` from `main` `c0d603eb`. Lex asked in #ideas
+for `cg_serverRemaps` 1/0 per map from Settings. `cg_remapsAllowedMaps` (archived) lists
+maps whose server remaps apply, filtered by `cg_remaps`, even with `cg_serverRemaps 0`;
+`cg_remapsBlockedMaps` keeps blocking, and wins for a map in both. Settings > GAME >
+"Remaps on this map" is `cg_serverRemapsMap` (`default`, `on`, `off`, not
+archived): [remap_blocked_maps.rs](../crates/sjk-viewer/src/remap_blocked_maps.rs)
+rewrites it from the lists when the map or a list changes, and a change of the cvar alone
+moves the loaded map between the lists. `allowRemaps`/`unallowRemaps [map]` join
+`blockRemaps`/`unblockRemaps`; `listRemaps` says when the map's choice decides
+([client.md](client.md), [rendering.md](rendering.md#server-shader-remaps)). Verified:
+unit tests (choices from the lists, modes, list moves, names, the cache's show/store
+rules), fmt, clippy, `sjk-viewer` tests. Not verified: in a game on a server that remaps
+its map, and the Settings row on screen.
+
 ## Holocron catch-up, play signals, tag copies (client side)
 
 03/11/2026, `personal/economy-ideas` from `main` `69a3d6a0`, built with the hub's
@@ -106,6 +140,18 @@ because it has a width, burst like a rocket. A destroyed vehicle (`EF_DEAD`) pla
 AT-ST camera jump on stopping was fixed on 23/10 (`36523a14`). Not done: a damaged
 fighter's surface smoke (`dmgFX`, `injureFX`) and vehicle trails and exhausts. Verified:
 unit tests, fmt, clippy. Not verified: in a game, or that JoF/JA+ servers tag vehicle shots.
+
+## Loadouts button takes a click on Shaders (hub report #245)
+
+04/11/2026, `fix/loadout-button-245` from `main` `c0d603eb`. On Shaders the "Loadouts (P)"
+button (x 1624 to 1824, y 206) lies inside the stage saber's drag room (`SABER_AREA`, x 1000
+to 1824, y 196 to 496); with a stage behind the page (the menu map or the live preview, so
+always in a running client) a press there grabbed the saber to turn it and never reached the
+button, so only P opened the card. The press now leaves the button out, as it leaves the
+target switch out. Verified: the unit test
+`a_click_on_the_loadouts_button_opens_the_card` (Shaders, Tags and Nameplates, list and
+grid, three window sizes, no stage, the menu map and the live preview), the `collection`
+tests, fmt and clippy (no new warnings).
 
 ## Menu ideas 03/11: report from the menu, loadouts, Hax trap, wheel pictures, HUD switch
 
@@ -2102,8 +2148,17 @@ main's one-category-per-toy board on 02/11/2026), client-counted on servers only
 (`fish_first`, `fish_50`, `fish_kinds`, `echo_angler`, `old_whiskers` hidden), appended at
 the end of `achievements::ALL` and `kyber::REWARDS`. The
 look has the toy `fishing` (main's u32 toy bits, after the Banana peel). No hub change: the hub needs the five ids in its
+catalogue before they unlock online. Selling junk (capped credits; Sol's yes on #278):
+03/11/2026, `feat/fishing-sell-junk` with the hub's `feat/fishing-junk-sell`
+(`GET /v1/fishing/junk`, `POST /v1/fishing/junk/sell`, 15 credits a day per person and
+address, behind the operator's switch): the Fishing card lists the catches and sells the
+junk held, `fishing_sell` too, `sold` lines in the log ([client.md](client.md#fishing)).
+Verified: the log, card and answer tests; not yet against a hub that has the routes. Verified: fmt, build, the fishing, achievements, kyber and collection tests,
 catalogue before they unlock online; selling junk (capped credits) is proposed to Sol, not
-built. Verified: fmt, build, the fishing, achievements, kyber and collection tests,
+built. 03/11/2026, `feat/fishing-bite-cue`: the bite cue for players with the sound off
+(`cg_fishingBiteCue`, a "!" over the float and a centre line; tests
+`the_bite_cue_follows_its_setting_and_the_sound`, `a_bite_starts_and_ends_with_its_cue`;
+Not verified: in game.) Verified: fmt, build, the fishing, achievements, kyber and collection tests,
 earlier release builds in game (Slash: the rod in third person, the pond, bites; not yet
 the first-person rod or the Fishing band on the Fun page), world shots of the pond on duel6
 (`rods_at_the_first_spawn`). Not verified: the five ids at the hub, other players seeing a
@@ -3778,6 +3833,39 @@ with the number inside, SJK classic a yellow bar with an `HP` line (layout widge
 `vehicle_arc`, `vehicle_value`, `vehicle_label`, `vehicle_meter`). The strip stays only
 for game-data HUDs without `swoopvehiclehud`; the retail vehicle HUD is unchanged.
 Unit tests pin the text HUD run and which look draws the arc, the bar or the strip.
+
+## Vehicle speed and ammo in each HUD style
+
+03/11/2026, `feat/vehicle-hud-ammo-speed`, based on `Sol-Vulpes/SJK` `7fc4adca`: Kushina
+reported that the default HUD showed no ammunition or speed in any vehicle, as the
+per-style vehicle HUD above showed only the health. Each style now adds the speed and,
+for a vehicle with a weapon, the ammunition in its own look: Text only two more numbers
+left and right of the hull (`Frame::simple_hud`, `MAX_TEXTS` 7), SJK radial a cyan speed
+arc and an orange ammunition arc on the inner circle under the crosshair with the three
+numbers in a row below the outer arc (`vehicle_speed_arc`, `vehicle_ammo_arc`,
+`vehicle_speed_value`, `vehicle_ammo_value`), SJK classic `SPD` and `AMMO` bars above the
+`HP` one (`vehicle_speed_label`, `vehicle_speed_meter`, `vehicle_ammo_label`,
+`vehicle_ammo_meter`). `vehicle::State::meters` gives the layouts the three ratios; the
+retail vehicle HUD and the vector strip are unchanged. Unit tests pin the ratios, the new
+strings, the text HUD's runs and that each own look draws the speed and, with a weapon
+only, the ammunition.
+
+The turbo of swoops and animals follows in the same branch: `vehicle::turbo` gives its
+phase (recharging, ready, burning) and charge from the predicted turbo time and the
+`.veh`'s `turboRecharge`; radial draws a thin arc inside the speed arc and the word under
+the speed number, classic a `TURBO` line and bar beside `SPD`, Text only the word left of
+the speed (`MAX_TEXTS` 8). One widget per phase gives each its colour. Tests pin the
+phases, the words and that each look colours the turbo by its phase and leaves it out
+without one.
+
+The SJK classic layout was then redrawn after the user's mockup: three groups along the
+bottom (health and armour left, Force right, the held weapon or the piloted vehicle
+in the middle), at first on dark panels and then, after the user's second mockup, with no
+background (dark meter tracks instead; see [rendering](rendering.md)). New for it: meters drawn as cells
+(`StyleOverrides::segments` in `sjk-ui`), fixed `label_*` words, per-weapon
+`vehicle_ammo1_*`/`vehicle_ammo2_*` bindings, greyed `_none` flags, and
+`draw_weapon_panel`. `menu_snapshot::classic_hud_snapshot` draws it on the CPU (blaster,
+saber, a swoop recharging and ready, an AT-ST) without a map or GPU.
 
 ## Stock vehicle HUD in the game HUD
 

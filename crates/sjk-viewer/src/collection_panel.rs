@@ -133,6 +133,11 @@ const BOX_HUNT_TOKEN: u16 = 1_304;
 const BANANA_TOKEN: u16 = 1_375;
 /// Fishing's niche on Toys.
 const FISHING_TOKEN: u16 = 1_378;
+/// The Fishing card's Sell junk button: past the nameplate styles' and the toy
+/// options' tokens, which a click reads by range.
+const SELL_JUNK_TOKEN: u16 = 1_395;
+/// Fishing's place among the toys (`collection_toys::TOYS`).
+const FISHING_TOY: usize = 10;
 /// The Toys tab's "?", the Toy Master's (`collection_toys::Panel::toy_master_badge`): its
 /// hover card tells of the toys hidden on maps and names those the player found.
 const TOY_MASTER_TOKEN: u16 = 1_376;
@@ -175,6 +180,10 @@ const TOY_TOKENS: [u16; TOY_COUNT] = [
 /// a toy from here on, below [`FAVOURITE_TOKEN`].
 const TOY_SWITCH_BASE: u16 = 1_360;
 const _: () = assert!(TOY_SWITCH_BASE + TOY_COUNT as u16 <= FAVOURITE_TOKEN);
+const _: () = assert!(
+    SELL_JUNK_TOKEN >= STYLE_BASE + crate::hud::nameplate::Style::ALL.len() as u16
+        && SELL_JUNK_TOKEN >= TOY_OPTION_TOKEN + TOY_OPTION_TOKENS as u16
+);
 /// The chosen toy's key, which a click or K waits for a key to bind, and Order 66's
 /// second (the key that executes the order).
 const BIND_TOKEN: u16 = 1_377;
@@ -423,6 +432,8 @@ pub(crate) enum PanelAction {
     /// Get the fishing rod out (`true`) or put it away: the same as `toy_fishing`, set
     /// rather than toggled.
     Fishing(bool),
+    /// Sell the fished junk to the hub: the same as `fishing_sell`.
+    SellJunk,
     /// Set `cg_tag` to this tag's id: the one `toy_tag` sticks.
     /// Pick a tag (or a card) for `toy_tag`, in a finish (`cg_tag`, `cg_tagFinish`).
     ChooseTag(String, &'static str),
@@ -606,6 +617,9 @@ pub(crate) struct Inputs<'a> {
     pub(crate) banana: bool,
     /// The fishing rod is out now (kept as [`Self::illuminate`] is).
     pub(crate) fishing: bool,
+    /// The Fishing card's catches and junk sale, as the viewer last gave them; none
+    /// lists nothing.
+    pub(crate) fishing_card: Option<&'a crate::fishing_sell::Card>,
     /// The `name` cvar, for the nameplate.
     pub(crate) name: &'a str,
     /// The stock blade's colour (`color1`), for its swatch.
@@ -1100,6 +1114,11 @@ impl Panel {
         self.tab
     }
 
+    /// Whether the Toys tab's chosen toy is Fishing, whose card lists the catches.
+    pub(crate) fn fishing_chosen(&self) -> bool {
+        self.toy == FISHING_TOY
+    }
+
     /// Whether the page is the SJK UI's Collection screen.
     pub(crate) fn is_hub(&self) -> bool {
         self.hub
@@ -1251,7 +1270,7 @@ impl Panel {
             Tab::Toys if self.toy == 7 => PanelAction::Monitor(!self.monitor_on),
             Tab::Toys if self.toy == 8 => PanelAction::BoxHunt(!self.box_hunt_on),
             Tab::Toys if self.toy == 9 => PanelAction::Banana(!self.banana_on),
-            Tab::Toys if self.toy == 10 => PanelAction::Fishing(!self.fishing_on),
+            Tab::Toys if self.toy == FISHING_TOY => PanelAction::Fishing(!self.fishing_on),
             Tab::Toys => PanelAction::Illuminate(!illuminate),
             Tab::Nameplates => PanelAction::SeeAndShare(!self.share_on),
             Tab::Tags => self.choose_tag(),
@@ -2007,8 +2026,17 @@ impl Panel {
                             .ui
                             .rect_for(SABER_TOKEN)
                             .is_some_and(|rect| rect.contains(at))
-                        // The target switch over the saber is pressed, not the saber.
-                        && ![TARGET_FIRST_TOKEN, TARGET_SECOND_TOKEN, BOTH_TOKEN].iter().any(|token| {
+                        // The target switch over the saber is pressed, not the saber, and
+                        // so is the Loadouts button in the room's top right corner (hub
+                        // report #245: the stage took its clicks).
+                        && ![
+                            TARGET_FIRST_TOKEN,
+                            TARGET_SECOND_TOKEN,
+                            BOTH_TOKEN,
+                            loadouts::OPEN_TOKEN,
+                        ]
+                        .iter()
+                        .any(|token| {
                             self.ui.rect_for(*token).is_some_and(|rect| rect.contains(at))
                         }) =>
                 {
@@ -2347,6 +2375,7 @@ impl Panel {
             GRID_VIEW_TOKEN => self.set_grid(true),
             WEAR_TOKEN | TOY_SWITCH_TOKEN | SHARE_TOKEN => self.activate(illuminate),
             TOY_SIGHT_TOKEN => self.toy_sight(),
+            SELL_JUNK_TOKEN => PanelAction::SellJunk,
             loadouts::OPEN_TOKEN => {
                 self.loadouts.open();
                 PanelAction::None
@@ -2602,6 +2631,7 @@ mod tests {
             box_hunt: false,
             banana: false,
             fishing: false,
+            fishing_card: None,
             name: "^1Sol^7Vulpes",
             stock: sjk_ui::Color::new(0.16, 0.48, 1.0, 1.0),
             grid: false,
@@ -3067,6 +3097,42 @@ mod tests {
             panel.key(KeyCode::Enter, false, true),
             PanelAction::Illuminate(false)
         );
+    }
+
+    /// The Fishing card's Sell junk button sells (its token is no nameplate style's or
+    /// toy option's, which a click reads by range first).
+    #[test]
+    fn the_fishing_cards_sell_button_sells() {
+        let log = crate::fishing::Log::parse(
+            "boot 3
+hilt 1
+",
+        );
+        let card = crate::fishing_sell::card(&log, Some((8, 15)), false, None);
+        let mut shown = inputs(Holdings::Known(&[]), "");
+        shown.fishing_card = Some(&card);
+        let mut panel = drawn(Tab::Toys, &shown);
+        panel.toy = FISHING_TOY;
+        redraw(&mut panel, &shown);
+        let rect = panel.ui.rect_for(SELL_JUNK_TOKEN).expect("the Sell button");
+        let at = sjk_ui::Vec2::new(rect.x + rect.width * 0.5, rect.y + rect.height * 0.5);
+        let button = sjk_ui::PointerButton::Primary;
+        let action = [
+            InputEvent::PointerMove(at),
+            InputEvent::PointerPress {
+                position: at,
+                button,
+            },
+            InputEvent::PointerRelease {
+                position: at,
+                button,
+            },
+        ]
+        .into_iter()
+        .map(|event| panel.pointer_at(event, true, Instant::now()))
+        .find(|action| *action != PanelAction::None)
+        .unwrap_or(PanelAction::None);
+        assert_eq!(action, PanelAction::SellJunk);
     }
 
     /// Order 66 is the third toy: chosen, then turned on or off by the state the page
@@ -3934,5 +4000,65 @@ mod tests {
             action
         };
         assert_eq!(click(0), PanelAction::None);
+    }
+    /// Hub report #245: a click on the Loadouts button opens the card, as P does, on
+    /// every tab that offers it.
+    #[test]
+    fn a_click_on_the_loadouts_button_opens_the_card() {
+        // Every blade skin held: the wall is as full as it gets.
+        let owned: Vec<Unlock> = unlockables::blade_skins()
+            .map(|skin| Unlock {
+                id: skin.id.into(),
+                ..sun()
+            })
+            .collect();
+        let fonts = crate::text::load_modern(1.0, None).expect("Inter");
+        for tab in [Tab::Shaders, Tab::Tags, Tab::Nameplates] {
+            for grid in [false, true] {
+                for (size, stage) in [[1920.0, 1080.0], [1280.0, 720.0], [2560.0, 1440.0]]
+                    .into_iter()
+                    .flat_map(|size| {
+                        [
+                            Backstage::None,
+                            Backstage::World { head: None },
+                            Backstage::Preview { ready: true },
+                        ]
+                        .map(|stage| (size, stage))
+                    })
+                {
+                    let shown = Inputs {
+                        grid,
+                        ..inputs(Holdings::Known(&owned), "")
+                    };
+                    let mut panel = Panel::new();
+                    panel.open(tab, true, true, ReturnTarget::MainMenu);
+                    // In the game the page always has the stage behind it.
+                    panel.set_backstage(stage);
+                    panel.build(&shown, &fonts.font, size);
+                    let rect = panel.ui.rect_for(loadouts::OPEN_TOKEN).unwrap_or_else(|| {
+                        panic!("{tab:?} grid {grid} {size:?} {stage:?}: no button area")
+                    });
+                    let at =
+                        sjk_ui::Vec2::new(rect.x + rect.width * 0.5, rect.y + rect.height * 0.5);
+                    for event in [
+                        InputEvent::PointerMove(at),
+                        InputEvent::PointerPress {
+                            position: at,
+                            button: sjk_ui::PointerButton::Primary,
+                        },
+                        InputEvent::PointerRelease {
+                            position: at,
+                            button: sjk_ui::PointerButton::Primary,
+                        },
+                    ] {
+                        let _ = panel.handle_pointer(event, true);
+                    }
+                    assert!(
+                        panel.loadouts.is_open(),
+                        "{tab:?} grid {grid} {size:?} {stage:?}: the click left the card shut"
+                    );
+                }
+            }
+        }
     }
 }
