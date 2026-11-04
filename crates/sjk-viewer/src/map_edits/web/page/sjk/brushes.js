@@ -75,8 +75,9 @@ function sjkBrushBuild(data) {
 	sjkBrush.data = data;
 	sjkBrush.meshes = data.kinds.map((k, i) => tris[i].length ? { fill: sjkGeo(tris[i], gl.TRIANGLES), lines: sjkGeo(lines[i], gl.LINES) } : null);
 	sjkBrush.picks = picks;
-	// the first time: every kind the map has (r_showBrushes 2), as caulk is what the editor is for
-	if (!sjkBrush.chosen) { sjkBrush.shown = new Set(data.kinds.filter(k => k.count).map(k => k.name)); sjkBrush.chosen = true; }
+	// the first time: every kind the map has (r_showBrushes 2), as caulk is what the editor is for; not the sky, which
+	// would cover the view (a click on the sky selects its side without it)
+	if (!sjkBrush.chosen) { sjkBrush.shown = new Set(data.kinds.filter(k => k.count && k.name !== 'sky').map(k => k.name)); sjkBrush.chosen = true; }
 }
 
 // over the map, after it: each kind's faces see-through in its colour, their outlines brighter; hidden behind what
@@ -116,7 +117,7 @@ function sjkDrawBrushes() {
 	gl.bindVertexArray(null);
 }
 
-// the caulk or nodraw face of the brush view a click's ray meets first, from its front
+// the caulk, nodraw or sky face of the brush view a click's ray meets first, from its front
 function sjkBrushPick(ray) {
 	if (!sjkBrush.on || !sjkBrush.data) return null;
 	const kinds = sjkBrush.data.kinds, e = ray.eye, d = ray.dir;
@@ -167,7 +168,8 @@ $('brushKinds').addEventListener('change', e => {
 for (const b of document.querySelectorAll('#brushSets button')) b.addEventListener('click', () => {
 	const kinds = sjkBrush.data ? sjkBrush.data.kinds : [];
 	const set = b.dataset.set;
-	sjkBrush.shown = new Set(kinds.filter(k => set === 'all' || (set === 'play' && k.mode === 1) || (set === 'caulk' && k.selects)).map(k => k.name));
+	sjkBrush.shown = new Set(kinds.filter(k => set === 'all' || (set === 'play' && k.mode === 1) || (set === 'caulk' && k.selects && k.name !== 'sky')).map(k => k.name));
+
 	sjkBrushSave();
 	sjkRenderBrushCard();
 });
@@ -179,7 +181,7 @@ function sjkItemOf(sel) {
 	const t = sel && sel.target;
 	if (!t) return null;
 	if (sel.kind === 'surface') return { key: 's' + t.surface, kind: 'surface', surface: t.surface, shader: t.shader };
-	if (sel.kind === 'face') return { key: 'f' + t.brush + '/' + t.side, kind: 'face', brush: t.brush, side: t.side, shader: t.shader, points: t.points || [] };
+	if (sel.kind === 'face') return { key: 'f' + t.brush + '/' + t.side, kind: 'face', brush: t.brush, side: t.side, shader: t.shader, points: t.points || [], sky: !!t.sky };
 	return null;
 }
 const sjkSelKey = sel => sel ? sel.kind + JSON.stringify([sel.target && sel.target.surface, sel.target && sel.target.brush, sel.target && sel.target.side, sel.target && sel.target.entity, sel.target && sel.target.placed]) : '';
@@ -281,7 +283,7 @@ async function sjkLink(grow) {
 		const res = await fetch('api/link?brush=' + a.brush + '&side=' + a.side + '&grow=' + grow);
 		const j = await res.json();
 		if (j.ok === false || !j.faces) throw new Error(j.error || 'HTTP ' + res.status);
-		sjk.multi = j.faces.map(f => ({ key: 'f' + f.brush + '/' + f.side, kind: 'face', brush: f.brush, side: f.side, shader: f.shader, points: f.points }));
+		sjk.multi = j.faces.map(f => ({ key: 'f' + f.brush + '/' + f.side, kind: 'face', brush: f.brush, side: f.side, shader: f.shader, points: f.points, sky: !!f.sky }));
 		sjk.linkNote = j.faces.length + (j.faces.length === 1 ? ' face' : ' faces') + (grow === 'plane' ? ' on its plane' : ' joined') +
 			(j.buried ? ', ' + j.buried + ' unseen left out' : '') + (j.capped ? '; stopped at ' + j.limit + ', link again from a face at the edge' : '');
 		toast(sjk.linkNote, !j.capped);
@@ -328,11 +330,13 @@ function sjkRenderMulti() {
 	if (many) sjkText('selKind', 'Multiple selection');
 	$('btnHide').textContent = many ? 'Hide ' + sjk.multi.length : $('btnHide').textContent;
 	if (many) $('btnHide').disabled = false;
-	$('btnRemap').textContent = many ? 'Apply to ' + sjk.multi.length : 'Remap';
-	$('btnUnremap').textContent = many ? 'Take back from ' + sjk.multi.length : 'Remove remap';
+	const sky = sjkSkySel();
+	$('btnRemap').textContent = many ? 'Apply to ' + sjk.multi.length : sky ? 'Cover side' : 'Remap';
+	$('btnUnremap').textContent = many ? 'Take back from ' + sjk.multi.length : sky ? 'Take back' : 'Remove remap';
 	if (many) { $('btnRemap').disabled = !sjkRemapTarget(); $('btnUnremap').disabled = false; $('btnHideGroup').disabled = true; $('btnCopy').disabled = true; }
 	const anchor = sjkAnchorFace();
 	$('linkBox').hidden = !anchor;
+	sjkText('linkHead', anchor && anchor.sky ? 'Linked sky' : 'Linked caulk');
 	sjkText('linkNote', sjk.linkNote || 'From the face: every face joined to it that players see.');
 	const fill = sjkFillFaces(), sug = sjk.suggest;
 	$('fillBox').hidden = !fill.length;

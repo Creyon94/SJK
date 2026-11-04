@@ -2088,7 +2088,9 @@ selects (the selection's green outline is the screen's one memorable thing).
   muted, two lines), a row of two kit buttons, then Draw another shader: the kit's search
   pill (with its count), a list of five rows as Place's (names without `textures/` or
   `models/`, the selection's own shader in quiet print unless chosen), and Remap and
-  Remove remap. With nothing selected, how to select.
+  Remove remap. With nothing selected, how to select. On a sky (04/11/2026) the kind is
+  "Sky", the skies lead the list, and its last row has three buttons: Swap sky (Cover side
+  when a texture is chosen), Swap all skies (only with a sky chosen) and Take back.
 - **Place:** the kit's search pill, a list of six rows (34 each, the chosen one gold with
   a gold tick at its left, paths without `models/`), Place where you aimed across the
   column, then Placed model: its line and three rows of four buttons (turn and lift,

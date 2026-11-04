@@ -39,7 +39,7 @@
 		<div class="head">Invisible brushes <span id="brushCount" class="count"></span></div>
 		<div id="brushSets" class="buttons"><button data-set="play" title="What r_showBrushes 1 shows: what changes play">Play</button><button data-set="all" title="What r_showBrushes 2 shows">All</button><button data-set="caulk" title="Caulk, nodraw and invisible walls: the faces a click selects">Caulk</button><button data-set="none">None</button></div>
 		<div id="brushKinds"></div>
-		<p class="hint">A click on a caulk or nodraw face selects it.</p>
+		<p class="hint">A click on a caulk, nodraw or sky face selects it.</p>
 	</div>
 	<div id="toasts"></div>
 </main>
@@ -56,8 +56,21 @@
 		<dl id="selFacts" class="facts"></dl>
 		<div id="multiBox" class="multi" hidden><span id="multiCount"></span><button id="btnMultiClear" title="Esc in the view">Clear</button><p id="multiHint" class="hint"></p></div>
 		<div class="buttons"><button id="btnHide">Hide</button><button id="btnHideGroup" title="The surfaces of a model the map compiler merged into the world">Hide whole model</button><button id="btnCopy">Place a copy</button></div>
+		<div id="skyBox" hidden>
+			<h3>Swap the sky</h3>
+			<div id="skyRecentBox" class="recentBox">
+				<h4>Recent</h4>
+				<div id="skyRecent" class="tiles recent"></div>
+			</div>
+			<input id="skyFind" placeholder="Search the skies" spellcheck="false" autocomplete="off">
+			<div class="count" id="skyCount"></div>
+			<div id="skyList" class="tiles"></div>
+			<div class="buttons"><button id="btnSky" class="gold" title="Draw the chosen sky wherever the map draws this one: one remap edit">Swap this sky</button><button id="btnSkyAll" title="Every sky of this map swapped for the chosen one: one step to undo">Swap all skies</button><button id="btnSkyBack" title="Take this sky's swap back: the map's own sky again">Map's sky</button></div>
+			<p class="hint" id="skyHint">Draw another shader, below, covers the selected sky side with a texture instead.</p>
+		</div>
 		<div id="linkBox" hidden>
-			<h3>Linked caulk</h3>
+			<h3 id="linkHead">Linked caulk</h3>
+
 			<div class="buttons"><button id="btnLinkPlane" title="Every face joined to it on its plane that players see">Same plane</button><button id="btnLinkSurface" title="Every face joined to it at any angle that players see: the whole surface">Connected surface</button></div>
 			<p id="linkNote" class="hint"></p>
 		</div>

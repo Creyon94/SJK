@@ -14,7 +14,7 @@ the hub copies in [sjk-identity's map_edits](../crates/sjk-identity/src/map_edit
 | `hide_surface` | a BSP surface draws nothing, and picks and impact marks skip it | the bake around it |
 | `place` | an MD3 from the game data at a position, turned and scaled | lighting: entity light only, as props get |
 | `remap` | a shader drawn instead of another wherever the map draws it | |
-| `show_face` | one caulk or nodraw side of a world brush, drawn with a shader | collision, the bake |
+| `show_face` | one caulk, nodraw or sky side of a world brush, drawn with a shader | collision, the bake |
 
 Edits change what is drawn, never collision. The server keeps every brush and entity: a
 hidden prop or surface with clip brushes is an invisible wall, and a placed model can be
@@ -36,6 +36,32 @@ brush's planes, textured as Radiant textures a new brush (the axial projection a
 model from the face's middle ([faces.rs](../crates/sjk-viewer/src/map_edits/faces.rs)).
 Only sides of solid brushes are offered (caulk, nodraw, an invisible wall), never clip,
 trigger or water. Each face is one small mesh, built once.
+
+**The sky** (04/11/2026, Sol: "remap skybox faces" and "replace a skybox by another
+skybox"). A click or aim on the sky selects the sky side of the brush behind it (the sky
+surface the ray meets first, and the brush side it lies on, within 2 units: `world_notes`
+`pick`), named as a sky with its shader. Two edits act on it, both kinds every client
+already reads:
+
+- **Cover a side**: a texture drawn on it is a `show_face` edit, as for caulk (rebuilt
+  from the planes, Radiant's projection, entity light). It covers the sky: every program
+  that draws on the sky's faces pushes their depth back by 1/32 of the way to the far
+  plane ([rendering.md](rendering.md#sky-faces-depth)), so the face on the same plane
+  always wins the depth test, with no z-fighting; a player only ever sees a sky side from
+  its front, so nothing shows behind. A sky shader is refused for a face.
+- **Swap the sky**: `mapedit_sky <sky shader>` (or `mapedit_remap` with a sky shader on a
+  sky) is a `remap` edit from the map's sky shader to the new one, refused unless the
+  target has `skyParms`. The sky pass follows remaps (`sky_remaps.rs`): the new box and its
+  cloud stages are loaded, as a server's sky remap is. `mapedit_sky <sky> all` swaps every
+  sky shader of the map in one step to undo; `-` puts the map's back (`mapedit_remap -` on
+  a sky takes back the cover first, then the swap). Kept as authored: the sun direction
+  and day tint of the map's first sky, the volumetric clouds (`r_clouds`), the global
+  fog's clear colour; where a server's `misc_skyportal` view is drawn, the portal shows
+  instead of any box, as in retail.
+
+A client older than this release reads a document with a covered sky side and skips that
+face alone (its face check refuses a sky side; the rest of the document applies), so
+publish sky covers once a release carries them. Sky swaps already work on older clients.
 
 A remap edit wins over the map's own worldspawn remaps and the server's, so a fix made
 for a server's remaps holds; a console `remapShader` made after them still wins
@@ -87,7 +113,8 @@ acts on what is under the crosshair.
 | `mapedit_move <up> \| <x y z>` | Move it |
 | `mapedit_scale <factor>` | Scale it (0.01 to 64 times) |
 | `mapedit_grab` | It follows your aim until `mapedit_grab` again; meanwhile the mouse wheel turns it (15 degrees a notch, 1 with Shift) instead of changing weapon |
-| `mapedit_remap <shader> \| -` | Draw `shader` instead of the selected one; `-` removes that remap edit. On a caulk or nodraw face: draw that face with `shader`, `-` draws it as nothing again (as does `mapedit_hide`) |
+| `mapedit_remap <shader> \| -` | Draw `shader` instead of the selected one; `-` removes that remap edit. On a caulk or nodraw face: draw that face with `shader`, `-` draws it as nothing again (as does `mapedit_hide`). On a sky: a texture covers that side, a sky shader swaps the sky |
+| `mapedit_sky <sky> \| - [all]` | Swap the selected sky for sky shader `sky` (`all`: every sky of the map, without a selection); `-` puts the map's back |
 | `mapedit_scope [all\|server]` | New edits for all servers (the default) or only this one |
 | `mapedit_list`, `mapedit_delete <id>` | List, remove one |
 | `mapedit_undo`, `mapedit_redo` | Undo the last change to the map's edits (a hide, a placing, a turn, a move, a remap, a delete), or redo it |
@@ -115,7 +142,7 @@ waits 20 seconds), until the map changes.
 
 | Page | Offers |
 | --- | --- |
-| Selected | what it is (map prop, placed model, surface, game entity, hidden face: a caulk or nodraw side nearer than any drawn surface) with its model and shader; Hide (Remove for a placed model), Hide whole model (a merged model's surfaces), Place a copy; Draw another shader: a search over the shaders a remap may draw (the world's `textures/` and the map objects' `models/`, shaders and images, never the player models'), opened on the selection's own folder with its own shader chosen, five rows; Remap (or a second click on the chosen row) and Remove remap. A name the list does not know is tried as typed |
+| Selected | what it is (map prop, placed model, surface, game entity, hidden face: a caulk or nodraw side nearer than any drawn surface, sky: a sky side) with its model and shader; on a sky the skies come first in the list, and its buttons are Swap sky (Cover side when a texture is chosen), Swap all skies and Take back; Hide (Remove for a placed model), Hide whole model (a merged model's surfaces), Place a copy; Draw another shader: a search over the shaders a remap may draw (the world's `textures/` and the map objects' `models/`, shaders and images, never the player models'), opened on the selection's own folder with its own shader chosen, five rows; Remap (or a second click on the chosen row) and Remove remap. A name the list does not know is tried as typed |
 | Place | every MD3 of the game data outside the player models, narrowed by a search, six rows; Place where you aimed (or a second click on the chosen row); the current placed model's Turn left and right (15 degrees), Up and Down (8 units), Left, Right, Away and Closer (8 units along the world axis nearest the view's right and ahead, so steps add up straight), Smaller and Bigger (by 1.1), Grab and Remove. Shift held makes the steps 1 degree, 1 unit and a tenth of the growth |
 | Edits | the map's edits, newest first, named shortly (`3: Placed: crate.md3`, `Hidden surface: floor (1043)`, `Remap: wall -> wall2`, a server's address when for one), those for another server dimmed; choosing a placed model makes it the one Place's buttons move; Delete the chosen one, Undo and Redo |
 
@@ -294,12 +321,12 @@ game data, by a path the game data accepts (no `..`, no absolute path):
 | `GET api/shaders` | `{"files": [...]}`: the shader scripts in the order the game reads them |
 | `GET api/list?kind=dir&dir=&ext=` | the folders and files of a folder, as VisionJK's |
 | `GET api/edits` | the game's state (above) |
-| `GET api/lists` | the models to place and the shaders a remap may draw |
-| `POST api/edit` | `{"op": "select"\|"clear"\|"hide"\|"place"\|"turn"\|"move"\|"scale"\|"remap"\|"scope"\|"current"\|"delete"\|"undo"\|"redo"\|"publish"\|"place_thing"\|"remove_thing"\|"apply_many"\|"hide_many", ...}` |
+| `GET api/lists` | the models to place, the shaders a remap may draw and `skies` (`{name, picture}`: every shader with `skyParms`, its box's `_ft` image or its first stage's) |
+| `POST api/edit` | `{"op": "select"\|"clear"\|"hide"\|"place"\|"turn"\|"move"\|"scale"\|"remap"\|"sky"\|"scope"\|"current"\|"delete"\|"undo"\|"redo"\|"publish"\|"place_thing"\|"remove_thing"\|"apply_many"\|"hide_many", ...}`; `sky` takes `shader` and `all` (`mapedit_sky`) |
 | `GET api/recent` | `{"remember", "shaders", "models"}`: the Recent rows |
 | `POST api/recent` | `{"op": "remember", "on": bool}` or `{"op": "clear"}` |
 | `GET api/brushes` | `{"kinds": [{name, label, colour, mode, selects, count}], "faces": [[kind, brush, side, [x, y, z, ...], normal]]}` |
-| `GET api/link?brush=&side=&grow=plane\|surface` | `{"faces": [{brush, side, shader, points}], "buried", "capped", "limit"}` |
+| `GET api/link?brush=&side=&grow=plane\|surface` | `{"faces": [{brush, side, shader, points, sky}], "buried", "capped", "limit"}` |
 | `POST api/suggest` | `{"faces": [[brush, side], ...]}` answered `{"candidates": [{shader, weight, share}]}` |
 
 `api/edits` also carries the selection's details (above) and `things`: each thing's kind,
@@ -312,6 +339,16 @@ takes `faces` (`[brush, side]` each), `surfaces` and `shader` (`-` takes their f
 edits away), `hide_many` `faces` and `surfaces`, 1024 at most in all. The game checks each
 face again (a caulk or nodraw side of a world brush) and each shader as a remap's.
 
+**The sky in the page** (04/11/2026): a click on the sky selects its side as the game's
+pick does (the panel names it Sky, with what it is swapped for). Swap the sky lists the
+skies of the game data with their pictures, a search and a Recent row (the skies among the
+recent shaders), with Swap this sky, Swap all skies and Map's sky; the page's sky is drawn
+as the swap's (`remapOf` in `prepareScripted`). Draw another shader covers the side
+instead (Cover side), drawn as a shown face over the sky. The brush view has a `sky` kind
+(off by default, as it would cover the view; not in Caulk), whose faces a click selects;
+Same plane and Connected surface link sky sides with sky sides only, and Fill votes for
+them from the drawn walls round them as for caulk.
+
 Not yet: the map's own and the server's remaps are not drawn in the page (only remap
 edits); a mover is drawn where the map file has it; Grab has no page version; a box or a
 toy cannot be moved (the hub has no move); a toy's show and a box's opening are not
@@ -319,7 +356,9 @@ played in the page (drawn at rest). The brush view draws no labelled tiles; a cl
 caulk and nodraw faces only (a clip or trigger is not an edit). Linked caulk's "seen" is a
 cover and open-leaf test: a face in an open place players cannot reach (between a caulk
 shell and the sky, say) counts as seen, and a face behind a detail brush q3map2 kept
-counts as unseen. The vote looks at drawn surfaces only, not at what edits draw.
+counts as unseen. The vote looks at drawn surfaces only, not at what edits draw. The page
+draws one sky, the map's first (a map with several shows the first one's swap only).
+
 
 ## Limits
 
@@ -375,3 +414,18 @@ counts as unseen. The vote looks at drawn surfaces only, not at what edits draw.
   out again, the suggestion names `textures/yavin/stone_walk`, Fill sends one `apply_many`
   with both faces, Connected surface selects 512 faces, Esc clears, a reload keeps the view,
   no script errors. Not tried with the game running.
+- The sky (04/11/2026): unit tests (a sky side picked, checked and met on a synthetic map
+  while a sky-flagged liquid is refused; the brush view's `sky` kind and a link that takes
+  sky only; sky links never reach caulk; the sky list and its pictures; a sky swap as
+  remap edits, all skies in one step, taken back; the `sky` request; a document with a
+  covered sky side and a swap). World shots on retail ffa3: `sky_face_covered` selects
+  `textures/mp/h_tatsky` (brush 2784 side 31232) under the crosshair as a sky and covers it
+  with `textures/desert/s_wall1`: the middle 81x81 pixels changed 100 % from three eyes a
+  fraction of a unit apart (no sky through it), 82 pixels differ once taken back;
+  `sky_swapped` swaps it for `textures/ahog/thesky` (a community pk3's sky in the test
+  game data): 887503 of 921600 pixels changed, 30 after taking it back. In headless Chrome
+  on ffa3 (the fake game picks with the real code): a click on the sky selects it as Sky,
+  the list holds 271 skies (195 with a picture), Swap this sky sends `mapedit_sky` and the
+  page's sky changes (66 % of the view), Cover side draws the wall over it, Map's sky takes
+  the swap back, Same plane says Linked sky; no script errors. Not tried in a running
+  game: the panel's Sky page, `mapedit_sky` and the covers drawn in play.

@@ -58,6 +58,9 @@ const COLLISION_MASK: u32 = 1 | 0x10000;
 const SURF_NODRAW: u32 = 0x0020_0000;
 /// How much nearer than the drawn surface a nodraw side must be to be selected instead.
 const FACE_MARGIN: f32 = 1.0;
+/// How far from the sky surface the ray met its brush's sky side may lie and still be
+/// the side that surface was made from.
+const SKY_MARGIN: f32 = 2.0;
 /// JKA's standing view height: `setviewpos` places the origin, the eye sits above it.
 const VIEW_HEIGHT: f32 = 36.0;
 /// Most edges an outline keeps, and most dots it draws a frame (the HUD's shapes share
@@ -198,8 +201,16 @@ impl Selection {
         }
         if let Some(face) = &self.face {
             return format!(
-                "{} (brush {} side {}, drawn by no surface), {:.0} units",
-                face.shader, face.brush, face.side, self.distance
+                "{} (brush {} side {}, {}), {:.0} units",
+                face.shader,
+                face.brush,
+                face.side,
+                if face.sky {
+                    "sky"
+                } else {
+                    "drawn by no surface"
+                },
+                self.distance
             );
         }
         let what = match (&self.surface, &self.entity) {
@@ -249,6 +260,7 @@ impl Selection {
                 brush: face.brush,
                 side: face.side,
                 shader: face.shader.clone(),
+                sky: face.sky,
             };
         }
         match (&self.surface, &self.entity) {
@@ -653,7 +665,28 @@ pub(crate) fn pick(
                 .as_ref()
                 .is_none_or(|hit| collision.distance + FACE_MARGIN < hit.distance)
     });
-    if nodraw_first && let Some(face) = crate::map_edits::faces::pick(bsp, eye, direction, REACH) {
+    // The sky drawn first: the sky side of the brush behind it, which edits may cover
+    // with a texture or whose sky they may swap (the sky's surface itself is no edit's).
+    let sky_first = world.as_ref().is_some_and(|hit| {
+        render
+            .surfaces()
+            .get(hit.surface)
+            .and_then(|surface| bsp.shaders().get(surface.shader))
+            .is_some_and(|shader| shader.surface_flags & crate::map_edits::faces::SURF_SKY != 0)
+    });
+    let face = if nodraw_first {
+        crate::map_edits::faces::pick(bsp, eye, direction, REACH)
+    } else if sky_first {
+        crate::map_edits::faces::pick(bsp, eye, direction, REACH).filter(|face| {
+            face.sky
+                && world
+                    .as_ref()
+                    .is_some_and(|hit| (hit.distance - face.distance).abs() <= SKY_MARGIN)
+        })
+    } else {
+        None
+    };
+    if let Some(face) = face {
         let point = eye + direction * face.distance;
         let corners: Vec<Vec3> = face.polygon.iter().map(|p| Vec3::from_array(*p)).collect();
         let edges = (0..corners.len())
@@ -933,13 +966,15 @@ pub(crate) enum EditTarget {
         shader: String,
         kind: &'static str,
     },
-    /// A side of a world brush the map draws nothing on (caulk, nodraw): its BSP brush
-    /// and side numbers and its shader.
+    /// A side of a world brush the map draws nothing on (caulk, nodraw), or draws as sky
+    /// (`sky`): its BSP brush and side numbers and its shader.
     Face {
         brush: u32,
         side: u32,
         shader: String,
+        sky: bool,
     },
+
     /// Something edits do not change (a mover, an entity marker).
     Other,
 }
