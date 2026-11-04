@@ -644,6 +644,8 @@ impl ViewerConsole {
             pending_boombox: None,
             fishing_on: false,
             pending_fishing: None,
+            fishing_card: Default::default(),
+            pending_fishing_sell: false,
             monitor_on: false,
             pending_monitor: None,
             box_hunt_on: false,

@@ -272,6 +272,10 @@ pub(crate) struct ViewerConsole {
     fishing_on: bool,
     /// The Toys tab asked to get the rod out (`true`) or put it away, not yet taken.
     pending_fishing: Option<bool>,
+    /// The Fishing card's catches and sale, as the viewer last gave them.
+    fishing_card: crate::fishing_sell::Card,
+    /// The Fishing card's Sell junk button was pressed.
+    pending_fishing_sell: bool,
     /// The Monitor toy is on, mirrored as [`Self::order66_on`] is.
     monitor_on: bool,
     /// The Toys tab asked to turn the Monitor on (`true`) or off, not yet taken.

@@ -126,6 +126,10 @@ const BOX_HUNT_TOKEN: u16 = 1_304;
 const BANANA_TOKEN: u16 = 1_375;
 /// Fishing's niche on Toys.
 const FISHING_TOKEN: u16 = 1_378;
+/// The Fishing card's Sell junk button.
+const SELL_JUNK_TOKEN: u16 = 1_381;
+/// Fishing's place among the toys (`collection_toys::TOYS`).
+const FISHING_TOY: usize = 10;
 /// The Toys tab's "?", the Toy Master's (`collection_toys::Panel::toy_master_badge`): its
 /// hover card tells of the toys hidden on maps and names those the player found.
 const TOY_MASTER_TOKEN: u16 = 1_376;
@@ -413,6 +417,8 @@ pub(crate) enum PanelAction {
     /// Get the fishing rod out (`true`) or put it away: the same as `toy_fishing`, set
     /// rather than toggled.
     Fishing(bool),
+    /// Sell the fished junk to the hub: the same as `fishing_sell`.
+    SellJunk,
     /// Set `cg_tag` to this tag's id: the one `toy_tag` sticks.
     /// Pick a tag (or a card) for `toy_tag`, in a finish (`cg_tag`, `cg_tagFinish`).
     ChooseTag(String, &'static str),
@@ -593,6 +599,9 @@ pub(crate) struct Inputs<'a> {
     pub(crate) banana: bool,
     /// The fishing rod is out now (kept as [`Self::illuminate`] is).
     pub(crate) fishing: bool,
+    /// The Fishing card's catches and junk sale, as the viewer last gave them; none
+    /// lists nothing.
+    pub(crate) fishing_card: Option<&'a crate::fishing_sell::Card>,
     /// The `name` cvar, for the nameplate.
     pub(crate) name: &'a str,
     /// The stock blade's colour (`color1`), for its swatch.
@@ -1058,6 +1067,11 @@ impl Panel {
         self.tab
     }
 
+    /// Whether the Toys tab's chosen toy is Fishing, whose card lists the catches.
+    pub(crate) fn fishing_chosen(&self) -> bool {
+        self.toy == FISHING_TOY
+    }
+
     /// Whether the page is the SJK UI's Collection screen.
     pub(crate) fn is_hub(&self) -> bool {
         self.hub
@@ -1194,7 +1208,7 @@ impl Panel {
             Tab::Toys if self.toy == 7 => PanelAction::Monitor(!self.monitor_on),
             Tab::Toys if self.toy == 8 => PanelAction::BoxHunt(!self.box_hunt_on),
             Tab::Toys if self.toy == 9 => PanelAction::Banana(!self.banana_on),
-            Tab::Toys if self.toy == 10 => PanelAction::Fishing(!self.fishing_on),
+            Tab::Toys if self.toy == FISHING_TOY => PanelAction::Fishing(!self.fishing_on),
             Tab::Toys => PanelAction::Illuminate(!illuminate),
             Tab::Nameplates => PanelAction::SeeAndShare(!self.share_on),
             Tab::Tags => self.choose_tag(),
@@ -2265,6 +2279,7 @@ impl Panel {
             GRID_VIEW_TOKEN => self.set_grid(true),
             WEAR_TOKEN | TOY_SWITCH_TOKEN | SHARE_TOKEN => self.activate(illuminate),
             TOY_SIGHT_TOKEN => self.toy_sight(),
+            SELL_JUNK_TOKEN => PanelAction::SellJunk,
             loadouts::OPEN_TOKEN => {
                 self.loadouts.open();
                 PanelAction::None
@@ -2519,6 +2534,7 @@ mod tests {
             box_hunt: false,
             banana: false,
             fishing: false,
+            fishing_card: None,
             name: "^1Sol^7Vulpes",
             stock: sjk_ui::Color::new(0.16, 0.48, 1.0, 1.0),
             grid: false,

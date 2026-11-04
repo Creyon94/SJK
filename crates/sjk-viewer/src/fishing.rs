@@ -393,35 +393,48 @@ pub(crate) enum Say {
     Command(&'static str),
 }
 
-/// The fish log: how many of each catch the player brought up, and the last fish (in the
-/// bucket while the rod is out).
+/// The fish log: how many of each catch the player brought up, how many of those were
+/// sold to the hub (junk, [`crate::fishing_sell`]), and the last fish (in the bucket while
+/// the rod is out). The counts are what was caught, whatever was sold after.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub(crate) struct Log {
     counts: Vec<(String, u32)>,
+    sold: Vec<(String, u32)>,
     last: Option<&'static Catch>,
 }
 
 /// The fish log's line naming the last fish caught: `last <id>`.
 const LAST: &str = "last";
+/// The fish log's lines of what was sold: `sold <id> <count>` (three words, which logs
+/// before 03/11/2026 skip).
+const SOLD: &str = "sold";
 
 impl Log {
-    /// Read `text` (`<id> <count>` a line, and `last <id>`; anything else is skipped).
+    /// Read `text` (`<id> <count>` a line, `sold <id> <count>` and `last <id>`; anything
+    /// else is skipped).
     pub(crate) fn parse(text: &str) -> Self {
         let mut log = Self::default();
         for line in text.lines() {
-            let mut words = line.split_whitespace();
-            let (Some(id), Some(value), None) = (words.next(), words.next(), words.next()) else {
-                continue;
-            };
-            if id == LAST {
-                log.last = CATCHES
-                    .iter()
-                    .find(|c| c.kind == Kind::Fish && c.id == value);
-            } else if let Ok(count) = value.parse::<u32>()
-                && !id.is_empty()
-            {
-                log.counts.retain(|(known, _)| known != id);
-                log.counts.push((id.to_owned(), count));
+            let words: Vec<&str> = line.split_whitespace().collect();
+            match words.as_slice() {
+                [SOLD, id, value] => {
+                    if let Ok(count) = value.parse::<u32>() {
+                        log.sold.retain(|(known, _)| known != id);
+                        log.sold.push(((*id).to_owned(), count));
+                    }
+                }
+                [LAST, value] => {
+                    log.last = CATCHES
+                        .iter()
+                        .find(|c| c.kind == Kind::Fish && c.id == *value);
+                }
+                [id, value] => {
+                    if let Ok(count) = value.parse::<u32>() {
+                        log.counts.retain(|(known, _)| known != id);
+                        log.counts.push(((*id).to_owned(), count));
+                    }
+                }
+                _ => {}
             }
         }
         log
@@ -433,6 +446,9 @@ impl Log {
             .iter()
             .map(|(id, count)| format!("{id} {count}\n"))
             .collect();
+        for (id, count) in &self.sold {
+            text.push_str(&format!("{SOLD} {id} {count}\n"));
+        }
         if let Some(last) = self.last {
             text.push_str(&format!("{LAST} {}\n", last.id));
         }
@@ -468,6 +484,48 @@ impl Log {
             self.counts.push((id.to_owned(), 1));
             1
         }
+    }
+
+    /// How many of `id` were sold.
+    pub(crate) fn sold_count(&self, id: &str) -> u32 {
+        self.sold
+            .iter()
+            .find(|(known, _)| known == id)
+            .map_or(0, |(_, count)| *count)
+    }
+
+    /// How many of `id` the player still holds: caught, less sold.
+    pub(crate) fn held(&self, id: &str) -> u32 {
+        self.count(id).saturating_sub(self.sold_count(id))
+    }
+
+    /// The junk the player holds, by id (only kinds with pieces).
+    pub(crate) fn junk_held(&self) -> std::collections::BTreeMap<String, u32> {
+        CATCHES
+            .iter()
+            .filter(|c| c.kind == Kind::Junk)
+            .map(|c| (c.id.to_owned(), self.held(c.id)))
+            .filter(|(_, held)| *held > 0)
+            .collect()
+    }
+
+    /// Count `sold` (pieces by id, as the hub took them) as sold, never more than was
+    /// caught; returns how many pieces that was.
+    pub(crate) fn sell(&mut self, sold: &std::collections::BTreeMap<String, u32>) -> u32 {
+        let mut pieces = 0;
+        for (id, count) in sold {
+            let taken = (*count).min(self.held(id));
+            if taken == 0 {
+                continue;
+            }
+            pieces += taken;
+            if let Some((_, known)) = self.sold.iter_mut().find(|(known, _)| known == id) {
+                *known += taken;
+            } else {
+                self.sold.push((id.clone(), taken));
+            }
+        }
+        pieces
     }
 
     /// The different fish caught, of all there are.
@@ -520,6 +578,8 @@ pub(crate) struct Fishing {
     /// from it.
     pub(crate) tips: [Option<[f32; 3]>; SLOTS],
     sounds_registered: Option<u64>,
+    /// Selling the junk to the hub ([`crate::fishing_sell`]).
+    pub(crate) sale: crate::fishing_sell::Sale,
     /// Rods to draw without a session, for the world shots: where the player stands,
     /// their yaw, whether a fish hangs from the tip, and which fish ([`FISH_MODELS`]) is
     /// in the bucket and on the line.
@@ -550,6 +610,7 @@ impl Default for Fishing {
             lines: Lines::default(),
             tips: [None; SLOTS],
             sounds_registered: None,
+            sale: Default::default(),
             #[cfg(test)]
             shot_rods: Vec::new(),
         }
@@ -845,6 +906,12 @@ impl Fishing {
         }
     }
 
+    /// The fish log, read from `directory` first if it was not yet.
+    pub(crate) fn log_in(&mut self, directory: &Path) -> &mut Log {
+        self.read_log(directory);
+        self.log.get_or_insert_with(Log::default)
+    }
+
     /// Read the fish log from `directory` once, counting in what was caught before.
     fn read_log(&mut self, directory: &Path) {
         if std::mem::replace(&mut self.log_read, true) {
@@ -868,7 +935,7 @@ impl Fishing {
         self.log.as_ref().and_then(Log::last)
     }
 
-    fn save_log(&self, directory: &Path) {
+    pub(crate) fn save_log(&self, directory: &Path) {
         if let Some(log) = &self.log
             && let Err(error) = std::fs::write(directory.join(LOG_FILE), log.text())
         {
@@ -1088,6 +1155,7 @@ impl GpuState {
     }
 
     fn fishing_frame(&mut self, presentation_time: i64, now: Instant) {
+        self.fishing_sale_frame(now);
         let mesh_of = |model: &str| {
             self.object_meshes
                 .iter()
@@ -1438,6 +1506,30 @@ fn fishing_since(now: Instant) -> Instant {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// What was sold is kept apart from what was caught: the counts stay, held is the
+    /// difference, a sale never takes more than is held, and the log reads back.
+    #[test]
+    fn sold_junk_is_kept_beside_the_catches() {
+        let mut log = Log::parse("boot 4\nhilt 2\nsilver_darter 3\nlast silver_darter\n");
+        assert_eq!(log.held("boot"), 4);
+        let sold: std::collections::BTreeMap<String, u32> =
+            [("boot".to_owned(), 3), ("hilt".to_owned(), 5)].into();
+        assert_eq!(log.sell(&sold), 5, "three boots and the two hilts held");
+        assert_eq!((log.count("boot"), log.held("boot")), (4, 1));
+        assert_eq!((log.count("hilt"), log.held("hilt")), (2, 0));
+        assert_eq!(
+            log.junk_held(),
+            [("boot".to_owned(), 1)].into_iter().collect()
+        );
+        let text = log.text();
+        assert!(text.contains("sold boot 3\n") && text.contains("sold hilt 2\n"));
+        let again = Log::parse(&text);
+        assert_eq!(again, log);
+        assert_eq!(again.species(), (1, FISH_KINDS));
+        // A log written before selling reads as nothing sold.
+        assert_eq!(Log::parse("boot 4\n").held("boot"), 4);
+    }
 
     fn frame(echo_waiting: bool) -> Frame {
         Frame {
