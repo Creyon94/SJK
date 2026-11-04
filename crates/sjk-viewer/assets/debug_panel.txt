@@ -371,6 +371,14 @@ test: Builder: drag cards into groups, undo/redo, Revert; B for stage, C clashes
 test: Lab off (no saberlab): no Saber Lab tab; blades in a match look as before.
 note: Owed: unit tests, crackle + body burn unseen in a match, TRACE-DISINTEGRATE still in.
 
+[vehicle-hud-351]
+area: HUD
+title: Vehicle HUD in every style + new SJK classic HUD (Slash #351)
+change: Speed, ammo and turbo beside the vehicle HP in Text only, SJK radial and classic.
+change: SJK classic HUD redrawn: vitals bottom left, Force bottom right, weapon centre.
+test: SJK classic HUD on foot (blaster, saber) and on a swoop and AT-ST: rows read clearly.
+test: HUD edit mode: Vitals, Force, Weapon, Vehicle groups each move as one.
+
 [pr-batch-1104b]
 area: Gameplay
 title: PRs 04/11 b: fishing sell/cue, vehicle emotes, nameplate alpha, sharpen, alias, whispers

@@ -748,7 +748,7 @@ merged into SJK
 - #306 long game-chat messages sent whole, as up to four messages split at a word; at the
   merge a draft refused past four pieces stays in the composer.
 
-Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 108 pull requests merged
+Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 109 pull requests merged
 into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AJoFSlash)):
 
 - #114 Tab completes the cfg file argument of `exec`, `execq`, `writeconfig` and `write`
@@ -927,6 +927,8 @@ into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author
 - #345 a small or big player ragdolls at their own size (hub report #223, Rollembones).
 - #346 `s_muteEmotesInDuel` silences emote sounds in duels (hub report #234, Groark).
 - #349 fished junk sold to the hub for credits, at most 15 a day (after Sanjisan's Fishing).
+- #351 the piloted vehicle's speed, ammo and turbo in every HUD style, and the SJK classic
+  HUD redrawn along the bottom edge.
 - #350 a fishing bite shown on screen when its sound can't be heard (`cg_fishingBiteCue`).
 - #352 getting on a vehicle ends your emote (hub report #247).
 - #353 nameplate opacity (`cg_nameplateAlpha`).

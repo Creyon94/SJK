@@ -372,7 +372,7 @@ link: Lukas's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+
 
 [Slash]
 github: JoFSlash
-role: Contributor: 108 merged pull requests
+role: Contributor: 109 merged pull requests
 did: #114 Tab completes cfg file names after exec and writeconfig
 did: #113 CTF team saber colours, an option
 did: #153 The SJK scoreboard tells who won the Siege round or team match
@@ -474,6 +474,7 @@ did: #345 Ragdolls keep a scaled player's size
 did: #346 Emote sounds muted in duels (s_muteEmotesInDuel)
 did: #349 Fished junk sold to the hub for credits
 did: #350 A fishing bite shown on screen with the sound off
+did: #351 Vehicle speed, ammo and turbo in every HUD; SJK classic HUD redrawn
 did: #352 Getting on a vehicle ends your emote
 did: #353 Nameplate opacity (cg_nameplateAlpha)
 did: #354 Server remaps chosen per map
