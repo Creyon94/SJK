@@ -8674,6 +8674,15 @@ test: on JoF with gameplay_fps 0, play 30 min with com_maxfps 60: no Heimdall ki
 test: movement and jumps feel as before at 125+ FPS; at 60 FPS like JoF EJK.
 test: on a non-JoF server at 60 FPS, gameplay_fps 333 still moves like 333.
 
+[jof-packetdup]
+area: Gameplay
+title: JoF: no repeated commands in packets (Heimdall kicks)
+change: On JoF, cl_packetdup counts as 0: a packet carries only its new commands.
+change: cl_packetdup_nocap 1 keeps the cvar; gameplay_fps_nocap does not lift it.
+test: join JoF: the console says JoF servers take 0 repeated packets at most.
+test: play 30 min on JoF with cl_packetdup 1 (default): no Heimdall kick.
+test: on a non-JoF server the console names no cl_packetdup cap; movement as before.
+
 [white-text-outline]
 area: HUD
 title: White edge on dark text: dark letters of names and chat in a white outline
