@@ -50,6 +50,8 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Aliases: `alias <name> <commands>` runs the commands when you type the name, bind it or put it on the quick wheel (`alias +zoom` with `alias -zoom` for a held key); `aliaslist`, `unalias` and `unaliasall` manage them, and they are kept in `aliases.cfg` for the next start _(Slash, after Lex's idea)_
 - Profile card and SJK Profile page: without a chosen banner they show only the picture and text over the menu again, as before banners; a chosen banner has round corners, as does the banner revealed from a holocron _(Slash)_
 - Whispers show whom you write to: the recipient has a line of its own under the chat buttons, the whole name in its colours; with several players who whispered you, `<` and `>` (or Alt+Left and Alt+Right) step between them, and a click on the name lists them all to pick one _(Slash, after Creo's idea)_
+- Vehicle HUD: the speed, ammo and turbo of the vehicle you pilot show beside its health: Text only as numbers around it, SJK radial as cyan, orange and turbo arcs under the crosshair with their numbers; the turbo is red while it recharges, green when ready and bright while it boosts _(Slash, after Kushina's report)_
+- New SJK classic HUD with no background behind it: health and armour bottom left, Force bottom right, and bottom centre your weapon and its ammo on foot, or the vehicle's HP, speed, turbo and each gun's ammo while you pilot one _(Slash)_
 
 ## 2026.1103.2 (Alpha) | 03/11/2026
 

@@ -3817,6 +3817,39 @@ with the number inside, SJK classic a yellow bar with an `HP` line (layout widge
 for game-data HUDs without `swoopvehiclehud`; the retail vehicle HUD is unchanged.
 Unit tests pin the text HUD run and which look draws the arc, the bar or the strip.
 
+## Vehicle speed and ammo in each HUD style
+
+03/11/2026, `feat/vehicle-hud-ammo-speed`, based on `Sol-Vulpes/SJK` `7fc4adca`: Kushina
+reported that the default HUD showed no ammunition or speed in any vehicle, as the
+per-style vehicle HUD above showed only the health. Each style now adds the speed and,
+for a vehicle with a weapon, the ammunition in its own look: Text only two more numbers
+left and right of the hull (`Frame::simple_hud`, `MAX_TEXTS` 7), SJK radial a cyan speed
+arc and an orange ammunition arc on the inner circle under the crosshair with the three
+numbers in a row below the outer arc (`vehicle_speed_arc`, `vehicle_ammo_arc`,
+`vehicle_speed_value`, `vehicle_ammo_value`), SJK classic `SPD` and `AMMO` bars above the
+`HP` one (`vehicle_speed_label`, `vehicle_speed_meter`, `vehicle_ammo_label`,
+`vehicle_ammo_meter`). `vehicle::State::meters` gives the layouts the three ratios; the
+retail vehicle HUD and the vector strip are unchanged. Unit tests pin the ratios, the new
+strings, the text HUD's runs and that each own look draws the speed and, with a weapon
+only, the ammunition.
+
+The turbo of swoops and animals follows in the same branch: `vehicle::turbo` gives its
+phase (recharging, ready, burning) and charge from the predicted turbo time and the
+`.veh`'s `turboRecharge`; radial draws a thin arc inside the speed arc and the word under
+the speed number, classic a `TURBO` line and bar beside `SPD`, Text only the word left of
+the speed (`MAX_TEXTS` 8). One widget per phase gives each its colour. Tests pin the
+phases, the words and that each look colours the turbo by its phase and leaves it out
+without one.
+
+The SJK classic layout was then redrawn after the user's mockup: three groups along the
+bottom (health and armour left, Force right, the held weapon or the piloted vehicle
+in the middle), at first on dark panels and then, after the user's second mockup, with no
+background (dark meter tracks instead; see [rendering](rendering.md)). New for it: meters drawn as cells
+(`StyleOverrides::segments` in `sjk-ui`), fixed `label_*` words, per-weapon
+`vehicle_ammo1_*`/`vehicle_ammo2_*` bindings, greyed `_none` flags, and
+`draw_weapon_panel`. `menu_snapshot::classic_hud_snapshot` draws it on the CPU (blaster,
+saber, a swoop recharging and ready, an AT-ST) without a map or GPU.
+
 ## Stock vehicle HUD in the game HUD
 
 19/10/2026, `feat/vehicle-hud-sjk-style`, on `fix/vehicle-hud-hide-rider`: a tester
