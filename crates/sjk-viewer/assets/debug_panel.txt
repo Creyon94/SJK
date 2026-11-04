@@ -361,6 +361,16 @@ test: Move or take damage: the rod goes away. Another SJK player sees rod and bu
 test: debug_holocron while fishing: card at once, no Echo on the line, no Echo Angler count.
 note: Achievements need hub-shared #9 imported and deployed before they record online.
 
+[saber-lab-348]
+area: Rendering & effects
+title: Saber Lab (Milamber #348): blade-skin lab, builder, new blade effects
+change: saberlab <folder> or SJK_SABER_LAB: Collection gains a Saber Lab tab (last).
+change: .bladeextra6: smoke, ribbon, sparks, crackle, disintegrate; flash, unrest, chroma.
+test: Copy assets/saber-lab outside the repo, saberlab <it>, open Collection > Saber Lab.
+test: Builder: drag cards into groups, undo/redo, Revert; B for stage, C clashes.
+test: Lab off (no saberlab): no Saber Lab tab; blades in a match look as before.
+note: Owed: unit tests, crackle + body burn unseen in a match, TRACE-DISINTEGRATE still in.
+
 [pr-batch-1103]
 area: Rendering & effects
 title: PRs 03/11: light styles, NPC split skins, Empower glow off

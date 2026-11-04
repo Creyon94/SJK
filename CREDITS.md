@@ -929,7 +929,7 @@ main had its own lazy card pictures) brought two pieces ported onto main: a pict
 decoder panics on fails alone instead of stopping every later card picture, and card and
 medal pictures carry their own labels in `vram` and crash reports.
 
-Milamber ([Milamber0](https://github.com/Milamber0)), contributor, has 3 pull requests merged
+Milamber ([Milamber0](https://github.com/Milamber0)), contributor, has 4 pull requests merged
 into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AMilamber0)):
 
 - #156 See & share nameplates (`cg_nameplate`) replaces Share my bars: seeing nameplates shares
@@ -941,6 +941,9 @@ into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author
 - #194 JoF EternalJK takes part in SJK chat: its messages start with its icon, and on JoF
   servers SJK chat is said in All chat too (moved into JoF tools at JoF's request, with a
   one-time notice), each line shown once and labelled ALL/SJK.
+- #348 the Saber Lab (`saberlab <folder>`): a live blade-skin lab with a builder of effect
+  cards, an editor of every field with undo and Revert, and new blade-skin effects (smoke,
+  ribbons, sparks, crackle, flash, unrest, chroma by file, a burn on a saber kill).
 
 Blackwolf1337 ([Blackwolf1337](https://github.com/Blackwolf1337)), contributor, has 1 pull
 request merged into SJK
