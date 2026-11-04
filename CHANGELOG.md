@@ -30,6 +30,10 @@ The site (site/assets/site.js, parseChangelog) reads the release headings,
 introductions and recap lines too.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
+## Unreleased
+
+- Aliases: `alias <name> <commands>` runs the commands when you type the name, bind it or put it on the quick wheel (`alias +zoom` with `alias -zoom` for a held key); `aliaslist`, `unalias` and `unaliasall` manage them, and they are kept in `aliases.cfg` for the next start _(Slash, after Lex's idea)_
+
 ## 2026.1103.2 (Alpha) | 03/11/2026
 
 Clan chats for JoF and S, holocrons earned by playing, tag copies to break down or craft, loadouts, fishing and many fixes.
