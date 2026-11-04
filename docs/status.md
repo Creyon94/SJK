@@ -446,6 +446,23 @@ Limits: T1_Fatal in Experimental on DX12 stopped at the lamp light cache's page 
 (`SJK lamp cache pages` invalid), not a compile, so that case was checked on duel6. fmt,
 the sjk-viewer tests and Clippy.
 
+## Map editor in game: the page's tools, flight, a clean toggle
+
+04/11/2026, `personal/mapedit-ingame`, based on `main` `7846f944` (Sol's request): the in-game
+editor gets the browser editor's Same plane, Connected surface, Fill and multiple selection
+(Shift+click, Shift and the world-note key; hide, remap and fill act on all of it in one
+step to undo), the shared Recent rows in the panel's lists, the free camera flown with the
+right mouse button held (W A S D, Space and C, Shift faster, the wheel's speed), and
+`mapedit` as a plain toggle with Escape backing out one step at a time; the Aim half-state
+and its strip are gone ([map-edits.md](map-edits.md#the-editor-staff)). Verified on
+Windows 11: unit tests (the selection's add and take-out, the batch, the toggle and
+Escape's order, the flight's speed and keys, the predictor's boost, the Recent rows, the
+panel's pages and key lines) and the world shot `ingame_link_select_and_fill` on retail
+ffa3 (a caulk wall's Connected surface, four faces outlined, one taken out and added back,
+Fill with `textures/desert/stucco_grime_top_bottom` in one undo step, undone to 887
+changed pixels). Not run in a client: the flight with the real mouse and keys, the free
+camera following the editor, the bind leaving from the panel, a real Shift+click.
+
 ## Map editor gizmos
 
 04/11/2026, `personal/mapedit-gizmo`, based on `main` `12023ed9` (Sol's request): Blender's

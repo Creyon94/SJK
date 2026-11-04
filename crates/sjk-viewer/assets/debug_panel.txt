@@ -8696,6 +8696,28 @@ test: Page: Shift+click two placed models, R Z 90 Enter: both turn about their m
 test: Page: World, your boombox: the gizmo moves it along the floor and turns it.
 note: Mystery boxes and toys have no gizmo (the hub cannot move them). Not tried in game yet.
 
+[mapedit-ingame]
+area: Rendering & effects
+title: Map editor in game: fly with the right button, Shift+click, Same plane, Fill, Recent
+change: Your mapedit bind: one press in (panel + free camera), one press out, from anywhere.
+change: Hold the right button on the scene: look and fly (WASD, Space/C, Shift fast, wheel).
+change: Shift+click adds faces/surfaces; Same plane, Connected, Fill; Esc backs out one step.
+note: Aim and the top strip are gone: the panel stays while the editor is on.
+test: Press your mapedit key: panel opens, view goes free; press it again: back to your body.
+test: Hold right mouse on the scene: mouse looks, W A S D fly, Space up, C down; release.
+test: While holding right: Shift flies faster, the wheel changes speed (panel says x1.25).
+test: While holding right: T, Tab, 1 and Enter do nothing (no chat, scores, weapon, gizmo).
+test: Release right mouse: the pointer is back where you pressed, the panel takes clicks.
+test: Click a caulk face, Connected: N faces glow; Fill: drawn with the named texture.
+test: Ctrl+Z once after Fill: every face back to nothing in one step.
+test: Shift+click two walls and a caulk face: 3 selected; Shift+click one again: 2.
+test: With several selected: Hide all hides them; choose a shader, Remap: all at once.
+test: Esc: drops the selection; Esc again: leaves the editor (camera back on you).
+test: G on a placed model, move, Esc: it goes back; Grab, move pointer, click: put down.
+test: Remap a wall, then open Place / a shader list: the Recent rows lead (also in the page).
+test: Die or start a duel, then mapedit: the panel's foot says why there is no free camera.
+test: Type in the model search with a letter bound to mapedit: it types, does not leave.
+
 [mapedit-sky]
 area: Rendering & effects
 title: Map editor: sky sides covered and skies swapped (in game and in the page)
