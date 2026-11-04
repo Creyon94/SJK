@@ -770,6 +770,15 @@ pub(super) const HUD: &[Setting] = &[
         },
     },
     Setting {
+        label: "Nameplate opacity",
+        cvar: crate::hud::nameplate::OPACITY_CVAR,
+        kind: ValueKind::Float {
+            min: 0.1,
+            max: 1.0,
+            step: 0.1,
+        },
+    },
+    Setting {
         label: "Nameplate bars",
         cvar: "cg_nameplateBars",
         kind: ValueKind::Integer {

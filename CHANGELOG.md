@@ -30,6 +30,10 @@ The site (site/assets/site.js, parseChangelog) reads the release headings,
 introductions and recap lines too.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
+## Unreleased
+
+- Nameplates: an opacity setting for every style, from faint to solid; the distance and wall fades still apply. Settings > Nameplate opacity (`cg_nameplateAlpha`) _(Slash, after an idea in #ideas)_
+
 ## 2026.1103.2 (Alpha) | 03/11/2026
 
 Clan chats for JoF and S, holocrons earned by playing, tag copies to break down or craft, loadouts, fishing and many fixes.

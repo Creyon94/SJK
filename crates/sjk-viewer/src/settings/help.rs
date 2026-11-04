@@ -720,6 +720,10 @@ const HELP: &[(&str, &str)] = &[
     ),
     ("cg_nameplateScale", "Size of the nameplate text."),
     (
+        "cg_nameplateAlpha",
+        "How solid nameplates are, from 0.1 (faint) to 1 (solid, the default). The distance and wall fades still apply.",
+    ),
+    (
         "cg_nameplateHideDuelers",
         "Hide names, bars and icons on players the server marks as private duellers, including your own plate. Off by default.",
     ),
