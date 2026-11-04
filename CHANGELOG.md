@@ -32,7 +32,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
-- Fishing: a bite shows on screen when you can't hear it, a "!" over the float (gold for an Echo) and "Bite! Press Use!"; Settings > Sound > Toys "Fishing bite cue" (`cg_fishingBiteCue`: off, when the sound is off, always) _(Slash, PR #TBD)_
+- Fishing: a bite shows on screen when you can't hear it, a "!" over the float (gold for an Echo) and "Bite! Press Use!"; Settings > Sound > Toys "Fishing bite cue" (`cg_fishingBiteCue`: off, when the sound is off, always) _(Slash, PR #350)_
 
 ## 2026.1103.2 (Alpha) | 03/11/2026
 
