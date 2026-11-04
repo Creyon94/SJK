@@ -7388,6 +7388,26 @@ composes them with the same rules
 leading 0 always use code page 437, the US OEM page, even where Windows uses
 another OEM page (850 in much of Western Europe).
 
+`alias <name> <commands>` names a command line, as Quake II's `alias` does (the
+original Jedi Academy has none; Lex's idea, 04/11/2026): after `alias duel "say
+ready; +use"`, typing `duel`, a bind to it (`bind f duel`), an `exec` script or a
+quick wheel command runs `say ready` and `+use` where `duel` stood. Quote the
+commands when they hold a `;`, or the rest of the line runs at once. A `+name` alias
+with a `-name` one works as a held key: `alias +zoom "cg_fov 40"`, `alias -zoom
+"cg_fov 80"`, `bind mouse3 +zoom` zooms while the button is held. Names ignore case,
+are up to 32 characters without spaces, quotes or `;`, and cannot be a command or a
+setting the client knows (`alias bind ...` is refused; a server's command, such as
+`kill`, can be). `alias` alone or `aliaslist [<part of a name>]` lists them,
+`alias <name>` shows one, `unalias <name>` and `unaliasall` remove them; listings hide
+passwords as `bindlist` does, and Tab completes alias names. An alias may run other
+aliases; one that runs itself, or a chain 16 deep (the `exec` limit), stops with a
+console message, so a looping alias with `wait` stops too, unlike Quake II's. Aliases
+are kept for the next start in `aliases.cfg` beside `config.cfg`, not in it, so a build
+without aliases still loads that config; a line of `aliases.cfg` that cannot be read
+is reported and skipped
+([alias.rs](../crates/sjk-shell/src/alias.rs),
+[shell_alias.rs](../crates/sjk-shell/src/shell_alias.rs)).
+
 `r_we <command>` runs one weather command on the current map, as the original
 renderer's `r_we` does: `r_we heavyrain`, `r_we snow`, `r_we heavyrainfog`,
 `r_we constantwind ( 0 -800 0 )`, `r_we clear` (an unknown command lists them).
