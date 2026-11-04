@@ -318,42 +318,7 @@ fn caulk_face_shown() {
         if let Some(console) = gpu.console.as_mut() {
             console.close_for_connection();
         }
-        let bsp = &gpu.bsp;
-        let world = bsp.render().models()[0].brushes.clone();
-        let mut found = None;
-        'brushes: for brush in world {
-            for side in bsp.brushes()[brush].sides.clone() {
-                let shader = &bsp.shaders()[bsp.brush_sides()[side].shader];
-                if !shader.name_lossy().contains("caulk") {
-                    continue;
-                }
-                let polygon = bsp.brush_side_polygon(brush, side);
-                if polygon.len() < 3 {
-                    continue;
-                }
-                let normal = Vec3::from_array(bsp.planes()[bsp.brush_sides()[side].plane].normal);
-                // A wall, so the camera stands beside it rather than over or under it.
-                if normal.z.abs() > 0.3 {
-                    continue;
-                }
-                let centre = Vec3::from_array(crate::map_edits::faces::centre(&polygon));
-                let eye = centre + normal * 96.0;
-                if bsp.point_contents(eye.to_array(), 1) != 0 {
-                    continue;
-                }
-                let drawn_over = gpu.decal_surfaces.ray_hit(eye, -normal, 97.0).is_some();
-                let picked = crate::map_edits::faces::pick(bsp, eye, -normal, 200.0);
-                if !drawn_over
-                    && picked.is_some_and(|face| {
-                        face.brush as usize == brush && face.side as usize == side
-                    })
-                {
-                    found = Some((brush, side, shader.name_lossy().into_owned(), centre, eye));
-                    break 'brushes;
-                }
-            }
-        }
-        let Some((brush, side, shader, centre, eye)) = found else {
+        let Some((brush, side, shader, centre, eye)) = seen_caulk_wall(&gpu) else {
             panic!("{map}: no caulk wall seen from open space");
         };
         let (yaw, pitch) = look(eye.to_array(), centre.to_array());
@@ -422,6 +387,172 @@ fn caulk_face_shown() {
                 3,
                 960,
                 &format!("caulk-face-{map}")
+            )
+            .display()
+        );
+    });
+}
+
+/// The first caulk wall of the loaded map seen from open space 96 units in front of it,
+/// with no drawn surface over it: its brush, side, shader, middle and that eye.
+fn seen_caulk_wall(gpu: &GpuState) -> Option<(usize, usize, String, Vec3, Vec3)> {
+    seen_caulk_walls(gpu, 1).into_iter().next()
+}
+
+/// Up to `most` such caulk walls ([`seen_caulk_wall`]), in the map's order.
+fn seen_caulk_walls(gpu: &GpuState, most: usize) -> Vec<(usize, usize, String, Vec3, Vec3)> {
+    let bsp = &gpu.bsp;
+    let world = bsp.render().models()[0].brushes.clone();
+    let mut found = Vec::new();
+    for brush in world {
+        for side in bsp.brushes()[brush].sides.clone() {
+            let shader = &bsp.shaders()[bsp.brush_sides()[side].shader];
+            if !shader.name_lossy().contains("caulk") {
+                continue;
+            }
+            let polygon = bsp.brush_side_polygon(brush, side);
+            if polygon.len() < 3 {
+                continue;
+            }
+            let normal = Vec3::from_array(bsp.planes()[bsp.brush_sides()[side].plane].normal);
+            // A wall, so the camera stands beside it rather than over or under it.
+            if normal.z.abs() > 0.3 {
+                continue;
+            }
+            let centre = Vec3::from_array(crate::map_edits::faces::centre(&polygon));
+            let eye = centre + normal * 96.0;
+            if bsp.point_contents(eye.to_array(), 1) != 0 {
+                continue;
+            }
+            let drawn_over = gpu.decal_surfaces.ray_hit(eye, -normal, 97.0).is_some();
+            let picked = crate::map_edits::faces::pick(bsp, eye, -normal, 200.0);
+            if !drawn_over
+                && picked
+                    .is_some_and(|face| face.brush as usize == brush && face.side as usize == side)
+            {
+                found.push((brush, side, shader.name_lossy().into_owned(), centre, eye));
+                if found.len() == most {
+                    return found;
+                }
+            }
+        }
+    }
+    found
+}
+
+/// The in-game editor's multiple selection and Fill (04/11/2026, the browser editor's
+/// tools in game): the first caulk wall of `SJK_FACE_MAP` (default ffa3) seen from open
+/// space whose Connected surface holds several faces with drawn surfaces round them,
+/// selected under the crosshair, its Connected surface selected (every face drawn), the
+/// face under the crosshair taken out and added again as a Shift+click does, then Fill
+/// with the nearby vote's shader (one step to undo), and the fill undone.
+#[test]
+#[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+fn ingame_link_select_and_fill() {
+    on_big_stack(|| {
+        let map = std::env::var("SJK_FACE_MAP").unwrap_or_else(|_| "ffa3".to_owned());
+        let Some((mut gpu, _profile)) =
+            open(&format!("maps/mp/{map}.bsp"), [1920, 1080], None, &[])
+        else {
+            return;
+        };
+        if let Some(console) = gpu.console.as_mut() {
+            console.close_for_connection();
+        }
+        let mut document = Document::new(&format!("mp/{map}"), 1);
+        document.unpublished = true;
+        gpu.shot_map_edits(Some(document));
+        let mut chosen = None;
+        for (brush, side, shader, centre, eye) in seen_caulk_walls(&gpu, 200) {
+            let (yaw, pitch) = look(eye.to_array(), centre.to_array());
+            aim(&mut gpu, eye.to_array(), yaw, pitch);
+            let _ = frame(&mut gpu, 1);
+            gpu.shot_map_edit_panel(Tab::Selected, None);
+            let linked = gpu.shot_map_edit_run("mapedit_link", &["surface"]);
+            let count = gpu.world_notes.edit_selection_len();
+            if linked.is_ok() && count > 1 && gpu.shot_map_edit_fill_suggestion().is_some() {
+                chosen = Some((brush, side, shader, eye, centre, linked, count));
+                break;
+            }
+            gpu.world_notes.cancel_selection();
+        }
+        let Some((brush, side, shader, eye, centre, linked, count)) = chosen else {
+            panic!("{map}: no caulk wall with joined faces and drawn surfaces round them");
+        };
+        gpu.world_notes.cancel_selection();
+        gpu.close_map_edit_panel();
+        let (yaw, pitch) = look(eye.to_array(), centre.to_array());
+        aim(&mut gpu, eye.to_array(), yaw, pitch);
+        let before = frame(&mut gpu, 40);
+        gpu.shot_map_edit_panel(Tab::Selected, None);
+        let linked_again = gpu.shot_map_edit_run("mapedit_link", &["surface"]);
+        assert_eq!(linked_again, linked);
+        let selected = gpu.world_notes.waiting_selection().map(|s| s.summary());
+        println!("{map}: brush {brush} side {side} ({shader}) at {centre:?}; {selected:?}");
+        println!("link: {linked:?}");
+        gpu.map_edits.panel.answer(linked);
+        gpu.map_edits.panel.stale();
+        let linked_shot = shoot(&mut gpu, 8, "mapedit-ingame-linked");
+        let highlighted = frame(&mut gpu, 1);
+        // The middle of the screen is the face linked from: a Shift+click there takes it
+        // out, a second puts it back.
+        let middle = [960.0, 540.0];
+        let out = gpu.shot_map_edit_toggle(middle);
+        let back = gpu.shot_map_edit_toggle(middle);
+        println!("toggled: {out:?} then {back:?}");
+        if count > 1 {
+            assert_eq!(out, crate::world_notes::Toggled::Removed(count - 1));
+            assert_eq!(back, crate::world_notes::Toggled::Added(count));
+        }
+        gpu.map_edits.panel.stale();
+        let _ = frame(&mut gpu, 2);
+        let fill = gpu.map_edits.panel.facts.fill.clone();
+        println!("fill suggestion: {fill:?}");
+        let filled = gpu.shot_map_edit_run("mapedit_fill", &[]);
+        println!("fill: {filled:?}");
+        assert!(filled.is_ok(), "{filled:?}");
+        let edits = gpu.map_edits.document.as_ref().map_or(0, |d| d.edits.len());
+        assert_eq!(edits, count, "a shown face for each selected face");
+        assert_eq!(
+            gpu.map_edits.history.can(),
+            (true, false),
+            "one step to undo"
+        );
+        gpu.map_edits.panel.answer(filled);
+        gpu.map_edits.panel.stale();
+        let filled_panel = shoot(&mut gpu, 8, "mapedit-ingame-filled-panel");
+        gpu.world_notes.cancel_selection();
+        gpu.close_map_edit_panel();
+        let document = gpu.map_edits.document.clone();
+        gpu.shot_map_edits(document);
+        let filled_view = frame(&mut gpu, 40);
+        let undone = gpu.shot_map_edit_run("mapedit_undo", &[]);
+        println!("undo: {undone:?}");
+        let document = gpu.map_edits.document.clone();
+        assert_eq!(document.as_ref().map_or(0, |d| d.edits.len()), 0);
+        gpu.shot_map_edits(document);
+        let after = frame(&mut gpu, 40);
+        let changed = |a: &image::RgbaImage, b: &image::RgbaImage| {
+            a.pixels()
+                .zip(b.pixels())
+                .filter(|(a, b)| a.0.iter().zip(b.0).any(|(x, y)| x.abs_diff(y) > 24))
+                .count()
+        };
+        println!(
+            "pixels changed: highlighted {}, filled {}, undone {}",
+            changed(&before, &highlighted),
+            changed(&before, &filled_view),
+            changed(&before, &after)
+        );
+        println!("{}", linked_shot.display());
+        println!("{}", filled_panel.display());
+        println!(
+            "{}",
+            sheet(
+                &[before, highlighted, filled_view, after],
+                2,
+                960,
+                &format!("mapedit-ingame-{map}")
             )
             .display()
         );

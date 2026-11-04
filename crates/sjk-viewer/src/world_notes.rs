@@ -37,6 +37,7 @@ use glam::Vec3;
 use models::{ModelCache, pick_model};
 use sjk_bsp::{Aabb, Bsp, TraceScratch};
 use sjk_vfs::VirtualFileSystem;
+use std::borrow::Cow;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
@@ -862,6 +863,48 @@ fn project(view_projection: &glam::Mat4, viewport: [f32; 2], point: Vec3) -> Opt
         .then(|| [(x + 1.0) * 0.5 * viewport[0], (1.0 - y) * 0.5 * viewport[1]])
 }
 
+/// A selection's outline and shade, borrowed or gathered from several.
+type Outline<'a> = (Cow<'a, [[Vec3; 2]]>, Cow<'a, [[Vec3; 3]]>);
+
+/// A selection of caulk, nodraw or sky face `face` as seen from `eye` looking along
+/// `forward`: met at its middle, outlined and shaded whole.
+fn face_selection(
+    map: &str,
+    eye: Vec3,
+    forward: Vec3,
+    face: crate::map_edits::faces::Face,
+) -> Selection {
+    let camera = CameraUniform {
+        camera_position: eye.to_array(),
+        view_forward: forward.normalize_or_zero().to_array(),
+        ..bytemuck::Zeroable::zeroed()
+    };
+    let corners: Vec<Vec3> = face.polygon.iter().map(|p| Vec3::from_array(*p)).collect();
+    let middle = corners.iter().copied().sum::<Vec3>() / corners.len().max(1) as f32;
+    Selection {
+        map: map.to_owned(),
+        pose: camera.viewpos(),
+        eye,
+        forward: forward.normalize_or_zero(),
+        hit: middle,
+        normal: face.normal,
+        distance: face.distance,
+        surface: None,
+        entity: None,
+        collision: None,
+        edges: (0..corners.len())
+            .map(|i| [corners[i], corners[(i + 1) % corners.len()]])
+            .collect(),
+        triangles: (2..corners.len())
+            .map(|i| [corners[0], corners[i - 1], corners[i]])
+            .collect(),
+        face: Some(face),
+        selected: Instant::now(),
+        model: None,
+        remaps: Vec::new(),
+    }
+}
+
 /// The direction from the eye of `camera` through `point` of a `viewport`-sized screen
 /// (physical pixels), or `None` before the first frame.
 fn screen_ray(camera: &CameraUniform, viewport: [f32; 2], point: [f32; 2]) -> Option<Vec3> {
@@ -894,6 +937,9 @@ fn ray_box(origin: Vec3, direction: Vec3, low: Vec3, high: Vec3) -> Option<f32> 
 /// The selection waiting for its confirming press, and the note being written.
 pub(crate) struct Notes {
     selection: Option<Selection>,
+    /// The map editor's multiple selection: the surfaces and faces Shift added before
+    /// [`Self::selection`] (the newest), oldest first ([`Member`]).
+    more: Vec<Selection>,
     /// The confirmed selection the composer's note belongs to.
     writing: Option<Selection>,
     /// The last rendered main view.
@@ -919,6 +965,7 @@ impl Default for Notes {
     fn default() -> Self {
         Self {
             selection: None,
+            more: Vec::new(),
             writing: None,
             camera: None,
             highlight: sjk_ui::DrawList::new(HIGHLIGHT_DOTS),
@@ -981,6 +1028,84 @@ pub(crate) enum EditTarget {
 
 /// The selection's subject and its model's path, for the note dialog.
 pub(crate) type Subject = (String, Option<String>);
+
+/// Most selections the map editor's multiple selection holds: the browser editor's batch
+/// limit (`apply_many`, `hide_many`).
+pub(crate) const SET_LIMIT: usize = 1024;
+
+/// What the map editor's multiple selection holds: a world surface or a hidden face.
+/// Models are selected one at a time.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum Member {
+    Surface(usize),
+    Face { brush: u32, side: u32 },
+}
+
+impl EditTarget {
+    /// What it is in a multiple selection, when it may be in one.
+    pub(crate) fn member(&self) -> Option<Member> {
+        match self {
+            Self::Surface { index, .. } => Some(Member::Surface(*index)),
+            Self::Face { brush, side, .. } => Some(Member::Face {
+                brush: *brush,
+                side: *side,
+            }),
+            Self::Model { .. } | Self::Other => None,
+        }
+    }
+}
+
+/// What a Shift+click (or Shift and the world-note key) did to the multiple selection.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum Toggled {
+    /// Added: the selection now holds this many.
+    Added(usize),
+    /// Taken out: this many are left.
+    Removed(usize),
+    /// A model or something edits do not change: not added.
+    NotAMember,
+    /// [`SET_LIMIT`] reached.
+    Full,
+    /// Nothing there.
+    Nothing,
+}
+
+/// Add `candidate` to the multiple selection `primary` (the newest) and `more`, or take
+/// it out when it is there already (by `key`). A model selected alone gives way to it.
+fn toggle_in<T>(
+    primary: &mut Option<T>,
+    more: &mut Vec<T>,
+    candidate: T,
+    key: impl Fn(&T) -> Option<Member>,
+) -> Toggled {
+    let Some(wanted) = key(&candidate) else {
+        return Toggled::NotAMember;
+    };
+    let count = |primary: &Option<T>, more: &Vec<T>| usize::from(primary.is_some()) + more.len();
+    match primary.as_ref().map(&key) {
+        None | Some(None) => {
+            more.clear();
+            *primary = Some(candidate);
+            return Toggled::Added(1);
+        }
+        Some(Some(member)) if member == wanted => {
+            *primary = more.pop();
+            return Toggled::Removed(count(primary, more));
+        }
+        Some(Some(_)) => {}
+    }
+    if let Some(at) = more.iter().position(|kept| key(kept) == Some(wanted)) {
+        more.remove(at);
+        return Toggled::Removed(count(primary, more));
+    }
+    if count(primary, more) >= SET_LIMIT {
+        return Toggled::Full;
+    }
+    if let Some(previous) = primary.replace(candidate) {
+        more.push(previous);
+    }
+    Toggled::Added(count(primary, more))
+}
 
 /// What a `worldnote` press did.
 pub(crate) enum Press {
@@ -1142,6 +1267,7 @@ impl Notes {
     pub(crate) fn select_for_edit(&mut self, scene: Scene<'_>) -> Option<String> {
         let camera = self.camera?;
         let forward = Vec3::from_array(camera.view_forward);
+        self.more.clear();
         self.selection = self.select(scene, &camera, forward);
         self.selection.as_ref().map(Selection::summary)
     }
@@ -1155,8 +1281,100 @@ impl Notes {
     ) -> Option<String> {
         let camera = self.camera?;
         let direction = screen_ray(&camera, self.viewport, point)?;
+        self.more.clear();
         self.selection = self.select(scene, &camera, direction);
         self.selection.as_ref().map(Selection::summary)
+    }
+
+    /// Shift and the world-note key in the map editor: add what is under the crosshair
+    /// to the multiple selection, or take it out.
+    pub(crate) fn toggle_for_edit(&mut self, scene: Scene<'_>) -> Toggled {
+        let Some(camera) = self.camera else {
+            return Toggled::Nothing;
+        };
+        let forward = Vec3::from_array(camera.view_forward);
+        match self.select(scene, &camera, forward) {
+            Some(candidate) => self.toggle(candidate),
+            None => Toggled::Nothing,
+        }
+    }
+
+    /// Shift+click in the map editor: add what is under `point` (physical pixels) to the
+    /// multiple selection, or take it out.
+    pub(crate) fn toggle_for_edit_at(&mut self, scene: Scene<'_>, point: [f32; 2]) -> Toggled {
+        let Some(camera) = self.camera else {
+            return Toggled::Nothing;
+        };
+        let Some(direction) = screen_ray(&camera, self.viewport, point) else {
+            return Toggled::Nothing;
+        };
+        match self.select(scene, &camera, direction) {
+            Some(candidate) => self.toggle(candidate),
+            None => Toggled::Nothing,
+        }
+    }
+
+    fn toggle(&mut self, candidate: Selection) -> Toggled {
+        if !self.held
+            && self
+                .selection
+                .as_ref()
+                .is_some_and(|s| !s.fresh(Instant::now()))
+        {
+            self.selection = None;
+        }
+        toggle_in(
+            &mut self.selection,
+            &mut self.more,
+            candidate,
+            |selection| selection.edit_target().member(),
+        )
+    }
+
+    /// The map editor's selection as edits act on it: the newest first, then the others
+    /// Shift added, newest first. Empty without a selection.
+    pub(crate) fn edit_selection(&self) -> impl Iterator<Item = &Selection> {
+        let primary = self.waiting_selection();
+        let more = if primary.is_some() {
+            self.more.as_slice()
+        } else {
+            &[]
+        };
+        primary.into_iter().chain(more.iter().rev())
+    }
+
+    /// How many the map editor's selection holds.
+    pub(crate) fn edit_selection_len(&self) -> usize {
+        self.waiting_selection().map_or(0, |_| 1 + self.more.len())
+    }
+
+    /// The map editor's Same plane and Connected surface: faces `faces` (the first one the
+    /// newest) become its selection, seen from `eye` looking along `forward`.
+    pub(crate) fn select_faces_for_edit(
+        &mut self,
+        map: &str,
+        [eye, forward]: [Vec3; 2],
+        faces: Vec<crate::map_edits::faces::Face>,
+    ) {
+        let mut faces = faces.into_iter();
+        let Some(first) = faces.next() else {
+            return;
+        };
+        let rest: Vec<Selection> = faces
+            .take(SET_LIMIT - 1)
+            .map(|face| face_selection(map, eye, forward, face))
+            .collect();
+        self.selection = Some(face_selection(map, eye, forward, first));
+        // Kept oldest first, the first face being the newest.
+        self.more = rest.into_iter().rev().collect();
+    }
+
+    /// The ray from the last rendered main view's eye through `point` (physical pixels):
+    /// the eye and the direction.
+    pub(crate) fn ray_at(&self, point: [f32; 2]) -> Option<(Vec3, Vec3)> {
+        let camera = self.camera?;
+        let direction = screen_ray(&camera, self.viewport, point)?;
+        Some((Vec3::from_array(camera.camera_position), direction))
     }
 
     /// Select what the ray from `eye` along `direction` meets for a map edit, a view at
@@ -1174,6 +1392,7 @@ impl Notes {
             view_forward: forward.normalize_or_zero().to_array(),
             ..bytemuck::Zeroable::zeroed()
         };
+        self.more.clear();
         self.selection = self.select(scene, &camera, direction);
         self.selection.as_ref().map(Selection::summary)
     }
@@ -1187,35 +1406,10 @@ impl Notes {
         [eye, forward, hit]: [Vec3; 3],
         face: crate::map_edits::faces::Face,
     ) -> String {
-        let camera = CameraUniform {
-            camera_position: eye.to_array(),
-            view_forward: forward.normalize_or_zero().to_array(),
-            ..bytemuck::Zeroable::zeroed()
-        };
-        let corners: Vec<Vec3> = face.polygon.iter().map(|p| Vec3::from_array(*p)).collect();
-        let selection = Selection {
-            map: map.to_owned(),
-            pose: camera.viewpos(),
-            eye,
-            forward: forward.normalize_or_zero(),
-            hit,
-            normal: face.normal,
-            distance: face.distance,
-            surface: None,
-            entity: None,
-            collision: None,
-            edges: (0..corners.len())
-                .map(|i| [corners[i], corners[(i + 1) % corners.len()]])
-                .collect(),
-            triangles: (2..corners.len())
-                .map(|i| [corners[0], corners[i - 1], corners[i]])
-                .collect(),
-            face: Some(face),
-            selected: Instant::now(),
-            model: None,
-            remaps: Vec::new(),
-        };
+        let mut selection = face_selection(map, eye, forward, face);
+        selection.hit = hit;
         let summary = selection.summary();
+        self.more.clear();
         self.selection = Some(selection);
         summary
     }
@@ -1271,7 +1465,9 @@ impl Notes {
     /// Escape before the confirming press: forget the waiting selection. True when there
     /// was one to forget.
     pub(crate) fn cancel_selection(&mut self) -> bool {
-        self.selection.take().is_some()
+        let more = !self.more.is_empty();
+        self.more.clear();
+        self.selection.take().is_some() || more
     }
 
     /// The composer closed without saving (Escape): forget the confirmed selection.
@@ -1287,6 +1483,7 @@ impl Notes {
         let now = Instant::now();
         if !self.held && self.selection.as_ref().is_some_and(|s| !s.fresh(now)) {
             self.selection = None;
+            self.more.clear();
         }
         let (Some(selection), Some(camera)) = (
             self.writing.as_ref().or(self.selection.as_ref()),
@@ -1295,7 +1492,26 @@ impl Notes {
             return;
         };
         let view_projection = glam::Mat4::from_cols_array_2d(&camera.view_projection);
+        // The map editor's multiple selection is drawn whole (a note's never has one).
+        let more: &[Selection] = if self.writing.is_some() {
+            &[]
+        } else {
+            &self.more
+        };
         let (edges, triangles) = selection.outline();
+        let (edges, triangles): Outline<'_> = if more.is_empty() {
+            (Cow::Borrowed(edges), Cow::Borrowed(triangles))
+        } else {
+            let mut all_edges = edges.to_vec();
+            let mut all_triangles = triangles.to_vec();
+            for kept in more {
+                let (edges, triangles) = kept.outline();
+                all_edges.extend_from_slice(edges);
+                all_triangles.extend_from_slice(triangles);
+            }
+            (Cow::Owned(all_edges), Cow::Owned(all_triangles))
+        };
+        let (edges, triangles) = (edges.as_ref(), triangles.as_ref());
         // Space the dots by the outline's length on screen, so a big surface keeps
         // within the budget and a small one still reads as a line.
         let lengths: Vec<f32> = edges
@@ -1671,6 +1887,66 @@ fn utc_text(seconds: u64) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn shift_adds_surfaces_and_faces_and_takes_them_out_again() {
+        // Members stand for selections: a surface, a face, or a model (no member).
+        let key = |member: &Option<Member>| *member;
+        let (mut primary, mut more) = (None, Vec::new());
+        let surface = Some(Member::Surface(4));
+        let face = Some(Member::Face { brush: 2, side: 9 });
+        let other = Some(Member::Surface(5));
+        assert_eq!(
+            toggle_in(&mut primary, &mut more, surface, key),
+            Toggled::Added(1)
+        );
+        assert_eq!(
+            toggle_in(&mut primary, &mut more, face, key),
+            Toggled::Added(2)
+        );
+        assert_eq!(
+            toggle_in(&mut primary, &mut more, other, key),
+            Toggled::Added(3)
+        );
+        assert_eq!(
+            (primary, more.as_slice()),
+            (Some(other), &[surface, face][..])
+        );
+        // A model is selected alone, never added.
+        assert_eq!(
+            toggle_in(&mut primary, &mut more, None, key),
+            Toggled::NotAMember
+        );
+        // Taking out an older one keeps the newest; taking out the newest promotes the
+        // last added before it.
+        assert_eq!(
+            toggle_in(&mut primary, &mut more, face, key),
+            Toggled::Removed(2)
+        );
+        assert_eq!(
+            toggle_in(&mut primary, &mut more, other, key),
+            Toggled::Removed(1)
+        );
+        assert_eq!((primary, more.len()), (Some(surface), 0));
+        assert_eq!(
+            toggle_in(&mut primary, &mut more, surface, key),
+            Toggled::Removed(0)
+        );
+        assert_eq!(primary, None);
+        // A model selected alone gives way to a surface.
+        let mut model = Some(None);
+        let mut kept = vec![Some(Member::Surface(1))];
+        assert_eq!(
+            toggle_in(&mut model, &mut kept, face, key),
+            Toggled::Added(1)
+        );
+        assert_eq!((model, kept.len()), (Some(face), 0));
+        // The limit.
+        let (mut primary, mut more) = (Some(Some(Member::Surface(0))), Vec::new());
+        more.extend((1..SET_LIMIT).map(|i| Some(Member::Surface(i))));
+        let next = Some(Member::Surface(SET_LIMIT));
+        assert_eq!(toggle_in(&mut primary, &mut more, next, key), Toggled::Full);
+    }
 
     #[test]
     fn utc_dates_are_european() {

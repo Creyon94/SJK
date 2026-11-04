@@ -1,13 +1,16 @@
-//! The shaders and models the map editor used lately, newest first, for the browser
-//! editor's Recent rows (Sol, 03/11/2026: "remember in general what textures we
-//! recently used"). Kept in a small file of the map edits' folder
-//! (`map_edits/web_recent.json` in the SJK config folder), not in the page: the page's
-//! origin changes with the server's random port, so its own storage would forget.
+//! The shaders and models the map editor used lately, newest first, for the Recent rows
+//! of the browser editor's lists and of the in-game panel's (Sol, 03/11/2026: "remember
+//! in general what textures we recently used"). Kept in a small file of the map edits'
+//! folder (`map_edits/web_recent.json` in the SJK config folder, its name from when only
+//! the page had them), not in the page: the page's origin changes with the server's
+//! random port, so its own storage would forget.
 //!
-//! A remap or a shown face adds its shader, a placed model its model, whether the
-//! in-game editor or the page made it. "Remember recent textures" off empties both
+//! A remap, a shown face or a fill adds its shader, a placed model its model, whether
+//! the in-game editor or the page made it. "Remember recent textures" off empties both
 //! lists and keeps them empty until it is on again.
 
+use super::document::Kind;
+use crate::GpuState;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
@@ -117,6 +120,87 @@ impl Recent {
     pub(crate) fn clear(&mut self) {
         self.shaders.clear();
         self.models.clear();
+    }
+}
+
+impl GpuState {
+    /// The Recent lists, read from their file the first time.
+    pub(crate) fn map_edit_recent(&mut self) -> &mut Recent {
+        if self.map_edits.recent.is_none() {
+            let loaded = self
+                .map_edits_folder()
+                .map(|folder| Recent::load(&folder))
+                .unwrap_or_default();
+            self.map_edits.recent = Some(loaded);
+        }
+        self.map_edits.recent.get_or_insert_with(Default::default)
+    }
+
+    fn map_edit_recent_save(&mut self) {
+        let (Some(folder), Some(recent)) = (self.map_edits_folder(), &self.map_edits.recent) else {
+            return;
+        };
+        if let Err(error) = recent.save(&folder) {
+            crate::log::progress(format_args!("map edits: recent list not saved: {error}"));
+        }
+        // The panel's lists show them.
+        self.map_edits.panel.stale();
+    }
+
+    /// The Recent lists as the page reads them (`api/recent`).
+    pub(crate) fn map_edit_recent_json(&mut self) -> serde_json::Value {
+        serde_json::to_value(&*self.map_edit_recent()).unwrap_or(serde_json::Value::Null)
+    }
+
+    /// "Remember recent textures" on or off (`Some`), or forget the lists (`None`).
+    pub(crate) fn map_edit_set_recent(&mut self, remember: Option<bool>) {
+        let recent = self.map_edit_recent();
+        match remember {
+            Some(on) => recent.set_remember(on),
+            None => recent.clear(),
+        }
+        self.map_edit_recent_save();
+    }
+
+    /// Shader `shader` was drawn (a remap, a shown face, a fill): first in the list.
+    pub(crate) fn map_edit_remember_shader(&mut self, shader: &str) {
+        if self.map_edit_recent().used_shader(shader) {
+            self.map_edit_recent_save();
+        }
+    }
+
+    /// After editor command `name` (with `args`) did its work: a remap's or a shown
+    /// face's shader and a placed model go first in the Recent rows.
+    pub(super) fn map_edit_remember(&mut self, name: &str, args: &[String]) {
+        let used = match (name, args.first()) {
+            ("mapedit_remap" | "mapedit_sky", Some(shader)) if shader != "-" => {
+                Some((true, shader.clone()))
+            }
+            ("mapedit_place", _) => {
+                let current = self.map_edits.editor.current();
+                self.map_edits
+                    .document
+                    .as_ref()
+                    .and_then(|document| document.edits.iter().find(|e| Some(e.id) == current))
+                    .and_then(|edit| match &edit.kind {
+                        Kind::Place { model, .. } => Some((false, model.clone())),
+                        _ => None,
+                    })
+            }
+            _ => None,
+        };
+        let Some((shader, used)) = used else {
+            return;
+        };
+        let recent = self.map_edit_recent();
+        let changed = if shader {
+            recent.used_shader(&used)
+        } else {
+            recent.used_model(&used)
+        };
+        if changed {
+            self.map_edit_recent_save();
+        }
     }
 }
 
