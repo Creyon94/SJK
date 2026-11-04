@@ -39,6 +39,8 @@ mod achievements;
 mod banners;
 #[path = "collection_cards.rs"]
 mod cards;
+#[path = "collection_finishers.rs"]
+mod finishers;
 #[path = "collection_forge.rs"]
 pub(crate) mod forge;
 #[path = "collection_forge_view.rs"]
@@ -394,6 +396,8 @@ pub(crate) enum PanelAction {
     Close,
     /// Set `cg_saberSkin` to this id (`""` for the stock blade).
     Wear(&'static str),
+    /// Set `cg_saberFinisher` to this finisher's id (`""` for none, `crate::finishers`).
+    WearFinisher(&'static str),
     /// Set `cg_saberSkin2` to this (`""`: the first saber's skin, `stock`, or an id).
     WearSecond(&'static str),
     /// Set `cg_saberSkin` to `first` and `cg_saberSkin2` to `second` (what the second wore,
@@ -652,6 +656,8 @@ pub(crate) struct Inputs<'a> {
     pub(crate) tag: &'a str,
     /// `cg_tagFinish`: the finish it sticks it in, when held.
     pub(crate) tag_finish: &'a str,
+    /// `cg_saberFinisher`: the finisher worn, when held (`crate::finishers`).
+    pub(crate) finisher: &'a str,
 }
 
 /// What the last frame showed of a shader's row, for keys and clicks.
@@ -832,6 +838,10 @@ pub(crate) struct Panel {
     /// The ones of them the player holds, as the last frame's rows said (a lock needs one).
     shader_owned: Vec<&'static str>,
     shader_count: usize,
+    /// The Shaders tab shows the finishers rather than the saber's shaders (its kinds'
+    /// pills, `collection_finishers.rs`), and the finisher worn as last drawn.
+    finishers_shown: bool,
+    finisher_worn: Option<&'static str>,
     shader_filter: ShaderFilter,
     /// The Shaders tab offers Unique's chip: the player holds a Unique shader, as the last
     /// frame's holdings said ([`Panel::tier_chips`]).
@@ -998,6 +1008,8 @@ impl Panel {
             shader_list: Holdings::IdentityOff.listed().collect(),
             shader_owned: Vec::new(),
             shader_count: 1 + Holdings::IdentityOff.listed_count(),
+            finishers_shown: false,
+            finisher_worn: None,
             shader_filter: ShaderFilter::default(),
             unique_chip: false,
             search_focus: false,
@@ -1830,6 +1842,13 @@ impl Panel {
 
     /// A pressed key, by its code.
     fn key(&mut self, key: KeyCode, shift: bool, illuminate: bool) -> PanelAction {
+        // The finishers page has no rows to step: Escape and Tab only.
+        if self.tab == Tab::Shaders && self.finishers_shown {
+            return match key {
+                KeyCode::Escape | KeyCode::Tab => self.key_any(key, shift, illuminate, false),
+                _ => PanelAction::None,
+            };
+        }
         let vertical = self.tab == Tab::Shaders;
         if self.tab == Tab::Tags && self.tag_key(key) {
             return PanelAction::None;
@@ -2356,6 +2375,11 @@ impl Panel {
         {
             return action;
         }
+        if self.tab == Tab::Shaders
+            && let Some(action) = self.finishers_click(token)
+        {
+            return action;
+        }
         if let Some(style) = token
             .checked_sub(STYLE_BASE)
             .and_then(|index| crate::hud::nameplate::Style::ALL.get(usize::from(index)))
@@ -2645,6 +2669,7 @@ mod tests {
             toy_options: 0,
             tag: "",
             tag_finish: "",
+            finisher: "",
         }
     }
 
@@ -3472,6 +3497,69 @@ hilt 1
         // The next frame takes the click: a New one chosen is seen then, not a second later.
         panel.view(Some("saber_sun"));
         assert!(!panel.clicked_shader);
+    }
+
+    /// Finishers (04/11/2026): the Shaders tab's Finishers pill shows them, a held one's
+    /// Equip wears it and its Unequip takes it off, an unheld one has no button, and the
+    /// Saber pill goes back to the shaders.
+    #[test]
+    fn the_finishers_pill_shows_them_and_equips_a_held_one() {
+        use super::finishers::{FINISHER_WEAR_BASE, FINISHERS_KIND_TOKEN, SABER_KIND_TOKEN};
+        let click = |panel: &mut Panel, token: u16| {
+            let rect = panel.ui.rect_for(token).expect("a pointer area");
+            let at = sjk_ui::Vec2::new(rect.x + rect.width * 0.5, rect.y + rect.height * 0.5);
+            let mut action = PanelAction::None;
+            for event in [
+                InputEvent::PointerMove(at),
+                InputEvent::PointerPress {
+                    position: at,
+                    button: sjk_ui::PointerButton::Primary,
+                },
+                InputEvent::PointerRelease {
+                    position: at,
+                    button: sjk_ui::PointerButton::Primary,
+                },
+            ] {
+                let next = panel.handle_pointer(event, true);
+                if next != PanelAction::None {
+                    action = next;
+                }
+            }
+            action
+        };
+        let held = [Unlock {
+            id: "finisher_disintegrate".into(),
+            ..sun()
+        }];
+        let fonts = crate::text::load_modern(1.0, None).expect("Inter");
+        // Not held: the page shows it without a button.
+        let none = inputs(Holdings::Known(&[]), "");
+        let mut panel = drawn(Tab::Shaders, &none);
+        assert_eq!(click(&mut panel, FINISHERS_KIND_TOKEN), PanelAction::None);
+        panel.build(&none, &fonts.font, [1920.0, 1080.0]);
+        assert!(panel.ui.rect_for(FINISHER_WEAR_BASE).is_none());
+        assert!(!panel.overflowed());
+        // Held: Equip wears it; worn, Unequip takes it off.
+        let holding = inputs(Holdings::Known(&held), "");
+        panel.build(&holding, &fonts.font, [1920.0, 1080.0]);
+        assert_eq!(
+            click(&mut panel, FINISHER_WEAR_BASE),
+            PanelAction::WearFinisher("finisher_disintegrate")
+        );
+        let wearing = Inputs {
+            finisher: "finisher_disintegrate",
+            ..inputs(Holdings::Known(&held), "")
+        };
+        panel.build(&wearing, &fonts.font, [1920.0, 1080.0]);
+        assert_eq!(
+            click(&mut panel, FINISHER_WEAR_BASE),
+            PanelAction::WearFinisher("")
+        );
+        // The Saber pill brings the shaders back.
+        assert_eq!(click(&mut panel, SABER_KIND_TOKEN), PanelAction::None);
+        panel.build(&wearing, &fonts.font, [1920.0, 1080.0]);
+        assert!(!panel.shader_list.is_empty());
+        assert!(panel.ui.rect_for(FINISHER_WEAR_BASE).is_none());
     }
 
     #[test]

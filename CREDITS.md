@@ -960,7 +960,8 @@ into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author
   one-time notice), each line shown once and labelled ALL/SJK.
 - #348 the Saber Lab (`saberlab <folder>`): a live blade-skin lab with a builder of effect
   cards, an editor of every field with undo and Revert, and new blade-skin effects (smoke,
-  ribbons, sparks, crackle, flash, unrest, chroma by file, a burn on a saber kill).
+  ribbons, sparks, crackle, flash, unrest, chroma by file), and the burn on a saber kill,
+  which became the first finisher, Disintegrate (04/11/2026).
 
 Blackwolf1337 ([Blackwolf1337](https://github.com/Blackwolf1337)), contributor, has 1 pull
 request merged into SJK

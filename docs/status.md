@@ -1,3 +1,18 @@
+## Finishers (Disintegrate first)
+
+04/11/2026, `personal/finishers` from `main` `e7cfcc07`, Sol's decision: the Saber Lab's
+kill burn is a category of its own, worn with any blade and droppable later
+([unlockables.md](unlockables.md#finishers)). The blade-skin format lost its
+`disintegrate` section (and the builder its Kills tab); `crate::finishers` holds
+Disintegrate (Mythical, Milamber), `cg_saberFinisher` wears it, the look carries it
+(`sjk_identity::Look::finisher`), and the attacker's look decides the burn
+(`observe_saber_kills`). Collection > Shaders has a Finishers pill and page. Hub branch
+`finishers` (`Kind::Finisher`, look `finisher`, `bad_finisher`, `finisher_not_unlocked`)
+deploys first. Verified on Windows 11: unit tests (finishers, looks, the panel's pill and
+Equip/Unequip, the identity's body and refusals, the hub's look, feed and API), the world
+shot `duel6_sjk_finishers` at 16:9 and 4:3. Not verified: the burn in a real match with a
+second SJK client.
+
 ## Linux startup stack allowance
 
 03/11/2026, `fix/linux-startup-stack` from `main` `c0d603eb`, Nobara Linux 44

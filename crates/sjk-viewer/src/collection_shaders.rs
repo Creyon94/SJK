@@ -648,6 +648,16 @@ impl Panel {
             self.second_target = false;
         }
         self.shader_numbers = inputs.holdings.debug();
+        self.finisher_worn = crate::finishers::own(inputs.finisher, |id| {
+            inputs.holdings.debug() || inputs.holdings.unlock(id).is_some()
+        });
+        if self.finishers_shown {
+            let owned = unlockables::blade_skins()
+                .filter(|skin| inputs.holdings.unlock(skin.id).is_some())
+                .count();
+            self.finishers_page(frame, inputs, (owned, inputs.holdings.listed_count()));
+            return;
+        }
         if self.shader_sort == ShaderSort::Number && !self.shader_numbers {
             self.shader_sort = ShaderSort::Tier;
         }
@@ -748,7 +758,15 @@ impl Panel {
         let lab = crate::saber_lab::status();
         self.lead(frame, &headline, lab.as_deref().unwrap_or(line));
         self.new_count(frame, &headline);
-        self.kinds(frame, owned, total);
+        let finishers_held = crate::finishers::CATALOGUE
+            .iter()
+            .filter(|f| inputs.holdings.debug() || inputs.holdings.unlock(f.id).is_some())
+            .count();
+        self.kind_pills(
+            frame,
+            (owned, total),
+            (finishers_held, crate::finishers::CATALOGUE.len()),
+        );
         self.view_switches(frame);
         self.toolbar(frame);
         self.tier_strip(frame, inputs);
@@ -1769,58 +1787,6 @@ impl Panel {
         )
     }
 
-    /// The kinds of shader along the lead: Saber (`owned` of the `total` the player sees),
-    /// and Body to come.
-    fn kinds(&mut self, frame: &Frame, owned: usize, total: usize) {
-        let s = frame.s;
-        let x = LEFT_X + 560.0;
-        let y = LEAD_Y - 2.0;
-        let pills: [(&str, String, bool); 2] = [
-            ("Saber", format!("{owned}/{total}"), true),
-            ("Body", "soon".to_owned(), false),
-        ];
-        let mut left = x;
-        for (name, count, lit) in pills {
-            let width = 132.0;
-            let rect = frame.rect(left, y, width, 36.0);
-            let _ = self.ui.draw_list_mut().push(DrawCommand::Border {
-                rect,
-                radius: 18.0 * s,
-                width: 1.2 * s,
-                color: if lit {
-                    color::GOLD
-                } else {
-                    color::alpha(color::HOLO, 0.25)
-                },
-            });
-            text(
-                &mut self.ui,
-                TextFamily::Display,
-                format_args!("{name}"),
-                frame.rect(left + 18.0, y + 5.0, 70.0, 26.0),
-                19.0 * s,
-                if lit {
-                    color::GOLD_BRIGHT
-                } else {
-                    color::QUIET
-                },
-                FontWeight::Semibold,
-                TextAlign::Start,
-            );
-            text(
-                &mut self.ui,
-                TextFamily::Body,
-                format_args!("{count}"),
-                frame.rect(left + 70.0, y + 7.0, width - 84.0, 22.0),
-                14.0 * s,
-                if lit { color::GOLD } else { color::QUIET },
-                FontWeight::Regular,
-                TextAlign::End,
-            );
-            left += width + 12.0;
-        }
-    }
-
     /// How tall the chosen shader's card stands for `row`: its lines as [`Self::shader_card`]
     /// lays them out, the description and the other words wrapped in full.
     fn card_height(&self, row: Row, inputs: &Inputs<'_>) -> f32 {
@@ -2804,7 +2770,7 @@ fn paragraph_lines(body: &str, chars: f32) -> usize {
 /// a larger text size), at most `most` lines (the last ellipsised past them); its lines
 /// step with the text size. Returns where the next line would stand.
 #[allow(clippy::too_many_arguments)]
-fn paragraph(
+pub(super) fn paragraph(
     canvas: &mut crate::menu_widgets::MenuCanvas,
     frame: &Frame,
     body: &str,
