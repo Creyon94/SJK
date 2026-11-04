@@ -640,6 +640,25 @@ impl ActiveEmotes {
         true
     }
 
+    /// End the emotes of the players riding a vehicle (bit `slot` of `riding`,
+    /// [`riding_slots`]): the vehicle plays the rider's animations, and an emote kept
+    /// on (one that plays while moving, as `cloud_float`) fought them for the whole
+    /// ride (hub report #247). True when `own`'s ended, so the caller tells the
+    /// others (as `sjkemote stop`).
+    pub(crate) fn end_riding(&mut self, riding: u64, own: Option<u8>) -> bool {
+        let mut own_ended = false;
+        for slot in 0..SLOTS {
+            let Ok(slot) = u8::try_from(slot) else {
+                continue;
+            };
+            if riding & (1 << slot) != 0 && self.get(slot).is_some() {
+                self.stop(slot);
+                own_ended |= own == Some(slot);
+            }
+        }
+        own_ended
+    }
+
     /// Which players are typing now (bit `slot` of `typing`; zero with
     /// [`TYPING_KEEP_CVAR`] off): while one is, their emote does not end when they move
     /// or attack. Once they stop, the place where they are then is the one they may
@@ -752,6 +771,30 @@ pub(crate) fn typing_slots(
         }
     }
     typing
+}
+
+/// The players riding a vehicle now, for [`ActiveEmotes::end_riding`]: bit `slot` set
+/// for the own player (`own`: their slot and their `playerState_t::m_iVehicleNum`)
+/// and for every other player whose entity (`others`: number and
+/// `entityState_t::m_iVehicleNum`) names a vehicle. Only player slots count: a
+/// vehicle's own entity names its pilot there.
+pub(crate) fn riding_slots(
+    own: Option<(u8, u16)>,
+    others: impl IntoIterator<Item = (u16, u16)>,
+) -> u64 {
+    let mut riding = match own {
+        Some((slot, vehicle)) if usize::from(slot) < SLOTS && vehicle != 0 => 1u64 << slot,
+        _ => 0,
+    };
+    for (number, vehicle) in others {
+        if usize::from(number) < SLOTS
+            && vehicle != 0
+            && own.is_none_or(|(slot, _)| u16::from(slot) != number)
+        {
+            riding |= 1 << number;
+        }
+    }
+    riding
 }
 
 /// The catalogue (once a game's files are mounted) and the emotes playing now.
@@ -1077,6 +1120,46 @@ mod tests {
             typing_slots(false, Some((1, true)), others.iter().copied()),
             0
         );
+    }
+
+    /// Hub report #247: a `moving` emote (as `cloud_float`) stayed on through a ride,
+    /// fighting the vehicle's rider animations.
+    #[test]
+    fn mounting_a_vehicle_ends_even_a_moving_emote() {
+        let t0 = Instant::now();
+        let float = parse(
+            "cloud_float",
+            r#"{"name": "Cloud", "loop": true, "moving": true, "sound": "sound/emotes/cloud.mp3"}"#,
+        )
+        .unwrap();
+        let mut active = ActiveEmotes::default();
+        active.start(1, "cloud_float", Some(&float), Some([0.0; 3]), t0);
+        active.start(3, "cloud_float", Some(&float), Some([0.0; 3]), t0);
+        active.take_cues();
+        // Nobody rides: both keep floating.
+        assert!(!active.end_riding(0, Some(1)));
+        assert!(active.get(1).is_some() && active.get(3).is_some());
+        // Another player mounts: theirs ends here, the own player has nothing to send.
+        assert!(!active.end_riding(1 << 3, Some(1)));
+        assert!(active.get(3).is_none() && active.get(1).is_some());
+        assert!(matches!(active.take_cues()[..], [Cue::Stop { slot: 3 }]));
+        // The own player mounts: theirs ends and the others are told.
+        assert!(active.end_riding(1 << 1, Some(1)));
+        assert!(active.get(1).is_none());
+        assert!(!active.end_riding(1 << 1, Some(1)), "told once");
+    }
+
+    #[test]
+    fn riders_are_the_players_whose_vehicle_number_is_set() {
+        // Slot 70 is the vehicle's own entity, naming its pilot: no player.
+        let others = [(4u16, 70u16), (5, 0), (70, 4), (2, 0)];
+        assert_eq!(
+            riding_slots(Some((1, 71)), others.iter().copied()),
+            1 << 1 | 1 << 4
+        );
+        // The own player's entity in the list does not override their playerState.
+        assert_eq!(riding_slots(Some((5, 0)), [(5u16, 70u16)]), 0);
+        assert_eq!(riding_slots(None, std::iter::empty()), 0);
     }
 
     /// Hub report #107: a dancer out of the snapshot for a moment keeps dancing and

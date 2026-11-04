@@ -544,6 +544,11 @@ impl crate::GpuState {
             let _ = crate::player_identity::emote(id, None);
             return Ok(Vec::new());
         }
+        // The vehicle plays its rider's animations; an emote would fight them for the
+        // whole ride (hub report #247).
+        if session.latest_snapshot().player.vehicle_entity_num() != 0 {
+            return Err("Get off the vehicle to emote".to_owned());
+        }
         if id == crate::emotes::SYNC {
             let Some(slot) = own else {
                 return Err("Join a server to emote".to_owned());
