@@ -4,9 +4,9 @@
 //! cut without a mark, so a player could not tell whom they were writing to. Now the
 //! recipient has a line of its own under the channels, the whole chat's width: the name
 //! in its colours, "..." where even that is too narrow. With other players who whispered
-//! you, `<` and `>` at its ends step between them (as the PM button does, and Alt+Left
-//! and Alt+Right), the count beside `>` says which one this is, and a click on the name
-//! lists them all, newest first, to pick one.
+//! you, `<` before it and `>` after its count ("1/2") step between them (as the PM
+//! button does, and Alt+Left and Alt+Right), and a click on the name lists them all,
+//! newest first, in a dark see-through panel right above the name, to pick one.
 
 use super::*;
 use crate::chat::interaction::{PM_LIST, PM_NAME, PM_NEXT, PM_PREV};
@@ -48,7 +48,7 @@ impl ChatOverlay {
         whisperers.iter().any(|target| Some(*target) != recipient)
     }
 
-    /// The recipient's line at `y`, and the list of whisperers beside it while open.
+    /// The recipient's line at `y`, and the list of whisperers above it while open.
     pub(super) fn build_recipient(&mut self, font: &UiFont, g: &Geometry, y: f32) {
         let Some(input) = &self.input else {
             return;
@@ -199,18 +199,10 @@ impl ChatOverlay {
                     TextAlign::Center,
                 );
             }
-            end += arrow + 4.0 * g.scale;
         }
         if list_open && listable {
-            // Beside the line's end, growing up from its bottom over the feed.
-            self.build_pm_list(
-                font,
-                g,
-                &whisperers,
-                recipient,
-                end + 12.0 * g.scale,
-                y + height,
-            );
+            // Right above the name, growing up over the channel row and the feed.
+            self.build_pm_list(font, g, &whisperers, recipient, left, y);
         }
     }
 
@@ -229,7 +221,8 @@ impl ChatOverlay {
         let row = LIST_ROW * g.scale;
         let pad = 6.0 * g.scale;
         let size = SIZE * g.scale;
-        // As wide as its longest name, see-through and without a frame (Slash, 04/11/2026).
+        // As wide as its longest name, dark, see-through and without a frame (Slash,
+        // 04/11/2026).
         let em = size / font.height.max(1.0);
         let widest = whisperers
             .iter()
@@ -252,10 +245,13 @@ impl ChatOverlay {
             width,
             shown as f32 * row + pad * 2.0,
         );
+        // Text draws over every shape: the channel row's and the feed's words under the
+        // panel are left out, or they showed through it (as the sender card does).
+        self.ui.cover(panel);
         let _ = self.ui.draw_list_mut().push(DrawCommand::RoundedRect {
             rect: panel,
             radius: 6.0 * g.scale,
-            color: Color::new(0.05, 0.06, 0.08, 0.45),
+            color: Color::new(0.03, 0.035, 0.05, 0.78),
         });
         let pointer = self.pointer_at;
         for (index, &target) in whisperers.iter().take(shown).enumerate() {
