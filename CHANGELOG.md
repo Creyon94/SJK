@@ -30,6 +30,10 @@ The site (site/assets/site.js, parseChangelog) reads the release headings,
 introductions and recap lines too.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
+## Unreleased
+
+- Collection: a click on "Loadouts (P)" on the Shaders tab opens the loadouts again; the saber behind the page took the click _(Slash, hub report #245)_
+
 ## 2026.1103.2 (Alpha) | 03/11/2026
 
 Clan chats for JoF and S, holocrons earned by playing, tag copies to break down or craft, loadouts, fishing and many fixes.

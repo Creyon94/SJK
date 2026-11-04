@@ -107,6 +107,18 @@ AT-ST camera jump on stopping was fixed on 23/10 (`36523a14`). Not done: a damag
 fighter's surface smoke (`dmgFX`, `injureFX`) and vehicle trails and exhausts. Verified:
 unit tests, fmt, clippy. Not verified: in a game, or that JoF/JA+ servers tag vehicle shots.
 
+## Loadouts button takes a click on Shaders (hub report #245)
+
+04/11/2026, `fix/loadout-button-245` from `main` `c0d603eb`. On Shaders the "Loadouts (P)"
+button (x 1624 to 1824, y 206) lies inside the stage saber's drag room (`SABER_AREA`, x 1000
+to 1824, y 196 to 496); with a stage behind the page (the menu map or the live preview, so
+always in a running client) a press there grabbed the saber to turn it and never reached the
+button, so only P opened the card. The press now leaves the button out, as it leaves the
+target switch out. Verified: the unit test
+`a_click_on_the_loadouts_button_opens_the_card` (Shaders, Tags and Nameplates, list and
+grid, three window sizes, no stage, the menu map and the live preview), the `collection`
+tests, fmt and clippy (no new warnings).
+
 ## Menu ideas 03/11: report from the menu, loadouts, Hax trap, wheel pictures, HUD switch
 
 03/11/2026, `personal/menu-ideas-1103` from `main` `fca8e772`, Discord #ideas approved by

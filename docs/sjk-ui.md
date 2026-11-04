@@ -1772,7 +1772,8 @@ for the run.
 - **Loadouts** (03/11/2026, Lex's idea,
   [collection_loadouts.rs](../crates/sjk-viewer/src/collection_loadouts.rs)): on Shaders,
   Tags and Nameplates an outlined "Loadouts (P)" button under the tally (x 1624 to 1824,
-  y 206) opens a pop-up card (`kit::card`, x 440 to 1480, y 170 to 910, over the scrim;
+  y 206; on Shaders it lies in the stage saber's drag room, `SABER_AREA`, which leaves
+  it out, hub report #245) opens a pop-up card (`kit::card`, x 440 to 1480, y 170 to 910, over the scrim;
   the page is left out under it): "Loadouts" in gold, "Kept on this PC", the headline
   "Save your look, wear it again in one click" and what a loadout keeps, then five slots,
   a row of 86 each: the number, the name in gold while chosen (or "Empty slot") and a line
