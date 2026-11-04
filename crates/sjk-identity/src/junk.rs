@@ -1,4 +1,4 @@
-//! Selling fished junk to the hub for credits (`PROTOCOL.md` "Junk", since 03/11/2026,
+//! Selling fished junk to the hub for credits (`PROTOCOL.md` "Fishing junk", since 03/11/2026,
 //! Sol's yes on SJK #278): the Fishing toy's junk (an old boot, a rusted blaster...) sells
 //! for a few credits a piece, capped by the hub at a small sum a day per person and per
 //! address, behind the operator's switch. The client counts its own catches, so the cap

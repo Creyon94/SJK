@@ -6009,7 +6009,7 @@ brings up are the ones the hub drops anyway.
   how many fish were caught and of how many kinds, and in one line the junk held ("Junk:
   7 pieces, worth 12 credits (8 left today)"). `fishing_log` in the console prints the
   log in full: every fish and junk with its count, the junk held and what was sold.
-- **Selling junk** (03/11/2026, Sol's yes on PR #278; the hub's `PROTOCOL.md` "Junk",
+- **Selling junk** (03/11/2026, Sol's yes on PR #278; the hub's `PROTOCOL.md` "Fishing junk",
   `sjk_identity::junk`): the card's "Sell junk (+N credits)" button, and `fishing_sell`
   in the console, sell the junk held to the hub. The hub pays a few credits a piece (1
   to 5) up to 15 credits in 24 hours per person and per address, the most valuable

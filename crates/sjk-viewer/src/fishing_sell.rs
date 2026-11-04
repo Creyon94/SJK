@@ -2,7 +2,7 @@
 //! 03/11/2026): the Fishing card in Collection > Toys lists the catches and, when the hub
 //! buys junk from this player, a "Sell junk" button; `fishing_sell` in the console does
 //! the same. The hub pays a few credits a piece up to a small sum a day (`PROTOCOL.md`
-//! there, "Junk"; `sjk_identity::junk`), the most valuable pieces first, and answers what
+//! there, "Fishing junk"; `sjk_identity::junk`), the most valuable pieces first, and answers what
 //! it took: only that is counted sold in the fish log (`sold <id> <count>` lines), so the
 //! counts of what was caught never change.
 
