@@ -1412,6 +1412,11 @@ pub(super) const GAME: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Remaps on this map",
+        cvar: crate::remap_blocked_maps::MAP_CVAR,
+        kind: ValueKind::Choice(&crate::remap_blocked_maps::Choice::NAMES),
+    },
+    Setting {
         // SJK defaults to 2 (EternalJK); 1 excludes player-texture configstring remaps.
         label: "Shader remaps",
         cvar: "cg_remaps",
