@@ -6052,6 +6052,15 @@ brings up are the ones the hub drops anyway.
   only while the hub says this player may sell (the operator's switch, off until Sol
   turns it on) and is greyed with nothing payable or no junk. One sale at a time
   (`fishing_sell.rs`). Fish never sell: they stay in the log for the achievements.
+- **Bite cue** (03/11/2026, for players with the sound off): Settings > Sound > Toys,
+  "Fishing bite cue" (`cg_fishingBiteCue`: 0 off, 1 when the sound is off, the default,
+  2 always). While shown, a bite puts a pulsing "!" over the float (gold for an Echo's
+  bite), drawn as the mystery boxes' words are, and "Bite! Press Use!" (an Echo:
+  "Something shines under the float!") on the centre of the screen; a fish's bite let
+  go says "It got away.". "The sound is off" means the Fishing sounds switched off, the
+  toys' or the game's effects volume at 0, or the game muted while away
+  (`GpuState::fishing_cue_shown`); a sound muted by name (`s_muteSounds`) or no sound
+  device does not count, so set 2 there.
 
 No game server knows of it. The rod is a toy in the player's look (`toys: ["fishing"]`),
 so other SJK players draw it in the fisher's hand, with the line to a float where their

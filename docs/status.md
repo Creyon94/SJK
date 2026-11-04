@@ -2110,6 +2110,11 @@ catalogue before they unlock online. Selling junk (capped credits; Sol's yes on 
 address, behind the operator's switch): the Fishing card lists the catches and sells the
 junk held, `fishing_sell` too, `sold` lines in the log ([client.md](client.md#fishing)).
 Verified: the log, card and answer tests; not yet against a hub that has the routes. Verified: fmt, build, the fishing, achievements, kyber and collection tests,
+catalogue before they unlock online; selling junk (capped credits) is proposed to Sol, not
+built. 03/11/2026, `feat/fishing-bite-cue`: the bite cue for players with the sound off
+(`cg_fishingBiteCue`, a "!" over the float and a centre line; tests
+`the_bite_cue_follows_its_setting_and_the_sound`, `a_bite_starts_and_ends_with_its_cue`;
+Not verified: in game.) Verified: fmt, build, the fishing, achievements, kyber and collection tests,
 earlier release builds in game (Slash: the rod in third person, the pond, bites; not yet
 the first-person rod or the Fishing band on the Fun page), world shots of the pond on duel6
 (`rods_at_the_first_spawn`). Not verified: the five ids at the hub, other players seeing a

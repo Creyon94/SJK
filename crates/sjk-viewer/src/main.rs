@@ -2434,6 +2434,10 @@ impl GpuState {
             viewport,
             information_visible && intermission_view.is_none() && !scoreboard_held,
         );
+        self.append_fishing_cue(
+            viewport,
+            information_visible && intermission_view.is_none() && !scoreboard_held,
+        );
         self.append_use_prompt(
             viewport,
             information_visible && intermission_view.is_none() && !scoreboard_held,
