@@ -372,12 +372,11 @@ test: Lab off (no saberlab): no Saber Lab tab; blades in a match look as before.
 note: Owed: unit tests, crackle + body burn unseen in a match, TRACE-DISINTEGRATE still in.
 
 [pr-batch-1104]
-area: Gameplay & netcode
+area: Gameplay
 title: PRs 04/11: duel emote mute, ragdoll scale, chat link copy, vid_restart force
 change: Slash #346: s_muteEmotesInDuel 1 silences emote sounds while you duel.
 change: Slash #345: a scaled player (youngling, jawa) ragdolls at their size.
-change: Slash #342: chat open, pointer on a link, Ctrl+C copies it (Link copied).
-change: Slash #341: vid_restart force reloads the graphics with no change.
+change: Slash #342 Ctrl+C copies a hovered chat link; #341 vid_restart force reloads.
 test: s_muteEmotesInDuel 1, emote then accept a duel: silent; ends: heard again.
 test: toy_ragdoll as a youngling (JoF shuttle): body stays small on the floor.
 test: Someone posts https://x.y in chat: open chat, hover it, Ctrl+C, paste.
