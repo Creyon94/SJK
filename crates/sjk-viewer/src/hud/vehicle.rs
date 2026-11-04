@@ -50,6 +50,9 @@ pub(super) const AMMO_LABEL_TEXT: u32 = 353;
 /// labelled line, for the layouts' `vehicle_turbo_value` and `vehicle_turbo_text`.
 pub(super) const TURBO_VALUE_TEXT: u32 = 354;
 pub(super) const TURBO_LABEL_TEXT: u32 = 355;
+/// Each weapon's own ammunition number, for the classic layout's two ammunition rows.
+pub(super) const AMMO1_VALUE_TEXT: u32 = 356;
+pub(super) const AMMO2_VALUE_TEXT: u32 = 357;
 
 /// `MAX_VHUD_SHIELD_TICS`, `MAX_VHUD_ARMOR_TICS`, `MAX_VHUD_SPEED_TICS`,
 /// `MAX_VHUD_AMMO_TICS`.
@@ -251,6 +254,9 @@ pub(crate) struct Meters {
     pub(crate) ammo: Option<f32>,
     /// `None` when the vehicle has no turbo to show ([`turbo`]).
     pub(crate) turbo: Option<Turbo>,
+    /// Each weapon's ammunition against its own maximum; `None` for a slot without a
+    /// weapon.
+    pub(crate) ammo_slots: [Option<f32>; 2],
 }
 
 /// The turbo burns while `cg.time` has not passed `m_iTurboTime` (`CG_DrawVehicleSpeed`).
@@ -332,6 +338,7 @@ pub(crate) struct State {
     /// without a weapon), `0..=1`.
     speed_ratio: f32,
     ammo_ratio: Option<f32>,
+    ammo_slots: [Option<f32>; 2],
     /// The turbo for SJK's own looks ([`turbo`]).
     boost: Option<Turbo>,
     shield: [f32; SHIELD_TICS],
@@ -360,6 +367,7 @@ pub(crate) struct State {
     ammo_label: String,
     turbo_value: String,
     turbo_label: String,
+    ammo_slot_values: [String; 2],
     /// `crosshairShader` of the riding vehicle, and the one last tried to load.
     wanted: Option<String>,
     attempted: Option<String>,
@@ -376,6 +384,7 @@ impl Default for State {
             hull_ratio: 0.0,
             speed_ratio: 0.0,
             ammo_ratio: None,
+            ammo_slots: [None; 2],
             boost: None,
             shield: [0.0; SHIELD_TICS],
             speed: [0.0; SPEED_TICS],
@@ -400,6 +409,7 @@ impl Default for State {
             ammo_label: String::with_capacity(32),
             turbo_value: String::with_capacity(12),
             turbo_label: String::with_capacity(24),
+            ammo_slot_values: [String::with_capacity(12), String::with_capacity(12)],
             wanted: None,
             attempted: None,
             picture: None,
@@ -429,6 +439,9 @@ impl State {
         self.hull_ratio = hull_ratio(sample.hull, profile.hull);
         self.speed_ratio = speed_ratio(sample.speed, profile.speed_max);
         self.ammo_ratio = ammo_ratio(sample.ammo, profile.ammo_max, profile.has_weapon);
+        self.ammo_slots = [0, 1].map(|slot| {
+            profile.has_weapon[slot].then(|| hull_ratio(sample.ammo[slot], profile.ammo_max[slot]))
+        });
         self.shield = tic_alphas(sample.shield as f32, profile.shields as f32, SHIELD_TICS);
         self.speed = tic_alphas(sample.speed, profile.speed_max, SPEED_TICS);
         self.weapons = profile.has_weapon;
@@ -474,6 +487,12 @@ impl State {
         self.ammo_label.clear();
         self.turbo_value.clear();
         self.turbo_label.clear();
+        for (slot, value) in self.ammo_slot_values.iter_mut().enumerate() {
+            value.clear();
+            if profile.has_weapon[slot] {
+                let _ = write!(value, "{}", sample.ammo[slot].max(0));
+            }
+        }
         let _ = write!(self.hull_text, "HULL {}", sample.hull.max(0));
         let _ = write!(self.hull_value, "{}", sample.hull.max(0));
         let _ = write!(self.hull_label, "^3HP ^7{}", sample.hull.max(0));
@@ -537,6 +556,7 @@ impl State {
             speed: self.speed_ratio,
             ammo: self.ammo_ratio,
             turbo: self.boost,
+            ammo_slots: self.ammo_slots,
         })
     }
 
@@ -604,6 +624,8 @@ impl State {
             AMMO_LABEL_TEXT => &self.ammo_label,
             TURBO_VALUE_TEXT => &self.turbo_value,
             TURBO_LABEL_TEXT => &self.turbo_label,
+            AMMO1_VALUE_TEXT => &self.ammo_slot_values[0],
+            AMMO2_VALUE_TEXT => &self.ammo_slot_values[1],
             _ => "",
         }
     }
@@ -1046,6 +1068,7 @@ mod tests {
                     charge: 0.5,
                     phase: TurboPhase::Charging,
                 }),
+                ammo_slots: [Some(0.5), None],
             })
         );
         // Prediction off: the turbo meter has no data and stays out.
@@ -1090,6 +1113,9 @@ mod tests {
         assert_eq!(state.text(AMMO_TEXT), "100 / 16");
         assert_eq!(state.text(AMMO_VALUE_TEXT), "100 / 16");
         assert_eq!(state.text(AMMO_LABEL_TEXT), "^3AMMO ^7100 / 16");
+        assert_eq!(state.text(AMMO1_VALUE_TEXT), "100");
+        assert_eq!(state.text(AMMO2_VALUE_TEXT), "16");
+        assert_eq!(state.meters().unwrap().ammo_slots, [Some(1.0), Some(0.4)]);
         // Together, 116 of 140.
         let ammo = state.meters().unwrap().ammo.unwrap();
         assert!((ammo - 116.0 / 140.0).abs() < 1e-6);
@@ -1212,6 +1238,120 @@ mod tests {
                 );
             }
         }
+    }
+
+    /// The classic layout's centre panel: the held weapon on foot (none unarmed), the
+    /// vehicle's rows while piloting, each weapon's own row or its greyed place.
+    #[test]
+    fn the_classic_centre_panel_shows_the_weapon_on_foot_and_the_vehicle_in_one() {
+        use crate::hud::{HudLook, HudOverlay, HudVisibility};
+        let font = crate::text::load_modern(1.0, None).unwrap().font;
+        let visibility = HudVisibility {
+            hud: true,
+            elements: true,
+            status: true,
+            vehicle: true,
+            weapon: true,
+            selection: true,
+            crosshair: false,
+            crosshair_names: false,
+            timer: false,
+            lagometer: false,
+            ground_hud: false,
+            menu_hud: false,
+        };
+        let texts = |hud: &HudOverlay| -> Vec<String> {
+            hud.draw_list()
+                .commands()
+                .iter()
+                .filter_map(|command| match command {
+                    DrawCommand::Text { text, .. } => Some(hud.resolve_text(*text).to_owned()),
+                    _ => None,
+                })
+                .collect()
+        };
+        let values = |weapon, ammo| sjk_client::HudDataSource {
+            health: 100,
+            armor: 50,
+            force: 92,
+            weapon,
+            ammo,
+            saber_style: None,
+        };
+        let mut hud = HudOverlay::new();
+        hud.preview_values(values(5, Some(240)), [1.0, 0.5, 0.92, 0.8]);
+        let _ = hud.layout(
+            &font,
+            HudLook::Classic,
+            [1920.0, 1080.0],
+            1.0,
+            visibility,
+            0,
+        );
+        let shown = texts(&hud);
+        for word in [
+            "HEALTH",
+            "ARMOR",
+            "FORCE",
+            "E-11 Blaster Rifle",
+            "AMMO",
+            "240",
+        ] {
+            assert!(shown.iter().any(|text| text == word), "{word} in {shown:?}");
+        }
+        assert!(!shown.iter().any(|text| text == "HP"));
+        // Unarmed: no centre panel.
+        hud.preview_values(values(0, None), [1.0, 0.5, 0.92, 0.0]);
+        let _ = hud.layout(
+            &font,
+            HudLook::Classic,
+            [1920.0, 1080.0],
+            1.0,
+            visibility,
+            0,
+        );
+        assert!(!texts(&hud).iter().any(|text| text == "Unarmed"));
+        // Piloting a one-weapon vehicle without a turbo: the vehicle's rows, the second
+        // weapon's and the turbo's greyed, and no weapon panel.
+        hud.preview_values(values(5, Some(240)), [1.0, 0.5, 0.92, 0.8]);
+        let profile = profile();
+        hud.vehicle.update(&sample(&profile));
+        let _ = hud.layout(
+            &font,
+            HudLook::Classic,
+            [1920.0, 1080.0],
+            1.0,
+            visibility,
+            0,
+        );
+        let shown = texts(&hud);
+        for word in [
+            "HP", "120", "SPD", "400", "TURBO", "AMMO 1", "100", "AMMO 2", "--",
+        ] {
+            assert!(shown.iter().any(|text| text == word), "{word} in {shown:?}");
+        }
+        assert!(!shown.iter().any(|text| text == "E-11 Blaster Rifle"));
+        // Two weapons: the second weapon's own number instead of the greyed one.
+        let mut two = profile.clone();
+        two.has_weapon = [true, true];
+        let mut s = sample(&two);
+        s.ammo = [100, 16];
+        hud.vehicle.update(&s);
+        let _ = hud.layout(
+            &font,
+            HudLook::Classic,
+            [1920.0, 1080.0],
+            1.0,
+            visibility,
+            0,
+        );
+        let shown = texts(&hud);
+        assert!(shown.iter().any(|text| text == "16"));
+        assert_eq!(
+            shown.iter().filter(|text| *text == "--").count(),
+            1,
+            "{shown:?}"
+        );
     }
 
     #[test]

@@ -258,6 +258,12 @@ pub(crate) fn widget_element(id: &str, radial: bool) -> Option<Element> {
         | "vehicle_turbo_meter_burning" => Element::Vehicle,
         "match_timer" => Element::Timer,
         "vote_panel" => Element::Vote,
+        // The classic layout's groups: health and armour, Force, the held weapon and
+        // the vehicle, each moving as one.
+        id if id.starts_with("vitals_") => Element::Vitals,
+        id if id.starts_with("forcebox_") => Element::Force,
+        id if id.starts_with("weaponbox_") => Element::Weapon,
+        id if id.starts_with("vehicle_") => Element::Vehicle,
         _ => return None,
     })
 }
@@ -446,6 +452,22 @@ mod tests {
         assert_eq!(widget_element("ammo_value", false), Some(Element::Weapon));
         assert_eq!(widget_element("left_pill", true), Some(Element::Vitals));
         assert_eq!(widget_element("vehicle_arc", true), Some(Element::Vehicle));
+        assert_eq!(
+            widget_element("vitals_health_meter", false),
+            Some(Element::Vitals)
+        );
+        assert_eq!(
+            widget_element("forcebox_meter", false),
+            Some(Element::Force)
+        );
+        assert_eq!(
+            widget_element("weaponbox_name", false),
+            Some(Element::Weapon)
+        );
+        assert_eq!(
+            widget_element("vehicle_ammo2_meter", false),
+            Some(Element::Vehicle)
+        );
         assert_eq!(widget_element("crosshair", false), None);
         assert_eq!(widget_element("lagometer", false), None);
         for layout in [

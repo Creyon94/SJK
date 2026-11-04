@@ -3726,6 +3726,15 @@ the speed (`MAX_TEXTS` 8). One widget per phase gives each its colour. Tests pin
 phases, the words and that each look colours the turbo by its phase and leaves it out
 without one.
 
+The SJK classic layout was then redrawn after the user's mockup: three groups along the
+bottom (health and armour left, Force right, the held weapon or the piloted vehicle
+in the middle), at first on dark panels and then, after the user's second mockup, with no
+background (dark meter tracks instead; see [rendering](rendering.md)). New for it: meters drawn as cells
+(`StyleOverrides::segments` in `sjk-ui`), fixed `label_*` words, per-weapon
+`vehicle_ammo1_*`/`vehicle_ammo2_*` bindings, greyed `_none` flags, and
+`draw_weapon_panel`. `menu_snapshot::classic_hud_snapshot` draws it on the CPU (blaster,
+saber, a swoop recharging and ready, an AT-ST) without a map or GPU.
+
 ## Stock vehicle HUD in the game HUD
 
 19/10/2026, `feat/vehicle-hud-sjk-style`, on `fix/vehicle-hud-hide-rider`: a tester

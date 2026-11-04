@@ -645,6 +645,7 @@ impl HudOverlay {
             // ammunition meters; the game HUD look keeps the vector strip, where the
             // game HUD does not draw it.
             vehicle: self.vehicle.meters().filter(|_| look != HudLook::Game),
+            has_ammo: self.values.is_some_and(|values| values.ammo.is_some()),
         };
         let mut visible = [false; WIDGET_LIMIT];
         for (index, widget) in document.widgets.iter().take(WIDGET_LIMIT).enumerate() {
@@ -908,6 +909,13 @@ impl HudOverlay {
         self.weapon_shown_ms = Some(0);
         self.ratios = [ratios[0], ratios[1], ratios[2]].map(Tween::settled);
         self.ammo_ratio = Tween::settled(ratios[3]);
+    }
+
+    /// Show the speedometer reading `text` with its right edge at `x` (640 units), as
+    /// `cg_speedometer` does, for snapshots.
+    #[cfg(test)]
+    pub(crate) fn preview_speedometer(&mut self, text: &str, x: f32) {
+        self.speed.preview(text, x);
     }
 
     pub(crate) fn displayed_ratios(&self) -> [f32; 3] {

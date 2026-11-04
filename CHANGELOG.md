@@ -32,7 +32,8 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
-- Vehicle HUD: the speed, ammo and turbo of the vehicle you pilot show beside its health in each HUD style: Text only as numbers around it, SJK radial as cyan, orange and turbo arcs under the crosshair with their numbers, SJK classic as `SPD`, `TURBO` and `AMMO` bars above the `HP` one; the turbo is red while it recharges, green when ready and bright while it boosts _(Slash, after Kushina's report)_
+- Vehicle HUD: the speed, ammo and turbo of the vehicle you pilot show beside its health: Text only as numbers around it, SJK radial as cyan, orange and turbo arcs under the crosshair with their numbers; the turbo is red while it recharges, green when ready and bright while it boosts _(Slash, after Kushina's report)_
+- New SJK classic HUD with no background behind it: health and armour bottom left, Force bottom right, and bottom centre your weapon and its ammo on foot, or the vehicle's HP, speed, turbo and each gun's ammo while you pilot one _(Slash)_
 
 ## 2026.1103.2 (Alpha) | 03/11/2026
 

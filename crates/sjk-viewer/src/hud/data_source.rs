@@ -52,9 +52,34 @@ pub(super) struct WidgetData<'a> {
     /// The vehicle's hull, speed and ammunition meters while SJK's own look draws the
     /// vehicle HUD; `None` on foot, and when the game HUD or the vector strip draws it.
     pub(super) vehicle: Option<vehicle::Meters>,
+    /// The held weapon counts ammunition (`ClientHudData::ammo` is set).
+    pub(super) has_ammo: bool,
 }
 
 impl WidgetData<'_> {
+    /// Weapon `slot`'s ammunition ratio while the vehicle HUD shows and it has that weapon.
+    fn vehicle_ammo_slot(&self, slot: usize) -> Option<f32> {
+        self.vehicle
+            .filter(|_| self.visibility.vehicle)
+            .and_then(|meters| meters.ammo_slots[slot])
+    }
+
+    /// The vehicle HUD shows (SJK's own look, a piloted vehicle).
+    fn vehicle_shown(&self) -> bool {
+        self.visibility.vehicle && self.vehicle.is_some()
+    }
+
+    /// The classic layout's centre weapon panel: on foot, holding a weapon that counts
+    /// ammunition or a saber with a style. It gives way to the weapon selection row,
+    /// which retail draws in the same place (`y = 410`) and which names the weapon.
+    fn weapon_panel(&self) -> bool {
+        self.visibility.weapon
+            && !self.visibility.menu_hud
+            && !self.weapon_row
+            && self.vehicle.is_none()
+            && (self.has_ammo || self.saber_style.is_some())
+    }
+
     /// The turbo's phase while the vehicle HUD shows and the vehicle has one.
     fn vehicle_turbo(&self) -> Option<vehicle::TurboPhase> {
         self.vehicle
@@ -80,6 +105,8 @@ impl HudDataSource for WidgetData<'_> {
                     .and_then(|meters| meters.turbo)
                     .map_or(0.0, |turbo| turbo.charge),
             ),
+            "vehicle_ammo1_ratio" => Some(self.vehicle_ammo_slot(0).unwrap_or(0.0)),
+            "vehicle_ammo2_ratio" => Some(self.vehicle_ammo_slot(1).unwrap_or(0.0)),
             "vehicle_ammo_ratio" => {
                 Some(self.vehicle.and_then(|meters| meters.ammo).unwrap_or(0.0))
             }
@@ -151,6 +178,21 @@ impl HudDataSource for WidgetData<'_> {
             "draw_vehicle_turbo_burning" => {
                 Some(self.vehicle_turbo() == Some(vehicle::TurboPhase::Burning))
             }
+            "draw_vehicle_turbo_none" => {
+                Some(self.vehicle_shown() && self.vehicle_turbo().is_none())
+            }
+            // Each weapon's row, or its greyed place without that weapon.
+            "draw_vehicle_ammo1" => Some(self.vehicle_ammo_slot(0).is_some()),
+            "draw_vehicle_ammo2" => Some(self.vehicle_ammo_slot(1).is_some()),
+            "draw_vehicle_ammo1_none" => {
+                Some(self.vehicle_shown() && self.vehicle_ammo_slot(0).is_none())
+            }
+            "draw_vehicle_ammo2_none" => {
+                Some(self.vehicle_shown() && self.vehicle_ammo_slot(1).is_none())
+            }
+            "draw_weapon_panel" => Some(self.weapon_panel()),
+            "draw_weapon_ammo" => Some(self.weapon_panel() && self.saber_style.is_none()),
+            "draw_weapon_style" => Some(self.weapon_panel() && self.saber_style.is_some()),
             // A vehicle without a weapon has no ammunition to show.
             "draw_vehicle_ammo" => Some(
                 self.visibility.vehicle && self.vehicle.is_some_and(|meters| meters.ammo.is_some()),
@@ -159,6 +201,23 @@ impl HudDataSource for WidgetData<'_> {
         }
     }
 }
+
+/// Fixed words a layout's text widget names as `label_<name>`, from text id
+/// [`LABEL_FIRST`] on.
+pub(super) const LABELS: [(&str, &str); 10] = [
+    ("label_health", "HEALTH"),
+    ("label_armor", "ARMOR"),
+    ("label_force", "FORCE"),
+    ("label_hp", "HP"),
+    ("label_speed", "SPD"),
+    ("label_turbo", "TURBO"),
+    ("label_ammo", "AMMO"),
+    ("label_ammo1", "AMMO 1"),
+    ("label_ammo2", "AMMO 2"),
+    ("label_none", "--"),
+];
+pub(super) const LABEL_FIRST: u32 = 360;
+pub(super) const LABEL_LAST: u32 = LABEL_FIRST + LABELS.len() as u32 - 1;
 
 pub(super) fn text_id(binding: Option<&str>) -> Option<TextId> {
     match binding {
@@ -185,6 +244,14 @@ pub(super) fn text_id(binding: Option<&str>) -> Option<TextId> {
         Some("vehicle_ammo_text") => Some(TextId(vehicle::AMMO_LABEL_TEXT)),
         Some("vehicle_turbo_value") => Some(TextId(vehicle::TURBO_VALUE_TEXT)),
         Some("vehicle_turbo_text") => Some(TextId(vehicle::TURBO_LABEL_TEXT)),
+        Some("vehicle_ammo1_value") => Some(TextId(vehicle::AMMO1_VALUE_TEXT)),
+        Some("vehicle_ammo2_value") => Some(TextId(vehicle::AMMO2_VALUE_TEXT)),
+        // The weapon's name without the fade `weapon_value` takes after a switch.
+        Some("weapon_name") => Some(TextId(12)),
+        Some(label) if label.starts_with("label_") => LABELS
+            .iter()
+            .position(|(name, _)| *name == label)
+            .map(|index| TextId(LABEL_FIRST + index as u32)),
         _ => None,
     }
 }

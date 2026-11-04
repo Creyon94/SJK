@@ -4889,9 +4889,8 @@ right meters (132 to 48 degrees, four segments, the same track and shadow), and 
 armour arc's inner circle a cyan speed arc (132 to 96 degrees, filling towards the
 middle) and an orange ammunition arc (48 to 84), with the speed, hull and ammunition
 numbers in a row under the outer arc; the radial placement moves them all up and down
-with the rest of the status but never spreads them apart. `classic` a yellow bar with an
-`HP` line above the weapon and ammunition lines, a cyan `SPD` bar above it and an orange
-`AMMO` bar on top. A vehicle with a `turboRecharge`, whose turbo time the ride prediction
+with the rest of the status but never spreads them apart. `classic` the centre panel
+described below. A vehicle with a `turboRecharge`, whose turbo time the ride prediction
 gives (a live game, not a demo), also shows its turbo (`vehicle::Turbo`): the recharge
 fraction in red-orange while it recharges, full and green once ready, full and bright
 while it burns. As a widget's colour is fixed, each look has one turbo meter per phase,
@@ -4899,8 +4898,7 @@ shown by `draw_vehicle_turbo_charging`, `draw_vehicle_turbo_ready` and
 `draw_vehicle_turbo_burning` (binding `vehicle_turbo_ratio`), and its word by
 `draw_vehicle_turbo` (`vehicle_turbo_value`: the charge in percent, `READY` or `BOOST`,
 colour coded; `vehicle_turbo_text` the `TURBO` line): `radial` a thin arc just inside the
-speed arc with the word under the speed number, `classic` a `TURBO` line and bar right of
-the `SPD` ones. The text HUD puts the same word 160 units left of the centre, in red,
+speed arc with the word under the speed number, `classic` its row of the centre panel. The text HUD puts the same word 160 units left of the centre, in red,
 green or white. Without a turbo nothing of it shows and nothing moves. The speed's meter is `speed` over `speedMax` (the turbo passes the
 maximum and reads full), the ammunition's one weapon's `ammo` over its `ammoMax` or two
 weapons' together. With a game-data HUD that has no vehicle menu, SJK draws its own
@@ -4924,7 +4922,23 @@ game-data HUD away, as stock does. In a vehicle the crosshair is doubled (when
 `vehicledamagehud` and `enemyvehicledamagehud`, the no-ammo warning flash and the
 weapons-linked sound.
 
-`cg_hudStyle classic` selects SJK's classic layout in either font. Under `game`,
+`cg_hudStyle classic` selects SJK's classic layout in either font: three groups
+along the bottom with no panel behind them (`classic.json`), level with each other; the
+text keeps its drop shadow and the bars a dark track, so they read on light and dark
+ground alike. Bottom left
+(`vitals_*`, the HUD edit mode's Vitals) the `HEALTH` and `ARMOR` rows, a label, a bar
+and the number; bottom right (`forcebox_*`, Force) the Force row mirrored. In the middle
+(`weaponbox_*`, Weapon) on foot the held weapon's name (`weapon_name`, which does not
+fade) over an `AMMO` row with the count, or the saber's style, shown by
+`draw_weapon_panel` (a weapon that counts ammunition or a saber, no vehicle, and not
+while the weapon selection row, drawn in the same place, shows); unarmed, nothing. While
+piloting, a taller centre group (`vehicle_*`, Vehicle) in two columns: `HP`, `SPD` and
+`TURBO` rows (the turbo's bar in its phase's colour; without a turbo the row stays,
+greyed with `--`), and `AMMO 1` and `AMMO 2` with each weapon's number over a segmented
+bar of ten cells (`vehicle_ammo1_*`, `vehicle_ammo2_*`; a slot without a weapon greyed
+with `--` and an empty track). All three sit on the bottom edge of the screen, their lowest line 24 units above it. Fixed words
+come from `label_*` bindings (`data_source::LABELS`), segmented bars from a meter's
+`segments` style (`widgets::segment_cells`). Under `game`,
 SJK's default layout ([default.json](../crates/sjk-viewer/assets/hud/default.json),
 or a `hud.json` beside the configuration) draws the crosshair, team rows, votes,
 timer and lagometer, and the status too when the game HUD's files give
@@ -4997,8 +5011,8 @@ SJK's own layouts (default, classic and radial) draw their weapon name as a tran
 that holds 0.8 s and fades over 0.6 s, as long as the row; while the row shows they
 hide it, since the row names the weapon, so it only appears when the row cannot (for
 example while following a player). The ammunition count, the ammunition arc and
-the pill of the radial layout, and the classic layout's ammunition line, stay
-visible during the row, as in EternalJK, where nothing hides the ammunition while
+the pill of the radial layout stay visible during the row (the classic layout's weapon
+panel gives way to it), as in EternalJK, where nothing hides the ammunition while
 `CG_DrawWeaponSelect` draws. The small held-weapon icon beside the ammo count shares
 the name's timing and is hidden while the row shows; there is no ammo picture at the
 bottom centre. The Force power timer icons keep showing during the row. Unlike
