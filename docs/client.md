@@ -3147,8 +3147,8 @@ player who whispered you; left-clicked again the next one, right-clicked the one
 (since 04/11/2026, Creo's idea, the recipient has a line of its own under the row, the
 whole chat's width: "< To Fox  2/3 >", the name in its colours and cut with "..." only
 when even that is too narrow; `<`, `>`, Alt+Left and Alt+Right step between the players
-who whispered you, and a click on the name lists them, newest first, in a see-through
-panel beside the line, Escape closing it before the composer; `chat/view/recipient.rs`),
+who whispered you, and a click on the name lists them, newest first, in a dark
+see-through panel right above the name, Escape closing it before the composer; `chat/view/recipient.rs`),
 or says how to whisper when no one has. The words sit an even 22 px apart, each as wide
 as itself. Each button is a tab
 too (Dave, 29/10/2026): while the composer is on Team, SJK, Admin or a whisper, the feed
