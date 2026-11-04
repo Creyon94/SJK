@@ -28,11 +28,17 @@ function sjkHtml(el, html) {
 }
 
 const SJK_KINDS = { model: 'Map prop', placed: 'Placed model', surface: 'Surface', face: 'Hidden face (caulk or nodraw)', other: 'Not editable' };
+// a sky side the game selected (a face of the sky's brush): covered with a texture, or its sky swapped
+const sjkIsSky = sel => !!(sel && sel.kind === 'face' && sel.target && sel.target.sky);
+const sjkSkySel = () => sjkIsSky(sjk.state && sjk.state.selection);
+const sjkKindName = sel => sjkIsSky(sel) ? 'Sky (a side of the sky\'s brush)' : SJK_KINDS[sel.kind] || sel.kind;
+// the sky chosen in the sky list
+sjk.chosenSky = '';
 
 // The selection named plainly: what it is, its shader, its model, its edit
 function sjkFacts(sel) {
 	if (!sel) return '';
-	const t = sel.target || {}, rows = [['Kind', SJK_KINDS[sel.kind] || sel.kind]];
+	const t = sel.target || {}, rows = [['Kind', sjkKindName(sel)]];
 	if (t.placed !== undefined && t.placed !== null) rows.push(['Edit', String(t.placed)]);
 	if (t.model) rows.push(['Model', t.model]);
 	if (t.classname && sel.kind === 'model') rows.push(['Entity', t.entity + ' (' + t.classname + ')']);
@@ -41,7 +47,7 @@ function sjkFacts(sel) {
 	if (t.group && t.group.length > 1) rows.push(['Whole model', t.group.length + ' surfaces (drawn fainter)']);
 	if (t.brush !== undefined) rows.push(['Brush side', t.brush + ' / ' + t.side]);
 	const remap = t.shader && sjk.state.remaps.find(([from]) => from.toLowerCase() === t.shader.toLowerCase());
-	if (remap) rows.push(['Drawn as', remap[1]]);
+	if (remap) rows.push([sjkIsSky(sel) ? 'Sky swapped for' : 'Drawn as', remap[1]]);
 	if (sel.hit) rows.push(['At', sel.hit.map(v => Math.round(v)).join(' ')]);
 	return rows.map(([k, v]) => '<dt>' + k + '</dt><dd>' + escapeHtml(v) + '</dd>').join('');
 }
@@ -59,7 +65,7 @@ function sjkRender() {
 	// Selected
 	const sel = s.selection;
 	sjkText('selSummary', sel ? sel.summary : 'Click the map to select a prop, a surface, a placed model or a hidden face');
-	sjkText('selKind', sel ? SJK_KINDS[sel.kind] || '' : '');
+	sjkText('selKind', sel ? sjkKindName(sel) : '');
 	sjkHtml($('selFacts'), sjkFacts(sel));
 	const editable = sel && sel.kind !== 'other';
 	$('btnHide').disabled = !editable;
@@ -95,6 +101,50 @@ function sjkRender() {
 	sjkText('pubState', s.unpublished ? 'Changed here, not published' : s.revision ? 'Hub revision ' + s.revision : '');
 	sjkRenderThings();
 	sjkRenderMulti();
+	sjkRenderSky();
+}
+
+// ---- the sky: a sky side selected offers the skies of the game data (their scripts have skyParms) to swap it for
+
+const sjkSkyNames = () => new Set(((sjk.lists && sjk.lists.skies) || []).map(k => k.name.toLowerCase()));
+function sjkSkyTile(name, picture) {
+	return '<div class="tile' + (name === sjk.chosenSky ? ' sel' : '') + '" data-name="' + escapeHtml(name) + '" title="' + escapeHtml(name) + '"><i class="thumb" data-thumb="' +
+		escapeHtml(picture || name) + '"></i><span>' + escapeHtml(name.slice(name.lastIndexOf('/') + 1)) + '</span></div>';
+}
+function sjkRenderSky() {
+	const s = sjk.state, sel = s && s.selection, on = sjkSkySel();
+	$('skyBox').hidden = !on;
+	if (!on) return;
+	const own = sel.target.shader, swapped = s.remaps.find(([from]) => from.toLowerCase() === own.toLowerCase());
+	const skies = (sjk.lists && sjk.lists.skies) || [], pictures = new Map(skies.map(k => [k.name.toLowerCase(), k.picture]));
+	const box = $('skyList');
+	if (!sjk.lists) sjkHtml(box, '<div class="hint">Reading the skies...</div>');
+	else {
+		const words = sjkWords($('skyFind').value), all = skies.filter(k => sjkMatches(k.name, words)), shown = all.slice(0, SJK_TILES);
+		sjkHtml(box, shown.map(k => sjkSkyTile(k.name, k.picture)).join('') || '<div class="hint">No sky has that in its name.</div>');
+		thumbWatch(box);
+		sjkText('skyCount', all.length + ' skies' + (all.length > shown.length ? ', the first ' + shown.length + ' shown' : '') +
+			(s.skies && s.skies.length > 1 ? '; this map has ' + s.skies.length : ''));
+	}
+	// Recent: the skies among the shaders used lately
+	const r = sjk.recent, recent = r && r.remember ? r.shaders.filter(n => pictures.has(n.toLowerCase())) : [];
+	$('skyRecentBox').hidden = !recent.length;
+	sjkHtml($('skyRecent'), recent.map(n => sjkSkyTile(n, pictures.get(n.toLowerCase()))).join(''));
+	thumbWatch($('skyRecent'));
+	const chosen = sjk.chosenSky && sjk.chosenSky.toLowerCase() !== (swapped ? swapped[1] : own).toLowerCase();
+	$('btnSky').disabled = !chosen;
+	$('btnSkyAll').disabled = !sjk.chosenSky;
+	$('btnSkyBack').disabled = !swapped;
+	sjkText('skyHint', (swapped ? 'Drawn as ' + swapped[1] + ' now. ' : '') + 'Draw another shader, below, covers the selected sky side with a texture instead.');
+}
+function sjkSkyClick(e) {
+	const tile = e.target.closest('.tile');
+	if (!tile || String(getSelection())) return;
+	// a second click on the chosen one swaps, as a shader's tile remaps
+	if (sjk.chosenSky === tile.dataset.name && sjkSkySel()) { sjkEdit({ op: 'sky', shader: tile.dataset.name }); return; }
+	sjk.chosenSky = tile.dataset.name;
+	for (const t of document.querySelectorAll('#skyList .tile, #skyRecent .tile')) t.classList.toggle('sel', t.dataset.name === sjk.chosenSky);
+	sjkRender();
 }
 
 // ---- World: the boomboxes, mystery boxes and toys on the map
@@ -162,6 +212,7 @@ function sjkRenderRecent() {
 function sjkRenderLists() {
 	sjkRenderShaders();
 	sjkRenderModels();
+	sjkRenderSky();
 }
 
 const sjkWords = text => text.toLowerCase().split(/\s+/).filter(Boolean);
@@ -235,6 +286,13 @@ $('btnCopy').addEventListener('click', () => {
 });
 $('btnRemap').addEventListener('click', () => { const to = sjkRemapTarget(); if (to) sjkApplyShader(to); });
 $('btnUnremap').addEventListener('click', () => sjkApplyShader('-'));
+$('skyList').addEventListener('click', sjkSkyClick);
+$('skyRecent').addEventListener('click', sjkSkyClick);
+$('skyFind').addEventListener('input', () => { clearTimeout(sjkTyped); sjkTyped = setTimeout(sjkRenderSky, 150); });
+$('btnSky').addEventListener('click', () => { if (sjk.chosenSky) sjkEdit({ op: 'sky', shader: sjk.chosenSky }); });
+$('btnSkyAll').addEventListener('click', () => { if (sjk.chosenSky) sjkEdit({ op: 'sky', shader: sjk.chosenSky, all: true }); });
+$('btnSkyBack').addEventListener('click', () => sjkEdit({ op: 'sky', shader: '-' }));
+
 let sjkTyped = 0;
 $('shaderFind').addEventListener('input', () => { clearTimeout(sjkTyped); sjkTyped = setTimeout(() => { sjkRenderShaders(); sjkRender(); }, 150); });
 function sjkTileClick(e) {

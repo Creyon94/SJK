@@ -396,6 +396,12 @@ fn serve_the_page_for_a_browser() {
     let drawn = bsp
         .as_ref()
         .map(|bsp| super::super::caulk::drawn_surfaces(bsp, catalog.as_ref()));
+    // The sky (04/11/2026): the game data's skies for the page's list; a sky swap and a
+    // cover drawn on a selected face are kept here as the game would draw them.
+    let skies = catalog
+        .as_ref()
+        .map_or_else(Vec::new, |catalog| super::super::sky_list(&vfs, catalog));
+    let mut shown_faces: Vec<serde_json::Value> = Vec::new();
     let server = Server::start(Some(vfs)).unwrap();
     println!("SJK_MAPEDIT_WEB_URL={}", server.url());
     let end = std::time::Instant::now() + Duration::from_secs(seconds);
@@ -411,7 +417,7 @@ fn serve_the_page_for_a_browser() {
                 "kind": "face", "hit": hit.to_array(),
                 "target": {
                     "brush": face.brush, "side": face.side, "shader": face.shader,
-                    "points": face.polygon,
+                    "points": face.polygon, "sky": face.sky,
                 },
             })
         };
@@ -474,6 +480,48 @@ fn serve_the_page_for_a_browser() {
                     EditRequest::ApplyMany { faces, .. } => Ok(serde_json::json!({
                         "ok": true, "lines": [format!("(test) {} faces filled", faces.len())],
                     })),
+                    EditRequest::Sky { shader, all } => {
+                        let from: Vec<String> = match (&bsp, *all) {
+                            (Some(bsp), true) => crate::map_edits::faces::map_skies(bsp),
+                            _ => selection["target"]["shader"]
+                                .as_str()
+                                .map(|s| vec![s.to_owned()])
+                                .unwrap_or_default(),
+                        };
+                        remaps.retain(|r| !from.iter().any(|f| r[0].as_str() == Some(f)));
+                        if shader != "-" {
+                            remaps.extend(from.iter().map(|f| serde_json::json!([f, shader])));
+                        }
+                        Ok(
+                            serde_json::json!({ "ok": true, "lines": [format!("(test) {} skies -> {shader}", from.len())] }),
+                        )
+                    }
+                    EditRequest::Remap { shader } if selection["kind"] == "face" => {
+                        let target = &selection["target"];
+                        let (brush, side) = (
+                            target["brush"].as_u64().unwrap_or(0) as u32,
+                            target["side"].as_u64().unwrap_or(0) as u32,
+                        );
+                        let own = target["shader"].as_str().unwrap_or("");
+                        match bsp
+                            .as_ref()
+                            .and_then(|bsp| crate::map_edits::faces::polygon(bsp, brush, side, own))
+                        {
+                            Some((points, normal)) => {
+                                let uv = crate::map_edits::faces::texture_coordinates(
+                                    &points, normal, None,
+                                );
+                                shown_faces.push(serde_json::json!({
+                                    "id": shown_faces.len() + 1, "points": points,
+                                    "normal": normal, "uv": uv, "shader": shader,
+                                }));
+                                Ok(
+                                    serde_json::json!({ "ok": true, "lines": ["(test) face covered"] }),
+                                )
+                            }
+                            None => Err("no such face".into()),
+                        }
+                    }
                     _ => Err("no game: this is the page's test server".into()),
                 }
             }
@@ -496,10 +544,14 @@ fn serve_the_page_for_a_browser() {
                 "map": map, "checksum": 1, "editor": true, "enabled": true, "scope": "all",
                 "server": null, "revision": 0, "unpublished": false, "edits": [], "current": null,
                 "undo": false, "redo": false, "hidden_props": props, "hidden_surfaces": surfaces,
-                "placed": placed, "remaps": remaps, "faces": [], "selection": selection,
+                "placed": placed, "remaps": remaps, "faces": shown_faces, "selection": selection,
                 "view": view, "things": things, "answer": null, "hub": null,
+                "skies": bsp.as_ref().map(crate::map_edits::faces::map_skies),
             })),
-            GameRequest::Lists => Ok(serde_json::json!({ "models": models, "shaders": shaders })),
+            GameRequest::Lists => {
+                Ok(serde_json::json!({ "models": models, "shaders": shaders, "skies": skies }))
+            }
+
             GameRequest::SetRecent(_) => Err("no game: this is the page's test server".into()),
             GameRequest::Recent => Ok(recent.clone()),
         };

@@ -8695,3 +8695,20 @@ test: Page (mapedit_web): the same on a placed model; the bar sets snap steps an
 test: Page: Shift+click two placed models, R Z 90 Enter: both turn about their middle.
 test: Page: World, your boombox: the gizmo moves it along the floor and turns it.
 note: Mystery boxes and toys have no gizmo (the hub cannot move them). Not tried in game yet.
+
+[mapedit-sky]
+area: Rendering & effects
+title: Map editor: sky sides covered and skies swapped (in game and in the page)
+change: Aim or click on the sky: it selects the sky side behind it (Selected names it Sky).
+change: A texture covers that side (a shown face); a sky shader swaps the map's sky (a remap).
+change: mapedit_sky <sky> [all], or the panel's Swap sky, Swap all skies, Take back.
+note: Publish covered sky sides only once a release has them; older clients skip them.
+test: On ffa3, mapedit, aim at the sky, O: the panel says Sky; skies lead the shader list.
+test: Choose another sky, Swap sky: the whole sky changes at once; Ctrl+Z brings it back.
+test: Choose a wall texture, Cover side: that sky side shows the wall, no sky flickers through.
+test: Fly round under it and look from the side: the cover stays whole, no sky bleeding.
+test: Swap all skies on a map with two sky shaders: both change; one Ctrl+Z restores both.
+test: mapedit_sky - on a swapped sky: the map's sky again; listRemaps names the swap edit.
+test: mapedit_web: click the sky; Swap the sky shows pictures; Swap this sky changes the page.
+test: Page: B, tick sky: blue sky faces; click one, Same plane: the sky round it, no caulk.
+test: Page: Fill on a sky side suggests the walls round it; Fill covers it in the game too.

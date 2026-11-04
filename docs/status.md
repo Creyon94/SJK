@@ -495,6 +495,16 @@ and ffa3 (the cover test agrees with q3map2 on 91 % and 99 % of drawn sides; tim
 the game: the game-thread side (the face pick, the batch edits, the caches) is untested in
 a running client.
 
+Sky round, 04/11/2026, `personal/mapedit-sky`, based on `main` `12023ed9` (Sol's asks:
+"remap skybox faces", "replace a skybox by another skybox"): the sky is selectable in game
+and in the page (its brush's sky side), a texture covers a sky side (`show_face`, drawn over
+the sky's pushed-back depth), and `mapedit_sky` swaps a sky, or every sky of the map, for a
+sky shader as remap edits; the in-game panel's Sky page, the page's sky list with pictures
+and Recent, its sky drawn as swapped, a `sky` brush kind, sky links and Fill. Verified on
+Windows 11: unit tests, the world shots `sky_face_covered` and `sky_swapped` on ffa3 and
+the page in headless Chrome on ffa3 ([map-edits.md](map-edits.md#limits)). Not run in a
+game. Covered sky sides need a release before publishing: older clients skip them.
+
 ## Map editor made easier
 
 28/10/2026, `personal/map-editor-ux`, based on `main` `db63b4f5` (Sol's request: the

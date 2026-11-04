@@ -204,7 +204,7 @@ async function sjkEdit(body) {
 	} catch (e) { /* the next poll */ }
 	sjkRender();
 	// a remap, a shown face or a placed model goes first in the Recent rows
-	if (answer.ok && (body.op === 'remap' || body.op === 'place' || body.op === 'apply_many')) sjkLoadRecent();
+	if (answer.ok && (body.op === 'remap' || body.op === 'sky' || body.op === 'place' || body.op === 'apply_many')) sjkLoadRecent();
 	return answer;
 }
 

@@ -216,6 +216,13 @@ pub(crate) enum EditRequest {
     Scale { factor: f32 },
     /// `mapedit_remap <shader>`, `-` removes the remap.
     Remap { shader: String },
+    /// `mapedit_sky <shader> [all]`: the selected sky (every sky of the map with `all`)
+    /// swapped for sky shader `shader`; `-` puts the map's back.
+    Sky {
+        shader: String,
+        #[serde(default)]
+        all: bool,
+    },
     /// `mapedit_scope all|server`
     Scope { scope: String },
     /// Make placed edit `id` the one Turn, Move and Scale act on.
@@ -323,7 +330,7 @@ impl EditRequest {
             Self::Turn { degrees } => degrees.is_finite(),
             Self::Move { offset } => finite(offset),
             Self::Scale { factor } => factor.is_finite() && *factor > 0.0,
-            Self::Remap { shader } => name_ok(shader),
+            Self::Remap { shader } | Self::Sky { shader, .. } => name_ok(shader),
             Self::Scope { scope } => scope == "all" || scope == "server",
             Self::ApplyMany {
                 faces,
@@ -390,6 +397,13 @@ impl EditRequest {
             Self::Move { offset } => ("mapedit_move", offset.iter().copied().map(number).collect()),
             Self::Scale { factor } => ("mapedit_scale", vec![number(*factor)]),
             Self::Remap { shader } => ("mapedit_remap", vec![shader.clone()]),
+            Self::Sky { shader, all } => {
+                let mut args = vec![shader.clone()];
+                if *all {
+                    args.push("all".into());
+                }
+                ("mapedit_sky", args)
+            }
             Self::Scope { scope } => ("mapedit_scope", vec![scope.clone()]),
             Self::Delete { id } => ("mapedit_delete", vec![id.to_string()]),
             Self::Undo => ("mapedit_undo", vec![]),
@@ -1180,6 +1194,21 @@ mod tests {
         assert!(parse(r#"{"op":"hide","extra":1}"#).is_err());
         assert!(parse(r#"{"op":"remap","shader":"a; quit"}"#).is_err());
         assert!(parse(r#"{"op":"remap","shader":""}"#).is_err());
+        assert_eq!(
+            parse(r#"{"op":"sky","shader":"textures/skies/night"}"#)
+                .unwrap()
+                .command(),
+            Some(("mapedit_sky", vec!["textures/skies/night".to_owned()]))
+        );
+        assert_eq!(
+            parse(r#"{"op":"sky","shader":"-","all":true}"#)
+                .unwrap()
+                .command(),
+            Some(("mapedit_sky", vec!["-".to_owned(), "all".to_owned()]))
+        );
+        assert!(parse(r#"{"op":"sky","shader":"a b"}"#).is_err());
+        assert!(parse(r#"{"op":"sky","shader":"a","all":"yes"}"#).is_err());
+
         assert!(parse(r#"{"op":"scale","factor":0}"#).is_err());
         assert!(parse(r#"{"op":"scale","factor":-1}"#).is_err());
         assert!(parse(r#"{"op":"scope","scope":"everywhere"}"#).is_err());

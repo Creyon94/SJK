@@ -17,6 +17,10 @@ use sjk_bsp::Bsp;
 pub(crate) const LIQUID: usize = Kind::ALL.len();
 /// Its colour (display sRGB).
 const LIQUID_COLOUR: [f32; 3] = [0.25, 0.55, 0.95];
+/// The page's second own kind: the world's sky sides (04/11/2026), which a click selects
+/// to cover with a texture or to swap the sky ([`crate::map_edits::faces`]).
+pub(crate) const SKY: usize = LIQUID + 1;
+const SKY_COLOUR: [f32; 3] = [0.35, 0.80, 0.98];
 /// A side smaller than this (square units) is a bevel or a sliver, as the game's view.
 const MIN_AREA: f32 = 0.5;
 
@@ -78,7 +82,7 @@ fn rounded(point: &[f32; 3]) -> [f64; 3] {
 /// [x, y, z, ...], normal]` (brush and side -1 for a mover's travel box).
 pub(crate) fn brushes_json(bsp: &Bsp) -> Value {
     let mut faces: Vec<Value> = Vec::new();
-    let mut counts = [0usize; LIQUID + 1];
+    let mut counts = [0usize; SKY + 1];
     let mut push =
         |kind: usize, side: Option<(usize, usize)>, points: &[[f32; 3]], normal: [f32; 3]| {
             counts[kind] += 1;
@@ -94,16 +98,27 @@ pub(crate) fn brushes_json(bsp: &Bsp) -> Value {
             let Some(brush) = bsp.brushes().get(brush_index) else {
                 continue;
             };
-            if !is_liquid(brush.content_flags) {
-                continue;
-            }
+            let liquid = is_liquid(brush.content_flags);
             for side in brush.sides.clone() {
+                let sky = bsp
+                    .brush_sides()
+                    .get(side)
+                    .and_then(|side| bsp.shaders().get(side.shader))
+                    .is_some_and(|shader| {
+                        crate::map_edits::faces::is_sky_side(
+                            brush.content_flags,
+                            shader.surface_flags,
+                        )
+                    });
+                if !liquid && !sky {
+                    continue;
+                }
                 let points = bsp.brush_side_polygon(brush_index, side);
                 let corners: Vec<Vec3> = points.iter().copied().map(Vec3::from_array).collect();
                 let normal = bsp.brush_sides()[side].plane;
                 if crate::map_edits::linked::area(&corners) >= MIN_AREA {
                     push(
-                        LIQUID,
+                        if liquid { LIQUID } else { SKY },
                         Some((brush_index, side)),
                         &points,
                         bsp.planes()[normal].normal,
@@ -133,6 +148,14 @@ pub(crate) fn brushes_json(bsp: &Bsp) -> Value {
         "selects": false,
         "count": counts[LIQUID],
     }));
+    kinds.push(json!({
+        "name": "sky",
+        "label": "SKY",
+        "colour": SKY_COLOUR,
+        "mode": 2,
+        "selects": true,
+        "count": counts[SKY],
+    }));
     json!({ "kinds": kinds, "faces": faces })
 }
 
@@ -161,7 +184,7 @@ pub(crate) fn link_json(
         .find(brush, side)
         .filter(|&index| sides.side(index).showable)
         .ok_or_else(|| {
-            format!("Brush {brush} side {side} is not a caulk or nodraw face of this map")
+            format!("Brush {brush} side {side} is not a caulk, nodraw or sky face of this map")
         })?;
     let open = |point: Vec3| open_at(bsp, point);
     let linked = sides.link(start, grow, LINK_LIMIT, &open);
@@ -175,7 +198,7 @@ pub(crate) fn link_json(
                 .iter()
                 .map(|p| rounded(&p.to_array()))
                 .collect();
-            json!({ "brush": face.brush, "side": face.side, "shader": face.shader, "points": points })
+            json!({ "brush": face.brush, "side": face.side, "shader": face.shader, "points": points, "sky": face.sky })
         })
         .collect();
     Ok(json!({
@@ -222,6 +245,42 @@ pub(crate) fn drawn_surfaces(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The brush view lists the sky sides as a kind a click selects, and a link from one
+    /// takes the sky only.
+    #[test]
+    fn the_brush_view_offers_the_sky() {
+        let bsp = crate::map_edits::faces::tests::sky_room();
+        let view = brushes_json(&bsp);
+        let sky = view["kinds"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|kind| kind["name"] == "sky")
+            .expect("a sky kind");
+        assert_eq!(sky["selects"], true);
+        // the lid's six sides; the sky-flagged water is a liquid
+        assert_eq!(sky["count"], 6);
+        let faces: Vec<&Value> = view["faces"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|face| face[0] == SKY)
+            .collect();
+        assert_eq!(faces.len(), 6);
+        let sides = Sides::from_bsp(&bsp);
+        let [_, brush, side, ..] = faces[0].as_array().unwrap().as_slice() else {
+            panic!("a face");
+        };
+        let (brush, side) = (
+            brush.as_u64().unwrap() as u32,
+            side.as_u64().unwrap() as u32,
+        );
+        let linked = link_json(&bsp, &sides, brush, side, Grow::Surface).unwrap();
+        let linked = linked["faces"].as_array().unwrap();
+        assert!(!linked.is_empty());
+        assert!(linked.iter().all(|face| face["sky"] == true));
+    }
 
     /// On retail maps (the GameData folder in `SJK_MAPEDIT_WEB_GAMEDATA`, maps in
     /// `SJK_CAULK_MAPS`, mp/duel6 and mp/ffa3 by default): how long the caches take, and

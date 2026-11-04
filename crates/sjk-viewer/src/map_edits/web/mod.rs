@@ -155,7 +155,9 @@ impl GpuState {
     /// face's shader and a placed model go first in the Recent rows.
     pub(super) fn map_edit_web_remember(&mut self, name: &str, args: &[String]) {
         let used = match (name, args.first()) {
-            ("mapedit_remap", Some(shader)) if shader != "-" => Some((true, shader.clone())),
+            ("mapedit_remap" | "mapedit_sky", Some(shader)) if shader != "-" => {
+                Some((true, shader.clone()))
+            }
             ("mapedit_place", _) => {
                 let current = self.map_edits.editor.current();
                 self.map_edits
@@ -435,14 +437,16 @@ impl GpuState {
                     brush,
                     side,
                     shader,
+                    sky,
                 } => {
-                    // The side's polygon, drawn over the hole it leaves.
+                    // The side's polygon, drawn over the hole it leaves (or over the sky).
                     let points = super::faces::polygon(&self.bsp, brush, side, &shader)
                         .map(|(points, _)| points);
                     (
                         "face",
                         json!({
                             "brush": brush, "side": side, "shader": shader, "points": points,
+                            "sky": sky,
                         }),
                     )
                 }
@@ -483,6 +487,7 @@ impl GpuState {
             "placed": placed,
             "remaps": remaps,
             "faces": faces,
+            "skies": super::faces::map_skies(&self.bsp),
             "selection": selection,
             "view": view,
             "things": self.map_edit_web_things(),
@@ -491,14 +496,113 @@ impl GpuState {
         })
     }
 
-    /// `api/lists`: the models to place and the shaders a remap may draw.
+    /// `api/lists`: the models to place, the shaders a remap may draw and the skies a sky
+    /// swaps for, each with its picture.
     fn map_edit_web_lists(&self) -> Value {
         let Some(vfs) = self.vfs.as_deref() else {
-            return json!({ "models": [], "shaders": [] });
+            return json!({ "models": [], "shaders": [], "skies": [] });
         };
         json!({
             "models": super::panel::placeable_models(vfs),
             "shaders": super::panel::remap_shaders(vfs, &self.shaders),
+            "skies": sky_list(vfs, &self.shaders),
         })
+    }
+}
+
+/// The sky shaders of `catalog` for the page's sky list: each one's name and picture (the
+/// image file of its box's front, `_ft`, else of its first stage; none without either).
+pub(crate) fn sky_list(
+    vfs: &sjk_vfs::VirtualFileSystem,
+    catalog: &sjk_shader::ShaderCatalog,
+) -> Vec<Value> {
+    super::panel::sky_shaders(catalog)
+        .into_iter()
+        .map(|name| {
+            let picture = sky_picture(vfs, catalog, &name);
+            json!({ "name": name, "picture": picture })
+        })
+        .collect()
+}
+
+/// The picture of sky shader `name`: its box's front image (`<box>_ft`), else the image
+/// its first stage draws.
+fn sky_picture(
+    vfs: &sjk_vfs::VirtualFileSystem,
+    catalog: &sjk_shader::ShaderCatalog,
+    name: &str,
+) -> Option<String> {
+    let definition = catalog.get(name)?;
+    let front = definition
+        .sky
+        .as_ref()
+        .and_then(|sky| sky.outer_box.as_deref())
+        .and_then(|prefix| {
+            catalog
+                .resolve_stage_image(vfs, &format!("{prefix}_ft"))
+                .ok()
+                .flatten()
+        });
+    let stage = || {
+        definition
+            .stage_images
+            .iter()
+            .find_map(|image| catalog.resolve_stage_image(vfs, image).ok().flatten())
+    };
+    front.or_else(stage).map(|path| path.as_str().to_owned())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The sky list offers only shaders with `skyParms`, each pictured by its box's front
+    /// image, else by its first stage's, and a sky is told from a texture.
+    #[test]
+    fn the_sky_list_offers_skies_with_their_pictures() {
+        let mut vfs = sjk_vfs::VirtualFileSystem::new();
+        let script = b"textures/skies/night\n{\nskyParms env/night 512 -\n}\n\
+textures/skies/clouds\n{\nskyParms - 256 -\n{\nmap textures/skies/cloudlayer\ntcMod scroll 0.01 0\n}\n}\n\
+textures/skies/fog\n{\nskyParms - 512 -\n}\n\
+textures/a/wall\n{\n{\nmap textures/a/wall\n}\n}\n";
+        vfs.mount_memory(
+            "test",
+            [
+                ("shaders/sky.shader", script.to_vec()),
+                ("env/night_ft.jpg", b"jpg".to_vec()),
+                ("textures/skies/cloudlayer.tga", b"tga".to_vec()),
+                ("textures/a/wall.jpg", b"jpg".to_vec()),
+            ],
+        )
+        .unwrap();
+        let shaders = sjk_shader::ShaderCatalog::load(&vfs).unwrap();
+        let list = sky_list(&vfs, &shaders);
+        let named: Vec<(&str, Option<&str>)> = list
+            .iter()
+            .map(|sky| (sky["name"].as_str().unwrap(), sky["picture"].as_str()))
+            .collect();
+        assert_eq!(
+            named,
+            [
+                (
+                    "textures/skies/clouds",
+                    Some("textures/skies/cloudlayer.tga")
+                ),
+                ("textures/skies/fog", None),
+                ("textures/skies/night", Some("env/night_ft.jpg")),
+            ]
+        );
+        assert!(super::super::editor::is_sky_shader(
+            &shaders,
+            "TEXTURES/SKIES/NIGHT"
+        ));
+        assert!(!super::super::editor::is_sky_shader(
+            &shaders,
+            "textures/a/wall"
+        ));
+        assert!(!super::super::editor::is_sky_shader(
+            &shaders,
+            "textures/a/none"
+        ));
     }
 }

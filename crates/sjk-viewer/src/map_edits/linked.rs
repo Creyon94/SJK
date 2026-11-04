@@ -9,6 +9,9 @@
 //! of it, as q3map2 keeps a side: its polygon, with the parts inside or flush against
 //! the other solid brushes that touch it cut away, keeps some area, and that area lies
 //! in an open leaf of the map (not the solid void around it).
+//!
+//! Sky sides link too (04/11/2026), with sky sides only: a sky face selects the sky round
+//! it, a caulk face the caulk.
 
 use glam::Vec3;
 use sjk_bsp::Bsp;
@@ -54,8 +57,10 @@ pub(crate) struct Side {
     pub(crate) brush: u32,
     pub(crate) side: u32,
     pub(crate) shader: String,
-    /// A side edits may show (caulk, nodraw: [`super::faces`]'s rule).
+    /// A side edits may show (caulk, nodraw, sky: [`super::faces`]'s rule).
     pub(crate) showable: bool,
+    /// A sky side: it links with sky sides only, the others with the others.
+    pub(crate) sky: bool,
     pub(crate) polygon: Vec<Vec3>,
     pub(crate) normal: Vec3,
     pub(crate) distance: f32,
@@ -89,6 +94,7 @@ pub(crate) struct SideIn {
     pub(crate) polygon: Vec<Vec3>,
     pub(crate) shader: String,
     pub(crate) showable: bool,
+    pub(crate) sky: bool,
 }
 
 /// The world's brush sides, found by place.
@@ -129,18 +135,21 @@ impl Sides {
                         let side = bsp.brush_sides().get(side_index)?;
                         let plane = bsp.planes().get(side.plane)?;
                         let shader = bsp.shaders().get(side.shader)?;
-                        let showable = matches!(
-                            crate::brush_view::kinds::Kind::of_face(
-                                brush.content_flags,
-                                shader.surface_flags,
-                                shader.name()
-                            ),
-                            Some(
-                                crate::brush_view::kinds::Kind::Caulk
-                                    | crate::brush_view::kinds::Kind::Solid
-                                    | crate::brush_view::kinds::Kind::Nodraw
-                            )
-                        );
+                        let sky =
+                            super::faces::is_sky_side(brush.content_flags, shader.surface_flags);
+                        let showable = sky
+                            || matches!(
+                                crate::brush_view::kinds::Kind::of_face(
+                                    brush.content_flags,
+                                    shader.surface_flags,
+                                    shader.name()
+                                ),
+                                Some(
+                                    crate::brush_view::kinds::Kind::Caulk
+                                        | crate::brush_view::kinds::Kind::Solid
+                                        | crate::brush_view::kinds::Kind::Nodraw
+                                )
+                            );
                         Some(SideIn {
                             side: side_index as u32,
                             normal: Vec3::from_array(plane.normal),
@@ -152,6 +161,7 @@ impl Sides {
                                 .collect(),
                             shader: shader.name_lossy().into_owned(),
                             showable,
+                            sky,
                         })
                     })
                     .collect();
@@ -199,6 +209,7 @@ impl Sides {
                     side: side.side,
                     shader: side.shader,
                     showable: side.showable,
+                    sky: side.sky,
                     polygon: side.polygon,
                     normal: side.normal,
                     distance: side.distance,
@@ -317,12 +328,14 @@ impl Sides {
         pieces.insert(start, first);
         let mut queue = VecDeque::from([start]);
         let reach = Vec3::splat(EDGE_EPSILON);
+        let sky = self.sides[start].sky;
         'grow: while let Some(current) = queue.pop_front() {
             let face = &self.sides[current];
             for other in self.side_grid.near(face.low - reach, face.high + reach) {
                 let candidate = &self.sides[other];
                 if seen.contains(&other)
                     || !candidate.showable
+                    || candidate.sky != sky
                     || !overlaps(
                         candidate.low,
                         candidate.high,
@@ -583,7 +596,8 @@ pub(crate) mod tests {
                         distance,
                         polygon: ring.map(corner).to_vec(),
                         shader: name.to_owned(),
-                        showable: name.contains("caulk"),
+                        showable: name.contains("caulk") || name.contains("skies"),
+                        sky: name.contains("skies"),
                     }
                 })
                 .collect(),
@@ -663,6 +677,28 @@ pub(crate) mod tests {
         let linked = sides.link(top(&sides, 0), Grow::Plane, 2, OPEN);
         assert_eq!(linked.faces.len(), 2);
         assert!(linked.capped);
+    }
+
+    /// A sky face links the sky round it, never the caulk beside it, and a caulk face
+    /// never the sky.
+    #[test]
+    fn sky_links_with_sky_only() {
+        const SKY: &str = "textures/skies/yavin";
+        // two sky ceilings side by side (tops at z 256), a caulk ceiling beside them
+        let sides = Sides::new(vec![
+            box_brush(0, [0.0, 0.0, 240.0], [64.0, 64.0, 256.0], |_| SKY),
+            box_brush(1, [64.0, 0.0, 240.0], [128.0, 64.0, 256.0], |_| SKY),
+            box_brush(2, [128.0, 0.0, 240.0], [192.0, 64.0, 256.0], |_| CAULK),
+        ]);
+        const BOTTOM: usize = 4;
+        let bottom = |brush: u32| sides.find(brush, brush * 6 + BOTTOM as u32).unwrap();
+        for grow in [Grow::Plane, Grow::Surface] {
+            let linked = sides.link(bottom(0), grow, LINK_LIMIT, OPEN);
+            assert!(linked.faces.contains(&bottom(1)), "{grow:?}");
+            assert!(linked.faces.iter().all(|&i| sides.side(i).sky), "{grow:?}");
+            let linked = sides.link(bottom(2), grow, LINK_LIMIT, OPEN);
+            assert!(linked.faces.iter().all(|&i| !sides.side(i).sky), "{grow:?}");
+        }
     }
 
     #[test]
