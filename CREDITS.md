@@ -748,7 +748,7 @@ merged into SJK
 - #306 long game-chat messages sent whole, as up to four messages split at a word; at the
   merge a draft refused past four pieces stays in the composer.
 
-Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 98 pull requests merged
+Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 108 pull requests merged
 into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AJoFSlash)):
 
 - #114 Tab completes the cfg file argument of `exec`, `execq`, `writeconfig` and `write`
@@ -926,6 +926,17 @@ into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author
 - #342 Ctrl+C copies the chat link under the pointer, after AngeloPapaya's idea.
 - #345 a small or big player ragdolls at their own size (hub report #223, Rollembones).
 - #346 `s_muteEmotesInDuel` silences emote sounds in duels (hub report #234, Groark).
+- #349 fished junk sold to the hub for credits, at most 15 a day (after Sanjisan's Fishing).
+- #350 a fishing bite shown on screen when its sound can't be heard (`cg_fishingBiteCue`).
+- #352 getting on a vehicle ends your emote (hub report #247).
+- #353 nameplate opacity (`cg_nameplateAlpha`).
+- #354 server remaps chosen for each map (`cg_serverRemapsMap`), after Lex's idea.
+- #355 Loadouts on the Shaders tab opens its card again (hub report #245).
+- #357 sharpening (`r_sharpen`, RCAS), after Lex's idea.
+- #358 console aliases (`alias`, `unalias`, `aliases.cfg`), after Lex's idea.
+- #359 profile card and page: no cover for the neutral banner, round corners for a worn one.
+- #360 the whisper recipient on its own line, stepping and picking between whisperers, after
+  Creo's idea.
 
 His Peek work in #199 (closed 24/10/2026, not merged) shaped the Drone toy: a player is
 asked before being peeked, told who watches, and can end it. His #206 (closed 25/10/2026,
@@ -1155,7 +1166,8 @@ co-author), manual slider values (#94), compact chat player actions (#92),
 upright player status icons (#96), footsteps and animation sound cues (#90),
 legacy server pak references (#91), the leader display (#93), client devmap and
 server noclip (#95), drop-in installs and portable storage (#103),
-distributable ZIPs (#104) and actor animation isolation (#112). Sol contributed
+distributable ZIPs (#104) and actor animation isolation (#112). Into SJK, Bishop fixed
+Linux startup after an update (SJK #347, the main-thread stack). Sol contributed
 to JKR before SJK
 ([Sol's JKR pull requests](https://github.com/Bishop-R/JKR/pulls?q=is%3Apr+author%3ASol-Vulpes)).
 
