@@ -98,14 +98,54 @@ should take turns, or the later publish drops the other's edits.
 ## The editor (staff)
 
 `mapedit` turns the editor on for SJK staff (the hub's staff flag), and so does the
-in-game menu's Map editor icon (a staff key's, beside Staff tools), which opens [the
-panel](#the-panel) too. While it is on, the world-note key selects (its outline shows
-what an edit will touch) and opens the panel, never a note; a command without a selection
-acts on what is under the crosshair.
+in-game menu's Map editor icon (a staff key's, beside Staff tools). Bound to a key it is a
+plain toggle (04/11/2026, Sol: "a clean on/off bind"): one press enters the editor, its
+[panel](#the-panel) and its [free camera](#flying-in-the-editor), one press leaves it fully,
+from any state, the panel's keyboard included (the panel hands that key to the editor
+before anything else, unless a search field types the letter). While it is on the panel
+always shows: there is no hidden half-state (before 04/11/2026 Escape or Aim hid the panel
+to aim, with a strip at the top of the screen; both are gone). The world-note key still
+selects what is under the crosshair (Shift with it adds to the selection), never a note;
+a command without a selection acts on what is under the crosshair.
+
+| Key | Does |
+| --- | --- |
+| The key bound to `mapedit` | Leave the editor (or enter it) |
+| Right mouse button, held on the scene | Fly: the mouse looks, the movement keys fly ([below](#flying-in-the-editor)) |
+| Click on the scene | Select what is under the pointer (a grabbed model: put it down) |
+| Shift+click | Add the surface or hidden face under the pointer to the selection, or take it out |
+| World-note key (Shift: add) | Select (add) what is under the crosshair, flying or not |
+| Escape | Take back a gizmo's drag or transform; else put a grabbed model back; else drop the selection; else leave the editor |
+| G, R, T; X, Y, Z; 1, 2, 3; L | The [gizmo](#gizmos)'s, only while the right button is not held |
+| Ctrl+Z, Ctrl+Y | Undo, redo |
+
+### Flying in the editor
+
+In a live game the editor's view is the free camera (`freecam`, `cg_freeCamera`): the
+editor turns it on when it starts and off when it leaves (not when it was on already), the
+body staying at its server position ([map_edits/fly.rs](../crates/sjk-viewer/src/map_edits/fly.rs)).
+As in Blender's and Unreal's editors the pointer stays free for the panel and the scene;
+holding the right mouse button on the scene looks around with the mouse and flies with
+the keys bound to the movement commands (W, A, S, D, Space and C up and down, by default
+binds; AZERTY's Z, Q, S, D the same way), Shift four times faster, the wheel setting the
+speed (by 1.25 a notch, a quarter to eight times; the answer line says it). The flight
+goes at the body's speed times that, whether a walk key halves the move or not
+(`Predictor::set_fake_noclip_boost`, client only). Releasing the button gives the pointer
+back to the panel where it was. While it is held the in-game menu steps aside (its page
+kept, the panel still drawn) so the keys and the mouse reach the game as in play, the talk
+balloon down: only the keys bound to a movement command and the world-note key act, the
+others wait (no chat, weapon, scoreboard or gizmo key mid-flight), the buttons attack
+nothing, and losing the window's focus ends the flight.
+
+The free camera needs the player alive, on foot, out of a duel and not following anyone
+(`fake_noclip_allowed`). When it is refused the editor works from the player's own view
+(the right button then turns and moves the player) and the panel's foot says why in one
+line; the next press of the right button tries again (after a respawn, say). Exploring a
+map without a server walks with its own movement.
 
 | Command | Does |
 | --- | --- |
-| `mapedit [on\|off]` | Turn the editor on or off |
+| `mapedit [on\|off]` | Turn the editor on or off (alone: the other way) |
 | `mapedit_panel` | Open [the panel](#the-panel) (turning the editor on) |
 | `mapedit_hide [group]` | Hide the selected prop or surface (`group`: the whole merged model); on a placed model, remove it |
 | `mapedit_place [model]` | Place an MD3 where you aim, facing you: the path given, or a copy of the selected model |
@@ -116,10 +156,17 @@ acts on what is under the crosshair.
 | `mapedit_set <id> <x y z> <pitch yaw roll> [<sx sy sz>]` | Set a placed model exactly (the [gizmos](#gizmos)' command); repeated in groups of ten (with the scale) it sets several at once, all or none, one step to undo |
 | `mapedit_remap <shader> \| -` | Draw `shader` instead of the selected one; `-` removes that remap edit. On a caulk or nodraw face: draw that face with `shader`, `-` draws it as nothing again (as does `mapedit_hide`). On a sky: a texture covers that side, a sky shader swaps the sky |
 | `mapedit_sky <sky> \| - [all]` | Swap the selected sky for sky shader `sky` (`all`: every sky of the map, without a selection); `-` puts the map's back |
+| `mapedit_link plane\|surface` | The selected caulk, nodraw or sky face and the faces joined to it (Same plane, Connected surface, [as the page's](#the-browser-editor-creator-only-for-now)) become the selection |
+| `mapedit_fill [shader]` | Draw the selected faces with the shader the drawn surfaces round them use (the nearby vote's first), or `shader`; one step to undo |
 | `mapedit_scope [all\|server]` | New edits for all servers (the default) or only this one |
 | `mapedit_list`, `mapedit_delete <id>` | List, remove one |
 | `mapedit_undo`, `mapedit_redo` | Undo the last change to the map's edits (a hide, a placing, a turn, a move, a remap, a delete), or redo it |
 | `mapedit_publish` | Send the map's document to the hub for every SJK player |
+
+With a multiple selection (more than one surface or face), `mapedit_hide` hides its
+surfaces and draws its faces as nothing again, and `mapedit_remap` draws its faces with the
+shader and remaps its surfaces' shaders (`-` takes those edits away), each in one step to
+undo, as the page's batch (`map_edit_many`); Hide whole model takes one surface alone.
 
 Every change is saved to the map's document at once and drawn at once; it reaches other
 players only with `mapedit_publish`, whose answer (published with the hub's revision, or
@@ -133,31 +180,44 @@ version.
 
 The editor's commands as an SJK UI panel (19/10/2026, Sol's request:
 [sjk-ui.md](sjk-ui.md#map-editor) has its look), in
-[panel.rs](../crates/sjk-viewer/src/map_edits/panel.rs). With the editor on, the
-world-note key selects what is under the crosshair and opens the panel, the pointer freed;
-`mapedit` opens it when it turns the editor on, `mapedit_panel` (bindable) at any time. A
-click on the scene left of the panel selects what is under the pointer instead. Escape, or
-Aim, hides it to aim again; a strip at the top of the screen says the editor is on and
-which key edits. While the editor is on a selection never goes stale (a world note's
-waits 20 seconds), until the map changes.
+[panel.rs](../crates/sjk-viewer/src/map_edits/panel.rs). It shows, with the pointer free,
+whenever the editor is on in a world (reopened by itself once a menu, the console or a
+dialog over it closes); `mapedit_panel` (bindable) opens it too. A click on the scene left
+of the panel selects what is under the pointer, Shift+click adds to the selection, the
+right button held flies, Escape backs out one step at a time ([keys](#the-editor-staff)).
+While the editor is on a selection never goes stale (a world note's waits 20 seconds),
+until the map changes.
+
+**Multiple selection** (04/11/2026, the page's in game): Shift+click (or Shift and the
+world-note key) adds the surface or hidden face (caulk, nodraw or sky side) under the
+pointer, or takes it out; a model is selected alone (a Shift+click on one says so), up to
+1024 in all (`world_notes` `toggle_in`). Each one is outlined and shaded as the selection
+is; the panel names the newest ("Hidden face and 11 more"). Hide, Remap (Draw, Cover side),
+Remove remap (Draw nothing) and Fill act on all of them as one step to undo; Same plane and
+Connected replace them with the faces joined to the newest. A gizmo moves one placed model
+at a time in game (the page moves several).
 
 | Page | Offers |
 | --- | --- |
-| Selected | what it is (map prop, placed model, surface, game entity, hidden face: a caulk or nodraw side nearer than any drawn surface, sky: a sky side) with its model and shader; on a sky the skies come first in the list, and its buttons are Swap sky (Cover side when a texture is chosen), Swap all skies and Take back; Hide (Remove for a placed model), Hide whole model (a merged model's surfaces), Place a copy; Draw another shader: a search over the shaders a remap may draw (the world's `textures/` and the map objects' `models/`, shaders and images, never the player models'), opened on the selection's own folder with its own shader chosen, five rows; Remap (or a second click on the chosen row) and Remove remap. A name the list does not know is tried as typed |
-| Place | every MD3 of the game data outside the player models, narrowed by a search, six rows; Place where you aimed (or a second click on the chosen row); the current placed model's Turn left and right (15 degrees), Up and Down (8 units), Left, Right, Away and Closer (8 units along the world axis nearest the view's right and ahead, so steps add up straight), Smaller and Bigger (by 1.1), Grab and Remove. Shift held makes the steps 1 degree, 1 unit and a tenth of the growth |
-| Edits | the map's edits, newest first, named shortly (`3: Placed: crate.md3`, `Hidden surface: floor (1043)`, `Remap: wall -> wall2`, a server's address when for one), those for another server dimmed; choosing a placed model makes it the one Place's buttons move; Delete the chosen one, Undo and Redo |
+| Selected | what it is (map prop, placed model, surface, game entity, hidden face: a caulk or nodraw side nearer than any drawn surface, sky: a sky side) with its model and shader, and how many more are selected; on a sky the skies come first in the list, and its buttons are Swap sky (Cover side when a texture is chosen), Swap all skies and Take back; Hide (Remove for a placed model; Hide all for several), Hide whole model (a merged model's surfaces), Place a copy; on a hidden face or a sky side Same plane, Connected (`mapedit_link`) and Fill (`mapedit_fill`), the shader Fill would draw named under it with its share of the vote ("Fill: yavin/stone_walk (62 % nearby)"); Draw another shader: a search over the shaders a remap may draw (the world's `textures/` and the map objects' `models/`, shaders and images, never the player models'), the Recent rows first, opened on the selection's own folder with its own shader chosen, five rows; Remap (or a second click on the chosen row) and Remove remap. A name the list does not know is tried as typed |
+| Place | every MD3 of the game data outside the player models, the Recent rows first, narrowed by a search, six rows; Place where you aimed (or a second click on the chosen row); the current placed model's Turn left and right (15 degrees), Up and Down (8 units), Left, Right, Away and Closer (8 units along the world axis nearest the view's right and ahead, so steps add up straight), Smaller and Bigger (by 1.1), Grab and Remove. Shift held makes the steps 1 degree, 1 unit and a tenth of the growth |
+| Edits | the map's edits, newest first, eleven rows, named shortly (`3: Placed: crate.md3`, `Hidden surface: floor (1043)`, `Remap: wall -> wall2`, a server's address when for one), those for another server dimmed; choosing a placed model makes it the one Place's buttons move; Delete the chosen one, Undo and Redo; the Recent rows' switch ("Recent: remembered" or off) and Forget recent |
 
 Under them on every page: New edits for All servers or This server, the last command's
 answer (ember when refused; Publish's comes when the hub answers; with nothing to say, a
-failed look at the hub), Publish (gold while the map has edits not published), Aim and
-Editor off. A click on the scene selects what is under the pointer and shows it on
-Selected; on Place it stays there and chooses where Place puts the model. Grab hides the
-panel and the model follows the aim, the wheel turning it; the world-note key puts it
-down and opens the panel again. Keys: Up and Down (along a list too; in a search they
-choose in its list), Tab, Left and Right on the tabs and the scope, Enter acts (in a
-search it places or remaps), Ctrl+Z undoes, Ctrl+Y (or Ctrl+Shift+Z) redoes, Delete on an
-edit deletes it. Each button runs the command the console would (`mapedit_hide`,
-`mapedit_place <model>`, ...), so both stay one editor.
+failed look at the hub), Publish (gold while the map has edits not published) and Editor
+off, then three lines of keys (Right button fly, Click select, Shift+Click add; G R T
+gizmo, Esc back; Ctrl+Z undo and the key bound to `mapedit` to leave; while flying, the
+movement keys, Shift and the wheel), and, when the free camera was refused, why, in ember.
+A click on the scene selects what is under the pointer and shows it on Selected; on Place
+it stays there and chooses where Place puts the model. Grab keeps the panel: the model
+follows the pointer (the crosshair while flying), the wheel turning it, and a click on the
+scene, the world-note key or Put down sets it there; Escape puts it back. Keys: Up and Down
+(along a list too; in a search they choose in its list), Tab, Left and Right on the tabs
+and the scope, Enter acts (in a search it places or remaps), Ctrl+Z undoes, Ctrl+Y (or
+Ctrl+Shift+Z) redoes, Delete on an edit deletes it. Each button runs the command the
+console would (`mapedit_hide`, `mapedit_place <model>`, `mapedit_link surface`,
+`mapedit_fill`, ...), so the console, the panel and the page stay one editor.
 
 ## Gizmos
 
@@ -195,14 +255,16 @@ in the page, Shift+click adds placed models to the multiple selection (each outl
 one `mapedit_set` sets them all. Along an axis, each model scales along its own axis
 nearest it.
 
-In game the gizmo shows while the panel frees the pointer, on the selected placed model,
-else the current one (Place's), and a press on a handle in the scene drags it; G, R and T,
-1, 2, 3 and L are the panel's keys unless a search field types, and while a transform runs
-every key is its own. The keys line at the panel's foot says `G R T gizmo`, and X Y Z,
-Enter and Esc while it transforms; the answer line names the change as it goes (`Move 16.0
-0.0 0.0 (typed 16)`). A transform makes the model the current one and drops the
-selection's outline (it would stay where the model was). In game there is no multiple
-selection, so one model at a time.
+In game the gizmo shows with the panel (flying too), on the selected placed model, else
+the current one (Place's), and a press on a handle in the scene drags it; G, R and T, 1, 2,
+3 and L are the panel's keys unless a search field types or the right button is held (the
+movement keys fly then; S is one of them, which is why scale is T), and while a transform
+runs every key is its own and the right button takes it back instead of flying. The keys
+lines at the panel's foot say `G R T gizmo`, and X Y Z, Enter and Esc while it transforms;
+the answer line names the change as it goes (`Move 16.0 0.0 0.0 (typed 16)`). A transform
+makes the model the current one and drops the selection's outline (it would stay where the
+model was). In game the multiple selection holds surfaces and faces only, so the gizmo
+moves one model at a time.
 
 In the page, the bar at the view's top left has Move, Rotate, Scale, Local and the three
 snapping steps, and the change under way; the controls card lists the keys. Your own
@@ -264,12 +326,13 @@ and side, the remap it is drawn with, and where.
 
 **Recent textures and models** (Sol: "remember in general what textures we recently
 used"): a Recent row at the top of the shader list and of the models list, newest first,
-24 each: the shaders remaps and shown faces drew and the models placed, by the in-game
-editor or the page ([recent.rs](../crates/sjk-viewer/src/map_edits/web/recent.rs)). The
+24 each: the shaders remaps, shown faces and fills drew and the models placed, by the
+in-game editor or the page ([recent.rs](../crates/sjk-viewer/src/map_edits/recent.rs)). The
 game keeps them in `map_edits/web_recent.json` of the SJK config folder, so they outlive
-the page, the game and the server's random port (the page's own storage is per port).
-"Remember recent textures" (both pages) off empties them and keeps them empty until it is
-on again.
+the page, the game and the server's random port (the page's own storage is per port). The
+in-game panel's lists start with the same rows (04/11/2026), each marked Recent, those the
+search keeps. "Remember recent textures" (both pages, and the panel's Edits page) off
+empties them and keeps them empty until it is on again.
 
 **Copy and paste** in the view: Ctrl+C copies the selection, a placed model or a prop
 with its angles and scale, or a surface's or a face's shader (the remap's when one draws
@@ -486,6 +549,15 @@ draws one sky, the map's first (a map with several shows the first one's swap on
   out again, the suggestion names `textures/yavin/stone_walk`, Fill sends one `apply_many`
   with both faces, Connected surface selects 512 faces, Esc clears, a reload keeps the view,
   no script errors. Not tried with the game running.
+- The browser editor's tools in game, the editor's flight and its toggle (04/11/2026):
+  unit tests of the multiple selection (add, take out, a model alone, the limit), the
+  batch split and its single undo step, `mapedit` as a toggle and Escape's order, the
+  flight's speed steps and the keys that fly, the predictor's boost (its speed with and
+  without a walk key), the Recent rows in the panel's lists, the key lines' width and the
+  pages' new controls. The world shot `ingame_link_select_and_fill` on retail ffa3 (below,
+  under Limits). Not tried in a running client: the flight with the real mouse and keys,
+  the free camera's start and end with the editor, the bind leaving from the panel, and
+  Shift+click with a real Shift.
 - The sky (04/11/2026): unit tests (a sky side picked, checked and met on a synthetic map
   while a sky-flagged liquid is refused; the brush view's `sky` kind and a link that takes
   sky only; sky links never reach caulk; the sky list and its pictures; a sky swap as

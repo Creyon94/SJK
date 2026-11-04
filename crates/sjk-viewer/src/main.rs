@@ -2530,7 +2530,9 @@ impl GpuState {
         // The ghost editor's path, under its column (or over play while looking about).
         let ghost_overlay =
             !self.console_covers_frame() && !medal_popup && self.append_ghost_overlay(viewport);
-        if self.game_menu && !self.console_covers_frame() && !medal_popup {
+        // The map editor's panel stays drawn while it flies (the menu stepped aside).
+        let menu_drawn = self.game_menu || self.map_edit_panel_shown();
+        if menu_drawn && !self.console_covers_frame() && !medal_popup {
             self.refresh_game_menu_players();
             let team_sizes = self.live_session.as_ref().map_or([0, 0], |session| {
                 ingame_menu::team_sizes(session.game_state())
@@ -2610,11 +2612,6 @@ impl GpuState {
                 self.in_game_menu.append(view, vertices, font, viewport);
             }
         }
-        // The map editor's strip while its panel is hidden to aim.
-        let map_edit_strip = information_visible
-            && !console_covers_frame
-            && !medal_popup
-            && self.append_map_edit_strip(viewport);
         if scoreboard_visible {
             scoreboard::append_overlay(self, viewport, text_scale * 1.05);
         }
@@ -2737,14 +2734,15 @@ impl GpuState {
             information_visible.then(|| self.hud.draw_list()),
             (chat_visible && !chat_over_trade).then(|| self.chat.draw_list()),
             hud_edit_shown.then(|| self.hud_edit.draw_list()),
-            map_edit_strip.then(|| self.map_edits.strip.0.draw_list()),
             self.ghost
                 .editor
                 .as_deref()
                 .filter(|_| ghost_overlay)
                 .map(|editor| editor.overlay.draw_list()),
             scoreboard_visible.then(|| self.scoreboard.draw_list()),
-            (self.game_menu && !console_covers_frame && !medal_popup)
+            ((self.game_menu || self.map_edit_panel_shown())
+                && !console_covers_frame
+                && !medal_popup)
                 .then(|| self.in_game_menu.draw_list()),
             self.client_menu
                 .as_ref()

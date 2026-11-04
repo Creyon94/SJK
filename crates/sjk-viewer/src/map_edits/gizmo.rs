@@ -1153,6 +1153,13 @@ impl GpuState {
         true
     }
 
+    /// Take back the transform under way, if one is.
+    pub(super) fn map_edit_cancel_transform(&mut self) {
+        if self.map_edits.gizmo.busy() {
+            self.map_edit_gizmo_end(false);
+        }
+    }
+
     /// End the transform under way: put it down with one [`COMMAND`] (`keep`), or back.
     fn map_edit_gizmo_end(&mut self, keep: bool) {
         let gizmo = &mut self.map_edits.gizmo;
@@ -1349,10 +1356,10 @@ impl GpuState {
         true
     }
 
-    /// Build this frame's gizmo while the panel is open, on screen over the scene.
+    /// Build this frame's gizmo while the panel is drawn, on screen over the scene.
     pub(crate) fn map_edit_gizmo_draw(&mut self) {
         self.map_edits.gizmo.list.clear();
-        if !self.map_edit_panel_open() {
+        if !self.map_edit_panel_shown() {
             if self.map_edits.gizmo.busy() {
                 self.map_edit_gizmo_end(false);
             }

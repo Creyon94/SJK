@@ -907,6 +907,11 @@ impl ViewerConsole {
             .collect()
     }
 
+    /// The script bound to key `key` (a bind name, any case), if any.
+    pub(crate) fn key_script(&self, key: &str) -> Option<&str> {
+        self.shell.binds.get(key)
+    }
+
     /// Whether a stock key has an explicit script, before UI fallback handling.
     pub(crate) fn has_key_binding(&self, key: &str) -> bool {
         self.shell
