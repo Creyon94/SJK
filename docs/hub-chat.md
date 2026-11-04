@@ -177,7 +177,8 @@ Old clients ignore all of it, so it stays `/v1/`.
   and muting a
   player ([Muting a player](#blocking-a-player)) hides their lines already there. While
   the composer is open, resting the pointer on a sender's name shows their profile
-  card with Mute or Unmute. Joining a game
+  card with Mute or Unmute, and resting it on a link lets Ctrl+C copy the link
+  ([client.md](client.md#chat-player-actions)). Joining a game
   does not replay the hub's backlog in the feed (the dock and the page show it). A
   refusal (quota, rules) shows as an `SJK chat:` line. Each live message from an unblocked player is
   also kept in the console scrollback with a textual yellow `SJK` tag (the console
@@ -1200,7 +1201,8 @@ The second gap is `s_muteSounds` ([client.md](client.md#muted-sounds)).
   ([Emotes on stock models](rig-models.md#emotes-on-stock-models)); the `sound` plays
   on the player (`emotes::Cue`, channel 13,
   following another player, in both ears for the player's own, at `s_emoteVolume`
-  apart from `s_volume`, live while it plays)
+  apart from `s_volume`, live while it plays, silent in a duel with
+  `s_muteEmotesInDuel`)
   and stops when the emote is cut short; the `torso` and `legs` animations are not
   played yet, and a received emote is written to the console (`* Sol: Wave`). Demos
   keep the emotes started on them.

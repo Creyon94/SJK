@@ -372,7 +372,7 @@ link: Lukas's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+
 
 [Slash]
 github: JoFSlash
-role: Contributor: 94 merged pull requests
+role: Contributor: 98 merged pull requests
 did: #114 Tab completes cfg file names after exec and writeconfig
 did: #113 CTF team saber colours, an option
 did: #153 The SJK scoreboard tells who won the Siege round or team match
@@ -468,6 +468,10 @@ did: #318 Each HUD style shows the vehicle's HP its own way
 did: #336 NPCs with head|torso| skins wear them instead of grey
 did: #338 Empower glow can be hidden (cg_empowerEffect 3)
 did: #339 Switchable and flickering map lights drawn (light styles)
+did: #341 vid_restart force reloads the graphics
+did: #342 Ctrl+C copies a chat link
+did: #345 Ragdolls keep a scaled player's size
+did: #346 Emote sounds muted in duels (s_muteEmotesInDuel)
 did: #278 The Fishing toy: rod, bucket, 12 fish, Echoes on the line
 link: Slash's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AJoFSlash
 

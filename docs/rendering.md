@@ -734,6 +734,9 @@ pop-up card and run by `vid_restart` (see
   cvars changes (their change callbacks call `graphics_reload::notice`); reading
   for that comparison latches nothing (`material_maps::Settings::read`), so the
   material-map and probe notices keep comparing with the running values.
+  `vid_restart force` skips that comparison (`graphics_reload::wanted`): the reload
+  runs with no change too, on a resampled context that reads the same settings, and
+  the console and log name it "forced, no setting changed".
 
 Measured off-screen on an RTX 5080 at 1920x1080 (release build, see
 [status](status.md)): duel6's menu world rebuilt in about 3 s; on a local server

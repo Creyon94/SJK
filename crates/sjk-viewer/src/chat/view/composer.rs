@@ -145,10 +145,18 @@ impl ChatOverlay {
                 alpha,
             );
         }
-        if !self.notice.is_empty() {
+        // A link just copied with Ctrl+C says so a moment (`chat/links.rs`).
+        let copied = self
+            .link_copied_ms
+            .is_some_and(|at| ms.saturating_sub(at) < super::super::links::COPIED_MS);
+        let notice = match self.notice {
+            "" if copied => super::super::links::COPIED_NOTE,
+            notice => notice,
+        };
+        if !notice.is_empty() {
             let notice_y = y + if plain_whisper { 124.0 } else { 94.0 } * g.scale;
             self.ui.text(
-                self.notice,
+                notice,
                 Rect::new(g.left, notice_y, g.width, 20.0 * g.scale),
                 11.0 * g.scale,
                 Color::new(0.832, 0.87, 0.901, 0.93),

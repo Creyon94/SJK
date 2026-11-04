@@ -2622,6 +2622,20 @@ and the GPU render tests of the signatures and lab designs
 (`every_signature_draws_its_blade_and_nothing_at_the_edge`, `blades_seen_as_players_see_them`).
 Not timed again, not tried in a game.
 
+## Emotes muted in duels
+
+03/11/2026, `feat/duel-emote-mute-234`, based on `main` `e9f27a32`, Groark's idea (hub
+report #234). Settings > Sound > Emotes: Mute emotes in duels (`s_muteEmotesInDuel`, off
+by default) puts the emote channel's gain to 0 while the viewed player is in a duel (a
+private duel, `duelInProgress`, or a Duel or Power Duel server, the rule of
+`cg_duelStockBlades`), so emotes already playing go quiet too and one still playing when
+the duel ends is heard again ([rig-models.md](rig-models.md)). Verified on Windows 11:
+unit tests (`emotes_are_silent_in_a_duel_only_with_the_setting`,
+`an_emote_playing_is_silent_in_a_duel_with_the_setting` through the test mixer, a
+snapshot's `duelInProgress` starting and ending the silence; the full `sjk-viewer` release
+suite passes). Not verified with a second
+SJK client.
+
 ## Emotes kept while typing, and silenced when alt-tabbed
 
 23/10/2026, `personal/emote-options`, based on `main` `62a5ac44`, Sol's decisions.

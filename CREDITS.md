@@ -748,7 +748,7 @@ merged into SJK
 - #306 long game-chat messages sent whole, as up to four messages split at a word; at the
   merge a draft refused past four pieces stays in the composer.
 
-Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 94 pull requests merged
+Slash ([JoFSlash](https://github.com/JoFSlash)), contributor, has 98 pull requests merged
 into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AJoFSlash)):
 
 - #114 Tab completes the cfg file argument of `exec`, `execq`, `writeconfig` and `write`
@@ -922,6 +922,10 @@ into SJK ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author
 - #278 the Fishing toy (after Sanjisan's idea): a rod, a bucket with the last catch,
   12 fish, junk and a pond where there is no water; a holocron play drops while fishing
   comes up on the line as an Echo; five achievements.
+- #341 `vid_restart force` reloads the graphics with no setting changed, after Blep's idea.
+- #342 Ctrl+C copies the chat link under the pointer, after AngeloPapaya's idea.
+- #345 a small or big player ragdolls at their own size (hub report #223, Rollembones).
+- #346 `s_muteEmotesInDuel` silences emote sounds in duels (hub report #234, Groark).
 
 His Peek work in #199 (closed 24/10/2026, not merged) shaped the Drone toy: a player is
 asked before being peeked, told who watches, and can end it. His #206 (closed 25/10/2026,
@@ -1069,6 +1073,10 @@ to move with the console open: Sol built Move with console open (`cl_consoleMove
 asked to place the kill feed anywhere: the HUD edit mode now shows a sample kill to drag
 and the feed may stand anywhere on the screen. His idea of a green damage flash on armour
 became Green on shield hits (`cg_hitMarkerShield`).
+
+AngeloPapaya, a player, asked for Ctrl+C on a link in the chat: Slash built it
+(03/11/2026), the link under the pointer lit while the chat is open and copied without its
+colour codes.
 
 ## Testing
 

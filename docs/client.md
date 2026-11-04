@@ -2395,7 +2395,13 @@ works](rendering.md#graphics-reload)):
 
 - `vid_restart` reloads the graphics when one of them changed, as it restarted
   the renderer in the original game (it still reapplies the display settings
-  first).
+  first). `vid_restart force` (Tab completes `force`) reloads them even when none
+  changed, as the original game's `vid_restart` always restarted the renderer: the
+  world is built again on a new graphics context with the same settings, in the
+  same places and under the same limits as a reload with a change. Plain
+  `vid_restart` still skips the reload when nothing changed (it only reapplies the
+  display settings), and the reload card and the FPS help card, which queue it after
+  a change, keep using it.
 - When one of them changed and the player is back on the main menu or the game
   menu (not in Settings, so changing several rows is not interrupted), a pop-up
   card in the SJK UI's look, in every menu style, says what changed ("Vanilla
@@ -3193,6 +3199,19 @@ decision), and there is no View profile either: the card is the profile view (pi
 hub name, key, medals, where they are), while the player card (`inspect`) needs the
 player in sight. The old dropdown (whisper, a per-map ignore, the friend star, copy
 name) stays gone; an existing `chat-friends.txt` is not read.
+
+Copying a link from the chat (03/11/2026, AngeloPapaya's idea;
+[chat/links.rs](../crates/sjk-viewer/src/chat/links.rs)): while the composer is open,
+resting the pointer on a web link in a chat line (a word starting `http://`, `https://`
+or `www.`, its closing punctuation and the colour codes round it left out) lights it as
+a name under the pointer is lit, on every row it wraps onto, and Ctrl+C (or Ctrl+Insert)
+copies the link, without its colour codes, instead of the draft; "Link copied" shows
+under the field for a second and a half. A selection in the draft goes first: with text
+selected there, Ctrl+C copies that as in every field. Off a link Ctrl+C copies the draft
+as before. Game and SJK chat lines alike; a muted line, a find's words and a GIF shown as
+"GIF" have no link to copy (with GIFs off the link shows, and copies, as typed). The chat
+box is the same in SJK UI and classic, so the feature is too. Links are laid out only in
+frames that draw the feed with the composer open, in a fixed array of 32 pieces.
 
 The draft shares the console's UTF-8 caret and selection rules: arrows/Home/End,
 Ctrl+arrows and Ctrl+Backspace/Delete, Shift-selection, Ctrl+A/C/X/V,
@@ -5290,7 +5309,12 @@ every fall ends with the map or the server.
   pushed off balance (back, to a side, the knees buckling), so a running or jumping
   player tumbles on. It falls at `g_gravity`'s 800, slides and bounces a little on the
   world's brushes, and sleeps once it has lain still for a second (or after 40 seconds
-  whatever it does), until a mover stirs it or something strikes it.
+  whatever it does), until a mover stirs it or something strikes it. It is the size the
+  player is drawn (since 03/11/2026, Rollembones's report #223): a player the server made
+  small or big (`iModelScale`, a youngling or a jawa) falls as a body that much smaller
+  or bigger, its points, sticks and boxes scaled about the feet, and the model is drawn
+  at that scale on it, so it lies on the floor as a stock-sized one does (before, the
+  body was stock-sized and the model drawn full size on it).
 - **Its physics** (since 26/10/2026, with the [Monitor](#monitor)): the points weigh what
   the body's parts weigh (the trunk 26 of its 71, a hand 1.2), so the sticks move a hand
   more than the pelvis and a limb flails while the trunk holds its course. A surface
@@ -5359,7 +5383,10 @@ every fall ends with the map or the server.
 - **Everyone sees the same fall:** no pose is ever sent. The faller's client relays
   one start event to each SJK player on the server through the hub's
   [toy relay](hub-chat.md#toy-relay), one every 35 ms: `fall_<moment>_<x>_<y>_<z>_<vx>_<vy>_<vz>_<yaw>`,
-  the game server time it began, the origin, speed (whole units) and yaw (degrees).
+  the game server time it began, the origin, speed (whole units) and yaw (degrees),
+  then `_<scale>` (the percentage, 1 to 1023) for a player not drawn at the stock size
+  (since 03/11/2026; a stock-sized fall reads as before, while clients from before then
+  drop a scaled one).
   Every client runs the same simulation from it, in fixed 16 ms steps of the game
   server's clock (the turn from a table of whole degrees, plain arithmetic, so every
   client gets the same numbers), and a client that hears it late runs the steps it

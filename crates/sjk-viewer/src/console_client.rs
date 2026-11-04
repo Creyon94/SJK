@@ -22,6 +22,8 @@ mod queries;
 mod remaps;
 #[path = "console_restarts.rs"]
 mod restarts;
+/// `vid_restart`'s one argument, for its Tab completion.
+pub(super) use restarts::FORCE as VID_RESTART_FORCE;
 
 /// Completion/help inventory for commands owned by viewer services.
 pub(super) const COMMANDS: &[(&str, &str)] = &[
@@ -293,7 +295,7 @@ pub(super) const COMMANDS: &[(&str, &str)] = &[
     (crate::mimic::COMMAND, crate::mimic::HELP),
     ("colorname", "Apply selected name colors"),
     ("colorstring", "Configure outgoing chat colors"),
-    ("vid_restart", "Reapply video settings (device is retained)"),
+    ("vid_restart", restarts::VID_RESTART_HELP),
     (crate::fps_help::COMMAND, crate::fps_help::HELP),
     (crate::hud_edit::COMMAND, crate::hud_edit::HELP),
     (crate::map_edits::SYNC_COMMAND, crate::map_edits::SYNC_HELP),
@@ -1338,7 +1340,7 @@ impl crate::GpuState {
             crate::saber_colour_command::COMMAND => return self.saber_colour_command(args),
             crate::saber_hilt_command::COMMAND => return self.saber_hilt_command(args),
             "vid_restart" | "snd_restart" | "in_restart" | "modelist" => {
-                return self.restart_command(&name, audio);
+                return self.restart_command(&name, args, audio);
             }
             "ping" | "serverstatus" | "globalservers" | "localservers" | "rcon" | "showip" => {
                 let server = self.live_session.as_ref().map(|session| session.server());
