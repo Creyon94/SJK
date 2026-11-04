@@ -303,7 +303,7 @@ pub(crate) fn draw(canvas: &mut MenuCanvas, frame: &Frame, card: &Card<'_>, toke
         rect: area,
         radius: 18.0 * s,
     });
-    banner::draw(canvas, area, card.summary.banner);
+    banner::draw_rounded(canvas, area, card.summary.banner, 18.0 * s);
     let _ = canvas.draw_list_mut().push(DrawCommand::PopClip);
     if card.lit {
         let _ = canvas.draw_list_mut().push(DrawCommand::Border {

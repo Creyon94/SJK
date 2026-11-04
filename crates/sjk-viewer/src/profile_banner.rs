@@ -85,8 +85,21 @@ pub(crate) fn equipped(profile: Option<&sjk_identity::Profile>) -> &'static str 
 /// Draw a cover in any rectangle, centre-cropping the same 3.6:1 composition.
 /// Art stays behind a readability veil; names and avatar badges are drawn afterwards.
 pub(crate) fn draw(canvas: &mut MenuCanvas, target: Rect, id: &str) {
+    draw_cover(canvas, target, id, None);
+}
+
+/// [`draw`] on a card with rounded corners of `radius` window pixels: the cover's
+/// gradient and veil take the card's corners. The UI renderer cuts only lines to a
+/// rounded clip and rectangles to its bounding rectangle, so without this the cover
+/// squares off the card's corners.
+pub(crate) fn draw_rounded(canvas: &mut MenuCanvas, target: Rect, id: &str, radius: f32) {
+    draw_cover(canvas, target, id, Some(radius));
+}
+
+fn draw_cover(canvas: &mut MenuCanvas, target: Rect, id: &str, corners: Option<f32>) {
     let banner = get(id).unwrap_or(&ALL[0]);
     let scale = (target.width / 720.0).max(target.height / 200.0);
+    let corner = corners.unwrap_or(0.0);
     let x = target.x + (target.width - 720.0 * scale) * 0.5;
     let y = target.y + (target.height - 200.0 * scale) * 0.5;
     let rect = |a: f32, b: f32, w: f32, h: f32| {
@@ -96,7 +109,7 @@ pub(crate) fn draw(canvas: &mut MenuCanvas, target: Rect, id: &str) {
     let list = canvas.draw_list_mut();
     let _ = list.push(DrawCommand::PushRoundedClip {
         rect: target,
-        radius: 8.0 * scale,
+        radius: corners.unwrap_or(8.0 * scale),
     });
     let (top, bottom) = match banner.art {
         Art::Neutral => (0x152237, 0x080D16),
@@ -108,7 +121,7 @@ pub(crate) fn draw(canvas: &mut MenuCanvas, target: Rect, id: &str) {
     };
     let _ = list.push(DrawCommand::GradientRect {
         rect: target,
-        radius: 0.0,
+        radius: corner,
         gradient: Gradient {
             start: rgb(top),
             end: rgb(bottom),
@@ -233,7 +246,7 @@ pub(crate) fn draw(canvas: &mut MenuCanvas, target: Rect, id: &str) {
     }
     let _ = list.push(DrawCommand::GradientRect {
         rect: target,
-        radius: 0.0,
+        radius: corner,
         gradient: Gradient {
             start: Color::new(0.0, 0.0, 0.0, 0.1),
             end: Color::new(0.0, 0.0, 0.0, 0.72),
@@ -284,6 +297,30 @@ mod tests {
                 Some(DrawCommand::PushRoundedClip { .. })
             ));
             assert!(matches!(commands.last(), Some(DrawCommand::PopClip)));
+        }
+    }
+
+    #[test]
+    fn a_rounded_card_rounds_the_cover_gradient_and_veil() {
+        for banner in &ALL {
+            let mut canvas = MenuCanvas::new();
+            let card = Rect::new(0.0, 0.0, 474.0, 96.0);
+            draw_rounded(&mut canvas, card, banner.id, 18.0);
+            let commands = canvas.draw_list().commands();
+            assert!(matches!(
+                commands.first(),
+                Some(DrawCommand::PushRoundedClip { radius, .. }) if *radius == 18.0
+            ));
+            let whole: Vec<f32> = commands
+                .iter()
+                .filter_map(|command| match command {
+                    DrawCommand::GradientRect { rect, radius, .. } if *rect == card => {
+                        Some(*radius)
+                    }
+                    _ => None,
+                })
+                .collect();
+            assert_eq!(whole, [18.0, 18.0], "{}", banner.id);
         }
     }
 }
