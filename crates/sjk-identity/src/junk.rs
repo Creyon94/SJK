@@ -60,7 +60,7 @@ impl JunkStatus {
             .filter_map(|(id, count)| self.prices.get(id).map(|price| (*price, *count)))
             .filter(|(price, count)| *price > 0 && *count > 0)
             .collect();
-        pieces.sort_by(|a, b| b.0.cmp(&a.0));
+        pieces.sort_by_key(|(price, _)| std::cmp::Reverse(*price));
         let mut left = self.left;
         let mut paid = 0;
         for (price, count) in pieces {

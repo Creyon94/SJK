@@ -3281,13 +3281,13 @@ impl Worker {
                 Err(error) => {
                     if crate::junk::unsupported(&error) {
                         snapshot.junk = None;
-                    } else if let HubError::Rejected { code, .. } = &error {
-                        if let Some(status) = snapshot.junk.as_mut() {
-                            match code.as_str() {
-                                "junk_cap" => status.left = 0,
-                                "junk_selling_off" => status.open = false,
-                                _ => {}
-                            }
+                    } else if let HubError::Rejected { code, .. } = &error
+                        && let Some(status) = snapshot.junk.as_mut()
+                    {
+                        match code.as_str() {
+                            "junk_cap" => status.left = 0,
+                            "junk_selling_off" => status.open = false,
+                            _ => {}
                         }
                     }
                     Err(crate::junk::refusal(&error))
