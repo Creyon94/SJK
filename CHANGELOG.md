@@ -32,7 +32,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
-- Fishing: sell your fished junk to the SJK hub for a few credits (at most 15 a day), from the Fishing card in Collection > Toys, or with `fishing_sell`; `fishing_log` prints your whole fish log; once the hub turns it on _(Slash, PR #349, after Sanji's idea; hub: SJK-hub-shared #10)_
+- Fishing: sell your fished junk to the SJK hub for a few credits (at most 15 a day), from the Fishing card in Collection > Toys, or with `fishing_sell`; `fishing_log` prints your whole fish log; once the hub turns it on _(Slash, PR #349, after Sanji's idea)_
 
 ## 2026.1103.2 (Alpha) | 03/11/2026
 
