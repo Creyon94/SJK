@@ -8677,3 +8677,21 @@ test: Shift+click two walls, H: both hidden in page and game; Ctrl+Z brings both
 test: On a caulk face: Same plane, then Connected surface: counts shown, unseen left out.
 test: Fill with the nearby texture: its picture and share; Fill draws them all in the game.
 test: Esc clears the selection; a reload of the page keeps the brush view and its kinds.
+
+[mapedit-gizmo]
+area: Rendering & effects
+title: Map editor gizmos: move, rotate, scale placed models as in Blender (game and page)
+change: Arrows, plane squares, rings and scale arms on the selected (or current) placed model.
+change: G / R / T with the mouse, then X Y Z (twice: own axis), a number, Enter; Esc cancels.
+change: 1 2 3 switch the mode, L own axes; Ctrl snaps, Shift fine. One undo step per drag.
+test: Map editor panel open, select a placed model: the gizmo shows on it, the hovered part gold.
+test: Drag the red arrow: it moves along X only; release, Ctrl+Z: back in one step.
+test: Drag the blue ring with Ctrl: it turns in 15 degree steps; Shift: slowly.
+test: 3, drag a box end: it stretches along that axis only; the centre: all three.
+test: G, X, type 64, Enter: 64 units along X. G, move, Esc: nothing changes.
+test: R, Z, Z, 45, Enter: turned 45 about its own up. L: the arrows follow its own axes.
+test: Typing in the panel's search: G, R, T, 1, 2, 3 go into the field, not the gizmo.
+test: Page (mapedit_web): the same on a placed model; the bar sets snap steps and keeps them.
+test: Page: Shift+click two placed models, R Z 90 Enter: both turn about their middle.
+test: Page: World, your boombox: the gizmo moves it along the floor and turns it.
+note: Mystery boxes and toys have no gizmo (the hub cannot move them). Not tried in game yet.

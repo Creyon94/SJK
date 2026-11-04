@@ -308,6 +308,7 @@ function drawFrame(now) {
 		drawWorldPlain();
 	}
 	drawWorldEnts(now);
+	sjkGizmoPreview();
 	sjkDrawEdits();
 	sjkDrawBrushes();
 	sjkDrawMarks(now);
@@ -317,6 +318,7 @@ function drawFrame(now) {
 	}
 	deferLate = false;
 	sjkDrawSelection(now);
+	sjkDrawGizmo(now);
 }
 
 // ---- mouse and keys on the map

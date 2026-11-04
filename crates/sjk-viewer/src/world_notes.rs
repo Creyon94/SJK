@@ -1365,6 +1365,20 @@ impl Notes {
         (!self.highlight.is_empty()).then_some(&self.highlight)
     }
 
+    /// The last rendered main view for the map editor's gizmo
+    /// ([`crate::map_edits::gizmo`]): its view-projection, eye, forward and the frame's
+    /// size in physical pixels.
+    pub(crate) fn camera_for_gizmo(&self) -> Option<(glam::Mat4, Vec3, Vec3, [f32; 2])> {
+        self.camera.map(|camera| {
+            (
+                glam::Mat4::from_cols_array_2d(&camera.view_projection),
+                Vec3::from_array(camera.camera_position),
+                Vec3::from_array(camera.view_forward).normalize_or_zero(),
+                self.viewport,
+            )
+        })
+    }
+
     /// Save `note` about the confirmed selection into `directory`, returning the
     /// screenshot name to take (without extension; it lands in `screenshots`), a line
     /// for the console and the note for the hub (`None` when the hub would refuse its

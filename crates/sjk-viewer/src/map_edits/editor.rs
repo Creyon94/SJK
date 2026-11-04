@@ -28,6 +28,7 @@ const CHANGES: &[&str] = &[
     "mapedit_grab",
     "mapedit_remap",
     "mapedit_delete",
+    super::gizmo::COMMAND,
 ];
 
 /// The editor's steps on one map: the edits as they were before each change, to undo,
@@ -155,6 +156,7 @@ pub(crate) const COMMANDS: &[(&str, &str)] = &[
         "mapedit_grab",
         "Map editor: the current placed model follows your aim until mapedit_grab again",
     ),
+    (super::gizmo::COMMAND, super::gizmo::HELP),
     (
         "mapedit_remap",
         "Map editor: draw a shader instead of the selected one ('-' removes the remap)",
@@ -293,6 +295,15 @@ impl GpuState {
                 })
             }
             "mapedit_grab" => self.map_edit_grab(),
+            super::gizmo::COMMAND => {
+                // A gizmo's drag or a G, R or T transform: every model at once, one step.
+                let sets = super::gizmo::parse_set(args)?;
+                let line = super::gizmo::set_placed(self.map_edit_document()?, &sets)?;
+                if let [set] = sets.as_slice() {
+                    self.map_edits.editor.current = Some(set.id);
+                }
+                self.map_edit_saved(line)
+            }
             "mapedit_remap" => self.map_edit_remap(args),
             "mapedit_scope" => self.map_edit_scope(args),
             "mapedit_undo" => self.map_edit_step(true),
@@ -1286,6 +1297,66 @@ mod tests {
         )
         .unwrap();
         assert_eq!(document.edits.len(), 6);
+    }
+
+    #[test]
+    fn a_gizmo_set_of_several_models_is_one_step_to_undo() {
+        use super::super::gizmo::{parse_set, set_placed};
+        let words =
+            |text: String| -> Vec<String> { text.split_whitespace().map(str::to_owned).collect() };
+        let mut document = super::super::Document::new("mp/test", 7);
+        let place = |x: f32| Kind::Place {
+            model: "models/map_objects/a.md3".into(),
+            origin: [x, 0.0, 0.0],
+            angles: [0.0; 3],
+            scale: [1.0; 3],
+        };
+        let a = document.add(place(0.0), None);
+        let b = document.add(place(100.0), None);
+        let hidden = document.add(
+            Kind::HideSurface {
+                surface: 1,
+                shader: "textures/a/b".into(),
+            },
+            None,
+        );
+        let mut history = History::default();
+        let before = document.edits.clone();
+        let sets = parse_set(&words(format!(
+            "{a} 0 0 8 0 90 0 1 1 2 {b} 100 0 8 0 90 0 1 1 2"
+        )))
+        .unwrap();
+        assert_eq!(
+            set_placed(&mut document, &sets).unwrap(),
+            "2 placed models set"
+        );
+        history.changed(before.clone());
+        assert_eq!(history.undo.len(), 1, "one step for both");
+        for id in [a, b] {
+            let edit = document.edits.iter().find(|e| e.id == id).unwrap();
+            let Kind::Place {
+                origin,
+                angles,
+                scale,
+                ..
+            } = &edit.kind
+            else {
+                panic!("not placed")
+            };
+            assert_eq!(origin[2], 8.0);
+            assert_eq!(angles[1], 90.0);
+            assert_eq!(*scale, [1.0, 1.0, 2.0]);
+        }
+        assert!(document.unpublished);
+        assert_eq!(history.undo.pop().unwrap(), before);
+        // All or none: a hidden surface is not a placed model, so nothing moves.
+        let now = document.edits.clone();
+        let wrong = parse_set(&words(format!(
+            "{a} 5 5 5 0 0 0 1 1 1 {hidden} 1 1 1 0 0 0 1 1 1"
+        )))
+        .unwrap();
+        assert!(set_placed(&mut document, &wrong).is_err());
+        assert_eq!(document.edits, now);
     }
 
     #[test]

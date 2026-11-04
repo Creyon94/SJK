@@ -180,6 +180,8 @@ function sjkItemOf(sel) {
 	if (!t) return null;
 	if (sel.kind === 'surface') return { key: 's' + t.surface, kind: 'surface', surface: t.surface, shader: t.shader };
 	if (sel.kind === 'face') return { key: 'f' + t.brush + '/' + t.side, kind: 'face', brush: t.brush, side: t.side, shader: t.shader, points: t.points || [] };
+	// placed models join a set for the gizmo (gizmo.js), which moves them together
+	if (sel.kind === 'placed' && t.placed !== null && t.placed !== undefined) return { key: 'p' + t.placed, kind: 'placed', placed: t.placed };
 	return null;
 }
 const sjkSelKey = sel => sel ? sel.kind + JSON.stringify([sel.target && sel.target.surface, sel.target && sel.target.brush, sel.target && sel.target.side, sel.target && sel.target.entity, sel.target && sel.target.placed]) : '';
@@ -211,7 +213,7 @@ async function sjkSelectClick(ray, adding) {
 	const s = sjk.state, item = sjkItemOf(s && s.selection);
 	sjk.selKey = sjkSelKey(s && s.selection);
 	if (!adding) sjk.multi = item ? [item] : [];
-	else if (!answer.ok || !item) toast(answer.ok ? 'Only surfaces and hidden faces join a multiple selection' : answer.error || 'Nothing there', false);
+	else if (!answer.ok || !item) toast(answer.ok ? 'Only surfaces, hidden faces and placed models join a multiple selection' : answer.error || 'Nothing there', false);
 	else {
 		if (before && before.key !== item.key) sjk.multi = [before];
 		const at = sjk.multi.findIndex(m => m.key === item.key);

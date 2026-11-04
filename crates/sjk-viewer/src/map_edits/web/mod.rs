@@ -250,6 +250,11 @@ impl GpuState {
                 *escort,
             ),
             EditRequest::RemoveThing { thing, id } => self.map_edit_web_remove_thing(*thing, *id),
+            // Only the boombox (the request refuses the others): stood again where the
+            // page's gizmo put it, on the floor under that.
+            EditRequest::SetThing { origin, yaw, .. } => self
+                .place_boombox_at(Vec3::from_array(*origin), yaw.rem_euclid(360.0))
+                .map(|line| vec![line]),
             _ => self.map_edit_web_command(edit),
         };
         let reply = match &result {

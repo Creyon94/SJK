@@ -24,6 +24,7 @@
 pub(crate) mod document;
 pub(crate) mod editor;
 pub(crate) mod faces;
+pub(crate) mod gizmo;
 pub(crate) mod linked;
 pub(crate) mod nearby;
 pub(crate) mod panel;
@@ -88,6 +89,8 @@ pub(crate) struct State {
     pub(crate) web_recent: Option<web::recent::Recent>,
     /// The browser editor's brush faces, linked caulk and nearby shaders, per map.
     pub(crate) web_cache: web::Cache,
+    /// The in-game transform gizmo ([`gizmo`]).
+    pub(crate) gizmo: gizmo::Gizmo,
 }
 
 /// Finding the loaded map's document.

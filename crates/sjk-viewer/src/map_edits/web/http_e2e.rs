@@ -445,6 +445,32 @@ fn serve_the_page_for_a_browser() {
                         selection = serde_json::Value::Null;
                         Ok(serde_json::json!({ "ok": true, "lines": ["Nothing selected"] }))
                     }
+                    // A gizmo's drag put down: the placed models where it says, as
+                    // `mapedit_set` puts them.
+                    EditRequest::Set { edits } => {
+                        for set in edits {
+                            if let Some(p) = placed.iter_mut().find(|p| p["id"] == set.id) {
+                                p["origin"] = serde_json::json!(set.origin);
+                                p["angles"] = serde_json::json!(set.angles);
+                                p["scale"] = serde_json::json!(set.scale);
+                            }
+                        }
+                        Ok(serde_json::json!({
+                            "ok": true, "lines": [format!("(test) {} placed models set", edits.len())],
+                        }))
+                    }
+                    EditRequest::SetThing { origin, yaw, .. } => {
+                        if let Some(list) = things["list"].as_array_mut()
+                            && let Some(boombox) = list.iter_mut().find(|t| t["thing"] == "boombox")
+                        {
+                            boombox["origin"] = serde_json::json!(origin);
+                            boombox["parts"][0]["origin"] = serde_json::json!(origin);
+                            boombox["parts"][0]["angles"] = serde_json::json!([0.0, yaw, 0.0]);
+                        }
+                        Ok(
+                            serde_json::json!({ "ok": true, "lines": ["(test) boombox stood again"] }),
+                        )
+                    }
                     EditRequest::ApplyMany { faces, .. } => Ok(serde_json::json!({
                         "ok": true, "lines": [format!("(test) {} faces filled", faces.len())],
                     })),

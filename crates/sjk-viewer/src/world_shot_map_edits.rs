@@ -207,6 +207,101 @@ fn duel6_map_editor_panel() {
     });
 }
 
+/// The map editor's gizmo over duel6 ([`crate::map_edits::gizmo`]): a placed model
+/// current on Place with its move, rotate and scale handles, then a drag on its X arrow
+/// half-way (the model previewed 40 units along X), and the release (refused here: a shot
+/// is not staff, so the model goes back).
+#[test]
+#[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+fn duel6_map_editor_gizmo() {
+    use crate::map_edits::gizmo::Mode;
+    use sjk_ui::{InputEvent, PointerButton};
+    on_big_stack(|| {
+        let Some((mut gpu, _profile)) = open("maps/mp/duel6.bsp", [1920, 1080], None, &[]) else {
+            return;
+        };
+        let (spawn, _) = assets::initial_camera(&gpu.bsp).expect("a spawn point");
+        let spawn = Vec3::from_array(spawn);
+        let (_, prop) = crate::static_models::spawns(&gpu.bsp)
+            .into_iter()
+            .min_by(|(_, a), (_, b)| {
+                let distance =
+                    |s: &crate::static_models::Spawn| Vec3::from_array(s.origin).distance(spawn);
+                distance(a).total_cmp(&distance(b))
+            })
+            .expect("duel6 places props");
+        let placed_at = Vec3::from_array(prop.origin) + Vec3::new(0.0, 96.0, 0.0);
+        let camera = placed_at + Vec3::new(-260.0, -200.0, 150.0);
+        let (yaw, pitch) = look(camera.to_array(), (placed_at + Vec3::Z * 24.0).to_array());
+        aim(&mut gpu, camera.to_array(), yaw, pitch);
+        if let Some(console) = gpu.console.as_mut() {
+            console.close_for_connection();
+        }
+        let _ = frame(&mut gpu, 40);
+        let mut document = Document::new("mp/duel6", 1);
+        let id = document.add(
+            Kind::Place {
+                model: prop.model.clone(),
+                origin: placed_at.to_array(),
+                angles: [0.0, 30.0, 0.0],
+                scale: [1.0; 3],
+            },
+            None,
+        );
+        gpu.shot_map_edits(Some(document));
+        let _ = frame(&mut gpu, 10);
+        gpu.map_edits.editor.set_current(id);
+        gpu.shot_map_edit_panel(Tab::Place, None);
+        // The gizmo on the current placed model rather than on what the crosshair met.
+        gpu.world_notes.cancel_selection();
+        let mut shots = Vec::new();
+        for (mode, name) in [
+            (Mode::Move, "map-editor-gizmo-move"),
+            (Mode::Rotate, "map-editor-gizmo-rotate"),
+            (Mode::Scale, "map-editor-gizmo-scale"),
+        ] {
+            gpu.map_edits.gizmo.mode = mode;
+            shots.push(shoot(&mut gpu, 6, name));
+            assert!(
+                gpu.map_edits.gizmo.list().is_some(),
+                "{name}: the gizmo is drawn"
+            );
+        }
+        gpu.map_edits.gizmo.mode = Mode::Move;
+        let _ = frame(&mut gpu, 2);
+        let [from, to] = gpu
+            .shot_gizmo_arrow(40.0)
+            .expect("the X arrow on the screen");
+        gpu.map_edit_pointer(InputEvent::PointerMove(from));
+        gpu.map_edit_pointer(InputEvent::PointerPress {
+            position: from,
+            button: PointerButton::Primary,
+        });
+        for step in 1..=8 {
+            let t = step as f32 / 8.0;
+            gpu.map_edit_pointer(InputEvent::PointerMove(sjk_ui::Vec2::new(
+                from.x + (to.x - from.x) * t,
+                from.y + (to.y - from.y) * t,
+            )));
+        }
+        let moved = gpu.shot_placed_origin(id).expect("the placed model") - placed_at;
+        println!("dragged by {moved:?}: {}", gpu.map_edits.panel.status);
+        assert!(
+            (moved.x - 40.0).abs() < 1.0 && moved.y.abs() < 0.5 && moved.z.abs() < 0.5,
+            "the preview follows the X arrow: {moved:?}"
+        );
+        shots.push(shoot(&mut gpu, 4, "map-editor-gizmo-drag"));
+        gpu.map_edit_pointer(InputEvent::PointerRelease {
+            position: to,
+            button: PointerButton::Primary,
+        });
+        println!("released: {}", gpu.map_edits.panel.status);
+        for shot in shots {
+            println!("{}", shot.display());
+        }
+    });
+}
+
 /// A caulk face drawn by an edit (`Kind::ShowFace`): the first caulk side of `SJK_FACE_MAP`
 /// (default duel6) with open space in front and no drawn surface over it, seen from 96
 /// units out without edits, selected (the panel's Hidden face page), drawn with a wall

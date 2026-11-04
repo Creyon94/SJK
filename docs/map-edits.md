@@ -87,6 +87,7 @@ acts on what is under the crosshair.
 | `mapedit_move <up> \| <x y z>` | Move it |
 | `mapedit_scale <factor>` | Scale it (0.01 to 64 times) |
 | `mapedit_grab` | It follows your aim until `mapedit_grab` again; meanwhile the mouse wheel turns it (15 degrees a notch, 1 with Shift) instead of changing weapon |
+| `mapedit_set <id> <x y z> <pitch yaw roll> [<sx sy sz>]` | Set a placed model exactly (the [gizmos](#gizmos)' command); repeated in groups of ten (with the scale) it sets several at once, all or none, one step to undo |
 | `mapedit_remap <shader> \| -` | Draw `shader` instead of the selected one; `-` removes that remap edit. On a caulk or nodraw face: draw that face with `shader`, `-` draws it as nothing again (as does `mapedit_hide`) |
 | `mapedit_scope [all\|server]` | New edits for all servers (the default) or only this one |
 | `mapedit_list`, `mapedit_delete <id>` | List, remove one |
@@ -130,6 +131,60 @@ choose in its list), Tab, Left and Right on the tabs and the scope, Enter acts (
 search it places or remaps), Ctrl+Z undoes, Ctrl+Y (or Ctrl+Shift+Z) redoes, Delete on an
 edit deletes it. Each button runs the command the console would (`mapedit_hide`,
 `mapedit_place <model>`, ...), so both stay one editor.
+
+## Gizmos
+
+Blender's transform handles for placed models, in game and in the browser editor (Sol,
+04/11/2026: "add gizmos on the web/ingame to move on an axis the selection or rotate it,
+scale it, the classic stuff like in Blender";
+[gizmo.rs](../crates/sjk-viewer/src/map_edits/gizmo.rs), the page's `sjk/gizmo.js` with
+the same maths):
+
+| Mode | Handles |
+| --- | --- |
+| Move | an arrow per axis (X red, Y green, Z blue), a square per plane (the colour of the axis it leaves out), the centre circle in the view's plane |
+| Rotate | a ring about each axis (pitch, yaw and roll as JA's angles come out of it), and a white ring about the view's axis |
+| Scale | an arm with a box end along each of the model's own axes (a placed edit keeps a scale per axis), the centre circle for all three |
+
+The axes are the world's, or the model's own (Local, L); scale is always along the
+model's own. A drag on a handle previews the change on the model only; the release sends
+`mapedit_set` once with the exact origin, angles and scale: one step to undo and one write
+of the document per drag, whatever the mouse did. Ctrl held snaps (8 units, 15 degrees, a
+tenth of scale; the page's bar sets the steps, its browser keeps them), Shift makes the
+drag fine (a tenth). The gizmo is drawn over everything, the same size on screen at any
+distance, the handle under the pointer gold.
+
+Keys, as Blender's where the editors leave them free: G moves, R rotates and T scales with
+the mouse from where it is (S flies back in the page, so T; Blender's W, E, R would take
+the page's W and E too); then X, Y or Z keeps to the world's axis, the same key again to
+the model's own, a third time to none; Shift with it keeps to the plane without that axis;
+a number typed (`-` flips it, Backspace takes a digit back) sets the amount: units, degrees
+or a factor (with no axis: along X, about the view's axis, on all three); Enter (or Space,
+or a click) puts it down, Esc or a right click takes it back. 1, 2 and 3 choose the
+gizmo's mode, L the axes.
+
+Several placed models move, turn and scale together about the middle of their origins:
+in the page, Shift+click adds placed models to the multiple selection (each outlined), and
+one `mapedit_set` sets them all. Along an axis, each model scales along its own axis
+nearest it.
+
+In game the gizmo shows while the panel frees the pointer, on the selected placed model,
+else the current one (Place's), and a press on a handle in the scene drags it; G, R and T,
+1, 2, 3 and L are the panel's keys unless a search field types, and while a transform runs
+every key is its own. The keys line at the panel's foot says `G R T gizmo`, and X Y Z,
+Enter and Esc while it transforms; the answer line names the change as it goes (`Move 16.0
+0.0 0.0 (typed 16)`). A transform makes the model the current one and drops the
+selection's outline (it would stay where the model was). In game there is no multiple
+selection, so one model at a time.
+
+In the page, the bar at the view's top left has Move, Rotate, Scale, Local and the three
+snapping steps, and the change under way; the controls card lists the keys. Your own
+boombox chosen on World gets the gizmo too, along the floor and about Z only: the end
+stands it again there (`set_thing`, `place_boombox_at`, which puts it on the floor under
+that spot), as Your boombox's click does. Mystery boxes and Toy Master toys get none: the
+hub places and removes them but has no move, and a remove and a place would make another
+box (a new id, its opened state and grand finds' records lost) or another toy (its
+escort and hidden show started again).
 
 ## The browser editor (creator only for now)
 
@@ -295,7 +350,7 @@ game data, by a path the game data accepts (no `..`, no absolute path):
 | `GET api/list?kind=dir&dir=&ext=` | the folders and files of a folder, as VisionJK's |
 | `GET api/edits` | the game's state (above) |
 | `GET api/lists` | the models to place and the shaders a remap may draw |
-| `POST api/edit` | `{"op": "select"\|"clear"\|"hide"\|"place"\|"turn"\|"move"\|"scale"\|"remap"\|"scope"\|"current"\|"delete"\|"undo"\|"redo"\|"publish"\|"place_thing"\|"remove_thing"\|"apply_many"\|"hide_many", ...}` |
+| `POST api/edit` | `{"op": "select"\|"clear"\|"hide"\|"place"\|"turn"\|"move"\|"scale"\|"remap"\|"scope"\|"current"\|"delete"\|"undo"\|"redo"\|"publish"\|"place_thing"\|"remove_thing"\|"apply_many"\|"hide_many"\|"set"\|"set_thing", ...}` |
 | `GET api/recent` | `{"remember", "shaders", "models"}`: the Recent rows |
 | `POST api/recent` | `{"op": "remember", "on": bool}` or `{"op": "clear"}` |
 | `GET api/brushes` | `{"kinds": [{name, label, colour, mode, selects, count}], "faces": [[kind, brush, side, [x, y, z, ...], normal]]}` |
@@ -310,11 +365,13 @@ hub's toy kinds. `place_thing` takes `thing` (`boombox`, `mystery_box`, `toy`), 
 the boombox). `select` may name `face` (`[brush, side]`, the brush view's face); `apply_many`
 takes `faces` (`[brush, side]` each), `surfaces` and `shader` (`-` takes their face and remap
 edits away), `hide_many` `faces` and `surfaces`, 1024 at most in all. The game checks each
-face again (a caulk or nodraw side of a world brush) and each shader as a remap's.
+face again (a caulk or nodraw side of a world brush) and each shader as a remap's. `set` (a
+gizmo's drag) takes `edits`, each `{id, origin, angles, scale}`, 256 at most, and runs
+`mapedit_set` with them; `set_thing` takes `thing` (`boombox` only), `origin` and `yaw`.
 
 Not yet: the map's own and the server's remaps are not drawn in the page (only remap
 edits); a mover is drawn where the map file has it; Grab has no page version; a box or a
-toy cannot be moved (the hub has no move); a toy's show and a box's opening are not
+toy cannot be moved, so has no gizmo (the hub has no move); a toy's show and a box's opening are not
 played in the page (drawn at rest). The brush view draws no labelled tiles; a click selects
 caulk and nodraw faces only (a clip or trigger is not an edit). Linked caulk's "seen" is a
 cover and open-leaf test: a face in an open place players cannot reach (between a caulk
@@ -358,6 +415,21 @@ counts as unseen. The vote looks at drawn surfaces only, not at what edits draw.
   Recent rows, the World list, a copy, and pastes sent as a place and a remap. Not tried
   with the game running: the game-thread side (the selection's details, the things'
   placing and removal, the Recent rows' recording) is untested in a running client.
+- The gizmos (04/11/2026): unit tests of the maths (JA's axes against the engine's own
+  rotation and back to angles, a ray against an axis and a plane, an arm, a square and a
+  ring dragged on a made-up view with snapping and fine, local against world axes, G, R
+  and T with X, Y, Z, typed numbers and their cancel, two models turned and scaled about
+  their middle), of `mapedit_set` (its groups, all or none, two models in one step to
+  undo), of the `set` and `set_thing` requests, and the key lines' width. In headless
+  Chrome on duel6 (`SJK_MAPEDIT_WEB_SELECT=placed`; the fake game applies `set`): the gizmo
+  drawn on the selected model, the X arrow hovered and dragged 40 units with a preview and
+  one `set` at the release, G X 16 Enter, Esc taking a move back with nothing sent, R Z 90,
+  T 2, a ring drag, two models moved together in one `set`, the boombox's G X 32 as one
+  `set_thing` and T refused on it, no script errors. The world shot `duel6_map_editor_gizmo`
+  draws the in-game gizmo of each mode on a placed model and drags its X arrow with pointer
+  events (the preview 40 units along X; the release is refused there, a shot is not
+  staff). Not tried in a running client: the keys and the drag with the real pointer, and
+  `mapedit_set` from a real drag.
 - Its third round (03/11/2026): unit tests of linking (a caulk floor of three brushes, a
   crate on it, a top buried under a lid, a floor two units lower: same plane takes the three
   tops and leaves the buried one out, connected surface goes down the step; the limit; the

@@ -787,16 +787,30 @@ fn keys(ui: &mut MenuCanvas, frame: &Frame, panel: &Panel) {
         ]
     };
     hint_line(ui, frame, right, KEYS_Y, first);
-    let second: &[Hint<'_>] = if panel.tab == Tab::Place {
+    hint_line(ui, frame, right, KEYS_Y + KEYS_PITCH, second_keys(panel));
+}
+
+/// The second line of keys: the gizmo's while it transforms ([`super::gizmo`]).
+fn second_keys(panel: &Panel) -> &'static [Hint<'static>] {
+    if panel.transforming {
         &[
-            (&["Click"], "a spot"),
-            (&["Shift"], "fine steps"),
+            (&["X", "Y", "Z"], "axis"),
+            (&["Enter"], "done"),
+            (&["Esc"], "cancel"),
+        ]
+    } else if panel.tab == Tab::Place {
+        &[
+            (&["Shift"], "fine"),
+            (&["G", "R", "T"], "gizmo"),
             (&["Esc"], "aim"),
         ]
     } else {
-        &[(&["Click"], "the scene selects"), (&["Esc"], "aim")]
-    };
-    hint_line(ui, frame, right, KEYS_Y + KEYS_PITCH, second);
+        &[
+            (&["Click"], "selects"),
+            (&["G", "R", "T"], "gizmo"),
+            (&["Esc"], "aim"),
+        ]
+    }
 }
 
 /// The strip's canvas, kept for the session.
@@ -1102,6 +1116,26 @@ mod tests {
         assert_eq!(panel.edit_first, 2);
         assert!(visited.contains(&DELETE) && visited.contains(&PUBLISH));
         assert_eq!(visited.last(), Some(&EDITOR_OFF));
+    }
+
+    #[test]
+    fn the_key_lines_fit_the_column() {
+        let width = |hints: &[Hint<'_>]| {
+            hints
+                .iter()
+                .map(|(caps, action)| key_hint_width(caps, action, 1.0))
+                .sum::<f32>()
+                + 20.0 * hints.len().saturating_sub(1) as f32
+        };
+        for tab in [Tab::Selected, Tab::Place, Tab::Edits] {
+            for transforming in [false, true] {
+                let mut panel = Panel::default();
+                panel.tab = tab;
+                panel.transforming = transforming;
+                let line = width(second_keys(&panel));
+                assert!(line <= COLUMN_WIDTH, "{tab:?} {transforming}: {line}");
+            }
+        }
     }
 
     #[test]

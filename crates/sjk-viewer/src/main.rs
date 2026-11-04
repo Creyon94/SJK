@@ -2698,6 +2698,7 @@ impl GpuState {
         // the menus, never input-taking.
         let unlock_toast = self.append_unlock_toast(viewport, console_covers_frame || medal_popup);
         self.world_notes.draw_highlight(viewport);
+        self.map_edit_gizmo_draw();
         // The menu camera tour's fades, over the menu world only.
         let world_fade = menu_backdrop::standalone_menu_visible(self)
             && self
@@ -2711,6 +2712,7 @@ impl GpuState {
                 .map(menu::ClientMenu::world_fade),
             self.world_notes.fill(),
             self.world_notes.highlight(),
+            self.map_edits.gizmo.list(),
             self.entity_view.active().then(|| self.entity_view.list()),
             Some(&self.world_pings.list),
             Some(&self.drone.list),

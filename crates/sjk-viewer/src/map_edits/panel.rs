@@ -244,6 +244,8 @@ pub(crate) struct Panel {
     /// What [`Facts`] were read for: the document's revision, the current placed model,
     /// grabbing, and whether the map's checksum was known.
     seen: Option<(u64, Option<u32>, bool, bool)>,
+    /// The gizmo transforms the placed model: the keys line names its keys.
+    pub(crate) transforming: bool,
 }
 
 /// Whether `path` (the game data's spelling) is a model a map edit can place: an MD3
@@ -896,6 +898,10 @@ impl GpuState {
         if !self.map_edit_panel_open() {
             return false;
         }
+        // The gizmo's keys (1, 2, 3, L, G, R, T; all of them while it transforms).
+        if self.map_edit_gizmo_key(event) {
+            return true;
+        }
         let (shift, control) = self.console.as_ref().map_or((false, false), |console| {
             (console.shift_held(), console.control_held())
         });
@@ -912,6 +918,10 @@ impl GpuState {
     /// A pointer event while the panel is open: the column's, or a press on the scene,
     /// which selects what is under the pointer.
     pub(crate) fn map_edit_pointer(&mut self, event: InputEvent) {
+        // A press on the gizmo's handles, and its drags, are the gizmo's.
+        if self.map_edit_gizmo_pointer(event) {
+            return;
+        }
         if let InputEvent::PointerPress {
             position,
             button: PointerButton::Primary,
