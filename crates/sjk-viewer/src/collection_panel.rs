@@ -2026,8 +2026,17 @@ impl Panel {
                             .ui
                             .rect_for(SABER_TOKEN)
                             .is_some_and(|rect| rect.contains(at))
-                        // The target switch over the saber is pressed, not the saber.
-                        && ![TARGET_FIRST_TOKEN, TARGET_SECOND_TOKEN, BOTH_TOKEN].iter().any(|token| {
+                        // The target switch over the saber is pressed, not the saber, and
+                        // so is the Loadouts button in the room's top right corner (hub
+                        // report #245: the stage took its clicks).
+                        && ![
+                            TARGET_FIRST_TOKEN,
+                            TARGET_SECOND_TOKEN,
+                            BOTH_TOKEN,
+                            loadouts::OPEN_TOKEN,
+                        ]
+                        .iter()
+                        .any(|token| {
                             self.ui.rect_for(*token).is_some_and(|rect| rect.contains(at))
                         }) =>
                 {
@@ -3991,5 +4000,65 @@ hilt 1
             action
         };
         assert_eq!(click(0), PanelAction::None);
+    }
+    /// Hub report #245: a click on the Loadouts button opens the card, as P does, on
+    /// every tab that offers it.
+    #[test]
+    fn a_click_on_the_loadouts_button_opens_the_card() {
+        // Every blade skin held: the wall is as full as it gets.
+        let owned: Vec<Unlock> = unlockables::blade_skins()
+            .map(|skin| Unlock {
+                id: skin.id.into(),
+                ..sun()
+            })
+            .collect();
+        let fonts = crate::text::load_modern(1.0, None).expect("Inter");
+        for tab in [Tab::Shaders, Tab::Tags, Tab::Nameplates] {
+            for grid in [false, true] {
+                for (size, stage) in [[1920.0, 1080.0], [1280.0, 720.0], [2560.0, 1440.0]]
+                    .into_iter()
+                    .flat_map(|size| {
+                        [
+                            Backstage::None,
+                            Backstage::World { head: None },
+                            Backstage::Preview { ready: true },
+                        ]
+                        .map(|stage| (size, stage))
+                    })
+                {
+                    let shown = Inputs {
+                        grid,
+                        ..inputs(Holdings::Known(&owned), "")
+                    };
+                    let mut panel = Panel::new();
+                    panel.open(tab, true, true, ReturnTarget::MainMenu);
+                    // In the game the page always has the stage behind it.
+                    panel.set_backstage(stage);
+                    panel.build(&shown, &fonts.font, size);
+                    let rect = panel.ui.rect_for(loadouts::OPEN_TOKEN).unwrap_or_else(|| {
+                        panic!("{tab:?} grid {grid} {size:?} {stage:?}: no button area")
+                    });
+                    let at =
+                        sjk_ui::Vec2::new(rect.x + rect.width * 0.5, rect.y + rect.height * 0.5);
+                    for event in [
+                        InputEvent::PointerMove(at),
+                        InputEvent::PointerPress {
+                            position: at,
+                            button: sjk_ui::PointerButton::Primary,
+                        },
+                        InputEvent::PointerRelease {
+                            position: at,
+                            button: sjk_ui::PointerButton::Primary,
+                        },
+                    ] {
+                        let _ = panel.handle_pointer(event, true);
+                    }
+                    assert!(
+                        panel.loadouts.is_open(),
+                        "{tab:?} grid {grid} {size:?} {stage:?}: the click left the card shut"
+                    );
+                }
+            }
+        }
     }
 }
