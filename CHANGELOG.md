@@ -43,6 +43,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Fishing: sell your fished junk to the SJK hub for a few credits (at most 15 a day), from the Fishing card in Collection > Toys, or with `fishing_sell`; `fishing_log` prints your whole fish log; once the hub turns it on _(Slash, PR #349, after Sanji's idea)_
 - Fishing: a bite shows on screen when you can't hear it, a "!" over the float (gold for an Echo) and "Bite! Press Use!"; Settings > Sound > Toys "Fishing bite cue" (`cg_fishingBiteCue`: off, when the sound is off, always) _(Slash, PR #350)_
 - Emotes: getting on a vehicle ends your emote, even one that plays while you move (Cloud float), so the vehicle's riding animations play; an emote cannot start while you ride (hub report #247) _(Slash, after Instructor's report)_
+- Nameplates: an opacity setting for every style, from faint to solid; the distance and wall fades still apply. Settings > Nameplate opacity (`cg_nameplateAlpha`) _(Slash, after an idea in #ideas)_
 
 ## 2026.1103.2 (Alpha) | 03/11/2026
 
