@@ -46,6 +46,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Nameplates: an opacity setting for every style, from faint to solid; the distance and wall fades still apply. Settings > Nameplate opacity (`cg_nameplateAlpha`) _(Slash, after an idea in #ideas)_
 - Server remaps for each map: Settings > GAME > "Remaps on this map" (`cg_serverRemapsMap`) lets the server swap the loaded map's textures even with Server remaps off (on), never (off), or as Server remaps says (default). Each map keeps its choice; `allowRemaps` and `unallowRemaps` do the same from the console _(Slash, after Lex's idea)_
 - Collection: a click on "Loadouts (P)" on the Shaders tab opens the loadouts again; the saber behind the page took the click _(Slash, hub report #245)_
+- Sharpening (`r_sharpen`, Settings > Graphics > Image, 0 to 100 %, off by default): sharpens the world against the softness of edge smoothing and filtered textures, without dark or bright halos (contrast-adaptive, as AMD's FSR 1 RCAS); the HUD, menus and text are never sharpened, and a change applies at once _(Slash, after Lex's idea)_
 
 ## 2026.1103.2 (Alpha) | 03/11/2026
 

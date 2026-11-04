@@ -1560,6 +1560,10 @@ const HELP: &[(&str, &str)] = &[
     ),
     ("r_fxaa", "Smooths jagged edges with a light filter."),
     (
+        crate::frame_target::aa::color::SHARPEN_CVAR,
+        "Sharpens the world against the blur of edge smoothing and textures, without halos.          0 is off. Menus and HUD are not touched.",
+    ),
+    (
         "r_superSample",
         "Draws the scene 2 or 3 times larger each way and shrinks it: very sharp, very costly.",
     ),

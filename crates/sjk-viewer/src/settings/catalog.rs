@@ -2020,6 +2020,15 @@ pub(super) const RENDER_IMAGE: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Sharpening (%)",
+        cvar: crate::frame_target::aa::color::SHARPEN_CVAR,
+        kind: ValueKind::Integer {
+            min: 0,
+            max: crate::frame_target::aa::color::SHARPEN_MAX,
+            step: 5,
+        },
+    },
+    Setting {
         label: "Supersampling, 1 off (reload)",
         cvar: "r_superSample",
         kind: ValueKind::Integer {
