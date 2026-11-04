@@ -9,6 +9,18 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 04/11/2026 | - | Fake noclip boost: a client editor's own flight speed
+- 41aae72 |  | Fake noclip boost: a client editor's own flight speed
++ 04/11/2026 | - | Map editor in game: the page's tools, free flight, a clean toggle
+- 1c07d89 |  | Map editor in game: the page's tools, free flight, a clean toggle
++ 04/11/2026 | - | Docs and test list for the in-game map editor's tools and flight
+- 378e45f |  | Docs and test list for the in-game map editor's tools and flight
++ 04/11/2026 | - | Credits and test list for Slash #351 (vehicle HUD, SJK classic HUD)
+- 154702d |  | Credits and test list for Slash #351 (vehicle HUD, SJK classic HUD)
++ 04/11/2026 | - | Credits and test list for PR batch 04/11 b (Slash #349-#360, Bishop #347)
+- f4e4075 |  | Credits and test list for PR batch 04/11 b (Slash #349-#360, Bishop #347)
++ 04/11/2026 | - | Credits history after the map editor skies
+- 7846f94 |  | Credits history after the map editor skies
 + 04/11/2026 | - | Map editor: sky sides covered and skies swapped (in game and in the browser editor)
 - f0ea6e6 |  | Map editor: sky sides covered and skies swapped (in game and in the browser editor)
 + 04/11/2026 | - | Credits history after the map editor gizmos
@@ -2585,6 +2597,10 @@
 - cb6d7e1 |  | Document branch, commit and pull request rules
 
 = Bishop
++ 04/11/2026 | - | Fix Linux startup with the shared main-thread stack allowance
+- f664443 |  | Fix Linux startup with the shared main-thread stack allowance
++ 04/11/2026 | - | Record Linux startup and stack-budget verification
+- c64ee84 |  | Record Linux startup and stack-budget verification
 + 05/10/2026 | JKR #127 | Apply server shader remaps with Tayst-compatible controls
 - 4a1327b |  | Apply server shader remaps with Tayst-compatible controls
 + 05/10/2026 | JKR #126 | Add native sand-creature burrowing and ambush behavior
@@ -3245,6 +3261,50 @@
 - fed9acd |  | Hide duel opponents' bars and send nothing while duelling
 
 = Slash
++ 04/11/2026 | SJK #360 | Chat: whisper recipient on its own line, step and pick between whisperers (Creo's idea)
+- bb1b8a2 |  | Chat: whisperers list right above the name, darker, over the row's and feed's words
++ 04/11/2026 | - | Vehicle HUD: speed and ammo beside the HP in each HUD style
+- c62bd68 |  | Vehicle HUD: speed and ammo beside the HP in each HUD style
++ 04/11/2026 | - | Vehicle HUD: the turbo in each HUD style
+- abc7901 |  | Vehicle HUD: the turbo in each HUD style
++ 04/11/2026 | - | Changelog: the vehicle HUD line under a new Unreleased, after release 2026.1103.2
+- 59d1eb8 |  | Changelog: the vehicle HUD line under a new Unreleased, after release 2026.1103.2
++ 04/11/2026 | - | SJK classic HUD: three groups along the bottom, no background
+- daad930 |  | SJK classic HUD: three groups along the bottom, no background
++ 04/11/2026 | - | Chat: whisper recipient on its own line, step and pick between whisperers (Creo's idea)
+- 2691e44 |  | Chat: whisper recipient on its own line, step and pick between whisperers (Creo's idea)
++ 04/11/2026 | - | Profile card: banner corners round with the card again
+- fe060ad |  | Profile card: banner corners round with the card again
++ 04/11/2026 | - | Profile card and Profile page: no cover for the neutral banner
+- c2dc87d |  | Profile card and Profile page: no cover for the neutral banner
++ 04/11/2026 | - | Graphics: sharpening slider (r_sharpen, Lex's idea)
+- 02111e1 |  | Graphics: sharpening slider (r_sharpen, Lex's idea)
++ 04/11/2026 | - | Console: alias command (Lex's idea)
+- 7008b8a |  | Console: alias command (Lex's idea)
++ 04/11/2026 | - | Server remaps per map: cg_serverRemapsMap, cg_remapsAllowedMaps (Lex's idea)
+- 14442dd |  | Server remaps per map: cg_serverRemapsMap, cg_remapsAllowedMaps (Lex's idea)
++ 04/11/2026 | - | Collection: a click on Loadouts on Shaders opens the card (hub report #245)
+- 416f84b |  | Collection: a click on Loadouts on Shaders opens the card (hub report #245)
++ 04/11/2026 | - | Emotes end when their player mounts a vehicle (hub report #247)
+- 4ad934a |  | Emotes end when their player mounts a vehicle (hub report #247)
++ 04/11/2026 | - | Nameplates: an opacity setting for every style (cg_nameplateAlpha)
+- 597b276 |  | Nameplates: an opacity setting for every style (cg_nameplateAlpha)
++ 04/11/2026 | - | Fishing: a bite cue for players with the sound off
+- fecb270 |  | Fishing: a bite cue for players with the sound off
++ 04/11/2026 | - | Changelog: PR #350
+- 73ed69f |  | Changelog: PR #350
++ 04/11/2026 | - | Fishing: sell fished junk to the hub; the fish log on the card
+- 5510433 |  | Fishing: sell fished junk to the hub; the fish log on the card
++ 04/11/2026 | - | Junk: clippy's collapsed if and sort key
+- 61baac9 |  | Junk: clippy's collapsed if and sort key
++ 04/11/2026 | - | Fishing junk: name the hub's PROTOCOL.md section as it is
+- c153257 |  | Fishing junk: name the hub's PROTOCOL.md section as it is
++ 04/11/2026 | - | Changelog: PR #349
+- 6e1305d |  | Changelog: PR #349
++ 04/11/2026 | - | Changelog: the credit as the others are
+- 28cdecf |  | Changelog: the credit as the others are
++ 04/11/2026 | - | Fishing: the Sell junk button sells; fishing_log prints in the console
+- e5a7b04 |  | Fishing: the Sell junk button sells; fishing_log prints in the console
 + 04/11/2026 | - | vid_restart force: reload the graphics with no setting changed
 - 22c06e1 |  | vid_restart force: reload the graphics with no setting changed
 + 04/11/2026 | - | Copy a chat link with Ctrl+C
