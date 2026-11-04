@@ -1,3 +1,22 @@
+## Linux startup stack allowance
+
+03/11/2026, `fix/linux-startup-stack` from `main` `c0d603eb`, Nobara Linux 44
+x86_64. The installed 2026.1103.2 executable matched the published Linux ZIP.
+In an isolated profile using installed game content, that release aborted with
+`thread 'main' has overflowed its stack` at an 8 MiB soft stack limit; the same
+binary passed that point with 64 MiB. Linux now requests the same 64 MiB allowance
+as the Windows/macOS builds before constructing the client, preserving larger
+limits and the inherited hard limit ([client.md](client.md)). The shared constant
+also defines the existing startup test's quarter-stack budget. Subprocess tests
+cover raising the soft limit, preserving larger/unlimited limits, and capping the
+request at a restrictive hard limit. Verified: formatting, workspace build/tests/clippy
+on Linux CI, the local optimized build, and an isolated no-argument launch of the
+patched client inheriting an 8 MiB limit (world attached, HUD/fonts loaded, still
+running after 100 seconds). The existing 16 MiB startup guard built the menu world
+and rendered its first 30 frames successfully using Mesa llvmpipe software Vulkan.
+Not verified: hardware-GPU behavior, gameplay, a complete in-game update/restart
+round trip, or Windows/macOS runtime behavior.
+
 ## Holocron catch-up, play signals, tag copies (client side)
 
 03/11/2026, `personal/economy-ideas` from `main` `69a3d6a0`, built with the hub's

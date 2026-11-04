@@ -39,6 +39,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Ragdoll: a small or big player (a youngling or a jawa the server shrank) stays their size when they go limp, and their body lies on the floor at that size, instead of growing to full size (hub report #223) _(Slash, after Rollembones' report)_
 - Copy a link from the chat: with the chat open, rest the pointer on a link in a message (it lights up) and press Ctrl+C to copy it; "Link copied" shows under the field _(Slash, after AngeloPapaya's idea)_
 - `vid_restart force` reloads the graphics even when no graphics setting changed, as the original game's `vid_restart` always restarted the renderer; plain `vid_restart` still reloads them only after a change _(Slash, after Blep's idea)_
+- Linux starts after an update again: the client requests the same main-thread stack allowance as Windows and macOS, within the system hard limit _(Bishop-R)_
 
 ## 2026.1103.2 (Alpha) | 03/11/2026
 
