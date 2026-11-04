@@ -9,6 +9,10 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 04/11/2026 | - | Map editor: sky sides covered and skies swapped (in game and in the browser editor)
+- f0ea6e6 |  | Map editor: sky sides covered and skies swapped (in game and in the browser editor)
++ 04/11/2026 | - | Credits history after the map editor gizmos
+- 334ef07 |  | Credits history after the map editor gizmos
 + 04/11/2026 | - | Map editor gizmos: move, rotate and scale placed models as in Blender (game and page)
 - 45fb92f |  | Map editor gizmos: move, rotate and scale placed models as in Blender (game and page)
 + 04/11/2026 | - | Test list: PR batch 04/11 under Gameplay
