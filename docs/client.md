@@ -6037,6 +6037,21 @@ brings up are the ones the hub drops anyway.
   Echoes on the line) and Old Whiskers (hidden), counted on servers only, as the others
   ([identity.md](identity.md#achievements)).
 - **Sounds:** Settings > Sound > Toys, "Fishing" (`s_toyFishingSound`).
+- **The fish log on the card** (03/11/2026): the Fishing card in Collection > Toys says
+  how many fish were caught and of how many kinds, and in one line the junk held ("Junk:
+  7 pieces, worth 12 credits (8 left today)"). `fishing_log` in the console prints the
+  log in full: every fish and junk with its count, the junk held and what was sold.
+- **Selling junk** (03/11/2026, Sol's yes on PR #278; the hub's `PROTOCOL.md` "Fishing junk",
+  `sjk_identity::junk`): the card's "Sell junk (+N credits)" button, and `fishing_sell`
+  in the console, sell the junk held to the hub. The hub pays a few credits a piece (1
+  to 5) up to 15 credits in 24 hours per person and per address, the most valuable
+  pieces first, and answers what it took: only that is counted sold, as `sold <id>
+  <count>` lines in `fishing_log.txt` (older clients skip them), so the counts of what
+  was caught, and the achievements, never change. The card asks the hub what it still
+  pays (`GET /v1/fishing/junk`) when shown and every 30 seconds after; the button shows
+  only while the hub says this player may sell (the operator's switch, off until Sol
+  turns it on) and is greyed with nothing payable or no junk. One sale at a time
+  (`fishing_sell.rs`). Fish never sell: they stay in the log for the achievements.
 
 No game server knows of it. The rod is a toy in the player's look (`toys: ["fishing"]`),
 so other SJK players draw it in the fisher's hand, with the line to a float where their

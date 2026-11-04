@@ -56,6 +56,7 @@ mod economy;
 mod editions;
 mod entity_view;
 mod fishing;
+mod fishing_sell;
 mod kyber;
 mod loot_odds;
 mod propgun;

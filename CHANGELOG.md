@@ -40,6 +40,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Copy a link from the chat: with the chat open, rest the pointer on a link in a message (it lights up) and press Ctrl+C to copy it; "Link copied" shows under the field _(Slash, after AngeloPapaya's idea)_
 - `vid_restart force` reloads the graphics even when no graphics setting changed, as the original game's `vid_restart` always restarted the renderer; plain `vid_restart` still reloads them only after a change _(Slash, after Blep's idea)_
 - Linux starts after an update again: the client requests the same main-thread stack allowance as Windows and macOS, within the system hard limit _(Bishop-R)_
+- Fishing: sell your fished junk to the SJK hub for a few credits (at most 15 a day), from the Fishing card in Collection > Toys, or with `fishing_sell`; `fishing_log` prints your whole fish log; once the hub turns it on _(Slash, PR #349, after Sanji's idea)_
 
 ## 2026.1103.2 (Alpha) | 03/11/2026
 

@@ -2104,8 +2104,12 @@ main's one-category-per-toy board on 02/11/2026), client-counted on servers only
 (`fish_first`, `fish_50`, `fish_kinds`, `echo_angler`, `old_whiskers` hidden), appended at
 the end of `achievements::ALL` and `kyber::REWARDS`. The
 look has the toy `fishing` (main's u32 toy bits, after the Banana peel). No hub change: the hub needs the five ids in its
-catalogue before they unlock online; selling junk (capped credits) is proposed to Sol, not
-built. Verified: fmt, build, the fishing, achievements, kyber and collection tests,
+catalogue before they unlock online. Selling junk (capped credits; Sol's yes on #278):
+03/11/2026, `feat/fishing-sell-junk` with the hub's `feat/fishing-junk-sell`
+(`GET /v1/fishing/junk`, `POST /v1/fishing/junk/sell`, 15 credits a day per person and
+address, behind the operator's switch): the Fishing card lists the catches and sells the
+junk held, `fishing_sell` too, `sold` lines in the log ([client.md](client.md#fishing)).
+Verified: the log, card and answer tests; not yet against a hub that has the routes. Verified: fmt, build, the fishing, achievements, kyber and collection tests,
 earlier release builds in game (Slash: the rod in third person, the pond, bites; not yet
 the first-person rod or the Fishing band on the Fun page), world shots of the pond on duel6
 (`rods_at_the_first_spawn`). Not verified: the five ids at the hub, other players seeing a
