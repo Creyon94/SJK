@@ -16,6 +16,21 @@ running after 100 seconds). The existing 16 MiB startup guard built the menu wor
 and rendered its first 30 frames successfully using Mesa llvmpipe software Vulkan.
 Not verified: hardware-GPU behavior, gameplay, a complete in-game update/restart
 round trip, or Windows/macOS runtime behavior.
+## Server remaps per map (`cg_serverRemapsMap`, Lex's idea)
+
+04/11/2026, `feat/server-remaps-per-map` from `main` `c0d603eb`. Lex asked in #ideas
+for `cg_serverRemaps` 1/0 per map from Settings. `cg_remapsAllowedMaps` (archived) lists
+maps whose server remaps apply, filtered by `cg_remaps`, even with `cg_serverRemaps 0`;
+`cg_remapsBlockedMaps` keeps blocking, and wins for a map in both. Settings > GAME >
+"Remaps on this map" is `cg_serverRemapsMap` (`default`, `on`, `off`, not
+archived): [remap_blocked_maps.rs](../crates/sjk-viewer/src/remap_blocked_maps.rs)
+rewrites it from the lists when the map or a list changes, and a change of the cvar alone
+moves the loaded map between the lists. `allowRemaps`/`unallowRemaps [map]` join
+`blockRemaps`/`unblockRemaps`; `listRemaps` says when the map's choice decides
+([client.md](client.md), [rendering.md](rendering.md#server-shader-remaps)). Verified:
+unit tests (choices from the lists, modes, list moves, names, the cache's show/store
+rules), fmt, clippy, `sjk-viewer` tests. Not verified: in a game on a server that remaps
+its map, and the Settings row on screen.
 
 ## Holocron catch-up, play signals, tag copies (client side)
 

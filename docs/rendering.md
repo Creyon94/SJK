@@ -162,8 +162,11 @@ Worldspawn and explicit local console remaps are independent. The preference
 applies live without reloading the map; an excluded server remap reveals the
 earlier remap it replaced.
 `cg_remapsBlockedMaps` lists maps on which SJK ignores server remaps, as `cg_remaps 0`
-does there; worldspawn and local remaps still apply. The frame reads a cached answer,
-refreshed when the cvar or the loaded map changes
+does there; worldspawn and local remaps still apply. `cg_remapsAllowedMaps` lists maps
+whose server remaps apply even with `cg_serverRemaps 0` (a blocked map stays
+blocked), and `cg_serverRemapsMap` shows and sets the loaded map's choice
+(`default`, `on`, `off`) for Settings. The frame reads a cached answer,
+refreshed when one of these cvars or the loaded map changes
 ([remap_blocked_maps.rs](../crates/sjk-viewer/src/remap_blocked_maps.rs)).
 `listRemaps` lists the map's, the enabled server and the local remaps in the order
 they were applied, with their source, and marks those a later remap overrides.

@@ -324,6 +324,10 @@ pub(crate) struct ViewerConsole {
     map_edits: console_cvars::IntegerSetting,
     /// Changes of `cg_remapsBlockedMaps`, for [`crate::remap_blocked_maps`].
     remap_blocked_maps: console_cvars::RevisionSetting,
+    /// Changes of `cg_remapsAllowedMaps`.
+    remap_allowed_maps: console_cvars::RevisionSetting,
+    /// Changes of `cg_serverRemapsMap`, the loaded map's choice.
+    remap_map_choice: console_cvars::RevisionSetting,
     packet_dup: console_cvars::IntegerSetting,
     max_packets: console_cvars::IntegerSetting,
     /// `gameplay_fps`, and the server's `pmove_fixed`/`pmove_msec` that override it.
@@ -1292,13 +1296,9 @@ fn invalid_cvar(name: &str, requirement: &str) -> IoError {
 }
 
 impl ViewerConsole {
-    /// The server remaps to apply: `cg_remaps`, or 0 while `cg_serverRemaps` is off.
-    pub(crate) fn remap_mode(&self) -> i64 {
-        if self.server_remaps_on() {
-            self.remaps.value()
-        } else {
-            0
-        }
+    /// `cg_remaps`, whether or not `cg_serverRemaps` is on.
+    pub(crate) fn remap_filter(&self) -> i64 {
+        self.remaps.value()
     }
 
     pub(crate) fn server_remaps_on(&self) -> bool {
@@ -1309,8 +1309,13 @@ impl ViewerConsole {
         self.map_edits.value() != 0
     }
 
-    /// How often `cg_remapsBlockedMaps` has changed, read without a name lookup.
-    pub(crate) fn remap_blocked_maps_revision(&self) -> u64 {
-        self.remap_blocked_maps.value()
+    /// How often `cg_remapsBlockedMaps`, `cg_remapsAllowedMaps` and
+    /// `cg_serverRemapsMap` have changed, read without a name lookup.
+    pub(crate) fn remap_maps_revisions(&self) -> crate::remap_blocked_maps::Revisions {
+        [
+            self.remap_blocked_maps.value(),
+            self.remap_allowed_maps.value(),
+            self.remap_map_choice.value(),
+        ]
     }
 }

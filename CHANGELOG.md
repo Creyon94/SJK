@@ -44,6 +44,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Fishing: a bite shows on screen when you can't hear it, a "!" over the float (gold for an Echo) and "Bite! Press Use!"; Settings > Sound > Toys "Fishing bite cue" (`cg_fishingBiteCue`: off, when the sound is off, always) _(Slash, PR #350)_
 - Emotes: getting on a vehicle ends your emote, even one that plays while you move (Cloud float), so the vehicle's riding animations play; an emote cannot start while you ride (hub report #247) _(Slash, after Instructor's report)_
 - Nameplates: an opacity setting for every style, from faint to solid; the distance and wall fades still apply. Settings > Nameplate opacity (`cg_nameplateAlpha`) _(Slash, after an idea in #ideas)_
+- Server remaps for each map: Settings > GAME > "Remaps on this map" (`cg_serverRemapsMap`) lets the server swap the loaded map's textures even with Server remaps off (on), never (off), or as Server remaps says (default). Each map keeps its choice; `allowRemaps` and `unallowRemaps` do the same from the console _(Slash, after Lex's idea)_
 
 ## 2026.1103.2 (Alpha) | 03/11/2026
 

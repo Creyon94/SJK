@@ -4384,6 +4384,17 @@ test: JA+ server on mp/ffa4, real-time lighting: the remapped trim, flag and roc
 test: The purple lamp near them lights them as it lights the unremapped walls.
 note: Checked offline on mp/ffa4 with the five remaps as local ones (Linux), not on a server.
 
+[remap-per-map-choice]
+area: Rendering & effects
+title: Server remaps on this map: default, on or off for each map (Lex's idea)
+change: Settings > GAME > Remaps on this map (cg_serverRemapsMap) sets the loaded map's
+change: choice; on keeps it in cg_remapsAllowedMaps, off in cg_remapsBlockedMaps.
+change: allowRemaps [map] / unallowRemaps [map] do the same from the console.
+test: Server remaps off, on a server that remaps the map: set the row to on; remaps come at once.
+test: Change map: the row says default; come back: it says on again and the remaps apply.
+test: Set it to off with Server remaps on: the server's remaps go; listRemaps says why.
+test: Restart the client: the choices are still in cg_remapsAllowedMaps / cg_remapsBlockedMaps.
+
 [remap-blocked-maps]
 area: Rendering & effects
 title: cg_remapsBlockedMaps ignores server remaps on chosen maps (SJK PR #40)

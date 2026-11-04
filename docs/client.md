@@ -7968,6 +7968,13 @@ semicolons (`mp/ffa4 mp/duel6`; `maps/` and `.bsp` are optional, capitals do not
 matter; typed in the console, a list with semicolons needs quotes). `blockRemaps [map]` adds a map and `unblockRemaps [map]` removes it, the
 loaded one when no map is named; the change applies at once, and `listRemaps` says
 when the loaded map is blocked. The list is saved with the other settings.
+`cg_remapsAllowedMaps` is the other way round: maps whose server remaps apply,
+filtered by `cg_remaps`, even while `cg_serverRemaps` is 0; `allowRemaps [map]` adds a
+map and `unallowRemaps [map]` removes it. A map in both lists is blocked.
+Settings > GAME > "Remaps on this map" (`cg_serverRemapsMap`, not saved) shows
+and sets the loaded map's choice: `default` (as `cg_serverRemaps`), `on` (in the
+allowed list) or `off` (in the blocked list). It is rewritten from the lists on each
+map, and setting it moves the map between the lists, so each map keeps its choice.
 A map's own worldspawn remaps always apply. `listRemaps` lists the map's, the
 enabled server and the temporary local remaps in the order they were applied, each
 labelled `map:`, `server:` or `local:`, and marks those a later remap overrides.
