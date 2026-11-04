@@ -150,13 +150,10 @@ impl GpuState {
         if !sold.is_empty() {
             lines.push(format!("Junk sold: {sold}"));
         }
-        for line in lines {
-            self.chat.receive(
-                sjk_client::ServerEventKind::Print,
-                line,
-                None,
-                Instant::now(),
-            );
+        if let Some(console) = self.console.as_mut() {
+            for line in lines {
+                console.push_log(line);
+            }
         }
     }
 

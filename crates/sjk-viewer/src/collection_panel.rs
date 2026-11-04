@@ -126,8 +126,9 @@ const BOX_HUNT_TOKEN: u16 = 1_304;
 const BANANA_TOKEN: u16 = 1_375;
 /// Fishing's niche on Toys.
 const FISHING_TOKEN: u16 = 1_378;
-/// The Fishing card's Sell junk button.
-const SELL_JUNK_TOKEN: u16 = 1_381;
+/// The Fishing card's Sell junk button: past the nameplate styles' and the toy
+/// options' tokens, which a click reads by range.
+const SELL_JUNK_TOKEN: u16 = 1_395;
 /// Fishing's place among the toys (`collection_toys::TOYS`).
 const FISHING_TOY: usize = 10;
 /// The Toys tab's "?", the Toy Master's (`collection_toys::Panel::toy_master_badge`): its
@@ -172,6 +173,10 @@ const TOY_TOKENS: [u16; TOY_COUNT] = [
 /// a toy from here on, below [`FAVOURITE_TOKEN`].
 const TOY_SWITCH_BASE: u16 = 1_360;
 const _: () = assert!(TOY_SWITCH_BASE + TOY_COUNT as u16 <= FAVOURITE_TOKEN);
+const _: () = assert!(
+    SELL_JUNK_TOKEN >= STYLE_BASE + crate::hud::nameplate::Style::ALL.len() as u16
+        && SELL_JUNK_TOKEN >= TOY_OPTION_TOKEN + TOY_OPTION_TOKENS as u16
+);
 /// The chosen toy's key, which a click or K waits for a key to bind, and Order 66's
 /// second (the key that executes the order).
 const BIND_TOKEN: u16 = 1_377;
@@ -3000,6 +3005,42 @@ mod tests {
             panel.key(KeyCode::Enter, false, true),
             PanelAction::Illuminate(false)
         );
+    }
+
+    /// The Fishing card's Sell junk button sells (its token is no nameplate style's or
+    /// toy option's, which a click reads by range first).
+    #[test]
+    fn the_fishing_cards_sell_button_sells() {
+        let log = crate::fishing::Log::parse(
+            "boot 3
+hilt 1
+",
+        );
+        let card = crate::fishing_sell::card(&log, Some((8, 15)), false, None);
+        let mut shown = inputs(Holdings::Known(&[]), "");
+        shown.fishing_card = Some(&card);
+        let mut panel = drawn(Tab::Toys, &shown);
+        panel.toy = FISHING_TOY;
+        redraw(&mut panel, &shown);
+        let rect = panel.ui.rect_for(SELL_JUNK_TOKEN).expect("the Sell button");
+        let at = sjk_ui::Vec2::new(rect.x + rect.width * 0.5, rect.y + rect.height * 0.5);
+        let button = sjk_ui::PointerButton::Primary;
+        let action = [
+            InputEvent::PointerMove(at),
+            InputEvent::PointerPress {
+                position: at,
+                button,
+            },
+            InputEvent::PointerRelease {
+                position: at,
+                button,
+            },
+        ]
+        .into_iter()
+        .map(|event| panel.pointer_at(event, true, Instant::now()))
+        .find(|action| *action != PanelAction::None)
+        .unwrap_or(PanelAction::None);
+        assert_eq!(action, PanelAction::SellJunk);
     }
 
     /// Order 66 is the third toy: chosen, then turned on or off by the state the page
