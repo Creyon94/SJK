@@ -30,6 +30,10 @@ The site (site/assets/site.js, parseChangelog) reads the release headings,
 introductions and recap lines too.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
+## Unreleased
+
+- Whispers show whom you write to: the recipient has a line of its own under the chat buttons, the whole name in its colours; with several players who whispered you, `<` and `>` (or Alt+Left and Alt+Right) step between them, and a click on the name lists them all to pick one _(Slash, after Creo's idea)_
+
 ## 2026.1103.2 (Alpha) | 03/11/2026
 
 Clan chats for JoF and S, holocrons earned by playing, tag copies to break down or craft, loadouts, fishing and many fixes.

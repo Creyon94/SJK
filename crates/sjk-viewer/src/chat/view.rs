@@ -4,6 +4,9 @@ mod backdrop;
 mod composer;
 mod draft;
 mod name;
+mod recipient;
+
+pub(super) use recipient::LIST_MAX as PM_LIST_MAX;
 mod sjk_line;
 
 /// The GIF picker's favourite mark.
