@@ -361,11 +361,20 @@ test: Move or take damage: the rod goes away. Another SJK player sees rod and bu
 test: debug_holocron while fishing: card at once, no Echo on the line, no Echo Angler count.
 note: Achievements need hub-shared #9 imported and deployed before they record online.
 
+[finishers]
+area: Gameplay
+title: Finishers: Collection > Shaders > Finishers, Disintegrate first (needs the hub)
+change: The kill burn left the blade files: a finisher worn with any blade (cg_saberFinisher).
+change: The look sends finisher; every SJK client burns the wearer's saber kills away.
+test: Hub grants finisher_disintegrate; Shaders > Finishers pill: card, Equip, Unequip.
+test: Wear it, saber-kill a bot or a player: the body burns away; others with SJK see it too.
+test: Not held: no button, how to get it shown; Esc and Ctrl+Tab still work on the page.
+
 [saber-lab-348]
 area: Rendering & effects
 title: Saber Lab (Milamber #348): blade-skin lab, builder, new blade effects
 change: saberlab <folder> or SJK_SABER_LAB: Collection gains a Saber Lab tab (last).
-change: .bladeextra6: smoke, ribbon, sparks, crackle, disintegrate; flash, unrest, chroma.
+change: .bladeextra6: smoke, ribbon, sparks, crackle; flash, unrest, chroma.
 test: Copy assets/saber-lab outside the repo, saberlab <it>, open Collection > Saber Lab.
 test: Builder: drag cards into groups, undo/redo, Revert; B for stage, C clashes.
 test: Lab off (no saberlab): no Saber Lab tab; blades in a match look as before.

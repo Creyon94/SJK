@@ -1213,6 +1213,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "The blade skin your second saber wears, by unlock id; empty for the same as the first (cg_saberSkin), stock for the stock blade",
         ),
         CvarDefinition::new(
+            crate::finishers::CVAR,
+            "",
+            archive,
+            "The finisher your saber kills play, by unlock id (finisher_disintegrate), worn once your SJK profile holds it; empty for none",
+        ),
+        CvarDefinition::new(
             crate::saber_sound_choice::CVAR,
             "",
             archive,

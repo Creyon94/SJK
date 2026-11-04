@@ -155,9 +155,6 @@ pub(crate) struct SkinColor {
     pub(crate) flash: Option<FlashSpec>,
     /// Whether its emitter is heard crackling (`crackle` in its file).
     pub(crate) crackle: bool,
-    /// Its wearer's saber kills burn away this many seconds after the blow
-    /// (`disintegrate` in its file, `crate::disintegration::Forced`); none without.
-    pub(crate) disintegrate: Option<f32>,
     /// Its light crackling with those stars; none unless its file's `flash.light` asks.
     pub(crate) flash_light: Option<crate::saber_submission::lights::FlashLight>,
     /// The smoke from the emitter ([`crate::saber_smoke`]), and its ribbons
@@ -990,10 +987,6 @@ impl LoadedSkin {
                 }
             }),
             crackle: def.crackle.is_some() && on(Section::Crackle),
-            disintegrate: def
-                .disintegrate
-                .filter(|_| on(Section::Disintegrate))
-                .map(|d| d.delay),
             flash_light: def
                 .flash
                 .filter(|f| f.light > 0.0 && on(Section::Flash))

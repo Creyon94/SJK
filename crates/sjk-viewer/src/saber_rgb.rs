@@ -95,7 +95,6 @@ impl BladeColor {
                 wake: false,
                 flash: None,
                 crackle: false,
-                disintegrate: None,
                 flash_light: None,
                 smoke: None,
                 ribbon: None,

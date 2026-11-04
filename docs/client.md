@@ -6371,9 +6371,10 @@ launch, for a shortcut.
   The camera turns until the model stands right of the panels (`LabStage::build`,
   `menu_backdrop::framed_yaw`: the model's chest at 78% of the frame across, from the
   menu's field of view, eased as the other views are) and no saber floats. On the left
-  the library: every effect a skin file can draw (`blade_builder::EFFECTS`, 49: the 40
-  sections an option may switch, the orbit, and the blade's own make), by kind on six
-  tabs (Around, On the blade, Emitter, Figures, Core, Kills), a card each with its name
+  the library: every effect a skin file can draw (`blade_builder::EFFECTS`, 48: the 39
+  sections an option may switch, the orbit, and the blade's own make), by kind on five
+  tabs (Around, On the blade, Emitter, Figures, Core; the Kills tab went with the burn,
+  now a finisher, 04/11/2026, [unlockables.md](unlockables.md#finishers)), a card each with its name
   and a few words, or where it is on the blade; the pointer resting on a card or a chip
   for 0.35 s shows its card (`hover::draw`) with what it draws and what a click or a drag
   does. In the middle the blade's groups (`blade_builder::Shape`): The blade itself (the

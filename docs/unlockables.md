@@ -1136,15 +1136,9 @@ from its corona's rim's (`SkinColor::worn_with`). `effects` (optional, default t
 its emitter's smoke, ribbons, sparks and bolts with it (their colours turned where the
 wearer's colour is taken), which a catalogue chroma's have none of.
 
-`disintegrate` (19/10/2026, the eighth set): the wearer's saber kills (a thrown saber's
-too, `MOD_SABER`) burn away as a disruptor's do, `delay` seconds after the blow (optional,
-0-3, default 0). The server knows nothing of it: every SJK client that sees the killer
-wear the skin starts it from the kill feed (`GpuState::observe_saber_kills`,
-`disintegration::Forced`), drawing the frozen pose, burn and smoke the disruptor's take
-(`track_disintegration`), hides the victim after 1.5 s until they live again, and hides
-the body the server copies of them as they respawn (`corpse_actors.rs`, its `ircg` body
-command, which comes before the body is drawn; matching a body by where the player lay
-took an older body of theirs lying near instead, 19/10/2026). The server and other clients keep the corpse. Only a killing blow does it.
+`disintegrate` (19/10/2026 to 04/11/2026, the eighth set) is gone from the format: the
+burn on a saber kill became the first finisher, worn with any blade
+([Finishers](#finishers)).
 
 `flash` (19/10/2026): a crackling star at the emitter, the Sun's glint gone wild, drawn by
 `saber.wgsl` (`skin_flash`) on camera-facing quads of its own (`Instance::flashes`, colour
@@ -1611,6 +1605,34 @@ dropping the field for a hub that refuses it or a set the key lacks while still 
 the blade. World shot `duel6_sjk_saber_page` (the Sounds row with the Void's sounds under
 the Storm blade). Not verified: heard in a game, the preview by ear, another player's
 choice through a hub (the hub's side is tested in the hub's own suite).
+
+## Finishers
+
+Sol's decision, 04/11/2026: what a saber kill does to the body is a category of its own,
+not part of a blade skin, so any blade can wear it and it can drop later. The client's
+catalogue is `crate::finishers` (`finishers.rs`), the hub's the unlocks of kind `finisher`.
+
+- **Disintegrate** (`finisher_disintegrate`, Mythical, by Milamber, from his Saber Lab
+  blade): the victim of the wearer's saber kill (a thrown saber's too, `MOD_SABER`) burns
+  away as a disruptor's kill does, at once. The server knows nothing of it: every SJK
+  client that sees the killer wear it starts it from the kill feed
+  (`GpuState::observe_saber_kills`, `disintegration::Forced`), drawing the frozen pose, burn
+  and smoke the disruptor's take (`track_disintegration`), hides the victim after 1.5 s
+  until they live again, and hides the body the server copies of them as they respawn
+  (`corpse_actors.rs`, its `ircg` body command, which comes before the body is drawn). The
+  server and other clients keep the corpse. Only a killing blow does it. A reconnect or a
+  new timeline forgets the burns pending (`reset_live_presentation`).
+- **Wearing:** one at a time, `cg_saberFinisher` (archived, empty for none), worn and sent
+  only while the own profile lists it. Collection > Shaders has a Finishers pill beside
+  Saber (and Body, to come): its page lists each finisher as a card, Equip or Unequip
+  while held, how to get it otherwise.
+- **The look:** the finisher goes to the hub as the look's `finisher` (hub PROTOCOL.md,
+  Looks) and comes back to other players in presence and look events. A hub before
+  04/11/2026 refuses the field (`bad_body`): the look goes again without it. A finisher the
+  key does not hold (`finisher_not_unlocked`) is left out until the profile changes.
+  Clients before ignore it.
+- **Getting one:** not droppable yet. The hub grants it by hand (`unlock KEY
+  finisher_disintegrate`, the panel or staff); Sol decides when finishers enter holocrons.
 
 ## Medal shaders
 

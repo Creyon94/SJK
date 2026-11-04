@@ -146,6 +146,7 @@ mod emote_picker;
 mod emplaced_swivel;
 mod fake_noclip;
 mod file_dialog;
+mod finishers;
 mod fps_help;
 mod frame_target;
 mod free_camera;

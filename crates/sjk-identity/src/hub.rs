@@ -1342,7 +1342,9 @@ fn feed_path(
 /// then sends the look without it). `saber_on` and `saber2_on` go only when they name an
 /// extra of their saber's skin (hubs before 26/10/2026 refuse them, and the service then
 /// sends the look without them). `tag` goes only while a tag is stuck (hubs before
-/// 27/10/2026 refuse it, and the service then sends the look without it).
+/// 27/10/2026 refuse it, and the service then sends the look without it). `finisher` goes
+/// only while one is worn (hubs before 04/11/2026 refuse it, and the service then sends
+/// the look without it).
 fn look_body(server: &str, look: &Look) -> Value {
     let mut body = json!({ "server": server, "saber": look.saber, "illuminate": look.illuminate });
     if !look.saber.is_empty() && !look.saber_off.is_empty() {
@@ -1368,6 +1370,9 @@ fn look_body(server: &str, look: &Look) -> Value {
     }
     if let Some(tag) = look.tag.as_ref() {
         body["tag"] = json!(tag);
+    }
+    if !look.finisher.is_empty() {
+        body["finisher"] = json!(look.finisher);
     }
     body
 }
@@ -2818,6 +2823,21 @@ mod tests {
         );
     }
 
+    /// A look's finisher (04/11/2026) goes only while one is worn.
+    #[test]
+    fn a_look_body_names_the_finisher_only_when_one_is_worn() {
+        let plain = look_body("1.2.3.4:29070", &Look::default());
+        assert!(plain.get("finisher").is_none());
+        let finishing = Look {
+            finisher: "finisher_disintegrate".to_owned(),
+            ..Look::default()
+        };
+        assert_eq!(
+            look_body("1.2.3.4:29070", &finishing)["finisher"],
+            "finisher_disintegrate"
+        );
+    }
+
     #[test]
     fn a_look_sends_exactly_the_protocols_fields() {
         let look = Look {
@@ -2831,6 +2851,7 @@ mod tests {
             saber2_on: Vec::new(),
             saber_sounds: String::new(),
             tag: None,
+            finisher: String::new(),
         };
         assert_eq!(
             look_body("1.2.3.4:29070", &look),

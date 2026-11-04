@@ -190,6 +190,7 @@ pub(crate) fn row_labels(
         toy_options: 0,
         tag: "",
         tag_finish: "",
+        finisher: "",
     };
     counts(&inputs).iter().map(|count| count.label()).collect()
 }
@@ -585,6 +586,8 @@ impl Panel {
                     }
                 }
             }
+            // The finishers page has no rows to step: only Tab and Escape, below.
+            Tab::Shaders if self.finishers_shown => {}
             Tab::Shaders => {
                 if self.grid {
                     keys.push((&["Arrows"], "choose"));
