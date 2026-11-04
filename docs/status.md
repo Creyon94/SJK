@@ -446,6 +446,18 @@ Limits: T1_Fatal in Experimental on DX12 stopped at the lamp light cache's page 
 (`SJK lamp cache pages` invalid), not a compile, so that case was checked on duel6. fmt,
 the sjk-viewer tests and Clippy.
 
+## Map editor gizmos
+
+04/11/2026, `personal/mapedit-gizmo`, based on `main` `12023ed9` (Sol's request): Blender's
+move, rotate and scale handles for placed models in game and in the browser editor, G, R
+and T with X, Y, Z and typed numbers, snapping and fine steps, several placed models about
+their middle in the page, the own boombox along the floor; every drag is one `mapedit_set`
+([map-edits.md](map-edits.md#gizmos)). Verified on Windows 11: unit tests of the maths, the
+command and its single undo step, the requests; the page in headless Chrome on duel6 with
+the fake game; the world shot `duel6_map_editor_gizmo` (the in-game gizmo drawn and its arrow
+dragged by pointer events). Not run in a client: the in-game keys and drag with the real
+pointer. Mystery boxes and toys get no gizmo (the hub has no move).
+
 ## Map editor in the web browser
 
 03/11/2026, `personal/mapedit-web`, based on `main` `566c944e` (Sol's request, Blackwolf's

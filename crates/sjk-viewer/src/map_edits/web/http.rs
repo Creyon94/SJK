@@ -197,6 +197,17 @@ pub(crate) enum EditRequest {
         #[serde(default)]
         id: i64,
     },
+    /// A gizmo's drag in the page, put down: `mapedit_set` with each placed model's exact
+    /// origin, angles and scale, one step to undo ([`crate::map_edits::gizmo`]).
+    Set { edits: Vec<SetEdit> },
+    /// The page's gizmo on the player's own boombox: stood again at `origin` (its floor
+    /// under it), facing `yaw`. Boxes and toys have no move (the hub's), so only the
+    /// boombox is taken.
+    SetThing {
+        thing: Thing,
+        origin: [f32; 3],
+        yaw: f32,
+    },
     /// `mapedit_turn <degrees>`
     Turn { degrees: f32 },
     /// `mapedit_move <x> <y> <z>`
@@ -235,6 +246,16 @@ pub(crate) enum EditRequest {
         #[serde(default)]
         surfaces: Vec<u32>,
     },
+}
+
+/// One placed model of [`EditRequest::Set`].
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct SetEdit {
+    pub(crate) id: u32,
+    pub(crate) origin: [f32; 3],
+    pub(crate) angles: [f32; 3],
+    pub(crate) scale: [f32; 3],
 }
 
 /// Longest model or shader name an edit takes (a document keeps 160 at most).
@@ -287,6 +308,18 @@ impl EditRequest {
                 Thing::Boombox => *id == 0,
                 _ => *id > 0,
             },
+            Self::Set { edits } => {
+                (1..=crate::map_edits::gizmo::MAX_SET).contains(&edits.len())
+                    && edits.iter().all(|edit| {
+                        finite(&edit.origin)
+                            && finite(&edit.angles)
+                            && finite(&edit.scale)
+                            && edit.scale.iter().all(|v| *v > 0.0)
+                    })
+            }
+            Self::SetThing { thing, origin, yaw } => {
+                *thing == Thing::Boombox && finite(origin) && yaw.is_finite()
+            }
             Self::Turn { degrees } => degrees.is_finite(),
             Self::Move { offset } => finite(offset),
             Self::Scale { factor } => factor.is_finite() && *factor > 0.0,
@@ -318,6 +351,7 @@ impl EditRequest {
             | Self::Current { .. }
             | Self::PlaceThing { .. }
             | Self::RemoveThing { .. }
+            | Self::SetThing { .. }
             | Self::ApplyMany { .. }
             | Self::HideMany { .. } => return None,
             Self::Hide { group } => (
@@ -337,6 +371,21 @@ impl EditRequest {
                 }
                 ("mapedit_place", args)
             }
+            Self::Set { edits } => (
+                crate::map_edits::gizmo::COMMAND,
+                edits
+                    .iter()
+                    .flat_map(|edit| {
+                        std::iter::once(edit.id.to_string()).chain(
+                            edit.origin
+                                .into_iter()
+                                .chain(edit.angles)
+                                .chain(edit.scale)
+                                .map(number),
+                        )
+                    })
+                    .collect(),
+            ),
             Self::Turn { degrees } => ("mapedit_turn", vec![number(*degrees)]),
             Self::Move { offset } => ("mapedit_move", offset.iter().copied().map(number).collect()),
             Self::Scale { factor } => ("mapedit_scale", vec![number(*factor)]),
@@ -1136,6 +1185,42 @@ mod tests {
         assert!(parse(r#"{"op":"scope","scope":"everywhere"}"#).is_err());
         assert!(parse(r#"{"op":"select","eye":[0,0,0],"dir":[0,0,0],"forward":[1,0,0]}"#).is_err());
         assert!(parse("not json").is_err());
+    }
+
+    #[test]
+    fn a_gizmo_drag_is_one_set_of_every_model() {
+        let parse = |json: &str| EditRequest::parse(json.as_bytes());
+        let set = parse(
+            r#"{"op":"set","edits":[{"id":3,"origin":[1,2,3.5],"angles":[0,90,0],"scale":[1,1,2]},{"id":4,"origin":[0,0,0],"angles":[10,0,0],"scale":[1,1,1]}]}"#,
+        )
+        .unwrap();
+        let (name, args) = set.command().unwrap();
+        assert_eq!(name, "mapedit_set");
+        assert_eq!(args.len(), 20);
+        assert_eq!(&args[..4], ["3", "1", "2", "3.5"]);
+        let sets = crate::map_edits::gizmo::parse_set(&args).unwrap();
+        assert_eq!(sets[0].scale, Some([1.0, 1.0, 2.0]));
+        assert_eq!(sets[1].angles, [10.0, 0.0, 0.0]);
+        // Refused: none, a scale of 0, a missing scale, an unknown field.
+        assert!(parse(r#"{"op":"set","edits":[]}"#).is_err());
+        assert!(parse(r#"{"op":"set","edits":[{"id":3,"origin":[1,2,3],"angles":[0,0,0],"scale":[1,0,1]}]}"#).is_err());
+        assert!(
+            parse(r#"{"op":"set","edits":[{"id":3,"origin":[1,2,3],"angles":[0,0,0]}]}"#).is_err()
+        );
+        assert!(parse(r#"{"op":"set","edits":[{"id":3,"origin":[1,2,3],"angles":[0,0,0],"scale":[1,1,1],"x":1}]}"#).is_err());
+        // The boombox stands again; a box or a toy has no move.
+        assert_eq!(
+            parse(r#"{"op":"set_thing","thing":"boombox","origin":[1,2,3],"yaw":90}"#).unwrap(),
+            EditRequest::SetThing {
+                thing: Thing::Boombox,
+                origin: [1.0, 2.0, 3.0],
+                yaw: 90.0
+            }
+        );
+        assert!(
+            parse(r#"{"op":"set_thing","thing":"mystery_box","origin":[1,2,3],"yaw":0}"#).is_err()
+        );
+        assert!(parse(r#"{"op":"set_thing","thing":"toy","origin":[1,2,3],"yaw":0}"#).is_err());
     }
 
     #[test]
