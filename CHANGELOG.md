@@ -48,6 +48,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Collection: a click on "Loadouts (P)" on the Shaders tab opens the loadouts again; the saber behind the page took the click _(Slash, hub report #245)_
 - Sharpening (`r_sharpen`, Settings > Graphics > Image, 0 to 100 %, off by default): sharpens the world against the softness of edge smoothing and filtered textures, without dark or bright halos (contrast-adaptive, as AMD's FSR 1 RCAS); the HUD, menus and text are never sharpened, and a change applies at once _(Slash, after Lex's idea)_
 - Aliases: `alias <name> <commands>` runs the commands when you type the name, bind it or put it on the quick wheel (`alias +zoom` with `alias -zoom` for a held key); `aliaslist`, `unalias` and `unaliasall` manage them, and they are kept in `aliases.cfg` for the next start _(Slash, after Lex's idea)_
+- Profile card and SJK Profile page: without a chosen banner they show only the picture and text over the menu again, as before banners; a chosen banner has round corners, as does the banner revealed from a holocron _(Slash)_
 
 ## 2026.1103.2 (Alpha) | 03/11/2026
 
