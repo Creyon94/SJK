@@ -535,6 +535,7 @@ first drawn) and keys only a later remap uses. Not measured on a GPU; compare th
 | `r_sceneHdr` | Scene precision: 0 display format, 1 RGBA16F (default); applies after a graphics reload |
 | `r_superSample` | Scene supersampling, 1 (default, off), 2 or 3 per axis; applies after a graphics reload. See [Render scale and supersampling](#render-scale-and-supersampling) |
 | `r_renderScale` | The world's size in percent of the window per axis, 50 to 100 (default) in steps of 5, stretched to the window; ignored while `r_superSample` is above 1; applies after a graphics reload. See [Render scale and supersampling](#render-scale-and-supersampling) |
+| `r_sharpen` | Scene sharpening, 0 (default, off) to 100 %; live, the HUD and menus untouched. See [Sharpening](#sharpening) |
 | `r_highDpi` | 1 the window's size (`r_resolution`) and the world count the screen's pixels, 0 its points; default 0 on a Mac, 1 elsewhere. The window resizes at once, the world after a graphics reload. See [Render scale and supersampling](#render-scale-and-supersampling) |
 | `r_hdrExposure` | Base exposure multiplier, 0.25–4; live. Eye adaptation adjusts around it; `r_sceneHdr 0` ignores it |
 | `r_autoExposure` | Eye adaptation, default 1 (on); 0 holds `r_hdrExposure`. Live; see [eye adaptation](#eye-adaptation) |
@@ -813,6 +814,25 @@ card (the `overlays+post+hud` phase). What does not shrink is drawn at a fixed s
 volumetric froxel grid, shadow maps, probes, and the post-processing at the window's size.
 A weak GPU spends a larger share of its frame on the pixels the scale removes, but no weak
 GPU has been measured yet.
+
+## Sharpening
+
+`r_sharpen` (04/11/2026, Lex's idea in #ideas; Settings > Graphics > Image) sharpens the
+world against the softness FXAA and filtered textures leave. 0, the default, is the stock
+image: the resolve (`post_aa.wgsl`) is built without the sharpening taps
+(`SHARPEN` override off), so it costs nothing. Above 0 the shared resolve samples the
+scene's four neighbours of each pixel once more and applies RCAS's contrast-adaptive
+lobe (AMD FidelityFX Super Resolution 1, MIT), as the render scale's stretch does
+([above](#render-scale-and-supersampling)): the negative lobe is the largest that pushes no
+channel below the neighbours' darkest or above their brightest, so edges get crisper
+without dark or bright halos; 100 % is RCAS's full limit (a lobe of at most 0.1875). It
+works on the resolve's display values, after HDR's shoulder and the eye adaptation, and
+sharpens the pixel FXAA resolved where FXAA ran. The HUD, menus and text are drawn after
+the resolve and are never sharpened; a gamma ramp then moves to the display pass, as with
+FXAA or bloom. Moving the slider uploads the 16-byte amount
+(`post_color.rs`, `set_controls`); only turning it on or off rebuilds the resolve. With
+the render scale below 100 % the stretch's own fixed sharpen (0.5) still runs before it.
+The world shot `sharpen_shots` renders mp/ffa3 at 0, 50 and 100 %.
 
 ## GPU memory
 

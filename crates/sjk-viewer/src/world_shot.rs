@@ -444,6 +444,8 @@ mod portable_shield_shots;
 mod render_scale_shots;
 #[path = "world_shot_scene_views.rs"]
 mod scene_views_shots;
+#[path = "world_shot_sharpen.rs"]
+mod sharpen_shots;
 #[cfg(test)]
 #[path = "world_shot_tags.rs"]
 mod tags_shots;
