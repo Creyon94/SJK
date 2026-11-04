@@ -32,7 +32,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
-- Profile card: its corners are round again with a profile banner, as is the banner revealed from a holocron, instead of square _(Slash)_
+- Profile card and SJK Profile page: without a chosen banner they show only the picture and text over the menu again, as before banners; a chosen banner has round corners, as does the banner revealed from a holocron _(Slash)_
 
 ## 2026.1103.2 (Alpha) | 03/11/2026
 

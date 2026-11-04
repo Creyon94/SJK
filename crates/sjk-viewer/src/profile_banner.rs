@@ -64,6 +64,11 @@ pub(crate) const ALL: [Banner; 6] = [
 pub(crate) fn get(id: &str) -> Option<&'static Banner> {
     ALL.iter().find(|banner| banner.id == id)
 }
+/// Whether `id` is the neutral cover (or one this client does not know, drawn as it):
+/// the profile card and the Profile page draw no cover for it, only their text.
+pub(crate) fn plain(id: &str) -> bool {
+    get(id).is_none_or(|banner| banner.art == Art::Neutral)
+}
 /// Current inventory count; the neutral cover is free.
 pub(crate) fn count(profile: Option<&sjk_identity::Profile>, id: &str) -> u32 {
     if id.is_empty() {
@@ -297,6 +302,15 @@ mod tests {
                 Some(DrawCommand::PushRoundedClip { .. })
             ));
             assert!(matches!(commands.last(), Some(DrawCommand::PopClip)));
+        }
+    }
+
+    #[test]
+    fn only_the_neutral_or_an_unknown_cover_is_plain() {
+        assert!(plain(""));
+        assert!(plain("banner_from_a_later_client"));
+        for banner in &ALL[1..] {
+            assert!(!plain(banner.id), "{}", banner.id);
         }
     }
 
