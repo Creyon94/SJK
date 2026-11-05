@@ -133,7 +133,8 @@ multiplayer. Read [docs/status.md](docs/status.md),
 - Reviewing or merging someone's pull request follows
   [reviewing.md](docs/reviewing.md) from start to end, its two golden rules first:
   base Jedi Academy stays base Jedi Academy (everything added is optional on top),
-  and nothing touching the economy merges without Sol's explicit OK.
+  and the economy gets the strictest review (sources, limits, alts, loops). Only Sol
+  deploys the hub. A maintainer merges their own pull request only when it is low risk.
 - Attach screenshots to a pull request whose change players can see, whenever you
   can take them ([the rule](docs/development.md#branches-commits-and-pull-requests)):
   the project posts them in its Discord `#screenshots` channel.
