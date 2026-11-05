@@ -523,6 +523,10 @@ const HELP: &[(&str, &str)] = &[
         "Sounds heard from your head, quieter and duller behind walls and shut doors, and rooms ring, a hall longer than a corridor.",
     ),
     (
+        crate::weather::sound::CVAR,
+        "Hear the rain and the wind with the weather, as loud as they fall and blow, quieter under a roof. The game's own outdoor sounds.",
+    ),
+    (
         crate::footprints::PRINTS_CVAR,
         "Steps on sand, snow, mud and dirt kick up dust and leave footprints for ten seconds, as in the original game.",
     ),
