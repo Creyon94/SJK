@@ -444,6 +444,9 @@ includes:
 - lighter rain and fog (05/11/2026): the fog worked out at half size and blended back by
   depth, about three times cheaper at the default quality, glowing towards the sun with the
   rain;
+- storms (05/11/2026): `r_weatherLightning` flashes through the haze, rain and puddles with
+  the game's own thunder after it, single gusts of wind heard as they rise, and rain
+  running down walls and slopes in rivulets with drops along each slope's fall;
 - SJK Alpha (19/10/2026), the first collection of cards: the Mythical rarity, the
   Credits and Meme kinds, and card 1, "Bishop", honouring the author of JKR (art by
   Sol, AI-assisted: a rusted helmet portrait).
