@@ -558,7 +558,7 @@ first drawn) and keys only a later remap uses. Not measured on a GPU; compare th
 | `r_weatherForce` | Weather on every map with sky instead of the map's: 0 (default) the map's, 1 drizzle, 2 rain, 3 storm, 4 snow; live |
 | `r_weatherFog` | Ground fog: 0 none, 1 the map's (default), 2 on every map with sky; live |
 | `r_clouds` | Volumetric clouds over open sky, 1 (default) or 0; live |
-| `r_normalMapping` | Normal maps on lightmapped world surfaces (rend2 convention); default 1 (rend2: 0), applies after a graphics reload |
+| `r_normalMapping` | Normal maps on lightmapped world surfaces (rend2 convention) and on models whose shader names one (`normalMap`); default 1 (rend2: 0), applies after a graphics reload |
 | `r_specularMapping` | Specular, roughness and metalness maps on the same surfaces; default 1 (rend2: 0), applies after a graphics reload |
 | `r_parallaxMapping` | Parallax from the height in `_nh`/`normalHeightMap` images; needs `r_normalMapping`; default 1 (at `r_parallaxStrength` 0.1; rend2: 0), applies after a graphics reload |
 | `r_parallaxStrength` | Depth of parallax, a multiplier on the stage's `parallaxDepth` (rend2's 0.05 without one), 0 (flat) to 1.575 in steps of 1/40; default 0.1 (Sol's choice: generated height is a guess from paint, and the full depth swam), live, archived; Settings slider 0–1 |
@@ -569,7 +569,7 @@ first drawn) and keys only a later remap uses. Not measured on a GPU; compare th
 | `r_emissiveGlow` | Dynamic-glow halo around emitting texels (with `r_DynamicGlow 1`); default 1, live, archived |
 | `r_emissiveLights` | Emission-mapped surfaces as lamps of real-time lighting, a power multiplier 0 (off) to 4; default 1, applies when a map loads, archived |
 | `r_lampLights` | Multiplier, 0 to 8, on the light real-time lighting infers from a fixture's glow overlay (a stage with `glow` or an authored `_glw`/`_glow` image) and from additive vertex-coloured flares (`world_vertex_lamps.rs`); default 4, applies when a map loads, archived. Declared surface lights, self-lit paint and emission maps keep their power |
-| `r_normalMapStrength` | Multiplier on the normal maps' relief (their x/y slope, after rend2's `normalScale`), 0–3.98 in steps of 1/64; default 1, live, archived. Material-mapped surfaces only; the floor mirrors' lookup keeps the authored relief |
+| `r_normalMapStrength` | Multiplier on the normal maps' relief (their x/y slope, after rend2's `normalScale`), 0–3.98 in steps of 1/64; default 1, live, archived. Material-mapped surfaces and model normal maps; the floor mirrors' lookup keeps the authored relief |
 | `r_cubeMapping` | Reflection probes on specular-mapped surfaces (rend2's name and meaning); default 1, needs `r_specularMapping`, applies after a graphics reload |
 | `r_cubeMapSize` | Reflection probe face size, a power of two 32–512; default 128, applies after a graphics reload |
 | `r_floorReflections` | Polished floors mirror the scene (see [Floor reflections](#floor-reflections)); default 1, live |
@@ -3687,6 +3687,23 @@ response), in real-time lighting the light buffer is read through
 layers over such paint, stacks that do not collapse, effect stages, deforms, sprites
 and models (MD3, Ghoul2) keep their authored shading, so a mapped terrain base can
 differ from an unmapped layer blended over it.
+
+**Model normal maps** (SJK, 05/11/2026,
+[material_map_models.rs](../crates/sjk-viewer/src/material_map_models.rs)): a model stage
+lit per entity (`rgbGen lightingDiffuse` or `lightingDiffuseEntity`, not collapsed) that
+names its normal map with `normalMap` is lit per pixel through it. Only the keyword
+counts: a `_n` image found next to a model's texture is never applied, so stock and
+community models are unchanged (the first user is the Legendary holocron). The map rides
+in the stage's idle second slot, uploaded linear with a box-filtered mip chain (never
+block-compressed: the `$normal:` cache key keeps it out of the texture workers), and the
+stage program (`model_normal_prepare` in `stage_runtime.wgsl`) builds the tangent frame
+from the screen-space derivatives of the position and the picture coordinates, since MD3
+and Ghoul2 vertices have no tangents; green runs along t, downward, as the world's maps
+read it. Stage flag 16 in `wave_functions.w` turns it on and `secondary_animation.xy` holds
+the `normalScale`. The bent normal feeds the per-pixel model diffuse (on with the map even
+without `r_modelPixelLight`), toon bands and, in real-time lighting, the sun highlight,
+the sky rim and the local lamps; the light buffer is still matched by the face's own
+normal. `r_normalMapping` and `r_normalMapStrength` govern it as they do the world's.
 A glossy base is Korriban's wall stack (`korriban/door`, `entrance_top`,
 `os_outsidebased`, `os_basic_pillarb`): an environment stage, the paint alpha-blended
 over it (its alpha, about 0.84 on the gold inlays, lets the shine through) and the
