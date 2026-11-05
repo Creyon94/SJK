@@ -33,9 +33,9 @@ float an_top(){ return uLength*rxLife(0.0, 0.5, 0.32); }
 vec3 sig_glow_e3(vec3 g, vec2 b, float r, float px){
   float top = an_top(), yc = clamp(b.y, 0.0, top);
   float d = length(vec2(b.x, b.y - yc));
-  vec3 mist = part(0.0) > 0.5 ? Sh*(halo(abs(b.x), 5.2)*0.1)*an_charge()*smoothstep(-1.0, 3.0, b.y)*tipFadeB(b) : vec3(0.0);
+  vec3 mist = vec3(0.0);
   vec3 gold_ = vec3(1.0, 0.8, 0.36)*(halo(d, 0.14)*1.1 + halo(d, 0.8)*0.6 + halo(d, 2.4)*0.18)*an_gold(b.y)*part(2.0);
-  return gold_ + (Wh*(halo(d, 0.7)*0.42 + halo(d, 2.4)*0.2) + vec3(1.0, 0.94, 0.8)*halo(d, 5.0)*0.16*an_charge() + g*0.25)*smoothstep(-1.6, 0.8, b.y)*growGlow(b) + mist*roomFade(abs(b.x));
+  return gold_ + (Wh*(halo(d, 0.7)*0.42 + halo(d, 2.4)*0.2) + vec3(1.0, 0.94, 0.8)*halo(d, 5.0)*0.05*an_charge() + g*0.25)*smoothstep(-8.0, 6.0, b.y)*growGlow(b) + mist*roomFade(abs(b.x));
 }
 vec3 sig_core(vec3 c, vec2 b, float px){ return c*0.0; }
 // Round billows: how high the cloud stands at p, the bumps of one size, each swelling slowly as a cloud does.
@@ -89,7 +89,7 @@ vec4 sig_solid(vec4 o, vec2 b, float px){
       float h = an_height(bq, fine);
       float wisp = vn(bq*1.9 + vec2(side, 0.07*uClock));
       float body = h + 0.03 - 0.78*q*q - 0.4*(1.0 - ch) + 0.16*(wisp - 0.5) + 0.26*halo(x, 1.2);
-      float cov = smoothstep(-0.03, 0.46, body)*smoothstep(0.05, 0.4, ch)*smoothstep(-0.1, 1.2, b.y)*(1.0 - smoothstep(L + 0.9 - 1.9/max(view*view, 0.12), L + 0.9, b.y));
+      float cov = smoothstep(-0.03, 0.46, body)*smoothstep(0.05, 0.4, ch)*smoothstep(-0.1, 1.2/max(view*view, 0.25), b.y)*(1.0 - smoothstep(L + 0.9 - 1.9/max(view*view, 0.12), L + 0.9, b.y))*smoothstep(0.26, 0.5, view);
       if (cov > 0.0){
         float hl = an_height(bq + vec2(0.1, 0.3), 0.0);
         float slope = clamp((h - (fine > 0.01 ? fine*0.065 : 0.0) - hl)*3.6, -1.0, 1.0);
@@ -153,7 +153,6 @@ vec3 sig_glow(vec3 g, vec2 b, float r, float px){
   vec3 col = sig_glow_e3(g, b, r, px);
   float d = max(abs(b.x) - 0.5, 0.0), C = uClock, on = rxLife(0.3, 1.3, 0.35)*uFx*tipFadeB(b)*growGlow(b)*roomFade(abs(b.x))*smoothstep(0.0, 4.0, b.y);
   // the light of heaven coming through the bank, in slow soft shafts
-  if (part(0.0) > 0.5) col += Wh*syAurora(b, 6.2, 3.0, Wh*0.3, Sh*0.1)*an_charge()*on;
 
   return col;
 }

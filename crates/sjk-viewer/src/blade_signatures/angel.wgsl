@@ -51,9 +51,9 @@ fn sig_glow_e3(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
     let top = an_top();
     let yc = clamp(b.y, 0.0, top);
     let d = length(vec2(b.x, b.y - yc));
-    let mist = select(vec3<f32>(0.0), Sh * (halo(abs(b.x), 5.2) * 0.1) * an_charge() * smoothstep(-1.0, 3.0, b.y) * tipFadeB(b), part(0.0) > 0.5);
+    let mist: vec3<f32> = vec3<f32>(0.0);
     let gold_ = vec3<f32>(1.0, 0.8, 0.36) * (halo(d, 0.14) * 1.1 + halo(d, 0.8) * 0.6 + halo(d, 2.4) * 0.18) * an_gold(b.y) * part(2.0);
-    return gold_ + (Wh * (halo(d, 0.7) * 0.42 + halo(d, 2.4) * 0.2) + vec3<f32>(1.0, 0.94, 0.8) * halo(d, 5.0) * 0.16 * an_charge() + g * 0.25) * smoothstep(-1.6, 0.8, b.y) * growGlow(b) + mist * roomFade(abs(b.x));
+    return gold_ + (Wh * (halo(d, 0.7) * 0.42 + halo(d, 2.4) * 0.2) + vec3<f32>(1.0, 0.94, 0.8) * halo(d, 5.0) * 0.05 * an_charge() + g * 0.25) * smoothstep(-8.0, 6.0, b.y) * growGlow(b) + mist * roomFade(abs(b.x));
 }
 
 fn sig_core(c: vec3<f32>, b: vec2<f32>, px: f32) -> vec3<f32> {
@@ -120,7 +120,7 @@ fn sig_solid(o: vec4<f32>, b: vec2<f32>, px: f32) -> vec4<f32> {
             let h = an_height(bq, fine);
             let wisp = vn(bq * 1.9 + vec2(side, 0.07 * uClock));
             let body = h + 0.03 - 0.78 * q * q - 0.4 * (1.0 - ch) + 0.16 * (wisp - 0.5) + 0.26 * halo(x, 1.2);
-            let cov = smoothstep(-0.03, 0.46, body) * smoothstep(0.05, 0.4, ch) * smoothstep(-0.1, 1.2, b.y) * (1.0 - smoothstep(L + 0.9 - 1.9 / max(view * view, 0.12), L + 0.9, b.y));
+            let cov = smoothstep(-0.03, 0.46, body) * smoothstep(0.05, 0.4, ch) * smoothstep(-0.1, 1.2 / max(view * view, 0.25), b.y) * (1.0 - smoothstep(L + 0.9 - 1.9 / max(view * view, 0.12), L + 0.9, b.y)) * smoothstep(0.26, 0.5, view);
             if cov > 0.0 {
                 let hl = an_height(bq + vec2<f32>(0.1, 0.3), 0.0);
                 let slope = clamp((h - (select(0.0, fine * 0.065, fine > 0.01)) - hl) * 3.6, -1.0, 1.0);
@@ -195,14 +195,11 @@ fn sig_vol_solid(ro: vec3<f32>, rd: vec3<f32>, px: f32) -> vec4<f32> {
 }
 
 fn sig_glow(g: vec3<f32>, b: vec2<f32>, r: f32, px: f32) -> vec3<f32> {
-    var col = sig_glow_e3(g, b, r, px);
+    let col = sig_glow_e3(g, b, r, px);
     let d = max(abs(b.x) - 0.5, 0.0);
     let C = uClock;
     let on = rxLife(0.3, 1.3, 0.35) * uFx * tipFadeB(b) * growGlow(b) * roomFade(abs(b.x)) * smoothstep(0.0, 4.0, b.y);
     // the light of heaven coming through the bank, in slow soft shafts
-    if part(0.0) > 0.5 {
-        col += Wh * syAurora(b, 6.2, 3.0, Wh * 0.3, Sh * 0.1) * an_charge() * on;
-    }
     return col;
 }
 
