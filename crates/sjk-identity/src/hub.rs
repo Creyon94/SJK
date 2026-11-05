@@ -24,11 +24,11 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 const TIMEOUT: Duration = Duration::from_secs(10);
 /// Largest answer read, in bytes.
 const ANSWER_MAX: u64 = 256 * 1024;
-/// Largest answer to a staff query: one request's logs, up to 400 000 characters of
+/// Largest answer to a staff query: one request's logs, up to 2 000 000 characters of
 /// any script, escaped in JSON.
-const STAFF_ANSWER_MAX: u64 = 4 * 1024 * 1024;
-/// Longest a log upload may take (up to half a megabyte on a slow line).
-const LOGS_TIMEOUT: Duration = Duration::from_secs(60);
+const STAFF_ANSWER_MAX: u64 = 16 * 1024 * 1024;
+/// Longest a log upload may take (up to 4 MiB on a slow line).
+const LOGS_TIMEOUT: Duration = Duration::from_secs(120);
 /// Longest a pack's download may take (up to [`PACK_MAX`] bytes).
 const ASSET_TIMEOUT: Duration = Duration::from_secs(120);
 
