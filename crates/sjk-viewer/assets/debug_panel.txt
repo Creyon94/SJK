@@ -8704,6 +8704,15 @@ test: join JoF: the console says JoF servers take 0 repeated packets at most.
 test: play 30 min on JoF with cl_packetdup 1 (default): no Heimdall kick.
 test: on a non-JoF server the console names no cl_packetdup cap; movement as before.
 
+[heimdall-trace]
+area: Gameplay
+title: Logs say how old your commands are at the server (Heimdall kicks)
+change: Each minute on a server the log has a "server view" line: command age, round trip, gaps.
+change: When a server drops you, the last 10 s go in the log before "Disconnected".
+test: play 2 min on JoF: last-client.log has "server view, last 60 s" lines with steady ages.
+test: open the model picker in game and scroll: the next line shows a longer frame and gap.
+test: /disconnect is not a drop: no "before the drop" line; a kick or server quit writes one.
+
 [white-text-outline]
 area: HUD
 title: White edge on dark text: dark letters of names and chat in a white outline

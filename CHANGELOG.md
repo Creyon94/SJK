@@ -30,6 +30,10 @@ The site (site/assets/site.js, parseChangelog) reads the release headings,
 introductions and recap lines too.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
+## Unreleased
+
+- Your log says how old your commands are when they reach the server, a line a minute and the last 10 seconds when a server drops you, so a JoF anti-cheat kick (Heimdall's "Set /cl_timeNudge 0") shows what the server measured _(Sol)_
+
 ## 2026.1105.2 (Alpha) | 05/11/2026
 
 A sculpted Sith pyramid, normal-mapped models, shared remap blocks and longer logs for staff.
