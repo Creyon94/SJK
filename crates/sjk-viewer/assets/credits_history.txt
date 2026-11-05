@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 05/11/2026 | - | Model picker: read the stage model on a worker, a texture a frame
+- 8afefdc |  | Model picker: read the stage model on a worker, a texture a frame
 + 05/11/2026 | - | Log how old our commands are at the server (Heimdall kicks)
 - 131a717 |  | Log how old our commands are at the server (Heimdall kicks)
 + 05/11/2026 | - | Docs: Lumaya joins the maintainers who merge into main and cut alphas
