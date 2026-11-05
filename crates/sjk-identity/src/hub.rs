@@ -75,6 +75,9 @@ pub struct PresenceRead {
     pub blocks: Vec<crate::MapBlock>,
     /// The hub's map edits stamp, which grows with every change to any map's edits.
     pub map_edits: Option<i64>,
+    /// The maps on which SJK's creator blocked server remaps for every SJK client
+    /// (`PROTOCOL.md`, "Remap blocks"); `None` from a hub before them.
+    pub remap_blocks: Option<Vec<String>>,
     /// The hub's Toy Master stamp for this server (since 03/11/2026): when it changes,
     /// the toys listed for it changed (one placed or removed, SJK's creator came or went).
     pub secrets: Option<i64>,
@@ -1493,6 +1496,10 @@ fn staff_call(request: &StaffRequest) -> (&'static str, Value) {
                 "slot": slot, "name": name, "blocked": blocked
             }),
         ),
+        StaffRequest::RemapBlock { map, blocked } => (
+            "/v1/staff/remap-block",
+            json!({ "map": map, "blocked": blocked }),
+        ),
         StaffRequest::AvatarRemove { key_id } => {
             ("/v1/staff/avatar-remove", json!({ "key_id": key_id }))
         }
@@ -1700,7 +1707,8 @@ impl Hub for HttpHub {
             StaffRequest::ChatDelete { .. }
             | StaffRequest::ChatMute { .. }
             | StaffRequest::ChatUnban { .. }
-            | StaffRequest::MapBlock { .. } => Ok(Vec::new()),
+            | StaffRequest::MapBlock { .. }
+            | StaffRequest::RemapBlock { .. } => Ok(Vec::new()),
             _ => Ok(vec![parse(answer)?]),
         }
     }
@@ -2301,6 +2309,9 @@ impl Hub for HttpHub {
             players,
             blocks,
             map_edits: answer["map_edits"].as_i64(),
+            // A hub from before remap blocks leaves them out, and a malformed list is
+            // none: the client keeps the list it last saw.
+            remap_blocks: serde_json::from_value(answer["remap_blocks"].clone()).ok(),
             secrets: answer["secrets"].as_i64(),
             shows,
         })
