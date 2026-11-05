@@ -3945,6 +3945,14 @@ test: Change something visible (scale in sjk_rig.cfg, texture), export, type rig
 test: Within a second or two the model shows the change; the map and others stay as they were.
 note: A changed shader script still needs the next map.
 
+[rig-lineup]
+area: Rendering & effects
+title: Rig models: lineup beside a stock model (developer test)
+change: Ignored test lineup_beside_a_stock_model poses a rig and a stock model alike.
+change: Writes both as OBJ per pose and prints sizes, to compare proportions.
+test: Nothing in game. solfox5 was resized with it: same height as solfox now.
+note: Recipe in docs/rig-models.md (Rerun the checks).
+
 [rig-cloth]
 area: Rendering & effects
 title: Rig models: capes and tails swing, kept out of the legs (SolFox2)
