@@ -207,6 +207,7 @@ did: White edge on dark text: black names and chat in a white outline, an option
 did: Weather in map edits: rain, storms, snow, fog and wind kept for a map, synced to every player
 did: Rain and wind sounds: the game's own loops, as strong as the weather, quieter under a roof
 did: Puddles that mirror the world at ultra weather quality (after VisionJK)
+did: Lighter rain and fog: the fog at half size, about three times cheaper, glowing towards the sun
 link: https://github.com/Sol-Vulpes/SJK
 link: https://sol-vulpes.github.io/SJK/
 

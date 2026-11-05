@@ -4372,14 +4372,30 @@ distant fog down 500 units, and a bright band at eye height came and went.)
 `r_weatherFog` decides the ground fog: 0 none (no fog sprites either), 1 the map's
 (default), 2 also a light fog on every map with sky.
 
+The march runs at half the scene's size (05/11/2026, `fragment_volume_half`, into an
+`Rg16Float` image of its own, freed when no fog is drawn): each texel stands for a 2x2
+block of the depth and marches to the block's nearest point or its farthest, in a
+checkerboard, keeping its alpha and how far its ray went. The full-size pass blends the
+four texels round each pixel by nearness and by how close their ray's length is to its
+own (a joint bilateral blend, tolerance 5% of the length and 16 units), the closest one
+alone where none is close, so the fog keeps to the edges of a pole or a player in front
+of a foggy street instead of haloing them. A ray takes a step per 110 units, at least
+four and at most the quality's count, so a wall near the eye costs four steps, the
+horizon all of them; the ground fog's noise is read only where the fog has not thinned
+below 1% of its floor's, and the march stops once 99.7% of the light is lost. Towards
+the sun the fog is lighter and away from it darker (forward scattering, Henyey-Greenstein
+with g 0.35, `sun_glow`: half of it at the sun's full strength, a third of that in a
+full storm), and the rain catches the light between the eye and the sun (up to 1.8 times
+as bright in a 30-degree cone). Measured on 05/11/2026 (release, Windows, RTX 5080, off-screen at 2560x1440 on `T2_Rogue` in a forced storm, `t2_rogue_storm_timing`, medians of the effect pass `scene-pass`, which holds the fog with the rain and the splashes): 0.266 ms before and 0.105 after at medium, 0.385 and 0.125 at high, 0.84 to 1.05 and 0.137 at ultra. A game ran on the same GPU meanwhile, so whole-frame times varied; the pass times held.
+
 **Quality** (`r_weatherQuality`, [weather_settings.rs](../crates/sjk-viewer/src/weather_settings.rs)):
 
 | Level | Draws |
 | --- | --- |
 | 0 low | Near streaks, the original's fog sprites; clouds with 10 samples |
-| 1 medium | Splashes, volumetric fog with 8 samples a ray, wet surfaces; clouds 16 |
-| 2 high (default) | The far rain layer, fog 12, water running down slopes and walls; clouds 24 |
-| 3 ultra | More far rain and splashes, fog 20, puddles with rain rings that mirror the world; clouds 40 |
+| 1 medium | Splashes, volumetric fog with 10 samples a ray at most, wet surfaces; clouds 16 |
+| 2 high (default) | The far rain layer, fog 16, water running down slopes and walls; clouds 24 |
+| 3 ultra | More far rain and splashes, fog 24, puddles with rain rings that mirror the world; clouds 40 |
 
 **Wet surfaces** (`fragment_wet` in weather.wgsl, from `r_weatherQuality` 1). Rain
 wets what it falls on, in one full-screen pass drawn into the scene right after the
@@ -4424,11 +4440,19 @@ its mirrored ray through the depth: 32 steps from 2 units, each 1.18 times the l
 (about 2000 units in all), a step counting as a hit when the ray lies behind the drawn
 world by less than twice the step and 16 units (deeper, it passes behind something
 nearer the eye and goes on), then five halvings round the hit; the copy is read there.
-A ray that meets nothing takes the drawn sky where the screen shows sky in its direction,
-else the overcast sky the wet pass already had. The hit fades within 8% of the screen's
-edge and over the march's last 600 units. The reflectance is VisionJK's pond blend,
-`clamp(2 F + 0.2, 0, 0.92)` with F water's Fresnel term, so a puddle mirrors a fifth even
-seen from above and almost all at grazing angles. Within 700 units the rain rings tilt
+A ray that meets nothing within the march takes what lies that way far off: the spot on
+the screen of the eye plus the ray's direction, where the screen shows the sky or a
+surface farther than the march went (a distant building; a nearer surface there stands in
+front of the ray and is refused). The copy is the world before the fog, so what the puddle
+mirrors is greyed towards the overcast sky by the rain's haze over the distance the light
+came. A hit fades within 8% of the screen's edge and over the march's last 600 units.
+Where something is found the reflectance is VisionJK's pond blend, `clamp(2 F + 0.2, 0,
+0.92)` with F water's Fresnel term, so a puddle mirrors a fifth even seen from above and
+almost all at grazing angles; where nothing is, the puddle keeps the sky-only mirror it
+has without the copy. (The first version, 05/11/2026, gave unfound rays the overcast
+colour at the pond's reflectance and looked for the sky 100 000 units away, past the far
+plane, so it never found it: puddles turned into flat pale slabs. Its edges also ended in
+a band of 3% of the noise, softened to 6%.) Within 700 units the rain rings tilt
 its normal (their slope, a third of it), so the reflection ripples where drops land.
 Players and models are drawn after the wet pass and are not in the copy: puddles mirror
 the world and its sky, not the players. The copy needs a scene target the client can

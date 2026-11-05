@@ -105,6 +105,9 @@ const STREAK_LENGTH: f64 = 520.0;
 const STREAK_CHANGE: f64 = 0.04;
 /// Rain haze and ground fog colour before light (display values): a cool grey.
 const FOG_GREY: [f32; 3] = [0.64, 0.68, 0.74];
+/// How much the fog and the rain glow towards the sun at its full strength (forward
+/// scattering, `sun_glow` in weather.wgsl); a storm hides most of it.
+const SUN_SCATTER: f32 = 0.5;
 /// The rain haze of a downpour: what wets surfaces fully. Drizzle wets them about half.
 const SOAKING_HAZE: f32 = 2.8e-4;
 
@@ -530,6 +533,14 @@ impl Runtime {
                 instances: 0..1,
             });
         }
+        // The fog marches at half size into an image of its own, kept while it is drawn.
+        if let Some(gpu) = self.gpu.as_mut() {
+            if volume {
+                gpu.fit_fog(input.device, input.viewport);
+            } else {
+                gpu.release_fog();
+            }
+        }
         // The fog's sprites are drawn only where no volumetric fog replaces them, and not
         // at all with the fog turned off.
         let mist_sprites = !volume && settings.fog() != 0;
@@ -611,6 +622,9 @@ impl Runtime {
         let sky = wet_sky(input.sky, storm);
         self.uniform.wet_sky = [sky[0], sky[1], sky[2], 0.0];
         self.uniform.rain = [rain[0], rain[1], rain[2], 0.0];
+        let scatter = SUN_SCATTER * input.sky.strength.clamp(0.0, 1.0) * (1.0 - 0.7 * storm);
+        let sun = input.sky.direction;
+        self.uniform.sun = [sun[0], sun[1], sun[2], scatter];
         let color = fog_color(tint, self.light, storm);
         self.uniform.fog_color = [
             color[0],
@@ -683,6 +697,21 @@ impl Runtime {
     ) {
         if let Some(gpu) = self.gpu.as_ref().filter(|_| self.wet) {
             gpu.draw_wet(encoder, target, camera, depth, self.mirrored);
+        }
+    }
+
+    /// March this frame's fog at half size, before the effect layer's pass (which blends it
+    /// in with [`Runtime::draw`]).
+    pub(crate) fn encode_fog(
+        &self,
+        encoder: &mut wgpu::CommandEncoder,
+        camera: &wgpu::BindGroup,
+        depth: &wgpu::BindGroup,
+    ) {
+        if let Some(gpu) = &self.gpu
+            && self.batches.iter().any(|batch| batch.kind == Kind::Volume)
+        {
+            gpu.encode_fog(encoder, camera, depth);
         }
     }
 
