@@ -8913,3 +8913,16 @@ test: Look past a pole or a player into the fog: its edge stays sharp, no bright
 test: Face the sun on a map with sun, light rain: the fog brightens that way, rain streaks shine.
 test: r_weatherQuality 3: puddles show the buildings and sky round them, upside down, rippling.
 test: Compare FPS in a storm with the last release: higher, most at Ultra.
+
+[weather-atmosphere]
+area: Rendering & effects
+title: Lightning in storms, thunder and gusts; clouds off in every preset; new running water
+change: r_weatherLightning (off): strikes light storm air; thunder and gusts with s_weatherSounds.
+change: r_clouds off by default and in no preset; what's-new card asks once.
+change: Running water: film on slopes, rivulets with drops on walls, along each slope's fall.
+test: Settings > Graphics > WEATHER: Lightning in storms on; r_weatherForce 3: flashes come.
+test: s_weatherSounds 1: thunder follows each flash, sooner for bright near ones; gusts heard.
+test: cg_reduceFlashes 1: flashes are soft and slow, no flicker.
+test: Switch presets: Volumetric clouds stays as you set it; a new profile has it off.
+test: T2_Rogue slanted walls in rain: rivulets follow the slope, drops run down, no flicker.
+test: Walk past a ramp facing a diagonal: one pattern along its fall, no crossed streaks.

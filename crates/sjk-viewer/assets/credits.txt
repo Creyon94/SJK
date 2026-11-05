@@ -208,6 +208,7 @@ did: Weather in map edits: rain, storms, snow, fog and wind kept for a map, sync
 did: Rain and wind sounds: the game's own loops, as strong as the weather, quieter under a roof
 did: Puddles that mirror the world at ultra weather quality (after VisionJK)
 did: Lighter rain and fog: the fog at half size, about three times cheaper, glowing towards the sun
+did: Lightning in storms with thunder and gusts, and rain running down walls and slopes
 link: https://github.com/Sol-Vulpes/SJK
 link: https://sol-vulpes.github.io/SJK/
 

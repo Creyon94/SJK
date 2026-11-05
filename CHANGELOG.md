@@ -33,10 +33,14 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 ## Unreleased
 
 = s_weatherSounds: Hear the rain and the wind when a map has weather, quieter under a roof.
+= r_clouds reset: Volumetric clouds over open sky are now off by default under every graphics preset; switch them on here if you like them.
+= r_weatherLightning: Lightning in storms: flashes light up the rain, the fog and the wet streets, and thunder rolls in after them.
 
 - Browsing models no longer freezes the game: the model picker and the profile load a model in the background and swap it in once it is ready, as players' models already load in a match _(Sol)_
 - Map edits keep weather: staff give a map rain, a storm, snow, fog and wind (`mapedit_weather`, the map editor's Weather page), and every SJK player sees it with the map's other edits; your own Force weather setting still comes first _(Sol)_
 - Puddles mirror the world at Ultra weather quality (`r_weatherQuality 3`): the streets, walls and sky round a puddle show in it, rippled by the rain rings, where before it mirrored only a grey sky _(Sol, after VisionJK by Blackwolf)_
+- Lightning in storms (Settings > Graphics > WEATHER, `r_weatherLightning`, off by default): now and then a strike flickers through a storm, lighting the haze, the ground fog, the rain, the clouds and the wet streets and puddles; with Rain and wind sounds on its thunder follows, sooner and sharper when it struck near, and single gusts of wind are heard as they rise. `cg_reduceFlashes` keeps the flashes soft _(Sol)_
+- Volumetric clouds (`r_clouds`) are off by default and no graphics preset turns them on or off any more: they are your own choice under every preset _(Sol)_
 - Rain and fog are lighter on the GPU: the fog is worked out at half size and blended back along the edges of what stands in it, about three times less time at the default quality and six times less at Ultra; the fog and the rain now glow towards the sun, and puddles mirror distant buildings and the sky, hazed by the rain _(Sol)_
 - Rain and wind sounds (Settings > Sound, `s_weatherSounds`, off by default): the game's own outdoor rain and wind loops play with the weather, as loud as it falls and blows, a fifth as loud under a roof or indoors _(Sol)_
 - Your log says how old your commands are when they reach the server, a line a minute and the last 10 seconds when a server drops you, so a JoF anti-cheat kick (Heimdall's "Set /cl_timeNudge 0") shows what the server measured _(Sol)_
