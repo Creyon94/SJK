@@ -1,3 +1,17 @@
+## The model picker loads models off the render thread
+
+05/11/2026, `personal/picker-worker` from `main` `7c84f0ab`, Sol's choice after the
+Heimdall leads (below): the menu stage built each model it shows inside one frame,
+100 to 485 ms a model in Turin's log while he scrolled the picker in a match, frames in
+which no command leaves. [menu_stage/load.rs](../crates/sjk-viewer/src/menu_stage/load.rs)
+reads it on a worker as players' models are read in a match, uploads a texture a
+frame and compiles its pipelines on a second worker
+([rendering.md](rendering.md)); the model shown stays until the new one is ready, and
+one worker reads at a time. Verified on Windows 11: unit tests of the worker policy
+(one at a time, another model's result dropped, failures only the wanted model's),
+fmt, build, clippy, workspace tests, the startup stack check. Not verified: in a game,
+the frame times while scrolling the picker, or that kicks drop.
+
 ## The server's view of our commands in the log (Heimdall kicks)
 
 05/11/2026, `personal/heimdall-trace` from `main` `55c07d82`. Players keep being

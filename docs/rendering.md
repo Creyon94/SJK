@@ -654,6 +654,19 @@ cost 30 to 85 ms in one frame in Sol's 10/10/2026 logs (3 to 6 ms a pipeline); t
 pipelines are now compiled on first use like the others. Hilts, NPCs and models a
 server names later still compile on the render thread.
 
+The menu stage's model (the model picker, the profile's pages, the classic preview
+and the Collection's) loads the same way since 05/11/2026
+([menu_stage/load.rs](../crates/sjk-viewer/src/menu_stage/load.rs)): a worker reads
+the model, skins its first pose and prepares its textures (`warm_entity_materials`),
+the render thread uploads one texture a frame, then compiles its materials without
+their pipelines (`Runtime::compile_detached_deferred`) and makes its buffers, and a
+second worker compiles the pipelines before it is shown. The model on the stage stays
+until the new one is ready; one worker reads at a time, so scrolling past models loads
+the one the picker stops on. Built in one frame, it cost 100 to 485 ms a model in
+Turin's 04/11/2026 log as he scrolled models in a match (`view+menu+audio`), and no
+command leaves the client during such a frame ([networking.md](networking.md),
+Heimdall's kicks). A windowless client (world shots) takes every step in the frame.
+
 The same worker also builds the model's texture mip chains (`warm_entity_materials`
 with `mipmapped`), and the render thread uploads them under their material keys
 (`Runtime::upload_prepared_texture`, one a frame) before appending the materials, as the map

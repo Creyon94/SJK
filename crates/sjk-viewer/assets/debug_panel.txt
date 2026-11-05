@@ -8704,6 +8704,15 @@ test: join JoF: the console says JoF servers take 0 repeated packets at most.
 test: play 30 min on JoF with cl_packetdup 1 (default): no Heimdall kick.
 test: on a non-JoF server the console names no cl_packetdup cap; movement as before.
 
+[picker-worker]
+area: Menus & settings
+title: The model picker loads models in the background (no freeze per model)
+change: A chosen model is read on a worker, a texture a frame; the old one shows until it is in.
+change: Scrolling fast loads the model you stop on, not every one you passed.
+test: in a match, scroll the model picker: no hitch lines over 40 ms for each model in the log.
+test: the new model appears a few frames later, posed, coloured and holding its sabers.
+test: classic preview and Collection still show the model; a missing model still says so.
+
 [heimdall-trace]
 area: Gameplay
 title: Logs say how old your commands are at the server (Heimdall kicks)
