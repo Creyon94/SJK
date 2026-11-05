@@ -67,15 +67,15 @@ models/sjk/holocron_legendary_locked
 		rgbGen wave sin 0.16 0 0 0
 	}
 }
-models/sjk/holocron_dark_locked
+models/sjk/holocron_legendary_cap_locked
 {
 	q3map_nolightmap
 	{
-		map models/sjk/holocron_dark_locked
+		map models/sjk/holocron_legendary_cap_locked
 		rgbGen lightingDiffuse
 	}
 	{
-		map models/sjk/holocron_dark_locked
+		map models/sjk/holocron_legendary_cap_locked
 		blendFunc GL_ONE GL_ONE
 		rgbGen wave sin 0.16 0 0 0
 	}

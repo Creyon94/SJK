@@ -48,6 +48,7 @@ models/sjk/holocron_legendary
 	q3map_nolightmap
 	{
 		map models/sjk/holocron_legendary
+		normalMap models/sjk/holocron_legendary_n
 		rgbGen lightingDiffuse
 	}
 	{

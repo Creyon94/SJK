@@ -61,6 +61,15 @@ macro_rules! picture {
         )
     };
 }
+/// A model's tangent-space normal map (PNG, `normalMap` in its shader).
+macro_rules! normal_map {
+    ($name:literal) => {
+        (
+            concat!("models/sjk/", $name, ".png"),
+            bundled!(concat!($name, ".png")),
+        )
+    };
+}
 macro_rules! icon {
     ($name:literal) => {
         (
@@ -620,11 +629,14 @@ mod tests {
         let picture = |path: &str| {
             image::load_from_memory(&read(path)).unwrap_or_else(|error| panic!("{path}: {error}"))
         };
-        // Every form's pictures: the four holocrons' and the four kyber crystals'.
+        // Every form's pictures: the four holocrons' and the four kyber crystals'. A
+        // sculpted form's face and glow are baked from its model at 1024.
+        const SCULPTED: [&str; 1] = ["legendary"];
         for tier in crate::holocrons::stage::FORMS.map(|form| form.id) {
+            let face = if SCULPTED.contains(&tier) { 1024 } else { 512 };
             for (path, size) in [
-                (format!("models/sjk/holocron_{tier}.jpg"), 512),
-                (format!("models/sjk/holocron_{tier}_glow.jpg"), 512),
+                (format!("models/sjk/holocron_{tier}.jpg"), face),
+                (format!("models/sjk/holocron_{tier}_glow.jpg"), face),
                 (format!("gfx/sjk/holocron_{tier}.png"), 256),
                 (format!("gfx/sjk/holocron_{tier}_small.png"), 64),
                 (format!("models/sjk/holocron_{tier}_light.jpg"), 64),
@@ -788,15 +800,15 @@ mod tests {
             let tier = form.id;
             for part in form.parts {
                 for shader in names(part.model) {
-                    // The form's face, its light, the engram's seams and core, or
-                    // the shared steel and dark metal.
+                    // The form's face, its light, the engram's seams and core, the
+                    // Sith pyramid's sculpted cap, or the shared steel.
                     let own = [
                         format!("models/sjk/holocron_{tier}"),
                         format!("models/sjk/holocron_{tier}_light"),
                         format!("models/sjk/holocron_{tier}_seam"),
                         format!("models/sjk/holocron_{tier}_core"),
+                        format!("models/sjk/holocron_{tier}_cap"),
                         "models/sjk/holocron_steel".to_owned(),
-                        "models/sjk/holocron_dark".to_owned(),
                     ];
                     assert!(own.contains(&shader), "{}: {shader}", part.model);
                     assert!(shown.iter().any(|definition| definition.name == shader));
@@ -809,11 +821,13 @@ mod tests {
                     );
                 }
             }
-            // The tier's locked face is mounted at its size.
+            // The tier's locked face is mounted at its size: 512, or 1024 for the
+            // Sith pyramid's, baked from its sculpted model.
             let face =
                 image::load_from_memory(&read(&format!("models/sjk/holocron_{tier}_locked.jpg")))
                     .unwrap();
-            assert_eq!((face.width(), face.height()), (512, 512));
+            let size = if tier == "legendary" { 1024 } else { 512 };
+            assert_eq!((face.width(), face.height()), (size, size), "{tier}");
         }
     }
 
