@@ -309,13 +309,34 @@ impl Manifest {
     }
 }
 
-/// The manifest of the model in `directory`, when it is a rig model.
+/// The manifest of a rig model's variant (`/model <folder>/<variant>`), beside
+/// [`MANIFEST`]: `sjk_rig_<variant>.cfg`. `default` (or an empty name) is
+/// [`MANIFEST`] itself.
+pub(crate) fn variant_manifest(variant: &str) -> Option<String> {
+    let variant = variant.trim();
+    (!variant.is_empty() && !variant.eq_ignore_ascii_case("default"))
+        .then(|| format!("sjk_rig_{}.cfg", variant.to_ascii_lowercase()))
+}
+
+/// The manifest of the model in `directory` worn as `variant`, when it is a rig
+/// model: the variant's own manifest ([`variant_manifest`]) when the folder has one,
+/// else [`MANIFEST`] (a variant without its own looks like the default, as a stock
+/// model's unknown skin does).
 pub(crate) fn manifest(
     vfs: &VirtualFileSystem,
     directory: &str,
+    variant: &str,
 ) -> Result<Option<Manifest>, Box<dyn Error>> {
-    let Some(asset) = vfs.read(&format!("{directory}/{MANIFEST}"))? else {
-        return Ok(None);
+    let own = match variant_manifest(variant) {
+        Some(file) => vfs.read(&format!("{directory}/{file}"))?,
+        None => None,
+    };
+    let asset = match own {
+        Some(asset) => asset,
+        None => match vfs.read(&format!("{directory}/{MANIFEST}"))? {
+            Some(asset) => asset,
+            None => return Ok(None),
+        },
     };
     Ok(Some(Manifest::parse(&String::from_utf8_lossy(
         &asset.bytes,
@@ -404,7 +425,7 @@ fn source_rig(vfs: &VirtualFileSystem, directory: &str, driver: &Gla) -> Option<
         return known.clone();
     }
     let load = || -> Result<RigModel, Box<dyn Error>> {
-        let manifest = manifest(vfs, directory)?.ok_or("not a rig model")?;
+        let manifest = manifest(vfs, directory, "default")?.ok_or("not a rig model")?;
         let file = manifest
             .model
             .clone()
