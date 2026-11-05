@@ -63,7 +63,7 @@ set), not one cube in four colours:
 | --- | --- | --- |
 | Uncommon | The Jedi cube: the holocron's cube with a raised plateau on each face (the face on it, the emblem on its flat top), a lamp over each, steel edges | nothing of its own |
 | Rare | The Great Holocron: a dodecahedron, a raised pentagon in each face with the Jedi Order's emblem and runes, lit edges | a broken halo, tilted, turning and bobbing around it |
-| Legendary | The Sith pyramid: a dark frustum on a steel foot, runes down its sides, a lit seam at its top | its cap floats over it, turning and bobbing, the runes running on over its sides, thin lit edges, a dark underside; a glowing eye turns between them |
+| Legendary | The Sith pyramid (Sol's sculpted model, 05/11/2026): a dark frustum on a carved plinth, glowing purple runes and lines down its sides, baked from a high-poly model onto a 58-triangle low poly with a normal map | its cap floats over it, turning and bobbing; a glowing eye turns between them |
 | Mythical | The engram (21/10/2026; until then the kyber prism, now the [Kyber crystal](#kyber-crystals)): a long faceted gold gem of thirty triangular plates, each a slab apart from the next so thin glowing seams run between them, a white-hot core inside, a faint old-republic rune in a seal on each plate, the facets in four shades so they stand apart in any light | the shell turns about its length while it slowly tumbles over; the plates breathe out and back (up to 0.4 units, the core showing between them at the top of the breath); the seams and core pulse; streaks of reflection sweep the facets as they turn; eight sparks circle it |
 
 They are made by `scripts/holocron_assets.py` with the shapes in `scripts/holocron_forms.py`:
@@ -73,9 +73,10 @@ part, modelled about its own centre), each also in the locked look, and the part
 client includes ([holocrons/stage.rs](../crates/sjk-viewer/src/holocrons/stage.rs),
 `FORMS`), so the two never disagree; the script also writes the list of bundled files the
 client mounts (`holocron_files.rs`). The Jedi cube's face is the shipped face in the tier's
-colour; the Great Holocron's pentagon, the Sith pyramid's triangle of runes (its foot on
-each side, its tip on the cap) and the kyber crystal come from Sol's pictures (17/10/2026)
-in the asset folder's `art/`, fitted and painted in the tier's colours by the script
+colour; the Great Holocron's pentagon and the kyber crystal come from Sol's pictures
+(17/10/2026) in the asset folder's `art/`, fitted and painted in the tier's colours by the
+script, and the Sith pyramid is Sol's sculpted model there (`art/sith_pyramid/`, its
+baked colour, glow and normal maps)
 (`--art <key>=<picture>` tries another; the folder's
 [README](../crates/sjk-viewer/assets/holocron/README.md)); the engram's plate is drawn by
 the script. The four are sized to fill about the cube's room on screen.

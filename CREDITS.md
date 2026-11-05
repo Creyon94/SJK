@@ -141,6 +141,9 @@ includes:
   Mythical, always a saber shader (the ones not held first), a guaranteed Legendary or
   better every tenth crystal; the old kyber prism became the crystal and the Mythical
   holocron a faceted gold engram whose plates breathe round a glowing core;
+- the Legendary holocron's Sith pyramid sculpted anew (05/11/2026, art by Sol,
+  AI-assisted): a 58-triangle low poly with its colour, glow and normal maps baked from
+  the high-poly model, and normal maps on models whose shader names one (`normalMap`);
 - fourteen more achievements (26/10/2026, Sol's list): holocrons opened, crafting, a
   full card set, Order 66, the cardboard box, flawless and close duels, duel partners, a
   long saber throw and a thermal detonator sent back, a secret one, and Surveyor retired;

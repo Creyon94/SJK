@@ -7,9 +7,9 @@ Each tier is its own object (Sol's pick, 17/10/2026, from the proposals' second 
   light), a lamp over each and steel edges;
 - rare, the Great Holocron: a dodecahedron with a raised pentagon in each face, lit
   edges, and a broken halo turning around it;
-- legendary, the Sith pyramid: a dark frustum with runes down its sides and a lit seam,
-  its cap floating free over a glowing eye, both bobbing and turning; one triangle of
-  runes runs up each side and on over the cap;
+- legendary, the Sith pyramid: Sol's sculpted model (05/11/2026), a dark frustum on a
+  plinth with glowing runes carved down its sides, its cap floating free over a glowing
+  eye, both bobbing and turning (a low poly with its detail baked into pictures);
 - mythical, the engram (21/10/2026, Sol: "make a cool shader of it like Destiny"): a
   long faceted gold gem of thirty triangular plates, each a slab apart from the next
   so thin glowing seams run between them, a white-hot core showing through, the plates
@@ -41,6 +41,7 @@ icons ([`render`]).
 
 import math
 from dataclasses import dataclass, field
+from pathlib import Path
 
 import numpy as np
 from scipy.spatial import ConvexHull
@@ -53,7 +54,6 @@ FORM_IDS = TIER_IDS + KYBER_IDS
 # Shared materials and their locked ones; a tier's face `holocron_<tier>` locks to
 # `holocron_<tier>_locked`, its light to the one shared dark light.
 STEEL = "holocron_steel"
-DARK = "holocron_dark"
 LIGHT_LOCKED = "holocron_light_locked"
 
 
@@ -136,8 +136,44 @@ class Mesh:
         for i in range(1, len(points) - 1):
             triangles.append((base, base + i + 1, base + i))
 
+    def triangle(self, material: str, points, normals, uvs) -> None:
+        """A triangle as a modelling program wrote it (counter-clockwise seen from
+        outside, its own vertex normals), turned to stock's clockwise front."""
+        positions, own_normals, sts, triangles = self.surfaces.setdefault(material, ([], [], [], []))
+        base = len(positions)
+        for p, n, uv in zip(points, normals, uvs):
+            positions.append(np.asarray(p, float))
+            own_normals.append(np.asarray(n, float))
+            sts.append((float(uv[0]), float(uv[1])))
+        triangles.append((base, base + 2, base + 1))
+
     def materials(self):
         return list(self.surfaces)
+
+
+def read_obj(path: Path) -> dict:
+    """A triangulated Wavefront OBJ's objects by name, each a list of triangles, a
+    triangle three (position, normal, picture coordinate) corners; the picture's t
+    counts down from its top, as the game's does."""
+    positions, normals, uvs, objects = [], [], [], {}
+    current = None
+    for line in path.read_text(encoding="ascii").splitlines():
+        kind, _, rest = line.partition(" ")
+        values = rest.split()
+        if kind == "o":
+            current = objects.setdefault(rest.strip(), [])
+        elif kind == "v":
+            positions.append(np.array([float(v) for v in values]))
+        elif kind == "vn":
+            normals.append(np.array([float(v) for v in values]))
+        elif kind == "vt":
+            uvs.append((float(values[0]), 1.0 - float(values[1])))
+        elif kind == "f":
+            corners = [[int(i) - 1 for i in value.split("/")] for value in values]
+            if len(corners) != 3:
+                raise ValueError(f"{path}: export it triangulated")
+            current.append([(positions[v], normals[n], uvs[t]) for v, t, n in corners])
+    return objects
 
 
 def box(mesh: Mesh, material: str, centre, half, axes=None) -> None:
@@ -359,39 +395,35 @@ def great_holocron(tier: str) -> dict:
     return {"body": body, "halo": halo}
 
 
+# Sol's sculpted Sith pyramid (05/11/2026): a generated model brought down to a low
+# poly in Blender, its detail baked into pictures (`art/sith_pyramid/`, README.md). Its
+# units are Blender's, the foot on z = 0: scaled up to about the other forms' size, the
+# body's flat top kept under the eye.
+SITH_SCULPT = Path(__file__).resolve().parent.parent / "crates/sjk-viewer/assets/holocron/art/sith_pyramid"
+SITH_SCALE = 7.0
+SITH_TOP = 0.4
+
+
 def sith_pyramid(tier: str) -> dict:
-    body = Mesh()
+    """The Sith pyramid: Sol's sculpted body and floating cap, and a glowing eye
+    between them."""
+    objects = read_obj(SITH_SCULPT / "sith_pyramid.obj")
     face = f"holocron_{tier}"
-    bottom, top = 3.0, 1.6
-    z0, z1 = -3.9, -0.5
-    corner = math.sqrt(2)
+    body_top = max(p[2] for triangle in objects["low_body"] for p, _, _ in triangle)
+    lift = np.array((0.0, 0.0, SITH_TOP - body_top * SITH_SCALE))
+    cap_points = np.array([p for triangle in objects["low_cap"] for p, _, _ in triangle])
+    cap_centre = (cap_points.min(0) + cap_points.max(0)) / 2
 
-    # The face picture is a triangle, its tip at the top: the side takes its foot up
-    # to where it is the side's top wide (PYRAMID_TOP in holocron_assets.py), the cap
-    # the tip above.
-    ratio = top / bottom
+    def part(name: str, material: str, place) -> Mesh:
+        mesh = Mesh()
+        for triangle in objects[name]:
+            mesh.triangle(material, [place(p) for p, _, _ in triangle], [n for _, n, _ in triangle],
+                          [uv for _, _, uv in triangle])
+        return mesh
 
-    def side_uv(k):
-        return [(0.0, 1.0), (1.0, 1.0), (0.5 + ratio / 2, ratio), (0.5 - ratio / 2, ratio)]
-
-    def cap_uv(k):
-        return [(0.5 - ratio / 2, ratio), (0.5 + ratio / 2, ratio), (0.5, 0.0)]
-
-    prism(body, face, 4, bottom * corner, top * corner, z0, z1, math.pi / 4, side_uv,
-          bottom_material=DARK, top_material=DARK)
-    prism(body, light(tier), 4, (top + 0.1) * corner, (top + 0.1) * corner, z1, z1 + 0.3, math.pi / 4,
-          bottom_material=DARK, top_material=DARK)
-    prism(body, STEEL, 4, (bottom + 0.25) * corner, (bottom + 0.25) * corner, z0 - 0.4, z0, math.pi / 4)
-    # The cap: the runes' tip on its sides, thin lit edges, a dark underside so the eye
-    # shows below it.
-    cap = Mesh()
-    half_height = 1.45
-    prism(cap, face, 4, top * corner, 0.0, -half_height, half_height, math.pi / 4, cap_uv, bottom_material=DARK)
-    apex = np.array((0.0, 0.0, half_height))
-    for k in range(4):
-        a = k * math.tau / 4 + math.pi / 4
-        foot = np.array((top * corner * math.cos(a), top * corner * math.sin(a), -half_height))
-        bar(cap, light(tier), foot, apex, 0.1)
+    body = part("low_body", face, lambda p: p * SITH_SCALE + lift)
+    # The cap is modelled about its own centre, which its motion turns it about.
+    cap = part("low_cap", f"{face}_cap", lambda p: (p - cap_centre) * SITH_SCALE)
     eye = Mesh()
     octahedron(eye, light(tier), (0, 0, 0), 0.55, stretch=1.15)
     return {"body": body, "cap": cap, "eye": eye}
@@ -632,8 +664,8 @@ PARTS = {
     "rare": [Motion("body"), Motion("halo", bob=(0.25, 1.3), spin=(0.0, 0.3), tumble=(0.55, 0.0), precess=(0.0, 0.25))],
     "legendary": [
         Motion("body"),
-        Motion("cap", at=(0.0, 0.0, 3.0), bob=(0.35, 1.5), spin=(0.0, 0.35)),
-        Motion("eye", at=(0.0, 0.0, 0.55), bob=(0.1, 1.5), spin=(0.0, -1.2)),
+        Motion("cap", at=(0.0, 0.0, 3.2), bob=(0.35, 1.5), spin=(0.0, 0.35)),
+        Motion("eye", at=(0.0, 0.0, 1.25), bob=(0.1, 1.5), spin=(0.0, -1.2)),
     ],
     # The core stands still in the middle; the shell turns about its length
     # while that slowly tips over (a tumble), and the plates breathe in their shader.

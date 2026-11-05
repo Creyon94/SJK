@@ -56,7 +56,8 @@ Shared:
 | File | Game path | What |
 | --- | --- | --- |
 | `holocron_steel.jpg`, `holocron_steel_locked.jpg` | `models/sjk/...` | Brushed steel in the face's plate colour (the cube's edges, the pyramid's foot, the kyber crystals' sheaths and rings), tiling |
-| `holocron_dark.jpg`, `holocron_dark_locked.jpg` | `models/sjk/...` | The Sith pyramid's dark metal, tiling |
+| `holocron_legendary_cap.jpg`, `..._locked.jpg` | `models/sjk/...` | The Sith pyramid's floating cap, baked from Sol's sculpted model |
+| `holocron_legendary_n.png`, `holocron_legendary_cap_n.png` | `models/sjk/...` | Their tangent-space normal maps (`normalMap` in the lit stage) |
 | `holocron_light_locked.jpg` | `models/sjk/holocron_light_locked.jpg` | Every tier's lit parts in the locked look |
 | `holocron_sheen.jpg` | `models/sjk/holocron_sheen.jpg` | A soft diagonal stripe (128x128, tiles along s + t) that the kyber crystals' shaders scroll over the crystal (`tcMod scroll`) |
 | `holocron_mythical_seam.jpg`, `_core.jpg` (and `_locked`) | `models/sjk/...` | The engram's seams' glow and its core's facet (white-hot in the middle) |
@@ -77,24 +78,32 @@ parser and check every picture they name is mounted. Everything comes out of
 
 ### Sol's art for the faces
 
-Three pictures come from Sol's generated pictures (17/10/2026), kept in `art/` at 1024x1024
+Two pictures come from Sol's generated pictures (17/10/2026), kept in `art/` at 1024x1024
 (not mounted; the script reads them each time it remakes the tiers, and draws its own
 face for a tier whose picture is missing). A picture is any size and colour; its lit
 parts (bright, or strongly coloured) are painted along the tier's colours and glow:
 
 - `art/rare.jpg`: one pentagon of the Great Holocron on black, a corner at the top; the
   script cuts it out and fits it to the face's pentagon;
-- `art/legendary.jpg`: a triangle of the Sith pyramid on black, its tip at the top; cut
-  out and fitted to the whole picture, the pyramid's sides take its foot (up to 0.53 of
-  its height, where it is as wide as their top) and the floating cap its tip;
 - `art/kyber.jpg`: a tiling crystal texture, worked into the kyber crystals' facets (it was
   `art/mythical.jpg` while the kyber prism was the mythical holocron).
+
+The Sith pyramid is Sol's sculpted model (05/11/2026), in `art/sith_pyramid/`: Sol
+generated it (Tripo, about 940 000 triangles with an 8K picture), and it was brought down
+in Blender to a low poly of 58 triangles (`sith_pyramid.obj`, objects `low_body` and
+`low_cap`, z up, its foot on z = 0) with the detail baked from the high one: `body.jpg`
+and `cap.jpg` (colour times 60 % of the baked ambient occlusion, 1024 and 256),
+`body_glow.jpg` (the purple runes and lines alone, for the glow stage) and `body_n.png`,
+`cap_n.png` (tangent-space normal maps, green along the picture's t, downward: Blender bakes green up, so its green is flipped, the convention of the world's rend2 maps). The script scales the model
+by 7 (`SITH_SCALE`), keeps the body's flat top under the eye and models the cap about its
+own centre; the eye is still drawn by the script. To change the shape, edit the low poly
+in Blender, bake again and export it triangulated with normals and picture coordinates.
 
 The engram's plate is drawn by the script (21/10/2026): gold with a rim, an engraved groove
 and lit line, and a seal (a ring with an old-republic style rune, three small runes by the
 foot), faintly lit.
 
-`--art <key>=<picture>` (`rare`, `legendary`, `kyber`) tries another picture without replacing the file:
+`--art <key>=<picture>` (`rare`, `kyber`) tries another picture without replacing the file:
 
     python scripts/holocron_assets.py tiers crates/sjk-viewer/assets/holocron --art rare=pentagon.png
 
