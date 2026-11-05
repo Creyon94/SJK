@@ -9,6 +9,7 @@ and changed together. Begin with the status page, then the architecture.
 | [Status and priorities](status.md) | Current scope, verification and open work |
 | [Architecture](architecture.md) | Crate ownership and compatibility boundaries |
 | [Development](development.md) | Build, validation and contribution workflow |
+| [Reviewing and merging](reviewing.md) | How maintainers and their assistants review and merge pull requests: the golden rules (stock JKA first, economy care), the questions to ask, the merge steps |
 | [Distributable packages](packages.md) | Windows/Linux ZIP layout, builds and startup checks |
 | [Client](client.md) | Launch, configuration, content and common commands |
 | [Dedicated server](server.md) | Hosting, configuration and local testing |
