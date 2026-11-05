@@ -32,6 +32,10 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
+= s_weatherSounds: Hear the rain and the wind when a map has weather, quieter under a roof.
+
+- Map edits keep weather: staff give a map rain, a storm, snow, fog and wind (`mapedit_weather`, the map editor's Weather page), and every SJK player sees it with the map's other edits; your own Force weather setting still comes first _(Sol)_
+- Rain and wind sounds (Settings > Sound, `s_weatherSounds`, off by default): the game's own outdoor rain and wind loops play with the weather, as loud as it falls and blows, a fifth as loud under a roof or indoors _(Sol)_
 - Your log says how old your commands are when they reach the server, a line a minute and the last 10 seconds when a server drops you, so a JoF anti-cheat kick (Heimdall's "Set /cl_timeNudge 0") shows what the server measured _(Sol)_
 
 ## 2026.1105.2 (Alpha) | 05/11/2026

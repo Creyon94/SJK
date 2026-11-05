@@ -30,7 +30,8 @@
 //!
 //! `r_weather 0` turns weather off; `r_weatherDensity` scales the particle counts (1 is
 //! the reference's, SJK's default 2); `r_weatherQuality` (0 low to 3 ultra) chooses what
-//! is drawn ([`settings::Quality`]).
+//! is drawn ([`settings::Quality`]). Rain and wind can be heard too ([`sound`],
+//! `s_weatherSounds`).
 
 #[path = "weather_clouds.rs"]
 pub(crate) mod clouds;
@@ -48,6 +49,8 @@ pub(crate) mod gpu;
 pub(crate) mod noise;
 #[path = "weather_settings.rs"]
 pub(crate) mod settings;
+#[path = "weather_sound.rs"]
+pub(crate) mod sound;
 #[path = "weather_wind.rs"]
 pub(crate) mod wind;
 
@@ -140,6 +143,8 @@ pub(crate) struct Runtime {
     clouds_visible: bool,
     /// Rain wets the world this frame.
     wet: bool,
+    /// How loud the rain and wind are heard, eased ([`sound`]).
+    heard: sound::Levels,
     uniform: GpuWeather,
     batches: Vec<Batch>,
 }
@@ -220,6 +225,7 @@ impl Runtime {
             clouds: None,
             clouds_visible: false,
             wet: false,
+            heard: sound::Levels::default(),
             uniform: GpuWeather::zeroed(),
             batches: Vec::with_capacity(2 * MAX_CLOUDS + 2),
         };
@@ -311,6 +317,30 @@ impl Runtime {
         self.force != 0 || !self.edit.is_empty()
     }
 
+    /// How loud the rain and wind are heard now ([`sound`]).
+    pub(crate) fn heard(&self) -> sound::Levels {
+        self.heard
+    }
+
+    /// The rain and wind to hear this frame: none with weather off, frozen, or chosen
+    /// for a map without sky (where it is not drawn); else as strong as they are and as
+    /// open the sky is round `camera`.
+    fn sound_target(&self, enabled: bool, wind: [f32; 3], camera: [f32; 3]) -> sound::Levels {
+        if !enabled || self.effects.frozen {
+            return sound::Levels::default();
+        }
+        let exposure = match &self.cover {
+            Some(cover) if cover.window().enabled => {
+                sound::exposure(camera, |x, y| cover.column_at(x, y))
+            }
+            // A map without sky: chosen weather is not drawn there, the map's own falls
+            // everywhere as in the reference.
+            Some(_) if self.chosen() => return sound::Levels::default(),
+            _ => None,
+        };
+        sound::target(&self.effects.clouds, wind, exposure)
+    }
+
     /// Rain to wet the world with this frame ([`Runtime::draw_wet`]).
     pub(crate) fn wet(&self) -> bool {
         self.wet
@@ -382,6 +412,8 @@ impl Runtime {
             *light += (target - *light) * if seconds == 0.0 { 1.0 } else { ease };
         }
         let weather = settings.enabled();
+        let heard = self.sound_target(weather, wind, input.camera);
+        self.heard.ease(heard, seconds);
         let storm = if weather { self.storm() } else { 0.0 };
         self.prepare_clouds(&input, quality.cloud_steps, wind, storm, seconds);
         if !weather {

@@ -4429,6 +4429,9 @@ noise at three frequencies for the eroded edges, after Schneider's published clo
 technique (2015) and written for SJK. It tiles in every direction, is made once per
 run on a worker thread, and the clouds and the fog's billows appear when it is ready.
 
+Rain and wind can be heard with `s_weatherSounds` ([client.md](client.md#weather-sounds)),
+quieter under a roof by the same cover.
+
 `r_weather 0` turns weather off (the clouds stay with `r_clouds`);
 `r_weatherDensity` scales the counts (1 is the original's, SJK's default 2).
 
