@@ -32,6 +32,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
+- Browsing models no longer freezes the game: the model picker and the profile load a model in the background and swap it in once it is ready, as players' models already load in a match _(Sol)_
 - Your log says how old your commands are when they reach the server, a line a minute and the last 10 seconds when a server drops you, so a JoF anti-cheat kick (Heimdall's "Set /cl_timeNudge 0") shows what the server measured _(Sol)_
 
 ## 2026.1105.2 (Alpha) | 05/11/2026

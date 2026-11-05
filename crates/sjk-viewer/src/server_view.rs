@@ -402,7 +402,7 @@ mod tests {
         let mut stamps: Vec<(u64, i32)> = Vec::new();
         let mut next_snapshot = 33;
         while real < seconds * 1_000 {
-            real += if real >= 5_000 && real < 5_008 {
+            real += if (5_000..5_008).contains(&real) {
                 freeze
             } else {
                 8
