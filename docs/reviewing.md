@@ -57,9 +57,11 @@ weeks into it and were promised compensation if odds change. A hole one player f
 is known to all within a day, and a revert does not take back what was gained through
 it. So:
 
-- **No pull request that touches the economy is merged without Sol's explicit OK**,
-  however small it looks. The reviewer reviews it, writes the account below on the
-  pull request and asks Sol.
+- **Maintainers may merge an economy change themselves** once its review meets every
+  point of this list and its account (below) is written on the pull request. What
+  they cannot do is the hub's part: only Sol deploys the hub and sets its switches,
+  so a change that needs the hub is merged with a note saying so, and Sol is asked
+  for the deploy.
 - **The hub decides.** The client asks, shows and animates; the hub rolls, checks the
   limits and writes the ledger. A value computed on the client that decides what a
   player gets (an amount, odds, a winner, "they did it") is a hole. Anything the
@@ -79,12 +81,12 @@ it. So:
   or traded holocrons counted as found ones (#278's Echoes did, fixed at merge), an
   achievement that pays and can be cleared and earned again, buy then shatter then
   craft, a refund larger than the price.
-- **Odds, prices and tables are pinned by tests** and change only with Sol. A pull
-  request that changes one says so in its title.
+- **Odds, prices and tables are pinned by tests.** A pull request that changes one
+  says so in its title, and its review says who gains and who loses by it.
 - **Rollout:** a new economy feature comes behind a hub switch, staff-only first, and
-  Sol opens it to everyone. The hub side is deployed before the client release that
-  needs it, and older clients are refused or ignore it cleanly. Only Sol deploys the
-  hub.
+  is opened to everyone once staff have tried it; Sol flips the switch. The hub side is
+  deployed before the client release that needs it, and older clients are refused or
+  ignore it cleanly.
 - **No real money**, ever, and nothing that looks like it.
 - **Staff tools stay staff-only and quiet:** no line in the changelog, the credits or
   the release notes, and no command that grants anything outside staff tools.
@@ -104,8 +106,12 @@ a cooldown, same-address refusals and verified-only access before either may mer
   (Sol, 04/11/2026): a pull request there from someone else waits for Creyon's word.
 - **Read everything first:** the description, the linked issue or hub report, every
   comment, and earlier reviews. A second review checks each earlier point, one by one.
-- **Not your own.** A maintainer does not review and merge their own pull request:
-  another maintainer or Sol does.
+- **Your own pull request** is reviewed by another maintainer or Sol, unless it is
+  low risk: then you may merge it into `main` yourself, as Sol does with their own
+  changes, still following every check and step on this page. Low risk means small,
+  with no economy and no hub change, no new default and no change to an existing one,
+  nothing in movement, prediction or the protocol, and nothing that redesigns or
+  removes what players already have. When in doubt, it is not low risk.
 - **Check it out apart** from any folder someone plays or works in, merged with the
   current `main`, since conflicts and semantic breaks (a field added on one side that
   the other side's new code does not set) only show there:
@@ -189,7 +195,7 @@ recommendation, and wait for the answer:
 
 - a default away from stock, or a new meaning for an existing setting;
 - a redesign or removal of something players already have;
-- anything in the economy (golden rule 2);
+- a hub deploy or a hub switch (an economy feature opened to everyone, for one);
 - unlocks or limits on cosmetics, and what is staff-only;
 - a new dependency, a change to `.github/workflows`, the release or the licences;
 - closing a pull request.
