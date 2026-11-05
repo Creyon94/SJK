@@ -1,3 +1,23 @@
+## The server's view of our commands in the log (Heimdall kicks)
+
+05/11/2026, `personal/heimdall-trace` from `main` `55c07d82`. Players keep being
+kicked by Heimdall ("Set /cl_timeNudge 0") on 2026.1103.2 and 1105.1 (Turin, Senek),
+after all three guesses (23/10, 02/11, 04/11 below), and no log so far held the kick.
+Turin's log (04/11) shows what is left: 20 frames over 33 ms in a minute, the worst
+462 and 485 ms, while he browsed the model picker in game (`view+menu+audio`, player
+previews loading on the main thread), plus 45 to 150 ms when players joined or changed
+model. Commands are only made at the start of a frame, so each of those is a gap the
+server sees; JoF EJK has the same gaps on its own freezes, so this is a lead, not a
+finding. Also found: stock stamps commands with the previous frame's clock and puts
+`cl_timeNudge` in the stamps ([networking.md](networking.md) said otherwise). Changed:
+[server_view.rs](../crates/sjk-viewer/src/server_view.rs) logs how old our newest
+command was at the server per snapshot (`serverTime - ps.commandTime`), its round
+trip, and frame and packet gaps over 40 ms: a line a minute while playing and the last
+10 seconds when a server drops the player. Verified on Windows 11: unit tests (a 125
+FPS client on a 30 snapshots a second server, smooth and with a 480 ms freeze; the
+minute line; other time lines left out). Not verified: in a game, or how close the
+age comes to what Heimdall measures.
+
 ## Shared remap blocks (`cg_remapsShared`)
 
 05/11/2026, `personal/remap-sync` from `main` `28ac9379`. Sol asked for a list of
