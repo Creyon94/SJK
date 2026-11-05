@@ -3935,6 +3935,16 @@ test: Walk, run, jump, land: the tail lags and bounces, then settles behind her.
 test: sjkemote comrade: the tail follows the dance's hips, stays attached.
 note: Needs test_content.pk3 from add-on 1.7 (the tail's 10 bones, 322 joints).
 
+[rig-reload]
+area: Rendering & effects
+title: Rig models: edit in Blender while the game runs (rig_reload)
+change: Blender add-on 1.11 replaces rig_<name>.pk3 even while the game holds it open.
+change: rig_reload reads the rig models again: players wearing one reload it, no map load.
+test: /model solfox5, then export again from Blender: no "in use" error.
+test: Change something visible (scale in sjk_rig.cfg, texture), export, type rig_reload.
+test: Within a second or two the model shows the change; the map and others stay as they were.
+note: A changed shader script still needs the next map.
+
 [rig-cloth]
 area: Rendering & effects
 title: Rig models: capes and tails swing, kept out of the legs (SolFox2)
