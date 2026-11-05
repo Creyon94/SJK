@@ -3962,6 +3962,17 @@ change: Writes both as OBJ per pose and prints sizes, to compare proportions.
 test: Nothing in game. solfox5 was resized with it: same height as solfox now.
 note: Recipe in docs/rig-models.md (Rerun the checks).
 
+[rig-variants]
+area: Rendering & effects
+title: Rig models: variants (solfox5/cloth)
+change: A rig model can have variants: sjk_rig_<variant>.cfg, worn as /model <name>/<variant>.
+change: The character grid lists each variant with its icon_<variant> picture.
+change: Blender add-on 1.12: a Variant field exports one without touching the default.
+test: /model solfox5/cloth: the OG Solfox's hood, cape and loincloth on solfox5.
+test: Run, crouch, jump: the cape and loincloth swing on their own, the hood stays on the head.
+test: /model solfox5: the plain fox again. Both show in the character grid.
+note: The raised tail comes out through the cape (cloth does not collide with the tail).
+
 [rig-cloth]
 area: Rendering & effects
 title: Rig models: capes and tails swing, kept out of the legs (SolFox2)

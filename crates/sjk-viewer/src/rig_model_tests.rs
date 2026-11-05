@@ -315,7 +315,8 @@ fn feet_against_the_driver() {
     let config =
         sjk_model::AnimationConfig::parse(&read("models/players/_humanoid/animation.cfg")).unwrap();
     let directory = format!("models/players/{name}");
-    let manifest = super::manifest(&vfs, &directory)
+    let variant = std::env::var("SJK_TEST_VARIANT").unwrap_or_else(|_| "default".to_owned());
+    let manifest = super::manifest(&vfs, &directory, &variant)
         .unwrap()
         .expect("a rig model");
     let rig = RigModel::load(&vfs, &directory, &manifest, &gla, &glm).unwrap();
@@ -747,7 +748,8 @@ fn dynamic_chains_of_an_installed_rig() {
     let gla = Gla::parse(&read("models/players/_humanoid/_humanoid.gla")).unwrap();
     let glm = sjk_model::Glm::parse(&read("models/players/kyle/model.glm")).unwrap();
     let directory = format!("models/players/{name}");
-    let manifest = super::manifest(&vfs, &directory)
+    let variant = std::env::var("SJK_TEST_VARIANT").unwrap_or_else(|_| "default".to_owned());
+    let manifest = super::manifest(&vfs, &directory, &variant)
         .unwrap()
         .expect("a rig model");
     let mut weightless = manifest.clone();
@@ -1044,7 +1046,8 @@ fn lineup_beside_a_stock_model() {
     let config =
         sjk_model::AnimationConfig::parse(&read("models/players/_humanoid/animation.cfg")).unwrap();
     let directory = format!("models/players/{name}");
-    let manifest = super::manifest(&vfs, &directory)
+    let variant = std::env::var("SJK_TEST_VARIANT").unwrap_or_else(|_| "default".to_owned());
+    let manifest = super::manifest(&vfs, &directory, &variant)
         .unwrap()
         .expect("a rig model");
     let rig = RigModel::load(&vfs, &directory, &manifest, &gla, &kyle).unwrap();
@@ -1169,4 +1172,48 @@ fn lineup_beside_a_stock_model() {
         write(&format!("{pose}_rig.obj"), &rig_mesh);
     }
     println!("written to {}", out.display());
+}
+
+#[test]
+fn a_variant_wears_its_own_manifest_else_the_default() {
+    let mut vfs = VirtualFileSystem::new();
+    vfs.mount_memory(
+        "pack",
+        [
+            (
+                "models/players/fox/sjk_rig.cfg",
+                b"model model.gltf
+scale 60
+"
+                .to_vec(),
+            ),
+            (
+                "models/players/fox/sjk_rig_cloak.cfg",
+                b"model model_cloak.gltf
+scale 61
+dynamic cape_0
+"
+                .to_vec(),
+            ),
+        ],
+    )
+    .unwrap();
+    let wear = |variant: &str| {
+        super::manifest(&vfs, "models/players/fox", variant)
+            .unwrap()
+            .expect("a rig model")
+    };
+    assert_eq!(wear("default").model.as_deref(), Some("model.gltf"));
+    assert_eq!(wear("").scale, Some(60.0));
+    let cloak = wear("Cloak");
+    assert_eq!(cloak.model.as_deref(), Some("model_cloak.gltf"));
+    assert_eq!(cloak.scale, Some(61.0));
+    assert_eq!(cloak.dynamic.len(), 1);
+    // A variant without a manifest of its own looks like the default.
+    assert_eq!(wear("red").model.as_deref(), Some("model.gltf"));
+    assert!(
+        super::manifest(&vfs, "models/players/kyle", "default")
+            .unwrap()
+            .is_none()
+    );
 }
