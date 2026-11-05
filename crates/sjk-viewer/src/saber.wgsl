@@ -4628,14 +4628,18 @@ fn sig_turned(c: vec3<f32>, base: f32, hue: f32, accent: f32) -> vec3<f32> {
     let colour = smoothstep(0.03, 0.3, sat);
     // The wearer's colour is the body's exactly: 250 0 0 is red. What was another colour stays a close
     // neighbour of it; the air effects (`accent`) lean a little along the wheel, deeper in their dark tones.
-    let apart = 0.24 * sin(6.2832 * away) * smoothstep(0.12, 0.26, abs(away));
+    // Creyon, 6/11/2026: under a colour its effects still ran together, and colours opposite the main one
+    // (Peridea's red and blue) folded onto it. Now the body is the wearer's colour; every other colour it was
+    // designed with keeps its side of the wheel and stands a clear step off, more the further it was, up to a
+    // triad (a third of the wheel), so none meets the body's; the air effects take an analogous colour a
+    // sixth of the wheel off to their side. One family, every effect told apart.
+    let side = select(-1.0, 1.0, away >= 0.0);
+    let reach = abs(away);
+    let apart = side * (0.1 + 0.55 * clamp(reach - 0.08, 0.0, 0.42)) * smoothstep(0.04, 0.12, reach);
     let depth = accent * (smoothstep(0.08, 0.85, high) - 0.5);
-    // Creyon, 4/11/2026: all in one tone hid the effects. The body stays the wearer's exact colour with a little
-    // room for its other colours; the air effects stand well apart: a companion colour on the wheel, what was
-    // another colour stays as far from it, what was pale stays pale.
     var turned = fract(hue + (apart + depth) * colour);
     if accent > 0.0 {
-        turned = fract(hue + accent * (0.8 + 0.5 * (smoothstep(0.08, 0.85, high) - 0.5)) + away * 0.7 * colour);
+        turned = fract(hue + side * (0.17 + 0.12 * clamp(reach - 0.1, 0.0, 0.4)) * colour + 0.04 * depth);
     }
     let k = vec3(1.0, 2.0 / 3.0, 1.0 / 3.0);
     let wheel = clamp(abs(fract(vec3(turned) + k) * 6.0 - vec3(3.0)) - vec3(1.0), vec3(0.0), vec3(1.0));
