@@ -2786,6 +2786,11 @@ at that point and returning the blade's own: `sig_glow(g, b, r, px)` the glow's 
   arcs and the Void's orbiting black holes are; no volume is marched. `sig_edge` fades
   everything out before the quad's edges, and `uFx` is 0 when the wearer turns the
   effects off. `@solid 1` marks a signature with `sig_solid` or `sig_vol_solid`.
+  A solid layer is cut just past the tip the blade has (so a crust follows the blade as it
+  grows); `@solidpast 1` (`Signature::solid_past`, `SIG_SOLID_PAST_TIP`) leaves a fully
+  grown blade's solid layer uncut there, for one that closes itself past the point: Angel's
+  cloud bank rounds off in a billowed crown a little above the tip, where the cut drew a
+  flat top seen up close (Creyon, 5/11/2026).
 - **A fixed frame and the full length (round 9, 20/10/2026).** Until round 9 the frame's x
   pointed to the camera's side, so every effect turned round the blade with the view: in
   Creyon's test they raced round it whenever he turned the mouse. The hand path now stamps

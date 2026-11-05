@@ -425,6 +425,12 @@ impl Signature {
             .unwrap_or(0.0)
     }
 
+    /// Whether its solid layer, once the blade is all out, stands past the tip uncut and closes
+    /// itself there (`@solidpast 1`; Angel's cloud bank, whose top was cut flat just past the tip).
+    pub(crate) fn solid_past(&self) -> bool {
+        self.meta("solidpast") == Some("1")
+    }
+
     /// Whether it draws a solid layer (`@solid 1`).
     pub(crate) fn solid(&self) -> bool {
         self.meta("solid") == Some("1")
@@ -717,6 +723,13 @@ impl Signature {
             source = source
                 .replace("fn behindBlade(", "fn behindBladeCached(")
                 .replace("behindBladeFull(", "behindBlade(");
+        }
+        if self.solid_past() {
+            source = source.replacen(
+                "const SIG_SOLID_PAST_TIP: bool = false;",
+                "const SIG_SOLID_PAST_TIP: bool = true;",
+                1,
+            );
         }
         if self.meta("speed").is_some() {
             source = source.replacen(

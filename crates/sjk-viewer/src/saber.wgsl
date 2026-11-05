@@ -2910,7 +2910,8 @@ fn solid_colour(input: VertexOutput) -> vec4<f32> {
         let out_full = select(0.0, 1.0, input.axis.w > 0.0 && input.length >= input.axis.w);
         let grown = 1.0 - smoothstep(input.length - 1.0 + 1.2 * out_full,
             input.length + 0.5 + 0.4 * out_full, place.y);
-        out = vec4(out.rgb, out.a * sig_kept(input, place) * grown);
+        let kept_past = select(grown, 1.0, SIG_SOLID_PAST_TIP && input.length >= input.axis.w);
+        out = vec4(out.rgb, out.a * sig_kept(input, place) * kept_past);
         if (input.persona.x >> 24u) != 255u {
             // An echo keeps its blade's solid parts only, faded (round 12).
             return vec4(sig_coloured(input, out.rgb), out.a * sig_edge(input) * persona_fade(input));
@@ -4462,6 +4463,10 @@ const SIG_SPEED: f32 = 1.0;
 // A round blade's effects keep their own colours under a chroma; only its body and glow take the
 // wearer's (update 28, Creyon: Zeffo in a colour took all its effects with it).
 const SIG_OWN_EFFECTS: bool = false;
+// A signature whose solid layer stands wide past the point and closes itself there (`@solidpast`,
+// Signature::solid_past; Angel's cloud bank): once the blade is all out, its solid parts are not cut
+// along a straight line just past the tip (Creyon, 5/11/2026: up close the clouds' top was flat).
+const SIG_SOLID_PAST_TIP: bool = false;
 // 1 while its wearer has its effects on (the `effects` option, the arcs bit), else 0: what a
 // signature's own volume (`sig_vol`) keeps of everything but the blade itself.
 var<private> uFx: f32;

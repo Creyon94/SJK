@@ -7,6 +7,7 @@
 // @room 10
 // @solid 1
 // @solidnear 1
+// @solidpast 1
 // @moments own
 // @trail cloud
 // @palette {"corona.rim_cool":[0.62,0.6,0.56],"corona.rim_hot":[0.92,0.9,0.85],"corona.inner":[1.0,0.99,0.95],"core.white":[1.0,0.985,0.95],"core.fringe_cool":[0.86,0.85,0.8],"core.fringe_hot":[0.98,0.97,0.93],"light.color":[1.0,0.98,0.92],"trail":[0.95,0.95,0.93]}
@@ -73,13 +74,16 @@ vec4 sig_solid(vec4 o, vec2 b, float px){
     res = vec4(mix(res.rgb, col, cov), max(res.a, cov));
   }
   // not when the eye is pressed against it; this fills the screen there
-  if (part(0.0) > 0.5 && ch > 0.0 && uFx > 0.0 && b.y > -0.1 && b.y < L + 1.0){
+  if (part(0.0) > 0.5 && ch > 0.0 && uFx > 0.0 && b.y > -0.1 && b.y < L + 4.0){
     float x = abs(b.x), side = b.x > 0.0 ? 2.0 : 6.0;
     // the bank's shape: wide in slow swells, thin at the hand and the point, spreading off the blade as it charges
     float wide = 5.0 + 4.3*rxFlow(vec2(b.y*0.12 + 0.025*uClock, side));
     // it charges from the hand to the point: a thin first vapour along the blade, filling and spreading for five seconds
     float along = clamp(ch*1.35 - 0.35*b.y/max(L, 1.0), 0.0, 1.0);
-    wide *= (0.12 + 0.88*along*along*(3.0 - 2.0*along))*(0.3 + 0.7*smoothstep(-0.1, 4.5, b.y))*(0.3 + 0.7*(1.0 - smoothstep(L - 4.5, L + 1.0, b.y)));
+    wide *= (0.12 + 0.88*along*along*(3.0 - 2.0*along))*(0.3 + 0.7*smoothstep(-0.1, 4.5, b.y));
+    // towards the point the bank rounds off like the top of a cloud, closing a little above it, not in straight slopes
+    float crown = clamp((b.y - (L - 6.0))/9.0, 0.0, 1.0);
+    wide *= 0.15 + 0.85*sqrt(max(1.0 - crown*crown, 0.0));
     float q = x/max(wide, 0.01);
     if (q < 1.25){
       float fine = 1.0 - smoothstep(0.015, 0.06, px);
@@ -89,7 +93,12 @@ vec4 sig_solid(vec4 o, vec2 b, float px){
       float h = an_height(bq, fine);
       float wisp = vn(bq*1.9 + vec2(side, 0.07*uClock));
       float body = h + 0.03 - 0.78*q*q - 0.4*(1.0 - ch) + 0.16*(wisp - 0.5) + 0.26*halo(x, 1.2);
-      float cov = smoothstep(-0.03, 0.46, body)*smoothstep(0.05, 0.4, ch)*smoothstep(-0.1, 1.2/max(view*view, 0.25), b.y)*(1.0 - smoothstep(L + 0.9 - 1.9/max(view*view, 0.12), L + 0.9, b.y))*smoothstep(0.26, 0.5, view);
+      // the bank closes over the point in a round, billowed cap standing a little above it, lower at its sides,
+      // never along a straight line across the blade (Creyon: up close the top of the point was cut flat).
+      // Above the point the blade's picture keeps its height on the screen, below it a blade seen along its
+      // length is squeezed into a few pixels: a cap below the point stood there as a flat line.
+      float cap = L + 0.2 + 2.8*(1.0 - min(q*q, 1.0)) + 1.0*(h - 0.55);
+      float cov = smoothstep(-0.03, 0.46, body)*smoothstep(0.05, 0.4, ch)*smoothstep(-0.1, 1.2/max(view*view, 0.25), b.y)*(1.0 - smoothstep(cap - 1.6, cap, b.y))*smoothstep(0.26, 0.5, view);
       if (cov > 0.0){
         float hl = an_height(bq + vec2(0.1, 0.3), 0.0);
         float slope = clamp((h - (fine > 0.01 ? fine*0.065 : 0.0) - hl)*3.6, -1.0, 1.0);
