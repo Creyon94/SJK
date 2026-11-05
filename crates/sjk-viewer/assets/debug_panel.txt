@@ -3973,6 +3973,15 @@ test: Run, crouch, jump: the cape and loincloth swing on their own, the hood sta
 test: /model solfox5: the plain fox again. Both show in the character grid.
 note: The raised tail comes out through the cape (cloth does not collide with the tail).
 
+[rig-plant]
+area: Rendering & effects
+title: Rig models: feet planted by their soles, eased (no bobbing walk)
+change: The rig's lowest sole point goes onto the driver's each frame, not its ankle.
+change: The rise eases over 50 ms, so a step lands without a jolt.
+test: /model solfox5, walk (and run): the body no longer bobs up and down twice a step.
+test: Paws stay on the ground walking, running and crouching; other rig models stand as before.
+note: solfox5's paw now follows JKA's foot (manifest map ball_l ltalus), lift 0.
+
 [rig-cloth]
 area: Rendering & effects
 title: Rig models: capes and tails swing, kept out of the legs (SolFox2)
