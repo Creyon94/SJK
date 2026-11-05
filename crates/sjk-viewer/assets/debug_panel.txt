@@ -8830,3 +8830,37 @@ test: mapedit_sky - on a swapped sky: the map's sky again; listRemaps names the 
 test: mapedit_web: click the sky; Swap the sky shows pictures; Swap this sky changes the page.
 test: Page: B, tick sky: blue sky faces; click one, Same plane: the sky round it, no caulk.
 test: Page: Fill on a sky side suggests the walls round it; Fill covers it in the game too.
+
+[map-weather]
+area: Rendering & effects
+title: Map editor: weather kept for a map (rain, storm, snow, fog, wind), synced to all
+change: A weather edit runs world effect commands in place of the map's own weather.
+change: mapedit_weather keeps what you see (r_weatherForce, r_we, the r_weatherFog 2 fog).
+change: Panel Weather page: Drizzle, Rain, Storm, Snow, Fog, Wind, Keep what I see, Map's own.
+note: Older clients ignore a map's whole edits while it has weather: publish after a release.
+test: On T2_Rogue: r_weatherForce 3, r_weatherFog 2, mapedit, Weather page, Keep what I see.
+test: r_weatherForce 0: the storm and fog stay (the edit's); the page says Kept: heavyrain...
+test: Weather page: Snow keeps the fog; Fog off takes it out; Map's own brings the map's back.
+test: mapedit_publish, then on another PC (or after mapedits_sync) the map has the storm.
+test: cg_mapEdits 0: the map's own weather again; r_weatherForce 1 still replaces the edit's.
+
+[weather-sounds]
+area: Audio
+title: Rain and wind sounds with the weather (s_weatherSounds, off by default)
+change: The game's rainy_lp and windy1_lp loops, as loud as the rain falls and the wind blows.
+change: Under a roof or indoors a fifth as loud; frozen weather and r_weather 0 are silent.
+test: Settings > Sound > Rain and wind sounds on; r_weatherForce 3 on T2_Rogue: rain, gusts.
+test: Walk under a roof or into a building: the rain drops to a murmur, back up outside.
+test: r_weatherForce 1 (drizzle): quieter rain; 4 (snow): wind only, no rain sound.
+test: The what's-new card after the update offers the switch; it is off by default.
+
+[puddle-mirror]
+area: Rendering & effects
+title: Puddles mirror the world at Ultra weather quality (after VisionJK)
+change: At r_weatherQuality 3, puddles reflect the streets, walls and sky round them.
+change: The reflection ripples with the rain rings and fades out from 1500 units.
+note: Players are drawn after the wet pass, so puddles mirror the world, not the players.
+test: T2_Rogue, r_weatherForce 3, r_weatherQuality 3: puddles show the buildings upside down.
+test: Look down at a puddle and turn: the reflection stays put on the ground, no swimming.
+test: Near the screen's edges reflections fade out instead of cutting off hard.
+test: r_weatherQuality 2: no puddles; compare FPS with 3 in a storm.

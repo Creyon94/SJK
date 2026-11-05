@@ -23,7 +23,8 @@
 //!   the wind and darkening in a storm (`r_clouds`).
 //! - **Wet surfaces**: what the rain falls on darkens and mirrors the sky, water runs
 //!   down slopes and walls, and flat ground gathers puddles, by quality level, in a
-//!   pass over the world before the players are drawn (`fragment_wet`).
+//!   pass over the world before the players are drawn (`fragment_wet`); at ultra the
+//!   puddles mirror the world round them ([`mirror`]).
 //! - Particles are generated on the GPU from their index and the wind the CPU
 //!   integrates (`weather.wgsl`) and drawn into the display-space effect layer after the
 //!   effects; rain is blended as a faint tinted streak rather than added.
@@ -45,6 +46,8 @@ pub(crate) mod cover_map;
 pub(crate) mod effects;
 #[path = "weather_gpu.rs"]
 pub(crate) mod gpu;
+#[path = "weather_mirror.rs"]
+pub(crate) mod mirror;
 #[path = "weather_noise.rs"]
 pub(crate) mod noise;
 #[path = "weather_settings.rs"]
@@ -143,6 +146,11 @@ pub(crate) struct Runtime {
     clouds_visible: bool,
     /// Rain wets the world this frame.
     wet: bool,
+    /// The puddles mirror the scene this frame ([`mirror`]).
+    mirrored: bool,
+    /// World shots compare the puddles with their mirror and without.
+    #[cfg(test)]
+    mirror_allowed: bool,
     /// How loud the rain and wind are heard, eased ([`sound`]).
     heard: sound::Levels,
     uniform: GpuWeather,
@@ -168,6 +176,8 @@ pub(crate) struct FrameInput<'a> {
     pub(crate) sky: clouds::SkyLight,
     /// The global fog's `1 / depthForOpaque`, 0 without one.
     pub(crate) fog: f32,
+    /// The scene target the puddles' mirror copies (ultra), when it can be sampled.
+    pub(crate) mirror: Option<wgpu::TextureView>,
     pub(crate) viewport: [u32; 2],
     pub(crate) settings: &'a Settings,
 }
@@ -225,6 +235,9 @@ impl Runtime {
             clouds: None,
             clouds_visible: false,
             wet: false,
+            mirrored: false,
+            #[cfg(test)]
+            mirror_allowed: true,
             heard: sound::Levels::default(),
             uniform: GpuWeather::zeroed(),
             batches: Vec::with_capacity(2 * MAX_CLOUDS + 2),
@@ -317,6 +330,20 @@ impl Runtime {
         self.force != 0 || !self.edit.is_empty()
     }
 
+    /// Whether the puddles may mirror the scene (always, outside the world shots).
+    fn mirror_allowed(&self) -> bool {
+        #[cfg(test)]
+        return self.mirror_allowed;
+        #[cfg(not(test))]
+        true
+    }
+
+    /// Let the puddles mirror the scene, or keep them to the sky (world shots).
+    #[cfg(test)]
+    pub(crate) fn set_mirror_allowed(&mut self, allowed: bool) {
+        self.mirror_allowed = allowed;
+    }
+
     /// How loud the rain and wind are heard now ([`sound`]).
     pub(crate) fn heard(&self) -> sound::Levels {
         self.heard
@@ -392,6 +419,7 @@ impl Runtime {
     pub(crate) fn prepare(&mut self, input: FrameInput<'_>) {
         self.batches.clear();
         self.wet = false;
+        self.mirrored = false;
         let now = std::time::Instant::now();
         let seconds = self
             .last_frame
@@ -458,7 +486,7 @@ impl Runtime {
             .noise
             .as_mut()
             .is_some_and(|noise| noise.update(input.queue));
-        let (Some(cover), Some(gpu)) = (self.cover.as_mut(), self.gpu.as_ref()) else {
+        let (Some(cover), Some(_)) = (self.cover.as_mut(), self.gpu.as_ref()) else {
             return;
         };
         cover.update(input.queue, input.camera);
@@ -596,7 +624,21 @@ impl Runtime {
             self.fog_flow[2] as f32,
             FOG_REACH,
         ];
-        gpu.write(input.queue, &self.uniform);
+        // Puddles (ultra) mirror the scene when it can be copied; else their copy goes.
+        let mirrored = self.wet && quality.wet >= 3 && self.mirror_allowed();
+        if let Some(gpu) = self.gpu.as_mut() {
+            match input.mirror.as_ref().filter(|_| mirrored) {
+                Some(scene) => {
+                    gpu.mirror.prepare(input.device, scene);
+                    self.mirrored = true;
+                }
+                None => gpu.mirror.release(),
+            }
+        }
+        self.uniform.wet_sky[3] = f32::from(u8::from(self.mirrored));
+        if let Some(gpu) = &self.gpu {
+            gpu.write(input.queue, &self.uniform);
+        }
     }
 
     /// Advance the clouds and write their uniform; they are drawn unless turned off or
@@ -640,7 +682,7 @@ impl Runtime {
         depth: &wgpu::BindGroup,
     ) {
         if let Some(gpu) = self.gpu.as_ref().filter(|_| self.wet) {
-            gpu.draw_wet(encoder, target, camera, depth);
+            gpu.draw_wet(encoder, target, camera, depth, self.mirrored);
         }
     }
 
@@ -822,6 +864,7 @@ impl crate::GpuState {
             light,
             sky,
             fog,
+            mirror: self.offscreen_scene_target().cloned(),
             viewport,
             settings: &self.context.weather,
         });

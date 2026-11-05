@@ -70,6 +70,10 @@ struct Weather {
 @group(1) @binding(5) var noise_sampler: sampler;
 @group(1) @binding(6) var far_cover: texture_2d<f32>;
 @group(2) @binding(0) var scene_depth: texture_depth_2d;
+// The puddles' mirror (`weather_mirror.rs`, ultra): in its copy pass the scene itself, in
+// the wet pass that copy at half size (one black texel while there is none).
+@group(3) @binding(0) var mirror_scene: texture_2d<f32>;
+@group(3) @binding(1) var mirror_sampler: sampler;
 
 // Additive (GL_ONE GL_ONE) or alpha-blended sprites.
 override additive: bool = true;
@@ -614,6 +618,83 @@ fn ripples(xy: vec2<f32>, time: f32) -> f32 {
     return min(ring, 1.0);
 }
 
+// The scene at half size: one bilinear tap between each four of its texels.
+@fragment fn fragment_mirror_copy(@builtin(position) pixel: vec4<f32>) -> @location(0) vec4<f32> {
+    let half = ceil(vec2<f32>(textureDimensions(mirror_scene)) * 0.5);
+    return vec4(textureSampleLevel(mirror_scene, mirror_sampler, pixel.xy / half, 0.0).rgb, 1.0);
+}
+
+// The mirror's march (VisionJK's `Mirror()` in `wet.frag`, by Blackwolf): steps from
+// 2 units growing by 1.18, about 2000 units in all, then halvings round the hit.
+const MIRROR_STEPS: u32 = 32u;
+const MIRROR_REFINE: u32 = 5u;
+const MIRROR_FIRST: f32 = 2.0;
+const MIRROR_GROWTH: f32 = 1.18;
+// Puddles mirror the world out to here, fading from 1500 units.
+const MIRROR_REACH: f32 = 2500.0;
+
+// `q` on the screen: xy its uv, z its depth, w 1 when it is on the screen (else -1).
+fn screen_of(q: vec3<f32>) -> vec4<f32> {
+    let clip = camera.view_projection * vec4(q, 1.0);
+    if clip.w <= 1e-4 { return vec4(0.0, 0.0, 0.0, -1.0); }
+    let ndc = clip.xyz / clip.w;
+    let uv = vec2(ndc.x * 0.5 + 0.5, 0.5 - ndc.y * 0.5);
+    let inside = all(uv > vec2(0.0)) && all(uv < vec2(1.0)) && ndc.z < 1.0;
+    return vec4(uv, ndc.z, select(-1.0, 1.0, inside));
+}
+
+// How far `q` lies behind the world drawn at its spot `s` on the screen, along the view
+// (negative: in front of it; very negative where the sky is drawn).
+fn behind(q: vec3<f32>, s: vec4<f32>, size: vec2<f32>) -> f32 {
+    let xy = clamp(vec2<i32>(s.xy * size), vec2(0), vec2<i32>(size) - 1);
+    let surface = wet_point(xy, size);
+    if surface.w >= 1.0 { return -1.0e9; }
+    return distance(q, camera.position) - distance(surface.xyz, camera.position);
+}
+
+// What a puddle at `p` mirrors along `dir`: the world's colour where the march meets it
+// in the depth, or the sky drawn where the ray leaves for it, and how sure that is (a,
+// 0 when neither: the overcast sky the wet pass knows stands in).
+fn mirrored(p: vec3<f32>, dir: vec3<f32>, size: vec2<f32>) -> vec4<f32> {
+    var stride = MIRROR_FIRST;
+    var near = 0.0;
+    var far = 0.0;
+    var hit = false;
+    for (var i = 0u; i < MIRROR_STEPS; i++) {
+        near = far;
+        far += stride;
+        let q = p + dir * far;
+        let s = screen_of(q);
+        if s.w < 0.0 { break; }
+        let gap = behind(q, s, size);
+        // Just behind a surface: the ray went through it. Far behind: it passes behind
+        // something nearer the eye, and goes on.
+        if gap > 0.0 && gap < stride * 2.0 + 16.0 {
+            hit = true;
+            break;
+        }
+        stride *= MIRROR_GROWTH;
+    }
+    var s: vec4<f32>;
+    if hit {
+        for (var i = 0u; i < MIRROR_REFINE; i++) {
+            let middle = 0.5 * (near + far);
+            let q = p + dir * middle;
+            if behind(q, screen_of(q), size) > 0.0 { far = middle; } else { near = middle; }
+        }
+        s = screen_of(p + dir * far);
+    } else {
+        // Nothing met: the sky the ray leaves for, where the screen shows sky that way.
+        s = screen_of(p + dir * 1.0e5);
+        let xy = clamp(vec2<i32>(s.xy * size), vec2(0), vec2<i32>(size) - 1);
+        if s.w < 0.0 || textureLoad(scene_depth, xy, 0) < 1.0 { return vec4(0.0); }
+    }
+    if s.w < 0.0 { return vec4(0.0); }
+    let edge = min(min(s.x, 1.0 - s.x), min(s.y, 1.0 - s.y));
+    let sure = smoothstep(0.0, 0.08, edge) * select(1.0, 1.0 - smoothstep(1400.0, 2000.0, far), hit);
+    return vec4(textureSampleLevel(mirror_scene, mirror_sampler, s.xy, 0.0).rgb, sure);
+}
+
 @fragment fn fragment_wet(@builtin(position) pixel: vec4<f32>) -> @location(0) vec4<f32> {
     let size = vec2<f32>(textureDimensions(scene_depth));
     let last = vec2<i32>(size) - 1;
@@ -665,6 +746,7 @@ fn ripples(xy: vec2<f32>, time: f32) -> f32 {
     var film = wet * mix(0.1, 0.22, ground);
     var glint = 0.0;
     var rings = 0.0;
+    var puddle = 0.0;
     let steep = length(n.xy);
     if level >= 2u && n.z > -0.2 {
         // Running water on walls and steep slopes; fine detail, so it fades out with
@@ -681,7 +763,7 @@ fn ripples(xy: vec2<f32>, time: f32) -> f32 {
     if level >= 3u {
         // Standing water on flat ground: darker still, and smooth enough to mirror the sky.
         let patches = textureSampleLevel(noise, noise_sampler, vec3(p.xy / 1100.0, 0.37), 0.0);
-        let puddle = smoothstep(0.785, 0.815, patches.r) * smoothstep(0.96, 0.995, n.z) * open
+        puddle = smoothstep(0.785, 0.815, patches.r) * smoothstep(0.96, 0.995, n.z) * open
             * weather.wet.x;
         darken = mix(darken, 0.55, puddle);
         film = mix(film, 1.0, puddle);
@@ -693,7 +775,30 @@ fn ripples(xy: vec2<f32>, time: f32) -> f32 {
     // The mirrored ray sees the sky only above the horizon.
     let sky = smoothstep(-0.05, 0.35, reflect(-to_eye, n).z);
     let mirror = clamp(fresnel * film * sky, 0.0, 1.0);
+    var mirror_colour = weather.wet_sky.rgb * mirror;
+    var mirror_share = mirror;
+    // Ultra with the copy: puddles mirror the world and the sky drawn round them, rippled
+    // by the rain rings, as standing water does (a fifth even seen from above, VisionJK's
+    // pond blend), fading out with distance.
+    let reach = puddle * (1.0 - smoothstep(1500.0, MIRROR_REACH, distance));
+    if weather.wet_sky.w > 0.5 && reach > 0.002 {
+        var bumped = n;
+        if distance < 700.0 {
+            let e = 0.6;
+            let slope = vec2(
+                ripples(p.xy + vec2(e, 0.0), weather.cover.w) - ripples(p.xy - vec2(e, 0.0), weather.cover.w),
+                ripples(p.xy + vec2(0.0, e), weather.cover.w) - ripples(p.xy - vec2(0.0, e), weather.cover.w));
+            bumped = normalize(n - vec3(slope * 0.3 * (1.0 - smoothstep(300.0, 700.0, distance)), 0.0));
+        }
+        let dir = reflect(-to_eye, bumped);
+        let seen = mirrored(p + n * 1.5, dir, size);
+        let facing = 0.02 + 0.98 * pow(1.0 - clamp(dot(bumped, to_eye), 0.0, 1.0), 5.0);
+        let reflectance = clamp(2.0 * facing + 0.2, 0.0, 0.92);
+        let overcast = smoothstep(-0.05, 0.35, dir.z) * (1.0 - seen.a);
+        mirror_colour = mix(mirror_colour, reflectance * (seen.rgb * seen.a + weather.wet_sky.rgb * overcast), reach);
+        mirror_share = mix(mirror_share, reflectance * (seen.a + overcast), reach);
+    }
     // Running water and rain rings catch the light even seen from above.
-    let added = weather.wet_sky.rgb * (mirror + 0.2 * glint + 0.2 * rings);
-    return vec4(added, (1.0 - clamp(darken, 0.0, 0.6)) * (1.0 - mirror));
+    let added = mirror_colour + weather.wet_sky.rgb * (0.2 * glint + 0.2 * rings);
+    return vec4(added, (1.0 - clamp(darken, 0.0, 0.6)) * (1.0 - clamp(mirror_share, 0.0, 1.0)));
 }

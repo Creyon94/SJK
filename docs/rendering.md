@@ -4366,7 +4366,7 @@ distant fog down 500 units, and a bright band at eye height came and went.)
 | 0 low | Near streaks, the original's fog sprites; clouds with 10 samples |
 | 1 medium | Splashes, volumetric fog with 8 samples a ray, wet surfaces; clouds 16 |
 | 2 high (default) | The far rain layer, fog 12, water running down slopes and walls; clouds 24 |
-| 3 ultra | More far rain and splashes, fog 20, puddles with rain rings; clouds 40 |
+| 3 ultra | More far rain and splashes, fog 20, puddles with rain rings that mirror the world; clouds 40 |
 
 **Wet surfaces** (`fragment_wet` in weather.wgsl, from `r_weatherQuality` 1). Rain
 wets what it falls on, in one full-screen pass drawn into the scene right after the
@@ -4395,10 +4395,33 @@ times a slope-dependent speed: the streaks flickered and slid as the camera move
 they would shimmer. Level 3 adds puddles on
 flat ground (about a third of it, in noise patches 1100 units across), darker and an
 almost full mirror, with thin rain rings within 700 units. The pass blends
-`scene × alpha + colour` and never reads the scene, so the weather does not copy the
-frame; the price is that light painted into a wet wall's texture dims with it (by at
-most about a sixth on a wall). Not drawn: reflections of the scene in puddles (only
-the sky is mirrored) and wet models. Measured on 08/10/2026 (release, Windows, RTX
+`scene × alpha + colour`; the price is that light painted into a wet wall's texture
+dims with it (by at most about a sixth on a wall). Not drawn: wet models.
+
+**Puddles' mirror** (level 3, 05/11/2026, Sol: "take a look at the water effects of
+VisionJK and import some of it, to have nice water on the ground when there is rain";
+[weather_mirror.rs](../crates/sjk-viewer/src/weather_mirror.rs), `mirrored` in
+weather.wgsl). VisionJK has no rain-driven water of its own (its weather is the stock
+`tr_WorldEffects`); its water gun's wet ground (`wet.frag`, by Blackwolf) mirrors the room
+in its pools with a screen-space march, which SJK's puddles now use. Right after the
+opaque world, before the wet pass, the scene is copied at half its size (one bilinear tap
+per four texels, `fragment_mirror_copy`, about 17 MB at 3840×2160 while it rains at
+ultra, freed otherwise). Each puddle pixel within 2500 units (fading from 1500) marches
+its mirrored ray through the depth: 32 steps from 2 units, each 1.18 times the last
+(about 2000 units in all), a step counting as a hit when the ray lies behind the drawn
+world by less than twice the step and 16 units (deeper, it passes behind something
+nearer the eye and goes on), then five halvings round the hit; the copy is read there.
+A ray that meets nothing takes the drawn sky where the screen shows sky in its direction,
+else the overcast sky the wet pass already had. The hit fades within 8% of the screen's
+edge and over the march's last 600 units. The reflectance is VisionJK's pond blend,
+`clamp(2 F + 0.2, 0, 0.92)` with F water's Fresnel term, so a puddle mirrors a fifth even
+seen from above and almost all at grazing angles. Within 700 units the rain rings tilt
+its normal (their slope, a third of it), so the reflection ripples where drops land.
+Players and models are drawn after the wet pass and are not in the copy: puddles mirror
+the world and its sky, not the players. The copy needs a scene target the client can
+sample (the render-scale or post-AA scene); a frame drawn straight to the window keeps
+the sky alone. The world shot `t2_rogue_storm_puddles` (`world_shot_weather.rs`) renders
+four views of a storm on `T2_Rogue` with and without the mirror. Measured on 08/10/2026 (release, Windows, RTX
 5080, off-screen at 3840×2160 on `T2_Rogue` in a forced storm, `SJK_GPU_PHASES` marks
 `world-opaque`/`rain-wet`): 0.19–0.26 ms a frame at levels 1 and 2, 0.27–0.37 ms at 3,
 in GPU frames of 5.5–7.9 ms.

@@ -72,6 +72,8 @@ pub(crate) struct Gpu {
     volume: wgpu::RenderPipeline,
     /// Rain-wet surfaces, drawn into the scene itself before the players.
     wet: wgpu::RenderPipeline,
+    /// The puddles' mirror of the scene (ultra).
+    pub(crate) mirror: super::mirror::Mirror,
     uniform: wgpu::Buffer,
     bind_group: wgpu::BindGroup,
 }
@@ -277,10 +279,22 @@ impl Gpu {
             })
         };
         // The scene times the alpha the shader writes, plus its colour: wet surfaces darken
-        // and take a sheen in one blend, without reading the scene.
+        // and take a sheen in one blend, reading the scene only through the puddles'
+        // mirror's copy (group 3).
+        let mirror = super::mirror::Mirror::new(device, &shader, scene_format);
+        let wet_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some("SJK rain-wet pipeline layout"),
+            bind_group_layouts: &[
+                Some(camera),
+                Some(&layout),
+                Some(&depth),
+                Some(mirror.layout()),
+            ],
+            immediate_size: 0,
+        });
         let wet = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("fragment_wet"),
-            layout: Some(&pipeline_layout),
+            layout: Some(&wet_layout),
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: Some("vertex_volume"),
@@ -350,6 +364,7 @@ impl Gpu {
                 wgpu::CompareFunction::Always,
             ),
             wet,
+            mirror,
             uniform,
             bind_group,
         }
@@ -362,7 +377,9 @@ impl Gpu {
         target: &wgpu::TextureView,
         camera: &wgpu::BindGroup,
         depth: &wgpu::BindGroup,
+        mirror: bool,
     ) {
+        let copied = mirror && self.mirror.encode_copy(encoder);
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("SJK rain-wet surfaces"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
@@ -383,6 +400,7 @@ impl Gpu {
         pass.set_bind_group(0, camera, &[]);
         pass.set_bind_group(1, &self.bind_group, &[]);
         pass.set_bind_group(2, depth, &[]);
+        pass.set_bind_group(3, self.mirror.bind_group(copied), &[]);
         pass.draw(0..3, 0..1);
     }
 
@@ -550,6 +568,7 @@ mod tests {
             (Vertex, "vertex_volume"),
             (Fragment, "fragment_volume"),
             (Fragment, "fragment_wet"),
+            (Fragment, "fragment_mirror_copy"),
         ];
         for (stage, entry) in entries {
             for additive in [0.0, 1.0] {
