@@ -635,6 +635,9 @@ NORMAL_MAPS = (
     ("holocron_legendary", forms.SITH_SCULPT / "body_n.png"),
     ("holocron_legendary_cap", forms.SITH_SCULPT / "cap_n.png"),
 )
+# The share of the baked glow picture the Sith pyramid's glow stage adds: at full
+# strength, over its face's own light, the runes bloomed to white.
+SITH_GLOW = 0.55
 # The Sith pyramid's cap's own light: its face's, a little under the body's.
 SITH_CAP_OWN = 0.3
 
@@ -652,7 +655,7 @@ def form_layers(base: np.ndarray, steel: np.ndarray, tier: Tier, art: dict):
     if tier.id == "mythical":
         return engram_layers(tier)
     if tier.id == "legendary":
-        return sculpt_picture("body"), sculpt_picture("body_glow")
+        return sculpt_picture("body"), sculpt_picture("body_glow") * SITH_GLOW
     if tier.id in art:
         return art_layers(art[tier.id], tier)
     if tier.id == "uncommon":
