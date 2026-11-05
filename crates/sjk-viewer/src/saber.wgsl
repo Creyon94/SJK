@@ -2834,7 +2834,7 @@ fn fragment_solid_near(input: VertexOutput) -> GlowOut {
     out.colour = solid_colour(input);
     out.depth = input.clip_position.z;
     let dist = length(input.ray);
-    let pull = min(14.0, max(dist - 8.0, 0.0));
+    let pull = min(SIG_NEAR_PULL, max(dist - 8.0, 0.0));
     if pull > 0.0 {
         let clip = camera.view_projection * vec4(camera.position + input.ray * ((dist - pull) / dist), 1.0);
         if clip.w > 0.0001 {
@@ -4467,6 +4467,10 @@ const SIG_OWN_EFFECTS: bool = false;
 // Signature::solid_past; Angel's cloud bank): once the blade is all out, its solid parts are not cut
 // along a straight line just past the tip (Creyon, 5/11/2026: up close the clouds' top was flat).
 const SIG_SOLID_PAST_TIP: bool = false;
+// How far (units) a `@solidnear` solid layer's depth is pulled toward the camera (`@nearpull`,
+// Signature::near_pull): 14 keeps a wide plane from slicing the wearer or a wall; Angel's cloud bank
+// pulls less, or it covered its wearer's head and face (Creyon, 5/11/2026).
+const SIG_NEAR_PULL: f32 = 14.0;
 // 1 while its wearer has its effects on (the `effects` option, the arcs bit), else 0: what a
 // signature's own volume (`sig_vol`) keeps of everything but the blade itself.
 var<private> uFx: f32;
