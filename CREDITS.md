@@ -441,6 +441,9 @@ includes:
 - puddles that mirror the world (05/11/2026, after VisionJK's `wet.frag`, Blackwolf's
   work): at ultra weather quality the puddles reflect the streets, walls and drawn sky
   round them, rippled by the rain rings;
+- lighter rain and fog (05/11/2026): the fog worked out at half size and blended back by
+  depth, about three times cheaper at the default quality, glowing towards the sun with the
+  rain;
 - SJK Alpha (19/10/2026), the first collection of cards: the Mythical rarity, the
   Credits and Meme kinds, and card 1, "Bishop", honouring the author of JKR (art by
   Sol, AI-assisted: a rusted helmet portrait).

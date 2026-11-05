@@ -23,6 +23,7 @@ fn t2_rogue_storm_puddles() {
         // The map's start (info_player_start at 1872 -1984 -552, facing +Y), at eye height.
         let eye = [1872.0, -1984.0, -510.0];
         let views: [(f32, f32); 4] = [(90.0, -12.0), (90.0, -30.0), (0.0, -20.0), (200.0, -20.0)];
+        std::fs::create_dir_all(directory()).expect("the shot directory");
         let mut images = Vec::new();
         for mirror in [true, false] {
             gpu.weather.set_mirror_allowed(mirror);
@@ -90,18 +91,28 @@ fn t2_rogue_storm_timing() {
             ("storm medium", &[("r_weatherQuality", "1")]),
             ("storm low", &[("r_weatherQuality", "0")]),
         ];
-        for (name, values) in settings {
-            if let Some(console) = gpu.console.as_mut() {
-                for (cvar, value) in values {
-                    console.set_cvar(cvar, value);
+        // A first round compiles every pipeline the settings use (a frame of 260 ms the
+        // first time); the two after it are timed.
+        for round in 0..3 {
+            for (name, values) in settings {
+                if let Some(console) = gpu.console.as_mut() {
+                    for (cvar, value) in values {
+                        console.set_cvar(cvar, value);
+                    }
                 }
-            }
-            for (view, (yaw, pitch)) in [(90.0_f32, -12.0_f32), (90.0, -30.0)].iter().enumerate() {
-                aim(&mut gpu, eye, *yaw, *pitch);
-                // Let the setting and the view settle, then sample.
-                let _ = frame(&mut gpu, 32);
-                eprintln!("perf: {name} view {view}");
-                let _ = frame(&mut gpu, 192);
+                for (view, (yaw, pitch)) in
+                    [(90.0_f32, -12.0_f32), (90.0, -30.0)].iter().enumerate()
+                {
+                    aim(&mut gpu, eye, *yaw, *pitch);
+                    // Let the setting and the view settle (and the last samples land).
+                    let _ = frame(&mut gpu, 64);
+                    if round == 0 {
+                        eprintln!("perf: warm-up");
+                    } else {
+                        eprintln!("perf: {name} view {view}");
+                    }
+                    let _ = frame(&mut gpu, if round == 0 { 32 } else { 160 });
+                }
             }
         }
     });

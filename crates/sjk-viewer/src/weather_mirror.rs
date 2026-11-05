@@ -108,6 +108,16 @@ impl Mirror {
         }
     }
 
+    /// A bind group of `view` with the linear sampler, in the layout of group 3 (the
+    /// fog's half-size march uses it too).
+    pub(crate) fn bind_group_of(
+        &self,
+        device: &wgpu::Device,
+        view: &wgpu::TextureView,
+    ) -> wgpu::BindGroup {
+        bind_group(device, &self.layout, view, &self.sampler)
+    }
+
     /// The layout of group 3, for the wet pass's pipeline.
     pub(crate) fn layout(&self) -> &wgpu::BindGroupLayout {
         &self.layout

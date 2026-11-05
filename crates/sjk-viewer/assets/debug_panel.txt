@@ -8873,3 +8873,15 @@ test: T2_Rogue, r_weatherForce 3, r_weatherQuality 3: puddles show the buildings
 test: Look down at a puddle and turn: the reflection stays put on the ground, no swimming.
 test: Near the screen's edges reflections fade out instead of cutting off hard.
 test: r_weatherQuality 2: no puddles; compare FPS with 3 in a storm.
+
+[weather-perf]
+area: Rendering & effects
+title: Fog at half size (about 3x cheaper), sun glow, better puddle mirror
+change: The fog marches at half size and is blended back by depth; fewer steps on short rays.
+change: Fog lighter towards the sun, rain brighter against it; a storm hides most of it.
+change: Ultra puddles mirror far buildings and sky (hazed), no more flat pale slabs.
+test: T2_Rogue, r_weatherForce 3, r_weatherFog 2: the fog looks as before, no halo at railings.
+test: Look past a pole or a player into the fog: its edge stays sharp, no bright or dark fringe.
+test: Face the sun on a map with sun, light rain: the fog brightens that way, rain streaks shine.
+test: r_weatherQuality 3: puddles show the buildings and sky round them, upside down, rippling.
+test: Compare FPS in a storm with the last release: higher, most at Ultra.
