@@ -2791,6 +2791,11 @@ at that point and returning the blade's own: `sig_glow(g, b, r, px)` the glow's 
   grown blade's solid layer uncut there, for one that closes itself past the point: Angel's
   cloud bank rounds off in a billowed crown a little above the tip, where the cut drew a
   flat top seen up close (Creyon, 5/11/2026).
+  `@nearpull <units>` (`Signature::near_pull`, `SIG_NEAR_PULL`) sets how far a `@solidnear`
+  layer's depth is pulled toward the camera (14 by default, so a wide plane does not slice
+  its wearer); Angel pulls 3, as its bank covered its wearer's head and face. Its bank is also
+  narrow from the hand up to head height and thins away with the camera within some 17 units
+  of the blade (Creyon, 6/11/2026).
 - **A fixed frame and the full length (round 9, 20/10/2026).** Until round 9 the frame's x
   pointed to the camera's side, so every effect turned round the blade with the view: in
   Creyon's test they raced round it whenever he turned the mouse. The hand path now stamps

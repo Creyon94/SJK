@@ -431,6 +431,12 @@ impl Signature {
         self.meta("solidpast") == Some("1")
     }
 
+    /// How far its `@solidnear` solid layer's depth is pulled toward the camera (`@nearpull`),
+    /// if not the usual 14 units.
+    pub(crate) fn near_pull(&self) -> Option<f32> {
+        self.meta("nearpull").and_then(|pull| pull.parse().ok())
+    }
+
     /// Whether it draws a solid layer (`@solid 1`).
     pub(crate) fn solid(&self) -> bool {
         self.meta("solid") == Some("1")
@@ -723,6 +729,13 @@ impl Signature {
             source = source
                 .replace("fn behindBlade(", "fn behindBladeCached(")
                 .replace("behindBladeFull(", "behindBlade(");
+        }
+        if let Some(pull) = self.near_pull() {
+            source = source.replacen(
+                "const SIG_NEAR_PULL: f32 = 14.0;",
+                &format!("const SIG_NEAR_PULL: f32 = {pull:?};"),
+                1,
+            );
         }
         if self.solid_past() {
             source = source.replacen(
