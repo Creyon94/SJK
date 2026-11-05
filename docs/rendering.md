@@ -4262,7 +4262,10 @@ SJK draws the rain, snow, dust and blowing mist that maps ask for
 them as world effect commands in slot order, as cgame's `CG_ParseWeatherEffect` and
 the renderer's `RE_WorldEffectCommand` do, and again whenever an effect name
 changes. A world without a server (the menu backdrop) takes them from its own
-entities. `r_we <command>` adds one from the console until the next map. The clouds
+entities. `r_we <command>` adds one from the console until the next map. A map edit's
+weather ([map-edits.md](map-edits.md#weather), synced through the hub) runs its commands
+in place of the map's, under the player's own `r_weatherForce`; SJK adds one command for
+it, `mist`, the light ground fog `r_weatherFog 2` lays (`Mist::DEFAULT`). The clouds
 keep the original parameters: counts, sizes, gravity, colours, mass ranges, spawn
 boxes, five clouds and ten wind zones at most
 ([weather_effects.rs](../crates/sjk-viewer/src/weather_effects.rs)). Gusting wind
@@ -4403,7 +4406,7 @@ in GPU frames of 5.5–7.9 ms.
 **Forced weather** (`r_weatherForce`): 1 drizzle (`lightrain`), 2 rain with a
 random wind, 3 a storm (`heavyrain`, gusting wind), 4 snow with wind, in place of the
 map's weather; `r_we` commands still add to it. Forced weather is drawn only on maps
-with sky, so it never falls indoors on a map without one.
+with sky, so it never falls indoors on a map without one; so is a map edit's weather.
 
 **Clouds** ([weather_clouds.rs](../crates/sjk-viewer/src/weather_clouds.rs),
 [clouds.wgsl](../crates/sjk-viewer/src/clouds.wgsl), `r_clouds`, on by default).

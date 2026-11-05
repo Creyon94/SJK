@@ -5,8 +5,9 @@
 //! server register effect names that start with `*` (`*heavyrain`, `*constantwind ( x y
 //! z )`, ...). As cgame does (`CG_ParseWeatherEffect`), the client runs them as world
 //! effect commands, in slot order ([`effects`]); `r_we` runs one more from the console,
-//! and `r_weatherForce` replaces them with weather of the player's choosing. A world
-//! without a server takes the names from its own entities.
+//! a map edit's weather (`map_edits`, synced through the hub) replaces them, and
+//! `r_weatherForce` replaces both with weather of the player's choosing. A world without
+//! a server takes the names from its own entities.
 //!
 //! What SJK adds to the reference's particle clouds:
 //!
@@ -62,6 +63,12 @@ use std::sync::Arc;
 pub(crate) const COMMAND: &str = "r_we";
 pub(crate) const HELP: &str = "Run a weather command: rain, heavyrain, snow, fog, clear, ...";
 
+/// Whether `command` is a world effect command [`COMMAND`] runs, with the reference's
+/// help when it is not.
+pub(crate) fn check_command(command: &str) -> Result<(), &'static str> {
+    Effects::default().apply(command)
+}
+
 /// `CS_EFFECTS` and `MAX_FX`.
 const CS_EFFECTS: usize = 1355;
 const MAX_FX: usize = 64;
@@ -101,6 +108,8 @@ pub(crate) struct Runtime {
     server: Vec<String>,
     /// `r_we` commands typed since the map loaded, run after the server's.
     local: Vec<String>,
+    /// A map edit's weather, run in place of the server's when there is one.
+    edit: Vec<String>,
     /// The `r_weatherForce` the effects were built with.
     force: u32,
     effects: Effects,
@@ -190,6 +199,7 @@ impl Runtime {
         let mut runtime = Self {
             server,
             local: Vec::new(),
+            edit: Vec::new(),
             force: 0,
             effects: Effects::default(),
             space: false,
@@ -235,25 +245,70 @@ impl Runtime {
         Ok(())
     }
 
-    /// Run the commands again: the forced weather's or the server's, then the console's.
-    fn rebuild(&mut self) {
+    /// The map's own weather commands: the server's effect names (or the map's).
+    pub(crate) fn map_commands(&self) -> &[String] {
+        &self.server
+    }
+
+    /// A map edit's weather commands (none: the map's own weather).
+    pub(crate) fn set_edit(&mut self, commands: &[String]) {
+        if self.edit != commands {
+            self.edit = commands.to_vec();
+            self.rebuild();
+        }
+    }
+
+    /// The commands the weather is built from: the forced weather's, else the map edit's,
+    /// else the server's (or the map's); the console's follow.
+    fn commands(&self) -> impl Iterator<Item = &str> {
         let forced = settings::forced_commands(self.force);
-        let commands: Vec<&str> = if forced.is_empty() {
-            self.server.iter().map(String::as_str).collect()
-        } else {
+        let base: Vec<&str> = if !forced.is_empty() {
             forced.to_vec()
+        } else if !self.edit.is_empty() {
+            self.edit.iter().map(String::as_str).collect()
+        } else {
+            self.server.iter().map(String::as_str).collect()
         };
-        self.effects = Effects::from_commands(
-            commands
-                .into_iter()
-                .chain(self.local.iter().map(String::as_str)),
-        );
+        base.into_iter()
+            .chain(self.local.iter().map(String::as_str))
+    }
+
+    /// Run the commands again ([`Self::commands`]).
+    fn rebuild(&mut self) {
+        self.effects = Effects::from_commands(self.commands());
         self.space = self
             .effects
             .clouds
             .iter()
             .any(|cloud| cloud.look == Look::Sprite(Image::SnowPuff));
         self.flows = [[0.0; 3]; MAX_CLOUDS];
+    }
+
+    /// The world effect commands that make the weather drawn now with ground fog setting
+    /// `fog` (`r_weatherFog`), for a map edit to keep it (`mapedit_weather`): the forced,
+    /// edit's or map's, the console's, and `mist` for the fog `r_weatherFog 2` lays on a
+    /// map without its own. `None` when nothing falls, blows or lies there.
+    pub(crate) fn seen_commands(&mut self, settings: &settings::Settings) -> Option<Vec<String>> {
+        if settings.force() != self.force {
+            self.force = settings.force();
+            self.rebuild();
+        }
+        let mut commands: Vec<String> = self.commands().map(str::to_owned).collect();
+        if settings.fog() == 2 && self.effects.clouds.iter().all(|cloud| cloud.mist.is_none()) {
+            commands.push(effects::MIST.to_owned());
+        }
+        let mut probe = Effects::default();
+        for command in &commands {
+            let _ = probe.apply(command);
+        }
+        (!probe.is_empty()).then_some(commands)
+    }
+
+    /// Whether the weather was chosen for the map (forced, or a map edit's) rather than
+    /// its own: chosen weather stays off a map without sky, which would otherwise rain
+    /// indoors as the reference does there.
+    fn chosen(&self) -> bool {
+        self.force != 0 || !self.edit.is_empty()
     }
 
     /// Rain to wet the world with this frame ([`Runtime::draw_wet`]).
@@ -376,9 +431,9 @@ impl Runtime {
         };
         cover.update(input.queue, input.camera);
         let window = cover.window();
-        // Weather the player forced stays off a map without sky, which would otherwise
+        // Weather chosen for the map stays off a map without sky, which would otherwise
         // rain indoors as the reference does there.
-        if self.force != 0 && !window.enabled {
+        if self.chosen() && !window.enabled {
             return;
         }
 
@@ -829,6 +884,69 @@ mod tests {
         assert_eq!(weather.effects.clouds[0].look, Look::Streak);
         weather.command("spacedust 100").unwrap();
         assert!(weather.space, "space maps get no clouds");
+    }
+
+    /// A map edit's weather replaces the map's; the player's forced weather replaces it
+    /// in turn, and the console's commands follow either.
+    #[test]
+    fn a_map_edits_weather_replaces_the_maps_under_the_players_own() {
+        let mut weather = empty_world();
+        weather.server = vec!["snow".into()];
+        weather.rebuild();
+        assert!(!weather.chosen(), "the map's own weather");
+        weather.set_edit(&["heavyrain".into(), "mist".into()]);
+        assert!(weather.chosen());
+        let looks = |weather: &Runtime| -> Vec<_> {
+            weather
+                .effects
+                .clouds
+                .iter()
+                .map(|cloud| (cloud.look, cloud.mist.is_some()))
+                .collect()
+        };
+        assert_eq!(
+            looks(&weather),
+            [(Look::Streak, false), (Look::Sprite(Image::Smoke), true)]
+        );
+        assert_eq!(
+            weather.effects.clouds[1].mist.unwrap().density,
+            Mist::DEFAULT.density,
+            "mist is r_weatherFog 2's fog"
+        );
+        weather.force = 4;
+        weather.rebuild();
+        assert_eq!(looks(&weather), [(Look::Sprite(Image::Snowflake), false)]);
+        weather.force = 0;
+        weather.set_edit(&[]);
+        assert_eq!(looks(&weather), [(Look::Sprite(Image::Snowflake), false)]);
+        assert_eq!(weather.map_commands(), ["snow".to_owned()]);
+    }
+
+    /// `mapedit_weather` keeps what is seen: the forced weather, the console's commands
+    /// and `r_weatherFog 2`'s fog as `mist`; nothing when nothing falls or blows.
+    #[test]
+    fn the_weather_seen_is_what_a_map_edit_keeps() {
+        let mut cvars = sjk_shell::CvarRegistry::default();
+        let settings = Settings::bind(&mut cvars).unwrap();
+        let mut weather = empty_world();
+        assert_eq!(weather.seen_commands(&settings), None);
+        cvars
+            .set_value(FORCE_CVAR, sjk_shell::CvarValue::Integer(3))
+            .unwrap();
+        cvars
+            .set_value(FOG_CVAR, sjk_shell::CvarValue::Integer(2))
+            .unwrap();
+        assert_eq!(
+            weather.seen_commands(&settings).unwrap(),
+            ["heavyrain", "gustingwind", "mist"]
+        );
+        weather.command("fog").unwrap();
+        assert_eq!(
+            weather.seen_commands(&settings).unwrap(),
+            ["heavyrain", "gustingwind", "fog"],
+            "a fog of the weather's own needs no mist"
+        );
+        assert!(check_command("mist").is_ok() && check_command("drizzle").is_err());
     }
 
     #[test]
