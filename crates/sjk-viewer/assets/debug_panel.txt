@@ -91,6 +91,15 @@ test: Bind it (bind v lowjump), jump with it and with Space: the low jump is low
 test: With Force jump 3, hold Space and press it: the held jump goes on as before.
 note: Nothing the server would not take from a quick tap; no restriction applies.
 
+[clan-chat-own]
+area: Console & chat
+title: Clan chats: JoF players see JoF only, S players S only
+change: Hub rule: each clan reads and writes its own chat; staff and Sol keep both.
+change: Gold ticks and everyone else: SJK chat only, no JoF or S button.
+test: Needs the hub's clan-chat-own branch deployed first.
+test: As a JoF-verified key: JoF button, no S button even with cl_sjkChatS 1.
+test: As an S-verified key: S button, no JoF. As staff: both.
+
 [clan-chats]
 area: Console & chat
 title: Clan chats JoF and S beside SJK chat, and buttons out of Tab

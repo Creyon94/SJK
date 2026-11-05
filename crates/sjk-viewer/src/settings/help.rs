@@ -858,11 +858,11 @@ const HELP: &[(&str, &str)] = &[
     ),
     (
         crate::chat::tabs::JOF_JOIN_CVAR,
-        "JoF's clan chat, for verified JoF and S players and staff. Auto joins it if it is yours; Joined or Left choose.",
+        "JoF's clan chat, for verified JoF players and staff only. Auto joins it if it is yours; Joined or Left choose.",
     ),
     (
         crate::chat::tabs::SITH_JOIN_CVAR,
-        "The Sith clan's chat (S), for verified S and JoF players and staff. Auto joins it if it is yours.",
+        "The Sith clan's chat (S), for verified S players and staff only. Auto joins it if it is yours.",
     ),
     (
         crate::chat::tabs::PM_CVAR,

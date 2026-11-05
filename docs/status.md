@@ -1,3 +1,14 @@
+## Clan chats: each clan its own
+
+05/11/2026, `personal/clan-chat-own` from `main` `fcf82fc9`, with hub branch
+`clan-chat-own` (Sol's report: a JoF player could join S and an S player JoF). The hub
+now lets a verified JoF player read and write JoF only and an S player S only; staff
+and Sol keep both, gold and other ticks have neither
+([hub-chat.md](hub-chat.md#clan-chats)). The client already showed only what the hub
+lists, so only its Settings help and the composer's note change. Verified: the hub's
+unit and API tests (writing, the feed, reactions across clans refused). Not verified:
+in a game or against the live hub (not deployed).
+
 ## The model picker loads models off the render thread
 
 05/11/2026, `personal/picker-worker` from `main` `7c84f0ab`, Sol's choice after the
