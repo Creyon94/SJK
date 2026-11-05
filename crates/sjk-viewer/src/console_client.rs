@@ -52,6 +52,14 @@ pub(super) const COMMANDS: &[(&str, &str)] = &[
         "unallowRemaps",
         "Let a map's server shader remaps follow cg_serverRemaps again: unallowRemaps [map]",
     ),
+    (
+        "syncBlockRemaps",
+        "SJK creator: ignore server shader remaps on a map for every SJK player, the loaded one by default: syncBlockRemaps [map]",
+    ),
+    (
+        "syncUnblockRemaps",
+        "SJK creator: take a map off the shared remap blocks: syncUnblockRemaps [map]",
+    ),
     ("speedometer", "Configure supported speedometer flags"),
     ("strafehelper", "Configure supported airborne CGAZ flags"),
     ("play", "Play local sound files"),
@@ -1011,6 +1019,9 @@ impl crate::GpuState {
             }
             "blockremaps" | "unblockremaps" | "allowremaps" | "unallowremaps" => {
                 return self.remap_block_command(&name, args);
+            }
+            "syncblockremaps" | "syncunblockremaps" => {
+                return self.remap_shared_command(&name, args);
             }
             name if crate::map_edits::editor::is_command(name) => {
                 return self.map_edit_command(name, args);
