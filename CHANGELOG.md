@@ -30,6 +30,10 @@ The site (site/assets/site.js, parseChangelog) reads the release headings,
 introductions and recap lines too.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
+## Unreleased
+
+- 131 new blades in the holocrons, 10 of them Mythical, each with its own colours, trail and sounds _(Creyon; the God Ki blade after Foshin's idea, the Angel blade after Kushina's)_
+
 ## 2026.1105.2 (Alpha) | 05/11/2026
 
 A sculpted Sith pyramid, normal-mapped models, shared remap blocks and longer logs for staff.
@@ -409,6 +413,7 @@ Capsule nameplates, the Sith cloud, a chest and a hunt for mystery boxes, and a 
 - Black sabers: Profile > Saber has a black blade of its own (the custom colour's chip now reads RGB), and black blades show in game, on SJK's own server too, as in JoF EJK _(Creyon, PR #230, after JoF EJK)_
 - Cardboard box: the free camera works while you hide in it, and a boxed player stays crouched in the box when they open the chat or the menu, for everyone; their lunges and kicks still play (#152) _(Creyon, PR #231)_
 - Ragdoll: your limp body no longer disappears while you fly the free camera, and rising or speeding up in the free camera no longer gets you up _(Creyon, PR #232)_
+- The Moon blade, a Mythical blade and the Sun blade's night-time sister: silver moonlight with stars drifting off it and a living moon circling it. In the Lunar Eclipse the blade turns black and the moon shatters, then fuses back. A moonlight trail of its own, and a Solar copy of Creyon's card unlocks three more extras. Found in holocrons, and Creyon's card brings it _(Creyon)_
 
 ## 2026.1027.2 (Alpha) | 27/10/2026
 
