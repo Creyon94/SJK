@@ -32,6 +32,8 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
+- The Legendary holocron is a new Sith pyramid, sculpted by Sol: carved runes and lines glowing purple down its sides, a carved plinth, its cap floating over the eye, detailed by a normal map _(Sol)_
+- Models whose shader names a normal map (`normalMap`) are lit through it pixel by pixel, under `r_normalMapping`; stock and community models are unchanged _(Sol)_
 - Shared remap blocks: the SJK team keeps a list of maps whose server texture swaps look broken, and SJK ignores those swaps there for everyone (Settings > GAME > "SJK remap blocks", `cg_remapsShared`, on by default); your own "Remaps on this map" choice comes first _(Sol)_
 
 ## 2026.1105.1 (Alpha) | 05/11/2026
