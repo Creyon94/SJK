@@ -30,7 +30,16 @@ The site (site/assets/site.js, parseChangelog) reads the release headings,
 introductions and recap lines too.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
-## Unreleased
+## 2026.1105.1 (Alpha) | 05/11/2026
+
+The Saber Lab, finishers, new vehicle HUDs, sharpening, aliases, whisper picking and a JoF anti-cheat fix.
+
+> Saber Lab: Build and tune a blade skin with `saberlab` and watch your model swing it as you save.
+> Finishers: A new collectible for what your saber kills do, starting with Disintegrate.
+> HUD: Vehicles show their speed, ammo and turbo, and a new SJK classic HUD runs along the bottom.
+> Graphics: A sharpening slider (`r_sharpen`) and a nameplate opacity setting.
+> Chat and console: Pick whom you whisper, copy links with Ctrl+C, and make your own commands with `alias`.
+> JoF: No more Heimdall kicks for repeated moves in your packets.
 
 = s_muteEmotesInDuel: Mute emotes in duels: emote sounds are silent while you are in a duel, and come back once it ends.
 
