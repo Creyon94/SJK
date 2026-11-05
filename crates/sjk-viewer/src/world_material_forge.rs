@@ -183,6 +183,14 @@ impl Forge {
             return Ok(view);
         }
         let picmip = super::filtering::mips::picmip_for(key);
+        // A model's normal map is data: linear, never block-compressed as colour.
+        if key.starts_with(super::material_maps::models::KEY_PREFIX)
+            && let Some(first) = pixels.first()
+        {
+            let view = super::material_maps::gpu::upload_model_normal(device, queue, first, picmip);
+            self.texture_cache.insert(key.to_owned(), view.clone());
+            return Ok(view);
+        }
         let texture = if self.filtering.mipmapped() {
             super::filtering::mips::upload(device, queue, pixels, picmip)?
         } else {
@@ -713,6 +721,7 @@ pub(crate) fn warm_entity_materials(
             );
             for (key, pixels) in textures {
                 if key.starts_with(super::videos::KEY_PREFIX)
+                    || key.starts_with(super::material_maps::models::KEY_PREFIX)
                     || prepared.iter().any(|texture| texture.key == *key)
                 {
                     continue;
