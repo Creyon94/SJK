@@ -64,6 +64,23 @@ in those poses (a clip within a third standing), the rest being how each foot's 
 and heel tilt. The manifest's `lift <units>` raises (or lowers) the result by hand;
 a rig without mapped ankles keeps the pelvis placement alone.
 
+Since 05/11/2026 the soles plant instead of the ankles when both models have them
+(`Soles`, `RigModel::with_soles`): each foot's lowest vertices (all within 1.5 units
+of its bottom, heel to toes, at most 64), carried by their strongest bone or joint,
+and every frame the rig's lowest sole point goes onto the driver's. Ankles alone let
+a foot built otherwise float or sink as it tipped: solfox5's digitigrade foot turned
+about a heel 10 units up and rose 1.5 units twice a step, its body bobbing 2 units
+in a walk and 3 in a run. The rise is eased over 50 ms (`PLANT_EASE`, per actor in
+`Scratch`; a first pose or a gap over 0.1 s plants at once): legs that reach otherwise
+than the driver's land a step at another moment (solfox5's, 5 % longer, touched the
+ground 2.5 units under Kyle's foot at the end of a run's swing), and planting each
+frame exactly jolted the body that much in a frame. Eased, the walk moves at most 0.4
+in a frame with the paws within 0.25 of Kyle's soles, the run 0.85 with them within
+0.9 for a moment. The ignored test `walk_against_the_driver` prints both, frame by
+frame. A digitigrade rig also wants its paw (`ball`) on JKA's foot and its long foot
+riding with the shin (`map foot_l ltibia as thigh_l`, `map ball_l ltalus as thigh_l`):
+JKA's ankle turns about a point near the ground, as the paw does.
+
 ### Dynamic joints (tails, capes)
 
 A manifest's `dynamic <joint>` lines make the joints under each named one move on
@@ -133,7 +150,7 @@ traces and hit boxes stay the driver's.
 | Rig surfaces put in the shared vertex buffer | `append_rig_mesh` in [actor_load.rs](../crates/sjk-viewer/src/actor_load.rs) |
 | Per-frame pose and palette upload (GPU and CPU paths) | [actor_pose_steps.rs](../crates/sjk-viewer/src/actor_pose_steps.rs), `rig_skin_records` in [gpu_skinning.rs](../crates/sjk-viewer/src/gpu_skinning.rs) |
 | Dynamic joints (tails, capes), their settings and body capsules | `Settings`, `Capsule`, `Chains` and `simulate` in [rig_dynamics.rs](../crates/sjk-viewer/src/rig_dynamics.rs), `dynamic_settings` and `body_capsules` in [rig_model.rs](../crates/sjk-viewer/src/rig_model.rs), `RigModel::pose_after` |
-| Feet planted on the driver's ground | `Feet`, `sole` and `RigModel::with_feet` in [rig_model.rs](../crates/sjk-viewer/src/rig_model.rs), the ignored test `feet_against_the_driver` |
+| Feet planted on the driver's ground | `Feet`, `Soles`, `sole`, `RigModel::with_feet`, `with_soles` and `planted` in [rig_model.rs](../crates/sjk-viewer/src/rig_model.rs), the ignored tests `feet_against_the_driver` and `walk_against_the_driver` |
 | Bolts and Force points moved onto the rig | `PlayerPreview::bolt`, `RigModel::retarget_bolt` and `retarget_point`, [force_bones.rs](../crates/sjk-viewer/src/force_bones.rs) |
 | Dismemberment skipped, JoF first-person body off | [dismember.rs](../crates/sjk-viewer/src/dismember.rs), [actor_world_submission.rs](../crates/sjk-viewer/src/actor_world_submission.rs) |
 | Clips (emotes): read, converted, sampled, blended | [rig_clips.rs](../crates/sjk-viewer/src/rig_clips.rs), `RigModel::pose` and `play`, `emotes::playing` in [emotes.rs](../crates/sjk-viewer/src/emotes.rs) |
