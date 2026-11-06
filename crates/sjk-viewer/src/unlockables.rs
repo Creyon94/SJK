@@ -186,7 +186,7 @@ pub(crate) fn blade_skin_named(word: &str) -> Option<&'static Unlockable> {
 }
 
 /// Every unlockable, in the hub's catalogue order (the order profiles list them in).
-pub(crate) static ALL: [Unlockable; 299] = [
+pub(crate) static ALL: [Unlockable; 300] = [
     Unlockable {
         id: "saber_sun",
         number: 1,
@@ -4081,6 +4081,19 @@ pub(crate) static ALL: [Unlockable; 299] = [
         smith: CREYON,
         description: "Sernpidal under the falling moon: dust in the air pours down the blade from point to hand, and a thin red cloud hangs on round it.",
         how_to_get: COMING_TO_HOLOCRONS,
+    }, // 6/11/2026: back with its own picture, sounds and words (Sol: an original God Ki is welcome).
+    Unlockable {
+        id: "saber_trayus_scythe",
+        number: 300,
+        name: "Trayus Scythe blade",
+        kind: Kind::BladeSkin,
+        tier: Rarity::Mythical,
+        chroma: false,
+        droppable: false,
+        edition: crate::editions::ALPHA,
+        smith: CREYON,
+        description: "The Force as the masters of Trayus Academy on Malachor V taught it, drawn to a single thin edge: a body of pale rose light clouded with white, climbing the blade, a fine sheen along its outline and a narrow tear in space around it. Long crescents of white light and crimson wheel round it in dark red air, with small stars.",
+        how_to_get: COMING_TO_HOLOCRONS,
     },
 ];
 
@@ -4625,6 +4638,7 @@ mod tests {
                 "saber_fest_steppe",
                 "saber_ansion_plains",
                 "saber_sernpidal_dust",
+                "saber_trayus_scythe",
             ]
         );
         assert!(blade_skins().all(|skin| [SOL, CREYON].contains(&skin.smith)));
@@ -4672,6 +4686,7 @@ mod tests {
                 "saber_vergence_scatter",
                 "saber_taris_undercity",
                 "saber_angel",
+                "saber_trayus_scythe",
             ]
         );
         assert_eq!(
@@ -5653,6 +5668,7 @@ mod tests {
                 ("saber_fest_steppe", "Fest Steppe blade"),
                 ("saber_ansion_plains", "Ansion Plains blade"),
                 ("saber_sernpidal_dust", "Sernpidal Dust blade"),
+                ("saber_trayus_scythe", "Trayus Scythe blade"),
             ]
         );
         assert!(ALL.iter().all(Unlockable::is_blade_skin));
