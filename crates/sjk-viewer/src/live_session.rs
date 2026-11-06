@@ -227,9 +227,12 @@ impl GpuState {
         let force_repeat = if dialogue_active { None } else { force_repeat };
 
         // User commands are made on the gameplay FPS's grid and wait for the next
-        // `cl_maxpackets` packet (`command_rate`).
+        // `cl_maxpackets` packet (`command_rate`). They carry the clock as the
+        // previous frame read it, as stock's do (`CL_SendCmd` before
+        // `CL_SetCGameTime`); what this frame shows uses its own reading.
         let now = Instant::now();
         crate::emote_end_debug::observe_frame(now);
+        let command_time = self.server_clock.command_time(now);
         let server_time = self.server_clock.server_time(now);
         let (step, pacing) = self.console.as_mut().map_or(
             (sjk_client::command_rate::COMMAND_MILLIS, Default::default()),
@@ -238,9 +241,13 @@ impl GpuState {
                 (console.command_step(), console.command_pacing())
             },
         );
-        let due =
-            self.command_schedule
-                .due(server_time, self.server_clock.anchored(), now, step, pacing);
+        let due = self.command_schedule.due(
+            command_time,
+            self.server_clock.anchored(),
+            now,
+            step,
+            pacing,
+        );
         if let Some(console) = &self.console {
             session.set_packet_dup(console.packet_dup());
         }
