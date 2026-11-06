@@ -37,11 +37,13 @@ impl NativeGame {
     /// settings, the server-info string everyone is sent, and the announcement of a
     /// tracked variable (`print "Server: %s changed to %s\n"`).
     pub(super) fn apply_cvars(&mut self) {
+        self.update_mod_info();
         let mut seen = std::mem::take(&mut self.cvars_seen);
         let changed = self.cvars.changed_since(&mut seen);
         self.cvars_seen = seen;
         if !changed.is_empty() {
             self.cvars_generation += 1;
+            self.update_mod_movement();
         }
         for name in changed {
             let Some(var) = self.cvars.var(&name) else {
@@ -78,6 +80,48 @@ impl NativeGame {
             }
         }
         self.cvars_primed = true;
+    }
+
+    /// The movement a player of this server moves by: the bare `Pmove`, with the rules of
+    /// the running server mod (`crate::server_mods`).
+    pub(super) fn movement_config(&self) -> sjk_game_jka::pmove::MovementConfig {
+        let mut config = super::bridge_maps::authoritative();
+        self.mod_movement.apply(&mut config);
+        config
+    }
+
+    /// The server info the running mod works out from its settings (JA+'s `jp_cinfo`),
+    /// written into those settings before the changes are looked at, so that it goes out
+    /// with the change that caused it.
+    fn update_mod_info(&mut self) {
+        let Some(server_mod) = self.server_mod else {
+            return;
+        };
+        for (name, value) in server_mod.derived_info(&self.cvars) {
+            if self.cvars.string(name.as_bytes()) != value.as_bytes() {
+                self.cvars.set(name.as_bytes(), value.as_bytes());
+            }
+        }
+    }
+
+    /// The movement rules the mod's settings select now, put into every player's moves
+    /// at once, as the clients predict them from the server info just changed. The
+    /// animation fixes are the mod's for the server's whole life, so the level's
+    /// `CS_LEGACY_FIXES` stays as it is.
+    fn update_mod_movement(&mut self) {
+        let movement = crate::server_mods::movement(self.server_mod, &self.cvars);
+        if movement == self.mod_movement {
+            return;
+        }
+        debug_assert_eq!(movement.legacy_fixes, self.mod_movement.legacy_fixes);
+        self.mod_movement = movement;
+        if let Some(world) = self.server.world_mut(self.world) {
+            for (_, peer) in world.entities_mut() {
+                let mut config = peer.movement.config();
+                movement.apply(&mut config);
+                peer.movement.set_config(config);
+            }
+        }
     }
 
     /// `Cvar_Get` of a latched variable when a level is built (`SV_Map_f`'s
@@ -227,3 +271,95 @@ pub(super) const SERVERINFO_DEFAULTS: [(&str, &str); 20] = [
     ("g_redTeam", "Empire"),
     ("g_blueTeam", "Rebellion"),
 ];
+
+#[cfg(test)]
+mod tests {
+    use super::NativeGame;
+    use crate::bridge::Identity;
+    use crate::cvars::Cvars;
+    use sjk_network::LegacyGameHost;
+    use sjk_protocol::InfoString;
+
+    /// A server without a map whose start had `g_mod` set to `server_mod`, as a
+    /// `+set g_mod japlus` gives it.
+    fn started(server_mod: &str) -> NativeGame {
+        let mut cvars = Cvars::new();
+        cvars.set(b"g_mod", server_mod.as_bytes());
+        cvars.register_server();
+        let identity = Identity {
+            hostname: b"test".to_vec(),
+            mapname: b"mp/ffa3".to_vec(),
+        };
+        NativeGame::with_cvars(identity, None, 4, 4, cvars).unwrap()
+    }
+
+    fn info(game: &NativeGame, key: &str) -> Option<String> {
+        let text = String::from_utf8(game.status_info.clone()).unwrap();
+        InfoString::parse(&text)
+            .unwrap()
+            .get(key)
+            .map(str::to_owned)
+    }
+
+    fn legacy_fixes(game: &NativeGame) -> Vec<u8> {
+        let index = sjk_game_jka::pmove_rules::CS_LEGACY_FIXES;
+        let (_, value) = game
+            .config_strings
+            .iter()
+            .find(|(known, _)| *known == index)
+            .unwrap();
+        value.clone()
+    }
+
+    #[test]
+    fn the_base_game_announces_and_moves_as_before() {
+        let game = started("base");
+        assert_eq!(info(&game, "gamename").as_deref(), Some("basejka"));
+        assert_eq!(info(&game, "jp_cinfo"), None);
+        assert!(!game.movement_config().ja_plus.enabled);
+        assert_eq!(legacy_fixes(&game), b"7");
+        assert!(game.cvars.var(b"jp_allowflipkick").is_none());
+        assert_eq!(game.server_info().game_directory, b"");
+    }
+
+    #[test]
+    fn ja_plus_announces_itself_and_moves_by_what_it_announces() {
+        let game = started("japlus");
+        assert_eq!(info(&game, "gamename").as_deref(), Some("JA+ Mod v2.4 B7"));
+        assert_eq!(info(&game, "V").as_deref(), Some("2.4B7"));
+        assert_eq!(info(&game, "sjk").as_deref(), Some("1"));
+        assert_eq!(game.server_info().game_directory, b"japlus");
+        // Flip kick, roll fix 1 and the improved yellow DFA: JA+'s defaults that run.
+        assert_eq!(info(&game, "jp_cinfo").as_deref(), Some("19"));
+        assert_eq!(info(&game, "jp_gripSpeedScale").as_deref(), Some("0.8"));
+        let config = game.movement_config();
+        assert!(config.ja_plus.enabled && config.ja_plus.flip_kick && config.ja_plus.yellow_dfa);
+        assert_eq!(config.roll_rules.fix_roll, 1);
+        assert!(config.authoritative);
+        // JA+ runs none of OpenJK's animation fixes, and says so.
+        assert_eq!(config.legacy_fixes, 0);
+        assert_eq!(legacy_fixes(&game), b"0");
+    }
+
+    #[test]
+    fn a_ja_plus_setting_changed_in_game_reaches_the_info_and_the_moves() {
+        let mut game = started("JAPLUS");
+        game.set_cvar("jp_allowflipkick", "0");
+        game.set_cvar("jp_fixRoll", "3");
+        assert_eq!(info(&game, "jp_cinfo").as_deref(), Some("30"));
+        let config = game.movement_config();
+        assert!(!config.ja_plus.flip_kick);
+        assert_eq!(config.roll_rules.fix_roll, 3);
+    }
+
+    #[test]
+    fn g_mod_waits_for_the_next_start_and_an_unknown_one_is_the_base_game() {
+        let mut game = started("japlus");
+        game.cvar_line(b"g_mod base", &mut |_| {});
+        assert_eq!(info(&game, "gamename").as_deref(), Some("JA+ Mod v2.4 B7"));
+        assert!(game.movement_config().ja_plus.enabled);
+        let game = started("nonesuch");
+        assert_eq!(info(&game, "gamename").as_deref(), Some("basejka"));
+        assert!(!game.movement_config().ja_plus.enabled);
+    }
+}

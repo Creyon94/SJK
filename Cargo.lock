@@ -3043,6 +3043,8 @@ dependencies = [
  "sjk-network",
  "sjk-protocol",
  "sjk-server",
+ "sjk-server-mod",
+ "sjk-server-mod-japlus",
  "sjk-vfs",
  "winresource",
 ]
@@ -3200,6 +3202,22 @@ name = "sjk-server"
 version = "0.1.0"
 dependencies = [
  "sjk-runtime",
+]
+
+[[package]]
+name = "sjk-server-mod"
+version = "0.1.0"
+dependencies = [
+ "sjk-game-jka",
+]
+
+[[package]]
+name = "sjk-server-mod-japlus"
+version = "0.1.0"
+dependencies = [
+ "sjk-game-jka",
+ "sjk-protocol",
+ "sjk-server-mod",
 ]
 
 [[package]]

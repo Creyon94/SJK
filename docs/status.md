@@ -1,3 +1,22 @@
+## SJK's server as a JA+ server (`g_mod japlus`), step 1
+
+06/11/2026, `personal/japlus-mode` from `main` `a1ca867a`, Sol's request: remake JA+'s
+server side as a mode of SJK's server, with VisionJK's rebuild of the JA+ 2.4 B7 module
+as the reference. Sol chose (06/11): the server announces itself as JA+, admins log in
+with SJK identity keys (JA+ passwords opt-in), the gameplay core comes first, and the
+code lives in its own crate behind server mod hooks. Step 1 is the hooks
+(`sjk-server-mod`), the JA+ crate (`sjk-server-mod-japlus`) and `g_mod`: JA+'s identity
+and its 187 settings, `jp_cinfo` holding only the rules the server plays, and the shared
+movement's JA+ rules for every player, chosen from those bits
+([server.md](server.md#ja-mode) lists what runs and what does not). Verified on
+Windows 11: unit tests of both crates and of the server (identity, `jp_cinfo` at JA+'s
+defaults and after changes, every player's movement rules, no legacy fixes, `g_mod`
+latched, the base game unchanged), and a headless `sjk-server +set g_mod japlus` on
+loopback whose `getinfo` reported `game japlus` and whose `getstatus` held `gamename JA+
+Mod v2.4 B7`, `V 2.4B7` and `jp_cinfo 19`. Not verified: any client joined, so the
+prediction of SJK, EternalJK or the JA+ plugin on it was never seen; no comparison
+with a running JA+ or VisionJK server.
+
 ## Clan chats: each clan its own
 
 05/11/2026, `personal/clan-chat-own` from `main` `fcf82fc9`, with hub branch

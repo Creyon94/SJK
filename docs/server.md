@@ -80,6 +80,79 @@ for the new world; saber entities are allocated from the new map's pool.
 The [networking page](networking.md) explains the boundary between native entity
 ownership, game behavior and the legacy endpoint.
 
+## JA+ mode
+
+`g_mod japlus` starts the server as a JA+ 2.4 Build 7 server instead of the base game
+(`base`, the default). Set it on the command line (`+set g_mod japlus`) or in
+`sjk_server.cfg`; it is read once, at start, as a JKA server's game module is chosen by
+its `fs_game`, and a later change waits for the next start (the console says so). An
+unknown name runs the base game and says which mods there are.
+
+JA+ is closed source. The reference is VisionJK
+([github.com/Blackwolf1337/visionjk](https://github.com/Blackwolf1337/visionjk),
+GPL-2.0), Blackwolf's rebuild of the JA+ 2.4 B7 server module from its Linux binary,
+compared with the original in random games. SJK ports its behaviour, not its code.
+
+What the mode does so far:
+
+- **It calls itself JA+.** The server info has `gamename` `JA+ Mod v2.4 B7`, `V`
+  `2.4B7` and `jp_cinfo`, and `getinfo` reports the mod folder `japlus`, so server
+  browsers, SJK, EternalJK and the JA+ plugin all take it for a JA+ server. SJK's
+  own `sjk 1` key stays. The client's tables of server families treat it as a JA+
+  server, not as family `sjk` (`sjk_mod::known_servers`).
+- **JA+'s settings.** The 187 `jp_*` cvars of JA+, at JA+'s defaults, so a JA+
+  `server.cfg` loads unchanged. Only those in the table below do something yet.
+- **JA+ movement, as clients predict it.** Every player moves by the shared movement's
+  JA+ rules (`sjk_game_jka::pmove_japlus`), selected from the same `jp_cinfo` bits the
+  clients read, so no client is pulled back for a rule it was told about: the rules
+  every JA+ server plays (free taunts, the held kicks and kiss, the staff's standing
+  front kick, melee that an attack with the item key does not cancel, wall runs from Force flips) and the ones its
+  settings switch. A changed setting reaches the server info and every player's moves
+  at once.
+- **No OpenJK animation fixes.** JA+ is built on the 1.01 game code: `CS_LEGACY_FIXES`
+  is 0 and the server runs none of them.
+
+| Setting | `jp_cinfo` bit | Effect |
+| --- | --- | --- |
+| `jp_allowflipkick` 1 (default) | 0 | Wall flips and runs push off players |
+| `jp_fixRoll` 1 (default) to 3 | 1 to 3 | The roll fix levels, as SJK predicts them on JA+ servers |
+| `jp_improveYellowDFA` 1 (default) | 4 | The medium style's shorter flip over, without the spin |
+| `jp_slideOnPlayer` 1 | 5 | Standing on a player slides, as in the base game |
+| `jp_noAutoReplier` 1 | 14 | Only asks the JA+ plugin to keep its automatic replies off |
+| `dmflags` 256 | | The base game's collision boxes (the dual jump attack's feet) |
+
+A `jp_cinfo` bit is only announced for a rule the server plays, whatever its setting
+says ([cinfo.rs](../crates/sjk-server-mod-japlus/src/cinfo.rs) is the table): single
+player attacks, the new DFA, ledge grab, the alternate dimension, model scale,
+`jp_noKATA`, the macro scan and the Jedi Outcast red DFA stay off, though JA+ turns
+several of them on by default. JA+'s extra animations (`jp_newGLAAnims`) need its own
+animation files, which SJK does not ship.
+
+Not built yet, in the order planned: JA+ duels (isolation from the other players, the
+full-force duel, the winner's heal), saber damage (`jp_alterDMG`, the special moves'
+damage, the throw), the Force changes (`jp_forceCombo`, `jp_fixAbsorb`, `jp_pushAll`...)
+and the `/kill` frag; then the emotes and player commands (`amkiss`, `amflip`, the hook,
+`/saber`...); then the admin system, logged in with SJK identity keys, with JA+'s rank
+passwords only if the owner allows them; then chat, highlander, blocking walls and model
+scale. Until then:
+
+- `jp_DuelAlpha` is announced, as JA+ does, but duellists still collide with the other
+  players; EternalJK and the JA+ plugin predict them passing through.
+- `jp_gripSpeedScale` is announced, but gripping keeps the movement's fixed 0.8.
+- `jp_highlander`, `jp_forceCombo` and the other announced settings change nothing on
+  the server.
+- The roll fix follows TaystJK's reading of the levels, which SJK's prediction uses on JA+
+  servers. VisionJK's port of the JA+ module differs: a roll starts from 30000 squared
+  speed at every level and also while gripping at level 1, and level 3 slows a held-back
+  roll otherwise. A fix belongs in the shared movement
+  ([pmove_roll.rs](../crates/sjk-game-jka/src/pmove_roll.rs)), so that the prediction on
+  real JA+ servers gains it too.
+
+The hooks a mod has are in [sjk-server-mod](../crates/sjk-server-mod/src/lib.rs), the
+JA+ mod in [sjk-server-mod-japlus](../crates/sjk-server-mod-japlus/src/lib.rs), and the
+server's table of mods in [server_mods.rs](../crates/sjk-dedicated/src/server_mods.rs).
+Supporting another mod is an entry there.
+
 ## Cheat commands
 
 Cheats follow `sv_cheats`, which only the server sets: `--cheats` turns it on at
