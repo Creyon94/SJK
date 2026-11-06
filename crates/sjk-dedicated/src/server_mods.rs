@@ -7,7 +7,7 @@
 //! info and gives the movement rules every player moves by.
 
 use crate::cvars::Cvars;
-use sjk_server_mod::{ModMovement, ServerMod, Settings};
+use sjk_server_mod::{ModCombat, ModMovement, ServerMod, Settings};
 
 /// The setting that names the server mod.
 pub const MOD_CVAR: &[u8] = b"g_mod";
@@ -38,6 +38,24 @@ pub fn movement(server_mod: Option<&dyn ServerMod>, cvars: &Cvars) -> ModMovemen
     server_mod.map_or_else(ModMovement::default, |server_mod| {
         server_mod.movement(cvars)
     })
+}
+
+/// The combat rules of `server_mod`, the base game's without one.
+pub fn combat(server_mod: Option<&dyn ServerMod>, cvars: &Cvars) -> ModCombat {
+    server_mod.map_or_else(ModCombat::default, |server_mod| server_mod.combat(cvars))
+}
+
+/// The Force rules of `server_mod`, the base game's without one.
+pub fn force(
+    server_mod: Option<&dyn ServerMod>,
+    cvars: &Cvars,
+) -> sjk_game_jka::force_rules::ForceRules {
+    server_mod.map_or_else(Default::default, |server_mod| server_mod.force(cvars))
+}
+
+/// The private-duel rules of `server_mod`, the base game's without one.
+pub fn duels(server_mod: Option<&dyn ServerMod>, cvars: &Cvars) -> sjk_game_jka::duel::DuelRules {
+    server_mod.map_or_else(Default::default, |server_mod| server_mod.duels(cvars))
 }
 
 /// What `g_mod` may be, for the messages: `base, japlus`.

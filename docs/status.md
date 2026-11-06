@@ -1,3 +1,27 @@
+## SJK's server as a JA+ server, step 2: saber damage and the `/kill` frag
+
+06/11/2026, `personal/japlus-saber-damage` from `main` `d473a66b`. Under `g_mod japlus`
+the saber deals JA+ 2.4 B7's damage, after VisionJK's rebuild of its module
+(`w_saber.c`, `g_combat.c`, `g_cmds.c`): `jp_alterDMG` and JA+'s per-move table (the
+`jp_*Attack` settings), `jp_SaberThrowScaleDMG`, `jp_reduceSaberBlock`,
+`jp_allowSaberTouchDMG`, the specials' weights, no cuts from under the chat bubble, the
+halved blow at a saber wielder; and a suicide right after a push or hit is the pusher's
+frag, `/kill` refused in duels and (without `jp_allowTeamKill`) team games. The rules
+reach the shared damage as a `Copy` struct from a new `ServerMod::combat` hook
+([server.md](server.md#ja-mode) lists what runs). Verified on Windows 11: unit tests of
+the move table and ramp with numbers worked from VisionJK, of one damage trace (the base
+game's 15 unchanged with the rules off and under `jp_alterDMG 0`, 165 from the table,
+82 at a saber, the throw scaled to 7, the touch, the chat bubble, the block chance's
+draw), of the settings read and of the `/kill` rules; and a headless `sjk-server` on
+loopback (`g_mod japlus`, `jp_alterDMG 1`, `jp_reduceSaberBlock 30`,
+`jp_allowSaberTouchDMG 1`, eight bots, sabers only) for four minutes: 17 saber kills, no
+panic. Not verified: against a running JA+ or VisionJK server (no damage numbers were
+compared in a game), the `/kill` credit and refusal in a game (bots never type `kill`),
+NPC blades under the rules; the ramp follows SSE `float`, one point above the original
+Linux module where a product is exactly on an integer (110 at 0.7). Left out:
+`jp_saberNoForceDrain` (clients predict the Force cost), `jp_flipkickScaleDMG` (no flip
+kick damage on the server yet), JA+'s own moves, `d_saberSPStyleDamage 0`.
+
 ## Create game picks the server mod
 
 06/11/2026, `personal/create-game-server-mod` from `main` `d473a66b`, Sol's request after
@@ -13,6 +37,49 @@ the row cycles and reaches the settings, the choice survives a restart and an un
 id falls back to the base game, the client's table matches the server's, the screen
 still lays out at 1080p, 4K and 4:3). Not verified: the screen was not looked at (the
 world shots were not run) and no game was hosted with JA+ from the client.
+
+## SJK's server as a JA+ server: JA+'s Force rules
+
+06/11/2026, `personal/japlus-force` from `main` `d473a66b`, Sol's request (JA+ server mode,
+the Force changes). The Force code the server runs, the NPCs' too, takes a rule struct
+from the running mod (`sjk_game_jka::force_rules`, the new `ServerMod::force` hook, the
+base game's by default): with `g_mod japlus`, `jp_pushPullKnockDown`, push and pull on
+teammates with `g_friendlyFire`, `jp_fixAbsorb`, `jp_pushAll` (items flung, back in 30
+seconds), `jp_gripOpenSaber`, the grip in a roll with `jp_fixRoll` and `jp_cloakFuel`, after
+VisionJK's `w_force.c` ([server.md](server.md#ja-mode)). `jp_gripSpeedScale` now runs on
+the server and SJK's prediction reads it from a JA+ server's info, as VisionJK's cgame does
+([networking.md](networking.md#ja-movement-rules)); the mod's latched settings
+(`jp_pushAll`) take effect at the next map. Verified on Windows 11: unit tests of the rule
+struct, the throw (teammates, knocked-down players, items, absorb), the grip's weapon
+check, the gripped saber, the cloak battery, the item fling and return, the grip speed
+from server info, the JA+ crate's rules at its defaults and after changes, and the server
+(the base game's rules unchanged whatever JA+ settings say, JA+'s following their
+settings at once, the latch); a headless `sjk-server +set g_mod japlus` with five bots on
+loopback ran 90 seconds without a fault. Not verified: any client joined, so neither the
+rules in play nor the grip speed prediction were seen; no comparison with a running JA+ or
+VisionJK server. Left: `jp_forceCombo` (push and pull grabs, rage with speed), the
+flamethrower, `jp_saberNoForceDrain` (saber code), NPCs flinging items.
+
+## JA+ duels on SJK's server (`g_mod japlus`)
+
+06/11/2026, `personal/japlus-duels` from `main` `d473a66b`, the next step of the JA+
+server mode: JA+'s private duels from VisionJK's rebuild (`g_cmds.c` `Cmd_EngageDuel_f`,
+`g_active.c` duel think, `japlus/g_japlus_dim.c`), as plain rule values the shared duel
+code reads (`sjk_game_jka::duel::DuelRules`, new `ServerMod::duels` and
+`ServerMod::command` hooks). Duellists and the others pass through each other with
+`jp_DuelAlpha` 0 or more (every trace of a player leaves them out); the JA+ challenge,
+start refill, bow, unlit sabers, `engage_FullForceDuel`, no distance limit and the
+winner's report run as [server.md](server.md#ja-mode) lists; SJK's client now predicts
+JA+ isolation only where the server plays it ([networking.md](networking.md)). Verified
+on Windows 11: unit tests of the shared rules (base game unchanged, JA+ challenge,
+start, think, winner report, full force), of the JA+ settings, of the client's
+prediction rule, and server tests with three bots on a mapless server (base game
+collides and duels as before; JA+ isolation on and off with `jp_DuelAlpha`; refill and
+bow; full-force damage; base game without `engage_FullForceDuel`). Not verified: a duel
+in a real game with a client, on a map, against EternalJK or the JA+ plugin; no
+comparison with a running JA+ or VisionJK server. Left out: the 3 seconds of walking
+through players after a duel (no JA+ client predicts it), the saber throw in a
+full-force duel, pushing a duellist's missiles, the alternate dimension.
 
 ## SJK's server as a JA+ server (`g_mod japlus`), step 1
 

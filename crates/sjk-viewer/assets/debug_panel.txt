@@ -8949,6 +8949,19 @@ test: Wall flip off another player (bot), roll, yellow DFA: no pulling back, as 
 test: rcon jp_allowflipkick 0: the flip off a player stops, still no pulling back.
 note: Not run with a client yet. Or host it from Create game > Server mod JA+.
 
+[japlus-saber-damage]
+area: Gameplay
+title: JA+ server mode: saber damage (jp_alterDMG, move table) and the /kill frag
+change: g_mod japlus: jp_alterDMG 1/2 deals JA+'s per-move saber damage (jp_*Attack Min/Max).
+change: jp_SaberThrowScaleDMG, jp_reduceSaberBlock, jp_allowSaberTouchDMG; no cuts while chatting.
+change: /kill right after a push or hit gives the frag to that player; no /kill in duels.
+test: Start sjk-server as for japlus-mode with +set jp_alterDMG 1 and bot_minplayers 2.
+test: Strong swings hit far harder than base (each trace adds up to 110, x1.5 on players).
+test: rcon jp_SingleStrongNormalAttackMax 50: strong hits weaker at once; jp_alterDMG 0: as base.
+test: Get Force-pushed by a bot, /kill within 5 s: the bot scores the frag.
+test: Team game: /kill does nothing; rcon jp_allowTeamKill 1: it works.
+note: Server only; base servers (no g_mod) deal damage exactly as before.
+
 [create-game-server-mod]
 area: Menus & settings
 title: Create game: Server mod row, Base game (default) or JA+ (g_mod)
@@ -8961,3 +8974,30 @@ test: In the match: serverinfo shows gamename JA+ Mod v2.4 B7; japlus.* commands
 test: Back to Create game: JA+ is still chosen, also after a restart; Base game: plain JKA.
 test: ui_menuStyle classic, Play > Create Server: the same Server mod row is there.
 note: The rows moved: Start sits a little lower to make room for the row.
+
+[japlus-force]
+area: Gameplay
+title: JA+ server mode: JA+'s Force rules (push, absorb, grip, cloak, items)
+change: g_mod japlus: push/pull reach players on the ground, teammates with g_friendlyFire 1.
+change: Items fly when pushed (jp_pushAll), absorb gains more (jp_fixAbsorb), grip while rolling.
+change: jp_gripSpeedScale is read from server info by SJK's prediction on every JA+ server.
+test: Local sjk-server +set g_mod japlus with a bot: push the bot while it lies knocked down.
+test: Push a medpack or ammo: it flies, and is back at its place 30 seconds later.
+test: rcon jp_gripSpeedScale 1: grip and run, no pulling back; same on a real JA+ server.
+test: rcon jp_gripOpenSaber 2, get gripped with little Force: your saber drops from the hand.
+test: rcon jp_cloakFuel 0: the cloak stays on, its bar does not drain.
+note: Not run with a client yet. Base servers (no g_mod) must play as before.
+
+[japlus-duels]
+area: Gameplay
+title: JA+ duels on SJK's server (g_mod japlus): isolation, JA+ challenge, full force
+change: Duellists and the others pass through each other (jp_DuelAlpha 0+), SJK predicts it.
+change: Any weapon challenges; start at 100 health, full Force, 100 armour; bow; sabers unlit.
+change: engage_FullForceDuel: Force works between the two. Winner's health/armour told.
+test: Start sjk-server with +set g_mod japlus (as in japlus-mode), join with a bot (addbot).
+test: Duel the bot (duel key on it, then its acceptance) or a second client: both bow.
+test: Walk through a third player while duelling, and as the third through the duellists.
+test: rcon jp_DuelAlpha -1: duellists collide again, still no pulling back.
+test: /engage_FullForceDuel on a second client, accept: push and lightning work in the duel.
+test: Win: centre print with health and armour; console line for everyone.
+note: Not run with a client yet. No 3 s pass-through after a duel (no JA+ client predicts it).
