@@ -384,13 +384,15 @@ note: Achievements need hub-shared #9 imported and deployed before they record o
 [creyon-new-blades-370]
 area: Rendering & effects
 title: 130 new blades (Creyon #370), blades 170 to 299: not in holocrons yet
-change: Star Wars round: 25 Common, 24 Uncommon, 34 Rare, 38 Legendary, 9 Mythical.
+change: Star Wars round: 25 Common, 21 Uncommon, 29 Rare, 38 Legendary, 17 Mythical.
 change: Their effects in the air draw in a half-size layer; older blades draw as before.
 change: Hub: in the catalogue and sjk_skins_2, droppable false until Sol opens them.
 test: Staff panel > Unlock a few (Angel, Rakata Infinite, Moon): they wear and swing.
 test: Close to the camera at 4K: FPS holds; effects line up with walls and players.
 test: Chroma blades take your colour; Shaders tab pictures and parts switch on and off.
 note: God Ki left out (Dragon Ball material). Make droppable on the hub once tested.
+note: 06/11 Sol raised 19 a tier: 170 171 175 191 198 206 272 278 Mythical, 197 212 214
+note: 215 223 279 281 286 Legendary, 180 288 293 Rare.
 
 [editions-alpha-beta]
 area: Menus & settings
