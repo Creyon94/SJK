@@ -583,8 +583,8 @@ pull requests merged into SJK, most of them bringing SJK in line with EternalJK
   deaths (`cg_scoreboardDeathsRank`, off).
 - #321 a finished trade's toast says what it gave and received, names shown in full.
 - #236 JoF hats as in JoF EJK: their pictures from the old EternalJK folder, McFox two-sided.
-- #370 130 new blades from his Star Wars round (blades 170 to 299): 25 Common, 24 Uncommon,
-  34 Rare, 38 Legendary and 9 Mythical, each with its own colours, trail and sounds, and
+- #370 130 new blades from his Star Wars round (blades 170 to 299): 25 Common, 21 Uncommon,
+  29 Rare, 38 Legendary and 17 Mythical (Sol's tiers after testing them), each with its own colours, trail and sounds, and
   their effects in the air drawn at half size so a close blade stays cheap.
 
 Lumaya ([lumayaa](https://github.com/lumayaa)), contributor, has 88 pull requests
