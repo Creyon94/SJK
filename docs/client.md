@@ -3220,7 +3220,8 @@ message goes.
 The row has its own tools since 06/11/2026 (Sol's request;
 [chat/row_tools.rs](../crates/sjk-viewer/src/chat/row_tools.rs), drawn in
 [chat/view/row_tools.rs](../crates/sjk-viewer/src/chat/view/row_tools.rs) as strokes,
-not glyphs). Pointing at any button but All shows a small × right after its word; a
+not glyphs, set level with the middle of the words' capitals and as tall as them
+(`UiFont::capital_middle`, `capital_height`; 06/11/2026). Pointing at any button but All shows a small × right after its word; a
 click takes it off the row (its setting to 0, as Settings > Chat would), and a
 composer on it moves to All. After the words, a + (only while a usable chat is off the
 row: PM by default, Admin only on servers that have it, a clan chat only once joined)

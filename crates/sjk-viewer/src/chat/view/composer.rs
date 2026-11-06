@@ -58,7 +58,7 @@ impl ChatOverlay {
         let whisper = input.channel == Channel::Whisper;
         let sjk = input.channel == Channel::Sjk;
         // The ×, + and cog (`chat/row_tools.rs`); the notes start after them.
-        let row_end = self.build_row_tools(g, &row[..count], row_end, y);
+        let row_end = self.build_row_tools(font, g, &row[..count], row_end, y);
         let below = if whisper {
             recipient::ROW * g.scale
         } else {

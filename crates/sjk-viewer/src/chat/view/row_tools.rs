@@ -5,9 +5,11 @@ use super::*;
 use crate::chat::row_tools::{ADD, CLOSE, ITEM, Item, RowMenu, SETTINGS};
 
 /// The tools' icon box, in 1080p pixels at the chat's scale.
-const ICON: f32 = 18.0;
+const ICON: f32 = 16.0;
 /// The room between the row's last word and the +, and between the + and the cog.
-const ICON_GAP: f32 = 6.0;
+const ICON_GAP: f32 = 4.0;
+/// The row's words' size (`chat/tabs.rs`), which the icons are set level with.
+const LABEL_SIZE: f32 = 14.0;
 /// A menu row's height and text size.
 const MENU_ROW: f32 = 24.0;
 const MENU_SIZE: f32 = 13.0;
@@ -20,13 +22,19 @@ impl ChatOverlay {
     /// the tools end, in 1080p pixels at the chat's scale, for the notes after them.
     pub(in crate::chat) fn build_row_tools(
         &mut self,
+        font: &UiFont,
         g: &Geometry,
         row: &[(Channel, f32, f32)],
         row_end: f32,
         y: f32,
     ) -> f32 {
         let pointer = self.pointer_at;
-        let middle = y + 13.0 * g.scale;
+        // Level with the middle of the words' capitals and as tall as them (Sol,
+        // 06/11/2026: the first ones sat low and drew twice the words' height).
+        let em = LABEL_SIZE * g.scale / font.height.max(1.0);
+        let middle = y + font.capital_middle(em);
+        let cap = font.capital_height(em).max(1.0);
+        let stroke = (cap * 0.14).max(1.0);
         let half_gap = crate::chat::tabs::ROW_GAP * 0.5 * g.scale;
         for &(channel, x, width) in row {
             if !Self::closable(channel) {
@@ -46,9 +54,9 @@ impl ChatOverlay {
             );
             let close = Rect::new(
                 word_end + 1.0 * g.scale,
-                middle - 7.0 * g.scale,
-                14.0 * g.scale,
-                14.0 * g.scale,
+                middle - 6.0 * g.scale,
+                12.0 * g.scale,
+                12.0 * g.scale,
             );
             // Only while the pointer is on the button or its ×, so the row stays quiet.
             if !pointer.is_some_and(|at| button.contains(at) || close.contains(at)) {
@@ -59,7 +67,7 @@ impl ChatOverlay {
             if on {
                 let _ = self.ui.draw_list_mut().push(DrawCommand::RoundedRect {
                     rect: close,
-                    radius: 7.0 * g.scale,
+                    radius: 6.0 * g.scale,
                     color: Color::new(1.0, 0.36, 0.32, 0.28),
                 });
             }
@@ -68,7 +76,7 @@ impl ChatOverlay {
             } else {
                 Color::new(0.786, 0.827, 0.865, 0.75)
             };
-            cross(&mut self.ui, close, 3.0 * g.scale, 1.5 * g.scale, ink);
+            cross(&mut self.ui, close, cap * 0.3, stroke, ink);
         }
         let open = self.input.as_ref().and_then(|input| input.menu);
         let mut x = g.left + row_end * g.scale - half_gap + ICON_GAP * g.scale;
@@ -100,8 +108,8 @@ impl ChatOverlay {
                 IDLE
             };
             match menu {
-                RowMenu::Add => plus(&mut self.ui, rect, 4.5 * g.scale, 1.6 * g.scale, ink),
-                RowMenu::Settings => cog(&mut self.ui, rect, g.scale, ink),
+                RowMenu::Add => plus(&mut self.ui, rect, cap * 0.45, stroke, ink),
+                RowMenu::Settings => cog(&mut self.ui, rect, cap, ink),
             }
             if picked {
                 self.menu_left = rect.x;
@@ -255,13 +263,13 @@ fn plus(ui: &mut MenuCanvas, rect: Rect, arm: f32, width: f32, color: Color) {
     line(ui, [x, y - arm], [x, y + arm], width, color);
 }
 
-/// A cog: a ring with eight teeth, centred in `rect`.
-fn cog(ui: &mut MenuCanvas, rect: Rect, scale: f32, color: Color) {
+/// A cog as tall as capitals `cap` high: a ring with eight teeth, centred in `rect`.
+fn cog(ui: &mut MenuCanvas, rect: Rect, cap: f32, color: Color) {
     let centre = centre_of(rect);
     let _ = ui.draw_list_mut().push(DrawCommand::Arc {
         center: centre,
-        radius: 3.6 * scale,
-        width: 2.2 * scale,
+        radius: cap * 0.3,
+        width: cap * 0.17,
         start: 0.0,
         sweep: std::f32::consts::TAU,
         color,
@@ -272,9 +280,9 @@ fn cog(ui: &mut MenuCanvas, rect: Rect, scale: f32, color: Color) {
         let (sin, cos) = angle.sin_cos();
         line(
             ui,
-            [centre[0] + cos * 4.2 * scale, centre[1] + sin * 4.2 * scale],
-            [centre[0] + cos * 6.6 * scale, centre[1] + sin * 6.6 * scale],
-            2.4 * scale,
+            [centre[0] + cos * cap * 0.34, centre[1] + sin * cap * 0.34],
+            [centre[0] + cos * cap * 0.56, centre[1] + sin * cap * 0.56],
+            cap * 0.18,
             color,
         );
     }
