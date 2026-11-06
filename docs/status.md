@@ -1,3 +1,16 @@
+## Chat row tools: x, + and a cog
+
+06/11/2026, `personal/chat-tab-tools` from `main` `6b317e9f`, Sol's request: the open
+chat composer's row gets an × on a hovered button to take it off, a + to put a hidden
+chat back, and a cog for quick settings (only this chat or every chat while typing,
+Tab skipping the chosen chat, opening on the last chat), each writing the Settings >
+Chat setting it stands for ([client.md](client.md)). Verified on Windows 11: unit
+tests (the × only on hover and never on All, closing the chosen chat moves to All, the
++ lists only usable hidden chats and closes when empty, the cog's switches and what
+the frame saves, Escape and a press elsewhere closing the menus), the chat tests,
+world shots of the three states, fmt, clippy, the startup stack check. Not verified:
+in a game.
+
 ## Create game picks the server mod
 
 06/11/2026, `personal/create-game-server-mod` from `main` `d473a66b`, Sol's request after
