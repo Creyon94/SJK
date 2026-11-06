@@ -440,6 +440,7 @@ impl NativeGame {
         };
         let since_last_frame = self.last_frame_time - self.previous_frame_time;
         let limbs = self.limb_rules();
+        let force_rules = self.force_rules();
         let Self {
             pool,
             sounds,
@@ -515,6 +516,7 @@ impl NativeGame {
             fighter_alt_control,
             debug_saber_locks,
             limbs,
+            force_rules,
         }
     }
 

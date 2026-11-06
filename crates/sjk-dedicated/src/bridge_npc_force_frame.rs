@@ -232,6 +232,7 @@ fn run_frame<T>(
         regen_time
     };
     touched.clear();
+    let rules = host.force_rules;
     let mut others = ServerOthers {
         host,
         roster,
@@ -259,6 +260,7 @@ fn run_frame<T>(
         invulnerable_until: &mut invulnerable,
         others: &mut others,
         saber_off_sounds,
+        rules,
     };
     let result = run(state, &mut force, &mut frame);
     let world = host.server.world_mut(host.world)?;

@@ -115,6 +115,8 @@ pub(crate) struct ServerHost<'a> {
     pub(super) gravity: f32,
     pub(super) skill: i32,
     pub(super) gametype: i32,
+    /// The running server mod's Force rules, which the NPCs' Force runs by too.
+    pub(super) force_rules: sjk_game_jka::force_rules::ForceRules,
     pub(super) client_zero: ([f32; 3], i32),
     /// The items registered while the level spawns; afterwards they are not recorded.
     pub(super) items: Option<&'a mut Vec<usize>>,
@@ -526,6 +528,10 @@ impl NpcHost for ServerHost<'_> {
 
     fn gametype(&self) -> i32 {
         self.gametype
+    }
+
+    fn force_rules(&self) -> sjk_game_jka::force_rules::ForceRules {
+        self.force_rules
     }
 
     fn rng(&mut self) -> &mut Rng {

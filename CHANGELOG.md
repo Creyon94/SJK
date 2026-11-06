@@ -36,6 +36,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 = r_clouds reset: Volumetric clouds over open sky are now off by default under every graphics preset; switch them on here if you like them.
 = r_weatherLightning: Lightning in storms: flashes light up the rain, the fog and the wet streets, and thunder rolls in after them.
 
+- SJK's server in JA+ mode (`g_mod japlus`) plays JA+'s Force rules: push and pull reach players on the ground (`jp_pushPullKnockDown`) and teammates with `g_friendlyFire`, and fling items (`jp_pushAll`); absorb gains more (`jp_fixAbsorb`); a grip may start rolling (`jp_fixRoll`); `jp_gripOpenSaber`, `jp_cloakFuel` and `jp_gripSpeedScale` work, and SJK players predict a JA+ server's grip speed from its server info _(Sol, after VisionJK by Blackwolf)_
 - Browsing models no longer freezes the game: the model picker and the profile load a model in the background and swap it in once it is ready, as players' models already load in a match _(Sol)_
 - Map edits keep weather: staff give a map rain, a storm, snow, fog and wind (`mapedit_weather`, the map editor's Weather page), and every SJK player sees it with the map's other edits; your own Force weather setting still comes first _(Sol)_
 - Puddles mirror the world at Ultra weather quality (`r_weatherQuality 3`): the streets, walls and sky round a puddle show in it, rippled by the rain rings, where before it mirrored only a grey sky _(Sol, after VisionJK by Blackwolf)_

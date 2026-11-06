@@ -8948,3 +8948,16 @@ test: serverinfo: gamename JA+ Mod v2.4 B7 and jp_cinfo 19. JA+ tools mod loads 
 test: Wall flip off another player (bot), roll, yellow DFA: no pulling back, as on JA+ servers.
 test: rcon jp_allowflipkick 0: the flip off a player stops, still no pulling back.
 note: Not run with a client yet. Create game has no server mod choice yet.
+
+[japlus-force]
+area: Gameplay
+title: JA+ server mode: JA+'s Force rules (push, absorb, grip, cloak, items)
+change: g_mod japlus: push/pull reach players on the ground, teammates with g_friendlyFire 1.
+change: Items fly when pushed (jp_pushAll), absorb gains more (jp_fixAbsorb), grip while rolling.
+change: jp_gripSpeedScale is read from server info by SJK's prediction on every JA+ server.
+test: Local sjk-server +set g_mod japlus with a bot: push the bot while it lies knocked down.
+test: Push a medpack or ammo: it flies, and is back at its place 30 seconds later.
+test: rcon jp_gripSpeedScale 1: grip and run, no pulling back; same on a real JA+ server.
+test: rcon jp_gripOpenSaber 2, get gripped with little Force: your saber drops from the hand.
+test: rcon jp_cloakFuel 0: the cloak stays on, its bar does not drain.
+note: Not run with a client yet. Base servers (no g_mod) must play as before.

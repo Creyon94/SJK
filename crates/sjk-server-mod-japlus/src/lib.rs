@@ -10,12 +10,15 @@
 //! - [`cvars`]: JA+'s settings, at JA+'s defaults.
 //! - [`cinfo`]: `jp_cinfo`, the rules the server announces, only those it plays.
 //! - [`JaPlus::movement`]: the JA+ movement of the shared `Pmove`
-//!   (`sjk_game_jka::pmove_japlus`), selected from the same bits the clients read.
+//!   (`sjk_game_jka::pmove_japlus`), selected from the same bits the clients read, and
+//!   `jp_gripSpeedScale`, which the clients read from the server info too.
+//! - [`JaPlus::force`]: JA+'s Force rules (`sjk_game_jka::force_rules`).
 
 pub mod cinfo;
 pub mod cvars;
 
 use sjk_game_jka::RollRules;
+use sjk_game_jka::force_rules::{ForceRules, GripOpenSaber};
 use sjk_game_jka::pmove_japlus::JaPlusRules;
 use sjk_protocol::{JaPlusCapabilities, ServerDialect};
 use sjk_server_mod::{ModMovement, ServerMod, Settings};
@@ -70,6 +73,9 @@ impl ServerMod for JaPlus {
         ModMovement {
             ja_plus: JaPlusRules {
                 old_collision: settings.integer("dmflags") & DF_OLD_COLLISION != 0,
+                // A serverinfo setting (`CVAR_SERVERINFO`), which the clients read from
+                // there (`JaPlusRules::from_game_state`).
+                grip_speed: settings.value("jp_gripSpeedScale"),
                 ..JaPlusRules::from_dialect(&dialect)
             },
             fix_roll: RollRules::from_dialect(&dialect).fix_roll,
@@ -77,6 +83,33 @@ impl ServerMod for JaPlus {
             // fixes (VisionJK `docs/japlus/differences.md`: `g_fixRunWalkAnims`,
             // `g_fixWeaponAttackAnim` and `g_fixSaberMoveData` are 0 there).
             legacy_fixes: 0,
+        }
+    }
+
+    fn force(&self, settings: &dyn Settings) -> ForceRules {
+        let dialect = ServerDialect::JaPlus {
+            capabilities: JaPlusCapabilities(cinfo::cinfo(settings)),
+        };
+        ForceRules {
+            // VisionJK `codemp/game/w_force.c:628-634`: only 0 keeps them out.
+            throw_knocked_down: settings.integer("jp_pushPullKnockDown") != 0,
+            // `w_force.c:3729-3732`: `OnSameTeam && !g_friendlyFire` passes over.
+            throw_teammates: settings.integer("g_friendlyFire") != 0,
+            // `w_force.c:870-875`: above 0 the continuous powers' gain is scaled.
+            absorb_gain_scale: settings.value("jp_fixAbsorb").max(0.0),
+            // `w_force.c:3146-3184`, `3736-3739`: items flung from 1, dropped flags at 2
+            // (latched: a change waits for the next map).
+            push_items: settings.integer("jp_pushAll").clamp(0, 255) as u8,
+            // `w_force.c:6029-6051`.
+            grip_open_saber: match settings.integer("jp_gripOpenSaber") {
+                1 => GripOpenSaber::ThrownOnly,
+                2 => GripOpenSaber::LowForceDrops,
+                _ => GripOpenSaber::Off,
+            },
+            // `w_force.c:1474-1478`: `JP_FIXROLL()`, the level announced in `jp_cinfo`.
+            grip_while_rolling: RollRules::from_dialect(&dialect).fix_roll > 0,
+            // `codemp/game/g_main.c:3348-3360`: only 1 drains.
+            cloak_drains: settings.integer("jp_cloakFuel") == 1,
         }
     }
 }
@@ -99,7 +132,13 @@ mod tests {
             })
         }
         fn value(&self, name: &str) -> f32 {
-            self.integer(name) as f32
+            match self.0.get(name) {
+                Some(value) => *value as f32,
+                None => cvars::CVARS
+                    .iter()
+                    .find(|cvar| cvar.name == name)
+                    .map_or(0.0, |cvar| cvar.default.parse().unwrap_or(0.0)),
+            }
         }
     }
 
@@ -155,5 +194,49 @@ mod tests {
         let movement = JaPlus.movement(&settings);
         assert!(movement.ja_plus.enabled && !movement.ja_plus.flip_kick);
         assert_eq!(movement.fix_roll, 0);
+    }
+
+    #[test]
+    fn the_grip_speed_is_the_setting_the_clients_read() {
+        let mut settings = Table(HashMap::new());
+        assert_eq!(JaPlus.movement(&settings).ja_plus.grip_speed, 0.8);
+        settings.0.insert("jp_gripSpeedScale", 1);
+        assert_eq!(JaPlus.movement(&settings).ja_plus.grip_speed, 1.0);
+    }
+
+    #[test]
+    fn ja_plus_force_rules_at_its_defaults() {
+        let settings = Table(HashMap::new());
+        let rules = JaPlus.force(&settings);
+        assert!(rules.throw_knocked_down);
+        assert!(!rules.throw_teammates);
+        assert_eq!(rules.absorb_gain_scale, 2.0);
+        assert_eq!(rules.push_items, 1);
+        assert_eq!(rules.grip_open_saber, GripOpenSaber::Off);
+        assert!(rules.grip_while_rolling);
+        assert!(rules.cloak_drains);
+    }
+
+    #[test]
+    fn ja_plus_force_rules_follow_their_settings() {
+        let mut settings = Table(HashMap::new());
+        settings.0.insert("jp_pushPullKnockDown", 0);
+        settings.0.insert("g_friendlyFire", 1);
+        settings.0.insert("jp_fixAbsorb", 0);
+        settings.0.insert("jp_gripOpenSaber", 2);
+        settings.0.insert("jp_fixRoll", 0);
+        settings.0.insert("jp_cloakFuel", 0);
+        settings.0.insert("jp_pushAll", 2);
+        let rules = JaPlus.force(&settings);
+        assert_eq!(rules.push_items, 2);
+        assert!(!rules.throw_knocked_down && rules.throw_teammates);
+        assert_eq!(rules.absorb_gain_scale, 0.0);
+        assert_eq!(rules.grip_open_saber, GripOpenSaber::LowForceDrops);
+        assert!(!rules.grip_while_rolling && !rules.cloak_drains);
+        settings.0.insert("jp_gripOpenSaber", 1);
+        settings.0.insert("jp_cloakFuel", 2);
+        let rules = JaPlus.force(&settings);
+        assert_eq!(rules.grip_open_saber, GripOpenSaber::ThrownOnly);
+        assert!(!rules.cloak_drains);
     }
 }
