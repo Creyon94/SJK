@@ -3682,6 +3682,15 @@ note: Alt+Tab while holding Tab leaves the board and the hidden HUD up until Tab
 
 # ---- Rendering & effects ----
 
+[rig-forked-chains]
+area: Rendering & effects
+title: Rig chains that fork or stack joints no longer jump (Kushina, #373)
+change: Dynamic chains are simulated in one pass, parents first; a joint stacked on its
+change: parent (under 0.01 units) no longer turns the parent at random.
+test: Wear a rig model with dynamic hair (a stem with several strands) and run, jump, turn.
+test: The strands swing smoothly; no bone flips or jitters from frame to frame.
+test: A rig tail or cape without forks moves as before.
+
 [sun-trails]
 area: Rendering & effects
 title: Sun blade trails: plasma for all, Solar card 000 unlocks Flare, Embers, Heat wake

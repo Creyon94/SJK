@@ -10,6 +10,19 @@ kicks (command ages 51 to 58 ms each second, no gap or frame over 40 ms), so the
 is still unknown. Verified on Windows 11: fmt, build, clippy, workspace tests. Not
 verified: in a game, or that Heimdall kicks less.
 
+## Rig chains that fork or stack joints no longer jump
+
+06/11/2026, `fix/rig-dynamics-forked-chains` from `main` `26526290`. A dynamic chain whose
+rig stacks joints on one spot or forks threw its bones about: a near-zero bone aimed its
+parent along the bind matrices' rounding, and a fork's branches aimed from where their
+parent had been before it turned. A single pass, parents first, now places each joint
+from where its parent stands, and a bone under `MIN_BONE` turns nothing
+([rig-models.md](rig-models.md#dynamic-joints-tails-capes)). Verified on Windows 10: a
+unit test of such a fork (fails on `main`, 22.8 degrees in a frame), the ignored sway test
+on a local hair rig (largest turn in a frame 137 degrees before, 13 after), fmt, build,
+clippy, workspace tests. Not verified: in a game on this branch alone; the rig's short
+bones still stray far from their animated direction under a hard sway.
+
 ## Chat row tools: x, + and a cog
 
 06/11/2026, `personal/chat-tab-tools` from `main` `6b317e9f`, Sol's request: the open
@@ -22,6 +35,7 @@ tests (the × only on hover and never on All, closing the chosen chat moves to A
 the frame saves, Escape and a press elsewhere closing the menus), the chat tests,
 world shots of the three states, fmt, clippy, the startup stack check. Not verified:
 in a game.
+
 ## SJK's server as a JA+ server, step 2: saber damage and the `/kill` frag
 
 06/11/2026, `personal/japlus-saber-damage` from `main` `d473a66b`. Under `g_mod japlus`

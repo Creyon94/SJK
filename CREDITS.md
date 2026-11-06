@@ -1019,6 +1019,15 @@ Blackwolf's VisionJK rebuild of the JA+ 2.4 B7 server module from its Linux bina
 `g_mod japlus`): JA+'s settings and their defaults and the `jp_cinfo` bits come from it,
 and its behaviour is ported into SJK's own code, not its source.
 
+Kushina ([kushinaSJK](https://github.com/kushinaSJK)), contributor and player, has 1 pull
+request merged into SJK
+([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3AkushinaSJK)); her
+ideas are under [Ideas](#ideas):
+
+- #373 dynamic chains on rig models that fork or stack joints (hair: a stem with strands
+  under it) no longer throw their bones about: each joint is placed from where its parent
+  now stands, parents first, and a bone shorter than 0.01 units no longer turns its parent.
+
 ## Art
 
 Reyced made Solfox, a fox player model (`models/players/solfox`), for Sol in October
