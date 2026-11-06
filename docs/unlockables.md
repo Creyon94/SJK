@@ -1028,6 +1028,14 @@ Built.
   the same and the answer says it shows only once unlocked. An unknown id is refused.
   Tab completes the command's name; its argument has no completion (the console
   completes command and cvar names only).
+- `saber_loadall` ([blade_load_all.rs](../crates/sjk-viewer/src/blade_load_all.rs); Sol,
+  06/11/2026, to class the tiers of Creyon's new blades): builds every loaded blade's own
+  shader now, after the blades worn and shown, instead of when a blade first draws, so the
+  Collection's pictures and the preview show each blade's real look the moment it comes up
+  (until its shader is built a signature blade draws plain, from its skin's file). Typed
+  again it says how far the builds are ("Blade shaders: 120 of 262 built (48 s so far).",
+  then "All 262 blade shaders are built (in 1 min 40 s)."). This PC and this run only;
+  `debug_collectibles 1` shows every blade as held to go with it.
 - `unlockables` opens (or closes) the Collection on its Shaders tab: in the SJK UI
   the Collection screen ([sjk-ui.md](sjk-ui.md#collection)).
 - `debug_collectibles` (archived, default 0; 15/10/2026,
