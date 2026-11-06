@@ -1,3 +1,15 @@
+## JoF takes `cl_packetdup` as set again
+
+06/11/2026, `personal/jof-packetdup-back` from `main` `48ccdbf2`, Sol's request after
+Milamber, who maintains Heimdall, confirmed that the default is right: the JoF-only cap
+of 04/11 (no repeated commands, "No repeated commands on JoF" below) is reverted, with
+its `cl_packetdup_nocap` cvar, so packets repeat the one before (`cl_packetdup` 1), as
+JoF EJK's always do. Sol was kicked twice on 06/11 with the cap on while idle, and the
+server view lines ([networking.md](networking.md)) showed steady timing before both
+kicks (command ages 51 to 58 ms each second, no gap or frame over 40 ms), so the cause
+is still unknown. Verified on Windows 11: fmt, build, clippy, workspace tests. Not
+verified: in a game, or that Heimdall kicks less.
+
 ## Chat row tools: x, + and a cog
 
 06/11/2026, `personal/chat-tab-tools` from `main` `6b317e9f`, Sol's request: the open
