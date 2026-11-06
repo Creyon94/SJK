@@ -53,6 +53,11 @@ pub fn force(
     server_mod.map_or_else(Default::default, |server_mod| server_mod.force(cvars))
 }
 
+/// The private-duel rules of `server_mod`, the base game's without one.
+pub fn duels(server_mod: Option<&dyn ServerMod>, cvars: &Cvars) -> sjk_game_jka::duel::DuelRules {
+    server_mod.map_or_else(Default::default, |server_mod| server_mod.duels(cvars))
+}
+
 /// What `g_mod` may be, for the messages: `base, japlus`.
 pub fn choices() -> String {
     std::iter::once(BASE)

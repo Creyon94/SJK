@@ -14,16 +14,19 @@
 //!   `jp_gripSpeedScale`, which the clients read from the server info too.
 //! - [`combat`]: JA+'s saber damage and `kill` rules, which only the server plays.
 //! - [`JaPlus::force`]: JA+'s Force rules (`sjk_game_jka::force_rules`).
+//! - [`JaPlus::duels`]: JA+'s private duels (`sjk_game_jka::duel::DuelRules`), and its
+//!   `engage_FullForceDuel` ([`JaPlus::command`]).
 
 pub mod cinfo;
 pub mod combat;
 pub mod cvars;
 
 use sjk_game_jka::RollRules;
+use sjk_game_jka::duel::{DuelRules, WinnerReport};
 use sjk_game_jka::force_rules::{ForceRules, GripOpenSaber};
 use sjk_game_jka::pmove_japlus::JaPlusRules;
 use sjk_protocol::{JaPlusCapabilities, ServerDialect};
-use sjk_server_mod::{ModCombat, ModMovement, ServerMod, Settings};
+use sjk_server_mod::{ModCombat, ModCommand, ModMovement, ServerMod, Settings};
 
 /// `gamename` of JA+ 2.4 B7 (VisionJK `g_japlus.h` `JP_GAMENAME`): clients and server
 /// browsers tell a JA+ server by it (`sjk_protocol::is_ja_plus_game_name`).
@@ -118,6 +121,30 @@ impl ServerMod for JaPlus {
             cloak_drains: settings.integer("jp_cloakFuel") == 1,
         }
     }
+
+    fn duels(&self, settings: &dyn Settings) -> DuelRules {
+        // VisionJK `g_cmds.c:3262-3452`, `g_active.c:2439-2572`, `japlus/g_japlus_dim.c`,
+        // `w_force.c:6256-6257`; the settings' meanings are its web panel's
+        // (`webadmin/wa_settings_table.h:130,241-246`).
+        DuelRules {
+            ja_plus: true,
+            // `jp_DuelAlpha` -1 switches the isolation off, as its clients read it
+            // (`cgs.jpDuelAlpha >= 0`, VisionJK `cgame/cg_predict.c:478`).
+            isolation: settings.integer("jp_DuelAlpha") >= 0,
+            team_duels: settings.integer("jp_allowTeamDuel") != 0,
+            distance_limit: settings.integer("jp_removeDistanceDuelLimit") == 0,
+            bow: settings.integer("jp_autoDuelBOW") == 1,
+            start_armor: settings.integer("jp_duelStartArmor"),
+            winner_report: WinnerReport::from_setting(settings.integer("jp_endDuelBroadcastMSG")),
+            force_regen_time: Some(settings.integer("jp_privateDuelForceRegen")),
+        }
+    }
+
+    fn command(&self, name: &[u8]) -> Option<ModCommand> {
+        // VisionJK `g_cmds.c:3455-3462,3756`.
+        name.eq_ignore_ascii_case(b"engage_FullForceDuel")
+            .then_some(ModCommand::FullForceDuel)
+    }
 }
 
 #[cfg(test)]
@@ -190,6 +217,42 @@ mod tests {
         assert!(!JaPlus.movement(&settings).ja_plus.old_collision);
         settings.0.insert("dmflags", 256 | 8);
         assert!(JaPlus.movement(&settings).ja_plus.old_collision);
+    }
+
+    #[test]
+    fn the_duels_follow_the_settings() {
+        let mut settings = Table(HashMap::new());
+        let rules = JaPlus.duels(&settings);
+        // JA+'s defaults: isolated, team duels, no distance limit, the bow, 100 armour,
+        // everyone told, 200 ms a Force point.
+        assert!(rules.ja_plus && rules.isolation && rules.team_duels && rules.bow);
+        assert!(!rules.distance_limit);
+        assert_eq!(rules.start_armor, 100);
+        assert_eq!(rules.winner_report, WinnerReport::Everyone);
+        assert_eq!(rules.force_regen_time, Some(200));
+        settings.0.insert("jp_DuelAlpha", -1);
+        settings.0.insert("jp_allowTeamDuel", 0);
+        settings.0.insert("jp_removeDistanceDuelLimit", 0);
+        settings.0.insert("jp_autoDuelBOW", 0);
+        settings.0.insert("jp_endDuelBroadcastMSG", 2);
+        let rules = JaPlus.duels(&settings);
+        assert!(!rules.isolation && !rules.team_duels && !rules.bow);
+        assert!(rules.distance_limit);
+        assert_eq!(rules.winner_report, WinnerReport::Duellists);
+        settings.0.insert("jp_DuelAlpha", 0);
+        settings.0.insert("jp_endDuelBroadcastMSG", 0);
+        let rules = JaPlus.duels(&settings);
+        assert!(rules.isolation);
+        assert_eq!(rules.winner_report, WinnerReport::Silent);
+    }
+
+    #[test]
+    fn the_full_force_duel_is_a_command() {
+        assert_eq!(
+            JaPlus.command(b"engage_fullforceduel"),
+            Some(ModCommand::FullForceDuel)
+        );
+        assert_eq!(JaPlus.command(b"engage_duel"), None);
     }
 
     #[test]

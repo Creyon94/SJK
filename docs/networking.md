@@ -303,11 +303,19 @@ view/duck details still require the corresponding vehicle context.
 JA+ and TaystJK/jaPRO isolate private duels: the two duellers and everyone else
 pass through each other. A JA+ 2.4 server leaves part of that to client-plugin
 users, sending them a dueller as a solid player box flagged with `bolt1`, so on
-those profiles prediction skips duelling players for a bystander and every player
-or NPC but the opponent for a dueller
+those profiles prediction skips duelling players for a bystander and, for a dueller,
+every player but the opponent, and on jaPRO every NPC too
 ([duel_isolation.rs](../crates/sjk-client/src/duel_isolation.rs), applied where
 [prediction_movers.rs](../crates/sjk-viewer/src/prediction_movers.rs) builds the
-entity solids). Stock and unknown servers keep duellers solid.
+entity solids). On a JA+ server it does so only while the server info's `jp_DuelAlpha`
+is 0 or more (`atoi`, so a server without the key isolates) and in a free-for-all or
+team deathmatch, as VisionJK's rebuild of the JA+ module isolates
+(`g_japlus_dim.c:130-164`) and its port of the plugin predicts from `jp_DuelAlpha`
+(`cg_predict.c:465-497`); NPCs stay solid there, as the module leaves out players only.
+SJK's own server in [JA+ mode](server.md#ja-mode) runs the same rule
+(`sjk_game_jka::duel::isolated`). EternalJK ignores `jp_DuelAlpha` and the game type,
+so it mispredicts with `jp_DuelAlpha -1`, and the plugin isolates in Holocron and Jedi
+Master too. Stock and unknown servers keep duellers solid.
 
 ## JA+ grapple hook
 

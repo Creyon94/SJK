@@ -487,8 +487,11 @@ impl NativeGame {
     }
 
     /// The other players' saber entities, to the obstacles a blade's traces meet: every
-    /// solid one not the swinger's; and every NPC's lit saber entity.
+    /// solid one not the swinger's; and every NPC's lit saber entity. Under JA+'s duel
+    /// isolation, not the sabers of players the swinger may not touch (a missile flies
+    /// through them, VisionJK `g_missile.c:908-924`).
     pub(super) fn gather_saber_entities(&mut self, swinger: usize) {
+        let mine = self.duel_isolation(swinger);
         let Self {
             server,
             world,
@@ -503,7 +506,14 @@ impl NativeGame {
         for (number, handle) in players.holders().enumerate() {
             let peer = handle
                 .and_then(|handle| world.entity(handle))
-                .filter(|peer| number != swinger && peer.begun && peer.body_active());
+                .filter(|peer| {
+                    number != swinger
+                        && peer.begun
+                        && peer.body_active()
+                        && !super::bridge_collision_gather::isolated_from(
+                            mine, swinger, number, peer,
+                        )
+                });
             let Some(peer) = peer else { continue };
             let (origin, mins, maxs, _) = peer.saber_cut.entity;
             let entity = peer.state.saber_entity_num();

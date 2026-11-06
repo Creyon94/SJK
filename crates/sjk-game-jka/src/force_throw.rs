@@ -190,6 +190,9 @@ pub struct Throw {
     pub thrower: u16,
     pub pull: bool,
     pub rules: ForceRules,
+    /// The players in a JA+ full-force duel ([`crate::duel::FullForce`]): none on the
+    /// base game.
+    pub full_force: crate::duel::FullForce,
 }
 
 /// What the thrower brings to every target, read once.
@@ -296,6 +299,7 @@ fn begin(context: Throw, world: &mut dyn ThrowWorld) -> Option<Thrower> {
         power,
         level_time,
         context.gametype,
+        context.full_force,
     ) {
         return None;
     }
@@ -888,6 +892,7 @@ fn can_counter_throw(
         power,
         context.level_time,
         context.gametype,
+        context.full_force,
     ) {
         return false;
     }
@@ -905,17 +910,25 @@ fn usable_on(context: Throw, number: u16, _power: usize, world: &mut dyn ThrowWo
         if context.pull { FP_PULL } else { FP_PUSH },
         context.level_time,
         context.gametype,
+        context.full_force,
     ) {
         return false;
     }
-    if thrower.state.duel_in_progress() {
+    let thrower_duel = crate::duel::duel_of(thrower.state);
+    if thrower_duel.is_some() && !context.full_force.has(context.thrower) {
         return false;
     }
     let Some(other) = world.player(number) else {
         return false;
     };
     if crate::force_powers::has_ysalamiri(other.state, context.gametype)
-        || other.state.duel_in_progress()
+        || crate::duel::force_refused(
+            context.thrower,
+            thrower_duel,
+            number,
+            crate::duel::duel_of(other.state),
+            context.full_force,
+        )
     {
         return false;
     }
@@ -1112,6 +1125,7 @@ mod tests {
             thrower: 0,
             pull,
             rules: ForceRules::default(),
+            full_force: crate::duel::FullForce::default(),
         };
         force_door(context, &thrower(), candidate, &mut world);
         world.used
@@ -1150,6 +1164,7 @@ mod tests {
             thrower: 0,
             pull,
             rules: ForceRules::default(),
+            full_force: crate::duel::FullForce::default(),
         };
         let (_, mut candidate) = door(MoverState::Pos1, 96.0);
         assert!(in_reach(context(false), &thrower(), candidate, &mut world).is_some());
@@ -1254,6 +1269,7 @@ mod tests {
             thrower: 0,
             pull: false,
             rules,
+            full_force: crate::duel::FullForce::default(),
         }
     }
 

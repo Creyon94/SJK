@@ -166,6 +166,8 @@ impl<H: NpcHost> NpcWorld<'_, H> {
             thrower,
             pull,
             rules: self.host.force_rules(),
+            // An NPC duels nobody.
+            full_force: crate::duel::FullForce::default(),
         };
         let Some(players) = self.host.player_force() else {
             return;

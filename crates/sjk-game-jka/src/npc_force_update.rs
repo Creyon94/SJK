@@ -302,6 +302,8 @@ impl<H: NpcHost> NpcWorld<'_, H> {
                 others: &mut others,
                 saber_off_sounds,
                 rules,
+                // An NPC duels nobody.
+                full_force: crate::duel::FullForce::default(),
             };
             let out = run(&mut state, &mut force, &mut frame);
             others.credit(&mut state);

@@ -115,8 +115,9 @@ impl NativeGame {
     /// The movement rules the mod's settings select now, put into every player's moves
     /// at once, as the clients predict them from the server info just changed. The
     /// animation fixes are the mod's for the server's whole life, so the level's
-    /// `CS_LEGACY_FIXES` stays as it is.
+    /// `CS_LEGACY_FIXES` stays as it is. Its private-duel rules follow too.
     fn update_mod_movement(&mut self) {
+        self.duel_rules = crate::server_mods::duels(self.server_mod, &self.cvars);
         let movement = crate::server_mods::movement(self.server_mod, &self.cvars);
         if movement == self.mod_movement {
             return;
@@ -391,6 +392,19 @@ mod tests {
         assert_eq!(saber.moves.fast_other, 20);
         assert_eq!(saber.throw_scale, Some(1.0));
         assert!(!game.mod_combat.kill.refused_in_team_games);
+    }
+
+    #[test]
+    fn the_duel_rules_are_the_base_games_or_follow_the_ja_plus_settings() {
+        let game = started("base");
+        assert_eq!(game.duel_rules, sjk_game_jka::duel::DuelRules::default());
+        let mut game = started("japlus");
+        assert!(game.duel_rules.ja_plus && game.duel_rules.isolation);
+        assert_eq!(info(&game, "jp_DuelAlpha").as_deref(), Some("100"));
+        game.set_cvar("jp_DuelAlpha", "-1");
+        game.set_cvar("jp_removeDistanceDuelLimit", "0");
+        assert!(!game.duel_rules.isolation && game.duel_rules.distance_limit);
+        assert_eq!(info(&game, "jp_DuelAlpha").as_deref(), Some("-1"));
     }
 
     #[test]

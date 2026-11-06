@@ -152,6 +152,7 @@ impl NativeGame {
             thrower: client as u16,
             pull,
             rules: self.mod_force,
+            full_force: self.full_force_duels(),
         };
         // What every player was, to tell afterwards whom the throw changed (a throw is a
         // button press, not a per-frame cost).

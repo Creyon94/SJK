@@ -12,6 +12,7 @@
 //! the same bits ([`ServerMod::movement`]), so no client is pulled back for a rule it was
 //! told about.
 
+use sjk_game_jka::duel::DuelRules;
 use sjk_game_jka::force_rules::ForceRules;
 use sjk_game_jka::pmove::MovementConfig;
 use sjk_game_jka::pmove_japlus::JaPlusRules;
@@ -141,6 +142,16 @@ impl KillRules {
     }
 }
 
+/// A player command a mod adds to the game's own (`ClientCommand`'s table), which the
+/// server carries out with its shared code.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ModCommand {
+    /// The duel key for a full-force duel, where the Force works between the two
+    /// (JA+'s `engage_FullForceDuel`, [`sjk_game_jka::duel::Duellist::full_force`]); not
+    /// at the intermission (`CMD_NOINTERMISSION`).
+    FullForceDuel,
+}
+
 /// A rule set the server can run in place of the base game.
 pub trait ServerMod: Sync {
     /// Its `g_mod` value (`japlus`): letters, digits and `_` only.
@@ -176,6 +187,16 @@ pub trait ServerMod: Sync {
     /// again whenever a setting changes.
     fn force(&self, _settings: &dyn Settings) -> ForceRules {
         ForceRules::default()
+    }
+
+    /// The private-duel rules its settings select; the base game's by default.
+    fn duels(&self, _settings: &dyn Settings) -> DuelRules {
+        DuelRules::default()
+    }
+    /// The player command `name` (any letter case) is in its table, if it adds one;
+    /// none by default.
+    fn command(&self, _name: &[u8]) -> Option<ModCommand> {
+        None
     }
 }
 

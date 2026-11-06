@@ -291,6 +291,8 @@ pub struct NativeGame {
     /// The Force rules it selects from its settings, which every Force update and throw
     /// runs by (`crate::server_mods::force`).
     mod_force: sjk_game_jka::force_rules::ForceRules,
+    /// The private-duel rules it selects from its settings (`bridge_duel`).
+    duel_rules: sjk_game_jka::duel::DuelRules,
 }
 
 /// The serverId a world starts on. `SV_SpawnServer` uses `com_frameTime`, which is only
@@ -377,6 +379,7 @@ impl NativeGame {
         let mod_movement = crate::server_mods::movement(server_mod, &cvars);
         let mod_combat = crate::server_mods::combat(server_mod, &cvars);
         let mod_force = crate::server_mods::force(server_mod, &cvars);
+        let duel_rules = crate::server_mods::duels(server_mod, &cvars);
         let (config_strings, sounds) = world_config_strings(
             &status_info,
             map.as_ref(),
@@ -489,6 +492,7 @@ impl NativeGame {
             mod_movement,
             mod_combat,
             mod_force,
+            duel_rules,
         };
         game.pool = EntityPool::with_budget(0, game.entity_budget());
         game.spawn_items();
