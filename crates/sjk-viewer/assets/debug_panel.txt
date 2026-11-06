@@ -8935,3 +8935,16 @@ test: cg_reduceFlashes 1: flashes are soft and slow, no flicker.
 test: Switch presets: Volumetric clouds stays as you set it; a new profile has it off.
 test: T2_Rogue slanted walls in rain: rivulets follow the slope, drops run down, no flicker.
 test: Walk past a ramp facing a diagonal: one pattern along its fall, no crossed streaks.
+
+[japlus-mode]
+area: Gameplay
+title: SJK's server as a JA+ server (g_mod japlus), step 1: identity, settings, movement
+change: +set g_mod japlus: gamename JA+ Mod v2.4 B7, V 2.4B7, jp_cinfo, the 187 jp_* settings.
+change: Players move by the JA+ rules it announces (flip kick, roll fix, yellow DFA).
+change: Duels, saber damage, emotes and admin commands are not built yet (later steps).
+test: In a terminal: target\release\sjk-server.exe --game-data <GameData> --map mp/ffa3
+test: ... --bind 127.0.0.1:29071 +set dedicated 1 +set g_mod japlus; then connect 127.0.0.1:29071
+test: serverinfo: gamename JA+ Mod v2.4 B7 and jp_cinfo 19. JA+ tools mod loads (japlus.* cmds).
+test: Wall flip off another player (bot), roll, yellow DFA: no pulling back, as on JA+ servers.
+test: rcon jp_allowflipkick 0: the flip off a player stops, still no pulling back.
+note: Not run with a client yet. Create game has no server mod choice yet.

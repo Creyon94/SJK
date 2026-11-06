@@ -938,6 +938,11 @@ impl Predictor {
         self.fake_noclip_boost = boost.filter(|boost| boost.is_finite() && *boost > 0.0);
     }
 
+    /// The movement policy in force, which [`Self::set_config`] replaces.
+    pub fn config(&self) -> MovementConfig {
+        self.config
+    }
+
     /// Refresh movement policy without discarding the replay state.
     pub fn set_config(&mut self, config: MovementConfig) {
         self.config = config;
