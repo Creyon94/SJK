@@ -392,6 +392,18 @@ test: Close to the camera at 4K: FPS holds; effects line up with walls and playe
 test: Chroma blades take your colour; Shaders tab pictures and parts switch on and off.
 note: God Ki left out (Dragon Ball material). Make droppable on the hub once tested.
 
+[editions-alpha-beta]
+area: Menus & settings
+title: Collections: Alpha and Beta editions (blades 170-299 Beta), holocrons stamped
+change: Blades 1-169 and everything else are Alpha Edition, Creyon's 130 (170-299) Beta.
+change: Collection > Shaders: Edition chip or E (Shift+E back): All, Alpha, Beta.
+change: Holocrons and crystals show their edition; Alpha ones bring Alpha things only.
+test: Shaders tab: E lists Alpha only, then Beta only (130), then all; tier counts follow.
+test: Hover a Beta blade: "Beta Edition"; search "beta" finds the 130.
+test: Holocrons tab: recent rows show "Alpha" before the date; a tier hover says the editions.
+test: Loot table (L), holocron and crystal: a note says what each edition brings.
+note: Needs the hub editions branch; it stamps Beta only once SJK_HUB_BETA_MIN_CLIENT is set.
+
 [finishers]
 area: Gameplay
 title: Finishers: Collection > Shaders > Finishers, Disintegrate first (needs the hub)
