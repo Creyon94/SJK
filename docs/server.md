@@ -86,7 +86,10 @@ ownership, game behavior and the legacy endpoint.
 (`base`, the default). Set it on the command line (`+set g_mod japlus`) or in
 `sjk_server.cfg`; it is read once, at start, as a JKA server's game module is chosen by
 its `fs_game`, and a later change waits for the next start (the console says so). An
-unknown name runs the base game and says which mods there are.
+unknown name runs the base game and says which mods there are. The client's
+[Create game](sjk-ui.md#create-game) has a Server mod row (Base game or JA+) and starts
+its server with `--set g_mod <id>` (`base` for the base game); its `devmap` always
+runs the base game.
 
 JA+ is closed source. The reference is VisionJK
 ([github.com/Blackwolf1337/visionjk](https://github.com/Blackwolf1337/visionjk),

@@ -3283,6 +3283,7 @@ dependencies = [
  "sjk-audio",
  "sjk-bsp",
  "sjk-client",
+ "sjk-dedicated",
  "sjk-effect",
  "sjk-entity",
  "sjk-game-jka",

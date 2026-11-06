@@ -150,7 +150,12 @@ Presence here describes implemented surfaces; validation limits are in
 Create game starts a child `sjk-server`, normally found beside the client.
 Set `JKA_DEDICATED` to its executable path if installed elsewhere. The child
 lifetime is managed by the client and defaults to local access; see
-[local_server.rs](../crates/sjk-viewer/src/local_server.rs).
+[local_server.rs](../crates/sjk-viewer/src/local_server.rs). The server mod
+chosen on the screen (`ui_hostServerMod`, Base game by default, or JA+) is
+handed over as `--set g_mod <id>`, every time, so a `g_mod` the server
+archived never picks it; the choices are `local_server::SERVER_MODS` (id and
+name), checked by a test against the server's own `server_mods::SERVER_MODS`
+([JA+ mode](server.md#ja-mode)). `devmap` always runs the base game.
 
 Map previews (`levelshots/<map>.jpg`, `.tga` or `.png`) keep the resolution they
 ship in, so an HD levelshot pack stays sharp in a large preview and on the

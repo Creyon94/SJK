@@ -8947,4 +8947,17 @@ test: ... --bind 127.0.0.1:29071 +set dedicated 1 +set g_mod japlus; then connec
 test: serverinfo: gamename JA+ Mod v2.4 B7 and jp_cinfo 19. JA+ tools mod loads (japlus.* cmds).
 test: Wall flip off another player (bot), roll, yellow DFA: no pulling back, as on JA+ servers.
 test: rcon jp_allowflipkick 0: the flip off a player stops, still no pulling back.
-note: Not run with a client yet. Create game has no server mod choice yet.
+note: Not run with a client yet. Or host it from Create game > Server mod JA+.
+
+[create-game-server-mod]
+area: Menus & settings
+title: Create game: Server mod row, Base game (default) or JA+ (g_mod)
+change: Create game > Server: Server mod cycles Base game / JA+, kept in ui_hostServerMod.
+change: The hosted sjk-server gets --set g_mod <id>; the figure reads "Free for all, JA+".
+change: Same screen in the SJK and classic menu styles; devmap always runs the base game.
+test: Create game: the new row under Server shows Base game; Left/Right and clicks cycle it.
+test: Pick JA+, Start: the client log's "local server:" line has --set g_mod japlus.
+test: In the match: serverinfo shows gamename JA+ Mod v2.4 B7; japlus.* commands load.
+test: Back to Create game: JA+ is still chosen, also after a restart; Base game: plain JKA.
+test: ui_menuStyle classic, Play > Create Server: the same Server mod row is there.
+note: The rows moved: Start sits a little lower to make room for the row.
