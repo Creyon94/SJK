@@ -929,15 +929,17 @@ pub(crate) fn material(
         &core.height().to_le_bytes(),
         core.as_raw(),
     ]);
-    // The picture God Ki's body is painted with, the same in every material.
+    // The picture a signature may paint its body with (`skinBody`), the same in every material.
+    // No blade paints with one now (God Ki, the only one, was left out on 06/11/2026), so it is
+    // plain white.
     static BODY: std::sync::LazyLock<image::RgbaImage> = std::sync::LazyLock::new(|| {
-        image::load_from_memory(include_bytes!("../assets/blade_body/god_ki.png"))
+        image::load_from_memory(include_bytes!("../assets/blade_body/plain.png"))
             .expect("the embedded body picture decodes")
             .to_rgba8()
     });
     let body = crate::shared_textures::share(
         "saber body",
-        crate::shared_textures::key(&[b"god_ki"]),
+        crate::shared_textures::key(&[b"blade_body"]),
         || crate::gpu_texture::upload_display_image(device, queue, "SJK saber body", &BODY),
     );
     let (integral, glow, core) = crate::shared_textures::share("saber pair", key, || {

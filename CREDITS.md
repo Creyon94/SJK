@@ -1039,8 +1039,7 @@ palette with pink as its main colour, light purple and white mist, afterimages m
 falling blossoms like the Spectral's, and a branch with a flower where the blade starts
 (and one day a wooden hilt). Sol built it as the Varykino Blossom, a Mythical saber shader
 (blade 166, 21/10/2026), with all of it but the hilt, which waits for custom hilts.
-Kushina also gave the idea of the Angel blade (05/11/2026), and Foshin, a player, the
-idea of the God Ki blade.
+Kushina also gave the idea of the Angel blade (05/11/2026).
 
 Kushina also asked for JA+ and jaPRO plugin options she would not have to type as a
 `cp_pluginDisable` number: Sol built them as Settings switches named after each feature,

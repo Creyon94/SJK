@@ -2809,7 +2809,7 @@ mod tests {
         assert_eq!(ids(&panel), ["saber_tidal"]);
         panel.shader_filter.query = "creyon".to_owned();
         redraw(&mut panel, &inputs);
-        assert_eq!(ids(&panel).len(), 282, "the saber smith is searched");
+        assert_eq!(ids(&panel).len(), 281, "the saber smith is searched");
         panel.shader_filter.query = "mythical".to_owned();
         redraw(&mut panel, &inputs);
         assert_eq!(
@@ -2827,7 +2827,6 @@ mod tests {
                 "saber_world_shift",
                 "saber_exegol_rift",
                 "saber_varykino_blossom",
-                "saber_trayus_scythe",
                 "saber_moraband_erasure",
                 "saber_wellspring_triad",
                 "saber_korriban_ragnos",
