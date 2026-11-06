@@ -108,6 +108,16 @@ above 0; higher holds the chain closer to its animated shape), `damping <n>` (pe
 second, 0 or more; higher stops the swing sooner) and `nocollide`. Left out, each
 keeps the tail's value above (wag 2.5, stiffness 70, damping 7, gravity 1600).
 
+A chain may fork, and joints may be stacked on one spot, as some rigs do. Each joint
+is placed from where its parent now stands. A parent is turned towards its first child
+with a real length; its other children follow that turn, and their own chains go on
+from there. A bone under `MIN_BONE` turns nothing: its direction would only be the bind
+matrices' rounding. Before this such a bone turned its parent at random each frame and a
+fork's other branches aimed from a place they did not stand, so a hair rig jumped up to
+137 degrees in a frame, measured with the ignored test
+`dynamic_chain_motion_of_an_installed_rig` (`SJK_TEST_PACK` and `SJK_TEST_RIG` naming the
+rig; a sway and bob, not a game animation); 13 after the fix.
+
 The body pushes the chains away. At load the rig builds a capsule (a segment
 thickened to a radius) for each bone map entry on the driver's trunk and leg bones
 (`COLLISION_BONES` in [rig_model.rs](../crates/sjk-viewer/src/rig_model.rs): pelvis,

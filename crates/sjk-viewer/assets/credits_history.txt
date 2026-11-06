@@ -9,6 +9,12 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 06/11/2026 | - | saber_loadall: build every blade's shader at once, to see each blade's real look right away
+- c59b6f0 |  | saber_loadall: build every blade's shader at once, to see each blade's real look right away
++ 06/11/2026 | - | Collections: Alpha and Beta editions, an Edition filter, holocrons stamped with theirs
+- 0b8a114 |  | Collections: Alpha and Beta editions, an Edition filter, holocrons stamped with theirs
++ 06/11/2026 | - | Credits history after PR #370 (Creyon's 130 blades)
+- d50ddac |  | Credits history after PR #370 (Creyon's 130 blades)
 + 06/11/2026 | - | Creyon's round waits for Sol's tests: blades 170 to 299 do not drop yet
 - c8b733a |  | Creyon's round waits for Sol's tests: blades 170 to 299 do not drop yet
 + 06/11/2026 | - | Leave the God Ki blade out of Creyon's round (Dragon Ball material)
@@ -3023,6 +3029,11 @@
 + 06/10/2026 | SJK #2 | Fix crash and ? on duel challenges from names with x
 - 8db7327 |  | Wrap centre prints at 50 characters, not UTF-8 bytes
 - 0874042 |  | Decode print and cp text as legacy bytes
+
+= Kushina
++ 06/11/2026 | SJK #373 | Fix rig chains that fork or stack joints jumping
+- d38c7b3 |  | Fix rig chains that fork or stack joints jumping
+- 5c3a43a |  | Pass the variant to manifest in the installed rig test
 
 = Lukas
 + 02/11/2026 | SJK #306 | Send long chat drafts as complete messages

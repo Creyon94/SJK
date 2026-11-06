@@ -1,4 +1,5 @@
 use super::*;
+use glam::{Quat, Vec3A};
 use sjk_model::GlaBone;
 use sjk_model::gltf::{GltfAnimation, GltfChannel, GltfJoint, GltfPath, GltfPrimitive};
 
@@ -902,6 +903,177 @@ fn dynamic_chains_of_an_installed_rig() {
             offset.z.atan2(level).to_degrees(),
             offset.length()
         );
+    }
+}
+
+/// The driver's bones at `time` seconds of a hard sway and bob, and the sway's angle.
+fn violent_sway(time: f32) -> ([[f32; 4]; 3], f32) {
+    let angle = (0.4 * (std::f32::consts::TAU * 1.2 * time).sin()).clamp(-1.0, 1.0);
+    let (sin, cos) = angle.sin_cos();
+    let z = 3.0 * (std::f32::consts::TAU * 2.0 * time).sin();
+    (
+        [
+            [cos, -sin, 0.0, 0.0],
+            [sin, cos, 0.0, 0.0],
+            [0.0, 0.0, 1.0, z],
+        ],
+        angle,
+    )
+}
+
+/// For each (parent, child) of `joints`, while the driver `bones` named by `moved` sway
+/// and bob for `frames` frames at 142 FPS: how far the bone strays from its bind
+/// direction and the most it turns in one frame, in degrees, the sway's own turn taken
+/// out.
+fn largest_turn(
+    rig: &RigModel,
+    bones: &mut [[[f32; 4]; 3]],
+    moved: &[usize],
+    joints: &[(usize, usize)],
+    frames: usize,
+) -> Vec<(f32, f32)> {
+    let step = 1.0 / 142.0;
+    let mut scratch = Scratch::default();
+    let mut last: Vec<Option<Vec3A>> = vec![None; joints.len()];
+    let mut worst = vec![(0.0f32, 0.0f32); joints.len()];
+    rig.pose_after(bones, None, &mut scratch, None);
+    for frame in 0..frames {
+        let (rows, angle) = violent_sway(frame as f32 * step);
+        for &bone in moved {
+            bones[bone] = rows;
+        }
+        rig.pose_after(bones, None, &mut scratch, Some(step));
+        let undo = Quat::from_rotation_z(-angle);
+        for (slot, &(parent, child)) in joints.iter().enumerate() {
+            let bone = scratch.pose[child].translation - scratch.pose[parent].translation;
+            let Some(direction) = bone.try_normalize() else {
+                continue;
+            };
+            let direction = undo * direction;
+            let bind = (rig.joints[child].bind.translation - rig.joints[parent].bind.translation)
+                .try_normalize()
+                .unwrap_or(direction);
+            let off = direction.dot(bind).clamp(-1.0, 1.0).acos().to_degrees();
+            worst[slot].0 = worst[slot].0.max(off);
+            if let Some(before) = last[slot] {
+                let turn = direction.dot(before).clamp(-1.0, 1.0).acos().to_degrees();
+                worst[slot].1 = worst[slot].1.max(turn);
+            }
+            last[slot] = Some(direction);
+        }
+    }
+    worst
+}
+
+/// [`rig`] with a chain that forks: a stem under the pelvis, and two branches of two
+/// joints each under the stem, short ones like hair strands.
+fn forked(text: &str) -> RigModel {
+    let mut model = rig();
+    let joint = |name: &str, parent, x: f32, z: f32, rest: [f32; 2]| GltfJoint {
+        name: name.to_owned(),
+        parent: Some(parent),
+        bind: [[1.0, 0.0, 0.0, x], [0.0, 1.0, 0.0, 1.0], [0.0, 0.0, 1.0, z]],
+        inverse_bind: [
+            [1.0, 0.0, 0.0, -x],
+            [0.0, 1.0, 0.0, -1.0],
+            [0.0, 0.0, 1.0, -z],
+        ],
+        rest: [
+            [1.0, 0.0, 0.0, rest[0]],
+            [0.0, 1.0, 0.0, 0.0],
+            [0.0, 0.0, 1.0, rest[1]],
+        ],
+    };
+    model.joints.push(joint("root", 0, 0.0, -0.1, [0.0, -0.1]));
+    model.joints.push(joint("stem", 2, 0.0, -0.2, [0.0, -0.1]));
+    // On the stem's spot but for rounding, as some rigs stack joints.
+    model.joints.push(joint("pin", 3, 1e-6, -0.2, [1e-6, 0.0]));
+    for (name, parent, x, z, rest) in [
+        ("left", 4, -0.03, -0.25, [-0.03, -0.05]),
+        ("left_tip", 5, -0.06, -0.3, [-0.03, -0.05]),
+        ("right", 4, 0.03, -0.25, [0.03, -0.05]),
+        ("right_tip", 7, 0.06, -0.3, [0.03, -0.05]),
+    ] {
+        model.joints.push(joint(name, parent, x, z, rest));
+    }
+    RigModel::fit(model, "", &manifest(text), &driver()).unwrap()
+}
+
+const FORKED_BONES: [(usize, usize); 3] = [(2, 3), (5, 6), (7, 8)];
+
+#[test]
+fn a_joint_stacked_on_its_parent_and_a_fork_do_not_throw_a_chain_about() {
+    let rig = forked("dynamic root gravity 0 wag 0 stiffness 400 damping 24 nocollide");
+    let mut bones = vec![identity_rows(); 3];
+    let worst = largest_turn(&rig, &mut bones, &[0, 1, 2], &FORKED_BONES, 142 * 4);
+    for (bone, (_, turn)) in worst.into_iter().enumerate() {
+        assert!(turn < 6.0, "bone {bone} jumps {turn} degrees in a frame");
+    }
+}
+
+/// How far each dynamic joint of an installed rig strays and how fast it turns while
+/// the body sways, worst first (`JKA_GAME_DATA`, `SJK_TEST_RIG`, `SJK_TEST_PACK`).
+#[test]
+#[ignore = "needs an installed rig model and the game's files"]
+fn dynamic_chain_motion_of_an_installed_rig() {
+    let (Some(data), Ok(name)) = (
+        std::env::var_os("JKA_GAME_DATA").map(std::path::PathBuf::from),
+        std::env::var("SJK_TEST_RIG"),
+    ) else {
+        println!("JKA_GAME_DATA or SJK_TEST_RIG is not set: skipped");
+        return;
+    };
+    let pack = std::env::var("SJK_TEST_PACK").unwrap_or_else(|_| format!("rig_{name}.pk3"));
+    let mut vfs = VirtualFileSystem::new();
+    for entry in std::fs::read_dir(data.join("base")).unwrap().flatten() {
+        let path = entry.path();
+        let file = path
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .to_ascii_lowercase();
+        if file.starts_with("assets") && file.ends_with(".pk3") || file == pack.to_ascii_lowercase()
+        {
+            vfs.mount_pk3(&path).unwrap();
+        }
+    }
+    let read = |path: &str| vfs.read(path).unwrap().unwrap().bytes;
+    let gla = Gla::parse(&read("models/players/_humanoid/_humanoid.gla")).unwrap();
+    let glm = sjk_model::Glm::parse(&read("models/players/kyle/model.glm")).unwrap();
+    let directory = format!("models/players/{name}");
+    let manifest = super::manifest(&vfs, &directory, "default")
+        .unwrap()
+        .expect("a rig model");
+    let rig = RigModel::load(&vfs, &directory, &manifest, &gla, &glm).unwrap();
+    let pairs: Vec<(usize, usize)> = rig
+        .chains
+        .joints
+        .iter()
+        .filter_map(|&joint| Some((rig.joints[joint].parent?, joint)))
+        // A joint stacked on its parent's spot has no direction to measure.
+        .filter(|&(parent, joint)| {
+            (rig.joints[joint].bind.translation - rig.joints[parent].bind.translation).length()
+                > 0.05
+        })
+        .collect();
+    let mut bones = vec![identity_rows(); gla.bones.len()];
+    let every: Vec<usize> = (0..gla.bones.len()).collect();
+    let worst = largest_turn(&rig, &mut bones, &every, &pairs, 142 * 6);
+    let mut lines: Vec<(f32, f32, &str)> = worst
+        .iter()
+        .zip(&pairs)
+        .map(|(&(off, turn), &(_, joint))| (off, turn, rig.joints[joint].name.as_str()))
+        .collect();
+    lines.sort_by(|a, b| b.1.total_cmp(&a.1));
+    let count = lines.len().max(1) as f32;
+    println!(
+        "{name}: {} joints, worst of each averaged: off {:.1} degrees, turn a frame {:.2} degrees",
+        lines.len(),
+        lines.iter().map(|line| line.0).sum::<f32>() / count,
+        lines.iter().map(|line| line.1).sum::<f32>() / count,
+    );
+    for (off, turn, joint) in lines.iter().take(12) {
+        println!("  {joint}: off {off:.1} degrees, turn a frame {turn:.2} degrees");
     }
 }
 
