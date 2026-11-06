@@ -11,14 +11,16 @@
 //! - [`cinfo`]: `jp_cinfo`, the rules the server announces, only those it plays.
 //! - [`JaPlus::movement`]: the JA+ movement of the shared `Pmove`
 //!   (`sjk_game_jka::pmove_japlus`), selected from the same bits the clients read.
+//! - [`combat`]: JA+'s saber damage and `kill` rules, which only the server plays.
 
 pub mod cinfo;
+pub mod combat;
 pub mod cvars;
 
 use sjk_game_jka::RollRules;
 use sjk_game_jka::pmove_japlus::JaPlusRules;
 use sjk_protocol::{JaPlusCapabilities, ServerDialect};
-use sjk_server_mod::{ModMovement, ServerMod, Settings};
+use sjk_server_mod::{ModCombat, ModMovement, ServerMod, Settings};
 
 /// `gamename` of JA+ 2.4 B7 (VisionJK `g_japlus.h` `JP_GAMENAME`): clients and server
 /// browsers tell a JA+ server by it (`sjk_protocol::is_ja_plus_game_name`).
@@ -78,6 +80,10 @@ impl ServerMod for JaPlus {
             // `g_fixWeaponAttackAnim` and `g_fixSaberMoveData` are 0 there).
             legacy_fixes: 0,
         }
+    }
+
+    fn combat(&self, settings: &dyn Settings) -> ModCombat {
+        combat::combat(settings)
     }
 }
 

@@ -321,6 +321,7 @@ impl NativeGame {
             .force
             .as_ref()
             .map_or(0, |force| force.levels[FP_SABERTHROW]);
+        let ja_plus = self.mod_combat.saber;
         let mut hits = SaberHits::default();
         for saber in first_saber..2 {
             let Some(peer) = self.peer(client) else {
@@ -383,6 +384,11 @@ impl NativeGame {
                     more_saber_damage,
                     // A player's `saberEventFlags` are read by nothing on this server.
                     enemy: None,
+                    weapon: state.weapon(),
+                    broken_limbs: state.broken_limbs(),
+                    hilt_speed_scales: peer.sabers.speed_scales().0,
+                    talking: state.entity_flags() & sjk_game_jka::pmove_talk::EF_TALK != 0,
+                    ja_plus,
                 };
                 let trail = peer.saber_cut.trails[saber][blade];
                 self.gather_obstacles(client);
@@ -831,6 +837,7 @@ impl SaberTargets for BladeTargets<'_> {
             ),
             // Read only for an NPC's blade.
             player_team: 2,
+            saber_in_hand: state.weapon() == WP_SABER,
         })
     }
 

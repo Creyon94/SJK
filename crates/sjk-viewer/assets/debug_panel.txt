@@ -8948,3 +8948,16 @@ test: serverinfo: gamename JA+ Mod v2.4 B7 and jp_cinfo 19. JA+ tools mod loads 
 test: Wall flip off another player (bot), roll, yellow DFA: no pulling back, as on JA+ servers.
 test: rcon jp_allowflipkick 0: the flip off a player stops, still no pulling back.
 note: Not run with a client yet. Create game has no server mod choice yet.
+
+[japlus-saber-damage]
+area: Gameplay
+title: JA+ server mode: saber damage (jp_alterDMG, move table) and the /kill frag
+change: g_mod japlus: jp_alterDMG 1/2 deals JA+'s per-move saber damage (jp_*Attack Min/Max).
+change: jp_SaberThrowScaleDMG, jp_reduceSaberBlock, jp_allowSaberTouchDMG; no cuts while chatting.
+change: /kill right after a push or hit gives the frag to that player; no /kill in duels.
+test: Start sjk-server as for japlus-mode with +set jp_alterDMG 1 and bot_minplayers 2.
+test: Strong swings hit far harder than base (each trace adds up to 110, x1.5 on players).
+test: rcon jp_SingleStrongNormalAttackMax 50: strong hits weaker at once; jp_alterDMG 0: as base.
+test: Get Force-pushed by a bot, /kill within 5 s: the bot scores the frag.
+test: Team game: /kill does nothing; rcon jp_allowTeamKill 1: it works.
+note: Server only; base servers (no g_mod) deal damage exactly as before.

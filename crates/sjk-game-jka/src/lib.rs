@@ -47,6 +47,7 @@ pub mod player_angle_math;
 pub mod ref_tags;
 pub mod saber_clash;
 pub mod saber_damage;
+pub mod saber_damage_japlus;
 pub mod saber_rules;
 mod saber_rules_table;
 pub mod saber_splash;

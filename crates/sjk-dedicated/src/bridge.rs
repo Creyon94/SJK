@@ -286,6 +286,8 @@ pub struct NativeGame {
     server_mod: Option<&'static dyn sjk_server_mod::ServerMod>,
     /// The movement rules it selects from its settings, which every player moves by.
     mod_movement: sjk_server_mod::ModMovement,
+    /// The combat rules it selects (saber damage, `/kill`), refreshed with its settings.
+    mod_combat: sjk_server_mod::ModCombat,
 }
 
 /// The serverId a world starts on. `SV_SpawnServer` uses `com_frameTime`, which is only
@@ -370,6 +372,7 @@ impl NativeGame {
         }
         let server_mod = crate::server_mods::selected(&cvars);
         let mod_movement = crate::server_mods::movement(server_mod, &cvars);
+        let mod_combat = crate::server_mods::combat(server_mod, &cvars);
         let (config_strings, sounds) = world_config_strings(
             &status_info,
             map.as_ref(),
@@ -480,6 +483,7 @@ impl NativeGame {
             scripts: Default::default(),
             server_mod,
             mod_movement,
+            mod_combat,
         };
         game.pool = EntityPool::with_budget(0, game.entity_budget());
         game.spawn_items();
@@ -1699,6 +1703,7 @@ impl NativeGame {
         if !self.power_duel_death_begins(server_time) {
             return;
         }
+        self.credit_suicide(client, &mut request);
         self.eject_on_death(client, server_time);
         // A carrier's item drops (or goes home) at once; a hack ends.
         self.siege_carrier_gone(client, server_time);

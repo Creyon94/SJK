@@ -44,6 +44,7 @@ impl NativeGame {
         if !changed.is_empty() {
             self.cvars_generation += 1;
             self.update_mod_movement();
+            self.mod_combat = crate::server_mods::combat(self.server_mod, &self.cvars);
         }
         for name in changed {
             let Some(var) = self.cvars.var(&name) else {
@@ -350,6 +351,25 @@ mod tests {
         let config = game.movement_config();
         assert!(!config.ja_plus.flip_kick);
         assert_eq!(config.roll_rules.fix_roll, 3);
+    }
+
+    #[test]
+    fn the_combat_rules_follow_the_mod_and_its_settings() {
+        let game = started("base");
+        assert_eq!(game.mod_combat, sjk_server_mod::ModCombat::default());
+        let mut game = started("japlus");
+        let saber = game.mod_combat.saber;
+        assert!(saber.enabled && !saber.move_damage && !saber.touch_damage);
+        assert!(game.mod_combat.kill.suicide_credits_last_attacker);
+        assert!(game.mod_combat.kill.refused_in_team_games);
+        game.set_cvar("jp_alterDMG", "1");
+        game.set_cvar("jp_SingleFastOtherAttack", "20");
+        game.set_cvar("jp_allowTeamKill", "1");
+        let saber = game.mod_combat.saber;
+        assert!(saber.move_damage && saber.halved_on_sabers);
+        assert_eq!(saber.moves.fast_other, 20);
+        assert_eq!(saber.throw_scale, Some(1.0));
+        assert!(!game.mod_combat.kill.refused_in_team_games);
     }
 
     #[test]

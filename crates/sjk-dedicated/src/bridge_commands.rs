@@ -40,7 +40,9 @@ impl NativeGame {
             return;
         }
         if command.eq_ignore_ascii_case(b"kill") {
-            self.kill(client, server_time);
+            if !self.kill_refused(client) {
+                self.kill(client, server_time);
+            }
             return;
         }
         if command.eq_ignore_ascii_case(b"duelteam") {

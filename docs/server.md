@@ -111,6 +111,25 @@ What the mode does so far:
   at once.
 - **No OpenJK animation fixes.** JA+ is built on the 1.01 game code: `CS_LEGACY_FIXES`
   is 0 and the server runs none of them.
+- **JA+ saber damage**, for players' and NPCs' blades
+  ([saber_damage_japlus.rs](../crates/sjk-game-jka/src/saber_damage_japlus.rs)). Only the
+  server deals damage, so nothing here changes what clients predict. SJK's server always
+  runs `d_saberSPStyleDamage 1` (the base game's own value), so `jp_alterDMG` alone picks
+  JA+'s damage: 0 keeps the SP-style damage of the base game, any other value gives each
+  saber move the damage of JA+'s move table, ramped over its animation as JA+ does, and
+  the specials' extra weights (JA+'s own moves, such as its new spin DFA, are not played
+  here). As on JA+ with the SP style, each of a swing's traces that strikes adds its
+  move's damage to the frame's blow, so a fast swing through a body sums several. The
+  multiplayer style JA+ plays with `d_saberSPStyleDamage 0` (its `jk2.cfg` preset: box
+  traces, blocks without a saber met, one hit per 100 ms) is not built. On every JA+
+  server a player under the chat bubble cuts nobody, and a blade that meets something it
+  cannot hurt (a wall, a saber) draws `jp_reduceSaberBlock`'s chance of passing through.
+  The ramp is worked out in `float`, as an SSE build of the code does: where the original
+  Linux module's x87 FPU truncates a product of exactly 0.7 one point lower (110 at 0.7
+  is 76 there), SJK deals 77.
+- **The `/kill` frag.** A `/kill` (or any suicide) within five seconds of being pushed or
+  hit gives the frag to whoever pushed or hit last, as a fall does; `/kill` does nothing
+  during a duel, nor in team games without `jp_allowTeamKill`.
 
 | Setting | `jp_cinfo` bit | Effect |
 | --- | --- | --- |
@@ -120,6 +139,12 @@ What the mode does so far:
 | `jp_slideOnPlayer` 1 | 5 | Standing on a player slides, as in the base game |
 | `jp_noAutoReplier` 1 | 14 | Only asks the JA+ plugin to keep its automatic replies off |
 | `dmflags` 256 | | The base game's collision boxes (the dual jump attack's feet) |
+| `jp_alterDMG` 1 or 2 | | The saber moves' damage from JA+'s move table: with 1 from the `jp_*Attack` settings (a range whose Min is above its Max keeps JA+'s own), with 2 always JA+'s own; 1 also halves a blow at a player holding a saber (70 % for a 35 hit), outside siege, unless it is a special or thrown |
+| `jp_SingleStrong*`, `jp_SingleMedium*`, `jp_SingleFast*`, `jp_SingleKata*`, `jp_Staff*`, `jp_Dual*`, `jp_RollStab*`, `jp_StabDown*`, `jp_NewPull*`, `jp_NewSpinDfa*` | | With `jp_alterDMG 1`: each move's lowest and highest damage (`...Min`, `...Max`), or its flat damage (`...OtherAttack`, `jp_StaffDualSpinAttack`, `jp_DualKataAttack`) |
+| `jp_SaberThrowScaleDMG` | | With `jp_alterDMG 1`: the thrown saber's damage scaled |
+| `jp_reduceSaberBlock` 0 to 100 | | The percent chance that a blade passes through the saber it meets |
+| `jp_allowSaberTouchDMG` 1 | | An idle blade's touch hurts (1), not only a returning one's |
+| `jp_allowTeamKill` 1 | | `/kill` works in team games |
 
 A `jp_cinfo` bit is only announced for a rule the server plays, whatever its setting
 says ([cinfo.rs](../crates/sjk-server-mod-japlus/src/cinfo.rs) is the table): single
@@ -129,10 +154,9 @@ several of them on by default. JA+'s extra animations (`jp_newGLAAnims`) need it
 animation files, which SJK does not ship.
 
 Not built yet, in the order planned: JA+ duels (isolation from the other players, the
-full-force duel, the winner's heal), saber damage (`jp_alterDMG`, the special moves'
-damage, the throw), the Force changes (`jp_forceCombo`, `jp_fixAbsorb`, `jp_pushAll`...)
-and the `/kill` frag; then the emotes and player commands (`amkiss`, `amflip`, the hook,
-`/saber`...); then the admin system, logged in with SJK identity keys, with JA+'s rank
+full-force duel, the winner's heal) and the Force changes (`jp_forceCombo`,
+`jp_fixAbsorb`, `jp_pushAll`...); then the emotes and player commands (`amkiss`,
+`amflip`, the hook, `/saber`...); then the admin system, logged in with SJK identity keys, with JA+'s rank
 passwords only if the owner allows them; then chat, highlander, blocking walls and model
 scale. Until then:
 
@@ -141,6 +165,17 @@ scale. Until then:
 - `jp_gripSpeedScale` is announced, but gripping keeps the movement's fixed 0.8.
 - `jp_highlander`, `jp_forceCombo` and the other announced settings change nothing on
   the server.
+- `jp_saberNoForceDrain` stays off: it changes the Force the special attacks cost, which
+  clients predict (VisionJK's own client predicts the cost whatever the setting, SJK's
+  shared movement too), so it waits until clients can be told of it.
+- `jp_flipkickScaleDMG` changes nothing: the server deals no flip kick damage yet, the base
+  game's included (`forceKickFlip` is not set by the movement).
+- JA+'s saber rules for ghosts, mind-tricked or sleeping players and the alternate
+  dimension (`JP_SaberNoContact`) wait for those features; a blade does not cut grapple
+  ropes yet. Neither does `/kill` know of JA+'s sleeping, ghosted or silenced players.
+- A suicide is credited to a player or NPC still in the game only; the base game's own
+  credit for a crush, a trigger's hurt or an unknown death to the last pusher is not
+  built (a fall to death is).
 - The roll fix follows TaystJK's reading of the levels, which SJK's prediction uses on JA+
   servers. VisionJK's port of the JA+ module differs: a roll starts from 30000 squared
   speed at every level and also while gripping at level 1, and level 3 slows a held-back

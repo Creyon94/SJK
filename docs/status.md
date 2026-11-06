@@ -1,3 +1,27 @@
+## SJK's server as a JA+ server, step 2: saber damage and the `/kill` frag
+
+06/11/2026, `personal/japlus-saber-damage` from `main` `d473a66b`. Under `g_mod japlus`
+the saber deals JA+ 2.4 B7's damage, after VisionJK's rebuild of its module
+(`w_saber.c`, `g_combat.c`, `g_cmds.c`): `jp_alterDMG` and JA+'s per-move table (the
+`jp_*Attack` settings), `jp_SaberThrowScaleDMG`, `jp_reduceSaberBlock`,
+`jp_allowSaberTouchDMG`, the specials' weights, no cuts from under the chat bubble, the
+halved blow at a saber wielder; and a suicide right after a push or hit is the pusher's
+frag, `/kill` refused in duels and (without `jp_allowTeamKill`) team games. The rules
+reach the shared damage as a `Copy` struct from a new `ServerMod::combat` hook
+([server.md](server.md#ja-mode) lists what runs). Verified on Windows 11: unit tests of
+the move table and ramp with numbers worked from VisionJK, of one damage trace (the base
+game's 15 unchanged with the rules off and under `jp_alterDMG 0`, 165 from the table,
+82 at a saber, the throw scaled to 7, the touch, the chat bubble, the block chance's
+draw), of the settings read and of the `/kill` rules; and a headless `sjk-server` on
+loopback (`g_mod japlus`, `jp_alterDMG 1`, `jp_reduceSaberBlock 30`,
+`jp_allowSaberTouchDMG 1`, eight bots, sabers only) for four minutes: 17 saber kills, no
+panic. Not verified: against a running JA+ or VisionJK server (no damage numbers were
+compared in a game), the `/kill` credit and refusal in a game (bots never type `kill`),
+NPC blades under the rules; the ramp follows SSE `float`, one point above the original
+Linux module where a product is exactly on an integer (110 at 0.7). Left out:
+`jp_saberNoForceDrain` (clients predict the Force cost), `jp_flipkickScaleDMG` (no flip
+kick damage on the server yet), JA+'s own moves, `d_saberSPStyleDamage 0`.
+
 ## SJK's server as a JA+ server (`g_mod japlus`), step 1
 
 06/11/2026, `personal/japlus-mode` from `main` `a1ca867a`, Sol's request: remake JA+'s

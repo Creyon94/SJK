@@ -87,6 +87,8 @@ pub(crate) struct ServerHost<'a> {
     pub(super) server: &'a mut Server<(), crate::peer::Peer>,
     pub(super) world: WorldId,
     pub(super) roster: &'a crate::players::PlayerRoster,
+    /// The running server mod's saber damage rules, which NPCs' blades follow too.
+    pub(super) saber_damage: sjk_game_jka::saber_damage_japlus::JaPlusSaberDamage,
     /// What the NPCs did to the players and the game beyond the roster, for the game to
     /// apply once the NPC's turn is over ([`NpcOutcome`]).
     pub(super) outcomes: Vec<NpcOutcome>,
@@ -647,6 +649,10 @@ impl NpcHost for ServerHost<'_> {
 
     fn players(&self) -> &[Body] {
         self.players
+    }
+
+    fn saber_damage_rules(&self) -> sjk_game_jka::saber_damage_japlus::JaPlusSaberDamage {
+        self.saber_damage
     }
 
     fn in_use(&self, number: u16) -> bool {
