@@ -45,6 +45,7 @@ impl NativeGame {
             self.cvars_generation += 1;
             self.update_mod_movement();
             self.mod_combat = crate::server_mods::combat(self.server_mod, &self.cvars);
+            self.mod_force = crate::server_mods::force(self.server_mod, &self.cvars);
         }
         for name in changed {
             let Some(var) = self.cvars.var(&name) else {
@@ -91,6 +92,12 @@ impl NativeGame {
         config
     }
 
+    /// The Force rules every Force update and throw runs by: the running server mod's
+    /// (`crate::server_mods`), the base game's without one.
+    pub(super) fn force_rules(&self) -> sjk_game_jka::force_rules::ForceRules {
+        self.mod_force
+    }
+
     /// The server info the running mod works out from its settings (JA+'s `jp_cinfo`),
     /// written into those settings before the changes are looked at, so that it goes out
     /// with the change that caused it.
@@ -126,7 +133,9 @@ impl NativeGame {
     }
 
     /// `Cvar_Get` of a latched variable when a level is built (`SV_Map_f`'s
-    /// `g_gametype`): a change waiting for the next map takes effect.
+    /// `g_gametype`, and the running mod's latched settings, which its game module
+    /// registers again as every level starts): a change waiting for the next map takes
+    /// effect.
     pub(super) fn take_latched_cvars(&mut self) {
         self.cvars.get(
             b"g_gametype",
@@ -134,6 +143,18 @@ impl NativeGame {
             CVAR_SERVERINFO | crate::cvars::CVAR_LATCH,
             None,
         );
+        if let Some(server_mod) = self.server_mod {
+            for cvar in server_mod.cvars() {
+                if cvar.flags & sjk_server_mod::flags::LATCH != 0 {
+                    self.cvars.get(
+                        cvar.name.as_bytes(),
+                        cvar.default.as_bytes(),
+                        cvar.flags | crate::cvars::CVAR_VM_CREATED,
+                        None,
+                    );
+                }
+            }
+        }
         self.apply_cvars();
     }
 
@@ -381,5 +402,64 @@ mod tests {
         let game = started("nonesuch");
         assert_eq!(info(&game, "gamename").as_deref(), Some("basejka"));
         assert!(!game.movement_config().ja_plus.enabled);
+    }
+
+    #[test]
+    fn the_base_game_keeps_its_force_rules_whatever_ja_plus_settings_say() {
+        let mut game = started("base");
+        let base = sjk_game_jka::force_rules::ForceRules::default();
+        assert_eq!(game.force_rules(), base);
+        game.set_cvar("g_friendlyFire", "1");
+        game.set_cvar("jp_pushPullKnockDown", "1");
+        game.set_cvar("jp_cloakFuel", "0");
+        assert_eq!(game.force_rules(), base);
+        // Gripping keeps the base game's 0.4.
+        assert_eq!(info(&game, "jp_gripSpeedScale"), None);
+        assert!(!game.movement_config().ja_plus.enabled);
+    }
+
+    #[test]
+    fn ja_plus_force_rules_change_with_their_settings_at_once() {
+        use sjk_game_jka::force_rules::GripOpenSaber;
+        let mut game = started("japlus");
+        let rules = game.force_rules();
+        assert!(rules.throw_knocked_down && !rules.throw_teammates);
+        assert_eq!(rules.absorb_gain_scale, 2.0);
+        assert!(rules.grip_while_rolling && rules.cloak_drains);
+        game.set_cvar("g_friendlyFire", "1");
+        game.set_cvar("jp_gripOpenSaber", "2");
+        game.set_cvar("jp_fixRoll", "0");
+        game.set_cvar("jp_cloakFuel", "0");
+        let rules = game.force_rules();
+        assert!(rules.throw_teammates && !rules.grip_while_rolling && !rules.cloak_drains);
+        assert_eq!(rules.grip_open_saber, GripOpenSaber::LowForceDrops);
+    }
+
+    #[test]
+    fn ja_plus_grip_speed_reaches_the_info_and_the_moves() {
+        let mut game = started("japlus");
+        assert_eq!(game.movement_config().ja_plus.grip_speed, 0.8);
+        game.set_cvar("jp_gripSpeedScale", "1");
+        assert_eq!(info(&game, "jp_gripSpeedScale").as_deref(), Some("1"));
+        assert_eq!(game.movement_config().ja_plus.grip_speed, 1.0);
+        // What a client reads from that info is what the server moves by.
+        let mut state = sjk_protocol::GameState::empty_local(0);
+        state
+            .replace_config_string(0, game.status_info.clone())
+            .unwrap();
+        assert_eq!(
+            sjk_game_jka::pmove_japlus::JaPlusRules::from_game_state(&state),
+            game.movement_config().ja_plus
+        );
+    }
+
+    #[test]
+    fn a_latched_ja_plus_setting_waits_for_the_next_map() {
+        let mut game = started("japlus");
+        assert_eq!(game.force_rules().push_items, 1);
+        game.cvar_line(b"jp_pushAll 0", &mut |_| {});
+        assert_eq!(game.force_rules().push_items, 1);
+        game.take_latched_cvars();
+        assert_eq!(game.force_rules().push_items, 0);
     }
 }

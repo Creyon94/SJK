@@ -288,6 +288,9 @@ pub struct NativeGame {
     mod_movement: sjk_server_mod::ModMovement,
     /// The combat rules it selects (saber damage, `/kill`), refreshed with its settings.
     mod_combat: sjk_server_mod::ModCombat,
+    /// The Force rules it selects from its settings, which every Force update and throw
+    /// runs by (`crate::server_mods::force`).
+    mod_force: sjk_game_jka::force_rules::ForceRules,
 }
 
 /// The serverId a world starts on. `SV_SpawnServer` uses `com_frameTime`, which is only
@@ -373,6 +376,7 @@ impl NativeGame {
         let server_mod = crate::server_mods::selected(&cvars);
         let mod_movement = crate::server_mods::movement(server_mod, &cvars);
         let mod_combat = crate::server_mods::combat(server_mod, &cvars);
+        let mod_force = crate::server_mods::force(server_mod, &cvars);
         let (config_strings, sounds) = world_config_strings(
             &status_info,
             map.as_ref(),
@@ -484,6 +488,7 @@ impl NativeGame {
             server_mod,
             mod_movement,
             mod_combat,
+            mod_force,
         };
         game.pool = EntityPool::with_budget(0, game.entity_budget());
         game.spawn_items();

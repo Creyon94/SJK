@@ -112,6 +112,10 @@ What the mode does so far:
   front kick, melee that an attack with the item key does not cancel, wall runs from Force flips) and the ones its
   settings switch. A changed setting reaches the server info and every player's moves
   at once.
+- **JA+'s Force rules.** Every Force update and throw, the NPCs' too, runs by the rules
+  the mod's settings select (`sjk_game_jka::force_rules`, the `ServerMod::force` hook);
+  the base game's are the default. They change what the server sends, so no client
+  predicts them, but the grip speed, which every JA+ client reads from the server info.
 - **No OpenJK animation fixes.** JA+ is built on the 1.01 game code: `CS_LEGACY_FIXES`
   is 0 and the server runs none of them.
 - **JA+ saber damage**, for players' and NPCs' blades
@@ -137,7 +141,7 @@ What the mode does so far:
 | Setting | `jp_cinfo` bit | Effect |
 | --- | --- | --- |
 | `jp_allowflipkick` 1 (default) | 0 | Wall flips and runs push off players |
-| `jp_fixRoll` 1 (default) to 3 | 1 to 3 | The roll fix levels, as SJK predicts them on JA+ servers |
+| `jp_fixRoll` 1 (default) to 3 | 1 to 3 | The roll fix levels, as SJK predicts them on JA+ servers; a grip may start while rolling or back flipping |
 | `jp_improveYellowDFA` 1 (default) | 4 | The medium style's shorter flip over, without the spin |
 | `jp_slideOnPlayer` 1 | 5 | Standing on a player slides, as in the base game |
 | `jp_noAutoReplier` 1 | 14 | Only asks the JA+ plugin to keep its automatic replies off |
@@ -148,6 +152,13 @@ What the mode does so far:
 | `jp_reduceSaberBlock` 0 to 100 | | The percent chance that a blade passes through the saber it meets |
 | `jp_allowSaberTouchDMG` 1 | | An idle blade's touch hurts (1), not only a returning one's |
 | `jp_allowTeamKill` 1 | | `/kill` works in team games |
+| `jp_gripSpeedScale` 0.8 (default) | | The run speed kept while gripping, within 0.4 and 1.01; every JA+ client, SJK's too, reads it from the server info |
+| `jp_pushPullKnockDown` 1 (default) | | Push and pull reach a player lying knocked down or getting up |
+| `g_friendlyFire` 1 | | Push and pull reach teammates too (the base game never throws them) |
+| `jp_fixAbsorb` 2.0 (default) | | Absorbing a grip, lightning or drain gains `cost * level / 3 * jp_fixAbsorb` Force; 0 is the base game's `(cost / 3) * level` |
+| `jp_pushAll` 1 (default), 2 | | Push and pull fling the items they reach (not weapons nor powerups), back home in 30 seconds; 2 dropped flags too. Latched: waits for the next map |
+| `jp_gripOpenSaber` 0 (default) to 2 | | A gripped player's saber: 0 off, 1 only a thrown one off, 2 knocked out of the hand with 35 % of the Force or less |
+| `jp_cloakFuel` 1 (default) | | The cloak drains its battery; 0 keeps it on for ever |
 
 A `jp_cinfo` bit is only announced for a rule the server plays, whatever its setting
 says ([cinfo.rs](../crates/sjk-server-mod-japlus/src/cinfo.rs) is the table): single
@@ -157,15 +168,15 @@ several of them on by default. JA+'s extra animations (`jp_newGLAAnims`) need it
 animation files, which SJK does not ship.
 
 Not built yet, in the order planned: JA+ duels (isolation from the other players, the
-full-force duel, the winner's heal) and the Force changes (`jp_forceCombo`,
-`jp_fixAbsorb`, `jp_pushAll`...); then the emotes and player commands (`amkiss`,
-`amflip`, the hook, `/saber`...); then the admin system, logged in with SJK identity keys, with JA+'s rank
+full-force duel, the winner's heal), the rest of the Force changes (`jp_forceCombo`'s
+push and pull grabs and its rage with speed, the flamethrower `jp_allowFlameThrower`);
+then the emotes and player commands (`amkiss`, `amflip`, the hook, `/saber`...); then
+the admin system, logged in with SJK identity keys, with JA+'s rank
 passwords only if the owner allows them; then chat, highlander, blocking walls and model
 scale. Until then:
 
 - `jp_DuelAlpha` is announced, as JA+ does, but duellists still collide with the other
   players; EternalJK and the JA+ plugin predict them passing through.
-- `jp_gripSpeedScale` is announced, but gripping keeps the movement's fixed 0.8.
 - `jp_highlander`, `jp_forceCombo` and the other announced settings change nothing on
   the server.
 - `jp_saberNoForceDrain` stays off: it changes the Force the special attacks cost, which
@@ -179,6 +190,15 @@ scale. Until then:
 - A suicide is credited to a player or NPC still in the game only; the base game's own
   credit for a crush, a trigger's hurt or an unknown death to the last pusher is not
   built (a fall to death is).
+- `jp_pushAll` flings only an item standing there: one taken and waiting for its
+  respawn is left alone (the JA+ module flings its hidden entity and puts its respawn off
+  to 30 seconds), a flung item comes back at rest, and NPCs' pushes fling nothing. Items
+  dropped by players are never flung but for the flags.
+- `jp_gripOpenSaber` 2 knocks a gripped player's saber out of its hand, not an NPC's,
+  whose saber goes off.
+- VisionJK's movement slows a rage's recovery with speed on too, and stacks rage with
+  speed under `jp_forceCombo` 1 (`codemp/game/bg/bg_pmove.c:8893-8903`); SJK's shared
+  movement keeps the base game's, left for the `jp_forceCombo` step.
 - The roll fix follows TaystJK's reading of the levels, which SJK's prediction uses on JA+
   servers. VisionJK's port of the JA+ module differs: a roll starts from 30000 squared
   speed at every level and also while gripping at level 1, and level 3 slows a held-back

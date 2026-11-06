@@ -38,6 +38,28 @@ id falls back to the base game, the client's table matches the server's, the scr
 still lays out at 1080p, 4K and 4:3). Not verified: the screen was not looked at (the
 world shots were not run) and no game was hosted with JA+ from the client.
 
+## SJK's server as a JA+ server: JA+'s Force rules
+
+06/11/2026, `personal/japlus-force` from `main` `d473a66b`, Sol's request (JA+ server mode,
+the Force changes). The Force code the server runs, the NPCs' too, takes a rule struct
+from the running mod (`sjk_game_jka::force_rules`, the new `ServerMod::force` hook, the
+base game's by default): with `g_mod japlus`, `jp_pushPullKnockDown`, push and pull on
+teammates with `g_friendlyFire`, `jp_fixAbsorb`, `jp_pushAll` (items flung, back in 30
+seconds), `jp_gripOpenSaber`, the grip in a roll with `jp_fixRoll` and `jp_cloakFuel`, after
+VisionJK's `w_force.c` ([server.md](server.md#ja-mode)). `jp_gripSpeedScale` now runs on
+the server and SJK's prediction reads it from a JA+ server's info, as VisionJK's cgame does
+([networking.md](networking.md#ja-movement-rules)); the mod's latched settings
+(`jp_pushAll`) take effect at the next map. Verified on Windows 11: unit tests of the rule
+struct, the throw (teammates, knocked-down players, items, absorb), the grip's weapon
+check, the gripped saber, the cloak battery, the item fling and return, the grip speed
+from server info, the JA+ crate's rules at its defaults and after changes, and the server
+(the base game's rules unchanged whatever JA+ settings say, JA+'s following their
+settings at once, the latch); a headless `sjk-server +set g_mod japlus` with five bots on
+loopback ran 90 seconds without a fault. Not verified: any client joined, so neither the
+rules in play nor the grip speed prediction were seen; no comparison with a running JA+ or
+VisionJK server. Left: `jp_forceCombo` (push and pull grabs, rage with speed), the
+flamethrower, `jp_saberNoForceDrain` (saber code), NPCs flinging items.
+
 ## SJK's server as a JA+ server (`g_mod japlus`), step 1
 
 06/11/2026, `personal/japlus-mode` from `main` `a1ca867a`, Sol's request: remake JA+'s

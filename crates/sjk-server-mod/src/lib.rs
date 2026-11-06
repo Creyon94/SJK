@@ -12,6 +12,7 @@
 //! the same bits ([`ServerMod::movement`]), so no client is pulled back for a rule it was
 //! told about.
 
+use sjk_game_jka::force_rules::ForceRules;
 use sjk_game_jka::pmove::MovementConfig;
 use sjk_game_jka::pmove_japlus::JaPlusRules;
 use sjk_game_jka::saber_damage_japlus::JaPlusSaberDamage;
@@ -55,7 +56,7 @@ pub trait Settings {
 
 /// The movement rules a mod runs, which the server puts into every player's moves.
 /// [`Default`] is the base game's, as SJK's server runs it.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ModMovement {
     /// JA+'s rules (`MovementConfig::ja_plus`); off on the base game.
     pub ja_plus: JaPlusRules,
@@ -168,11 +169,61 @@ pub trait ServerMod: Sync {
         let _ = settings;
         ModCombat::default()
     }
+
+    /// The Force rules its settings select (who a push reaches, what absorbing gains, a
+    /// gripped player's saber, the cloak's battery...), which the server puts into every
+    /// Force update and throw, its NPCs' too. The base game's by default. The server asks
+    /// again whenever a setting changes.
+    fn force(&self, _settings: &dyn Settings) -> ForceRules {
+        ForceRules::default()
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    struct Plain;
+
+    impl ServerMod for Plain {
+        fn id(&self) -> &'static str {
+            "plain"
+        }
+        fn name(&self) -> &'static str {
+            "Plain"
+        }
+        fn cvars(&self) -> &'static [ModCvar] {
+            &[]
+        }
+        fn identity(&self) -> &'static [(&'static str, &'static str)] {
+            &[]
+        }
+        fn game_directory(&self) -> &'static str {
+            ""
+        }
+        fn derived_info(&self, _: &dyn Settings) -> Vec<(&'static str, String)> {
+            Vec::new()
+        }
+        fn movement(&self, _: &dyn Settings) -> ModMovement {
+            ModMovement::default()
+        }
+    }
+
+    struct NoSettings;
+
+    impl Settings for NoSettings {
+        fn integer(&self, _: &str) -> i32 {
+            0
+        }
+        fn value(&self, _: &str) -> f32 {
+            0.0
+        }
+    }
+
+    #[test]
+    fn a_mod_without_force_rules_plays_the_base_games() {
+        assert_eq!(Plain.force(&NoSettings), ForceRules::default());
+    }
 
     #[test]
     fn the_base_game_kills_as_before() {

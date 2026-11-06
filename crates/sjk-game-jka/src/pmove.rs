@@ -2587,6 +2587,7 @@ mod dual_jump_hull_tests;
 
 #[path = "pmove_wall_moves.rs"]
 mod wall_moves;
+pub(crate) use wall_moves::back_flip as in_back_flip;
 pub use wall_moves::{in_wall_rebound, wall_hold_yaw};
 
 #[path = "pmove_saber_base.rs"]

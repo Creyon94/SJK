@@ -291,6 +291,11 @@ pub trait NpcHost: SaberParseHost {
     fn gravity(&self) -> f32;
     fn skill(&self) -> i32;
     fn gametype(&self) -> i32;
+    /// The server's Force rules (its mod's), which an NPC's Force runs by as a player's
+    /// does; the base game's by default.
+    fn force_rules(&self) -> crate::force_rules::ForceRules {
+        crate::force_rules::ForceRules::default()
+    }
     /// The game's generator (`Q_irand`'s), for what takes it whole.
     fn rng(&mut self) -> &mut crate::player_death::Rng;
     /// The players in the game, as an NPC's senses read them, in client order.

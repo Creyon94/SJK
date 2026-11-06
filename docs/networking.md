@@ -343,7 +343,7 @@ Stock and other servers, SJK's dedicated server included, keep the stock rules.
 | Head slide | `jp_cinfo` head slide (`jp_slideOnPlayer`, default off) | Without it, standing on a player has ground friction instead of stock's frictionless slide |
 | Yellow DFA | `jp_cinfo` yellow DFA (`jp_improveYellowDFA`, default on) | The medium flip over leaps 60 forward (stock 150) and neither turns nor locks the view |
 | Wall run from flips | Every JA+ server | A run up a wall may start from the Force jump's forward, left and right flips, not only from a plain jump |
-| Grip speed | Every JA+ server | Gripping keeps 0.8 of the run speed (stock 0.4; `jp_gripSpeedScale` default) |
+| Grip speed | Every JA+ server | Gripping keeps the server's `jp_gripSpeedScale` of the run speed, read from `CS_SERVERINFO` as VisionJK's cgame reads it (`atof`, held within 0.4 and 1.01; 0.8, JA+'s default, if the key is missing); stock 0.4 |
 | Melee buttons | Every JA+ server | With melee, an attack pressed with the holdable button is not cancelled |
 | Taunts | Every JA+ server | Meditation keeps the player in place but the view free; other taunts leave movement and view free |
 | Staff kick | Every JA+ server | A staff's alternate attack standing still is a front kick |

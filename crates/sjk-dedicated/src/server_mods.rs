@@ -45,6 +45,14 @@ pub fn combat(server_mod: Option<&dyn ServerMod>, cvars: &Cvars) -> ModCombat {
     server_mod.map_or_else(ModCombat::default, |server_mod| server_mod.combat(cvars))
 }
 
+/// The Force rules of `server_mod`, the base game's without one.
+pub fn force(
+    server_mod: Option<&dyn ServerMod>,
+    cvars: &Cvars,
+) -> sjk_game_jka::force_rules::ForceRules {
+    server_mod.map_or_else(Default::default, |server_mod| server_mod.force(cvars))
+}
+
 /// What `g_mod` may be, for the messages: `base, japlus`.
 pub fn choices() -> String {
     std::iter::once(BASE)

@@ -8974,3 +8974,16 @@ test: In the match: serverinfo shows gamename JA+ Mod v2.4 B7; japlus.* commands
 test: Back to Create game: JA+ is still chosen, also after a restart; Base game: plain JKA.
 test: ui_menuStyle classic, Play > Create Server: the same Server mod row is there.
 note: The rows moved: Start sits a little lower to make room for the row.
+
+[japlus-force]
+area: Gameplay
+title: JA+ server mode: JA+'s Force rules (push, absorb, grip, cloak, items)
+change: g_mod japlus: push/pull reach players on the ground, teammates with g_friendlyFire 1.
+change: Items fly when pushed (jp_pushAll), absorb gains more (jp_fixAbsorb), grip while rolling.
+change: jp_gripSpeedScale is read from server info by SJK's prediction on every JA+ server.
+test: Local sjk-server +set g_mod japlus with a bot: push the bot while it lies knocked down.
+test: Push a medpack or ammo: it flies, and is back at its place 30 seconds later.
+test: rcon jp_gripSpeedScale 1: grip and run, no pulling back; same on a real JA+ server.
+test: rcon jp_gripOpenSaber 2, get gripped with little Force: your saber drops from the hand.
+test: rcon jp_cloakFuel 0: the cloak stays on, its bar does not drain.
+note: Not run with a client yet. Base servers (no g_mod) must play as before.
