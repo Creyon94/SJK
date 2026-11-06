@@ -3,8 +3,9 @@
 07/11/2026, `fix/command-stamp-previous-frame` from `main` `92623e3b`. A frame's commands
 now carry the clock as the frame before read it (`ServerClock::command_time`), as stock's
 and JoF EJK's do (`CL_SendCmd` stamps `cl.serverTime` before `CL_SetCGameTime` reads the
-next one), on every server and with both pacings; what the frame draws and predicts keeps
-its own reading. SJK's stamps were a frame fresher than every other client's (8 ms at
+next one), on every server but SJK's own (`server_caps::FRESH_STAMPS`, Sol's choice: no
+anti-cheat there, so its players keep the fresher stamp) and with both pacings; what the
+frame draws and predicts keeps its own reading. SJK's stamps were a frame fresher than every other client's (8 ms at
 125 FPS), and on JoF since 02/11 fresher still (no rounding down to the grid). Milamber,
 who maintains Heimdall, found that it reads stamps ahead of a stock client's as a
 negative `cl_timeNudge`, the one it kicks for, and stamps that trail as a positive one,

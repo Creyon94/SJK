@@ -691,7 +691,9 @@ as a negative `cl_timeNudge`, the one it kicks for (Milamber, who maintains Heim
 not kick. A new timeline (a gamestate, a new connection, a re-anchor or a 500 ms
 reset) forgets the previous reading, so no command carries the old timeline's time,
 and after a hitch commands trail the frame's reading by at most 50 ms (a frame at the
-slowest gameplay FPS) where a stock client's carry the time from before it. The delta
+slowest gameplay FPS) where a stock client's carry the time from before it. SJK's own
+servers (`sjk 1` in the serverinfo, `server_caps::FRESH_STAMPS`) run no such check, so
+there commands still carry the frame's own reading (Sol, 07/11/2026). The delta
 is adjusted once a frame, on the newest snapshot, and only once the frame has read
 every queued snapshot (a frame reads at most 8, `SNAPSHOTS_PER_FRAME` in
 [live_session.rs](../crates/sjk-viewer/src/live_session.rs)): stock reads the whole
