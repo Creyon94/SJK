@@ -381,6 +381,17 @@ test: Move or take damage: the rod goes away. Another SJK player sees rod and bu
 test: debug_holocron while fishing: card at once, no Echo on the line, no Echo Angler count.
 note: Achievements need hub-shared #9 imported and deployed before they record online.
 
+[creyon-new-blades-370]
+area: Rendering & effects
+title: 130 new blades (Creyon #370), blades 170 to 299: not in holocrons yet
+change: Star Wars round: 25 Common, 24 Uncommon, 34 Rare, 38 Legendary, 9 Mythical.
+change: Their effects in the air draw in a half-size layer; older blades draw as before.
+change: Hub: in the catalogue and sjk_skins_2, droppable false until Sol opens them.
+test: Staff panel > Unlock a few (Angel, Rakata Infinite, Moon): they wear and swing.
+test: Close to the camera at 4K: FPS holds; effects line up with walls and players.
+test: Chroma blades take your colour; Shaders tab pictures and parts switch on and off.
+note: God Ki left out (Dragon Ball material). Make droppable on the hub once tested.
+
 [finishers]
 area: Gameplay
 title: Finishers: Collection > Shaders > Finishers, Disintegrate first (needs the hub)
