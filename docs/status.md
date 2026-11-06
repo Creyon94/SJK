@@ -22,6 +22,22 @@ Linux module where a product is exactly on an integer (110 at 0.7). Left out:
 `jp_saberNoForceDrain` (clients predict the Force cost), `jp_flipkickScaleDMG` (no flip
 kick damage on the server yet), JA+'s own moves, `d_saberSPStyleDamage 0`.
 
+## Create game picks the server mod
+
+06/11/2026, `personal/create-game-server-mod` from `main` `d473a66b`, Sol's request after
+JA+ mode step 1 (below): Create game gets a Server mod row under "Server", Base game
+(the default) or JA+, kept in `ui_hostServerMod` by id, and the hosted `sjk-server` is
+always started with `--set g_mod <id>`. The choices are one table,
+`local_server::SERVER_MODS` (id and name), checked by a test against the server's
+`server_mods::SERVER_MODS` and `BASE`. The screen is the SJK UI's in both menu styles,
+so the one row serves the classic style too; `devmap` keeps the base game
+([sjk-ui.md](sjk-ui.md#create-game), [client.md](client.md)). Verified on Windows 11:
+unit tests (the command line carries `g_mod japlus` or `base` and nothing else changes,
+the row cycles and reaches the settings, the choice survives a restart and an unknown
+id falls back to the base game, the client's table matches the server's, the screen
+still lays out at 1080p, 4K and 4:3). Not verified: the screen was not looked at (the
+world shots were not run) and no game was hosted with JA+ from the client.
+
 ## SJK's server as a JA+ server (`g_mod japlus`), step 1
 
 06/11/2026, `personal/japlus-mode` from `main` `a1ca867a`, Sol's request: remake JA+'s

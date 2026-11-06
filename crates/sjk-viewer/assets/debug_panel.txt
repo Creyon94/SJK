@@ -8961,3 +8961,18 @@ test: rcon jp_SingleStrongNormalAttackMax 50: strong hits weaker at once; jp_alt
 test: Get Force-pushed by a bot, /kill within 5 s: the bot scores the frag.
 test: Team game: /kill does nothing; rcon jp_allowTeamKill 1: it works.
 note: Server only; base servers (no g_mod) deal damage exactly as before.
+
+note: Not run with a client yet. Or host it from Create game > Server mod JA+.
+
+[create-game-server-mod]
+area: Menus & settings
+title: Create game: Server mod row, Base game (default) or JA+ (g_mod)
+change: Create game > Server: Server mod cycles Base game / JA+, kept in ui_hostServerMod.
+change: The hosted sjk-server gets --set g_mod <id>; the figure reads "Free for all, JA+".
+change: Same screen in the SJK and classic menu styles; devmap always runs the base game.
+test: Create game: the new row under Server shows Base game; Left/Right and clicks cycle it.
+test: Pick JA+, Start: the client log's "local server:" line has --set g_mod japlus.
+test: In the match: serverinfo shows gamename JA+ Mod v2.4 B7; japlus.* commands load.
+test: Back to Create game: JA+ is still chosen, also after a restart; Base game: plain JKA.
+test: ui_menuStyle classic, Play > Create Server: the same Server mod row is there.
+note: The rows moved: Start sits a little lower to make room for the row.
