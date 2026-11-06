@@ -73,6 +73,8 @@ Display up to Uncommon), and after his adjustments of 21/10/2026, which moved 38
 108 133 136 to Common; 11 mythicals left, 12 with the Varykino Blossom of 21/10/2026). The rounds' notes below keep the tiers the blades
 came in.
 
+Blades 170 to 299, Creyon's Star Wars round (PR #370, merged 06/11/2026), do not drop yet ("Coming to holocrons soon.", `COMING_TO_HOLOCRONS`): Sol tests them first, given by hand, then turns `droppable` on in the hub's catalogue and the client's together.
+
 | No. | Id | Name | Tier | Smith | Drops |
 | --- | --- | --- | --- | --- | --- |
 | 001 | `saber_sun` | Sun blade | Mythical | Sol | yes |
@@ -244,136 +246,136 @@ came in.
 | 167 | `saber_thousand_cranes` | Thousand Cranes blade | Unique | Sol | no |
 | 168 | `saber_hearth` | Hearth blade | Unique | Sol | no |
 | 169 | `saber_mystery` | Mystery blade | Legendary | Sol | no |
-| 170 | `saber_vulptex_crystalfire` | Vulptex Crystalfire blade | Legendary | Creyon | yes |
-| 171 | `saber_zeffo_thunderchorus` | Zeffo Thunderchorus blade | Legendary | Creyon | yes |
-| 172 | `saber_moraband_erasure` | Moraband Erasure blade | Mythical | Creyon | yes |
-| 173 | `saber_wellspring_triad` | Wellspring Triad blade | Mythical | Creyon | yes |
-| 174 | `saber_chirrut_whills` | Chirrut Whills blade | Rare | Creyon | yes |
-| 175 | `saber_atollon_gathering` | Atollon Gathering blade | Legendary | Creyon | yes |
-| 176 | `saber_wobani_projection` | Wobani Projection blade | Rare | Creyon | yes |
-| 177 | `saber_iridonia_rite` | Iridonia Rite blade | Legendary | Creyon | yes |
-| 178 | `saber_rishi_ocean_flow` | Rishi Ocean Flow blade | Legendary | Creyon | yes |
-| 179 | `saber_scipio_awakening` | Scipio Awakening blade | Legendary | Creyon | yes |
-| 180 | `saber_nal_hutta_spicevine` | Nal Hutta Spicevine blade | Uncommon | Creyon | yes |
-| 181 | `saber_korriban_ragnos` | Korriban Ragnos blade | Mythical | Creyon | yes |
-| 182 | `saber_ossus_scroll` | Ossus Scroll blade | Legendary | Creyon | yes |
-| 183 | `saber_kiros_echani` | Eshan Echani blade | Rare | Creyon | yes |
-| 184 | `saber_toydaria_gale_streamers` | Toydaria Gale Streamers blade | Rare | Creyon | yes |
-| 185 | `saber_rattatak_crimson_surge` | Rattatak Crimson Surge blade | Rare | Creyon | yes |
-| 186 | `saber_hosnian_daybreak` | Hosnian Daybreak blade | Common | Creyon | yes |
-| 187 | `saber_rakata_infinite` | Rakata Infinite blade | Legendary | Creyon | yes |
-| 188 | `saber_tatooine_krayt_spine` | Tatooine Krayt Spine blade | Mythical | Creyon | yes |
-| 189 | `saber_lahmu_sandveil` | Lah'mu Sandveil blade | Legendary | Creyon | yes |
-| 190 | `saber_dromund_kaas_vitiate` | Dromund Kaas Vitiate blade | Mythical | Creyon | yes |
-| 191 | `saber_utapau_whirlwind` | Utapau Whirlwind blade | Legendary | Creyon | yes |
-| 192 | `saber_umbara_gloaming` | Umbara Gloaming blade | Legendary | Creyon | yes |
-| 193 | `saber_tython_jedaii` | Tython Je'daii blade | Rare | Creyon | yes |
-| 194 | `saber_crait_salt_flats` | Crait Salt Flats blade | Rare | Creyon | yes |
-| 195 | `saber_sullust_magma` | Sullust Magma blade | Legendary | Creyon | yes |
-| 196 | `saber_kijimi_snowfall` | Kijimi Snowfall blade | Rare | Creyon | yes |
-| 197 | `saber_saleucami_turbolaser` | Saleucami Turbolaser blade | Rare | Creyon | yes |
-| 198 | `saber_wayland_gravity_press` | Wayland Gravity Press blade | Legendary | Creyon | yes |
-| 199 | `saber_onderon_blazing_strike` | Onderon Blazing Strike blade | Uncommon | Creyon | yes |
-| 200 | `saber_dantooine_grassland` | Dantooine Grassland blade | Uncommon | Creyon | yes |
-| 201 | `saber_bracca_rust_spark` | Bracca Rust blade | Common | Creyon | yes |
-| 202 | `saber_mandalore_mythosaur` | Mandalore Beskar blade | Common | Creyon | yes |
-| 203 | `saber_nevarro_ash` | Nevarro Ash blade | Common | Creyon | yes |
-| 204 | `saber_vandor_whiteout` | Vandor Whiteout blade | Common | Creyon | yes |
-| 205 | `saber_bendu_equilibrium` | Bendu Equilibrium blade | Legendary | Creyon | yes |
-| 206 | `saber_lehon_maelstrom` | Lehon Maelstrom blade | Legendary | Creyon | yes |
-| 207 | `saber_zonama_starlight` | Zonama Starlight blade | Legendary | Creyon | yes |
-| 208 | `saber_bastila_battle_meditation` | Bastila Battle Meditation blade | Legendary | Creyon | yes |
-| 209 | `saber_cantonica_ascension` | Cantonica Champagne blade | Rare | Creyon | yes |
-| 210 | `saber_nightsister_ichor` | Nightsister Ichor blade | Legendary | Creyon | yes |
-| 211 | `saber_nihilus_hunger` | Nihilus Hunger blade | Mythical | Creyon | yes |
-| 212 | `saber_rodia_toxic_bloom` | Rodia Toxic Bloom blade | Rare | Creyon | yes |
-| 213 | `saber_glee_anselm_rockpools` | Glee Anselm Rockpools blade | Rare | Creyon | yes |
-| 214 | `saber_polis_massa_asteroid` | Polis Massa Asteroid blade | Rare | Creyon | yes |
-| 215 | `saber_lotho_minor_lavaglass` | Lotho Minor Lavaglass blade | Rare | Creyon | yes |
-| 216 | `saber_agamar_copper` | Agamar Copper blade | Uncommon | Creyon | yes |
-| 217 | `saber_sorgan_lake` | Sorgan Lake blade | Uncommon | Creyon | yes |
-| 218 | `saber_iego_lightglow` | Iego Lightglow blade | Rare | Creyon | yes |
-| 219 | `saber_sluis_grey` | Sluis Grey blade | Common | Creyon | yes |
-| 220 | `saber_arkanis_teal` | Arkanis Teal blade | Uncommon | Creyon | yes |
-| 221 | `saber_peridea_convergence` | Peridea Convergence blade | Legendary | Creyon | yes |
-| 222 | `saber_byss_force_storm` | Byss Force Storm blade | Legendary | Creyon | yes |
-| 223 | `saber_lira_san_starglass` | Lira San Starglass blade | Rare | Creyon | yes |
-| 224 | `saber_mimban_marshlight` | Mimban Marshlight blade | Rare | Creyon | yes |
-| 225 | `saber_zygerria_cleave` | Zygerria Whip blade | Rare | Creyon | yes |
-| 226 | `saber_jabiim_siege` | Jabiim Siege blade | Uncommon | Creyon | yes |
-| 227 | `saber_pantora_sunrise` | Pantora Sunrise blade | Common | Creyon | yes |
-| 228 | `saber_mon_cala_coral` | Mon Cala Coral blade | Common | Creyon | yes |
-| 229 | `saber_tund_sorcerers` | Tund Sorcerers blade | Legendary | Creyon | yes |
-| 230 | `saber_haruun_kal_wildheart` | Haruun Kal Wildheart blade | Legendary | Creyon | yes |
-| 231 | `saber_kalevala_darksaber` | Kalevala Darksaber blade | Legendary | Creyon | yes |
-| 232 | `saber_ruusan_thoughtbomb` | Ruusan Thoughtbomb blade | Legendary | Creyon | yes |
-| 233 | `saber_garel_corona` | Garel Corona blade | Uncommon | Creyon | yes |
-| 234 | `saber_trandosha_scorekeeper` | Trandosha Scorekeeper blade | Uncommon | Creyon | yes |
-| 235 | `saber_wroshyr_rootwood` | Wroshyr Rootwood blade | Legendary | Creyon | yes |
-| 236 | `saber_iktotch_foresight` | Iktotch Foresight blade | Legendary | Creyon | yes |
-| 237 | `saber_vardos_phrik` | Vardos Phrik blade | Legendary | Creyon | yes |
-| 238 | `saber_kuat_shipwright` | Kuat Shipwright blade | Rare | Creyon | yes |
-| 239 | `saber_kowak_silkweb` | Kowak Silkweb blade | Rare | Creyon | yes |
-| 240 | `saber_nar_kreeta_lightspeed` | Nar Kreeta Lightspeed blade | Rare | Creyon | yes |
-| 241 | `saber_manaan_tidebreaker` | Manaan Tidebreaker blade | Rare | Creyon | yes |
-| 242 | `saber_cato_neimoidia_gilded` | Cato Neimoidia Gilded blade | Rare | Creyon | yes |
-| 243 | `saber_dxun_beastfang` | Dxun Beastfang blade | Rare | Creyon | yes |
-| 244 | `saber_fondor_weldsparks` | Fondor Forge blade | Rare | Creyon | yes |
-| 245 | `saber_plazir_lanterns` | Plazir Lanterns blade | Uncommon | Creyon | yes |
-| 246 | `saber_coruscant_neon` | Coruscant Skylanes blade | Legendary | Creyon | yes |
-| 247 | `saber_savareen_starfall` | Savareen Starfall blade | Uncommon | Creyon | yes |
-| 248 | `saber_hijarna_colours` | Hijarna Opal blade | Uncommon | Creyon | yes |
-| 249 | `saber_kef_bir_waves` | Kef Bir Waves blade | Rare | Creyon | yes |
-| 250 | `saber_shili_thornfang` | Shili Thornfang blade | Rare | Creyon | yes |
-| 251 | `saber_florrum_brigand` | Florrum Brigand blade | Uncommon | Creyon | yes |
-| 252 | `saber_abafar_pallor` | Abafar Pallor blade | Uncommon | Creyon | yes |
-| 253 | `saber_teth_leafdrift` | Teth Leafdrift blade | Uncommon | Creyon | yes |
-| 254 | `saber_malastare_podrace` | Malastare Podrace blade | Common | Creyon | yes |
-| 255 | `saber_anaxes_clonefront` | Anaxes Clonefront blade | Rare | Creyon | yes |
-| 256 | `saber_lola_sayu_watchbeam` | Lola Sayu Watchbeam blade | Common | Creyon | yes |
-| 257 | `saber_quell_embers` | Quell Embers blade | Uncommon | Creyon | yes |
-| 258 | `saber_skako_pressure` | Skako Pressure blade | Uncommon | Creyon | yes |
-| 259 | `saber_cerea_meadow` | Cerea Meadow blade | Common | Creyon | yes |
-| 260 | `saber_corulag_slate` | Corulag Slate blade | Common | Creyon | yes |
-| 261 | `saber_bothawui_amber` | Bothawui Amber blade | Common | Creyon | yes |
-| 262 | `saber_hapes_rose` | Hapes Rose blade | Common | Creyon | yes |
-| 263 | `saber_ithor_verdant` | Ithor Verdant blade | Common | Creyon | yes |
-| 264 | `saber_mirial_saffron` | Mirial Saffron blade | Common | Creyon | yes |
-| 265 | `saber_zeltros_violet` | Zeltros Violet blade | Common | Creyon | yes |
-| 266 | `saber_socorro_ochre` | Socorro Ochre blade | Common | Creyon | yes |
-| 267 | `saber_muunilinst_brass` | Muunilinst Brass blade | Common | Creyon | yes |
-| 268 | `saber_dorin_pewter` | Dorin Pewter blade | Common | Creyon | yes |
-| 269 | `saber_moon` | Moon blade | Mythical | Creyon | yes |
-| 270 | `saber_kathol_rift` | Kathol Rift blade | Legendary | Creyon | yes |
-| 271 | `saber_fondor_mass_driver` | Fondor Mass Driver blade | Legendary | Creyon | yes |
-| 272 | `saber_exar_kun_temple` | Exar Kun Temple blade | Legendary | Creyon | yes |
-| 273 | `saber_naga_sadow_alchemy` | Naga Sadow Alchemy blade | Legendary | Creyon | yes |
-| 274 | `saber_orbalisk_carapace` | Orbalisk Carapace blade | Legendary | Creyon | yes |
-| 275 | `saber_ziost_silence` | Ziost Silence blade | Legendary | Creyon | yes |
-| 276 | `saber_nathema_deadworld` | Nathema Deadworld blade | Legendary | Creyon | yes |
-| 277 | `saber_amphistaff_serpent` | Amphistaff Serpent blade | Legendary | Creyon | yes |
-| 278 | `saber_vergence_scatter` | Vergence Scatter blade | Legendary | Creyon | yes |
-| 279 | `saber_voxyn_scream` | Voxyn Scream blade | Rare | Creyon | yes |
-| 280 | `saber_ysalamir_hush` | Ysalamir Hush blade | Legendary | Creyon | yes |
-| 281 | `saber_rakghoul_plague` | Rakghoul Plague blade | Rare | Creyon | yes |
-| 282 | `saber_taris_undercity` | Taris Undercity blade | Mythical | Creyon | yes |
-| 283 | `saber_telos_restoration` | Telos Restoration blade | Rare | Creyon | yes |
-| 284 | `saber_malevolence_ion_beam` | Malevolence Ion Beam blade | Rare | Creyon | yes |
-| 285 | `saber_massassi_altar` | Massassi Altar blade | Rare | Creyon | yes |
-| 286 | `saber_sith_tremor_sword` | Sith Tremor Sword blade | Rare | Creyon | yes |
-| 287 | `saber_eye_of_aldhani` | Eye of Aldhani blade | Uncommon | Creyon | yes |
-| 288 | `saber_ferrix_foundry` | Ferrix Foundry blade | Uncommon | Creyon | yes |
-| 289 | `saber_kenari_crash` | Kenari Crash blade | Uncommon | Creyon | yes |
-| 290 | `saber_sarlacc_pit` | Sarlacc Pit blade | Uncommon | Creyon | yes |
-| 291 | `saber_cloud_city_dusk` | Cloud City Dusk blade | Uncommon | Creyon | yes |
-| 292 | `saber_ring_of_kafrene` | Ring of Kafrene blade | Uncommon | Creyon | yes |
-| 293 | `saber_hypergate_drift` | Hypergate Drift blade | Uncommon | Creyon | yes |
-| 294 | `saber_angel` | Angel blade | Mythical | Creyon | yes |
-| 295 | `saber_bardotta_calm` | Bardotta Calm blade | Common | Creyon | yes |
-| 296 | `saber_alzoc_ice` | Alzoc Ice blade | Common | Creyon | yes |
-| 297 | `saber_fest_steppe` | Fest Steppe blade | Common | Creyon | yes |
-| 298 | `saber_ansion_plains` | Ansion Plains blade | Common | Creyon | yes |
-| 299 | `saber_sernpidal_dust` | Sernpidal Dust blade | Common | Creyon | yes |
+| 170 | `saber_vulptex_crystalfire` | Vulptex Crystalfire blade | Legendary | Creyon | no |
+| 171 | `saber_zeffo_thunderchorus` | Zeffo Thunderchorus blade | Legendary | Creyon | no |
+| 172 | `saber_moraband_erasure` | Moraband Erasure blade | Mythical | Creyon | no |
+| 173 | `saber_wellspring_triad` | Wellspring Triad blade | Mythical | Creyon | no |
+| 174 | `saber_chirrut_whills` | Chirrut Whills blade | Rare | Creyon | no |
+| 175 | `saber_atollon_gathering` | Atollon Gathering blade | Legendary | Creyon | no |
+| 176 | `saber_wobani_projection` | Wobani Projection blade | Rare | Creyon | no |
+| 177 | `saber_iridonia_rite` | Iridonia Rite blade | Legendary | Creyon | no |
+| 178 | `saber_rishi_ocean_flow` | Rishi Ocean Flow blade | Legendary | Creyon | no |
+| 179 | `saber_scipio_awakening` | Scipio Awakening blade | Legendary | Creyon | no |
+| 180 | `saber_nal_hutta_spicevine` | Nal Hutta Spicevine blade | Uncommon | Creyon | no |
+| 181 | `saber_korriban_ragnos` | Korriban Ragnos blade | Mythical | Creyon | no |
+| 182 | `saber_ossus_scroll` | Ossus Scroll blade | Legendary | Creyon | no |
+| 183 | `saber_kiros_echani` | Eshan Echani blade | Rare | Creyon | no |
+| 184 | `saber_toydaria_gale_streamers` | Toydaria Gale Streamers blade | Rare | Creyon | no |
+| 185 | `saber_rattatak_crimson_surge` | Rattatak Crimson Surge blade | Rare | Creyon | no |
+| 186 | `saber_hosnian_daybreak` | Hosnian Daybreak blade | Common | Creyon | no |
+| 187 | `saber_rakata_infinite` | Rakata Infinite blade | Legendary | Creyon | no |
+| 188 | `saber_tatooine_krayt_spine` | Tatooine Krayt Spine blade | Mythical | Creyon | no |
+| 189 | `saber_lahmu_sandveil` | Lah'mu Sandveil blade | Legendary | Creyon | no |
+| 190 | `saber_dromund_kaas_vitiate` | Dromund Kaas Vitiate blade | Mythical | Creyon | no |
+| 191 | `saber_utapau_whirlwind` | Utapau Whirlwind blade | Legendary | Creyon | no |
+| 192 | `saber_umbara_gloaming` | Umbara Gloaming blade | Legendary | Creyon | no |
+| 193 | `saber_tython_jedaii` | Tython Je'daii blade | Rare | Creyon | no |
+| 194 | `saber_crait_salt_flats` | Crait Salt Flats blade | Rare | Creyon | no |
+| 195 | `saber_sullust_magma` | Sullust Magma blade | Legendary | Creyon | no |
+| 196 | `saber_kijimi_snowfall` | Kijimi Snowfall blade | Rare | Creyon | no |
+| 197 | `saber_saleucami_turbolaser` | Saleucami Turbolaser blade | Rare | Creyon | no |
+| 198 | `saber_wayland_gravity_press` | Wayland Gravity Press blade | Legendary | Creyon | no |
+| 199 | `saber_onderon_blazing_strike` | Onderon Blazing Strike blade | Uncommon | Creyon | no |
+| 200 | `saber_dantooine_grassland` | Dantooine Grassland blade | Uncommon | Creyon | no |
+| 201 | `saber_bracca_rust_spark` | Bracca Rust blade | Common | Creyon | no |
+| 202 | `saber_mandalore_mythosaur` | Mandalore Beskar blade | Common | Creyon | no |
+| 203 | `saber_nevarro_ash` | Nevarro Ash blade | Common | Creyon | no |
+| 204 | `saber_vandor_whiteout` | Vandor Whiteout blade | Common | Creyon | no |
+| 205 | `saber_bendu_equilibrium` | Bendu Equilibrium blade | Legendary | Creyon | no |
+| 206 | `saber_lehon_maelstrom` | Lehon Maelstrom blade | Legendary | Creyon | no |
+| 207 | `saber_zonama_starlight` | Zonama Starlight blade | Legendary | Creyon | no |
+| 208 | `saber_bastila_battle_meditation` | Bastila Battle Meditation blade | Legendary | Creyon | no |
+| 209 | `saber_cantonica_ascension` | Cantonica Champagne blade | Rare | Creyon | no |
+| 210 | `saber_nightsister_ichor` | Nightsister Ichor blade | Legendary | Creyon | no |
+| 211 | `saber_nihilus_hunger` | Nihilus Hunger blade | Mythical | Creyon | no |
+| 212 | `saber_rodia_toxic_bloom` | Rodia Toxic Bloom blade | Rare | Creyon | no |
+| 213 | `saber_glee_anselm_rockpools` | Glee Anselm Rockpools blade | Rare | Creyon | no |
+| 214 | `saber_polis_massa_asteroid` | Polis Massa Asteroid blade | Rare | Creyon | no |
+| 215 | `saber_lotho_minor_lavaglass` | Lotho Minor Lavaglass blade | Rare | Creyon | no |
+| 216 | `saber_agamar_copper` | Agamar Copper blade | Uncommon | Creyon | no |
+| 217 | `saber_sorgan_lake` | Sorgan Lake blade | Uncommon | Creyon | no |
+| 218 | `saber_iego_lightglow` | Iego Lightglow blade | Rare | Creyon | no |
+| 219 | `saber_sluis_grey` | Sluis Grey blade | Common | Creyon | no |
+| 220 | `saber_arkanis_teal` | Arkanis Teal blade | Uncommon | Creyon | no |
+| 221 | `saber_peridea_convergence` | Peridea Convergence blade | Legendary | Creyon | no |
+| 222 | `saber_byss_force_storm` | Byss Force Storm blade | Legendary | Creyon | no |
+| 223 | `saber_lira_san_starglass` | Lira San Starglass blade | Rare | Creyon | no |
+| 224 | `saber_mimban_marshlight` | Mimban Marshlight blade | Rare | Creyon | no |
+| 225 | `saber_zygerria_cleave` | Zygerria Whip blade | Rare | Creyon | no |
+| 226 | `saber_jabiim_siege` | Jabiim Siege blade | Uncommon | Creyon | no |
+| 227 | `saber_pantora_sunrise` | Pantora Sunrise blade | Common | Creyon | no |
+| 228 | `saber_mon_cala_coral` | Mon Cala Coral blade | Common | Creyon | no |
+| 229 | `saber_tund_sorcerers` | Tund Sorcerers blade | Legendary | Creyon | no |
+| 230 | `saber_haruun_kal_wildheart` | Haruun Kal Wildheart blade | Legendary | Creyon | no |
+| 231 | `saber_kalevala_darksaber` | Kalevala Darksaber blade | Legendary | Creyon | no |
+| 232 | `saber_ruusan_thoughtbomb` | Ruusan Thoughtbomb blade | Legendary | Creyon | no |
+| 233 | `saber_garel_corona` | Garel Corona blade | Uncommon | Creyon | no |
+| 234 | `saber_trandosha_scorekeeper` | Trandosha Scorekeeper blade | Uncommon | Creyon | no |
+| 235 | `saber_wroshyr_rootwood` | Wroshyr Rootwood blade | Legendary | Creyon | no |
+| 236 | `saber_iktotch_foresight` | Iktotch Foresight blade | Legendary | Creyon | no |
+| 237 | `saber_vardos_phrik` | Vardos Phrik blade | Legendary | Creyon | no |
+| 238 | `saber_kuat_shipwright` | Kuat Shipwright blade | Rare | Creyon | no |
+| 239 | `saber_kowak_silkweb` | Kowak Silkweb blade | Rare | Creyon | no |
+| 240 | `saber_nar_kreeta_lightspeed` | Nar Kreeta Lightspeed blade | Rare | Creyon | no |
+| 241 | `saber_manaan_tidebreaker` | Manaan Tidebreaker blade | Rare | Creyon | no |
+| 242 | `saber_cato_neimoidia_gilded` | Cato Neimoidia Gilded blade | Rare | Creyon | no |
+| 243 | `saber_dxun_beastfang` | Dxun Beastfang blade | Rare | Creyon | no |
+| 244 | `saber_fondor_weldsparks` | Fondor Forge blade | Rare | Creyon | no |
+| 245 | `saber_plazir_lanterns` | Plazir Lanterns blade | Uncommon | Creyon | no |
+| 246 | `saber_coruscant_neon` | Coruscant Skylanes blade | Legendary | Creyon | no |
+| 247 | `saber_savareen_starfall` | Savareen Starfall blade | Uncommon | Creyon | no |
+| 248 | `saber_hijarna_colours` | Hijarna Opal blade | Uncommon | Creyon | no |
+| 249 | `saber_kef_bir_waves` | Kef Bir Waves blade | Rare | Creyon | no |
+| 250 | `saber_shili_thornfang` | Shili Thornfang blade | Rare | Creyon | no |
+| 251 | `saber_florrum_brigand` | Florrum Brigand blade | Uncommon | Creyon | no |
+| 252 | `saber_abafar_pallor` | Abafar Pallor blade | Uncommon | Creyon | no |
+| 253 | `saber_teth_leafdrift` | Teth Leafdrift blade | Uncommon | Creyon | no |
+| 254 | `saber_malastare_podrace` | Malastare Podrace blade | Common | Creyon | no |
+| 255 | `saber_anaxes_clonefront` | Anaxes Clonefront blade | Rare | Creyon | no |
+| 256 | `saber_lola_sayu_watchbeam` | Lola Sayu Watchbeam blade | Common | Creyon | no |
+| 257 | `saber_quell_embers` | Quell Embers blade | Uncommon | Creyon | no |
+| 258 | `saber_skako_pressure` | Skako Pressure blade | Uncommon | Creyon | no |
+| 259 | `saber_cerea_meadow` | Cerea Meadow blade | Common | Creyon | no |
+| 260 | `saber_corulag_slate` | Corulag Slate blade | Common | Creyon | no |
+| 261 | `saber_bothawui_amber` | Bothawui Amber blade | Common | Creyon | no |
+| 262 | `saber_hapes_rose` | Hapes Rose blade | Common | Creyon | no |
+| 263 | `saber_ithor_verdant` | Ithor Verdant blade | Common | Creyon | no |
+| 264 | `saber_mirial_saffron` | Mirial Saffron blade | Common | Creyon | no |
+| 265 | `saber_zeltros_violet` | Zeltros Violet blade | Common | Creyon | no |
+| 266 | `saber_socorro_ochre` | Socorro Ochre blade | Common | Creyon | no |
+| 267 | `saber_muunilinst_brass` | Muunilinst Brass blade | Common | Creyon | no |
+| 268 | `saber_dorin_pewter` | Dorin Pewter blade | Common | Creyon | no |
+| 269 | `saber_moon` | Moon blade | Mythical | Creyon | no |
+| 270 | `saber_kathol_rift` | Kathol Rift blade | Legendary | Creyon | no |
+| 271 | `saber_fondor_mass_driver` | Fondor Mass Driver blade | Legendary | Creyon | no |
+| 272 | `saber_exar_kun_temple` | Exar Kun Temple blade | Legendary | Creyon | no |
+| 273 | `saber_naga_sadow_alchemy` | Naga Sadow Alchemy blade | Legendary | Creyon | no |
+| 274 | `saber_orbalisk_carapace` | Orbalisk Carapace blade | Legendary | Creyon | no |
+| 275 | `saber_ziost_silence` | Ziost Silence blade | Legendary | Creyon | no |
+| 276 | `saber_nathema_deadworld` | Nathema Deadworld blade | Legendary | Creyon | no |
+| 277 | `saber_amphistaff_serpent` | Amphistaff Serpent blade | Legendary | Creyon | no |
+| 278 | `saber_vergence_scatter` | Vergence Scatter blade | Legendary | Creyon | no |
+| 279 | `saber_voxyn_scream` | Voxyn Scream blade | Rare | Creyon | no |
+| 280 | `saber_ysalamir_hush` | Ysalamir Hush blade | Legendary | Creyon | no |
+| 281 | `saber_rakghoul_plague` | Rakghoul Plague blade | Rare | Creyon | no |
+| 282 | `saber_taris_undercity` | Taris Undercity blade | Mythical | Creyon | no |
+| 283 | `saber_telos_restoration` | Telos Restoration blade | Rare | Creyon | no |
+| 284 | `saber_malevolence_ion_beam` | Malevolence Ion Beam blade | Rare | Creyon | no |
+| 285 | `saber_massassi_altar` | Massassi Altar blade | Rare | Creyon | no |
+| 286 | `saber_sith_tremor_sword` | Sith Tremor Sword blade | Rare | Creyon | no |
+| 287 | `saber_eye_of_aldhani` | Eye of Aldhani blade | Uncommon | Creyon | no |
+| 288 | `saber_ferrix_foundry` | Ferrix Foundry blade | Uncommon | Creyon | no |
+| 289 | `saber_kenari_crash` | Kenari Crash blade | Uncommon | Creyon | no |
+| 290 | `saber_sarlacc_pit` | Sarlacc Pit blade | Uncommon | Creyon | no |
+| 291 | `saber_cloud_city_dusk` | Cloud City Dusk blade | Uncommon | Creyon | no |
+| 292 | `saber_ring_of_kafrene` | Ring of Kafrene blade | Uncommon | Creyon | no |
+| 293 | `saber_hypergate_drift` | Hypergate Drift blade | Uncommon | Creyon | no |
+| 294 | `saber_angel` | Angel blade | Mythical | Creyon | no |
+| 295 | `saber_bardotta_calm` | Bardotta Calm blade | Common | Creyon | no |
+| 296 | `saber_alzoc_ice` | Alzoc Ice blade | Common | Creyon | no |
+| 297 | `saber_fest_steppe` | Fest Steppe blade | Common | Creyon | no |
+| 298 | `saber_ansion_plains` | Ansion Plains blade | Common | Creyon | no |
+| 299 | `saber_sernpidal_dust` | Sernpidal Dust blade | Common | Creyon | no |
 
 A client ignores an id it does not know. Both catalogues' tests pin this exact list
 (ids, names, order), so a change to one fails until the other follows.
