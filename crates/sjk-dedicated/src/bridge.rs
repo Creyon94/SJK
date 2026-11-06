@@ -286,6 +286,8 @@ pub struct NativeGame {
     server_mod: Option<&'static dyn sjk_server_mod::ServerMod>,
     /// The movement rules it selects from its settings, which every player moves by.
     mod_movement: sjk_server_mod::ModMovement,
+    /// The private-duel rules it selects from its settings (`bridge_duel`).
+    duel_rules: sjk_game_jka::duel::DuelRules,
 }
 
 /// The serverId a world starts on. `SV_SpawnServer` uses `com_frameTime`, which is only
@@ -370,6 +372,7 @@ impl NativeGame {
         }
         let server_mod = crate::server_mods::selected(&cvars);
         let mod_movement = crate::server_mods::movement(server_mod, &cvars);
+        let duel_rules = crate::server_mods::duels(server_mod, &cvars);
         let (config_strings, sounds) = world_config_strings(
             &status_info,
             map.as_ref(),
@@ -480,6 +483,7 @@ impl NativeGame {
             scripts: Default::default(),
             server_mod,
             mod_movement,
+            duel_rules,
         };
         game.pool = EntityPool::with_budget(0, game.entity_budget());
         game.spawn_items();

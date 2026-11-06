@@ -111,6 +111,28 @@ What the mode does so far:
   at once.
 - **No OpenJK animation fixes.** JA+ is built on the 1.01 game code: `CS_LEGACY_FIXES`
   is 0 and the server runs none of them.
+- **JA+ private duels** (`sjk_game_jka::duel::DuelRules`, from VisionJK's `g_cmds.c`
+  `Cmd_EngageDuel_f`, `g_active.c` duel think and `japlus/g_japlus_dim.c`):
+  - *Isolation.* With `jp_DuelAlpha` 0 or more, in a free-for-all or team deathmatch,
+    duellists and everybody else do not block, hit or push each other: every trace and
+    move of a player leaves out the players it may not touch (`G_TempUnlink`,
+    `JP_Trace`), so missiles fly through them too. The challenge's own line still stops
+    at a duellist, as JA+'s does. SJK predicts it on JA+ servers from the same server
+    info ([networking.md](networking.md)), as the JA+ plugin does.
+  - *The challenge.* Any weapon challenges, the saber is needed to accept (both
+    sabers in hand and not thrown); none with a jetpack or the cloak ("You have to
+    disable your jetpack in order to duel."), in a melee grapple or from a spectator;
+    the game types it is refused in are said (`@@@NODUEL_GAMETYPE`), and a duellist
+    waits 2 seconds after a duel (`@@@CANTDUEL_JUSTDID`), unless challenged.
+  - *The start.* Both get 100 health, a full Force pool and `jp_duelStartArmor`; the
+    sabers go off and stay off when the duel begins (the duellists light them).
+  - *`engage_FullForceDuel`*: a challenge whose duel lets the Force work between its two
+    (every power usable, powers on each other, any damage from the opponent), told as
+    JA+ tells it ("is challenging you in Full Force"); the acceptor takes the
+    challenger's kind. The duel key's challenge is an ordinary one.
+  - *The end.* The winner's health and armour before it is healed are told as
+    `jp_endDuelBroadcastMSG` says; it is healed and protected as before, and keeps 25
+    armour.
 
 | Setting | `jp_cinfo` bit | Effect |
 | --- | --- | --- |
@@ -120,6 +142,13 @@ What the mode does so far:
 | `jp_slideOnPlayer` 1 | 5 | Standing on a player slides, as in the base game |
 | `jp_noAutoReplier` 1 | 14 | Only asks the JA+ plugin to keep its automatic replies off |
 | `dmflags` 256 | | The base game's collision boxes (the dual jump attack's feet) |
+| `jp_DuelAlpha` 0 or more (default 100), -1 | | Duellists and the others pass through each other; -1 switches it off (the alpha itself is the clients') |
+| `jp_allowTeamDuel` 1 (default) | | Private duels in team deathmatch, against the other team |
+| `jp_removeDistanceDuelLimit` 1 (default) | | A duel no longer ends at 1024 units apart |
+| `jp_autoDuelBOW` 1 (default) | | Both duellists bow when the duel is accepted |
+| `jp_duelStartArmor` 100 (default) | | The armour both duellists start with |
+| `jp_endDuelBroadcastMSG` 1 (default), 2, 0 | | The winner's health and armour: everyone, the two, nobody |
+| `jp_privateDuelForceRegen` 200 (default) | | Milliseconds a Force point takes to come back in a private duel |
 
 A `jp_cinfo` bit is only announced for a rule the server plays, whatever its setting
 says ([cinfo.rs](../crates/sjk-server-mod-japlus/src/cinfo.rs) is the table): single
@@ -128,16 +157,22 @@ player attacks, the new DFA, ledge grab, the alternate dimension, model scale,
 several of them on by default. JA+'s extra animations (`jp_newGLAAnims`) need its own
 animation files, which SJK does not ship.
 
-Not built yet, in the order planned: JA+ duels (isolation from the other players, the
-full-force duel, the winner's heal), saber damage (`jp_alterDMG`, the special moves'
+Not built yet, in the order planned: saber damage (`jp_alterDMG`, the special moves'
 damage, the throw), the Force changes (`jp_forceCombo`, `jp_fixAbsorb`, `jp_pushAll`...)
 and the `/kill` frag; then the emotes and player commands (`amkiss`, `amflip`, the hook,
 `/saber`...); then the admin system, logged in with SJK identity keys, with JA+'s rank
 passwords only if the owner allows them; then chat, highlander, blocking walls and model
 scale. Until then:
 
-- `jp_DuelAlpha` is announced, as JA+ does, but duellists still collide with the other
-  players; EternalJK and the JA+ plugin predict them passing through.
+- What the JA+ duels leave out: the 3 seconds of walking through players after a duel
+  (VisionJK's own `EF_PASS_PLAYERS` bit: the JA+ plugin and EternalJK have no rule for
+  it, so they would be pulled back), the saber throw in a full-force duel (the movement's
+  check, which every client predicts, still forbids it), the Force push and pull of a
+  duellist's missiles (VisionJK `w_force.c:3796`), the alternate dimension, the duel's
+  `DUEL END` log line, and `jp_DuelAlpha`'s alpha (drawn by the clients). VisionJK
+  traces some lines with JA+'s list and some without; SJK leaves the isolated players
+  out of every trace of a player but the challenge's, so a bystander's blaster bolt or
+  disruptor shot also goes through a duellist rather than being spent on it.
 - `jp_gripSpeedScale` is announced, but gripping keeps the movement's fixed 0.8.
 - `jp_highlander`, `jp_forceCombo` and the other announced settings change nothing on
   the server.

@@ -190,15 +190,21 @@ impl Forcer<'_, '_> {
     /// ms.
     pub(crate) fn usable_on(&mut self, number: u16, power: usize) -> bool {
         let (level_time, gametype) = (self.frame.level_time, self.frame.gametype);
+        let (client, full_force) = (self.frame.client, self.frame.full_force);
         let Some(victim) = self.frame.others.player(number) else {
             return false;
         };
         if crate::force_powers::has_ysalamiri(victim.state, gametype) {
             return false;
         }
-        if !crate::force_powers::can_use_now(self.state, power, level_time, gametype)
-            || self.state.duel_in_progress()
-            || victim.state.duel_in_progress()
+        if !crate::force_powers::can_use_now(self.state, power, level_time, gametype, full_force)
+            || crate::duel::force_refused(
+                client,
+                crate::duel::duel_of(self.state),
+                number,
+                crate::duel::duel_of(victim.state),
+                full_force,
+            )
         {
             return false;
         }

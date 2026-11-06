@@ -1,3 +1,24 @@
+## JA+ duels on SJK's server (`g_mod japlus`)
+
+06/11/2026, `personal/japlus-duels` from `main` `d473a66b`, the next step of the JA+
+server mode: JA+'s private duels from VisionJK's rebuild (`g_cmds.c` `Cmd_EngageDuel_f`,
+`g_active.c` duel think, `japlus/g_japlus_dim.c`), as plain rule values the shared duel
+code reads (`sjk_game_jka::duel::DuelRules`, new `ServerMod::duels` and
+`ServerMod::command` hooks). Duellists and the others pass through each other with
+`jp_DuelAlpha` 0 or more (every trace of a player leaves them out); the JA+ challenge,
+start refill, bow, unlit sabers, `engage_FullForceDuel`, no distance limit and the
+winner's report run as [server.md](server.md#ja-mode) lists; SJK's client now predicts
+JA+ isolation only where the server plays it ([networking.md](networking.md)). Verified
+on Windows 11: unit tests of the shared rules (base game unchanged, JA+ challenge,
+start, think, winner report, full force), of the JA+ settings, of the client's
+prediction rule, and server tests with three bots on a mapless server (base game
+collides and duels as before; JA+ isolation on and off with `jp_DuelAlpha`; refill and
+bow; full-force damage; base game without `engage_FullForceDuel`). Not verified: a duel
+in a real game with a client, on a map, against EternalJK or the JA+ plugin; no
+comparison with a running JA+ or VisionJK server. Left out: the 3 seconds of walking
+through players after a duel (no JA+ client predicts it), the saber throw in a
+full-force duel, pushing a duellist's missiles, the alternate dimension.
+
 ## SJK's server as a JA+ server (`g_mod japlus`), step 1
 
 06/11/2026, `personal/japlus-mode` from `main` `a1ca867a`, Sol's request: remake JA+'s

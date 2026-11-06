@@ -8948,3 +8948,17 @@ test: serverinfo: gamename JA+ Mod v2.4 B7 and jp_cinfo 19. JA+ tools mod loads 
 test: Wall flip off another player (bot), roll, yellow DFA: no pulling back, as on JA+ servers.
 test: rcon jp_allowflipkick 0: the flip off a player stops, still no pulling back.
 note: Not run with a client yet. Create game has no server mod choice yet.
+
+[japlus-duels]
+area: Gameplay
+title: JA+ duels on SJK's server (g_mod japlus): isolation, JA+ challenge, full force
+change: Duellists and the others pass through each other (jp_DuelAlpha 0+), SJK predicts it.
+change: Any weapon challenges; start at 100 health, full Force, 100 armour; bow; sabers unlit.
+change: engage_FullForceDuel: Force works between the two. Winner's health/armour told.
+test: Start sjk-server with +set g_mod japlus (as in japlus-mode), join with a bot (addbot).
+test: Duel the bot (duel key on it, then its acceptance) or a second client: both bow.
+test: Walk through a third player while duelling, and as the third through the duellists.
+test: rcon jp_DuelAlpha -1: duellists collide again, still no pulling back.
+test: /engage_FullForceDuel on a second client, accept: push and lightning work in the duel.
+test: Win: centre print with health and armour; console line for everyone.
+note: Not run with a client yet. No 3 s pass-through after a duel (no JA+ client predicts it).

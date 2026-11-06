@@ -365,6 +365,9 @@ pub struct ForceFrame<'a> {
     /// The sounds the user's `Cmd_ToggleSaber_f` plays turning its sabers off, each hand's
     /// (`saber[n].soundOff`): a gripped user's saber is kept off.
     pub saber_off_sounds: [SaberOffSound; 2],
+    /// The players in a JA+ full-force duel, whose powers work in it
+    /// ([`crate::duel::FullForce`]); none on the base game.
+    pub full_force: crate::duel::FullForce,
 }
 
 /// A hand's off-sound as `Cmd_ToggleSaber_f` plays it (`g_cmds.c:2720-2730`).
@@ -841,6 +844,7 @@ impl Forcer<'_, '_> {
             power,
             self.frame.level_time,
             self.frame.gametype,
+            self.frame.full_force,
         )
     }
 
@@ -856,6 +860,7 @@ impl Forcer<'_, '_> {
             power,
             self.frame.level_time,
             self.frame.gametype,
+            self.frame.full_force,
         )
     }
 
@@ -1338,20 +1343,27 @@ pub enum UsableOn {
 }
 
 /// `ForcePowerUsableOn` for player `attacker` using `power` on player `other`: not on
-/// one with ysalamiri, not by one who may not use it now, not in or at a duel; a grip
-/// not at one absorbing or in a saber special; a push or pull not at one knocked down.
-/// (NPCs, the vehicle and siege cases, are not players.)
+/// one with ysalamiri, not by one who may not use it now, not in or at a duel (but in a
+/// JA+ full-force duel, [`crate::duel::force_refused`]); a grip not at one absorbing or in
+/// a saber special; a push or pull not at one knocked down. (NPCs, the vehicle and siege
+/// cases, are not players.)
 pub fn usable_on(
     attacker: &PlayerState,
     other: &PlayerState,
     power: usize,
     level_time: i32,
     gametype: i32,
+    full_force: crate::duel::FullForce,
 ) -> UsableOn {
     if has_ysalamiri(other, gametype)
-        || !can_use_now(attacker, power, level_time, gametype)
-        || attacker.duel_in_progress()
-        || other.duel_in_progress()
+        || !can_use_now(attacker, power, level_time, gametype, full_force)
+        || crate::duel::force_refused(
+            attacker.client_num(),
+            crate::duel::duel_of(attacker),
+            other.client_num(),
+            crate::duel::duel_of(other),
+            full_force,
+        )
     {
         return UsableOn::No;
     }
@@ -1387,12 +1399,16 @@ pub(crate) fn has_ysalamiri(state: &PlayerState, gametype: i32) -> bool {
         || state.powerups[PW_YSALAMIRI] != 0
 }
 
-/// `BG_CanUseFPNow` (`bg_misc.c:1725-1788`).
+/// `BG_CanUseFPNow` (`bg_misc.c:1725-1788`). A duellist uses only its saber Force and
+/// jump, but in a JA+ full-force duel, where every power works (VisionJK
+/// `bg_misc.c:1754-1769`, the server's side only: the movement's own check, which clients
+/// predict, is unchanged).
 pub(crate) fn can_use_now(
     state: &PlayerState,
     power: usize,
     level_time: i32,
     gametype: i32,
+    full_force: crate::duel::FullForce,
 ) -> bool {
     let field = |index: usize| state.raw_field(index).unwrap_or(0);
     if has_ysalamiri(state, gametype)
@@ -1406,6 +1422,7 @@ pub(crate) fn can_use_now(
     }
     let lock_frame = field(PS_SABER_LOCK_FRAME);
     if field(PS_DUEL_IN_PROGRESS) != 0
+        && !full_force.has(state.client_num())
         && !matches!(power, FP_SABER_OFFENSE | FP_SABER_DEFENSE | FP_LEVITATION)
         && (lock_frame == 0 || power != FP_PUSH)
     {
@@ -1454,6 +1471,7 @@ pub(crate) fn usable(
     power: usize,
     level_time: i32,
     gametype: i32,
+    full_force: crate::duel::FullForce,
 ) -> bool {
     if has_ysalamiri(state, gametype)
         || health <= 0
@@ -1462,7 +1480,7 @@ pub(crate) fn usable(
     {
         return false;
     }
-    if !can_use_now(state, power, level_time, gametype)
+    if !can_use_now(state, power, level_time, gametype, full_force)
         || state.raw_field(PS_KNOWN).unwrap_or(0) & (1 << power) == 0
     {
         return false;
