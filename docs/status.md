@@ -1,3 +1,16 @@
+## Rig chains that fork or stack joints no longer jump
+
+06/11/2026, `fix/rig-dynamics-forked-chains` from `main` `26526290`. A dynamic chain whose
+rig stacks joints on one spot or forks threw its bones about: a near-zero bone aimed its
+parent along the bind matrices' rounding, and a fork's branches aimed from where their
+parent had been before it turned. A single pass, parents first, now places each joint
+from where its parent stands, and a bone under `MIN_BONE` turns nothing
+([rig-models.md](rig-models.md#dynamic-joints-tails-capes)). Verified on Windows 10: a
+unit test of such a fork (fails on `main`, 22.8 degrees in a frame), the ignored sway test
+on a local hair rig (largest turn in a frame 137 degrees before, 13 after), fmt, build,
+clippy, workspace tests. Not verified: in a game on this branch alone; the rig's short
+bones still stray far from their animated direction under a hard sway.
+
 ## Clan chats: each clan its own
 
 05/11/2026, `personal/clan-chat-own` from `main` `fcf82fc9`, with hub branch

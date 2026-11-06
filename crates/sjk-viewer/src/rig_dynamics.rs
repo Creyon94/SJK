@@ -32,6 +32,9 @@ pub(super) const GRAVITY: f32 = 1600.0;
 /// A frame step longer than this (a hitch, a teleport, the first frame) starts the
 /// chain again at the animated pose.
 const MAX_STEP: f32 = 0.1;
+/// A bone shorter than this, in game units, has no direction to aim along: some rigs
+/// stack joints on one spot, and their offsets are only the bind matrices' rounding.
+const MIN_BONE: f32 = 0.01;
 
 /// One `dynamic` line's chain: how it hangs, swings and wags, and whether the body
 /// pushes it away.
@@ -254,55 +257,41 @@ pub(super) fn simulate(
             state.points[slot] += *velocity * step;
         }
     }
-    // Each point at its bone's length from its parent's (simulated or animated),
-    // pushed out of the body, then at its length again.
-    for slot in 0..count {
-        let index = chains.joints[slot];
-        let Some(parent) = joints[index].parent else {
-            continue;
-        };
-        let anchor = chains
-            .joints
-            .iter()
-            .position(|&joint| joint == parent)
-            .map_or(pose[parent].translation, |at| state.points[at]);
-        let bone = pose[index].translation - pose[parent].translation;
-        let at_length = |point: Vec3A| {
-            let towards = (point - anchor)
-                .try_normalize()
-                .or_else(|| bone.try_normalize())
-                .unwrap_or(Vec3A::Z);
-            anchor + towards * bone.length()
-        };
-        state.points[slot] = at_length(state.points[slot]);
-        if chains.settings[slot].collide
-            && push_out(
-                chains,
-                slot,
-                pose,
-                &mut state.points[slot],
-                &mut state.velocities[slot],
-            )
-        {
-            state.points[slot] = at_length(state.points[slot]);
-        }
-    }
-    // Each parent turned to point at its simulated child; the children keep their
-    // animated place under it.
     state.animated.clear();
     state.animated.extend_from_slice(pose);
     state.aimed.clear();
     state.aimed.resize(pose.len(), false);
+    // Parents first, so each joint's parent already stands where it will be drawn.
     for slot in 0..count {
         let index = chains.joints[slot];
         let Some(parent) = joints[index].parent else {
             continue;
         };
         let local = state.animated[parent].inverse() * state.animated[index];
-        if !state.aimed[parent] {
-            let origin = pose[parent].translation;
-            let now = ((pose[parent] * local).translation - origin).try_normalize();
-            let wanted = (state.points[slot] - origin).try_normalize();
+        let length = local.translation.length();
+        let origin = pose[parent].translation;
+        // Each point at its bone's length from where its parent stands, pushed out of
+        // the body, then at its length again.
+        let animated = (pose[parent] * local).translation - origin;
+        let at_length = |point: Vec3A| {
+            let towards = (point - origin)
+                .try_normalize()
+                .or_else(|| animated.try_normalize())
+                .unwrap_or(Vec3A::Z);
+            origin + towards * length
+        };
+        let mut point = at_length(state.points[slot]);
+        if chains.settings[slot].collide
+            && push_out(chains, slot, pose, &mut point, &mut state.velocities[slot])
+        {
+            point = at_length(point);
+        }
+        // The parent turned to point at its first real child. A bone with no length
+        // gives no direction, only rounding noise, so it turns nothing and leaves the
+        // parent to the next child.
+        if length >= MIN_BONE && !state.aimed[parent] {
+            let now = animated.try_normalize();
+            let wanted = (point - origin).try_normalize();
             if let (Some(now), Some(wanted)) = (now, wanted) {
                 let turn = Mat3A::from_quat(Quat::from_rotation_arc(now.into(), wanted.into()));
                 pose[parent].matrix3 = turn * pose[parent].matrix3;
@@ -310,6 +299,9 @@ pub(super) fn simulate(
             state.aimed[parent] = true;
         }
         pose[index] = pose[parent] * local;
+        // The joint's point is where it now stands: another branch of a fork follows
+        // its parent's turn, and its own chain goes on from there.
+        state.points[slot] = pose[index].translation;
     }
 }
 
