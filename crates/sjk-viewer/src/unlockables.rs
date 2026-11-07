@@ -4081,7 +4081,7 @@ pub(crate) static ALL: [Unlockable; 300] = [
         smith: CREYON,
         description: "Sernpidal under the falling moon: dust in the air pours down the blade from point to hand, and a thin red cloud hangs on round it.",
         how_to_get: COMING_TO_HOLOCRONS,
-    }, // 6/11/2026: back with its own picture, sounds and words (Sol: an original God Ki is welcome).
+    }, // 6/11/2026: back with its own picture, sounds and words (Foshin's idea).
     Unlockable {
         id: "saber_trayus_scythe",
         number: 300,
