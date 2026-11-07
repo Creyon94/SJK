@@ -30,7 +30,15 @@ The site (site/assets/site.js, parseChangelog) reads the release headings,
 introductions and recap lines too.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
-## Unreleased
+## 2026.1107.1 (Alpha) | 07/11/2026
+
+Fixes for the Heimdall kicks on JoF, map weather, Creyon's 130 blades and JA+ games in Create game.
+
+> Heimdall kicks: The random "Set /cl_timeNudge 0" kicks on JoF are fixed: your commands are now timed the way other clients' are (found by Milamber).
+> Weather: Maps can get rain, storms, snow and fog, with lightning, rain-mirroring puddles and rain and wind sounds you can switch on.
+> New blades: 130 new blades by Creyon, 17 of them Mythical, in the new Beta Edition; they come to holocrons soon.
+> JA+ games: Create game can host a JA+ game, with JA+ Force rules, saber damage and duels.
+> Smoother: The model picker no longer freezes while you browse, and rain and fog cost far less on the GPU.
 
 = s_weatherSounds: Hear the rain and the wind when a map has weather, quieter under a roof.
 = r_clouds reset: Volumetric clouds over open sky are now off by default under every graphics preset; switch them on here if you like them.
