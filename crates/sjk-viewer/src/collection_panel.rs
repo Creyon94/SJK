@@ -2908,7 +2908,7 @@ mod tests {
                 "saber_vergence_scatter",
                 "saber_taris_undercity",
                 "saber_angel",
-                "saber_trayus_scythe",
+                "saber_malachor_rose",
             ]
         );
         panel.shader_filter.query = "nothing".to_owned();

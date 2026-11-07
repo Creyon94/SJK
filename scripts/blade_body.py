@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Make the Trayus Scythe blade's body picture (`assets/blade_body/trayus.png`).
+"""Make the Malachor Rose blade's body picture (`assets/blade_body/malachor_rose.png`).
 
 An original picture, drawn from nothing but this script: pale rose energy, clouded with white
 and a few deeper magenta knots, seamless along its length (the blade scrolls it), soft at its
@@ -11,7 +11,7 @@ import numpy as np
 from PIL import Image
 
 WIDTH, HEIGHT = 280, 72
-OUT = pathlib.Path(__file__).resolve().parent.parent / "crates/sjk-viewer/assets/blade_body/trayus.png"
+OUT = pathlib.Path(__file__).resolve().parent.parent / "crates/sjk-viewer/assets/blade_body/malachor_rose.png"
 
 
 def periodic_noise(rng, cells_x, cells_y):

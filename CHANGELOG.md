@@ -32,7 +32,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
-- Trayus Scythe blade (blade 300, Mythical): the blade left out of the 130, back with its own name, picture and sounds; the 131st of Creyon's round. It comes to holocrons with the others _(Creyon, after Foshin's idea)_
+- Malachor Rose blade (blade 300, Mythical): the blade left out of the 130, back with its own name, picture and sounds; the 131st of Creyon's round. It comes to holocrons with the others _(Creyon, after Foshin's idea)_
 
 ## 2026.1107.1 (Alpha) | 07/11/2026
 

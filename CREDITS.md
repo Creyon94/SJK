@@ -1050,7 +1050,7 @@ falling blossoms like the Spectral's, and a branch with a flower where the blade
 (blade 166, 21/10/2026), with all of it but the hilt, which waits for custom hilts.
 Kushina also gave the idea of the Angel blade (05/11/2026).
 
-Foshin, a player, gave the idea of the blade that came back as the Trayus Scythe
+Foshin, a player, gave the idea of the blade that came back as the Malachor Rose
 (blade 300, 07/11/2026), the 131st blade of Creyon's round.
 
 Kushina also asked for JA+ and jaPRO plugin options she would not have to type as a

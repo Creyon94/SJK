@@ -1,4 +1,4 @@
-// Trayus Scythe (id saber_trayus_scythe): the Force as the masters of Trayus Academy on Malachor V taught it, drawn to a single thin edge: a body of pale rose light clouded with white, climbing the blade, a fine sheen along its outline and a narrow tear in space around it. Long crescents of white light and crimson wheel round it in dark red air, with small stars.
+// Malachor Rose (id saber_malachor_rose): the Force as it was wielded on Malachor V, drawn to a single thin edge: a body of pale rose light clouded with white, climbing the blade, a fine sheen along its outline and a narrow tear in space around it. Long crescents of white light and crimson wheel round it in dark red air, with small stars.
 // @part Crimson aura
 // @part Torn space
 // @part Light sickles
@@ -144,7 +144,7 @@ vec4 sig_solid_flat(vec4 o, vec2 b, float px){
   float fr = detail_jag(b, px)*0.4;
   float cov = (1.0 - smoothstep(-0.34 - px + fr, 0.1 + px + fr, d))*smoothstep(-0.25, 0.2, b.y);
   if (cov <= 0.0) return res;
-  // the body itself: its picture (`assets/blade_body/trayus.png`, made by `scripts/blade_body.py`), lengthwise along the blade, climbing it, a second slower layer so it never repeats
+  // the body itself: its picture (`assets/blade_body/malachor_rose.png`, made by `scripts/blade_body.py`), lengthwise along the blade, climbing it, a second slower layer so it never repeats
   float across = clamp((b.x - e.x)/max(e.y - e.x, 0.05), 0.02, 0.98);
   vec3 t1 = skinBody(vec2(b.y/13.0 - uClock*0.13, across));
   vec3 t2 = skinBody(vec2(b.y/21.0 - uClock*0.055 + 0.37, 0.1 + 0.8*across));

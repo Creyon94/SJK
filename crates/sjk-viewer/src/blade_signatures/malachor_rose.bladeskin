@@ -159,13 +159,13 @@
     }
   },
   "sounds": {
-    "on": "sound/sjk/creyon/trayus_scythe/on.wav",
-    "off": "sound/sjk/creyon/trayus_scythe/off.wav",
-    "hum": "sound/sjk/creyon/trayus_scythe/hum.wav",
+    "on": "sound/sjk/creyon/malachor_rose/on.wav",
+    "off": "sound/sjk/creyon/malachor_rose/off.wav",
+    "hum": "sound/sjk/creyon/malachor_rose/hum.wav",
     "swings": [
-      "sound/sjk/creyon/trayus_scythe/swing1.wav",
-      "sound/sjk/creyon/trayus_scythe/swing2.wav",
-      "sound/sjk/creyon/trayus_scythe/swing3.wav"
+      "sound/sjk/creyon/malachor_rose/swing1.wav",
+      "sound/sjk/creyon/malachor_rose/swing2.wav",
+      "sound/sjk/creyon/malachor_rose/swing3.wav"
     ]
   }
 }

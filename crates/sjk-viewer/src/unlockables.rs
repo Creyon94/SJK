@@ -4083,16 +4083,16 @@ pub(crate) static ALL: [Unlockable; 300] = [
         how_to_get: COMING_TO_HOLOCRONS,
     }, // 6/11/2026: back with its own picture, sounds and words (Foshin's idea).
     Unlockable {
-        id: "saber_trayus_scythe",
+        id: "saber_malachor_rose",
         number: 300,
-        name: "Trayus Scythe blade",
+        name: "Malachor Rose blade",
         kind: Kind::BladeSkin,
         tier: Rarity::Mythical,
         chroma: false,
         droppable: false,
         edition: crate::editions::ALPHA,
         smith: CREYON,
-        description: "The Force as the masters of Trayus Academy on Malachor V taught it, drawn to a single thin edge: a body of pale rose light clouded with white, climbing the blade, a fine sheen along its outline and a narrow tear in space around it. Long crescents of white light and crimson wheel round it in dark red air, with small stars.",
+        description: "The Force as it was wielded on Malachor V, drawn to a single thin edge: a body of pale rose light clouded with white, climbing the blade, a fine sheen along its outline and a narrow tear in space around it. Long crescents of white light and crimson wheel round it in dark red air, with small stars.",
         how_to_get: COMING_TO_HOLOCRONS,
     },
 ];
@@ -4638,7 +4638,7 @@ mod tests {
                 "saber_fest_steppe",
                 "saber_ansion_plains",
                 "saber_sernpidal_dust",
-                "saber_trayus_scythe",
+                "saber_malachor_rose",
             ]
         );
         assert!(blade_skins().all(|skin| [SOL, CREYON].contains(&skin.smith)));
@@ -4686,7 +4686,7 @@ mod tests {
                 "saber_vergence_scatter",
                 "saber_taris_undercity",
                 "saber_angel",
-                "saber_trayus_scythe",
+                "saber_malachor_rose",
             ]
         );
         assert_eq!(
@@ -5668,7 +5668,7 @@ mod tests {
                 ("saber_fest_steppe", "Fest Steppe blade"),
                 ("saber_ansion_plains", "Ansion Plains blade"),
                 ("saber_sernpidal_dust", "Sernpidal Dust blade"),
-                ("saber_trayus_scythe", "Trayus Scythe blade"),
+                ("saber_malachor_rose", "Malachor Rose blade"),
             ]
         );
         assert!(ALL.iter().all(Unlockable::is_blade_skin));

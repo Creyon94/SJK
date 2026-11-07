@@ -324,8 +324,8 @@ pub(crate) const SIGNATURES: [Signature; 263] = [
     signature!("ansion_plains"),
     signature!("sernpidal_dust"),
     signature!("angel"),
-    // 6/11/2026: the Trayus Scythe back, all its own (blade 300).
-    signature!("trayus_scythe"),
+    // 6/11/2026: the Malachor Rose back, all its own (blade 300).
+    signature!("malachor_rose"),
 ];
 
 /// The lab's helpers every signature may call (`lab.glsl`, translated).

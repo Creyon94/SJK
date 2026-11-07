@@ -930,9 +930,9 @@ pub(crate) fn material(
         core.as_raw(),
     ]);
     // The picture a signature may paint its body with (`skinBody`), the same in every material:
-    // the Trayus Scythe's (blade 300), an original made by `scripts/blade_body.py`.
+    // the Malachor Rose's (blade 300), an original made by `scripts/blade_body.py`.
     static BODY: std::sync::LazyLock<image::RgbaImage> = std::sync::LazyLock::new(|| {
-        image::load_from_memory(include_bytes!("../assets/blade_body/trayus.png"))
+        image::load_from_memory(include_bytes!("../assets/blade_body/malachor_rose.png"))
             .expect("the embedded body picture decodes")
             .to_rgba8()
     });

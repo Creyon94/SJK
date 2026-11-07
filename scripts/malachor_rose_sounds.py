@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Make the Trayus Scythe blade's sounds: on, off, hum and three swings.
+"""Make the Malachor Rose blade's sounds: on, off, hum and three swings.
 
 Original sounds, synthesised from nothing but this script (sines, a little shaped noise):
 a low saber hum under a thin, slowly breathing shimmer high above it, the light the blade
 is made of. Written as 22050 Hz mono 16-bit WAVs into the folder given (default
-`target/trayus_sounds`), named as the blade's file asks: `sound/sjk/creyon/trayus_scythe/`
+`target/malachor_rose_sounds`), named as the blade's file asks: `sound/sjk/creyon/malachor_rose/`
 in the hub's `sjk_skins_2` pack. The seed keeps them the same from run to run."""
 
 import math
@@ -103,7 +103,7 @@ def swing(seed, length, depth):
 
 
 def main():
-    folder = pathlib.Path(sys.argv[1]) if len(sys.argv) > 1 else pathlib.Path("target/trayus_sounds")
+    folder = pathlib.Path(sys.argv[1]) if len(sys.argv) > 1 else pathlib.Path("target/malachor_rose_sounds")
     folder.mkdir(parents=True, exist_ok=True)
     write(folder / "hum.wav", hum())
     write(folder / "on.wav", ignite(0.9, True))
