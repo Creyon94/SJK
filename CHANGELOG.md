@@ -30,6 +30,10 @@ The site (site/assets/site.js, parseChangelog) reads the release headings,
 introductions and recap lines too.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
+## Unreleased
+
+- Trayus Scythe blade (blade 300, Mythical): the blade left out of the 130, back with its own name, picture and sounds; the 131st of Creyon's round. It comes to holocrons with the others _(Creyon, after Foshin's idea)_
+
 ## 2026.1107.1 (Alpha) | 07/11/2026
 
 Fixes for the Heimdall kicks on JoF, map weather, Creyon's 130 blades and JA+ games in Create game.
